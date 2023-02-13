@@ -865,8 +865,9 @@ method emit_expr (env:environment) exp =
               let r1 = self#emit_tuple env new_args in
               let rarg = Array.sub r1 1 (Array.length r1 - 1) in
               let rd = self#regs_for ty in
-              let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv rarg) in
-              let loc_res = Proc.loc_results (Reg.typv rd) in
+              let (loc_arg, stack_ofs_args) = Proc.loc_arguments (Reg.typv rarg) in
+              let (loc_res, stack_ofs_res) = Proc.loc_results_call (Reg.typv rd) in
+              let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
               self#insert_move_args env rarg loc_arg stack_ofs;
               self#insert_debug env (Iop new_op) dbg
                           (Array.append [|r1.(0)|] loc_arg) loc_res;
@@ -876,8 +877,9 @@ method emit_expr (env:environment) exp =
           | Icall_imm _ ->
               let r1 = self#emit_tuple env new_args in
               let rd = self#regs_for ty in
-              let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv r1) in
-              let loc_res = Proc.loc_results (Reg.typv rd) in
+              let (loc_arg, stack_ofs_args) = Proc.loc_arguments (Reg.typv r1) in
+              let (loc_res, stack_ofs_res) = Proc.loc_results_call (Reg.typv rd) in
+              let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
               self#insert_move_args env r1 loc_arg stack_ofs;
               self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
@@ -1309,7 +1311,7 @@ method private insert_return (env:environment) r (traps:trap_action list) =
   match r with
     None -> ()
   | Some r ->
-      let loc = Proc.loc_results (Reg.typv r) in
+      let loc = Proc.loc_results_return (Reg.typv r) in
       if env.region_tail then
         self#insert env (Iop Iendregion) (List.hd env.regions) [||];
       self#insert_moves env r loc;
@@ -1345,19 +1347,20 @@ method emit_tail (env:environment) exp =
           match new_op with
             Icall_ind ->
               let r1 = self#emit_tuple env new_args in
+              let rd = self#regs_for ty in
               if endregion && tail then
                 self#insert env (Iop Iendregion) (List.hd env.regions) [||];
               let endregion = endregion && not tail in
               let rarg = Array.sub r1 1 (Array.length r1 - 1) in
-              let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv rarg) in
+              let (loc_arg, stack_ofs_args) = Proc.loc_arguments (Reg.typv rarg) in
+              let (loc_res, stack_ofs_res) = Proc.loc_results_call (Reg.typv rd) in
+              let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
               if stack_ofs = 0 && trap_stack_is_empty env && not endregion then begin
                 let call = Iop (Itailcall_ind) in
                 self#insert_moves env rarg loc_arg;
                 self#insert_debug env call dbg
                             (Array.append [|r1.(0)|] loc_arg) [||];
               end else begin
-                let rd = self#regs_for ty in
-                let loc_res = Proc.loc_results (Reg.typv rd) in
                 self#insert_move_args env rarg loc_arg stack_ofs;
                 self#insert_debug env (Iop new_op) dbg
                             (Array.append [|r1.(0)|] loc_arg) loc_res;
@@ -1373,10 +1376,13 @@ method emit_tail (env:environment) exp =
               end
           | Icall_imm { func; } ->
               let r1 = self#emit_tuple env new_args in
+              let rd = self#regs_for ty in
               if endregion && tail then
                 self#insert env (Iop Iendregion) (List.hd env.regions) [||];
               let endregion = endregion && not tail in
-              let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv r1) in
+              let (loc_arg, stack_ofs_args) = Proc.loc_arguments (Reg.typv r1) in
+              let (loc_res, stack_ofs_res) = Proc.loc_results_call (Reg.typv rd) in
+              let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
               if stack_ofs = 0 && trap_stack_is_empty env && not endregion then begin
                 let call = Iop (Itailcall_imm { func; }) in
                 self#insert_moves env r1 loc_arg;
@@ -1387,8 +1393,6 @@ method emit_tail (env:environment) exp =
                 self#insert_moves env r1 loc_arg';
                 self#insert_debug env call dbg loc_arg' [||];
               end else begin
-                let rd = self#regs_for ty in
-                let loc_res = Proc.loc_results (Reg.typv rd) in
                 self#insert_move_args env r1 loc_arg stack_ofs;
                 self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
                 set_traps_for_raise env;

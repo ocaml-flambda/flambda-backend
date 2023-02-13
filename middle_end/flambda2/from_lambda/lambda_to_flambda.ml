@@ -1632,10 +1632,54 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
 and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     ({ kind; params; return; body; attr; loc; mode; region } : L.lfunction) :
     Function_decl.t =
+  let return : Function_decl.return_kind =
+    let[@local] normal_return () : Function_decl.return_kind =
+      Normal_return (Flambda_arity.With_subkinds.create
+                       [Flambda_kind.With_subkind.from_lambda return])
+    in
+    if attr.is_a_functor || attr.stub then normal_return () else
+    match return with
+    | Pvalue (Pvariant { consts = []; non_consts = [(0, field_kinds)] }) ->
+      let unboxed_function_slot =
+        Function_slot.create (Compilation_unit.get_current_exn ())
+          ~name:((Ident.name fid) ^ "_unboxed")
+          Flambda_kind.With_subkind.any_value
+      in
+      Multiple_return (
+        List.map Flambda_kind.With_subkind.from_lambda_value_kind field_kinds,
+        unboxed_function_slot)
+    | Pvalue (Pvariant { consts = []; non_consts = [(tag, field_kinds)] })
+      when tag = Obj.double_array_tag ->
+      let unboxed_function_slot =
+        Function_slot.create (Compilation_unit.get_current_exn ())
+          ~name:((Ident.name fid) ^ "_unboxed")
+          Flambda_kind.With_subkind.any_value
+      in
+      assert (List.for_all (fun kind -> kind = Lambda.Pfloatval) field_kinds);
+      Unboxed_float_record (List.length field_kinds, unboxed_function_slot)
+    | Pvalue Pfloatval ->
+      let unboxed_function_slot =
+        Function_slot.create (Compilation_unit.get_current_exn ())
+          ~name:((Ident.name fid) ^ "_unboxed")
+          Flambda_kind.With_subkind.any_value
+      in
+      Unboxed_float unboxed_function_slot
+    | Pvalue (Pgenval | Pboxedintval _ | Pintval | Pvariant _ | Parrayval _)
+    | Ptop | Pbottom | Punboxed_float | Punboxed_int _ ->
+      normal_return ()
+  in
   let num_trailing_local_params =
     match kind with Curried { nlocal } -> nlocal | Tupled -> 0
   in
-  let body_cont = Continuation.create ~sort:Return () in
+  let body_cont =
+    match return with
+    | Normal_return _ ->
+      Continuation.create ~sort:Return ()
+    | Multiple_return _
+    | Unboxed_float _
+    | Unboxed_float_record _ ->
+      Continuation.create ~sort:Normal_or_exn ~name:"boxed_return" ()
+  in
   let body_exn_cont = Continuation.create () in
   let free_idents_of_body =
     match precomputed_free_idents with
@@ -1664,10 +1708,6 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     List.map
       (fun (param, kind) -> param, Flambda_kind.With_subkind.from_lambda kind)
       params
-  in
-  let return =
-    Flambda_arity.With_subkinds.create
-      [Flambda_kind.With_subkind.from_lambda return]
   in
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
     ~return ~return_continuation:body_cont ~exn_continuation ~my_region ~body

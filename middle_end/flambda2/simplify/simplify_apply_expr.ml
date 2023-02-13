@@ -55,7 +55,7 @@ let record_free_names_of_apply_as_used0 apply ~use_id ~exn_cont_use_id data_flow
   in
   Flow.Acc.add_apply_conts
     ~exn_cont:(exn_cont_use_id, exn_cont)
-    ~result_cont data_flow
+    ~result_cont ~result_arity:(Apply.return_arity apply) data_flow
 
 let record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply =
   DA.map_flow_acc dacc
@@ -763,18 +763,20 @@ let simplify_direct_function_call ~simplify_expr dacc apply
            - In the overapplication case, the correct return arity is only
            present on the application expression, so all we can do is check that
            the function being overapplied returns kind Value. *)
-        if not
-             (Flambda_arity.equal
-                (Flambda_arity.With_subkinds.to_arity result_arity)
-                (Flambda_arity.With_subkinds.to_arity
-                   result_arity_of_application))
-        then
-          Misc.fatal_errorf
-            "Wrong return arity for direct OCaml function call\n\
-            \     (expected %a, found  %a):@ %a"
-            Flambda_arity.With_subkinds.print result_arity
-            Flambda_arity.With_subkinds.print result_arity_of_application
-            Apply.print apply;
+        begin match
+            (Flambda_arity.equal
+               (Flambda_arity.With_subkinds.to_arity result_arity)
+               (Flambda_arity.With_subkinds.to_arity result_arity_of_application))
+          with
+          | true -> ()
+          | false | exception _ ->
+            Misc.fatal_errorf
+              "Wrong return arity for direct OCaml function call (expected %a, found \
+               %a):@ %a"
+              Flambda_arity.With_subkinds.print result_arity
+              Flambda_arity.With_subkinds.print result_arity_of_application Apply.print
+              apply
+        end;
         simplify_direct_full_application ~simplify_expr dacc apply function_decl
           ~params_arity ~result_arity ~result_types ~down_to_up
           ~coming_from_indirect ~callee's_code_metadata)

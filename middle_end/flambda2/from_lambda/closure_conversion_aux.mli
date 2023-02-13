@@ -289,6 +289,12 @@ end
     one declaration is when processing "let rec".) *)
 module Function_decls : sig
   module Function_decl : sig
+    type return_kind =
+      | Normal_return of Flambda_arity.With_subkinds.t
+      | Multiple_return of Flambda_kind.With_subkind.t list * Function_slot.t
+      | Unboxed_float of Function_slot.t
+      | Unboxed_float_record of int * Function_slot.t
+
     type t
 
     val create :
@@ -296,7 +302,7 @@ module Function_decls : sig
       function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
       params:(Ident.t * Flambda_kind.With_subkind.t) list ->
-      return:Flambda_arity.With_subkinds.t ->
+      return:return_kind ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
       my_region:Ident.t ->
@@ -318,7 +324,7 @@ module Function_decls : sig
 
     val params : t -> (Ident.t * Flambda_kind.With_subkind.t) list
 
-    val return : t -> Flambda_arity.With_subkinds.t
+    val return : t -> return_kind
 
     val return_continuation : t -> Continuation.t
 

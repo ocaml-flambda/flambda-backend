@@ -272,13 +272,18 @@ module With_subkind = struct
       | Tagged_immediate
       | Variant of
           { consts : Targetint_31_63.Set.t;
-            non_consts : t list Tag.Scannable.Map.t
+            non_consts : kind_and_subkind list Tag.Scannable.Map.t
           }
       | Float_block of { num_fields : int }
       | Float_array
       | Immediate_array
       | Value_array
       | Generic_array
+
+    and kind_and_subkind =
+    { kind : kind;
+      subkind : t
+    }
 
     let rec compatible (t : t) ~(when_used_at : t) =
       match t, when_used_at with
@@ -313,7 +318,9 @@ module With_subkind = struct
                 then false
                 else
                   List.for_all2
-                    (fun d when_used_at -> compatible d ~when_used_at)
+                    (fun { kind = _; subkind = d }
+                      { kind = _; subkind = when_used_at } ->
+                      compatible d ~when_used_at)
                     fields1 fields2)
               field_lists1 field_lists2
       | ( Float_block { num_fields = num_fields1 },
@@ -361,11 +368,12 @@ module With_subkind = struct
           Format.fprintf ppf "%t=boxed_@<1>\u{2115}@<1>\u{2115}%t" colour
             Flambda_colours.pop
         | Variant { consts; non_consts } ->
+          let print_field ppf { kind = _; subkind } = print ppf subkind in
           Format.fprintf ppf "%t=Variant((consts (%a))@ (non_consts (%a)))%t"
             colour Targetint_31_63.Set.print consts
             (Tag.Scannable.Map.print (fun ppf fields ->
                  Format.fprintf ppf "[%a]"
-                   (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
+                   (Format.pp_print_list ~pp_sep:Format.pp_print_space print_field)
                    fields))
             non_consts Flambda_colours.pop
         | Float_block { num_fields } ->
@@ -388,14 +396,11 @@ module With_subkind = struct
     end)
   end
 
-  type kind = t
+  type with_subkind = Subkind.kind_and_subkind
 
-  type t =
-    { kind : kind;
-      subkind : Subkind.t
-    }
+  type t = with_subkind
 
-  let create (kind : kind) (subkind : Subkind.t) =
+  let create (kind : kind) (subkind : Subkind.t) : t =
     (match kind with
     | Value -> ()
     | Naked_number _ | Region | Rec_info -> (
@@ -408,13 +413,13 @@ module With_subkind = struct
           subkind print kind));
     { kind; subkind }
 
-  let compatible t ~when_used_at =
+  let compatible (t: t) ~(when_used_at : t) =
     equal t.kind when_used_at.kind
     && Subkind.compatible t.subkind ~when_used_at:when_used_at.subkind
 
-  let kind t = t.kind
+  let kind (t : t) = t.kind
 
-  let subkind t = t.subkind
+  let subkind (t : t) = t.subkind
 
   let any_value = create value Anything
 
@@ -451,12 +456,11 @@ module With_subkind = struct
   let generic_array = create value Generic_array
 
   let block tag fields =
-    if List.exists (fun t -> not (equal t.kind Value)) fields
+    if List.exists (fun (t : t) -> not (equal t.kind Value)) fields
     then
       Misc.fatal_error
         "Block with fields of non-Value kind (use \
          [Flambda_kind.With_subkind.float_block] for float records)";
-    let fields = List.map (fun t -> t.subkind) fields in
     match Tag.Scannable.of_tag tag with
     | Some tag ->
       create value
@@ -503,7 +507,7 @@ module With_subkind = struct
               | Some tag ->
                 Tag.Scannable.Map.add tag
                   (List.map
-                     (fun vk -> subkind (from_lambda_value_kind vk))
+                     (fun vk -> from_lambda_value_kind vk)
                      fields)
                   non_consts
               | None ->
@@ -530,7 +534,7 @@ module With_subkind = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf { kind; subkind } =
+    let print ppf ({ kind; subkind } : t) =
       match kind, subkind with
       | _, Anything -> print ppf kind
       | Value, subkind ->
@@ -542,17 +546,17 @@ module With_subkind = struct
         assert false
     (* see [create] *)
 
-    let compare { kind = kind1; subkind = subkind1 }
-        { kind = kind2; subkind = subkind2 } =
+    let compare ({ kind = kind1; subkind = subkind1 } : t)
+        ({ kind = kind2; subkind = subkind2 } : t) =
       let c = compare kind1 kind2 in
       if c <> 0 then c else Subkind.compare subkind1 subkind2
 
     let equal t1 t2 = compare t1 t2 = 0
 
-    let hash { kind; subkind } = Hashtbl.hash (hash kind, Subkind.hash subkind)
+    let hash ({ kind; subkind } : t) = Hashtbl.hash (hash kind, Subkind.hash subkind)
   end)
 
-  let has_useful_subkind_info t =
+  let has_useful_subkind_info (t : t) =
     match t.subkind with
     | Anything -> false
     | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
@@ -560,5 +564,5 @@ module With_subkind = struct
     | Immediate_array | Value_array | Generic_array ->
       true
 
-  let erase_subkind t = { t with subkind = Anything }
+  let erase_subkind (t : t) : t = { t with subkind = Anything }
 end
