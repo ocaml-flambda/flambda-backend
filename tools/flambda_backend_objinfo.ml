@@ -175,13 +175,22 @@ let return_arity_identifier t =
 let print_generic_fns gfns =
   let pr_afuns _ fns =
     let mode = function Lambda.Alloc_heap -> "" | Lambda.Alloc_local -> "L" in
-    List.iter (fun (arity,result,m) -> printf " %s%s%s" (unique_arity_identifier arity) (return_arity_identifier result) (mode m)) fns in
+    List.iter (fun (arity,result,m) ->
+        printf " %s%s%s"
+          (unique_arity_identifier arity)
+          (return_arity_identifier result)
+          (mode m)) fns in
   let pr_cfuns _ fns =
     List.iter (function
       | (Lambda.Curried {nlocal}, arity, result) ->
-        printf " %s%sL%d" (unique_arity_identifier arity) (return_arity_identifier result) nlocal
+        printf " %s%sL%d"
+          (unique_arity_identifier arity)
+          (return_arity_identifier result)
+          nlocal
       | (Lambda.Tupled, arity, result) ->
-        printf " -%s%s" (unique_arity_identifier arity) (return_arity_identifier result)) fns in
+        printf " -%s%s"
+          (unique_arity_identifier arity)
+          (return_arity_identifier result)) fns in
   printf "Currying functions:%a\n" pr_cfuns gfns.curry_fun;
   printf "Apply functions:%a\n" pr_afuns gfns.apply_fun;
   printf "Send functions:%a\n" pr_afuns gfns.send_fun

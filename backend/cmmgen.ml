@@ -465,7 +465,9 @@ let rec transl env e =
                                    ~startenv:(startenv - pos) ~is_last dbg ::
                 transl_fundecls (pos + 3) rem
               | arity ->
-                Cconst_symbol (curry_function_sym (fst arity) (List.init (snd arity) (fun _ -> typ_val)) typ_val, dbg) ::
+                Cconst_symbol (
+                  curry_function_sym (fst arity)
+                    (List.init (snd arity) (fun _ -> typ_val)) typ_val, dbg) ::
                 alloc_closure_info ~arity
                                    ~startenv:(startenv - pos) ~is_last dbg ::
                 Cconst_symbol (f.label, dbg) ::

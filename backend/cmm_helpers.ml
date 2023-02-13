@@ -2677,7 +2677,7 @@ let intermediate_curry_functions nlocal arity result =
       in
       let curried n = Lambda.Curried { nlocal = min nlocal n }, n in
       let has_nary = curry_clos_has_nary_application ~narity (num + 1) in
-      let header_size = if has_nary then 3 else 2 in
+      let function_slot_size = if has_nary then 3 else 2 in
       Cfunction
         { fun_name = name2;
           fun_args = [VP.create arg, arg_type; VP.create clos, typ_val];
@@ -2685,12 +2685,12 @@ let intermediate_curry_functions nlocal arity result =
             Cop
               ( Calloc mode,
                 [ alloc_closure_header ~mode
-                    (header_size + 1 + machtype_stored_size arg_type)
+                    (function_slot_size + machtype_stored_size arg_type + 1)
                     (dbg ());
                   Cconst_symbol (name1 ^ "_" ^ Int.to_string (num + 1), dbg ());
                   alloc_closure_info
                     ~arity:(curried (if has_nary then narity - num - 1 else 1))
-                    ~startenv:(3 + machtype_non_scanned_size arg_type)
+                    ~startenv:(function_slot_size + machtype_non_scanned_size arg_type)
                     (dbg ()) ~is_last:true ]
                 @ (if has_nary
                   then
