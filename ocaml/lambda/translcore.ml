@@ -786,7 +786,9 @@ and transl_exp0 ~in_new_scope ~scopes e =
                             ~loc:(of_location ~scopes e.exp_loc)
                             ~mode:alloc_heap
                             ~region:true
-                            ~body:(maybe_region_exp e (transl_exp ~scopes e))
+                            ~body:(maybe_region_layout
+                                     Lambda.layout_lazy_contents
+                                     (transl_exp ~scopes e))
          in
           Lprim(Pmakeblock(Config.lazy_tag, Mutable, None, alloc_heap), [fn],
                 of_location ~scopes e.exp_loc)
