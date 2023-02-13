@@ -2690,7 +2690,8 @@ let intermediate_curry_functions ~nlocal ~arity result =
                   Cconst_symbol (name1 ^ "_" ^ Int.to_string (num + 1), dbg ());
                   alloc_closure_info
                     ~arity:(curried (if has_nary then narity - num - 1 else 1))
-                    ~startenv:(function_slot_size + machtype_non_scanned_size arg_type)
+                    ~startenv:
+                      (function_slot_size + machtype_non_scanned_size arg_type)
                     (dbg ()) ~is_last:true ]
                 @ (if has_nary
                   then
