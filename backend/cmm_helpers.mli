@@ -408,6 +408,10 @@ val opaque : expression -> Debuginfo.t -> expression
 
 (** Generic application functions *)
 
+(** Get an identifier for a given machtype, used in the name of the generic
+    functions. *)
+val machtype_identifier : machtype -> string
+
 (** Get the symbol for the generic application with [n] arguments, and ensure
     its presence in the set of defined symbols *)
 val apply_function_sym :
