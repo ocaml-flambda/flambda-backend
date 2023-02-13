@@ -19,7 +19,7 @@
 type t
 
 (** Free names for cmm expressions *)
-type free_names = Backend_var.Set.t
+type free_vars = Backend_var.Set.t
 
 (** Printing function *)
 val print : Format.formatter -> t -> unit
@@ -187,7 +187,7 @@ type _ inline =
 type _ bound_expr
 
 (** A simple cmm bound expression *)
-val simple : Cmm.expression -> free_names -> simple bound_expr
+val simple : Cmm.expression -> free_vars -> simple bound_expr
 
 (** A bound expr that can be split if needed. This is used for primitives that
     must be inlined, but whose arguments may not be inlinable or duplicable, so
@@ -197,7 +197,7 @@ val simple : Cmm.expression -> free_names -> simple bound_expr
 val splittable_primitive :
   Debuginfo.t ->
   Flambda_primitive.Without_args.t ->
-  (Cmm.expression * Effects_and_coeffects.t * free_names) list ->
+  (Cmm.expression * Effects_and_coeffects.t * free_vars) list ->
   complex bound_expr
 
 (** Bind a variable, with support for splitting duplicatable primitives with
@@ -220,7 +220,7 @@ val bind_variable :
   To_cmm_result.t ->
   Variable.t ->
   defining_expr:Cmm.expression ->
-  free_names_of_defining_expr:free_names ->
+  free_vars_of_defining_expr:free_vars ->
   num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
   effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
   t * To_cmm_result.t
@@ -239,7 +239,7 @@ val inline_variable :
   t ->
   To_cmm_result.t ->
   Variable.t ->
-  Cmm.expression * free_names * t * To_cmm_result.t * Effects_and_coeffects.t
+  Cmm.expression * free_vars * t * To_cmm_result.t * Effects_and_coeffects.t
 
 type flush_mode =
   | Entering_loop
@@ -252,7 +252,7 @@ val flush_delayed_lets :
   mode:flush_mode ->
   t ->
   To_cmm_result.t ->
-  (Cmm.expression -> free_names -> Cmm.expression * free_names)
+  (Cmm.expression -> free_vars -> Cmm.expression * free_vars)
   * t
   * To_cmm_result.t
 

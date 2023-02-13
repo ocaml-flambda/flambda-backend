@@ -18,7 +18,7 @@ module R = To_cmm_result
 module P = Flambda_primitive
 module Ece = Effects_and_coeffects
 
-type free_names = Backend_var.Set.t
+type free_vars = Backend_var.Set.t
 
 type cont =
   | Jump of
@@ -80,18 +80,18 @@ type _ inline =
 type _ bound_expr =
   | Simple :
       { cmm_expr : Cmm.expression;
-        free_names : free_names
+        free_vars : free_vars
       }
       -> simple bound_expr
   | Split :
       { cmm_expr : Cmm.expression;
-        free_names : free_names
+        free_vars : free_vars
       }
       -> complex bound_expr
   | Splittable_prim :
       { dbg : Debuginfo.t;
         prim : Flambda_primitive.Without_args.t;
-        args : (Cmm.expression * Ece.t * free_names) list
+        args : (Cmm.expression * Ece.t * free_vars) list
       }
       -> complex bound_expr
 
@@ -140,7 +140,7 @@ type t =
        handlers. *)
     vars_extra : extra_info Variable.Map.t;
     (* Extra information associated with Flambda variables. *)
-    vars : (Cmm.expression * free_names) Variable.Map.t;
+    vars : (Cmm.expression * free_vars) Variable.Map.t;
     (* Cmm expressions (of the form [Cvar ...]) for all bound variables in
        scope. *)
     bindings : any_binding Variable.Map.t;
@@ -185,15 +185,15 @@ let [@ocamlformat "disable"] print_inline (type a) ppf (inline : a inline) =
   | Must_inline_once -> Format.fprintf ppf "must_inline_once"
   | Must_inline_and_duplicate -> Format.fprintf ppf "must_inline_and_duplicate"
 
-let print_cmm_expr_with_free_names ppf (cmm_expr, free_names) =
+let print_cmm_expr_with_free_vars ppf (cmm_expr, free_vars) =
   Format.fprintf ppf
-    "@[<hov 1>(@[<hov 1>(expr@ %a)@]@ @[<hov 1>(free_names@ %a)@]@ )@]"
-    Printcmm.expression cmm_expr Backend_var.Set.print free_names
+    "@[<hov 1>(@[<hov 1>(expr@ %a)@]@ @[<hov 1>(free_vars@ %a)@]@ )@]"
+    Printcmm.expression cmm_expr Backend_var.Set.print free_vars
 
 let [@ocamlformat "disable"] print_bound_expr (type a) ppf (b : a bound_expr) =
   match b with
-  | Simple { cmm_expr; free_names; } | Split { cmm_expr; free_names; } ->
-    print_cmm_expr_with_free_names ppf (cmm_expr, free_names)
+  | Simple { cmm_expr; free_vars; } | Split { cmm_expr; free_vars; } ->
+    print_cmm_expr_with_free_vars ppf (cmm_expr, free_vars)
   | Splittable_prim { prim; args; dbg; } ->
     Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(dbg@ %a)@]@ \
@@ -202,8 +202,8 @@ let [@ocamlformat "disable"] print_bound_expr (type a) ppf (b : a bound_expr) =
       )@]"
       Debuginfo.print_compact dbg
       Flambda_primitive.Without_args.print prim
-      (Format.pp_print_list (fun ppf (cmm, _, free_names) ->
-           print_cmm_expr_with_free_names ppf (cmm, free_names))) args
+      (Format.pp_print_list (fun ppf (cmm, _, free_vars) ->
+           print_cmm_expr_with_free_vars ppf (cmm, free_vars))) args
 
 let [@ocamlformat "disable"] print_binding (type a) ppf
     ({ order; inline; effs; cmm_var; bound_expr; } : a binding) =
@@ -258,8 +258,8 @@ let gen_variable v =
 
 let add_bound_param env v v' =
   let v'' = Backend_var.With_provenance.var v' in
-  let free_names = Backend_var.Set.singleton v'' in
-  let vars = Variable.Map.add v (C.var v'', free_names) env.vars in
+  let free_vars = Backend_var.Set.singleton v'' in
+  let vars = Variable.Map.add v (C.var v'', free_vars) env.vars in
   { env with vars }
 
 let create_bound_parameter env v =
@@ -350,9 +350,9 @@ let get_exn_extra_args env k =
 
 let next_order = ref (-1)
 
-let simple cmm_expr free_names = Simple { cmm_expr; free_names }
+let simple cmm_expr free_vars = Simple { cmm_expr; free_vars }
 
-let complex_no_split cmm_expr free_names = Split { cmm_expr; free_names }
+let complex_no_split cmm_expr free_vars = Split { cmm_expr; free_vars }
 
 let splittable_primitive dbg prim args = Splittable_prim { dbg; prim; args }
 
@@ -390,13 +390,13 @@ let create_binding (type a) effs var ~(inline : a inline)
      must_inline_and_duplicate (since it basically replaces a variable by either
      another variable, a constant, or a symbol). *)
   match bound_expr with
-  | (Split { cmm_expr; free_names } | Simple { cmm_expr; free_names })
+  | (Split { cmm_expr; free_vars } | Simple { cmm_expr; free_vars })
     when is_cmm_simple cmm_expr ->
     (* trivial/simple cmm expression (as decided by [is_cmm_simple]) do not have
        effects and coeffects *)
     let effs = Ece.pure_can_be_duplicated in
     create_binding_aux effs var ~inline:Must_inline_and_duplicate
-      (Split { cmm_expr; free_names })
+      (Split { cmm_expr; free_vars })
   | Simple _ | Split _ | Splittable_prim _ ->
     create_binding_aux effs var ~inline bound_expr
 
@@ -445,18 +445,16 @@ type split_result =
       }
 
 let new_bindings_for_splitting order args =
-  let (new_bindings, _, free_names_of_new_cmm_args), new_cmm_args =
+  let (new_bindings, _, free_vars_of_new_cmm_args), new_cmm_args =
     List.fold_left_map
-      (fun (new_bindings, order, free_names) (cmm_arg, arg_effs, arg_free_names) ->
+      (fun (new_bindings, order, free_vars) (cmm_arg, arg_effs, arg_free_vars) ->
         (* CR gbury: here, instead of using [is_cmm_simple], we could instead
            look at [arg_effs] and not create a new binding if it has
            `pure_can_be_duplicated` effects (or any ece that allows
            duplication). *)
         if is_cmm_simple cmm_arg
         then
-          ( ( new_bindings,
-              order,
-              Backend_var.Set.union free_names arg_free_names ),
+          ( (new_bindings, order, Backend_var.Set.union free_vars arg_free_vars),
             cmm_arg )
         else
           (* we need to rebind the argument *)
@@ -476,18 +474,18 @@ let new_bindings_for_splitting order args =
                 effs = arg_effs;
                 inline = Do_not_inline;
                 bound_expr =
-                  Simple { cmm_expr = cmm_arg; free_names = arg_free_names };
+                  Simple { cmm_expr = cmm_arg; free_vars = arg_free_vars };
                 cmm_var = new_cmm_var
               }
           in
           ( ( binding :: new_bindings,
               order - 1,
-              Backend_var.Set.add backend_var free_names ),
+              Backend_var.Set.add backend_var free_vars ),
             C.var backend_var ))
       ([], order - 1, Backend_var.Set.empty)
       args
   in
-  new_bindings, new_cmm_args, free_names_of_new_cmm_args
+  new_bindings, new_cmm_args, free_vars_of_new_cmm_args
 
 let rebuild_prim ~dbg ~env ~res prim args =
   let extra_info, res, cmm =
@@ -526,7 +524,7 @@ let split_complex_binding ~env ~res (binding : complex binding) =
   match binding.bound_expr with
   | Split _ -> res, Already_split
   | Splittable_prim { dbg; prim; args } ->
-    let new_bindings, new_cmm_args, free_names_of_new_cmm_args =
+    let new_bindings, new_cmm_args, free_vars_of_new_cmm_args =
       new_bindings_for_splitting binding.order args
     in
     let new_cmm_expr, res = rebuild_prim ~dbg ~env ~res prim new_cmm_args in
@@ -550,7 +548,7 @@ let split_complex_binding ~env ~res (binding : complex binding) =
         inline = binding.inline;
         bound_expr =
           Split
-            { cmm_expr = new_cmm_expr; free_names = free_names_of_new_cmm_args };
+            { cmm_expr = new_cmm_expr; free_vars = free_vars_of_new_cmm_args };
         cmm_var = binding.cmm_var
       }
     in
@@ -562,8 +560,8 @@ let rec add_binding_to_env ?extra env res var (Binding binding as b) =
   let env =
     let bindings = Variable.Map.add var b env.bindings in
     let cmm_var = Backend_var.With_provenance.var binding.cmm_var in
-    let free_names = Backend_var.Set.singleton cmm_var in
-    let vars = Variable.Map.add var (C.var cmm_var, free_names) env.vars in
+    let free_vars = Backend_var.Set.singleton cmm_var in
+    let vars = Variable.Map.add var (C.var cmm_var, free_vars) env.vars in
     let vars_extra =
       match extra with
       | None -> env.vars_extra
@@ -688,7 +686,7 @@ let bind_variable_with_decision (type a) ?extra env res var ~inline
   let binding = create_binding ~inline effs var defining_expr in
   add_binding_to_env ?extra env res var binding
 
-let bind_variable ?extra env res var ~defining_expr ~free_names_of_defining_expr
+let bind_variable ?extra env res var ~defining_expr ~free_vars_of_defining_expr
     ~num_normal_occurrences_of_bound_vars
     ~effects_and_coeffects_of_defining_expr =
   let inline =
@@ -699,25 +697,25 @@ let bind_variable ?extra env res var ~defining_expr ~free_names_of_defining_expr
   match inline with
   | Drop_defining_expr -> env, res
   | Regular ->
-    let defining_expr = simple defining_expr free_names_of_defining_expr in
+    let defining_expr = simple defining_expr free_vars_of_defining_expr in
     bind_variable_with_decision ?extra env res var
       ~effects_and_coeffects_of_defining_expr ~defining_expr
       ~inline:Do_not_inline
   | May_inline_once ->
-    let defining_expr = simple defining_expr free_names_of_defining_expr in
+    let defining_expr = simple defining_expr free_vars_of_defining_expr in
     bind_variable_with_decision ?extra env res var
       ~effects_and_coeffects_of_defining_expr ~defining_expr
       ~inline:May_inline_once
   | Must_inline_once ->
     let defining_expr =
-      complex_no_split defining_expr free_names_of_defining_expr
+      complex_no_split defining_expr free_vars_of_defining_expr
     in
     bind_variable_with_decision ?extra env res var
       ~effects_and_coeffects_of_defining_expr ~defining_expr
       ~inline:Must_inline_once
   | Must_inline_and_duplicate ->
     let defining_expr =
-      complex_no_split defining_expr free_names_of_defining_expr
+      complex_no_split defining_expr free_vars_of_defining_expr
     in
     bind_variable_with_decision ?extra env res var
       ~effects_and_coeffects_of_defining_expr ~defining_expr
@@ -728,26 +726,26 @@ let bind_variable_to_primitive = bind_variable_with_decision
 (* Variable lookup (for potential inlining) *)
 
 let will_inline_simple env res
-    { effs; bound_expr = Simple { cmm_expr; free_names }; _ } =
-  cmm_expr, free_names, env, res, effs
+    { effs; bound_expr = Simple { cmm_expr; free_vars }; _ } =
+  cmm_expr, free_vars, env, res, effs
 
 let will_inline_complex env res { effs; bound_expr; _ } =
   match bound_expr with
-  | Split { cmm_expr; free_names } -> cmm_expr, free_names, env, res, effs
+  | Split { cmm_expr; free_vars } -> cmm_expr, free_vars, env, res, effs
   | Splittable_prim { dbg; prim; args } ->
-    let free_names, cmm_args =
+    let free_vars, cmm_args =
       List.fold_left_map
-        (fun free_names (cmm_arg, _ece, arg_free_names) ->
-          Backend_var.Set.union free_names arg_free_names, cmm_arg)
+        (fun free_vars (cmm_arg, _ece, arg_free_vars) ->
+          Backend_var.Set.union free_vars arg_free_vars, cmm_arg)
         Backend_var.Set.empty args
     in
     let cmm_expr, res = rebuild_prim ~dbg ~env ~res prim cmm_args in
-    cmm_expr, free_names, env, res, effs
+    cmm_expr, free_vars, env, res, effs
 
 let will_not_inline_simple env res { cmm_var; bound_expr = Simple _; _ } =
   let var = Backend_var.With_provenance.var cmm_var in
-  let free_names = Backend_var.Set.singleton var in
-  C.var var, free_names, env, res, Ece.pure_can_be_duplicated
+  let free_vars = Backend_var.Set.singleton var in
+  C.var var, free_vars, env, res, Ece.pure_can_be_duplicated
 
 let split_and_inline env res var binding =
   let env, res, split_binding = split_in_env env res var binding in
@@ -799,10 +797,10 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
     match Variable.Map.find var env.vars with
     | exception Not_found ->
       Misc.fatal_errorf "Variable %a not found in env" Variable.print var
-    | e, free_names ->
+    | e, free_vars ->
       (* the env.vars map only contain bindings to expressions of the form
          [Cmm.Cvar _], hence the effects. *)
-      e, free_names, env, res, Ece.pure_can_be_duplicated)
+      e, free_vars, env, res, Ece.pure_can_be_duplicated)
   | Binding binding -> (
     match binding.inline with
     | Do_not_inline -> will_not_inline_simple env res binding
@@ -857,10 +855,10 @@ let make_alias env res var alias_of =
    bind the new variable with a `must_inline` inline status *)
 let split_binding_and_rebind ~num_occurrences_of_var env res ~var ~alias_of
     binding =
-  let cmm_expr, free_names, env, res, ece =
+  let cmm_expr, free_vars, env, res, ece =
     split_and_inline env res alias_of binding
   in
-  let defining_expr : _ bound_expr = Split { cmm_expr; free_names } in
+  let defining_expr : _ bound_expr = Split { cmm_expr; free_vars } in
   let inline =
     match (num_occurrences_of_var : Num_occurrences.t) with
     | Zero | One -> Must_inline_once
@@ -894,11 +892,9 @@ let add_alias env res ~var ~alias_of ~num_normal_occurrences_of_bound_vars =
   | (exception Not_found)
   | Binding { inline = Do_not_inline | May_inline_once; _ } ->
     (* generic case, we just inline the var/binding, and rebind it *)
-    let cmm_expr, free_names, env, res, ece =
-      inline_variable env res alias_of
-    in
+    let cmm_expr, free_vars, env, res, ece = inline_variable env res alias_of in
     bind_variable env res var ~defining_expr:cmm_expr
-      ~free_names_of_defining_expr:free_names
+      ~free_vars_of_defining_expr:free_vars
       ~effects_and_coeffects_of_defining_expr:ece
       ~num_normal_occurrences_of_bound_vars
 
@@ -923,28 +919,28 @@ let can_be_removed effs =
 
 let flush_delayed_lets ~mode env res =
   (* Generate a wrapper function to introduce the delayed let-bindings. *)
-  let wrap_flush order_map e free_names =
+  let wrap_flush order_map e free_vars =
     M.fold
-      (fun _ (Binding b) (acc, acc_free_names) ->
+      (fun _ (Binding b) (acc, acc_free_vars) ->
         match b.bound_expr with
         | Splittable_prim _ ->
           Misc.fatal_errorf
             "Complex bindings should have been split prior to being flushed."
-        | Split { cmm_expr; free_names } | Simple { cmm_expr; free_names } ->
+        | Split { cmm_expr; free_vars } | Simple { cmm_expr; free_vars } ->
           let v = Backend_var.With_provenance.var b.cmm_var in
-          if (not (Backend_var.Set.mem v acc_free_names))
+          if (not (Backend_var.Set.mem v acc_free_vars))
              && can_be_removed b.effs
-          then acc, acc_free_names
+          then acc, acc_free_vars
           else
             let expr =
               Cmm_helpers.letin b.cmm_var ~defining_expr:cmm_expr ~body:acc
             in
-            let free_names =
-              Backend_var.Set.union free_names
-                (Backend_var.Set.remove v acc_free_names)
+            let free_vars =
+              Backend_var.Set.union free_vars
+                (Backend_var.Set.remove v acc_free_vars)
             in
-            expr, free_names)
-      order_map (e, free_names)
+            expr, free_vars)
+      order_map (e, free_vars)
   in
   (* CR-someday mshinwell: work out a criterion for allowing substitutions into
      loops. CR gbury: this is now done by creating a binding with the inline

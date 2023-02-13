@@ -99,17 +99,17 @@ let unit0 ~offsets flambda_unit ~all_code =
       (Flambda_unit.toplevel_my_region flambda_unit)
   in
   let r = R.create ~module_symbol:(Flambda_unit.module_symbol flambda_unit) in
-  let body, body_free_names, res =
+  let body, body_free_vars, res =
     To_cmm_expr.expr env r (Flambda_unit.body flambda_unit)
   in
-  let free_names =
-    To_cmm_shared.remove_var_with_provenance body_free_names toplevel_region_var
+  let free_vars =
+    To_cmm_shared.remove_var_with_provenance body_free_vars toplevel_region_var
   in
-  if not (Backend_var.Set.is_empty free_names)
+  if not (Backend_var.Set.is_empty free_vars)
   then
     Misc.fatal_errorf
-      "Unbound free_names in module init code when translating to cmm: %a"
-      Backend_var.Set.print free_names;
+      "Unbound free_vars in module init code when translating to cmm: %a"
+      Backend_var.Set.print free_vars;
   let body =
     let dbg = Debuginfo.none in
     let unit_value = C.targetint ~dbg Targetint_32_64.one in
