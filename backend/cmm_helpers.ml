@@ -2660,7 +2660,7 @@ let final_curry_function nlocal arity result =
       fun_poll = Default_poll
     }
 
-let intermediate_curry_functions nlocal arity result =
+let intermediate_curry_functions ~nlocal ~arity result =
   let name1 = curry_function_sym (Lambda.Curried { nlocal }) arity result in
   let narity = List.length arity in
   let dbg = placeholder_dbg in
@@ -2745,7 +2745,7 @@ let curry_function (kind, arity, return) =
   match kind with
   | Lambda.Tupled -> [tuplify_function arity return]
   | Lambda.Curried { nlocal } ->
-    intermediate_curry_functions nlocal arity return
+    intermediate_curry_functions ~nlocal ~arity return
 
 let default_generic_fns : Cmx_format.generic_fns =
   { curry_fun = [];
