@@ -297,16 +297,11 @@ let rec approx ppf = function
     Value_closure(_, fundesc, a) ->
       Format.fprintf ppf "@[<2>function %s"
         fundesc.fun_label;
+      let n = List.length fundesc.fun_arity.params_layout in
       begin match fundesc.fun_arity.function_kind with
-      | Tupled ->
-        Format.fprintf ppf "@ arity -%i"
-          (List.length fundesc.fun_arity.params_layout)
-      | Curried {nlocal=0} ->
-        Format.fprintf ppf "@ arity %i"
-          (List.length fundesc.fun_arity.params_layout)
-      | Curried {nlocal=k} ->
-        Format.fprintf ppf "@ arity %i(%i L)"
-          (List.length fundesc.fun_arity.params_layout) k
+      | Tupled -> Format.fprintf ppf "@ arity -%i" n
+      | Curried {nlocal=0} -> Format.fprintf ppf "@ arity %i" n
+      | Curried {nlocal=k} -> Format.fprintf ppf "@ arity %i(%i L)" n k
       end;
       if fundesc.fun_closed then begin
         Format.fprintf ppf "@ (closed)"
