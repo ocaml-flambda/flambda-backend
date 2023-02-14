@@ -59,7 +59,7 @@ module IR = struct
       continuation : Continuation.t;
       exn_continuation : exn_continuation;
       loc : Lambda.scoped_location;
-      region_close : Lambda.region_close;
+      apply_position : Lambda.apply_position;
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;

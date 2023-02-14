@@ -1,4 +1,6 @@
-(* TEST *)
+(* TEST
+flags += "-w -200" *)
+
 module Bug : sig
 end = struct
   let app fn = fn 1 2 3

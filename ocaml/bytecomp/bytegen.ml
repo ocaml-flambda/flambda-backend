@@ -536,8 +536,8 @@ let comp_primitive p args =
 let is_immed n = immed_min <= n && n <= immed_max
 
 let is_nontail = function
-  | Rc_nontail -> true
-  | Rc_normal | Rc_close_at_apply -> false
+  | Ap_nontail -> true
+  | Ap_default | Ap_tail _ -> false
 
 module Storer =
   Switch.Store
@@ -573,7 +573,7 @@ let rec comp_expr env exp sz cont =
       end
   | Lconst cst ->
       Kconst cst :: cont
-  | Lapply{ap_func = func; ap_args = args; ap_region_close = rc} ->
+  | Lapply{ap_func = func; ap_args = args; ap_position = rc} ->
       let nargs = List.length args in
       if is_tailcall cont && not (is_nontail rc) then begin
         comp_args env args sz
@@ -993,7 +993,7 @@ let rec comp_expr env exp sz cont =
           let preserve_tailcall =
             match lam with
             | Lprim(prim, _, _) -> preserve_tailcall_for_prim prim
-            | Lapply {ap_region_close=rc; _}
+            | Lapply {ap_position=rc; _}
             | Lsend(_, _, _, _, rc, _, _, _) ->
                not (is_nontail rc)
             | _ -> true

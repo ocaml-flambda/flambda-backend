@@ -44,7 +44,7 @@ val transl_primitive_application :
   Types.type_expr -> Lambda.alloc_mode option -> Path.t ->
   Typedtree.expression option ->
   Lambda.lambda list -> Typedtree.expression list ->
-  Lambda.region_close -> Lambda.lambda
+  Lambda.apply_position -> Lambda.lambda
 
 (* Errors *)
 

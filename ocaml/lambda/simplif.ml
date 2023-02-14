@@ -762,7 +762,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
             ap_args = args;
             ap_result_layout = return;
             ap_loc = Loc_unknown;
-            ap_region_close = Rc_normal;
+            ap_position = Ap_default;
             ap_mode = alloc_heap;
             ap_tailcall = Default_tailcall;
             ap_inlined = Default_inlined;
@@ -872,11 +872,12 @@ let simplify_local_functions lam =
             (* note: if scope = None, the function is unused *)
             function_definition lf
         end
-    | Lapply {ap_func = Lvar id; ap_args; ap_region_close; _} ->
+    | Lapply {ap_func = Lvar id; ap_args; ap_position; _} ->
         let curr_scope =
-          match ap_region_close with
-          | Rc_normal | Rc_nontail -> !current_scope
-          | Rc_close_at_apply -> !current_region_scope
+          match ap_position with
+          | Ap_default | Ap_nontail
+          | Ap_tail {close_region=false} -> !current_scope
+          | Ap_tail {close_region=true} -> !current_region_scope
         in
         begin match Hashtbl.find_opt slots id with
         | Some {func; _}

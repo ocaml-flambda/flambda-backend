@@ -175,7 +175,7 @@ type memory_chunk =
   | Double                             (* word-aligned 64-bit float
                                           see PR#10433 *)
 and operation =
-    Capply of machtype * Lambda.region_close
+    Capply of machtype * Lambda.apply_position
   | Cextcall of
       { func: string;
         ty: machtype;

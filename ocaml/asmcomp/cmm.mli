@@ -143,7 +143,7 @@ type memory_chunk =
                                           see PR#10433 *)
 
 and operation =
-    Capply of machtype * Lambda.region_close
+    Capply of machtype * Lambda.apply_position
   | Cextcall of string * machtype * exttype list * bool
       (** The [machtype] is the machine type of the result.
           The [exttype list] describes the unboxing types of the arguments.

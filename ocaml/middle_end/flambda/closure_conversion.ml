@@ -85,7 +85,7 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
            redundancy here (func is also unboxed_version) *)
         kind = Direct (Closure_id.wrap unboxed_version);
         dbg = Debuginfo.none;
-        reg_close = Rc_normal;
+        reg_close = Ap_default;
         mode = if region then Lambda.alloc_heap else Lambda.alloc_local;
         inlined = Default_inlined;
         specialise = Default_specialise;
@@ -235,7 +235,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     in
     Flambda.create_let set_of_closures_var set_of_closures
       (name_expr (Project_closure (project_closure)) ~name)
-  | Lapply { ap_func; ap_args; ap_loc; ap_region_close; ap_mode;
+  | Lapply { ap_func; ap_args; ap_loc; ap_position; ap_mode;
              ap_tailcall = _; ap_inlined; ap_specialised; ap_probe; } ->
     Lift_code.lifting_helper (close_list t env ap_args)
       ~evaluation_order:`Right_to_left
@@ -249,7 +249,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
               args;
               kind = Indirect;
               dbg = Debuginfo.from_location ap_loc;
-              reg_close = ap_region_close;
+              reg_close = ap_position;
               mode = ap_mode;
               inlined = ap_inlined;
               specialise = ap_specialised;

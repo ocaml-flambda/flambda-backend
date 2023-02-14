@@ -64,10 +64,10 @@ type field_read_semantics =
   | Reads_vary
 
 (* Tail calls can close their enclosing region early *)
-type region_close =
-  | Rc_normal         (* do not close region, may TCO if in tail position *)
-  | Rc_nontail        (* do not close region, must not TCO *)
-  | Rc_close_at_apply (* close region and tail call *)
+type apply_position =
+  | Ap_default                      (* may TCO if in tail position *)
+  | Ap_nontail                      (* must not TCO *)
+  | Ap_tail of {close_region: bool} (* must TCO, close region if specified *)
 
 type primitive =
   | Pbytes_to_string
@@ -370,7 +370,7 @@ type lambda =
   | Lfor of lambda_for
   | Lassign of Ident.t * lambda
   | Lsend of meth_kind * lambda * lambda * lambda list
-             * region_close * alloc_mode * scoped_location * layout
+             * apply_position * alloc_mode * scoped_location * layout
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda
@@ -410,7 +410,7 @@ and lambda_apply =
   { ap_func : lambda;
     ap_args : lambda list;
     ap_result_layout : layout;
-    ap_region_close : region_close;
+    ap_position : apply_position;
     ap_mode : alloc_mode;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;

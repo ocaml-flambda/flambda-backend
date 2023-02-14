@@ -107,6 +107,8 @@ type t =
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
+
+  | Not_a_tailcall                          (* 200 *)
 ;;
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
@@ -189,9 +191,10 @@ let number = function
   | Missing_mli -> 70
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
+  | Not_a_tailcall -> 200
 ;;
 
-let last_warning_number = 72
+let last_warning_number = 200
 ;;
 
 type description =
@@ -446,6 +449,9 @@ let descriptions = [
     names = ["tmc-breaks-tailcall"];
     description = "A tail call is turned into a non-tail call \
                    by the @tail_mod_cons transformation." };
+  { number = 200;
+    names = ["not-a-tailcall"];
+    description = "A call in tail position which is not a tail call" };
 ]
 ;;
 
@@ -1045,6 +1051,8 @@ let message = function
        Please either mark the called function with the [@tail_mod_cons]\n\
        attribute, or mark this call with the [@tailcall false] attribute\n\
        to make its non-tailness explicit."
+  | Not_a_tailcall ->
+     "This call cannot be compiled as a tail call."
 ;;
 
 let nerrors = ref 0;;

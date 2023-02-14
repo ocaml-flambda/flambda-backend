@@ -502,7 +502,7 @@ let transl_list_comp type_comp body acc_var mats ~transl_exp ~scopes ~loc =
   in
   Lapply{
     ap_loc=loc;
-    ap_region_close=Rc_normal;
+    ap_position=Ap_default;
     ap_mode=alloc_heap;
     ap_func=func;
     ap_args= fn::args;
@@ -548,7 +548,7 @@ let transl_list_comprehension ~transl_exp ~loc ~scopes body blocks =
         ap_func=comp_rev ();
         ap_args=[res_list];
         ap_result_layout = Lambda.layout_list;
-        ap_region_close=Rc_normal;
+        ap_position=Ap_default;
         ap_mode=alloc_heap;
         ap_tailcall=Default_tailcall;
         ap_inlined=Default_inlined;
