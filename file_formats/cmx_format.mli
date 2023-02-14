@@ -33,7 +33,12 @@ type export_info =
   | Clambda of Clambda.value_approximation
   | Flambda of Export_info.t
 
-type apply_fn := int * Lambda.alloc_mode
+(* Declare machtype here to avoid depending on [Cmm]. *)
+type machtype_component = Val | Addr | Int | Float
+type machtype = machtype_component array
+
+type apply_fn := machtype list * machtype * Lambda.alloc_mode
+
 type unit_infos =
   { mutable ui_unit: Compilation_unit.t;  (* Compilation unit implemented *)
     mutable ui_defines: Compilation_unit.t list;
@@ -44,7 +49,9 @@ type unit_infos =
                                           (* Interfaces imported *)
     mutable ui_imports_cmx: Import_info.t array;
                                           (* Infos imported *)
-    mutable ui_curry_fun: Clambda.arity list; (* Currying functions needed *)
+    mutable ui_curry_fun:
+      (Lambda.function_kind * machtype list * machtype) list;
+                                          (* Currying functions needed *)
     mutable ui_apply_fun: apply_fn list;  (* Apply functions needed *)
     mutable ui_send_fun: apply_fn list;   (* Send functions needed *)
     mutable ui_export_info: export_info;
