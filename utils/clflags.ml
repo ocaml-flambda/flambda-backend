@@ -427,6 +427,10 @@ module Extension = struct
          the enabled extensions: %s"
         (String.concat "," (List.map to_string ls))))
 
+  let enable_t extension =
+    if not (List.exists (equal extension) !extensions) then
+      extensions := extension :: !extensions
+
   let enable extn =
     if !disable_all_extensions then
       raise (Arg.Bad(Printf.sprintf
@@ -434,9 +438,7 @@ module Extension = struct
          incompatible with compiler flag -disable-all-extensions"
         extn));
     match of_string (String.lowercase_ascii extn) with
-    | Some extension ->
-        if not (List.exists (equal extension) !extensions) then
-          extensions := extension :: !extensions
+    | Some extension -> enable_t extension
     | None ->
         raise (Arg.Bad (Printf.sprintf "Unknown extension \"%s\"" extn))
 

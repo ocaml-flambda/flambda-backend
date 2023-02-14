@@ -1776,7 +1776,7 @@ and extension_expr ctxt f (x : Extensions.Expression.t) =
   | Eexp_comprehension comp    -> comprehension_expr ctxt f comp
   | Eexp_immutable_array iaexp -> immutable_array_expr ctxt f iaexp
 
-and comprehension_expr ctxt f (x : Extensions.Comprehensions.comprehension_expr) =
+and comprehension_expr ctxt f (x : Extensions.Comprehensions.expression) =
   let punct, comp = match x with
     | Cexp_list_comprehension  comp ->
         "", comp

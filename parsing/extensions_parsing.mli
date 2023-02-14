@@ -30,15 +30,15 @@
 
     a. For each language extension, we will define a module (e.g.,
        [Comprehensions]), in which we define a proper AST type per syntactic
-       category we care about (e.g., [Comprehensions.comprehension_expr] and its
+       category we care about (e.g., [Comprehensions.expression] and its
        subcomponents).  This addresses concern (3); we've now contained each
        extension in a module.  But just that would leave them too siloed, so…
 
     b. We define an *overall auxiliary AST* for each syntactic category that's
        just for our language extensions; for expressions, it's called
-       [extension_expr].  It contains one constructor for each of the AST types
+       [Extensions.Expression.t].  It contains one constructor for each of the AST types
        defined as described in design point (1).  This addresses concern (2); we
-       can now match on actual OCaml constructors, as long as we can get ahold
+       can now match on actual OCaml constructors, as long as we can get a hold
        of them.  And to do that…
 
     c. We define a general scheme for how we represent language extensions in terms
@@ -51,29 +51,15 @@
        solves concern (3), and by doing it uniformly helps us address multiple
        cases at one stroke.
 
-    We then bundle this all up for each individual extension into the type
-    [ast_extension] containing, for one syntactic category, two different
-    (partial) isomorphisms: the fully isomorphic (up to exceptions) ability to
-    lift and lower between the custom AST type (from design point (a)) and
-    existing AST expressions, leveraging the common format for representing
-    things in the existing AST from design point (c); and the partial ability to
-    lift and lower between the custom AST type and our overall auxiliary AST
-    type (from design point (b)), which is just a constructor application in one
-    direction and a pattern match against a constructor in the other.  Each
-    syntactic category  (or the lack of support for one) can then be stored
-    inside an existential type ([optional_ast_extension]) that hides the
-    extension-specific type, allowing us to collect all of our extensions
-    together.
+    Then, for each syntactic category, we define a module (in extensions.ml)
+    that contains functions for converting between the Parsetree representation
+    and the extension representation. A little functor magic (see [Make_of_ast])
+    then allows us to make nice functions for export.
 
     This module contains the logic for moving to and from OCaml ASTs; the gory
     details of the encoding are detailed in the implementation.  All the actual
     ASTs should live in [Extensions], which is the only module that should
-    directly depend on this one.  Here, we parameterize by the eventual
-    auxiliary all-extension ASTs; these are the ['ext_ast] type parameters seen
-    below.  We must parameterize as we can't define the auxiliary types until
-    we've defined every language extension; by parameterizing, we get to keep
-    all the messy AST-manipulation here, and work with it abstractly while
-    defining the language extensions themselves.
+    directly depend on this one.
 
     When using this module, we often want to specify what our syntax extensions
     look like when desugared into OCaml ASTs, so that we can validate the
@@ -121,104 +107,71 @@ module type AST = sig
   (** How to get the location attached to an AST node *)
   val location : ast -> Location.t
 
-  (** Embed a language extension term in the AST with the given name (the
-      [string list]) and body (the [ast]).  The name will be joined with dots
+  (** Embed a language extension term in the AST with the given name
+      and body (the [ast]).  The name will be joined with dots
       and preceded by [extension.].  Partial inverse of [match_extension]. *)
   val make_extension  : loc:Location.t -> string list -> ast -> ast
 
   (** Given an AST node, check if it's a language extension term; if it is,
       split it back up into its name (the [string list]) and the body (the
       [ast]); the resulting name is split on dots and the leading [extension]
-      component is dropped..  If the language extension term is malformed in any
+      component is dropped.  If the language extension term is malformed in any
       way, raises an error; if the input isn't a language extension term,
       returns [None].  Partial inverse of [make_extension]. *)
   val match_extension : ast -> (string list * ast) option
 end
 
 (** One [AST] module per syntactic category we currently care about; we're
-    adding these lazily as we need them. *)
+    adding these lazily as we need them. When you add another one, make
+    sure also to add special handling in [Ast_iterator] and [Ast_mapper]. *)
 
 module Expression : AST with type ast = Parsetree.expression
 module Pattern    : AST with type ast = Parsetree.pattern
 
-(** What makes a language extension, for a single syntactic category.  Given a
-    language extension AST ['ext], an OCaml AST ['ast], and our auxiliary
-    all-extension AST ['ext_ast], then we need to know how to convert any term
-    of type ['ext] to ([ast_of]) and from ([of_ast]) an OCaml AST node, and how
-    to convert it to ([wrap]) and from ([unwrap]) our eventual auxiliary
-    all-extension AST.  The first two are expected to each correspond to a
-    function defined in an eventual language-extension-specific module; the
-    latter two are expected to correspond to a constructor and a
-    pattern-matching function, respectively. *)
-type ('ext, 'ast, 'ext_ast) ast_extension =
-  { ast_of : loc:Location.t -> 'ext -> 'ast
-  ; of_ast : 'ast -> 'ext
-  ; wrap   : 'ext -> 'ext_ast
-  ; unwrap : 'ext_ast -> 'ext option }
+(** Each syntactic category will include a module that meets this signature.
+    Then, the [Make_of_ast] functor produces the functions that actually
+    convert from the Parsetree AST to the extensions one. *)
+module type Of_ast_parameters = sig
 
-(** Hiding the specific extension type lets us work with [ast_extension]s
-    uniformly; since we don't support every syntactic category for every
-    extension, we combine this with making the presence of the [ast_extension]
-    optional, which aids abstraction later. *)
-type ('ast, 'ext_ast) optional_ast_extension =
-  | Supported :
-      (_, 'ast, 'ext_ast) ast_extension ->
-      ('ast, 'ext_ast) optional_ast_extension
-  | Unsupported
+  (** Which syntactic category is this concerning? e.g. [module AST = Expression] *)
+  module AST : AST
 
-(** Create the two core functions of this module: lifting and lowering OCaml AST
-    terms from any syntactic category to and from our auxiliary all-extension
-    ASTs.
+  (** The extension type of this syntactic category, shared across extensions.
+      e.g. [Extension.Expression.t] *)
+  type t
 
-    This will only get instantiated once; however, by making it a functor, we
-    can keep all the general logic together here in this module, and keep the
-    extension-specific stuff in [Extensions].. *)
-module Translate
-         (Syntactic_category : sig
-            (** A type-indexed enumeration for selecting a specific syntactic
-                category *)
-            type ('ast, 'ext_ast) t
+  (** A function to convert [Parsetree]'s AST to the extension's.
+      The choice of extension is extracted from the e.g.
+      [[%extensions.comprehensions]] node, and the argument to that
+      node is passed in as the [Parsetree] AST.
 
-            (** Given a syntactic category, get the module for manipulating
-                language extensions of it *)
-            val ast_module :
-              ('ast, 'ext_ast) t ->
-              (module AST with type ast = 'ast)
+      So, for example, if [of_ast] spots the expression
 
-            (** Given a syntactic category and a language extension, get the
-                [ast_extension] for lifting and lowering its terms if it's
-                available. *)
-            val ast_extension :
-              ('ast, 'ext_ast) t ->
-              Clflags.Extension.t ->
-              ('ast, 'ext_ast) optional_ast_extension
-          end) : sig
+      {[
+        [%extensions.comprehensions] blah
+      ]}
+
+      then it will call [of_ast_internal Comprehensions blah].
+
+      If the given extension does not actually extend the
+      syntactic category, return None; this will be reported
+      as an error. (Example: there are no pattern comprehensions,
+      so when building the pattern extension AST, this function will
+      return [None] when the extension in [Comprehensions].)
+  *)
+  val of_ast_internal : Clflags.Extension.t -> AST.ast -> t option
+end
+
+(** Build the [of_ast] function from [Of_ast_parameters]. The result
+    of this functor should be [include]d in modules implementing [Extensions.AST].
+*)
+module Make_of_ast (Params : Of_ast_parameters) : sig
+
   (** Interpret an AST term in the specified syntactic category as a term of the
       appropriate auxiliary language extension AST if possible.  Raises an error
       if the extension it finds is disabled or if the language extension
       embedding is malformed.  *)
-  val extension_ast_of_ast :
-    ('ast, 'ext_ast) Syntactic_category.t ->
-    'ast ->
-    'ext_ast option
-
-  (* CR aspectorzabusky: Is this really the right API, with the extension
-     specified twice?  There's a bit of redundancy, but I don't see how to
-     alleviate it without making uses of [Expression.make_extension] bulkier,
-     and that's right out. *)
-  (** Interpret an auxiliary extended language extension AST term from the
-      specified extension as a term of the appropriate OCaml AST.  Raises an
-      error if the language extension is disabled.  The language extension
-      specified *must* correspond to the constructor of ['ext_ast] and provide
-      support for the specified syntactic category, or this function will raise
-      a fatal error or an exception (respectively); these should both be avoided
-      statically, as the relevant values are expected to be literals. *)
-  val ast_of_extension_ast :
-    ('ast, 'ext_ast) Syntactic_category.t ->
-    loc:Location.t ->
-    Clflags.Extension.t ->
-    'ext_ast ->
-    'ast
+  val of_ast : Params.AST.ast -> Params.t option
 end
 
 (** Require that an extension is enabled, or else throw an exception (of an

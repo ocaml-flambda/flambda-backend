@@ -8,7 +8,7 @@ Parsing and printing round-tripped successfully!
 **** Test that compiler-generated extension nodes start with "extension." ****
 
 User [%extension] nodes found:
+  [%expr ...]
   [%low ...]
   [%high ...]
   [%cond ...]
-  [%expr ...]

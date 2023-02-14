@@ -47,13 +47,15 @@ module Comprehensions : sig
     ; clauses : clause list
     (** The clauses of the comprehension; must be nonempty *) }
 
-  type comprehension_expr =
+  type expression =
     | Cexp_list_comprehension  of comprehension
     (** [BODY ...CLAUSES...] *)
     | Cexp_array_comprehension of Asttypes.mutable_flag * comprehension
     (** [|BODY ...CLAUSES...|] (flag = Mutable)
         [:BODY ...CLAUSES...:] (flag = Immutable)
           (only allowed with [-extension immutable_arrays]) *)
+
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression
 end
 
 (** The ASTs for immutable arrays.  When we merge this upstream, we'll merge
@@ -69,6 +71,9 @@ module Immutable_arrays : sig
     | Iapat_immutable_array of Parsetree.pattern list
     (** [: P1; ...; Pn :] **)
     (* CR aspectorzabusky: Or [Iapat_iarray]? *)
+
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression
+  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
 end
 
 (** The module type of language extension ASTs, instantiated once for each
@@ -122,22 +127,15 @@ module type AST = sig
       avoiding changing the body of every single important function in the type
       checker to add pointless indentation. *)
   val of_ast : ast -> t option
-
-  (** Given a location, an extension, and a language-extension term, wrap our
-      custom term into the existing OCaml AST.  Succeeds whether or not the
-      extension is enabled.  The language extension specified *must* correspond
-      to the constructor of the language extension AST, or this function will
-      raise a fatal error. *)
-  val ast_of : loc:Location.t -> Clflags.Extension.t -> t -> ast
 end
 
 (** Language extensions in expressions *)
 module Expression : sig
   type t =
-    | Eexp_comprehension   of Comprehensions.comprehension_expr
+    | Eexp_comprehension   of Comprehensions.expression
     | Eexp_immutable_array of Immutable_arrays.expression
 
-  include AST with type t := t and type ast = Parsetree.expression
+  include AST with type t := t and type ast := Parsetree.expression
 end
 
 (** Language extensions in patterns *)
@@ -145,5 +143,5 @@ module Pattern : sig
   type t =
     | Epat_immutable_array of Immutable_arrays.pattern
 
-  include AST with type t := t and type ast = Parsetree.pattern
+  include AST with type t := t and type ast := Parsetree.pattern
 end

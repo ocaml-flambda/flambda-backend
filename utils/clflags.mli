@@ -216,6 +216,7 @@ module Extension : sig
   val all : t list
 
   val enable : string -> unit
+  val enable_t : t -> unit
   val is_enabled : t -> bool
   val disable_all : unit -> unit
 

@@ -41,6 +41,7 @@ type iterator = {
   class_type_field: iterator -> class_type_field -> unit;
   constructor_declaration: iterator -> constructor_declaration -> unit;
   expr: iterator -> expression -> unit;
+  expr_extension: iterator -> Extensions.Expression.t -> unit;
   extension: iterator -> extension -> unit;
   extension_constructor: iterator -> extension_constructor -> unit;
   include_declaration: iterator -> include_declaration -> unit;
@@ -56,6 +57,7 @@ type iterator = {
   open_declaration: iterator -> open_declaration -> unit;
   open_description: iterator -> open_description -> unit;
   pat: iterator -> pattern -> unit;
+  pat_extension: iterator -> Extensions.Pattern.t -> unit;
   payload: iterator -> payload -> unit;
   signature: iterator -> signature -> unit;
   signature_item: iterator -> signature_item -> unit;
@@ -345,9 +347,50 @@ end
 module E = struct
   (* Value expressions for the core language *)
 
-  let iter sub {pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} =
+  module C = Extensions.Comprehensions
+  module IA = Extensions.Immutable_arrays
+
+  let iter_iterator sub : C.iterator -> _ = function
+    | Range { start; stop; direction = _ } ->
+      sub.expr sub start;
+      sub.expr sub stop
+    | In expr -> sub.expr sub expr
+
+  let iter_clause_binding sub
+        ({ pattern; iterator; attributes } :
+           C.clause_binding) =
+    sub.pat sub pattern;
+    iter_iterator sub iterator;
+    sub.attributes sub attributes
+
+  let iter_clause sub : C.clause -> _ = function
+    | For cbs -> List.iter (iter_clause_binding sub) cbs
+    | When expr -> sub.expr sub expr
+
+  let iter_comp sub
+        ({ body; clauses } : C.comprehension) =
+    sub.expr sub body;
+    List.iter (iter_clause sub) clauses
+
+  let iter_comp_exp sub : C.expression -> _ = function
+    | Cexp_list_comprehension comp -> iter_comp sub comp
+    | Cexp_array_comprehension (_mut, comp) -> iter_comp sub comp
+
+  let iter_iarr_exp sub : IA.expression -> _ = function
+    | Iaexp_immutable_array elts ->
+      List.iter (sub.expr sub) elts
+
+  let iter_ext sub : Extensions.Expression.t -> _ = function
+    | Eexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
+    | Eexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
+
+  let iter sub
+        ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
     sub.location sub loc;
     sub.attributes sub attrs;
+    match Extensions.Expression.of_ast expr with
+    | Some eexp -> sub.expr_extension sub eexp
+    | None ->
     match desc with
     | Pexp_ident x -> iter_loc sub x
     | Pexp_constant _ -> ()
@@ -432,9 +475,22 @@ end
 module P = struct
   (* Patterns *)
 
-  let iter sub {ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} =
+  module IA = Extensions.Immutable_arrays
+
+  let iter_iapat sub : IA.pattern -> _ = function
+    | Iapat_immutable_array elts ->
+      List.iter (sub.pat sub) elts
+
+  let iter_ext sub : Extensions.Pattern.t -> _ = function
+    | Epat_immutable_array iapat -> iter_iapat sub iapat
+
+  let iter sub
+        ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     sub.location sub loc;
     sub.attributes sub attrs;
+    match Extensions.Pattern.of_ast pat with
+    | Some epat -> sub.pat_extension sub epat
+    | None ->
     match desc with
     | Ppat_any -> ()
     | Ppat_var s -> iter_loc sub s
@@ -567,7 +623,9 @@ let default_iterator =
       );
 
     pat = P.iter;
+    pat_extension = P.iter_ext;
     expr = E.iter;
+    expr_extension = E.iter_ext;
     binding_op = E.iter_binding_op;
 
     module_declaration =

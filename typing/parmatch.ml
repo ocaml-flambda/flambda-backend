@@ -1913,10 +1913,9 @@ module Conv = struct
           let ppat = match am with
             | Mutable   -> Ppat_array pats
             | Immutable ->
-                (Extensions.Pattern.ast_of
+                (Extensions.Immutable_arrays.pat_of
                    ~loc:pat.pat_loc
-                   Immutable_arrays
-                   (Epat_immutable_array (Iapat_immutable_array pats))
+                   (Iapat_immutable_array pats)
                 ).ppat_desc
           in
           mkpat ppat

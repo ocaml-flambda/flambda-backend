@@ -45,16 +45,6 @@ let check_file kind fn =
     try
       invariants kind ast
     with
-    (* CR aspectorzabusky: Is this the right way to handle this? *)
-    (* One test case intentionally triggers should-be-unreachable errors in the
-       modular extensions machinery; these only fire when [invariants] tries to
-       desugar things, so we test for it here. *)
-    | Extensions_parsing.Error.Error ({loc_start = { pos_fname; _ }; _}, _)
-      when String.ends_with
-             ~suffix:"testsuite/tests/jst-modular-extensions/user_error.ml"
-             pos_fname
-      ->
-        close_in ic
     | exn ->
         Location.report_exception Format.std_formatter exn
 
@@ -70,7 +60,13 @@ let kind fn =
   | { Unix.st_kind = Unix.S_REG } -> Regular_file
   | { Unix.st_kind = _          } -> Other
 
+(* some test directories contain files that intentionally violate the
+   expectations of ast-invariants *)
+let is_ok_dir dir =
+  not (String.ends_with ~suffix:"tests/jst-modular-extensions" dir)
+
 let rec walk dir =
+  if is_ok_dir dir then
   Array.iter
     (fun fn ->
        if fn = "" || fn.[0] = '.' then
@@ -88,4 +84,6 @@ let rec walk dir =
        end)
     (Sys.readdir dir)
 
-let () = walk root
+let () =
+  List.iter Clflags.Extension.enable_t Clflags.Extension.all;
+  walk root

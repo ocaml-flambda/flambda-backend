@@ -70,7 +70,6 @@ let test_iteration () =
   in
   let expr = Parse.expression (Lexing.from_string example) in
   let extension it ((name, _) : Parsetree.extension) =
-    if not (starts_with "extension." name.txt) then
       Printf.printf "  [%%%s ...]\n" name.txt
   in
   let iterator =

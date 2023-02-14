@@ -26,15 +26,9 @@
     to error in various ways on malformed input, since nobody should ever be
     writing these forms directly.  They're just an implementation detail.
 
-    To represent these, we choose the following schemes for the existing
-    syntactic categories:
-
-    - Expressions: Language extensions are to be rendered as an application of
-      the extension node to the body, i.e. [([%extension.EXTNAME] EXPR)].
-
-    - Patterns: Language extensions are to be rendered as a tuple pattern
-      containing the extension node and the body, i.e.
-      [[%extension.EXTNAME], EXPR].
+    See modules of type AST below to see how different syntactic categories
+    are represented. For example, expressions are rendered as an application
+    of the extension node to the body, i.e. [([%extension.EXTNAME] EXPR)].
 
     We provide one module per syntactic category (e.g., [Expression]), of module
     type [AST].  They also provide some simple machinery for working with the
@@ -43,7 +37,7 @@
     [match_extension] in the various AST modules; to construct one, we provide
     [make_extension] in the same places..  We still have to write the
     transformations in both directions for all new syntax, lowering it to
-    extension nodes and then (somewhat more obnoxiously) lifting it back out. *)
+    extension nodes and then lifting it back out. *)
 
 open Parsetree
 
@@ -79,14 +73,14 @@ let report_error ~loc = function
       | Has_payload _payload ->
           Location.errorf
             ~loc
-            "Extension extension nodes are not allowed to have a payload, \
-             but \"%s\" does"
+            "@[Modular extension nodes are not allowed to have a payload,@ \
+             but \"%s\" does@]"
           name
       | Wrong_arguments arguments ->
           Location.errorf
             ~loc
-            "Expression extension extension nodes must be applied to exactly \
-             one unlabeled argument, but \"%s\" was applied to %s"
+            "@[Expression modular extension nodes must be applied to exactly@ \
+             one unlabeled argument, but \"%s\" was applied to@ %s@]"
             name
             (match arguments with
              | [Labelled _, _] -> "a labeled argument"
@@ -95,16 +89,16 @@ let report_error ~loc = function
       | Wrong_tuple patterns ->
           Location.errorf
             ~loc
-            "Pattern extension extension nodes must be the first component of \
-             a pair, but \"%s\" was the first component of a %d-tuple"
+            "@[Pattern modular extension nodes must be the first component of@ \
+             a pair, but \"%s\" was the first component of a %d-tuple@]"
             name
             (1 + List.length patterns)
     end
   | Unknown_extension name ->
       Location.errorf
         ~loc
-        "Unknown extension \"%s\" referenced via an [%%extension.%s] \
-         extension node"
+        "@[Unknown extension \"%s\" referenced via an@ [%%extension.%s] \
+         extension node@]"
         name
         name
   | Disabled_extension ext ->
@@ -125,8 +119,8 @@ let report_error ~loc = function
   | Bad_introduction(name, subnames) ->
       Location.errorf
         ~loc
-        "The extension \"%s\" was referenced improperly; it started with an \
-         [%%extension.%s] extension node, not an [%%extension.%s] one"
+        "@[The extension \"%s\" was referenced improperly; it started with an@ \
+         [%%extension.%s] extension node,@ not an [%%extension.%s] one@]"
         name
         (String.concat "." (name :: subnames))
         name
@@ -143,7 +137,8 @@ let () =
     etc.). *)
 
 (** The parameters that define how to look for [[%extension.EXTNAME]] inside
-    ASTs of a certain syntactic category.  See also the [AST] functor. *)
+    ASTs of a certain syntactic category.  See also the [Make_AST] functor, which
+    uses these definitions to make the e.g. [Expression] module. *)
 module type AST_parameters = sig
   (** The AST type (e.g., [Parsetree.expression]) *)
   type ast
@@ -211,11 +206,12 @@ let uniformly_handled_extension names =
   | [("local"|"global"|"nonlocal"|"escape"|"include_functor"|"curry")] -> false
   | _ -> true
 
-(** Given the definition of an AST for a syntactic category, produce the
+(** Given the [AST_parameters] for a syntactic category, produce the
     corresponding module, of type [AST], for lowering and lifting language
     extension syntax from and to it. *)
-module AST (AST : AST_parameters) : AST with type ast = AST.ast = struct
-  include AST
+module Make_AST (AST_parameters : AST_parameters) :
+    AST with type ast = AST_parameters.ast = struct
+  include AST_parameters
 
   let make_extension ~loc names =
     make_extension_use
@@ -255,7 +251,7 @@ module AST (AST : AST_parameters) : AST with type ast = AST.ast = struct
 end
 
 (** Expressions; embedded as [([%extension.EXTNAME] BODY)]. *)
-module Expression = AST(struct
+module Expression = Make_AST(struct
   type ast = expression
   type raw_body = Asttypes.arg_label * expression (* Function arguments *)
 
@@ -282,8 +278,8 @@ module Expression = AST(struct
   let malformed_extension args = Wrong_arguments args
 end)
 
-(** Expressions; embedded as [[%extension.EXTNAME], BODY]. *)
-module Pattern = AST(struct
+(** Patterns; embedded as [[%extension.EXTNAME], BODY]. *)
+module Pattern = Make_AST(struct
   type ast = pattern
   type raw_body = pattern
 
@@ -311,62 +307,27 @@ end)
 (** Generically lift and lower our custom language extension ASTs from/to OCaml
     ASTs. *)
 
-type ('ext, 'ast, 'ext_ast) ast_extension =
-  { ast_of : loc:Location.t -> 'ext -> 'ast
-  ; of_ast : 'ast -> 'ext
-  ; wrap   : 'ext -> 'ext_ast
-  ; unwrap : 'ext_ast -> 'ext option }
+module type Of_ast_parameters = sig
+  module AST : AST
+  type t
+  val of_ast_internal : Clflags.Extension.t -> AST.ast -> t option
+end
 
-type ('ast, 'ext_ast) optional_ast_extension =
-  | Supported :
-      (_, 'ast, 'ext_ast) ast_extension ->
-      ('ast, 'ext_ast) optional_ast_extension
-  | Unsupported
-
-module Translate
-         (Syntactic_category : sig
-            type ('ast, 'ext_ast) t
-
-            val ast_module :
-              ('ast, 'ext_ast) t ->
-              (module AST with type ast = 'ast)
-
-            val ast_extension :
-              ('ast, 'ext_ast) t ->
-              Clflags.Extension.t ->
-              ('ast, 'ext_ast) optional_ast_extension
-          end) : sig
-  val extension_ast_of_ast :
-    ('ast, 'ext_ast) Syntactic_category.t ->
-    'ast ->
-    'ext_ast option
-
-  val ast_of_extension_ast :
-    ('ast, 'ext_ast) Syntactic_category.t ->
-    loc:Location.t ->
-    Clflags.Extension.t ->
-    'ext_ast ->
-    'ast
+module Make_of_ast (Params : Of_ast_parameters) : sig
+  val of_ast : Params.AST.ast -> Params.t option
 end = struct
-  let extension_ast_of_ast
-        (type ast ext_ast)
-        (cat : (ast, ext_ast) Syntactic_category.t)
-        (ast : ast)
-      : ext_ast option =
-    let (module AST) = Syntactic_category.ast_module cat in
-    let loc = AST.location ast in
+  let of_ast ast =
+    let loc = Params.AST.location ast in
     let raise_error err = raise (Error (loc, err)) in
-    match AST.match_extension ast with
+    match Params.AST.match_extension ast with
     | None -> None
     | Some ([name], ast) -> begin
         match Clflags.Extension.of_string name with
         | Some ext -> begin
             assert_extension_enabled ~loc ext;
-            match Syntactic_category.ast_extension cat ext with
-            | Supported { of_ast; wrap; _ } ->
-                Some (wrap (of_ast ast))
-            | Unsupported ->
-                raise_error (Wrong_syntactic_category(ext, AST.plural))
+            match Params.of_ast_internal ext ast with
+            | Some ext_ast -> Some ext_ast
+            | None -> raise_error (Wrong_syntactic_category(ext, Params.AST.plural))
           end
         | None -> raise_error (Unknown_extension name)
       end
@@ -374,31 +335,4 @@ end = struct
         raise_error Unnamed_extension
     | Some (name :: subnames, _) ->
         raise_error (Bad_introduction(name, subnames))
-
-  let ast_of_extension_ast
-        (type ast ext_ast)
-        (cat : (ast, ext_ast) Syntactic_category.t)
-        ~(loc : Location.t)
-        (extn : Clflags.Extension.t)
-        (east : ext_ast)
-      : ast =
-    let (module AST) = Syntactic_category.ast_module cat in
-    let raise_error err = raise (Error(loc, err)) in
-    match Syntactic_category.ast_extension cat extn with
-    | Supported { unwrap; ast_of; _ } -> begin
-        assert_extension_enabled ~loc extn;
-        match unwrap east with
-        | Some east' ->
-            AST.make_extension
-              ~loc
-              [Clflags.Extension.to_string extn]
-              (ast_of ~loc east')
-        | None ->
-            Misc.fatal_errorf
-              "Incorrect extension \"%s\" specified when trying to lower a \
-               language extension to the OCaml AST"
-              (Clflags.Extension.to_string extn)
-      end
-    | Unsupported ->
-       raise_error (Wrong_syntactic_category(extn, AST.plural))
 end
