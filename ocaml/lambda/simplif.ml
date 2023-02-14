@@ -95,8 +95,8 @@ let rec eliminate_ref id = function
       Levent(eliminate_ref id l, ev)
   | Lifused(v, e) ->
       Lifused(v, eliminate_ref id e)
-  | Lregion e ->
-      Lregion(eliminate_ref id e)
+  | Lregion (e, layout) ->
+      Lregion(eliminate_ref id e, layout)
 
 (* Simplification of exits *)
 
@@ -184,7 +184,7 @@ let simplify_exits lam =
   | Lsend(_k, m, o, ll, _, _, _, _) -> List.iter (count ~try_depth) (m::o::ll)
   | Levent(l, _) -> count ~try_depth l
   | Lifused(_v, l) -> count ~try_depth l
-  | Lregion l -> count ~try_depth l
+  | Lregion (l, _) -> count ~try_depth l
 
   and count_default ~try_depth sw = match sw.sw_failaction with
   | None -> ()
@@ -329,7 +329,7 @@ let simplify_exits lam =
       List.map (simplif ~try_depth) ll, pos, mode, loc, layout)
   | Levent(l, ev) -> Levent(simplif ~try_depth l, ev)
   | Lifused(v, l) -> Lifused (v,simplif ~try_depth l)
-  | Lregion l -> Lregion (simplif ~try_depth l)
+  | Lregion (l, layout) -> Lregion (simplif ~try_depth l, layout)
   in
   simplif ~try_depth:0 lam
 
@@ -462,7 +462,7 @@ let simplify_lets lam =
   | Levent(l, _) -> count bv l
   | Lifused(v, l) ->
       if count_var v > 0 then count bv l
-  | Lregion l ->
+  | Lregion (l, _) ->
       count bv l
 
   and count_default bv sw = match sw.sw_failaction with
@@ -613,7 +613,7 @@ let simplify_lets lam =
   | Levent(l, ev) -> Levent(simplif l, ev)
   | Lifused(v, l) ->
       if count_var v > 0 then simplif l else lambda_unit
-  | Lregion l -> Lregion (simplif l)
+  | Lregion (l, layout) -> Lregion (simplif l, layout)
   in
   simplif lam
 
@@ -704,7 +704,7 @@ let rec emit_tail_infos is_tail lambda =
       emit_tail_infos is_tail lam
   | Lifused (_, lam) ->
       emit_tail_infos is_tail lam
-  | Lregion lam ->
+  | Lregion (lam, _) ->
       emit_tail_infos is_tail lam
 and list_emit_tail_infos_fun f is_tail =
   List.iter (fun x -> emit_tail_infos is_tail (f x))
@@ -745,7 +745,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
       ->
         let wrapper_body, inner = aux ((optparam, id) :: map) add_region rest in
         Llet(Strict, k, id, def, wrapper_body), inner
-    | Lregion rest -> aux map true rest
+    | Lregion (rest, _) -> aux map true rest
     | _ when map = [] -> raise Exit
     | body ->
         (* Check that those *opt* identifiers don't appear in the remaining
@@ -778,7 +778,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
           ) Ident.Map.empty inner_params new_ids
         in
         let body = Lambda.rename subst body in
-        let body = if add_region then Lregion body else body in
+        let body = if add_region then Lregion (body, return) else body in
         let inner_fun =
           lfunction ~kind:(Curried {nlocal=0})
             ~params:(List.map (fun id -> id, Lambda.layout_top) new_ids)
@@ -902,7 +902,7 @@ let simplify_local_functions lam =
     | Lfunction lf ->
         check_static lf;
         function_definition lf
-    | Lregion lam -> region lam
+    | Lregion (lam, _) -> region lam
     | lam ->
         Lambda.shallow_iter ~tail ~non_tail lam
   and non_tail lam =

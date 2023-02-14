@@ -373,7 +373,7 @@ type lambda =
              * region_close * alloc_mode * scoped_location * layout
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
-  | Lregion of lambda
+  | Lregion of lambda * layout
 
 and lfunction = private
   { kind: function_kind;

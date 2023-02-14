@@ -445,7 +445,7 @@ type lambda =
       * region_close * alloc_mode * scoped_location * layout
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
-  | Lregion of lambda
+  | Lregion of lambda * layout
 
 and lfunction =
   { kind: function_kind;
@@ -655,7 +655,7 @@ let make_key e =
     | Lsend (m,e1,e2,es,pos,mo,_loc,layout) ->
         Lsend (m,tr_rec env e1,tr_rec env e2,tr_recs env es,pos,mo,Loc_unknown,layout)
     | Lifused (id,e) -> Lifused (id,tr_rec env e)
-    | Lregion e -> Lregion (tr_rec env e)
+    | Lregion (e,layout) -> Lregion (tr_rec env e,layout)
     | Lletrec _|Lfunction _
     | Lfor _ | Lwhile _
 (* Beware: (PR#6412) the event argument to Levent
@@ -754,7 +754,7 @@ let shallow_iter ~tail ~non_tail:f = function
       tail e
   | Lifused (_v, e) ->
       tail e
-  | Lregion e ->
+  | Lregion (e, _) ->
       f e
 
 let iter_head_constructor f l =
@@ -836,7 +836,7 @@ let rec free_variables = function
   | Lifused (_v, e) ->
       (* Shouldn't v be considered a free variable ? *)
       free_variables e
-  | Lregion e ->
+  | Lregion (e, _) ->
       free_variables e
 
 and free_variables_list set exprs =
@@ -1041,8 +1041,8 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
     | Lifused (id, e) ->
         let id = try Ident.Map.find id l with Not_found -> id in
         Lifused (id, subst s l e)
-    | Lregion e ->
-        Lregion (subst s l e)
+    | Lregion (e, layout) ->
+        Lregion (subst s l e, layout)
   and subst_list s l li = List.map (subst s l) li
   and subst_decl s l (id, exp) = (id, subst s l exp)
   and subst_case s l (key, case) = (key, subst s l case)
@@ -1140,8 +1140,8 @@ let shallow_map ~tail ~non_tail:f = function
       Levent (tail l, ev)
   | Lifused (v, e) ->
       Lifused (v, tail e)
-  | Lregion e ->
-      Lregion (f e)
+  | Lregion (e, layout) ->
+      Lregion (f e, layout)
 
 let map f =
   let rec g lam = f (shallow_map ~tail:g ~non_tail:g lam) in
