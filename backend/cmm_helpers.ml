@@ -114,10 +114,7 @@ let caml_int64_ops = "caml_int64_ops"
 let pos_arity_in_closinfo = (8 * size_addr) - 8
 (* arity = the top 8 bits of the closinfo word *)
 
-let closure_info ~arity ~startenv ~is_last =
-  let arity =
-    match arity with Lambda.Tupled, n -> -n | Lambda.Curried _, n -> n
-  in
+let pack_closure_info ~arity ~startenv ~is_last =
   assert (-128 <= arity && arity <= 127);
   assert (0 <= startenv && startenv < 1 lsl (pos_arity_in_closinfo - 2));
   Nativeint.(
@@ -128,6 +125,19 @@ let closure_info ~arity ~startenv ~is_last =
             (Bool.to_int is_last |> Nativeint.of_int)
             (pos_arity_in_closinfo - 1))
          (add (shift_left (of_int startenv) 1) 1n)))
+
+let closure_info' ~arity ~startenv ~is_last =
+  let arity =
+    match arity with
+    | Lambda.Tupled, l -> - (List.length l)
+    | Lambda.Curried _, l -> List.length l
+  in
+  pack_closure_info ~arity ~startenv ~is_last
+
+let closure_info ~(arity : Clambda.arity) ~startenv ~is_last =
+  closure_info' ~arity:(arity.function_kind, arity.params_layout)
+    ~startenv ~is_last
+
 
 let alloc_float_header mode dbg =
   match mode with
@@ -2684,7 +2694,6 @@ let intermediate_curry_functions ~nlocal ~arity result =
       let mode : Lambda.alloc_mode =
         if num >= narity - nlocal then Lambda.alloc_local else Lambda.alloc_heap
       in
-      let curried n = Lambda.Curried { nlocal = min nlocal n }, n in
       let has_nary = curry_clos_has_nary_application ~narity (num + 1) in
       let function_slot_size = if has_nary then 3 else 2 in
       Cfunction
@@ -2697,11 +2706,12 @@ let intermediate_curry_functions ~nlocal ~arity result =
                     (function_slot_size + machtype_stored_size arg_type + 1)
                     (dbg ());
                   Cconst_symbol (name1 ^ "_" ^ Int.to_string (num + 1), dbg ());
-                  alloc_closure_info
-                    ~arity:(curried (if has_nary then narity - num - 1 else 1))
-                    ~startenv:
-                      (function_slot_size + machtype_non_scanned_size arg_type)
-                    (dbg ()) ~is_last:true ]
+                  Cconst_natint
+                    (pack_closure_info
+                      ~arity:(if has_nary then narity - num - 1 else 1)
+                      ~startenv:
+                        (function_slot_size + machtype_non_scanned_size arg_type)
+                      ~is_last:true, dbg ()) ]
                 @ (if has_nary
                   then
                     [ Cconst_symbol
@@ -3562,7 +3572,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
           @ Csymbol_address f2.label
             :: Cint
                  (closure_info
-                    ~arity:(arity.function_kind, List.length arity.params_layout)
+                    ~arity
                     ~startenv:(startenv - pos) ~is_last)
             :: emit_others (pos + 3) rem
         | arity ->
@@ -3573,7 +3583,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
                  (machtype_of_layout arity.return_layout))
             :: Cint
                  (closure_info
-                    ~arity:(arity.function_kind, List.length arity.params_layout)
+                    ~arity
                     ~startenv:(startenv - pos) ~is_last)
             :: Csymbol_address f2.label
             :: emit_others (pos + 4) rem)
@@ -3588,7 +3598,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
       Csymbol_address f1.label
       :: Cint
            (closure_info
-              ~arity:(arity.function_kind, List.length arity.params_layout)
+              ~arity
               ~startenv ~is_last)
       :: emit_others 3 remainder
     | arity ->
@@ -3598,7 +3608,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
            (machtype_of_layout arity.return_layout))
       :: Cint
            (closure_info
-              ~arity:(arity.function_kind, List.length arity.params_layout)
+              ~arity
               ~startenv ~is_last)
       :: Csymbol_address f1.label :: emit_others 4 remainder)
 

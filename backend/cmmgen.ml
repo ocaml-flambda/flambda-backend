@@ -461,12 +461,12 @@ let rec transl env e =
               match f.arity with
               | { function_kind = Curried _ ; params_layout = ([] | [_]) } as arity ->
                 Cconst_symbol (f.label, dbg) ::
-                alloc_closure_info ~arity:(arity.function_kind, List.length arity.params_layout)
+                alloc_closure_info ~arity
                                    ~startenv:(startenv - pos) ~is_last dbg ::
                 transl_fundecls (pos + 3) rem
               | arity ->
                 Cconst_symbol (curry_function_sym arity.function_kind (List.map machtype_of_layout arity.params_layout) (machtype_of_layout arity.return_layout), dbg) ::
-                alloc_closure_info ~arity:(arity.function_kind, List.length arity.params_layout)
+                alloc_closure_info ~arity
                                    ~startenv:(startenv - pos) ~is_last dbg ::
                 Cconst_symbol (f.label, dbg) ::
                 transl_fundecls (pos + 4) rem
