@@ -34,8 +34,14 @@ type closure_code_pointers =
 
 let get_func_decl_params_arity t code_id =
   let info = Env.get_code_metadata t code_id in
-  let num_params =
-    Flambda_arity.With_subkinds.cardinal (Code_metadata.params_arity info)
+  let params_ty =
+    List.map
+      (fun k -> C.machtype_of_kind (Flambda_kind.With_subkind.kind k))
+      (Flambda_arity.With_subkinds.to_list (Code_metadata.params_arity info))
+  in
+  let result_ty =
+    C.machtype_of_return_arity
+      (Flambda_arity.With_subkinds.to_arity (Code_metadata.result_arity info))
   in
   let kind : Lambda.function_kind =
     if Code_metadata.is_tupled info
@@ -44,11 +50,11 @@ let get_func_decl_params_arity t code_id =
       Lambda.Curried { nlocal = Code_metadata.num_trailing_local_params info }
   in
   let closure_code_pointers =
-    match kind, num_params with
-    | Curried _, (0 | 1) -> Full_application_only
+    match kind, params_ty with
+    | Curried _, ([] | [_]) -> Full_application_only
     | (Curried _ | Tupled), _ -> Full_and_partial_application
   in
-  let arity = kind, num_params in
+  let arity = kind, params_ty, result_ty in
   arity, closure_code_pointers, Code_metadata.dbg info
 
 type for_static_sets =
@@ -147,12 +153,13 @@ end = struct
     | Function_slot { size; function_slot; last_function_slot } -> (
       let code_id = Function_slot.Map.find function_slot decls in
       let code_linkage_name = Code_id.linkage_name code_id in
-      let arity, closure_code_pointers, dbg =
+      let (kind, params_ty, result_ty), closure_code_pointers, dbg =
         get_func_decl_params_arity env code_id
       in
       let closure_info =
-        C.closure_info ~arity ~startenv:(startenv - slot_offset)
-          ~is_last:last_function_slot
+        C.closure_info
+          ~arity:(kind, List.length params_ty)
+          ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
       in
       let acc =
         match for_static_sets with
@@ -194,7 +201,8 @@ end = struct
           P.symbol_from_linkage_name ~dbg code_linkage_name
           :: P.int ~dbg closure_info
           :: P.symbol_from_linkage_name ~dbg
-               (Linkage_name.of_string (C.curry_function_sym arity))
+               (Linkage_name.of_string
+                  (C.curry_function_sym kind params_ty result_ty))
           :: acc
         in
         acc, slot_offset + size, env, res, Ece.pure, updates)

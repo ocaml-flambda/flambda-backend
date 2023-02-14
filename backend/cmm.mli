@@ -15,7 +15,7 @@
 
 (* Second intermediate language (machine independent) *)
 
-type machtype_component =
+type machtype_component = Cmx_format.machtype_component =
   | Val
   | Addr
   | Int

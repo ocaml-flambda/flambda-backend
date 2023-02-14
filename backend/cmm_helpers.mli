@@ -369,6 +369,8 @@ val call_cached_method :
   expression ->
   expression ->
   expression list ->
+  machtype list ->
+  machtype ->
   Clambda.apply_kind ->
   Debuginfo.t ->
   expression
@@ -406,13 +408,19 @@ val opaque : expression -> Debuginfo.t -> expression
 
 (** Generic application functions *)
 
+(** Get an identifier for a given machtype, used in the name of the generic
+    functions. *)
+val machtype_identifier : machtype -> string
+
 (** Get the symbol for the generic application with [n] arguments, and ensure
     its presence in the set of defined symbols *)
-val apply_function_sym : int -> Lambda.alloc_mode -> string
+val apply_function_sym :
+  machtype list -> machtype -> Lambda.alloc_mode -> string
 
 (** Get the symbol for the generic currying or tuplifying wrapper with [n]
     arguments, and ensure its presence in the set of defined symbols. *)
-val curry_function_sym : Clambda.arity -> string
+val curry_function_sym :
+  Lambda.function_kind -> machtype list -> machtype -> string
 
 (** Bigarrays *)
 
@@ -744,7 +752,12 @@ val ptr_offset : expression -> int -> Debuginfo.t -> expression
 
 (** Direct application of a function via a symbol *)
 val direct_apply :
-  string -> expression list -> Clambda.apply_kind -> Debuginfo.t -> expression
+  string ->
+  machtype ->
+  expression list ->
+  Clambda.apply_kind ->
+  Debuginfo.t ->
+  expression
 
 (** Generic application of a function to one or several arguments. The
     mutable_flag argument annotates the loading of the code pointer from the
@@ -755,6 +768,8 @@ val generic_apply :
   Asttypes.mutable_flag ->
   expression ->
   expression list ->
+  machtype list ->
+  machtype ->
   Clambda.apply_kind ->
   Debuginfo.t ->
   expression
@@ -774,6 +789,8 @@ val send :
   expression ->
   expression ->
   expression list ->
+  machtype list ->
+  machtype ->
   Clambda.apply_kind ->
   Debuginfo.t ->
   expression
@@ -1107,6 +1124,7 @@ val indirect_call :
   Lambda.region_close ->
   Lambda.alloc_mode ->
   expression ->
+  machtype list ->
   expression list ->
   expression
 
@@ -1118,6 +1136,7 @@ val indirect_full_call :
   Lambda.region_close ->
   Lambda.alloc_mode ->
   expression ->
+  machtype list ->
   expression list ->
   expression
 
@@ -1197,3 +1216,5 @@ val transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
 
 val kind_of_layout : Lambda.layout -> value_kind
+
+val machtype_of_layout : Lambda.layout -> machtype

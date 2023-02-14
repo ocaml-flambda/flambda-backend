@@ -161,6 +161,24 @@ let print_global_table table =
 open Cmx_format
 open Cmxs_format
 
+(* Redefined here to avoid depending on [Cmm_helpers]. *)
+let machtype_identifier t =
+  let char_of_component = function
+    | Val -> 'V' | Int -> 'I' | Float -> 'F' | Addr -> 'A'
+  in
+  String.of_seq (Seq.map char_of_component (Array.to_seq t))
+
+let unique_arity_identifier arity =
+  if List.for_all (function [|Val|] -> true | _ -> false) arity then
+    Int.to_string (List.length arity)
+  else
+    String.concat "_" (List.map machtype_identifier arity)
+
+let return_arity_identifier t =
+  match t with
+  | [|Val|] -> ""
+  | _ -> "_R" ^ machtype_identifier t
+
 let print_cmx_infos (ui, crc) =
   (* ocamlobjinfo has historically printed the name of the unit without
      the pack prefix. *)
@@ -195,11 +213,22 @@ let print_cmx_infos (ui, crc) =
   end;
   let pr_afuns _ fns =
     let mode = function Lambda.Alloc_heap -> "" | Lambda.Alloc_local -> "L" in
-    List.iter (fun (arity,m) -> printf " %d%s" arity (mode m)) fns in
+    List.iter (fun (arity,result,m) ->
+        printf " %s%s%s"
+          (unique_arity_identifier arity)
+          (return_arity_identifier result)
+          (mode m)) fns in
   let pr_cfuns _ fns =
     List.iter (function
-      | (Lambda.Curried {nlocal},a) -> printf " %dL%d" a nlocal
-      | (Lambda.Tupled, a) -> printf " -%d" a) fns in
+        | (Lambda.Curried {nlocal}, arity, result) ->
+            printf " %s%sL%d"
+              (unique_arity_identifier arity)
+              (return_arity_identifier result)
+              nlocal
+        | (Lambda.Tupled, arity, result) ->
+            printf " -%s%s"
+              (unique_arity_identifier arity)
+              (return_arity_identifier result)) fns in
   printf "Currying functions:%a\n" pr_cfuns ui.ui_curry_fun;
   printf "Apply functions:%a\n" pr_afuns ui.ui_apply_fun;
   printf "Send functions:%a\n" pr_afuns ui.ui_send_fun;
