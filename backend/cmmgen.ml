@@ -465,7 +465,12 @@ let rec transl env e =
                                    ~startenv:(startenv - pos) ~is_last dbg ::
                 transl_fundecls (pos + 3) rem
               | arity ->
-                Cconst_symbol (curry_function_sym arity.function_kind (List.map machtype_of_layout arity.params_layout) (machtype_of_layout arity.return_layout), dbg) ::
+                Cconst_symbol
+                  (curry_function_sym
+                     arity.function_kind
+                     (List.map machtype_of_layout arity.params_layout)
+                     (machtype_of_layout arity.return_layout),
+                   dbg) ::
                 alloc_closure_info ~arity
                                    ~startenv:(startenv - pos) ~is_last dbg ::
                 Cconst_symbol (f.label, dbg) ::
@@ -1491,7 +1496,8 @@ let transl_function f =
       f.arity.params_layout @ [Lambda.layout_function]
   in
   Cfunction {fun_name = f.label;
-             fun_args = List.map2 (fun id ty -> (id, machtype_of_layout ty)) f.params params_layout;
+             fun_args = List.map2 (fun id ty -> (id, machtype_of_layout ty))
+                 f.params params_layout;
              fun_body = cmm_body;
              fun_codegen_options;
              fun_poll = f.poll;

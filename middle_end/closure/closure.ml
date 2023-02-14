@@ -1030,7 +1030,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           Location.print_loc (Debuginfo.Scoped_location.to_location loc);
       begin match (close env funct, close_list env args) with
         ((ufunct, Value_closure(_,
-                                ({fun_arity={function_kind = Tupled ; params_layout = params_layout; _}} as fundesc),
+                                ({fun_arity={
+                                     function_kind = Tupled ;
+                                     params_layout; _}} as fundesc),
                                 approx_res)),
          [Uprim(P.Pmakeblock _, uargs, _)])
         when List.length uargs = List.length params_layout ->
@@ -1039,7 +1041,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
               pos ap_result_layout mode ~probe in
           (app, strengthen_approx app approx_res)
       | ((ufunct, Value_closure(_,
-                                ({fun_arity={function_kind = Curried _ ; params_layout ; _}} as fundesc),
+                                ({fun_arity={
+                                     function_kind = Curried _ ;
+                                     params_layout ; _}} as fundesc),
                                 approx_res)), uargs)
         when nargs = List.length params_layout ->
           let app =
@@ -1049,7 +1053,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
 
       | ((ufunct, (Value_closure(
             clos_mode,
-            ({fun_arity={ function_kind = Curried {nlocal} ; params_layout ; _ }} as fundesc),
+            ({fun_arity={ function_kind = Curried {nlocal} ;
+                          params_layout ; _ }} as fundesc),
             _) as fapprox)), uargs)
           when nargs < List.length params_layout ->
         let nparams = List.length params_layout in
@@ -1122,7 +1127,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         fail_if_probe ~probe "Partial application";
         (new_fun, approx)
 
-      | ((ufunct, Value_closure(_, ({fun_arity = { function_kind = Curried _; params_layout ; _}} as fundesc),
+      | ((ufunct, Value_closure(_, ({fun_arity = {
+          function_kind = Curried _; params_layout ; _}} as fundesc),
                                 _approx_res)), uargs)
         when nargs > List.length params_layout ->
           let nparams = List.length params_layout in
@@ -1494,7 +1500,11 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
             in
             let fundesc =
               {fun_label = label;
-               fun_arity = { function_kind = kind ; params_layout = List.map snd params ; return_layout = return };
+               fun_arity = {
+                 function_kind = kind ;
+                 params_layout = List.map snd params ;
+                 return_layout = return
+               };
                fun_closed = initially_closed;
                fun_inline = None;
                fun_float_const_prop = !Clflags.float_const_prop;
@@ -1523,7 +1533,9 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
       (fun (_id, _params, _return, _body, _mode, _attrib, fundesc, _dbg) ->
         let pos = !env_pos + 1 in
         env_pos := !env_pos + 1 +
-          (match fundesc.fun_arity with { function_kind = Curried _; params_layout = ([] | [_]); _} -> 2 | _ -> 3);
+          (match fundesc.fun_arity with
+            | { function_kind = Curried _; params_layout = ([] | [_]); _} -> 2
+            | _ -> 3);
         pos)
       uncurried_defs in
   let fv_pos = !env_pos in
