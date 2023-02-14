@@ -136,9 +136,10 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
          of the closures will be traversed when this function is called from
          [Flambda_to_clambda.to_clambda_closed_set_of_closures].) *)
       ignore_uconstant const
-    | Udirect_apply (label, args, _probe, info, dbg) ->
+    | Udirect_apply (label, args, _probe, result_layout, info, dbg) ->
       ignore_function_label label;
       List.iter (loop ~depth) args;
+      ignore_layout result_layout;
       ignore_apply_kind info;
       ignore_debuginfo dbg
     | Ugeneric_apply (func, args, args_layout, result_layout, info, dbg) ->
@@ -314,13 +315,14 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       end
     | Uconst const ->
       ignore_uconstant const
-    | Udirect_apply (label, args, probe, info, dbg) ->
+    | Udirect_apply (label, args, probe, result_layout, info, dbg) ->
       ignore_function_label label;
       examine_argument_list args;
       (* We don't currently traverse [args]; they should all be variables
          anyway.  If this is added in the future, take care to traverse [args]
          following the evaluation order. *)
       ignore_probe probe;
+      ignore_layout result_layout;
       ignore_apply_kind info;
       ignore_debuginfo dbg
     | Ugeneric_apply (func, args, args_layout, result_layout, info, dbg) ->
@@ -504,9 +506,9 @@ let rec substitute_let_moveable is_let_moveable env (clam : Clambda.ulambda)
           V.print var
       end
   | Uconst _ -> clam
-  | Udirect_apply (label, args, probe, kind, dbg) ->
+  | Udirect_apply (label, args, probe, result_layout, kind, dbg) ->
     let args = substitute_let_moveable_list is_let_moveable env args in
-    Udirect_apply (label, args, probe, kind, dbg)
+    Udirect_apply (label, args, probe, result_layout, kind, dbg)
   | Ugeneric_apply (func, args, args_layout, result_layout, kind, dbg) ->
     let func = substitute_let_moveable is_let_moveable env func in
     let args = substitute_let_moveable_list is_let_moveable env args in
@@ -708,9 +710,9 @@ let rec un_anf_and_moveable var_info env (clam : Clambda.ulambda)
   | Uconst _ ->
     (* Constant closures are rewritten separately. *)
     clam, Constant
-  | Udirect_apply (label, args, probe, kind, dbg) ->
+  | Udirect_apply (label, args, probe, result_layout, kind, dbg) ->
     let args = un_anf_list var_info env args in
-    Udirect_apply (label, args, probe, kind, dbg), Fixed
+    Udirect_apply (label, args, probe, result_layout, kind, dbg), Fixed
   | Ugeneric_apply (func, args, args_layout, result_layout, kind, dbg) ->
     let func = un_anf var_info env func in
     let args = un_anf_list var_info env args in

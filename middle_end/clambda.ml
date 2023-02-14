@@ -53,7 +53,7 @@ and ulambda =
     Uvar of Backend_var.t
   | Uconst of uconstant
   | Udirect_apply of
-      function_label * ulambda list * Lambda.probe * apply_kind * Debuginfo.t
+      function_label * ulambda list * Lambda.probe * Lambda.layout * apply_kind * Debuginfo.t
   | Ugeneric_apply of
       ulambda * ulambda list * Lambda.layout list * Lambda.layout * apply_kind * Debuginfo.t
   | Uclosure of {

@@ -491,7 +491,8 @@ and to_clambda_direct_apply t func args direct_func probe dbg pos mode env
        dropping any side effects.) *)
     if closed then uargs else uargs @ [subst_var env func]
   in
-  Udirect_apply (label, uargs, probe, (pos, mode), dbg)
+  let result_layout = Lambda.layout_top in
+  Udirect_apply (label, uargs, probe, result_layout, (pos, mode), dbg)
 
 (* Describe how to build a runtime closure block that corresponds to the
    given Flambda set of closures.
