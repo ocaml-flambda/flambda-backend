@@ -129,15 +129,15 @@ let pack_closure_info ~arity ~startenv ~is_last =
 let closure_info' ~arity ~startenv ~is_last =
   let arity =
     match arity with
-    | Lambda.Tupled, l -> - (List.length l)
+    | Lambda.Tupled, l -> -List.length l
     | Lambda.Curried _, l -> List.length l
   in
   pack_closure_info ~arity ~startenv ~is_last
 
 let closure_info ~(arity : Clambda.arity) ~startenv ~is_last =
-  closure_info' ~arity:(arity.function_kind, arity.params_layout)
+  closure_info'
+    ~arity:(arity.function_kind, arity.params_layout)
     ~startenv ~is_last
-
 
 let alloc_float_header mode dbg =
   match mode with
@@ -2707,11 +2707,13 @@ let intermediate_curry_functions ~nlocal ~arity result =
                     (dbg ());
                   Cconst_symbol (name1 ^ "_" ^ Int.to_string (num + 1), dbg ());
                   Cconst_natint
-                    (pack_closure_info
-                      ~arity:(if has_nary then narity - num - 1 else 1)
-                      ~startenv:
-                        (function_slot_size + machtype_non_scanned_size arg_type)
-                      ~is_last:true, dbg ()) ]
+                    ( pack_closure_info
+                        ~arity:(if has_nary then narity - num - 1 else 1)
+                        ~startenv:
+                          (function_slot_size
+                          + machtype_non_scanned_size arg_type)
+                        ~is_last:true,
+                      dbg () ) ]
                 @ (if has_nary
                   then
                     [ Cconst_symbol
@@ -3570,10 +3572,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
         | { function_kind = Curried _; params_layout = [] | [_]; _ } as arity ->
           (Cint (infix_header pos) :: closure_symbol f2)
           @ Csymbol_address f2.label
-            :: Cint
-                 (closure_info
-                    ~arity
-                    ~startenv:(startenv - pos) ~is_last)
+            :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: emit_others (pos + 3) rem
         | arity ->
           (Cint (infix_header pos) :: closure_symbol f2)
@@ -3581,10 +3580,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
               (curry_function_sym arity.function_kind
                  (List.map machtype_of_layout arity.params_layout)
                  (machtype_of_layout arity.return_layout))
-            :: Cint
-                 (closure_info
-                    ~arity
-                    ~startenv:(startenv - pos) ~is_last)
+            :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: Csymbol_address f2.label
             :: emit_others (pos + 4) rem)
     in
@@ -3596,20 +3592,14 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
     match f1.arity with
     | { function_kind = Curried _; params_layout = [] | [_]; _ } as arity ->
       Csymbol_address f1.label
-      :: Cint
-           (closure_info
-              ~arity
-              ~startenv ~is_last)
+      :: Cint (closure_info ~arity ~startenv ~is_last)
       :: emit_others 3 remainder
     | arity ->
       Csymbol_address
         (curry_function_sym arity.function_kind
            (List.map machtype_of_layout arity.params_layout)
            (machtype_of_layout arity.return_layout))
-      :: Cint
-           (closure_info
-              ~arity
-              ~startenv ~is_last)
+      :: Cint (closure_info ~arity ~startenv ~is_last)
       :: Csymbol_address f1.label :: emit_others 4 remainder)
 
 (* Build the NULL terminated array of gc roots *)

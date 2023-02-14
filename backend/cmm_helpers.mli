@@ -64,7 +64,7 @@ val closure_info :
   arity:Clambda.arity -> startenv:int -> is_last:bool -> nativeint
 
 val closure_info' :
-  arity:(Lambda.function_kind * 'a list) ->
+  arity:Lambda.function_kind * 'a list ->
   startenv:int ->
   is_last:bool ->
   nativeint
