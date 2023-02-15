@@ -59,7 +59,7 @@ type project_var = Projection.project_var
 type specialised_to = {
   var : Variable.t;
   projection : Projection.t option;
-  kind : Lambda.value_kind;
+  kind : Lambda.layout;
 }
 
 type t =
@@ -70,13 +70,13 @@ type t =
   | Apply of apply
   | Send of send
   | Assign of assign
-  | If_then_else of Variable.t * t * t * Lambda.value_kind
+  | If_then_else of Variable.t * t * t * Lambda.layout
   | Switch of Variable.t * switch
   | String_switch of Variable.t * (string * t) list * t option
-                     * Lambda.value_kind
+                     * Lambda.layout
   | Static_raise of Static_exception.t * Variable.t list
-  | Static_catch of Static_exception.t * Variable.t list * t * t * Lambda.value_kind
-  | Try_with of t * Variable.t * t * Lambda.value_kind
+  | Static_catch of Static_exception.t * Variable.t list * t * t * Lambda.layout
+  | Try_with of t * Variable.t * t * Lambda.layout
   | While of t * t
   | For of for_loop
   | Region of t
@@ -107,7 +107,7 @@ and let_expr = {
 and let_mutable = {
   var : Mutable_variable.t;
   initial_value : Variable.t;
-  contents_kind : Lambda.value_kind;
+  contents_kind : Lambda.layout;
   body : t;
 }
 
@@ -148,7 +148,7 @@ and switch = {
   numblocks : Numbers.Int.Set.t;
   blocks : (int * t) list;
   failaction : t option;
-  kind:  Lambda.value_kind;
+  kind:  Lambda.layout;
 }
 
 and for_loop = {
@@ -191,12 +191,12 @@ let print_specialised_to ppf (spec_to : specialised_to) =
   | None ->
     fprintf ppf "%a[%a]"
       Variable.print spec_to.var
-      Printlambda.value_kind spec_to.kind
+      Printlambda.layout spec_to.kind
   | Some projection ->
     fprintf ppf "%a(= %a)[%a]"
       Variable.print spec_to.var
       Projection.print projection
-      Printlambda.value_kind spec_to.kind
+      Printlambda.layout spec_to.kind
 
 (* CR-soon mshinwell: delete uses of old names *)
 let print_project_var = Projection.print_project_var
@@ -263,10 +263,10 @@ let rec lam ppf (flam : t) =
       let expr = letbody body in
       fprintf ppf ")@]@ %a)@]" lam expr
   | Let_mutable { var = mut_var; initial_value = var; body; contents_kind } ->
-    let print_kind ppf (kind : Lambda.value_kind) =
+    let print_kind ppf (kind : Lambda.layout) =
       match kind with
-      | Pgenval -> ()
-      | _ -> Format.fprintf ppf " %a" Printlambda.value_kind kind
+      | Pvalue Pgenval -> ()
+      | _ -> Format.fprintf ppf " %a" Printlambda.layout kind
     in
     fprintf ppf "@[<2>(let_mutable%a@ @[<2>%a@ %a@]@ %a)@]"
       print_kind contents_kind
@@ -1321,7 +1321,7 @@ let equal_specialised_to (spec_to1 : specialised_to)
       | Some _, None | None, Some _ -> false
       | Some proj1, Some proj2 -> Projection.equal proj1 proj2
     end
-    && Lambda.equal_value_kind spec_to1.kind spec_to2.kind
+    && Lambda.equal_layout spec_to1.kind spec_to2.kind
 
 let compare_project_var = Projection.compare_project_var
 let compare_project_closure = Projection.compare_project_closure

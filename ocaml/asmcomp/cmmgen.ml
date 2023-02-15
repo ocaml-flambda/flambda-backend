@@ -401,13 +401,18 @@ let rec transl env e =
             let dbg = f.dbg in
             let without_header =
               match f.arity with
-              | Curried _, (1|0) as arity ->
+              | { function_kind = Curried _ ; params_layout = ([] | [_]) } as arity ->
                 Cconst_symbol (f.label, dbg) ::
                 alloc_closure_info ~arity
                                    ~startenv:(startenv - pos) ~is_last dbg ::
                 transl_fundecls (pos + 3) rem
               | arity ->
-                Cconst_symbol (curry_function_sym f.arity, dbg) ::
+                Cconst_symbol
+                  (curry_function_sym
+                     arity.function_kind
+                     (List.map machtype_of_layout arity.params_layout)
+                     (machtype_of_layout arity.return_layout),
+                   dbg) ::
                 alloc_closure_info ~arity
                                    ~startenv:(startenv - pos) ~is_last dbg ::
                 Cconst_symbol (f.label, dbg) ::
@@ -428,22 +433,26 @@ let rec transl env e =
       let ptr = transl env arg in
       let dbg = Debuginfo.none in
       ptr_offset ptr offset dbg
-  | Udirect_apply(handler_code_sym, args, Some { name; }, _, dbg) ->
+  | Udirect_apply(handler_code_sym, args, Some { name; }, _, _, dbg) ->
       let args = List.map (transl env) args in
       return_unit dbg
         (Cop(Cprobe { name; handler_code_sym; }, args, dbg))
-  | Udirect_apply(lbl, args, None, kind, dbg) ->
+  | Udirect_apply(lbl, args, None, result_layout, kind, dbg) ->
       let args = List.map (transl env) args in
-      direct_apply lbl args kind dbg
-  | Ugeneric_apply(clos, args, kind, dbg) ->
+      direct_apply lbl (machtype_of_layout result_layout) args kind dbg
+  | Ugeneric_apply(clos, args, args_layout, result_layout, kind, dbg) ->
       let clos = transl env clos in
       let args = List.map (transl env) args in
-      generic_apply (mut_from_env env clos) clos args kind dbg
-  | Usend(kind, met, obj, args, pos, dbg) ->
+      let args_type = List.map machtype_of_layout args_layout in
+      let return = machtype_of_layout result_layout in
+      generic_apply (mut_from_env env clos) clos args args_type return kind dbg
+  | Usend(kind, met, obj, args, args_layout, result_layout, pos, dbg) ->
       let met = transl env met in
       let obj = transl env obj in
       let args = List.map (transl env) args in
-      send kind met obj args pos dbg
+      let args_type = List.map machtype_of_layout args_layout in
+      let return = machtype_of_layout result_layout in
+      send kind met obj args args_type return pos dbg
   | Ulet(str, kind, id, exp, body) ->
       transl_let env str kind id exp (fun env -> transl env body)
   | Uphantom_let (var, defining_expr, body) ->
@@ -596,27 +605,27 @@ let rec transl env e =
           (untag_int (transl env arg) dbg)
           s.us_index_consts
           (Array.map (fun expr -> transl env expr, dbg) s.us_actions_consts)
-          dbg (Vval kind)
+          dbg (kind_of_layout kind)
       else if Array.length s.us_index_consts = 0 then
         bind "switch" (transl env arg) (fun arg ->
-          transl_switch dbg (Vval kind) env (get_tag arg dbg)
+          transl_switch dbg (kind_of_layout kind) env (get_tag arg dbg)
             s.us_index_blocks s.us_actions_blocks)
       else
         bind "switch" (transl env arg) (fun arg ->
           Cifthenelse(
           Cop(Cand, [arg; Cconst_int (1, dbg)], dbg),
           dbg,
-          transl_switch dbg (Vval kind) env
+          transl_switch dbg (kind_of_layout kind) env
             (untag_int arg dbg) s.us_index_consts s.us_actions_consts,
           dbg,
-          transl_switch dbg (Vval kind) env
+          transl_switch dbg (kind_of_layout kind) env
             (get_tag arg dbg) s.us_index_blocks s.us_actions_blocks,
-          dbg, Vval kind))
+          dbg, kind_of_layout kind))
   | Ustringswitch(arg,sw,d, kind) ->
       let dbg = Debuginfo.none in
       bind "switch" (transl env arg)
         (fun arg ->
-          strmatch_compile dbg (Vval kind) arg (Option.map (transl env) d)
+          strmatch_compile dbg (kind_of_layout kind) arg (Option.map (transl env) d)
             (List.map (fun (s,act) -> s,transl env act) sw))
   | Ustaticfail (nfail, args) ->
       let cargs = List.map (transl env) args in
@@ -624,13 +633,13 @@ let rec transl env e =
       Cexit (nfail, cargs)
   | Ucatch(nfail, [], body, handler, kind) ->
       let dbg = Debuginfo.none in
-      make_catch (Vval kind) nfail (transl env body) (transl env handler) dbg
+      make_catch (kind_of_layout kind) nfail (transl env body) (transl env handler) dbg
   | Ucatch(nfail, ids, body, handler, kind) ->
       let dbg = Debuginfo.none in
-      transl_catch (Vval kind) env nfail ids body handler dbg
+      transl_catch (kind_of_layout kind) env nfail ids body handler dbg
   | Utrywith(body, exn, handler, kind) ->
       let dbg = Debuginfo.none in
-      Ctrywith(transl env body, exn, transl env handler, dbg, Vval kind)
+      Ctrywith(transl env body, exn, transl env handler, dbg, kind_of_layout kind)
   | Uifthenelse(cond, ifso, ifnot, kind) ->
       let ifso_dbg = Debuginfo.none in
       let ifnot_dbg = Debuginfo.none in
@@ -643,7 +652,7 @@ let rec transl env e =
         | Cconst_int (3, _), Cconst_int (1, _) -> Then_true_else_false
         | _, _ -> Unknown
       in
-      transl_if env (Vval kind) approx dbg cond
+      transl_if env (kind_of_layout kind) approx dbg cond
         ifso_dbg ifso ifnot_dbg ifnot
   | Usequence(exp1, exp2) ->
       Csequence(remove_unit(transl env exp1), transl env exp2)
@@ -717,7 +726,7 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
      each argument.  *)
   let report args =
     List.iter2
-      (fun (_id, kind, u) c ->
+      (fun (_id, Pvalue kind, u) c ->
          let strict =
            match kind with
            | Pfloatval | Pboxedintval _ -> false
@@ -1167,7 +1176,7 @@ and transl_unbox_sized size dbg env exp =
   | Thirty_two -> transl_unbox_int dbg env Pint32 exp
   | Sixty_four -> transl_unbox_int dbg env Pint64 exp
 
-and transl_let env str (kind : Lambda.value_kind) id exp transl_body =
+and transl_let env str (Pvalue kind : Lambda.layout) id exp transl_body =
   let dbg = Debuginfo.none in
   let cexp = transl env exp in
   let unboxing =
@@ -1425,8 +1434,15 @@ let transl_function f =
     else
       [ Reduce_code_size ]
   in
+  let params_layout =
+    if List.length f.params = List.length f.arity.params_layout then
+      f.arity.params_layout
+    else
+      f.arity.params_layout @ [Lambda.layout_function]
+  in
   Cfunction {fun_name = f.label;
-             fun_args = List.map (fun (id, _) -> (id, typ_val)) f.params;
+             fun_args = List.map2 (fun id ty -> (id, machtype_of_layout ty))
+                 f.params params_layout;
              fun_body = cmm_body;
              fun_codegen_options;
              fun_poll = f.poll;

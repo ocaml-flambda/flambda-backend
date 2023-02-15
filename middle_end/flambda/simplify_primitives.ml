@@ -111,11 +111,12 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
   | Pmakeblock(tag_int, (Immutable | Immutable_unique), shape, mode) ->
     let tag = Tag.create_exn tag_int in
     let shape = match shape with
-      | None -> List.map (fun _ -> Lambda.Pgenval) args
-      | Some shape -> shape
+      | None -> List.map (fun _ -> Lambda.layout_top) args
+      | Some shape -> List.map (fun kind -> Lambda.Pvalue kind) shape
     in
     let approxs = List.map2 A.augment_with_kind approxs shape in
     let shape = List.map2 A.augment_kind_with_approx approxs shape in
+    let shape = List.map (fun (Lambda.Pvalue kind) -> kind) shape in
     Prim (Pmakeblock(tag_int, Lambda.Immutable, Some shape, mode), args, dbg),
     A.value_block tag (Array.of_list approxs), C.Benefit.zero
   | Praise _ ->

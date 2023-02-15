@@ -34,14 +34,18 @@ end
 (* Bind a Cmm variable to the result of translating a [Simple] into Cmm. *)
 
 let bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s =
-  let defining_expr, env, res, effects_and_coeffects_of_defining_expr =
-    C.simple ~dbg env res s
-  in
-  let env, res =
-    Env.bind_variable env res v ~effects_and_coeffects_of_defining_expr
-      ~defining_expr ~num_normal_occurrences_of_bound_vars
-  in
-  env, res
+  match Simple.must_be_var s with
+  | Some (alias_of, _coercion) ->
+    Env.add_alias env res ~var:v ~num_normal_occurrences_of_bound_vars ~alias_of
+  | None ->
+    let defining_expr, env, res, effects_and_coeffects_of_defining_expr =
+      C.simple ~dbg env res s
+    in
+    let env, res =
+      Env.bind_variable env res v ~effects_and_coeffects_of_defining_expr
+        ~defining_expr ~num_normal_occurrences_of_bound_vars
+    in
+    env, res
 
 (* Helpers for the translation of [Apply] expressions. *)
 
@@ -108,9 +112,10 @@ let translate_apply0 env res apply =
         Ece.all ))
   | Function { function_call = Indirect_unknown_arity; alloc_mode } ->
     fail_if_probe apply;
-    ( C.indirect_call ~dbg Cmm.typ_val pos
+    let args_ty, ty = Cmm.(List.map (fun _ -> [| Val |]) args, [| Val |]) in
+    ( C.indirect_call ~dbg ty pos
         (Alloc_mode.For_types.to_lambda alloc_mode)
-        callee args,
+        callee args_ty args,
       env,
       res,
       Ece.all )
@@ -129,9 +134,14 @@ let translate_apply0 env res apply =
         return_arity |> Flambda_arity.With_subkinds.to_arity
         |> C.machtype_of_return_arity
       in
+      let args_ty =
+        List.map
+          (fun k -> C.machtype_of_kind (Flambda_kind.With_subkind.kind k))
+          (Flambda_arity.With_subkinds.to_list param_arity)
+      in
       ( C.indirect_full_call ~dbg ty pos
           (Alloc_mode.For_types.to_lambda alloc_mode)
-          callee args,
+          callee args_ty args,
         env,
         res,
         Ece.all )
@@ -175,10 +185,14 @@ let translate_apply0 env res apply =
       Ece.all )
   | Call_kind.Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
+    let args_ty, ty = Cmm.(List.map (fun _ -> [| Val |]) args, [| Val |]) in
     let obj, env, res, _ = C.simple ~dbg env res obj in
     let kind = Call_kind.Method_kind.to_lambda kind in
     let alloc_mode = Alloc_mode.For_types.to_lambda alloc_mode in
-    C.send kind callee obj args (pos, alloc_mode) dbg, env, res, Ece.all
+    ( C.send kind callee obj args args_ty ty (pos, alloc_mode) dbg,
+      env,
+      res,
+      Ece.all )
 
 (* Function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra

@@ -110,7 +110,7 @@ let convert_block_shape (shape : L.block_shape) ~num_fields =
         "Flambda_arity.of_block_shape: num_fields is %d yet the shape has %d \
          fields"
         num_fields shape_length;
-    List.map K.With_subkind.from_lambda shape
+    List.map K.With_subkind.from_lambda_value_kind shape
 
 let check_float_array_optimisation_enabled () =
   if not (Flambda_features.flat_float_array ())

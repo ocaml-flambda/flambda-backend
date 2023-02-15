@@ -254,7 +254,7 @@ ifeq "$(INSTALL_SOURCE_ARTIFACTS)" "true"
 	  "$(INSTALL_LIBDIR_DYNLINK)"
 endif
 
-installopt:g
+installopt:
 ifeq "$(strip $(NATDYNLINK))" "true"
 	$(INSTALL_DATA) \
 	  $(NATOBJS) dynlink.cmxa dynlink.$(A) \

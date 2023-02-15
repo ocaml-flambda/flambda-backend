@@ -122,7 +122,7 @@ let close_phrase lam =
              [Lprim (Pgetglobal glb, [], Loc_unknown)],
              Loc_unknown)
     in
-    Llet(Strict, Pgenval, id, glob, l)
+    Llet(Strict, Lambda.layout_top, id, glob, l)
   ) (free_variables lam) lam
 
 let toplevel_value id =
@@ -735,7 +735,7 @@ let set_paths () =
       [expand "+camlp4"];
     ]
   in
-  Load_path.init ~auto_include:Compmisc.auto_include load_path
+  Load_path.init load_path
 
 let initialize_toplevel_env () =
   toplevel_env := Compmisc.initial_env();

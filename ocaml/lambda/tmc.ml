@@ -62,7 +62,7 @@ and offset = Offset of lambda
 let offset_code (Offset t) = t
 
 let add_dst_params ({var; offset} : Ident.t destination) params =
-  (var, Pgenval) :: (offset, Pintval) :: params
+  (var, Lambda.layout_block) :: (offset, Lambda.layout_int) :: params
 
 let add_dst_args ({var; offset} : offset destination) args =
   Lvar var :: offset_code offset :: args
@@ -134,7 +134,7 @@ end = struct
     let placeholder_pos = List.length constr.before in
     let placeholder_pos_lam = Lconst (Const_base (Const_int placeholder_pos)) in
     let block_var = Ident.create_local "block" in
-    Llet (Strict, Pgenval, block_var, k_with_placeholder,
+    Llet (Strict, Lambda.layout_block, block_var, k_with_placeholder,
           body {
             var = block_var;
             offset = Offset placeholder_pos_lam ;
@@ -165,7 +165,7 @@ end = struct
       List.fold_right (fun binding body ->
           match binding with
           | None -> body
-          | Some (v, lam) -> Llet(Strict, Pgenval, v, lam, body)
+          | Some (v, lam) -> Llet(Strict, Lambda.layout_field, v, lam, body)
         ) bindings body in
     fun ~block_id constr body ->
     bind_list ~block_id ~arg_offset:0 constr.before @@ fun vbefore ->
@@ -665,9 +665,9 @@ let rec choice ctx t =
     | Lifused (x, lam) ->
         let+ lam = choice ctx ~tail lam in
         Lifused (x, lam)
-    | Lregion lam ->
+    | Lregion (lam, layout) ->
         let+ lam = choice ctx ~tail lam in
-        Lregion lam
+        Lregion (lam, layout)
 
   and choice_apply ctx ~tail apply =
     let exception No_tmc in

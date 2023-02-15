@@ -93,6 +93,8 @@ module Set_specs = struct
 
   let mem_empty k = not (Set.mem k Set.empty)
 
+  let mem_known_mem { set = s; element = e } = Set.mem e s
+
   let is_empty_vs_equal s = Set.is_empty s <=> Set.equal s Set.empty
 
   let add_valid e s = Set.valid (Set.add e s)
@@ -322,6 +324,9 @@ module Map_specs (V : Value) = struct
     Map.find_opt k m =? option_of_not_found (Map.find k) m
 
   let find_opt_empty k = Map.find_opt k Map.empty =? None
+
+  let find_opt_known_mem { map = m; key = k; value = v } =
+    Map.find_opt k m =? Some v
 
   let mem k m = Map.find_opt k m =? None <=> not (Map.mem k m)
 
@@ -648,6 +653,83 @@ module Map_specs (V : Value) = struct
   let map_sharing_id m = Map.map_sharing (fun v -> v) m == m
 end
 
+(* CR-someday lmaurer: Move the [Abitrary.t] for perms into a separate module
+   and put the permutation tests in their own file. *)
+
+(* A permutation and a value that is not a fixed point under the permutation. In
+   other words, the value is an element of the underlying maps. *)
+module Perm_and_non_fixed_point (T : Flambda2_algorithms.Container_types.S) =
+struct
+  type t =
+    { perm : Flambda2_nominal.Permutation.Make(T).t;
+      value : T.t
+    }
+end
+
+module Perm_specs (T : Flambda2_algorithms.Container_types.S) = struct
+  module Perm = Flambda2_nominal.Permutation.Make (T)
+
+  open Perm_and_non_fixed_point (T)
+
+  let apply_empty v = T.equal (Perm.apply Perm.empty v) v
+
+  (* This mostly tests [Types.container_and_element] *)
+  let apply_non_fixed_point { perm = p; value = v } =
+    not (T.equal v (Perm.apply p v))
+
+  let test_compose_one ~compose_one p v v' v_test =
+    let p' = compose_one p v v' in
+    let expected =
+      let v1 = Perm.apply p v_test in
+      if T.equal v1 v then v' else if T.equal v1 v' then v else v1
+    in
+    T.equal (Perm.apply p' v_test) expected
+    && T.equal (Perm.apply (Perm.inverse p') expected) v_test
+
+  let apply_compose_one_same p v v' =
+    let compose_one p v v' = Perm.compose_one ~first:p v v' in
+    test_compose_one ~compose_one p v v' v
+    && test_compose_one ~compose_one p v v' v'
+
+  let apply_compose_one_other p v v' v_test =
+    let compose_one p v v' = Perm.compose_one ~first:p v v' in
+    test_compose_one ~compose_one p v v' v_test
+
+  let apply_compose_one_fresh_same p v v' =
+    T.equal v' (Perm.apply p v') ==> fun () ->
+    let compose_one p v v' = Perm.compose_one_fresh p v ~fresh:v' in
+    test_compose_one ~compose_one p v v' v
+    && test_compose_one ~compose_one p v v' v'
+
+  let apply_compose_one_fresh_other p v v' v_test =
+    T.equal v' (Perm.apply p v') ==> fun () ->
+    let compose_one p v v' = Perm.compose_one_fresh p v ~fresh:v' in
+    test_compose_one ~compose_one p v v' v_test
+
+  let apply_compose p1 p2 v_test =
+    let p12 = Perm.compose ~first:p1 ~second:p2 in
+    let p1_inv = Perm.inverse p1 in
+    let p2_inv = Perm.inverse p2 in
+    T.equal (Perm.apply p12 v_test) (Perm.apply p2 (Perm.apply p1 v_test))
+    && T.equal
+         (Perm.apply (Perm.inverse p12) v_test)
+         (Perm.apply (Perm.compose ~first:p2_inv ~second:p1_inv) v_test)
+
+  let apply_compose_mem_left { perm = p1; value = v } p2 = apply_compose p1 p2 v
+
+  let apply_compose_mem_right p1 { perm = p2; value = v } =
+    apply_compose p1 p2 v
+
+  let apply_compose_mem_both { perm = p1; value = v } p2 v' =
+    let p2 = Perm.compose_one ~first:p2 v v' in
+    apply_compose p1 p2 v
+
+  let compose_inverse_self p =
+    let p_inv = Perm.inverse p in
+    Perm.is_empty (Perm.compose ~first:p ~second:p_inv)
+    && Perm.is_empty (Perm.compose ~first:p_inv ~second:p)
+end
+
 module Types = struct
   open Minicheck
 
@@ -716,28 +798,42 @@ module Types = struct
     let get_value = get_unique_list_as_set key in
     Arbitrary.define ~generator ~shrinker ~printer ~get_value ()
 
-  let set_and_element =
+  let collection_and_element ~(collection_arb : ('c, 'c_repr) Arbitrary.t)
+      ~(generate_element : 'c -> repr:'c_repr -> 'e Generator.t)
+      ~(print_element : 'e Printer.t) ~(is_empty : 'c -> bool)
+      ~(mem : 'e -> 'c -> bool) : ('c * 'e, _) Arbitrary.t =
     let generator r =
-      let list =
-        Generator.filter (generate_unique_list key ~compare:Int.compare) r
-          ~f:(function
-          | [] -> false
-          | _ :: _ -> true)
+      let generate_with_repr r =
+        let repr = Arbitrary.generate_repr collection_arb r in
+        let coll = Arbitrary.value collection_arb repr in
+        coll, repr
       in
-      let e = Generator.one_of list r in
-      list, e
+      let coll, repr =
+        Generator.filter generate_with_repr
+          ~f:(fun (coll, _) -> not (is_empty coll))
+          r
+      in
+      let e = generate_element coll ~repr r in
+      coll, repr, e
     in
-    let shrinker (list, e) =
+    let shrinker (_, repr, e) =
       Seq.filter_map
-        (fun l -> if List.mem e l then Some (l, e) else None)
-        (shrink_unique_list key list)
+        (fun repr ->
+          let coll = Arbitrary.value collection_arb repr in
+          if mem e coll then Some (coll, repr, e) else None)
+        (Arbitrary.shrink collection_arb repr)
     in
-    let printer = Printer.pair (print_list_as_set Key.print) Key.print in
-    let get_value (list, e) =
-      let s = Set.of_list list in
-      Set_and_element.{ set = s; element = e }
+    let printer ppf (_coll, repr, e) =
+      Printer.pair (Arbitrary.print collection_arb) print_element ppf (repr, e)
     in
+    let get_value (coll, _repr, e) = coll, e in
     Arbitrary.define ~generator ~shrinker ~printer ~get_value ()
+
+  let set_and_element =
+    collection_and_element ~collection_arb:set
+      ~generate_element:(fun _ ~repr r -> Generator.one_of repr r)
+      ~print_element:Key.print ~is_empty:Set.is_empty ~mem:Set.mem
+    |> Arbitrary.map ~f:(fun (s, e) -> Set_and_element.{ set = s; element = e })
 
   let generate_assoc_list_of_length key_arb val_arb ~max_length =
     generate_unique_list_of_length (Arbitrary.pair key_arb val_arb) ~max_length
@@ -761,11 +857,6 @@ module Types = struct
   let print_map_repr val_arb =
     print_assoc_list_as_set Key.print (Arbitrary.print val_arb)
 
-  let get_map_value val_arb list =
-    list
-    |> List.map (fun (key, value) -> key, Arbitrary.value val_arb value)
-    |> Map.of_list
-
   let assoc_list val_arb =
     let generator = generate_map_repr val_arb in
     let shrinker = shrink_map_repr val_arb in
@@ -781,40 +872,63 @@ module Types = struct
     Arbitrary.map (assoc_list val_arb) ~f:Map.of_list
     |> Arbitrary.with_repr_printer ~printer:(print_map_repr val_arb)
 
-  (* CR-someday lmaurer: If we ever want a third "thing and an element of the
-     thing" construction, this could all be captured as something called
-     [Arbitrary.with_element] that needs a generator parameterized by the
-     element, the type of the element (or just a printer and getter), an empty
-     check on the collection, and a function to check whether the element's
-     still present in a shrunk collection. *)
-
   let map_and_binding val_arb =
-    let generator r =
-      let list =
-        Generator.filter (generate_map_repr val_arb) r ~f:(function
-          | [] -> false
-          | _ :: _ -> true)
-      in
-      let k, v = Generator.one_of list r in
-      list, k, v
+    collection_and_element ~collection_arb:(map val_arb)
+      ~generate_element:(fun _ ~repr r -> Generator.one_of repr r)
+      ~print_element:(print_binding Key.print (Arbitrary.print val_arb))
+      ~is_empty:Map.is_empty
+      ~mem:(fun (k, _) m -> Map.mem k m)
+    |> Arbitrary.map ~f:(fun (m, (k, v)) ->
+           let v = Arbitrary.value val_arb v in
+           Map_and_binding.{ map = m; key = k; value = v })
+
+  module Key_container_types :
+    Flambda2_algorithms.Container_types.S with type t = int = struct
+    module T = struct
+      include Int
+
+      let hash = Hashtbl.hash
+
+      let print = Key.print
+    end
+
+    include T
+    module Set = Set
+    module Map = Map
+  end
+
+  module Perm = Flambda2_nominal.Permutation.Make (Key_container_types)
+  module Perm_and_non_fixed_point =
+    Perm_and_non_fixed_point (Key_container_types)
+
+  let print_two_way_binding print_key print_val ppf (k, v) =
+    Format.fprintf ppf "@[<hv>%a@ <-> %a@]" print_key k print_val v
+
+  let get_perm_value l =
+    List.fold_left
+      (fun p (v, v') -> Perm.compose_one ~first:p v v')
+      Perm.empty l
+
+  let perm =
+    Arbitrary.map (assoc_list key) ~f:get_perm_value
+    |> Arbitrary.with_repr_printer
+         ~printer:
+           (print_list_as_set (print_two_way_binding Key.print Key.print))
+
+  let perm_and_non_fixed_point =
+    let generate_element p ~repr r =
+      (* Make sure the generated value isn't accidentally a fixed point of the
+         permutation. This could happen if both [(v, v')] and [(v', v)] are in
+         the generated list. *)
+      Generator.filter (Generator.one_of repr)
+        ~f:(fun (v, _) -> v != Perm.apply p v)
+        r
     in
-    let shrinker (list, k, v) =
-      Seq.filter_map
-        (fun list -> if List.mem_assoc k list then Some (list, k, v) else None)
-        (shrink_map_repr val_arb list)
-    in
-    let printer ppf (list, k, v) =
-      Printer.pair (print_map_repr val_arb)
-        (print_binding Key.print (Arbitrary.print val_arb))
-        ppf
-        (list, (k, v))
-    in
-    let get_value (list, k, v) =
-      let m = get_map_value val_arb list in
-      let v = Arbitrary.value val_arb v in
-      Map_and_binding.{ map = m; key = k; value = v }
-    in
-    Arbitrary.define ~generator ~shrinker ~printer ~get_value ()
+    collection_and_element ~collection_arb:perm ~generate_element
+      ~print_element:(print_two_way_binding Key.print Key.print)
+      ~is_empty:Perm.is_empty ~mem:(fun (v, _) p -> v != Perm.apply p v)
+    |> Arbitrary.map ~f:(fun (p, (v, _)) ->
+           Perm_and_non_fixed_point.{ perm = p; value = v })
 end
 
 let () =
@@ -842,6 +956,7 @@ let () =
     in
     c "sets are valid" valid [set];
     c "mem vs. empty" mem_empty [elt];
+    c "mem on known member" mem_known_mem [set_and_element];
     c "is_empty vs. equal" is_empty_vs_equal [set];
     c "add is valid" add_valid [elt; set];
     c "add then mem" add_mem [elt; set];
@@ -935,6 +1050,7 @@ let () =
     in
     c "maps are valid" valid [map];
     c "find_opt vs. find" find_opt_vs_find [key; map];
+    c "find_opt of known member" find_opt_known_mem [map_and_binding];
     c "find_opt of empty" find_opt_empty [key];
     c "mem" mem [key; map];
     c "is_empty vs. equal" is_empty_vs_equal [map];
@@ -1016,6 +1132,33 @@ let () =
     c "map_sharing is valid" map_sharing_valid [value_to_value; map];
     c "map_sharing vs. map" map_sharing_vs_map [value_to_value; map];
     c "map_sharing of id" map_sharing_id [map];
+    ()
+  in
+  let () =
+    let module Perm_specs = Perm_specs (Types.Key_container_types) in
+    let open Types in
+    let open Perm_specs in
+    let value = key in
+    let c ?n ?seed name f arbitrary_impls =
+      Runner.check runner ~name:("Perm: " ^ name) ?n ?seed ~arbitrary_impls ~f
+    in
+    c "apply of empty" apply_empty [value];
+    c "apply_non_fixed_point" apply_non_fixed_point [perm_and_non_fixed_point];
+    c "compose_one then apply same" apply_compose_one_same [perm; value; value];
+    c "compose_one then apply other" apply_compose_one_other
+      [perm; value; value; value];
+    c "compose_one_fresh then apply same" apply_compose_one_fresh_same
+      [perm; value; value];
+    c "compose_one_fresh then apply other" apply_compose_one_fresh_other
+      [perm; value; value; value];
+    c "compose then apply" apply_compose [perm; perm; value];
+    c "compose then apply with value from left" apply_compose_mem_left
+      [perm_and_non_fixed_point; perm];
+    c "compose then apply with value from right" apply_compose_mem_right
+      [perm; perm_and_non_fixed_point];
+    c "compose then apply with value from both" apply_compose_mem_both
+      [perm_and_non_fixed_point; perm; value];
+    c "compose with own inverse" compose_inverse_self [perm];
     ()
   in
   let failure_count = Runner.failure_count runner in

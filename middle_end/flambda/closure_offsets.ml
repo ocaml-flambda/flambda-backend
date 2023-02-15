@@ -70,7 +70,7 @@ let add_closure_offsets
   in
   let gc_invisible_free_vars, gc_visible_free_vars =
     Variable.Map.partition (fun _ (free_var : Flambda.specialised_to) ->
-        Lambda.equal_value_kind free_var.kind Pintval)
+        match free_var.kind with Pvalue Pintval -> true | Pvalue _ -> false)
       free_vars
   in
   let free_variable_offsets, free_variable_pos =

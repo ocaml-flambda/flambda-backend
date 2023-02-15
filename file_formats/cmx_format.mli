@@ -41,11 +41,15 @@ type export_info_raw =
   | Flambda1_raw of Export_info.t
   | Flambda2_raw of Flambda2_cmx.Flambda_cmx_format.raw option
 
-type apply_fn := int * Lambda.alloc_mode
+(* Declare machtype here to avoid depending on [Cmm]. *)
+type machtype_component = Val | Addr | Int | Float
+type machtype = machtype_component array
+
+type apply_fn := machtype list * machtype * Lambda.alloc_mode
 
 (* Curry/apply/send functions *)
 type generic_fns =
-  { curry_fun: Clambda.arity list;
+  { curry_fun: (Lambda.function_kind * machtype list * machtype) list;
     apply_fun: apply_fn list;
     send_fun: apply_fn list }
 
