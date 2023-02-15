@@ -795,11 +795,18 @@ let transl_primitive loc p env ty ~poly_mode path =
     | None -> prim
     | Some prim -> prim
   in
-  let rec make_params n =
+  let rec make_params ty n =
     if n <= 0 then []
-    else (Ident.create_local "prim", Lambda.layout_top) :: make_params (n-1)
+    else
+      match Typeopt.is_function_type env ty with
+      | None ->
+          Misc.fatal_errorf "Primitive %s type does not correspond to arity"
+            (Primitive.byte_name p)
+      | Some (arg_ty, ret_ty) ->
+          let arg_layout = Typeopt.layout env arg_ty in
+          (Ident.create_local "prim", arg_layout) :: make_params ret_ty (n-1)
   in
-  let params = make_params p.prim_arity in
+  let params = make_params ty p.prim_arity in
   let args = List.map (fun (id, _) -> Lvar id) params in
   match params with
   | [] -> lambda_of_prim p.prim_name prim loc args None
