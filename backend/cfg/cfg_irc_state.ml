@@ -82,7 +82,7 @@ let[@inline] make ~initial ~next_instruction_id () =
       reg.Reg.interf <- [];
       reg.Reg.degree <- Degree.infinite);
   let num_registers = List.length initial in
-  let original_capacity = int_min max_capacity num_registers in
+  let original_capacity = Int.min max_capacity num_registers in
   let simplify_work_list = RegWorkList.make ~original_capacity in
   let freeze_work_list = RegWorkList.make ~original_capacity in
   let spill_work_list = RegWorkList.make ~original_capacity in
@@ -90,7 +90,7 @@ let[@inline] make ~initial ~next_instruction_id () =
   let coalesced_nodes = RegWorkList.make ~original_capacity in
   let colored_nodes = [] in
   let select_stack = [] in
-  let original_capacity = int_min max_capacity (pred next_instruction_id) in
+  let original_capacity = Int.min max_capacity (pred next_instruction_id) in
   let coalesced_moves = InstructionWorkList.make ~original_capacity in
   let constrained_moves = InstructionWorkList.make ~original_capacity in
   let frozen_moves = InstructionWorkList.make ~original_capacity in

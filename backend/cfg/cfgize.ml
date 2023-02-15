@@ -631,7 +631,7 @@ module Stack_offset_and_exn = struct
     check_and_set_stack_offset term ~stack_offset ~traps;
     match term.desc with
     | Tailcall_self _
-      when stack_offset <> 0 || match traps with _ :: _ -> true | [] -> false ->
+      when stack_offset <> 0 || List.compare_length_with traps 0 <> 0 ->
       Misc.fatal_error
         "Cfgize.Stack_offset_and_exn.process_terminator: unexpected handler on \
          self tailcall"
