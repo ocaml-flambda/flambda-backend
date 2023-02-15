@@ -20,7 +20,11 @@ open Asttypes
 open Lambda
 
 type function_label = string
-type arity = Lambda.function_kind * int
+type arity = {
+  function_kind : Lambda.function_kind ;
+  params_layout : Lambda.layout list ;
+  return_layout : Lambda.layout ;
+}
 type apply_kind = Lambda.region_close * Lambda.alloc_mode
 
 type ustructured_constant =
@@ -60,9 +64,9 @@ and ulambda =
     Uvar of Backend_var.t
   | Uconst of uconstant
   | Udirect_apply of
-      function_label * ulambda list * Lambda.probe * apply_kind * Debuginfo.t
+      function_label * ulambda list * Lambda.probe * Lambda.layout * apply_kind * Debuginfo.t
   | Ugeneric_apply of
-      ulambda * ulambda list * apply_kind * Debuginfo.t
+      ulambda * ulambda list * Lambda.layout list * Lambda.layout * apply_kind * Debuginfo.t
   | Uclosure of {
       functions : ufunction list ;
       not_scanned_slots : ulambda list ;
@@ -101,7 +105,7 @@ and ulambda =
   | Uassign of Backend_var.t * ulambda
   | Usend of
       meth_kind * ulambda * ulambda * ulambda list
-      * apply_kind * Debuginfo.t
+      * Lambda.layout list * Lambda.layout * apply_kind * Debuginfo.t
   | Uunreachable
   | Uregion of ulambda
   | Utail of ulambda
@@ -109,8 +113,7 @@ and ulambda =
 and ufunction = {
   label  : function_label;
   arity  : arity;
-  params : (Backend_var.With_provenance.t * layout) list;
-  return : layout;
+  params : Backend_var.With_provenance.t list;
   body   : ulambda;
   dbg    : Debuginfo.t;
   env    : Backend_var.t option;

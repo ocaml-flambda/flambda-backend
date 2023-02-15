@@ -98,7 +98,11 @@ let clambda_arity (func : Flambda.function_declaration) : Clambda.arity =
     |> List.filter (fun p -> Lambda.is_local_mode (Parameter.alloc_mode p))
     |> List.length
   in
-  Curried {nlocal}, Flambda_utils.function_arity func
+  {
+    function_kind = Curried {nlocal} ;
+    params_layout = List.map Parameter.kind func.params ;
+    return_layout = Lambda.layout_top ; (* Need func.return *)
+  }
 
 let check_field t ulam pos named_opt : Clambda.ulambda =
   if not !Clflags.clambda_checks then ulam
@@ -272,8 +276,10 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
     to_clambda_direct_apply t func args direct_func probe dbg reg_close mode env
   | Apply { func; args; kind = Indirect; probe = None; dbg; reg_close; mode } ->
     let callee = subst_var env func in
+    let args_layout = List.map (fun _ -> Lambda.layout_top) args in
+    let result_layout = Lambda.layout_top in
     Ugeneric_apply (check_closure t callee (Flambda.Expr (Var func)),
-      subst_vars env args, (reg_close, mode), dbg)
+      subst_vars env args, args_layout, result_layout, (reg_close, mode), dbg)
   | Apply { probe = Some {name}; _ } ->
     Misc.fatal_errorf "Cannot apply indirect handler for probe %s" name ()
   | Switch (arg, sw) ->
@@ -353,8 +359,10 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
     in
     Uassign (id, subst_var env new_value)
   | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
+    let args_layout = List.map (fun _ -> Lambda.layout_top) args in
+    let result_layout = Lambda.layout_top in
     Usend (kind, subst_var env meth, subst_var env obj,
-      subst_vars env args, (reg_close,mode), dbg)
+      subst_vars env args, args_layout, result_layout, (reg_close,mode), dbg)
   | Region body ->
       let body = to_clambda t env body in
       let is_trivial =
@@ -482,7 +490,8 @@ and to_clambda_direct_apply t func args direct_func probe dbg pos mode env
        dropping any side effects.) *)
     if closed then uargs else uargs @ [subst_var env func]
   in
-  Udirect_apply (label, uargs, probe, (pos, mode), dbg)
+  let result_layout = Lambda.layout_top in
+  Udirect_apply (label, uargs, probe, result_layout, (pos, mode), dbg)
 
 (* Describe how to build a runtime closure block that corresponds to the
    given Flambda set of closures.
@@ -561,7 +570,7 @@ and to_clambda_set_of_closures t env
     let env_body, params =
       List.fold_right (fun var (env, params) ->
           let id, env = Env.add_fresh_ident env (Parameter.var var) in
-          env, (VP.create id, Parameter.kind var) :: params)
+          env, VP.create id :: params)
         function_decl.params (env, [])
     in
     let label =
@@ -571,8 +580,7 @@ and to_clambda_set_of_closures t env
     in
     { label;
       arity = clambda_arity function_decl;
-      params = params @ [VP.create env_var, Lambda.layout_function];
-      return = Lambda.layout_top;
+      params = params @ [VP.create env_var];
       body = to_clambda t env_body function_decl.body;
       dbg = function_decl.dbg;
       env = Some env_var;
@@ -621,7 +629,7 @@ and to_clambda_closed_set_of_closures t env symbol
     let env_body, params =
       List.fold_right (fun var (env, params) ->
           let id, env = Env.add_fresh_ident env (Parameter.var var) in
-          env, (VP.create id, Parameter.kind var) :: params)
+          env, VP.create id :: params)
         function_decl.params (env, [])
     in
     let body =
@@ -636,7 +644,6 @@ and to_clambda_closed_set_of_closures t env symbol
     { label;
       arity = clambda_arity function_decl;
       params;
-      return = Lambda.layout_top;
       body;
       dbg = function_decl.dbg;
       env = None;
