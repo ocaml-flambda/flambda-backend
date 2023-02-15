@@ -326,9 +326,18 @@ val apply2 : int -> local_ 'a -> int -> int = <fun>
 |}]
 let apply3 x = g x x x
 [%%expect{|
-Line 1, characters 15-22:
+Line 1, characters 15-20:
 1 | let apply3 x = g x x x
-                   ^^^^^^^
+                   ^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let apply3_wrapped x = (g x x) x
+[%%expect{|
+Line 1, characters 23-32:
+1 | let apply3_wrapped x = (g x x) x
+                           ^^^^^^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
   Hint: This is a partial application
@@ -336,7 +345,40 @@ Error: This local value escapes its region
 |}]
 let apply4 x = g x x x x
 [%%expect{|
-val apply4 : int -> int = <fun>
+Line 1, characters 15-20:
+1 | let apply4 x = g x x x x
+                   ^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let apply4_wrapped x = (g x x) x x
+[%%expect{|
+val apply4_wrapped : int -> int = <fun>
+|}]
+let ill_typed () = g 1 2 3 4 5
+[%%expect{|
+Line 1, characters 19-20:
+1 | let ill_typed () = g 1 2 3 4 5
+                       ^
+Error: This function has type local_ 'a -> int -> (local_ 'b -> int -> int)
+       It is applied to too many arguments; maybe you forgot a `;'.
+|}]
+
+(*
+ * Defaulting of modes in module type of (like mli-less files)
+ *)
+
+let f g = g (local_ (1, 2)) 1 2 3 [@nontail]
+[%%expect{|
+val f : (local_ int * int -> int -> int -> int -> 'a) -> 'a = <fun>
+|}]
+module type F = module type of struct
+  let f g = g (local_ (1, 2)) 1 2 3 [@nontail]
+end
+[%%expect{|
+module type F =
+  sig val f : (local_ int * int -> int -> int -> int -> 'a) -> 'a end
 |}]
 
 (*
@@ -378,7 +420,17 @@ Error: This local value escapes its region
 let app42 (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
   f ~a:(local_ ref 1) 2 ~c:4
 [%%expect{|
-val app42 :
+Line 2, characters 2-21:
+2 |   f ~a:(local_ ref 1) 2 ~c:4
+      ^^^^^^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let app42_wrapped (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
+  (f ~a:(local_ ref 1)) 2 ~c:4
+[%%expect{|
+val app42_wrapped :
   (a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) ->
   b:local_ int ref -> unit = <fun>
 |}]
@@ -431,14 +483,34 @@ Error: This local value escapes its region
 let app42' (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
   f ~a:(ref 1) 2 ~c:4
 [%%expect{|
-val app42' :
+Line 2, characters 2-14:
+2 |   f ~a:(ref 1) 2 ~c:4
+      ^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let app42'_wrapped (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
+  (f ~a:(ref 1)) 2 ~c:4
+[%%expect{|
+val app42'_wrapped :
   (a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) ->
   b:local_ int ref -> unit = <fun>
 |}]
 let app43' (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
   f ~a:(ref 1) 2
 [%%expect{|
-val app43' :
+Line 2, characters 2-14:
+2 |   f ~a:(ref 1) 2
+      ^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let app43'_wrapped (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
+  (f ~a:(ref 1)) 2
+[%%expect{|
+val app43'_wrapped :
   (a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) ->
   b:local_ int ref -> c:int -> unit = <fun>
 |}]
@@ -484,7 +556,13 @@ let bug2 () =
   let res = bar ~a:"world" in
   res
 [%%expect{|
-val bug2 : unit -> c:int -> unit = <fun>
+Line 5, characters 19-33:
+5 |   let bar = local_ foo ~b:"hello" in
+                       ^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after a in the function's type should be applied separately.
 |}]
 let bug3 () =
   let foo : a:local_ string -> (b:local_ string -> (c:int -> unit)) =
@@ -499,6 +577,52 @@ Line 3, characters 63-64:
                                                                    ^
 Error: The value a is local, so cannot be used inside a closure that might escape
 |}]
+let overapp ~(local_ a) ~b = (); fun ~c ~d -> ()
+
+let () = overapp ~a:1 ~b:2 ~c:3 ~d:4
+[%%expect{|
+val overapp : a:local_ 'a -> b:'b -> (c:'c -> d:'d -> unit) = <fun>
+Line 3, characters 9-26:
+3 | let () = overapp ~a:1 ~b:2 ~c:3 ~d:4
+             ^^^^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+
+let () = overapp ~b:2 ~a:1 ~c:3 ~d:4
+[%%expect{|
+Line 1, characters 20-21:
+1 | let () = overapp ~b:2 ~a:1 ~c:3 ~d:4
+                        ^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after this one in the function's type should be applied separately.
+|}]
+
+let () = overapp ~c:1 ~b:2
+[%%expect{|
+Line 1, characters 25-26:
+1 | let () = overapp ~c:1 ~b:2
+                             ^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after this one in the function's type should be applied separately.
+|}]
+
+let () = overapp ~d:1 ~a:2
+[%%expect{|
+Line 1, characters 9-26:
+1 | let () = overapp ~d:1 ~a:2
+             ^^^^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after b in the function's type should be applied separately.
+|}]
+
 
 (* Regression test for bug with mishandled regional function modes *)
 let bug4 : local_ (string -> foo:string -> unit) -> (string -> unit) =
