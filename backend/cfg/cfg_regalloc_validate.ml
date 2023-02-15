@@ -428,7 +428,7 @@ end = struct
       (fun _ (block : Cfg.basic_block) ->
         add_terminator ~seen_ids t block.terminator;
         let first_instruction_id =
-          Cfg.BasicInstructionList.fold_right
+          Cfg.DoublyLinkedList.fold_right
             ~f:(fun instr successor_id ->
               add_basic ~seen_ids ~successor_id t instr;
               instr.id)
@@ -628,7 +628,7 @@ end = struct
     (* Finds successor id in or after the given block. *)
     and get_first_non_regalloc_id t (block : Cfg.basic_block) =
       let res : Cfg.basic Cfg.instruction option =
-        Cfg.BasicInstructionList.fold_left
+        Cfg.DoublyLinkedList.fold_left
           ~f:(fun acc instr ->
             match acc with
             | Some _ -> acc
@@ -673,7 +673,7 @@ end = struct
           verify_terminator ~seen_ids ~successor_ids t block.terminator
         in
         let first_instruction_id =
-          Cfg.BasicInstructionList.fold_right
+          Cfg.DoublyLinkedList.fold_right
             ~f:(fun instr successor_id ->
               verify_basic ~seen_ids ~successor_id t instr)
             block.body ~init:successor_id

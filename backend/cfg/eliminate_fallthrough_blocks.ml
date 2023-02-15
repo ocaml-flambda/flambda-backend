@@ -32,7 +32,7 @@ let is_fallthrough_block cfg_with_layout (block : C.basic_block) =
   let cfg = CL.cfg cfg_with_layout in
   if Label.equal cfg.entry_label block.start
      || block.is_trap_handler
-     || (not (Cfg.BasicInstructionList.is_empty block.body))
+     || (not (Cfg.DoublyLinkedList.is_empty block.body))
      || not (C.is_pure_terminator block.terminator.desc)
   then None
   else

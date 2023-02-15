@@ -152,7 +152,7 @@ let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   Cfg.iter_blocks cfg ~f:(fun _label block ->
-      Cfg.BasicInstructionList.filter_left block.body ~f:(fun instr ->
+      Cfg.DoublyLinkedList.filter_left block.body ~f:(fun instr ->
           not (Cfg.is_noop_move instr)));
   Eliminate_fallthrough_blocks.run cfg_with_layout;
   Merge_straightline_blocks.run cfg_with_layout;
@@ -380,7 +380,7 @@ let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
   then
     (* note: `Cfize` has put the prologue in the entry block *)
     let block = Cfg.get_block_exn cfg cfg.entry_label in
-    Cfg.BasicInstructionList.filter_left block.body ~f:(fun instr ->
+    Cfg.DoublyLinkedList.filter_left block.body ~f:(fun instr ->
         match instr.Cfg.desc with Cfg.Prologue -> false | _ -> true)
 
 let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
@@ -393,7 +393,7 @@ let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
     | Some { Cfg_liveness.before = _; across } -> instr.live <- across
   in
   Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun _label block ->
-      Cfg.BasicInstructionList.iter block.body ~f:set_liveness;
+      Cfg.DoublyLinkedList.iter block.body ~f:set_liveness;
       set_liveness block.terminator)
 
 (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
@@ -430,7 +430,7 @@ let update_spill_cost : Cfg_with_layout.t -> flat:bool -> unit -> unit =
           1
         | Some depth -> pow10 depth
       in
-      Cfg.BasicInstructionList.iter
+      Cfg.DoublyLinkedList.iter
         ~f:(fun instr -> update_instr cost instr)
         block.body;
       (* Ignore probes *)
@@ -490,7 +490,7 @@ let may_use_stack_operands_everywhere :
 
 let insert_block :
     Cfg_with_layout.t ->
-    Cfg.BasicInstructionList.t ->
+    Cfg.basic_instruction_list ->
     after:Cfg.basic_block ->
     next_instruction_id:(unit -> Instruction.id) ->
     unit =
@@ -505,7 +505,7 @@ let insert_block :
       "Cannot insert a block after block %a: it has no successors" Label.print
       predecessor_block.start;
   let last_insn =
-    match Cfg.BasicInstructionList.last body with
+    match Cfg.DoublyLinkedList.last body with
     | None -> Misc.fatal_error "Inserting an empty block"
     | Some i -> i
   in
@@ -520,9 +520,9 @@ let insert_block :
       first := false;
       body)
     else
-      let new_body = Cfg.BasicInstructionList.make_empty () in
-      Cfg.BasicInstructionList.iter body ~f:(fun instr ->
-          Cfg.BasicInstructionList.add_end new_body (copy instr));
+      let new_body = Cfg.DoublyLinkedList.make_empty () in
+      Cfg.DoublyLinkedList.iter body ~f:(fun instr ->
+          Cfg.DoublyLinkedList.add_end new_body (copy instr));
       new_body
   in
   Label.Set.iter

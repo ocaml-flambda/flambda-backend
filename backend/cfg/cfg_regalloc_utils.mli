@@ -112,7 +112,7 @@ val may_use_stack_operands_everywhere :
    [after]. *)
 val insert_block :
   Cfg_with_layout.t ->
-  Cfg.BasicInstructionList.t ->
+  Cfg.basic_instruction_list ->
   after:Cfg.basic_block ->
   next_instruction_id:(unit -> Instruction.id) ->
   unit

@@ -308,11 +308,21 @@ let adjust_stack_offset body (block : Cfg.basic_block)
     let delta_bytes = block_stack_offset - prev_stack_offset in
     to_linear_instr (Ladjust_stack_offset { delta_bytes }) ~next:body
 
+let array_of_layout : Cfg_with_layout.layout -> Label.t array =
+ fun layout ->
+  match Cfg.DoublyLinkedList.hd layout with
+  | None -> [||]
+  | Some label ->
+    let len = Cfg.DoublyLinkedList.length layout in
+    let res = Array.make len label in
+    Cfg.DoublyLinkedList.iteri layout ~f:(fun i label -> res.(i) <- label);
+    res
+
 (* CR-someday gyorsh: handle duplicate labels in new layout: print the same
    block more than once. *)
 let run cfg_with_layout =
   let cfg = CL.cfg cfg_with_layout in
-  let layout = Array.of_list (CL.layout cfg_with_layout) in
+  let layout = array_of_layout (CL.layout cfg_with_layout) in
   let len = Array.length layout in
   let next = ref Linear_utils.labelled_insn_end in
   let tailrec_label = ref None in
@@ -330,7 +340,7 @@ let run cfg_with_layout =
       | (Some _ | None), None -> ()
       | None, Some _ -> tailrec_label := terminator_tailrec_label
       | Some old_trl, Some new_trl -> assert (Label.equal old_trl new_trl));
-      Cfg.BasicInstructionList.fold_right
+      Cfg.DoublyLinkedList.fold_right
         ~f:(fun i next -> basic_to_linear i ~next)
         ~init:terminator block.body
     in
@@ -373,10 +383,18 @@ let run cfg_with_layout =
     fun_prologue_required
   }
 
+let layout_of_block_list : Cfg.basic_block list -> Cfg_with_layout.layout =
+ fun blocks ->
+  let res = Cfg.DoublyLinkedList.make_empty () in
+  List.iter
+    (fun block -> Cfg.DoublyLinkedList.add_end res block.Cfg.start)
+    blocks;
+  res
+
 (** debug print block as assembly *)
 let print_assembly (blocks : Cfg.basic_block list) =
   (* create a fake cfg just for printing these blocks *)
-  let layout = List.map (fun (b : Cfg.basic_block) -> b.start) blocks in
+  let layout = layout_of_block_list blocks in
   let fun_name = "_fun_start_" in
   let cfg =
     Cfg.create ~fun_name ~fun_args:[||] ~fun_dbg:Debuginfo.none ~fun_fast:false

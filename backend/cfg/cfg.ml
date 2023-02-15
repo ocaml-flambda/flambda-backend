@@ -29,56 +29,42 @@ let verbose = ref false
 
 include Cfg_intf.S
 
-module BasicInstructionList = struct
+module DoublyLinkedList = struct
   (* CR-someday xclerc: as noted on the pull request [1], it could be beneficial
      to consider alternative representations to avoid a "dummy" value, e.g. by
      using a sentinel or an encoding similar to the one used by `Queue.cell`.
 
      [1] https://github.com/ocaml-flambda/flambda-backend/pull/897 *)
 
-  type instr = basic instruction
-
-  type node =
-    { instr : instr;
-      mutable prev : node;
-      mutable next : node
-    }
-
-  (* CR xclerc for xclerc: a dummy instruction value has probably been
-     introduced by another pull request. *)
-  let dummy_instruction : instr =
-    { desc = Prologue;
-      arg = [||];
-      res = [||];
-      dbg = Debuginfo.none;
-      fdo = Fdo_info.none;
-      live = Reg.Set.empty;
-      stack_offset = -1;
-      id = -1;
-      irc_work_list = Unknown_list
+  type 'a node =
+    { value : 'a;
+      mutable prev : 'a node;
+      mutable next : 'a node
     }
 
   let rec dummy_node =
-    { instr = dummy_instruction; prev = dummy_node; next = dummy_node }
+    { value = Obj.magic 0; prev = dummy_node; next = dummy_node }
 
-  let is_dummy_node node = node.instr.id < 0
+  let get_dummy_node () = Obj.magic (dummy_node : 'a node) [@@inline]
 
-  let[@inline] unattached_node instr =
-    { instr; prev = dummy_node; next = dummy_node }
+  let is_dummy_node node = node == node.next
 
-  type t =
+  let[@inline] unattached_node value =
+    { value; prev = get_dummy_node (); next = get_dummy_node () }
+
+  type 'a t =
     { mutable length : int;
-      mutable first : node;
-      mutable last : node
+      mutable first : 'a node;
+      mutable last : 'a node
     }
 
-  type cell =
-    { node : node;
-      t : t
+  type 'a cell =
+    { node : 'a node;
+      t : 'a t
     }
 
-  let insert_before cell instr =
-    let new_node = unattached_node instr in
+  let insert_before cell value =
+    let new_node = unattached_node value in
     new_node.prev <- cell.node.prev;
     new_node.next <- cell.node;
     cell.node.prev <- new_node;
@@ -87,8 +73,8 @@ module BasicInstructionList = struct
     then cell.t.first <- new_node
     else new_node.prev.next <- new_node
 
-  let insert_after cell instr =
-    let new_node = unattached_node instr in
+  let insert_after cell value =
+    let new_node = unattached_node value in
     new_node.next <- cell.node.next;
     new_node.prev <- cell.node;
     cell.node.next <- new_node;
@@ -97,24 +83,27 @@ module BasicInstructionList = struct
     then cell.t.last <- new_node
     else new_node.next.prev <- new_node
 
-  let instr cell = cell.node.instr
+  let value cell =
+    assert (not (is_dummy_node cell.node));
+    cell.node.value
 
-  let make_empty () = { length = 0; first = dummy_node; last = dummy_node }
+  let make_empty () =
+    { length = 0; first = get_dummy_node (); last = get_dummy_node () }
 
-  let make_single instr =
-    let node = unattached_node instr in
+  let make_single value =
+    let node = unattached_node value in
     { length = 1; first = node; last = node }
 
   let hd t =
     let first = t.first in
-    if is_dummy_node first then None else Some first.instr
+    if is_dummy_node first then None else Some first.value
 
   let last t =
     let last = t.last in
-    if is_dummy_node last then None else Some last.instr
+    if is_dummy_node last then None else Some last.value
 
-  let add_begin t instr =
-    let node = unattached_node instr in
+  let add_begin t value =
+    let node = unattached_node value in
     let len = t.length in
     if Int.equal len 0
     then (
@@ -127,8 +116,8 @@ module BasicInstructionList = struct
       t.first <- node;
       t.length <- succ len)
 
-  let add_end t instr =
-    let node = unattached_node instr in
+  let add_end t value =
+    let node = unattached_node value in
     let len = t.length in
     if Int.equal len 0
     then (
@@ -159,24 +148,32 @@ module BasicInstructionList = struct
     else curr.next.prev <- curr.prev;
     t.length <- pred t.length
 
+  let remove_first : 'a t -> f:('a -> bool) -> unit =
+   fun t ~f ->
+    let curr = ref t.first in
+    while (not (is_dummy_node !curr)) && not (f !curr.value) do
+      curr := !curr.next
+    done;
+    if not (is_dummy_node !curr) then remove t !curr
+
   let filter_left t ~f =
     let curr = ref t.first in
     while not (is_dummy_node !curr) do
-      if not (f !curr.instr) then remove t !curr;
+      if not (f !curr.value) then remove t !curr;
       curr := !curr.next
     done
 
   let filter_right t ~f =
     let curr = ref t.last in
     while not (is_dummy_node !curr) do
-      if not (f !curr.instr) then remove t !curr;
+      if not (f !curr.value) then remove t !curr;
       curr := !curr.prev
     done
 
   let iter t ~f =
     let curr = ref t.first in
     while not (is_dummy_node !curr) do
-      f !curr.instr;
+      f !curr.value;
       curr := !curr.next
     done
 
@@ -189,22 +186,31 @@ module BasicInstructionList = struct
       curr := next
     done
 
+  let iteri t ~f =
+    let i = ref 0 in
+    let curr = ref t.first in
+    while not (is_dummy_node !curr) do
+      f !i !curr.value;
+      incr i;
+      curr := !curr.next
+    done
+
   let iter2 t t' ~f =
     let curr = ref t.first in
     let curr' = ref t'.first in
     while (not (is_dummy_node !curr)) && not (is_dummy_node !curr') do
-      f !curr.instr !curr'.instr;
+      f !curr.value !curr'.value;
       curr := !curr.next;
       curr' := !curr'.next
     done;
     if not (Bool.equal (is_dummy_node !curr) (is_dummy_node !curr'))
-    then invalid_arg "BasicInstructionList.iter2"
+    then invalid_arg "DoublyLinkedList.iter2"
 
   let fold_left t ~f ~init =
     let res = ref init in
     let curr = ref t.first in
     while not (is_dummy_node !curr) do
-      res := f !res !curr.instr;
+      res := f !res !curr.value;
       curr := !curr.next
     done;
     !res
@@ -213,10 +219,27 @@ module BasicInstructionList = struct
     let res = ref init in
     let curr = ref t.last in
     while not (is_dummy_node !curr) do
-      res := f !curr.instr !res;
+      res := f !curr.value !res;
       curr := !curr.prev
     done;
     !res
+
+  let find_cell_opt t ~f =
+    let res = ref None in
+    let curr = ref t.first in
+    while (not (is_dummy_node !curr)) && Option.is_none !res do
+      if f !curr.value
+      then res := Some { node = !curr; t }
+      else curr := !curr.next
+    done;
+    !res
+
+  let find_opt t ~f =
+    match find_cell_opt t ~f with
+    | None -> None
+    | Some { node = { value; prev = _; next = _ }; t = _ } -> Some value
+
+  let to_list t = fold_right t ~f:(fun hd tl -> hd :: tl) ~init:[]
 
   let transfer ~to_ ~from () =
     match to_.length, from.length with
@@ -227,22 +250,24 @@ module BasicInstructionList = struct
       to_.first <- from.first;
       to_.last <- from.last;
       to_.length <- from.length;
-      from.first <- dummy_node;
-      from.last <- dummy_node;
+      from.first <- get_dummy_node ();
+      from.last <- get_dummy_node ();
       from.length <- 0
     | _ ->
       to_.last.next <- from.first;
       from.first.prev <- to_.last;
       to_.last <- from.last;
       to_.length <- to_.length + from.length;
-      from.first <- dummy_node;
-      from.last <- dummy_node;
+      from.first <- get_dummy_node ();
+      from.last <- get_dummy_node ();
       from.length <- 0
 end
 
+type basic_instruction_list = basic instruction DoublyLinkedList.t
+
 type basic_block =
   { start : Label.t;
-    body : BasicInstructionList.t;
+    body : basic_instruction_list;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
     mutable stack_offset : int;
@@ -385,7 +410,7 @@ let get_block_exn t label =
 let can_raise_interproc block = block.can_raise && Option.is_none block.exn
 
 let first_instruction_id (block : basic_block) : int =
-  match BasicInstructionList.hd block.body with
+  match DoublyLinkedList.hd block.body with
   | None -> block.terminator.id
   | Some first_instr -> first_instr.id
 
