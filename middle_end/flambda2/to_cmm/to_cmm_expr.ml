@@ -304,6 +304,14 @@ let translate_jump_to_return_continuation env res apply return_cont args =
        Multiple return values from functions are not yet supported"
       Continuation.print return_cont Apply_cont.print apply
 
+(* Invalid expressions *)
+let invalid env res ~message =
+  let wrap, _empty_env, res =
+    Env.flush_delayed_lets ~mode:Branching_point env res
+  in
+  let cmm_invalid, res = C.invalid res ~message in
+  wrap cmm_invalid, res
+
 (* The main set of translation functions for expressions *)
 
 let rec expr env res e =
@@ -313,7 +321,7 @@ let rec expr env res e =
   | Apply e' -> apply_expr env res e'
   | Apply_cont e' -> apply_cont env res e'
   | Switch e' -> switch env res e'
-  | Invalid { message } -> C.invalid res ~message
+  | Invalid { message } -> invalid env res ~message
 
 and let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body =
   let v = Bound_var.var v in
