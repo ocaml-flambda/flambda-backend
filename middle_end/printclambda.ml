@@ -86,7 +86,8 @@ and one_fun ppf f =
           VP.print param Printlambda.layout Lambda.layout_function
       | param :: params, layout :: layouts ->
         fprintf ppf "@ %a%a"
-          VP.print param Printlambda.layout layout
+          VP.print param Printlambda.layout layout;
+        iter params layouts
       | _ -> Misc.fatal_error "arity inconsistent with params"
     in
     iter f.params f.arity.params_layout
