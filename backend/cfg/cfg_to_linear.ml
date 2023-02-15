@@ -309,6 +309,16 @@ let adjust_stack_offset body (block : Cfg.basic_block)
     let delta_bytes = block_stack_offset - prev_stack_offset in
     to_linear_instr (Ladjust_stack_offset { delta_bytes }) ~next:body
 
+let array_of_layout : Cfg_with_layout.layout -> Label.t array =
+ fun layout ->
+  match Cfg.DoublyLinkedList.hd layout with
+  | None -> [||]
+  | Some label ->
+    let len = Cfg.DoublyLinkedList.length layout in
+    let res = Array.make len label in
+    Cfg.DoublyLinkedList.iteri layout ~f:(fun i label -> res.(i) <- label);
+    res
+
 (* CR-someday gyorsh: handle duplicate labels in new layout: print the same
    block more than once. *)
 let run cfg_with_layout =
