@@ -40,6 +40,9 @@ module Instruction = struct
   module IdMap = MoreLabels.Map.Make (Int)
 end
 
+let[@inline] int_min (left : int) (right : int) =
+  if left <= right then left else right
+
 let[@inline] int_max (left : int) (right : int) =
   if left >= right then left else right
 

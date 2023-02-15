@@ -12,6 +12,10 @@ val on_fatal : f:(unit -> unit) -> unit
 
 val fatal : ('a, Format.formatter, unit, 'b) format4 -> 'a
 
+val int_min : int -> int -> int
+
+val int_max : int -> int -> int
+
 module Instruction : sig
   type id = int
 
