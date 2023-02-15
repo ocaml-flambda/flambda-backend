@@ -62,11 +62,20 @@ val boxedintnat_header : nativeint
 val closure_info : arity:Clambda.arity -> startenv:int -> is_last:bool
   -> nativeint
 
+val closure_info' :
+  arity:Lambda.function_kind * 'a list ->
+  startenv:int ->
+  is_last:bool ->
+  nativeint
+
 (** Wrappers *)
 val alloc_infix_header : int -> Debuginfo.t -> expression
 val alloc_closure_info :
-      arity:(Lambda.function_kind * int) -> startenv:int -> is_last:bool ->
-      Debuginfo.t -> expression
+  arity:Clambda.arity ->
+  startenv:int ->
+  is_last:bool ->
+  Debuginfo.t ->
+  expression
 
 (** Integers *)
 
