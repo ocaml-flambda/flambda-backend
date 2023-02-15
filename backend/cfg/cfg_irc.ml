@@ -442,7 +442,7 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> bool
         log ~indent:2 "body of #%d, before:" label;
         log_body_and_terminator ~indent:3 block.body block.terminator liveness);
       Cfg.DoublyLinkedList.iter_cell block.body ~f:(fun cell ->
-          let instr = Cfg.BasicInstructionList.instr cell in
+          let instr = Cfg.DoublyLinkedList.value cell in
           match
             Profile.record ~accumulate:true "stack_operands"
               (fun () -> Cfg_stack_operands.basic spilled_map instr)
