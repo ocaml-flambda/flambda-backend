@@ -276,7 +276,8 @@
   flambda2_identifiers
   flambda2_cmx
   dwarf_ocaml
-  compiler_owee))
+  compiler_owee
+  gc_timings))
 
 (library
  (name flambda_backend_common)

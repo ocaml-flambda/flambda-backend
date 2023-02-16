@@ -83,6 +83,9 @@ let mk_dump_inlining_paths f =
 let mk_internal_assembler f =
   "-internal-assembler", Arg.Unit f, "Write object files directly instead of using the system assembler (x86-64 ELF only)"
 
+let mk_gc_timings f =
+  "-dgc-timings", Arg.Unit f, "Output information about time spent in the GC"
+
 module Flambda2 = Flambda_backend_flags.Flambda2
 
 let mk_flambda2_result_types_functors_only f =
@@ -482,6 +485,8 @@ module type Flambda_backend_options = sig
   val caml_apply_inline_fast_path : unit -> unit
   val internal_assembler : unit -> unit
 
+  val gc_timings : unit -> unit
+
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
   val flambda2_result_types_functors_only : unit -> unit
@@ -564,6 +569,8 @@ struct
     mk_caml_apply_inline_fast_path F.caml_apply_inline_fast_path;
 
     mk_internal_assembler F.internal_assembler;
+
+    mk_gc_timings F.gc_timings;
 
     mk_flambda2_join_points F.flambda2_join_points;
     mk_no_flambda2_join_points F.no_flambda2_join_points;
@@ -684,6 +691,8 @@ module Flambda_backend_options_impl = struct
     set' Flambda_backend_flags.caml_apply_inline_fast_path
 
   let internal_assembler = set' Flambda_backend_flags.internal_assembler
+
+  let gc_timings = set' Flambda_backend_flags.gc_timings
 
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
@@ -871,6 +880,7 @@ module Extra_params = struct
     in
     match name with
     | "internal-assembler" -> set' Flambda_backend_flags.internal_assembler
+    | "dgc-timings" -> set' Flambda_backend_flags.gc_timings
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "cfg-equivalence-check" -> set' Flambda_backend_flags.cfg_equivalence_check
