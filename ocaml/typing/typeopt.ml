@@ -61,7 +61,7 @@ let scrape_poly env ty =
   | d -> d
 
 let is_function_type env ty =
-  match scrape env ty with
+  match scrape_poly env ty with
   | Tarrow (_, lhs, rhs, _) -> Some (lhs, rhs)
   | _ -> None
 
@@ -365,7 +365,13 @@ let layout env ty = Lambda.Pvalue (value_kind env ty)
 let function_return_layout env ty =
   match is_function_type env ty with
   | Some (_lhs, rhs) -> layout env rhs
-  | None -> Lambda.layout_top
+  | None -> Misc.fatal_errorf "function_return_layout called on non-function type"
+
+let function2_return_layout env ty =
+  match is_function_type env ty with
+  | Some (_lhs, rhs) -> function_return_layout env rhs
+  | None -> Misc.fatal_errorf "function_return_layout called on non-function type"
+
 
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
     if the value can be represented as a float/forward/lazy *)
