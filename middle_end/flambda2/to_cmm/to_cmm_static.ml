@@ -79,11 +79,8 @@ let static_boxed_number ~kind ~env ~symbol ~default ~emit ~transl ~structured v
       Cmmgen_state.add_structured_constant symbol_name structured_constant;
       env, res, updates
     | Var (v, dbg) ->
-      let env, res, updates =
-        C.make_update env res dbg kind ~symbol:(C.symbol ~dbg symbol) v ~index:0
-          ~prev_updates:updates
-      in
-      env, res, updates
+      C.make_update env res dbg kind ~symbol:(C.symbol ~dbg symbol) v ~index:0
+        ~prev_updates:updates
   in
   R.update_data res (or_variable aux default v), env, updates
 
