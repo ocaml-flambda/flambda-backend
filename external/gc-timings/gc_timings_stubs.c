@@ -89,12 +89,12 @@ CAMLprim value caml_timing_collect_gc(value unit) {
   CAMLreturn (Val_unit);
 }
 
-CAMLprim value caml_timing_gc_time_spend_minor(value unit) {
+CAMLprim value caml_timing_gc_time_spent_minor(value unit) {
   CAMLparam1 (unit);
   CAMLreturn (caml_copy_double (caml_timing_minor_gc));
 }
 
-CAMLprim value caml_timing_gc_time_spend_major(value unit) {
+CAMLprim value caml_timing_gc_time_spent_major(value unit) {
   CAMLparam1 (unit);
   CAMLreturn (caml_copy_double (caml_timing_major_gc));
 }
