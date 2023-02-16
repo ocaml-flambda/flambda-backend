@@ -130,7 +130,9 @@ let rec same (l1 : Flambda.t) (l2 : Flambda.t) =
   | Static_raise _, _ | _, Static_raise _ -> false
   | Static_catch (s1, v1, a1, b1, k1), Static_catch (s2, v2, a2, b2, k2) ->
     Static_exception.equal s1 s2
-      && Misc.Stdlib.List.equal Variable.equal v1 v2
+      && Misc.Stdlib.List.equal
+        (fun (v1, l1) (v2, l2) -> Variable.equal v1 v2 && Lambda.equal_layout l1 l2)
+        v1 v2
       && same a1 a2
       && same b1 b2
       && Lambda.equal_layout k1 k2
@@ -263,11 +265,11 @@ let toplevel_substitution sb tree =
       let new_value = sb new_value in
       Assign { being_assigned; new_value; }
     | Apply { func; args; kind; dbg; reg_close; mode;
-              inlined; specialise; probe; } ->
+              inlined; specialise; probe; result_layout; } ->
       let func = sb func in
       let args = List.map sb args in
       Apply { func; args; kind; dbg; reg_close; mode;
-              inlined; specialise; probe; }
+              inlined; specialise; probe; result_layout; }
     | If_then_else (cond, e1, e2, kind) ->
       let cond = sb cond in
       If_then_else (cond, e1, e2, kind)
@@ -277,11 +279,11 @@ let toplevel_substitution sb tree =
     | String_switch (cond, branches, def, kind) ->
       let cond = sb cond in
       String_switch (cond, branches, def, kind)
-    | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
+    | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
       let meth = sb meth in
       let obj = sb obj in
       let args = List.map sb args in
-      Send { kind; meth; obj; args; dbg; reg_close; mode }
+      Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout }
     | For { bound_var; from_value; to_value; direction; body } ->
       let from_value = sb from_value in
       let to_value = sb to_value in
@@ -343,7 +345,7 @@ let toplevel_substitution_named sb named =
   | _ -> assert false
 
 let make_closure_declaration
-      ~is_classic_mode ~id ~alloc_mode ~region ~body ~params ~free_variables : Flambda.t =
+      ~is_classic_mode ~id ~alloc_mode ~region ~body ~params ~return_layout ~free_variables : Flambda.t =
   let param_set = Parameter.Set.vars params in
   let free_variables_set = Variable.Map.keys free_variables in
   if not (Variable.Set.subset param_set free_variables_set) then begin
@@ -363,8 +365,9 @@ let make_closure_declaration
   let function_declaration =
     Flambda.create_function_declaration
       ~params:(List.map subst_param params) ~alloc_mode  ~region
+      ~return_layout
       ~body ~stub:true ~dbg:Debuginfo.none ~inline:Default_inline
-      ~specialise:Default_specialise ~is_a_functor:false
+      ~specialise:Default_specialise ~check:Default_check ~is_a_functor:false
       ~closure_origin:(Closure_origin.create (Closure_id.wrap id))
       ~poll:Default_poll
   in
@@ -718,7 +721,7 @@ let substitute_read_symbol_field_for_variables
       bind_to_value @@
       Flambda.For { bound_var; from_value; to_value; direction; body }
     | Apply { func; args; kind; dbg; reg_close; mode;
-              inlined; specialise; probe } ->
+              inlined; specialise; probe; result_layout } ->
       let func, bind_func = make_var_subst func in
       let args, bind_args =
         List.split (List.map make_var_subst args)
@@ -726,8 +729,8 @@ let substitute_read_symbol_field_for_variables
       bind_func @@
       List.fold_right (fun f expr -> f expr) bind_args @@
       Flambda.Apply { func; args; kind; dbg; reg_close; mode;
-                      inlined; specialise; probe }
-    | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
+                      inlined; specialise; probe; result_layout }
+    | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
       let meth, bind_meth = make_var_subst meth in
       let obj, bind_obj = make_var_subst obj in
       let args, bind_args =
@@ -736,7 +739,7 @@ let substitute_read_symbol_field_for_variables
       bind_meth @@
       bind_obj @@
       List.fold_right (fun f expr -> f expr) bind_args @@
-      Flambda.Send { kind; meth; obj; args; dbg; reg_close; mode }
+      Flambda.Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout }
     | Proved_unreachable
     | Region _
     | Tail _
