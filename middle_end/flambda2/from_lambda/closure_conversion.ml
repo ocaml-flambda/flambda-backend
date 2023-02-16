@@ -844,16 +844,9 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
       Misc.fatal_errorf
         "[Let_cont]s marked as exception handlers must be [Nonrecursive]: %a"
         Continuation.print name);
-  let params_with_kinds =
-    List.map
-      (fun (param, user_visible, kind) -> param, user_visible, kind)
-      params
-  in
-  let handler_env, params = Env.add_vars_like env params_with_kinds in
+  let handler_env, env_params = Env.add_vars_like env params in
   let handler_params =
-    List.map2
-      (fun param (_, _, kind) -> BP.create param kind)
-      params params_with_kinds
+    List.map2 (fun param (_, _, kind) -> BP.create param kind) env_params params
     |> Bound_parameters.create
   in
   let handler acc =
@@ -869,7 +862,7 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
               Env.add_simple_to_substitute env param_id (Simple.symbol s) kind
             | _ -> env)
           handler_env args
-          (List.combine params params_with_kinds)
+          (List.combine env_params params)
     in
     handler acc handler_env
   in
