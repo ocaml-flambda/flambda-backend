@@ -489,7 +489,7 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
            (Flambda.Expr (Var set_of_closures)))
         (get_fun_offset t closure_id))
       named,
-    Lambda.layout_any_value
+    Lambda.layout_function
   | Move_within_set_of_closures { closure; start_from; move_to } ->
     let closure_expr, _layout_closure = subst_var env closure in
     check_closure t (build_uoffset
@@ -497,7 +497,7 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
          (Flambda.Expr (Var closure)))
       ((get_fun_offset t move_to) - (get_fun_offset t start_from)))
       named,
-    Lambda.layout_any_value
+    Lambda.layout_function
   | Project_var { closure; var; closure_id; kind } ->
     let ulam, _closure_layout = subst_var env closure in
     let fun_offset = get_fun_offset t closure_id in
@@ -511,7 +511,7 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
   | Prim (Pfield index, [block], dbg) ->
     let block, _block_layout = subst_var env block in
     Uprim (Pfield index, [check_field t block index None], dbg),
-    Lambda.layout_any_value
+    Lambda.layout_field
   | Prim (Psetfield (index, maybe_ptr, init), [block; new_value], dbg) ->
     let block, _block_layout = subst_var env block in
     let new_value, _new_value_layout = subst_var env new_value in
