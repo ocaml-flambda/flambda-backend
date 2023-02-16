@@ -470,7 +470,7 @@ let let_static_set_of_closures0 env res closure_symbols
   if not (Backend_var.Set.is_empty free_vars)
   then
     Misc.fatal_errorf
-      "Non-empty set of free_vars for a statis set of closures (*not* \
+      "Non-empty set of free_vars for a static set of closures (*not* \
        including updates):@ %a"
       Backend_var.Set.print free_vars;
   let block =
