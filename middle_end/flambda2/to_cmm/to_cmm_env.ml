@@ -537,6 +537,14 @@ let split_complex_binding ~env ~res (binding : complex binding) =
   match binding.bound_expr with
   | Split _ -> res, Already_split
   | Splittable_prim { dbg; prim; args } ->
+    (* We will be using the free vars of the new cmm args as the free vars for
+       the new cmm expr for the binding (note that the same is done in
+       [To_cmm_primitive]). This is correct because the cmm helpers to build
+       expressions can introduce locally closed variables (through e.g. [bind]),
+       but it will not create new free variables. It might be a slight
+       over-approximation since some primitives may drop some of their
+       arguments, but that should be extremely rare, and should not affect code
+       generation much. *)
     let new_bindings, new_cmm_args, free_vars_of_new_cmm_args =
       new_bindings_for_splitting binding.order args
     in
