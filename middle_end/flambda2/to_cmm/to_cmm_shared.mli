@@ -16,6 +16,14 @@
     this module, unlike the ones in [Cmm_helpers], depend on Flambda 2 data
     types. *)
 
+val remove_var_with_provenance :
+  To_cmm_env.free_vars -> Backend_var.With_provenance.t -> To_cmm_env.free_vars
+
+val remove_vars_with_machtype :
+  To_cmm_env.free_vars ->
+  (Backend_var.With_provenance.t * Cmm.machtype) list ->
+  To_cmm_env.free_vars
+
 val exttype_of_kind : Flambda_kind.t -> Cmm.exttype
 
 val machtype_of_kind : Flambda_kind.t -> Cmm.machtype_component array
@@ -37,10 +45,7 @@ val symbol : dbg:Debuginfo.t -> Symbol.t -> Cmm.expression
 
 (** This does not inline effectful expressions. *)
 val name :
-  To_cmm_env.t ->
-  To_cmm_result.t ->
-  Name.t ->
-  Cmm.expression * To_cmm_env.t * To_cmm_result.t * Effects_and_coeffects.t
+  To_cmm_env.t -> To_cmm_result.t -> Name.t -> To_cmm_env.translation_result
 
 val const : dbg:Debuginfo.t -> Reg_width_const.t -> Cmm.expression
 
@@ -53,7 +58,7 @@ val simple :
   To_cmm_env.t ->
   To_cmm_result.t ->
   Simple.t ->
-  Cmm.expression * To_cmm_env.t * To_cmm_result.t * Effects_and_coeffects.t
+  To_cmm_env.translation_result
 
 val simple_static :
   Simple.t -> [`Data of Cmm.data_item list | `Var of Variable.t]
@@ -66,7 +71,11 @@ val simple_list :
   To_cmm_env.t ->
   To_cmm_result.t ->
   Simple.t list ->
-  Cmm.expression list * To_cmm_env.t * To_cmm_result.t * Effects_and_coeffects.t
+  Cmm.expression list
+  * To_cmm_env.free_vars
+  * To_cmm_env.t
+  * To_cmm_result.t
+  * Effects_and_coeffects.t
 
 val bound_parameters :
   To_cmm_env.t ->
@@ -85,8 +94,8 @@ val make_update :
   symbol:Cmm.expression ->
   Variable.t ->
   index:int ->
-  prev_updates:Cmm.expression option ->
-  To_cmm_env.t * To_cmm_result.t * Cmm.expression option
+  prev_updates:To_cmm_env.expr_with_info option ->
+  To_cmm_env.t * To_cmm_result.t * To_cmm_env.expr_with_info option
 
 val check_arity : Flambda_arity.With_subkinds.t -> _ list -> bool
 
