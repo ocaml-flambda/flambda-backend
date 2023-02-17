@@ -77,6 +77,7 @@ end
 module type Compiler_options = sig
   val _a : unit -> unit
   val _annot : unit -> unit
+  val _as_parameter : unit -> unit
   val _binannot : unit -> unit
   val _c : unit -> unit
   val _cc : string -> unit
@@ -102,6 +103,7 @@ module type Compiler_options = sig
   val _output_obj : unit -> unit
   val _output_complete_obj : unit -> unit
   val _pack : unit -> unit
+  val _parameter : string -> unit
   val _plugin : string -> unit
   val _pp : string -> unit
   val _principal : unit -> unit

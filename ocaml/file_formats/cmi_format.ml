@@ -35,22 +35,36 @@ type signature = Types.signature_item list
 
 type crcs = Import_info.t array  (* smaller on disk than using a list *)
 type flags = pers_flags list
-type header = Compilation_unit.t * signature
+type header = {
+    header_name : Compilation_unit.t;
+    header_sign : signature;
+    header_is_param : bool;
+    header_params : Compilation_unit.Name.t list;
+}
 
 type cmi_infos = {
     cmi_name : Compilation_unit.t;
     cmi_sign : signature;
+    cmi_is_param : bool;
+    cmi_params : Compilation_unit.Name.t list;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }
 
 let input_cmi ic =
-  let (name, sign) = (input_value ic : header) in
+  let {
+      header_name = name;
+      header_sign = sign;
+      header_is_param = is_param;
+      header_params = params;
+    } = (input_value ic : header) in
   let crcs = (input_value ic : crcs) in
   let flags = (input_value ic : flags) in
   {
       cmi_name = name;
       cmi_sign = sign;
+      cmi_params = params;
+      cmi_is_param = is_param;
       cmi_crcs = crcs;
       cmi_flags = flags;
     }
@@ -87,7 +101,13 @@ let read_cmi filename =
 let output_cmi filename oc cmi =
 (* beware: the provided signature must have been substituted for saving *)
   output_string oc Config.cmi_magic_number;
-  output_value oc ((cmi.cmi_name, cmi.cmi_sign) : header);
+  output_value oc
+    {
+      header_name = cmi.cmi_name;
+      header_sign = cmi.cmi_sign;
+      header_is_param = cmi.cmi_is_param;
+      header_params = cmi.cmi_params;
+    };
   flush oc;
   let crc = Digest.file filename in
   let crcs =

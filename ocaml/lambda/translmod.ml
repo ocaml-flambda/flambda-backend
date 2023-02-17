@@ -908,6 +908,48 @@ let required_globals ~flambda body =
   Translprim.clear_used_primitives ();
   required
 
+let add_parameters lam ~params =
+  let param_of (_, id) = id, Pgenval in
+  let params = List.map param_of params in
+  let inline =
+    (* We want to inline the functor so that [-subst] compiles away the function
+       call and actually substitutes. *)
+    Always_inline
+  in
+  lfunction ~kind:(Curried { nlocal = 0 }) ~params ~return:Pgenval
+    ~attr:{ default_function_attribute with is_a_functor = true; inline }
+    ~loc:Loc_unknown
+    ~body:lam
+    ~mode:alloc_heap
+    ~region:true
+
+let transl_implementation_module
+      ~scopes ~params module_id (str, cc) =
+  let path = global_path module_id in
+  let lam, size =
+    transl_struct ~scopes Loc_unknown [] cc path str
+  in
+  match params with
+    [] ->
+      lam, size
+  | _ ->
+      add_parameters lam ~params, 1
+
+let wrap_toplevel_functor_in_struct code =
+  Lprim(Pmakeblock(0, Immutable, None, Lambda.alloc_heap),
+        [ code ],
+        Loc_unknown)
+
+(* Convert an flambda-style implementation (module block only) to a
+   non-flambda-style one (set global as side effect) *)
+
+let wrap_in_setglobal implementation =
+  let code =
+    Lprim (Psetglobal implementation.compilation_unit, [implementation.code],
+           Loc_unknown)
+  in
+  { implementation with code }
+
 (* Compile an implementation *)
 
 type compilation_unit_style =
@@ -923,25 +965,26 @@ let transl_implementation_plain_block compilation_unit (str, cc) =
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
   let body, size =
     Translobj.transl_label_init (fun () ->
+      let params = Env.parameters () in
       let body, size =
-        transl_struct ~scopes Loc_unknown [] cc
-          (global_path compilation_unit) str in
-      Translcore.declare_probe_handlers body, size)
+        transl_implementation_module ~scopes ~params compilation_unit (str, cc)
+      in
+      let body, size =
+        match params with
+        | [] ->
+            body, size
+        | _ :: _ ->
+            wrap_toplevel_functor_in_struct body, 1
+      in Translcore.declare_probe_handlers body, size)
   in
   { compilation_unit;
     main_module_block_size = size;
     required_globals = required_globals ~flambda:true body;
     code = body }
 
-let transl_implementation_set_global module_name (str, cc) =
-  let implementation =
-    transl_implementation_plain_block module_name (str, cc)
-  in
-  let code =
-    Lprim (Psetglobal implementation.compilation_unit, [implementation.code],
-           Loc_unknown)
-  in
-  { implementation with code }
+let transl_implementation_set_global module_name impl =
+  transl_implementation_plain_block module_name impl
+  |> wrap_in_setglobal
 
 (* Build the list of value identifiers defined by a toplevel structure
    (excluding primitive declarations). *)
@@ -1499,11 +1542,14 @@ let build_ident_map restr idlist more_ids =
 (* Compile an implementation using transl_store_structure
    (for the native-code compiler). *)
 
-let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
+let transl_store_gen_init () =
   reset_labels ();
   primitive_declarations := [];
   Translcore.clear_probe_handlers ();
-  Translprim.clear_used_primitives ();
+  Translprim.clear_used_primitives ()
+
+let transl_store_structure_gen
+      ~scopes module_name ({ str_items = str }, restr) topl =
   let (map, prims, aliases, size) =
     build_ident_map restr (defined_idents str) (more_idents str) in
   let f str =
@@ -1521,17 +1567,41 @@ let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
   transl_store_label_init module_name size f str
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
+let transl_store_implementation_as_functor
+      ~scopes ~params module_id (str, cc) =
+  let code, i =
+    transl_implementation_module ~scopes ~params module_id (str, cc)
+  in
+  let body_id = Ident.create_local "*unit-body*" in
+  i,
+  Llet (Strict, Pgenval, body_id, code,
+        Lsequence (Lprim(Psetfield(0, Pointer, Root_initialization),
+                         [Lprim(Pgetglobal module_id, [], Loc_unknown);
+                          Lvar body_id],
+                         Loc_unknown),
+                   lambda_unit))
+
 let transl_store_phrases module_name str =
+  transl_store_gen_init ();
   let scopes =
     enter_compilation_unit ~scopes:empty_scopes module_name
   in
-  transl_store_gen ~scopes module_name (str,Tcoerce_none) true
+  transl_store_structure_gen ~scopes module_name (str,Tcoerce_none) true
 
-let transl_implementation_set_fields compilation_unit (str, restr) =
+let transl_store_gen module_name (str, restr) topl =
+  transl_store_gen_init ();
+  let params = Env.parameters () in
+  match params with
+    [] ->
+      transl_store_structure_gen module_name (str, restr) topl
+  | _ :: _ ->
+      transl_store_implementation_as_functor module_name (str, restr) ~params
+
+let transl_implementation_set_fields compilation_unit impl =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
-  let i, code = transl_store_gen ~scopes compilation_unit (str, restr) false in
+  let i, code = transl_store_gen ~scopes compilation_unit impl false in
   transl_store_subst := s;
   { Lambda.main_module_block_size = i;
     code;

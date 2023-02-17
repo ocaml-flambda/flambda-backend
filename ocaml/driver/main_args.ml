@@ -718,6 +718,17 @@ let mk_match_context_rows f =
   "<n>  (advanced, see manual section %d.%d.)" chapter section
 ;;
 
+let mk_parameter f =
+  "-parameter", Arg.String f,
+  "<module name> Registers the imported interface as a parameter for this \n\
+                 open module."
+;;
+
+let mk_as_parameter f =
+  "-as-parameter", Arg.Unit f,
+  "<module name> Compiles the interface as a parameter for an open module."
+;;
+
 let mk_use_prims f =
   "-use-prims", Arg.String f, "<file>  (undocumented)"
 ;;
@@ -1006,6 +1017,7 @@ end
 module type Compiler_options = sig
   val _a : unit -> unit
   val _annot : unit -> unit
+  val _as_parameter : unit -> unit
   val _binannot : unit -> unit
   val _c : unit -> unit
   val _cc : string -> unit
@@ -1031,6 +1043,7 @@ module type Compiler_options = sig
   val _output_obj : unit -> unit
   val _output_complete_obj : unit -> unit
   val _pack : unit -> unit
+  val _parameter : string -> unit
   val _plugin : string -> unit
   val _pp : string -> unit
   val _principal : unit -> unit
@@ -1204,6 +1217,7 @@ struct
     mk_alert F._alert;
     mk_absname F._absname;
     mk_annot F._annot;
+    mk_as_parameter F._as_parameter;
     mk_binannot F._binannot;
     mk_c F._c;
     mk_cc F._cc;
@@ -1255,6 +1269,7 @@ struct
     mk_output_complete_obj F._output_complete_obj;
     mk_output_complete_exe F._output_complete_exe;
     mk_pack_byt F._pack;
+    mk_parameter F._parameter;
     mk_pp F._pp;
     mk_ppx F._ppx;
     mk_plugin F._plugin;
@@ -1460,6 +1475,7 @@ struct
     mk_output_complete_obj F._output_complete_obj;
     mk_p F._p;
     mk_pack_opt F._pack;
+    mk_parameter F._parameter;
     mk_plugin F._plugin;
     mk_pp F._pp;
     mk_ppx F._ppx;
@@ -1909,6 +1925,7 @@ module Default = struct
     let _annot = set annotations
     let _args = Arg.read_arg
     let _args0 = Arg.read_arg0
+    let _as_parameter = set as_parameter
     let _binannot = set binary_annotations
     let _c = set compile_only
     let _cc s = c_compiler := (Some s)
@@ -1937,6 +1954,7 @@ module Default = struct
     let _o s = output_name := (Some s)
     let _opaque = set opaque
     let _pack = set make_package
+    let _parameter s = parameters := !parameters @ [ s ]
     let _plugin _p = plugin := true
     let _pp s = preprocessor := (Some s)
     let _runtime_variant s = runtime_variant := s

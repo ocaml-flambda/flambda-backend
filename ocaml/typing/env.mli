@@ -403,7 +403,8 @@ val set_unit_name: Compilation_unit.t option -> unit
 val get_unit_name: unit -> Compilation_unit.t option
 
 (* Read, save a signature to/from a file *)
-val read_signature: Compilation_unit.t -> filepath -> signature
+val read_signature:
+  Compilation_unit.t -> filepath -> allow_param:bool -> signature
         (* Arguments: module name, file name. Results: signature. *)
 val save_signature:
   alerts:alerts -> signature -> Compilation_unit.t -> filepath
@@ -416,6 +417,11 @@ val save_signature_with_imports:
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
 
+(* Read in a module type, treating it as a parameter to the current
+   compilation unit (which is thus a functor unit). *)
+val read_as_parameter:
+  Location.t -> Compilation_unit.Name.t -> module_type
+
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
 
@@ -425,11 +431,20 @@ val imports: unit -> Import_info.t list
 (* may raise Persistent_env.Consistbl.Inconsistency *)
 val import_crcs: source:string -> Import_info.t array -> unit
 
+(* Return the set of taken by the module, along with each one's local
+   identifier. Should be exactly the modules passed to [-parameter] on the
+   command line. *)
+val parameters: unit -> (Compilation_unit.Name.t * Ident.t) list
+
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
 val is_imported_opaque: Compilation_unit.Name.t -> bool
 
 (* [register_import_as_opaque md] registers [md] as an opaque imported module *)
 val register_import_as_opaque: Compilation_unit.Name.t -> unit
+
+(* [is_parameter_unit md] returns true if [md] was compiled with
+   -as-parameter *)
+val is_parameter_unit: Compilation_unit.Name.t -> bool
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
@@ -449,6 +464,7 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
+  | Parameter_interface_unavailable of Location.t * Compilation_unit.Name.t
 
 exception Error of error
 

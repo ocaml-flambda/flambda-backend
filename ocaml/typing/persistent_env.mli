@@ -30,6 +30,9 @@ type error =
       filepath * Compilation_unit.t * Compilation_unit.t
   | Direct_reference_from_wrong_package of
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
+  | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
+  | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
+  | Imported_module_has_unset_parameter of Compilation_unit.t * Compilation_unit.Name.t
 
 exception Error of error
 
@@ -60,7 +63,7 @@ val clear_missing : 'a t -> unit
 val fold : 'a t -> (Compilation_unit.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
 val read : 'a t -> (Persistent_signature.t -> 'a)
-  -> Compilation_unit.Name.t -> filepath -> 'a
+  -> Compilation_unit.Name.t -> filepath -> allow_param:bool -> 'a
 val find : 'a t -> (Persistent_signature.t -> 'a)
   -> Compilation_unit.Name.t -> 'a
 
@@ -69,14 +72,18 @@ val find_in_cache : 'a t -> Compilation_unit.Name.t -> 'a option
 val check : 'a t -> (Persistent_signature.t -> 'a)
   -> loc:Location.t -> Compilation_unit.Name.t -> unit
 
+(* Similar to [read], but does not consider the module as imported and
+   remembers it as a parameter, assigning a local identifier. [exported]
+   controls whether the parameter is exposed to other modules (usually true
+   unless [-instantiate] is happening). *)
+val read_as_parameter :
+  'a t -> (Persistent_signature.t -> 'a) -> Compilation_unit.Name.t
+  -> Persistent_signature.t option
+
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
    [penv] (it may have failed) *)
 val looked_up : 'a t -> Compilation_unit.Name.t -> bool
-
-(* [is_imported penv md] checks if [md] has been successfully
-   imported in the environment [penv] *)
-val is_imported : 'a t -> Compilation_unit.Name.t -> bool
 
 (* [is_imported_opaque penv md] checks if [md] has been imported
    in [penv] as an opaque module *)
@@ -85,6 +92,15 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
 (* [register_import_as_opaque penv md] registers [md] in [penv] as an
    opaque module *)
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
+
+(* [is_parameter_unit penv md] checks if [md] has been imported in [penv] and
+   was compiled as a parameter *)
+val is_parameter_unit : 'a t -> Compilation_unit.Name.t -> bool
+
+(* [local_ident penv md] returns the local identifier generated for [md] if [md]
+   is a parameter. This is used strictly for code generation - types should
+   always use persistent [Ident.t]s. *)
+val local_ident : 'a t -> Compilation_unit.t -> Ident.t option
 
 val make_cmi : 'a t -> Compilation_unit.t -> Types.signature -> alerts
   -> Cmi_format.cmi_infos
@@ -103,6 +119,8 @@ val import_crcs : 'a t -> source:filepath ->
 
 (* Return the set of compilation units imported, with their CRC *)
 val imports : 'a t -> Import_info.t list
+
+val parameters : 'a t -> (Compilation_unit.Name.t * Ident.t) list
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: 'a t -> (Persistent_signature.t -> 'a)

@@ -84,6 +84,8 @@ type error =
   | Invalid_type_subst_rhs
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
+  | Cannot_implement_parameter of filepath
+  | Cannot_pack_parameter of filepath
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3116,6 +3118,17 @@ let () =
   type_module_type_of_fwd := type_module_type_of
 
 
+(* File-level details *)
+
+let type_params loc params =
+  List.iter
+    (fun param_name ->
+       let param = param_name |> Compilation_unit.Name.of_string in
+       ignore (Env.read_as_parameter loc param : Types.module_type)
+    )
+    params
+
+
 (* Typecheck an implementation file *)
 
 let gen_annot outputprefix sourcefile annots =
@@ -3131,6 +3144,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       Env.reset_probes ();
       if !Clflags.print_types then (* #7656 *)
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
+      type_params (Location.in_file sourcefile) !Clflags.parameters;
       let (str, sg, names, shape, finalenv) =
         type_structure initial_env ast in
       let shape =
@@ -3164,7 +3178,15 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             with Not_found ->
               raise(Error(Location.in_file sourcefile, Env.empty,
                           Interface_not_compiled sourceintf)) in
-          let dclsig = Env.read_signature modulename intf_file in
+          let dclsig =
+            (* Allow it to be a parameter so we can give our own error
+               message *)
+            Env.read_signature modulename intf_file ~allow_param:true
+          in
+          if Env.is_parameter_unit (Compilation_unit.name modulename)
+          || !Clflags.as_parameter then
+            raise (Error (Location.in_file sourcefile, initial_env,
+                          Cannot_implement_parameter intf_file));
           let coercion, shape =
             Includemod.compunit initial_env ~mark:Mark_positive
               sourcefile sg intf_file dclsig shape
@@ -3185,6 +3207,9 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             signature = dclsig
           }
         end else begin
+          if !Clflags.as_parameter then
+            raise (Error (Location.in_file sourcefile, initial_env,
+                          Cannot_implement_parameter sourcefile));
           Location.prerr_warning (Location.in_file sourcefile)
             Warnings.Missing_mli;
           let coercion, shape =
@@ -3234,6 +3259,7 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi) None
 
 let type_interface env ast =
+  type_params Location.none !Clflags.parameters;
   transl_signature env ast
 
 (* "Packaging" of several compilation units into one unit
@@ -3283,13 +3309,14 @@ let package_units initial_env objfiles cmifile modulename =
            |> Compilation_unit.Name.of_string
          in
          let modname = Compilation_unit.create_child modulename unit in
-         let sg = Env.read_signature modname (pref ^ ".cmi") in
+         let sg =
+           Env.read_signature modname (pref ^ ".cmi") ~allow_param:false in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
          Compilation_unit.name modname,
-         Env.read_signature modname (pref ^ ".cmi"))
+         Env.read_signature modname (pref ^ ".cmi") ~allow_param:false)
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
@@ -3312,7 +3339,7 @@ let package_units initial_env objfiles cmifile modulename =
       raise(Error(Location.in_file mlifile, Env.empty,
                   Interface_not_compiled mlifile))
     end;
-    let dclsig = Env.read_signature modulename cmifile in
+    let dclsig = Env.read_signature modulename cmifile ~allow_param:false in
     let cc, _shape =
       Includemod.compunit initial_env ~mark:Mark_both
         "(obtained by packing)" sg mlifile dclsig shape
@@ -3514,6 +3541,16 @@ let report_error ~loc _env = function
         "The module type@ %s@ is not a valid type for a packed module:@ \
          it is defined as a local substitution for a non-path module type."
         (Path.name p)
+  | Cannot_implement_parameter path ->
+      Location.errorf ~loc
+        "@[Interface %s@ found for this unit is flagged as a functor.@ \
+         It cannot be implemented.@]"
+        path
+  | Cannot_pack_parameter path ->
+      Location.errorf ~loc
+        "@[Interface %s@ found for this unit is flagged as a parameter.@ \
+         It cannot be packed into a module.@]"
+        path
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env
