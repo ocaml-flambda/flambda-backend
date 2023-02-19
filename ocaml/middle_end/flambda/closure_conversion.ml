@@ -105,8 +105,8 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
   let alloc_mode = Lambda.alloc_heap in
   let tuple_param = Parameter.wrap tuple_param_var alloc_mode Lambda.layout_block in
   Flambda.create_function_declaration ~params:[tuple_param] ~alloc_mode ~region
-    ~body ~stub:true dbg:Debuginfo.none ~inline:Default_inline ~return_layout
-    ~specialise:Default_specialise ~check:Default_check ~is_a_functor:false
+    ~body ~stub:true ~dbg:Debuginfo.none ~inline:Default_inline ~return_layout
+    ~specialise:Default_specialise ~is_a_functor:false
     ~closure_origin:(Closure_origin.create (Closure_id.wrap closure_bound_var))
     ~poll:Default_poll (* don't propogate attribute to wrappers *)
 

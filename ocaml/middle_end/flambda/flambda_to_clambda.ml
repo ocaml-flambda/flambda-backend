@@ -529,7 +529,7 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
     arg_layout
   | Prim (p, args, dbg) ->
     let args, _args_layout = List.split (subst_vars env args) in
-    let result_layout = ocaml/middle_end/clambda_primitives.result_layout p in
+    let result_layout = Clambda_primitives.result_layout p in
     Uprim (p, args, dbg),
     result_layout
   | Expr expr -> to_clambda t env expr
