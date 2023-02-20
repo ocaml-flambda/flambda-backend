@@ -909,14 +909,14 @@ let required_globals ~flambda body =
   required
 
 let add_parameters lam ~params =
-  let param_of (_, id) = id, Pgenval in
+  let param_of (_, id) = id, Pvalue Pgenval in
   let params = List.map param_of params in
   let inline =
     (* We want to inline the functor so that [-subst] compiles away the function
        call and actually substitutes. *)
     Always_inline
   in
-  lfunction ~kind:(Curried { nlocal = 0 }) ~params ~return:Pgenval
+  lfunction ~kind:(Curried { nlocal = 0 }) ~params ~return:(Pvalue Pgenval)
     ~attr:{ default_function_attribute with is_a_functor = true; inline }
     ~loc:Loc_unknown
     ~body:lam
@@ -1574,7 +1574,7 @@ let transl_store_implementation_as_functor
   in
   let body_id = Ident.create_local "*unit-body*" in
   i,
-  Llet (Strict, Pgenval, body_id, code,
+  Llet (Strict, Pvalue Pgenval, body_id, code,
         Lsequence (Lprim(Psetfield(0, Pointer, Root_initialization),
                          [Lprim(Pgetglobal module_id, [], Loc_unknown);
                           Lvar body_id],
