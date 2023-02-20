@@ -910,7 +910,12 @@ let required_globals ~flambda body =
 
 (* Compile an implementation *)
 
-let transl_implementation_flambda compilation_unit (str, cc) =
+type compilation_unit_style =
+  | Plain_block
+  | Set_global_to_block
+  | Set_individual_fields
+
+let transl_implementation_plain_block compilation_unit (str, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
@@ -928,9 +933,9 @@ let transl_implementation_flambda compilation_unit (str, cc) =
     required_globals = required_globals ~flambda:true body;
     code = body }
 
-let transl_implementation module_name (str, cc) =
+let transl_implementation_set_global module_name (str, cc) =
   let implementation =
-    transl_implementation_flambda module_name (str, cc)
+    transl_implementation_plain_block module_name (str, cc)
   in
   let code =
     Lprim (Psetglobal implementation.compilation_unit, [implementation.code],
@@ -1522,7 +1527,7 @@ let transl_store_phrases module_name str =
   in
   transl_store_gen ~scopes module_name (str,Tcoerce_none) true
 
-let transl_store_implementation compilation_unit (str, restr) =
+let transl_implementation_set_fields compilation_unit (str, restr) =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
@@ -1534,6 +1539,12 @@ let transl_store_implementation compilation_unit (str, restr) =
        the type with the flambda version *)
     compilation_unit;
     required_globals = required_globals ~flambda:true code }
+
+let transl_implementation compilation_unit impl ~style =
+  match style with
+  | Plain_block -> transl_implementation_plain_block compilation_unit impl
+  | Set_global_to_block -> transl_implementation_set_global compilation_unit impl
+  | Set_individual_fields -> transl_implementation_set_fields compilation_unit impl
 
 (* Compile a toplevel phrase *)
 
@@ -1736,7 +1747,7 @@ let get_component = function
     None -> Lconst const_unit
   | Some id -> Lprim(Pgetglobal id, [], Loc_unknown)
 
-let transl_package_flambda component_names coercion =
+let transl_package_plain_block component_names coercion =
   let size =
     match coercion with
     | Tcoerce_none -> List.length component_names
@@ -1751,13 +1762,9 @@ let transl_package_flambda component_names coercion =
            List.map get_component component_names,
            Loc_unknown))
 
-let transl_package component_names target_name coercion =
-  let components =
-    Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
-          List.map get_component component_names, Loc_unknown) in
-  Lprim(Psetglobal target_name,
-        [apply_coercion Loc_unknown Strict coercion components],
-        Loc_unknown)
+let transl_package_set_global component_names target_name coercion =
+  let size, block = transl_package_plain_block component_names coercion in
+  size, Lprim(Psetglobal target_name, [block], Loc_unknown)
   (*
   let components =
     match coercion with
@@ -1774,7 +1781,7 @@ let transl_package component_names target_name coercion =
   Lprim(Psetglobal target_name, [Lprim(Pmakeblock(0, Immutable), components)])
    *)
 
-let transl_store_package component_names target_name coercion =
+let transl_package_set_fields component_names target_name coercion =
   let rec make_sequence fn pos arg =
     match arg with
       [] -> lambda_unit
@@ -1818,6 +1825,15 @@ let transl_store_package component_names target_name coercion =
          0 pos_cc_list)
   *)
   | _ -> assert false
+
+let transl_package component_names target_name coercion ~style =
+  match style with
+  | Plain_block ->
+      transl_package_plain_block component_names coercion
+  | Set_global_to_block ->
+      transl_package_set_global component_names target_name coercion
+  | Set_individual_fields ->
+      transl_package_set_fields component_names target_name coercion
 
 (* Error report *)
 
