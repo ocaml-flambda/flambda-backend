@@ -979,7 +979,12 @@ let close_var env id =
 
 let rec compute_expr_layout kinds lam =
   match lam with
-  | Lvar id | Lmutvar id -> V.Map.find id kinds
+  | Lvar id | Lmutvar id ->
+    begin
+      try V.Map.find id kinds
+      with Not_found ->
+        Misc.fatal_errorf "Unbound layout for variable %a" V.print id
+    end
   | Lconst cst -> structured_constant_layout cst
   | Lfunction _ -> Lambda.layout_function
   | Lapply { ap_result_layout; _ } -> ap_result_layout
@@ -999,7 +1004,7 @@ let rec compute_expr_layout kinds lam =
   | Lifthenelse(_, _, _, kind) | Lregion (_, kind) ->
     kind
   | Lstaticraise (_, _) ->
-    Lambda.layout_top (* Need a layout_bottom here *)
+    Lambda.layout_bottom
   | Lsequence(_, body) | Levent(body, _) -> compute_expr_layout kinds body
   | Lwhile _ | Lfor _ | Lassign _ -> Lambda.layout_unit
   | Lifused _ ->
