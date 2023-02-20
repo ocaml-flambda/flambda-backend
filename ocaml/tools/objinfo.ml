@@ -350,8 +350,8 @@ let dump_obj_by_kind filename ic obj_kind =
        begin match cmi with
          | None -> ()
          | Some cmi ->
-            print_cmi_infos cmi.cmi_name cmi.cmi_crcs cmi.cmi_is_param
-              cmi.cmi_params
+            print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
+              cmi.Cmi_format.cmi_is_param cmi.Cmi_format.cmi_params
        end;
        begin match cmt with
          | None -> ()
