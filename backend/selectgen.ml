@@ -1113,10 +1113,15 @@ method emit_expr_aux (env:environment) exp :
               Array.iter (fun reg -> assert(reg.typ <> Addr)) src;
               self#insert_moves env src tmp_regs ;
               self#insert_moves env tmp_regs (Array.concat handler.regs) ;
-              (* FIXME: this assertion should be weakened
-                 env.regions may be longer than handler.regions,
-                 in which case we close the surplus *)
-              assert (env.regions == handler.regions);
+              if handler.regions != env.regions then begin
+                let cl, rest =
+                  cut_region_stack
+                    ~len:(List.length handler.regions)
+                    env.regions
+                in
+                assert (rest == handler.regions);
+                self#insert_endregions env cl;
+              end;
               self#insert env (Iexit (nfail, traps)) [||] [||];
               set_traps nfail handler.traps_ref env.trap_stack traps;
               None
