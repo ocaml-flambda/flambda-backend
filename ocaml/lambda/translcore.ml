@@ -402,19 +402,21 @@ and transl_exp0 ~in_new_scope ~scopes e =
         let e = { e with exp_desc = Texp_apply(funct, oargs, pos) } in
         let position = transl_apply_position pos in
         let mode = transl_exp_mode e in
+        let result_layout = Typeopt.layout e.exp_env e.exp_type in
         event_after ~scopes e
           (transl_apply ~scopes ~tailcall ~inlined ~specialised ~position ~mode
-             lam extra_args (of_location ~scopes e.exp_loc))
+             ~result_layout lam extra_args (of_location ~scopes e.exp_loc))
       end
   | Texp_apply(funct, oargs, position) ->
       let tailcall = Translattribute.get_tailcall_attribute funct in
       let inlined = Translattribute.get_inlined_attribute funct in
       let specialised = Translattribute.get_specialised_attribute funct in
+      let result_layout = Typeopt.layout e.exp_env e.exp_type in
       let e = { e with exp_desc = Texp_apply(funct, oargs, position) } in
       let position = transl_apply_position position in
       let mode = transl_exp_mode e in
       event_after ~scopes e
-        (transl_apply ~scopes ~tailcall ~inlined ~specialised
+        (transl_apply ~scopes ~tailcall ~inlined ~specialised ~result_layout
            ~position ~mode (transl_exp ~scopes funct)
            oargs (of_location ~scopes e.exp_loc))
   | Texp_match(arg, pat_expr_list, partial) ->
@@ -957,10 +959,10 @@ and transl_apply ~scopes
       ?(specialised = Default_specialise)
       ?(position=Rc_normal)
       ?(mode=alloc_heap)
+      ~result_layout
       lam sargs loc
   =
   let lapply funct args loc pos mode =
-    let result_layout = Lambda.layout_top in
     match funct, pos with
     | Lsend((Self | Public) as k, lmet, lobj, [], _, _, _, _), _ ->
         Lsend(k, lmet, lobj, args, pos, mode, loc, result_layout)
@@ -1584,9 +1586,9 @@ let transl_scoped_exp ~scopes exp =
   maybe_region_exp exp (transl_scoped_exp ~scopes exp)
 
 let transl_apply
-      ~scopes ?tailcall ?inlined ?specialised ?position ?mode fn args loc =
-  maybe_region_layout Lambda.layout_top (transl_apply
-      ~scopes ?tailcall ?inlined ?specialised ?position ?mode fn args loc)
+      ~scopes ?tailcall ?inlined ?specialised ?position ?mode ~result_layout fn args loc =
+  maybe_region_layout result_layout (transl_apply
+      ~scopes ?tailcall ?inlined ?specialised ?position ?mode ~result_layout fn args loc)
 
 (* Error report *)
 

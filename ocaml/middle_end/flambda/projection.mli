@@ -41,6 +41,7 @@ type project_var = {
   closure : Variable.t;  (** must yield a closure *)
   closure_id : Closure_id.t;
   var : Var_within_closure.t;
+  kind : Lambda.layout;
 }
 
 val print_project_closure
