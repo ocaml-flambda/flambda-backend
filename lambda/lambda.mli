@@ -237,6 +237,8 @@ val equal_value_kind : value_kind -> value_kind -> bool
 
 val equal_layout : layout -> layout -> bool
 
+val compatible_layout : layout -> layout -> bool
+
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 
 val must_be_value : layout -> value_kind
@@ -470,6 +472,7 @@ val layout_int : layout
 val layout_array : array_kind -> layout
 val layout_block : layout
 val layout_list : layout
+val layout_exception : layout
 val layout_function : layout
 val layout_object : layout
 val layout_class : layout
@@ -485,8 +488,10 @@ val layout_lazy : layout
 val layout_lazy_contents : layout
 (* A layout that is Pgenval because we are missing layout polymorphism *)
 val layout_any_value : layout
+val layout_letrec : layout
 
 val layout_top : layout
+val layout_bottom : layout
 
 val name_lambda: let_kind -> lambda -> layout -> (Ident.t -> lambda) -> lambda
 val name_lambda_list: (lambda * layout) list -> (lambda list -> lambda) -> lambda

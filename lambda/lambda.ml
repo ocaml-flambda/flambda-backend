@@ -291,6 +291,8 @@ let rec equal_value_kind x y =
 
 let equal_layout (Pvalue x) (Pvalue y) = equal_value_kind x y
 
+let compatible_layout (Pvalue _) (Pvalue _) = true
+
 let must_be_value layout =
   match layout with
   | Pvalue v -> v
@@ -555,6 +557,7 @@ let layout_block = Pvalue Pgenval
 let layout_list =
   Pvalue (Pvariant { consts = [0] ; non_consts = [0, [Pgenval; Pgenval]] })
 let layout_field = Pvalue Pgenval
+let layout_exception = Pvalue Pgenval
 let layout_function = Pvalue Pgenval
 let layout_object = Pvalue Pgenval
 let layout_class = Pvalue Pgenval
@@ -567,8 +570,12 @@ let layout_boxedint bi = Pvalue (Pboxedintval bi)
 let layout_lazy = Pvalue Pgenval
 let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
+let layout_letrec = layout_any_value
 
 let layout_top = Pvalue Pgenval
+let layout_bottom =
+  (* CR pchambart: this should be an actual bottom *)
+  Pvalue Pgenval
 
 let default_function_attribute = {
   inline = Default_inline;
