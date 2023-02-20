@@ -21,10 +21,8 @@ val lambda_to_cmm :
   ppf_dump:Format.formatter ->
   prefixname:string ->
   filename:string ->
-  compilation_unit:Compilation_unit.t ->
-  module_block_size_in_words:int ->
-  module_initializer:Lambda.lambda ->
   keep_symbol_tables:bool ->
+  Lambda.program ->
   Cmm.phrase list
 
 val get_module_info :
