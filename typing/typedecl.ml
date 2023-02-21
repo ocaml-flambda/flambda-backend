@@ -237,7 +237,7 @@ let transl_labels env univars closed lbls =
     Builtin_attributes.warning_scope attrs
       (fun () ->
          let arg = Ast_helper.Typ.force_poly arg in
-         let cty = transl_simple_type env ?univars ~fixed:closed Global arg in
+         let cty = transl_simple_type env ?univars ~closed Global arg in
          let gbl =
            match mut with
            | Mutable -> Types.Global
@@ -268,7 +268,7 @@ let transl_labels env univars closed lbls =
 
 let transl_types_gf env univars closed tyl =
   let mk arg =
-    let cty = transl_simple_type env ?univars ~fixed:closed Global arg in
+    let cty = transl_simple_type env ?univars ~closed Global arg in
     let gf = transl_global_flags arg.ptyp_loc arg.ptyp_attributes in
     (cty, gf)
   in
@@ -293,7 +293,7 @@ let make_constructor env loc type_path type_params svars sargs sret_type =
         transl_constructor_arguments env None true sargs
       in
         targs, None, args, None
-  | Some sret_type -> TyVarEnv.narrow_in begin fun () ->
+  | Some sret_type -> TyVarEnv.with_local_scope begin fun () ->
       (* if it's a generalized constructor we must work in a narrowed
          context so as to not introduce any new constraints *)
       TyVarEnv.reset ();
@@ -307,7 +307,7 @@ let make_constructor env loc type_path type_params svars sargs sret_type =
       let args, targs =
         transl_constructor_arguments env univars closed sargs
       in
-      let tret_type = transl_simple_type env ?univars ~fixed:closed Global sret_type in
+      let tret_type = transl_simple_type env ?univars ~closed Global sret_type in
       let ret_type = tret_type.ctyp_type in
       (* TODO add back type_path as a parameter ? *)
       begin match get_desc ret_type with
@@ -331,7 +331,7 @@ let make_constructor env loc type_path type_params svars sargs sret_type =
          Ctype.end_def();
          Btype.iter_type_expr_cstr_args Ctype.generalize args;
          Ctype.generalize ret_type;
-         let _vars = instance_poly_univars env loc univars in
+         let _vars = TyVarEnv.instance_poly_univars env loc univars in
          let set_level t = Ctype.unify_var env (Ctype.newvar()) t in
          Btype.iter_type_expr_cstr_args set_level args;
          set_level ret_type;
@@ -347,8 +347,8 @@ let transl_declaration env sdecl (id, uid) =
   let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
   let cstrs = List.map
     (fun (sty, sty', loc) ->
-      transl_simple_type env ~fixed:false Global sty,
-      transl_simple_type env ~fixed:false Global sty', loc)
+      transl_simple_type env ~closed:false Global sty,
+      transl_simple_type env ~closed:false Global sty', loc)
     sdecl.ptype_cstrs
   in
   let unboxed_attr = get_unboxed_from_attributes sdecl in
@@ -463,7 +463,7 @@ let transl_declaration env sdecl (id, uid) =
         None -> None, None
       | Some sty ->
         let no_row = not (is_fixed_type sdecl) in
-        let cty = transl_simple_type env ~fixed:no_row Global sty in
+        let cty = transl_simple_type env ~closed:no_row Global sty in
         Some cty, Some cty.ctyp_type
     in
     let arity = List.length params in
@@ -1499,8 +1499,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let arity = List.length params in
   let constraints =
     List.map (fun (ty, ty', loc) ->
-      let cty = transl_simple_type env ~fixed:false Global ty in
-      let cty' = transl_simple_type env ~fixed:false Global ty' in
+      let cty = transl_simple_type env ~closed:false Global ty in
+      let cty' = transl_simple_type env ~closed:false Global ty' in
       (* Note: We delay the unification of those constraints
          after the unification of parameters, so that clashing
          constraints report an error on the constraint location
@@ -1512,7 +1512,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let (tman, man) =  match sdecl.ptype_manifest with
       None -> None, None
     | Some sty ->
-        let cty = transl_simple_type env ~fixed:no_row Global sty in
+        let cty = transl_simple_type env ~closed:no_row Global sty in
         Some cty, Some cty.ctyp_type
   in
   (* In the second part, we check the consistency between the two

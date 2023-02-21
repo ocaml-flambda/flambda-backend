@@ -3037,7 +3037,7 @@ let type_package env m p fl =
   (* Same as Pexp_letmodule *)
   (* remember original level *)
   Ctype.begin_def ();
-  let modl, scope = Typetexp.TyVarEnv.narrow_in begin fun () ->
+  let modl, scope = Typetexp.TyVarEnv.with_local_scope begin fun () ->
     let modl, _mod_shape = type_module env m in
     let scope = Ctype.create_scope () in
     modl, scope

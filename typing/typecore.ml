@@ -3294,7 +3294,7 @@ let rec approx_type env sty =
           (* Polymorphic types will only unify with types that match all of their
            polymorphic parts, so we need to fully translate the type here
            unlike in the monomorphic case *)
-          Typetexp.transl_simple_type env ~fixed:false arg_mode arg_sty
+          Typetexp.transl_simple_type env ~closed:false arg_mode arg_sty
         in
         let ret = approx_type env sty in
         let marg = Alloc_mode.of_const arg_mode in
@@ -3335,7 +3335,7 @@ let type_pattern_approx env spat ty_expected =
         else Alloc_mode.Global
       in
       let ty_pat =
-        Typetexp.transl_simple_type env ~fixed:false arg_type_mode sty
+        Typetexp.transl_simple_type env ~closed:false arg_type_mode sty
       in
       begin try unify env ty_pat.ctyp_type ty_expected with Unify trace ->
         raise(Error(spat.ppat_loc, env, Pattern_type_clash(trace, None)))
@@ -4543,7 +4543,7 @@ and type_expect_
         if has_local_attr_exp sexp then Alloc_mode.Local
         else Alloc_mode.Global
       in
-      let cty = Typetexp.transl_simple_type env ~fixed:false type_mode sty in
+      let cty = Typetexp.transl_simple_type env ~closed:false type_mode sty in
       let ty = cty.ctyp_type in
       end_def ();
       generalize_structure ty;
@@ -4836,7 +4836,7 @@ and type_expect_
       let ty = newvar() in
       (* remember original level *)
       begin_def ();
-      let modl, pres, id, new_env = Typetexp.TyVarEnv.narrow_in begin fun () ->
+      let modl, pres, id, new_env = Typetexp.TyVarEnv.with_local_scope begin fun () ->
         let modl, md_shape = !type_module env smodl in
         Mtype.lower_nongen (get_level ty) modl.mod_type;
         let pres =
@@ -4936,7 +4936,7 @@ and type_expect_
         match sty with None -> ty_expected, None
         | Some sty ->
             let sty = Ast_helper.Typ.force_poly sty in
-            let cty = Typetexp.transl_simple_type env ~fixed:false Global sty in
+            let cty = Typetexp.transl_simple_type env ~closed:false Global sty in
             cty.ctyp_type, Some cty
       in
       if !Clflags.principal then begin
@@ -6215,7 +6215,7 @@ and type_unpacks ?(in_function : (Location.t * type_expr * bool) option)
   let extended_env, tunpacks =
     List.fold_left (fun (env, tunpacks) unpack ->
       begin_def ();
-      Typetexp.TyVarEnv.narrow_in begin fun () ->
+      Typetexp.TyVarEnv.with_local_scope begin fun () ->
         let modl, md_shape =
           !type_module env
             Ast_helper.(

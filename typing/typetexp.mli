@@ -24,7 +24,7 @@ module TyVarEnv : sig
   val reset : unit -> unit
   (** removes all type variables from scope *)
 
-  val narrow_in: (unit -> 'a) -> 'a
+  val with_local_scope : (unit -> 'a) -> 'a
   (** Evaluate in a narrowed type-variable scope *)
 
   type poly_univars
@@ -37,17 +37,17 @@ module TyVarEnv : sig
     (** Verify that the given univars are universally quantified,
        and return the list of variables. The type in which the
        univars are used must be generalised *)
+
+  val instance_poly_univars :
+     Env.t -> Location.t -> poly_univars -> type_expr list
+    (** Same as [check_poly_univars], but instantiates the resulting
+       type scheme (i.e. variables become Tvar rather than Tunivar) *)
 end
 
 val valid_tyvar_name : string -> bool
 
-val instance_poly_univars :
-   Env.t -> Location.t -> TyVarEnv.poly_univars -> type_expr list
-  (* Same as [check_poly_univars], but instantiates the resulting
-     type scheme (i.e. variables become Tvar rather than Tunivar) *)
-
 val transl_simple_type:
-        Env.t -> ?univars:TyVarEnv.poly_univars -> fixed:bool -> alloc_mode_const
+        Env.t -> ?univars:TyVarEnv.poly_univars -> closed:bool -> alloc_mode_const
         -> Parsetree.core_type -> Typedtree.core_type
 val transl_simple_type_univars:
         Env.t -> Parsetree.core_type -> Typedtree.core_type
