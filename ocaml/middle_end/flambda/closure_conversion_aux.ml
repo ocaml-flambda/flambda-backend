@@ -93,6 +93,7 @@ module Function_decls = struct
       mode : Lambda.alloc_mode;
       region : bool;
       params : (Ident.t * Lambda.layout) list;
+      return_layout : Lambda.layout;
       body : Lambda.lambda;
       free_idents_of_body : Ident.Set.t;
       attr : Lambda.function_attribute;
@@ -100,7 +101,7 @@ module Function_decls = struct
     }
 
     let create ~let_rec_ident ~closure_bound_var ~kind ~mode ~region
-          ~params ~body ~attr ~loc =
+          ~params ~return_layout ~body ~attr ~loc =
       let let_rec_ident =
         match let_rec_ident with
         | None -> Ident.create_local "unnamed_function"
@@ -112,6 +113,7 @@ module Function_decls = struct
         mode;
         region;
         params;
+        return_layout;
         body;
         free_idents_of_body = Lambda.free_variables body;
         attr;
@@ -124,6 +126,7 @@ module Function_decls = struct
     let mode t = t.mode
     let region t = t.region
     let params t = t.params
+    let return_layout t = t.return_layout
     let body t = t.body
     let free_idents t = t.free_idents_of_body
     let inline t = t.attr.inline

@@ -665,9 +665,9 @@ let rec choice ctx t =
     | Lifused (x, lam) ->
         let+ lam = choice ctx ~tail lam in
         Lifused (x, lam)
-    | Lregion lam ->
+    | Lregion (lam, layout) ->
         let+ lam = choice ctx ~tail lam in
-        Lregion lam
+        Lregion (lam, layout)
 
   and choice_apply ctx ~tail apply =
     let exception No_tmc in

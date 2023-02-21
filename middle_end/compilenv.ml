@@ -323,24 +323,24 @@ let approx_env () = !merged_environment
 
 (* Record that a currying function or application function is needed *)
 
-let need_curry_fun arity =
+let need_curry_fun kind arity result =
   let fns = current_unit.ui_generic_fns in
-  if not (List.mem arity fns.curry_fun) then
+  if not (List.mem (kind, arity, result) fns.curry_fun) then
     current_unit.ui_generic_fns <-
-      { fns with curry_fun = arity :: fns.curry_fun }
+      { fns with curry_fun = (kind, arity, result) :: fns.curry_fun }
 
-let need_apply_fun n mode =
-  assert(n > 0);
+let need_apply_fun arity result mode =
+  assert(List.compare_length_with arity 0 > 0);
   let fns = current_unit.ui_generic_fns in
-  if not (List.mem (n,mode) fns.apply_fun) then
+  if not (List.mem (arity, result, mode) fns.apply_fun) then
     current_unit.ui_generic_fns <-
-      { fns with apply_fun = (n,mode) :: fns.apply_fun }
+      { fns with apply_fun = (arity, result, mode) :: fns.apply_fun }
 
-let need_send_fun n mode =
+let need_send_fun arity result mode =
   let fns = current_unit.ui_generic_fns in
-  if not (List.mem (n,mode) fns.send_fun) then
+  if not (List.mem (arity, result, mode) fns.send_fun) then
     current_unit.ui_generic_fns <-
-      { fns with send_fun = (n,mode) :: fns.send_fun }
+      { fns with send_fun = (arity, result, mode) :: fns.send_fun }
 
 (* Write the description of the current unit *)
 

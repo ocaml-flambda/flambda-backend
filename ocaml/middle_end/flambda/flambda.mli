@@ -36,6 +36,7 @@ type apply = {
      lhs_of_application -> callee *)
   func : Variable.t;
   args : Variable.t list;
+  result_layout : Lambda.layout;
   kind : call_kind;
   dbg : Debuginfo.t;
   reg_close : Lambda.region_close;
@@ -66,6 +67,7 @@ type send = {
   dbg : Debuginfo.t;
   reg_close : Lambda.region_close;
   mode : Lambda.alloc_mode;
+  result_layout : Lambda.layout;
 }
 
 (** For details on these types, see projection.mli. *)
@@ -111,7 +113,7 @@ type t =
                      * Lambda.layout
   (** Restrictions on [Lambda.Lstringswitch] also apply to [String_switch]. *)
   | Static_raise of Static_exception.t * Variable.t list
-  | Static_catch of Static_exception.t * Variable.t list * t * t * Lambda.layout
+  | Static_catch of Static_exception.t * ( Variable.t * Lambda.layout ) list * t * t * Lambda.layout
   | Try_with of t * Variable.t * t * Lambda.layout
   | While of t * t
   | For of for_loop
@@ -313,6 +315,7 @@ and function_declarations = private {
 and function_declaration = private {
   closure_origin: Closure_origin.t;
   params : Parameter.t list;
+  return_layout : Lambda.layout;
   alloc_mode : Lambda.alloc_mode;
   region : bool;
   body : t;
@@ -569,6 +572,7 @@ val create_function_declaration
   -> body:t
   -> stub:bool
   -> dbg:Debuginfo.t
+  -> return_layout:Lambda.layout
   -> inline:Lambda.inline_attribute
   -> specialise:Lambda.specialise_attribute
   -> is_a_functor:bool

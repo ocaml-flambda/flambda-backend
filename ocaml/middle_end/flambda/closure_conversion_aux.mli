@@ -61,6 +61,7 @@ module Function_decls : sig
       -> mode:Lambda.alloc_mode
       -> region:bool
       -> params:(Ident.t * Lambda.layout) list
+      -> return_layout:Lambda.layout
       -> body:Lambda.lambda
       -> attr:Lambda.function_attribute
       -> loc:Lambda.scoped_location
@@ -72,6 +73,7 @@ module Function_decls : sig
     val mode : t -> Lambda.alloc_mode
     val region : t -> bool
     val params : t -> (Ident.t * Lambda.layout) list
+    val return_layout : t -> Lambda.layout
     val body : t -> Lambda.lambda
     val inline : t -> Lambda.inline_attribute
     val specialise : t -> Lambda.specialise_attribute

@@ -111,6 +111,9 @@ import-menhirLib:
 	@ cp \
            $(addprefix `$(MENHIR) --suggest-menhirLib`/menhirLib.,ml mli) \
            boot/menhir
+# Partial applications of the form Obj.magic f x in menhirLib cause an issue with locals,
+# so rewrite these to Obj.magic (f x)
+	@ sed -i 's/\b\(in\|then\|with\|else\)\b/@@@\1/g; s/Obj.magic \([a-z0-9_]\+\( [a-z0-9_]\+\)\+\)/Obj.magic (\1)/g;  s/@@@//g' boot/menhir/menhirLib.ml
 
 
 ## demote-menhir

@@ -322,6 +322,7 @@ module Project_var = struct
         let function_decl =
           Flambda.create_function_declaration
             ~params ~alloc_mode:func_decl.alloc_mode ~region:func_decl.region
+            ~return_layout:func_decl.return_layout
             ~body
             ~stub:func_decl.stub
             ~inline:func_decl.inline ~specialise:func_decl.specialise
@@ -418,11 +419,12 @@ let does_not_freshen t vars =
 let freshen_projection (projection : Projection.t) ~freshening
       ~closure_freshening : Projection.t =
   match projection with
-  | Project_var { closure; closure_id; var; } ->
+  | Project_var { closure; closure_id; var; kind } ->
     Project_var {
       closure = apply_variable freshening closure;
       closure_id = Project_var.apply_closure_id closure_freshening closure_id;
       var = Project_var.apply_var_within_closure closure_freshening var;
+      kind;
     }
   | Project_closure { set_of_closures; closure_id; } ->
     Project_closure {

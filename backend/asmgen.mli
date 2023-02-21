@@ -24,42 +24,32 @@ type middle_end =
   -> Lambda.program
   -> Clambda.with_constants
 
+(** The type of converters straight from Lambda to Cmm. This is how Flambda 2
+    operates. *)
+type direct_to_cmm =
+  ppf_dump:Format.formatter
+  -> prefixname:string
+  -> filename:string
+  -> Lambda.program
+  -> Cmm.phrase list
+
+(** The ways to get from Lambda to Cmm. *)
+type pipeline =
+  | Via_clambda of {
+      backend : (module Backend_intf.S);
+      middle_end : middle_end;
+    }
+  | Direct_to_cmm of direct_to_cmm
+
 (** Compile an implementation from Lambda using the given middle end. *)
 val compile_implementation
    : (module Compiler_owee.Unix_intf.S)
   -> ?toplevel:(string -> bool)
-  -> backend:(module Backend_intf.S)
+  -> pipeline:pipeline
   -> filename:string
   -> prefixname:string
-  -> middle_end:middle_end
   -> ppf_dump:Format.formatter
   -> Lambda.program
-  -> unit
-
-(** Compile an implementation from Lambda using Flambda 2.
-    The Flambda 2 middle end neither uses the Clambda language nor the
-    Cmmgen pass.  Instead it emits Cmm directly. *)
-val compile_implementation_flambda2
-   : (module Compiler_owee.Unix_intf.S)
-  -> ?toplevel:(string -> bool)
-  -> ?keep_symbol_tables:bool
-  -> filename:string
-  -> prefixname:string
-  -> size:int
-  -> compilation_unit:Compilation_unit.t
-  -> module_initializer:Lambda.lambda
-  -> flambda2:(
-    ppf_dump:Format.formatter ->
-    prefixname:string ->
-    filename:string ->
-    compilation_unit:Compilation_unit.t ->
-    module_block_size_in_words:int ->
-    module_initializer:Lambda.lambda ->
-    keep_symbol_tables:bool ->
-    Cmm.phrase list)
-  -> ppf_dump:Format.formatter
-  -> required_globals:Compilation_unit.Set.t
-  -> unit
   -> unit
 
 val compile_implementation_linear

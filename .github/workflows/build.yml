@@ -67,15 +67,15 @@ jobs:
             irc_split: off
             irc_spilling_heuristics: flat_uses
 
-          - name: build_upstream-32-bit
-            config: --enable-middle-end=closure CC="gcc -m32" AS="as --32" ASPP="gcc -m32 -c" -host i386-linux PARTIALLD="ld -r -melf_i386"
+          - name: build_upstream_closure
+            config: --enable-middle-end=closure
             os: ubuntu-20.04
 
     env:
       J: "3"
       # On macOS, the testsuite is slow, so run only on push to main (#507)
       run_testsuite: "${{matrix.os != 'macos-latest' || (github.event_name == 'push' && github.event.ref == 'refs/heads/main')}}"
-      build_upstream: "${{matrix.name == 'build_upstream-32-bit'}}"
+      build_upstream: "${{matrix.name == 'build_upstream_closure'}}"
       REGISTER_ALLOCATOR: "${{matrix.register_allocator}}"
       IRC_SPLIT: "${{matrix.irc_split}}"
       IRC_SPILLING_HEURISTICS: "${{matrix.irc_spilling_heuristics}}"
@@ -129,10 +129,6 @@ jobs:
     - name: Install GNU parallel
       if: matrix.os == 'macos-latest'
       run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install parallel
-
-    - name: Install GCC 32-bit libraries
-      if: matrix.name == 'build_upstream-32-bit'
-      run: sudo apt-get install gcc-multilib gfortran-multilib
 
     - name: Configure Flambda backend
       working-directory: flambda_backend

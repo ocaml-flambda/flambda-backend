@@ -62,11 +62,20 @@ val boxedintnat_header : nativeint
 val closure_info : arity:Clambda.arity -> startenv:int -> is_last:bool
   -> nativeint
 
+val closure_info' :
+  arity:Lambda.function_kind * 'a list ->
+  startenv:int ->
+  is_last:bool ->
+  nativeint
+
 (** Wrappers *)
 val alloc_infix_header : int -> Debuginfo.t -> expression
 val alloc_closure_info :
-      arity:(Lambda.function_kind * int) -> startenv:int -> is_last:bool ->
-      Debuginfo.t -> expression
+  arity:Clambda.arity ->
+  startenv:int ->
+  is_last:bool ->
+  Debuginfo.t ->
+  expression
 
 (** Integers *)
 
@@ -284,8 +293,16 @@ val lookup_label : expression -> expression -> Debuginfo.t -> expression
     - pos : the position of the cache entry in the cache array
     - args : the additional arguments to the method call *)
 val call_cached_method :
-  expression -> expression -> expression -> expression -> expression list ->
-  Clambda.apply_kind -> Debuginfo.t -> expression
+  expression ->
+  expression ->
+  expression ->
+  expression ->
+  expression list ->
+  machtype list ->
+  machtype ->
+  Clambda.apply_kind ->
+  Debuginfo.t ->
+  expression
 
 (** Allocations *)
 
@@ -316,13 +333,19 @@ val opaque : expression -> Debuginfo.t -> expression
 
 (** Generic application functions *)
 
-(** Get the symbol for the generic application with [n] arguments, and
-    ensure its presence in the set of defined symbols *)
-val apply_function_sym : int -> Lambda.alloc_mode -> string
+(** Get an identifier for a given machtype, used in the name of the generic
+    functions. *)
+val machtype_identifier : machtype -> string
 
-(** Get the symbol for the generic currying or tuplifying wrapper with
-    [n] arguments, and ensure its presence in the set of defined symbols. *)
-val curry_function_sym : Clambda.arity -> string
+(** Get the symbol for the generic application with [n] arguments, and ensure
+    its presence in the set of defined symbols *)
+val apply_function_sym :
+  machtype list -> machtype -> Lambda.alloc_mode -> string
+
+(** Get the symbol for the generic currying or tuplifying wrapper with [n]
+    arguments, and ensure its presence in the set of defined symbols. *)
+val curry_function_sym :
+  Lambda.function_kind -> machtype list -> machtype -> string
 
 (** Bigarrays *)
 
@@ -550,7 +573,7 @@ val ptr_offset : expression -> int -> Debuginfo.t -> expression
 
 (** Direct application of a function via a symbol *)
 val direct_apply :
-  string -> expression list -> Clambda.apply_kind
+  string -> machtype -> expression list -> Clambda.apply_kind
   -> Debuginfo.t -> expression
 
 (** Generic application of a function to one or several arguments.
@@ -559,8 +582,14 @@ val direct_apply :
     default, with a special case when the load is from (the first function of)
     the currently defined closure. *)
 val generic_apply :
-  Asttypes.mutable_flag -> expression -> expression list
-  -> Clambda.apply_kind -> Debuginfo.t -> expression
+  Asttypes.mutable_flag ->
+  expression ->
+  expression list ->
+  machtype list ->
+  machtype ->
+  Clambda.apply_kind ->
+  Debuginfo.t ->
+  expression
 
 (** Method call : [send kind met obj args dbg]
     - [met] is a method identifier, which can be a hashed variant or an index
@@ -570,8 +599,15 @@ val generic_apply :
     of any way for the frontend to generate any arguments other than the
     cache and cache position) *)
 val send :
-  Lambda.meth_kind -> expression -> expression -> expression list
-  -> Clambda.apply_kind -> Debuginfo.t -> expression
+  Lambda.meth_kind ->
+  expression ->
+  expression ->
+  expression list ->
+  machtype list ->
+  machtype ->
+  Clambda.apply_kind ->
+  Debuginfo.t ->
+  expression
 
 (** Construct [Cregion e], eliding some useless regions *)
 val region : expression -> expression
@@ -660,3 +696,5 @@ val emit_preallocated_blocks :
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
 
 val kind_of_layout : Lambda.layout -> value_kind
+
+val machtype_of_layout : Lambda.layout -> machtype

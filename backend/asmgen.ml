@@ -431,7 +431,7 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
        if create_asm && not keep_asm then remove_file asm_filename
     )
 
-let end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
+let end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
   Emitaux.Dwarf_helpers.init ~disable_dwarf:false sourcefile;
   emit_begin_assembly unix;
   make_cmm ()
@@ -452,10 +452,6 @@ let end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
           !Translmod.primitive_declarations));
   emit_end_assembly sourcefile ()
 
-let end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile clambda =
-  end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile (fun () ->
-    Profile.record "cmm" Cmmgen.compunit clambda)
-
 type middle_end =
      backend:(module Backend_intf.S)
   -> filename:string
@@ -464,13 +460,27 @@ type middle_end =
   -> Lambda.program
   -> Clambda.with_constants
 
+type direct_to_cmm =
+     ppf_dump:Format.formatter
+  -> prefixname:string
+  -> filename:string
+  -> Lambda.program
+  -> Cmm.phrase list
+
+type pipeline =
+  | Via_clambda of {
+      backend : (module Backend_intf.S);
+      middle_end : middle_end;
+    }
+  | Direct_to_cmm of direct_to_cmm
+
 let asm_filename output_prefix =
     if !keep_asm_file || !Emitaux.binary_backend_available
     then output_prefix ^ ext_asm
     else Filename.temp_file "camlasm" ext_asm
 
-let compile_implementation unix ?toplevel ~backend ~filename ~prefixname
-      ~middle_end ~ppf_dump (program : Lambda.program) =
+let compile_implementation unix ?toplevel ~pipeline
+      ~filename ~prefixname ~ppf_dump (program : Lambda.program) =
   compile_unit ~ppf_dump ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
@@ -478,29 +488,19 @@ let compile_implementation unix ?toplevel ~backend ~filename ~prefixname
     (fun () ->
       Compilation_unit.Set.iter Compilenv.require_global
         program.required_globals;
-      let clambda_with_constants =
-        middle_end ~backend ~filename ~prefixname ~ppf_dump program
-      in
-      end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile:filename
-        clambda_with_constants)
-
-let compile_implementation_flambda2 unix ?toplevel ?(keep_symbol_tables=true)
-    ~filename ~prefixname ~size:module_block_size_in_words ~compilation_unit
-    ~module_initializer ~flambda2 ~ppf_dump ~required_globals () =
-  compile_unit ~ppf_dump ~output_prefix:prefixname
-    ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
-    ~obj_filename:(prefixname ^ ext_obj)
-    ~may_reduce_heap:(Option.is_none toplevel)
-    (fun () ->
-      Compilation_unit.Set.iter Compilenv.require_global
-        required_globals;
-      let cmm_phrases =
-        flambda2 ~ppf_dump ~prefixname ~filename ~compilation_unit
-          ~module_block_size_in_words ~module_initializer
-          ~keep_symbol_tables
-      in
-      end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile:filename
-        (fun () -> cmm_phrases))
+      match pipeline with
+      | Via_clambda { middle_end; backend; } ->
+        let clambda_with_constants =
+          middle_end ~backend ~filename ~prefixname ~ppf_dump program
+        in
+        end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile:filename
+          (fun () -> Profile.record "cmm" Cmmgen.compunit clambda_with_constants)
+      | Direct_to_cmm direct_to_cmm ->
+        let cmm_phrases =
+          direct_to_cmm ~ppf_dump ~prefixname ~filename program
+        in
+        end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile:filename
+          (fun () -> cmm_phrases))
 
 let linear_gen_implementation unix filename =
   let open Linear_format in

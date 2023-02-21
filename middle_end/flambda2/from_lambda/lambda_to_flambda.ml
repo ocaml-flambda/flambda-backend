@@ -457,7 +457,10 @@ let extra_args_for_exn_continuation env exn_handler =
   let more_extra_args =
     Env.extra_args_for_continuation_with_kinds env exn_handler
   in
-  List.map (fun (arg, kind) : (IR.simple * _) -> Var arg, kind) more_extra_args
+  List.map
+    (fun (arg, kind) : (IR.simple * _) ->
+      Var arg, Flambda_kind.With_subkind.from_lambda kind)
+    more_extra_args
 
 let _print_stack ppf stack =
   Format.fprintf ppf "%a"
@@ -612,7 +615,7 @@ let transform_primitive env (prim : L.primitive) args loc =
   | Pignore, [arg] ->
     let ident = Ident.create_local "ignore" in
     let result = L.Lconst (Const_base (Const_int 0)) in
-    Transformed (L.Llet (Strict, Lambda.layout_top, ident, arg, result))
+    Transformed (L.Llet (Strict, Lambda.layout_any_value, ident, arg, result))
   | Pfield _, [L.Lprim (Pgetglobal cu, [], _)]
     when Compilation_unit.equal cu (Env.current_unit env) ->
     Misc.fatal_error
@@ -761,8 +764,17 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
   let { Env.body_env; handler_env; extra_params } =
     Env.add_continuation env cont ~push_to_try_stack:is_exn_handler Nonrecursive
   in
+  let params =
+    List.map
+      (fun (id, visible, kind) ->
+        id, visible, Flambda_kind.With_subkind.from_lambda kind)
+      params
+  in
   let extra_params =
-    List.map (fun (id, kind) -> id, IR.User_visible, kind) extra_params
+    List.map
+      (fun (id, kind) ->
+        id, IR.User_visible, Flambda_kind.With_subkind.from_lambda kind)
+      extra_params
   in
   let handler acc ccenv = handler acc handler_env ccenv in
   let body acc ccenv = body acc body_env ccenv cont in
@@ -847,7 +859,7 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
           { apply with continuation = wrapper_cont; region }
       in
       CC.close_let_cont acc ccenv ~name:wrapper_cont ~is_exn_handler:false
-        ~params:[return_value, Not_user_visible, Lambda.layout_top]
+        ~params:[return_value, Not_user_visible, apply.return]
         ~recursive:Nonrecursive ~body ~handler
   in
   restore_continuation_context acc env ccenv apply.continuation ~close_early
@@ -1067,7 +1079,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     maybe_insert_let_cont "apply_result" ap_result_layout k acc env ccenv
       (fun acc env ccenv k ->
         cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode
-          ap_loc ap_inlined ap_probe k k_exn)
+          ap_loc ap_inlined ap_probe ap_result_layout k k_exn)
   | Lfunction func ->
     let id = Ident.create_local (name_for_function func) in
     let dbg = Debuginfo.from_location func.loc in
@@ -1246,7 +1258,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         in
         let params =
           List.map
-            (fun (arg, kind) -> arg, IR.User_visible, kind)
+            (fun (arg, kind) ->
+              arg, IR.User_visible, Flambda_kind.With_subkind.from_lambda kind)
             (args @ extra_params)
         in
         let handler acc ccenv =
@@ -1281,7 +1294,10 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         inlined = Default_inlined;
                         probe = None;
                         mode;
-                        region = Env.current_region env
+                        region = Env.current_region env;
+                        return =
+                          Flambda_kind.With_subkind.from_lambda
+                            Lambda.layout_top
                       }
                     in
                     wrap_return_continuation acc env ccenv apply))
@@ -1391,9 +1407,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        by completely removing it (replacing by unit). *)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
-  | Lregion body when not (Flambda_features.stack_allocation_enabled ()) ->
+  | Lregion (body, _) when not (Flambda_features.stack_allocation_enabled ()) ->
     cps acc env ccenv body k k_exn
-  | Lregion body ->
+  | Lregion (body, layout) ->
     (* Here we need to build the region closure continuation (see long comment
        above). Since we're not in tail position, we also need to have a new
        continuation for the code after the body. *)
@@ -1403,12 +1419,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       Flambda_kind.With_subkind.region
       (Begin_region { try_region_parent = None })
       ~body:(fun acc ccenv ->
-        maybe_insert_let_cont "body_return" Lambda.layout_top k acc env ccenv
+        maybe_insert_let_cont "body_return" layout k acc env ccenv
           (fun acc env ccenv k ->
             let wrap_return = Ident.create_local "region_return" in
             let_cont_nonrecursive_with_extra_params acc env ccenv
               ~is_exn_handler:false
-              ~params:[wrap_return, Not_user_visible, Lambda.layout_top]
+              ~params:[wrap_return, Not_user_visible, layout]
               ~body:(fun acc env ccenv continuation_closing_region ->
                 (* We register this region to be closed by the newly-created
                    region closure continuation. When we reach a point in [body]
@@ -1457,8 +1473,8 @@ and cps_non_tail_var name acc env ccenv lam kind k k_exn =
     k_exn
 
 and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
-    ap_inlined ap_probe (k : Continuation.t) (k_exn : Continuation.t) :
-    Expr_with_acc.t =
+    ap_inlined ap_probe ap_return (k : Continuation.t) (k_exn : Continuation.t)
+    : Expr_with_acc.t =
   cps_non_tail_list acc env ccenv ap_args
     (fun acc env ccenv args ->
       cps_non_tail_var "func" acc env ccenv ap_func
@@ -1480,7 +1496,8 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               inlined = ap_inlined;
               probe = ap_probe;
               mode = ap_mode;
-              region = Env.current_region env
+              region = Env.current_region env;
+              return = Flambda_kind.With_subkind.from_lambda ap_return
             }
           in
           wrap_return_continuation acc env ccenv apply)
@@ -1610,6 +1627,12 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     let ccenv = CCenv.set_path_to_root ccenv loc in
     cps_tail acc new_env ccenv body body_cont body_exn_cont
   in
+  let params =
+    List.map
+      (fun (param, kind) -> param, Flambda_kind.With_subkind.from_lambda kind)
+      params
+  in
+  let return = Flambda_kind.With_subkind.from_lambda return in
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
     ~return ~return_continuation:body_cont ~exn_continuation ~my_region ~body
     ~attr ~loc ~free_idents_of_body recursive ~closure_alloc_mode:mode

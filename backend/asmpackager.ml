@@ -83,8 +83,16 @@ let check_units members =
 
 (* Make the .o file for the package *)
 
+type flambda2 =
+  ppf_dump:Format.formatter ->
+  prefixname:string ->
+  filename:string ->
+  keep_symbol_tables:bool ->
+  Lambda.program ->
+  Cmm.phrase list
+
 let make_package_object unix ~ppf_dump members targetobj targetname coercion
-      ~backend ~flambda2 =
+      ~backend ~(flambda2 : flambda2) =
   Profile.record_call (Printf.sprintf "pack(%s)" targetname) (fun () ->
     let objtemp =
       if !Clflags.keep_asm_file
@@ -111,61 +119,38 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
     let compilation_unit = CU.create for_pack_prefix modname in
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = Compilation_unit.Set.empty in
-    if Config.flambda2 then begin
-      let main_module_block_size, module_initializer =
-        Translmod.transl_package_flambda components coercion
-      in
-      let module_initializer = Simplif.simplify_lambda module_initializer in
-      Asmgen.compile_implementation_flambda2 unix
-        ~filename:targetname
-        ~prefixname
-        ~size:main_module_block_size
-        ~compilation_unit
-        ~module_initializer
-        ~flambda2
-        ~ppf_dump
-        ~required_globals:required_globals
-        ~keep_symbol_tables:true
-        ()
-    end else begin
-      let program, middle_end =
-        if Config.flambda then
-          let main_module_block_size, code =
-            Translmod.transl_package_flambda components coercion
-          in
-          let code = Simplif.simplify_lambda code in
-          let program =
-            { Lambda.
-              code;
-              main_module_block_size;
-              compilation_unit;
-              required_globals;
-            }
-          in
-          program, Flambda_middle_end.lambda_to_clambda
-        else
-          let main_module_block_size, code =
-            Translmod.transl_store_package components
-              compilation_unit coercion
-          in
-          let code = Simplif.simplify_lambda code in
-          let program =
-            { Lambda.
-              code;
-              main_module_block_size;
-              compilation_unit;
-              required_globals;
-            }
-          in
-          program, Closure_middle_end.lambda_to_clambda
-      in
-      Asmgen.compile_implementation ~backend unix
-        ~filename:targetname
-        ~prefixname
-        ~middle_end
-        ~ppf_dump
-        program
-    end;
+    let transl_style : Translmod.compilation_unit_style =
+      if Config.flambda || Config.flambda2 then Plain_block
+      else Set_individual_fields
+    in
+    let main_module_block_size, code =
+      Translmod.transl_package components compilation_unit coercion
+        ~style:transl_style
+    in
+    let code = Simplif.simplify_lambda code in
+    let program =
+      { Lambda.
+        code;
+        main_module_block_size;
+        compilation_unit;
+        required_globals;
+      }
+    in
+    let pipeline : Asmgen.pipeline =
+      if Config.flambda2 then
+        Direct_to_cmm (flambda2 ~keep_symbol_tables:true)
+      else
+        let middle_end =
+          if Config.flambda then Flambda_middle_end.lambda_to_clambda
+          else Closure_middle_end.lambda_to_clambda
+        in
+        Via_clambda { middle_end; backend }
+    in
+    Asmgen.compile_implementation ~pipeline unix
+      ~filename:targetname
+      ~prefixname
+      ~ppf_dump
+      program;
     let objfiles =
       List.map
         (fun m -> Filename.remove_extension m.pm_file ^ Config.ext_obj)

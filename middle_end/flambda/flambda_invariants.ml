@@ -181,7 +181,7 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       ignore_static_exception static_exn;
       ignore_layout kind;
       loop env body;
-      loop (add_binding_occurrences env vars) handler
+      loop (add_binding_occurrences env (List.map fst vars)) handler
     | Try_with (body, var, handler, kind) ->
       loop env body;
       ignore_layout kind;
@@ -190,25 +190,27 @@ let variable_and_symbol_invariants (program : Flambda.program) =
     | Var var -> check_variable_is_bound env var
     | Apply { func; args; kind; dbg; inlined; specialise; probe;
               reg_close = (Rc_close_at_apply|Rc_normal|Rc_nontail);
-              mode = (Alloc_heap|Alloc_local) } ->
+              mode = (Alloc_heap|Alloc_local); result_layout } ->
       check_variable_is_bound env func;
       check_variables_are_bound env args;
       ignore_call_kind kind;
       ignore_debuginfo dbg;
       ignore_inlined_attribute inlined;
       ignore_specialise_attribute specialise;
-      ignore_probe probe
+      ignore_probe probe;
+      ignore_layout result_layout
     | Assign { being_assigned; new_value; } ->
       check_mutable_variable_is_bound env being_assigned;
       check_variable_is_bound env new_value
     | Send { kind; meth; obj; args; dbg;
              reg_close = (Rc_normal | Rc_close_at_apply | Rc_nontail);
-             mode = (Alloc_heap | Alloc_local) } ->
+             mode = (Alloc_heap | Alloc_local); result_layout; } ->
       ignore_meth_kind kind;
       check_variable_is_bound env meth;
       check_variable_is_bound env obj;
       check_variables_are_bound env args;
-      ignore_debuginfo dbg
+      ignore_debuginfo dbg;
+      ignore_layout result_layout
     | If_then_else (cond, ifso, ifnot, kind) ->
       check_variable_is_bound env cond;
       ignore_layout kind;
@@ -262,10 +264,11 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       check_variable_is_bound env closure;
       ignore_closure_id start_from;
       ignore_closure_id move_to;
-    | Project_var { closure; closure_id; var; } ->
+    | Project_var { closure; closure_id; var; kind } ->
       check_variable_is_bound env closure;
       ignore_closure_id closure_id;
-      ignore_var_within_closure var
+      ignore_var_within_closure var;
+      ignore_layout kind
     | Prim (prim, args, dbg) ->
       ignore_primitive prim;
       check_variables_are_bound env args;
@@ -563,7 +566,7 @@ let used_closure_ids (program:Flambda.program) =
     | Move_within_set_of_closures { closure = _; start_from; move_to; } ->
       used := Closure_id.Set.add start_from !used;
       used := Closure_id.Set.add move_to !used
-    | Project_var { closure = _; closure_id; var = _ } ->
+    | Project_var { closure = _; closure_id; var = _; kind = _ } ->
       used := Closure_id.Set.add closure_id !used
     | Set_of_closures _ | Symbol _ | Const _ | Allocated_const _
     | Prim _ | Expr _ | Read_mutable _ | Read_symbol_field _ -> ()
@@ -577,7 +580,7 @@ let used_vars_within_closures (flam:Flambda.program) =
   let used = ref Var_within_closure.Set.empty in
   let f (flam : Flambda.named) =
     match flam with
-    | Project_var { closure = _; closure_id = _; var; } ->
+    | Project_var { closure = _; closure_id = _; var; kind = _ } ->
       used := Var_within_closure.Set.add var !used
     | _ -> ()
   in

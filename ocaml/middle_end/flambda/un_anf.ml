@@ -55,6 +55,7 @@ let ignore_primitive (_ : Clambda_primitives.primitive) = ()
 let ignore_string (_ : string) = ()
 let ignore_int_array (_ : int array) = ()
 let ignore_var_with_provenance (_ : VP.t) = ()
+let ignore_params (_ : VP.t list) = ()
 let ignore_params_with_layout (_ : (VP.t * Lambda.layout) list) = ()
 let ignore_direction_flag (_ : Asttypes.direction_flag) = ()
 let ignore_meth_kind (_ : Lambda.meth_kind) = ()
@@ -66,9 +67,10 @@ let ignore_layout (_ : Lambda.layout) = ()
 
 let closure_environment_var (ufunction:Clambda.ufunction) =
   (* The argument after the arity is the environment *)
-  match ufunction.arity with
-  | Curried _, n when List.length ufunction.params = n + 1 ->
-    let (env_var, _) = List.nth ufunction.params n in
+  let n = List.length ufunction.arity.params_layout in
+  match ufunction.arity.function_kind with
+  | Curried _ when List.length ufunction.params = n + 1 ->
+    let env_var = List.nth ufunction.params n in
     assert (VP.name env_var = "env");
     Some env_var
   | _ ->
@@ -133,29 +135,31 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
          of the closures will be traversed when this function is called from
          [Flambda_to_clambda.to_clambda_closed_set_of_closures].) *)
       ignore_uconstant const
-    | Udirect_apply (label, args, _probe, info, dbg) ->
+    | Udirect_apply (label, args, _probe, result_layout, info, dbg) ->
       ignore_function_label label;
       List.iter (loop ~depth) args;
+      ignore_layout result_layout;
       ignore_apply_kind info;
       ignore_debuginfo dbg
-    | Ugeneric_apply (func, args, info, dbg) ->
+    | Ugeneric_apply (func, args, args_layout, result_layout, info, dbg) ->
       loop ~depth func;
       List.iter (loop ~depth) args;
+      List.iter ignore_layout args_layout;
+      ignore_layout result_layout;
       ignore_apply_kind info;
       ignore_debuginfo dbg
     | Uclosure { functions; not_scanned_slots ; scanned_slots } ->
       List.iter (loop ~depth) not_scanned_slots;
       List.iter (loop ~depth) scanned_slots;
       List.iter (fun (
-        { Clambda. label; arity=_; params; return; body; dbg; env; mode=_; poll=_} as clos) ->
+        { Clambda. label; arity=_; params; body; dbg; env; mode=_; poll=_} as clos) ->
           (match closure_environment_var clos with
            | None -> ()
            | Some env_var ->
              environment_vars :=
                V.Set.add (VP.var env_var) !environment_vars);
           ignore_function_label label;
-          ignore_params_with_layout params;
-          ignore_layout return;
+          ignore_params params;
           loop ~depth:(depth + 1) body;
           ignore_debuginfo dbg;
           ignore_var_option env)
@@ -228,11 +232,13 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
     | Uassign (var, expr) ->
       add_assignment t var;
       loop ~depth expr
-    | Usend (meth_kind, e1, e2, args, info, dbg) ->
+    | Usend (meth_kind, e1, e2, args, args_layout, result_layout, info, dbg) ->
       ignore_meth_kind meth_kind;
       loop ~depth e1;
       loop ~depth e2;
       List.iter (loop ~depth) args;
+      List.iter ignore_layout args_layout;
+      ignore_layout result_layout;
       ignore_apply_kind info;
       ignore_debuginfo dbg
     | Uunreachable ->
@@ -306,27 +312,29 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       end
     | Uconst const ->
       ignore_uconstant const
-    | Udirect_apply (label, args, probe, info, dbg) ->
+    | Udirect_apply (label, args, probe, result_layout, info, dbg) ->
       ignore_function_label label;
       examine_argument_list args;
       (* We don't currently traverse [args]; they should all be variables
          anyway.  If this is added in the future, take care to traverse [args]
          following the evaluation order. *)
       ignore_probe probe;
+      ignore_layout result_layout;
       ignore_apply_kind info;
       ignore_debuginfo dbg
-    | Ugeneric_apply (func, args, info, dbg) ->
+    | Ugeneric_apply (func, args, args_layout, result_layout, info, dbg) ->
       examine_argument_list (args @ [func]);
+      List.iter ignore_layout args_layout;
+      ignore_layout result_layout;
       ignore_apply_kind info;
       ignore_debuginfo dbg
     | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
       ignore_ulambda_list not_scanned_slots;
       ignore_ulambda_list scanned_slots;
       (* Start a new let stack for speed. *)
-      List.iter (fun {Clambda. label; arity=_; params; return; body; dbg; env; mode=_; poll=_} ->
+      List.iter (fun {Clambda. label; arity=_; params; body; dbg; env; mode=_; poll=_} ->
           ignore_function_label label;
-          ignore_params_with_layout params;
-          ignore_layout return;
+          ignore_params params;
           let_stack := [];
           loop body;
           let_stack := [];
@@ -455,11 +463,13 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       ignore_var var;
       ignore_ulambda expr;
       let_stack := []
-    | Usend (meth_kind, e1, e2, args, info, dbg) ->
+    | Usend (meth_kind, e1, e2, args, args_layout, result_layout, info, dbg) ->
       ignore_meth_kind meth_kind;
       ignore_ulambda e1;
       ignore_ulambda e2;
       ignore_ulambda_list args;
+      List.iter ignore_layout args_layout;
+      ignore_layout result_layout;
       let_stack := [];
       ignore_apply_kind info;
       ignore_debuginfo dbg
@@ -492,13 +502,13 @@ let rec substitute_let_moveable is_let_moveable env (clam : Clambda.ulambda)
           V.print var
       end
   | Uconst _ -> clam
-  | Udirect_apply (label, args, probe, kind, dbg) ->
+  | Udirect_apply (label, args, probe, result_layout, kind, dbg) ->
     let args = substitute_let_moveable_list is_let_moveable env args in
-    Udirect_apply (label, args, probe, kind, dbg)
-  | Ugeneric_apply (func, args, kind, dbg) ->
+    Udirect_apply (label, args, probe, result_layout, kind, dbg)
+  | Ugeneric_apply (func, args, args_layout, result_layout, kind, dbg) ->
     let func = substitute_let_moveable is_let_moveable env func in
     let args = substitute_let_moveable_list is_let_moveable env args in
-    Ugeneric_apply (func, args, kind, dbg)
+    Ugeneric_apply (func, args, args_layout, result_layout, kind, dbg)
   | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
     let functions =
       List.map (fun (ufunction : Clambda.ufunction) ->
@@ -611,11 +621,11 @@ let rec substitute_let_moveable is_let_moveable env (clam : Clambda.ulambda)
   | Uassign (var, expr) ->
     let expr = substitute_let_moveable is_let_moveable env expr in
     Uassign (var, expr)
-  | Usend (kind, e1, e2, args, pos, dbg) ->
+  | Usend (kind, e1, e2, args, args_layout, result_layout, pos, dbg) ->
     let e1 = substitute_let_moveable is_let_moveable env e1 in
     let e2 = substitute_let_moveable is_let_moveable env e2 in
     let args = substitute_let_moveable_list is_let_moveable env args in
-    Usend (kind, e1, e2, args, pos, dbg)
+    Usend (kind, e1, e2, args, args_layout, result_layout, pos, dbg)
   | Uunreachable ->
     Uunreachable
   | Uregion e ->
@@ -696,13 +706,13 @@ let rec un_anf_and_moveable var_info env (clam : Clambda.ulambda)
   | Uconst _ ->
     (* Constant closures are rewritten separately. *)
     clam, Constant
-  | Udirect_apply (label, args, probe, kind, dbg) ->
+  | Udirect_apply (label, args, probe, result_layout, kind, dbg) ->
     let args = un_anf_list var_info env args in
-    Udirect_apply (label, args, probe, kind, dbg), Fixed
-  | Ugeneric_apply (func, args, kind, dbg) ->
+    Udirect_apply (label, args, probe, result_layout, kind, dbg), Fixed
+  | Ugeneric_apply (func, args, args_layout, result_layout, kind, dbg) ->
     let func = un_anf var_info env func in
     let args = un_anf_list var_info env args in
-    Ugeneric_apply (func, args, kind, dbg), Fixed
+    Ugeneric_apply (func, args, args_layout, result_layout, kind, dbg), Fixed
   | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
     let functions =
       List.map (fun (ufunction : Clambda.ufunction) ->
@@ -840,11 +850,11 @@ let rec un_anf_and_moveable var_info env (clam : Clambda.ulambda)
   | Uassign (var, expr) ->
     let expr = un_anf var_info env expr in
     Uassign (var, expr), Fixed
-  | Usend (kind, e1, e2, args, pos, dbg) ->
+  | Usend (kind, e1, e2, args, args_layout, result_layout, pos, dbg) ->
     let e1 = un_anf var_info env e1 in
     let e2 = un_anf var_info env e2 in
     let args = un_anf_list var_info env args in
-    Usend (kind, e1, e2, args, pos, dbg), Fixed
+    Usend (kind, e1, e2, args, args_layout, result_layout, pos, dbg), Fixed
   | Uunreachable ->
     Uunreachable, Fixed
   | Uregion e ->

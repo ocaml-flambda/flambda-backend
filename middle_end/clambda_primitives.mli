@@ -171,3 +171,5 @@ and raise_kind = Lambda.raise_kind =
   | Raise_notrace
 
 val equal : primitive -> primitive -> bool
+
+val result_layout : primitive -> Lambda.layout
