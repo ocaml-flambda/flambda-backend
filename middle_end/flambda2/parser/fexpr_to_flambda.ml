@@ -861,10 +861,15 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         region
       } ->
     let continuation = find_result_cont env continuation in
-    let call_kind =
+    let call_kind, args_arity, return_arity =
       match call_kind with
       | Function (Direct { code_id; function_slot = _ }) ->
         let code_id = find_code_id env code_id in
+        let params_arity =
+          (* CR mshinwell: This needs fixing to cope with the fact that the
+             arities have moved onto [Apply_expr] *)
+          Flambda_arity.With_subkinds.create []
+        in
         let return_arity =
           match arities with
           | None ->
@@ -872,28 +877,41 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               [Flambda_kind.With_subkind.any_value]
           | Some { ret_arity; _ } -> arity ret_arity
         in
-        Call_kind.direct_function_call code_id ~return_arity
-          Alloc_mode.For_types.heap
+        ( Call_kind.direct_function_call code_id Alloc_mode.For_types.heap,
+          params_arity,
+          return_arity )
       | Function Indirect -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
-          let param_arity = arity params_arity in
+          let params_arity = arity params_arity in
           let return_arity = arity ret_arity in
-          Call_kind.indirect_function_call_known_arity ~param_arity
-            ~return_arity Alloc_mode.For_types.heap
+          ( Call_kind.indirect_function_call_known_arity
+              Alloc_mode.For_types.heap,
+            params_arity,
+            return_arity )
         | None | Some { params_arity = None; ret_arity = _ } ->
-          Call_kind.indirect_function_call_unknown_arity
-            Alloc_mode.For_types.heap)
+          let params_arity =
+            (* CR mshinwell: This needs fixing to cope with the fact that the
+               arities have moved onto [Apply_expr] *)
+            Flambda_arity.With_subkinds.create []
+          in
+          let return_arity =
+            (* CR mshinwell: This needs fixing to cope with the fact that the
+               arities have moved onto [Apply_expr] *)
+            Flambda_arity.With_subkinds.create []
+          in
+          ( Call_kind.indirect_function_call_unknown_arity
+              Alloc_mode.For_types.heap,
+            params_arity,
+            return_arity ))
       | C_call { alloc } -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
-          let param_arity =
-            arity params_arity |> Flambda_arity.With_subkinds.to_arity
-          in
-          let return_arity =
-            arity ret_arity |> Flambda_arity.With_subkinds.to_arity
-          in
-          Call_kind.c_call ~alloc ~param_arity ~return_arity ~is_c_builtin:false
+          let params_arity = arity params_arity in
+          let return_arity = arity ret_arity in
+          ( Call_kind.c_call ~alloc ~is_c_builtin:false,
+            params_arity,
+            return_arity )
         | None | Some { params_arity = None; ret_arity = _ } ->
           Misc.fatal_errorf "Must specify arities for C call")
     in
@@ -916,9 +934,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~callee:(Simple.name (name env func))
         ~continuation exn_continuation
         ~args:((List.map (simple env)) args)
-        ~call_kind Debuginfo.none ~inlined ~inlining_state ~probe_name:None
-        ~position:Normal ~relative_history:Inlining_history.Relative.empty
-        ~region
+        ~args_arity ~return_arity ~call_kind Debuginfo.none ~inlined
+        ~inlining_state ~probe_name:None ~position:Normal
+        ~relative_history:Inlining_history.Relative.empty ~region
     in
     Flambda.Expr.create_apply apply
   | Invalid { message } -> Flambda.Expr.create_invalid (Message message)

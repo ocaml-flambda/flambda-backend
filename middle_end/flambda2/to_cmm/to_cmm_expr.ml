@@ -93,9 +93,10 @@ let translate_apply0 env res apply =
       Lambda.Rc_normal
     | Nontail -> Lambda.Rc_nontail
   in
+  let param_arity = Apply.args_arity apply in
+  let return_arity = Apply.return_arity apply in
   match Apply.call_kind apply with
-  | Function
-      { function_call = Direct { code_id; return_arity }; alloc_mode = _ } -> (
+  | Function { function_call = Direct code_id; alloc_mode = _ } -> (
     let code_metadata = Env.get_code_metadata env code_id in
     let params_arity = Code_metadata.params_arity code_metadata in
     if not (C.check_arity params_arity args)
@@ -138,10 +139,7 @@ let translate_apply0 env res apply =
       env,
       res,
       Ece.all )
-  | Function
-      { function_call = Indirect_known_arity { return_arity; param_arity };
-        alloc_mode
-      } ->
+  | Function { function_call = Indirect_known_arity; alloc_mode } ->
     fail_if_probe apply;
     if not (C.check_arity param_arity args)
     then
@@ -165,7 +163,7 @@ let translate_apply0 env res apply =
         env,
         res,
         Ece.all )
-  | Call_kind.C_call { alloc; return_arity; param_arity; is_c_builtin } ->
+  | Call_kind.C_call { alloc; is_c_builtin } ->
     fail_if_probe apply;
     let callee =
       match Simple.must_be_symbol callee_simple with
@@ -175,6 +173,8 @@ let translate_apply0 env res apply =
           Simple.print callee_simple
     in
     let returns = Apply.returns apply in
+    let param_arity = Flambda_arity.With_subkinds.to_arity param_arity in
+    let return_arity = Flambda_arity.With_subkinds.to_arity return_arity in
     let ty = C.machtype_of_return_arity return_arity in
     let wrap =
       match Flambda_arity.to_list return_arity with

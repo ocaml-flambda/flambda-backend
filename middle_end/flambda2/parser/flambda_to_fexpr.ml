@@ -922,31 +922,28 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
   let args = List.map (simple env) (Apply_expr.args app) in
   let call_kind : Fexpr.call_kind =
     match Apply_expr.call_kind app with
-    | Function
-        { function_call = Direct { code_id; return_arity = _ }; alloc_mode = _ }
-      ->
+    | Function { function_call = Direct code_id; alloc_mode = _ } ->
       let code_id = Env.find_code_id_exn env code_id in
       let function_slot = None in
       (* CR mshinwell: remove [function_slot] *)
       Function (Direct { code_id; function_slot })
     | Function
-        { function_call = Indirect_unknown_arity | Indirect_known_arity _;
+        { function_call = Indirect_unknown_arity | Indirect_known_arity;
           alloc_mode = _
         } ->
       Function Indirect
     | C_call { alloc; _ } -> C_call { alloc }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
   in
+  let param_arity = Apply_expr.args_arity app in
+  let return_arity = Apply_expr.return_arity app in
   let arities : Fexpr.function_arities option =
     match Apply_expr.call_kind app with
-    | Function
-        { function_call = Indirect_known_arity { param_arity; return_arity };
-          alloc_mode = _
-        } ->
+    | Function { function_call = Indirect_known_arity; alloc_mode = _ } ->
       let params_arity = Some (arity param_arity) in
       let ret_arity = arity return_arity in
       Some { params_arity; ret_arity }
-    | Function { function_call = Direct { return_arity; _ }; alloc_mode = _ } ->
+    | Function { function_call = Direct _; alloc_mode = _ } ->
       if is_default_arity return_arity
       then None
       else
@@ -956,13 +953,9 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
         in
         let ret_arity = arity return_arity in
         Some { params_arity; ret_arity }
-    | C_call { param_arity; return_arity; _ } ->
-      let params_arity =
-        Some (arity (param_arity |> Flambda_arity.With_subkinds.of_arity))
-      in
-      let ret_arity =
-        arity (return_arity |> Flambda_arity.With_subkinds.of_arity)
-      in
+    | C_call _ ->
+      let params_arity = Some (arity param_arity) in
+      let ret_arity = arity return_arity in
       Some { params_arity; ret_arity }
     | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
     | Method _ ->

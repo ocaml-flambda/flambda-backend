@@ -394,7 +394,7 @@ let apply apply =
   (* CR mshinwell: Check / fix these numbers *)
   | Function { function_call = Indirect_unknown_arity; alloc_mode = _ } ->
     indirect_call_size
-  | Function { function_call = Indirect_known_arity _; alloc_mode = _ } ->
+  | Function { function_call = Indirect_known_arity; alloc_mode = _ } ->
     indirect_call_size
   | C_call { alloc = true; _ } -> alloc_extcall_size
   | C_call { alloc = false; _ } -> nonalloc_extcall_size
