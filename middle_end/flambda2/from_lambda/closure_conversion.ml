@@ -715,6 +715,26 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
         assert false
     in
     k acc (Some (Named.create_simple (Simple.symbol sym)))
+  | Pmakeblock (tag, Immutable_unique, _, _), [exn_name; exn_id]
+    when tag = Obj.object_tag && Env.at_toplevel env ->
+    (* Special case to lift toplevel exception declarations *)
+    let transform_arg arg =
+      Simple.pattern_match' arg
+        ~var:(fun var ~coercion:_ ->
+          Field_of_static_block.Dynamically_computed (var, dbg))
+        ~symbol:(fun sym ~coercion:_ -> Field_of_static_block.Symbol sym)
+        ~const:(fun const ->
+          Misc.fatal_errorf "Constant %a not expected as argument to %a (%a)"
+            Reg_width_const.print const Printlambda.primitive prim
+            Debuginfo.print_compact dbg)
+    in
+    let acc, sym =
+      register_const0 acc
+        (Static_const.block Tag.Scannable.object_tag Immutable_unique
+           [transform_arg exn_name; transform_arg exn_id])
+        "exn"
+    in
+    k acc (Some (Named.create_simple (Simple.symbol sym)))
   | prim, args ->
     Lambda_to_flambda_primitives.convert_and_bind acc exn_continuation
       ~big_endian:(Env.big_endian env)

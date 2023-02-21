@@ -101,7 +101,12 @@ module Env : sig
 
   type t
 
+  (** Create an environment marked as being at toplevel. *)
   val create : big_endian:bool -> t
+
+  val set_not_at_toplevel : t -> t
+
+  val at_toplevel : t -> bool
 
   val clear_local_bindings : t -> t
 
