@@ -1,4 +1,2 @@
 mangling.ml
 mangling.mli
-flambda2/**/*.ml
-flambda2/**/*.mli
