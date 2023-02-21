@@ -175,7 +175,7 @@ module T0 : sig
   type descr = private
     { name : Name.t;
       for_pack_prefix : Prefix.t;
-      arguments : t list
+      arguments : (string * t) list
     }
 
   and t
@@ -186,16 +186,16 @@ module T0 : sig
 
   val for_pack_prefix : t -> Prefix.t
 
-  val arguments : t -> t list
+  val arguments : t -> (string * t) list
 
-  val create_full : Prefix.t -> Name.t -> t list -> t
+  val create_full : Prefix.t -> Name.t -> (string * t) list -> t
 end = struct
   (* As with [Name.t], changing [descr] or [t] requires bumping magic
      numbers. *)
   type descr =
     { name : Name.t;
       for_pack_prefix : Prefix.t;
-      arguments : t list
+      arguments : (string * t) list
     }
 
   (* type t = Simple of Name.t [@@unboxed] | Full of descr *)
@@ -259,6 +259,11 @@ end = struct
         Name.check_as_path_component name;
         ListLabels.iter ~f:Name.check_as_path_component
           (for_pack_prefix |> Prefix.to_list))
+    in
+    let arguments =
+      ListLabels.sort
+        ~cmp:(fun (p1, _v1) (p2, _v2) -> String.compare p1 p2)
+        arguments
     in
     if empty_prefix && empty_arguments
     then Sys.opaque_identity (Obj.repr name)
@@ -329,7 +334,11 @@ include Identifiable.Make (struct
       then c
       else
         let c = Prefix.compare for_pack_prefix1 for_pack_prefix2 in
-        if c <> 0 then c else List.compare compare args1 args2
+        if c <> 0 then c else List.compare compare_args args1 args2
+
+  and compare_args (param1, value1) (param2, value2) =
+    let c = String.compare param1 param2 in
+    if c <> 0 then c else compare value1 value2
 
   let equal x y = if x == y then true else compare x y = 0
 
@@ -341,7 +350,10 @@ include Identifiable.Make (struct
       else
         Format.fprintf fmt "%a.%a" Prefix.print for_pack_prefix Name.print name
     in
-    ListLabels.iter ~f:(Format.fprintf fmt "[%a]" print) arguments
+    ListLabels.iter ~f:(print_arg fmt) arguments
+
+  and print_arg fmt (param, value) =
+    Format.fprintf fmt "[%s:%a]" param print value
 
   let output = output_of_print print
 
@@ -350,7 +362,9 @@ include Identifiable.Make (struct
     Hashtbl.hash
       ( Name.hash name,
         Prefix.hash for_pack_prefix,
-        ListLabels.map ~f:hash arguments )
+        ListLabels.map ~f:hash_arg arguments )
+
+  and hash_arg (param, value) = Hashtbl.hash (param, hash value)
 end)
 
 let is_instance t = match arguments t with [] -> false | _ :: _ -> true

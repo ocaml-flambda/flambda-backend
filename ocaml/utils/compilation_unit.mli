@@ -97,7 +97,7 @@ val create_child : t -> Name.t -> t
 
 (** Create a compilation unit that's an instantiation of another unit with
     given parameters. *)
-val create_instance : t -> t list -> t
+val create_instance : t -> (string * t) list -> t
 
 (** Create a compilation unit from the given [name]. No prefix is allowed;
     throws a fatal error if there is a "." in the name. (As a special case,
@@ -196,7 +196,7 @@ val full_path_as_string : t -> string
 
 (** Returns the arguments in the compilation unit, if it is an instance, or
     the empty list otherwise. *)
-val arguments : t -> t list
+val arguments : t -> (string * t) list
 
 (** Returns [true] iff the given compilation unit is an instance (equivalent
     to [arguments t <> []]). *)
