@@ -630,7 +630,8 @@ module Stack_offset_and_exn = struct
    fun ~stack_offset ~traps term ->
     check_and_set_stack_offset term ~stack_offset ~traps;
     match term.desc with
-    | Tailcall_self _ when List.length traps <> 0 || stack_offset <> 0 ->
+    | Tailcall_self _
+      when stack_offset <> 0 || List.compare_length_with traps 0 <> 0 ->
       Misc.fatal_error
         "Cfgize.Stack_offset_and_exn.process_terminator: unexpected handler on \
          self tailcall"
@@ -712,8 +713,7 @@ module Stack_offset_and_exn = struct
    fun cfg ->
     update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[];
     Cfg.iter_blocks cfg ~f:(fun _ block ->
-        if block.stack_offset = invalid_stack_offset then block.dead <- true);
-    Cfg.iter_blocks cfg ~f:(fun _ block ->
+        if block.stack_offset = invalid_stack_offset then block.dead <- true;
         assert (not (block.is_trap_handler && block.dead)))
 end
 

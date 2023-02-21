@@ -40,9 +40,6 @@ module Instruction = struct
   module IdMap = MoreLabels.Map.Make (Int)
 end
 
-let[@inline] int_max (left : int) (right : int) =
-  if left >= right then left else right
-
 type cfg_infos =
   { arg : Reg.Set.t;
     res : Reg.Set.t;
@@ -61,7 +58,7 @@ let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
         | Reg _ | Stack _ -> ())
   in
   let update_max_id (instr : _ Cfg.instruction) : unit =
-    max_id := int_max !max_id instr.id
+    max_id := Int.max !max_id instr.id
   in
   Cfg_with_layout.iter_instructions
     cfg_with_layout (* CR xclerc for xclerc: use fold *)
