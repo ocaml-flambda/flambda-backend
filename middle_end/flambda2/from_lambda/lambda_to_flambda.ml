@@ -1371,9 +1371,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     let lam = switch_for_if_then_else ~cond ~ifso ~ifnot ~kind in
     cps acc env ccenv lam k k_exn
   | Lsequence (lam1, lam2) ->
-    let k acc env ccenv _value =
-      cps acc env ccenv lam2 k k_exn
-    in
+    let k acc env ccenv _value = cps acc env ccenv lam2 k k_exn in
     cps_non_tail_simple acc env ccenv lam1 k k_exn
   | Lwhile
       { wh_cond = cond; wh_body = body; wh_cond_region = _; wh_body_region = _ }
