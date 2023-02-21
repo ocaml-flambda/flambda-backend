@@ -613,9 +613,8 @@ let transform_primitive env (prim : L.primitive) args loc =
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
   | (Pbytes_to_string | Pbytes_of_string), [arg] -> Transformed arg
   | Pignore, [arg] ->
-    let ident = Ident.create_local "ignore" in
     let result = L.Lconst (Const_base (Const_int 0)) in
-    Transformed (L.Llet (Strict, Lambda.layout_any_value, ident, arg, result))
+    Transformed (L.Lsequence (arg, result))
   | Pfield _, [L.Lprim (Pgetglobal cu, [], _)]
     when Compilation_unit.equal cu (Env.current_unit env) ->
     Misc.fatal_error
@@ -1372,10 +1371,10 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     let lam = switch_for_if_then_else ~cond ~ifso ~ifnot ~kind in
     cps acc env ccenv lam k k_exn
   | Lsequence (lam1, lam2) ->
-    let ident = Ident.create_local "sequence" in
-    cps acc env ccenv
-      (L.Llet (Strict, Lambda.layout_top, ident, lam1, lam2))
-      k k_exn
+    let k acc env ccenv _value =
+      cps acc env ccenv lam2 k k_exn
+    in
+    cps_non_tail_simple acc env ccenv lam1 k k_exn
   | Lwhile
       { wh_cond = cond; wh_body = body; wh_cond_region = _; wh_body_region = _ }
     ->

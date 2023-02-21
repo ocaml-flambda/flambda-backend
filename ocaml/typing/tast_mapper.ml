@@ -307,7 +307,9 @@ let expr sub x =
           sub.expr sub exp,
           List.map (function
             | (lbl, Arg exp) -> (lbl, Arg (sub.expr sub exp))
-            | (lbl, Omitted o) -> (lbl, Omitted o))
+            | (lbl, Omitted o) ->
+                let o' = { o with ty_env = sub.env sub o.ty_env } in
+                (lbl, Omitted o'))
             list,
           pos, am
         )

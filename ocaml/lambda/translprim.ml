@@ -77,6 +77,9 @@ type loc_kind =
   | Loc_POS
   | Loc_FUNCTION
 
+(* CR ncourant: the result layout of these should probably be an option, filled
+   by specialise_primitive and the rest of the code should fail if it
+   encounters it? *)
 type prim =
   | Primitive of Lambda.primitive * int
   | External of Primitive.description
@@ -86,9 +89,9 @@ type prim =
   | Raise_with_backtrace
   | Lazy_force of Lambda.region_close
   | Loc of loc_kind
-  | Send of Lambda.region_close
-  | Send_self of Lambda.region_close
-  | Send_cache of Lambda.region_close
+  | Send of Lambda.region_close * Lambda.layout
+  | Send_self of Lambda.region_close * Lambda.layout
+  | Send_cache of Lambda.region_close * Lambda.layout
   | Frame_pointers
   | Identity
   | Apply of Lambda.region_close * Lambda.layout
@@ -387,9 +390,9 @@ let lookup_primitive loc poly pos p =
     | "%int_as_pointer" -> Primitive (Pint_as_pointer, 1)
     | "%opaque" -> Primitive (Popaque, 1)
     | "%sys_argv" -> Sys_argv
-    | "%send" -> Send pos
-    | "%sendself" -> Send_self pos
-    | "%sendcache" -> Send_cache pos
+    | "%send" -> Send (pos, Lambda.layout_any_value)
+    | "%sendself" -> Send_self (pos, Lambda.layout_any_value)
+    | "%sendcache" -> Send_cache (pos, Lambda.layout_any_value)
     | "%equal" -> Comparison(Equal, Compare_generic)
     | "%notequal" -> Comparison(Not_equal, Compare_generic)
     | "%lessequal" -> Comparison(Less_equal, Compare_generic)
@@ -727,16 +730,16 @@ let lambda_of_prim prim_name prim loc args arg_exps =
   | Loc kind, [arg] ->
       let lam = lambda_of_loc kind loc in
       Lprim(Pmakeblock(0, Immutable, None, alloc_heap), [lam; arg], loc)
-  | Send pos, [obj; meth] ->
-      Lsend(Public, meth, obj, [], pos, alloc_heap, loc, Lambda.layout_top)
-  | Send_self pos, [obj; meth] ->
-      Lsend(Self, meth, obj, [], pos, alloc_heap, loc, Lambda.layout_top)
-  | Send_cache apos, [obj; meth; cache; pos] ->
+  | Send (pos, layout), [obj; meth] ->
+      Lsend(Public, meth, obj, [], pos, alloc_heap, loc, layout)
+  | Send_self (pos, layout), [obj; meth] ->
+      Lsend(Self, meth, obj, [], pos, alloc_heap, loc, layout)
+  | Send_cache (apos, layout), [obj; meth; cache; pos] ->
       (* Cached mode only works in the native backend *)
       if !Clflags.native_code then
-        Lsend(Cached, meth, obj, [cache; pos], apos, alloc_heap, loc, Lambda.layout_top)
+        Lsend(Cached, meth, obj, [cache; pos], apos, alloc_heap, loc, layout)
       else
-        Lsend(Public, meth, obj, [], apos, alloc_heap, loc, Lambda.layout_top)
+        Lsend(Public, meth, obj, [], apos, alloc_heap, loc, layout)
   | Frame_pointers, [] ->
       let frame_pointers =
         if !Clflags.native_code && Config.with_frame_pointers then 1 else 0
@@ -805,7 +808,7 @@ let transl_primitive loc p env ty ~poly_mode path =
     | Some prim -> prim
   in
   let rec make_params ty n =
-    if n <= 0 then []
+    if n <= 0 then [], Typeopt.layout env ty
     else
       match Typeopt.is_function_type env ty with
       | None ->
@@ -813,9 +816,10 @@ let transl_primitive loc p env ty ~poly_mode path =
             (Primitive.byte_name p)
       | Some (arg_ty, ret_ty) ->
           let arg_layout = Typeopt.layout env arg_ty in
-          (Ident.create_local "prim", arg_layout) :: make_params ret_ty (n-1)
+          let params, return = make_params ret_ty (n-1) in
+          (Ident.create_local "prim", arg_layout) :: params, return
   in
-  let params = make_params ty p.prim_arity in
+  let params, return = make_params ty p.prim_arity in
   let args = List.map (fun (id, _) -> Lvar id) params in
   match params with
   | [] -> lambda_of_prim p.prim_name prim loc args None
@@ -843,7 +847,7 @@ let transl_primitive loc p env ty ~poly_mode path =
      lfunction
        ~kind:(Curried {nlocal})
        ~params
-       ~return:Lambda.layout_top
+       ~return
        ~attr:default_stub_attribute
        ~loc
        ~body

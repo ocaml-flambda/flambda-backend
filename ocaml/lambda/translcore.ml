@@ -1006,7 +1006,7 @@ and transl_apply ~scopes
         }
   in
   let rec build_apply lam args loc pos ap_mode = function
-    | Omitted { mode_closure; mode_arg; mode_ret } :: l ->
+    | Omitted { mode_closure; mode_arg; mode_ret; ty_arg; ty_env } :: l ->
         assert (pos = Rc_normal);
         let defs = ref [] in
         let protect name (lam, layout) =
@@ -1049,8 +1049,8 @@ and transl_apply ~scopes
             | Alloc_local -> false
             | Alloc_heap -> true
           in
-          (* CR ncourant: need layout of the omitted parameter *)
-          lfunction ~kind:(Curried {nlocal}) ~params:[id_arg, Lambda.layout_top]
+          let layout_arg = Typeopt.layout ty_env ty_arg in
+          lfunction ~kind:(Curried {nlocal}) ~params:[id_arg, layout_arg]
                     ~return:result_layout ~body ~mode ~region
                     ~attr:default_stub_attribute ~loc
         in

@@ -1367,4 +1367,58 @@ let structured_constant_layout = function
   | Const_block _ | Const_immstring _ -> Pvalue Pgenval
   | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)
 
-let primitive_result_layout (_p : primitive) = layout_top
+let primitive_result_layout (p : primitive) =
+  match p with
+  | Popaque | Pobj_magic ->
+      (* CR ncourant: these should be parameterized by their layout *)
+      layout_any_value
+  | Pbytes_to_string | Pbytes_of_string -> layout_string
+  | Pignore | Psetfield _ | Psetfield_computed _ | Psetfloatfield _ | Poffsetref _
+  | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
+    -> layout_unit
+  | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
+  | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
+  | Pduparray _ | Pbigarraydim _ -> layout_block
+  | Pfield _ | Pfield_computed _ -> layout_field
+  | Pfloatfield _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
+  | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _ -> layout_float
+  | Pccall _p ->
+      (* CR ncourant: use native_repr *)
+      layout_any_value
+  | Praise _ -> layout_bottom
+  | Psequor | Psequand | Pnot
+  | Pnegint | Paddint | Psubint | Pmulint
+  | Pdivint _ | Pmodint _
+  | Pandint | Porint | Pxorint
+  | Plslint | Plsrint | Pasrint
+  | Pintcomp _
+  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Poffsetint _ | Pintoffloat | Pfloatcomp _
+  | Pstringlength | Pstringrefu | Pstringrefs
+  | Pbyteslength | Pbytesrefu | Pbytesrefs
+  | Parraylength _ | Pisint _ | Pisout | Pintofbint _
+  | Pbintcomp _
+    -> layout_int
+  | Parrayrefu array_kind | Parrayrefs array_kind ->
+      (match array_kind with
+       | Pintarray -> layout_int
+       | Pfloatarray -> layout_float
+       | Pgenarray | Paddrarray -> layout_field)
+  | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
+  | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
+  | Pmulbint (bi, _) | Pdivbint {size = bi} | Pmodbint {size = bi}
+  | Pandbint (bi, _) | Porbint (bi, _) | Pxorbint (bi, _)
+  | Plslbint (bi, _) | Plsrbint (bi, _) | Pasrbint (bi, _) ->
+      layout_boxedint bi
+  | Pbigarrayref _
+  | Pstring_load_16 _ | Pbytes_load_16 _
+  | Pstring_load_32 _ | Pbytes_load_32 _
+  | Pstring_load_64 _ | Pbytes_load_64 _
+  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
+  | Pbigstring_load_16 _
+  | Pbigstring_load_32 _ | Pbigstring_load_64 _
+  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+  | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer
+  | Pprobe_is_enabled _ | Pobj_dup
+    -> layout_any_value (* TODO *)
+

@@ -403,7 +403,9 @@ and ('a, 'b) arg_or_omitted =
 and omitted_parameter =
   { mode_closure : Types.alloc_mode;
     mode_arg : Types.alloc_mode;
-    mode_ret : Types.alloc_mode }
+    mode_ret : Types.alloc_mode;
+    ty_arg : Types.type_expr;
+    ty_env : Env.t}
 
 and apply_arg = (expression, omitted_parameter) arg_or_omitted
 
