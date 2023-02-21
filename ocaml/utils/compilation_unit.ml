@@ -175,7 +175,7 @@ module T0 : sig
   type descr = private
     { name : Name.t;
       for_pack_prefix : Prefix.t;
-      arguments : (string * t) list
+      arguments : (Name.t * t) list
     }
 
   and t
@@ -186,16 +186,16 @@ module T0 : sig
 
   val for_pack_prefix : t -> Prefix.t
 
-  val arguments : t -> (string * t) list
+  val arguments : t -> (Name.t * t) list
 
-  val create_full : Prefix.t -> Name.t -> (string * t) list -> t
+  val create_full : Prefix.t -> Name.t -> (Name.t * t) list -> t
 end = struct
   (* As with [Name.t], changing [descr] or [t] requires bumping magic
      numbers. *)
   type descr =
     { name : Name.t;
       for_pack_prefix : Prefix.t;
-      arguments : (string * t) list
+      arguments : (Name.t * t) list
     }
 
   (* type t = Simple of Name.t [@@unboxed] | Full of descr *)
@@ -262,7 +262,7 @@ end = struct
     in
     let arguments =
       ListLabels.sort
-        ~cmp:(fun (p1, _v1) (p2, _v2) -> String.compare p1 p2)
+        ~cmp:(fun (p1, _v1) (p2, _v2) -> Name.compare p1 p2)
         arguments
     in
     if empty_prefix && empty_arguments
@@ -337,7 +337,7 @@ include Identifiable.Make (struct
         if c <> 0 then c else List.compare compare_args args1 args2
 
   and compare_args (param1, value1) (param2, value2) =
-    let c = String.compare param1 param2 in
+    let c = Name.compare param1 param2 in
     if c <> 0 then c else compare value1 value2
 
   let equal x y = if x == y then true else compare x y = 0
@@ -353,7 +353,7 @@ include Identifiable.Make (struct
     ListLabels.iter ~f:(print_arg fmt) arguments
 
   and print_arg fmt (param, value) =
-    Format.fprintf fmt "[%s:%a]" param print value
+    Format.fprintf fmt "[%a:%a]" Name.print param print value
 
   let output = output_of_print print
 
