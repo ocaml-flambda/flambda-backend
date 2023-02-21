@@ -1253,10 +1253,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           ~condition_dbg:(Debuginfo.from_location loc)
           ~scrutinee k k_exn)
   | Lstringswitch (scrutinee, cases, default, loc, kind) ->
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
     cps acc env ccenv
       (Matching.expand_stringswitch loc kind scrutinee cases default)
       k k_exn
   | Lstaticraise (static_exn, args) ->
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
     let continuation = Env.get_static_exn_continuation env static_exn in
     cps_non_tail_list acc env ccenv args
       (fun acc env ccenv args ->
@@ -1268,6 +1270,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         compile_staticfail acc env ccenv ~continuation ~args:(args @ extra_args))
       k_exn
   | Lstaticcatch (body, (static_exn, args), handler, layout) ->
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
     maybe_insert_let_cont "staticcatch_result" layout k acc env ccenv
       (fun acc env ccenv k ->
         let continuation = Continuation.create () in
@@ -1344,6 +1347,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        [Begin_region] with its parent region. This use of the parent region will
        ensure that the parent does not get deleted unless the try region is
        unused. *)
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
     CC.close_let acc ccenv region Not_user_visible
       Flambda_kind.With_subkind.region
       (Begin_region { try_region_parent = Some (Env.current_region env) })
@@ -1389,6 +1393,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
   | Lwhile
       { wh_cond = cond; wh_body = body; wh_cond_region = _; wh_body_region = _ }
     ->
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
     (* CR-someday mshinwell: make use of wh_cond_region / wh_body_region? *)
     let env, loop = rec_catch_for_while_loop env cond body in
     cps acc env ccenv loop k k_exn
@@ -1400,6 +1405,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         for_body = body;
         for_region = _
       } ->
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
     let env, loop = rec_catch_for_for_loop env ident start stop dir body in
     cps acc env ccenv loop k k_exn
   | Lassign (being_assigned, new_value) ->
@@ -1648,6 +1654,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   in
   let body acc ccenv =
     let ccenv = CCenv.set_path_to_root ccenv loc in
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
     cps_tail acc new_env ccenv body body_cont body_exn_cont
   in
   let params =
@@ -1735,6 +1742,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
   cps_non_tail_var "scrutinee" acc env ccenv scrutinee
     Flambda_kind.With_subkind.any_value
     (fun acc env ccenv scrutinee ->
+      let ccenv = CCenv.set_not_at_toplevel ccenv in
       let consts_rev, wrappers = convert_arms_rev env switch.sw_consts [] in
       let blocks_rev, wrappers =
         convert_arms_rev env (List.combine block_nums sw_blocks) wrappers
@@ -1825,9 +1833,9 @@ let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~compilation_unit
     Env.create ~current_unit:compilation_unit ~return_continuation
       ~exn_continuation ~my_region:toplevel_my_region
   in
-  let toplevel acc ccenv =
+  let program acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation
   in
   CC.close_program ~mode ~big_endian ~cmx_loader ~compilation_unit
-    ~module_block_size_in_words ~program:toplevel
-    ~prog_return_cont:return_continuation ~exn_continuation ~toplevel_my_region
+    ~module_block_size_in_words ~program ~prog_return_cont:return_continuation
+    ~exn_continuation ~toplevel_my_region
