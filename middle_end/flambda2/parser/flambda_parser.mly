@@ -55,6 +55,7 @@ let make_boxed_const_int (i, m) : static_data =
 
 /* Tokens */
 
+%token AMP   [@symbol "&"]
 %token AT    [@symbol "@"]
 %token BIGARROW [@symbol "===>"]
 %token BLANK [@symbol "_"]
@@ -691,8 +692,10 @@ apply_expr:
   | call_kind = call_kind;
     inlined = option(inlined);
     inlining_state = option(inlining_state);
-    func = func_name_with_optional_arities
-    args = simple_args MINUSGREATER
+    func = func_name_with_optional_arities;
+    args = simple_args;
+    AMP region = variable;
+    MINUSGREATER
     r = result_continuation e = exn_continuation
      { let (func, arities) = func in {
        func;
@@ -703,6 +706,7 @@ apply_expr:
           inlined;
           inlining_state;
           arities;
+          region;
      } }
 ;
 

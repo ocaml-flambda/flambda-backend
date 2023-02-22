@@ -358,7 +358,8 @@ type apply =
     call_kind : call_kind;
     arities : function_arities option;
     inlined : inlined_attribute option;
-    inlining_state : inlining_state option
+    inlining_state : inlining_state option;
+    region : variable
   }
 
 type size = int

@@ -974,6 +974,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
     else Some (Apply_expr.inlined app)
   in
   let inlining_state = inlining_state (Apply_expr.inlining_state app) in
+  let region = Env.find_var_exn env (Apply_expr.region app) in
   Apply
     { func;
       continuation;
@@ -982,7 +983,8 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       call_kind;
       inlined;
       inlining_state;
-      arities
+      arities;
+      region
     }
 
 and apply_cont_expr env app_cont : Fexpr.expr =

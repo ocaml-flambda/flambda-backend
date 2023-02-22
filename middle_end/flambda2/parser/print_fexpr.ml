@@ -645,7 +645,8 @@ let rec expr scope ppf = function
         exn_continuation = ek;
         args;
         func;
-        arities
+        arities;
+        region
       } ->
     let pp_inlining_state ppf () =
       pp_option ~space:Before
@@ -653,13 +654,13 @@ let rec expr scope ppf = function
         ppf is
     in
     Format.fprintf ppf
-      "@[<hv 2>apply@[<2>%a%a%a@]@ @[<hv 2>%a%a@ @[<hov>-> %a@ %a@]@]@]"
+      "@[<hv 2>apply@[<2>%a%a%a@]@ @[<hv 2>%a%a@ &%a@ @[<hov>-> %a@ %a@]@]@]"
       (call_kind ~space:Before) kind
       (inlined_attribute_opt ~space:Before)
       inlined pp_inlining_state () func_name_with_optional_arities
       (func, arities)
       (simple_args ~space:Before ~omit_if_empty:true)
-      args result_continuation ret exn_continuation ek
+      args variable region result_continuation ret exn_continuation ek
 
 and let_expr scope ppf : let_ -> unit = function
   | { bindings = first :: rest; body; value_slots = ces } ->

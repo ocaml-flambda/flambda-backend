@@ -149,6 +149,7 @@ type token =
   | BLANK
   | BIGARROW
   | AT
+  | AMP
 
 (* This exception is raised by the monolithic API functions. *)
 

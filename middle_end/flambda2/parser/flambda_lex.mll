@@ -251,6 +251,7 @@ rule token = parse
   | "@" { AT }
   | "|"  { PIPE }
   | "~"  { TILDE }
+  | "&"  { AMP }
   | "===>" { BIGARROW }
   | identstart identchar* as ident
          { ident_or_keyword ident }

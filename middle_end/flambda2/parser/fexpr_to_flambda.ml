@@ -857,7 +857,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         continuation;
         exn_continuation;
         args;
-        arities
+        arities;
+        region
       } ->
     let continuation = find_result_cont env continuation in
     let call_kind =
@@ -909,6 +910,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       | None -> Inlining_state.default ~round:0
     in
     let exn_continuation = find_exn_cont env exn_continuation in
+    let region = find_var env region in
     let apply =
       Flambda.Apply.create
         ~callee:(Simple.name (name env func))
@@ -916,8 +918,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~args:((List.map (simple env)) args)
         ~call_kind Debuginfo.none ~inlined ~inlining_state ~probe_name:None
         ~position:Normal ~relative_history:Inlining_history.Relative.empty
-        ~region:(Variable.create "FIXME")
-      (* CR mshinwell: fix region support *)
+        ~region
     in
     Flambda.Expr.create_apply apply
   | Invalid { message } -> Flambda.Expr.create_invalid (Message message)
