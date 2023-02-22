@@ -32,3 +32,17 @@
   (progn
    (run ../tools/roundtrip.exe tests4_out.fl)
    (diff? tests4_out.fl tests4_out.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests5_in.fl)
+   (diff? tests5_in.fl tests5_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests5_out.fl)
+   (diff? tests5_out.fl tests5_out.fl.corrected))))
