@@ -34,19 +34,26 @@ val compute_loop_of_back_edge : Cfg.t -> Edge.t -> loop
 (* Assumes the passed edge is a back edge. *)
 
 type loops = loop EdgeMap.t
+(* Map from back edge to loop. *)
 
 val compute_loops_of_back_edges : Cfg.t -> Edge.t list -> loops
 (* Assumes the passed edges are back edges. *)
 
+type header_map = loop list Label.Map.t
+(* Map from loop header to loops. *)
+
+val compute_header_map : loops -> header_map
+
 type loop_depths = int Label.Map.t
 (* Maps labels to the number of nested loops it is part of. *)
 
-val compute_loop_depths : Cfg.t -> loops -> loop_depths
+val compute_loop_depths : Cfg.t -> header_map -> loop_depths
 
 type t =
   { dominators : dominators;
     back_edges : Edge.t list;
     loops : loops;
+    header_map : header_map;
     loop_depths : loop_depths
   }
 
