@@ -225,7 +225,7 @@ let emit_named_text_section ?(suffix = "") func_name =
 (* Name of current function *)
 let function_name = ref ""
 
-(* Keep current block label for -basic-block-sections to get back to it
+(* Keep the name of the current block section to get back to it
    after emitting data. *)
 let current_basic_block_section = ref ""
 
