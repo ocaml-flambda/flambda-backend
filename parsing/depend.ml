@@ -166,6 +166,9 @@ let add_type_exception bv te =
 let pattern_bv = ref String.Map.empty
 
 let rec add_pattern bv pat =
+  match Extensions.Pattern.of_ast pat with
+  | Some epat -> add_pattern_extension bv epat
+  | None      ->
   match pat.ppat_desc with
     Ppat_any -> ()
   | Ppat_var _ -> ()
@@ -192,6 +195,9 @@ let rec add_pattern bv pat =
   | Ppat_open ( m, p) -> let bv = open_module bv m.txt in add_pattern bv p
   | Ppat_exception p -> add_pattern bv p
   | Ppat_extension e -> handle_extension e
+and add_pattern_extension bv : Extensions.Pattern.t -> _ = function
+  | Epat_immutable_array (Iapat_immutable_array pl) ->
+      List.iter (add_pattern bv) pl
 
 let add_pattern bv pat =
   pattern_bv := bv;

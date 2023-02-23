@@ -59,8 +59,9 @@ PARSING = \
   parsing/docstrings.cmo \
   parsing/syntaxerr.cmo \
   parsing/ast_helper.cmo \
+  parsing/extensions_parsing.cmo parsing/extensions.cmo \
   parsing/pprintast.cmo \
-  parsing/extensions.cmo \
+  parsing/ast_iterator.cmo \
   parsing/builtin_attributes.cmo \
   parsing/camlinternalMenhirLib.cmo \
   parsing/parser.cmo \
@@ -68,7 +69,6 @@ PARSING = \
   parsing/parse.cmo \
   parsing/printast.cmo \
   parsing/ast_mapper.cmo \
-  parsing/ast_iterator.cmo \
   parsing/attr_helper.cmo \
   parsing/ast_invariants.cmo \
   parsing/depend.cmo
@@ -132,10 +132,13 @@ LAMBDA = \
   lambda/printlambda.cmo \
   lambda/switch.cmo \
   lambda/matching.cmo \
+  lambda/translmode.cmo \
+  lambda/transl_comprehension_utils.cmo \
+  lambda/transl_array_comprehension.cmo \
+  lambda/transl_list_comprehension.cmo \
   lambda/translobj.cmo \
   lambda/translattribute.cmo \
   lambda/translprim.cmo \
-  lambda/translcomprehension.cmo \
   lambda/translcore.cmo \
   lambda/translclass.cmo \
   lambda/translmod.cmo \

@@ -46,6 +46,10 @@ include (struct
     | Alloc_heap
     | Alloc_local
 
+  type modify_mode =
+    | Modify_heap
+    | Modify_maybe_stack
+
   let alloc_heap = Alloc_heap
 
   let alloc_local : alloc_mode =
@@ -57,15 +61,38 @@ include (struct
     | Alloc_local, _ | _, Alloc_local -> Alloc_local
     | Alloc_heap, Alloc_heap -> Alloc_heap
 
+  let modify_heap = Modify_heap
+
+  let modify_maybe_stack : modify_mode =
+    (* CR zqian: possible to move this check to a better place? *)
+    (* idealy I don't want to do the checking here.
+       if stack allocations are disabled, then the alloc_mode which this modify_mode
+        depends on should be heap, which makes this modify_mode to be heap *)
+
+    (* one suggestion: move the check to optimize_allocation;
+      if stack_allocation not enabled, force all allocations to be heap,
+        which then propagates to all the other modes.
+       *)
+    if Config.stack_allocation then Modify_maybe_stack
+    else Modify_heap
+
 end : sig
 
   type alloc_mode = private
     | Alloc_heap
     | Alloc_local
 
+  type modify_mode = private
+    | Modify_heap
+    | Modify_maybe_stack
+
   val alloc_heap : alloc_mode
 
   val alloc_local : alloc_mode
+
+  val modify_heap : modify_mode
+
+  val modify_maybe_stack : modify_mode
 
   val join_mode : alloc_mode -> alloc_mode -> alloc_mode
 
@@ -93,7 +120,7 @@ let eq_mode a b =
   | Alloc_local, Alloc_heap -> false
 
 type initialization_or_assignment =
-  | Assignment of alloc_mode
+  | Assignment of modify_mode
   | Heap_initialization
   | Root_initialization
 

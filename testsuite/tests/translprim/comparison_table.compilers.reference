@@ -1,148 +1,208 @@
 (setglobal Comparison_table!
   (let
-    (gen_cmp = (function x y : int (caml_compare x y))
-     int_cmp = (function x[int] y[int] : int (compare_ints x y))
-     bool_cmp = (function x[int] y[int] : int (compare_ints x y))
-     intlike_cmp = (function x[int] y[int] : int (compare_ints x y))
-     float_cmp = (function x[float] y[float] : int (compare_floats x y))
-     string_cmp = (function x y : int (caml_string_compare x y))
-     int32_cmp = (function x[int32] y[int32] : int (compare_bints int32 x y))
-     int64_cmp = (function x[int64] y[int64] : int (compare_bints int64 x y))
+    (gen_cmp = (function {nlocal = 0} x y : int (caml_compare x y))
+     int_cmp = (function {nlocal = 0} x[int] y[int] : int (compare_ints x y))
+     bool_cmp =
+       (function {nlocal = 0} x[int] y[int] : int (compare_ints x y))
+     intlike_cmp =
+       (function {nlocal = 0} x[int] y[int] : int (compare_ints x y))
+     float_cmp =
+       (function {nlocal = 0} x[float] y[float] : int (compare_floats x y))
+     string_cmp = (function {nlocal = 0} x y : int (caml_string_compare x y))
+     int32_cmp =
+       (function {nlocal = 0} x[int32] y[int32] : int
+         (compare_bints int32 x y))
+     int64_cmp =
+       (function {nlocal = 0} x[int64] y[int64] : int
+         (compare_bints int64 x y))
      nativeint_cmp =
-       (function x[nativeint] y[nativeint] : int
+       (function {nlocal = 0} x[nativeint] y[nativeint] : int
          (compare_bints nativeint x y))
-     gen_eq = (function x y : int (caml_equal x y))
-     int_eq = (function x[int] y[int] : int (== x y))
-     bool_eq = (function x[int] y[int] : int (== x y))
-     intlike_eq = (function x[int] y[int] : int (== x y))
-     float_eq = (function x[float] y[float] : int (==. x y))
-     string_eq = (function x y : int (caml_string_equal x y))
-     int32_eq = (function x[int32] y[int32] : int (Int32.== x y))
-     int64_eq = (function x[int64] y[int64] : int (Int64.== x y))
+     gen_eq = (function {nlocal = 0} x y : int (caml_equal x y))
+     int_eq = (function {nlocal = 0} x[int] y[int] : int (== x y))
+     bool_eq = (function {nlocal = 0} x[int] y[int] : int (== x y))
+     intlike_eq = (function {nlocal = 0} x[int] y[int] : int (== x y))
+     float_eq = (function {nlocal = 0} x[float] y[float] : int (==. x y))
+     string_eq = (function {nlocal = 0} x y : int (caml_string_equal x y))
+     int32_eq =
+       (function {nlocal = 0} x[int32] y[int32] : int (Int32.== x y))
+     int64_eq =
+       (function {nlocal = 0} x[int64] y[int64] : int (Int64.== x y))
      nativeint_eq =
-       (function x[nativeint] y[nativeint] : int (Nativeint.== x y))
-     gen_ne = (function x y : int (caml_notequal x y))
-     int_ne = (function x[int] y[int] : int (!= x y))
-     bool_ne = (function x[int] y[int] : int (!= x y))
-     intlike_ne = (function x[int] y[int] : int (!= x y))
-     float_ne = (function x[float] y[float] : int (!=. x y))
-     string_ne = (function x y : int (caml_string_notequal x y))
-     int32_ne = (function x[int32] y[int32] : int (Int32.!= x y))
-     int64_ne = (function x[int64] y[int64] : int (Int64.!= x y))
+       (function {nlocal = 0} x[nativeint] y[nativeint] : int
+         (Nativeint.== x y))
+     gen_ne = (function {nlocal = 0} x y : int (caml_notequal x y))
+     int_ne = (function {nlocal = 0} x[int] y[int] : int (!= x y))
+     bool_ne = (function {nlocal = 0} x[int] y[int] : int (!= x y))
+     intlike_ne = (function {nlocal = 0} x[int] y[int] : int (!= x y))
+     float_ne = (function {nlocal = 0} x[float] y[float] : int (!=. x y))
+     string_ne = (function {nlocal = 0} x y : int (caml_string_notequal x y))
+     int32_ne =
+       (function {nlocal = 0} x[int32] y[int32] : int (Int32.!= x y))
+     int64_ne =
+       (function {nlocal = 0} x[int64] y[int64] : int (Int64.!= x y))
      nativeint_ne =
-       (function x[nativeint] y[nativeint] : int (Nativeint.!= x y))
-     gen_lt = (function x y : int (caml_lessthan x y))
-     int_lt = (function x[int] y[int] : int (< x y))
-     bool_lt = (function x[int] y[int] : int (< x y))
-     intlike_lt = (function x[int] y[int] : int (< x y))
-     float_lt = (function x[float] y[float] : int (<. x y))
-     string_lt = (function x y : int (caml_string_lessthan x y))
-     int32_lt = (function x[int32] y[int32] : int (Int32.< x y))
-     int64_lt = (function x[int64] y[int64] : int (Int64.< x y))
+       (function {nlocal = 0} x[nativeint] y[nativeint] : int
+         (Nativeint.!= x y))
+     gen_lt = (function {nlocal = 0} x y : int (caml_lessthan x y))
+     int_lt = (function {nlocal = 0} x[int] y[int] : int (< x y))
+     bool_lt = (function {nlocal = 0} x[int] y[int] : int (< x y))
+     intlike_lt = (function {nlocal = 0} x[int] y[int] : int (< x y))
+     float_lt = (function {nlocal = 0} x[float] y[float] : int (<. x y))
+     string_lt = (function {nlocal = 0} x y : int (caml_string_lessthan x y))
+     int32_lt = (function {nlocal = 0} x[int32] y[int32] : int (Int32.< x y))
+     int64_lt = (function {nlocal = 0} x[int64] y[int64] : int (Int64.< x y))
      nativeint_lt =
-       (function x[nativeint] y[nativeint] : int (Nativeint.< x y))
-     gen_gt = (function x y : int (caml_greaterthan x y))
-     int_gt = (function x[int] y[int] : int (> x y))
-     bool_gt = (function x[int] y[int] : int (> x y))
-     intlike_gt = (function x[int] y[int] : int (> x y))
-     float_gt = (function x[float] y[float] : int (>. x y))
-     string_gt = (function x y : int (caml_string_greaterthan x y))
-     int32_gt = (function x[int32] y[int32] : int (Int32.> x y))
-     int64_gt = (function x[int64] y[int64] : int (Int64.> x y))
+       (function {nlocal = 0} x[nativeint] y[nativeint] : int
+         (Nativeint.< x y))
+     gen_gt = (function {nlocal = 0} x y : int (caml_greaterthan x y))
+     int_gt = (function {nlocal = 0} x[int] y[int] : int (> x y))
+     bool_gt = (function {nlocal = 0} x[int] y[int] : int (> x y))
+     intlike_gt = (function {nlocal = 0} x[int] y[int] : int (> x y))
+     float_gt = (function {nlocal = 0} x[float] y[float] : int (>. x y))
+     string_gt =
+       (function {nlocal = 0} x y : int (caml_string_greaterthan x y))
+     int32_gt = (function {nlocal = 0} x[int32] y[int32] : int (Int32.> x y))
+     int64_gt = (function {nlocal = 0} x[int64] y[int64] : int (Int64.> x y))
      nativeint_gt =
-       (function x[nativeint] y[nativeint] : int (Nativeint.> x y))
-     gen_le = (function x y : int (caml_lessequal x y))
-     int_le = (function x[int] y[int] : int (<= x y))
-     bool_le = (function x[int] y[int] : int (<= x y))
-     intlike_le = (function x[int] y[int] : int (<= x y))
-     float_le = (function x[float] y[float] : int (<=. x y))
-     string_le = (function x y : int (caml_string_lessequal x y))
-     int32_le = (function x[int32] y[int32] : int (Int32.<= x y))
-     int64_le = (function x[int64] y[int64] : int (Int64.<= x y))
+       (function {nlocal = 0} x[nativeint] y[nativeint] : int
+         (Nativeint.> x y))
+     gen_le = (function {nlocal = 0} x y : int (caml_lessequal x y))
+     int_le = (function {nlocal = 0} x[int] y[int] : int (<= x y))
+     bool_le = (function {nlocal = 0} x[int] y[int] : int (<= x y))
+     intlike_le = (function {nlocal = 0} x[int] y[int] : int (<= x y))
+     float_le = (function {nlocal = 0} x[float] y[float] : int (<=. x y))
+     string_le =
+       (function {nlocal = 0} x y : int (caml_string_lessequal x y))
+     int32_le =
+       (function {nlocal = 0} x[int32] y[int32] : int (Int32.<= x y))
+     int64_le =
+       (function {nlocal = 0} x[int64] y[int64] : int (Int64.<= x y))
      nativeint_le =
-       (function x[nativeint] y[nativeint] : int (Nativeint.<= x y))
-     gen_ge = (function x y : int (caml_greaterequal x y))
-     int_ge = (function x[int] y[int] : int (>= x y))
-     bool_ge = (function x[int] y[int] : int (>= x y))
-     intlike_ge = (function x[int] y[int] : int (>= x y))
-     float_ge = (function x[float] y[float] : int (>=. x y))
-     string_ge = (function x y : int (caml_string_greaterequal x y))
-     int32_ge = (function x[int32] y[int32] : int (Int32.>= x y))
-     int64_ge = (function x[int64] y[int64] : int (Int64.>= x y))
+       (function {nlocal = 0} x[nativeint] y[nativeint] : int
+         (Nativeint.<= x y))
+     gen_ge = (function {nlocal = 0} x y : int (caml_greaterequal x y))
+     int_ge = (function {nlocal = 0} x[int] y[int] : int (>= x y))
+     bool_ge = (function {nlocal = 0} x[int] y[int] : int (>= x y))
+     intlike_ge = (function {nlocal = 0} x[int] y[int] : int (>= x y))
+     float_ge = (function {nlocal = 0} x[float] y[float] : int (>=. x y))
+     string_ge =
+       (function {nlocal = 0} x y : int (caml_string_greaterequal x y))
+     int32_ge =
+       (function {nlocal = 0} x[int32] y[int32] : int (Int32.>= x y))
+     int64_ge =
+       (function {nlocal = 0} x[int64] y[int64] : int (Int64.>= x y))
      nativeint_ge =
-       (function x[nativeint] y[nativeint] : int (Nativeint.>= x y))
-     eta_gen_cmp = (function prim prim stub (caml_compare prim prim))
-     eta_int_cmp = (function prim prim stub (compare_ints prim prim))
-     eta_bool_cmp = (function prim prim stub (compare_ints prim prim))
-     eta_intlike_cmp = (function prim prim stub (compare_ints prim prim))
-     eta_float_cmp = (function prim prim stub (compare_floats prim prim))
+       (function {nlocal = 0} x[nativeint] y[nativeint] : int
+         (Nativeint.>= x y))
+     eta_gen_cmp =
+       (function {nlocal = 0} prim prim stub (caml_compare prim prim))
+     eta_int_cmp =
+       (function {nlocal = 0} prim prim stub (compare_ints prim prim))
+     eta_bool_cmp =
+       (function {nlocal = 0} prim prim stub (compare_ints prim prim))
+     eta_intlike_cmp =
+       (function {nlocal = 0} prim prim stub (compare_ints prim prim))
+     eta_float_cmp =
+       (function {nlocal = 0} prim prim stub (compare_floats prim prim))
      eta_string_cmp =
-       (function prim prim stub (caml_string_compare prim prim))
+       (function {nlocal = 0} prim prim stub (caml_string_compare prim prim))
      eta_int32_cmp =
-       (function prim prim stub (compare_bints int32 prim prim))
+       (function {nlocal = 0} prim prim stub (compare_bints int32 prim prim))
      eta_int64_cmp =
-       (function prim prim stub (compare_bints int64 prim prim))
+       (function {nlocal = 0} prim prim stub (compare_bints int64 prim prim))
      eta_nativeint_cmp =
-       (function prim prim stub (compare_bints nativeint prim prim))
-     eta_gen_eq = (function prim prim stub (caml_equal prim prim))
-     eta_int_eq = (function prim prim stub (== prim prim))
-     eta_bool_eq = (function prim prim stub (== prim prim))
-     eta_intlike_eq = (function prim prim stub (== prim prim))
-     eta_float_eq = (function prim prim stub (==. prim prim))
-     eta_string_eq = (function prim prim stub (caml_string_equal prim prim))
-     eta_int32_eq = (function prim prim stub (Int32.== prim prim))
-     eta_int64_eq = (function prim prim stub (Int64.== prim prim))
-     eta_nativeint_eq = (function prim prim stub (Nativeint.== prim prim))
-     eta_gen_ne = (function prim prim stub (caml_notequal prim prim))
-     eta_int_ne = (function prim prim stub (!= prim prim))
-     eta_bool_ne = (function prim prim stub (!= prim prim))
-     eta_intlike_ne = (function prim prim stub (!= prim prim))
-     eta_float_ne = (function prim prim stub (!=. prim prim))
+       (function {nlocal = 0} prim prim stub
+         (compare_bints nativeint prim prim))
+     eta_gen_eq =
+       (function {nlocal = 0} prim prim stub (caml_equal prim prim))
+     eta_int_eq = (function {nlocal = 0} prim prim stub (== prim prim))
+     eta_bool_eq = (function {nlocal = 0} prim prim stub (== prim prim))
+     eta_intlike_eq = (function {nlocal = 0} prim prim stub (== prim prim))
+     eta_float_eq = (function {nlocal = 0} prim prim stub (==. prim prim))
+     eta_string_eq =
+       (function {nlocal = 0} prim prim stub (caml_string_equal prim prim))
+     eta_int32_eq =
+       (function {nlocal = 0} prim prim stub (Int32.== prim prim))
+     eta_int64_eq =
+       (function {nlocal = 0} prim prim stub (Int64.== prim prim))
+     eta_nativeint_eq =
+       (function {nlocal = 0} prim prim stub (Nativeint.== prim prim))
+     eta_gen_ne =
+       (function {nlocal = 0} prim prim stub (caml_notequal prim prim))
+     eta_int_ne = (function {nlocal = 0} prim prim stub (!= prim prim))
+     eta_bool_ne = (function {nlocal = 0} prim prim stub (!= prim prim))
+     eta_intlike_ne = (function {nlocal = 0} prim prim stub (!= prim prim))
+     eta_float_ne = (function {nlocal = 0} prim prim stub (!=. prim prim))
      eta_string_ne =
-       (function prim prim stub (caml_string_notequal prim prim))
-     eta_int32_ne = (function prim prim stub (Int32.!= prim prim))
-     eta_int64_ne = (function prim prim stub (Int64.!= prim prim))
-     eta_nativeint_ne = (function prim prim stub (Nativeint.!= prim prim))
-     eta_gen_lt = (function prim prim stub (caml_lessthan prim prim))
-     eta_int_lt = (function prim prim stub (< prim prim))
-     eta_bool_lt = (function prim prim stub (< prim prim))
-     eta_intlike_lt = (function prim prim stub (< prim prim))
-     eta_float_lt = (function prim prim stub (<. prim prim))
+       (function {nlocal = 0} prim prim stub
+         (caml_string_notequal prim prim))
+     eta_int32_ne =
+       (function {nlocal = 0} prim prim stub (Int32.!= prim prim))
+     eta_int64_ne =
+       (function {nlocal = 0} prim prim stub (Int64.!= prim prim))
+     eta_nativeint_ne =
+       (function {nlocal = 0} prim prim stub (Nativeint.!= prim prim))
+     eta_gen_lt =
+       (function {nlocal = 0} prim prim stub (caml_lessthan prim prim))
+     eta_int_lt = (function {nlocal = 0} prim prim stub (< prim prim))
+     eta_bool_lt = (function {nlocal = 0} prim prim stub (< prim prim))
+     eta_intlike_lt = (function {nlocal = 0} prim prim stub (< prim prim))
+     eta_float_lt = (function {nlocal = 0} prim prim stub (<. prim prim))
      eta_string_lt =
-       (function prim prim stub (caml_string_lessthan prim prim))
-     eta_int32_lt = (function prim prim stub (Int32.< prim prim))
-     eta_int64_lt = (function prim prim stub (Int64.< prim prim))
-     eta_nativeint_lt = (function prim prim stub (Nativeint.< prim prim))
-     eta_gen_gt = (function prim prim stub (caml_greaterthan prim prim))
-     eta_int_gt = (function prim prim stub (> prim prim))
-     eta_bool_gt = (function prim prim stub (> prim prim))
-     eta_intlike_gt = (function prim prim stub (> prim prim))
-     eta_float_gt = (function prim prim stub (>. prim prim))
+       (function {nlocal = 0} prim prim stub
+         (caml_string_lessthan prim prim))
+     eta_int32_lt =
+       (function {nlocal = 0} prim prim stub (Int32.< prim prim))
+     eta_int64_lt =
+       (function {nlocal = 0} prim prim stub (Int64.< prim prim))
+     eta_nativeint_lt =
+       (function {nlocal = 0} prim prim stub (Nativeint.< prim prim))
+     eta_gen_gt =
+       (function {nlocal = 0} prim prim stub (caml_greaterthan prim prim))
+     eta_int_gt = (function {nlocal = 0} prim prim stub (> prim prim))
+     eta_bool_gt = (function {nlocal = 0} prim prim stub (> prim prim))
+     eta_intlike_gt = (function {nlocal = 0} prim prim stub (> prim prim))
+     eta_float_gt = (function {nlocal = 0} prim prim stub (>. prim prim))
      eta_string_gt =
-       (function prim prim stub (caml_string_greaterthan prim prim))
-     eta_int32_gt = (function prim prim stub (Int32.> prim prim))
-     eta_int64_gt = (function prim prim stub (Int64.> prim prim))
-     eta_nativeint_gt = (function prim prim stub (Nativeint.> prim prim))
-     eta_gen_le = (function prim prim stub (caml_lessequal prim prim))
-     eta_int_le = (function prim prim stub (<= prim prim))
-     eta_bool_le = (function prim prim stub (<= prim prim))
-     eta_intlike_le = (function prim prim stub (<= prim prim))
-     eta_float_le = (function prim prim stub (<=. prim prim))
+       (function {nlocal = 0} prim prim stub
+         (caml_string_greaterthan prim prim))
+     eta_int32_gt =
+       (function {nlocal = 0} prim prim stub (Int32.> prim prim))
+     eta_int64_gt =
+       (function {nlocal = 0} prim prim stub (Int64.> prim prim))
+     eta_nativeint_gt =
+       (function {nlocal = 0} prim prim stub (Nativeint.> prim prim))
+     eta_gen_le =
+       (function {nlocal = 0} prim prim stub (caml_lessequal prim prim))
+     eta_int_le = (function {nlocal = 0} prim prim stub (<= prim prim))
+     eta_bool_le = (function {nlocal = 0} prim prim stub (<= prim prim))
+     eta_intlike_le = (function {nlocal = 0} prim prim stub (<= prim prim))
+     eta_float_le = (function {nlocal = 0} prim prim stub (<=. prim prim))
      eta_string_le =
-       (function prim prim stub (caml_string_lessequal prim prim))
-     eta_int32_le = (function prim prim stub (Int32.<= prim prim))
-     eta_int64_le = (function prim prim stub (Int64.<= prim prim))
-     eta_nativeint_le = (function prim prim stub (Nativeint.<= prim prim))
-     eta_gen_ge = (function prim prim stub (caml_greaterequal prim prim))
-     eta_int_ge = (function prim prim stub (>= prim prim))
-     eta_bool_ge = (function prim prim stub (>= prim prim))
-     eta_intlike_ge = (function prim prim stub (>= prim prim))
-     eta_float_ge = (function prim prim stub (>=. prim prim))
+       (function {nlocal = 0} prim prim stub
+         (caml_string_lessequal prim prim))
+     eta_int32_le =
+       (function {nlocal = 0} prim prim stub (Int32.<= prim prim))
+     eta_int64_le =
+       (function {nlocal = 0} prim prim stub (Int64.<= prim prim))
+     eta_nativeint_le =
+       (function {nlocal = 0} prim prim stub (Nativeint.<= prim prim))
+     eta_gen_ge =
+       (function {nlocal = 0} prim prim stub (caml_greaterequal prim prim))
+     eta_int_ge = (function {nlocal = 0} prim prim stub (>= prim prim))
+     eta_bool_ge = (function {nlocal = 0} prim prim stub (>= prim prim))
+     eta_intlike_ge = (function {nlocal = 0} prim prim stub (>= prim prim))
+     eta_float_ge = (function {nlocal = 0} prim prim stub (>=. prim prim))
      eta_string_ge =
-       (function prim prim stub (caml_string_greaterequal prim prim))
-     eta_int32_ge = (function prim prim stub (Int32.>= prim prim))
-     eta_int64_ge = (function prim prim stub (Int64.>= prim prim))
-     eta_nativeint_ge = (function prim prim stub (Nativeint.>= prim prim))
+       (function {nlocal = 0} prim prim stub
+         (caml_string_greaterequal prim prim))
+     eta_int32_ge =
+       (function {nlocal = 0} prim prim stub (Int32.>= prim prim))
+     eta_int64_ge =
+       (function {nlocal = 0} prim prim stub (Int64.>= prim prim))
+     eta_nativeint_ge =
+       (function {nlocal = 0} prim prim stub (Nativeint.>= prim prim))
      int_vec =[(consts (0))
                (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
        [0: [0: 1 1] [0: [0: 1 2] [0: [0: 2 1] 0]]]
@@ -171,7 +231,7 @@
                                    [(consts (0)) (non_consts ([0: *, *]))]]))]
        [0: [0: 1n 1n] [0: [0: 1n 2n] [0: [0: 2n 1n] 0]]]
      test_vec =
-       (function cmp eq ne lt gt le ge
+       (function {nlocal = 0} cmp eq ne lt gt le ge
          vec[(consts (0))
              (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
          [(consts ())
@@ -179,6 +239,7 @@
                         [(consts (0)) (non_consts ([0: *, *]))]]))](let
                                                                     (uncurry =
                                                                     (function
+                                                                    {nlocal = 0}
                                                                     f
                                                                     param
                                                                     [(consts ())
@@ -191,6 +252,7 @@
                                                                     param)))
                                                                     map =
                                                                     (function
+                                                                    {nlocal = 2}
                                                                     f
                                                                     l[(consts (0))
                                                                     (non_consts (
@@ -249,6 +311,7 @@
                                                                     (apply
                                                                     map
                                                                     (function
+                                                                    {nlocal = 2}
                                                                     gen spec
                                                                     [(consts ())
                                                                     (non_consts (
@@ -375,7 +438,7 @@
         nativeint_gt nativeint_le nativeint_ge nativeint_vec)
       (let
         (eta_test_vec =
-           (function cmp eq ne lt gt le ge
+           (function {nlocal = 0} cmp eq ne lt gt le ge
              vec[(consts (0))
                  (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
              [(consts ())
@@ -383,10 +446,11 @@
                             [(consts (0)) (non_consts ([0: *, *]))]]))]
              (let
                (uncurry =
-                  (function f param[(consts ()) (non_consts ([0: *, *]))]
+                  (function {nlocal = 0} f
+                    param[(consts ()) (non_consts ([0: *, *]))]
                     (apply f (field 0 param) (field 1 param)))
                 map =
-                  (function f
+                  (function {nlocal = 2} f
                     l[(consts (0))
                       (non_consts ([0: *,
                                     [(consts (0)) (non_consts ([0: *, *]))]]))]
@@ -413,7 +477,7 @@
                                   [(consts (0)) (non_consts ([0: *, *]))]]))])
                    (apply map eta_gen_cmp vec) (apply map cmp vec))
                  (apply map
-                   (function gen spec
+                   (function {nlocal = 2} gen spec
                      [(consts ())
                       (non_consts ([0:
                                     [(consts (0)) (non_consts ([0: *, *]))],

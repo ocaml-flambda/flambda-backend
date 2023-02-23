@@ -41,6 +41,9 @@
     longident
     docstrings
     syntaxerr
+    extensions_parsing
+    extensions
+    ast_iterator
     ast_helper
     ast_mapper
     attr_helper
@@ -120,6 +123,9 @@
 (copy_files ../../parsing/longident.ml)
 (copy_files ../../parsing/docstrings.ml)
 (copy_files ../../parsing/syntaxerr.ml)
+(copy_files ../../parsing/extensions_parsing.ml)
+(copy_files ../../parsing/extensions.ml)
+(copy_files ../../parsing/ast_iterator.ml)
 (copy_files ../../parsing/ast_helper.ml)
 (copy_files ../../parsing/ast_mapper.ml)
 (copy_files ../../parsing/attr_helper.ml)
@@ -172,6 +178,9 @@
 (copy_files ../../parsing/longident.mli)
 (copy_files ../../parsing/docstrings.mli)
 (copy_files ../../parsing/syntaxerr.mli)
+(copy_files ../../parsing/extensions_parsing.mli)
+(copy_files ../../parsing/extensions.mli)
+(copy_files ../../parsing/ast_iterator.mli)
 (copy_files ../../parsing/ast_helper.mli)
 (copy_files ../../parsing/ast_mapper.mli)
 (copy_files ../../parsing/attr_helper.mli)
@@ -274,6 +283,9 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Persistent_env.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Docstrings.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_helper.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Extensions_parsing.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Extensions.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_iterator.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Builtin_attributes.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Type_immediacy.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Attr_helper.cmo
@@ -341,6 +353,9 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Persistent_env.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Extensions_parsing.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Extensions.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_iterator.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Type_immediacy.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Attr_helper.cmx

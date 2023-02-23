@@ -162,6 +162,16 @@ val of_list : 'a list -> 'a array
    @raise Invalid_argument if the length of [l] is greater than
    [Sys.max_array_length]. *)
 
+(** {1 Converting to and from mutable arrays} *)
+
+val to_iarray : 'a array -> 'a iarray
+(** [to_iarray a] returns an immutable copy of the (mutable) array [a]; that is,
+   a fresh immutable array containing the same elements as [a] *)
+
+val of_iarray : 'a iarray -> 'a array
+(** [of_iarray ia] returns a mutable copy of the immutable array [ia]; that is,
+   a fresh (mutable) array containing the same elements as [ia] *)
+
 (** {1 Iterators} *)
 
 val iter : f:('a -> unit) -> 'a array -> unit

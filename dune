@@ -67,8 +67,8 @@
 
    ;; PARSING
    location longident docstrings syntaxerr ast_helper camlinternalMenhirLib
-   parser lexer parse printast pprintast ast_mapper ast_iterator attr_helper
-   builtin_attributes ast_invariants depend extensions
+   ast_iterator parser lexer parse printast pprintast ast_mapper attr_helper
+   builtin_attributes ast_invariants depend extensions_parsing extensions
    ; manual update: mli only files
    asttypes parsetree
 
@@ -87,8 +87,10 @@
 
    ;; lambda/
    debuginfo lambda matching printlambda runtimedef tmc simplif switch
-   translattribute translclass translcomprehension translcore translmod
-   translobj translprim
+   translmode
+   transl_comprehension_utils
+   transl_array_comprehension transl_list_comprehension
+   translattribute translclass translcore translmod translobj translprim
 
    ;; bytecomp/
    debug_event meta opcodes bytesections dll symtable
@@ -316,6 +318,7 @@
     (runtimedef.mli as compiler-libs/runtimedef.mli)
     (simplif.mli as compiler-libs/simplif.mli)
     (switch.mli as compiler-libs/switch.mli)
+    (translmode.mli as compiler-libs/translmode.mli)
     (translattribute.mli as compiler-libs/translattribute.mli)
     (translclass.mli as compiler-libs/translclass.mli)
     (translcore.mli as compiler-libs/translcore.mli)

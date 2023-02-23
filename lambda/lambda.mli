@@ -38,15 +38,23 @@ type alloc_mode = private
   | Alloc_heap
   | Alloc_local
 
+type modify_mode = private
+  | Modify_heap
+  | Modify_maybe_stack
+
 val alloc_heap : alloc_mode
 
 (* Actually [Alloc_heap] if [Config.stack_allocation] is [false] *)
 val alloc_local : alloc_mode
 
+val modify_heap : modify_mode
+
+val modify_maybe_stack : modify_mode
+
 type initialization_or_assignment =
   (* [Assignment Alloc_local] is a mutation of a block that may be heap or local.
      [Assignment Alloc_heap] is a mutation of a block that's definitely heap. *)
-  | Assignment of alloc_mode
+  | Assignment of modify_mode
   (* Initialization of in heap values, like [caml_initialize] C primitive.  The
      field should not have been read before and initialization should happen
      only once. *)
@@ -355,8 +363,8 @@ type lambda =
   | Lstaticraise of int * lambda list
   | Lstaticcatch of lambda * (int * (Ident.t * value_kind) list) * lambda * value_kind
   | Ltrywith of lambda * Ident.t * lambda * value_kind
-(* Lifthenelse (e, t, f) evaluates t if e evaluates to 0, and
-   evaluates f if e evaluates to any other value *)
+(* Lifthenelse (e, t, f, vk) evaluates t if e evaluates to 0, and evaluates f if
+   e evaluates to any other value; vk must be the value_kind of [t] and [f] *)
   | Lifthenelse of lambda * lambda * lambda * value_kind
   | Lsequence of lambda * lambda
   | Lwhile of lambda_while

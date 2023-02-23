@@ -343,4 +343,4 @@ module M : sig type t [@@immediate] end
 type t2 = { x : int; } [@@unboxed]
 val f : local_ M.t -> M.t = <fun>
 val f : local_ t2 -> t2 = <fun>
-|}]  
+|}]

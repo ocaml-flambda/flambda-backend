@@ -298,7 +298,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
   match pat with
       { pat_extra=[Tpat_unpack, loc, _attrs]; pat_desc = Tpat_any; _ } ->
         Ppat_unpack { txt = None; loc  }
-    | { pat_extra=[Tpat_unpack, _, _attrs]; pat_desc = Tpat_var (_,name); _ } ->
+    | { pat_extra=[Tpat_unpack, _, _attrs]; pat_desc = Tpat_var (_,name,_); _ } ->
         Ppat_unpack { name with txt = Some name.txt }
     | { pat_extra=[Tpat_type (_path, lid), _, _attrs]; _ } ->
         Ppat_type (map_loc sub lid)
@@ -308,7 +308,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | _ ->
     match pat.pat_desc with
       Tpat_any -> Ppat_any
-    | Tpat_var (id, name) ->
+    | Tpat_var (id, name,_) ->
         begin
           match (Ident.name id).[0] with
             'A'..'Z' ->
@@ -321,11 +321,11 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
        The compiler transforms (x:t) into (_ as x : t).
        This avoids transforming a warning 27 into a 26.
      *)
-    | Tpat_alias ({pat_desc = Tpat_any; pat_loc}, _id, name)
+    | Tpat_alias ({pat_desc = Tpat_any; pat_loc}, _id, name, _mode)
          when pat_loc = pat.pat_loc ->
        Ppat_var name
 
-    | Tpat_alias (pat, _id, name) ->
+    | Tpat_alias (pat, _id, name, _mode) ->
         Ppat_alias (sub.pat sub pat, name)
     | Tpat_constant cst -> Ppat_constant (constant cst)
     | Tpat_tuple list ->
@@ -357,7 +357,15 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | Tpat_record (list, closed) ->
         Ppat_record (List.map (fun (lid, _, pat) ->
             map_loc sub lid, sub.pat sub pat) list, closed)
-    | Tpat_array list -> Ppat_array (List.map (sub.pat sub) list)
+    | Tpat_array (am, list) -> begin
+        let pats = List.map (sub.pat sub) list in
+        match am with
+        | Mutable   -> Ppat_array pats
+        | Immutable -> (Extensions.Immutable_arrays.pat_of
+                          ~loc
+                          (Iapat_immutable_array pats)
+                       ).ppat_desc
+      end
     | Tpat_lazy p -> Ppat_lazy (sub.pat sub p)
 
     | Tpat_exception p -> Ppat_exception (sub.pat sub p)
@@ -396,23 +404,42 @@ let value_binding sub vb =
     (sub.pat sub vb.vb_pat)
     (sub.expr sub vb.vb_expr)
 
+let comprehension ~loc sub comp_type comp =
+  let open Extensions.Comprehensions in
+  let iterator = function
+    | Texp_comp_range { ident = _; pattern; start ; stop ; direction } ->
+        pattern,
+        Range { start = sub.expr sub start
+              ; stop  = sub.expr sub stop
+              ; direction }
+    | Texp_comp_in { pattern; sequence } ->
+        sub.pat sub pattern,
+        In (sub.expr sub sequence)
+  in
+  let binding { comp_cb_iterator ; comp_cb_attributes } =
+    let pattern, iterator = iterator comp_cb_iterator in
+    { pattern
+    ; iterator
+    ; attributes = comp_cb_attributes }
+  in
+  let clause = function
+    | Texp_comp_for  bindings -> For (List.map binding bindings)
+    | Texp_comp_when cond     -> When (sub.expr sub cond)
+  in
+  let comprehension { comp_body; comp_clauses } =
+    { body    = sub.expr sub comp_body
+    ; clauses = List.map clause comp_clauses }
+  in
+  let comprehension_expr =
+    Extensions.Comprehensions.expr_of
+      ~loc
+      (comp_type (comprehension comp))
+  in
+  comprehension_expr.pexp_desc
+
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
   let attrs = sub.attributes sub exp.exp_attributes in
-  let map_comprehension comp_types=
-      List.map (fun {clauses; guard}  ->
-        let clauses =
-          List.map (fun comp_type ->
-            match comp_type with
-            | From_to (_, p, e2, e3, dir) ->
-              Extensions.From_to(p, sub.expr sub e2, sub.expr sub e3, dir)
-            | In (p, e2) -> Extensions.In(sub.pat sub p, sub.expr sub e2)
-          ) clauses
-        in
-        ({clauses; guard=(Option.map (sub.expr sub) guard)}
-            : Extensions.comprehension )
-      ) comp_types
-  in
   let desc =
     match exp.exp_desc with
       Texp_ident (_path, lid, _, _) -> Pexp_ident (map_loc sub lid)
@@ -437,7 +464,7 @@ let expression sub exp =
         Pexp_fun (label, None, Pat.var ~loc {loc;txt = name },
           Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
                           (List.map (sub.case sub) cases))
-    | Texp_apply (exp, list, _) ->
+    | Texp_apply (exp, list, _, _) ->
         Pexp_apply (sub.expr sub exp,
           List.fold_right (fun (label, arg) list ->
               match arg with
@@ -448,9 +475,9 @@ let expression sub exp =
       Pexp_match (sub.expr sub exp, List.map (sub.case sub) cases)
     | Texp_try (exp, cases) ->
         Pexp_try (sub.expr sub exp, List.map (sub.case sub) cases)
-    | Texp_tuple list ->
+    | Texp_tuple (list, _) ->
         Pexp_tuple (List.map (sub.expr sub) list)
-    | Texp_construct (lid, _, args) ->
+    | Texp_construct (lid, _, args, _) ->
         Pexp_construct (map_loc sub lid,
           (match args with
               [] -> None
@@ -460,7 +487,7 @@ let expression sub exp =
                 (Exp.tuple ~loc (List.map (sub.expr sub) args))
           ))
     | Texp_variant (label, expo) ->
-        Pexp_variant (label, Option.map (sub.expr sub) expo)
+        Pexp_variant (label, Option.map (fun (e, _) -> sub.expr sub e) expo)
     | Texp_record { fields; extended_expression; _ } ->
         let list = Array.fold_left (fun l -> function
             | _, Kept _ -> l
@@ -468,13 +495,31 @@ let expression sub exp =
             [] fields
         in
         Pexp_record (list, Option.map (sub.expr sub) extended_expression)
-    | Texp_field (exp, lid, _label) ->
+    | Texp_field (exp, lid, _label, _) ->
         Pexp_field (sub.expr sub exp, map_loc sub lid)
-    | Texp_setfield (exp1, lid, _label, exp2) ->
+    | Texp_setfield (exp1, _, lid, _label, exp2) ->
         Pexp_setfield (sub.expr sub exp1, map_loc sub lid,
           sub.expr sub exp2)
-    | Texp_array list ->
-        Pexp_array (List.map (sub.expr sub) list)
+    | Texp_array (amut, list, _) -> begin
+        (* Can be inlined when we get to upstream immutable arrays *)
+        let plist = List.map (sub.expr sub) list in
+        match amut with
+        | Mutable ->
+            Pexp_array plist
+        | Immutable ->
+          let expr =
+            Extensions.Immutable_arrays.expr_of
+              ~loc
+              (Iaexp_immutable_array plist)
+          in
+          expr.pexp_desc
+      end
+    | Texp_list_comprehension comp ->
+        comprehension
+          ~loc sub (fun comp -> Cexp_list_comprehension comp) comp
+    | Texp_array_comprehension (amut, comp) ->
+        comprehension
+          ~loc sub (fun comp -> Cexp_array_comprehension (amut, comp)) comp
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Pexp_ifthenelse (sub.expr sub exp1,
           sub.expr sub exp2,
@@ -483,21 +528,11 @@ let expression sub exp =
         Pexp_sequence (sub.expr sub exp1, sub.expr sub exp2)
     | Texp_while {wh_cond; wh_body} ->
         Pexp_while (sub.expr sub wh_cond, sub.expr sub wh_body)
-    | Texp_list_comprehension(exp1, type_comp) ->
-      Pexp_extension
-      (Extensions.payload_of_extension_expr ~loc
-        (Extensions.Eexp_list_comprehension(
-          sub.expr sub exp1, map_comprehension type_comp)))
-    | Texp_arr_comprehension(exp1, type_comp) ->
-      Pexp_extension
-        (Extensions.payload_of_extension_expr ~loc
-          (Extensions.Eexp_arr_comprehension(
-            sub.expr sub exp1, map_comprehension type_comp)))
     | Texp_for {for_pat; for_from; for_to; for_dir; for_body} ->
         Pexp_for (for_pat,
           sub.expr sub for_from, sub.expr sub for_to,
           for_dir, sub.expr sub for_body)
-    | Texp_send (exp, meth, _) ->
+    | Texp_send (exp, meth, _, _) ->
         Pexp_send (sub.expr sub exp, match meth with
             Tmeth_name name -> mkloc name loc
           | Tmeth_val id -> mkloc (Ident.name id) loc
@@ -841,7 +876,7 @@ let core_type sub ct =
 
 let class_structure sub cs =
   let rec remove_self = function
-    | { pat_desc = Tpat_alias (p, id, _s) }
+    | { pat_desc = Tpat_alias (p, id, _s, _mode) }
       when string_is_prefix "selfpat-" (Ident.name id) ->
         remove_self p
     | p -> p
@@ -871,7 +906,7 @@ let object_field sub {of_loc; of_desc; of_attributes;} =
   Of.mk ~loc ~attrs desc
 
 and is_self_pat = function
-  | { pat_desc = Tpat_alias(_pat, id, _) } ->
+  | { pat_desc = Tpat_alias(_pat, id, _, _mode) } ->
       string_is_prefix "self-" (Ident.name id)
   | _ -> false
 
