@@ -87,6 +87,13 @@ module DoublyLinkedList = struct
     assert (not (is_dummy_node cell.node));
     cell.node.value
 
+  let prev cell =
+    assert (not (is_dummy_node cell.node));
+    let prev = cell.node.prev in
+    match is_dummy_node prev with
+    | true -> None
+    | false -> Some { node = prev; t = cell.t }
+
   let make_empty () =
     { length = 0; first = get_dummy_node (); last = get_dummy_node () }
 
@@ -184,6 +191,15 @@ module DoublyLinkedList = struct
       let cell = { node = !curr; t } in
       f cell;
       curr := next
+    done
+
+  let iter_right_cell t ~f =
+    let curr = ref t.last in
+    while not (is_dummy_node !curr) do
+      let prev = !curr.prev in
+      let cell = { node = !curr; t } in
+      f cell;
+      curr := prev
     done
 
   let iteri t ~f =

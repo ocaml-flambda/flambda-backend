@@ -40,6 +40,8 @@ module DoublyLinkedList : sig
 
   val value : 'a cell -> 'a
 
+  val prev : 'a cell -> 'a cell option
+
   type 'a t
 
   val make_empty : unit -> _ t
@@ -71,6 +73,8 @@ module DoublyLinkedList : sig
   val iteri : 'a t -> f:(int -> 'a -> unit) -> unit
 
   val iter_cell : 'a t -> f:('a cell -> unit) -> unit
+
+  val iter_right_cell : 'a t -> f:('a cell -> unit) -> unit
 
   val iter2 : 'a t -> 'a t -> f:('a -> 'a -> unit) -> unit
 

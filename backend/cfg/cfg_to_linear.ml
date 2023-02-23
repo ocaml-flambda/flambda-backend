@@ -27,6 +27,7 @@
 
 module CL = Cfg_with_layout
 module L = Linear
+module DLL = Cfg.DoublyLinkedList
 
 let to_linear_instr ?(like : _ Cfg.instruction option) desc ~next :
     L.instruction =
@@ -308,26 +309,15 @@ let adjust_stack_offset body (block : Cfg.basic_block)
     let delta_bytes = block_stack_offset - prev_stack_offset in
     to_linear_instr (Ladjust_stack_offset { delta_bytes }) ~next:body
 
-let array_of_layout : Cfg_with_layout.layout -> Label.t array =
- fun layout ->
-  match Cfg.DoublyLinkedList.hd layout with
-  | None -> [||]
-  | Some label ->
-    let len = Cfg.DoublyLinkedList.length layout in
-    let res = Array.make len label in
-    Cfg.DoublyLinkedList.iteri layout ~f:(fun i label -> res.(i) <- label);
-    res
-
 (* CR-someday gyorsh: handle duplicate labels in new layout: print the same
    block more than once. *)
 let run cfg_with_layout =
   let cfg = CL.cfg cfg_with_layout in
-  let layout = array_of_layout (CL.layout cfg_with_layout) in
-  let len = Array.length layout in
+  let layout = CL.layout cfg_with_layout in
   let next = ref Linear_utils.labelled_insn_end in
   let tailrec_label = ref None in
-  for i = len - 1 downto 0 do
-    let label = layout.(i) in
+  DLL.iter_right_cell layout ~f:(fun cell ->
+    let label = DLL.value cell in
     if not (Label.Tbl.mem cfg.blocks label)
     then Misc.fatal_errorf "Unknown block labelled %d\n" label;
     let block = Label.Tbl.find cfg.blocks label in
@@ -340,20 +330,20 @@ let run cfg_with_layout =
       | (Some _ | None), None -> ()
       | None, Some _ -> tailrec_label := terminator_tailrec_label
       | Some old_trl, Some new_trl -> assert (Label.equal old_trl new_trl));
-      Cfg.DoublyLinkedList.fold_right
+      DLL.fold_right
         ~f:(fun i next -> basic_to_linear i ~next)
         ~init:terminator block.body
     in
     let insn =
-      if i = 0
-      then body (* Entry block of the function. Don't add label. *)
-      else
+      match DLL.prev cell with
+      | None -> body (* Entry block of the function. Don't add label. *)
+      | Some prev_cell ->
         let body =
           if block.is_trap_handler
           then to_linear_instr Lentertrap ~next:body
           else body
         in
-        let prev = layout.(i - 1) in
+        let prev = DLL.value prev_cell in
         let prev_block = Label.Tbl.find cfg.blocks prev in
         let body =
           if not (need_starting_label cfg_with_layout block ~prev_block)
@@ -362,8 +352,7 @@ let run cfg_with_layout =
         in
         adjust_stack_offset body block ~prev_block
     in
-    next := { Linear_utils.label; insn }
-  done;
+    next := { Linear_utils.label; insn });
   let fun_contains_calls = cfg.fun_contains_calls in
   let fun_num_stack_slots = cfg.fun_num_stack_slots in
   let fun_frame_required =
@@ -385,9 +374,9 @@ let run cfg_with_layout =
 
 let layout_of_block_list : Cfg.basic_block list -> Cfg_with_layout.layout =
  fun blocks ->
-  let res = Cfg.DoublyLinkedList.make_empty () in
+  let res = DLL.make_empty () in
   List.iter
-    (fun block -> Cfg.DoublyLinkedList.add_end res block.Cfg.start)
+    (fun block -> DLL.add_end res block.Cfg.start)
     blocks;
   res
 
