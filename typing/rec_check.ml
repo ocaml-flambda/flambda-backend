@@ -157,7 +157,7 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_letexception (_, e) ->
         classify_expression env e
 
-    | Texp_construct (_, {cstr_tag = Cstr_unboxed}, [e]) ->
+    | Texp_construct (_, {cstr_tag = Cstr_unboxed}, [e], _) ->
         classify_expression env e
     | Texp_construct _ ->
         Static
@@ -168,19 +168,15 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_record _ ->
         Static
 
-    | Texp_apply ({exp_desc = Texp_ident (_, _, vd, Id_prim _)}, _, _)
+    | Texp_apply ({exp_desc = Texp_ident (_, _, vd, Id_prim _)}, _, _, _)
       when is_ref vd ->
         Static
-    | Texp_apply (_, args, _)
+    | Texp_apply (_, args, _, _)
       when List.exists is_abstracted_arg args ->
         Static
     | Texp_apply _ ->
         Dynamic
 
-    | Texp_list_comprehension _ ->
-        Dynamic
-    | Texp_arr_comprehension _  ->
-        Dynamic
     | Texp_for _
     | Texp_constant _
     | Texp_new _
@@ -202,6 +198,8 @@ let classify_expression : Typedtree.expression -> sd =
         Static
 
     | Texp_match _
+    | Texp_list_comprehension _
+    | Texp_array_comprehension _
     | Texp_ifthenelse _
     | Texp_send _
     | Texp_field _
@@ -226,7 +224,7 @@ let classify_expression : Typedtree.expression -> sd =
     let old_env = env in
     let add_value_binding env vb =
       match vb.vb_pat.pat_desc with
-      | Tpat_var (id, _loc) ->
+      | Tpat_var (id, _loc, _mode) ->
           let size = classify_expression old_env vb.vb_expr in
           Ident.add id size env
       | _ ->
@@ -515,6 +513,19 @@ let (<<) : term_judg -> Mode.t -> term_judg =
 let (>>) : bind_judg -> term_judg -> term_judg =
   fun binder term mode -> binder mode (term mode)
 
+(* Compute the appropriate [mode] for an array expression *)
+let array_mode exp = match Typeopt.array_kind exp with
+  | Lambda.Pfloatarray ->
+    (* (flat) float arrays unbox their elements *)
+    Dereference
+  | Lambda.Pgenarray ->
+    (* This is counted as a use, because constructing a generic array
+       involves inspecting to decide whether to unbox (PR#6939). *)
+    Dereference
+  | Lambda.Paddrarray | Lambda.Pintarray ->
+    (* non-generic, non-float arrays act as constructors *)
+    Guard
+
 (* Expression judgment:
      G |- e : m
    where (m) is an input of the code and (G) is an output;
@@ -546,22 +557,6 @@ let rec expression : Typedtree.expression -> term_judg =
           List.split (List.map (fun c -> case c mode) cases) in
         let env_e = expression e (List.fold_left Mode.join Ignore pat_modes) in
         Env.join_list (env_e :: pat_envs))
-    | Texp_list_comprehension(body, comp_types) ->
-      join ((expression body << Guard)::(comprehension comp_types))
-    | Texp_arr_comprehension(body, comp_types) ->
-      let array_mode = match Typeopt.array_kind exp with
-        | Lambda.Pfloatarray ->
-            (* (flat) float arrays unbox their elements *)
-            Dereference
-        | Lambda.Pgenarray ->
-            (* This is counted as a use, because constructing a generic array
-               involves inspecting to decide whether to unbox (PR#6939). *)
-            Dereference
-        | Lambda.Paddrarray | Lambda.Pintarray ->
-            (* non-generic, non-float arrays act as constructors *)
-            Guard
-      in
-      join ((expression body << array_mode)::(comprehension comp_types))
     | Texp_for tf ->
       (*
         G1 |- low: m[Dereference]
@@ -587,7 +582,7 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_instvar (self_path, pth, _inst_var) ->
         join [path self_path << Dereference; path pth]
     | Texp_apply
-        ({exp_desc = Texp_ident (_, _, vd, Id_prim _)}, [_, Arg arg], _)
+        ({exp_desc = Texp_ident (_, _, vd, Id_prim _)}, [_, Arg arg], _, _)
       when is_ref vd ->
       (*
         G |- e: m[Guard]
@@ -595,7 +590,7 @@ let rec expression : Typedtree.expression -> term_judg =
         G |- ref e: m
       *)
       expression arg << Guard
-    | Texp_apply (e, args, _)  ->
+    | Texp_apply (e, args, _, _)  ->
         let arg (_, arg) =
           match arg with
           | Omitted _ -> empty
@@ -609,23 +604,17 @@ let rec expression : Typedtree.expression -> term_judg =
           else Dereference
         in
         join [expression e; list arg args] << app_mode
-    | Texp_tuple exprs ->
+    | Texp_tuple (exprs, _) ->
       list expression exprs << Guard
-    | Texp_array exprs ->
-      let array_mode = match Typeopt.array_kind exp with
-        | Lambda.Pfloatarray ->
-            (* (flat) float arrays unbox their elements *)
-            Dereference
-        | Lambda.Pgenarray ->
-            (* This is counted as a use, because constructing a generic array
-               involves inspecting to decide whether to unbox (PR#6939). *)
-            Dereference
-        | Lambda.Paddrarray | Lambda.Pintarray ->
-            (* non-generic, non-float arrays act as constructors *)
-            Guard
-      in
-      list expression exprs << array_mode
-    | Texp_construct (_, desc, exprs) ->
+    | Texp_array (_, exprs, _) ->
+      list expression exprs << array_mode exp
+    | Texp_list_comprehension { comp_body; comp_clauses } ->
+      join ((expression comp_body << Guard) ::
+            comprehension_clauses comp_clauses)
+    | Texp_array_comprehension (_, { comp_body; comp_clauses }) ->
+      join ((expression comp_body << array_mode exp) ::
+            comprehension_clauses comp_clauses)
+    | Texp_construct (_, desc, exprs, _) ->
       let access_constructor =
         match desc.cstr_tag with
         | Cstr_extension (pth, _) ->
@@ -648,7 +637,7 @@ let rec expression : Typedtree.expression -> term_judg =
         ------------------   -----------
         G |- `A e: m         [] |- `A: m
       *)
-      option expression eo << Guard
+      option (fun (e, _) -> expression e) eo << Guard
     | Texp_record { fields = es; extended_expression = eo;
                     representation = rep } ->
         let field_mode = match rep with
@@ -681,7 +670,7 @@ let rec expression : Typedtree.expression -> term_judg =
         expression ifso;
         option expression ifnot;
       ]
-    | Texp_setfield (e1, _, _, e2) ->
+    | Texp_setfield (e1, _, _, _, e2) ->
       (*
         G1 |- e1: m[Dereference]
         G2 |- e2: m[Dereference]
@@ -720,7 +709,7 @@ let rec expression : Typedtree.expression -> term_judg =
         expression wh_cond << Dereference;
         expression wh_body << Guard;
       ]
-    | Texp_send (e1, _, _) ->
+    | Texp_send (e1, _, _, _) ->
       (*
         G |- e: m[Dereference]
         ---------------------- (plus weird 'eo' option)
@@ -729,7 +718,7 @@ let rec expression : Typedtree.expression -> term_judg =
       join [
         expression e1 << Dereference
       ]
-    | Texp_field (e, _, _) ->
+    | Texp_field (e, _, _, _) ->
       (*
         G |- e: m[Dereference]
         -----------------------
@@ -848,26 +837,21 @@ let rec expression : Typedtree.expression -> term_judg =
       expression handler << Dereference
     | Texp_probe_is_enabled _ -> empty
 
-and comprehension comp_types=
-  List.concat_map (fun {clauses; guard}  ->
-      let clauses =
-        List.concat_map (fun comp_type ->
-          match comp_type with
-          | From_to (_, _, low, high, _) ->
-            [
-              expression low << Dereference;
-              expression high << Dereference;
-            ]
-          | In (_, in_) ->
-            [
-              expression in_ << Dereference;
-            ]
-        ) clauses
-      in
-      match guard with
-      | None -> clauses
-      | Some guard -> (expression guard << Dereference)::clauses)
-  comp_types
+and comprehension_clauses clauses =
+  List.concat_map
+    (function
+      | Texp_comp_for bindings ->
+          List.concat_map
+            (fun { comp_cb_iterator; comp_cb_attributes = _ } ->
+               match comp_cb_iterator with
+               | Texp_comp_range { ident = _; start; stop; direction = _ } ->
+                   [expression start << Dereference; expression stop << Dereference]
+               | Texp_comp_in { pattern = _; sequence } ->
+                   [expression sequence << Dereference])
+            bindings
+      | Texp_comp_when guard ->
+          [expression guard << Dereference])
+    clauses
 
 and binding_op : Typedtree.binding_op -> term_judg =
   fun bop ->
@@ -1242,8 +1226,8 @@ and pattern : type k . k general_pattern -> Env.t -> mode = fun pat env ->
 and is_destructuring_pattern : type k . k general_pattern -> bool =
   fun pat -> match pat.pat_desc with
     | Tpat_any -> false
-    | Tpat_var (_, _) -> false
-    | Tpat_alias (pat, _, _) -> is_destructuring_pattern pat
+    | Tpat_var (_, _, _) -> false
+    | Tpat_alias (pat, _, _, _) -> is_destructuring_pattern pat
     | Tpat_constant _ -> true
     | Tpat_tuple _ -> true
     | Tpat_construct _ -> true
