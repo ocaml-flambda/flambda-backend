@@ -51,13 +51,15 @@ endef
 .DEFAULT_GOAL := compiler
 .PHONY: boot-compiler boot-runtest runtime-stdlib compiler runtest
 
+boot_targets = \
+  $(boot_ocamlc) \
+  $(boot_ocamlopt) \
+  $(boot_ocamlmklib) \
+  $(boot_ocamldep) \
+  $(boot_ocamlobjinfo)
+
 boot-compiler: _build/_bootinstall
-	$(dune) build $(ws_boot) $(coverage_dune_flags) \
-	  $(boot_ocamlc) \
-	  $(boot_ocamlopt) \
-	  $(boot_ocamlmklib) \
-	  $(boot_ocamldep) \
-          $(boot_ocamlobjinfo)
+	$(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
 
 boot-runtest: boot-compiler
 	$(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
@@ -299,8 +301,16 @@ test-one: install_for_test
 	   export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
 	 fi; \
 	 cd _runtest/testsuite && make one $(if $(TEST),TEST="tests/$(TEST)") $(if $(DIR),DIR="tests/$(DIR)"))
-         
+
+promote-one: install_for_test
+	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
+	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
+	 if $$(which gfortran > /dev/null 2>&1); then \
+	   export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
+	 fi; \
+	 cd _runtest/testsuite && make promote $(if $(TEST),TEST="tests/$(TEST)") $(if $(DIR),DIR="tests/$(DIR)"))
+
 # This target is like a polling version of upstream "make ocamlopt"
 .PHONY: hacking
 hacking: _build/_bootinstall
-	$(dune) build $(ws_boot) -w $(boot_ocamlopt)
+	$(dune) build $(ws_boot) -w $(boot_targets)

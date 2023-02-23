@@ -24,6 +24,13 @@ open! Stdlib
    arrayLabels.mli instead.
  *)
 
+(* CR aspectorzabusky: When I ran [tools/sync_stdlib_docs], it copied the
+   initial [# 1 "arrayLabels.mli"] line to [array.mli] without modifying the
+   filename, as well as copying the [[@@@ocaml.nolabels]] line.  It also did
+   that to [{bytes,float,hashtbl,list,map,moreLabels,set,string}.mli].  It also
+   clobbered our local annotations in [float.mli].  Did I do something wrong or
+   did something change? *)
+
 (** Array operations.
 
     The labeled version of this module can be used as described in the
@@ -159,6 +166,16 @@ val of_list : 'a list -> 'a array
 
    @raise Invalid_argument if the length of [l] is greater than
    [Sys.max_array_length]. *)
+
+(** {1 Converting to and from mutable arrays} *)
+
+val to_iarray : 'a array -> 'a iarray
+(** [to_iarray a] returns an immutable copy of the (mutable) array [a]; that is,
+   a fresh immutable array containing the same elements as [a] *)
+
+val of_iarray : 'a iarray -> 'a array
+(** [of_iarray ia] returns a mutable copy of the immutable array [ia]; that is,
+   a fresh (mutable) array containing the same elements as [ia] *)
 
 (** {1 Iterators} *)
 

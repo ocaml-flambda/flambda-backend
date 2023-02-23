@@ -28,6 +28,8 @@
 module C = Cfg
 module CL = Cfg_with_layout
 
+let debug = false
+
 let update_predecessor's_terminators (cfg : C.t) ~pred_block ~being_disconnected
     ~target_label =
   let replace_label l =
@@ -61,7 +63,7 @@ let disconnect cfg_with_layout label =
   Label.Set.iter
     (fun succ ->
       let succ_block = C.get_block_exn cfg succ in
-      assert (Label.Set.mem label succ_block.predecessors);
+      if debug then assert (Label.Set.mem label succ_block.predecessors);
       succ_block.predecessors
         <- Label.Set.union
              (Label.Set.remove label succ_block.predecessors)
@@ -70,7 +72,7 @@ let disconnect cfg_with_layout label =
   Label.Set.iter
     (fun succ ->
       let succ_block = C.get_block_exn cfg succ in
-      assert (Label.Set.mem label succ_block.predecessors);
+      if debug then assert (Label.Set.mem label succ_block.predecessors);
       succ_block.predecessors <- Label.Set.remove label succ_block.predecessors)
     (C.successor_labels ~normal:false ~exn:true block);
   (* Update predecessor blocks. *)
@@ -80,12 +82,16 @@ let disconnect cfg_with_layout label =
     Label.Set.iter
       (fun pred_label ->
         let pred_block = Label.Tbl.find cfg.blocks pred_label in
-        Option.iter
-          (fun pred_block_exn ->
-            assert (not (Label.equal label pred_block_exn)))
-          pred_block.exn;
+        if debug
+        then
+          Option.iter
+            (fun pred_block_exn ->
+              assert (not (Label.equal label pred_block_exn)))
+            pred_block.exn;
         update_predecessor's_terminators cfg ~pred_block
           ~being_disconnected:label ~target_label)
       block.predecessors
-  else assert (Label.Set.is_empty block.predecessors);
+  else if debug
+  then assert (Label.Set.is_empty block.predecessors)
+  else ();
   CL.remove_block cfg_with_layout label

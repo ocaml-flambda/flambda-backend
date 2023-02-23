@@ -1,0 +1,6 @@
+File "user_error2.ml", line 21, characters 46-65:
+21 | let _malformed_extensions_wrong_arguments = [%extension.something] "two" "arguments";;
+                                                   ^^^^^^^^^^^^^^^^^^^
+Error: Expression modular extension nodes must be applied to exactly
+       one unlabeled argument, but "extension.something" was applied to
+       2 arguments

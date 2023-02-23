@@ -38,15 +38,23 @@ type alloc_mode = private
   | Alloc_heap
   | Alloc_local
 
+type modify_mode = private
+  | Modify_heap
+  | Modify_maybe_stack
+
 val alloc_heap : alloc_mode
 
 (* Actually [Alloc_heap] if [Config.stack_allocation] is [false] *)
 val alloc_local : alloc_mode
 
+val modify_heap : modify_mode
+
+val modify_maybe_stack : modify_mode
+
 type initialization_or_assignment =
   (* [Assignment Alloc_local] is a mutation of a block that may be heap or local.
      [Assignment Alloc_heap] is a mutation of a block that's definitely heap. *)
-  | Assignment of alloc_mode
+  | Assignment of modify_mode
   (* Initialization of in heap values, like [caml_initialize] C primitive.  The
      field should not have been read before and initialization should happen
      only once. *)
@@ -237,6 +245,8 @@ val equal_value_kind : value_kind -> value_kind -> bool
 
 val equal_layout : layout -> layout -> bool
 
+val compatible_layout : layout -> layout -> bool
+
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 
 val must_be_value : layout -> value_kind
@@ -362,8 +372,8 @@ type lambda =
   | Lstaticraise of int * lambda list
   | Lstaticcatch of lambda * (int * (Ident.t * layout) list) * lambda * layout
   | Ltrywith of lambda * Ident.t * lambda * layout
-(* Lifthenelse (e, t, f) evaluates t if e evaluates to 0, and
-   evaluates f if e evaluates to any other value *)
+(* Lifthenelse (e, t, f, layout) evaluates t if e evaluates to 0, and evaluates f if
+   e evaluates to any other value; layout must be the layout of [t] and [f] *)
   | Lifthenelse of lambda * lambda * lambda * layout
   | Lsequence of lambda * lambda
   | Lwhile of lambda_while
@@ -470,6 +480,7 @@ val layout_int : layout
 val layout_array : array_kind -> layout
 val layout_block : layout
 val layout_list : layout
+val layout_exception : layout
 val layout_function : layout
 val layout_object : layout
 val layout_class : layout
@@ -485,8 +496,10 @@ val layout_lazy : layout
 val layout_lazy_contents : layout
 (* A layout that is Pgenval because we are missing layout polymorphism *)
 val layout_any_value : layout
+val layout_letrec : layout
 
 val layout_top : layout
+val layout_bottom : layout
 
 val name_lambda: let_kind -> lambda -> layout -> (Ident.t -> lambda) -> lambda
 val name_lambda_list: (lambda * layout) list -> (lambda list -> lambda) -> lambda

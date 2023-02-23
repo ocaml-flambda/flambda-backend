@@ -40,9 +40,6 @@ module Instruction = struct
   module IdMap = MoreLabels.Map.Make (Int)
 end
 
-let[@inline] int_max (left : int) (right : int) =
-  if left >= right then left else right
-
 type cfg_infos =
   { arg : Reg.Set.t;
     res : Reg.Set.t;
@@ -61,7 +58,7 @@ let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
         | Reg _ | Stack _ -> ())
   in
   let update_max_id (instr : _ Cfg.instruction) : unit =
-    max_id := int_max !max_id instr.id
+    max_id := Int.max !max_id instr.id
   in
   Cfg_with_layout.iter_instructions
     cfg_with_layout (* CR xclerc for xclerc: use fold *)
@@ -151,13 +148,19 @@ let make_temporary :
 let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  Cfg.iter_blocks cfg ~f:(fun _label block ->
-      Cfg.DoublyLinkedList.filter_left block.body ~f:(fun instr ->
-          not (Cfg.is_noop_move instr)));
-  Eliminate_fallthrough_blocks.run cfg_with_layout;
-  Merge_straightline_blocks.run cfg_with_layout;
-  Eliminate_dead_code.run_dead_block cfg_with_layout;
-  Simplify_terminator.run cfg;
+  Profile.record ~accumulate:true "remove-noop-move"
+    (fun () ->
+      Cfg.iter_blocks cfg ~f:(fun _label block ->
+          Cfg.DoublyLinkedList.filter_left block.body ~f:(fun instr ->
+              not (Cfg.is_noop_move instr))))
+    ();
+  Profile.record ~accumulate:true "eliminate" Eliminate_fallthrough_blocks.run
+    cfg_with_layout;
+  Profile.record ~accumulate:true "merge" Merge_straightline_blocks.run
+    cfg_with_layout;
+  Profile.record ~accumulate:true "dead_block"
+    Eliminate_dead_code.run_dead_block cfg_with_layout;
+  Profile.record ~accumulate:true "terminator" Simplify_terminator.run cfg;
   cfg_with_layout
 
 let precondition : Cfg_with_layout.t -> unit =

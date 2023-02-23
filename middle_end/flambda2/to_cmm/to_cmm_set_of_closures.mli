@@ -17,15 +17,21 @@
 open! Flambda.Import
 
 type translate_expr =
-  To_cmm_env.t -> To_cmm_result.t -> Expr.t -> Cmm.expression * To_cmm_result.t
+  To_cmm_env.t ->
+  To_cmm_result.t ->
+  Expr.t ->
+  Cmm.expression * To_cmm_env.free_vars * To_cmm_result.t
 
 val let_static_set_of_closures :
   To_cmm_env.t ->
   To_cmm_result.t ->
   Symbol.t Function_slot.Map.t ->
   Set_of_closures.t ->
-  prev_updates:Cmm.expression option ->
-  To_cmm_env.t * To_cmm_result.t * Cmm.data_item list * Cmm.expression option
+  prev_updates:To_cmm_env.expr_with_info option ->
+  To_cmm_env.t
+  * To_cmm_result.t
+  * Cmm.data_item list
+  * To_cmm_env.expr_with_info option
 
 val let_dynamic_set_of_closures :
   To_cmm_env.t ->
@@ -35,7 +41,7 @@ val let_dynamic_set_of_closures :
   num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
   Set_of_closures.t ->
   translate_expr:translate_expr ->
-  Cmm.expression * To_cmm_result.t
+  Cmm.expression * To_cmm_env.free_vars * To_cmm_result.t
 
 val params_and_body :
   To_cmm_env.t ->
@@ -44,9 +50,5 @@ val params_and_body :
   Function_params_and_body.t ->
   fun_dbg:Debuginfo.t ->
   check:Check_attribute.t ->
-  translate_expr:
-    (To_cmm_env.t ->
-    To_cmm_result.t ->
-    Expr.t ->
-    Cmm.expression * To_cmm_result.t) ->
+  translate_expr:translate_expr ->
   Cmm.fundecl * To_cmm_result.t

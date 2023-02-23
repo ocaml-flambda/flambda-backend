@@ -42,6 +42,7 @@ let remove_params unused (fun_decl: Flambda.function_declaration)
   Flambda.create_function_declaration
     ~params:used_params ~alloc_mode:fun_decl.alloc_mode ~region:fun_decl.region
     ~body
+    ~return_layout:fun_decl.return_layout
     ~stub:fun_decl.stub ~inline:fun_decl.inline
     ~specialise:fun_decl.specialise ~check:fun_decl.check
     ~is_a_functor:fun_decl.is_a_functor
@@ -94,6 +95,7 @@ let make_stub unused var (fun_decl : Flambda.function_declaration)
     Apply {
       func = renamed;
       args = Parameter.List.vars args;
+      result_layout = fun_decl.return_layout;
       kind;
       dbg = fun_decl.dbg;
       reg_close = Rc_normal;
@@ -107,7 +109,7 @@ let make_stub unused var (fun_decl : Flambda.function_declaration)
     Flambda.create_function_declaration
       ~params:(List.map snd args')
       ~alloc_mode:fun_decl.alloc_mode ~region:fun_decl.region
-      ~body
+      ~body ~return_layout:fun_decl.return_layout
       ~stub:true ~inline:Default_inline
       ~specialise:Default_specialise
       ~check:Default_check

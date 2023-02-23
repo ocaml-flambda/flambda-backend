@@ -49,7 +49,6 @@ and 'a pattern_data =
     pat_loc: Location.t;
     pat_extra : (pat_extra * Location.t * attributes) list;
     pat_type: Types.type_expr;
-    pat_mode: Types.value_mode;
     pat_env: Env.t;
     pat_attributes: attributes;
    }
@@ -76,10 +75,10 @@ and 'k pattern_desc =
   (* value patterns *)
   | Tpat_any : value pattern_desc
         (** _ *)
-  | Tpat_var : Ident.t * string loc -> value pattern_desc
+  | Tpat_var : Ident.t * string loc * Types.value_mode -> value pattern_desc
         (** x *)
   | Tpat_alias :
-      value general_pattern * Ident.t * string loc -> value pattern_desc
+      value general_pattern * Ident.t * string loc * Types.value_mode -> value pattern_desc
         (** P as a *)
   | Tpat_constant : constant -> value pattern_desc
         (** 1, 'a', "true", 1.0, 1l, 1L, 1n *)
@@ -117,8 +116,10 @@ and 'k pattern_desc =
 
             Invariant: n > 0
          *)
-  | Tpat_array : value general_pattern list -> value pattern_desc
-        (** [| P1; ...; Pn |] *)
+  | Tpat_array :
+      mutable_flag * value general_pattern list -> value pattern_desc
+        (** [| P1; ...; Pn |]    (flag = Mutable)
+            [: P1; ...; Pn :]    (flag = Immutable) *)
   | Tpat_lazy : value general_pattern -> value pattern_desc
         (** lazy P *)
   (* computation patterns *)
@@ -155,7 +156,6 @@ and expression =
     exp_loc: Location.t;
     exp_extra: (exp_extra * Location.t * attributes) list;
     exp_type: Types.type_expr;
-    exp_mode: Types.value_mode;
     exp_env: Env.t;
     exp_attributes: attributes;
    }
@@ -197,7 +197,9 @@ and expression_desc =
   | Texp_function of { arg_label : arg_label; param : Ident.t;
       cases : value case list; partial : partial;
       region : bool; curry : fun_curry_state;
-      warnings : Warnings.state; }
+      warnings : Warnings.state;
+      arg_mode : Types.alloc_mode;
+      alloc_mode : Types.alloc_mode}
         (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
             See {!Parsetree} for more details.
 
@@ -211,7 +213,7 @@ and expression_desc =
             partial_mode is the mode of the resulting closure if this function
             is partially applied to a single argument.
          *)
-  | Texp_apply of expression * (arg_label * apply_arg) list * apply_position
+  | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Types.alloc_mode
         (** E0 ~l1:E1 ... ~ln:En
 
             The expression can be Omitted if the expression is abstracted over
@@ -238,19 +240,28 @@ and expression_desc =
          *)
   | Texp_try of expression * value case list
         (** try E with P1 -> E1 | ... | PN -> EN *)
-  | Texp_tuple of expression list
+  | Texp_tuple of expression list * Types.alloc_mode
         (** (E1, ..., EN) *)
   | Texp_construct of
-      Longident.t loc * Types.constructor_description * expression list
+      Longident.t loc * Types.constructor_description * expression list * Types.alloc_mode option
         (** C                []
             C E              [E]
             C (E1, ..., En)  [E1;...;En]
+
+            [alloc_mode] is the allocation mode of the construct,
+            or [None] if the constructor is [Cstr_unboxed] or [Cstr_constant],
+            in which case it does not need allocation.
          *)
-  | Texp_variant of label * expression option
+  | Texp_variant of label * (expression * Types.alloc_mode) option
+        (** [alloc_mode] is the allocation mode of the variant,
+            or [None] if the variant has no argument,
+            in which case it does not need allocation.
+          *)
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
+      alloc_mode : Types.alloc_mode option
     }
         (** { l1=P1; ...; ln=Pn }           (extended_expression = None)
             { E0 with l1=P1; ...; ln=Pn }   (extended_expression = Some E0)
@@ -262,11 +273,20 @@ and expression_desc =
             Texp_record
               { fields = [| l1, Kept t1; l2 Override P2 |]; representation;
                 extended_expression = Some E0 }
-        *)
-  | Texp_field of expression * Longident.t loc * Types.label_description
+            [alloc_mode] is the allocation mode of the record,
+            or [None] if it is [Record_unboxed],
+            in which case it does not need allocation.
+          *)
+  | Texp_field of expression * Longident.t loc * Types.label_description * Types.alloc_mode option
+    (** [alloc_mode] is the allocation mode of the result; available ONLY
+        when getting a (float) field from a [Record_float] record
+      *)
   | Texp_setfield of
-      expression * Longident.t loc * Types.label_description * expression
-  | Texp_array of expression list
+      expression * Types.alloc_mode * Longident.t loc * Types.label_description * expression
+    (** [alloc_mode] translates to the [modify_mode] of the record *)
+  | Texp_array of mutable_flag * expression list * Types.alloc_mode
+  | Texp_list_comprehension of comprehension
+  | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * expression
   | Texp_while of {
@@ -275,10 +295,6 @@ and expression_desc =
       wh_body : expression;
       wh_body_region : bool  (* False means allocates in outer region *)
     }
-  | Texp_list_comprehension of
-      expression * comprehension list
-  | Texp_arr_comprehension of
-      expression * comprehension list
   | Texp_for of {
       for_id  : Ident.t;
       for_pat : Parsetree.pattern;
@@ -290,7 +306,8 @@ and expression_desc =
       (* for_region = true means we create a region for the body.  false means
          it may allocated in the containing region *)
     }
-  | Texp_send of expression * meth * apply_position
+  | Texp_send of expression * meth * apply_position * Types.alloc_mode
+    (** [alloc_mode] is the allocation mode of the result *)
   | Texp_new of
       Path.t * Longident.t loc * Types.class_declaration * apply_position
   | Texp_instvar of Path.t * Path.t * string loc
@@ -326,16 +343,35 @@ and meth =
   | Tmeth_val of Ident.t
   | Tmeth_ancestor of Ident.t * Path.t
 
-  and comprehension =
+and comprehension =
   {
-     clauses: comprehension_clause list;
-     guard : expression option
+    comp_body : expression;
+    comp_clauses : comprehension_clause list
   }
 
 and comprehension_clause =
- | From_to of Ident.t * Parsetree.pattern *
-     expression * expression * direction_flag
- | In of pattern * expression
+  | Texp_comp_for of comprehension_clause_binding list
+  | Texp_comp_when of expression
+
+and comprehension_clause_binding =
+  {
+    comp_cb_iterator : comprehension_iterator;
+    comp_cb_attributes : attribute list
+  }
+  (* We move the pattern into the [comprehension_iterator], compared to the
+     untyped syntax tree, so that range-based iterators can have just an
+     identifier instead of a full pattern *)
+
+and comprehension_iterator =
+  | Texp_comp_range of
+      { ident     : Ident.t
+      ; pattern   : Parsetree.pattern (* Redundant with [ident] *)
+      ; start     : expression
+      ; stop      : expression
+      ; direction : direction_flag }
+  | Texp_comp_in of
+      { pattern  : pattern
+      ; sequence : expression }
 
 and 'k case =
     {

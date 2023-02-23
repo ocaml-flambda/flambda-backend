@@ -31,6 +31,7 @@ val transl_apply: scopes:scopes
                   -> ?specialised:specialise_attribute
                   -> ?position:region_close
                   -> ?mode:alloc_mode
+                  -> result_layout:Lambda.layout
                   -> lambda
                   -> (arg_label * apply_arg) list
                   -> scoped_location -> lambda
@@ -42,8 +43,6 @@ val transl_extension_constructor: scopes:scopes ->
   extension_constructor -> lambda
 
 val transl_scoped_exp : scopes:scopes -> expression -> lambda
-
-val transl_alloc_mode : Types.alloc_mode -> Lambda.alloc_mode
 
 type error =
     Free_super_var

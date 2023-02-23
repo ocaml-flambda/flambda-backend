@@ -87,7 +87,7 @@ let transl_meth_list lst =
             (0, List.map (fun lab -> Const_immstring lab) lst))
 
 let set_inst_var ~scopes obj id expr =
-  Lprim(Psetfield_computed (Typeopt.maybe_pointer expr, Assignment alloc_heap),
+  Lprim(Psetfield_computed (Typeopt.maybe_pointer expr, Assignment modify_heap),
     [Lvar obj; Lvar id; transl_exp ~scopes expr], Loc_unknown)
 
 let transl_val tbl create name =
@@ -136,8 +136,8 @@ let create_object cl obj init =
 
 let name_pattern default p =
   match p.pat_desc with
-  | Tpat_var (id, _) -> id
-  | Tpat_alias(_, id, _) -> id
+  | Tpat_var (id, _, _) -> id
+  | Tpat_alias(_, id, _, _) -> id
   | _ -> Ident.create_local default
 
 let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
@@ -214,7 +214,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       let (inh_init, obj_init) =
         build_object_init ~scopes cl_table obj params inh_init obj_init cl
       in
-      (inh_init, transl_apply ~scopes obj_init oexprs Loc_unknown)
+      (inh_init, transl_apply ~result_layout:Lambda.layout_top ~scopes obj_init oexprs Loc_unknown)
   | Tcl_let (rec_flag, defs, vals, cl) ->
       let (inh_init, obj_init) =
         build_object_init ~scopes cl_table obj (vals @ params)
@@ -485,7 +485,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
   | Tcl_apply (cl, oexprs) ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
-      (path, path_lam, transl_apply ~scopes obj_init oexprs Loc_unknown)
+      (path, path_lam, transl_apply ~result_layout:Lambda.layout_top ~scopes obj_init oexprs Loc_unknown)
   | Tcl_let (rec_flag, defs, _vals, cl) ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
@@ -774,7 +774,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let env1 = Ident.create_local "env" and env1' = Ident.create_local "env'" in
   let copy_env self =
     if top then lambda_unit else
-    Lifused(env2, Lprim(Psetfield_computed (Pointer, Assignment alloc_heap),
+    Lifused(env2, Lprim(Psetfield_computed (Pointer, Assignment modify_heap),
                         [Lvar self; Lvar env2; Lvar env1'],
                         Loc_unknown))
   and subst_env envs l lam =
@@ -926,7 +926,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                                     inh_keys, Loc_unknown)], Lambda.layout_top),
          lam)
   and lset cached i lam =
-    Lprim(Psetfield(i, Pointer, Assignment alloc_heap),
+    Lprim(Psetfield(i, Pointer, Assignment modify_heap),
           [Lvar cached; lam], Loc_unknown)
   in
   let ldirect () =

@@ -94,7 +94,8 @@ let convert_init_or_assign (i_or_a : L.initialization_or_assignment)
     ~current_region : P.Init_or_assign.t =
   match i_or_a with
   | Assignment mode ->
-    Assignment (Alloc_mode.For_allocations.from_lambda mode ~current_region)
+    Assignment
+      (Alloc_mode.For_allocations.from_lambda_modify mode ~current_region)
   | Heap_initialization -> Initialization
   | Root_initialization ->
     Misc.fatal_error "[Root_initialization] should not appear in Flambda input"

@@ -355,3 +355,32 @@ module TestUntaggedStruct = struct
   external z : int -> int = "x" "y" [@@untagged] (* accepted *)
 end
 
+module type TestPollSig = sig
+  type 'a t1 = 'a [@@poll error] (* rejected *)
+  type s1 = Foo1 [@poll error] (* rejected *)
+  val x : int64 [@@poll error] (* rejected *)
+
+  external y : (int64 [@poll error]) -> (int64 [@poll error]) = (* rejected *)
+    "x"
+  external z : int64 -> int64 = "x" [@@poll error] (* rejected *)
+end
+
+module TestPollStruct = struct
+  type 'a t1 = 'a [@@poll error] (* rejected *)
+  type s1 = Foo1 [@poll error] (* rejected *)
+  let x : int64 = 42L [@@poll error] (* rejected *)
+  let [@poll error] f x = x (* accepted *)
+
+  external y : (int64 [@poll error]) -> (int64 [@poll error]) =  (* rejected *)
+    "x"
+  external z : int64 -> int64 = "x" [@@poll error] (* rejected *)
+end
+
+(* Attributes in attributes shouldn't be tracked for w53 *)
+[@@@foo [@@@deprecated]]
+
+module TestNewtypeAttr = struct
+  (* Check for handling of attributes on Pexp_newtype *)
+  let f1 = fun [@inline] (type a) (x : a) -> x (* accepted *)
+  let f2 = fun [@immediate] (type a) (x : a) -> x (* rejected *)
+end

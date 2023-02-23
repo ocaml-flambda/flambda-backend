@@ -125,22 +125,31 @@ let combine : State.t -> Reg.t -> Reg.t -> unit =
  fun state u v ->
   if irc_debug
   then log ~indent:2 "combine u=%a v=%a" Printmach.reg u Printmach.reg v;
-  if State.mem_freeze_work_list state v
-  then State.remove_freeze_work_list state v
-  else State.remove_spill_work_list state v;
-  State.add_coalesced_nodes state v;
-  State.add_alias state v u;
+  Profile.record ~accumulate:true "part1"
+    (fun () ->
+      if State.mem_freeze_work_list state v
+      then State.remove_freeze_work_list state v
+      else State.remove_spill_work_list state v;
+      State.add_coalesced_nodes state v;
+      State.add_alias state v u)
+    ();
   (* note: See book errata
      (https://www.cs.princeton.edu/~appel/modern/ml/errata98.html) *)
-  State.union_move_list state u (State.find_move_list state v);
-  State.enable_moves_one state v;
-  State.iter_adjacent state v ~f:(fun t ->
-      State.add_edge state t u;
-      State.decr_degree state t);
-  if State.mem_freeze_work_list state u && u.Reg.degree >= k u
-  then (
-    State.remove_freeze_work_list state u;
-    State.add_spill_work_list state u)
+  Profile.record ~accumulate:true "part2"
+    (fun () ->
+      State.union_move_list state u (State.find_move_list state v);
+      State.enable_moves_one state v;
+      State.iter_adjacent state v ~f:(fun t ->
+          State.add_edge state t u;
+          State.decr_degree state t))
+    ();
+  Profile.record ~accumulate:true "part3"
+    (fun () ->
+      if State.mem_freeze_work_list state u && u.Reg.degree >= k u
+      then (
+        State.remove_freeze_work_list state u;
+        State.add_spill_work_list state u))
+    ()
 
 let add_work_list : State.t -> Reg.t -> unit =
  fun state reg ->
@@ -166,25 +175,42 @@ let coalesce : State.t -> unit =
   if Reg.same u v
   then (
     if irc_debug then log ~indent:2 "case #1/4";
-    State.add_coalesced_moves state m;
-    add_work_list state u)
+    Profile.record ~accumulate:true "case1"
+      (fun () ->
+        State.add_coalesced_moves state m;
+        add_work_list state u)
+      ())
   else if State.is_precolored state v || State.mem_adj_set state u v
   then (
     if irc_debug then log ~indent:2 "case #2/4";
-    State.add_constrained_moves state m;
-    add_work_list state u;
-    add_work_list state v)
+    Profile.record ~accumulate:true "case2"
+      (fun () ->
+        State.add_constrained_moves state m;
+        add_work_list state u;
+        add_work_list state v)
+      ())
   else if match State.is_precolored state u with
-          | true -> all_adjacent_are_ok state u v
-          | false -> conservative state u v
+          | true ->
+            Profile.record ~accumulate:true "all_adjacent_are_ok"
+              (fun () -> all_adjacent_are_ok state u v)
+              ()
+          | false ->
+            Profile.record ~accumulate:true "conservative"
+              (fun () -> conservative state u v)
+              ()
   then (
     if irc_debug then log ~indent:2 "case #3/4";
-    State.add_coalesced_moves state m;
-    combine state u v;
-    add_work_list state u)
+    Profile.record ~accumulate:true "case3"
+      (fun () ->
+        State.add_coalesced_moves state m;
+        combine state u v;
+        add_work_list state u)
+      ())
   else (
     if irc_debug then log ~indent:2 "case #4/4";
-    State.add_active_moves state m)
+    Profile.record ~accumulate:true "case4"
+      (fun () -> State.add_active_moves state m)
+      ())
 
 let freeze_moves : State.t -> Reg.t -> unit =
  fun state u ->

@@ -126,8 +126,6 @@ and strengthen_lazy_decl ~aliasable env md p =
   | _ when aliasable -> {md with mdl_type = MtyL_alias p}
   | mty -> {md with mdl_type = strengthen_lazy ~aliasable env mty p}
 
-let () = Env.strengthen := strengthen_lazy
-
 let strengthen ~aliasable env mty p =
   let mty = strengthen_lazy ~aliasable env (Subst.Lazy.of_modtype mty) p in
   Subst.Lazy.force_modtype mty
@@ -210,6 +208,45 @@ let scrape_for_type_of env pres mty =
     | _ -> mty
   in
   make_aliases_absent pres (loop env None mty)
+
+(* Expand manifest module type names at the top of the given module type *)
+
+let rec scrape_alias_lazy env ?path mty =
+  let open Subst.Lazy in
+  match mty, path with
+    MtyL_ident p, _ ->
+      begin try
+        scrape_alias_lazy env (Env.find_modtype_expansion_lazy p env) ?path
+      with Not_found ->
+        mty
+      end
+  | MtyL_alias path, _ ->
+      begin try
+        scrape_alias_lazy env ((Env.find_module_lazy path env).mdl_type) ~path
+      with Not_found ->
+        (*Location.prerr_warning Location.none
+          (Warnings.No_cmi_file (Path.name path));*)
+        mty
+      end
+  | mty, Some path ->
+      strengthen_lazy ~aliasable:true env mty path
+  | _ -> mty
+
+(* Non-lazy version of scrape_alias *)
+let scrape_alias env mty =
+  Subst.Lazy.of_modtype mty
+  |> scrape_alias_lazy env
+  |> Subst.Lazy.force_modtype
+
+let () = Env.scrape_alias := fun env mty -> scrape_alias_lazy env mty
+
+let find_type_of_module ~strengthen ~aliasable env path =
+  if strengthen then
+    let md = Env.find_module_lazy path env in
+    let mty = strengthen_lazy ~aliasable env md.mdl_type path in
+    Subst.Lazy.force_modtype mty
+  else
+    (Env.find_module path env).md_type
 
 (* In nondep_supertype, env is only used for the type it assigns to id.
    Hence there is no need to keep env up-to-date by adding the bindings
@@ -409,13 +446,9 @@ let no_code_needed env mty = no_code_needed_mod env Mp_present mty
 
 (* Check whether a module type may return types *)
 
-let rec contains_type env = function
-    Mty_ident path ->
-      begin try match (Env.find_modtype path env).mtd_type with
-      | None -> raise Exit (* PR#6427 *)
-      | Some mty -> contains_type env mty
-      with Not_found -> raise Exit
-      end
+let rec contains_type env mty =
+  match scrape env mty with
+    Mty_ident _ -> raise Exit (* PR#6427 *)
   | Mty_signature sg ->
       contains_type_sig env sg
   | Mty_functor (_, body) ->
@@ -524,7 +557,7 @@ let rec remove_aliases_mty env args pres mty =
       Mty_signature sg ->
         Mp_present, Mty_signature (remove_aliases_sig env args' sg)
     | Mty_alias _ ->
-        let mty' = Env.scrape_alias env mty in
+        let mty' = scrape_alias env mty in
         if mty' = mty then begin
           pres, mty
         end else begin

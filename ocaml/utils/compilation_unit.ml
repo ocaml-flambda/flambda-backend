@@ -23,6 +23,8 @@ module String = Misc.Stdlib.String
 type error =
   | Invalid_character of char * string
   | Bad_compilation_unit_name of string
+  | Child_of_instance of { child_name : string }
+  | Packed_instance of { name : string }
 
 exception Error of error
 
@@ -169,60 +171,114 @@ end = struct
   let to_list t = t
 end
 
-(* As with [Name.t], changing [with_prefix] or [t] requires bumping magic
-   numbers. *)
-type with_prefix =
-  { name : Name.t;
-    for_pack_prefix : Prefix.t
-  }
+module T0 : sig
+  type descr = private
+    { name : Name.t;
+      for_pack_prefix : Prefix.t;
+      arguments : (Name.t * t) list
+    }
 
-(* type t = Without_prefix of Name.t [@@unboxed] | With_prefix of with_prefix *)
-type t = Obj.t
+  and t
 
-(* Some manual inlining is done here to ensure good performance under
-   Closure. *)
+  val descr : t -> descr
 
-let for_pack_prefix_and_name t =
-  let tag = Obj.tag t in
-  assert (tag = 0 || tag = Obj.string_tag);
-  if tag <> 0
-  then Prefix.empty, Sys.opaque_identity (Obj.obj t : Name.t)
-  else
-    let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
-    with_prefix.for_pack_prefix, with_prefix.name
+  val name : t -> Name.t
 
-let name t =
-  let tag = Obj.tag t in
-  assert (tag = 0 || tag = Obj.string_tag);
-  if tag <> 0
-  then Sys.opaque_identity (Obj.obj t : Name.t)
-  else
-    let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
-    with_prefix.name
+  val for_pack_prefix : t -> Prefix.t
 
-let for_pack_prefix t =
-  let tag = Obj.tag t in
-  assert (tag = 0 || tag = Obj.string_tag);
-  if tag <> 0
-  then Prefix.empty
-  else
-    let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
-    with_prefix.for_pack_prefix
+  val arguments : t -> (Name.t * t) list
 
-let create for_pack_prefix name =
-  let empty_prefix = Prefix.is_empty for_pack_prefix in
-  let () =
-    if not empty_prefix
-    then (
-      Name.check_as_path_component name;
-      ListLabels.iter ~f:Name.check_as_path_component
-        (for_pack_prefix |> Prefix.to_list))
-  in
-  if empty_prefix
-  then Sys.opaque_identity (Obj.repr name)
-  else Sys.opaque_identity (Obj.repr { for_pack_prefix; name })
+  val create_full : Prefix.t -> Name.t -> (Name.t * t) list -> t
+end = struct
+  (* As with [Name.t], changing [descr] or [t] requires bumping magic
+     numbers. *)
+  type descr =
+    { name : Name.t;
+      for_pack_prefix : Prefix.t;
+      arguments : (Name.t * t) list
+    }
+
+  (* type t = Simple of Name.t [@@unboxed] | Full of descr *)
+  and t = Obj.t
+
+  (* Some manual inlining is done here to ensure good performance under
+     Closure. *)
+
+  let descr t =
+    let tag = Obj.tag t in
+    assert (tag = 0 || tag = Obj.string_tag);
+    if tag <> 0
+    then
+      { name = Sys.opaque_identity (Obj.obj t : Name.t);
+        for_pack_prefix = Prefix.empty;
+        arguments = []
+      }
+    else Sys.opaque_identity (Obj.obj t : descr)
+
+  let name t =
+    let tag = Obj.tag t in
+    assert (tag = 0 || tag = Obj.string_tag);
+    if tag <> 0
+    then Sys.opaque_identity (Obj.obj t : Name.t)
+    else
+      let with_prefix = Sys.opaque_identity (Obj.obj t : descr) in
+      with_prefix.name
+
+  let for_pack_prefix t =
+    let tag = Obj.tag t in
+    assert (tag = 0 || tag = Obj.string_tag);
+    if tag <> 0
+    then Prefix.empty
+    else
+      let descr = Sys.opaque_identity (Obj.obj t : descr) in
+      descr.for_pack_prefix
+
+  let arguments t =
+    let tag = Obj.tag t in
+    assert (tag = 0 || tag = Obj.string_tag);
+    if tag <> 0
+    then []
+    else
+      let descr = Sys.opaque_identity (Obj.obj t : descr) in
+      descr.arguments
+
+  let create_full for_pack_prefix name arguments =
+    let empty_prefix = Prefix.is_empty for_pack_prefix in
+    let empty_arguments = match arguments with [] -> true | _ -> false in
+    let () =
+      if not empty_prefix
+      then (
+        let () =
+          if not empty_arguments
+          then
+            (* CR-someday lmaurer: [for_pack_prefix] and [arguments] would make
+               for better output but it doesn't seem worth moving both [error]
+               and [print] to before this point *)
+            raise (Error (Packed_instance { name = name |> Name.to_string }))
+        in
+        Name.check_as_path_component name;
+        ListLabels.iter ~f:Name.check_as_path_component
+          (for_pack_prefix |> Prefix.to_list))
+    in
+    let arguments =
+      ListLabels.sort
+        ~cmp:(fun (p1, _v1) (p2, _v2) -> Name.compare p1 p2)
+        arguments
+    in
+    if empty_prefix && empty_arguments
+    then Sys.opaque_identity (Obj.repr name)
+    else Sys.opaque_identity (Obj.repr { for_pack_prefix; name; arguments })
+end
+
+include T0
+
+let create prefix name = create_full prefix name []
 
 let create_child parent name_ =
+  if not (Prefix.is_empty (for_pack_prefix parent))
+  then
+    (* CR-someday lmaurer: Same as for [create_full] *)
+    raise (Error (Child_of_instance { child_name = name_ |> Name.to_string }));
   let prefix =
     (for_pack_prefix parent |> Prefix.to_list) @ [name parent] |> Prefix.of_list
   in
@@ -237,6 +293,10 @@ let of_string str =
          compilation unit *)
       Prefix.empty, Name.of_string str
     | Some _ -> Misc.fatal_errorf "[of_string] does not parse qualified names"
+  in
+  let () =
+    if String.contains str '['
+    then Misc.fatal_error "[of_string] does not parse instances"
   in
   create for_pack_prefix name
 
@@ -253,29 +313,66 @@ let is_packed t = not (Prefix.is_empty (for_pack_prefix t))
 include Identifiable.Make (struct
   type nonrec t = t
 
-  let compare t1 t2 =
+  let rec compare t1 t2 =
     if t1 == t2
     then 0
     else
-      let for_pack_prefix1, name1 = for_pack_prefix_and_name t1 in
-      let for_pack_prefix2, name2 = for_pack_prefix_and_name t2 in
+      let { for_pack_prefix = for_pack_prefix1;
+            name = name1;
+            arguments = args1
+          } =
+        descr t1
+      in
+      let { for_pack_prefix = for_pack_prefix2;
+            name = name2;
+            arguments = args2
+          } =
+        descr t2
+      in
       let c = Name.compare name1 name2 in
-      if c <> 0 then c else Prefix.compare for_pack_prefix1 for_pack_prefix2
+      if c <> 0
+      then c
+      else
+        let c = Prefix.compare for_pack_prefix1 for_pack_prefix2 in
+        if c <> 0 then c else List.compare compare_args args1 args2
+
+  and compare_args (param1, value1) (param2, value2) =
+    let c = Name.compare param1 param2 in
+    if c <> 0 then c else compare value1 value2
 
   let equal x y = if x == y then true else compare x y = 0
 
-  let print fmt t =
-    let for_pack_prefix, name = for_pack_prefix_and_name t in
-    if Prefix.is_empty for_pack_prefix
-    then Format.fprintf fmt "%a" Name.print name
-    else Format.fprintf fmt "%a.%a" Prefix.print for_pack_prefix Name.print name
+  let rec print fmt t =
+    let { for_pack_prefix; name; arguments } = descr t in
+    let () =
+      if Prefix.is_empty for_pack_prefix
+      then Format.fprintf fmt "%a" Name.print name
+      else
+        Format.fprintf fmt "%a.%a" Prefix.print for_pack_prefix Name.print name
+    in
+    ListLabels.iter ~f:(print_arg fmt) arguments
+
+  and print_arg fmt (param, value) =
+    Format.fprintf fmt "[%a:%a]" Name.print param print value
 
   let output = output_of_print print
 
-  let hash t =
-    let for_pack_prefix, name = for_pack_prefix_and_name t in
-    Hashtbl.hash (Name.hash name, Prefix.hash for_pack_prefix)
+  let rec hash t =
+    let { for_pack_prefix; name; arguments } = descr t in
+    Hashtbl.hash
+      ( Name.hash name,
+        Prefix.hash for_pack_prefix,
+        ListLabels.map ~f:hash_arg arguments )
+
+  and hash_arg (param, value) = Hashtbl.hash (param, hash value)
 end)
+
+let is_instance t = match arguments t with [] -> false | _ :: _ -> true
+
+let create_instance t args =
+  if is_instance t
+  then Misc.fatal_errorf "@[<hov 1>Already an instance:@ %a@]" print t;
+  create_full (for_pack_prefix t) (name t) args
 
 let full_path t = Prefix.to_list (for_pack_prefix t) @ [name t]
 

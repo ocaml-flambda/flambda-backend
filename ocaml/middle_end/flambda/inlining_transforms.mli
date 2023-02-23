@@ -75,6 +75,7 @@ val inline_by_copying_function_body
   -> function_decl:Simple_value_approx.function_declaration
   -> function_body:Simple_value_approx.function_body
   -> fun_vars:Variable.Set.t
+  -> free_vars:Flambda.specialised_to Variable.Map.t
   -> args:Variable.t list
   -> dbg:Debuginfo.t
   -> reg_close:Lambda.region_close

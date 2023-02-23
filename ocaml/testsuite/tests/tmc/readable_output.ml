@@ -10,7 +10,7 @@ let[@tail_mod_cons] rec map f = function
 [%%expect{|
 (letrec
   (map
-     (function f
+     (function {nlocal = 0} f
        param[(consts (0))
              (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
        tail_mod_cons
@@ -27,7 +27,7 @@ let[@tail_mod_cons] rec map f = function
            (seq (apply map_dps block 1 f (field 1 param)) block))
          0))
     map_dps
-      (function dst offset[int] f
+      (function {nlocal = 0} dst offset[int] f
         param[(consts (0))
               (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
         tail_mod_cons
@@ -65,7 +65,8 @@ let[@tail_mod_cons] rec rec_map f = function
 [%%expect{|
 (letrec
   (rec_map
-     (function f param[(consts (0)) (non_consts ([0: *]))] tail_mod_cons
+     (function {nlocal = 0} f param[(consts (0)) (non_consts ([0: *]))]
+       tail_mod_cons
        [(consts (0)) (non_consts ([0: *]))](if param
                                              (let
                                                (*match* =a (field 0 param))
@@ -90,8 +91,8 @@ let[@tail_mod_cons] rec rec_map f = function
                                                      block))))
                                              0))
     rec_map_dps
-      (function dst offset[int] f param[(consts (0)) (non_consts ([0: *]))]
-        tail_mod_cons
+      (function {nlocal = 0} dst offset[int] f
+        param[(consts (0)) (non_consts ([0: *]))] tail_mod_cons
         [(consts (0)) (non_consts ([0: *]))](if param
                                               (let
                                                 (*match* =a (field 0 param)
@@ -132,7 +133,7 @@ let[@tail_mod_cons] rec trip = function
 [%%expect{|
 (letrec
   (trip
-     (function
+     (function {nlocal = 0}
        param[(consts (0))
              (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
        tail_mod_cons
@@ -164,7 +165,7 @@ let[@tail_mod_cons] rec trip = function
                  (seq (apply trip_dps block 1 (field 1 param)) block)))))
          0))
     trip_dps
-      (function dst offset[int]
+      (function {nlocal = 0} dst offset[int]
         param[(consts (0))
               (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
         tail_mod_cons
@@ -210,7 +211,7 @@ let[@tail_mod_cons] rec effects f = function
 [%%expect{|
 (letrec
   (effects
-     (function f
+     (function {nlocal = 0} f
        param[(consts (0))
              (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
        tail_mod_cons
@@ -233,7 +234,7 @@ let[@tail_mod_cons] rec effects f = function
                (seq (apply effects_dps block 1 f (field 1 param)) block))))
          0))
     effects_dps
-      (function dst offset[int] f
+      (function {nlocal = 0} dst offset[int] f
         param[(consts (0))
               (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
         tail_mod_cons
@@ -276,7 +277,7 @@ let[@tail_mod_cons] rec map_stutter f xs =
 [%%expect{|
 (letrec
   (map_stutter
-     (function f
+     (function {nlocal = 0} f
        xs[(consts (0))
           (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
        tail_mod_cons
@@ -297,7 +298,7 @@ let[@tail_mod_cons] rec map_stutter f xs =
              (seq (apply map_stutter_dps block 1 f (field 1 xs)) block))
            0)))
     map_stutter_dps
-      (function dst offset[int] f
+      (function {nlocal = 0} dst offset[int] f
         xs[(consts (0))
            (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
         tail_mod_cons
@@ -346,7 +347,7 @@ let[@tail_mod_cons] rec smap_stutter f xs n =
 type 'a stream = { hd : 'a; tl : unit -> 'a stream; }
 (letrec
   (smap_stutter
-     (function f xs[(consts ()) (non_consts ([0: *, *]))] n[int]
+     (function {nlocal = 0} f xs[(consts ()) (non_consts ([0: *, *]))] n[int]
        tail_mod_cons
        [(consts (0))
         (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
@@ -369,8 +370,8 @@ type 'a stream = { hd : 'a; tl : unit -> 'a stream; }
                  (- n 1))
                block)))))
     smap_stutter_dps
-      (function dst offset[int] f xs[(consts ()) (non_consts ([0: *, *]))]
-        n[int] tail_mod_cons
+      (function {nlocal = 0} dst offset[int] f
+        xs[(consts ()) (non_consts ([0: *, *]))] n[int] tail_mod_cons
         [(consts (0))
          (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
         (if (== n 0) (setfield_ptr(heap-init)_computed dst offset 0)

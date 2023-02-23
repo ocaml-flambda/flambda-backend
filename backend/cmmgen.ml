@@ -148,9 +148,9 @@ let get_field env ptr n dbg =
   get_field_gen mut ptr n dbg
 
 type rhs_kind =
-  | RHS_block of int
-  | RHS_infix of { blocksize : int; offset : int }
-  | RHS_floatblock of int
+  | RHS_block of Lambda.alloc_mode * int
+  | RHS_infix of { blocksize : int; offset : int; blockmode: Lambda.alloc_mode }
+  | RHS_floatblock of Lambda.alloc_mode * int
   | RHS_nonrec
 ;;
 
@@ -158,8 +158,12 @@ let rec expr_size env = function
   | Uvar id ->
       begin try V.find_same id env with Not_found -> RHS_nonrec end
   | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
-      RHS_block (fundecls_size functions + List.length not_scanned_slots
-        + List.length scanned_slots)
+      (* should all have the same mode *)
+      let fn_mode = (List.hd functions).mode in
+      List.iter (fun f -> assert (Lambda.eq_mode fn_mode f.mode)) functions;
+      RHS_block (fn_mode,
+                 fundecls_size functions + List.length not_scanned_slots
+                 + List.length scanned_slots)
   | Ulet(_str, _kind, id, exp, body) ->
       expr_size (V.add (VP.var id) (expr_size env exp) env) body
   | Uletrec(bindings, body) ->
@@ -169,24 +173,24 @@ let rec expr_size env = function
           bindings env
       in
       expr_size env body
-  | Uprim(Pmakeblock _, args, _) ->
-      RHS_block (List.length args)
-  | Uprim(Pmakearray((Paddrarray | Pintarray), _, _), args, _) ->
-      RHS_block (List.length args)
-  | Uprim(Pmakearray(Pfloatarray, _, _), args, _) ->
-      RHS_floatblock (List.length args)
-  | Uprim(Pmakearray(Pgenarray, _, _), _, _) ->
+  | Uprim(Pmakeblock (_, _, _, mode), args, _) ->
+      RHS_block (mode, List.length args)
+  | Uprim(Pmakearray((Paddrarray | Pintarray), _, mode), args, _) ->
+      RHS_block (mode, List.length args)
+  | Uprim(Pmakearray(Pfloatarray, _, mode), args, _) ->
+      RHS_floatblock (mode, List.length args)
+  | Uprim(Pmakearray(Pgenarray, _, _mode), _, _) ->
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
      RHS_nonrec
   | Uprim (Pduprecord ((Record_regular | Record_inlined _), sz), _, _) ->
-      RHS_block sz
+      RHS_block (Lambda.alloc_heap, sz)
   | Uprim (Pduprecord (Record_unboxed _, _), _, _) ->
       assert false
   | Uprim (Pduprecord (Record_extension _, sz), _, _) ->
-      RHS_block (sz + 1)
+      RHS_block (Lambda.alloc_heap, sz + 1)
   | Uprim (Pduprecord (Record_float, sz), _, _) ->
-      RHS_floatblock sz
+      RHS_floatblock (Lambda.alloc_heap, sz)
   | Uprim (Pccall { prim_name; _ }, closure::_, _)
         when prim_name = "caml_check_value_is_closure" ->
       (* Used for "-clambda-checks". *)
@@ -195,7 +199,8 @@ let rec expr_size env = function
       expr_size env exp'
   | Uoffset (exp, offset) ->
       (match expr_size env exp with
-      | RHS_block blocksize -> RHS_infix { blocksize; offset }
+      | RHS_block (blockmode, blocksize) ->
+         RHS_infix { blocksize; offset; blockmode }
       | RHS_nonrec -> RHS_nonrec
       | _ -> assert false)
   | Uregion exp ->
@@ -1437,14 +1442,19 @@ and transl_letrec env bindings cont =
         args, dbg) in
   let rec init_blocks = function
     | [] -> fill_nonrec bsz
-    | (id, _exp, RHS_block sz) :: rem ->
+    | (_, _,
+       (RHS_block (Alloc_local, _) |
+        RHS_infix {blockmode=Alloc_local; _} |
+        RHS_floatblock (Alloc_local, _))) :: _ ->
+      Misc.fatal_error "Invalid stack allocation found"
+    | (id, _exp, RHS_block (Alloc_heap, sz)) :: rem ->
         Clet(id, op_alloc "caml_alloc_dummy" [int_const dbg sz],
           init_blocks rem)
-    | (id, _exp, RHS_infix { blocksize; offset}) :: rem ->
+    | (id, _exp, RHS_infix { blocksize; offset; blockmode=Alloc_heap }) :: rem ->
         Clet(id, op_alloc "caml_alloc_dummy_infix"
              [int_const dbg blocksize; int_const dbg offset],
              init_blocks rem)
-    | (id, _exp, RHS_floatblock sz) :: rem ->
+    | (id, _exp, RHS_floatblock (Alloc_heap, sz)) :: rem ->
         Clet(id, op_alloc "caml_alloc_dummy_float" [int_const dbg sz],
           init_blocks rem)
     | (id, _exp, RHS_nonrec) :: rem ->

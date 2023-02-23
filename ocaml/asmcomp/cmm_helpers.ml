@@ -2489,8 +2489,8 @@ let assignment_kind
     (ptr: Lambda.immediate_or_pointer)
     (init: Lambda.initialization_or_assignment) =
   match init, ptr with
-  | Assignment Alloc_heap, Pointer -> Caml_modify
-  | Assignment Alloc_local, Pointer ->
+  | Assignment Modify_heap, Pointer -> Caml_modify
+  | Assignment Modify_maybe_stack, Pointer ->
     assert Config.stack_allocation;
     Caml_modify_local
   | Heap_initialization, _ ->

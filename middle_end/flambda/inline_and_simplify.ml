@@ -468,6 +468,7 @@ let rec simplify_project_var env r ~(project_var : Flambda.project_var)
           closure;
           closure_id;
           var;
+          kind = project_var.kind;
         }
       in
       begin match E.find_projection env ~projection with
@@ -477,7 +478,9 @@ let rec simplify_project_var env r ~(project_var : Flambda.project_var)
           Expr (Var var), ret r var_approx)
       | None ->
         let approx = A.approx_for_bound_var value_set_of_closures var in
-        let expr : Flambda.named = Project_var { closure; closure_id; var; } in
+        let expr : Flambda.named =
+          Project_var { closure; closure_id; var; kind = project_var.kind; }
+        in
         let unwrapped = Var_within_closure.unwrap var in
         let expr =
           if E.mem env unwrapped then
@@ -610,6 +613,7 @@ and simplify_set_of_closures original_env r
     let function_decl =
       Flambda.create_function_declaration
         ~params:function_decl.params
+        ~return_layout:function_decl.return_layout
         ~alloc_mode:function_decl.alloc_mode ~region:function_decl.region
         ~body ~stub:function_decl.stub
         ~inline:function_decl.inline ~specialise:function_decl.specialise
@@ -674,7 +678,7 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
   let {
     Flambda. func = lhs_of_application; args; kind = _; dbg; reg_close; mode;
     inlined = inlined_requested; specialise = specialise_requested;
-    probe = probe_requested;
+    probe = probe_requested; result_layout
   } = apply in
   let r =
     match reg_close, mode with
@@ -763,7 +767,7 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
           end;
           let result, r =
             if nargs = arity then
-              simplify_full_application env r ~function_decls
+              simplify_full_application env r ~function_decls ~result_layout
                 ~lhs_of_application ~closure_id_being_applied ~function_decl
                 ~value_set_of_closures ~args ~args_approxs ~dbg ~reg_close ~mode
                 ~inlined_requested ~specialise_requested ~probe_requested
@@ -771,11 +775,11 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
               simplify_over_application env r ~args ~args_approxs
                 ~function_decls ~lhs_of_application ~closure_id_being_applied
                 ~function_decl ~value_set_of_closures ~dbg ~reg_close ~mode
-                ~inlined_requested ~specialise_requested
+                ~inlined_requested ~specialise_requested ~result_layout
             else if nargs > 0 && nargs < arity then
               simplify_partial_application env r ~lhs_of_application
                 ~closure_id_being_applied ~function_decl ~args ~mode ~dbg
-                ~inlined_requested ~specialise_requested
+                ~inlined_requested ~specialise_requested ~result_layout
             else
               Misc.fatal_errorf "Function with arity %d when simplifying \
                   application expression: %a"
@@ -788,22 +792,23 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
                    inlined = inlined_requested;
                    specialise = specialise_requested;
                    probe = probe_requested;
+                   result_layout;
                  }),
             ret r (A.value_unknown Other)))
 
 and simplify_full_application env r ~function_decls ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~value_set_of_closures ~args
-      ~args_approxs ~dbg ~reg_close ~mode
+      ~args_approxs ~dbg ~reg_close ~mode ~result_layout
       ~inlined_requested ~specialise_requested ~probe_requested
   =
   Inlining_decision.for_call_site ~env ~r ~function_decls
     ~lhs_of_application ~closure_id_being_applied ~function_decl
     ~value_set_of_closures ~args ~args_approxs ~dbg ~reg_close ~mode ~simplify
-    ~inlined_requested ~specialise_requested ~probe_requested
+    ~inlined_requested ~specialise_requested ~probe_requested ~result_layout
 
 and simplify_partial_application env r ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~args ~mode ~dbg
-      ~inlined_requested ~specialise_requested
+      ~inlined_requested ~specialise_requested ~result_layout
   =
   let arity = A.function_arity function_decl in
   assert (arity > List.length args);
@@ -861,8 +866,10 @@ and simplify_partial_application env r ~lhs_of_application
         inlined = Default_inlined;
         specialise = Default_specialise;
         probe = None;
+        result_layout;
       }
     in
+    assert(Lambda.compatible_layout function_decl.A.return_layout result_layout);
     let closure_variable =
       Variable.rename ~debug_info:(Closure_id.debug_info closure_id_being_applied)
         (Closure_id.unwrap closure_id_being_applied)
@@ -880,6 +887,7 @@ and simplify_partial_application env r ~lhs_of_application
       ~alloc_mode:partial_mode
       ~region:function_decl.A.region
       ~params:remaining_args
+      ~return_layout:function_decl.A.return_layout
       ~free_variables
   in
   let with_known_args =
@@ -892,7 +900,7 @@ and simplify_partial_application env r ~lhs_of_application
 
 and simplify_over_application env r ~args ~args_approxs ~function_decls
       ~lhs_of_application ~closure_id_being_applied ~function_decl
-      ~value_set_of_closures ~dbg ~reg_close ~mode
+      ~value_set_of_closures ~dbg ~reg_close ~mode ~result_layout
       ~inlined_requested ~specialise_requested =
   let arity = A.function_arity function_decl in
   assert (arity < List.length args);
@@ -911,13 +919,14 @@ and simplify_over_application env r ~args ~args_approxs ~function_decls
       ~closure_id_being_applied ~function_decl ~value_set_of_closures
       ~args:full_app_args ~args_approxs:full_app_approxs ~dbg
       ~reg_close:Lambda.Rc_normal ~mode:mode'
+      ~result_layout:Lambda.layout_function
       ~inlined_requested ~specialise_requested ~probe_requested:None
   in
   let func_var = Variable.create Internal_variable_names.full_apply in
   let expr : Flambda.t =
     Flambda.create_let func_var (Expr expr)
       (Apply { func = func_var; args = remaining_args; kind = Indirect; dbg;
-               reg_close = Rc_normal; mode;
+               reg_close = Rc_normal; mode; result_layout;
                inlined = inlined_requested; specialise = specialise_requested;
                probe = None})
   in
@@ -1250,17 +1259,17 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
           | Static_raise (j, args) ->
             assert (Static_exception.equal i j);
             let handler =
-              List.fold_left2 (fun body var arg ->
+              List.fold_left2 (fun body (var, _layout) arg ->
                   Flambda.create_let var (Expr (Var arg)) body)
                 handler vars args
             in
             let r = R.exit_scope_catch r i in
             simplify env r handler
           | _ ->
-            let vars, sb = Freshening.add_variables' (E.freshening env) vars in
+            let vars, sb = Freshening.add_variables (E.freshening env) vars in
             let approx = R.approx r in
             let env =
-              List.fold_left (fun env id ->
+              List.fold_left (fun env (id, _layout) ->
                   E.add env id (A.value_unknown Other))
                 (E.set_freshening env sb) vars
             in
@@ -1303,12 +1312,12 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
     let cond, r = simplify env r cond in
     let body, r = simplify env r body in
     While (cond, body), ret r (A.value_unknown Other)
-  | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
+  | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
     let dbg = E.add_inlined_debuginfo env ~dbg in
     simplify_free_variable env meth ~f:(fun env meth _meth_approx ->
       simplify_free_variable env obj ~f:(fun env obj _obj_approx ->
         simplify_free_variables env args ~f:(fun _env args _args_approx ->
-          Send { kind; meth; obj; args; dbg; reg_close; mode },
+          Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout },
             ret r (A.value_unknown Other))))
   | For { bound_var; from_value; to_value; direction; body; } ->
     simplify_free_variable env from_value ~f:(fun env from_value _approx ->
@@ -1509,6 +1518,7 @@ and duplicate_function ~env ~(set_of_closures : Flambda.set_of_closures)
   let function_decl =
     Flambda.create_function_declaration
       ~params:function_decl.params
+      ~return_layout:function_decl.return_layout
       ~alloc_mode:function_decl.alloc_mode ~region:function_decl.region
       ~body ~stub:function_decl.stub
       ~inline:function_decl.inline ~specialise:function_decl.specialise

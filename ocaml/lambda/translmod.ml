@@ -110,8 +110,7 @@ let rec apply_coercion loc strict restr arg =
       let carg = apply_coercion loc Alias cc_arg (Lvar param) in
       apply_coercion_result loc strict arg [param, Lambda.layout_module] [carg] cc_res
   | Tcoerce_primitive { pc_desc; pc_env; pc_type; pc_poly_mode } ->
-      let poly_mode = Option.map Translcore.transl_alloc_mode pc_poly_mode in
-      Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode None
+      Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode:pc_poly_mode None
   | Tcoerce_alias (env, path, cc) ->
       let lam = transl_module_path loc env path in
       name_lambda strict arg Lambda.layout_module
@@ -629,12 +628,8 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
                       match cc with
                       | Tcoerce_primitive p ->
                           let loc = of_location ~scopes p.pc_loc in
-                          let poly_mode =
-                            Option.map
-                              Translcore.transl_alloc_mode p.pc_poly_mode
-                          in
                           Translprim.transl_primitive
-                            loc p.pc_desc p.pc_env p.pc_type ~poly_mode None
+                            loc p.pc_desc p.pc_env p.pc_type ~poly_mode:p.pc_poly_mode None
                       | _ -> apply_coercion loc Strict cc (get_field pos))
                     pos_cc_list, loc)
             and id_pos_list =
@@ -910,7 +905,12 @@ let required_globals ~flambda body =
 
 (* Compile an implementation *)
 
-let transl_implementation_flambda compilation_unit (str, cc) =
+type compilation_unit_style =
+  | Plain_block
+  | Set_global_to_block
+  | Set_individual_fields
+
+let transl_implementation_plain_block compilation_unit (str, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
@@ -928,9 +928,9 @@ let transl_implementation_flambda compilation_unit (str, cc) =
     required_globals = required_globals ~flambda:true body;
     code = body }
 
-let transl_implementation module_name (str, cc) =
+let transl_implementation_set_global module_name (str, cc) =
   let implementation =
-    transl_implementation_flambda module_name (str, cc)
+    transl_implementation_plain_block module_name (str, cc)
   in
   let code =
     Lprim (Psetglobal implementation.compilation_unit, [implementation.code],
@@ -1090,8 +1090,7 @@ let field_of_str loc str =
   fun (pos, cc) ->
     match cc with
     | Tcoerce_primitive { pc_desc; pc_env; pc_type; pc_poly_mode } ->
-        let poly_mode = Option.map Translcore.transl_alloc_mode pc_poly_mode in
-        Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode None
+        Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode:pc_poly_mode None
     | Tcoerce_alias (env, path, cc) ->
         let lam = transl_module_path loc env path in
         apply_coercion loc Alias cc lam
@@ -1422,13 +1421,10 @@ let transl_store_structure ~scopes glob map prims aliases str =
     List.fold_right (add_ident may_coerce) idlist subst
 
   and store_primitive (pos, prim) cont =
-    let poly_mode =
-      Option.map Translcore.transl_alloc_mode prim.pc_poly_mode
-    in
     Lsequence(Lprim(mod_setfield pos,
                     [Lprim(Pgetglobal glob, [], Loc_unknown);
                      Translprim.transl_primitive Loc_unknown
-                       prim.pc_desc prim.pc_env prim.pc_type ~poly_mode None],
+                       prim.pc_desc prim.pc_env prim.pc_type ~poly_mode:prim.pc_poly_mode None],
                     Loc_unknown),
               cont)
 
@@ -1522,7 +1518,7 @@ let transl_store_phrases module_name str =
   in
   transl_store_gen ~scopes module_name (str,Tcoerce_none) true
 
-let transl_store_implementation compilation_unit (str, restr) =
+let transl_implementation_set_fields compilation_unit (str, restr) =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
@@ -1534,6 +1530,12 @@ let transl_store_implementation compilation_unit (str, restr) =
        the type with the flambda version *)
     compilation_unit;
     required_globals = required_globals ~flambda:true code }
+
+let transl_implementation compilation_unit impl ~style =
+  match style with
+  | Plain_block -> transl_implementation_plain_block compilation_unit impl
+  | Set_global_to_block -> transl_implementation_set_global compilation_unit impl
+  | Set_individual_fields -> transl_implementation_set_fields compilation_unit impl
 
 (* Compile a toplevel phrase *)
 
@@ -1736,7 +1738,7 @@ let get_component = function
     None -> Lconst const_unit
   | Some id -> Lprim(Pgetglobal id, [], Loc_unknown)
 
-let transl_package_flambda component_names coercion =
+let transl_package_plain_block component_names coercion =
   let size =
     match coercion with
     | Tcoerce_none -> List.length component_names
@@ -1751,13 +1753,9 @@ let transl_package_flambda component_names coercion =
            List.map get_component component_names,
            Loc_unknown))
 
-let transl_package component_names target_name coercion =
-  let components =
-    Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
-          List.map get_component component_names, Loc_unknown) in
-  Lprim(Psetglobal target_name,
-        [apply_coercion Loc_unknown Strict coercion components],
-        Loc_unknown)
+let transl_package_set_global component_names target_name coercion =
+  let size, block = transl_package_plain_block component_names coercion in
+  size, Lprim(Psetglobal target_name, [block], Loc_unknown)
   (*
   let components =
     match coercion with
@@ -1774,7 +1772,7 @@ let transl_package component_names target_name coercion =
   Lprim(Psetglobal target_name, [Lprim(Pmakeblock(0, Immutable), components)])
    *)
 
-let transl_store_package component_names target_name coercion =
+let transl_package_set_fields component_names target_name coercion =
   let rec make_sequence fn pos arg =
     match arg with
       [] -> lambda_unit
@@ -1818,6 +1816,15 @@ let transl_store_package component_names target_name coercion =
          0 pos_cc_list)
   *)
   | _ -> assert false
+
+let transl_package component_names target_name coercion ~style =
+  match style with
+  | Plain_block ->
+      transl_package_plain_block component_names coercion
+  | Set_global_to_block ->
+      transl_package_set_global component_names target_name coercion
+  | Set_individual_fields ->
+      transl_package_set_fields component_names target_name coercion
 
 (* Error report *)
 
