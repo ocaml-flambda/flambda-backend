@@ -257,8 +257,10 @@ type error =
   | Param_mode_mismatch of type_expr
   | Uncurried_function_escapes
   | Local_return_annotation_mismatch of Location.t
+  | Function_returns_local
   | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
   | Optional_poly_param
+
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

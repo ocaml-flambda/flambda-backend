@@ -315,7 +315,7 @@ type escaping_context =
   | Partial_application
 
 type value_lock =
-  | Lock of { mode : Value_mode.t; escaping_context : escaping_context option }
+  | Lock of { mode : Alloc_mode.t; escaping_context : escaping_context option }
   | Region_lock
 
 module IdTbl =
@@ -2852,7 +2852,7 @@ let lock_mode ~errors ~loc env id vmode locks =
       match lock with
       | Region_lock -> Value_mode.local_to_regional vmode
       | Lock {mode; escaping_context} ->
-          match Value_mode.submode vmode mode with
+          match Value_mode.submode vmode (Value_mode.of_alloc mode) with
           | Ok () -> vmode
           | Error _ ->
               may_lookup_error errors loc env
