@@ -187,7 +187,9 @@ let file_aux ~tool_name inputfile (type a) parse_fun invariant_fun
         Location.input_lexbuf := Some lexbuf;
         Profile.record_call "parser" (fun () -> parse_fun lexbuf)
       end
-    with x -> close_in ic; raise x
+    with x ->
+      close_in ic;
+      raise x
   in
   close_in ic;
   Profile.record_call "-ppx" (fun () ->

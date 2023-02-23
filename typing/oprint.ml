@@ -213,8 +213,13 @@ let print_out_value ppf tree =
         end
     | Oval_list tl ->
         fprintf ppf "@[<1>[%a]@]" (print_tree_list print_tree_1 ";") tl
-    | Oval_array tl ->
-        fprintf ppf "@[<2>[|%a|]@]" (print_tree_list print_tree_1 ";") tl
+    | Oval_array (tl, am) ->
+        let sigil = match am with
+          | Mutable   -> '|'
+          | Immutable -> ':'
+        in
+        fprintf ppf "@[<2>[%c%a%c]@]"
+          sigil (print_tree_list print_tree_1 ";") tl sigil
     | Oval_constr (name, []) -> print_ident ppf name
     | Oval_variant (name, None) -> fprintf ppf "`%s" name
     | Oval_stuff s -> pp_print_string ppf s
