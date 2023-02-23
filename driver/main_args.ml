@@ -940,6 +940,9 @@ let mk_afl_inst_ratio f =
   \     (advanced, see afl-fuzz docs for AFL_INST_RATIO)"
 ;;
 
+let mk_alloc_check f =
+  "-alloc-check", Arg.Unit f, "<ignored>"
+
 let mk__ f =
   "-", Arg.String f,
   "<file>  Treat <file> as a file name (even if it starts with `-')"
@@ -1172,6 +1175,7 @@ module type Optcomp_options = sig
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
+  val _alloc_check : unit -> unit
 end;;
 
 module type Opttop_options = sig
@@ -1541,6 +1545,7 @@ struct
     mk_dump_into_file F._dump_into_file;
     mk_dump_dir F._dump_dir;
     mk_dump_pass F._dump_pass;
+    mk_alloc_check F._alloc_check;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -2024,6 +2029,7 @@ module Default = struct
     let _v () = Compenv.print_version_and_library "native-code compiler"
     let _no_probes = clear probes
     let _probes = set probes
+    let _alloc_check () = ()
   end
 
   module Odoc_args = struct
