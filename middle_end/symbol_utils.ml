@@ -16,8 +16,6 @@
 
 [@@@ocaml.warning "+a-9-30-40-41-42"]
 
-module CU = Compilation_unit
-
 module Flambda = struct
   let for_variable var =
     Symbol.for_name (Variable.get_compilation_unit var) (Variable.unique_name var)
@@ -29,12 +27,4 @@ module Flambda = struct
   let for_code_of_closure closure_id =
     Symbol.for_name (Closure_id.get_compilation_unit closure_id)
       (Closure_id.unique_name closure_id)
-
-  (* CR-soon lmaurer: Be rid of this when we have prefixes set correctly to begin
-     with *)
-  let import_for_pack symbol ~pack =
-    let compilation_unit =
-      CU.with_for_pack_prefix (Symbol.compilation_unit symbol) pack
-    in
-    Symbol.with_compilation_unit symbol compilation_unit
 end

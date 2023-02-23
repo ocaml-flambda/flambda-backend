@@ -26,14 +26,16 @@ module Env : sig
 
   val empty : t
 
-  val add_var : t -> Ident.t -> Variable.t -> t
-  val add_vars : t -> Ident.t list -> Variable.t list -> t
+  val add_var : t -> Ident.t -> Variable.t -> Lambda.layout -> t
+  val add_vars : t -> Ident.t list -> (Variable.t * Lambda.layout) list -> t
 
-  val find_var : t -> Ident.t -> Variable.t
-  val find_var_exn : t -> Ident.t -> Variable.t
+  val find_var : t -> Ident.t -> Variable.t * Lambda.layout
+  val find_var_exn : t -> Ident.t -> Variable.t * Lambda.layout
 
-  val add_mutable_var : t -> Ident.t -> Mutable_variable.t -> t
-  val find_mutable_var_exn : t -> Ident.t -> Mutable_variable.t
+  val add_mutable_var :
+    t -> Ident.t -> Mutable_variable.t -> Lambda.layout -> t
+  val find_mutable_var_exn :
+    t -> Ident.t -> Mutable_variable.t * Lambda.layout
 
   val add_static_exception : t -> int -> Static_exception.t -> t
   val find_static_exception : t -> int -> Static_exception.t
@@ -58,7 +60,8 @@ module Function_decls : sig
       -> kind:Lambda.function_kind
       -> mode:Lambda.alloc_mode
       -> region:bool
-      -> params:Ident.t list
+      -> params:(Ident.t * Lambda.layout) list
+      -> return_layout:Lambda.layout
       -> body:Lambda.lambda
       -> attr:Lambda.function_attribute
       -> loc:Lambda.scoped_location
@@ -69,7 +72,8 @@ module Function_decls : sig
     val kind : t -> Lambda.function_kind
     val mode : t -> Lambda.alloc_mode
     val region : t -> bool
-    val params : t -> Ident.t list
+    val params : t -> (Ident.t * Lambda.layout) list
+    val return_layout : t -> Lambda.layout
     val body : t -> Lambda.lambda
     val inline : t -> Lambda.inline_attribute
     val specialise : t -> Lambda.specialise_attribute

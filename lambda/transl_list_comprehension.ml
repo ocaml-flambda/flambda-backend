@@ -149,8 +149,8 @@ type translated_iterator =
   (** The name given to the values we're iterating over; needs to be a fresh
       name for [for]-[in] iterators in case the user specifies a complex
       pattern. *)
-  ; element_kind : value_kind
-  (** The [value_kind] of the values we're iterating over. *)
+  ; element_kind : layout
+  (** The [layout] of the values we're iterating over. *)
   ; add_bindings : lambda -> lambda
   (** Any extra bindings that should be present in the body of this iterator,
       for use by nested pieces of the translation; used if the user specifies a
@@ -169,7 +169,7 @@ let iterator ~transl_exp ~scopes = function
          correct (i.e., left-to-right) order *)
       let transl_bound var bound =
         Let_binding.make
-          (Immutable Strict) Pintval
+          (Immutable Strict) (Pvalue Pintval)
           var (transl_exp ~scopes bound)
       in
       let start = transl_bound "start" start in
@@ -179,12 +179,12 @@ let iterator ~transl_exp ~scopes = function
                         | Downto -> rev_dlist_concat_iterate_down)
       ; arg_lets     = [start; stop]
       ; element      = ident
-      ; element_kind = Pintval
+      ; element_kind = Pvalue Pintval
       ; add_bindings = Fun.id
       }
   | Texp_comp_in { pattern; sequence } ->
       let iter_list =
-        Let_binding.make (Immutable Strict) Pgenval
+        Let_binding.make (Immutable Strict) (Pvalue Pgenval)
           "iter_list" (transl_exp ~scopes sequence)
       in
       (* Create a fresh variable to use as the function argument *)
@@ -192,12 +192,12 @@ let iterator ~transl_exp ~scopes = function
       { builder      = rev_dlist_concat_map
       ; arg_lets     = [iter_list]
       ; element
-      ; element_kind = Typeopt.value_kind pattern.pat_env pattern.pat_type
+      ; element_kind = Typeopt.layout pattern.pat_env pattern.pat_type
       ; add_bindings =
           (* CR aspectorzabusky: This has to be at [value_kind] [Pgenval],
              right, since we don't know more specifically? *)
           Matching.for_let
-            ~scopes pattern.pat_loc (Lvar element) pattern Pgenval
+            ~scopes pattern.pat_loc (Lvar element) pattern (Pvalue Pgenval)
       }
 
 (** Translates a list comprehension binding
@@ -238,8 +238,8 @@ let rec translate_bindings
           ~kind:(Curried { nlocal = 2 })
           (* Only the accumulator is local, but since the function itself is
              local, [nlocal] has to be equal to the number of parameters *)
-          ~params:[element, element_kind; inner_acc, Pgenval]
-          ~return:Pgenval
+          ~params:[element, element_kind; inner_acc, Pvalue Pgenval]
+          ~return:(Pvalue Pgenval)
           ~attr:default_function_attribute
           ~loc
           ~mode:alloc_local
@@ -253,6 +253,7 @@ let rec translate_bindings
           (Lazy.force builder)
           (List.map (fun Let_binding.{id; _} -> Lvar id) arg_lets @
            [body_func; accumulator])
+          ~result_layout:(Pvalue Pgenval)
       in
       arg_lets @ body_arg_lets, result
   | [] ->
@@ -283,7 +284,7 @@ let rec translate_clauses
             Lifthenelse(transl_exp ~scopes cond,
                         body ~accumulator,
                         accumulator,
-                        Pgenval (* [list]s have the standard representation *))
+                        (Pvalue Pgenval) (* [list]s have the standard representation *))
       end
   | [] ->
       comprehension_body ~accumulator
@@ -304,3 +305,4 @@ let comprehension ~transl_exp ~scopes ~loc { comp_body; comp_clauses } =
     ~mode:alloc_heap
     (Lazy.force rev_list_to_list)
     [rev_comprehension]
+    ~result_layout:(Pvalue Pgenval)

@@ -111,36 +111,26 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
     let compilation_unit = CU.create for_pack_prefix modname in
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = CU.Set.empty in
-    let program, middle_end =
-      if Config.flambda then
-        let main_module_block_size, code =
-          Translmod.transl_package_flambda components coercion
-        in
-        let code = Simplif.simplify_lambda code in
-        let program =
-          { Lambda.
-            code;
-            main_module_block_size;
-            compilation_unit;
-            required_globals;
-          }
-        in
-        program, Flambda_middle_end.lambda_to_clambda
-      else
-        let main_module_block_size, code =
-          Translmod.transl_store_package components
-            compilation_unit coercion
-        in
-        let code = Simplif.simplify_lambda code in
-        let program =
-          { Lambda.
-            code;
-            main_module_block_size;
-            compilation_unit;
-            required_globals;
-          }
-        in
-        program, Closure_middle_end.lambda_to_clambda
+    let transl_style : Translmod.compilation_unit_style =
+      if Config.flambda || Config.flambda2 then Plain_block
+      else Set_individual_fields
+    in
+    let main_module_block_size, code =
+      Translmod.transl_package components compilation_unit coercion
+        ~style:transl_style
+    in
+    let code = Simplif.simplify_lambda code in
+    let program =
+      { Lambda.
+        code;
+        main_module_block_size;
+        compilation_unit;
+        required_globals;
+      }
+    in
+    let middle_end =
+      if Config.flambda then Flambda_middle_end.lambda_to_clambda
+      else Closure_middle_end.lambda_to_clambda
     in
     Asmgen.compile_implementation ~backend
       ~prefixname

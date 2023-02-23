@@ -24,33 +24,40 @@ open! Int_replace_polymorphic_compare
 type parameter = {
   var : Variable.t;
   mode : Lambda.alloc_mode;
+  kind : Lambda.layout;
 }
 
-let wrap var mode = { var; mode }
+let wrap var mode kind = { var; mode; kind }
 
 let var p = p.var
 let alloc_mode p = p.mode
+let kind p = p.kind
 
 module M =
   Identifiable.Make (struct
     type t = parameter
 
-    let compare { var = var1; mode = _ } { var = var2; mode = _ } =
+    let compare
+        { var = var1; mode = _ ; kind = _ }
+        { var = var2; mode = _ ; kind = _ } =
       Variable.compare var1 var2
 
-    let equal { var = var1; mode = _ } { var = var2; mode = _ } =
+    let equal
+        { var = var1; mode = _ ; kind = _ }
+        { var = var2; mode = _ ; kind = _ } =
       Variable.equal var1 var2
 
-    let hash { var; mode = _ } =
+    let hash { var; mode = _ ; kind = _ } =
       Variable.hash var
 
-    let print ppf { var; mode } =
+    let print ppf { var; mode ; kind } =
       let mode = match mode with
         | Lambda.Alloc_heap -> ""
         | Lambda.Alloc_local -> "[->L]" in
-      Format.fprintf ppf "%a%s" Variable.print var mode
+      Format.fprintf ppf "%a%s[%a]"
+        Variable.print var mode Printlambda.layout kind
 
-    let output o { var; mode = _ } =
+    let output o { var; mode = _ ; kind = _ } =
       Variable.output o var
   end)
 
@@ -65,10 +72,10 @@ module Set = struct
 end
 
 let rename ?current_compilation_unit p =
-  { var = Variable.rename ?current_compilation_unit p.var; mode = p.mode }
+  { p with var = Variable.rename ?current_compilation_unit p.var }
 
-let map_var f { var; mode } = { var = f var; mode }
+let map_var f { var ; mode ; kind } = { var = f var; mode; kind }
 
 module List = struct
-  let vars params = List.map (fun { var; mode=_ } -> var) params
+  let vars params = List.map (fun { var ; mode = _ ; kind = _ } -> var) params
 end

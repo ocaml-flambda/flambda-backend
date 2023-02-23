@@ -85,6 +85,15 @@ let print_info cmt =
   let compare_imports (name1, _crco1) (name2, _crco2) =
     Compilation_unit.Name.compare name1 name2
   in
+  let imports =
+    let imports =
+      Array.map (fun import ->
+          Import_info.name import, Import_info.crc_with_unit import)
+        cmt.cmt_imports
+    in
+    Array.sort compare_imports imports;
+    Array.to_list imports
+  in
   List.iter (fun (name, crco) ->
     let crc =
       match crco with
@@ -92,7 +101,7 @@ let print_info cmt =
       | Some (_unit, crc) -> Digest.to_hex crc
     in
     Printf.fprintf oc "import: %a %s\n" Compilation_unit.Name.output name crc;
-  ) (List.sort compare_imports cmt.cmt_imports);
+  ) imports;
   Printf.fprintf oc "%!";
   begin match !target_filename with
   | None -> ()

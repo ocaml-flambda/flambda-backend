@@ -51,6 +51,17 @@ static void *getsym(void *handle, const char *module, const char *name){
   return sym;
 }
 
+static void *getsym_exn(void *handle, const char *module, const char *name){
+  void *sym = getsym(handle, module, name);
+  if (sym == NULL) {
+    value msg = caml_alloc_sprintf(
+      "Dynlink: failed to load module due to missing symbol %s%s",
+      module, name);
+    caml_invalid_argument_value(msg);
+  }
+  return sym;
+}
+
 CAMLprim value caml_natdynlink_getmap(value unit)
 {
   return caml_input_value_from_block(caml_globals_map, INT_MAX);
@@ -98,39 +109,31 @@ CAMLprim value caml_natdynlink_run(value handle_v, value symbol) {
   CAMLlocal1 (result);
   void *sym,*sym2;
   void* handle = Handle_val(handle_v);
-
-#define optsym(n) getsym(handle,unit,n)
-  const char *unit;
+  const char *unit = String_val(symbol);
   void (*entrypoint)(void);
 
-  unit = String_val(symbol);
-
-  sym = optsym("__gc_roots");
+  sym = getsym_exn(handle, unit, "__gc_roots");
   /* [caml_register_dyn_global] can raise, so do it prior to registering
      frametables etc. */
-  if (NULL != sym) caml_register_dyn_global(sym);
+  caml_register_dyn_global(sym);
 
-  sym = optsym("__frametable");
-  if (NULL != sym) caml_register_frametable(sym);
+  sym = getsym_exn(handle, unit, "__frametable");
+  caml_register_frametable(sym);
 
-  sym = optsym("__data_begin");
-  sym2 = optsym("__data_end");
-  if (NULL != sym && NULL != sym2)
-    caml_page_table_add(In_static_data, sym, sym2);
+  sym = getsym_exn(handle, unit, "__data_begin");
+  sym2 = getsym_exn(handle, unit, "__data_end");
+  caml_page_table_add(In_static_data, sym, sym2);
 
-  sym = optsym("__code_begin");
-  sym2 = optsym("__code_end");
-  if (NULL != sym && NULL != sym2)
-    caml_register_code_fragment((char *) sym, (char *) sym2,
-                                DIGEST_LATER, NULL);
+  sym = getsym_exn(handle, unit, "__code_begin");
+  sym2 = getsym_exn(handle, unit, "__code_end");
+  caml_register_code_fragment((char *) sym, (char *) sym2,
+                              DIGEST_LATER, NULL);
 
   if( caml_natdynlink_hook != NULL ) caml_natdynlink_hook(handle,unit);
 
-  entrypoint = optsym("__entry");
+  entrypoint = getsym(handle, unit, "__entry");
   if (NULL != entrypoint) result = caml_callback((value)(&entrypoint), 0);
   else result = Val_unit;
-
-#undef optsym
 
   CAMLreturn (result);
 }

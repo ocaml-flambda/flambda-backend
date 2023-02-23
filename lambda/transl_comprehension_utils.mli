@@ -27,7 +27,7 @@ module Let_binding : sig
   (** The first-class (in OCaml) type of let bindings. *)
   type t = private
     { let_kind   : Let_kind.t
-    ; value_kind : value_kind
+    ; layout     : layout
     ; id         : Ident.t
     ; init       : lambda   (* initial value *)
     ; var        : lambda   (* occurrence of this variable *)
@@ -35,7 +35,7 @@ module Let_binding : sig
 
   (** Create a fresh local identifier (with name as given by the string
       argument) to bind to an initial value given by the lambda argument. *)
-  val make : Let_kind.t -> value_kind -> string -> lambda -> t
+  val make : Let_kind.t -> layout -> string -> lambda -> t
 
   (** Create a Lambda let-binding (with [Llet]) from a first-class let
       binding, providing the body. *)
@@ -65,7 +65,8 @@ module Lambda_utils : sig
   (** Apply a Lambda function to some Lambda values, at a location; all the
       other information needed by [Lapply] is set to some default value. *)
   val apply :
-    loc:scoped_location -> mode:alloc_mode -> lambda -> lambda list -> lambda
+    loc:scoped_location -> mode:alloc_mode -> lambda -> lambda list ->
+      result_layout:layout -> lambda
 
   (** Nicer OCaml syntax for constructing Lambda ASTs that operate on integers;
       created by [int_ops], which includes the necessary location in all the

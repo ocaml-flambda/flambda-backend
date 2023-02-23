@@ -51,13 +51,15 @@ endef
 .DEFAULT_GOAL := compiler
 .PHONY: boot-compiler boot-runtest runtime-stdlib compiler runtest
 
+boot_targets = \
+  $(boot_ocamlc) \
+  $(boot_ocamlopt) \
+  $(boot_ocamlmklib) \
+  $(boot_ocamldep) \
+  $(boot_ocamlobjinfo)
+
 boot-compiler: _build/_bootinstall
-	$(dune) build $(ws_boot) $(coverage_dune_flags) \
-	  $(boot_ocamlc) \
-	  $(boot_ocamlopt) \
-	  $(boot_ocamlmklib) \
-	  $(boot_ocamldep) \
-          $(boot_ocamlobjinfo)
+	$(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
 
 boot-runtest: boot-compiler
 	$(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
@@ -139,6 +141,13 @@ _install: compiler
 	$(cpl) -R _build/install/runtime_stdlib/lib/ocaml_runtime_stdlib/* _install/lib/ocaml/
 	rm -f _install/lib/ocaml/{META,dune-package,Makefile.config,dynlink.cmxa}
 	$(cpl) -R _build/install/main/lib/ocaml/* _install/lib/ocaml/
+	if [ "x$(legacy_layout)" == "xyes" ] ; \
+	then \
+          for libdir in unix str dynlink bigarray ; do \
+	    mv _install/lib/ocaml/$${libdir}/* _install/lib/ocaml/ ; \
+            rmdir _install/lib/ocaml/$${libdir} ; \
+          done \
+	fi
 	rm -f _install/lib/ocaml/{META,dune-package}
 	rm -f _install/lib/ocaml/compiler-libs/*.cmo
 	$(cpl) {_build/install/main,_install}/lib/ocaml/compiler-libs/topstart.cmo
@@ -202,11 +211,12 @@ install_for_test: _install
 	 done; \
 	 ln -s . lex; ln -s . yacc; \
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
-	 mkdir -p otherlibs/{unix,dynlink/native,str}; \
+	 mkdir -p otherlibs/{unix,dynlink/native,str,bigarray}; \
 	 ln -s ../stdlib/threads otherlibs/systhreads; \
-	 $(cpl) stdlib/{lib,}unix* otherlibs/unix; \
-	 $(cpl) stdlib/dynlink* otherlibs/dynlink; \
-	 $(cpl) stdlib/{lib,}str* otherlibs/str; \
+         $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
+         $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
+         $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
+         ${cpl} stdlib/bigarray/bigarray* otherlibs/bigarray; \
 	 ln -s ../_build/main/$(ocamldir)/toplevel/byte/.ocamltoplevel.objs/byte toplevel; \
 	)
 
@@ -218,6 +228,7 @@ install_for_test: _install
 	cp $(main_build)/$(ocamldir)/.ocamlcommon.objs/byte/*.cmo _runtest/utils
 	rm -f _runtest/utils/{topdirs,opttopdirs}.cmi
 	cp _install/lib/ocaml/*.{cmi,cma,a,cmxa} _runtest/utils
+	cp _install/lib/ocaml/{unix,str,dynlink,bigarray}/*.{cmi,cma,a,cmxa} _runtest/utils
 	cp $(main_build)/$(ocamldir)/.ocamlcommon.objs/native/config.o _runtest/utils
 	# Needed for tests/warnings
 	cp $(ocamldir)/utils/warnings.ml _runtest/utils
@@ -302,4 +313,4 @@ promote-one: install_for_test
 # This target is like a polling version of upstream "make ocamlopt"
 .PHONY: hacking
 hacking: _build/_bootinstall
-	$(dune) build $(ws_boot) -w $(boot_ocamlopt)
+	$(dune) build $(ws_boot) -w $(boot_targets)

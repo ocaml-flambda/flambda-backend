@@ -231,7 +231,7 @@ end = struct
     let y = y.Let_binding.var in
     let open (val Lambda_utils.int_ops ~loc) in
     let product =
-      Let_binding.make (Immutable Alias) Pintval "product" (x * y)
+      Let_binding.make (Immutable Alias) (Pvalue Pintval) "product" (x * y)
     in
     (* [x * y] is safe, for strictly positive [x] and [y], iff you can undo the
        multiplication: [(x * y)/y = x].  We assume the inputs are values, so we
@@ -240,7 +240,7 @@ end = struct
       (Lifthenelse(product.var / y = x,
          product.var,
          raise_overflow_exn ~loc,
-         Pintval))
+         Pvalue Pintval))
 
   (** [safe_product_pos_vals ~loc xs] generates the lambda expression that
       computes the product of all the lambda values in [xs] assuming they are
@@ -260,7 +260,7 @@ end = struct
      variables, but we assume the optimizer can deal with that case nicely. *)
   let safe_product_pos ?(variable_name = "x") ~loc factors =
     let factors =
-      List.map (Let_binding.make (Immutable Strict) Pintval
+      List.map (Let_binding.make (Immutable Strict) (Pvalue Pintval)
                        variable_name) factors
     in
     Let_binding.let_all factors (safe_product_pos_vals ~loc factors)
@@ -366,7 +366,7 @@ module Iterator_bindings = struct
           (* We can assume that the range is nonempty, but computing its size
              still might overflow *)
           let range_size =
-            Let_binding.make (Immutable Alias) Pintval
+            Let_binding.make (Immutable Alias) (Pvalue Pintval)
               "range_size" (high - low + l1)
           in
           Let_binding.let_one range_size
@@ -375,7 +375,7 @@ module Iterator_bindings = struct
             (Lifthenelse(range_size.var > l0,
                          range_size.var,
                          Precompute_array_size.raise_overflow_exn ~loc,
-                         Pintval))
+                         Pvalue Pintval))
       | Array { iter_arr = _; iter_len } ->
           iter_len.var
 
@@ -445,7 +445,7 @@ let iterator ~transl_exp ~scopes ~loc
     = function
   | Texp_comp_range { ident; pattern = _; start; stop; direction } ->
       let bound name value =
-        Let_binding.make (Immutable Strict) Pintval
+        Let_binding.make (Immutable Strict) (Pvalue Pintval)
           name (transl_exp ~scopes value)
       in
       let start = bound "start" start in
@@ -463,14 +463,14 @@ let iterator ~transl_exp ~scopes ~loc
                          ; direction }
   | Texp_comp_in { pattern; sequence = iter_arr_exp } ->
       let iter_arr =
-        Let_binding.make (Immutable Strict) Pgenval
+        Let_binding.make (Immutable Strict) (Pvalue Pgenval)
           "iter_arr" (transl_exp ~scopes iter_arr_exp)
       in
       let iter_arr_kind = Typeopt.array_kind iter_arr_exp in
       let iter_len =
         (* Extra let-binding if we're not in the fixed-size array case; the
            middle-end will simplify this for us *)
-        Let_binding.make (Immutable Alias) Pintval
+        Let_binding.make (Immutable Alias) (Pvalue Pintval)
           "iter_len"
           (Lprim(Parraylength iter_arr_kind, [iter_arr.var], loc))
       in
@@ -491,7 +491,7 @@ let iterator ~transl_exp ~scopes ~loc
                           [iter_arr.var; Lvar iter_ix],
                           loc))
                    pattern
-                   Pintval
+                   (Pvalue Pintval)
                    body
              }
       in
@@ -542,7 +542,7 @@ let clause ~transl_exp ~scopes ~loc = function
       fun body -> Lifthenelse(transl_exp ~scopes cond,
                     body,
                     lambda_unit,
-                    Pintval (* [unit] is immediate *))
+                    (Pvalue Pintval) (* [unit] is immediate *))
 
 (** The [array_sizing] type describes whether an array comprehension has been
     translated using the fixed-size array optimization ([Fixed_size]), or it has
@@ -614,7 +614,7 @@ let clauses ~transl_exp ~scopes ~loc = function
         for_and_clause ~transl_exp ~loc ~scopes bindings
       in
       let array_size =
-        Let_binding.make (Immutable Alias) Pintval
+        Let_binding.make (Immutable Alias) (Pvalue Pintval)
           "array_size"
           (Iterator_bindings.Fixed_size_array.total_size_nonempty
              ~loc var_bindings)
@@ -625,7 +625,7 @@ let clauses ~transl_exp ~scopes ~loc = function
       }
   | clauses ->
       let array_size =
-        Let_binding.make Mutable Pintval
+        Let_binding.make Mutable (Pvalue Pintval)
           "array_size" (int Resizable_array.starting_size)
       in
       let make_comprehension =
@@ -696,7 +696,7 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
     | Dynamic_size, Pfloatarray ->
         Mutable, Resizable_array.make ~loc array_kind (float 0.)
   in
-  Let_binding.make array_let_kind Pgenval "array" array_value
+  Let_binding.make array_let_kind (Pvalue Pgenval) "array" array_value
 
 (** Generate the code for the body of an array comprehension.  This involves
     translating the body expression (a [Typedtree.expression], which is the
@@ -763,14 +763,14 @@ let body
               Lassign(array_size.id, i 2 * array_size.var),
               Lassign(array.id,
                       Resizable_array.double ~loc array.var)),
-            Pintval (* [unit] is immediate *)),
+            (Pvalue Pintval) (* [unit] is immediate *)),
           (* ...and then set the element now that the array is big enough *)
           set_element_raw elt)
   in
   let set_element_known_kind_in_bounds = match array_kind with
     | Pgenarray ->
         let is_first_iteration = (index.var = l0) in
-        let elt = Let_binding.make (Immutable Strict) Pgenval "elt" body in
+        let elt = Let_binding.make (Immutable Strict) (Pvalue Pgenval) "elt" body in
         let make_array = match array_sizing with
           | Fixed_size ->
               make_vect ~loc ~length:array_size.var ~init:elt.var
@@ -781,7 +781,7 @@ let body
              (Lifthenelse(is_first_iteration,
                Lassign(array.id, make_array),
                set_element_in_bounds elt.var,
-               Pintval (* [unit] is immediate *)))
+               (Pvalue Pintval) (* [unit] is immediate *)))
     | Pintarray | Paddrarray | Pfloatarray ->
         set_element_in_bounds body
   in
@@ -801,7 +801,7 @@ let comprehension
   let array =
     initial_array ~loc ~array_kind ~array_size ~array_sizing
   in
-  let index = Let_binding.make Mutable Pintval "index" (int 0) in
+  let index = Let_binding.make Mutable (Pvalue Pintval) "index" (int 0) in
   (* The core of the comprehension: the array, the index, and the iteration that
      fills everything in.  The translation of the clauses will produce a check
      to see if we can avoid doing the hard work of growing the array, which is
@@ -848,6 +848,6 @@ let comprehension
               can use [Pgenarray] to create the empty array above but still
               use [array_kind] here.  Is that right? *)
            (* (And the result has the [value_kind] of the array) *)
-           Parrayval array_kind))
+           (Pvalue (Parrayval array_kind))))
   | Dynamic_size_info ->
       comprehension

@@ -52,23 +52,23 @@ let variables_not_used_as_local_reference (tree:Flambda.t) =
     | Let_mutable { initial_value = v; body } ->
       set := Variable.Set.add v !set;
       loop body
-    | If_then_else (cond, ifso, ifnot) ->
+    | If_then_else (cond, ifso, ifnot, _kind) ->
       set := Variable.Set.add cond !set;
       loop ifso;
       loop ifnot
-    | Switch (cond, { consts; blocks; failaction }) ->
+    | Switch (cond, { consts; blocks; failaction; kind = _ }) ->
       set := Variable.Set.add cond !set;
       List.iter (fun (_, branch) -> loop branch) consts;
       List.iter (fun (_, branch) -> loop branch) blocks;
       Option.iter loop failaction
-    | String_switch (cond, branches, default) ->
+    | String_switch (cond, branches, default, _kind) ->
       set := Variable.Set.add cond !set;
       List.iter (fun (_, branch) -> loop branch) branches;
       Option.iter loop default
-    | Static_catch (_, _, body, handler) ->
+    | Static_catch (_, _, body, handler, _) ->
       loop body;
       loop handler
-    | Try_with (body, _, handler) ->
+    | Try_with (body, _, handler, _kind) ->
       loop body;
       loop handler
     | While (cond, body) ->
@@ -147,7 +147,7 @@ let eliminate_ref_of_expr flam =
                 (Let_mutable { var = field_var;
                                initial_value = init;
                                body;
-                               contents_kind = kind } : Flambda.t))
+                               contents_kind = Lambda.Pvalue kind } : Flambda.t))
             (0,body) l shape in
         expr
       | Let _ | Let_mutable _

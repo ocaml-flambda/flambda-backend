@@ -15,7 +15,7 @@
 
 (* Second intermediate language (machine independent) *)
 
-type machtype_component =
+type machtype_component = Cmx_format.machtype_component =
   | Val
   | Addr
   | Int
@@ -171,9 +171,15 @@ and operation =
   | Copaque (* Sys.opaque_identity *)
   | Cbeginregion | Cendregion
 
+type value_kind =
+  | Vval of Lambda.value_kind (* Valid OCaml values *)
+  | Vint (* Untagged integers and off-heap pointers *)
+  | Vaddr (* Derived pointers *)
+  | Vfloat (* Unboxed floating-point numbers *)
+
 (** Every basic block should have a corresponding [Debuginfo.t] for its
     beginning. *)
-and expression =
+type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
@@ -190,17 +196,18 @@ and expression =
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
   | Cifthenelse of expression * Debuginfo.t * expression
-      * Debuginfo.t * expression * Debuginfo.t
+      * Debuginfo.t * expression * Debuginfo.t * value_kind
   | Cswitch of expression * int array * (expression * Debuginfo.t) array
-      * Debuginfo.t
+      * Debuginfo.t * value_kind
   | Ccatch of
       rec_flag
         * (int * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t) list
         * expression
+        * value_kind
   | Cexit of int * expression list
   | Ctrywith of expression * Backend_var.With_provenance.t * expression
-      * Debuginfo.t
+      * Debuginfo.t * value_kind
   | Cregion of expression
   | Ctail of expression
 
@@ -237,7 +244,7 @@ type phrase =
 
 val ccatch :
      int * (Backend_var.With_provenance.t * machtype) list
-       * expression * expression * Debuginfo.t
+       * expression * expression * Debuginfo.t * value_kind
   -> expression
 
 val reset : unit -> unit
@@ -251,12 +258,12 @@ val iter_shallow_tail: (expression -> unit) -> expression -> bool
       considered to be in tail position (because their result become
       the final result for the expression).  *)
 
-val map_shallow_tail: (expression -> expression) -> expression -> expression
+val map_shallow_tail: ?kind:value_kind -> (expression -> expression) -> expression -> expression
   (** Apply the transformation to those immediate sub-expressions of an
       expression that are in tail position, using the same definition of "tail"
       as [iter_shallow_tail] *)
 
-val map_tail: (expression -> expression) -> expression -> expression
+val map_tail: ?kind:value_kind -> (expression -> expression) -> expression -> expression
   (** Apply the transformation to an expression, trying to push it
       to all inner sub-expressions that can produce the final result,
       by recursively applying map_shallow_tail *)

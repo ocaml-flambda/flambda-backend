@@ -112,7 +112,7 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
     let tag = Tag.create_exn tag_int in
     let shape = match shape with
       | None -> List.map (fun _ -> Lambda.Pgenval) args
-      | Some shape -> shape
+      | Some shape -> List.map (fun kind -> kind) shape
     in
     let approxs = List.map2 A.augment_with_kind approxs shape in
     let shape = List.map2 A.augment_kind_with_approx approxs shape in

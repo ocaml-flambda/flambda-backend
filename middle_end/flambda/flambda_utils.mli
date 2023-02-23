@@ -69,6 +69,8 @@ val make_closure_declaration
   -> region:bool
   -> body:Flambda.t
   -> params:Parameter.t list
+  -> return_layout:Lambda.layout
+  -> free_variables:Lambda.layout Variable.Map.t
   -> Flambda.t
 
 val toplevel_substitution

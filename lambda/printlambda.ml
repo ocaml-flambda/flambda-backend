@@ -95,17 +95,19 @@ and value_kind' ppf = function
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
+let layout ppf (Pvalue k) = value_kind ppf k
+
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode mode in
   match kind with
-  | Pgenval when is_heap_mode mode -> ()
-  | Pgenval -> fprintf ppf ": %s@ " smode
-  | Pintval -> fprintf ppf ": int@ "
-  | Pfloatval -> fprintf ppf ": %sfloat@ " smode
-  | Parrayval elt_kind ->
+  | Pvalue Pgenval when is_heap_mode mode -> ()
+  | Pvalue Pgenval -> fprintf ppf ": %s@ " smode
+  | Pvalue Pintval -> fprintf ppf ": int@ "
+  | Pvalue Pfloatval -> fprintf ppf ": %sfloat@ " smode
+  | Pvalue (Parrayval elt_kind) ->
      fprintf ppf ": %s%sarray@ " smode (array_kind elt_kind)
-  | Pboxedintval bi -> fprintf ppf ": %s%s@ " smode (boxed_integer_name bi)
-  | Pvariant { consts; non_consts; } ->
+  | Pvalue (Pboxedintval bi) -> fprintf ppf ": %s%s@ " smode (boxed_integer_name bi)
+  | Pvalue (Pvariant { consts; non_consts; }) ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
 let field_kind ppf = function
@@ -647,7 +649,7 @@ let rec lam ppf = function
         | Curried {nlocal} ->
             fprintf ppf "@ {nlocal = %d}" nlocal;
             List.iter (fun (param, k) ->
-                fprintf ppf "@ %a%a" Ident.print param value_kind k) params
+                fprintf ppf "@ %a%a" Ident.print param layout k) params
         | Tupled ->
             fprintf ppf " (";
             let first = ref true in
@@ -655,7 +657,7 @@ let rec lam ppf = function
               (fun (param, k) ->
                 if !first then first := false else fprintf ppf ",@ ";
                 Ident.print ppf param;
-                value_kind ppf k)
+                layout ppf k)
               params;
             fprintf ppf ")" in
       let rmode = if region then alloc_heap else alloc_local in
@@ -677,7 +679,7 @@ let rec lam ppf = function
         | Lmutlet(k, id, arg, body) as l ->
            if sp then fprintf ppf "@ ";
            fprintf ppf "@[<2>%a =%s%a@ %a@]"
-             Ident.print id (let_kind l) value_kind k lam arg;
+             Ident.print id (let_kind l) layout k lam arg;
            letbody ~sp:true body
         | expr -> expr in
       fprintf ppf "@[<2>(let@ @[<hv 1>(";
@@ -745,7 +747,7 @@ let rec lam ppf = function
         lam lbody i
         (fun ppf vars ->
            List.iter
-             (fun (x, k) -> fprintf ppf " %a%a" Ident.print x value_kind k)
+             (fun (x, k) -> fprintf ppf " %a%a" Ident.print x layout k)
              vars
         )
         vars
@@ -770,7 +772,7 @@ let rec lam ppf = function
        lam for_to (alloc_mode mode) lam for_body
   | Lassign(id, expr) ->
       fprintf ppf "@[<2>(assign@ %a@ %a)@]" Ident.print id lam expr
-  | Lsend (k, met, obj, largs, pos, reg, _) ->
+  | Lsend (k, met, obj, largs, pos, reg, _, _) ->
       let args ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       let kind =
@@ -807,7 +809,7 @@ let rec lam ppf = function
       end
   | Lifused(id, expr) ->
       fprintf ppf "@[<2>(ifused@ %a@ %a)@]" Ident.print id lam expr
-  | Lregion expr ->
+  | Lregion (expr, _) ->
       fprintf ppf "@[<2>(region@ %a)@]" lam expr
 
 and sequence ppf = function
