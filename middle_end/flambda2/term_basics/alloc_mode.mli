@@ -65,7 +65,6 @@ module For_allocations : sig
 
   val to_lambda_modify : t -> Lambda.modify_mode
 
-
   include Contains_names.S with type t := t
 
   include Contains_ids.S with type t := t
