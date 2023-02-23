@@ -790,7 +790,6 @@
   (trap_stack.mli as compiler-libs/trap_stack.mli)
   (cfg_equivalence.mli as compiler-libs/cfg_equivalence.mli)
   (ocaml/extensions.mli as compiler-libs/extensions.mli)
-  (ocaml/translcomprehension.mli as compiler-libs/translcomprehension.mli)
   (.ocamloptcomp.objs/byte/linear_format.cmi
    as
    compiler-libs/linear_format.cmi)

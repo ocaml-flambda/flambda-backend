@@ -61,6 +61,11 @@ module For_allocations : sig
 
   val to_lambda : t -> Lambda.alloc_mode
 
+  val from_lambda_modify : Lambda.modify_mode -> current_region:Variable.t -> t
+
+  val to_lambda_modify : t -> Lambda.modify_mode
+
+
   include Contains_names.S with type t := t
 
   include Contains_ids.S with type t := t

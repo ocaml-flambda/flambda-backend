@@ -378,10 +378,9 @@ let name_expression ~loc ~attrs exp =
   in
   let sg = [Sig_value(id, vd, Exported)] in
   let pat =
-    { pat_desc = Tpat_var(id, mknoloc name);
+    { pat_desc = Tpat_var(id, mknoloc name, Types.Value_mode.global);
       pat_loc = loc;
       pat_extra = [];
-      pat_mode = Types.Value_mode.global;
       pat_type = exp.exp_type;
       pat_env = exp.exp_env;
       pat_attributes = []; }

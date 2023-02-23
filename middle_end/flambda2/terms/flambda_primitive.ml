@@ -243,7 +243,7 @@ module Init_or_assign = struct
   let to_lambda t : Lambda.initialization_or_assignment =
     match t with
     | Initialization -> Heap_initialization
-    | Assignment mode -> Assignment (Alloc_mode.For_allocations.to_lambda mode)
+    | Assignment mode -> Assignment (Alloc_mode.For_allocations.to_lambda_modify mode)
 
   let free_names t =
     match t with

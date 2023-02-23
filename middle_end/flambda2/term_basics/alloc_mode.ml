@@ -98,6 +98,21 @@ module For_allocations = struct
       assert (Flambda_features.stack_allocation_enabled ());
       Lambda.alloc_local
 
+  let from_lambda_modify (mode : Lambda.modify_mode) ~current_region =
+    if not (Flambda_features.stack_allocation_enabled ())
+    then Heap
+    else
+      match mode with
+      | Modify_heap -> Heap
+      | Modify_maybe_stack -> Local { region = current_region }
+
+  let to_lambda_modify t =
+    match t with
+    | Heap -> Lambda.modify_heap
+    | Local _ ->
+      assert (Flambda_features.stack_allocation_enabled ());
+      Lambda.modify_maybe_stack
+
   let free_names t =
     match t with
     | Heap -> Name_occurrences.empty
