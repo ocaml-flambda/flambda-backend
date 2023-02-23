@@ -2046,7 +2046,6 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         ~missing_arity ~arity ~num_trailing_local_params
         ~contains_no_escaping_local_allocs
     | Over_app { full; remaining; remaining_arity } ->
-      (* XXX *)
       let full_args_call apply_continuation ~region acc =
         let mode =
           if contains_no_escaping_local_allocs
@@ -2054,7 +2053,14 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           else Lambda.alloc_local
         in
         close_exact_or_unknown_apply acc env
-          { apply with args = full; continuation = apply_continuation; mode }
+          { apply with
+            args = full;
+            continuation = apply_continuation;
+            mode;
+            return_arity =
+              Flambda_arity.With_subkinds.create
+                [Flambda_kind.With_subkind.any_value]
+          }
           (Some approx) ~replace_region:(Some region)
       in
       wrap_over_application acc env full_args_call apply ~remaining

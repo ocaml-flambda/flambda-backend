@@ -1308,8 +1308,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         region = Env.current_region env;
                         return_arity =
                           Flambda_arity.With_subkinds.create
-                            [ Flambda_kind.With_subkind.from_lambda
-                                Lambda.layout_top ]
+                            [Flambda_kind.With_subkind.from_lambda layout]
                       }
                     in
                     wrap_return_continuation acc env ccenv apply))

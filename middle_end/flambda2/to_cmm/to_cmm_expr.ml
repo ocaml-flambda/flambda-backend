@@ -93,18 +93,21 @@ let translate_apply0 env res apply =
       Lambda.Rc_normal
     | Nontail -> Lambda.Rc_nontail
   in
-  let param_arity = Apply.args_arity apply in
-  let return_arity = Apply.return_arity apply in
+  let args_arity =
+    Apply.args_arity apply |> Flambda_arity.With_subkinds.to_arity
+    |> Flambda_arity.to_list
+  in
+  let return_arity =
+    Apply.return_arity apply |> Flambda_arity.With_subkinds.to_arity
+  in
+  let args_ty = List.map C.machtype_of_kind args_arity in
+  let return_ty = C.machtype_of_return_arity return_arity in
   match Apply.call_kind apply with
   | Function { function_call = Direct code_id; alloc_mode = _ } -> (
     let code_metadata = Env.get_code_metadata env code_id in
     let params_arity = Code_metadata.params_arity code_metadata in
     if not (C.check_arity params_arity args)
     then Misc.fatal_errorf "Wrong arity for direct call";
-    let ty =
-      return_arity |> Flambda_arity.With_subkinds.to_arity
-      |> C.machtype_of_return_arity
-    in
     let args =
       if Code_metadata.is_my_closure_used code_metadata
       then args @ [callee]
@@ -113,7 +116,7 @@ let translate_apply0 env res apply =
     let code_linkage_name = Code_id.linkage_name code_id in
     match Apply.probe_name apply with
     | None ->
-      ( C.direct_call ~dbg ty pos
+      ( C.direct_call ~dbg return_ty pos
           (C.symbol_from_linkage_name ~dbg code_linkage_name)
           args,
         free_vars,
@@ -131,8 +134,7 @@ let translate_apply0 env res apply =
         Ece.all ))
   | Function { function_call = Indirect_unknown_arity; alloc_mode } ->
     fail_if_probe apply;
-    let args_ty, ty = Cmm.(List.map (fun _ -> [| Val |]) args, [| Val |]) in
-    ( C.indirect_call ~dbg ty pos
+    ( C.indirect_call ~dbg return_ty pos
         (Alloc_mode.For_types.to_lambda alloc_mode)
         callee args_ty args,
       free_vars,
@@ -141,22 +143,13 @@ let translate_apply0 env res apply =
       Ece.all )
   | Function { function_call = Indirect_known_arity; alloc_mode } ->
     fail_if_probe apply;
-    if not (C.check_arity param_arity args)
+    if not (C.check_arity (Apply.args_arity apply) args)
     then
       Misc.fatal_errorf
         "To_cmm expects indirect_known_arity calls to be full applications in \
-         order to translate it"
+         order to translate them"
     else
-      let ty =
-        return_arity |> Flambda_arity.With_subkinds.to_arity
-        |> C.machtype_of_return_arity
-      in
-      let args_ty =
-        List.map
-          (fun k -> C.machtype_of_kind (Flambda_kind.With_subkind.kind k))
-          (Flambda_arity.With_subkinds.to_list param_arity)
-      in
-      ( C.indirect_full_call ~dbg ty pos
+      ( C.indirect_full_call ~dbg return_ty pos
           (Alloc_mode.For_types.to_lambda alloc_mode)
           callee args_ty args,
         free_vars,
@@ -173,9 +166,6 @@ let translate_apply0 env res apply =
           Simple.print callee_simple
     in
     let returns = Apply.returns apply in
-    let param_arity = Flambda_arity.With_subkinds.to_arity param_arity in
-    let return_arity = Flambda_arity.With_subkinds.to_arity return_arity in
-    let ty = C.machtype_of_return_arity return_arity in
     let wrap =
       match Flambda_arity.to_list return_arity with
       (* Returned int32 values need to be sign_extended because it's not clear
@@ -196,17 +186,19 @@ let translate_apply0 env res apply =
           "C functions are currently limited to a single return value"
     in
     let ty_args =
-      List.map C.exttype_of_kind (Flambda_arity.to_list param_arity)
+      List.map C.exttype_of_kind
+        (Flambda_arity.to_list
+           (Flambda_arity.With_subkinds.to_arity (Apply.args_arity apply)))
     in
     ( wrap dbg
-        (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee ty args),
+        (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee return_ty
+           args),
       free_vars,
       env,
       res,
       Ece.all )
   | Call_kind.Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
-    let args_ty, ty = Cmm.(List.map (fun _ -> [| Val |]) args, [| Val |]) in
     let To_cmm_env.
           { env;
             res;
@@ -217,7 +209,7 @@ let translate_apply0 env res apply =
     let free_vars = Backend_var.Set.union free_vars obj_free_vars in
     let kind = Call_kind.Method_kind.to_lambda kind in
     let alloc_mode = Alloc_mode.For_types.to_lambda alloc_mode in
-    ( C.send kind callee obj args args_ty ty (pos, alloc_mode) dbg,
+    ( C.send kind callee obj args args_ty return_ty (pos, alloc_mode) dbg,
       free_vars,
       env,
       res,
