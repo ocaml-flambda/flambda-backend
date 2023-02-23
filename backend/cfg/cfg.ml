@@ -28,8 +28,9 @@
 let verbose = ref false
 
 include Cfg_intf.S
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
-type basic_instruction_list = basic instruction DoublyLinkedList.t
+type basic_instruction_list = basic instruction DLL.t
 
 type basic_block =
   { start : Label.t;
@@ -176,7 +177,7 @@ let get_block_exn t label =
 let can_raise_interproc block = block.can_raise && Option.is_none block.exn
 
 let first_instruction_id (block : basic_block) : int =
-  match DoublyLinkedList.hd block.body with
+  match DLL.hd block.body with
   | None -> block.terminator.id
   | Some first_instr -> first_instr.id
 

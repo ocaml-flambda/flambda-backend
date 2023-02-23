@@ -25,6 +25,8 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+module DLL = Flambda_backend_utils.Doubly_linked_list
+
 (* Two blocks `b1` and `b2` can be merged if:
  * - `b1` is not the entry block;
  * - `b1` has only one non-exceptional successor, `b2`;
@@ -71,8 +73,7 @@ let rec merge_blocks (removed : Label.Set.t)
           then (
             assert (Label.equal b1_label (List.hd b2_predecessors));
             (* modify b1 *)
-            Cfg.DoublyLinkedList.transfer ~to_:b1_block.body ~from:b2_block.body
-              ();
+            DLL.transfer ~to_:b1_block.body ~from:b2_block.body ();
             b1_block.terminator <- b2_block.terminator;
             b1_block.exn <- b2_block.exn;
             b1_block.can_raise <- b2_block.can_raise;

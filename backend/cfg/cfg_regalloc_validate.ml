@@ -11,6 +11,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42-69"]
 
+module DLL = Flambda_backend_utils.Doubly_linked_list
 include Cfg_intf.S
 
 module Location : sig
@@ -428,7 +429,7 @@ end = struct
       (fun _ (block : Cfg.basic_block) ->
         add_terminator ~seen_ids t block.terminator;
         let first_instruction_id =
-          Cfg.DoublyLinkedList.fold_right
+          DLL.fold_right
             ~f:(fun instr successor_id ->
               add_basic ~seen_ids ~successor_id t instr;
               instr.id)
@@ -628,7 +629,7 @@ end = struct
     (* Finds successor id in or after the given block. *)
     and get_first_non_regalloc_id t (block : Cfg.basic_block) =
       let res : Cfg.basic Cfg.instruction option =
-        Cfg.DoublyLinkedList.fold_left
+        DLL.fold_left
           ~f:(fun acc instr ->
             match acc with
             | Some _ -> acc
@@ -673,7 +674,7 @@ end = struct
           verify_terminator ~seen_ids ~successor_ids t block.terminator
         in
         let first_instruction_id =
-          Cfg.DoublyLinkedList.fold_right
+          DLL.fold_right
             ~f:(fun instr successor_id ->
               verify_basic ~seen_ids ~successor_id t instr)
             block.body ~init:successor_id

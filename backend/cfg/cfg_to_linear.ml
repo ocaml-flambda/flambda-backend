@@ -27,7 +27,7 @@
 
 module CL = Cfg_with_layout
 module L = Linear
-module DLL = Cfg.DoublyLinkedList
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let to_linear_instr ?(like : _ Cfg.instruction option) desc ~next :
     L.instruction =

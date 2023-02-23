@@ -27,7 +27,7 @@
 
 type t
 
-type layout = Label.t Cfg.DoublyLinkedList.t
+type layout = Label.t Flambda_backend_utils.Doubly_linked_list.t
 
 val create :
   Cfg.t ->

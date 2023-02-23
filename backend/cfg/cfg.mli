@@ -31,7 +31,8 @@ include module type of struct
   include Cfg_intf.S
 end
 
-type basic_instruction_list = basic instruction DoublyLinkedList.t
+type basic_instruction_list =
+  basic instruction Flambda_backend_utils.Doubly_linked_list.t
 
 type basic_block =
   { start : Label.t;

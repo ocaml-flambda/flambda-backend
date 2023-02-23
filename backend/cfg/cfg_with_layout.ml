@@ -27,7 +27,9 @@
 
 let debug = false
 
-type layout = Label.t Cfg.DoublyLinkedList.t
+module DLL = Flambda_backend_utils.Doubly_linked_list
+
+type layout = Label.t DLL.t
 
 type t =
   { cfg : Cfg.t;
@@ -48,8 +50,7 @@ let preserve_orig_labels t = t.preserve_orig_labels
 let new_labels t = t.new_labels
 
 let label_set_of_layout : layout -> Label.Set.t =
- fun layout ->
-  Cfg.DoublyLinkedList.fold_right layout ~init:Label.Set.empty ~f:Label.Set.add
+ fun layout -> DLL.fold_right layout ~init:Label.Set.empty ~f:Label.Set.add
 
 let set_layout t layout =
   (if debug
@@ -57,7 +58,7 @@ let set_layout t layout =
     let cur_layout = label_set_of_layout t.layout in
     let new_layout = label_set_of_layout layout in
     let hd_is_entry =
-      match Cfg.DoublyLinkedList.hd layout with
+      match DLL.hd layout with
       | None -> false
       | Some label -> Label.equal label t.cfg.entry_label
     in
@@ -70,7 +71,7 @@ let set_layout t layout =
 
 let remove_block t label =
   Cfg.remove_block_exn t.cfg label;
-  Cfg.DoublyLinkedList.remove_first t.layout ~f:(fun l -> Label.equal l label);
+  DLL.remove_first t.layout ~f:(fun l -> Label.equal l label);
   t.new_labels <- Label.Set.remove label t.new_labels
 
 let remove_blocks t labels_to_remove =
@@ -83,7 +84,7 @@ let remove_blocks t labels_to_remove =
        `DoublyLinkedList.iter_cell` *)
     (try
        let num_removed = ref 0 in
-       Cfg.DoublyLinkedList.filter_left t.layout ~f:(fun l ->
+       DLL.filter_left t.layout ~f:(fun l ->
            if !num_removed = num_to_remove then raise Exit;
            let to_remove = Label.Set.mem l labels_to_remove in
            if to_remove then incr num_removed;
@@ -94,12 +95,11 @@ let remove_blocks t labels_to_remove =
 let add_block t (block : Cfg.basic_block) ~after =
   t.new_labels <- Label.Set.add block.start t.new_labels;
   match
-    Cfg.DoublyLinkedList.find_cell_opt t.layout ~f:(fun label ->
-        Label.equal label after)
+    DLL.find_cell_opt t.layout ~f:(fun label -> Label.equal label after)
   with
   | None -> Misc.fatal_error "Cfg set_layout: 'after' block is not present"
   | Some cell ->
-    Cfg.DoublyLinkedList.insert_after cell block.start;
+    DLL.insert_after cell block.start;
     Cfg.add_block_exn t.cfg block
 
 let is_trap_handler t label =
@@ -112,12 +112,12 @@ let dump ppf t ~msg =
   let open Format in
   fprintf ppf "\ncfg for %s\n" msg;
   fprintf ppf "%s\n" t.cfg.fun_name;
-  fprintf ppf "layout.length=%d\n" (Cfg.DoublyLinkedList.length t.layout);
+  fprintf ppf "layout.length=%d\n" (DLL.length t.layout);
   fprintf ppf "blocks.length=%d\n" (Label.Tbl.length t.cfg.blocks);
   let print_block label =
     let block = Label.Tbl.find t.cfg.blocks label in
     fprintf ppf "\n%d:\n" label;
-    Cfg.DoublyLinkedList.iter ~f:(fprintf ppf "%a\n" Cfg.print_basic) block.body;
+    DLL.iter ~f:(fprintf ppf "%a\n" Cfg.print_basic) block.body;
     Cfg.print_terminator ppf block.terminator;
     fprintf ppf "\npredecessors:";
     Label.Set.iter (fprintf ppf " %d") block.predecessors;
@@ -129,7 +129,7 @@ let dump ppf t ~msg =
       (Cfg.successor_labels ~normal:false ~exn:true block);
     fprintf ppf "\n"
   in
-  Cfg.DoublyLinkedList.iter ~f:print_block t.layout
+  DLL.iter ~f:print_block t.layout
 
 let print_row r ppf = Format.dprintf "@,@[<v 1><tr>%t@]@,</tr>" r ppf
 
@@ -225,7 +225,7 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
       (print_row
          (print_cell ~col_span:col_count ~align:Center
             (Format.dprintf ".L%d:I%d:S%d%s%s%s" label show_index
-               (Cfg.DoublyLinkedList.length block.body)
+               (DLL.length block.body)
                (if block.stack_offset > 0
                then ":T" ^ string_of_int block.stack_offset
                else "")
@@ -241,7 +241,7 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
                   Format.pp_print_int)
                (Label.Set.to_seq block.predecessors))))
         ppf;
-      Cfg.DoublyLinkedList.iter
+      DLL.iter
         ~f:(fun (i : _ Cfg.instruction) ->
           (print_row
              (print_cell ~align:Right (Format.dprintf "%d" i.id)
@@ -288,18 +288,14 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
       then print_arrow ppf (name label) "placeholder" ~style:"dashed")
   in
   (* print all the blocks, even if they don't appear in the layout *)
-  Cfg.DoublyLinkedList.iteri t.layout ~f:(fun i label ->
+  DLL.iteri t.layout ~f:(fun i label ->
       let block = Label.Tbl.find t.cfg.blocks label in
       print_block_dot label block (Some i));
-  if Cfg.DoublyLinkedList.length t.layout < Label.Tbl.length t.cfg.blocks
+  if DLL.length t.layout < Label.Tbl.length t.cfg.blocks
   then
     Label.Tbl.iter
       (fun label block ->
-        match
-          Cfg.DoublyLinkedList.find_opt
-            ~f:(fun lbl -> Label.equal label lbl)
-            t.layout
-        with
+        match DLL.find_opt ~f:(fun lbl -> Label.equal label lbl) t.layout with
         | None -> print_block_dot label block None
         | _ -> ())
       t.cfg.blocks;
@@ -364,12 +360,12 @@ end
 
 let reorder_blocks_random ?random_state t =
   (* Ensure entry block remains first *)
-  let original_layout = Cfg.DoublyLinkedList.to_list (layout t) in
+  let original_layout = DLL.to_list (layout t) in
   let new_layout =
     List.hd original_layout
     :: Permute.list ?random_state (List.tl original_layout)
   in
-  set_layout t (Cfg.DoublyLinkedList.of_list new_layout)
+  set_layout t (DLL.of_list new_layout)
 
 let iter_instructions :
     t ->
@@ -378,7 +374,7 @@ let iter_instructions :
     unit =
  fun cfg_with_layout ~instruction ~terminator ->
   Cfg.iter_blocks cfg_with_layout.cfg ~f:(fun _label block ->
-      Cfg.DoublyLinkedList.iter ~f:instruction block.body;
+      DLL.iter ~f:instruction block.body;
       terminator block.terminator)
 
 let fold_instructions :
@@ -390,8 +386,6 @@ let fold_instructions :
     a =
  fun cfg_with_layout ~instruction ~terminator ~init ->
   Cfg.fold_blocks cfg_with_layout.cfg ~init ~f:(fun _label block acc ->
-      let acc =
-        Cfg.DoublyLinkedList.fold_left ~f:instruction ~init:acc block.body
-      in
+      let acc = DLL.fold_left ~f:instruction ~init:acc block.body in
       let acc = terminator acc block.terminator in
       acc)
