@@ -99,14 +99,14 @@ let rec path_concat head p =
 (* Extract a signature from a module type *)
 
 let extract_sig env loc mty =
-  match Env.scrape_alias env mty with
+  match Mtype.scrape_alias env mty with
     Mty_signature sg -> sg
   | Mty_alias path ->
       raise(Error(loc, env, Cannot_scrape_alias path))
   | _ -> raise(Error(loc, env, Signature_expected))
 
 let extract_sig_open env loc mty =
-  match Env.scrape_alias env mty with
+  match Mtype.scrape_alias env mty with
     Mty_signature sg -> sg
   | Mty_alias path ->
       raise(Error(loc, env, Cannot_scrape_alias path))
@@ -116,7 +116,7 @@ let extract_sig_open env loc mty =
    signature to fill in names from its parameter *)
 let extract_sig_functor_open funct_body env loc mty sig_acc =
   let sig_acc = List.rev sig_acc in
-  match Env.scrape_alias env mty with
+  match Mtype.scrape_alias env mty with
   | Mty_functor (Named (param, mty_param),mty_result) as mty_func ->
       let sg_param =
         match Mtype.scrape env mty_param with
@@ -381,7 +381,7 @@ let retype_applicative_functor_type ~loc env funct arg =
   let mty_functor = (Env.find_module funct env).md_type in
   let mty_arg = (Env.find_module arg env).md_type in
   let mty_param =
-    match Env.scrape_alias env mty_functor with
+    match Mtype.scrape_alias env mty_functor with
     | Mty_functor (Named (_, mty_param), _) -> mty_param
     | _ -> assert false (* could trigger due to MPR#7611 *)
   in
@@ -736,54 +736,57 @@ let merge_constraint initial_env loc sg lid constr =
     if destructive_substitution then
       check_usage_after_substitution ~loc ~lid initial_env !real_ids
         !unpackable_modtype sg;
-    let sg =
-    match tcstr with
-    | (_, _, Twith_typesubst tdecl) ->
-       let how_to_extend_subst =
-         let sdecl =
-           match constr with
-           | With_typesubst sdecl -> sdecl
-           | _ -> assert false
-         in
-         match type_decl_is_alias sdecl with
-         | Some lid ->
-            let replacement, _ =
-              try Env.find_type_by_name lid.txt initial_env
-              with Not_found -> assert false
-            in
-            fun s path -> Subst.add_type_path path replacement s
-         | None ->
-            let body = Option.get tdecl.typ_type.type_manifest in
-            let params = tdecl.typ_type.type_params in
-            if params_are_constrained params
-            then raise(Error(loc, initial_env,
-                             With_cannot_remove_constrained_type));
-            fun s path -> Subst.add_type_function path ~params ~body s
-       in
-       let sub = Subst.change_locs Subst.identity loc in
-       let sub = List.fold_left how_to_extend_subst sub !real_ids in
-       (* This signature will not be used directly, it will always be freshened
-          by the caller. So what we do with the scope doesn't really matter. But
-          making it local makes it unlikely that we will ever use the result of
-          this function unfreshened without issue. *)
-       Subst.signature Make_local sub sg
-    | (_, _, Twith_modsubst (real_path, _)) ->
-       let sub = Subst.change_locs Subst.identity loc in
-       let sub =
-         List.fold_left
-           (fun s path -> Subst.add_module_path path real_path s)
-           sub
-           !real_ids
-       in
-       (* See explanation in the [Twith_typesubst] case above. *)
-       Subst.signature Make_local sub sg
-    | (_, _, Twith_modtypesubst tmty) ->
-        let add s p = Subst.add_modtype_path p tmty.mty_type s in
+    let sub = match tcstr with
+      | (_, _, Twith_typesubst tdecl) ->
+        let how_to_extend_subst =
+          let sdecl =
+            match constr with
+            | With_typesubst sdecl -> sdecl
+            | _ -> assert false
+          in
+          match type_decl_is_alias sdecl with
+          | Some lid ->
+              let replacement, _ =
+                try Env.find_type_by_name lid.txt initial_env
+                with Not_found -> assert false
+              in
+              fun s path -> Subst.add_type_path path replacement s
+          | None ->
+              let body = Option.get tdecl.typ_type.type_manifest in
+              let params = tdecl.typ_type.type_params in
+              if params_are_constrained params
+              then raise(Error(loc, initial_env,
+                              With_cannot_remove_constrained_type));
+              fun s path -> Subst.add_type_function path ~params ~body s
+        in
         let sub = Subst.change_locs Subst.identity loc in
-        let sub = List.fold_left add sub !real_ids in
-        Subst.signature Make_local sub sg
-    | _ ->
-       sg
+        let sub = List.fold_left how_to_extend_subst sub !real_ids in
+        Some sub
+      | (_, _, Twith_modsubst (real_path, _)) ->
+        let sub = Subst.change_locs Subst.identity loc in
+        let sub =
+          List.fold_left
+            (fun s path -> Subst.add_module_path path real_path s)
+            sub
+            !real_ids
+        in
+        Some sub
+      | (_, _, Twith_modtypesubst tmty) ->
+          let add s p = Subst.add_modtype_path p tmty.mty_type s in
+          let sub = Subst.change_locs Subst.identity loc in
+          let sub = List.fold_left add sub !real_ids in
+          Some sub
+      | _ ->
+        None
+    in
+    let sg = match sub with
+      | Some sub ->
+          (* This signature will not be used directly, it will always be freshened
+            by the caller. So what we do with the scope doesn't really matter. But
+            making it local makes it unlikely that we will ever use the result of
+            this function unfreshened without issue. *)
+          Subst.signature Make_local sub sg
+      | None -> sg
     in
     check_well_formed_module initial_env loc "this instantiated signature"
       (Mty_signature sg);
@@ -2235,11 +2238,8 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
         if alias && aliasable then
           (Env.add_required_global path env; md)
         else begin
-          let mty =
-            if sttn then
-              Env.find_strengthened_module ~aliasable path env
-            else
-              (Env.find_module path env).md_type
+          let mty = Mtype.find_type_of_module
+              ~strengthen:sttn ~aliasable env path
           in
           match mty with
           | Mty_alias p1 when not alias ->
@@ -2388,7 +2388,7 @@ and type_application loc strengthen funct_body env smod =
 
 and type_one_application ~ctx:(apply_loc,md_f,args)
     funct_body env (funct, funct_shape)  app_view =
-  match Env.scrape_alias env funct.mod_type with
+  match Mtype.scrape_alias env funct.mod_type with
   | Mty_functor (Unit, mty_res) ->
       if not app_view.arg_is_syntactic_unit then
         raise (Error (app_view.f_loc, env, Apply_generative));
@@ -2546,24 +2546,24 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         in
         Tstr_eval (expr, attrs), [], shape_map, env
     | Pstr_value(rec_flag, sdefs) ->
+        let force_global =
+          (* Values bound by '_' still escape in the toplevel, because
+             they may be printed even though they are not named *)
+          Option.is_some toplevel
+        in
         let (defs, newenv) =
-          Typecore.type_binding env rec_flag sdefs in
+          Typecore.type_binding env rec_flag ~force_global sdefs in
         let () = if rec_flag = Recursive then
           Typecore.check_recursive_bindings env defs
         in
-        if Option.is_some toplevel then begin
-          (* Values bound by '_' still escape in the toplevel, because
-              they may be printed even though they are not named *)
-          defs |> List.iter (fun vb ->
-            Typecore.escape ~loc:vb.vb_pat.pat_loc ~env:newenv vb.vb_expr.exp_mode);
-        end;
         (* Note: Env.find_value does not trigger the value_used event. Values
            will be marked as being used during the signature inclusion test. *)
         let items, shape_map =
           List.fold_left
             (fun (acc, shape_map) (id, modes) ->
               List.iter
-                (fun (loc, mode) -> Typecore.escape ~loc ~env:newenv mode)
+                (fun (loc, mode) ->
+                   Typecore.escape ~loc ~env:newenv ~reason:Other mode)
                 modes;
               let (first_loc, _) = List.hd modes in
               Signature_names.check_value names first_loc id;
@@ -3037,10 +3037,11 @@ let type_package env m p fl =
   (* Same as Pexp_letmodule *)
   (* remember original level *)
   Ctype.begin_def ();
-  let context = Typetexp.narrow () in
-  let modl, _mod_shape = type_module env m in
-  let scope = Ctype.create_scope () in
-  Typetexp.widen context;
+  let modl, scope = Typetexp.TyVarEnv.with_local_scope begin fun () ->
+    let modl, _mod_shape = type_module env m in
+    let scope = Ctype.create_scope () in
+    modl, scope
+  end in
   let fl', env =
     match fl with
     | [] -> [], env
@@ -3533,4 +3534,4 @@ let () =
 let reset ~preserve_persistent_env =
   Env.reset_cache ~preserve_persistent_env;
   Envaux.reset_cache ~preserve_persistent_env;
-  Typetexp.reset_type_variables ()
+  Typetexp.TyVarEnv.reset ()

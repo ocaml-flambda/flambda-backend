@@ -260,12 +260,7 @@ let get_property_attribute l p =
   let attr = find_attribute (is_property_attribute p) l in
   parse_property_attribute attr p
 
-let get_check_attribute l =
-  List.filter_map (fun p ->
-    match get_property_attribute l p with
-    | Default_check -> None
-    | a -> Some a)
-    [Noalloc]
+let get_check_attribute l = get_property_attribute l Noalloc
 
 let get_poll_attribute l =
   let attr = find_attribute is_poll_attribute l in
@@ -370,9 +365,11 @@ let add_check_attribute expr loc attributes =
     | Assume p -> Printf.sprintf "%s assume" (to_string p)
     | Default_check -> assert false
   in
-  match expr, get_check_attribute attributes with
-  | expr, [] -> expr
-  | Lfunction({ attr = { stub = false } as attr } as funct), [check] ->
+  match expr with
+  | Lfunction({ attr = { stub = false } as attr } as funct) ->
+    begin match get_check_attribute attributes with
+    | Default_check -> expr
+    | (Assert _ | Assume _) as check ->
       begin match attr.check with
       | Default_check -> ()
       | Assert Noalloc | Assume Noalloc ->
@@ -381,15 +378,8 @@ let add_check_attribute expr loc attributes =
       end;
       let attr = { attr with check } in
       lfunction_with_attr ~attr funct
-  | expr, [check] ->
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute (to_string check));
-      expr
-  | expr, a::b::_ ->
-    Location.prerr_warning loc
-      (Warnings.Duplicated_attribute
-         (Printf.sprintf "%s/%s"(to_string a) (to_string b)));
-    expr
+    end
+  | expr -> expr
 
 let add_loop_attribute expr loc attributes =
   match expr with
@@ -424,9 +414,11 @@ let add_tmc_attribute expr loc attributes =
   | _ -> expr
 
 let add_poll_attribute expr loc attributes =
-  match expr, get_poll_attribute attributes with
-  | expr, Default_poll -> expr
-  | Lfunction({ attr = { stub = false } as attr } as funct), poll ->
+  match expr with
+  | Lfunction({ attr = { stub = false } as attr } as funct) ->
+    begin match get_poll_attribute attributes with
+    | Default_poll -> expr
+    | Error_poll as poll ->
       begin match attr.poll with
       | Default_poll -> ()
       | Error_poll ->
@@ -438,10 +430,8 @@ let add_poll_attribute expr loc attributes =
       check_poll_local loc attr;
       let attr = { attr with inline = Never_inline; local = Never_local } in
       lfunction_with_attr ~attr funct
-  | expr, Error_poll ->
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute "error_poll");
-      expr
+    end
+  | expr -> expr
 
 (* Get the [@inlined] attribute payload (or default if not present). *)
 let get_inlined_attribute e =

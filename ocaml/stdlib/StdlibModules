@@ -38,13 +38,14 @@ STDLIB_MODULE_BASENAMES = \
   stdlib pervasives either \
   sys obj camlinternalLazy lazy \
   seq option result bool char uchar \
-  list int bytes string unit marshal array float int32 int64 nativeint \
+  list int bytes string unit marshal array iarray float int32 int64 nativeint \
   lexing parsing set map stack queue stream buffer \
   camlinternalFormat printf arg atomic \
   printexc fun gc digest random hashtbl weak \
   format scanf callback camlinternalOO oo camlinternalMod genlex ephemeron \
-  filename complex arrayLabels listLabels bytesLabels stringLabels moreLabels \
-  stdLabels bigarray camlinternalComprehension in_channel out_channel
+  filename complex arrayLabels iarrayLabels listLabels bytesLabels \
+  stringLabels moreLabels stdLabels bigarray camlinternalComprehension \
+  in_channel out_channel
 
 STDLIB_PREFIXED_MODULES = \
   $(filter-out stdlib camlinternal%, $(STDLIB_MODULE_BASENAMES))
