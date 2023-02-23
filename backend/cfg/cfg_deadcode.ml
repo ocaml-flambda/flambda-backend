@@ -8,10 +8,10 @@ let live_before : type a. a Cfg.instruction -> liveness -> Reg.Set.t =
   | None -> fatal "no liveness information for instruction %d" instr.id
   | Some { Cfg_liveness.before; across = _ } -> before
 
-let remove_deadcode (body : Cfg.BasicInstructionList.t) changed liveness
+let remove_deadcode (body : Cfg.basic_instruction_list) changed liveness
     used_after : unit =
   let used_after = ref used_after in
-  Cfg.BasicInstructionList.filter_right body ~f:(fun (instr : Instruction.t) ->
+  Cfg.DoublyLinkedList.filter_right body ~f:(fun (instr : Instruction.t) ->
       let before = live_before instr liveness in
       let is_deadcode =
         match instr.desc with

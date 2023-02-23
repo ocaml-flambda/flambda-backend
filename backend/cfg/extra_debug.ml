@@ -58,9 +58,11 @@ let add cl =
   let update_block prev label =
     let block = Cfg.get_block_exn cfg label in
     let prev =
-      Cfg.BasicInstructionList.fold_left ~f:update_instr ~init:prev block.body
+      Cfg.DoublyLinkedList.fold_left ~f:update_instr ~init:prev block.body
     in
     let prev = update_instr prev block.terminator in
     prev
   in
-  ignore (List.fold_left update_block cfg.fun_dbg layout : Debuginfo.t)
+  ignore
+    (Cfg.DoublyLinkedList.fold_left ~f:update_block ~init:cfg.fun_dbg layout
+      : Debuginfo.t)

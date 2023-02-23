@@ -31,58 +31,72 @@ include module type of struct
   include Cfg_intf.S
 end
 
-module BasicInstructionList : sig
-  type instr = basic instruction
+module DoublyLinkedList : sig
+  type 'a cell
 
-  type cell
+  val insert_before : 'a cell -> 'a -> unit
 
-  val insert_before : cell -> instr -> unit
+  val insert_after : 'a cell -> 'a -> unit
 
-  val insert_after : cell -> instr -> unit
+  val value : 'a cell -> 'a
 
-  val instr : cell -> instr
+  val prev : 'a cell -> 'a cell option
 
-  type t
+  type 'a t
 
-  val make_empty : unit -> t
+  val make_empty : unit -> _ t
 
-  val make_single : instr -> t
+  val make_single : 'a -> 'a t
 
-  val of_list : instr list -> t
+  val of_list : 'a list -> 'a t
 
-  val hd : t -> instr option
+  val hd : 'a t -> 'a option
 
-  val last : t -> instr option
+  val last : 'a t -> 'a option
 
-  val add_begin : t -> instr -> unit
+  val add_begin : 'a t -> 'a -> unit
 
-  val add_end : t -> instr -> unit
+  val add_end : 'a t -> 'a -> unit
 
-  val is_empty : t -> bool
+  val is_empty : 'a t -> bool
 
-  val length : t -> int
+  val length : 'a t -> int
 
-  val filter_left : t -> f:(instr -> bool) -> unit
+  val remove_first : 'a t -> f:('a -> bool) -> unit
 
-  val filter_right : t -> f:(instr -> bool) -> unit
+  val filter_left : 'a t -> f:('a -> bool) -> unit
 
-  val iter : t -> f:(instr -> unit) -> unit
+  val filter_right : 'a t -> f:('a -> bool) -> unit
 
-  val iter_cell : t -> f:(cell -> unit) -> unit
+  val iter : 'a t -> f:('a -> unit) -> unit
 
-  val iter2 : t -> t -> f:(instr -> instr -> unit) -> unit
+  val iteri : 'a t -> f:(int -> 'a -> unit) -> unit
 
-  val fold_left : t -> f:('a -> instr -> 'a) -> init:'a -> 'a
+  val iter_cell : 'a t -> f:('a cell -> unit) -> unit
 
-  val fold_right : t -> f:(instr -> 'a -> 'a) -> init:'a -> 'a
+  val iter_right_cell : 'a t -> f:('a cell -> unit) -> unit
+
+  val iter2 : 'a t -> 'a t -> f:('a -> 'a -> unit) -> unit
+
+  val fold_left : 'a t -> f:('b -> 'a -> 'b) -> init:'b -> 'b
+
+  val fold_right : 'a t -> f:('a -> 'b -> 'b) -> init:'b -> 'b
+
+  val find_cell_opt : 'a t -> f:('a -> bool) -> 'a cell option
+
+  val find_opt : 'a t -> f:('a -> bool) -> 'a option
+
+  val to_list : 'a t -> 'a list
 
   (* Adds all of the elements of `from` to `to_`, and clears `from`. *)
-  val transfer : to_:t -> from:t -> unit -> unit
+  val transfer : to_:'a t -> from:'a t -> unit -> unit
 end
+
+type basic_instruction_list = basic instruction DoublyLinkedList.t
 
 type basic_block =
   { start : Label.t;
-    body : BasicInstructionList.t;
+    body : basic_instruction_list;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
         (** All predecessors, both normal and exceptional paths. *)

@@ -34,10 +34,10 @@ let[@inline] naive_split_instr :
     liveness ->
     Reg.t list ref ->
     Reg.t Reg.Tbl.t ->
-    Cfg.BasicInstructionList.cell ->
+    Cfg.basic Cfg.instruction Cfg.DoublyLinkedList.cell ->
     unit =
  fun state liveness new_regs subst cell ->
-  let instr = Cfg.BasicInstructionList.instr cell in
+  let instr = Cfg.DoublyLinkedList.value cell in
   if is_naive_split_point instr
   then (
     let live = Cfg_dataflow.Instr.Tbl.find liveness instr.id in
@@ -64,11 +64,11 @@ let[@inline] naive_split_instr :
             new_regs := new_reg :: !new_regs;
             new_reg
         in
-        Cfg.BasicInstructionList.insert_before cell
+        Cfg.DoublyLinkedList.insert_before cell
           (Move.make_instr Move.Plain
              ~id:(State.get_and_incr_instruction_id state)
              ~copy:instr ~from:reg ~to_:new_reg);
-        Cfg.BasicInstructionList.insert_after cell
+        Cfg.DoublyLinkedList.insert_after cell
           (Move.make_instr Move.Plain
              ~id:(State.get_and_incr_instruction_id state)
              ~copy:instr ~from:new_reg ~to_:reg);
@@ -84,6 +84,6 @@ let naive_split_cfg : State.t -> Cfg_with_liveness.t -> Reg.t list =
   Cfg.iter_blocks (Cfg_with_liveness.cfg cfg_with_liveness)
     ~f:(fun label block ->
       if irc_debug then log ~indent:2 "splitting in #%d" label;
-      Cfg.BasicInstructionList.iter_cell block.body ~f:(fun cell ->
+      Cfg.DoublyLinkedList.iter_cell block.body ~f:(fun cell ->
           naive_split_instr state liveness new_regs subst cell));
   !new_regs

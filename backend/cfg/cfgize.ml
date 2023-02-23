@@ -21,7 +21,7 @@ module State : sig
 
   val add_block : t -> label:Label.t -> block:Cfg.basic_block -> unit
 
-  val get_layout : t -> Label.t list
+  val get_layout : t -> Cfg_with_layout.layout
 
   val add_catch_handler : t -> handler_id:int -> Label.t
 
@@ -42,7 +42,7 @@ end = struct
       tailrec_label : Label.t;
       contains_calls : bool;
       blocks : Cfg.basic_block Label.Tbl.t;
-      mutable layout : Label.t list;
+      layout : Cfg_with_layout.layout;
       catch_handlers : Label.t Numbers.Int.Tbl.t;
       mutable next_instruction_id : int;
       mutable iends_with_poptrap : Mach.instruction list;
@@ -50,7 +50,7 @@ end = struct
     }
 
   let make ~fun_name ~tailrec_label ~contains_calls blocks =
-    let layout = [] in
+    let layout = Cfg.DoublyLinkedList.make_empty () in
     let catch_handlers = Numbers.Int.Tbl.create 31 in
     let next_instruction_id = 0 in
     let iends_with_poptrap = [] in
@@ -78,10 +78,10 @@ end = struct
       Misc.fatal_errorf "Cfgize.State.add_block: duplicate block for label %d"
         label
     else (
-      t.layout <- label :: t.layout;
+      Cfg.DoublyLinkedList.add_end t.layout label;
       Label.Tbl.replace t.blocks label block)
 
-  let get_layout t = List.rev t.layout
+  let get_layout t = t.layout
 
   let add_catch_handler t ~handler_id =
     if Numbers.Int.Tbl.mem t.catch_handlers handler_id
@@ -380,7 +380,7 @@ type terminator_info =
   | Complex_terminator
 
 type block_info =
-  { instrs : Cfg.BasicInstructionList.t;
+  { instrs : Cfg.basic_instruction_list;
     last : Mach.instruction;
     terminator : terminator_info
   }
@@ -403,7 +403,7 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
            because we want to compute liveness information on CFG values, and
            (i) such moves are necessary to compute the live sets and (ii) they
            can only be identified as useless after register allocation. *)
-        Cfg.BasicInstructionList.add_end acc instr';
+        Cfg.DoublyLinkedList.add_end acc instr';
         loop instr.next acc
       | Terminator terminator ->
         return (Terminator (copy_instruction state instr ~desc:terminator)) acc
@@ -417,7 +417,7 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
     | Itrywith _ | Iraise _ ->
       return Complex_terminator acc
   in
-  loop first (Cfg.BasicInstructionList.make_empty ())
+  loop first (Cfg.DoublyLinkedList.make_empty ())
 
 (* Represents the control flow exiting the function without encountering a
    return. *)
@@ -442,7 +442,7 @@ let rec add_blocks :
     (match starts_with_pushtrap with
     | None -> ()
     | Some lbl_handler ->
-      Cfg.BasicInstructionList.add_begin body
+      Cfg.DoublyLinkedList.add_begin body
         (make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })));
     List.iter
       (fun trap_action ->
@@ -453,13 +453,13 @@ let rec add_blocks :
             make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })
           | Cmm.Pop -> make_instruction state ~desc:Cfg.Poptrap
         in
-        Cfg.BasicInstructionList.add_end body instr)
+        Cfg.DoublyLinkedList.add_end body instr)
       trap_actions;
     (match terminator.Cfg.desc with
     | Cfg.Return ->
       if State.get_contains_calls state
       then
-        Cfg.BasicInstructionList.add_end body
+        Cfg.DoublyLinkedList.add_end body
           (make_instruction state ~desc:Cfg.Reloadretaddr)
       else ()
     | Cfg.Never | Cfg.Always _ | Cfg.Parity_test _ | Cfg.Truth_test _
@@ -690,7 +690,7 @@ module Stack_offset_and_exn = struct
     then (
       block.stack_offset <- compute_stack_offset ~stack_offset ~traps;
       let stack_offset, traps =
-        Cfg.BasicInstructionList.fold_left block.body ~init:(stack_offset, traps)
+        Cfg.DoublyLinkedList.fold_left block.body ~init:(stack_offset, traps)
           ~f:(fun (stack_offset, traps) instr ->
             process_basic cfg ~stack_offset ~traps instr)
       in
@@ -764,7 +764,7 @@ let fundecl :
       { start = Cfg.entry_label cfg;
         body =
           (match prologue_required with
-          | false -> Cfg.BasicInstructionList.make_empty ()
+          | false -> Cfg.DoublyLinkedList.make_empty ()
           | true ->
             (* Note: the prologue must come after all `Iname_for_debugger`
                instructions (this is currently not a concern because we do not
@@ -772,7 +772,7 @@ let fundecl :
             let instr = make_instruction state ~desc:Cfg.Prologue in
             instr.dbg <- fun_body.dbg;
             instr.fdo <- Fdo_info.none;
-            Cfg.BasicInstructionList.make_single instr);
+            Cfg.DoublyLinkedList.make_single instr);
         terminator =
           copy_instruction_no_reg state fun_body
             ~desc:(Cfg.Always tailrec_label);
@@ -787,7 +787,7 @@ let fundecl :
   State.add_block state ~label:tailrec_label
     ~block:
       { start = tailrec_label;
-        body = Cfg.BasicInstructionList.make_empty ();
+        body = Cfg.DoublyLinkedList.make_empty ();
         terminator =
           copy_instruction_no_reg state fun_body ~desc:(Cfg.Always start_label);
         (* See [Cfg.register_predecessors_for_all_blocks] *)

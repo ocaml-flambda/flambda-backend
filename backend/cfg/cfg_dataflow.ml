@@ -340,7 +340,7 @@ module Forward (D : Domain_S) (T : Forward_transfer with type domain = D.t) :
       in
       transfer T.terminator
         (fun { normal; exceptional = _ } -> normal)
-        (Cfg.BasicInstructionList.fold_left block.body ~init:value
+        (Cfg.DoublyLinkedList.fold_left block.body ~init:value
            ~f:(transfer T.basic (fun d -> d)))
         block.terminator
   end
@@ -476,7 +476,7 @@ module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
         transfer block.terminator (T.terminator normal ~exn block.terminator)
       in
       let value =
-        Cfg.BasicInstructionList.fold_right block.body ~init:value
+        Cfg.DoublyLinkedList.fold_right block.body ~init:value
           ~f:(fun instr value -> transfer instr (T.basic value instr))
       in
       let value =

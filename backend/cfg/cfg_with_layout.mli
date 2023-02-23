@@ -27,22 +27,24 @@
 
 type t
 
+type layout = Label.t Cfg.DoublyLinkedList.t
+
 val create :
   Cfg.t ->
-  layout:Label.t list ->
+  layout:layout ->
   preserve_orig_labels:bool ->
   new_labels:Label.Set.t ->
   t
 
 val cfg : t -> Cfg.t
 
-val layout : t -> Label.t list
+val layout : t -> layout
 
 val preserve_orig_labels : t -> bool
 
 val new_labels : t -> Label.Set.t
 
-val set_layout : t -> Label.t list -> unit
+val set_layout : t -> layout -> unit
 
 (** Add to cfg, layout, and other data-structures that track labels. *)
 val add_block : t -> Cfg.basic_block -> after:Label.t -> unit
@@ -50,9 +52,6 @@ val add_block : t -> Cfg.basic_block -> after:Label.t -> unit
 (** Remove from cfg, layout, and other data-structures that track labels. *)
 val remove_block : t -> Label.t -> unit
 
-(* CR-soon gyorsh: [remove_block] is expensive because [layout] is implemented
-   as [list]. Bulk removal is a temporary workaround, until we optimize [layout]
-   implementation. *)
 val remove_blocks : t -> Label.Set.t -> unit
 
 val is_trap_handler : t -> Label.t -> bool

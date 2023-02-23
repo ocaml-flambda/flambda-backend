@@ -356,10 +356,10 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
       n.Reg.irc_color <- alias.Reg.irc_color)
 
 type direction =
-  | Load_before_cell of Cfg.BasicInstructionList.cell
-  | Store_after_cell of Cfg.BasicInstructionList.cell
-  | Load_after_list of Cfg.BasicInstructionList.t
-  | Store_before_list of Cfg.BasicInstructionList.t
+  | Load_before_cell of Cfg.basic Cfg.instruction Cfg.DoublyLinkedList.cell
+  | Store_after_cell of Cfg.basic Cfg.instruction Cfg.DoublyLinkedList.cell
+  | Load_after_list of Cfg.basic_instruction_list
+  | Store_before_list of Cfg.basic_instruction_list
 
 (* Returns `true` if new temporaries have been introduced. *)
 let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> bool
@@ -443,13 +443,12 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> bool
           in
           match direction with
           | Load_before_cell cell ->
-            Cfg.BasicInstructionList.insert_before cell new_instr
+            Cfg.DoublyLinkedList.insert_before cell new_instr
           | Store_after_cell cell ->
-            Cfg.BasicInstructionList.insert_after cell new_instr
-          | Load_after_list list ->
-            Cfg.BasicInstructionList.add_end list new_instr
+            Cfg.DoublyLinkedList.insert_after cell new_instr
+          | Load_after_list list -> Cfg.DoublyLinkedList.add_end list new_instr
           | Store_before_list list ->
-            Cfg.BasicInstructionList.add_begin list new_instr);
+            Cfg.DoublyLinkedList.add_begin list new_instr);
         temp)
       else reg
     in
@@ -468,8 +467,8 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> bool
       then (
         log ~indent:2 "body of #%d, before:" label;
         log_body_and_terminator ~indent:3 block.body block.terminator liveness);
-      Cfg.BasicInstructionList.iter_cell block.body ~f:(fun cell ->
-          let instr = Cfg.BasicInstructionList.instr cell in
+      Cfg.DoublyLinkedList.iter_cell block.body ~f:(fun cell ->
+          let instr = Cfg.DoublyLinkedList.value cell in
           match
             Profile.record ~accumulate:true "stack_operands"
               (fun () -> Cfg_stack_operands.basic spilled_map instr)
@@ -492,10 +491,10 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> bool
         (let sharing = Reg.Tbl.create 8 in
          rewrite_instruction ~direction:(Load_after_list block.body)
            ~sharing:(Reg.Tbl.create 8) block.terminator;
-         let new_instrs = Cfg.BasicInstructionList.make_empty () in
+         let new_instrs = Cfg.DoublyLinkedList.make_empty () in
          rewrite_instruction ~direction:(Store_before_list new_instrs) ~sharing
            block.terminator;
-         if not (Cfg.BasicInstructionList.is_empty new_instrs)
+         if not (Cfg.DoublyLinkedList.is_empty new_instrs)
          then
            (* insert block *)
            Cfg_regalloc_utils.insert_block

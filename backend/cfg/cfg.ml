@@ -29,117 +29,140 @@ let verbose = ref false
 
 include Cfg_intf.S
 
-module BasicInstructionList = struct
+module DoublyLinkedList = struct
   (* CR-someday xclerc: as noted on the pull request [1], it could be beneficial
      to consider alternative representations to avoid a "dummy" value, e.g. by
      using a sentinel or an encoding similar to the one used by `Queue.cell`.
 
      [1] https://github.com/ocaml-flambda/flambda-backend/pull/897 *)
 
-  type instr = basic instruction
+  type 'a node =
+    | Empty
+    | Node of
+        { value : 'a;
+          mutable prev : 'a node;
+          mutable next : 'a node
+        }
 
-  type node =
-    { instr : instr;
-      mutable prev : node;
-      mutable next : node
-    }
+  let[@inline] unattached_node value =
+    Node { value; prev = Empty; next = Empty }
 
-  (* CR xclerc for xclerc: a dummy instruction value has probably been
-     introduced by another pull request. *)
-  let dummy_instruction : instr =
-    { desc = Prologue;
-      arg = [||];
-      res = [||];
-      dbg = Debuginfo.none;
-      fdo = Fdo_info.none;
-      live = Reg.Set.empty;
-      stack_offset = -1;
-      id = -1;
-      irc_work_list = Unknown_list
-    }
-
-  let rec dummy_node =
-    { instr = dummy_instruction; prev = dummy_node; next = dummy_node }
-
-  let is_dummy_node node = node.instr.id < 0
-
-  let[@inline] unattached_node instr =
-    { instr; prev = dummy_node; next = dummy_node }
-
-  type t =
+  type 'a t =
     { mutable length : int;
-      mutable first : node;
-      mutable last : node
+      mutable first : 'a node;
+      mutable last : 'a node
     }
 
-  type cell =
-    { node : node;
-      t : t
+  type 'a cell =
+    { node : 'a node; (* invariant: this node is not empty/dummy *)
+      t : 'a t
     }
 
-  let insert_before cell instr =
-    let new_node = unattached_node instr in
-    new_node.prev <- cell.node.prev;
-    new_node.next <- cell.node;
-    cell.node.prev <- new_node;
-    cell.t.length <- succ cell.t.length;
-    if is_dummy_node new_node.prev
-    then cell.t.first <- new_node
-    else new_node.prev.next <- new_node
+  let insert_before cell value =
+    match unattached_node value with
+    | Empty ->
+      (* internal invariant: unattached node returns a non-empty node *)
+      assert false
+    | Node new_node as value_node -> (
+      match cell.node with
+      | Empty ->
+        (* internal invariant: cell's nodes are not empty *)
+        assert false
+      | Node cell_node -> (
+        new_node.next <- cell.node;
+        new_node.prev <- cell_node.prev;
+        cell_node.prev <- value_node;
+        cell.t.length <- succ cell.t.length;
+        match new_node.prev with
+        | Empty -> cell.t.first <- value_node
+        | Node node -> node.next <- value_node))
 
-  let insert_after cell instr =
-    let new_node = unattached_node instr in
-    new_node.next <- cell.node.next;
-    new_node.prev <- cell.node;
-    cell.node.next <- new_node;
-    cell.t.length <- succ cell.t.length;
-    if is_dummy_node new_node.next
-    then cell.t.last <- new_node
-    else new_node.next.prev <- new_node
+  let insert_after cell value =
+    match unattached_node value with
+    | Empty -> assert false
+    | Node new_node as value_node -> (
+      match cell.node with
+      | Empty ->
+        (* internal invariant: cell's nodes are not empty *)
+        assert false
+      | Node cell_node -> (
+        new_node.next <- cell_node.next;
+        new_node.prev <- cell.node;
+        cell_node.next <- value_node;
+        cell.t.length <- succ cell.t.length;
+        match new_node.next with
+        | Empty -> cell.t.last <- value_node
+        | Node node -> node.prev <- value_node))
 
-  let instr cell = cell.node.instr
+  let value cell =
+    match cell.node with
+    | Empty ->
+      (* internal invariant: cell's nodes are not empty *)
+      assert false
+    | Node node -> node.value
 
-  let make_empty () = { length = 0; first = dummy_node; last = dummy_node }
+  let prev cell =
+    match cell.node with
+    | Empty ->
+      (* internal invariant: cell's nodes are not empty *)
+      assert false
+    | Node cell_node -> (
+      let prev = cell_node.prev in
+      match prev with
+      | Empty -> None
+      | Node _ -> Some { node = prev; t = cell.t })
 
-  let make_single instr =
-    let node = unattached_node instr in
+  let make_empty () = { length = 0; first = Empty; last = Empty }
+
+  let make_single value =
+    let node = unattached_node value in
     { length = 1; first = node; last = node }
 
   let hd t =
-    let first = t.first in
-    if is_dummy_node first then None else Some first.instr
+    match t.first with Empty -> None | Node { value; _ } -> Some value
 
   let last t =
-    let last = t.last in
-    if is_dummy_node last then None else Some last.instr
+    match t.last with Empty -> None | Node { value; _ } -> Some value
 
-  let add_begin t instr =
-    let node = unattached_node instr in
-    let len = t.length in
-    if Int.equal len 0
-    then (
-      t.first <- node;
-      t.last <- node;
-      t.length <- 1)
-    else (
-      node.next <- t.first;
-      t.first.prev <- node;
-      t.first <- node;
-      t.length <- succ len)
+  let add_begin t value =
+    match unattached_node value with
+    | Empty ->
+      (* internal invariant: unattached node returns a non-empty node *)
+      assert false
+    | Node node as value_node -> (
+      let len = t.length in
+      match t.first with
+      | Empty ->
+        assert (t.last = Empty);
+        assert (len = 0);
+        t.first <- value_node;
+        t.last <- value_node;
+        t.length <- 1
+      | Node first_node ->
+        node.next <- t.first;
+        first_node.prev <- value_node;
+        t.first <- value_node;
+        t.length <- succ len)
 
-  let add_end t instr =
-    let node = unattached_node instr in
-    let len = t.length in
-    if Int.equal len 0
-    then (
-      t.first <- node;
-      t.last <- node;
-      t.length <- 1)
-    else (
-      node.prev <- t.last;
-      t.last.next <- node;
-      t.last <- node;
-      t.length <- succ len)
+  let add_end t value =
+    match unattached_node value with
+    | Empty ->
+      (* internal invariant: unattached node returns a non-empty node *)
+      assert false
+    | Node node as value_node -> (
+      let len = t.length in
+      match t.last with
+      | Empty ->
+        assert (t.first = Empty);
+        assert (len = 0);
+        t.first <- value_node;
+        t.last <- value_node;
+        t.length <- 1
+      | Node last_node ->
+        node.prev <- t.last;
+        last_node.next <- value_node;
+        t.last <- value_node;
+        t.length <- succ len)
 
   let of_list l =
     let res = make_empty () in
@@ -151,98 +174,165 @@ module BasicInstructionList = struct
   let length t = t.length
 
   let remove t curr =
-    if is_dummy_node curr.prev
-    then t.first <- curr.next
-    else curr.prev.next <- curr.next;
-    if is_dummy_node curr.next
-    then t.last <- curr.prev
-    else curr.next.prev <- curr.prev;
-    t.length <- pred t.length
+    match curr with
+    | Empty ->
+      (* internal invariant: the node given to [remove] is never empty *)
+      assert false
+    | Node curr ->
+      (match curr.prev with
+      | Empty -> t.first <- curr.next
+      | Node node -> node.next <- curr.next);
+      (match curr.next with
+      | Empty -> t.last <- curr.prev
+      | Node node -> node.prev <- curr.prev);
+      t.length <- pred t.length
+
+  let remove_first : 'a t -> f:('a -> bool) -> unit =
+   fun t ~f ->
+    let rec aux t f curr =
+      match curr with
+      | Empty -> () (* no node removed *)
+      | Node node -> if f node.value then remove t curr else aux t f node.next
+    in
+    aux t f t.first
 
   let filter_left t ~f =
-    let curr = ref t.first in
-    while not (is_dummy_node !curr) do
-      if not (f !curr.instr) then remove t !curr;
-      curr := !curr.next
-    done
+    let rec aux t f curr =
+      match curr with
+      | Empty -> ()
+      | Node node ->
+        if not (f node.value) then remove t curr;
+        aux t f node.next
+    in
+    aux t f t.first
 
   let filter_right t ~f =
-    let curr = ref t.last in
-    while not (is_dummy_node !curr) do
-      if not (f !curr.instr) then remove t !curr;
-      curr := !curr.prev
-    done
+    let rec aux t f curr =
+      match curr with
+      | Empty -> ()
+      | Node node ->
+        if not (f node.value) then remove t curr;
+        aux t f node.prev
+    in
+    aux t f t.last
 
   let iter t ~f =
-    let curr = ref t.first in
-    while not (is_dummy_node !curr) do
-      f !curr.instr;
-      curr := !curr.next
-    done
+    let rec aux f curr =
+      match curr with
+      | Empty -> ()
+      | Node node ->
+        f node.value;
+        aux f node.next
+    in
+    aux f t.first
 
   let iter_cell t ~f =
-    let curr = ref t.first in
-    while not (is_dummy_node !curr) do
-      let next = !curr.next in
-      let cell = { node = !curr; t } in
-      f cell;
-      curr := next
-    done
+    let rec aux t f curr =
+      match curr with
+      | Empty -> ()
+      | Node node ->
+        let next = node.next in
+        let cell = { node = curr; t } in
+        f cell;
+        aux t f next
+    in
+    aux t f t.first
+
+  let iter_right_cell t ~f =
+    let rec aux t f curr =
+      match curr with
+      | Empty -> ()
+      | Node node ->
+        let prev = node.prev in
+        let cell = { node = curr; t } in
+        f cell;
+        aux t f prev
+    in
+    aux t f t.last
+
+  let iteri t ~f =
+    let rec aux f i curr =
+      match curr with
+      | Empty -> ()
+      | Node node ->
+        f i node.value;
+        aux f (i + 1) node.next
+    in
+    aux f 0 t.first
 
   let iter2 t t' ~f =
-    let curr = ref t.first in
-    let curr' = ref t'.first in
-    while (not (is_dummy_node !curr)) && not (is_dummy_node !curr') do
-      f !curr.instr !curr'.instr;
-      curr := !curr.next;
-      curr' := !curr'.next
-    done;
-    if not (Bool.equal (is_dummy_node !curr) (is_dummy_node !curr'))
-    then invalid_arg "BasicInstructionList.iter2"
+    let rec aux f curr curr' =
+      match curr, curr' with
+      | Empty, Empty -> ()
+      | Node node, Node node' ->
+        f node.value node'.value;
+        aux f node.next node'.next
+      | Node _, Empty | Empty, Node _ -> invalid_arg "DoublyLinkedList.iter2"
+    in
+    aux f t.first t'.first
 
   let fold_left t ~f ~init =
-    let res = ref init in
-    let curr = ref t.first in
-    while not (is_dummy_node !curr) do
-      res := f !res !curr.instr;
-      curr := !curr.next
-    done;
-    !res
+    let rec aux f curr acc =
+      match curr with
+      | Empty -> acc
+      | Node node -> aux f node.next (f acc node.value)
+    in
+    aux f t.first init
 
   let fold_right t ~f ~init =
-    let res = ref init in
-    let curr = ref t.last in
-    while not (is_dummy_node !curr) do
-      res := f !curr.instr !res;
-      curr := !curr.prev
-    done;
-    !res
+    let rec aux f curr acc =
+      match curr with
+      | Empty -> acc
+      | Node node -> aux f node.prev (f node.value acc)
+    in
+    aux f t.last init
+
+  let find_cell_opt t ~f =
+    let rec aux t f curr =
+      match curr with
+      | Empty -> None
+      | Node node ->
+        if f node.value then Some { node = curr; t } else aux t f node.next
+    in
+    aux t f t.first
+
+  let find_opt t ~f =
+    match find_cell_opt t ~f with
+    | None -> None
+    | Some { node = Empty; _ } ->
+      (* internal invariant: cell's nodes are not empty *)
+      assert false
+    | Some { node = Node { value; prev = _; next = _ }; t = _ } -> Some value
+
+  let to_list t = fold_right t ~f:(fun hd tl -> hd :: tl) ~init:[]
 
   let transfer ~to_ ~from () =
-    match to_.length, from.length with
-    | _, 0 ->
+    match to_.last, from.first with
+    | _, Empty ->
       (* nothing to do *)
       ()
-    | 0, _ ->
+    | Empty, _ ->
       to_.first <- from.first;
       to_.last <- from.last;
       to_.length <- from.length;
-      from.first <- dummy_node;
-      from.last <- dummy_node;
+      from.first <- Empty;
+      from.last <- Empty;
       from.length <- 0
-    | _ ->
-      to_.last.next <- from.first;
-      from.first.prev <- to_.last;
+    | Node to_last, Node from_first ->
+      to_last.next <- from.first;
+      from_first.prev <- to_.last;
       to_.last <- from.last;
       to_.length <- to_.length + from.length;
-      from.first <- dummy_node;
-      from.last <- dummy_node;
+      from.first <- Empty;
+      from.last <- Empty;
       from.length <- 0
 end
 
+type basic_instruction_list = basic instruction DoublyLinkedList.t
+
 type basic_block =
   { start : Label.t;
-    body : BasicInstructionList.t;
+    body : basic_instruction_list;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
     mutable stack_offset : int;
@@ -385,7 +475,7 @@ let get_block_exn t label =
 let can_raise_interproc block = block.can_raise && Option.is_none block.exn
 
 let first_instruction_id (block : basic_block) : int =
-  match BasicInstructionList.hd block.body with
+  match DoublyLinkedList.hd block.body with
   | None -> block.terminator.id
   | Some first_instr -> first_instr.id
 

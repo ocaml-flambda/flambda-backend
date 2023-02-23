@@ -383,16 +383,16 @@ let check_basic_instruction :
 let check_basic_instruction_list :
     State.t ->
     location ->
-    Cfg.BasicInstructionList.t ->
-    Cfg.BasicInstructionList.t ->
+    Cfg.basic_instruction_list ->
+    Cfg.basic_instruction_list ->
     unit =
  fun state location expected result ->
-  let expected_len = Cfg.BasicInstructionList.length expected in
-  let result_len = Cfg.BasicInstructionList.length result in
+  let expected_len = Cfg.DoublyLinkedList.length expected in
+  let result_len = Cfg.DoublyLinkedList.length result in
   if expected_len = result_len
   then
     let i = ref 0 in
-    Cfg.BasicInstructionList.iter2 expected result ~f:(fun expected result ->
+    Cfg.DoublyLinkedList.iter2 expected result ~f:(fun expected result ->
         check_basic_instruction state location !i expected result;
         incr i)
   else if expected_len > result_len
