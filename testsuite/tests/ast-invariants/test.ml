@@ -85,5 +85,5 @@ let rec walk dir =
     (Sys.readdir dir)
 
 let () =
-  List.iter Clflags.Extension.enable_t Clflags.Extension.all;
+  List.iter Clflags.Extension.enable Clflags.Extension.all;
   walk root

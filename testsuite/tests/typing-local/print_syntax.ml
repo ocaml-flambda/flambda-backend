@@ -6,7 +6,7 @@
 
 let () =
   let fname = "example_syntax.ml" in
-  Clflags.Extension.enable "local";
+  Clflags.Extension.enable Local;
   let ic = open_in fname in
   let lexbuf = Lexing.from_channel ic in
   Location.init lexbuf fname;

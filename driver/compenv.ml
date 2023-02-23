@@ -489,9 +489,9 @@ let read_one_param ppf position name v =
   | "dump-into-file" -> Clflags.dump_into_file := true
   | "dump-dir" -> Clflags.dump_dir := Some v
 
-  | "extension" -> Clflags.Extension.enable v
+  | "extension" -> Clflags.Extension.(enable (of_string_exn v))
   | "disable-all-extensions" ->
-    if check_bool ppf name v then Clflags.Extension.disable_all ()
+    if check_bool ppf name v then Clflags.Extension.disallow_extensions ()
 
   | _ ->
     if !warnings_for_discarded_params &&
