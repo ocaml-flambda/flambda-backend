@@ -94,7 +94,28 @@ type static_data =
 
 type kind = Flambda_kind.t
 
-type kind_with_subkind = Flambda_kind.With_subkind.t
+type subkind =
+  | Anything
+  | Boxed_float
+  | Boxed_int32
+  | Boxed_int64
+  | Boxed_nativeint
+  | Tagged_immediate
+  | Variant of
+      { consts : targetint list;
+        non_consts : (tag_scannable * subkind list) list
+      }
+  | Float_block of { num_fields : int }
+  | Float_array
+  | Immediate_array
+  | Value_array
+  | Generic_array
+
+type kind_with_subkind =
+  | Value of subkind
+  | Naked_number of Flambda_kind.Naked_number_kind.t
+  | Region
+  | Rec_info
 
 type static_data_binding =
   { symbol : symbol;
@@ -130,7 +151,7 @@ type coercion =
 
 type kinded_parameter =
   { param : variable;
-    kind : Flambda_kind.With_subkind.t option
+    kind : kind_with_subkind option
   }
 
 type name =
@@ -287,7 +308,7 @@ type prim =
   | Ternary of ternop * simple * simple * simple
   | Variadic of varop * simple list
 
-type arity = Flambda_kind.With_subkind.t list
+type arity = kind_with_subkind list
 
 type function_call =
   | Direct of
@@ -337,7 +358,8 @@ type apply =
     call_kind : call_kind;
     arities : function_arities option;
     inlined : inlined_attribute option;
-    inlining_state : inlining_state option
+    inlining_state : inlining_state option;
+    region : variable
   }
 
 type size = int

@@ -224,16 +224,55 @@ let find_code_id env code_id =
 let targetint (i : Fexpr.targetint) : Targetint_32_64.t =
   Targetint_32_64.of_int64 i
 
+let targetint_31_63 (i : Fexpr.targetint) : Targetint_31_63.t =
+  Targetint_31_63.of_int64 i
+
+let tag_scannable (tag : Fexpr.tag_scannable) : Tag.Scannable.t =
+  Tag.Scannable.create_exn tag
+
 let immediate i = i |> Targetint_32_64.of_string |> Targetint_31_63.of_targetint
 
 let float f = f |> Numeric_types.Float_by_bit_pattern.create
 
+let rec subkind : Fexpr.subkind -> Flambda_kind.With_subkind.Subkind.t =
+  function
+  | Anything -> Anything
+  | Boxed_float -> Boxed_float
+  | Boxed_int32 -> Boxed_int32
+  | Boxed_int64 -> Boxed_int64
+  | Boxed_nativeint -> Boxed_nativeint
+  | Tagged_immediate -> Tagged_immediate
+  | Variant { consts; non_consts } ->
+    let consts =
+      consts |> List.map targetint_31_63 |> Targetint_31_63.Set.of_list
+    in
+    let non_consts =
+      non_consts
+      |> List.map (fun (tag, sk) -> tag_scannable tag, List.map subkind sk)
+      |> Tag.Scannable.Map.of_list
+    in
+    Variant { consts; non_consts }
+  | Float_block { num_fields } -> Float_block { num_fields }
+  | Float_array -> Float_array
+  | Immediate_array -> Immediate_array
+  | Value_array -> Value_array
+  | Generic_array -> Generic_array
+
+let value_kind_with_subkind :
+    Fexpr.kind_with_subkind -> Flambda_kind.With_subkind.t = function
+  | Value sk ->
+    Flambda_kind.With_subkind.create Flambda_kind.value (sk |> subkind)
+  | Naked_number nnk -> Flambda_kind.With_subkind.of_naked_number_kind nnk
+  | Region -> Flambda_kind.With_subkind.region
+  | Rec_info -> Flambda_kind.With_subkind.rec_info
+
 let value_kind_with_subkind_opt :
     Fexpr.kind_with_subkind option -> Flambda_kind.With_subkind.t = function
-  | Some kind -> kind
+  | Some kind -> value_kind_with_subkind kind
   | None -> Flambda_kind.With_subkind.any_value
 
-let arity a = Flambda_arity.With_subkinds.create a
+let arity a =
+  Flambda_arity.With_subkinds.create (List.map value_kind_with_subkind a)
 
 let const (c : Fexpr.const) : Reg_width_const.t =
   match c with
@@ -346,7 +385,7 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
       | Values { field_kind; tag; size = s } ->
         let tag : Tag.Scannable.t Or_unknown.t =
           match tag with
-          | Some tag -> Known (tag |> Tag.Scannable.create_exn)
+          | Some tag -> Known (tag |> tag_scannable)
           | None -> Unknown
         in
         let size = size s in
@@ -373,7 +412,7 @@ let varop (varop : Fexpr.varop) n : Flambda_primitive.variadic_primitive =
   | Make_block (tag, mutability) ->
     let shape = convert_block_shape ~num_fields:n in
     let kind : Flambda_primitive.Block_kind.t =
-      Values (Tag.Scannable.create_exn tag, shape)
+      Values (tag_scannable tag, shape)
     in
     Make_block (kind, mutability, Alloc_mode.For_allocations.heap)
 
@@ -652,7 +691,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       | Data { symbol = _; defining_expr = def } -> (
         match def with
         | Block { tag; mutability; elements = args } ->
-          let tag = Tag.Scannable.create_exn tag in
+          let tag = tag_scannable tag in
           static_const
             (SC.block tag mutability (List.map (field_of_block env) args))
         | Boxed_float f ->
@@ -818,7 +857,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         continuation;
         exn_continuation;
         args;
-        arities
+        arities;
+        region
       } ->
     let continuation = find_result_cont env continuation in
     let call_kind =
@@ -870,6 +910,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       | None -> Inlining_state.default ~round:0
     in
     let exn_continuation = find_exn_cont env exn_continuation in
+    let region = find_var env region in
     let apply =
       Flambda.Apply.create
         ~callee:(Simple.name (name env func))
@@ -877,8 +918,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~args:((List.map (simple env)) args)
         ~call_kind Debuginfo.none ~inlined ~inlining_state ~probe_name:None
         ~position:Normal ~relative_history:Inlining_history.Relative.empty
-        ~region:(Variable.create "FIXME")
-      (* CR mshinwell: fix region support *)
+        ~region
     in
     Flambda.Expr.create_apply apply
   | Invalid { message } -> Flambda.Expr.create_invalid (Message message)
