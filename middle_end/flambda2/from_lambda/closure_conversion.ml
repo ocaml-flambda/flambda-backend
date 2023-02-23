@@ -775,24 +775,31 @@ let close_let acc env id user_visible kind defining_expr
          generated. *)
       body acc body_env
     | Some defining_expr -> (
-      let body_env =
-        match defining_expr with
-        | Prim (Variadic (Make_block (_, Immutable, alloc_mode), fields), _) ->
-          let approxs =
-            List.map
-              (fun field ->
-                match Simple.must_be_symbol field with
-                | None -> find_value_approximation acc body_env field
-                | Some (sym, _) -> Value_approximation.Value_symbol sym)
-              fields
-            |> Array.of_list
-          in
-          Some
-            (Env.add_block_approximation body_env var approxs
-               (Alloc_mode.For_allocations.as_type alloc_mode))
-        | Prim (Binary (Block_load _, block, field), _) -> (
+      let bound_pattern = Bound_pattern.singleton (VB.create var Name_mode.normal) in
+      let bind acc env =
+        (* CR pchambart: Not tail ! The body function is the recursion *)
+        let acc, body = body acc env in
+        Let_with_acc.create acc bound_pattern defining_expr ~body
+      in
+      match defining_expr with
+      | Prim (Variadic (Make_block (_, Immutable, alloc_mode), fields), _) ->
+        let approxs =
+          List.map
+            (fun field ->
+               match Simple.must_be_symbol field with
+               | None -> find_value_approximation acc body_env field
+               | Some (sym, _) -> Value_approximation.Value_symbol sym)
+            fields
+          |> Array.of_list
+        in
+        let body_env =
+          Env.add_block_approximation body_env var approxs
+            (Alloc_mode.For_allocations.as_type alloc_mode)
+        in
+        bind acc body_env
+      | Prim (Binary (Block_load _, block, field), _) -> (
           match find_value_approximation acc body_env block with
-          | Value_unknown -> Some body_env
+          | Value_unknown -> bind acc body_env
           | Closure_approximation _ | Value_symbol _ | Value_int _ ->
             (* Here we assume [block] has already been substituted as a known
                symbol if it exists, and rely on the invariant that the
@@ -806,45 +813,38 @@ let close_let acc env id user_visible kind defining_expr
                 "Unexpected approximation found when block approximation was \
                  expected in [Closure_conversion]: %a"
                 Named.print defining_expr
-            else None
+            else
+              ( acc,
+                Expr.create_invalid
+                  (Defining_expr_of_let (bound_pattern, defining_expr)) )
           | Block_approximation (approx, _alloc_mode) -> (
-            let approx =
-              Simple.pattern_match field
-                ~const:(fun const ->
-                  match Reg_width_const.descr const with
-                  | Tagged_immediate i ->
-                    let i = Targetint_31_63.to_int i in
-                    if i >= Array.length approx
-                    then
-                      Misc.fatal_errorf
-                        "Trying to access the %dth field of a block \
-                         approximation of length %d."
-                        i (Array.length approx);
-                    approx.(i)
-                  | _ -> Value_approximation.Value_unknown)
-                ~name:(fun _ ~coercion:_ -> Value_approximation.Value_unknown)
-            in
-            match approx with
-            | Value_symbol sym ->
-              (* In spirit, this is the same as the simple case but more
-                 cumbersome to detect, we have to remove the now useless
-                 let-binding later. *)
-              Some
-                (Env.add_simple_to_substitute env id (Simple.symbol sym) kind)
-            | _ -> Some (Env.add_var_approximation body_env var approx)))
-        | _ -> Some body_env
-      in
-      let var = VB.create var Name_mode.normal in
-      let bound_pattern = Bound_pattern.singleton var in
-      match body_env with
-      | Some body_env ->
-        (* CR pchambart: Not tail ! The body function is the recursion *)
-        let acc, body = body acc body_env in
-        Let_with_acc.create acc bound_pattern defining_expr ~body
-      | None ->
-        ( acc,
-          Expr.create_invalid
-            (Defining_expr_of_let (bound_pattern, defining_expr)) ))
+              let approx =
+                Simple.pattern_match field
+                  ~const:(fun const ->
+                      match Reg_width_const.descr const with
+                      | Tagged_immediate i ->
+                        let i = Targetint_31_63.to_int i in
+                        if i >= Array.length approx
+                        then
+                          Misc.fatal_errorf
+                            "Trying to access the %dth field of a block \
+                             approximation of length %d."
+                            i (Array.length approx);
+                        approx.(i)
+                      | _ -> Value_approximation.Value_unknown)
+                  ~name:(fun _ ~coercion:_ -> Value_approximation.Value_unknown)
+              in
+              match approx with
+              | Value_symbol sym ->
+                (* In spirit, this is the same as the simple case but more
+                   cumbersome to detect, we have to remove the now useless
+                   let-binding later. *)
+                let body_env = Env.add_simple_to_substitute env id (Simple.symbol sym) kind in
+                bind acc body_env
+              | _ ->
+                let body_env = Env.add_var_approximation body_env var approx in
+                bind acc body_env))
+      | _ -> bind acc body_env)
   in
   close_named acc env ~let_bound_var:var defining_expr cont
 
