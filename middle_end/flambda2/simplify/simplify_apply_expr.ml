@@ -30,8 +30,13 @@ let warn_not_inlined_if_needed apply reason =
   match Apply.inlined apply with
   | Hint_inlined | Never_inlined | Default_inlined -> ()
   | Always_inlined | Unroll _ ->
+    let dbg = Apply.dbg apply in
+    let reason =
+      Format.asprintf "%s@ (the full inlining stack was:@ %a)" reason
+        Debuginfo.print_compact dbg
+    in
     Location.prerr_warning
-      (Debuginfo.to_location (Apply.dbg apply))
+      (Debuginfo.to_location dbg)
       (Warnings.Inlining_impossible reason)
 
 let record_free_names_of_apply_as_used0 apply ~use_id ~exn_cont_use_id data_flow
