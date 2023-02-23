@@ -980,6 +980,292 @@ let simplify_local_functions lam =
   else
     rewrite lam
 
+let simplify_functor_stubs lam =
+  (* Functor stubs are generated when applying a coercion to a functor.
+     This pass tries to detect functors with a useful inlining annotation,
+     and make the generated stub equivalent to the original functor in terms
+     of inlining.
+
+     This is relevant in two distinct cases:
+     - When the functor itself has inlining attributes. The default scheme
+     preserves inlining in that case, as the stub will get inlined and the
+     inner application will correctly use the inlining attribute from the
+     original functor.
+     - When the functor is applied with an inlining attribute. In this case,
+     the default scheme will apply the attribute to the stub application, not
+     the real functor. And in practice this means that it becomes impossible to
+     use attributes to inline a functor that was only marked as available for
+     inlining, if it goes through a coercion.
+
+     This pass tries to preserve the good behaviour of the first case, and
+     improve the second case. In practice, this means that we keep the stub
+     when the initial functor has an annotation that cannot be overridden
+     (such as [@inline always] or [@inline never]), but when the attribute
+     implies that the functor might or might not be inlined, we propagate the
+     attribute to the wrapper (which is not marked as a stub anymore) and add
+     an [@inlined always] attribute to the functor application in the wrapper.
+     This will result (after inlining) in code duplication between the original
+     functor and the wrapper, but in the common case where the original functor
+     isn't used anywhere else then it should be removed.
+  *)
+  let module Env : sig
+    type t
+    type data = {
+      nparams : int;
+      attrs : Lambda.function_attribute;
+    }
+    val initial : t
+    val register_functor_binding : t -> Ident.t -> data -> t
+    val get_functor_attribute : t -> Ident.t -> data option
+    val enter_function : t -> is_stub_functor:bool -> t
+    val is_in_stub_functor : t -> bool
+  end = struct
+    type data = {
+      nparams : int;
+      attrs : Lambda.function_attribute;
+    }
+
+    type t = {
+      functors : data Ident.Map.t;
+      is_in_stub_functor : bool;
+    }
+
+    let initial = {
+      functors = Ident.Map.empty;
+      is_in_stub_functor = false;
+    }
+
+    let register_functor_binding env id data =
+      { env with functors = Ident.Map.add id data env.functors }
+
+    let get_functor_attribute env id =
+      Ident.Map.find_opt id env.functors
+
+    let enter_function env ~is_stub_functor =
+      { env with is_in_stub_functor = is_stub_functor }
+
+    let is_in_stub_functor env = env.is_in_stub_functor
+  end in
+  let open struct
+    type applications_in_body =
+      | No_applications
+      | One_application of function_attribute
+      | Any_applications
+  end in
+  let merge_apps apps1 apps2 =
+    match apps1, apps2 with
+    | No_applications, apps | apps, No_applications -> apps
+    | (One_application _ | Any_applications),
+      (One_application _ | Any_applications) -> Any_applications
+  in
+  let rec rewrite env lam =
+    match lam with
+    | Lvar _ | Lmutvar _ | Lconst _ -> lam, No_applications
+    | Lapply lapply ->
+      let ap_func', apps1 = rewrite env lapply.ap_func in
+      let ap_args', apps2 = rewrite_list env lapply.ap_args in
+      let apps, ap_inlined' =
+        match ap_func' with
+        | Lvar id ->
+          begin match Env.get_functor_attribute env id with
+          | None -> Any_applications, lapply.ap_inlined
+          | Some { nparams; attrs } ->
+            if nparams = List.length ap_args' then
+              match apps1, apps2 with
+              | No_applications, No_applications ->
+                if Env.is_in_stub_functor env
+                then One_application attrs, Always_inlined
+                else Any_applications, lapply.ap_inlined
+              | (One_application _ | Any_applications), _
+              | _, (One_application _ | Any_applications) ->
+                Any_applications, lapply.ap_inlined
+            else Any_applications, lapply.ap_inlined
+          end
+        | _ -> Any_applications, lapply.ap_inlined
+      in
+      if ap_func' == lapply.ap_func
+      && ap_args' == lapply.ap_args
+      && ap_inlined' == lapply.ap_inlined
+      then lam, apps
+      else
+        Lapply { lapply with ap_func = ap_func';
+                             ap_args = ap_args';
+                             ap_inlined = ap_inlined' },
+        apps
+    | Lfunction lfunction ->
+      let is_stub_functor =
+        lfunction.attr.is_a_functor && lfunction.attr.stub
+      in
+      let body', apps =
+        rewrite (Env.enter_function ~is_stub_functor env) lfunction.body
+      in
+      let regular_case () =
+        if body' == lfunction.body then lam, No_applications
+        else Lfunction { lfunction with body = body' }, No_applications
+      in
+      if is_stub_functor then
+        match apps with
+        | One_application attr ->
+          Lfunction { lfunction with body = body'; attr }, No_applications
+        | No_applications | Any_applications -> regular_case ()
+      else regular_case ()
+    | Llet (lkind, vkind, id, def, body) ->
+      let body_env =
+        match def with
+        | Lfunction { attr; params; _ }
+        | Levent (Lfunction { attr; params; _ }, _) ->
+          if attr.is_a_functor then
+            Env.register_functor_binding env id
+              { nparams = List.length params; attrs = attr }
+          else env
+        | _ -> env
+      in
+      let def', apps1 = rewrite env def in
+      let body', apps2 = rewrite body_env body in
+      let apps = merge_apps apps1 apps2 in
+      if def == def' && body == body' then lam, apps
+      else Llet (lkind, vkind, id, def', body'), apps
+    | Lmutlet (vkind, id, def, body) ->
+      let def', apps1 = rewrite env def in
+      let body', apps2 = rewrite env body in
+      let apps = merge_apps apps1 apps2 in
+      if def == def' && body == body' then lam, apps
+      else Lmutlet (vkind, id, def', body'), apps
+    | Lletrec (bindings, body) ->
+      let bindings', apps1 = rewrite_bindings env bindings in
+      let body', apps2 = rewrite env body in
+      let apps = merge_apps apps1 apps2 in
+      if bindings == bindings' && body == body' then lam, apps
+      else Lletrec (bindings', body'), apps
+    | Lprim (prim, args, loc) ->
+      let args', apps = rewrite_list env args in
+      if args == args' then lam, apps
+      else Lprim (prim, args', loc), apps
+    | Lswitch (scrutinee, switch, loc, vkind) ->
+      let scrutinee', apps1 = rewrite env scrutinee in
+      let switch', apps2 = rewrite_switch env switch in
+      let apps = merge_apps apps1 apps2 in
+      if scrutinee == scrutinee' && switch == switch'
+      then lam, apps
+      else Lswitch (scrutinee', switch', loc, vkind), apps
+    | Lstringswitch (scrutinee, cases, default, loc, vkind) ->
+      let scrutinee', apps1 = rewrite env scrutinee in
+      let cases', apps2 = rewrite_bindings env cases in
+      let default', apps3 = rewrite_failaction env default in
+      let apps = merge_apps apps1 (merge_apps apps2 apps3) in
+      if scrutinee == scrutinee'
+      && cases == cases'
+      && default == default'
+      then lam, apps
+      else Lstringswitch (scrutinee', cases', default', loc, vkind), apps
+    | Lstaticraise (nfail, args) ->
+      let args', apps = rewrite_list env args in
+      if args == args' then lam, apps
+      else Lstaticraise (nfail, args'), apps
+    | Lstaticcatch (body, params, handler, vkind) ->
+      let body', apps1 = rewrite env body in
+      let handler', apps2 = rewrite env handler in
+      let apps = merge_apps apps1 apps2 in
+      if body == body' && handler == handler' then lam, apps
+      else Lstaticcatch (body', params, handler', vkind), apps
+    | Ltrywith (body, exn_id, handler, vkind) ->
+      let body', apps1 = rewrite env body in
+      let handler', apps2 = rewrite env handler in
+      let apps = merge_apps apps1 apps2 in
+      if body == body' && handler == handler' then lam, apps
+      else Ltrywith (body', exn_id, handler', vkind), apps
+    | Lifthenelse (cond, if_true, if_false, vkind) ->
+      let cond', apps1 = rewrite env cond in
+      let if_true', apps2 = rewrite env if_true in
+      let if_false', apps3 = rewrite env if_false in
+      let apps = merge_apps apps1 (merge_apps apps2 apps3) in
+      if cond == cond' && if_true == if_true' && if_false == if_false'
+      then lam, apps
+      else Lifthenelse (cond', if_true', if_false', vkind), apps
+    | Lsequence (lam1, lam2) ->
+      let lam1', apps1 = rewrite env lam1 in
+      let lam2', apps2 = rewrite env lam2 in
+      let apps = merge_apps apps1 apps2 in
+      if lam1 == lam1' && lam2 == lam2' then lam, apps
+      else Lsequence (lam1', lam2'), apps
+    | Lwhile lwhile ->
+      let cond', apps1 = rewrite env lwhile.wh_cond in
+      let body', apps2 = rewrite env lwhile.wh_body in
+      let apps = merge_apps apps1 apps2 in
+      if lwhile.wh_cond == cond' && lwhile.wh_body == body' then lam, apps
+      else Lwhile { lwhile with wh_cond = cond'; wh_body = body' }, apps
+    | Lfor lfor ->
+      let from', apps1 = rewrite env lfor.for_from in
+      let to', apps2 = rewrite env lfor.for_to in
+      let body', apps3 = rewrite env lfor.for_body in
+      let apps = merge_apps apps1 (merge_apps apps2 apps3) in
+      if lfor.for_from == from' && lfor.for_to == to' && lfor.for_body == body'
+      then lam, apps
+      else Lfor { lfor with for_from = from'; for_to = to'; for_body = body' },
+           apps
+    | Lassign (id, expr) ->
+      let expr', apps = rewrite env expr in
+      if expr == expr' then lam, apps else Lassign (id, expr'), apps
+    | Lsend (mkind, obj, met, args, region, alloc_mode, loc) ->
+      let obj', apps1 = rewrite env obj in
+      let met', apps2 = rewrite env met in
+      let args', apps3 = rewrite_list env args in
+      let apps = merge_apps apps1 (merge_apps apps2 apps3) in
+      if obj == obj' && met == met' && args == args' then lam, apps
+      else Lsend (mkind, obj', met', args', region, alloc_mode, loc), apps
+    | Levent (expr, lev) ->
+      let expr', apps = rewrite env expr in
+      if expr == expr' then lam, apps else Levent (expr', lev), apps
+    | Lifused (id, expr) ->
+      let expr', apps = rewrite env expr in
+      if expr == expr' then lam, apps else Lifused (id, expr'), apps
+    | Lregion expr ->
+      let expr', apps = rewrite env expr in
+      if expr == expr' then lam, apps else Lregion expr', apps
+  and rewrite_bindings :
+    'a. Env.t -> ('a * lambda) list -> ('a * lambda) list * applications_in_body
+    = fun env cases ->
+    match cases with
+    | [] -> cases, No_applications
+    | (key, action) :: rest ->
+      let rest', apps1 = rewrite_bindings env rest in
+      let action', apps2 = rewrite env action in
+      let apps = merge_apps apps1 apps2 in
+      if rest == rest' && action == action' then cases, apps
+      else (key, action') :: rest', apps
+  and rewrite_list env lams =
+    match lams with
+    | [] -> lams, No_applications
+    | lam :: rest ->
+      let rest', apps1 = rewrite_list env rest in
+      let lam', apps2 = rewrite env lam in
+      let apps = merge_apps apps1 apps2 in
+      if rest == rest' && lam == lam' then lams, apps
+      else lam' :: rest', apps
+  and rewrite_switch env lswitch =
+    let consts', apps1 = rewrite_bindings env lswitch.sw_consts in
+    let blocks', apps2 = rewrite_bindings env lswitch.sw_blocks in
+    let failaction', apps3 = rewrite_failaction env lswitch.sw_failaction in
+    let apps = merge_apps apps1 (merge_apps apps2 apps3) in
+    if consts' == lswitch.sw_consts
+    && blocks' == lswitch.sw_blocks
+    && failaction' == lswitch.sw_failaction
+    then lswitch, apps
+    else { lswitch with sw_consts = consts';
+                        sw_blocks = blocks';
+                        sw_failaction = failaction' },
+         apps
+  and rewrite_failaction env failaction =
+    match failaction with
+    | None -> None, No_applications
+    | Some act ->
+      let act', apps = rewrite env act in
+      if act == act' then failaction, apps
+      else Some act', apps
+  in
+  let result, _apps = rewrite Env.initial lam in
+  result
+
 (* The entry point:
    simplification
    + rewriting of tail-modulo-cons calls
@@ -989,6 +1275,8 @@ let simplify_local_functions lam =
 let simplify_lambda lam =
   let lam =
     lam
+    |> (if Config.flambda || Config.flambda2
+        then simplify_functor_stubs else Fun.id)
     |> (if !Clflags.native_code || not !Clflags.debug
         then simplify_local_functions else Fun.id
        )

@@ -449,22 +449,34 @@ let get_inlined_attribute e =
   parse_inlined_attribute attr
 
 let get_inlined_attribute_on_module e =
-  let rec get mod_expr =
+  let rec get mod_expr ~in_apply =
     let attr = find_attribute is_inlined_attribute mod_expr.mod_attributes in
     let attr = parse_inlined_attribute attr in
     let attr =
       match mod_expr.Typedtree.mod_desc with
       | Tmod_constraint (me, _, _, _) ->
-        let inner_attr = get me in
+        let inner_attr = get me ~in_apply in
         begin match attr with
         | Always_inlined | Hint_inlined | Never_inlined | Unroll _ -> attr
         | Default_inlined -> inner_attr
         end
+      | Tmod_apply (funct, _, _) ->
+        let funct_attr = get funct ~in_apply:true in
+        let attr =
+          match attr with
+          | Always_inlined | Hint_inlined | Never_inlined | Unroll _ -> attr
+          | Default_inlined ->
+            begin match funct_attr with
+            | Always_inlined | Hint_inlined -> Hint_inlined
+            | Never_inlined | Unroll _ | Default_inlined -> Default_inlined
+            end
+        in
+        attr
       | _ -> attr
     in
     attr
   in
-  get e
+  get e ~in_apply:false
 
 let get_specialised_attribute e =
   let attr = find_attribute is_specialised_attribute e.exp_attributes in
