@@ -868,7 +868,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let params_arity =
           (* CR mshinwell: This needs fixing to cope with the fact that the
              arities have moved onto [Apply_expr] *)
-          Flambda_arity.With_subkinds.create []
+          Flambda_arity.With_subkinds.create
+            (List.map (fun _ -> Flambda_kind.With_subkind.any_value) args)
         in
         let return_arity =
           match arities with
@@ -893,7 +894,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let params_arity =
             (* CR mshinwell: This needs fixing to cope with the fact that the
                arities have moved onto [Apply_expr] *)
-            Flambda_arity.With_subkinds.create []
+            Flambda_arity.With_subkinds.create
+              (List.map (fun _ -> Flambda_kind.With_subkind.any_value) args)
           in
           let return_arity =
             (* CR mshinwell: This needs fixing to cope with the fact that the

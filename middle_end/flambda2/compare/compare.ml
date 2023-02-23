@@ -288,10 +288,9 @@ let subst_field env (field : Field_of_static_block.t) =
 
 let subst_call_kind env (call_kind : Call_kind.t) : Call_kind.t =
   match call_kind with
-  | Function { function_call = Direct { code_id; return_arity }; _ } ->
+  | Function { function_call = Direct code_id; _ } ->
     let code_id = subst_code_id env code_id in
-    Call_kind.direct_function_call code_id ~return_arity
-      Alloc_mode.For_types.heap
+    Call_kind.direct_function_call code_id Alloc_mode.For_types.heap
   | _ -> call_kind
 
 let rec subst_expr env e =
@@ -436,9 +435,11 @@ and subst_apply env apply =
   let relative_history = Apply_expr.relative_history apply in
   let position = Apply_expr.position apply in
   let region = Apply_expr.region apply in
+  let args_arity = Apply_expr.args_arity apply in
+  let return_arity = Apply_expr.return_arity apply in
   Apply_expr.create ~callee ~continuation exn_continuation ~args ~call_kind dbg
     ~inlined ~inlining_state ~probe_name:None ~position ~relative_history
-    ~region
+    ~region ~args_arity ~return_arity
   |> Expr.create_apply
 
 and subst_apply_cont env apply_cont =
@@ -900,39 +901,14 @@ let method_kinds _env (method_kind1 : Call_kind.Method_kind.t)
 let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     Call_kind.t Comparison.t =
   match call_kind1, call_kind2 with
-  | ( Function
-        { function_call =
-            Direct { code_id = code_id1; return_arity = return_arity1 };
-          _
-        },
-      Function
-        { function_call =
-            Direct { code_id = code_id2; return_arity = return_arity2 };
-          _
-        } ) ->
-    pairs ~f1:code_ids
-      ~f2:(Comparator.of_predicate Flambda_arity.With_subkinds.equal)
-      ~subst2:(fun _ arity -> arity)
-      env (code_id1, return_arity1) (code_id2, return_arity2)
-    |> Comparison.map ~f:(fun (code_id, return_arity) ->
-           Call_kind.direct_function_call code_id ~return_arity
-             Alloc_mode.For_types.heap)
-  | ( Function
-        { function_call =
-            Indirect_known_arity
-              { param_arity = param_arity1; return_arity = return_arity1 };
-          _
-        },
-      Function
-        { function_call =
-            Indirect_known_arity
-              { param_arity = param_arity2; return_arity = return_arity2 };
-          _
-        } ) ->
-    if Flambda_arity.With_subkinds.equal param_arity1 param_arity2
-       && Flambda_arity.With_subkinds.equal return_arity1 return_arity2
+  | ( Function { function_call = Direct code_id1; _ },
+      Function { function_call = Direct code_id2; _ } ) ->
+    if Code_id.equal code_id1 code_id2
     then Equivalent
     else Different { approximant = call_kind1 }
+  | ( Function { function_call = Indirect_known_arity; _ },
+      Function { function_call = Indirect_known_arity; _ } ) ->
+    Equivalent
   | ( Function { function_call = Indirect_unknown_arity; _ },
       Function { function_call = Indirect_unknown_arity; _ } ) ->
     Equivalent
@@ -942,21 +918,9 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
       (kind1, obj1) (kind2, obj2)
     |> Comparison.map ~f:(fun (kind, obj) ->
            Call_kind.method_call kind ~obj Alloc_mode.For_types.heap)
-  | ( C_call
-        { alloc = alloc1;
-          param_arity = param_arity1;
-          return_arity = return_arity1;
-          is_c_builtin = _
-        },
-      C_call
-        { alloc = alloc2;
-          param_arity = param_arity2;
-          return_arity = return_arity2;
-          is_c_builtin = _
-        } ) ->
+  | ( C_call { alloc = alloc1; is_c_builtin = _ },
+      C_call { alloc = alloc2; is_c_builtin = _ } ) ->
     if Bool.equal alloc1 alloc2
-       && Flambda_arity.equal param_arity1 param_arity2
-       && Flambda_arity.equal return_arity1 return_arity2
     then Equivalent
     else Different { approximant = call_kind1 }
   | _, _ -> Different { approximant = call_kind1 }
@@ -979,6 +943,11 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
          (Apply.inlining_state apply1)
          (Apply.inlining_state apply2)
     && Apply.Position.equal (Apply.position apply1) (Apply.position apply2)
+    && Flambda_arity.With_subkinds.equal (Apply.args_arity apply1)
+         (Apply.args_arity apply2)
+    && Flambda_arity.With_subkinds.equal
+         (Apply.return_arity apply1)
+         (Apply.return_arity apply2)
   in
   let ok = ref atomic_things_equal in
   let callee1' =
@@ -1007,6 +976,8 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
             ~probe_name:None ~position:(Apply.position apply1)
             ~relative_history:(Apply_expr.relative_history apply1)
             ~region:(Apply_expr.region apply1)
+            ~args_arity:(Apply_expr.args_arity apply1)
+            ~return_arity:(Apply_expr.return_arity apply1)
           |> Expr.create_apply
       }
 
