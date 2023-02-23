@@ -301,7 +301,15 @@ test-one: install_for_test
 	   export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
 	 fi; \
 	 cd _runtest/testsuite && make one $(if $(TEST),TEST="tests/$(TEST)") $(if $(DIR),DIR="tests/$(DIR)"))
-         
+
+promote-one: install_for_test
+	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
+	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
+	 if $$(which gfortran > /dev/null 2>&1); then \
+	   export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
+	 fi; \
+	 cd _runtest/testsuite && make promote $(if $(TEST),TEST="tests/$(TEST)") $(if $(DIR),DIR="tests/$(DIR)"))
+
 # This target is like a polling version of upstream "make ocamlopt"
 .PHONY: hacking
 hacking: _build/_bootinstall

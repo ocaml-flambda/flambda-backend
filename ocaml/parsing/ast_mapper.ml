@@ -46,6 +46,7 @@ type mapper = {
   constructor_declaration: mapper -> constructor_declaration
                            -> constructor_declaration;
   expr: mapper -> expression -> expression;
+  expr_extension: mapper -> Location.t -> Extensions.Expression.t -> expression;
   extension: mapper -> extension -> extension;
   extension_constructor: mapper -> extension_constructor
                          -> extension_constructor;
@@ -63,6 +64,7 @@ type mapper = {
   open_declaration: mapper -> open_declaration -> open_declaration;
   open_description: mapper -> open_description -> open_description;
   pat: mapper -> pattern -> pattern;
+  pat_extension: mapper -> Location.t -> Extensions.Pattern.t -> pattern;
   payload: mapper -> payload -> payload;
   signature: mapper -> signature -> signature;
   signature_item: mapper -> signature_item -> signature_item;
@@ -385,10 +387,52 @@ end
 module E = struct
   (* Value expressions for the core language *)
 
-  let map sub {pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} =
+  module C = Extensions.Comprehensions
+  module IA = Extensions.Immutable_arrays
+
+  let map_iterator sub : C.iterator -> C.iterator = function
+    | Range { start; stop; direction } ->
+      Range { start = sub.expr sub start;
+              stop = sub.expr sub stop;
+              direction }
+    | In expr -> In (sub.expr sub expr)
+
+  let map_clause_binding sub : C.clause_binding -> C.clause_binding = function
+    | { pattern; iterator; attributes } ->
+      { pattern = sub.pat sub pattern;
+        iterator = map_iterator sub iterator;
+        attributes = sub.attributes sub attributes }
+
+  let map_clause sub : C.clause -> C.clause = function
+    | For cbs -> For (List.map (map_clause_binding sub) cbs)
+    | When expr -> When (sub.expr sub expr)
+
+  let map_comp sub : C.comprehension -> C.comprehension = function
+    | { body; clauses } -> { body = sub.expr sub body;
+                            clauses = List.map (map_clause sub) clauses }
+
+  let map_cexp sub : C.expression -> C.expression = function
+    | Cexp_list_comprehension comp ->
+      Cexp_list_comprehension (map_comp sub comp)
+    | Cexp_array_comprehension (mut, comp) ->
+      Cexp_array_comprehension (mut, map_comp sub comp)
+
+  let map_iaexp sub : IA.expression -> IA.expression = function
+    | Iaexp_immutable_array elts ->
+      Iaexp_immutable_array (List.map (sub.expr sub) elts)
+
+  let map_ext sub loc : Extensions.Expression.t -> _ = function
+    | Eexp_comprehension cexp -> C.expr_of ~loc (map_cexp sub cexp)
+    | Eexp_immutable_array iaexp -> IA.expr_of ~loc (map_iaexp sub iaexp)
+
+  let map sub
+        ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
     let open Exp in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
+    match Extensions.Expression.of_ast exp with
+    | Some eexp -> sub.expr_extension sub loc eexp
+    | None ->
     match desc with
     | Pexp_ident x -> ident ~loc ~attrs (map_loc sub x)
     | Pexp_constant x -> constant ~loc ~attrs (sub.constant sub x)
@@ -477,10 +521,23 @@ end
 module P = struct
   (* Patterns *)
 
-  let map sub {ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} =
+  module IA = Extensions.Immutable_arrays
+
+  let map_iapat sub : IA.pattern -> IA.pattern = function
+    | Iapat_immutable_array elts ->
+      Iapat_immutable_array (List.map (sub.pat sub) elts)
+
+  let map_ext sub loc : Extensions.Pattern.t -> _ = function
+    | Epat_immutable_array iapat -> IA.pat_of ~loc (map_iapat sub iapat)
+
+  let map sub
+        ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     let open Pat in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
+    match Extensions.Pattern.of_ast pat with
+    | Some epat -> sub.pat_extension sub loc epat
+    | None ->
     match desc with
     | Ppat_any -> any ~loc ~attrs ()
     | Ppat_var s -> var ~loc ~attrs (map_loc sub s)
@@ -621,7 +678,9 @@ let default_mapper =
       );
 
     pat = P.map;
+    pat_extension = P.map_ext;
     expr = E.map;
+    expr_extension = E.map_ext;
     binding_op = E.map_binding_op;
 
     module_declaration =
@@ -769,7 +828,7 @@ let extension_of_error {kind; main; sub} =
         List.map (fun msg -> Str.extension (extension_of_sub msg)) sub)
 
 let attribute_of_warning loc s =
-  Builtin_attributes.mk_internal
+  Attr.mk
     {loc; txt = "ocaml.ppwarning" }
     (PStr ([Str.eval ~loc (Exp.constant (Pconst_string (s, loc, None)))]))
 
