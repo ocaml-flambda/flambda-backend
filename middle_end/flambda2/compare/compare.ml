@@ -903,7 +903,7 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
   match call_kind1, call_kind2 with
   | ( Function { function_call = Direct code_id1; _ },
       Function { function_call = Direct code_id2; _ } ) ->
-    if Code_id.equal code_id1 code_id2
+    if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
     then Equivalent
     else Different { approximant = call_kind1 }
   | ( Function { function_call = Indirect_known_arity; _ },
