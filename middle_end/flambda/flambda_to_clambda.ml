@@ -98,7 +98,11 @@ let clambda_arity (func : Flambda.function_declaration) : Clambda.arity =
     |> List.filter (fun p -> Lambda.is_local_mode (Parameter.alloc_mode p))
     |> List.length
   in
-  Curried {nlocal}, Flambda_utils.function_arity func
+  {
+    function_kind = Curried {nlocal} ;
+    params_layout = List.map Parameter.kind func.params ;
+    return_layout = func.return_layout ;
+  }
 
 let check_field t ulam pos named_opt : Clambda.ulambda =
   if not !Clflags.clambda_checks then ulam
@@ -126,14 +130,14 @@ module Env : sig
 
   val empty : t
 
-  val add_subst : t -> Variable.t -> Clambda.ulambda -> t
-  val find_subst_exn : t -> Variable.t -> Clambda.ulambda
+  val add_subst : t -> Variable.t -> Clambda.ulambda -> Lambda.layout -> t
+  val find_subst_exn : t -> Variable.t -> Clambda.ulambda * Lambda.layout
 
-  val add_fresh_ident : t -> Variable.t -> V.t * t
-  val ident_for_var_exn : t -> Variable.t -> V.t
+  val add_fresh_ident : t -> Variable.t -> Lambda.layout -> V.t * t
+  val ident_for_var_exn : t -> Variable.t -> V.t * Lambda.layout
 
-  val add_fresh_mutable_ident : t -> Mutable_variable.t -> V.t * t
-  val ident_for_mutable_var_exn : t -> Mutable_variable.t -> V.t
+  val add_fresh_mutable_ident : t -> Mutable_variable.t -> Lambda.layout -> V.t * t
+  val ident_for_mutable_var_exn : t -> Mutable_variable.t -> V.t * Lambda.layout
 
   val add_allocated_const : t -> Symbol.t -> Allocated_const.t -> t
   val allocated_const_for_symbol : t -> Symbol.t -> Allocated_const.t option
@@ -141,9 +145,9 @@ module Env : sig
   val keep_only_symbols : t -> t
 end = struct
   type t =
-    { subst : Clambda.ulambda Variable.Map.t;
-      var : V.t Variable.Map.t;
-      mutable_var : V.t Mutable_variable.Map.t;
+    { subst : (Clambda.ulambda * Lambda.layout) Variable.Map.t;
+      var : (V.t * Lambda.layout) Variable.Map.t;
+      mutable_var : (V.t * Lambda.layout) Mutable_variable.Map.t;
       allocated_constant_for_symbol : Allocated_const.t Symbol.Map.t;
     }
 
@@ -154,23 +158,25 @@ end = struct
       allocated_constant_for_symbol = Symbol.Map.empty;
     }
 
-  let add_subst t id subst =
-    { t with subst = Variable.Map.add id subst t.subst }
+  let add_subst t id subst layout =
+    { t with subst = Variable.Map.add id (subst, layout) t.subst }
 
   let find_subst_exn t id = Variable.Map.find id t.subst
 
   let ident_for_var_exn t id = Variable.Map.find id t.var
 
-  let add_fresh_ident t var =
+  let add_fresh_ident t var layout =
     let id = V.create_local (Variable.name var) in
-    id, { t with var = Variable.Map.add var id t.var }
+    id, { t with var = Variable.Map.add var (id, layout) t.var }
 
   let ident_for_mutable_var_exn t mut_var =
     Mutable_variable.Map.find mut_var t.mutable_var
 
-  let add_fresh_mutable_ident t mut_var =
+  let add_fresh_mutable_ident t mut_var layout =
     let id = V.create_local (Mutable_variable.name mut_var) in
-    let mutable_var = Mutable_variable.Map.add mut_var id t.mutable_var in
+    let mutable_var =
+      Mutable_variable.Map.add mut_var (id, layout) t.mutable_var
+    in
     id, { t with mutable_var; }
 
   let add_allocated_const t sym cons =
@@ -190,10 +196,12 @@ end = struct
     }
 end
 
-let subst_var env var : Clambda.ulambda =
+let subst_var env var : Clambda.ulambda * Lambda.layout =
   try Env.find_subst_exn env var
   with Not_found ->
-    try Uvar (Env.ident_for_var_exn env var)
+    try
+      let v, layout = Env.ident_for_var_exn env var in
+      Uvar v, layout
     with Not_found ->
       Misc.fatal_errorf "Flambda_to_clambda: unbound variable %a@."
         Variable.print var
@@ -235,33 +243,38 @@ let to_clambda_const env (const : Flambda.constant_defining_value_block_field)
   | Const (Int i) -> Uconst_int i
   | Const (Char c) -> Uconst_int (Char.code c)
 
-let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
+let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
   match flam with
   | Var var -> subst_var env var
   | Let { var; defining_expr; body; _ } ->
-    (* TODO: synthesize proper value_kind *)
-    let id, env_body = Env.add_fresh_ident env var in
-    Ulet (Immutable, Pgenval, VP.create id,
-      to_clambda_named t env var defining_expr,
-      to_clambda t env_body body)
+    let defining_expr, defining_expr_layout = to_clambda_named t env var defining_expr in
+    let id, env_body = Env.add_fresh_ident env var defining_expr_layout in
+    let body, body_layout = to_clambda t env_body body in
+    Ulet (Immutable, defining_expr_layout, VP.create id, defining_expr, body),
+    body_layout
   | Let_mutable { var = mut_var; initial_value = var; body; contents_kind } ->
-    let id, env_body = Env.add_fresh_mutable_ident env mut_var in
-    let def = subst_var env var in
-    Ulet (Mutable, contents_kind, VP.create id, def, to_clambda t env_body body)
+    let id, env_body = Env.add_fresh_mutable_ident env mut_var contents_kind in
+    let def, def_layout = subst_var env var in
+    assert(Lambda.compatible_layout def_layout contents_kind);
+    let body, body_layout = to_clambda t env_body body in
+    Ulet (Mutable, contents_kind, VP.create id, def, body), body_layout
   | Let_rec (defs, body) ->
     let env, defs =
       List.fold_right (fun (var, def) (env, defs) ->
-          let id, env = Env.add_fresh_ident env var in
+          let id, env = Env.add_fresh_ident env var Lambda.layout_letrec in
           env, (id, var, def) :: defs)
         defs (env, [])
     in
     let defs =
       List.map (fun (id, var, def) ->
-          VP.create id, to_clambda_named t env var def)
+          let def, def_layout = to_clambda_named t env var def in
+          assert(Lambda.compatible_layout def_layout Lambda.layout_letrec);
+          VP.create id, def)
         defs
     in
-    Uletrec (defs, to_clambda t env body)
-  | Apply { func; args; kind = Direct direct_func; probe; dbg; reg_close; mode} ->
+    let body, body_layout = to_clambda t env body in
+    Uletrec (defs, body), body_layout
+  | Apply { func; args; kind = Direct direct_func; probe; dbg; reg_close; mode; result_layout } ->
     (* The closure _parameter_ of the function is added by cmmgen.
        At the call site, for a direct call, the closure argument must be
        explicitly added (by [to_clambda_direct_apply]); there is no special
@@ -269,28 +282,35 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
        For an indirect call, we do not need to do anything here; Cmmgen will
        do the equivalent of the previous paragraph when it generates a direct
        call to [caml_apply]. *)
-    to_clambda_direct_apply t func args direct_func probe dbg reg_close mode env
-  | Apply { func; args; kind = Indirect; probe = None; dbg; reg_close; mode } ->
-    let callee = subst_var env func in
+    to_clambda_direct_apply t func args direct_func probe dbg reg_close mode result_layout env,
+    result_layout
+  | Apply { func; args; kind = Indirect; probe = None; dbg; reg_close; mode; result_layout } ->
+    let callee, callee_layout = subst_var env func in
+    assert(Lambda.compatible_layout callee_layout Lambda.layout_function);
+    let args, args_layout = List.split (subst_vars env args) in
     Ugeneric_apply (check_closure t callee (Flambda.Expr (Var func)),
-      subst_vars env args, (reg_close, mode), dbg)
+      args, args_layout, result_layout, (reg_close, mode), dbg),
+    result_layout
   | Apply { probe = Some {name}; _ } ->
     Misc.fatal_errorf "Cannot apply indirect handler for probe %s" name ()
   | Switch (arg, sw) ->
-    let aux () : Clambda.ulambda =
+    let aux () : Clambda.ulambda * Lambda.layout =
       let const_index, const_actions =
-        to_clambda_switch t env sw.consts sw.numconsts sw.failaction
+        to_clambda_switch t env sw.consts sw.numconsts sw.failaction sw.kind
       in
       let block_index, block_actions =
-        to_clambda_switch t env sw.blocks sw.numblocks sw.failaction
+        to_clambda_switch t env sw.blocks sw.numblocks sw.failaction sw.kind
       in
-      Uswitch (subst_var env arg,
+      let arg, arg_layout = subst_var env arg in
+      assert(Lambda.compatible_layout arg_layout Lambda.layout_any_value);
+      Uswitch (arg,
         { us_index_consts = const_index;
           us_actions_consts = const_actions;
           us_index_blocks = block_index;
           us_actions_blocks = block_actions;
         },
-        Debuginfo.none)  (* debug info will be added by GPR#855 *)
+        Debuginfo.none, sw.kind),  (* debug info will be added by GPR#855 *)
+      sw.kind
     in
     (* Check that the [failaction] may be duplicated.  If this is not the
        case, share it through a static raise / static catch. *)
@@ -309,133 +329,212 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
         }
       in
       let expr : Flambda.t =
-        Static_catch (exn, [], Switch (arg, sw), failaction)
+        Static_catch (exn, [], Switch (arg, sw), failaction, sw.kind)
       in
       to_clambda t env expr
     end
-  | String_switch (arg, sw, def) ->
-    let arg = subst_var env arg in
-    let sw = List.map (fun (s, e) -> s, to_clambda t env e) sw in
-    let def = Option.map (to_clambda t env) def in
-    Ustringswitch (arg, sw, def)
+  | String_switch (arg, sw, def, kind) ->
+    let arg, arg_layout = subst_var env arg in
+    assert(Lambda.compatible_layout arg_layout Lambda.layout_string);
+    let sw =
+      List.map (fun (s, e) ->
+          let e, layout = to_clambda t env e in
+          assert(Lambda.compatible_layout layout kind);
+          s, e
+        ) sw
+    in
+    let def =
+      Option.map (fun e ->
+          let e, layout = to_clambda t env e in
+          assert(Lambda.compatible_layout layout kind);
+          e
+        ) def
+    in
+    Ustringswitch (arg, sw, def, kind), kind
   | Static_raise (static_exn, args) ->
-    Ustaticfail (Static_exception.to_int static_exn,
-      List.map (subst_var env) args)
-  | Static_catch (static_exn, vars, body, handler) ->
+    (* CR pchambart: there probably should be an assertion that the
+       layouts matches the static_catch ones *)
+    let args =
+      List.map (fun arg ->
+          let arg, _layout = subst_var env arg in
+          arg
+        ) args
+    in
+    Ustaticfail (Static_exception.to_int static_exn, args),
+    Lambda.layout_bottom
+  | Static_catch (static_exn, vars, body, handler, kind) ->
     let env_handler, ids =
-      List.fold_right (fun var (env, ids) ->
-          let id, env = Env.add_fresh_ident env var in
-          env, (VP.create id, Lambda.Pgenval) :: ids)
+      List.fold_right (fun (var, layout) (env, ids) ->
+          let id, env = Env.add_fresh_ident env var layout in
+          env, (VP.create id, layout) :: ids)
         vars (env, [])
     in
+    let body, body_layout = to_clambda t env body in
+    let handler, handler_layout = to_clambda t env_handler handler in
+    assert(Lambda.compatible_layout body_layout kind);
+    assert(Lambda.compatible_layout handler_layout kind);
     Ucatch (Static_exception.to_int static_exn, ids,
-      to_clambda t env body, to_clambda t env_handler handler)
-  | Try_with (body, var, handler) ->
-    let id, env_handler = Env.add_fresh_ident env var in
-    Utrywith (to_clambda t env body, VP.create id,
-      to_clambda t env_handler handler)
-  | If_then_else (arg, ifso, ifnot) ->
-    Uifthenelse (subst_var env arg, to_clambda t env ifso,
-      to_clambda t env ifnot)
+      body, handler, kind),
+    kind
+  | Try_with (body, var, handler, kind) ->
+    let id, env_handler = Env.add_fresh_ident env var Lambda.layout_exception in
+    let body, body_layout = to_clambda t env body in
+    let handler, handler_layout = to_clambda t env_handler handler in
+    assert(Lambda.compatible_layout body_layout kind);
+    assert(Lambda.compatible_layout handler_layout kind);
+    Utrywith (body, VP.create id, handler, kind),
+    kind
+  | If_then_else (arg, ifso, ifnot, kind) ->
+    let arg, arg_layout = subst_var env arg in
+    let ifso, ifso_layout = to_clambda t env ifso in
+    let ifnot, ifnot_layout = to_clambda t env ifnot in
+    assert(Lambda.compatible_layout arg_layout Lambda.layout_any_value);
+    assert(Lambda.compatible_layout ifso_layout kind);
+    assert(Lambda.compatible_layout ifnot_layout kind);
+    Uifthenelse (arg, ifso, ifnot, kind),
+    kind
   | While (cond, body) ->
-    Uwhile (to_clambda t env cond, to_clambda t env body)
+    let cond, cond_layout = to_clambda t env cond in
+    let body, body_layout = to_clambda t env body in
+    assert(Lambda.compatible_layout cond_layout Lambda.layout_any_value);
+    assert(Lambda.compatible_layout body_layout Lambda.layout_unit);
+    Uwhile (cond, body),
+    Lambda.layout_unit
   | For { bound_var; from_value; to_value; direction; body } ->
-    let id, env_body = Env.add_fresh_ident env bound_var in
-    Ufor (VP.create id, subst_var env from_value, subst_var env to_value,
-      direction, to_clambda t env_body body)
+    let id, env_body = Env.add_fresh_ident env bound_var Lambda.layout_int in
+    let from_value, from_value_layout = subst_var env from_value in
+    let to_value, to_value_layout = subst_var env to_value in
+    let body, body_layout = to_clambda t env_body body in
+    assert(Lambda.compatible_layout from_value_layout Lambda.layout_int);
+    assert(Lambda.compatible_layout to_value_layout Lambda.layout_int);
+    assert(Lambda.compatible_layout body_layout Lambda.layout_unit);
+    Ufor (VP.create id, from_value, to_value, direction, body),
+    Lambda.layout_unit
   | Assign { being_assigned; new_value } ->
-    let id =
+    let id, id_layout =
       try Env.ident_for_mutable_var_exn env being_assigned
       with Not_found ->
         Misc.fatal_errorf "Unbound mutable variable %a in [Assign]: %a"
           Mutable_variable.print being_assigned
           Flambda.print flam
     in
-    Uassign (id, subst_var env new_value)
-  | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
-    Usend (kind, subst_var env meth, subst_var env obj,
-      subst_vars env args, (reg_close,mode), dbg)
+    let new_value, new_value_layout = subst_var env new_value in
+    assert(Lambda.compatible_layout id_layout new_value_layout);
+    Uassign (id, new_value),
+    Lambda.layout_unit
+  | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
+    let args, args_layout = List.split (subst_vars env args) in
+    let meth, _meth_layout = subst_var env meth in
+    let obj, _obj_layout = subst_var env obj in
+    Usend (kind, meth, obj,
+      args, args_layout, result_layout, (reg_close,mode), dbg),
+    result_layout
   | Region body ->
-      let body = to_clambda t env body in
+      let body, body_layout = to_clambda t env body in
       let is_trivial =
         match body with
         | Uvar _ | Uconst _ -> true
         | _ -> false
       in
-      if is_trivial then body
-      else Uregion body
+      if is_trivial then body, body_layout
+      else Uregion body, body_layout
   | Tail body ->
-      let body = to_clambda t env body in
+      let body, body_layout = to_clambda t env body in
       let is_trivial =
         match body with
         | Uvar _ | Uconst _ -> true
         | _ -> false
       in
-      if is_trivial then body
-      else Utail body
-  | Proved_unreachable -> Uunreachable
+      if is_trivial then body, body_layout
+      else Utail body, body_layout
+  | Proved_unreachable -> Uunreachable, Lambda.layout_bottom
 
-and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda =
+and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambda.layout =
   match named with
-  | Symbol sym -> to_clambda_symbol env sym
-  | Const (Int n) -> Uconst (Uconst_int n)
-  | Const (Char c) -> Uconst (Uconst_int (Char.code c))
+  | Symbol sym -> to_clambda_symbol env sym, Lambda.layout_any_value
+  | Const (Int n) -> Uconst (Uconst_int n), Lambda.layout_int
+  | Const (Char c) -> Uconst (Uconst_int (Char.code c)), Lambda.layout_int
   | Allocated_const _ ->
     Misc.fatal_errorf "[Allocated_const] should have been lifted to a \
         [Let_symbol] construction before [Flambda_to_clambda]: %a = %a"
       Variable.print var
       Flambda.print_named named
   | Read_mutable mut_var ->
-    begin try Uvar (Env.ident_for_mutable_var_exn env mut_var)
+    begin try
+      let mut_var, layout = Env.ident_for_mutable_var_exn env mut_var in
+      Uvar mut_var, layout
     with Not_found ->
       Misc.fatal_errorf "Unbound mutable variable %a in [Read_mutable]: %a"
         Mutable_variable.print mut_var
         Flambda.print_named named
     end
   | Read_symbol_field (symbol, field) ->
-    Uprim (Pfield field, [to_clambda_symbol env symbol], Debuginfo.none)
+    Uprim (Pfield field, [to_clambda_symbol env symbol], Debuginfo.none),
+    Lambda.layout_any_value
   | Set_of_closures set_of_closures ->
-    to_clambda_set_of_closures t env set_of_closures
+    to_clambda_set_of_closures t env set_of_closures,
+    Lambda.layout_any_value
   | Project_closure { set_of_closures; closure_id } ->
     (* Note that we must use [build_uoffset] to ensure that we do not generate
        a [Uoffset] construction in the event that the offset is zero, otherwise
        we might break pattern matches in Cmmgen (in particular for the
        compilation of "let rec"). *)
+    let set_of_closures_expr, _layout_set_of_closures =
+      subst_var env set_of_closures
+    in
     check_closure t (
       build_uoffset
-        (check_closure t (subst_var env set_of_closures)
+        (check_closure t set_of_closures_expr
            (Flambda.Expr (Var set_of_closures)))
         (get_fun_offset t closure_id))
-      named
+      named,
+    Lambda.layout_function
   | Move_within_set_of_closures { closure; start_from; move_to } ->
+    let closure_expr, _layout_closure = subst_var env closure in
     check_closure t (build_uoffset
-      (check_closure t (subst_var env closure)
+      (check_closure t closure_expr
          (Flambda.Expr (Var closure)))
       ((get_fun_offset t move_to) - (get_fun_offset t start_from)))
-      named
-  | Project_var { closure; var; closure_id } ->
-    let ulam = subst_var env closure in
+      named,
+    Lambda.layout_function
+  | Project_var { closure; var; closure_id; kind } ->
+    let ulam, _closure_layout = subst_var env closure in
     let fun_offset = get_fun_offset t closure_id in
     let var_offset = get_fv_offset t var in
     let pos = var_offset - fun_offset in
     Uprim (Pfield pos,
       [check_field t (check_closure t ulam (Expr (Var closure)))
          pos (Some named)],
-      Debuginfo.none)
+      Debuginfo.none),
+    kind
   | Prim (Pfield index, [block], dbg) ->
-    Uprim (Pfield index, [check_field t (subst_var env block) index None], dbg)
+    let block, _block_layout = subst_var env block in
+    Uprim (Pfield index, [check_field t block index None], dbg),
+    Lambda.layout_field
   | Prim (Psetfield (index, maybe_ptr, init), [block; new_value], dbg) ->
+    let block, _block_layout = subst_var env block in
+    let new_value, _new_value_layout = subst_var env new_value in
     Uprim (Psetfield (index, maybe_ptr, init), [
-        check_field t (subst_var env block) index None;
-        subst_var env new_value;
-      ], dbg)
+        check_field t block index None;
+        new_value;
+      ], dbg),
+    Lambda.layout_unit
   | Prim (Popaque, args, dbg) ->
-    Uprim (Popaque, subst_vars env args, dbg)
+    let arg = match args with
+      | [arg] -> arg
+      | [] | _ :: _ :: _ -> assert false
+    in
+    let arg, arg_layout = subst_var env arg in
+    Uprim (Popaque, [arg], dbg),
+    arg_layout
   | Prim (p, args, dbg) ->
-    Uprim (p, subst_vars env args, dbg)
+    let args, _args_layout = List.split (subst_vars env args) in
+    let result_layout = Clambda_primitives.result_layout p in
+    Uprim (p, args, dbg),
+    result_layout
   | Expr expr -> to_clambda t env expr
 
-and to_clambda_switch t env cases num_keys default =
+and to_clambda_switch t env cases num_keys default kind =
   let num_keys =
     if Numbers.Int.Set.cardinal num_keys = 0 then 0
     else Numbers.Int.Set.max_elt num_keys + 1
@@ -462,12 +561,18 @@ and to_clambda_switch t env cases num_keys default =
          if act >= 0 then action := act else index.(i) <- !action)
       index
   end;
-  let actions = Array.map (to_clambda t env) (store.act_get ()) in
+  let actions =
+    Array.map (fun action ->
+        let action, action_layout = to_clambda t env action in
+        assert(Lambda.compatible_layout action_layout kind);
+        action
+      ) (store.act_get ())
+  in
   match actions with
   | [| |] -> [| |], [| |]  (* May happen when [default] is [None]. *)
   | _ -> index, actions
 
-and to_clambda_direct_apply t func args direct_func probe dbg pos mode env
+and to_clambda_direct_apply t func args direct_func probe dbg pos mode result_layout env
   : Clambda.ulambda =
   let closed = is_function_constant t direct_func in
   let label =
@@ -476,13 +581,16 @@ and to_clambda_direct_apply t func args direct_func probe dbg pos mode env
     |> Linkage_name.to_string
   in
   let uargs =
-    let uargs = subst_vars env args in
+    let uargs, _uargs_layout = List.split (subst_vars env args) in
     (* Remove the closure argument if the closure is closed.  (Note that the
        closure argument is always a variable, so we can be sure we are not
        dropping any side effects.) *)
-    if closed then uargs else uargs @ [subst_var env func]
+    if closed then uargs else
+      let func, func_layout = subst_var env func in
+      assert(Lambda.compatible_layout func_layout Lambda.layout_function);
+      uargs @ [func]
   in
-  Udirect_apply (label, uargs, probe, (pos, mode), dbg)
+  Udirect_apply (label, uargs, probe, result_layout, (pos, mode), dbg)
 
 (* Describe how to build a runtime closure block that corresponds to the
    given Flambda set of closures.
@@ -528,7 +636,7 @@ and to_clambda_set_of_closures t env
       let env = Env.keep_only_symbols env in
       (* Add the Clambda expressions for the free variables of the function
          to the environment. *)
-      let add_env_free_variable id _ env =
+      let add_env_free_variable id (spec_to : Flambda.specialised_to) env =
         let var_offset =
           try
             Var_within_closure.Map.find
@@ -542,6 +650,7 @@ and to_clambda_set_of_closures t env
         let pos = var_offset - fun_offset in
         Env.add_subst env id
           (Uprim (Pfield pos, [Clambda.Uvar env_var], Debuginfo.none))
+          spec_to.kind
       in
       let env = Variable.Map.fold add_env_free_variable free_vars env in
       (* Add the Clambda expressions for all functions defined in the current
@@ -554,14 +663,17 @@ and to_clambda_set_of_closures t env
             t.current_unit.fun_offset_table
         in
         let exp : Clambda.ulambda = Uoffset (Uvar env_var, offset - pos) in
-        Env.add_subst env id exp
+        Env.add_subst env id exp Lambda.layout_function
       in
       List.fold_left (add_env_function fun_offset) env all_functions
     in
     let env_body, params =
-      List.fold_right (fun var (env, params) ->
-          let id, env = Env.add_fresh_ident env (Parameter.var var) in
-          env, id :: params)
+      List.fold_right (fun param (env, params) ->
+          let id, env =
+            Env.add_fresh_ident env
+              (Parameter.var param) (Parameter.kind param)
+          in
+          env, VP.create id :: params)
         function_decl.params (env, [])
     in
     let label =
@@ -569,27 +681,39 @@ and to_clambda_set_of_closures t env
       |> Symbol.linkage_name
       |> Linkage_name.to_string
     in
+    let body, _body_layout = to_clambda t env_body function_decl.body in
     { label;
       arity = clambda_arity function_decl;
-      params =
-        List.map
-          (fun var -> VP.create var, Lambda.Pgenval)
-          (params @ [env_var]);
-      return = Lambda.Pgenval;
-      body = to_clambda t env_body function_decl.body;
+      params = params @ [VP.create env_var];
+      body;
       dbg = function_decl.dbg;
       env = Some env_var;
       mode = set_of_closures.alloc_mode;
       poll = function_decl.poll;
     }
   in
-  let funs = List.map to_clambda_function all_functions in
-  let free_vars =
-    Variable.Map.bindings (Variable.Map.map (
-      fun (free_var : Flambda.specialised_to) ->
-        subst_var env free_var.var) free_vars)
+  let functions = List.map to_clambda_function all_functions in
+  let not_scanned_fv, scanned_fv =
+    Variable.Map.partition (fun _ (free_var : Flambda.specialised_to) ->
+        match free_var.kind with
+        | Pvalue Pintval -> true
+        | Pvalue _ -> false)
+      free_vars
   in
-  Uclosure (funs, List.map snd free_vars)
+  let to_closure_args free_vars =
+    List.map snd (
+      Variable.Map.bindings (Variable.Map.map (
+          fun (free_var : Flambda.specialised_to) ->
+            let var, var_layout = subst_var env free_var.var in
+            assert(Lambda.compatible_layout var_layout free_var.kind);
+            var
+        ) free_vars))
+  in
+  Uclosure {
+    functions ;
+    not_scanned_slots = to_closure_args not_scanned_fv ;
+    scanned_slots = to_closure_args scanned_fv
+  }
 
 and to_clambda_closed_set_of_closures t env symbol
       ({ function_decls; } : Flambda.set_of_closures)
@@ -605,19 +729,24 @@ and to_clambda_closed_set_of_closures t env symbol
       List.fold_left (fun env (var, _) ->
           let closure_id = Closure_id.wrap var in
           let symbol = Symbol_utils.Flambda.for_closure closure_id in
-          Env.add_subst env var (to_clambda_symbol env symbol))
+          Env.add_subst env var (to_clambda_symbol env symbol)
+            Lambda.layout_function)
         (Env.keep_only_symbols env)
         functions
     in
     let env_body, params =
-      List.fold_right (fun var (env, params) ->
-          let id, env = Env.add_fresh_ident env (Parameter.var var) in
-          env, id :: params)
+      List.fold_right (fun param (env, params) ->
+          let id, env =
+            Env.add_fresh_ident env
+              (Parameter.var param) (Parameter.kind param)
+          in
+          env, VP.create id :: params)
         function_decl.params (env, [])
     in
     let body =
-      Un_anf.apply ~ppf_dump:t.ppf_dump ~what:symbol
-        (to_clambda t env_body function_decl.body)
+      let body, body_layout = to_clambda t env_body function_decl.body in
+      assert(Lambda.compatible_layout body_layout function_decl.return_layout);
+      Un_anf.apply ~ppf_dump:t.ppf_dump ~what:symbol body
     in
     let label =
       Symbol_utils.Flambda.for_code_of_closure (Closure_id.wrap id)
@@ -626,8 +755,7 @@ and to_clambda_closed_set_of_closures t env symbol
     in
     { label;
       arity = clambda_arity function_decl;
-      params = List.map (fun var -> VP.create var, Lambda.Pgenval) params;
-      return = Lambda.Pgenval;
+      params;
       body;
       dbg = function_decl.dbg;
       env = None;
@@ -641,7 +769,11 @@ and to_clambda_closed_set_of_closures t env symbol
 
 let to_clambda_initialize_symbol t env symbol fields : Clambda.ulambda =
   let fields =
-    List.map (fun (index, expr) -> index, to_clambda t env expr) fields
+    List.map (fun (index, expr) ->
+        let expr, expr_layout = to_clambda t env expr in
+        assert(Lambda.compatible_layout expr_layout Lambda.layout_any_value);
+        index, expr
+      ) fields
   in
   let build_setfield (index, field) : Clambda.ulambda =
     (* Note that this will never cause a write barrier hit, owing to
@@ -739,7 +871,7 @@ let to_clambda_program t env constants (program : Flambda.program) =
       let e2, constants, preallocated_blocks = loop env constants program in
       Usequence (e1, e2), constants, preallocated_block :: preallocated_blocks
     | Effect (expr, program) ->
-      let e1 = to_clambda t env expr in
+      let e1, _e1_layout = to_clambda t env expr in
       let e2, constants, preallocated_blocks = loop env constants program in
       Usequence (e1, e2), constants, preallocated_blocks
     | End _ ->

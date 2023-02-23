@@ -76,9 +76,10 @@ module Transform = struct
               set_of_closures.function_decls
           in
           Variable.Set.fold (fun inner_free_var what_to_specialise ->
+              let kind = (Variable.Map.find inner_free_var set_of_closures.free_vars).kind in
               W.new_specialised_arg what_to_specialise
                 ~fun_var ~group:inner_free_var
-                ~definition:(Existing_inner_free_var inner_free_var))
+                ~definition:(Existing_inner_free_var (inner_free_var, kind)))
             bound_by_the_closure
             what_to_specialise)
     end

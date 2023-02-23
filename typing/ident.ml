@@ -25,6 +25,7 @@ type t =
   | Predef of { name: string; stamp: int }
       (* the stamp is here only for fast comparison, but the name of
          predefined identifiers is always unique. *)
+  | Instance of string * string list
 
 (* A stamp of 0 denotes a persistent identifier *)
 
@@ -46,11 +47,19 @@ let create_predef s =
 let create_persistent s =
   Global s
 
+let create_instance f args =
+  Instance (f, args)
+
+let format_instance f args =
+  let args_with_brackets = List.map (Format.sprintf "[%s]") args in
+  String.concat "" (f :: args_with_brackets)
+
 let name = function
   | Local { name; _ }
   | Scoped { name; _ }
   | Global name
   | Predef { name; _ } -> name
+  | Instance (f, args) -> format_instance f args
 
 let rename = function
   | Local { name; stamp = _ }
@@ -72,12 +81,14 @@ let unique_name = function
       (* we know that none of the predef names (currently) finishes in
          "_<some number>", and that their name is unique. *)
       name
+  | Instance _ as i -> name i
 
 let unique_toplevel_name = function
   | Local { name; stamp }
   | Scoped { name; stamp } -> name ^ "/" ^ Int.to_string stamp
   | Global name
   | Predef { name; _ } -> name
+  | Instance _ as i -> name i
 
 let equal i1 i2 =
   match i1, i2 with
@@ -88,6 +99,8 @@ let equal i1 i2 =
   | Predef { stamp = s1; _ }, Predef { stamp = s2 } ->
       (* if they don't have the same stamp, they don't have the same name *)
       s1 = s2
+  | Instance (f1, args1), Instance (f2, args2) ->
+      String.equal f1 f2 && List.equal String.equal args1 args2
   | _ ->
       false
 
@@ -99,6 +112,8 @@ let same i1 i2 =
       s1 = s2
   | Global name1, Global name2 ->
       name1 = name2
+  | Instance (f1, args1), Instance (f2, args2) ->
+      String.equal f1 f2 && List.equal String.equal args1 args2
   | _ ->
       false
 
@@ -110,7 +125,7 @@ let stamp = function
 let scope = function
   | Scoped { scope; _ } -> scope
   | Local _ -> highest_scope
-  | Global _ | Predef _ -> lowest_scope
+  | Global _ | Predef _ | Instance _ -> lowest_scope
 
 let reinit_level = ref (-1)
 
@@ -121,17 +136,27 @@ let reinit () =
 
 let is_global = function
   | Global _ -> true
+  | Instance _ -> true
   | _ -> false
 
 let is_global_or_predef = function
   | Local _
   | Scoped _ -> false
   | Global _
-  | Predef _ -> true
+  | Predef _
+  | Instance _ -> true
 
 let is_predef = function
   | Predef _ -> true
   | _ -> false
+
+let is_instance = function
+  | Instance _ -> true
+  | _ -> false
+
+let split_instance = function
+  | Instance (f, args) -> Some (f, args)
+  | _ -> None
 
 let print ~with_scope ppf =
   let open Format in
@@ -147,6 +172,9 @@ let print ~with_scope ppf =
       fprintf ppf "%s%s%s" name
         (if !Clflags.unique_ids then sprintf "/%i" n else "")
         (if with_scope then sprintf "[%i]" scope else "")
+  | Instance (f, args) ->
+      fprintf ppf "%s!" f;
+      List.iter (fprintf ppf "[%s!]") args
 
 let print_with_scope ppf id = print ~with_scope:true ppf id
 
@@ -343,6 +371,12 @@ let compare x y =
   | Global x, Global y -> compare x y
   | Global _, _ -> 1
   | _, Global _ -> (-1)
+  | Instance (f1, args1), Instance (f2, args2) ->
+      let c = String.compare f1 f2 in
+      if c <> 0 then c
+      else List.compare String.compare args1 args2
+  | Instance _, _ -> 1
+  | _, Instance _ -> (-1)
   | Predef { stamp = s1; _ }, Predef { stamp = s2; _ } -> compare s1 s2
 
 let output oc id = output_string oc (unique_name id)

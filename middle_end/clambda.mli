@@ -20,7 +20,11 @@ open Asttypes
 open Lambda
 
 type function_label = string
-type arity = Lambda.function_kind * int
+type arity = {
+  function_kind : Lambda.function_kind ;
+  params_layout : Lambda.layout list ;
+  return_layout : Lambda.layout ;
+}
 type apply_kind = Lambda.region_close * Lambda.alloc_mode
 
 type ustructured_constant =
@@ -60,27 +64,40 @@ and ulambda =
     Uvar of Backend_var.t
   | Uconst of uconstant
   | Udirect_apply of
-      function_label * ulambda list * Lambda.probe * apply_kind * Debuginfo.t
+      function_label * ulambda list * Lambda.probe * Lambda.layout * apply_kind * Debuginfo.t
   | Ugeneric_apply of
-      ulambda * ulambda list * apply_kind * Debuginfo.t
-  | Uclosure of ufunction list * ulambda list
+      ulambda * ulambda list * Lambda.layout list * Lambda.layout * apply_kind * Debuginfo.t
+  | Uclosure of {
+      functions : ufunction list ;
+      not_scanned_slots : ulambda list ;
+      scanned_slots : ulambda list
+    }
   | Uoffset of ulambda * int
-  | Ulet of mutable_flag * value_kind * Backend_var.With_provenance.t
+  | Ulet of mutable_flag * layout * Backend_var.With_provenance.t
       * ulambda * ulambda
   | Uphantom_let of Backend_var.With_provenance.t
       * uphantom_defining_expr option * ulambda
   | Uletrec of (Backend_var.With_provenance.t * ulambda) list * ulambda
   | Uprim of Clambda_primitives.primitive * ulambda list * Debuginfo.t
-  | Uswitch of ulambda * ulambda_switch * Debuginfo.t
-  | Ustringswitch of ulambda * (string * ulambda) list * ulambda option
+  | Uswitch of ulambda * ulambda_switch * Debuginfo.t * Lambda.layout
+  | Ustringswitch of
+      ulambda *
+      (string * ulambda) list *
+      ulambda option *
+      Lambda.layout
   | Ustaticfail of int * ulambda list
   | Ucatch of
       int *
-      (Backend_var.With_provenance.t * value_kind) list *
+      (Backend_var.With_provenance.t * layout) list *
       ulambda *
-      ulambda
-  | Utrywith of ulambda * Backend_var.With_provenance.t * ulambda
-  | Uifthenelse of ulambda * ulambda * ulambda
+      ulambda *
+      Lambda.layout
+  | Utrywith of
+      ulambda *
+      Backend_var.With_provenance.t *
+      ulambda *
+      Lambda.layout
+  | Uifthenelse of ulambda * ulambda * ulambda * Lambda.layout
   | Usequence of ulambda * ulambda
   | Uwhile of ulambda * ulambda
   | Ufor of Backend_var.With_provenance.t * ulambda * ulambda
@@ -88,7 +105,7 @@ and ulambda =
   | Uassign of Backend_var.t * ulambda
   | Usend of
       meth_kind * ulambda * ulambda * ulambda list
-      * apply_kind * Debuginfo.t
+      * Lambda.layout list * Lambda.layout * apply_kind * Debuginfo.t
   | Uunreachable
   | Uregion of ulambda
   | Utail of ulambda
@@ -96,8 +113,7 @@ and ulambda =
 and ufunction = {
   label  : function_label;
   arity  : arity;
-  params : (Backend_var.With_provenance.t * value_kind) list;
-  return : value_kind;
+  params : Backend_var.With_provenance.t list;
   body   : ulambda;
   dbg    : Debuginfo.t;
   env    : Backend_var.t option;

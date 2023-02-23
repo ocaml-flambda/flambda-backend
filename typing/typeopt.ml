@@ -360,10 +360,12 @@ let value_kind env ty =
   in
   value_kind
 
-let function_return_value_kind env ty =
+let layout env ty = Lambda.Pvalue (value_kind env ty)
+
+let function_return_layout env ty =
   match is_function_type env ty with
-  | Some (_lhs, rhs) -> value_kind env rhs
-  | None -> Pgenval
+  | Some (_lhs, rhs) -> layout env rhs
+  | None -> Lambda.layout_top
 
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
     if the value can be represented as a float/forward/lazy *)
@@ -402,3 +404,6 @@ let classify_lazy_argument : Typedtree.expression ->
 let value_kind_union (k1 : Lambda.value_kind) (k2 : Lambda.value_kind) =
   if Lambda.equal_value_kind k1 k2 then k1
   else Pgenval
+
+let layout_union (Pvalue layout1) (Pvalue layout2) =
+  Pvalue (value_kind_union layout1 layout2)
