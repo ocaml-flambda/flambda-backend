@@ -317,42 +317,42 @@ let run cfg_with_layout =
   let next = ref Linear_utils.labelled_insn_end in
   let tailrec_label = ref None in
   DLL.iter_right_cell layout ~f:(fun cell ->
-    let label = DLL.value cell in
-    if not (Label.Tbl.mem cfg.blocks label)
-    then Misc.fatal_errorf "Unknown block labelled %d\n" label;
-    let block = Label.Tbl.find cfg.blocks label in
-    assert (Label.equal label block.start);
-    let body =
-      let terminator, terminator_tailrec_label =
-        linearize_terminator cfg block.terminator ~next:!next
+      let label = DLL.value cell in
+      if not (Label.Tbl.mem cfg.blocks label)
+      then Misc.fatal_errorf "Unknown block labelled %d\n" label;
+      let block = Label.Tbl.find cfg.blocks label in
+      assert (Label.equal label block.start);
+      let body =
+        let terminator, terminator_tailrec_label =
+          linearize_terminator cfg block.terminator ~next:!next
+        in
+        (match !tailrec_label, terminator_tailrec_label with
+        | (Some _ | None), None -> ()
+        | None, Some _ -> tailrec_label := terminator_tailrec_label
+        | Some old_trl, Some new_trl -> assert (Label.equal old_trl new_trl));
+        DLL.fold_right
+          ~f:(fun i next -> basic_to_linear i ~next)
+          ~init:terminator block.body
       in
-      (match !tailrec_label, terminator_tailrec_label with
-      | (Some _ | None), None -> ()
-      | None, Some _ -> tailrec_label := terminator_tailrec_label
-      | Some old_trl, Some new_trl -> assert (Label.equal old_trl new_trl));
-      DLL.fold_right
-        ~f:(fun i next -> basic_to_linear i ~next)
-        ~init:terminator block.body
-    in
-    let insn =
-      match DLL.prev cell with
-      | None -> body (* Entry block of the function. Don't add label. *)
-      | Some prev_cell ->
-        let body =
-          if block.is_trap_handler
-          then to_linear_instr Lentertrap ~next:body
-          else body
-        in
-        let prev = DLL.value prev_cell in
-        let prev_block = Label.Tbl.find cfg.blocks prev in
-        let body =
-          if not (need_starting_label cfg_with_layout block ~prev_block)
-          then body
-          else to_linear_instr (Llabel block.start) ~next:body
-        in
-        adjust_stack_offset body block ~prev_block
-    in
-    next := { Linear_utils.label; insn });
+      let insn =
+        match DLL.prev cell with
+        | None -> body (* Entry block of the function. Don't add label. *)
+        | Some prev_cell ->
+          let body =
+            if block.is_trap_handler
+            then to_linear_instr Lentertrap ~next:body
+            else body
+          in
+          let prev = DLL.value prev_cell in
+          let prev_block = Label.Tbl.find cfg.blocks prev in
+          let body =
+            if not (need_starting_label cfg_with_layout block ~prev_block)
+            then body
+            else to_linear_instr (Llabel block.start) ~next:body
+          in
+          adjust_stack_offset body block ~prev_block
+      in
+      next := { Linear_utils.label; insn });
   let fun_contains_calls = cfg.fun_contains_calls in
   let fun_num_stack_slots = cfg.fun_num_stack_slots in
   let fun_frame_required =
@@ -375,9 +375,7 @@ let run cfg_with_layout =
 let layout_of_block_list : Cfg.basic_block list -> Cfg_with_layout.layout =
  fun blocks ->
   let res = DLL.make_empty () in
-  List.iter
-    (fun block -> DLL.add_end res block.Cfg.start)
-    blocks;
+  List.iter (fun block -> DLL.add_end res block.Cfg.start) blocks;
   res
 
 (** debug print block as assembly *)
