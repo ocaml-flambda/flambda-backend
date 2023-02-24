@@ -1,6 +1,7 @@
 (* CR-soon xclerc for xclerc: use the same warning set as flambda2. *)
 [@@@ocaml.warning "+a-40-41-42"]
 
+module DLL = Flambda_backend_utils.Doubly_linked_list
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 
 module State : sig
@@ -50,7 +51,7 @@ end = struct
     }
 
   let make ~fun_name ~tailrec_label ~contains_calls blocks =
-    let layout = Cfg.DoublyLinkedList.make_empty () in
+    let layout = DLL.make_empty () in
     let catch_handlers = Numbers.Int.Tbl.create 31 in
     let next_instruction_id = 0 in
     let iends_with_poptrap = [] in
@@ -78,7 +79,7 @@ end = struct
       Misc.fatal_errorf "Cfgize.State.add_block: duplicate block for label %d"
         label
     else (
-      Cfg.DoublyLinkedList.add_end t.layout label;
+      DLL.add_end t.layout label;
       Label.Tbl.replace t.blocks label block)
 
   let get_layout t = t.layout
@@ -403,7 +404,7 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
            because we want to compute liveness information on CFG values, and
            (i) such moves are necessary to compute the live sets and (ii) they
            can only be identified as useless after register allocation. *)
-        Cfg.DoublyLinkedList.add_end acc instr';
+        DLL.add_end acc instr';
         loop instr.next acc
       | Terminator terminator ->
         return (Terminator (copy_instruction state instr ~desc:terminator)) acc
@@ -417,7 +418,7 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
     | Itrywith _ | Iraise _ ->
       return Complex_terminator acc
   in
-  loop first (Cfg.DoublyLinkedList.make_empty ())
+  loop first (DLL.make_empty ())
 
 (* Represents the control flow exiting the function without encountering a
    return. *)
@@ -442,7 +443,7 @@ let rec add_blocks :
     (match starts_with_pushtrap with
     | None -> ()
     | Some lbl_handler ->
-      Cfg.DoublyLinkedList.add_begin body
+      DLL.add_begin body
         (make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })));
     List.iter
       (fun trap_action ->
@@ -453,14 +454,12 @@ let rec add_blocks :
             make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })
           | Cmm.Pop -> make_instruction state ~desc:Cfg.Poptrap
         in
-        Cfg.DoublyLinkedList.add_end body instr)
+        DLL.add_end body instr)
       trap_actions;
     (match terminator.Cfg.desc with
     | Cfg.Return ->
       if State.get_contains_calls state
-      then
-        Cfg.DoublyLinkedList.add_end body
-          (make_instruction state ~desc:Cfg.Reloadretaddr)
+      then DLL.add_end body (make_instruction state ~desc:Cfg.Reloadretaddr)
       else ()
     | Cfg.Never | Cfg.Always _ | Cfg.Parity_test _ | Cfg.Truth_test _
     | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
@@ -690,7 +689,7 @@ module Stack_offset_and_exn = struct
     then (
       block.stack_offset <- compute_stack_offset ~stack_offset ~traps;
       let stack_offset, traps =
-        Cfg.DoublyLinkedList.fold_left block.body ~init:(stack_offset, traps)
+        DLL.fold_left block.body ~init:(stack_offset, traps)
           ~f:(fun (stack_offset, traps) instr ->
             process_basic cfg ~stack_offset ~traps instr)
       in
@@ -764,7 +763,7 @@ let fundecl :
       { start = Cfg.entry_label cfg;
         body =
           (match prologue_required with
-          | false -> Cfg.DoublyLinkedList.make_empty ()
+          | false -> DLL.make_empty ()
           | true ->
             (* Note: the prologue must come after all `Iname_for_debugger`
                instructions (this is currently not a concern because we do not
@@ -772,7 +771,7 @@ let fundecl :
             let instr = make_instruction state ~desc:Cfg.Prologue in
             instr.dbg <- fun_body.dbg;
             instr.fdo <- Fdo_info.none;
-            Cfg.DoublyLinkedList.make_single instr);
+            DLL.make_single instr);
         terminator =
           copy_instruction_no_reg state fun_body
             ~desc:(Cfg.Always tailrec_label);
@@ -787,7 +786,7 @@ let fundecl :
   State.add_block state ~label:tailrec_label
     ~block:
       { start = tailrec_label;
-        body = Cfg.DoublyLinkedList.make_empty ();
+        body = DLL.make_empty ();
         terminator =
           copy_instruction_no_reg state fun_body ~desc:(Cfg.Always start_label);
         (* See [Cfg.register_predecessors_for_all_blocks] *)

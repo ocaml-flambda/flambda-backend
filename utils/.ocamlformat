@@ -13,3 +13,4 @@ space-around-variants=false
 type-decl=sparse
 wrap-comments=true
 version=0.24.1
+disable=false

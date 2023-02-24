@@ -1,4 +1,5 @@
 open Cfg_intf.S
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
 module Instruction = struct
   type 'a t =
@@ -65,7 +66,7 @@ module Block = struct
     let terminator = Terminator.make ~remove_locs terminator in
     let can_raise = Cfg.can_raise_terminator terminator.desc in
     { start;
-      body = Cfg.DoublyLinkedList.of_list body;
+      body = DLL.of_list body;
       terminator;
       predecessors = Label.Set.empty;
       stack_offset = 0;
@@ -109,8 +110,7 @@ module Cfg_desc = struct
                suc.is_trap_handler <- true))
       cfg.blocks;
     let cfg_layout =
-      Cfg_with_layout.create
-        ~layout:(Cfg.DoublyLinkedList.make_empty ())
+      Cfg_with_layout.create ~layout:(DLL.make_empty ())
         ~preserve_orig_labels:true ~new_labels:Label.Set.empty cfg
     in
     (if not remove_locs
