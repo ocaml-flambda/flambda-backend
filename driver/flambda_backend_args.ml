@@ -406,14 +406,24 @@ let mk_drawfexpr f =
     \     (Flambda 2 only)"
 ;;
 
+let mk_drawfexpr_to f =
+  "-drawfexpr-to", Arg.String f,
+  "<file> Like -drawfexpr but dumps to given file (Flambda 2 only)"
+;;
+
 let mk_dfexpr f =
   "-dfexpr", Arg.Unit f, " Like -dflambda but outputs fexpr language\n\
     \     (Flambda 2 only)"
 ;;
 
-let mk_dflexpect f =
-  "-dflexpect", Arg.Unit f, " Like -dflambda but outputs a .flt file\n\
-    \     whose basename matches that of the input .ml file (Flambda 2 only)"
+let mk_dfexpr_to f =
+  "-dfexpr-to", Arg.String f,
+  "<file> Like -dfexpr but dumps to given file (Flambda 2 only)"
+;;
+
+let mk_dflexpect_to f =
+  "-dflexpect-to", Arg.String f,
+  "<file> Combine -drawfexpr and -dfexpr in an .flt file (Flambda 2 only)"
 ;;
 
 let mk_dslot_offsets f =
@@ -533,8 +543,10 @@ module type Flambda_backend_options = sig
   val flambda2_unicode : unit -> unit
 
   val drawfexpr : unit -> unit
+  val drawfexpr_to : string -> unit
   val dfexpr : unit -> unit
-  val dflexpect : unit -> unit
+  val dfexpr_to : string -> unit
+  val dflexpect_to : string -> unit
   val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
   val dflow : unit -> unit
@@ -643,8 +655,10 @@ struct
     mk_flambda2_unicode F.flambda2_unicode;
 
     mk_drawfexpr F.drawfexpr;
+    mk_drawfexpr_to F.drawfexpr_to;
     mk_dfexpr F.dfexpr;
-    mk_dflexpect F.dflexpect;
+    mk_dfexpr_to F.dfexpr_to;
+    mk_dflexpect_to F.dflexpect_to;
     mk_dslot_offsets F.dslot_offsets;
     mk_dfreshen F.dfreshen;
     mk_dflow F.dflow;
@@ -811,9 +825,11 @@ module Flambda_backend_options_impl = struct
 
   let flambda2_unicode = set Flambda2.unicode
 
-  let drawfexpr = set' Flambda2.Dump.rawfexpr
-  let dfexpr = set' Flambda2.Dump.fexpr
-  let dflexpect = set' Flambda2.Dump.flexpect
+  let drawfexpr () = Flambda2.Dump.rawfexpr := Flambda2.Dump.Main_dump_stream
+  let drawfexpr_to file = Flambda2.Dump.rawfexpr := Flambda2.Dump.File file
+  let dfexpr () = Flambda2.Dump.fexpr := Flambda2.Dump.Main_dump_stream
+  let dfexpr_to file = Flambda2.Dump.fexpr := Flambda2.Dump.File file
+  let dflexpect_to file = Flambda2.Dump.flexpect := Flambda2.Dump.File file
   let dslot_offsets = set' Flambda2.Dump.slot_offsets
   let dfreshen = set' Flambda2.Dump.freshen
   let dflow = set' Flambda2.Dump.flow

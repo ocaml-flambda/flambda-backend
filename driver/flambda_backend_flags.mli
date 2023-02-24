@@ -88,9 +88,11 @@ module Flambda2 : sig
   val unicode : bool or_default ref
 
   module Dump : sig
-    val rawfexpr : bool ref
-    val fexpr : bool ref
-    val flexpect : bool ref
+    type target = Nowhere | Main_dump_stream | File of Misc.filepath
+
+    val rawfexpr : target ref
+    val fexpr : target ref
+    val flexpect : target ref
     val slot_offsets : bool ref
     val freshen : bool ref
     val flow : bool ref
