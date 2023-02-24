@@ -654,12 +654,11 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
     = Function_slot.Map.cardinal closure_symbols_map);
   let denv = DA.denv dacc in
   let closure_symbols_with_types =
-    Function_slot.Map.map
+    Function_slot.Lmap.map
       (fun symbol ->
         let typ = DE.find_symbol denv symbol in
         symbol, typ)
-      closure_symbols_map
-    |> Function_slot.Map.to_seq |> Function_slot.Lmap.of_seq
+      closure_symbols
   in
   let set_of_closures_lifted_constant =
     LC.create_set_of_closures denv ~closure_symbols_with_types
