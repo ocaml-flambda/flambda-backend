@@ -785,75 +785,118 @@ let close_let acc env id user_visible kind defining_expr
          generated. *)
       body acc body_env
     | Some defining_expr -> (
-      let bound_pattern = Bound_pattern.singleton (VB.create var Name_mode.normal) in
+      let bound_pattern =
+        Bound_pattern.singleton (VB.create var Name_mode.normal)
+      in
       let bind acc env =
         (* CR pchambart: Not tail ! The body function is the recursion *)
         let acc, body = body acc env in
         Let_with_acc.create acc bound_pattern defining_expr ~body
       in
       match defining_expr with
-      | Prim (Variadic (Make_block (_, Immutable, alloc_mode), fields), _) ->
+      | Prim
+          ( Variadic
+              (Make_block (Values (tag, _), Immutable, alloc_mode), fields),
+            _ ) -> (
         let approxs =
           List.map
             (fun field ->
-               match Simple.must_be_symbol field with
-               | None -> find_value_approximation acc body_env field
-               | Some (sym, _) -> Value_approximation.Value_symbol sym)
+              match Simple.must_be_symbol field with
+              | None -> find_value_approximation acc body_env field
+              | Some (sym, _) -> Value_approximation.Value_symbol sym)
             fields
           |> Array.of_list
         in
-        let body_env =
-          Env.add_block_approximation body_env var approxs
-            (Alloc_mode.For_allocations.as_type alloc_mode)
+        let all_fields_static =
+          List.fold_left
+            (fun static_fields f ->
+              match static_fields with
+              | None -> None
+              | Some fields ->
+                Simple.pattern_match'
+                  ~const:(fun c ->
+                    match Reg_width_const.descr c with
+                    | Tagged_immediate imm ->
+                      Some (Field_of_static_block.Tagged_immediate imm :: fields)
+                    | _ -> None)
+                  ~symbol:(fun s ~coercion:_ ->
+                    Some (Field_of_static_block.Symbol s :: fields))
+                  ~var:(fun _v ~coercion:_ -> None)
+                  f)
+            (Some []) fields
+          |> Option.map List.rev
         in
-        bind acc body_env
+        match all_fields_static with
+        | Some static_fields ->
+          let acc, sym =
+            register_const0 acc
+              (Static_const.block tag Immutable static_fields)
+              (Ident.name id)
+          in
+          let body_env =
+            Env.add_simple_to_substitute body_env id (Simple.symbol sym) kind
+          in
+          let acc =
+            Acc.add_symbol_approximation acc sym
+              (Value_approximation.Block_approximation
+                 (approxs,Alloc_mode.For_allocations.as_type alloc_mode))
+          in
+          body acc body_env
+        | None ->
+          let body_env =
+            Env.add_block_approximation body_env var approxs
+              (Alloc_mode.For_allocations.as_type alloc_mode)
+          in
+          bind acc body_env)
       | Prim (Binary (Block_load _, block, field), _) -> (
-          match find_value_approximation acc body_env block with
-          | Value_unknown -> bind acc body_env
-          | Closure_approximation _ | Value_symbol _ | Value_int _ ->
-            (* Here we assume [block] has already been substituted as a known
-               symbol if it exists, and rely on the invariant that the
-               approximation of a symbol is never a symbol. *)
-            if Flambda_features.check_invariants ()
-            then
-              (* CR keryan: This is hidden behind invariants check because it
-                 can appear on correct code using Lazy or GADT. It might warrant
-                 a proper warning at some point. *)
-              Misc.fatal_errorf
-                "Unexpected approximation found when block approximation was \
-                 expected in [Closure_conversion]: %a"
-                Named.print defining_expr
-            else
-              ( acc,
-                Expr.create_invalid
-                  (Defining_expr_of_let (bound_pattern, defining_expr)) )
-          | Block_approximation (approx, _alloc_mode) -> (
-              let approx =
-                Simple.pattern_match field
-                  ~const:(fun const ->
-                      match Reg_width_const.descr const with
-                      | Tagged_immediate i ->
-                        let i = Targetint_31_63.to_int i in
-                        if i >= Array.length approx
-                        then
-                          Misc.fatal_errorf
-                            "Trying to access the %dth field of a block \
-                             approximation of length %d."
-                            i (Array.length approx);
-                        approx.(i)
-                      | _ -> Value_approximation.Value_unknown)
-                  ~name:(fun _ ~coercion:_ -> Value_approximation.Value_unknown)
-              in
-              match approx with
-              | Value_symbol sym ->
-                (* In spirit, this is the same as the simple case but more
-                   cumbersome to detect, we have to remove the now useless
-                   let-binding later. *)
-                let body_env = Env.add_simple_to_substitute env id (Simple.symbol sym) kind in
-                bind acc body_env
-              | _ ->
-                let body_env = Env.add_var_approximation body_env var approx in
-                bind acc body_env))
+        match find_value_approximation acc body_env block with
+        | Value_unknown -> bind acc body_env
+        | Closure_approximation _ | Value_symbol _ | Value_int _ ->
+          (* Here we assume [block] has already been substituted as a known
+             symbol if it exists, and rely on the invariant that the
+             approximation of a symbol is never a symbol. *)
+          if Flambda_features.check_invariants ()
+          then
+            (* CR keryan: This is hidden behind invariants check because it can
+               appear on correct code using Lazy or GADT. It might warrant a
+               proper warning at some point. *)
+            Misc.fatal_errorf
+              "Unexpected approximation found when block approximation was \
+               expected in [Closure_conversion]: %a"
+              Named.print defining_expr
+          else
+            ( acc,
+              Expr.create_invalid
+                (Defining_expr_of_let (bound_pattern, defining_expr)) )
+        | Block_approximation (approx, _alloc_mode) -> (
+          let approx =
+            Simple.pattern_match field
+              ~const:(fun const ->
+                match Reg_width_const.descr const with
+                | Tagged_immediate i ->
+                  let i = Targetint_31_63.to_int i in
+                  if i >= Array.length approx
+                  then
+                    Misc.fatal_errorf
+                      "Trying to access the %dth field of a block \
+                       approximation of length %d."
+                      i (Array.length approx);
+                  approx.(i)
+                | _ -> Value_approximation.Value_unknown)
+              ~name:(fun _ ~coercion:_ -> Value_approximation.Value_unknown)
+          in
+          match approx with
+          | Value_symbol sym ->
+            (* In spirit, this is the same as the simple case but more
+               cumbersome to detect, we have to remove the now useless
+               let-binding later. *)
+            let body_env =
+              Env.add_simple_to_substitute env id (Simple.symbol sym) kind
+            in
+            bind acc body_env
+          | _ ->
+            let body_env = Env.add_var_approximation body_env var approx in
+            bind acc body_env))
       | _ -> bind acc body_env)
   in
   close_named acc env ~let_bound_var:var defining_expr cont
