@@ -93,7 +93,7 @@ let mk_float_cond ~lt ~eq ~gt ~uo =
 
 let cross_section cfg_with_layout src dst =
   if !Flambda_backend_flags.basic_block_sections
-     && not (dst = Linear_utils.labelled_insn_end.label)
+     && not (Label.equal dst Linear_utils.labelled_insn_end.label)
   then
     let src_section = CL.get_section cfg_with_layout src in
     let dst_section = CL.get_section cfg_with_layout dst in
