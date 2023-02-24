@@ -83,7 +83,7 @@ static link* frametables_list_tail(link *list) {
 /* Special marker instead of frame_size for frame_descr in long format */
 static uint32_t LONG_FRAME_MARKER = 0x7FFF;
 
-uint32_t get_frame_size(frame_descr *d) {
+uint32_t caml_get_frame_size(frame_descr *d) {
   CAMLassert(d && d->frame_size != 0xFFFF);
   if (d->frame_size == LONG_FRAME_MARKER) {
     /* Handle long frames */
@@ -95,7 +95,7 @@ uint32_t get_frame_size(frame_descr *d) {
 }
 
 /* Skip to end of live_ofs */
-unsigned char * get_end_of_live_ofs (frame_descr *d) {
+unsigned char * caml_get_end_of_live_ofs (frame_descr *d) {
   CAMLassert(d && d->frame_size != 0xFFFF);
   if (d->frame_size == LONG_FRAME_MARKER) {
     /* Handle long frames */
@@ -111,8 +111,8 @@ static frame_descr * next_frame_descr(frame_descr * d) {
   uint32_t frame_size;
   CAMLassert(d->retaddr >= 4096);
   if (d->frame_size != 0xFFFF) {
-    frame_size = get_frame_size(d);
-    p = get_end_of_live_ofs(d);
+    frame_size = caml_get_frame_size(d);
+    p = caml_get_end_of_live_ofs(d);
     /* Skip alloc_lengths if present */
     if (frame_size & 2) {
       num_allocs = *p;
@@ -688,7 +688,7 @@ void caml_do_local_roots_nat(scanning_action maj, scanning_action min,
           }
         }
         /* Move to next frame */
-        sp += (get_frame_size(d) & 0xFFFFFFFC);
+        sp += (caml_get_frame_size(d) & 0xFFFFFFFC);
         retaddr = Saved_return_address(sp);
 #ifdef Mask_already_scanned
         retaddr = Mask_already_scanned(retaddr);

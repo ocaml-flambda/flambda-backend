@@ -73,12 +73,12 @@ void caml_garbage_collection(void)
     }
     /* Must be an allocation frame */
     CAMLassert(d && d->frame_size != 0xFFFF &&
-               (get_frame_size(d) & 2));
+               (caml_get_frame_size(d) & 2));
   }
 
   /* Compute the total allocation size at this point,
      including allocations combined by Comballoc */
-  alloc_len = get_end_of_live_ofs(d);
+  alloc_len = caml_get_end_of_live_ofs(d);
   nallocs = *alloc_len++;
 
   if (nallocs == 0) {
