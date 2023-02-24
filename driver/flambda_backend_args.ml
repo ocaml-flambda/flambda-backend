@@ -87,11 +87,17 @@ let mk_no_long_frames f =
 let mk_debug_long_frames_threshold f =
   "-debug-long-frames-threshold", Arg.Int f, "n debug only: set long frames threshold"
 
+let mk_caml_apply_inline_fast_path f =
+  "-caml-apply-inline-fast-path", Arg.Unit f, " Inline the fast path of caml_applyN"
+
 let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
 
 let mk_internal_assembler f =
   "-internal-assembler", Arg.Unit f, "Write object files directly instead of using the system assembler (x86-64 ELF only)"
+
+let mk_gc_timings f =
+  "-dgc-timings", Arg.Unit f, "Output information about time spent in the GC"
 
 module Flambda2 = Flambda_backend_flags.Flambda2
 
@@ -490,7 +496,10 @@ module type Flambda_backend_options = sig
   val no_long_frames : unit -> unit
   val long_frames_threshold : int -> unit
 
+  val caml_apply_inline_fast_path : unit -> unit
   val internal_assembler : unit -> unit
+
+  val gc_timings : unit -> unit
 
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
@@ -572,7 +581,11 @@ struct
     mk_no_long_frames F.no_long_frames;
     mk_debug_long_frames_threshold F.long_frames_threshold;
 
+    mk_caml_apply_inline_fast_path F.caml_apply_inline_fast_path;
+
     mk_internal_assembler F.internal_assembler;
+
+    mk_gc_timings F.gc_timings;
 
     mk_flambda2_join_points F.flambda2_join_points;
     mk_no_flambda2_join_points F.no_flambda2_join_points;
@@ -691,7 +704,12 @@ module Flambda_backend_options_impl = struct
   let no_long_frames = clear' Flambda_backend_flags.allow_long_frames
   let long_frames_threshold n = set_long_frames_threshold n
 
+  let caml_apply_inline_fast_path =
+    set' Flambda_backend_flags.caml_apply_inline_fast_path
+
   let internal_assembler = set' Flambda_backend_flags.internal_assembler
+
+  let gc_timings = set' Flambda_backend_flags.gc_timings
 
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
@@ -879,6 +897,7 @@ module Extra_params = struct
     in
     match name with
     | "internal-assembler" -> set' Flambda_backend_flags.internal_assembler
+    | "dgc-timings" -> set' Flambda_backend_flags.gc_timings
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "cfg-equivalence-check" -> set' Flambda_backend_flags.cfg_equivalence_check
@@ -900,6 +919,8 @@ module Extra_params = struct
              (Printf.sprintf "Expected integer between 0 and %d"
                 Flambda_backend_flags.max_long_frames_threshold))
       end
+    | "caml-apply-inline-fast-path" ->
+      set' Flambda_backend_flags.caml_apply_inline_fast_path
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf
     | "gstartup" -> set' Debugging.dwarf_for_startup_file

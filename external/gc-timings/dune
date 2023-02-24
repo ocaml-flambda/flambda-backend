@@ -1,0 +1,16 @@
+(library
+ (name gc_timings)
+ (foreign_stubs
+  (language c)
+  (names gc_timings_stubs)
+  (flags
+   ((:include %{project_root}/oc_cflags.sexp)
+    (:include %{project_root}/sharedlib_cflags.sexp)
+    (:include %{project_root}/oc_cppflags.sexp))))
+ (synopsis "OCaml library to extract timing information from the GC"))
+
+(install
+ (files
+  (dllgc_timings_stubs.so as stublibs/dllgc_timings_stubs.so))
+ (section lib)
+ (package ocaml))

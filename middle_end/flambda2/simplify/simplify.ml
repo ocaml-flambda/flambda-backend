@@ -37,10 +37,6 @@ let run ~cmx_loader ~round unit =
       ~unit_toplevel_return_continuation:return_continuation
       ~unit_toplevel_exn_continuation:exn_continuation ~toplevel_my_region
   in
-  let return_cont_scope = DE.get_continuation_scope denv in
-  let denv = DE.increment_continuation_scope denv in
-  let exn_cont_scope = DE.get_continuation_scope denv in
-  let denv = DE.increment_continuation_scope denv in
   (* CR gbury: only compute closure offsets if this is the last round. (same
      remark for the cmx contents) *)
   let dacc = DA.create denv Continuation_uses_env.empty in
@@ -48,7 +44,7 @@ let run ~cmx_loader ~round unit =
     Simplify_expr.simplify_toplevel dacc (FU.body unit) ~return_continuation
       ~return_arity:
         (Flambda_arity.With_subkinds.create [K.With_subkind.any_value])
-      ~exn_continuation ~return_cont_scope ~exn_cont_scope
+      ~exn_continuation
   in
   let body = Rebuilt_expr.to_expr body (UA.are_rebuilding_terms uacc) in
   let name_occurrences = UA.name_occurrences uacc in

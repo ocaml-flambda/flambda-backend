@@ -277,7 +277,10 @@ end = struct
         (Compilation_unit.get_current_exn ())
     in
     if not is_local
-    then Misc.fatal_errorf "Cannot bind non-local symbol %a" Symbol.print s;
+    then
+      Misc.fatal_errorf "Cannot bind non-local symbol %a@ Current unit is %a"
+        Symbol.print s Compilation_unit.print
+        (Compilation_unit.get_current_exn ());
     let s, symbols = Symbol_name_map.bind t.symbols s in
     (None, s) |> nowhere, { t with symbols }
 
@@ -398,9 +401,43 @@ let is_default_kind_with_subkind (k : Flambda_kind.With_subkind.t) =
   Flambda_kind.is_value (Flambda_kind.With_subkind.kind k)
   && not (Flambda_kind.With_subkind.has_useful_subkind_info k)
 
+let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
+  match k with
+  | Anything -> Anything
+  | Boxed_float -> Boxed_float
+  | Boxed_int32 -> Boxed_int32
+  | Boxed_int64 -> Boxed_int64
+  | Boxed_nativeint -> Boxed_nativeint
+  | Tagged_immediate -> Tagged_immediate
+  | Variant { consts; non_consts } -> variant_subkind consts non_consts
+  | Float_array -> Float_array
+  | Immediate_array -> Immediate_array
+  | Value_array -> Value_array
+  | Float_block _ | Generic_array ->
+    Misc.fatal_errorf "TODO: Subkind %a" Flambda_kind.With_subkind.Subkind.print
+      k
+
+and variant_subkind consts non_consts : Fexpr.subkind =
+  let consts =
+    consts |> Targetint_31_63.Set.elements |> List.map Targetint_31_63.to_int64
+  in
+  let non_consts =
+    non_consts |> Tag.Scannable.Map.bindings
+    |> List.map (fun (tag, sk) -> Tag.Scannable.to_int tag, List.map subkind sk)
+  in
+  Variant { consts; non_consts }
+
+let kind_with_subkind (k : Flambda_kind.With_subkind.t) :
+    Fexpr.kind_with_subkind =
+  match Flambda_kind.With_subkind.kind k with
+  | Value -> Value (subkind (Flambda_kind.With_subkind.subkind k))
+  | Naked_number nnk -> Naked_number nnk
+  | Region -> Region
+  | Rec_info -> Rec_info
+
 let kind_with_subkind_opt (k : Flambda_kind.With_subkind.t) :
     Fexpr.kind_with_subkind option =
-  if is_default_kind_with_subkind k then None else Some k
+  if is_default_kind_with_subkind k then None else Some (k |> kind_with_subkind)
 
 let is_default_arity (a : Flambda_arity.With_subkinds.t) =
   match Flambda_arity.With_subkinds.to_list a with
@@ -408,7 +445,7 @@ let is_default_arity (a : Flambda_arity.With_subkinds.t) =
   | _ -> false
 
 let arity (a : Flambda_arity.With_subkinds.t) : Fexpr.arity =
-  Flambda_arity.With_subkinds.to_list a
+  Flambda_arity.With_subkinds.to_list a |> List.map kind_with_subkind
 
 let arity_opt (a : Flambda_arity.With_subkinds.t) : Fexpr.arity option =
   if is_default_arity a then None else Some (arity a)
@@ -816,7 +853,8 @@ and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
         Fexpr.Let_cont { recursive = Nonrecursive; bindings = [binding]; body })
   | Recursive handlers ->
     Flambda.Recursive_let_cont_handlers.pattern_match handlers
-      ~f:(fun ~body handlers ->
+      ~f:(fun ~invariant_params:_ ~body handlers ->
+        (* TODO support them *)
         let env =
           Continuation.Set.fold
             (fun c env ->
@@ -936,6 +974,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
     else Some (Apply_expr.inlined app)
   in
   let inlining_state = inlining_state (Apply_expr.inlining_state app) in
+  let region = Env.find_var_exn env (Apply_expr.region app) in
   Apply
     { func;
       continuation;
@@ -944,7 +983,8 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       call_kind;
       inlined;
       inlining_state;
-      arities
+      arities;
+      region
     }
 
 and apply_cont_expr env app_cont : Fexpr.expr =
@@ -1024,7 +1064,8 @@ module Iter = struct
           let h = Non_recursive_let_cont_handler.handler handler in
           let_cont_aux f_c f_s k h body)
     | Recursive handlers ->
-      Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~body conts ->
+      Recursive_let_cont_handlers.pattern_match handlers
+        ~f:(fun ~invariant_params:_ ~body conts ->
           assert (not (Continuation_handlers.contains_exn_handler conts));
           let_cont_rec f_c f_s conts body)
 

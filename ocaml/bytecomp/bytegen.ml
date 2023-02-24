@@ -229,7 +229,7 @@ let rec size_of_lambda env = function
   | Lprim (Pduprecord (Record_float, size), _, _) -> RHS_floatblock size
   | Levent (lam, _) -> size_of_lambda env lam
   | Lsequence (_lam, lam') -> size_of_lambda env lam'
-  | Lregion lam -> size_of_lambda env lam
+  | Lregion (lam, _) -> size_of_lambda env lam
   | _ -> RHS_nonrec
 
 (**** Merging consecutive events ****)
@@ -591,7 +591,7 @@ let rec comp_expr env exp sz cont =
                       (Kapply nargs :: cont1))
         end
       end
-  | Lsend(kind, met, obj, args, rc, _, _) ->
+  | Lsend(kind, met, obj, args, rc, _, _, _) ->
       assert (kind <> Cached);
       let nargs = List.length args + 1 in
       let getmethod, args' =
@@ -994,7 +994,7 @@ let rec comp_expr env exp sz cont =
             match lam with
             | Lprim(prim, _, _) -> preserve_tailcall_for_prim prim
             | Lapply {ap_region_close=rc; _}
-            | Lsend(_, _, _, _, rc, _, _) ->
+            | Lsend(_, _, _, _, rc, _, _, _) ->
                not (is_nontail rc)
             | _ -> true
           in
@@ -1005,7 +1005,7 @@ let rec comp_expr env exp sz cont =
             let info =
               match lam with
                 Lapply{ap_args = args}  -> Event_return (List.length args)
-              | Lsend(_, _, _, args, _, _, _) ->
+              | Lsend(_, _, _, args, _, _, _, _) ->
                   Event_return (List.length args + 1)
               | Lprim(_,args,_)         -> Event_return (List.length args)
               | _                       -> Event_other
@@ -1019,7 +1019,7 @@ let rec comp_expr env exp sz cont =
       end
   | Lifused (_, exp) ->
       comp_expr env exp sz cont
-  | Lregion exp ->
+  | Lregion (exp, _) ->
       comp_expr env exp sz cont
 
 (* Compile a list of arguments [e1; ...; eN] to a primitive operation.

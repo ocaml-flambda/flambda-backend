@@ -151,8 +151,8 @@ let expand_record_head h =
   | _ -> h
 
 let bind_alias p id ~arg ~action =
-  let k = Typeopt.value_kind p.pat_env p.pat_type in
-  bind_with_value_kind Alias (id, k) arg action
+  let k = Typeopt.layout p.pat_env p.pat_type in
+  bind_with_layout Alias (id, k) arg action
 
 let head_loc ~scopes head =
   Scoped_location.of_location ~scopes head.pat_loc
@@ -207,8 +207,8 @@ end = struct
     | Tpat_any
     | Tpat_var _ ->
         p
-    | Tpat_alias (q, id, s) ->
-        { p with pat_desc = Tpat_alias (simpl_under_orpat q, id, s) }
+    | Tpat_alias (q, id, s, mode) ->
+        { p with pat_desc = Tpat_alias (simpl_under_orpat q, id, s, mode) }
     | Tpat_or (p1, p2, o) ->
         let p1, p2 = (simpl_under_orpat p1, simpl_under_orpat p2) in
         if le_pat p1 p2 then
@@ -231,8 +231,8 @@ end = struct
       in
       match p.pat_desc with
       | `Any -> stop p `Any
-      | `Var (id, s) -> continue p (`Alias (Patterns.omega, id, s))
-      | `Alias (p, id, _) ->
+      | `Var (id, s, mode) -> continue p (`Alias (Patterns.omega, id, s, mode))
+      | `Alias (p, id, _, _) ->
           aux
             ( (General.view p, patl),
               bind_alias p id ~arg ~action )
@@ -289,7 +289,7 @@ end = struct
       | `Record (fields, closed) ->
           let alpha_field env (lid, l, p) = (lid, l, alpha_pat env p) in
           `Record (List.map (alpha_field env) fields, closed)
-      | `Array ps -> `Array (List.map (alpha_pat env) ps)
+      | `Array (am, ps) -> `Array (am, List.map (alpha_pat env) ps)
       | `Lazy p -> `Lazy (alpha_pat env p)
     in
     { p with pat_desc }
@@ -326,10 +326,10 @@ end = struct
       match p.pat_desc with
       | `Or (p1, p2, _) ->
           split_explode p1 aliases (split_explode p2 aliases rem)
-      | `Alias (p, id, _) -> split_explode p (id :: aliases) rem
-      | `Var (id, str) ->
+      | `Alias (p, id, _, _) -> split_explode p (id :: aliases) rem
+      | `Var (id, str, mode) ->
           explode
-            { p with pat_desc = `Alias (Patterns.omega, id, str) }
+            { p with pat_desc = `Alias (Patterns.omega, id, str, mode) }
             aliases rem
       | #view as view ->
           (* We are doing two things here:
@@ -440,7 +440,7 @@ let matcher discr (p : Simple.pattern) rem =
   | Variant _, (Constant _ | Construct _ | Lazy | Array _ | Record _ | Tuple _)
     ->
       no ()
-  | Array n1, Array n2 -> yesif (n1 = n2)
+  | Array (am1, n1), Array (am2, n2) -> yesif (am1 = am2 && n1 = n2)
   | Array _, (Constant _ | Construct _ | Variant _ | Lazy | Record _ | Tuple _)
     ->
       no ()
@@ -567,7 +567,7 @@ end = struct
           match p.pat_desc with
           | `Or (p1, p2, _) ->
               filter_rec ((left, p1, right) :: (left, p2, right) :: rem)
-          | `Alias (p, _, _) -> filter_rec ((left, p, right) :: rem)
+          | `Alias (p, _, _, _) -> filter_rec ((left, p, right) :: rem)
           | `Var _ -> filter_rec ((left, Patterns.omega, right) :: rem)
           | #Simple.view as view -> (
               let p = { p with pat_desc = view } in
@@ -617,7 +617,7 @@ let rec flatten_pat_line size p k =
   | Tpat_tuple args -> args :: k
   | Tpat_or (p1, p2, _) ->
       flatten_pat_line size p1 (flatten_pat_line size p2 k)
-  | Tpat_alias (p, _, _) ->
+  | Tpat_alias (p, _, _, _) ->
       (* Note: we are only called from flatten_matrix,
          which is itself only ever used in places
          where variables do not matter (default environments,
@@ -694,7 +694,7 @@ end = struct
       | (p, ps) :: rem -> (
           let p = General.view p in
           match p.pat_desc with
-          | `Alias (p, _, _) -> filter_rec ((p, ps) :: rem)
+          | `Alias (p, _, _, _) -> filter_rec ((p, ps) :: rem)
           | `Var _ -> filter_rec ((Patterns.omega, ps) :: rem)
           | `Or (p1, p2, _) -> filter_rec_or p1 p2 ps rem
           | #Simple.view as view -> (
@@ -938,7 +938,7 @@ type 'row pattern_matching = {
 type handler = {
   provenance : matrix;
   exit : int;
-  vars : (Ident.t * Lambda.value_kind) list;
+  vars : (Ident.t * Lambda.layout) list;
   pm : initial_clause pattern_matching
 }
 
@@ -1180,7 +1180,7 @@ let rec omega_like p =
   | Tpat_any
   | Tpat_var _ ->
       true
-  | Tpat_alias (p, _, _) -> omega_like p
+  | Tpat_alias (p, _, _, _) -> omega_like p
   | Tpat_or (p1, p2, _) -> omega_like p1 || omega_like p2
   | _ -> false
 
@@ -1576,7 +1576,7 @@ and precompile_or ~arg (cls : Simple.clause list) ors args def k =
               Typedtree.pat_bound_idents_full orp
               |> List.filter (fun (id, _, _) -> Ident.Set.mem id pm_fv)
               |> List.map (fun (id, _, ty) ->
-                     (id, Typeopt.value_kind orp.pat_env ty))
+                     (id, Typeopt.layout orp.pat_env ty))
             in
             let or_num = next_raise_count () in
             let new_patl = Patterns.omega_list patl in
@@ -1903,12 +1903,12 @@ let inline_lazy_force_cond arg pos loc =
   let force_fun = Lazy.force code_force_lazy_block in
   Llet
     ( Strict,
-      Pgenval,
+      Lambda.layout_lazy,
       idarg,
       arg,
       Llet
         ( Alias,
-          Pgenval,
+          Lambda.layout_int,
           tag,
           Lprim (Pccall prim_obj_tag, [ varg ], loc),
           Lifthenelse
@@ -1929,6 +1929,7 @@ let inline_lazy_force_cond arg pos loc =
                       ap_loc = loc;
                       ap_func = force_fun;
                       ap_args = [ varg ];
+                      ap_result_layout = Lambda.layout_lazy_contents;
                       ap_region_close = pos;
                       ap_mode = alloc_heap;
                       ap_inlined = Default_inlined;
@@ -1936,7 +1937,7 @@ let inline_lazy_force_cond arg pos loc =
                       ap_probe=None
                     },
                   (* ... arg *)
-                  varg, Pgenval), Pgenval) ) )
+                  varg, Lambda.layout_lazy_contents), Lambda.layout_lazy_contents) ) )
 
 let inline_lazy_force_switch arg pos loc =
   let idarg = Ident.create_local "lzarg" in
@@ -1944,7 +1945,7 @@ let inline_lazy_force_switch arg pos loc =
   let force_fun = Lazy.force code_force_lazy_block in
   Llet
     ( Strict,
-      Pgenval,
+      Lambda.layout_lazy,
       idarg,
       arg,
       Lifthenelse
@@ -1965,6 +1966,7 @@ let inline_lazy_force_switch arg pos loc =
                           ap_loc = loc;
                           ap_func = force_fun;
                           ap_args = [ varg ];
+                          ap_result_layout = Lambda.layout_lazy_contents;
                           ap_region_close = pos;
                           ap_mode = alloc_heap;
                           ap_inlined = Default_inlined;
@@ -1974,7 +1976,7 @@ let inline_lazy_force_switch arg pos loc =
                   ];
                 sw_failaction = Some varg
               },
-              loc, Pgenval), Pgenval) )
+              loc, Lambda.layout_lazy_contents), Lambda.layout_lazy_contents) )
 
 let inline_lazy_force arg pos loc =
   if !Clflags.afl_instrument then
@@ -1987,6 +1989,7 @@ let inline_lazy_force arg pos loc =
         ap_loc = loc;
         ap_func = Lazy.force code_force_lazy;
         ap_args = [ arg ];
+        ap_result_layout = Lambda.layout_lazy_contents;
         ap_region_close = pos;
         ap_mode = alloc_heap;
         ap_inlined = Default_inlined;
@@ -2110,19 +2113,19 @@ let divide_record all_labels ~scopes head ctx pm =
 (* Matching against an array pattern *)
 
 let get_key_array = function
-  | { pat_desc = Tpat_array patl } -> List.length patl
+  | { pat_desc = Tpat_array (_, patl) } -> List.length patl
   | _ -> assert false
 
 let get_pat_args_array p rem =
   match p with
-  | { pat_desc = Tpat_array patl } -> patl @ rem
+  | { pat_desc = Tpat_array (_, patl) } -> patl @ rem
   | _ -> assert false
 
 let get_expr_args_array ~scopes kind head (arg, _mut) rem =
-  let len =
+  let am, len =
     let open Patterns.Head in
     match head.pat_desc with
-    | Array len -> len
+    | Array (am, len) -> am, len
     | _ -> assert false
   in
   let loc = head_loc ~scopes head in
@@ -2132,7 +2135,9 @@ let get_expr_args_array ~scopes kind head (arg, _mut) rem =
     else
       ( Lprim
           (Parrayrefu kind, [ arg; Lconst (Const_base (Const_int pos)) ], loc),
-        StrictOpt )
+        match am with
+        | Mutable   -> StrictOpt
+        | Immutable -> Alias )
       :: make_args (pos + 1)
   in
   make_args 0
@@ -2166,12 +2171,12 @@ let prim_string_notequal =
 let prim_string_compare =
   Pccall (Primitive.simple ~name:"caml_string_compare" ~arity:2 ~alloc:false)
 
-let bind_sw arg k =
+let bind_sw arg layout k =
   match arg with
   | Lvar _ -> k arg
   | _ ->
       let id = Ident.create_local "switch" in
-      Llet (Strict, Pgenval, id, arg, k (Lvar id))
+      Llet (Strict, layout, id, arg, k (Lvar id))
 
 (* Sequential equality tests *)
 
@@ -2185,7 +2190,7 @@ let make_string_test_sequence loc kind arg sw d =
       )
     | Some d -> (d, sw)
   in
-  bind_sw arg (fun arg ->
+  bind_sw arg Lambda.layout_string (fun arg ->
       List.fold_right
         (fun (str, lam) k ->
           Lifthenelse
@@ -2230,6 +2235,7 @@ let rec do_make_string_test_tree loc kind arg sw delta d =
     let lt, (s, act), gt = split len sw in
     bind_sw
       (Lprim (prim_string_compare, [ arg; Lconst (Const_immstring s) ], loc))
+      Lambda.layout_int
       (fun r ->
         tree_way_test loc kind r
           (do_make_string_test_tree loc kind arg lt delta d)
@@ -2239,9 +2245,9 @@ let rec do_make_string_test_tree loc kind arg sw delta d =
 (* Entry point *)
 let expand_stringswitch loc kind arg sw d =
   match d with
-  | None -> bind_sw arg (fun arg -> do_make_string_test_tree loc kind arg sw 0 None)
+  | None -> bind_sw arg Lambda.layout_string (fun arg -> do_make_string_test_tree loc kind arg sw 0 None)
   | Some e ->
-      bind_sw arg (fun arg ->
+      bind_sw arg Lambda.layout_string (fun arg ->
           make_catch kind e (fun d ->
               do_make_string_test_tree loc kind arg sw 1 (Some d)))
 
@@ -2367,7 +2373,7 @@ module SArg = struct
   type test = Lambda.lambda
   type act = Lambda.lambda
 
-  type value_kind = Lambda.value_kind
+  type layout = Lambda.layout
 
   let make_prim p args = Lprim (p, args, Loc_unknown)
 
@@ -2384,7 +2390,8 @@ module SArg = struct
           let newvar = Ident.create_local "switcher" in
           (newvar, Lvar newvar)
     in
-    bind Alias newvar arg (body newarg)
+    (* [switch.ml] will only call bind with an integer argument *)
+    bind_with_layout Alias (newvar, Lambda.layout_int) arg (body newarg)
 
   let make_const i = Lconst (Const_base (Const_int i))
 
@@ -2838,7 +2845,7 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
                       (Lprim (Pintcomp Ceq, [ Lvar tag; ext ], loc), act, rem, value_kind))
                   nonconsts default
               in
-              Llet (Alias, Pgenval, tag,
+              Llet (Alias, Lambda.layout_block, tag,
                     Lprim (Pfield (0, Reads_agree), [ arg ], loc),
                     tests)
         in
@@ -2936,7 +2943,7 @@ let call_switcher_variant_constr value_kind loc fail arg int_lambda_list =
   let v = Ident.create_local "variant" in
   Llet
     ( Alias,
-      Pgenval,
+      Lambda.layout_int,
       v,
       Lprim (nonconstant_variant_field 0, [ arg ], loc),
       call_switcher value_kind loc fail (Lvar v) min_int max_int int_lambda_list )
@@ -3019,7 +3026,7 @@ let combine_array value_kind loc arg kind partial ctx def (len_lambda_list, tota
     let switch =
       call_switcher value_kind loc fail (Lvar newvar) 0 max_int len_lambda_list
     in
-    bind Alias newvar (Lprim (Parraylength kind, [ arg ], loc)) switch
+    bind_with_layout Alias (newvar, Lambda.layout_int) (Lprim (Parraylength kind, [ arg ], loc)) switch
   in
   (lambda1, Jumps.union local_jumps total1)
 
@@ -3097,7 +3104,7 @@ let compile_orhandlers value_kind compile_fun lambda1 total1 ctx to_catch =
           | Lstaticraise (j, args) ->
               if i = j then
                 ( List.fold_right2
-                    (bind_with_value_kind Alias)
+                    (bind_with_layout Alias)
                     vars args handler_i,
                   Jumps.map (Context.rshift_num (ncols mat)) total_i )
               else
@@ -3136,7 +3143,7 @@ let rec approx_present v = function
   | Lvar vv -> Ident.same v vv
   | _ -> true
 
-let rec lower_bind v arg lam =
+let rec lower_bind v arg_layout arg lam =
   match lam with
   | Lifthenelse (cond, ifso, ifnot, kind) -> (
       let pcond = approx_present v cond
@@ -3145,33 +3152,33 @@ let rec lower_bind v arg lam =
       match (pcond, pso, pnot) with
       | false, false, false -> lam
       | false, true, false ->
-          Lifthenelse (cond, lower_bind v arg ifso, ifnot, kind)
+          Lifthenelse (cond, lower_bind v arg_layout arg ifso, ifnot, kind)
       | false, false, true ->
-          Lifthenelse (cond, ifso, lower_bind v arg ifnot, kind)
-      | _, _, _ -> bind Alias v arg lam
+          Lifthenelse (cond, ifso, lower_bind v arg_layout arg ifnot, kind)
+      | _, _, _ -> bind_with_layout Alias (v, arg_layout) arg lam
     )
   | Lswitch (ls, ({ sw_consts = [ (i, act) ]; sw_blocks = [] } as sw), loc,
              kind)
     when not (approx_present v ls) ->
-      Lswitch (ls, { sw with sw_consts = [ (i, lower_bind v arg act) ] },
+      Lswitch (ls, { sw with sw_consts = [ (i, lower_bind v arg_layout arg act) ] },
                loc, kind)
   | Lswitch (ls, ({ sw_consts = []; sw_blocks = [ (i, act) ] } as sw),
              loc, kind)
     when not (approx_present v ls) ->
-      Lswitch (ls, { sw with sw_blocks = [ (i, lower_bind v arg act) ] },
+      Lswitch (ls, { sw with sw_blocks = [ (i, lower_bind v arg_layout arg act) ] },
                loc, kind)
   | Llet (Alias, k, vv, lv, l) ->
       if approx_present v lv then
-        bind Alias v arg lam
+        bind_with_layout Alias (v, arg_layout) arg lam
       else
-        Llet (Alias, k, vv, lv, lower_bind v arg l)
-  | _ -> bind Alias v arg lam
+        Llet (Alias, k, vv, lv, lower_bind v arg_layout arg l)
+  | _ -> bind_with_layout Alias (v, arg_layout) arg lam
 
-let bind_check str v arg lam =
+let bind_check str v arg_layout arg lam =
   match (str, arg) with
-  | _, Lvar _ -> bind str v arg lam
-  | Alias, _ -> lower_bind v arg lam
-  | _, _ -> bind str v arg lam
+  | _, Lvar _ -> bind_with_layout str (v, arg_layout) arg lam
+  | Alias, _ -> lower_bind v arg_layout arg lam
+  | _, _ -> bind_with_layout str (v, arg_layout) arg lam
 
 let comp_exit ctx m =
   match Default_environment.pop m.default with
@@ -3226,8 +3233,8 @@ let rec comp_match_handlers value_kind comp_fun partial ctx first_match next_mat
 let rec name_pattern default = function
   | ((pat, _), _) :: rem -> (
       match pat.pat_desc with
-      | Tpat_var (id, _) -> id
-      | Tpat_alias (_, id, _) -> id
+      | Tpat_var (id, _, _) -> id
+      | Tpat_alias (_, id, _, _) -> id
       | _ -> name_pattern default rem
     )
   | _ -> Ident.create_local default
@@ -3276,7 +3283,7 @@ and compile_match_nonempty ~scopes value_kind repr partial ctx
       let m = { m with args; cases } in
       let first_match, rem =
         split_and_precompile_half_simplified ~arg:newarg m in
-      combine_handlers ~scopes value_kind repr partial ctx (v, str, arg) first_match rem
+      combine_handlers ~scopes value_kind repr partial ctx (v, str, Lambda.layout_top, arg) first_match rem
   | _ -> assert false
 
 and compile_match_simplified ~scopes value_kind  repr partial ctx
@@ -3287,11 +3294,11 @@ and compile_match_simplified ~scopes value_kind  repr partial ctx
       let args = (arg, Alias) :: argl in
       let m = { m with args } in
       let first_match, rem = split_and_precompile_simplified m in
-      combine_handlers value_kind ~scopes repr partial ctx (v, str, arg)
+      combine_handlers value_kind ~scopes repr partial ctx (v, str, Lambda.layout_top, arg)
         first_match rem
   | _ -> assert false
 
-and combine_handlers ~scopes value_kind repr partial ctx (v, str, arg)
+and combine_handlers ~scopes value_kind repr partial ctx (v, str, arg_layout, arg)
     first_match rem =
   let lam, total =
     comp_match_handlers value_kind
@@ -3303,7 +3310,7 @@ and combine_handlers ~scopes value_kind repr partial ctx (v, str, arg)
          repr)
       partial ctx first_match rem
   in
-  (bind_check str v arg lam, total)
+  (bind_check str v arg_layout arg lam, total)
 
 (* verbose version of do_compile_matching, for debug *)
 and do_compile_matching_pr ~scopes value_kind repr partial ctx x =
@@ -3657,7 +3664,7 @@ let rec map_return f = function
   | ( Lvar _ | Lmutvar _ | Lconst _ | Lapply _ | Lfunction _ | Lsend _ | Lprim _
     | Lwhile _ | Lfor _ | Lassign _ | Lifused _ ) as l ->
       f l
-  | Lregion l -> Lregion (map_return f l)
+  | Lregion (l, layout) -> Lregion (map_return f l, layout)
 
 (* The 'opt' reference indicates if the optimization is worthy.
 
@@ -3715,9 +3722,9 @@ let for_let ~scopes loc param pat body_kind body =
       (* This eliminates a useless variable (and stack slot in bytecode)
          for "let _ = ...". See #6865. *)
       Lsequence (param, body)
-  | Tpat_var (id, _) ->
+  | Tpat_var (id, _, _) ->
       (* fast path, and keep track of simple bindings to unboxable numbers *)
-      let k = Typeopt.value_kind pat.pat_env pat.pat_type in
+      let k = Typeopt.layout pat.pat_env pat.pat_type in
       Llet (Strict, k, id, param, body)
   | _ ->
       let opt = ref false in
@@ -3725,7 +3732,7 @@ let for_let ~scopes loc param pat body_kind body =
       let catch_ids = pat_bound_idents_full pat in
       let ids_with_kinds =
         List.map
-          (fun (id, _, typ) -> (id, Typeopt.value_kind pat.pat_env typ))
+          (fun (id, _, typ) -> (id, Typeopt.layout pat.pat_env typ))
           catch_ids
       in
       let ids = List.map (fun (id, _, _) -> id) catch_ids in
@@ -3847,6 +3854,7 @@ let do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partia
     and idl = List.map (function
       | Lvar id -> id
       | _ -> Ident.create_local "*match*") paraml in
+    let idl_with_layouts = List.map (fun id -> (id, Lambda.layout_top)) idl in
     let args = List.map (fun id -> (Lvar id, Alias)) idl in
     let flat_next = flatten_precompiled size args next
     and flat_nexts =
@@ -3856,7 +3864,7 @@ let do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partia
       comp_match_handlers value_kind (compile_flattened ~scopes value_kind repr) partial
         (Context.start size) flat_next flat_nexts
     in
-    List.fold_right2 (bind Strict) idl paraml lam, total
+    List.fold_right2 (bind_with_layout Strict) idl_with_layouts paraml lam, total
   )
 
 (* PR#4828: Believe it or not, the 'paraml' argument below
@@ -3870,7 +3878,7 @@ let param_to_var param =
 let bind_opt (v, eo) k =
   match eo with
   | None -> k
-  | Some e -> Lambda.bind Strict v e k
+  | Some e -> Lambda.bind_with_layout Strict (v, Lambda.layout_top) e k
 
 let for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partial =
   let v_paraml = List.map param_to_var paraml in

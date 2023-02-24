@@ -6,10 +6,6 @@ File "w53.ml", line 12, characters 4-5:
 12 | let h x = x [@inline] (* rejected *)
          ^
 Warning 32 [unused-value-declaration]: unused value h.
-File "w53.ml", line 334, characters 2-33:
-334 |   let x : int64 = 42L [@@noalloc] (* rejected *)
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 File "w53.ml", line 12, characters 14-20:
 12 | let h x = x [@inline] (* rejected *)
                    ^^^^^^
@@ -558,6 +554,10 @@ File "w53.ml", line 333, characters 19-26:
 333 |   type s1 = Foo1 [@noalloc] (* rejected *)
                          ^^^^^^^
 Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
+File "w53.ml", line 334, characters 25-32:
+334 |   let x : int64 = 42L [@@noalloc] (* rejected *)
+                               ^^^^^^^
+Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 File "w53.ml", line 336, characters 24-31:
 336 |   external y : (int64 [@noalloc]) -> (int64 [@noalloc]) = "x" (* rejected *)
                               ^^^^^^^
@@ -590,3 +590,55 @@ File "w53.ml", line 352, characters 22-30:
 352 |   let x : int = 42 [@@untagged] (* rejected *)
                             ^^^^^^^^
 Warning 53 [misplaced-attribute]: the "untagged" attribute cannot appear in this context
+File "w53.ml", line 359, characters 21-25:
+359 |   type 'a t1 = 'a [@@poll error] (* rejected *)
+                           ^^^^
+Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
+File "w53.ml", line 360, characters 19-23:
+360 |   type s1 = Foo1 [@poll error] (* rejected *)
+                         ^^^^
+Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
+File "w53.ml", line 361, characters 19-23:
+361 |   val x : int64 [@@poll error] (* rejected *)
+                         ^^^^
+Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
+File "w53.ml", line 363, characters 24-28:
+363 |   external y : (int64 [@poll error]) -> (int64 [@poll error]) = (* rejected *)
+                              ^^^^
+Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
+File "w53.ml", line 363, characters 49-53:
+363 |   external y : (int64 [@poll error]) -> (int64 [@poll error]) = (* rejected *)
+                                                       ^^^^
+Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
+File "w53.ml", line 365, characters 39-43:
+365 |   external z : int64 -> int64 = "x" [@@poll error] (* rejected *)
+                                             ^^^^
+Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
+File "w53.ml", line 369, characters 21-25:
+369 |   type 'a t1 = 'a [@@poll error] (* rejected *)
+                           ^^^^
+Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
+File "w53.ml", line 370, characters 19-23:
+370 |   type s1 = Foo1 [@poll error] (* rejected *)
+                         ^^^^
+Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
+File "w53.ml", line 371, characters 25-29:
+371 |   let x : int64 = 42L [@@poll error] (* rejected *)
+                               ^^^^
+Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
+File "w53.ml", line 374, characters 24-28:
+374 |   external y : (int64 [@poll error]) -> (int64 [@poll error]) =  (* rejected *)
+                              ^^^^
+Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
+File "w53.ml", line 374, characters 49-53:
+374 |   external y : (int64 [@poll error]) -> (int64 [@poll error]) =  (* rejected *)
+                                                       ^^^^
+Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
+File "w53.ml", line 376, characters 39-43:
+376 |   external z : int64 -> int64 = "x" [@@poll error] (* rejected *)
+                                             ^^^^
+Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
+File "w53.ml", line 385, characters 17-26:
+385 |   let f2 = fun [@immediate] (type a) (x : a) -> x (* rejected *)
+                       ^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "immediate" attribute cannot appear in this context

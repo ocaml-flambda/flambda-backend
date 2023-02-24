@@ -78,8 +78,6 @@ type simplify_toplevel =
   return_continuation:Continuation.t ->
   return_arity:Flambda_arity.With_subkinds.t ->
   exn_continuation:Continuation.t ->
-  return_cont_scope:Scope.t ->
-  exn_cont_scope:Scope.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
 type simplify_function_body =
@@ -88,8 +86,6 @@ type simplify_function_body =
   return_continuation:Continuation.t ->
   return_arity:Flambda_arity.With_subkinds.t ->
   exn_continuation:Continuation.t ->
-  return_cont_scope:Scope.t ->
-  exn_cont_scope:Scope.t ->
   loopify_state:Loopify_state.t ->
   params:Bound_parameters.t ->
   implicit_params:Bound_parameters.t ->

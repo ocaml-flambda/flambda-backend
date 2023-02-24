@@ -122,9 +122,9 @@ let get_field env ptr n dbg =
   get_field_gen mut ptr n dbg
 
 type rhs_kind =
-  | RHS_block of int
-  | RHS_infix of { blocksize : int; offset : int }
-  | RHS_floatblock of int
+  | RHS_block of Lambda.alloc_mode * int
+  | RHS_infix of { blocksize : int; offset : int; blockmode: Lambda.alloc_mode }
+  | RHS_floatblock of Lambda.alloc_mode * int
   | RHS_nonrec
 ;;
 
@@ -132,8 +132,12 @@ let rec expr_size env = function
   | Uvar id ->
       begin try V.find_same id env with Not_found -> RHS_nonrec end
   | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
-      RHS_block (fundecls_size functions + List.length not_scanned_slots
-        + List.length scanned_slots)
+      (* should all have the same mode *)
+      let fn_mode = (List.hd functions).mode in
+      List.iter (fun f -> assert (Lambda.eq_mode fn_mode f.mode)) functions;
+      RHS_block (fn_mode,
+                 fundecls_size functions + List.length not_scanned_slots
+                 + List.length scanned_slots)
   | Ulet(_str, _kind, id, exp, body) ->
       expr_size (V.add (VP.var id) (expr_size env exp) env) body
   | Uletrec(bindings, body) ->
@@ -143,24 +147,24 @@ let rec expr_size env = function
           bindings env
       in
       expr_size env body
-  | Uprim(Pmakeblock _, args, _) ->
-      RHS_block (List.length args)
-  | Uprim(Pmakearray((Paddrarray | Pintarray), _, _), args, _) ->
-      RHS_block (List.length args)
-  | Uprim(Pmakearray(Pfloatarray, _, _), args, _) ->
-      RHS_floatblock (List.length args)
-  | Uprim(Pmakearray(Pgenarray, _, _), _, _) ->
+  | Uprim(Pmakeblock (_, _, _, mode), args, _) ->
+      RHS_block (mode, List.length args)
+  | Uprim(Pmakearray((Paddrarray | Pintarray), _, mode), args, _) ->
+      RHS_block (mode, List.length args)
+  | Uprim(Pmakearray(Pfloatarray, _, mode), args, _) ->
+      RHS_floatblock (mode, List.length args)
+  | Uprim(Pmakearray(Pgenarray, _, _mode), _, _) ->
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
      RHS_nonrec
   | Uprim (Pduprecord ((Record_regular | Record_inlined _), sz), _, _) ->
-      RHS_block sz
+      RHS_block (Lambda.alloc_heap, sz)
   | Uprim (Pduprecord (Record_unboxed _, _), _, _) ->
       assert false
   | Uprim (Pduprecord (Record_extension _, sz), _, _) ->
-      RHS_block (sz + 1)
+      RHS_block (Lambda.alloc_heap, sz + 1)
   | Uprim (Pduprecord (Record_float, sz), _, _) ->
-      RHS_floatblock sz
+      RHS_floatblock (Lambda.alloc_heap, sz)
   | Uprim (Pccall { prim_name; _ }, closure::_, _)
         when prim_name = "caml_check_value_is_closure" ->
       (* Used for "-clambda-checks". *)
@@ -169,7 +173,8 @@ let rec expr_size env = function
       expr_size env exp'
   | Uoffset (exp, offset) ->
       (match expr_size env exp with
-      | RHS_block blocksize -> RHS_infix { blocksize; offset }
+      | RHS_block (blockmode, blocksize) ->
+         RHS_infix { blocksize; offset; blockmode }
       | RHS_nonrec -> RHS_nonrec
       | _ -> assert false)
   | Uregion exp ->
@@ -401,13 +406,18 @@ let rec transl env e =
             let dbg = f.dbg in
             let without_header =
               match f.arity with
-              | Curried _, (1|0) as arity ->
+              | { function_kind = Curried _ ; params_layout = ([] | [_]) } as arity ->
                 Cconst_symbol (f.label, dbg) ::
                 alloc_closure_info ~arity
                                    ~startenv:(startenv - pos) ~is_last dbg ::
                 transl_fundecls (pos + 3) rem
               | arity ->
-                Cconst_symbol (curry_function_sym f.arity, dbg) ::
+                Cconst_symbol
+                  (curry_function_sym
+                     arity.function_kind
+                     (List.map machtype_of_layout arity.params_layout)
+                     (machtype_of_layout arity.return_layout),
+                   dbg) ::
                 alloc_closure_info ~arity
                                    ~startenv:(startenv - pos) ~is_last dbg ::
                 Cconst_symbol (f.label, dbg) ::
@@ -428,22 +438,26 @@ let rec transl env e =
       let ptr = transl env arg in
       let dbg = Debuginfo.none in
       ptr_offset ptr offset dbg
-  | Udirect_apply(handler_code_sym, args, Some { name; }, _, dbg) ->
+  | Udirect_apply(handler_code_sym, args, Some { name; }, _, _, dbg) ->
       let args = List.map (transl env) args in
       return_unit dbg
         (Cop(Cprobe { name; handler_code_sym; }, args, dbg))
-  | Udirect_apply(lbl, args, None, kind, dbg) ->
+  | Udirect_apply(lbl, args, None, result_layout, kind, dbg) ->
       let args = List.map (transl env) args in
-      direct_apply lbl args kind dbg
-  | Ugeneric_apply(clos, args, kind, dbg) ->
+      direct_apply lbl (machtype_of_layout result_layout) args kind dbg
+  | Ugeneric_apply(clos, args, args_layout, result_layout, kind, dbg) ->
       let clos = transl env clos in
       let args = List.map (transl env) args in
-      generic_apply (mut_from_env env clos) clos args kind dbg
-  | Usend(kind, met, obj, args, pos, dbg) ->
+      let args_type = List.map machtype_of_layout args_layout in
+      let return = machtype_of_layout result_layout in
+      generic_apply (mut_from_env env clos) clos args args_type return kind dbg
+  | Usend(kind, met, obj, args, args_layout, result_layout, pos, dbg) ->
       let met = transl env met in
       let obj = transl env obj in
       let args = List.map (transl env) args in
-      send kind met obj args pos dbg
+      let args_type = List.map machtype_of_layout args_layout in
+      let return = machtype_of_layout result_layout in
+      send kind met obj args args_type return pos dbg
   | Ulet(str, kind, id, exp, body) ->
       transl_let env str kind id exp (fun env -> transl env body)
   | Uphantom_let (var, defining_expr, body) ->
@@ -596,27 +610,27 @@ let rec transl env e =
           (untag_int (transl env arg) dbg)
           s.us_index_consts
           (Array.map (fun expr -> transl env expr, dbg) s.us_actions_consts)
-          dbg (Vval kind)
+          dbg (kind_of_layout kind)
       else if Array.length s.us_index_consts = 0 then
         bind "switch" (transl env arg) (fun arg ->
-          transl_switch dbg (Vval kind) env (get_tag arg dbg)
+          transl_switch dbg (kind_of_layout kind) env (get_tag arg dbg)
             s.us_index_blocks s.us_actions_blocks)
       else
         bind "switch" (transl env arg) (fun arg ->
           Cifthenelse(
           Cop(Cand, [arg; Cconst_int (1, dbg)], dbg),
           dbg,
-          transl_switch dbg (Vval kind) env
+          transl_switch dbg (kind_of_layout kind) env
             (untag_int arg dbg) s.us_index_consts s.us_actions_consts,
           dbg,
-          transl_switch dbg (Vval kind) env
+          transl_switch dbg (kind_of_layout kind) env
             (get_tag arg dbg) s.us_index_blocks s.us_actions_blocks,
-          dbg, Vval kind))
+          dbg, kind_of_layout kind))
   | Ustringswitch(arg,sw,d, kind) ->
       let dbg = Debuginfo.none in
       bind "switch" (transl env arg)
         (fun arg ->
-          strmatch_compile dbg (Vval kind) arg (Option.map (transl env) d)
+          strmatch_compile dbg (kind_of_layout kind) arg (Option.map (transl env) d)
             (List.map (fun (s,act) -> s,transl env act) sw))
   | Ustaticfail (nfail, args) ->
       let cargs = List.map (transl env) args in
@@ -624,13 +638,13 @@ let rec transl env e =
       Cexit (nfail, cargs)
   | Ucatch(nfail, [], body, handler, kind) ->
       let dbg = Debuginfo.none in
-      make_catch (Vval kind) nfail (transl env body) (transl env handler) dbg
+      make_catch (kind_of_layout kind) nfail (transl env body) (transl env handler) dbg
   | Ucatch(nfail, ids, body, handler, kind) ->
       let dbg = Debuginfo.none in
-      transl_catch (Vval kind) env nfail ids body handler dbg
+      transl_catch (kind_of_layout kind) env nfail ids body handler dbg
   | Utrywith(body, exn, handler, kind) ->
       let dbg = Debuginfo.none in
-      Ctrywith(transl env body, exn, transl env handler, dbg, Vval kind)
+      Ctrywith(transl env body, exn, transl env handler, dbg, kind_of_layout kind)
   | Uifthenelse(cond, ifso, ifnot, kind) ->
       let ifso_dbg = Debuginfo.none in
       let ifnot_dbg = Debuginfo.none in
@@ -643,7 +657,7 @@ let rec transl env e =
         | Cconst_int (3, _), Cconst_int (1, _) -> Then_true_else_false
         | _, _ -> Unknown
       in
-      transl_if env (Vval kind) approx dbg cond
+      transl_if env (kind_of_layout kind) approx dbg cond
         ifso_dbg ifso ifnot_dbg ifnot
   | Usequence(exp1, exp2) ->
       Csequence(remove_unit(transl env exp1), transl env exp2)
@@ -717,7 +731,7 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
      each argument.  *)
   let report args =
     List.iter2
-      (fun (_id, kind, u) c ->
+      (fun (_id, Pvalue kind, u) c ->
          let strict =
            match kind with
            | Pfloatval | Pboxedintval _ -> false
@@ -1167,7 +1181,7 @@ and transl_unbox_sized size dbg env exp =
   | Thirty_two -> transl_unbox_int dbg env Pint32 exp
   | Sixty_four -> transl_unbox_int dbg env Pint64 exp
 
-and transl_let env str (kind : Lambda.value_kind) id exp transl_body =
+and transl_let env str (Pvalue kind : Lambda.layout) id exp transl_body =
   let dbg = Debuginfo.none in
   let cexp = transl env exp in
   let unboxing =
@@ -1379,14 +1393,19 @@ and transl_letrec env bindings cont =
     Cop(Cextcall(prim, typ_val, [], true), args, dbg) in
   let rec init_blocks = function
     | [] -> fill_nonrec bsz
-    | (id, _exp, RHS_block sz) :: rem ->
+    | (_, _,
+       (RHS_block (Alloc_local, _) |
+        RHS_infix {blockmode=Alloc_local; _} |
+        RHS_floatblock (Alloc_local, _))) :: _ ->
+      Misc.fatal_error "Invalid stack allocation found"
+    | (id, _exp, RHS_block (Alloc_heap, sz)) :: rem ->
         Clet(id, op_alloc "caml_alloc_dummy" [int_const dbg sz],
           init_blocks rem)
-    | (id, _exp, RHS_infix { blocksize; offset}) :: rem ->
+    | (id, _exp, RHS_infix { blocksize; offset; blockmode=Alloc_heap }) :: rem ->
         Clet(id, op_alloc "caml_alloc_dummy_infix"
              [int_const dbg blocksize; int_const dbg offset],
              init_blocks rem)
-    | (id, _exp, RHS_floatblock sz) :: rem ->
+    | (id, _exp, RHS_floatblock (Alloc_heap, sz)) :: rem ->
         Clet(id, op_alloc "caml_alloc_dummy_float" [int_const dbg sz],
           init_blocks rem)
     | (id, _exp, RHS_nonrec) :: rem ->
@@ -1425,8 +1444,15 @@ let transl_function f =
     else
       [ Reduce_code_size ]
   in
+  let params_layout =
+    if List.length f.params = List.length f.arity.params_layout then
+      f.arity.params_layout
+    else
+      f.arity.params_layout @ [Lambda.layout_function]
+  in
   Cfunction {fun_name = f.label;
-             fun_args = List.map (fun (id, _) -> (id, typ_val)) f.params;
+             fun_args = List.map2 (fun id ty -> (id, machtype_of_layout ty))
+                 f.params params_layout;
              fun_body = cmm_body;
              fun_codegen_options;
              fun_poll = f.poll;

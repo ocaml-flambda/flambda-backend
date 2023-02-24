@@ -36,6 +36,8 @@ let allow_long_frames = ref true        (* -no-long-frames *)
 let max_long_frames_threshold = 0x7FFF
 let long_frames_threshold = ref max_long_frames_threshold (* -debug-long-frames-threshold n *)
 
+let caml_apply_inline_fast_path = ref false  (* -caml-apply-inline-fast-path *)
+
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
@@ -45,6 +47,8 @@ let dump_inlining_paths = ref false
 let opt_level = ref Default
 
 let internal_assembler = ref false
+
+let gc_timings = ref false
 
 let flags_by_opt_level ~opt_level ~default ~oclassic ~o2 ~o3 =
   match opt_level with

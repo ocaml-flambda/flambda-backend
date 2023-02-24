@@ -18,6 +18,22 @@
 (** Environment for Flambda to Cmm translation *)
 type t
 
+(** Free names for cmm expressions *)
+type free_vars = Backend_var.Set.t
+
+(** A cmm expression along with extra information *)
+type expr_with_info =
+  { cmm : Cmm.expression;
+    effs : Effects_and_coeffects.t;
+    free_vars : free_vars
+  }
+
+type translation_result =
+  { env : t;
+    res : To_cmm_result.t;
+    expr : expr_with_info
+  }
+
 (** Printing function *)
 val print : Format.formatter -> t -> unit
 
@@ -184,7 +200,7 @@ type _ inline =
 type _ bound_expr
 
 (** A simple cmm bound expression *)
-val simple : Cmm.expression -> simple bound_expr
+val simple : Cmm.expression -> free_vars -> simple bound_expr
 
 (** A bound expr that can be split if needed. This is used for primitives that
     must be inlined, but whose arguments may not be inlinable or duplicable, so
@@ -194,7 +210,7 @@ val simple : Cmm.expression -> simple bound_expr
 val splittable_primitive :
   Debuginfo.t ->
   Flambda_primitive.Without_args.t ->
-  (Cmm.expression * Effects_and_coeffects.t) list ->
+  expr_with_info list ->
   complex bound_expr
 
 (** Bind a variable, with support for splitting duplicatable primitives with
@@ -217,8 +233,17 @@ val bind_variable :
   To_cmm_result.t ->
   Variable.t ->
   defining_expr:Cmm.expression ->
+  free_vars_of_defining_expr:free_vars ->
   num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
   effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
+  t * To_cmm_result.t
+
+val add_alias :
+  t ->
+  To_cmm_result.t ->
+  var:Variable.t ->
+  alias_of:Variable.t ->
+  num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
   t * To_cmm_result.t
 
 (** Try and inline an Flambda variable using the delayed let-bindings. *)
@@ -227,7 +252,7 @@ val inline_variable :
   t ->
   To_cmm_result.t ->
   Variable.t ->
-  Cmm.expression * t * To_cmm_result.t * Effects_and_coeffects.t
+  translation_result
 
 type flush_mode =
   | Entering_loop
@@ -240,7 +265,9 @@ val flush_delayed_lets :
   mode:flush_mode ->
   t ->
   To_cmm_result.t ->
-  (Cmm.expression -> Cmm.expression) * t * To_cmm_result.t
+  (Cmm.expression -> free_vars -> Cmm.expression * free_vars)
+  * t
+  * To_cmm_result.t
 
 (** Fetch the extra info for a Flambda variable (if any), specified as a
     [Simple]. *)

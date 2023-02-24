@@ -17,7 +17,8 @@
 (* Unlike most of the rest of Flambda 2, this file depends on ocamloptcomp,
    meaning it can call [Compilenv]. *)
 
-let get_module_info comp_unit ~cmx_name =
+let get_module_info comp_unit =
+  let cmx_name = Compilation_unit.name comp_unit in
   (* Typing information for predefined exceptions should be populated directly
      by the callee. *)
   if Compilation_unit.Name.equal cmx_name Compilation_unit.Name.predef_exn
@@ -30,7 +31,7 @@ let get_module_info comp_unit ~cmx_name =
        |> Compilation_unit.name)
   then None
   else
-    match Compilenv.get_unit_export_info comp_unit ~cmx_name with
+    match Compilenv.get_unit_export_info comp_unit with
     | None | Some (Flambda2 None) -> None
     | Some (Flambda2 (Some info)) -> Some info
     | Some (Clambda _) ->
@@ -84,8 +85,11 @@ let output_flexpect ~ml_filename ~raw_flambda:old_unit new_unit =
         Print_fexpr.expect_test_spec ppf test;
         Format.pp_print_flush ppf ())
 
-let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~compilation_unit
-    ~module_block_size_in_words ~module_initializer ~keep_symbol_tables =
+let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~keep_symbol_tables
+    (program : Lambda.program) =
+  let compilation_unit = program.compilation_unit in
+  let module_block_size_in_words = program.main_module_block_size in
+  let module_initializer = program.code in
   (* Make sure -linscan is enabled in classic mode. Doing this here to be sure
      it happens exactly when -Oclassic is in effect, which we don't know at CLI
      processing time because there may be an [@@@flambda_oclassic] or

@@ -228,6 +228,7 @@
   cfg_dataflow
   cfg_deadcode
   cfg_liveness
+  cfg_loop_infos
   cfg_regalloc_utils
   cfg_regalloc_validate
   cfg_to_linear_desc
@@ -275,7 +276,8 @@
   flambda2_identifiers
   flambda2_cmx
   dwarf_ocaml
-  compiler_owee))
+  compiler_owee
+  gc_timings))
 
 (library
  (name flambda_backend_common)
@@ -404,6 +406,7 @@
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.a}
    %{dep:middle_end/flambda2/parser/flambda2_parser.a}
    %{dep:external/owee/compiler_owee.a}
+   %{dep:external/gc-timings/gc_timings.a}
    %{dep:ocamloptcomp.a}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.a}
    %{dep:middle_end/flambda2/flambda2.a})))
@@ -440,6 +443,7 @@
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cma}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cma}
    %{dep:external/owee/compiler_owee.cma}
+   %{dep:external/gc-timings/gc_timings.cma}
    %{dep:ocamloptcomp.cma}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cma}
    %{dep:middle_end/flambda2/flambda2.cma})))
@@ -476,6 +480,7 @@
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cmxa}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cmxa}
    %{dep:external/owee/compiler_owee.cmxa}
+   %{dep:external/gc-timings/gc_timings.cmxa}
    %{dep:ocamloptcomp.cmxa}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cmxa}
    %{dep:middle_end/flambda2/flambda2.cmxa})))
@@ -495,6 +500,13 @@
   (external/owee/libcompiler_owee_stubs.a
    as
    compiler-libs/libcompiler_owee_stubs_native.a)
+  (external/gc-timings/libgc_timings_stubs.a
+   as
+   compiler-libs/libgc_timings_stubs.a)
+  (external/gc-timings/libgc_timings_stubs.a
+   as
+   compiler-libs/libgc_timings_stubs_native.a)
+
   ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
@@ -752,6 +764,7 @@
   (cfg_dataflow.mli as compiler-libs/cfg_dataflow.mli)
   (cfg_deadcode.mli as compiler-libs/cfg_deadcode.mli)
   (cfg_liveness.mli as compiler-libs/cfg_liveness.mli)
+  (cfg_loop_infos.mli as compiler-libs/cfg_loop_infos.mli)
   (cfg_regalloc_utils.mli as compiler-libs/cfg_regalloc_utils.mli)
   (cfg_regalloc_validate.mli as compiler-libs/cfg_regalloc_validate.mli)
   (cfg_to_linear_desc.mli as compiler-libs/cfg_to_linear_desc.mli)
@@ -777,7 +790,6 @@
   (trap_stack.mli as compiler-libs/trap_stack.mli)
   (cfg_equivalence.mli as compiler-libs/cfg_equivalence.mli)
   (ocaml/extensions.mli as compiler-libs/extensions.mli)
-  (ocaml/translcomprehension.mli as compiler-libs/translcomprehension.mli)
   (.ocamloptcomp.objs/byte/linear_format.cmi
    as
    compiler-libs/linear_format.cmi)
@@ -1229,6 +1241,18 @@
   (.ocamloptcomp.objs/byte/cfg_liveness.cmti
    as
    compiler-libs/cfg_liveness.cmti)
+  (.ocamloptcomp.objs/byte/cfg_loop_infos.cmi
+   as
+   compiler-libs/cfg_loop_infos.cmi)
+  (.ocamloptcomp.objs/byte/cfg_loop_infos.cmo
+   as
+   compiler-libs/cfg_loop_infos.cmo)
+  (.ocamloptcomp.objs/byte/cfg_loop_infos.cmt
+   as
+   compiler-libs/cfg_loop_infos.cmt)
+  (.ocamloptcomp.objs/byte/cfg_loop_infos.cmti
+   as
+   compiler-libs/cfg_loop_infos.cmti)
   (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmi
    as
    compiler-libs/cfg_regalloc_utils.cmi)
@@ -1549,6 +1573,9 @@
   (.ocamloptcomp.objs/native/cfg_liveness.cmx
    as
    compiler-libs/cfg_liveness.cmx)
+  (.ocamloptcomp.objs/native/cfg_loop_infos.cmx
+   as
+   compiler-libs/cfg_loop_infos.cmx)
   (.ocamloptcomp.objs/native/cfg_regalloc_utils.cmx
    as
    compiler-libs/cfg_regalloc_utils.cmx)
@@ -3615,4 +3642,13 @@
    compiler_owee__Owee_form.cmti)
   (external/owee/.compiler_owee.objs/byte/compiler_owee.cmt
    as
-   compiler_owee.cmt)))
+   compiler_owee.cmt)
+ (external/gc-timings/.gc_timings.objs/byte/gc_timings.cmti
+   as
+   gc_timings.cmti)
+ (external/gc-timings/.gc_timings.objs/byte/gc_timings.cmi
+   as
+   gc_timings.cmi)
+ (external/gc-timings/.gc_timings.objs/native/gc_timings.cmx
+   as
+   gc_timings.cmx)))

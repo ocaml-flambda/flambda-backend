@@ -651,10 +651,6 @@ let bind_let_conts uacc ~body new_handlers =
 let rebuild_invalid uacc reason ~after_rebuild =
   after_rebuild (RE.create_invalid reason) uacc
 
-type rewrite_apply_cont_ctx =
-  | Apply_cont
-  | Apply_expr of Simple.t list
-
 type rewrite_apply_cont_result =
   | Apply_cont of Apply_cont.t
   | Expr of
@@ -667,84 +663,7 @@ let no_rewrite_apply_cont apply_cont = Apply_cont apply_cont
 let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
     rewrite_apply_cont_result =
   let args = Apply_cont.args apply_cont in
-  let original_params' = Apply_cont_rewrite.original_params rewrite in
-  let original_params = Bound_parameters.to_list original_params' in
-  if List.compare_lengths args original_params <> 0
-  then
-    Misc.fatal_errorf
-      "Arguments to this [Apply_cont]@ (%a)@ do not match@ [original_params] \
-       (%a):@ %a"
-      Apply_cont.print apply_cont Bound_parameters.print original_params'
-      Simple.List.print args;
-  let original_params_with_args = List.combine original_params args in
-  let args =
-    let used_params = Apply_cont_rewrite.used_params rewrite in
-    List.filter_map
-      (fun (original_param, arg) ->
-        if BP.Set.mem original_param used_params then Some arg else None)
-      original_params_with_args
-  in
-  let extra_args_list = Apply_cont_rewrite.extra_args rewrite id in
-  let extra_args_rev, extra_lets, _ =
-    List.fold_left
-      (fun (extra_args_rev, extra_lets, required_by_other_extra_args)
-           ( (arg : Continuation_extra_params_and_args.Extra_arg.t),
-             (used : Apply_cont_rewrite.used) ) ->
-        (* Some extra_args computation can depend on other extra args. But those
-           required extra args might not be needed as argument to the
-           continuation. But we want to keep the let bindings.
-           [required_by_other_extra_args] tracks that dependency. It is the set
-           of free variables of [extra_args_rev] *)
-        let extra_arg, extra_let, free_names =
-          match arg with
-          | Already_in_scope simple -> simple, [], Simple.free_names simple
-          | New_let_binding (temp, prim) ->
-            let extra_let =
-              ( Bound_var.create temp Name_mode.normal,
-                Code_size.prim prim,
-                Named.create_prim prim Debuginfo.none )
-            in
-            Simple.var temp, [extra_let], Flambda_primitive.free_names prim
-          | New_let_binding_with_named_args (temp, gen_prim) ->
-            let prim =
-              match (ctx : rewrite_apply_cont_ctx) with
-              | Apply_expr function_return_values ->
-                gen_prim function_return_values
-              | Apply_cont ->
-                Misc.fatal_errorf
-                  "Apply_cont rewrites should not need to name arguments, \
-                   since they are already named."
-            in
-            let extra_let =
-              ( Bound_var.create temp Name_mode.normal,
-                Code_size.prim prim,
-                Named.create_prim prim Debuginfo.none )
-            in
-            Simple.var temp, [extra_let], Flambda_primitive.free_names prim
-        in
-        let extra_args_rev =
-          match used with
-          | Used -> extra_arg :: extra_args_rev
-          | Unused -> extra_args_rev
-        in
-        let required_let =
-          match used with
-          | Used -> true
-          | Unused ->
-            let defined_names = Simple.free_names extra_arg in
-            Name_occurrences.inter_domain_is_non_empty defined_names
-              required_by_other_extra_args
-        in
-        if required_let
-        then
-          ( extra_args_rev,
-            extra_let @ extra_lets,
-            Name_occurrences.union free_names required_by_other_extra_args )
-        else extra_args_rev, extra_lets, required_by_other_extra_args)
-      ([], [], Name_occurrences.empty)
-      extra_args_list
-  in
-  let args = args @ List.rev extra_args_rev in
+  let extra_lets, args = Apply_cont_rewrite.make_rewrite rewrite ~ctx id args in
   let apply_cont = Apply_cont.update_args apply_cont ~args in
   match extra_lets with
   | [] -> Apply_cont apply_cont
@@ -762,68 +681,6 @@ let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
 let rewrite_apply_cont uacc rewrite id apply_cont =
   rewrite_apply_cont0 uacc rewrite ~ctx:Apply_cont id apply_cont
 
-let rewrite_exn_continuation rewrite id exn_cont =
-  let exn_cont_arity = Exn_continuation.arity exn_cont in
-  let original_params' = Apply_cont_rewrite.original_params rewrite in
-  let original_params = Bound_parameters.to_list original_params' in
-  let original_params_arity =
-    Bound_parameters.arity_with_subkinds original_params'
-  in
-  if not
-       (Flambda_arity.With_subkinds.equal exn_cont_arity original_params_arity)
-  then
-    Misc.fatal_errorf
-      "Arity of exception continuation %a does not match@ [original_params] \
-       (%a)"
-      Exn_continuation.print exn_cont Bound_parameters.print original_params';
-  assert (Flambda_arity.With_subkinds.cardinal exn_cont_arity >= 1);
-  let pre_existing_extra_params_with_args =
-    List.combine (List.tl original_params)
-      (Exn_continuation.extra_args exn_cont)
-  in
-  let extra_args0 =
-    let used_params = Apply_cont_rewrite.used_params rewrite in
-    List.filter_map
-      (fun (pre_existing_extra_param, arg) ->
-        if BP.Set.mem pre_existing_extra_param used_params
-        then Some arg
-        else None)
-      pre_existing_extra_params_with_args
-  in
-  let extra_args1 =
-    let extra_args_list =
-      List.filter_map
-        (fun ( (arg : Continuation_extra_params_and_args.Extra_arg.t),
-               (used : Apply_cont_rewrite.used) ) ->
-          match used, arg with
-          | Used, Already_in_scope simple -> Some simple
-          | Unused, Already_in_scope _ -> None
-          | ( (Used | Unused),
-              (New_let_binding _ | New_let_binding_with_named_args _) ) ->
-            (* CR gbury: is there a reason not to allow [New_let_bindings] ?
-               Currently new let bindings are only generated during unboxing,
-               and we happen to not unbox parameters of exn continuations, but
-               there's no reason why we could not. In such a case, we'd need to
-               add some let bindings and/or a wrapper continuation, the same way
-               as how it's done in the "regular" continuation case. *)
-            Misc.fatal_error
-              "[New_let_binding] are currently forbidden for exn continuation \
-               rewrites")
-        (Apply_cont_rewrite.extra_args rewrite id)
-    in
-    let used_extra_params =
-      Apply_cont_rewrite.used_extra_params rewrite |> Bound_parameters.to_list
-    in
-    assert (List.compare_lengths used_extra_params extra_args_list = 0);
-    List.map2
-      (fun param arg -> arg, BP.kind param)
-      used_extra_params extra_args_list
-  in
-  let extra_args = extra_args0 @ extra_args1 in
-  Exn_continuation.create
-    ~exn_handler:(Exn_continuation.exn_handler exn_cont)
-    ~extra_args
-
 type rewrite_fixed_arity_continuation0_result =
   | This_continuation of Continuation.t
   | Apply_cont of Apply_cont.t
@@ -832,6 +689,8 @@ type rewrite_fixed_arity_continuation0_result =
 type cont_or_apply_cont =
   | Continuation of Continuation.t
   | Apply_cont of Apply_cont.t
+
+let rewrite_exn_continuation = Apply_cont_rewrite.rewrite_exn_continuation
 
 let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
     rewrite_fixed_arity_continuation0_result =
@@ -893,7 +752,7 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
       let args = List.map BP.simple params in
       let params = Bound_parameters.create params in
       let apply_cont = Apply_cont.create cont ~args ~dbg:Debuginfo.none in
-      let ctx = Apply_expr args in
+      let ctx : Apply_cont_rewrite.rewrite_apply_cont_ctx = Apply_expr args in
       match rewrite_apply_cont0 uacc rewrite use_id ~ctx apply_cont with
       | Apply_cont apply_cont ->
         let cost_metrics =

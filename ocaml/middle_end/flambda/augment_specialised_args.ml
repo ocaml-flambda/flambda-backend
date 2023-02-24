@@ -22,8 +22,8 @@ module B = Inlining_cost.Benefit
 
 module Definition = struct
   type t =
-    | Existing_inner_free_var of Variable.t * Lambda.value_kind
-    | Projection_from_existing_specialised_arg of Projection.t * Lambda.value_kind
+    | Existing_inner_free_var of Variable.t * Lambda.layout
+    | Projection_from_existing_specialised_arg of Projection.t * Lambda.layout
 
   include Identifiable.Make (struct
     type nonrec t = t
@@ -48,10 +48,10 @@ module Definition = struct
       match t with
       | Existing_inner_free_var (var, kind) ->
         Format.fprintf ppf "Existing_inner_free_var (%a, %a)"
-          Variable.print var Printlambda.value_kind kind
+          Variable.print var Printlambda.layout kind
       | Projection_from_existing_specialised_arg (projection, kind) ->
         Format.fprintf ppf "Projection_from_existing_specialised_arg (%a, %a)"
-          Projection.print projection Printlambda.value_kind kind
+          Projection.print projection Printlambda.layout kind
 
     let output _ _ = failwith "Definition.output not yet implemented"
   end)
@@ -470,6 +470,7 @@ module Make (T : S) = struct
           args =
             (Parameter.List.vars wrapper_params) @
             spec_args_bound_in_the_wrapper;
+          result_layout = function_decl.return_layout;
           kind = Direct (Closure_id.wrap new_fun_var);
           dbg = Debuginfo.none;
           reg_close = Rc_normal;
@@ -544,6 +545,7 @@ module Make (T : S) = struct
     let new_function_decl =
       Flambda.create_function_declaration
         ~params:wrapper_params
+        ~return_layout:function_decl.return_layout
         ~alloc_mode
         ~region:function_decl.region
         ~body:wrapper_body
@@ -651,6 +653,7 @@ module Make (T : S) = struct
       let rewritten_function_decl =
         Flambda.create_function_declaration
           ~params:all_params
+          ~return_layout:function_decl.return_layout
           ~alloc_mode:function_decl.alloc_mode
           ~region:function_decl.region
           ~body:function_decl.body

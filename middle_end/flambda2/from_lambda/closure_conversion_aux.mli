@@ -23,7 +23,7 @@ module IR : sig
 
   type exn_continuation =
     { exn_handler : Continuation.t;
-      extra_args : (simple * Lambda.value_kind) list
+      extra_args : (simple * Flambda_kind.With_subkind.t) list
     }
 
   type trap_action =
@@ -67,7 +67,8 @@ module IR : sig
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
-      region : Ident.t
+      region : Ident.t;
+      return : Flambda_kind.With_subkind.t
     }
 
   type switch =
@@ -290,8 +291,8 @@ module Function_decls : sig
       let_rec_ident:Ident.t option ->
       function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
-      params:(Ident.t * Lambda.value_kind) list ->
-      return:Lambda.value_kind ->
+      params:(Ident.t * Flambda_kind.With_subkind.t) list ->
+      return:Flambda_kind.With_subkind.t ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
       my_region:Ident.t ->
@@ -311,9 +312,9 @@ module Function_decls : sig
 
     val kind : t -> Lambda.function_kind
 
-    val params : t -> (Ident.t * Lambda.value_kind) list
+    val params : t -> (Ident.t * Flambda_kind.With_subkind.t) list
 
-    val return : t -> Lambda.value_kind
+    val return : t -> Flambda_kind.With_subkind.t
 
     val return_continuation : t -> Continuation.t
 
@@ -399,6 +400,7 @@ end
 module Let_cont_with_acc : sig
   val build_recursive :
     Acc.t ->
+    invariant_params:Bound_parameters.t ->
     handlers:
       ((Acc.t -> Expr_with_acc.t) * Bound_parameters.t * bool)
       Continuation.Map.t ->

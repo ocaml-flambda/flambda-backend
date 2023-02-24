@@ -354,7 +354,9 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   let name_list =
     List.flatten (List.map (fun u -> u.defines) units) in
   compile_phrase (Cmm_helpers.entry_point name_list);
-  List.iter compile_phrase (Cmm_helpers.generic_functions false genfns);
+  List.iter compile_phrase
+    (Cmm_helpers.emit_preallocated_blocks []
+      (Cmm_helpers.generic_functions false genfns));
   Array.iteri
     (fun i name -> compile_phrase (Cmm_helpers.predef_exception i name))
     Runtimedef.builtin_exceptions;
@@ -393,7 +395,8 @@ let make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
     sourcefile_for_dwarf;
   Emit.begin_assembly unix;
   List.iter compile_phrase
-    (Cmm_helpers.generic_functions true genfns);
+    (Cmm_helpers.emit_preallocated_blocks []
+      (Cmm_helpers.generic_functions true genfns));
   let dynunits = List.map (fun u -> Option.get u.dynunit) units in
   compile_phrase (Cmm_helpers.plugin_header dynunits);
   compile_phrase

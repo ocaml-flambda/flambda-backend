@@ -201,7 +201,7 @@ let inline env r ~lhs_of_application
       Inlining_transforms.inline_by_copying_function_body ~env
         ~r:(R.reset_benefit r) ~lhs_of_application
         ~closure_id_being_applied ~specialise_requested ~inlined_requested
-        ~probe_requested
+        ~probe_requested ~free_vars:value_set_of_closures.A.free_vars
         ~function_decl ~function_body ~fun_vars ~args ~dbg ~reg_close ~mode ~simplify
     in
     let num_direct_applications_seen =
@@ -490,7 +490,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
       ~(function_decl : A.function_declaration)
       ~(value_set_of_closures : A.value_set_of_closures)
       ~args ~args_approxs ~dbg ~reg_close ~mode ~simplify ~inlined_requested
-      ~specialise_requested ~probe_requested =
+      ~specialise_requested ~probe_requested ~result_layout =
   if List.length args <> List.length args_approxs then begin
     Misc.fatal_error "Inlining_decision.for_call_site: inconsistent lengths \
         of [args] and [args_approxs]"
@@ -514,6 +514,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
     Flambda.Apply {
       func = lhs_of_application;
       args;
+      result_layout;
       kind = Direct closure_id_being_applied;
       dbg;
       reg_close;
@@ -536,7 +537,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
         Inlining_transforms.inline_by_copying_function_body ~env
           ~r ~fun_vars ~lhs_of_application
           ~closure_id_being_applied ~specialise_requested ~inlined_requested
-          ~probe_requested
+          ~probe_requested ~free_vars:value_set_of_closures.free_vars
           ~function_decl ~function_body ~args ~dbg ~reg_close ~mode ~simplify
       in
       simplify env r body
@@ -575,7 +576,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
               Inlining_transforms.inline_by_copying_function_body ~env
                 ~r ~function_body ~lhs_of_application
                 ~closure_id_being_applied ~specialise_requested
-                ~probe_requested
+                ~probe_requested ~free_vars:value_set_of_closures.free_vars
                 ~inlined_requested ~function_decl ~fun_vars ~args
                 ~dbg ~reg_close ~mode ~simplify
             in

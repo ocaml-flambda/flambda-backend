@@ -724,6 +724,21 @@ val char_of_int : int -> char
    outside the range 0--255. *)
 
 
+(** {1 Array operations}
+
+   More array operations are provided in modules {!Array} and {!Iarray}.
+*)
+
+external ( .:() ) : 'a iarray -> int -> 'a = "%array_safe_get"
+(** [a.:(n)] returns the element number [n] of immutable array [a].
+   The first element has number 0.
+   The last element has number [length a - 1].
+   You can also write [a.:(n)] instead of [get a n].
+
+   @raise Invalid_argument
+   if [n] is outside the range 0 to [(length a - 1)]. *)
+
+
 (** {1 Unit operations} *)
 
 external ignore : 'a -> unit = "%ignore"
@@ -1421,6 +1436,8 @@ module Genlex       = Genlex
 [@@deprecated "Use the camlp-streams library instead."]
 module Hashtbl      = Hashtbl
 module In_channel   = In_channel
+module Iarray       = Iarray
+module IarrayLabels = IarrayLabels
 module Int          = Int
 module Int32        = Int32
 module Int64        = Int64

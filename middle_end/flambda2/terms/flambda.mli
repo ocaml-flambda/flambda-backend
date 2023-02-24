@@ -14,46 +14,57 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** The grammar of the Flambda 2 term language, represented up to
-    alpha-conversion of bound variables and continuations.
+(** The grammar of the Flambda 2 term language.
 
-    The basic structure of the language ensures that: - every intermediate value
-    (and in particular every potential constant that we may want to lift) has a
-    name;
+    The language is in double-barrelled continuation-passing style (CPS).
+    Continuations, used for normal and exceptional control flow, are second
+    class.  Unlike some CPS-based representations there is a conventional
+    "let"-binding construct; this is structured in A-normal form (ANF).  Terms
+    are represented up to alpha-conversion of bound variables and continuations.
+
+    The basic structure of the language ensures that:
+
+    - every intermediate value (and in particular every potential value that we
+    may want to statically allocate) has a name;
 
     - every point to which we might wish to jump has a name;
 
     - there are no nested "let"s or subexpressions;
 
     - no re-normalisation of terms is required when substituting an application
-    for an inlined body (unlike in ANF form). *)
-
-module Apply = Apply_expr
-module Apply_cont = Apply_cont_expr
-module Switch = Switch_expr
+    for an inlined body (unlike in conventional ANF forms). *)
 
 (** Modules may be found further down the file giving operations on the abstract
-    types that follow. *)
+    types that follow.  The types for some parts of terms (e.g. Apply_expr) are
+    defined in their own files. *)
 
 type expr
 
-and expr_descr = private
+type let_expr
+
+type non_recursive_let_cont_handler
+
+type recursive_let_cont_handlers
+
+type function_params_and_body
+
+type static_const_group
+
+type expr_descr = private
   | Let of let_expr
-      (** Bind variable(s) or symbol(s). There can be no effect on control flow
-          (save for asynchronous operations such as the invocation of finalisers
-          or signal handlers as a result of reaching a safe point). *)
+      (** Bind variable(s), symbol(s) and/or code ID(s). The defining expression
+          (the part after the "=", as in "let x = defining_expr in body")
+          never has any effect on control flow. *)
   | Let_cont of let_cont_expr  (** Define one or more continuations. *)
-  | Apply of Apply.t
+  | Apply of Apply_expr.t
       (** Call an OCaml function, external function or method. *)
-  | Apply_cont of Apply_cont.t
+  | Apply_cont of Apply_cont_expr.t
       (** Call a continuation, optionally adding or removing exception trap
           frames from the stack, which thus allows for the raising of
           exceptions. *)
-  | Switch of Switch.t  (** Conditional control flow. *)
+  | Switch of Switch_expr.t  (** Conditional control flow. *)
   | Invalid of { message : string }
       (** Code proved type-incorrect and therefore unreachable. *)
-
-and let_expr
 
 (** The defining expressions of [Let]-bindings. *)
 and named = private
@@ -84,30 +95,22 @@ and let_cont_expr = private
       }
   | Recursive of recursive_let_cont_handlers
 
-and non_recursive_let_cont_handler
-
-and recursive_let_cont_handlers
-
-and function_params_and_body
-
 and static_const_or_code = private
   | Code of function_params_and_body Code0.t
   | Deleted_code
   | Static_const of Static_const.t
-
-and static_const_group
 
 module Invalid : sig
   type t =
     | Body_of_unreachable_continuation of Continuation.t
     | Apply_cont_of_unreachable_continuation of Continuation.t
     | Defining_expr_of_let of Bound_pattern.t * named
-    | Closure_type_was_invalid of Apply.t
+    | Closure_type_was_invalid of Apply_expr.t
     | Zero_switch_arms
     | Code_not_rebuilt
     | To_cmm_dummy_body
-    | Application_never_returns of Apply.t
-    | Over_application_never_returns of Apply.t
+    | Application_never_returns of Apply_expr.t
+    | Over_application_never_returns of Apply_expr.t
     | Message of string
 end
 
@@ -128,10 +131,10 @@ module Expr : sig
   val create_let : let_expr -> t
 
   (** Create an application expression. *)
-  val create_apply : Apply.t -> t
+  val create_apply : Apply_expr.t -> t
 
   (** Create a continuation application (in the zero-arity case, "goto"). *)
-  val create_apply_cont : Apply_cont.t -> t
+  val create_apply_cont : Apply_cont_expr.t -> t
 
   val create_switch : Switch_expr.t -> t
 
@@ -189,8 +192,14 @@ end
 
 module Let_expr : sig
   (** The alpha-equivalence classes of expressions that bind variables; and the
-      expressions that bind symbols (which are not treated up to alpha
-      equivalence). *)
+      expressions that bind symbols and code IDs (which are not treated up to
+      alpha equivalence).
+
+      Variables have normal syntactic scoping.  Symbols and code IDs are
+      treated as in scope in all parts of the term dominated by the
+      corresponding [Let]-binding.
+  *)
+
   type t = let_expr
 
   include Expr_std.S_no_free_names with type t := t
@@ -334,6 +343,9 @@ module Let_cont_expr : sig
 
       [body] where [name] [args] = [handler]
 
+      (In the -drawflambda / -dflambda output, "where" is omitted, in
+      favour of a simple label syntax e.g. "k42:")
+
       - Continuations are second-class.
 
       - Continuations do not capture variables.
@@ -373,7 +385,10 @@ module Let_cont_expr : sig
 
   (** Create a definition of a set of possibly-recursive continuations. *)
   val create_recursive :
-    Continuation_handler.t Continuation.Map.t -> body:expr -> expr
+    invariant_params:Bound_parameters.t ->
+    Continuation_handler.t Continuation.Map.t ->
+    body:expr ->
+    expr
 end
 
 module Non_recursive_let_cont_handler : sig
@@ -406,14 +421,22 @@ module Recursive_let_cont_handlers : sig
 
   (** Deconstruct a continuation binding to get the bound continuations,
       together with the expressions and handlers over which they are scoped. *)
-  val pattern_match : t -> f:(body:expr -> Continuation_handlers.t -> 'a) -> 'a
+  val pattern_match :
+    t ->
+    f:
+      (invariant_params:Bound_parameters.t ->
+      body:expr ->
+      Continuation_handlers.t ->
+      'a) ->
+    'a
 
   (** Deconstruct two continuation bindings using the same bound continuations. *)
   val pattern_match_pair :
     t ->
     t ->
     f:
-      (body1:expr ->
+      (invariant_params:Bound_parameters.t ->
+      body1:expr ->
       body2:expr ->
       Continuation_handlers.t ->
       Continuation_handlers.t ->
@@ -574,10 +597,13 @@ module Static_const_group : sig
   val is_fully_static : t -> bool
 end
 
+module Apply = Apply_expr
+module Apply_cont = Apply_cont_expr
 module Function_declarations = Function_declarations
 module Let = Let_expr
 module Let_cont = Let_cont_expr
 module Set_of_closures = Set_of_closures
+module Switch = Switch_expr
 
 (** The idea is that you should typically do "open! Flambda" at the top of
     files, thus bringing in the following standard set of module aliases. *)

@@ -95,6 +95,11 @@ val create : Prefix.t -> Name.t -> t
     parent compilation unit as the prefix. *)
 val create_child : t -> Name.t -> t
 
+(** Create a compilation unit that's an instantiation of another unit with
+    given arguments. The arguments will be sorted alphabetically by
+    parameter name. *)
+val create_instance : t -> (Name.t * t) list -> t
+
 (** Create a compilation unit from the given [name]. No prefix is allowed;
     throws a fatal error if there is a "." in the name. (As a special case,
     a "." is allowed as the first character, to handle compilation units
@@ -139,6 +144,14 @@ val is_parent : t -> child:t -> bool
     * [A.Q] _cannot_ access [F.G] (by criterion 1) or [A] (by criterion 2). *)
 val can_access_by_name : t -> accessed_by:t -> bool
 
+(** A clearer name for [can_access_by_name] when the .cmx file is what's of
+    interest. *)
+val can_access_cmx_file : t -> accessed_by:t -> bool
+
+(*_ CR-someday lmaurer: Arguably [which_cmx_file] should return a different
+  type, since "compilation unit for which we can load the .cmx" is an important
+  constraint. *)
+
 (** Determine which .cmx file to load for a given compilation unit.
     This is tricky in the case of packs.  It can be done by lining up the
     desired compilation unit's full path (i.e. pack prefix then unit name)
@@ -146,7 +159,7 @@ val can_access_by_name : t -> accessed_by:t -> bool
     diverge.
 
     This is only used for native code compilation. *)
-val which_cmx_file : t -> accessed_by:t -> Name.t
+val which_cmx_file : t -> accessed_by:t -> t
 
 (** A distinguished compilation unit for initialisation of mutable state. *)
 val dummy : t
@@ -182,9 +195,19 @@ val full_path : t -> Name.t list
     usual conventions. *)
 val full_path_as_string : t -> string
 
+(** Returns the arguments in the compilation unit, if it is an instance, or
+    the empty list otherwise. *)
+val arguments : t -> (Name.t * t) list
+
+(** Returns [true] iff the given compilation unit is an instance (equivalent
+    to [arguments t <> []]). *)
+val is_instance : t -> bool
+
 type error = private
   | Invalid_character of char * string
   | Bad_compilation_unit_name of string
+  | Child_of_instance of { child_name : string }
+  | Packed_instance of { name : string }
 
 (** The exception raised by conversion functions in this module. *)
 exception Error of error

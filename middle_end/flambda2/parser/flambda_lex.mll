@@ -34,6 +34,7 @@ let keyword_table =
     "and", KWD_AND;
     "andwhere", KWD_ANDWHERE;
     "apply", KWD_APPLY;
+    "array", KWD_ARRAY;
     "asr", KWD_ASR;
     "available", KWD_AVAILABLE;
     "Block", KWD_BLOCK;
@@ -73,6 +74,7 @@ let keyword_table =
     "newer_version_of", KWD_NEWER_VERSION_OF;
     "noalloc", KWD_NOALLOC;
     "notrace", KWD_NOTRACE;
+    "of", KWD_OF;
     "pop", KWD_POP;
     "push", KWD_PUSH;
     "rec", KWD_REC;
@@ -217,6 +219,10 @@ rule token = parse
       { LPAREN }
   | ")"
       { RPAREN }
+  | "["
+      { LBRACK }
+  | "]"
+      { RBRACK }
   | "[|"
       { LBRACKPIPE }
   | "|]"
@@ -245,6 +251,7 @@ rule token = parse
   | "@" { AT }
   | "|"  { PIPE }
   | "~"  { TILDE }
+  | "&"  { AMP }
   | "===>" { BIGARROW }
   | identstart identchar* as ident
          { ident_or_keyword ident }

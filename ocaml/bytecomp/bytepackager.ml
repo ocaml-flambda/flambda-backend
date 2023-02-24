@@ -161,7 +161,10 @@ let build_global_target ~ppf_dump oc target_name members pos coercion =
         | PM_intf -> None
         | PM_impl _ -> Some (m.pm_name |> unit_of_name))
       members in
-  let lam = Translmod.transl_package components compilation_unit coercion in
+  let _size, lam =
+    Translmod.transl_package components compilation_unit coercion
+      ~style:Set_global_to_block
+  in
   if !Clflags.dump_rawlambda then
     Format.fprintf ppf_dump "%a@." Printlambda.lambda lam;
   let lam = Simplif.simplify_lambda lam in

@@ -28,6 +28,7 @@ type const =
 type apply = {
   func : Variable.t;
   args : Variable.t list;
+  result_layout : Lambda.layout;
   kind : call_kind;
   dbg : Debuginfo.t;
   reg_close : Lambda.region_close;
@@ -50,6 +51,7 @@ type send = {
   dbg : Debuginfo.t;
   reg_close : Lambda.region_close;
   mode : Lambda.alloc_mode;
+  result_layout : Lambda.layout;
 }
 
 type project_closure = Projection.project_closure
@@ -59,7 +61,7 @@ type project_var = Projection.project_var
 type specialised_to = {
   var : Variable.t;
   projection : Projection.t option;
-  kind : Lambda.value_kind;
+  kind : Lambda.layout;
 }
 
 type t =
@@ -70,13 +72,13 @@ type t =
   | Apply of apply
   | Send of send
   | Assign of assign
-  | If_then_else of Variable.t * t * t * Lambda.value_kind
+  | If_then_else of Variable.t * t * t * Lambda.layout
   | Switch of Variable.t * switch
   | String_switch of Variable.t * (string * t) list * t option
-                     * Lambda.value_kind
+                     * Lambda.layout
   | Static_raise of Static_exception.t * Variable.t list
-  | Static_catch of Static_exception.t * Variable.t list * t * t * Lambda.value_kind
-  | Try_with of t * Variable.t * t * Lambda.value_kind
+  | Static_catch of Static_exception.t * ( Variable.t * Lambda.layout ) list * t * t * Lambda.layout
+  | Try_with of t * Variable.t * t * Lambda.layout
   | While of t * t
   | For of for_loop
   | Region of t
@@ -107,7 +109,7 @@ and let_expr = {
 and let_mutable = {
   var : Mutable_variable.t;
   initial_value : Variable.t;
-  contents_kind : Lambda.value_kind;
+  contents_kind : Lambda.layout;
   body : t;
 }
 
@@ -129,6 +131,7 @@ and function_declarations = {
 and function_declaration = {
   closure_origin: Closure_origin.t;
   params : Parameter.t list;
+  return_layout : Lambda.layout;
   alloc_mode : Lambda.alloc_mode;
   region : bool;
   body : t;
@@ -149,7 +152,7 @@ and switch = {
   numblocks : Numbers.Int.Set.t;
   blocks : (int * t) list;
   failaction : t option;
-  kind:  Lambda.value_kind;
+  kind:  Lambda.layout;
 }
 
 and for_loop = {
@@ -192,12 +195,12 @@ let print_specialised_to ppf (spec_to : specialised_to) =
   | None ->
     fprintf ppf "%a[%a]"
       Variable.print spec_to.var
-      Printlambda.value_kind spec_to.kind
+      Printlambda.layout spec_to.kind
   | Some projection ->
     fprintf ppf "%a(= %a)[%a]"
       Variable.print spec_to.var
       Projection.print projection
-      Printlambda.value_kind spec_to.kind
+      Printlambda.layout spec_to.kind
 
 (* CR-soon mshinwell: delete uses of old names *)
 let print_project_var = Projection.print_project_var
@@ -210,7 +213,7 @@ let rec lam ppf (flam : t) =
   match flam with
   | Var (id) ->
       Variable.print ppf id
-  | Apply({func; args; kind; inlined; probe; dbg}) ->
+  | Apply({func; args; kind; inlined; probe; dbg; result_layout}) ->
     let direct ppf () =
       match kind with
       | Indirect -> ()
@@ -229,8 +232,9 @@ let rec lam ppf (flam : t) =
       | None -> ()
       | Some {name} -> fprintf ppf "<probe %s>" name
     in
-    fprintf ppf "@[<2>(apply%a%a%a<%s>@ %a%a)@]" direct () inlined () probe ()
+    fprintf ppf "@[<2>(apply%a%a%a<%s>%a@ %a%a)@]" direct () inlined () probe ()
       (Debuginfo.to_string dbg)
+      Printlambda.layout result_layout
       Variable.print func Variable.print_list args
   | Assign { being_assigned; new_value; } ->
     fprintf ppf "@[<2>(assign@ %a@ %a)@]"
@@ -264,10 +268,10 @@ let rec lam ppf (flam : t) =
       let expr = letbody body in
       fprintf ppf ")@]@ %a)@]" lam expr
   | Let_mutable { var = mut_var; initial_value = var; body; contents_kind } ->
-    let print_kind ppf (kind : Lambda.value_kind) =
+    let print_kind ppf (kind : Lambda.layout) =
       match kind with
-      | Pgenval -> ()
-      | _ -> Format.fprintf ppf " %a" Printlambda.value_kind kind
+      | Pvalue Pgenval -> ()
+      | _ -> Format.fprintf ppf " %a" Printlambda.layout kind
     in
     fprintf ppf "@[<2>(let_mutable%a@ @[<2>%a@ %a@]@ %a)@]"
       print_kind contents_kind
@@ -336,7 +340,7 @@ let rec lam ppf (flam : t) =
            | [] -> ()
            | _ ->
                List.iter
-                 (fun x -> fprintf ppf " %a" Variable.print x)
+                 (fun (x, _layout) -> fprintf ppf " %a" Variable.print x)
                  vars)
         vars
         lam lhandler
@@ -606,7 +610,7 @@ let rec variables_usage ?ignore_uses_as_callee ?ignore_uses_as_argument
       | Static_raise (_, es) ->
         List.iter free_variable es
       | Static_catch (_, vars, e1, e2, _) ->
-        List.iter bound_variable vars;
+        List.iter (fun (var, _layout) -> bound_variable var) vars;
         aux e1;
         aux e2
       | Try_with (e1, var, e2, _kind) ->
@@ -1042,6 +1046,7 @@ let update_body_of_function_declaration (func_decl: function_declaration)
       ~body : function_declaration =
   { closure_origin = func_decl.closure_origin;
     params = func_decl.params;
+    return_layout = func_decl.return_layout;
     alloc_mode = func_decl.alloc_mode;
     region = func_decl.region;
     body;
@@ -1065,6 +1070,7 @@ let rec check_param_modes mode = function
      check_param_modes m params
 
 let create_function_declaration ~params ~alloc_mode ~region ~body ~stub
+      ~(return_layout : Lambda.layout)
       ~(inline : Lambda.inline_attribute)
       ~(specialise : Lambda.specialise_attribute)
       ~(check : Lambda.check_attribute)
@@ -1093,6 +1099,7 @@ let create_function_declaration ~params ~alloc_mode ~region ~body ~stub
   check_param_modes alloc_mode params;
   { closure_origin;
     params;
+    return_layout;
     alloc_mode;
     region;
     body;
@@ -1328,7 +1335,7 @@ let equal_specialised_to (spec_to1 : specialised_to)
       | Some _, None | None, Some _ -> false
       | Some proj1, Some proj2 -> Projection.equal proj1 proj2
     end
-    && Lambda.equal_value_kind spec_to1.kind spec_to2.kind
+    && Lambda.equal_layout spec_to1.kind spec_to2.kind
 
 let compare_project_var = Projection.compare_project_var
 let compare_project_closure = Projection.compare_project_closure

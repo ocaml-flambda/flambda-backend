@@ -31,7 +31,7 @@ ci-coverage: boot-runtest coverage
 
 .PHONY: hacking-runtest
 hacking-runtest: _build/_bootinstall
-	$(dune) build $(ws_boot) $(coverage_dune_flags) -w boot_ocamlopt.exe @runtest
+	$(dune) build $(ws_boot) $(coverage_dune_flags) -w $(boot_targets) @runtest
 
 # Only needed for running the test tools by hand; runtest will take care of
 # building them using Dune
@@ -77,66 +77,17 @@ promote:
 
 .PHONY: fmt
 fmt:
-	ocamlformat -i \
-	  $$(find middle_end/flambda2 \
-	    \( -name "*.ml" -or -name "*.mli" \) \
-	    -and \! \( -name "flambda_parser.*" -or -name "flambda_lex.*" \))
-	ocamlformat -i \
-	  $$(find backend/cfg \
-	    \( -name "*.ml" -or -name "*.mli" \))
-	ocamlformat -i middle_end/mangling.ml
-	ocamlformat -i middle_end/mangling.mli
-	ocamlformat -i \
-	  $$(find backend/asm_targets \
-	    \( -name "*.ml" -or -name "*.mli" \))
-	ocamlformat -i \
-	  $$(find backend/debug \
-	    \( -name "*.ml" -or -name "*.mli" \))
-	ocamlformat -i backend/cmm_helpers.ml{,i}
-	ocamlformat -i backend/cmm_builtins.ml{,i}
-	ocamlformat -i backend/checkmach.ml{,i}
-	ocamlformat -i tools/merge_archives.ml
-	ocamlformat -i \
-	  $$(find backend/debug/dwarf \
-	    \( -name "*.ml" -or -name "*.mli" \))
-	ocamlformat -i \
-	  $$(find utils \
-	    \( -name "*.ml" -or -name "*.mli" \))
-	ocamlformat -i \
-	  $$(find ocaml/utils \
-	    \( -name "*.ml" -or -name "*.mli" \))
+	ocamlformat -i $$(find . \( -name "*.ml" -or -name "*.mli" \))
 
 .PHONY: check-fmt
 check-fmt:
-	@if [ "$$(git status --porcelain middle_end/flambda2)" != "" ] || \
-           [ "$$(git status --porcelain backend/cfg)" != "" ] || \
-           [ "$$(git status --porcelain middle_end/mangling.ml)" != "" ] || \
-           [ "$$(git status --porcelain middle_end/mangling.mli)" != "" ] || \
-           [ "$$(git status --porcelain backend/asm_targets)" != "" ] || \
-           [ "$$(git status --porcelain backend/debug)" != "" ] || \
-           [ "$$(git status --porcelain backend/cmm_helpers.ml{,i})" != "" ] || \
-           [ "$$(git status --porcelain backend/cmm_builtins.ml{,i})" != "" ] || \
-           [ "$$(git status --porcelain backend/checkmach.ml{,i})" != "" ] || \
-           [ "$$(git status --porcelain tools/merge_archives.ml)" != "" ] || \
-           [ "$$(git status --porcelain ocaml/utils)" != "" ] || \
-           [ "$$(git status --porcelain utils)" != "" ]; then \
+	@if [ "$$(git status --porcelain)" != "" ]; then \
 	  echo; \
 	  echo "Tree must be clean before running 'make check-fmt'"; \
 	  exit 1; \
 	fi
 	$(MAKE) fmt
-	@if [ "$$(git diff middle_end/flambda2)" != "" ] || \
-           [ "$$(git diff backend/cfg)" != "" ] || \
-           [ "$$(git diff middle_end/mangling.ml)" != "" ] || \
-           [ "$$(git diff middle_end/mangling.mli)" != "" ] || \
-           [ "$$(git diff backend/asm_targets)" != "" ] || \
-           [ "$$(git diff backend/debug)" != "" ] || \
-           [ "$$(git diff backend/cmm_helpers.ml{,i})" != "" ] || \
-           [ "$$(git diff backend/cmm_builtins.ml{,i})" != "" ] || \
-           [ "$$(git diff backend/checkmach.ml{,i})" != "" ] || \
-           [ "$$(git diff tools/merge_archives.ml)" != "" ] || \
-           [ "$$(git diff ocaml/utils)" != "" ] || \
-           [ "$$(git diff utils)" != "" ]; then \
+	@if [ "$$(git diff)" != "" ]; then \
 	  echo; \
 	  echo "The following code was not formatted correctly:"; \
 	  echo "(the + side of the diff is how it should be formatted)"; \

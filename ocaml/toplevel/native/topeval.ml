@@ -62,7 +62,7 @@ let close_phrase lam =
              [Lprim (Pgetglobal glb, [], Loc_unknown)],
              Loc_unknown)
     in
-    Llet(Strict, Pgenval, id, glob, l)
+    Llet(Strict, Lambda.layout_top, id, glob, l)
   ) (free_variables lam) lam
 
 let toplevel_value id =
@@ -134,12 +134,11 @@ let name_expression ~loc ~attrs exp =
    in
    let sg = [Sig_value(id, vd, Exported)] in
    let pat =
-     { pat_desc = Tpat_var(id, mknoloc name);
+     { pat_desc = Tpat_var(id, mknoloc name, Value_mode.global);
        pat_loc = loc;
        pat_extra = [];
        pat_type = exp.exp_type;
        pat_env = exp.exp_env;
-       pat_mode = Value_mode.global;
        pat_attributes = []; }
    in
    let vb =
@@ -207,8 +206,8 @@ let execute_phrase print_outcome ppf phr =
         if Config.flambda then
           let { Lambda.compilation_unit; main_module_block_size = size;
                 required_globals; code = res } =
-            Translmod.transl_implementation_flambda phrase_comp_unit
-              (str, Tcoerce_none)
+            Translmod.transl_implementation phrase_comp_unit (str, Tcoerce_none)
+              ~style:Plain_block
           in
           remember compilation_unit 0 sg';
           compilation_unit, close_phrase res, required_globals, size

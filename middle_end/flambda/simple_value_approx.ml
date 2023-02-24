@@ -89,6 +89,7 @@ and function_body = {
 and function_declaration = {
   closure_origin : Closure_origin.t;
   params : Parameter.t list;
+  return_layout : Lambda.layout;
   alloc_mode : Lambda.alloc_mode;
   region : bool;
   function_body : function_body option;
@@ -139,6 +140,11 @@ let print_unresolved_value ppf = function
 let print_function_declaration ppf var (f : function_declaration) =
   let param ppf p = Variable.print ppf (Parameter.var p) in
   let params ppf = List.iter (Format.fprintf ppf "@ %a" param) in
+  let return_layout ppf (layout : Lambda.layout) =
+    match layout with
+    | Pvalue Pgenval -> ()
+    | _ -> Format.fprintf ppf "%a@ " Printlambda.layout layout
+  in
   match f.function_body with
   | None ->
     Format.fprintf ppf "@[<2>(%a@ =@ fun@[<2>%a@])@]@ "
@@ -163,9 +169,10 @@ let print_function_declaration ppf var (f : function_declaration) =
     let print_body ppf _ =
       Format.fprintf ppf "<Function Body>"
     in
-    Format.fprintf ppf "@[<2>(%a%s%s%s%s@ =@ fun@[<2>%a@] ->@ @[<2><%a>@])@]@ "
+    Format.fprintf ppf "@[<2>(%a%s%s%s%s@ =@ fun@[<2>%a@] ->@ %a@[<2><%a>@])@]@ "
       Variable.print var stub is_a_functor inline specialise
       params f.params
+      return_layout f.return_layout
       print_body b
 
 let print_function_declarations ppf (fd : function_declarations) =
@@ -955,6 +962,7 @@ let function_declaration_approx ~keep_body fun_var
   in
   { function_body;
     params = fun_decl.params;
+    return_layout = fun_decl.return_layout;
     alloc_mode = fun_decl.alloc_mode;
     region = fun_decl.region;
     closure_origin = fun_decl.closure_origin; }

@@ -22,6 +22,7 @@ open Typedtree
 open Typeopt
 open Lambda
 open Debuginfo.Scoped_location
+open Translmode
 
 type error =
   | Unknown_builtin_primitive of string
@@ -90,8 +91,8 @@ type prim =
   | Send_cache of Lambda.region_close
   | Frame_pointers
   | Identity
-  | Apply of Lambda.region_close
-  | Revapply of Lambda.region_close
+  | Apply of Lambda.region_close * Lambda.layout
+  | Revapply of Lambda.region_close * Lambda.layout
 
 let units_with_used_primitives = Hashtbl.create 7
 let add_used_primitive loc env path =
@@ -122,18 +123,26 @@ let to_alloc_mode ~poly = function
   | Prim_poly, _ ->
     match poly with
     | None -> assert false
-    | Some mode -> mode
+    | Some mode -> transl_alloc_mode mode
+
+let to_modify_mode ~poly = function
+  | Prim_global, _ -> modify_heap
+  | Prim_local, _ -> modify_maybe_stack
+  | Prim_poly, _ ->
+    match poly with
+    | None -> assert false
+    | Some mode -> transl_modify_mode mode
 
 let lookup_primitive loc poly pos p =
   let mode = to_alloc_mode ~poly p.prim_native_repr_res in
-  let arg_modes = List.map (to_alloc_mode ~poly) p.prim_native_repr_args in
+  let arg_modes = List.map (to_modify_mode ~poly) p.prim_native_repr_args in
   let prim = match p.prim_name with
     | "%identity" -> Identity
     | "%bytes_to_string" -> Primitive (Pbytes_to_string, 1)
     | "%bytes_of_string" -> Primitive (Pbytes_of_string, 1)
     | "%ignore" -> Primitive (Pignore, 1)
-    | "%revapply" -> Revapply pos
-    | "%apply" -> Apply pos
+    | "%revapply" -> Revapply (pos, Lambda.layout_any_value)
+    | "%apply" -> Apply (pos, Lambda.layout_any_value)
     | "%loc_LOC" -> Loc Loc_LOC
     | "%loc_FILE" -> Loc Loc_FILE
     | "%loc_LINE" -> Loc Loc_LINE
@@ -489,7 +498,7 @@ let specialize_primitive env ty ~has_constant_constructor prim =
       | _, _ -> Some (Primitive (Pbigarrayset(unsafe, n, k, l), arity))
     end
   | Primitive (Pmakeblock(tag, mut, None, mode), arity), fields -> begin
-      let shape = List.map (Typeopt.value_kind env) fields in
+      let shape = List.map (fun typ -> Lambda.must_be_value (Typeopt.layout env typ)) fields in
       let useful = List.exists (fun knd -> knd <> Pgenval) shape in
       if useful then
         Some (Primitive (Pmakeblock(tag, mut, Some shape, mode),arity))
@@ -706,7 +715,7 @@ let lambda_of_prim prim_name prim loc args arg_exps =
         | Some [exn_exp; _] -> event_after loc exn_exp (Lvar vexn)
         | Some _ -> assert false
       in
-      Llet(Strict, Pgenval, vexn, exn,
+      Llet(Strict, Lambda.layout_block, vexn, exn,
            Lsequence(Lprim(Pccall caml_restore_raw_backtrace,
                            [Lvar vexn; bt],
                            loc),
@@ -719,26 +728,27 @@ let lambda_of_prim prim_name prim loc args arg_exps =
       let lam = lambda_of_loc kind loc in
       Lprim(Pmakeblock(0, Immutable, None, alloc_heap), [lam; arg], loc)
   | Send pos, [obj; meth] ->
-      Lsend(Public, meth, obj, [], pos, alloc_heap, loc)
+      Lsend(Public, meth, obj, [], pos, alloc_heap, loc, Lambda.layout_top)
   | Send_self pos, [obj; meth] ->
-      Lsend(Self, meth, obj, [], pos, alloc_heap, loc)
+      Lsend(Self, meth, obj, [], pos, alloc_heap, loc, Lambda.layout_top)
   | Send_cache apos, [obj; meth; cache; pos] ->
       (* Cached mode only works in the native backend *)
       if !Clflags.native_code then
-        Lsend(Cached, meth, obj, [cache; pos], apos, alloc_heap, loc)
+        Lsend(Cached, meth, obj, [cache; pos], apos, alloc_heap, loc, Lambda.layout_top)
       else
-        Lsend(Public, meth, obj, [], apos, alloc_heap, loc)
+        Lsend(Public, meth, obj, [], apos, alloc_heap, loc, Lambda.layout_top)
   | Frame_pointers, [] ->
       let frame_pointers =
         if !Clflags.native_code && Config.with_frame_pointers then 1 else 0
       in
       Lconst (const_int frame_pointers)
   | Identity, [arg] -> arg
-  | Apply pos, [func; arg]
-  | Revapply pos, [arg; func] ->
+  | Apply (pos, layout), [func; arg]
+  | Revapply (pos, layout), [arg; func] ->
       Lapply {
         ap_func = func;
         ap_args = [arg];
+        ap_result_layout = layout;
         ap_loc = loc;
         (* CR-someday lwhite: it would be nice to be able to give
            application attributes to functions applied with the application
@@ -759,8 +769,8 @@ let lambda_of_prim prim_name prim loc args arg_exps =
 let check_primitive_arity loc p =
   let mode =
     match p.prim_native_repr_res with
-    | Prim_global, _ | Prim_poly, _ -> Some alloc_heap
-    | Prim_local, _ -> Some alloc_local
+    | Prim_global, _ | Prim_poly, _ -> Some Alloc_mode.global
+    | Prim_local, _ -> Some Alloc_mode.local
   in
   let prim = lookup_primitive loc mode Rc_normal p in
   let ok =
@@ -794,11 +804,18 @@ let transl_primitive loc p env ty ~poly_mode path =
     | None -> prim
     | Some prim -> prim
   in
-  let rec make_params n =
+  let rec make_params ty n =
     if n <= 0 then []
-    else (Ident.create_local "prim", Pgenval) :: make_params (n-1)
+    else
+      match Typeopt.is_function_type env ty with
+      | None ->
+          Misc.fatal_errorf "Primitive %s type does not correspond to arity"
+            (Primitive.byte_name p)
+      | Some (arg_ty, ret_ty) ->
+          let arg_layout = Typeopt.layout env arg_ty in
+          (Ident.create_local "prim", arg_layout) :: make_params ret_ty (n-1)
   in
-  let params = make_params p.prim_arity in
+  let params = make_params ty p.prim_arity in
   let args = List.map (fun (id, _) -> Lvar id) params in
   match params with
   | [] -> lambda_of_prim p.prim_name prim loc args None
@@ -826,7 +843,7 @@ let transl_primitive loc p env ty ~poly_mode path =
      lfunction
        ~kind:(Curried {nlocal})
        ~params
-       ~return:Pgenval
+       ~return:Lambda.layout_top
        ~attr:default_stub_attribute
        ~loc
        ~body
@@ -884,8 +901,8 @@ let transl_primitive_application loc p env ty mode path exp args arg_exps pos =
   in
   let has_constant_constructor =
     match arg_exps with
-    | [_; {exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _)}]
-    | [{exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _)}; _]
+    | [_; {exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _, _)}]
+    | [{exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _, _)}; _]
     | [_; {exp_desc = Texp_variant(_, None)}]
     | [{exp_desc = Texp_variant(_, None)}; _] -> true
     | _ -> false

@@ -33,6 +33,7 @@ val disable_poll_insertion : bool ref
 val allow_long_frames : bool ref
 val max_long_frames_threshold : int
 val long_frames_threshold : int ref
+val caml_apply_inline_fast_path : bool ref
 
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
@@ -43,6 +44,8 @@ val dump_inlining_paths : bool ref
 val opt_level : opt_level or_default ref
 
 val internal_assembler : bool ref
+
+val gc_timings : bool ref
 
 module Flambda2 : sig
   module Default : sig

@@ -213,7 +213,7 @@ module type Map = sig
 
   val diff_domains : 'a t -> 'a t -> 'a t
 
-  val inter : (key -> 'a -> 'a -> 'a) -> 'a t -> 'a t -> 'a t
+  val inter : (key -> 'a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
 
   val inter_domain_is_non_empty : 'a t -> 'a t -> bool
 

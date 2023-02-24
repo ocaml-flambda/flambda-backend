@@ -122,7 +122,7 @@ let close_phrase lam =
              [Lprim (Pgetglobal glb, [], Loc_unknown)],
              Loc_unknown)
     in
-    Llet(Strict, Pgenval, id, glob, l)
+    Llet(Strict, Lambda.layout_top, id, glob, l)
   ) (free_variables lam) lam
 
 let toplevel_value id =
@@ -278,28 +278,22 @@ let default_load ppf (program : Lambda.program) =
     else Filename.temp_file ("caml" ^ !phrase_name) ext_dll
   in
   let filename = Filename.chop_extension dll in
-  if Config.flambda2 then begin
-    Asmgen.compile_implementation_flambda2
-      (module Unix : Compiler_owee.Unix_intf.S)
-      () ~toplevel:need_symbol
-      ~filename ~prefixname:filename
-      ~flambda2:Flambda2.lambda_to_cmm ~ppf_dump:ppf
-      ~size:program.main_module_block_size
-      ~compilation_unit:program.compilation_unit
-      ~module_initializer:program.code
-      ~required_globals:program.required_globals
-  end
-  else begin
-    let middle_end =
-      if Config.flambda then Flambda_middle_end.lambda_to_clambda
-      else Closure_middle_end.lambda_to_clambda
-    in
-    Asmgen.compile_implementation
-      (module Unix : Compiler_owee.Unix_intf.S)
-      ~toplevel:need_symbol
-      ~backend ~filename ~prefixname:filename
-      ~middle_end ~ppf_dump:ppf program
-  end;
+  let pipeline : Asmgen.pipeline =
+    if Config.flambda2 then
+      Direct_to_cmm (Flambda2.lambda_to_cmm ~keep_symbol_tables:true)
+    else
+      let middle_end =
+        if Config.flambda then Flambda_middle_end.lambda_to_clambda
+        else Closure_middle_end.lambda_to_clambda
+      in
+      Via_clambda { middle_end; backend }
+  in
+  Asmgen.compile_implementation
+    (module Unix : Compiler_owee.Unix_intf.S)
+    ~toplevel:need_symbol
+    ~filename ~prefixname:filename
+    ~pipeline ~ppf_dump:ppf
+    program;
   Asmlink.call_linker_shared [filename ^ ext_obj] dll;
   Sys.remove (filename ^ ext_obj);
   let dll =
@@ -384,10 +378,9 @@ let name_expression ~loc ~attrs exp =
   in
   let sg = [Sig_value(id, vd, Exported)] in
   let pat =
-    { pat_desc = Tpat_var(id, mknoloc name);
+    { pat_desc = Tpat_var(id, mknoloc name, Types.Value_mode.global);
       pat_loc = loc;
       pat_extra = [];
-      pat_mode = Types.Value_mode.global;
       pat_type = exp.exp_type;
       pat_env = exp.exp_env;
       pat_attributes = []; }
@@ -452,8 +445,8 @@ let execute_phrase print_outcome ppf phr =
         if any_flambda then
           let { Lambda.compilation_unit; main_module_block_size = size;
                 required_globals; code = res } =
-            Translmod.transl_implementation_flambda compilation_unit
-              (str, coercion)
+            Translmod.transl_implementation compilation_unit (str, coercion)
+              ~style:Plain_block
           in
           remember compilation_unit 0 sg';
           compilation_unit, close_phrase res, required_globals, size

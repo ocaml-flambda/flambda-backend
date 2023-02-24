@@ -94,7 +94,8 @@ let convert_init_or_assign (i_or_a : L.initialization_or_assignment)
     ~current_region : P.Init_or_assign.t =
   match i_or_a with
   | Assignment mode ->
-    Assignment (Alloc_mode.For_allocations.from_lambda mode ~current_region)
+    Assignment
+      (Alloc_mode.For_allocations.from_lambda_modify mode ~current_region)
   | Heap_initialization -> Initialization
   | Root_initialization ->
     Misc.fatal_error "[Root_initialization] should not appear in Flambda input"
@@ -110,7 +111,7 @@ let convert_block_shape (shape : L.block_shape) ~num_fields =
         "Flambda_arity.of_block_shape: num_fields is %d yet the shape has %d \
          fields"
         num_fields shape_length;
-    List.map K.With_subkind.from_lambda shape
+    List.map K.With_subkind.from_lambda_value_kind shape
 
 let check_float_array_optimisation_enabled () =
   if not (Flambda_features.flat_float_array ())

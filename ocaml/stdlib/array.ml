@@ -162,6 +162,15 @@ let of_list = function
         | hd::tl -> unsafe_set a i hd; fill (i+1) tl in
       fill 1 tl
 
+(* Immutable and mutable arrays have the same runtime representation; we
+   construct immutable arrays by constructing mutable arrays and then blindly
+   casting them to become immutable.  This is safe here because [copy]:
+   1. doesn't mutate its input;
+   2. doesn't hold on to its input; and
+   3. returns a fresh array as its output. *)
+let to_iarray = Obj.magic (copy : 'a array -> 'a array)
+let of_iarray = Obj.magic (copy : 'a array -> 'a array)
+
 let fold_left f x a =
   let r = ref x in
   for i = 0 to length a - 1 do

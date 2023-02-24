@@ -33,7 +33,7 @@ let interface ~source_file ~output_prefix =
 let to_bytecode i Typedtree.{structure; coercion; _} =
   (structure, coercion)
   |> Profile.(record transl)
-    (Translmod.transl_implementation i.module_name)
+    (Translmod.transl_implementation i.module_name ~style:Set_global_to_block)
   |> Profile.(record ~accumulate:true generate)
     (fun { Lambda.code = lambda; required_globals } ->
        lambda

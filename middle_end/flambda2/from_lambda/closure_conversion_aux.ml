@@ -21,7 +21,7 @@ module IR = struct
 
   type exn_continuation =
     { exn_handler : Continuation.t;
-      extra_args : (simple * Lambda.value_kind) list
+      extra_args : (simple * Flambda_kind.With_subkind.t) list
     }
 
   type trap_action =
@@ -63,7 +63,8 @@ module IR = struct
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
-      region : Ident.t
+      region : Ident.t;
+      return : Flambda_kind.With_subkind.t
     }
 
   type switch =
@@ -614,8 +615,8 @@ module Function_decls = struct
       { let_rec_ident : Ident.t;
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
-        params : (Ident.t * Lambda.value_kind) list;
-        return : Lambda.value_kind;
+        params : (Ident.t * Flambda_kind.With_subkind.t) list;
+        return : Flambda_kind.With_subkind.t;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
         my_region : Ident.t;
@@ -950,14 +951,15 @@ module Let_cont_with_acc = struct
     let acc = Acc.remove_continuation_from_free_names cont acc in
     acc, expr
 
-  let create_recursive acc handlers ~body ~cost_metrics_of_handlers =
+  let create_recursive acc ~invariant_params handlers ~body
+      ~cost_metrics_of_handlers =
     let acc =
       Acc.increment_metrics
         (Cost_metrics.increase_due_to_let_cont_recursive
            ~cost_metrics_of_handlers)
         acc
     in
-    let expr = Let_cont.create_recursive handlers ~body in
+    let expr = Let_cont.create_recursive ~invariant_params handlers ~body in
     let acc =
       Continuation.Map.fold
         (fun cont _ acc -> Acc.remove_continuation_from_free_names cont acc)
@@ -965,7 +967,7 @@ module Let_cont_with_acc = struct
     in
     acc, expr
 
-  let build_recursive acc ~handlers ~body =
+  let build_recursive acc ~invariant_params ~handlers ~body =
     let handlers_free_names, cost_metrics_of_handlers, acc, handlers =
       Continuation.Map.fold
         (fun cont (handler, params, is_exn_handler)
@@ -990,7 +992,8 @@ module Let_cont_with_acc = struct
            (Name_occurrences.increase_counts handlers_free_names))
         acc
     in
-    create_recursive acc handlers ~body ~cost_metrics_of_handlers
+    create_recursive acc ~invariant_params handlers ~body
+      ~cost_metrics_of_handlers
 
   let build_non_recursive acc cont ~handler_params ~handler ~body
       ~is_exn_handler =

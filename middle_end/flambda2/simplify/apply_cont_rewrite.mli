@@ -21,9 +21,10 @@
 
 type t
 
-type used = private
-  | Used
+type used =
   | Unused
+  | Used
+  | Used_as_invariant
 
 val print : Format.formatter -> t -> unit
 
@@ -31,25 +32,28 @@ val print : Format.formatter -> t -> unit
     extra-args may refer to earlier extra-args, but not vice-versa. *)
 val create :
   original_params:Bound_parameters.t ->
-  used_params:Bound_parameter.Set.t ->
-  extra_params:Bound_parameters.t ->
-  extra_args:
-    Continuation_extra_params_and_args.Extra_arg.t list
-    Apply_cont_rewrite_id.Map.t ->
-  used_extra_params:Bound_parameter.Set.t ->
+  extra_params_and_args:Continuation_extra_params_and_args.t ->
+  decide_param_usage:(Bound_parameter.t -> used) ->
   t
 
-val original_params : t -> Bound_parameters.t
+val does_nothing : t -> bool
 
-val used_params : t -> Bound_parameter.Set.t
+val get_used_params : t -> Bound_parameters.t * Bound_parameters.t
 
-val used_extra_params : t -> Bound_parameters.t
-
-val extra_args :
-  t ->
-  Apply_cont_rewrite_id.t ->
-  (Continuation_extra_params_and_args.Extra_arg.t * used) list
+val get_unused_params : t -> Bound_parameters.t
 
 val original_params_arity : t -> Flambda_arity.With_subkinds.t
 
-val does_nothing : t -> bool
+type rewrite_apply_cont_ctx =
+  | Apply_cont
+  | Apply_expr of Simple.t list
+
+val make_rewrite :
+  t ->
+  ctx:rewrite_apply_cont_ctx ->
+  Apply_cont_rewrite_id.t ->
+  Simple.t list ->
+  (Bound_var.t * Code_size.t * Flambda.Named.t) list * Simple.t list
+
+val rewrite_exn_continuation :
+  t -> Apply_cont_rewrite_id.t -> Exn_continuation.t -> Exn_continuation.t
