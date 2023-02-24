@@ -1,5 +1,5 @@
 (executables
-  (names flexpect fldiff parseflambda roundtrip)
+  (names flexpect fldiff gen_expect_test_cases parseflambda roundtrip)
   (modes native)
   (flags (:standard -principal))
   (libraries

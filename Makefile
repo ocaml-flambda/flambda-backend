@@ -105,6 +105,10 @@ regen-flambda2-parser:
 # auto-promotion)
 	$(dune) build $(ws_main) @middle_end/flambda2/parser/regen
 
+.PHONY: regen-flambda2-tests
+regen-flambda2-tests:
+	$(dune) build $(ws_boot) @middle_end/flambda2/tests/regen --auto-promote || true
+	$(dune) build $(ws_boot) @middle_end/flambda2/tests/regen
 
 ## Build upstream compiler.
 .PHONY: build_upstream
