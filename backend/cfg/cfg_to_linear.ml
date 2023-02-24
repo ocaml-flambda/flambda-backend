@@ -357,7 +357,7 @@ let run cfg_with_layout =
       let body =
         let terminator, terminator_tailrec_label =
           linearize_terminator cfg_with_layout cfg.fun_name block.start
-          block.terminator ~next:!next
+            block.terminator ~next:!next
         in
         (match !tailrec_label, terminator_tailrec_label with
         | (Some _ | None), None -> ()
@@ -379,8 +379,11 @@ let run cfg_with_layout =
           let prev = DLL.value prev_cell in
           let prev_block = Label.Tbl.find cfg.blocks prev in
           let body =
-            if (need_starting_label cfg_with_layout block ~prev_block)
-            then to_linear_instr (make_Llabel cfg_with_layout block.start) ~next:body
+            if need_starting_label cfg_with_layout block ~prev_block
+            then
+              to_linear_instr
+                (make_Llabel cfg_with_layout block.start)
+                ~next:body
             else body
           in
           adjust_stack_offset body block ~prev_block
