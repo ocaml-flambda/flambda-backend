@@ -5,3 +5,15 @@
  (ocamlopt_flags
   (:standard -O3))
  (libraries ocamlcommon))
+
+(install
+  (files
+    (flambda_backend_utils.a as compiler-libs/flambda_backend_utils.a)
+    (flambda_backend_utils.cma as compiler-libs/flambda_backend_utils.cma)
+    (flambda_backend_utils.cmxa as compiler-libs/flambda_backend_utils.cmxa)
+    (.flambda_backend_utils.objs/byte/flambda_backend_utils.cmi as compiler-libs/flambda_backend_utils.cmi)
+    (doubly_linked_list.mli as compiler-libs/doubly_linked_list.ml)
+    (doubly_linked_list.mli as compiler-libs/doubly_linked_list.mli)
+  )
+  (section lib)
+  (package ocaml))
