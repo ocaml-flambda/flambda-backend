@@ -9,4 +9,3 @@ in
 let $camlTests0__f_1 = closure f_0_1 @f in
 let $camlTests0 = Block 0 ($camlTests0__f_1) in
 cont done ($camlTests0)
-

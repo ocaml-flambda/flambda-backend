@@ -40,4 +40,3 @@ in
     let field_1 = %block_load tag(0) size(2) (module_block, 1) in
     let $camlTests5 = Block 0 (field_0, field_1) in
     cont done ($camlTests5)
-

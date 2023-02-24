@@ -1,7 +1,0 @@
-(rule
- (alias runtest)
- (action
-  (progn
-   (run ../tools/flexpect.exe tests0.flt)
-   (diff? tests0.flt tests0.flt.corrected))))
-

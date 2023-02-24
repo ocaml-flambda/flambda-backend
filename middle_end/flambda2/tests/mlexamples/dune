@@ -1,29 +1,14 @@
-(include flexpect-tests.inc)
-(include roundtrip-tests.inc)
+(include generated-rules.inc)
 
-(alias (name regen))
-
-(rule
- (alias regen)
- (action
-  (progn
-   (with-stdout-to flexpect-tests.inc.new
-    (run ../tools/gen_expect_test_cases.exe
-         ../tools/flexpect.exe
-         tests0.flt))
-   (diff flexpect-tests.inc flexpect-tests.inc.new))))
+(alias (name regen-dune-rules))
 
 (rule
- (alias regen)
+ (alias regen-dune-rules)
  (action
   (progn
-   (with-stdout-to roundtrip-tests.inc.new
-    (run ../tools/gen_expect_test_cases.exe
-         ../tools/roundtrip.exe
-         tests0_in.fl
-         tests0_out.fl
-         tests4_in.fl
-         tests4_out.fl
-         tests5_in.fl
-         tests5_out.fl))
-   (diff roundtrip-tests.inc roundtrip-tests.inc.new))))
+   (with-stdout-to generated-rules.inc.new
+    (run tools/gen_dune_rules.exe
+         tests0
+         tests4
+         tests5))
+   (diff generated-rules.inc generated-rules.inc.new))))
