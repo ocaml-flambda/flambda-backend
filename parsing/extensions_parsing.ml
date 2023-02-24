@@ -51,8 +51,8 @@ module Error = struct
   type error =
     | Malformed_extension of string list * malformed_extension
     | Unknown_extension of string
-    | Disabled_extension of Clflags.Extension.t
-    | Wrong_syntactic_category of Clflags.Extension.t * string
+    | Disabled_extension of Language_extension.t
+    | Wrong_syntactic_category of Language_extension.t * string
     | Unnamed_extension
     | Bad_introduction of string * string list
 
@@ -62,7 +62,7 @@ end
 open Error
 
 let assert_extension_enabled ~loc ext =
-  if not (Clflags.Extension.is_enabled ext) then
+  if not (Language_extension.is_enabled ext) then
     raise (Error(loc, Disabled_extension ext))
 ;;
 
@@ -105,12 +105,12 @@ let report_error ~loc = function
       Location.errorf
         ~loc
         "The extension \"%s\" is disabled and cannot be used"
-        (Clflags.Extension.to_string ext)
+        (Language_extension.to_string ext)
   | Wrong_syntactic_category(ext, cat) ->
       Location.errorf
         ~loc
         "The extension \"%s\" cannot appear in %s"
-        (Clflags.Extension.to_string ext)
+        (Language_extension.to_string ext)
         cat
   | Unnamed_extension ->
       Location.errorf
@@ -310,7 +310,7 @@ end)
 module type Of_ast_parameters = sig
   module AST : AST
   type t
-  val of_ast_internal : Clflags.Extension.t -> AST.ast -> t option
+  val of_ast_internal : Language_extension.t -> AST.ast -> t option
 end
 
 module Make_of_ast (Params : Of_ast_parameters) : sig
@@ -322,7 +322,7 @@ end = struct
     match Params.AST.match_extension ast with
     | None -> None
     | Some ([name], ast) -> begin
-        match Clflags.Extension.of_string name with
+        match Language_extension.of_string name with
         | Some ext -> begin
             assert_extension_enabled ~loc ext;
             match Params.of_ast_internal ext ast with

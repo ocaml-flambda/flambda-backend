@@ -171,7 +171,7 @@ type error =
   | Probe_name_format of string
   | Probe_name_undefined of string
   | Probe_is_enabled_format
-  | Extension_not_enabled of Clflags.Extension.t
+  | Extension_not_enabled of Language_extension.t
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Illegal_letrec_pat
@@ -3983,7 +3983,7 @@ and type_expect_
       if has_poly && is_optional l then
         raise(Error(spat.ppat_loc, env, Optional_poly_param));
       if has_poly
-         && not (Clflags.Extension.is_enabled Polymorphic_parameters) then
+         && not (Language_extension.is_enabled Polymorphic_parameters) then
         raise (Typetexp.Error (loc, env,
           Unsupported_extension Polymorphic_parameters));
       type_function ?in_function loc sexp.pexp_attributes env
@@ -3996,7 +3996,7 @@ and type_expect_
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = ("ocaml.local" | "local" | "extension.local" as txt)}, PStr []) },
        [Nolabel, sbody]) ->
-      if txt = "extension.local" && not (Clflags.Extension.is_enabled Local) then
+      if txt = "extension.local" && not (Language_extension.is_enabled Local) then
         raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Local));
 
       let mode = if mode_cross env ty_expected then
@@ -7731,7 +7731,7 @@ let report_error ~loc env = function
         "%%probe_is_enabled points must specify a single probe name as a \
          string literal"
   | Extension_not_enabled ext ->
-    let name = Clflags.Extension.to_string ext in
+    let name = Language_extension.to_string ext in
     Location.errorf ~loc
         "Extension %s must be enabled to use this feature." name
   | Literal_overflow ty ->

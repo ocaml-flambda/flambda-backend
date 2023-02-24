@@ -728,7 +728,7 @@ let mk_dump_into_file f =
 
 let mk_extension f =
   let available_extensions =
-    Clflags.Extension.(List.map to_string all)
+    Language_extension.(List.map to_string all)
   in
   "-extension", Arg.Symbol (available_extensions, f),
   "  Enable the specified extension (may be specified more than once)"
@@ -736,7 +736,7 @@ let mk_extension f =
 
 let mk_no_extension f =
   let available_extensions =
-    Clflags.Extension.(List.map to_string all)
+    Language_extension.(List.map to_string all)
   in
   "-no-extension", Arg.Symbol (available_extensions, f),
   "  Disable the specified extension (may be specified more than once)"
@@ -752,7 +752,7 @@ let mk_disable_all_extensions f =
 
 let mk_only_erasable_extensions f =
   let erasable_extensions =
-    let open Clflags.Extension in
+    let open Language_extension in
     all |> List.filter is_erasable |> List.map to_string |> String.concat ", "
   in
 "-only-erasable-extensions", Arg.Unit f,
@@ -1802,10 +1802,11 @@ module Default = struct
     let _no_strict_formats = clear strict_formats
     let _no_strict_sequence = clear strict_sequence
     let _no_unboxed_types = clear unboxed_types
-    let _disable_all_extensions = Extension.disallow_extensions
-    let _only_erasable_extensions = Extension.restrict_to_erasable_extensions
-    let _extension s = Extension.(enable (of_string_exn s))
-    let _no_extension s = Extension.(disable (of_string_exn s))
+    let _disable_all_extensions = Language_extension.disallow_extensions
+    let _only_erasable_extensions =
+      Language_extension.restrict_to_erasable_extensions
+    let _extension s = Language_extension.(enable (of_string_exn s))
+    let _no_extension s = Language_extension.(disable (of_string_exn s))
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include

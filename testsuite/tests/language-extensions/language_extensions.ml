@@ -5,10 +5,10 @@
 *)
 
 (* Change these two variables to change which extension is being tested *)
-let extension            = Clflags.Extension.Comprehensions
+let extension            = Language_extension.Comprehensions
 let extension_expression = "[x for x = 1 to 10]"
 
-let extension_name = Clflags.Extension.to_string extension
+let extension_name = Language_extension.to_string extension
 let extension_parsed_expression =
   Parse.expression (Lexing.from_string extension_expression)
   (* Currently, parsing always succeeds and we only fail during typechecking *)
@@ -17,7 +17,7 @@ let report ~name ~text =
   Printf.printf "# %s [%s %s]:\n%s\n\n"
     name
     extension_name
-    (if Clflags.Extension.is_enabled extension then "enabled" else "disabled")
+    (if Language_extension.is_enabled extension then "enabled" else "disabled")
     text
 
 let typecheck_with_extension ?(full_name = false) name =
@@ -53,7 +53,7 @@ let try_disallowing_extensions name =
   should_succeed
     name
     "disallowing all extensions"
-    Clflags.Extension.disallow_extensions
+    Language_extension.disallow_extensions
 ;;
 
 type goal = Fail | Succeed
@@ -81,68 +81,68 @@ typecheck_with_extension "in its default state";
 
 (* Disable all extensions for testing *)
 
-List.iter Clflags.Extension.disable Clflags.Extension.all;
+List.iter Language_extension.disable Language_extension.all;
 typecheck_with_extension ~full_name:true "no extensions enabled";
 
 (* Test globally toggling a language extension *)
 
-Clflags.Extension.enable extension;
+Language_extension.enable extension;
 typecheck_with_extension "enabled";
 
-Clflags.Extension.enable extension;
+Language_extension.enable extension;
 typecheck_with_extension "still enabled";
 
-Clflags.Extension.disable extension;
+Language_extension.disable extension;
 typecheck_with_extension "disabled";
 
-Clflags.Extension.disable extension;
+Language_extension.disable extension;
 typecheck_with_extension "still disabled";
 
-Clflags.Extension.set extension ~enabled:true;
+Language_extension.set extension ~enabled:true;
 typecheck_with_extension "enabled via [set]";
 
-Clflags.Extension.enable extension;
+Language_extension.enable extension;
 typecheck_with_extension "still enabled, via [set] and [enable]";
 
-Clflags.Extension.set extension ~enabled:false;
+Language_extension.set extension ~enabled:false;
 typecheck_with_extension "disabled via [set]";
 
-Clflags.Extension.disable extension;
+Language_extension.disable extension;
 typecheck_with_extension "still disabled, via [set] and [disable]";
 
 (* Test locally toggling a language extension *)
 
 (* Globally disable the language extension (idempotent, given the prior tests,
    but it's more robust to do this explicitly) *)
-Clflags.Extension.disable extension;
+Language_extension.disable extension;
 
-Clflags.Extension.with_enabled extension (fun () ->
+Language_extension.with_enabled extension (fun () ->
   typecheck_with_extension "enabled locally and disabled globally");
 
-Clflags.Extension.with_disabled extension (fun () ->
+Language_extension.with_disabled extension (fun () ->
   typecheck_with_extension "disabled locally and globally");
 
-Clflags.Extension.with_set extension ~enabled:true (fun () ->
+Language_extension.with_set extension ~enabled:true (fun () ->
   typecheck_with_extension
     "enabled locally via [with_set] and disabled globally");
 
-Clflags.Extension.with_set extension ~enabled:false (fun () ->
+Language_extension.with_set extension ~enabled:false (fun () ->
   typecheck_with_extension "disabled locally via [with_set] and also globally");
 
 (* Globally enable the language extension *)
-Clflags.Extension.enable extension;
+Language_extension.enable extension;
 
-Clflags.Extension.with_disabled extension (fun () ->
+Language_extension.with_disabled extension (fun () ->
   typecheck_with_extension "disabled locally and enabled globally");
 
-Clflags.Extension.with_enabled extension (fun () ->
+Language_extension.with_enabled extension (fun () ->
   typecheck_with_extension "enabled locally and globally");
 
-Clflags.Extension.with_set extension ~enabled:false (fun () ->
+Language_extension.with_set extension ~enabled:false (fun () ->
   typecheck_with_extension
     "disabled locally via [with_set] and enabled globally");
 
-Clflags.Extension.with_set extension ~enabled:true (fun () ->
+Language_extension.with_set extension ~enabled:true (fun () ->
   typecheck_with_extension "disabled locally via [with_set] and also globally");
 
 (* Test disallowing extensions *)
@@ -156,34 +156,34 @@ try_disallowing_extensions
 (* Test that disallowing extensions prevents other functions from working *)
 
 when_disallowed Fail "set ~enabled:true"
-  (Clflags.Extension.set ~enabled:true);
+  (Language_extension.set ~enabled:true);
 
 when_disallowed Succeed "set ~enabled:false"
-  (Clflags.Extension.set ~enabled:false);
+  (Language_extension.set ~enabled:false);
 
 when_disallowed Fail "enable"
-  Clflags.Extension.enable;
+  Language_extension.enable;
 
 when_disallowed Succeed "disable"
-  Clflags.Extension.disable;
+  Language_extension.disable;
 
 when_disallowed Fail "with_set ~enabled:true"
-  (Clflags.Extension.with_set ~enabled:true |> lift_with);
+  (Language_extension.with_set ~enabled:true |> lift_with);
 
 when_disallowed Succeed "with_set ~enabled:false"
-  (Clflags.Extension.with_set ~enabled:false |> lift_with);
+  (Language_extension.with_set ~enabled:false |> lift_with);
 
 when_disallowed Fail "with_enabled"
-  (Clflags.Extension.with_enabled |> lift_with);
+  (Language_extension.with_enabled |> lift_with);
 
 when_disallowed Succeed "with_disabled"
-  (Clflags.Extension.with_disabled |> lift_with);
+  (Language_extension.with_disabled |> lift_with);
 
 (* Test explicitly (rather than just via [report]) that [is_enabled] returns
    [false] now that we've disallowed all extensions *)
 report
   ~name:"[is_enabled] returns [false] when extensions are disallowed"
   ~text:("\"" ^ extension_name ^ "\" is " ^
-         if Clflags.Extension.is_enabled extension
+         if Language_extension.is_enabled extension
          then "INCORRECTLY enabled"
          else "correctly disabled")

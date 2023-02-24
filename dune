@@ -63,7 +63,7 @@
    profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
    local_store target_system compilation_unit import_info linkage_name symbol
-   lazy_backtrack diffing diffing_with_keys
+   lazy_backtrack diffing diffing_with_keys language_extension
 
    ;; PARSING
    location longident docstrings syntaxerr ast_helper camlinternalMenhirLib
@@ -236,6 +236,7 @@
     (numbers.mli as compiler-libs/numbers.mli)
     (arg_helper.mli as compiler-libs/arg_helper.mli)
     (clflags.mli as compiler-libs/clflags.mli)
+    (language_extension.mli as compiler-libs/language_extension.mli)
     (profile.mli as compiler-libs/profile.mli)
     (terminfo.mli as compiler-libs/terminfo.mli)
     (ccomp.mli as compiler-libs/ccomp.mli)

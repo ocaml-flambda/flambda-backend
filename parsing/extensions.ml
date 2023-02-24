@@ -42,7 +42,7 @@ open Extensions_parsing
 
 (** List and array comprehensions *)
 module Comprehensions = struct
-  let extension_string = Clflags.Extension.to_string Comprehensions
+  let extension_string = Language_extension.to_string Comprehensions
 
   type iterator =
     | Range of { start     : expression
@@ -277,7 +277,7 @@ module Immutable_arrays = struct
   type nonrec pattern =
     | Iapat_immutable_array of pattern list
 
-  let extension_string = Clflags.Extension.to_string Immutable_arrays
+  let extension_string = Language_extension.to_string Immutable_arrays
 
   let expr_of ~loc = function
     | Iaexp_immutable_array elts ->
@@ -318,7 +318,7 @@ module Expression = struct
       | Eexp_comprehension   of Comprehensions.expression
       | Eexp_immutable_array of Immutable_arrays.expression
 
-    let of_ast_internal (ext : Clflags.Extension.t) expr = match ext with
+    let of_ast_internal (ext : Language_extension.t) expr = match ext with
       | Comprehensions ->
         Some (Eexp_comprehension (Comprehensions.comprehension_expr_of_expr expr))
       | Immutable_arrays ->
@@ -337,7 +337,7 @@ module Pattern = struct
     type t =
       | Epat_immutable_array of Immutable_arrays.pattern
 
-    let of_ast_internal (ext : Clflags.Extension.t) pat = match ext with
+    let of_ast_internal (ext : Language_extension.t) pat = match ext with
       | Immutable_arrays ->
         Some (Epat_immutable_array (Immutable_arrays.of_pat pat))
       | _ -> None

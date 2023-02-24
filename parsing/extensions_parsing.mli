@@ -84,8 +84,8 @@ module Error : sig
   type error =
     | Malformed_extension of string list * malformed_extension
     | Unknown_extension of string
-    | Disabled_extension of Clflags.Extension.t
-    | Wrong_syntactic_category of Clflags.Extension.t * string
+    | Disabled_extension of Language_extension.t
+    | Wrong_syntactic_category of Language_extension.t * string
     | Unnamed_extension
     | Bad_introduction of string * string list
 
@@ -159,7 +159,7 @@ module type Of_ast_parameters = sig
       so when building the pattern extension AST, this function will
       return [None] when the extension in [Comprehensions].)
   *)
-  val of_ast_internal : Clflags.Extension.t -> AST.ast -> t option
+  val of_ast_internal : Language_extension.t -> AST.ast -> t option
 end
 
 (** Build the [of_ast] function from [Of_ast_parameters]. The result
@@ -179,4 +179,4 @@ end
     intended to be used in "extensions.ml" when a certain piece of syntax
     requires two extensions to be enabled at once (e.g., immutable array
     comprehensions such as [[:x for x = 1 to 10:]]). *)
-val assert_extension_enabled : loc:Location.t -> Clflags.Extension.t -> unit
+val assert_extension_enabled : loc:Location.t -> Language_extension.t -> unit

@@ -134,6 +134,7 @@ ocamlcmt.cmo : \
     ../parsing/pprintast.cmi \
     ../parsing/location.cmi \
     ../utils/load_path.cmi \
+    ../utils/import_info.cmi \
     ../typing/envaux.cmi \
     ../driver/compmisc.cmi \
     ../utils/compilation_unit.cmi \
@@ -147,6 +148,7 @@ ocamlcmt.cmx : \
     ../parsing/pprintast.cmx \
     ../parsing/location.cmx \
     ../utils/load_path.cmx \
+    ../utils/import_info.cmx \
     ../typing/envaux.cmx \
     ../driver/compmisc.cmx \
     ../utils/compilation_unit.cmx \
