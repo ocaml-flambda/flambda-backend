@@ -1,9 +1,3 @@
-  (* CR-someday xclerc: as noted on the pull request [1], it could be beneficial
-     to consider alternative representations to avoid a "dummy" value, e.g. by
-     using a sentinel or an encoding similar to the one used by `Queue.cell`.
-
-     [1] https://github.com/ocaml-flambda/flambda-backend/pull/897 *)
-
   type 'a node =
     | Empty
     | Node of
