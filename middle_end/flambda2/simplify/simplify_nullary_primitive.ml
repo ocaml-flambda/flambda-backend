@@ -40,7 +40,12 @@ let simplify_nullary_primitive dacc original_prim (prim : P.nullary_primitive)
     let ty = T.any_region in
     let dacc = DA.add_variable dacc result_var ty in
     Simplify_primitive_result.create named ~try_reify:false dacc
-  | Enter_inlined_apply _ ->
-    Misc.fatal_errorf
-      "[Enter_inlined_apply] primitives should only be generated in classic mode\n\
-      \       and never go through [Simplify]."
+  | Enter_inlined_apply { dbg } ->
+    let dacc =
+      DA.map_denv dacc ~f:(fun denv ->
+          DE.set_inlined_debuginfo denv (DE.add_inlined_debuginfo denv dbg))
+    in
+    let named = Named.create_simple Simple.const_unit in
+    let ty = T.this_tagged_immediate Targetint_31_63.zero in
+    let dacc = DA.add_variable dacc result_var ty in
+    Simplify_primitive_result.create named ~try_reify:false dacc
