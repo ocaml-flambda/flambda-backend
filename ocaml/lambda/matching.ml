@@ -2139,7 +2139,7 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _layout) rem =
           (Parrayrefu kind, [ arg; Lconst (Const_base (Const_int pos)) ], loc),
         (match am with
         | Mutable   -> StrictOpt
-        | Immutable -> Alias);
+        | Immutable -> Alias),
         layout_field)
       :: make_args (pos + 1)
   in
