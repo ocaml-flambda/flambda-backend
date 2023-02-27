@@ -61,7 +61,7 @@ let scrape_poly env ty =
   | d -> d
 
 let is_function_type env ty =
-  match scrape_poly env ty with
+  match scrape env ty with
   | Tarrow (_, lhs, rhs, _) -> Some (lhs, rhs)
   | _ -> None
 
