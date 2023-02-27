@@ -12,38 +12,46 @@
             (array.get[int] prim prim))
           (function {nlocal = 0} prim[intarray] prim[int] stub : int
             (array.unsafe_get[int] prim prim))
-          (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub : int
-            (array.set[int] prim prim prim))
-          (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub : int
-            (array.unsafe_set[int] prim prim prim))
+          (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub
+            : int (array.set[int] prim prim prim))
+          (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub
+            : int (array.unsafe_set[int] prim prim prim))
           (function {nlocal = 0} prim[int] prim[int] stub : int
             (compare_ints prim prim))
-          (function {nlocal = 0} prim[int] prim[int] stub : int (== prim prim))
-          (function {nlocal = 0} prim[int] prim[int] stub : int (!= prim prim))
-          (function {nlocal = 0} prim[int] prim[int] stub : int (< prim prim))
-          (function {nlocal = 0} prim[int] prim[int] stub : int (> prim prim))
-          (function {nlocal = 0} prim[int] prim[int] stub : int (<= prim prim))
-          (function {nlocal = 0} prim[int] prim[int] stub : int (>= prim prim))))
+          (function {nlocal = 0} prim[int] prim[int] stub : int
+            (== prim prim))
+          (function {nlocal = 0} prim[int] prim[int] stub : int
+            (!= prim prim))
+          (function {nlocal = 0} prim[int] prim[int] stub : int
+            (< prim prim))
+          (function {nlocal = 0} prim[int] prim[int] stub : int
+            (> prim prim))
+          (function {nlocal = 0} prim[int] prim[int] stub : int
+            (<= prim prim))
+          (function {nlocal = 0} prim[int] prim[int] stub : int
+            (>= prim prim))))
       (module-defn(M_float) Module_coercion module_coercion.ml(47):1594-1637
         (makeblock 0
           (function {nlocal = 0} prim[floatarray] stub : int
             (array.length[float] prim))
-          (function {nlocal = 0} prim[floatarray] prim[int] stub : int
+          (function {nlocal = 0} prim[floatarray] prim[int] stub : float
             (array.get[float] prim prim))
-          (function {nlocal = 0} prim[floatarray] prim[int] stub : int
+          (function {nlocal = 0} prim[floatarray] prim[int] stub : float
             (array.unsafe_get[float] prim prim))
-          (function {nlocal = 0} prim[floatarray] prim[int] prim[float] stub : int
-            (array.set[float] prim prim prim))
-          (function {nlocal = 0} prim[floatarray] prim[int] prim[float] stub : int
-            (array.unsafe_set[float] prim prim prim))
+          (function {nlocal = 0} prim[floatarray] prim[int] prim[float] stub
+            : int (array.set[float] prim prim prim))
+          (function {nlocal = 0} prim[floatarray] prim[int] prim[float] stub
+            : int (array.unsafe_set[float] prim prim prim))
           (function {nlocal = 0} prim[float] prim[float] stub : int
             (compare_floats prim prim))
           (function {nlocal = 0} prim[float] prim[float] stub : int
             (==. prim prim))
           (function {nlocal = 0} prim[float] prim[float] stub : int
             (!=. prim prim))
-          (function {nlocal = 0} prim[float] prim[float] stub : int (<. prim prim))
-          (function {nlocal = 0} prim[float] prim[float] stub : int (>. prim prim))
+          (function {nlocal = 0} prim[float] prim[float] stub : int
+            (<. prim prim))
+          (function {nlocal = 0} prim[float] prim[float] stub : int
+            (>. prim prim))
           (function {nlocal = 0} prim[float] prim[float] stub : int
             (<=. prim prim))
           (function {nlocal = 0} prim[float] prim[float] stub : int
@@ -52,9 +60,9 @@
         (makeblock 0
           (function {nlocal = 0} prim[addrarray] stub : int
             (array.length[addr] prim))
-          (function {nlocal = 0} prim[addrarray] prim[int] stub : float
+          (function {nlocal = 0} prim[addrarray] prim[int] stub
             (array.get[addr] prim prim))
-          (function {nlocal = 0} prim[addrarray] prim[int] stub : float
+          (function {nlocal = 0} prim[addrarray] prim[int] stub
             (array.unsafe_get[addr] prim prim))
           (function {nlocal = 0} prim[addrarray] prim[int] prim stub : int
             (array.set[addr] prim prim prim))
@@ -82,10 +90,10 @@
             (array.get[addr] prim prim))
           (function {nlocal = 0} prim[addrarray] prim[int] stub : int32
             (array.unsafe_get[addr] prim prim))
-          (function {nlocal = 0} prim[addrarray] prim[int] prim[int32] stub : int
-            (array.set[addr] prim prim prim))
-          (function {nlocal = 0} prim[addrarray] prim[int] prim[int32] stub : int
-            (array.unsafe_set[addr] prim prim prim))
+          (function {nlocal = 0} prim[addrarray] prim[int] prim[int32] stub
+            : int (array.set[addr] prim prim prim))
+          (function {nlocal = 0} prim[addrarray] prim[int] prim[int32] stub
+            : int (array.unsafe_set[addr] prim prim prim))
           (function {nlocal = 0} prim[int32] prim[int32] stub : int
             (compare_bints int32 prim prim))
           (function {nlocal = 0} prim[int32] prim[int32] stub : int
@@ -108,10 +116,10 @@
             (array.get[addr] prim prim))
           (function {nlocal = 0} prim[addrarray] prim[int] stub : int64
             (array.unsafe_get[addr] prim prim))
-          (function {nlocal = 0} prim[addrarray] prim[int] prim[int64] stub : int
-            (array.set[addr] prim prim prim))
-          (function {nlocal = 0} prim[addrarray] prim[int] prim[int64] stub : int
-            (array.unsafe_set[addr] prim prim prim))
+          (function {nlocal = 0} prim[addrarray] prim[int] prim[int64] stub
+            : int (array.set[addr] prim prim prim))
+          (function {nlocal = 0} prim[addrarray] prim[int] prim[int64] stub
+            : int (array.unsafe_set[addr] prim prim prim))
           (function {nlocal = 0} prim[int64] prim[int64] stub : int
             (compare_bints int64 prim prim))
           (function {nlocal = 0} prim[int64] prim[int64] stub : int

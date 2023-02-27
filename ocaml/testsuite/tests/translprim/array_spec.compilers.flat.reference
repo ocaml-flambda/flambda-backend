@@ -46,11 +46,11 @@
            (function {nlocal = 0} prim[intarray] prim[int] stub : int
              (array.unsafe_get[int] prim prim))
          eta_int_safe_set =
-           (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub : int
-             (array.set[int] prim prim prim))
+           (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub
+             : int (array.set[int] prim prim prim))
          eta_int_unsafe_set =
-           (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub : int
-             (array.unsafe_set[int] prim prim prim))
+           (function {nlocal = 0} prim[intarray] prim[int] prim[int] stub
+             : int (array.unsafe_set[int] prim prim prim))
          eta_float_len =
            (function {nlocal = 0} prim[floatarray] stub : int
              (array.length[float] prim))
@@ -61,11 +61,11 @@
            (function {nlocal = 0} prim[floatarray] prim[int] stub : float
              (array.unsafe_get[float] prim prim))
          eta_float_safe_set =
-           (function {nlocal = 0} prim[floatarray] prim[int] prim[float] stub : int
-             (array.set[float] prim prim prim))
+           (function {nlocal = 0} prim[floatarray] prim[int] prim[float] stub
+             : int (array.set[float] prim prim prim))
          eta_float_unsafe_set =
-           (function {nlocal = 0} prim[floatarray] prim[int] prim[float] stub : int
-             (array.unsafe_set[float] prim prim prim))
+           (function {nlocal = 0} prim[floatarray] prim[int] prim[float] stub
+             : int (array.unsafe_set[float] prim prim prim))
          eta_addr_len =
            (function {nlocal = 0} prim[addrarray] stub : int
              (array.length[addr] prim))
