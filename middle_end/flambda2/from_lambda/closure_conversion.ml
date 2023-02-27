@@ -716,41 +716,6 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
         assert false
     in
     k acc (Some (Named.create_simple (Simple.symbol sym)))
-  | Pmakeblock (tag, Immutable_unique, _, _), [exn_name; exn_id]
-    when tag = Obj.object_tag && Env.at_toplevel env ->
-    (* Special case to lift toplevel exception declarations *)
-    let symbol =
-      Symbol.create
-        (Compilation_unit.get_current_exn ())
-        (Linkage_name.of_string (Variable.unique_name let_bound_var))
-    in
-    let transform_arg arg =
-      Simple.pattern_match' arg
-        ~var:(fun var ~coercion:_ ->
-          Field_of_static_block.Dynamically_computed (var, dbg))
-        ~symbol:(fun sym ~coercion:_ -> Field_of_static_block.Symbol sym)
-        ~const:(fun const ->
-          Misc.fatal_errorf "Constant %a not expected as argument to %a (%a)"
-            Reg_width_const.print const Printlambda.primitive prim
-            Debuginfo.print_compact dbg)
-    in
-    (* This is an inconstant statically-allocated value, so cannot go through
-       [register_const0]. The definition must be placed right away. *)
-    let static_const =
-      Static_const.block Tag.Scannable.object_tag Immutable_unique
-        [transform_arg exn_name; transform_arg exn_id]
-    in
-    let static_consts =
-      [Static_const_or_code.create_static_const static_const]
-    in
-    let defining_expr =
-      Static_const_group.create static_consts |> Named.create_static_consts
-    in
-    let acc, body = k acc (Some (Named.create_simple (Simple.symbol symbol))) in
-    Let_with_acc.create acc
-      (Bound_pattern.static
-         (Bound_static.create [Bound_static.Pattern.block_like symbol]))
-      defining_expr ~body
   | prim, args ->
     Lambda_to_flambda_primitives.convert_and_bind acc exn_continuation
       ~big_endian:(Env.big_endian env)
@@ -884,6 +849,49 @@ let close_let acc env id user_visible kind defining_expr
               (Alloc_mode.For_allocations.as_type alloc_mode)
           in
           bind acc body_env)
+      | Prim
+          ( Variadic
+              ( Make_block (Values (tag, _), Immutable_unique, _alloc_mode),
+                [exn_name; exn_id] ),
+            _ )
+        when Tag.Scannable.equal tag Tag.Scannable.object_tag
+             && Env.at_toplevel env ->
+        (* Special case to lift toplevel exception declarations *)
+        let symbol =
+          Symbol.create
+            (Compilation_unit.get_current_exn ())
+            (Linkage_name.of_string (Variable.unique_name var))
+        in
+        let transform_arg arg =
+          Simple.pattern_match' arg
+            ~var:(fun var ~coercion:_ ->
+              Field_of_static_block.Dynamically_computed (var, Debuginfo.none))
+            ~symbol:(fun sym ~coercion:_ -> Field_of_static_block.Symbol sym)
+            ~const:(fun const ->
+              Misc.fatal_errorf "Constant %a not expected as argument in %a"
+                Reg_width_const.print const Named.print defining_expr)
+        in
+        (* This is an inconstant statically-allocated value, so cannot go
+           through [register_const0]. The definition must be placed right
+           away. *)
+        let static_const =
+          Static_const.block Tag.Scannable.object_tag Immutable_unique
+            [transform_arg exn_name; transform_arg exn_id]
+        in
+        let static_consts =
+          [Static_const_or_code.create_static_const static_const]
+        in
+        let defining_expr =
+          Static_const_group.create static_consts |> Named.create_static_consts
+        in
+        let body_env =
+          Env.add_simple_to_substitute body_env id (Simple.symbol symbol) kind
+        in
+        let acc, body = body acc body_env in
+        Let_with_acc.create acc
+          (Bound_pattern.static
+             (Bound_static.create [Bound_static.Pattern.block_like symbol]))
+          defining_expr ~body
       | Prim (Binary (Block_load _, block, field), _) -> (
         match find_value_approximation_through_symbol acc body_env block with
         | Value_unknown -> bind acc body_env
