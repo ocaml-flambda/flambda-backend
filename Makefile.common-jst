@@ -2,6 +2,9 @@
 # Build rules common to ocaml-jst and flambda-backend
 #
 
+# Get Merlin along with any Dune command
+dune := '$(CURDIR)/jane-street-merlin-setup.sh' ; '$(dune)'
+
 ws_boot   = --root=. --workspace=duneconf/boot.ws
 ws_runstd = --root=. --workspace=duneconf/runtime_stdlib.ws
 ws_main   = --root=. --workspace=duneconf/main.ws
