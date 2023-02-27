@@ -521,6 +521,11 @@ let nullary_primitive _env res dbg prim =
     let expr = Cmm.Cop (Cprobe_is_enabled { name }, [], dbg) in
     None, res, expr
   | Begin_region -> None, res, C.beginregion ~dbg
+  | Enter_inlined_apply _ ->
+    Misc.fatal_errorf
+      "The primitive [Enter_inlined_apply] should not be translated by \
+       [to_cmm_primitive] but should instead be handled in [to_cmm_expr] to \
+       correctly adjust the inlined debuginfo in the env."
 
 let unary_primitive env res dbg f arg =
   match (f : P.unary_primitive) with
