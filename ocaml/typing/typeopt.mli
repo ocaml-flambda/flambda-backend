@@ -30,6 +30,8 @@ val bigarray_type_kind_and_layout :
       Env.t -> Types.type_expr -> Lambda.bigarray_kind * Lambda.bigarray_layout
 val layout : Env.t -> Types.type_expr -> Lambda.layout
 val function_return_layout : Env.t -> Types.type_expr -> Lambda.layout
+(* Gives the return layout of a function with two arguments. *)
+val function2_return_layout : Env.t -> Types.type_expr -> Lambda.layout
 
 val classify_lazy_argument : Typedtree.expression ->
                              [ `Constant_or_function

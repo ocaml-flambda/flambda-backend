@@ -496,6 +496,7 @@ val layout_lazy : layout
 val layout_lazy_contents : layout
 (* A layout that is Pgenval because we are missing layout polymorphism *)
 val layout_any_value : layout
+(* A layout that is Pgenval because it is bound by a letrec *)
 val layout_letrec : layout
 
 val layout_top : layout
