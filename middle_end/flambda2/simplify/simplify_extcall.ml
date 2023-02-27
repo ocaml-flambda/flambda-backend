@@ -194,8 +194,7 @@ let simplify_returning_extcall ~dbg ~cont ~exn_cont:_ dacc fun_name args
 (* Exported simplification function *)
 (* ******************************** *)
 
-let simplify_extcall dacc apply ~callee_ty:_ ~param_arity:_ ~return_arity:_
-    ~arg_types =
+let simplify_extcall dacc apply ~callee_ty:_ ~arg_types =
   let dbg = Apply.dbg apply in
   let args = Apply.args apply in
   let exn_cont = Apply.exn_continuation apply in

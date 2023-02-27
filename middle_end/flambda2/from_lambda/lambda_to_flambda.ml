@@ -858,8 +858,19 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
         CC.close_apply acc ccenv
           { apply with continuation = wrapper_cont; region }
       in
+      let return_arity =
+        match Flambda_arity.With_subkinds.to_list apply.return_arity with
+        | [return_kind] -> return_kind
+        | _ :: _ ->
+          Misc.fatal_errorf
+            "Multiple return values for application of %a not supported yet"
+            Ident.print apply.func
+        | [] ->
+          Misc.fatal_errorf "Nullary return arity for application of %a"
+            Ident.print apply.func
+      in
       CC.close_let_cont acc ccenv ~name:wrapper_cont ~is_exn_handler:false
-        ~params:[return_value, Not_user_visible, apply.return]
+        ~params:[return_value, Not_user_visible, return_arity]
         ~recursive:Nonrecursive ~body ~handler
   in
   restore_continuation_context acc env ccenv apply.continuation ~close_early
@@ -1295,9 +1306,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         probe = None;
                         mode;
                         region = Env.current_region env;
-                        return =
-                          Flambda_kind.With_subkind.from_lambda
-                            Lambda.layout_top
+                        return_arity =
+                          Flambda_arity.With_subkinds.create
+                            [Flambda_kind.With_subkind.from_lambda layout]
                       }
                     in
                     wrap_return_continuation acc env ccenv apply))
@@ -1497,7 +1508,9 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               probe = ap_probe;
               mode = ap_mode;
               region = Env.current_region env;
-              return = Flambda_kind.With_subkind.from_lambda ap_return
+              return_arity =
+                Flambda_arity.With_subkinds.create
+                  [Flambda_kind.With_subkind.from_lambda ap_return]
             }
           in
           wrap_return_continuation acc env ccenv apply)
@@ -1632,7 +1645,10 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       (fun (param, kind) -> param, Flambda_kind.With_subkind.from_lambda kind)
       params
   in
-  let return = Flambda_kind.With_subkind.from_lambda return in
+  let return =
+    Flambda_arity.With_subkinds.create
+      [Flambda_kind.With_subkind.from_lambda return]
+  in
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
     ~return ~return_continuation:body_cont ~exn_continuation ~my_region ~body
     ~attr ~loc ~free_idents_of_body recursive ~closure_alloc_mode:mode

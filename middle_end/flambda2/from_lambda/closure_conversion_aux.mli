@@ -68,7 +68,7 @@ module IR : sig
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
       region : Ident.t;
-      return : Flambda_kind.With_subkind.t
+      return_arity : Flambda_arity.With_subkinds.t
     }
 
   type switch =
@@ -292,7 +292,7 @@ module Function_decls : sig
       function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
       params:(Ident.t * Flambda_kind.With_subkind.t) list ->
-      return:Flambda_kind.With_subkind.t ->
+      return:Flambda_arity.With_subkinds.t ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
       my_region:Ident.t ->
@@ -314,7 +314,7 @@ module Function_decls : sig
 
     val params : t -> (Ident.t * Flambda_kind.With_subkind.t) list
 
-    val return : t -> Flambda_kind.With_subkind.t
+    val return : t -> Flambda_arity.With_subkinds.t
 
     val return_continuation : t -> Continuation.t
 
