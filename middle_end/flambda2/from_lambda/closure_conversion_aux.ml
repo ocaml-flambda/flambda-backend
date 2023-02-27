@@ -441,18 +441,23 @@ module Acc = struct
     in
     { t with shareable_constants }
 
+  let find_symbol_approximation t symbol =
+    try Symbol.Map.find symbol t.symbol_approximations
+    with Not_found -> t.approximation_for_external_symbol symbol
+
   let add_symbol_approximation t symbol approx =
-    if Value_approximation.is_unknown approx
-    then t
-    else
+    match (approx : _ Value_approximation.t) with
+    | Value_unknown -> t
+    | Value_symbol s ->
+      (* This should not happen. But in case it does, we don't want to add an
+         indirection *)
+      Misc.fatal_errorf "Symbol %a approximated to symbol %a" Symbol.print
+        symbol Symbol.print s
+    | Closure_approximation _ | Block_approximation _ | Value_int _ ->
       { t with
         symbol_approximations =
           Symbol.Map.add symbol approx t.symbol_approximations
       }
-
-  let find_symbol_approximation t symbol =
-    try Symbol.Map.find symbol t.symbol_approximations
-    with Not_found -> t.approximation_for_external_symbol symbol
 
   let add_code ~code_id ~code t =
     { t with code = Code_id.Map.add code_id code t.code }
