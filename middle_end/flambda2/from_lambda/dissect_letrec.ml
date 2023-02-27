@@ -247,12 +247,16 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
             (id, def) :: defs, Lambda.Lvar id :: args)
         args ([], [])
     in
+    let arg_layout =
+      Typeopt.layout_union layout_field
+        (Typeopt.layout_union layout_int layout_block)
+    in
     (* Bytecode evaluates effects in blocks from right to left, so reverse defs
        to preserve evaluation order. Relevant test: letrec/evaluation_order_3 *)
     let lam =
       List.fold_left
         (fun body (id, def) : Lambda.lambda ->
-          Llet (Strict, Lambda.layout_block, id, def, body))
+          Llet (Strict, arg_layout, id, def, body))
         (Lambda.Lprim (prim, args, dbg))
         defs
     in

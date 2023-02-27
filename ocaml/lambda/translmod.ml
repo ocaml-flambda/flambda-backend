@@ -163,7 +163,7 @@ and wrap_id_pos_list loc id_pos_list get_field lam =
     List.fold_left (fun (lam, s) (id',pos,c) ->
       if Ident.Set.mem id' fv then
         let id'' = Ident.create_local (Ident.name id') in
-        (Llet(Alias, Lambda.layout_field, id'',
+        (Llet(Alias, Lambda.layout_module_field, id'',
              apply_coercion loc Alias c (get_field pos),lam),
          Ident.Map.add id' id'' s)
       else (lam, s))
@@ -1561,7 +1561,7 @@ let toploop_getvalue id =
                   Loc_unknown);
     ap_args=[Lconst(Const_base(
       Const_string (toplevel_name id, Location.none, None)))];
-    ap_result_layout = Lambda.layout_module_field;
+    ap_result_layout = Lambda.layout_any_value;
     ap_region_close=Rc_normal;
     ap_mode=alloc_heap;
     ap_tailcall=Default_tailcall;
@@ -1592,7 +1592,7 @@ let toploop_setvalue id lam =
 let toploop_setvalue_id id = toploop_setvalue id (Lvar id)
 
 let close_toplevel_term (lam, ()) =
-  Ident.Set.fold (fun id l -> Llet(Strict, Lambda.layout_module_field, id,
+  Ident.Set.fold (fun id l -> Llet(Strict, Lambda.layout_any_value, id,
                                   toploop_getvalue id, l))
                 (free_variables lam) lam
 
