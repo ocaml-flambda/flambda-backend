@@ -1,48 +1,14 @@
-(rule
- (alias runtest)
- (action
-  (progn
-   (run ../tools/flexpect.exe tests0.flt)
-   (diff? tests0.flt tests0.flt.corrected))))
+(include generated-rules.inc)
+
+(alias (name regen-dune-rules))
 
 (rule
- (alias runtest)
+ (alias regen-dune-rules)
  (action
   (progn
-   (run ../tools/roundtrip.exe tests0_in.fl)
-   (diff? tests0_in.fl tests0_in.fl.corrected))))
-
-(rule
- (alias runtest)
- (action
-  (progn
-   (run ../tools/roundtrip.exe tests0_out.fl)
-   (diff? tests0_out.fl tests0_out.fl.corrected))))
-
-(rule
- (alias runtest)
- (action
-  (progn
-   (run ../tools/roundtrip.exe tests4_in.fl)
-   (diff? tests4_in.fl tests4_in.fl.corrected))))
-
-(rule
- (alias runtest)
- (action
-  (progn
-   (run ../tools/roundtrip.exe tests4_out.fl)
-   (diff? tests4_out.fl tests4_out.fl.corrected))))
-
-(rule
- (alias runtest)
- (action
-  (progn
-   (run ../tools/roundtrip.exe tests5_in.fl)
-   (diff? tests5_in.fl tests5_in.fl.corrected))))
-
-(rule
- (alias runtest)
- (action
-  (progn
-   (run ../tools/roundtrip.exe tests5_out.fl)
-   (diff? tests5_out.fl tests5_out.fl.corrected))))
+   (with-stdout-to generated-rules.inc.new
+    (run tools/gen_dune_rules.exe
+         tests0
+         tests4
+         tests5))
+   (diff generated-rules.inc generated-rules.inc.new))))

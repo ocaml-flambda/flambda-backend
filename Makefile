@@ -105,6 +105,19 @@ regen-flambda2-parser:
 # auto-promotion)
 	$(dune) build $(ws_main) @middle_end/flambda2/parser/regen
 
+.PHONY: regen-flambda2-tests
+regen-flambda2-tests: runtime-stdlib # Need to build this first for some reason
+	$(dune) build $(ws_main) \
+	  @middle_end/flambda2/tests/regen --auto-promote || true
+	$(dune) build $(ws_main) \
+	  @middle_end/flambda2/tests/regen
+
+.PHONY: regen-flambda2-test-dune-rules
+regen-flambda2-test-dune-rules: runtime-stdlib
+	$(dune) build $(ws_boot) \
+	  @middle_end/flambda2/tests/regen-dune-rules --auto-promote || true
+	$(dune) build $(ws_boot) \
+	  @middle_end/flambda2/tests/regen-dune-rules
 
 ## Build upstream compiler.
 .PHONY: build_upstream

@@ -58,15 +58,20 @@ val unicode : unit -> bool
 
 val check_invariants : unit -> bool
 
+type dump_target = Flambda_backend_flags.Flambda2.Dump.target =
+  | Nowhere
+  | Main_dump_stream
+  | File of Misc.filepath
+
 val dump_rawflambda : unit -> bool
 
 val dump_flambda : unit -> bool
 
-val dump_rawfexpr : unit -> bool
+val dump_rawfexpr : unit -> dump_target
 
-val dump_fexpr : unit -> bool
+val dump_fexpr : unit -> dump_target
 
-val dump_flexpect : unit -> bool
+val dump_flexpect : unit -> dump_target
 
 val dump_slot_offsets : unit -> bool
 
