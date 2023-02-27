@@ -203,16 +203,22 @@ let find_simples acc env ids =
 let find_simples_and_arity acc env ids =
   List.fold_left_map (fun acc id -> find_simple_with_kind acc env id) acc ids
 
-let find_value_approximation acc env simple =
+let find_value_approximation env simple =
   Simple.pattern_match' simple
     ~var:(fun var ~coercion:_ -> Env.find_var_approximation env var)
-    ~symbol:(fun sym ~coercion:_ -> Acc.find_symbol_approximation acc sym)
+    ~symbol:(fun sym ~coercion:_ -> Value_approximation.Value_symbol sym)
     ~const:(fun const ->
       match Reg_width_const.descr const with
       | Tagged_immediate i -> Value_approximation.Value_int i
       | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
       | Naked_nativeint _ ->
         Value_approximation.Value_unknown)
+
+let find_value_approximation_through_symbol acc env simple =
+  match find_value_approximation env simple with
+  | Value_approximation.Value_symbol sym ->
+    Acc.find_symbol_approximation acc sym
+  | approx -> approx
 
 module Inlining = struct
   include Closure_conversion_aux.Inlining
@@ -789,13 +795,7 @@ let close_let acc env id user_visible kind defining_expr
               (Make_block (Values (tag, _), Immutable, alloc_mode), fields),
             _ ) -> (
         let approxs =
-          List.map
-            (fun field ->
-              match Simple.must_be_symbol field with
-              | None -> find_value_approximation acc body_env field
-              | Some (sym, _) -> Value_approximation.Value_symbol sym)
-            fields
-          |> Array.of_list
+          List.map (find_value_approximation body_env) fields |> Array.of_list
         in
         let all_fields_static =
           List.fold_left
@@ -829,7 +829,7 @@ let close_let acc env id user_visible kind defining_expr
           let acc =
             Acc.add_symbol_approximation acc sym
               (Value_approximation.Block_approximation
-                 (approxs,Alloc_mode.For_allocations.as_type alloc_mode))
+                 (approxs, Alloc_mode.For_allocations.as_type alloc_mode))
           in
           body acc body_env
         | None ->
@@ -839,7 +839,7 @@ let close_let acc env id user_visible kind defining_expr
           in
           bind acc body_env)
       | Prim (Binary (Block_load _, block, field), _) -> (
-        match find_value_approximation acc body_env block with
+        match find_value_approximation_through_symbol acc body_env block with
         | Value_unknown -> bind acc body_env
         | Closure_approximation _ | Value_symbol _ | Value_int _ ->
           (* Here we assume [block] has already been substituted as a known
@@ -877,13 +877,10 @@ let close_let acc env id user_visible kind defining_expr
           in
           match approx with
           | Value_symbol sym ->
-            (* In spirit, this is the same as the simple case but more
-               cumbersome to detect, we have to remove the now useless
-               let-binding later. *)
             let body_env =
               Env.add_simple_to_substitute env id (Simple.symbol sym) kind
             in
-            bind acc body_env
+            body acc body_env
           | _ ->
             let body_env = Env.add_var_approximation body_env var approx in
             bind acc body_env))
@@ -1034,7 +1031,7 @@ let close_exact_or_unknown_apply acc env
 let close_apply_cont acc env ~dbg cont trap_action args : Expr_with_acc.t =
   let acc, args = find_simples acc env args in
   let trap_action = close_trap_action_opt trap_action in
-  let args_approx = List.map (find_value_approximation acc env) args in
+  let args_approx = List.map (find_value_approximation env) args in
   let acc, apply_cont =
     Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args ~dbg
   in
@@ -1046,7 +1043,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
   let untagged_scrutinee = Variable.create "untagged" in
   let untagged_scrutinee' = VB.create untagged_scrutinee Name_mode.normal in
   let known_const_scrutinee =
-    match find_value_approximation acc env scrutinee with
+    match find_value_approximation_through_symbol acc env scrutinee with
     | Value_approximation.Value_int i -> Some i
     | _ -> None
   in
@@ -1058,7 +1055,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
       (fun acc (case, cont, trap_action, args) ->
         let trap_action = close_trap_action_opt trap_action in
         let acc, args = find_simples acc env args in
-        let args_approx = List.map (find_value_approximation acc env) args in
+        let args_approx = List.map (find_value_approximation env) args in
         let action acc =
           Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args
             ~dbg:condition_dbg
@@ -1277,7 +1274,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
         Env.add_var_approximation
           (Env.add_var env id var kind)
           var
-          (find_value_approximation acc env simple))
+          (find_value_approximation_through_symbol acc env simple))
       value_slots_for_idents closure_env
   in
   let closure_env =
@@ -1886,7 +1883,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     let arg = find_simple_from_id env wrapper_id in
     let acc, apply_cont =
       Apply_cont_with_acc.create acc
-        ~args_approx:[find_value_approximation acc env arg]
+        ~args_approx:[find_value_approximation env arg]
         apply_continuation ~args:[arg] ~dbg:Debuginfo.none
     in
     Expr_with_acc.create_apply_cont acc apply_cont
@@ -2010,7 +2007,7 @@ type call_args_split =
 
 let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   let callee = find_simple_from_id env apply.func in
-  let approx = find_value_approximation acc env callee in
+  let approx = find_value_approximation_through_symbol acc env callee in
   let code_info =
     match approx with
     | Closure_approximation { code; _ } ->
@@ -2296,6 +2293,9 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
   in
   let module_block_approximation =
     match Acc.continuation_known_arguments ~cont:prog_return_cont acc with
+    (* Module symbol may be rebuilt from a lifted block *)
+    | Some [Value_approximation.Value_symbol s] ->
+      Acc.find_symbol_approximation acc s
     | Some [approx] -> approx
     | _ -> Value_approximation.Value_unknown
   in
