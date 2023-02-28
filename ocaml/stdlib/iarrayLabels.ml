@@ -2,6 +2,8 @@
 
 open! Stdlib
 
+module Iarray = Stdlib__Iarray
+
 [@@@ocaml.flambda_o3]
 
 (* Module [IarrayLabels]: labelled Iarray module *)

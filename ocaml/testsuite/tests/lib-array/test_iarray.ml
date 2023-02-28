@@ -3,6 +3,8 @@
    * expect
 *)
 
+module Iarray = Stdlib__Iarray
+
 (** Create some immutable and mutable arrays *)
 
 let iarray  : int   iarray = [:1;2;3;4;5:];;
@@ -12,6 +14,7 @@ let marray  : int   array = [|1;2;3;4;5|];;
 let mfarray : float array = [|1.5;2.5;3.5;4.5;5.5|];;
 
 [%%expect{|
+module Iarray = Stdlib__Iarray
 val iarray : int iarray = [:1; 2; 3; 4; 5:]
 val ifarray : float iarray = [:1.5; 2.5; 3.5; 4.5; 5.5:]
 val marray : int array = [|1; 2; 3; 4; 5|]
@@ -135,12 +138,18 @@ Iarray.length iarray, Iarray.length ifarray;;
 
 iarray.:(0), Iarray.get iarray 1, ifarray.:(2), Iarray.get ifarray 3;;
 [%%expect{|
-- : int * int * float * float = (1, 2, 3.5, 4.5)
+Line 1, characters 0-11:
+1 | iarray.:(0), Iarray.get iarray 1, ifarray.:(2), Iarray.get ifarray 3;;
+    ^^^^^^^^^^^
+Error: Unbound value .:()
 |}];;
 
 iarray.:(10)
 [%%expect{|
-Exception: Invalid_argument "index out of bounds".
+Line 1, characters 0-12:
+1 | iarray.:(10)
+    ^^^^^^^^^^^^
+Error: Unbound value .:()
 |}];;
 
 Iarray.get iarray (-1);;
@@ -150,7 +159,10 @@ Exception: Invalid_argument "index out of bounds".
 
 ifarray.:(-10);;
 [%%expect{|
-Exception: Invalid_argument "index out of bounds".
+Line 1, characters 0-14:
+1 | ifarray.:(-10);;
+    ^^^^^^^^^^^^^^
+Error: Unbound value .:()
 |}];;
 
 Iarray.get ifarray 5;;
