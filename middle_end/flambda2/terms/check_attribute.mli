@@ -16,8 +16,12 @@ end
 
 type t =
   | Default_check
-  | Assert of Property.t
-  | Assume of Property.t
+  | Check of
+      { property : Property.t;
+        strict : bool;
+        assume : bool;
+        loc : Location.t
+      }
 
 val print : Format.formatter -> t -> unit
 

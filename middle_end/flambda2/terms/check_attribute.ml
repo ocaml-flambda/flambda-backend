@@ -13,7 +13,7 @@
 module Property = struct
   type t = Noalloc
 
-  let to_string = function Noalloc -> "noalloc"
+  let print ppf = function Noalloc -> Format.fprintf ppf "alloc"
 
   let equal x y = match x, y with Noalloc, Noalloc -> true
 
@@ -22,26 +22,33 @@ end
 
 type t =
   | Default_check
-  | Assert of Property.t
-  | Assume of Property.t
+  | Check of
+      { property : Property.t;
+        strict : bool;
+        assume : bool;
+        loc : Location.t
+      }
 
 let print ppf t =
   match t with
   | Default_check -> ()
-  | Assert p -> Format.fprintf ppf "@[assert %s@]" (Property.to_string p)
-  | Assume p -> Format.fprintf ppf "@[assume %s@]" (Property.to_string p)
+  | Check { property; strict; assume; loc = _ } ->
+    Format.fprintf ppf "@[%s %s %a@]"
+      (if assume then "assume" else "assert")
+      (if strict then " strict" else "")
+      Property.print property
 
 let from_lambda : Lambda.check_attribute -> t = function
   | Default_check -> Default_check
-  | Assert p -> Assert (Property.from_lambda p)
-  | Assume p -> Assume (Property.from_lambda p)
+  | Check { property; strict; assume; loc } ->
+    Check { property = Property.from_lambda property; strict; assume; loc }
 
 let equal x y =
   match x, y with
   | Default_check, Default_check -> true
-  | Assert p1, Assert p2 | Assume p1, Assume p2 -> Property.equal p1 p2
-  | (Default_check | Assert _ | Assume _), _ -> false
+  | ( Check { property = p1; strict = s1; assume = a1; loc = loc1 },
+      Check { property = p2; strict = s2; assume = a2; loc = loc2 } ) ->
+    Property.equal p1 p2 && Bool.equal s1 s2 && Bool.equal a1 a2 && loc1 = loc2
+  | (Default_check | Check _), _ -> false
 
-let is_default : t -> bool = function
-  | Default_check -> true
-  | Assert _ | Assume _ -> false
+let is_default : t -> bool = function Default_check -> true | Check _ -> false
