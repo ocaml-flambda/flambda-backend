@@ -2,7 +2,6 @@
 
 open! Cfg_regalloc_utils
 open! Cfg_irc_utils
-
 module Doubly_linked_list = Flambda_backend_utils.Doubly_linked_list
 
 module RegWorkList = ArraySet.Make (struct
@@ -553,8 +552,7 @@ let[@inline] check_inter_has_no_duplicates (reg : Reg.t) : unit =
   if List.length l <> Reg.Set.cardinal s
   then fatal "interf list for %a is not a set" Printmach.reg reg
 
-let reg_set_of_doubly_linked_list (l : Reg.t Doubly_linked_list.t) : Reg.Set.t
-    =
+let reg_set_of_doubly_linked_list (l : Reg.t Doubly_linked_list.t) : Reg.Set.t =
   Doubly_linked_list.fold_right l ~init:Reg.Set.empty ~f:Reg.Set.add
 
 let[@inline] invariant state =
