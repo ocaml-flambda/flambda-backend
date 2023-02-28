@@ -645,7 +645,10 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
        moved around. *)
     Arbitrary_effects, Has_coeffects, Strict
   | Begin_region -> effects_and_coeffects_of_begin_region
-  | Enter_inlined_apply _ -> No_effects, No_coeffects, Strict
+  | Enter_inlined_apply _ ->
+    (* This doesn't really have effects, but without effects, these primitives
+       get deleted during lambda_to_flambda. *)
+    Arbitrary_effects, Has_coeffects, Strict
 
 let nullary_classify_for_printing p =
   match p with
