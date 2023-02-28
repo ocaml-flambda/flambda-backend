@@ -225,9 +225,11 @@ DECLARE_SIGNAL_HANDLER(segv_handler)
 #endif
 #else
     /* Raise a Stack_overflow exception straight from this signal handler */
-#if defined(CONTEXT_YOUNG_PTR) && defined(CONTEXT_EXCEPTION_POINTER)
-    Caml_state->exception_pointer == (char *) CONTEXT_EXCEPTION_POINTER;
+#if defined(CONTEXT_YOUNG_PTR)
     Caml_state->young_ptr = (value *) CONTEXT_YOUNG_PTR;
+#endif
+#if defined(CONTEXT_EXCEPTION_POINTER)
+    Caml_state->exception_pointer = (char *) CONTEXT_EXCEPTION_POINTER;
 #endif
     caml_raise_stack_overflow();
 #endif
@@ -253,6 +255,10 @@ DECLARE_SIGNAL_HANDLER(segv_handler)
 
 /* Initialization of signal stuff */
 
+#ifdef HAS_STACK_OVERFLOW_DETECTION
+static void * caml_signal_stack = NULL;
+#endif
+
 void caml_init_signals(void)
 {
   /* Bound-check trap handling */
@@ -277,7 +283,8 @@ void caml_init_signals(void)
 #endif
 
 #ifdef HAS_STACK_OVERFLOW_DETECTION
-  if (caml_setup_stack_overflow_detection() != -1) {
+  caml_signal_stack = caml_setup_stack_overflow_detection();
+  if (caml_signal_stack != NULL) {
     struct sigaction act;
     SET_SIGACT(act, segv_handler);
     act.sa_flags |= SA_ONSTACK | SA_NODEFER;
@@ -287,23 +294,80 @@ void caml_init_signals(void)
 #endif
 }
 
+/* Termination of signal stuff */
+
+#if defined(TARGET_power) || defined(TARGET_s390x) \
+    || defined(HAS_STACK_OVERFLOW_DETECTION)
+static void set_signal_default(int signum)
+{
+  struct sigaction act;
+  sigemptyset(&act.sa_mask);
+  act.sa_handler = SIG_DFL;
+  act.sa_flags = 0;
+  sigaction(signum, &act, NULL);
+}
+#endif
+
+void caml_terminate_signals(void)
+{
+#if defined(TARGET_power)
+  set_signal_default(SIGTRAP);
+#endif
+
+#if defined(TARGET_s390x)
+  set_signal_default(SIGFPE);
+#endif
+
+#ifdef HAS_STACK_OVERFLOW_DETECTION
+  set_signal_default(SIGSEGV);
+  caml_stop_stack_overflow_detection(caml_signal_stack);
+  caml_signal_stack = NULL;
+#endif
+}
+
 /* Allocate and select an alternate stack for handling signals,
    especially SIGSEGV signals.
    Each thread needs its own alternate stack.
    The alternate stack used to be statically-allocated for the main thread,
    but this is incompatible with Glibc 2.34 and newer, where SIGSTKSZ
-   may not be a compile-time constant (issue #10250). */
+   may not be a compile-time constant (issue #10250).
+   Return the dynamically-allocated alternate signal stack, or NULL
+   if an error occurred.
+   The returned pointer must be passed to [caml_stop_stack_overflow_detection].
+*/
 
-CAMLexport int caml_setup_stack_overflow_detection(void)
+CAMLexport void * caml_setup_stack_overflow_detection(void)
 {
 #ifdef HAS_STACK_OVERFLOW_DETECTION
   stack_t stk;
-  stk.ss_sp = malloc(SIGSTKSZ);
-  if (stk.ss_sp == NULL) return -1;
   stk.ss_size = SIGSTKSZ;
+  stk.ss_sp = malloc(stk.ss_size);
+  if (stk.ss_sp == NULL) return NULL;
   stk.ss_flags = 0;
-  return sigaltstack(&stk, NULL);
+  if (sigaltstack(&stk, NULL) == -1) {
+    free(stk.ss_sp);
+    return NULL;
+  }
+  return stk.ss_sp;
 #else
-  return 0;
+  return NULL;
 #endif
+}
+
+CAMLexport int caml_stop_stack_overflow_detection(void * signal_stack)
+{
+#ifdef HAS_STACK_OVERFLOW_DETECTION
+  stack_t oldstk, stk;
+  stk.ss_flags = SS_DISABLE;
+  stk.ss_sp = NULL;  /* not required but avoids a valgrind false alarm */
+  stk.ss_size = SIGSTKSZ; /* macOS wants a valid size here */
+  if (sigaltstack(&stk, &oldstk) == -1) return -1;
+  /* Check whether someone else installed their own signal stack */
+  if (!(oldstk.ss_flags & SS_DISABLE) && oldstk.ss_sp != signal_stack) {
+    /* Re-activate their signal stack. */
+    sigaltstack(&oldstk, NULL);
+  }
+  free(signal_stack);
+#endif
+  return 0;
 }

@@ -43,8 +43,8 @@ let simplify_project_function_slot ~move_from ~move_to ~min_name_mode dacc
            ~this_function_slot:move_from closures)
       ~result_var ~result_kind:K.value
 
-let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
-    ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
+let simplify_project_value_slot function_slot value_slot kind ~min_name_mode
+    dacc ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
   let result =
     (* We try a faster method before falling back to [simplify_projection]. *)
     match
@@ -76,14 +76,15 @@ let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
             (T.closure_with_at_least_this_value_slot
                ~this_function_slot:function_slot value_slot
                ~value_slot_var:(Bound_var.var result_var))
-          ~result_var ~result_kind:K.value
+          ~result_var ~result_kind:(K.With_subkind.kind kind)
       in
       let dacc = DA.add_use_of_value_slot result.dacc value_slot in
       SPR.with_dacc result dacc
   in
   let dacc =
     Simplify_common.add_symbol_projection result.dacc ~projected_from:closure
-      (Symbol_projection.Projection.project_value_slot function_slot value_slot)
+      (Symbol_projection.Projection.project_value_slot function_slot value_slot
+         kind)
       ~projection_bound_to:result_var
   in
   SPR.with_dacc result dacc
@@ -470,6 +471,9 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
 let simplify_opaque_identity dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   SPR.create_unknown dacc ~result_var K.value ~original_term
 
+let simplify_begin_try_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var K.region ~original_term
+
 let simplify_end_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   let ty = T.this_tagged_immediate Targetint_31_63.zero in
   let dacc = DA.add_variable dacc result_var ty in
@@ -552,8 +556,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =
     match prim with
-    | Project_value_slot { project_from; value_slot } ->
-      simplify_project_value_slot project_from value_slot ~min_name_mode
+    | Project_value_slot { project_from; value_slot; kind } ->
+      simplify_project_value_slot project_from value_slot ~min_name_mode kind
     | Project_function_slot { move_from; move_to } ->
       simplify_project_function_slot ~move_from ~move_to ~min_name_mode
     | Unbox_number boxable_number_kind ->
@@ -592,6 +596,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
       simplify_duplicate_array ~kind ~source_mutability ~destination_mutability
     | Duplicate_block { kind } -> simplify_duplicate_block ~kind
     | Opaque_identity { middle_end_only = _ } -> simplify_opaque_identity
+    | Begin_try_region -> simplify_begin_try_region
     | End_region -> simplify_end_region
     | Obj_dup -> simplify_obj_dup dbg
   in

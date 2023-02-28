@@ -156,12 +156,10 @@ module Stdlib : sig
 
   module Array : sig
     val exists2 : ('a -> 'b -> bool) -> 'a array -> 'b array -> bool
-    (* Same as [Array.exists], but for a two-argument predicate. Raise
-       Invalid_argument if the two arrays are determined to have
-       different lengths. *)
+    (** Same as [Array.exists2] from the standard library. *)
 
     val for_alli : (int -> 'a -> bool) -> 'a array -> bool
-    (** Same as {!Array.for_all}, but the
+    (** Same as [Array.for_all] from the standard library, but the
         function is applied with the index of the element as first argument,
         and the element itself as second argument. *)
 
@@ -186,6 +184,16 @@ module Stdlib : sig
 
     (** Splits on the last occurrence of the given character. *)
     val split_last_exn : string -> split_on:char -> string * string
+
+    val starts_with : prefix:string -> string -> bool
+    val ends_with : suffix:string -> string -> bool
+  end
+
+  module Int : sig
+    include module type of Int
+
+    val min : t -> t -> t
+    val max : t -> t -> t
   end
 
   external compare : 'a -> 'a -> int = "%compare"
@@ -364,6 +372,12 @@ val cut_at : string -> char -> string * string
    @since 4.01
 *)
 
+val ordinal_suffix : int -> string
+(** [ordinal_suffix n] is the appropriate suffix to append to the numeral [n] as
+    an ordinal number: [1] -> ["st"], [2] -> ["nd"], [3] -> ["rd"],
+    [4] -> ["th"], and so on.  Handles larger numbers (e.g., [42] -> ["nd"]) and
+    the numbers 11--13 (which all get ["th"]) correctly. *)
+
 (* Color handling *)
 module Color : sig
   type color =
@@ -382,6 +396,8 @@ module Color : sig
     | BG of color (* background *)
     | Bold
     | Reset
+
+  type Format.stag += Style of style list
 
   val ansi_of_style_l : style list -> string
   (* ANSI escape sequence for the given style *)
@@ -473,11 +489,6 @@ val print_if :
 
 type filepath = string
 
-(* CR-someday lmaurer: Retire [modname] in favor of [Compilation_unit.Name.t]
-   and alter [crcs] accordingly (move it into [Compilation_unit] somewhere?). *)
-type modname = string
-type crcs = (modname * Digest.t option) list
-
 type alerts = string Stdlib.String.Map.t
 
 module Bitmap : sig
@@ -488,30 +499,6 @@ module Bitmap : sig
   val get : t -> int -> bool
   val iter : (int -> unit) -> t -> unit
 end
-
-module EnvLazy: sig
-  type ('a,'b) t
-
-  type log
-
-  val force : ('a -> 'b) -> ('a,'b) t -> 'b
-  val create : 'a -> ('a,'b) t
-  val get_arg : ('a,'b) t -> 'a option
-  val get_contents : ('a,'b) t -> ('a,'b) Either.t
-  val create_forced : 'b -> ('a, 'b) t
-  val create_failed : exn -> ('a, 'b) t
-
-  (* [force_logged log f t] is equivalent to [force f t] but if [f]
-     returns [Error _] then [t] is recorded in [log]. [backtrack log]
-     will then reset all the recorded [t]s back to their original
-     state. *)
-  val log : unit -> log
-  val force_logged :
-    log -> ('a -> ('b, 'c) result) -> ('a,('b, 'c) result) t -> ('b, 'c) result
-  val backtrack : log -> unit
-
-end
-
 
 module Magic_number : sig
   (** a typical magic number is "Caml1999I011"; it is formed of an

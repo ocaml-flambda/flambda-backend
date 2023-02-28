@@ -29,7 +29,7 @@ let raw_clambda_dump_if ppf
     end;
   if !Clflags.dump_cmm then Format.fprintf ppf "@.cmm:@."
 
-let lambda_to_clambda ~backend ~filename:_ ~prefixname:_ ~ppf_dump
+let lambda_to_clambda ~backend ~prefixname:_ ~ppf_dump
       (lambda : Lambda.program) =
   let clambda =
     Closure.intro ~backend ~size:lambda.main_module_block_size lambda.code
@@ -38,7 +38,8 @@ let lambda_to_clambda ~backend ~filename:_ ~prefixname:_ ~ppf_dump
     let current_unit_ident =
       Compilation_unit.get_current_exn ()
       |> Compilation_unit.name
-      |> Compilation_unit.Name.persistent_ident
+      |> Compilation_unit.Name.to_string
+      |> Ident.create_persistent
     in
     { original_idents = [];
       module_path = Path.Pident current_unit_ident;

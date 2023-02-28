@@ -16,7 +16,7 @@
 open! Flambda.Import
 
 (** Classification of expressions based on their effects and coeffects. *)
-type effects_and_coeffects_classification = private
+type effects_and_coeffects_classification =
   | Pure
       (** Pure expressions can be commuted with *everything*, including
           effectful expressions such as function calls. *)
@@ -31,6 +31,11 @@ type effects_and_coeffects_classification = private
       (** Coeffects without any effect. These expression can commute with other
           coeffectful expressions (and pure expressions), but cannot commute
           with an effectful expression. *)
+  | Generative_immutable
+      (** Only immutable generative effects. These are technically effects
+          (since functions in the `Gc` module can read counters related to
+          allocations), but we are interested in moving allocation (e.g. for
+          unboxing of numbers in classic mode). *)
 
 (** Return the classification of an expression with the given effects and
     coeffects. *)
@@ -40,9 +45,17 @@ val classify_by_effects_and_coeffects :
 (** Classification of [Let]-expressions, identifying what may be done with the
     defining expression. *)
 type let_binding_classification = private
-  | Regular  (** Proceed as normal, do not inline the defining expression. *)
   | Drop_defining_expr  (** The defining expression may be deleted. *)
-  | May_inline  (** The defining expression may be inlined at the use site. *)
+  | Regular  (** Proceed as normal, do not inline the defining expression. *)
+  | May_inline_once
+      (** The defining expression is guaranteed to be used once, and may be
+          inlined at the use site. *)
+  | Must_inline_once
+      (** The defining expression is guaranteed to be used once, and must
+          inlined at the use site. *)
+  | Must_inline_and_duplicate
+      (** The defining expression must be inlined at all use sites, and it is
+          used multiple times (or inside a loop). *)
 
 val classify_let_binding :
   Variable.t ->

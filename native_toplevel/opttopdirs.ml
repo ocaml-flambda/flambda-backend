@@ -35,7 +35,7 @@ let _ = Hashtbl.add directive_table "quit" (Directive_none dir_quit)
 let dir_directory s =
   let d = expand_directory Config.standard_library s in
   let dir = Load_path.Dir.create d in
-  Load_path.add dir;
+  Load_path.append_dir dir;
   toplevel_env :=
     Stdlib.String.Set.fold
       (fun name env ->
@@ -85,7 +85,8 @@ let load_file ppf name0 =
       if Filename.check_suffix name ".cmx" || Filename.check_suffix name ".cmxa"
       then
         let cmxs = Filename.temp_file "caml" ".cmxs" in
-        Asmlink.link_shared ~ppf_dump:ppf [name] cmxs;
+        Asmlink.link_shared (module Unix : Compiler_owee.Unix_intf.S)
+          ~ppf_dump:ppf [name] cmxs;
         cmxs,true
       else
         name,false
@@ -191,7 +192,7 @@ let _ = Hashtbl.add directive_table "remove_printer"
              (Directive_ident (dir_remove_printer std_out))
 
 let parse_warnings ppf iserr s =
-  try Warnings.parse_options iserr s
+  try ignore (Warnings.parse_options iserr s : Warnings.alert option)
   with Arg.Bad err -> fprintf ppf "%s.@." err
 
 let _ =

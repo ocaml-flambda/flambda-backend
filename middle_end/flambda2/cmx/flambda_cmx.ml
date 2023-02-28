@@ -19,22 +19,28 @@ module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 
 type loader =
-  { get_global_info : Compilation_unit.t -> Flambda_cmx_format.t option;
+  { get_module_info : Compilation_unit.t -> Flambda_cmx_format.t option;
     mutable imported_names : Name.Set.t;
     mutable imported_code : Exported_code.t;
-    mutable imported_units : TE.Serializable.t option Compilation_unit.Map.t
+    mutable imported_units :
+      TE.Serializable.t option Compilation_unit.Name.Map.t
   }
 
 let load_cmx_file_contents loader comp_unit =
-  match Compilation_unit.Map.find comp_unit loader.imported_units with
+  let accessible_comp_unit =
+    Compilation_unit.which_cmx_file comp_unit
+      ~accessed_by:(Compilation_unit.get_current_exn ())
+  in
+  let cmx_file = Compilation_unit.name accessible_comp_unit in
+  match Compilation_unit.Name.Map.find cmx_file loader.imported_units with
   | typing_env_or_none -> typing_env_or_none
   | exception Not_found -> (
-    match loader.get_global_info comp_unit with
+    match loader.get_module_info accessible_comp_unit with
     | None ->
       (* To make things easier to think about, we never retry after a .cmx load
          fails. *)
       loader.imported_units
-        <- Compilation_unit.Map.add comp_unit None loader.imported_units;
+        <- Compilation_unit.Name.Map.add cmx_file None loader.imported_units;
       None
     | Some cmx ->
       let typing_env, all_code =
@@ -47,7 +53,7 @@ let load_cmx_file_contents loader comp_unit =
       let offsets = Flambda_cmx_format.exported_offsets cmx in
       Exported_offsets.import_offsets offsets;
       loader.imported_units
-        <- Compilation_unit.Map.add comp_unit (Some typing_env)
+        <- Compilation_unit.Name.Map.add cmx_file (Some typing_env)
              loader.imported_units;
       Some typing_env)
 
@@ -67,32 +73,32 @@ let load_symbol_approx loader symbol : Code_or_metadata.t Value_approximation.t
     in
     T.Typing_env.Serializable.extract_symbol_approx typing_env symbol find_code
 
-let all_predefined_exception_symbols ~symbol_for_global =
+let all_predefined_exception_symbols () =
+  let symbol_for_global id =
+    Flambda2_import.Symbol.for_predef_ident id |> Symbol.create_wrapped
+  in
   Predef.all_predef_exns |> List.map symbol_for_global |> Symbol.Set.of_list
 
-let predefined_exception_typing_env ~symbol_for_global =
-  let comp_unit = Compilation_unit.get_current_exn () in
-  Compilation_unit.set_current Compilation_unit.predef_exn;
+let predefined_exception_typing_env () =
+  let comp_unit = Compilation_unit.get_current () in
+  Compilation_unit.set_current (Some Compilation_unit.predef_exn);
   let typing_env =
-    TE.Serializable.predefined_exceptions
-      (all_predefined_exception_symbols ~symbol_for_global)
+    TE.Serializable.predefined_exceptions (all_predefined_exception_symbols ())
   in
   Compilation_unit.set_current comp_unit;
   typing_env
 
-let create_loader ~get_global_info ~symbol_for_global =
+let create_loader ~get_module_info =
   let loader =
-    { get_global_info;
+    { get_module_info;
       imported_names = Name.Set.empty;
       imported_code = Exported_code.empty;
-      imported_units = Compilation_unit.Map.empty
+      imported_units = Compilation_unit.Name.Map.empty
     }
   in
-  let predefined_exception_typing_env =
-    predefined_exception_typing_env ~symbol_for_global
-  in
+  let predefined_exception_typing_env = predefined_exception_typing_env () in
   loader.imported_units
-    <- Compilation_unit.Map.singleton Compilation_unit.predef_exn
+    <- Compilation_unit.Name.Map.singleton Compilation_unit.Name.predef_exn
          (Some predefined_exception_typing_env);
   loader.imported_names
     <- TE.Serializable.name_domain predefined_exception_typing_env;

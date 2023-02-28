@@ -24,6 +24,16 @@ type loc = {
   loc_ghost: bool;
 }
 
+type field_usage_warning =
+  | Unused
+  | Not_read
+  | Not_mutated
+
+type constructor_usage_warning =
+  | Unused
+  | Not_constructed
+  | Only_exported_private
+
 type t =
   | Comment_start                           (*  1 *)
   | Comment_not_end                         (*  2 *)
@@ -61,8 +71,8 @@ type t =
   | Unused_type_declaration of string       (* 34 *)
   | Unused_for_index of string              (* 35 *)
   | Unused_ancestor of string               (* 36 *)
-  | Unused_constructor of string * bool * bool  (* 37 *)
-  | Unused_extension of string * bool * bool * bool (* 38 *)
+  | Unused_constructor of string * constructor_usage_warning (* 37 *)
+  | Unused_extension of string * bool * constructor_usage_warning (* 38 *)
   | Unused_rec_flag                         (* 39 *)
   | Name_out_of_scope of string * string list * bool (* 40 *)
   | Ambiguous_name of string list * string list *  bool * string (* 41 *)
@@ -93,6 +103,10 @@ type t =
   | Unused_open_bang of string              (* 66 *)
   | Unused_functor_parameter of string      (* 67 *)
   | Match_on_mutable_state_prevent_uncurry  (* 68 *)
+  | Unused_field of string * field_usage_warning (* 69 *)
+  | Missing_mli                             (* 70 *)
+  | Unused_tmc_attribute                    (* 71 *)
+  | Tmc_breaks_tailcall                     (* 72 *)
 ;;
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
@@ -171,174 +185,274 @@ let number = function
   | Unused_open_bang _ -> 66
   | Unused_functor_parameter _ -> 67
   | Match_on_mutable_state_prevent_uncurry -> 68
+  | Unused_field _ -> 69
+  | Missing_mli -> 70
+  | Unused_tmc_attribute -> 71
+  | Tmc_breaks_tailcall -> 72
 ;;
 
-let last_warning_number = 68
+let last_warning_number = 72
 ;;
 
-(* Third component of each tuple is the list of names for each warning. The
-   first element of the list is the current name, any following ones are
-   deprecated. The current name should always be derived mechanically from the
-   constructor name. *)
+type description =
+  { number : int;
+    names : string list;
+    (* The first element of the list is the current name, any following ones are
+       deprecated. The current name should always be derived mechanically from
+       the constructor name. *)
+    description : string; }
 
-let descriptions =
-  [
-    1, "Suspicious-looking start-of-comment mark.",
-    ["comment-start"];
-    2, "Suspicious-looking end-of-comment mark.",
-    ["comment-not-end"];
-    3, "Deprecated synonym for the 'deprecated' alert.",
-    [];
-    4, "Fragile pattern matching: matching that will remain complete even\n\
-       \    if additional constructors are added to one of the variant types\n\
-       \    matched.",
-    ["fragile-match"];
-    5, "Partially applied function: expression whose result has function\n\
-       \    type and is ignored.",
-    ["ignored-partial-application"];
-    6, "Label omitted in function application.",
-    ["labels-omitted"];
-    7, "Method overridden.",
-    ["method-override"];
-    8, "Partial match: missing cases in pattern-matching.",
-    ["partial-match"];
-    9, "Missing fields in a record pattern.",
-    ["missing-record-field-pattern"];
-    10,
-    "Expression on the left-hand side of a sequence that doesn't have type\n\
-    \    \"unit\" (and that is not a function, see warning number 5).",
-    ["non-unit-statement"];
-    11, "Redundant case in a pattern matching (unused match case).",
-    ["redundant-case"];
-    12, "Redundant sub-pattern in a pattern-matching.",
-    ["redundant-subpat"];
-    13, "Instance variable overridden.",
-    ["instance-variable-override"];
-    14, "Illegal backslash escape in a string constant.",
-    ["illegal-backslash"];
-    15, "Private method made public implicitly.",
-    ["implicit-public-methods"];
-    16, "Unerasable optional argument.",
-    ["unerasable-optional-argument"];
-    17, "Undeclared virtual method.",
-    ["undeclared-virtual-method"];
-    18, "Non-principal type.",
-    ["not-principal"];
-    19, "Type without principality.",
-    ["non-principal-labels"];
-    20, "Unused function argument.",
-    ["ignored-extra-argument"];
-    21, "Non-returning statement.",
-    ["nonreturning-statement"];
-    22, "Preprocessor warning.",
-    ["preprocessor"];
-    23, "Useless record \"with\" clause.",
-    ["useless-record-with"];
-    24,
-    "Bad module name: the source file name is not a valid OCaml module name.",
-    ["bad-module-name"];
-    25, "Ignored: now part of warning 8.",
-    [];
-    26,
+let descriptions = [
+  { number = 1;
+    names = ["comment-start"];
+    description = "Suspicious-looking start-of-comment mark." };
+  { number = 2;
+    names =  ["comment-not-end"];
+    description = "Suspicious-looking end-of-comment mark." };
+  { number = 3;
+    names = [];
+    description = "Deprecated synonym for the 'deprecated' alert." };
+  { number = 4;
+    names = ["fragile-match"];
+    description =
+      "Fragile pattern matching: matching that will remain complete even\n\
+      \    if additional constructors are added to one of the variant types\n\
+      \    matched." };
+  { number = 5;
+    names = ["ignored-partial-application"];
+    description =
+      "Partially applied function: expression whose result has function\n\
+      \    type and is ignored." };
+  { number = 6;
+    names = ["labels-omitted"];
+    description = "Label omitted in function application." };
+  { number = 7;
+    names = ["method-override"];
+    description = "Method overridden." };
+  { number = 8;
+    names = ["partial-match"];
+    description = "Partial match: missing cases in pattern-matching." };
+  { number = 9;
+    names = ["missing-record-field-pattern"];
+    description = "Missing fields in a record pattern." };
+  { number = 10;
+    names = ["non-unit-statement"];
+    description =
+      "Expression on the left-hand side of a sequence that doesn't have type\n\
+      \    \"unit\" (and that is not a function, see warning number 5)." };
+  { number = 11;
+    names = ["redundant-case"];
+    description =
+      "Redundant case in a pattern matching (unused match case)." };
+  { number = 12;
+    names = ["redundant-subpat"];
+    description = "Redundant sub-pattern in a pattern-matching." };
+  { number = 13;
+    names = ["instance-variable-override"];
+    description = "Instance variable overridden." };
+  { number = 14;
+    names = ["illegal-backslash"];
+    description = "Illegal backslash escape in a string constant." };
+  { number = 15;
+    names = ["implicit-public-methods"];
+    description = "Private method made public implicitly." };
+  { number = 16;
+    names = ["unerasable-optional-argument"];
+    description = "Unerasable optional argument." };
+  { number = 17;
+    names = ["undeclared-virtual-method"];
+    description = "Undeclared virtual method." };
+  { number = 18;
+    names = ["not-principal"];
+    description = "Non-principal type." };
+  { number = 19;
+    names = ["non-principal-labels"];
+    description = "Type without principality." };
+  { number = 20;
+    names = ["ignored-extra-argument"];
+    description = "Unused function argument." };
+  { number = 21;
+    names = ["nonreturning-statement"];
+    description = "Non-returning statement." };
+  { number = 22;
+    names = ["preprocessor"];
+    description = "Preprocessor warning." };
+  { number = 23;
+    names = ["useless-record-with"];
+    description = "Useless record \"with\" clause." };
+  { number = 24;
+    names = ["bad-module-name"];
+    description =
+    "Bad module name: the source file name is not a valid OCaml module name."};
+  { number = 25;
+    names = [];
+    description = "Ignored: now part of warning 8." };
+  { number = 26;
+    names = ["unused-var"];
+    description =
     "Suspicious unused variable: unused variable that is bound\n\
     \    with \"let\" or \"as\", and doesn't start with an underscore (\"_\")\n\
-    \    character.",
-    ["unused-var"];
-    27, "Innocuous unused variable: unused variable that is not bound with\n\
-        \    \"let\" nor \"as\", and doesn't start with an underscore (\"_\")\n\
-        \    character.",
-    ["unused-var-strict"];
-    28, "Wildcard pattern given as argument to a constant constructor.",
-    ["wildcard-arg-to-constant-constr"];
-    29, "Unescaped end-of-line in a string constant (non-portable code).",
-    ["eol-in-string"];
-    30, "Two labels or constructors of the same name are defined in two\n\
-        \    mutually recursive types.",
-    ["duplicate-definitions"];
-    31, "A module is linked twice in the same executable.",
-    ["module-linked-twice"];
-    32, "Unused value declaration.",
-    ["unused-value-declaration"];
-    33, "Unused open statement.",
-    ["unused-open"];
-    34, "Unused type declaration.",
-    ["unused-type-declaration"];
-    35, "Unused for-loop index.",
-    ["unused-for-index"];
-    36, "Unused ancestor variable.",
-    ["unused-ancestor"];
-    37, "Unused constructor.",
-    ["unused-constructor"];
-    38, "Unused extension constructor.",
-    ["unused-extension"];
-    39, "Unused rec flag.",
-    ["unused-rec-flag"];
-    40, "Constructor or label name used out of scope.",
-    ["name-out-of-scope"];
-    41, "Ambiguous constructor or label name.",
-    ["ambiguous-name"];
-    42, "Disambiguated constructor or label name (compatibility warning).",
-    ["disambiguated-name"];
-    43, "Nonoptional label applied as optional.",
-    ["nonoptional-label"];
-    44, "Open statement shadows an already defined identifier.",
-    ["open-shadow-identifier"];
-    45, "Open statement shadows an already defined label or constructor.",
-    ["open-shadow-label-constructor"];
-    46, "Error in environment variable.",
-    ["bad-env-variable"];
-    47, "Illegal attribute payload.",
-    ["attribute-payload"];
-    48, "Implicit elimination of optional arguments.",
-    ["eliminated-optional-arguments"];
-    49, "Absent cmi file when looking up module alias.",
-    ["no-cmi-file"];
-    50, "Unexpected documentation comment.",
-    ["unexpected-docstring"];
-    51, "Function call annotated with an incorrect @tailcall attribute",
-    ["wrong-tailcall-expectation"];
-    52, "Fragile constant pattern.",
-    ["fragile-literal-pattern"];
-    53, "Attribute cannot appear in this context.",
-    ["misplaced-attribute"];
-    54, "Attribute used more than once on an expression.",
-    ["duplicated-attribute"];
-    55, "Inlining impossible.",
-    ["inlining-impossible"];
-    56, "Unreachable case in a pattern-matching (based on type information).",
-    ["unreachable-case"];
-    57, "Ambiguous or-pattern variables under guard.",
-    ["ambiguous-var-in-pattern-guard"];
-    58, "Missing cmx file.",
-    ["no-cmx-file"];
-    59, "Assignment to non-mutable value.",
-    ["flambda-assignment-to-non-mutable-value"];
-    60, "Unused module declaration.",
-    ["unused-module"];
-    61, "Unboxable type in primitive declaration.",
-    ["unboxable-type-in-prim-decl"];
-    62, "Type constraint on GADT type declaration.",
-    ["constraint-on-gadt"];
-    63, "Erroneous printed signature.",
-    ["erroneous-printed-signature"];
-    64, "-unsafe used with a preprocessor returning a syntax tree.",
-    ["unsafe-array-syntax-without-parsing"];
-    65, "Type declaration defining a new '()' constructor.",
-    ["redefining-unit"];
-    66, "Unused open! statement.",
-    ["unused-open-bang"];
-    67, "Unused functor parameter.",
-    ["unused-functor-parameter"];
-    68, "Pattern-matching depending on mutable state prevents the remaining \
-         arguments from being uncurried.",
-    ["match-on-mutable-state-prevent-uncurry"];
-  ]
+    \    character." };
+  { number = 27;
+    names = ["unused-var-strict"];
+    description =
+    "Innocuous unused variable: unused variable that is not bound with\n\
+    \    \"let\" nor \"as\", and doesn't start with an underscore (\"_\")\n\
+    \    character." };
+  { number = 28;
+    names = ["wildcard-arg-to-constant-constr"];
+    description =
+      "Wildcard pattern given as argument to a constant constructor." };
+  { number = 29;
+    names = ["eol-in-string"];
+    description =
+      "Unescaped end-of-line in a string constant (non-portable code)." };
+  { number = 30;
+    names = ["duplicate-definitions"];
+    description =
+      "Two labels or constructors of the same name are defined in two\n\
+      \    mutually recursive types." };
+  { number = 31;
+    names = ["module-linked-twice"];
+    description = "A module is linked twice in the same executable." };
+  { number = 32;
+    names = ["unused-value-declaration"];
+    description = "Unused value declaration." };
+  { number = 33;
+    names = ["unused-open"];
+    description = "Unused open statement." };
+  { number = 34;
+    names = ["unused-type-declaration"];
+    description = "Unused type declaration." };
+  { number = 35;
+    names = ["unused-for-index"];
+    description = "Unused for-loop index." };
+  { number = 36;
+    names = ["unused-ancestor"];
+    description = "Unused ancestor variable." };
+  { number = 37;
+    names = ["unused-constructor"];
+    description = "Unused constructor." };
+  { number = 38;
+    names = ["unused-extension"];
+    description = "Unused extension constructor." };
+  { number = 39;
+    names = ["unused-rec-flag"];
+    description = "Unused rec flag." };
+  { number = 40;
+    names = ["name-out-of-scope"];
+    description = "Constructor or label name used out of scope." };
+  { number = 41;
+    names = ["ambiguous-name"];
+    description = "Ambiguous constructor or label name." };
+  { number = 42;
+    names = ["disambiguated-name"];
+    description =
+      "Disambiguated constructor or label name (compatibility warning)." };
+  { number = 43;
+    names = ["nonoptional-label"];
+    description = "Nonoptional label applied as optional." };
+  { number = 44;
+    names = ["open-shadow-identifier"];
+    description = "Open statement shadows an already defined identifier." };
+  { number = 45;
+    names = ["open-shadow-label-constructor"];
+    description =
+      "Open statement shadows an already defined label or constructor." };
+  { number = 46;
+    names = ["bad-env-variable"];
+    description = "Error in environment variable." };
+  { number = 47;
+    names = ["attribute-payload"];
+    description = "Illegal attribute payload." };
+  { number = 48;
+    names = ["eliminated-optional-arguments"];
+    description = "Implicit elimination of optional arguments." };
+  { number = 49;
+    names = ["no-cmi-file"];
+    description = "Absent cmi file when looking up module alias." };
+  { number = 50;
+    names = ["unexpected-docstring"];
+    description = "Unexpected documentation comment." };
+  { number = 51;
+    names = ["wrong-tailcall-expectation"];
+    description =
+      "Function call annotated with an incorrect @tailcall attribute" };
+  { number = 52;
+    names = ["fragile-literal-pattern"];
+    description = "Fragile constant pattern." };
+  { number = 53;
+    names = ["misplaced-attribute"];
+    description = "Attribute cannot appear in this context." };
+  { number = 54;
+    names = ["duplicated-attribute"];
+    description = "Attribute used more than once on an expression." };
+  { number = 55;
+    names = ["inlining-impossible"];
+    description = "Inlining impossible." };
+  { number = 56;
+    names = ["unreachable-case"];
+    description =
+      "Unreachable case in a pattern-matching (based on type information)." };
+  { number = 57;
+    names = ["ambiguous-var-in-pattern-guard"];
+    description = "Ambiguous or-pattern variables under guard." };
+  { number = 58;
+    names = ["no-cmx-file"];
+    description = "Missing cmx file." };
+  { number = 59;
+    names = ["flambda-assignment-to-non-mutable-value"];
+    description = "Assignment to non-mutable value." };
+  { number = 60;
+    names = ["unused-module"];
+    description = "Unused module declaration." };
+  { number = 61;
+    names = ["unboxable-type-in-prim-decl"];
+    description = "Unboxable type in primitive declaration." };
+  { number = 62;
+    names = ["constraint-on-gadt"];
+    description = "Type constraint on GADT type declaration." };
+  { number = 63;
+    names = ["erroneous-printed-signature"];
+    description = "Erroneous printed signature." };
+  { number = 64;
+    names = ["unsafe-array-syntax-without-parsing"];
+    description =
+      "-unsafe used with a preprocessor returning a syntax tree." };
+  { number = 65;
+    names = ["redefining-unit"];
+    description = "Type declaration defining a new '()' constructor." };
+  { number = 66;
+    names = ["unused-open-bang"];
+    description = "Unused open! statement." };
+  { number = 67;
+    names = ["unused-functor-parameter"];
+    description = "Unused functor parameter." };
+  { number = 68;
+    names = ["match-on-mutable-state-prevent-uncurry"];
+    description =
+      "Pattern-matching depending on mutable state prevents the remaining \n\
+      \    arguments from being uncurried." };
+  { number = 69;
+    names = ["unused-field"];
+    description = "Unused record field." };
+  { number = 70;
+    names = ["missing-mli"];
+    description = "Missing interface file." };
+  { number = 71;
+    names = ["unused-tmc-attribute"];
+    description = "Unused @tail_mod_cons attribute" };
+  { number = 72;
+    names = ["tmc-breaks-tailcall"];
+    description = "A tail call is turned into a non-tail call \
+                   by the @tail_mod_cons transformation." };
+]
 ;;
 
 let name_to_number =
   let h = Hashtbl.create last_warning_number in
-  List.iter (fun (num, _, names) ->
-      List.iter (fun name -> Hashtbl.add h name num) names
+  List.iter (fun {number; names; _} ->
+      List.iter (fun name -> Hashtbl.add h name number) names
     ) descriptions;
   fun s -> Hashtbl.find_opt h s
 ;;
@@ -419,20 +533,20 @@ let alert_is_error {kind; _} =
   let (set, pos) = (!current).alert_errors in
   Misc.Stdlib.String.Set.mem kind set = pos
 
+let with_state state f =
+  let prev = backup () in
+  restore state;
+  try
+    let r = f () in
+    restore prev;
+    r
+  with exn ->
+    restore prev;
+    raise exn
+
 let mk_lazy f =
   let state = backup () in
-  lazy
-    (
-      let prev = backup () in
-      restore state;
-      try
-        let r = f () in
-        restore prev;
-        r
-      with exn ->
-        restore prev;
-        raise exn
-    )
+  lazy (with_state state f)
 
 let set_alert ~error ~enable s =
   let upd =
@@ -487,26 +601,87 @@ let parse_alert_option s =
   in
   scan 0
 
-let parse_opt error active errflag s =
-  let flags = if errflag then error else active in
-  let set i =
-    if i = 3 then set_alert ~error:errflag ~enable:true "deprecated"
-    else flags.(i) <- true
+type modifier =
+  | Set (** +a *)
+  | Clear (** -a *)
+  | Set_all (** @a *)
+
+type token =
+  | Letter of char * modifier option
+  | Num of int * int * modifier
+
+let letter_alert tokens =
+  let print_warning_char ppf c =
+    let lowercase = Char.lowercase_ascii c = c in
+    Format.fprintf ppf "%c%c"
+      (if lowercase then '-' else '+') c
   in
-  let clear i =
-    if i = 3 then set_alert ~error:errflag ~enable:false "deprecated"
-    else flags.(i) <- false
+  let print_modifier ppf = function
+    | Set_all -> Format.fprintf ppf "@"
+    | Clear -> Format.fprintf ppf "-"
+    | Set -> Format.fprintf ppf "+"
   in
-  let set_all i =
-    if i = 3 then begin
-      set_alert ~error:false ~enable:true "deprecated";
-      set_alert ~error:true ~enable:true "deprecated"
-    end
-    else begin
-      active.(i) <- true;
-      error.(i) <- true
-    end
+  let print_token ppf = function
+    | Num (a,b,m) -> if a = b then
+          Format.fprintf ppf "%a%d" print_modifier m a
+        else
+          Format.fprintf ppf "%a%d..%d" print_modifier m a b
+    | Letter(l,Some m) -> Format.fprintf ppf "%a%c" print_modifier m l
+    | Letter(l,None) -> print_warning_char ppf l
   in
+  let consecutive_letters =
+    (* we are tracking sequences of 2 or more consecutive unsigned letters
+       in warning strings, for instance in '-w "not-principa"'. *)
+    let commit_chunk l = function
+      | [] | [ _ ] -> l
+      | _ :: _ :: _ as chunk -> List.rev chunk :: l
+    in
+    let group_consecutive_letters (l,current) = function
+    | Letter (x, None) -> (l, x::current)
+    | _ -> (commit_chunk l current, [])
+    in
+    let l, on_going =
+      List.fold_left group_consecutive_letters ([],[]) tokens
+    in
+    commit_chunk l on_going
+  in
+  match consecutive_letters with
+  | [] -> None
+  | example :: _  ->
+      let pos = { Lexing.dummy_pos with pos_fname = "_none_" } in
+      let nowhere = { loc_start=pos; loc_end=pos; loc_ghost=true } in
+      let spelling_hint ppf =
+        let max_seq_len =
+          List.fold_left (fun l x -> Misc.Stdlib.Int.max l (List.length x))
+            0 consecutive_letters
+        in
+        if max_seq_len >= 5 then
+          Format.fprintf ppf
+            "@ @[Hint: Did you make a spelling mistake \
+             when using a mnemonic name?@]"
+        else
+          ()
+      in
+      let message =
+        Format.asprintf
+          "@[<v>@[Setting a warning with a sequence of lowercase \
+           or uppercase letters,@ like '%a',@ is deprecated.@]@ \
+           @[Use the equivalent signed form:@ %t.@]@ \
+           @[Hint: Enabling or disabling a warning by its mnemonic name \
+           requires a + or - prefix.@]\
+           %t@?@]"
+          Format.(pp_print_list ~pp_sep:(fun _ -> ignore) pp_print_char) example
+          (fun ppf -> List.iter (print_token ppf) tokens)
+          spelling_hint
+      in
+      Some {
+        kind="ocaml_deprecated_cli";
+        use=nowhere; def=nowhere;
+        message
+      }
+
+
+let parse_warnings s =
   let error () = raise (Arg.Bad "Ill-formed list of warnings") in
   let rec get_num n i =
     if i >= String.length s then i, n
@@ -523,65 +698,94 @@ let parse_opt error active errflag s =
     else
       i, n1, n1
   in
-  let rec loop i =
-    if i >= String.length s then () else
+  let rec loop tokens i =
+    if i >= String.length s then List.rev tokens else
     match s.[i] with
-    | 'A' .. 'Z' ->
-       List.iter set (letter (Char.lowercase_ascii s.[i]));
-       loop (i+1)
-    | 'a' .. 'z' ->
-       List.iter clear (letter s.[i]);
-       loop (i+1)
-    | '+' -> loop_letter_num set (i+1)
-    | '-' -> loop_letter_num clear (i+1)
-    | '@' -> loop_letter_num set_all (i+1)
+    | 'A' .. 'Z' | 'a' .. 'z' ->
+        loop (Letter(s.[i],None)::tokens) (i+1)
+    | '+' -> loop_letter_num tokens Set (i+1)
+    | '-' -> loop_letter_num tokens Clear (i+1)
+    | '@' -> loop_letter_num tokens Set_all (i+1)
     | _ -> error ()
-  and loop_letter_num myset i =
+  and loop_letter_num tokens modifier i =
     if i >= String.length s then error () else
     match s.[i] with
     | '0' .. '9' ->
         let i, n1, n2 = get_range i in
-        for n = n1 to min n2 last_warning_number do myset n done;
-        loop i
-    | 'A' .. 'Z' ->
-       List.iter myset (letter (Char.lowercase_ascii s.[i]));
-       loop (i+1)
-    | 'a' .. 'z' ->
-       List.iter myset (letter s.[i]);
-       loop (i+1)
+        loop (Num(n1,n2,modifier)::tokens) i
+    | 'A' .. 'Z' | 'a' .. 'z' ->
+       loop (Letter(s.[i],Some modifier)::tokens) (i+1)
     | _ -> error ()
   in
-  match name_to_number s with
-  | Some n -> set n
+  loop [] 0
+
+let parse_opt error active errflag s =
+  let flags = if errflag then error else active in
+  let action modifier i = match modifier with
+    | Set ->
+        if i = 3 then set_alert ~error:errflag ~enable:true "deprecated"
+        else flags.(i) <- true
+    | Clear ->
+        if i = 3 then set_alert ~error:errflag ~enable:false "deprecated"
+        else flags.(i) <- false
+    | Set_all ->
+        if i = 3 then begin
+          set_alert ~error:false ~enable:true "deprecated";
+          set_alert ~error:true ~enable:true "deprecated"
+        end
+        else begin
+          active.(i) <- true;
+          error.(i) <- true
+        end
+  in
+  let eval = function
+    | Letter(c, m) ->
+        let lc = Char.lowercase_ascii c in
+        let modifier = match m with
+          | None -> if c = lc then Clear else Set
+          | Some m -> m
+        in
+        List.iter (action modifier) (letter lc)
+    | Num(n1,n2,modifier) ->
+        for n = n1 to Misc.Stdlib.Int.min n2 last_warning_number do action modifier n done
+  in
+  let parse_and_eval s =
+    let tokens = parse_warnings s in
+    List.iter eval tokens;
+    letter_alert tokens
+  in
+   match name_to_number s with
+  | Some n -> action Set n; None
   | None ->
-      if s = "" then loop 0
+      if s = "" then parse_and_eval s
       else begin
         let rest = String.sub s 1 (String.length s - 1) in
         match s.[0], name_to_number rest with
-        | '+', Some n -> set n
-        | '-', Some n -> clear n
-        | '@', Some n -> set_all n
-        | _ -> loop 0
+        | '+', Some n -> action Set n; None
+        | '-', Some n -> action Clear n; None
+        | '@', Some n -> action Set_all n; None
+        | _ -> parse_and_eval s
       end
 ;;
 
 let parse_options errflag s =
   let error = Array.copy (!current).error in
   let active = Array.copy (!current).active in
-  parse_opt error active errflag s;
-  current := {(!current) with error; active}
+  let alerts = parse_opt error active errflag s in
+  current := {(!current) with error; active};
+  alerts
 
 (* If you change these, don't forget to change them in man/ocamlc.m *)
-let defaults_w = "+a-4-6-7-9-27-29-30-32..42-44-45-48-50-60-66-67-68";;
+let defaults_w = "+a-4-7-9-27-29-30-32..42-44-45-48-50-60-66..70";;
 let defaults_warn_error = "-a+31";;
 
-let () = parse_options false defaults_w;;
-let () = parse_options true defaults_warn_error;;
+let () = ignore @@ parse_options false defaults_w;;
+let () = ignore @@ parse_options true defaults_warn_error;;
 
 let ref_manual_explanation () =
   (* manual references are checked a posteriori by the manual
      cross-reference consistency check in manual/tests*)
-  let[@manual.ref "s:comp-warnings"] chapter, section = 9, 5 in
+  let[@manual.ref "s:comp-warnings"] chapter, section = 11, 5 in
   Printf.sprintf "(See manual section %d.%d)" chapter section
 
 let message = function
@@ -622,13 +826,11 @@ let message = function
   | Redundant_case -> "this match case is unused."
   | Redundant_subpat -> "this sub-pattern is unused."
   | Instance_variable_override [lab] ->
-      "the instance variable " ^ lab ^ " is overridden.\n" ^
-      "The behaviour changed in ocaml 3.10 (previous behaviour was hiding.)"
+      "the instance variable " ^ lab ^ " is overridden."
   | Instance_variable_override (cname :: slist) ->
       String.concat " "
         ("the following instance variables are overridden by the class"
-         :: cname  :: ":\n " :: slist) ^
-      "\nThe behaviour changed in ocaml 3.10 (previous behaviour was hiding.)"
+         :: cname  :: ":\n " :: slist)
   | Instance_variable_override [] -> assert false
   | Illegal_backslash -> "illegal backslash escape in string."
   | Implicit_public_methods l ->
@@ -668,26 +870,26 @@ let message = function
   | Unused_type_declaration s -> "unused type " ^ s ^ "."
   | Unused_for_index s -> "unused for-loop index " ^ s ^ "."
   | Unused_ancestor s -> "unused ancestor variable " ^ s ^ "."
-  | Unused_constructor (s, false, false) -> "unused constructor " ^ s ^ "."
-  | Unused_constructor (s, true, _) ->
+  | Unused_constructor (s, Unused) -> "unused constructor " ^ s ^ "."
+  | Unused_constructor (s, Not_constructed) ->
       "constructor " ^ s ^
       " is never used to build values.\n\
         (However, this constructor appears in patterns.)"
-  | Unused_constructor (s, false, true) ->
+  | Unused_constructor (s, Only_exported_private) ->
       "constructor " ^ s ^
       " is never used to build values.\n\
         Its type is exported as a private type."
-  | Unused_extension (s, is_exception, cu_pattern, cu_privatize) ->
+  | Unused_extension (s, is_exception, complaint) ->
      let kind =
        if is_exception then "exception" else "extension constructor" in
      let name = kind ^ " " ^ s in
-     begin match cu_pattern, cu_privatize with
-       | false, false -> "unused " ^ name
-       | true, _ ->
+     begin match complaint with
+       | Unused -> "unused " ^ name
+       | Not_constructed ->
           name ^
           " is never used to build values.\n\
            (However, this constructor appears in patterns.)"
-       | false, true ->
+       | Only_exported_private ->
           name ^
           " is never used to build values.\n\
             It is exported or rebound as a private extension."
@@ -764,17 +966,24 @@ let message = function
   | Inlining_impossible reason ->
       Printf.sprintf "Cannot inline: %s" reason
   | Ambiguous_var_in_pattern_guard vars ->
-      let msg =
-        let vars = List.sort String.compare vars in
+      let vars = List.sort String.compare vars in
+      let vars_explanation =
+        let in_different_places =
+          "in different places in different or-pattern alternatives"
+        in
         match vars with
         | [] -> assert false
-        | [x] -> "variable " ^ x
+        | [x] -> "variable " ^ x ^ " appears " ^ in_different_places
         | _::_ ->
-            "variables " ^ String.concat "," vars in
+            let vars = String.concat ", " vars in
+            "variables " ^ vars ^ " appear " ^ in_different_places
+      in
       Printf.sprintf
         "Ambiguous or-pattern variables under guard;\n\
-         %s may match different arguments. %t"
-        msg ref_manual_explanation
+         %s.\n\
+         Only the first match will be used to evaluate the guard expression.\n\
+         %t"
+        vars_explanation ref_manual_explanation
   | No_cmx_file name ->
       Printf.sprintf
         "no cmx file was found in path for module %s, \
@@ -815,6 +1024,27 @@ let message = function
     "This pattern depends on mutable state.\n\
      It prevents the remaining arguments from being uncurried, which will \
      cause additional closure allocations."
+  | Unused_field (s, Unused) -> "unused record field " ^ s ^ "."
+  | Unused_field (s, Not_read) ->
+      "record field " ^ s ^
+      " is never read.\n\
+        (However, this field is used to build or mutate values.)"
+  | Unused_field (s, Not_mutated) ->
+      "mutable record field " ^ s ^
+      " is never mutated."
+  | Missing_mli ->
+    "Cannot find interface file."
+  | Unused_tmc_attribute ->
+      "This function is marked @tail_mod_cons\n\
+       but is never applied in TMC position."
+  | Tmc_breaks_tailcall ->
+      "This call\n\
+       is in tail-modulo-cons positionin a TMC function,\n\
+       but the function called is not itself specialized for TMC,\n\
+       so the call will not be transformed into a tail call.\n\
+       Please either mark the called function with the [@tail_mod_cons]\n\
+       attribute, or mark this call with the [@tailcall false] attribute\n\
+       to make its non-tailness explicit."
 ;;
 
 let nerrors = ref 0;;
@@ -828,8 +1058,8 @@ type reporting_information =
 
 let id_name w =
   let n = number w in
-  match List.find_opt (fun (m, _, _) -> m = n) descriptions with
-  | Some (_, _, s :: _) ->
+  match List.find_opt (fun {number; _} -> number = n) descriptions with
+  | Some {names = s :: _; _} ->
       Printf.sprintf "%d [%s]" n s
   | _ ->
       string_of_int n
@@ -890,13 +1120,13 @@ let check_fatal () =
 
 let help_warnings () =
   List.iter
-    (fun (i, s, names) ->
+    (fun {number; description; names} ->
        let name =
          match names with
          | s :: _ -> " [" ^ s ^ "]"
          | [] -> ""
        in
-       Printf.printf "%3i%s %s\n" i name s)
+       Printf.printf "%3i%s %s\n" number name description)
     descriptions;
   print_endline "  A all warnings";
   for i = Char.code 'b' to Char.code 'z' do

@@ -23,7 +23,7 @@ module IR : sig
 
   type exn_continuation =
     { exn_handler : Continuation.t;
-      extra_args : (simple * Lambda.value_kind) list
+      extra_args : (simple * Flambda_kind.With_subkind.t) list
     }
 
   type trap_action =
@@ -37,7 +37,7 @@ module IR : sig
   type named =
     | Simple of simple
     | Get_tag of Ident.t (* Intermediary primitive for block switch *)
-    | Begin_region
+    | Begin_region of { try_region_parent : Ident.t option }
     | End_region of Ident.t
         (** [Begin_region] and [End_region] are needed because these primitives
             don't exist in Lambda *)
@@ -67,7 +67,8 @@ module IR : sig
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
-      region : Ident.t
+      region : Ident.t;
+      return_arity : Flambda_arity.With_subkinds.t
     }
 
   type switch =
@@ -100,61 +101,66 @@ module Env : sig
 
   type t
 
-  val create :
-    symbol_for_global:(Ident.t -> Symbol.t) ->
-    big_endian:bool ->
-    cmx_loader:Flambda_cmx.loader ->
-    t
+  val create : big_endian:bool -> t
 
   val clear_local_bindings : t -> t
 
-  val add_var : t -> Ident.t -> Variable.t -> t
+  val add_var : t -> Ident.t -> Variable.t -> Flambda_kind.With_subkind.t -> t
 
-  val add_vars : t -> Ident.t list -> Variable.t list -> t
+  val add_vars :
+    t -> Ident.t list -> (Variable.t * Flambda_kind.With_subkind.t) list -> t
 
-  val add_var_map : t -> Variable.t Ident.Map.t -> t
+  val add_var_map :
+    t -> (Variable.t * Flambda_kind.With_subkind.t) Ident.Map.t -> t
 
-  val add_var_like : t -> Ident.t -> IR.user_visible -> t * Variable.t
+  val add_var_like :
+    t ->
+    Ident.t ->
+    IR.user_visible ->
+    Flambda_kind.With_subkind.t ->
+    t * Variable.t
 
   val add_vars_like :
-    t -> (Ident.t * IR.user_visible) list -> t * Variable.t list
+    t ->
+    (Ident.t * IR.user_visible * Flambda_kind.With_subkind.t) list ->
+    t * Variable.t list
 
   val find_name : t -> Ident.t -> Name.t
 
   val find_name_exn : t -> Ident.t -> Name.t
 
-  val find_var : t -> Ident.t -> Variable.t
+  val find_var : t -> Ident.t -> Variable.t * Flambda_kind.With_subkind.t
 
-  val find_var_exn : t -> Ident.t -> Variable.t
+  val find_var_exn : t -> Ident.t -> Variable.t * Flambda_kind.With_subkind.t
 
-  val find_vars : t -> Ident.t list -> Variable.t list
+  val find_vars :
+    t -> Ident.t list -> (Variable.t * Flambda_kind.With_subkind.t) list
 
   val add_global : t -> int -> Symbol.t -> t
 
   val find_global : t -> int -> Symbol.t
 
-  val add_simple_to_substitute : t -> Ident.t -> Simple.t -> t
+  val add_simple_to_substitute :
+    t -> Ident.t -> Simple.t -> Flambda_kind.With_subkind.t -> t
 
-  val add_simple_to_substitute_map : t -> Simple.t Ident.Map.t -> t
+  val add_simple_to_substitute_map :
+    t -> (Simple.t * Flambda_kind.With_subkind.t) Ident.Map.t -> t
 
-  val find_simple_to_substitute_exn : t -> Ident.t -> Simple.t
+  val find_simple_to_substitute_exn :
+    t -> Ident.t -> Simple.t * Flambda_kind.With_subkind.t
 
-  val add_value_approximation : t -> Name.t -> value_approximation -> t
+  val add_var_approximation : t -> Variable.t -> value_approximation -> t
 
   val add_block_approximation :
-    t -> Name.t -> value_approximation array -> Alloc_mode.For_types.t -> t
+    t -> Variable.t -> value_approximation array -> Alloc_mode.For_types.t -> t
 
-  val add_approximation_alias : t -> Name.t -> Name.t -> t
-
-  val find_value_approximation : t -> Simple.t -> value_approximation
+  val find_var_approximation : t -> Variable.t -> value_approximation
 
   val current_depth : t -> Variable.t option
 
   val with_depth : t -> Variable.t -> t
 
-  val current_unit_id : t -> Ident.t
-
-  val symbol_for_global : t -> Ident.t -> Symbol.t
+  val current_unit : t -> Compilation_unit.t
 
   val big_endian : t -> bool
 
@@ -188,8 +194,7 @@ module Acc : sig
 
   type t
 
-  val create :
-    symbol_for_global:(Ident.t -> Symbol.t) -> slot_offsets:Slot_offsets.t -> t
+  val create : slot_offsets:Slot_offsets.t -> cmx_loader:Flambda_cmx.loader -> t
 
   val declared_symbols : t -> (Symbol.t * Static_const.t) list
 
@@ -253,8 +258,6 @@ module Acc : sig
   val measure_cost_metrics :
     t -> f:(t -> t * 'a) -> Cost_metrics.t * Name_occurrences.t * t * 'a
 
-  val symbol_for_global : t -> Ident.t -> Symbol.t
-
   val slot_offsets : t -> Slot_offsets.t
 
   val add_set_of_closures_offsets :
@@ -271,6 +274,10 @@ module Acc : sig
     t
 
   val pop_closure_info : t -> closure_info * t
+
+  val add_symbol_approximation : t -> Symbol.t -> Env.value_approximation -> t
+
+  val find_symbol_approximation : t -> Symbol.t -> Env.value_approximation
 end
 
 (** Used to represent information about a set of function declarations during
@@ -284,8 +291,8 @@ module Function_decls : sig
       let_rec_ident:Ident.t option ->
       function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
-      params:(Ident.t * Lambda.value_kind) list ->
-      return:Lambda.value_kind ->
+      params:(Ident.t * Flambda_kind.With_subkind.t) list ->
+      return:Flambda_arity.With_subkinds.t ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
       my_region:Ident.t ->
@@ -293,7 +300,6 @@ module Function_decls : sig
       attr:Lambda.function_attribute ->
       loc:Lambda.scoped_location ->
       free_idents_of_body:Ident.Set.t ->
-      stub:bool ->
       Recursive.t ->
       closure_alloc_mode:Lambda.alloc_mode ->
       num_trailing_local_params:int ->
@@ -306,9 +312,9 @@ module Function_decls : sig
 
     val kind : t -> Lambda.function_kind
 
-    val params : t -> (Ident.t * Lambda.value_kind) list
+    val params : t -> (Ident.t * Flambda_kind.With_subkind.t) list
 
-    val return : t -> Lambda.value_kind
+    val return : t -> Flambda_arity.With_subkinds.t
 
     val return_continuation : t -> Continuation.t
 
@@ -394,6 +400,7 @@ end
 module Let_cont_with_acc : sig
   val build_recursive :
     Acc.t ->
+    invariant_params:Bound_parameters.t ->
     handlers:
       ((Acc.t -> Expr_with_acc.t) * Bound_parameters.t * bool)
       Continuation.Map.t ->

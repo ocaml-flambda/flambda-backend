@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+
+
 (** Command line flags *)
 
 (** Optimization parameters represented as ints indexed by round number. *)
@@ -110,6 +112,7 @@ val locations : bool ref
 val dump_source : bool ref
 val dump_parsetree : bool ref
 val dump_typedtree : bool ref
+val dump_shape : bool ref
 val dump_rawlambda : bool ref
 val dump_lambda : bool ref
 val dump_rawclambda : bool ref
@@ -125,8 +128,6 @@ val dump_cmm : bool ref
 val dump_selection : bool ref
 val dump_cse : bool ref
 val dump_live : bool ref
-val dump_avail : bool ref
-val debug_runavail : bool ref
 val dump_spill : bool ref
 val dump_split : bool ref
 val dump_interf : bool ref
@@ -202,14 +203,25 @@ val dumped_pass : string -> bool
 val set_dumped_pass : string -> bool -> unit
 
 val dump_into_file : bool ref
+val dump_dir : string option ref
 
 module Extension : sig
-  type t = Comprehensions | Local | Include_functor
-  val enable : string -> unit
-  val is_enabled : t -> bool
-  val to_string : t -> string
+  type t =
+    | Comprehensions
+    | Local
+    | Include_functor
+    | Polymorphic_parameters
+    | Immutable_arrays
+
   val all : t list
+
+  val enable : string -> unit
+  val enable_t : t -> unit
+  val is_enabled : t -> bool
   val disable_all : unit -> unit
+
+  val to_string : t -> string
+  val of_string : string -> t option
 end
 
 (* Support for flags that can also be set from an environment variable *)
@@ -282,11 +294,8 @@ val arg_spec : (string * Arg.spec * string) list ref
    added. *)
 val add_arguments : string -> (string * Arg.spec * string) list -> unit
 
-(* [parse_arguments argv anon_arg usage] will parse the arguments, using
-  the arguments provided in [Clflags.arg_spec].
-*)
-val parse_arguments : string array -> Arg.anon_fun -> string -> unit
-
+(* [create_usage_msg program] creates a usage message for [program] *)
+val create_usage_msg: string -> string
 (* [print_arguments usage] print the standard usage message *)
 val print_arguments : string -> unit
 

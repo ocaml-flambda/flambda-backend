@@ -64,12 +64,39 @@ and head_of_kind_value =
       }
   | String of String_info.Set.t
   | Array of
-      { element_kind : Flambda_kind.With_subkind.t Or_unknown.t;
+      { element_kind : Flambda_kind.With_subkind.t Or_unknown_or_bottom.t;
         length : t;
         contents : array_contents Or_unknown.t;
         alloc_mode : Alloc_mode.For_types.t
       }
 
+(* CR someday vlaviron: comparison results are encoded as naked immediates, and
+   in a few cases (physical equality mostly) some values of the boolean carry
+   information that we can represent in the types. Here is an actual example
+   where it would be useful: *)
+
+(* type t =
+ *   | A1 of float array
+ *   | A2 of int array
+ *   | A3 of int array
+ *   | A4 of int array
+ *
+ * let bar t =
+ *   match t with
+ *   | A3 x -> array_unsafe_get x 0 (* Not specialised currently *)
+ *   | _ -> assert false *)
+
+(* Since the match is compiled using equality on the tag and not a regular
+   switch, we currently fail to restrict the type of [t] to the single [A3]
+   constructor. We could solve that by adding another case like Is_int and
+   Get_tag, or we could go in the other direction and make each individual
+   number in the set for the Naked_immediates case carry an extension. We could
+   even use that for encoding the Is_int and Get_tag constraints, although it is
+   not completely clear what the impact on performance would be (we could store
+   minimal extensions, carrying a shape, or we could pre-compute the full meet
+   for each case and store precise extensions; the first version would be faster
+   if we don't actually use the extensions, while the second version would be
+   particularly useful if we switch several times on the same scrutinee. *)
 and head_of_kind_naked_immediate =
   | Naked_immediates of Targetint_31_63.Set.t
   | Is_int of t
@@ -132,7 +159,7 @@ and closures_entry =
 
 (* Products are a set of constraints: each new field reduces the concrete set.
    The empty product is top. There is no bottom. All components must be of the
-   same kind.
+   same kind except for [value_slot_indexed_product].
 
    { 1 => Unknown; 2 => V } is equal to { 2 => V } *)
 and function_slot_indexed_product =
@@ -728,13 +755,13 @@ and print_head_of_kind_value ppf head =
   | Array { element_kind; length; contents = Unknown; alloc_mode } ->
     Format.fprintf ppf
       "@[<hov 1>(Array@ (element_kind@ %a)@ (length@ %a)@ (alloc_mode@ %a))@]"
-      (Or_unknown.print Flambda_kind.With_subkind.print)
+      (Or_unknown_or_bottom.print Flambda_kind.With_subkind.print)
       element_kind print length Alloc_mode.For_types.print alloc_mode
   | Array { element_kind; length; contents = Known Mutable; alloc_mode } ->
     Format.fprintf ppf
       "@[<hov 1>(Mutable_array@ (element_kind@ %a)@ (length@ %a)@ (alloc_mode@ \
        %a))@]"
-      (Or_unknown.print Flambda_kind.With_subkind.print)
+      (Or_unknown_or_bottom.print Flambda_kind.With_subkind.print)
       element_kind print length Alloc_mode.For_types.print alloc_mode
   | Array
       { element_kind;
@@ -745,7 +772,7 @@ and print_head_of_kind_value ppf head =
     Format.fprintf ppf
       "@[<hov 1>(Immutable_array@ (element_kind@ %a)@ (length@ %a)@ \
        (alloc_mode@ %a)@ (fields@ (%a)))@]"
-      (Or_unknown.print Flambda_kind.With_subkind.print)
+      (Or_unknown_or_bottom.print Flambda_kind.With_subkind.print)
       element_kind print length Alloc_mode.For_types.print alloc_mode
       (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
       fields
@@ -2199,18 +2226,19 @@ module Product = struct
     type t = function_slot_indexed_product
 
     let create function_slot_components_by_index =
-      if Flambda_features.check_invariants ()
-      then
-        Function_slot.Map.iter
-          (fun _ ty ->
+      let function_slot_components_by_index =
+        Function_slot.Map.map
+          (fun ty ->
             if not (K.equal (kind ty) K.value)
             then
               Misc.fatal_errorf
                 "Function-slot-indexed products can only hold types of kind \
                  [Value]:@ %a"
                 (Function_slot.Map.print print)
-                function_slot_components_by_index)
-          function_slot_components_by_index;
+                function_slot_components_by_index
+            else ty)
+          function_slot_components_by_index
+      in
       { function_slot_components_by_index }
 
     let top = { function_slot_components_by_index = Function_slot.Map.empty }
@@ -2224,18 +2252,6 @@ module Product = struct
     type t = value_slot_indexed_product
 
     let create value_slot_components_by_index =
-      if Flambda_features.check_invariants ()
-      then
-        Value_slot.Map.iter
-          (fun _ ty ->
-            if not (K.equal (kind ty) K.value)
-            then
-              Misc.fatal_errorf
-                "Value-slot-indexed products can only hold types of kind \
-                 [Value]:@ %a"
-                (Value_slot.Map.print print)
-                value_slot_components_by_index)
-          value_slot_components_by_index;
       { value_slot_components_by_index }
 
     let top = { value_slot_components_by_index = Value_slot.Map.empty }

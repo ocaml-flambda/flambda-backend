@@ -32,6 +32,7 @@ val disable_poll_insertion : bool ref
 val allow_long_frames : bool ref
 val max_long_frames_threshold : int
 val long_frames_threshold : int ref
+val caml_apply_inline_fast_path : bool ref
 
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
@@ -42,6 +43,8 @@ val dump_inlining_paths : bool ref
 val opt_level : opt_level or_default ref
 
 val internal_assembler : bool ref
+
+val gc_timings : bool ref
 
 module Flambda2 : sig
   module Default : sig
@@ -85,11 +88,14 @@ module Flambda2 : sig
   val unicode : bool or_default ref
 
   module Dump : sig
-    val rawfexpr : bool ref
-    val fexpr : bool ref
-    val flexpect : bool ref
+    type target = Nowhere | Main_dump_stream | File of Misc.filepath
+
+    val rawfexpr : target ref
+    val fexpr : target ref
+    val flexpect : target ref
     val slot_offsets : bool ref
     val freshen : bool ref
+    val flow : bool ref
   end
 
   module Expert : sig
@@ -100,6 +106,7 @@ module Flambda2 : sig
       val max_block_size_for_projections : int option
       val max_unboxing_depth : int
       val can_inline_recursive_functions : bool
+      val max_function_simplify_run : int
     end
 
     type flags = {
@@ -109,6 +116,7 @@ module Flambda2 : sig
       max_block_size_for_projections : int option;
       max_unboxing_depth : int;
       can_inline_recursive_functions : bool;
+      max_function_simplify_run : int;
     }
 
     val default_for_opt_level : opt_level or_default -> flags
@@ -119,6 +127,7 @@ module Flambda2 : sig
     val max_block_size_for_projections : int option or_default ref
     val max_unboxing_depth : int or_default ref
     val can_inline_recursive_functions : bool or_default ref
+    val max_function_simplify_run : int or_default ref
   end
 
   module Debug : sig

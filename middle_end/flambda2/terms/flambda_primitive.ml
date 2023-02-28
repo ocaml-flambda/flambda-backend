@@ -243,7 +243,8 @@ module Init_or_assign = struct
   let to_lambda t : Lambda.initialization_or_assignment =
     match t with
     | Initialization -> Heap_initialization
-    | Assignment mode -> Assignment (Alloc_mode.For_allocations.to_lambda mode)
+    | Assignment mode ->
+      Assignment (Alloc_mode.For_allocations.to_lambda_modify mode)
 
   let free_names t =
     match t with
@@ -282,7 +283,7 @@ let reading_from_a_block mutable_or_immutable =
     | Immutable | Immutable_unique -> Coeffects.No_coeffects
     | Mutable -> Coeffects.Has_coeffects
   in
-  effects, coeffects
+  effects, coeffects, Placement.Strict
 
 let reading_from_an_array (array_kind : Array_kind.t)
     (mutable_or_immutable : Mutability.t) =
@@ -294,14 +295,14 @@ let reading_from_an_array (array_kind : Array_kind.t)
     | Immutable | Immutable_unique -> Coeffects.No_coeffects
     | Mutable -> Coeffects.Has_coeffects
   in
-  effects, coeffects
+  effects, coeffects, Placement.Strict
 
 let reading_from_a_string_or_bigstring mutable_or_immutable =
   reading_from_a_block mutable_or_immutable
 
 let writing_to_a_block =
   let effects = effects_of_operation Writing in
-  effects, Coeffects.No_coeffects
+  effects, Coeffects.No_coeffects, Placement.Strict
 
 let writing_to_an_array = writing_to_a_block
 
@@ -470,10 +471,12 @@ end
 let reading_from_a_bigarray kind =
   match (kind : Bigarray_kind.t) with
   | Complex32 | Complex64 ->
-    Effects.Only_generative_effects Immutable, Coeffects.Has_coeffects
+    ( Effects.Only_generative_effects Immutable,
+      Coeffects.Has_coeffects,
+      Placement.Strict )
   | Float32 | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32 | Int64
   | Int_width_int | Targetint_width_int ->
-    Effects.No_effects, Coeffects.Has_coeffects
+    Effects.No_effects, Coeffects.Has_coeffects, Placement.Strict
 
 (* The bound checks are taken care of outside the array primitive (using an
    explicit test and switch in the flambda code, see
@@ -486,7 +489,7 @@ let writing_to_a_bigarray kind =
     (* Technically, the write of a complex generates read of fields from the
        given complex, but since those reads are immutable, there is no
        observable coeffect. *) ->
-    Effects.Arbitrary_effects, Coeffects.No_coeffects
+    Effects.Arbitrary_effects, Coeffects.No_coeffects, Placement.Strict
 
 let bigarray_index_kind = K.value
 
@@ -568,28 +571,35 @@ type result_kind =
   | Unit
 
 type nullary_primitive =
+  | Invalid of K.t
   | Optimised_out of K.t
   | Probe_is_enabled of { name : string }
   | Begin_region
 
 let nullary_primitive_eligible_for_cse = function
-  | Optimised_out _ | Probe_is_enabled _ | Begin_region -> false
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region -> false
 
 let compare_nullary_primitive p1 p2 =
   match p1, p2 with
+  | Invalid k1, Invalid k2 -> K.compare k1 k2
   | Optimised_out k1, Optimised_out k2 -> K.compare k1 k2
   | Probe_is_enabled { name = name1 }, Probe_is_enabled { name = name2 } ->
     String.compare name1 name2
   | Begin_region, Begin_region -> 0
+  | Invalid _, (Optimised_out _ | Probe_is_enabled _ | Begin_region) -> -1
   | Optimised_out _, (Probe_is_enabled _ | Begin_region) -> -1
+  | Optimised_out _, Invalid _ -> 1
   | Probe_is_enabled _, Begin_region -> -1
-  | Probe_is_enabled _, Optimised_out _ -> 1
-  | Begin_region, (Optimised_out _ | Probe_is_enabled _) -> 1
+  | Probe_is_enabled _, (Invalid _ | Optimised_out _) -> 1
+  | Begin_region, (Invalid _ | Optimised_out _ | Probe_is_enabled _) -> 1
 
 let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
 
 let print_nullary_primitive ppf p =
   match p with
+  | Invalid _ ->
+    Format.fprintf ppf "%tInvalid%t" Flambda_colours.invalid_keyword
+      Flambda_colours.pop
   | Optimised_out _ ->
     Format.fprintf ppf "%tOptimised_out%t" Flambda_colours.elide
       Flambda_colours.pop
@@ -599,23 +609,28 @@ let print_nullary_primitive ppf p =
 
 let result_kind_of_nullary_primitive p : result_kind =
   match p with
+  | Invalid k -> Singleton k
   | Optimised_out k -> Singleton k
   | Probe_is_enabled _ -> Singleton K.naked_immediate
   | Begin_region -> Singleton K.region
 
-let effects_and_coeffects_of_nullary_primitive p =
+let effects_and_coeffects_of_begin_region : Effects_and_coeffects.t =
+  (* Ensure these don't get moved, but allow them to be deleted. *)
+  Only_generative_effects Mutable, Has_coeffects, Strict
+
+let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
   match p with
-  | Optimised_out _ -> Effects.No_effects, Coeffects.No_coeffects
+  | Invalid _ -> Arbitrary_effects, Has_coeffects, Strict
+  | Optimised_out _ -> No_effects, No_coeffects, Strict
   | Probe_is_enabled _ ->
     (* This doesn't really have effects, but we want to make sure it never gets
        moved around. *)
-    Effects.Arbitrary_effects, Coeffects.Has_coeffects
-  | Begin_region ->
-    (* Ensure these don't get moved, but allow them to be deleted. *)
-    Effects.Only_generative_effects Mutable, Coeffects.Has_coeffects
+    Arbitrary_effects, Has_coeffects, Strict
+  | Begin_region -> effects_and_coeffects_of_begin_region
 
 let nullary_classify_for_printing p =
-  match p with Optimised_out _ | Probe_is_enabled _ | Begin_region -> Neither
+  match p with
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region -> Neither
 
 type unary_primitive =
   | Duplicate_block of { kind : Duplicate_block_kind.t }
@@ -649,10 +664,12 @@ type unary_primitive =
       }
   | Project_value_slot of
       { project_from : Function_slot.t;
-        value_slot : Value_slot.t
+        value_slot : Value_slot.t;
+        kind : Flambda_kind.With_subkind.t
       }
   | Is_boxed_float
   | Is_flat_float_array
+  | Begin_try_region
   | End_region
   | Obj_dup
 
@@ -685,7 +702,7 @@ let unary_primitive_eligible_for_cse p ~arg =
     Simple.is_var arg
   | Project_function_slot _ | Project_value_slot _ -> false
   | Is_boxed_float | Is_flat_float_array -> true
-  | End_region | Obj_dup -> false
+  | Begin_try_region | End_region | Obj_dup -> false
 
 let compare_unary_primitive p1 p2 =
   let unary_primitive_numbering p =
@@ -712,8 +729,9 @@ let compare_unary_primitive p1 p2 =
     | Project_value_slot _ -> 19
     | Is_boxed_float -> 20
     | Is_flat_float_array -> 21
-    | End_region -> 22
-    | Obj_dup -> 23
+    | Begin_try_region -> 22
+    | End_region -> 23
+    | Obj_dup -> 24
   in
   match p1, p2 with
   | ( Duplicate_array
@@ -766,11 +784,21 @@ let compare_unary_primitive p1 p2 =
     let c = Function_slot.compare move_from1 move_from2 in
     if c <> 0 then c else Function_slot.compare move_to1 move_to2
   | ( Project_value_slot
-        { project_from = function_slot1; value_slot = value_slot1 },
+        { project_from = function_slot1;
+          value_slot = value_slot1;
+          kind = kind1
+        },
       Project_value_slot
-        { project_from = function_slot2; value_slot = value_slot2 } ) ->
+        { project_from = function_slot2;
+          value_slot = value_slot2;
+          kind = kind2
+        } ) ->
     let c = Function_slot.compare function_slot1 function_slot2 in
-    if c <> 0 then c else Value_slot.compare value_slot1 value_slot2
+    if c <> 0
+    then c
+    else
+      let c = Value_slot.compare value_slot1 value_slot2 in
+      if c <> 0 then c else K.With_subkind.compare kind1 kind2
   | ( Opaque_identity { middle_end_only = middle_end_only1 },
       Opaque_identity { middle_end_only = middle_end_only2 } ) ->
     Bool.compare middle_end_only1 middle_end_only2
@@ -779,8 +807,8 @@ let compare_unary_primitive p1 p2 =
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
       | Array_length | Bigarray_length _ | Unbox_number _ | Box_number _
       | Untag_immediate | Tag_immediate | Project_function_slot _
-      | Project_value_slot _ | Is_boxed_float | Is_flat_float_array | End_region
-      | Obj_dup ),
+      | Project_value_slot _ | Is_boxed_float | Is_flat_float_array
+      | Begin_try_region | End_region | Obj_dup ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -824,11 +852,13 @@ let print_unary_primitive ppf p =
   | Project_function_slot { move_from; move_to } ->
     Format.fprintf ppf "@[(Project_function_slot@ (%a \u{2192} %a))@]"
       Function_slot.print move_from Function_slot.print move_to
-  | Project_value_slot { project_from; value_slot } ->
-    Format.fprintf ppf "@[(Project_value_slot@ (%a@ %a))@]" Function_slot.print
-      project_from Value_slot.print value_slot
+  | Project_value_slot { project_from; value_slot; kind } ->
+    Format.fprintf ppf "@[(Project_value_slot@ (%a@ %a@ %a))@]"
+      Function_slot.print project_from Value_slot.print value_slot
+      K.With_subkind.print kind
   | Is_boxed_float -> fprintf ppf "Is_boxed_float"
   | Is_flat_float_array -> fprintf ppf "Is_flat_float_array"
+  | Begin_try_region -> Format.pp_print_string ppf "Begin_try_region"
   | End_region -> Format.pp_print_string ppf "End_region"
   | Obj_dup -> Format.pp_print_string ppf "Obj_dup"
 
@@ -852,6 +882,7 @@ let arg_kind_of_unary_primitive p =
   | Project_function_slot _ | Project_value_slot _ | Is_boxed_float
   | Is_flat_float_array ->
     K.value
+  | Begin_try_region -> K.region
   | End_region -> K.region
   | Obj_dup -> K.value
 
@@ -878,18 +909,18 @@ let result_kind_of_unary_primitive p : result_kind =
   | Project_value_slot _ ->
     Singleton K.value
   | Is_boxed_float | Is_flat_float_array -> Singleton K.naked_immediate
+  | Begin_try_region -> Singleton K.region
   | End_region -> Singleton K.value
   | Obj_dup -> Singleton K.value
 
-let effects_and_coeffects_of_unary_primitive p =
+let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   match p with
   | Duplicate_array { kind = _; source_mutability; destination_mutability; _ }
     -> (
     match source_mutability with
     | Immutable ->
       (* [Obj.truncate] has now been removed. *)
-      ( Effects.Only_generative_effects destination_mutability,
-        Coeffects.No_coeffects )
+      Only_generative_effects destination_mutability, No_coeffects, Strict
     | Immutable_unique ->
       (* CR vlaviron: this should never occur, but it's hard to express it
          without duplicating the mutability type
@@ -897,25 +928,23 @@ let effects_and_coeffects_of_unary_primitive p =
          mshinwell: Adding a second mutability type seems like a good thing to
          avoid confusion in the future. It could maybe be a submodule of
          [Mutability]. *)
-      ( Effects.Only_generative_effects destination_mutability,
-        Coeffects.No_coeffects )
+      Only_generative_effects destination_mutability, No_coeffects, Strict
     | Mutable ->
-      ( Effects.Only_generative_effects destination_mutability,
-        Coeffects.Has_coeffects ))
+      Only_generative_effects destination_mutability, Has_coeffects, Strict)
   | Duplicate_block { kind = _ } ->
     (* We have to assume that the fields might be mutable. (This information
        isn't currently propagated from [Lambda].) *)
-    Effects.Only_generative_effects Mutable, Coeffects.Has_coeffects
-  | Is_int _ -> Effects.No_effects, Coeffects.No_coeffects
+    Only_generative_effects Mutable, Has_coeffects, Strict
+  | Is_int _ -> No_effects, No_coeffects, Strict
   | Get_tag ->
     (* [Obj.truncate] has now been removed. *)
-    Effects.No_effects, Coeffects.No_coeffects
-  | String_length _ -> Effects.No_effects, Coeffects.No_coeffects
-  | Int_as_pointer -> Effects.No_effects, Coeffects.No_coeffects
-  | Opaque_identity _ -> Effects.Arbitrary_effects, Coeffects.Has_coeffects
+    No_effects, No_coeffects, Strict
+  | String_length _ -> No_effects, No_coeffects, Strict
+  | Int_as_pointer -> No_effects, No_coeffects, Strict
+  | Opaque_identity _ -> Arbitrary_effects, Has_coeffects, Strict
   | Int_arith (_, (Neg | Swap_byte_endianness))
   | Num_conv _ | Boolean_not | Reinterpret_int64_as_float ->
-    Effects.No_effects, Coeffects.No_coeffects
+    No_effects, No_coeffects, Strict
   | Float_arith (Abs | Neg) ->
     (* Float operations are not really pure since they actually access the
        globally mutable rounding mode, which can be changed (but only from C
@@ -928,41 +957,50 @@ let effects_and_coeffects_of_unary_primitive p =
        (e.g. a call to a c stub that changes the rounding mode). See also the
        comment in binary_primitive_eligible_for_cse. *)
     if Flambda_features.float_const_prop ()
-    then Effects.No_effects, Coeffects.No_coeffects
-    else Effects.No_effects, Coeffects.Has_coeffects
+    then No_effects, No_coeffects, Strict
+    else No_effects, Has_coeffects, Strict
   (* Since Obj.truncate has been deprecated, array_length should have no
      observable effect *)
-  | Array_length -> Effects.No_effects, Coeffects.No_coeffects
+  | Array_length -> No_effects, No_coeffects, Strict
   | Bigarray_length { dimension = _ } ->
     (* This is pretty much a direct access to a field of the bigarray, different
        from reading one of the values actually stored inside the array, hence
        [reading_from_a_block] (i.e. this has the same behaviour as a regular
        Block_load). *)
     reading_from_a_block Mutable
-  | Unbox_number _ | Untag_immediate ->
-    Effects.No_effects, Coeffects.No_coeffects
-  | Tag_immediate -> Effects.No_effects, Coeffects.No_coeffects
+  | Unbox_number _ | Untag_immediate -> No_effects, No_coeffects, Strict
+  | Tag_immediate -> No_effects, No_coeffects, Strict
   | Box_number (_, alloc_mode) ->
-    let coeffects : Coeffects.t =
-      match alloc_mode with
-      | Heap -> Coeffects.No_coeffects
-      | Local _ -> Coeffects.Has_coeffects
+    (* Ensure boxing operations for numbers are inlined/substituted in to_cmm *)
+    let placement : Placement.t =
+      if Flambda_features.classic_mode ()
+      then
+        (* Local allocations have coeffects, to avoid them being moved past a
+           begin/end region. Hence, it is not safe to force the allocation to be
+           moved, so we cannot use the `Delay` mode for those. *)
+        match alloc_mode with Heap -> Delay | Local _ -> Strict
+      else Strict
     in
-    Effects.Only_generative_effects Immutable, coeffects
+    let coeffects : Coeffects.t =
+      match alloc_mode with Heap -> No_coeffects | Local _ -> Has_coeffects
+    in
+    Only_generative_effects Immutable, coeffects, placement
   | Project_function_slot _ | Project_value_slot _ ->
-    Effects.No_effects, Coeffects.No_coeffects
+    No_effects, No_coeffects, Delay
   | Is_boxed_float | Is_flat_float_array ->
     (* Tags on heap blocks are immutable. *)
-    Effects.No_effects, Coeffects.No_coeffects
+    No_effects, No_coeffects, Strict
+  | Begin_try_region -> effects_and_coeffects_of_begin_region
   | End_region ->
     (* These can't be [Only_generative_effects] or the primitives would get
        deleted without regard to prior uses of the region. Instead there are
        special cases in [Simplify_let_expr] and [Expr_builder] for this
        primitive. *)
-    Effects.Arbitrary_effects, Coeffects.Has_coeffects
+    Arbitrary_effects, Has_coeffects, Strict
   | Obj_dup ->
-    ( Effects.Only_generative_effects Mutable (* Mutable is conservative *),
-      Coeffects.Has_coeffects )
+    ( Only_generative_effects Mutable (* Mutable is conservative *),
+      Has_coeffects,
+      Strict )
 
 let unary_classify_for_printing p =
   match p with
@@ -976,7 +1014,7 @@ let unary_classify_for_printing p =
   | Box_number _ | Tag_immediate -> Constructive
   | Project_function_slot _ | Project_value_slot _ -> Destructive
   | Is_boxed_float | Is_flat_float_array -> Neither
-  | End_region -> Neither
+  | Begin_try_region | End_region -> Neither
 
 let free_names_unary_primitive p =
   match p with
@@ -987,7 +1025,7 @@ let free_names_unary_primitive p =
       (Name_occurrences.add_function_slot_in_projection Name_occurrences.empty
          move_to Name_mode.normal)
       move_from Name_mode.normal
-  | Project_value_slot { value_slot; project_from } ->
+  | Project_value_slot { value_slot; project_from; kind = _ } ->
     Name_occurrences.add_function_slot_in_projection
       (Name_occurrences.add_value_slot_in_projection Name_occurrences.empty
          value_slot Name_mode.normal)
@@ -996,7 +1034,8 @@ let free_names_unary_primitive p =
   | Int_as_pointer | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
   | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
-  | Is_boxed_float | Is_flat_float_array | End_region | Obj_dup ->
+  | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
+  | Obj_dup ->
     Name_occurrences.empty
 
 let apply_renaming_unary_primitive p renaming =
@@ -1010,8 +1049,8 @@ let apply_renaming_unary_primitive p renaming =
   | Int_as_pointer | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
   | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
-  | Is_boxed_float | Is_flat_float_array | End_region | Project_function_slot _
-  | Project_value_slot _ | Obj_dup ->
+  | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
+  | Project_function_slot _ | Project_value_slot _ | Obj_dup ->
     p
 
 let ids_for_export_unary_primitive p =
@@ -1022,8 +1061,8 @@ let ids_for_export_unary_primitive p =
   | Int_as_pointer | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
   | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
-  | Is_boxed_float | Is_flat_float_array | End_region | Project_function_slot _
-  | Project_value_slot _ | Obj_dup ->
+  | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
+  | Project_function_slot _ | Project_value_slot _ | Obj_dup ->
     Ids_for_export.empty
 
 type binary_int_arith_op =
@@ -1219,7 +1258,7 @@ let result_kind_of_binary_primitive p : result_kind =
   | Float_arith _ -> Singleton K.naked_float
   | Phys_equal _ | Int_comp _ | Float_comp _ -> Singleton K.naked_immediate
 
-let effects_and_coeffects_of_binary_primitive p =
+let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
   match p with
   | Block_load (_, mut) -> reading_from_a_block mut
   | Array_load (kind, mut) -> reading_from_an_array kind mut
@@ -1228,21 +1267,21 @@ let effects_and_coeffects_of_binary_primitive p =
     reading_from_a_string_or_bigstring Immutable
   | String_or_bigstring_load ((Bytes | Bigstring), _) ->
     reading_from_a_string_or_bigstring Mutable
-  | Phys_equal _ -> Effects.No_effects, Coeffects.No_coeffects
+  | Phys_equal _ -> No_effects, No_coeffects, Strict
   | Int_arith (_kind, (Add | Sub | Mul | Div | Mod | And | Or | Xor)) ->
-    Effects.No_effects, Coeffects.No_coeffects
-  | Int_shift _ -> Effects.No_effects, Coeffects.No_coeffects
-  | Int_comp _ -> Effects.No_effects, Coeffects.No_coeffects
+    No_effects, No_coeffects, Strict
+  | Int_shift _ -> No_effects, No_coeffects, Strict
+  | Int_comp _ -> No_effects, No_coeffects, Strict
   | Float_arith (Add | Sub | Mul | Div) ->
     (* See comments for Unary Float_arith *)
     if Flambda_features.float_const_prop ()
-    then Effects.No_effects, Coeffects.No_coeffects
-    else Effects.No_effects, Coeffects.Has_coeffects
+    then No_effects, No_coeffects, Strict
+    else No_effects, Has_coeffects, Strict
   | Float_comp _ ->
     (* See comments for Unary Float_arith *)
     if Flambda_features.float_const_prop ()
-    then Effects.No_effects, Coeffects.No_coeffects
-    else Effects.No_effects, Coeffects.Has_coeffects
+    then No_effects, No_coeffects, Strict
+    else No_effects, Has_coeffects, Strict
 
 let binary_classify_for_printing p =
   match p with
@@ -1471,7 +1510,7 @@ let args_kind_of_variadic_primitive p : arg_kinds =
 let result_kind_of_variadic_primitive p : result_kind =
   match p with Make_block _ | Make_array _ -> Singleton K.value
 
-let effects_and_coeffects_of_variadic_primitive p ~args =
+let effects_and_coeffects_of_variadic_primitive p =
   match p with
   | Make_block (_, mut, alloc_mode) | Make_array (_, mut, alloc_mode) ->
     let coeffects : Coeffects.t =
@@ -1479,13 +1518,7 @@ let effects_and_coeffects_of_variadic_primitive p ~args =
       | Heap -> Coeffects.No_coeffects
       | Local _ -> Coeffects.Has_coeffects
     in
-    if List.length args >= 1
-    then Effects.Only_generative_effects mut, coeffects
-    else
-      (* Zero-sized blocks and arrays are immutable and statically allocated,
-         However, we currently only lift primitives that have *exactly*
-         generative effects. *)
-      Effects.Only_generative_effects Immutable, coeffects
+    Effects.Only_generative_effects mut, coeffects, Placement.Strict
 
 let variadic_classify_for_printing p =
   match p with Make_block _ | Make_array _ -> Constructive
@@ -1628,7 +1661,7 @@ let equal t1 t2 = compare t1 t2 = 0
 
 let free_names t =
   match t with
-  | Nullary (Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
+  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
     Name_occurrences.empty
   | Unary (prim, x0) ->
     Name_occurrences.union
@@ -1653,7 +1686,8 @@ let free_names t =
 let apply_renaming t renaming =
   let apply simple = Simple.apply_renaming simple renaming in
   match t with
-  | Nullary (Optimised_out _ | Probe_is_enabled _ | Begin_region) -> t
+  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
+    t
   | Unary (prim, x0) ->
     let prim' = apply_renaming_unary_primitive prim renaming in
     let x0' = apply x0 in
@@ -1680,7 +1714,7 @@ let apply_renaming t renaming =
 
 let ids_for_export t =
   match t with
-  | Nullary (Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
+  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
     Ids_for_export.empty
   | Unary (prim, x0) ->
     Ids_for_export.union
@@ -1751,25 +1785,25 @@ let effects_and_coeffects (t : t) =
   | Unary (prim, _) -> effects_and_coeffects_of_unary_primitive prim
   | Binary (prim, _, _) -> effects_and_coeffects_of_binary_primitive prim
   | Ternary (prim, _, _, _) -> effects_and_coeffects_of_ternary_primitive prim
-  | Variadic (prim, args) ->
-    effects_and_coeffects_of_variadic_primitive prim ~args
+  | Variadic (prim, _) -> effects_and_coeffects_of_variadic_primitive prim
 
 let no_effects_or_coeffects t =
   match effects_and_coeffects t with
-  | No_effects, No_coeffects -> true
+  | No_effects, No_coeffects, _ -> true
   | ( (No_effects | Only_generative_effects _ | Arbitrary_effects),
-      (No_coeffects | Has_coeffects) ) ->
+      (No_coeffects | Has_coeffects),
+      _ ) ->
     false
 
 let at_most_generative_effects t =
   match effects_and_coeffects t with
-  | (No_effects | Only_generative_effects _), _ -> true
-  | Arbitrary_effects, _ -> false
+  | (No_effects | Only_generative_effects _), _, _ -> true
+  | Arbitrary_effects, _, _ -> false
 
 let only_generative_effects t =
   match effects_and_coeffects t with
-  | Only_generative_effects _, _ -> true
-  | (No_effects | Arbitrary_effects), _ -> false
+  | Only_generative_effects _, _, _ -> true
+  | (No_effects | Arbitrary_effects), _, _ -> false
 
 module Eligible_for_cse = struct
   type t = primitive_application
@@ -1788,14 +1822,15 @@ module Eligible_for_cse = struct
     let eligible = prim_eligible && List.exists Simple.is_var (args t) in
     let effects_and_coeffects_ok =
       match effects_and_coeffects t with
-      | No_effects, No_coeffects -> true
-      | Only_generative_effects Immutable, No_coeffects ->
+      | No_effects, No_coeffects, _ -> true
+      | Only_generative_effects Immutable, No_coeffects, _ ->
         (* Allow constructions of immutable blocks to be shared. *)
         true
       | ( ( No_effects
           | Only_generative_effects (Immutable | Immutable_unique | Mutable)
           | Arbitrary_effects ),
-          (No_coeffects | Has_coeffects) ) ->
+          (No_coeffects | Has_coeffects),
+          _ ) ->
         false
     in
     if not ((not eligible) || effects_and_coeffects_ok)
@@ -1942,11 +1977,19 @@ module Without_args = struct
     | Binary prim -> print_binary_primitive ppf prim
     | Ternary prim -> print_ternary_primitive ppf prim
     | Variadic prim -> print_variadic_primitive ppf prim
+
+  let effects_and_coeffects (t : t) =
+    match t with
+    | Nullary prim -> effects_and_coeffects_of_nullary_primitive prim
+    | Unary prim -> effects_and_coeffects_of_unary_primitive prim
+    | Binary prim -> effects_and_coeffects_of_binary_primitive prim
+    | Ternary prim -> effects_and_coeffects_of_ternary_primitive prim
+    | Variadic prim -> effects_and_coeffects_of_variadic_primitive prim
 end
 
 let is_begin_or_end_region t =
   match t with
-  | Nullary Begin_region | Unary (End_region, _) -> true
+  | Nullary Begin_region | Unary ((Begin_try_region | End_region), _) -> true
   | _ -> false
   [@@ocaml.warning "-fragile-match"]
 

@@ -533,9 +533,9 @@ let debug log env =
     program
   ] in
   let systemenv =
-    Array.append
+    Environments.append_to_system_env
       default_ocaml_env
-      (Environments.to_system_env (env_with_lib_unix env))
+      (env_with_lib_unix env)
   in
   let expected_exit_status = 0 in
   let exit_status =
@@ -570,12 +570,13 @@ let objinfo log env =
   ] in
   let ocamllib = [| (Printf.sprintf "OCAMLLIB=%s" tools_directory) |] in
   let systemenv =
-    Array.concat
-    [
-      default_ocaml_env;
-      ocamllib;
-      (Environments.to_system_env (env_with_lib_unix env))
-    ]
+    Environments.append_to_system_env
+      (Array.concat
+       [
+         default_ocaml_env;
+         ocamllib;
+       ])
+      (env_with_lib_unix env)
   in
   let expected_exit_status = 0 in
   let exit_status =
@@ -1093,7 +1094,8 @@ let config_variables _log env =
     Ocaml_variables.nativecc_libs, Ocamltest_config.nativecc_libs;
     Ocaml_variables.mkdll,
       Sys.getenv_with_default_value "MKDLL" Ocamltest_config.mkdll;
-    Ocaml_variables.mkexe, Ocamltest_config.mkexe;
+    Ocaml_variables.mkexe,
+      Sys.getenv_with_default_value "MKEXE" Ocamltest_config.mkexe;
     Ocaml_variables.c_preprocessor, Ocamltest_config.c_preprocessor;
     Ocaml_variables.cc, Ocamltest_config.cc;
     Ocaml_variables.csc, Ocamltest_config.csc;
@@ -1101,6 +1103,7 @@ let config_variables _log env =
     Ocaml_variables.shared_library_cflags,
       Ocamltest_config.shared_library_cflags;
     Ocaml_variables.objext, Ocamltest_config.objext;
+    Ocaml_variables.libext, Ocamltest_config.libext;
     Ocaml_variables.asmext, Ocamltest_config.asmext;
     Ocaml_variables.sharedobjext, Ocamltest_config.sharedobjext;
     Ocaml_variables.ocamlc_default_flags,
@@ -1168,6 +1171,12 @@ let debugger = Actions.make
      "debugger available"
      "debugger not available")
 
+let instrumented_runtime = make
+  "instrumented-runtime"
+  (Actions_helpers.pass_or_skip (Ocamltest_config.instrumented_runtime)
+    "instrumented runtime available"
+    "instrumented runtime not available")
+
 let csharp_compiler = Actions.make
   "csharp-compiler"
   (Actions_helpers.pass_or_skip (Ocamltest_config.csc<>"")
@@ -1201,6 +1210,18 @@ let stack_allocation = Actions.make
 let no_stack_allocation = Actions.make
   "no-stack-allocation"
   (Actions_helpers.pass_or_skip (not Ocamltest_config.stack_allocation)
+    "Stack allocation disabled"
+    "Stack allocation enabled")
+
+let poll_insertion = Actions.make
+  "poll-insertion"
+  (Actions_helpers.pass_or_skip Ocamltest_config.poll_insertion
+    "Poll insertion enabled"
+    "Poll insertion disabled")
+
+let no_poll_insertion = Actions.make
+  "no-poll-insertion"
+  (Actions_helpers.pass_or_skip (not Ocamltest_config.poll_insertion)
     "Stack allocation disabled"
     "Stack allocation enabled")
 
@@ -1394,12 +1415,15 @@ let _ =
     native_compiler;
     native_dynlink;
     debugger;
+    instrumented_runtime;
     csharp_compiler;
     windows_unicode;
     afl_instrument;
     no_afl_instrument;
     stack_allocation;
     no_stack_allocation;
+    poll_insertion;
+    no_poll_insertion;
     setup_ocamldoc_build_env;
     run_ocamldoc;
     check_ocamldoc_output;

@@ -61,8 +61,6 @@ let linkage_name_for_ocamlobjinfo t =
 
 let compilation_unit t = t.compilation_unit
 
-let with_compilation_unit t compilation_unit = { t with compilation_unit }
-
 (* CR-someday lmaurer: Would be nicer to have some of this logic in
    [Linkage_name]; among other things, we could then define
    [Linkage_name.for_current_unit] *)
@@ -81,25 +79,14 @@ let linkage_name_for_compilation_unit comp_unit =
   caml_symbol_prefix ^ suffix
   |> Linkage_name.of_string
 
-let for_global_or_predef_ident pack_prefix id =
-  assert (Ident.is_global_or_predef id);
-  let linkage_name, compilation_unit =
-    if Ident.is_predef id then
-      "caml_exn_" ^ Ident.name id |> Linkage_name.of_string, CU.predef_exn
-    else
-      let compilation_unit =
-        Compilation_unit.create pack_prefix
-          (Ident.name id |> Compilation_unit.Name.of_string)
-      in
-      linkage_name_for_compilation_unit compilation_unit, compilation_unit
-  in
+let for_predef_ident id =
+  assert (Ident.is_predef id);
+  let linkage_name = "caml_exn_" ^ Ident.name id |> Linkage_name.of_string in
+  let compilation_unit = CU.predef_exn in
   { compilation_unit;
     linkage_name;
     hash = Hashtbl.hash linkage_name;
   }
-
-let for_predef_ident id =
-  for_global_or_predef_ident Compilation_unit.Prefix.empty id
 
 let unsafe_create compilation_unit linkage_name =
   { compilation_unit;
@@ -131,10 +118,6 @@ let for_compilation_unit compilation_unit =
 
 let for_current_unit () =
   for_compilation_unit (CU.get_current_exn ())
-
-let import_for_pack t ~pack =
-  let compilation_unit = CU.with_for_pack_prefix t.compilation_unit pack in
-  { t with compilation_unit; }
 
 let const_label = ref 0
 

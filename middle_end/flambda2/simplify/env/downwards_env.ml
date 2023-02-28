@@ -427,18 +427,15 @@ let mem_code t id =
 let find_code_exn t id =
   match Code_id.Map.find id t.all_code with
   | code -> Code_or_metadata.create code
-  | exception Not_found -> (
-    (* This [find_exn] call doesn't load any .cmx files, but in the majority of
-       cases will succeed. *)
-    match Exported_code.find_exn (t.get_imported_code ()) id with
-    | code_or_metadata -> code_or_metadata
-    | exception Not_found -> (
-      (* In this case either the code ID isn't bound due to a compiler error or
-         we haven't yet loaded the relevant .cmx file. Make sure the .cmx is
-         loaded and try again. *)
-      match TE.resolver t.typing_env (Code_id.get_compilation_unit id) with
-      | None -> raise Not_found
-      | Some _typing_env -> Exported_code.find_exn (t.get_imported_code ()) id))
+  | exception Not_found ->
+    (* We might have already loaded the metadata, from another unit that
+       references it. However we force loading of the corresponding .cmx to make
+       sure that we will have access to the actual code (assuming the .cmx isn't
+       missing). *)
+    let (_ : TE.Serializable.t option) =
+      TE.resolver t.typing_env (Code_id.get_compilation_unit id)
+    in
+    Exported_code.find_exn (t.get_imported_code ()) id
 
 let define_code t ~code_id ~code =
   if not
@@ -547,3 +544,8 @@ let generate_phantom_lets t =
 let loopify_state t = t.loopify_state
 
 let set_loopify_state loopify_state t = { t with loopify_state }
+
+let with_code_age_relation code_age_relation t =
+  { t with
+    typing_env = TE.with_code_age_relation t.typing_env code_age_relation
+  }

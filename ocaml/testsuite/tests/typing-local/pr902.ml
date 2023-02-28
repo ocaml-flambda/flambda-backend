@@ -28,5 +28,5 @@ let () =
   let p = to_be_overapplied () () () 42 () in
   let end_offset = local_stack_offset () in
   assert (is_local p);
-  let ok = end_offset - start_offset = 64 in
+  let ok = end_offset - start_offset = Sys.word_size (* eight words *) in
   Printf.printf "PR902: %s\n" (if ok then "ok" else "FAIL")

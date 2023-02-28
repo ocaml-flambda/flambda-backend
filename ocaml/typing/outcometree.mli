@@ -39,7 +39,7 @@ type out_attribute =
   { oattr_name: string }
 
 type out_value =
-  | Oval_array of out_value list
+  | Oval_array of out_value list * Asttypes.mutable_flag
   | Oval_char of char
   | Oval_constr of out_ident * out_value list
   | Oval_ellipsis
@@ -64,6 +64,11 @@ type out_mutable_or_global =
   | Ogom_nonlocal
   | Ogom_immutable
 
+type out_global =
+  | Ogf_global
+  | Ogf_nonlocal
+  | Ogf_unrestricted
+
 type out_type =
   | Otyp_abstract
   | Otyp_open
@@ -75,14 +80,20 @@ type out_type =
   | Otyp_object of (string * out_type) list * bool option
   | Otyp_record of (string * out_mutable_or_global * out_type) list
   | Otyp_stuff of string
-  | Otyp_sum of (string * out_type list * out_type option) list
+  | Otyp_sum of out_constructor list
   | Otyp_tuple of out_type list
   | Otyp_var of bool * string
   | Otyp_variant of
       bool * out_variant * bool * (string list) option
   | Otyp_poly of string list * out_type
-  | Otyp_module of out_ident * string list * out_type list
+  | Otyp_module of out_ident * (string * out_type) list
   | Otyp_attribute of out_type * out_attribute
+
+and out_constructor = {
+  ocstr_name: string;
+  ocstr_args: (out_type * out_global) list;
+  ocstr_return_type: out_type option;
+}
 
 and out_variant =
   | Ovar_fields of (string * bool * out_type list) list
@@ -133,13 +144,13 @@ and out_extension_constructor =
   { oext_name: string;
     oext_type_name: string;
     oext_type_params: string list;
-    oext_args: out_type list;
+    oext_args: (out_type * out_global) list;
     oext_ret_type: out_type option;
     oext_private: Asttypes.private_flag }
 and out_type_extension =
   { otyext_name: string;
     otyext_params: string list;
-    otyext_constructors: (string * out_type list * out_type option) list;
+    otyext_constructors: out_constructor list;
     otyext_private: Asttypes.private_flag }
 and out_val_decl =
   { oval_name: string;

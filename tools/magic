@@ -1,0 +1,16 @@
+# Here are some definitions that can be added to the /usr/share/magic
+# database so that the file(1) command recognizes OCaml compiled files.
+# Contributed by Sven Luther.
+0       string  Caml1999        OCaml (flambda-backend)
+>8      string  X               bytecode executable
+>8      string  I               interface data (.cmi)
+>8      string  O               bytecode object data (.cmo)
+>8      string  A               bytecode library data (.cma)
+>8      string  Y               native object data (.cmx)
+>8      string  y               native object data compiled with flambda (.cmx)
+>8      string  Z               native library data (.cmxa)
+>8      string  z               native library data compiled with flambda (.cmxa)
+>8      string  T               module implementation data (.cmt)
+>8      string  L               native object data in compiler's Linear format (.cmir-linear)
+>8      string  G               native object data in compiler's CFG format (.cmir-cfg)
+>9      string  >\0             (Version %3.3s).

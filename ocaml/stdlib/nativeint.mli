@@ -167,9 +167,9 @@ external of_float : float -> nativeint
   [@@unboxed] [@@noalloc]
 (** Convert the given floating-point number to a native integer,
    discarding the fractional part (truncate towards 0).
-   The result of the conversion is undefined if, after truncation,
-   the number is outside the range
-   \[{!Nativeint.min_int}, {!Nativeint.max_int}\]. *)
+   If the truncated floating-point number is outside the range
+   \[{!Nativeint.min_int}, {!Nativeint.max_int}\], no exception is raised,
+   and an unspecified, platform-dependent integer is returned. *)
 
 external to_float : nativeint -> float
   = "caml_nativeint_to_float" "caml_nativeint_to_float_unboxed"
@@ -228,11 +228,23 @@ val equal: t -> t -> bool
 (** The equal function for native ints.
     @since 4.03.0 *)
 
+val min: t -> t -> t
+(** Return the smaller of the two arguments.
+    @since 4.13.0
+*)
+
+val max: t -> t -> t
+(** Return the greater of the two arguments.
+    @since 4.13.0
+ *)
+
+
 (**/**)
 
 (** {1 Deprecated functions} *)
 
 external format : string -> nativeint -> string = "caml_nativeint_format"
+[@@ocaml.deprecated "Use Printf.sprintf with a [%n...] format instead."]
 (** [Nativeint.format fmt n] return the string representation of the
    native integer [n] in the format specified by [fmt].
    [fmt] is a [Printf]-style format consisting of exactly

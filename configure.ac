@@ -1,6 +1,6 @@
 AC_PREREQ([2.69])
 AC_INIT([The Flambda backend for OCaml],
-        4.11.1+dev0-2020-08-18,
+        4.14.0+dev0-2022-12-19,
         [mshinwell@janestreet.com],
         [flambda_backend],
         [http://github.com/ocaml-flambda/flambda_backend])
@@ -44,10 +44,18 @@ AC_ARG_ENABLE([coverage],
   [coverage=yes],
   [coverage=no])
 
+AC_ARG_ENABLE([legacy-library-layout],
+  [AS_HELP_STRING([--enable-legacy-library-layout],
+    [Install libraries unix, str, dynlink and bigarray in the toplevel
+     ocaml library directory (Same as upstream OCaml < 5.0)])],
+  [legacy_layout=yes],
+  [legacy_layout=no])
+
 AC_SUBST([prefix])
 AC_SUBST([middle_end])
 AC_SUBST([dune])
 AC_SUBST([coverage])
+AC_SUBST([legacy_layout])
 
 # Don't error on options that this configure script doesn't understand but
 # the ocaml/ one does.

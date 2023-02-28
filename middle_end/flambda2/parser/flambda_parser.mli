@@ -12,6 +12,7 @@ type token =
   | SEMICOLON
   | RPAREN
   | RBRACKPIPE
+  | RBRACK
   | RBRACE
   | QMARKDOT
   | QMARK
@@ -58,6 +59,7 @@ type token =
   | LESSDOT
   | LESS
   | LBRACKPIPE
+  | LBRACK
   | LBRACE
   | KWD_WITH
   | KWD_WHERE
@@ -80,6 +82,7 @@ type token =
   | KWD_REC
   | KWD_PUSH
   | KWD_POP
+  | KWD_OF
   | KWD_NOTRACE
   | KWD_NOALLOC
   | KWD_NEWER_VERSION_OF
@@ -125,6 +128,7 @@ type token =
   | KWD_BLOCK
   | KWD_AVAILABLE
   | KWD_ASR
+  | KWD_ARRAY
   | KWD_APPLY
   | KWD_ANDWHERE
   | KWD_AND
@@ -145,6 +149,7 @@ type token =
   | BLANK
   | BIGARROW
   | AT
+  | AMP
 
 (* This exception is raised by the monolithic API functions. *)
 

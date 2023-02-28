@@ -27,16 +27,14 @@ val package_files
     ppf_dump:Format.formatter ->
     prefixname:string ->
     filename:string ->
-    module_ident:Ident.t ->
-    module_block_size_in_words:int ->
-    module_initializer:Lambda.lambda ->
     keep_symbol_tables:bool ->
+    Lambda.program ->
     Cmm.phrase list)
   -> unit
 
 type error =
     Illegal_renaming of Compilation_unit.Name.t * string * Compilation_unit.Name.t
-  | Forward_reference of string * string
+  | Forward_reference of string * Compilation_unit.Name.t
   | Wrong_for_pack of string * Compilation_unit.t
   | Linking_error
   | Assembler_error of string

@@ -1,0 +1,5 @@
+load_printer "tools/debug_printers.cmo"
+install_printer Debug_printers.type_expr
+install_printer Debug_printers.row_field
+install_printer Debug_printers.ident
+install_printer Debug_printers.path

@@ -32,13 +32,13 @@ let rec filter_non_beneficial_decisions decision : U.decision =
   | Unbox (Unique_tag_and_size { tag; fields }) ->
     let is_unboxing_beneficial, fields =
       List.fold_left_map
-        (fun is_unboxing_beneficial ({ epa; decision } : U.field_decision) :
-             (_ * U.field_decision) ->
+        (fun is_unboxing_beneficial ({ epa; decision; kind } : U.field_decision)
+             : (_ * U.field_decision) ->
           let is_unboxing_beneficial =
             is_unboxing_beneficial || is_unboxing_beneficial_for_epa epa
           in
           let decision = filter_non_beneficial_decisions decision in
-          is_unboxing_beneficial, { epa; decision })
+          is_unboxing_beneficial, { epa; decision; kind })
         false fields
     in
     if is_unboxing_beneficial
@@ -48,11 +48,11 @@ let rec filter_non_beneficial_decisions decision : U.decision =
     let is_unboxing_beneficial = ref false in
     let vars_within_closure =
       Value_slot.Map.map
-        (fun ({ epa; decision } : U.field_decision) : U.field_decision ->
+        (fun ({ epa; decision; kind } : U.field_decision) : U.field_decision ->
           is_unboxing_beneficial
             := !is_unboxing_beneficial || is_unboxing_beneficial_for_epa epa;
           let decision = filter_non_beneficial_decisions decision in
-          { epa; decision })
+          { epa; decision; kind })
         vars_within_closure
     in
     if !is_unboxing_beneficial
@@ -63,11 +63,12 @@ let rec filter_non_beneficial_decisions decision : U.decision =
     let fields_by_tag =
       Tag.Scannable.Map.map
         (List.map
-           (fun ({ epa; decision } : U.field_decision) : U.field_decision ->
+           (fun ({ epa; decision; kind } : U.field_decision) : U.field_decision
+           ->
              is_unboxing_beneficial
                := !is_unboxing_beneficial || is_unboxing_beneficial_for_epa epa;
              let decision = filter_non_beneficial_decisions decision in
-             { epa; decision }))
+             { epa; decision; kind }))
         fields_by_tag
     in
     if !is_unboxing_beneficial

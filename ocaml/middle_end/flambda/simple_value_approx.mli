@@ -158,11 +158,13 @@ and function_body = private {
   specialise : Lambda.specialise_attribute;
   is_a_functor : bool;
   body : Flambda.t;
+  poll: Lambda.poll_attribute;
 }
 
 and function_declaration = private {
   closure_origin : Closure_origin.t;
   params : Parameter.t list;
+  return_layout : Lambda.layout;
   alloc_mode : Lambda.alloc_mode;
   region : bool;
   function_body : function_body option;

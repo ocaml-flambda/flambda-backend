@@ -361,6 +361,52 @@ let emit_call_bound_errors () =
     emit_call "caml_ml_array_bound_error"
   end
 
+(* Record function info for dwarf and emit label if needed. *)
+let emit_dwarf_for_fundecl fun_name fun_dbg =
+  match Emitaux.Dwarf_helpers.record_dwarf_for_fundecl ~fun_name fun_dbg with
+  | None -> ()
+  | Some label -> def_label label
+
+let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
+    module Asm_targets.Asm_directives.Make(struct
+
+      let emit_line str = X86_dsl.D.comment str
+
+      let get_file_num file_name =
+        Emitaux.get_file_num ~file_emitter:X86_dsl.D.file file_name
+
+      let debugging_comments_in_asm_files =
+        !Flambda_backend_flags.dasm_comments
+
+      module D = struct
+        open X86_ast
+
+        include X86_dsl.D
+
+        type data_type =
+          | NONE | DWORD | QWORD
+
+        type nonrec constant = constant
+        let const_int64 num = Const num
+        let const_label str = ConstLabel str
+        let const_add c1 c2 = ConstAdd (c1, c2)
+        let const_sub c1 c2 = ConstSub (c1, c2)
+
+        let label ?data_type str =
+          let typ =
+            Option.map
+              (function
+                | NONE -> X86_ast.NONE
+                | DWORD -> X86_ast.DWORD
+                | QWORD -> X86_ast.QWORD)
+              data_type
+          in
+          label ?typ str
+      end
+    end)
+  )
+
+
 (* Names for instructions *)
 
 let instr_for_intop = function
@@ -525,12 +571,15 @@ let emit_float_constant f lbl =
   _label (emit_label lbl);
   D.qword (Const f)
 
-let emit_global_label s =
-  let lbl = Cmm_helpers.make_symbol s in
+let emit_global_label_for_symbol lbl =
   add_def_symbol lbl;
   let lbl = emit_symbol lbl in
   D.global lbl;
   _label lbl
+
+let emit_global_label s =
+  let lbl = Cmm_helpers.make_symbol s in
+  emit_global_label_for_symbol lbl
 
 let move (src : Reg.t) (dst : Reg.t) =
   if src.loc <> dst.loc then
@@ -697,6 +746,21 @@ let emit_push_trap_label handler =
   def_label lbl;
   traps.push_traps <- lbl::traps.push_traps;
   traps.enter_traps <- Int.Set.add handler traps.enter_traps
+
+let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
+  let src, dst = match op, size with
+  | Fetch_and_add, Thirtytwo -> arg32 instr 0, addressing addr DWORD instr 1
+  | Fetch_and_add, (Sixtyfour|Word) -> arg instr 0, addressing addr QWORD instr 1
+  | Compare_and_swap, Thirtytwo -> arg32 instr 1, addressing addr DWORD instr 2
+  | Compare_and_swap, (Sixtyfour|Word) -> arg instr 1, addressing addr QWORD instr 2 in
+  match op with
+  | Fetch_and_add -> I.lock_xadd src dst
+  | Compare_and_swap ->
+    (* compare_with is already in rax, set_to is src *)
+    let res8, res = res8 instr 0, res instr 0 in
+    I.lock_cmpxchg src dst;
+    I.set E res8;
+    I.movzx res8 res
 
 (* Emit an instruction *)
 let emit_instr fallthrough i =
@@ -939,6 +1003,8 @@ let emit_instr fallthrough i =
   | Lop(Iintop_imm(op, n)) ->
       (* We have i.arg.(0) = i.res.(0) *)
       instr_for_intop op (int n) (res i 0)
+  | Lop(Iintop_atomic{op; size; addr}) ->
+      emit_atomic i op size addr
   | Lop(Icompf cmp) ->
       let cond, need_swap = float_cond_and_need_swap cmp in
       let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in
@@ -1286,7 +1352,7 @@ let fundecl fundecl =
       cfi_adjust_cfa_offset (-n);
     end;
   end;
-  def_label fundecl.fun_end_label;
+  emit_dwarf_for_fundecl fundecl.fun_name fundecl.fun_dbg;
   cfi_endproc ();
   emit_function_type_and_size fundecl.fun_name
 
@@ -1324,10 +1390,17 @@ let reset_all () =
   float_constants := [];
   all_functions := []
 
-let begin_assembly ~init_dwarf =
+let begin_assembly unix =
   reset_all ();
 
-  init_dwarf ();
+  if !Flambda_backend_flags.internal_assembler &&
+     !Emitaux.binary_backend_available then
+    X86_proc.register_internal_assembler (Internal_assembler.assemble unix);
+
+  let code_begin = Cmm_helpers.make_symbol "code_begin" in
+  let code_end = Cmm_helpers.make_symbol "code_end" in
+  Emitaux.Dwarf_helpers.begin_dwarf ~build_asm_directives ~code_begin ~code_end
+    ~file_emitter:D.file;
 
   if system = S_win64 then begin
     D.extrn "caml_call_gc" NEAR;
@@ -1361,8 +1434,8 @@ let begin_assembly ~init_dwarf =
   D.data ();
   emit_global_label "data_begin";
 
-  emit_named_text_section (Cmm_helpers.make_symbol "code_begin");
-  emit_global_label "code_begin";
+  emit_named_text_section code_begin;
+  emit_global_label_for_symbol code_begin;
   if system = S_macosx then I.nop (); (* PR#4690 *)
   ()
 
@@ -1660,7 +1733,7 @@ let emit_trap_notes () =
     D.data ()
   end
 
-let end_assembly dwarf =
+let end_assembly () =
   if !float_constants <> [] then begin
     begin match system with
     | S_macosx -> D.section ["__TEXT";"__literal8"] None ["8byte_literals"]
@@ -1675,11 +1748,12 @@ let end_assembly dwarf =
   (* Emit probe handler wrappers *)
   List.iter emit_probe_handler_wrapper !probes;
 
-  emit_named_text_section (Cmm_helpers.make_symbol "code_end");
+  let code_end = Cmm_helpers.make_symbol "code_end" in
+  emit_named_text_section code_end;
   if system = S_macosx then I.nop ();
   (* suppress "ld warning: atom sorting error" *)
 
-  emit_global_label "code_end";
+  emit_global_label_for_symbol code_end;
 
   emit_imp_table();
 
@@ -1752,6 +1826,6 @@ let end_assembly dwarf =
     else
       None
   in
-  Option.iter Dwarf_ocaml.Dwarf.emit dwarf;
+  Emitaux.Dwarf_helpers.emit_dwarf ();
   X86_proc.generate_code asm;
   reset_all ()

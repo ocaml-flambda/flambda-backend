@@ -55,6 +55,7 @@ let make_boxed_const_int (i, m) : static_data =
 
 /* Tokens */
 
+%token AMP   [@symbol "&"]
 %token AT    [@symbol "@"]
 %token BIGARROW [@symbol "===>"]
 %token BLANK [@symbol "_"]
@@ -71,6 +72,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token <string> IDENT
 %token <string * char option> INT
 %token LBRACE [@symbol "{"]
+%token LBRACK [@symbol "["]
 %token LBRACKPIPE [@symbol "[|"]
 %token LESS   [@symbol "<"]
 %token LESSDOT [@symbol "<."]
@@ -89,6 +91,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PLUS     [@symbol "+"]
 %token PLUSDOT  [@symbol "+."]
 %token RBRACE [@symbol "}"]
+%token RBRACK [@symbol "]"]
 %token RBRACKPIPE [@symbol "|]"]
 %token RPAREN [@symbol ")"]
 %token SEMICOLON [@symbol ";"]
@@ -105,6 +108,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_AND   [@symbol "and"]
 %token KWD_ANDWHERE [@symbol "andwhere"]
 %token KWD_APPLY [@symbol "apply"]
+%token KWD_ARRAY [@symbol "array"]
 %token KWD_ASR   [@symbol "asr"]
 %token KWD_AVAILABLE [@symbol "available"]
 %token KWD_BLOCK [@symbol "Block"]
@@ -151,6 +155,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_NEWER_VERSION_OF [@symbol "newer_version_of"]
 %token KWD_NOALLOC [@symbol "noalloc"]
 %token KWD_NOTRACE [@symbol "notrace"]
+%token KWD_OF     [@symbol "of"]
 %token KWD_POP    [@symbol "pop"]
 %token KWD_PUSH   [@symbol "push"]
 %token KWD_REC    [@symbol "rec"]
@@ -229,6 +234,8 @@ let make_boxed_const_int (i, m) : static_data =
 %type <Fexpr.standard_int> standard_int
 %type <Fexpr.static_data> static_data
 %type <Fexpr.static_data_binding> static_data_binding
+%type <Fexpr.subkind> subkind
+%type <Fexpr.subkind list> subkinds_nonempty
 %type <Fexpr.variable -> Fexpr.static_data> static_data_kind
 %type <Fexpr.symbol_binding> symbol_binding
 %%
@@ -415,7 +422,7 @@ convertible_type:
 
 init_or_assign:
   | EQUAL { Initialization }
-  | LESSMINUS { Assignment Alloc_mode.With_region.heap }
+  | LESSMINUS { Assignment Alloc_mode.For_allocations.heap }
 
 signed_or_unsigned:
   | { Signed }
@@ -530,17 +537,49 @@ kind:
   | KWD_REC_INFO { Flambda_kind.rec_info }
 ;
 kind_with_subkind:
-  | KWD_VAL { Flambda_kind.With_subkind.any_value }
-  | nnk = naked_number_kind { Flambda_kind.With_subkind.of_naked_number_kind nnk }
-  | KWD_FLOAT KWD_BOXED { Flambda_kind.With_subkind.boxed_float }
-  | KWD_INT32 KWD_BOXED { Flambda_kind.With_subkind.boxed_int32 }
-  | KWD_INT64 KWD_BOXED { Flambda_kind.With_subkind.boxed_int64 }
-  | KWD_NATIVEINT KWD_BOXED { Flambda_kind.With_subkind.boxed_nativeint }
-  | KWD_IMM KWD_TAGGED { Flambda_kind.With_subkind.tagged_immediate }
+  | nnk = naked_number_kind { Naked_number nnk }
+  | subkind = subkind { Value subkind }
+  | KWD_REGION { Region }
+  | KWD_REC_INFO { Rec_info }
 ;
 kinds_with_subkinds :
   | KWD_UNIT { [] }
   | ks = separated_nonempty_list(STAR, kind_with_subkind) { ks }
+;
+subkind:
+  | KWD_VAL { Anything }
+  | KWD_FLOAT KWD_BOXED { Boxed_float }
+  | KWD_INT32 KWD_BOXED { Boxed_int32 }
+  | KWD_INT64 KWD_BOXED { Boxed_int64 }
+  | KWD_NATIVEINT KWD_BOXED { Boxed_nativeint }
+  | KWD_IMM KWD_TAGGED { Tagged_immediate }
+  (* TODO float blocks - KWD_FLOAT KWD_BLOCK is the most obvious thing but
+     KWD_BLOCK is capitalized *)
+  | LBRACK; ctors = ctors; RBRACK
+    { let consts, non_consts = ctors in Variant { consts; non_consts; }}
+  | KWD_FLOAT KWD_ARRAY { Float_array }
+  | KWD_IMM KWD_ARRAY { Immediate_array }
+  | KWD_VAL KWD_ARRAY { Value_array }
+  (* TODO generic arrays *)
+;
+subkinds_nonempty:
+  | sks = separated_nonempty_list(STAR, subkind) { sks }
+;
+ctors:
+  | { [], [] }
+  | consts = const_ctors { consts, [] }
+  | non_consts = nonconst_ctors { [], non_consts }
+  | consts = const_ctors; PIPE; non_consts = nonconst_ctors
+    { consts, non_consts }
+;
+const_ctors:
+  | consts = separated_nonempty_list(PIPE, targetint) { consts }
+;
+nonconst_ctors:
+  | ctors = separated_nonempty_list(PIPE, nonconst_ctor) { ctors }
+;
+nonconst_ctor:
+  | tag = tag; KWD_OF; kinds = subkinds_nonempty { tag, kinds }
 ;
 return_arity:
   | { None }
@@ -653,8 +692,10 @@ apply_expr:
   | call_kind = call_kind;
     inlined = option(inlined);
     inlining_state = option(inlining_state);
-    func = func_name_with_optional_arities
-    args = simple_args MINUSGREATER
+    func = func_name_with_optional_arities;
+    args = simple_args;
+    AMP region = variable;
+    MINUSGREATER
     r = result_continuation e = exn_continuation
      { let (func, arities) = func in {
        func;
@@ -665,6 +706,7 @@ apply_expr:
           inlined;
           inlining_state;
           arities;
+          region;
      } }
 ;
 

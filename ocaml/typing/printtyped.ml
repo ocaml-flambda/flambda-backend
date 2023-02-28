@@ -155,6 +155,10 @@ let arg_label i ppf = function
   | Labelled s -> line i ppf "Labelled \"%s\"\n" s
 ;;
 
+let typevars ppf vs =
+  List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
+;;
+
 let record_representation i ppf = let open Types in function
   | Record_regular -> line i ppf "Record_regular\n"
   | Record_float -> line i ppf "Record_float\n"
@@ -230,32 +234,42 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
   line i ppf "pattern %a\n" fmt_location x.pat_loc;
   attributes i ppf x.pat_attributes;
   let i = i+1 in
-  match x.pat_extra with
-    | extra :: rem ->
-        pattern_extra i ppf extra;
-        pattern i ppf { x with pat_extra = rem }
-    | [] ->
+  begin match x.pat_extra with
+  | [] -> ()
+  | extra ->
+    line i ppf "extra\n";
+    List.iter (pattern_extra (i+1) ppf) extra;
+  end;
   match x.pat_desc with
   | Tpat_any -> line i ppf "Tpat_any\n";
-  | Tpat_var (s,_) -> line i ppf "Tpat_var \"%a\"\n" fmt_ident s;
-  | Tpat_alias (p, s,_) ->
+  | Tpat_var (s,_,m) ->
+      line i ppf "Tpat_var \"%a\"\n" fmt_ident s;
+      value_mode i ppf m
+  | Tpat_alias (p, s,_,m) ->
       line i ppf "Tpat_alias \"%a\"\n" fmt_ident s;
+      value_mode i ppf m;
       pattern i ppf p;
   | Tpat_constant (c) -> line i ppf "Tpat_constant %a\n" fmt_constant c;
   | Tpat_tuple (l) ->
       line i ppf "Tpat_tuple\n";
       list i pattern ppf l;
-  | Tpat_construct (li, _, po) ->
+  | Tpat_construct (li, _, po, vto) ->
       line i ppf "Tpat_construct %a\n" fmt_longident li;
       list i pattern ppf po;
+      option i
+        (fun i ppf (vl,ct) ->
+          let names = List.map (fun {txt} -> "\""^Ident.name txt^"\"") vl in
+          line i ppf "[%s]\n" (String.concat "; " names);
+          core_type i ppf ct)
+        ppf vto
   | Tpat_variant (l, po, _) ->
       line i ppf "Tpat_variant \"%s\"\n" l;
       option i pattern ppf po;
   | Tpat_record (l, _c) ->
       line i ppf "Tpat_record\n";
       list i longident_x_pattern ppf l;
-  | Tpat_array (l) ->
-      line i ppf "Tpat_array\n";
+  | Tpat_array (am, l) ->
+      line i ppf "Tpat_array %a\n" fmt_mutable_flag am;
       list i pattern ppf l;
   | Tpat_lazy p ->
       line i ppf "Tpat_lazy\n";
@@ -284,10 +298,10 @@ and pattern_extra i ppf (extra_pat, _, attrs) =
      line i ppf "Tpat_extra_type %a\n" fmt_path id;
      attributes i ppf attrs;
   | Tpat_open (id,_,_) ->
-     line i ppf "Tpat_extra_open \"%a\"\n" fmt_path id;
+     line i ppf "Tpat_extra_open %a\n" fmt_path id;
      attributes i ppf attrs;
 
-and expression_extra i ppf x attrs =
+and expression_extra i ppf (x,_,attrs) =
   match x with
   | Texp_constraint ct ->
       line i ppf "Texp_constraint\n";
@@ -306,35 +320,39 @@ and expression_extra i ppf x attrs =
       line i ppf "Texp_newtype \"%s\"\n" s;
       attributes i ppf attrs;
 
-and comprehension i ppf comp_types=
-  List.iter (fun {clauses; guard}  ->
-    List.iter (fun comp_type ->
-      match comp_type with
-      | From_to (s, _, e2, e3, df) ->
-        line i ppf "From_to \"%a\" %a\n" fmt_ident s fmt_direction_flag df;
-        expression i ppf e2;
-        expression i ppf e3
-      | In (p, e2) ->
-        line i ppf "In\n" ;
-        pattern i ppf p;
-        expression i ppf e2)
-    clauses;
-    Option.iter (expression i ppf) guard
-  ) comp_types
+and alloc_mode i ppf m =
+  line i ppf "alloc_mode %s\n"
+  (match Types.Alloc_mode.check_const m with
+  | Some Global ->  "global"
+  | Some Local ->  "local"
+  | None -> "<modevar>"
+  )
+
+and alloc_mode_option i ppf m = Option.iter (alloc_mode i ppf) m
+
+and value_mode i ppf m =
+  line i ppf "alloc_mode %s\n"
+  (match Types.Value_mode.check_const m with
+  | Some Global ->  "global"
+  | Some Local ->  "local"
+  | Some Regional -> "regional"
+  | None -> "<modevar>"
+  )
+
+and expression_alloc_mode i ppf (expr, am) =
+  alloc_mode i ppf am;
+  expression i ppf expr
 
 and expression i ppf x =
   line i ppf "expression %a\n" fmt_location x.exp_loc;
   attributes i ppf x.exp_attributes;
-  let i =
-    List.fold_left (fun i (extra,_,attrs) ->
-                      expression_extra i ppf extra attrs; i+1)
-      (i+1) x.exp_extra
-  in
-  (match Btype.Value_mode.check_const x.exp_mode with
-  | Some Global -> line i ppf "value_mode global\n"
-  | Some Regional -> line i ppf "value_mode regional\n"
-  | Some Local -> line i ppf "value_mode local\n"
-  | None -> line i ppf "value_mode <modevar>\n");
+  let i = i+1 in
+  begin match x.exp_extra with
+  | [] -> ()
+  | extra ->
+    line i ppf "extra\n";
+    List.iter (expression_extra (i+1) ppf) extra;
+  end;
   match x.exp_desc with
   | Texp_ident (li,_,_,_) -> line i ppf "Texp_ident %a\n" fmt_path li;
   | Texp_instvar (_, li,_) -> line i ppf "Texp_instvar %a\n" fmt_path li;
@@ -343,18 +361,20 @@ and expression i ppf x =
       line i ppf "Texp_let %a\n" fmt_rec_flag rf;
       list i value_binding ppf l;
       expression i ppf e;
-  | Texp_function { arg_label = p; param = _; cases; partial = _; region } ->
+  | Texp_function { arg_label = p; param = _; cases; partial = _; region; alloc_mode = am } ->
       line i ppf "Texp_function\n";
       line i ppf "region %b\n" region;
+      alloc_mode i ppf am;
       arg_label i ppf p;
       list i case ppf cases;
-  | Texp_apply (e, l, m) ->
+  | Texp_apply (e, l, m, am) ->
       line i ppf "Texp_apply\n";
       line i ppf "apply_mode %s\n"
         (match m with
          | Tail -> "Tail"
          | Nontail -> "Nontail"
          | Default -> "Default");
+      alloc_mode i ppf am;
       expression i ppf e;
       list i label_x_apply_arg ppf l;
   | Texp_match (e, l, _partial) ->
@@ -365,36 +385,48 @@ and expression i ppf x =
       line i ppf "Texp_try\n";
       expression i ppf e;
       list i case ppf l;
-  | Texp_tuple (l) ->
+  | Texp_tuple (l, am) ->
       line i ppf "Texp_tuple\n";
+      alloc_mode i ppf am;
       list i expression ppf l;
-  | Texp_construct (li, _, eo) ->
+  | Texp_construct (li, _, eo, am) ->
       line i ppf "Texp_construct %a\n" fmt_longident li;
+      alloc_mode_option i ppf am;
       list i expression ppf eo;
   | Texp_variant (l, eo) ->
       line i ppf "Texp_variant \"%s\"\n" l;
-      option i expression ppf eo;
-  | Texp_record { fields; representation; extended_expression } ->
+      option i expression_alloc_mode ppf eo;
+  | Texp_record { fields; representation; extended_expression; alloc_mode = am} ->
       line i ppf "Texp_record\n";
       let i = i+1 in
+      alloc_mode_option i ppf am;
       line i ppf "fields =\n";
       array (i+1) record_field ppf fields;
       line i ppf "representation =\n";
       record_representation (i+1) ppf representation;
       line i ppf "extended_expression =\n";
       option (i+1) expression ppf extended_expression;
-  | Texp_field (e, li, _) ->
+  | Texp_field (e, li, _, am) ->
       line i ppf "Texp_field\n";
+      alloc_mode_option i ppf am;
       expression i ppf e;
       longident i ppf li;
-  | Texp_setfield (e1, li, _, e2) ->
+  | Texp_setfield (e1, am, li, _, e2) ->
       line i ppf "Texp_setfield\n";
+      alloc_mode i ppf am;
       expression i ppf e1;
       longident i ppf li;
       expression i ppf e2;
-  | Texp_array (l) ->
-      line i ppf "Texp_array\n";
+  | Texp_array (amut, l, amode) ->
+      line i ppf "Texp_array %a\n" fmt_mutable_flag amut;
+      alloc_mode i ppf amode;
       list i expression ppf l;
+  | Texp_list_comprehension comp ->
+      line i ppf "Texp_list_comprehension\n";
+      comprehension i ppf comp
+  | Texp_array_comprehension (amut, comp) ->
+      line i ppf "Texp_array_comprehension %a\n" fmt_mutable_flag amut;
+      comprehension i ppf comp
   | Texp_ifthenelse (e1, e2, eo) ->
       line i ppf "Texp_ifthenelse\n";
       expression i ppf e1;
@@ -410,14 +442,6 @@ and expression i ppf x =
       expression i ppf wh_cond;
       line i ppf "body_region %b\n" wh_body_region;
       expression i ppf wh_body;
-  | Texp_list_comprehension(e1, type_comp) ->
-    line i ppf "Texp_list_comprehension\n";
-    expression i ppf e1;
-    comprehension i ppf type_comp
-  | Texp_arr_comprehension(e1, type_comp) ->
-    line i ppf "Texp_arr_comprehension\n";
-    expression i ppf e1;
-    comprehension i ppf type_comp
   | Texp_for {for_id; for_from; for_to; for_dir; for_body; for_region} ->
       line i ppf "Texp_for \"%a\" %a\n"
         fmt_ident for_id fmt_direction_flag for_dir;
@@ -425,17 +449,21 @@ and expression i ppf x =
       expression i ppf for_to;
       line i ppf "region %b\n" for_region;
       expression i ppf for_body
-  | Texp_send (e, Tmeth_name s, eo, _) ->
+  | Texp_send (e, Tmeth_name s, _, am) ->
       line i ppf "Texp_send \"%s\"\n" s;
-      expression i ppf e;
-      option i expression ppf eo
-  | Texp_send (e, Tmeth_val s, eo, _) ->
+      alloc_mode i ppf am;
+      expression i ppf e
+  | Texp_send (e, Tmeth_val s, _, am) ->
       line i ppf "Texp_send \"%a\"\n" fmt_ident s;
-      expression i ppf e;
-      option i expression ppf eo
+      alloc_mode i ppf am;
+      expression i ppf e
+  | Texp_send (e, Tmeth_ancestor(s, _), _, am) ->
+      line i ppf "Texp_send \"%a\"\n" fmt_ident s;
+      alloc_mode i ppf am;
+      expression i ppf e
   | Texp_new (li, _, _, _) -> line i ppf "Texp_new %a\n" fmt_path li;
   | Texp_setinstvar (_, s, _, e) ->
-      line i ppf "Texp_setinstvar \"%a\"\n" fmt_path s;
+      line i ppf "Texp_setinstvar %a\n" fmt_path s;
       expression i ppf e;
   | Texp_override (_, l) ->
       line i ppf "Texp_override\n";
@@ -552,8 +580,9 @@ and extension_constructor i ppf x =
 
 and extension_constructor_kind i ppf x =
   match x with
-      Text_decl(a, r) ->
+      Text_decl(v, a, r) ->
         line i ppf "Text_decl\n";
+        if v <> [] then line (i+1) ppf "vars%a\n" typevars v;
         constructor_arguments (i+1) ppf a;
         option (i+1) core_type ppf r;
     | Text_rebind(p, _) ->
@@ -776,6 +805,10 @@ and signature_item i ppf x =
       line i ppf "Tsig_modtype \"%a\"\n" fmt_ident x.mtd_id;
       attributes i ppf x.mtd_attributes;
       modtype_declaration i ppf x.mtd_type
+  | Tsig_modtypesubst x ->
+      line i ppf "Tsig_modtypesubst \"%a\"\n" fmt_ident x.mtd_id;
+      attributes i ppf x.mtd_attributes;
+      modtype_declaration i ppf x.mtd_type
   | Tsig_open od ->
       line i ppf "Tsig_open %a %a\n"
         fmt_override_flag od.open_override
@@ -818,6 +851,12 @@ and with_constraint i ppf x =
       type_declaration (i+1) ppf td;
   | Twith_module (li,_) -> line i ppf "Twith_module %a\n" fmt_path li;
   | Twith_modsubst (li,_) -> line i ppf "Twith_modsubst %a\n" fmt_path li;
+  | Twith_modtype mty ->
+      line i ppf "Twith_modtype\n";
+      module_type (i+1) ppf mty
+  | Twith_modtypesubst mty ->
+      line i ppf "Twith_modtype\n";
+      module_type (i+1) ppf mty
 
 and module_expr i ppf x =
   line i ppf "module_expr %a\n" fmt_location x.mod_loc;
@@ -910,16 +949,17 @@ and core_type_x_core_type_x_location i ppf (ct1, ct2, l) =
   core_type (i+1) ppf ct1;
   core_type (i+1) ppf ct2;
 
-and constructor_decl i ppf {cd_id; cd_name = _; cd_args; cd_res; cd_loc;
-                            cd_attributes} =
+and constructor_decl i ppf {cd_id; cd_name = _; cd_vars;
+                            cd_args; cd_res; cd_loc; cd_attributes} =
   line i ppf "%a\n" fmt_location cd_loc;
   line (i+1) ppf "%a\n" fmt_ident cd_id;
+  if cd_vars <> [] then line (i+1) ppf "cd_vars =%a\n" typevars cd_vars;
   attributes i ppf cd_attributes;
   constructor_arguments (i+1) ppf cd_args;
   option (i+1) core_type ppf cd_res
 
 and constructor_arguments i ppf = function
-  | Cstr_tuple l -> list i core_type ppf l
+  | Cstr_tuple l -> list i field_decl ppf l
   | Cstr_record l -> list i label_decl ppf l
 
 and label_decl i ppf {ld_id; ld_name = _; ld_mutable; ld_type; ld_loc;
@@ -930,9 +970,43 @@ and label_decl i ppf {ld_id; ld_name = _; ld_mutable; ld_type; ld_loc;
   line (i+1) ppf "%a" fmt_ident ld_id;
   core_type (i+1) ppf ld_type
 
+and field_decl i ppf (ty, _) =
+  core_type (i+1) ppf ty
+
 and longident_x_pattern i ppf (li, _, p) =
   line i ppf "%a\n" fmt_longident li;
   pattern (i+1) ppf p;
+
+and comprehension i ppf {comp_body; comp_clauses} =
+  line i ppf "comprehension\n";
+  expression i ppf comp_body;
+  List.iter (comprehension_clause i ppf) comp_clauses
+
+and comprehension_clause i ppf = function
+  | Texp_comp_for ccbs ->
+      line i ppf "Texp_comp_for\n";
+      List.iter (comprehension_clause_binding i ppf) ccbs
+  | Texp_comp_when cond ->
+      line i ppf "Texp_comp_when\n";
+      expression i ppf cond
+
+and comprehension_clause_binding
+      i ppf { comp_cb_iterator; comp_cb_attributes} =
+  line i ppf "comprehension_clause_binding\n";
+  comprehension_iterator i ppf comp_cb_iterator;
+  attributes i ppf comp_cb_attributes
+
+and comprehension_iterator i ppf = function
+  | Texp_comp_range { ident; pattern = _; start; stop; direction } ->
+      line i ppf "Texp_comp_range \"%a\" %a\n"
+        fmt_ident          ident
+        fmt_direction_flag direction;
+      expression i ppf start;
+      expression i ppf stop
+  | Texp_comp_in { pattern = pattern'; sequence } ->
+      line i ppf "Texp_comp_in\n";
+      pattern i ppf pattern';
+      expression i ppf sequence
 
 and case
     : type k . _ -> _ -> k case -> unit
@@ -952,7 +1026,7 @@ and value_binding i ppf x =
   expression (i+1) ppf x.vb_expr
 
 and string_x_expression i ppf (s, _, e) =
-  line i ppf "<override> \"%a\"\n" fmt_path s;
+  line i ppf "<override> \"%a\"\n" fmt_ident s;
   expression (i+1) ppf e;
 
 and record_field i ppf = function
@@ -986,4 +1060,5 @@ let interface ppf x = list 0 signature_item ppf x.sig_items;;
 
 let implementation ppf x = list 0 structure_item ppf x.str_items;;
 
-let implementation_with_coercion ppf (x, _) = implementation ppf x
+let implementation_with_coercion ppf Typedtree.{structure; _} =
+  implementation ppf structure

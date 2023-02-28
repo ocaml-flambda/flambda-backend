@@ -18,7 +18,7 @@ open! Stdlib
 
 (** Formatted output functions. *)
 
-[@@@ocaml.warning "Ae"]
+[@@@ocaml.warning "+A-e"]
 
 val fprintf : out_channel -> ('a, out_channel, unit) format -> 'a
 (** [fprintf outchan format arg1 ... argN] formats the arguments

@@ -27,6 +27,7 @@ val close_let :
   Env.t ->
   Ident.t ->
   IR.user_visible ->
+  Flambda_kind.With_subkind.t ->
   IR.named ->
   body:(Acc.t -> Env.t -> Expr_with_acc.t) ->
   Expr_with_acc.t
@@ -44,7 +45,7 @@ val close_let_cont :
   Env.t ->
   name:Continuation.t ->
   is_exn_handler:bool ->
-  params:(Ident.t * IR.user_visible * Lambda.value_kind) list ->
+  params:(Ident.t * IR.user_visible * Flambda_kind.With_subkind.t) list ->
   recursive:Asttypes.rec_flag ->
   handler:(Acc.t -> Env.t -> Expr_with_acc.t) ->
   body:(Acc.t -> Env.t -> Expr_with_acc.t) ->
@@ -79,10 +80,9 @@ type 'a close_program_result = Flambda_unit.t * 'a close_program_metadata
 
 val close_program :
   mode:'mode Flambda_features.mode ->
-  symbol_for_global:(Ident.t -> Symbol.t) ->
   big_endian:bool ->
   cmx_loader:Flambda_cmx.loader ->
-  module_ident:Ident.t ->
+  compilation_unit:Compilation_unit.t ->
   module_block_size_in_words:int ->
   program:(Acc.t -> Env.t -> Expr_with_acc.t) ->
   prog_return_cont:Continuation.t ->

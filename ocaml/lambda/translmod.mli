@@ -19,26 +19,24 @@
 open Typedtree
 open Lambda
 
-val transl_implementation:
-      string -> structure * module_coercion -> Lambda.program
-val transl_store_phrases: string -> structure -> int * lambda
-val transl_store_implementation:
-      string -> structure * module_coercion -> Lambda.program
+type compilation_unit_style =
+  | Plain_block (* Flambda *)
+  | Set_global_to_block (* Bytecode *)
+  | Set_individual_fields (* Closure *)
 
-val transl_implementation_flambda:
-  string -> structure * module_coercion -> Lambda.program
+val transl_implementation:
+      Compilation_unit.t -> structure * module_coercion
+        -> style:compilation_unit_style -> Lambda.program
+val transl_store_phrases: Compilation_unit.t -> structure -> int * lambda
 
 val transl_toplevel_definition: structure -> lambda
-val transl_package:
-      Ident.t option list -> Ident.t -> module_coercion -> lambda
-val transl_store_package:
-      Ident.t option list -> Ident.t -> module_coercion -> int * lambda
 
-val transl_package_flambda:
-      Ident.t option list -> module_coercion -> int * lambda
+val transl_package:
+      Compilation_unit.t option list -> Compilation_unit.t -> module_coercion
+        -> style:compilation_unit_style -> int * lambda
 
 val toplevel_name: Ident.t -> string
-val nat_toplevel_name: Ident.t -> Ident.t * int
+val nat_toplevel_name: Ident.t -> Compilation_unit.t * int
 
 val primitive_declarations: Primitive.description list ref
 

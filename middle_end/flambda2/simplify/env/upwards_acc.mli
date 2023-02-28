@@ -20,8 +20,7 @@ type t
 val print : Format.formatter -> t -> unit
 
 val create :
-  required_names:Name.Set.t ->
-  reachable_code_ids:Data_flow.Reachable_code_ids.t Or_unknown.t ->
+  flow_result:Flow_types.Flow_result.t ->
   compute_slot_offsets:bool ->
   Upwards_env.t ->
   Downwards_acc.t ->
@@ -35,10 +34,6 @@ val uenv : t -> Upwards_env.t
 val cost_metrics : t -> Cost_metrics.t
 
 val code_age_relation : t -> Code_age_relation.t
-
-val required_names : t -> Name.Set.t
-
-val reachable_code_ids : t -> Data_flow.Reachable_code_ids.t Or_unknown.t
 
 (** Return the lifted constants that still need to be placed (i.e. have
     [Let]-expressions made for them) on the upwards traversal. *)
@@ -102,3 +97,17 @@ val is_demoted_exn_handler : t -> Continuation.t -> bool
 val slot_offsets : t -> Slot_offsets.t Or_unknown.t
 
 val with_slot_offsets : t -> Slot_offsets.t Or_unknown.t -> t
+
+(* Functions to extract specific fields of [flow_result]. *)
+
+val required_names : t -> Name.Set.t
+
+val reachable_code_ids : t -> Flow_types.Reachable_code_ids.t Or_unknown.t
+
+val continuation_param_aliases : t -> Flow_types.Alias_result.t
+
+val mutable_unboxing_result : t -> Flow_types.Mutable_unboxing_result.t
+
+val set_resimplify : t -> t
+
+val resimplify : t -> bool

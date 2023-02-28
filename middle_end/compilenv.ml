@@ -24,12 +24,14 @@
 open Config
 open Cmx_format
 
+module File_sections = Flambda_backend_utils.File_sections
+
 module CU = Compilation_unit
 
 type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
-  | Illegal_renaming of CU.Name.t * CU.Name.t * string
+  | Illegal_renaming of CU.t * CU.t * string
 
 exception Error of error
 
@@ -130,7 +132,7 @@ let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
   Set_of_closures_id.Tbl.clear imported_sets_of_closures_table;
   Checks.reset cached_checks;
-  CU.set_current compilation_unit;
+  CU.set_current (Some compilation_unit);
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
   current_unit.ui_imports_cmi <- [];
@@ -156,9 +158,31 @@ let read_unit_info filename =
       close_in ic;
       raise(Error(Not_a_unit_info filename))
     end;
-    let ui = (input_value ic : unit_infos) in
+    let uir = (input_value ic : unit_infos_raw) in
+    let first_section_offset = pos_in ic in
+    seek_in ic (first_section_offset + uir.uir_sections_length);
     let crc = Digest.input ic in
-    close_in ic;
+    (* This consumes the channel *)
+    let sections = File_sections.create uir.uir_section_toc filename ic ~first_section_offset in
+    let export_info =
+      match uir.uir_export_info with
+      | Clambda_raw info -> Clambda info
+      | Flambda1_raw info -> Flambda1 info
+      | Flambda2_raw None -> Flambda2 None
+      | Flambda2_raw (Some info) ->
+        Flambda2 (Some (Flambda2_cmx.Flambda_cmx_format.from_raw ~sections info))
+    in
+    let ui = {
+      ui_unit = uir.uir_unit;
+      ui_defines = uir.uir_defines;
+      ui_imports_cmi = uir.uir_imports_cmi |> Array.to_list;
+      ui_imports_cmx = uir.uir_imports_cmx |> Array.to_list;
+      ui_generic_fns = uir.uir_generic_fns;
+      ui_export_info = export_info;
+      ui_checks = uir.uir_checks;
+      ui_force_link = uir.uir_force_link
+    }
+    in
     (ui, crc)
   with End_of_file | Failure _ ->
     close_in ic;
@@ -176,47 +200,54 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
-let get_unit_info modname =
-  if CU.Name.equal modname (CU.name current_unit.ui_unit)
+let get_unit_info comp_unit =
+  (* If this fails, it likely means that someone didn't call
+     [CU.which_cmx_file]. *)
+  assert (CU.can_access_cmx_file comp_unit ~accessed_by:current_unit.ui_unit);
+  (* CR lmaurer: Surely this should just compare [comp_unit] to
+     [current_unit.ui_unit], but doing so seems to break Closure. We should fix
+     that. *)
+  if CU.Name.equal (CU.name comp_unit) (CU.name current_unit.ui_unit)
   then
     Some current_unit
   else begin
+    let cmx_name = CU.name comp_unit in
     try
-      CU.Name.Tbl.find global_infos_table modname
+      CU.Name.Tbl.find global_infos_table cmx_name
     with Not_found ->
       let (infos, crc) =
-        if Env.is_imported_opaque (modname |> CU.Name.to_string)
-        then (None, None)
+        if Env.is_imported_opaque cmx_name then (None, None)
         else begin
           try
             let filename =
-              Load_path.find_uncap ((modname |> CU.Name.to_string) ^ ".cmx") in
+              Load_path.find_uncap ((cmx_name |> CU.Name.to_string) ^ ".cmx") in
             let (ui, crc) = read_unit_info filename in
-            if not (CU.Name.equal (CU.name ui.ui_unit) modname) then
-              raise(Error(Illegal_renaming(modname, CU.name ui.ui_unit,
-                filename)));
+            if not (CU.equal ui.ui_unit comp_unit) then
+              raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
             cache_checks ui.ui_checks;
             (Some ui, Some crc)
           with Not_found ->
-            let warn = Warnings.No_cmx_file (modname |> CU.Name.to_string) in
+            let warn = Warnings.No_cmx_file (cmx_name |> CU.Name.to_string) in
               Location.prerr_warning Location.none warn;
               (None, None)
           end
       in
-      current_unit.ui_imports_cmx <-
-        (modname |> CU.Name.to_string, crc) :: current_unit.ui_imports_cmx;
-      CU.Name.Tbl.add global_infos_table modname infos;
+      let import = Import_info.create_normal comp_unit ~crc in
+      current_unit.ui_imports_cmx <- import :: current_unit.ui_imports_cmx;
+      CU.Name.Tbl.add global_infos_table cmx_name infos;
       infos
   end
 
-let get_unit_export_info modname =
-  match get_unit_info modname with
+let which_cmx_file comp_unit =
+  CU.which_cmx_file comp_unit ~accessed_by:(CU.get_current_exn ())
+
+let get_unit_export_info comp_unit =
+  match get_unit_info comp_unit with
   | None -> None
   | Some ui -> Some ui.ui_export_info
 
-let get_global_info global_ident =
-  assert (Ident.is_global global_ident);
-  get_unit_info (global_ident |> Ident.name |> CU.Name.of_string)
+let get_global_info comp_unit =
+  get_unit_info (which_cmx_file comp_unit)
 
 let get_global_export_info id =
   match get_global_info id with
@@ -236,48 +267,19 @@ let get_clambda_approx ui =
   | Clambda approx -> approx
 
 let toplevel_approx :
-  (string, Clambda.value_approximation) Hashtbl.t = Hashtbl.create 16
+  (CU.t, Clambda.value_approximation) Hashtbl.t = Hashtbl.create 16
 
 let record_global_approx_toplevel () =
   Hashtbl.add toplevel_approx
-    (CU.Name.to_string (CU.name current_unit.ui_unit))
+    current_unit.ui_unit
     (get_clambda_approx current_unit)
 
-let global_approx id =
-  if Ident.is_predef id then Clambda.Value_unknown
-  else try Hashtbl.find toplevel_approx (Ident.name id)
+let global_approx comp_unit =
+  try Hashtbl.find toplevel_approx comp_unit
   with Not_found ->
-    match get_global_info id with
+    match get_global_info comp_unit with
       | None -> Clambda.Value_unknown
       | Some ui -> get_clambda_approx ui
-
-(* Determination of pack prefixes for units and identifiers *)
-
-let pack_prefix_for_current_unit () =
-  CU.for_pack_prefix current_unit.ui_unit
-
-let pack_prefix_for_global_ident id =
-  if not (Ident.is_global id) then
-    Misc.fatal_errorf "Identifier %a is not global" Ident.print id
-  else if Hashtbl.mem toplevel_approx (Ident.name id) then
-    CU.for_pack_prefix (CU.get_current_exn ())
-  else
-    match get_global_info id with
-    | Some ui -> CU.for_pack_prefix ui.ui_unit
-    | None ->
-      (* If the .cmx file is missing, the prefix is assumed to be empty. *)
-      CU.Prefix.empty
-
-let symbol_for_global' id =
-  assert (Ident.is_global_or_predef id);
-  let pack_prefix =
-    if Ident.is_global id then pack_prefix_for_global_ident id
-    else CU.Prefix.empty
-  in
-  Symbol.for_global_or_predef_ident pack_prefix id
-
-let symbol_for_global id =
-  symbol_for_global' id |> Symbol.linkage_name
 
 (* Register the approximation of the module being compiled *)
 
@@ -301,67 +303,19 @@ let flambda2_set_export_info export_info =
   assert(Config.flambda2);
   current_unit.ui_export_info <- Flambda2 (Some export_info)
 
-(* Determine which .cmx file to load for a given compilation unit.
-   This is tricky in the case of packs.  It can be done by lining up the
-   desired compilation unit's full path (i.e. pack prefix then unit name)
-   against the current unit's full path and observing when/if they diverge. *)
-let which_cmx_file desired_comp_unit =
-  let desired_prefix = CU.for_pack_prefix desired_comp_unit in
-  if CU.Prefix.is_empty desired_prefix then
-    (* If the unit we're looking for is not in a pack, then the correct .cmx
-       file is the one with the same name as the unit, irrespective of any
-       current pack. *)
-    CU.name desired_comp_unit
-  else
-    let current_comp_unit = Compilation_unit.get_current_exn () in
-    (* This lines up the full paths as described above. *)
-    let rec match_components ~current ~desired =
-      match current, desired with
-      | current_name::current, desired_name::desired ->
-        if CU.Name.equal current_name desired_name then
-          (* The full paths are equal up to the current point; keep going. *)
-          match_components ~current ~desired
-        else
-          (* The paths have diverged.  The next component of the desired
-             path is the .cmx file to load. *)
-          desired_name
-      | [], desired_name::_desired ->
-        (* The whole of the current unit's full path (including the name of
-           the unit itself) is now known to be a prefix of the desired unit's
-           pack *prefix*.  This means we must be making a pack.  The .cmx
-           file to load is named after the next component of the desired
-           unit's path (which may in turn be a pack). *)
-        desired_name
-      | [], [] ->
-        (* The paths were equal, so the desired compilation unit is just the
-           current one. *)
-        CU.name desired_comp_unit
-      | _::_, [] ->
-        (* The current path is longer than the desired unit's path, which
-           means we're attempting to go back up the pack hierarchy.  This is
-           an error. *)
-        Misc.fatal_errorf "Compilation unit@ %a@ is inaccessible when \
-            compiling compilation unit@ %a"
-          CU.print desired_comp_unit
-          CU.print current_comp_unit
-    in
-    match_components ~current:(CU.full_path current_comp_unit)
-      ~desired:(CU.full_path desired_comp_unit)
-
 let approx_for_global comp_unit =
   if CU.equal comp_unit CU.predef_exn
   then invalid_arg "approx_for_global with predef_exn compilation unit";
-  let comp_unit_name = which_cmx_file comp_unit in
-  let id = Ident.create_persistent (comp_unit_name |> CU.Name.to_string) in
-  let modname = Ident.name id |> CU.Name.of_string in
-  match CU.Name.Tbl.find export_infos_table modname with
+  let accessible_comp_unit = which_cmx_file comp_unit in
+  let cmx_name = CU.name accessible_comp_unit in
+  match CU.Name.Tbl.find export_infos_table cmx_name with
   | otherwise -> Some otherwise
   | exception Not_found ->
-    match get_global_info id with
+    match get_unit_info accessible_comp_unit with
     | None -> None
     | Some ui ->
       let exported = get_flambda_export_info ui in
-      CU.Name.Tbl.add export_infos_table modname exported;
+      CU.Name.Tbl.add export_infos_table cmx_name exported;
       merged_environment := Export_info.merge !merged_environment exported;
       Some exported
 
@@ -369,31 +323,76 @@ let approx_env () = !merged_environment
 
 (* Record that a currying function or application function is needed *)
 
-let need_curry_fun arity =
+let need_curry_fun kind arity result =
   let fns = current_unit.ui_generic_fns in
-  if not (List.mem arity fns.curry_fun) then
+  if not (List.mem (kind, arity, result) fns.curry_fun) then
     current_unit.ui_generic_fns <-
-      { fns with curry_fun = arity :: fns.curry_fun }
+      { fns with curry_fun = (kind, arity, result) :: fns.curry_fun }
 
-let need_apply_fun n mode =
-  assert(n > 0);
+let need_apply_fun arity result mode =
+  assert(List.compare_length_with arity 0 > 0);
   let fns = current_unit.ui_generic_fns in
-  if not (List.mem (n,mode) fns.apply_fun) then
+  if not (List.mem (arity, result, mode) fns.apply_fun) then
     current_unit.ui_generic_fns <-
-      { fns with apply_fun = (n,mode) :: fns.apply_fun }
+      { fns with apply_fun = (arity, result, mode) :: fns.apply_fun }
 
-let need_send_fun n mode =
+let need_send_fun arity result mode =
   let fns = current_unit.ui_generic_fns in
-  if not (List.mem (n,mode) fns.send_fun) then
+  if not (List.mem (arity, result, mode) fns.send_fun) then
     current_unit.ui_generic_fns <-
-      { fns with send_fun = (n,mode) :: fns.send_fun }
+      { fns with send_fun = (arity, result, mode) :: fns.send_fun }
 
 (* Write the description of the current unit *)
 
+(* CR mshinwell: let's think about this later, quadratic algorithm
+
+let ensure_sharing_between_cmi_and_cmx_imports cmi_imports cmx_imports =
+  (* If a [CU.t] in the .cmx imports also occurs in the .cmi imports, use
+     the one in the .cmi imports, to increase sharing.  (Such a [CU.t] in
+     the .cmi imports may already have part of its value shared with the
+     first [CU.Name.t] component in the .cmi imports, c.f.
+     [Persistent_env.ensure_crc_sharing], so it's best to pick this [CU.t].) *)
+  List.map (fun ((comp_unit, crc) as import) ->
+      match
+        List.find_map (function
+            | _, None -> None
+            | _, Some (comp_unit', _) ->
+              if CU.equal comp_unit comp_unit' then Some comp_unit'
+              else None)
+          cmi_imports
+      with
+      | None -> import
+      | Some comp_unit -> comp_unit, crc)
+    cmx_imports
+*)
+
 let write_unit_info info filename =
+  let raw_export_info, sections =
+    match info.ui_export_info with
+    | Clambda info -> Clambda_raw info, File_sections.empty
+    | Flambda1 info -> Flambda1_raw info, File_sections.empty
+    | Flambda2 None -> Flambda2_raw None, File_sections.empty
+    | Flambda2 (Some info) ->
+      let info, sections = Flambda2_cmx.Flambda_cmx_format.to_raw info in
+      Flambda2_raw (Some info), sections
+  in
+  let serialized_sections, toc, total_length = File_sections.serialize sections in
+  let raw_info = {
+    uir_unit = info.ui_unit;
+    uir_defines = info.ui_defines;
+    uir_imports_cmi = Array.of_list info.ui_imports_cmi;
+    uir_imports_cmx = Array.of_list info.ui_imports_cmx;
+    uir_generic_fns = info.ui_generic_fns;
+    uir_export_info = raw_export_info;
+    uir_checks = info.ui_checks;
+    uir_force_link = info.ui_force_link;
+    uir_section_toc = toc;
+    uir_sections_length = total_length;
+  } in
   let oc = open_out_bin filename in
   output_string oc cmx_magic_number;
-  output_value oc info;
+  output_value oc raw_info;
+  Array.iter (output_string oc) serialized_sections;
   flush oc;
   let crc = Digest.file filename in
   Digest.output oc crc;
@@ -463,8 +462,7 @@ let structured_constants () =
         })
 
 let require_global global_ident =
-  if not (Ident.is_predef global_ident) then
-    ignore (get_global_info global_ident : Cmx_format.unit_infos option)
+  ignore (get_global_info global_ident : Cmx_format.unit_infos option)
 
 (* Error report *)
 
@@ -481,8 +479,8 @@ let report_error ppf = function
       fprintf ppf "%a@ contains the description for unit\
                    @ %a when %a was expected"
         Location.print_filename filename
-        CU.Name.print name
-        CU.Name.print modname
+        CU.print name
+        CU.print modname
 
 let () =
   Location.register_error_of_exn

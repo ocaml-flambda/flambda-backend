@@ -43,7 +43,7 @@ let make_switch n selector caselist =
     List.iter (fun pos -> index.(pos) <- i) posl;
     actv.(i) <- (e, dbg)
   done;
-  Cswitch(selector, index, actv, dbg)
+  Cswitch(selector, index, actv, dbg, value_kind ())
 
 let access_array base numelt size =
   match numelt with
@@ -180,6 +180,7 @@ fundecl:
              No_CSE;
            ]
            else [ Reduce_code_size ];
+         fun_poll = Lambda.Default_poll;
          fun_dbg = debuginfo ()} }
 ;
 fun_name:
@@ -227,7 +228,8 @@ expr:
   | LPAREN binaryop expr expr RPAREN { Cop($2, [$3; $4], debuginfo ()) }
   | LPAREN SEQ sequence RPAREN { $3 }
   | LPAREN IF expr expr expr RPAREN
-      { Cifthenelse($3, debuginfo (), $4, debuginfo (), $5, debuginfo ()) }
+      { Cifthenelse($3, debuginfo (), $4, debuginfo (), $5, debuginfo (),
+                   value_kind ()) }
   | LPAREN SWITCH INTCONST expr caselist RPAREN { make_switch $3 $4 $5 }
   | LPAREN WHILE expr sequence RPAREN
       {
@@ -238,21 +240,21 @@ expr:
             Cconst_int (x, _) when x <> 0 -> $4
           | _ -> Cifthenelse($3, debuginfo (), $4, debuginfo (),
                              (Cexit(lbl0,[])),
-                             debuginfo ()) in
+                             debuginfo (), value_kind ()) in
         Ccatch(Nonrecursive, [lbl0, [], Ctuple [], debuginfo ()],
           Ccatch(Recursive,
             [lbl1, [], Csequence(body, Cexit(lbl1, [])), debuginfo ()],
-            Cexit(lbl1, []))) }
+            Cexit(lbl1, []), value_kind ()), value_kind ()) }
   | LPAREN EXIT IDENT exprlist RPAREN
     { Cexit(find_label $3, List.rev $4) }
   | LPAREN CATCH sequence WITH catch_handlers RPAREN
     { let handlers = $5 in
       List.iter (fun (_, l, _, _) ->
         List.iter (fun (x, _) -> unbind_ident x) l) handlers;
-      Ccatch(Recursive, handlers, $3) }
+      Ccatch(Recursive, handlers, $3, value_kind ()) }
   | EXIT        { Cexit(0,[]) }
   | LPAREN TRY sequence WITH bind_ident sequence RPAREN
-                { unbind_ident $5; Ctrywith($3, $5, $6, debuginfo ()) }
+                { unbind_ident $5; Ctrywith($3, $5, $6, debuginfo (), value_kind ()) }
   | LPAREN VAL expr expr RPAREN
       { let open Asttypes in
         Cop(Cload (Word_val, Mutable), [access_array $3 $4 Arch.size_addr],
@@ -276,7 +278,8 @@ expr:
       { Cop(Cstore (Word_int, Assignment),
             [access_array $3 $4 Arch.size_int; $5], Debuginfo.none) }
   | LPAREN FLOATASET expr expr expr RPAREN
-      { Cop(Cstore (Double, Assignment),
+      { let open Lambda in
+        Cop(Cstore (Double, Assignment),
             [access_array $3 $4 Arch.size_float; $5], Debuginfo.none) }
 ;
 exprlist:

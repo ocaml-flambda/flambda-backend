@@ -18,6 +18,7 @@
 open Reg
 open Mach
 open Linear
+module Int = Misc.Stdlib.Int
 
 (* Representation of the code DAG. *)
 
@@ -121,7 +122,7 @@ let rec longest_path critical_outputs node =
         node.length <-
           List.fold_left
             (fun len (son, delay) ->
-              max len (longest_path critical_outputs son + delay))
+              Int.max len (longest_path critical_outputs son + delay))
             0 sons
   end;
   node.length
@@ -154,7 +155,7 @@ method oper_in_basic_block = function
   | Itailcall_imm _ -> false
   | Iextcall _ -> false
   | Istackoffset _ -> false
-  | Ialloc _ -> false
+  | Ialloc _ | Ipoll _ -> false
   | Iprobe _ -> false
   | _ -> true
 

@@ -57,7 +57,7 @@ and head_of_kind_value = private
       }
   | String of String_info.Set.t
   | Array of
-      { element_kind : Flambda_kind.With_subkind.t Or_unknown.t;
+      { element_kind : Flambda_kind.With_subkind.t Or_unknown_or_bottom.t;
         length : t;
         contents : array_contents Or_unknown.t;
         alloc_mode : Alloc_mode.For_types.t
@@ -268,19 +268,19 @@ val this_immutable_string : string -> t
 val mutable_string : size:int -> t
 
 val array_of_length :
-  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  element_kind:Flambda_kind.With_subkind.t Or_unknown_or_bottom.t ->
   length:t ->
   Alloc_mode.For_types.t ->
   t
 
 val mutable_array :
-  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  element_kind:Flambda_kind.With_subkind.t Or_unknown_or_bottom.t ->
   length:t ->
   Alloc_mode.For_types.t ->
   t
 
 val immutable_array :
-  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  element_kind:Flambda_kind.With_subkind.t Or_unknown_or_bottom.t ->
   fields:t list ->
   Alloc_mode.For_types.t ->
   t
@@ -577,7 +577,7 @@ module Head_of_kind_value : sig
   val create_string : String_info.Set.t -> t
 
   val create_array_with_contents :
-    element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+    element_kind:Flambda_kind.With_subkind.t Or_unknown_or_bottom.t ->
     length:flambda_type ->
     array_contents Or_unknown.t ->
     Alloc_mode.For_types.t ->

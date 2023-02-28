@@ -2,9 +2,9 @@
 
 ocaml-jst has a dune-based build system which is different from
 upstream OCaml. To get started, you'll need a working install of OCaml
-4.12 and dune, e.g. via OPAM:
+4.14 and dune, e.g. via OPAM:
 
-    $ opam switch create 4.12.0
+    $ opam switch create 4.14.0
     $ eval $(opam env)
     $ opam install dune
 
@@ -28,3 +28,45 @@ to build without running the testsuite, or:
     $ make -f Makefile.jst hacking
 
 to start a continuously polling build of the compiler.
+
+Note that the dune-based build system is entirely separate from the main
+Makefile, and so you will need to use `make -f Makefile.jst install`
+to install after building.
+
+## Testing
+
+As demonstrated above, you can
+
+    $ make -f Makefile.jst runtest-upstream
+
+to run the entire testsuite. As a shorter synonym, you may also
+
+    $ make -f Makefile.jst test
+
+If you want to run just one test or one test directory, you can
+
+    $ make -f Makefile.jst test-one TEST=<<test file here>>
+    $ make -f Makefile.jst test-one DIR=<<test dir here>>
+
+where the test file or test dir are specified with respect to the
+`testsuite/tests` directory. For example:
+
+    $ make -f Makefile.jst test-one TEST=typing-local/local.ml
+    $ make -f Makefile.jst test-one DIR=typing-local
+
+## Debugging
+
+OCaml 4.14 makes `type_expr` abstract, and thus normal debug printing
+of types no longer works. However, there is now an installable printer
+for types, which we can use to see the types. Here are the instructions:
+
+1. Use the old `Makefile`, not the new `Makefile.jst`. This is an infelicity
+we hope to fix.
+
+2. In the `tools` directory, run `make debug_printers.cmo`.
+
+3. In the debugger, execute some instructions, with e.g. `run` or `step`. This forces
+the debugger to load the compiler code, required for the next
+step.
+
+4. Execute `source tools/debug_printers` to install the printers.

@@ -19,11 +19,13 @@
     compilation cannot see, all offsets that occur in the current compilation
     unit should be re-exported. *)
 
+type words = int
+
 type function_slot_info =
   | Dead_function_slot
   | Live_function_slot of
-      { offset : int;
-        size : int
+      { offset : words;
+        size : words
             (* Number of fields taken for the function:
 
                2 fields (code pointer + arity) for function of arity one
@@ -33,7 +35,11 @@ type function_slot_info =
 
 type value_slot_info =
   | Dead_value_slot
-  | Live_value_slot of { offset : int }
+  | Live_value_slot of
+      { offset : words;
+        size : words;
+        is_scanned : bool
+      }
 
 type t =
   { function_slot_offsets : function_slot_info Function_slot.Map.t;
@@ -48,7 +54,8 @@ let print_function_slot_info fmt = function
 let print_value_slot_info fmt (info : value_slot_info) =
   match info with
   | Dead_value_slot -> Format.fprintf fmt "@[<h>(removed)@]"
-  | Live_value_slot { offset } -> Format.fprintf fmt "@[<h>(o:%d)@]" offset
+  | Live_value_slot { offset; size; is_scanned } ->
+    Format.fprintf fmt "@[<h>(o:%d, s:%d, v:%b)@]" offset size is_scanned
 
 let [@ocamlformat "disable"] print fmt env =
   Format.fprintf fmt "{@[<v>closures: @[<v>%a@]@,value_slots: @[<v>%a@]@]}"
@@ -74,7 +81,9 @@ let equal_function_slot_info (info1 : function_slot_info)
 let equal_value_slot_info (info1 : value_slot_info) (info2 : value_slot_info) =
   match info1, info2 with
   | Dead_value_slot, Dead_value_slot -> true
-  | Live_value_slot { offset = o1 }, Live_value_slot { offset = o2 } -> o1 = o2
+  | ( Live_value_slot { offset = o1; size = s1; is_scanned = v1 },
+      Live_value_slot { offset = o2; size = s2; is_scanned = v2 } ) ->
+    o1 = o2 && s1 = s2 && v1 = v2
   | Dead_value_slot, Live_value_slot _ | Live_value_slot _, Dead_value_slot ->
     false
 

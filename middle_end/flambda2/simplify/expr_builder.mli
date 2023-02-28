@@ -25,6 +25,15 @@
 
 open! Flambda.Import
 
+val create_let_binding :
+  Upwards_acc.t ->
+  Bound_pattern.t ->
+  Named.t ->
+  free_names_of_defining_expr:Name_occurrences.t ->
+  body:Rebuilt_expr.t ->
+  cost_metrics_of_defining_expr:Cost_metrics.t ->
+  Rebuilt_expr.t * Upwards_acc.t
+
 (** Create [Let] binding(s) around a given body. (The type of this function
     prevents it from being used to create "let symbol" bindings; use the other
     functions in this module instead.) Bindings will be elided if they are

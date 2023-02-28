@@ -141,6 +141,9 @@ and value_kind = Lambda.value_kind =
     }
   | Parrayval of array_kind
 
+and layout = Lambda.layout =
+  | Pvalue of value_kind
+
 and block_shape = Lambda.block_shape
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
@@ -165,3 +168,5 @@ and raise_kind = Lambda.raise_kind =
   | Raise_notrace
 
 let equal (x: primitive) (y: primitive) = x = y
+
+let result_layout _p = Lambda.layout_any_value

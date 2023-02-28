@@ -46,6 +46,9 @@ let rec strengthen_lazy ~aliasable env mty p =
       MtyL_signature(strengthen_lazy_sig ~aliasable env sg p)
   | MtyL_functor(Named (Some param, arg), res)
     when !Clflags.applicative_functors ->
+      let env =
+        Env.add_module_lazy ~update_summary:false param Mp_present arg env
+      in
       MtyL_functor(Named (Some param, arg),
         strengthen_lazy ~aliasable:false env res (Papply(p, Pident param)))
   | MtyL_functor(Named (None, arg), res)
@@ -62,9 +65,8 @@ and strengthen_lazy_sig' ~aliasable env sg p =
     [] -> []
   | (SigL_value(_, _, _) as sigelt) :: rem ->
       sigelt :: strengthen_lazy_sig' ~aliasable env rem p
-  | SigL_type(id, {type_kind=Type_abstract}, _, _) ::
-    (SigL_type(id', {type_private=Private}, _, _) :: _ as rem)
-    when Ident.name id = Ident.name id' ^ "#row" ->
+  | SigL_type(id, {type_kind=Type_abstract}, _, _) :: rem
+    when Btype.is_row_name (Ident.name id) ->
       strengthen_lazy_sig' ~aliasable env rem p
   | SigL_type(id, decl, rs, vis) :: rem ->
       let newdecl =
@@ -123,8 +125,6 @@ and strengthen_lazy_decl ~aliasable env md p =
   | MtyL_alias _ -> md
   | _ when aliasable -> {md with mdl_type = MtyL_alias p}
   | mty -> {md with mdl_type = strengthen_lazy ~aliasable env mty p}
-
-let () = Env.strengthen := strengthen_lazy
 
 let strengthen ~aliasable env mty p =
   let mty = strengthen_lazy ~aliasable env (Subst.Lazy.of_modtype mty) p in
@@ -208,6 +208,45 @@ let scrape_for_type_of env pres mty =
     | _ -> mty
   in
   make_aliases_absent pres (loop env None mty)
+
+(* Expand manifest module type names at the top of the given module type *)
+
+let rec scrape_alias_lazy env ?path mty =
+  let open Subst.Lazy in
+  match mty, path with
+    MtyL_ident p, _ ->
+      begin try
+        scrape_alias_lazy env (Env.find_modtype_expansion_lazy p env) ?path
+      with Not_found ->
+        mty
+      end
+  | MtyL_alias path, _ ->
+      begin try
+        scrape_alias_lazy env ((Env.find_module_lazy path env).mdl_type) ~path
+      with Not_found ->
+        (*Location.prerr_warning Location.none
+          (Warnings.No_cmi_file (Path.name path));*)
+        mty
+      end
+  | mty, Some path ->
+      strengthen_lazy ~aliasable:true env mty path
+  | _ -> mty
+
+(* Non-lazy version of scrape_alias *)
+let scrape_alias env mty =
+  Subst.Lazy.of_modtype mty
+  |> scrape_alias_lazy env
+  |> Subst.Lazy.force_modtype
+
+let () = Env.scrape_alias := fun env mty -> scrape_alias_lazy env mty
+
+let find_type_of_module ~strengthen ~aliasable env path =
+  if strengthen then
+    let md = Env.find_module_lazy path env in
+    let mty = strengthen_lazy ~aliasable env md.mdl_type path in
+    Subst.Lazy.force_modtype mty
+  else
+    (Env.find_module path env).md_type
 
 (* In nondep_supertype, env is only used for the type it assigns to id.
    Hence there is no need to keep env up-to-date by adding the bindings
@@ -303,11 +342,14 @@ let enrich_typedecl env p id decl =
   match decl.type_manifest with
     Some _ -> decl
   | None ->
-      try
-        let orig_decl = Env.find_type p env in
+    match Env.find_type p env with
+    | exception Not_found -> decl
+        (* Type which was not present in the signature, so we don't have
+           anything to do. *)
+    | orig_decl ->
         if decl.type_arity <> orig_decl.type_arity then
           decl
-        else
+        else begin
           let orig_ty =
             Ctype.reify_univars env
               (Btype.newgenty(Tconstr(p, orig_decl.type_params, ref Mnil)))
@@ -317,19 +359,18 @@ let enrich_typedecl env p id decl =
               (Btype.newgenty(Tconstr(Pident id, decl.type_params, ref Mnil)))
           in
           let env = Env.add_type ~check:false id decl env in
-          Ctype.mcomp env orig_ty new_ty;
-          let orig_ty =
-            Btype.newgenty(Tconstr(p, decl.type_params, ref Mnil))
-          in
-          {decl with type_manifest = Some orig_ty}
-      with Not_found | Ctype.Unify _ ->
-        (* - Not_found: type which was not present in the signature, so we don't
-           have anything to do.
-           - Unify: the current declaration is not compatible with the one we
-           got from the signature. We should just fail now, but then, we could
-           also have failed if the arities of the two decls were different,
-           which we didn't. *)
-        decl
+          match Ctype.mcomp env orig_ty new_ty with
+          | exception Ctype.Incompatible -> decl
+              (* The current declaration is not compatible with the one we got
+                 from the signature. We should just fail now, but then, we could
+                 also have failed if the arities of the two decls were
+                 different, which we didn't. *)
+          | () ->
+              let orig_ty =
+                Btype.newgenty(Tconstr(p, decl.type_params, ref Mnil))
+              in
+              {decl with type_manifest = Some orig_ty}
+        end
 
 let rec enrich_modtype env p mty =
   match mty with
@@ -405,13 +446,9 @@ let no_code_needed env mty = no_code_needed_mod env Mp_present mty
 
 (* Check whether a module type may return types *)
 
-let rec contains_type env = function
-    Mty_ident path ->
-      begin try match (Env.find_modtype path env).mtd_type with
-      | None -> raise Exit (* PR#6427 *)
-      | Some mty -> contains_type env mty
-      with Not_found -> raise Exit
-      end
+let rec contains_type env mty =
+  match scrape env mty with
+    Mty_ident _ -> raise Exit (* PR#6427 *)
   | Mty_signature sg ->
       contains_type_sig env sg
   | Mty_functor (_, body) ->
@@ -520,7 +557,7 @@ let rec remove_aliases_mty env args pres mty =
       Mty_signature sg ->
         Mp_present, Mty_signature (remove_aliases_sig env args' sg)
     | Mty_alias _ ->
-        let mty' = Env.scrape_alias env mty in
+        let mty' = scrape_alias env mty in
         if mty' = mty then begin
           pres, mty
         end else begin
@@ -584,9 +621,9 @@ let scrape_for_type_of ~remove_aliases env mty =
 let lower_nongen nglev mty =
   let open Btype in
   let it_type_expr it ty =
-    let ty = repr ty in
-    match ty with
-      {desc=Tvar _; level} ->
+    match get_desc ty with
+      Tvar _ ->
+        let level = get_level ty in
         if level < generic_level && level > nglev then set_level ty nglev
     | _ ->
         type_iterators.it_type_expr it ty

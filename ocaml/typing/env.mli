@@ -18,6 +18,10 @@
 open Types
 open Misc
 
+val register_uid : Uid.t -> Location.t -> unit
+
+val get_uid_to_loc_tbl : unit -> Location.t Types.Uid.Tbl.t
+
 type value_unbound_reason =
   | Val_unbound_instance_variable
   | Val_unbound_self
@@ -47,7 +51,8 @@ type summary =
   | Env_module_unbound of summary * string * module_unbound_reason
 
 type address =
-  | Aident of Ident.t
+  | Aunit of Compilation_unit.t
+  | Alocal of Ident.t
   | Adot of address * int
 
 type t
@@ -56,10 +61,12 @@ val empty: t
 val initial_safe_string: t
 val initial_unsafe_string: t
 val diff: t -> t -> Ident.t list
-val copy_local: from:t -> t -> t
 
-type type_descriptions =
-    constructor_description list * label_description list
+type type_descr_kind =
+  (label_description, constructor_description) type_kind
+
+  (* alias for compatibility *)
+type type_descriptions = type_descr_kind
 
 (* For short-paths *)
 type iter_cont
@@ -68,7 +75,7 @@ val iter_types:
     t -> iter_cont
 val run_iter_cont: iter_cont list -> (Path.t * iter_cont) list
 val same_types: t -> t -> bool
-val used_persistent: unit -> Concr.t
+val used_persistent: unit -> Compilation_unit.Name.Set.t
 val find_shadowed_types: Path.t -> t -> Path.t list
 val without_cmis: ('a -> 'b) -> 'a -> 'b
 (* [without_cmis f arg] applies [f] to [arg], but does not
@@ -79,13 +86,11 @@ val without_cmis: ('a -> 'b) -> 'a -> 'b
 val find_value: Path.t -> t -> value_description
 val find_type: Path.t -> t -> type_declaration
 val find_type_descrs: Path.t -> t -> type_descriptions
+val find_module_lazy: Path.t -> t -> Subst.Lazy.module_decl
 val find_module: Path.t -> t -> module_declaration
 val find_modtype: Path.t -> t -> modtype_declaration
 val find_class: Path.t -> t -> class_declaration
 val find_cltype: Path.t -> t -> class_type_declaration
-
-val find_strengthened_module:
-  aliasable:bool -> Path.t -> t -> module_type
 
 val find_ident_constructor: Ident.t -> t -> constructor_description
 val find_ident_label: Ident.t -> t -> label_description
@@ -107,6 +112,9 @@ val find_module_address: Path.t -> t -> address
 val find_class_address: Path.t -> t -> address
 val find_constructor_address: Path.t -> t -> address
 
+val shape_of_path:
+  namespace:Shape.Sig_component_kind.t -> t -> Path.t -> Shape.t
+
 val add_functor_arg: Ident.t -> t -> t
 val is_functor_arg: Path.t -> t -> bool
 
@@ -127,8 +135,8 @@ val normalize_modtype_path: t -> Path.t -> Path.t
 (* Normalize a module type path *)
 
 val reset_required_globals: unit -> unit
-val get_required_globals: unit -> Ident.t list
-val add_required_global: Ident.t -> unit
+val get_required_globals: unit -> Compilation_unit.t list
+val add_required_global: Path.t -> t -> unit
 
 val reset_probes: unit -> unit
 val add_probe: string -> unit
@@ -141,11 +149,16 @@ val mark_value_used: Uid.t -> unit
 val mark_module_used: Uid.t -> unit
 val mark_type_used: Uid.t -> unit
 
-type constructor_usage = Positive | Pattern | Privatize
+type constructor_usage = Positive | Pattern | Exported_private | Exported
 val mark_constructor_used:
     constructor_usage -> constructor_declaration -> unit
 val mark_extension_used:
     constructor_usage -> extension_constructor -> unit
+
+type label_usage =
+    Projection | Mutation | Construct | Exported_private | Exported
+val mark_label_used:
+    label_usage -> label_declaration -> unit
 
 (* Lookup by long identifiers *)
 
@@ -234,14 +247,14 @@ val lookup_all_constructors_from_type:
   (constructor_description * (unit -> unit)) list
 
 val lookup_label:
-  ?use:bool -> loc:Location.t -> Longident.t -> t ->
+  ?use:bool -> loc:Location.t -> label_usage -> Longident.t -> t ->
   label_description
 val lookup_all_labels:
-  ?use:bool -> loc:Location.t -> Longident.t -> t ->
+  ?use:bool -> loc:Location.t -> label_usage -> Longident.t -> t ->
   ((label_description * (unit -> unit)) list,
    Location.t * t * lookup_error) result
 val lookup_all_labels_from_type:
-  ?use:bool -> loc:Location.t -> Path.t -> t ->
+  ?use:bool -> loc:Location.t -> label_usage -> Path.t -> t ->
   (label_description * (unit -> unit)) list
 
 val lookup_instance_variable:
@@ -285,10 +298,12 @@ val add_value:
 val add_type: check:bool -> Ident.t -> type_declaration -> t -> t
 val add_extension:
   check:bool -> rebind:bool -> Ident.t -> extension_constructor -> t -> t
-val add_module:
-  ?arg:bool -> Ident.t -> module_presence -> module_type -> t -> t
-val add_module_declaration: ?arg:bool -> check:bool -> Ident.t ->
-  module_presence -> module_declaration -> t -> t
+val add_module: ?arg:bool -> ?shape:Shape.t ->
+  Ident.t -> module_presence -> module_type -> t -> t
+val add_module_lazy: update_summary:bool ->
+  Ident.t -> module_presence -> Subst.Lazy.modtype -> t -> t
+val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool ->
+  Ident.t -> module_presence -> module_declaration -> t -> t
 val add_module_declaration_lazy: update_summary:bool ->
   Ident.t -> module_presence -> Subst.Lazy.module_decl -> t -> t
 val add_modtype: Ident.t -> modtype_declaration -> t -> t
@@ -319,7 +334,6 @@ val filter_non_loaded_persistent : (Ident.t -> bool) -> t -> t
 
 (* Insertion of all fields of a signature. *)
 
-val add_item: signature_item -> t -> t
 val add_signature: signature -> t -> t
 
 (* Insertion of all fields of a signature, relative to the given path.
@@ -332,6 +346,8 @@ val open_signature:
     t -> (t, [`Not_found | `Functor]) result
 
 val open_pers_signature: string -> t -> (t, [`Not_found]) result
+
+val remove_last_open: Path.t -> t -> t option
 
 (* Insertion by name *)
 
@@ -346,7 +362,7 @@ val enter_module:
   scope:int -> ?arg:bool -> string -> module_presence ->
   module_type -> t -> Ident.t * t
 val enter_module_declaration:
-  scope:int -> ?arg:bool -> string -> module_presence ->
+  scope:int -> ?arg:bool -> ?shape:Shape.t -> string -> module_presence ->
   module_declaration -> t -> Ident.t * t
 val enter_modtype:
   scope:int -> string -> modtype_declaration -> t -> Ident.t * t
@@ -356,7 +372,14 @@ val enter_cltype:
 
 (* Same as [add_signature] but refreshes (new stamp) and rescopes bound idents
    in the process. *)
-val enter_signature: scope:int -> signature -> t -> signature * t
+val enter_signature: ?mod_shape:Shape.t -> scope:int -> signature -> t ->
+  signature * t
+
+(* Same as [enter_signature] but also extends the shape map ([parent_shape])
+   with all the the items from the signature, their shape being a projection
+   from the given shape. *)
+val enter_signature_and_shape: scope:int -> parent_shape:Shape.Map.t ->
+  Shape.t -> signature -> t -> signature * Shape.Map.t * t
 
 val enter_unbound_value : string -> value_unbound_reason -> t -> t
 
@@ -374,36 +397,37 @@ val reset_cache: preserve_persistent_env:bool -> unit
 val reset_cache_toplevel: unit -> unit
 
 (* Remember the name of the current compilation unit. *)
-val set_unit_name: string -> unit
-val get_unit_name: unit -> string
+val set_unit_name: Compilation_unit.t option -> unit
+val get_unit_name: unit -> Compilation_unit.t option
 
 (* Read, save a signature to/from a file *)
-val read_signature: modname -> filepath -> signature
+val read_signature: Compilation_unit.t -> filepath -> signature
         (* Arguments: module name, file name. Results: signature. *)
 val save_signature:
-  alerts:alerts -> signature -> modname -> filepath
+  alerts:alerts -> signature -> Compilation_unit.t -> filepath
   -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name. *)
 val save_signature_with_imports:
-  alerts:alerts -> signature -> modname -> filepath -> crcs
+  alerts:alerts -> signature -> Compilation_unit.t -> filepath
+  -> Import_info.t array
   -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
 
 (* Return the CRC of the interface of the given compilation unit *)
-val crc_of_unit: modname -> Digest.t
+val crc_of_unit: Compilation_unit.Name.t -> Digest.t
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports: unit -> crcs
+val imports: unit -> Import_info.t list
 
 (* may raise Persistent_env.Consistbl.Inconsistency *)
-val import_crcs: source:string -> crcs -> unit
+val import_crcs: source:string -> Import_info.t array -> unit
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
-val is_imported_opaque: modname -> bool
+val is_imported_opaque: Compilation_unit.Name.t -> bool
 
 (* [register_import_as_opaque md] registers [md] as an opaque imported module *)
-val register_import_as_opaque: modname -> unit
+val register_import_as_opaque: Compilation_unit.Name.t -> unit
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
@@ -443,17 +467,20 @@ val set_type_used_callback:
 
 (* Forward declaration to break mutual recursion with Includemod. *)
 val check_functor_application:
-      (errors:bool -> loc:Location.t -> t -> module_type ->
-         Path.t -> module_type -> Path.t -> unit) ref
+  (errors:bool -> loc:Location.t ->
+   lid_whole_app:Longident.t ->
+   f0_path:Path.t -> args:(Path.t * Types.module_type) list ->
+   arg_path:Path.t -> arg_mty:Types.module_type ->
+   param_mty:Types.module_type ->
+   t -> unit) ref
 (* Forward declaration to break mutual recursion with Typemod. *)
 val check_well_formed_module:
     (t -> Location.t -> string -> module_type -> unit) ref
 (* Forward declaration to break mutual recursion with Typecore. *)
 val add_delayed_check_forward: ((unit -> unit) -> unit) ref
 (* Forward declaration to break mutual recursion with Mtype. *)
-val strengthen:
-    (aliasable:bool -> t -> Subst.Lazy.modtype ->
-     Path.t -> Subst.Lazy.modtype) ref
+val scrape_alias:
+    (t -> Subst.Lazy.modtype -> Subst.Lazy.modtype) ref
 (* Forward declaration to break mutual recursion with Ctype. *)
 val same_constr: (t -> type_expr -> type_expr -> bool) ref
 (* Forward declaration to break mutual recursion with Printtyp. *)
@@ -494,7 +521,12 @@ val fold_cltypes:
 
 
 (** Utilities *)
-val scrape_alias: t -> module_type -> module_type
 val check_value_name: string -> Location.t -> unit
 
 val print_address : Format.formatter -> address -> unit
+
+type address_head =
+  | AHunit of Compilation_unit.t
+  | AHlocal of Ident.t
+
+val address_head : address -> address_head

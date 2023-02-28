@@ -62,22 +62,22 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
     Inlining_transforms.inline dacc ~apply ~unroll_to:None
       ~was_inline_always:false function_type
   in
-  let scope = DE.get_continuation_scope (DA.denv dacc) in
   let dummy_toplevel_cont =
-    Continuation.create ~name:"dummy_toplevel_continuation" ()
+    Continuation.create ~name:"speculative_inlining_toplevel_continuation" ()
   in
   let dacc =
-    DA.map_data_flow dacc ~f:(fun _ ->
-        Data_flow.init_toplevel dummy_toplevel_cont [] Data_flow.empty)
+    DA.map_flow_acc dacc ~f:(fun _ ->
+        Flow.Acc.init_toplevel ~dummy_toplevel_cont Bound_parameters.empty
+          (Flow.Acc.empty ()))
   in
   let _, uacc =
     simplify_expr dacc expr ~down_to_up:(fun dacc ~rebuild ->
         let exn_continuation = Apply.exn_continuation apply in
         let dacc =
-          DA.map_data_flow dacc
-            ~f:(Data_flow.exit_continuation dummy_toplevel_cont)
+          DA.map_flow_acc dacc
+            ~f:(Flow.Acc.exit_continuation dummy_toplevel_cont)
         in
-        let data_flow = DA.data_flow dacc in
+        let data_flow = DA.flow_acc dacc in
         (* The dataflow analysis *)
         let function_return_cont =
           match Apply.continuation apply with
@@ -92,8 +92,9 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
            Thus we here provide empty/dummy values for the used_value_slots and
            code_age_relation, and ignore the reachable_code_id part of the
            data_flow analysis. *)
-        let ({ required_names; reachable_code_ids = _ } : Data_flow.result) =
-          Data_flow.analyze data_flow ~code_age_relation:Code_age_relation.empty
+        let flow_result =
+          Flow.Analysis.analyze data_flow ~speculative:true
+            ~print_name:"speculative" ~code_age_relation:Code_age_relation.empty
             ~used_value_slots:Unknown ~return_continuation:function_return_cont
             ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
         in
@@ -105,7 +106,6 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
           UE.add_function_return_or_exn_continuation
             (UE.create (DA.are_rebuilding_terms dacc))
             (Exn_continuation.exn_handler exn_continuation)
-            scope
             (Flambda_arity.With_subkinds.create
                [Flambda_kind.With_subkind.any_value])
         in
@@ -114,11 +114,10 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
           | Never_returns -> uenv
           | Return return_continuation ->
             UE.add_function_return_or_exn_continuation uenv return_continuation
-              scope return_arity
+              return_arity
         in
         let uacc =
-          UA.create ~required_names ~reachable_code_ids:Unknown
-            ~compute_slot_offsets:false uenv dacc
+          UA.create ~flow_result ~compute_slot_offsets:false uenv dacc
         in
         rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
   in

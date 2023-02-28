@@ -15,14 +15,20 @@
 (ocamllex debugger_lexer)
 (ocamlyacc debugger_parser)
 
+(library
+ (name ocamldebug)
+ (flags (:standard -principal -w -9))
+ (modules (:standard \ ocamldebug_entry pattern_matching))
+ (modules_without_implementation parser_aux)
+ (libraries ocamlcommon ocamltoplevel unix dynlink_internal))
+
 (executable
-  (name main)
+  (name ocamldebug_entry)
   (modes byte)
-  (flags (:standard -principal -w -9))
-  (modules_without_implementation parser_aux)
-  (libraries ocamlcommon ocamltoplevel unix dynlink_internal))
+  (modules ocamldebug_entry)
+  (libraries unix ocamldebug))
 
 (install
-  (files (main.bc as ocamldebug))
+  (files (ocamldebug_entry.bc as ocamldebug))
   (section bin)
   (package ocaml))

@@ -162,6 +162,16 @@ val of_list : 'a list -> 'a array
    @raise Invalid_argument if the length of [l] is greater than
    [Sys.max_array_length]. *)
 
+(** {1 Converting to and from mutable arrays} *)
+
+val to_iarray : 'a array -> 'a iarray
+(** [to_iarray a] returns an immutable copy of the (mutable) array [a]; that is,
+   a fresh immutable array containing the same elements as [a] *)
+
+val of_iarray : 'a iarray -> 'a array
+(** [of_iarray ia] returns a mutable copy of the immutable array [ia]; that is,
+   a fresh (mutable) array containing the same elements as [ia] *)
+
 (** {1 Iterators} *)
 
 val iter : f:('a -> unit) -> 'a array -> unit
@@ -188,6 +198,12 @@ val fold_left : f:('a -> 'b -> 'a) -> init:'a -> 'b array -> 'a
 (** [fold_left ~f ~init a] computes
    [f (... (f (f init a.(0)) a.(1)) ...) a.(n-1)],
    where [n] is the length of the array [a]. *)
+
+val fold_left_map :
+  f:('a -> 'b -> 'a * 'c) -> init:'a -> 'b array -> 'a * 'c array
+(** [fold_left_map] is a combination of {!fold_left} and {!map} that threads an
+    accumulator through calls to [f].
+    @since 4.13.0 *)
 
 val fold_right : f:('b -> 'a -> 'a) -> 'b array -> init:'a -> 'a
 (** [fold_right ~f a ~init] computes
@@ -248,6 +264,31 @@ val memq : 'a -> set:'a array -> bool
    instead of structural equality to compare list elements.
    @since 4.03.0 *)
 
+val find_opt : f:('a -> bool) -> 'a array -> 'a option
+(** [find_opt ~f a] returns the first element of the array [a] that satisfies
+    the predicate [f], or [None] if there is no value that satisfies [f] in the
+    array [a].
+
+    @since 4.13.0 *)
+
+val find_map : f:('a -> 'b option) -> 'a array -> 'b option
+(** [find_map ~f a] applies [f] to the elements of [a] in order, and returns the
+    first result of the form [Some v], or [None] if none exist.
+
+    @since 4.13.0 *)
+
+(** {1 Arrays of pairs} *)
+
+val split : ('a * 'b) array -> 'a array * 'b array
+(** [split [|(a1,b1); ...; (an,bn)|]] is [([|a1; ...; an|], [|b1; ...; bn|])].
+
+    @since 4.13.0 *)
+
+val combine : 'a array -> 'b array -> ('a * 'b) array
+(** [combine [|a1; ...; an|] [|b1; ...; bn|]] is [[|(a1,b1); ...; (an,bn)|]].
+    Raise [Invalid_argument] if the two arrays have different lengths.
+
+    @since 4.13.0 *)
 
 (** {1 Sorting} *)
 
@@ -291,17 +332,17 @@ val fast_sort : cmp:('a -> 'a -> int) -> 'a array -> unit
     faster on typical input. *)
 
 
-(** {1 Iterators} *)
+(** {1 Arrays and Sequences} *)
 
 val to_seq : 'a array -> 'a Seq.t
 (** Iterate on the array, in increasing order. Modifications of the
-    array during iteration will be reflected in the iterator.
+    array during iteration will be reflected in the sequence.
     @since 4.07 *)
 
 val to_seqi : 'a array -> (int * 'a) Seq.t
 (** Iterate on the array, in increasing order, yielding indices along elements.
     Modifications of the array during iteration will be reflected in the
-    iterator.
+    sequence.
     @since 4.07 *)
 
 val of_seq : 'a Seq.t -> 'a array

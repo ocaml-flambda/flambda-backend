@@ -51,6 +51,7 @@ struct mark_stack {
 };
 
 uintnat caml_percent_free;
+static uintnat marked_words, heap_wsz_at_cycle_start;
 uintnat caml_major_heap_increment;
 CAMLexport char *caml_heap_start;
 char *caml_gc_sweep_hp;
@@ -83,14 +84,16 @@ int caml_gc_subphase;     /* Subphase_{mark_roots,mark_main,mark_final} */
     At the start of mark phase, (1) and (2) are empty.
 
     In mark phase:
-      - the ephemerons in (1) have a data alive or none
-        (nb: new ephemerons are added in this part by weak.c)
-      - the ephemerons in (2) have at least a white key or are white
-        if ephe_list_pure is true, otherwise they are in an unknown state and
-        must be checked again.
+      - An ephemeron in (1) have a data alive (grey/black if in the heap)
+        or none (nb: new ephemerons are added in this part by weak.c)
+      - An ephemeron in (2):
+         - is in any state if caml_ephe_list_pure is false
+         - otherwise has at least a white key or is white or its data is
+           black or none.
+           The third case can happen only using a set_* of weak.c
       - the ephemerons in (3) are in an unknown state and must be checked
 
-    At the end of mark phase, (3) is empty and ephe_list_pure is true.
+    At the end of mark phase, (3) is empty and caml_ephe_list_pure is true.
     The ephemeron in (1) and (2) will be cleaned (white keys and data
     replaced by none or the ephemeron is removed from the list if it is white)
     in clean phase.
@@ -106,7 +109,7 @@ int caml_gc_subphase;     /* Subphase_{mark_roots,mark_main,mark_final} */
     - the ephemerons in (3) should be cleaned or removed if white.
 
  */
-static int ephe_list_pure;
+int caml_ephe_list_pure;
 /** The ephemerons is pure if since the start of its iteration
     no value have been darkened. */
 static value *ephes_checked_if_pure;
@@ -120,6 +123,10 @@ double caml_gc_clock = 0.0;
 
 #ifdef DEBUG
 static unsigned long major_gc_counter = 0;
+#endif
+
+#ifdef NAKED_POINTERS_CHECKER
+int caml_naked_pointers_detected = 0;
 #endif
 
 void (*caml_major_gc_hook)(void) = NULL;
@@ -290,8 +297,9 @@ void caml_darken (value v, value *p)
 #endif
     CAMLassert (!Is_blue_hd (h));
     if (Is_white_hd (h)){
-      ephe_list_pure = 0;
+      caml_ephe_list_pure = 0;
       Hd_val (v) = Blackhd_hd (h);
+      marked_words += Whsize_hd (h);
       if (t < No_scan_tag){
         mark_stack_push(Caml_state->mark_stack, v, 0, NULL);
       }
@@ -314,7 +322,7 @@ void caml_shrink_mark_stack () {
 
   caml_gc_message (0x08, "Shrinking mark stack to %"
                   ARCH_INTNAT_PRINTF_FORMAT "uk bytes\n",
-                  init_stack_bsize);
+                  init_stack_bsize / 1024);
 
   shrunk_stack = (mark_entry*) caml_stat_resize_noexc ((char*) stk->stack,
                                               init_stack_bsize);
@@ -395,10 +403,12 @@ static void start_cycle (void)
   CAMLassert (Caml_state->mark_stack->count == 0);
   CAMLassert (redarken_first_chunk == NULL);
   caml_gc_message (0x01, "Starting new major GC cycle\n");
+  marked_words = 0;
   caml_darken_all_roots_start ();
   caml_gc_phase = Phase_mark;
+  heap_wsz_at_cycle_start = Caml_state->stat_heap_wsz;
   caml_gc_subphase = Subphase_mark_roots;
-  ephe_list_pure = 1;
+  caml_ephe_list_pure = 1;
   ephes_checked_if_pure = &caml_ephe_list_head;
   ephes_to_check = &caml_ephe_list_head;
 #ifdef DEBUG
@@ -469,7 +479,7 @@ Caml_inline void mark_ephe_darken(struct mark_stack* stk, value v, mlsize_t i,
     CAMLassert (Is_in_heap (child) || Is_black_hd (chd));
 #endif
     if (Is_white_hd (chd)){
-      ephe_list_pure = 0;
+      caml_ephe_list_pure = 0;
       Hd_val (child) = Blackhd_hd (chd);
       if( Tag_hd(chd) < No_scan_tag ) {
         mark_stack_push(stk, child, 0, work);
@@ -553,7 +563,7 @@ static void mark_ephe_aux (struct mark_stack *stk, intnat *work,
       ephes_to_check = &Field(v,CAML_EPHE_LINK_OFFSET);
       return;
     }
-  } else {  /* a simily weak pointer or an already alive data */
+  } else {  /* a similarly weak pointer or an already alive data */
     *work -= 1;
   }
 
@@ -747,7 +757,7 @@ Caml_noinline static intnat do_some_marking
   CAMLassert(pb_enqueued == pb_dequeued);
   *Caml_state->mark_stack = stk;
   if (darkened_anything)
-    ephe_list_pure = 0;
+    caml_ephe_list_pure = 0;
 #ifdef CAML_INSTR
   *pslice_fields += slice_fields;
   *pslice_pointers += slice_pointers;
@@ -766,6 +776,7 @@ static void mark_slice (intnat work)
   caml_gc_message (0x40, "Marking %"ARCH_INTNAT_PRINTF_FORMAT"d words\n", work);
   caml_gc_message (0x40, "Subphase = %d\n", caml_gc_subphase);
 
+  marked_words += work;
   while (1){
 #ifndef CAML_INSTR
     work = do_some_marking(work);
@@ -786,7 +797,9 @@ static void mark_slice (intnat work)
       }
     } else if (caml_gc_subphase == Subphase_mark_roots) {
       CAML_EV_BEGIN(EV_MAJOR_MARK_ROOTS);
+      marked_words -= work;
       work = caml_darken_all_roots_slice (work);
+      marked_words += work;
       CAML_EV_END(EV_MAJOR_MARK_ROOTS);
       if (work > 0){
         caml_gc_subphase = Subphase_mark_main;
@@ -794,9 +807,9 @@ static void mark_slice (intnat work)
     } else if (*ephes_to_check != (value) NULL) {
       /* Continue to scan the list of ephe */
       mark_ephe_aux(stk,&work,&slice_pointers);
-    } else if (!ephe_list_pure){
+    } else if (!caml_ephe_list_pure){
       /* We must scan again the list because some value have been darken */
-      ephe_list_pure = 1;
+      caml_ephe_list_pure = 1;
       ephes_to_check = ephes_checked_if_pure;
     }else{
       switch (caml_gc_subphase){
@@ -825,6 +838,7 @@ static void mark_slice (intnat work)
           /* Initialise the sweep phase. */
           init_sweep_phase();
         }
+        marked_words -= work;
         work = 0;
         CAML_EV_END(EV_MAJOR_MARK_FINAL);
       }
@@ -833,6 +847,7 @@ static void mark_slice (intnat work)
       }
     }
   }
+  marked_words -= work;  /* work may be negative */
   CAML_EV_COUNTER(EV_C_MAJOR_MARK_SLICE_FIELDS, slice_fields);
   CAML_EV_COUNTER(EV_C_MAJOR_MARK_SLICE_POINTERS, slice_pointers);
 }
@@ -1111,8 +1126,25 @@ void caml_major_collection_slice (intnat howmuch)
   }
 
   if (caml_gc_phase == Phase_idle){
+    double previous_overhead; // overhead at the end of the previous cycle
+
     CAML_EV_BEGIN(EV_MAJOR_CHECK_AND_COMPACT);
-    caml_compact_heap_maybe ();
+    caml_gc_message (0x200, "marked words = %"
+                     ARCH_INTNAT_PRINTF_FORMAT "u words\n",
+                     marked_words);
+    caml_gc_message (0x200, "heap size at start of cycle = %"
+                     ARCH_INTNAT_PRINTF_FORMAT "u words\n",
+                     heap_wsz_at_cycle_start);
+    if (marked_words == 0){
+      previous_overhead = 1000000.;
+      caml_gc_message (0x200, "overhead at start of cycle = +inf\n");
+    }else{
+      previous_overhead =
+        100.0 * (heap_wsz_at_cycle_start - marked_words) / marked_words;
+      caml_gc_message (0x200, "overhead at start of cycle = %.0f%%\n",
+                       previous_overhead);
+    }
+    caml_compact_heap_maybe (previous_overhead);
     CAML_EV_END(EV_MAJOR_CHECK_AND_COMPACT);
   }
 
@@ -1265,7 +1297,7 @@ void caml_finalise_heap (void)
 
 #if defined(NAKED_POINTERS_CHECKER) && defined(NATIVE_CODE)
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -1284,7 +1316,7 @@ Caml_inline int safe_load(volatile header_t * p, header_t * result)
   return 1;
 }
 
-#else
+#elif defined(TARGET_amd64)
 
 Caml_inline int safe_load (header_t * addr, /*out*/ header_t * contents)
 {
@@ -1308,6 +1340,32 @@ Caml_inline int safe_load (header_t * addr, /*out*/ header_t * contents)
   return ok;
 }
 
+#elif defined(TARGET_arm64)
+
+Caml_inline int safe_load (header_t * addr, /*out*/ header_t * contents)
+{
+  int ok;
+  header_t h;
+  intnat tmp;
+
+  asm volatile(
+      "adr %[tmp], 1f \n\t"
+      "str %[tmp], [%[handler]] \n\t"
+      "mov %w[ok], #0 \n\t"
+      "ldr %[h], [%[addr]] \n\t"
+      "mov %w[ok], #1 \n\t"
+  "1: \n\t"
+      "mov %[tmp], #0 \n\t"
+      "str %[tmp], [%[handler]]"
+      : [tmp] "=&r" (tmp), [ok] "=&r" (ok), [h] "=&r" (h)
+      : [addr] "r" (addr),
+        [handler] "r" (&(Caml_state->checking_pointer_pc)));
+  *contents = h;
+  return ok;
+}
+
+#else
+#error "NAKED_POINTERS_CHECKER not supported on this platform"
 #endif
 
 static void is_naked_pointer_safe (value v, value *p)
@@ -1333,6 +1391,7 @@ static void is_naked_pointer_safe (value v, value *p)
   if (Is_black_hd(h) && Wosize_hd(h) < (INT64_LITERAL(1) << 40))
     return;
 
+  caml_naked_pointers_detected = 1;
   if (!Is_black_hd(h)) {
     fprintf (stderr, "Out-of-heap pointer at %p of value %p has "
                      "non-black head (tag=%d)\n", p, (void*)v, t);
@@ -1345,6 +1404,7 @@ static void is_naked_pointer_safe (value v, value *p)
   return;
 
  on_segfault:
+  caml_naked_pointers_detected = 1;
   fprintf (stderr, "Out-of-heap pointer at %p of value %p. "
            "Cannot read head.\n", p, (void*)v);
 }

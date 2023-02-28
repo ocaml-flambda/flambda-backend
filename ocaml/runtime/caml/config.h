@@ -41,10 +41,6 @@
 
 #include "s.h"
 
-#ifdef BOOTSTRAPPING_FLEXLINK
-#undef SUPPORT_DYNAMIC_LINKING
-#endif
-
 #ifndef CAML_NAME_SPACE
 #include "compatibility.h"
 #endif
@@ -269,5 +265,8 @@ typedef uint64_t uintnat;
    in the minor heap.
    Documented in gc.mli */
 #define Custom_minor_max_bsz_def 8192
+
+/* Default allocation policy. */
+#define Allocation_policy_def caml_policy_best_fit
 
 #endif /* CAML_CONFIG_H */

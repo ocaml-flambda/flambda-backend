@@ -68,6 +68,7 @@ module type Core_options = sig
   val _dsource : unit -> unit
   val _dparsetree : unit -> unit
   val _dtypedtree : unit -> unit
+  val _dshape : unit -> unit
   val _drawlambda : unit -> unit
   val _dlambda : unit -> unit
 
@@ -123,6 +124,7 @@ module type Compiler_options = sig
   val _dtimings_precision : int -> unit
   val _dprofile : unit -> unit
   val _dump_into_file : unit -> unit
+  val _dump_dir : string -> unit
 
   val _args: string -> string array
   val _args0: string -> string array
@@ -141,6 +143,7 @@ module type Toplevel_options = sig
   val _args0 : string -> string array
   val _color : string -> unit
   val _error_style : string -> unit
+  val _eval: string -> unit
 end
 ;;
 
@@ -213,8 +216,6 @@ module type Optcommon_options = sig
   val _dcombine : unit -> unit
   val _dcse : unit -> unit
   val _dlive : unit -> unit
-  val _davail : unit -> unit
-  val _drunavail : unit -> unit
   val _dspill : unit -> unit
   val _dsplit : unit -> unit
   val _dinterf : unit -> unit

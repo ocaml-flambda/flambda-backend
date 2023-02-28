@@ -277,7 +277,10 @@ end = struct
         (Compilation_unit.get_current_exn ())
     in
     if not is_local
-    then Misc.fatal_errorf "Cannot bind non-local symbol %a" Symbol.print s;
+    then
+      Misc.fatal_errorf "Cannot bind non-local symbol %a@ Current unit is %a"
+        Symbol.print s Compilation_unit.print
+        (Compilation_unit.get_current_exn ());
     let s, symbols = Symbol_name_map.bind t.symbols s in
     (None, s) |> nowhere, { t with symbols }
 
@@ -398,9 +401,43 @@ let is_default_kind_with_subkind (k : Flambda_kind.With_subkind.t) =
   Flambda_kind.is_value (Flambda_kind.With_subkind.kind k)
   && not (Flambda_kind.With_subkind.has_useful_subkind_info k)
 
+let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
+  match k with
+  | Anything -> Anything
+  | Boxed_float -> Boxed_float
+  | Boxed_int32 -> Boxed_int32
+  | Boxed_int64 -> Boxed_int64
+  | Boxed_nativeint -> Boxed_nativeint
+  | Tagged_immediate -> Tagged_immediate
+  | Variant { consts; non_consts } -> variant_subkind consts non_consts
+  | Float_array -> Float_array
+  | Immediate_array -> Immediate_array
+  | Value_array -> Value_array
+  | Float_block _ | Generic_array ->
+    Misc.fatal_errorf "TODO: Subkind %a" Flambda_kind.With_subkind.Subkind.print
+      k
+
+and variant_subkind consts non_consts : Fexpr.subkind =
+  let consts =
+    consts |> Targetint_31_63.Set.elements |> List.map Targetint_31_63.to_int64
+  in
+  let non_consts =
+    non_consts |> Tag.Scannable.Map.bindings
+    |> List.map (fun (tag, sk) -> Tag.Scannable.to_int tag, List.map subkind sk)
+  in
+  Variant { consts; non_consts }
+
+let kind_with_subkind (k : Flambda_kind.With_subkind.t) :
+    Fexpr.kind_with_subkind =
+  match Flambda_kind.With_subkind.kind k with
+  | Value -> Value (subkind (Flambda_kind.With_subkind.subkind k))
+  | Naked_number nnk -> Naked_number nnk
+  | Region -> Region
+  | Rec_info -> Rec_info
+
 let kind_with_subkind_opt (k : Flambda_kind.With_subkind.t) :
     Fexpr.kind_with_subkind option =
-  if is_default_kind_with_subkind k then None else Some k
+  if is_default_kind_with_subkind k then None else Some (k |> kind_with_subkind)
 
 let is_default_arity (a : Flambda_arity.With_subkinds.t) =
   match Flambda_arity.With_subkinds.to_list a with
@@ -408,7 +445,7 @@ let is_default_arity (a : Flambda_arity.With_subkinds.t) =
   | _ -> false
 
 let arity (a : Flambda_arity.With_subkinds.t) : Fexpr.arity =
-  Flambda_arity.With_subkinds.to_list a
+  Flambda_arity.With_subkinds.to_list a |> List.map kind_with_subkind
 
 let arity_opt (a : Flambda_arity.With_subkinds.t) : Fexpr.arity option =
   if is_default_arity a then None else Some (arity a)
@@ -437,7 +474,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Opaque_identity _ -> Opaque_identity
   | Unbox_number bk -> Unbox_number bk
   | Untag_immediate -> Untag_immediate
-  | Project_value_slot { project_from; value_slot } ->
+  | Project_value_slot { project_from; value_slot; kind = _ } ->
     let project_from = Env.translate_function_slot env project_from in
     let value_slot = Env.translate_value_slot env value_slot in
     Project_value_slot { project_from; value_slot }
@@ -448,7 +485,8 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | String_length string_or_bytes -> String_length string_or_bytes
   | Int_as_pointer | Boolean_not | Duplicate_block _ | Duplicate_array _
   | Bigarray_length _ | Int_arith _ | Float_arith _ | Reinterpret_int64_as_float
-  | Is_boxed_float | Is_flat_float_array | End_region | Obj_dup ->
+  | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
+  | Obj_dup ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
@@ -520,7 +558,13 @@ let prim env (p : Flambda_primitive.t) : Fexpr.prim =
 
 let value_slots env map =
   List.map
-    (fun (var, value) ->
+    (fun (var, (value, kind)) ->
+      if not
+           (Flambda_kind.equal
+              (Flambda_kind.With_subkind.kind kind)
+              Flambda_kind.value)
+      then
+        Misc.fatal_errorf "Value slot %a not of kind Value" Simple.print value;
       let var = Env.translate_value_slot env var in
       let value = simple env value in
       { Fexpr.var; value })
@@ -809,7 +853,8 @@ and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
         Fexpr.Let_cont { recursive = Nonrecursive; bindings = [binding]; body })
   | Recursive handlers ->
     Flambda.Recursive_let_cont_handlers.pattern_match handlers
-      ~f:(fun ~body handlers ->
+      ~f:(fun ~invariant_params:_ ~body handlers ->
+        (* TODO support them *)
         let env =
           Continuation.Set.fold
             (fun c env ->
@@ -877,31 +922,28 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
   let args = List.map (simple env) (Apply_expr.args app) in
   let call_kind : Fexpr.call_kind =
     match Apply_expr.call_kind app with
-    | Function
-        { function_call = Direct { code_id; return_arity = _ }; alloc_mode = _ }
-      ->
+    | Function { function_call = Direct code_id; alloc_mode = _ } ->
       let code_id = Env.find_code_id_exn env code_id in
       let function_slot = None in
       (* CR mshinwell: remove [function_slot] *)
       Function (Direct { code_id; function_slot })
     | Function
-        { function_call = Indirect_unknown_arity | Indirect_known_arity _;
+        { function_call = Indirect_unknown_arity | Indirect_known_arity;
           alloc_mode = _
         } ->
       Function Indirect
     | C_call { alloc; _ } -> C_call { alloc }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
   in
+  let param_arity = Apply_expr.args_arity app in
+  let return_arity = Apply_expr.return_arity app in
   let arities : Fexpr.function_arities option =
     match Apply_expr.call_kind app with
-    | Function
-        { function_call = Indirect_known_arity { param_arity; return_arity };
-          alloc_mode = _
-        } ->
+    | Function { function_call = Indirect_known_arity; alloc_mode = _ } ->
       let params_arity = Some (arity param_arity) in
       let ret_arity = arity return_arity in
       Some { params_arity; ret_arity }
-    | Function { function_call = Direct { return_arity; _ }; alloc_mode = _ } ->
+    | Function { function_call = Direct _; alloc_mode = _ } ->
       if is_default_arity return_arity
       then None
       else
@@ -911,13 +953,9 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
         in
         let ret_arity = arity return_arity in
         Some { params_arity; ret_arity }
-    | C_call { param_arity; return_arity; _ } ->
-      let params_arity =
-        Some (arity (param_arity |> Flambda_arity.With_subkinds.of_arity))
-      in
-      let ret_arity =
-        arity (return_arity |> Flambda_arity.With_subkinds.of_arity)
-      in
+    | C_call _ ->
+      let params_arity = Some (arity param_arity) in
+      let ret_arity = arity return_arity in
       Some { params_arity; ret_arity }
     | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
     | Method _ ->
@@ -929,6 +967,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
     else Some (Apply_expr.inlined app)
   in
   let inlining_state = inlining_state (Apply_expr.inlining_state app) in
+  let region = Env.find_var_exn env (Apply_expr.region app) in
   Apply
     { func;
       continuation;
@@ -937,7 +976,8 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       call_kind;
       inlined;
       inlining_state;
-      arities
+      arities;
+      region
     }
 
 and apply_cont_expr env app_cont : Fexpr.expr =
@@ -1017,7 +1057,8 @@ module Iter = struct
           let h = Non_recursive_let_cont_handler.handler handler in
           let_cont_aux f_c f_s k h body)
     | Recursive handlers ->
-      Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~body conts ->
+      Recursive_let_cont_handlers.pattern_match handlers
+        ~f:(fun ~invariant_params:_ ~body conts ->
           assert (not (Continuation_handlers.contains_exn_handler conts));
           let_cont_rec f_c f_s conts body)
 

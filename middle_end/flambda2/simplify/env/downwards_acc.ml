@@ -25,7 +25,7 @@ type t =
     shareable_constants : Symbol.t Static_const.Map.t;
     used_value_slots : Name_occurrences.t;
     lifted_constants : LCS.t;
-    data_flow : Data_flow.t;
+    flow_acc : Flow.Acc.t;
     demoted_exn_handlers : Continuation.Set.t;
     code_ids_to_remember : Code_id.Set.t;
     slot_offsets : Slot_offsets.t Code_id.Map.t
@@ -33,7 +33,7 @@ type t =
 
 let [@ocamlformat "disable"] print ppf
       { denv; continuation_uses_env; shareable_constants; used_value_slots;
-        lifted_constants; data_flow; demoted_exn_handlers; code_ids_to_remember;
+        lifted_constants; flow_acc; demoted_exn_handlers; code_ids_to_remember;
         slot_offsets } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(denv@ %a)@]@ \
@@ -41,7 +41,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(shareable_constants@ %a)@]@ \
       @[<hov 1>(used_value_slots@ %a)@]@ \
       @[<hov 1>(lifted_constant_state@ %a)@]@ \
-      @[<hov 1>(data_flow@ %a)@]@ \
+      @[<hov 1>(flow_acc@ %a)@]@ \
       @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
       @[<hov 1>(code_ids_to_remember@ %a)@]@ \
       @[<hov 1>(slot_offsets@ %a)@]\
@@ -51,7 +51,7 @@ let [@ocamlformat "disable"] print ppf
     (Static_const.Map.print Symbol.print) shareable_constants
     Name_occurrences.print used_value_slots
     LCS.print lifted_constants
-    Data_flow.print data_flow
+    Flow.Acc.print flow_acc
     Continuation.Set.print demoted_exn_handlers
     Code_id.Set.print code_ids_to_remember
     (Code_id.Map.print Slot_offsets.print) slot_offsets
@@ -63,16 +63,16 @@ let create denv continuation_uses_env =
     shareable_constants = Static_const.Map.empty;
     used_value_slots = Name_occurrences.empty;
     lifted_constants = LCS.empty;
-    data_flow = Data_flow.empty;
+    flow_acc = Flow.Acc.empty ();
     demoted_exn_handlers = Continuation.Set.empty;
     code_ids_to_remember = Code_id.Set.empty
   }
 
 let denv t = t.denv
 
-let data_flow t = t.data_flow
+let flow_acc t = t.flow_acc
 
-let[@inline always] map_data_flow t ~f = { t with data_flow = f t.data_flow }
+let[@inline always] map_flow_acc t ~f = { t with flow_acc = f t.flow_acc }
 
 let[@inline always] map_denv t ~f = { t with denv = f t.denv }
 

@@ -15,7 +15,7 @@
 open Asm_targets
 open Dwarf_low
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-4-30-40-41-42-69"]
 
 module ASS = Dwarf_attributes.Attribute_specification.Sealed
 module AV = Dwarf_attribute_values.Attribute_value

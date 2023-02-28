@@ -106,6 +106,7 @@ let i1 b s x = bprintf b "\t%s\t%a" s arg x
 let i1_s b s x = bprintf b "\t%s%s\t%a" s (suf x) arg x
 let i2 b s x y = bprintf b "\t%s\t%a, %a" s arg x arg y
 let i2_s b s x y = bprintf b "\t%s%s\t%a, %a" s (suf y) arg x arg y
+let i2_sx b s x y = bprintf b "\t%s%s\t%a, %a" s (suf x) arg x arg y
 let i2_ss b s x y = bprintf b "\t%s%s%s\t%a, %a" s (suf x) (suf y) arg x arg y
 let i3 b s x y z = bprintf b "\t%s\t%a, %a, %a" s arg x arg y arg z
 
@@ -191,6 +192,8 @@ let print_instr b = function
   | J (c, arg) -> i1_call_jmp b ("j" ^ string_of_condition c) arg
   | JMP arg -> i1_call_jmp b "jmp" arg
   | LEA (arg1, arg2) -> i2_s b "lea" arg1 arg2
+  | LOCK_CMPXCHG (arg1, arg2) -> i2_sx b "lock cmpxchg" arg1 arg2
+  | LOCK_XADD (arg1, arg2) -> i2_sx b "lock xadd" arg1 arg2
   | LEAVE -> i0 b "leave"
   | MAXSD (arg1, arg2) -> i2 b "maxsd" arg1 arg2
   | MINSD (arg1, arg2) -> i2 b "minsd" arg1 arg2

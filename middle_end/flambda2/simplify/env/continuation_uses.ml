@@ -76,25 +76,52 @@ type arg_at_use =
 
 type arg_types_by_use_id = arg_at_use Apply_cont_rewrite_id.Map.t list
 
-let get_arg_types_by_use_id t =
-  let empty_arg_maps : arg_types_by_use_id =
-    List.map
-      (fun _ -> Apply_cont_rewrite_id.Map.empty)
-      (Flambda_arity.to_list t.arity)
-  in
-  let add_value_to_arg_map arg_map arg_type ~use =
-    let env_at_use = U.env_at_use use in
-    let typing_env = DE.typing_env env_at_use in
-    let arg_at_use : arg_at_use = { arg_type; typing_env } in
-    Apply_cont_rewrite_id.Map.add (U.id use) arg_at_use arg_map
-  in
+let add_value_to_arg_map arg_map arg_type ~use =
+  let env_at_use = U.env_at_use use in
+  let typing_env = DE.typing_env env_at_use in
+  let arg_at_use : arg_at_use = { arg_type; typing_env } in
+  Apply_cont_rewrite_id.Map.add (U.id use) arg_at_use arg_map
+
+let add_uses_to_arg_maps arg_maps uses =
   List.fold_left
     (fun arg_maps use ->
       let arg_types = U.arg_types use in
-      List.map2
-        (fun arg_map arg_type -> add_value_to_arg_map arg_map arg_type ~use)
-        arg_maps arg_types)
-    empty_arg_maps t.uses
+      fst
+        (Misc.Stdlib.List.map2_prefix
+           (fun arg_map arg_type -> add_value_to_arg_map arg_map arg_type ~use)
+           arg_maps arg_types))
+    arg_maps uses
+
+let empty_arg_maps arity : arg_types_by_use_id =
+  List.map
+    (fun _ -> Apply_cont_rewrite_id.Map.empty)
+    (Flambda_arity.to_list arity)
+
+let get_arg_types_by_use_id t =
+  add_uses_to_arg_maps (empty_arg_maps t.arity) t.uses
+
+(* We want to get the arg_types_by_use_id for the invariant params only of a
+   mutually-recursive continuation group. In this case, the arguments we want
+   are a prefix of the actual argument lists. *)
+let get_arg_types_by_use_id_for_invariant_params arity l =
+  List.fold_left
+    (fun arg_maps t ->
+      if not
+           (Misc.Stdlib.List.is_prefix ~equal:Flambda_kind.equal
+              (Flambda_arity.to_list arity)
+              ~of_:(Flambda_arity.to_list t.arity))
+      then
+        Misc.fatal_errorf
+          "Arity of invariant params@ (%a) is not a prefix of the arity of the \
+           continuation uses@ (%a)"
+          Flambda_arity.print arity Flambda_arity.print t.arity;
+      add_uses_to_arg_maps arg_maps t.uses)
+    (empty_arg_maps arity) l
+
+let get_use_ids t =
+  List.fold_left
+    (fun uses use -> Apply_cont_rewrite_id.Set.add (U.id use) uses)
+    Apply_cont_rewrite_id.Set.empty t.uses
 
 let get_typing_env_no_more_than_one_use t =
   match t.uses with

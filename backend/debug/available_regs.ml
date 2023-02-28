@@ -368,7 +368,7 @@ and join branches ~avail_before =
   None, avail_after
 
 let fundecl (f : M.fundecl) =
-  if !Clflags.debug && !Clflags.debug_runavail
+  if false (* !Clflags.debug && !Clflags.debug_runavail *)
   then (
     assert (Hashtbl.length avail_at_exit = 0);
     avail_at_raise := RAS.Unreachable;

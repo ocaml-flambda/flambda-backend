@@ -60,3 +60,11 @@ let debuginfo ?(loc=Location.symbol_rloc ()) () =
                   ~scopes:Scoped_location.empty_scopes loc
                )
             )
+
+let value_kind () =
+  (* CR-someday poechsel: As the value_kind is only used when building cmm
+     for the first time, its precise value is not important afterward.
+     For now we can say that the cmm code read by parsecmm will only contain
+     Pgenval and it should make no difference, but this should probably be
+     fixed. *)
+  Cmm.Vval Lambda.Pgenval

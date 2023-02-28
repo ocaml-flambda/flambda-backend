@@ -304,6 +304,8 @@ let binary_float_comp_primitive _op = 2
 
 let nullary_prim_size prim =
   match (prim : Flambda_primitive.nullary_primitive) with
+  (* CR gbury: check this *)
+  | Invalid _ -> 0
   | Optimised_out _ -> 0
   | Probe_is_enabled { name = _ } -> 4
   | Begin_region -> 1
@@ -331,6 +333,7 @@ let unary_prim_size prim =
   | Project_value_slot _ -> 1 (* load *)
   | Is_boxed_float -> 4 (* tag load + comparison *)
   | Is_flat_float_array -> 4 (* tag load + comparison *)
+  | Begin_try_region -> 1
   | End_region -> 1
   | Obj_dup -> alloc_extcall_size + 1
 
@@ -391,7 +394,7 @@ let apply apply =
   (* CR mshinwell: Check / fix these numbers *)
   | Function { function_call = Indirect_unknown_arity; alloc_mode = _ } ->
     indirect_call_size
-  | Function { function_call = Indirect_known_arity _; alloc_mode = _ } ->
+  | Function { function_call = Indirect_known_arity; alloc_mode = _ } ->
     indirect_call_size
   | C_call { alloc = true; _ } -> alloc_extcall_size
   | C_call { alloc = false; _ } -> nonalloc_extcall_size

@@ -17,7 +17,6 @@
 open Asttypes
 open Types
 open Typedtree
-module Value_mode = Btype.Value_mode
 
 (* useful pattern auxiliary functions *)
 
@@ -26,7 +25,6 @@ let omega = {
   pat_loc = Location.none;
   pat_extra = [];
   pat_type = Ctype.none;
-  pat_mode = Value_mode.min_mode;
   pat_env = Env.empty;
   pat_attributes = [];
 }
@@ -60,7 +58,7 @@ module Simple = struct
     | `Variant of label * pattern option * row_desc ref
     | `Record of
         (Longident.t loc * label_description * pattern) list * closed_flag
-    | `Array of pattern list
+    | `Array of mutable_flag * pattern list
     | `Lazy of pattern
   ]
 
@@ -81,29 +79,29 @@ end
 module General = struct
   type view = [
     | Half_simple.view
-    | `Var of Ident.t * string loc
-    | `Alias of pattern * Ident.t * string loc
+    | `Var of Ident.t * string loc * value_mode
+    | `Alias of pattern * Ident.t * string loc * value_mode
   ]
   type pattern = view pattern_data
 
   let view_desc = function
     | Tpat_any ->
        `Any
-    | Tpat_var (id, str) ->
-       `Var (id, str)
-    | Tpat_alias (p, id, str) ->
-       `Alias (p, id, str)
+    | Tpat_var (id, str, mode) ->
+       `Var (id, str, mode)
+    | Tpat_alias (p, id, str, mode) ->
+       `Alias (p, id, str, mode)
     | Tpat_constant cst ->
        `Constant cst
     | Tpat_tuple ps ->
        `Tuple ps
-    | Tpat_construct (cstr, cstr_descr, args) ->
+    | Tpat_construct (cstr, cstr_descr, args, _) ->
        `Construct (cstr, cstr_descr, args)
     | Tpat_variant (cstr, arg, row_desc) ->
        `Variant (cstr, arg, row_desc)
     | Tpat_record (fields, closed) ->
        `Record (fields, closed)
-    | Tpat_array ps -> `Array ps
+    | Tpat_array (am,ps) -> `Array (am, ps)
     | Tpat_or (p, q, row_desc) -> `Or (p, q, row_desc)
     | Tpat_lazy p -> `Lazy p
 
@@ -112,17 +110,17 @@ module General = struct
 
   let erase_desc = function
     | `Any -> Tpat_any
-    | `Var (id, str) -> Tpat_var (id, str)
-    | `Alias (p, id, str) -> Tpat_alias (p, id, str)
+    | `Var (id, str, mode) -> Tpat_var (id, str, mode)
+    | `Alias (p, id, str, mode) -> Tpat_alias (p, id, str, mode)
     | `Constant cst -> Tpat_constant cst
     | `Tuple ps -> Tpat_tuple ps
     | `Construct (cstr, cst_descr, args) ->
-       Tpat_construct (cstr, cst_descr, args)
+       Tpat_construct (cstr, cst_descr, args, None)
     | `Variant (cstr, arg, row_desc) ->
        Tpat_variant (cstr, arg, row_desc)
     | `Record (fields, closed) ->
        Tpat_record (fields, closed)
-    | `Array ps -> Tpat_array ps
+    | `Array (am, ps) -> Tpat_array (am, ps)
     | `Or (p, q, row_desc) -> Tpat_or (p, q, row_desc)
     | `Lazy p -> Tpat_lazy p
 
@@ -131,7 +129,7 @@ module General = struct
 
   let rec strip_vars (p : pattern) : Half_simple.pattern =
     match p.pat_desc with
-    | `Alias (p, _, _) -> strip_vars (view p)
+    | `Alias (p, _, _, _) -> strip_vars (view p)
     | `Var _ -> { p with pat_desc = `Any }
     | #Half_simple.view as view -> { p with pat_desc = view }
 end
@@ -149,7 +147,7 @@ module Head : sig
         { tag: label; has_arg: bool;
           cstr_row: row_desc ref;
           type_row : unit -> row_desc; }
-    | Array of int
+    | Array of mutable_flag * int
     | Lazy
 
   type t = desc pattern_data
@@ -176,7 +174,7 @@ end = struct
           type_row : unit -> row_desc; }
           (* the row of the type may evolve if [close_variant] is called,
              hence the (unit -> ...) delay *)
-    | Array of int
+    | Array of mutable_flag * int
     | Lazy
 
   type t = desc pattern_data
@@ -196,13 +194,13 @@ end = struct
             | Some a -> true, [a]
           in
           let type_row () =
-            match Ctype.expand_head q.pat_env q.pat_type with
-              | {desc = Tvariant type_row} -> Btype.row_repr type_row
-              | _ -> assert false
+            match get_desc (Ctype.expand_head q.pat_env q.pat_type) with
+            | Tvariant type_row -> type_row
+            | _ -> assert false
           in
           Variant {tag; has_arg; cstr_row; type_row}, pats
-      | `Array args ->
-          Array (List.length args), args
+      | `Array (am, args) ->
+          Array (am, List.length args), args
       | `Record (largs, _) ->
           let lbls = List.map (fun (_,lbl,_) -> lbl) largs in
           let pats = List.map (fun (_,_,pat) -> pat) largs in
@@ -218,7 +216,7 @@ end = struct
       | Any -> 0
       | Constant _ -> 0
       | Construct c -> c.cstr_arity
-      | Tuple n | Array n -> n
+      | Tuple n | Array (_, n) -> n
       | Record l -> List.length l
       | Variant { has_arg; _ } -> if has_arg then 1 else 0
       | Lazy -> 1
@@ -231,10 +229,10 @@ end = struct
       | Lazy -> Tpat_lazy omega
       | Constant c -> Tpat_constant c
       | Tuple n -> Tpat_tuple (omegas n)
-      | Array n -> Tpat_array (omegas n)
+      | Array (am, n) -> Tpat_array (am, omegas n)
       | Construct c ->
           let lid_loc = mkloc (Longident.Lident c.cstr_name) in
-          Tpat_construct (lid_loc, c, omegas c.cstr_arity)
+          Tpat_construct (lid_loc, c, omegas c.cstr_arity, None)
       | Variant { tag; has_arg; cstr_row } ->
           let arg_opt = if has_arg then Some omega else None in
           Tpat_variant (tag, arg_opt, cstr_row)

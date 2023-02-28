@@ -26,7 +26,7 @@ val package_files
 
 type error =
     Illegal_renaming of Compilation_unit.Name.t * string * Compilation_unit.Name.t
-  | Forward_reference of string * string
+  | Forward_reference of string * Compilation_unit.Name.t
   | Wrong_for_pack of string * Compilation_unit.t
   | Linking_error
   | Assembler_error of string

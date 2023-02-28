@@ -1,6 +1,6 @@
 (* TEST
 
-flags = "-w A"
+flags = "-w +A"
 
 * setup-ocamlc.byte-build-env
 ** ocamlc.byte
@@ -65,3 +65,7 @@ module F (X : sig val x : int end) = struct end
 module G (X : sig val x : int end) = X
 
 module H (X : sig val x : int end) = X
+
+module type S = sig
+  module F:  sig val x : int end -> sig end
+end

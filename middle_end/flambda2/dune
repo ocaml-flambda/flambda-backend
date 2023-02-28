@@ -3,12 +3,13 @@
 (env
  (_
   (flags
-   (:standard -w +a-30-40-41-42))))
+   (:standard -w +a-30-40-41-42-69-70))))
 
 (library
  (name flambda2)
  (wrapped false)
- (instrumentation (backend bisect_ppx))
+ (instrumentation
+  (backend bisect_ppx))
  (flags
   (:standard
    -principal

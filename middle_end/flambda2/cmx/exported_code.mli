@@ -15,6 +15,8 @@
 
 type t
 
+type raw
+
 include Contains_ids.S with type t := t
 
 val apply_renaming : Code_id.t Code_id.Map.t -> Renaming.t -> t -> t
@@ -49,3 +51,9 @@ val remove_unused_value_slots_from_result_types_and_shortcut_aliases :
   t
 
 val iter_code : t -> f:(Code.t -> unit) -> unit
+
+val from_raw : sections:Flambda_backend_utils.File_sections.t -> raw -> t
+
+val to_raw : add_section:(Obj.t -> int) -> t -> raw
+
+val map_raw_index : (int -> int) -> raw -> raw

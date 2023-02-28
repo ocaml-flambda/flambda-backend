@@ -18,6 +18,8 @@ open! Simplify_import
 module TE = Flambda2_types.Typing_env
 module Alias_set = TE.Alias_set
 
+[@@@ocaml.warning "-37"]
+
 type mergeable_arms =
   | No_arms
   | Mergeable of
@@ -27,7 +29,37 @@ type mergeable_arms =
   | Not_mergeable
 
 let find_all_aliases env arg =
-  TE.aliases_of_simple env ~min_name_mode:NM.normal arg
+  let find_all_aliases () =
+    TE.aliases_of_simple env ~min_name_mode:NM.normal arg
+  in
+  Simple.pattern_match'
+    ~var:(fun _var ~coercion:_ ->
+      (* We use find alias to find a common simple to different
+         simples.
+
+         This simple is already guaranteed to be the cannonical alias.
+
+       * If there is a common alias between variables, the
+         cannonical alias must also be a common alias.
+
+       * For constants and symbols there can be a common alias that
+         is not cannonical: A variable can have different constant
+         values in different branches: this variable is not the
+         cannonical alias, the cannonical would be the constant or
+         the symbol. But the only common alias could be a variable
+         in that case.
+
+         hence there is no loss of generality in returning the
+         cannonical alias as the single alias if it is a variable.
+
+         Note that the main reason for this is to allow changing the
+         arguments of continuations to variables that where not in
+         scope during the downward traversal. In particular for the
+         alias rewriting provided by data_flow *)
+      TE.Alias_set.singleton arg)
+    ~symbol:(fun _sym ~coercion:_ -> find_all_aliases ())
+    ~const:(fun _cst -> find_all_aliases ())
+    arg
 
 let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
     ( new_let_conts,
@@ -45,37 +77,43 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
   with
   | Apply_cont action -> (
     let action =
+      let cont = Apply_cont.continuation action in
+      let cont_info_from_uenv = UE.find_continuation (UA.uenv uacc) cont in
       (* First try to absorb any [Apply_cont] expression that forms the entirety
          of the arm's action (via an intermediate zero-arity continuation
          without trap action) into the [Switch] expression itself. *)
-      if not (Apply_cont.is_goto action)
-      then Some action
-      else
-        let cont = Apply_cont.continuation action in
-        let check_handler ~handler ~action =
-          match RE.to_apply_cont handler with
-          | Some action -> Some action
-          | None -> Some action
-        in
-        match UE.find_continuation (UA.uenv uacc) cont with
-        | Linearly_used_and_inlinable
-            { handler;
-              free_names_of_handler = _;
-              params;
-              cost_metrics_of_handler = _
-            } ->
-          assert (Bound_parameters.is_empty params);
-          check_handler ~handler ~action
-        | Non_inlinable_zero_arity { handler = Known handler } ->
-          check_handler ~handler ~action
-        | Non_inlinable_zero_arity { handler = Unknown } -> Some action
-        | Invalid _ -> None
-        | Non_inlinable_non_zero_arity _
-        | Toplevel_or_function_return_or_exn_continuation _ ->
-          Misc.fatal_errorf
-            "Inconsistency for %a between [Apply_cont.is_goto] and \
-             continuation environment in [UA]:@ %a"
-            Continuation.print cont UA.print uacc
+      match cont_info_from_uenv with
+      | Invalid _ -> None
+      | Linearly_used_and_inlinable _ | Non_inlinable_zero_arity _
+      | Non_inlinable_non_zero_arity _
+      | Toplevel_or_function_return_or_exn_continuation _ -> (
+        if not (Apply_cont.is_goto action)
+        then Some action
+        else
+          let check_handler ~handler ~action =
+            match RE.to_apply_cont handler with
+            | Some action -> Some action
+            | None -> Some action
+          in
+          match cont_info_from_uenv with
+          | Linearly_used_and_inlinable
+              { handler;
+                free_names_of_handler = _;
+                params;
+                cost_metrics_of_handler = _
+              } ->
+            assert (Bound_parameters.is_empty params);
+            check_handler ~handler ~action
+          | Non_inlinable_zero_arity { handler = Known handler } ->
+            check_handler ~handler ~action
+          | Non_inlinable_zero_arity { handler = Unknown } -> Some action
+          | Invalid _ -> None
+          | Non_inlinable_non_zero_arity _
+          | Toplevel_or_function_return_or_exn_continuation _ ->
+            Misc.fatal_errorf
+              "Inconsistency for %a between [Apply_cont.is_goto] and \
+               continuation environment in [UA]:@ %a"
+              Continuation.print cont UA.print uacc)
     in
     match action with
     | None ->
@@ -156,19 +194,24 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
     let arms = Targetint_31_63.Map.add arm action arms in
     new_let_conts, arms, Not_mergeable, identity_arms, not_arms
 
-let find_cse_simple dacc prim =
+let filter_and_choose_alias required_names alias_set =
+  let available_alias_set =
+    Alias_set.filter alias_set ~f:(fun alias ->
+        Simple.pattern_match alias
+          ~name:(fun name ~coercion:_ -> Name.Set.mem name required_names)
+          ~const:(fun _ -> true))
+  in
+  Alias_set.find_best available_alias_set
+
+let find_cse_simple dacc required_names prim =
   match P.Eligible_for_cse.create prim with
   | None -> None (* Constant *)
   | Some with_fixed_value -> (
     match DE.find_cse (DA.denv dacc) with_fixed_value with
     | None -> None
-    | Some simple -> (
-      match
-        TE.get_canonical_simple_exn (DA.typing_env dacc) simple
-          ~min_name_mode:NM.normal ~name_mode_of_existing_simple:NM.normal
-      with
-      | exception Not_found -> None
-      | simple -> Some simple))
+    | Some simple ->
+      filter_and_choose_alias required_names
+        (find_all_aliases (DA.typing_env dacc) simple))
 
 let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
     ~dacc_before_switch uacc ~after_rebuild =
@@ -185,7 +228,10 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
     | No_arms | Not_mergeable -> None
     | Mergeable { cont; args } ->
       let num_args = List.length args in
-      let args = List.filter_map Alias_set.choose_opt args in
+      let required_names = UA.required_names uacc in
+      let args =
+        List.filter_map (filter_and_choose_alias required_names) args
+      in
       if List.compare_length_with args num_args = 0
       then Some (cont, args)
       else None
@@ -253,7 +299,10 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
             UA.notify_removed ~operation:Removed_operations.branch uacc
           in
           let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
-          match find_cse_simple dacc_before_switch tagging_prim with
+          match
+            find_cse_simple dacc_before_switch (UA.required_names uacc)
+              tagging_prim
+          with
           | None -> normal_case uacc
           | Some tagged_scrutinee ->
             let apply_cont =
@@ -273,7 +322,10 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
             let not_scrutinee = Variable.create "not_scrutinee" in
             let not_scrutinee' = Simple.var not_scrutinee in
             let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
-            match find_cse_simple dacc_before_switch tagging_prim with
+            match
+              find_cse_simple dacc_before_switch (UA.required_names uacc)
+                tagging_prim
+            with
             | None -> normal_case uacc
             | Some tagged_scrutinee ->
               let do_tagging =
@@ -328,11 +380,11 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
     let arity = List.map T.kind arg_types |> Flambda_arity.create in
     let action = Apply_cont.update_args action ~args in
     let dacc =
-      DA.map_data_flow dacc
+      DA.map_flow_acc dacc
         ~f:
-          (Data_flow.add_apply_cont_args
+          (Flow.Acc.add_apply_cont_args ~rewrite_id
              (Apply_cont.continuation action)
-             (List.map Simple.free_names args))
+             args)
     in
     let arms =
       Targetint_31_63.Map.add arm (action, rewrite_id, arity, env_at_use) arms
@@ -357,14 +409,16 @@ let simplify_switch0 dacc switch ~down_to_up =
     if Targetint_31_63.Map.cardinal arms <= 1
     then dacc
     else
-      DA.map_data_flow dacc
-        ~f:(Data_flow.add_used_in_current_handler (Simple.free_names scrutinee))
+      DA.map_flow_acc dacc
+        ~f:(Flow.Acc.add_used_in_current_handler (Simple.free_names scrutinee))
+  in
+  let condition_dbg =
+    DE.add_inlined_debuginfo (DA.denv dacc) (Switch.condition_dbg switch)
   in
   down_to_up dacc
     ~rebuild:
-      (rebuild_switch ~arms
-         ~condition_dbg:(Switch.condition_dbg switch)
-         ~scrutinee ~scrutinee_ty ~dacc_before_switch)
+      (rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
+         ~dacc_before_switch)
 
 let simplify_switch ~simplify_let ~simplify_function_body dacc switch
     ~down_to_up =
@@ -383,9 +437,9 @@ let simplify_switch ~simplify_let ~simplify_function_body dacc switch
       ~free_names_of_body:Unknown
   in
   let dacc =
-    DA.map_data_flow dacc
+    DA.map_flow_acc dacc
       ~f:
-        (Data_flow.add_used_in_current_handler
+        (Flow.Acc.add_used_in_current_handler
            (NO.singleton_variable tagged_scrutinee NM.normal))
   in
   simplify_let

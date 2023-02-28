@@ -157,22 +157,20 @@ method! reload_operation op arg res =
         directly, but then in Emit we will have to do Array.sub again
         to call emit_test (unless emit_test takes an index, which is also
         weird). *)
-      if stackp res.(0)
-      then begin
         (* CR-soon gyorsh: [reload_test] may lose some sharing
            between the arguments of the test and the last two arguments
            and the result of the move. *)
-        let r = self#makereg res.(0) in
+        let r = if stackp res.(0) then self#makereg res.(0) else res.(0) in
         let len = Array.length arg in
         let arg' = Array.copy arg in
         let test_arg = self#reload_test tst (Array.sub arg 0 (len - 2)) in
-        for i = 0 to len - 2 do
+        for i = 0 to len - 2 - 1 do
           arg'.(i) <- test_arg.(i)
         done;
         arg'.(len - 1) <- r;
         (arg', [|r|])
-      end else  (arg, res)
   | Iintop (Ipopcnt | Iclz _| Ictz _)
+  | Iintop_atomic _
   | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
                | Istore_int (_, _, _)
                | Ioffset_loc (_, _) | Ifloatarithmem (_, _)

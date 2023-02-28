@@ -1,5 +1,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+module DLL = Flambda_backend_utils.Doubly_linked_list
+
 type location = string
 
 exception
@@ -383,16 +385,16 @@ let check_basic_instruction :
 let check_basic_instruction_list :
     State.t ->
     location ->
-    Cfg.BasicInstructionList.t ->
-    Cfg.BasicInstructionList.t ->
+    Cfg.basic_instruction_list ->
+    Cfg.basic_instruction_list ->
     unit =
  fun state location expected result ->
-  let expected_len = Cfg.BasicInstructionList.length expected in
-  let result_len = Cfg.BasicInstructionList.length result in
+  let expected_len = DLL.length expected in
+  let result_len = DLL.length result in
   if expected_len = result_len
   then
     let i = ref 0 in
-    Cfg.BasicInstructionList.iter2 expected result ~f:(fun expected result ->
+    DLL.iter2 expected result ~f:(fun expected result ->
         check_basic_instruction state location !i expected result;
         incr i)
   else if expected_len > result_len

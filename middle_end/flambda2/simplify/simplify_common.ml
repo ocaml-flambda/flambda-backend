@@ -35,8 +35,6 @@ type simplify_toplevel =
   return_continuation:Continuation.t ->
   return_arity:Flambda_arity.With_subkinds.t ->
   exn_continuation:Continuation.t ->
-  return_cont_scope:Scope.t ->
-  exn_cont_scope:Scope.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
 type simplify_function_body =
@@ -45,10 +43,9 @@ type simplify_function_body =
   return_continuation:Continuation.t ->
   return_arity:Flambda_arity.With_subkinds.t ->
   exn_continuation:Continuation.t ->
-  return_cont_scope:Scope.t ->
-  exn_cont_scope:Scope.t ->
   loopify_state:Loopify_state.t ->
   params:Bound_parameters.t ->
+  implicit_params:Bound_parameters.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
 let simplify_projection dacc ~original_term ~deconstructing ~shape ~result_var
@@ -93,16 +90,21 @@ let project_tuple ~dbg ~size ~field tuple =
   let prim = P.Binary (Block_load (bak, mutability), tuple, index) in
   Named.create_prim prim dbg
 
-let split_direct_over_application apply ~result_arity
+let split_direct_over_application apply
     ~(apply_alloc_mode : Alloc_mode.For_types.t) ~current_region
     ~callee's_code_id ~callee's_code_metadata =
-  let arity =
-    Flambda_arity.With_subkinds.cardinal
-      (Code_metadata.params_arity callee's_code_metadata)
+  let callee's_params_arity =
+    Code_metadata.params_arity callee's_code_metadata
   in
+  let arity = Flambda_arity.With_subkinds.cardinal callee's_params_arity in
   let args = Apply.args apply in
   assert (arity < List.length args);
   let first_args, remaining_args = Misc.Stdlib.List.split_at arity args in
+  let _, remaining_arity =
+    Misc.Stdlib.List.split_at arity
+      (Apply.args_arity apply |> Flambda_arity.With_subkinds.to_list)
+  in
+  assert (List.compare_lengths remaining_args remaining_arity = 0);
   let func_var = Variable.create "full_apply" in
   let contains_no_escaping_local_allocs =
     Code_metadata.contains_no_escaping_local_allocs callee's_code_metadata
@@ -140,6 +142,8 @@ let split_direct_over_application apply ~result_arity
     Apply.create ~callee:(Simple.var func_var) ~continuation
       (Apply.exn_continuation apply)
       ~args:remaining_args
+      ~args_arity:(Flambda_arity.With_subkinds.create remaining_arity)
+      ~return_arity:(Apply.return_arity apply)
       ~call_kind:
         (Call_kind.indirect_function_call_unknown_arity apply_alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
@@ -166,7 +170,7 @@ let split_direct_over_application apply ~result_arity
         List.mapi
           (fun i kind ->
             BP.create (Variable.create ("result" ^ string_of_int i)) kind)
-          (Flambda_arity.With_subkinds.to_list result_arity)
+          (Flambda_arity.With_subkinds.to_list (Apply.return_arity apply))
       in
       let call_return_continuation, call_return_continuation_free_names =
         match Apply.continuation apply with
@@ -226,11 +230,9 @@ let split_direct_over_application apply ~result_arity
     Apply.create ~callee:(Apply.callee apply)
       ~continuation:(Return after_full_application)
       (Apply.exn_continuation apply)
-      ~args:first_args
-      ~call_kind:
-        (Call_kind.direct_function_call callee's_code_id
-           ~return_arity:(Code_metadata.result_arity callee's_code_metadata)
-           alloc_mode)
+      ~args:first_args ~args_arity:callee's_params_arity
+      ~return_arity:(Code_metadata.result_arity callee's_code_metadata)
+      ~call_kind:(Call_kind.direct_function_call callee's_code_id alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
       ~probe_name:(Apply.probe_name apply) ~position:(Apply.position apply)
@@ -333,6 +335,9 @@ let clear_demoted_trap_action_and_patch_unused_exn_bucket uacc apply_cont =
   let apply_cont = clear_demoted_trap_action uacc apply_cont in
   patch_unused_exn_bucket uacc apply_cont
 
+(* Warning: This function relies on [T.meet_is_flat_float_array], which could
+   return any kind for empty arrays. So this function is only safe for
+   operations that are invalid on empty arrays. *)
 let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
     _ Or_bottom.t =
   let typing_env = DA.typing_env dacc in

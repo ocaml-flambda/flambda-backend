@@ -1,0 +1,121 @@
+let code pr2162_3_as_int64_3 deleted in
+let code pr2162_2_first_0 deleted in
+let code pr2162_3_2 deleted in
+let code pr2162_2_1 deleted in
+let code size(32) newer_version_of(pr2162_2_first_0)
+      pr2162_2_first_0_1 (z : imm tagged, x : imm tagged, y : float boxed)
+        my_closure my_region my_depth
+        -> k * k1
+        : float boxed =
+  (let untagged = %untag_imm z in
+   switch untagged
+     | 0 -> k3
+     | 1 -> k4)
+    where k4 =
+      let prim = %unbox_float y in
+      let prim_1 = prim *. 0x1.8p+1 in
+      let a = x * 2 in
+      cont k2 (a, prim_1)
+    where k3 =
+      let prim = %unbox_float y in
+      let prim_1 = prim +. 0x0p+0 in
+      cont k2 (x, prim_1)
+    where k2 (a : imm tagged, unboxed_float : float) =
+      let prim = %num_conv (imm tagged -> float) a in
+      let prim_1 = prim -. unboxed_float in
+      let Psubfloat = %Box_float prim_1 in
+      cont k (Psubfloat)
+in
+let $camlTests4__pr2162_2_first_4 =
+  closure pr2162_2_first_0_1 @pr2162_2_first
+in
+let code size(32) newer_version_of(pr2162_2_1)
+      pr2162_2_1_1 (z : imm tagged, x : imm tagged, y : float boxed)
+        my_closure my_region my_depth
+        -> k * k1
+        : float boxed =
+  (let untagged = %untag_imm z in
+   switch untagged
+     | 0 -> k3
+     | 1 -> k4)
+    where k4 =
+      let prim = %unbox_float y in
+      let prim_1 = prim *. 0x1.8p+1 in
+      let a = x * 2 in
+      cont k2 (a, prim_1)
+    where k3 =
+      let prim = %unbox_float y in
+      let prim_1 = prim +. 0x0p+0 in
+      cont k2 (x, prim_1)
+    where k2 (a : imm tagged, unboxed_float : float) =
+      let prim = %num_conv (imm tagged -> float) a in
+      let prim_1 = prim -. unboxed_float in
+      let Psubfloat = %Box_float prim_1 in
+      cont k (Psubfloat)
+in
+let $camlTests4__pr2162_2_5 = closure pr2162_2_1_1 @pr2162_2 in
+let code size(32) newer_version_of(pr2162_3_2)
+      pr2162_3_2_1 (z : imm tagged, x : imm tagged, y : float boxed)
+        my_closure my_region my_depth
+        -> k * k1
+        : float boxed =
+  (let untagged = %untag_imm z in
+   switch untagged
+     | 0 -> k3
+     | 1 -> k4)
+    where k4 =
+      let prim = %unbox_float y in
+      let prim_1 = prim *. 0x1.8p+1 in
+      let Pmulint = x * 2 in
+      cont k2 (prim_1, Pmulint)
+    where k3 =
+      let prim = %unbox_float y in
+      let prim_1 = prim +. 0x0p+0 in
+      cont k2 (prim_1, x)
+    where k2 (unboxed_float : float, unboxed_field_0) =
+      let prim = %num_conv (imm tagged -> float) unboxed_field_0 in
+      let prim_1 = prim -. unboxed_float in
+      let Psubfloat = %Box_float prim_1 in
+      cont k (Psubfloat)
+in
+let $camlTests4__pr2162_3_6 = closure pr2162_3_2_1 @pr2162_3 in
+let code size(48) newer_version_of(pr2162_3_as_int64_3)
+      pr2162_3_as_int64_3_1
+        (z : imm tagged, x : imm tagged, y : int64 boxed, y' : int32 boxed)
+        my_closure my_region my_depth
+        -> k * k1
+        : [ 0 of int64 boxed * int32 boxed ] =
+  (let untagged = %untag_imm z in
+   switch untagged
+     | 0 -> k3
+     | 1 -> k4)
+    where k4 =
+      let prim = %unbox_int64 y in
+      let prim_1 = %int_arith int64 prim * 3L in
+      let prim_2 = %unbox_int32 y' in
+      let prim_3 = %int_arith int32 prim_2 * 4l in
+      let Pmulint = x * 2 in
+      cont k2 (prim_1, prim_3, Pmulint)
+    where k3 =
+      let prim = %unbox_int64 y in
+      cont k2 (prim, 2l, x)
+    where k2 (unboxed_int64 : int64, unboxed_int32 : int32, unboxed_field_0) =
+      let prim = %num_conv (imm tagged -> int32) unboxed_field_0 in
+      let prim_1 = %int_arith int32 prim - unboxed_int32 in
+      let Psubbint = %Box_int32 prim_1 in
+      let prim_2 = %num_conv (imm tagged -> int64) unboxed_field_0 in
+      let prim_3 = %int_arith int64 prim_2 - unboxed_int64 in
+      let Psubbint_1 = %Box_int64 prim_3 in
+      let Pmakeblock = %Block 0 (Psubbint_1, Psubbint) in
+      cont k (Pmakeblock)
+in
+let $camlTests4__pr2162_3_as_int64_7 =
+  closure pr2162_3_as_int64_3_1 @pr2162_3_as_int64
+in
+let $camlTests4 =
+  Block 0 ($camlTests4__pr2162_2_first_4,
+           $camlTests4__pr2162_2_5,
+           $camlTests4__pr2162_3_6,
+           $camlTests4__pr2162_3_as_int64_7)
+in
+cont done ($camlTests4)

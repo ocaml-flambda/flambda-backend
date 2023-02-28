@@ -154,8 +154,12 @@ let label_decl sub x =
   let ld_type = sub.typ sub x.ld_type in
   {x with ld_type}
 
+let field_decl sub (ty, gf) =
+  let ty = sub.typ sub ty in
+  (ty, gf)
+
 let constructor_args sub = function
-  | Cstr_tuple l -> Cstr_tuple (List.map (sub.typ sub) l)
+  | Cstr_tuple l -> Cstr_tuple (List.map (field_decl sub) l)
   | Cstr_record l -> Cstr_record (List.map (label_decl sub) l)
 
 let constructor_decl sub cd =
@@ -199,8 +203,8 @@ let type_exception sub x =
 let extension_constructor sub x =
   let ext_kind =
     match x.ext_kind with
-      Text_decl(ctl, cto) ->
-        Text_decl(constructor_args sub ctl, Option.map (sub.typ sub) cto)
+      Text_decl(v, ctl, cto) ->
+        Text_decl(v, constructor_args sub ctl, Option.map (sub.typ sub) cto)
     | Text_rebind _ as d -> d
   in
   {x with ext_kind}
@@ -222,14 +226,15 @@ let pat
     | Tpat_var _
     | Tpat_constant _ -> x.pat_desc
     | Tpat_tuple l -> Tpat_tuple (List.map (sub.pat sub) l)
-    | Tpat_construct (loc, cd, l) ->
-        Tpat_construct (loc, cd, List.map (sub.pat sub) l)
+    | Tpat_construct (loc, cd, l, vto) ->
+        let vto = Option.map (fun (vl,cty) -> vl, sub.typ sub cty) vto in
+        Tpat_construct (loc, cd, List.map (sub.pat sub) l, vto)
     | Tpat_variant (l, po, rd) ->
         Tpat_variant (l, Option.map (sub.pat sub) po, rd)
     | Tpat_record (l, closed) ->
         Tpat_record (List.map (tuple3 id id (sub.pat sub)) l, closed)
-    | Tpat_array l -> Tpat_array (List.map (sub.pat sub) l)
-    | Tpat_alias (p, id, s) -> Tpat_alias (sub.pat sub p, id, s)
+    | Tpat_array (am, l) -> Tpat_array (am, List.map (sub.pat sub) l)
+    | Tpat_alias (p, id, s, m) -> Tpat_alias (sub.pat sub p, id, s, m)
     | Tpat_lazy p -> Tpat_lazy (sub.pat sub p)
     | Tpat_value p ->
        (as_computation_pattern (sub.pat sub (p :> pattern))).pat_desc
@@ -251,18 +256,39 @@ let expr sub x =
   in
   let exp_extra = List.map (tuple3 extra id id) x.exp_extra in
   let exp_env = sub.env sub x.exp_env in
-  let map_comprehension comp_types=
-      List.map (fun {clauses; guard}  ->
-        let clauses =
-          List.map (fun comp_type ->
-            match comp_type with
-            | From_to (id, p, e2, e3, dir) ->
-              From_to(id, p, sub.expr sub e2, sub.expr sub e3, dir)
-            | In (p, e2) -> In(sub.pat sub p, sub.expr sub e2)
-          ) clauses
-        in
-        {clauses; guard=(Option.map (sub.expr sub) guard)}
-      ) comp_types
+  let map_comprehension {comp_body; comp_clauses} =
+    { comp_body =
+        sub.expr sub comp_body
+    ; comp_clauses =
+        List.map
+          (function
+            | Texp_comp_for bindings ->
+                Texp_comp_for
+                  (List.map
+                     (fun {comp_cb_iterator; comp_cb_attributes} ->
+                        let comp_cb_iterator = match comp_cb_iterator with
+                          | Texp_comp_range
+                              { ident; pattern; start; stop; direction }
+                            ->
+                              Texp_comp_range
+                                { ident
+                                ; pattern
+                                    (* Just mirroring [ident], ignored (see
+                                       [Texp_for] *)
+                                ; start = sub.expr sub start
+                                ; stop  = sub.expr sub stop
+                                ; direction }
+                          | Texp_comp_in { pattern; sequence } ->
+                              Texp_comp_in
+                                { pattern = sub.pat sub pattern
+                                ; sequence = sub.expr sub sequence }
+                        in
+                        {comp_cb_iterator; comp_cb_attributes})
+                     bindings)
+            | Texp_comp_when exp ->
+              Texp_comp_when (sub.expr sub exp))
+          comp_clauses
+    }
   in
   let exp_desc =
     match x.exp_desc with
@@ -272,18 +298,18 @@ let expr sub x =
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
     | Texp_function { arg_label; param; cases;
-                      partial; region; curry; warnings } ->
+                      partial; region; curry; warnings; arg_mode; alloc_mode } ->
         let cases = List.map (sub.case sub) cases in
         Texp_function { arg_label; param; cases;
-                        partial; region; curry; warnings }
-    | Texp_apply (exp, list, pos) ->
+                        partial; region; curry; warnings; arg_mode; alloc_mode }
+    | Texp_apply (exp, list, pos, am) ->
         Texp_apply (
           sub.expr sub exp,
           List.map (function
             | (lbl, Arg exp) -> (lbl, Arg (sub.expr sub exp))
             | (lbl, Omitted o) -> (lbl, Omitted o))
             list,
-          pos
+          pos, am
         )
     | Texp_match (exp, cases, p) ->
         Texp_match (
@@ -296,13 +322,13 @@ let expr sub x =
           sub.expr sub exp,
           List.map (sub.case sub) cases
         )
-    | Texp_tuple list ->
-        Texp_tuple (List.map (sub.expr sub) list)
-    | Texp_construct (lid, cd, args) ->
-        Texp_construct (lid, cd, List.map (sub.expr sub) args)
+    | Texp_tuple (list, am) ->
+        Texp_tuple (List.map (sub.expr sub) list, am)
+    | Texp_construct (lid, cd, args, am) ->
+        Texp_construct (lid, cd, List.map (sub.expr sub) args, am)
     | Texp_variant (l, expo) ->
-        Texp_variant (l, Option.map (sub.expr sub) expo)
-    | Texp_record { fields; representation; extended_expression } ->
+        Texp_variant (l, Option.map (fun (e, am) -> (sub.expr sub e, am)) expo)
+    | Texp_record { fields; representation; extended_expression; alloc_mode } ->
         let fields = Array.map (function
             | label, Kept t -> label, Kept t
             | label, Overridden (lid, exp) ->
@@ -312,18 +338,24 @@ let expr sub x =
         Texp_record {
           fields; representation;
           extended_expression = Option.map (sub.expr sub) extended_expression;
+          alloc_mode
         }
-    | Texp_field (exp, lid, ld) ->
-        Texp_field (sub.expr sub exp, lid, ld)
-    | Texp_setfield (exp1, lid, ld, exp2) ->
+    | Texp_field (exp, lid, ld, am) ->
+        Texp_field (sub.expr sub exp, lid, ld, am)
+    | Texp_setfield (exp1, am, lid, ld, exp2) ->
         Texp_setfield (
           sub.expr sub exp1,
+          am,
           lid,
           ld,
           sub.expr sub exp2
         )
-    | Texp_array list ->
-        Texp_array (List.map (sub.expr sub) list)
+    | Texp_array (amut, list, alloc_mode) ->
+        Texp_array (amut, List.map (sub.expr sub) list, alloc_mode)
+    | Texp_list_comprehension comp ->
+        Texp_list_comprehension (map_comprehension comp)
+    | Texp_array_comprehension (amut, comp) ->
+        Texp_array_comprehension (amut, map_comprehension comp)
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Texp_ifthenelse (
           sub.expr sub exp1,
@@ -339,27 +371,17 @@ let expr sub x =
         Texp_while { wh with wh_cond = sub.expr sub wh.wh_cond;
                              wh_body = sub.expr sub wh.wh_body
                    }
-    | Texp_list_comprehension(e1, type_comp) ->
-        Texp_list_comprehension(
-          sub.expr sub e1,
-          map_comprehension type_comp
-        )
-    | Texp_arr_comprehension(e1, type_comp) ->
-      Texp_arr_comprehension(
-        sub.expr sub e1,
-        map_comprehension type_comp
-      )
     | Texp_for tf ->
         Texp_for {tf with for_from = sub.expr sub tf.for_from;
                           for_to = sub.expr sub tf.for_to;
                           for_body = sub.expr sub tf.for_body}
-    | Texp_send (exp, meth, expo, pos) ->
+    | Texp_send (exp, meth, ap, am) ->
         Texp_send
           (
             sub.expr sub exp,
             meth,
-            Option.map (sub.expr sub) expo,
-            pos
+            ap,
+            am
           )
     | Texp_new _
     | Texp_instvar _ as d -> d
@@ -458,6 +480,8 @@ let signature_item sub x =
         Tsig_recmodule (List.map (sub.module_declaration sub) list)
     | Tsig_modtype x ->
         Tsig_modtype (sub.module_type_declaration sub x)
+    | Tsig_modtypesubst x ->
+        Tsig_modtypesubst (sub.module_type_declaration sub x)
     | Tsig_include incl ->
         Tsig_include (sig_include_infos sub incl)
     | Tsig_class list ->
@@ -499,6 +523,8 @@ let module_type sub x =
 let with_constraint sub = function
   | Twith_type decl -> Twith_type (sub.type_declaration sub decl)
   | Twith_typesubst decl -> Twith_typesubst (sub.type_declaration sub decl)
+  | Twith_modtype mty -> Twith_modtype (sub.module_type sub mty)
+  | Twith_modtypesubst mty -> Twith_modtypesubst (sub.module_type sub mty)
   | Twith_module _
   | Twith_modsubst _ as d -> d
 

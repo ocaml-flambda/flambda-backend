@@ -24,12 +24,12 @@ type t =
 let [@ocamlformat "disable"] print ppf eff =
   match eff with
   | No_effects ->
-      Format.fprintf ppf "no effects"
+      Format.fprintf ppf "No_effects"
   | Only_generative_effects mut ->
-      Format.fprintf ppf "only generative effects %a"
+      Format.fprintf ppf "Only_generative_effects(%a)"
         Mutability.print mut
   | Arbitrary_effects ->
-      Format.fprintf ppf "Arbitrary effects"
+      Format.fprintf ppf "Arbitrary_effects"
 
 let compare eff1 eff2 =
   match eff1, eff2 with

@@ -140,7 +140,6 @@ end
 module Variable_data = struct
   type t =
     { compilation_unit : Compilation_unit.t;
-      previous_compilation_units : Compilation_unit.t list;
       name : string;
       name_stamp : int;
       user_visible : bool
@@ -148,8 +147,8 @@ module Variable_data = struct
 
   let flags = var_flags
 
-  let [@ocamlformat "disable"] print ppf { compilation_unit; previous_compilation_units = _;
-                  name; name_stamp; user_visible; } =
+  let [@ocamlformat "disable"] print ppf { compilation_unit; name; name_stamp;
+                                           user_visible; } =
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(compilation_unit@ %a)@]@ \
         @[<hov 1>(name@ %s)@]@ \
@@ -161,28 +160,14 @@ module Variable_data = struct
       name_stamp
       user_visible
 
-  let hash
-      { compilation_unit;
-        previous_compilation_units;
-        name = _;
-        name_stamp;
-        user_visible = _
-      } =
-    let compilation_unit_hashes =
-      List.fold_left
-        (fun hash compilation_unit ->
-          hash2 hash (Compilation_unit.hash compilation_unit))
-        (Compilation_unit.hash compilation_unit)
-        previous_compilation_units
-    in
-    hash2 compilation_unit_hashes (Hashtbl.hash name_stamp)
+  let hash { compilation_unit; name = _; name_stamp; user_visible = _ } =
+    hash2 (Compilation_unit.hash compilation_unit) (Hashtbl.hash name_stamp)
 
   let equal t1 t2 =
     if t1 == t2
     then true
     else
       let { compilation_unit = compilation_unit1;
-            previous_compilation_units = previous_compilation_units1;
             name = _;
             name_stamp = name_stamp1;
             user_visible = _
@@ -190,25 +175,14 @@ module Variable_data = struct
         t1
       in
       let { compilation_unit = compilation_unit2;
-            previous_compilation_units = previous_compilation_units2;
             name = _;
             name_stamp = name_stamp2;
             user_visible = _
           } =
         t2
       in
-      let rec previous_compilation_units_match l1 l2 =
-        match l1, l2 with
-        | [], [] -> true
-        | [], _ :: _ | _ :: _, [] -> false
-        | unit1 :: tl1, unit2 :: tl2 ->
-          Compilation_unit.equal unit1 unit2
-          && previous_compilation_units_match tl1 tl2
-      in
       Int.equal name_stamp1 name_stamp2
       && Compilation_unit.equal compilation_unit1 compilation_unit2
-      && previous_compilation_units_match previous_compilation_units1
-           previous_compilation_units2
 end
 
 module Symbol0 = Flambda2_import.Symbol
@@ -340,10 +314,6 @@ module Const = struct
   let export t = find_data t
 
   let import (data : exported) = create data
-
-  let map_compilation_unit _f data =
-    (* No compilation unit in the data *)
-    data
 end
 
 module Variable = struct
@@ -377,7 +347,6 @@ module Variable = struct
     in
     let data : Variable_data.t =
       { compilation_unit = Compilation_unit.get_current_exn ();
-        previous_compilation_units = [];
         name;
         name_stamp;
         user_visible = Option.is_some user_visible
@@ -419,17 +388,6 @@ module Variable = struct
   let export t = find_data t
 
   let import (data : exported) = Table.add !grand_table_of_variables data
-
-  let map_compilation_unit f (data : exported) : exported =
-    let new_compilation_unit = f data.compilation_unit in
-    if Compilation_unit.equal new_compilation_unit data.compilation_unit
-    then data
-    else
-      { data with
-        compilation_unit = new_compilation_unit;
-        previous_compilation_units =
-          data.compilation_unit :: data.previous_compilation_units
-      }
 end
 
 module Symbol = struct
@@ -450,9 +408,7 @@ module Symbol = struct
   let unsafe_create compilation_unit linkage_name =
     Symbol_data.unsafe_create compilation_unit linkage_name |> create_wrapped
 
-  let extern_syms =
-    Compilation_unit.create Compilation_unit.Prefix.empty
-      ("*extern*" |> Compilation_unit.Name.of_string)
+  let extern_syms = "*extern*" |> Compilation_unit.of_string
 
   let external_symbols_compilation_unit () = extern_syms
 
@@ -507,9 +463,6 @@ module Symbol = struct
   let export t = find_data t
 
   let import (data : exported) = Table.add !grand_table_of_symbols data
-
-  let map_compilation_unit f (data : exported) : exported =
-    Symbol0.with_compilation_unit data (f (Symbol0.compilation_unit data))
 end
 
 module Name = struct
@@ -711,11 +664,6 @@ module Simple = struct
        that the real import functions (in Renaming) are responsible for
        importing the underlying name/const. *)
     Table.add !grand_table_of_simples data
-
-  let map_compilation_unit _f data =
-    (* The compilation unit is not associated with the simple directly, only
-       with the underlying name, which has its own entry. *)
-    data
 end
 
 module Code_id = struct
@@ -796,9 +744,6 @@ module Code_id = struct
   let export t = find_data t
 
   let import (data : exported) = Table.add !grand_table_of_code_ids data
-
-  let map_compilation_unit f (data : exported) : exported =
-    { data with compilation_unit = f data.compilation_unit }
 end
 
 module Code_id_or_symbol = struct

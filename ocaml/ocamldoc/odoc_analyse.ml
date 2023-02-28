@@ -28,7 +28,11 @@ let init_path () = Compmisc.init_path ()
 
 (** Return the initial environment in which compilation proceeds. *)
 let initial_env () =
-  let current = Env.get_unit_name () in
+  let current =
+    match Env.get_unit_name () with
+    | Some cu -> cu |> Compilation_unit.full_path_as_string
+    | None -> ""
+  in
   let initial = !Odoc_global.initially_opened_module in
   let initially_opened_module =
     if initial = current then
@@ -71,7 +75,11 @@ let process_implementation_file sourcefile =
   init_path ();
   let prefixname = Filename.chop_extension sourcefile in
   let modulename = String.capitalize_ascii(Filename.basename prefixname) in
-  Env.set_unit_name modulename;
+  let compilation_unit =
+    Compilation_unit.create (Compilation_unit.Prefix.from_clflags ())
+      (modulename |> Compilation_unit.Name.of_string)
+  in
+  Env.set_unit_name (Some compilation_unit);
   let inputfile = preprocess sourcefile in
   let env = initial_env () in
   try
@@ -81,7 +89,7 @@ let process_implementation_file sourcefile =
     in
     let typedtree =
       Typemod.type_implementation
-        sourcefile prefixname modulename env parsetree
+        sourcefile prefixname compilation_unit env parsetree
     in
     (Some (parsetree, typedtree), inputfile)
   with
@@ -105,7 +113,11 @@ let process_interface_file sourcefile =
   init_path ();
   let prefixname = Filename.chop_extension sourcefile in
   let modulename = String.capitalize_ascii(Filename.basename prefixname) in
-  Env.set_unit_name modulename;
+  let compilation_unit =
+    Compilation_unit.create (Compilation_unit.Prefix.from_clflags ())
+      (modulename |> Compilation_unit.Name.of_string)
+  in
+  Env.set_unit_name (Some compilation_unit);
   let inputfile = preprocess sourcefile in
   let ast =
     Pparse.file ~tool_name inputfile
@@ -151,7 +163,8 @@ let process_file sourcefile =
          match parsetree_typedtree_opt with
            None ->
              None
-         | Some (parsetree, typedtree) ->
+         | Some (parsetree, Typedtree.{structure; coercion; _}) ->
+             let typedtree = (structure, coercion) in
              let file_module = Ast_analyser.analyse_typed_tree file
                  input_file parsetree typedtree
              in

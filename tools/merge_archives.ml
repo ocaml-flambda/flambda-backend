@@ -64,23 +64,25 @@ let merge_cmxa0 ~archives =
   cmxa_list
   |> List.iter (fun (lib : Cmx_format.library_infos) ->
          lib.lib_imports_cmi
-         |> Array.iter (fun (name, crc) ->
+         |> Array.iter (fun import ->
+                let name = Import_info.name import in
                 if not (Hashtbl.mem cmi_table name)
                 then begin
-                  Hashtbl.add cmi_table name (crc, !ncmis);
+                  Hashtbl.add cmi_table name (import, !ncmis);
                   incr ncmis
                 end);
          lib.lib_imports_cmx
-         |> Array.iter (fun (name, crc) ->
-                if not (Hashtbl.mem cmx_table name)
+         |> Array.iter (fun import ->
+                let cu = Import_info.cu import in
+                if not (Hashtbl.mem cmx_table cu)
                 then begin
-                  Hashtbl.add cmx_table name (crc, !ncmxs);
+                  Hashtbl.add cmx_table cu (import, !ncmxs);
                   incr ncmxs
                 end));
-  let cmis = Array.make !ncmis ("", None) in
-  Hashtbl.iter (fun name (crc, i) -> cmis.(i) <- name, crc) cmi_table;
-  let cmxs = Array.make !ncmxs ("", None) in
-  Hashtbl.iter (fun name (crc, i) -> cmxs.(i) <- name, crc) cmx_table;
+  let cmis = Array.make !ncmis Import_info.dummy in
+  Hashtbl.iter (fun name (import, i) -> cmis.(i) <- import) cmi_table;
+  let cmxs = Array.make !ncmxs Import_info.dummy in
+  Hashtbl.iter (fun name (import, i) -> cmxs.(i) <- import) cmx_table;
   let genfns = Cmm_helpers.Generic_fns_tbl.make () in
   let _, lib_units, lib_ccobjs, lib_ccopts =
     List.fold_left
@@ -99,11 +101,12 @@ let merge_cmxa0 ~archives =
         then failwith "Archives contain multiply-defined units";
         Cmm_helpers.Generic_fns_tbl.add genfns cmxa.lib_generic_fns;
         let lib_names = Compilation_unit.Set.union new_lib_names lib_names in
-        let remap oldarr newarr tbl oldb =
+        let remap oldarr newarr tbl oldb ~get_key =
           let module B = Misc.Bitmap in
           let b = B.make (Array.length newarr) in
           oldb
-          |> B.iter (fun i -> B.set b (snd (Hashtbl.find tbl (fst oldarr.(i)))));
+          |> B.iter (fun i ->
+                 B.set b (snd (Hashtbl.find tbl (get_key oldarr.(i)))));
           b
         in
         let new_units =
@@ -111,9 +114,11 @@ let merge_cmxa0 ~archives =
             (fun (li : Cmx_format.lib_unit_info) ->
               { li with
                 li_imports_cmi =
-                  remap cmxa.lib_imports_cmi cmis cmi_table li.li_imports_cmi;
+                  remap cmxa.lib_imports_cmi cmis cmi_table li.li_imports_cmi
+                    ~get_key:Import_info.name;
                 li_imports_cmx =
                   remap cmxa.lib_imports_cmx cmxs cmx_table li.li_imports_cmx
+                    ~get_key:Import_info.cu
               })
             cmxa.lib_units
         in

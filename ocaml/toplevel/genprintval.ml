@@ -203,7 +203,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
           Oide_ident name
       | Pdot(p, _s) ->
           if
-            match (find (Lident (Out_name.print name)) env).desc with
+            match get_desc (find (Lident (Out_name.print name)) env) with
             | Tconstr(ty_path', _, _) -> Path.same ty_path ty_path'
             | _ -> false
             | exception Not_found -> false
@@ -215,12 +215,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
     let tree_of_constr =
       tree_of_qualified
         (fun lid env ->
-           (Env.find_constructor_by_name lid env).cstr_res)
+          (Env.find_constructor_by_name lid env).cstr_res)
 
     and tree_of_label =
       tree_of_qualified
         (fun lid env ->
-           (Env.find_label_by_name lid env).lbl_res)
+          (Env.find_label_by_name lid env).lbl_res)
 
     (* An abstract type *)
 
@@ -260,7 +260,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         try
           find_printer depth env ty obj
         with Not_found ->
-          match (Ctype.repr ty).desc with
+          match get_desc ty with
           | Tvar _ | Tunivar _ ->
               Oval_stuff "<poly>"
           | Tarrow _ ->
@@ -291,24 +291,10 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                 Oval_list []
           | Tconstr(path, [ty_arg], _)
             when Path.same path Predef.path_array ->
-              let length = O.size obj in
-              if length > 0 then
-                match check_depth depth obj ty with
-                  Some x -> x
-                | None ->
-                    let rec tree_of_items tree_list i =
-                      if !printer_steps < 0 || depth < 0 then
-                        Oval_ellipsis :: tree_list
-                      else if i < length then
-                        let tree =
-                          nest tree_of_val (depth - 1) (O.field obj i) ty_arg
-                        in
-                        tree_of_items (tree :: tree_list) (i + 1)
-                      else tree_list
-                    in
-                    Oval_array (List.rev (tree_of_items [] 0))
-              else
-                Oval_array []
+              tree_of_generic_array Asttypes.Mutable depth obj ty_arg
+          | Tconstr(path, [ty_arg], _)
+            when Path.same path Predef.path_iarray ->
+              tree_of_generic_array Asttypes.Immutable depth obj ty_arg
 
           | Tconstr(path, [], _)
               when Path.same path Predef.path_string ->
@@ -385,8 +371,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                 | {type_kind = Type_abstract; type_manifest = Some body} ->
                     tree_of_val depth obj
                       (instantiate_type env decl.type_params ty_list body)
-                | {type_kind = Type_variant constr_list; type_unboxed} ->
-                    let unbx = type_unboxed.unboxed in
+                | {type_kind = Type_variant (constr_list,rep)} ->
+                    let unbx = (rep = Variant_unboxed) in
                     let tag =
                       if unbx then Cstr_unboxed
                       else if O.is_block obj
@@ -397,7 +383,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                     let type_params =
                       match cd_res with
                         Some t ->
-                          begin match (Ctype.repr t).desc with
+                          begin match get_desc t with
                             Tconstr (_,params,_) ->
                               params
                           | _ -> assert false end
@@ -446,14 +432,13 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                   Oval_stuff "<unknown constructor>"
               end
           | Tvariant row ->
-              let row = Btype.row_repr row in
               if O.is_block obj then
                 let tag : int = O.obj (O.field obj 0) in
                 let rec find = function
                   | (l, f) :: fields ->
                       if Btype.hash_variant l = tag then
-                        match Btype.row_field_repr f with
-                        | Rpresent(Some ty) | Reither(_,[ty],_,_) ->
+                        match row_field_repr f with
+                        | Rpresent(Some ty) | Reither(_,[ty],_) ->
                             let args =
                               nest tree_of_val (depth - 1) (O.field obj 1) ty
                             in
@@ -461,7 +446,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                         | _ -> find fields
                       else find fields
                   | [] -> Oval_stuff "<variant>" in
-                find row.row_fields
+                find (row_fields row)
               else
                 let tag : int = O.obj obj in
                 let rec find = function
@@ -470,12 +455,10 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                         Oval_variant (l, None)
                       else find fields
                   | [] -> Oval_stuff "<variant>" in
-                find row.row_fields
+                find (row_fields row)
           | Tobject (_, _) ->
               Oval_stuff "<obj>"
-          | Tsubst ty ->
-              tree_of_val (depth - 1) obj ty
-          | Tfield(_, _, _, _) | Tnil | Tlink _ ->
+          | Tsubst _ | Tfield(_, _, _, _) | Tnil | Tlink _ ->
               fatal_error "Printval.outval_of_value"
           | Tpoly (ty, _) ->
               tree_of_val (depth - 1) obj ty
@@ -520,6 +503,27 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               tree :: tree_list (i + 1) ty_list in
       tree_list start ty_list
 
+      and tree_of_generic_array am depth obj ty_arg =
+        let oval elts = Oval_array (elts, am) in
+        let length = O.size obj in
+        if length > 0 then
+          match check_depth depth obj ty with
+            Some x -> x
+          | None ->
+              let rec tree_of_items tree_list i =
+                if !printer_steps < 0 || depth < 0 then
+                  Oval_ellipsis :: tree_list
+                else if i < length then
+                  let tree =
+                    nest tree_of_val (depth - 1) (O.field obj i) ty_arg
+                  in
+                  tree_of_items (tree :: tree_list) (i + 1)
+                else tree_list
+              in
+              oval (List.rev (tree_of_items [] 0))
+        else
+          oval []
+
       and tree_of_constr_with_args
              tree_of_cstr cstr_name inlined start depth obj ty_args unboxed =
         let lid = tree_of_cstr (Out_name.create cstr_name) in
@@ -561,7 +565,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         if not (EVP.same_value slot (EVP.eval_address addr))
         then raise Not_found;
         let type_params =
-          match (Ctype.repr cstr.cstr_res).desc with
+          match get_desc cstr.cstr_res with
             Tconstr (_,params,_) ->
              params
           | _ -> assert false
@@ -584,17 +588,17 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       with Ctype.Cannot_apply -> abstract_type
 
     and instantiate_types env type_params ty_list args =
-      List.map (instantiate_type env type_params ty_list) args
+      List.map (fun (ty, _) -> instantiate_type env type_params ty_list ty) args
 
     and find_printer depth env ty =
       let rec find = function
       | [] -> raise Not_found
       | (_name, Simple (sch, printer)) :: remainder ->
-          if Ctype.moregeneral env false sch ty
+          if Ctype.is_moregeneral env false sch ty
           then printer
           else find remainder
       | (_name, Generic (path, fn)) :: remainder ->
-          begin match (Ctype.expand_head env ty).desc with
+          begin match get_desc (Ctype.expand_head env ty) with
           | Tconstr (p, args, _) when Path.same p path ->
               begin try apply_generic_printer path (fn depth) args
               with exn -> (fun _obj -> out_exn path exn) end

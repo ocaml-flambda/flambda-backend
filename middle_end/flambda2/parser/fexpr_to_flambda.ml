@@ -224,16 +224,55 @@ let find_code_id env code_id =
 let targetint (i : Fexpr.targetint) : Targetint_32_64.t =
   Targetint_32_64.of_int64 i
 
+let targetint_31_63 (i : Fexpr.targetint) : Targetint_31_63.t =
+  Targetint_31_63.of_int64 i
+
+let tag_scannable (tag : Fexpr.tag_scannable) : Tag.Scannable.t =
+  Tag.Scannable.create_exn tag
+
 let immediate i = i |> Targetint_32_64.of_string |> Targetint_31_63.of_targetint
 
 let float f = f |> Numeric_types.Float_by_bit_pattern.create
 
+let rec subkind : Fexpr.subkind -> Flambda_kind.With_subkind.Subkind.t =
+  function
+  | Anything -> Anything
+  | Boxed_float -> Boxed_float
+  | Boxed_int32 -> Boxed_int32
+  | Boxed_int64 -> Boxed_int64
+  | Boxed_nativeint -> Boxed_nativeint
+  | Tagged_immediate -> Tagged_immediate
+  | Variant { consts; non_consts } ->
+    let consts =
+      consts |> List.map targetint_31_63 |> Targetint_31_63.Set.of_list
+    in
+    let non_consts =
+      non_consts
+      |> List.map (fun (tag, sk) -> tag_scannable tag, List.map subkind sk)
+      |> Tag.Scannable.Map.of_list
+    in
+    Variant { consts; non_consts }
+  | Float_block { num_fields } -> Float_block { num_fields }
+  | Float_array -> Float_array
+  | Immediate_array -> Immediate_array
+  | Value_array -> Value_array
+  | Generic_array -> Generic_array
+
+let value_kind_with_subkind :
+    Fexpr.kind_with_subkind -> Flambda_kind.With_subkind.t = function
+  | Value sk ->
+    Flambda_kind.With_subkind.create Flambda_kind.value (sk |> subkind)
+  | Naked_number nnk -> Flambda_kind.With_subkind.of_naked_number_kind nnk
+  | Region -> Flambda_kind.With_subkind.region
+  | Rec_info -> Flambda_kind.With_subkind.rec_info
+
 let value_kind_with_subkind_opt :
     Fexpr.kind_with_subkind option -> Flambda_kind.With_subkind.t = function
-  | Some kind -> kind
+  | Some kind -> value_kind_with_subkind kind
   | None -> Flambda_kind.With_subkind.any_value
 
-let arity a = Flambda_arity.With_subkinds.create a
+let arity a =
+  Flambda_arity.With_subkinds.create (List.map value_kind_with_subkind a)
 
 let const (c : Fexpr.const) : Reg_width_const.t =
   match c with
@@ -315,7 +354,8 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   | Project_value_slot { project_from; value_slot } ->
     let value_slot = fresh_or_existing_value_slot env value_slot in
     let project_from = fresh_or_existing_function_slot env project_from in
-    Project_value_slot { project_from; value_slot }
+    Project_value_slot
+      { project_from; value_slot; kind = Flambda_kind.With_subkind.any_value }
   | Project_function_slot { move_from; move_to } ->
     let move_from = fresh_or_existing_function_slot env move_from in
     let move_to = fresh_or_existing_function_slot env move_to in
@@ -345,7 +385,7 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
       | Values { field_kind; tag; size = s } ->
         let tag : Tag.Scannable.t Or_unknown.t =
           match tag with
-          | Some tag -> Known (tag |> Tag.Scannable.create_exn)
+          | Some tag -> Known (tag |> tag_scannable)
           | None -> Unknown
         in
         let size = size s in
@@ -372,7 +412,7 @@ let varop (varop : Fexpr.varop) n : Flambda_primitive.variadic_primitive =
   | Make_block (tag, mutability) ->
     let shape = convert_block_shape ~num_fields:n in
     let kind : Flambda_primitive.Block_kind.t =
-      Values (Tag.Scannable.create_exn tag, shape)
+      Values (tag_scannable tag, shape)
     in
     Make_block (kind, mutability, Alloc_mode.For_allocations.heap)
 
@@ -415,9 +455,10 @@ let set_of_closures env fun_decls value_slots =
     |> Function_slot.Lmap.of_list |> Function_declarations.create
   in
   let value_slots = Option.value value_slots ~default:[] in
-  let value_slots : Simple.t Value_slot.Map.t =
+  let value_slots : (Simple.t * Flambda_kind.With_subkind.t) Value_slot.Map.t =
     let convert ({ var; value } : Fexpr.one_value_slot) =
-      fresh_or_existing_value_slot env var, simple env value
+      ( fresh_or_existing_value_slot env var,
+        (simple env value, Flambda_kind.With_subkind.any_value) )
     in
     List.map convert value_slots |> Value_slot.Map.of_list
   in
@@ -546,7 +587,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~free_names_of_body:Unknown
     | Recursive ->
       let handlers = Continuation.Map.singleton name handler in
-      Flambda.Let_cont.create_recursive handlers ~body)
+      Flambda.Let_cont.create_recursive ~invariant_params:Bound_parameters.empty
+        handlers ~body)
   | Let_cont _ -> failwith "TODO andwhere"
   | Apply_cont ac -> Flambda.Expr.create_apply_cont (apply_cont env ac)
   | Switch { scrutinee; cases } ->
@@ -649,7 +691,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       | Data { symbol = _; defining_expr = def } -> (
         match def with
         | Block { tag; mutability; elements = args } ->
-          let tag = Tag.Scannable.create_exn tag in
+          let tag = tag_scannable tag in
           static_const
             (SC.block tag mutability (List.map (field_of_block env) args))
         | Boxed_float f ->
@@ -783,8 +825,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~newer_version_of ~params_arity ~num_trailing_local_params:0
             ~result_arity ~result_types:Unknown
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
-            ~check:
-              Default_check (* CR gyorsh: should [check] be set properly? *)
+            ~check:Default_check
+              (* CR gyorsh: should [check] be set properly? *)
             ~is_a_functor:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
@@ -815,13 +857,20 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         continuation;
         exn_continuation;
         args;
-        arities
+        arities;
+        region
       } ->
     let continuation = find_result_cont env continuation in
-    let call_kind =
+    let call_kind, args_arity, return_arity =
       match call_kind with
       | Function (Direct { code_id; function_slot = _ }) ->
         let code_id = find_code_id env code_id in
+        let params_arity =
+          (* CR mshinwell: This needs fixing to cope with the fact that the
+             arities have moved onto [Apply_expr] *)
+          Flambda_arity.With_subkinds.create
+            (List.map (fun _ -> Flambda_kind.With_subkind.any_value) args)
+        in
         let return_arity =
           match arities with
           | None ->
@@ -829,28 +878,42 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               [Flambda_kind.With_subkind.any_value]
           | Some { ret_arity; _ } -> arity ret_arity
         in
-        Call_kind.direct_function_call code_id ~return_arity
-          Alloc_mode.For_types.heap
+        ( Call_kind.direct_function_call code_id Alloc_mode.For_types.heap,
+          params_arity,
+          return_arity )
       | Function Indirect -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
-          let param_arity = arity params_arity in
+          let params_arity = arity params_arity in
           let return_arity = arity ret_arity in
-          Call_kind.indirect_function_call_known_arity ~param_arity
-            ~return_arity Alloc_mode.For_types.heap
+          ( Call_kind.indirect_function_call_known_arity
+              Alloc_mode.For_types.heap,
+            params_arity,
+            return_arity )
         | None | Some { params_arity = None; ret_arity = _ } ->
-          Call_kind.indirect_function_call_unknown_arity
-            Alloc_mode.For_types.heap)
+          let params_arity =
+            (* CR mshinwell: This needs fixing to cope with the fact that the
+               arities have moved onto [Apply_expr] *)
+            Flambda_arity.With_subkinds.create
+              (List.map (fun _ -> Flambda_kind.With_subkind.any_value) args)
+          in
+          let return_arity =
+            (* CR mshinwell: This needs fixing to cope with the fact that the
+               arities have moved onto [Apply_expr] *)
+            Flambda_arity.With_subkinds.create []
+          in
+          ( Call_kind.indirect_function_call_unknown_arity
+              Alloc_mode.For_types.heap,
+            params_arity,
+            return_arity ))
       | C_call { alloc } -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
-          let param_arity =
-            arity params_arity |> Flambda_arity.With_subkinds.to_arity
-          in
-          let return_arity =
-            arity ret_arity |> Flambda_arity.With_subkinds.to_arity
-          in
-          Call_kind.c_call ~alloc ~param_arity ~return_arity ~is_c_builtin:false
+          let params_arity = arity params_arity in
+          let return_arity = arity ret_arity in
+          ( Call_kind.c_call ~alloc ~is_c_builtin:false,
+            params_arity,
+            return_arity )
         | None | Some { params_arity = None; ret_arity = _ } ->
           Misc.fatal_errorf "Must specify arities for C call")
     in
@@ -867,15 +930,15 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       | None -> Inlining_state.default ~round:0
     in
     let exn_continuation = find_exn_cont env exn_continuation in
+    let region = find_var env region in
     let apply =
       Flambda.Apply.create
         ~callee:(Simple.name (name env func))
         ~continuation exn_continuation
         ~args:((List.map (simple env)) args)
-        ~call_kind Debuginfo.none ~inlined ~inlining_state ~probe_name:None
-        ~position:Normal ~relative_history:Inlining_history.Relative.empty
-        ~region:(Variable.create "FIXME")
-      (* CR mshinwell: fix region support *)
+        ~args_arity ~return_arity ~call_kind Debuginfo.none ~inlined
+        ~inlining_state ~probe_name:None ~position:Normal
+        ~relative_history:Inlining_history.Relative.empty ~region
     in
     Flambda.Expr.create_apply apply
   | Invalid { message } -> Flambda.Expr.create_invalid (Message message)
@@ -899,10 +962,10 @@ let bind_all_code_ids env (unit : Fexpr.flambda_unit) =
   in
   go env unit.body
 
-let conv ~symbol_for_global ~module_ident (fexpr : Fexpr.flambda_unit) :
-    Flambda_unit.t =
+let conv comp_unit (fexpr : Fexpr.flambda_unit) : Flambda_unit.t =
   let module_symbol =
-    symbol_for_global (Ident.create_persistent (Ident.name module_ident))
+    Flambda2_import.Symbol.for_compilation_unit comp_unit
+    |> Symbol.create_wrapped
   in
   let env = init_env () in
   let { done_continuation = return_continuation; error_continuation; _ } =

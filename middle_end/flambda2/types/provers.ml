@@ -495,7 +495,12 @@ let meet_is_flat_float_array env t : bool meet_shortcut =
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
   | Value (Ok (Array { element_kind = Unknown; _ })) -> Need_meet
-  | Value (Ok (Array { element_kind = Known element_kind; _ })) -> (
+  | Value (Ok (Array { element_kind = Bottom; _ })) ->
+    (* Empty array case. We cannot return Invalid, but any other result is
+       correct. We arbitrarily pick [false], as this is what we would get if we
+       looked at the tag at runtime. *)
+    Known_result false
+  | Value (Ok (Array { element_kind = Ok element_kind; _ })) -> (
     match K.With_subkind.kind element_kind with
     | Value -> Known_result false
     | Naked_number Naked_float -> Known_result true
@@ -520,7 +525,11 @@ let prove_is_immediates_array env t : unit proof_of_property =
   match expand_head env t with
   | Value (Unknown | Bottom) -> Unknown
   | Value (Ok (Array { element_kind = Unknown; _ })) -> Unknown
-  | Value (Ok (Array { element_kind = Known element_kind; _ })) -> (
+  | Value (Ok (Array { element_kind = Bottom; _ })) ->
+    (* Empty array case. We cannot return Invalid, but it's correct to state
+       that any value contained in this array must be an immediate. *)
+    Proved ()
+  | Value (Ok (Array { element_kind = Ok element_kind; _ })) -> (
     match K.With_subkind.subkind element_kind with
     | Tagged_immediate -> Proved ()
     | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint

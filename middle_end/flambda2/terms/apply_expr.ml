@@ -73,6 +73,8 @@ type t =
     continuation : Result_continuation.t;
     exn_continuation : Exn_continuation.t;
     args : Simple.t list;
+    args_arity : Flambda_arity.With_subkinds.t;
+    return_arity : Flambda_arity.With_subkinds.t;
     call_kind : Call_kind.t;
     dbg : Debuginfo.t;
     inlined : Inlined_attribute.t;
@@ -89,12 +91,15 @@ let [@ocamlformat "disable"] print_inlining_paths ppf relative_history =
       Inlining_history.Relative.print relative_history
 
 let [@ocamlformat "disable"] print ppf
-    { callee; continuation; exn_continuation; args; call_kind;
-      dbg; inlined; inlining_state; probe_name; position; relative_history; region } =
+    { callee; continuation; exn_continuation; args; args_arity;
+      return_arity; call_kind; dbg; inlined; inlining_state; probe_name;
+      position; relative_history; region } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(%a\u{3008}%a\u{3009}\u{300a}%a\u{300b}\
       \u{27c5}%t%a%t\u{27c6}@ \
       (%a))@]@ \
+      @[<hov 1>(args_arity@ %a)@]@ \
+      @[<hov 1>(return_arity@ %a)@]@ \
       @[<hov 1>(call_kind@ %a)@]@ \
       @[<hov 1>%t(dbg@ %a)%t@]@ \
       @[<hov 1>(inline@ %a)@]@ \
@@ -110,6 +115,8 @@ let [@ocamlformat "disable"] print ppf
     Variable.print region
     Flambda_colours.pop
     Simple.List.print args
+    Flambda_arity.With_subkinds.print args_arity
+    Flambda_arity.With_subkinds.print return_arity
     Call_kind.print call_kind
     Flambda_colours.debuginfo
     Debuginfo.print_compact dbg
@@ -132,7 +139,9 @@ let invariant
     ({ callee;
        continuation;
        exn_continuation = _;
-       args = _;
+       args;
+       args_arity;
+       return_arity;
        call_kind;
        dbg = _;
        inlined = _;
@@ -144,7 +153,7 @@ let invariant
      } as t) =
   (match call_kind with
   | Function _ | Method _ -> ()
-  | C_call { alloc = _; param_arity = _; return_arity = _; is_c_builtin = _ } ->
+  | C_call _ -> (
     if not (Simple.is_symbol callee)
     then
       (* CR-someday mshinwell: We could expose indirect C calls at the source
@@ -152,10 +161,19 @@ let invariant
       Misc.fatal_errorf
         "For [C_call] applications the callee must be directly specified as a \
          [Symbol]:@ %a"
-        print t);
+        print t;
+    match Flambda_arity.With_subkinds.to_list return_arity with
+    | [] | [_] -> ()
+    | _ :: _ :: _ ->
+      Misc.fatal_errorf "Illegal return arity for C call:@ %a"
+        Flambda_arity.With_subkinds.print return_arity));
+  if List.compare_lengths args (Flambda_arity.With_subkinds.to_list args_arity)
+     <> 0
+  then
+    Misc.fatal_errorf
+      "Length of argument and arity lists disagree in [Apply]:@ %a" print t;
   match continuation with
   | Never_returns ->
-    let return_arity = Call_kind.return_arity call_kind in
     if not (Flambda_arity.With_subkinds.is_nullary return_arity)
     then
       Misc.fatal_errorf
@@ -164,13 +182,16 @@ let invariant
         Flambda_arity.With_subkinds.print return_arity print t
   | Return _ -> ()
 
-let create ~callee ~continuation exn_continuation ~args ~call_kind dbg ~inlined
-    ~inlining_state ~probe_name ~position ~relative_history ~region =
+let create ~callee ~continuation exn_continuation ~args ~args_arity
+    ~return_arity ~(call_kind : Call_kind.t) dbg ~inlined ~inlining_state
+    ~probe_name ~position ~relative_history ~region =
   let t =
     { callee;
       continuation;
       exn_continuation;
       args;
+      args_arity;
+      return_arity;
       call_kind;
       dbg;
       inlined;
@@ -204,11 +225,36 @@ let relative_history t = t.relative_history
 
 let position t = t.position
 
+let free_names_without_exn_continuation
+    { callee;
+      continuation;
+      exn_continuation = _;
+      args;
+      args_arity = _;
+      return_arity = _;
+      call_kind;
+      dbg = _;
+      inlined = _;
+      inlining_state = _;
+      probe_name = _;
+      position = _;
+      relative_history = _;
+      region
+    } =
+  Name_occurrences.union_list
+    [ Simple.free_names callee;
+      Result_continuation.free_names continuation;
+      Simple.List.free_names args;
+      Call_kind.free_names call_kind;
+      Name_occurrences.singleton_variable region Name_mode.normal ]
+
 let free_names_except_callee
     { callee = _;
       continuation;
       exn_continuation;
       args;
+      args_arity = _;
+      return_arity = _;
       call_kind;
       dbg = _;
       inlined = _;
@@ -235,6 +281,8 @@ let apply_renaming
        continuation;
        exn_continuation;
        args;
+       args_arity;
+       return_arity;
        call_kind;
        dbg;
        inlined;
@@ -264,6 +312,8 @@ let apply_renaming
       continuation = continuation';
       exn_continuation = exn_continuation';
       args = args';
+      args_arity;
+      return_arity;
       call_kind = call_kind';
       dbg;
       inlined;
@@ -279,6 +329,8 @@ let ids_for_export
       continuation;
       exn_continuation;
       args;
+      args_arity = _;
+      return_arity = _;
       call_kind;
       dbg = _;
       inlined = _;
@@ -317,7 +369,7 @@ let with_call_kind t call_kind =
   invariant t;
   t
 
-let with_args t args = { t with args }
+let with_args t args ~args_arity = { t with args; args_arity }
 
 let inlining_arguments t = inlining_state t |> Inlining_state.arguments
 
@@ -327,3 +379,7 @@ let returns t =
   match continuation t with Return _ -> true | Never_returns -> false
 
 let region t = t.region
+
+let args_arity t = t.args_arity
+
+let return_arity t = t.return_arity

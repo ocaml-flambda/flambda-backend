@@ -174,6 +174,7 @@ let oper_result_type = function
   | Calloc _ -> typ_val
   | Cstore (_c, _) -> typ_void
   | Cprefetch _ -> typ_void
+  | Catomic _ -> typ_int
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi |
     Cand | Cor | Cxor | Clsl | Clsr | Casr |
     Cclz _ | Cctz _ | Cpopcnt |
@@ -451,7 +452,7 @@ method is_simple_expr = function
         List.for_all self#is_simple_expr args
         (* The following may have side effects *)
       | Capply _ | Cextcall _ | Calloc _ | Cstore _
-      | Craise _ | Ccheckbound
+      | Craise _ | Ccheckbound | Catomic _
       | Cprobe _ | Cprobe_is_enabled _ | Copaque -> false
       | Cprefetch _ | Cbeginregion | Cendregion -> false (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
@@ -504,6 +505,7 @@ method effects_of exp =
       | Cstore _ -> EC.effect_only Effect.Arbitrary
       | Cbeginregion | Cendregion -> EC.arbitrary
       | Cprefetch _ -> EC.arbitrary
+      | Catomic _ -> EC.arbitrary
       | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
       | Cload (_, Asttypes.Immutable) -> EC.none
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
@@ -642,6 +644,14 @@ method select_operation op args _dbg =
   | (Cintoffloat, _) -> (Iintoffloat, args)
   | (Cvalueofint, _) -> (Ivalueofint, args)
   | (Cintofvalue, _) -> (Iintofvalue, args)
+  | (Catomic {op = Fetch_and_add; size}, [src; dst]) ->
+    let dst_size = match size with Word | Sixtyfour -> Word_int | Thirtytwo -> Thirtytwo_signed in
+    let (addr, eloc) = self#select_addressing dst_size dst in
+    (Iintop_atomic { op = Fetch_and_add; size; addr }, [src; eloc])
+  | (Catomic {op = Compare_and_swap; size}, [compare_with; set_to; dst]) ->
+    let dst_size = match size with Word | Sixtyfour -> Word_int | Thirtytwo -> Thirtytwo_signed in
+    let (addr, eloc) = self#select_addressing dst_size dst in
+    (Iintop_atomic { op = Compare_and_swap; size; addr }, [compare_with; set_to; eloc])
   | (Ccheckbound, _) ->
     self#select_arith Icheckbound args
   | (Cprobe { name; handler_code_sym; }, _) ->
@@ -1059,9 +1069,12 @@ method emit_expr (env:environment) exp =
       end
   | Ctrywith(e1, kind, v, e2, _dbg, _value_kind) ->
       (* This region is used only to clean up local allocations in the
-         exceptional path. It need not be ended in the non-exception case. *)
+         exceptional path. It must not be ended in the non-exception case
+         as local allocations may be returned from the body of the "try". *)
       let end_region =
-        if Config.stack_allocation then begin
+        if Config.stack_allocation
+          && match kind with Regular -> true | Delayed _ -> false
+        then begin
           let reg = self#regs_for typ_int in
           self#insert env (Iop Ibeginregion) [| |] reg;
           fun handler_instruction -> instr_cons (Iop Iendregion) reg [| |] handler_instruction
@@ -1104,6 +1117,7 @@ method emit_expr (env:environment) exp =
         end
       end
   | Cregion e ->
+     assert(Config.stack_allocation);
      let reg = self#regs_for typ_int in
      self#insert env (Iop Ibeginregion) [| |] reg;
      let env = { env with regions = reg::env.regions; region_tail = true } in
@@ -1516,6 +1530,7 @@ method emit_tail (env:environment) exp =
         end
       end
   | Cregion e ->
+      assert(Config.stack_allocation);
       if env.region_tail then
         self#emit_return env exp (pop_all_traps env)
       else begin

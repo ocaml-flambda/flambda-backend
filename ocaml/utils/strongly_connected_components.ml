@@ -187,11 +187,6 @@ module Make (Id : Id) = struct
           set)
       dependencies
 
-  type numbering = {
-    back : int Id.Map.t;
-    forth : Id.t array;
-  }
-
   let number graph =
     let size = Id.Map.cardinal graph in
     let bindings = Id.Map.bindings graph in
@@ -218,7 +213,7 @@ module Make (Id : Id) = struct
             v :: acc)
           dests [])
     in
-    { back; forth }, integer_graph
+    forth, integer_graph
 
   let rec int_list_mem x xs =
     match xs with
@@ -226,7 +221,7 @@ module Make (Id : Id) = struct
     | x' :: xs -> if Int.equal x x' then true else int_list_mem x xs
 
   let component_graph graph =
-    let numbering, integer_graph = number graph in
+    let forth, integer_graph = number graph in
     let { Kosaraju. sorted_connected_components;
           component_edges } =
       Kosaraju.component_graph integer_graph
@@ -236,11 +231,11 @@ module Make (Id : Id) = struct
         | [] -> assert false
         | [node] ->
           (if int_list_mem node integer_graph.(node)
-           then Has_loop [numbering.forth.(node)]
-           else No_loop numbering.forth.(node)),
+           then Has_loop [forth.(node)]
+           else No_loop forth.(node)),
             component_edges.(component)
         | _::_ ->
-          (Has_loop (List.map (fun node -> numbering.forth.(node)) nodes)),
+          (Has_loop (List.map (fun node -> forth.(node)) nodes)),
             component_edges.(component))
       sorted_connected_components
 

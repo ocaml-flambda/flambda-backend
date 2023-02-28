@@ -117,8 +117,10 @@ let value_description sub x = sub.typ sub x.val_desc
 
 let label_decl sub {ld_type; _} = sub.typ sub ld_type
 
+let field_decl sub (ty, _) = sub.typ sub ty
+
 let constructor_args sub = function
-  | Cstr_tuple l -> List.iter (sub.typ sub) l
+  | Cstr_tuple l -> List.iter (field_decl sub) l
   | Cstr_record l -> List.iter (label_decl sub) l
 
 let constructor_decl sub {cd_args; cd_res; _} =
@@ -152,7 +154,7 @@ let type_exception sub {tyexn_constructor; _} =
 
 let extension_constructor sub {ext_kind; _} =
   match ext_kind with
-  | Text_decl (ctl, cto) ->
+  | Text_decl (_, ctl, cto) ->
       constructor_args sub ctl;
       Option.iter (sub.typ sub) cto
   | Text_rebind _ -> ()
@@ -173,11 +175,13 @@ let pat
   | Tpat_var _ -> ()
   | Tpat_constant _ -> ()
   | Tpat_tuple l -> List.iter (sub.pat sub) l
-  | Tpat_construct (_, _, l) -> List.iter (sub.pat sub) l
+  | Tpat_construct (_, _, l, vto) ->
+      List.iter (sub.pat sub) l;
+      Option.iter (fun (_ids, ct) -> sub.typ sub ct) vto
   | Tpat_variant (_, po, _) -> Option.iter (sub.pat sub) po
   | Tpat_record (l, _) -> List.iter (fun (_, _, i) -> sub.pat sub i) l
-  | Tpat_array l -> List.iter (sub.pat sub) l
-  | Tpat_alias (p, _, _) -> sub.pat sub p
+  | Tpat_array (_, l) -> List.iter (sub.pat sub) l
+  | Tpat_alias (p, _, _, _) -> sub.pat sub p
   | Tpat_lazy p -> sub.pat sub p
   | Tpat_value p -> sub.pat sub (p :> pattern)
   | Tpat_exception p -> sub.pat sub p
@@ -204,7 +208,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
       sub.expr sub exp
   | Texp_function {cases; _} ->
      List.iter (sub.case sub) cases
-  | Texp_apply (exp, list, _) ->
+  | Texp_apply (exp, list, _, _) ->
       sub.expr sub exp;
       List.iter (function
         | (_, Arg exp) -> sub.expr sub exp
@@ -216,20 +220,39 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
   | Texp_try (exp, cases) ->
       sub.expr sub exp;
       List.iter (sub.case sub) cases
-  | Texp_tuple list -> List.iter (sub.expr sub) list
-  | Texp_construct (_, _, args) -> List.iter (sub.expr sub) args
-  | Texp_variant (_, expo) -> Option.iter (sub.expr sub) expo
+  | Texp_tuple (list, _) -> List.iter (sub.expr sub) list
+  | Texp_construct (_, _, args, _) -> List.iter (sub.expr sub) args
+  | Texp_variant (_, expo) -> Option.iter (fun (expr, _) -> sub.expr sub expr) expo
   | Texp_record { fields; extended_expression; _} ->
       Array.iter (function
         | _, Kept _ -> ()
         | _, Overridden (_, exp) -> sub.expr sub exp)
         fields;
       Option.iter (sub.expr sub) extended_expression;
-  | Texp_field (exp, _, _) -> sub.expr sub exp
-  | Texp_setfield (exp1, _, _, exp2) ->
+  | Texp_field (exp, _, _, _) -> sub.expr sub exp
+  | Texp_setfield (exp1, _,  _, _, exp2) ->
       sub.expr sub exp1;
       sub.expr sub exp2
-  | Texp_array list -> List.iter (sub.expr sub) list
+  | Texp_array (_, list, _) -> List.iter (sub.expr sub) list
+  | Texp_list_comprehension { comp_body; comp_clauses }
+  | Texp_array_comprehension (_, { comp_body; comp_clauses }) ->
+      sub.expr sub comp_body;
+      List.iter
+        (function
+          | Texp_comp_for bindings ->
+              List.iter
+                (fun { comp_cb_iterator; comp_cb_attributes = _ } ->
+                   match comp_cb_iterator with
+                   | Texp_comp_range { ident = _; start; stop; direction = _ } ->
+                       sub.expr sub start;
+                       sub.expr sub stop
+                   | Texp_comp_in { pattern; sequence } ->
+                       sub.pat sub pattern;
+                       sub.expr sub sequence)
+                bindings
+          | Texp_comp_when exp ->
+            sub.expr sub exp)
+        comp_clauses
   | Texp_ifthenelse (exp1, exp2, expo) ->
       sub.expr sub exp1;
       sub.expr sub exp2;
@@ -240,24 +263,12 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
   | Texp_while { wh_cond; wh_body } ->
       sub.expr sub wh_cond;
       sub.expr sub wh_body
-  | Texp_list_comprehension (exp1, type_comps)
-  | Texp_arr_comprehension (exp1, type_comps) ->
-    sub.expr sub exp1;
-    List.iter (fun  {clauses; guard} ->
-        List.iter (fun type_comp ->
-          match type_comp with
-          | From_to (_, _,e2,e3, _) -> sub.expr sub e2; sub.expr sub e3
-          | In (_, e2) -> sub.expr sub e2
-          ) clauses;
-        Option.iter (fun g -> sub.expr sub g) guard)
-      type_comps
   | Texp_for {for_from; for_to; for_body} ->
       sub.expr sub for_from;
       sub.expr sub for_to;
       sub.expr sub for_body
-  | Texp_send (exp, _, expo, _) ->
-      sub.expr sub exp;
-      Option.iter (sub.expr sub) expo
+  | Texp_send (exp, _, _, _) ->
+      sub.expr sub exp
   | Texp_new _ -> ()
   | Texp_instvar _ -> ()
   | Texp_setinstvar (_, _, _, exp) ->sub.expr sub exp
@@ -311,6 +322,7 @@ let signature_item sub {sig_desc; sig_env; _} =
   | Tsig_modsubst x -> sub.module_substitution sub x
   | Tsig_recmodule list -> List.iter (sub.module_declaration sub) list
   | Tsig_modtype x -> sub.module_type_declaration sub x
+  | Tsig_modtypesubst x -> sub.module_type_declaration sub x
   | Tsig_include incl -> sig_include_infos sub incl
   | Tsig_class list -> List.iter (sub.class_description sub) list
   | Tsig_class_type list -> List.iter (sub.class_type_declaration sub) list
@@ -343,6 +355,9 @@ let with_constraint sub = function
   | Twith_typesubst decl -> sub.type_declaration sub decl
   | Twith_module    _    -> ()
   | Twith_modsubst  _    -> ()
+  | Twith_modtype   _    -> ()
+  | Twith_modtypesubst _ -> ()
+
 
 let open_description sub {open_env; _} = sub.env sub open_env
 

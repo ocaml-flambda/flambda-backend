@@ -1,6 +1,6 @@
 (* TEST
    include ocamlcommon
-   files = "example_syntax.ml"
+   readonly_files = "example_syntax.ml"
    reference = "${test_source_directory}/example_syntax.ml"
 *)
 

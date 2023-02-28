@@ -30,6 +30,14 @@ cmpbyt.cmx : \
     ../bytecomp/bytesections.cmx
 cvt_emit.cmo :
 cvt_emit.cmx :
+debug_printers.cmo : \
+    ../typing/printtyp.cmi \
+    ../typing/path.cmi \
+    ../typing/ident.cmi
+debug_printers.cmx : \
+    ../typing/printtyp.cmx \
+    ../typing/path.cmx \
+    ../typing/ident.cmx
 dumpobj.cmo : \
     ../bytecomp/symtable.cmi \
     opnames.cmo \
@@ -87,9 +95,11 @@ make_opcodes.cmx :
 objinfo.cmo : \
     ../bytecomp/symtable.cmi \
     ../utils/symbol.cmi \
+    ../typing/shape.cmi \
     ../middle_end/printclambda.cmi \
     ../utils/misc.cmi \
     ../lambda/lambda.cmi \
+    ../utils/import_info.cmi \
     ../typing/ident.cmi \
     ../middle_end/flambda/export_info.cmi \
     ../utils/compilation_unit.cmi \
@@ -103,9 +113,11 @@ objinfo.cmo : \
 objinfo.cmx : \
     ../bytecomp/symtable.cmx \
     ../utils/symbol.cmx \
+    ../typing/shape.cmx \
     ../middle_end/printclambda.cmx \
     ../utils/misc.cmx \
     ../lambda/lambda.cmx \
+    ../utils/import_info.cmx \
     ../typing/ident.cmx \
     ../middle_end/flambda/export_info.cmx \
     ../utils/compilation_unit.cmx \
@@ -124,6 +136,7 @@ ocamlcmt.cmo : \
     ../utils/load_path.cmi \
     ../typing/envaux.cmi \
     ../driver/compmisc.cmi \
+    ../utils/compilation_unit.cmi \
     ../file_formats/cmt_format.cmi \
     ../typing/cmt2annot.cmo \
     ../utils/clflags.cmi \
@@ -136,6 +149,7 @@ ocamlcmt.cmx : \
     ../utils/load_path.cmx \
     ../typing/envaux.cmx \
     ../driver/compmisc.cmx \
+    ../utils/compilation_unit.cmx \
     ../file_formats/cmt_format.cmx \
     ../typing/cmt2annot.cmx \
     ../utils/clflags.cmx \
@@ -151,15 +165,11 @@ ocamldep.cmo : \
 ocamldep.cmx : \
     ../driver/makedepend.cmx
 ocamlmklib.cmo : \
-    ocamlmklibconfig.cmo \
     ../utils/misc.cmi \
     ../utils/config.cmi
 ocamlmklib.cmx : \
-    ocamlmklibconfig.cmx \
     ../utils/misc.cmx \
     ../utils/config.cmx
-ocamlmklibconfig.cmo :
-ocamlmklibconfig.cmx :
 ocamlmktop.cmo : \
     ../utils/config.cmi \
     ../utils/ccomp.cmi

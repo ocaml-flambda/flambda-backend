@@ -16,6 +16,7 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42-66"]
 open! Int_replace_polymorphic_compare
+module Int = Misc.Stdlib.Int
 
 module Env = struct
   type scope = Current | Outer
@@ -333,7 +334,7 @@ module Env = struct
       try
         Closure_origin.Map.find id t.inlining_counts
       with Not_found ->
-        max 1 (Clflags.Int_arg_helper.get
+        Int.max 1 (Clflags.Int_arg_helper.get
                  ~key:t.round !Clflags.inline_max_unroll)
     in
     inlining_count > 0
@@ -343,7 +344,7 @@ module Env = struct
       try
         Closure_origin.Map.find id t.inlining_counts
       with Not_found ->
-        max 1 (Clflags.Int_arg_helper.get
+        Int.max 1 (Clflags.Int_arg_helper.get
                  ~key:t.round !Clflags.inline_max_unroll)
     in
     let inlining_counts =
@@ -575,8 +576,7 @@ let prepare_to_simplify_set_of_closures ~env
         let approx = E.find_exn env var in
         (* The projections are freshened below in one step, once we know
            the closure freshening substitution. *)
-        let projection = external_var.projection in
-        ({ var; projection; } : Flambda.specialised_to), approx)
+        ({ external_var with var } : Flambda.specialised_to), approx)
       set_of_closures.free_vars
   in
   let specialised_args =
@@ -602,8 +602,7 @@ let prepare_to_simplify_set_of_closures ~env
             | None -> var
             | Some var -> var
           in
-          let projection = spec_to.projection in
-          Some ({ var; projection; } : Flambda.specialised_to))
+          Some ({ spec_to with var } : Flambda.specialised_to))
   in
   let environment_before_cleaning = env in
   (* [E.local] helps us to catch bugs whereby variables escape their scope. *)

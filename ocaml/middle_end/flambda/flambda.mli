@@ -36,6 +36,7 @@ type apply = {
      lhs_of_application -> callee *)
   func : Variable.t;
   args : Variable.t list;
+  result_layout : Lambda.layout;
   kind : call_kind;
   dbg : Debuginfo.t;
   reg_close : Lambda.region_close;
@@ -66,6 +67,7 @@ type send = {
   dbg : Debuginfo.t;
   reg_close : Lambda.region_close;
   mode : Lambda.alloc_mode;
+  result_layout : Lambda.layout;
 }
 
 (** For details on these types, see projection.mli. *)
@@ -87,6 +89,7 @@ type specialised_to = {
       [specialised_args] respectively) in the same set of closures.
       As such, this field describes a relation of projections between
       either the [free_vars] or the [specialised_args]. *)
+  kind : Lambda.layout;
 }
 
 (** Flambda terms are partitioned in a pseudo-ANF manner; many terms are
@@ -104,13 +107,14 @@ type t =
   | Apply of apply
   | Send of send
   | Assign of assign
-  | If_then_else of Variable.t * t * t
+  | If_then_else of Variable.t * t * t * Lambda.layout
   | Switch of Variable.t * switch
   | String_switch of Variable.t * (string * t) list * t option
+                     * Lambda.layout
   (** Restrictions on [Lambda.Lstringswitch] also apply to [String_switch]. *)
   | Static_raise of Static_exception.t * Variable.t list
-  | Static_catch of Static_exception.t * Variable.t list * t * t
-  | Try_with of t * Variable.t * t
+  | Static_catch of Static_exception.t * ( Variable.t * Lambda.layout ) list * t * t * Lambda.layout
+  | Try_with of t * Variable.t * t * Lambda.layout
   | While of t * t
   | For of for_loop
   | Region of t
@@ -186,7 +190,7 @@ and let_expr = private {
 and let_mutable = {
   var : Mutable_variable.t;
   initial_value : Variable.t;
-  contents_kind : Lambda.value_kind;
+  contents_kind : Lambda.layout;
   body : t;
 }
 
@@ -311,6 +315,7 @@ and function_declarations = private {
 and function_declaration = private {
   closure_origin: Closure_origin.t;
   params : Parameter.t list;
+  return_layout : Lambda.layout;
   alloc_mode : Lambda.alloc_mode;
   region : bool;
   body : t;
@@ -337,6 +342,8 @@ and function_declaration = private {
   (** Specialising requirements from the source code. *)
   is_a_functor : bool;
   (** Whether the function is known definitively to be a functor. *)
+  poll: Lambda.poll_attribute;
+  (** Behaviour for polls *)
 }
 
 (** Equivalent to the similar type in [Lambda]. *)
@@ -346,6 +353,7 @@ and switch = {
   numblocks : Numbers.Int.Set.t; (** Number of tag block cases *)
   blocks : (int * t) list; (** Tag block cases *)
   failaction : t option; (** Action to take if none matched *)
+  kind : Lambda.layout
 }
 
 (** Equivalent to the similar type in [Lambda]. *)
@@ -564,10 +572,12 @@ val create_function_declaration
   -> body:t
   -> stub:bool
   -> dbg:Debuginfo.t
+  -> return_layout:Lambda.layout
   -> inline:Lambda.inline_attribute
   -> specialise:Lambda.specialise_attribute
   -> is_a_functor:bool
   -> closure_origin:Closure_origin.t
+  -> poll:Lambda.poll_attribute
   -> function_declaration
 
 (** Create a function declaration based on another function declaration *)

@@ -16,13 +16,18 @@
 
 type t =
   { function_decls : Function_declarations.t;
-    value_slots : Simple.t Value_slot.Map.t;
+    value_slots : (Simple.t * Flambda_kind.With_subkind.t) Value_slot.Map.t;
     alloc_mode : Alloc_mode.For_allocations.t
   }
 
+let print_value_slot ppf (simple, kind) =
+  Format.fprintf ppf "@[(%a @<1>\u{2237} %a)@]" Simple.print simple
+    Flambda_kind.With_subkind.print kind
+
 let [@ocamlformat "disable"] print ppf
       { function_decls;
-        value_slots;alloc_mode;
+        value_slots;
+        alloc_mode;
       } =
   Format.fprintf ppf "@[<hov 1>(%tset_of_closures%t@ \
       @[<hov 1>(function_decls@ %a)@]@ \
@@ -32,7 +37,7 @@ let [@ocamlformat "disable"] print ppf
     Flambda_colours.prim_constructive
     Flambda_colours.pop
     (Function_declarations.print) function_decls
-    (Value_slot.Map.print Simple.print) value_slots
+    (Value_slot.Map.print print_value_slot) value_slots
     Alloc_mode.For_allocations.print alloc_mode
 
 include Container_types.Make (struct
@@ -55,7 +60,13 @@ include Container_types.Make (struct
     if c <> 0
     then c
     else
-      let c = Value_slot.Map.compare Simple.compare value_slots1 value_slots2 in
+      let compare_value_slot (simple1, kind1) (simple2, kind2) =
+        let c = Simple.compare simple1 simple2 in
+        if c <> 0 then c else Flambda_kind.With_subkind.compare kind1 kind2
+      in
+      let c =
+        Value_slot.Map.compare compare_value_slot value_slots1 value_slots2
+      in
       if c <> 0
       then c
       else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
@@ -100,12 +111,12 @@ let [@ocamlformat "disable"] print ppf
       Flambda_colours.pop
       Alloc_mode.For_allocations.print alloc_mode
       Function_declarations.print function_decls
-      (Value_slot.Map.print Simple.print) value_slots
+      (Value_slot.Map.print print_value_slot) value_slots
 
 let free_names { function_decls; value_slots; alloc_mode = _ } =
   let free_names_of_value_slots =
     Value_slot.Map.fold
-      (fun value_slot simple free_names ->
+      (fun value_slot (simple, _kind) free_names ->
         Name_occurrences.union free_names
           (Name_occurrences.add_value_slot_in_declaration
              (Simple.free_names simple) value_slot Name_mode.normal))
@@ -124,12 +135,12 @@ let apply_renaming ({ function_decls; value_slots; alloc_mode } as t) renaming =
   let changed = ref false in
   let value_slots' =
     Value_slot.Map.filter_map
-      (fun var simple ->
+      (fun var (simple, kind) ->
         if Renaming.value_slot_is_used renaming var
         then (
           let simple' = Simple.apply_renaming simple renaming in
           if not (simple == simple') then changed := true;
-          Some simple')
+          Some (simple', kind))
         else (
           changed := true;
           None))
@@ -151,7 +162,8 @@ let ids_for_export { function_decls; value_slots; alloc_mode } =
   in
   Ids_for_export.union
     (Value_slot.Map.fold
-       (fun _value_slot simple ids -> Ids_for_export.add_simple ids simple)
+       (fun _value_slot (simple, _kind) ids ->
+         Ids_for_export.add_simple ids simple)
        value_slots function_decls_ids)
     (Alloc_mode.For_allocations.ids_for_export alloc_mode)
 

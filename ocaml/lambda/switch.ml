@@ -22,8 +22,6 @@ type ('a, 'ctx) t_store =
    act_store : 'ctx -> 'a -> int ;
    act_store_shared : 'ctx -> 'a -> int ; }
 
-exception Not_simple
-
 module type Stored = sig
   type t
   type key
@@ -115,19 +113,26 @@ sig
   val ltint : primitive
   val geint : primitive
   val gtint : primitive
-  type act
-  type loc
-  type value_kind
 
-  val bind : act -> (act -> act) -> act
-  val make_const : int -> act
-  val make_offset : act -> int -> act
-  val make_prim : primitive -> act list -> act
-  val make_isout : act -> act -> act
-  val make_isin : act -> act -> act
-  val make_if : value_kind -> act -> act -> act -> act
-  val make_switch : loc -> value_kind -> act -> int array -> act array -> act
-  val make_catch : value_kind -> act -> int * (act -> act)
+  type loc
+  type arg
+  type test
+  type act
+  type layout
+
+  val bind : arg -> (arg -> act) -> act
+  val make_const : int -> arg
+  val make_offset : arg -> int -> arg
+  val make_prim : primitive -> arg list -> test
+  val make_isout : arg -> arg -> test
+  val make_isin : arg -> arg -> test
+  val make_is_nonzero : arg -> test
+  val arg_as_test : arg -> test
+
+  val make_if : layout -> test -> act -> act -> act
+  val make_switch : loc -> layout -> arg -> int array -> act array -> act
+
+  val make_catch : layout -> act -> int * (act -> act)
   val make_exit : int -> act
 end
 
@@ -575,6 +580,12 @@ let rec pkey chan  = function
   and make_if_ne kind arg i ifso ifnot =
     make_if_test kind Arg.neint arg i ifso ifnot
 
+  let make_if_nonzero kind arg ifso ifnot =
+    Arg.make_if kind (Arg.make_is_nonzero arg) ifso ifnot
+
+  let make_if_bool kind arg ifso ifnot =
+    Arg.make_if kind (Arg.arg_as_test arg) ifso ifnot
+
   let do_make_if_out kind h arg ifso ifno =
     Arg.make_if kind (Arg.make_isout h arg) ifso ifno
 
@@ -669,14 +680,14 @@ let rec pkey chan  = function
 
           if i=1 && (lim+ctx.off)=1 && get_low cases 0+ctx.off=0 then
             if lcases = 2 && get_high cases 1+ctx.off = 1 then
-              Arg.make_if
+              make_if_bool
                 kind
                 ctx.arg
                 (c_test kind ctx right) (c_test kind ctx left)
             else
-              make_if_ne
+              make_if_nonzero
                 kind
-                ctx.arg 0
+                ctx.arg
                 (c_test kind ctx right) (c_test kind ctx left)
           else if less_tests cright cleft then
             make_if_lt

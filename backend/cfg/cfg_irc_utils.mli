@@ -12,7 +12,7 @@ val log : indent:int -> ('a, Format.formatter, unit) format -> 'a
 
 val log_body_and_terminator :
   indent:int ->
-  Cfg.BasicInstructionList.t ->
+  Cfg.basic_instruction_list ->
   Cfg.terminator Cfg.instruction ->
   liveness ->
   unit
@@ -83,7 +83,7 @@ module Spilling_heuristics : sig
   type t =
     | Set_choose
     | Flat_uses
-  (* CR xclerc for xclerc: | Hierarchical_uses *)
+    | Hierarchical_uses
 
   val all : t list
 

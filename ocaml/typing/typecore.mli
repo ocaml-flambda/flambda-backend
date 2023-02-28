@@ -18,6 +18,12 @@
 open Asttypes
 open Types
 
+(* This variant is used for printing which type of comprehension something is
+   found in; it's used by [type_forcing_context], which see. *)
+type comprehension_type =
+  | List_comprehension
+  | Array_comprehension of mutable_flag
+
 (* This variant is used to print improved error messages, and does not affect
    the behavior of the typechecker itself.
 
@@ -31,13 +37,16 @@ type type_forcing_context =
   | If_no_else_branch
   | While_loop_conditional
   | While_loop_body
-  | In_comprehension_argument
   | For_loop_start_index
   | For_loop_stop_index
   | For_loop_body
   | Assert_condition
   | Sequence_left_hand_side
   | When_guard
+  | Comprehension_in_iterator of comprehension_type
+  | Comprehension_for_start
+  | Comprehension_for_stop
+  | Comprehension_when
 
 (* The combination of a type and a "type forcing context". The intent is that it
    describes a type that is "expected" (required) by the context. If unifying
@@ -48,6 +57,17 @@ type type_expected = private {
   ty: type_expr;
   explanation: type_forcing_context option;
 }
+
+(* Variables in patterns *)
+type pattern_variable =
+  {
+    pv_id: Ident.t;
+    pv_mode: Value_mode.t;
+    pv_type: type_expr;
+    pv_loc: Location.t;
+    pv_as_var: bool;
+    pv_attributes: Typedtree.attributes;
+  }
 
 val mk_expected:
   ?explanation:type_forcing_context ->
@@ -69,6 +89,17 @@ type wrong_name = {
   valid_names: string list;
 }
 
+type wrong_kind_context =
+  | Pattern
+  | Expression of type_forcing_context option
+
+type wrong_kind_sort =
+  | Constructor
+  | Record
+  | Boolean
+  | List
+  | Unit
+
 type existential_restriction =
   | At_toplevel (** no existential types at the toplevel *)
   | In_group (** nor with [let ... and ...] *)
@@ -80,6 +111,7 @@ type existential_restriction =
 
 val type_binding:
         Env.t -> rec_flag ->
+          ?force_global:bool ->
           Parsetree.value_binding list ->
           Typedtree.value_binding list * Env.t
 val type_let:
@@ -94,12 +126,8 @@ val type_class_arg_pattern:
         (Ident.t * Ident.t * type_expr) list *
         Env.t * Env.t
 val type_self_pattern:
-        string -> type_expr -> Env.t -> Env.t -> Env.t -> Parsetree.pattern ->
-        Typedtree.pattern *
-        (Ident.t * type_expr) Meths.t ref *
-        (Ident.t * Asttypes.mutable_flag * Asttypes.virtual_flag * type_expr)
-            Vars.t ref *
-        Env.t * Env.t * Env.t
+        Env.t -> Parsetree.pattern ->
+        Typedtree.pattern * pattern_variable list
 val check_partial:
         ?lev:int -> Env.t -> type_expr ->
         Location.t -> Typedtree.value Typedtree.case list -> Typedtree.partial
@@ -108,7 +136,7 @@ val type_expect:
 val type_exp:
         Env.t -> Parsetree.expression -> Typedtree.expression
 val type_approx:
-        Env.t -> Parsetree.expression -> type_expr
+        Env.t -> Parsetree.expression -> type_expr -> unit
 val type_argument:
         Env.t -> Parsetree.expression ->
         type_expr -> type_expr -> Typedtree.expression
@@ -116,7 +144,7 @@ val type_argument:
 val option_some:
   Env.t -> Typedtree.expression -> value_mode -> Typedtree.expression
 val option_none:
-  Env.t -> type_expr -> value_mode -> Location.t -> Typedtree.expression
+  Env.t -> type_expr -> Location.t -> Typedtree.expression
 val extract_option_type: Env.t -> type_expr -> type_expr
 val generalizable: int -> type_expr -> bool
 val reset_delayed_checks: unit -> unit
@@ -125,24 +153,35 @@ val force_delayed_checks: unit -> unit
 val reset_allocations: unit -> unit
 val optimise_allocations: unit -> unit
 
+val has_poly_constraint : Parsetree.pattern -> bool
+
 
 val name_pattern : string -> Typedtree.pattern list -> Ident.t
 val name_cases : string -> Typedtree.value Typedtree.case list -> Ident.t
 
-val escape : loc:Location.t -> env:Env.t -> value_mode -> unit
+(* Why are we calling [submode]? This tells us why. *)
+type submode_reason =
+  | Application of type_expr
+      (* Check that the result of an application is a submode of the expected mode
+         from the context *)
+
+  | Other (* add more cases here for better hints *)
+
+val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> value_mode -> unit
 
 val self_coercion : (Path.t * Location.t list ref) list ref
 
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
-  | Label_mismatch of Longident.t * Ctype.Unification_trace.t
+  | Label_mismatch of Longident.t * Errortrace.unification_error
   | Pattern_type_clash :
-      Ctype.Unification_trace.t * _ Typedtree.pattern_desc option -> error
-  | Or_pattern_type_clash of Ident.t * Ctype.Unification_trace.t
+      Errortrace.unification_error * _ Typedtree.pattern_desc option
+      -> error
+  | Or_pattern_type_clash of Ident.t * Errortrace.unification_error
   | Multiply_bound_variable of string
   | Orpat_vars of Ident.t * Ident.t list
   | Expr_type_clash of
-      Ctype.Unification_trace.t * type_forcing_context option
+      Errortrace.unification_error * type_forcing_context option
       * Typedtree.expression_desc option
   | Apply_non_function of type_expr
   | Apply_wrong_label of arg_label * type_expr * bool
@@ -153,31 +192,39 @@ type error =
   | Name_type_mismatch of
       Datatype_kind.t * Longident.t * (Path.t * Path.t) * (Path.t * Path.t) list
   | Invalid_format of string
+  | Not_an_object of type_expr * type_forcing_context option
   | Undefined_method of type_expr * string * string list option
-  | Undefined_inherited_method of string * string list
+  | Undefined_self_method of string * string list
   | Virtual_class of Longident.t
   | Private_type of type_expr
   | Private_label of Longident.t * type_expr
   | Private_constructor of constructor_description * type_expr
   | Unbound_instance_variable of string * string list
   | Instance_variable_not_mutable of string
-  | Not_subtype of Ctype.Unification_trace.t * Ctype.Unification_trace.t
+  | Not_subtype of Errortrace.Subtype.error
   | Outside_class
   | Value_multiply_overridden of string
   | Coercion_failure of
-      type_expr * type_expr * Ctype.Unification_trace.t * bool
-  | Too_many_arguments of bool * type_expr * type_forcing_context option
-  | Abstract_wrong_label of arg_label * type_expr * type_forcing_context option
+      Errortrace.expanded_type * Errortrace.unification_error * bool
+  | Not_a_function of type_expr * type_forcing_context option
+  | Too_many_arguments of type_expr * type_forcing_context option
+  | Abstract_wrong_label of
+      { got           : arg_label
+      ; expected      : arg_label
+      ; expected_type : type_expr
+      ; explanation   : type_forcing_context option
+      }
   | Scoping_let_module of string * type_expr
-  | Not_a_variant_type of Longident.t
+  | Not_a_polymorphic_variant_type of Longident.t
   | Incoherent_label_order
-  | Less_general of string * Ctype.Unification_trace.t
+  | Less_general of string * Errortrace.unification_error
   | Modules_not_allowed
   | Cannot_infer_signature
   | Not_a_packed_module of type_expr
   | Unexpected_existential of existential_restriction * string * string list
   | Invalid_interval
   | Invalid_for_loop_index
+  | Invalid_comprehension_for_range_iterator_index
   | No_value_clauses
   | Exception_pattern_disallowed
   | Mixed_value_and_exception_patterns_under_guard
@@ -198,15 +245,20 @@ type error =
   | Illegal_letrec_pat
   | Illegal_letrec_expr
   | Illegal_class_expr
-  | Letop_type_clash of string * Ctype.Unification_trace.t
-  | Andop_type_clash of string * Ctype.Unification_trace.t
-  | Bindings_type_clash of Ctype.Unification_trace.t
-  | Local_value_escapes of Btype.Value_mode.error * Env.escaping_context option
+  | Letop_type_clash of string * Errortrace.unification_error
+  | Andop_type_clash of string * Errortrace.unification_error
+  | Bindings_type_clash of Errortrace.unification_error
+  | Unbound_existential of Ident.t list * type_expr
+  | Missing_type_constraint
+  | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
+  | Expr_not_a_record_type of type_expr
+  | Local_value_escapes of Value_mode.error * submode_reason * Env.escaping_context option
+  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of type_expr
   | Uncurried_function_escapes
   | Local_return_annotation_mismatch of Location.t
   | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
-
+  | Optional_poly_param
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -215,7 +267,8 @@ val report_error: loc:Location.t -> Env.t -> error -> Location.error
  (** @deprecated.  Use {!Location.error_of_exn}, {!Location.print_report}. *)
 
 (* Forward declaration, to be filled in by Typemod.type_module *)
-val type_module: (Env.t -> Parsetree.module_expr -> Typedtree.module_expr) ref
+val type_module:
+  (Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t) ref
 (* Forward declaration, to be filled in by Typemod.type_open *)
 val type_open:
   (?used_slot:bool ref -> override_flag -> Env.t -> Location.t ->
@@ -229,14 +282,10 @@ val type_open_decl:
 (* Forward declaration, to be filled in by Typeclass.class_structure *)
 val type_object:
   (Env.t -> Location.t -> Parsetree.class_structure ->
-   Typedtree.class_structure * Types.class_signature * string list) ref
+   Typedtree.class_structure * string list) ref
 val type_package:
-  (Env.t -> Parsetree.module_expr -> Path.t -> Longident.t list ->
-  Typedtree.module_expr * type_expr list) ref
-
-val create_package_type : Location.t -> Env.t ->
-  Longident.t * (Longident.t * Parsetree.core_type) list ->
-  Path.t * (Longident.t * Typedtree.core_type) list * Types.type_expr
+  (Env.t -> Parsetree.module_expr -> Path.t -> (Longident.t * type_expr) list ->
+  Typedtree.module_expr * (Longident.t * type_expr) list) ref
 
 val constant: Parsetree.constant -> (Asttypes.constant, error) result
 

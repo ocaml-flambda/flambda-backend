@@ -18,10 +18,12 @@ jobs:
           - name: flambda-local
             config: --enable-flambda --enable-stack-allocation
             os: ubuntu-latest
+            use_runtime: d
+            ocamlrunparam: "v=0,V=1"
 
           - name: i386
             config: CC='cc32' AS='as --32' ASPP='gcc -m32 -c' -host i386-linux PARTIALLD='ld -r -melf_i386'
-            os: ubuntu-latest
+            os: ubuntu-20.04
             ocamlparam: ''
             boot_config: CC='cc32' AS='as --32' ASPP='gcc -m32 -c' -host i386-linux PARTIALLD='ld -r -melf_i386'
             boot_cachekey: 32bit
@@ -44,58 +46,58 @@ jobs:
       with:
         path: 'ocaml-jst'
 
-    - name: Cache OCaml 4.12 and dune
+    - name: Cache OCaml 4.14 and dune
       uses: actions/cache@v1
       id: cache
       with:
-        path: ${{ github.workspace }}/ocaml-412/_install
-        key: ${{ matrix.os }}-cache-ocaml-412-dune-341-bits-${{ matrix.boot_cachekey }}
+        path: ${{ github.workspace }}/ocaml-414/_install
+        key: ${{ matrix.os }}-cache-ocaml-414-dune-361-bits-${{ matrix.boot_cachekey }}
 
-    - name: Checkout OCaml 4.12
+    - name: Checkout OCaml 4.14
       uses: actions/checkout@master
       if: steps.cache.outputs.cache-hit != 'true'
       with:
         repository: 'ocaml/ocaml'
-        path: 'ocaml-412'
-        ref: '4.12'
+        path: 'ocaml-414'
+        ref: '4.14'
 
     - name: Setup 32-bit C compiler
       if: matrix.name == 'i386' && steps.cache.outputs.cache-hit != 'true'
       run: |
-        mkdir -p ocaml-412/_install/bin
-        { echo '#!/bin/sh'; echo 'exec gcc -m32 "$@"'; } > ocaml-412/_install/bin/cc32
-        chmod +x ocaml-412/_install/bin/cc32
+        mkdir -p ocaml-414/_install/bin
+        { echo '#!/bin/sh'; echo 'exec gcc -m32 "$@"'; } > ocaml-414/_install/bin/cc32
+        chmod +x ocaml-414/_install/bin/cc32
 
-    - name: Build OCaml 4.12
+    - name: Build OCaml 4.14
       if: steps.cache.outputs.cache-hit != 'true'
-      working-directory: ocaml-412
+      working-directory: ocaml-414
       run: |
-        export PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH
-        ./configure --prefix=$GITHUB_WORKSPACE/ocaml-412/_install ${{ matrix.boot_config }}
+        export PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH
+        ./configure --prefix=$GITHUB_WORKSPACE/ocaml-414/_install ${{ matrix.boot_config }}
         make -j $J world.opt
         make install
         # Remove unneeded parts to shrink cache file
-        rm -rf $GITHUB_WORKSPACE/ocaml-412/_install/{lib/ocaml/compiler-libs,lib/ocaml/expunge,bin/*.byte}
+        rm -rf $GITHUB_WORKSPACE/ocaml-414/_install/{lib/ocaml/compiler-libs,lib/ocaml/expunge,bin/*.byte}
 
     - name: Checkout dune github repo
       uses: actions/checkout@master
       if: steps.cache.outputs.cache-hit != 'true'
       with:
         repository: 'ocaml/dune'
-        ref: '3.4.1'
+        ref: '3.6.1'
         path: 'dune'
 
     - name: Build dune
       working-directory: dune
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
-        PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH make release
-        cp dune.exe $GITHUB_WORKSPACE/ocaml-412/_install/bin/dune
+        PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make release
+        cp _boot/dune.exe $GITHUB_WORKSPACE/ocaml-414/_install/bin/dune
 
     - name: Configure OCaml
       working-directory: ocaml-jst
       run: |
-        export PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH
+        export PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH
         autoconf
         ./configure \
           --prefix=$GITHUB_WORKSPACE/_install \
@@ -104,7 +106,9 @@ jobs:
     - name: Build, install and test ocaml-jst
       working-directory: ocaml-jst
       run: |
-        export PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH
+        export PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH
         make -f Makefile.jst runtest-upstream
       env:
         BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
+        OCAMLRUNPARAM: ${{ matrix.ocamlrunparam }}
+        USE_RUNTIME: ${{ matrix.use_runtime }}

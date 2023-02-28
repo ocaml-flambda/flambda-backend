@@ -142,6 +142,8 @@ external hypot : float -> float -> float
 external cos : float -> float = "caml_cos_float" "cos" [@@unboxed] [@@noalloc]
 external cosh : float -> float = "caml_cosh_float" "cosh"
   [@@unboxed] [@@noalloc]
+external acosh : float -> float = "caml_acosh_float" "caml_acosh"
+  [@@unboxed] [@@noalloc]
 external log : float -> float = "caml_log_float" "log" [@@unboxed] [@@noalloc]
 external log10 : float -> float = "caml_log10_float" "log10"
   [@@unboxed] [@@noalloc]
@@ -150,10 +152,14 @@ external log1p : float -> float = "caml_log1p_float" "caml_log1p"
 external sin : float -> float = "caml_sin_float" "sin" [@@unboxed] [@@noalloc]
 external sinh : float -> float = "caml_sinh_float" "sinh"
   [@@unboxed] [@@noalloc]
+external asinh : float -> float = "caml_asinh_float" "caml_asinh"
+  [@@unboxed] [@@noalloc]
 external sqrt : float -> float = "caml_sqrt_float" "sqrt"
   [@@unboxed] [@@noalloc]
 external tan : float -> float = "caml_tan_float" "tan" [@@unboxed] [@@noalloc]
 external tanh : float -> float = "caml_tanh_float" "tanh"
+  [@@unboxed] [@@noalloc]
+external atanh : float -> float = "caml_atanh_float" "caml_atanh"
   [@@unboxed] [@@noalloc]
 external ceil : float -> float = "caml_ceil_float" "ceil"
   [@@unboxed] [@@noalloc]
@@ -222,6 +228,10 @@ external int_of_char : char -> int = "%identity"
 external unsafe_char_of_int : int -> char = "%identity"
 let char_of_int n =
   if n < 0 || n > 255 then invalid_arg "char_of_int" else unsafe_char_of_int n
+
+(* Array operations -- more in modules Array and Iarray *)
+
+external ( .:() ) : 'a iarray -> int -> 'a = "%array_safe_get"
 
 (* Unit operations *)
 
@@ -597,6 +607,9 @@ module Fun          = Fun
 module Gc           = Gc
 module Genlex       = Genlex
 module Hashtbl      = Hashtbl
+module In_channel   = In_channel
+module Iarray       = Iarray
+module IarrayLabels = IarrayLabels
 module Int          = Int
 module Int32        = Int32
 module Int64        = Int64
@@ -611,6 +624,7 @@ module Nativeint    = Nativeint
 module Obj          = Obj
 module Oo           = Oo
 module Option       = Option
+module Out_channel  = Out_channel
 module Parsing      = Parsing
 module Pervasives   = Pervasives
 module Printexc     = Printexc

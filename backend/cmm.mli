@@ -15,7 +15,7 @@
 
 (* Second intermediate language (machine independent) *)
 
-type machtype_component =
+type machtype_component = Cmx_format.machtype_component =
   | Val
   | Addr
   | Int
@@ -103,6 +103,10 @@ type exit_label =
 type rec_flag = Nonrecursive | Recursive
 
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
+
+type atomic_op = Fetch_and_add | Compare_and_swap
+
+type atomic_bitwidth = Thirtytwo | Sixtyfour | Word
 
 type effects = No_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects
@@ -196,6 +200,7 @@ and operation =
   | Cctz of { arg_is_non_zero: bool; }
   | Cpopcnt
   | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }
+  | Catomic of { op: atomic_op; size : atomic_bitwidth }
   | Ccmpi of integer_comparison
   | Caddv (* pointer addition that produces a [Val] (well-formed Caml value) *)
   | Cadda (* pointer addition that produces a [Addr] (derived heap pointer) *)
@@ -252,6 +257,8 @@ type expression =
   | Cexit of exit_label * expression list * trap_action list
   | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
       * expression * Debuginfo.t * value_kind
+  (** Only if the [trywith_kind] is [Regular] will a region be inserted for
+      the "try" block. *)
   | Cregion of expression
   | Ctail of expression
 

@@ -32,14 +32,19 @@ type used_slots =
     all_value_slots : Value_slot.Set.t
   }
 
-let[@inline] value_slot_is_used ~used_value_slots v =
-  if Compilation_unit.is_current (Value_slot.get_compilation_unit v)
-  then Value_slot.Set.mem v used_value_slots
-  else true
-
 let[@inline] function_slot_is_used ~used_function_slots v =
   if Compilation_unit.is_current (Function_slot.get_compilation_unit v)
   then Function_slot.Set.mem v used_function_slots
+  else true
+
+let[@inline] unboxed_slot_is_used ~used_unboxed_slots v =
+  if Compilation_unit.is_current (Value_slot.get_compilation_unit v)
+  then Value_slot.Set.mem v used_unboxed_slots
+  else true
+
+let[@inline] value_slot_is_used ~used_value_slots v =
+  if Compilation_unit.is_current (Value_slot.get_compilation_unit v)
+  then Value_slot.Set.mem v used_value_slots
   else true
 
 (* Compute offsets of the runtime memory layout of sets of closures. These
@@ -69,6 +74,15 @@ let[@inline] function_slot_is_used ~used_function_slots v =
  * | last function slot   |
  * |                      |
  * |----------------------|
+ * | unboxed slot 0       |
+ * |----------------------|
+ * | unboxed slot 1       |
+ * |----------------------|
+ * .                      .
+ * .                      .
+ * |----------------------|
+ * | last unboxed slot    |
+ * |----------------------|
  * | value slot 0  size=1 | <- start of the environment part of the block
  * |----------------------|
  * | value slot 1         |
@@ -82,17 +96,21 @@ let[@inline] function_slot_is_used ~used_function_slots v =
 (* However, that ideal layout may not be possible in certain circumstances, as
    there may be arbitrary holes between slots (i.e. unused words in the block).
 
-   All function slots must occur before all value slots, since the offset to the
-   start of the environment is recorded in the arity field of each function
-   slot. *)
+   Due to the representation above, all function slots must occur before all
+   unboxed slots, which themselves must be before all value slots. *)
 
 module Layout = struct
   type slot =
-    | Value_slot of Value_slot.t
+    | Value_slot of
+        { size : words;
+          is_scanned : bool;
+          value_slot : Value_slot.t
+        }
     | Infix_header
     | Function_slot of
         { size : words;
-          function_slot : Function_slot.t
+          function_slot : Function_slot.t;
+          last_function_slot : bool
         }
 
   type t =
@@ -102,11 +120,14 @@ module Layout = struct
     }
 
   let print_slot fmt = function
-    | Value_slot v -> Format.fprintf fmt "value_slot %a" Value_slot.print v
+    | Value_slot { size; is_scanned; value_slot } ->
+      Format.fprintf fmt "value_slot(%d,%b) %a" size is_scanned Value_slot.print
+        value_slot
     | Infix_header -> Format.fprintf fmt "infix_header"
-    | Function_slot { size; function_slot } ->
-      Format.fprintf fmt "function_slot(%d) %a" size Function_slot.print
-        function_slot
+    | Function_slot { size; function_slot; last_function_slot } ->
+      Format.fprintf fmt "function_slot%s(%d) %a"
+        (if last_function_slot then "[last]" else "")
+        size Function_slot.print function_slot
 
   let print fmt l =
     Format.fprintf fmt "@[<v>startenv: %d;@ " l.startenv;
@@ -122,20 +143,36 @@ module Layout = struct
         | Some Dead_function_slot -> acc
         | Some (Live_function_slot { size; offset }) ->
           Numeric_types.Int.Map.add offset
-            (Function_slot { size; function_slot })
+            (Function_slot { size; function_slot; last_function_slot = false })
             acc
         | None ->
           Misc.fatal_errorf "No function_slot offset for %a" Function_slot.print
             function_slot)
       l acc
 
+  let mark_last_function_slot map =
+    match Numeric_types.Int.Map.max_binding map with
+    | offset, Function_slot slot ->
+      Numeric_types.Int.Map.add offset
+        (Function_slot { slot with last_function_slot = true })
+        map
+    | _, (Value_slot _ | Infix_header) ->
+      Misc.fatal_errorf
+        "Slot_offsets: function slots should be added before any other so that \
+         the last function slot can be computed correctly"
+    | exception Not_found ->
+      Misc.fatal_errorf
+        "Slot_offsets: set of closures msut have at least one function slot"
+
   let order_value_slots env l acc =
     Value_slot.Map.fold
       (fun value_slot _ acc ->
         match EO.value_slot_offset env value_slot with
         | Some Dead_value_slot -> acc
-        | Some (Live_value_slot { offset }) ->
-          Numeric_types.Int.Map.add offset (Value_slot value_slot) acc
+        | Some (Live_value_slot { offset; is_scanned; size }) ->
+          Numeric_types.Int.Map.add offset
+            (Value_slot { value_slot; is_scanned; size })
+            acc
         | None ->
           Misc.fatal_errorf "No value slot offset for %a" Value_slot.print
             value_slot)
@@ -165,13 +202,14 @@ module Layout = struct
         (offset, slot) :: (offset - 1, Infix_header) :: acc_slots
       in
       startenv, acc_slots
-    | Value_slot _ ->
+    | Value_slot { is_scanned; _ } ->
       let startenv =
         match startenv with
         | Some i ->
+          assert is_scanned;
           assert (i < offset);
           startenv
-        | None -> Some offset
+        | None -> if is_scanned then Some offset else None
       in
       let acc_slots = (offset, slot) :: acc_slots in
       startenv, acc_slots
@@ -181,10 +219,13 @@ module Layout = struct
       assert false
 
   let make env function_slots value_slots =
+    (* Function slots must be added first to the map so that we can then
+       identify the last function slot *)
     let map =
       Numeric_types.Int.Map.empty
-      |> order_value_slots env value_slots
       |> order_function_slots env function_slots
+      |> mark_last_function_slot
+      |> order_value_slots env value_slots
     in
     let startenv_opt, rev_slots =
       Numeric_types.Int.Map.fold layout_aux map (None, [])
@@ -197,11 +238,13 @@ module Layout = struct
       | Some i, _ -> i, false
       | None, [] -> 0, true (* will raise a fatal_error later *)
       | None, (offset, Function_slot { size; _ }) :: _ -> offset + size, true
+      | None, (offset, Value_slot { is_scanned = false; size; _ }) :: _ ->
+        offset + size, false
       | None, (_, Infix_header) :: _ ->
         (* Cannot happen because a infix header is *always* preceded by a
            function slot (because the slot list is reversed) *)
         assert false
-      | None, (_, Value_slot _) :: _ ->
+      | None, (_, Value_slot { is_scanned = true; _ }) :: _ ->
         (* Cannot happen because if there is a value slot in the acc, then
            startenv_opt should be Some _ *)
         assert false
@@ -265,13 +308,16 @@ end = struct
 
   type value_slot = Value
 
+  type unboxed_slot = Unboxed
+
   type function_slot = Function
 
   (* silence warning 37 (unused constructor) *)
-  let _ = Value, Function
+  let _ = Value, Unboxed, Function
 
   type _ slot_desc =
     | Function_slot : Function_slot.t -> function_slot slot_desc
+    | Unboxed_slot : Value_slot.t -> unboxed_slot slot_desc
     | Value_slot : Value_slot.t -> value_slot slot_desc
 
   (* This module helps to distinguish between the two different notions of
@@ -312,14 +358,14 @@ end = struct
       let offset =
         match slot with
         | Function_slot _ -> first_offset_used_including_header + 1
-        | Value_slot _ -> first_offset_used_including_header
+        | Unboxed_slot _ | Value_slot _ -> first_offset_used_including_header
       in
       Offset offset
 
     let range_used_by (type a) (slot : a slot_desc) (Offset pos) ~slot_size =
       match slot with
       | Function_slot _ -> pos - 1, pos + slot_size
-      | Value_slot _ -> pos, pos + slot_size
+      | Unboxed_slot _ | Value_slot _ -> pos, pos + slot_size
 
     let add_slot_to_exported_offsets (type a) offsets (slot : a slot_desc)
         (Offset pos) ~slot_size =
@@ -329,8 +375,17 @@ end = struct
           EO.Live_function_slot { offset = pos; size = slot_size }
         in
         EO.add_function_slot_offset offsets function_slot info
+      | Unboxed_slot unboxed_slot ->
+        let (info : EO.value_slot_info) =
+          EO.Live_value_slot
+            { offset = pos; is_scanned = false; size = slot_size }
+        in
+        EO.add_value_slot_offset offsets unboxed_slot info
       | Value_slot value_slot ->
-        let (info : EO.value_slot_info) = EO.Live_value_slot { offset = pos } in
+        let (info : EO.value_slot_info) =
+          EO.Live_value_slot
+            { offset = pos; is_scanned = true; size = slot_size }
+        in
         EO.add_value_slot_offset offsets value_slot info
   end
 
@@ -346,11 +401,17 @@ end = struct
       (* metadata used for priorities *)
       num_value_slots : int;
       num_function_slots : int;
-      (* Info about start of environment *)
-      mutable first_slot_used_by_value_slots : words;
+      (* Info about transitions between different types of slots *)
       mutable first_slot_after_function_slots : words;
-      (* invariant : first_slot_after_function_slots <=
-         first_slot_used_by_calue_slots *)
+      mutable first_slot_used_by_unboxed_slots : words;
+      mutable first_slot_after_unboxed_slots : words;
+      mutable first_slot_used_by_value_slots : words;
+      (* invariants :
+       * first_slot_after_function_slots <= first_slot_used_by_unboxed_slots
+       * first_slot_after_function_slots <= first_slot_after_unboxed_slots
+       * first_slot_after_unboxed_slots <= first_slot_used_by_value_slots
+       * first_slot_after_function_slots <= first_slot_used_by_value_slots
+       *)
       mutable allocated_slots : any_slot Numeric_types.Int.Map.t
           (* map indexed by the offset of the first word used by a slot
              (including its infix header if it exists). *)
@@ -373,9 +434,11 @@ end = struct
   type state =
     { mutable used_offsets : EO.t;
       mutable function_slots : function_slot slot Function_slot.Map.t;
+      mutable unboxed_slots : unboxed_slot slot Value_slot.Map.t;
       mutable value_slots : value_slot slot Value_slot.Map.t;
       mutable sets_of_closures : set_of_closures list;
       mutable function_slots_to_assign : function_slot slot list;
+      mutable unboxed_slots_to_assign : unboxed_slot slot list;
       mutable value_slots_to_assign : value_slot slot list
     }
 
@@ -399,6 +462,8 @@ end = struct
         num_value_slots;
         num_function_slots;
         first_slot_after_function_slots = 0;
+        first_slot_used_by_unboxed_slots = max_int;
+        first_slot_after_unboxed_slots = 0;
         first_slot_used_by_value_slots = max_int;
         allocated_slots = Numeric_types.Int.Map.empty
       }
@@ -406,9 +471,11 @@ end = struct
   let create_initial_state () =
     { used_offsets = EO.empty;
       function_slots = Function_slot.Map.empty;
+      unboxed_slots = Value_slot.Map.empty;
       value_slots = Value_slot.Map.empty;
       sets_of_closures = [];
       function_slots_to_assign = [];
+      unboxed_slots_to_assign = [];
       value_slots_to_assign = []
     }
 
@@ -421,7 +488,8 @@ end = struct
   let print_desc (type a) fmt (slot_desc : a slot_desc) =
     match slot_desc with
     | Function_slot c -> Format.fprintf fmt "%a" Function_slot.print c
-    | Value_slot v -> Format.fprintf fmt "%a" Value_slot.print v
+    | Unboxed_slot v | Value_slot v ->
+      Format.fprintf fmt "%a" Value_slot.print v
 
   let print_slot_pos fmt = function
     | Assigned offset -> Format.fprintf fmt "%a" Exported_offset.print offset
@@ -449,12 +517,16 @@ end = struct
     Format.fprintf fmt
       "@[<v 2>%d:@ \
          @[<v>first_slot_after_function_slots: %d;@ \
+              first_slot_used_by_unboxed_slots: %d;@ \
+              first_slot_after_unboxed_slots: %d;@ \
               first_slot_used_by_value_slots: %d;@ \
               allocated: @[<v>%a@]\
           @]\
         @]"
       s.id
       s.first_slot_after_function_slots
+      s.first_slot_used_by_unboxed_slots
+      s.first_slot_after_unboxed_slots
       s.first_slot_used_by_value_slots
       print_any_slot_map s.allocated_slots
 
@@ -462,15 +534,17 @@ end = struct
     List.iter (function s -> Format.fprintf fmt "%a@ " print_set s) l
 
   let [@ocamlformat "disable"] print fmt {
-      used_offsets = _; function_slots = _; value_slots = _;
-      sets_of_closures; function_slots_to_assign; value_slots_to_assign; } =
+      used_offsets = _; function_slots = _; unboxed_slots = _; value_slots = _;
+      sets_of_closures; function_slots_to_assign; unboxed_slots_to_assign; value_slots_to_assign; } =
     Format.fprintf fmt
       "@[<hov 1>(@,\
           (function slots to assign@ @[<hov>%a@])@ \
+          (unboxed slots to assign@ @[<hov>%a@])@ \
           (value slots to assign@ @[<hov>%a@])\
           (sets of closures@ @[<hov>%a@])@,\
        )@]"
       print_slot_list function_slots_to_assign
+      print_slot_list unboxed_slots_to_assign
       print_slot_list value_slots_to_assign
       print_sets sets_of_closures
   [@@warning "-32"]
@@ -483,22 +557,36 @@ end = struct
     | Assigned offset -> (
       match slot.desc with
       | Value_slot _ ->
+        if slot.size <> 1
+        then
+          Misc.fatal_errorf "Value slot has size %d, which is not 1." slot.size;
         let start, _ =
           Exported_offset.range_used_by slot.desc offset ~slot_size:1
         in
         set.first_slot_used_by_value_slots
-          <- min set.first_slot_used_by_value_slots start
+          <- min set.first_slot_used_by_value_slots start;
+        set.first_slot_used_by_unboxed_slots
+          <- min set.first_slot_used_by_unboxed_slots start
+      | Unboxed_slot _ ->
+        let start, last =
+          Exported_offset.range_used_by slot.desc offset ~slot_size:slot.size
+        in
+        set.first_slot_used_by_unboxed_slots
+          <- min set.first_slot_used_by_unboxed_slots start;
+        set.first_slot_after_unboxed_slots
+          <- max set.first_slot_after_unboxed_slots last
       | Function_slot _ ->
         let _, last =
           Exported_offset.range_used_by slot.desc offset ~slot_size:slot.size
         in
         set.first_slot_after_function_slots
-          <- max set.first_slot_after_function_slots last));
-    if set.first_slot_used_by_value_slots < set.first_slot_after_function_slots
-    then
-      Misc.fatal_errorf
-        "Set of closures invariant (all function slots before all value slots) \
-         is broken"
+          <- max set.first_slot_after_function_slots last;
+        set.first_slot_after_unboxed_slots
+          <- max set.first_slot_after_unboxed_slots last));
+    if set.first_slot_used_by_value_slots < set.first_slot_after_unboxed_slots
+       || set.first_slot_used_by_unboxed_slots
+          < set.first_slot_after_function_slots
+    then Misc.fatal_errorf "Set of closures invariant (slot ordering) is broken"
 
   (* Slots *)
 
@@ -536,7 +624,7 @@ end = struct
         let (info : EO.function_slot_info) = EO.Dead_function_slot in
         state.used_offsets
           <- EO.add_function_slot_offset state.used_offsets function_slot info
-      | Value_slot v ->
+      | Unboxed_slot v | Value_slot v ->
         let (info : EO.value_slot_info) = EO.Dead_value_slot in
         state.used_offsets <- EO.add_value_slot_offset state.used_offsets v info
       )
@@ -551,6 +639,8 @@ end = struct
     match slot.desc with
     | Function_slot _ ->
       state.function_slots_to_assign <- slot :: state.function_slots_to_assign
+    | Unboxed_slot _ ->
+      state.unboxed_slots_to_assign <- slot :: state.unboxed_slots_to_assign
     | Value_slot _ ->
       state.value_slots_to_assign <- slot :: state.value_slots_to_assign
 
@@ -562,6 +652,11 @@ end = struct
     slot.occurrences <- slot.occurrences + 1;
     slot.lowest_num_slots_in_sets
       <- min slot.lowest_num_slots_in_sets set.num_function_slots
+
+  let update_metadata_for_unboxed_slot set slot =
+    slot.occurrences <- slot.occurrences + 1;
+    slot.lowest_num_slots_in_sets
+      <- min slot.lowest_num_slots_in_sets set.num_value_slots
 
   let update_metadata_for_value_slot set slot =
     slot.occurrences <- slot.occurrences + 1;
@@ -601,6 +696,12 @@ end = struct
     state.function_slots
       <- Function_slot.Map.add function_slot slot state.function_slots
 
+  let use_unboxed_slot_info state var info =
+    state.used_offsets <- EO.add_value_slot_offset state.used_offsets var info
+
+  let add_unboxed_slot state var slot =
+    state.unboxed_slots <- Value_slot.Map.add var slot state.unboxed_slots
+
   let use_value_slot_info state var info =
     state.used_offsets <- EO.add_value_slot_offset state.used_offsets var info
 
@@ -609,6 +710,9 @@ end = struct
 
   let find_function_slot state closure =
     Function_slot.Map.find_opt closure state.function_slots
+
+  let find_unboxed_slot state var =
+    Value_slot.Map.find_opt var state.unboxed_slots
 
   let find_value_slot state var = Value_slot.Map.find_opt var state.value_slots
 
@@ -660,6 +764,43 @@ end = struct
         add_allocated_slot_to_set s set;
         s
 
+  let create_unboxed_slot set state value_slot size =
+    if Compilation_unit.is_current (Value_slot.get_compilation_unit value_slot)
+    then (
+      let s = create_slot ~size (Unboxed_slot value_slot) Unassigned in
+      add_unboxed_slot state value_slot s;
+      add_unallocated_slot_to_set state s set;
+      s)
+    else
+      (* Same as the comments for the function_slots *)
+      let imported_offsets = EO.imported_offsets () in
+      match EO.value_slot_offset imported_offsets value_slot with
+      | None ->
+        (* See comment for the function_slot *)
+        Misc.fatal_errorf
+          "Could not find the offset for value slot %a from another \
+           compilation unit (because of -opaque, or missing cmx)."
+          Value_slot.print value_slot
+      | Some Dead_value_slot ->
+        Misc.fatal_errorf
+          "The value slot %a has been removed by its original compilation \
+           unit, it should not occur in a set of closures in this compilation \
+           unit."
+          Value_slot.print value_slot
+      | Some (Live_value_slot { offset; is_scanned; size = sz } as info) ->
+        if is_scanned || sz <> size
+        then
+          Misc.fatal_errorf
+            "The unboxed slot %a existed but was not unboxed or of a different \
+             size in the original compilation unit, this should not happen."
+            Value_slot.print value_slot;
+        let offset = Exported_offset.from_exported_offset offset in
+        let s = create_slot ~size (Unboxed_slot value_slot) (Assigned offset) in
+        use_unboxed_slot_info state value_slot info;
+        add_unboxed_slot state value_slot s;
+        add_allocated_slot_to_set s set;
+        s
+
   let create_value_slot set state value_slot =
     if Compilation_unit.is_current (Value_slot.get_compilation_unit value_slot)
     then (
@@ -683,7 +824,13 @@ end = struct
            unit, it should not occur in a set of closures in this compilation \
            unit."
           Value_slot.print value_slot
-      | Some (Live_value_slot { offset } as info) ->
+      | Some (Live_value_slot { offset; is_scanned; size = sz } as info) ->
+        if (not is_scanned) || sz <> 1
+        then
+          Misc.fatal_errorf
+            "The value slot %a existed but was unboxed or of a different size \
+             in the original compilation unit, this should not happen."
+            Value_slot.print value_slot;
         let offset = Exported_offset.from_exported_offset offset in
         let s = create_slot ~size:1 (Value_slot value_slot) (Assigned offset) in
         use_value_slot_info state value_slot info;
@@ -719,13 +866,38 @@ end = struct
       closure_map;
     (* Fill value slot slots *)
     Value_slot.Map.iter
-      (fun value_slot _ ->
-        let s =
-          match Value_slot.Map.find_opt value_slot state.value_slots with
-          | None -> create_value_slot set state value_slot
-          | Some s -> s
+      (fun value_slot (_, kind) ->
+        let size, is_unboxed =
+          match Flambda_kind.With_subkind.kind kind with
+          | Region | Rec_info ->
+            Misc.fatal_errorf "Value slot %a has Region or Rec_info kind"
+              Value_slot.print value_slot
+          | Naked_number _ ->
+            1, true
+            (* flambda only supports 64-bits for now, so naked numbers can only
+               be of size 1 *)
+          | Value -> (
+            match[@ocaml.warning "-4"]
+              Flambda_kind.With_subkind.subkind kind
+            with
+            | Tagged_immediate -> 1, true
+            | _ -> 1, false)
         in
-        update_metadata_for_value_slot set s)
+        if is_unboxed
+        then
+          let s =
+            match Value_slot.Map.find_opt value_slot state.unboxed_slots with
+            | None -> create_unboxed_slot set state value_slot size
+            | Some s -> s
+          in
+          update_metadata_for_unboxed_slot set s
+        else
+          let s =
+            match Value_slot.Map.find_opt value_slot state.value_slots with
+            | None -> create_value_slot set state value_slot
+            | Some s -> s
+          in
+          update_metadata_for_value_slot set s)
       env_map
 
   (* Find the first space available to fit a given slot.
@@ -749,16 +921,17 @@ end = struct
     let needed_space =
       match slot.desc with
       | Function_slot _ -> slot.size + 1 (* header word *)
-      | Value_slot _ -> slot.size
+      | Unboxed_slot _ | Value_slot _ -> slot.size
     in
     (* Ensure that for value slots, we are after all function slots. *)
     let curr =
       match slot.desc with
       | Function_slot _ -> start
-      | Value_slot _ ->
+      | Unboxed_slot _ ->
         (* first_slot_after_function_slots is always >=0, thus ensuring we do
            not place a value slot at offset -1 *)
         max start set.first_slot_after_function_slots
+      | Value_slot _ -> max start set.first_slot_after_unboxed_slots
     in
     (* Adjust a starting position to not point in the middle of a block.
        Additionally, ensure the value slot slots are put after the function
@@ -841,6 +1014,19 @@ end = struct
             (* else mark_slot_as_removed state slot *))
       function_slots_to_assign
 
+  let assign_unboxed_slot_offsets ~used_unboxed_slots state =
+    let unboxed_slots_to_assign =
+      List.sort compare_priority state.unboxed_slots_to_assign
+    in
+    state.unboxed_slots_to_assign <- [];
+    List.iter
+      (function
+        | { desc = Unboxed_slot v; _ } as slot ->
+          if unboxed_slot_is_used ~used_unboxed_slots v
+          then assign_slot_offset state slot
+          else mark_slot_as_removed state slot)
+      unboxed_slots_to_assign
+
   let assign_value_slot_offsets ~used_value_slots state =
     let value_slots_to_assign =
       List.sort compare_priority state.value_slots_to_assign
@@ -902,28 +1088,42 @@ end = struct
         (fun value_slot ->
           if Compilation_unit.is_current
                (Value_slot.get_compilation_unit value_slot)
-          then (
+          then
             (* a value slot appears in a set of closures iff it has a slot *)
-            match find_value_slot state value_slot with
-            | Some _ -> true
-            | None ->
+            match
+              ( find_value_slot state value_slot,
+                find_unboxed_slot state value_slot )
+            with
+            | None, None ->
               state.used_offsets
                 <- EO.add_value_slot_offset state.used_offsets value_slot
                      Dead_value_slot;
-              false)
+              false
+            | _ -> true
           else true)
         value_slots_in_normal_projections
     in
-    live_function_slots, live_value_slots
+    let live_value_slots, live_unboxed_slots =
+      Value_slot.Set.partition
+        (fun value_slot -> Option.is_some (find_value_slot state value_slot))
+        live_value_slots
+    in
+    live_function_slots, live_unboxed_slots, live_value_slots
 
   (* Transform an internal accumulator state for slots into an actual mapping
      that assigns offsets. *)
   let finalize ~used_slots state =
     add_used_imported_offsets ~used_slots state;
-    let used_function_slots, used_value_slots = live_slots state used_slots in
+    let used_function_slots, used_unboxed_slots, used_value_slots =
+      live_slots state used_slots
+    in
     assign_function_slot_offsets ~used_function_slots state;
+    assign_unboxed_slot_offsets ~used_unboxed_slots state;
     assign_value_slot_offsets ~used_value_slots state;
-    { used_value_slots; exported_offsets = state.used_offsets }
+    { used_value_slots =
+        Value_slot.Set.union used_value_slots used_unboxed_slots;
+      exported_offsets = state.used_offsets
+    }
 end
 
 type t = Set_of_closures.t list

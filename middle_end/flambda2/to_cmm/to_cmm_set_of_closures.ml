@@ -24,7 +24,10 @@ module C = struct
 end
 
 type translate_expr =
-  To_cmm_env.t -> To_cmm_result.t -> Expr.t -> Cmm.expression * To_cmm_result.t
+  To_cmm_env.t ->
+  To_cmm_result.t ->
+  Expr.t ->
+  Cmm.expression * To_cmm_env.free_vars * To_cmm_result.t
 
 (* Filling of closure blocks *)
 
@@ -34,8 +37,14 @@ type closure_code_pointers =
 
 let get_func_decl_params_arity t code_id =
   let info = Env.get_code_metadata t code_id in
-  let num_params =
-    Flambda_arity.With_subkinds.cardinal (Code_metadata.params_arity info)
+  let params_ty =
+    List.map
+      (fun k -> C.machtype_of_kind (Flambda_kind.With_subkind.kind k))
+      (Flambda_arity.With_subkinds.to_list (Code_metadata.params_arity info))
+  in
+  let result_ty =
+    C.machtype_of_return_arity
+      (Flambda_arity.With_subkinds.to_arity (Code_metadata.result_arity info))
   in
   let kind : Lambda.function_kind =
     if Code_metadata.is_tupled info
@@ -44,11 +53,11 @@ let get_func_decl_params_arity t code_id =
       Lambda.Curried { nlocal = Code_metadata.num_trailing_local_params info }
   in
   let closure_code_pointers =
-    match kind, num_params with
-    | Curried _, (0 | 1) -> Full_application_only
+    match kind, params_ty with
+    | Curried _, ([] | [_]) -> Full_application_only
     | (Curried _ | Tupled), _ -> Full_and_partial_application
   in
-  let arity = kind, num_params in
+  let arity = kind, params_ty, result_ty in
   arity, closure_code_pointers, Code_metadata.dbg info
 
 type for_static_sets =
@@ -72,8 +81,13 @@ module Make_layout_filler (P : sig
   val simple :
     dbg:Debuginfo.t ->
     To_cmm_env.t ->
+    To_cmm_result.t ->
     Simple.t ->
-    [`Data of cmm_term list | `Var of Variable.t] * To_cmm_env.t * Ece.t
+    [`Data of cmm_term list | `Var of Variable.t]
+    * To_cmm_env.free_vars
+    * To_cmm_env.t
+    * To_cmm_result.t
+    * Ece.t
 
   val infix_header : dbg:Debuginfo.t -> function_slot_offset:int -> cmm_term
 
@@ -86,26 +100,48 @@ end) : sig
     Code_id.t Function_slot.Map.t ->
     Debuginfo.t ->
     startenv:int ->
-    Simple.t Value_slot.Map.t ->
+    (Simple.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
     Env.t ->
+    To_cmm_result.t ->
     Ece.t ->
-    prev_updates:Cmm.expression option ->
+    prev_updates:To_cmm_env.expr_with_info option ->
     (int * Slot_offsets.Layout.slot) list ->
-    P.cmm_term list * int * Env.t * Ece.t * Cmm.expression option
+    P.cmm_term list
+    * To_cmm_env.free_vars
+    * int
+    * Env.t
+    * To_cmm_result.t
+    * Ece.t
+    * To_cmm_env.expr_with_info option
 end = struct
   (* The [offset]s here are measured in units of words. *)
-  let fill_slot for_static_sets decls dbg ~startenv value_slots env acc
+  let fill_slot for_static_sets decls dbg ~startenv value_slots env res acc
       ~slot_offset updates slot =
     match (slot : Slot_offsets.Layout.slot) with
     | Infix_header ->
       let field = P.infix_header ~function_slot_offset:(slot_offset + 1) ~dbg in
-      field :: acc, slot_offset + 1, env, Ece.pure, updates
-    | Value_slot v ->
-      let simple = Value_slot.Map.find v value_slots in
-      let contents, env, eff = P.simple ~dbg env simple in
-      let env, fields, updates =
+      ( field :: acc,
+        Backend_var.Set.empty,
+        slot_offset + 1,
+        env,
+        res,
+        Ece.pure,
+        updates )
+    | Value_slot { value_slot; is_scanned; size = _ } ->
+      let simple, kind = Value_slot.Map.find value_slot value_slots in
+      if (not
+            (Flambda_kind.equal
+               (Flambda_kind.With_subkind.kind kind)
+               Flambda_kind.value))
+         && is_scanned
+      then
+        Misc.fatal_errorf
+          "Value slot %a not of kind Value (%a) but is visible by GC"
+          Simple.print simple Debuginfo.print_compact dbg;
+      let contents, free_vars, env, res, eff = P.simple ~dbg env res simple in
+      let env, res, fields, updates =
         match contents with
-        | `Data fields -> env, fields, updates
+        | `Data fields -> env, res, fields, updates
         | `Var v -> (
           (* We should only get here in the static allocation case. *)
           match for_static_sets with
@@ -115,24 +151,31 @@ end = struct
                 closure_symbol_for_updates;
                 _
               } ->
-            let env, updates =
-              C.make_update env dbg Word_val
+            let env, res, updates =
+              C.make_update env res dbg Word_val
                 ~symbol:(C.symbol ~dbg closure_symbol_for_updates)
                 v
                 ~index:(slot_offset - function_slot_offset_for_updates)
                 ~prev_updates:updates
             in
-            env, [P.int ~dbg 1n], updates)
+            env, res, [P.int ~dbg 1n], updates)
       in
-      List.rev_append fields acc, slot_offset + 1, env, eff, updates
-    | Function_slot { size; function_slot } -> (
+      ( List.rev_append fields acc,
+        free_vars,
+        slot_offset + 1,
+        env,
+        res,
+        eff,
+        updates )
+    | Function_slot { size; function_slot; last_function_slot } -> (
       let code_id = Function_slot.Map.find function_slot decls in
       let code_linkage_name = Code_id.linkage_name code_id in
-      let arity, closure_code_pointers, dbg =
+      let (kind, params_ty, result_ty), closure_code_pointers, dbg =
         get_func_decl_params_arity env code_id
       in
       let closure_info =
-        C.closure_info ~arity ~startenv:(startenv - slot_offset)
+        C.closure_info' ~arity:(kind, params_ty)
+          ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
       in
       let acc =
         match for_static_sets with
@@ -161,7 +204,13 @@ end = struct
           :: P.symbol_from_linkage_name ~dbg code_linkage_name
           :: acc
         in
-        acc, slot_offset + size, env, Ece.pure, updates
+        ( acc,
+          Backend_var.Set.empty,
+          slot_offset + size,
+          env,
+          res,
+          Ece.pure,
+          updates )
       | Full_and_partial_application ->
         if size <> 3
         then
@@ -174,15 +223,22 @@ end = struct
           P.symbol_from_linkage_name ~dbg code_linkage_name
           :: P.int ~dbg closure_info
           :: P.symbol_from_linkage_name ~dbg
-               (Linkage_name.of_string (C.curry_function_sym arity))
+               (Linkage_name.of_string
+                  (C.curry_function_sym kind params_ty result_ty))
           :: acc
         in
-        acc, slot_offset + size, env, Ece.pure, updates)
+        ( acc,
+          Backend_var.Set.empty,
+          slot_offset + size,
+          env,
+          res,
+          Ece.pure,
+          updates ))
 
-  let rec fill_layout0 for_static_sets decls dbg ~startenv value_slots env effs
-      acc updates ~starting_offset slots =
+  let rec fill_layout0 for_static_sets decls dbg ~startenv value_slots env res
+      effs acc updates ~free_vars ~starting_offset slots =
     match slots with
-    | [] -> List.rev acc, starting_offset, env, effs, updates
+    | [] -> List.rev acc, free_vars, starting_offset, env, res, effs, updates
     | (slot_offset, slot) :: slots ->
       let acc =
         if starting_offset > slot_offset
@@ -195,18 +251,19 @@ end = struct
           List.init (slot_offset - starting_offset) (fun _ -> P.int ~dbg 1n)
           @ acc
       in
-      let acc, next_offset, env, eff, updates =
-        fill_slot for_static_sets decls dbg ~startenv value_slots env acc
+      let acc, slot_free_vars, next_offset, env, res, eff, updates =
+        fill_slot for_static_sets decls dbg ~startenv value_slots env res acc
           ~slot_offset updates slot
       in
+      let free_vars = Backend_var.Set.union free_vars slot_free_vars in
       let effs = Ece.join eff effs in
-      fill_layout0 for_static_sets decls dbg ~startenv value_slots env effs acc
-        updates ~starting_offset:next_offset slots
+      fill_layout0 for_static_sets decls dbg ~startenv value_slots env res effs
+        acc updates ~free_vars ~starting_offset:next_offset slots
 
-  let fill_layout for_static_sets decls dbg ~startenv value_slots env effs
+  let fill_layout for_static_sets decls dbg ~startenv value_slots env res effs
       ~prev_updates slots =
-    fill_layout0 for_static_sets decls dbg ~startenv value_slots env effs []
-      prev_updates ~starting_offset:0 slots
+    fill_layout0 for_static_sets decls dbg ~startenv value_slots env res effs []
+      prev_updates ~free_vars:Backend_var.Set.empty ~starting_offset:0 slots
 end
 
 (* Filling-up of dynamically-allocated sets of closures. *)
@@ -215,9 +272,18 @@ module Dynamic = Make_layout_filler (struct
 
   let int ~dbg i = C.nativeint ~dbg i
 
-  let simple ~dbg env simple =
-    let term, env, eff = C.simple ~dbg env simple in
-    `Data [term], env, eff
+  (* The reason why we can inline simples here is the same as in
+     `To_cmm_shared.simple_list`: the first simple translated (and thus in which
+     an inlining/substitution can occur), is the last simple that will be
+     evaluated, according to the right-to-left evaluation order. This is ensured
+     by the fact that we build each field of the set of closures in
+     left-to-right order, so that the first translated field is actually
+     evaluated last. *)
+  let simple ~dbg env res simple =
+    let To_cmm_env.{ env; res; expr = { cmm; free_vars; effs } } =
+      C.simple ~dbg env res simple
+    in
+    `Data [cmm], free_vars, env, res, effs
 
   let infix_header ~dbg ~function_slot_offset =
     C.alloc_infix_header function_slot_offset dbg
@@ -234,9 +300,9 @@ module Static = Make_layout_filler (struct
 
   let int ~dbg:_ i = C.cint i
 
-  let simple ~dbg:_ env simple =
+  let simple ~dbg:_ env res simple =
     let contents = C.simple_static simple in
-    contents, env, Ece.pure
+    contents, Backend_var.Set.empty, env, res, Ece.pure
 
   let infix_header ~dbg:_ ~function_slot_offset =
     C.cint (C.infix_header function_slot_offset)
@@ -262,7 +328,7 @@ let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
 
 let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
     ~exn_continuation params ~body ~my_closure
-    ~(is_my_closure_used : _ Or_unknown.t) ~translate_expr =
+    ~(is_my_closure_used : _ Or_unknown.t) ~my_region ~translate_expr =
   let params =
     let is_my_closure_used =
       match is_my_closure_used with
@@ -283,9 +349,26 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
   let env =
     Env.enter_function_body env ~return_continuation ~exn_continuation
   in
+  (* [my_region] can be referenced in [Begin_try_region] primitives so must be
+     in the environment; however it should never end up in actual generated
+     code, so we don't need any binder for it (this is why we can ignore
+     [_bound_var]). If it does end up in generated code, Selection will complain
+     and refuse to compile the code. *)
+  let env, my_region_var = Env.create_bound_parameter env my_region in
   (* Translate the arg list and body *)
-  let env, fun_args = C.bound_parameters env params in
-  let fun_body, res = translate_expr env res body in
+  let env, fun_params = C.bound_parameters env params in
+  let fun_body, fun_body_free_vars, res = translate_expr env res body in
+  let fun_free_vars =
+    C.remove_vars_with_machtype
+      (C.remove_var_with_provenance fun_body_free_vars my_region_var)
+      fun_params
+  in
+  if not (Backend_var.Set.is_empty fun_free_vars)
+  then
+    Misc.fatal_errorf
+      "Unbound free_vars in function body when translating to cmm: %a@\n\
+       function body: %a" Backend_var.Set.print fun_free_vars
+      Printcmm.expression fun_body;
   let fun_flags =
     transl_check_attrib check
     @
@@ -296,7 +379,7 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
     Env.get_code_metadata env code_id
     |> Code_metadata.poll_attribute |> Poll_attribute.to_lambda
   in
-  C.fundecl linkage_name fun_args fun_body fun_flags fun_dbg fun_poll, res
+  C.fundecl linkage_name fun_params fun_body fun_flags fun_dbg fun_poll, res
 
 let params_and_body env res code_id p ~fun_dbg ~check ~translate_expr =
   Function_params_and_body.pattern_match p
@@ -307,15 +390,16 @@ let params_and_body env res code_id p ~fun_dbg ~check ~translate_expr =
          ~body
          ~my_closure
          ~is_my_closure_used
-         ~my_region:_
+         ~my_region
          ~my_depth:_
          ~free_names_of_body:_
        ->
       try
         params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
           ~exn_continuation params ~body ~my_closure ~is_my_closure_used
-          ~translate_expr
+          ~my_region ~translate_expr
       with Misc.Fatal_error as e ->
+        let bt = Printexc.get_raw_backtrace () in
         Format.eprintf
           "\n\
            %tContext is:%t translating function %a to Cmm with return cont %a, \
@@ -323,7 +407,7 @@ let params_and_body env res code_id p ~fun_dbg ~check ~translate_expr =
           Flambda_colours.error Flambda_colours.pop Code_id.print code_id
           Continuation.print return_continuation Continuation.print
           exn_continuation Expr.print body;
-        raise e)
+        Printexc.raise_with_backtrace e bt)
 
 (* Translation of sets of closures. *)
 
@@ -346,7 +430,7 @@ let debuginfo_for_set_of_closures env set =
   (* Choose the debuginfo with the earliest source location. *)
   match dbg with [] -> Debuginfo.none | dbg :: _ -> dbg
 
-let let_static_set_of_closures0 env closure_symbols
+let let_static_set_of_closures0 env res closure_symbols
     (layout : Slot_offsets.Layout.t) set ~prev_updates =
   let fun_decls = Set_of_closures.function_decls set in
   let decls = Function_declarations.funs fun_decls in
@@ -378,11 +462,17 @@ let let_static_set_of_closures0 env closure_symbols
       closure_symbol_for_updates
     }
   in
-  let l, length, env, _effs, updates =
+  let l, free_vars, length, env, res, _effs, updates =
     Static.fill_layout (Some for_static_sets) decls dbg
-      ~startenv:layout.startenv value_slots env Ece.pure ~prev_updates
+      ~startenv:layout.startenv value_slots env res Ece.pure ~prev_updates
       layout.slots
   in
+  if not (Backend_var.Set.is_empty free_vars)
+  then
+    Misc.fatal_errorf
+      "Non-empty set of free_vars for a static set of closures (*not* \
+       including updates):@ %a"
+      Backend_var.Set.print free_vars;
   let block =
     match l with
     | _ :: _ ->
@@ -391,11 +481,11 @@ let let_static_set_of_closures0 env closure_symbols
     | [] ->
       Misc.fatal_error "Cannot statically allocate an empty set of closures"
   in
-  env, block, updates
+  env, res, block, updates
 
-let let_static_set_of_closures env closure_symbols set ~prev_updates =
+let let_static_set_of_closures env res closure_symbols set ~prev_updates =
   let layout = layout_for_set_of_closures env set in
-  let_static_set_of_closures0 env closure_symbols layout set ~prev_updates
+  let_static_set_of_closures0 env res closure_symbols layout set ~prev_updates
 
 (* Sets of closures with no value slots can be statically allocated. This
    usually happens earlier (in Simplify, or Closure_conversion for classic mode)
@@ -410,7 +500,8 @@ let let_static_set_of_closures env closure_symbols set ~prev_updates =
  *   g
 
  *)
-let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr =
+let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
+    ~num_normal_occurrences_of_bound_vars =
   (* Generate symbols for the set of closures, and each of the closures *)
   let comp_unit = Compilation_unit.get_current_exn () in
   let dbg = debuginfo_for_set_of_closures env set in
@@ -429,8 +520,8 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr =
     |> Function_slot.Map.of_list
   in
   (* Statically allocate the set of closures *)
-  let env, static_data, updates =
-    let_static_set_of_closures0 env closure_symbols layout set
+  let env, res, static_data, updates =
+    let_static_set_of_closures0 env res closure_symbols layout set
       ~prev_updates:None
   in
   (* There should be no updates as there are no value slots *)
@@ -441,16 +532,16 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr =
   (* Update the result with the new static data *)
   let res = R.archive_data (R.set_data res static_data) in
   (* Bind the variables to the symbols for function slots. *)
-  (* CR-someday gbury: inline the variables (requires extending To_cmm_env to
-     inline pure variables more than once). *)
-  let env =
+  let env, res =
     List.fold_left2
-      (fun acc cid v ->
+      (fun (env, res) cid v ->
         let v = Bound_var.var v in
         let sym = C.symbol ~dbg (Function_slot.Map.find cid closure_symbols) in
-        Env.bind_variable acc v ~effects_and_coeffects_of_defining_expr:Ece.pure
-          ~num_normal_occurrences_of_bound_vars:Unknown ~defining_expr:sym)
-      env cids bound_vars
+        Env.bind_variable env res v ~defining_expr:sym
+          ~free_vars_of_defining_expr:Backend_var.Set.empty
+          ~num_normal_occurrences_of_bound_vars
+          ~effects_and_coeffects_of_defining_expr:Ece.pure_can_be_duplicated)
+      (env, res) cids bound_vars
   in
   translate_expr env res body
 
@@ -463,16 +554,17 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   let dbg = debuginfo_for_set_of_closures env set in
   let effs : Ece.t =
     ( Only_generative_effects Immutable,
-      match closure_alloc_mode with
+      (match closure_alloc_mode with
       | Heap -> No_coeffects
-      | Local _ -> Has_coeffects )
+      | Local _ -> Has_coeffects),
+      Strict )
   in
   let decl_map =
     decls |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
   in
-  let l, _offset, env, effs, updates =
+  let l, free_vars, _offset, env, res, effs, updates =
     Dynamic.fill_layout None decl_map dbg ~startenv:layout.startenv value_slots
-      env effs ~prev_updates:None layout.slots
+      env res effs ~prev_updates:None layout.slots
   in
   assert (Option.is_none updates);
   let csoc =
@@ -483,43 +575,51 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
       dbg tag l
   in
   let soc_var = Variable.create "*set_of_closures*" in
-  let env =
-    Env.bind_variable env soc_var ~effects_and_coeffects_of_defining_expr:effs
-      ~num_normal_occurrences_of_bound_vars:Unknown ~defining_expr:csoc
+  let defining_expr = Env.simple csoc free_vars in
+  let env, res =
+    Env.bind_variable_to_primitive env res soc_var ~inline:Env.Do_not_inline
+      ~defining_expr ~effects_and_coeffects_of_defining_expr:effs
   in
   (* Get from the env the cmm variable that was created and bound to the
      compiled set of closures. *)
-  let soc_cmm_var, env, peff = Env.inline_variable env soc_var in
+  let To_cmm_env.
+        { env;
+          res;
+          expr = { cmm = soc_cmm_var; free_vars = s_free_vars; effs = peff }
+        } =
+    Env.inline_variable env res soc_var
+  in
   assert (
     match To_cmm_effects.classify_by_effects_and_coeffects peff with
     | Pure -> true
-    | Effect | Coeffect_only -> false);
-  (* Add env bindings for all of the value slots. *)
-  let get_closure_by_offset env set_cmm function_slot =
+    | Generative_immutable | Effect | Coeffect_only -> false);
+  (* Helper function to get the cmm expr for a closure offset *)
+  let get_closure_by_offset env function_slot =
     match
       Exported_offsets.function_slot_offset (Env.exported_offsets env)
         function_slot
     with
     | Some (Live_function_slot { offset; _ }) ->
-      Some (C.infix_field_address ~dbg:Debuginfo.none set_cmm offset, Ece.pure)
+      Some
+        (C.infix_field_address ~dbg:Debuginfo.none soc_cmm_var offset, Ece.pure)
     | Some Dead_function_slot -> None
     | None ->
       Misc.fatal_errorf "Missing offset for function slot %a"
         Function_slot.print function_slot
   in
   (* Add env bindings for all of the function slots. *)
-  let env =
+  let env, res =
     List.fold_left2
-      (fun acc cid v ->
-        match get_closure_by_offset env soc_cmm_var cid with
-        | None -> acc
+      (fun (env, res) cid v ->
+        match get_closure_by_offset env cid with
+        | None -> env, res
         | Some (defining_expr, effects_and_coeffects_of_defining_expr) ->
           let v = Bound_var.var v in
-          Env.bind_variable acc v
-            ~num_normal_occurrences_of_bound_vars:
-              (Known num_normal_occurrences_of_bound_vars)
-            ~effects_and_coeffects_of_defining_expr ~defining_expr)
-      env
+          Env.bind_variable env res v ~defining_expr
+            ~free_vars_of_defining_expr:s_free_vars
+            ~num_normal_occurrences_of_bound_vars
+            ~effects_and_coeffects_of_defining_expr)
+      (env, res)
       (Function_slot.Lmap.keys decls)
       bound_vars
   in
@@ -529,7 +629,9 @@ let let_dynamic_set_of_closures env res ~body ~bound_vars
     ~num_normal_occurrences_of_bound_vars set ~translate_expr =
   let layout = layout_for_set_of_closures env set in
   if layout.empty_env
-  then lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
+  then
+    lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
+      ~num_normal_occurrences_of_bound_vars
   else
     let_dynamic_set_of_closures0 env res ~body ~bound_vars
       ~num_normal_occurrences_of_bound_vars set layout

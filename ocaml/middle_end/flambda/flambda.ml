@@ -28,6 +28,7 @@ type const =
 type apply = {
   func : Variable.t;
   args : Variable.t list;
+  result_layout : Lambda.layout;
   kind : call_kind;
   dbg : Debuginfo.t;
   reg_close : Lambda.region_close;
@@ -50,6 +51,7 @@ type send = {
   dbg : Debuginfo.t;
   reg_close : Lambda.region_close;
   mode : Lambda.alloc_mode;
+  result_layout : Lambda.layout;
 }
 
 type project_closure = Projection.project_closure
@@ -59,6 +61,7 @@ type project_var = Projection.project_var
 type specialised_to = {
   var : Variable.t;
   projection : Projection.t option;
+  kind : Lambda.layout;
 }
 
 type t =
@@ -69,12 +72,13 @@ type t =
   | Apply of apply
   | Send of send
   | Assign of assign
-  | If_then_else of Variable.t * t * t
+  | If_then_else of Variable.t * t * t * Lambda.layout
   | Switch of Variable.t * switch
   | String_switch of Variable.t * (string * t) list * t option
+                     * Lambda.layout
   | Static_raise of Static_exception.t * Variable.t list
-  | Static_catch of Static_exception.t * Variable.t list * t * t
-  | Try_with of t * Variable.t * t
+  | Static_catch of Static_exception.t * ( Variable.t * Lambda.layout ) list * t * t * Lambda.layout
+  | Try_with of t * Variable.t * t * Lambda.layout
   | While of t * t
   | For of for_loop
   | Region of t
@@ -105,7 +109,7 @@ and let_expr = {
 and let_mutable = {
   var : Mutable_variable.t;
   initial_value : Variable.t;
-  contents_kind : Lambda.value_kind;
+  contents_kind : Lambda.layout;
   body : t;
 }
 
@@ -127,6 +131,7 @@ and function_declarations = {
 and function_declaration = {
   closure_origin: Closure_origin.t;
   params : Parameter.t list;
+  return_layout : Lambda.layout;
   alloc_mode : Lambda.alloc_mode;
   region : bool;
   body : t;
@@ -137,6 +142,7 @@ and function_declaration = {
   inline : Lambda.inline_attribute;
   specialise : Lambda.specialise_attribute;
   is_a_functor : bool;
+  poll: Lambda.poll_attribute;
 }
 
 and switch = {
@@ -145,6 +151,7 @@ and switch = {
   numblocks : Numbers.Int.Set.t;
   blocks : (int * t) list;
   failaction : t option;
+  kind:  Lambda.layout;
 }
 
 and for_loop = {
@@ -184,11 +191,15 @@ module Int = Numbers.Int
 
 let print_specialised_to ppf (spec_to : specialised_to) =
   match spec_to.projection with
-  | None -> fprintf ppf "%a" Variable.print spec_to.var
+  | None ->
+    fprintf ppf "%a[%a]"
+      Variable.print spec_to.var
+      Printlambda.layout spec_to.kind
   | Some projection ->
-    fprintf ppf "%a(= %a)"
+    fprintf ppf "%a(= %a)[%a]"
       Variable.print spec_to.var
       Projection.print projection
+      Printlambda.layout spec_to.kind
 
 (* CR-soon mshinwell: delete uses of old names *)
 let print_project_var = Projection.print_project_var
@@ -201,7 +212,7 @@ let rec lam ppf (flam : t) =
   match flam with
   | Var (id) ->
       Variable.print ppf id
-  | Apply({func; args; kind; inlined; probe; dbg}) ->
+  | Apply({func; args; kind; inlined; probe; dbg; result_layout}) ->
     let direct ppf () =
       match kind with
       | Indirect -> ()
@@ -220,8 +231,9 @@ let rec lam ppf (flam : t) =
       | None -> ()
       | Some {name} -> fprintf ppf "<probe %s>" name
     in
-    fprintf ppf "@[<2>(apply%a%a%a<%s>@ %a%a)@]" direct () inlined () probe ()
+    fprintf ppf "@[<2>(apply%a%a%a<%s>%a@ %a%a)@]" direct () inlined () probe ()
       (Debuginfo.to_string dbg)
+      Printlambda.layout result_layout
       Variable.print func Variable.print_list args
   | Assign { being_assigned; new_value; } ->
     fprintf ppf "@[<2>(assign@ %a@ %a)@]"
@@ -255,10 +267,10 @@ let rec lam ppf (flam : t) =
       let expr = letbody body in
       fprintf ppf ")@]@ %a)@]" lam expr
   | Let_mutable { var = mut_var; initial_value = var; body; contents_kind } ->
-    let print_kind ppf (kind : Lambda.value_kind) =
+    let print_kind ppf (kind : Lambda.layout) =
       match kind with
-      | Pgenval -> ()
-      | _ -> Format.fprintf ppf " %a" Printlambda.value_kind kind
+      | Pvalue Pgenval -> ()
+      | _ -> Format.fprintf ppf " %a" Printlambda.layout kind
     in
     fprintf ppf "@[<2>(let_mutable%a@ @[<2>%a@ %a@]@ %a)@]"
       print_kind contents_kind
@@ -300,7 +312,7 @@ let rec lam ppf (flam : t) =
         (Int.Set.cardinal sw.numconsts)
         (Int.Set.cardinal sw.numblocks)
         Variable.print larg switch sw
-  | String_switch(arg, cases, default) ->
+  | String_switch(arg, cases, default, _kind) ->
       let switch ppf cases =
         let spc = ref false in
         List.iter
@@ -320,21 +332,21 @@ let rec lam ppf (flam : t) =
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" Variable.print l) largs in
       fprintf ppf "@[<2>(exit@ %a%a)@]" Static_exception.print i lams ls;
-  | Static_catch(i, vars, lbody, lhandler) ->
+  | Static_catch(i, vars, lbody, lhandler, _kind) ->
       fprintf ppf "@[<2>(catch@ %a@;<1 -1>with (%a%a)@ %a)@]"
         lam lbody Static_exception.print i
         (fun ppf vars -> match vars with
            | [] -> ()
            | _ ->
                List.iter
-                 (fun x -> fprintf ppf " %a" Variable.print x)
+                 (fun (x, _layout) -> fprintf ppf " %a" Variable.print x)
                  vars)
         vars
         lam lhandler
-  | Try_with(lbody, param, lhandler) ->
+  | Try_with(lbody, param, lhandler, _kind) ->
       fprintf ppf "@[<2>(try@ %a@;<1 -1>with %a@ %a)@]"
         lam lbody Variable.print param lam lhandler
-  | If_then_else(lcond, lif, lelse) ->
+  | If_then_else(lcond, lif, lelse, _kind) ->
       fprintf ppf "@[<2>(if@ %a@ then begin@ %a@ end else begin@ %a@ end)@]"
         Variable.print lcond
         lam lif lam lelse
@@ -589,21 +601,21 @@ let rec variables_usage ?ignore_uses_as_callee ?ignore_uses_as_argument
         List.iter (fun (_, e) -> aux e) switch.consts;
         List.iter (fun (_, e) -> aux e) switch.blocks;
         Option.iter aux switch.failaction
-      | String_switch (scrutinee, cases, failaction) ->
+      | String_switch (scrutinee, cases, failaction, _kind) ->
         free_variable scrutinee;
         List.iter (fun (_, e) -> aux e) cases;
         Option.iter aux failaction
       | Static_raise (_, es) ->
         List.iter free_variable es
-      | Static_catch (_, vars, e1, e2) ->
-        List.iter bound_variable vars;
+      | Static_catch (_, vars, e1, e2, _) ->
+        List.iter (fun (var, _layout) -> bound_variable var) vars;
         aux e1;
         aux e2
-      | Try_with (e1, var, e2) ->
+      | Try_with (e1, var, e2, _kind) ->
         aux e1;
         bound_variable var;
         aux e2
-      | If_then_else (var, e1, e2) ->
+      | If_then_else (var, e1, e2, _kind) ->
         free_variable var;
         aux e1;
         aux e2
@@ -808,18 +820,18 @@ let iter_general ~toplevel f f_named maybe_named =
       | Let_rec (defs, body) ->
         List.iter (fun (_,l) -> aux_named l) defs;
         aux body
-      | Try_with (f1,_,f2)
+      | Try_with (f1,_,f2, _)
       | While (f1,f2)
-      | Static_catch (_,_,f1,f2) ->
+      | Static_catch (_,_,f1,f2, _) ->
         aux f1; aux f2
       | For { body; _ } -> aux body
-      | If_then_else (_, f1, f2) ->
+      | If_then_else (_, f1, f2, _) ->
         aux f1; aux f2
       | Switch (_, sw) ->
         List.iter (fun (_,l) -> aux l) sw.consts;
         List.iter (fun (_,l) -> aux l) sw.blocks;
         Option.iter aux sw.failaction
-      | String_switch (_, sw, def) ->
+      | String_switch (_, sw, def, _) ->
         List.iter (fun (_,l) -> aux l) sw;
         Option.iter aux def
       | Region body ->
@@ -1032,6 +1044,7 @@ let update_body_of_function_declaration (func_decl: function_declaration)
       ~body : function_declaration =
   { closure_origin = func_decl.closure_origin;
     params = func_decl.params;
+    return_layout = func_decl.return_layout;
     alloc_mode = func_decl.alloc_mode;
     region = func_decl.region;
     body;
@@ -1042,6 +1055,7 @@ let update_body_of_function_declaration (func_decl: function_declaration)
     inline = func_decl.inline;
     specialise = func_decl.specialise;
     is_a_functor = func_decl.is_a_functor;
+    poll = func_decl.poll;
   }
 
 let rec check_param_modes mode = function
@@ -1053,9 +1067,10 @@ let rec check_param_modes mode = function
      check_param_modes m params
 
 let create_function_declaration ~params ~alloc_mode ~region ~body ~stub ~dbg
+      ~(return_layout : Lambda.layout)
       ~(inline : Lambda.inline_attribute)
       ~(specialise : Lambda.specialise_attribute) ~is_a_functor
-      ~closure_origin
+      ~closure_origin ~poll
       : function_declaration =
   begin match stub, inline with
   | true, (Never_inline | Default_inline)
@@ -1078,6 +1093,7 @@ let create_function_declaration ~params ~alloc_mode ~region ~body ~stub ~dbg
   check_param_modes alloc_mode params;
   { closure_origin;
     params;
+    return_layout;
     alloc_mode;
     region;
     body;
@@ -1088,6 +1104,7 @@ let create_function_declaration ~params ~alloc_mode ~region ~body ~stub ~dbg
     inline;
     specialise;
     is_a_functor;
+    poll;
   }
 
 let update_function_declaration_body fun_decl ~body =
@@ -1311,6 +1328,7 @@ let equal_specialised_to (spec_to1 : specialised_to)
       | Some _, None | None, Some _ -> false
       | Some proj1, Some proj2 -> Projection.equal proj1 proj2
     end
+    && Lambda.equal_layout spec_to1.kind spec_to2.kind
 
 let compare_project_var = Projection.compare_project_var
 let compare_project_closure = Projection.compare_project_closure

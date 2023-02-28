@@ -86,7 +86,7 @@ let rec run_test log common_prefix path behavior = function
   let (msg, children_behavior, summary) = match behavior with
     | Skip_all_tests -> "n/a", Skip_all_tests, No_failure
     | Run env ->
-      let testenv0 = interprete_environment_statements env testenvspec in
+      let testenv0 = interpret_environment_statements env testenvspec in
       let testenv = List.fold_left apply_modifiers testenv0 env_modifiers in
       let (result, newenv) = Tests.run log testenv test in
       let msg = Result.string_of_result result in
@@ -167,6 +167,7 @@ let test_file test_filename =
   let summary = Sys.with_chdir test_build_directory_prefix
     (fun () ->
        let promote = string_of_bool Options.promote in
+       let default_timeout = string_of_int Options.default_timeout in
        let install_hook name =
          let hook_name = Filename.make_filename hookname_prefix name in
          if Sys.file_exists hook_name then begin
@@ -187,12 +188,12 @@ let test_file test_filename =
              Builtin_variables.test_build_directory_prefix,
                test_build_directory_prefix;
              Builtin_variables.promote, promote;
+             Builtin_variables.timeout, default_timeout;
            ] in
        let rootenv =
          Environments.initialize Environments.Pre log initial_environment in
        let rootenv =
-         interprete_environment_statements
-           rootenv rootenv_statements in
+         interpret_environment_statements rootenv rootenv_statements in
        let rootenv = Environments.initialize Environments.Post log rootenv in
        let common_prefix = " ... testing '" ^ test_basename ^ "' with" in
        let initial_status =

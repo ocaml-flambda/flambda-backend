@@ -1,7 +1,7 @@
 cmm_helpers.ml
 cmm_helpers.mli
-internal_assembler/*.ml
-internal_assembler/*.mli
+cmm_builtins.ml
+cmm_builtins.mli
 checkmach.ml
 checkmach.mli
 cfg/**/*.ml

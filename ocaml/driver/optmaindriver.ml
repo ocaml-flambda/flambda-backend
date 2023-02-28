@@ -18,9 +18,6 @@ open Clflags
 module Backend = struct
   (* See backend_intf.mli. *)
 
-  let pack_prefix_for_global_ident id =
-    Compilenv.pack_prefix_for_global_ident id
-
   let really_import_approx = Import_approx.really_import_approx
   let import_symbol = Import_approx.import_symbol
 
@@ -33,11 +30,11 @@ module Backend = struct
 end
 let backend = (module Backend : Backend_intf.S)
 
-let usage = "Usage: ocamlopt <options> <files>\nOptions are:"
 
 module Options = Main_args.Make_optcomp_options (Main_args.Default.Optmain)
 let main argv ppf =
   native_code := true;
+  let program = "ocamlopt" in
   match
     Compenv.readenv ppf Before_args;
     Clflags.add_arguments __LOC__ (Arch.command_line_options @ Options.list);
@@ -45,7 +42,7 @@ let main argv ppf =
       ["-depend", Arg.Unit Makedepend.main_from_option,
        "<options> Compute dependencies \
         (use 'ocamlopt -depend -help' for details)"];
-    Clflags.parse_arguments argv Compenv.anonymous usage;
+    Compenv.parse_arguments (ref argv) Compenv.anonymous program;
     Compmisc.read_clflags_from_env ();
     if !Clflags.plugin then
       Compenv.fatal "-plugin is only supported up to OCaml 4.08.0";
@@ -59,7 +56,7 @@ let main argv ppf =
     with Arg.Bad msg ->
       begin
         prerr_endline msg;
-        Clflags.print_arguments usage;
+        Clflags.print_arguments program;
         exit 2
       end
     end;
@@ -107,7 +104,8 @@ let main argv ppf =
           (Compenv.get_objfiles ~with_ocamlparam:false) target);
       Warnings.check_fatal ();
     end
-    else if not !Compenv.stop_early && !objfiles <> [] then begin
+    else if not !Compenv.stop_early &&
+            (!objfiles <> [] || !Compenv.has_linker_inputs) then begin
       let target =
         if !output_c_object then
           let s = Compenv.extract_output !output_name in
@@ -136,5 +134,6 @@ let main argv ppf =
     Location.report_exception ppf x;
     2
   | () ->
-    Profile.print Format.std_formatter !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision;
-    0
+      Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile"
+        (fun ppf -> Profile.print ppf !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision);
+      0

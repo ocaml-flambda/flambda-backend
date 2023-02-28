@@ -1,6 +1,7 @@
 (* TEST
 
-files = "reflector.ml"
+readonly_files = "reflector.ml"
+unset XVAR
 
 * hasunix
 ** setup-ocamlc.byte-build-env

@@ -89,6 +89,11 @@ let unicode () =
 
 let check_invariants () = !Clflags.flambda_invariant_checks
 
+type dump_target = Flambda_backend_flags.Flambda2.Dump.target =
+  | Nowhere
+  | Main_dump_stream
+  | File of Misc.filepath
+
 let dump_rawflambda () = !Clflags.dump_rawflambda
 
 let dump_flambda () = !Clflags.dump_flambda
@@ -100,6 +105,8 @@ let dump_fexpr () = !Flambda_backend_flags.Flambda2.Dump.fexpr
 let dump_flexpect () = !Flambda_backend_flags.Flambda2.Dump.flexpect
 
 let dump_slot_offsets () = !Flambda_backend_flags.Flambda2.Dump.slot_offsets
+
+let dump_flow () = !Flambda_backend_flags.Flambda2.Dump.flow
 
 let freshen_when_printing () = !Flambda_backend_flags.Flambda2.Dump.freshen
 
@@ -126,7 +133,10 @@ module Inlining = struct
       | Round round -> IH.get ~key:round !I.max_depth
       | Default opt_level -> (default_for_opt_level opt_level).max_depth
     in
-    depth * depth_scaling_factor
+    (* This computation (rather than just [depth * depth_scaling_factor]) gives
+       a bit more leeway for always-inlined functions, which reduce the depth by
+       much less than [depth_scaling_factor], to be inlined. *)
+    ((depth + 1) * depth_scaling_factor) - 1
 
   let max_rec_depth round_or_default =
     match round_or_default with
@@ -225,6 +235,10 @@ module Expert = struct
   let can_inline_recursive_functions () =
     !Flambda_backend_flags.Flambda2.Expert.can_inline_recursive_functions
     |> with_default ~f:(fun d -> d.can_inline_recursive_functions)
+
+  let max_function_simplify_run () =
+    !Flambda_backend_flags.Flambda2.Expert.max_function_simplify_run
+    |> with_default ~f:(fun d -> d.max_function_simplify_run)
 end
 
 let stack_allocation_enabled () = Config.stack_allocation

@@ -126,10 +126,9 @@ let simplify_make_array (array_kind : P.Array_kind.t)
       let alloc_mode = Alloc_mode.For_allocations.as_type alloc_mode in
       match mutable_or_immutable with
       | Mutable ->
-        T.mutable_array ~element_kind:(Known element_kind) ~length alloc_mode
+        T.mutable_array ~element_kind:(Ok element_kind) ~length alloc_mode
       | Immutable ->
-        T.immutable_array ~element_kind:(Known element_kind) ~fields:tys
-          alloc_mode
+        T.immutable_array ~element_kind:(Ok element_kind) ~fields:tys alloc_mode
       | Immutable_unique ->
         Misc.fatal_errorf "Immutable_unique is not expected for arrays:@ %a"
           Named.print original_term

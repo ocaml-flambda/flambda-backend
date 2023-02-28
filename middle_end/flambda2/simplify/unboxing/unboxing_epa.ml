@@ -180,11 +180,6 @@ let compute_extra_arg_for_number kind unboxer epa rewrite_id ~typing_env_at_use
 (* Recursive descent on decisions *)
 (* ****************************** *)
 
-let are_there_unknown_use_sites (pass : U.pass) =
-  match pass with
-  | Filter { recursive } -> recursive
-  | Compute_all_extra_args -> false
-
 let rec compute_extra_args_for_one_decision_and_use ~(pass : U.pass) rewrite_id
     ~typing_env_at_use arg_being_unboxed decision : U.decision =
   try
@@ -192,7 +187,7 @@ let rec compute_extra_args_for_one_decision_and_use ~(pass : U.pass) rewrite_id
       ~typing_env_at_use arg_being_unboxed decision
   with Prevent_current_unboxing -> (
     match pass with
-    | Filter _ -> Do_not_unbox Not_enough_information_at_use
+    | Filter -> Do_not_unbox Not_enough_information_at_use
     | Compute_all_extra_args ->
       Misc.fatal_errorf "This case should have been filtered out before.")
 
@@ -204,40 +199,33 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
     compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
       arg_being_unboxed tag fields
   | Unbox (Closure_single_entry { function_slot; vars_within_closure }) ->
-    if are_there_unknown_use_sites pass
-    then prevent_current_unboxing ()
-    else
-      compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
-        arg_being_unboxed function_slot vars_within_closure
+    compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
+      arg_being_unboxed function_slot vars_within_closure
   | Unbox
       (Variant { tag; const_ctors = const_ctors_from_decision; fields_by_tag })
     -> (
-    if are_there_unknown_use_sites pass
-    then prevent_current_unboxing ()
-    else
-      let invalid () =
-        (* Invalid here means that the Apply_cont is unreachable, i.e. the args
-           we generated will never be actually used at runtime, so the values of
-           the args do not matter, they are here to make the kind checker
-           happy. *)
+    let invalid () =
+      (* Invalid here means that the Apply_cont is unreachable, i.e. the args we
+         generated will never be actually used at runtime, so the values of the
+         args do not matter, they are here to make the kind checker happy. *)
+      compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
+        arg_being_unboxed ~tag_from_decision:tag ~const_ctors_from_decision
+        ~fields_by_tag_from_decision:fields_by_tag
+        ~const_ctors_at_use:(Or_unknown.Known Targetint_31_63.Set.empty)
+        ~non_const_ctors_with_sizes_at_use:Tag.Scannable.Map.empty
+    in
+    match type_of_arg_being_unboxed arg_being_unboxed with
+    | None -> invalid ()
+    | Some arg_type -> (
+      match T.meet_variant_like typing_env_at_use arg_type with
+      | Need_meet -> prevent_current_unboxing ()
+      | Invalid -> invalid ()
+      | Known_result { const_ctors; non_const_ctors_with_sizes } ->
         compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
           arg_being_unboxed ~tag_from_decision:tag ~const_ctors_from_decision
           ~fields_by_tag_from_decision:fields_by_tag
-          ~const_ctors_at_use:(Or_unknown.Known Targetint_31_63.Set.empty)
-          ~non_const_ctors_with_sizes_at_use:Tag.Scannable.Map.empty
-      in
-      match type_of_arg_being_unboxed arg_being_unboxed with
-      | None -> invalid ()
-      | Some arg_type -> (
-        match T.meet_variant_like typing_env_at_use arg_type with
-        | Need_meet -> prevent_current_unboxing ()
-        | Invalid -> invalid ()
-        | Known_result { const_ctors; non_const_ctors_with_sizes } ->
-          compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
-            arg_being_unboxed ~tag_from_decision:tag ~const_ctors_from_decision
-            ~fields_by_tag_from_decision:fields_by_tag
-            ~const_ctors_at_use:const_ctors
-            ~non_const_ctors_with_sizes_at_use:non_const_ctors_with_sizes))
+          ~const_ctors_at_use:const_ctors
+          ~non_const_ctors_with_sizes_at_use:non_const_ctors_with_sizes))
   | Unbox (Number (Naked_float, epa)) ->
     compute_extra_arg_for_number Naked_float Unboxers.Float.unboxer epa
       rewrite_id ~typing_env_at_use arg_being_unboxed
@@ -272,7 +260,7 @@ and compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
   in
   let _, fields =
     List.fold_left_map
-      (fun field_nth ({ epa; decision } : U.field_decision) :
+      (fun field_nth ({ epa; decision; kind } : U.field_decision) :
            (_ * U.field_decision) ->
         let unboxer =
           Unboxers.Field.unboxer ~invalid_const bak ~index:field_nth
@@ -287,7 +275,7 @@ and compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
           compute_extra_args_for_one_decision_and_use ~pass rewrite_id
             ~typing_env_at_use new_arg_being_unboxed decision
         in
-        Targetint_31_63.(add one field_nth), { epa; decision })
+        Targetint_31_63.(add one field_nth), { epa; decision; kind })
       Targetint_31_63.zero fields
   in
   Unbox (Unique_tag_and_size { tag; fields })
@@ -296,8 +284,8 @@ and compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
     arg_being_unboxed function_slot vars_within_closure : U.decision =
   let vars_within_closure =
     Value_slot.Map.mapi
-      (fun var ({ epa; decision } : U.field_decision) : U.field_decision ->
-        let unboxer = Unboxers.Closure_field.unboxer function_slot var in
+      (fun var ({ epa; decision; kind } : U.field_decision) : U.field_decision ->
+        let unboxer = Unboxers.Closure_field.unboxer function_slot var kind in
         let new_extra_arg, new_arg_being_unboxed =
           unbox_arg unboxer ~typing_env_at_use arg_being_unboxed
         in
@@ -308,7 +296,7 @@ and compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
           compute_extra_args_for_one_decision_and_use ~pass rewrite_id
             ~typing_env_at_use new_arg_being_unboxed decision
         in
-        { epa; decision })
+        { epa; decision; kind })
       vars_within_closure
   in
   Unbox (Closure_single_entry { function_slot; vars_within_closure })
@@ -377,7 +365,7 @@ and compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
         let new_fields_decisions, _ =
           List.fold_left
             (fun (new_decisions, field_nth)
-                 ({ epa; decision } : U.field_decision) ->
+                 ({ epa; decision; kind } : U.field_decision) ->
               let new_extra_arg, new_arg_being_unboxed =
                 if are_there_non_const_ctors_at_use
                    && Tag.Scannable.equal tag_at_use_site tag_decision
@@ -398,7 +386,7 @@ and compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
                 compute_extra_args_for_one_decision_and_use ~pass rewrite_id
                   ~typing_env_at_use new_arg_being_unboxed decision
               in
-              let field_decision : U.field_decision = { epa; decision } in
+              let field_decision : U.field_decision = { epa; decision; kind } in
               let new_decisions = field_decision :: new_decisions in
               new_decisions, Targetint_31_63.(add one field_nth))
             ([], Targetint_31_63.zero) block_fields
@@ -412,14 +400,9 @@ let add_extra_params_and_args extra_params_and_args decision =
   let rec aux extra_params_and_args (decision : U.decision) =
     match decision with
     | Do_not_unbox _ -> extra_params_and_args
-    | Unbox (Unique_tag_and_size { tag; fields }) ->
+    | Unbox (Unique_tag_and_size { tag = _; fields }) ->
       List.fold_left
-        (fun extra_params_and_args ({ epa; decision } : U.field_decision) ->
-          let kind =
-            if Tag.equal Tag.double_array_tag tag
-            then K.With_subkind.naked_float
-            else K.With_subkind.any_value
-          in
+        (fun extra_params_and_args ({ epa; decision; kind } : U.field_decision) ->
           let extra_param = BP.create epa.param kind in
           let extra_params_and_args =
             EPA.add extra_params_and_args ~extra_param ~extra_args:epa.args
@@ -428,8 +411,9 @@ let add_extra_params_and_args extra_params_and_args decision =
         extra_params_and_args fields
     | Unbox (Closure_single_entry { function_slot = _; vars_within_closure }) ->
       Value_slot.Map.fold
-        (fun _ ({ epa; decision } : U.field_decision) extra_params_and_args ->
-          let extra_param = BP.create epa.param K.With_subkind.any_value in
+        (fun _ ({ epa; decision; kind } : U.field_decision)
+             extra_params_and_args ->
+          let extra_param = BP.create epa.param kind in
           let extra_params_and_args =
             EPA.add extra_params_and_args ~extra_param ~extra_args:epa.args
           in
@@ -440,10 +424,9 @@ let add_extra_params_and_args extra_params_and_args decision =
         Tag.Scannable.Map.fold
           (fun _ block_fields extra_params_and_args ->
             List.fold_left
-              (fun extra_params_and_args ({ epa; decision } : U.field_decision) ->
-                let extra_param =
-                  BP.create epa.param K.With_subkind.any_value
-                in
+              (fun extra_params_and_args
+                   ({ epa; decision; kind } : U.field_decision) ->
+                let extra_param = BP.create epa.param kind in
                 let extra_params_and_args =
                   EPA.add extra_params_and_args ~extra_param
                     ~extra_args:epa.args

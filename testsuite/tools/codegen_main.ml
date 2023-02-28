@@ -21,12 +21,9 @@ let compile_file filename =
     let out_name = Filename.chop_extension filename ^ ".s" in
     Emitaux.output_channel := open_out out_name
   end; (* otherwise, stdout *)
-  let compilation_unit =
-    Compilation_unit.create Compilation_unit.Prefix.empty
-      ("test" |> Compilation_unit.Name.of_string)
-  in
+  let compilation_unit = "test" |> Compilation_unit.of_string in
   Compilenv.reset compilation_unit;
-  Emit.begin_assembly ~init_dwarf:(fun () -> ());
+  Emit.begin_assembly (module Unix : Compiler_owee.Unix_intf.S);
   let ic = open_in filename in
   let lb = Lexing.from_channel ic in
   lb.Lexing.lex_curr_p <- Lexing.{ lb.lex_curr_p with pos_fname = filename };
@@ -37,7 +34,7 @@ let compile_file filename =
     done
   with
       End_of_file ->
-        close_in ic; Emit.end_assembly None;
+        close_in ic; Emit.end_assembly ();
         if !write_asm_file then close_out !Emitaux.output_channel
     | Lexcmm.Error msg ->
         close_in ic; Lexcmm.report_error lb msg

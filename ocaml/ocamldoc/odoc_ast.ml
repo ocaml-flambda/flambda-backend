@@ -50,7 +50,7 @@ module Typedtree_search =
 
     let iter_val_pattern = function
       | Typedtree.Tpat_any -> None
-      | Typedtree.Tpat_var (name, _) -> Some (Name.from_ident name)
+      | Typedtree.Tpat_var (name, _, _) -> Some (Name.from_ident name)
       | Typedtree.Tpat_tuple _ -> None (* FIXME when we will handle tuples *)
       | _ -> None
 
@@ -241,14 +241,14 @@ module Analyser =
     let tt_param_info_from_pattern env f_desc pat =
       let rec iter_pattern pat =
         match pat.pat_desc with
-          Typedtree.Tpat_var (ident, _) ->
+          Typedtree.Tpat_var (ident, _, _) ->
             let name = Name.from_ident ident in
             Simple_name { sn_name = name ;
                           sn_text = f_desc name ;
                           sn_type = Odoc_env.subst_type env pat.pat_type
                         }
 
-        | Typedtree.Tpat_alias (pat, _, _) ->
+        | Typedtree.Tpat_alias (pat, _, _, _) ->
             iter_pattern pat
 
         | Typedtree.Tpat_tuple patlist ->
@@ -256,13 +256,9 @@ module Analyser =
               (List.map iter_pattern patlist,
                Odoc_env.subst_type env pat.pat_type)
 
-        | Typedtree.Tpat_construct (_, cons_desc, _) when
-            (* we give a name to the parameter only if it unit *)
-            (match cons_desc.cstr_res.desc with
-              Tconstr (p, _, _) ->
-                Path.same p Predef.path_unit
-            | _ ->
-                false)
+        | Typedtree.Tpat_construct (_, cons_desc, _, _) when
+            (* we give a name to the parameter only if it is unit *)
+            Path.same (Btype.cstr_type_path cons_desc) Predef.path_unit
           ->
             (* a () argument, it never has description *)
             Simple_name { sn_name = "()" ;
@@ -310,7 +306,7 @@ module Analyser =
                 (
                  (
                   match func_body.exp_desc with
-                    Typedtree.Texp_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id, _) };
+                    Typedtree.Texp_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id, _, _) };
                                             vb_expr=exp} :: _, func_body2) ->
                       let name = Name.from_ident id in
                       let new_param = Simple_name
@@ -340,7 +336,7 @@ module Analyser =
      let tt_analyse_value env current_module_name comment_opt loc pat_exp rec_flag =
        let (pat, exp) = pat_exp in
        match (pat.pat_desc, exp.exp_desc) with
-         (Typedtree.Tpat_var (ident, _), Typedtree.Texp_function { cases = pat_exp_list2; _ }) ->
+         (Typedtree.Tpat_var (ident, _, _), Typedtree.Texp_function { cases = pat_exp_list2; _ }) ->
            (* a new function is defined *)
            let name_pre = Name.from_ident ident in
            let name = Name.parens_if_infix name_pre in
@@ -365,7 +361,7 @@ module Analyser =
            in
            [ new_value ]
 
-       | (Typedtree.Tpat_var (ident, _), _) ->
+       | (Typedtree.Tpat_var (ident, _, _), _) ->
            (* a new value is defined *)
            let name_pre = Name.from_ident ident in
            let name = Name.parens_if_infix name_pre in
@@ -469,7 +465,7 @@ module Analyser =
                             (
                              (
                               match body.exp_desc with
-                                Typedtree.Texp_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id, _) };
+                                Typedtree.Texp_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id, _, _) };
                                                         vb_expr=exp} :: _, body2) ->
                                   let name = Name.from_ident id in
                                   let new_param = Simple_name
@@ -585,7 +581,7 @@ module Analyser =
               with Not_found -> raise (Failure (Odoc_messages.method_type_not_found current_class_name label))
             in
             let real_type =
-              match met_type.Types.desc with
+              match get_desc met_type with
               Tarrow (_, _, t, _) ->
                 t
             |  _ ->
@@ -627,7 +623,7 @@ module Analyser =
             with Not_found -> raise (Failure (Odoc_messages.method_not_found_in_typedtree complete_name))
           in
           let real_type =
-            match exp.exp_type.desc with
+            match get_desc exp.exp_type with
               Tarrow (_, _, t,_) ->
                 t
             |  _ ->
@@ -730,11 +726,11 @@ module Analyser =
               a default value. In this case, we look for the good parameter pattern *)
            let (parameter, next_tt_class_exp) =
              match pat.Typedtree.pat_desc with
-               Typedtree.Tpat_var (ident, _) when Name.from_ident ident = "*opt*" ->
+               Typedtree.Tpat_var (ident, _, _) when Name.from_ident ident = "*opt*" ->
                  (
                   (* there must be a Tcl_let just after *)
                   match tt_class_expr2.Typedtree.cl_desc with
-                    Typedtree.Tcl_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id,_) };
+                    Typedtree.Tcl_let (_, {vb_pat={pat_desc = Typedtree.Tpat_var (id,_,_) };
                                            vb_expr=exp} :: _, _, tt_class_expr3) ->
                       let name = Name.from_ident id in
                       let new_param = Simple_name
@@ -1294,7 +1290,7 @@ module Analyser =
                     let ext_loc_end =  tt_ext.ext_loc.Location.loc_end.Lexing.pos_cnum in
                     let new_xt =
                       match tt_ext.ext_kind with
-                          Text_decl(args, ret_type) ->
+                          Text_decl(_, args, ret_type) ->
                           let xt_args =
                             Sig.get_cstr_args new_env ext_loc_end args in
                             {
@@ -1350,7 +1346,7 @@ module Analyser =
           let new_env = Odoc_env.add_extension env complete_name in
           let new_ext =
             match tt_ext.Typedtree.tyexn_constructor.ext_kind with
-              Text_decl(tt_args, tt_ret_type) ->
+              Text_decl(_, tt_args, tt_ret_type) ->
                 let loc_start = loc.Location.loc_start.Lexing.pos_cnum in
                 let loc_end =  loc.Location.loc_end.Lexing.pos_cnum in
                 let ex_args =

@@ -493,6 +493,9 @@ module BR = Branch_relaxation.Make (struct
       num_instructions_for_intconst n
     | Lop (Iconst_float _) -> 2
     | Lop (Iconst_symbol _) -> 2
+    | Lop (Iintop_atomic _) ->
+      (* Never generated; builtins are not yet translated to atomics *)
+      assert false
     | Lop (Icall_ind) -> 1
     | Lop (Icall_imm _) -> 1
     | Lop (Itailcall_ind) -> epilogue_size ()
@@ -730,6 +733,9 @@ let emit_instr i =
         cfi_offset ~reg:30 (* return address *) ~offset:(-8);
         `	str	x30, [sp, #{emit_int (n-8)}]\n`
       end
+    | Lop(Iintop_atomic _) ->
+      (* Never generated; builtins are not yet translated to atomics *)
+      assert false
     | Lop(Imove | Ispill | Ireload) ->
         move i.arg.(0) i.res.(0)
     | Lop(Ispecific Imove32) ->
@@ -1145,7 +1151,10 @@ let fundecl fundecl =
   List.iter emit_call_bound_error !bound_error_sites;
   assert (List.length !call_gc_sites = num_call_gc);
   assert (List.length !bound_error_sites = num_check_bound);
-  `{emit_label fundecl.fun_end_label}:\n`;
+  (match Emitaux.Dwarf_helpers.record_dwarf_for_fundecl
+           ~fun_name:fundecl.fun_name fundecl.fun_dbg with
+   | None -> ()
+   | Some label -> `{emit_label label}:\n`);
   cfi_endproc();
   emit_symbol_type emit_symbol fundecl.fun_name "function";
   emit_symbol_size fundecl.fun_name;
@@ -1182,7 +1191,7 @@ let data l =
 
 (* Beginning / end of an assembly file *)
 
-let begin_assembly ~init_dwarf:_ =
+let begin_assembly _unix =
   reset_debug_info();
   `	.file	\"\"\n`;  (* PR#7037 *)
   let lbl_begin = Cmm_helpers.make_symbol "data_begin" in

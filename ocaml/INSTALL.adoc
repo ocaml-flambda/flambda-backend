@@ -2,11 +2,34 @@
 
 == Prerequisites
 
-* A C Compiler is required.
-  The GNU C Compiler (`gcc`) is recommended as the bytecode interpreter takes
-  advantage of GCC-specific features to enhance performance. gcc is the standard
-  compiler under Linux and many other systems.
-  However `clang` - used in Mac OS, BSDs and others - also works fine.
+* A C compiler is required.
+
+  ** For GNU/Linux +
+   The GNU C Compiler (`gcc`) is recommended as the bytecode interpreter takes
+   advantage of GCC-specific features to enhance performance. GCC is the standard
+   compiler under Linux and many other systems.
+
+  ** For BSDs +
+   `clang` is the default C compiler on BSDs - also works fine.
+
+  ** For macOS +
+   `clang` is the default C compiler under macOS. If macOS complains
+   no C compiler was installed while OCaml is building, please run
+   command `xcode-select --install` to install command-line tools and
+   required libraries and header files.
+
+  ** For other Unix-like systems +
+   It is recommended to use `gcc` or `clang` instead of the C compiler
+   provided by the vendor of the system.
+
+  ** For Windows +
+   To produce native Windows executables from OCaml sources, you need to use
+   the MSVC or Mingw-w64 ports of OCaml, described in file
+   https://github.com/ocaml/ocaml/blob/trunk/README.win32.adoc[README.win32.adoc]. +
+   For a more Unix-like experience, you can use WSL, the
+   https://aka.ms/wsl[Windows Subsystem for Linux], or the
+   https://www.cygwin.com/[Cygwin environment]. You will need the
+   GCC compiler (package `gcc-core` or `gcc`).
 
 * GNU `make`, as well as POSIX-compatible `awk` and `sed` are required.
 
@@ -20,23 +43,26 @@
 * Under Cygwin, the `gcc-core` package is required. `flexdll` is also necessary
   for shared library support.
 
+* Binutils including `ar` and `strip` are required if your distribution
+  does not already provide them with the C compiler.
+
 == Configuration
 
 From the top directory, do:
 
         ./configure
-+
+
 This generates the three configuration files `Makefile.config`,
 `runtime/caml/m.h` and `runtime/caml/s.h`.
-+
+
 The `configure` script accepts options that can be discovered by running:
 
         ./configure --help
-+
-Some options or variables like (LDFLAGS) may not be taken into account
+
+Some options or variables like LDLIBS may not be taken into account
 by the OCaml build system at the moment. Please report an issue if you
 discover such a variable or option and this causes troubles to you.
-+
+
 Examples:
 
 * Standard installation in `/usr/{bin,lib,man}` instead of `/usr/local`:
@@ -45,9 +71,7 @@ Examples:
 
 * On a Linux x86-64 host, to build a 32-bit version of OCaml:
 
-    ./configure --build=x86_64-pc-linux-gnu --host=i386-linux \
-                CC='gcc -m32' AS='as --32' ASPP='gcc -m32 -c' \
-                PARTIALLD='ld -r -melf_i386'
+    ./configure --build=x86_64-pc-linux-gnu --host=i686-linux-gnu
 
 * For AIX 7.x with the IBM compiler `xlc`:
 
@@ -96,7 +120,7 @@ To be sure everything works well, you can run the test suite
 
 You can now install the OCaml system. This will create the following commands
    (in the binary directory selected during autoconfiguration):
-+
+
 [width="70%",frame="topbot",cols="25%,75%"]
 |===============================================================================
 | `ocamlc`     | the batch bytecode compiler
@@ -113,7 +137,7 @@ You can now install the OCaml system. This will create the following commands
 | `ocamlprof`  | the execution count profiler
 | `ocamlcp`    | the bytecode compiler in profiling mode
 |===============================================================================
-+
+
 From the top directory, become superuser and do:
 
         make install
@@ -163,6 +187,11 @@ and sanity checks that could help you pinpoint the problem.
   the C locale (`export LC_ALL=C`) before compiling if you have strange errors
   while compiling OCaml.
 
-* On HP 9000/700 machines under HP/UX 9, some versions of `cc` are unable to
-  compile correctly the runtime system (wrong code is generated for `(x - y)`
-  where `x` is a pointer and `y` an integer). Fix: use `gcc`.
+* In the unlikely case that a platform does not offer all C99 float operations
+  that the runtime needs, a configuration error will result.  Users
+  can work around this problem by calling `configure` with the flag
+  `--enable-imprecise-c99-float-ops`.  This will enable simple but potentially
+  imprecise implementations of C99 float operations.  Users with exacting
+  requirements for mathematical accuracy, numerical precision, and proper
+  handling of mathematical corner cases and error conditions may need to
+  consider running their code on a platform with better C99 support.

@@ -1,5 +1,4 @@
 (copy_files# asmcomp/*.ml{,i})
-(copy_files# asmcomp/debug/*.ml{,i})
 (copy_files# middle_end/*.ml{,i})
 (copy_files# middle_end/closure/*.ml{,i})
 (copy_files# middle_end/flambda/*.ml{,i})
@@ -22,22 +21,19 @@
  (wrapped false)
  (flags (:standard -principal))
  (libraries ocamlcommon)
- (modules_without_implementation x86_ast
+ (modules_without_implementation x86_ast emitenv
    cmx_format cmxs_format backend_intf inlining_decision_intf
    simplify_boxed_integer_ops_intf)
  (modules
    ;; asmcomp/
    afl_instrument arch asmgen asmlibrarian asmlink asmpackager branch_relaxation
-   branch_relaxation_intf cmm_helpers cmm_invariants cmm cmmgen cmmgen_state coloring comballoc
+   branch_relaxation_intf cmm_helpers cmm cmmgen cmmgen_state coloring comballoc
+   cmm_invariants
    CSE CSEgen
-   deadcode emit emitaux interf interval linear linearize linscan
-   liveness mach printcmm printlinear printmach proc reg reload reloadgen
+   dataflow deadcode emit emitaux emitenv interf interval linear linearize linscan
+   liveness mach polling printcmm printlinear printmach proc reg reload reloadgen
    schedgen scheduling selectgen selection spill split
    strmatch x86_ast x86_dsl x86_gas x86_masm x86_proc
-
-   ;; asmcomp/debug/
-   reg_availability_set compute_ranges_intf available_regs reg_with_debug_info
-   compute_ranges
 
    ;; driver/
    optcompile opterrors optmaindriver
@@ -67,7 +63,7 @@
    ;; middle_end/flambda/
    alias_analysis allocated_const augment_specialised_args build_export_info
    closure_conversion closure_conversion_aux closure_offsets effect_analysis
-   export_info export_info_for_pack extract_projections find_recursive_functions
+   export_info extract_projections find_recursive_functions
    flambda flambda_invariants flambda_iterators flambda_middle_end
    flambda_to_clambda flambda_utils freshening import_approx inconstant_idents
    initialize_symbol_to_let_symbol inline_and_simplify inline_and_simplify_aux
@@ -89,7 +85,7 @@
  (name optmain_native)
  (modes byte native)
  (flags (
-   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66-70
    -warn-error A -bin-annot -safe-string -strict-formats
  ))
  (libraries ocamloptcomp ocamlcommon)

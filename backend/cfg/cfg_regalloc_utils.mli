@@ -79,8 +79,11 @@ val remove_prologue_if_not_required : Cfg_with_layout.t -> unit
 
 val update_live_fields : Cfg_with_layout.t -> liveness -> unit
 
-(* The spill cost is currently the number of occurrences of the register. *)
-val update_spill_cost : Cfg_with_layout.t -> unit
+(* The spill cost is currently the number of occurrences of the register. If
+   [flat] is true, the same weight is given to all uses; if [flat] is false, the
+   information about loops is computed and used to give more weight to uses
+   inside (nested) loops. *)
+val update_spill_cost : Cfg_with_layout.t -> flat:bool -> unit -> unit
 
 val is_spilled : Reg.t -> bool
 
@@ -109,7 +112,7 @@ val may_use_stack_operands_everywhere :
    [after]. *)
 val insert_block :
   Cfg_with_layout.t ->
-  Cfg.BasicInstructionList.t ->
+  Cfg.basic_instruction_list ->
   after:Cfg.basic_block ->
   next_instruction_id:(unit -> Instruction.id) ->
   unit

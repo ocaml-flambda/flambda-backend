@@ -48,10 +48,24 @@ type stat =
 
     live_words : int;
     (** Number of words of live data in the major heap, including the header
-       words. *)
+       words.
+
+       Note that "live" words refers to every word in the major heap that isn't
+       currently known to be collectable, which includes words that have become
+       unreachable by the program after the start of the previous gc cycle.
+       It is typically much simpler and more predictable to call
+       {!Gc.full_major} (or {!Gc.compact}) then computing gc stats, as then
+       "live" words has the simple meaning of "reachable by the program". One
+       caveat is that a single call to {!Gc.full_major} will not reclaim values
+       that have a finaliser from {!Gc.finalise} (this does not apply to
+       {!Gc.finalise_last}). If this caveat matters, simply call
+       {!Gc.full_major} twice instead of once.
+     *)
 
     live_blocks : int;
-    (** Number of live blocks in the major heap. *)
+    (** Number of live blocks in the major heap.
+
+        See [live_words] for a caveat about what "live" means. *)
 
     free_words : int;
     (** Number of words in the free list. *)
@@ -74,11 +88,13 @@ type stat =
     (** Maximum size reached by the major heap, in words. *)
 
     stack_size: int;
-    (** Current size of the stack, in words. @since 3.12.0 *)
+    (** Current size of the stack, in words.
+        @since 3.12.0 *)
 
     forced_major_collections: int;
     (** Number of forced full major collections completed since the program
-        was started. @since 4.12.0 *)
+        was started.
+        @since 4.12.0 *)
 }
 (** The memory management counters are returned in a [stat] record.
 
@@ -111,7 +127,7 @@ type control =
        percentage of the memory used for live data.
        The GC will work more (use more CPU time and collect
        blocks more eagerly) if [space_overhead] is smaller.
-       Default: 80. *)
+       Default: 120. *)
 
     mutable verbose : int;
     [@ocaml.deprecated_mutable "Use {(Gc.get()) with Gc.verbose = ...}"]
@@ -167,30 +183,23 @@ type control =
           memory than both next-fit and first-fit.
           (since OCaml 4.10)
 
-        The current default is next-fit, as the best-fit policy is new
-        and not yet widely tested. We expect best-fit to become the
-        default in the future.
+        The default is best-fit.
 
         On one example that was known to be bad for next-fit and first-fit,
         next-fit takes 28s using 855Mio of memory,
         first-fit takes 47s using 566Mio of memory,
         best-fit takes 27s using 545Mio of memory.
 
-        Note: When changing to a low-fragmentation policy, you may
-        need to augment the [space_overhead] setting, for example
-        using [100] instead of the default [80] which is tuned for
-        next-fit. Indeed, the difference in fragmentation behavior
-        means that different policies will have different proportion
-        of "wasted space" for a given program. Less fragmentation
-        means a smaller heap so, for the same amount of wasted space,
-        a higher proportion of wasted space. This makes the GC work
-        harder, unless you relax it by increasing [space_overhead].
+        Note: If you change to next-fit, you may need to reduce
+        the [space_overhead] setting, for example using [80] instead
+        of the default [120] which is tuned for best-fit. Otherwise,
+        your program will need more memory.
 
         Note: changing the allocation policy at run-time forces
         a heap compaction, which is a lengthy operation unless the
         heap is small (e.g. at the start of the program).
 
-        Default: 0.
+        Default: 2.
 
         @since 3.11.0 *)
 
@@ -198,7 +207,8 @@ type control =
     (** The size of the window used by the major GC for smoothing
         out variations in its workload. This is an integer between
         1 and 50.
-        Default: 1. @since 4.03.0 *)
+        Default: 1.
+        @since 4.03.0 *)
 
     custom_major_ratio : int;
     (** Target ratio of floating garbage to major heap size for
@@ -390,7 +400,7 @@ val finalise : ('a -> unit) -> 'a -> unit
 
 
    The results of calling {!String.make}, {!Bytes.make}, {!Bytes.create},
-   {!Array.make}, and {!Stdlib.ref} are guaranteed to be
+   {!Array.make}, and {!val:Stdlib.ref} are guaranteed to be
    heap-allocated and non-constant except when the length argument is [0].
 *)
 
@@ -435,7 +445,10 @@ external eventlog_pause : unit -> unit = "caml_eventlog_pause"
    Traces are collected if the program is linked to the instrumented runtime
    and started with the environment variable OCAML_EVENTLOG_ENABLED.
    Events are flushed to disk after pausing, and no new events will be
-   recorded until [eventlog_resume] is called. *)
+   recorded until [eventlog_resume] is called.
+
+   @since 4.11
+  *)
 
 external eventlog_resume : unit -> unit = "caml_eventlog_resume"
 (** [eventlog_resume ()] will resume the collection of traces in the
@@ -444,7 +457,10 @@ external eventlog_resume : unit -> unit = "caml_eventlog_resume"
    and started with the environment variable OCAML_EVENTLOG_ENABLED.
    This call can be used after calling [eventlog_pause], or if the program
    was started with OCAML_EVENTLOG_ENABLED=p. (which pauses the collection of
-   traces before the first event.) *)
+   traces before the first event.)
+
+   @since 4.11
+  *)
 
 
 (** [Memprof] is a sampling engine for allocated memory words. Every

@@ -1,0 +1,3 @@
+(executables
+ (names gen_dune_rules)
+ (modes native))

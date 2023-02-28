@@ -155,7 +155,8 @@ static value heap_stats (int returnstats)
           ++ fragments;
           CAMLassert (prev_hp == NULL
                       || Color_hp (prev_hp) != Caml_blue
-                      || cur_hp == (header_t *) caml_gc_sweep_hp);
+                      || cur_hp == (header_t *) caml_gc_sweep_hp
+                      || Wosize_hp (prev_hp) == Max_wosize);
         }else{
           if (caml_gc_phase == Phase_sweep
               && cur_hp >= (header_t *) caml_gc_sweep_hp){
@@ -678,7 +679,7 @@ void caml_init_gc (uintnat minor_size, uintnat major_size,
                    uintnat major_incr, uintnat percent_fr,
                    uintnat percent_m, uintnat window,
                    uintnat custom_maj, uintnat custom_min,
-                   uintnat custom_bsz)
+                   uintnat custom_bsz, uintnat policy)
 {
   uintnat major_bsize;
   if (major_size < Heap_chunk_min) major_size = Heap_chunk_min;
@@ -692,6 +693,7 @@ void caml_init_gc (uintnat minor_size, uintnat major_size,
   caml_major_heap_increment = major_incr;
   caml_percent_free = norm_pfree (percent_fr);
   caml_percent_max = norm_pmax (percent_m);
+  caml_set_allocation_policy (policy);
   caml_init_major_heap (major_bsize);
   caml_major_window = norm_window (window);
   caml_custom_major_ratio = norm_custom_maj (custom_maj);

@@ -19,8 +19,6 @@
 
 (* Format of .cmx, .cmxa and .cmxs files *)
 
-open Misc
-
 (* Each .o file has a matching .cmx file that provides the following infos
    on the compilation unit:
      - list of other units imported, with MD5s of their .cmx files
@@ -35,18 +33,25 @@ type export_info =
   | Clambda of Clambda.value_approximation
   | Flambda of Export_info.t
 
-type apply_fn := int * Lambda.alloc_mode
+(* Declare machtype here to avoid depending on [Cmm]. *)
+type machtype_component = Val | Addr | Int | Float
+type machtype = machtype_component array
+
+type apply_fn := machtype list * machtype * Lambda.alloc_mode
+
 type unit_infos =
-  (* CR lmaurer: Consider renaming [ui_name], say to [ui_unit]. Code like
-     [Compilation_unit.name ui_name] makes me wonder what a name's name is. *)
   { mutable ui_unit: Compilation_unit.t;  (* Compilation unit implemented *)
     mutable ui_defines: Compilation_unit.t list;
                                           (* All compilation units in the
                                              .cmx file (i.e. [ui_name] and
                                              any produced via [Asmpackager]) *)
-    mutable ui_imports_cmi: crcs;         (* Interfaces imported *)
-    mutable ui_imports_cmx: crcs;         (* Infos imported *)
-    mutable ui_curry_fun: Clambda.arity list; (* Currying functions needed *)
+    mutable ui_imports_cmi: Import_info.t array;
+                                          (* Interfaces imported *)
+    mutable ui_imports_cmx: Import_info.t array;
+                                          (* Infos imported *)
+    mutable ui_curry_fun:
+      (Lambda.function_kind * machtype list * machtype) list;
+                                          (* Currying functions needed *)
     mutable ui_apply_fun: apply_fn list;  (* Apply functions needed *)
     mutable ui_send_fun: apply_fn list;   (* Send functions needed *)
     mutable ui_export_info: export_info;

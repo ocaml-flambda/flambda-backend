@@ -91,6 +91,11 @@ let add t ~extra_param ~extra_args =
     in
     Non_empty { extra_params; extra_args }
 
+let replace_extra_args t extra_args =
+  match t with
+  | Empty -> Empty
+  | Non_empty { extra_params; _ } -> Non_empty { extra_params; extra_args }
+
 let concat ~outer:t1 ~inner:t2 =
   match t1, t2 with
   | Empty, t | t, Empty -> t

@@ -159,9 +159,6 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pbytes_of_string
   | Pctconst _
   | Pignore
-  | Prevapply _
-  | Pdirapply _
-  | Pidentity
   | Pgetglobal _
   | Psetglobal _
   | Pgetpredef _

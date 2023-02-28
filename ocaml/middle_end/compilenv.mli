@@ -36,19 +36,7 @@ val reset : Compilation_unit.t -> unit
 val current_unit_infos: unit -> unit_infos
         (* Return the infos for the unit being compiled *)
 
-val pack_prefix_for_current_unit : unit -> Compilation_unit.Prefix.t
-        (* Return the pack prefix for the unit being compiled *)
-
-val pack_prefix_for_global_ident : Ident.t -> Compilation_unit.Prefix.t
-        (* Find the pack prefix for an identifier by reading the .cmx file.
-           The identifier must be [Global]. *)
-
-val symbol_for_global: Ident.t -> Linkage_name.t
-        (* Return the asm symbol that refers to the given global identifier
-           flambda-only *)
-val symbol_for_global': Ident.t -> Symbol.t
-        (* flambda-only *)
-val global_approx: Ident.t -> Clambda.value_approximation
+val global_approx: Compilation_unit.t -> Clambda.value_approximation
         (* Return the approximation for the given global identifier
            clambda-only *)
 val set_global_approx: Clambda.value_approximation -> unit
@@ -68,9 +56,15 @@ val approx_for_global: Compilation_unit.t -> Export_info.t option
         (* Loads the exported information declaring the compilation_unit
            flambda-only *)
 
-val need_curry_fun: Clambda.arity -> unit
-val need_apply_fun: int -> Lambda.alloc_mode -> unit
-val need_send_fun: int -> Lambda.alloc_mode -> unit
+val need_curry_fun:
+  Lambda.function_kind ->
+  Cmx_format.machtype list ->
+  Cmx_format.machtype ->
+  unit
+val need_apply_fun:
+  Cmx_format.machtype list -> Cmx_format.machtype -> Lambda.alloc_mode -> unit
+val need_send_fun:
+  Cmx_format.machtype list -> Cmx_format.machtype -> Lambda.alloc_mode -> unit
         (* Record the need of a currying (resp. application,
            message sending) function with the given arity *)
 
@@ -107,7 +101,7 @@ val cache_unit_info: unit_infos -> unit
            honored by [symbol_for_global] and [global_approx]
            without looking at the corresponding .cmx file. *)
 
-val require_global: Ident.t -> unit
+val require_global: Compilation_unit.t -> unit
         (* Enforce a link dependency of the current compilation
            unit to the required module *)
 
@@ -116,8 +110,7 @@ val read_library_info: string -> library_infos
 type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
-  | Illegal_renaming of
-      Compilation_unit.Name.t * Compilation_unit.Name.t * string
+  | Illegal_renaming of Compilation_unit.t * Compilation_unit.t * string
 
 exception Error of error
 

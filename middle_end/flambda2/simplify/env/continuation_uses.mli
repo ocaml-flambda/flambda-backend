@@ -44,6 +44,16 @@ type arg_types_by_use_id = arg_at_use Apply_cont_rewrite_id.Map.t list
 
 val get_arg_types_by_use_id : t -> arg_types_by_use_id
 
+(* When we want to get the arg_types_by_use_id of the invariant params of a
+   group of mutually-recursive continuations, we have a list of continuation
+   uses and the arity of the actual invariant params. This functions takes a
+   prefix of each of these argument lists, corresponding to the invariant
+   params, and merges them. *)
+val get_arg_types_by_use_id_for_invariant_params :
+  Flambda_arity.t -> t list -> arg_types_by_use_id
+
+val get_use_ids : t -> Apply_cont_rewrite_id.Set.t
+
 val number_of_uses : t -> int
 
 val arity : t -> Flambda_arity.t

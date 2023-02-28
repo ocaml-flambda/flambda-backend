@@ -23,8 +23,8 @@
 
 (rule
   (targets opnames.h)
-  (deps instruct.h ../Makefile)
-  (action (run make -s -C .. caml/opnames.h)))
+  (deps instruct.h)
+  (action (run make -s -C .. COMPUTE_DEPS=false caml/opnames.h)))
 
 (rule
  (targets version.h)

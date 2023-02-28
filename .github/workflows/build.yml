@@ -17,8 +17,8 @@ jobs:
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
-          - name: closure_cfg_local
-            config: --enable-middle-end=closure --enable-stack-allocation
+          - name: closure_cfg
+            config: --enable-middle-end=closure --enable-poll-insertion
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
 
@@ -28,12 +28,12 @@ jobs:
             ocamlparam: ''
 
           - name: flambda1_frame_pointers
-            config: --enable-middle-end=flambda --enable-frame-pointers
+            config: --enable-middle-end=flambda --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
             ocamlparam: ''
 
-          - name: flambda1_cfg_local
-            config: --enable-middle-end=flambda --enable-stack-allocation
+          - name: flambda1_cfg
+            config: --enable-middle-end=flambda --enable-poll-insertion
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
 
@@ -45,12 +45,12 @@ jobs:
             ocamlrunparam: "v=0,V=1"
 
           - name: flambda2_frame_pointers
-            config: --enable-middle-end=flambda2 --enable-frame-pointers
+            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
             ocamlparam: ''
 
-          - name: flambda2_cfg_local
-            config: --enable-middle-end=flambda2 --enable-stack-allocation
+          - name: flambda2_cfg
+            config: --enable-middle-end=flambda2
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
 
@@ -67,15 +67,15 @@ jobs:
             irc_split: off
             irc_spilling_heuristics: flat_uses
 
-          - name: build_upstream-32-bit
-            config: --enable-middle-end=closure CC="gcc -m32" AS="as --32" ASPP="gcc -m32 -c" -host i386-linux PARTIALLD="ld -r -melf_i386"
-            os: ubuntu-latest
+          - name: build_upstream_closure
+            config: --enable-middle-end=closure
+            os: ubuntu-20.04
 
     env:
       J: "3"
       # On macOS, the testsuite is slow, so run only on push to main (#507)
       run_testsuite: "${{matrix.os != 'macos-latest' || (github.event_name == 'push' && github.event.ref == 'refs/heads/main')}}"
-      build_upstream: "${{matrix.name == 'build_upstream-32-bit'}}"
+      build_upstream: "${{matrix.name == 'build_upstream_closure'}}"
       REGISTER_ALLOCATOR: "${{matrix.register_allocator}}"
       IRC_SPLIT: "${{matrix.irc_split}}"
       IRC_SPILLING_HEURISTICS: "${{matrix.irc_spilling_heuristics}}"
@@ -86,53 +86,49 @@ jobs:
       with:
         path: 'flambda_backend'
 
-    - name: Cache OCaml 4.12 and dune
+    - name: Cache OCaml 4.14 and dune
       uses: actions/cache@v1
       id: cache
       with:
-        path: ${{ github.workspace }}/ocaml-412/_install
-        key: ${{ matrix.os }}-cache-ocaml-412-dune-341
+        path: ${{ github.workspace }}/ocaml-414/_install
+        key: ${{ matrix.os }}-cache-ocaml-414-dune-361
 
-    - name: Checkout OCaml 4.12
+    - name: Checkout OCaml 4.14
       uses: actions/checkout@master
       if: steps.cache.outputs.cache-hit != 'true'
       with:
         repository: 'ocaml/ocaml'
-        path: 'ocaml-412'
-        ref: '4.12'
+        path: 'ocaml-414'
+        ref: '4.14'
 
-    - name: Build OCaml 4.12
+    - name: Build OCaml 4.14
       if: steps.cache.outputs.cache-hit != 'true'
-      working-directory: ocaml-412
+      working-directory: ocaml-414
       run: |
-        ./configure --prefix=$GITHUB_WORKSPACE/ocaml-412/_install
+        ./configure --prefix=$GITHUB_WORKSPACE/ocaml-414/_install
         make -j $J world.opt
         make install
         # Remove unneeded parts to shrink cache file
-        rm -rf $GITHUB_WORKSPACE/ocaml-412/_install/{lib/ocaml/compiler-libs,lib/ocaml/expunge,bin/*.byte}
+        rm -rf $GITHUB_WORKSPACE/ocaml-414/_install/{lib/ocaml/compiler-libs,lib/ocaml/expunge,bin/*.byte}
 
     - name: Checkout dune github repo
       uses: actions/checkout@master
       if: steps.cache.outputs.cache-hit != 'true'
       with:
         repository: 'ocaml/dune'
-        ref: '3.4.1'
+        ref: '3.6.1'
         path: 'dune'
 
     - name: Build dune
       working-directory: dune
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
-        PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH make release
-        cp dune.exe $GITHUB_WORKSPACE/ocaml-412/_install/bin/dune
+        PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make release
+        cp _boot/dune.exe $GITHUB_WORKSPACE/ocaml-414/_install/bin/dune
 
     - name: Install GNU parallel
       if: matrix.os == 'macos-latest'
       run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install parallel
-
-    - name: Install GCC 32-bit libraries
-      if: matrix.name == 'build_upstream-32-bit'
-      run: sudo apt-get install gcc-multilib gfortran-multilib
 
     - name: Configure Flambda backend
       working-directory: flambda_backend
@@ -140,14 +136,14 @@ jobs:
         autoconf
         ./configure \
           --prefix=$GITHUB_WORKSPACE/_install \
-          --with-dune=$GITHUB_WORKSPACE/ocaml-412/_install/bin/dune \
+          --with-dune=$GITHUB_WORKSPACE/ocaml-414/_install/bin/dune \
           ${{ matrix.config }}
 
     - name: Build, install and test Flambda backend
       working-directory: flambda_backend
       run: |
         if [ $run_testsuite = true ]; then target=ci; else target=compiler; fi
-        export PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH
+        export PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH
         if [ $build_upstream = true ]; then make -j$J build_and_test_upstream; else make $target; fi
       env:
         BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
@@ -158,4 +154,4 @@ jobs:
       working-directory: flambda_backend
       if: matrix.check_arch == true
       run: |
-        PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH make check_all_arches
+        PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make check_all_arches

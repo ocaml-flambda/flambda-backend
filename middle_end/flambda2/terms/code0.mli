@@ -82,3 +82,6 @@ val map_result_types :
   'function_params_and_body t ->
   f:(Flambda2_types.t -> Flambda2_types.t) ->
   'function_params_and_body t
+
+val free_names_of_params_and_body :
+  'function_params_and_body t -> Name_occurrences.t

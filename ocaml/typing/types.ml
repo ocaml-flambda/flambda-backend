@@ -19,11 +19,13 @@ open Asttypes
 
 (* Type expressions for the core language *)
 
-type type_expr =
+type transient_expr =
   { mutable desc: type_desc;
     mutable level: int;
     mutable scope: int;
     id: int }
+
+and type_expr = transient_expr
 
 and type_desc =
     Tvar of string option
@@ -34,11 +36,11 @@ and type_desc =
   | Tfield of string * field_kind * type_expr * type_expr
   | Tnil
   | Tlink of type_expr
-  | Tsubst of type_expr         (* for copying *)
+  | Tsubst of type_expr * type_expr option
   | Tvariant of row_desc
   | Tunivar of string option
   | Tpoly of type_expr * type_expr list
-  | Tpackage of Path.t * Longident.t list * type_expr list
+  | Tpackage of Path.t * (Longident.t * type_expr) list
 
 and arrow_desc =
   arg_label * alloc_mode * alloc_mode
@@ -60,36 +62,42 @@ and alloc_mode =
 and row_desc =
     { row_fields: (label * row_field) list;
       row_more: type_expr;
-      row_bound: unit;
       row_closed: bool;
       row_fixed: fixed_explanation option;
       row_name: (Path.t * type_expr list) option }
 and fixed_explanation =
   | Univar of type_expr | Fixed_private | Reified of Path.t | Rigid
-and row_field =
-    Rpresent of type_expr option
-  | Reither of bool * type_expr list * bool * row_field option ref
-        (* 1st true denotes a constant constructor *)
-        (* 2nd true denotes a tag in a pattern matching, and
-           is erased later *)
-  | Rabsent
+and row_field = [`some] row_field_gen
+and _ row_field_gen =
+    RFpresent : type_expr option -> [> `some] row_field_gen
+  | RFeither :
+      { no_arg: bool;
+        arg_type: type_expr list;
+        matched: bool;
+        ext: [`some | `none] row_field_gen ref} -> [> `some] row_field_gen
+  | RFabsent : [> `some] row_field_gen
+  | RFnone : [> `none] row_field_gen
 
 and abbrev_memo =
     Mnil
   | Mcons of private_flag * Path.t * type_expr * type_expr * abbrev_memo
   | Mlink of abbrev_memo ref
 
-and field_kind =
-    Fvar of field_kind option ref
-  | Fpresent
-  | Fabsent
+and any = [`some | `none | `var]
+and field_kind = [`some|`var] field_kind_gen
+and _ field_kind_gen =
+    FKvar : {mutable field_kind: any field_kind_gen} -> [> `var] field_kind_gen
+  | FKprivate : [> `none] field_kind_gen  (* private method; only under FKvar *)
+  | FKpublic  : [> `some] field_kind_gen  (* public method *)
+  | FKabsent  : [> `some] field_kind_gen  (* hidden private method *)
 
-and commutable =
-    Cok
-  | Cunknown
-  | Clink of commutable ref
+and commutable = [`some|`var] commutable_gen
+and _ commutable_gen =
+    Cok      : [> `some] commutable_gen
+  | Cunknown : [> `none] commutable_gen
+  | Cvar : {mutable commu: any commutable_gen} -> [> `var] commutable_gen
 
-module TypeOps = struct
+module TransientTypeOps = struct
   type t = type_expr
   let compare t1 t2 = t1.id - t2.id
   let hash t = t.id
@@ -98,60 +106,16 @@ end
 
 (* *)
 
-module Uid = struct
-  type t =
-    | Compilation_unit of string
-    | Item of { comp_unit: string; id: int }
-    | Internal
-    | Predef of string
-
-  include Identifiable.Make(struct
-    type nonrec t = t
-
-    let equal (x : t) y = x = y
-    let compare (x : t) y = compare x y
-    let hash (x : t) = Hashtbl.hash x
-
-    let print fmt = function
-      | Internal -> Format.pp_print_string fmt "<internal>"
-      | Predef name -> Format.fprintf fmt "<predef:%s>" name
-      | Compilation_unit s -> Format.pp_print_string fmt s
-      | Item { comp_unit; id } -> Format.fprintf fmt "%s.%d" comp_unit id
-
-    let output oc t =
-      let fmt = Format.formatter_of_out_channel oc in
-      print fmt t
-  end)
-
-  let id = ref (-1)
-
-  let reinit () = id := (-1)
-
-  let mk  ~current_unit =
-      incr id;
-      Item { comp_unit = current_unit; id = !id }
-
-  let of_compilation_unit_id id =
-    if not (Ident.is_global id) then
-      Misc.fatal_errorf "Types.Uid.of_compilation_unit_id %S" (Ident.name id);
-    Compilation_unit (Ident.name id)
-
-  let of_predef_id id =
-    if not (Ident.is_predef id) then
-      Misc.fatal_errorf "Types.Uid.of_predef_id %S" (Ident.name id);
-    Predef (Ident.name id)
-
-  let internal_not_actually_unique = Internal
-
-  let for_actual_declaration = function
-    | Item _ -> true
-    | _ -> false
-end
+module Uid = Shape.Uid
 
 (* Maps of methods and instance variables *)
 
+module MethSet = Misc.Stdlib.String.Set
+module VarSet = Misc.Stdlib.String.Set
+
 module Meths = Misc.Stdlib.String.Map
-module Vars = Meths
+module Vars = Misc.Stdlib.String.Map
+
 
 (* Value descriptions *)
 
@@ -167,13 +131,25 @@ and value_kind =
     Val_reg                             (* Regular value *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
-  | Val_self of (Ident.t * type_expr) Meths.t ref *
-                (Ident.t * Asttypes.mutable_flag *
-                 Asttypes.virtual_flag * type_expr) Vars.t ref *
-                string * type_expr
+  | Val_self of
+      class_signature * self_meths * Ident.t Vars.t * string
                                         (* Self *)
-  | Val_anc of (string * Ident.t) list * string
+  | Val_anc of class_signature * Ident.t Meths.t * string
                                         (* Ancestor *)
+
+and self_meths =
+  | Self_concrete of Ident.t Meths.t
+  | Self_virtual of Ident.t Meths.t ref
+
+and class_signature =
+  { csig_self: type_expr;
+    mutable csig_self_row: type_expr;
+    mutable csig_vars: (mutable_flag * virtual_flag * type_expr) Vars.t;
+    mutable csig_meths: (method_privacy * virtual_flag * type_expr) Meths.t; }
+
+and method_privacy =
+  | Mpublic
+  | Mprivate of field_kind
 
 (* Variance *)
 
@@ -240,7 +216,7 @@ end
 type type_declaration =
   { type_params: type_expr list;
     type_arity: int;
-    type_kind: type_kind;
+    type_kind: type_decl_kind;
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -250,14 +226,16 @@ type type_declaration =
     type_loc: Location.t;
     type_attributes: Parsetree.attributes;
     type_immediate: Type_immediacy.t;
-    type_unboxed: unboxed_status;
+    type_unboxed_default: bool;
     type_uid: Uid.t;
  }
 
-and type_kind =
+and type_decl_kind = (label_declaration, constructor_declaration) type_kind
+
+and ('lbl, 'cstr) type_kind =
     Type_abstract
-  | Type_record of label_declaration list  * record_representation
-  | Type_variant of constructor_declaration list
+  | Type_record of 'lbl list * record_representation
+  | Type_variant of 'cstr list * variant_representation
   | Type_open
 
 and record_representation =
@@ -266,6 +244,10 @@ and record_representation =
   | Record_unboxed of bool    (* Unboxed single-field record, inlined or not *)
   | Record_inlined of int               (* Inlined record *)
   | Record_extension of Path.t          (* Inlined record under extension *)
+
+and variant_representation =
+    Variant_regular          (* Constant or boxed constructors *)
+  | Variant_unboxed          (* One unboxed single-field constructor *)
 
 and global_flag =
   | Global
@@ -294,19 +276,8 @@ and constructor_declaration =
   }
 
 and constructor_arguments =
-  | Cstr_tuple of type_expr list
+  | Cstr_tuple of (type_expr * global_flag) list
   | Cstr_record of label_declaration list
-
-and unboxed_status =
-  {
-    unboxed: bool;
-    default: bool; (* False if the unboxed field was set from an attribute. *)
-  }
-
-let unboxed_false_default_false = {unboxed = false; default = false}
-let unboxed_false_default_true = {unboxed = false; default = true}
-let unboxed_true_default_false = {unboxed = true; default = false}
-let unboxed_true_default_true = {unboxed = true; default = true}
 
 type extension_constructor =
   { ext_type_path: Path.t;
@@ -326,19 +297,10 @@ and type_transparence =
 
 (* Type expressions for the class language *)
 
-module Concr = Misc.Stdlib.String.Set
-
 type class_type =
     Cty_constr of Path.t * type_expr list * class_type
   | Cty_signature of class_signature
   | Cty_arrow of arg_label * type_expr * class_type
-
-and class_signature =
-  { csig_self: type_expr;
-    csig_vars:
-      (Asttypes.mutable_flag * Asttypes.virtual_flag * type_expr) Vars.t;
-    csig_concr: Concr.t;
-    csig_inher: (Path.t * type_expr list) list }
 
 type class_declaration =
   { cty_params: type_expr list;
@@ -427,12 +389,11 @@ type constructor_description =
   { cstr_name: string;                  (* Constructor name *)
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
-    cstr_args: type_expr list;          (* Type of the arguments *)
+    cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: constructor_tag;          (* Tag for heap blocks *)
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)
-    cstr_normal: int;                   (* Number of non generalized constrs *)
     cstr_generalized: bool;             (* Constrained return type? *)
     cstr_private: private_flag;         (* Read-only constructor? *)
     cstr_loc: Location.t;
@@ -465,6 +426,15 @@ let may_equal_constr c1 c2 =
          true
      | tag1, tag2 ->
          equal_tag tag1 tag2)
+
+let item_visibility = function
+  | Sig_value (_, _, vis)
+  | Sig_type (_, _, _, vis)
+  | Sig_typext (_, _, _, vis)
+  | Sig_module (_, _, _, _, vis)
+  | Sig_modtype (_, _, vis)
+  | Sig_class (_, _, _, vis)
+  | Sig_class_type (_, _, _, vis) -> vis
 
 type label_description =
   { lbl_name: string;                   (* Short name *)
@@ -504,3 +474,880 @@ let signature_item_id = function
 type value_mode =
   { r_as_l : alloc_mode;
     r_as_g : alloc_mode; }
+
+(**** Definitions for backtracking ****)
+
+type change =
+    Ctype of type_expr * type_desc
+  | Ccompress of type_expr * type_desc * type_desc
+  | Clevel of type_expr * int
+  | Cscope of type_expr * int
+  | Cname of
+      (Path.t * type_expr list) option ref * (Path.t * type_expr list) option
+  | Crow of [`none|`some] row_field_gen ref
+  | Ckind of [`var] field_kind_gen
+  | Ccommu of [`var] commutable_gen
+  | Cuniv of type_expr option ref * type_expr option
+  | Cmode_upper of alloc_mode_var * alloc_mode_const
+  | Cmode_lower of alloc_mode_var * alloc_mode_const
+  | Cmode_vlower of alloc_mode_var * alloc_mode_var list
+
+type changes =
+    Change of change * changes ref
+  | Unchanged
+  | Invalid
+
+let trail = Local_store.s_table ref Unchanged
+
+let log_change ch =
+  let r' = ref Unchanged in
+  !trail := Change (ch, r');
+  trail := r'
+
+let log_changes chead ctail =
+  if chead = Unchanged then (assert (!ctail = Unchanged))
+  else begin
+    !trail := chead;
+    trail := ctail
+  end
+
+let append_change ctail ch =
+  assert (!(!ctail) = Unchanged);
+  let r' = ref Unchanged in
+  (!ctail) := Change (ch, r');
+  ctail := r'
+
+(* constructor and accessors for [field_kind] *)
+
+type field_kind_view =
+    Fprivate
+  | Fpublic
+  | Fabsent
+
+let rec field_kind_internal_repr : field_kind -> field_kind = function
+  | FKvar {field_kind = FKvar _ | FKpublic | FKabsent as fk} ->
+      field_kind_internal_repr fk
+  | kind -> kind
+
+let field_kind_repr fk =
+  match field_kind_internal_repr fk with
+  | FKvar _ -> Fprivate
+  | FKpublic -> Fpublic
+  | FKabsent -> Fabsent
+
+let field_public = FKpublic
+let field_absent = FKabsent
+let field_private () = FKvar {field_kind=FKprivate}
+
+(* Constructor and accessors for [commutable] *)
+
+let rec is_commu_ok : type a. a commutable_gen -> bool = function
+  | Cvar {commu} -> is_commu_ok commu
+  | Cunknown -> false
+  | Cok -> true
+
+let commu_ok = Cok
+let commu_var () = Cvar {commu=Cunknown}
+
+(**** Representative of a type ****)
+
+let rec repr_link (t : type_expr) d : type_expr -> type_expr =
+ function
+   {desc = Tlink t' as d'} ->
+     repr_link t d' t'
+ | {desc = Tfield (_, k, _, t') as d'}
+   when field_kind_internal_repr k = FKabsent ->
+     repr_link t d' t'
+ | t' ->
+     log_change (Ccompress (t, t.desc, d));
+     t.desc <- d;
+     t'
+
+let repr_link1 t = function
+   {desc = Tlink t' as d'} ->
+     repr_link t d' t'
+ | {desc = Tfield (_, k, _, t') as d'}
+   when field_kind_internal_repr k = FKabsent ->
+     repr_link t d' t'
+ | t' -> t'
+
+let repr t =
+  match t.desc with
+   Tlink t' ->
+     repr_link1 t t'
+ | Tfield (_, k, _, t') when field_kind_internal_repr k = FKabsent ->
+     repr_link1 t t'
+ | _ -> t
+
+(* getters for type_expr *)
+
+let get_desc t = (repr t).desc
+let get_level t = (repr t).level
+let get_scope t = (repr t).scope
+let get_id t = (repr t).id
+
+(* transient type_expr *)
+
+module Transient_expr = struct
+  let create desc ~level ~scope ~id = {desc; level; scope; id}
+  let set_desc ty d = ty.desc <- d
+  let set_stub_desc ty d = assert (ty.desc = Tvar None); ty.desc <- d
+  let set_level ty lv = ty.level <- lv
+  let set_scope ty sc = ty.scope <- sc
+  let coerce ty = ty
+  let repr = repr
+  let type_expr ty = ty
+end
+
+(* Comparison for [type_expr]; cannot be used for functors *)
+
+let eq_type t1 t2 = t1 == t2 || repr t1 == repr t2
+let compare_type t1 t2 = compare (get_id t1) (get_id t2)
+
+(* Constructor and accessors for [row_desc] *)
+
+let create_row ~fields ~more ~closed ~fixed ~name =
+    { row_fields=fields; row_more=more;
+      row_closed=closed; row_fixed=fixed; row_name=name }
+
+(* [row_fields] subsumes the original [row_repr] *)
+let rec row_fields row =
+  match get_desc row.row_more with
+  | Tvariant row' ->
+      row.row_fields @ row_fields row'
+  | _ ->
+      row.row_fields
+
+let rec row_repr_no_fields row =
+  match get_desc row.row_more with
+  | Tvariant row' -> row_repr_no_fields row'
+  | _ -> row
+
+let row_more row = (row_repr_no_fields row).row_more
+let row_closed row = (row_repr_no_fields row).row_closed
+let row_fixed row = (row_repr_no_fields row).row_fixed
+let row_name row = (row_repr_no_fields row).row_name
+
+let rec get_row_field tag row =
+  let rec find = function
+    | (tag',f) :: fields ->
+        if tag = tag' then f else find fields
+    | [] ->
+        match get_desc row.row_more with
+        | Tvariant row' -> get_row_field tag row'
+        | _ -> RFabsent
+  in find row.row_fields
+
+let set_row_name row row_name =
+  let row_fields = row_fields row in
+  let row = row_repr_no_fields row in
+  {row with row_fields; row_name}
+
+type row_desc_repr =
+    Row of { fields: (label * row_field) list;
+             more:type_expr;
+             closed:bool;
+             fixed:fixed_explanation option;
+             name:(Path.t * type_expr list) option }
+
+let row_repr row =
+  let fields = row_fields row in
+  let row = row_repr_no_fields row in
+  Row { fields;
+        more = row.row_more;
+        closed = row.row_closed;
+        fixed = row.row_fixed;
+        name = row.row_name }
+
+type row_field_view =
+    Rpresent of type_expr option
+  | Reither of bool * type_expr list * bool
+        (* 1st true denotes a constant constructor *)
+        (* 2nd true denotes a tag in a pattern matching, and
+           is erased later *)
+  | Rabsent
+
+let rec row_field_repr_aux tl : row_field -> row_field = function
+  | RFeither ({ext = {contents = RFnone}} as r) ->
+      RFeither {r with arg_type = tl@r.arg_type}
+  | RFeither {arg_type;
+              ext = {contents = RFeither _ | RFpresent _ | RFabsent as rf}} ->
+      row_field_repr_aux (tl@arg_type) rf
+  | RFpresent (Some _) when tl <> [] ->
+      RFpresent (Some (List.hd tl))
+  | RFpresent _ as rf -> rf
+  | RFabsent -> RFabsent
+
+let row_field_repr fi =
+  match row_field_repr_aux [] fi with
+  | RFeither {no_arg; arg_type; matched} -> Reither (no_arg, arg_type, matched)
+  | RFpresent t -> Rpresent t
+  | RFabsent -> Rabsent
+
+let rec row_field_ext (fi : row_field) =
+  match fi with
+  | RFeither {ext = {contents = RFnone} as ext} -> ext
+  | RFeither {ext = {contents = RFeither _ | RFpresent _ | RFabsent as rf}} ->
+      row_field_ext rf
+  | _ -> Misc.fatal_error "Types.row_field_ext "
+
+let rf_present oty = RFpresent oty
+let rf_absent = RFabsent
+let rf_either ?use_ext_of ~no_arg arg_type ~matched =
+  let ext =
+    match use_ext_of with
+      Some rf -> row_field_ext rf
+    | None -> ref RFnone
+  in
+  RFeither {no_arg; arg_type; matched; ext}
+
+let rf_either_of = function
+  | None ->
+      RFeither {no_arg=true; arg_type=[]; matched=false; ext=ref RFnone}
+  | Some ty ->
+      RFeither {no_arg=false; arg_type=[ty]; matched=false; ext=ref RFnone}
+
+let eq_row_field_ext rf1 rf2 =
+  row_field_ext rf1 == row_field_ext rf2
+
+let changed_row_field_exts l f =
+  let exts = List.map row_field_ext l in
+  f ();
+  List.exists (fun r -> !r <> RFnone) exts
+
+let match_row_field ~present ~absent ~either (f : row_field) =
+  match f with
+  | RFabsent -> absent ()
+  | RFpresent t -> present t
+  | RFeither {no_arg; arg_type; matched; ext} ->
+      let e : row_field option =
+        match !ext with
+        | RFnone -> None
+        | RFeither _ | RFpresent _ | RFabsent as e -> Some e
+      in
+      either no_arg arg_type matched e
+
+
+(**** Some type creators ****)
+
+let new_id = Local_store.s_ref (-1)
+
+let create_expr = Transient_expr.create
+
+let newty3 ~level ~scope desc  =
+  incr new_id;
+  create_expr desc ~level ~scope ~id:!new_id
+
+let newty2 ~level desc =
+  newty3 ~level ~scope:Ident.lowest_scope desc
+
+                  (**********************************)
+                  (*  Utilities for backtracking    *)
+                  (**********************************)
+
+let undo_change = function
+    Ctype  (ty, desc) -> Transient_expr.set_desc ty desc
+  | Ccompress (ty, desc, _) -> Transient_expr.set_desc ty desc
+  | Clevel (ty, level) -> Transient_expr.set_level ty level
+  | Cscope (ty, scope) -> Transient_expr.set_scope ty scope
+  | Cname  (r, v)    -> r := v
+  | Crow   r         -> r := RFnone
+  | Ckind  (FKvar r) -> r.field_kind <- FKprivate
+  | Ccommu (Cvar r)  -> r.commu <- Cunknown
+  | Cuniv  (r, v)    -> r := v
+  | Cmode_upper (v, u) -> v.upper <- u
+  | Cmode_lower (v, l) -> v.lower <- l
+  | Cmode_vlower (v, vs) -> v.vlower <- vs
+
+type snapshot = changes ref * int
+let last_snapshot = Local_store.s_ref 0
+
+let log_type ty =
+  if ty.id <= !last_snapshot then log_change (Ctype (ty, ty.desc))
+let link_type ty ty' =
+  let ty = repr ty in
+  let ty' = repr ty' in
+  if ty == ty' then () else begin
+  log_type ty;
+  let desc = ty.desc in
+  Transient_expr.set_desc ty (Tlink ty');
+  (* Name is a user-supplied name for this unification variable (obtained
+   * through a type annotation for instance). *)
+  match desc, ty'.desc with
+    Tvar name, Tvar name' ->
+      begin match name, name' with
+      | Some _, None -> log_type ty'; Transient_expr.set_desc ty' (Tvar name)
+      | None, Some _ -> ()
+      | Some _, Some _ ->
+          if ty.level < ty'.level then
+            (log_type ty'; Transient_expr.set_desc ty' (Tvar name))
+      | None, None   -> ()
+      end
+  | _ -> ()
+  end
+  (* ; assert (check_memorized_abbrevs ()) *)
+  (*  ; check_expans [] ty' *)
+(* TODO: consider eliminating set_type_desc, replacing it with link types *)
+let set_type_desc ty td =
+  let ty = repr ty in
+  if td != ty.desc then begin
+    log_type ty;
+    Transient_expr.set_desc ty td
+  end
+(* TODO: separate set_level into two specific functions: *)
+(*  set_lower_level and set_generic_level *)
+let set_level ty level =
+  let ty = repr ty in
+  if level <> ty.level then begin
+    if ty.id <= !last_snapshot then log_change (Clevel (ty, ty.level));
+    Transient_expr.set_level ty level
+  end
+(* TODO: introduce a guard and rename it to set_higher_scope? *)
+let set_scope ty scope =
+  let ty = repr ty in
+  if scope <> ty.scope then begin
+    if ty.id <= !last_snapshot then log_change (Cscope (ty, ty.scope));
+    Transient_expr.set_scope ty scope
+  end
+let set_univar rty ty =
+  log_change (Cuniv (rty, !rty)); rty := Some ty
+let set_name nm v =
+  log_change (Cname (nm, !nm)); nm := v
+
+let rec link_row_field_ext ~(inside : row_field) (v : row_field) =
+  match inside with
+  | RFeither {ext = {contents = RFnone} as e} ->
+      let RFeither _ | RFpresent _ | RFabsent as v = v in
+      log_change (Crow e); e := v
+  | RFeither {ext = {contents = RFeither _ | RFpresent _ | RFabsent as rf}} ->
+      link_row_field_ext ~inside:rf v
+  | _ -> invalid_arg "Types.link_row_field_ext"
+
+let rec link_kind ~(inside : field_kind) (k : field_kind) =
+  match inside with
+  | FKvar ({field_kind = FKprivate} as rk) as inside ->
+      (* prevent a loop by normalizing k and comparing it with inside *)
+      let FKvar _ | FKpublic | FKabsent as k = field_kind_internal_repr k in
+      if k != inside then begin
+        log_change (Ckind inside);
+        rk.field_kind <- k
+      end
+  | FKvar {field_kind = FKvar _ | FKpublic | FKabsent as inside} ->
+      link_kind ~inside k
+  | _ -> invalid_arg "Types.link_kind"
+
+let rec commu_repr : commutable -> commutable = function
+  | Cvar {commu = Cvar _ | Cok as commu} -> commu_repr commu
+  | c -> c
+
+let rec link_commu ~(inside : commutable) (c : commutable) =
+  match inside with
+  | Cvar ({commu = Cunknown} as rc) as inside ->
+      (* prevent a loop by normalizing c and comparing it with inside *)
+      let Cvar _ | Cok as c = commu_repr c in
+      if c != inside then begin
+        log_change (Ccommu inside);
+        rc.commu <- c
+      end
+  | Cvar {commu = Cvar _ | Cok as inside} ->
+      link_commu ~inside c
+  | _ -> invalid_arg "Types.link_commu"
+
+let set_commu_ok c = link_commu ~inside:c Cok
+
+let snapshot () =
+  let old = !last_snapshot in
+  last_snapshot := !new_id;
+  (!trail, old)
+
+let rec rev_log accu = function
+    Unchanged -> accu
+  | Invalid -> assert false
+  | Change (ch, next) ->
+      let d = !next in
+      next := Invalid;
+      rev_log (ch::accu) d
+
+let backtrack ~cleanup_abbrev (changes, old) =
+  match !changes with
+    Unchanged -> last_snapshot := old
+  | Invalid -> failwith "Types.backtrack"
+  | Change _ as change ->
+      cleanup_abbrev ();
+      let backlog = rev_log [] change in
+      List.iter undo_change backlog;
+      changes := Unchanged;
+      last_snapshot := old;
+      trail := changes
+
+let undo_first_change_after (changes, _) =
+  match !changes with
+  | Change (ch, _) ->
+      undo_change ch
+  | _ -> ()
+
+let rec rev_compress_log log r =
+  match !r with
+    Unchanged | Invalid ->
+      log
+  | Change (Ccompress _, next) ->
+      rev_compress_log (r::log) next
+  | Change (_, next) ->
+      rev_compress_log log next
+
+let undo_compress (changes, _old) =
+  match !changes with
+    Unchanged
+  | Invalid -> ()
+  | Change _ ->
+      let log = rev_compress_log [] changes in
+      List.iter
+        (fun r -> match !r with
+          Change (Ccompress (ty, desc, d), next) when ty.desc == d ->
+            Transient_expr.set_desc ty desc; r := !next
+        | _ -> ())
+        log
+
+module Alloc_mode = struct
+  type nonrec const = alloc_mode_const = Global | Local
+  type t = alloc_mode =
+    | Amode of const
+    | Amodevar of alloc_mode_var
+
+  let global = Amode Global
+  let local = Amode Local
+  let of_const = function
+    | Global -> global
+    | Local -> local
+
+  let min_mode = global
+
+  let max_mode = local
+
+  let le_const a b =
+    match a, b with
+    | Global, _ | _, Local -> true
+    | Local, Global -> false
+
+  let join_const a b =
+    match a, b with
+    | Local, _ | _, Local -> Local
+    | Global, Global -> Global
+
+  let meet_const a b =
+    match a, b with
+    | Global, _ | _, Global -> Global
+    | Local, Local -> Local
+
+  exception NotSubmode
+(*
+  let pp_c ppf = function
+    | Global -> Printf.fprintf ppf "0"
+    | Local -> Printf.fprintf ppf "1"
+  let pp_v ppf v =
+    let i = v.mvid in
+    (if i < 26 then Printf.fprintf ppf "%c" (Char.chr (Char.code 'a' + i))
+    else Printf.fprintf ppf "v%d" i);
+    Printf.fprintf ppf "[%a%a]" pp_c v.lower pp_c v.upper
+*)
+
+  let set_lower ~log v lower =
+    append_change log (Cmode_lower (v, v.lower));
+    v.lower <- lower
+
+  let set_upper ~log v upper =
+    append_change log (Cmode_upper (v, v.upper));
+    v.upper <- upper
+
+  let set_vlower ~log v vlower =
+    append_change log (Cmode_vlower (v, v.vlower));
+    v.vlower <- vlower
+
+  let submode_cv ~log m v =
+    (* Printf.printf "  %a <= %a\n" pp_c m pp_v v; *)
+    if le_const m v.lower then ()
+    else if not (le_const m v.upper) then raise NotSubmode
+    else begin
+      let m = join_const v.lower m in
+      set_lower ~log v m;
+      if m = v.upper then set_vlower ~log v []
+    end
+
+  let rec submode_vc ~log v m =
+    (* Printf.printf "  %a <= %a\n" pp_v v pp_c m; *)
+    if le_const v.upper m then ()
+    else if not (le_const v.lower m) then raise NotSubmode
+    else begin
+      let m = meet_const v.upper m in
+      set_upper ~log v m;
+      v.vlower |> List.iter (fun a ->
+        (* a <= v <= m *)
+        submode_vc ~log a m;
+        set_lower ~log v (join_const v.lower a.lower);
+      );
+      if v.lower = m then set_vlower ~log v []
+    end
+
+  let submode_vv ~log a b =
+    (* Printf.printf "  %a <= %a\n" pp_v a pp_v b; *)
+    if le_const a.upper b.lower then ()
+    else if a == b || List.memq a b.vlower then ()
+    else begin
+      submode_vc ~log a b.upper;
+      set_vlower ~log b (a :: b.vlower);
+      submode_cv ~log a.lower b;
+    end
+
+  let submode a b =
+    let log_head = ref Unchanged in
+    let log = ref log_head in
+    match
+      match a, b with
+      | Amode a, Amode b ->
+         if not (le_const a b) then raise NotSubmode
+      | Amodevar v, Amode c ->
+         (* Printf.printf "%a <= %a\n" pp_v v pp_c c; *)
+         submode_vc ~log v c
+      | Amode c, Amodevar v ->
+         (* Printf.printf "%a <= %a\n" pp_c c pp_v v; *)
+         submode_cv ~log c v
+      | Amodevar a, Amodevar b ->
+         (* Printf.printf "%a <= %a\n" pp_v a pp_v b; *)
+         submode_vv ~log a b
+    with
+    | () ->
+       log_changes !log_head !log;
+       Ok ()
+    | exception NotSubmode ->
+       let backlog = rev_log [] !log_head in
+       List.iter undo_change backlog;
+       Error ()
+
+  let submode_exn t1 t2 =
+    match submode t1 t2 with
+    | Ok () -> ()
+    | Error () -> invalid_arg "submode_exn"
+
+  let equate a b =
+    match submode a b, submode b a with
+    | Ok (), Ok () -> Ok ()
+    | Error (), _ | _, Error () -> Error ()
+
+  let make_global_exn t =
+    submode_exn t global
+
+  let make_local_exn t =
+    submode_exn local t
+
+  let next_id = ref (-1)
+  let fresh () =
+    incr next_id;
+    { upper = Local;
+      lower = Global;
+      vlower = [];
+      mvid = !next_id;
+      mark = false }
+
+  let rec all_equal v = function
+    | [] -> true
+    | v' :: rest ->
+        if v == v' then all_equal v rest
+        else false
+
+  let joinvars vars =
+    match vars with
+    | [] -> global
+    | v :: rest ->
+      let v =
+        if all_equal v rest then v
+        else begin
+          let v = fresh () in
+          List.iter (fun v' -> submode_exn (Amodevar v') (Amodevar v)) vars;
+          v
+        end
+      in
+      Amodevar v
+
+  let join ms =
+    let rec aux vars = function
+      | [] -> joinvars vars
+      | Amode Global :: ms -> aux vars ms
+      | Amode Local :: _ -> local
+      | Amodevar v :: ms -> aux (v :: vars) ms
+    in aux [] ms
+
+  let constrain_upper = function
+    | Amode m -> m
+    | Amodevar v ->
+       submode_exn (Amode v.upper) (Amodevar v);
+       v.upper
+
+  exception Became_constant
+  let compress_vlower v =
+    let nmarked = ref 0 in
+    let mark v' =
+      assert (not v'.mark);
+      v'.mark <- true;
+      incr nmarked
+    in
+    let unmark v' =
+      assert v'.mark;
+      v'.mark <- false;
+      decr nmarked
+    in
+    let new_lower = ref v.lower in
+    let new_vlower = ref v.vlower in
+    (* Ensure that each transitive lower bound of v
+       is a direct lower bound of v *)
+    let rec trans v' =
+      if le_const v'.upper !new_lower then ()
+      else if v'.mark then ()
+      else begin
+        mark v';
+        new_vlower := v' :: !new_vlower;
+        trans_low v'
+      end
+    and trans_low v' =
+      assert (v != v');
+      if not (le_const v'.lower v.upper) then
+        Misc.fatal_error "compress_vlower: invalid bounds";
+      if not (le_const v'.lower !new_lower) then begin
+        new_lower := join_const !new_lower v'.lower;
+        if !new_lower = v.upper then
+          (* v is now a constant, no need to keep computing bounds *)
+          raise Became_constant
+      end;
+      List.iter trans v'.vlower
+    in
+    mark v;
+    List.iter mark v.vlower;
+    let became_constant =
+      match List.iter trans_low v.vlower with
+      | () -> false
+      | exception Became_constant -> true
+    in
+    List.iter unmark !new_vlower;
+    unmark v;
+    assert (!nmarked = 0);
+    if became_constant then new_vlower := [];
+    if !new_lower != v.lower || !new_vlower != v.vlower then begin
+      let log_head = ref Unchanged in
+      let log = ref log_head in
+      set_lower ~log v !new_lower;
+      set_vlower ~log v !new_vlower;
+      log_changes !log_head !log;
+    end
+
+  let constrain_lower = function
+    | Amode m -> m
+    | Amodevar v ->
+        compress_vlower v;
+        submode_exn (Amodevar v) (Amode v.lower);
+        v.lower
+
+  let newvar () = Amodevar (fresh ())
+
+  let newvar_below = function
+    | Amode Global -> Amode Global, false
+    | m ->
+       let v = newvar () in
+       submode_exn v m;
+       v, true
+
+  let newvar_above = function
+    | Amode Local -> Amode Local, false
+    | m ->
+       let v = newvar () in
+       submode_exn m v;
+       v, true
+
+  let check_const = function
+    | Amode m -> Some m
+    | Amodevar v ->
+       compress_vlower v;
+       if v.lower = v.upper then Some v.lower else None
+
+  let print_const ppf = function
+    | Global -> Format.fprintf ppf "Global"
+    | Local -> Format.fprintf ppf "Local"
+
+  let print_var_id ppf v =
+    Format.fprintf ppf "?%i" v.mvid
+
+  let print_var ppf v =
+    compress_vlower v;
+    if v.lower = v.upper then begin
+      print_const ppf v.lower
+    end else if v.vlower = [] then begin
+      print_var_id ppf v
+    end else begin
+      Format.fprintf ppf "%a[> %a]"
+        print_var_id v
+        (Format.pp_print_list print_var_id) v.vlower
+    end
+
+  let print ppf = function
+    | Amode m -> print_const ppf m
+    | Amodevar v -> print_var ppf v
+
+end
+
+module Value_mode = struct
+
+  type const =
+   | Global
+   | Regional
+   | Local
+
+  let r_as_l : const -> Alloc_mode.const = function
+    | Global -> Global
+    | Regional -> Local
+    | Local -> Local
+  [@@warning "-unused-value-declaration"]
+
+  let r_as_g : const -> Alloc_mode.const = function
+    | Global -> Global
+    | Regional -> Global
+    | Local -> Local
+  [@@warning "-unused-value-declaration"]
+
+  let of_alloc_consts
+        ~(r_as_l : Alloc_mode.const)
+        ~(r_as_g : Alloc_mode.const) =
+    match r_as_l, r_as_g with
+    | Global, Global -> Global
+    | Global, Local -> assert false
+    | Local, Global -> Regional
+    | Local, Local -> Local
+
+  type t = value_mode =
+    { r_as_l : Alloc_mode.t;
+      (* [r_as_l] is the image of the mode under the [r_as_l] function *)
+      r_as_g : Alloc_mode.t;
+      (* [r_as_g] is the image of the mode under the [r_as_g] function.
+         Always less than [r_as_l]. *) }
+
+  let global =
+    let r_as_l = Alloc_mode.global in
+    let r_as_g = Alloc_mode.global in
+    { r_as_l; r_as_g }
+
+  let regional =
+    let r_as_l = Alloc_mode.local in
+    let r_as_g = Alloc_mode.global in
+    { r_as_l; r_as_g }
+
+  let local =
+    let r_as_l = Alloc_mode.local in
+    let r_as_g = Alloc_mode.local in
+    { r_as_l; r_as_g }
+
+  let of_const = function
+    | Global -> global
+    | Regional -> regional
+    | Local -> local
+
+  let max_mode =
+    let r_as_l = Alloc_mode.max_mode in
+    let r_as_g = Alloc_mode.max_mode in
+    { r_as_l; r_as_g }
+
+  let min_mode =
+    let r_as_l = Alloc_mode.min_mode in
+    let r_as_g = Alloc_mode.min_mode in
+    { r_as_l; r_as_g }
+
+  let of_alloc mode =
+    let r_as_l = mode in
+    let r_as_g = mode in
+    { r_as_l; r_as_g }
+
+  let local_to_regional t = { t with r_as_g = Alloc_mode.global }
+
+  let regional_to_global t = { t with r_as_l = t.r_as_g }
+
+  let regional_to_local t = { t with r_as_g = t.r_as_l }
+
+  let global_to_regional t = { t with r_as_l = Alloc_mode.local }
+
+  let regional_to_global_alloc t = t.r_as_g
+
+  let regional_to_local_alloc t = t.r_as_l
+
+  type error = [`Regionality | `Locality]
+
+  let submode t1 t2 =
+    match Alloc_mode.submode t1.r_as_l t2.r_as_l with
+    | Error () -> Error `Regionality
+    | Ok () as ok -> begin
+        match Alloc_mode.submode t1.r_as_g t2.r_as_g with
+        | Ok () -> ok
+        | Error () -> Error `Locality
+      end
+
+  let submode_exn t1 t2 =
+    match submode t1 t2 with
+    | Ok () -> ()
+    | Error _ -> invalid_arg "submode_exn"
+
+  let rec submode_meet t = function
+    | [] -> Ok ()
+    | t' :: rest ->
+      match submode t t' with
+      | Ok () -> submode_meet t rest
+      | Error _ as err -> err
+
+  let join ts =
+    let r_as_l = Alloc_mode.join (List.map (fun t -> t.r_as_l) ts) in
+    let r_as_g = Alloc_mode.join (List.map (fun t -> t.r_as_g) ts) in
+    { r_as_l; r_as_g }
+
+  let constrain_upper t =
+    let r_as_l = Alloc_mode.constrain_upper t.r_as_l in
+    let r_as_g = Alloc_mode.constrain_upper t.r_as_g in
+    of_alloc_consts ~r_as_l ~r_as_g
+
+  let constrain_lower t =
+    let r_as_l = Alloc_mode.constrain_lower t.r_as_l in
+    let r_as_g = Alloc_mode.constrain_lower t.r_as_g in
+    of_alloc_consts ~r_as_l ~r_as_g
+
+  let newvar () =
+    let r_as_l = Alloc_mode.newvar () in
+    let r_as_g = Alloc_mode.newvar () in
+    Alloc_mode.submode_exn r_as_g r_as_l;
+    { r_as_l; r_as_g }
+
+  let newvar_below = function
+    | { r_as_l = Amode Global;
+        r_as_g = Amode Global } ->
+       global
+    | m ->
+       let v = newvar () in
+       submode_exn v m;
+       v
+
+  let check_const t =
+    match Alloc_mode.check_const t.r_as_l with
+    | None -> None
+    | Some r_as_l ->
+      match Alloc_mode.check_const t.r_as_g with
+      | None -> None
+      | Some r_as_g ->
+        Some (of_alloc_consts ~r_as_l ~r_as_g)
+
+  let print_const ppf = function
+    | Global -> Format.fprintf ppf "Global"
+    | Regional -> Format.fprintf ppf "Regional"
+    | Local -> Format.fprintf ppf "Local"
+
+  let print ppf t =
+    match check_const t with
+    | Some const -> print_const ppf const
+    | None ->
+        Format.fprintf ppf
+          "@[<2>r_as_l: %a@ r_as_g: %a@]"
+          Alloc_mode.print t.r_as_l
+          Alloc_mode.print t.r_as_g
+
+end

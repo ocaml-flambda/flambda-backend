@@ -41,6 +41,7 @@ type iterator = {
   class_type_field: iterator -> class_type_field -> unit;
   constructor_declaration: iterator -> constructor_declaration -> unit;
   expr: iterator -> expression -> unit;
+  expr_extension: iterator -> Extensions.Expression.t -> unit;
   extension: iterator -> extension -> unit;
   extension_constructor: iterator -> extension_constructor -> unit;
   include_declaration: iterator -> include_declaration -> unit;
@@ -56,6 +57,7 @@ type iterator = {
   open_declaration: iterator -> open_declaration -> unit;
   open_description: iterator -> open_description -> unit;
   pat: iterator -> pattern -> unit;
+  pat_extension: iterator -> Extensions.Pattern.t -> unit;
   payload: iterator -> payload -> unit;
   signature: iterator -> signature -> unit;
   signature_item: iterator -> signature_item -> unit;
@@ -182,8 +184,10 @@ module T = struct
     sub.attributes sub ptyexn_attributes
 
   let iter_extension_constructor_kind sub = function
-      Pext_decl(ctl, cto) ->
-        iter_constructor_arguments sub ctl; iter_opt (sub.typ sub) cto
+      Pext_decl(vars, ctl, cto) ->
+        List.iter (iter_loc sub) vars;
+        iter_constructor_arguments sub ctl;
+        iter_opt (sub.typ sub) cto
     | Pext_rebind li ->
         iter_loc sub li
 
@@ -263,10 +267,14 @@ module MT = struct
         iter_loc sub lid; sub.type_declaration sub d
     | Pwith_module (lid, lid2) ->
         iter_loc sub lid; iter_loc sub lid2
+    | Pwith_modtype (lid, mty) ->
+        iter_loc sub lid; sub.module_type sub mty
     | Pwith_typesubst (lid, d) ->
         iter_loc sub lid; sub.type_declaration sub d
     | Pwith_modsubst (s, lid) ->
         iter_loc sub s; iter_loc sub lid
+    | Pwith_modtypesubst (lid, mty) ->
+        iter_loc sub lid; sub.module_type sub mty
 
   let iter_signature_item sub {psig_desc = desc; psig_loc = loc} =
     sub.location sub loc;
@@ -281,7 +289,7 @@ module MT = struct
     | Psig_modsubst x -> sub.module_substitution sub x
     | Psig_recmodule l ->
         List.iter (sub.module_declaration sub) l
-    | Psig_modtype x -> sub.module_type_declaration sub x
+    | Psig_modtype x | Psig_modtypesubst x -> sub.module_type_declaration sub x
     | Psig_open x -> sub.open_description sub x
     | Psig_include x -> sub.include_description sub x
     | Psig_class l -> List.iter (sub.class_description sub) l
@@ -339,9 +347,50 @@ end
 module E = struct
   (* Value expressions for the core language *)
 
-  let iter sub {pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} =
+  module C = Extensions.Comprehensions
+  module IA = Extensions.Immutable_arrays
+
+  let iter_iterator sub : C.iterator -> _ = function
+    | Range { start; stop; direction = _ } ->
+      sub.expr sub start;
+      sub.expr sub stop
+    | In expr -> sub.expr sub expr
+
+  let iter_clause_binding sub
+        ({ pattern; iterator; attributes } :
+           C.clause_binding) =
+    sub.pat sub pattern;
+    iter_iterator sub iterator;
+    sub.attributes sub attributes
+
+  let iter_clause sub : C.clause -> _ = function
+    | For cbs -> List.iter (iter_clause_binding sub) cbs
+    | When expr -> sub.expr sub expr
+
+  let iter_comp sub
+        ({ body; clauses } : C.comprehension) =
+    sub.expr sub body;
+    List.iter (iter_clause sub) clauses
+
+  let iter_comp_exp sub : C.expression -> _ = function
+    | Cexp_list_comprehension comp -> iter_comp sub comp
+    | Cexp_array_comprehension (_mut, comp) -> iter_comp sub comp
+
+  let iter_iarr_exp sub : IA.expression -> _ = function
+    | Iaexp_immutable_array elts ->
+      List.iter (sub.expr sub) elts
+
+  let iter_ext sub : Extensions.Expression.t -> _ = function
+    | Eexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
+    | Eexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
+
+  let iter sub
+        ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
     sub.location sub loc;
     sub.attributes sub attrs;
+    match Extensions.Expression.of_ast expr with
+    | Some eexp -> sub.expr_extension sub eexp
+    | None ->
     match desc with
     | Pexp_ident x -> iter_loc sub x
     | Pexp_constant _ -> ()
@@ -426,9 +475,22 @@ end
 module P = struct
   (* Patterns *)
 
-  let iter sub {ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} =
+  module IA = Extensions.Immutable_arrays
+
+  let iter_iapat sub : IA.pattern -> _ = function
+    | Iapat_immutable_array elts ->
+      List.iter (sub.pat sub) elts
+
+  let iter_ext sub : Extensions.Pattern.t -> _ = function
+    | Epat_immutable_array iapat -> iter_iapat sub iapat
+
+  let iter sub
+        ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     sub.location sub loc;
     sub.attributes sub attrs;
+    match Extensions.Pattern.of_ast pat with
+    | Some epat -> sub.pat_extension sub epat
+    | None ->
     match desc with
     | Ppat_any -> ()
     | Ppat_var s -> iter_loc sub s
@@ -437,7 +499,12 @@ module P = struct
     | Ppat_interval _ -> ()
     | Ppat_tuple pl -> List.iter (sub.pat sub) pl
     | Ppat_construct (l, p) ->
-        iter_loc sub l; iter_opt (sub.pat sub) p
+        iter_loc sub l;
+        iter_opt
+          (fun (vl,p) ->
+            List.iter (iter_loc sub) vl;
+            sub.pat sub p)
+          p
     | Ppat_variant (_l, p) -> iter_opt (sub.pat sub) p
     | Ppat_record (lpl, _cf) ->
         List.iter (iter_tuple (iter_loc sub) (sub.pat sub)) lpl
@@ -556,7 +623,9 @@ let default_iterator =
       );
 
     pat = P.iter;
+    pat_extension = P.iter_ext;
     expr = E.iter;
+    expr_extension = E.iter_ext;
     binding_op = E.iter_binding_op;
 
     module_declaration =
@@ -630,8 +699,10 @@ let default_iterator =
 
 
     constructor_declaration =
-      (fun this {pcd_name; pcd_args; pcd_res; pcd_loc; pcd_attributes} ->
+      (fun this {pcd_name; pcd_vars; pcd_args;
+                 pcd_res; pcd_loc; pcd_attributes} ->
          iter_loc this pcd_name;
+         List.iter (iter_loc this) pcd_vars;
          T.iter_constructor_arguments this pcd_args;
          iter_opt (this.typ this) pcd_res;
          this.location this pcd_loc;

@@ -30,7 +30,7 @@ val create_code :
   Are_rebuilding_terms.t ->
   params_and_body:Rebuilt_expr.Function_params_and_body.t ->
   free_names_of_params_and_body:Name_occurrences.t ->
-  t Code_metadata.create_type
+  (t * Code.t option) Code_metadata.create_type
 
 (* This function should be used when a [Code.t] is already in hand, e.g. from
    the input term to the simplifier, rather than when one needs to be

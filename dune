@@ -58,7 +58,7 @@
  ; We should change the code so this "-open" can be removed.
  ; Likewise fix occurrences of warning 9.
  (flags
-  (:standard -principal -w -9))
+  (:standard -principal -w -9-69-70))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (instrumentation
@@ -115,7 +115,6 @@
   closure_offsets
   effect_analysis
   export_info
-  export_info_for_pack
   extract_projections
   find_recursive_functions
   flambda
@@ -170,6 +169,7 @@
   branch_relaxation_intf
   cfgize
   cmm_helpers
+  cmm_builtins
   cmm_invariants
   cmm
   cmmgen
@@ -228,6 +228,7 @@
   cfg_dataflow
   cfg_deadcode
   cfg_liveness
+  cfg_loop_infos
   cfg_regalloc_utils
   cfg_regalloc_validate
   cfg_to_linear_desc
@@ -271,10 +272,12 @@
  (libraries
   ocamlcommon
   flambda_backend_common
+  flambda_backend_utils
   flambda2_identifiers
   flambda2_cmx
   dwarf_ocaml
-  compiler_owee))
+  compiler_owee
+  gc_timings))
 
 (library
  (name flambda_backend_common)
@@ -383,6 +386,7 @@
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.a}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.a}
    %{dep:flambda_backend_common.a}
+   %{dep:utils/flambda_backend_utils.a}
    %{dep:middle_end/flambda2/import/flambda2_import.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
@@ -402,6 +406,7 @@
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.a}
    %{dep:middle_end/flambda2/parser/flambda2_parser.a}
    %{dep:external/owee/compiler_owee.a}
+   %{dep:external/gc-timings/gc_timings.a}
    %{dep:ocamloptcomp.a}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.a}
    %{dep:middle_end/flambda2/flambda2.a})))
@@ -418,6 +423,7 @@
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cma}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cma}
    %{dep:flambda_backend_common.cma}
+   %{dep:utils/flambda_backend_utils.cma}
    %{dep:middle_end/flambda2/import/flambda2_import.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
@@ -437,6 +443,7 @@
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cma}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cma}
    %{dep:external/owee/compiler_owee.cma}
+   %{dep:external/gc-timings/gc_timings.cma}
    %{dep:ocamloptcomp.cma}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cma}
    %{dep:middle_end/flambda2/flambda2.cma})))
@@ -453,6 +460,7 @@
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cmxa}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cmxa}
    %{dep:flambda_backend_common.cmxa}
+   %{dep:utils/flambda_backend_utils.cmxa}
    %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
@@ -472,6 +480,7 @@
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cmxa}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cmxa}
    %{dep:external/owee/compiler_owee.cmxa}
+   %{dep:external/gc-timings/gc_timings.cmxa}
    %{dep:ocamloptcomp.cmxa}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cmxa}
    %{dep:middle_end/flambda2/flambda2.cmxa})))
@@ -490,7 +499,15 @@
    compiler-libs/libcompiler_owee_stubs.a)
   (external/owee/libcompiler_owee_stubs.a
    as
-   compiler-libs/libcompiler_owee_stubs_native.a) ; for special_dune compat
+   compiler-libs/libcompiler_owee_stubs_native.a)
+  (external/gc-timings/libgc_timings_stubs.a
+   as
+   compiler-libs/libgc_timings_stubs.a)
+  (external/gc-timings/libgc_timings_stubs.a
+   as
+   compiler-libs/libgc_timings_stubs_native.a)
+
+  ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
   (ocamloptcomp_with_flambda2.a as compiler-libs/ocamloptcomp.a))
@@ -539,7 +556,6 @@
   (closure_offsets.mli as compiler-libs/closure_offsets.mli)
   (effect_analysis.mli as compiler-libs/effect_analysis.mli)
   (export_info.mli as compiler-libs/export_info.mli)
-  (export_info_for_pack.mli as compiler-libs/export_info_for_pack.mli)
   (extract_projections.mli as compiler-libs/extract_projections.mli)
   (find_recursive_functions.mli
    as
@@ -690,6 +706,7 @@
   (branch_relaxation.mli as compiler-libs/branch_relaxation.mli)
   (cfgize.mli as compiler-libs/cfgize.mli)
   (cmm_helpers.mli as compiler-libs/cmm_helpers.mli)
+  (cmm_builtins.mli as compiler-libs/cmm_builtins.mli)
   (cmm_invariants.mli as compiler-libs/cmm_invariants.mli)
   (cmm.mli as compiler-libs/cmm.mli)
   (cmmgen.mli as compiler-libs/cmmgen.mli)
@@ -747,6 +764,7 @@
   (cfg_dataflow.mli as compiler-libs/cfg_dataflow.mli)
   (cfg_deadcode.mli as compiler-libs/cfg_deadcode.mli)
   (cfg_liveness.mli as compiler-libs/cfg_liveness.mli)
+  (cfg_loop_infos.mli as compiler-libs/cfg_loop_infos.mli)
   (cfg_regalloc_utils.mli as compiler-libs/cfg_regalloc_utils.mli)
   (cfg_regalloc_validate.mli as compiler-libs/cfg_regalloc_validate.mli)
   (cfg_to_linear_desc.mli as compiler-libs/cfg_to_linear_desc.mli)
@@ -772,7 +790,6 @@
   (trap_stack.mli as compiler-libs/trap_stack.mli)
   (cfg_equivalence.mli as compiler-libs/cfg_equivalence.mli)
   (ocaml/extensions.mli as compiler-libs/extensions.mli)
-  (ocaml/translcomprehension.mli as compiler-libs/translcomprehension.mli)
   (.ocamloptcomp.objs/byte/linear_format.cmi
    as
    compiler-libs/linear_format.cmi)
@@ -887,6 +904,12 @@
   (.ocamloptcomp.objs/byte/cfgize.cmo as compiler-libs/cfgize.cmo)
   (.ocamloptcomp.objs/byte/cfgize.cmt as compiler-libs/cfgize.cmt)
   (.ocamloptcomp.objs/byte/cfgize.cmti as compiler-libs/cfgize.cmti)
+  (.ocamloptcomp.objs/byte/cmm_builtins.cmi as compiler-libs/cmm_builtins.cmi)
+  (.ocamloptcomp.objs/byte/cmm_builtins.cmo as compiler-libs/cmm_builtins.cmo)
+  (.ocamloptcomp.objs/byte/cmm_builtins.cmt as compiler-libs/cmm_builtins.cmt)
+  (.ocamloptcomp.objs/byte/cmm_builtins.cmti
+   as
+   compiler-libs/cmm_builtins.cmti)
   (.ocamloptcomp.objs/byte/cmm_helpers.cmi as compiler-libs/cmm_helpers.cmi)
   (.ocamloptcomp.objs/byte/cmm_helpers.cmo as compiler-libs/cmm_helpers.cmo)
   (.ocamloptcomp.objs/byte/cmm_helpers.cmt as compiler-libs/cmm_helpers.cmt)
@@ -1218,6 +1241,18 @@
   (.ocamloptcomp.objs/byte/cfg_liveness.cmti
    as
    compiler-libs/cfg_liveness.cmti)
+  (.ocamloptcomp.objs/byte/cfg_loop_infos.cmi
+   as
+   compiler-libs/cfg_loop_infos.cmi)
+  (.ocamloptcomp.objs/byte/cfg_loop_infos.cmo
+   as
+   compiler-libs/cfg_loop_infos.cmo)
+  (.ocamloptcomp.objs/byte/cfg_loop_infos.cmt
+   as
+   compiler-libs/cfg_loop_infos.cmt)
+  (.ocamloptcomp.objs/byte/cfg_loop_infos.cmti
+   as
+   compiler-libs/cfg_loop_infos.cmti)
   (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmi
    as
    compiler-libs/cfg_regalloc_utils.cmi)
@@ -1230,7 +1265,6 @@
   (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmti
    as
    compiler-libs/cfg_regalloc_utils.cmti)
-
   (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmi
    as
    compiler-libs/cfg_regalloc_validate.cmi)
@@ -1238,11 +1272,11 @@
    as
    compiler-libs/cfg_regalloc_validate.cmo)
   (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmt
-    as
-    compiler-libs/cfg_regalloc_validate.cmt)
+   as
+   compiler-libs/cfg_regalloc_validate.cmt)
   (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmti
-    as
-    compiler-libs/cfg_regalloc_validate.cmti)
+   as
+   compiler-libs/cfg_regalloc_validate.cmti)
   (.ocamloptcomp.objs/byte/cfg_stack_operands.cmi
    as
    compiler-libs/cfg_stack_operands.cmi)
@@ -1454,6 +1488,9 @@
   (.ocamloptcomp.objs/native/cSEgen.cmx as compiler-libs/CSEgen.cmx)
   (.ocamloptcomp.objs/native/cmm.cmx as compiler-libs/cmm.cmx)
   (.ocamloptcomp.objs/native/cfgize.cmx as compiler-libs/cfgize.cmx)
+  (.ocamloptcomp.objs/native/cmm_builtins.cmx
+   as
+   compiler-libs/cmm_builtins.cmx)
   (.ocamloptcomp.objs/native/cmm_helpers.cmx
    as
    compiler-libs/cmm_helpers.cmx)
@@ -1536,12 +1573,15 @@
   (.ocamloptcomp.objs/native/cfg_liveness.cmx
    as
    compiler-libs/cfg_liveness.cmx)
+  (.ocamloptcomp.objs/native/cfg_loop_infos.cmx
+   as
+   compiler-libs/cfg_loop_infos.cmx)
   (.ocamloptcomp.objs/native/cfg_regalloc_utils.cmx
    as
    compiler-libs/cfg_regalloc_utils.cmx)
   (.ocamloptcomp.objs/native/cfg_regalloc_validate.cmx
-    as
-    compiler-libs/cfg_regalloc_validate.cmx)
+   as
+   compiler-libs/cfg_regalloc_validate.cmx)
   (.ocamloptcomp.objs/native/cfg_stack_operands.cmx
    as
    compiler-libs/cfg_stack_operands.cmx)
@@ -1918,18 +1958,6 @@
   (.ocamloptcomp.objs/byte/export_info.cmti
    as
    compiler-libs/export_info.cmti)
-  (.ocamloptcomp.objs/byte/export_info_for_pack.cmi
-   as
-   compiler-libs/export_info_for_pack.cmi)
-  (.ocamloptcomp.objs/byte/export_info_for_pack.cmo
-   as
-   compiler-libs/export_info_for_pack.cmo)
-  (.ocamloptcomp.objs/byte/export_info_for_pack.cmt
-   as
-   compiler-libs/export_info_for_pack.cmt)
-  (.ocamloptcomp.objs/byte/export_info_for_pack.cmti
-   as
-   compiler-libs/export_info_for_pack.cmti)
   (.ocamloptcomp.objs/byte/extract_projections.cmi
    as
    compiler-libs/extract_projections.cmi)
@@ -2434,10 +2462,18 @@
   (.ocamloptcomp.objs/byte/static_exception.cmti
    as
    compiler-libs/static_exception.cmti)
-  (.ocamloptcomp.objs/byte/symbol_utils.cmi as compiler-libs/symbol_utils.cmi)
-  (.ocamloptcomp.objs/byte/symbol_utils.cmo as compiler-libs/symbol_utils.cmo)
-  (.ocamloptcomp.objs/byte/symbol_utils.cmt as compiler-libs/symbol_utils.cmt)
-  (.ocamloptcomp.objs/byte/symbol_utils.cmti as compiler-libs/symbol_utils.cmti)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmi
+   as
+   compiler-libs/symbol_utils.cmi)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmo
+   as
+   compiler-libs/symbol_utils.cmo)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmt
+   as
+   compiler-libs/symbol_utils.cmt)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmti
+   as
+   compiler-libs/symbol_utils.cmti)
   (.ocamloptcomp.objs/byte/tag.cmi as compiler-libs/tag.cmi)
   (.ocamloptcomp.objs/byte/tag.cmo as compiler-libs/tag.cmo)
   (.ocamloptcomp.objs/byte/tag.cmt as compiler-libs/tag.cmt)
@@ -2561,9 +2597,6 @@
   (.ocamloptcomp.objs/native/export_info.cmx
    as
    compiler-libs/export_info.cmx)
-  (.ocamloptcomp.objs/native/export_info_for_pack.cmx
-   as
-   compiler-libs/export_info_for_pack.cmx)
   (.ocamloptcomp.objs/native/extract_projections.cmx
    as
    compiler-libs/extract_projections.cmx)
@@ -2687,7 +2720,9 @@
   (.ocamloptcomp.objs/native/static_exception.cmx
    as
    compiler-libs/static_exception.cmx)
-  (.ocamloptcomp.objs/native/symbol_utils.cmx as compiler-libs/symbol_utils.cmx)
+  (.ocamloptcomp.objs/native/symbol_utils.cmx
+   as
+   compiler-libs/symbol_utils.cmx)
   (.ocamloptcomp.objs/native/tag.cmx as compiler-libs/tag.cmx)
   (.ocamloptcomp.objs/native/traverse_for_exported_symbols.cmx
    as
@@ -3607,4 +3642,13 @@
    compiler_owee__Owee_form.cmti)
   (external/owee/.compiler_owee.objs/byte/compiler_owee.cmt
    as
-   compiler_owee.cmt)))
+   compiler_owee.cmt)
+ (external/gc-timings/.gc_timings.objs/byte/gc_timings.cmti
+   as
+   gc_timings.cmti)
+ (external/gc-timings/.gc_timings.objs/byte/gc_timings.cmi
+   as
+   gc_timings.cmi)
+ (external/gc-timings/.gc_timings.objs/native/gc_timings.cmx
+   as
+   gc_timings.cmx)))

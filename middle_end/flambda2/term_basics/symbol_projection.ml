@@ -17,19 +17,23 @@ module Projection = struct
     | Block_load of { index : Targetint_31_63.t }
     | Project_value_slot of
         { project_from : Function_slot.t;
-          value_slot : Value_slot.t
+          value_slot : Value_slot.t;
+          kind : Flambda_kind.With_subkind.t
         }
 
   let block_load ~index = Block_load { index }
 
-  let project_value_slot project_from value_slot =
-    Project_value_slot { project_from; value_slot }
+  let project_value_slot project_from value_slot kind =
+    Project_value_slot { project_from; value_slot; kind }
 
   let hash t =
     match t with
     | Block_load { index } -> Targetint_31_63.hash index
-    | Project_value_slot { project_from; value_slot } ->
-      Hashtbl.hash (Function_slot.hash project_from, Value_slot.hash value_slot)
+    | Project_value_slot { project_from; value_slot; kind } ->
+      Hashtbl.hash
+        ( Function_slot.hash project_from,
+          Value_slot.hash value_slot,
+          Flambda_kind.With_subkind.hash kind )
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -38,24 +42,36 @@ module Projection = struct
           @[<hov 1>(index@ %a)@]\
           )@]"
         Targetint_31_63.print index
-    | Project_value_slot { project_from; value_slot; } ->
+    | Project_value_slot { project_from; value_slot; kind } ->
       Format.fprintf ppf "@[<hov 1>(Project_value_slot@ \
           @[<hov 1>(project_from@ %a)@]@ \
-          @[<hov 1>(var@ %a)@]\
+          @[<hov 1>(var@ %a)@]@ \
+          @[<hov 1>(kind@ %a)@]\
           )@]"
         Function_slot.print project_from
         Value_slot.print value_slot
+        Flambda_kind.With_subkind.print kind
 
   let compare t1 t2 =
     match t1, t2 with
     | Block_load { index = index1 }, Block_load { index = index2 } ->
       Targetint_31_63.compare index1 index2
     | ( Project_value_slot
-          { project_from = project_from1; value_slot = value_slot1 },
+          { project_from = project_from1;
+            value_slot = value_slot1;
+            kind = kind1
+          },
         Project_value_slot
-          { project_from = project_from2; value_slot = value_slot2 } ) ->
+          { project_from = project_from2;
+            value_slot = value_slot2;
+            kind = kind2
+          } ) ->
       let c = Function_slot.compare project_from1 project_from2 in
-      if c <> 0 then c else Value_slot.compare value_slot1 value_slot2
+      if c <> 0
+      then c
+      else
+        let c = Value_slot.compare value_slot1 value_slot2 in
+        if c <> 0 then c else Flambda_kind.With_subkind.compare kind1 kind2
     | Block_load _, Project_value_slot _ -> -1
     | Project_value_slot _, Block_load _ -> 1
 end
@@ -97,7 +113,7 @@ let free_names { symbol; projection } =
   let free_names = Name_occurrences.singleton_symbol symbol Name_mode.normal in
   match projection with
   | Block_load _ -> free_names
-  | Project_value_slot { project_from; value_slot } ->
+  | Project_value_slot { project_from; value_slot; kind = _ } ->
     Name_occurrences.add_function_slot_in_projection
       (Name_occurrences.add_value_slot_in_projection free_names value_slot
          Name_mode.normal)

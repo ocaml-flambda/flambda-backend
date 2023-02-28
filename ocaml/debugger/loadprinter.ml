@@ -72,14 +72,16 @@ let loadfile ppf name =
    the debuggee. *)
 
 let rec eval_address = function
-  | Env.Aident id ->
-    assert (Ident.is_global id);
-    let bytecode_or_asm_symbol = Ident.name id in
+  | Env.Aunit cu ->
+    let bytecode_or_asm_symbol =
+      Ident.name (cu |> Compilation_unit.to_global_ident_for_bytecode)
+    in
     begin match Dynlink.unsafe_get_global_value ~bytecode_or_asm_symbol with
     | None ->
       raise (Symtable.Error (Symtable.Undefined_global bytecode_or_asm_symbol))
     | Some obj -> obj
     end
+  | Env.Alocal _ -> assert false
   | Env.Adot(addr, pos) -> Obj.field (eval_address addr) pos
 
 let eval_value_path env path =
@@ -95,7 +97,8 @@ let eval_value_path env path =
 let init () =
   let topdirs =
     Filename.concat !Parameters.topdirs_path "topdirs.cmi" in
-  ignore (Env.read_signature "Topdirs" topdirs)
+  let topdirs_unit = "Topdirs" |> Compilation_unit.of_string in
+  ignore (Env.read_signature topdirs_unit topdirs)
 
 let match_printer_type desc typename =
   let printer_type =

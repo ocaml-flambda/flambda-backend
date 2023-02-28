@@ -20,9 +20,7 @@
 type loader
 
 val create_loader :
-  get_global_info:(Compilation_unit.t -> Flambda_cmx_format.t option) ->
-  symbol_for_global:(Ident.t -> Symbol.t) ->
-  loader
+  get_module_info:(Compilation_unit.t -> Flambda_cmx_format.t option) -> loader
 
 val get_imported_names : loader -> unit -> Name.Set.t
 

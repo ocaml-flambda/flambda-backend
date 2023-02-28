@@ -28,79 +28,13 @@
 let verbose = ref false
 
 include Cfg_intf.S
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
-module BasicInstructionList = struct
-  type instr = basic instruction
-
-  type cell =
-    { instr : instr;
-      mutable before_rev : instr list;
-      mutable after : instr list
-    }
-
-  let insert_before cell instr = cell.before_rev <- instr :: cell.before_rev
-
-  let insert_after cell instr = cell.after <- instr :: cell.after
-
-  let instr cell = cell.instr
-
-  type t = instr list ref
-
-  let make_empty () = ref []
-
-  let make_single instr = ref [instr]
-
-  let of_list l = ref l
-
-  let hd t = match !t with [] -> None | hd :: _ -> Some hd
-
-  let last t =
-    let rec loop = function
-      | [] -> None
-      | [last] -> Some last
-      | _ :: tl -> loop tl
-    in
-    loop !t
-
-  let add_begin t instr = t := instr :: !t
-
-  let add_end t instr = t := !t @ [instr]
-
-  let is_empty t = match !t with [] -> true | _ :: _ -> false
-
-  let length t = ListLabels.length !t
-
-  let filter_left t ~f = t := ListLabels.filter ~f !t
-
-  let filter_right t ~f =
-    t
-      := ListLabels.fold_right
-           ~f:(fun elem acc -> if f elem then elem :: acc else acc)
-           !t ~init:[]
-
-  let iter t ~f = ListLabels.iter ~f !t
-
-  let iter_cell t ~f =
-    t
-      := ListLabels.concat_map !t ~f:(fun instr ->
-             let cell = { instr; before_rev = []; after = [] } in
-             f cell;
-             List.rev cell.before_rev @ [instr] @ cell.after)
-
-  let iter2 t t' ~f = ListLabels.iter2 ~f !t !t'
-
-  let fold_left t ~f ~init = ListLabels.fold_left ~f ~init !t
-
-  let fold_right t ~f ~init = ListLabels.fold_right ~f !t ~init
-
-  let transfer ~to_:t ~from:t' () =
-    t := !t @ !t';
-    t' := []
-end
+type basic_instruction_list = basic instruction DLL.t
 
 type basic_block =
   { start : Label.t;
-    body : BasicInstructionList.t;
+    body : basic_instruction_list;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
     mutable stack_offset : int;
@@ -227,6 +161,11 @@ let remove_block_exn t label =
     Misc.fatal_errorf "Cfg.remove_block_exn: block %d not found" label
   | _ -> Label.Tbl.remove t.blocks label
 
+let remove_blocks t labels_to_remove =
+  Label.Tbl.filter_map_inplace
+    (fun l b -> if Label.Set.mem l labels_to_remove then None else Some b)
+    t.blocks
+
 let get_block t label = Label.Tbl.find_opt t.blocks label
 
 let get_block_exn t label =
@@ -238,7 +177,7 @@ let get_block_exn t label =
 let can_raise_interproc block = block.can_raise && Option.is_none block.exn
 
 let first_instruction_id (block : basic_block) : int =
-  match BasicInstructionList.hd block.body with
+  match DLL.hd block.body with
   | None -> block.terminator.id
   | Some first_instr -> first_instr.id
 
@@ -276,6 +215,9 @@ let intcomp (comp : Mach.integer_comparison) =
   | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
   | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
 
+let intop_atomic (op : Cmm.atomic_op) =
+  match op with Fetch_and_add -> " += " | Compare_and_swap -> " cas "
+
 let intop (op : Mach.integer_operation) =
   match op with
   | Iadd -> " + "
@@ -308,6 +250,8 @@ let dump_op ppf = function
   | Store _ -> Format.fprintf ppf "store"
   | Intop op -> Format.fprintf ppf "intop %s" (intop op)
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
+  | Intop_atomic { op; size = _; addr = _ } ->
+    Format.fprintf ppf "intop atomic %s" (intop_atomic op)
   | Negf -> Format.fprintf ppf "negf"
   | Absf -> Format.fprintf ppf "absf"
   | Addf -> Format.fprintf ppf "addf"
@@ -500,6 +444,7 @@ let is_pure_operation : operation -> bool = function
   | Store _ -> false
   | Intop _ -> true
   | Intop_imm _ -> true
+  | Intop_atomic _ -> false
   | Negf -> true
   | Absf -> true
   | Addf -> true
@@ -558,10 +503,10 @@ let is_noop_move instr =
       Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
       ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
-      | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf
-      | Divf | Compf _ | Floatofint | Intoffloat | Opaque | Valueofint
-      | Intofvalue | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region )
+      | Store _ | Intop _ | Intop_imm _ | Intop_atomic _ | Negf | Absf | Addf
+      | Subf | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Opaque
+      | Valueofint | Intofvalue | Probe_is_enabled _ | Specific _
+      | Name_for_debugger _ | Begin_region | End_region )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

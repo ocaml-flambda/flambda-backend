@@ -27,6 +27,7 @@
 
 module CL = Cfg_with_layout
 module L = Linear
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let to_linear_instr ?(like : _ Cfg.instruction option) desc ~next :
     L.instruction =
@@ -312,48 +313,46 @@ let adjust_stack_offset body (block : Cfg.basic_block)
    block more than once. *)
 let run cfg_with_layout =
   let cfg = CL.cfg cfg_with_layout in
-  let layout = Array.of_list (CL.layout cfg_with_layout) in
-  let len = Array.length layout in
+  let layout = CL.layout cfg_with_layout in
   let next = ref Linear_utils.labelled_insn_end in
   let tailrec_label = ref None in
-  for i = len - 1 downto 0 do
-    let label = layout.(i) in
-    if not (Label.Tbl.mem cfg.blocks label)
-    then Misc.fatal_errorf "Unknown block labelled %d\n" label;
-    let block = Label.Tbl.find cfg.blocks label in
-    assert (Label.equal label block.start);
-    let body =
-      let terminator, terminator_tailrec_label =
-        linearize_terminator cfg block.terminator ~next:!next
+  DLL.iter_right_cell layout ~f:(fun cell ->
+      let label = DLL.value cell in
+      if not (Label.Tbl.mem cfg.blocks label)
+      then Misc.fatal_errorf "Unknown block labelled %d\n" label;
+      let block = Label.Tbl.find cfg.blocks label in
+      assert (Label.equal label block.start);
+      let body =
+        let terminator, terminator_tailrec_label =
+          linearize_terminator cfg block.terminator ~next:!next
+        in
+        (match !tailrec_label, terminator_tailrec_label with
+        | (Some _ | None), None -> ()
+        | None, Some _ -> tailrec_label := terminator_tailrec_label
+        | Some old_trl, Some new_trl -> assert (Label.equal old_trl new_trl));
+        DLL.fold_right
+          ~f:(fun i next -> basic_to_linear i ~next)
+          ~init:terminator block.body
       in
-      (match !tailrec_label, terminator_tailrec_label with
-      | (Some _ | None), None -> ()
-      | None, Some _ -> tailrec_label := terminator_tailrec_label
-      | Some old_trl, Some new_trl -> assert (Label.equal old_trl new_trl));
-      Cfg.BasicInstructionList.fold_right
-        ~f:(fun i next -> basic_to_linear i ~next)
-        ~init:terminator block.body
-    in
-    let insn =
-      if i = 0
-      then body (* Entry block of the function. Don't add label. *)
-      else
-        let body =
-          if block.is_trap_handler
-          then to_linear_instr Lentertrap ~next:body
-          else body
-        in
-        let prev = layout.(i - 1) in
-        let prev_block = Label.Tbl.find cfg.blocks prev in
-        let body =
-          if not (need_starting_label cfg_with_layout block ~prev_block)
-          then body
-          else to_linear_instr (Llabel block.start) ~next:body
-        in
-        adjust_stack_offset body block ~prev_block
-    in
-    next := { Linear_utils.label; insn }
-  done;
+      let insn =
+        match DLL.prev cell with
+        | None -> body (* Entry block of the function. Don't add label. *)
+        | Some prev_cell ->
+          let body =
+            if block.is_trap_handler
+            then to_linear_instr Lentertrap ~next:body
+            else body
+          in
+          let prev = DLL.value prev_cell in
+          let prev_block = Label.Tbl.find cfg.blocks prev in
+          let body =
+            if not (need_starting_label cfg_with_layout block ~prev_block)
+            then body
+            else to_linear_instr (Llabel block.start) ~next:body
+          in
+          adjust_stack_offset body block ~prev_block
+      in
+      next := { Linear_utils.label; insn });
   let fun_contains_calls = cfg.fun_contains_calls in
   let fun_num_stack_slots = cfg.fun_num_stack_slots in
   let fun_frame_required =
@@ -370,14 +369,19 @@ let run cfg_with_layout =
     fun_contains_calls;
     fun_num_stack_slots;
     fun_frame_required;
-    fun_prologue_required;
-    fun_end_label = Cmm.new_label ()
+    fun_prologue_required
   }
+
+let layout_of_block_list : Cfg.basic_block list -> Cfg_with_layout.layout =
+ fun blocks ->
+  let res = DLL.make_empty () in
+  List.iter (fun block -> DLL.add_end res block.Cfg.start) blocks;
+  res
 
 (** debug print block as assembly *)
 let print_assembly (blocks : Cfg.basic_block list) =
   (* create a fake cfg just for printing these blocks *)
-  let layout = List.map (fun (b : Cfg.basic_block) -> b.start) blocks in
+  let layout = layout_of_block_list blocks in
   let fun_name = "_fun_start_" in
   let cfg =
     Cfg.create ~fun_name ~fun_args:[||] ~fun_dbg:Debuginfo.none ~fun_fast:false

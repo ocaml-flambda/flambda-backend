@@ -61,3 +61,5 @@ let ids_for_export =
       Flambda.Function_params_and_body.ids_for_export
 
 let map_result_types = Code0.map_result_types
+
+let free_names_of_params_and_body = Code0.free_names_of_params_and_body

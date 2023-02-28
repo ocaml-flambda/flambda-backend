@@ -27,12 +27,15 @@ let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-red
 let alloc_check = ref false             (* -alloc-check *)
 let dump_checkmach = ref false          (* -dcheckmach *)
 
-let disable_poll_insertion = ref false  (* -disable-poll-insertion *)
+let disable_poll_insertion = ref (not Config.poll_insertion)
+                                        (* -disable-poll-insertion *)
 let allow_long_frames = ref true        (* -no-long-frames *)
 (* Keep the value of [max_long_frames_threshold] in sync with LONG_FRAME_MARKER
    in ocaml/runtime/roots_nat.c *)
 let max_long_frames_threshold = 0x7FFF
 let long_frames_threshold = ref max_long_frames_threshold (* -debug-long-frames-threshold n *)
+
+let caml_apply_inline_fast_path = ref false  (* -caml-apply-inline-fast-path *)
 
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
@@ -43,6 +46,8 @@ let dump_inlining_paths = ref false
 let opt_level = ref Default
 
 let internal_assembler = ref false
+
+let gc_timings = ref false
 
 let flags_by_opt_level ~opt_level ~default ~oclassic ~o2 ~o3 =
   match opt_level with
@@ -117,11 +122,14 @@ module Flambda2 = struct
   let function_result_types = ref Default
 
   module Dump = struct
-    let rawfexpr = ref false
-    let fexpr = ref false
-    let flexpect = ref false
+    type target = Nowhere | Main_dump_stream | File of Misc.filepath
+
+    let rawfexpr = ref Nowhere
+    let fexpr = ref Nowhere
+    let flexpect = ref Nowhere
     let slot_offsets = ref false
     let freshen = ref false
+    let flow = ref false
   end
 
   module Expert = struct
@@ -132,6 +140,7 @@ module Flambda2 = struct
       let max_block_size_for_projections = None
       let max_unboxing_depth = 3
       let can_inline_recursive_functions = false
+      let max_function_simplify_run = 2
     end
 
     type flags = {
@@ -141,6 +150,7 @@ module Flambda2 = struct
       max_block_size_for_projections : int option;
       max_unboxing_depth : int;
       can_inline_recursive_functions : bool;
+      max_function_simplify_run : int;
     }
 
     let default = {
@@ -150,6 +160,7 @@ module Flambda2 = struct
       max_block_size_for_projections = Default.max_block_size_for_projections;
       max_unboxing_depth = Default.max_unboxing_depth;
       can_inline_recursive_functions = Default.can_inline_recursive_functions;
+      max_function_simplify_run = Default.max_function_simplify_run;
     }
 
     let oclassic = {
@@ -173,6 +184,7 @@ module Flambda2 = struct
     let max_block_size_for_projections = ref Default
     let max_unboxing_depth = ref Default
     let can_inline_recursive_functions = ref Default
+    let max_function_simplify_run = ref Default
   end
 
   module Debug = struct

@@ -55,13 +55,13 @@ open Asttypes
 
     Note on mutability: TBD.
  *)
-type type_expr =
-  { mutable desc: type_desc;
-    mutable level: int;
-    mutable scope: int;
-    id: int }
+type type_expr
+type row_desc
+type row_field
+type field_kind
+type commutable
 
-and type_desc =
+type type_desc =
   | Tvar of string option
   (** [Tvar (Some "a")] ==> ['a] or ['_a]
       [Tvar None]       ==> [_] *)
@@ -71,7 +71,8 @@ and type_desc =
       [Tarrow (Labelled "l", e1, e2, c)] ==> [l:e1  -> e2]
       [Tarrow (Optional "l", e1, e2, c)] ==> [?l:e1 -> e2]
 
-      See [commutable] for the last argument. *)
+      See [commutable] for the last argument. The argument
+      type must be a [Tpoly] node *)
 
   | Ttuple of type_expr list
   (** [Ttuple [t1;...;tn]] ==> [(t1 * ... * tn)] *)
@@ -100,7 +101,7 @@ and type_desc =
   *)
 
   | Tfield of string * field_kind * type_expr * type_expr
-  (** [Tfield ("foo", Fpresent, t, ts)] ==> [<...; foo : t; ts>] *)
+  (** [Tfield ("foo", field_public, t, ts)] ==> [<...; foo : t; ts>] *)
 
   | Tnil
   (** [Tnil] ==> [<...; >] *)
@@ -108,10 +109,13 @@ and type_desc =
   | Tlink of type_expr
   (** Indirection used by unification engine. *)
 
-  | Tsubst of type_expr         (* for copying *)
+  | Tsubst of type_expr * type_expr option
   (** [Tsubst] is used temporarily to store information in low-level
       functions manipulating representation of types, such as
       instantiation or copy.
+      The first argument contains a copy of the original node.
+      The second is available only when the first is the row variable of
+      a polymorphic variant.  It then contains a copy of the whole variant.
       This constructor should not appear outside of these cases. *)
 
   | Tvariant of row_desc
@@ -126,7 +130,7 @@ and type_desc =
       where 'a1 ... 'an are names given to types in tyl
       and occurrences of those types in ty. *)
 
-  | Tpackage of Path.t * Longident.t list * type_expr list
+  | Tpackage of Path.t * (Longident.t * type_expr) list
   (** Type of a first-class module (a.k.a package). *)
 
 and arrow_desc =
@@ -146,52 +150,11 @@ and alloc_mode =
   | Amode of alloc_mode_const
   | Amodevar of alloc_mode_var
 
-
-(** [  `X | `Y ]       (row_closed = true)
-    [< `X | `Y ]       (row_closed = true)
-    [> `X | `Y ]       (row_closed = false)
-    [< `X | `Y > `X ]  (row_closed = true)
-
-    type t = [> `X ] as 'a      (row_more = Tvar a)
-    type t = private [> `X ]    (row_more = Tconstr (t#row, [], ref Mnil))
-
-    And for:
-
-        let f = function `X -> `X -> | `Y -> `X
-
-    the type of "f" will be a [Tarrow] whose lhs will (basically) be:
-
-        Tvariant { row_fields = [("X", _)];
-                   row_more   =
-                     Tvariant { row_fields = [("Y", _)];
-                                row_more   =
-                                  Tvariant { row_fields = [];
-                                             row_more   = _;
-                                             _ };
-                                _ };
-                   _
-                 }
-
-*)
-and row_desc =
-    { row_fields: (label * row_field) list;
-      row_more: type_expr;
-      row_bound: unit; (* kept for compatibility *)
-      row_closed: bool;
-      row_fixed: fixed_explanation option;
-      row_name: (Path.t * type_expr list) option }
 and fixed_explanation =
   | Univar of type_expr (** The row type was bound to an univar *)
   | Fixed_private (** The row type is private *)
   | Reified of Path.t (** The row was reified *)
   | Rigid (** The row type was made rigid during constraint verification *)
-and row_field =
-    Rpresent of type_expr option
-  | Reither of bool * type_expr list * bool * row_field option ref
-        (* 1st true denotes a constant constructor *)
-        (* 2nd true denotes a tag in a pattern matching, and
-           is erased later *)
-  | Rabsent
 
 (** [abbrev_memo] allows one to keep track of different expansions of a type
     alias. This is done for performance purposes.
@@ -220,23 +183,18 @@ and abbrev_memo =
   | Mlink of abbrev_memo ref
   (** Abbreviations can be found after this indirection *)
 
-and field_kind =
-    Fvar of field_kind option ref
-  | Fpresent
-  | Fabsent
-
 (** [commutable] is a flag appended to every arrow type.
 
     When typing an application, if the type of the functional is
-    known, its type is instantiated with [Cok] arrows, otherwise as
-    [Clink (ref Cunknown)].
+    known, its type is instantiated with [commu_ok] arrows, otherwise as
+    [commu_var ()].
 
     When the type is not known, the application will be used to infer
     the actual type.  This is fragile in presence of labels where
     there is no principal type.
 
-    Two incompatible applications relying on [Cunknown] arrows will
-    trigger an error.
+    Two incompatible applications must rely on [is_commu_ok] arrows,
+    otherwise they will trigger an error.
 
     let f g =
       g ~a:() ~b:();
@@ -246,36 +204,180 @@ and field_kind =
     in an order different from other calls.
     This is only allowed when the real type is known.
 *)
-and commutable =
-    Cok
-  | Cunknown
-  | Clink of commutable ref
 
-module TypeOps : sig
-  type t = type_expr
+val is_commu_ok: commutable -> bool
+val commu_ok: commutable
+val commu_var: unit -> commutable
+
+(** [field_kind] indicates the accessibility of a method.
+
+    An [Fprivate] field may become [Fpublic] or [Fabsent] during unification,
+    but not the other way round.
+
+    The same [field_kind] is kept shared when copying [Tfield] nodes
+    so that the copies of the self-type of a class share the same accessibility
+    (see also PR#10539).
+ *)
+
+type field_kind_view =
+    Fprivate
+  | Fpublic
+  | Fabsent
+
+val field_kind_repr: field_kind -> field_kind_view
+val field_public: field_kind
+val field_absent: field_kind
+val field_private: unit -> field_kind
+val field_kind_internal_repr: field_kind -> field_kind
+        (* Removes indirections in [field_kind].
+           Only needed for performance. *)
+
+(** Getters for type_expr; calls repr before answering a value *)
+
+val get_desc: type_expr -> type_desc
+val get_level: type_expr -> int
+val get_scope: type_expr -> int
+val get_id: type_expr -> int
+
+(** Transient [type_expr].
+    Should only be used immediately after [Transient_expr.repr] *)
+type transient_expr = private
+      { mutable desc: type_desc;
+        mutable level: int;
+        mutable scope: int;
+        id: int }
+
+module Transient_expr : sig
+  (** Operations on [transient_expr] *)
+
+  val create: type_desc -> level: int -> scope: int -> id: int -> transient_expr
+  val set_desc: transient_expr -> type_desc -> unit
+  val set_level: transient_expr -> int -> unit
+  val set_scope: transient_expr -> int -> unit
+  val repr: type_expr -> transient_expr
+  val type_expr: transient_expr -> type_expr
+  val coerce: type_expr -> transient_expr
+      (** Coerce without normalizing with [repr] *)
+
+  val set_stub_desc: type_expr -> type_desc -> unit
+      (** Instantiate a not yet instantiated stub.
+          Fail if already instantiated. *)
+end
+
+val create_expr: type_desc -> level: int -> scope: int -> id: int -> type_expr
+
+(** Functions and definitions moved from Btype *)
+
+val newty3: level:int -> scope:int -> type_desc -> type_expr
+        (** Create a type with a fresh id *)
+
+val newty2: level:int -> type_desc -> type_expr
+        (** Create a type with a fresh id and no scope *)
+
+module TransientTypeOps : sig
+  (** Comparisons for functors *)
+
+  type t = transient_expr
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val hash : t -> int
 end
 
+(** Comparisons for [type_expr]; cannot be used for functors *)
+
+val eq_type: type_expr -> type_expr -> bool
+val compare_type: type_expr -> type_expr -> int
+
+(** Constructor and accessors for [row_desc] *)
+
+(** [  `X | `Y ]       (row_closed = true)
+    [< `X | `Y ]       (row_closed = true)
+    [> `X | `Y ]       (row_closed = false)
+    [< `X | `Y > `X ]  (row_closed = true)
+
+    type t = [> `X ] as 'a      (row_more = Tvar a)
+    type t = private [> `X ]    (row_more = Tconstr ("t#row", [], ref Mnil))
+
+    And for:
+
+        let f = function `X -> `X -> | `Y -> `X
+
+    the type of "f" will be a [Tarrow] whose lhs will (basically) be:
+
+        Tvariant { row_fields = [("X", _)];
+                   row_more   =
+                     Tvariant { row_fields = [("Y", _)];
+                                row_more   =
+                                  Tvariant { row_fields = [];
+                                             row_more   = _;
+                                             _ };
+                                _ };
+                   _
+                 }
+
+*)
+
+val create_row:
+  fields:(label * row_field) list ->
+  more:type_expr ->
+  closed:bool ->
+  fixed:fixed_explanation option ->
+  name:(Path.t * type_expr list) option -> row_desc
+
+val row_fields: row_desc -> (label * row_field) list
+val row_more: row_desc -> type_expr
+val row_closed: row_desc -> bool
+val row_fixed: row_desc -> fixed_explanation option
+val row_name: row_desc -> (Path.t * type_expr list) option
+
+val set_row_name: row_desc -> (Path.t * type_expr list) option -> row_desc
+
+val get_row_field: label -> row_desc -> row_field
+
+(** get all fields at once; different from the old [row_repr] *)
+type row_desc_repr =
+    Row of { fields: (label * row_field) list;
+             more:   type_expr;
+             closed: bool;
+             fixed:  fixed_explanation option;
+             name:   (Path.t * type_expr list) option }
+
+val row_repr: row_desc -> row_desc_repr
+
+(** Current contents of a row field *)
+type row_field_view =
+    Rpresent of type_expr option
+  | Reither of bool * type_expr list * bool
+        (* 1st true denotes a constant constructor *)
+        (* 2nd true denotes a tag in a pattern matching, and
+           is erased later *)
+  | Rabsent
+
+val row_field_repr: row_field -> row_field_view
+val rf_present: type_expr option -> row_field
+val rf_absent: row_field
+val rf_either:
+    ?use_ext_of:row_field ->
+    no_arg:bool -> type_expr list -> matched:bool -> row_field
+val rf_either_of: type_expr option -> row_field
+
+val eq_row_field_ext: row_field -> row_field -> bool
+val changed_row_field_exts: row_field list -> (unit -> unit) -> bool
+
+val match_row_field:
+    present:(type_expr option -> 'a) ->
+    absent:(unit -> 'a) ->
+    either:(bool -> type_expr list -> bool -> row_field option ->'a) ->
+    row_field -> 'a
+
 (* *)
 
-module Uid : sig
-  type t
+module Uid = Shape.Uid
 
-  val reinit : unit -> unit
+(* Sets and maps of methods and instance variables *)
 
-  val mk : current_unit:string -> t
-  val of_compilation_unit_id : Ident.t -> t
-  val of_predef_id : Ident.t -> t
-  val internal_not_actually_unique : t
-
-  val for_actual_declaration : t -> bool
-
-  include Identifiable.S with type t := t
-end
-
-(* Maps of methods and instance variables *)
+module MethSet : Set.S with type elt = string
+module VarSet : Set.S with type elt = string
 
 module Meths : Map.S with type key = string
 module Vars  : Map.S with type key = string
@@ -294,12 +396,25 @@ and value_kind =
     Val_reg                             (* Regular value *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
-  | Val_self of (Ident.t * type_expr) Meths.t ref *
-                (Ident.t * mutable_flag * virtual_flag * type_expr) Vars.t ref *
-                string * type_expr
+  | Val_self of class_signature * self_meths * Ident.t Vars.t * string
                                         (* Self *)
-  | Val_anc of (string * Ident.t) list * string
+  | Val_anc of class_signature * Ident.t Meths.t * string
                                         (* Ancestor *)
+
+and self_meths =
+  | Self_concrete of Ident.t Meths.t
+  | Self_virtual of Ident.t Meths.t ref
+
+and class_signature =
+  { csig_self: type_expr;
+    mutable csig_self_row: type_expr;
+    mutable csig_vars: (mutable_flag * virtual_flag * type_expr) Vars.t;
+    mutable csig_meths: (method_privacy * virtual_flag * type_expr) Meths.t; }
+
+and method_privacy =
+  | Mpublic
+  | Mprivate of field_kind
+    (* The [field_kind] is always [Fabsent] in a complete class type. *)
 
 (* Variance *)
 
@@ -367,7 +482,7 @@ end
 type type_declaration =
   { type_params: type_expr list;
     type_arity: int;
-    type_kind: type_kind;
+    type_kind: type_decl_kind;
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -378,14 +493,17 @@ type type_declaration =
     type_loc: Location.t;
     type_attributes: Parsetree.attributes;
     type_immediate: Type_immediacy.t;
-    type_unboxed: unboxed_status;
+    type_unboxed_default: bool;
+    (* true if the unboxed-ness of this type was chosen by a compiler flag *)
     type_uid: Uid.t;
   }
 
-and type_kind =
+and type_decl_kind = (label_declaration, constructor_declaration) type_kind
+
+and ('lbl, 'cstr) type_kind =
     Type_abstract
-  | Type_record of label_declaration list  * record_representation
-  | Type_variant of constructor_declaration list
+  | Type_record of 'lbl list  * record_representation
+  | Type_variant of 'cstr list * variant_representation
   | Type_open
 
 and record_representation =
@@ -394,6 +512,10 @@ and record_representation =
   | Record_unboxed of bool    (* Unboxed single-field record, inlined or not *)
   | Record_inlined of int               (* Inlined record *)
   | Record_extension of Path.t          (* Inlined record under extension *)
+
+and variant_representation =
+    Variant_regular          (* Constant or boxed constructors *)
+  | Variant_unboxed          (* One unboxed single-field constructor *)
 
 and global_flag =
   | Global
@@ -422,22 +544,8 @@ and constructor_declaration =
   }
 
 and constructor_arguments =
-  | Cstr_tuple of type_expr list
+  | Cstr_tuple of (type_expr * global_flag) list
   | Cstr_record of label_declaration list
-
-and unboxed_status = private
-  (* This type must be private in order to ensure perfect sharing of the
-     four possible values. Otherwise, ocamlc.byte and ocamlc.opt produce
-     different executables. *)
-  {
-    unboxed: bool;
-    default: bool; (* True for unannotated unboxable types. *)
-  }
-
-val unboxed_false_default_false : unboxed_status
-val unboxed_false_default_true : unboxed_status
-val unboxed_true_default_false : unboxed_status
-val unboxed_true_default_true : unboxed_status
 
 type extension_constructor =
   {
@@ -458,19 +566,10 @@ and type_transparence =
 
 (* Type expressions for the class language *)
 
-module Concr : Set.S with type elt = string
-
 type class_type =
     Cty_constr of Path.t * type_expr list * class_type
   | Cty_signature of class_signature
   | Cty_arrow of arg_label * type_expr * class_type
-
-and class_signature =
-  { csig_self: type_expr;
-    csig_vars:
-      (Asttypes.mutable_flag * Asttypes.virtual_flag * type_expr) Vars.t;
-    csig_concr: Concr.t;
-    csig_inher: (Path.t * type_expr list) list }
 
 type class_declaration =
   { cty_params: type_expr list;
@@ -551,6 +650,7 @@ and ext_status =
   | Text_next                      (* not first constructor in an extension *)
   | Text_exception
 
+val item_visibility : signature_item -> visibility
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)
@@ -559,12 +659,11 @@ type constructor_description =
   { cstr_name: string;                  (* Constructor name *)
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
-    cstr_args: type_expr list;          (* Type of the arguments *)
+    cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: constructor_tag;          (* Tag for heap blocks *)
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)
-    cstr_normal: int;                   (* Number of non generalized constrs *)
     cstr_generalized: bool;             (* Constrained return type? *)
     cstr_private: private_flag;         (* Read-only constructor? *)
     cstr_loc: Location.t;
@@ -611,6 +710,192 @@ val bound_value_identifiers: signature -> Ident.t list
 val signature_item_id : signature_item -> Ident.t
 
 type value_mode =
-  (* See Btype.Value_mode *)
+  (* See Value_mode below *)
   { r_as_l : alloc_mode;
     r_as_g : alloc_mode; }
+
+(**** Utilities for backtracking ****)
+
+type snapshot
+        (* A snapshot for backtracking *)
+val snapshot: unit -> snapshot
+        (* Make a snapshot for later backtracking. Costs nothing *)
+val backtrack: cleanup_abbrev:(unit -> unit) -> snapshot -> unit
+        (* Backtrack to a given snapshot. Only possible if you have
+           not already backtracked to a previous snapshot.
+           Calls [cleanup_abbrev] internally *)
+val undo_first_change_after: snapshot -> unit
+        (* Backtrack only the first change after a snapshot.
+           Does not update the list of changes *)
+val undo_compress: snapshot -> unit
+        (* Backtrack only path compression. Only meaningful if you have
+           not already backtracked to a previous snapshot.
+           Does not call [cleanup_abbrev] *)
+
+(** Functions to use when modifying a type (only Ctype?).
+    The old values are logged and reverted on backtracking.
+ *)
+
+val link_type: type_expr -> type_expr -> unit
+        (* Set the desc field of [t1] to [Tlink t2], logging the old
+           value if there is an active snapshot *)
+val set_type_desc: type_expr -> type_desc -> unit
+        (* Set directly the desc field, without sharing *)
+val set_level: type_expr -> int -> unit
+val set_scope: type_expr -> int -> unit
+val set_name:
+    (Path.t * type_expr list) option ref ->
+    (Path.t * type_expr list) option -> unit
+val link_row_field_ext: inside:row_field -> row_field -> unit
+        (* Extract the extension variable of [inside] and set it to the
+           second argument *)
+val set_univar: type_expr option ref -> type_expr -> unit
+val link_kind: inside:field_kind -> field_kind -> unit
+val link_commu: inside:commutable -> commutable -> unit
+val set_commu_ok: commutable -> unit
+
+
+(**** Allocation modes ****)
+
+module Alloc_mode : sig
+
+  (* Modes are ordered so that [global] is a submode of [local] *)
+  type t = alloc_mode
+  type const = alloc_mode_const = Global | Local
+
+  val global : t
+
+  val local : t
+
+  val of_const : const -> t
+
+  val min_mode : t
+
+  val max_mode : t
+
+  val submode : t -> t -> (unit, unit) result
+
+  val submode_exn : t -> t -> unit
+
+  val equate : t -> t -> (unit, unit) result
+
+  val make_global_exn : t -> unit
+
+  val make_local_exn : t -> unit
+
+  val join_const : const -> const -> const
+
+  val join : t list -> t
+
+  (* Force a mode variable to its upper bound *)
+  val constrain_upper : t -> const
+
+  (* Force a mode variable to its lower bound *)
+  val constrain_lower : t -> const
+
+  val newvar : unit -> t
+
+  val newvar_below : t -> t * bool
+
+  val newvar_above : t -> t * bool
+
+  val check_const : t -> const option
+
+  val print : Format.formatter -> t -> unit
+
+end
+
+module Value_mode : sig
+
+ type const =
+   | Global
+   | Regional
+   | Local
+
+  type t = value_mode
+
+  val global : t
+
+  val regional : t
+
+  val local : t
+
+  val of_const : const -> t
+
+  val max_mode : t
+
+  val min_mode : t
+
+  (** Injections from [Alloc_mode.t] into [Value_mode.t] *)
+
+  (** [of_alloc] maps [Global] to [Global] and [Local] to [Local] *)
+  val of_alloc : Alloc_mode.t -> t
+
+  (** Kernel operators *)
+
+  (** The kernel operator [local_to_regional] maps [Local] to
+      [Regional] and leaves the others unchanged. *)
+  val local_to_regional : t -> t
+
+  (** The kernel operator [regional_to_global] maps [Regional]
+      to [Global] and leaves the others unchanged. *)
+  val regional_to_global : t -> t
+
+  (** Closure operators *)
+
+  (** The closure operator [regional_to_local] maps [Regional]
+      to [Local] and leaves the others unchanged. *)
+  val regional_to_local : t -> t
+
+  (** The closure operator [global_to_regional] maps [Global] to
+      [Regional] and leaves the others unchanged. *)
+  val global_to_regional : t -> t
+
+  (** Note that the kernal and closure operators are in the following
+      adjunction relationship:
+      {v
+        local_to_regional
+        -| regional_to_local
+        -| regional_to_global
+        -| global_to_regional
+      v}
+
+      Equivalently,
+      {v
+        local_to_regional a <= b  iff  a <= regional_to_local b
+        regional_to_local a <= b  iff  a <= regional_to_global b
+        regional_to_global a <= b  iff  a <= global_to_regional b
+      v}
+   *)
+
+  (** Versions of the operators that return [Alloc.t] *)
+
+  (** Maps [Regional] to [Global] and leaves the others unchanged. *)
+  val regional_to_global_alloc : t -> Alloc_mode.t
+
+  (** Maps [Regional] to [Local] and leaves the others unchanged. *)
+  val regional_to_local_alloc : t -> Alloc_mode.t
+
+  type error = [`Regionality | `Locality]
+
+  val submode : t -> t -> (unit, error) result
+
+  val submode_exn : t -> t -> unit
+
+  val submode_meet : t -> t list -> (unit, error) result
+
+  val join : t list -> t
+
+  val constrain_upper : t -> const
+
+  val constrain_lower : t -> const
+
+  val newvar : unit -> t
+
+  val newvar_below : t -> t
+
+  val check_const : t -> const option
+
+  val print : Format.formatter -> t -> unit
+
+end

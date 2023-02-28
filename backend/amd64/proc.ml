@@ -354,6 +354,7 @@ let destroyed_at_oper = function
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
                    | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _
                    | Icheckbound),_))
+  | Iop(Iintop_atomic _)
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
                | Double ), _, _))
@@ -408,6 +409,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
                | Iasr | Ipopcnt | Iclz _ | Ictz _)
        | Intop_imm ((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor
                     | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _),_)
+       | Intop_atomic _
        | Negf | Absf | Addf | Subf | Mulf | Divf
        | Compf _
        | Csel _
@@ -468,7 +470,8 @@ let safe_register_pressure = function
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _, _) | Istore (_, _, _)
-  | Iintop _ | Iintop_imm (_, _) | Ispecific _ | Iname_for_debugger _
+  | Iintop _ | Iintop_imm (_, _) | Iintop_atomic _
+  | Ispecific _ | Iname_for_debugger _
   | Iprobe _ | Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion
     -> if fp then 10 else 11
@@ -495,6 +498,7 @@ let max_register_pressure =
            | Ipopcnt|Iclz _| Ictz _|Icheckbound)
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr
                 | Iasr | Ipopcnt | Iclz _| Ictz _|Icheckbound), _)
+  | Iintop_atomic _
   | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
             | Double ),
@@ -538,7 +542,7 @@ let init () =
 
 let operation_supported = function
   | Cpopcnt -> !popcnt_support
-  | Cprefetch _
+  | Cprefetch _ | Catomic _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr

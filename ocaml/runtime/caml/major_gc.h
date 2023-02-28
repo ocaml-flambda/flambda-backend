@@ -31,7 +31,7 @@ typedef struct {
 
 typedef struct {
   void *block;           /* address of the malloced block this chunk lives in */
-  asize_t alloc;         /* in bytes, used for compaction */
+  asize_t allocated;     /* in bytes, used for compaction */
   asize_t size;          /* in bytes */
   char *next;
   mark_entry redarken_first;  /* first block in chunk to redarken */
@@ -40,7 +40,7 @@ typedef struct {
 
 #define Chunk_head(c) (((heap_chunk_head *) (c)) - 1)
 #define Chunk_size(c) Chunk_head(c)->size
-#define Chunk_alloc(c) Chunk_head(c)->alloc
+#define Chunk_alloc(c) Chunk_head(c)->allocated
 #define Chunk_next(c) Chunk_head(c)->next
 #define Chunk_block(c) Chunk_head(c)->block
 
@@ -50,6 +50,7 @@ extern uintnat caml_allocated_words;
 extern double caml_extra_heap_resources;
 extern uintnat caml_dependent_size, caml_dependent_allocated;
 extern uintnat caml_fl_wsz_at_phase_change;
+extern int caml_ephe_list_pure;
 
 #define Phase_mark 0
 #define Phase_clean 1
@@ -104,6 +105,10 @@ void caml_set_major_window (int);
    should only be used on runtime shutdown.
 */
 void caml_finalise_heap (void);
+
+#ifdef NAKED_POINTERS_CHECKER
+extern int caml_naked_pointers_detected;
+#endif
 
 #endif /* CAML_INTERNALiS */
 

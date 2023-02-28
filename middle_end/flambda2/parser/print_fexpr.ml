@@ -9,6 +9,8 @@ let pp_comma_list f = pp_list ~sep:",@ " f
 
 let pp_semi_list f = pp_list ~sep:";@ " f
 
+let pp_pipe_list f = pp_list ~sep:"@ |" f
+
 let empty_fmt : (unit, Format.formatter, unit) format = ""
 
 let space_fmt : (unit, Format.formatter, unit) format = "@ "
@@ -126,26 +128,50 @@ let naked_number_kind ppf (nnk : Flambda_kind.Naked_number_kind.t) =
   | Naked_int64 -> "int64"
   | Naked_nativeint -> "nativeint"
 
+let rec subkind ppf (k : subkind) =
+  let str s = Format.pp_print_string ppf s in
+  match k with
+  | Anything -> str "val"
+  | Float_block _ ->
+    str "float_block" (* CR-someday lmaurer: unimplemented in parser *)
+  | Boxed_float -> str "float boxed"
+  | Boxed_int32 -> str "int32 boxed"
+  | Boxed_int64 -> str "int64 boxed"
+  | Boxed_nativeint -> str "nativeint boxed"
+  | Variant { consts; non_consts } -> variant_subkind ppf consts non_consts
+  | Tagged_immediate -> str "imm tagged"
+  | Float_array -> str "float array"
+  | Immediate_array -> str "imm array"
+  | Value_array -> str "val array"
+  | Generic_array ->
+    str "generic_array" (* CR-someday lmaurer: unimplemented in parser *)
+
+and variant_subkind ppf consts non_consts =
+  match consts, non_consts with
+  | [], [] ->
+    Format.pp_print_string ppf "[ ]" (* Empty variant? Sure, whatever *)
+  | _, _ ->
+    (* Align first | in line with opening [*)
+    Format.fprintf ppf "@[<hov 0>[ ";
+    pp_pipe_list (fun ppf -> Format.fprintf ppf "%Ld") ppf consts;
+    let () =
+      match consts, non_consts with
+      | [], _ | _, [] -> ()
+      | _ :: _, _ :: _ -> Format.fprintf ppf "@ |"
+    in
+    let pp_pair ppf (tag, sk) =
+      Format.fprintf ppf "@[<hov 2>%d of %a@]" tag (pp_star_list subkind) sk
+    in
+    pp_pipe_list pp_pair ppf non_consts;
+    Format.fprintf ppf "@ ]@]"
+
 let kind_with_subkind ppf (k : kind_with_subkind) =
   let str s = Format.pp_print_string ppf s in
-  match Flambda_kind.With_subkind.kind k with
+  match k with
   | Naked_number nnk -> naked_number_kind ppf nnk
   | Rec_info -> str "rec_info"
   | Region -> str "region"
-  | Value -> (
-    match Flambda_kind.With_subkind.subkind k with
-    | Anything -> str "val"
-    | Variant _ -> str "variant" (* CR mshinwell: improve this *)
-    | Float_block _ -> str "float_block"
-    | Boxed_float -> str "float boxed"
-    | Boxed_int32 -> str "int32 boxed"
-    | Boxed_int64 -> str "int64 boxed"
-    | Boxed_nativeint -> str "nativeint boxed"
-    | Tagged_immediate -> str "imm tagged"
-    | Float_array -> str "float_array"
-    | Immediate_array -> str "immediate_array"
-    | Value_array -> str "value_array"
-    | Generic_array -> str "generic_array")
+  | Value sk -> subkind ppf sk
 
 let arity ppf (a : arity) =
   match a with
@@ -439,7 +465,7 @@ let unop ppf u =
   | String_length String -> str "%string_length"
   | Unbox_number bk -> box_or_unbox "unbox" bk
   | Untag_immediate -> str "%untag_imm"
-  | Tag_immediate -> str "%tag_imm"
+  | Tag_immediate -> str "%Tag_imm"
 
 let ternop ppf t a1 a2 a3 =
   match t with
@@ -619,7 +645,8 @@ let rec expr scope ppf = function
         exn_continuation = ek;
         args;
         func;
-        arities
+        arities;
+        region
       } ->
     let pp_inlining_state ppf () =
       pp_option ~space:Before
@@ -627,13 +654,13 @@ let rec expr scope ppf = function
         ppf is
     in
     Format.fprintf ppf
-      "@[<hv 2>apply@[<2>%a%a%a@]@ @[<hv 2>%a%a@ @[<hov>-> %a@ %a@]@]@]"
+      "@[<hv 2>apply@[<2>%a%a%a@]@ @[<hv 2>%a%a@ &%a@ @[<hov>-> %a@ %a@]@]@]"
       (call_kind ~space:Before) kind
       (inlined_attribute_opt ~space:Before)
       inlined pp_inlining_state () func_name_with_optional_arities
       (func, arities)
       (simple_args ~space:Before ~omit_if_empty:true)
-      args result_continuation ret exn_continuation ek
+      args variable region result_continuation ret exn_continuation ek
 
 and let_expr scope ppf : let_ -> unit = function
   | { bindings = first :: rest; body; value_slots = ces } ->

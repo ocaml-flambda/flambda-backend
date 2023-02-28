@@ -77,9 +77,6 @@ module Const : sig
   val export : t -> exported
 
   val import : exported -> t
-
-  val map_compilation_unit :
-    (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
 end
 
 module Variable : sig
@@ -102,9 +99,6 @@ module Variable : sig
   val export : t -> exported
 
   val import : exported -> t
-
-  val map_compilation_unit :
-    (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
 end
 
 module Symbol : sig
@@ -132,9 +126,6 @@ module Symbol : sig
   val export : t -> exported
 
   val import : exported -> t
-
-  val map_compilation_unit :
-    (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
 
   val external_symbols_compilation_unit : unit -> Compilation_unit.t
 end
@@ -198,9 +189,6 @@ module Simple : sig
   val export : t -> exported
 
   val import : exported -> t
-
-  val map_compilation_unit :
-    (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
 end
 
 module Code_id : sig
@@ -235,9 +223,6 @@ module Code_id : sig
   val export : t -> exported
 
   val import : exported -> t
-
-  val map_compilation_unit :
-    (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
 end
 
 module Code_id_or_symbol : sig

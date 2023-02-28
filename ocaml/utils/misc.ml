@@ -276,10 +276,37 @@ module Stdlib = struct
       let n = String.length str in
       let ridx = String.rindex str split_on in
       String.sub str 0 ridx, String.sub str (ridx + 1) (n - ridx - 1)
+
+    let starts_with ~prefix s =
+      let len_s = length s
+      and len_pre = length prefix in
+      let rec aux i =
+        if i = len_pre then true
+        else if unsafe_get s i <> unsafe_get prefix i then false
+        else aux (i + 1)
+      in len_s >= len_pre && aux 0
+
+    let ends_with ~suffix s =
+      let len_s = length s
+      and len_suf = length suffix in
+      let diff = len_s - len_suf in
+      let rec aux i =
+        if i = len_suf then true
+        else if unsafe_get s (diff + i) <> unsafe_get suffix i then false
+        else aux (i + 1)
+      in diff >= 0 && aux 0
+  end
+
+  module Int = struct
+    include Int
+    let min (a : int) (b : int) = min a b
+    let max (a : int) (b : int) = max a b
   end
 
   external compare : 'a -> 'a -> int = "%compare"
 end
+
+module Int = Stdlib.Int
 
 (* File functions *)
 
@@ -368,7 +395,7 @@ let copy_file_chunk ic oc len =
   let buff = Bytes.create 0x1000 in
   let rec copy n =
     if n <= 0 then () else begin
-      let r = input ic buff 0 (min n 0x1000) in
+      let r = input ic buff 0 (Int.min n 0x1000) in
       if r = 0 then raise End_of_file else (output oc buff 0 r; copy(n-r))
     end
   in copy len
@@ -551,7 +578,7 @@ module LongString = struct
   let input_bytes_into tbl ic len =
     let count = ref len in
     Array.iter (fun str ->
-      let chunk = min !count (Bytes.length str) in
+      let chunk = Int.min !count (Bytes.length str) in
       really_input ic str 0 chunk;
       count := !count - chunk) tbl
 
@@ -567,7 +594,7 @@ let edit_distance a b cutoff =
   let cutoff =
     (* using max_int for cutoff would cause overflows in (i + cutoff + 1);
        we bring it back to the (max la lb) worstcase *)
-    min (max la lb) cutoff in
+    Int.min (Int.max la lb) cutoff in
   if abs (la - lb) > cutoff then None
   else begin
     (* initialize with 'cutoff + 1' so that not-yet-written-to cases have
@@ -582,11 +609,11 @@ let edit_distance a b cutoff =
       m.(0).(j) <- j;
     done;
     for i = 1 to la do
-      for j = max 1 (i - cutoff - 1) to min lb (i + cutoff + 1) do
+      for j = Int.max 1 (i - cutoff - 1) to Int.min lb (i + cutoff + 1) do
         let cost = if a.[i-1] = b.[j-1] then 0 else 1 in
         let best =
           (* insert, delete or substitute *)
-          min (1 + min m.(i-1).(j) m.(i).(j-1)) (m.(i-1).(j-1) + cost)
+          Int.min (1 + Int.min m.(i-1).(j) m.(i).(j-1)) (m.(i-1).(j-1) + cost)
         in
         let best =
           (* swap two adjacent letters; we use "cost" again in case of
@@ -596,7 +623,7 @@ let edit_distance a b cutoff =
              imitation has its virtues *)
           if not (i > 1 && j > 1 && a.[i-1] = b.[j-2] && a.[i-2] = b.[j-1])
           then best
-          else min best (m.(i-2).(j-2) + cost)
+          else Int.min best (m.(i-2).(j-2) + cost)
         in
         m.(i).(j) <- best
       done;
@@ -646,6 +673,14 @@ let cut_at s c =
   let pos = String.index s c in
   String.sub s 0 pos, String.sub s (pos+1) (String.length s - pos - 1)
 
+let ordinal_suffix n =
+  let teen = (n mod 100)/10 = 1 in
+  match n mod 10 with
+  | 1 when not teen -> "st"
+  | 2 when not teen -> "nd"
+  | 3 when not teen -> "rd"
+  | _ -> "th"
+
 (* Color handling *)
 module Color = struct
   (* use ANSI color codes, see https://en.wikipedia.org/wiki/ANSI_escape_code *)
@@ -690,6 +725,8 @@ module Color = struct
     in
     "\x1b[" ^ s ^ "m"
 
+
+  type Format.stag += Style of style list
   type styles = {
     error: style list;
     warning: style list;
@@ -712,6 +749,7 @@ module Color = struct
     | Format.String_tag "error" -> (!cur_styles).error
     | Format.String_tag "warning" -> (!cur_styles).warning
     | Format.String_tag "loc" -> (!cur_styles).loc
+    | Style s -> s
     | _ -> raise Not_found
 
   let color_enabled = ref true
@@ -825,7 +863,7 @@ let delete_eol_spaces src =
 
 let pp_two_columns ?(sep = "|") ?max_lines ppf (lines: (string * string) list) =
   let left_column_size =
-    List.fold_left (fun acc (s, _) -> max acc (String.length s)) 0 lines in
+    List.fold_left (fun acc (s, _) -> Int.max acc (String.length s)) 0 lines in
   let lines_nb = List.length lines in
   let ellipsed_first, ellipsed_last =
     match max_lines with
@@ -906,8 +944,6 @@ let print_if ppf flag printer arg =
 
 
 type filepath = string
-type modname = string
-type crcs = (modname * Digest.t option) list
 
 type alerts = string Stdlib.String.Map.t
 
@@ -958,88 +994,6 @@ module Bitmap = struct
       done
     done
 end
-
-module EnvLazy = struct
-  type ('a,'b) t = ('a,'b) eval ref
-
-  and ('a,'b) eval =
-    | Done of 'b
-    | Raise of exn * Printexc.raw_backtrace
-    | Thunk of 'a
-
-  type undo =
-    | Nil
-    | Cons : ('a, 'b) t * 'a * undo -> undo
-
-  type log = undo ref
-
-  let force f x =
-    match !x with
-    | Done x -> x
-    | Raise (e, bt) -> Printexc.raise_with_backtrace e bt
-    | Thunk e ->
-        match f e with
-        | y ->
-          x := Done y;
-          y
-        | exception e ->
-          let bt = Printexc.get_raw_backtrace () in
-          x := Raise (e, bt);
-          raise e
-
-  let get_arg x =
-    match !x with Thunk a -> Some a | _ -> None
-
-  let get_contents x =
-    match !x with
-    | Thunk a -> Either.Left a
-    | Done b -> Either.Right b
-    | Raise (e, bt) -> Printexc.raise_with_backtrace e bt
-
-  let create x =
-    ref (Thunk x)
-
-  let create_forced y =
-    ref (Done y)
-
-  let backtrace_size = 64
-
-  let create_failed e =
-    let bt = Printexc.get_callstack backtrace_size in
-    ref (Raise (e, bt))
-
-  let log () =
-    ref Nil
-
-  let force_logged log f x =
-    match !x with
-    | Done x -> x
-    | Raise (e, bt) -> Printexc.raise_with_backtrace e bt
-    | Thunk e ->
-      match f e with
-      | (Error _ as err : _ result) ->
-          x := Done err;
-          log := Cons(x, e, !log);
-          err
-      | Ok _ as res ->
-          x := Done res;
-          res
-      | exception e ->
-          let bt = Printexc.get_raw_backtrace () in
-          x := Raise (e, bt);
-          raise e
-
-  let backtrack log =
-    let rec loop = function
-      | Nil -> ()
-      | Cons(x, e, rest) ->
-          x := Thunk e;
-          loop rest
-    in
-    loop !log
-
-end
-
 
 module Magic_number = struct
   type native_obj_config = {
@@ -1193,7 +1147,7 @@ module Magic_number = struct
       (* a header is "truncated" if it starts like a valid magic number,
          that is if its longest segment of length at most [kind_length]
          is a prefix of [raw_kind kind] for some kind [kind] *)
-      let sub_length = min kind_length (String.length s) in
+      let sub_length = Int.min kind_length (String.length s) in
       let starts_as kind =
         String.sub s 0 sub_length = String.sub (raw_kind kind) 0 sub_length
       in

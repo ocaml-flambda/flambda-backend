@@ -21,7 +21,7 @@ module IR = struct
 
   type exn_continuation =
     { exn_handler : Continuation.t;
-      extra_args : (simple * Lambda.value_kind) list
+      extra_args : (simple * Flambda_kind.With_subkind.t) list
     }
 
   type trap_action =
@@ -35,7 +35,7 @@ module IR = struct
   type named =
     | Simple of simple
     | Get_tag of Ident.t
-    | Begin_region
+    | Begin_region of { try_region_parent : Ident.t option }
     | End_region of Ident.t
     | Prim of
         { prim : Lambda.primitive;
@@ -63,7 +63,8 @@ module IR = struct
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
-      region : Ident.t
+      region : Ident.t;
+      return_arity : Flambda_arity.With_subkinds.t
     }
 
   type switch =
@@ -84,7 +85,10 @@ module IR = struct
     | Simple (Var id) -> Ident.print ppf id
     | Simple (Const cst) -> Printlambda.structured_constant ppf cst
     | Get_tag id -> fprintf ppf "@[<2>(Gettag %a)@]" Ident.print id
-    | Begin_region -> fprintf ppf "Begin_region"
+    | Begin_region { try_region_parent = None } -> fprintf ppf "Begin_region"
+    | Begin_region { try_region_parent = Some try_region_parent } ->
+      fprintf ppf "@[<2>(Begin_region@ (try_region_parent %a))@]" Ident.print
+        try_region_parent
     | End_region id -> fprintf ppf "@[<2>(End_region@ %a)@]" Ident.print id
     | Prim { prim; args; _ } ->
       fprintf ppf "@[<2>(%a %a)@]" Printlambda.primitive prim
@@ -101,7 +105,7 @@ module Inlining = struct
     let inline_threshold =
       Clflags.Float_arg_helper.get ~key:0 !Clflags.inline_threshold
     in
-    let magic_scale_constant = 8. in
+    let magic_scale_constant = 20. in
     int_of_float (inline_threshold *. magic_scale_constant)
 
   let definition_inlining_decision inline cost_metrics =
@@ -128,120 +132,59 @@ module Env = struct
   type value_approximation = Code_or_metadata.t Value_approximation.t
 
   type t =
-    { variables : Variable.t Ident.Map.t;
+    { variables : (Variable.t * Flambda_kind.With_subkind.t) Ident.Map.t;
       globals : Symbol.t Numeric_types.Int.Map.t;
-      simples_to_substitute : Simple.t Ident.Map.t;
-      current_unit_id : Ident.t;
+      simples_to_substitute :
+        (Simple.t * Flambda_kind.With_subkind.t) Ident.Map.t;
+      current_unit : Compilation_unit.t;
       current_depth : Variable.t option;
-      symbol_for_global : Ident.t -> Symbol.t;
-      value_approximations : value_approximation Name.Map.t;
-      approximation_for_external_symbol : Symbol.t -> value_approximation;
+      value_approximations : value_approximation Variable.Map.t;
       big_endian : bool;
       path_to_root : Debuginfo.Scoped_location.t;
       inlining_history_tracker : Inlining_history.Tracker.t
     }
 
-  let current_unit_id t = t.current_unit_id
-
-  let symbol_for_global t = t.symbol_for_global
+  let current_unit t = t.current_unit
 
   let big_endian t = t.big_endian
 
   let current_depth t = t.current_depth
 
-  let approximation_loader loader =
-    let externals = ref Symbol.Map.empty in
-    fun symbol ->
-      match Symbol.Map.find symbol !externals with
-      | approx -> approx
-      | exception Not_found ->
-        let approx = Flambda_cmx.load_symbol_approx loader symbol in
-        (if Flambda_features.check_invariants ()
-        then
-          match approx with
-          | Value_symbol sym ->
-            Misc.fatal_errorf
-              "Closure_conversion: approximation loader returned a Symbol \
-               approximation (%a) for symbol %a"
-              Symbol.print sym Symbol.print symbol
-          | Value_unknown | Value_int _ | Closure_approximation _
-          | Block_approximation _ ->
-            ());
-        let rec filter_inlinable approx =
-          match (approx : value_approximation) with
-          | Value_unknown | Value_symbol _ | Value_int _
-          | Closure_approximation { code = Metadata_only _; _ } ->
-            approx
-          | Block_approximation (approxs, alloc_mode) ->
-            let approxs = Array.map filter_inlinable approxs in
-            Value_approximation.Block_approximation (approxs, alloc_mode)
-          | Closure_approximation
-              { code_id; function_slot; code = Code_present code; _ } -> (
-            match[@ocaml.warning "-fragile-match"]
-              Inlining.definition_inlining_decision (Code.inline code)
-                (Code.cost_metrics code)
-            with
-            | Attribute_inline | Small_function _ -> approx
-            | _ ->
-              Value_approximation.Closure_approximation
-                { code_id;
-                  function_slot;
-                  code = Code_or_metadata.(remember_only_metadata (create code));
-                  symbol = None
-                })
-        in
-        let approx = filter_inlinable approx in
-        externals := Symbol.Map.add symbol approx !externals;
-        approx
-
-  let create ~symbol_for_global ~big_endian ~cmx_loader =
-    let compilation_unit = Compilation_unit.get_current_exn () in
-    let current_unit_id =
-      Compilation_unit.name compilation_unit
-      |> Compilation_unit.Name.to_string |> Ident.create_persistent
-    in
+  let create ~big_endian =
+    let current_unit = Compilation_unit.get_current_exn () in
     { variables = Ident.Map.empty;
       globals = Numeric_types.Int.Map.empty;
       simples_to_substitute = Ident.Map.empty;
-      current_unit_id;
+      current_unit;
       current_depth = None;
-      value_approximations = Name.Map.empty;
-      approximation_for_external_symbol =
-        (if Flambda_features.classic_mode ()
-        then approximation_loader cmx_loader
-        else fun _symbol -> Value_approximation.Value_unknown);
-      symbol_for_global;
+      value_approximations = Variable.Map.empty;
       big_endian;
       path_to_root = Debuginfo.Scoped_location.Loc_unknown;
-      inlining_history_tracker = Inlining_history.Tracker.empty compilation_unit
+      inlining_history_tracker = Inlining_history.Tracker.empty current_unit
     }
 
   let clear_local_bindings
       { variables = _;
         globals;
         simples_to_substitute;
-        current_unit_id;
-        symbol_for_global;
+        current_unit;
         current_depth;
         value_approximations;
-        approximation_for_external_symbol;
         big_endian;
         path_to_root;
         inlining_history_tracker
       } =
     let simples_to_substitute =
       Ident.Map.filter
-        (fun _ simple -> not (Simple.is_var simple))
+        (fun _ (simple, _kind) -> not (Simple.is_var simple))
         simples_to_substitute
     in
     { variables = Ident.Map.empty;
       globals;
       simples_to_substitute;
-      current_unit_id;
+      current_unit;
       current_depth;
       value_approximations;
-      approximation_for_external_symbol;
-      symbol_for_global;
       big_endian;
       path_to_root;
       inlining_history_tracker
@@ -249,35 +192,37 @@ module Env = struct
 
   let with_depth t depth_var = { t with current_depth = Some depth_var }
 
-  let add_var t id var = { t with variables = Ident.Map.add id var t.variables }
+  let add_var t id var kind =
+    { t with variables = Ident.Map.add id (var, kind) t.variables }
 
-  let add_vars t ids vars = List.fold_left2 add_var t ids vars
+  let add_vars t ids vars =
+    List.fold_left2 (fun t id (var, kind) -> add_var t id var kind) t ids vars
 
   let add_var_map t map =
     { t with variables = Ident.Map.union_right t.variables map }
 
-  let add_var_like t id (user_visible : IR.user_visible) =
+  let add_var_like t id (user_visible : IR.user_visible) kind =
     let user_visible =
       match user_visible with
       | Not_user_visible -> None
       | User_visible -> Some ()
     in
     let var = Variable.create_with_same_name_as_ident ?user_visible id in
-    add_var t id var, var
+    add_var t id var kind, var
 
   let add_vars_like t ids =
     let vars =
       List.map
-        (fun (id, (user_visible : IR.user_visible)) ->
+        (fun (id, (user_visible : IR.user_visible), kind) ->
           let user_visible =
             match user_visible with
             | Not_user_visible -> None
             | User_visible -> Some ()
           in
-          Variable.create_with_same_name_as_ident ?user_visible id)
+          Variable.create_with_same_name_as_ident ?user_visible id, kind)
         ids
     in
-    add_vars t (List.map fst ids) vars, vars
+    add_vars t (List.map (fun (id, _, _) -> id) ids) vars, List.map fst vars
 
   let find_var t id =
     try Ident.Map.find id t.variables
@@ -288,9 +233,9 @@ module Env = struct
 
   let find_var_exn t id = Ident.Map.find id t.variables
 
-  let find_name t id = Name.var (find_var t id)
+  let find_name t id = Name.var (fst (find_var t id))
 
-  let find_name_exn t id = Name.var (find_var_exn t id)
+  let find_name_exn t id = Name.var (fst (find_var_exn t id))
 
   let find_vars t ids = List.map (fun id -> find_var t id) ids
 
@@ -303,13 +248,14 @@ module Env = struct
       Misc.fatal_error
         ("Closure_conversion.Env.find_global: global " ^ string_of_int pos)
 
-  let add_simple_to_substitute t id simple =
+  let add_simple_to_substitute t id simple kind =
     if Ident.Map.mem id t.simples_to_substitute
     then
       Misc.fatal_errorf "Cannot redefine [Simple] associated with %a"
         Ident.print id;
     { t with
-      simples_to_substitute = Ident.Map.add id simple t.simples_to_substitute
+      simples_to_substitute =
+        Ident.Map.add id (simple, kind) t.simples_to_substitute
     }
 
   let add_simple_to_substitute_map t map =
@@ -321,36 +267,23 @@ module Env = struct
   let find_simple_to_substitute_exn t id =
     Ident.Map.find id t.simples_to_substitute
 
-  let add_value_approximation t name approx =
+  let add_var_approximation t var approx =
     if Value_approximation.is_unknown approx
     then t
     else
       { t with
-        value_approximations = Name.Map.add name approx t.value_approximations
+        value_approximations =
+          Variable.Map.add var approx t.value_approximations
       }
 
-  let add_block_approximation t name approxs alloc_mode =
+  let add_block_approximation t var approxs alloc_mode =
     if Array.for_all Value_approximation.is_unknown approxs
     then t
-    else
-      add_value_approximation t name (Block_approximation (approxs, alloc_mode))
+    else add_var_approximation t var (Block_approximation (approxs, alloc_mode))
 
-  let find_value_approximation t simple =
-    Simple.pattern_match simple
-      ~const:(fun _ -> Value_approximation.Value_unknown)
-      ~name:(fun name ~coercion:_ ->
-        try Name.Map.find name t.value_approximations
-        with Not_found ->
-          Name.pattern_match name
-            ~var:(fun _ -> Value_approximation.Value_unknown)
-            ~symbol:t.approximation_for_external_symbol)
-
-  let add_approximation_alias t name alias =
-    match find_value_approximation t (Simple.name name) with
-    | Value_unknown -> t
-    | ( Value_symbol _ | Value_int _ | Closure_approximation _
-      | Block_approximation _ ) as approx ->
-      add_value_approximation t alias approx
+  let find_var_approximation t var =
+    try Variable.Map.find var t.value_approximations
+    with Not_found -> Value_approximation.Value_unknown
 
   let set_path_to_root t path_to_root =
     if path_to_root = Debuginfo.Scoped_location.Loc_unknown
@@ -389,12 +322,13 @@ module Acc = struct
         * Flambda.Set_of_closures.t)
         list;
       shareable_constants : Symbol.t Static_const.Map.t;
+      symbol_approximations : Env.value_approximation Symbol.Map.t;
+      approximation_for_external_symbol : Symbol.t -> Env.value_approximation;
       code : Code.t Code_id.Map.t;
       free_names : Name_occurrences.t;
       continuation_applications : continuation_application Continuation.Map.t;
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;
-      symbol_for_global : Ident.t -> Symbol.t;
       slot_offsets : Slot_offsets.t;
       regions_closed_early : Ident.Set.t;
       closure_infos : closure_info list
@@ -411,16 +345,69 @@ module Acc = struct
 
   let with_seen_a_function t seen_a_function = { t with seen_a_function }
 
-  let create ~symbol_for_global ~slot_offsets =
+  let approximation_loader loader =
+    let externals = ref Symbol.Map.empty in
+    fun symbol ->
+      match Symbol.Map.find symbol !externals with
+      | approx -> approx
+      | exception Not_found ->
+        let approx = Flambda_cmx.load_symbol_approx loader symbol in
+        (if Flambda_features.check_invariants ()
+        then
+          match approx with
+          | Value_symbol sym ->
+            Misc.fatal_errorf
+              "Closure_conversion: approximation loader returned a Symbol \
+               approximation (%a) for symbol %a"
+              Symbol.print sym Symbol.print symbol
+          | Value_unknown | Value_int _ | Closure_approximation _
+          | Block_approximation _ ->
+            ());
+        let rec filter_inlinable approx =
+          match (approx : Env.value_approximation) with
+          | Value_unknown | Value_symbol _ | Value_int _ -> approx
+          | Block_approximation (approxs, alloc_mode) ->
+            let approxs = Array.map filter_inlinable approxs in
+            Value_approximation.Block_approximation (approxs, alloc_mode)
+          | Closure_approximation { code_id; function_slot; code; _ } -> (
+            let metadata = Code_or_metadata.code_metadata code in
+            if not (Code_or_metadata.code_present code)
+            then approx
+            else
+              match
+                Inlining.definition_inlining_decision
+                  (Code_metadata.inline metadata)
+                  (Code_metadata.cost_metrics metadata)
+              with
+              | Attribute_inline | Small_function _ -> approx
+              | Not_yet_decided | Never_inline_attribute | Stub | Recursive
+              | Function_body_too_large _ | Speculatively_inlinable _
+              | Functor _ ->
+                Value_approximation.Closure_approximation
+                  { code_id;
+                    function_slot;
+                    code = Code_or_metadata.create_metadata_only metadata;
+                    symbol = None
+                  })
+        in
+        let approx = filter_inlinable approx in
+        externals := Symbol.Map.add symbol approx !externals;
+        approx
+
+  let create ~slot_offsets ~cmx_loader =
     { declared_symbols = [];
       lifted_sets_of_closures = [];
       shareable_constants = Static_const.Map.empty;
+      symbol_approximations = Symbol.Map.empty;
+      approximation_for_external_symbol =
+        (if Flambda_features.classic_mode ()
+        then approximation_loader cmx_loader
+        else fun _symbol -> Value_approximation.Value_unknown);
       code = Code_id.Map.empty;
       free_names = Name_occurrences.empty;
       continuation_applications = Continuation.Map.empty;
       cost_metrics = Cost_metrics.zero;
       seen_a_function = false;
-      symbol_for_global;
       slot_offsets;
       regions_closed_early = Ident.Set.empty;
       closure_infos = []
@@ -453,6 +440,19 @@ module Acc = struct
       Static_const.Map.add constant symbol t.shareable_constants
     in
     { t with shareable_constants }
+
+  let add_symbol_approximation t symbol approx =
+    if Value_approximation.is_unknown approx
+    then t
+    else
+      { t with
+        symbol_approximations =
+          Symbol.Map.add symbol approx t.symbol_approximations
+      }
+
+  let find_symbol_approximation t symbol =
+    try Symbol.Map.find symbol t.symbol_approximations
+    with Not_found -> t.approximation_for_external_symbol symbol
 
   let add_code ~code_id ~code t =
     { t with code = Code_id.Map.add code_id code t.code }
@@ -571,8 +571,6 @@ module Acc = struct
     let cost_metrics = cost_metrics acc in
     cost_metrics, free_names, with_cost_metrics saved_cost_metrics acc, return
 
-  let symbol_for_global t = t.symbol_for_global
-
   let add_set_of_closures_offsets ~is_phantom t set_of_closures =
     let slot_offsets =
       Slot_offsets.add_set_of_closures t.slot_offsets ~is_phantom
@@ -617,8 +615,8 @@ module Function_decls = struct
       { let_rec_ident : Ident.t;
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
-        params : (Ident.t * Lambda.value_kind) list;
-        return : Lambda.value_kind;
+        params : (Ident.t * Flambda_kind.With_subkind.t) list;
+        return : Flambda_arity.With_subkinds.t;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
         my_region : Ident.t;
@@ -626,7 +624,6 @@ module Function_decls = struct
         free_idents_of_body : Ident.Set.t;
         attr : Lambda.function_attribute;
         loc : Lambda.scoped_location;
-        stub : bool;
         recursive : Recursive.t;
         closure_alloc_mode : Lambda.alloc_mode;
         num_trailing_local_params : int;
@@ -634,9 +631,10 @@ module Function_decls = struct
       }
 
     let create ~let_rec_ident ~function_slot ~kind ~params ~return
-        ~return_continuation ~exn_continuation ~my_region ~body ~attr ~loc
-        ~free_idents_of_body ~stub recursive ~closure_alloc_mode
-        ~num_trailing_local_params ~contains_no_escaping_local_allocs =
+        ~return_continuation ~exn_continuation ~my_region ~body
+        ~(attr : Lambda.function_attribute) ~loc ~free_idents_of_body recursive
+        ~closure_alloc_mode ~num_trailing_local_params
+        ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
         | None -> Ident.create_local "unnamed_function"
@@ -654,7 +652,6 @@ module Function_decls = struct
         free_idents_of_body;
         attr;
         loc;
-        stub;
         recursive;
         closure_alloc_mode;
         num_trailing_local_params;
@@ -800,9 +797,8 @@ module Expr_with_acc = struct
         match Apply.call_kind apply with
         | Function { function_call = Direct _; _ } -> true
         | Function
-            { function_call = Indirect_unknown_arity | Indirect_known_arity _;
-              _
-            } ->
+            { function_call = Indirect_unknown_arity | Indirect_known_arity; _ }
+          ->
           false
         | Method _ -> false
         | C_call _ -> false)
@@ -954,14 +950,15 @@ module Let_cont_with_acc = struct
     let acc = Acc.remove_continuation_from_free_names cont acc in
     acc, expr
 
-  let create_recursive acc handlers ~body ~cost_metrics_of_handlers =
+  let create_recursive acc ~invariant_params handlers ~body
+      ~cost_metrics_of_handlers =
     let acc =
       Acc.increment_metrics
         (Cost_metrics.increase_due_to_let_cont_recursive
            ~cost_metrics_of_handlers)
         acc
     in
-    let expr = Let_cont.create_recursive handlers ~body in
+    let expr = Let_cont.create_recursive ~invariant_params handlers ~body in
     let acc =
       Continuation.Map.fold
         (fun cont _ acc -> Acc.remove_continuation_from_free_names cont acc)
@@ -969,7 +966,7 @@ module Let_cont_with_acc = struct
     in
     acc, expr
 
-  let build_recursive acc ~handlers ~body =
+  let build_recursive acc ~invariant_params ~handlers ~body =
     let handlers_free_names, cost_metrics_of_handlers, acc, handlers =
       Continuation.Map.fold
         (fun cont (handler, params, is_exn_handler)
@@ -994,7 +991,8 @@ module Let_cont_with_acc = struct
            (Name_occurrences.increase_counts handlers_free_names))
         acc
     in
-    create_recursive acc handlers ~body ~cost_metrics_of_handlers
+    create_recursive acc ~invariant_params handlers ~body
+      ~cost_metrics_of_handlers
 
   let build_non_recursive acc cont ~handler_params ~handler ~body
       ~is_exn_handler =

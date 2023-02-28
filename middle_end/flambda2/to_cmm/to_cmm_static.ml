@@ -36,39 +36,39 @@ let or_variable f default v cont =
   | Const c -> f c cont
   | Var _ -> f default cont
 
-let rec static_block_updates symb env acc i = function
-  | [] -> env, acc
+let rec static_block_updates symb env res acc i = function
+  | [] -> env, res, acc
   | sv :: r -> (
     match (sv : Field_of_static_block.t) with
     | Symbol _ | Tagged_immediate _ ->
-      static_block_updates symb env acc (i + 1) r
+      static_block_updates symb env res acc (i + 1) r
     | Dynamically_computed (var, dbg) ->
-      let env, acc =
-        C.make_update env dbg Word_val ~symbol:(C.symbol ~dbg symb) var ~index:i
-          ~prev_updates:acc
+      let env, res, acc =
+        C.make_update env res dbg Word_val ~symbol:(C.symbol ~dbg symb) var
+          ~index:i ~prev_updates:acc
       in
-      static_block_updates symb env acc (i + 1) r)
+      static_block_updates symb env res acc (i + 1) r)
 
-let rec static_float_array_updates symb env acc i = function
-  | [] -> env, acc
+let rec static_float_array_updates symb env res acc i = function
+  | [] -> env, res, acc
   | sv :: r -> (
     match (sv : _ Or_variable.t) with
-    | Const _ -> static_float_array_updates symb env acc (i + 1) r
+    | Const _ -> static_float_array_updates symb env res acc (i + 1) r
     | Var (var, dbg) ->
-      let env, acc =
-        C.make_update env dbg Double ~symbol:(C.symbol ~dbg symb) var ~index:i
-          ~prev_updates:acc
+      let env, res, acc =
+        C.make_update env res dbg Double ~symbol:(C.symbol ~dbg symb) var
+          ~index:i ~prev_updates:acc
       in
-      static_float_array_updates symb env acc (i + 1) r)
+      static_float_array_updates symb env res acc (i + 1) r)
 
 let static_boxed_number ~kind ~env ~symbol ~default ~emit ~transl ~structured v
-    r updates =
+    res updates =
   let aux x cont =
     emit
       (Symbol.linkage_name_as_string symbol, Cmmgen_state.Global)
       (transl x) cont
   in
-  let updates =
+  let env, res, updates =
     match (v : _ Or_variable.t) with
     | Const c ->
       (* Add the const to the cmmgen_state structured constants table so that
@@ -77,40 +77,40 @@ let static_boxed_number ~kind ~env ~symbol ~default ~emit ~transl ~structured v
       let symbol_name = Symbol.linkage_name_as_string symbol in
       let structured_constant = structured (transl c) in
       Cmmgen_state.add_structured_constant symbol_name structured_constant;
-      env, None
+      env, res, updates
     | Var (v, dbg) ->
-      C.make_update env dbg kind ~symbol:(C.symbol ~dbg symbol) v ~index:0
+      C.make_update env res dbg kind ~symbol:(C.symbol ~dbg symbol) v ~index:0
         ~prev_updates:updates
   in
-  R.update_data r (or_variable aux default v), updates
+  R.update_data res (or_variable aux default v), env, updates
 
-let add_function env r ~params_and_body code_id p ~fun_dbg ~check =
-  let fundecl, r = params_and_body env r code_id p ~fun_dbg ~check in
-  R.add_function r fundecl
+let add_function env res ~params_and_body code_id p ~fun_dbg ~check =
+  let fundecl, res = params_and_body env res code_id p ~fun_dbg ~check in
+  R.add_function res fundecl
 
-let add_functions env ~params_and_body r (code : Code.t) =
-  add_function env r ~params_and_body (Code.code_id code)
+let add_functions env ~params_and_body res (code : Code.t) =
+  add_function env res ~params_and_body (Code.code_id code)
     (Code.params_and_body code)
     ~fun_dbg:(Code.dbg code) ~check:(Code.check code)
 
-let preallocate_set_of_closures (r, updates, env) ~closure_symbols
+let preallocate_set_of_closures (res, updates, env) ~closure_symbols
     set_of_closures =
-  let env, data, updates =
+  let env, res, data, updates =
     let closure_symbols =
       closure_symbols |> Function_slot.Lmap.bindings
       |> Function_slot.Map.of_list
     in
-    To_cmm_set_of_closures.let_static_set_of_closures env closure_symbols
+    To_cmm_set_of_closures.let_static_set_of_closures env res closure_symbols
       set_of_closures ~prev_updates:updates
   in
-  let r = R.set_data r data in
-  r, updates, env
+  let res = R.set_data res data in
+  res, updates, env
 
-let static_const0 env r ~updates (bound_static : Bound_static.Pattern.t)
+let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     (static_const : Static_const.t) =
   match bound_static, static_const with
   | Block_like s, Block (tag, _mut, fields) ->
-    let r = R.check_for_module_symbol r s in
+    let res = R.check_for_module_symbol res s in
     let tag = Tag.Scannable.to_int tag in
     let block_name = Symbol.linkage_name_as_string s, Cmmgen_state.Global in
     let header = C.black_block_header tag (List.length fields) in
@@ -122,46 +122,46 @@ let static_const0 env r ~updates (bound_static : Bound_static.Pattern.t)
         fields []
     in
     let block = C.emit_block block_name header static_fields in
-    let env, updates = static_block_updates s env updates 0 fields in
-    env, R.set_data r block, updates
+    let env, res, updates = static_block_updates s env res updates 0 fields in
+    env, R.set_data res block, updates
   | Set_of_closures closure_symbols, Set_of_closures set_of_closures ->
-    let r, updates, env =
-      preallocate_set_of_closures (r, updates, env) ~closure_symbols
+    let res, updates, env =
+      preallocate_set_of_closures (res, updates, env) ~closure_symbols
         set_of_closures
     in
-    env, r, updates
+    env, res, updates
   | Block_like symbol, Boxed_float v ->
     let default = Numeric_types.Float_by_bit_pattern.zero in
     let transl = Numeric_types.Float_by_bit_pattern.to_float in
     let structured f = Clambda.Uconst_float f in
-    let r, (env, updates) =
+    let res, env, updates =
       static_boxed_number ~kind:Double ~env ~symbol ~default
-        ~emit:C.emit_float_constant ~transl ~structured v r updates
+        ~emit:C.emit_float_constant ~transl ~structured v res updates
     in
-    env, r, updates
+    env, res, updates
   | Block_like symbol, Boxed_int32 v ->
     let structured i = Clambda.Uconst_int32 i in
-    let r, (env, updates) =
+    let res, env, updates =
       static_boxed_number ~kind:Word_int ~env ~symbol ~default:0l
-        ~emit:C.emit_int32_constant ~transl:Fun.id ~structured v r updates
+        ~emit:C.emit_int32_constant ~transl:Fun.id ~structured v res updates
     in
-    env, r, updates
+    env, res, updates
   | Block_like symbol, Boxed_int64 v ->
     let structured i = Clambda.Uconst_int64 i in
-    let r, (env, updates) =
+    let res, env, updates =
       static_boxed_number ~kind:Word_int ~env ~symbol ~default:0L
-        ~emit:C.emit_int64_constant ~transl:Fun.id ~structured v r updates
+        ~emit:C.emit_int64_constant ~transl:Fun.id ~structured v res updates
     in
-    env, r, updates
+    env, res, updates
   | Block_like symbol, Boxed_nativeint v ->
     let default = Targetint_32_64.zero in
     let transl = C.nativeint_of_targetint in
     let structured i = Clambda.Uconst_nativeint i in
-    let r, (env, updates) =
+    let res, env, updates =
       static_boxed_number ~kind:Word_int ~env ~symbol ~default
-        ~emit:C.emit_nativeint_constant ~transl ~structured v r updates
+        ~emit:C.emit_nativeint_constant ~transl ~structured v res updates
     in
-    env, r, updates
+    env, res, updates
   | Block_like s, (Immutable_float_block fields | Immutable_float_array fields)
     ->
     let aux =
@@ -174,8 +174,8 @@ let static_const0 env r ~updates (bound_static : Bound_static.Pattern.t)
         (Symbol.linkage_name_as_string s, Cmmgen_state.Global)
         static_fields
     in
-    let env, e = static_float_array_updates s env updates 0 fields in
-    env, R.update_data r float_array, e
+    let env, res, e = static_float_array_updates s env res updates 0 fields in
+    env, R.update_data res float_array, e
   | Block_like s, Immutable_value_array fields ->
     let block_name = Symbol.linkage_name_as_string s, Cmmgen_state.Global in
     let header = C.black_block_header 0 (List.length fields) in
@@ -187,19 +187,19 @@ let static_const0 env r ~updates (bound_static : Bound_static.Pattern.t)
         fields []
     in
     let block = C.emit_block block_name header static_fields in
-    let env, updates = static_block_updates s env updates 0 fields in
-    env, R.set_data r block, updates
+    let env, res, updates = static_block_updates s env res updates 0 fields in
+    env, R.set_data res block, updates
   | Block_like s, Empty_array ->
     (* Recall: empty arrays have tag zero, even if their kind is naked float. *)
     let block_name = Symbol.linkage_name_as_string s, Cmmgen_state.Global in
     let header = C.black_block_header 0 0 in
     let block = C.emit_block block_name header [] in
-    env, R.set_data r block, updates
+    env, R.set_data res block, updates
   | Block_like s, Mutable_string { initial_value = str }
   | Block_like s, Immutable_string str ->
     let name = Symbol.linkage_name_as_string s in
     let data = C.emit_string_constant (name, Cmmgen_state.Global) str in
-    env, R.update_data r data, updates
+    env, R.update_data res data, updates
   | Block_like _, Set_of_closures _ ->
     Misc.fatal_errorf
       "[Set_of_closures] values cannot be bound by [Block_like] bindings:@ %a"
@@ -286,6 +286,7 @@ let static_consts env r ~params_and_body bound_static static_consts =
     let r = R.add_gc_roots r roots in
     static_consts0 env r ~params_and_body bound_static static_consts
   with Misc.Fatal_error as e ->
+    let bt = Printexc.get_raw_backtrace () in
     (* Create a new "let symbol" with a dummy body to better print the bound
        symbols and static consts. *)
     let dummy_body = Expr.create_invalid To_cmm_dummy_body in
@@ -299,4 +300,4 @@ let static_consts env r ~params_and_body bound_static static_consts =
     Format.eprintf
       "\n@[<v 0>%tContext is:%t translating `let symbol' to Cmm:@ %a@."
       Flambda_colours.error Flambda_colours.pop Expr.print tmp_let_symbol;
-    raise e
+    Printexc.raise_with_backtrace e bt

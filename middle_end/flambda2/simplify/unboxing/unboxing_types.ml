@@ -22,6 +22,7 @@ type do_not_unbox_reason =
   | Incomplete_parameter_type
   | Not_enough_information_at_use
   | Not_of_kind_value
+  | Unboxing_not_requested
 
 module Extra_param_and_args = struct
   type t =
@@ -64,7 +65,8 @@ type unboxing_decision =
 
 and field_decision =
   { epa : Extra_param_and_args.t;
-    decision : decision
+    decision : decision;
+    kind : Flambda_kind.With_subkind.t
   }
 
 and const_ctors_decision =
@@ -84,7 +86,7 @@ type decisions =
   }
 
 type pass =
-  | Filter of { recursive : bool }
+  | Filter
   | Compute_all_extra_args
 
 (* Printing *)
@@ -97,6 +99,7 @@ let print_do_not_unbox_reason ppf = function
   | Not_enough_information_at_use ->
     Format.fprintf ppf "not_enough_information_at_use"
   | Not_of_kind_value -> Format.fprintf ppf "not_of_kind_value"
+  | Unboxing_not_requested -> Format.fprintf ppf "unboxing_not_requested"
 
 let rec print_decision ppf = function
   | Do_not_unbox reason ->
@@ -126,10 +129,11 @@ let rec print_decision ppf = function
       "@[<hv 1>(number@ @[<h>(kind %a)@]@ @[<hv 1>(var %a)@])@]"
       Flambda_kind.Naked_number_kind.print kind Extra_param_and_args.print epa
 
-and print_field_decision ppf { epa; decision } =
+and print_field_decision ppf { epa; decision; kind } =
   Format.fprintf ppf
-    "@[<hv 1>(@,@[<hov 1>(var %a)@]@ @[<hv 1>(decision@ %a)@])@]"
+    "@[<hv 1>(@,@[<hov 1>(var %a)@]@ @[<hv 1>(decision@ %a)@]@ (kind@ %a))@]"
     Extra_param_and_args.print epa print_decision decision
+    Flambda_kind.With_subkind.print kind
 
 and print_fields_decisions ppf l =
   let pp_sep = Format.pp_print_space in

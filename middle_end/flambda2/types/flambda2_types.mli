@@ -232,9 +232,11 @@ module Typing_env : sig
 
     val get_singleton : t -> Simple.t option
 
-    val choose_opt : t -> Simple.t option
+    val find_best : t -> Simple.t option
 
     val inter : t -> t -> t
+
+    val singleton : Simple.t -> t
 
     val print : Format.formatter -> t -> unit
   end
@@ -485,19 +487,19 @@ val closure_with_at_least_these_value_slots :
   flambda_type
 
 val array_of_length :
-  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  element_kind:Flambda_kind.With_subkind.t Or_unknown_or_bottom.t ->
   length:flambda_type ->
   Alloc_mode.For_types.t ->
   flambda_type
 
 val mutable_array :
-  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  element_kind:Flambda_kind.With_subkind.t Or_unknown_or_bottom.t ->
   length:flambda_type ->
   Alloc_mode.For_types.t ->
   flambda_type
 
 val immutable_array :
-  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  element_kind:Flambda_kind.With_subkind.t Or_unknown_or_bottom.t ->
   fields:flambda_type list ->
   Alloc_mode.For_types.t ->
   flambda_type
@@ -617,7 +619,9 @@ val prove_is_immediates_array : Typing_env.t -> t -> unit proof_of_property
 val meet_is_immutable_array :
   Typing_env.t ->
   t ->
-  (Flambda_kind.With_subkind.t Or_unknown.t * t * Alloc_mode.For_types.t)
+  (Flambda_kind.With_subkind.t Or_unknown_or_bottom.t
+  * t
+  * Alloc_mode.For_types.t)
   meet_shortcut
 
 val meet_single_closures_entry :

@@ -61,6 +61,7 @@ type token =
   | LBRACKETPERCENT
   | LBRACKETLESS
   | LBRACKETGREATER
+  | LBRACKETCOLON
   | LBRACKETBAR
   | LBRACKETATATAT
   | LBRACKETATAT
@@ -110,6 +111,7 @@ type token =
   | CONSTRAINT
   | COMMENT of (string * Location.t)
   | COMMA
+  | COLONRBRACKET
   | COLONGREATER
   | COLONEQUAL
   | COLONCOLON
@@ -144,6 +146,10 @@ val parse_val_longident: (Lexing.lexbuf -> token) -> Lexing.lexbuf -> (Longident
 val parse_pattern: (Lexing.lexbuf -> token) -> Lexing.lexbuf -> (Parsetree.pattern)
 
 val parse_mty_longident: (Lexing.lexbuf -> token) -> Lexing.lexbuf -> (Longident.t)
+
+val parse_module_type: (Lexing.lexbuf -> token) -> Lexing.lexbuf -> (Parsetree.module_type)
+
+val parse_module_expr: (Lexing.lexbuf -> token) -> Lexing.lexbuf -> (Parsetree.module_expr)
 
 val parse_mod_longident: (Lexing.lexbuf -> token) -> Lexing.lexbuf -> (Longident.t)
 
@@ -183,6 +189,10 @@ module Incremental : sig
   val parse_pattern: Lexing.position -> (Parsetree.pattern) MenhirInterpreter.checkpoint
   
   val parse_mty_longident: Lexing.position -> (Longident.t) MenhirInterpreter.checkpoint
+  
+  val parse_module_type: Lexing.position -> (Parsetree.module_type) MenhirInterpreter.checkpoint
+  
+  val parse_module_expr: Lexing.position -> (Parsetree.module_expr) MenhirInterpreter.checkpoint
   
   val parse_mod_longident: Lexing.position -> (Longident.t) MenhirInterpreter.checkpoint
   

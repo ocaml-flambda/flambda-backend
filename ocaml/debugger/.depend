@@ -72,7 +72,6 @@ command_line.cmo : \
     debugger_lexer.cmi \
     debugger_config.cmi \
     debugcom.cmi \
-    ../typing/ctype.cmi \
     checkpoints.cmi \
     breakpoints.cmi \
     command_line.cmi
@@ -110,7 +109,6 @@ command_line.cmx : \
     debugger_lexer.cmx \
     debugger_config.cmx \
     debugcom.cmx \
-    ../typing/ctype.cmx \
     checkpoints.cmx \
     breakpoints.cmx \
     command_line.cmi
@@ -182,6 +180,7 @@ eval.cmo : \
     ../typing/env.cmi \
     debugcom.cmi \
     ../typing/ctype.cmi \
+    ../utils/compilation_unit.cmi \
     ../typing/btype.cmi \
     eval.cmi
 eval.cmx : \
@@ -202,6 +201,7 @@ eval.cmx : \
     ../typing/env.cmx \
     debugcom.cmx \
     ../typing/ctype.cmx \
+    ../utils/compilation_unit.cmx \
     ../typing/btype.cmx \
     eval.cmi
 eval.cmi : \
@@ -288,6 +288,7 @@ loadprinter.cmo : \
     ../typing/env.cmi \
     ../otherlibs/dynlink/dynlink.cmi \
     ../typing/ctype.cmi \
+    ../utils/compilation_unit.cmi \
     loadprinter.cmi
 loadprinter.cmx : \
     ../typing/types.cmx \
@@ -303,6 +304,7 @@ loadprinter.cmx : \
     ../typing/env.cmx \
     ../otherlibs/dynlink/dynlink.cmx \
     ../typing/ctype.cmx \
+    ../utils/compilation_unit.cmx \
     loadprinter.cmi
 loadprinter.cmi : \
     ../parsing/longident.cmi \
@@ -351,6 +353,10 @@ main.cmx : \
     ../file_formats/cmi_format.cmx \
     ../utils/clflags.cmx \
     checkpoints.cmx
+ocamldebug_entry.cmo : \
+    $(UNIXDIR)/unix.cmi
+ocamldebug_entry.cmx : \
+    $(UNIXDIR)/unix.cmx
 parameters.cmo : \
     ../utils/load_path.cmi \
     ../typing/envaux.cmi \
@@ -417,6 +423,7 @@ printval.cmo : \
     ../toplevel/genprintval.cmi \
     ../typing/env.cmi \
     debugcom.cmi \
+    ../utils/compilation_unit.cmi \
     printval.cmi
 printval.cmx : \
     ../typing/types.cmx \
@@ -428,6 +435,7 @@ printval.cmx : \
     ../toplevel/genprintval.cmx \
     ../typing/env.cmx \
     debugcom.cmx \
+    ../utils/compilation_unit.cmx \
     printval.cmi
 printval.cmi : \
     ../typing/types.cmi \

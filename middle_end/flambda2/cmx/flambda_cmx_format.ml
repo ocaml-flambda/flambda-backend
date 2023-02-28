@@ -16,6 +16,8 @@
 
 (** Contents of middle-end-specific portion of .cmx files when using Flambda. *)
 
+module File_sections = Flambda_backend_utils.File_sections
+
 type table_data =
   { symbols : (Symbol.t * Symbol.exported) list;
     variables : (Variable.t * Variable.exported) list;
@@ -28,13 +30,30 @@ type table_data =
 type t0 =
   { original_compilation_unit : Compilation_unit.t;
     final_typing_env : Flambda2_types.Typing_env.Serializable.t;
-    all_code : Exported_code.t;
+    all_code : Exported_code.raw;
     exported_offsets : Exported_offsets.t;
     used_value_slots : Value_slot.Set.t;
     table_data : table_data
   }
 
-type t = t0 list
+type raw = t0 list
+
+type t = raw * File_sections.t
+
+let to_raw (t, sections) = t, sections
+
+let from_raw ~sections t = t, sections
+
+type current_sections =
+  { mutable sections_rev : Obj.t list;
+    mutable num_sections : int
+  }
+
+let add_section cs section =
+  let n = cs.num_sections in
+  cs.sections_rev <- section :: cs.sections_rev;
+  cs.num_sections <- n + 1;
+  n
 
 let create ~final_typing_env ~all_code ~exported_offsets ~used_value_slots =
   let typing_env_exported_ids =
@@ -79,13 +98,18 @@ let create ~final_typing_env ~all_code ~exported_offsets ~used_value_slots =
   let table_data =
     { symbols; variables; simples; consts; code_ids; continuations }
   in
-  [ { original_compilation_unit = Compilation_unit.get_current_exn ();
-      final_typing_env;
-      all_code;
-      exported_offsets;
-      used_value_slots;
-      table_data
-    } ]
+  let sections = { sections_rev = []; num_sections = 0 } in
+  let all_code =
+    Exported_code.to_raw ~add_section:(add_section sections) all_code
+  in
+  ( [ { original_compilation_unit = Compilation_unit.get_current_exn ();
+        final_typing_env;
+        all_code;
+        exported_offsets;
+        used_value_slots;
+        table_data
+      } ],
+    File_sections.from_array (Array.of_list (List.rev sections.sections_rev)) )
 
 module Make_importer (S : sig
   type t
@@ -94,18 +118,9 @@ module Make_importer (S : sig
 
   val import : exported -> t
 
-  val map_compilation_unit :
-    (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
-
   include Container_types.S with type t := t
 end) : sig
   val import : (S.t * S.exported) list -> S.t S.Map.t
-
-  val update_for_pack :
-    pack_units:Compilation_unit.Set.t ->
-    pack:Compilation_unit.t ->
-    (S.t * S.exported) list ->
-    (S.t * S.exported) list
 end = struct
   let import from_table_data =
     (* The returned map gives the hash collisions. *)
@@ -114,16 +129,6 @@ end = struct
         let new_key = S.import exported in
         if key == new_key then import_map else S.Map.add key new_key import_map)
       S.Map.empty from_table_data
-
-  let update_for_pack ~pack_units ~pack from_table_data =
-    let update_cu unit =
-      if Compilation_unit.Set.mem unit pack_units then pack else unit
-    in
-    List.map
-      (fun (symbol, exported) ->
-        let exported = S.map_compilation_unit update_cu exported in
-        symbol, exported)
-      from_table_data
 end
 [@@inline always]
 
@@ -134,7 +139,7 @@ module Const_importer = Make_importer (Reg_width_const)
 module Code_id_importer = Make_importer (Code_id)
 module Continuation_importer = Make_importer (Continuation)
 
-let import_typing_env_and_code0 t =
+let import_typing_env_and_code0 ~sections t =
   let symbols = Symbol_importer.import t.table_data.symbols in
   let variables = Variable_importer.import t.table_data.variables in
   let simples = Simple_importer.import t.table_data.simples in
@@ -151,70 +156,36 @@ let import_typing_env_and_code0 t =
     Flambda2_types.Typing_env.Serializable.apply_renaming t.final_typing_env
       renaming
   in
-  let all_code = Exported_code.apply_renaming code_ids renaming t.all_code in
+  let all_code = Exported_code.from_raw ~sections t.all_code in
+  let all_code = Exported_code.apply_renaming code_ids renaming all_code in
   typing_env, all_code
 
-let import_typing_env_and_code t =
+let import_typing_env_and_code (t, sections) =
   match t with
   | [] -> Misc.fatal_error "Flambda cmx info should never be empty"
-  | [t0] -> import_typing_env_and_code0 t0
+  | [t0] -> import_typing_env_and_code0 ~sections t0
   | t0 :: rem ->
     List.fold_left
       (fun (typing_env, code) t0 ->
-        let typing_env0, code0 = import_typing_env_and_code0 t0 in
+        let typing_env0, code0 = import_typing_env_and_code0 ~sections t0 in
         let typing_env =
           Flambda2_types.Typing_env.Serializable.merge typing_env typing_env0
         in
         let code = Exported_code.merge code code0 in
         typing_env, code)
-      (import_typing_env_and_code0 t0)
+      (import_typing_env_and_code0 ~sections t0)
       rem
 
-let exported_offsets t =
+let exported_offsets (t, _) =
   List.fold_left
     (fun offsets t0 -> Exported_offsets.merge offsets t0.exported_offsets)
     Exported_offsets.empty t
 
-let functions_info t =
-  List.fold_left
-    (fun code t0 -> Exported_code.merge code t0.all_code)
-    Exported_code.empty t
-
-let with_exported_offsets t exported_offsets =
+let with_exported_offsets (t, sections) exported_offsets =
   match t with
-  | [t0] -> [{ t0 with exported_offsets }]
+  | [t0] -> [{ t0 with exported_offsets }], sections
   | [] | _ :: _ :: _ ->
     Misc.fatal_error "Cannot set exported offsets on multiple units"
-
-let update_for_pack0 ~pack_units ~pack t =
-  let symbols =
-    Symbol_importer.update_for_pack ~pack_units ~pack t.table_data.symbols
-  in
-  let variables =
-    Variable_importer.update_for_pack ~pack_units ~pack t.table_data.variables
-  in
-  let simples =
-    Simple_importer.update_for_pack ~pack_units ~pack t.table_data.simples
-  in
-  let consts =
-    Const_importer.update_for_pack ~pack_units ~pack t.table_data.consts
-  in
-  let code_ids =
-    Code_id_importer.update_for_pack ~pack_units ~pack t.table_data.code_ids
-  in
-  let continuations =
-    Continuation_importer.update_for_pack ~pack_units ~pack
-      t.table_data.continuations
-  in
-  let table_data =
-    { symbols; variables; simples; consts; code_ids; continuations }
-  in
-  { t with table_data }
-
-let update_for_pack ~pack_units ~pack t_opt =
-  match t_opt with
-  | None -> None
-  | Some t -> Some (List.map (update_for_pack0 ~pack_units ~pack) t)
 
 let merge t1_opt t2_opt =
   match t1_opt, t2_opt with
@@ -224,30 +195,42 @@ let merge t1_opt t2_opt =
     Misc.fatal_error
       "Some pack units do not have their export info set.\n\
        Flambda doesn't support packing opaque and normal units together."
-  | Some t1, Some t2 -> Some (t1 @ t2)
+  | Some (t1, sections1), Some (t2, sections2) ->
+    (* Put the sections of t2 before the sections of t1, so that
+       right-associative merge is linear *)
+    let nsections = File_sections.concat sections2 sections1 in
+    let n = File_sections.length sections2 in
+    let t1 =
+      List.map
+        (fun t0 ->
+          { t0 with
+            all_code = Exported_code.map_raw_index (fun x -> x + n) t0.all_code
+          })
+        t1
+    in
+    Some (t1 @ t2, nsections)
 
-let print0 ppf t =
+let print0 ~sections ppf t =
   Format.fprintf ppf "@[<hov>Original unit:@ %a@]@;" Compilation_unit.print
     t.original_compilation_unit;
-  Compilation_unit.set_current t.original_compilation_unit;
-  let typing_env, code = import_typing_env_and_code0 t in
+  Compilation_unit.set_current (Some t.original_compilation_unit);
+  let typing_env, code = import_typing_env_and_code0 ~sections t in
   Format.fprintf ppf "@[<hov>Typing env:@ %a@]@;"
     Flambda2_types.Typing_env.Serializable.print typing_env;
   Format.fprintf ppf "@[<hov>Code:@ %a@]@;" Exported_code.print code;
   Format.fprintf ppf "@[<hov>Offsets:@ %a@]@;" Exported_offsets.print
     t.exported_offsets
 
-let [@ocamlformat "disable"] print ppf t =
+let print ppf (t, sections) =
   let rec print_rest ppf = function
     | [] -> ()
     | t0 :: t ->
-      Format.fprintf ppf "@ (%a)"
-        print0 t0;
+      Format.fprintf ppf "@ (%a)" (print0 ~sections) t0;
       print_rest ppf t
   in
   match t with
   | [] -> assert false
-  | [ t0 ] -> print0 ppf t0
+  | [t0] -> print0 ~sections ppf t0
   | t0 :: t ->
-    Format.fprintf ppf "Packed units:@ @[<v>(%a)%a@]"
-      print0 t0 print_rest t
+    Format.fprintf ppf "Packed units:@ @[<v>(%a)%a@]" (print0 ~sections) t0
+      print_rest t

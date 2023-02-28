@@ -139,19 +139,19 @@ let collect_formatters buf pps ~f =
   let ppb = Format.formatter_of_buffer buf in
   let out_functions = Format.pp_get_formatter_out_functions ppb () in
 
-  List.iter (fun pp -> Format.pp_print_flush pp ()) pps;
+  List.iter ~f:(fun pp -> Format.pp_print_flush pp ()) pps;
   let save =
-    List.map (fun pp -> Format.pp_get_formatter_out_functions pp ()) pps
+    List.map ~f:(fun pp -> Format.pp_get_formatter_out_functions pp ()) pps
   in
   let restore () =
     List.iter2
-      (fun pp out_functions ->
+      ~f:(fun pp out_functions ->
          Format.pp_print_flush pp ();
          Format.pp_set_formatter_out_functions pp out_functions)
       pps save
   in
   List.iter
-    (fun pp -> Format.pp_set_formatter_out_functions pp out_functions)
+    ~f:(fun pp -> Format.pp_set_formatter_out_functions pp out_functions)
     pps;
   match f () with
   | x             -> restore (); x
@@ -234,7 +234,7 @@ let eval_expect_file _fname ~file_contents =
         acc &&
         let snap = Btype.snapshot () in
         try
-          exec_phrase ppf phrase
+          Sys.with_async_exns (fun () -> exec_phrase ppf phrase)
         with exn ->
           let bt = Printexc.get_raw_backtrace () in
           begin try Location.report_exception ppf exn
@@ -336,7 +336,8 @@ let main fname =
   end;
   Compmisc.init_path ();
   Toploop.initialize_toplevel_env ();
-  Sys.interactive := false;
+  (* We are in interactive mode and should record directive error on stdout *)
+  Sys.interactive := true;
   process_expect_file fname;
   exit 0
 

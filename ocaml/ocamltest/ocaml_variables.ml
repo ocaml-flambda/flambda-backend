@@ -54,7 +54,7 @@ let export_caml_ld_library_path value =
     if local_value="" then current_value else
     if current_value="" then local_value else
     String.concat Filename.path_sep [local_value; current_value] in
-  Printf.sprintf "%s=%s" caml_ld_library_path_name new_value
+  (caml_ld_library_path_name, new_value)
 
 let caml_ld_library_path =
   make_with_exporter
@@ -126,6 +126,9 @@ let nativecc_libs = make ("nativecc_libs",
 let objext = make ("objext",
   "Extension of object files")
 
+let libext = make ("libext",
+  "Extension of library files")
+
 let asmext = make ("asmext",
   "Extension of assembly files")
 
@@ -180,7 +183,7 @@ let ocamlopt_opt_exit_status = make ("ocamlopt_opt_exit_status",
   "Expected exit status of ocamlopt.opt")
 
 let export_ocamlrunparam value =
-  Printf.sprintf "%s=%s" "OCAMLRUNPARAM" value
+  ("OCAMLRUNPARAM", value)
 
 let ocamlrunparam =
   make_with_exporter
@@ -264,6 +267,7 @@ let _ = List.iter register_variable
     modules;
     nativecc_libs;
     objext;
+    libext;
     asmext;
     ocamlc_byte;
     ocamlopt_byte;

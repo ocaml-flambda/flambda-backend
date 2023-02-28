@@ -62,14 +62,7 @@ type operation =
   | Ifloatofint | Iintoffloat
   | Iopaque
   | Ispecific of Arch.specific_operation
-  | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
-      provenance : unit option; is_assignment : bool; }
-    (** [Iname_for_debugger] has the following semantics:
-        (a) The argument register(s) is/are deemed to contain the value of the
-            given identifier.
-        (b) If [is_assignment] is [true], any information about other [Reg.t]s
-            that have been previously deemed to hold the value of that
-            identifier is forgotten. *)
+  | Ipoll of { return_label: Cmm.label option }
   | Iprobe of { name: string; handler_code_sym: string; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
@@ -80,9 +73,7 @@ type instruction =
     arg: Reg.t array;
     res: Reg.t array;
     dbg: Debuginfo.t;
-    mutable live: Reg.Set.t;
-    mutable available_before: Reg_availability_set.t;
-    mutable available_across: Reg_availability_set.t option;
+    mutable live: Reg.Set.t
   }
 
 and instruction_desc =
@@ -102,6 +93,7 @@ type fundecl =
     fun_body: instruction;
     fun_codegen_options : Cmm.codegen_option list;
     fun_dbg : Debuginfo.t;
+    fun_poll: Lambda.poll_attribute;
     fun_num_stack_slots: int array;
     fun_contains_calls: bool;
   }

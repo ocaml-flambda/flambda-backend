@@ -100,6 +100,8 @@ module Block_access_kind : sig
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
+
+  val element_kind_for_load : t -> Flambda_kind.t
 end
 
 (* CR-someday mshinwell: We should have unboxed arrays of int32, int64 and
@@ -191,6 +193,11 @@ type signed_or_unsigned =
 
 (** Primitives taking exactly zero arguments. *)
 type nullary_primitive =
+  | Invalid of Flambda_kind.t
+      (** Used when rebuilding a primitive that turns out to be invalid. This is
+          easier to use than turning a whole let-binding into Invalid (which
+          might end up deleting code on the way up, resulting in a typing env
+          out-of-sync with the generated code). *)
   | Optimised_out of Flambda_kind.t
       (** Used for phantom bindings for which there is not enough information
           remaining to build a meaningful value. Can only be used in a phantom
@@ -199,7 +206,8 @@ type nullary_primitive =
       (** Returns a boolean saying whether the given tracing probe is enabled. *)
   | Begin_region
       (** Starting delimiter of local allocation region, returning a region
-          name. *)
+          name. For regions for the "try" part of a "try...with", use
+          [Begin_try_region] (below) instead. *)
 
 (** Untagged binary integer arithmetic operations.
 
@@ -273,7 +281,8 @@ type unary_primitive =
           closures. *)
   | Project_value_slot of
       { project_from : Function_slot.t;
-        value_slot : Value_slot.t
+        value_slot : Value_slot.t;
+        kind : Flambda_kind.With_subkind.t
       }
       (** Project a value slot from a set of closures -- in other words, read an
           entry from the closure environment (the captured variables). *)
@@ -281,6 +290,9 @@ type unary_primitive =
       (** Only valid when the float array optimisation is enabled. *)
   | Is_flat_float_array
       (** Only valid when the float array optimisation is enabled. *)
+  | Begin_try_region
+      (** Starting delimiter of local allocation region, when used for a "try"
+          body, accepting the parent region as argument. *)
   | End_region
       (** Ending delimiter of local allocation region, accepting a region name. *)
   | Obj_dup  (** Corresponds to [Obj.dup]; see the documentation in obj.mli. *)
@@ -372,6 +384,10 @@ module Without_args : sig
     | Variadic of variadic_primitive
 
   val print : Format.formatter -> t -> unit
+
+  (** Describe the effects and coeffects that the application of the given
+      primitive may have. *)
+  val effects_and_coeffects : t -> Effects_and_coeffects.t
 end
 
 (** A description of the kind of values which a unary primitive expects as its
@@ -425,7 +441,7 @@ val result_kind' : t -> Flambda_kind.t
 
 (** Describe the effects and coeffects that the application of the given
     primitive may have. *)
-val effects_and_coeffects : t -> Effects.t * Coeffects.t
+val effects_and_coeffects : t -> Effects_and_coeffects.t
 
 (** Returns [true] iff the given primitive has neither effects nor coeffects. *)
 val no_effects_or_coeffects : t -> bool

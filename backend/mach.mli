@@ -71,6 +71,8 @@ type operation =
                 mode: Lambda.alloc_mode }
   | Iintop of integer_operation
   | Iintop_imm of integer_operation * int
+  | Iintop_atomic of { op : Cmm.atomic_op; size : Cmm.atomic_bitwidth;
+                       addr : Arch.addressing_mode }
   | Icompf of float_comparison
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icsel of test

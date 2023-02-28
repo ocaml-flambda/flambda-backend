@@ -26,12 +26,13 @@ type error =
   | Not_an_object_file of filepath
   | Wrong_object_name of filepath
   | Symbol_error of filepath * Symtable.error
-  | Inconsistent_import of modname * filepath * filepath
+  | Inconsistent_import of Compilation_unit.Name.t * filepath * filepath
   | Custom_runtime
   | File_exists of filepath
   | Cannot_open_dll of filepath
-  | Required_module_unavailable of modname * modname
+  | Required_module_unavailable of string * Compilation_unit.t
   | Camlheader of string * filepath
+  | Wrong_link_order of (string * string) list
 
 exception Error of error
 
@@ -89,6 +90,8 @@ let add_ccobjs origin l =
 (* First pass: determine which units are needed *)
 
 let missing_globals = ref Ident.Map.empty
+let provided_globals = ref Ident.Set.empty
+let badly_ordered_dependencies : (string * string) list ref = ref []
 
 let is_required (rel, _pos) =
   match rel with
@@ -98,15 +101,24 @@ let is_required (rel, _pos) =
 
 let add_required compunit =
   let add id =
+    if Ident.Set.mem id !provided_globals then begin
+      let cu_name = CU.full_path_as_string compunit.cu_name in
+      badly_ordered_dependencies :=
+        ((Ident.name id), cu_name) :: !badly_ordered_dependencies;
+    end;
     missing_globals := Ident.Map.add id compunit.cu_name !missing_globals
   in
+  let add_unit unit =
+    add (unit |> Compilation_unit.to_global_ident_for_bytecode)
+  in
   List.iter add (Symtable.required_globals compunit.cu_reloc);
-  List.iter add compunit.cu_required_globals
+  List.iter add_unit compunit.cu_required_globals
 
 let remove_required (rel, _pos) =
   match rel with
     Reloc_setglobal id ->
-      missing_globals := Ident.Map.remove id !missing_globals
+      missing_globals := Ident.Map.remove id !missing_globals;
+      provided_globals := Ident.Set.add id !provided_globals;
   | _ -> ()
 
 let scan_file obj_name tolink =
@@ -162,23 +174,25 @@ let scan_file obj_name tolink =
 
 (* Consistency check between interfaces *)
 
-module Consistbl = Consistbl.Make (Misc.Stdlib.String)
+module Consistbl = Consistbl.Make (CU.Name) (Compilation_unit)
 
 let crc_interfaces = Consistbl.create ()
-let interfaces = ref ([] : string list)
-let implementations_defined = ref ([] : (string * string) list)
+let interfaces = ref ([] : CU.Name.t list)
+let implementations_defined = ref ([] : (CU.Name.t * string) list)
 
 let check_consistency file_name cu =
   begin try
-    List.iter
-      (fun (name, crco) ->
+    Array.iter
+      (fun import ->
+        let name = Import_info.name import in
+        let crco = Import_info.crc_with_unit import in
         interfaces := name :: !interfaces;
         match crco with
           None -> ()
-        | Some crc ->
-            if CU.Name.equal (CU.Name.of_string name) cu.cu_name
-            then Consistbl.set crc_interfaces name crc file_name
-            else Consistbl.check crc_interfaces name crc file_name)
+        | Some (full_name, crc) ->
+            if CU.Name.equal name (CU.name cu.cu_name)
+            then Consistbl.set crc_interfaces name full_name crc file_name
+            else Consistbl.check crc_interfaces name full_name crc file_name)
       cu.cu_imports
   with Consistbl.Inconsistency {
       unit_name = name;
@@ -187,20 +201,21 @@ let check_consistency file_name cu =
     } ->
     raise(Error(Inconsistent_import(name, user, auth)))
   end;
-  let cu_name = CU.Name.to_string cu.cu_name in
   begin try
-    let source = List.assoc cu_name !implementations_defined in
+    let source = List.assoc (CU.name cu.cu_name) !implementations_defined in
     Location.prerr_warning (Location.in_file file_name)
-      (Warnings.Module_linked_twice(cu_name,
+      (Warnings.Module_linked_twice(cu.cu_name |> CU.full_path_as_string,
                                     Location.show_filename file_name,
                                     Location.show_filename source))
   with Not_found -> ()
   end;
   implementations_defined :=
-    (cu_name, file_name) :: !implementations_defined
+    (CU.name cu.cu_name, file_name) :: !implementations_defined
 
 let extract_crc_interfaces () =
   Consistbl.extract !interfaces crc_interfaces
+  |> List.map (fun (name, crc_with_unit) ->
+       Import_info.create name ~crc_with_unit)
 
 let clear_crc_interfaces () =
   Consistbl.clear crc_interfaces;
@@ -252,7 +267,7 @@ let link_archive output_fun currpos_fun file_name units_required =
   try
     List.iter
       (fun cu ->
-         let name = file_name ^ "(" ^ (CU.Name.to_string cu.cu_name) ^ ")" in
+         let name = file_name ^ "(" ^ (CU.full_path_as_string cu.cu_name) ^ ")" in
          try
            link_compunit output_fun currpos_fun inchan name cu
          with Symtable.Error msg ->
@@ -392,7 +407,7 @@ let link_bytecode ?final_name tolink exec_name standalone =
        Symtable.output_global_map outchan;
        Bytesections.record outchan "SYMB";
        (* CRCs for modules *)
-       output_value outchan (extract_crc_interfaces());
+       output_value outchan ((extract_crc_interfaces() |> Array.of_list));
        Bytesections.record outchan "CRCS";
        (* Debug info *)
        if !Clflags.debug then begin
@@ -476,7 +491,9 @@ let link_bytecode_as_c tolink outfile with_main =
 \nextern \"C\" {\
 \n#endif\
 \n#include <caml/mlvalues.h>\
-\n#include <caml/startup.h>\n";
+\n#include <caml/startup.h>\
+\n#include <caml/sys.h>\
+\n#include <caml/misc.h>\n";
        output_string outchan "static int caml_code[] = {\n";
        Symtable.init();
        clear_crc_interfaces ();
@@ -497,7 +514,7 @@ let link_bytecode_as_c tolink outfile with_main =
        let sections =
          [ "SYMB", Symtable.data_global_map();
            "PRIM", Obj.repr(Symtable.data_primitive_names());
-           "CRCS", Obj.repr(extract_crc_interfaces()) ] in
+           "CRCS", Obj.repr(extract_crc_interfaces() |> Array.of_list) ] in
        output_string outchan "static char caml_sections[] = {\n";
        output_data_string outchan
          (Marshal.to_string sections []);
@@ -507,11 +524,7 @@ let link_bytecode_as_c tolink outfile with_main =
        (* The entry point *)
        if with_main then begin
          output_string outchan "\
-\n#ifdef _WIN32\
-\nint wmain(int argc, wchar_t **argv)\
-\n#else\
-\nint main(int argc, char **argv)\
-\n#endif\
+\nint main_os(int argc, char_os **argv)\
 \n{\
 \n  caml_byte_program_mode = COMPLETE_EXE;\
 \n  caml_startup_code(caml_code, sizeof(caml_code),\
@@ -519,7 +532,7 @@ let link_bytecode_as_c tolink outfile with_main =
 \n                    caml_sections, sizeof(caml_sections),\
 \n                    /* pooling */ 0,\
 \n                    argv);\
-\n  caml_sys_exit(Val_int(0));\
+\n  caml_do_exit(0);\
 \n  return 0; /* not reached */\
 \n}\n"
        end else begin
@@ -565,7 +578,7 @@ let link_bytecode_as_c tolink outfile with_main =
 \n}\
 \n#endif\n";
     );
-  if !Clflags.debug then
+  if not with_main && !Clflags.debug then
     output_cds_file ((Filename.chop_extension outfile) ^ ".cds")
 
 (* Build a custom runtime *)
@@ -630,8 +643,11 @@ let link objfiles output_name =
     match Ident.Map.bindings missing_modules with
     | [] -> ()
     | (id, cu_name) :: _ ->
-        let cu_name = CU.Name.to_string cu_name in
-        raise (Error (Required_module_unavailable (Ident.name id, cu_name)))
+        match !badly_ordered_dependencies with
+        | [] ->
+            raise (Error (Required_module_unavailable (Ident.name id, cu_name)))
+        | l ->
+            raise (Error (Wrong_link_order l))
   end;
   Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs; (* put user's libs last *)
   Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
@@ -751,10 +767,10 @@ let report_error ppf = function
   | Inconsistent_import(intf, file1, file2) ->
       fprintf ppf
         "@[<hov>Files %a@ and %a@ \
-                 make inconsistent assumptions over interface %s@]"
+                 make inconsistent assumptions over interface %a@]"
         Location.print_filename file1
         Location.print_filename file2
-        intf
+        CU.Name.print intf
   | Custom_runtime ->
       fprintf ppf "Error while building custom runtime system"
   | File_exists file ->
@@ -764,9 +780,17 @@ let report_error ppf = function
       fprintf ppf "Error on dynamically loaded library: %a"
         Location.print_filename file
   | Required_module_unavailable (s, m) ->
-      fprintf ppf "Module `%s' is unavailable (required by `%s')" s m
+      fprintf ppf "Module `%s' is unavailable (required by `%a')"
+        s
+        Compilation_unit.print m
   | Camlheader (msg, header) ->
       fprintf ppf "System error while copying file %s: %s" header msg
+  | Wrong_link_order l ->
+      let depends_on ppf (dep, depending) =
+        fprintf ppf "%s depends on %s" depending dep
+      in
+      fprintf ppf "@[<hov 2>Wrong link order: %a@]"
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ") depends_on) l
 
 let () =
   Location.register_error_of_exn

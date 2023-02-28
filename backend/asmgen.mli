@@ -24,42 +24,32 @@ type middle_end =
   -> Lambda.program
   -> Clambda.with_constants
 
+(** The type of converters straight from Lambda to Cmm. This is how Flambda 2
+    operates. *)
+type direct_to_cmm =
+  ppf_dump:Format.formatter
+  -> prefixname:string
+  -> filename:string
+  -> Lambda.program
+  -> Cmm.phrase list
+
+(** The ways to get from Lambda to Cmm. *)
+type pipeline =
+  | Via_clambda of {
+      backend : (module Backend_intf.S);
+      middle_end : middle_end;
+    }
+  | Direct_to_cmm of direct_to_cmm
+
 (** Compile an implementation from Lambda using the given middle end. *)
 val compile_implementation
    : (module Compiler_owee.Unix_intf.S)
   -> ?toplevel:(string -> bool)
-  -> backend:(module Backend_intf.S)
+  -> pipeline:pipeline
   -> filename:string
   -> prefixname:string
-  -> middle_end:middle_end
   -> ppf_dump:Format.formatter
   -> Lambda.program
-  -> unit
-
-(** Compile an implementation from Lambda using Flambda 2.
-    The Flambda 2 middle end neither uses the Clambda language nor the
-    Cmmgen pass.  Instead it emits Cmm directly. *)
-val compile_implementation_flambda2
-   : (module Compiler_owee.Unix_intf.S)
-  -> ?toplevel:(string -> bool)
-  -> ?keep_symbol_tables:bool
-  -> filename:string
-  -> prefixname:string
-  -> size:int
-  -> module_ident:Ident.t
-  -> module_initializer:Lambda.lambda
-  -> flambda2:(
-    ppf_dump:Format.formatter ->
-    prefixname:string ->
-    filename:string ->
-    module_ident:Ident.t ->
-    module_block_size_in_words:int ->
-    module_initializer:Lambda.lambda ->
-    keep_symbol_tables:bool ->
-    Cmm.phrase list)
-  -> ppf_dump:Format.formatter
-  -> required_globals:Ident.Set.t
-  -> unit
   -> unit
 
 val compile_implementation_linear
@@ -70,8 +60,7 @@ val compile_implementation_linear
   -> unit
 
 val compile_phrase
-  : ?dwarf:Dwarf_ocaml.Dwarf.t
-  -> ppf_dump:Format.formatter
+  : ppf_dump:Format.formatter
   -> Cmm.phrase
   -> unit
 
@@ -92,20 +81,3 @@ val compile_unit
    -> ppf_dump:Format.formatter
    -> (unit -> unit)
    -> unit
-
-(* First-class module building for DWARF *)
-
-(* Sets up assembly emitting.
-  Calls [emit_begin_assembly] (which in most case
-  should be something similar to [Emit.begin_assembly]).
-  Might return an instance of [Dwarf_ocaml.Dwarf.t] that can be used to generate
-  dwarf information for the target system. *)
-val emit_begin_assembly_with_dwarf
-   : (module Compiler_owee.Unix_intf.S)
-  -> disable_dwarf:bool
-  -> emit_begin_assembly:(init_dwarf:(unit -> unit) -> unit)
-  -> sourcefile:string
-  -> unit
-  -> Dwarf_ocaml.Dwarf.t option
-
-val build_asm_directives : unit -> (module Asm_targets.Asm_directives_intf.S)

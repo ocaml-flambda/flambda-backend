@@ -49,13 +49,16 @@ module EvalPath =
   struct
     type valu = Debugcom.Remote_value.t
     exception Error
+
+    let eval_id id =
+      try
+        Debugcom.Remote_value.global (Symtable.get_global_position id)
+      with Symtable.Error _ ->
+        raise Error
+
     let rec eval_address = function
-    | Env.Aident id ->
-        begin try
-          Debugcom.Remote_value.global (Symtable.get_global_position id)
-        with Symtable.Error _ ->
-          raise Error
-        end
+    | Env.Aunit cu -> eval_id (cu |> Compilation_unit.to_global_ident_for_bytecode)
+    | Env.Alocal id -> eval_id id
     | Env.Adot(root, pos) ->
         let v = eval_address root in
         if not (Debugcom.Remote_value.is_block v)

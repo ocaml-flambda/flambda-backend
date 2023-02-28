@@ -34,6 +34,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <winioctl.h>
+#include "caml/winsupport.h"
 
 #ifndef S_IFLNK
 /*
@@ -228,15 +229,17 @@ static int safe_do_stat(int do_lstat, int use_64, wchar_t* path, HANDLE fstat, _
        *      reparse point allows a POSIX-compatible value to be returned in
        *      st_size
        */
-      char buffer[16384];
       DWORD read;
-      REPARSE_DATA_BUFFER* point;
+      union {
+        char raw[16384];
+        REPARSE_DATA_BUFFER point;
+      } buffer;
 
       caml_enter_blocking_section();
-      if (DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, NULL, 0, buffer, 16384, &read, NULL)) {
-        if (((REPARSE_DATA_BUFFER*)buffer)->ReparseTag == IO_REPARSE_TAG_SYMLINK) {
+      if (DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, NULL, 0, &buffer.point, sizeof(buffer.raw), &read, NULL)) {
+        if (buffer.point.ReparseTag == IO_REPARSE_TAG_SYMLINK) {
           is_symlink = do_lstat;
-          res->st_size = ((REPARSE_DATA_BUFFER*)buffer)->SymbolicLinkReparseBuffer.SubstituteNameLength / 2;
+          res->st_size = buffer.point.SymbolicLinkReparseBuffer.SubstituteNameLength / 2;
         }
       }
       caml_leave_blocking_section();
@@ -344,6 +347,7 @@ static int do_stat(int do_lstat, int use_64, const char* opath, HANDLE fstat, __
 
 CAMLprim value unix_stat(value path)
 {
+  CAMLparam1(path);
   struct _stat64 buf;
   __int64 st_ino;
 
@@ -351,11 +355,12 @@ CAMLprim value unix_stat(value path)
   if (!do_stat(0, 0, String_val(path), NULL, &st_ino, &buf)) {
     uerror("stat", path);
   }
-  return stat_aux(0, st_ino, &buf);
+  CAMLreturn (stat_aux(0, st_ino, &buf));
 }
 
 CAMLprim value unix_stat_64(value path)
 {
+  CAMLparam1(path);
   struct _stat64 buf;
   __int64 st_ino;
 
@@ -363,11 +368,12 @@ CAMLprim value unix_stat_64(value path)
   if (!do_stat(0, 1, String_val(path), NULL, &st_ino, &buf)) {
     uerror("stat", path);
   }
-  return stat_aux(1, st_ino, &buf);
+  CAMLreturn (stat_aux(1, st_ino, &buf));
 }
 
 CAMLprim value unix_lstat(value path)
 {
+  CAMLparam1(path);
   struct _stat64 buf;
   __int64 st_ino;
 
@@ -375,11 +381,12 @@ CAMLprim value unix_lstat(value path)
   if (!do_stat(1, 0, String_val(path), NULL, &st_ino, &buf)) {
     uerror("lstat", path);
   }
-  return stat_aux(0, st_ino, &buf);
+  CAMLreturn (stat_aux(0, st_ino, &buf));
 }
 
 CAMLprim value unix_lstat_64(value path)
 {
+  CAMLparam1(path);
   struct _stat64 buf;
   __int64 st_ino;
 
@@ -387,7 +394,7 @@ CAMLprim value unix_lstat_64(value path)
   if (!do_stat(1, 1, String_val(path), NULL, &st_ino, &buf)) {
     uerror("lstat", path);
   }
-  return stat_aux(1, st_ino, &buf);
+  CAMLreturn (stat_aux(1, st_ino, &buf));
 }
 
 static value do_fstat(value handle, int use_64)

@@ -56,7 +56,8 @@ let deciders =
     Unboxers.Int64.decider;
     Unboxers.Nativeint.decider ]
 
-let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
+let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
+    =
   let param_type_is_alias_to_symbol =
     match T.get_alias_exn param_type with
     | exception Not_found -> false
@@ -87,14 +88,14 @@ let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
         match T.prove_unique_tag_and_size tenv param_type with
         | Proved (tag, size) when unbox_blocks ->
           let fields =
-            make_optimistic_fields ~add_tag_to_name:false ~depth tenv param_type
-              tag size
+            make_optimistic_fields ~add_tag_to_name:false ~depth ~recursive tenv
+              param_type tag size
           in
           Unbox (Unique_tag_and_size { tag; fields })
         | Proved _ | Unknown -> (
           match T.prove_variant_like tenv param_type with
           | Proved { const_ctors; non_const_ctors_with_sizes }
-            when unbox_variants ->
+            when unbox_variants && not recursive ->
             let tag = Extra_param_and_args.create ~name:"tag" in
             let const_ctors : U.const_ctors_decision =
               match const_ctors with
@@ -105,28 +106,32 @@ let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
               Tag.Scannable.Map.mapi
                 (fun scannable_tag size ->
                   let tag = Tag.Scannable.to_tag scannable_tag in
-                  make_optimistic_fields ~add_tag_to_name:true ~depth tenv
-                    param_type tag size)
+                  make_optimistic_fields ~add_tag_to_name:true ~depth ~recursive
+                    tenv param_type tag size)
                 non_const_ctors_with_sizes
             in
             Unbox (Variant { tag; const_ctors; fields_by_tag })
           | Proved _ | Unknown -> (
             match T.prove_single_closures_entry tenv param_type with
             | Proved (function_slot, _, closures_entry, _fun_decl)
-              when unbox_closures ->
+              when unbox_closures && not recursive ->
               let vars_within_closure =
-                make_optimistic_vars_within_closure ~depth tenv closures_entry
+                make_optimistic_vars_within_closure ~depth ~recursive tenv
+                  closures_entry
               in
               Unbox
                 (Closure_single_entry { function_slot; vars_within_closure })
             | Proved _ | Unknown -> Do_not_unbox Incomplete_parameter_type)))
 
-and make_optimistic_fields ~add_tag_to_name ~depth tenv param_type (tag : Tag.t)
-    size =
+and make_optimistic_fields ~add_tag_to_name ~depth ~recursive tenv param_type
+    (tag : Tag.t) size =
   let field_kind, field_base_name =
     if Tag.equal tag Tag.double_array_tag
     then K.naked_float, "unboxed_float_field"
     else K.value, "unboxed_field"
+  in
+  let field_kind_with_subkind =
+    K.With_subkind.create field_kind K.With_subkind.Subkind.Anything
   in
   let field_name n =
     Format.asprintf "%s%a_%d" field_base_name (pp_tag add_tag_to_name) tag n
@@ -166,14 +171,15 @@ and make_optimistic_fields ~add_tag_to_name ~depth tenv param_type (tag : Tag.t)
     List.map2
       (fun epa var_type : U.field_decision ->
         let decision =
-          make_optimistic_decision ~depth:(depth + 1) tenv ~param_type:var_type
+          make_optimistic_decision ~depth:(depth + 1) ~recursive tenv
+            ~param_type:var_type
         in
-        { epa; decision })
+        { epa; decision; kind = field_kind_with_subkind })
       field_vars field_types
   in
   fields
 
-and make_optimistic_vars_within_closure ~depth tenv closures_entry =
+and make_optimistic_vars_within_closure ~depth ~recursive tenv closures_entry =
   let map = T.Closures_entry.value_slot_types closures_entry in
   Value_slot.Map.mapi
     (fun value_slot var_type : U.field_decision ->
@@ -181,7 +187,13 @@ and make_optimistic_vars_within_closure ~depth tenv closures_entry =
         Extra_param_and_args.create ~name:(Value_slot.to_string value_slot)
       in
       let decision =
-        make_optimistic_decision ~depth:(depth + 1) tenv ~param_type:var_type
+        make_optimistic_decision ~depth:(depth + 1) ~recursive tenv
+          ~param_type:var_type
       in
-      { epa; decision })
+      let kind =
+        K.With_subkind.create
+          (Flambda2_types.kind var_type)
+          K.With_subkind.Subkind.Anything
+      in
+      { epa; decision; kind })
     map

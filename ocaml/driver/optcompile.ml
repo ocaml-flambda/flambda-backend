@@ -30,44 +30,13 @@ let interface ~source_file ~output_prefix =
     ~hook_typed_tree:(fun _ -> ())
     info
 
-let (|>>) (x, y) f = (x, f y)
-
 (** Native compilation backend for .ml files. *)
 
-let flambda i backend typed =
-  typed
+let compile i ~backend ~middle_end ~transl_style
+      Typedtree.{structure; coercion; _} =
+  (structure, coercion)
   |> Profile.(record transl)
-      (Translmod.transl_implementation_flambda i.module_name)
-  |> Profile.(record generate)
-    (fun {Lambda.module_ident; main_module_block_size;
-          required_globals; code } ->
-    ((module_ident, main_module_block_size), code)
-    |>> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
-    |>> Simplif.simplify_lambda
-    |>> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
-    |> (fun ((module_ident, main_module_block_size), code) ->
-      let program : Lambda.program =
-        { Lambda.
-          module_ident;
-          main_module_block_size;
-          required_globals;
-          code;
-        }
-      in
-      Asmgen.compile_implementation
-        ~backend
-        ~filename:i.source_file
-        ~prefixname:i.output_prefix
-        ~middle_end:Flambda_middle_end.lambda_to_clambda
-        ~ppf_dump:i.ppf_dump
-        program);
-    Compilenv.save_unit_info (cmx i))
-
-let clambda i backend typed =
-  Clflags.set_oclassic ();
-  typed
-  |> Profile.(record transl)
-    (Translmod.transl_store_implementation i.module_name)
+    (Translmod.transl_implementation i.module_name ~style:transl_style)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Profile.(record generate)
     (fun program ->
@@ -76,29 +45,29 @@ let clambda i backend typed =
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
        |> Asmgen.compile_implementation
             ~backend
-            ~filename:i.source_file
             ~prefixname:i.output_prefix
-            ~middle_end:Closure_middle_end.lambda_to_clambda
+            ~middle_end
             ~ppf_dump:i.ppf_dump;
        Compilenv.save_unit_info (cmx i))
 
-let reset_compilenv ~module_name =
-  let for_pack_prefix = Compilation_unit.Prefix.from_clflags () in
-  let comp_unit =
-    Compilation_unit.create for_pack_prefix
-      (Compilation_unit.Name.of_string module_name)
-  in
-  Compilenv.reset comp_unit
+let flambda i backend typed =
+  compile i typed ~backend ~transl_style:Plain_block
+    ~middle_end:Flambda_middle_end.lambda_to_clambda
+
+let clambda i backend typed =
+  Clflags.set_oclassic ();
+  compile i typed ~backend ~transl_style:Set_individual_fields
+    ~middle_end:Closure_middle_end.lambda_to_clambda
 
 (* Emit assembly directly from Linear IR *)
 let emit i =
-  reset_compilenv ~module_name:i.module_name;
+  Compilenv.reset i.module_name;
   Asmgen.compile_implementation_linear i.output_prefix ~progname:i.source_file
 
 let implementation ~backend ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables:_ =
   let backend info typed =
-    reset_compilenv ~module_name:info.module_name;
+    Compilenv.reset info.module_name;
     if Config.flambda
     then flambda info backend typed
     else clambda info backend typed

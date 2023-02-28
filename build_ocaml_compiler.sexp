@@ -8,16 +8,19 @@
   uses_autoconf
   is_flambda_backend
   build_m32_from_upstream
+  stack_allocation_by_default
   ))
  (features (
    normal
    frame_pointers
    m32
    no_naked_pointers
+   naked_pointers_checker
    flambda
    flambda2
    no_flat_float_array
    perf_demangled_symbols
    stack_allocation
+   poll_insertion
    ))
  )

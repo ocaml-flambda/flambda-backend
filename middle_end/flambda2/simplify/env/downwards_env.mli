@@ -206,3 +206,5 @@ val relative_history : t -> Inlining_history.Relative.t
 val loopify_state : t -> Loopify_state.t
 
 val set_loopify_state : Loopify_state.t -> t -> t
+
+val with_code_age_relation : Code_age_relation.t -> t -> t

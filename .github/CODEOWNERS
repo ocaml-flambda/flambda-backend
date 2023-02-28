@@ -1,7 +1,5 @@
 # Later lines in the file take precedence.
 
-*       @mshinwell
-
 .github/                @mshinwell
 .github/CODEOWNERS      @mshinwell @lpw25
 .gitignore              @mshinwell

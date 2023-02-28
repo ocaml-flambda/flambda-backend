@@ -1,5 +1,5 @@
 (* TEST
-files = "foo.ml gen_cached_cmi.ml input.ml"
+readonly_files = "foo.ml gen_cached_cmi.ml input.ml"
 * setup-ocamlc.byte-build-env
 ** ocamlc.byte
 module = "foo.ml"
@@ -24,7 +24,7 @@ let () =
   let module Persistent_signature = Persistent_env.Persistent_signature in
   let old_loader = !Persistent_signature.load in
   Persistent_signature.load := (fun ~unit_name ->
-    match unit_name with
+    match unit_name |> Compilation_unit.Name.to_string with
     | "Foo" ->
       Some { Persistent_signature.
              filename = Sys.executable_name

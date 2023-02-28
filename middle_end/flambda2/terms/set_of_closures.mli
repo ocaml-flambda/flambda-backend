@@ -25,7 +25,7 @@ val is_empty : t -> bool
 (** Create a set of closures given the code for its functions and the closure
     variables. *)
 val create :
-  value_slots:Simple.t Value_slot.Map.t ->
+  value_slots:(Simple.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
   Alloc_mode.For_allocations.t ->
   Function_declarations.t ->
   t
@@ -34,7 +34,7 @@ val create :
 val function_decls : t -> Function_declarations.t
 
 (** The values of each value slot (the environment, or captured variables). *)
-val value_slots : t -> Simple.t Value_slot.Map.t
+val value_slots : t -> (Simple.t * Flambda_kind.With_subkind.t) Value_slot.Map.t
 
 (** Returns true iff the given set of closures has no value slots. *)
 val is_closed : t -> bool

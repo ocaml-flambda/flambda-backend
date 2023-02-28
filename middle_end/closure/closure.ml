@@ -50,21 +50,35 @@ let rec split_list n l =
     | a::l -> let (l1, l2) = split_list (n-1) l in (a::l1, l2)
   end
 
-let rec build_closure_env env_param pos = function
-    [] -> V.Map.empty
+let rec add_to_closure_env env_param pos cenv = function
+    [] -> cenv
   | id :: rem ->
       V.Map.add id
         (Uprim(P.Pfield pos, [Uvar env_param], Debuginfo.none))
-          (build_closure_env env_param (pos+1) rem)
+          (add_to_closure_env env_param (pos+1) cenv rem)
+
+let is_gc_ignorable kind =
+  match kind with
+  | Pvalue Pintval -> true
+  | Pvalue (Pgenval | Pfloatval | Pboxedintval _ | Pvariant _ | Parrayval _) -> false
+
+let split_closure_fv kinds fv =
+  List.partition (fun id -> is_gc_ignorable (V.Map.find id kinds)) fv
 
 (* Auxiliary for accessing globals.  We change the name of the global
    to the name of the corresponding asm symbol.  This is done here
    and no longer in Cmmgen so that approximations stored in .cmx files
    contain the right names if the -for-pack option is active. *)
 
-let getglobal dbg id =
-  let symbol = Compilenv.symbol_for_global id |> Linkage_name.to_string in
+let getsymbol dbg symbol =
+  let symbol = Symbol.linkage_name symbol |> Linkage_name.to_string in
   Uprim (P.Pread_symbol symbol, [], dbg)
+
+let getglobal dbg cu =
+  getsymbol dbg (Symbol.for_compilation_unit cu)
+
+let getpredef dbg id =
+  getsymbol dbg (Symbol.for_predef_ident id)
 
 let region ulam =
   let is_trivial =
@@ -90,10 +104,11 @@ let occurs_var var u =
   let rec occurs = function
       Uvar v -> v = var
     | Uconst _ -> false
-    | Udirect_apply(_lbl, args, _, _, _) -> List.exists occurs args
-    | Ugeneric_apply(funct, args, _, _) ->
+    | Udirect_apply(_lbl, args, _, _, _, _) -> List.exists occurs args
+    | Ugeneric_apply(funct, args, _, _, _, _) ->
         occurs funct || List.exists occurs args
-    | Uclosure(_fundecls, clos) -> List.exists occurs clos
+    | Uclosure { functions = _ ; not_scanned_slots ; scanned_slots } ->
+      List.exists occurs not_scanned_slots || List.exists occurs scanned_slots
     | Uoffset(u, _ofs) -> occurs u
     | Ulet(_str, _kind, _id, def, body) -> occurs def || occurs body
     | Uphantom_let _ -> no_phantom_lets ()
@@ -116,7 +131,7 @@ let occurs_var var u =
     | Uwhile(cond, body) -> occurs cond || occurs body
     | Ufor(_id, lo, hi, _dir, body) -> occurs lo || occurs hi || occurs body
     | Uassign(id, u) -> id = var || occurs u
-    | Usend(_, met, obj, args, _, _) ->
+    | Usend(_, met, obj, args, _, _, _, _) ->
         occurs met || occurs obj || List.exists occurs args
     | Uunreachable -> false
     | Uregion e -> occurs e
@@ -177,13 +192,13 @@ let lambda_smaller lam threshold =
     match lam with
       Uvar _ -> ()
     | Uconst _ -> incr size
-    | Udirect_apply(_, args, None, _, _) ->
+    | Udirect_apply(_, args, None, _, _, _) ->
         size := !size + 4; lambda_list_size args
     | Udirect_apply _ -> ()
     (* We aim for probe points to not affect inlining decisions.
        Actual cost is either 1, 5 or 6 bytes, depending on their kind,
        on x86-64. *)
-    | Ugeneric_apply(fn, args, _, _) ->
+    | Ugeneric_apply(fn, args, _, _, _, _) ->
         size := !size + 6; lambda_size fn; lambda_list_size args
     | Uclosure _ ->
         raise Exit (* inlining would duplicate function definitions *)
@@ -228,7 +243,7 @@ let lambda_smaller lam threshold =
         size := !size + 4; lambda_size low; lambda_size high; lambda_size body
     | Uassign(_id, lam) ->
         incr size;  lambda_size lam
-    | Usend(_, met, obj, args, _, _) ->
+    | Usend(_, met, obj, args, _, _, _, _) ->
         size := !size + 8;
         lambda_size met; lambda_size obj; lambda_list_size args
     | Uunreachable -> ()
@@ -518,6 +533,8 @@ let simplif_prim_pure ~backend fpc p (args, approxs) dbg =
       make_const (List.nth l n)
   | Pfield n, [ Uprim(P.Pmakeblock _, ul, _) ], [approx]
     when n < List.length ul ->
+      (* This case is particularly useful for removing allocations
+         for optional parameters *)
       (List.nth ul n, field_approx n approx)
   (* Strings *)
   | (Pstringlength | Pbyteslength),
@@ -525,6 +542,10 @@ let simplif_prim_pure ~backend fpc p (args, approxs) dbg =
      [ Value_const(Uconst_ref(_, Some (Uconst_string s))) ] ->
       make_const_int (String.length s)
   (* Kind test *)
+  | Pisint, [ Uprim(P.Pmakeblock _, _, _) ], _ ->
+      (* This case is particularly useful for removing allocations
+         for optional parameters *)
+      make_const_bool false
   | Pisint, _, [a1] ->
       begin match a1 with
       | Value_const(Uconst_int _) -> make_const_bool true
@@ -584,15 +605,16 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
     Uvar v ->
       begin try V.Map.find v sb with Not_found -> ulam end
   | Uconst _ -> ulam
-  | Udirect_apply(lbl, args, probe, kind, dbg) ->
+  | Udirect_apply(lbl, args, probe, return_layout, kind, dbg) ->
       let dbg = subst_debuginfo loc dbg in
       Udirect_apply(lbl, List.map (substitute loc st sb rn) args,
-                    probe, kind, dbg)
-  | Ugeneric_apply(fn, args, kind, dbg) ->
+                    probe, return_layout, kind, dbg)
+  | Ugeneric_apply(fn, args, args_layout, return_layout, kind, dbg) ->
       let dbg = subst_debuginfo loc dbg in
       Ugeneric_apply(substitute loc st sb rn fn,
-                     List.map (substitute loc st sb rn) args, kind, dbg)
-  | Uclosure(defs, env) ->
+                     List.map (substitute loc st sb rn) args,
+                     args_layout, return_layout, kind, dbg)
+  | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
       (* Question: should we rename function labels as well?  Otherwise,
          there is a risk that function labels are not globally unique.
          This should not happen in the current system because:
@@ -601,7 +623,12 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
          - When we substitute offsets for idents bound by let rec
            in [close], case [Lletrec], we discard the original
            let rec body and use only the substituted term. *)
-      Uclosure(defs, List.map (substitute loc st sb rn) env)
+      let subst = substitute loc st sb rn in
+      Uclosure {
+        functions ;
+        not_scanned_slots = List.map subst not_scanned_slots ;
+        scanned_slots = List.map subst scanned_slots
+      }
   | Uoffset(u, ofs) -> Uoffset(substitute loc st sb rn u, ofs)
   | Ulet(str, kind, id, u1, u2) ->
       let id' = VP.rename id in
@@ -706,8 +733,6 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
             substitute loc st sb rn u2
           else
             substitute loc st sb rn u3
-      | Uprim(P.Pmakeblock _, _, _) ->
-          substitute loc st sb rn u2
       | su1 ->
           Uifthenelse(su1, substitute loc st sb rn u2,
                            substitute loc st sb rn u3, kind)
@@ -728,10 +753,10 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
         with Not_found ->
           id in
       Uassign(id', substitute loc st sb rn u)
-  | Usend(k, u1, u2, ul, pos, dbg) ->
+  | Usend(k, u1, u2, ul, args_layout, result_layout, pos, dbg) ->
       let dbg = subst_debuginfo loc dbg in
       Usend(k, substitute loc st sb rn u1, substitute loc st sb rn u2,
-            List.map (substitute loc st sb rn) ul, pos, dbg)
+            List.map (substitute loc st sb rn) ul, args_layout, result_layout, pos, dbg)
   | Uunreachable ->
       Uunreachable
   | Uregion e ->
@@ -744,6 +769,8 @@ type env = {
   cenv : ulambda V.Map.t;
   fenv : value_approximation V.Map.t;
   mutable_vars : V.Set.t;
+  kinds: layout V.Map.t;
+  catch_env : int Int.Map.t;
 }
 
 (* Perform an inline expansion:
@@ -792,8 +819,12 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
           let p1' = VP.rename p1 in
           let u1, u2 =
             match VP.name p1, a1 with
-            | "*opt*", Uprim(P.Pmakeblock(0, Immutable, kind, mode),
-                             [a], dbg) ->
+            | "*opt*", Uprim(P.Pmakeblock(0, Immutable, kind, mode), [a], dbg) ->
+                (* This parameter corresponds to an optional parameter,
+                   and although it is used twice pushing the expression down
+                   actually allows us to remove the allocation as it will
+                   appear once under a Pisint primitive and once under a Pfield
+                   primitive (see [simplif_prim_pure]) *)
                 a, Uprim(P.Pmakeblock(0, Immutable, kind, mode),
                          [Uvar (VP.var p1')], dbg)
             | _ ->
@@ -801,7 +832,7 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
           in
           let body' = aux (V.Map.add (VP.var p1) u2 subst) pl al body in
           if occurs_var (VP.var p1) body then
-            Ulet(Immutable, Pgenval, p1', u1, body')
+            Ulet(Immutable, Lambda.layout_top, p1', u1, body')
           else if is_erasable a1 then body'
           else Usequence(a1, body')
         end
@@ -820,9 +851,6 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
   in
   aux V.Map.empty params args body
 
-(* Check if a lambda term is ``pure'',
-   that is without side-effects *and* not containing function definitions *)
-
 let warning_if_forced_inlined ~loc ~attribute warning =
   if attribute = Always_inlined then
     Location.prerr_warning (Debuginfo.Scoped_location.to_location loc)
@@ -836,7 +864,7 @@ let fail_if_probe ~probe msg =
 
 (* Generate a direct application *)
 
-let direct_apply env fundesc ufunct uargs pos mode ~probe ~loc ~attribute =
+let direct_apply env fundesc ufunct uargs pos result_layout mode ~probe ~loc ~attribute =
   match fundesc.fun_inline, attribute with
   | _, Never_inlined
   | None, _ ->
@@ -854,10 +882,10 @@ let direct_apply env fundesc ufunct uargs pos mode ~probe ~loc ~attribute =
        fail_if_probe ~probe "Erroneously marked to be inlined"
      end;
      if fundesc.fun_closed && is_pure ufunct then
-       Udirect_apply(fundesc.fun_label, uargs, probe, kind, dbg)
+       Udirect_apply(fundesc.fun_label, uargs, probe, result_layout, kind, dbg)
      else if not fundesc.fun_closed &&
                is_substituable ~mutable_vars:env.mutable_vars ufunct then
-       Udirect_apply(fundesc.fun_label, uargs @ [ufunct], probe, kind, dbg)
+       Udirect_apply(fundesc.fun_label, uargs @ [ufunct], probe, result_layout, kind, dbg)
      else begin
        let args = List.map (fun arg ->
          if is_substituable ~mutable_vars:env.mutable_vars arg then
@@ -869,16 +897,16 @@ let direct_apply env fundesc ufunct uargs pos mode ~probe ~loc ~attribute =
        List.fold_left (fun app (binding,_) ->
            match binding with
            | None -> app
-           | Some (v, e) -> Ulet(Immutable, Pgenval, v, e, app))
+           | Some (v, e) -> Ulet(Immutable, Lambda.layout_top, v, e, app))
          (if fundesc.fun_closed then
             Usequence (ufunct,
                        Udirect_apply (fundesc.fun_label, app_args,
-                                      probe, kind, dbg))
+                                      probe, result_layout, kind, dbg))
           else
             let clos = V.create_local "clos" in
-            Ulet(Immutable, Pgenval, VP.create clos, ufunct,
+            Ulet(Immutable, Lambda.layout_function, VP.create clos, ufunct,
                  Udirect_apply(fundesc.fun_label, app_args @ [Uvar clos],
-                               probe, kind, dbg)))
+                               probe, result_layout, kind, dbg)))
          args
        end
   | Some(params, body), _  ->
@@ -949,7 +977,40 @@ let close_approx_var { fenv; cenv } id =
 let close_var env id =
   let (ulam, _app) = close_approx_var env id in ulam
 
-let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
+let rec compute_expr_layout kinds lam =
+  match lam with
+  | Lvar id | Lmutvar id ->
+    begin
+      try V.Map.find id kinds
+      with Not_found ->
+        Misc.fatal_errorf "Unbound layout for variable %a" V.print id
+    end
+  | Lconst cst -> structured_constant_layout cst
+  | Lfunction _ -> Lambda.layout_function
+  | Lapply { ap_result_layout; _ } -> ap_result_layout
+  | Lsend (_, _, _, _, _, _, _, layout) -> layout
+  | Llet(_, kind, id, _, body) | Lmutlet(kind, id, _, body) ->
+    compute_expr_layout (V.Map.add id kind kinds) body
+  | Lletrec(defs, body) ->
+    let kinds =
+      List.fold_left (fun kinds (id, _) -> V.Map.add id Lambda.layout_letrec kinds)
+        kinds defs
+    in
+    compute_expr_layout kinds body
+  | Lprim(p, _, _) ->
+    Lambda.primitive_result_layout p
+  | Lswitch(_, _, _, kind) | Lstringswitch(_, _, _, _, kind)
+  | Lstaticcatch(_, _, _, kind) | Ltrywith(_, _, _, kind)
+  | Lifthenelse(_, _, _, kind) | Lregion (_, kind) ->
+    kind
+  | Lstaticraise (_, _) ->
+    Lambda.layout_bottom
+  | Lsequence(_, body) | Levent(body, _) -> compute_expr_layout kinds body
+  | Lwhile _ | Lfor _ | Lassign _ -> Lambda.layout_unit
+  | Lifused _ ->
+      assert false
+
+let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) lam =
   let module B = (val backend : Backend_intf.S) in
   match lam with
   | Lvar id ->
@@ -995,57 +1056,69 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
        when fun_arity > nargs *)
   | Lapply{ap_func = funct; ap_args = args; ap_region_close=pos; ap_mode=mode;
            ap_probe = probe; ap_loc = loc;
-           ap_inlined = attribute} ->
+           ap_inlined = attribute; ap_result_layout} ->
       let nargs = List.length args in
       if nargs = 0 && probe = None then
         Misc.fatal_errorf "Closure: 0-ary application at %a"
           Location.print_loc (Debuginfo.Scoped_location.to_location loc);
       begin match (close env funct, close_list env args) with
         ((ufunct, Value_closure(_,
-                                ({fun_arity=(Tupled, nparams)} as fundesc),
+                                ({fun_arity={
+                                     function_kind = Tupled ;
+                                     params_layout; _}} as fundesc),
                                 approx_res)),
          [Uprim(P.Pmakeblock _, uargs, _)])
-        when List.length uargs = nparams ->
+        when List.length uargs = List.length params_layout ->
           let app =
             direct_apply env ~loc ~attribute fundesc ufunct uargs
-              pos mode ~probe in
+              pos ap_result_layout mode ~probe in
           (app, strengthen_approx app approx_res)
       | ((ufunct, Value_closure(_,
-                                ({fun_arity=(Curried _, nparams)} as fundesc),
+                                ({fun_arity={
+                                     function_kind = Curried _ ;
+                                     params_layout ; _}} as fundesc),
                                 approx_res)), uargs)
-        when nargs = nparams ->
+        when nargs = List.length params_layout ->
           let app =
             direct_apply env ~loc ~attribute fundesc ufunct uargs
-              pos mode ~probe in
+              pos ap_result_layout mode ~probe in
           (app, strengthen_approx app approx_res)
 
       | ((ufunct, (Value_closure(
             clos_mode,
-            ({fun_arity=(Curried {nlocal}, nparams)} as fundesc),
+            ({fun_arity={ function_kind = Curried {nlocal} ;
+                          params_layout ; _ }} as fundesc),
             _) as fapprox)), uargs)
-          when nargs < nparams ->
-        let first_args = List.map (fun arg ->
-          (V.create_local "arg", arg) ) uargs in
+          when nargs < List.length params_layout ->
+        let (first_layouts, rem_layouts) = split_list nargs params_layout in
+        let first_args = List.map2 (fun arg kind ->
+          (V.create_local "arg", arg, kind) ) uargs first_layouts in
+        let kinds =
+          List.fold_left (fun kinds (arg, _, kind) -> V.Map.add arg kind kinds)
+            kinds first_args
+        in
         let final_args =
-          Array.to_list (Array.init (nparams - nargs)
-                                    (fun _ -> V.create_local "arg")) in
+          List.map (fun kind -> V.create_local "arg", kind) rem_layouts
+        in
         let rec iter args body =
           match args with
               [] -> body
-            | (arg1, arg2) :: args ->
+            | (arg1, arg2, kind) :: args ->
               iter args
-                (Ulet (Immutable, Pgenval, VP.create arg1, arg2, body))
+                (Ulet (Immutable, kind, VP.create arg1, arg2, body))
         in
         let internal_args =
-          (List.map (fun (arg1, _arg2) -> Lvar arg1) first_args)
-          @ (List.map (fun arg -> Lvar arg ) final_args)
+          (List.map (fun (arg1, _arg2, _) -> Lvar arg1) first_args)
+          @ (List.map (fun (arg, _) -> Lvar arg ) final_args)
         in
         let funct_var = V.create_local "funct" in
         let fenv = V.Map.add funct_var fapprox fenv in
+        let kinds = V.Map.add funct_var Lambda.layout_function kinds in
         let new_clos_mode, kind =
           (* If the closure has a local suffix, and we've supplied
              enough args to hit it, then the closure must be local
              (because the args or closure might be). *)
+          let nparams = List.length params_layout in
           assert (nparams >= nlocal);
           let heap_params = nparams - nlocal in
           if nargs <= heap_params then
@@ -1056,39 +1129,50 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
         in
         if is_local_mode clos_mode then assert (is_local_mode new_clos_mode);
         let ret_mode = if fundesc.fun_region then alloc_heap else alloc_local in
-        let (new_fun, approx) = close { backend; fenv; cenv; mutable_vars }
-          (Lfunction{
-               kind;
-               return = Pgenval;
-               params = List.map (fun v -> v, Pgenval) final_args;
-               body = Lapply{
+        let (new_fun, approx) =
+          close { backend; fenv; cenv; mutable_vars; kinds; catch_env }
+          (lfunction
+               ~kind
+               ~return:ap_result_layout
+               ~params:final_args
+               ~body:(Lapply{
                  ap_loc=loc;
                  ap_func=(Lvar funct_var);
                  ap_args=internal_args;
+                 ap_result_layout=ap_result_layout;
                  ap_region_close=Rc_normal;
                  ap_mode=ret_mode;
                  ap_tailcall=Default_tailcall;
                  ap_inlined=Default_inlined;
                  ap_specialised=Default_specialise;
                  ap_probe=None;
-               };
-               loc;
-               mode = new_clos_mode;
-               region = fundesc.fun_region;
-               attr = default_function_attribute})
+               })
+               ~loc
+               ~mode:new_clos_mode
+               ~region:fundesc.fun_region
+               ~attr:default_function_attribute)
         in
         let new_fun =
           iter first_args
-            (Ulet (Immutable, Pgenval, VP.create funct_var, ufunct, new_fun))
+            (Ulet (Immutable, Lambda.layout_function, VP.create funct_var, ufunct, new_fun))
         in
         warning_if_forced_inlined ~loc ~attribute "Partial application";
         fail_if_probe ~probe "Partial application";
         (new_fun, approx)
 
-      | ((ufunct, Value_closure(_, ({fun_arity = (Curried _, nparams)} as fundesc),
+      | ((ufunct, Value_closure(_, ({fun_arity = {
+          function_kind = Curried _; params_layout ; _}} as fundesc),
                                 _approx_res)), uargs)
-        when nargs > nparams ->
+        when nargs > List.length params_layout ->
+          let nparams = List.length params_layout in
+          let args_kinds = List.map (compute_expr_layout kinds) args in
           let args = List.map (fun arg -> V.create_local "arg", arg) uargs in
+          (* CR mshinwell: Edit when Lapply has kinds *)
+          let kinds =
+            List.fold_left2 (fun kinds (var, _) kind -> V.Map.add var kind kinds)
+              kinds args args_kinds
+          in
+          let _, rem_kinds = split_list nparams args_kinds in
           let (first_args, rem_args) = split_list nparams args in
           let first_args = List.map (fun (id, _) -> Uvar id) first_args in
           let rem_args = List.map (fun (id, _) -> Uvar id) rem_args in
@@ -1097,11 +1181,14 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           fail_if_probe ~probe "Over-application";
           let mode' = if fundesc.fun_region then alloc_heap else alloc_local in
           let body =
-            Ugeneric_apply(direct_apply env ~loc ~attribute
+            Ugeneric_apply(direct_apply { env with kinds } ~loc ~attribute
                               fundesc ufunct first_args
-                              Rc_normal mode'
+                              Rc_normal Lambda.layout_function mode'
                               ~probe,
-                           rem_args, (Rc_normal, mode), dbg)
+                           rem_args,
+                           rem_kinds,
+                           ap_result_layout,
+                           (Rc_normal, mode), dbg)
           in
           let body =
             match mode, fundesc.fun_region with
@@ -1114,43 +1201,59 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
             | Rc_close_at_apply -> tail body
           in
           let result =
-            List.fold_left (fun body (id, defining_expr) ->
-                Ulet (Immutable, Pgenval, VP.create id, defining_expr, body))
+            List.fold_left2 (fun body (id, defining_expr) kind ->
+                Ulet (Immutable, kind, VP.create id, defining_expr, body))
               body
-              args
+              args args_kinds
           in
           result, Value_unknown
       | ((ufunct, _), uargs) ->
           let dbg = Debuginfo.from_location loc in
           warning_if_forced_inlined ~loc ~attribute "Unknown function";
           fail_if_probe ~probe "Unknown function";
-          (Ugeneric_apply(ufunct, uargs, (pos, mode), dbg), Value_unknown)
+          (Ugeneric_apply(ufunct, uargs, List.map (compute_expr_layout kinds) args, ap_result_layout, (pos, mode), dbg), Value_unknown)
       end
-  | Lsend(kind, met, obj, args, pos, mode, loc) ->
+  | Lsend(kind, met, obj, args, pos, mode, loc, result_layout) ->
       let (umet, _) = close env met in
       let (uobj, _) = close env obj in
       let dbg = Debuginfo.from_location loc in
-      (Usend(kind, umet, uobj, close_list env args, (pos,mode), dbg),
+      let args_layout = List.map (compute_expr_layout kinds) args in
+      (Usend(kind, umet, uobj, close_list env args, args_layout, result_layout, (pos,mode), dbg),
        Value_unknown)
   | Llet(str, kind, id, lam, body) ->
       let (ulam, alam) = close_named env id lam in
+      let kinds = V.Map.add id kind kinds in
       begin match alam with
       | Value_const _
         when str = Alias || is_pure ulam ->
-          close { backend; fenv = (V.Map.add id alam fenv); cenv; mutable_vars }
+          close {
+              backend;
+              fenv = (V.Map.add id alam fenv);
+              cenv;
+              mutable_vars;
+              kinds;
+              catch_env
+            }
             body
       | _ ->
           let (ubody, abody) =
             close
-              { backend; fenv = (V.Map.add id alam fenv); cenv; mutable_vars }
+              { backend;
+                fenv = (V.Map.add id alam fenv);
+                cenv;
+                mutable_vars;
+                kinds;
+                catch_env
+              }
               body
           in
           (Ulet(Immutable, kind, VP.create id, ulam, ubody), abody)
       end
   | Lmutlet(kind, id, lam, body) ->
      let (ulam, _) = close_named env id lam in
+     let kinds = V.Map.add id kind kinds in
      let env = {env with mutable_vars = V.Set.add id env.mutable_vars} in
-     let (ubody, abody) = close env body in
+     let (ubody, abody) = close { env with kinds } body in
      (Ulet(Mutable, kind, VP.create id, ulam, ubody), abody)
   | Lletrec(defs, body) ->
       if List.for_all
@@ -1164,28 +1267,46 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           List.fold_right
             (fun (id, _pos, approx) fenv -> V.Map.add id approx fenv)
             infos fenv in
+        let kinds_body =
+          List.fold_right
+            (fun (id, _pos, _approx) kinds -> V.Map.add id Lambda.layout_function kinds)
+            infos (V.Map.add clos_ident Lambda.layout_function kinds)
+        in
         let (ubody, approx) =
-          close { backend; fenv = fenv_body; cenv; mutable_vars } body in
+          close
+            { backend;
+              fenv = fenv_body;
+              cenv;
+              mutable_vars;
+              kinds = kinds_body;
+              catch_env
+            }
+            body
+        in
         let sb =
           List.fold_right
             (fun (id, pos, _approx) sb ->
               V.Map.add id (Uoffset(Uvar clos_ident, pos)) sb)
             infos V.Map.empty in
-        (Ulet(Immutable, Pgenval, VP.create clos_ident, clos,
+        (Ulet(Immutable, Lambda.layout_function, VP.create clos_ident, clos,
               substitute Debuginfo.none (backend, !Clflags.float_const_prop) sb
                 None ubody),
          approx)
       end else begin
         (* General case: recursive definition of values *)
+        let kinds =
+          List.fold_left (fun kinds (id, _) -> V.Map.add id Lambda.layout_top kinds)
+            kinds defs
+        in
         let rec clos_defs = function
           [] -> ([], fenv)
         | (id, lam) :: rem ->
             let (udefs, fenv_body) = clos_defs rem in
-            let (ulam, approx) = close_named env id lam in
+            let (ulam, approx) = close_named { env with kinds } id lam in
             ((VP.create id, ulam) :: udefs, V.Map.add id approx fenv_body) in
         let (udefs, fenv_body) = clos_defs defs in
         let (ubody, approx) =
-          close { backend; fenv = fenv_body; cenv; mutable_vars } body in
+          close { backend; fenv = fenv_body; cenv; mutable_vars; kinds; catch_env } body in
         (Uletrec(udefs, ubody), approx)
       end
   (* Compile-time constants *)
@@ -1204,49 +1325,32 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       in
       let arg, _approx = close env arg in
       let id = Ident.create_local "dummy" in
-      Ulet(Immutable, Pgenval, VP.create id, arg, cst), approx
+      Ulet(Immutable, Lambda.layout_unit, VP.create id, arg, cst), approx
   | Lprim(Pignore, [arg], _loc) ->
       let expr, approx = make_const_int 0 in
       Usequence(fst (close env arg), expr), approx
-  | Lprim((Pidentity | Pbytes_to_string | Pbytes_of_string | Pobj_magic),
+  | Lprim(( Pbytes_to_string | Pbytes_of_string | Pobj_magic),
           [arg], _loc) ->
       close env arg
-  | Lprim(Pdirapply pos,[funct;arg], loc)
-  | Lprim(Prevapply pos,[arg;funct], loc) ->
-      close env
-        (Lapply{
-           ap_loc=loc;
-           ap_func=funct;
-           ap_args=[arg];
-           ap_region_close=pos;
-           ap_mode=alloc_heap;
-           ap_tailcall=Default_tailcall;
-           ap_inlined=Default_inlined;
-           ap_specialised=Default_specialise;
-           ap_probe=None;
-         })
   | Lprim(Pgetglobal cu, [], loc) ->
-      let id = Compilation_unit.to_global_ident_for_legacy_code cu in
       let dbg = Debuginfo.from_location loc in
-      check_constant_result (getglobal dbg id)
-                            (Compilenv.global_approx id)
+      check_constant_result (getglobal dbg cu)
+                            (Compilenv.global_approx cu)
   | Lprim(Pgetpredef id, [], loc) ->
       let dbg = Debuginfo.from_location loc in
-      check_constant_result (getglobal dbg id)
-                            (Compilenv.global_approx id)
+      getpredef dbg id, Value_unknown
   | Lprim(Pfield (n, _), [lam], loc) ->
       let (ulam, approx) = close env lam in
       let dbg = Debuginfo.from_location loc in
       check_constant_result (Uprim(P.Pfield n, [ulam], dbg))
                             (field_approx n approx)
   | Lprim(Psetfield(n, is_ptr, init),
-          [Lprim(Pgetglobal cu, [], _); lam], loc) ->
+          [Lprim(Pgetglobal cu, [], _); lam], loc)->
       let (ulam, approx) = close env lam in
       if approx <> Value_unknown then
         (!global_approx).(n) <- approx;
       let dbg = Debuginfo.from_location loc in
-      let id = cu |> Compilation_unit.to_global_ident_for_legacy_code in
-      (Uprim(P.Psetfield(n, is_ptr, init), [getglobal dbg id; ulam], dbg),
+      (Uprim(P.Psetfield(n, is_ptr, init), [getglobal dbg cu; ulam], dbg),
        Value_unknown)
   | Lprim(Praise k, [arg], loc) ->
       let (ulam, _approx) = close env arg in
@@ -1260,7 +1364,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       simplif_prim ~backend !Clflags.float_const_prop
                    p (close_list_approx env args) dbg
   | Lswitch(arg, sw, dbg, kind) ->
-      let fn fail =
+      let fn env fail =
         let (uarg, _) = close env arg in
         let const_index, const_actions, fconst =
           close_switch env sw.sw_consts sw.sw_numconsts fail
@@ -1280,17 +1384,18 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
 (* NB: failaction might get copied, thus it should be some Lstaticraise *)
       let fail = sw.sw_failaction in
       begin match fail with
-      | None|Some (Lstaticraise (_,_)) -> fn fail
+      | None|Some (Lstaticraise (_,_)) -> fn env fail
       | Some lamfail ->
           if
             (sw.sw_numconsts - List.length sw.sw_consts) +
             (sw.sw_numblocks - List.length sw.sw_blocks) > 1
           then
             let i = next_raise_count () in
-            let ubody,_ = fn (Some (Lstaticraise (i,[])))
+            let body_env = { env with catch_env = Int.Map.add i i catch_env } in
+            let ubody,_ = fn body_env (Some (Lstaticraise (i,[])))
             and uhandler,_ = close env lamfail in
             Ucatch (i,[],ubody,uhandler,kind),Value_unknown
-          else fn fail
+          else fn env fail
       end
   | Lstringswitch(arg,sw,d,_, kind) ->
       let uarg,_ = close env arg in
@@ -1307,15 +1412,28 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
             ud) d in
       Ustringswitch (uarg,usw,ud,kind),Value_unknown
   | Lstaticraise (i, args) ->
-      (Ustaticfail (i, close_list env args), Value_unknown)
+      let new_i =
+        match Int.Map.find i catch_env with
+        | new_i -> new_i
+        | exception Not_found ->
+          Misc.fatal_errorf "Static raise %d out of the scope of its handler" i
+      in
+      (Ustaticfail (new_i, close_list env args), Value_unknown)
   | Lstaticcatch(body, (i, vars), handler, kind) ->
-      let (ubody, _) = close env body in
-      let (uhandler, _) = close env handler in
+      let new_i = Lambda.next_raise_count () in
+      let body_env = { env with catch_env = Int.Map.add i new_i catch_env } in
+      let (ubody, _) = close body_env body in
+      let kinds =
+        List.fold_left (fun kinds (var, k) -> V.Map.add var k kinds) kinds vars
+      in
+      let (uhandler, _) = close { env with kinds } handler in
       let vars = List.map (fun (var, k) -> VP.create var, k) vars in
-      (Ucatch(i, vars, ubody, uhandler, kind), Value_unknown)
+      (Ucatch(new_i, vars, ubody, uhandler, kind), Value_unknown)
   | Ltrywith(body, id, handler, kind) ->
       let (ubody, _) = close env body in
-      let (uhandler, _) = close env handler in
+      let (uhandler, _) =
+        close { env with kinds = V.Map.add id Lambda.layout_block kinds } handler
+      in
       (Utrywith(ubody, VP.create id, uhandler, kind), Value_unknown)
   | Lifthenelse(arg, ifso, ifnot, kind) ->
       begin match close env arg with
@@ -1338,7 +1456,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
   | Lfor {for_id; for_from; for_to; for_dir; for_body} ->
       let (ulo, _) = close env for_from in
       let (uhi, _) = close env for_to in
-      let (ubody, _) = close env for_body in
+      let (ubody, _) =
+        close { env with kinds = V.Map.add for_id Lambda.layout_int kinds } for_body
+      in
       (Ufor(VP.create for_id, ulo, uhi, for_dir, ubody), Value_unknown)
   | Lassign(id, lam) ->
       let (ulam, _) = close env lam in
@@ -1347,7 +1467,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       close env lam
   | Lifused _ ->
       assert false
-  | Lregion lam ->
+  | Lregion (lam, _) ->
       let ulam, approx = close env lam in
       region ulam, approx
 
@@ -1372,7 +1492,7 @@ and close_named env id = function
 
 (* Build a shared closure for a set of mutually recursive functions *)
 
-and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
+and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_defs =
   let fun_defs =
     List.flatten
       (List.map
@@ -1396,25 +1516,29 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
   (* Determine the free variables of the functions *)
   let fv =
     V.Set.elements (free_variables (Lletrec(fun_defs, lambda_unit))) in
+  let not_scanned_fv, scanned_fv = split_closure_fv kinds fv in
+  let not_scanned_fv_size = List.length not_scanned_fv in
   (* Build the function descriptors for the functions.
      Initially all functions are assumed not to need their environment
      parameter. *)
   let uncurried_defs =
     List.map
       (function
-          (id, Lfunction({kind; params; return; body; attr; loc; mode; region}
-                         as funct)) ->
-            Lambda.check_lfunction funct;
+          (id, Lfunction(
+              {kind; params; return; body; attr; loc; mode; region})) ->
             let attrib = attr.check in
             let label =
               Symbol_utils.for_fun_ident ~compilation_unit:None loc id
               |> Symbol.linkage_name
               |> Linkage_name.to_string
             in
-            let arity = List.length params in
             let fundesc =
               {fun_label = label;
-               fun_arity = (kind, arity);
+               fun_arity = {
+                 function_kind = kind ;
+                 params_layout = List.map snd params ;
+                 return_layout = return
+               };
                fun_closed = initially_closed;
                fun_inline = None;
                fun_float_const_prop = !Clflags.float_const_prop;
@@ -1430,6 +1554,12 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
       (fun (id, _params, _return, _body, mode, _attrib, fundesc, _dbg) fenv ->
         V.Map.add id (Value_closure(mode, fundesc, Value_unknown)) fenv)
       uncurried_defs fenv in
+  let kinds_rec =
+    List.fold_right
+      (fun (id, _params, _return, _body, _mode, _attrib, _fundesc, _dbg)
+           kinds ->
+         V.Map.add id Lambda.layout_function kinds)
+      uncurried_defs kinds in
   (* Determine the offsets of each function's closure in the shared block *)
   let env_pos = ref (-1) in
   let clos_offsets =
@@ -1437,7 +1567,9 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
       (fun (_id, _params, _return, _body, _mode, _attrib, fundesc, _dbg) ->
         let pos = !env_pos + 1 in
         env_pos := !env_pos + 1 +
-          (match fundesc.fun_arity with (Curried _, (0|1)) -> 2 | _ -> 3);
+          (match fundesc.fun_arity with
+            | { function_kind = Curried _; params_layout = ([] | [_]); _} -> 2
+            | _ -> 3);
         pos)
       uncurried_defs in
   let fv_pos = !env_pos in
@@ -1448,27 +1580,46 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
   let clos_fundef (id, params, return, body, mode, check, fundesc, dbg) env_pos =
     let env_param = V.create_local "env" in
     let cenv_fv =
-      build_closure_env env_param (fv_pos - env_pos) fv in
+      add_to_closure_env env_param
+        (fv_pos - env_pos) V.Map.empty not_scanned_fv
+    in
+    let cenv_fv =
+      add_to_closure_env env_param
+        (fv_pos - env_pos + not_scanned_fv_size) cenv_fv scanned_fv
+    in
     let cenv_body =
       List.fold_right2
         (fun (id, _params, _return, _body, _mode, _attrib, _fundesc, _dbg) pos env ->
           V.Map.add id (Uoffset(Uvar env_param, pos - env_pos)) env)
-        uncurried_defs clos_offsets cenv_fv in
+        uncurried_defs clos_offsets cenv_fv
+    in
+    let kinds_body =
+      List.fold_right
+        (fun (id, kind) kinds -> V.Map.add id kind kinds)
+        params (V.Map.add env_param Lambda.layout_function kinds_rec)
+    in
     let (ubody, approx) =
-      close { backend; fenv = fenv_rec; cenv = cenv_body; mutable_vars } body
+      close
+        { backend;
+          fenv = fenv_rec;
+          cenv = cenv_body;
+          mutable_vars;
+          kinds = kinds_body;
+          catch_env
+        }
+        body
     in
     if !useless_env && occurs_var env_param ubody then raise NotClosed;
     let fun_params =
       if !useless_env
       then params
-      else params @ [env_param, Pgenval]
+      else params @ [env_param, Lambda.layout_function]
     in
     let f =
       {
         label  = fundesc.fun_label;
         arity  = fundesc.fun_arity;
-        params = List.map (fun (var, kind) -> VP.create var, kind) fun_params;
-        return;
+        params = List.map (fun (var, _) -> VP.create var) fun_params;
         body   = ubody;
         dbg;
         env = Some env_param;
@@ -1529,9 +1680,14 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
   (* Return the Uclosure node and the list of all identifiers defined,
      with offsets and approximations. *)
   let (clos, infos) = List.split clos_info_list in
-  let fv = if !useless_env then [] else fv in
-  (Uclosure(clos,
-            List.map (close_var { backend; fenv; cenv; mutable_vars }) fv),
+  let not_scanned_fv, scanned_fv =
+    if !useless_env then [], [] else not_scanned_fv, scanned_fv in
+  let env = { backend; fenv; cenv; mutable_vars; kinds; catch_env } in
+  (Uclosure {
+      functions = clos ;
+      not_scanned_slots = List.map (close_var env) not_scanned_fv ;
+      scanned_slots = List.map (close_var env) scanned_fv
+    },
    infos)
 
 (* Same, for one non-recursive function *)
@@ -1620,11 +1776,12 @@ let collect_exported_structured_constants a =
   and ulam = function
     | Uvar _ -> ()
     | Uconst c -> const c
-    | Udirect_apply (_, ul, _, _, _) -> List.iter ulam ul
-    | Ugeneric_apply (u, ul, _, _) -> ulam u; List.iter ulam ul
-    | Uclosure (fl, ul) ->
-        List.iter (fun f -> ulam f.body) fl;
-        List.iter ulam ul
+    | Udirect_apply (_, ul, _, _, _, _) -> List.iter ulam ul
+    | Ugeneric_apply (u, ul, _, _, _, _) -> ulam u; List.iter ulam ul
+    | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
+        List.iter (fun f -> ulam f.body) functions;
+        List.iter ulam not_scanned_slots;
+        List.iter ulam scanned_slots
     | Uoffset(u, _) -> ulam u
     | Ulet (_str, _kind, _, u1, u2) -> ulam u1; ulam u2
     | Uphantom_let _ -> no_phantom_lets ()
@@ -1646,7 +1803,7 @@ let collect_exported_structured_constants a =
     | Uifthenelse (u1, u2, u3, _)
     | Ufor (_, u1, u2, _, u3) -> ulam u1; ulam u2; ulam u3
     | Uassign (_, u) -> ulam u
-    | Usend (_, u1, u2, ul, _, _) -> ulam u1; ulam u2; List.iter ulam ul
+    | Usend (_, u1, u2, ul, _, _, _, _) -> ulam u1; ulam u2; List.iter ulam ul
     | Uunreachable -> ()
     | Uregion u -> ulam u
     | Utail u -> ulam u
@@ -1670,14 +1827,14 @@ let intro ~backend ~size lam =
   Compilenv.set_global_approx(Value_tuple (alloc_heap, !global_approx));
   let (ulam, _approx) =
     close { backend; fenv = V.Map.empty;
-            cenv = V.Map.empty; mutable_vars = V.Set.empty } lam
+            cenv = V.Map.empty; mutable_vars = V.Set.empty;
+            kinds = V.Map.empty; catch_env = Int.Map.empty } lam
   in
   let opaque =
     !Clflags.opaque
     || Env.is_imported_opaque
          (Compilation_unit.get_current_exn ()
-          |> Compilation_unit.name
-          |> Compilation_unit.Name.to_string)
+          |> Compilation_unit.name)
   in
   if opaque
   then Compilenv.set_global_approx(Value_unknown)

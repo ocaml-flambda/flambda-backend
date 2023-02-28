@@ -19,14 +19,16 @@ ROOTDIR = ..
 
 include $(ROOTDIR)/Makefile.common
 
-ifeq "$(UNIX_OR_WIN32)" "win32"
-ifeq "$(wildcard $(ROOTDIR)/flexdll/Makefile)" ""
+domainstate.ml: domainstate.ml.c ../runtime/caml/domain_state.tbl
+	$(CPP) -I ../runtime/caml $< > $@
+
+domainstate.mli: domainstate.mli.c ../runtime/caml/domain_state.tbl
+	$(CPP) -I ../runtime/caml $< > $@
+
+ifeq "$(BOOTSTRAPPING_FLEXDLL)" "false"
   FLEXDLL_DIR =
 else
-  FLEXDLL_DIR = $(if $(wildcard $(ROOTDIR)/flexdll/flexdll_*.$(O)),+flexdll)
-endif
-else
-  FLEXDLL_DIR =
+  FLEXDLL_DIR = +flexdll
 endif
 
 FLEXLINK_FLAGS ?=
@@ -63,6 +65,7 @@ config.ml: config.mlp $(ROOTDIR)/Makefile.config Makefile
 	    $(call SUBST_STRING,FLEXLINK_FLAGS) \
 	    $(call SUBST_QUOTE,FLEXDLL_DIR) \
 	    $(call SUBST,HOST) \
+	    $(call SUBST_STRING,BINDIR) \
 	    $(call SUBST_STRING,LIBDIR) \
 	    $(call SUBST_STRING,MKDLL) \
 	    $(call SUBST_STRING,MKEXE) \
@@ -77,10 +80,12 @@ config.ml: config.mlp $(ROOTDIR)/Makefile.config Makefile
 	    $(call SUBST_STRING,OCAMLOPT_CPPFLAGS) \
 	    $(call SUBST_STRING,PACKLD) \
 	    $(call SUBST,PROFINFO_WIDTH) \
-	    $(call SUBST_STRING,RANLIBCMD) \
+	    $(call SUBST_STRING,RPATH) \
+	    $(call SUBST_STRING,MKSHAREDLIBRPATH) \
 	    $(call SUBST,FORCE_SAFE_STRING) \
 	    $(call SUBST,DEFAULT_SAFE_STRING) \
 	    $(call SUBST,WINDOWS_UNICODE) \
+	    $(call SUBST,NAKED_POINTERS) \
 	    $(call SUBST,SUPPORTS_SHARED_LIBRARIES) \
 	    $(call SUBST,SYSTEM) \
 	    $(call SUBST,SYSTHREAD_SUPPORT) \
@@ -94,6 +99,7 @@ config.ml: config.mlp $(ROOTDIR)/Makefile.config Makefile
 	    $(call SUBST,CC_HAS_DEBUG_PREFIX_MAP) \
 	    $(call SUBST,AS_HAS_DEBUG_PREFIX_MAP) \
 	    $(call SUBST,STACK_ALLOCATION) \
+	    $(call SUBST,POLL_INSERTION) \
 	    $< > $@
 
 # Test for the substitution functions above

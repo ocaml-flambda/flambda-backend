@@ -30,17 +30,18 @@ let interface ~source_file ~output_prefix =
 
 (** Bytecode compilation backend for .ml files. *)
 
-let to_bytecode i (typedtree, coercion) =
-  (typedtree, coercion)
+let to_bytecode i Typedtree.{structure; coercion; _} =
+  (structure, coercion)
   |> Profile.(record transl)
-    (Translmod.transl_implementation i.module_name)
+    (Translmod.transl_implementation i.module_name ~style:Set_global_to_block)
   |> Profile.(record ~accumulate:true generate)
     (fun { Lambda.code = lambda; required_globals } ->
        lambda
        |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
        |> Simplif.simplify_lambda
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
-       |> Bytegen.compile_implementation i.module_name
+       |> Bytegen.compile_implementation
+            (i.module_name |> Compilation_unit.name_as_string)
        |> print_if i.ppf_dump Clflags.dump_instr Printinstr.instrlist
        |> fun bytecode -> bytecode, required_globals
     )

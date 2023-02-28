@@ -18,10 +18,68 @@
 (** Environment for Flambda to Cmm translation *)
 type t
 
+(** Free names for cmm expressions *)
+type free_vars = Backend_var.Set.t
+
+(** A cmm expression along with extra information *)
+type expr_with_info =
+  { cmm : Cmm.expression;
+    effs : Effects_and_coeffects.t;
+    free_vars : free_vars
+  }
+
+type translation_result =
+  { env : t;
+    res : To_cmm_result.t;
+    expr : expr_with_info
+  }
+
+(** Printing function *)
+val print : Format.formatter -> t -> unit
+
+(** Extra information about bound variables, used for optimisation. *)
+type extra_info =
+  | Untag of Cmm.expression
+      (** The variable is bound to the result of untagging the given Cmm
+          expression. This allows to obtain the Cmm expression as it was before
+          untagging. *)
+
+(** Record of all primitive translation functions, to avoid a cyclic
+    dependency. *)
+type prim_res = extra_info option * To_cmm_result.t * Cmm.expression
+
+type ('env, 'prim, 'arity) prim_helper =
+  'env -> To_cmm_result.t -> Debuginfo.t -> 'prim -> 'arity
+
+type 'env trans_prim =
+  { nullary : ('env, Flambda_primitive.nullary_primitive, prim_res) prim_helper;
+    unary :
+      ( 'env,
+        Flambda_primitive.unary_primitive,
+        Cmm.expression -> prim_res )
+      prim_helper;
+    binary :
+      ( 'env,
+        Flambda_primitive.binary_primitive,
+        Cmm.expression -> Cmm.expression -> prim_res )
+      prim_helper;
+    ternary :
+      ( 'env,
+        Flambda_primitive.ternary_primitive,
+        Cmm.expression -> Cmm.expression -> Cmm.expression -> prim_res )
+      prim_helper;
+    variadic :
+      ( 'env,
+        Flambda_primitive.variadic_primitive,
+        Cmm.expression list -> prim_res )
+      prim_helper
+  }
+
 (** Create an environment for translating a toplevel expression. *)
 val create :
   Exported_offsets.t ->
   Exported_code.t ->
+  trans_prim:t trans_prim ->
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
   t
@@ -57,24 +115,17 @@ val exported_offsets : t -> Exported_offsets.t
 
 (** {2 Variable bindings} *)
 
-(** Extra information about bound variables, used for optimisation. *)
-type extra_info =
-  | Untag of Cmm.expression
-      (** The variable is bound to the result of untagging the given Cmm
-          expression. This allows to obtain the Cmm expression as it was before
-          untagging. *)
-  | Boxed_number  (** The variable is bound to a boxed number. *)
-
 (** Create (and bind) a Cmm variable for the given Flambda variable, returning
     the new environment and the created variable. Will produce a fatal error if
     the given variable is already bound. *)
-val create_variable : t -> Variable.t -> t * Backend_var.With_provenance.t
+val create_bound_parameter :
+  t -> Variable.t -> t * Backend_var.With_provenance.t
 
 (** Same as {!create_variable} but for a list of variables. *)
-val create_variables :
+val create_bound_parameters :
   t -> Variable.t list -> t * Backend_var.With_provenance.t list
 
-(** Delayed let-bindings
+(** {2 Delayed let-bindings}
 
     Let-bindings are delayed in a certain way to allow for potential reordering
     and inlining of the defining expressions of bound variables that are used
@@ -120,31 +171,103 @@ val create_variables :
     Other bindings are delayed until they are explicitly flushed. Exactly which
     bindings get flushed at different points, for example prior to function
     calls or branching control flow, depends on decisions outside of this module
-    (e.g. in [To_cmm_expr]). *)
+    (e.g. in [To_cmm_expr]).
+
+    Additionally, bindings that must be inlined must be treated with special
+    care. Most notably, most of the time, we are in the case of a binding "let x
+    = prim(args)" where the primitive 'prim' is marked as `Delay`, which we
+    translate as Must_inline. In such cases, we want to inline the primitive
+    itself, but not necessarily its arguments. To correctly handle such cases,
+    we have a notion of "complex" bound argument that, in addition to a cmm
+    expression, also contains the arguments and a way to re-build the
+    expression. *)
+
+(** Some uniques and different types *)
+type simple = Simple
+
+type complex = Complex
+
+(** Inlining decision of bound expressions *)
+type _ inline =
+  | Do_not_inline : simple inline
+  | May_inline_once : simple inline
+  | Must_inline_once : complex inline
+  | Must_inline_and_duplicate : complex inline
+      (** Akin to systematic substitutions, it should not be used for
+          (co)effectful expressions *)
+
+(** The type of expression that can be bound. *)
+type _ bound_expr
+
+(** A simple cmm bound expression *)
+val simple : Cmm.expression -> free_vars -> simple bound_expr
+
+(** A bound expr that can be split if needed. This is used for primitives that
+    must be inlined, but whose arguments may not be inlinable or duplicable, so
+    that we can split the expression to be inlined from its arguments if/when
+    needed. The effects that are passed must correspond respectively to each
+    individual argument and to the primitive itself. *)
+val splittable_primitive :
+  Debuginfo.t ->
+  Flambda_primitive.Without_args.t ->
+  expr_with_info list ->
+  complex bound_expr
+
+(** Bind a variable, with support for splitting duplicatable primitives with
+    non-duplicatable arguments. *)
+val bind_variable_to_primitive :
+  ?extra:extra_info ->
+  t ->
+  To_cmm_result.t ->
+  Variable.t ->
+  inline:'a inline ->
+  defining_expr:'a bound_expr ->
+  effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
+  t * To_cmm_result.t
 
 (** Bind a variable to the given Cmm expression, to allow for delaying the
     let-binding. *)
 val bind_variable :
   ?extra:extra_info ->
   t ->
+  To_cmm_result.t ->
   Variable.t ->
-  num_normal_occurrences_of_bound_vars:
-    Num_occurrences.t Variable.Map.t Or_unknown.t ->
-  effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
   defining_expr:Cmm.expression ->
-  t
+  free_vars_of_defining_expr:free_vars ->
+  num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
+  effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
+  t * To_cmm_result.t
+
+val add_alias :
+  t ->
+  To_cmm_result.t ->
+  var:Variable.t ->
+  alias_of:Variable.t ->
+  num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
+  t * To_cmm_result.t
 
 (** Try and inline an Flambda variable using the delayed let-bindings. *)
 val inline_variable :
   ?consider_inlining_effectful_expressions:bool ->
   t ->
+  To_cmm_result.t ->
   Variable.t ->
-  Cmm.expression * t * Effects_and_coeffects.t
+  translation_result
+
+type flush_mode =
+  | Entering_loop
+  | Branching_point
+  | Flush_everything
 
 (** Wrap the given Cmm expression with all the delayed let bindings accumulated
     in the environment. *)
 val flush_delayed_lets :
-  ?entering_loop:bool -> t -> (Cmm.expression -> Cmm.expression) * t
+  mode:flush_mode ->
+  t ->
+  To_cmm_result.t ->
+  (Cmm.expression -> free_vars -> Cmm.expression * free_vars)
+  * t
+  * To_cmm_result.t
 
 (** Fetch the extra info for a Flambda variable (if any), specified as a
     [Simple]. *)
