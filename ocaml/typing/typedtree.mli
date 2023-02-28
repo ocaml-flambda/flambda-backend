@@ -404,6 +404,8 @@ and omitted_parameter =
   { mode_closure : Types.alloc_mode;
     mode_arg : Types.alloc_mode;
     mode_ret : Types.alloc_mode;
+    (* CR ncourant: actually, we only need this to be able to compute the layout
+       in [Translcore], change this when merging with the front-end. *)
     ty_arg : Types.type_expr;
     ty_env : Env.t}
 
