@@ -437,10 +437,10 @@ let primitive ppf = function
   | Pbswap16 -> fprintf ppf "bswap16"
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
-  | Popaque -> fprintf ppf "opaque"
+  | Popaque _ -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pobj_dup -> fprintf ppf "obj_dup"
-  | Pobj_magic -> fprintf ppf "obj_magic"
+  | Pobj_magic _ -> fprintf ppf "obj_magic"
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -545,10 +545,10 @@ let name_of_primitive = function
   | Pbswap16 -> "Pbswap16"
   | Pbbswap _ -> "Pbbswap"
   | Pint_as_pointer -> "Pint_as_pointer"
-  | Popaque -> "Popaque"
+  | Popaque _ -> "Popaque"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
   | Pobj_dup -> "Pobj_dup"
-  | Pobj_magic -> "Pobj_magic"
+  | Pobj_magic _ -> "Pobj_magic"
 
 let check_attribute ppf check =
   let check_property = function

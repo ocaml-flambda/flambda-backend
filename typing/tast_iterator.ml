@@ -416,7 +416,7 @@ let class_expr sub {cl_desc; cl_env; _} =
       sub.class_expr sub cl;
       List.iter (function
         | (_, Arg exp) -> sub.expr sub exp
-        | (_, Omitted _) -> ())
+        | (_, Omitted o) -> sub.env sub o.ty_env)
         args
   | Tcl_let (rec_flag, value_bindings, ivars, cl) ->
       sub.value_bindings sub (rec_flag, value_bindings);

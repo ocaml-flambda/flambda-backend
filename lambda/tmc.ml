@@ -842,12 +842,12 @@ let rec choice ctx t =
         choice_makeblock ctx ~tail (tag, flag, shape, mode) primargs loc
 
     (* Some primitives have arguments in tail-position *)
-    | Popaque ->
+    | Popaque layout ->
         let l1 = match primargs with
           |  [l1] -> l1
           | _ -> invalid_arg "choice_prim" in
         let+ l1 = choice ctx ~tail l1 in
-        Lprim (Popaque, [l1], loc)
+        Lprim (Popaque layout, [l1], loc)
     | (Psequand | Psequor) as shortcutop ->
         let l1, l2 = match primargs with
           |  [l1; l2] -> l1, l2
@@ -891,7 +891,7 @@ let rec choice ctx t =
     | Pmakefloatblock _
 
     | Pobj_dup
-    | Pobj_magic
+    | Pobj_magic _
     | Pprobe_is_enabled _
 
     (* operations returning boxed values could be considered

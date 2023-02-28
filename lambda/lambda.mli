@@ -184,12 +184,12 @@ type primitive =
   (* Integer to external pointer *)
   | Pint_as_pointer
   (* Inhibition of optimisation *)
-  | Popaque
+  | Popaque of layout
   (* Statically-defined probes *)
   | Pprobe_is_enabled of { name: string }
   (* Primitives for [Obj] *)
   | Pobj_dup
-  | Pobj_magic
+  | Pobj_magic of layout
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge

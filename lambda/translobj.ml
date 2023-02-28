@@ -92,13 +92,14 @@ let transl_label_init_general f =
   let expr =
     Hashtbl.fold
       (fun c id expr ->
+         let layout = Lambda.structured_constant_layout c in
          let const =
-           Lprim (Popaque, [Lconst c], Debuginfo.Scoped_location.Loc_unknown)
+           Lprim (Popaque layout, [Lconst c], Debuginfo.Scoped_location.Loc_unknown)
          in
          (* CR ncourant: this *should* not be too precise for the moment,
             but we should take care, or fix the underlying cause that led
             us to using [Popaque]. *)
-         Llet(Alias, Lambda.structured_constant_layout c, id, const, expr))
+         Llet(Alias, layout, id, const, expr))
       consts expr
   in
   (*let expr =
@@ -190,7 +191,7 @@ let oo_wrap env req f x =
                         Loc_unknown)
                 in
                 Llet(StrictOpt, Lambda.layout_class, id,
-                     Lprim (Popaque, [cl], Loc_unknown),
+                     Lprim (Popaque Lambda.layout_class, [cl], Loc_unknown),
                      lambda))
              lambda !classes
          in

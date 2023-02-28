@@ -239,7 +239,9 @@ and ('a, 'b) arg_or_omitted =
 and omitted_parameter =
   { mode_closure : alloc_mode;
     mode_arg : alloc_mode;
-    mode_ret : alloc_mode }
+    mode_ret : alloc_mode;
+    ty_arg : Types.type_expr;
+    ty_env : Env.t }
 
 and apply_arg = (expression, omitted_parameter) arg_or_omitted
 
