@@ -3,6 +3,8 @@
 open! Cfg_regalloc_utils
 open! Cfg_irc_utils
 
+module Doubly_linked_list = Flambda_backend_utils.Doubly_linked_list
+
 module RegWorkList = ArraySet.Make (struct
   type t = Reg.t
 
@@ -39,13 +41,13 @@ let instruction_set_of_instruction_work_list (iwl : InstructionWorkList.t) :
       Instruction.Set.add elem acc)
 
 type t =
-  { mutable initial : Reg.t Cfg.DoublyLinkedList.t;
+  { mutable initial : Reg.t Doubly_linked_list.t;
     simplify_work_list : RegWorkList.t;
     freeze_work_list : RegWorkList.t;
     spill_work_list : RegWorkList.t;
     spilled_nodes : RegWorkList.t;
     coalesced_nodes : RegWorkList.t;
-    colored_nodes : Reg.t Cfg.DoublyLinkedList.t;
+    colored_nodes : Reg.t Doubly_linked_list.t;
     mutable select_stack : Reg.t list;
     coalesced_moves : InstructionWorkList.t;
     constrained_moves : InstructionWorkList.t;
@@ -88,7 +90,7 @@ let[@inline] make ~initial ~next_instruction_id () =
   let spill_work_list = RegWorkList.make ~original_capacity in
   let spilled_nodes = RegWorkList.make ~original_capacity in
   let coalesced_nodes = RegWorkList.make ~original_capacity in
-  let colored_nodes = Cfg.DoublyLinkedList.make_empty () in
+  let colored_nodes = Doubly_linked_list.make_empty () in
   let select_stack = [] in
   let original_capacity = Int.min max_capacity (pred next_instruction_id) in
   let coalesced_moves = InstructionWorkList.make ~original_capacity in
@@ -101,7 +103,7 @@ let[@inline] make ~initial ~next_instruction_id () =
   let stack_slots = Reg.Tbl.create 128 in
   let num_stack_slots = Array.make Proc.num_register_classes 0 in
   let introduced_temporaries = Reg.Set.empty in
-  let initial = Cfg.DoublyLinkedList.of_list initial in
+  let initial = Doubly_linked_list.of_list initial in
   { initial;
     simplify_work_list;
     freeze_work_list;
@@ -129,7 +131,7 @@ let[@inline] add_initial_one state reg =
   reg.Reg.irc_alias <- None;
   reg.Reg.interf <- [];
   reg.Reg.degree <- 0;
-  Cfg.DoublyLinkedList.add_begin state.initial reg
+  Doubly_linked_list.add_begin state.initial reg
 
 let[@inline] add_initial_list state regs =
   List.iter regs ~f:(fun reg ->
@@ -138,7 +140,7 @@ let[@inline] add_initial_list state regs =
       reg.Reg.irc_alias <- None;
       reg.Reg.interf <- [];
       reg.Reg.degree <- 0;
-      Cfg.DoublyLinkedList.add_begin state.initial reg)
+      Doubly_linked_list.add_begin state.initial reg)
 
 let[@inline] reset state ~new_temporaries =
   let unknown_reg_work_list (rwl : RegWorkList.t) : unit =
@@ -162,11 +164,11 @@ let[@inline] reset state ~new_temporaries =
       reg.Reg.irc_alias <- None;
       reg.Reg.interf <- [];
       assert (reg.Reg.degree = Degree.infinite));
-  state.initial <- Cfg.DoublyLinkedList.of_list new_temporaries;
-  Cfg.DoublyLinkedList.transfer ~from:state.colored_nodes ~to_:state.initial ();
+  state.initial <- Doubly_linked_list.of_list new_temporaries;
+  Doubly_linked_list.transfer ~from:state.colored_nodes ~to_:state.initial ();
   RegWorkList.iter state.coalesced_nodes ~f:(fun reg ->
-      Cfg.DoublyLinkedList.add_end state.initial reg);
-  Cfg.DoublyLinkedList.iter state.initial ~f:(fun reg ->
+      Doubly_linked_list.add_end state.initial reg);
+  Doubly_linked_list.iter state.initial ~f:(fun reg ->
       reg.Reg.irc_work_list <- Initial);
   unknown_reg_work_list state.simplify_work_list;
   RegWorkList.clear state.simplify_work_list;
@@ -200,10 +202,10 @@ let[@inline] is_precolored_or_colored _state reg =
   reg.Reg.irc_work_list = Reg.Precolored || reg.Reg.irc_work_list = Reg.Colored
 
 let[@inline] iter_and_clear_initial state ~f =
-  Cfg.DoublyLinkedList.iter state.initial ~f:(fun reg ->
+  Doubly_linked_list.iter state.initial ~f:(fun reg ->
       reg.Reg.irc_work_list <- Unknown_list);
-  Cfg.DoublyLinkedList.iter state.initial ~f;
-  Cfg.DoublyLinkedList.clear state.initial
+  Doubly_linked_list.iter state.initial ~f;
+  Doubly_linked_list.clear state.initial
 
 let[@inline] is_empty_simplify_work_list state =
   RegWorkList.is_empty state.simplify_work_list
@@ -282,7 +284,7 @@ let[@inline] iter_coalesced_nodes state ~f =
 
 let[@inline] add_colored_nodes state reg =
   reg.Reg.irc_work_list <- Reg.Colored;
-  Cfg.DoublyLinkedList.add_begin state.colored_nodes reg
+  Doubly_linked_list.add_begin state.colored_nodes reg
 
 let[@inline] is_empty_select_stack state = state.select_stack = []
 
@@ -551,9 +553,9 @@ let[@inline] check_inter_has_no_duplicates (reg : Reg.t) : unit =
   if List.length l <> Reg.Set.cardinal s
   then fatal "interf list for %a is not a set" Printmach.reg reg
 
-let reg_set_of_doubly_linked_list (l : Reg.t Cfg.DoublyLinkedList.t) : Reg.Set.t
+let reg_set_of_doubly_linked_list (l : Reg.t Doubly_linked_list.t) : Reg.Set.t
     =
-  Cfg.DoublyLinkedList.fold_right l ~init:Reg.Set.empty ~f:Reg.Set.add
+  Doubly_linked_list.fold_right l ~init:Reg.Set.empty ~f:Reg.Set.add
 
 let[@inline] invariant state =
   (* CR xclerc for xclerc: avoid multiple conversions to sets. *)

@@ -178,7 +178,6 @@ let can_raise_interproc block = block.can_raise && Option.is_none block.exn
 
 let first_instruction_id (block : basic_block) : int =
   match DLL.hd block.body with
-  match DoublyLinkedList.hd block.body with
   | None -> block.terminator.id
   | Some first_instr -> first_instr.id
 

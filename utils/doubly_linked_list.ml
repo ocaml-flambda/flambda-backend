@@ -77,6 +77,11 @@ let make_single value =
   let node = unattached_node value in
   { length = 1; first = node; last = node }
 
+let clear t =
+  t.length <- 0;
+  t.first <- Empty;
+  t.last <- Empty
+
 let hd t = match t.first with Empty -> None | Node { value; _ } -> Some value
 
 let last t = match t.last with Empty -> None | Node { value; _ } -> Some value
