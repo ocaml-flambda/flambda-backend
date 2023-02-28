@@ -168,6 +168,7 @@
   branch_relaxation
   branch_relaxation_intf
   cfgize
+  checks
   cmm_helpers
   cmm_builtins
   cmm_invariants
@@ -3651,4 +3652,13 @@
    gc_timings.cmi)
  (external/gc-timings/.gc_timings.objs/native/gc_timings.cmx
    as
-   gc_timings.cmx)))
+   gc_timings.cmx)
+   (checks.mli as compiler-libs/checks.mli)
+   (.ocamloptcomp.objs/native/checks.cmx as compiler-libs/checks.cmx)
+   (.ocamloptcomp.objs/byte/checks.cmi as compiler-libs/checks.cmi)
+   (.ocamloptcomp.objs/byte/checks.cmo as compiler-libs/checks.cmo)
+   (.ocamloptcomp.objs/byte/checks.cmt as compiler-libs/checks.cmt)
+   (.ocamloptcomp.objs/byte/checks.cmti as compiler-libs/checks.cmti)
+)
+)
+
