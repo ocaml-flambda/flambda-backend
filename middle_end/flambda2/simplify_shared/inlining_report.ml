@@ -702,7 +702,7 @@ let output_then_forget_decisions ~output_prefix =
         let filename = output_prefix ^ ".inlining.org" in
         let out_channel = open_out filename in
         let fmt = Format.formatter_of_out_channel out_channel in
-        Format.fprintf fmt "@[<v>%a@]"
+        Format.fprintf fmt "@[<v>%a@]@."
           (Inlining_tree.print ~compilation_unit)
           (Lazy.force tree);
         close_out out_channel);
