@@ -3,7 +3,7 @@
    * expect
 *)
 
-module Iarray = Stdlib__Iarray
+module Iarray = Stdlib__Iarray;;
 
 (******************************************************************************
  *                        ******** ATTENTION! ********                        *
