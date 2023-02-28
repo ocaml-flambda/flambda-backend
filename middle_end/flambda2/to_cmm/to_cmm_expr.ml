@@ -33,9 +33,8 @@ end
 
 (* Bind a Cmm variable to the result of translating a [Simple] into Cmm. *)
 
-let bind_var_to_simple ~dbg_with_inlined env res v
+let bind_var_to_simple ~dbg_with_inlined:dbg env res v
     ~num_normal_occurrences_of_bound_vars s =
-  let dbg = dbg_with_inlined in
   match Simple.must_be_var s with
   | Some (alias_of, _coercion) ->
     Env.add_alias env res ~var:v ~num_normal_occurrences_of_bound_vars ~alias_of
@@ -60,10 +59,9 @@ let bind_var_to_simple ~dbg_with_inlined env res v
 
 (* Helpers for the translation of [Apply] expressions. *)
 
-let translate_apply0 env res apply =
+let translate_apply0 ~dbg_with_inlined:dbg env res apply =
   let callee_simple = Apply.callee apply in
   let args = Apply.args apply in
-  let dbg = Env.add_inlined_debuginfo env (Apply.dbg apply) in
   (* CR mshinwell: When we fix the problem that [prim_effects] and
      [prim_coeffects] are ignored for C calls, we need to take into account the
      effects/coeffects values currently ignored on the following two lines. At
@@ -223,8 +221,10 @@ let translate_apply0 env res apply =
 (* CR mshinwell: Add first-class support in Cmm for the concept of an exception
    handler with extra arguments. *)
 let translate_apply env res apply =
-  let call, free_vars, env, res, effs = translate_apply0 env res apply in
   let dbg = Env.add_inlined_debuginfo env (Apply.dbg apply) in
+  let call, free_vars, env, res, effs =
+    translate_apply0 ~dbg_with_inlined:dbg env res apply
+  in
   let k_exn = Apply.exn_continuation apply in
   let mut_vars =
     Exn_continuation.exn_handler k_exn |> Env.get_exn_extra_args env
@@ -263,7 +263,7 @@ let translate_apply env res apply =
 (* Exception continuations always receive the exception value in their first
    argument. Additionally, they may have extra arguments that are passed to the
    handler via mutable variables (expected to be spilled to the stack). *)
-let translate_raise env res apply exn_handler args =
+let translate_raise ~dbg_with_inlined:dbg env res apply exn_handler args =
   match args with
   | exn :: extra ->
     let raise_kind =
@@ -275,7 +275,6 @@ let translate_raise env res apply exn_handler args =
           "Apply_cont calls an exception handler without a Pop trap action:@ %a"
           Apply_cont.print apply
     in
-    let dbg = Env.add_inlined_debuginfo env (Apply_cont.debuginfo apply) in
     let To_cmm_env.
           { env;
             res;
@@ -301,7 +300,8 @@ let translate_raise env res apply exn_handler args =
     Misc.fatal_errorf "Exception continuation %a has no arguments:@ \n%a"
       Continuation.print exn_handler Apply_cont.print apply
 
-let translate_jump_to_continuation env res apply types cont args =
+let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
+    cont args =
   if List.compare_lengths types args = 0
   then
     let trap_actions =
@@ -312,7 +312,6 @@ let translate_jump_to_continuation env res apply types cont args =
         let cont = Env.get_cmm_continuation env exn_handler in
         [Cmm.Push cont]
     in
-    let dbg = Env.add_inlined_debuginfo env (Apply_cont.debuginfo apply) in
     let args, free_vars, env, res, _ = C.simple_list ~dbg env res args in
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     let cmm, free_vars = wrap (C.cexit cont args trap_actions) free_vars in
@@ -324,10 +323,10 @@ let translate_jump_to_continuation env res apply types cont args =
 
 (* A call to the return continuation of the current block simply is the return
    value for the current block being translated. *)
-let translate_jump_to_return_continuation env res apply return_cont args =
+let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
+    return_cont args =
   match args with
   | [return_value] -> (
-    let dbg = Env.add_inlined_debuginfo env (Apply_cont.debuginfo apply) in
     let To_cmm_env.
           { env; res; expr = { cmm = return_value; free_vars; effs = _ } } =
       C.simple ~dbg env res return_value
@@ -779,16 +778,22 @@ and apply_expr env res apply =
     | Jump _ -> unsupported ())
 
 and apply_cont env res apply_cont =
+  let dbg_with_inlined =
+    Env.add_inlined_debuginfo env (Apply_cont.debuginfo apply_cont)
+  in
   let k = Apply_cont.continuation apply_cont in
   let args = Apply_cont.args apply_cont in
   if Env.is_exn_handler env k
-  then translate_raise env res apply_cont k args
+  then translate_raise ~dbg_with_inlined env res apply_cont k args
   else if Continuation.equal (Env.return_continuation env) k
-  then translate_jump_to_return_continuation env res apply_cont k args
+  then
+    translate_jump_to_return_continuation ~dbg_with_inlined env res apply_cont k
+      args
   else
     match Env.get_continuation env k with
     | Jump { param_types; cont } ->
-      translate_jump_to_continuation env res apply_cont param_types cont args
+      translate_jump_to_continuation ~dbg_with_inlined env res apply_cont
+        param_types cont args
     | Inline
         { handler_params;
           handler_body;
@@ -802,9 +807,6 @@ and apply_cont env res apply_cont =
       (* Inlining a continuation call simply needs to bind the arguments to the
          variables that the continuation's handler expects. *)
       let handler_params = Bound_parameters.to_list handler_params in
-      let dbg_with_inlined =
-        Env.add_inlined_debuginfo env (Apply_cont.debuginfo apply_cont)
-      in
       if List.compare_lengths args handler_params = 0
       then
         let env, res =
