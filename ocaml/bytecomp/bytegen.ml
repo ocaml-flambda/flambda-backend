@@ -109,8 +109,8 @@ let rec is_tailcall = function
    from the tail call optimization? *)
 
 let preserve_tailcall_for_prim = function
-    Popaque | Psequor | Psequand
-  | Pobj_magic ->
+    Popaque _ | Psequor | Psequand
+  | Pobj_magic _ ->
       true
   | Pbytes_to_string | Pbytes_of_string | Pignore
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _
@@ -522,7 +522,7 @@ let comp_primitive p args =
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),
      so they should never be reached in this function. *)
-  | Pignore | Popaque | Pobj_magic
+  | Pignore | Popaque _ | Pobj_magic _
   | Pnot | Psequand | Psequor
   | Praise _
   | Pmakearray _ | Pduparray _
@@ -703,7 +703,7 @@ let rec comp_expr env exp sz cont =
         in
         comp_init env sz decl_size
       end
-  | Lprim((Popaque | Pobj_magic), [arg], _) ->
+  | Lprim((Popaque _ | Pobj_magic _), [arg], _) ->
       comp_expr env arg sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr env arg sz (add_const_unit cont)

@@ -613,9 +613,8 @@ let transform_primitive env (prim : L.primitive) args loc =
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
   | (Pbytes_to_string | Pbytes_of_string), [arg] -> Transformed arg
   | Pignore, [arg] ->
-    let ident = Ident.create_local "ignore" in
     let result = L.Lconst (Const_base (Const_int 0)) in
-    Transformed (L.Llet (Strict, Lambda.layout_any_value, ident, arg, result))
+    Transformed (L.Lsequence (arg, result))
   | Pfield _, [L.Lprim (Pgetglobal cu, [], _)]
     when Compilation_unit.equal cu (Env.current_unit env) ->
     Misc.fatal_error
@@ -953,8 +952,8 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigstring_set_16 true
   | Pbigstring_set_32 true
   | Pbigstring_set_64 true
-  | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer | Popaque
-  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic ->
+  | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer | Popaque _
+  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ ->
     false
 
 let primitive_result_kind (prim : Lambda.primitive) :
@@ -1020,8 +1019,12 @@ let primitive_result_kind (prim : Lambda.primitive) :
     | Pint32 -> Flambda_kind.With_subkind.boxed_int32
     | Pint64 -> Flambda_kind.With_subkind.boxed_int64
     | Pnativeint -> Flambda_kind.With_subkind.boxed_nativeint)
+  | Popaque layout | Pobj_magic layout ->
+    Flambda_kind.With_subkind.from_lambda layout
+  | Praise _ ->
+    (* CR ncourant: this should be bottom, but we don't have it *)
+    Flambda_kind.With_subkind.any_value
   | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr; _ }
-  | Praise _
   | Parrayrefs (Pgenarray | Paddrarray)
   | Parrayrefu (Pgenarray | Paddrarray)
   | Pbytes_to_string | Pbytes_of_string | Pgetglobal _ | Psetglobal _
@@ -1030,7 +1033,7 @@ let primitive_result_kind (prim : Lambda.primitive) :
   | Pmakearray _ | Pduparray _ | Pbigarraydim _
   | Pbigarrayref
       (_, _, (Pbigarray_complex32 | Pbigarray_complex64 | Pbigarray_unknown), _)
-  | Pint_as_pointer | Popaque | Pobj_dup | Pobj_magic ->
+  | Pint_as_pointer | Pobj_dup ->
     Flambda_kind.With_subkind.any_value
 
 type cps_continuation =
@@ -1372,10 +1375,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     let lam = switch_for_if_then_else ~cond ~ifso ~ifnot ~kind in
     cps acc env ccenv lam k k_exn
   | Lsequence (lam1, lam2) ->
-    let ident = Ident.create_local "sequence" in
-    cps acc env ccenv
-      (L.Llet (Strict, Lambda.layout_top, ident, lam1, lam2))
-      k k_exn
+    let k acc env ccenv _value = cps acc env ccenv lam2 k k_exn in
+    cps_non_tail_simple acc env ccenv lam1 k k_exn
   | Lwhile
       { wh_cond = cond; wh_body = body; wh_cond_region = _; wh_body_region = _ }
     ->

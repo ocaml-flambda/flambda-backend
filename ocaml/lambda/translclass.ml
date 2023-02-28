@@ -68,7 +68,7 @@ let lapply ap =
 
 let mkappl (func, args, layout) =
   Lprim
-    (Popaque,
+    (Popaque layout,
      [Lapply {
          ap_loc=Loc_unknown;
          ap_func=func;
@@ -290,7 +290,8 @@ let output_methods tbl methods lam =
         Lprim(Pmakeblock(0,Immutable,None,alloc_heap), methods, Loc_unknown)
       in
       lsequence (mkappl(oo_prim "set_methods",
-                        [Lvar tbl; Lprim (Popaque, [methods], Loc_unknown)], layout_unit))
+                        [Lvar tbl; Lprim (Popaque layout_block,
+                                          [methods], Loc_unknown)], layout_unit))
         lam
 
 let rec ignore_cstrs cl =

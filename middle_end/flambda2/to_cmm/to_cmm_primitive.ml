@@ -539,8 +539,9 @@ let unary_primitive env res dbg f arg =
         ~addr:(C.field_address arg (4 + dimension) dbg) )
   | String_length _ -> None, res, C.string_length arg dbg
   | Int_as_pointer -> None, res, C.int_as_pointer arg dbg
-  | Opaque_identity { middle_end_only = true } -> None, res, arg
-  | Opaque_identity { middle_end_only = false } -> None, res, C.opaque arg dbg
+  | Opaque_identity { middle_end_only = true; kind = _ } -> None, res, arg
+  | Opaque_identity { middle_end_only = false; kind = _ } ->
+    None, res, C.opaque arg dbg
   | Int_arith (kind, op) ->
     None, res, unary_int_arith_primitive env dbg kind op arg
   | Float_arith op -> None, res, unary_float_arith_primitive env dbg op arg

@@ -233,12 +233,12 @@ type primitive =
   (* Integer to external pointer *)
   | Pint_as_pointer
   (* Inhibition of optimisation *)
-  | Popaque
+  | Popaque of layout
   (* Statically-defined probes *)
   | Pprobe_is_enabled of { name: string }
   (* Primitives for [Obj] *)
   | Pobj_dup
-  | Pobj_magic
+  | Pobj_magic of layout
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -1349,10 +1349,10 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pbswap16 -> None
   | Pbbswap (_, m) -> Some m
   | Pint_as_pointer -> None
-  | Popaque -> None
+  | Popaque _ -> None
   | Pprobe_is_enabled _ -> None
   | Pobj_dup -> Some alloc_heap
-  | Pobj_magic -> None
+  | Pobj_magic _ -> None
 
 let constant_layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
@@ -1367,4 +1367,77 @@ let structured_constant_layout = function
   | Const_block _ | Const_immstring _ -> Pvalue Pgenval
   | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)
 
-let primitive_result_layout (_p : primitive) = layout_top
+let primitive_result_layout (p : primitive) =
+  match p with
+  | Popaque layout | Pobj_magic layout -> layout
+  | Pbytes_to_string | Pbytes_of_string -> layout_string
+  | Pignore | Psetfield _ | Psetfield_computed _ | Psetfloatfield _ | Poffsetref _
+  | Pbytessetu | Pbytessets | Parraysetu _ | Parraysets _ | Pbigarrayset _
+  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
+  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+    -> layout_unit
+  | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
+  | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
+  | Pduparray _ | Pbigarraydim _ | Pobj_dup -> layout_block
+  | Pfield _ | Pfield_computed _ -> layout_field
+  | Pfloatfield _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
+  | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _ -> layout_float
+  | Pccall _p ->
+      (* CR ncourant: use native_repr *)
+      layout_any_value
+  | Praise _ -> layout_bottom
+  | Psequor | Psequand | Pnot
+  | Pnegint | Paddint | Psubint | Pmulint
+  | Pdivint _ | Pmodint _
+  | Pandint | Porint | Pxorint
+  | Plslint | Plsrint | Pasrint
+  | Pintcomp _
+  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Poffsetint _ | Pintoffloat | Pfloatcomp _
+  | Pstringlength | Pstringrefu | Pstringrefs
+  | Pbyteslength | Pbytesrefu | Pbytesrefs
+  | Parraylength _ | Pisint _ | Pisout | Pintofbint _
+  | Pbintcomp _
+  | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
+  | Pprobe_is_enabled _ | Pbswap16
+    -> layout_int
+  | Parrayrefu array_kind | Parrayrefs array_kind ->
+      (match array_kind with
+       | Pintarray -> layout_int
+       | Pfloatarray -> layout_float
+       | Pgenarray | Paddrarray -> layout_field)
+  | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
+  | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
+  | Pmulbint (bi, _) | Pdivbint {size = bi} | Pmodbint {size = bi}
+  | Pandbint (bi, _) | Porbint (bi, _) | Pxorbint (bi, _)
+  | Plslbint (bi, _) | Plsrbint (bi, _) | Pasrbint (bi, _)
+  | Pbbswap (bi, _) ->
+      layout_boxedint bi
+  | Pstring_load_32 _ | Pbytes_load_32 _ | Pbigstring_load_32 _ ->
+      layout_boxedint Pint32
+  | Pstring_load_64 _ | Pbytes_load_64 _ | Pbigstring_load_64 _ ->
+      layout_boxedint Pint64
+  | Pbigarrayref (_, _, kind, _) ->
+      begin match kind with
+      | Pbigarray_unknown -> layout_any_value
+      | Pbigarray_float32 | Pbigarray_float64 -> layout_float
+      | Pbigarray_sint8 | Pbigarray_uint8
+      | Pbigarray_sint16 | Pbigarray_uint16
+      | Pbigarray_caml_int -> layout_int
+      | Pbigarray_int32 -> layout_boxedint Pint32
+      | Pbigarray_int64 -> layout_boxedint Pint64
+      | Pbigarray_native_int -> layout_boxedint Pnativeint
+      | Pbigarray_complex32 | Pbigarray_complex64 ->
+          layout_block
+      end
+  | Pctconst (
+      Big_endian | Word_size | Int_size | Max_wosize
+      | Ostype_unix | Ostype_cygwin | Ostype_win32 | Backend_type
+    ) ->
+      (* Compile-time constants only ever return ints for now,
+         enumerate them all to be sure to modify this if it becomes wrong. *)
+      layout_int
+  | Pint_as_pointer ->
+      (* CR ncourant: use an unboxed int64 here when it exists *)
+      layout_any_value
+

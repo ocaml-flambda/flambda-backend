@@ -350,7 +350,8 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   | Get_tag -> Get_tag
   | Is_int -> Is_int { variant_only = true } (* CR vlaviron: discuss *)
   | Num_conv { src; dst } -> Num_conv { src; dst }
-  | Opaque_identity -> Opaque_identity { middle_end_only = false }
+  | Opaque_identity ->
+    Opaque_identity { middle_end_only = false; kind = Flambda_kind.value }
   | Project_value_slot { project_from; value_slot } ->
     let value_slot = fresh_or_existing_value_slot env value_slot in
     let project_from = fresh_or_existing_function_slot env project_from in
