@@ -33,8 +33,9 @@ end
 
 (* Bind a Cmm variable to the result of translating a [Simple] into Cmm. *)
 
-let bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s =
-  let dbg = Env.add_inlined_debuginfo env dbg in
+let bind_var_to_simple ~dbg_with_inlined env res v
+    ~num_normal_occurrences_of_bound_vars s =
+  let dbg = dbg_with_inlined in
   match Simple.must_be_var s with
   | Some (alias_of, _coercion) ->
     Env.add_alias env res ~var:v ~num_normal_occurrences_of_bound_vars ~alias_of
@@ -424,9 +425,12 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     let v = Bound_var.var v in
     (* CR mshinwell: Try to get a proper [dbg] here (although the majority of
        these bindings should have been substituted out). *)
-    let dbg = Debuginfo.none in
+    (* CR gbury: once we get proper debuginfo here, remember to apply
+       Env.add_inlined_debuginfo to it *)
+    let dbg_with_inlined = Debuginfo.none in
     let env, res =
-      bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s
+      bind_var_to_simple ~dbg_with_inlined env res v
+        ~num_normal_occurrences_of_bound_vars s
     in
     expr env res body
   | Singleton _, Prim (p, _)
@@ -551,7 +555,9 @@ and let_cont_not_inlined env res k handler body =
         ~catch_id arity
     else
       (* CR mshinwell: fix debuginfo *)
-      let dbg = Env.add_inlined_debuginfo env Debuginfo.none in
+      (* CR gbury: once we get proper debuginfo here, remember to apply
+         Env.add_inlined_debuginfo to it *)
+      let dbg = Debuginfo.none in
       let body, free_vars_of_body, res = expr env res body in
       let free_vars =
         Backend_var.Set.union free_vars_of_body
@@ -600,7 +606,9 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
       (C.remove_vars_with_machtype free_vars_of_handler vars)
   in
   (* CR mshinwell: fix debuginfo *)
-  let dbg = Env.add_inlined_debuginfo env Debuginfo.none in
+  (* CR gbury: once we get proper debuginfo here, remember to apply
+     Env.add_inlined_debuginfo to it *)
+  let dbg = Debuginfo.none in
   let trywith =
     C.trywith ~dbg ~kind:(Delayed catch_id) ~body ~exn_var ~handler ()
   in
@@ -668,7 +676,9 @@ and let_cont_rec env res invariant_params conts body =
       (Continuation.Map.empty, res)
   in
   (* CR mshinwell: fix debuginfo *)
-  let dbg = Env.add_inlined_debuginfo env Debuginfo.none in
+  (* CR gbury: once we get proper debuginfo here, remember to apply
+     Env.add_inlined_debuginfo to it *)
+  let dbg = Debuginfo.none in
   let body, free_vars_of_body, res = expr env res body in
   (* Setup the Cmm handlers for the Ccatch *)
   let handlers, free_vars =
@@ -747,7 +757,7 @@ and apply_expr env res apply =
         { handler_params;
           handler_body = body;
           handler_params_occurrences;
-          inlined_debuginfo
+          handler_body_inlined_debuginfo
         } -> (
       (* Case 3 *)
       let handler_params = Bound_parameters.to_list handler_params in
@@ -761,7 +771,9 @@ and apply_expr env res apply =
             ~free_vars_of_defining_expr:free_vars
             ~num_normal_occurrences_of_bound_vars:handler_params_occurrences
         in
-        let env = Env.set_inlined_debuginfo env inlined_debuginfo in
+        let env =
+          Env.set_inlined_debuginfo env handler_body_inlined_debuginfo
+        in
         expr env res body
       | _ :: _ -> unsupported ())
     | Jump _ -> unsupported ())
@@ -781,7 +793,7 @@ and apply_cont env res apply_cont =
         { handler_params;
           handler_body;
           handler_params_occurrences;
-          inlined_debuginfo
+          handler_body_inlined_debuginfo
         } ->
       if Option.is_some (Apply_cont.trap_action apply_cont)
       then
@@ -790,7 +802,7 @@ and apply_cont env res apply_cont =
       (* Inlining a continuation call simply needs to bind the arguments to the
          variables that the continuation's handler expects. *)
       let handler_params = Bound_parameters.to_list handler_params in
-      let dbg =
+      let dbg_with_inlined =
         Env.add_inlined_debuginfo env (Apply_cont.debuginfo apply_cont)
       in
       if List.compare_lengths args handler_params = 0
@@ -798,12 +810,14 @@ and apply_cont env res apply_cont =
         let env, res =
           List.fold_left2
             (fun (env, res) param ->
-              bind_var_to_simple ~dbg env res
+              bind_var_to_simple ~dbg_with_inlined env res
                 (Bound_parameter.var param)
                 ~num_normal_occurrences_of_bound_vars:handler_params_occurrences)
             (env, res) handler_params args
         in
-        let env = Env.set_inlined_debuginfo env inlined_debuginfo in
+        let env =
+          Env.set_inlined_debuginfo env handler_body_inlined_debuginfo
+        in
         expr env res handler_body
       else
         Misc.fatal_errorf

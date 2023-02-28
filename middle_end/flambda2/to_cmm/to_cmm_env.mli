@@ -99,7 +99,7 @@ val enter_function_body :
     in order to get the correct debuginfo to attach. *)
 val add_inlined_debuginfo : t -> Debuginfo.t -> Debuginfo.t
 
-(** Adjust the inliend debuginfo in the env to represent the fact
+(** Adjust the inlined debuginfo in the env to represent the fact
     that we entered the inlined body of a function. *)
 val enter_inlined_apply : t -> Debuginfo.t -> t
 
@@ -300,7 +300,7 @@ type cont = private
       { handler_params : Bound_parameters.t;
         handler_params_occurrences : Num_occurrences.t Variable.Map.t;
         handler_body : Flambda.Expr.t;
-        inlined_debuginfo : Debuginfo.t
+        handler_body_inlined_debuginfo : Debuginfo.t
       }
 
 (** Record that the given continuation should be compiled to a jump, creating a

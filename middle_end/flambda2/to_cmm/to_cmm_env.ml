@@ -35,7 +35,7 @@ type cont =
       { handler_params : Bound_parameters.t;
         handler_params_occurrences : Num_occurrences.t Variable.Map.t;
         handler_body : Flambda.Expr.t;
-        inlined_debuginfo : Debuginfo.t
+        handler_body_inlined_debuginfo : Debuginfo.t
       }
 
 type extra_info = Untag of Cmm.expression
@@ -165,7 +165,7 @@ type translation_result =
     expr : expr_with_info
   }
 
-(* printing *)
+(* Printing *)
 
 let print_extra_info ppf = function
   | Untag e -> Format.fprintf ppf "Untag(%a)" Printcmm.expression e
@@ -253,7 +253,7 @@ let enter_function_body env ~return_continuation ~exn_continuation =
   create env.offsets env.functions_info ~trans_prim:env.trans_prim
     ~return_continuation ~exn_continuation
 
-(* debuginfo *)
+(* Debuginfo *)
 
 let enter_inlined_apply t dbg =
   let inlined_debuginfo = Debuginfo.inline t.inlined_debuginfo dbg in
@@ -263,7 +263,7 @@ let set_inlined_debuginfo t inlined_debuginfo = { t with inlined_debuginfo }
 
 let add_inlined_debuginfo t dbg = Debuginfo.inline t.inlined_debuginfo dbg
 
-(* continuations *)
+(* Continuations *)
 
 let return_continuation env = env.return_continuation
 
@@ -344,13 +344,13 @@ let add_jump_cont env k ~param_types =
 
 let add_inline_cont env k ~handler_params ~handler_params_occurrences
     ~handler_body =
-  let inlined_debuginfo = env.inlined_debuginfo in
+  let handler_body_inlined_debuginfo = env.inlined_debuginfo in
   let info =
     Inline
       { handler_params;
         handler_body;
         handler_params_occurrences;
-        inlined_debuginfo
+        handler_body_inlined_debuginfo
       }
   in
   let conts = Continuation.Map.add k info env.conts in
