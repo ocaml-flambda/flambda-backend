@@ -247,7 +247,10 @@ type unary_primitive =
   (* CR gbury: Invariant check: 0 < dimension <= 3 *)
   | String_length of string_or_bytes
   | Int_as_pointer
-  | Opaque_identity of { middle_end_only : bool }
+  | Opaque_identity of
+      { middle_end_only : bool;
+        kind : Flambda_kind.t
+      }
   | Int_arith of Flambda_kind.Standard_int.t * unary_int_arith_op
   | Float_arith of unary_float_arith_op
   | Num_conv of

@@ -468,8 +468,9 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
     SPR.create_unknown dacc ~result_var K.naked_immediate ~original_term
   | Invalid -> SPR.create_invalid dacc
 
-let simplify_opaque_identity dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
-  SPR.create_unknown dacc ~result_var K.value ~original_term
+let simplify_opaque_identity dacc ~kind ~original_term ~arg:_ ~arg_ty:_
+    ~result_var =
+  SPR.create_unknown dacc ~result_var kind ~original_term
 
 let simplify_begin_try_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   SPR.create_unknown dacc ~result_var K.region ~original_term
@@ -595,7 +596,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Duplicate_array { kind; source_mutability; destination_mutability } ->
       simplify_duplicate_array ~kind ~source_mutability ~destination_mutability
     | Duplicate_block { kind } -> simplify_duplicate_block ~kind
-    | Opaque_identity { middle_end_only = _ } -> simplify_opaque_identity
+    | Opaque_identity { middle_end_only = _; kind } ->
+      simplify_opaque_identity ~kind
     | Begin_try_region -> simplify_begin_try_region
     | End_region -> simplify_end_region
     | Obj_dup -> simplify_obj_dup dbg

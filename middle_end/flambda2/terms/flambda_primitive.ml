@@ -645,7 +645,10 @@ type unary_primitive =
   | Bigarray_length of { dimension : int }
   | String_length of string_or_bytes
   | Int_as_pointer
-  | Opaque_identity of { middle_end_only : bool }
+  | Opaque_identity of
+      { middle_end_only : bool;
+        kind : K.t
+      }
   | Int_arith of Flambda_kind.Standard_int.t * unary_int_arith_op
   | Float_arith of unary_float_arith_op
   | Num_conv of
@@ -799,9 +802,10 @@ let compare_unary_primitive p1 p2 =
     else
       let c = Value_slot.compare value_slot1 value_slot2 in
       if c <> 0 then c else K.With_subkind.compare kind1 kind2
-  | ( Opaque_identity { middle_end_only = middle_end_only1 },
-      Opaque_identity { middle_end_only = middle_end_only2 } ) ->
-    Bool.compare middle_end_only1 middle_end_only2
+  | ( Opaque_identity { middle_end_only = middle_end_only1; kind = kind1 },
+      Opaque_identity { middle_end_only = middle_end_only2; kind = kind2 } ) ->
+    let c = Bool.compare middle_end_only1 middle_end_only2 in
+    if c <> 0 then c else K.compare kind1 kind2
   | ( ( Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
       | String_length _ | Int_as_pointer | Opaque_identity _ | Int_arith _
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
@@ -829,8 +833,9 @@ let print_unary_primitive ppf p =
   | Get_tag -> fprintf ppf "Get_tag"
   | String_length _ -> fprintf ppf "String_length"
   | Int_as_pointer -> fprintf ppf "Int_as_pointer"
-  | Opaque_identity { middle_end_only } ->
-    fprintf ppf "@[(Opaque_identity@ (middle_end_only %b))@]" middle_end_only
+  | Opaque_identity { middle_end_only; kind } ->
+    fprintf ppf "@[(Opaque_identity@ (middle_end_only %b) (kind %a))@]"
+      middle_end_only K.print kind
   | Int_arith (_k, o) -> print_unary_int_arith_op ppf o
   | Num_conv { src; dst } ->
     fprintf ppf "Num_conv_%a_to_%a"
@@ -869,7 +874,7 @@ let arg_kind_of_unary_primitive p =
   | Get_tag -> K.value
   | String_length _ -> K.value
   | Int_as_pointer -> K.value
-  | Opaque_identity _ -> K.value
+  | Opaque_identity { middle_end_only = _; kind } -> kind
   | Int_arith (kind, _) -> K.Standard_int.to_kind kind
   | Num_conv { src; dst = _ } -> K.Standard_int_or_float.to_kind src
   | Boolean_not -> K.value
@@ -895,7 +900,7 @@ let result_kind_of_unary_primitive p : result_kind =
     (* This primitive is *only* to be used when the resulting pointer points at
        something which is a valid OCaml value (even if outside of the heap). *)
     Singleton K.value
-  | Opaque_identity _ -> Singleton K.value
+  | Opaque_identity { middle_end_only = _; kind } -> Singleton kind
   | Int_arith (kind, _) -> Singleton (K.Standard_int.to_kind kind)
   | Num_conv { src = _; dst } -> Singleton (K.Standard_int_or_float.to_kind dst)
   | Boolean_not -> Singleton K.value

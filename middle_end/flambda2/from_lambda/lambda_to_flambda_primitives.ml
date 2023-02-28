@@ -630,8 +630,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
               ( Make_array (Naked_floats, mutability, mode),
                 List.map unbox_float args ),
             Variadic (Make_array (Values, mutability, mode), args) )))
-  | Popaque _, [arg] -> Unary (Opaque_identity { middle_end_only = false }, arg)
-  | Pobj_magic _, [arg] -> Unary (Opaque_identity { middle_end_only = true }, arg)
+  | Popaque layout, [arg] ->
+    let kind = K.With_subkind.kind (K.With_subkind.from_lambda layout) in
+    Unary (Opaque_identity { middle_end_only = false; kind }, arg)
+  | Pobj_magic layout, [arg] ->
+    let kind = K.With_subkind.kind (K.With_subkind.from_lambda layout) in
+    Unary (Opaque_identity { middle_end_only = true; kind }, arg)
   | Pduprecord (repr, num_fields), [arg] ->
     let kind : P.Duplicate_block_kind.t =
       match repr with
