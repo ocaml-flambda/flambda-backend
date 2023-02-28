@@ -3986,7 +3986,7 @@ let transl_property : Lambda.property -> Cmm.property = function
 
 let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
   | Default_check -> []
-  | Assert p -> [Assert (transl_property p)]
-  | Assume p -> [Assume (transl_property p)]
+  | Check { property; strict; assume; loc } ->
+    [Check { property = transl_property property; strict; assume; loc }]
 
 let kind_of_layout (Lambda.Pvalue kind) = Vval kind
