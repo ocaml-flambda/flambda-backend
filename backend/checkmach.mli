@@ -35,14 +35,8 @@ val record_unit_info : Format.formatter -> unit
 
 (** Analyzes the function, performs all checks that are enabled, and accumulates
     the results. *)
-val fundecl : Format.formatter -> Mach.fundecl -> Mach.fundecl
-
-type error =
-  | Annotation of
-      { fun_name : string;
-        check : string
-      }
-
-exception Error of Location.t * error
-
-val report_error : Format.formatter -> error -> unit
+val fundecl :
+  Format.formatter ->
+  future_funcnames:Misc.Stdlib.String.Set.t ->
+  Mach.fundecl ->
+  Mach.fundecl
