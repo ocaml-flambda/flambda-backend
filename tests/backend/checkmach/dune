@@ -1,14 +1,17 @@
+;; CR-someday gyorsh: refactor this file using something like cinaps to
+;; avoid copy-paste of the rules for different files.
+
 (rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (deps s.ml t.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -c -alloc-check -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -alloc-check -O3)))
 
 (rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (deps t5.ml test_assume.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -c -alloc-check -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -alloc-check -O3)))
 
 (rule
  (alias   runtest)
@@ -18,7 +21,7 @@
                   ;; (or %{ocaml-config:flambda} %{ocaml-config:flambda2})
                   ))
  (deps test_flambda.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -c -alloc-check -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -alloc-check -O3)))
 
 (rule
  (enabled_if (= %{context_name} "main"))
@@ -28,7 +31,7 @@
    (with-outputs-to fail1.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -color never -error-style short -c -alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -alloc-check -O3))
     (run "./filter.sh")
    ))))
 
@@ -46,7 +49,7 @@
    (with-outputs-to fail2.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -color never -error-style short -c -alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -alloc-check -O3))
     (run "./filter.sh")
    ))))
 
@@ -64,7 +67,7 @@
    (with-outputs-to fail3.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -color never -error-style short -c -alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -alloc-check -O3))
     (run "./filter.sh")
    ))))
 
@@ -83,7 +86,7 @@
    (with-outputs-to fail4.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -color never -error-style short -c -alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -alloc-check -O3))
     (run "./filter.sh")
    ))))
 
@@ -92,6 +95,62 @@
  (enabled_if (= %{context_name} "main"))
  (deps fail4.output fail4.output.corrected)
  (action (diff fail4.output fail4.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail5.output.corrected)
+ (deps (:ml fail5.ml) filter.sh)
+ (action
+   (with-outputs-to fail5.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -alloc-check -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail5.output fail5.output.corrected)
+ (action (diff fail5.output fail5.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail6.output.corrected)
+ (deps (:ml fail6.ml) filter.sh)
+ (action
+   (with-outputs-to fail6.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -alloc-check -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail6.output fail6.output.corrected)
+ (action (diff fail6.output fail6.output.corrected)))
+
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail7.output.corrected)
+ (deps (:ml fail7.ml) filter.sh)
+ (action
+   (with-outputs-to fail7.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -alloc-check -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail7.output fail7.output.corrected)
+ (action (diff fail7.output fail7.output.corrected)))
+
 
 ;; test for expected compilation errors
 
