@@ -17,7 +17,7 @@ type ('a,'b) t = ('a,'b) eval ref
 
 and ('a,'b) eval =
   | Done of 'b
-  | Raise of exn
+  | Raise of exn * Printexc.raw_backtrace
   | Thunk of 'a
 
 type undo =
@@ -29,14 +29,15 @@ type log = undo ref
 let force f x =
   match !x with
   | Done x -> x
-  | Raise e -> raise e
+  | Raise (e, bt) -> Printexc.raise_with_backtrace e bt
   | Thunk e ->
       match f e with
       | y ->
         x := Done y;
         y
       | exception e ->
-        x := Raise e;
+        let bt = Printexc.get_raw_backtrace () in
+        x := Raise (e, bt);
         raise e
 
 let get_arg x =
@@ -46,7 +47,7 @@ let get_contents x =
   match !x with
   | Thunk a -> Either.Left a
   | Done b -> Either.Right b
-  | Raise e -> raise e
+  | Raise (e, bt) -> Printexc.raise_with_backtrace e bt
 
 let create x =
   ref (Thunk x)
@@ -54,8 +55,11 @@ let create x =
 let create_forced y =
   ref (Done y)
 
+let backtrace_size = 64
+
 let create_failed e =
-  ref (Raise e)
+  let bt = Printexc.get_callstack backtrace_size in
+  ref (Raise (e, bt))
 
 let log () =
   ref Nil
@@ -63,7 +67,7 @@ let log () =
 let force_logged log f x =
   match !x with
   | Done x -> x
-  | Raise e -> raise e
+  | Raise (e, bt) -> Printexc.raise_with_backtrace e bt
   | Thunk e ->
     match f e with
     | (Error _ as err : _ result) ->
@@ -74,7 +78,8 @@ let force_logged log f x =
         x := Done res;
         res
     | exception e ->
-        x := Raise e;
+        let bt = Printexc.get_raw_backtrace () in
+        x := Raise (e, bt);
         raise e
 
 let backtrack log =
