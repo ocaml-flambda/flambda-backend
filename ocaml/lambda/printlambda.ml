@@ -556,8 +556,11 @@ let check_attribute ppf check =
   in
   match check with
   | Default_check -> ()
-  | Assert p -> fprintf ppf "assert %s@ " (check_property p)
-  | Assume p -> fprintf ppf "assume %s@ " (check_property p)
+  | Check {property=p; assume; strict; loc = _} ->
+    fprintf ppf "%s %s%s@ "
+      (if assume then "assume" else "assert")
+      (check_property p)
+      (if strict then " strict" else "")
 
 let function_attribute ppf t =
   if t.is_a_functor then

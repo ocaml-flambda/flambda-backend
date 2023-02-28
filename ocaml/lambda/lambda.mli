@@ -310,8 +310,17 @@ type poll_attribute =
 
 type check_attribute =
   | Default_check
-  | Assert of property
-  | Assume of property
+  | Check of { property: property;
+               strict: bool;
+               (* [strict=true] property holds on all paths.
+                  [strict=false] if the function returns normally or diverges,
+                  then the property holds (but property violations on
+                  exceptional returns are ignored. *)
+               assume: bool;
+               (* [assume=false] assume without checking that the
+                  property holds *)
+               loc: Location.t;
+             }
 
 type loop_attribute =
   | Always_loop (* [@loop] or [@loop always] *)
@@ -351,6 +360,7 @@ type function_attribute = {
   stub: bool;
   tmc_candidate: bool;
 }
+
 
 type scoped_location = Debuginfo.Scoped_location.t
 

@@ -411,8 +411,11 @@ type poll_attribute =
 
 type check_attribute =
   | Default_check
-  | Assert of property
-  | Assume of property
+  | Check of { property: property;
+               strict: bool;
+               assume: bool;
+               loc: Location.t;
+             }
 
 type loop_attribute =
   | Always_loop (* [@loop] or [@loop always] *)
