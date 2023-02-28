@@ -630,8 +630,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
               ( Make_array (Naked_floats, mutability, mode),
                 List.map unbox_float args ),
             Variadic (Make_array (Values, mutability, mode), args) )))
-  | Popaque, [arg] -> Unary (Opaque_identity { middle_end_only = false }, arg)
-  | Pobj_magic, [arg] -> Unary (Opaque_identity { middle_end_only = true }, arg)
+  | Popaque _, [arg] -> Unary (Opaque_identity { middle_end_only = false }, arg)
+  | Pobj_magic _, [arg] -> Unary (Opaque_identity { middle_end_only = true }, arg)
   | Pduprecord (repr, num_fields), [arg] ->
     let kind : P.Duplicate_block_kind.t =
       match repr with
@@ -1161,10 +1161,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       Printlambda.primitive prim H.print_list_of_simple_or_prim args
   | ( ( Pfield _ | Pnegint | Pnot | Poffsetint _ | Pintoffloat | Pfloatofint _
       | Pnegfloat _ | Pabsfloat _ | Pstringlength | Pbyteslength | Pbintofint _
-      | Pintofbint _ | Pnegbint _ | Popaque | Pduprecord _ | Parraylength _
+      | Pintofbint _ | Pnegbint _ | Popaque _ | Pduprecord _ | Parraylength _
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
       | Pbbswap _ | Pisint _ | Pint_as_pointer | Pbigarraydim _ | Pobj_dup
-      | Pobj_magic ),
+      | Pobj_magic _ ),
       ([] | _ :: _ :: _) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \

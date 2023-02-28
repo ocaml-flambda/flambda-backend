@@ -417,10 +417,10 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbswap16 -> pbswap16
   | Pbbswap _ -> pbbswap
   | Pint_as_pointer -> pint_as_pointer
-  | Popaque -> popaque
+  | Popaque _ -> popaque
   | Pprobe_is_enabled _ -> pprobe_is_enabled
   | Pobj_dup -> pobj_dup
-  | Pobj_magic -> pobj_magic
+  | Pobj_magic _ -> pobj_magic
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string_arg
@@ -525,7 +525,7 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbswap16 -> pbswap16_arg
   | Pbbswap _ -> pbbswap_arg
   | Pint_as_pointer -> pint_as_pointer_arg
-  | Popaque -> popaque_arg
+  | Popaque _ -> popaque_arg
   | Pprobe_is_enabled _ -> pprobe_is_enabled_arg
   | Pobj_dup -> pobj_dup_arg
-  | Pobj_magic -> pobj_magic_arg
+  | Pobj_magic _ -> pobj_magic_arg

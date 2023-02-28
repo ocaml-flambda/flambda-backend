@@ -77,9 +77,6 @@ type loc_kind =
   | Loc_POS
   | Loc_FUNCTION
 
-(* CR ncourant: the result layout of these should probably be an option, filled
-   by specialise_primitive and the rest of the code should fail if it
-   encounters it? *)
 type prim =
   | Primitive of Lambda.primitive * int
   | External of Primitive.description
@@ -388,7 +385,7 @@ let lookup_primitive loc poly pos p =
     | "%bswap_int64" -> Primitive ((Pbbswap(Pint64, mode)), 1)
     | "%bswap_native" -> Primitive ((Pbbswap(Pnativeint, mode)), 1)
     | "%int_as_pointer" -> Primitive (Pint_as_pointer, 1)
-    | "%opaque" -> Primitive (Popaque, 1)
+    | "%opaque" -> Primitive (Popaque Lambda.layout_any_value, 1)
     | "%sys_argv" -> Sys_argv
     | "%send" -> Send (pos, Lambda.layout_any_value)
     | "%sendself" -> Send_self (pos, Lambda.layout_any_value)
@@ -401,7 +398,7 @@ let lookup_primitive loc poly pos p =
     | "%greaterthan" -> Comparison(Greater_than, Compare_generic)
     | "%compare" -> Comparison(Compare, Compare_generic)
     | "%obj_dup" -> Primitive(Pobj_dup, 1)
-    | "%obj_magic" -> Primitive(Pobj_magic, 1)
+    | "%obj_magic" -> Primitive(Pobj_magic Lambda.layout_any_value, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -885,8 +882,8 @@ let lambda_primitive_needs_event_after = function
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
-  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque
-  | Pobj_magic -> false
+  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque _
+  | Pobj_magic _ -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)
 let primitive_needs_event_after = function

@@ -1330,7 +1330,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
   | Lprim(Pignore, [arg], _loc) ->
       let expr, approx = make_const_int 0 in
       Usequence(fst (close env arg), expr), approx
-  | Lprim(( Pbytes_to_string | Pbytes_of_string | Pobj_magic),
+  | Lprim(( Pbytes_to_string | Pbytes_of_string | Pobj_magic _),
           [arg], _loc) ->
       close env arg
   | Lprim(Pgetglobal cu, [], loc) ->
