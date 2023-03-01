@@ -4,6 +4,9 @@
 *)
 
 module Iarray = Stdlib__Iarray;;
+[%%expect{|
+module Iarray = Stdlib__Iarray
+|}];;
 
 (******************************************************************************
  *                        ******** ATTENTION! ********                        *
