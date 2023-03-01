@@ -221,7 +221,7 @@ let make_boxed_const_int (i, m) : static_data =
 %type <float Fexpr.or_variable> float_or_variable
 %type <Fexpr.infix_binop> infix_binop
 %type <Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour> int_comp
-%type <Fexpr.kind> kind
+(* %type <Fexpr.kind> kind *)
 %type <Fexpr.kind_with_subkind> kind_with_subkind
 %type <Fexpr.kind_with_subkind list> kinds_with_subkinds
 %type <Fexpr.mutability> mutability
@@ -530,12 +530,14 @@ naked_number_kind:
   | KWD_INT64 { Naked_int64 }
   | KWD_NATIVEINT { Naked_nativeint }
 ;
+(*
 kind:
   | KWD_VAL { Flambda_kind.value }
   | nnk = naked_number_kind { Flambda_kind.naked_number nnk }
   | KWD_REGION { Flambda_kind.region }
   | KWD_REC_INFO { Flambda_kind.rec_info }
 ;
+*)
 kind_with_subkind:
   | nnk = naked_number_kind { Naked_number nnk }
   | subkind = subkind { Value subkind }
@@ -565,17 +567,16 @@ subkind:
 subkinds_nonempty:
   | sks = separated_nonempty_list(STAR, subkind) { sks }
 ;
+(* LR(1) restrictions make this a bit awkward to write *)
 ctors:
   | { [], [] }
-  | consts = const_ctors { consts, [] }
-  | non_consts = nonconst_ctors { [], non_consts }
-  | consts = const_ctors; PIPE; non_consts = nonconst_ctors
-    { consts, non_consts }
-;
-const_ctors:
-  | consts = separated_nonempty_list(PIPE, targetint) { consts }
-;
-nonconst_ctors:
+  | ctors = ctors_nonempty { ctors }
+ctors_nonempty:
+  | tag = targetint { [ tag ], [] }
+  | tag = targetint; PIPE; ctors = ctors_nonempty
+      { let (c, nc) = ctors in (tag :: c, nc) }
+  | nonconsts = nonconst_ctors_nonempty { [], nonconsts }
+nonconst_ctors_nonempty:
   | ctors = separated_nonempty_list(PIPE, nonconst_ctor) { ctors }
 ;
 nonconst_ctor:
@@ -584,10 +585,6 @@ nonconst_ctor:
 return_arity:
   | { None }
   | COLON k = kinds_with_subkinds { Some k }
-;
-kind_arg_opt:
-  | { None }
-  | LBRACE; k = kind; RBRACE { Some k }
 ;
 
 /* expr is staged so that let and where play nicely together. In particular, in

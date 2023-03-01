@@ -157,7 +157,7 @@ and variant_subkind ppf consts non_consts =
     let () =
       match consts, non_consts with
       | [], _ | _, [] -> ()
-      | _ :: _, _ :: _ -> Format.fprintf ppf "@ |"
+      | _ :: _, _ :: _ -> Format.fprintf ppf "@ | "
     in
     let pp_pair ppf (tag, sk) =
       Format.fprintf ppf "@[<hov 2>%d of %a@]" tag (pp_star_list subkind) sk

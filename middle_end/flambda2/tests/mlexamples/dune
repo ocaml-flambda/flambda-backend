@@ -10,5 +10,6 @@
     (run tools/gen_dune_rules.exe
          tests0
          tests4
-         tests5))
+         tests5
+         tests11))
    (diff generated-rules.inc generated-rules.inc.new))))
