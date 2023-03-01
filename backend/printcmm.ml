@@ -370,7 +370,7 @@ let codegen_option = function
   | Use_linscan_regalloc -> "linscan"
   | Check { property; strict; assume; loc = _ } ->
     Printf.sprintf "%s %s%s"
-      (if assume then "assume" else "assert ")
+      (if assume then "assume" else "assert")
       (property_to_string property)
       (if strict then " strict" else "")
 

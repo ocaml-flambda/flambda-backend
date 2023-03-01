@@ -315,7 +315,7 @@ type check_attribute =
                (* [strict=true] property holds on all paths.
                   [strict=false] if the function returns normally or diverges,
                   then the property holds (but property violations on
-                  exceptional returns are ignored. *)
+                  exceptional returns are ignored). *)
                assume: bool;
                (* [assume=false] assume without checking that the
                   property holds *)
