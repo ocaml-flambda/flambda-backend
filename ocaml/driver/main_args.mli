@@ -123,6 +123,8 @@ module type Compiler_options = sig
   val _dtimings : unit -> unit
   val _dtimings_precision : int -> unit
   val _dprofile : unit -> unit
+  val _compress_all_artifacts : unit -> unit
+  val _compress_cmt_artifacts : unit -> unit
   val _dump_into_file : unit -> unit
   val _dump_dir : string -> unit
 

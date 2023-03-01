@@ -180,6 +180,8 @@ val opaque : bool ref
 val default_timings_precision : int
 val timings_precision : int ref
 val profile_columns : Profile.column list ref
+val compress_all_artifacts : bool ref
+val compress_cmt_artifacts : bool ref
 val flambda_invariant_checks : bool ref
 val unbox_closures : bool ref
 val unbox_closures_factor : int ref
