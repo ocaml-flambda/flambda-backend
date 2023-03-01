@@ -901,7 +901,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let return_arity =
             (* CR mshinwell: This needs fixing to cope with the fact that the
                arities have moved onto [Apply_expr] *)
-            Flambda_arity.With_subkinds.create []
+            Flambda_arity.With_subkinds.create
+              [Flambda_kind.With_subkind.any_value]
           in
           ( Call_kind.indirect_function_call_unknown_arity
               Alloc_mode.For_types.heap,
