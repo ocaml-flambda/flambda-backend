@@ -845,7 +845,8 @@ let close_let acc env id user_visible kind defining_expr
                 [exn_name; exn_id] ),
             _ )
         when Tag.Scannable.equal tag Tag.Scannable.object_tag
-             && Env.at_toplevel env ->
+             && Env.at_toplevel env
+             && Flambda_features.classic_mode () ->
         (* Special case to lift toplevel exception declarations *)
         let symbol =
           Symbol.create
