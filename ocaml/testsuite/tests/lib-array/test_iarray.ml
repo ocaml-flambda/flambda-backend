@@ -141,18 +141,12 @@ Iarray.length iarray, Iarray.length ifarray;;
 
 iarray.:(0), Iarray.get iarray 1, ifarray.:(2), Iarray.get ifarray 3;;
 [%%expect{|
-Line 1, characters 0-11:
-1 | iarray.:(0), Iarray.get iarray 1, ifarray.:(2), Iarray.get ifarray 3;;
-    ^^^^^^^^^^^
-Error: Unbound value .:()
+- : int * int * float * float = (1, 2, 3.5, 4.5)
 |}];;
 
 iarray.:(10)
 [%%expect{|
-Line 1, characters 0-12:
-1 | iarray.:(10)
-    ^^^^^^^^^^^^
-Error: Unbound value .:()
+Exception: Invalid_argument "index out of bounds".
 |}];;
 
 Iarray.get iarray (-1);;
@@ -162,10 +156,7 @@ Exception: Invalid_argument "index out of bounds".
 
 ifarray.:(-10);;
 [%%expect{|
-Line 1, characters 0-14:
-1 | ifarray.:(-10);;
-    ^^^^^^^^^^^^^^
-Error: Unbound value .:()
+Exception: Invalid_argument "index out of bounds".
 |}];;
 
 Iarray.get ifarray 5;;
