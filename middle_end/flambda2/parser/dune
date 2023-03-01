@@ -48,7 +48,7 @@
  (targets flambda_parser_in.ml flambda_parser_in.mli)
  (deps flambda_parser.mly)
  (action
-  (run menhir --table %{deps} --base flambda_parser_in)))
+  (run menhir --strict --table %{deps} --base flambda_parser_in)))
 
 ; NOTE: flambda_parser.messages is massively out of date.
 
