@@ -391,7 +391,10 @@ let write_unit_info info filename =
   } in
   let oc = open_out_bin filename in
   output_string oc cmx_magic_number;
-  output_value oc raw_info;
+  let flags =
+    if !Clflags.compress_all_artifacts then [ Compressed_marshal.Compression ] else []
+  in
+  Compressed_marshal.to_channel oc raw_info flags;
   Array.iter (output_string oc) serialized_sections;
   flush oc;
   let crc = Digest.file filename in

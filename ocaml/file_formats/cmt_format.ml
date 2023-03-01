@@ -109,7 +109,10 @@ let input_cmt ic = (input_value ic : cmt_infos)
 
 let output_cmt oc cmt =
   output_string oc Config.cmt_magic_number;
-  output_value oc (cmt : cmt_infos)
+  let flags =
+    if !Clflags.compress_cmt_artifacts then [ Compressed_marshal.Compression ] else []
+  in
+  Compressed_marshal.(to_channel oc (cmt : cmt_infos) flags)
 
 let read filename =
 (*  Printf.fprintf stderr "Cmt_format.read %s\n%!" filename; *)
