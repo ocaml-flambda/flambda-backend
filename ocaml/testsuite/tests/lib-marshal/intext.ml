@@ -1,4 +1,5 @@
 (* TEST
+   include ocamlcommon
    modules = "intextaux.c"
 *)
 
@@ -26,49 +27,52 @@ let bigint = Int64.to_int 0x123456789ABCDEF0L
 let rec fib n =
   if n < 2 then 1 else fib(n-1) + fib(n-2)
 
-let test_out filename =
+let test_out ?(flags = []) filename =
   let oc = open_out_bin filename in
-  output_value oc 1;
-  output_value oc (-1);
-  output_value oc 258;
-  output_value oc 20000;
-  output_value oc 0x12345678;
-  output_value oc bigint;
-  output_value oc "foobargeebuz";
-  output_value oc longstring;
-  output_value oc verylongstring;
-  output_value oc 3.141592654;
-  output_value oc ();
-  output_value oc A;
-  output_value oc (B 1);
-  output_value oc (C 2.718);
-  output_value oc (D "hello, world!");
-  output_value oc (E 'l');
-  output_value oc (F(B 1));
-  output_value oc (G(A, G(B 2, G(C 3.14, G(D "glop", E 'e')))));
-  output_value oc (H(1, A));
-  output_value oc (I(B 2, 1e-6));
+  Compressed_marshal.to_channel oc 1 flags;
+  Compressed_marshal.to_channel oc (-1) flags;
+  Compressed_marshal.to_channel oc 258 flags;
+  Compressed_marshal.to_channel oc 20000 flags;
+  Compressed_marshal.to_channel oc 0x12345678 flags;
+  Compressed_marshal.to_channel oc bigint flags;
+  Compressed_marshal.to_channel oc "foobargeebuz" flags;
+  Compressed_marshal.to_channel oc longstring flags;
+  Compressed_marshal.to_channel oc verylongstring flags;
+  Compressed_marshal.to_channel oc 3.141592654 flags;
+  Compressed_marshal.to_channel oc () flags;
+  Compressed_marshal.to_channel oc A flags;
+  Compressed_marshal.to_channel oc (B 1) flags;
+  Compressed_marshal.to_channel oc (C 2.718) flags;
+  Compressed_marshal.to_channel oc (D "hello, world!") flags;
+  Compressed_marshal.to_channel oc (E 'l') flags;
+  Compressed_marshal.to_channel oc (F(B 1)) flags;
+  Compressed_marshal.to_channel oc (G(A, G(B 2, G(C 3.14, G(D "glop", E 'e'))))) flags;
+  Compressed_marshal.to_channel oc (H(1, A)) flags;
+  Compressed_marshal.to_channel oc (I(B 2, 1e-6)) flags;
   let x = D "sharing" in
   let y = G(x, x) in
   let z = G(y, G(x, y)) in
-  output_value oc z;
-  output_value oc [|1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16|];
+  Compressed_marshal.to_channel oc z flags;
+  Compressed_marshal.to_channel oc [|1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16|] flags;
   let rec big n = if n <= 0 then A else H(n, big(n-1)) in
-  output_value oc (big 1000);
-  Marshal.to_channel oc y [Marshal.No_sharing];
-  Marshal.to_channel oc fib [Marshal.Closures];
-  output_value oc (Int32.of_string "0");
-  output_value oc (Int32.of_string "123456");
-  output_value oc (Int32.of_string "-123456");
-  output_value oc (Int64.of_string "0");
-  output_value oc (Int64.of_string "123456789123456");
-  output_value oc (Int64.of_string "-123456789123456");
-  output_value oc (Nativeint.of_string "0");
-  output_value oc (Nativeint.of_string "123456");
-  output_value oc (Nativeint.of_string "-123456");
-  output_value oc (Nativeint.shift_left (Nativeint.of_string "123456789") 32);
-  output_value oc (Nativeint.shift_left (Nativeint.of_string "-123456789") 32);
-  let i = Int64.of_string "123456789123456" in output_value oc (i,i);
+  Compressed_marshal.to_channel oc (big 1000) flags;
+  Compressed_marshal.to_channel oc y (Compressed_marshal.No_sharing :: flags);
+  Compressed_marshal.to_channel oc fib (Compressed_marshal.Closures :: flags);
+  Compressed_marshal.to_channel oc (Int32.of_string "0") flags;
+  Compressed_marshal.to_channel oc (Int32.of_string "123456") flags;
+  Compressed_marshal.to_channel oc (Int32.of_string "-123456") flags;
+  Compressed_marshal.to_channel oc (Int64.of_string "0") flags;
+  Compressed_marshal.to_channel oc (Int64.of_string "123456789123456") flags;
+  Compressed_marshal.to_channel oc (Int64.of_string "-123456789123456") flags;
+  Compressed_marshal.to_channel oc (Nativeint.of_string "0") flags;
+  Compressed_marshal.to_channel oc (Nativeint.of_string "123456") flags;
+  Compressed_marshal.to_channel oc (Nativeint.of_string "-123456") flags;
+  Compressed_marshal.to_channel oc
+    (Nativeint.shift_left (Nativeint.of_string "123456789") 32) flags;
+  Compressed_marshal.to_channel oc
+    (Nativeint.shift_left (Nativeint.of_string "-123456789") 32) flags;
+  let i = Int64.of_string "123456789123456" in
+    Compressed_marshal.to_channel oc (i,i) flags;
   close_out oc
 
 
@@ -155,77 +159,77 @@ let test_in filename =
   close_in ic
 
 let test_string () =
-  let s = Marshal.to_string 1 [] in
+  let s = Compressed_marshal.to_string 1 [] in
   test 101 (Marshal.from_string s 0 = 1);
-  let s = Marshal.to_string (-1) [] in
+  let s = Compressed_marshal.to_string (-1) [] in
   test 102 (Marshal.from_string s 0 = (-1));
-  let s = Marshal.to_string 258 [] in
+  let s = Compressed_marshal.to_string 258 [] in
   test 103 (Marshal.from_string s 0 = 258);
-  let s = Marshal.to_string 20000 [] in
+  let s = Compressed_marshal.to_string 20000 [] in
   test 104 (Marshal.from_string s 0 = 20000);
-  let s = Marshal.to_string 0x12345678 [] in
+  let s = Compressed_marshal.to_string 0x12345678 [] in
   test 105 (Marshal.from_string s 0 = 0x12345678);
-  let s = Marshal.to_string bigint [] in
+  let s = Compressed_marshal.to_string bigint [] in
   test 106 (Marshal.from_string s 0 = bigint);
-  let s = Marshal.to_string "foobargeebuz" [] in
+  let s = Compressed_marshal.to_string "foobargeebuz" [] in
   test 107 (Marshal.from_string s 0 = "foobargeebuz");
-  let s = Marshal.to_string longstring [] in
+  let s = Compressed_marshal.to_string longstring [] in
   test 108 (Marshal.from_string s 0 = longstring);
-  let s = Marshal.to_string verylongstring [] in
+  let s = Compressed_marshal.to_string verylongstring [] in
   test 109 (Marshal.from_string s 0 = verylongstring);
-  let s = Marshal.to_string 3.141592654 [] in
+  let s = Compressed_marshal.to_string 3.141592654 [] in
   test 110 (Marshal.from_string s 0 = 3.141592654);
-  let s = Marshal.to_string () [] in
+  let s = Compressed_marshal.to_string () [] in
   test 111 (Marshal.from_string s 0 = ());
-  let s = Marshal.to_string A [] in
+  let s = Compressed_marshal.to_string A [] in
   test 112 (match Marshal.from_string s 0 with
     A -> true
   | _ -> false);
-  let s = Marshal.to_string (B 1) [] in
+  let s = Compressed_marshal.to_string (B 1) [] in
   test 113 (match Marshal.from_string s 0 with
     (B 1) -> true
   | _ -> false);
-  let s = Marshal.to_string (C 2.718) [] in
+  let s = Compressed_marshal.to_string (C 2.718) [] in
   test 114 (match Marshal.from_string s 0 with
     (C f) -> f = 2.718
   | _ -> false);
-  let s = Marshal.to_string (D "hello, world!") [] in
+  let s = Compressed_marshal.to_string (D "hello, world!") [] in
   test 115 (match Marshal.from_string s 0 with
     (D "hello, world!") -> true
   | _ -> false);
-  let s = Marshal.to_string (E 'l') [] in
+  let s = Compressed_marshal.to_string (E 'l') [] in
   test 116 (match Marshal.from_string s 0 with
     (E 'l') -> true
   | _ -> false);
-  let s = Marshal.to_string (F(B 1)) [] in
+  let s = Compressed_marshal.to_string (F(B 1)) [] in
   test 117 (match Marshal.from_string s 0 with
     (F(B 1)) -> true
   | _ -> false);
-  let s = Marshal.to_string (G(A, G(B 2, G(C 3.14, G(D "glop", E 'e'))))) [] in
+  let s = Compressed_marshal.to_string (G(A, G(B 2, G(C 3.14, G(D "glop", E 'e'))))) [] in
   test 118 (match Marshal.from_string s 0 with
     (G(A, G(B 2, G(C 3.14, G(D "glop", E 'e'))))) -> true
   | _ -> false);
-  let s = Marshal.to_string (H(1, A)) [] in
+  let s = Compressed_marshal.to_string (H(1, A)) [] in
   test 119 (match Marshal.from_string s 0 with
     (H(1, A)) -> true
   | _ -> false);
-  let s = Marshal.to_string (I(B 2, 1e-6)) [] in
+  let s = Compressed_marshal.to_string (I(B 2, 1e-6)) [] in
   test 120 (match Marshal.from_string s 0 with
     (I(B 2, 1e-6)) -> true
   | _ -> false);
   let x = D "sharing" in
   let y = G(x, x) in
   let z = G(y, G(x, y)) in
-  let s = Marshal.to_string z [] in
+  let s = Compressed_marshal.to_string z [] in
   test 121 (match Marshal.from_string s 0 with
     G((G((D "sharing" as t1), t2) as t3), G(t4, t5)) ->
       t1 == t2 && t3 == t5 && t4 == t1
   | _ -> false);
-  let s = Marshal.to_string [|1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16|] [] in
+  let s = Compressed_marshal.to_string [|1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16|] [] in
   test 122
        (Marshal.from_string s 0 = [|1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16|]);
   let rec big n = if n <= 0 then A else H(n, big(n-1)) in
-  let s = Marshal.to_string (big 1000) [] in
+  let s = Compressed_marshal.to_string (big 1000) [] in
   let rec check_big n t =
     if n <= 0 then
       test 123 (match t with A -> true | _ -> false)
@@ -237,8 +241,7 @@ let test_string () =
     check_big 1000 (Marshal.from_string s 0)
 
 let marshal_to_buffer s start len v flags =
-  ignore (Marshal.to_buffer s start len v flags)
-;;
+  ignore (Compressed_marshal.to_buffer s start len v flags)
 
 let test_buffer () =
   let s = Bytes.create 512 in
@@ -317,9 +320,30 @@ let test_buffer () =
     (try marshal_to_buffer s 0 512 (big 1000) []; false
      with Failure s when s = "Marshal.to_buffer: buffer overflow" -> true)
 
+(* Test bounds checking and the [Marshal.data_size] primitive *)
+
 let test_size() =
-  let s = Marshal.to_bytes (G(A, G(B 2, G(C 3.14, G(D "glop", E 'e'))))) [] in
-  test 300 (Marshal.header_size + Marshal.data_size s 0 = Bytes.length s)
+  let test_one n flags =
+    let s =
+      Compressed_marshal.to_bytes (G(A, G(B 2, G(C 3.14, G(D "glop", E 'e'))))) flags in
+    test n (Marshal.header_size + Marshal.data_size s 0 = Bytes.length s) in
+  test_one 300 [];
+  test_one 301 [Compressed_marshal.Compression]
+
+let test_bounds_checking () =
+  let test_one n v flags =
+    let s = Compressed_marshal.to_string v flags in
+    assert (String.length s > 20);
+    test n
+      (try ignore (Marshal.from_string (String.sub s 0 10) 0); false
+       with Invalid_argument _ -> true);
+    test (n+1)
+      (try ignore (Marshal.from_string (String.sub s 0 20) 0); false
+       with Invalid_argument _ -> true);
+    test (n+2)
+      (Marshal.from_string (s ^ "silly padding") 0 = v) in
+  test_one 310 longstring [];
+  test_one 320 longstring [Compressed_marshal.Compression]
 
 external marshal_to_block : int -> 'a -> Marshal.extern_flags list -> unit
                           = "marshal_to_block"
@@ -438,7 +462,7 @@ let test_deep () =
     then loop (i :: acc) (i+1)
     else acc in
   let x = loop [] 0 in
-  let s = Marshal.to_string x [] in
+  let s = Compressed_marshal.to_string x [] in
   test 425 (Marshal.from_string s 0 = x);
   (* Left-leaning *)
   let rec loop acc i =
@@ -446,7 +470,7 @@ let test_deep () =
     then loop (G(acc, B i)) (i+1)
     else acc in
   let x = loop A 0 in
-  let s = Marshal.to_string x [] in
+  let s = Compressed_marshal.to_string x [] in
   test 426 (Marshal.from_string s 0 = x)
 
 (* Test for objects *)
@@ -481,21 +505,21 @@ end
 (* Test for objects *)
 let test_objects () =
   let x = new foo in
-  let s = Marshal.to_string x [Marshal.Closures] in
+  let s = Compressed_marshal.to_string x [Compressed_marshal.Closures] in
   let x = Marshal.from_string s 0 in
   test 500 (x#test1 = "foobar");
   test 501 (x#test2 = false);
   test 502 (x#test3 = "foobar");
   test 503 (x#test4 = 42L);
   let x = new bar in
-  let s = Marshal.to_string x [Marshal.Closures] in
+  let s = Compressed_marshal.to_string x [Compressed_marshal.Closures] in
   let x = Marshal.from_string s 0 in
   test 504 (x#test1 = "footest5test3test442");
   test 505 (x#test2 = false);
   test 506 (x#test3 = "footest5test3test442");
   test 507 (x#test4 = 42L);
   let x0 = new foobar in
-  let s = Marshal.to_string x0 [Marshal.Closures] in
+  let s = Compressed_marshal.to_string x0 [Compressed_marshal.Closures] in
   let x = Marshal.from_string s 0 in
   test 508 (x#test1 = "footest5test3test442");
   test 509 (x#test2 = false);
@@ -516,7 +540,7 @@ let test_infix () =
     then t
     else odd (n-1)
   in
-  let s = Marshal.to_string (odd, even) [Marshal.Closures] in
+  let s = Compressed_marshal.to_string (odd, even) [Compressed_marshal.Closures] in
   let (odd', even': (int -> bool) * (int -> bool)) = Marshal.from_string s 0 in
   test 600 (odd' 41 = true);
   test 601 (odd' 41 = odd 41);
@@ -535,14 +559,14 @@ let test_mutual_rec_regression () =
   let g () = () in
   let f q = if test_list q then g () in
 
-  test 700 (try ignore (Marshal.to_string f [Marshal.Closures]); true
+  test 700 (try ignore (Compressed_marshal.to_string f [Compressed_marshal.Closures]); true
             with _ -> false)
 
 let test_end_of_file_regression () =
   (* See PR#7142 *)
   let write oc n =
     for k = 0 to n - 1 do
-      Marshal.to_channel oc k []
+      Compressed_marshal.to_channel oc k []
     done
   in
   let read ic n =
@@ -583,7 +607,7 @@ external value_with_buggy_serialiser : unit -> buggy =
   "value_with_buggy_serialiser"
 let test_buggy_serialisers () =
   let x = value_with_buggy_serialiser () in
-  let s = Marshal.to_string x [] in
+  let s = Compressed_marshal.to_string x [] in
   match Marshal.from_string s 0 with
   | exception (Failure _) -> ()
   | _ ->
@@ -591,12 +615,22 @@ let test_buggy_serialisers () =
 
 let main() =
   if Array.length Sys.argv <= 2 then begin
+    print_string "Default flags\n";
     test_out "intext.data"; test_in "intext.data";
+    print_string "Default flags (again)\n";
     test_out "intext.data"; test_in "intext.data";
+    print_string "[Compression] flags\n";
+    test_out ~flags:[Compressed_marshal.Compression] "intext.data"; test_in "intext.data";
+    print_string "Marshal.to_string\n";
     test_string();
+    print_string "Marshal.to_buffer\n";
     test_buffer();
+    print_string "Marshal.{header_size,data_size}\n";
     test_size();
+    test_bounds_checking();
+    print_string "Marshaling to a block\n";
     test_block();
+    print_string "Miscellaneous tests\n";
     test_deep();
     test_objects();
     test_infix ();
@@ -626,4 +660,4 @@ let main() =
     print_newline()
   end
 
-let _ = Printexc.catch main (); exit 0
+let _ = main (); exit 0

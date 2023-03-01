@@ -27,6 +27,7 @@
     config
     build_path_prefix_map
     misc
+    compressed_marshal
     identifiable
     numbers
     arg_helper
@@ -104,6 +105,7 @@
 (copy_files ../../utils/config.ml)
 (copy_files ../../utils/build_path_prefix_map.ml)
 (copy_files ../../utils/misc.ml)
+(copy_files ../../utils/compressed_marshal.ml)
 (copy_files ../../utils/identifiable.ml)
 (copy_files ../../utils/numbers.ml)
 (copy_files ../../utils/arg_helper.ml)
@@ -159,6 +161,7 @@
 (copy_files ../../utils/config.mli)
 (copy_files ../../utils/build_path_prefix_map.mli)
 (copy_files ../../utils/misc.mli)
+(copy_files ../../utils/compressed_marshal.mli)
 (copy_files ../../utils/identifiable.mli)
 (copy_files ../../utils/numbers.mli)
 (copy_files ../../utils/arg_helper.mli)
@@ -254,6 +257,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Build_path_prefix_map.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Config.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Misc.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Compressed_marshal.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Warnings.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Arg_helper.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Identifiable.cmo
@@ -324,6 +328,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Build_path_prefix_map.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Config.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Misc.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Compressed_marshal.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Warnings.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Arg_helper.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Identifiable.cmx
@@ -403,6 +408,7 @@
     (extract_crc.bc as dynlink/extract_crc)
 
     .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Misc.cmx
+    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Compressed_marshal.cmx
   )
   (section lib)
   (package ocaml))

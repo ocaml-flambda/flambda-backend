@@ -63,7 +63,7 @@
    profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
    local_store target_system compilation_unit import_info linkage_name symbol
-   lazy_backtrack diffing diffing_with_keys
+   lazy_backtrack diffing diffing_with_keys compressed_marshal
 
    ;; PARSING
    location longident docstrings syntaxerr ast_helper camlinternalMenhirLib
@@ -341,5 +341,5 @@
     (compilation_unit.mli as compiler-libs/compilation_unit.mli)
     (linkage_name.mli as compiler-libs/linkage_name.mli)
     (symbol.mli as compiler-libs/symbol.mli)
-
+    (compressed_marshal.mli as compiler-libs/compressed_marshal.mli)
   ))
