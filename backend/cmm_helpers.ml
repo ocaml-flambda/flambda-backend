@@ -2656,7 +2656,9 @@ let rec make_curry_apply result narity args_type args clos n =
 
 let machtype_of_layout (layout : Lambda.layout) =
   match layout with
-  | Ptop | Pbottom -> Misc.fatal_error "No machtype for layout"
+  | Ptop -> Misc.fatal_error "No machtype for layout [Ptop]"
+  | Pbottom ->
+    Misc.fatal_error "No unique machtype for layout [Pbottom]"
   | Pvalue _ -> typ_val
 
 let final_curry_function nlocal arity result =
@@ -3994,5 +3996,7 @@ let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
-  | Ptop | Pbottom -> Misc.fatal_error "No machtype for layout"
+  | Ptop | Pbottom ->
+    (* This is incorrect but only used for unboxing *)
+    Vval Pgenval
   | Pvalue kind -> Vval kind

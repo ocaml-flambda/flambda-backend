@@ -612,6 +612,7 @@ let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
 let layout_letrec = layout_any_value
 
+(* CR ncourant: use [Ptop] or remove this as soon as possible. *)
 let layout_top = layout_any_value
 let layout_bottom = Pbottom
 

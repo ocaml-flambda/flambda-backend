@@ -98,8 +98,8 @@ and value_kind' ppf = function
 let layout ppf layout =
   match layout with
   | Pvalue k -> value_kind ppf k
-  | Ptop -> fprintf ppf "top"
-  | Pbottom -> fprintf ppf "bottom"
+  | Ptop -> fprintf ppf "[top]"
+  | Pbottom -> fprintf ppf "[bottom]"
 
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode mode in

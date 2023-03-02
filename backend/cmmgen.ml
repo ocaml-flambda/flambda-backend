@@ -1299,7 +1299,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
     let cexp = transl env exp in
     (* N.B. [body] must still be traversed even if [exp] will never return:
        there may be constant closures inside that need lifting out. *)
-    let _cbody = transl_body env in
+    let _cbody : expression = transl_body env in
     cexp
   | Pvalue kind ->
     transl_let_value env str kind id exp transl_body
