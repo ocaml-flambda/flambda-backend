@@ -101,6 +101,7 @@ let layout ppf layout =
   | Ptop -> fprintf ppf "[top]"
   | Pbottom -> fprintf ppf "[bottom]"
   | Punboxed_float -> fprintf ppf "[unboxed_float]"
+  | Punboxed_int bi -> fprintf ppf "[unboxed_%s]" (boxed_integer_name bi)
 
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode mode in
@@ -115,6 +116,7 @@ let return_kind ppf (mode, kind) =
   | Pvalue (Pvariant { consts; non_consts; }) ->
     variant_kind value_kind' ppf ~consts ~non_consts
   | Punboxed_float -> fprintf ppf ": unboxed_float@ "
+  | Punboxed_int bi -> fprintf ppf ": unboxed_%s@ " (boxed_integer_name bi)
   | Ptop -> fprintf ppf ": top@ "
   | Pbottom -> fprintf ppf ": bottom@ "
 
@@ -451,6 +453,9 @@ let primitive ppf = function
   | Pobj_magic _ -> fprintf ppf "obj_magic"
   | Punbox_float -> fprintf ppf "unbox_float"
   | Pbox_float m -> fprintf ppf "box_float%s" (alloc_kind m)
+  | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)
+  | Pbox_int (bi, m) ->
+      fprintf ppf "box_%s%s" (boxed_integer_name bi) (alloc_kind m)
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -561,6 +566,8 @@ let name_of_primitive = function
   | Pobj_magic _ -> "Pobj_magic"
   | Punbox_float -> "Punbox_float"
   | Pbox_float _ -> "Pbox_float"
+  | Punbox_int _ -> "Punbox_int"
+  | Pbox_int _ -> "Pbox_int"
 
 let check_attribute ppf check =
   let check_property = function

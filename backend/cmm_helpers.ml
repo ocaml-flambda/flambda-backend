@@ -2659,6 +2659,9 @@ let machtype_of_layout (layout : Lambda.layout) =
   | Ptop -> Misc.fatal_error "No machtype for layout [Ptop]"
   | Pbottom -> Misc.fatal_error "No unique machtype for layout [Pbottom]"
   | Punboxed_float -> typ_float
+  | Punboxed_int _ ->
+    (* Only 64-bit architectures, so this is always [typ_int] *)
+    typ_int
   | Pvalue _ -> typ_val
 
 let final_curry_function nlocal arity result =
@@ -4000,4 +4003,5 @@ let kind_of_layout (layout : Lambda.layout) =
     (* This is incorrect but only used for unboxing *)
     Vval Pgenval
   | Punboxed_float -> Vfloat
+  | Punboxed_int _ -> Vint
   | Pvalue kind -> Vval kind

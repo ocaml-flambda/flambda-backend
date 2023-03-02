@@ -704,6 +704,7 @@ and to_clambda_set_of_closures t env
             "[Pbottom] should have been eliminated as dead code \
              and not stored in a closure."
         | Punboxed_float -> true
+        | Punboxed_int _ -> true
         | Pvalue Pintval -> true
         | Pvalue _ -> false)
       free_vars

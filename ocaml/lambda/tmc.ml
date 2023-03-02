@@ -881,6 +881,7 @@ let rec choice ctx t =
     | Pignore
     | Pcompare_ints | Pcompare_floats | Pcompare_bints _
     | Punbox_float | Pbox_float _
+    | Punbox_int _ | Pbox_int _
 
     (* we don't handle array indices as destinations yet *)
     | (Pmakearray _ | Pduparray _)

@@ -418,5 +418,7 @@ let layout_union l1 l2 =
   | Pvalue layout1, Pvalue layout2 ->
       Pvalue (value_kind_union layout1 layout2)
   | Punboxed_float, Punboxed_float -> Punboxed_float
-  | Pvalue _, Punboxed_float | Punboxed_float, Pvalue _ -> Ptop
-  | Ptop, _ | _, Ptop -> Ptop
+  | Punboxed_int bi1, Punboxed_int bi2 ->
+      if equal_boxed_integer bi1 bi2 then l1 else Ptop
+  | (Ptop | Pvalue _ | Punboxed_float | Punboxed_int _), _ ->
+      Ptop

@@ -192,6 +192,8 @@ type primitive =
   | Pobj_magic of layout
   | Punbox_float
   | Pbox_float of alloc_mode
+  | Punbox_int of boxed_integer
+  | Pbox_int of boxed_integer * alloc_mode
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -217,6 +219,7 @@ and layout =
   | Ptop
   | Pvalue of value_kind
   | Punboxed_float
+  | Punboxed_int of boxed_integer
   | Pbottom
 
 and block_shape =

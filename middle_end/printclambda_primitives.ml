@@ -232,3 +232,6 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pbox_float m -> fprintf ppf "box_float.%s" (alloc_kind m)
   | Punbox_float -> fprintf ppf "unbox_float"
+  | Pbox_int (bi, m) ->
+    fprintf ppf "box_%s.%s" (boxed_integer_name bi) (alloc_kind m)
+  | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)

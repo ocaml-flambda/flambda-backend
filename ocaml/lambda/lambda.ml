@@ -241,6 +241,8 @@ type primitive =
   | Pobj_magic of layout
   | Punbox_float
   | Pbox_float of alloc_mode
+  | Punbox_int of boxed_integer
+  | Pbox_int of boxed_integer * alloc_mode
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -260,6 +262,7 @@ and layout =
   | Ptop
   | Pvalue of value_kind
   | Punboxed_float
+  | Punboxed_int of boxed_integer
   | Pbottom
 
 and block_shape =
@@ -334,10 +337,11 @@ let compatible_layout x y =
   | _, Pbottom -> true
   | Pvalue _, Pvalue _ -> true
   | Punboxed_float, Punboxed_float -> true
-  | Punboxed_float, Pvalue _
-  | Pvalue _, Punboxed_float -> false
+  | Punboxed_int bi1, Punboxed_int bi2 ->
+      equal_boxed_integer bi1 bi2
   | Ptop, Ptop -> true
   | Ptop, _ | _, Ptop -> false
+  | (Pvalue _ | Punboxed_float | Punboxed_int _), _ -> false
 
 let must_be_value layout =
   match layout with
@@ -1376,8 +1380,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pprobe_is_enabled _ -> None
   | Pobj_dup -> Some alloc_heap
   | Pobj_magic _ -> None
-  | Punbox_float -> None
-  | Pbox_float m -> Some m
+  | Punbox_float | Punbox_int _ -> None
+  | Pbox_float m | Pbox_int (_, m) -> Some m
 
 let constant_layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
@@ -1438,8 +1442,9 @@ let primitive_result_layout (p : primitive) =
   | Pmulbint (bi, _) | Pdivbint {size = bi} | Pmodbint {size = bi}
   | Pandbint (bi, _) | Porbint (bi, _) | Pxorbint (bi, _)
   | Plslbint (bi, _) | Plsrbint (bi, _) | Pasrbint (bi, _)
-  | Pbbswap (bi, _) ->
+  | Pbbswap (bi, _) | Pbox_int (bi, _) ->
       layout_boxedint bi
+  | Punbox_int bi -> Punboxed_int bi
   | Pstring_load_32 _ | Pbytes_load_32 _ | Pbigstring_load_32 _ ->
       layout_boxedint Pint32
   | Pstring_load_64 _ | Pbytes_load_64 _ | Pbigstring_load_64 _ ->
