@@ -2657,8 +2657,7 @@ let rec make_curry_apply result narity args_type args clos n =
 let machtype_of_layout (layout : Lambda.layout) =
   match layout with
   | Ptop -> Misc.fatal_error "No machtype for layout [Ptop]"
-  | Pbottom ->
-    Misc.fatal_error "No unique machtype for layout [Pbottom]"
+  | Pbottom -> Misc.fatal_error "No unique machtype for layout [Pbottom]"
   | Pvalue _ -> typ_val
 
 let final_curry_function nlocal arity result =
