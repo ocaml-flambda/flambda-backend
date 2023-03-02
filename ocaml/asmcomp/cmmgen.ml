@@ -751,7 +751,11 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
              "Variable %a with layout [Pbottom] can't be compiled"
              VP.print id
          | Pvalue kind ->
-           let strict = is_strict kind in
+           let strict =
+             match kind with
+             | Pfloatval | Pboxedintval _ -> false
+             | Pintval | Pgenval | Pvariant _ | Parrayval _ -> true
+           in
            u := join_unboxed_number_kind ~strict !u
                (is_unboxed_number_cmm c)
       )
