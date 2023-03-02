@@ -519,8 +519,9 @@ module With_subkind = struct
   let from_lambda (layout : Lambda.layout) =
     match layout with
     | Pvalue vk -> from_lambda_value_kind vk
-    | Ptop -> Misc.fatal_error "Can't convert layout top to flambda kind"
-    | Pbottom -> Misc.fatal_error "Can't convert layout bottom to flambda kind"
+    | Ptop -> Misc.fatal_error "Can't convert layout [Ptop] to flambda kind"
+    | Pbottom ->
+      Misc.fatal_error "Can't convert layout [Pbottom] to flambda kind"
 
   include Container_types.Make (struct
     type nonrec t = t

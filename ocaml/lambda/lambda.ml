@@ -336,6 +336,11 @@ let compatible_layout x y =
 let must_be_value layout =
   match layout with
   | Pvalue v -> v
+  | Pbottom ->
+      (* Here, we want to get the [value_kind] corresponding to
+         a [Pbottom] layout. Anything will do, we return [Pgenval]
+         as a default. *)
+      Pgenval
   | _ -> Misc.fatal_error "Layout is not a value"
 
 type structured_constant =

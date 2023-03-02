@@ -54,8 +54,8 @@ let value_kind kind = Format.asprintf "%a" value_kind0 kind
 let layout (layout : Lambda.layout) =
   match layout with
   | Pvalue kind -> value_kind kind
-  | Ptop -> "top"
-  | Pbottom -> "bottom"
+  | Ptop -> ":top"
+  | Pbottom -> ":bottom"
 
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x

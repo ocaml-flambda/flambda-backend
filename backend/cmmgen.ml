@@ -799,13 +799,17 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
     List.iter2
       (fun (id, (layout : Lambda.layout), u) c ->
          match layout with
-         | Ptop | Pbottom ->
-           Misc.fatal_errorf "Variable %a with layout %a can't be compiled"
-             VP.print id Printlambda.layout layout
+         | Ptop ->
+           Misc.fatal_errorf "Variable %a with layout [Ptop] can't be compiled"
+             VP.print id
+         | Pbottom ->
+           Misc.fatal_errorf
+             "Variable %a with layout [Pbottom] can't be compiled"
+             VP.print id
          | Pvalue kind ->
-         let strict = is_strict kind in
-         u := join_unboxed_number_kind ~strict !u
-             (is_unboxed_number_cmm c)
+           let strict = is_strict kind in
+           u := join_unboxed_number_kind ~strict !u
+               (is_unboxed_number_cmm c)
       )
       ids args
   in
@@ -1293,8 +1297,8 @@ and transl_let_value env str (kind : Lambda.value_kind) id exp transl_body =
 and transl_let env str (layout : Lambda.layout) id exp transl_body =
   match layout with
   | Ptop ->
-    Misc.fatal_errorf "Variable %a with layout %a can't be compiled"
-      VP.print id Printlambda.layout layout
+    Misc.fatal_errorf "Variable %a with layout [Ptop] can't be compiled"
+      VP.print id
   | Pbottom ->
     let cexp = transl env exp in
     (* N.B. [body] must still be traversed even if [exp] will never return:
