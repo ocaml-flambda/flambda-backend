@@ -360,7 +360,13 @@ let value_kind env ty =
   in
   value_kind
 
-let layout env ty = Lambda.Pvalue (value_kind env ty)
+let layout env ty =
+  let scty = scrape_ty env ty in
+  match get_desc scty with
+  | Tconstr(p, _, _) when Path.same p Predef.path_unboxed_float ->
+    Lambda.Punboxed_float
+  | _ ->
+    Lambda.Pvalue (value_kind env ty)
 
 let function_return_layout env ty =
   match is_function_type env ty with

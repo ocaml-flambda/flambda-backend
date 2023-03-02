@@ -535,3 +535,10 @@ module Array = struct
 end
 
 module ArrayLabels = Array
+
+module Unboxed = struct
+  type t = unboxed_float
+
+  external box : unboxed_float -> (float[@local_opt]) = "%box_float"
+  external unbox : (float[@local_opt]) -> unboxed_float = "%unbox_float"
+end

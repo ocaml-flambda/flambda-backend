@@ -399,6 +399,8 @@ let lookup_primitive loc poly pos p =
     | "%compare" -> Comparison(Compare, Compare_generic)
     | "%obj_dup" -> Primitive(Pobj_dup, 1)
     | "%obj_magic" -> Primitive(Pobj_magic Lambda.layout_any_value, 1)
+    | "%unbox_float" -> Primitive(Punbox_float, 1)
+    | "%box_float" -> Primitive(Pbox_float mode, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
