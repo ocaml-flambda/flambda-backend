@@ -238,3 +238,10 @@ external format : string -> int32 -> string = "caml_int32_format"
 [@@ocaml.deprecated "Use Printf.sprintf with a [%l...] format instead."]
 (** Do not use this deprecated function.  Instead,
    used {!Printf.sprintf} with a [%l...] format. *)
+
+module Unboxed : sig
+  type t = unboxed_int32
+
+  external box : unboxed_int32 -> (int32[@local_opt]) = "%box_int32"
+  external unbox : (int32[@local_opt]) -> unboxed_int32 = "%unbox_int32"
+end

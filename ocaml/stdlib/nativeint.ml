@@ -96,3 +96,10 @@ let unsigned_div n d =
 
 let unsigned_rem n d =
   sub n (mul (unsigned_div n d) d)
+
+module Unboxed = struct
+  type t = unboxed_nativeint
+
+  external box : unboxed_nativeint -> (nativeint[@local_opt]) = "%box_nativeint"
+  external unbox : (nativeint[@local_opt]) -> unboxed_nativeint = "%unbox_nativeint"
+end

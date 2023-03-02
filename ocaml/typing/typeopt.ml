@@ -365,6 +365,12 @@ let layout env ty =
   match get_desc scty with
   | Tconstr(p, _, _) when Path.same p Predef.path_unboxed_float ->
     Lambda.Punboxed_float
+  | Tconstr(p, _, _) when Path.same p Predef.path_unboxed_int32 ->
+      Lambda.Punboxed_int Pint32
+  | Tconstr(p, _, _) when Path.same p Predef.path_unboxed_int64 ->
+      Lambda.Punboxed_int Pint64
+  | Tconstr(p, _, _) when Path.same p Predef.path_unboxed_nativeint ->
+      Lambda.Punboxed_int Pnativeint
   | _ ->
     Lambda.Pvalue (value_kind env ty)
 

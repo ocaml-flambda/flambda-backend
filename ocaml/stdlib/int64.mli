@@ -256,3 +256,10 @@ external format : string -> int64 -> string = "caml_int64_format"
 [@@ocaml.deprecated "Use Printf.sprintf with a [%L...] format instead."]
 (** Do not use this deprecated function.  Instead,
    used {!Printf.sprintf} with a [%L...] format. *)
+
+module Unboxed : sig
+  type t = unboxed_int64
+
+  external box : unboxed_int64 -> (int64[@local_opt]) = "%box_int64"
+  external unbox : (int64[@local_opt]) -> unboxed_int64 = "%unbox_int64"
+end

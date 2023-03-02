@@ -107,3 +107,10 @@ let unsigned_div n d =
 
 let unsigned_rem n d =
   sub n (mul (unsigned_div n d) d)
+
+module Unboxed = struct
+  type t = unboxed_int32
+
+  external box : unboxed_int32 -> (int32[@local_opt]) = "%box_int32"
+  external unbox : (int32[@local_opt]) -> unboxed_int32 = "%unbox_int32"
+end

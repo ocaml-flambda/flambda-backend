@@ -251,3 +251,10 @@ external format : string -> nativeint -> string = "caml_nativeint_format"
    one [%d], [%i], [%u], [%x], [%X] or [%o] conversion specification.
    This function is deprecated; use {!Printf.sprintf} with a [%nx] format
    instead. *)
+
+module Unboxed : sig
+  type t = unboxed_nativeint
+
+  external box : unboxed_nativeint -> (nativeint[@local_opt]) = "%box_nativeint"
+  external unbox : (nativeint[@local_opt]) -> unboxed_nativeint = "%unbox_nativeint"
+end
