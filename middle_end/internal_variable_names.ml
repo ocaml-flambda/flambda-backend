@@ -302,6 +302,10 @@ let unbox_free_vars_of_closures = "unbox_free_vars_of_closures"
 let unit = "unit"
 let zero = "zero"
 let probe_handler = "probe_handler"
+let punbox_float = "Punbox_float"
+let pbox_float = "Pbox_float"
+let punbox_float_arg = "Punbox_float_arg"
+let pbox_float_arg = "Pbox_float_arg"
 
 let anon_fn_with_loc (sloc: Lambda.scoped_location) =
   let loc = Debuginfo.Scoped_location.to_location sloc in
@@ -421,6 +425,8 @@ let of_primitive : Lambda.primitive -> string = function
   | Pprobe_is_enabled _ -> pprobe_is_enabled
   | Pobj_dup -> pobj_dup
   | Pobj_magic _ -> pobj_magic
+  | Punbox_float -> punbox_float
+  | Pbox_float _ -> pbox_float
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string_arg
@@ -529,3 +535,5 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pprobe_is_enabled _ -> pprobe_is_enabled_arg
   | Pobj_dup -> pobj_dup_arg
   | Pobj_magic _ -> pobj_magic_arg
+  | Punbox_float -> punbox_float_arg
+  | Pbox_float _ -> pbox_float_arg

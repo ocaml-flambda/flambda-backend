@@ -190,6 +190,8 @@ type primitive =
   (* Primitives for [Obj] *)
   | Pobj_dup
   | Pobj_magic of layout
+  | Punbox_float
+  | Pbox_float of alloc_mode
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -214,6 +216,7 @@ and value_kind =
 and layout =
   | Ptop
   | Pvalue of value_kind
+  | Punboxed_float
   | Pbottom
 
 and block_shape =

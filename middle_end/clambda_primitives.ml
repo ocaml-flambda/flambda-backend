@@ -122,6 +122,8 @@ type primitive =
   | Popaque
   (* Probes *)
   | Pprobe_is_enabled of { name : string }
+  | Punbox_float
+  | Pbox_float of alloc_mode
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -144,6 +146,7 @@ and value_kind = Lambda.value_kind =
 and layout = Lambda.layout =
   | Ptop
   | Pvalue of value_kind
+  | Punboxed_float
   | Pbottom
 
 and block_shape = Lambda.block_shape
@@ -171,4 +174,7 @@ and raise_kind = Lambda.raise_kind =
 
 let equal (x: primitive) (y: primitive) = x = y
 
-let result_layout _p = Lambda.layout_any_value
+let result_layout (p : primitive) =
+  match p with
+  | Punbox_float -> Lambda.Punboxed_float
+  | _ -> Lambda.layout_any_value

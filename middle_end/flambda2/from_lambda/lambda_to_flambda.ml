@@ -953,7 +953,8 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigstring_set_32 true
   | Pbigstring_set_64 true
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer | Popaque _
-  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ ->
+  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _
+  | Pbox_float _ | Punbox_float ->
     false
 
 let primitive_result_kind (prim : Lambda.primitive) :
@@ -1035,6 +1036,9 @@ let primitive_result_kind (prim : Lambda.primitive) :
       (_, _, (Pbigarray_complex32 | Pbigarray_complex64 | Pbigarray_unknown), _)
   | Pint_as_pointer | Pobj_dup ->
     Flambda_kind.With_subkind.any_value
+  | Pbox_float _ -> Flambda_kind.With_subkind.boxed_float
+  | Punbox_float ->
+    Flambda_kind.With_subkind.naked_float
 
 type cps_continuation =
   | Tail of Continuation.t

@@ -417,4 +417,6 @@ let layout_union l1 l2 =
   | l, Pbottom -> l
   | Pvalue layout1, Pvalue layout2 ->
       Pvalue (value_kind_union layout1 layout2)
+  | Punboxed_float, Punboxed_float -> Punboxed_float
+  | Pvalue _, Punboxed_float | Punboxed_float, Pvalue _ -> Ptop
   | Ptop, _ | _, Ptop -> Ptop

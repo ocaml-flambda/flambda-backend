@@ -703,6 +703,7 @@ and to_clambda_set_of_closures t env
           Misc.fatal_error
             "[Pbottom] should have been eliminated as dead code \
              and not stored in a closure."
+        | Punboxed_float -> true
         | Pvalue Pintval -> true
         | Pvalue _ -> false)
       free_vars
@@ -752,7 +753,13 @@ and to_clambda_closed_set_of_closures t env symbol
     in
     let body =
       let body, body_layout = to_clambda t env_body function_decl.body in
-      assert(Lambda.compatible_layout body_layout function_decl.return_layout);
+      if not (Lambda.compatible_layout body_layout function_decl.return_layout) then begin
+        Format.printf "body: %a@.function: %a@.%a@."
+          Printlambda.layout body_layout
+          Printlambda.layout function_decl.return_layout
+          Printclambda.clambda body;
+        Misc.fatal_error "Incomatible layouts"
+      end;
       Un_anf.apply ~ppf_dump:t.ppf_dump ~what:symbol body
     in
     assert (

@@ -125,6 +125,8 @@ type primitive =
   | Popaque
   (* Probes *)
   | Pprobe_is_enabled of { name : string }
+  | Punbox_float
+  | Pbox_float of alloc_mode
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -147,6 +149,7 @@ and value_kind = Lambda.value_kind =
 and layout = Lambda.layout =
   | Ptop
   | Pvalue of value_kind
+  | Punboxed_float
   | Pbottom
 
 and block_shape = Lambda.block_shape

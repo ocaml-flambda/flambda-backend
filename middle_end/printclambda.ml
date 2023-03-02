@@ -56,6 +56,7 @@ let layout (layout : Lambda.layout) =
   | Pvalue kind -> value_kind kind
   | Ptop -> ":top"
   | Pbottom -> ":bottom"
+  | Punboxed_float -> ":unboxed_float"
 
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x

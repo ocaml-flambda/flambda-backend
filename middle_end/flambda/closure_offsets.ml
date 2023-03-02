@@ -77,6 +77,7 @@ let add_closure_offsets
           Misc.fatal_error
             "[Pbottom] should have been eliminated as dead code \
              and not stored in a closure."
+        | Punboxed_float -> true
         | Pvalue Pintval -> true
         | Pvalue _ -> false)
       free_vars

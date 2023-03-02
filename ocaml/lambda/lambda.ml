@@ -239,6 +239,8 @@ type primitive =
   (* Primitives for [Obj] *)
   | Pobj_dup
   | Pobj_magic of layout
+  | Punbox_float
+  | Pbox_float of alloc_mode
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -257,6 +259,7 @@ and value_kind =
 and layout =
   | Ptop
   | Pvalue of value_kind
+  | Punboxed_float
   | Pbottom
 
 and block_shape =
@@ -330,6 +333,9 @@ let compatible_layout x y =
   | Pbottom, _
   | _, Pbottom -> true
   | Pvalue _, Pvalue _ -> true
+  | Punboxed_float, Punboxed_float -> true
+  | Punboxed_float, Pvalue _
+  | Pvalue _, Punboxed_float -> false
   | Ptop, Ptop -> true
   | Ptop, _ | _, Ptop -> false
 
@@ -1370,6 +1376,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pprobe_is_enabled _ -> None
   | Pobj_dup -> Some alloc_heap
   | Pobj_magic _ -> None
+  | Punbox_float -> None
+  | Pbox_float m -> Some m
 
 let constant_layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
@@ -1398,7 +1406,9 @@ let primitive_result_layout (p : primitive) =
   | Pduparray _ | Pbigarraydim _ | Pobj_dup -> layout_block
   | Pfield _ | Pfield_computed _ -> layout_field
   | Pfloatfield _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
-  | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _ -> layout_float
+  | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
+  | Pbox_float _ -> layout_float
+  | Punbox_float -> Punboxed_float
   | Pccall _p ->
       (* CR ncourant: use native_repr *)
       layout_any_value
