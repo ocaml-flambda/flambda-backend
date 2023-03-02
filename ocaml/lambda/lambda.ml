@@ -1458,3 +1458,36 @@ let primitive_result_layout (p : primitive) =
       (* CR ncourant: use an unboxed int64 here when it exists *)
       layout_any_value
 
+let rec compute_expr_layout kinds lam =
+  match lam with
+  | Lvar id | Lmutvar id ->
+    begin
+      try Ident.Map.find id kinds
+      with Not_found ->
+        Misc.fatal_errorf "Unbound layout for variable %a" Ident.print id
+    end
+  | Lconst cst -> structured_constant_layout cst
+  | Lfunction _ -> layout_function
+  | Lapply { ap_result_layout; _ } -> ap_result_layout
+  | Lsend (_, _, _, _, _, _, _, layout) -> layout
+  | Llet(_, kind, id, _, body) | Lmutlet(kind, id, _, body) ->
+    compute_expr_layout (Ident.Map.add id kind kinds) body
+  | Lletrec(defs, body) ->
+    let kinds =
+      List.fold_left (fun kinds (id, _) -> Ident.Map.add id layout_letrec kinds)
+        kinds defs
+    in
+    compute_expr_layout kinds body
+  | Lprim(p, _, _) ->
+    primitive_result_layout p
+  | Lswitch(_, _, _, kind) | Lstringswitch(_, _, _, _, kind)
+  | Lstaticcatch(_, _, _, kind) | Ltrywith(_, _, _, kind)
+  | Lifthenelse(_, _, _, kind) | Lregion (_, kind) ->
+    kind
+  | Lstaticraise (_, _) ->
+    layout_bottom
+  | Lsequence(_, body) | Levent(body, _) -> compute_expr_layout kinds body
+  | Lwhile _ | Lfor _ | Lassign _ -> layout_unit
+  | Lifused _ ->
+      assert false
+

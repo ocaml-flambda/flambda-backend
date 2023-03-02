@@ -647,3 +647,5 @@ val mod_setfield: int -> primitive
 val structured_constant_layout : structured_constant -> layout
 
 val primitive_result_layout : primitive -> layout
+
+val compute_expr_layout : layout Ident.Map.t -> lambda -> layout
