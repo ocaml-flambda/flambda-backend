@@ -736,8 +736,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         match bi with
         | Pint32 -> Naked_int32
         | Pint64 -> Naked_int64
-        | Pnativeint -> Naked_nativeint
-      )
+        | Pnativeint -> Naked_nativeint)
     in
     Unary (Unbox_number kind, arg)
   | Pbox_int (bi, mode), [arg] ->
@@ -746,10 +745,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         match bi with
         | Pint32 -> Naked_int32
         | Pint64 -> Naked_int64
-        | Pnativeint -> Naked_nativeint
-      )
+        | Pnativeint -> Naked_nativeint)
     in
-    Unary (Box_number (kind, Alloc_mode.For_allocations.from_lambda mode ~current_region), arg)
+    Unary
+      ( Box_number
+          (kind, Alloc_mode.For_allocations.from_lambda mode ~current_region),
+        arg )
   | Pfield_computed sem, [obj; field] ->
     let block_access : P.Block_access_kind.t =
       Values { tag = Unknown; size = Unknown; field_kind = Any_value }
@@ -1196,7 +1197,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       | Pintofbint _ | Pnegbint _ | Popaque _ | Pduprecord _ | Parraylength _
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
       | Pbbswap _ | Pisint _ | Pint_as_pointer | Pbigarraydim _ | Pobj_dup
-      | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _),
+      | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+        ),
       ([] | _ :: _ :: _) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
