@@ -506,9 +506,19 @@ let rec transl env e =
   | Ugeneric_apply(clos, args, args_layout, result_layout, kind, dbg) ->
       let clos = transl env clos in
       let args = List.map (transl env) args in
-      let args_type = List.map machtype_of_layout args_layout in
-      let return = machtype_of_layout result_layout in
-      generic_apply (mut_from_env env clos) clos args args_type return kind dbg
+      if List.mem Pbottom args_layout then
+        (* [machtype_of_layout] will fail on Pbottom, convert it to a sequence
+           and remove the call, preserving the execution order. *)
+        List.fold_left2 (fun rest arg arg_layout ->
+            if arg_layout = Pbottom then
+              arg
+            else
+              Csequence(remove_unit arg, rest)
+          ) (Ctuple []) args args_layout
+      else
+        let args_type = List.map machtype_of_layout args_layout in
+        let return = machtype_of_layout result_layout in
+        generic_apply (mut_from_env env clos) clos args args_type return kind dbg
   | Usend(kind, met, obj, args, args_layout, result_layout, pos, dbg) ->
       let met = transl env met in
       let obj = transl env obj in
