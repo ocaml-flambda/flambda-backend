@@ -696,11 +696,6 @@ and to_clambda_set_of_closures t env
   let not_scanned_fv, scanned_fv =
     Variable.Map.partition (fun _ (free_var : Flambda.specialised_to) ->
         match free_var.kind with
-        | Ptop -> Misc.fatal_error "[Ptop] can't be stored in a closure."
-        | Pbottom ->
-          Misc.fatal_error
-            "[Pbottom] should have been eliminated as dead code \
-             and not stored in a closure."
         | Pvalue Pintval -> true
         | Pvalue _ -> false)
       free_vars

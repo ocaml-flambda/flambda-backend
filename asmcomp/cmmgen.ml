@@ -448,19 +448,9 @@ let rec transl env e =
   | Ugeneric_apply(clos, args, args_layout, result_layout, kind, dbg) ->
       let clos = transl env clos in
       let args = List.map (transl env) args in
-      if List.mem Pbottom args_layout then
-        (* [machtype_of_layout] will fail on Pbottom, convert it to a sequence
-           and remove the call, preserving the execution order. *)
-        List.fold_left2 (fun rest arg arg_layout ->
-            if arg_layout = Pbottom then
-              arg
-            else
-              Csequence(remove_unit arg, rest)
-          ) (Ctuple []) args args_layout
-      else
-        let args_type = List.map machtype_of_layout args_layout in
-        let return = machtype_of_layout result_layout in
-        generic_apply (mut_from_env env clos) clos args args_type return kind dbg
+      let args_type = List.map machtype_of_layout args_layout in
+      let return = machtype_of_layout result_layout in
+      generic_apply (mut_from_env env clos) clos args args_type return kind dbg
   | Usend(kind, met, obj, args, args_layout, result_layout, pos, dbg) ->
       let met = transl env met in
       let obj = transl env obj in
@@ -741,23 +731,14 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
      each argument.  *)
   let report args =
     List.iter2
-      (fun (id, (layout : Lambda.layout), u) c ->
-         match layout with
-         | Ptop ->
-           Misc.fatal_errorf "Variable %a with layout [Ptop] can't be compiled"
-             VP.print id
-         | Pbottom ->
-           Misc.fatal_errorf
-             "Variable %a with layout [Pbottom] can't be compiled"
-             VP.print id
-         | Pvalue kind ->
-           let strict =
-             match kind with
-             | Pfloatval | Pboxedintval _ -> false
-             | Pintval | Pgenval | Pvariant _ | Parrayval _ -> true
-           in
-           u := join_unboxed_number_kind ~strict !u
-               (is_unboxed_number_cmm ~strict c)
+      (fun (_id, Pvalue kind, u) c ->
+         let strict =
+           match kind with
+           | Pfloatval | Pboxedintval _ -> false
+           | Pintval | Pgenval | Pvariant _ | Parrayval _ -> true
+         in
+         u := join_unboxed_number_kind ~strict !u
+             (is_unboxed_number_cmm ~strict c)
       )
       ids args
   in
@@ -1200,7 +1181,7 @@ and transl_unbox_sized size dbg env exp =
   | Thirty_two -> transl_unbox_int dbg env Pint32 exp
   | Sixty_four -> transl_unbox_int dbg env Pint64 exp
 
-and transl_let_value env str (kind : Lambda.value_kind) id exp transl_body =
+and transl_let env str (Pvalue kind : Lambda.layout) id exp transl_body =
   let dbg = Debuginfo.none in
   let cexp = transl env exp in
   let unboxing =
@@ -1251,20 +1232,6 @@ and transl_let_value env str (kind : Lambda.value_kind) id exp transl_body =
       | (Immutable | Immutable_unique), _ -> Clet (v, cexp, body)
       | Mutable, bn -> Clet_mut (v, typ_of_boxed_number bn, cexp, body)
       end
-
-and transl_let env str (layout : Lambda.layout) id exp transl_body =
-  match layout with
-  | Ptop ->
-      Misc.fatal_errorf "Variable %a with layout [Ptop] can't be compiled"
-        VP.print id
-  | Pbottom ->
-      let cexp = transl env exp in
-      (* N.B. [body] must still be traversed even if [exp] will never return:
-         there may be constant closures inside that need lifting out. *)
-      let _cbody : expression = transl_body env in
-      cexp
-  | Pvalue kind ->
-      transl_let_value env str kind id exp transl_body
 
 and make_catch (kind : Cmm.value_kind) ncatch body handler dbg = match body with
 | Cexit (nexit,[]) when nexit=ncatch -> handler
