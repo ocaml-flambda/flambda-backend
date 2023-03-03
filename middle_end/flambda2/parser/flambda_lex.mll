@@ -33,11 +33,11 @@ let keyword_table =
     "always", KWD_ALWAYS;
     "and", KWD_AND;
     "andwhere", KWD_ANDWHERE;
+    "any", KWD_ANY;
     "apply", KWD_APPLY;
     "array", KWD_ARRAY;
     "asr", KWD_ASR;
     "available", KWD_AVAILABLE;
-    "Block", KWD_BLOCK;
     "boxed", KWD_BOXED;
     "ccall", KWD_CCALL;
     "closure", KWD_CLOSURE;
@@ -96,6 +96,11 @@ let keyword_table =
     "val", KWD_VAL;
     "where", KWD_WHERE;
     "with", KWD_WITH;
+
+    (* Constructors for static constants *)
+    "Block", STATIC_CONST_BLOCK;
+    "Float_array", STATIC_CONST_FLOAT_ARRAY;
+    "Float_block", STATIC_CONST_FLOAT_BLOCK;
 ]
 
 let ident_or_keyword str =
@@ -121,6 +126,7 @@ let prim_table =
     "int_arith", PRIM_INT_ARITH;
     "int_comp", PRIM_INT_COMP;
     "int_shift", PRIM_INT_SHIFT;
+    "is_flat_float_array", PRIM_IS_FLAT_FLOAT_ARRAY;
     "is_int", PRIM_IS_INT;
     "num_conv", PRIM_NUM_CONV;
     "Opaque", PRIM_OPAQUE;
@@ -252,6 +258,7 @@ rule token = parse
   | "|"  { PIPE }
   | "~"  { TILDE }
   | "&"  { AMP }
+  | "^"  { CARET }
   | "===>" { BIGARROW }
   | identstart identchar* as ident
          { ident_or_keyword ident }

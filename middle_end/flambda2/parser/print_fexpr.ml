@@ -106,7 +106,7 @@ let special_continuation ppf special_cont =
   | Done -> Format.fprintf ppf "done"
   | Error -> Format.fprintf ppf "error"
 
-let continuation ppf cont =
+let continuation ppf (cont : continuation) =
   match cont with
   | Named id -> continuation_id ppf id
   | Special special_cont -> special_continuation ppf special_cont
@@ -117,6 +117,11 @@ let result_continuation ppf rcont =
   | Never_returns -> Format.fprintf ppf "never"
 
 let exn_continuation ppf c = Format.fprintf ppf "* %a" continuation c
+
+let region ppf (r : region) =
+  match r with
+  | Named v -> variable ppf v
+  | Toplevel -> Format.pp_print_string ppf "toplevel"
 
 let naked_number_kind ppf (nnk : Flambda_kind.Naked_number_kind.t) =
   Format.pp_print_string ppf
@@ -132,8 +137,7 @@ let rec subkind ppf (k : subkind) =
   let str s = Format.pp_print_string ppf s in
   match k with
   | Anything -> str "val"
-  | Float_block _ ->
-    str "float_block" (* CR-someday lmaurer: unimplemented in parser *)
+  | Float_block { num_fields } -> Format.fprintf ppf "float ^ %d" num_fields
   | Boxed_float -> str "float boxed"
   | Boxed_int32 -> str "int32 boxed"
   | Boxed_int64 -> str "int64 boxed"
@@ -143,8 +147,7 @@ let rec subkind ppf (k : subkind) =
   | Float_array -> str "float array"
   | Immediate_array -> str "imm array"
   | Value_array -> str "val array"
-  | Generic_array ->
-    str "generic_array" (* CR-someday lmaurer: unimplemented in parser *)
+  | Generic_array -> str "any array"
 
 and variant_subkind ppf consts non_consts =
   match consts, non_consts with
@@ -277,20 +280,18 @@ let mutability ~space ppf mut =
 let array_kind ~space ppf (ak : array_kind) =
   let str =
     match ak with
-    | Immediates -> None
-    | Values -> Some "val"
+    | Values -> None
+    | Immediates -> Some "imm"
     | Naked_floats -> Some "float"
   in
   pp_option ~space Format.pp_print_string ppf str
 
 let init_or_assign ppf ia =
-  let str =
-    match ia with
-    | Initialization -> "="
-    | Assignment Heap -> "<-"
-    | Assignment (Local _) -> "<-local"
-  in
-  Format.fprintf ppf "%s" str
+  match ia with
+  | Initialization -> Format.pp_print_string ppf "="
+  | Assignment Heap -> Format.pp_print_string ppf "<-"
+  | Assignment (Local { region = r }) ->
+    Format.fprintf ppf "@[<h><-@ &%a@]" region r
 
 let boxed_variable ppf var ~kind =
   Format.fprintf ppf "%a : %s boxed" variable var kind
@@ -346,22 +347,35 @@ let binary_int_arith_op ppf (o : binary_int_arith_op) =
   | Or -> "lor"
   | Xor -> "lxor"
 
-let int_comp ppf (o : signed_or_unsigned comparison_behaviour) =
+let signed_or_unsigned ppf (o : infix_binop) ~space =
+  let is_unsigned_comparison (c : signed_or_unsigned comparison) =
+    match c with
+    | Neq | Eq -> false
+    | Lt sou | Gt sou | Le sou | Ge sou -> sou == Unsigned
+  in
+  let is_unsigned_behaviour (o : signed_or_unsigned comparison_behaviour) =
+    match o with
+    | Yielding_bool c -> is_unsigned_comparison c
+    | Yielding_int_like_compare_functions sou -> sou == Unsigned
+  in
+  let is_unsigned =
+    match o with
+    | Int_comp b -> is_unsigned_behaviour b
+    | Int_arith _ | Int_shift _ | Float_arith _ | Float_comp _ -> false
+  in
+  if is_unsigned then pp_spaced ppf ~space "%s" "unsigned"
+
+let int_comp ppf (o : _ comparison_behaviour) =
   Format.pp_print_string ppf
   @@
   match o with
   | Yielding_bool Neq -> "<>"
   | Yielding_bool Eq -> "="
-  | Yielding_bool (Lt Signed) -> "<"
-  | Yielding_bool (Gt Signed) -> ">"
-  | Yielding_bool (Le Signed) -> "<="
-  | Yielding_bool (Ge Signed) -> ">="
-  | Yielding_bool (Lt Unsigned) -> "<u"
-  | Yielding_bool (Gt Unsigned) -> ">u"
-  | Yielding_bool (Le Unsigned) -> "<=u"
-  | Yielding_bool (Ge Unsigned) -> ">=u"
-  | Yielding_int_like_compare_functions Signed -> "?"
-  | Yielding_int_like_compare_functions Unsigned -> "?u"
+  | Yielding_bool (Lt _) -> "<"
+  | Yielding_bool (Gt _) -> ">"
+  | Yielding_bool (Le _) -> "<="
+  | Yielding_bool (Ge _) -> ">="
+  | Yielding_int_like_compare_functions _ -> "?"
 
 let int_shift_op ppf (s : int_shift_op) =
   Format.pp_print_string ppf
@@ -422,7 +436,10 @@ let binop ppf binop a b =
   | Phys_equal comp ->
     let name = match comp with Eq -> "%phys_eq" | Neq -> "%phys_ne" in
     Format.fprintf ppf "@[<2>%s@ (%a,@ %a)@]" name simple a simple b
-  | Infix op -> Format.fprintf ppf "%a %a %a" simple a infix_binop op simple b
+  | Infix op ->
+    Format.fprintf ppf "@[<h>%a%a@ %a@ %a@]"
+      (signed_or_unsigned ~space:After)
+      op simple a infix_binop op simple b
   | Int_arith (i, o) ->
     Format.fprintf ppf "@[<2>%%int_arith %a%a@ %a@ %a@]"
       (standard_int ~space:After)
@@ -450,6 +467,7 @@ let unop ppf u =
   | Array_length -> str "%array_length"
   | Box_number bk -> box_or_unbox "Box" bk
   | Get_tag -> str "%get_tag"
+  | Is_flat_float_array -> str "%is_flat_float_array"
   | Is_int -> str "%is_int"
   | Num_conv { src; dst } ->
     Format.fprintf ppf "@[<2>%%num_conv@ (%a@ -> %a)@]" convertible_type src
@@ -646,7 +664,7 @@ let rec expr scope ppf = function
         args;
         func;
         arities;
-        region
+        region = r
       } ->
     let pp_inlining_state ppf () =
       pp_option ~space:Before
@@ -660,7 +678,7 @@ let rec expr scope ppf = function
       inlined pp_inlining_state () func_name_with_optional_arities
       (func, arities)
       (simple_args ~space:Before ~omit_if_empty:true)
-      args variable region result_continuation ret exn_continuation ek
+      args region r result_continuation ret exn_continuation ek
 
 and let_expr scope ppf : let_ -> unit = function
   | { bindings = first :: rest; body; value_slots = ces } ->

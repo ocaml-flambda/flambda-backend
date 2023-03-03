@@ -69,6 +69,7 @@ type env =
     error_continuation : Exn_continuation.t;
     continuations : (Continuation.t * int) CM.t;
     exn_continuations : Exn_continuation.t CM.t;
+    toplevel_region : Variable.t;
     variables : Variable.t VM.t;
     symbols : Symbol.t SM.t;
     code_ids : Code_id.t DM.t;
@@ -84,10 +85,12 @@ let init_env () =
   let error_continuation =
     Exn_continuation.create ~exn_handler ~extra_args:[]
   in
+  let toplevel_region = Variable.create "toplevel" in
   { done_continuation;
     error_continuation;
     continuations = CM.empty;
     exn_continuations = CM.empty;
+    toplevel_region;
     variables = VM.empty;
     symbols = SM.empty;
     code_ids = DM.empty;
@@ -98,6 +101,7 @@ let init_env () =
 let enter_code env =
   { continuations = CM.empty;
     exn_continuations = CM.empty;
+    toplevel_region = env.toplevel_region;
     variables = env.variables;
     done_continuation = env.done_continuation;
     error_continuation = env.error_continuation;
@@ -217,6 +221,9 @@ let find_exn_cont env (c : Fexpr.continuation) =
 
 let find_var env v =
   find_with ~descr:"variable" ~find:VM.find_opt env.variables v
+
+let find_region env (r : Fexpr.region) =
+  match r with Toplevel -> env.toplevel_region | Named v -> find_var env v
 
 let find_code_id env code_id =
   find_with ~descr:"code id" ~find:DM.find_opt env.code_ids code_id
@@ -348,6 +355,7 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   | Tag_immediate -> Tag_immediate
   | Untag_immediate -> Untag_immediate
   | Get_tag -> Get_tag
+  | Is_flat_float_array -> Is_flat_float_array
   | Is_int -> Is_int { variant_only = true } (* CR vlaviron: discuss *)
   | Num_conv { src; dst } -> Num_conv { src; dst }
   | Opaque_identity ->
@@ -402,8 +410,17 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   | Int_comp (i, c) -> Int_comp (i, c)
   | Int_shift (i, s) -> Int_shift (i, s)
 
-let ternop (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
-  match ternop with Array_set (ak, ia) -> Array_set (ak, ia)
+let init_or_assign env (ia : Fexpr.init_or_assign) :
+    Flambda_primitive.Init_or_assign.t =
+  match ia with
+  | Initialization -> Initialization
+  | Assignment Heap -> Assignment Alloc_mode.For_allocations.heap
+  | Assignment (Local { region = r }) ->
+    let r = find_region env r in
+    Assignment (Alloc_mode.For_allocations.local ~region:r)
+
+let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
+  match ternop with Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
 
 let convert_block_shape ~num_fields =
   List.init num_fields (fun _field -> Flambda_kind.With_subkind.any_value)
@@ -422,7 +439,7 @@ let prim env (p : Fexpr.prim) : Flambda_primitive.t =
   | Unary (op, arg) -> Unary (unop env op, simple env arg)
   | Binary (op, a1, a2) -> Binary (binop op, simple env a1, simple env a2)
   | Ternary (op, a1, a2, a3) ->
-    Ternary (ternop op, simple env a1, simple env a2, simple env a3)
+    Ternary (ternop env op, simple env a1, simple env a2, simple env a3)
   | Variadic (op, args) ->
     Variadic (varop op (List.length args), List.map (simple env) args)
 
@@ -932,7 +949,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       | None -> Inlining_state.default ~round:0
     in
     let exn_continuation = find_exn_cont env exn_continuation in
-    let region = find_var env region in
+    let region = find_region env region in
     let apply =
       Flambda.Apply.create
         ~callee:(Simple.name (name env func))

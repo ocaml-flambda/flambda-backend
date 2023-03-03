@@ -47,6 +47,10 @@ type continuation_sort =
 (* There's also [Return] and [Toplevel_return], but those don't need to be
  * specified explicitly *)
 
+type region =
+  | Named of variable
+  | Toplevel
+
 type const =
   | Naked_immediate of immediate
   | Tagged_immediate of immediate
@@ -212,9 +216,13 @@ type string_or_bytes = Flambda_primitive.string_or_bytes =
   | String
   | Bytes
 
-type init_or_assign = Flambda_primitive.Init_or_assign.t =
+type alloc_mode_for_allocations =
+  | Heap
+  | Local of { region : region }
+
+type init_or_assign =
   | Initialization
-  | Assignment of Alloc_mode.For_allocations.t
+  | Assignment of alloc_mode_for_allocations
 
 type 'signed_or_unsigned comparison =
       'signed_or_unsigned Flambda_primitive.comparison =
@@ -237,6 +245,7 @@ type unop =
   | Array_length
   | Box_number of box_kind
   | Get_tag
+  | Is_flat_float_array
   | Is_int
   | Num_conv of
       { src : standard_int_or_float;
@@ -359,7 +368,7 @@ type apply =
     arities : function_arities option;
     inlined : inlined_attribute option;
     inlining_state : inlining_state option;
-    region : variable
+    region : region
   }
 
 type size = int

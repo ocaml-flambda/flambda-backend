@@ -145,6 +145,8 @@ module Env : sig
   val bind_special_continuation :
     t -> Continuation.t -> to_:Fexpr.special_continuation -> t
 
+  val bind_toplevel_region : t -> Variable.t -> t
+
   val find_var_exn : t -> Variable.t -> Fexpr.variable
 
   val find_symbol_exn : t -> Symbol.t -> Fexpr.symbol
@@ -152,6 +154,8 @@ module Env : sig
   val find_code_id_exn : t -> Code_id.t -> Fexpr.code_id
 
   val find_continuation_exn : t -> Continuation.t -> Fexpr.continuation
+
+  val find_region_exn : t -> Variable.t -> Fexpr.region
 
   val translate_function_slot : t -> Function_slot.t -> Fexpr.function_slot
 
@@ -243,7 +247,7 @@ end = struct
       | "k" -> Printf.sprintf "k%d" tag
       | _ -> default_add_tag name tag
 
-    let mk_fexpr_id name = Fexpr.Named (name |> nowhere)
+    let mk_fexpr_id name : Fexpr.continuation = Named (name |> nowhere)
   end)
 
   type t =
@@ -252,7 +256,8 @@ end = struct
       code_ids : Code_id_name_map.t;
       function_slots : Function_slot_name_map.t;
       vars_within_closures : Value_slot_name_map.t;
-      continuations : Continuation_name_map.t
+      continuations : Continuation_name_map.t;
+      toplevel_region : Variable.t option
     }
 
   let create () =
@@ -261,7 +266,8 @@ end = struct
       code_ids = Code_id_name_map.empty;
       function_slots = Function_slot_name_map.create ();
       vars_within_closures = Value_slot_name_map.create ();
-      continuations = Continuation_name_map.empty
+      continuations = Continuation_name_map.empty;
+      toplevel_region = None
     }
 
   let bind_var t v =
@@ -299,6 +305,8 @@ end = struct
     in
     { t with continuations }
 
+  let bind_toplevel_region t v = { t with toplevel_region = Some v }
+
   let find_var_exn t v = Variable_name_map.find_exn t.variables v
 
   let find_symbol_exn t s =
@@ -326,6 +334,11 @@ end = struct
 
   let find_continuation_exn t c =
     Continuation_name_map.find_exn t.continuations c
+
+  let find_region_exn t r : Fexpr.region =
+    match t.toplevel_region with
+    | Some toplevel_region when Variable.equal toplevel_region r -> Toplevel
+    | _ -> Named (find_var_exn t r)
 
   let translate_function_slot t c =
     Function_slot_name_map.translate t.function_slots c
@@ -413,7 +426,8 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   | Float_array -> Float_array
   | Immediate_array -> Immediate_array
   | Value_array -> Value_array
-  | Float_block _ | Generic_array ->
+  | Generic_array -> Generic_array
+  | Float_block _ ->
     Misc.fatal_errorf "TODO: Subkind %a" Flambda_kind.With_subkind.Subkind.print
       k
 
@@ -469,6 +483,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Box_number (bk, _alloc_mode) -> Box_number bk
   | Tag_immediate -> Tag_immediate
   | Get_tag -> Get_tag
+  | Is_flat_float_array -> Is_flat_float_array
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)
   | Num_conv { src; dst } -> Num_conv { src; dst }
   | Opaque_identity _ -> Opaque_identity
@@ -485,8 +500,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | String_length string_or_bytes -> String_length string_or_bytes
   | Int_as_pointer | Boolean_not | Duplicate_block _ | Duplicate_array _
   | Bigarray_length _ | Int_arith _ | Float_arith _ | Reinterpret_int64_as_float
-  | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
-  | Obj_dup ->
+  | Is_boxed_float | Begin_try_region | End_region | Obj_dup ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
@@ -529,9 +543,18 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)
 
-let ternop (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
+let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
+    Fexpr.init_or_assign =
+  match ia with
+  | Initialization -> Initialization
+  | Assignment Heap -> Assignment Heap
+  | Assignment (Local { region = r }) ->
+    let r = Env.find_region_exn env r in
+    Assignment (Local { region = r })
+
+let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
-  | Array_set (ak, ia) -> Array_set (ak, ia)
+  | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
   | Block_set _ | Bytes_or_bigstring_set _ | Bigarray_set _ ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
       Flambda_primitive.Without_args.print
@@ -553,7 +576,7 @@ let prim env (p : Flambda_primitive.t) : Fexpr.prim =
   | Binary (op, arg1, arg2) ->
     Binary (binop op, simple env arg1, simple env arg2)
   | Ternary (op, arg1, arg2, arg3) ->
-    Ternary (ternop op, simple env arg1, simple env arg2, simple env arg3)
+    Ternary (ternop env op, simple env arg1, simple env arg2, simple env arg3)
   | Variadic (op, args) -> Variadic (varop op, List.map (simple env) args)
 
 let value_slots env map =
@@ -967,7 +990,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
     else Some (Apply_expr.inlined app)
   in
   let inlining_state = inlining_state (Apply_expr.inlining_state app) in
-  let region = Env.find_var_exn env (Apply_expr.region app) in
+  let region = Env.find_region_exn env (Apply_expr.region app) in
   Apply
     { func;
       continuation;
@@ -1127,9 +1150,11 @@ let bind_all_code_ids env unit =
 let conv flambda_unit =
   let done_ = Flambda_unit.return_continuation flambda_unit in
   let error = Flambda_unit.exn_continuation flambda_unit in
+  let toplevel = Flambda_unit.toplevel_my_region flambda_unit in
   let env = Env.create () in
   let env = Env.bind_special_continuation env done_ ~to_:Done in
   let env = Env.bind_special_continuation env error ~to_:Error in
+  let env = Env.bind_toplevel_region env toplevel in
   (* Bind all code ids in toplevel let bindings at the start, since they don't
      necessarily occur in dependency order *)
   let env = bind_all_code_ids env flambda_unit in

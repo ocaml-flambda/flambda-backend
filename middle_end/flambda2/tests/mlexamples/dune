@@ -9,6 +9,7 @@
    (with-stdout-to generated-rules.inc.new
     (run tools/gen_dune_rules.exe
          tests0
+         tests3
          tests4
          tests5
          tests11))

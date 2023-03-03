@@ -50,6 +50,49 @@
  (alias runtest)
  (action
   (progn
+   (run ../tools/flexpect.exe tests3.flt)
+   (diff? tests3.flt tests3.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests3_in.fl)
+   (diff? tests3_in.fl tests3_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests3_out.fl)
+   (diff? tests3_out.fl tests3_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets tests3.flt.new tests3_in.fl.new tests3_out.fl.new)
+ (deps tests3.ml)
+ (action
+   (run ocamlopt -c tests3.ml -nopervasives -nostdlib
+        -drawfexpr-to tests3_in.fl.new
+        -dfexpr-to tests3_out.fl.new
+        -dflexpect-to tests3.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests3_in.fl tests3_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests3_out.fl tests3_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests3.flt tests3.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
    (run ../tools/flexpect.exe tests4.flt)
    (diff? tests4.flt tests4.flt.corrected))))
 
