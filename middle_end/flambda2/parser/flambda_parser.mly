@@ -59,6 +59,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token AT    [@symbol "@"]
 %token BIGARROW [@symbol "===>"]
 %token BLANK [@symbol "_"]
+%token CARET [@symbol "^"]
 %token COLON  [@symbol ":"]
 %token COMMA [@symbol ","]
 %token DOT   [@symbol "."]
@@ -107,11 +108,11 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_ALWAYS [@symbol "always"]
 %token KWD_AND   [@symbol "and"]
 %token KWD_ANDWHERE [@symbol "andwhere"]
+%token KWD_ANY   [@symbol "any"]
 %token KWD_APPLY [@symbol "apply"]
 %token KWD_ARRAY [@symbol "array"]
 %token KWD_ASR   [@symbol "asr"]
 %token KWD_AVAILABLE [@symbol "available"]
-%token KWD_BLOCK [@symbol "Block"]
 %token KWD_BOXED [@symbol "boxed"]
 %token KWD_CCALL  [@symbol "ccall"]
 %token KWD_CLOSURE  [@symbol "closure"]
@@ -129,8 +130,6 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_EXN   [@symbol "exn"]
 %token KWD_REGION [@symbol "region"]
 %token KWD_FLOAT [@symbol "float"]
-%token KWD_FLOAT_ARRAY [@symbol "Float_array"]
-%token KWD_FLOAT_BLOCK [@symbol "Float_block"]
 %token KWD_HCF   [@symbol "halt_and_catch_fire"]
 %token KWD_HINT  [@symbol "hint"]
 %token KWD_ID    [@symbol "id"]
@@ -168,6 +167,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_SWITCH [@symbol "switch"]
 %token KWD_TAG    [@symbol "tag"]
 %token KWD_TAGGED [@symbol "tagged"]
+%token KWD_TOPLEVEL [@symbol "toplevel"]
 %token KWD_TUPLED [@symbol "tupled"]
 %token KWD_UNIT   [@symbol "unit"]
 %token KWD_UNREACHABLE [@symbol "unreachable"]
@@ -191,6 +191,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_INT_ARITH [@symbol "%int_arith"]
 %token PRIM_INT_COMP [@symbol "%int_comp"]
 %token PRIM_INT_SHIFT [@symbol "%int_shift"]
+%token PRIM_IS_FLAT_FLOAT_ARRAY [@symbol "%is_flat_float_array"]
 %token PRIM_IS_INT [@symbol "%is_int"]
 %token PRIM_NUM_CONV [@symbol "%num_conv"]
 %token PRIM_OPAQUE [@symbol "%Opaque"]
@@ -206,12 +207,17 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_UNBOX_NATIVEINT [@symbol "%unbox_nativeint"]
 %token PRIM_UNTAG_IMM [@symbol "%untag_imm"]
 
+%token STATIC_CONST_BLOCK [@symbol "Block"]
+%token STATIC_CONST_FLOAT_ARRAY [@symbol "Float_array"]
+%token STATIC_CONST_FLOAT_BLOCK [@symbol "Float_block"]
+
 %start flambda_unit expect_test_spec
 %type <Fexpr.array_kind> array_kind
 %type <Fexpr.binary_float_arith_op> binary_float_arith_op
 %type <Fexpr.binary_int_arith_op> binary_int_arith_op
 %type <Fexpr.block_access_field_kind> block_access_field_kind
 %type <Fexpr.const> const
+%type <Fexpr.continuation> continuation
 %type <Fexpr.standard_int_or_float> convertible_type
 %type <Fexpr.expect_test_spec> expect_test_spec
 %type <Fexpr.field_of_block> field_of_block
@@ -230,6 +236,7 @@ let make_boxed_const_int (i, m) : static_data =
 %type <Fexpr.named> named
 %type <Fexpr.rec_info> rec_info
 %type <Fexpr.rec_info> rec_info_atom
+%type <Fexpr.region> region
 %type <Fexpr.special_continuation> special_continuation
 %type <Fexpr.standard_int> standard_int
 %type <Fexpr.static_data> static_data
@@ -344,6 +351,7 @@ unop:
   | PRIM_BOX_NATIVEINT { Box_number Naked_nativeint }
   | PRIM_BYTES_LENGTH { String_length Bytes }
   | PRIM_GET_TAG { Get_tag }
+  | PRIM_IS_FLAT_FLOAT_ARRAY { Is_flat_float_array }
   | PRIM_IS_INT { Is_int }
   | PRIM_NUM_CONV; LPAREN;
       src = convertible_type; MINUSGREATER; dst = convertible_type;
@@ -422,7 +430,8 @@ convertible_type:
 
 init_or_assign:
   | EQUAL { Initialization }
-  | LESSMINUS { Assignment Alloc_mode.For_allocations.heap }
+  | LESSMINUS { Assignment Heap }
+  | LESSMINUS AMP; region = region { Assignment (Local { region }) }
 
 signed_or_unsigned:
   | { Signed }
@@ -555,14 +564,13 @@ subkind:
   | KWD_INT64 KWD_BOXED { Boxed_int64 }
   | KWD_NATIVEINT KWD_BOXED { Boxed_nativeint }
   | KWD_IMM KWD_TAGGED { Tagged_immediate }
-  (* TODO float blocks - KWD_FLOAT KWD_BLOCK is the most obvious thing but
-     KWD_BLOCK is capitalized *)
+  | KWD_FLOAT; CARET; num_fields = plain_int { Float_block { num_fields } }
   | LBRACK; ctors = ctors; RBRACK
     { let consts, non_consts = ctors in Variant { consts; non_consts; }}
   | KWD_FLOAT KWD_ARRAY { Float_array }
   | KWD_IMM KWD_ARRAY { Immediate_array }
   | KWD_VAL KWD_ARRAY { Value_array }
-  (* TODO generic arrays *)
+  | KWD_ANY KWD_ARRAY { Generic_array }
 ;
 subkinds_nonempty:
   | sks = separated_nonempty_list(STAR, subkind) { sks }
@@ -691,7 +699,7 @@ apply_expr:
     inlining_state = option(inlining_state);
     func = func_name_with_optional_arities;
     args = simple_args;
-    AMP region = variable;
+    AMP region = region;
     MINUSGREATER
     r = result_continuation e = exn_continuation
      { let (func, arities) = func in {
@@ -738,6 +746,12 @@ inlining_state:
 
 inlining_state_depth:
   | KWD_DEPTH LPAREN; i = plain_int; RPAREN { i }
+;
+
+region:
+  | v = variable { Named v }
+  | KWD_TOPLEVEL { Toplevel }
+;
 
 result_continuation:
   | c = continuation { Return c }
@@ -785,17 +799,17 @@ static_data_binding:
 ;
 
 static_data:
-  | KWD_BLOCK; m = mutability; tag = tag; LPAREN;
+  | STATIC_CONST_BLOCK; m = mutability; tag = tag; LPAREN;
     elements = separated_list(COMMA, field_of_block); RPAREN
     { (Block { tag; mutability = m; elements } : static_data) }
   | f = FLOAT { Boxed_float (Const f) }
   | i = INT { make_boxed_const_int i }
   | v = variable; COLON; k = static_data_kind { k v }
-  | KWD_FLOAT_BLOCK; LPAREN;
+  | STATIC_CONST_FLOAT_BLOCK; LPAREN;
     fs = separated_list(COMMA, float_or_variable);
     RPAREN
     { Immutable_float_block fs }
-  | KWD_FLOAT_ARRAY; LBRACKPIPE;
+  | STATIC_CONST_FLOAT_ARRAY; LBRACKPIPE;
     fs = separated_list(SEMICOLON, float_or_variable);
     RBRACKPIPE
     { Immutable_float_array fs }
