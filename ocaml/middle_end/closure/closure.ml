@@ -59,8 +59,6 @@ let rec add_to_closure_env env_param pos cenv = function
 
 let is_gc_ignorable kind =
   match kind with
-  | Ptop -> Misc.fatal_error "[Ptop] can't be stored in a closure."
-  | Pbottom -> Misc.fatal_error "[Pbottom] should not be stored in a closure."
   | Pvalue Pintval -> true
   | Pvalue (Pgenval | Pfloatval | Pboxedintval _ | Pvariant _ | Parrayval _) -> false
 

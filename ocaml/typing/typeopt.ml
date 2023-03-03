@@ -411,10 +411,5 @@ let value_kind_union (k1 : Lambda.value_kind) (k2 : Lambda.value_kind) =
   if Lambda.equal_value_kind k1 k2 then k1
   else Pgenval
 
-let layout_union l1 l2 =
-  match l1, l2 with
-  | Pbottom, l
-  | l, Pbottom -> l
-  | Pvalue layout1, Pvalue layout2 ->
-      Pvalue (value_kind_union layout1 layout2)
-  | Ptop, _ | _, Ptop -> Ptop
+let layout_union (Pvalue layout1) (Pvalue layout2) =
+  Pvalue (value_kind_union layout1 layout2)
