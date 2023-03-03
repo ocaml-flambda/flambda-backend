@@ -232,7 +232,12 @@ val field_address : expression -> int -> Debuginfo.t -> expression
 (** [get_field_gen mut ptr n dbg] returns an expression for the access to the
     [n]th field of the block pointed to by [ptr] *)
 val get_field_gen :
-  Asttypes.mutable_flag -> expression -> int -> Debuginfo.t -> expression
+  ?memory_chunk:Cmm.memory_chunk (** default [Word_val] *) ->
+  Asttypes.mutable_flag ->
+  expression ->
+  int ->
+  Debuginfo.t ->
+  expression
 
 (** Get the field of the given [block] whose index is specified by the Cmm
     expresson [index] (in words). *)
