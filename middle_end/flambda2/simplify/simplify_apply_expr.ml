@@ -709,18 +709,6 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       "[Apply] terms with a [probe_name] (i.e. that call a tracing probe) must \
        always be marked as [Never_inline]:@ %a"
       Apply.print apply);
-  let result_arity_of_application = Apply.return_arity apply in
-  if not
-       (Flambda_arity.equal
-          (Flambda_arity.With_subkinds.to_arity result_arity)
-          (Flambda_arity.With_subkinds.to_arity result_arity_of_application))
-  then
-    Misc.fatal_errorf
-      "Wrong return arity for direct OCaml function call (expected %a, found \
-       %a):@ %a"
-      Flambda_arity.With_subkinds.print result_arity
-      Flambda_arity.With_subkinds.print result_arity_of_application Apply.print
-      apply;
   let coming_from_indirect = Option.is_none callee's_code_id_from_call_kind in
   let callee's_code_id : _ Or_bottom.t =
     match callee's_code_id_from_call_kind with
@@ -766,10 +754,23 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       let provided_num_args = List.length args in
       let num_params = Flambda_arity.With_subkinds.cardinal params_arity in
       if provided_num_args = num_params
-      then
+      then (
+        let result_arity_of_application = Apply.return_arity apply in
+        if not
+             (Flambda_arity.equal
+                (Flambda_arity.With_subkinds.to_arity result_arity)
+                (Flambda_arity.With_subkinds.to_arity
+                   result_arity_of_application))
+        then
+          Misc.fatal_errorf
+            "Wrong return arity for direct OCaml function call\n\
+            \     (expected %a, found  %a):@ %a"
+            Flambda_arity.With_subkinds.print result_arity
+            Flambda_arity.With_subkinds.print result_arity_of_application
+            Apply.print apply;
         simplify_direct_full_application ~simplify_expr dacc apply function_decl
           ~params_arity ~result_arity ~result_types ~down_to_up
-          ~coming_from_indirect ~callee's_code_metadata
+          ~coming_from_indirect ~callee's_code_metadata)
       else if provided_num_args > num_params
       then
         simplify_direct_over_application ~simplify_expr dacc apply ~down_to_up
