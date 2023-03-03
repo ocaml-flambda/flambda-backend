@@ -1326,35 +1326,66 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot ~function_co
   in
   let acc, body, return_continuation, my_closure =
     match return with
-    | Single_return _ ->
+    | Normal_return _ ->
       let acc, body = compute_body acc in
       acc, body, return_continuation, my_closure
-    | Multiple_return (kinds, unboxed_function_slot) ->
-      let kinds =
-        List.map Flambda_kind.With_subkind.from_lambda kinds
+    | Multiple_return (_, unboxed_function_slot)
+    | Unboxed_float unboxed_function_slot
+    | Unboxed_float_record (_, unboxed_function_slot) ->
+      let boxed_return_kind, field_variables, field_getter =
+        match return with
+        | Normal_return _ -> assert false
+        | Multiple_return (kinds, _) ->
+          let block_access_kind : P.Block_access_kind.t =
+            Values { tag = Known Tag.Scannable.zero;
+                     size = Known (Targetint_31_63.of_int (List.length kinds));
+                     field_kind = Any_value }
+          in
+          let kinds = List.map Flambda_kind.With_subkind.from_lambda kinds in
+          Flambda_kind.With_subkind.block Tag.zero kinds,
+          List.mapi
+            (fun i _kind -> Variable.create ("field_" ^ (Int.to_string i)))
+            kinds,
+          (fun boxed_variable i ->
+             Named.create_prim
+               (Flambda_primitive.Binary
+                  (Block_load (block_access_kind, Immutable),
+                   Simple.var boxed_variable,
+                   Simple.const_int i))
+               Debuginfo.none)
+        | Unboxed_float _ ->
+          Flambda_kind.With_subkind.boxed_float,
+          [Variable.create "unboxed_float"],
+          (fun boxed_variable _ ->
+             Named.create_prim
+               (Flambda_primitive.Unary
+                  (Unbox_number Naked_float,
+                   Simple.var boxed_variable))
+               Debuginfo.none)
+        | Unboxed_float_record (num_fields, _) ->
+          let block_access_kind : P.Block_access_kind.t =
+            Naked_floats { size = Known (Targetint_31_63.of_int num_fields) }
+          in
+          Flambda_kind.With_subkind.float_block ~num_fields,
+          List.init num_fields
+            (fun i -> Variable.create ("floatfield_" ^ (Int.to_string i))),
+          (fun boxed_variable i ->
+             Named.create_prim
+               (Flambda_primitive.Binary
+                  (Block_load (block_access_kind, Immutable),
+                   Simple.var boxed_variable,
+                   Simple.const_int i))
+               Debuginfo.none)
       in
       let unboxed_return_continuation =
         Continuation.create ~sort:Return ~name:"unboxed_return" ()
       in
       let boxed_variable = Variable.create "boxed_result" in
-      let boxed_return_kind =
-        Flambda_kind.With_subkind.block Tag.zero kinds
-      in
-      let block_access_kind : P.Block_access_kind.t =
-        Values { tag = Known Tag.Scannable.zero;
-                 size = Known (Targetint_31_63.of_int (List.length kinds));
-                 field_kind = Any_value }
-      in
       let handler_params =
         Bound_parameters.create
           [Bound_parameter.create boxed_variable boxed_return_kind]
       in
       let handler acc =
-        let field_variables =
-          List.mapi
-            (fun i _kind -> Variable.create ("field_" ^ (Int.to_string i)))
-            kinds
-        in
         let acc, apply_cont =
           Apply_cont_with_acc.create acc unboxed_return_continuation
                ~args:(List.map Simple.var field_variables)
@@ -1367,12 +1398,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot ~function_co
           List.fold_left (fun ((acc, expr), i) field_var ->
               Let_with_acc.create acc
                 (Bound_pattern.singleton (Bound_var.create field_var Name_mode.normal))
-                (Named.create_prim
-                   (Flambda_primitive.Binary
-                      (Block_load (block_access_kind, Immutable),
-                       Simple.var boxed_variable,
-                       Simple.const_int i))
-                      Debuginfo.none)
+                (field_getter boxed_variable i)
                 ~body:expr,
               Targetint_31_63.(add one i))
             ((acc, apply_cont), Targetint_31_63.zero)
@@ -1454,10 +1480,16 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot ~function_co
   in
   let result_arity_main_code, main_code_id =
     match return with
-    | Single_return kind ->
+    | Normal_return kind ->
       Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda kind], code_id
     | Multiple_return (kinds, _) ->
       Flambda_arity.With_subkinds.create (List.map K.With_subkind.from_lambda kinds),
+      Code_id.rename code_id
+    | Unboxed_float _ ->
+      Flambda_arity.With_subkinds.create [K.With_subkind.naked_float],
+      Code_id.rename code_id
+    | Unboxed_float_record (size, _) ->
+      Flambda_arity.With_subkinds.create (List.init size (fun _ -> K.With_subkind.naked_float)),
       Code_id.rename code_id
   in
   let main_code =
@@ -1482,14 +1514,58 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot ~function_co
   in
   let code, by_function_slot, function_code_ids, acc =
     match return with
-    | Single_return _ -> main_code, by_function_slot, function_code_ids, acc
-    | Multiple_return (kinds, unboxed_function_slot) ->
+    | Normal_return _ -> main_code, by_function_slot, function_code_ids, acc
+    | Multiple_return (_, unboxed_function_slot)
+    | Unboxed_float unboxed_function_slot
+    | Unboxed_float_record (_, unboxed_function_slot) ->
       (* The outside caller gave us the function slot and code ID meant for
          the boxed function, which will be a wrapper.
          So in this branch everything starting with 'main_' refers to the
          version with unboxed return. *)
-      let boxed_return_kind =
-        Flambda_kind.With_subkind.block Tag.zero (List.map Flambda_kind.With_subkind.from_lambda kinds)
+      let boxed_return_kind, box_result =
+        match return with
+        | Normal_return _ -> assert false
+        | Multiple_return (kinds, _) ->
+          Flambda_kind.With_subkind.block Tag.zero (List.map Flambda_kind.With_subkind.from_lambda kinds),
+          (fun params ->
+             Named.create_prim
+               (Flambda_primitive.Variadic
+                  (Make_block (Values (Tag.Scannable.zero,
+                                       Flambda_arity.With_subkinds.to_list result_arity_main_code),
+                               Immutable,
+                               if Function_decl.contains_no_escaping_local_allocs decl
+                               then Alloc_mode.For_allocations.heap
+                               else Alloc_mode.For_allocations.local ~region:my_region),
+                   Bound_parameters.simples params))
+               Debuginfo.none)
+        | Unboxed_float _ ->
+          Flambda_kind.With_subkind.boxed_float,
+          (fun params ->
+             let arg =
+               match Bound_parameters.simples params with
+               | [] | _ :: _ :: _ -> assert false
+               | [ simple ] -> simple
+             in
+             Named.create_prim
+               (Flambda_primitive.Unary
+                  (Box_number (Naked_float,
+                               if Function_decl.contains_no_escaping_local_allocs decl
+                               then Alloc_mode.For_allocations.heap
+                               else Alloc_mode.For_allocations.local ~region:my_region),
+                   arg))
+               Debuginfo.none)
+        | Unboxed_float_record (num_fields, _) ->
+          Flambda_kind.With_subkind.float_block ~num_fields,
+          (fun params ->
+             Named.create_prim
+               (Flambda_primitive.Variadic
+                  (Make_block (Naked_floats,
+                               Immutable,
+                               if Function_decl.contains_no_escaping_local_allocs decl
+                               then Alloc_mode.For_allocations.heap
+                               else Alloc_mode.For_allocations.local ~region:my_region),
+                   Bound_parameters.simples params))
+               Debuginfo.none)
       in
       let main_function_slot = unboxed_function_slot in
       let main_name = Function_slot.name unboxed_function_slot in
@@ -1527,25 +1603,14 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot ~function_co
             let return_apply_cont =
               Apply_cont.create return_continuation ~args:[Simple.var block] ~dbg:Debuginfo.none
             in
-            let make_block =
-              Named.create_prim
-                (Flambda_primitive.Variadic
-                   (Make_block (Values (Tag.Scannable.zero,
-                                        Flambda_arity.With_subkinds.to_list result_arity_main_code),
-                                Immutable,
-                                if Function_decl.contains_no_escaping_local_allocs decl
-                                then Alloc_mode.For_allocations.heap
-                                else Alloc_mode.For_allocations.local ~region:my_region),
-                    Bound_parameters.simples params))
-                Debuginfo.none
-            in
+            let box_result_named = box_result params in
             Expr.create_let
               (Let_expr.create
                  (Bound_pattern.singleton (Bound_var.create block Name_mode.normal))
-                 make_block
+                 box_result_named
                  ~body:(Expr.create_apply_cont return_apply_cont)
                  ~free_names_of_body:(Known (Apply_cont.free_names return_apply_cont))),
-            (Name_occurrences.union (Named.free_names make_block)
+            (Name_occurrences.union (Named.free_names box_result_named)
                (Name_occurrences.remove_var (Apply_cont.free_names return_apply_cont) ~var:block))
           in
           Continuation_handler.create params ~handler ~free_names_of_handler:(Known free_names_of_handler)
@@ -1731,12 +1796,18 @@ let close_functions acc external_env ~current_region function_declarations =
         let return = Function_decl.return decl in
         let result_arity =
           match return with
-          | Single_return return ->
+          | Normal_return return ->
             Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda return]
           | Multiple_return (kinds, _) ->
             Flambda_arity.With_subkinds.create
               [Flambda_kind.With_subkind.block
                  Tag.zero (List.map K.With_subkind.from_lambda kinds)]
+          | Unboxed_float _ ->
+            Flambda_arity.With_subkinds.create
+              [Flambda_kind.With_subkind.boxed_float]
+          | Unboxed_float_record (num_fields, _) ->
+            Flambda_arity.With_subkinds.create
+              [Flambda_kind.With_subkind.float_block ~num_fields]
         in
         let poll_attribute =
           Poll_attribute.from_lambda (Function_decl.poll_attribute decl)
@@ -2074,7 +2145,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     (* CR keryan: Same as above, better kind for return type *)
     [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
         ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
-        ~params ~return:(Single_return Lambda.Pgenval) ~return_continuation ~exn_continuation
+        ~params ~return:(Normal_return Lambda.Pgenval) ~return_continuation ~exn_continuation
         ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
         ~free_idents_of_body ~closure_alloc_mode ~num_trailing_local_params
         ~contains_no_escaping_local_allocs Recursive.Non_recursive ]

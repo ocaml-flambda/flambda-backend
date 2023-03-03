@@ -1598,7 +1598,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     ({ kind; params; return; body; attr; loc; mode; region } : L.lfunction) :
     Function_decl.t =
   let return : Function_decl.return_kind =
-    if attr.is_a_functor then Single_return return else
+    if attr.is_a_functor || attr.stub then Normal_return return else
     match return with
     | Pvariant { consts = []; non_consts = [(0, field_kinds)] } ->
       let unboxed_function_slot =
@@ -1606,17 +1606,33 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
           ~name:((Ident.name fid) ^ "_unboxed")
       in
       Multiple_return (field_kinds, unboxed_function_slot)
-    | Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _ | Parrayval _ ->
-      Single_return return
+    | Pvariant { consts = []; non_consts = [(tag, field_kinds)] }
+      when tag = Obj.double_array_tag ->
+      let unboxed_function_slot =
+        Function_slot.create (Compilation_unit.get_current_exn ())
+          ~name:((Ident.name fid) ^ "_unboxed")
+      in
+      assert (List.for_all (fun kind -> kind = Lambda.Pfloatval) field_kinds);
+      Unboxed_float_record (List.length field_kinds, unboxed_function_slot)
+    | Pfloatval ->
+      let unboxed_function_slot =
+        Function_slot.create (Compilation_unit.get_current_exn ())
+          ~name:((Ident.name fid) ^ "_unboxed")
+      in
+      Unboxed_float unboxed_function_slot
+    | Pgenval | Pboxedintval _ | Pintval | Pvariant _ | Parrayval _ ->
+      Normal_return return
   in
   let num_trailing_local_params =
     match kind with Curried { nlocal } -> nlocal | Tupled -> 0
   in
   let body_cont =
     match return with
-    | Single_return _ ->
+    | Normal_return _ ->
       Continuation.create ~sort:Return ()
-    | Multiple_return _ ->
+    | Multiple_return _
+    | Unboxed_float _
+    | Unboxed_float_record _ ->
       Continuation.create ~sort:Normal_or_exn ~name:"boxed_return" ()
   in
   let body_exn_cont = Continuation.create () in

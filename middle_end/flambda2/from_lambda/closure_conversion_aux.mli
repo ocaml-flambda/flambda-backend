@@ -285,8 +285,10 @@ end
 module Function_decls : sig
   module Function_decl : sig
     type return_kind =
-      | Single_return of Lambda.value_kind
+      | Normal_return of Lambda.value_kind
       | Multiple_return of Lambda.value_kind list * Function_slot.t
+      | Unboxed_float of Function_slot.t
+      | Unboxed_float_record of int * Function_slot.t
 
     type t
 
