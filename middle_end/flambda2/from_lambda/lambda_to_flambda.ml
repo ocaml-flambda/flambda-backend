@@ -1597,10 +1597,28 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
 and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     ({ kind; params; return; body; attr; loc; mode; region } : L.lfunction) :
     Function_decl.t =
+  let return : Function_decl.return_kind =
+    if attr.is_a_functor then Single_return return else
+    match return with
+    | Pvariant { consts = []; non_consts = [(0, field_kinds)] } ->
+      let unboxed_function_slot =
+        Function_slot.create (Compilation_unit.get_current_exn ())
+          ~name:((Ident.name fid) ^ "_unboxed")
+      in
+      Multiple_return (field_kinds, unboxed_function_slot)
+    | Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _ | Parrayval _ ->
+      Single_return return
+  in
   let num_trailing_local_params =
     match kind with Curried { nlocal } -> nlocal | Tupled -> 0
   in
-  let body_cont = Continuation.create ~sort:Return () in
+  let body_cont =
+    match return with
+    | Single_return _ ->
+      Continuation.create ~sort:Return ()
+    | Multiple_return _ ->
+      Continuation.create ~sort:Normal_or_exn ~name:"boxed_return" ()
+  in
   let body_exn_cont = Continuation.create () in
   let free_idents_of_body =
     match precomputed_free_idents with

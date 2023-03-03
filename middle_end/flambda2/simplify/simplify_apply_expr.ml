@@ -50,7 +50,7 @@ let record_free_names_of_apply_as_used0 apply ~use_id ~exn_cont_use_id data_flow
   in
   Flow.Acc.add_apply_conts
     ~exn_cont:(exn_cont_use_id, exn_cont)
-    ~result_cont data_flow
+    ~result_cont ~result_arity:(Call_kind.return_arity(Apply.call_kind apply)) data_flow
 
 let record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply =
   DA.map_flow_acc dacc
@@ -698,16 +698,19 @@ let simplify_direct_function_call ~simplify_expr dacc apply
   let result_arity_of_application =
     Call_kind.return_arity (Apply.call_kind apply)
   in
-  if not
+  begin match
        (Flambda_arity.With_subkinds.compatible result_arity
           ~when_used_at:result_arity_of_application)
-  then
-    Misc.fatal_errorf
-      "Wrong return arity for direct OCaml function call (expected %a, found \
-       %a):@ %a"
-      Flambda_arity.With_subkinds.print result_arity
-      Flambda_arity.With_subkinds.print result_arity_of_application Apply.print
-      apply;
+    with
+    | true -> ()
+    | false | exception _ ->
+      Misc.fatal_errorf
+        "Wrong return arity for direct OCaml function call (expected %a, found \
+         %a):@ %a"
+        Flambda_arity.With_subkinds.print result_arity
+        Flambda_arity.With_subkinds.print result_arity_of_application Apply.print
+        apply
+  end;
   let coming_from_indirect = Option.is_none callee's_code_id_from_call_kind in
   let callee's_code_id : _ Or_bottom.t =
     match callee's_code_id_from_call_kind with

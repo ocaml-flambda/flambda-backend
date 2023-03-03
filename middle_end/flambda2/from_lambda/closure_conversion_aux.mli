@@ -284,6 +284,10 @@ end
     one declaration is when processing "let rec".) *)
 module Function_decls : sig
   module Function_decl : sig
+    type return_kind =
+      | Single_return of Lambda.value_kind
+      | Multiple_return of Lambda.value_kind list * Function_slot.t
+
     type t
 
     val create :
@@ -291,7 +295,7 @@ module Function_decls : sig
       function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
       params:(Ident.t * Lambda.value_kind) list ->
-      return:Lambda.value_kind ->
+      return:return_kind ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
       my_region:Ident.t ->
@@ -313,7 +317,7 @@ module Function_decls : sig
 
     val params : t -> (Ident.t * Lambda.value_kind) list
 
-    val return : t -> Lambda.value_kind
+    val return : t -> return_kind
 
     val return_continuation : t -> Continuation.t
 

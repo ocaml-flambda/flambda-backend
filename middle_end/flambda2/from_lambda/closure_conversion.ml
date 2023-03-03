@@ -1100,7 +1100,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
         (Bound_pattern.singleton untagged_scrutinee')
         untag ~body
 
-let close_one_function acc ~code_id ~external_env ~by_function_slot decl
+let close_one_function acc ~code_id ~external_env ~by_function_slot ~function_code_ids decl
     ~has_lifted_closure ~value_slots_from_idents ~function_slots_from_idents
     ~approx_map function_declarations =
   let acc = Acc.with_free_names Name_occurrences.empty acc in
@@ -1265,6 +1265,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     |> Bound_parameters.create
   in
   let acc = Acc.with_seen_a_function acc false in
+  let compute_body acc =
   let acc, body =
     (* XXX seems like this needs to know what [my_region] is *)
     try body acc closure_env
@@ -1281,7 +1282,6 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       (* print body *)
       Printexc.raise_with_backtrace Misc.Fatal_error bt
   in
-  let contains_subfunctions = Acc.seen_a_function acc in
   let my_closure' = Simple.var my_closure in
   let acc, body =
     (* CR mshinwell: These Project_function_slot operations should maybe be
@@ -1322,9 +1322,81 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   let bound =
     Bound_pattern.singleton (Bound_var.create next_depth Name_mode.normal)
   in
-  let acc, body =
-    Let_with_acc.create acc bound (Named.create_rec_info next_depth_expr) ~body
+  Let_with_acc.create acc bound (Named.create_rec_info next_depth_expr) ~body
   in
+  let acc, body, return_continuation, my_closure =
+    match return with
+    | Single_return _ ->
+      let acc, body = compute_body acc in
+      acc, body, return_continuation, my_closure
+    | Multiple_return (kinds, unboxed_function_slot) ->
+      let kinds =
+        List.map Flambda_kind.With_subkind.from_lambda kinds
+      in
+      let unboxed_return_continuation =
+        Continuation.create ~sort:Return ~name:"unboxed_return" ()
+      in
+      let boxed_variable = Variable.create "boxed_result" in
+      let boxed_return_kind =
+        Flambda_kind.With_subkind.block Tag.zero kinds
+      in
+      let block_access_kind : P.Block_access_kind.t =
+        Values { tag = Known Tag.Scannable.zero;
+                 size = Known (Targetint_31_63.of_int (List.length kinds));
+                 field_kind = Any_value }
+      in
+      let handler_params =
+        Bound_parameters.create
+          [Bound_parameter.create boxed_variable boxed_return_kind]
+      in
+      let handler acc =
+        let field_variables =
+          List.mapi
+            (fun i _kind -> Variable.create ("field_" ^ (Int.to_string i)))
+            kinds
+        in
+        let acc, apply_cont =
+          Apply_cont_with_acc.create acc unboxed_return_continuation
+               ~args:(List.map Simple.var field_variables)
+               ~dbg:Debuginfo.none
+        in
+        let acc, apply_cont =
+          Expr_with_acc.create_apply_cont acc apply_cont
+        in
+        let ((acc, expr), _) =
+          List.fold_left (fun ((acc, expr), i) field_var ->
+              Let_with_acc.create acc
+                (Bound_pattern.singleton (Bound_var.create field_var Name_mode.normal))
+                (Named.create_prim
+                   (Flambda_primitive.Binary
+                      (Block_load (block_access_kind, Immutable),
+                       Simple.var boxed_variable,
+                       Simple.const_int i))
+                      Debuginfo.none)
+                ~body:expr,
+              Targetint_31_63.(add one i))
+            ((acc, apply_cont), Targetint_31_63.zero)
+            field_variables
+        in
+        acc, expr
+      in
+      let acc, unboxed_body =
+        Let_cont_with_acc.build_non_recursive acc return_continuation
+          ~handler_params ~handler ~body:compute_body ~is_exn_handler:false
+      in
+      let my_unboxed_closure = Variable.create "my_unboxed_closure" in
+      let acc, unboxed_body =
+        Let_with_acc.create acc (Bound_pattern.singleton (Bound_var.create my_closure Name_mode.normal))
+          (Named.create_prim
+             (Flambda_primitive.Unary
+                (Project_function_slot { move_from = unboxed_function_slot;
+                                         move_to = function_slot }, Simple.var my_unboxed_closure))
+             Debuginfo.none)
+          ~body:unboxed_body
+      in
+      acc, unboxed_body, unboxed_return_continuation, my_unboxed_closure
+  in
+  let contains_subfunctions = Acc.seen_a_function acc in
   let cost_metrics = Acc.cost_metrics acc in
   let inline : Inline_attribute.t =
     (* We make a decision based on [fallback_inlining_heuristic] here to try to
@@ -1380,39 +1452,19 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       then Default_loopify_and_tailrec
       else Default_loopify_and_not_tailrec
   in
-  let open struct
-    type multi_return =
-      | Single_return
-      | Multiple_return of Flambda_arity.With_subkinds.t
-  end in
-  let return_kind = K.With_subkind.from_lambda return in
-  let should_unbox =
-    if Function_decl.is_a_functor decl then Single_return else
-    match K.With_subkind.subkind return_kind with
-    | Variant { consts; non_consts } ->
-      if Targetint_31_63.Set.is_empty consts then
-        match Tag.Scannable.Map.get_singleton non_consts with
-        | None -> Single_return
-        | Some (tag, arity) ->
-          if Tag.Scannable.equal tag Tag.Scannable.zero
-          then
-            Multiple_return (Flambda_arity.With_subkinds.create arity)
-          else Single_return
-      else Single_return
-    | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-    | Tagged_immediate | Float_block _ | Float_array | Immediate_array | Value_array
-    | Generic_array -> Single_return
-  in
-  let result_arity =
-    match should_unbox with
-    | Single_return -> Flambda_arity.With_subkinds.create [return_kind]
-    | Multiple_return kinds -> kinds
+  let result_arity_main_code, main_code_id =
+    match return with
+    | Single_return kind ->
+      Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda kind], code_id
+    | Multiple_return (kinds, _) ->
+      Flambda_arity.With_subkinds.create (List.map K.With_subkind.from_lambda kinds),
+      Code_id.rename code_id
   in
   let main_code =
-    Code.create code_id ~params_and_body
+    Code.create main_code_id ~params_and_body
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
       ~num_trailing_local_params:(Function_decl.num_trailing_local_params decl)
-      ~result_arity
+      ~result_arity:result_arity_main_code
       ~result_types:Unknown
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
@@ -1428,55 +1480,62 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
         (Function_params_and_body.is_my_closure_used params_and_body)
       ~inlining_decision ~absolute_history ~relative_history ~loopify
   in
-  let code, by_function_slot =
-    match should_unbox with
-    | Single_return -> main_code, by_function_slot
-    | Multiple_return kinds ->
-      let wrapper_name = (Function_slot.name function_slot) ^ "_unboxed" in
-      let comp_unit = Compilation_unit.get_current_exn () in
-      let wrapper_code_id = Code_id.create wrapper_name comp_unit in
-      let wrapper_function_slot = Function_slot.create comp_unit ~name:wrapper_name in
-      let wrapper_closure = Variable.create wrapper_name in
+  let code, by_function_slot, function_code_ids, acc =
+    match return with
+    | Single_return _ -> main_code, by_function_slot, function_code_ids, acc
+    | Multiple_return (kinds, unboxed_function_slot) ->
+      (* The outside caller gave us the function slot and code ID meant for
+         the boxed function, which will be a wrapper.
+         So in this branch everything starting with 'main_' refers to the
+         version with unboxed return. *)
+      let boxed_return_kind =
+        Flambda_kind.With_subkind.block Tag.zero (List.map Flambda_kind.With_subkind.from_lambda kinds)
+      in
+      let main_function_slot = unboxed_function_slot in
+      let main_name = Function_slot.name unboxed_function_slot in
+      let main_closure = Variable.create main_name in
       let return_continuation = Continuation.create () in
       let exn_continuation = Continuation.create () in
       let my_closure = Variable.create "my_closure" in
       let my_region = Variable.create "my_region" in
       let my_depth = Variable.create "my_depth" in
-      let body =
+      let body, free_names_of_body =
         let cont = Continuation.create () in
         let main_application =
-          Apply_expr.create ~callee:(Simple.var wrapper_closure) ~continuation:cont
+          Apply_expr.create ~callee:(Simple.var main_closure) ~continuation:(Return cont)
             (Exn_continuation.create ~exn_handler:exn_continuation ~extra_args:[])
             ~args:(Bound_parameters.simples params)
-            ~call_kind:(Call_kind.direct_function_call main_code ~return_arity:kinds
-                          Alloc_mode.For_types.unknown) Debuginfo.none
-            ~inlined:Inlined_attribute.default_inlined
+            ~call_kind:(Call_kind.direct_function_call main_code_id ~return_arity:result_arity_main_code
+                          (Alloc_mode.For_types.unknown ())) Debuginfo.none
+            ~inlined:Inlined_attribute.Default_inlined
             ~inlining_state:(Inlining_state.default ~round:0)
             ~probe_name:None
             ~position:Normal
-            ~relative_history:(Env.relative_history_from_scoped ~loc env)
+            ~relative_history:(Env.relative_history_from_scoped ~loc external_env)
             ~region:my_region
         in
-        let handler =
+        let handler, free_names_of_handler =
           let params =
             Bound_parameters.create
               (List.map (fun kind ->
                    let var = Variable.create "unboxed_return" in
                    Bound_parameter.create var kind)
-                  (Flambda_arity.With_subkinds.to_list kinds))
+                  (Flambda_arity.With_subkinds.to_list result_arity_main_code))
           in
           let handler, free_names_of_handler =
-            let block = Variable.create () in
+            let block = Variable.create "boxed_return" in
             let return_apply_cont =
               Apply_cont.create return_continuation ~args:[Simple.var block] ~dbg:Debuginfo.none
             in
             let make_block =
               Named.create_prim
                 (Flambda_primitive.Variadic
-                   (Make_block (Values, Immutable,
+                   (Make_block (Values (Tag.Scannable.zero,
+                                        Flambda_arity.With_subkinds.to_list result_arity_main_code),
+                                Immutable,
                                 if Function_decl.contains_no_escaping_local_allocs decl
                                 then Alloc_mode.For_allocations.heap
-                                else Alloc_mode.For_allocations.local my_region),
+                                else Alloc_mode.For_allocations.local ~region:my_region),
                     Bound_parameters.simples params))
                 Debuginfo.none
             in
@@ -1485,43 +1544,67 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
                  (Bound_pattern.singleton (Bound_var.create block Name_mode.normal))
                  make_block
                  ~body:(Expr.create_apply_cont return_apply_cont)
-                 ~free_names_of_body:(Apply_cont.free_names return_apply_cont)),
-            Name_occurrences.union (Named.free_names make_block)
-              (Name_occurrences.remove_var (Apply_cont.free_names return_apply_cont) ~var:block)
+                 ~free_names_of_body:(Known (Apply_cont.free_names return_apply_cont))),
+            (Name_occurrences.union (Named.free_names make_block)
+               (Name_occurrences.remove_var (Apply_cont.free_names return_apply_cont) ~var:block))
           in
-          Continuation_handler.create params ~handler ~free_names_of_handler
-            ~is_exn_handler:false
+          Continuation_handler.create params ~handler ~free_names_of_handler:(Known free_names_of_handler)
+            ~is_exn_handler:false,
+          List.fold_left (fun free_names param ->
+              Name_occurrences.remove_var free_names ~var:(Bound_parameter.var param))
+            free_names_of_handler (Bound_parameters.to_list params)
+        in
+        let projection =
+          Named.create_prim
+            (Flambda_primitive.Unary
+               (Project_function_slot { move_from = function_slot;
+                                        move_to = main_function_slot },
+                Simple.var my_closure))
+            Debuginfo.none
         in
         let body =
           Expr.create_let
             (Let_expr.create
-               (Bound_pattern.singleton (Bound_var.create wrapper_closure Name_mode.normal))
-               (Named.create_prim
-                  (Flambda_primitive.Unary (Project_function_slot { move_from: function_slot;
-                                                                    move_to: wrapper_function_slot },
-                                            Simple.var my_closure))
-                    Debuginfo.none)
+               (Bound_pattern.singleton (Bound_var.create main_closure Name_mode.normal))
+               projection
                ~body:(Expr.create_apply main_application)
-               ~free_names_of_body:(Apply_expr.free_names main_application))
+               ~free_names_of_body:(Known (Apply_expr.free_names main_application)))
         in
-        Let_cont_expr.create_non_recursive cont handler
-          ~body
-          ~free_names_of_body:(Name_occurrences.add_variable
+        let free_names_of_body =
+          Name_occurrences.union (Named.free_names projection)
+            (Name_occurrences.remove_var
+               (Apply_expr.free_names main_application)
+               ~var:main_closure)
+        in
+        Let_cont_expr.create_non_recursive cont handler ~body
+          ~free_names_of_body:(Known free_names_of_body),
+        Name_occurrences.union free_names_of_handler
+          (Name_occurrences.remove_continuation free_names_of_body ~continuation:cont)
       in
       let wrapper_params_and_body =
         Function_params_and_body.create
           ~return_continuation ~exn_continuation params ~body
-          ~free_names_of_body ~my_closure ~my_region ~my_depth
+          ~free_names_of_body:(Known free_names_of_body) ~my_closure ~my_region ~my_depth
+      in
+      let free_names_of_params_and_body =
+        Name_occurrences.remove_continuation ~continuation:return_continuation
+          (Name_occurrences.remove_continuation ~continuation:exn_continuation
+             (Name_occurrences.remove_var ~var:my_closure
+                (Name_occurrences.remove_var ~var:my_region
+                   (Name_occurrences.remove_var ~var:my_depth
+                      (List.fold_left (fun free_names param ->
+                           Name_occurrences.remove_var free_names ~var:(Bound_parameter.var param))
+                          free_names_of_body (Bound_parameters.to_list params))))))
       in
       let wrapper_code =
         Code.create code_id ~params_and_body:wrapper_params_and_body
       ~free_names_of_params_and_body ~params_arity
       ~num_trailing_local_params:(Function_decl.num_trailing_local_params decl)
-      ~result_arity:(Flambda_arity.With_subkinds.create [return_kind])
+      ~result_arity:(Flambda_arity.With_subkinds.create [boxed_return_kind])
       ~result_types:Unknown
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
-      ~stub:true ~inline
+      ~stub:true ~inline:Inline_attribute.Default_inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
       ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
@@ -1530,8 +1613,27 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       ~inlining_arguments:(Inlining_arguments.create ~round:0)
       ~dbg ~is_tupled
       ~is_my_closure_used:true
-      ~inlining_decision ~absolute_history ~relative_history ~loopify
+      ~inlining_decision ~absolute_history ~relative_history ~loopify:Never_loopify
       in
+      let main_approx =
+        let code = Code_or_metadata.create main_code in
+        let meta = Code_or_metadata.remember_only_metadata code in
+        if Flambda_features.classic_mode ()
+        then (
+          Inlining_report.record_decision_at_function_definition ~absolute_history
+            ~code_metadata:(Code_or_metadata.code_metadata meta)
+            ~pass:After_closure_conversion
+            ~are_rebuilding_terms:(Are_rebuilding_terms.of_bool true)
+            inlining_decision;
+          if Function_decl_inlining_decision_type.must_be_inlined inlining_decision
+          then code
+          else meta)
+        else meta
+      in
+      wrapper_code,
+      Function_slot.Map.add main_function_slot main_approx by_function_slot,
+      Function_slot.Map.add main_function_slot main_code_id function_code_ids,
+      Acc.add_code ~code_id:main_code_id ~code:main_code acc
   in
   let approx =
     let code = Code_or_metadata.create code in
@@ -1550,7 +1652,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   in
   let acc = Acc.add_code ~code_id ~code acc in
   let acc = Acc.with_seen_a_function acc true in
-  acc, Function_slot.Map.add function_slot approx by_function_slot
+  acc, (Function_slot.Map.add function_slot approx by_function_slot, function_code_ids)
 
 let close_functions acc external_env ~current_region function_declarations =
   let compilation_unit = Compilation_unit.get_current_exn () in
@@ -1628,7 +1730,13 @@ let close_functions acc external_env ~current_region function_declarations =
         in
         let return = Function_decl.return decl in
         let result_arity =
-          Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda return]
+          match return with
+          | Single_return return ->
+            Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda return]
+          | Multiple_return (kinds, _) ->
+            Flambda_arity.With_subkinds.create
+              [Flambda_kind.With_subkind.block
+                 Tag.zero (List.map K.With_subkind.from_lambda kinds)]
         in
         let poll_attribute =
           Poll_attribute.from_lambda (Function_decl.poll_attribute decl)
@@ -1693,23 +1801,23 @@ let close_functions acc external_env ~current_region function_declarations =
         (acc, external_env, Function_slot.Map.empty)
     else acc, external_env, Function_slot.Map.empty
   in
-  let acc, approximations =
+  let acc, (approximations, function_code_ids) =
     List.fold_left
-      (fun (acc, by_function_slot) function_decl ->
+      (fun (acc, (by_function_slot, function_code_ids)) function_decl ->
         let code_id =
           Function_slot.Map.find
             (Function_decl.function_slot function_decl)
             function_code_ids
         in
-        let _, _, acc, expr =
+        let _, _, acc, approxs_and_code_ids =
           Acc.measure_cost_metrics acc ~f:(fun acc ->
               close_one_function acc ~code_id ~external_env ~by_function_slot
-                function_decl ~has_lifted_closure:can_be_lifted
+                ~function_code_ids function_decl ~has_lifted_closure:can_be_lifted
                 ~value_slots_from_idents ~function_slots_from_idents ~approx_map
                 function_declarations)
         in
-        acc, expr)
-      (acc, Function_slot.Map.empty)
+        acc, approxs_and_code_ids)
+      (acc, (Function_slot.Map.empty, function_code_ids))
       func_decl_list
   in
   let acc = Acc.with_free_names Name_occurrences.empty acc in
@@ -1966,7 +2074,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     (* CR keryan: Same as above, better kind for return type *)
     [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
         ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
-        ~params ~return:Lambda.Pgenval ~return_continuation ~exn_continuation
+        ~params ~return:(Single_return Lambda.Pgenval) ~return_continuation ~exn_continuation
         ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
         ~free_idents_of_body ~closure_alloc_mode ~num_trailing_local_params
         ~contains_no_escaping_local_allocs Recursive.Non_recursive ]

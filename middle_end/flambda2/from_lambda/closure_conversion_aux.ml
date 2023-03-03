@@ -610,12 +610,16 @@ end
 
 module Function_decls = struct
   module Function_decl = struct
+    type return_kind =
+      | Single_return of Lambda.value_kind
+      | Multiple_return of Lambda.value_kind list * Function_slot.t
+
     type t =
       { let_rec_ident : Ident.t;
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
         params : (Ident.t * Lambda.value_kind) list;
-        return : Lambda.value_kind;
+        return : return_kind;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
         my_region : Ident.t;

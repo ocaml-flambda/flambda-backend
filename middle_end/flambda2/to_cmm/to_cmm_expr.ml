@@ -270,10 +270,15 @@ let translate_jump_to_continuation env res apply types cont args =
 (* A call to the return continuation of the current block simply is the return
    value for the current block being translated. *)
 let translate_jump_to_return_continuation env res apply return_cont args =
-  match args with
-  | [return_value] -> (
+  (* match args with *)
+  (* | [return_value] -> ( *)
     let dbg = Apply_cont.debuginfo apply in
-    let return_value, env, res, _ = C.simple ~dbg env res return_value in
+    let return_values, env, res, _ = C.simple_list ~dbg env res args in
+    let return_value =
+      match return_values with
+      | [ return_value ] -> return_value
+      | _ -> Cmm.Ctuple return_values
+    in
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     match Apply_cont.trap_action apply with
     | None -> wrap return_value, res
@@ -281,14 +286,14 @@ let translate_jump_to_return_continuation env res apply return_cont args =
     | Some (Push _) ->
       Misc.fatal_errorf
         "Return continuation %a should not be applied with a Push trap action"
-        Continuation.print return_cont)
-  | _ ->
-    (* CR gbury: add support using unboxed tuples *)
-    Misc.fatal_errorf
-      "Return continuation %a should be applied to a single argument in@\n\
-       %a@\n\
-       Multiple return values from functions are not yet supported"
-      Continuation.print return_cont Apply_cont.print apply
+        Continuation.print return_cont
+  (* | _ -> *)
+  (*   (\* CR gbury: add support using unboxed tuples *\) *)
+  (*   Misc.fatal_errorf *)
+  (*     "Return continuation %a should be applied to a single argument in@\n\ *)
+  (*      %a@\n\ *)
+  (*      Multiple return values from functions are not yet supported" *)
+  (*     Continuation.print return_cont Apply_cont.print apply *)
 
 (* The main set of translation functions for expressions *)
 
@@ -618,17 +623,8 @@ and apply_expr env res apply =
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     wrap call, res
   | Return k -> (
-    let[@inline always] unsupported () =
-      (* CR gbury: add support using unboxed tuples *)
-      Misc.fatal_errorf
-        "Return continuation %a should be applied to a single argument in@\n\
-         %a@\n\
-         Multiple return values from functions are not yet supported"
-        Continuation.print k Apply.print apply
-    in
     match Env.get_continuation env k with
-    | Jump { param_types = []; cont = _ } -> unsupported ()
-    | Jump { param_types = [_]; cont } ->
+    | Jump { param_types = _; cont } ->
       (* Case 2 *)
       let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
       wrap (C.cexit cont [call] []), res
@@ -637,7 +633,6 @@ and apply_expr env res apply =
       (* Case 3 *)
       let handler_params = Bound_parameters.to_list handler_params in
       match handler_params with
-      | [] -> unsupported ()
       | [param] ->
         let var = Bound_parameter.var param in
         let env, res =
@@ -646,8 +641,20 @@ and apply_expr env res apply =
             ~num_normal_occurrences_of_bound_vars:handler_params_occurrences
         in
         expr env res body
-      | _ :: _ -> unsupported ())
-    | Jump _ -> unsupported ())
+      | params ->
+        let wrap, env, res = Env.flush_delayed_lets ~mode:Branching_point env res in
+        let env, cmm_params = Env.create_bound_parameters env (List.map Bound_parameter.var params) in
+        let label = Lambda.next_raise_count () in
+        let params_with_machtype =
+          List.map2 (fun cmm_param param -> cmm_param, C.machtype_of_kinded_parameter param)
+            cmm_params params
+        in
+        let expr, res = expr env res body in
+        let handler = C.handler ~dbg:(Apply.dbg apply) label params_with_machtype expr in
+        let expr =
+          C.create_ccatch ~rec_flag:false ~handlers:[handler] ~body:(C.cexit label [call] [])
+        in
+        wrap expr, res))
 
 and apply_cont env res apply_cont =
   let k = Apply_cont.continuation apply_cont in
