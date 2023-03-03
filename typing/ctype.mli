@@ -450,3 +450,8 @@ val package_subtype :
 
 (* Raises [Incompatible] *)
 val mcomp : Env.t -> type_expr -> type_expr -> unit
+
+(* For use with ocamldebug *)
+type global_state
+val global_state : global_state
+val print_global_state : Format.formatter -> global_state -> unit

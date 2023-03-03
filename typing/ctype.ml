@@ -5697,3 +5697,25 @@ let immediacy env typ =
       else
         Type_immediacy.Always
   | _ -> Type_immediacy.Unknown
+
+(* For use with ocamldebug *)
+type global_state =
+  { current_level : int ref;
+    nongen_level : int ref;
+    global_level : int ref;
+  }
+
+let global_state : global_state =
+  { current_level;
+    nongen_level;
+    global_level;
+  }
+
+let print_global_state fmt global_state =
+  let print_field fmt s r = Format.fprintf fmt "%s = %d;@;" s !r in
+  let print_fields fmt { current_level; nongen_level; global_level; } =
+    print_field fmt "current_level" current_level;
+    print_field fmt "nongen_level" nongen_level;
+    print_field fmt "global_level" global_level;
+  in
+  Format.fprintf fmt "@[<1>{@;%a}@]" print_fields global_state

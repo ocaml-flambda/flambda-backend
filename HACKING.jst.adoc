@@ -56,9 +56,14 @@ where the test file or test dir are specified with respect to the
 
 ## Debugging
 
-OCaml 4.14 makes `type_expr` abstract, and thus normal debug printing
-of types no longer works. However, there is now an installable printer
-for types, which we can use to see the types. Here are the instructions:
+We make several custom printers available so that we can print more values in
+`ocamldebug`. Notable examples:
+
+  * OCaml 4.14 makes `type_expr` abstract, and thus normal debug printing
+of types no longer works without a custom printer.
+  * The debug printer for `Ctypes.global_state` lets you see the global mutable state maintained within the `Ctypes` module.
+
+Here's how to install the custom printers for a run of `ocamldebug`:
 
 1. Use the old `Makefile`, not the new `Makefile.jst`. This is an infelicity
 we hope to fix.
@@ -69,4 +74,4 @@ we hope to fix.
 the debugger to load the compiler code, required for the next
 step.
 
-4. Execute `source tools/debug_printers` to install the printers.
+4. From your debugging session, run `source tools/debug_printers` to install the printers.
