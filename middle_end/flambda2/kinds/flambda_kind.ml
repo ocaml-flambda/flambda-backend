@@ -516,12 +516,7 @@ module With_subkind = struct
     | Parrayval Paddrarray -> value_array
     | Parrayval Pgenarray -> generic_array
 
-  let from_lambda (layout : Lambda.layout) =
-    match layout with
-    | Pvalue vk -> from_lambda_value_kind vk
-    | Ptop -> Misc.fatal_error "Can't convert layout [Ptop] to flambda kind"
-    | Pbottom ->
-      Misc.fatal_error "Can't convert layout [Pbottom] to flambda kind"
+  let from_lambda (Pvalue vk : Lambda.layout) = from_lambda_value_kind vk
 
   include Container_types.Make (struct
     type nonrec t = t

@@ -95,11 +95,7 @@ and value_kind' ppf = function
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
-let layout ppf layout =
-  match layout with
-  | Pvalue k -> value_kind ppf k
-  | Ptop -> fprintf ppf "[top]"
-  | Pbottom -> fprintf ppf "[bottom]"
+let layout ppf (Pvalue k) = value_kind ppf k
 
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode mode in
@@ -113,8 +109,6 @@ let return_kind ppf (mode, kind) =
   | Pvalue (Pboxedintval bi) -> fprintf ppf ": %s%s@ " smode (boxed_integer_name bi)
   | Pvalue (Pvariant { consts; non_consts; }) ->
     variant_kind value_kind' ppf ~consts ~non_consts
-  | Ptop -> fprintf ppf ": top@ "
-  | Pbottom -> fprintf ppf ": bottom@ "
 
 let field_kind ppf = function
   | Pgenval -> pp_print_string ppf "*"

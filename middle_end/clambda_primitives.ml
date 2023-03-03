@@ -142,9 +142,7 @@ and value_kind = Lambda.value_kind =
   | Parrayval of array_kind
 
 and layout = Lambda.layout =
-  | Ptop
   | Pvalue of value_kind
-  | Pbottom
 
 and block_shape = Lambda.block_shape
 and boxed_integer = Primitive.boxed_integer =
