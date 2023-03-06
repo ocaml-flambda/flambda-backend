@@ -86,11 +86,7 @@ let polled_loops_analysis funbody =
   in
   (* [exnescape] is [Safe] because we can't loop infinitely having
      returned from the function via an unhandled exception. *)
-  let lbls = snd (PolledLoopsAnalysis.analyze ~exnescape:Safe ~transfer funbody) in
-  let handler_needs_poll n =
-    match Hashtbl.find_opt lbls n with None -> Unsafe_or_safe.bot | Some b -> b
-  in
-  handler_needs_poll
+  snd (PolledLoopsAnalysis.analyze ~exnescape:Safe ~transfer funbody)
 
 (* Detection of functions that can loop via a tail-call without going
    through a poll point. *)
