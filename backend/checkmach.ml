@@ -106,6 +106,8 @@ module Value : sig
 
   val is_top : t -> bool
 
+  val is_bot : t -> bool
+
   val top : t
 
   val bot : t
@@ -119,8 +121,6 @@ module Value : sig
   val safe : t
 
   val relaxed : t
-
-  val never_returns : t -> bool
 
   val print : Format.formatter -> t -> unit
 
@@ -165,7 +165,7 @@ end = struct
 
   let is_top v = v = top
 
-  let never_returns v = v.nor = V.Bot && v.exn = V.Bot
+  let is_bot v = v = bot
 
   let print ppf { nor; exn; div } =
     Format.fprintf ppf "{ nor=%a; exn=%a; div=%a }" V.print nor V.print exn
@@ -430,7 +430,7 @@ end = struct
       mutable unresolved_deps : String.Set.t;
           (** must be the current compilation unit.  *)
       unit_info : Unit_info.t;
-      mutable diverging_loop_headers : Int.Set.t
+      mutable exit_labels : Int.Set.t
     }
 
   let create ppf current_fun_name future_funcnames unit_info =
@@ -439,7 +439,7 @@ end = struct
       future_funcnames;
       unresolved_deps = String.Set.empty;
       unit_info;
-      diverging_loop_headers = Int.Set.empty
+      exit_labels = Int.Set.empty
     }
 
   let analysis_name = Printcmm.property_to_string S.property
@@ -603,6 +603,10 @@ end = struct
 
   module D = Dataflow.Backward ((Value : Dataflow.DOMAIN))
 
+  let record_exit_label t lbl =
+    if not (Int.Set.mem lbl t.exit_labels)
+    then t.exit_labels <- Int.Set.add lbl t.exit_labels
+
   let check_instr t body =
     let transfer (i : Mach.instruction) ~next ~exn =
       match i.desc with
@@ -617,14 +621,17 @@ end = struct
       | Iraise (Raise_reraise | Raise_regular) -> exn
       | Iend -> next
       | Iexit (lbl, _) ->
-        (* t.diverging_loop_headers is empty in the first pass *)
-        if Int.Set.mem lbl t.diverging_loop_headers
-        then Value.join next Value.diverges
-        else next
-      | Iifthenelse _ | Iswitch _ | Icatch _ -> next
+        record_exit_label t lbl;
+        next
+      | Iifthenelse _ | Iswitch _ -> next
+      | Icatch (_rc, _ts, handlers, _body) ->
+        List.iter (fun (lbl, _, _) -> record_exit_label t lbl) handlers;
+        next
       | Itrywith (_body, (Regular | Delayed _), (_trap_stack, _handler)) -> next
     in
-    let result, lbls = D.analyze ~exnescape:Value.exn_escape ~transfer body in
+    let result, get_lbl =
+      D.analyze ~exnescape:Value.exn_escape ~transfer body
+    in
     (* The result does not check the property on paths that diverge
        (non-terminating loops that do not reach normal or exceptional return).
        The second pass takes care of it.
@@ -636,13 +643,18 @@ end = struct
        loop diverges or the Iexit instruction is not reachable from function
        entry. To check divergent loops, rerun D.analyze with initial value of
        the corresponding Iexit labels set to "Safe" instead of "Bot". *)
-    t.diverging_loop_headers
-      <- Hashtbl.fold
-           (fun lbl v acc ->
-             if Value.never_returns v then Int.Set.add lbl acc else acc)
-           lbls Int.Set.empty;
-    if Int.Set.is_empty t.diverging_loop_headers
-    then D.analyze ~exnescape:Value.exn_escape ~transfer body |> fst
+    let unexplored_diverging_loop_headers =
+      Int.Set.filter (fun n -> Value.is_bot (get_lbl n)) t.exit_labels
+    in
+    let init_lbl n =
+      if Int.Set.mem n unexplored_diverging_loop_headers then Value.diverges else Value.bot
+    in
+    if not (Int.Set.is_empty unexplored_diverging_loop_headers)
+    then begin
+      report_labels t unexplored_diverging_loop_headers ~msg:"diverging labels";
+      report t result ~msg:"result" ~desc:"fundecl" Debuginfo.none;
+      D.analyze ~exnescape:Value.exn_escape ~init_lbl ~transfer body |> fst
+    end
     else result
 
   let fundecl (f : Mach.fundecl) ~future_funcnames unit_info ppf =
