@@ -31,7 +31,7 @@ module Backward(D: DOMAIN) : sig
                ?exnescape: D.t ->
                transfer: (Mach.instruction -> next: D.t -> exn: D.t -> D.t) ->
                Mach.instruction ->
-               D.t * (int, D.t) Hashtbl.t
+               D.t * (int -> D.t)
 
   (* [analyze ~exnhandler ~transfer instr] performs a backward dataflow
      analysis on the Mach instruction [instr], typically a function body.

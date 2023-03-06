@@ -72,13 +72,7 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot) ~transfer instr =
         transfer i ~next:b ~exn
     | Iexit (n, _trap_actions) ->
         transfer i ~next:(get_lbl n) ~exn
-    | Itrywith(body, Regular, (_trap_stack, handler)) ->
-        let bx = before end_ exn i.next in
-        let bh = exnhandler (before bx exn handler) in
-        let bb = before bx bh body in
-        transfer i ~next:bb ~exn
-    | Itrywith(body, Delayed _nfail, (_trap_stack, handler)) ->
-      (* CR gyorsh: implement more precise control flow handling. *)
+    | Itrywith(body, _trywith_kind, (_trap_stack, handler)) ->
         let bx = before end_ exn i.next in
         let bh = exnhandler (before bx exn handler) in
         let bb = before bx bh body in
@@ -87,6 +81,6 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot) ~transfer instr =
         transfer i ~next:D.bot ~exn
   in
     let b = before D.bot exnescape instr in
-    (b, lbls)
+    (b, get_lbl)
 
 end
