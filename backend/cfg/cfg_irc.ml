@@ -65,9 +65,8 @@ let build : State.t -> Cfg_with_liveness.t -> unit =
 
 let make_work_list : State.t -> unit =
  fun state ->
-  let initial = State.get_and_clear_initial state in
   if irc_debug then log ~indent:1 "make_work_list";
-  List.iter initial ~f:(fun reg ->
+  State.iter_and_clear_initial state ~f:(fun reg ->
       let deg = reg.Reg.degree in
       if irc_debug
       then

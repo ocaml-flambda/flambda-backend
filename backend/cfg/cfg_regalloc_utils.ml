@@ -382,7 +382,7 @@ let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
   in
   if not prologue_required
   then
-    (* note: `Cfize` has put the prologue in the entry block *)
+    (* note: `Cfgize` has put the prologue in the entry block *)
     let block = Cfg.get_block_exn cfg cfg.entry_label in
     DLL.filter_left block.body ~f:(fun instr ->
         match instr.Cfg.desc with Cfg.Prologue -> false | _ -> true)
