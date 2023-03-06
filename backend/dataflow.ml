@@ -24,12 +24,13 @@ end
 
 module Backward(D: DOMAIN) = struct
 
-let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot) ~transfer instr =
+let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot) ?(init_lbl = fun _ -> D.bot)
+      ~transfer instr =
 
   let lbls =
     (Hashtbl.create 20 : (int, D.t) Hashtbl.t) in
   let get_lbl n =
-    match Hashtbl.find_opt lbls n with None -> D.bot | Some b -> b
+    match Hashtbl.find_opt lbls n with None -> init_lbl n | Some b -> b
   and set_lbl n x =
     Hashtbl.replace lbls n x in
 
@@ -73,6 +74,7 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot) ~transfer instr =
     | Iexit (n, _trap_actions) ->
         transfer i ~next:(get_lbl n) ~exn
     | Itrywith(body, _trywith_kind, (_trap_stack, handler)) ->
+      (* CR gyorsh: implement more precise control flow handling for Delayed try-with *)
         let bx = before end_ exn i.next in
         let bh = exnhandler (before bx exn handler) in
         let bb = before bx bh body in
