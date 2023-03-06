@@ -115,6 +115,7 @@ let prim_table =
     "array_length", PRIM_ARRAY_LENGTH;
     "array_load", PRIM_ARRAY_LOAD;
     "array_set", PRIM_ARRAY_SET;
+    "begin_region", PRIM_BEGIN_REGION;
     "Block", PRIM_BLOCK;
     "block_load", PRIM_BLOCK_LOAD;
     "Box_float", PRIM_BOX_FLOAT;
@@ -122,6 +123,7 @@ let prim_table =
     "Box_int64", PRIM_BOX_INT64;
     "Box_nativeint", PRIM_BOX_NATIVEINT;
     "bytes_length", PRIM_BYTES_LENGTH;
+    "end_region", PRIM_END_REGION;
     "get_tag", PRIM_GET_TAG;
     "int_arith", PRIM_INT_ARITH;
     "int_comp", PRIM_INT_COMP;

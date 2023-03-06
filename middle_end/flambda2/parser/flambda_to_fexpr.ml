@@ -476,6 +476,13 @@ let targetint_ocaml (i : Targetint_31_63.t) : Fexpr.targetint =
 let recursive_flag (r : Recursive.t) : Fexpr.is_recursive =
   match r with Recursive -> Recursive | Non_recursive -> Nonrecursive
 
+let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
+  match op with
+  | Begin_region -> Begin_region
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ ->
+    Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
+      (Flambda_primitive.Nullary op)
+
 let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   match op with
   | Array_length -> Array_length
@@ -483,6 +490,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Box_number (bk, _alloc_mode) -> Box_number bk
   | Tag_immediate -> Tag_immediate
   | Get_tag -> Get_tag
+  | End_region -> End_region
   | Is_flat_float_array -> Is_flat_float_array
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)
   | Num_conv { src; dst } -> Num_conv { src; dst }
@@ -500,7 +508,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | String_length string_or_bytes -> String_length string_or_bytes
   | Int_as_pointer | Boolean_not | Duplicate_block _ | Duplicate_array _
   | Bigarray_length _ | Int_arith _ | Float_arith _ | Reinterpret_int64_as_float
-  | Is_boxed_float | Begin_try_region | End_region | Obj_dup ->
+  | Is_boxed_float | Begin_try_region | Obj_dup ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
@@ -571,7 +579,7 @@ let varop (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
 
 let prim env (p : Flambda_primitive.t) : Fexpr.prim =
   match p with
-  | Nullary _ -> Misc.fatal_errorf "TODO: Nullary primitive"
+  | Nullary op -> Nullary (nullop env op)
   | Unary (op, arg) -> Unary (unop env op, simple env arg)
   | Binary (op, arg1, arg2) ->
     Binary (binop op, simple env arg1, simple env arg2)

@@ -180,6 +180,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_ARRAY_LENGTH [@symbol "%array_length"]
 %token PRIM_ARRAY_LOAD [@symbol "%array_load"]
 %token PRIM_ARRAY_SET [@symbol "%array_set"]
+%token PRIM_BEGIN_REGION [@symbol "%begin_region"]
 %token PRIM_BLOCK [@symbol "%Block"]
 %token PRIM_BLOCK_LOAD [@symbol "%block_load"]
 %token PRIM_BOX_FLOAT [@symbol "%Box_float"]
@@ -187,6 +188,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_BOX_INT64 [@symbol "%Box_int64"]
 %token PRIM_BOX_NATIVEINT [@symbol "%Box_nativeint"]
 %token PRIM_BYTES_LENGTH [@symbol "%bytes_length"]
+%token PRIM_END_REGION [@symbol "%end_region"]
 %token PRIM_GET_TAG [@symbol "%get_tag"]
 %token PRIM_INT_ARITH [@symbol "%int_arith"]
 %token PRIM_INT_COMP [@symbol "%int_comp"]
@@ -343,6 +345,10 @@ recursive:
   | KWD_REC { Recursive }
 ;
 
+nullop:
+  | PRIM_BEGIN_REGION { Begin_region }
+;
+
 unop:
   | PRIM_ARRAY_LENGTH { Array_length }
   | PRIM_BOX_FLOAT { Box_number Naked_float }
@@ -350,6 +356,7 @@ unop:
   | PRIM_BOX_INT64 { Box_number Naked_int64 }
   | PRIM_BOX_NATIVEINT { Box_number Naked_nativeint }
   | PRIM_BYTES_LENGTH { String_length Bytes }
+  | PRIM_END_REGION { End_region }
   | PRIM_GET_TAG { Get_tag }
   | PRIM_IS_FLAT_FLOAT_ARRAY { Is_flat_float_array }
   | PRIM_IS_INT { Is_int }
@@ -512,6 +519,7 @@ block:
 
 named:
   | s = simple { Simple s }
+  | n = nullop { Prim (Nullary n) }
   | u = unop a = simple { Prim (Unary (u, a)) }
   | b = binop_app { Prim b }
   | t = ternop_app { Prim t }
