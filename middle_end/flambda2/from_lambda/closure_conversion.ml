@@ -32,6 +32,8 @@ module K = Flambda_kind
 module P = Flambda_primitive
 module VB = Bound_var
 
+let inconstant_approxs = ref []
+
 type 'a close_program_metadata =
   | Normal : [`Normal] close_program_metadata
   | Classic :
@@ -776,6 +778,38 @@ let close_named acc env ~let_bound_var (named : IR.named)
       ~current_region:(fst (Env.find_var env region))
       k
 
+type simplified_block_load =
+  | Unknown
+  | Not_a_block
+  | Block_but_cannot_simplify of Code_or_metadata.t Value_approximation.t
+  | Field_contents of Symbol.t
+
+let simplify_block_load acc body_env ~block ~field : simplified_block_load =
+  match find_value_approximation_through_symbol acc body_env block with
+  | Value_unknown -> Unknown
+  | Closure_approximation _ | Value_symbol _ | Value_int _ -> Not_a_block
+  | Block_approximation (approx, _alloc_mode) -> (
+    (* Format.eprintf "...block approx found\n%!"; *)
+    let approx =
+      Simple.pattern_match field
+        ~const:(fun const ->
+          match Reg_width_const.descr const with
+          | Tagged_immediate i ->
+            let i = Targetint_31_63.to_int i in
+            if i >= Array.length approx
+            then
+              Misc.fatal_errorf
+                "Trying to access the %dth field of a block approximation of \
+                 length %d."
+                i (Array.length approx);
+            approx.(i)
+          | _ -> Value_approximation.Value_unknown)
+        ~name:(fun _ ~coercion:_ -> Value_approximation.Value_unknown)
+    in
+    match approx with
+    | Value_symbol sym -> Field_contents sym
+    | _ -> Block_but_cannot_simplify approx)
+
 let close_let acc env id user_visible kind defining_expr
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
   let body_env, var = Env.add_var_like env id user_visible kind in
@@ -808,6 +842,9 @@ let close_let acc env id user_visible kind defining_expr
         let approxs =
           List.map (find_value_approximation body_env) fields |> Array.of_list
         in
+        let is_local =
+          match alloc_mode with Local _ -> true | Heap -> false
+        in
         let all_fields_static =
           List.fold_left
             (fun static_fields f ->
@@ -822,27 +859,76 @@ let close_let acc env id user_visible kind defining_expr
                     | _ -> None)
                   ~symbol:(fun s ~coercion:_ ->
                     Some (Field_of_static_block.Symbol s :: fields))
-                  ~var:(fun _v ~coercion:_ -> None)
+                  ~var:(fun v ~coercion:_ ->
+                    if Env.at_toplevel env
+                       && Flambda_features.classic_mode ()
+                       && not is_local
+                    then
+                      Some
+                        (Field_of_static_block.Dynamically_computed
+                           (v, Debuginfo.none)
+                        :: fields)
+                    else None)
                   f)
             (Some []) fields
           |> Option.map List.rev
         in
         match all_fields_static with
         | Some static_fields ->
-          let acc, sym =
-            register_const0 acc
-              (Static_const.block tag Immutable static_fields)
-              (Ident.name id)
-          in
-          let body_env =
-            Env.add_simple_to_substitute body_env id (Simple.symbol sym) kind
-          in
-          let acc =
-            Acc.add_symbol_approximation acc sym
-              (Value_approximation.Block_approximation
-                 (approxs, Alloc_mode.For_allocations.as_type alloc_mode))
-          in
-          body acc body_env
+          if (not (Flambda_features.classic_mode ()))
+             || not (Env.at_toplevel env)
+          then
+            let acc, sym =
+              register_const0 acc
+                (Static_const.block tag Immutable static_fields)
+                (Ident.name id)
+            in
+            let body_env =
+              Env.add_simple_to_substitute body_env id (Simple.symbol sym) kind
+            in
+            let acc =
+              Acc.add_symbol_approximation acc sym
+                (Value_approximation.Block_approximation
+                   (approxs, Alloc_mode.For_allocations.as_type alloc_mode))
+            in
+            body acc body_env
+          else
+            (* This is a possibly-inconstant statically-allocated value, so
+               cannot go through [register_const0]. The definition must be
+               placed right away. *)
+            let symbol =
+              Symbol.create
+                (Compilation_unit.get_current_exn ())
+                (Linkage_name.of_string (Variable.unique_name var))
+            in
+            let static_const = Static_const.block tag Immutable static_fields in
+            let static_consts =
+              [Static_const_or_code.create_static_const static_const]
+            in
+            let defining_expr =
+              Static_const_group.create static_consts
+              |> Named.create_static_consts
+            in
+            let body_env =
+              Env.add_simple_to_substitute body_env id (Simple.symbol symbol)
+                kind
+            in
+            let approx =
+              Value_approximation.Block_approximation
+                (approxs, Alloc_mode.For_allocations.as_type alloc_mode)
+            in
+            let acc = Acc.add_symbol_approximation acc symbol approx in
+            inconstant_approxs := (symbol, approx) :: !inconstant_approxs;
+            (* unsure this is needed let body_env = Env.add_block_approximation
+               body_env var approxs (Alloc_mode.For_allocations.as_type
+               alloc_mode) in *)
+            (* let () = Format.eprintf "symbol %a approx: %a\n%!" Symbol.print
+               symbol Value_approximation.print approx in *)
+            let acc, body = body acc body_env in
+            Let_with_acc.create acc
+              (Bound_pattern.static
+                 (Bound_static.create [Bound_static.Pattern.block_like symbol]))
+              defining_expr ~body
         | None ->
           let body_env =
             Env.add_block_approximation body_env var approxs
@@ -888,15 +974,17 @@ let close_let acc env id user_visible kind defining_expr
         let body_env =
           Env.add_simple_to_substitute body_env id (Simple.symbol symbol) kind
         in
+        inconstant_approxs
+          := (symbol, Value_approximation.Value_unknown) :: !inconstant_approxs;
         let acc, body = body acc body_env in
         Let_with_acc.create acc
           (Bound_pattern.static
              (Bound_static.create [Bound_static.Pattern.block_like symbol]))
           defining_expr ~body
       | Prim (Binary (Block_load _, block, field), _) -> (
-        match find_value_approximation_through_symbol acc body_env block with
-        | Value_unknown -> bind acc body_env
-        | Closure_approximation _ | Value_symbol _ | Value_int _ ->
+        match simplify_block_load acc body_env ~block ~field with
+        | Unknown -> bind acc body_env
+        | Not_a_block ->
           (* Here we assume [block] has already been substituted as a known
              symbol if it exists, and rely on the invariant that the
              approximation of a symbol is never a symbol. *)
@@ -913,32 +1001,14 @@ let close_let acc env id user_visible kind defining_expr
             ( acc,
               Expr.create_invalid
                 (Defining_expr_of_let (bound_pattern, defining_expr)) )
-        | Block_approximation (approx, _alloc_mode) -> (
-          let approx =
-            Simple.pattern_match field
-              ~const:(fun const ->
-                match Reg_width_const.descr const with
-                | Tagged_immediate i ->
-                  let i = Targetint_31_63.to_int i in
-                  if i >= Array.length approx
-                  then
-                    Misc.fatal_errorf
-                      "Trying to access the %dth field of a block \
-                       approximation of length %d."
-                      i (Array.length approx);
-                  approx.(i)
-                | _ -> Value_approximation.Value_unknown)
-              ~name:(fun _ ~coercion:_ -> Value_approximation.Value_unknown)
+        | Field_contents sym ->
+          let body_env =
+            Env.add_simple_to_substitute env id (Simple.symbol sym) kind
           in
-          match approx with
-          | Value_symbol sym ->
-            let body_env =
-              Env.add_simple_to_substitute env id (Simple.symbol sym) kind
-            in
-            body acc body_env
-          | _ ->
-            let body_env = Env.add_var_approximation body_env var approx in
-            bind acc body_env))
+          body acc body_env
+        | Block_but_cannot_simplify approx ->
+          let body_env = Env.add_var_approximation body_env var approx in
+          bind acc body_env)
       | _ -> bind acc body_env)
   in
   close_named acc env ~let_bound_var:var defining_expr cont
@@ -2279,6 +2349,15 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
   let slot_offsets = Slot_offsets.empty in
   let acc = Acc.create ~slot_offsets ~cmx_loader in
   let load_fields_body acc =
+    let env =
+      match Acc.continuation_known_arguments ~cont:prog_return_cont acc with
+      | Some [approx] ->
+        (* Format.eprintf "got approx for prog_return_cont\n%!"; *)
+        Env.add_var_approximation env module_block_var approx
+      | None | Some ([] | _ :: _) ->
+        (* Format.eprintf "no approx for prog_return_cont\n%!"; *)
+        env
+    in
     let field_vars =
       List.init module_block_size_in_words (fun pos ->
           let pos_str = string_of_int pos in
@@ -2325,16 +2404,25 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
     List.fold_left
       (fun (acc, body) (pos, var) ->
         let var = VB.create var Name_mode.normal in
+        let pat = Bound_pattern.singleton var in
         let pos = Targetint_31_63.of_int pos in
-        let named =
-          Named.create_prim
-            (Binary
-               ( Block_load (block_access, Immutable),
-                 Simple.var module_block_var,
-                 Simple.const (Reg_width_const.tagged_immediate pos) ))
-            Debuginfo.none
-        in
-        Let_with_acc.create acc (Bound_pattern.singleton var) named ~body)
+        let block = Simple.var module_block_var in
+        let field = Simple.const (Reg_width_const.tagged_immediate pos) in
+        (* Format.eprintf "module block field: block=%a, field=%a ... "
+           Simple.print block Simple.print field; *)
+        match simplify_block_load acc env ~block ~field with
+        | Unknown | Not_a_block | Block_but_cannot_simplify _ ->
+          (* Format.eprintf "unknown\n%!"; *)
+          let named =
+            Named.create_prim
+              (Binary (Block_load (block_access, Immutable), block, field))
+              Debuginfo.none
+          in
+          Let_with_acc.create acc pat named ~body
+        | Field_contents sym ->
+          (* Format.eprintf "contents %a\n%!" Symbol.print sym; *)
+          let named = Named.create_simple (Simple.symbol sym) in
+          Let_with_acc.create acc pat named ~body)
       (acc, body) (List.rev field_vars)
   in
   let load_fields_handler_param =
@@ -2389,6 +2477,11 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
           Symbol.Map.add symbol Value_approximation.Value_unknown sa)
         (Symbol.Map.singleton module_symbol module_block_approximation)
         (Acc.declared_symbols acc)
+    in
+    let symbol_approxs =
+      List.fold_left
+        (fun sa (symbol, approx) -> Symbol.Map.add symbol approx sa)
+        symbol_approxs !inconstant_approxs
     in
     List.fold_left
       (fun sa (closure_map, _) ->
