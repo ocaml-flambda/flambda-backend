@@ -35,11 +35,12 @@ type t =
   { cfg : Cfg.t;
     mutable layout : layout;
     mutable new_labels : Label.Set.t;
-    preserve_orig_labels : bool
+    preserve_orig_labels : bool;
+    sections : (Label.t, string) Hashtbl.t
   }
 
 let create cfg ~layout ~preserve_orig_labels ~new_labels =
-  { cfg; layout; new_labels; preserve_orig_labels }
+  { cfg; layout; new_labels; preserve_orig_labels; sections = Hashtbl.create 3 }
 
 let cfg t = t.cfg
 
@@ -68,6 +69,19 @@ let set_layout t layout =
         "Cfg set_layout: new layout is not a permutation of the current \
          layout, or first label is not entry");
   t.layout <- layout
+
+let assign_blocks_to_section t labels name =
+  List.iter
+    (fun label ->
+      match Hashtbl.find_opt t.sections label with
+      | Some new_name ->
+        Misc.fatal_errorf
+          "Cannot add %d->%s section mapping, already have %d->%s" label name
+          label new_name ()
+      | None -> Hashtbl.replace t.sections label name)
+    labels
+
+let get_section t label = Hashtbl.find_opt t.sections label
 
 let remove_block t label =
   Cfg.remove_block_exn t.cfg label;

@@ -28,6 +28,7 @@ module type Flambda_backend_options = sig
   val dcfg_equivalence_check : unit -> unit
 
   val reorder_blocks_random : int -> unit
+  val basic_block_sections : unit -> unit
 
   val dasm_comments : unit -> unit
   val dno_asm_comments : unit -> unit
