@@ -126,7 +126,7 @@ module Value : sig
 
   val transform : t -> t
 end = struct
-  (** Lifts V to pairs  *)
+  (** Lifts V to triples  *)
   type t =
     { nor : V.t;
       exn : V.t;
@@ -259,7 +259,7 @@ end = struct
 end
 
 module Func_info = struct
-  (* Fields are mutable: [annotation] change when a call appears before the
+  (* Fields are mutable: [annotation] changes when a call appears before the
      declaration. [value] and [unresolved_callers] change to track and update
      dependencies as the compilation unit is scanned. *)
   type t =
@@ -289,7 +289,7 @@ module type Spec = sig
       because the check passed or because of user-defined "assume" annotation. *)
   val get_value : string -> Value.t
 
-  (** [set_value f v] record the value of the function named [f] in [Compenv]. *)
+  (** [set_value f v] record the value of the function named [f] in [Compilenv]. *)
   val set_value : string -> Value.t -> unit
 
   (** Does the operation satisfy the property? *)
@@ -317,7 +317,7 @@ module Unit_info : sig
       and previously recorded.  *)
   val join_value : t -> string -> Value.t -> unit
 
-  (** [join_value t name v] name must be in the current compilation unit
+  (** [add_value t name v] name must be in the current compilation unit
       and have not been recorded yet.  *)
   val add_value : t -> string -> Value.t -> unit
 
@@ -385,7 +385,7 @@ end = struct
   let record_annotation t name annotation =
     let func_info = get_or_create t name in
     if Option.is_some func_info.annotation
-    then Misc.fatal_errorf "Duplicate symbool %s" name;
+    then Misc.fatal_errorf "Duplicate symbol %s" name;
     func_info.annotation <- annotation
 
   let record_deps t ~caller ~callees =
@@ -680,7 +680,7 @@ module Spec_alloc : Spec = struct
   let enabled () = !Flambda_backend_flags.alloc_check
 
   (* Compact the mapping from function name to Value.t to reduce size of Checks
-     in cmx and memory consumption Compilev. Different component have different
+     in cmx and memory consumption Compilenv. Different components have different
      frequencies of Top/Bot. The most likely value is encoded as None (i.e., not
      stored). *)
   let encode_return (v : V.t) =
