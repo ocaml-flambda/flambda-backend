@@ -347,6 +347,9 @@ let or_variable f env (ov : _ Fexpr.or_variable) : _ Or_variable.t =
   | Const c -> Const (f c)
   | Var v -> Var (find_var env v, Debuginfo.none)
 
+let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
+  match nullop with Begin_region -> Begin_region
+
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
   | Array_length -> Array_length
@@ -354,6 +357,7 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   | Unbox_number bk -> Unbox_number bk
   | Tag_immediate -> Tag_immediate
   | Untag_immediate -> Untag_immediate
+  | End_region -> End_region
   | Get_tag -> Get_tag
   | Is_flat_float_array -> Is_flat_float_array
   | Is_int -> Is_int { variant_only = true } (* CR vlaviron: discuss *)
@@ -436,6 +440,7 @@ let varop (varop : Fexpr.varop) n : Flambda_primitive.variadic_primitive =
 
 let prim env (p : Fexpr.prim) : Flambda_primitive.t =
   match p with
+  | Nullary op -> Nullary (nullop op)
   | Unary (op, arg) -> Unary (unop env op, simple env arg)
   | Binary (op, a1, a2) -> Binary (binop op, simple env a1, simple env a2)
   | Ternary (op, a1, a2, a3) ->
@@ -977,7 +982,8 @@ let bind_all_code_ids env (unit : Fexpr.flambda_unit) =
           env bindings
       in
       go env body
-    | Let _ | Let_cont _ | Apply _ | Apply_cont _ | Switch _ | Invalid _ -> env
+    | Let { body; _ } | Let_cont { body; _ } -> go env body
+    | Apply _ | Apply_cont _ | Switch _ | Invalid _ -> env
   in
   go env unit.body
 

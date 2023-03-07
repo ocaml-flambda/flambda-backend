@@ -136,6 +136,49 @@
  (alias runtest)
  (action
   (progn
+   (run ../tools/flexpect.exe tests4a.flt)
+   (diff? tests4a.flt tests4a.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests4a_in.fl)
+   (diff? tests4a_in.fl tests4a_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests4a_out.fl)
+   (diff? tests4a_out.fl tests4a_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets tests4a.flt.new tests4a_in.fl.new tests4a_out.fl.new)
+ (deps tests4a.ml)
+ (action
+   (run ocamlopt -c tests4a.ml -nopervasives -nostdlib
+        -drawfexpr-to tests4a_in.fl.new
+        -dfexpr-to tests4a_out.fl.new
+        -dflexpect-to tests4a.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests4a_in.fl tests4a_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests4a_out.fl tests4a_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests4a.flt tests4a.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
    (run ../tools/flexpect.exe tests5.flt)
    (diff? tests5.flt tests5.flt.corrected))))
 
@@ -174,6 +217,49 @@
 (rule
  (alias regen)
  (action (diff tests5.flt tests5.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/flexpect.exe tests6.flt)
+   (diff? tests6.flt tests6.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests6_in.fl)
+   (diff? tests6_in.fl tests6_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests6_out.fl)
+   (diff? tests6_out.fl tests6_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets tests6.flt.new tests6_in.fl.new tests6_out.fl.new)
+ (deps tests6.ml)
+ (action
+   (run ocamlopt -c tests6.ml -nopervasives -nostdlib
+        -drawfexpr-to tests6_in.fl.new
+        -dfexpr-to tests6_out.fl.new
+        -dflexpect-to tests6.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests6_in.fl tests6_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests6_out.fl tests6_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests6.flt tests6.flt.new)))
 
 (rule
  (alias runtest)

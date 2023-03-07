@@ -241,9 +241,12 @@ type signed_or_unsigned = Flambda_primitive.signed_or_unsigned =
   | Signed
   | Unsigned
 
+type nullop = Begin_region
+
 type unop =
   | Array_length
   | Box_number of box_kind
+  | End_region
   | Get_tag
   | Is_flat_float_array
   | Is_int
@@ -312,6 +315,7 @@ type ternop = Array_set of array_kind * init_or_assign
 type varop = Make_block of tag_scannable * mutability
 
 type prim =
+  | Nullary of nullop
   | Unary of unop * simple
   | Binary of binop * simple * simple
   | Ternary of ternop * simple * simple * simple

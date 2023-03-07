@@ -660,6 +660,10 @@ let unary_prim_ops env (prim_op1 : Flambda_primitive.unary_primitive)
 
 let primitives env prim1 prim2 : Flambda_primitive.t Comparison.t =
   match (prim1 : Flambda_primitive.t), (prim2 : Flambda_primitive.t) with
+  | Nullary prim_op1, Nullary prim_op2 ->
+    if Flambda_primitive.equal_nullary_primitive prim_op1 prim_op2
+    then Equivalent
+    else Different { approximant = prim1 }
   | Unary (prim_op1, arg1), Unary (prim_op2, arg2) ->
     pairs ~f1:unary_prim_ops ~f2:simple_exprs ~subst2:subst_simple env
       (prim_op1, arg1) (prim_op2, arg2)
