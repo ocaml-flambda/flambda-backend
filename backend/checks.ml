@@ -7,11 +7,15 @@ type t =
   { mutable nor : bool String.Map.t;
     mutable exn : bool String.Map.t;
     mutable div : bool String.Map.t;
-    mutable enabled : bool;
+    mutable enabled : bool
   }
 
-let create () = { nor = String.Map.empty; exn = String.Map.empty; div = String.Map.empty;
-                  enabled = false; }
+let create () =
+  { nor = String.Map.empty;
+    exn = String.Map.empty;
+    div = String.Map.empty;
+    enabled = false
+  }
 
 let reset t =
   t.nor <- String.Map.empty;
@@ -26,8 +30,7 @@ let merge src ~into:dst =
     dst.nor <- String.Map.union join dst.nor src.nor;
     dst.exn <- String.Map.union join dst.exn src.exn;
     dst.div <- String.Map.union join dst.div src.div;
-    dst.enabled <- dst.enabled || src.enabled
-  )
+    dst.enabled <- dst.enabled || src.enabled)
 
 type value =
   { nor : bool option;
@@ -41,10 +44,8 @@ let get_value (t : t) s : value =
     div = String.Map.find_opt s t.div
   }
 
-let get_value (t:t) s : value option =
-  match t.enabled with
-  | false -> None
-  | true -> Some (get_value t s)
+let get_value (t : t) s : value option =
+  match t.enabled with false -> None | true -> Some (get_value t s)
 
 let set_value (t : t) s (v : value) =
   let f new_ old =
@@ -63,7 +64,7 @@ module Raw = struct
   type r =
     { nor : entries;
       exn : entries;
-      div : entries;
+      div : entries
     }
 
   type t = r option
@@ -86,10 +87,7 @@ module Raw = struct
     print_component t.exn "Exceptional return";
     print_component t.div "Diverging"
 
-  let print = function
-    | None -> ()
-    | Some t -> print t
-
+  let print = function None -> () | Some t -> print t
 end
 
 let to_raw (t : t) : Raw.r =
@@ -99,16 +97,14 @@ let to_raw (t : t) : Raw.r =
   }
 
 let to_raw (t : t) : Raw.t =
-  match t.enabled with
-  | false -> None
-  | true -> Some (to_raw t)
+  match t.enabled with false -> None | true -> Some (to_raw t)
 
 let of_raw (t : Raw.t) : t =
   match t with
   | None -> create ()
   | Some t ->
-  { nor = Raw.entries_to_map t.nor;
-    exn = Raw.entries_to_map t.exn;
-    div = Raw.entries_to_map t.div;
-    enabled = true
-  }
+    { nor = Raw.entries_to_map t.nor;
+      exn = Raw.entries_to_map t.exn;
+      div = Raw.entries_to_map t.div;
+      enabled = true
+    }

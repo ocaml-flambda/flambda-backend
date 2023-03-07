@@ -283,13 +283,14 @@ module Func_info = struct
   let print ~msg ppf t =
     let open Format in
     let print_names ppf set =
-      set
-      |> String.Set.to_seq
-      |> pp_print_seq ~pp_sep:(fun ppf () -> pp_print_char ppf ' ') pp_print_string ppf
+      set |> String.Set.to_seq
+      |> pp_print_seq
+           ~pp_sep:(fun ppf () -> pp_print_char ppf ' ')
+           pp_print_string ppf
     in
     fprintf ppf "%s %s %a@,(unresolved callees: %a)@,(unresolved callers: %a)@."
-      msg t.name Value.print t.value print_names t.unresolved_callees print_names
-      t.unresolved_callers
+      msg t.name Value.print t.value print_names t.unresolved_callees
+      print_names t.unresolved_callers
 end
 
 module type Spec = sig
@@ -423,25 +424,24 @@ end = struct
       String.Set.remove name func_info.unresolved_callees
     in
     if String.Set.is_empty unresolved_callees_except_self
-    then begin
+    then (
       (* remove all resolved deps *)
       let unresolved_callers = func_info.unresolved_callers in
       func_info.unresolved_callers <- String.Set.empty;
       let changed_callers =
         String.Set.filter
           (fun caller ->
-             let caller_info : Func_info.t = get_exn t caller in
-             if String.Set.mem name caller_info.unresolved_callees then begin
-               caller_info.unresolved_callees
-               <- String.Set.remove name caller_info.unresolved_callees;
-               true
-             end else false
-          )
+            let caller_info : Func_info.t = get_exn t caller in
+            if String.Set.mem name caller_info.unresolved_callees
+            then (
+              caller_info.unresolved_callees
+                <- String.Set.remove name caller_info.unresolved_callees;
+              true)
+            else false)
           unresolved_callers
       in
       (* propagate *)
-      String.Set.iter (cleanup_deps t) changed_callers
-    end
+      String.Set.iter (cleanup_deps t) changed_callers)
 end
 
 (** Check one function. *)
@@ -478,7 +478,6 @@ end = struct
 
   let analysis_name = Printcmm.property_to_string S.property
 
-
   let report' ppf v ~current_fun_name ~msg ~desc dbg =
     if !Flambda_backend_flags.dump_checkmach
     then
@@ -492,16 +491,15 @@ end = struct
   let report_labels t labels ~msg =
     let open Format in
     let print_intset ppf set =
-      set
-      |> Int.Set.to_seq
-      |> pp_print_seq ~pp_sep:(fun ppf () -> pp_print_char ppf ' ') pp_print_int ppf
+      set |> Int.Set.to_seq
+      |> pp_print_seq
+           ~pp_sep:(fun ppf () -> pp_print_char ppf ' ')
+           pp_print_int ppf
     in
     if !Flambda_backend_flags.dump_checkmach
     then
-      fprintf t.ppf "*** check %s %s in %s: %a@."
-        analysis_name msg t.current_fun_name
-        print_intset labels
-
+      fprintf t.ppf "*** check %s %s in %s: %a@." analysis_name msg
+        t.current_fun_name print_intset labels
 
   let report_fail t d desc dbg = report t d ~msg:"failed" ~desc dbg
 
@@ -514,12 +512,14 @@ end = struct
     r
 
   let report_unit_info ~msg ppf unit_info =
-    if !Flambda_backend_flags.dump_checkmach then
+    if !Flambda_backend_flags.dump_checkmach
+    then
       let msg = Printf.sprintf "%s %s:" analysis_name msg in
       Unit_info.iter unit_info ~f:(Func_info.print ppf ~msg)
 
   let report_func_info ~msg ppf func_info =
-    if !Flambda_backend_flags.dump_checkmach then
+    if !Flambda_backend_flags.dump_checkmach
+    then
       let msg = Printf.sprintf "%s %s:" analysis_name msg in
       Func_info.print ppf ~msg func_info
 
@@ -546,7 +546,8 @@ end = struct
     Unit_info.iter unit_info ~f:record
 
   let record_unit unit_info ppf =
-    if S.enabled () then
+    if S.enabled ()
+    then
       Profile.record_call ~accumulate:true ("record_unit " ^ analysis_name)
         (fun () -> record_unit unit_info ppf)
 
@@ -576,16 +577,16 @@ end = struct
         Unit_info.add_value t.unit_info callee v;
         v, Some callee)
       else
-        ( (* Callee is not defined in the current compilation unit. *)
-          let v =
-            match S.get_value_opt callee with
-            | None ->
-              report t Value.top ~msg:"callee compiled without checks"
-                ~desc:callee Debuginfo.none;
-              Value.top
-            | Some v -> v
-          in
-          v, None )
+        (* Callee is not defined in the current compilation unit. *)
+        let v =
+          match S.get_value_opt callee with
+          | None ->
+            report t Value.top ~msg:"callee compiled without checks"
+              ~desc:callee Debuginfo.none;
+            Value.top
+          | Some v -> v
+        in
+        v, None
     | Some callee_info ->
       (* Callee defined earlier in the same compilation unit, or we have already
          seen a call to this callee earlier in the same compilation unit
@@ -605,13 +606,13 @@ end = struct
     report t exn ~msg:"transform_call exn" ~desc dbg;
     let callee_value, new_dep = find_callee t callee in
     update_deps t callee_value new_dep desc dbg;
-    let transform_return ~(effect:V.t) dst =
+    let transform_return ~(effect : V.t) dst =
       match effect with
       | V.Bot -> Value.bot
       | V.Safe -> dst
       | V.Top -> Value.transform dst
     in
-    let transform_diverge ~(effect:V.t) (dst: Value.t)  =
+    let transform_diverge ~(effect : V.t) (dst : Value.t) =
       let div = V.join effect dst.div in
       { dst with div }
     in
@@ -741,14 +742,15 @@ end = struct
       Int.Set.filter (fun n -> Value.is_bot (get_lbl n)) t.exit_labels
     in
     let init_lbl n =
-      if Int.Set.mem n unexplored_diverging_loop_headers then Value.diverges else Value.bot
+      if Int.Set.mem n unexplored_diverging_loop_headers
+      then Value.diverges
+      else Value.bot
     in
     if not (Int.Set.is_empty unexplored_diverging_loop_headers)
-    then begin
+    then (
       report_labels t unexplored_diverging_loop_headers ~msg:"diverging labels";
       report t result ~msg:"result" ~desc:"fundecl" Debuginfo.none;
-      D.analyze ~exnescape:Value.exn_escape ~init_lbl ~transfer body |> fst
-    end
+      D.analyze ~exnescape:Value.exn_escape ~init_lbl ~transfer body |> fst)
     else result
 
   let fundecl (f : Mach.fundecl) ~future_funcnames unit_info ppf =
@@ -774,11 +776,11 @@ end = struct
         report_unit_info ppf unit_info ~msg:"before record deps";
         Unit_info.record_deps unit_info ~callees:t.unresolved_deps
           ~caller:fun_name;
-        report_unit_info ppf unit_info  ~msg:"after record deps";
+        report_unit_info ppf unit_info ~msg:"after record deps";
         Unit_info.join_value unit_info fun_name res;
         report_unit_info ppf unit_info ~msg:"after join value";
         Unit_info.cleanup_deps unit_info fun_name;
-        report_unit_info ppf unit_info ~msg:"after cleanup_deps";
+        report_unit_info ppf unit_info ~msg:"after cleanup_deps"
     in
     if S.enabled ()
     then Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
@@ -826,10 +828,10 @@ module Spec_alloc : Spec = struct
     | None -> None
     | Some ({ nor; exn; div } : Checks.value) ->
       Some
-      { Value.nor = decode_return nor;
-        exn = decode_return exn;
-        div = decode_diverge div
-      }
+        { Value.nor = decode_return nor;
+          exn = decode_return exn;
+          div = decode_diverge div
+        }
 
   let transform_specific s ~next ~exn:_ =
     if Arch.operation_allocates s then Value.transform next else next
