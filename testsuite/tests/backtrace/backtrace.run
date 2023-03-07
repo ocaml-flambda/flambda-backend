@@ -4,5 +4,6 @@
 exec > "${output}" 2>&1
 
 for arg in a b c d ''; do
-  "${program}" ${arg} || true
+  ("${program}" ${arg} || true) 2>&1 | \
+    ${test_source_directory}/sanitize-backtrace.sh
 done
