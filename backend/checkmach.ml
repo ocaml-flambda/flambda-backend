@@ -748,16 +748,4 @@ let record_unit_info _ppf_dump =
   Check_alloc.record_unit unit_info;
   Compilenv.cache_checks (Compilenv.current_unit_infos ()).ui_checks
 
-(* Error report *)
-
-(* let report_error ppf = function
- *   | Annotation { fun_name; check } ->
- *     Format.fprintf ppf "Annotation check for %s failed on function %s" check
- *       fun_name
- *
- * let () =
- *   Location.register_error_of_exn (function
- *     | Error (loc, err) -> Some (Location.error_of_printer ~loc report_error err)
- *     | _ -> None) *)
-
 let () = Location.register_error_of_exn Annotation.report_error
