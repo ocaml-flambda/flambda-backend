@@ -543,6 +543,11 @@ end = struct
     in
     Unit_info.iter unit_info ~f:record
 
+  let record_unit unit_info ppf =
+    if S.enabled () then
+      Profile.record_call ~accumulate:true ("record_unit " ^ analysis_name)
+        (fun () -> record_unit unit_info ppf)
+
   let update_deps t v dep desc dbg =
     match dep with
     | Some callee ->
