@@ -33,7 +33,7 @@ let print ppf t =
   match t with
   | Default_check -> ()
   | Check { property; strict; assume; loc = _ } ->
-    Format.fprintf ppf "@[%s %s %a@]"
+    Format.fprintf ppf "@[%s%s %a@]"
       (if assume then "assume" else "assert")
       (if strict then " strict" else "")
       Property.print property
