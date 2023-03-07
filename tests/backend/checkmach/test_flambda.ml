@@ -22,3 +22,11 @@ let[@zero_alloc strict][@inline never] test8 n =
 let[@zero_alloc strict] test9 n =
   try test8 n
   with _ -> 0
+
+(* This should work with closure too, but there is a problem with stdlib: stdlib is not
+   compiled with -alloc-check and with closure "failwith" does not get inlined.
+   With flambda, ( ^ ) does not get inlined.
+*)
+(* let[@zero_alloc] test33 s = failwith ("msg"^s) *)
+
+let[@zero_alloc] test34 s = failwith s

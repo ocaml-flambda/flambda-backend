@@ -5,7 +5,7 @@
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (deps s.ml t.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -alloc-check -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -alloc-check -dcse -dcheckmach -dump-into-file -O3)))
 
 (rule
  (alias   runtest)
@@ -21,7 +21,7 @@
                   ;; (or %{ocaml-config:flambda} %{ocaml-config:flambda2})
                   ))
  (deps test_flambda.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -alloc-check -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -alloc-check -dcse -dcheckmach -dump-into-file -O3)))
 
 (rule
  (enabled_if (= %{context_name} "main"))
@@ -151,6 +151,24 @@
  (deps fail7.output fail7.output.corrected)
  (action (diff fail7.output fail7.output.corrected)))
 
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail8.output.corrected)
+ (deps (:ml fail8.ml) filter.sh)
+ (action
+   (with-outputs-to fail8.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -alloc-check -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail8.output fail8.output.corrected)
+ (action (diff fail8.output fail8.output.corrected)))
 
 ;; test for expected compilation errors
 

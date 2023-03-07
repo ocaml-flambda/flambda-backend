@@ -1,6 +1,3 @@
-(* CR gyorsh: @assert are currently ignored by the compiler.
-   Support for them will be handled in a separate PR. They are here to show
-   which functions we expect to pass the zero_alloc check. *)
 let[@inline never] test1 n =
   let rec create n =
     if n = 0 then []
@@ -105,8 +102,8 @@ let[@zero_alloc] test21 n =
     if n > 0 then raise (Exn_int !i);
   done
 
-(*
-The check is too conservative about recursive catch to handle the following:
+
+(* The check is too conservative about recursive catch to handle the following: *)
 
 let[@zero_alloc] test22 n =
   let e = (Exn_int n) in
@@ -114,7 +111,7 @@ let[@zero_alloc] test22 n =
     ();
   done;
   raise e
-*)
+
 
 let[@zero_alloc] test23 n =
   let n =
@@ -136,7 +133,41 @@ let[@zero_alloc strict] test26 n =
   try raise Exn
   with _ -> n
 
-(* The following is zero_alloc but we cannot prove it yet. *)
 let[@zero_alloc] test27 n =
   try raise Exn
   with _ -> n
+
+let[@zero_alloc strict][@inline never] forever () = while true do ignore (1,1) done
+let[@zero_alloc strict] test28 g x =
+  try
+    while true do
+      forever ()
+    done;
+    x
+  with _ ->
+    g x;
+    x
+
+let[@zero_alloc strict][@inline never] rec forever2 () = while true do () done
+and[@zero_alloc strict][@inline never] test29 () =
+  forever2 ();
+  (2, 3)
+
+let[@zero_alloc strict][@inline never] rec test30 () =
+  forever3 ();
+  (2, 3)
+and[@zero_alloc strict][@inline never] forever3 () = while true do () done
+
+(* test31+test32 show that tracking "div" component separately from "nor" improves
+   precision. *)
+let[@zero_alloc][@inline never] test31 y =
+  if y > 0 then raise (Exn_int y)
+  else
+    while true do
+      Sys.opaque_identity ()
+    done
+
+let[@zero_alloc] test32 x y=
+   test31 y;
+   (x,x)
+
