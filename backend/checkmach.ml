@@ -279,6 +279,17 @@ module Func_info = struct
       unresolved_callers = String.Set.empty;
       unresolved_callees = String.Set.empty
     }
+
+  let print ~msg ppf t =
+    let open Format in
+    let print_names ppf set =
+      set
+      |> String.Set.to_seq
+      |> pp_print_seq ~pp_sep:(fun ppf () -> pp_print_char ppf ' ') pp_print_string ppf
+    in
+    fprintf ppf "%s %s %a@,(unresolved callees: %a)@,(unresolved callers: %a)@."
+      msg t.name Value.print t.value print_names t.unresolved_callees print_names
+      t.unresolved_callers
 end
 
 module type Spec = sig
@@ -440,7 +451,7 @@ module Analysis (S : Spec) : sig
     Format.formatter ->
     unit
 
-  val record_unit : Unit_info.t -> unit
+  val record_unit : Unit_info.t -> Format.formatter -> unit
 end = struct
   (** Information about the current function under analysis. *)
   type t =
@@ -465,12 +476,30 @@ end = struct
 
   let analysis_name = Printcmm.property_to_string S.property
 
-  let report t v ~msg ~desc dbg =
+
+  let report' ppf v ~current_fun_name ~msg ~desc dbg =
     if !Flambda_backend_flags.dump_checkmach
     then
-      Format.fprintf t.ppf "*** check %s %s in %s: %s with %a (%a)\n"
-        analysis_name msg t.current_fun_name desc Value.print v
+      Format.fprintf ppf "*** check %s %s in %s: %s with %a (%a)\n"
+        analysis_name msg current_fun_name desc Value.print v
         Debuginfo.print_compact dbg
+
+  let report t v ~msg ~desc dbg =
+    report' t.ppf v ~msg ~desc ~current_fun_name:t.current_fun_name dbg
+
+  let report_labels t labels ~msg =
+    let open Format in
+    let print_intset ppf set =
+      set
+      |> Int.Set.to_seq
+      |> pp_print_seq ~pp_sep:(fun ppf () -> pp_print_char ppf ' ') pp_print_int ppf
+    in
+    if !Flambda_backend_flags.dump_checkmach
+    then
+      fprintf t.ppf "*** check %s %s in %s: %a@."
+        analysis_name msg t.current_fun_name
+        print_intset labels
+
 
   let report_fail t d desc dbg = report t d ~msg:"failed" ~desc dbg
 
@@ -482,7 +511,18 @@ end = struct
     if V.is_not_safe r.div then report_fail t r (msg ^ " div") dbg;
     r
 
-  let record_unit unit_info =
+  let report_unit_info ~msg ppf unit_info =
+    if !Flambda_backend_flags.dump_checkmach then
+      let msg = Printf.sprintf "%s %s:" analysis_name msg in
+      Unit_info.iter unit_info ~f:(Func_info.print ppf ~msg)
+
+  let report_func_info ~msg ppf func_info =
+    if !Flambda_backend_flags.dump_checkmach then
+      let msg = Printf.sprintf "%s %s:" analysis_name msg in
+      Func_info.print ppf ~msg func_info
+
+  let record_unit unit_info ppf =
+    report_unit_info ppf unit_info ~msg:"before resolve_all";
     Unit_info.resolve_all unit_info;
     let record (func_info : Func_info.t) =
       (match func_info.annotation with
@@ -498,6 +538,7 @@ end = struct
           raise
             (Annotation.Invalid
                { a; fun_name = func_info.name; property = S.property }));
+      report_func_info ~msg:"record" ppf func_info;
       S.set_value func_info.name func_info.value
     in
     Unit_info.iter unit_info ~f:record
@@ -546,6 +587,8 @@ end = struct
       callee_info.value, dep
 
   let transform_call t ~next ~exn callee ~desc dbg =
+    report t next ~msg:"transform_call next" ~desc dbg;
+    report t exn ~msg:"transform_call exn" ~desc dbg;
     let callee_value, new_dep = find_callee t callee in
     update_deps t callee_value new_dep desc dbg;
     let transform_return ~(effect:V.t) dst =
@@ -655,12 +698,16 @@ end = struct
       | Iend -> next
       | Iexit (lbl, _) ->
         record_exit_label t lbl;
+        report t next ~msg:"transform" ~desc:"iexit" i.dbg;
         next
       | Iifthenelse _ | Iswitch _ -> next
       | Icatch (_rc, _ts, handlers, _body) ->
+        report t next ~msg:"transform" ~desc:"catch" i.dbg;
         List.iter (fun (lbl, _, _) -> record_exit_label t lbl) handlers;
         next
-      | Itrywith (_body, (Regular | Delayed _), (_trap_stack, _handler)) -> next
+      | Itrywith (_body, (Regular | Delayed _), (_trap_stack, _handler)) ->
+        report t next ~msg:"transform" ~desc:"try-with" i.dbg;
+        next
     in
     let result, get_lbl =
       D.analyze ~exnescape:Value.exn_escape ~transfer body
@@ -710,9 +757,12 @@ end = struct
           else "unresolved deps"
         in
         report t res ~msg ~desc:"fundecl" f.fun_dbg;
+        report_unit_info ppf unit_info ~msg:"before record deps";
         Unit_info.record_deps unit_info ~callees:t.unresolved_deps
           ~caller:fun_name;
-        Unit_info.join_value unit_info fun_name res
+        report_unit_info ppf unit_info  ~msg:"after record deps";
+        Unit_info.join_value unit_info fun_name res;
+        report_unit_info ppf unit_info ~msg:"after join value";
     in
     if S.enabled ()
     then Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
@@ -777,8 +827,8 @@ let fundecl ppf_dump ~future_funcnames fd =
 
 let reset_unit_info () = Unit_info.reset unit_info
 
-let record_unit_info _ppf_dump =
-  Check_alloc.record_unit unit_info;
+let record_unit_info ppf_dump =
+  Check_alloc.record_unit unit_info ppf_dump;
   Compilenv.cache_checks (Compilenv.current_unit_infos ()).ui_checks
 
 let () = Location.register_error_of_exn Annotation.report_error
