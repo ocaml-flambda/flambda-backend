@@ -479,6 +479,7 @@ end = struct
   let check t (r : Value.t) msg dbg =
     if V.is_not_safe r.nor then report_fail t r (msg ^ " nor") dbg;
     if V.is_not_safe r.exn then report_fail t r (msg ^ " exn") dbg;
+    if V.is_not_safe r.div then report_fail t r (msg ^ " div") dbg;
     r
 
   let record_unit unit_info =
@@ -547,13 +548,24 @@ end = struct
   let transform_call t ~next ~exn callee ~desc dbg =
     let callee_value, new_dep = find_callee t callee in
     update_deps t callee_value new_dep desc dbg;
-    let next =
-      if V.is_not_safe callee_value.nor then Value.transform next else next
+    let transform_return ~(effect:V.t) dst =
+      match effect with
+      | V.Bot -> Value.bot
+      | V.Safe -> dst
+      | V.Top -> Value.transform dst
     in
-    let exn =
-      if V.is_not_safe callee_value.exn then Value.transform exn else exn
+    let transform_diverge ~(effect:V.t) (dst: Value.t)  =
+      let div = V.join effect dst.div in
+      { dst with div }
     in
+    let next = transform_return ~effect:callee_value.nor next in
+    let exn = transform_return ~effect:callee_value.exn exn in
+    report t next ~msg:"transform_call new next" ~desc dbg;
+    report t exn ~msg:"transform_call new exn" ~desc dbg;
     let r = Value.join next exn in
+    report t r ~msg:"transform_call join" ~desc dbg;
+    let r = transform_diverge ~effect:callee_value.div r in
+    report t r ~msg:"transform_call result" ~desc dbg;
     check t r desc dbg
 
   let transform t ~next ~exn msg dbg =
