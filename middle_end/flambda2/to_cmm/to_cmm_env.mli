@@ -280,7 +280,7 @@ val extra_info : t -> Simple.t -> extra_info option
     label), or inlined at any unique use site. *)
 type cont = private
   | Jump of
-      { cont : Cmm.label;
+      { cont : Lambda.static_label;
         param_types : Cmm.machtype list
       }
   | Inline of
@@ -292,7 +292,10 @@ type cont = private
 (** Record that the given continuation should be compiled to a jump, creating a
     fresh Cmm continuation identifier for it. *)
 val add_jump_cont :
-  t -> Continuation.t -> param_types:Cmm.machtype list -> Cmm.label * t
+  t ->
+  Continuation.t ->
+  param_types:Cmm.machtype list ->
+  Lambda.static_label * t
 
 (** Record that the given continuation should be inlined. *)
 val add_inline_cont :
@@ -327,4 +330,4 @@ val get_continuation : t -> Continuation.t -> cont
 (** Returns the Cmm continuation identifier bound to a continuation. Produces a
     fatal error if given an unbound continuation, or a continuation that was
     registered (using [add_inline_cont]) to be inlined. *)
-val get_cmm_continuation : t -> Continuation.t -> Cmm.label
+val get_cmm_continuation : t -> Continuation.t -> Lambda.static_label

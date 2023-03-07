@@ -98,7 +98,7 @@ val cur_label: unit -> label
 
 type exit_label =
   | Return_lbl
-  | Lbl of label
+  | Lbl of Lambda.static_label
 
 type rec_flag = Nonrecursive | Recursive
 
@@ -250,7 +250,7 @@ type expression =
       * Debuginfo.t * value_kind
   | Ccatch of
       rec_flag
-        * (label * (Backend_var.With_provenance.t * machtype) list
+        * (Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t) list
         * expression
         * value_kind

@@ -994,14 +994,18 @@ type static_handler
     binding variables [vars] in [body]. *)
 val handler :
   dbg:Debuginfo.t ->
-  int ->
+  Lambda.static_label ->
   (Backend_var.With_provenance.t * Cmm.machtype) list ->
   Cmm.expression ->
   static_handler
 
 (** [cexit id args] creates the cmm expression for static to a static handler
     with exit number [id], with arguments [args]. *)
-val cexit : int -> Cmm.expression list -> Cmm.trap_action list -> Cmm.expression
+val cexit :
+  Lambda.static_label ->
+  Cmm.expression list ->
+  Cmm.trap_action list ->
+  Cmm.expression
 
 (** [trap_return res traps] creates the cmm expression for returning [res] after
     applying the trap actions in [traps]. *)

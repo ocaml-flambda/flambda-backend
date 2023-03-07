@@ -434,6 +434,8 @@ let equal_meth_kind x y =
 
 type shared_code = (int * int) list
 
+type static_label = int
+
 type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
@@ -461,8 +463,8 @@ type lambda =
   | Lswitch of lambda * lambda_switch * scoped_location * layout
   | Lstringswitch of
       lambda * (string * lambda) list * lambda option * scoped_location * layout
-  | Lstaticraise of int * lambda list
-  | Lstaticcatch of lambda * (int * (Ident.t * layout) list) * lambda * layout
+  | Lstaticraise of static_label * lambda list
+  | Lstaticcatch of lambda * (static_label * (Ident.t * layout) list) * lambda * layout
   | Ltrywith of lambda * Ident.t * lambda * layout
   | Lifthenelse of lambda * lambda * lambda * layout
   | Lsequence of lambda * lambda
