@@ -296,9 +296,11 @@ module type Spec = sig
   (** Is the check enabled? *)
   val enabled : unit -> bool
 
-  (** [get_value f] returns the value recorded for function [f] in [Compenv], either
-      because the check passed or because of user-defined "assume" annotation. *)
-  val get_value : string -> Value.t
+  (** [get_value_opt f] returns the value recorded for function [f] in [Compenv], either
+      because the check passed or because of user-defined "assume" annotation.
+      If [f] was compiled with checks disabled, returns None.
+  *)
+  val get_value_opt : string -> Value.t option
 
   (** [set_value f v] record the value of the function named [f] in [Compenv]. *)
   val set_value : string -> Value.t -> unit
@@ -575,8 +577,15 @@ end = struct
         v, Some callee)
       else
         ( (* Callee is not defined in the current compilation unit. *)
-          S.get_value callee,
-          None )
+          let v =
+            match S.get_value_opt callee with
+            | None ->
+              report t Value.top ~msg:"callee compiled without checks"
+                ~desc:callee Debuginfo.none;
+              Value.top
+            | Some v -> v
+          in
+          v, None )
     | Some callee_info ->
       (* Callee defined earlier in the same compilation unit, or we have already
          seen a call to this callee earlier in the same compilation unit
@@ -811,11 +820,12 @@ module Spec_alloc : Spec = struct
     in
     Checks.set_value checks s new_value
 
-  let get_value s =
+  let get_value_opt s =
     let checks = Compilenv.cached_checks in
     match Checks.get_value checks s with
-    | None -> Value.top
+    | None -> None
     | Some ({ nor; exn; div } : Checks.value) ->
+      Some
       { Value.nor = decode_return nor;
         exn = decode_return exn;
         div = decode_diverge div
