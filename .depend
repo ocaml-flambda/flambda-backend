@@ -306,6 +306,7 @@ parsing/ast_mapper.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
+    parsing/extensions_parsing.cmi \
     parsing/extensions.cmi \
     utils/config.cmi \
     utils/clflags.cmi \
@@ -318,6 +319,7 @@ parsing/ast_mapper.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/load_path.cmx \
+    parsing/extensions_parsing.cmx \
     parsing/extensions.cmx \
     utils/config.cmx \
     utils/clflags.cmx \

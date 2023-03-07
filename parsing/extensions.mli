@@ -55,7 +55,7 @@ module Comprehensions : sig
         [:BODY ...CLAUSES...:] (flag = Immutable)
           (only allowed with [-extension immutable_arrays]) *)
 
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression_desc
 end
 
 (** The ASTs for immutable arrays.  When we merge this upstream, we'll merge
@@ -72,8 +72,8 @@ module Immutable_arrays : sig
     (** [: P1; ...; Pn :] **)
     (* CR aspectorzabusky: Or [Iapat_iarray]? *)
 
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression
-  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression_desc
+  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern_desc
 end
 
 (** The module type of language extension ASTs, instantiated once for each

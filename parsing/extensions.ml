@@ -90,8 +90,8 @@ module Comprehensions = struct
      v}
   *)
 
-  let comprehension_expr ~loc names =
-    Expression.make_extension ~loc (extension_string :: names)
+  let comprehension_expr ~loc names x =
+    Expression.wrap_desc ~loc ~attrs:[] @@ Expression.make_extension ~loc (extension_string :: names) x
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
       the [expr_of_...] family of expressions, culminating in

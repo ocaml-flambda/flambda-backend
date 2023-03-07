@@ -100,6 +100,10 @@ module type AST = sig
   (** The AST type (e.g., [Parsetree.expression]) *)
   type ast
 
+  (** The "AST description" type, without the location and attributes (e.g.,
+      [Parsetree.expression_desc]) *)
+  type ast_desc
+
   (** The name for this syntactic category in the plural form; used for error
       messages (e.g., "expressions") *)
   val plural : string
@@ -107,10 +111,14 @@ module type AST = sig
   (** How to get the location attached to an AST node *)
   val location : ast -> Location.t
 
+  (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata *)
+  val wrap_desc :
+    loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
+
   (** Embed a language extension term in the AST with the given name
       and body (the [ast]).  The name will be joined with dots
       and preceded by [extension.].  Partial inverse of [match_extension]. *)
-  val make_extension  : loc:Location.t -> string list -> ast -> ast
+  val make_extension  : loc:Location.t -> string list -> ast -> ast_desc
 
   (** Given an AST node, check if it's a language extension term; if it is,
       split it back up into its name (the [string list]) and the body (the
@@ -125,8 +133,10 @@ end
     adding these lazily as we need them. When you add another one, make
     sure also to add special handling in [Ast_iterator] and [Ast_mapper]. *)
 
-module Expression : AST with type ast = Parsetree.expression
-module Pattern    : AST with type ast = Parsetree.pattern
+module Expression : AST with type ast      = Parsetree.expression
+                         and type ast_desc = Parsetree.expression_desc
+module Pattern    : AST with type ast      = Parsetree.pattern
+                         and type ast_desc = Parsetree.pattern_desc
 
 (** Each syntactic category will include a module that meets this signature.
     Then, the [Make_of_ast] functor produces the functions that actually

@@ -46,7 +46,7 @@ type mapper = {
   constructor_declaration: mapper -> constructor_declaration
                            -> constructor_declaration;
   expr: mapper -> expression -> expression;
-  expr_extension: mapper -> Location.t -> Extensions.Expression.t -> expression;
+  expr_extension: mapper -> Extensions.Expression.t -> Extensions.Expression.t;
   extension: mapper -> extension -> extension;
   extension_constructor: mapper -> extension_constructor
                          -> extension_constructor;
@@ -64,7 +64,7 @@ type mapper = {
   open_declaration: mapper -> open_declaration -> open_declaration;
   open_description: mapper -> open_description -> open_description;
   pat: mapper -> pattern -> pattern;
-  pat_extension: mapper -> Location.t -> Extensions.Pattern.t -> pattern;
+  pat_extension: mapper -> Extensions.Pattern.t -> Extensions.Pattern.t;
   payload: mapper -> payload -> payload;
   signature: mapper -> signature -> signature;
   signature_item: mapper -> signature_item -> signature_item;
@@ -421,9 +421,10 @@ module E = struct
     | Iaexp_immutable_array elts ->
       Iaexp_immutable_array (List.map (sub.expr sub) elts)
 
-  let map_ext sub loc : Extensions.Expression.t -> _ = function
-    | Eexp_comprehension cexp -> C.expr_of ~loc (map_cexp sub cexp)
-    | Eexp_immutable_array iaexp -> IA.expr_of ~loc (map_iaexp sub iaexp)
+  let map_ext sub : Extensions.Expression.t -> Extensions.Expression.t =
+    function
+    | Eexp_comprehension cexp -> Eexp_comprehension (map_cexp sub cexp)
+    | Eexp_immutable_array iaexp -> Eexp_immutable_array (map_iaexp sub iaexp)
 
   let map sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
@@ -431,7 +432,12 @@ module E = struct
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
     match Extensions.Expression.of_ast exp with
-    | Some eexp -> sub.expr_extension sub loc eexp
+    | Some eexp -> begin
+        Extensions_parsing.Expression.wrap_desc ~loc ~attrs @@
+        match sub.expr_extension sub eexp with
+        | Eexp_comprehension   c -> Extensions.Comprehensions.expr_of   ~loc c
+        | Eexp_immutable_array i -> Extensions.Immutable_arrays.expr_of ~loc i
+    end
     | None ->
     match desc with
     | Pexp_ident x -> ident ~loc ~attrs (map_loc sub x)
@@ -527,8 +533,8 @@ module P = struct
     | Iapat_immutable_array elts ->
       Iapat_immutable_array (List.map (sub.pat sub) elts)
 
-  let map_ext sub loc : Extensions.Pattern.t -> _ = function
-    | Epat_immutable_array iapat -> IA.pat_of ~loc (map_iapat sub iapat)
+  let map_ext sub : Extensions.Pattern.t -> Extensions.Pattern.t = function
+    | Epat_immutable_array iapat -> Epat_immutable_array (map_iapat sub iapat)
 
   let map sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
@@ -536,7 +542,11 @@ module P = struct
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
     match Extensions.Pattern.of_ast pat with
-    | Some epat -> sub.pat_extension sub loc epat
+    | Some epat -> begin
+        Extensions_parsing.Pattern.wrap_desc ~loc ~attrs @@
+        match sub.pat_extension sub epat with
+        | Epat_immutable_array i -> Extensions.Immutable_arrays.pat_of ~loc i
+    end
     | None ->
     match desc with
     | Ppat_any -> any ~loc ~attrs ()
