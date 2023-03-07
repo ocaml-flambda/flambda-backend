@@ -793,9 +793,9 @@ module Spec_alloc : Spec = struct
   let enabled () = !Flambda_backend_flags.alloc_check
 
   (* Compact the mapping from function name to Value.t to reduce size of Checks
-     in cmx and memory consumption Compilenv. Different components have different
-     frequencies of Top/Bot. The most likely value is encoded as None (i.e., not
-     stored). *)
+     in cmx and memory consumption Compilenv. Different components have
+     different frequencies of Top/Bot. The most likely value is encoded as None
+     (i.e., not stored). *)
   let encode_return (v : V.t) =
     match v with Top -> None | Safe -> Some true | Bot -> Some false
 
