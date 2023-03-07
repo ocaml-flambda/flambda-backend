@@ -813,11 +813,13 @@ module Spec_alloc : Spec = struct
 
   let get_value s =
     let checks = Compilenv.cached_checks in
-    let ({ nor; exn; div } : Checks.value) = Checks.get_value checks s in
-    { Value.nor = decode_return nor;
-      exn = decode_return exn;
-      div = decode_diverge div
-    }
+    match Checks.get_value checks s with
+    | None -> Value.top
+    | Some ({ nor; exn; div } : Checks.value) ->
+      { Value.nor = decode_return nor;
+        exn = decode_return exn;
+        div = decode_diverge div
+      }
 
   let transform_specific s ~next ~exn:_ =
     if Arch.operation_allocates s then Value.transform next else next

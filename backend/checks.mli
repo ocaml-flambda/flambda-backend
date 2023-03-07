@@ -16,7 +16,8 @@ val reset : t -> unit
            information from [src]. *)
 val merge : t -> into:t -> unit
 
-val get_value : t -> string -> value
+(** [get_value t] returns None if checks are not enabled  *)
+val get_value : t -> string -> value option
 
 val set_value : t -> string -> value -> unit
 
