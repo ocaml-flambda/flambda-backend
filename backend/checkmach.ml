@@ -325,6 +325,9 @@ module Unit_info : sig
       compilation unit.  *)
   val record_deps : t -> caller:string -> callees:String.Set.t -> unit
 
+  (** [cleanup_deps] remove resolved dependencies starting from [name]. *)
+  val cleanup_deps : t -> string -> unit
+
   val record_annotation : t -> string -> Annotation.t option -> unit
 
   val resolve_all : t -> unit
@@ -398,16 +401,34 @@ end = struct
         let func_info = get_or_create t callee in
         func_info.unresolved_callers
           <- String.Set.add caller func_info.unresolved_callers)
-      callees;
+      callees
+
+  let rec cleanup_deps t name =
     (* optimization: clean up unresolved *)
-    if String.Set.is_empty func_info.unresolved_callees
-    then
-      String.Set.iter
-        (fun caller ->
-          let caller_info : Func_info.t = get_exn t caller in
-          caller_info.unresolved_callees
-            <- String.Set.remove caller caller_info.unresolved_callees)
-        func_info.unresolved_callers
+    let func_info = get_exn t name in
+    let unresolved_callees_except_self =
+      String.Set.remove name func_info.unresolved_callees
+    in
+    if String.Set.is_empty unresolved_callees_except_self
+    then begin
+      (* remove all resolved deps *)
+      let unresolved_callers = func_info.unresolved_callers in
+      func_info.unresolved_callers <- String.Set.empty;
+      let changed_callers =
+        String.Set.filter
+          (fun caller ->
+             let caller_info : Func_info.t = get_exn t caller in
+             if String.Set.mem name caller_info.unresolved_callees then begin
+               caller_info.unresolved_callees
+               <- String.Set.remove name caller_info.unresolved_callees;
+               true
+             end else false
+          )
+          unresolved_callers
+      in
+      (* propagate *)
+      String.Set.iter (cleanup_deps t) changed_callers
+    end
 end
 
 (** Check one function. *)
