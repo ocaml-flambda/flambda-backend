@@ -66,12 +66,12 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot) ~transfer instr =
         begin match rc with
         | Cmm.Nonrecursive ->
             List.iter
-              (fun (n, _trap_stack, h) ->
+              (fun (n, trap_stack, h) ->
                  let exnh = exn_from_trap_stack exn trap_stack in
                  set_lbl n (before bx exnh h))
             handlers
         | Cmm.Recursive ->
-            let update changed (n, _trap_stack, h) =
+            let update changed (n, trap_stack, h) =
               let b0 = get_lbl n in
               let exnh = exn_from_trap_stack exn trap_stack in
               let b1 = before bx exnh h in
