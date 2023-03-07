@@ -763,6 +763,8 @@ end = struct
         report_unit_info ppf unit_info  ~msg:"after record deps";
         Unit_info.join_value unit_info fun_name res;
         report_unit_info ppf unit_info ~msg:"after join value";
+        Unit_info.cleanup_deps unit_info fun_name;
+        report_unit_info ppf unit_info ~msg:"after cleanup_deps";
     in
     if S.enabled ()
     then Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
