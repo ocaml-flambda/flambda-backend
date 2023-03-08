@@ -251,14 +251,7 @@ type register_allocator =
   | Upstream
   | IRC
 
-let register_allocator : register_allocator =
-  match Sys.getenv_opt "REGISTER_ALLOCATOR" with
-  | None -> Upstream
-  | Some id ->
-    match String.lowercase_ascii id with
-    | "irc" -> IRC
-    | "" | "upstream" -> Upstream
-    | _ -> Misc.fatal_errorf "unknown register allocator %S" id
+let register_allocator : register_allocator = ignore Upstream; IRC
 
 let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   Proc.init ();
@@ -293,14 +286,9 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
           ++ Cfg_with_liveness.make
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         in
-        let cfg_description =
-          Profile.record ~accumulate:true "cfg_create_description"
-            Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
-        in
         cfg
         ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
         ++ Cfg_with_liveness.cfg_with_layout
-        ++ Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
         ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
