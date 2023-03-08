@@ -223,6 +223,10 @@ type kind_for_unboxing =
   | Boxed_integer of Lambda.boxed_integer
   | Boxed_float
 
+type is_global = Global | Local
+
+type symbol = string * is_global
+
 type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t

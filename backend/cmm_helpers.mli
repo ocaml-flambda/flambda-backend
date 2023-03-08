@@ -908,38 +908,38 @@ val plugin_header : Cmxs_format.dynunit list -> phrase
 (** Emit constant symbols *)
 
 (** Produce the data_item list corresponding to a symbol definition *)
-val cdefine_symbol : string * Cmmgen_state.is_global -> data_item list
+val cdefine_symbol : symbol -> data_item list
 
 (** [emit_block symb white_header cont] prepends to [cont] the header and symbol
     for the block. [cont] must already contain the fields of the block (and may
     contain additional data items afterwards). *)
 val emit_block :
-  string * Cmmgen_state.is_global ->
+  symbol ->
   nativeint ->
   data_item list ->
   data_item list
 
 (** Emit specific kinds of constant blocks as data items *)
 val emit_float_constant :
-  string * Cmmgen_state.is_global -> float -> data_item list -> data_item list
+  symbol -> float -> data_item list -> data_item list
 
 val emit_string_constant :
-  string * Cmmgen_state.is_global -> string -> data_item list -> data_item list
+  symbol -> string -> data_item list -> data_item list
 
 val emit_int32_constant :
-  string * Cmmgen_state.is_global -> int32 -> data_item list -> data_item list
+  symbol -> int32 -> data_item list -> data_item list
 
 val emit_int64_constant :
-  string * Cmmgen_state.is_global -> int64 -> data_item list -> data_item list
+  symbol -> int64 -> data_item list -> data_item list
 
 val emit_nativeint_constant :
-  string * Cmmgen_state.is_global ->
+  symbol ->
   nativeint ->
   data_item list ->
   data_item list
 
 val emit_float_array_constant :
-  string * Cmmgen_state.is_global ->
+  symbol ->
   float list ->
   data_item list ->
   data_item list
@@ -947,7 +947,7 @@ val emit_float_array_constant :
 val fundecls_size : Clambda.ufunction list -> int
 
 val emit_constant_closure :
-  string * Cmmgen_state.is_global ->
+  symbol ->
   Clambda.ufunction list ->
   data_item list ->
   data_item list ->

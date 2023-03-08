@@ -65,7 +65,7 @@ let static_boxed_number ~kind ~env ~symbol ~default ~emit ~transl ~structured v
     res updates =
   let aux x cont =
     emit
-      (Symbol.linkage_name_as_string symbol, Cmmgen_state.Global)
+      (Symbol.linkage_name_as_string symbol, Cmm.Global)
       (transl x) cont
   in
   let env, res, updates =
@@ -112,7 +112,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
   | Block_like s, Block (tag, _mut, fields) ->
     let res = R.check_for_module_symbol res s in
     let tag = Tag.Scannable.to_int tag in
-    let block_name = Symbol.linkage_name_as_string s, Cmmgen_state.Global in
+    let block_name = Symbol.linkage_name_as_string s, Cmm.Global in
     let header = C.black_block_header tag (List.length fields) in
     let static_fields =
       List.fold_right
@@ -171,13 +171,13 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let static_fields = List.map aux fields in
     let float_array =
       C.emit_float_array_constant
-        (Symbol.linkage_name_as_string s, Cmmgen_state.Global)
+        (Symbol.linkage_name_as_string s, Cmm.Global)
         static_fields
     in
     let env, res, e = static_float_array_updates s env res updates 0 fields in
     env, R.update_data res float_array, e
   | Block_like s, Immutable_value_array fields ->
-    let block_name = Symbol.linkage_name_as_string s, Cmmgen_state.Global in
+    let block_name = Symbol.linkage_name_as_string s, Cmm.Global in
     let header = C.black_block_header 0 (List.length fields) in
     let static_fields =
       List.fold_right
@@ -191,14 +191,14 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     env, R.set_data res block, updates
   | Block_like s, Empty_array ->
     (* Recall: empty arrays have tag zero, even if their kind is naked float. *)
-    let block_name = Symbol.linkage_name_as_string s, Cmmgen_state.Global in
+    let block_name = Symbol.linkage_name_as_string s, Cmm.Global in
     let header = C.black_block_header 0 0 in
     let block = C.emit_block block_name header [] in
     env, R.set_data res block, updates
   | Block_like s, Mutable_string { initial_value = str }
   | Block_like s, Immutable_string str ->
     let name = Symbol.linkage_name_as_string s in
-    let data = C.emit_string_constant (name, Cmmgen_state.Global) str in
+    let data = C.emit_string_constant (name, Cmm.Global) str in
     env, R.update_data res data, updates
   | Block_like _, Set_of_closures _ ->
     Misc.fatal_errorf

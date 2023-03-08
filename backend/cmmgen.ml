@@ -1593,7 +1593,7 @@ let transl_clambda_constants (constants : Clambda.preallocated_constant list)
   in
   List.iter
     (fun { symbol; exported; definition = cst; provenance = _; } ->
-       let global : Cmmgen_state.is_global =
+       let global : is_global =
          if exported then Global else Local
        in
        emit_clambda_constant symbol global cst)

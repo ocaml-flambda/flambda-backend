@@ -19,11 +19,9 @@
 
 module S = Misc.Stdlib.String
 
-type is_global = Global | Local
-
 type constant =
-  | Const_closure of is_global * Clambda.ufunction list * Clambda.uconstant list
-  | Const_table of is_global * Cmm.data_item list
+  | Const_closure of Cmm.is_global * Clambda.ufunction list * Clambda.uconstant list
+  | Const_table of Cmm.is_global * Cmm.data_item list
 
 type t = {
   mutable constants : constant S.Map.t;

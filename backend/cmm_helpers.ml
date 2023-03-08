@@ -3491,7 +3491,7 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
 
 (* Symbols *)
 
-let cdefine_symbol (symb, (global : Cmmgen_state.is_global)) =
+let cdefine_symbol (symb, (global : is_global)) =
   match global with
   | Global -> [Cglobal_symbol symb; Cdefine_symbol symb]
   | Local -> [Cdefine_symbol symb]
@@ -3783,7 +3783,7 @@ let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
         | Some (Clambda.Uconst_field_ref label) -> Csymbol_address label)
       fields
   in
-  let global = Cmmgen_state.(if exported then Global else Local) in
+  let global = if exported then Global else Local in
   let symb = symbol, global in
   let data = emit_block symb (block_header tag (List.length fields)) space in
   Cdata data :: cont

@@ -227,6 +227,10 @@ type kind_for_unboxing =
   | Boxed_integer of Lambda.boxed_integer
   | Boxed_float
 
+type is_global = Global | Local
+
+type symbol = string * is_global
+
 (** Every basic block should have a corresponding [Debuginfo.t] for its
     beginning. *)
 type expression =
