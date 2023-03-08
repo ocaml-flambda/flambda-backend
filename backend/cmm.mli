@@ -138,7 +138,7 @@ type phantom_defining_expr =
   (** The phantom-let-bound variable points at a block with the given
       structure. *)
 
-type trywith_shared_label = int (* Same as Ccatch handlers *)
+type trywith_shared_label = Lambda.static_label (* Same as Ccatch handlers *)
 
 type trap_action =
   | Push of trywith_shared_label
