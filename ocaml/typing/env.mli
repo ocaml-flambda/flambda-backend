@@ -18,9 +18,10 @@
 open Types
 open Misc
 
-val register_uid : Uid.t -> Location.t -> unit
+val register_uid : Uid.t -> loc:Location.t -> attributes:Parsetree.attribute list -> unit
 
 val get_uid_to_loc_tbl : unit -> Location.t Types.Uid.Tbl.t
+val get_uid_to_attributes_tbl : unit ->  Parsetree.attribute list Types.Uid.Tbl.t
 
 type value_unbound_reason =
   | Val_unbound_instance_variable

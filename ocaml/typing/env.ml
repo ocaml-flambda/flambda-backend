@@ -43,9 +43,15 @@ let module_declarations : unit usage_tbl ref = s_table Types.Uid.Tbl.create 16
 let uid_to_loc : Location.t Types.Uid.Tbl.t ref =
   s_table Types.Uid.Tbl.create 16
 
-let register_uid uid loc = Types.Uid.Tbl.add !uid_to_loc uid loc
+let uid_to_attributes : Parsetree.attribute list Types.Uid.Tbl.t ref =
+  s_table Types.Uid.Tbl.create 16
+
+let register_uid uid ~loc ~attributes =
+  Types.Uid.Tbl.add !uid_to_loc uid loc;
+  Types.Uid.Tbl.add !uid_to_attributes uid attributes
 
 let get_uid_to_loc_tbl () = !uid_to_loc
+let get_uid_to_attributes_tbl () = !uid_to_attributes
 
 type constructor_usage = Positive | Pattern | Exported_private | Exported
 type constructor_usages =

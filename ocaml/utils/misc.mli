@@ -573,7 +573,7 @@ module Magic_number : sig
     | Cmi | Cmo | Cma
     | Cmx of native_obj_config | Cmxa of native_obj_config
     | Cmxs
-    | Cmt | Ast_impl | Ast_intf
+    | Cmt | Cms | Ast_impl | Ast_intf
 
   type info = {
     kind: kind;
