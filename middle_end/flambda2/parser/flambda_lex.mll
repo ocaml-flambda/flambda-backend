@@ -88,6 +88,7 @@ let keyword_table =
     "switch", KWD_SWITCH;
     "tag", KWD_TAG;
     "tagged", KWD_TAGGED;
+    "toplevel", KWD_TOPLEVEL;
     "tupled", KWD_TUPLED;
     "unit", KWD_UNIT;
     "unreachable", KWD_UNREACHABLE;
