@@ -758,7 +758,7 @@ and code_binding ppf
     inline code_size cs
     (pp_option ~space:Before (pp_like "newer_version_of(%a)" code_id))
     newer_version_of
-    (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "tupled@ ")
+    (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "@ tupled@ ")
     is_tupled code_id id;
   let { params; closure_var; region_var; depth_var; ret_cont; exn_cont; body } =
     params_and_body
