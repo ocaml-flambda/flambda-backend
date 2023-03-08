@@ -1014,8 +1014,6 @@ let rec comp_expr env exp sz cont =
             let cont1 = add_event ev cont in
             comp_expr env lam sz cont1
           end
-      | Lev_module_definition _ ->
-          comp_expr env lam sz cont
       end
   | Lifused (_, exp) ->
       comp_expr env exp sz cont
