@@ -441,8 +441,6 @@ val get_current_level: unit -> int
 val wrap_trace_gadt_instances: Env.t -> ('a -> 'b) -> 'a -> 'b
 val reset_reified_var_counter: unit -> unit
 
-val immediacy : Env.t -> type_expr -> Type_immediacy.t
-
 (* Stubs *)
 val package_subtype :
     (Env.t -> Path.t -> (Longident.t * type_expr) list ->
@@ -450,6 +448,35 @@ val package_subtype :
 
 (* Raises [Incompatible] *)
 val mcomp : Env.t -> type_expr -> type_expr -> unit
+
+val get_unboxed_type_representation :
+  Env.t -> type_expr -> (type_expr, type_expr) result
+    (* [get_unboxed_type_representation] attempts to fully expand the input
+       type_expr, descending through [@@unboxed] types.  May fail in the case of
+       circular types or very deeply nested unboxed types, in which case it
+       returns the most expanded version it was able to compute. *)
+
+val get_unboxed_type_approximation : Env.t -> type_expr -> type_expr
+    (* [get_unboxed_type_approximation] does the same thing as
+       [get_unboxed_type_representation], but doesn't indicate whether the type
+       was fully expanded or not. *)
+
+(* [kind_immediacy_approx] may be a conservative approximation (return Unknown
+   for types that are actually immediate) in two cases: [@@unboxed] types, and
+   abbreviations (abstract types with a manifest).  *)
+val kind_immediacy_approx : type_decl_kind -> Type_immediacy.t
+val check_decl_immediate :
+  Env.t -> type_declaration -> Type_immediacy.t ->
+  (unit, Type_immediacy.Violation.t) result
+
+val check_type_immediate :
+  Env.t -> type_expr -> Type_immediacy.t ->
+  (unit, Type_immediacy.Violation.t) result
+
+(* True if a type is always global (i.e., it mode crosses for local).  This is
+   true for all immediate and immediate64 types.  To make it sound for
+   immediate64, we've disabled stack allocation on 32-bit builds. *)
+val is_always_global : Env.t -> type_expr -> bool
 
 (* For use with ocamldebug *)
 type global_state

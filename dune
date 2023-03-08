@@ -80,8 +80,8 @@
    includemod includemod_errorprinter
    typetexp patterns printpat parmatch stypes typedecl typeopt rec_check
    typecore
-   typeclass typemod typedecl_variance typedecl_properties typedecl_immediacy
-   typedecl_unboxed typedecl_separability cmt2annot
+   typeclass typemod typedecl_variance typedecl_properties
+   typedecl_separability cmt2annot
    ; manual update: mli only files
    annot outcometree
 
@@ -307,8 +307,6 @@
     (typemod.mli as compiler-libs/typemod.mli)
     (typedecl_variance.mli as compiler-libs/typedecl_variance.mli)
     (typedecl_properties.mli as compiler-libs/typedecl_properties.mli)
-    (typedecl_immediacy.mli as compiler-libs/typedecl_immediacy.mli)
-    (typedecl_unboxed.mli as compiler-libs/typedecl_unboxed.mli)
     (typedecl_separability.mli as compiler-libs/typedecl_separability.mli)
     (annot.mli as compiler-libs/annot.mli)
     (outcometree.mli as compiler-libs/outcometree.mli)

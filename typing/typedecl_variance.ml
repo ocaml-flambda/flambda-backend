@@ -133,7 +133,7 @@ let injective = Variance.(set Inj true null)
 
 let compute_variance_type env ~check (required, loc) decl tyl =
   (* Requirements *)
-  let check_injectivity = decl.type_kind = Type_abstract in
+  let check_injectivity = decl_is_abstract decl in
   let required =
     List.map
       (fun (c,n,i) ->
@@ -236,7 +236,7 @@ let compute_variance_type env ~check (required, loc) decl tyl =
       let v = get_variance ty tvl in
       let tr = decl.type_private in
       (* Use required variance where relevant *)
-      let concr = decl.type_kind <> Type_abstract (*|| tr = Type_new*) in
+      let concr = not (decl_is_abstract decl) (*|| tr = Type_new*) in
       let (p, n) =
         if tr = Private || not (Btype.is_Tvar ty) then (p, n) (* set *)
         else (false, false) (* only check *)
@@ -249,7 +249,7 @@ let compute_variance_type env ~check (required, loc) decl tyl =
         union v
           (if p then if n then full else covariant else conjugate covariant)
       in
-      if decl.type_kind = Type_abstract && tr = Public then v else
+      if decl_is_abstract decl && tr = Public then v else
       set May_weak (mem May_neg v) v)
     params required
 
@@ -300,11 +300,11 @@ let compute_variance_extension env ~check decl ext rloc =
     (ext.ext_args, ext.ext_ret_type)
 
 let compute_variance_decl env ~check decl (required, _ as rloc) =
-  if (decl.type_kind = Type_abstract || decl.type_kind = Type_open)
+  if (decl_is_abstract decl || decl.type_kind = Type_open)
        && decl.type_manifest = None then
     List.map
       (fun (c, n, i) ->
-        make (not n) (not c) (decl.type_kind <> Type_abstract || i))
+        make (not n) (not c) (not (decl_is_abstract decl) || i))
       required
   else
   let mn =
@@ -313,7 +313,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
     | Some ty -> [false, ty]
   in
   match decl.type_kind with
-    Type_abstract | Type_open ->
+    Type_abstract _ | Type_open ->
       compute_variance_type env ~check rloc decl mn
   | Type_variant (tll,_rep) ->
       if List.for_all (fun c -> c.Types.cd_res = None) tll then

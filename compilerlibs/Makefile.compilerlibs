@@ -115,8 +115,6 @@ TYPING = \
   typing/parmatch.cmo \
   typing/typedecl_properties.cmo \
   typing/typedecl_variance.cmo \
-  typing/typedecl_unboxed.cmo \
-  typing/typedecl_immediacy.cmo \
   typing/typedecl_separability.cmo \
   lambda/debuginfo.cmo lambda/lambda.cmo \
   typing/typedecl.cmo \

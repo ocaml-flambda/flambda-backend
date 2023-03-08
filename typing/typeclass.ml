@@ -1471,7 +1471,7 @@ let temp_abbrev loc env id arity uid =
     Env.add_type ~check:true id
       {type_params = !params;
        type_arity = arity;
-       type_kind = Type_abstract;
+       type_kind = Types.kind_abstract;
        type_private = Public;
        type_manifest = Some ty;
        type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1480,7 +1480,6 @@ let temp_abbrev loc env id arity uid =
        type_expansion_scope = Btype.lowest_level;
        type_loc = loc;
        type_attributes = []; (* or keep attrs from the class decl? *)
-       type_immediate = Unknown;
        type_unboxed_default = false;
        type_uid = uid;
       }
@@ -1706,7 +1705,7 @@ let class_infos define_class kind
     {
      type_params = obj_params;
      type_arity = arity;
-     type_kind = Type_abstract;
+     type_kind = Types.kind_abstract;
      type_private = Public;
      type_manifest = Some obj_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1715,7 +1714,6 @@ let class_infos define_class kind
      type_expansion_scope = Btype.lowest_level;
      type_loc = cl.pci_loc;
      type_attributes = []; (* or keep attrs from cl? *)
-     type_immediate = Unknown;
      type_unboxed_default = false;
      type_uid = dummy_class.cty_uid;
     }
@@ -1729,7 +1727,7 @@ let class_infos define_class kind
     {
      type_params = cl_params;
      type_arity = arity;
-     type_kind = Type_abstract;
+     type_kind = Types.kind_abstract;
      type_private = Public;
      type_manifest = Some cl_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1738,7 +1736,6 @@ let class_infos define_class kind
      type_expansion_scope = Btype.lowest_level;
      type_loc = cl.pci_loc;
      type_attributes = []; (* or keep attrs from cl? *)
-     type_immediate = Unknown;
      type_unboxed_default = false;
      type_uid = dummy_class.cty_uid;
     }

@@ -569,14 +569,8 @@ let has_poly_constraint spat =
     end
   | _ -> false
 
-let mode_cross env ty =
-  if is_principal ty then begin
-    match immediacy env ty with
-    | Type_immediacy.Always -> true
-    | Type_immediacy.Always_on_64bits when Sys.word_size = 64 -> true
-    | _ -> false
-  end
-  else false
+let mode_cross env (ty : type_expr) =
+  is_principal ty && is_always_global env ty
 
 let mode_cross_to_global env ty mode =
   if mode_cross env ty then
@@ -914,9 +908,9 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
       end
   | Tpat_constant _ ->
       let mode =
-        match Ctype.immediacy !env p.pat_type with
-        | Always -> Value_mode.newvar ()
-        | Unknown | Always_on_64bits -> mode
+        if Ctype.is_always_global !env p.pat_type
+        then Value_mode.newvar ()
+        else mode
       in
       p.pat_type, mode
   | Tpat_any | Tpat_var _
@@ -5944,7 +5938,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       end
       end
   | None ->
-      let mode = expect_mode_cross env ty_expected' mode in
+      let mode = expect_mode_cross env (generic_instance ty_expected') mode in
       let texp = type_expect ?recarg env mode sarg
         (mk_expected ?explanation ty_expected') in
       unify_exp env texp ty_expected;
