@@ -182,6 +182,29 @@ module Stdlib = struct
           }
       in
       find_prefix ~longest_common_prefix_rev:[] first second
+
+    let [@inline] merge_iter ~cmp ~left_only ~right_only ~both t1 t2 =
+      let rec loop t1 t2 =
+        match t1, t2 with
+        | [], [] -> ()
+        | a :: t1', [] -> left_only a; loop t1' []
+        | [], b :: t2' -> right_only b; loop [] t2'
+        | a :: t1', b :: t2' ->
+            match cmp a b with
+            | 0 -> both a b; loop t1' t2'
+            | c when c < 0 -> left_only a; loop t1' t2
+            | _ -> right_only b; loop t1 t2'
+      in
+      loop t1 t2
+
+    let [@inline] merge_map ~cmp ~left_only ~right_only ~both t1 t2 =
+      let acc_rev = ref [] in
+      let add c = acc_rev := c :: !acc_rev in
+      merge_iter t1 t2 ~cmp
+        ~left_only:(fun a -> add (left_only a))
+        ~right_only:(fun b -> add (right_only b))
+        ~both:(fun a b -> add (both a b));
+      List.rev !acc_rev
   end
 
   module Option = struct
@@ -941,6 +964,16 @@ let debug_prefix_map_flags () =
 let print_if ppf flag printer arg =
   if !flag then Format.fprintf ppf "%a@." printer arg;
   arg
+
+let output_of_print print =
+  let output out_channel t =
+    let ppf = Format.formatter_of_out_channel out_channel in
+    print ppf t;
+    (* Must flush the formatter immediately because it has a buffer separate
+       from the output channel's buffer *)
+    Format.pp_print_flush ppf ()
+  in
+  output
 
 
 type filepath = string
