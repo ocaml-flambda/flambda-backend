@@ -225,7 +225,9 @@ type kind_for_unboxing =
 
 type is_global = Global | Local
 
-type symbol = string * is_global
+type symbol =
+  { sym_name : string;
+    sym_global : is_global }
 
 type expression =
     Cconst_int of int * Debuginfo.t

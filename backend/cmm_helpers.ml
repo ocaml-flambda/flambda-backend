@@ -3491,10 +3491,10 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
 
 (* Symbols *)
 
-let cdefine_symbol (symb, (global : is_global)) =
-  match global with
-  | Global -> [Cglobal_symbol symb; Cdefine_symbol symb]
-  | Local -> [Cdefine_symbol symb]
+let cdefine_symbol sym =
+  match sym.sym_global with
+  | Global -> [Cglobal_symbol sym.sym_name; Cdefine_symbol sym.sym_name]
+  | Local -> [Cdefine_symbol sym.sym_name]
 
 let emit_block symb white_header cont =
   (* Headers for structured constants must be marked black in case we are in
@@ -3614,8 +3614,9 @@ let reference_symbols namelist =
   let mksym name = Csymbol_address name in
   Cdata (List.map mksym namelist)
 
-let global_data name v =
-  Cdata (emit_string_constant (name, Global) (Marshal.to_string v []) [])
+let global_data sym_name v =
+  let symbol = { sym_name; sym_global = Global } in
+  Cdata (emit_string_constant symbol (Marshal.to_string v []) [])
 
 let globals_map v = global_data "caml_globals_map" v
 
@@ -3651,14 +3652,20 @@ let code_segment_table namelist =
 (* Initialize a predefined exception *)
 
 let predef_exception i name =
-  let name_sym = Compilenv.new_const_symbol () in
-  let data_items = emit_string_constant (name_sym, Local) name [] in
-  let exn_sym = "caml_exn_" ^ name in
+  let name_sym =
+    { sym_name = Compilenv.new_const_symbol ();
+      sym_global = Local }
+  in
+  let data_items = emit_string_constant name_sym name [] in
+  let exn_sym =
+    { sym_name = "caml_exn_" ^ name;
+      sym_global = Global }
+  in
   let tag = Obj.object_tag in
   let size = 2 in
-  let fields = Csymbol_address name_sym :: cint_const (-i - 1) :: data_items in
+  let fields = Csymbol_address name_sym.sym_name :: cint_const (-i - 1) :: data_items in
   let data_items =
-    emit_block (exn_sym, Global) (block_header tag size) fields
+    emit_block exn_sym (block_header tag size) fields
   in
   Cdata data_items
 
@@ -3694,10 +3701,12 @@ let fundecls_size fundecls =
 
 (* Emit constant closures *)
 
-let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
+let emit_constant_closure symb fundecls clos_vars cont =
   let closure_symbol (f : Clambda.ufunction) =
     if Config.flambda
-    then cdefine_symbol (f.label ^ "_closure", global_symb)
+    then
+      cdefine_symbol
+        { sym_name = f.label ^ "_closure"; sym_global = symb.sym_global }
     else []
   in
   match (fundecls : Clambda.ufunction list) with
@@ -3784,7 +3793,7 @@ let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
       fields
   in
   let global = if exported then Global else Local in
-  let symb = symbol, global in
+  let symb = { sym_name = symbol; sym_global = global } in
   let data = emit_block symb (block_header tag (List.length fields)) space in
   Cdata data :: cont
 

@@ -229,7 +229,21 @@ type kind_for_unboxing =
 
 type is_global = Global | Local
 
-type symbol = string * is_global
+(* Symbols are marked with whether they are local or global,
+   at both definition and use sites.
+
+   Symbols defined as [Local] may only be referenced within the same file,
+   and all such references must also be [Local].
+
+   Symbols defined as [Global] may be referenced from other files.
+   References from other files must be [Global], but references from the
+   same file may be [Local].
+
+   (Marking symbols in this way speeds up linking, as many references can
+   then be resolved early) *)
+type symbol =
+  { sym_name : string;
+    sym_global : is_global }
 
 (** Every basic block should have a corresponding [Debuginfo.t] for its
     beginning. *)

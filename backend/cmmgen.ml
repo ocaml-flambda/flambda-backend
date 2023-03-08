@@ -239,7 +239,7 @@ let emit_constant cst cont =
   | Uconst_ref (sym, _) ->
       Csymbol_address sym :: cont
 
-let emit_structured_constant ((_sym, is_global) as symb) cst cont =
+let emit_structured_constant symb cst cont =
   match cst with
   | Uconst_float s ->
       emit_float_constant symb s cont
@@ -257,22 +257,23 @@ let emit_structured_constant ((_sym, is_global) as symb) cst cont =
   | Uconst_float_array fields ->
       emit_float_array_constant symb fields cont
   | Uconst_closure(fundecls, lbl, fv) ->
-      Cmmgen_state.add_constant lbl (Const_closure (is_global, fundecls, fv));
+      Cmmgen_state.add_constant lbl (Const_closure (symb.sym_global, fundecls, fv));
       List.iter (fun f -> Cmmgen_state.add_function f) fundecls;
       cont
 
 (* Boxed integers *)
 
-let box_int_constant sym bi n =
+let box_int_constant sym_name bi n =
+  let sym = { sym_name; sym_global = Local } in
   match bi with
     Pnativeint ->
-      emit_nativeint_constant (sym, Local) n []
+      emit_nativeint_constant sym n []
   | Pint32 ->
       let n = Nativeint.to_int32 n in
-      emit_int32_constant (sym, Local) n []
+      emit_int32_constant sym n []
   | Pint64 ->
       let n = Int64.of_nativeint n in
-      emit_int64_constant (sym, Local) n []
+      emit_int64_constant sym n []
 
 let box_int dbg bi mode arg =
   match arg with
@@ -1587,31 +1588,32 @@ let emit_constant_table symb elems =
 let transl_clambda_constants (constants : Clambda.preallocated_constant list)
       cont =
   let c = ref cont in
-  let emit_clambda_constant symbol global cst =
-     let cst = emit_structured_constant (symbol, global) cst [] in
+  let emit_clambda_constant sym cst =
+     let cst = emit_structured_constant sym cst [] in
      c := (Cdata cst) :: !c
   in
   List.iter
     (fun { symbol; exported; definition = cst; provenance = _; } ->
-       let global : is_global =
-         if exported then Global else Local
+       let sym =
+         { sym_name = symbol;
+           sym_global = if exported then Global else Local }
        in
-       emit_clambda_constant symbol global cst)
+       emit_clambda_constant sym cst)
     constants;
   !c
 
 let emit_cmm_data_items_for_constants cont =
   let c = ref cont in
-  String.Map.iter (fun symbol (cst : Cmmgen_state.constant) ->
+  String.Map.iter (fun sym_name (cst : Cmmgen_state.constant) ->
       match cst with
       | Const_closure (global, fundecls, clos_vars) ->
           let cmm =
-            emit_constant_closure (symbol, global) fundecls
+            emit_constant_closure {sym_name; sym_global=global} fundecls
               (List.fold_right emit_constant clos_vars []) []
           in
           c := (Cdata cmm) :: !c
       | Const_table (global, elems) ->
-          c := (Cdata (emit_constant_table (symbol, global) elems)) :: !c)
+          c := (Cdata (emit_constant_table {sym_name; sym_global=global} elems)) :: !c)
     (Cmmgen_state.get_and_clear_constants ());
   Cdata (Cmmgen_state.get_and_clear_data_items ()) :: !c
 

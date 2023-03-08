@@ -100,7 +100,11 @@ let define_module_symbol_if_missing r =
     let linkage_name =
       Linkage_name.to_string (Symbol.linkage_name r.module_symbol)
     in
-    let l = C.emit_block (linkage_name, Global) (C.black_block_header 0 0) [] in
+    let sym : Cmm.symbol =
+      { sym_name = linkage_name;
+        sym_global = Global }
+    in
+    let l = C.emit_block sym (C.black_block_header 0 0) [] in
     set_data r l
 
 let add_invalid_message_symbol t symbol ~message =
