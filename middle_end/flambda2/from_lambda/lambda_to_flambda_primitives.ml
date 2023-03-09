@@ -723,30 +723,18 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
            unbox_float arg1,
            unbox_float arg2 ))
   | Punbox_float, [arg] ->
-    Unary (Unbox_number Flambda_kind.Boxable_number.Naked_float, arg)
+    Unary (Unbox_number Naked_float, arg)
   | Pbox_float mode, [arg] ->
     Unary
       ( Box_number
-          ( Flambda_kind.Boxable_number.Naked_float,
+          ( Naked_float,
             Alloc_mode.For_allocations.from_lambda mode ~current_region ),
         arg )
   | Punbox_int bi, [arg] ->
-    let kind =
-      Flambda_kind.Boxable_number.(
-        match bi with
-        | Pint32 -> Naked_int32
-        | Pint64 -> Naked_int64
-        | Pnativeint -> Naked_nativeint)
-    in
+    let kind = boxable_number_of_boxed_integer bi in
     Unary (Unbox_number kind, arg)
   | Pbox_int (bi, mode), [arg] ->
-    let kind =
-      Flambda_kind.Boxable_number.(
-        match bi with
-        | Pint32 -> Naked_int32
-        | Pint64 -> Naked_int64
-        | Pnativeint -> Naked_nativeint)
-    in
+    let kind = boxable_number_of_boxed_integer bi in
     Unary
       ( Box_number
           (kind, Alloc_mode.For_allocations.from_lambda mode ~current_region),

@@ -709,6 +709,8 @@ let rec comp_expr env exp sz cont =
       comp_expr env arg sz cont
   | Lprim((Pbox_float _ | Punbox_float), [arg], _) ->
       comp_expr env arg sz cont
+  | Lprim((Pbox_int _ | Punbox_int _), [arg], _) ->
+      comp_expr env arg sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr env arg sz (add_const_unit cont)
   | Lprim(Pnot, [arg], _) ->

@@ -180,4 +180,5 @@ let equal (x: primitive) (y: primitive) = x = y
 let result_layout (p : primitive) =
   match p with
   | Punbox_float -> Lambda.Punboxed_float
+  | Punbox_int bi -> Lambda.Punboxed_int bi
   | _ -> Lambda.layout_any_value

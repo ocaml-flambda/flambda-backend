@@ -808,7 +808,7 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
              "Variable %a with layout [Pbottom] can't be compiled"
              VP.print id
          | Punboxed_float | Punboxed_int _ ->
-           failwith "TODO transl_catch"
+           u := No_unboxing
          | Pvalue kind ->
            let strict = is_strict kind in
            u := join_unboxed_number_kind ~strict !u
@@ -820,12 +820,12 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
   let body = transl env_body body in
   let new_env, rewrite, ids =
     List.fold_right
-      (fun (id, _kind, u) (env, rewrite, ids) ->
+      (fun (id, layout, u) (env, rewrite, ids) ->
          match !u with
          | No_unboxing | Boxed (_, true) | No_result ->
              env,
              (fun x -> x) :: rewrite,
-             (id, Cmm.typ_val) :: ids
+             (id, machtype_of_layout layout) :: ids
          | Boxed (bn, false) ->
              let unboxed_id = V.create_local (VP.name id) in
              add_unboxed_id (VP.var id) unboxed_id bn env,
@@ -940,15 +940,15 @@ and transl_prim_1 env p arg dbg =
       offsetint n (transl env arg) dbg
   | Poffsetref n ->
       offsetref n (transl env arg) dbg
+  | Punbox_int bi ->
+    transl_unbox_int dbg env bi arg
+  | Pbox_int (bi, m) ->
+    box_int dbg bi m (transl env arg)
   (* Floating-point operations *)
   | Punbox_float ->
       transl_unbox_float dbg env arg
   | Pbox_float m ->
       box_float dbg m (transl env arg)
-  | Punbox_int bi ->
-      transl_unbox_int dbg env bi arg
-  | Pbox_int (bi, m) ->
-      box_int dbg bi m (transl env arg)
   | Pfloatofint m ->
       box_float dbg m (Cop(Cfloatofint, [untag_int(transl env arg) dbg], dbg))
   | Pintoffloat ->
@@ -1325,13 +1325,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
       | (Immutable | Immutable_unique) ->
         Clet(id, cexp, cbody)
       | Mutable ->
-        let typ = match layout with
-          | Punboxed_float -> typ_float
-          | Punboxed_int (Pint32 | Pnativeint) -> typ_int
-          | Punboxed_int Pint64 -> typ_int64
-          | Ptop | Pbottom | Pvalue _ ->
-            assert false (* inconsistent with outer match *)
-        in
+        let typ = machtype_of_layout layout in
         Clet_mut(id, typ, cexp, cbody)
   end
   | Pvalue kind ->
