@@ -28,7 +28,7 @@ type expr_with_info =
 
 type cont =
   | Jump of
-      { cont : Cmm.label;
+      { cont : Lambda.static_label;
         param_types : Cmm.machtype list
       }
   | Inline of
@@ -317,10 +317,8 @@ let get_continuation env k =
       Continuation.print k
   | res -> res
 
-let new_cmm_continuation = Lambda.next_raise_count
-
 let add_jump_cont env k ~param_types =
-  let cont = new_cmm_continuation () in
+  let cont = Lambda.next_raise_count () in
   let conts = Continuation.Map.add k (Jump { param_types; cont }) env.conts in
   cont, { env with conts }
 
