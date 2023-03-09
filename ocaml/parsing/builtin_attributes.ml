@@ -80,6 +80,7 @@ let builtin_attrs =
   ; "tail"; "ocaml.tail"; "extension.tail"
   ; "include_functor"; "ocaml.include_functor"; "extension.include_functor"
   ; "noalloc"; "ocaml.noalloc"
+  ; "zero_alloc"; "ocaml.zero_alloc"
   ; "untagged"; "ocaml.untagged"
   ; "poll"; "ocaml.poll"
   ; "loop"; "ocaml.loop"
