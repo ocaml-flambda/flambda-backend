@@ -1,6 +1,6 @@
 (* TEST_BELOW *)
 
-let test s =
+let[@inline never] test s =
   let s' = (String.cat[@inlined never]) "! " s in
   (Foo.h[@inlined]) s'; (* CR gbury: remove [@inlined] *)
   (Foo.print_stack[@inlined]) (); (* CR gbury: remove [@inlined] *)
@@ -14,57 +14,57 @@ let () =
 
    readonly_files ="foo.ml"
 
-   * setup-ocamlopt.byte-build-env
+   * setup-ocamlopt.opt-build-env
      compiler_directory_suffix = ".O3"
-   ** ocamlopt.byte
+   ** ocamlopt.opt
       module = "foo.ml"
       flags = "-g -O3"
-   *** ocamlopt.byte
+   *** ocamlopt.opt
        module = "main.ml"
        flags = "-g -O3"
-   **** ocamlopt.byte
+   **** ocamlopt.opt
         module = ""
         all_modules = "foo.cmx main.cmx"
    ***** run
    ****** check-program-output
 
-   * setup-ocamlopt.byte-build-env
+   * setup-ocamlopt.opt-build-env
      compiler_directory_suffix = ".Oclassic"
-   ** ocamlopt.byte
+   ** ocamlopt.opt
       module = "foo.ml"
       flags = "-g -Oclassic"
-   *** ocamlopt.byte
+   *** ocamlopt.opt
        module = "main.ml"
        flags = "-g -Oclassic"
-   **** ocamlopt.byte
+   **** ocamlopt.opt
         module = ""
         all_modules = "foo.cmx main.cmx"
    ***** run
    ****** check-program-output
 
-   * setup-ocamlopt.byte-build-env
+   * setup-ocamlopt.opt-build-env
      compiler_directory_suffix = ".O3-Oclassic"
-   ** ocamlopt.byte
+   ** ocamlopt.opt
       module = "foo.ml"
       flags = "-g -O3"
-   *** ocamlopt.byte
+   *** ocamlopt.opt
        module = "main.ml"
        flags = "-g -Oclassic"
-   **** ocamlopt.byte
+   **** ocamlopt.opt
         module = ""
         all_modules = "foo.cmx main.cmx"
    ***** run
    ****** check-program-output
 
-   * setup-ocamlopt.byte-build-env
+   * setup-ocamlopt.opt-build-env
      compiler_directory_suffix = ".Oclassic-O3"
-   ** ocamlopt.byte
+   ** ocamlopt.opt
       module = "foo.ml"
       flags = "-g -Oclassic"
-   *** ocamlopt.byte
+   *** ocamlopt.opt
        module = "main.ml"
        flags = "-g -O3"
-   **** ocamlopt.byte
+   **** ocamlopt.opt
         module = ""
         all_modules = "foo.cmx main.cmx"
    ***** run

@@ -3,7 +3,7 @@ let[@inline never] print s = (print_endline[@inlined never]) s
 
 let[@inline] print_stack () =
   let st = Printexc.get_callstack 100 in
-  Printexc.print_raw_backtrace stdout st
+  (Printexc.print_raw_backtrace[@inlined never]) stdout st
 
 let[@inline] f s =
   print_stack ();
