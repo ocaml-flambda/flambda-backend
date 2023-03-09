@@ -55,6 +55,7 @@ type token =
   | PIPE
   | PERCENT
   | NOTEQUALDOT
+  | NOTEQUAL
   | MINUSGREATER
   | MINUSDOT
   | MINUS
@@ -77,6 +78,7 @@ type token =
   | KWD_UNIT
   | KWD_TUPLED
   | KWD_TOPLEVEL
+  | KWD_TAILREC
   | KWD_TAGGED
   | KWD_TAG
   | KWD_SWITCH
@@ -101,6 +103,7 @@ type token =
   | KWD_LSR
   | KWD_LSL
   | KWD_LOR
+  | KWD_LOOPIFY
   | KWD_LOCAL
   | KWD_LET
   | KWD_LAND

@@ -25,7 +25,7 @@ in
     cont done ($camlTests4a)
 ===>
 let code pr2162_3_as_int64_0 deleted in
-let code size(21) newer_version_of(pr2162_3_as_int64_0)
+let code loopify(never) size(21) newer_version_of(pr2162_3_as_int64_0)
       pr2162_3_as_int64_0_1 (z : imm tagged, x : imm tagged)
         my_closure my_region my_depth
         -> k * k1

@@ -12,7 +12,7 @@ let $camlLocal__const_block162 = Block 0 (2, $camlLocal__const_block160) in
 let $camlLocal__const_block164 = Block 0 (1, $camlLocal__const_block162) in
 let $camlLocal__const_block166 = Block 0 (0, $camlLocal__const_block164) in
 let $camlLocal__const_block174 = Block 0 ($camlLocal__immstring51, 52, 2) in
-let code rec size(27)
+let code rec loopify(default tailrec) size(27)
       rev_app_4
         (l1 : [ 0 | 0 of val * [ 0 | 0 of val * val ] ],
          l2 : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])

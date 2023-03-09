@@ -772,7 +772,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             inline;
             params_and_body;
             code_size;
-            is_tupled
+            is_tupled;
+            loopify
           } ->
         let code_id = find_code_id env id in
         let newer_version_of = Option.map (find_code_id env) newer_version_of in
@@ -851,12 +852,16 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let inline =
           inline |> Option.value ~default:Inline_attribute.Default_inline
         in
+        let loopify =
+          loopify
+          |> Option.value
+               ~default:Loopify_attribute.Default_loopify_and_not_tailrec
+        in
         let cost_metrics =
           Cost_metrics.from_size (Code_size.of_int code_size)
         in
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
-          (* CR ncourant: same for loopify *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
             ~newer_version_of ~params_arity ~num_trailing_local_params:0
             ~result_arity ~result_types:Unknown
@@ -871,8 +876,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~absolute_history:
               (Inlining_history.Absolute.empty
                  (Compilation_unit.get_current_exn ()))
-            ~relative_history:Inlining_history.Relative.empty
-            ~loopify:Never_loopify
+            ~relative_history:Inlining_history.Relative.empty ~loopify
         in
         Flambda.Static_const_or_code.create_code code
     in
@@ -993,7 +997,15 @@ let bind_all_code_ids env (unit : Fexpr.flambda_unit) =
           env bindings
       in
       go env body
-    | Let { body; _ } | Let_cont { body; _ } -> go env body
+    | Let { body; _ } -> go env body
+    | Let_cont { body; bindings; _ } ->
+      let env =
+        List.fold_left
+          (fun env (binding : Fexpr.continuation_binding) ->
+            go env binding.handler)
+          env bindings
+      in
+      go env body
     | Apply _ | Apply_cont _ | Switch _ | Invalid _ -> env
   in
   go env unit.body

@@ -406,7 +406,7 @@ let float_comp ppf (o : unit comparison_behaviour) =
   @@
   match o with
   | Yielding_bool Eq -> "=."
-  | Yielding_bool Neq -> "!=."
+  | Yielding_bool Neq -> "<>."
   | Yielding_bool (Lt ()) -> "<."
   | Yielding_bool (Gt ()) -> ">."
   | Yielding_bool (Le ()) -> "<=."
@@ -629,6 +629,19 @@ let inlined_attribute_opt ~space ppf i =
 
 let inlining_state ppf { depth } = Format.fprintf ppf "depth(%d)" depth
 
+let loopify_attribute ppf (loopify : loopify_attribute) =
+  Format.pp_print_string ppf
+  @@
+  match loopify with
+  | Always_loopify -> "loopify(always)"
+  | Never_loopify -> "loopify(never)"
+  | Already_loopified -> "loopify(done)"
+  | Default_loopify_and_tailrec -> "loopify(default tailrec)"
+  | Default_loopify_and_not_tailrec -> "loopify(default)"
+
+let loopify_attribute_opt ~space ppf l =
+  pp_option ~space loopify_attribute ppf l
+
 let code_size ppf code_size = Format.fprintf ppf "%d" code_size
 
 let or_blank f ppf ob =
@@ -769,13 +782,17 @@ and code_binding ppf
        ret_arity;
        params_and_body;
        code_size = cs;
-       is_tupled
+       is_tupled;
+       loopify
      } :
       code) =
-  Format.fprintf ppf "@[<hv 2>code@[<h>%a%a@ size(%a)%a%a@]@ @[<hv2>@[<hv 2>%a"
+  Format.fprintf ppf
+    "@[<hv 2>code@[<h>%a%a%a@ size(%a)%a%a@]@ @[<hv2>@[<hv 2>%a"
     (recursive ~space:Before) rec_
     (inline_attribute_opt ~space:Before)
-    inline code_size cs
+    inline
+    (loopify_attribute_opt ~space:Before)
+    loopify code_size cs
     (pp_option ~space:Before (pp_like "newer_version_of(%a)" code_id))
     newer_version_of
     (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "@ tupled@ ")

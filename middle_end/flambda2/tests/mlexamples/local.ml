@@ -2,7 +2,7 @@ type 'a list = [] | (::) of global_ 'a * 'a list
 
 external (+) : int -> int -> int = "%addint"
 external (mod) : int -> int -> int = "%modint"
-external (=) : int -> int -> bool = "%equal"
+external (=) : int -> int -> bool = "%eq"
 
 let return_local () = local_ [ 1; 2; 3 ]
 

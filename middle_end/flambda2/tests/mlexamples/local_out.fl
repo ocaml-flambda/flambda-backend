@@ -20,7 +20,7 @@ let code is_even_7 deleted in
 let code `anon-fn[local.ml:27,34--50]_3` deleted in
 let code map_local_1 deleted in
 let code return_local_0 deleted in
-let code size(1) newer_version_of(return_local_0)
+let code loopify(never) size(1) newer_version_of(return_local_0)
       return_local_0_1 (param : imm tagged)
         my_closure my_region my_depth
         -> k * k1
@@ -30,7 +30,7 @@ in
 let $camlLocal__return_local_8 = closure return_local_0_1 @return_local in
 let $camlLocal__map_local_9 =
   closure map_local_1_1 @map_local
-and code rec size(31) newer_version_of(map_local_1)
+and code rec loopify(never) size(31) newer_version_of(map_local_1)
       map_local_1_1 (f, l : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
         my_closure my_region my_depth
         -> k * k1
@@ -58,7 +58,7 @@ and code rec size(31) newer_version_of(map_local_1)
 in
 let $camlLocal__length_10 =
   closure length_2_1 @length
-and code rec size(19) newer_version_of(length_2)
+and code rec loopify(never) size(19) newer_version_of(length_2)
       length_2_1 (l : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
         my_closure my_region my_depth
         -> k * k1
@@ -111,7 +111,7 @@ apply direct(length_2_1)
        where k =
          let `unit` = %end_region `region` in
          let region_1 = %begin_region in
-         ((let code size(3) newer_version_of(`anon-fn[local.ml:27,34--50]_3`)
+         ((let code loopify(never) size(3) newer_version_of(`anon-fn[local.ml:27,34--50]_3`)
                  `anon-fn[local.ml:27,34--50]_3_1` (i : imm tagged)
                    my_closure my_region my_depth
                    -> k2 * k3
@@ -149,7 +149,7 @@ apply direct(length_2_1)
                      | 1 -> k)
             where k =
               let unit_1 = %end_region region_1 in
-              let code rec size(22) newer_version_of(rev_app_4)
+              let code rec loopify(done) size(22) newer_version_of(rev_app_4)
                     rev_app_4_1
                       (l1 : [ 0 | 0 of val * [ 0 | 0 of val * val ] ],
                        l2 : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
@@ -173,7 +173,7 @@ apply direct(length_2_1)
                          cont self (Pfield_1, Pmakeblock))
               in
               let $camlLocal__rev_app_12 = closure rev_app_4_1 @rev_app in
-              let code rec size(36) newer_version_of(spans_5)
+              let code rec loopify(never) size(36) newer_version_of(spans_5)
                     spans_5_1
                       (break_here,
                        l : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
@@ -235,7 +235,7 @@ apply direct(length_2_1)
                 closure spans_5_1 @spans
               and $camlLocal__find_span_14 =
                 closure find_span_6_1 @find_span
-              and code rec size(58) newer_version_of(find_span_6)
+              and code rec loopify(never) size(58) newer_version_of(find_span_6)
                     find_span_6_1
                       (break_here,
                        l : [ 0 | 0 of val * [ 0 | 0 of val * val ] ],
@@ -279,7 +279,7 @@ apply direct(length_2_1)
                                   &my_region
                                   -> k * k1))
               in
-              let code size(9) newer_version_of(is_even_7)
+              let code loopify(never) size(9) newer_version_of(is_even_7)
                     is_even_7_1 (i : imm tagged)
                       my_closure my_region my_depth
                       -> k * k1

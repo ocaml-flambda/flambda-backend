@@ -796,6 +796,12 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
         then None
         else Some (Code.inline code)
       in
+      let loopify =
+        if Flambda2_terms.Loopify_attribute.equal (Code.loopify code)
+             Default_loopify_and_not_tailrec
+        then None
+        else Some (Code.loopify code)
+      in
       let is_tupled = Code.is_tupled code in
       let params_and_body =
         Flambda.Function_params_and_body.pattern_match
@@ -847,6 +853,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
           ret_arity;
           recursive;
           inline;
+          loopify;
           params_and_body;
           code_size;
           is_tupled

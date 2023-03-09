@@ -85,7 +85,8 @@ let make_boxed_const_int (i, m) : static_data =
 %token MINUS    [@symbol "-"]
 %token MINUSDOT [@symbol "-."]
 %token MINUSGREATER [@symbol "->"]
-%token NOTEQUALDOT [@symbol "!=."]
+%token NOTEQUAL [@symbol "<>"]
+%token NOTEQUALDOT [@symbol "<>."]
 %token QMARK [@symbol "?"]
 %token QMARKDOT [@symbol "?."]
 %token PIPE [@symbol "|"]
@@ -147,6 +148,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_LAND  [@symbol "land"]
 %token KWD_LET   [@symbol "let"]
 %token KWD_LOCAL [@symbol "local"]
+%token KWD_LOOPIFY [@symbol "loopify"]
 %token KWD_LOR   [@symbol "lor"]
 %token KWD_LSL   [@symbol "lsl"]
 %token KWD_LSR   [@symbol "lsr"]
@@ -170,6 +172,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_SWITCH [@symbol "switch"]
 %token KWD_TAG    [@symbol "tag"]
 %token KWD_TAGGED [@symbol "tagged"]
+%token KWD_TAILREC [@symbol "tailrec"]
 %token KWD_TOPLEVEL [@symbol "toplevel"]
 %token KWD_TUPLED [@symbol "tupled"]
 %token KWD_UNIT   [@symbol "unit"]
@@ -237,6 +240,7 @@ let make_boxed_const_int (i, m) : static_data =
 (* %type <Fexpr.kind> kind *)
 %type <Fexpr.kind_with_subkind> kind_with_subkind
 %type <Fexpr.kind_with_subkind list> kinds_with_subkinds
+%type <Fexpr.loopify_attribute> loopify
 %type <Fexpr.mutability> mutability
 %type <Flambda_kind.Naked_number_kind.t> naked_number_kind
 %type <Fexpr.name> name
@@ -312,24 +316,27 @@ code:
     exn_cont = exn_continuation_id;
     ret_arity = return_arity;
     EQUAL; body = expr;
-    { let recursive, inline, id, newer_version_of, code_size, is_tupled =
+    { let
+        recursive, inline, loopify, id, newer_version_of, code_size, is_tupled
+        =
         header
       in
       { id; newer_version_of; param_arity = None; ret_arity; recursive; inline;
         params_and_body = { params; closure_var; region_var; depth_var;
                             ret_cont; exn_cont; body };
-        code_size; is_tupled; } }
+        code_size; is_tupled; loopify; } }
 ;
 
 code_header:
   | KWD_CODE;
     recursive = recursive;
     inline = option(inline);
+    loopify = loopify_opt;
     KWD_SIZE LPAREN; code_size = code_size; RPAREN;
     newer_version_of = option(newer_version_of);
     is_tupled = boption(KWD_TUPLED);
     id = code_id;
-    { recursive, inline, id, newer_version_of, code_size, is_tupled }
+    { recursive, inline, loopify, id, newer_version_of, code_size, is_tupled }
 ;
 
 newer_version_of:
@@ -486,6 +493,7 @@ int_comp:
   | LESSGREATER { fun s -> Yielding_bool Neq }
   | LESSEQUAL { fun s -> Yielding_bool (Le s) }
   | GREATEREQUAL { fun s -> Yielding_bool (Ge s) }
+  | NOTEQUAL { fun _ -> Yielding_bool Neq }
   | QMARK { fun s -> Yielding_int_like_compare_functions s }
 
 float_comp:
@@ -779,6 +787,19 @@ inlining_state:
 
 inlining_state_depth:
   | KWD_DEPTH LPAREN; i = plain_int; RPAREN { i }
+;
+
+loopify_opt:
+  | { None }
+  | KWD_LOOPIFY LPAREN; l = loopify; RPAREN { Some l }
+;
+
+loopify:
+  | KWD_ALWAYS { Always_loopify }
+  | KWD_NEVER { Never_loopify }
+  | KWD_DONE { Already_loopified }
+  | KWD_DEFAULT KWD_TAILREC { Default_loopify_and_tailrec }
+  | KWD_DEFAULT { Default_loopify_and_not_tailrec }
 ;
 
 region:

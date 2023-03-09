@@ -370,6 +370,13 @@ type inlined_attribute = Inlined_attribute.t =
 
 type inlining_state = { depth : int (* CR lmaurer: Add inlining arguments *) }
 
+type loopify_attribute = Loopify_attribute.t =
+  | Always_loopify
+  | Never_loopify
+  | Already_loopified
+  | Default_loopify_and_tailrec
+  | Default_loopify_and_not_tailrec
+
 type apply =
   { func : name;
     continuation : result_continuation;
@@ -474,7 +481,8 @@ and code =
     inline : inline_attribute option;
     params_and_body : params_and_body;
     code_size : code_size;
-    is_tupled : bool
+    is_tupled : bool;
+    loopify : loopify_attribute option
   }
 
 and code_size = int

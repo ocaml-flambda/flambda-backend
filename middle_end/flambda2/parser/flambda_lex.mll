@@ -69,6 +69,7 @@ let keyword_table =
     "land", KWD_LAND;
     "let", KWD_LET;
     "local", KWD_LOCAL;
+    "loopify", KWD_LOOPIFY;
     "lsl", KWD_LSL;
     "lsr", KWD_LSR;
     "mutable", KWD_MUTABLE;
@@ -91,6 +92,7 @@ let keyword_table =
     "switch", KWD_SWITCH;
     "tag", KWD_TAG;
     "tagged", KWD_TAGGED;
+    "tailrec", KWD_TAILREC;
     "toplevel", KWD_TOPLEVEL;
     "tupled", KWD_TUPLED;
     "unit", KWD_UNIT;
@@ -250,13 +252,14 @@ rule token = parse
   | "<>" { LESSGREATER }
   | "<=" { LESSEQUAL }
   | ">=" { GREATEREQUAL }
+  | "<>" { NOTEQUAL }
   | "?"  { QMARK }
   | "+." { PLUSDOT }
   | "-." { MINUSDOT }
   | "*." { STARDOT }
   | "/." { SLASHDOT }
   | "=." { EQUALDOT }
-  | "!=." { NOTEQUALDOT }
+  | "<>." { NOTEQUALDOT }
   | "<." { LESSDOT }
   | "<=." { LESSEQUALDOT }
   | "?." { QMARKDOT }
