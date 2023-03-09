@@ -479,7 +479,7 @@ let recursive_flag (r : Recursive.t) : Fexpr.is_recursive =
 let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
   match op with
   | Begin_region -> Begin_region
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ ->
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _ ->
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
       (Flambda_primitive.Nullary op)
 
