@@ -340,6 +340,8 @@ val equal_meth_kind : meth_kind -> meth_kind -> bool
 
 type shared_code = (int * int) list     (* stack size -> code label *)
 
+type static_label = int
+
 type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
@@ -369,8 +371,8 @@ type lambda =
    strings are pairwise distinct *)
   | Lstringswitch of
       lambda * (string * lambda) list * lambda option * scoped_location * layout
-  | Lstaticraise of int * lambda list
-  | Lstaticcatch of lambda * (int * (Ident.t * layout) list) * lambda * layout
+  | Lstaticraise of static_label * lambda list
+  | Lstaticcatch of lambda * (static_label * (Ident.t * layout) list) * lambda * layout
   | Ltrywith of lambda * Ident.t * lambda * layout
 (* Lifthenelse (e, t, f, layout) evaluates t if e evaluates to 0, and evaluates f if
    e evaluates to any other value; layout must be the layout of [t] and [f] *)
@@ -618,7 +620,7 @@ val primitive_may_allocate : primitive -> alloc_mode option
 (***********************)
 
 (* Get a new static failure ident *)
-val next_raise_count : unit -> int
+val next_raise_count : unit -> static_label
 
 val staticfail : lambda (* Anticipated static failure *)
 
