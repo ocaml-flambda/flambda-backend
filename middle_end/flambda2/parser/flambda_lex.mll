@@ -54,6 +54,7 @@ let keyword_table =
     "exn", KWD_EXN;
     "float", KWD_FLOAT;
     "halt_and_catch_fire", KWD_HCF;
+    "heap_or_local", KWD_HEAP_OR_LOCAL;
     "hint", KWD_HINT;
     "id", KWD_ID;
     "imm", KWD_IMM;
@@ -67,6 +68,7 @@ let keyword_table =
     "int64", KWD_INT64;
     "land", KWD_LAND;
     "let", KWD_LET;
+    "local", KWD_LOCAL;
     "lsl", KWD_LSL;
     "lsr", KWD_LSR;
     "mutable", KWD_MUTABLE;

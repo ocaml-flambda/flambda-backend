@@ -132,6 +132,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_REGION [@symbol "region"]
 %token KWD_FLOAT [@symbol "float"]
 %token KWD_HCF   [@symbol "halt_and_catch_fire"]
+%token KWD_HEAP_OR_LOCAL [@symbol "heap_or_local"]
 %token KWD_HINT  [@symbol "hint"]
 %token KWD_ID    [@symbol "id"]
 %token KWD_IMM   [@symbol "imm" ]
@@ -145,6 +146,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_INT64 [@symbol "int64"]
 %token KWD_LAND  [@symbol "land"]
 %token KWD_LET   [@symbol "let"]
+%token KWD_LOCAL [@symbol "local"]
 %token KWD_LOR   [@symbol "lor"]
 %token KWD_LSL   [@symbol "lsl"]
 %token KWD_LSR   [@symbol "lsr"]
@@ -215,6 +217,8 @@ let make_boxed_const_int (i, m) : static_data =
 %token STATIC_CONST_FLOAT_BLOCK [@symbol "Float_block"]
 
 %start flambda_unit expect_test_spec
+%type <Fexpr.alloc_mode_for_allocations> alloc_mode_for_allocations_opt
+%type <Fexpr.alloc_mode_for_types> alloc_mode_for_types_opt
 %type <Fexpr.array_kind> array_kind
 %type <Fexpr.binary_float_arith_op> binary_float_arith_op
 %type <Fexpr.binary_int_arith_op> binary_int_arith_op
@@ -354,10 +358,14 @@ nullop:
 
 unop:
   | PRIM_ARRAY_LENGTH { Array_length }
-  | PRIM_BOX_FLOAT { Box_number Naked_float }
-  | PRIM_BOX_INT32 { Box_number Naked_int32 }
-  | PRIM_BOX_INT64 { Box_number Naked_int64 }
-  | PRIM_BOX_NATIVEINT { Box_number Naked_nativeint }
+  | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
+    { Box_number (Naked_float, alloc) }
+  | PRIM_BOX_INT32; alloc = alloc_mode_for_allocations_opt
+    { Box_number (Naked_int32, alloc) }
+  | PRIM_BOX_INT64; alloc = alloc_mode_for_allocations_opt
+    { Box_number (Naked_int64, alloc) }
+  | PRIM_BOX_NATIVEINT; alloc = alloc_mode_for_allocations_opt
+    { Box_number (Naked_nativeint, alloc) }
   | PRIM_BYTES_LENGTH { String_length Bytes }
   | PRIM_END_REGION { End_region }
   | PRIM_GET_TAG { Get_tag }
@@ -443,6 +451,15 @@ init_or_assign:
   | LESSMINUS { Assignment Heap }
   | LESSMINUS AMP; region = region { Assignment (Local { region }) }
 
+alloc_mode_for_types_opt:
+  | { Heap }
+  | KWD_HEAP_OR_LOCAL { Heap_or_local }
+  | KWD_LOCAL { Local }
+
+alloc_mode_for_allocations_opt:
+  | { Heap }
+  | AMP; region = region { Local { region } }
+
 signed_or_unsigned:
   | { Signed }
   | KWD_UNSIGNED { Unsigned }
@@ -515,10 +532,9 @@ ternop_app:
 ;
 
 block:
-  | PRIM_BLOCK; m = mutability; t = tag; LPAREN;
-    elts = separated_list(COMMA, simple);
-    RPAREN
-    { Variadic (Make_block (t, m), elts) }
+  | PRIM_BLOCK; m = mutability; t = tag; alloc = alloc_mode_for_allocations_opt;
+    LPAREN; elts = separated_list(COMMA, simple); RPAREN
+    { Variadic (Make_block (t, m, alloc), elts) }
 ;
 
 named:
@@ -702,7 +718,8 @@ value_slot:
 fun_decl:
   | KWD_CLOSURE; code_id = code_id;
     function_slot = function_slot_opt;
-    { { code_id; function_slot; } }
+    alloc = alloc_mode_for_allocations_opt;
+    { { code_id; function_slot; alloc; } }
 ;
 
 apply_expr:
@@ -728,9 +745,13 @@ apply_expr:
 ;
 
 call_kind:
-  | { Function Indirect }
-  | KWD_DIRECT; LPAREN; code_id = code_id; function_slot = function_slot_opt; RPAREN
-    { Function (Direct { code_id; function_slot }) }
+  | alloc = alloc_mode_for_types_opt; { Function (Indirect alloc) }
+  | KWD_DIRECT; LPAREN;
+      code_id = code_id;
+      function_slot = function_slot_opt;
+      alloc = alloc_mode_for_types_opt;
+    RPAREN
+    { Function (Direct { code_id; function_slot; alloc }) }
   | KWD_CCALL; noalloc = boption(KWD_NOALLOC)
     { C_call { alloc = not noalloc } }
 ;

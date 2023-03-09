@@ -101,6 +101,7 @@ type token =
   | KWD_LSR
   | KWD_LSL
   | KWD_LOR
+  | KWD_LOCAL
   | KWD_LET
   | KWD_LAND
   | KWD_INT64
@@ -114,6 +115,7 @@ type token =
   | KWD_IMM
   | KWD_ID
   | KWD_HINT
+  | KWD_HEAP_OR_LOCAL
   | KWD_HCF
   | KWD_FLOAT
   | KWD_EXN

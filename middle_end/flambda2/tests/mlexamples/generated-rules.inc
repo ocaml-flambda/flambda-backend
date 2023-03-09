@@ -7,6 +7,49 @@
  (alias runtest)
  (action
   (progn
+   (run ../tools/flexpect.exe local.flt)
+   (diff? local.flt local.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe local_in.fl)
+   (diff? local_in.fl local_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe local_out.fl)
+   (diff? local_out.fl local_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets local.flt.new local_in.fl.new local_out.fl.new)
+ (deps local.ml)
+ (action
+   (run ocamlopt -c local.ml -nopervasives -nostdlib
+        -drawfexpr-to local_in.fl.new
+        -dfexpr-to local_out.fl.new
+        -dflexpect-to local.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff local_in.fl local_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff local_out.fl local_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff local.flt local.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
    (run ../tools/flexpect.exe tests0.flt)
    (diff? tests0.flt tests0.flt.corrected))))
 
