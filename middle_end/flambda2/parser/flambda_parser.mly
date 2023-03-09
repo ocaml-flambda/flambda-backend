@@ -85,7 +85,8 @@ let make_boxed_const_int (i, m) : static_data =
 %token MINUS    [@symbol "-"]
 %token MINUSDOT [@symbol "-."]
 %token MINUSGREATER [@symbol "->"]
-%token NOTEQUALDOT [@symbol "!=."]
+%token NOTEQUAL [@symbol "<>"]
+%token NOTEQUALDOT [@symbol "<>."]
 %token QMARK [@symbol "?"]
 %token QMARKDOT [@symbol "?."]
 %token PIPE [@symbol "|"]
@@ -132,6 +133,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_REGION [@symbol "region"]
 %token KWD_FLOAT [@symbol "float"]
 %token KWD_HCF   [@symbol "halt_and_catch_fire"]
+%token KWD_HEAP_OR_LOCAL [@symbol "heap_or_local"]
 %token KWD_HINT  [@symbol "hint"]
 %token KWD_ID    [@symbol "id"]
 %token KWD_IMM   [@symbol "imm" ]
@@ -145,6 +147,8 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_INT64 [@symbol "int64"]
 %token KWD_LAND  [@symbol "land"]
 %token KWD_LET   [@symbol "let"]
+%token KWD_LOCAL [@symbol "local"]
+%token KWD_LOOPIFY [@symbol "loopify"]
 %token KWD_LOR   [@symbol "lor"]
 %token KWD_LSL   [@symbol "lsl"]
 %token KWD_LSR   [@symbol "lsr"]
@@ -168,6 +172,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_SWITCH [@symbol "switch"]
 %token KWD_TAG    [@symbol "tag"]
 %token KWD_TAGGED [@symbol "tagged"]
+%token KWD_TAILREC [@symbol "tailrec"]
 %token KWD_TOPLEVEL [@symbol "toplevel"]
 %token KWD_TUPLED [@symbol "tupled"]
 %token KWD_UNIT   [@symbol "unit"]
@@ -215,6 +220,8 @@ let make_boxed_const_int (i, m) : static_data =
 %token STATIC_CONST_FLOAT_BLOCK [@symbol "Float_block"]
 
 %start flambda_unit expect_test_spec
+%type <Fexpr.alloc_mode_for_allocations> alloc_mode_for_allocations_opt
+%type <Fexpr.alloc_mode_for_types> alloc_mode_for_types_opt
 %type <Fexpr.array_kind> array_kind
 %type <Fexpr.binary_float_arith_op> binary_float_arith_op
 %type <Fexpr.binary_int_arith_op> binary_int_arith_op
@@ -233,6 +240,7 @@ let make_boxed_const_int (i, m) : static_data =
 (* %type <Fexpr.kind> kind *)
 %type <Fexpr.kind_with_subkind> kind_with_subkind
 %type <Fexpr.kind_with_subkind list> kinds_with_subkinds
+%type <Fexpr.loopify_attribute> loopify
 %type <Fexpr.mutability> mutability
 %type <Flambda_kind.Naked_number_kind.t> naked_number_kind
 %type <Fexpr.name> name
@@ -308,24 +316,27 @@ code:
     exn_cont = exn_continuation_id;
     ret_arity = return_arity;
     EQUAL; body = expr;
-    { let recursive, inline, id, newer_version_of, code_size, is_tupled =
+    { let
+        recursive, inline, loopify, id, newer_version_of, code_size, is_tupled
+        =
         header
       in
       { id; newer_version_of; param_arity = None; ret_arity; recursive; inline;
         params_and_body = { params; closure_var; region_var; depth_var;
                             ret_cont; exn_cont; body };
-        code_size; is_tupled; } }
+        code_size; is_tupled; loopify; } }
 ;
 
 code_header:
   | KWD_CODE;
     recursive = recursive;
     inline = option(inline);
+    loopify = loopify_opt;
     KWD_SIZE LPAREN; code_size = code_size; RPAREN;
     newer_version_of = option(newer_version_of);
     is_tupled = boption(KWD_TUPLED);
     id = code_id;
-    { recursive, inline, id, newer_version_of, code_size, is_tupled }
+    { recursive, inline, loopify, id, newer_version_of, code_size, is_tupled }
 ;
 
 newer_version_of:
@@ -354,10 +365,14 @@ nullop:
 
 unop:
   | PRIM_ARRAY_LENGTH { Array_length }
-  | PRIM_BOX_FLOAT { Box_number Naked_float }
-  | PRIM_BOX_INT32 { Box_number Naked_int32 }
-  | PRIM_BOX_INT64 { Box_number Naked_int64 }
-  | PRIM_BOX_NATIVEINT { Box_number Naked_nativeint }
+  | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
+    { Box_number (Naked_float, alloc) }
+  | PRIM_BOX_INT32; alloc = alloc_mode_for_allocations_opt
+    { Box_number (Naked_int32, alloc) }
+  | PRIM_BOX_INT64; alloc = alloc_mode_for_allocations_opt
+    { Box_number (Naked_int64, alloc) }
+  | PRIM_BOX_NATIVEINT; alloc = alloc_mode_for_allocations_opt
+    { Box_number (Naked_nativeint, alloc) }
   | PRIM_BYTES_LENGTH { String_length Bytes }
   | PRIM_END_REGION { End_region }
   | PRIM_GET_TAG { Get_tag }
@@ -443,6 +458,15 @@ init_or_assign:
   | LESSMINUS { Assignment Heap }
   | LESSMINUS AMP; region = region { Assignment (Local { region }) }
 
+alloc_mode_for_types_opt:
+  | { Heap }
+  | KWD_HEAP_OR_LOCAL { Heap_or_local }
+  | KWD_LOCAL { Local }
+
+alloc_mode_for_allocations_opt:
+  | { Heap }
+  | AMP; region = region { Local { region } }
+
 signed_or_unsigned:
   | { Signed }
   | KWD_UNSIGNED { Unsigned }
@@ -469,6 +493,7 @@ int_comp:
   | LESSGREATER { fun s -> Yielding_bool Neq }
   | LESSEQUAL { fun s -> Yielding_bool (Le s) }
   | GREATEREQUAL { fun s -> Yielding_bool (Ge s) }
+  | NOTEQUAL { fun _ -> Yielding_bool Neq }
   | QMARK { fun s -> Yielding_int_like_compare_functions s }
 
 float_comp:
@@ -515,10 +540,9 @@ ternop_app:
 ;
 
 block:
-  | PRIM_BLOCK; m = mutability; t = tag; LPAREN;
-    elts = separated_list(COMMA, simple);
-    RPAREN
-    { Variadic (Make_block (t, m), elts) }
+  | PRIM_BLOCK; m = mutability; t = tag; alloc = alloc_mode_for_allocations_opt;
+    LPAREN; elts = separated_list(COMMA, simple); RPAREN
+    { Variadic (Make_block (t, m, alloc), elts) }
 ;
 
 named:
@@ -702,7 +726,8 @@ value_slot:
 fun_decl:
   | KWD_CLOSURE; code_id = code_id;
     function_slot = function_slot_opt;
-    { { code_id; function_slot; } }
+    alloc = alloc_mode_for_allocations_opt;
+    { { code_id; function_slot; alloc; } }
 ;
 
 apply_expr:
@@ -728,9 +753,13 @@ apply_expr:
 ;
 
 call_kind:
-  | { Function Indirect }
-  | KWD_DIRECT; LPAREN; code_id = code_id; function_slot = function_slot_opt; RPAREN
-    { Function (Direct { code_id; function_slot }) }
+  | alloc = alloc_mode_for_types_opt; { Function (Indirect alloc) }
+  | KWD_DIRECT; LPAREN;
+      code_id = code_id;
+      function_slot = function_slot_opt;
+      alloc = alloc_mode_for_types_opt;
+    RPAREN
+    { Function (Direct { code_id; function_slot; alloc }) }
   | KWD_CCALL; noalloc = boption(KWD_NOALLOC)
     { C_call { alloc = not noalloc } }
 ;
@@ -758,6 +787,19 @@ inlining_state:
 
 inlining_state_depth:
   | KWD_DEPTH LPAREN; i = plain_int; RPAREN { i }
+;
+
+loopify_opt:
+  | { None }
+  | KWD_LOOPIFY LPAREN; l = loopify; RPAREN { Some l }
+;
+
+loopify:
+  | KWD_ALWAYS { Always_loopify }
+  | KWD_NEVER { Never_loopify }
+  | KWD_DONE { Already_loopified }
+  | KWD_DEFAULT KWD_TAILREC { Default_loopify_and_tailrec }
+  | KWD_DEFAULT { Default_loopify_and_not_tailrec }
 ;
 
 region:

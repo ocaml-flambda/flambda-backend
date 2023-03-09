@@ -286,12 +286,25 @@ let array_kind ~space ppf (ak : array_kind) =
   in
   pp_option ~space Format.pp_print_string ppf str
 
+let alloc_mode_for_allocations_opt ppf (alloc : alloc_mode_for_allocations)
+    ~space =
+  match alloc with
+  | Heap -> ()
+  | Local { region = r } -> pp_spaced ~space ppf "&%a" region r
+
+let alloc_mode_for_types_opt ppf (alloc : alloc_mode_for_types) ~space =
+  match alloc with
+  | Heap -> ()
+  | Heap_or_local -> pp_spaced ~space ppf "heap_or_local"
+  | Local -> pp_spaced ~space ppf "local"
+
 let init_or_assign ppf ia =
   match ia with
   | Initialization -> Format.pp_print_string ppf "="
-  | Assignment Heap -> Format.pp_print_string ppf "<-"
-  | Assignment (Local { region = r }) ->
-    Format.fprintf ppf "@[<h><-@ &%a@]" region r
+  | Assignment alloc ->
+    Format.fprintf ppf "@[<h><-%a@]"
+      (alloc_mode_for_allocations_opt ~space:Before)
+      alloc
 
 let boxed_variable ppf var ~kind =
   Format.fprintf ppf "%a : %s boxed" variable var kind
@@ -393,7 +406,7 @@ let float_comp ppf (o : unit comparison_behaviour) =
   @@
   match o with
   | Yielding_bool Eq -> "=."
-  | Yielding_bool Neq -> "!=."
+  | Yielding_bool Neq -> "<>."
   | Yielding_bool (Lt ()) -> "<."
   | Yielding_bool (Gt ()) -> ">."
   | Yielding_bool (Le ()) -> "<=."
@@ -468,7 +481,9 @@ let unop ppf u =
   in
   match u with
   | Array_length -> str "%array_length"
-  | Box_number bk -> box_or_unbox "Box" bk
+  | Box_number (bk, alloc) ->
+    box_or_unbox "Box" bk;
+    alloc_mode_for_allocations_opt ppf alloc ~space:Before
   | End_region -> str "%end_region"
   | Get_tag -> str "%get_tag"
   | Is_flat_float_array -> str "%is_flat_float_array"
@@ -501,8 +516,11 @@ let prim ppf = function
   | Unary (u, a) -> Format.fprintf ppf "%a %a" unop u simple a
   | Binary (b, a1, a2) -> binop ppf b a1 a2
   | Ternary (t, a1, a2, a3) -> ternop ppf t a1 a2 a3
-  | Variadic (Make_block (tag, mut), elts) ->
-    Format.fprintf ppf "@[<2>%%Block %a%i%a@]" (mutability ~space:After) mut tag
+  | Variadic (Make_block (tag, mut, alloc), elts) ->
+    Format.fprintf ppf "@[<2>%%Block %a%i%a%a@]" (mutability ~space:After) mut
+      tag
+      (alloc_mode_for_allocations_opt ~space:Before)
+      alloc
       (simple_args ~space:Before ~omit_if_empty:false)
       elts
 
@@ -568,11 +586,13 @@ let static_closure_binding ppf (scb : static_closure_binding) =
 
 let call_kind ~space ppf ck =
   match ck with
-  | Function Indirect -> ()
-  | Function (Direct { code_id = c; function_slot = cl }) ->
-    pp_spaced ~space ppf "@[direct(%a%a)@]" code_id c
+  | Function (Indirect alloc) -> alloc_mode_for_types_opt ppf alloc ~space
+  | Function (Direct { code_id = c; function_slot = cl; alloc }) ->
+    pp_spaced ~space ppf "@[direct(%a%a%a)@]" code_id c
       (pp_option ~space:Before (pp_like "@@%a" function_slot))
       cl
+      (alloc_mode_for_types_opt ~space:Before)
+      alloc
   | C_call { alloc } ->
     let noalloc_kwd = if alloc then None else Some "noalloc" in
     pp_spaced ~space ppf "ccall%a"
@@ -609,6 +629,19 @@ let inlined_attribute_opt ~space ppf i =
 
 let inlining_state ppf { depth } = Format.fprintf ppf "depth(%d)" depth
 
+let loopify_attribute ppf (loopify : loopify_attribute) =
+  Format.pp_print_string ppf
+  @@
+  match loopify with
+  | Always_loopify -> "loopify(always)"
+  | Never_loopify -> "loopify(never)"
+  | Already_loopified -> "loopify(done)"
+  | Default_loopify_and_tailrec -> "loopify(default tailrec)"
+  | Default_loopify_and_not_tailrec -> "loopify(default)"
+
+let loopify_attribute_opt ~space ppf l =
+  pp_option ~space loopify_attribute ppf l
+
 let code_size ppf code_size = Format.fprintf ppf "%d" code_size
 
 let or_blank f ppf ob =
@@ -644,7 +677,7 @@ let rec expr scope ppf = function
       } ->
     parens ~if_scope_is:Continuation_body scope ppf (fun _scope ppf ->
         Format.fprintf ppf
-          "@[<v 2>%a@ @[<v>@[<v 2>@[where%a@]@[<hv2>@ %a%a%a@] =@ %a@]%a@]@]"
+          "@[<v 2>%a@ @[<v>@[<v 2>@[where%a @]@[<hv 2>%a%a%a@] =@ %a@]%a@]@]"
           (expr Where_body) body (recursive ~space:Before) recu continuation_id
           name
           (pp_option continuation_sort ~space:Before)
@@ -749,13 +782,17 @@ and code_binding ppf
        ret_arity;
        params_and_body;
        code_size = cs;
-       is_tupled
+       is_tupled;
+       loopify
      } :
       code) =
-  Format.fprintf ppf "@[<hv 2>code@[<h>%a%a@ size(%a)%a%a@]@ @[<hv2>@[<hv 2>%a"
+  Format.fprintf ppf
+    "@[<hv 2>code@[<h>%a%a%a@ size(%a)%a%a@]@ @[<hv2>@[<hv 2>%a"
     (recursive ~space:Before) rec_
     (inline_attribute_opt ~space:Before)
-    inline code_size cs
+    inline
+    (loopify_attribute_opt ~space:Before)
+    loopify code_size cs
     (pp_option ~space:Before (pp_like "newer_version_of(%a)" code_id))
     newer_version_of
     (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "@ tupled@ ")

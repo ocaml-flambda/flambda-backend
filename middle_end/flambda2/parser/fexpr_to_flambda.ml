@@ -347,13 +347,33 @@ let or_variable f env (ov : _ Fexpr.or_variable) : _ Or_variable.t =
   | Const c -> Const (f c)
   | Var v -> Var (find_var env v, Debuginfo.none)
 
+let alloc_mode_for_allocations env (alloc : Fexpr.alloc_mode_for_allocations) =
+  match alloc with
+  | Heap -> Alloc_mode.For_allocations.heap
+  | Local { region = r } ->
+    let r = find_region env r in
+    Alloc_mode.For_allocations.local ~region:r
+
+let alloc_mode_for_types (alloc : Fexpr.alloc_mode_for_types) =
+  match alloc with
+  | Heap -> Alloc_mode.For_types.heap
+  | Heap_or_local -> Alloc_mode.For_types.unknown ()
+  | Local -> Alloc_mode.For_types.local ()
+
+let init_or_assign env (ia : Fexpr.init_or_assign) :
+    Flambda_primitive.Init_or_assign.t =
+  match ia with
+  | Initialization -> Initialization
+  | Assignment alloc -> Assignment (alloc_mode_for_allocations env alloc)
+
 let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
   match nullop with Begin_region -> Begin_region
 
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
   | Array_length -> Array_length
-  | Box_number bk -> Box_number (bk, Alloc_mode.For_allocations.heap)
+  | Box_number (bk, alloc) ->
+    Box_number (bk, alloc_mode_for_allocations env alloc)
   | Unbox_number bk -> Unbox_number bk
   | Tag_immediate -> Tag_immediate
   | Untag_immediate -> Untag_immediate
@@ -414,29 +434,21 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   | Int_comp (i, c) -> Int_comp (i, c)
   | Int_shift (i, s) -> Int_shift (i, s)
 
-let init_or_assign env (ia : Fexpr.init_or_assign) :
-    Flambda_primitive.Init_or_assign.t =
-  match ia with
-  | Initialization -> Initialization
-  | Assignment Heap -> Assignment Alloc_mode.For_allocations.heap
-  | Assignment (Local { region = r }) ->
-    let r = find_region env r in
-    Assignment (Alloc_mode.For_allocations.local ~region:r)
-
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
 
 let convert_block_shape ~num_fields =
   List.init num_fields (fun _field -> Flambda_kind.With_subkind.any_value)
 
-let varop (varop : Fexpr.varop) n : Flambda_primitive.variadic_primitive =
+let varop env (varop : Fexpr.varop) n : Flambda_primitive.variadic_primitive =
   match varop with
-  | Make_block (tag, mutability) ->
+  | Make_block (tag, mutability, alloc) ->
     let shape = convert_block_shape ~num_fields:n in
     let kind : Flambda_primitive.Block_kind.t =
       Values (tag_scannable tag, shape)
     in
-    Make_block (kind, mutability, Alloc_mode.For_allocations.heap)
+    let alloc = alloc_mode_for_allocations env alloc in
+    Make_block (kind, mutability, alloc)
 
 let prim env (p : Fexpr.prim) : Flambda_primitive.t =
   match p with
@@ -446,7 +458,7 @@ let prim env (p : Fexpr.prim) : Flambda_primitive.t =
   | Ternary (op, a1, a2, a3) ->
     Ternary (ternop env op, simple env a1, simple env a2, simple env a3)
   | Variadic (op, args) ->
-    Variadic (varop op (List.length args), List.map (simple env) args)
+    Variadic (varop env op (List.length args), List.map (simple env) args)
 
 let convert_recursive_flag (flag : Fexpr.is_recursive) : Recursive.t =
   match flag with Recursive -> Recursive | Nonrecursive -> Non_recursive
@@ -462,7 +474,7 @@ let defining_expr env (named : Fexpr.named) : Flambda.Named.t =
     Flambda.Named.create_rec_info ri
   | Closure _ -> assert false
 
-let set_of_closures env fun_decls value_slots =
+let set_of_closures env fun_decls value_slots alloc =
   let fun_decls : Function_declarations.t =
     let translate_fun_decl (fun_decl : Fexpr.fun_decl) :
         Function_slot.t * Code_id.t =
@@ -485,7 +497,8 @@ let set_of_closures env fun_decls value_slots =
     in
     List.map convert value_slots |> Value_slot.Map.of_list
   in
-  Set_of_closures.create ~value_slots Alloc_mode.For_allocations.heap fun_decls
+  let alloc = alloc_mode_for_allocations env alloc in
+  Set_of_closures.create ~value_slots alloc fun_decls
 
 let apply_cont env ({ cont; args; trap_action } : Fexpr.apply_cont) =
   let trap_action : Trap_action.t option =
@@ -522,7 +535,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
   match e with
   | Let { bindings = []; _ } -> assert false (* should not be possible *)
   | Let
-      { bindings = { defining_expr = Closure _; _ } :: _ as bindings;
+      { bindings = { defining_expr = Closure { alloc; _ }; _ } :: _ as bindings;
         value_slots;
         body
       } ->
@@ -549,7 +562,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let bound = Bound_pattern.set_of_closures bound_vars in
     let named =
       let closure_bindings = List.map snd vars_and_closure_bindings in
-      set_of_closures env closure_bindings value_slots
+      set_of_closures env closure_bindings value_slots alloc
       |> Flambda.Named.create_set_of_closures
     in
     let body = expr env body in
@@ -746,7 +759,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             (fun (b : Fexpr.static_closure_binding) -> b.fun_decl)
             bindings
         in
-        let set = set_of_closures env fun_decls elements in
+        let set = set_of_closures env fun_decls elements Heap in
         static_const (SC.set_of_closures set)
       | Closure _ -> assert false (* should have been filtered out above *)
       | Deleted_code _ -> Flambda.Static_const_or_code.deleted_code
@@ -759,7 +772,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             inline;
             params_and_body;
             code_size;
-            is_tupled
+            is_tupled;
+            loopify
           } ->
         let code_id = find_code_id env id in
         let newer_version_of = Option.map (find_code_id env) newer_version_of in
@@ -838,12 +852,16 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let inline =
           inline |> Option.value ~default:Inline_attribute.Default_inline
         in
+        let loopify =
+          loopify
+          |> Option.value
+               ~default:Loopify_attribute.Default_loopify_and_not_tailrec
+        in
         let cost_metrics =
           Cost_metrics.from_size (Code_size.of_int code_size)
         in
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
-          (* CR ncourant: same for loopify *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
             ~newer_version_of ~params_arity ~num_trailing_local_params:0
             ~result_arity ~result_types:Unknown
@@ -858,8 +876,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~absolute_history:
               (Inlining_history.Absolute.empty
                  (Compilation_unit.get_current_exn ()))
-            ~relative_history:Inlining_history.Relative.empty
-            ~loopify:Never_loopify
+            ~relative_history:Inlining_history.Relative.empty ~loopify
         in
         Flambda.Static_const_or_code.create_code code
     in
@@ -886,7 +903,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let continuation = find_result_cont env continuation in
     let call_kind, args_arity, return_arity =
       match call_kind with
-      | Function (Direct { code_id; function_slot = _ }) ->
+      | Function (Direct { code_id; function_slot = _; alloc }) ->
         let code_id = find_code_id env code_id in
         let params_arity =
           (* CR mshinwell: This needs fixing to cope with the fact that the
@@ -901,16 +918,15 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               [Flambda_kind.With_subkind.any_value]
           | Some { ret_arity; _ } -> arity ret_arity
         in
-        ( Call_kind.direct_function_call code_id Alloc_mode.For_types.heap,
-          params_arity,
-          return_arity )
-      | Function Indirect -> (
+        let alloc = alloc_mode_for_types alloc in
+        Call_kind.direct_function_call code_id alloc, params_arity, return_arity
+      | Function (Indirect alloc) -> (
+        let alloc = alloc_mode_for_types alloc in
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
           let params_arity = arity params_arity in
           let return_arity = arity ret_arity in
-          ( Call_kind.indirect_function_call_known_arity
-              Alloc_mode.For_types.heap,
+          ( Call_kind.indirect_function_call_known_arity alloc,
             params_arity,
             return_arity )
         | None | Some { params_arity = None; ret_arity = _ } ->
@@ -926,8 +942,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             Flambda_arity.With_subkinds.create
               [Flambda_kind.With_subkind.any_value]
           in
-          ( Call_kind.indirect_function_call_unknown_arity
-              Alloc_mode.For_types.heap,
+          ( Call_kind.indirect_function_call_unknown_arity alloc,
             params_arity,
             return_arity ))
       | C_call { alloc } -> (
@@ -982,7 +997,15 @@ let bind_all_code_ids env (unit : Fexpr.flambda_unit) =
           env bindings
       in
       go env body
-    | Let { body; _ } | Let_cont { body; _ } -> go env body
+    | Let { body; _ } -> go env body
+    | Let_cont { body; bindings; _ } ->
+      let env =
+        List.fold_left
+          (fun env (binding : Fexpr.continuation_binding) ->
+            go env binding.handler)
+          env bindings
+      in
+      go env body
     | Apply _ | Apply_cont _ | Switch _ | Invalid _ -> env
   in
   go env unit.body
@@ -993,12 +1016,16 @@ let conv comp_unit (fexpr : Fexpr.flambda_unit) : Flambda_unit.t =
     |> Symbol.create_wrapped
   in
   let env = init_env () in
-  let { done_continuation = return_continuation; error_continuation; _ } =
+  let { done_continuation = return_continuation;
+        error_continuation;
+        toplevel_region;
+        _
+      } =
     env
   in
   let exn_continuation = Exn_continuation.exn_handler error_continuation in
   let env = bind_all_code_ids env fexpr in
   let body = expr env fexpr.body in
   Flambda_unit.create ~return_continuation ~exn_continuation
-    ~toplevel_my_region:(Variable.create "toplevel_my_region")
-    ~body ~module_symbol ~used_value_slots:Unknown
+    ~toplevel_my_region:toplevel_region ~body ~module_symbol
+    ~used_value_slots:Unknown

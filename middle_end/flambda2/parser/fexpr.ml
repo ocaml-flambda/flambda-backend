@@ -220,6 +220,11 @@ type alloc_mode_for_allocations =
   | Heap
   | Local of { region : region }
 
+type alloc_mode_for_types =
+  | Heap
+  | Heap_or_local
+  | Local
+
 type init_or_assign =
   | Initialization
   | Assignment of alloc_mode_for_allocations
@@ -245,7 +250,7 @@ type nullop = Begin_region
 
 type unop =
   | Array_length
-  | Box_number of box_kind
+  | Box_number of box_kind * alloc_mode_for_allocations
   | End_region
   | Get_tag
   | Is_flat_float_array
@@ -312,7 +317,8 @@ type binop =
 
 type ternop = Array_set of array_kind * init_or_assign
 
-type varop = Make_block of tag_scannable * mutability
+type varop =
+  | Make_block of tag_scannable * mutability * alloc_mode_for_allocations
 
 type prim =
   | Nullary of nullop
@@ -326,9 +332,10 @@ type arity = kind_with_subkind list
 type function_call =
   | Direct of
       { code_id : code_id;
-        function_slot : function_slot option
+        function_slot : function_slot option;
+        alloc : alloc_mode_for_types
       }
-  | Indirect
+  | Indirect of alloc_mode_for_types
 (* Will translate to indirect_known_arity or indirect_unknown_arity depending on
    whether the apply record's arities field has a value *)
 
@@ -362,6 +369,13 @@ type inlined_attribute = Inlined_attribute.t =
   | Default_inlined
 
 type inlining_state = { depth : int (* CR lmaurer: Add inlining arguments *) }
+
+type loopify_attribute = Loopify_attribute.t =
+  | Always_loopify
+  | Never_loopify
+  | Already_loopified
+  | Default_loopify_and_tailrec
+  | Default_loopify_and_not_tailrec
 
 type apply =
   { func : name;
@@ -421,7 +435,9 @@ and named =
 
 and fun_decl =
   { code_id : code_id;
-    function_slot : function_slot option (* defaults to same name as code id *)
+    function_slot : function_slot option (* defaults to same name as code id *);
+    alloc : alloc_mode_for_allocations
+        (* alloc mode for set of closures (ignored except on first binding) *)
   }
 
 and let_cont =
@@ -465,7 +481,8 @@ and code =
     inline : inline_attribute option;
     params_and_body : params_and_body;
     code_size : code_size;
-    is_tupled : bool
+    is_tupled : bool;
+    loopify : loopify_attribute option
   }
 
 and code_size = int
