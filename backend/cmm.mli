@@ -98,7 +98,7 @@ val cur_label: unit -> label
 
 type exit_label =
   | Return_lbl
-  | Lbl of label
+  | Lbl of Lambda.static_label
 
 type rec_flag = Nonrecursive | Recursive
 
@@ -138,7 +138,7 @@ type phantom_defining_expr =
   (** The phantom-let-bound variable points at a block with the given
       structure. *)
 
-type trywith_shared_label = int (* Same as Ccatch handlers *)
+type trywith_shared_label = Lambda.static_label (* Same as Ccatch handlers *)
 
 type trap_action =
   | Push of trywith_shared_label
@@ -250,7 +250,7 @@ type expression =
       * Debuginfo.t * value_kind
   | Ccatch of
       rec_flag
-        * (label * (Backend_var.With_provenance.t * machtype) list
+        * (Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t) list
         * expression
         * value_kind
