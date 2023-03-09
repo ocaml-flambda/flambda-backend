@@ -3,21 +3,21 @@ let $camlLocal__const_block11 = Block 0 (2, $camlLocal__const_block9) in
 let $camlLocal__const_block13 = Block 0 (1, $camlLocal__const_block11) in
 let $camlLocal__const_block44 = Block 0 (1, 0) in
 let $camlLocal__immstring51 = "local.ml" in
-let $camlLocal__const_block53 = Block 0 ($camlLocal__immstring51, 20, 2) in
-let $camlLocal__const_block66 = Block 0 ($camlLocal__immstring51, 23, 2) in
-let $camlLocal__const_block88 = Block 0 ($camlLocal__immstring51, 28, 2) in
+let $camlLocal__const_block53 = Block 0 ($camlLocal__immstring51, 18, 9) in
+let $camlLocal__const_block66 = Block 0 ($camlLocal__immstring51, 20, 9) in
+let $camlLocal__const_block88 = Block 0 ($camlLocal__immstring51, 25, 2) in
 let $camlLocal__const_block158 = Block 0 (4, 0) in
 let $camlLocal__const_block160 = Block 0 (3, $camlLocal__const_block158) in
 let $camlLocal__const_block162 = Block 0 (2, $camlLocal__const_block160) in
 let $camlLocal__const_block164 = Block 0 (1, $camlLocal__const_block162) in
 let $camlLocal__const_block166 = Block 0 (0, $camlLocal__const_block164) in
-let $camlLocal__const_block174 = Block 0 ($camlLocal__immstring51, 52, 2) in
+let $camlLocal__const_block174 = Block 0 ($camlLocal__immstring51, 49, 2) in
+let code `anon-fn[local.ml:24,27--43]_3` deleted in
 let code rev_app_4 deleted in
 let code find_span_6 deleted in
 let code spans_5 deleted in
 let code length_2 deleted in
 let code is_even_7 deleted in
-let code `anon-fn[local.ml:27,34--50]_3` deleted in
 let code map_local_1 deleted in
 let code return_local_0 deleted in
 let code loopify(never) size(1) newer_version_of(return_local_0)
@@ -111,22 +111,22 @@ apply direct(length_2_1)
        where k =
          let `unit` = %end_region `region` in
          let region_1 = %begin_region in
-         ((let code loopify(never) size(3) newer_version_of(`anon-fn[local.ml:27,34--50]_3`)
-                 `anon-fn[local.ml:27,34--50]_3_1` (i : imm tagged)
+         ((let code loopify(never) size(3) newer_version_of(`anon-fn[local.ml:24,27--43]_3`)
+                 `anon-fn[local.ml:24,27--43]_3_1` (i : imm tagged)
                    my_closure my_region my_depth
                    -> k2 * k3
                    : imm tagged =
              let Paddint = i + 1 in
              cont k2 (Paddint)
            in
-           let $`camlLocal__anon-fn[local.ml:27,34--50]_11` =
-             closure `anon-fn[local.ml:27,34--50]_3_1`
-               @`anon-fn[local.ml:27,34--50]`
+           let $`camlLocal__anon-fn[local.ml:24,27--43]_11` =
+             closure `anon-fn[local.ml:24,27--43]_3_1`
+               @`anon-fn[local.ml:24,27--43]`
            in
            apply direct(map_local_1_1 heap_or_local)
              ($camlLocal__map_local_9 : _ ->
                [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
-               ($`camlLocal__anon-fn[local.ml:27,34--50]_11`,
+               ($`camlLocal__anon-fn[local.ml:24,27--43]_11`,
                 $camlLocal__const_block13)
                &region_1
                -> k1 * error)
