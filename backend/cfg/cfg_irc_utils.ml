@@ -162,7 +162,7 @@ let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
 let all_precolored_regs : Reg.t array =
   Proc.init ();
   let num_available_registers =
-    Array.fold_left Proc.num_available_registers ~f:(+) ~init:0
+    Array.fold_left Proc.num_available_registers ~f:( + ) ~init:0
   in
   let res = Array.make num_available_registers Reg.dummy in
   let i = ref 0 in
