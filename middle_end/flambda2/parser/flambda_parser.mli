@@ -60,6 +60,7 @@ type token =
   | MINUS
   | LPAREN
   | LESSMINUS
+  | LESSGREATER
   | LESSEQUALDOT
   | LESSEQUAL
   | LESSDOT

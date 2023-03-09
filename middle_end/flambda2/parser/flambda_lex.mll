@@ -65,6 +65,7 @@ let keyword_table =
     "inlining_state", KWD_INLINING_STATE;
     "int32", KWD_INT32;
     "int64", KWD_INT64;
+    "land", KWD_LAND;
     "let", KWD_LET;
     "lsl", KWD_LSL;
     "lsr", KWD_LSR;
@@ -187,8 +188,9 @@ let oct_literal =
   '0' ['o' 'O'] ['0'-'7'] ['0'-'7' '_']*
 let bin_literal =
   '0' ['b' 'B'] ['0'-'1'] ['0'-'1' '_']*
+let sign = ['-']
 let int_literal =
-  decimal_literal | hex_literal | oct_literal | bin_literal
+  sign? (decimal_literal | hex_literal | oct_literal | bin_literal)
 let float_literal =
   ['0'-'9'] ['0'-'9' '_']*
   ('.' ['0'-'9' '_']* )?
@@ -243,6 +245,7 @@ rule token = parse
   | "%"  { PERCENT }
   | "<"  { LESS }
   | ">"  { GREATER }
+  | "<>" { LESSGREATER }
   | "<=" { LESSEQUAL }
   | ">=" { GREATEREQUAL }
   | "?"  { QMARK }

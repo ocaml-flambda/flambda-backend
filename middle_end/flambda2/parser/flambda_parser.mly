@@ -80,6 +80,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token LESSEQUAL [@symbol "<="]
 %token LESSEQUALDOT [@symbol "<=."]
 %token LESSMINUS [@symbol "<-"]
+%token LESSGREATER [@symbol "<>"]
 %token LPAREN [@symbol "("]
 %token MINUS    [@symbol "-"]
 %token MINUSDOT [@symbol "-."]
@@ -306,9 +307,10 @@ code:
     MINUSGREATER; ret_cont = continuation_id;
     exn_cont = exn_continuation_id;
     ret_arity = return_arity;
-    is_tupled = boption(KWD_TUPLED);
     EQUAL; body = expr;
-    { let recursive, inline, id, newer_version_of, code_size = header in
+    { let recursive, inline, id, newer_version_of, code_size, is_tupled =
+        header
+      in
       { id; newer_version_of; param_arity = None; ret_arity; recursive; inline;
         params_and_body = { params; closure_var; region_var; depth_var;
                             ret_cont; exn_cont; body };
@@ -321,8 +323,9 @@ code_header:
     inline = option(inline);
     KWD_SIZE LPAREN; code_size = code_size; RPAREN;
     newer_version_of = option(newer_version_of);
+    is_tupled = boption(KWD_TUPLED);
     id = code_id;
-    { recursive, inline, id, newer_version_of, code_size }
+    { recursive, inline, id, newer_version_of, code_size, is_tupled }
 ;
 
 newer_version_of:
@@ -463,6 +466,7 @@ binary_float_arith_op:
 int_comp:
   | LESS { fun s -> Yielding_bool (Lt s) }
   | GREATER { fun s -> Yielding_bool (Gt s) }
+  | LESSGREATER { fun s -> Yielding_bool Neq }
   | LESSEQUAL { fun s -> Yielding_bool (Le s) }
   | GREATEREQUAL { fun s -> Yielding_bool (Ge s) }
   | QMARK { fun s -> Yielding_int_like_compare_functions s }
