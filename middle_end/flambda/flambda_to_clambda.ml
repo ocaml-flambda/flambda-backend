@@ -755,7 +755,7 @@ and to_clambda_closed_set_of_closures t env symbol
     let body =
       let body, body_layout = to_clambda t env_body function_decl.body in
       if not (Lambda.compatible_layout body_layout function_decl.return_layout) then
-        Misc.fatal_errorf "Imcompatible layouts:@.body: %a@.function: %a@.%a@."
+        Misc.fatal_errorf "Incompatible layouts:@.body: %a@.function: %a@.%a@."
           Printlambda.layout body_layout
           Printlambda.layout function_decl.return_layout
           Printclambda.clambda body;
