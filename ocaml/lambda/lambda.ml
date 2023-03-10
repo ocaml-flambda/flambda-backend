@@ -255,7 +255,9 @@ and value_kind =
   | Parrayval of array_kind
 
 and layout =
+  | Ptop
   | Pvalue of value_kind
+  | Pbottom
 
 and block_shape =
   value_kind list option
@@ -316,14 +318,30 @@ let rec equal_value_kind x y =
   | (Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
       | Parrayval _), _ -> false
 
-let equal_layout (Pvalue x) (Pvalue y) = equal_value_kind x y
+let equal_layout x y =
+  match x, y with
+  | Pvalue x, Pvalue y -> equal_value_kind x y
+  | Ptop, Ptop -> true
+  | Pbottom, Pbottom -> true
+  | _, _ -> false
 
-let compatible_layout (Pvalue _) (Pvalue _) = true
+let compatible_layout x y =
+  match x, y with
+  | Pbottom, _
+  | _, Pbottom -> true
+  | Pvalue _, Pvalue _ -> true
+  | Ptop, Ptop -> true
+  | Ptop, _ | _, Ptop -> false
 
 let must_be_value layout =
   match layout with
   | Pvalue v -> v
-  (* | _ -> Misc.fatal_error "Layout is not a value" *)
+  | Pbottom ->
+      (* Here, we want to get the [value_kind] corresponding to
+         a [Pbottom] layout. Anything will do, we return [Pgenval]
+         as a default. *)
+      Pgenval
+  | _ -> Misc.fatal_error "Layout is not a value"
 
 type structured_constant =
     Const_base of constant
@@ -601,10 +619,9 @@ let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
 let layout_letrec = layout_any_value
 
-let layout_top = Pvalue Pgenval
-let layout_bottom =
-  (* CR pchambart: this should be an actual bottom *)
-  Pvalue Pgenval
+(* CR ncourant: use [Ptop] or remove this as soon as possible. *)
+let layout_top = layout_any_value
+let layout_bottom = Pbottom
 
 let default_function_attribute = {
   inline = Default_inline;
