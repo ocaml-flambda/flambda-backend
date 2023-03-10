@@ -722,8 +722,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
          ( Float_comp (Yielding_bool (convert_float_comparison comp)),
            unbox_float arg1,
            unbox_float arg2 ))
-  | Punbox_float, [arg] ->
-    Unary (Unbox_number Naked_float, arg)
+  | Punbox_float, [arg] -> Unary (Unbox_number Naked_float, arg)
   | Pbox_float mode, [arg] ->
     Unary
       ( Box_number
