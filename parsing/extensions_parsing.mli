@@ -77,8 +77,6 @@ module Error : sig
   (** Someone used [[%extension.EXTNAME]] wrong *)
   type malformed_extension =
     | Has_payload of Parsetree.payload
-    | Wrong_arguments of (Asttypes.arg_label * Parsetree.expression) list
-    | Wrong_tuple of Parsetree.pattern list
 
   (** An error triggered when desugaring a language extension from an OCaml AST *)
   type error =

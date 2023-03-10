@@ -45,8 +45,6 @@ open Parsetree
 module Error = struct
   type malformed_extension =
     | Has_payload of payload
-    | Wrong_arguments of (Asttypes.arg_label * expression) list
-    | Wrong_tuple of pattern list
 
   type error =
     | Malformed_extension of string list * malformed_extension
@@ -76,23 +74,6 @@ let report_error ~loc = function
             "@[Modular extension nodes are not allowed to have a payload,@ \
              but \"%s\" does@]"
           name
-      | Wrong_arguments arguments ->
-          Location.errorf
-            ~loc
-            "@[Expression modular extension nodes must be applied to exactly@ \
-             one unlabeled argument, but \"%s\" was applied to@ %s@]"
-            name
-            (match arguments with
-             | [Labelled _, _] -> "a labeled argument"
-             | [Optional _, _] -> "an optional argument"
-             | _ -> Int.to_string (List.length arguments) ^ " arguments")
-      | Wrong_tuple patterns ->
-          Location.errorf
-            ~loc
-            "@[Pattern modular extension nodes must be the first component of@ \
-             a pair, but \"%s\" was the first component of a %d-tuple@]"
-            name
-            (1 + List.length patterns)
     end
   | Unknown_extension name ->
       Location.errorf
@@ -147,12 +128,6 @@ module type AST_parameters = sig
       [Parsetree.expression_desc]) *)
   type ast_desc
 
-  (** The type of the subterms that occur in the "body" slot of an extension
-      use.  This may just be [ast], but e.g. for expressions, we use function
-      applications, and the terms that a function is applied to contain label
-      information. *)
-  type raw_body
-
   (** The name for this syntactic category in the plural form; used for error
       messages *)
   val plural : string
@@ -180,19 +155,11 @@ module type AST_parameters = sig
 
   (** Given an AST node, check if it's of the special syntactic form indicating
       that this is a language extension (as created by [make_extension_node]),
-      split it back up into the extension node and the possible body terms.
+      split it back up into the extension node and the possible body.
       Doesn't do any checking about the name/format of the extension or the
       possible body terms (see [AST.match_extension]).  Partial inverse of
       [make_extension_use]. *)
-  val match_extension_use : ast -> (extension * raw_body list) option
-
-  (** Check if a [raw_body] term is legal to use as a body *)
-  val validate_extension_body : raw_body -> ast option
-
-  (** The error to throw when the list of possible body terms is wrong: either
-      when the list isn't exactly one term long, or when that single term fails
-      [validate_extension_body] *)
-  val malformed_extension : raw_body list -> malformed_extension
+  val match_extension_use : ast -> (extension * ast) option
 end
 
 module type AST = sig
@@ -241,11 +208,11 @@ module Make_AST (AST_parameters : AST_parameters) :
        1. The [[%extension.NAME]] extension point has a payload; extensions must
           be empty, so other ppxes can traverse "into" them.
 
-       2. The [[%extension.NAME]] extension point contains multiple body forms,
-          or body forms that are "shaped" incorrectly. *)
+       2. The [[%extension.NAME]] extension point contains
+          body forms that are "shaped" incorrectly. *)
     let match_extension ast =
       match match_extension_use ast with
-      | Some (({txt = ext_name; loc = ext_loc}, ext_payload), body_list) ->
+      | Some (({txt = ext_name; loc = ext_loc}, ext_payload), body) ->
         begin
           match String.split_on_char '.' ext_name with
           | "extension" :: names when uniformly_handled_extension names -> begin
@@ -253,11 +220,7 @@ module Make_AST (AST_parameters : AST_parameters) :
                 raise (Error(ext_loc, Malformed_extension(names, err)))
               in
               match ext_payload with
-              | PStr [] -> begin
-                  match List.map validate_extension_body body_list with
-                  | [Some body] -> Some (names, body)
-                  | _ -> raise_malformed (malformed_extension body_list)
-                end
+              | PStr [] -> Some (names, body)
               | _ -> raise_malformed (Has_payload ext_payload)
             end
           | _ -> None
@@ -269,7 +232,6 @@ end
 module Expression = Make_AST(struct
   type ast = expression
   type ast_desc = expression_desc
-  type raw_body = Asttypes.arg_label * expression (* Function arguments *)
 
   let plural = "expressions"
 
@@ -284,23 +246,17 @@ module Expression = Make_AST(struct
 
   let match_extension_use expr =
     match expr.pexp_desc with
-    | Pexp_apply({pexp_desc = Pexp_extension ext; _}, arguments) ->
-       Some (ext, arguments)
+    | Pexp_apply({pexp_desc = Pexp_extension ext; _},
+                 [Asttypes.Nolabel, body]) ->
+       Some (ext, body)
     | _ ->
        None
-
-  let validate_extension_body = function
-    | Asttypes.Nolabel, body -> Some body
-    | _,                _    -> None
-
-  let malformed_extension args = Wrong_arguments args
 end)
 
 (** Patterns; embedded as [[%extension.EXTNAME], BODY]. *)
 module Pattern = Make_AST(struct
   type ast = pattern
   type ast_desc = pattern_desc
-  type raw_body = pattern
 
   let plural = "patterns"
 
@@ -315,13 +271,10 @@ module Pattern = Make_AST(struct
 
   let match_extension_use pat =
     match pat.ppat_desc with
-    | Ppat_tuple({ppat_desc = Ppat_extension ext; _} :: patterns) ->
-        Some (ext, patterns)
+    | Ppat_tuple([{ppat_desc = Ppat_extension ext; _}; pattern]) ->
+        Some (ext, pattern)
     | _ ->
        None
-
-  let validate_extension_body = Option.some
-  let malformed_extension pats = Wrong_tuple pats
 end)
 
 (******************************************************************************)
