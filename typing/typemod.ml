@@ -834,6 +834,9 @@ let map_ext fn exts =
    making them abstract otherwise. *)
 
 let rec approx_modtype env smty =
+  match Extensions.Module_type.of_ast smty with
+  | Some _ -> .
+  | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
       let path =
@@ -1369,6 +1372,9 @@ and transl_modtype_functor_arg env sarg =
 
 and transl_modtype_aux env smty =
   let loc = smty.pmty_loc in
+  match Extensions.Module_type.of_ast smty with
+  | Some _ -> .
+  | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
       let path = transl_modtype_longident loc env lid.txt in

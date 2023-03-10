@@ -345,3 +345,17 @@ module Pattern = struct
   include M
   include Make_of_ast(M)
 end
+
+module Module_type = struct
+  module M = struct
+    module AST = Extensions_parsing.Module_type
+
+    type t = |
+
+    let of_ast_internal (ext : Language_extension.t) _mty = match ext with
+      | _ -> None
+  end
+
+  include M
+  include Make_of_ast(M)
+end

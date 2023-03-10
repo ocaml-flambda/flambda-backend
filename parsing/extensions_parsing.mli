@@ -131,10 +131,12 @@ end
     adding these lazily as we need them. When you add another one, make
     sure also to add special handling in [Ast_iterator] and [Ast_mapper]. *)
 
-module Expression : AST with type ast      = Parsetree.expression
-                         and type ast_desc = Parsetree.expression_desc
-module Pattern    : AST with type ast      = Parsetree.pattern
-                         and type ast_desc = Parsetree.pattern_desc
+module Expression  : AST with type ast      = Parsetree.expression
+                          and type ast_desc = Parsetree.expression_desc
+module Pattern     : AST with type ast      = Parsetree.pattern
+                          and type ast_desc = Parsetree.pattern_desc
+module Module_type : AST with type ast      = Parsetree.module_type
+                          and type ast_desc = Parsetree.module_type_desc
 
 (** Each syntactic category will include a module that meets this signature.
     Then, the [Make_of_ast] functor produces the functions that actually

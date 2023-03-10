@@ -1118,6 +1118,9 @@ and module_type ctxt f x =
     pp f "((%a)%a)" (module_type ctxt) {x with pmty_attributes=[]}
       (attributes ctxt) x.pmty_attributes
   end else
+    match Extensions.Module_type.of_ast x with
+    | Some _ -> .
+    | None ->
     match x.pmty_desc with
     | Pmty_functor (Unit, mt2) ->
         pp f "@[<hov2>functor () ->@ %a@]" (module_type ctxt) mt2
@@ -1161,7 +1164,10 @@ and with_constraint ctxt f = function
 
 and module_type1 ctxt f x =
   if x.pmty_attributes <> [] then module_type ctxt f x
-  else match x.pmty_desc with
+  else match Extensions.Module_type.of_ast x with
+    | Some _ -> .
+    | None ->
+    match x.pmty_desc with
     | Pmty_ident li ->
         pp f "%a" longident_loc li;
     | Pmty_alias li ->

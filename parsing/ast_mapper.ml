@@ -61,6 +61,8 @@ type mapper = {
   module_type: mapper -> module_type -> module_type;
   module_type_declaration: mapper -> module_type_declaration
                            -> module_type_declaration;
+  module_type_extension: mapper
+    -> Extensions.Module_type.t -> Extensions.Module_type.t;
   open_declaration: mapper -> open_declaration -> open_declaration;
   open_description: mapper -> open_description -> open_description;
   pat: mapper -> pattern -> pattern;
@@ -274,10 +276,18 @@ let map_functor_param sub = function
 module MT = struct
   (* Type expressions for the module language *)
 
-  let map sub {pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} =
+  let map sub
+        ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
     let open Mty in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
+    match Extensions.Module_type.of_ast mty with
+    | Some emty -> begin
+        Extensions_parsing.Module_type.wrap_desc ~loc ~attrs @@
+        match sub.module_type_extension sub emty with
+        | _ -> .
+      end
+    | None ->
     match desc with
     | Pmty_ident s -> ident ~loc ~attrs (map_loc sub s)
     | Pmty_alias s -> alias ~loc ~attrs (map_loc sub s)
@@ -719,6 +729,9 @@ let default_mapper =
            ~attrs:(this.attributes this pmtd_attributes)
            ~loc:(this.location this pmtd_loc)
       );
+
+    module_type_extension =
+      (fun _this emty -> match emty with _ -> .);
 
     module_binding =
       (fun this {pmb_name; pmb_expr; pmb_attributes; pmb_loc} ->

@@ -340,6 +340,9 @@ and add_binding_op bv bv' pbop =
   add_pattern bv' pbop.pbop_pat
 
 and add_modtype bv mty =
+  match Extensions.Module_type.of_ast mty with
+  | Some _ -> .
+  | None ->
   match mty.pmty_desc with
     Pmty_ident l -> add bv l
   | Pmty_alias l -> add_module_path bv l
@@ -382,6 +385,9 @@ and add_module_alias bv l =
     | _ -> add_module_path bv l; bound (* cannot delay *)
 
 and add_modtype_binding bv mty =
+  match Extensions.Module_type.of_ast mty with
+  | Some _ -> .
+  | None ->
   match mty.pmty_desc with
     Pmty_alias l ->
       add_module_alias bv l

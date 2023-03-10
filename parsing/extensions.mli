@@ -151,3 +151,10 @@ module Pattern : sig
 
   include AST with type t := t and type ast := Parsetree.pattern
 end
+
+(** Language extensions in module types *)
+module Module_type : sig
+  type t = |
+
+  include AST with type t := t and type ast := Parsetree.module_type
+end

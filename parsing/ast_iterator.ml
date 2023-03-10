@@ -54,6 +54,7 @@ type iterator = {
   module_expr: iterator -> module_expr -> unit;
   module_type: iterator -> module_type -> unit;
   module_type_declaration: iterator -> module_type_declaration -> unit;
+  module_type_extension: iterator -> Extensions.Module_type.t -> unit;
   open_declaration: iterator -> open_declaration -> unit;
   open_description: iterator -> open_description -> unit;
   pat: iterator -> pattern -> unit;
@@ -246,9 +247,13 @@ let iter_functor_param sub = function
 module MT = struct
   (* Type expressions for the module language *)
 
-  let iter sub {pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} =
+  let iter sub
+        ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
     sub.location sub loc;
     sub.attributes sub attrs;
+    match Extensions.Module_type.of_ast mty with
+    | Some emty -> sub.module_type_extension sub emty
+    | None ->
     match desc with
     | Pmty_ident s -> iter_loc sub s
     | Pmty_alias s -> iter_loc sub s
@@ -651,6 +656,9 @@ let default_iterator =
          this.location this pmtd_loc;
          this.attributes this pmtd_attributes;
       );
+
+    module_type_extension = (fun _this emty -> match emty with
+      | _ -> .);
 
     module_binding =
       (fun this {pmb_name; pmb_expr; pmb_attributes; pmb_loc} ->

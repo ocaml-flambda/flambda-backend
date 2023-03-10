@@ -277,6 +277,30 @@ module Pattern = Make_AST(struct
        None
 end)
 
+(** Module types; embedded as [functor (_ : [%extension.EXTNAME]) -> BODY]. *)
+module Module_type = Make_AST(struct
+    type ast = module_type
+    type ast_desc = module_type_desc
+
+    let plural = "module types"
+
+    let location mty = mty.pmty_loc
+
+    let wrap_desc ~loc ~attrs = Ast_helper.Mty.mk ~loc ~attrs
+
+    let make_extension_node = Ast_helper.Mty.extension
+
+    let make_extension_use ~extension_node mty =
+      Pmty_functor(Named(Location.mknoloc None, extension_node), mty)
+
+    let match_extension_use mty =
+      match mty.pmty_desc with
+      | Pmty_functor(Named({txt = None},
+                           {pmty_desc = Pmty_extension ext}), mty) ->
+        Some (ext, mty)
+      | _ -> None
+end)
+
 (******************************************************************************)
 (** Generically lift and lower our custom language extension ASTs from/to OCaml
     ASTs. *)
