@@ -10,13 +10,12 @@ open Extensions_parsing
 
    When we spot a comprehension for an immutable array, we need to make sure
    that both [comprehensions] and [immutable_arrays] are enabled.  But our
-   general mechanism for checking for enabled extensions (in
-   Extensions_parsing.Translate(...).of_ast) won't work well here: it triggers
-   when converting from e.g. [[%extensions.comprehensions.array] ...]  to the
-   comprehensions-specific AST. But if we spot a
-   [[%extensions.comprehensions.immutable]], there is no expression to
-   translate.  So we just check for the immutable arrays extension when
-   processing a comprehension expression for an immutable array.
+   general mechanism for checking for enabled extensions (in [of_ast]) won't
+   work well here: it triggers when converting from
+   e.g. [[%extensions.comprehensions.array] ...]  to the comprehensions-specific
+   AST. But if we spot a [[%extensions.comprehensions.immutable]], there is no
+   expression to translate.  So we just check for the immutable arrays extension
+   when processing a comprehension expression for an immutable array.
 
    Note [Wrapping with make_extension]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -205,9 +204,9 @@ module Comprehensions = struct
 
   let expand_comprehension_extension_expr expr =
     match Expression.match_extension expr with
-    | Some (comprehensions :: name, expr)
+    | Some (comprehensions :: names, expr)
       when String.equal comprehensions extension_string ->
-        name, expr
+        names, expr
     | Some (name, _) ->
         Desugaring_error.raise expr (Non_comprehension_extension_point name)
     | None ->

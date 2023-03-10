@@ -461,16 +461,18 @@ and pattern_or ctxt f x =
       pp f "@[<hov0>%a@]" (list ~sep:"@ | " (pattern1 ctxt)) orpats
 
 and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
-  let rec pattern_list_helper f = function
+  let rec pattern_list_helper f p = match p with
     | {ppat_desc =
          Ppat_construct
            ({ txt = Lident("::") ;_},
-            Some ([], {ppat_desc = Ppat_tuple([pat1; pat2]);_}));
-       ppat_attributes = []}
-
-      ->
+            Some ([], inner_pat));
+       ppat_attributes = []} ->
+      begin match Extensions.Pattern.of_ast inner_pat, inner_pat.ppat_desc with
+      | None, Ppat_tuple([pat1; pat2]) ->
         pp f "%a::%a" (simple_pattern ctxt) pat1 pattern_list_helper pat2 (*RA*)
-    | p -> pattern1 ctxt f p
+      | _ -> pattern1 ctxt f p
+      end
+    | _ -> pattern1 ctxt f p
   in
   if x.ppat_attributes <> [] then pattern ctxt f x
   else match x.ppat_desc with

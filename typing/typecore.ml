@@ -4062,8 +4062,8 @@ and type_expect_
         rt, funct
       in
       let type_sfunct_args sfunct extra_args =
-        match sfunct.pexp_desc with
-        | Pexp_apply (sfunct, args) ->
+        match Extensions.Expression.of_ast sfunct, sfunct.pexp_desc with
+        | None, Pexp_apply (sfunct, args) ->
            type_sfunct sfunct, args @ extra_args
         | _ ->
            type_sfunct sfunct, extra_args

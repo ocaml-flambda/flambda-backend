@@ -205,6 +205,9 @@ let add_pattern bv pat =
   !pattern_bv
 
 let rec add_expr bv exp =
+  match Extensions.Expression.of_ast exp with
+  | Some eexp -> add_expr_extension bv eexp
+  | None ->
   match exp.pexp_desc with
     Pexp_ident l -> add bv l
   | Pexp_constant _ -> ()
@@ -276,6 +279,47 @@ let rec add_expr bv exp =
       end
   | Pexp_extension e -> handle_extension e
   | Pexp_unreachable -> ()
+
+and add_expr_extension bv : Extensions.Expression.t -> _ = function
+  | Eexp_comprehension cexp -> add_comprehension_expr bv cexp
+  | Eexp_immutable_array iaexp -> add_immutable_array_expr bv iaexp
+
+and add_comprehension_expr bv : Extensions.Comprehensions.expression -> _ =
+  function
+  | Cexp_list_comprehension comp -> add_comprehension bv comp
+  | Cexp_array_comprehension (_, comp) -> add_comprehension bv comp
+
+and add_comprehension bv
+      ({ body; clauses } : Extensions.Comprehensions.comprehension) =
+  let bv = List.fold_left add_comprehension_clause bv clauses in
+  add_expr bv body
+
+and add_comprehension_clause bv : Extensions.Comprehensions.clause -> _ =
+  function
+    (* fold_left here is a little suspicious, because the different
+       clauses should be interpreted in parallel. But this treatment
+       echoes the treatment in [Pexp_let] (in [add_bindings]). *)
+  | For cbs -> List.fold_left add_comprehension_clause_binding bv cbs
+  | When expr -> add_expr bv expr; bv
+
+and add_comprehension_clause_binding bv
+      ({ pattern; iterator; attributes = _ } :
+         Extensions.Comprehensions.clause_binding) =
+  let bv = add_pattern bv pattern in
+  add_comprehension_iterator bv iterator;
+  bv
+
+and add_comprehension_iterator bv : Extensions.Comprehensions.iterator -> _ =
+  function
+  | Range { start; stop; direction = _ } ->
+    add_expr bv start;
+    add_expr bv stop
+  | In expr ->
+    add_expr bv expr
+
+and add_immutable_array_expr bv : Extensions.Immutable_arrays.expression -> _ =
+  function
+  | Iaexp_immutable_array exprs -> List.iter (add_expr bv) exprs
 
 and add_cases bv cases =
   List.iter (add_case bv) cases

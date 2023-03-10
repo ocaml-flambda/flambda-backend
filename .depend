@@ -439,6 +439,7 @@ parsing/extensions.cmx : \
 parsing/extensions.cmi : \
     parsing/parsetree.cmi \
     parsing/location.cmi \
+    parsing/extensions_parsing.cmi \
     parsing/asttypes.cmi
 parsing/extensions_parsing.cmo : \
     parsing/parsetree.cmi \
@@ -457,8 +458,7 @@ parsing/extensions_parsing.cmx : \
 parsing/extensions_parsing.cmi : \
     parsing/parsetree.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
-    parsing/asttypes.cmi
+    utils/language_extension.cmi
 parsing/lexer.cmo : \
     utils/warnings.cmi \
     parsing/parser.cmi \

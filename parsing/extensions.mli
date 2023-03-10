@@ -17,6 +17,9 @@
     For details on the rationale behind this approach (and for some of the gory
     details), see [Extensions_parsing]. *)
 
+(*********************************************)
+(* Individual extensions *)
+
 (** The ASTs for list and array comprehensions *)
 module Comprehensions : sig
   type iterator =
@@ -94,9 +97,14 @@ module type AST = sig
       if it's not a language extension term, return [None]; if it's a disabled
       language extension term, raise an error.
 
-      AN IMPORTANT NOTE: We indent calls to this function *very* strangely: we
-      *do not change the indentation level* when we match on its result!
-      E.g. from [type_expect_] in [typecore.ml]:
+      AN IMPORTANT NOTE: The design of this function is careful to make merge
+      conflicts with upstream less likely: we want no edits at all -- not even
+      indentation -- to surrounding code. This is why we return a [t option],
+      not some structure that could include the [ast_desc] if there is no
+      extension.
+
+      Indentation: we *do not change the indentation level* when we match on
+      this function's result!  E.g. from [type_expect_] in [typecore.ml]:
 
       {[
         match Extensions.Expression.of_ast sexp with
@@ -123,9 +131,7 @@ module type AST = sig
       Note that we match on the result of this function, forward to
       [type_expect_extension] if we get something, and otherwise do the real
       match on [sexp.pexp_desc] *without going up an indentation level*.  This
-      is important to reduce the number of merge conflicts with upstream by
-      avoiding changing the body of every single important function in the type
-      checker to add pointless indentation. *)
+      is important to reduce the number of merge conflicts. *)
   val of_ast : ast -> t option
 end
 

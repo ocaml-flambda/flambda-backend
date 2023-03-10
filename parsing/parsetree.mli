@@ -211,6 +211,13 @@ and object_field_desc =
 and pattern =
     {
      ppat_desc: pattern_desc;
+     (** (Jane Street specific; delete when upstreaming.)
+         Consider using [Extensions.Pattern.of_ast] before matching on
+         this field directly, as the former will detect extension nodes
+         correctly. Extensions are encoded as
+         [Ppat_tuple [Ppat_extension _; _]]; if your pattern match avoids
+         matching that pattern, it is OK to skip [of_ast]. *)
+
      ppat_loc: Location.t;
      ppat_loc_stack: location_stack;
      ppat_attributes: attributes;  (** [... [\@id1] [\@id2]] *)
@@ -277,6 +284,13 @@ and pattern_desc =
 and expression =
     {
      pexp_desc: expression_desc;
+     (** (Jane Street specific; delete when upstreaming.)
+         Consider using [Extensions.Expression.of_ast] before matching on
+         this field directly, as the former will detect extension nodes
+         correctly. Extensions are encoded as
+         [Pexp_apply(Pexp_extension _, _)]; if your pattern match avoids
+         matching that pattern, it is OK to skip [of_ast]. *)
+
      pexp_loc: Location.t;
      pexp_loc_stack: location_stack;
      pexp_attributes: attributes;  (** [... [\@id1] [\@id2]] *)
