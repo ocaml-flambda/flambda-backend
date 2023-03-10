@@ -522,6 +522,10 @@ module With_subkind = struct
     | Ptop -> Misc.fatal_error "Can't convert layout [Ptop] to flambda kind"
     | Pbottom ->
       Misc.fatal_error "Can't convert layout [Pbottom] to flambda kind"
+    | Punboxed_float -> naked_float
+    | Punboxed_int Pint32 -> naked_int32
+    | Punboxed_int Pint64 -> naked_int64
+    | Punboxed_int Pnativeint -> naked_nativeint
 
   include Container_types.Make (struct
     type nonrec t = t

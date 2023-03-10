@@ -857,6 +857,7 @@ let lambda_primitive_needs_event_after = function
      collect the call stack. *)
   | Pduprecord _ | Pccall _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pstringrefs | Pbytesrefs
+  | Pbox_float _ | Pbox_int _
   | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
   | Parrayrefu (Pgenarray | Pfloatarray) | Parraysetu (Pgenarray | Pfloatarray)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
@@ -883,7 +884,7 @@ let lambda_primitive_needs_event_after = function
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque _
-  | Pobj_magic _ -> false
+  | Pobj_magic _ | Punbox_float | Punbox_int _  -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)
 let primitive_needs_event_after = function

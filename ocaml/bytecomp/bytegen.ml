@@ -121,6 +121,7 @@ let preserve_tailcall_for_prim = function
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat
   | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
   | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu  | Pstringrefs
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -530,6 +531,7 @@ let comp_primitive p args =
   | Pmakeblock _
   | Pmakefloatblock _
   | Pprobe_is_enabled _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
     ->
       fatal_error "Bytegen.comp_primitive"
 
@@ -704,6 +706,10 @@ let rec comp_expr env exp sz cont =
         comp_init env sz decl_size
       end
   | Lprim((Popaque _ | Pobj_magic _), [arg], _) ->
+      comp_expr env arg sz cont
+  | Lprim((Pbox_float _ | Punbox_float), [arg], _) ->
+      comp_expr env arg sz cont
+  | Lprim((Pbox_int _ | Punbox_int _), [arg], _) ->
       comp_expr env arg sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr env arg sz (add_const_unit cont)

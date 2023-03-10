@@ -953,7 +953,8 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigstring_set_32 true
   | Pbigstring_set_64 true
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer | Popaque _
-  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ ->
+  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ | Pbox_float _ | Punbox_float
+  | Punbox_int _ | Pbox_int _ ->
     false
 
 let primitive_result_kind (prim : Lambda.primitive) :
@@ -1014,7 +1015,8 @@ let primitive_result_kind (prim : Lambda.primitive) :
   | Pmulbint (bi, _)
   | Pbintofint (bi, _)
   | Pcvtbint (_, bi, _)
-  | Pbbswap (bi, _) -> (
+  | Pbbswap (bi, _)
+  | Pbox_int (bi, _) -> (
     match bi with
     | Pint32 -> Flambda_kind.With_subkind.boxed_int32
     | Pint64 -> Flambda_kind.With_subkind.boxed_int64
@@ -1035,6 +1037,13 @@ let primitive_result_kind (prim : Lambda.primitive) :
       (_, _, (Pbigarray_complex32 | Pbigarray_complex64 | Pbigarray_unknown), _)
   | Pint_as_pointer | Pobj_dup ->
     Flambda_kind.With_subkind.any_value
+  | Pbox_float _ -> Flambda_kind.With_subkind.boxed_float
+  | Punbox_float -> Flambda_kind.With_subkind.naked_float
+  | Punbox_int bi -> (
+    match bi with
+    | Pint32 -> Flambda_kind.With_subkind.naked_int32
+    | Pint64 -> Flambda_kind.With_subkind.naked_int64
+    | Pnativeint -> Flambda_kind.With_subkind.naked_nativeint)
 
 type cps_continuation =
   | Tail of Continuation.t

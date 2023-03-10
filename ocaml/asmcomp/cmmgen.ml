@@ -606,6 +606,7 @@ let rec transl env e =
          | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
          | Pasrbint _ | Pbintcomp (_, _) | Pstring_load _ | Pbytes_load _
          | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
+         | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
          | Pbbswap _), _)
         ->
           fatal_error "Cmmgen.transl:prim"
@@ -750,6 +751,8 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
            Misc.fatal_errorf
              "Variable %a with layout [Pbottom] can't be compiled"
              VP.print id
+         | Punboxed_float | Punboxed_int _ ->
+           u := No_unboxing
          | Pvalue kind ->
            let strict =
              match kind with
@@ -765,12 +768,12 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
   let body = transl env_body body in
   let new_env, rewrite, ids =
     List.fold_right
-      (fun (id, _kind, u) (env, rewrite, ids) ->
+      (fun (id, layout, u) (env, rewrite, ids) ->
          match !u with
          | No_unboxing | Boxed (_, true) | No_result ->
              env,
              (fun x -> x) :: rewrite,
-             (id, Cmm.typ_val) :: ids
+             (id, machtype_of_layout layout) :: ids
          | Boxed (bn, false) ->
              let unboxed_id = V.create_local (VP.name id) in
              add_unboxed_id (VP.var id) unboxed_id bn env,
@@ -883,7 +886,15 @@ and transl_prim_1 env p arg dbg =
       offsetint n (transl env arg) dbg
   | Poffsetref n ->
       offsetref n (transl env arg) dbg
+  | Punbox_int bi ->
+    transl_unbox_int dbg env bi arg
+  | Pbox_int (bi, m) ->
+    box_int dbg bi m (transl env arg)
   (* Floating-point operations *)
+  | Punbox_float ->
+      transl_unbox_float dbg env arg
+  | Pbox_float m ->
+      box_float dbg m (transl env arg)
   | Pfloatofint m ->
       box_float dbg m (Cop(Cfloatofint, [untag_int(transl env arg) dbg], dbg))
   | Pintoffloat ->
@@ -1118,6 +1129,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
   | Pprobe_is_enabled _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
         Printclambda_primitives.primitive p
@@ -1178,6 +1190,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
   | Pprobe_is_enabled _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
         Printclambda_primitives.primitive p
@@ -1263,6 +1276,16 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
          there may be constant closures inside that need lifting out. *)
       let _cbody : expression = transl_body env in
       cexp
+  | Punboxed_float | Punboxed_int _ -> begin
+      let cexp = transl env exp in
+      let cbody = transl_body env in
+      match str with
+      | (Immutable | Immutable_unique) ->
+        Clet(id, cexp, cbody)
+      | Mutable ->
+        let typ = machtype_of_layout layout in
+        Clet_mut(id, typ, cexp, cbody)
+  end
   | Pvalue kind ->
       transl_let_value env str kind id exp transl_body
 
