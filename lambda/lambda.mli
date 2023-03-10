@@ -212,7 +212,9 @@ and value_kind =
   | Parrayval of array_kind
 
 and layout =
+  | Ptop
   | Pvalue of value_kind
+  | Pbottom
 
 and block_shape =
   value_kind list option
