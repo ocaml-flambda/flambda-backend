@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -ex
+set -e
 
 output="${program}".output
-#exec > ${output} 2>&1
+exec > ${output} 2>&1
 
 NTESTS=`./test len`
 failures=''
