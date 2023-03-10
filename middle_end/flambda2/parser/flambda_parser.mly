@@ -80,7 +80,6 @@ let make_boxed_const_int (i, m) : static_data =
 %token LESSEQUAL [@symbol "<="]
 %token LESSEQUALDOT [@symbol "<=."]
 %token LESSMINUS [@symbol "<-"]
-%token LESSGREATER [@symbol "<>"]
 %token LPAREN [@symbol "("]
 %token MINUS    [@symbol "-"]
 %token MINUSDOT [@symbol "-."]
@@ -490,7 +489,6 @@ binary_float_arith_op:
 int_comp:
   | LESS { fun s -> Yielding_bool (Lt s) }
   | GREATER { fun s -> Yielding_bool (Gt s) }
-  | LESSGREATER { fun s -> Yielding_bool Neq }
   | LESSEQUAL { fun s -> Yielding_bool (Le s) }
   | GREATEREQUAL { fun s -> Yielding_bool (Ge s) }
   | NOTEQUAL { fun _ -> Yielding_bool Neq }

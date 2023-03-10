@@ -249,7 +249,6 @@ rule token = parse
   | "%"  { PERCENT }
   | "<"  { LESS }
   | ">"  { GREATER }
-  | "<>" { LESSGREATER }
   | "<=" { LESSEQUAL }
   | ">=" { GREATEREQUAL }
   | "<>" { NOTEQUAL }
