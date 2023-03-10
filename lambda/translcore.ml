@@ -562,8 +562,6 @@ and transl_exp0 ~in_new_scope ~scopes e =
               if Config.flambda2 then
                 imm_array
               else
-                (* CR aspectorzabusky: Do we construct things correctly in this
-                   case? *)
                 match kind with
                 | Paddrarray | Pintarray ->
                   Lconst(Const_block(0, cl))

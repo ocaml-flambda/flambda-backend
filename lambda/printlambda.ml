@@ -442,6 +442,9 @@ let primitive ppf = function
   | Pobj_dup -> fprintf ppf "obj_dup"
   | Pobj_magic -> fprintf ppf "obj_magic"
 
+  | Parray_to_iarray -> fprintf ppf "array_to_iarray"
+  | Parray_of_iarray -> fprintf ppf "array_of_iarray"
+
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
   | Pbytes_to_string -> "Pbytes_to_string"
@@ -549,6 +552,8 @@ let name_of_primitive = function
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
   | Pobj_dup -> "Pobj_dup"
   | Pobj_magic -> "Pobj_magic"
+  | Parray_of_iarray -> "Parray_of_iarray"
+  | Parray_to_iarray -> "Parray_to_iarray"
 
 let check_attribute ppf check =
   let check_property = function

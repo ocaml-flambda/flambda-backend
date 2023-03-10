@@ -36,7 +36,7 @@ module Comprehensions : sig
     { pattern    : Parsetree.pattern
     ; iterator   : iterator
     ; attributes : Parsetree.attribute list }
-    (** PAT (in/=) ... [@...] *)
+    (** [@...] PAT (in/=) ... *)
 
   type clause =
     | For of clause_binding list
@@ -68,12 +68,10 @@ module Immutable_arrays : sig
   type expression =
     | Iaexp_immutable_array of Parsetree.expression list
     (** [: E1; ...; En :] *)
-    (* CR aspectorzabusky: Or [Iaexp_iarray]? *)
 
   type pattern =
     | Iapat_immutable_array of Parsetree.pattern list
     (** [: P1; ...; Pn :] **)
-    (* CR aspectorzabusky: Or [Iapat_iarray]? *)
 
   val expr_of : loc:Location.t -> expression -> Parsetree.expression_desc
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern_desc

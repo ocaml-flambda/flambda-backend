@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-extension comprehensions_experimental -extension immutable_arrays_experimental"
+   flags = "-extension comprehensions -extension immutable_arrays"
 *)
 
 (******************************************************************************

@@ -112,7 +112,9 @@ let preserve_tailcall_for_prim = function
     Popaque | Psequor | Psequand
   | Pobj_magic ->
       true
-  | Pbytes_to_string | Pbytes_of_string | Pignore
+  | Pbytes_to_string | Pbytes_of_string
+  | Parray_to_iarray | Parray_of_iarray
+  | Pignore
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _
   | Pmakeblock _ | Pmakefloatblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
@@ -518,6 +520,8 @@ let comp_primitive p args =
   | Pint_as_pointer -> Kccall("caml_int_as_pointer", 1)
   | Pbytes_to_string -> Kccall("caml_string_of_bytes", 1)
   | Pbytes_of_string -> Kccall("caml_bytes_of_string", 1)
+  | Parray_to_iarray -> Kccall("caml_iarray_of_array", 1)
+  | Parray_of_iarray -> Kccall("caml_array_of_iarray", 1)
   | Pobj_dup -> Kccall("caml_obj_dup", 1)
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),

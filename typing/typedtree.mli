@@ -357,15 +357,20 @@ and comprehension_clause_binding =
   {
     comp_cb_iterator : comprehension_iterator;
     comp_cb_attributes : attribute list
+    (** No built-in attributes are meaningful here; this would correspond to
+        [[body for[@attr] x in xs]], and there are no built-in attributes that
+        would be efficacious there.  (The only ones that might make sense would
+        be inlining, but you can't do that with list/array items that are being
+        iterated over.) *)
   }
-  (* We move the pattern into the [comprehension_iterator], compared to the
-     untyped syntax tree, so that range-based iterators can have just an
-     identifier instead of a full pattern *)
+  (** We move the pattern into the [comprehension_iterator], compared to the
+      untyped syntax tree, so that range-based iterators can have just an
+      identifier instead of a full pattern *)
 
 and comprehension_iterator =
   | Texp_comp_range of
       { ident     : Ident.t
-      ; pattern   : Parsetree.pattern (* Redundant with [ident] *)
+      ; pattern   : Parsetree.pattern (** Redundant with [ident] *)
       ; start     : expression
       ; stop      : expression
       ; direction : direction_flag }

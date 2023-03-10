@@ -3829,7 +3829,13 @@ and type_expect_
   match Extensions.Expression.of_ast sexp with
   | Some eexp ->
       type_expect_extension
-        ~loc ~env ~expected_mode ~ty_expected ~explanation eexp
+        ~loc
+        ~env
+        ~expected_mode
+        ~ty_expected
+        ~explanation
+        ~attributes:sexp.pexp_attributes
+        eexp
   | None      -> match sexp.pexp_desc with
   | Pexp_ident lid ->
       let path, mode, desc, kind = type_ident env ~recarg lid in
@@ -6897,14 +6903,15 @@ and type_generic_array
     exp_attributes = attributes;
     exp_env = env }
 
-and type_expect_extension ~loc ~env ~expected_mode ~ty_expected ~explanation
+and type_expect_extension
+      ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes
   : Extensions.Expression.t -> _ = function
   | Eexp_comprehension cexpr ->
       type_comprehension_expr
-        ~loc ~env ~expected_mode ~ty_expected ~explanation cexpr
+        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes cexpr
   | Eexp_immutable_array iaexpr ->
       type_immutable_array
-        ~loc ~env ~expected_mode ~ty_expected ~explanation iaexpr
+        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes iaexpr
 
 (* What modes should comprehensions use?  Let us be generic over the sequence
    type we use for comprehensions, calling it [sequence] (standing for either
@@ -6982,7 +6989,7 @@ and type_expect_extension ~loc ~env ~expected_mode ~ty_expected ~explanation
    this comment by its incipit (the initial question, right at the start). *)
 
 and type_comprehension_expr
-      ~loc ~env ~expected_mode:_ ~ty_expected ~explanation:_ cexpr =
+      ~loc ~env ~expected_mode:_ ~ty_expected ~explanation:_ ~attributes cexpr =
   let open Extensions.Comprehensions in
   (* - [comprehension_type]:
          For printing nicer error messages.
@@ -7037,8 +7044,7 @@ and type_comprehension_expr
      ; exp_loc        = loc
      ; exp_extra      = []
      ; exp_type       = instance (container_type comp_body.exp_type)
-     ; exp_attributes = []
-         (* CR aspectorzabusky: These should come from somewhere *)
+     ; exp_attributes = attributes
      ; exp_env        = env }
 
 and type_comprehension_clauses
@@ -7148,7 +7154,8 @@ and type_comprehension_iterator
       in
       Texp_comp_in { pattern; sequence }
 
-and type_immutable_array ~loc ~env ~expected_mode ~ty_expected ~explanation
+and type_immutable_array
+      ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes
     : Extensions.Immutable_arrays.expression -> _ = function
   | Iaexp_immutable_array elts ->
       type_generic_array
@@ -7159,7 +7166,7 @@ and type_immutable_array ~loc ~env ~expected_mode ~ty_expected ~explanation
         ~explanation
         ~type_:Predef.type_iarray
         ~mutability:Immutable
-        ~attributes:[] (* CR aspectorzabusky: This can't be right *)
+        ~attributes
         elts
 
 (* Typing of toplevel bindings *)

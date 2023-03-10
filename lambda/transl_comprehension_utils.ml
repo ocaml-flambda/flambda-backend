@@ -132,9 +132,6 @@ module Lambda_utils = struct
       let prim = c_prim name 3 in
       fun ~loc x y z -> Lprim(prim, [x; y; z], loc)
 
-    (* CR aspectorzabusky: These primitives are now created unconditionally on
-       compiler startup.  Is that okay? *)
-
     let make_vect =
       let make_vect = binary "caml_make_vect" in
       fun ~loc ~length ~init -> make_vect ~loc length init

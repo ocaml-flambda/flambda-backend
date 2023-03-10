@@ -190,6 +190,11 @@ type primitive =
   (* Primitives for [Obj] *)
   | Pobj_dup
   | Pobj_magic
+  (* Jane Street extensions *)
+  | Parray_to_iarray (* Unsafely reinterpret a mutable array as an immutable
+                        one; O(1) *)
+  | Parray_of_iarray (* Unsafely reinterpret an immutable array as a mutable
+                        one; O(1) *)
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge

@@ -24,19 +24,19 @@ let default_extensions =
   ]
 
 let to_string = function
-  | Comprehensions -> "comprehensions_experimental"
+  | Comprehensions -> "comprehensions"
   | Local -> "local"
   | Include_functor -> "include_functor"
   | Polymorphic_parameters -> "polymorphic_parameters"
-  | Immutable_arrays -> "immutable_arrays_experimental"
+  | Immutable_arrays -> "immutable_arrays"
   | Module_strengthening -> "module_strengthening"
 
 let of_string extn = match String.lowercase_ascii extn with
-  | "comprehensions_experimental" -> Some Comprehensions
+  | "comprehensions" -> Some Comprehensions
   | "local" -> Some Local
   | "include_functor" -> Some Include_functor
   | "polymorphic_parameters" -> Some Polymorphic_parameters
-  | "immutable_arrays_experimental" -> Some Immutable_arrays
+  | "immutable_arrays" -> Some Immutable_arrays
   | "strengthening" -> Some Module_strengthening
   | _ -> None
 

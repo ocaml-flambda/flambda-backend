@@ -439,7 +439,6 @@ parsing/extensions.cmx : \
 parsing/extensions.cmi : \
     parsing/parsetree.cmi \
     parsing/location.cmi \
-    parsing/extensions_parsing.cmi \
     parsing/asttypes.cmi
 parsing/extensions_parsing.cmo : \
     parsing/parsetree.cmi \
@@ -1009,6 +1008,7 @@ typing/mtype.cmx : \
     typing/mtype.cmi
 typing/mtype.cmi : \
     typing/types.cmi \
+    typing/subst.cmi \
     typing/path.cmi \
     typing/ident.cmi \
     typing/env.cmi
@@ -1804,6 +1804,7 @@ typing/typemod.cmo : \
     typing/includemod.cmi \
     utils/import_info.cmi \
     typing/ident.cmi \
+    parsing/extensions.cmi \
     typing/envaux.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
@@ -1842,6 +1843,7 @@ typing/typemod.cmx : \
     typing/includemod.cmx \
     utils/import_info.cmx \
     typing/ident.cmx \
+    parsing/extensions.cmx \
     typing/envaux.cmx \
     typing/env.cmx \
     typing/ctype.cmx \
@@ -1873,6 +1875,7 @@ typing/typemod.cmi : \
 typing/typeopt.cmo : \
     typing/types.cmi \
     typing/typedtree.cmi \
+    typing/type_immediacy.cmi \
     typing/predef.cmi \
     typing/path.cmi \
     utils/numbers.cmi \
@@ -1882,11 +1885,13 @@ typing/typeopt.cmo : \
     typing/env.cmi \
     typing/ctype.cmi \
     utils/config.cmi \
+    utils/clflags.cmi \
     parsing/asttypes.cmi \
     typing/typeopt.cmi
 typing/typeopt.cmx : \
     typing/types.cmx \
     typing/typedtree.cmx \
+    typing/type_immediacy.cmx \
     typing/predef.cmx \
     typing/path.cmx \
     utils/numbers.cmx \
@@ -1896,6 +1901,7 @@ typing/typeopt.cmx : \
     typing/env.cmx \
     typing/ctype.cmx \
     utils/config.cmx \
+    utils/clflags.cmx \
     parsing/asttypes.cmi \
     typing/typeopt.cmi
 typing/typeopt.cmi : \
