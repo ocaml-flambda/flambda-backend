@@ -444,7 +444,7 @@ let binop ppf binop a b =
         Format.fprintf ppf "%a%a%a" pp_field_kind field_kind
           (pp_option ~space:Before (pp_like "tag(%a)" Format.pp_print_int))
           tag pp_size size
-      | Naked_floats { size } -> Format.fprintf ppf "float%a" pp_size size
+      | Naked_floats { size } -> Format.fprintf ppf "@ float%a" pp_size size
     in
     Format.fprintf ppf "@[<2>%%block_load%a%a@ (%a,@ %a)@]"
       (mutability ~space:Before) mut pp_access_kind access_kind simple a simple
