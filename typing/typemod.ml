@@ -835,7 +835,7 @@ let map_ext fn exts =
 
 let rec approx_modtype env smty =
   match Extensions.Module_type.of_ast smty with
-  | Some _ -> .
+  | Some emty -> approx_modtype_extension env emty
   | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
@@ -893,6 +893,9 @@ let rec approx_modtype env smty =
       mty
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
+
+and approx_modtype_extension _env : Extensions.Module_type.t -> _ = function
+  | Emty_strengthen { mty=_; mod_id=_ } -> failwith "strengthen not yet implemented"
 
 and approx_module_declaration env pmd =
   {
@@ -1373,7 +1376,7 @@ and transl_modtype_functor_arg env sarg =
 and transl_modtype_aux env smty =
   let loc = smty.pmty_loc in
   match Extensions.Module_type.of_ast smty with
-  | Some _ -> .
+  | Some emty -> transl_modtype_extension_aux env emty
   | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
@@ -1435,6 +1438,9 @@ and transl_modtype_aux env smty =
       mkmty (Tmty_typeof tmty) mty env loc smty.pmty_attributes
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
+
+and transl_modtype_extension_aux _env : Extensions.Module_type.t -> _ = function
+  | Emty_strengthen { mty=_ ; mod_id=_ } -> failwith "Strengthen not yet implemented"
 
 and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
   let lid, with_info = match constr with

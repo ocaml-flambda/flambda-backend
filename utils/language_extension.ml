@@ -4,6 +4,7 @@ type t =
   | Include_functor
   | Polymorphic_parameters
   | Immutable_arrays
+  | Module_strengthening
 
 let equal (a : t) (b : t) = (a = b)
 
@@ -13,6 +14,7 @@ let all =
   ; Include_functor
   ; Polymorphic_parameters
   ; Immutable_arrays
+  ; Module_strengthening
   ]
 
 let default_extensions =
@@ -27,6 +29,7 @@ let to_string = function
   | Include_functor -> "include_functor"
   | Polymorphic_parameters -> "polymorphic_parameters"
   | Immutable_arrays -> "immutable_arrays_experimental"
+  | Module_strengthening -> "module_strengthening"
 
 let of_string extn = match String.lowercase_ascii extn with
   | "comprehensions_experimental" -> Some Comprehensions
@@ -34,6 +37,7 @@ let of_string extn = match String.lowercase_ascii extn with
   | "include_functor" -> Some Include_functor
   | "polymorphic_parameters" -> Some Polymorphic_parameters
   | "immutable_arrays_experimental" -> Some Immutable_arrays
+  | "strengthening" -> Some Module_strengthening
   | _ -> None
 
 let of_string_exn extn =
@@ -48,7 +52,8 @@ let is_erasable = function
   | Comprehensions
   | Include_functor
   | Polymorphic_parameters
-  | Immutable_arrays ->
+  | Immutable_arrays
+  | Module_strengthening ->
       false
 
 module Universe = struct

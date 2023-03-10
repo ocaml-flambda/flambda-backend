@@ -79,6 +79,17 @@ module Immutable_arrays : sig
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern_desc
 end
 
+(** The ASTs for module type strengthening. *)
+module Strengthen : sig
+  type module_type =
+    { mty : Parsetree.module_type; mod_id : Longident.t Location.loc }
+
+  val mty_of : loc:Location.t -> module_type -> Parsetree.module_type_desc
+end
+
+(******************************************)
+(* General facility, which we export *)
+
 (** The module type of language extension ASTs, instantiated once for each
     syntactic category.  We tend to call the pattern-matching functions here
     with unusual indentation, not indenting the [None] branch further so as to
@@ -135,6 +146,9 @@ module type AST = sig
   val of_ast : ast -> t option
 end
 
+(******************************************)
+(* Individual syntactic categories *)
+
 (** Language extensions in expressions *)
 module Expression : sig
   type t =
@@ -154,7 +168,8 @@ end
 
 (** Language extensions in module types *)
 module Module_type : sig
-  type t = |
+  type t =
+    | Emty_strengthen of Strengthen.module_type
 
   include AST with type t := t and type ast := Parsetree.module_type
 end

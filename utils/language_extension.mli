@@ -7,6 +7,7 @@ type t =
   | Include_functor
   | Polymorphic_parameters
   | Immutable_arrays
+  | Module_strengthening
 
 (** Equality on language extensions *)
 val equal : t -> t -> bool

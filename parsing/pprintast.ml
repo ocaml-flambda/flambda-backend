@@ -1119,7 +1119,7 @@ and module_type ctxt f x =
       (attributes ctxt) x.pmty_attributes
   end else
     match Extensions.Module_type.of_ast x with
-    | Some _ -> .
+    | Some emty -> module_type_extension ctxt f emty
     | None ->
     match x.pmty_desc with
     | Pmty_functor (Unit, mt2) ->
@@ -1139,6 +1139,12 @@ and module_type ctxt f x =
           (module_type1 ctxt) mt
           (list (with_constraint ctxt) ~sep:"@ and@ ") l
     | _ -> module_type1 ctxt f x
+
+and module_type_extension ctxt f : Extensions.Module_type.t -> _ = function
+  | Emty_strengthen { mty; mod_id } ->
+      pp f "@[<hov2>%a@ with@ %a@]"
+        (module_type1 ctxt) mty
+        longident_loc mod_id
 
 and with_constraint ctxt f = function
   | Pwith_type (li, ({ptype_params= ls ;_} as td)) ->
@@ -1165,7 +1171,7 @@ and with_constraint ctxt f = function
 and module_type1 ctxt f x =
   if x.pmty_attributes <> [] then module_type ctxt f x
   else match Extensions.Module_type.of_ast x with
-    | Some _ -> .
+    | Some emty -> module_type_extension1 ctxt f emty
     | None ->
     match x.pmty_desc with
     | Pmty_ident li ->
@@ -1179,6 +1185,9 @@ and module_type1 ctxt f x =
         pp f "@[<hov2>module@ type@ of@ %a@]" (module_expr ctxt) me
     | Pmty_extension e -> extension ctxt f e
     | _ -> paren true (module_type ctxt) f x
+
+and module_type_extension1 ctxt f : Extensions.Module_type.t -> _ = function
+  | Emty_strengthen _ as emty -> paren true (module_type_extension ctxt) f emty
 
 and signature ctxt f x =  list ~sep:"@\n" (signature_item ctxt) f x
 

@@ -285,7 +285,7 @@ module MT = struct
     | Some emty -> begin
         Extensions_parsing.Module_type.wrap_desc ~loc ~attrs @@
         match sub.module_type_extension sub emty with
-        | _ -> .
+        | Emty_strengthen smty -> Extensions.Strengthen.mty_of ~loc smty
       end
     | None ->
     match desc with
@@ -343,6 +343,13 @@ module MT = struct
         let attrs = sub.attributes sub attrs in
         extension ~loc ~attrs (sub.extension sub x)
     | Psig_attribute x -> attribute ~loc (sub.attribute sub x)
+
+  let map_extension sub :
+        Extensions.Module_type.t -> Extensions.Module_type.t = function
+    | Emty_strengthen { mty; mod_id } ->
+       let mty = sub.module_type sub mty in
+       let mod_id = map_loc sub mod_id in
+       Emty_strengthen { mty; mod_id }
 end
 
 
@@ -667,6 +674,7 @@ let default_mapper =
     signature = (fun this l -> List.map (this.signature_item this) l);
     signature_item = MT.map_signature_item;
     module_type = MT.map;
+    module_type_extension = MT.map_extension;
     with_constraint = MT.map_with_constraint;
     class_declaration =
       (fun this -> CE.class_infos this (this.class_expr this));
@@ -729,9 +737,6 @@ let default_mapper =
            ~attrs:(this.attributes this pmtd_attributes)
            ~loc:(this.location this pmtd_loc)
       );
-
-    module_type_extension =
-      (fun _this emty -> match emty with _ -> .);
 
     module_binding =
       (fun this {pmb_name; pmb_expr; pmb_attributes; pmb_loc} ->

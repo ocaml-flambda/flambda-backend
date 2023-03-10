@@ -341,7 +341,7 @@ and add_binding_op bv bv' pbop =
 
 and add_modtype bv mty =
   match Extensions.Module_type.of_ast mty with
-  | Some _ -> .
+  | Some emty -> add_modtype_extension bv emty
   | None ->
   match mty.pmty_desc with
     Pmty_ident l -> add bv l
@@ -373,6 +373,11 @@ and add_modtype bv mty =
   | Pmty_typeof m -> add_module_expr bv m
   | Pmty_extension e -> handle_extension e
 
+and add_modtype_extension bv : Extensions.Module_type.t -> _ = function
+  | Emty_strengthen { mty; mod_id } ->
+     add_modtype bv mty;
+     add_module_path bv mod_id
+
 and add_module_alias bv l =
   (* If we are in delayed dependencies mode, we delay the dependencies
        induced by "Lident s" *)
@@ -386,7 +391,7 @@ and add_module_alias bv l =
 
 and add_modtype_binding bv mty =
   match Extensions.Module_type.of_ast mty with
-  | Some _ -> .
+  | Some emty -> add_modtype_extension_binding bv emty
   | None ->
   match mty.pmty_desc with
     Pmty_alias l ->
@@ -397,6 +402,13 @@ and add_modtype_binding bv mty =
       add_module_binding bv modl
   | _ ->
       add_modtype bv mty; bound
+
+and add_modtype_extension_binding bv : Extensions.Module_type.t -> _ = function
+  | Emty_strengthen { mty; mod_id } ->
+     (* treat like a [with] constraint *)
+     add_modtype bv mty;
+     add_module_path bv mod_id;
+     bound
 
 and add_signature bv sg =
   ignore (add_signature_binding bv sg)

@@ -304,6 +304,11 @@ module MT = struct
         sub.attributes sub attrs;
         sub.extension sub x
     | Psig_attribute x -> sub.attribute sub x
+
+  let iter_extension sub : Extensions.Module_type.t -> _ = function
+    | Emty_strengthen { mty; mod_id } ->
+       iter sub mty;
+       iter_loc sub mod_id
 end
 
 
@@ -597,6 +602,7 @@ let default_iterator =
     signature = (fun this l -> List.iter (this.signature_item this) l);
     signature_item = MT.iter_signature_item;
     module_type = MT.iter;
+    module_type_extension = MT.iter_extension;
     with_constraint = MT.iter_with_constraint;
     class_declaration =
       (fun this -> CE.class_infos this (this.class_expr this));
@@ -656,9 +662,6 @@ let default_iterator =
          this.location this pmtd_loc;
          this.attributes this pmtd_attributes;
       );
-
-    module_type_extension = (fun _this emty -> match emty with
-      | _ -> .);
 
     module_binding =
       (fun this {pmb_name; pmb_expr; pmb_attributes; pmb_loc} ->
