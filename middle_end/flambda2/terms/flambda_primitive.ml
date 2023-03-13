@@ -575,9 +575,12 @@ type nullary_primitive =
   | Optimised_out of K.t
   | Probe_is_enabled of { name : string }
   | Begin_region
+  | Enter_inlined_apply of { dbg : Debuginfo.t }
 
 let nullary_primitive_eligible_for_cse = function
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region -> false
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+  | Enter_inlined_apply _ ->
+    false
 
 let compare_nullary_primitive p1 p2 =
   match p1, p2 with
@@ -586,12 +589,23 @@ let compare_nullary_primitive p1 p2 =
   | Probe_is_enabled { name = name1 }, Probe_is_enabled { name = name2 } ->
     String.compare name1 name2
   | Begin_region, Begin_region -> 0
-  | Invalid _, (Optimised_out _ | Probe_is_enabled _ | Begin_region) -> -1
-  | Optimised_out _, (Probe_is_enabled _ | Begin_region) -> -1
+  | Enter_inlined_apply { dbg = dbg1 }, Enter_inlined_apply { dbg = dbg2 } ->
+    Debuginfo.compare dbg1 dbg2
+  | ( Invalid _,
+      ( Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Enter_inlined_apply _ ) ) ->
+    -1
+  | Optimised_out _, (Probe_is_enabled _ | Begin_region | Enter_inlined_apply _)
+    ->
+    -1
   | Optimised_out _, Invalid _ -> 1
-  | Probe_is_enabled _, Begin_region -> -1
+  | Probe_is_enabled _, (Begin_region | Enter_inlined_apply _) -> -1
   | Probe_is_enabled _, (Invalid _ | Optimised_out _) -> 1
+  | Begin_region, Enter_inlined_apply _ -> -1
   | Begin_region, (Invalid _ | Optimised_out _ | Probe_is_enabled _) -> 1
+  | ( Enter_inlined_apply _,
+      (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ) ->
+    1
 
 let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
 
@@ -606,6 +620,9 @@ let print_nullary_primitive ppf p =
   | Probe_is_enabled { name } ->
     Format.fprintf ppf "@[<hov 1>(Probe_is_enabled@ %s)@]" name
   | Begin_region -> Format.pp_print_string ppf "Begin_region"
+  | Enter_inlined_apply { dbg } ->
+    Format.fprintf ppf "@[<hov 1>(Enter_inlined_apply@ %a)@]"
+      Debuginfo.print_compact dbg
 
 let result_kind_of_nullary_primitive p : result_kind =
   match p with
@@ -613,6 +630,7 @@ let result_kind_of_nullary_primitive p : result_kind =
   | Optimised_out k -> Singleton k
   | Probe_is_enabled _ -> Singleton K.naked_immediate
   | Begin_region -> Singleton K.region
+  | Enter_inlined_apply _ -> Unit
 
 let effects_and_coeffects_of_begin_region : Effects_and_coeffects.t =
   (* Ensure these don't get moved, but allow them to be deleted. *)
@@ -627,10 +645,16 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
        moved around. *)
     Arbitrary_effects, Has_coeffects, Strict
   | Begin_region -> effects_and_coeffects_of_begin_region
+  | Enter_inlined_apply _ ->
+    (* This doesn't really have effects, but without effects, these primitives
+       get deleted during lambda_to_flambda. *)
+    Arbitrary_effects, Has_coeffects, Strict
 
 let nullary_classify_for_printing p =
   match p with
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region -> Neither
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+  | Enter_inlined_apply _ ->
+    Neither
 
 type unary_primitive =
   | Duplicate_block of { kind : Duplicate_block_kind.t }
@@ -1666,7 +1690,9 @@ let equal t1 t2 = compare t1 t2 = 0
 
 let free_names t =
   match t with
-  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
+  | Nullary
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Enter_inlined_apply _ ) ->
     Name_occurrences.empty
   | Unary (prim, x0) ->
     Name_occurrences.union
@@ -1691,7 +1717,9 @@ let free_names t =
 let apply_renaming t renaming =
   let apply simple = Simple.apply_renaming simple renaming in
   match t with
-  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
+  | Nullary
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Enter_inlined_apply _ ) ->
     t
   | Unary (prim, x0) ->
     let prim' = apply_renaming_unary_primitive prim renaming in
@@ -1719,7 +1747,9 @@ let apply_renaming t renaming =
 
 let ids_for_export t =
   match t with
-  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
+  | Nullary
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Enter_inlined_apply _ ) ->
     Ids_for_export.empty
   | Unary (prim, x0) ->
     Ids_for_export.union
