@@ -208,6 +208,9 @@ type nullary_primitive =
       (** Starting delimiter of local allocation region, returning a region
           name. For regions for the "try" part of a "try...with", use
           [Begin_try_region] (below) instead. *)
+  | Enter_inlined_apply of { dbg : Debuginfo.t }
+      (** Used in classic mode to denote the start of an inlined function body.
+          This is then used in to_cmm to correctly add inlined debuginfo. *)
 
 (** Untagged binary integer arithmetic operations.
 

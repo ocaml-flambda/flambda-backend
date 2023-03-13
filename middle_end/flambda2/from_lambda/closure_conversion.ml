@@ -283,7 +283,7 @@ module Inlining = struct
   let make_inlined_body acc ~callee ~region_inlined_into ~params ~args
       ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
       ~exn_continuation ~return_continuation ~apply_exn_continuation
-      ~apply_return_continuation ~apply_depth =
+      ~apply_return_continuation ~apply_depth ~apply_dbg =
     let rec_info =
       match apply_depth with
       | None -> Rec_info_expr.initial
@@ -312,10 +312,19 @@ module Inlining = struct
       in
       acc, Expr.apply_renaming body renaming
     in
-    Inlining_helpers.make_inlined_body ~callee ~region_inlined_into ~params
-      ~args ~my_closure ~my_region ~my_depth ~rec_info ~body:(acc, body)
-      ~exn_continuation ~return_continuation ~apply_exn_continuation
-      ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming
+    let acc, body =
+      Inlining_helpers.make_inlined_body ~callee ~region_inlined_into ~params
+        ~args ~my_closure ~my_region ~my_depth ~rec_info ~body:(acc, body)
+        ~exn_continuation ~return_continuation ~apply_exn_continuation
+        ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming
+    in
+    Let_with_acc.create acc
+      (Bound_pattern.singleton
+         (VB.create (Variable.create "inlined_dbg") Name_mode.normal))
+      (Named.create_prim
+         (Nullary (Enter_inlined_apply { dbg = apply_dbg }))
+         Debuginfo.none)
+      ~body
 
   let wrap_inlined_body_for_exn_extra_args acc ~extra_args
       ~apply_exn_continuation ~apply_return_continuation ~result_arity
@@ -336,6 +345,7 @@ module Inlining = struct
       ~make_inlined_body ~apply_cont_create ~let_cont_create
 
   let inline acc ~apply ~apply_depth ~func_desc:code =
+    let apply_dbg = Apply.dbg apply in
     let callee = Apply.callee apply in
     let region_inlined_into = Apply.region apply in
     let args = Apply.args apply in
@@ -366,7 +376,7 @@ module Inlining = struct
           make_inlined_body ~callee ~region_inlined_into
             ~params:(Bound_parameters.vars params)
             ~args ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
-            ~exn_continuation ~return_continuation ~apply_depth
+            ~exn_continuation ~return_continuation ~apply_depth ~apply_dbg
         in
         let acc = Acc.with_free_names Name_occurrences.empty acc in
         let acc = Acc.increment_metrics cost_metrics acc in
