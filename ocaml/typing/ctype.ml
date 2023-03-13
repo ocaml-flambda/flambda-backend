@@ -1641,8 +1641,12 @@ let expand_abbrev_gen kind find_type_expansion env ty =
           | (params, body, lv) ->
             begin
               match Types.get_desc body with
-              | Tconstr(alias, args', _) when List.equal eq_type params args' ->
-                newty2 ~level (Tconstr (alias, args, abbrev))
+              | Tconstr(alias, args', _)
+                when List.equal eq_type params args' && lv = Btype.lowest_level ->
+                let ty' = newty2 ~level (Tconstr (alias, args, abbrev)) in
+                let abbrev = proper_abbrevs path args abbrev in
+                memorize_abbrev abbrev kind path ty ty';
+                ty'
               | _ ->
                 (* prerr_endline
                    ("add a "^string_of_kind kind^" expansion for "^Path.name path);*)
