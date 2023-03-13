@@ -326,9 +326,7 @@ module Acc = struct
   type t =
     { declared_symbols : (Symbol.t * Static_const.t) list;
       lifted_sets_of_closures :
-        ((Symbol.t * Env.value_approximation) Function_slot.Lmap.t
-        * Flambda.Set_of_closures.t)
-        list;
+        (Symbol.t Function_slot.Lmap.t * Flambda.Set_of_closures.t) list;
       shareable_constants : Symbol.t Static_const.Map.t;
       symbol_approximations : Env.value_approximation Symbol.Map.t;
       approximation_for_external_symbol : Symbol.t -> Env.value_approximation;
@@ -443,7 +441,11 @@ module Acc = struct
 
   let add_declared_symbol ~symbol ~constant t =
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
-    { t with declared_symbols }
+    let symbol_approximations =
+      Symbol.Map.add symbol Value_approximation.Value_unknown
+        t.symbol_approximations
+    in
+    { t with declared_symbols; symbol_approximations }
 
   let add_lifted_set_of_closures ~symbols ~set_of_closures t =
     { t with
@@ -463,17 +465,21 @@ module Acc = struct
 
   let add_symbol_approximation t symbol approx =
     match (approx : _ Value_approximation.t) with
-    | Value_unknown -> t
     | Value_symbol s ->
       (* This should not happen. But in case it does, we don't want to add an
          indirection *)
       Misc.fatal_errorf "Symbol %a approximated to symbol %a" Symbol.print
         symbol Symbol.print s
-    | Closure_approximation _ | Block_approximation _ | Value_int _ ->
+    | Value_unknown | Closure_approximation _ | Block_approximation _
+    | Value_int _ ->
+      (* We don't ignore unknown value for symbol to make sure they are
+         registered *)
       { t with
         symbol_approximations =
           Symbol.Map.add symbol approx t.symbol_approximations
       }
+
+  let symbol_approximations t = t.symbol_approximations
 
   let add_code ~code_id ~code t =
     { t with code = Code_id.Map.add code_id code t.code }

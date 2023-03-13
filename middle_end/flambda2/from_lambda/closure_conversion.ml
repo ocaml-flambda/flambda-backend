@@ -32,8 +32,6 @@ module K = Flambda_kind
 module P = Flambda_primitive
 module VB = Bound_var
 
-let inconstant_approxs = ref []
-
 type 'a close_program_metadata =
   | Normal : [`Normal] close_program_metadata
   | Classic :
@@ -789,7 +787,6 @@ let simplify_block_load acc body_env ~block ~field : simplified_block_load =
   | Value_unknown -> Unknown
   | Closure_approximation _ | Value_symbol _ | Value_int _ -> Not_a_block
   | Block_approximation (approx, _alloc_mode) -> (
-    (* Format.eprintf "...block approx found\n%!"; *)
     let approx =
       Simple.pattern_match field
         ~const:(fun const ->
@@ -918,12 +915,6 @@ let close_let acc env id user_visible kind defining_expr
                 (approxs, Alloc_mode.For_allocations.as_type alloc_mode)
             in
             let acc = Acc.add_symbol_approximation acc symbol approx in
-            inconstant_approxs := (symbol, approx) :: !inconstant_approxs;
-            (* unsure this is needed let body_env = Env.add_block_approximation
-               body_env var approxs (Alloc_mode.For_allocations.as_type
-               alloc_mode) in *)
-            (* let () = Format.eprintf "symbol %a approx: %a\n%!" Symbol.print
-               symbol Value_approximation.print approx in *)
             let acc, body = body acc body_env in
             Let_with_acc.create acc
               (Bound_pattern.static
@@ -974,8 +965,10 @@ let close_let acc env id user_visible kind defining_expr
         let body_env =
           Env.add_simple_to_substitute body_env id (Simple.symbol symbol) kind
         in
-        inconstant_approxs
-          := (symbol, Value_approximation.Value_unknown) :: !inconstant_approxs;
+        let acc =
+          Acc.add_symbol_approximation acc symbol
+            Value_approximation.Value_unknown
+        in
         let acc, body = body acc body_env in
         Let_with_acc.create acc
           (Bound_pattern.static
@@ -1798,7 +1791,7 @@ let close_functions acc external_env ~current_region function_declarations =
   in
   if can_be_lifted
   then
-    let symbols =
+    let symbols_with_approx =
       Function_slot.Lmap.mapi
         (fun function_slot _ ->
           let sym = Function_slot.Map.find function_slot symbol_map in
@@ -1814,8 +1807,9 @@ let close_functions acc external_env ~current_region function_declarations =
           sym, approx)
         funs
     in
+    let symbols = Function_slot.Lmap.map fst symbols_with_approx in
     let acc = Acc.add_lifted_set_of_closures ~symbols ~set_of_closures acc in
-    acc, Lifted symbols
+    acc, Lifted symbols_with_approx
   else acc, Dynamic (set_of_closures, approximations)
 
 let close_let_rec acc env ~function_declarations
@@ -2265,7 +2259,6 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
     List.fold_left
       (fun (g2c, s2g) (symbols, set_of_closures) ->
         let id = fresh_group_id () in
-        let symbols = Function_slot.Lmap.map fst symbols in
         let bound = Bound_static.Pattern.set_of_closures symbols in
         let const =
           Static_const_or_code.create_static_const
@@ -2471,25 +2464,8 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
       acc
   in
   let symbols_approximations =
-    let symbol_approxs =
-      List.fold_left
-        (fun sa (symbol, _) ->
-          Symbol.Map.add symbol Value_approximation.Value_unknown sa)
-        (Symbol.Map.singleton module_symbol module_block_approximation)
-        (Acc.declared_symbols acc)
-    in
-    let symbol_approxs =
-      List.fold_left
-        (fun sa (symbol, approx) -> Symbol.Map.add symbol approx sa)
-        symbol_approxs !inconstant_approxs
-    in
-    List.fold_left
-      (fun sa (closure_map, _) ->
-        Function_slot.Lmap.fold
-          (fun _ (symbol, approx) sa -> Symbol.Map.add symbol approx sa)
-          closure_map sa)
-      symbol_approxs
-      (Acc.lifted_sets_of_closures acc)
+    Symbol.Map.add module_symbol module_block_approximation
+      (Acc.symbol_approximations acc)
   in
   let acc, body =
     List.fold_left
