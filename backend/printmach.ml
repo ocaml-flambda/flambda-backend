@@ -158,11 +158,11 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Ireload -> fprintf ppf "%a (reload)" regs arg
   | Iconst_int n -> fprintf ppf "%s" (Nativeint.to_string n)
   | Iconst_float f -> fprintf ppf "%F" (Int64.float_of_bits f)
-  | Iconst_symbol s -> fprintf ppf "\"%s\"" s
+  | Iconst_symbol s -> fprintf ppf "\"%s\"" s.sym_name
   | Icall_ind -> fprintf ppf "call %a" regs arg
-  | Icall_imm { func; } -> fprintf ppf "call \"%s\" %a" func regs arg
+  | Icall_imm { func; } -> fprintf ppf "call \"%s\" %a" func.sym_name regs arg
   | Itailcall_ind -> fprintf ppf "tailcall %a" regs arg
-  | Itailcall_imm { func; } -> fprintf ppf "tailcall \"%s\" %a" func regs arg
+  | Itailcall_imm { func; } -> fprintf ppf "tailcall \"%s\" %a" func.sym_name regs arg
   | Iextcall { func; alloc; _ } ->
       fprintf ppf "extcall \"%s\" %a%s" func regs arg
       (if alloc then "" else " (noalloc)")

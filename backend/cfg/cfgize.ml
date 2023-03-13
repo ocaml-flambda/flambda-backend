@@ -149,15 +149,15 @@ let basic_or_terminator_of_operation :
   | Icall_imm { func } ->
     With_next_label
       (fun label_after ->
-        Call { op = Direct { func_symbol = func }; label_after })
+         Call { op = Direct func; label_after })
   | Itailcall_ind -> Terminator (Tailcall_func Indirect)
   | Itailcall_imm { func } ->
     Terminator
-      (if String.equal (State.get_fun_name state) func
+      (if String.equal (State.get_fun_name state) func.sym_name
       then Tailcall_self { destination = State.get_tailrec_label state }
-      else Tailcall_func (Direct { func_symbol = func }))
+      else Tailcall_func (Direct func))
   | Iextcall { func; ty_res; ty_args; alloc; returns } ->
-    let external_call = { Cfg.func_symbol = func; alloc; ty_res; ty_args } in
+    let external_call = { Cfg.func_symbol = { sym_name = func; sym_global = Global }; alloc; ty_res; ty_args } in
     if returns
     then
       With_next_label

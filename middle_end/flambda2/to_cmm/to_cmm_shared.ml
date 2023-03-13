@@ -152,6 +152,8 @@ let simple ?consider_inlining_effectful_expressions ~dbg env res s =
             }
         })
 
+let symbol_address s = symbol_address (Cmm.global_symbol s)
+
 let name_static name =
   Name.pattern_match name
     ~var:(fun v -> `Var v)

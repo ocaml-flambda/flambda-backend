@@ -28,7 +28,7 @@ let to_cmm_symbol sym : Cmm.symbol =
 
 let static_value v =
   match (v : Field_of_static_block.t) with
-  | Symbol s -> C.symbol_address (Symbol.linkage_name_as_string s)
+  | Symbol s -> C.symbol_address (Symbol.linkage_name_as_string s |> Cmm.global_symbol)
   | Dynamically_computed _ -> C.cint 1n
   | Tagged_immediate i ->
     C.cint
@@ -78,7 +78,7 @@ let static_boxed_number ~kind ~env ~symbol ~default ~emit ~transl ~structured v
          symbols, particularly in Classic mode. *)
       let symbol_name = Symbol.linkage_name_as_string symbol in
       let structured_constant = structured (transl c) in
-      Cmmgen_state.add_structured_constant symbol_name structured_constant;
+      Cmmgen_state.add_global_structured_constant symbol_name structured_constant;
       env, res, updates
     | Var (v, dbg) ->
       C.make_update env res dbg kind ~symbol:(C.symbol ~dbg symbol) v ~index:0

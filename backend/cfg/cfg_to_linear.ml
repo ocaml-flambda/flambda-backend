@@ -104,7 +104,7 @@ let cross_section cfg_with_layout src dst =
     | None, Some _ -> Misc.fatal_errorf "Missing section for %d" src
   else false
 
-let linearize_terminator cfg_with_layout func start
+let linearize_terminator cfg_with_layout (func : string) start
     (terminator : Cfg.terminator Cfg.instruction)
     ~(next : Linear_utils.labelled_insn) : L.instruction * Label.t option =
   (* CR-someday gyorsh: refactor, a lot of redundant code for different cases *)
@@ -143,20 +143,20 @@ let linearize_terminator cfg_with_layout func start
     | Return -> [L.Lreturn], None
     | Raise kind -> [L.Lraise kind], None
     | Tailcall_func Indirect -> [L.Lop Itailcall_ind], None
-    | Tailcall_func (Direct { func_symbol }) ->
+    | Tailcall_func (Direct func_symbol) ->
       [L.Lop (Itailcall_imm { func = func_symbol })], None
     | Tailcall_self { destination } ->
-      [L.Lop (Itailcall_imm { func })], Some destination
+      [L.Lop (Itailcall_imm { func = Cmm.global_symbol func })], Some destination
     | Call_no_return { func_symbol; alloc; ty_args; ty_res } ->
       single
         (L.Lop
            (Iextcall
-              { func = func_symbol; alloc; ty_args; ty_res; returns = false }))
+              { func = func_symbol.sym_name; alloc; ty_args; ty_res; returns = false }))
     | Call { op; label_after } ->
       let op : Mach.operation =
         match op with
         | Indirect -> Icall_ind
-        | Direct { func_symbol } -> Icall_imm { func = func_symbol }
+        | Direct func_symbol -> Icall_imm { func = func_symbol }
       in
       branch_or_fallthrough [L.Lop op] label_after, None
     | Prim { op; label_after } ->
@@ -164,7 +164,7 @@ let linearize_terminator cfg_with_layout func start
         match op with
         | External { func_symbol; alloc; ty_args; ty_res } ->
           Iextcall
-            { func = func_symbol; alloc; ty_args; ty_res; returns = true }
+            { func = func_symbol.sym_name; alloc; ty_args; ty_res; returns = true }
         | Checkbound { immediate = None } -> Iintop Icheckbound
         | Checkbound { immediate = Some i } -> Iintop_imm (Icheckbound, i)
         | Alloc { bytes; dbginfo; mode } -> Ialloc { bytes; dbginfo; mode }

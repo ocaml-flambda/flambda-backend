@@ -246,7 +246,7 @@ let dump_op ppf = function
   | Reload -> Format.fprintf ppf "reload"
   | Const_int n -> Format.fprintf ppf "const_int %nd" n
   | Const_float f -> Format.fprintf ppf "const_float %F" (Int64.float_of_bits f)
-  | Const_symbol s -> Format.fprintf ppf "const_symbol %s" s
+  | Const_symbol s -> Format.fprintf ppf "const_symbol %s" s.sym_name
   | Stackoffset n -> Format.fprintf ppf "stackoffset %d" n
   | Load _ -> Format.fprintf ppf "load"
   | Store _ -> Format.fprintf ppf "store"
@@ -337,29 +337,29 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
       done;
       let i = label_count - 1 in
       fprintf ppf "case %d: goto %d" i labels.(i))
-  | Call_no_return { func_symbol : string; _ } ->
-    fprintf ppf "Call_no_return %s%a" func_symbol print_args args
+  | Call_no_return { func_symbol : Cmm.symbol; _ } ->
+    fprintf ppf "Call_no_return %s%a" func_symbol.sym_name print_args args
   | Return -> fprintf ppf "Return%a" print_args args
   | Raise _ -> fprintf ppf "Raise%a" print_args args
   | Tailcall_self { destination } ->
     dump_mach_op ppf
-      (Mach.Itailcall_imm { func = Printf.sprintf "self(%d)" destination })
+      (Mach.Itailcall_imm { func = { sym_name = Printf.sprintf "self(%d)" destination; sym_global = Local } })
   | Tailcall_func call ->
     dump_mach_op ppf
       (match call with
       | Indirect -> Mach.Itailcall_ind
-      | Direct { func_symbol = func } -> Mach.Itailcall_imm { func })
+      | Direct func -> Mach.Itailcall_imm { func })
   | Call { op = call; label_after } ->
     Format.fprintf ppf "%t%a" print_res dump_mach_op
       (match call with
       | Indirect -> Mach.Icall_ind
-      | Direct { func_symbol = func } -> Mach.Icall_imm { func });
+      | Direct func -> Mach.Icall_imm { func });
     Format.fprintf ppf "%sgoto %d" sep label_after
   | Prim { op = prim; label_after } ->
     Format.fprintf ppf "%t%a" print_res dump_mach_op
       (match prim with
       | External { func_symbol = func; ty_res; ty_args; alloc } ->
-        Mach.Iextcall { func; ty_res; ty_args; returns = true; alloc }
+        Mach.Iextcall { func = func.sym_name; ty_res; ty_args; returns = true; alloc }
       | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
       | Checkbound { immediate = Some x } -> Mach.Iintop_imm (Icheckbound, x)
       | Checkbound { immediate = None } -> Mach.Iintop Icheckbound

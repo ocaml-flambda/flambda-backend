@@ -24,7 +24,7 @@ open Mach
 (* Auxiliary for recognizing addressing modes *)
 
 type addressing_expr =
-    Asymbol of string
+    Asymbol of Cmm.symbol
   | Alinear of expression
   | Aadd of expression * expression
   | Ascale of expression * int
@@ -245,7 +245,7 @@ method select_addressing _chunk exp =
   then (Iindexed 0, exp)
   else match a with
     | Asymbol s ->
-        (Ibased(s, d), Ctuple [])
+        (Ibased(s.sym_name, s.sym_global = Cmm.Global, d), Ctuple [])
     | Alinear e ->
         (Iindexed d, e)
     | Aadd(e1, e2) ->

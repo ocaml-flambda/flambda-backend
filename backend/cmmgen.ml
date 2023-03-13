@@ -222,14 +222,22 @@ let rec expr_size env = function
 
 (* Translate structured constants to Cmm data items *)
 
+let const_symbol sym_name =
+  { sym_name;
+    sym_global =
+      match Cmmgen_state.get_structured_constant sym_name with
+      | None -> Global
+      | Some (g, _) -> g }
+
+
 let transl_constant dbg = function
   | Uconst_int n ->
       int_const dbg n
   | Uconst_ref (label, def_opt) ->
       Option.iter
-        (fun def -> Cmmgen_state.add_structured_constant label def)
+        (fun def -> Cmmgen_state.add_global_structured_constant label def)
         def_opt;
-      Cconst_symbol (label, dbg)
+      Cconst_symbol (const_symbol label, dbg)
 
 let emit_constant cst cont =
   match cst with
@@ -237,7 +245,7 @@ let emit_constant cst cont =
       cint_const n
       :: cont
   | Uconst_ref (sym, _) ->
-      Csymbol_address sym :: cont
+      Csymbol_address (const_symbol sym) :: cont
 
 let emit_structured_constant symb cst cont =
   match cst with
@@ -267,24 +275,24 @@ let box_int_constant sym_name bi n =
   let sym = { sym_name; sym_global = Local } in
   match bi with
     Pnativeint ->
-      emit_nativeint_constant sym n []
+      emit_nativeint_constant sym n [], sym
   | Pint32 ->
       let n = Nativeint.to_int32 n in
-      emit_int32_constant sym n []
+      emit_int32_constant sym n [], sym
   | Pint64 ->
       let n = Int64.of_nativeint n in
-      emit_int64_constant sym n []
+      emit_int64_constant sym n [], sym
 
 let box_int dbg bi mode arg =
   match arg with
   | Cconst_int (n, _) ->
       let sym = Compilenv.new_const_symbol () in
-      let data_items = box_int_constant sym bi (Nativeint.of_int n) in
+      let data_items, sym = box_int_constant sym bi (Nativeint.of_int n) in
       Cmmgen_state.add_data_items data_items;
       Cconst_symbol (sym, dbg)
   | Cconst_natint (n, _) ->
       let sym = Compilenv.new_const_symbol () in
-      let data_items = box_int_constant sym bi n in
+      let data_items, sym = box_int_constant sym bi n in
       Cmmgen_state.add_data_items data_items;
       Cconst_symbol (sym, dbg)
   | _ ->
@@ -366,23 +374,23 @@ let rec is_unboxed_number_cmm = function
       Boxed (Boxed_float (mode, dbg), false)
     | Cop(Calloc mode, [Cconst_natint (hdr, _); Cconst_symbol (ops, _); _], dbg) ->
       if Nativeint.equal hdr boxedintnat_header
-      && String.equal ops caml_nativeint_ops
+      && String.equal ops.sym_name caml_nativeint_ops
       then
         Boxed (Boxed_integer (Pnativeint, mode, dbg), false)
       else
       if Nativeint.equal hdr boxedint32_header
-      && String.equal ops caml_int32_ops
+      && String.equal ops.sym_name caml_int32_ops
       then
         Boxed (Boxed_integer (Pint32, mode, dbg), false)
       else
       if Nativeint.equal hdr boxedint64_header
-      && String.equal ops caml_int64_ops
+      && String.equal ops.sym_name caml_int64_ops
       then
         Boxed (Boxed_integer (Pint64, mode, dbg), false)
       else
         No_unboxing
     | Cconst_symbol (s, _) ->
-      begin match Cmmgen_state.structured_constant_of_sym s with
+      begin match Cmmgen_state.structured_constant_of_sym s.sym_name with
         | Some (Uconst_float _) ->
           Boxed (Boxed_float (alloc_heap, Debuginfo.none), true)
         | Some (Uconst_nativeint _) ->
@@ -444,7 +452,7 @@ let rec transl env e =
         | [] -> Debuginfo.none
         | fundecl::_ -> fundecl.dbg
       in
-      Cconst_symbol (sym, dbg)
+      Cconst_symbol ({sym_name=sym; sym_global=Local}, dbg)
   | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
       let startenv = fundecls_size functions + List.length not_scanned_slots in
       let mode =
@@ -467,22 +475,22 @@ let rec transl env e =
             let without_header =
               match f.arity with
               | { function_kind = Curried _ ; params_layout = ([] | [_]) } as arity ->
-                Cconst_symbol (f.label, dbg) ::
+                Cconst_symbol ({sym_name=f.label; sym_global=Local}, dbg) ::
                 alloc_closure_info ~arity
                                    ~startenv:(startenv - pos) ~is_last dbg ::
                 transl_fundecls (pos + 3) rem
               | arity ->
                 Cconst_symbol
-                  (curry_function_sym
+                  (global_symbol (curry_function_sym
                      arity.function_kind
                      (List.map machtype_of_layout_changing_tagged_int_to_val
                        arity.params_layout)
                      (machtype_of_layout_changing_tagged_int_to_val
-                       arity.return_layout),
+                       arity.return_layout)),
                    dbg) ::
                 alloc_closure_info ~arity
                                    ~startenv:(startenv - pos) ~is_last dbg ::
-                Cconst_symbol (f.label, dbg) ::
+                Cconst_symbol ({sym_name=f.label; sym_global=Local}, dbg) ::
                 transl_fundecls (pos + 4) rem
             in
             if pos = 0
@@ -505,8 +513,9 @@ let rec transl env e =
       return_unit dbg
         (Cop(Cprobe { name; handler_code_sym; }, args, dbg))
   | Udirect_apply(lbl, args, None, result_layout, kind, dbg) ->
-      let args = List.map (transl env) args in
-      direct_apply lbl (machtype_of_layout result_layout) args kind dbg
+    let args = List.map (transl env) args in
+    (* FIXME maybe local? *)
+    direct_apply (global_symbol lbl) (machtype_of_layout result_layout) args kind dbg
   | Ugeneric_apply(clos, args, args_layout, result_layout, kind, dbg) ->
       let clos = transl env clos in
       let args = List.map (transl env) args in
@@ -563,7 +572,7 @@ let rec transl env e =
   | Uprim(prim, args, dbg) ->
       begin match (simplif_primitive prim, args) with
       | (Pread_symbol sym, []) ->
-          Cconst_symbol (sym, dbg)
+          Cconst_symbol (global_symbol sym, dbg)
       | (Pmakeblock _, []) ->
           assert false
       | (Pmakeblock(tag, _mut, _kind, mode), args) ->
@@ -1554,7 +1563,7 @@ let transl_function f =
     else
       f.arity.params_layout @ [Lambda.layout_function]
   in
-  Cfunction {fun_name = f.label;
+  Cfunction {fun_name = global_symbol f.label;
              fun_args = List.map2 (fun id ty -> (id, machtype_of_layout ty))
                  f.params params_layout;
              fun_body = cmm_body;
@@ -1643,14 +1652,14 @@ let transl_all_functions cont =
 let compunit (ulam, preallocated_blocks, constants) =
   assert (Cmmgen_state.no_more_functions ());
   let dbg = Debuginfo.none in
-  Cmmgen_state.set_structured_constants constants;
+  Cmmgen_state.set_local_structured_constants constants;
   let init_code =
     if !Clflags.afl_instrument then
       Afl_instrument.instrument_initialiser (transl empty_env ulam)
         (fun () -> dbg)
     else
       transl empty_env ulam in
-  let c1 = [Cfunction {fun_name = make_symbol "entry";
+  let c1 = [Cfunction {fun_name = global_symbol (make_symbol "entry");
                        fun_args = [];
                        fun_body = init_code;
                        (* This function is often large and run only once.
@@ -1665,6 +1674,6 @@ let compunit (ulam, preallocated_blocks, constants) =
                        fun_poll = Default_poll }] in
   let c2 = transl_clambda_constants constants c1 in
   let c3 = transl_all_functions c2 in
-  Cmmgen_state.set_structured_constants [];
+  Cmmgen_state.set_local_structured_constants [];
   let c4 = emit_preallocated_blocks preallocated_blocks c3 in
   emit_cmm_data_items_for_constants c4

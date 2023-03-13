@@ -314,7 +314,7 @@ module Static = Make_layout_filler (struct
     C.cint (C.infix_header function_slot_offset)
 
   let symbol_from_linkage_name ~dbg:_ linkage_name =
-    C.symbol_address (Linkage_name.to_string linkage_name)
+    C.symbol_address (Cmm.global_symbol (Linkage_name.to_string linkage_name))
 
   let define_global_symbol sym = C.define_symbol ~global:true sym
 end)
@@ -381,7 +381,7 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
     @
     if Flambda_features.optimize_for_speed () then [] else [Cmm.Reduce_code_size]
   in
-  let linkage_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
+  let linkage_name = Linkage_name.to_string (Code_id.linkage_name code_id) |> Cmm.global_symbol in
   let fun_poll =
     Env.get_code_metadata env code_id
     |> Code_metadata.poll_attribute |> Poll_attribute.to_lambda

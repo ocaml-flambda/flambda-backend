@@ -807,7 +807,7 @@ val ptr_offset : expression -> int -> Debuginfo.t -> expression
 
 (** Direct application of a function via a symbol *)
 val direct_apply :
-  string ->
+  symbol ->
   machtype ->
   expression list ->
   Clambda.apply_kind ->
@@ -881,7 +881,7 @@ val entry_point : Compilation_unit.t list -> phrase
 val global_table : Compilation_unit.t list -> phrase
 
 (** Add references to the given symbols *)
-val reference_symbols : string list -> phrase
+val reference_symbols : symbol list -> phrase
 
 (** Generate the caml_globals_map structure, as a marshalled string constant.
     The runtime representation of the type here must match that of [type
@@ -1233,7 +1233,7 @@ val cint : nativeint -> data_item
 val cfloat : float -> data_item
 
 (** Static symbol. *)
-val symbol_address : string -> data_item
+val symbol_address : symbol -> data_item
 
 (** Definition for a static symbol. *)
 val define_symbol : global:bool -> string -> data_item list
@@ -1243,7 +1243,7 @@ val define_symbol : global:bool -> string -> data_item list
 (** [fundecl name args body codegen_options dbg] creates a cmm function
     declaration for a function [name] with binding [args] over [body]. *)
 val fundecl :
-  string ->
+  symbol ->
   (Backend_var.With_provenance.t * machtype) list ->
   expression ->
   codegen_option list ->

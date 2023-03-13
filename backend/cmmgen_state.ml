@@ -26,7 +26,8 @@ type constant =
 type t = {
   mutable constants : constant S.Map.t;
   mutable data_items : Cmm.data_item list list;
-  structured_constants : (string,  Clambda.ustructured_constant) Hashtbl.t;
+  structured_constants :
+    (string, Cmm.is_global * Clambda.ustructured_constant) Hashtbl.t;
   functions : Clambda.ufunction Queue.t;
 }
 
@@ -66,21 +67,23 @@ let next_function () =
 let no_more_functions () =
   Queue.is_empty state.functions
 
-let set_structured_constants l =
+let set_local_structured_constants l =
   Hashtbl.clear state.structured_constants;
   List.iter
     (fun (c : Clambda.preallocated_constant) ->
-       Hashtbl.add state.structured_constants c.symbol c.definition
+       Hashtbl.add state.structured_constants c.symbol (Cmm.Local, c.definition)
     )
     l
 
-let add_structured_constant sym cst =
-  Hashtbl.replace state.structured_constants sym cst
+let add_global_structured_constant sym cst =
+  if not (Hashtbl.mem state.structured_constants sym) then
+    Hashtbl.replace state.structured_constants sym (Cmm.Global, cst)
 
 let get_structured_constant s =
   Hashtbl.find_opt state.structured_constants s
 
 let structured_constant_of_sym s =
   match Compilenv.structured_constant_of_symbol s with
-  | None -> get_structured_constant s
+  | None ->
+    Option.map snd (Hashtbl.find_opt state.structured_constants s)
   | Some _ as r -> r

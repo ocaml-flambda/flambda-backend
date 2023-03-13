@@ -32,10 +32,10 @@
 module S = struct
   type func_call_operation =
     | Indirect
-    | Direct of { func_symbol : string }
+    | Direct of Cmm.symbol
 
   type external_call_operation =
-    { func_symbol : string;
+    { func_symbol : Cmm.symbol;
       alloc : bool;
       ty_res : Cmm.machtype;
       ty_args : Cmm.exttype list
@@ -60,7 +60,7 @@ module S = struct
     | Reload
     | Const_int of nativeint (* CR-someday xclerc: change to `Targetint.t` *)
     | Const_float of int64
-    | Const_symbol of string
+    | Const_symbol of Cmm.symbol
     | Stackoffset of int
     | Load of Cmm.memory_chunk * Arch.addressing_mode * Mach.mutable_flag
     | Store of Cmm.memory_chunk * Arch.addressing_mode * bool

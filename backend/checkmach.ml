@@ -707,9 +707,9 @@ end = struct
       (* Sound to ignore [next] and [exn] because the call never returns. *)
       transform t ~next:Value.normal_return ~exn:Value.exn_escape
         ~effect:Value.top "indirect tailcall" dbg
-    | Icall_imm { func } ->
+    | Icall_imm { func = { sym_name = func; _ } } ->
       transform_call t ~next ~exn func ~desc:("direct call to " ^ func) dbg
-    | Itailcall_imm { func } ->
+    | Itailcall_imm { func = { sym_name = func; _ } } ->
       (* Sound to ignore [next] and [exn] because the call never returns. *)
       transform_call t ~next:Value.normal_return ~exn:Value.exn_escape func
         ~desc:("direct tailcall to " ^ func)

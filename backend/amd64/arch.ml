@@ -66,7 +66,7 @@ let command_line_options =
 open Format
 
 type addressing_mode =
-    Ibased of string * int              (* symbol + displ *)
+    Ibased of string * bool * int       (* symbol + displ *)
   | Iindexed of int                     (* reg + displ *)
   | Iindexed2 of int                    (* reg + reg + displ *)
   | Iscaled of int * int                (* reg * scale + displ *)
@@ -140,7 +140,7 @@ let identity_addressing = Iindexed 0
 
 let offset_addressing addr delta =
   match addr with
-    Ibased(s, n) -> Ibased(s, n + delta)
+    Ibased(s, glob, n) -> Ibased(s, glob, n + delta)
   | Iindexed n -> Iindexed(n + delta)
   | Iindexed2 n -> Iindexed2(n + delta)
   | Iscaled(scale, n) -> Iscaled(scale, n + delta)
@@ -175,9 +175,9 @@ let int_of_bswap_bitwidth = function
 
 let print_addressing printreg addr ppf arg =
   match addr with
-  | Ibased(s, 0) ->
+  | Ibased(s, _glob, 0) ->
       fprintf ppf "\"%s\"" s
-  | Ibased(s, n) ->
+  | Ibased(s, _glob, n) ->
       fprintf ppf "\"%s\" + %i" s n
   | Iindexed n ->
       let idx = if n <> 0 then Printf.sprintf " + %i" n else "" in
@@ -305,8 +305,8 @@ let float_cond_and_need_swap cond =
 
 let equal_addressing_mode left right =
   match left, right with
-  | Ibased (left_sym, left_displ), Ibased (right_sym, right_displ) ->
-    String.equal left_sym right_sym && Int.equal left_displ right_displ
+  | Ibased (left_sym, left_glob, left_displ), Ibased (right_sym, right_glob, right_displ) ->
+    String.equal left_sym right_sym && Bool.equal left_glob right_glob && Int.equal left_displ right_displ
   | Iindexed left_displ, Iindexed right_displ ->
     Int.equal left_displ right_displ
   | Iindexed2 left_displ, Iindexed2 right_displ ->
