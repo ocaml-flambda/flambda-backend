@@ -1639,20 +1639,26 @@ let expand_abbrev_gen kind find_type_expansion env ty =
             if Path.same path path' then raise Cannot_expand
             else newty2 ~level (Tconstr (path', args, abbrev))
           | (params, body, lv) ->
-            (* prerr_endline
-              ("add a "^string_of_kind kind^" expansion for "^Path.name path);*)
-            let ty' =
-              try
-                subst env level kind abbrev (Some ty) params args body
-              with Cannot_subst -> raise_escape_exn Constraint
-            in
-            (* For gadts, remember type as non exportable *)
-            (* The ambiguous level registered for ty' should be the highest *)
-            (* if !trace_gadt_instances then begin *)
-            let scope = Misc.Stdlib.Int.max lv (get_scope ty) in
-            update_scope scope ty;
-            update_scope scope ty';
-            ty'
+            begin
+              match Types.get_desc body with
+              | Tconstr(alias, args', _) when List.equal eq_type params args' ->
+                newty2 ~level (Tconstr (alias, args, abbrev))
+              | _ ->
+                (* prerr_endline
+                   ("add a "^string_of_kind kind^" expansion for "^Path.name path);*)
+                let ty' =
+                  try
+                    subst env level kind abbrev (Some ty) params args body
+                  with Cannot_subst -> raise_escape_exn Constraint
+                in
+                (* For gadts, remember type as non exportable *)
+                (* The ambiguous level registered for ty' should be the highest *)
+                (* if !trace_gadt_instances then begin *)
+                let scope = Misc.Stdlib.Int.max lv (get_scope ty) in
+                update_scope scope ty;
+                update_scope scope ty';
+                ty'
+            end
       end
   | _ ->
       assert false
