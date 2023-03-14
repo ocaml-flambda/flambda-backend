@@ -655,7 +655,7 @@ let rec transl env e =
       | (Pprobe_is_enabled _, _)
         ->
           fatal_error "Cmmgen.transl:prim, wrong arity"
-      | ((Pfield_computed _|Psequand
+      | ((Pfield_computed|Psequand
          | Psequor | Pnot | Pnegint | Paddint | Psubint
          | Pmulint | Pandint | Porint | Pxorint | Plslint
          | Plsrint | Pasrint | Pintoffloat | Pfloatofint _
@@ -999,7 +999,7 @@ and transl_prim_1 env p arg dbg =
   | Pbswap16 ->
       tag_int (bswap16 (ignore_high_bit_int (untag_int
         (transl env arg) dbg)) dbg) dbg
-  | (Pfield_computed _ | Psequand | Psequor
+  | (Pfield_computed | Psequand | Psequor
     | Paddint | Psubint | Pmulint | Pandint
     | Porint | Pxorint | Plslint | Plsrint | Pasrint
     | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
@@ -1023,21 +1023,8 @@ and transl_prim_1 env p arg dbg =
 and transl_prim_2 env p arg1 arg2 dbg =
   match p with
   (* Heap operations *)
-  | Pfield_computed layout -> (
-      match layout with
-      | Pvalue Pintval | Punboxed_int _ ->
-          int_array_ref (transl env arg1) (transl env arg2) dbg
-      | Pvalue _ ->
-          addr_array_ref (transl env arg1) (transl env arg2) dbg
-      | Punboxed_float ->
-          unboxed_float_array_ref (transl env arg1) (transl env arg2) dbg
-      | Ptop ->
-          Misc.fatal_errorf "Pfield_computed with Ptop: %a"
-            Debuginfo.print_compact dbg
-      | Pbottom ->
-          Misc.fatal_errorf "Pfield_computed with Pbottom: %a"
-            Debuginfo.print_compact dbg
-    )
+  | Pfield_computed ->
+      addr_array_ref (transl env arg1) (transl env arg2) dbg
   | Psetfield(n, ptr, init) ->
       setfield n ptr init (transl env arg1) (transl env arg2) dbg
   | Psetfloatfield (n, init) ->
@@ -1250,7 +1237,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
       bigstring_set size unsafe (transl env arg1) (transl env arg2)
         (transl_unbox_sized size dbg env arg3) dbg
 
-  | Pfield_computed _ | Psequand | Psequor | Pnot | Pnegint | Paddint
+  | Pfield_computed | Psequand | Psequor | Pnot | Pnegint | Paddint
   | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint | Pasrint
   | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
   | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu | Pstringrefs

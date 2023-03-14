@@ -29,7 +29,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pmakefloatblock (mutability, mode) ->
       Pmakearray (Pfloatarray, mutability, mode)
   | Pfield (field, _sem) -> Pfield (field, Pvalue Pgenval)
-  | Pfield_computed _sem -> Pfield_computed (Pvalue Pgenval)
+  | Pfield_computed _sem -> Pfield_computed
   | Psetfield (field, imm_or_pointer, init_or_assign) ->
       Psetfield (field, imm_or_pointer, init_or_assign)
   | Psetfield_computed (imm_or_pointer, init_or_assign) ->
