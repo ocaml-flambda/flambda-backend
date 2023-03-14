@@ -1178,12 +1178,12 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
      have been filtered out by [close_functions], above. *)
   let ( (value_slots_to_bind :
           (Value_slot.t * Flambda_kind.With_subkind.t) Variable.Map.t),
-        value_slots_for_idents ) =
+        vars_for_idents ) =
     Ident.Map.fold
-      (fun id value_slot (value_slots_to_bind, value_slots_for_idents) ->
+      (fun id value_slot (value_slots_to_bind, vars_for_idents) ->
         let var = Variable.create_with_same_name_as_ident id in
         ( Variable.Map.add var value_slot value_slots_to_bind,
-          Ident.Map.add id var value_slots_for_idents ))
+          Ident.Map.add id var vars_for_idents ))
       value_slots_from_idents
       (Variable.Map.empty, Ident.Map.empty)
   in
@@ -1247,7 +1247,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
           (Env.add_var env id var kind)
           var
           (find_value_approximation acc env simple))
-      value_slots_for_idents closure_env
+      vars_for_idents closure_env
   in
   let closure_env =
     List.fold_right
