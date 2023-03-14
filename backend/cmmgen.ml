@@ -143,9 +143,19 @@ let mut_from_env env ptr =
       else Asttypes.Mutable
     | _ -> Asttypes.Mutable
 
-let get_field env ptr n dbg =
+let get_field env layout ptr n dbg =
   let mut = mut_from_env env ptr in
-  get_field_gen mut ptr n dbg
+  let memory_chunk =
+    match layout with
+    | Pvalue _ -> Word_val
+    | Punboxed_float -> Double
+    | Punboxed_int _ -> Word_int
+    | Ptop ->
+      Misc.fatal_error "get_field with Ptop: %s" (Debuginfo.print_compact dbg)
+    | Pbottom ->
+      Misc.fatal_error "get_field with Ptop: %s" (Debuginfo.print_compact dbg)
+  in
+  get_field_gen_with_memory_chunk memory_chunk mut ptr n dbg
 
 type rhs_kind =
   | RHS_block of Lambda.alloc_mode * int
@@ -644,7 +654,7 @@ let rec transl env e =
       | (Pprobe_is_enabled _, _)
         ->
           fatal_error "Cmmgen.transl:prim, wrong arity"
-      | ((Pfield_computed|Psequand
+      | ((Pfield_computed _|Psequand
          | Psequor | Pnot | Pnegint | Paddint | Psubint
          | Pmulint | Pandint | Porint | Pxorint | Plslint
          | Plsrint | Pasrint | Pintoffloat | Pfloatofint _
@@ -923,8 +933,8 @@ and transl_prim_1 env p arg dbg =
     Popaque ->
       opaque (transl env arg) dbg
   (* Heap operations *)
-  | Pfield n ->
-      get_field env (transl env arg) n dbg
+  | Pfield (n, layout) ->
+      get_field env layout (transl env arg) n dbg
   | Pfloatfield (n,mode) ->
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
