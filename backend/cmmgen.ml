@@ -153,7 +153,8 @@ let get_field env layout ptr n dbg =
     | Ptop ->
         Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
     | Pbottom ->
-        Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
+        Misc.fatal_errorf "get_field with Pbottom: %a" Debuginfo.print_compact
+          dbg
   in
   get_field_gen_given_memory_chunk memory_chunk mut ptr n dbg
 
@@ -1034,7 +1035,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
           Misc.fatal_errorf "Pfield_computed with Ptop: %a"
             Debuginfo.print_compact dbg
       | Pbottom ->
-          Misc.fatal_errorf "Pfield_computed with Ptop: %a"
+          Misc.fatal_errorf "Pfield_computed with Pbottom: %a"
             Debuginfo.print_compact dbg
     )
   | Psetfield(n, ptr, init) ->
