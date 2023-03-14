@@ -68,10 +68,17 @@ Here's how to install the custom printers for a run of `ocamldebug`:
 1. Use the old `Makefile`, not the new `Makefile.jst`. This is an infelicity
 we hope to fix.
 
-2. In the `tools` directory, run `make debug_printers.cmo`.
+2. In the `tools` directory, run `make debug_printers`.
 
 3. In the debugger, execute some instructions, with e.g. `run` or `step`. This forces
 the debugger to load the compiler code, required for the next
 step.
 
 4. From your debugging session, run `source tools/debug_printers` to install the printers.
+
+To add a new printer, simply add a line of the form
+
+    let name = Some.Compiler.printer
+
+to `tools/debug_printers.ml`, and then run `make debug_printers` in the `tools`
+directory to regenerate the printing script.

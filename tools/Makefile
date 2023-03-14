@@ -329,6 +329,12 @@ endif
 clean::
 	rm -f -- caml-tex caml-tex.exe caml_tex.cm?
 
+# Debug printer script
+debug_printers: debug_printers.ml debug_printers.cmo
+	echo 'load_printer "tools/$(basename $<).cmo"' > '$@'
+	awk '{ print "install_printer Debug_printers." $$2 }' \
+	  < '$<' >> '$@'
+
 # Common stuff
 
 %.cmo: %.ml
@@ -341,7 +347,7 @@ clean::
 	$(CAMLOPT) $(COMPFLAGS) -c - $<
 
 clean::
-	rm -f *.cmo *.cmi *.cma *.dll *.so *.lib *.a
+	rm -f debug_printers *.cmo *.cmi *.cma *.dll *.so *.lib *.a
 
 CAMLDEP=$(BOOT_OCAMLC) -depend
 DEPFLAGS=-slash
