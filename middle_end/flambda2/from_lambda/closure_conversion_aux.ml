@@ -356,57 +356,49 @@ module Acc = struct
     fun symbol ->
       match Symbol.Map.find symbol !externals with
       | approx -> approx
-      | exception Not_found -> (
-        let approx =
-          try Some (Flambda_cmx.load_symbol_approx loader symbol)
-          with _exn -> None
-          (* Misc.fatal_error (Format.asprintf "load_symbol_approx for %a
-             failed: %s" Symbol.print symbol (Printexc.to_string exn)) *)
+      | exception Not_found ->
+        let approx = Flambda_cmx.load_symbol_approx loader symbol in
+        (if Flambda_features.check_invariants ()
+        then
+          match approx with
+          | Value_symbol sym ->
+            Misc.fatal_errorf
+              "Closure_conversion: approximation loader returned a Symbol \
+               approximation (%a) for symbol %a"
+              Symbol.print sym Symbol.print symbol
+          | Value_unknown | Value_int _ | Closure_approximation _
+          | Block_approximation _ ->
+            ());
+        let rec filter_inlinable approx =
+          match (approx : Env.value_approximation) with
+          | Value_unknown | Value_symbol _ | Value_int _ -> approx
+          | Block_approximation (approxs, alloc_mode) ->
+            let approxs = Array.map filter_inlinable approxs in
+            Value_approximation.Block_approximation (approxs, alloc_mode)
+          | Closure_approximation { code_id; function_slot; code; _ } -> (
+            let metadata = Code_or_metadata.code_metadata code in
+            if not (Code_or_metadata.code_present code)
+            then approx
+            else
+              match
+                Inlining.definition_inlining_decision
+                  (Code_metadata.inline metadata)
+                  (Code_metadata.cost_metrics metadata)
+              with
+              | Attribute_inline | Small_function _ -> approx
+              | Not_yet_decided | Never_inline_attribute | Stub | Recursive
+              | Function_body_too_large _ | Speculatively_inlinable _
+              | Functor _ ->
+                Value_approximation.Closure_approximation
+                  { code_id;
+                    function_slot;
+                    code = Code_or_metadata.create_metadata_only metadata;
+                    symbol = None
+                  })
         in
-        match approx with
-        | None -> Value_approximation.Value_unknown
-        | Some approx ->
-          (if Flambda_features.check_invariants ()
-          then
-            match approx with
-            | Value_symbol sym ->
-              Misc.fatal_errorf
-                "Closure_conversion: approximation loader returned a Symbol \
-                 approximation (%a) for symbol %a"
-                Symbol.print sym Symbol.print symbol
-            | Value_unknown | Value_int _ | Closure_approximation _
-            | Block_approximation _ ->
-              ());
-          let rec filter_inlinable approx =
-            match (approx : Env.value_approximation) with
-            | Value_unknown | Value_symbol _ | Value_int _ -> approx
-            | Block_approximation (approxs, alloc_mode) ->
-              let approxs = Array.map filter_inlinable approxs in
-              Value_approximation.Block_approximation (approxs, alloc_mode)
-            | Closure_approximation { code_id; function_slot; code; _ } -> (
-              let metadata = Code_or_metadata.code_metadata code in
-              if not (Code_or_metadata.code_present code)
-              then approx
-              else
-                match
-                  Inlining.definition_inlining_decision
-                    (Code_metadata.inline metadata)
-                    (Code_metadata.cost_metrics metadata)
-                with
-                | Attribute_inline | Small_function _ -> approx
-                | Not_yet_decided | Never_inline_attribute | Stub | Recursive
-                | Function_body_too_large _ | Speculatively_inlinable _
-                | Functor _ ->
-                  Value_approximation.Closure_approximation
-                    { code_id;
-                      function_slot;
-                      code = Code_or_metadata.create_metadata_only metadata;
-                      symbol = None
-                    })
-          in
-          let approx = filter_inlinable approx in
-          externals := Symbol.Map.add symbol approx !externals;
-          approx)
+        let approx = filter_inlinable approx in
+        externals := Symbol.Map.add symbol approx !externals;
+        approx
 
   let create ~slot_offsets ~cmx_loader =
     { declared_symbols = [];

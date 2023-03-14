@@ -44,10 +44,6 @@ type close_functions_result =
   | Lifted of (Symbol.t * Env.value_approximation) Function_slot.Lmap.t
   | Dynamic of Set_of_closures.t * Env.value_approximation Function_slot.Map.t
 
-(* Do not use [Simple.symbol], use this function instead, to ensure that we
-   correctly compute the free names of [Code]. *)
-let use_of_symbol_as_simple acc symbol = acc, Simple.symbol symbol
-
 let declare_symbol_for_function_slot env ident function_slot : Env.t * Symbol.t
     =
   let symbol =
@@ -159,9 +155,7 @@ let close_const0 acc (const : Lambda.structured_constant) =
       Simple.const (Reg_width_const.tagged_immediate i),
       name,
       Flambda_kind.With_subkind.tagged_immediate )
-  | Symbol s ->
-    let acc, simple = use_of_symbol_as_simple acc s in
-    acc, simple, name, Flambda_kind.With_subkind.any_value
+  | Symbol s -> acc, Simple.symbol s, name, Flambda_kind.With_subkind.any_value
   | Dynamically_computed _ ->
     Misc.fatal_errorf "Declaring a computed constant %s" name
 
@@ -503,7 +497,7 @@ let close_c_call acc env ~loc ~let_bound_var
           Misc.fatal_errorf "Wrong argument and/or result kind(s) for %s"
             prim_native_name)
     | _ ->
-      let acc, callee = use_of_symbol_as_simple acc call_symbol in
+      let callee = Simple.symbol call_symbol in
       let apply =
         Apply.create ~callee ~continuation:(Return return_continuation)
           exn_continuation ~args ~args_arity:param_arity ~return_arity
@@ -635,15 +629,13 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     let symbol =
       Flambda2_import.Symbol.for_compilation_unit cu |> Symbol.create_wrapped
     in
-    let acc, simple = use_of_symbol_as_simple acc symbol in
-    let named = Named.create_simple simple in
+    let named = Named.create_simple (Simple.symbol symbol) in
     k acc (Some named)
   | Pgetpredef id, [] ->
     let symbol =
       Flambda2_import.Symbol.for_predef_ident id |> Symbol.create_wrapped
     in
-    let acc, simple = use_of_symbol_as_simple acc symbol in
-    let named = Named.create_simple simple in
+    let named = Named.create_simple (Simple.symbol symbol) in
     k acc (Some named)
   | Praise raise_kind, [_] ->
     let exn_continuation =
@@ -2323,33 +2315,21 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
         defining_expr ~body)
     (acc, body) components
 
-let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
-    ~cmx_loader ~compilation_unit ~module_block_size_in_words ~program
-    ~prog_return_cont ~exn_continuation ~toplevel_my_region :
-    mode close_program_result =
-  let env = Env.create ~big_endian in
-  let module_symbol =
-    Symbol.create_wrapped
-      (Flambda2_import.Symbol.for_compilation_unit compilation_unit)
-  in
-  let module_block_tag = Tag.Scannable.zero in
+let wrap_final_module_block acc env ~program ~prog_return_cont
+    ~module_block_size_in_words ~return_cont ~module_symbol =
   let module_block_var = Variable.create "module_block" in
-  let return_cont = Continuation.create ~sort:Toplevel_return () in
-  let env, toplevel_my_region =
-    Env.add_var_like env toplevel_my_region Not_user_visible
-      Flambda_kind.With_subkind.region
-  in
-  let slot_offsets = Slot_offsets.empty in
-  let acc = Acc.create ~slot_offsets ~cmx_loader in
+  let module_block_tag = Tag.Scannable.zero in
   let load_fields_body acc =
     let env =
       match Acc.continuation_known_arguments ~cont:prog_return_cont acc with
-      | Some [approx] ->
-        (* Format.eprintf "got approx for prog_return_cont\n%!"; *)
-        Env.add_var_approximation env module_block_var approx
-      | None | Some ([] | _ :: _) ->
-        (* Format.eprintf "no approx for prog_return_cont\n%!"; *)
-        env
+      | Some [approx] -> Env.add_var_approximation env module_block_var approx
+      | None | Some ([] | _ :: _) -> env
+    in
+    let module_block_simple =
+      let simple_var = Simple.var module_block_var in
+      match find_value_approximation env simple_var with
+      | Value_approximation.Value_symbol s -> Simple.symbol s
+      | _ -> simple_var
     in
     let field_vars =
       List.init module_block_size_in_words (fun pos ->
@@ -2366,12 +2346,12 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
         in
         Static_const.block module_block_tag Immutable field_vars
       in
-      let acc, arg = use_of_symbol_as_simple acc module_symbol in
       let acc, apply_cont =
         (* Module initialisers return unit, but since that is taken care of
            during Cmm generation, we can instead "return" [module_symbol] here
            to ensure that its associated "let symbol" doesn't get deleted. *)
-        Apply_cont_with_acc.create acc return_cont ~args:[arg]
+        Apply_cont_with_acc.create acc return_cont
+          ~args:[Simple.symbol module_symbol]
           ~dbg:Debuginfo.none
       in
       let acc, return = Expr_with_acc.create_apply_cont acc apply_cont in
@@ -2399,13 +2379,10 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
         let var = VB.create var Name_mode.normal in
         let pat = Bound_pattern.singleton var in
         let pos = Targetint_31_63.of_int pos in
-        let block = Simple.var module_block_var in
+        let block = module_block_simple in
         let field = Simple.const (Reg_width_const.tagged_immediate pos) in
-        (* Format.eprintf "module block field: block=%a, field=%a ... "
-           Simple.print block Simple.print field; *)
         match simplify_block_load acc env ~block ~field with
         | Unknown | Not_a_block | Block_but_cannot_simplify _ ->
-          (* Format.eprintf "unknown\n%!"; *)
           let named =
             Named.create_prim
               (Binary (Block_load (block_access, Immutable), block, field))
@@ -2413,7 +2390,6 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
           in
           Let_with_acc.create acc pat named ~body
         | Field_contents sym ->
-          (* Format.eprintf "contents %a\n%!" Symbol.print sym; *)
           let named = Named.create_simple (Simple.symbol sym) in
           Let_with_acc.create acc pat named ~body)
       (acc, body) (List.rev field_vars)
@@ -2422,16 +2398,35 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
     [BP.create module_block_var K.With_subkind.any_value]
     |> Bound_parameters.create
   in
+  (* This binds the return continuation that is free (or, at least, not bound)
+     in the incoming code. The handler for the continuation receives a tuple
+     with fields indexed from zero to [module_block_size_in_words]. The handler
+     extracts the fields; the variables bound to such fields are then used to
+     define the module block symbol. *)
+  let body acc = program acc env in
+  Let_cont_with_acc.build_non_recursive acc prog_return_cont
+    ~handler_params:load_fields_handler_param ~handler:load_fields_body ~body
+    ~is_exn_handler:false
+
+let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
+    ~cmx_loader ~compilation_unit ~module_block_size_in_words ~program
+    ~prog_return_cont ~exn_continuation ~toplevel_my_region :
+    mode close_program_result =
+  let env = Env.create ~big_endian in
+  let module_symbol =
+    Symbol.create_wrapped
+      (Flambda2_import.Symbol.for_compilation_unit compilation_unit)
+  in
+  let return_cont = Continuation.create ~sort:Toplevel_return () in
+  let env, toplevel_my_region =
+    Env.add_var_like env toplevel_my_region Not_user_visible
+      Flambda_kind.With_subkind.region
+  in
+  let slot_offsets = Slot_offsets.empty in
+  let acc = Acc.create ~slot_offsets ~cmx_loader in
   let acc, body =
-    (* This binds the return continuation that is free (or, at least, not bound)
-       in the incoming code. The handler for the continuation receives a tuple
-       with fields indexed from zero to [module_block_size_in_words]. The
-       handler extracts the fields; the variables bound to such fields are then
-       used to define the module block symbol. *)
-    let body acc = program acc env in
-    Let_cont_with_acc.build_non_recursive acc prog_return_cont
-      ~handler_params:load_fields_handler_param ~handler:load_fields_body ~body
-      ~is_exn_handler:false
+    wrap_final_module_block acc env ~program ~prog_return_cont
+      ~module_block_size_in_words ~return_cont ~module_symbol
   in
   let module_block_approximation =
     match Acc.continuation_known_arguments ~cont:prog_return_cont acc with
