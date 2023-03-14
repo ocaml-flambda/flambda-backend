@@ -1176,12 +1176,14 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
 
      Note that free variables corresponding to predefined exception identifiers
      have been filtered out by [close_functions], above. *)
-  let value_slots_to_bind, value_slots_for_idents =
+  let ( (value_slots_to_bind :
+          (Value_slot.t * Flambda_kind.With_subkind.t) Variable.Map.t),
+        value_slots_for_idents ) =
     Ident.Map.fold
-      (fun id value_slots_for_idents (to_bind, var_for_ident) ->
+      (fun id value_slot (value_slots_to_bind, value_slots_for_idents) ->
         let var = Variable.create_with_same_name_as_ident id in
-        ( Variable.Map.add var value_slots_for_idents to_bind,
-          Ident.Map.add id var var_for_ident ))
+        ( Variable.Map.add var value_slot value_slots_to_bind,
+          Ident.Map.add id var value_slots_for_idents ))
       value_slots_from_idents
       (Variable.Map.empty, Ident.Map.empty)
   in
@@ -1320,16 +1322,13 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   in
   let acc, body =
     Variable.Map.fold
-      (fun var value_slot (acc, body) ->
+      (fun var (value_slot, kind) (acc, body) ->
         let var = VB.create var Name_mode.normal in
         let named =
           Named.create_prim
             (Unary
                ( Project_value_slot
-                   { project_from = function_slot;
-                     value_slot;
-                     kind = K.With_subkind.any_value
-                   },
+                   { project_from = function_slot; value_slot; kind },
                  my_closure' ))
             Debuginfo.none
         in
@@ -1463,7 +1462,8 @@ let close_functions acc external_env ~current_region function_declarations =
             | None -> Ident.name id
             | Some var -> Variable.name var
           in
-          Ident.Map.add id (Value_slot.create compilation_unit ~name) map)
+          let _, kind = Env.find_var external_env id in
+          Ident.Map.add id (Value_slot.create compilation_unit ~name, kind) map)
       (Function_decls.all_free_idents function_declarations)
       Ident.Map.empty
   in
@@ -1615,10 +1615,15 @@ let close_functions acc external_env ~current_region function_declarations =
   let function_decls = Function_declarations.create funs in
   let value_slots =
     Ident.Map.fold
-      (fun id value_slot map ->
-        let external_simple, kind =
+      (fun id (value_slot, kind) map ->
+        let external_simple, kind' =
           find_simple_from_id_with_kind external_env id
         in
+        if not (K.With_subkind.equal kind kind')
+        then
+          Misc.fatal_errorf "Value slot kinds %a and %a don't match for slot %a"
+            K.With_subkind.print kind K.With_subkind.print kind'
+            Value_slot.print value_slot;
         (* We're sure [external_simple] is a variable since
            [value_slot_from_idents] has already filtered constants and symbols
            out. *)
