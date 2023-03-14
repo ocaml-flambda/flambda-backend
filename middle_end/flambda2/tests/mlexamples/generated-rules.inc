@@ -93,6 +93,49 @@
  (alias runtest)
  (action
   (progn
+   (run ../tools/flexpect.exe tests2.flt)
+   (diff? tests2.flt tests2.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests2_in.fl)
+   (diff? tests2_in.fl tests2_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests2_out.fl)
+   (diff? tests2_out.fl tests2_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets tests2.flt.new tests2_in.fl.new tests2_out.fl.new)
+ (deps tests2.ml)
+ (action
+   (run ocamlopt -c tests2.ml -nopervasives -nostdlib
+        -drawfexpr-to tests2_in.fl.new
+        -dfexpr-to tests2_out.fl.new
+        -dflexpect-to tests2.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests2_in.fl tests2_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests2_out.fl tests2_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests2.flt tests2.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
    (run ../tools/flexpect.exe tests3.flt)
    (diff? tests3.flt tests3.flt.corrected))))
 
@@ -303,6 +346,49 @@
 (rule
  (alias regen)
  (action (diff tests6.flt tests6.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/flexpect.exe tests7.flt)
+   (diff? tests7.flt tests7.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests7_in.fl)
+   (diff? tests7_in.fl tests7_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests7_out.fl)
+   (diff? tests7_out.fl tests7_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets tests7.flt.new tests7_in.fl.new tests7_out.fl.new)
+ (deps tests7.ml)
+ (action
+   (run ocamlopt -c tests7.ml -nopervasives -nostdlib
+        -drawfexpr-to tests7_in.fl.new
+        -dfexpr-to tests7_out.fl.new
+        -dflexpect-to tests7.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests7_in.fl tests7_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests7_out.fl tests7_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests7.flt tests7.flt.new)))
 
 (rule
  (alias runtest)

@@ -427,9 +427,7 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   | Immediate_array -> Immediate_array
   | Value_array -> Value_array
   | Generic_array -> Generic_array
-  | Float_block _ ->
-    Misc.fatal_errorf "TODO: Subkind %a" Flambda_kind.With_subkind.Subkind.print
-      k
+  | Float_block { num_fields } -> Float_block { num_fields }
 
 and variant_subkind consts non_consts : Fexpr.subkind =
   let consts =
