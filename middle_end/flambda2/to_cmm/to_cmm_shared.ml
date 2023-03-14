@@ -48,6 +48,24 @@ let machtype_of_kind (k : Flambda_kind.t) =
     Cmm.typ_int
   | Region | Rec_info -> assert false
 
+let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
+    =
+  match Flambda_kind.With_subkind.kind kind with
+  | Value -> (
+    match Flambda_kind.With_subkind.subkind kind with
+    | Tagged_immediate -> Word_int
+    | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
+    | Variant _ | Float_block _ | Float_array | Immediate_array | Value_array
+    | Generic_array ->
+      Word_val)
+  | Naked_number (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate)
+    ->
+    Word_int
+  | Naked_number Naked_float -> Double
+  | Region | Rec_info ->
+    Misc.fatal_errorf "Bad kind %a for [memory_chunk_of_kind]"
+      Flambda_kind.With_subkind.print kind
+
 let machtype_of_kinded_parameter p =
   Bound_parameter.kind p |> Flambda_kind.With_subkind.kind |> machtype_of_kind
 

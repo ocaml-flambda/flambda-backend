@@ -597,21 +597,12 @@ let unary_primitive env res dbg f arg =
       value_slot_offset env value_slot, function_slot_offset env project_from
     with
     | Live_value_slot { offset; _ }, Live_function_slot { offset = base; _ } ->
-      let memory_chunk : Cmm.memory_chunk =
-        match Flambda_kind.With_subkind.kind kind with
-        | Value -> Word_val
-        | Naked_number
-            (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate) ->
-          Word_int
-        | Naked_number Naked_float -> Double
-        | Region | Rec_info ->
-          Misc.fatal_errorf "Bad kind %a for Project_value_slot"
-            Flambda_kind.With_subkind.print kind
-      in
-      ( None,
-        res,
+      let memory_chunk = To_cmm_shared.memory_chunk_of_kind kind in
+      let expr =
         C.get_field_gen_given_memory_chunk memory_chunk Asttypes.Immutable arg
-          (offset - base) dbg )
+          (offset - base) dbg
+      in
+      None, res, expr
     | Dead_value_slot, Live_function_slot _ ->
       let message = dead_slots_msg dbg [] [value_slot] in
       let expr, res = C.invalid res ~message in
