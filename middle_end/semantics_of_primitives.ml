@@ -116,7 +116,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
       No_effects, Has_coeffects  (* Some people resize bigarrays in place. *)
   | Pread_symbol _
   | Pfield _
-  | Pfield_computed _
+  | Pfield_computed
   | Pfloatfield _
   | Parrayrefu _
   | Pstringrefu
@@ -246,7 +246,7 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
   | Pbigarraydim _ -> false
   | Pread_symbol _
   | Pfield _
-  | Pfield_computed _
+  | Pfield_computed
   | Parrayrefu _
   | Pstringrefu
   | Pbytesrefu
