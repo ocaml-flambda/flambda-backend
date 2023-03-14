@@ -601,7 +601,8 @@ let prim env (p : Flambda_primitive.t) : Fexpr.prim =
 
 let value_slots env map =
   List.map
-    (fun (var, (value, kind)) ->
+    (fun (var, value) ->
+      let kind = Value_slot.kind var in
       if not
            (Flambda_kind.equal
               (Flambda_kind.With_subkind.kind kind)

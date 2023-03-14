@@ -99,7 +99,7 @@ end) : sig
     Code_id.t Function_slot.Map.t ->
     Debuginfo.t ->
     startenv:int ->
-    (Simple.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
+    Simple.t Value_slot.Map.t ->
     Env.t ->
     To_cmm_result.t ->
     Ece.t ->
@@ -127,7 +127,8 @@ end = struct
         Ece.pure,
         updates )
     | Value_slot { value_slot; is_scanned; size = _ } ->
-      let simple, kind = Value_slot.Map.find value_slot value_slots in
+      let simple = Value_slot.Map.find value_slot value_slots in
+      let kind = Value_slot.kind value_slot in
       if (not
             (Flambda_kind.equal
                (Flambda_kind.With_subkind.kind kind)

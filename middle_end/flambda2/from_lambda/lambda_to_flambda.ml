@@ -1644,7 +1644,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   let function_slot =
     Function_slot.create
       (Compilation_unit.get_current_exn ())
-      ~name:(Ident.name fid)
+      ~name:(Ident.name fid) Flambda_kind.With_subkind.any_value
   in
   let body acc ccenv =
     let ccenv = CCenv.set_path_to_root ccenv loc in

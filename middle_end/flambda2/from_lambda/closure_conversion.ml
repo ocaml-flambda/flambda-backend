@@ -1176,9 +1176,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
 
      Note that free variables corresponding to predefined exception identifiers
      have been filtered out by [close_functions], above. *)
-  let ( (value_slots_to_bind :
-          (Value_slot.t * Flambda_kind.With_subkind.t) Variable.Map.t),
-        vars_for_idents ) =
+  let (value_slots_to_bind : Value_slot.t Variable.Map.t), vars_for_idents =
     Ident.Map.fold
       (fun id value_slot (value_slots_to_bind, vars_for_idents) ->
         let var = Variable.create_with_same_name_as_ident id in
@@ -1322,8 +1320,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   in
   let acc, body =
     Variable.Map.fold
-      (fun var (value_slot, kind) (acc, body) ->
+      (fun var value_slot (acc, body) ->
         let var = VB.create var Name_mode.normal in
+        let kind = Value_slot.kind value_slot in
         let named =
           Named.create_prim
             (Unary
@@ -1464,7 +1463,7 @@ let close_functions acc external_env ~current_region function_declarations =
             | None -> Ident.name id
             | Some var -> Variable.name var
           in
-          Ident.Map.add id (Value_slot.create compilation_unit ~name, kind) map)
+          Ident.Map.add id (Value_slot.create compilation_unit ~name kind) map)
       (Function_decls.all_free_idents function_declarations)
       Ident.Map.empty
   in
@@ -1616,7 +1615,8 @@ let close_functions acc external_env ~current_region function_declarations =
   let function_decls = Function_declarations.create funs in
   let value_slots =
     Ident.Map.fold
-      (fun id (value_slot, kind) map ->
+      (fun id value_slot map ->
+        let kind = Value_slot.kind value_slot in
         let external_simple, kind' =
           find_simple_from_id_with_kind external_env id
         in
@@ -1628,7 +1628,7 @@ let close_functions acc external_env ~current_region function_declarations =
         (* We're sure [external_simple] is a variable since
            [value_slot_from_idents] has already filtered constants and symbols
            out. *)
-        Value_slot.Map.add value_slot (external_simple, kind) map)
+        Value_slot.Map.add value_slot external_simple map)
       value_slots_from_idents Value_slot.Map.empty
   in
   let set_of_closures =
@@ -1779,7 +1779,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   let function_slot =
     Function_slot.create
       (Compilation_unit.get_current_exn ())
-      ~name:(Ident.name wrapper_id)
+      ~name:(Ident.name wrapper_id) K.With_subkind.any_value
   in
   let num_provided = List.length provided in
   let params =

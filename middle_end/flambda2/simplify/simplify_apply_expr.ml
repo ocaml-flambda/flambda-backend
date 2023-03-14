@@ -398,6 +398,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let compilation_unit = Compilation_unit.get_current_exn () in
   let wrapper_function_slot =
     Function_slot.create compilation_unit ~name:"partial_app_closure"
+      K.With_subkind.any_value
   in
   let new_closure_alloc_mode, num_trailing_local_params =
     (* If the closure has a local suffix, and we've supplied enough args to hit
@@ -473,12 +474,13 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
             { var : Variable.t;
               (* name to bind to projected variable *)
               value : Simple.t;
-              kind : K.With_subkind.t;
-              (* value to store in closure, with kind *)
+              (* value to store in closure *)
               value_slot : Value_slot.t
             }
     end in
-    let mk_value_slot () = Value_slot.create compilation_unit ~name:"arg" in
+    let mk_value_slot kind =
+      Value_slot.create compilation_unit ~name:"arg" kind
+    in
     let applied_value (value, kind) =
       Simple.pattern_match' value
         ~const:(fun const -> Const const)
@@ -492,14 +494,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               Misc.fatal_errorf
                 "Simple %a which is a symbol should be of kind Value"
                 Simple.print value;
-            In_closure
-              { var;
-                value;
-                kind = K.With_subkind.any_value;
-                value_slot = mk_value_slot ()
-              })
+            In_closure { var; value; value_slot = mk_value_slot kind })
         ~var:(fun var ~coercion:_ ->
-          In_closure { var; value; kind; value_slot = mk_value_slot () })
+          In_closure { var; value; value_slot = mk_value_slot kind })
     in
     let applied_callee =
       applied_value (Apply.callee apply, K.With_subkind.any_value)
@@ -539,8 +536,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         (fun (expr, cost_metrics, free_names) applied_value ->
           match applied_value with
           | Const _ | Symbol _ -> expr, cost_metrics, free_names
-          | In_closure { var; value_slot; value = _; kind } ->
+          | In_closure { var; value_slot; value = _ } ->
             let arg = VB.create var Name_mode.normal in
+            let kind = Value_slot.kind value_slot in
             let prim =
               P.Unary
                 ( Project_value_slot
@@ -617,8 +615,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         (fun value ->
           match value with
           | Const _ | Symbol _ -> None
-          | In_closure { value_slot; value; kind; var = _ } ->
-            Some (value_slot, (value, kind)))
+          | In_closure { value_slot; value; var = _ } -> Some (value_slot, value))
         applied_values
       |> Value_slot.Map.of_list
     in
