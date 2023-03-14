@@ -1306,7 +1306,7 @@ and join_head_of_kind_region _env () () : _ Or_unknown.t = Known ()
 and join_row_like :
       'index 'maps_to 'row_tag 'known.
       join_maps_to:(Join_env.t -> 'maps_to -> 'maps_to -> 'maps_to) ->
-      maps_to_field_kind:('maps_to -> K.t) ->
+      maps_to_field_kind:('maps_to -> K.t option) ->
       equal_index:('index -> 'index -> bool) ->
       inter_index:('index -> 'index -> 'index) ->
       merge_map_known:
@@ -1342,9 +1342,14 @@ and join_row_like :
   in
   let matching_kinds (case1 : ('index, 'maps_to) TG.Row_like_case.t)
       (case2 : ('index, 'maps_to) TG.Row_like_case.t) =
-    K.equal
-      (maps_to_field_kind case1.maps_to)
-      (maps_to_field_kind case2.maps_to)
+    match
+      maps_to_field_kind case1.maps_to, maps_to_field_kind case2.maps_to
+    with
+    | None, None -> true
+    | Some kind1, Some kind2 -> K.equal kind1 kind2
+    | None, Some _ | Some _, None ->
+      (* See call sites below. *)
+      assert false
   in
   let join_case join_env (case1 : ('index, 'maps_to) TG.Row_like_case.t)
       (case2 : ('index, 'maps_to) TG.Row_like_case.t) =
@@ -1441,7 +1446,8 @@ and join_row_like_for_blocks env
       TG.Row_like_for_blocks.t) =
   let known_tags, other_tags =
     join_row_like ~join_maps_to:join_int_indexed_product
-      ~maps_to_field_kind:TG.Product.Int_indexed.field_kind
+      ~maps_to_field_kind:(fun product ->
+        Some (TG.Product.Int_indexed.field_kind product))
       ~equal_index:TG.Block_size.equal ~inter_index:TG.Block_size.inter
       ~merge_map_known:Tag.Map.merge env ~known1 ~known2 ~other1 ~other2
   in
@@ -1455,7 +1461,7 @@ and join_row_like_for_closures env
       TG.Row_like_for_closures.t) : TG.Row_like_for_closures.t =
   let known_closures, other_closures =
     join_row_like ~join_maps_to:join_closures_entry
-      ~maps_to_field_kind:(fun _ -> K.value)
+      ~maps_to_field_kind:(fun _ -> None)
       ~equal_index:Set_of_closures_contents.equal
       ~inter_index:Set_of_closures_contents.inter
       ~merge_map_known:Function_slot.Map.merge env ~known1 ~known2 ~other1
