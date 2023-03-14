@@ -36,8 +36,8 @@ type primitive =
   | Pread_symbol of string
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
-  | Pfield of int
-  | Pfield_computed
+  | Pfield of int * layout
+  | Pfield_computed of layout
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * alloc_mode
