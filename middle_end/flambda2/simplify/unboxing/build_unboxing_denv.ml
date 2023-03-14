@@ -68,7 +68,8 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
     in
     let map =
       Value_slot.Map.map
-        (fun ({ epa = { param = var; _ }; _ } : U.field_decision) -> var)
+        (fun ({ epa = { param = var; _ }; kind; _ } : U.field_decision) ->
+          var, kind)
         vars_within_closure
     in
     let shape =
