@@ -52,8 +52,9 @@ let env_add_static_exception id v env =
   { env with static_exceptions = Int.Map.add id (v, env.regions, r) env.static_exceptions }, r
 
 let env_find id env =
-  let regs, _provenance, _mut = V.Map.find id env.vars in
-  regs
+  match V.Map.find_opt id env.vars with
+  | None -> raise_notrace Not_found
+  | Some (regs, _provenance, _mut) -> regs
 
 let env_find_mut id env =
   let regs, _provenance, mut = V.Map.find id env.vars in

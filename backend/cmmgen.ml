@@ -77,9 +77,7 @@ let create_env ~environment_param =
     environment_param;
   }
 
-let is_unboxed_id id env =
-  try Some (V.find_same id env.unboxed_ids)
-  with Not_found -> None
+let is_unboxed_id id env = V.find_same_opt id env.unboxed_ids
 
 let add_unboxed_id id unboxed_id bn env =
   { env with

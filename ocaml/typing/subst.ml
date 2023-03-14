@@ -86,8 +86,9 @@ let attrs s x =
     else x
 
 let rec module_path s path =
-  try Path.Map.find path s.modules
-  with Not_found ->
+  match Path.Map.find_opt path s.modules with
+  | Some s -> s
+  | None ->
     match path with
     | Pident _ -> path
     | Pdot(p, n) ->
@@ -109,10 +110,10 @@ let modtype_path s path =
          | Pident _ -> path
 
 let type_path s path =
-  match Path.Map.find path s.types with
-  | Path p -> p
-  | Type_function _ -> assert false
-  | exception Not_found ->
+  match Path.Map.find_opt path s.types with
+  | Some (Path p) -> p
+  | Some (Type_function _) -> assert false
+  | None ->
      match path with
      | Pident _ -> path
      | Pdot(p, n) ->
@@ -196,10 +197,10 @@ let rec typexp copy_scope s ty =
       else match desc with
       | Tconstr (p, args, _abbrev) ->
          let args = List.map (typexp copy_scope s) args in
-         begin match Path.Map.find p s.types with
-         | exception Not_found -> Tconstr(type_path s p, args, ref Mnil)
-         | Path _ -> Tconstr(type_path s p, args, ref Mnil)
-         | Type_function { params; body } ->
+         begin match Path.Map.find_opt p s.types with
+         | None -> Tconstr(type_path s p, args, ref Mnil)
+         | Some (Path _) -> Tconstr(type_path s p, args, ref Mnil)
+         | Some (Type_function { params; body }) ->
             Tlink (!ctype_apply_env_empty params body args)
          end
       | Tpackage(p, fl) ->

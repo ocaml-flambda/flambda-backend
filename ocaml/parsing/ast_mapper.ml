@@ -835,8 +835,7 @@ let attribute_of_warning loc s =
 let cookies = ref String.Map.empty
 
 let get_cookie k =
-  try Some (String.Map.find k !cookies)
-  with Not_found -> None
+  String.Map.find_opt k !cookies
 
 let set_cookie k v =
   cookies := String.Map.add k v !cookies

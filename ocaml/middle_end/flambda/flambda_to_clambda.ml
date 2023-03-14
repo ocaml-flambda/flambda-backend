@@ -186,9 +186,7 @@ end = struct
     }
 
   let allocated_const_for_symbol t sym =
-    try
-      Some (Symbol.Map.find sym t.allocated_constant_for_symbol)
-    with Not_found -> None
+    Symbol.Map.find_opt sym t.allocated_constant_for_symbol
 
   let keep_only_symbols t =
     { empty with

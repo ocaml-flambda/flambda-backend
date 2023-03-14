@@ -1685,14 +1685,14 @@ let safe_abbrev env ty =
 let try_expand_once env ty =
   match get_desc ty with
     Tconstr _ -> expand_abbrev env ty
-  | _ -> raise Cannot_expand
+  | _ -> raise_notrace Cannot_expand
 
 (* This one only raises Cannot_expand *)
 let try_expand_safe env ty =
   let snap = Btype.snapshot () in
   try try_expand_once env ty
   with Escape _ ->
-    Btype.backtrack snap; cleanup_abbrev (); raise Cannot_expand
+    Btype.backtrack snap; cleanup_abbrev (); raise_notrace Cannot_expand
 
 (* Fully expand the head of a type. *)
 let rec try_expand_head

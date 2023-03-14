@@ -228,9 +228,9 @@ end = struct
 
   (* throws Not_found if the variable is not in scope *)
   let lookup_local name =
-    try
-      List.assoc name !univars
-    with Not_found ->
+    match List.assoc_opt name !univars with
+    | Some s -> s
+    | None ->
       instance (fst (TyVarMap.find name !used_variables))
       (* This call to instance might be redundant; all variables
          inserted into [used_variables] are non-generic, but some

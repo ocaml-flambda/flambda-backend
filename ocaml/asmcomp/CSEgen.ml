@@ -58,9 +58,9 @@ module Equations = struct
   let find op_class op m =
     match op_class with
     | Op_load Mutable ->
-      Rhs_map.find op m.mutable_load_equations
+      Rhs_map.find_opt op m.mutable_load_equations
     | _ ->
-      Rhs_map.find op m.other_equations
+      Rhs_map.find_opt op m.other_equations
 
   let remove_mutable_loads m =
     { mutable_load_equations = Rhs_map.empty;
@@ -117,11 +117,7 @@ let valnum_regs n rs =
 (* Look up the set of equations for an equation with the given rhs.
    Return [Some res] if there is one, where [res] is the lhs. *)
 
-let find_equation op_class n rhs =
-  try
-    Some(Equations.find op_class rhs n.num_eqs)
-  with Not_found ->
-    None
+let find_equation op_class n rhs = Equations.find op_class rhs n.num_eqs
 
 (* Find a register containing the given value number. *)
 
