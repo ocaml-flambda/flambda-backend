@@ -2434,6 +2434,55 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
           dbg (),
           Vval Pgenval (* incorrect but only used for unboxing *) ) )
 
+let get_cached_method obj met cache pos dbg =
+  let cconst_int i = Cconst_int (i, dbg) in
+  let cache_var = V.create_local "cache" and obj_var = V.create_local "obj" and tag_var = V.create_local "tag" in
+  let clos =
+    let cache = Cvar cache_var and obj = Cvar obj_var and tag = Cvar tag_var in
+    let meths = V.create_local "meths" and cached = V.create_local "cached" in
+    let real = V.create_local "real" in
+    let mask = get_field_gen Asttypes.Mutable (Cvar meths) 1 dbg in
+    let cached_pos = Cvar cached in
+    let tag_pos =
+      Cop
+        ( Cadda,
+          [ Cop (Cadda, [cached_pos; Cvar meths], dbg);
+            cconst_int ((3 * size_addr) - 1) ],
+          dbg)
+    in
+    let tag' = Cop (Cload (Word_int, Mutable), [tag_pos], dbg) in
+    Clet
+      ( VP.create meths,
+        Cop (Cload (Word_val, Mutable), [obj], dbg),
+        Clet
+          ( VP.create cached,
+            Cop
+              ( Cand,
+                [Cop (Cload (Word_int, Mutable), [cache], dbg); mask],
+                dbg  ),
+            Clet
+              ( VP.create real,
+                Cifthenelse
+                  ( Cop (Ccmpa Cne, [tag'; tag], dbg),
+                    dbg,
+                    cache_public_method (Cvar meths) tag cache (dbg),
+                    dbg,
+                    cached_pos,
+                    dbg,
+                    Vval Pgenval ),
+                Cop
+                  ( Cload (Word_val, Mutable),
+                    [ Cop
+                        ( Cadda,
+                          [ Cop (Cadda, [Cvar real; Cvar meths], dbg);
+                            cconst_int ((2 * size_addr) - 1) ],
+                          dbg ) ],
+                    dbg ) ) ) )
+  in
+  Clet(VP.create obj_var, obj,
+      Clet (VP.create tag_var, met,
+            Clet (VP.create cache_var, array_indexing log2_size_addr cache pos dbg, clos)))
+
 let send_function (arity, result, mode) =
   let dbg = placeholder_dbg in
   let cconst_int i = Cconst_int (i, dbg ()) in

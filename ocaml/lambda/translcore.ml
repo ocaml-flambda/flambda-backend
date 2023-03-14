@@ -109,8 +109,7 @@ let may_allocate_in_region lam =
     | Lfunction {mode=Alloc_heap} -> ()
     | Lfunction {mode=Alloc_local} -> raise Exit
 
-    | Lapply {ap_mode=Alloc_local}
-    | Lsend (_,_,_,_,_,Alloc_local,_,_) -> raise Exit
+    | Lapply {ap_mode=Alloc_local} -> raise Exit
 
     | Lprim (prim, args, _) ->
        begin match Lambda.primitive_may_allocate prim with
@@ -128,7 +127,7 @@ let may_allocate_in_region lam =
     | Lfor {for_from; for_to} -> loop for_from; loop for_to
     | ( Lapply _ | Llet _ | Lmutlet _ | Lletrec _ | Lswitch _ | Lstringswitch _
       | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
-      | Lifthenelse _ | Lsequence _ | Lassign _ | Lsend _
+      | Lifthenelse _ | Lsequence _ | Lassign _
       | Levent _ | Lifused _) as lam ->
        Lambda.iter_head_constructor loop lam
   in
@@ -143,8 +142,6 @@ let maybe_region get_layout lam =
   let rec remove_tail_markers = function
     | Lapply ({ap_region_close = Rc_close_at_apply} as ap) ->
        Lapply ({ap with ap_region_close = Rc_normal})
-    | Lsend (k, lmet, lobj, largs, Rc_close_at_apply, mode, loc, layout) ->
-       Lsend (k, lmet, lobj, largs, Rc_normal, mode, loc, layout)
     | Lregion _ as lam -> lam
     | lam ->
        Lambda.shallow_map ~tail:remove_tail_markers ~non_tail:Fun.id lam
@@ -648,12 +645,38 @@ and transl_exp0 ~in_new_scope ~scopes e =
         match met with
         | Tmeth_val id ->
             let obj = transl_exp ~scopes expr in
-            Lsend (Self, Lvar id, obj, [], pos, mode, loc, layout)
+            let obj_var = Ident.create_local "obj" in
+            bind_with_layout Strict (obj_var, layout_object) obj
+            (Lapply {
+              ap_func = Lprim(Pgetmethod Self, [Lvar id; Lvar obj_var], loc);
+              ap_args = [Lvar obj_var];
+              ap_result_layout = layout;
+              ap_mode = mode;
+              ap_region_close = pos;
+              ap_probe = None;
+              ap_tailcall = Default_tailcall;
+              ap_inlined = Default_inlined;
+              ap_specialised = Default_specialise;
+              ap_loc = loc
+            })
         | Tmeth_name nm ->
             let obj = transl_exp ~scopes expr in
             let (tag, cache) = Translobj.meth obj nm in
             let kind = if cache = [] then Public else Cached in
-            Lsend (kind, tag, obj, cache, pos, mode, loc, layout)
+            let obj_var = Ident.create_local "obj" in
+            bind_with_layout Strict (obj_var, layout_object) obj
+              (Lapply {
+              ap_func = Lprim(Pgetmethod kind, tag :: obj :: cache, loc);
+              ap_args = [obj];
+              ap_result_layout = layout;
+              ap_mode = mode;
+              ap_region_close = pos;
+              ap_probe = None;
+              ap_tailcall = Default_tailcall;
+              ap_inlined = Default_inlined;
+              ap_specialised = Default_specialise;
+              ap_loc = loc
+            })
         | Tmeth_ancestor(meth, path_self) ->
             let self = transl_value_path loc e.exp_env path_self in
             Lapply {ap_loc = loc;
@@ -976,23 +999,6 @@ and transl_apply ~scopes
   =
   let lapply funct args loc pos mode result_layout =
     match funct, pos with
-    | Lsend((Self | Public) as k, lmet, lobj, [], _, _, _, _), _ ->
-        Lsend(k, lmet, lobj, args, pos, mode, loc, result_layout)
-    | Lsend(Cached, lmet, lobj, ([_; _] as largs), _, _, _, _), _ ->
-        Lsend(Cached, lmet, lobj, largs @ args, pos, mode, loc, result_layout)
-    | Lsend(k, lmet, lobj, largs, (Rc_normal | Rc_nontail), _, _, _),
-      (Rc_normal | Rc_nontail) ->
-        Lsend(k, lmet, lobj, largs @ args, pos, mode, loc, result_layout)
-    | Levent(
-      Lsend((Self | Public) as k, lmet, lobj, [], _, _, _, _), _), _ ->
-        Lsend(k, lmet, lobj, args, pos, mode, loc, result_layout)
-    | Levent(
-      Lsend(Cached, lmet, lobj, ([_; _] as largs), _, _, _, _), _), _ ->
-        Lsend(Cached, lmet, lobj, largs @ args, pos, mode, loc, result_layout)
-    | Levent(
-      Lsend(k, lmet, lobj, largs, (Rc_normal | Rc_nontail), _, _, _), _),
-      (Rc_normal | Rc_nontail) ->
-        Lsend(k, lmet, lobj, largs @ args, pos, mode, loc, result_layout)
     | Lapply ({ ap_region_close = (Rc_normal | Rc_nontail) } as ap),
       (Rc_normal | Rc_nontail) ->
         Lapply

@@ -356,6 +356,7 @@ let binary_prim_size prim =
   | Float_arith op -> binary_float_arith_primitive op
   | Float_comp (Yielding_bool cmp) -> binary_float_comp_primitive cmp
   | Float_comp (Yielding_int_like_compare_functions ()) -> 8
+  | Get_method _ -> direct_call_size (* CR ncourant: is this good? *)
 
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with
@@ -366,6 +367,10 @@ let ternary_prim_size prim =
     5 (* ~ 3 block_load + 2 block_set *)
   | Bigarray_set (_dims, _kind, _layout) -> 2
 (* ~ 1 block_load + 1 block_set *)
+
+let quaternary_prim_size prim =
+  match (prim : Flambda_primitive.quaternary_primitive) with
+  | Get_cached_method -> direct_call_size (* CR ncourant: is this a good estimate? *)
 
 let variadic_prim_size prim args =
   match (prim : Flambda_primitive.variadic_primitive) with
@@ -381,6 +386,7 @@ let prim (prim : Flambda_primitive.t) =
   | Unary (p, _) -> unary_prim_size p
   | Binary (p, _, _) -> binary_prim_size p
   | Ternary (p, _, _, _) -> ternary_prim_size p
+  | Quaternary (p, _, _, _, _) -> quaternary_prim_size p
   | Variadic (p, args) -> variadic_prim_size p args
 
 let simple simple =

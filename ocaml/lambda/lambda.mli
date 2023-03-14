@@ -77,6 +77,8 @@ type region_close =
   | Rc_nontail        (* do not close region, must not TCO *)
   | Rc_close_at_apply (* close region and tail call *)
 
+type meth_kind = Self | Public | Cached
+
 type primitive =
   | Pbytes_to_string
   | Pbytes_of_string
@@ -95,6 +97,8 @@ type primitive =
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Psetfloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
+  (* Get methods of objects *)
+  | Pgetmethod of meth_kind
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -342,8 +346,6 @@ type let_kind = Strict | Alias | StrictOpt
       we can discard e if x does not appear in e'
  *)
 
-type meth_kind = Self | Public | Cached
-
 val equal_meth_kind : meth_kind -> meth_kind -> bool
 
 type shared_code = (int * int) list     (* stack size -> code label *)
@@ -389,8 +391,6 @@ type lambda =
   | Lwhile of lambda_while
   | Lfor of lambda_for
   | Lassign of Ident.t * lambda
-  | Lsend of meth_kind * lambda * lambda * lambda list
-             * region_close * alloc_mode * scoped_location * layout
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda * layout

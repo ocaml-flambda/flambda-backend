@@ -381,6 +381,9 @@ val call_cached_method :
   Debuginfo.t ->
   expression
 
+val get_cached_method :
+  expression -> expression -> expression -> expression -> Debuginfo.t -> expression
+
 (** Allocations *)
 
 (** Allocate a block of regular values with the given tag *)

@@ -129,6 +129,7 @@ type primitive =
   | Pbox_float of alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
+  | Pgetmethod of Lambda.meth_kind
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge

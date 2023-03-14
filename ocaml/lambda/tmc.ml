@@ -579,7 +579,7 @@ let declare_binding ctx (var, def) =
 let rec choice ctx t =
   let rec choice ctx ~tail t =
     match t with
-    | (Lvar _ | Lmutvar _ | Lconst _ | Lfunction _ | Lsend _
+    | (Lvar _ | Lmutvar _ | Lconst _ | Lfunction _
       | Lassign _ | Lfor _ | Lwhile _) ->
         let t = traverse ctx t in
         Choice.lambda t
@@ -882,6 +882,7 @@ let rec choice ctx t =
     | Pcompare_ints | Pcompare_floats | Pcompare_bints _
     | Punbox_float | Pbox_float _
     | Punbox_int _ | Pbox_int _
+    | Pgetmethod _
 
     (* we don't handle array indices as destinations yet *)
     | (Pmakearray _ | Pduparray _)

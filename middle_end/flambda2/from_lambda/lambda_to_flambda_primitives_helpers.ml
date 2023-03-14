@@ -30,6 +30,8 @@ type expr_primitive =
   | Binary of P.binary_primitive * simple_or_prim * simple_or_prim
   | Ternary of
       P.ternary_primitive * simple_or_prim * simple_or_prim * simple_or_prim
+  | Quaternary of
+      P.quaternary_primitive * simple_or_prim * simple_or_prim * simple_or_prim * simple_or_prim
   | Variadic of P.variadic_primitive * simple_or_prim list
   | Checked of
       { validity_conditions : expr_primitive list;
@@ -52,6 +54,7 @@ let rec print_expr_primitive ppf expr_primitive =
   | Unary (prim, _) -> W.print ppf (Unary prim)
   | Binary (prim, _, _) -> W.print ppf (Binary prim)
   | Ternary (prim, _, _, _) -> W.print ppf (Ternary prim)
+  | Quaternary (prim, _, _, _, _) -> W.print ppf (Quaternary prim)
   | Variadic (prim, _) -> W.print ppf (Variadic prim)
   | Checked { primitive; _ } ->
     Format.fprintf ppf "@[<hov 1>(Checked@ %a)@]" print_expr_primitive primitive
@@ -192,6 +195,23 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
       bind_rec_primitive acc exn_cont ~register_const_string arg2 dbg cont
     in
     bind_rec_primitive acc exn_cont ~register_const_string arg3 dbg cont
+  | Quaternary (prim, arg1, arg2, arg3, arg4) ->
+    let cont acc (arg4 : Simple.t) =
+      let cont acc (arg3 : Simple.t) =
+        let cont acc (arg2 : Simple.t) =
+          let cont acc (arg1 : Simple.t) =
+            let named =
+              Named.create_prim (Quaternary (prim, arg1, arg2, arg3, arg4)) dbg
+            in
+            cont acc named
+          in
+          bind_rec_primitive acc exn_cont ~register_const_string arg1 dbg cont
+        in
+        bind_rec_primitive acc exn_cont ~register_const_string arg2 dbg cont
+      in
+      bind_rec_primitive acc exn_cont ~register_const_string arg3 dbg cont
+    in
+    bind_rec_primitive acc exn_cont ~register_const_string arg4 dbg cont
   | Variadic (prim, args) ->
     let cont acc args =
       let named = Named.create_prim (Variadic (prim, args)) dbg in

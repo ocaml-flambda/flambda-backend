@@ -728,15 +728,51 @@ let lambda_of_prim prim_name prim loc args arg_exps =
       let lam = lambda_of_loc kind loc in
       Lprim(Pmakeblock(0, Immutable, None, alloc_heap), [lam; arg], loc)
   | Send (pos, layout), [obj; meth] ->
-      Lsend(Public, meth, obj, [], pos, alloc_heap, loc, layout)
+      Lapply {
+        ap_func = Lprim(Pgetmethod Public, [meth; obj], loc);
+        ap_args = [obj]; (* TODO check *)
+        ap_result_layout = layout;
+        ap_region_close = pos;
+        ap_mode = alloc_heap ;
+        ap_loc = loc;
+        ap_tailcall = Default_tailcall;
+        ap_inlined = Default_inlined;
+        ap_specialised = Default_specialise;
+        ap_probe = None
+      }
   | Send_self (pos, layout), [obj; meth] ->
-      Lsend(Self, meth, obj, [], pos, alloc_heap, loc, layout)
+      Lapply {
+        ap_func = Lprim(Pgetmethod Self, [meth; obj], loc);
+        ap_args = [obj]; (* TODO check *)
+        ap_result_layout = layout;
+        ap_region_close = pos;
+        ap_mode = alloc_heap ;
+        ap_loc = loc;
+        ap_tailcall = Default_tailcall;
+        ap_inlined = Default_inlined;
+        ap_specialised = Default_specialise;
+        ap_probe = None
+      }
   | Send_cache (apos, layout), [obj; meth; cache; pos] ->
-      (* Cached mode only works in the native backend *)
-      if !Clflags.native_code then
-        Lsend(Cached, meth, obj, [cache; pos], apos, alloc_heap, loc, layout)
-      else
-        Lsend(Public, meth, obj, [], apos, alloc_heap, loc, layout)
+      let func =
+        (* Cached mode only works in the native backend *)
+        if !Clflags.native_code then
+          Lprim(Pgetmethod Cached, [meth; obj; cache; pos], loc)
+        else
+          Lprim(Pgetmethod Public, [meth; obj], loc)
+      in
+      Lapply {
+        ap_func = func;
+        ap_args = [obj]; (* TODO check *)
+        ap_result_layout = layout;
+        ap_region_close = apos;
+        ap_mode = alloc_heap ;
+        ap_loc = loc;
+        ap_tailcall = Default_tailcall;
+        ap_inlined = Default_inlined;
+        ap_specialised = Default_specialise;
+        ap_probe = None
+      }
   | Frame_pointers, [] ->
       let frame_pointers =
         if !Clflags.native_code && Config.with_frame_pointers then 1 else 0
@@ -884,7 +920,7 @@ let lambda_primitive_needs_event_after = function
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque _
-  | Pobj_magic _ | Punbox_float | Punbox_int _  -> false
+  | Pobj_magic _ | Punbox_float | Punbox_int _  | Pgetmethod _ (* TODO check *) -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)
 let primitive_needs_event_after = function

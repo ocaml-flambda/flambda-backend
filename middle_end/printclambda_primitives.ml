@@ -235,3 +235,6 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pbox_int (bi, m) ->
     fprintf ppf "box_%s.%s" (boxed_integer_name bi) (alloc_kind m)
   | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)
+  | Pgetmethod k ->
+    fprintf ppf "getmethod%s"
+      (match k with Self -> "self" | Cached -> "cached" | Public -> "")

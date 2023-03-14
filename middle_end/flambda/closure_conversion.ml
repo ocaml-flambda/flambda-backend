@@ -332,18 +332,6 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       in
       Let_rec (defs, close t env body)
     end
-  | Lsend (kind, meth, obj, args, reg_close, mode, loc, result_layout) ->
-    let meth_var = Variable.create Names.meth in
-    let obj_var = Variable.create Names.obj in
-    let dbg = Debuginfo.from_location loc in
-    Flambda.create_let meth_var (Expr (close t env meth))
-      (Flambda.create_let obj_var (Expr (close t env obj))
-        (Lift_code.lifting_helper (close_list t env args)
-          ~evaluation_order:`Right_to_left
-          ~name:Names.send_arg
-          ~create_body:(fun args ->
-              Send { kind; meth = meth_var; obj = obj_var; args;
-                     dbg; reg_close; mode; result_layout })))
   | Lprim ((Pdivint Safe | Pmodint Safe
            | Pdivbint { is_safe = Safe } | Pmodbint { is_safe = Safe }) as prim,
            [arg1; arg2], loc)

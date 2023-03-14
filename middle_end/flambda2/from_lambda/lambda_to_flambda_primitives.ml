@@ -1163,6 +1163,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
            Prim (Unary (Unbox_number unboxing_kind, i2)) ))
   | Pprobe_is_enabled { name }, [] ->
     tag_int (Nullary (Probe_is_enabled { name }))
+  | Pgetmethod Self, [meth; obj] ->
+    Binary (Get_method { is_self = true }, obj, meth)
+  | Pgetmethod Public, [meth; obj] ->
+    Binary (Get_method { is_self = false }, obj, meth)
+  | Pgetmethod Cached, [meth; obj; cache; pos] ->
+    Quaternary (Get_cached_method, obj, meth, cache, pos)
   | Pobj_dup, [v] -> Unary (Obj_dup, v)
   | ( ( Pmodint Unsafe
       | Pdivbint { is_safe = Unsafe; size = _; mode = _ }
@@ -1203,7 +1209,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       | Pbigstring_load_32 _ | Pbigstring_load_64 _
       | Parrayrefu (Pgenarray | Paddrarray | Pintarray | Pfloatarray)
       | Parrayrefs (Pgenarray | Paddrarray | Pintarray | Pfloatarray)
-      | Pcompare_ints | Pcompare_floats | Pcompare_bints _ ),
+      | Pcompare_ints | Pcompare_floats | Pcompare_bints _ | Pgetmethod (Self | Public)),
       ([] | [_] | _ :: _ :: _ :: _) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for binary primitive \
@@ -1217,6 +1223,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       ([] | [_] | [_; _] | _ :: _ :: _ :: _ :: _) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for ternary primitive \
+       %a (%a)"
+      Printlambda.primitive prim H.print_list_of_simple_or_prim args
+  | Pgetmethod Cached, ([] | [_] | [_; _] | [_; _; _] | _ :: _ :: _ :: _ :: _ :: _) ->
+    Misc.fatal_errorf
+      "Closure_conversion.convert_primitive: Wrong arity for quaternary primitive \
        %a (%a)"
       Printlambda.primitive prim H.print_list_of_simple_or_prim args
   | (Pignore | Psequand | Psequor | Pbytes_of_string | Pbytes_to_string), _ ->

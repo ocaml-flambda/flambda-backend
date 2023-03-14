@@ -1187,13 +1187,6 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
                           List.map (Lambda.compute_expr_layout kinds) args,
                           ap_result_layout, (pos, mode), dbg), Value_unknown)
       end
-  | Lsend(kind, met, obj, args, pos, mode, loc, result_layout) ->
-      let (umet, _) = close env met in
-      let (uobj, _) = close env obj in
-      let dbg = Debuginfo.from_location loc in
-      let args_layout = List.map (Lambda.compute_expr_layout kinds) args in
-      (Usend(kind, umet, uobj, close_list env args, args_layout, result_layout, (pos,mode), dbg),
-       Value_unknown)
   | Llet(str, kind, id, lam, body) ->
       let (ulam, alam) = close_named env id lam in
       let kinds = V.Map.add id kind kinds in

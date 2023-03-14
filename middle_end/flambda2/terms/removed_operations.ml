@@ -54,7 +54,9 @@ let prim (prim : Flambda_primitive.t) =
          example) are not counted here. *)
       { zero with prim = 1 })
   | Nullary _ -> zero
-  | Binary (_, _, _) | Ternary (_, _, _, _) -> { zero with prim = 1 }
+    (* CR ncourant: get_method maybe removes a call? *)
+  | Binary (_, _, _) | Ternary (_, _, _, _) | Quaternary (_, _, _, _, _) ->
+    { zero with prim = 1 }
   | Variadic (prim, _) -> (
     match prim with Make_block _ | Make_array _ -> alloc)
   [@@ocaml.warning "-fragile-match"]

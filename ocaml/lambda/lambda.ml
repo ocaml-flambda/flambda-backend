@@ -129,6 +129,8 @@ type region_close =
   | Rc_nontail
   | Rc_close_at_apply
 
+type meth_kind = Self | Public | Cached
+
 type primitive =
   | Pbytes_to_string
   | Pbytes_of_string
@@ -147,7 +149,8 @@ type primitive =
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Psetfloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
-  (* Force lazy values *)
+  (* Get a method *)
+  | Pgetmethod of meth_kind
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -451,8 +454,6 @@ type function_kind = Curried of {nlocal: int} | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
 
-type meth_kind = Self | Public | Cached
-
 let equal_meth_kind x y =
   match x, y with
   | Self, Self -> true
@@ -499,9 +500,6 @@ type lambda =
   | Lwhile of lambda_while
   | Lfor of lambda_for
   | Lassign of Ident.t * lambda
-  | Lsend of
-      meth_kind * lambda * lambda * lambda list
-      * region_close * alloc_mode * scoped_location * layout
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda * layout
@@ -715,8 +713,6 @@ let make_key e =
         Lsequence (tr_rec env e1,tr_rec env e2)
     | Lassign (x,e) ->
         Lassign (x,tr_rec env e)
-    | Lsend (m,e1,e2,es,pos,mo,_loc,layout) ->
-        Lsend (m,tr_rec env e1,tr_rec env e2,tr_recs env es,pos,mo,Loc_unknown,layout)
     | Lifused (id,e) -> Lifused (id,tr_rec env e)
     | Lregion (e,layout) -> Lregion (tr_rec env e,layout)
     | Lletrec _|Lfunction _
@@ -811,8 +807,6 @@ let shallow_iter ~tail ~non_tail:f = function
       f for_from; f for_to; f for_body
   | Lassign(_, e) ->
       f e
-  | Lsend (_k, met, obj, args, _, _, _, _) ->
-      List.iter f (met::obj::args)
   | Levent (e, _evt) ->
       tail e
   | Lifused (_v, e) ->
@@ -890,10 +884,6 @@ let rec free_variables = function
            (Ident.Set.remove for_id (free_variables for_body)))
   | Lassign(id, e) ->
       Ident.Set.add id (free_variables e)
-  | Lsend (_k, met, obj, args, _, _, _, _) ->
-      free_variables_list
-        (Ident.Set.union (free_variables met) (free_variables obj))
-        args
   | Levent (lam, _evt) ->
       free_variables lam
   | Lifused (_v, e) ->
@@ -1072,9 +1062,6 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         assert (not (Ident.Map.mem id s));
         let id = try Ident.Map.find id l with Not_found -> id in
         Lassign(id, subst s l e)
-    | Lsend (k, met, obj, args, pos, mode, loc, layout) ->
-        Lsend (k, subst s l met, subst s l obj, subst_list s l args,
-               pos, mode, loc, layout)
     | Levent (lam, evt) ->
         let old_env = evt.lev_env in
         let env_updates =
@@ -1197,8 +1184,6 @@ let shallow_map ~tail ~non_tail:f = function
                      for_body = f lf.for_body }
   | Lassign (v, e) ->
       Lassign (v, f e)
-  | Lsend (k, m, o, el, pos, mode, loc, layout) ->
-      Lsend (k, f m, f o, List.map f el, pos, mode, loc, layout)
   | Levent (l, ev) ->
       Levent (tail l, ev)
   | Lifused (v, e) ->
@@ -1312,6 +1297,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pfloatfield (_, _, m) -> Some m
   | Psetfloatfield _ -> None
   | Pduprecord _ -> Some alloc_heap
+  | Pgetmethod _ -> None (* CR ncourant: check this *)
   | Pccall p ->
      if not p.prim_alloc then None
      else begin match p.prim_native_repr_res with
@@ -1474,6 +1460,7 @@ let primitive_result_layout (p : primitive) =
   | Pint_as_pointer ->
       (* CR ncourant: use an unboxed int64 here when it exists *)
       layout_any_value
+  | Pgetmethod _ -> layout_function
 
 let rec compute_expr_layout kinds lam =
   match lam with
@@ -1486,7 +1473,6 @@ let rec compute_expr_layout kinds lam =
   | Lconst cst -> structured_constant_layout cst
   | Lfunction _ -> layout_function
   | Lapply { ap_result_layout; _ } -> ap_result_layout
-  | Lsend (_, _, _, _, _, _, _, layout) -> layout
   | Llet(_, kind, id, _, body) | Lmutlet(kind, id, _, body) ->
     compute_expr_layout (Ident.Map.add id kind kinds) body
   | Lletrec(defs, body) ->

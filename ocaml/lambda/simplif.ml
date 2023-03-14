@@ -88,9 +88,6 @@ let rec eliminate_ref id = function
                     for_body = eliminate_ref id lf.for_body }
   | Lassign(v, e) ->
       Lassign(v, eliminate_ref id e)
-  | Lsend(k, m, o, el, pos, mode, loc, layout) ->
-      Lsend(k, eliminate_ref id m, eliminate_ref id o,
-            List.map (eliminate_ref id) el, pos, mode, loc, layout)
   | Levent(l, ev) ->
       Levent(eliminate_ref id l, ev)
   | Lifused(v, e) ->
@@ -181,7 +178,6 @@ let simplify_exits lam =
       count ~try_depth lf.for_to;
       count ~try_depth lf.for_body
   | Lassign(_v, l) -> count ~try_depth l
-  | Lsend(_k, m, o, ll, _, _, _, _) -> List.iter (count ~try_depth) (m::o::ll)
   | Levent(l, _) -> count ~try_depth l
   | Lifused(_v, l) -> count ~try_depth l
   | Lregion (l, _) -> count ~try_depth:(try_depth+1) l
@@ -345,9 +341,6 @@ let simplify_exits lam =
                     for_to = simplif ~layout:None ~try_depth lf.for_to;
                     for_body = simplif ~layout:None ~try_depth lf.for_body}
   | Lassign(v, l) -> Lassign(v, simplif ~layout:None ~try_depth l)
-  | Lsend(k, m, o, ll, pos, mode, loc, layout) ->
-      Lsend(k, simplif ~layout:None ~try_depth m, simplif ~layout:None ~try_depth o,
-            List.map (simplif ~layout:None ~try_depth) ll, pos, mode, loc, layout)
   | Levent(l, ev) -> Levent(simplif ~layout ~try_depth l, ev)
   | Lifused(v, l) -> Lifused (v,simplif ~layout ~try_depth l)
   | Lregion (l, ly) -> Lregion (
@@ -481,7 +474,6 @@ let simplify_lets lam =
       (* Lalias-bound variables are never assigned, so don't increase
          v's refcount *)
       count bv l
-  | Lsend(_, m, o, ll, _, _, _, _) -> List.iter (count bv) (m::o::ll)
   | Levent(l, _) -> count bv l
   | Lifused(v, l) ->
       if count_var v > 0 then count bv l
@@ -631,8 +623,6 @@ let simplify_lets lam =
                              for_to = simplif lf.for_to;
                              for_body = simplif lf.for_body}
   | Lassign(v, l) -> Lassign(v, simplif l)
-  | Lsend(k, m, o, ll, pos, mode, loc, layout) ->
-      Lsend(k, simplif m, simplif o, List.map simplif ll, pos, mode, loc, layout)
   | Levent(l, ev) -> Levent(simplif l, ev)
   | Lifused(v, l) ->
       if count_var v > 0 then simplif l else lambda_unit
@@ -719,10 +709,6 @@ let rec emit_tail_infos is_tail lambda =
       emit_tail_infos false for_body
   | Lassign (_, lam) ->
       emit_tail_infos false lam
-  | Lsend (_, meth, obj, args, _, _, _loc, _) ->
-      emit_tail_infos false meth;
-      emit_tail_infos false obj;
-      list_emit_tail_infos false args
   | Levent (lam, _) ->
       emit_tail_infos is_tail lam
   | Lifused (_, lam) ->

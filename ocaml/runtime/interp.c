@@ -1115,6 +1115,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
 
     Instruct(GETMETHOD):
       accu = Lookup(sp[0], accu);
+      sp++;
       Next;
 
 #define CAML_METHOD_CACHE
@@ -1152,6 +1153,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
         accu = Field (meths, li-1);
       }
       pc++;
+      sp++;
       Next;
     }
 #else
@@ -1171,6 +1173,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
         else li = mi;
       }
       accu = Field (meths, li-1);
+      sp++;
       Next;
     }
 

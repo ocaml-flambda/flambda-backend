@@ -954,7 +954,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigstring_set_64 true
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer | Popaque _
   | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ | Pbox_float _ | Punbox_float
-  | Punbox_int _ | Pbox_int _ ->
+  | Punbox_int _ | Pbox_int _ | Pgetmethod _ ->
     false
 
 let primitive_result_kind (prim : Lambda.primitive) :
@@ -1044,6 +1044,7 @@ let primitive_result_kind (prim : Lambda.primitive) :
     | Pint32 -> Flambda_kind.With_subkind.naked_int32
     | Pint64 -> Flambda_kind.With_subkind.naked_int64
     | Pnativeint -> Flambda_kind.With_subkind.naked_nativeint)
+  | Pgetmethod _ -> Flambda_kind.With_subkind.any_value (* function *)
 
 type cps_continuation =
   | Tail of Continuation.t
@@ -1291,42 +1292,6 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         let body acc ccenv = cps_tail acc body_env ccenv body k k_exn in
         CC.close_let_cont acc ccenv ~name:continuation ~is_exn_handler:false
           ~params ~recursive ~body ~handler)
-  | Lsend (meth_kind, meth, obj, args, pos, mode, loc, layout) ->
-    cps_non_tail_simple acc env ccenv obj
-      (fun acc env ccenv obj ->
-        cps_non_tail_var "meth" acc env ccenv meth
-          Flambda_kind.With_subkind.any_value
-          (fun acc env ccenv meth ->
-            cps_non_tail_list acc env ccenv args
-              (fun acc env ccenv args ->
-                maybe_insert_let_cont "send_result" layout k acc env ccenv
-                  (fun acc env ccenv k ->
-                    let exn_continuation : IR.exn_continuation =
-                      { exn_handler = k_exn;
-                        extra_args = extra_args_for_exn_continuation env k_exn
-                      }
-                    in
-                    let apply : IR.apply =
-                      { kind = Method { kind = meth_kind; obj };
-                        func = meth;
-                        continuation = k;
-                        exn_continuation;
-                        args;
-                        loc;
-                        region_close = pos;
-                        inlined = Default_inlined;
-                        probe = None;
-                        mode;
-                        region = Env.current_region env;
-                        return_arity =
-                          Flambda_arity.With_subkinds.create
-                            [Flambda_kind.With_subkind.from_lambda layout]
-                      }
-                    in
-                    wrap_return_continuation acc env ccenv apply))
-              k_exn)
-          k_exn)
-      k_exn
   | Ltrywith (body, id, handler, kind) ->
     let dbg = Debuginfo.none (* CR mshinwell: fix [Lambda] *) in
     let body_result = Ident.create_local "body_result" in
@@ -1720,7 +1685,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
         | Lmutvar _ | Lapply _ | Lfunction _ | Llet _ | Lmutlet _ | Lletrec _
         | Lprim _ | Lswitch _ | Lstringswitch _ | Lstaticraise _
         | Lstaticcatch _ | Ltrywith _ | Lifthenelse _ | Lsequence _ | Lwhile _
-        | Lfor _ | Lassign _ | Lsend _ | Levent _ | Lifused _ | Lregion _ ->
+        | Lfor _ | Lassign _ | Levent _ | Lifused _ | Lregion _ ->
           (* The continuations created here (and for failactions) are local. The
              bodies of the let_conts will not modify mutable variables. Hence,
              it is safe to exclude them from passing along the extra arguments

@@ -261,6 +261,19 @@ CAMLprim value caml_get_public_method (value obj, value tag)
   return (tag == Field(meths,li) ? Field (meths, li-1) : 0);
 }
 
+CAMLprim value caml_cache_public_method (value meths, value tag, value *cache)
+{
+  int li = 3, hi = Field(meths,0), mi;
+  while (li < hi) { // no need to check the 1st time
+    mi = ((li+hi) >> 1) | 1;
+    if (tag < Field(meths,mi)) hi = mi-2;
+    else li = mi;
+  }
+  *cache = (li-3)*sizeof(value)+1;
+  return Field (meths, li-1);
+}
+
+
 static value oo_last_id = Val_int(0);
 
 CAMLprim value caml_set_oo_id (value obj) {

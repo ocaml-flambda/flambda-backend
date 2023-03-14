@@ -567,7 +567,7 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Int_shift (i, s) -> Int_shift (i, s)
   | Float_arith o -> Infix (Float_arith o)
   | Float_comp c -> Infix (Float_comp c)
-  | String_or_bigstring_load _ | Bigarray_load _ ->
+  | String_or_bigstring_load _ | Bigarray_load _ | Get_method _ ->
     Misc.fatal_errorf "TODO: Binary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)
@@ -599,6 +599,7 @@ let prim env (p : Flambda_primitive.t) : Fexpr.prim =
     Binary (binop op, simple env arg1, simple env arg2)
   | Ternary (op, arg1, arg2, arg3) ->
     Ternary (ternop env op, simple env arg1, simple env arg2, simple env arg3)
+  | Quaternary _ -> failwith "TODO"
   | Variadic (op, args) -> Variadic (varop env op, List.map (simple env) args)
 
 let value_slots env map =

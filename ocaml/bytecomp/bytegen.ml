@@ -135,7 +135,8 @@ let preserve_tailcall_for_prim = function
   | Pbytes_set_64 _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
   | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
   | Pprobe_is_enabled _ | Pobj_dup
-  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer ->
+  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer
+  | Pgetmethod _ ->
       false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -532,6 +533,7 @@ let comp_primitive p args =
   | Pmakefloatblock _
   | Pprobe_is_enabled _
   | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Pgetmethod _
     ->
       fatal_error "Bytegen.comp_primitive"
 
@@ -593,28 +595,6 @@ let rec comp_expr env exp sz cont =
                       (Kapply nargs :: cont1))
         end
       end
-  | Lsend(kind, met, obj, args, rc, _, _, _) ->
-      assert (kind <> Cached);
-      let nargs = List.length args + 1 in
-      let getmethod, args' =
-        if kind = Self then (Kgetmethod, met::obj::args) else
-        match met with
-          Lconst(Const_base(Const_int n)) -> (Kgetpubmet n, obj::args)
-        | _ -> (Kgetdynmet, met::obj::args)
-      in
-      if is_tailcall cont && not (is_nontail rc) then
-        comp_args env args' sz
-          (getmethod :: Kappterm(nargs, sz + nargs) :: discard_dead_code cont)
-      else
-        if nargs < 4 then
-          comp_args env args' sz
-            (getmethod :: Kapply nargs :: cont)
-        else begin
-          let (lbl, cont1) = label_code cont in
-          Kpush_retaddr lbl ::
-          comp_args env args' (sz + 3)
-            (getmethod :: Kapply nargs :: cont1)
-        end
   | Lfunction{params; body; loc} -> (* assume kind = Curried *)
       let cont = add_pseudo_event loc !compunit_name cont in
       let lbl = new_label() in
@@ -816,6 +796,15 @@ let rec comp_expr env exp sz cont =
   | Lprim(Pfloatfield (n, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args env args sz (Kgetfloatfield n :: cont)
+  | Lprim(Pgetmethod kind, [met; obj], _) ->
+      assert (kind <> Cached);
+      let getmethod, args =
+        if kind = Self then (Kgetmethod, [met; obj]) else
+          match met with
+            Lconst (Const_base (Const_int n)) -> (Kgetpubmet n, [obj])
+          | _ -> (Kgetdynmet, [met; obj])
+      in
+      comp_args env args sz (getmethod :: cont)
   | Lprim(p, args, _) ->
       comp_args env args sz (comp_primitive p args :: cont)
   | Lstaticcatch (body, (i, vars) , handler, _) ->
@@ -999,8 +988,7 @@ let rec comp_expr env exp sz cont =
           let preserve_tailcall =
             match lam with
             | Lprim(prim, _, _) -> preserve_tailcall_for_prim prim
-            | Lapply {ap_region_close=rc; _}
-            | Lsend(_, _, _, _, rc, _, _, _) ->
+            | Lapply {ap_region_close=rc; _} ->
                not (is_nontail rc)
             | _ -> true
           in
@@ -1011,8 +999,6 @@ let rec comp_expr env exp sz cont =
             let info =
               match lam with
                 Lapply{ap_args = args}  -> Event_return (List.length args)
-              | Lsend(_, _, _, args, _, _, _, _) ->
-                  Event_return (List.length args + 1)
               | Lprim(_,args,_)         -> Event_return (List.length args)
               | _                       -> Event_other
             in

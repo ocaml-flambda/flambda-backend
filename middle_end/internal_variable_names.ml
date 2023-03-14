@@ -310,7 +310,9 @@ let punbox_int = "Punbox_int"
 let pbox_int = "Pbox_int"
 let punbox_int_arg = "Punbox_int_arg"
 let pbox_int_arg = "Pbox_int_arg"
-
+let pgetmethod = "Pgetmethod"
+let pgetmethod_arg = "Pgetmethod_arg"
+  
 let anon_fn_with_loc (sloc: Lambda.scoped_location) =
   let loc = Debuginfo.Scoped_location.to_location sloc in
   let (file, line, startchar) = Location.get_pos_info loc.loc_start in
@@ -433,6 +435,7 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbox_float _ -> pbox_float
   | Punbox_int _ -> punbox_int
   | Pbox_int _ -> pbox_int
+  | Pgetmethod _ -> pgetmethod
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string_arg
@@ -545,3 +548,4 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbox_float _ -> pbox_float_arg
   | Punbox_int _ -> punbox_int_arg
   | Pbox_int _ -> pbox_int_arg
+  | Pgetmethod _ -> pgetmethod_arg

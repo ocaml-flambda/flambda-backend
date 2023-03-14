@@ -505,6 +505,15 @@ let binary_float_comp_primitive _env dbg op x y =
 let binary_float_comp_primitive_yielding_int _env dbg x y =
   C.mk_compare_floats_untagged dbg x y
 
+let get_method dbg is_self obj met =
+  if is_self then
+    C.lookup_label obj met dbg
+  else
+    C.lookup_tag obj met dbg
+
+let get_cached_method dbg obj met cache pos =
+  C.get_cached_method obj met cache pos dbg
+
 (* Primitives *)
 
 let nullary_primitive _env res dbg prim =
@@ -647,6 +656,8 @@ let binary_primitive env dbg f x y =
     binary_float_comp_primitive env dbg cmp x y
   | Float_comp (Yielding_int_like_compare_functions ()) ->
     binary_float_comp_primitive_yielding_int env dbg x y
+  | Get_method { is_self } ->
+    get_method dbg is_self x y
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
@@ -658,6 +669,10 @@ let ternary_primitive _env dbg f x y z =
     bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->
     bigarray_store ~dbg kind ~bigarray:x ~index:y ~new_value:z
+
+let quaternary_primitive _env dbg f x y z w =
+  match (f : P.quaternary_primitive) with
+  | Get_cached_method -> get_cached_method dbg x y z w
 
 let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with
@@ -705,6 +720,10 @@ let trans_prim : To_cmm_env.t To_cmm_env.trans_prim =
       (fun env res dbg prim x y z ->
         let cmm = ternary_primitive env dbg prim x y z in
         None, res, cmm);
+    quaternary =
+      (fun env res dbg prim x y z w ->
+         let cmm = quaternary_primitive env dbg prim x y z w in
+         None, res, cmm);
     variadic =
       (fun env res dbg prim args ->
         let cmm = variadic_primitive env dbg prim args in
@@ -730,7 +749,7 @@ let consider_inlining_effectful_expressions p =
      evaluation order and does not duplicate any arguments. *)
   match[@ocaml.warning "-4"] (p : P.t) with
   | Variadic ((Make_block _ | Make_array _), _) -> Some true
-  | Nullary _ | Unary _ | Binary _ | Ternary _ -> None
+  | Nullary _ | Unary _ | Binary _ | Ternary _ | Quaternary _ -> None
 
 let prim_simple env res dbg p =
   let consider_inlining_effectful_expressions =
@@ -780,6 +799,21 @@ let prim_simple env res dbg p =
     let effs = Ece.join (Ece.join x.effs y.effs) z.effs in
     let expr = ternary_primitive env dbg ternary x.cmm y.cmm z.cmm in
     Env.simple expr free_vars, None, env, res, effs
+  | Quaternary (quaternary, x, y, z, w) ->
+    let To_cmm_env.{ env; res; expr = x } = arg env res x in
+    let To_cmm_env.{ env; res; expr = y } = arg env res y in
+    let To_cmm_env.{ env; res; expr = z } = arg env res z in
+    let To_cmm_env.{ env; res; expr = w } = arg env res w in
+    let free_vars =
+      Backend_var.Set.union
+        (Backend_var.Set.union
+           (Backend_var.Set.union x.free_vars y.free_vars)
+           z.free_vars)
+        w.free_vars
+    in
+    let effs = Ece.join (Ece.join (Ece.join x.effs y.effs) z.effs) w.effs in
+    let expr = quaternary_primitive env dbg quaternary x.cmm y.cmm z.cmm w.cmm in
+    Env.simple expr free_vars, None, env, res, effs
   | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
     let args, free_vars, env, res, effs =
       arg_list ?consider_inlining_effectful_expressions ~dbg env res l
@@ -815,6 +849,14 @@ let prim_complex env res dbg p =
       let To_cmm_env.{ env; res; expr = z } = arg env res z in
       let effs = Ece.join (Ece.join x.effs y.effs) z.effs in
       prim', [x; y; z], effs, env, res
+    | Quaternary (quaternary, x, y, z, w) ->
+      let prim' = P.Without_args.Quaternary quaternary in
+      let To_cmm_env.{ env; res; expr = x } = arg env res x in
+      let To_cmm_env.{ env; res; expr = y } = arg env res y in
+      let To_cmm_env.{ env; res; expr = z } = arg env res z in
+      let To_cmm_env.{ env; res; expr = w } = arg env res w in
+      let effs = Ece.join (Ece.join (Ece.join x.effs y.effs) z.effs) w.effs in
+      prim', [x; y; z; w], effs, env, res
     | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
       let prim' = P.Without_args.Variadic variadic in
       let args, env, res, effs =

@@ -63,6 +63,11 @@ type 'env trans_prim =
         P.ternary_primitive,
         Cmm.expression -> Cmm.expression -> Cmm.expression -> prim_res )
       prim_helper;
+    quaternary :
+      ( 'env,
+        P.quaternary_primitive,
+        Cmm.expression -> Cmm.expression -> Cmm.expression -> Cmm.expression -> prim_res )
+        prim_helper;
     variadic :
       ('env, P.variadic_primitive, Cmm.expression list -> prim_res) prim_helper
   }
@@ -532,9 +537,11 @@ let rebuild_prim ~dbg ~env ~res prim args =
     | Binary binary, [x; y] -> env.trans_prim.binary env res dbg binary x y
     | Ternary ternary, [x; y; z] ->
       env.trans_prim.ternary env res dbg ternary x y z
+    | Quaternary quaternary, [x; y; z; w] ->
+      env.trans_prim.quaternary env res dbg quaternary x y z w
     | Variadic variadic, args ->
       env.trans_prim.variadic env res dbg variadic args
-    | (Nullary _ | Unary _ | Binary _ | Ternary _), _ ->
+    | (Nullary _ | Unary _ | Binary _ | Ternary _ | Quaternary _), _ ->
       Misc.fatal_errorf
         "Mismatched arity when splitting a binding in to_cmm_env:@\n%a@\n%a"
         Flambda_primitive.Without_args.print prim

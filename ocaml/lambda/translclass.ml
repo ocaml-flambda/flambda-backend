@@ -579,6 +579,9 @@ let transl_class_rebind ~scopes cl vf =
 
 (* Rewrite a closure using builtins. Improves native code size. *)
 
+(* CR ncourant: builtin methods are incorrect in the presence of unboxed arguments or returns.
+   Should this be re-enabled, only when we are sure we have only values? *)
+(*
 let const_path local = function
     Lvar id -> not (List.mem id local)
   | Lconst _ -> true
@@ -596,7 +599,7 @@ let rec builtin_meths self env env2 body =
         "var", [Lvar n]
     | Lprim(Pfield (n, _), [Lvar e], _) when Ident.same e env ->
         "env", [Lvar env2; Lconst(const_int n)]
-    | Lsend(Self, met, Lvar s, [], _, _, _, _) when List.mem s self ->
+    | Lapply{ap_func = Lprim(Pgetmethod Self, [met; Lvar s], _); ap_args = [_]} when List.mem s self ->
         "meth", [met]
     | _ -> raise Not_found
   in
@@ -611,15 +614,15 @@ let rec builtin_meths self env env2 body =
   | Lapply{ap_func = f; ap_args = [p; arg]} when const_path f && const_path p ->
       let s, args = conv arg in
       ("app_const_"^s, f :: p :: args)
-  | Lsend(Self, Lvar n, Lvar s, [arg], _, _, _, _) when List.mem s self ->
+  | Lapply{ap_func = Lprim(Pgetmethod Self, [Lvar n; Lvar s], _); ap_args = [_; arg]} when List.mem s self ->
       let s, args = conv arg in
       ("meth_app_"^s, Lvar n :: args)
-  | Lsend(Self, met, Lvar s, [], _, _, _, _) when List.mem s self ->
+  | Lapply{ap_func = Lprim(Pgetmethod Self, [met; Lvar s], _); ap_args = [_]} when List.mem s self ->
       ("get_meth", [met])
-  | Lsend(Public, met, arg, [], _, _, _, _) ->
+  | Lapply{ap_func = Lprim(Pgetmethod Public, [met; arg], _); ap_args = [_]} ->
       let s, args = conv arg in
       ("send_"^s, met :: args)
-  | Lsend(Cached, met, arg, [_;_], _, _, _, _) ->
+  | Lapply{ap_func = Lprim(Pgetmethod Cached, [met; arg; _; _], _); ap_args = [_]} ->
       let s, args = conv arg in
       ("send_"^s, met :: args)
   | Lfunction {kind = Curried _; params = [x, _]; body} ->
@@ -634,6 +637,8 @@ let rec builtin_meths self env env2 body =
   | Lfunction _ -> raise Not_found
   | _ ->
       let s, args = conv body in ("get_"^s, args)
+*)
+let builtin_meths _self _env _env2 _body = raise Not_found
 
 module M = struct
   open CamlinternalOO
@@ -701,9 +706,8 @@ let free_methods l =
   let rec free l =
     Lambda.iter_head_constructor free l;
     match l with
-    | Lsend(Self, Lvar meth, _, _, _, _, _, _) ->
+    | Lprim(Pgetmethod Self, Lvar meth :: _, _) ->
         fv := Ident.Set.add meth !fv
-    | Lsend _ -> ()
     | Lfunction{params} ->
         List.iter (fun (param, _) -> fv := Ident.Set.remove param !fv) params
     | Llet(_, _k, id, _arg, _body)
