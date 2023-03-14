@@ -1462,7 +1462,7 @@ let close_functions acc external_env ~current_region function_declarations =
             | None -> Ident.name id
             | Some var -> Variable.name var
           in
-          let _, kind = Env.find_var external_env id in
+          let _, kind = find_simple_from_id_with_kind external_env id in
           Ident.Map.add id (Value_slot.create compilation_unit ~name, kind) map)
       (Function_decls.all_free_idents function_declarations)
       Ident.Map.empty
