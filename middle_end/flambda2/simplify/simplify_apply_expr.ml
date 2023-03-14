@@ -763,9 +763,9 @@ let simplify_direct_function_call ~simplify_expr dacc apply
            (propagated through Lambda to this point), and it would be wrong to
            compare against the return arity of the fully-applied function.
 
-           - In the overapplication case, we only have the correct return arity
-           from the application expression, so all we can do is check that the
-           function being overapplied returns kind Value. *)
+           - In the overapplication case, the correct return arity is only
+           present on the application expression, so all we can do is check that
+           the function being overapplied returns kind Value. *)
         if not
              (Flambda_arity.equal
                 (Flambda_arity.With_subkinds.to_arity result_arity)
