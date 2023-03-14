@@ -764,7 +764,8 @@ let simplify_direct_function_call ~simplify_expr dacc apply
            compare against the return arity of the fully-applied function.
 
            - In the overapplication case, we only have the correct return arity
-           from the application expression, with nothing to compare against. *)
+           from the application expression, so all we can do is check that the
+           function being overapplied returns kind Value. *)
         if not
              (Flambda_arity.equal
                 (Flambda_arity.With_subkinds.to_arity result_arity)
@@ -781,10 +782,19 @@ let simplify_direct_function_call ~simplify_expr dacc apply
           ~params_arity ~result_arity ~result_types ~down_to_up
           ~coming_from_indirect ~callee's_code_metadata)
       else if provided_num_args > num_params
-      then
+      then (
+        (* See comment above. *)
+        if not
+             (Flambda_arity.is_singleton_value
+                (Flambda_arity.With_subkinds.to_arity result_arity))
+        then
+          Misc.fatal_errorf
+            "Non-singleton-value return arity for overapplied OCaml function:@ \
+             %a"
+            Apply.print apply;
         simplify_direct_over_application ~simplify_expr dacc apply ~down_to_up
           ~coming_from_indirect ~apply_alloc_mode ~current_region
-          ~callee's_code_id ~callee's_code_metadata
+          ~callee's_code_id ~callee's_code_metadata)
       else if provided_num_args > 0 && provided_num_args < num_params
       then (
         (* See comment above. *)
@@ -794,8 +804,8 @@ let simplify_direct_function_call ~simplify_expr dacc apply
                    result_arity_of_application))
         then
           Misc.fatal_errorf
-            "Non-singleton-value return arity for partially OCaml function \
-             call:@ %a"
+            "Non-singleton-value return arity for partially-applied OCaml \
+             function:@ %a"
             Apply.print apply;
         simplify_direct_partial_application ~simplify_expr dacc apply
           ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
