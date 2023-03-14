@@ -1116,7 +1116,7 @@ let curry_function_sym function_kind arity result =
       | _ -> "_R" ^ machtype_identifier result)
     ^ if nlocal > 0 then "L" ^ Int.to_string nlocal else ""
   | Lambda.Tupled -> (
-    if List.exists (function [| Val |] -> false | _ -> true) arity
+    if List.exists (function [| Val |] | [| Int |] -> false | _ -> true) arity
     then
       Misc.fatal_error
         "tuplify_function is currently unsupported if arity contains non-values";
@@ -2523,7 +2523,7 @@ let apply_function (arity, result, mode) =
  *)
 
 let tuplify_function arity return =
-  if List.exists (function [| Val |] -> false | _ -> true) arity
+  if List.exists (function [| Val |] | [| Int |] -> false | _ -> true) arity
   then
     Misc.fatal_error
       "tuplify_function is currently unsupported if arity contains non-values";
