@@ -1106,9 +1106,9 @@ let apply_function_sym arity result mode =
   apply_function_name arity result mode
 
 let curry_function_sym function_kind arity result =
-  Compilenv.need_curry_fun function_kind arity result;
   match function_kind with
   | Lambda.Curried { nlocal } ->
+    Compilenv.need_curry_fun function_kind arity result;
     "caml_curry"
     ^ unique_arity_identifier arity
     ^ (match result with
@@ -1120,6 +1120,11 @@ let curry_function_sym function_kind arity result =
     then
       Misc.fatal_error
         "tuplify_function is currently unsupported if arity contains non-values";
+    (* Always use [Val] to ensure we don't generate duplicate tuplify functions
+       when [Int] machtypes are involved. *)
+    Compilenv.need_curry_fun function_kind
+      (List.map (fun _ -> [| Val |]) arity)
+      result;
     "caml_tuplify"
     ^ Int.to_string (List.length arity)
     ^
