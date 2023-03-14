@@ -220,7 +220,9 @@ let closure_with_at_least_these_function_slots ~this_function_slot
 
 let closure_with_at_least_these_value_slots ~this_function_slot value_slots =
   let value_slot_types =
-    let type_of_var v = TG.alias_type_of K.value (Simple.var v) in
+    let type_of_var (v, kind) =
+      TG.alias_type_of (K.With_subkind.kind kind) (Simple.var v)
+    in
     let value_slot_components_by_index =
       Value_slot.Map.map type_of_var value_slots
     in
@@ -241,9 +243,9 @@ let closure_with_at_least_these_value_slots ~this_function_slot value_slots =
   TG.create_closures (Alloc_mode.For_types.unknown ()) by_function_slot
 
 let closure_with_at_least_this_value_slot ~this_function_slot value_slot
-    ~value_slot_var =
+    ~value_slot_var ~value_slot_kind =
   closure_with_at_least_these_value_slots ~this_function_slot
-    (Value_slot.Map.singleton value_slot value_slot_var)
+    (Value_slot.Map.singleton value_slot (value_slot_var, value_slot_kind))
 
 let type_for_const const =
   match RWC.descr const with

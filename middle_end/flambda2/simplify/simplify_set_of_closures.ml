@@ -795,7 +795,7 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
      the case where we are considering lifting a set that has not been lifted
      before, there are never any other mutually-recursive sets ([Named.t] does
      not allow them). *)
-  let[@inline] variable_permits_lifting var =
+  let[@inline] variable_permits_lifting var kind =
     (* Variables (excluding ones bound to symbol projections; see below) in the
        definition of the set of closures will currently prevent lifting if the
        allocation mode is [Local] and we cannot show that such variables never
@@ -817,18 +817,18 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
        | Local _ -> (
          match
            T.never_holds_locally_allocated_values (DA.typing_env dacc) var
-             K.value
+             (K.With_subkind.kind kind)
          with
          | Proved () -> true
          | Unknown -> false)
        | Heap -> true
   in
-  let value_slot_permits_lifting _value_slot (simple, _kind) =
+  let value_slot_permits_lifting _value_slot (simple, kind) =
     can_lift_coercion (Simple.coercion simple)
     && Simple.pattern_match' simple
          ~const:(fun _ -> true)
          ~symbol:(fun _ ~coercion:_ -> true)
-         ~var:(fun var ~coercion:_ -> variable_permits_lifting var)
+         ~var:(fun var ~coercion:_ -> variable_permits_lifting var kind)
   in
   let can_lift =
     Name_mode.is_normal name_mode_of_bound_vars

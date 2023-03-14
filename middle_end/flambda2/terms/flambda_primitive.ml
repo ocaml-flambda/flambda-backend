@@ -934,9 +934,8 @@ let result_kind_of_unary_primitive p : result_kind =
   | Bigarray_length _ -> Singleton K.naked_immediate
   | Unbox_number kind -> Singleton (K.Boxable_number.unboxed_kind kind)
   | Untag_immediate -> Singleton K.naked_immediate
-  | Box_number _ | Tag_immediate | Project_function_slot _
-  | Project_value_slot _ ->
-    Singleton K.value
+  | Box_number _ | Tag_immediate | Project_function_slot _ -> Singleton K.value
+  | Project_value_slot { kind; _ } -> Singleton (K.With_subkind.kind kind)
   | Is_boxed_float | Is_flat_float_array -> Singleton K.naked_immediate
   | Begin_try_region -> Singleton K.region
   | End_region -> Singleton K.value

@@ -592,12 +592,17 @@ let unary_primitive env res dbg f arg =
       let message = dead_slots_msg dbg [c1; c2] [] in
       let expr, res = C.invalid res ~message in
       None, res, expr)
-  | Project_value_slot { project_from; value_slot; kind = _ } -> (
+  | Project_value_slot { project_from; value_slot; kind } -> (
     match
       value_slot_offset env value_slot, function_slot_offset env project_from
     with
     | Live_value_slot { offset; _ }, Live_function_slot { offset = base; _ } ->
-      None, res, C.get_field_gen Asttypes.Immutable arg (offset - base) dbg
+      let memory_chunk = To_cmm_shared.memory_chunk_of_kind kind in
+      let expr =
+        C.get_field_gen_given_memory_chunk memory_chunk Asttypes.Immutable arg
+          (offset - base) dbg
+      in
+      None, res, expr
     | Dead_value_slot, Live_function_slot _ ->
       let message = dead_slots_msg dbg [] [value_slot] in
       let expr, res = C.invalid res ~message in
