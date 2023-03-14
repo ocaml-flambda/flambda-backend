@@ -72,7 +72,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       in
       let name = "make" ^ mode ^ mut in
       fprintf ppf "%s %i%a" name tag Printlambda.block_shape shape
-  | Pfield n -> fprintf ppf "field %i" n
+  | Pfield (n, layout) -> fprintf ppf "field%a %i" Printlambda.layout layout n
   | Pfield_computed -> fprintf ppf "field_computed"
   | Psetfield(n, ptr, init) ->
       let instr =
