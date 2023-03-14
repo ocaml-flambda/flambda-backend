@@ -651,7 +651,7 @@ and to_clambda_set_of_closures t env
         in
         let pos = var_offset - fun_offset in
         Env.add_subst env id
-          (Uprim (Pfield (pos, layout), [Clambda.Uvar env_var], Debuginfo.none))
+          (Uprim (Pfield (pos, spec_to.kind), [Clambda.Uvar env_var], Debuginfo.none))
           spec_to.kind
       in
       let env = Variable.Map.fold add_env_free_variable free_vars env in
