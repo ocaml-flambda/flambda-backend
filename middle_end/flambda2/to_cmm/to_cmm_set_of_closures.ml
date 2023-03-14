@@ -39,11 +39,12 @@ let get_func_decl_params_arity t code_id =
   let info = Env.get_code_metadata t code_id in
   let params_ty =
     List.map
-      (fun k -> C.machtype_of_kind k)
+      (fun k -> C.machtype_of_kind (Flambda_kind.With_subkind.kind k))
       (Flambda_arity.With_subkinds.to_list (Code_metadata.params_arity info))
   in
   let result_ty =
-    C.machtype_of_return_arity (Code_metadata.result_arity info)
+    C.machtype_of_return_arity
+      (Flambda_arity.With_subkinds.to_arity (Code_metadata.result_arity info))
   in
   let kind : Lambda.function_kind =
     if Code_metadata.is_tupled info

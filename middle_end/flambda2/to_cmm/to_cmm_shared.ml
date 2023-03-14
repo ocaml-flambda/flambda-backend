@@ -39,15 +39,9 @@ let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
   | Region -> Misc.fatal_error "[Region] kind not expected here"
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
 
-let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
-  match Flambda_kind.With_subkind.kind kind with
-  | Value -> (
-    match Flambda_kind.With_subkind.subkind kind with
-    | Tagged_immediate -> Cmm.typ_int
-    | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-    | Variant _ | Float_block _ | Float_array | Immediate_array | Value_array
-    | Generic_array ->
-      Cmm.typ_val)
+let machtype_of_kind (k : Flambda_kind.t) =
+  match k with
+  | Value -> Cmm.typ_val
   | Naked_number Naked_float -> Cmm.typ_float
   | Naked_number Naked_int64 -> typ_int64
   | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) ->
@@ -72,7 +66,8 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     Misc.fatal_errorf "Bad kind %a for [memory_chunk_of_kind]"
       Flambda_kind.With_subkind.print kind
 
-let machtype_of_kinded_parameter p = Bound_parameter.kind p |> machtype_of_kind
+let machtype_of_kinded_parameter p =
+  Bound_parameter.kind p |> Flambda_kind.With_subkind.kind |> machtype_of_kind
 
 let targetint ~dbg t =
   match Targetint_32_64.repr t with
@@ -242,7 +237,7 @@ let machtype_of_return_arity arity =
   (* Functions that never return have arity 0. In that case, we use the most
      restrictive machtype to ensure that the return value of the function is not
      used. *)
-  match Flambda_arity.With_subkinds.to_list arity with
+  match Flambda_arity.to_list arity with
   | [] -> Cmm.typ_void
   (* Regular functions with a single return value *)
   | [k] -> machtype_of_kind k
