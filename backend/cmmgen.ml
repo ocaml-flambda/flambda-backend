@@ -147,15 +147,15 @@ let get_field env layout ptr n dbg =
   let mut = mut_from_env env ptr in
   let memory_chunk =
     match layout with
+    | Pvalue Pintval | Punboxed_int _ -> Word_int
     | Pvalue _ -> Word_val
     | Punboxed_float -> Double
-    | Punboxed_int _ -> Word_int
     | Ptop ->
-      Misc.fatal_error "get_field with Ptop: %s" (Debuginfo.print_compact dbg)
+        Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
     | Pbottom ->
-      Misc.fatal_error "get_field with Ptop: %s" (Debuginfo.print_compact dbg)
+        Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
   in
-  get_field_gen_with_memory_chunk memory_chunk mut ptr n dbg
+  get_field_gen_given_memory_chunk memory_chunk mut ptr n dbg
 
 type rhs_kind =
   | RHS_block of Lambda.alloc_mode * int
@@ -998,7 +998,7 @@ and transl_prim_1 env p arg dbg =
   | Pbswap16 ->
       tag_int (bswap16 (ignore_high_bit_int (untag_int
         (transl env arg) dbg)) dbg) dbg
-  | (Pfield_computed | Psequand | Psequor
+  | (Pfield_computed _ | Psequand | Psequor
     | Paddint | Psubint | Pmulint | Pandint
     | Porint | Pxorint | Plslint | Plsrint | Pasrint
     | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
@@ -1022,8 +1022,21 @@ and transl_prim_1 env p arg dbg =
 and transl_prim_2 env p arg1 arg2 dbg =
   match p with
   (* Heap operations *)
-  | Pfield_computed ->
-      addr_array_ref (transl env arg1) (transl env arg2) dbg
+  | Pfield_computed layout -> (
+      match layout with
+      | Pvalue Pintval | Punboxed_int _ ->
+          int_array_ref (transl env arg1) (transl env arg2) dbg
+      | Pvalue _ ->
+          addr_array_ref (transl env arg1) (transl env arg2) dbg
+      | Punboxed_float ->
+          unboxed_float_array_ref (transl env arg1) (transl env arg2) dbg
+      | Ptop ->
+          Misc.fatal_errorf "Pfield_computed with Ptop: %a"
+            Debuginfo.print_compact dbg
+      | Pbottom ->
+          Misc.fatal_errorf "Pfield_computed with Ptop: %a"
+            Debuginfo.print_compact dbg
+    )
   | Psetfield(n, ptr, init) ->
       setfield n ptr init (transl env arg1) (transl env arg2) dbg
   | Psetfloatfield (n, init) ->
@@ -1236,7 +1249,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
       bigstring_set size unsafe (transl env arg1) (transl env arg2)
         (transl_unbox_sized size dbg env arg3) dbg
 
-  | Pfield_computed | Psequand | Psequor | Pnot | Pnegint | Paddint
+  | Pfield_computed _ | Psequand | Psequor | Pnot | Pnegint | Paddint
   | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint | Pasrint
   | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
   | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu | Pstringrefs
