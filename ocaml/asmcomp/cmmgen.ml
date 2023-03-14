@@ -117,9 +117,20 @@ let mut_from_env env ptr =
       else Asttypes.Mutable
     | _ -> Asttypes.Mutable
 
-let get_field env ptr n dbg =
+let get_field env layout ptr n dbg =
   let mut = mut_from_env env ptr in
-  get_field_gen mut ptr n dbg
+  let memory_chunk =
+    match layout with
+    | Pvalue Pintval | Punboxed_int _ -> Word_int
+    | Pvalue _ -> Word_val
+    | Punboxed_float -> Double
+    | Ptop ->
+        Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
+    | Pbottom ->
+        Misc.fatal_errorf "get_field with Pbottom: %a" Debuginfo.print_compact
+          dbg
+  in
+  get_field_gen_given_memory_chunk memory_chunk mut ptr n dbg
 
 type rhs_kind =
   | RHS_block of Lambda.alloc_mode * int
@@ -869,8 +880,8 @@ and transl_prim_1 env p arg dbg =
     Popaque ->
       opaque (transl env arg) dbg
   (* Heap operations *)
-  | Pfield n ->
-      get_field env (transl env arg) n dbg
+  | Pfield (n, layout) ->
+      get_field env layout (transl env arg) n dbg
   | Pfloatfield (n,mode) ->
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
