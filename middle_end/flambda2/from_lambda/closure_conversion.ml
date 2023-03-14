@@ -1443,16 +1443,18 @@ let close_functions acc external_env ~current_region function_declarations =
         (* Filter out predefined exception identifiers and simple substitutions.
            The former will be turned into symbols, and the latter substituted
            when we closure-convert the body *)
-        let has_non_var_subst, subst_var =
+        let has_non_var_subst, subst_var, kind =
           match Env.find_simple_to_substitute_exn external_env id with
-          | exception Not_found -> false, None
-          | simple, _kind ->
+          | exception Not_found ->
+            let _, kind = find_simple_from_id_with_kind external_env id in
+            false, None, kind
+          | simple, kind ->
             Simple.pattern_match simple
-              ~const:(fun _ -> true, None)
+              ~const:(fun _ -> true, None, kind)
               ~name:(fun name ~coercion:_ ->
                 Name.pattern_match name
-                  ~var:(fun var -> false, Some var)
-                  ~symbol:(fun _ -> true, None))
+                  ~var:(fun var -> false, Some var, kind)
+                  ~symbol:(fun _ -> true, None, kind))
         in
         if has_non_var_subst || Ident.is_predef id
         then map
@@ -1462,7 +1464,6 @@ let close_functions acc external_env ~current_region function_declarations =
             | None -> Ident.name id
             | Some var -> Variable.name var
           in
-          let _, kind = find_simple_from_id_with_kind external_env id in
           Ident.Map.add id (Value_slot.create compilation_unit ~name, kind) map)
       (Function_decls.all_free_idents function_declarations)
       Ident.Map.empty
