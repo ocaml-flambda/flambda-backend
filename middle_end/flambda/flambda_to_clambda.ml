@@ -510,6 +510,12 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
       Debuginfo.none),
     kind
   | Prim (Pfield (index, layout), [block], dbg) ->
+    begin match layout with
+      | Pvalue _ -> ()
+      | _ ->
+        Misc.fatal_errorf "Pfield can only be of layout value %a"
+          Flambda.print_named named
+    end;
     let block, _block_layout = subst_var env block in
     Uprim (Pfield (index, layout), [check_field t block index None], dbg),
     Lambda.layout_field
