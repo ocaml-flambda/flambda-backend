@@ -2446,7 +2446,7 @@ let get_cached_method obj met cache pos dbg =
               alloc = false;
               ty_args = []
             },
-          [obj; met; array_indexing log2_size_addr cache pos dbg],
+          [obj; met; cache; pos],
           dbg )
 
 (*
