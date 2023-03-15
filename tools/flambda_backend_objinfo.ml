@@ -185,8 +185,7 @@ let print_generic_fns gfns =
           (unique_arity_identifier arity)
           (return_arity_identifier result)) fns in
   printf "Currying functions:%a\n" pr_cfuns gfns.curry_fun;
-  printf "Apply functions:%a\n" pr_afuns gfns.apply_fun;
-  printf "Send functions:%a\n" pr_afuns gfns.send_fun
+  printf "Apply functions:%a\n" pr_afuns gfns.apply_fun
 
 let print_cmx_infos (uir, sections, crc) =
   print_general_infos Compilation_unit.output uir.uir_unit crc uir.uir_defines

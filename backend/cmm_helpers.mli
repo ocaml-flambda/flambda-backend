@@ -358,29 +358,6 @@ val lookup_tag : expression -> expression -> Debuginfo.t -> expression
     a tagged integer *)
 val lookup_label : expression -> expression -> Debuginfo.t -> expression
 
-(** Lookup and call a method using the method cache. Arguments:
-
-    - obj : the object from which to lookup
-
-    - tag : the hash of the method name, as a tagged integer
-
-    - cache : the method cache array
-
-    - pos : the position of the cache entry in the cache array
-
-    - args : the additional arguments to the method call *)
-val call_cached_method :
-  expression ->
-  expression ->
-  expression ->
-  expression ->
-  expression list ->
-  machtype list ->
-  machtype ->
-  Clambda.apply_kind ->
-  Debuginfo.t ->
-  expression
-
 val get_cached_method :
   expression -> expression -> expression -> expression -> Debuginfo.t -> expression
 
@@ -775,27 +752,6 @@ val direct_apply :
     closure. *)
 val generic_apply :
   Asttypes.mutable_flag ->
-  expression ->
-  expression list ->
-  machtype list ->
-  machtype ->
-  Clambda.apply_kind ->
-  Debuginfo.t ->
-  expression
-
-(** Method call : [send kind met obj args dbg]
-
-    - [met] is a method identifier, which can be a hashed variant or an index in
-    [obj]'s method table, depending on [kind]
-
-    - [obj] is the object whose method is being called
-
-    - [args] is the extra arguments to the method call (Note: I'm not aware of
-    any way for the frontend to generate any arguments other than the cache and
-    cache position) *)
-val send :
-  Lambda.meth_kind ->
-  expression ->
   expression ->
   expression list ->
   machtype list ->

@@ -1002,23 +1002,6 @@ let unique_arity_identifier arity =
   then Int.to_string (List.length arity)
   else String.concat "_" (List.map machtype_identifier arity)
 
-let send_function_name arity result (mode : Lambda.alloc_mode) =
-  let res =
-    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
-  in
-  let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
-  "caml_send" ^ unique_arity_identifier arity ^ res ^ suff
-
-let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
-    =
-  let cache = array_indexing log2_size_addr cache pos dbg in
-  Compilenv.need_send_fun args_type result mode;
-  Cop
-    ( Capply (result, apos),
-      Cconst_symbol (send_function_name args_type result mode, dbg)
-      :: obj :: tag :: cache :: args,
-      dbg )
-
 (* Allocation *)
 
 let make_alloc_generic ~mode set_fn dbg tag wordsize args =
@@ -2181,117 +2164,6 @@ let generic_apply mut clos args args_type result (pos, mode) dbg =
           (Capply (result, pos), [get_field_gen mut clos 0 dbg; arg; clos], dbg))
   | _ -> call_caml_apply result args_type mut clos args pos mode dbg
 
-let send kind met obj args args_type result akind dbg =
-  let call_met obj args args_type clos =
-    (* met is never a simple expression, so it never gets turned into an
-       Immutable load *)
-    generic_apply Asttypes.Mutable clos (obj :: args) (typ_val :: args_type)
-      result akind dbg
-  in
-  bind "obj" obj (fun obj ->
-      match (kind : Lambda.meth_kind), args, args_type with
-      | Self, _, _ ->
-        bind "met" (lookup_label obj met dbg) (call_met obj args args_type)
-      | Cached, cache :: pos :: args, _ :: _ :: args_type ->
-        call_cached_method obj met cache pos args args_type result akind dbg
-      | _ -> bind "met" (lookup_tag obj met dbg) (call_met obj args args_type))
-
-(*
- * CAMLprim value caml_cache_public_method (value meths, value tag,
- *                                          value *cache)
- * {
- *   int li = 3, hi = Field(meths,0), mi;
- *   while (li < hi) { // no need to check the 1st time
- *     mi = ((li+hi) >> 1) | 1;
- *     if (tag < Field(meths,mi)) hi = mi-2;
- *     else li = mi;
- *   }
- *   *cache = (li-3)*sizeof(value)+1;
- *   return Field (meths, li-1);
- * }
- *)
-
-let cache_public_method meths tag cache dbg =
-  let raise_num = Lambda.next_raise_count () in
-  let cconst_int i = Cconst_int (i, dbg) in
-  let li = V.create_local "*li*"
-  and hi = V.create_local "*hi*"
-  and mi = V.create_local "*mi*"
-  and tagged = V.create_local "*tagged*" in
-  Clet_mut
-    ( VP.create li,
-      typ_int,
-      cconst_int 3,
-      Clet_mut
-        ( VP.create hi,
-          typ_int,
-          Cop (Cload (Word_int, Mutable), [meths], dbg),
-          Csequence
-            ( ccatch
-                ( raise_num,
-                  [],
-                  create_loop
-                    (Clet
-                       ( VP.create mi,
-                         Cop
-                           ( Cor,
-                             [ Cop
-                                 ( Clsr,
-                                   [ Cop (Caddi, [Cvar li; Cvar hi], dbg);
-                                     cconst_int 1 ],
-                                   dbg );
-                               cconst_int 1 ],
-                             dbg ),
-                         Csequence
-                           ( Cifthenelse
-                               ( Cop
-                                   ( Ccmpi Clt,
-                                     [ tag;
-                                       Cop
-                                         ( Cload (Word_int, Mutable),
-                                           [ Cop
-                                               ( Cadda,
-                                                 [ meths;
-                                                   lsl_const (Cvar mi)
-                                                     log2_size_addr dbg ],
-                                                 dbg ) ],
-                                           dbg ) ],
-                                     dbg ),
-                                 dbg,
-                                 Cassign
-                                   ( hi,
-                                     Cop (Csubi, [Cvar mi; cconst_int 2], dbg)
-                                   ),
-                                 dbg,
-                                 Cassign (li, Cvar mi),
-                                 dbg,
-                                 Vint (* unit *) ),
-                             Cifthenelse
-                               ( Cop (Ccmpi Cge, [Cvar li; Cvar hi], dbg),
-                                 dbg,
-                                 Cexit (Lbl raise_num, [], []),
-                                 dbg,
-                                 Ctuple [],
-                                 dbg,
-                                 Vint (* unit *) ) ) ))
-                    dbg,
-                  Ctuple [],
-                  dbg,
-                  Vint (* unit *) ),
-              Clet
-                ( VP.create tagged,
-                  Cop
-                    ( Caddi,
-                      [ lsl_const (Cvar li) log2_size_addr dbg;
-                        cconst_int (1 - (3 * size_addr)) ],
-                      dbg ),
-                  Csequence
-                    ( Cop
-                        ( Cstore (Word_int, Assignment),
-                          [cache; Cvar tagged],
-                          dbg ),
-                      Cvar tagged ) ) ) ) )
-
 let has_local_allocs e =
   let rec loop = function
     | Cregion e ->
@@ -2448,121 +2320,6 @@ let get_cached_method obj met cache pos dbg =
             },
           [obj; met; cache; pos],
           dbg )
-
-(*
-  let cconst_int i = Cconst_int (i, dbg) in
-  let cache_var = V.create_local "cache" and obj_var = V.create_local "obj" and tag_var = V.create_local "tag" in
-  let clos =
-    let cache = Cvar cache_var and obj = Cvar obj_var and tag = Cvar tag_var in
-    let meths = V.create_local "meths" and cached = V.create_local "cached" in
-    let real = V.create_local "real" in
-    let mask = get_field_gen Asttypes.Mutable (Cvar meths) 1 dbg in
-    let cached_pos = Cvar cached in
-    let tag_pos =
-      Cop
-        ( Cadda,
-          [ Cop (Cadda, [cached_pos; Cvar meths], dbg);
-            cconst_int ((3 * size_addr) - 1) ],
-          dbg)
-    in
-    let tag' = Cop (Cload (Word_int, Mutable), [tag_pos], dbg) in
-    Clet
-      ( VP.create meths,
-        Cop (Cload (Word_val, Mutable), [obj], dbg),
-        Clet
-          ( VP.create cached,
-            Cop
-              ( Cand,
-                [Cop (Cload (Word_int, Mutable), [cache], dbg); mask],
-                dbg  ),
-            Clet
-              ( VP.create real,
-                Cifthenelse
-                  ( Cop (Ccmpa Cne, [tag'; tag], dbg),
-                    dbg,
-                    cache_public_method (Cvar meths) tag cache (dbg),
-                    dbg,
-                    cached_pos,
-                    dbg,
-                    Vval Pgenval ),
-                Cop
-                  ( Cload (Word_val, Mutable),
-                    [ Cop
-                        ( Cadda,
-                          [ Cop (Cadda, [Cvar real; Cvar meths], dbg);
-                            cconst_int ((2 * size_addr) - 1) ],
-                          dbg ) ],
-                    dbg ) ) ) )
-  in
-  Clet(VP.create obj_var, obj,
-      Clet (VP.create tag_var, met,
-            Clet (VP.create cache_var, array_indexing log2_size_addr cache pos dbg, clos)))
-*)
-let send_function (arity, result, mode) =
-  let dbg = placeholder_dbg in
-  let cconst_int i = Cconst_int (i, dbg ()) in
-  let args, clos', body = apply_function_body (typ_val :: arity) result mode in
-  let cache = V.create_local "cache"
-  and obj = List.hd args
-  and tag = V.create_local "tag" in
-  let clos =
-    let cache = Cvar cache and obj = Cvar obj and tag = Cvar tag in
-    let meths = V.create_local "meths" and cached = V.create_local "cached" in
-    let real = V.create_local "real" in
-    let mask = get_field_gen Asttypes.Mutable (Cvar meths) 1 (dbg ()) in
-    let cached_pos = Cvar cached in
-    let tag_pos =
-      Cop
-        ( Cadda,
-          [ Cop (Cadda, [cached_pos; Cvar meths], dbg ());
-            cconst_int ((3 * size_addr) - 1) ],
-          dbg () )
-    in
-    let tag' = Cop (Cload (Word_int, Mutable), [tag_pos], dbg ()) in
-    Clet
-      ( VP.create meths,
-        Cop (Cload (Word_val, Mutable), [obj], dbg ()),
-        Clet
-          ( VP.create cached,
-            Cop
-              ( Cand,
-                [Cop (Cload (Word_int, Mutable), [cache], dbg ()); mask],
-                dbg () ),
-            Clet
-              ( VP.create real,
-                Cifthenelse
-                  ( Cop (Ccmpa Cne, [tag'; tag], dbg ()),
-                    dbg (),
-                    cache_public_method (Cvar meths) tag cache (dbg ()),
-                    dbg (),
-                    cached_pos,
-                    dbg (),
-                    Vval Pgenval ),
-                Cop
-                  ( Cload (Word_val, Mutable),
-                    [ Cop
-                        ( Cadda,
-                          [ Cop (Cadda, [Cvar real; Cvar meths], dbg ());
-                            cconst_int ((2 * size_addr) - 1) ],
-                          dbg () ) ],
-                    dbg () ) ) ) )
-  in
-  let body = Clet (VP.create clos', clos, body) in
-  let cache = cache in
-  let fun_name = send_function_name arity result mode in
-  let fun_args =
-    [obj, typ_val; tag, typ_int; cache, typ_addr]
-    @ List.map (fun id -> id, typ_val) (List.tl args)
-  in
-  let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
-  Cfunction
-    { fun_name;
-      fun_args = List.map (fun (arg, ty) -> VP.create arg, ty) fun_args;
-      fun_body = body;
-      fun_codegen_options = [];
-      fun_dbg;
-      fun_poll = Default_poll
-    }
 
 let apply_function (arity, result, mode) =
   let args, clos, body = apply_function_body arity result mode in
@@ -2845,8 +2602,7 @@ let default_generic_fns : Cmx_format.generic_fns =
   { curry_fun = [];
     apply_fun =
       [ [typ_val; typ_val], typ_val, Lambda.alloc_heap;
-        [typ_val; typ_val; typ_val], typ_val, Lambda.alloc_heap ];
-    send_fun = []
+        [typ_val; typ_val; typ_val], typ_val, Lambda.alloc_heap ]
   }
 (* These apply funs are always present in the main program because the run-time
    system needs them (cf. runtime/<arch>.S) . *)
@@ -2854,20 +2610,17 @@ let default_generic_fns : Cmx_format.generic_fns =
 module Generic_fns_tbl = struct
   type t =
     { curry : (Lambda.function_kind * machtype list * machtype, unit) Hashtbl.t;
-      apply : (machtype list * machtype * Lambda.alloc_mode, unit) Hashtbl.t;
-      send : (machtype list * machtype * Lambda.alloc_mode, unit) Hashtbl.t
+      apply : (machtype list * machtype * Lambda.alloc_mode, unit) Hashtbl.t
     }
 
   let make () =
     { curry = Hashtbl.create 10;
-      apply = Hashtbl.create 10;
-      send = Hashtbl.create 10
+      apply = Hashtbl.create 10
     }
 
-  let add t Cmx_format.{ curry_fun; apply_fun; send_fun } =
+  let add t Cmx_format.{ curry_fun; apply_fun } =
     List.iter (fun f -> Hashtbl.replace t.curry f ()) curry_fun;
-    List.iter (fun f -> Hashtbl.replace t.apply f ()) apply_fun;
-    List.iter (fun f -> Hashtbl.replace t.send f ()) send_fun
+    List.iter (fun f -> Hashtbl.replace t.apply f ()) apply_fun
 
   let of_fns fns =
     let t = make () in
@@ -2880,18 +2633,16 @@ module Generic_fns_tbl = struct
       List.sort compare keys
     in
     { curry_fun = sorted_keys t.curry;
-      apply_fun = sorted_keys t.apply;
-      send_fun = sorted_keys t.send
+      apply_fun = sorted_keys t.apply
     }
 end
 
 let generic_functions shared tbl =
   if not shared then Generic_fns_tbl.add tbl default_generic_fns;
-  let ({ curry_fun; apply_fun; send_fun } : Cmx_format.generic_fns) =
+  let ({ curry_fun; apply_fun } : Cmx_format.generic_fns) =
     Generic_fns_tbl.entries tbl
   in
   List.concat_map curry_function curry_fun
-  @ List.map send_function send_fun
   @ List.map apply_function apply_fun
 
 (* Primitives *)

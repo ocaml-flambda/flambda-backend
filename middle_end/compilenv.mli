@@ -72,10 +72,8 @@ val need_curry_fun:
   Lambda.function_kind -> Cmm.machtype list -> Cmm.machtype -> unit
 val need_apply_fun:
   Cmm.machtype list -> Cmm.machtype -> Lambda.alloc_mode -> unit
-val need_send_fun:
-  Cmm.machtype list -> Cmm.machtype -> Lambda.alloc_mode -> unit
-        (* Record the need of a currying (resp. application,
-           message sending) function with the given arity *)
+        (* Record the need of a currying (resp. application)
+           function with the given arity *)
 
 module Checks : sig
   type t = Cmx_format.checks  (* mutable state *)

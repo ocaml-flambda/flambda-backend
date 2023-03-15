@@ -123,7 +123,7 @@ let current_unit =
     ui_defines = [];
     ui_imports_cmi = [];
     ui_imports_cmx = [];
-    ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
+    ui_generic_fns = { curry_fun = []; apply_fun = [] };
     ui_force_link = false;
     ui_checks = Checks.create ();
     ui_export_info = default_ui_export_info }
@@ -138,7 +138,7 @@ let reset compilation_unit =
   current_unit.ui_imports_cmi <- [];
   current_unit.ui_imports_cmx <- [];
   current_unit.ui_generic_fns <-
-    { curry_fun = []; apply_fun = []; send_fun = [] };
+    { curry_fun = []; apply_fun = [] };
   current_unit.ui_force_link <- !Clflags.link_everything;
   Checks.reset current_unit.ui_checks;
   Hashtbl.clear exported_constants;
@@ -335,12 +335,6 @@ let need_apply_fun arity result mode =
   if not (List.mem (arity, result, mode) fns.apply_fun) then
     current_unit.ui_generic_fns <-
       { fns with apply_fun = (arity, result, mode) :: fns.apply_fun }
-
-let need_send_fun arity result mode =
-  let fns = current_unit.ui_generic_fns in
-  if not (List.mem (arity, result, mode) fns.send_fun) then
-    current_unit.ui_generic_fns <-
-      { fns with send_fun = (arity, result, mode) :: fns.send_fun }
 
 (* Write the description of the current unit *)
 

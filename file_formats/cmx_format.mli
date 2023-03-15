@@ -50,8 +50,7 @@ type apply_fn := machtype list * machtype * Lambda.alloc_mode
 (* Curry/apply/send functions *)
 type generic_fns =
   { curry_fun: (Lambda.function_kind * machtype list * machtype) list;
-    apply_fun: apply_fn list;
-    send_fun: apply_fn list }
+    apply_fun: apply_fn list }
 
 (* Symbols of function that pass certain checks for special properties. *)
 type checks =

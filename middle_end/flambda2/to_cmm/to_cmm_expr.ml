@@ -197,23 +197,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       env,
       res,
       Ece.all )
-  | Call_kind.Method { kind; obj; alloc_mode } ->
-    fail_if_probe apply;
-    let To_cmm_env.
-          { env;
-            res;
-            expr = { cmm = obj; free_vars = obj_free_vars; effs = _ }
-          } =
-      C.simple ~dbg env res obj
-    in
-    let free_vars = Backend_var.Set.union free_vars obj_free_vars in
-    let kind = Call_kind.Method_kind.to_lambda kind in
-    let alloc_mode = Alloc_mode.For_types.to_lambda alloc_mode in
-    ( C.send kind callee obj args args_ty return_ty (pos, alloc_mode) dbg,
-      free_vars,
-      env,
-      res,
-      Ece.all )
+  | Call_kind.Method _ -> assert false
 
 (* Function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra
