@@ -896,12 +896,6 @@ let blocks env block1 block2 =
     ~subst3:(fun env -> List.map (subst_field env))
     env block1 block2
 
-let method_kinds _env (method_kind1 : Call_kind.Method_kind.t)
-    (method_kind2 : Call_kind.Method_kind.t) :
-    Call_kind.Method_kind.t Comparison.t =
-  match method_kind1, method_kind2 with
-  | Self, Self | Public, Public | Cached, Cached -> Equivalent
-  | _, _ -> Different { approximant = method_kind1 }
 
 let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     Call_kind.t Comparison.t =
@@ -928,19 +922,6 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
         { function_call = Indirect_unknown_arity; alloc_mode = alloc_mode2 } )
     ->
     compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f:(fun () -> Equivalent)
-  | ( Method { kind = kind1; obj = obj1; alloc_mode = alloc_mode1 },
-      Method { kind = kind2; obj = obj2; alloc_mode = alloc_mode2 } ) ->
-    if Alloc_mode.For_types.compare alloc_mode1 alloc_mode2 = 0
-    then
-      pairs ~f1:method_kinds ~f2:simple_exprs ~subst2:subst_simple env
-        (kind1, obj1) (kind2, obj2)
-      |> Comparison.map ~f:(fun (kind, obj) ->
-             Call_kind.method_call kind ~obj alloc_mode1)
-    else
-      Different
-        { approximant =
-            Call_kind.method_call kind1 ~obj:(subst_simple env obj1) alloc_mode1
-        }
   | ( C_call { alloc = alloc1; is_c_builtin = _ },
       C_call { alloc = alloc2; is_c_builtin = _ } ) ->
     if Bool.equal alloc1 alloc2
