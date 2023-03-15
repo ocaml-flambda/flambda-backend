@@ -151,8 +151,7 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
     in
     after_rebuild body uacc
 
-let record_one_value_slot_for_data_flow symbol value_slot (simple, _kind)
-    data_flow =
+let record_one_value_slot_for_data_flow symbol value_slot simple data_flow =
   Flow.Acc.record_value_slot (Name.symbol symbol) value_slot
     (Simple.free_names simple) data_flow
 
