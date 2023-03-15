@@ -265,11 +265,15 @@ val addr_array_ref : expression -> expression -> Debuginfo.t -> expression
 val int_array_ref : expression -> expression -> Debuginfo.t -> expression
 val unboxed_float_array_ref :
   expression -> expression -> Debuginfo.t -> expression
-val float_array_ref : expression -> expression -> Debuginfo.t -> expression
-val addr_array_set :
+val float_array_ref :
+  Lambda.alloc_mode -> expression -> expression -> Debuginfo.t -> expression
+val addr_array_set_heap :
   expression -> expression -> expression -> Debuginfo.t -> expression
 val addr_array_set_local :
   expression -> expression -> expression -> Debuginfo.t -> expression
+val addr_array_set :
+  Lambda.modify_mode -> expression -> expression -> expression -> Debuginfo.t ->
+  expression
 val int_array_set :
   expression -> expression -> expression -> Debuginfo.t -> expression
 val float_array_set :
@@ -555,9 +559,9 @@ val bigstring_load :
 
 (** Arrays *)
 
-(** Array access. Args: array, index *)
-val arrayref_unsafe : Lambda.array_kind -> binary_primitive
-val arrayref_safe : Lambda.array_kind -> binary_primitive
+(** Array access.  Args: array, index *)
+val arrayref_unsafe : Lambda.array_ref_kind -> binary_primitive
+val arrayref_safe : Lambda.array_ref_kind -> binary_primitive
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -578,8 +582,8 @@ val bytesset_safe : ternary_primitive
     _unboxed_ float. Otherwise, it is expected to be a regular caml value,
     including in the case where the array contains floats.
     Args: array, index, value *)
-val arrayset_unsafe : Lambda.array_kind -> ternary_primitive
-val arrayset_safe : Lambda.array_kind -> ternary_primitive
+val arrayset_unsafe : Lambda.array_set_kind -> ternary_primitive
+val arrayset_safe : Lambda.array_set_kind -> ternary_primitive
 
 (** Set a chunk of data in the given bytes or bigstring structure.
     See also [string_load] and [bigstring_load].

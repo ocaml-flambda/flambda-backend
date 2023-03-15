@@ -1,0 +1,4 @@
+    access from literal: No Allocation
+access from Iarray.init: No Allocation
+       match on literal: Allocation
+   match on Iarray.init: Allocation
