@@ -631,11 +631,11 @@ let rec transl env e =
                        dbg)) dbg
       | (Pprobe_is_enabled {name}, []) ->
           tag_int (Cop(Cprobe_is_enabled {name}, [], dbg)) dbg
-      | (Pgetmethod ((Self | Public) as k), [obj; tag]) ->
+      | (Pgetmethod ((Self | Public) as k), [tag; obj]) ->
         let obj = transl env obj in
         let tag = transl env tag in
         if k = Self then lookup_label obj tag dbg else lookup_tag obj tag dbg
-      | (Pgetmethod Cached, [obj; tag; cache; pos]) ->
+      | (Pgetmethod Cached, [tag; obj; cache; pos]) ->
         let obj = transl env obj in
         let tag = transl env tag in
         let cache = transl env cache in
