@@ -2435,6 +2435,21 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
           Vval Pgenval (* incorrect but only used for unboxing *) ) )
 
 let get_cached_method obj met cache pos dbg =
+      Cop
+        ( Cextcall
+            { func = "caml_get_cached_public_method";
+              ty = typ_val;
+              builtin = false;
+              returns = true;
+              effects = Arbitrary_effects;
+              coeffects = Has_coeffects;
+              alloc = false;
+              ty_args = []
+            },
+          [obj; met; array_indexing log2_size_addr cache pos dbg],
+          dbg )
+
+(*
   let cconst_int i = Cconst_int (i, dbg) in
   let cache_var = V.create_local "cache" and obj_var = V.create_local "obj" and tag_var = V.create_local "tag" in
   let clos =
@@ -2482,7 +2497,7 @@ let get_cached_method obj met cache pos dbg =
   Clet(VP.create obj_var, obj,
       Clet (VP.create tag_var, met,
             Clet (VP.create cache_var, array_indexing log2_size_addr cache pos dbg, clos)))
-
+*)
 let send_function (arity, result, mode) =
   let dbg = placeholder_dbg in
   let cconst_int i = Cconst_int (i, dbg ()) in

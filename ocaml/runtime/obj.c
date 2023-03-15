@@ -261,15 +261,20 @@ CAMLprim value caml_get_public_method (value obj, value tag)
   return (tag == Field(meths,li) ? Field (meths, li-1) : 0);
 }
 
-CAMLprim value caml_cache_public_method (value meths, value tag, value *cache)
+CAMLprim value caml_get_cached_public_method (value obj, value tag, value *cache)
 {
+  value meths = Field(obj, 0);
+  int tag_pos = (*cache) & Field(meths,1);
   int li = 3, hi = Field(meths,0), mi;
+  if (Field(meths, tag_pos) == tag) {
+    return Field(meths, tag_pos - 1);
+  }
   while (li < hi) { // no need to check the 1st time
     mi = ((li+hi) >> 1) | 1;
     if (tag < Field(meths,mi)) hi = mi-2;
     else li = mi;
   }
-  *cache = (li-3)*sizeof(value)+1;
+  *cache = li; // Always odd
   return Field (meths, li-1);
 }
 
