@@ -631,6 +631,16 @@ let rec transl env e =
                        dbg)) dbg
       | (Pprobe_is_enabled {name}, []) ->
           tag_int (Cop(Cprobe_is_enabled {name}, [], dbg)) dbg
+      | (Pgetmethod ((Self | Public) as k), [obj; tag]) ->
+        let obj = transl env obj in
+        let tag = transl env tag in
+        if k = Self then lookup_label obj tag dbg else lookup_tag obj tag dbg
+      | (Pgetmethod Cached, [obj; tag; cache; pos]) ->
+        let obj = transl env obj in
+        let tag = transl env tag in
+        let cache = transl env cache in
+        let pos = transl env pos in
+        get_cached_method obj tag cache pos dbg
       | (p, [arg]) ->
           transl_prim_1 env p arg dbg
       | (p, [arg1; arg2]) ->
@@ -641,6 +651,7 @@ let rec transl env e =
       | (Pbigarrayset (_, _, _, _), [])
       | (Pbigarrayref (_, _, _, _), [])
       | ((Pbigarraydim _ | Pduparray (_, _)), ([] | _::_::_::_::_))
+      | (Pgetmethod _, _)
       | (Pprobe_is_enabled _, _)
         ->
           fatal_error "Cmmgen.transl:prim, wrong arity"
@@ -1004,7 +1015,8 @@ and transl_prim_1 env p arg dbg =
     | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
     | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
     | Pbigarraydim _ | Pstring_load _ | Pbytes_load _ | Pbytes_set _
-    | Pbigstring_load _ | Pbigstring_set _ | Pprobe_is_enabled _)
+    | Pbigstring_load _ | Pbigstring_set _ | Pprobe_is_enabled _
+    | Pgetmethod _)
     ->
       fatal_errorf "Cmmgen.transl_prim_1: %a"
         Printclambda_primitives.primitive p
@@ -1183,7 +1195,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
   | Pprobe_is_enabled _
-  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _ | Pgetmethod _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
         Printclambda_primitives.primitive p
@@ -1245,6 +1257,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
   | Pprobe_is_enabled _
   | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Pgetmethod _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
         Printclambda_primitives.primitive p

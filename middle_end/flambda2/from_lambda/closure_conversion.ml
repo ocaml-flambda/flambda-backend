@@ -704,6 +704,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pctconst _ | Pbswap16
       | Pbbswap _ | Pint_as_pointer | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+      | Pgetmethod _
         ->
         (* Inconsistent with outer match *)
         assert false
