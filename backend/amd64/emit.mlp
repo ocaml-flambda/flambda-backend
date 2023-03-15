@@ -370,9 +370,12 @@ type gc_call =
 
 let call_gc_sites = ref ([] : gc_call list)
 
+let call_gc_local_sym : Cmm.symbol =
+  {sym_name = "caml_call_gc_"; sym_global=Local}
+
 let emit_call_gc gc =
   def_label gc.gc_lbl;
-  emit_call (Cmm.global_symbol "caml_call_gc");
+  emit_call call_gc_local_sym;
   def_label gc.gc_frame;
   I.jmp (label gc.gc_return_lbl)
 
@@ -1506,6 +1509,12 @@ let begin_assembly unix =
   emit_named_text_section code_begin;
   emit_global_label_for_symbol code_begin;
   if system = S_macosx then I.nop (); (* PR#4690 *)
+
+  D.label (emit_cmm_symbol call_gc_local_sym);
+  cfi_startproc ();
+  I.jmp (rel_plt (Cmm.global_symbol "caml_call_gc"));
+  cfi_endproc ();
+
   ()
 
 let make_stack_loc ~offset i (r : Reg.t) =
