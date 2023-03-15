@@ -264,7 +264,7 @@ CAMLprim value caml_get_public_method (value obj, value tag)
 CAMLprim value caml_get_cached_public_method (value obj, value tag, value cache_, value pos)
 {
   value meths = Field(obj, 0);
-  value* cache = &Field(cache_, Val_long(pos));
+  value* cache = &Field(cache_, Long_val(pos));
   int tag_pos = (*cache) & Field(meths,1);
   int li = 3, hi = Field(meths,0), mi;
   if (Field(meths, tag_pos) == tag) {
