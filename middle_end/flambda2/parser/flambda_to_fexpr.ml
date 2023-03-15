@@ -990,7 +990,6 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       let alloc = alloc_mode_for_types alloc_mode in
       Function (Indirect alloc)
     | C_call { alloc; _ } -> C_call { alloc }
-    | Method _ -> Misc.fatal_error "TODO: Method call kind"
   in
   let param_arity = Apply_expr.args_arity app in
   let return_arity = Apply_expr.return_arity app in
@@ -1014,8 +1013,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       let params_arity = Some (arity param_arity) in
       let ret_arity = arity return_arity in
       Some { params_arity; ret_arity }
-    | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
-    | Method _ ->
+    | Function { function_call = Indirect_unknown_arity; alloc_mode = _ } ->
       None
   in
   let inlined =

@@ -1472,8 +1472,7 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
             }
           in
           let apply : IR.apply =
-            { kind = Function;
-              func;
+            { func;
               continuation = k;
               exn_continuation;
               args;

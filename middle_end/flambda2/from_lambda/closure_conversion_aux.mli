@@ -49,16 +49,8 @@ module IR : sig
           region : Ident.t
         }
 
-  type apply_kind =
-    | Function
-    | Method of
-        { kind : Lambda.meth_kind;
-          obj : simple
-        }
-
   type apply =
-    { kind : apply_kind;
-      func : Ident.t;
+    { func : Ident.t;
       args : simple list;
       continuation : Continuation.t;
       exn_continuation : exn_continuation;

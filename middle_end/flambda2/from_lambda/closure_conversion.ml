@@ -909,8 +909,7 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
       ~invariant_params:Bound_parameters.empty ~handlers ~body
 
 let close_exact_or_unknown_apply acc env
-    ({ kind;
-       func;
+    ({ func;
        args;
        continuation;
        exn_continuation;
@@ -930,10 +929,7 @@ let close_exact_or_unknown_apply acc env
     | Some region -> region
   in
   let mode = Alloc_mode.For_types.from_lambda mode in
-  let acc, call_kind =
-    match kind with
-    | Function -> (
-      ( acc,
+  let call_kind =
         match (callee_approx : Env.value_approximation option) with
         | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
           let is_tupled =
@@ -952,12 +948,7 @@ let close_exact_or_unknown_apply acc env
             ( Value_unknown | Value_symbol _ | Value_int _
             | Block_approximation _ ) ->
           assert false
-        (* See [close_apply] *) ))
-    | Method { kind; obj } ->
-      let acc, obj = find_simple acc env obj in
-      ( acc,
-        Call_kind.method_call (Call_kind.Method_kind.from_lambda kind) ~obj mode
-      )
+        (* See [close_apply] *)
   in
   let acc, apply_exn_continuation =
     close_exn_continuation acc env exn_continuation
@@ -1797,7 +1788,6 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   let fbody acc env =
     close_exact_or_unknown_apply acc env
       { apply with
-        kind = Function;
         args = all_args;
         continuation = return_continuation;
         exn_continuation;

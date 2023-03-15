@@ -405,7 +405,6 @@ let apply apply =
     indirect_call_size
   | C_call { alloc = true; _ } -> alloc_extcall_size
   | C_call { alloc = false; _ } -> nonalloc_extcall_size
-  | Method _ -> 8
 (* from flambda/inlining_cost.ml *)
 
 let apply_cont apply_cont =

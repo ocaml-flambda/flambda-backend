@@ -45,16 +45,8 @@ module IR = struct
           region : Ident.t
         }
 
-  type apply_kind =
-    | Function
-    | Method of
-        { kind : Lambda.meth_kind;
-          obj : simple
-        }
-
   type apply =
-    { kind : apply_kind;
-      func : Ident.t;
+    { func : Ident.t;
       args : simple list;
       continuation : Continuation.t;
       exn_continuation : exn_continuation;
@@ -800,7 +792,6 @@ module Expr_with_acc = struct
             { function_call = Indirect_unknown_arity | Indirect_known_arity; _ }
           ->
           false
-        | Method _ -> false
         | C_call _ -> false)
     in
     let acc =

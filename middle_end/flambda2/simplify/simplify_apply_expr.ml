@@ -426,7 +426,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   | Heap -> ()
   | Local _ -> (
     match Apply.call_kind apply with
-    | Function { alloc_mode; _ } | Method { alloc_mode; _ } -> (
+    | Function { alloc_mode; _ } -> (
       match alloc_mode with
       | Local | Heap_or_local -> ()
       | Heap ->
@@ -972,63 +972,6 @@ let simplify_apply_shared dacc apply =
   in
   dacc, callee_ty, apply, arg_types
 
-let rebuild_method_call apply ~use_id ~exn_cont_use_id uacc ~after_rebuild =
-  let apply =
-    Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
-      apply
-  in
-  let uacc, expr =
-    EB.rewrite_fixed_arity_apply uacc ~use_id
-      (Flambda_arity.With_subkinds.create [K.With_subkind.any_value])
-      apply
-  in
-  after_rebuild expr uacc
-
-let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
-    ~down_to_up =
-  fail_if_probe apply;
-  let callee_kind = T.kind callee_ty in
-  if not (K.is_value callee_kind)
-  then
-    Misc.fatal_errorf "Method call with callee of wrong kind %a: %a" K.print
-      callee_kind T.print callee_ty;
-  let apply_cont =
-    match Apply.continuation apply with
-    | Never_returns ->
-      Misc.fatal_error "Cannot simplify a method call that never returns"
-    | Return continuation -> continuation
-  in
-  let denv = DA.denv dacc in
-  DE.check_simple_is_bound denv obj;
-  let expected_arity =
-    List.map (fun _ -> K.value) arg_types |> Flambda_arity.create
-  in
-  let args_arity = T.arity_of_list arg_types in
-  if not (Flambda_arity.equal expected_arity args_arity)
-  then
-    Misc.fatal_errorf
-      "All arguments to a method call must be of kind [Value]:@ %a" Apply.print
-      apply;
-  let dacc, use_id =
-    DA.record_continuation_use dacc apply_cont
-      (Non_inlinable { escaping = true })
-      ~env_at_use:denv ~arg_types:[T.any_value]
-  in
-  let dacc, exn_cont_use_id =
-    DA.record_continuation_use dacc
-      (Exn_continuation.exn_handler (Apply.exn_continuation apply))
-      (Non_inlinable { escaping = true })
-      ~env_at_use:(DA.denv dacc)
-      ~arg_types:
-        (T.unknown_types_from_arity_with_subkinds
-           (Exn_continuation.arity (Apply.exn_continuation apply)))
-  in
-  let dacc =
-    record_free_names_of_apply_as_used dacc ~use_id:(Some use_id)
-      ~exn_cont_use_id apply
-  in
-  down_to_up dacc ~rebuild:(rebuild_method_call apply ~use_id ~exn_cont_use_id)
-
 let rebuild_c_call apply ~use_id ~exn_cont_use_id ~return_arity uacc
     ~after_rebuild =
   let apply =
@@ -1132,7 +1075,5 @@ let simplify_apply ~simplify_expr dacc apply ~down_to_up =
   | Function { function_call; alloc_mode = apply_alloc_mode } ->
     simplify_function_call ~simplify_expr dacc apply ~callee_ty function_call
       ~apply_alloc_mode ~down_to_up
-  | Method { kind; obj; alloc_mode = _ } ->
-    simplify_method_call dacc apply ~callee_ty ~kind ~obj ~arg_types ~down_to_up
   | C_call { alloc = _; is_c_builtin = _ } ->
     simplify_c_call ~simplify_expr dacc apply ~callee_ty ~arg_types ~down_to_up

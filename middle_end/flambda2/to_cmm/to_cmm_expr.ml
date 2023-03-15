@@ -197,7 +197,6 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       env,
       res,
       Ece.all )
-  | Call_kind.Method _ -> assert false
 
 (* Function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra
