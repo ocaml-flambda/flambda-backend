@@ -67,6 +67,15 @@ jobs:
             irc_split: off
             irc_spilling_heuristics: flat_uses
 
+          - name: irc_frame_pointers
+            config: --enable-middle-end=flambda2 --enable-frame-pointers
+            os: ubuntu-latest
+            ocamlparam: ''
+            check_arch: true
+            register_allocator: irc
+            irc_split: off
+            irc_spilling_heuristics: flat_uses
+
           - name: build_upstream_closure
             config: --enable-middle-end=closure
             os: ubuntu-20.04
