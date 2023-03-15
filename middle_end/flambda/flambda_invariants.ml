@@ -34,7 +34,6 @@ let will_traverse_named_expression_later (_ : Flambda.named) = ()
 let ignore_variable (_ : Variable.t) = ()
 let ignore_call_kind (_ : Flambda.call_kind) = ()
 let ignore_debuginfo (_ : Debuginfo.t) = ()
-let ignore_meth_kind (_ : Lambda.meth_kind) = ()
 let ignore_int (_ : int) = ()
 let ignore_int_set (_ : Numbers.Int.Set.t) = ()
 let ignore_bool (_ : bool) = ()
@@ -202,15 +201,6 @@ let variable_and_symbol_invariants (program : Flambda.program) =
     | Assign { being_assigned; new_value; } ->
       check_mutable_variable_is_bound env being_assigned;
       check_variable_is_bound env new_value
-    | Send { kind; meth; obj; args; dbg;
-             reg_close = (Rc_normal | Rc_close_at_apply | Rc_nontail);
-             mode = (Alloc_heap | Alloc_local); result_layout; } ->
-      ignore_meth_kind kind;
-      check_variable_is_bound env meth;
-      check_variable_is_bound env obj;
-      check_variables_are_bound env args;
-      ignore_debuginfo dbg;
-      ignore_layout result_layout
     | If_then_else (cond, ifso, ifnot, kind) ->
       check_variable_is_bound env cond;
       ignore_layout kind;

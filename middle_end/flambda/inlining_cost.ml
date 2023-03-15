@@ -84,7 +84,6 @@ let lambda_smaller' lam ~than:threshold =
     (* Do not affect inlining decision.
        Actual cost is either 1, 5 or 6 bytes, depending on their kind. *)
     | Assign _ -> incr size
-    | Send _ -> size := !size + 8
     | Proved_unreachable -> ()
     | Let { defining_expr; body; _ } ->
       lambda_named_size defining_expr;
@@ -274,7 +273,7 @@ module Benefit = struct
     | Assign _ -> b := remove_prim !b
     | Switch _ | String_switch _ | Static_raise _ | Try_with _
     | If_then_else _ | While _ | For _ -> b := remove_branch !b
-    | Apply _ | Send _ -> b := remove_call !b
+    | Apply _ -> b := remove_call !b
     | Let _ | Let_mutable _ | Let_rec _ | Proved_unreachable | Var _
     | Region _ | Tail _ | Static_catch _ -> ()
 

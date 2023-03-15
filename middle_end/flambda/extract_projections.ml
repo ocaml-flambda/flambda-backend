@@ -91,10 +91,6 @@ let rec analyse_expr ~which_variables expr =
        call.  We should improve this analysis.  Leo says this can be
        done by a similar thing to the unused argument analysis. *)
     | Apply _ -> ()
-    | Send { meth; obj; args; _ } ->
-      check_free_variable meth;
-      check_free_variable obj;
-      List.iter check_free_variable args
     | Assign { new_value; _ } ->
       check_free_variable new_value
     | If_then_else (var, _, _, _)

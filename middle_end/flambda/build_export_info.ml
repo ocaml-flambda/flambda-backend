@@ -266,7 +266,7 @@ let rec approx_of_expr (env : Env.t) (flam : Flambda.t) : Export_info.approx =
   | For _ -> Value_id (Env.new_unit_descr env)
   | While _ -> Value_id (Env.new_unit_descr env)
   | Static_raise _ | Static_catch _ | Try_with _ | If_then_else _
-  | Switch _ | String_switch _ | Send _ | Proved_unreachable ->
+  | Switch _ | String_switch _ | Proved_unreachable ->
     Value_unknown
 
 and descr_of_named (env : Env.t) (named : Flambda.named)

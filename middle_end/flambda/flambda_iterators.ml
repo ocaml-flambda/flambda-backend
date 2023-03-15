@@ -19,7 +19,7 @@ open! Int_replace_polymorphic_compare
 
 let apply_on_subexpressions f f_named (flam : Flambda.t) =
   match flam with
-  | Var _ | Apply _ | Assign _ | Send _ | Proved_unreachable
+  | Var _ | Apply _ | Assign _ | Proved_unreachable
   | Static_raise _ -> ()
   | Let { defining_expr; body; _ } ->
     f_named defining_expr;
@@ -78,7 +78,7 @@ let map_snd_sharing f ((a, b) as cpl) =
 
 let map_subexpressions f f_named (tree:Flambda.t) : Flambda.t =
   match tree with
-  | Var _ | Apply _ | Assign _ | Send _ | Proved_unreachable
+  | Var _ | Apply _ | Assign _ | Proved_unreachable
   | Static_raise _ -> tree
   | Let { var; defining_expr; body; _ } ->
     let new_named = f_named var defining_expr in
@@ -304,7 +304,7 @@ let map_general ~toplevel f f_named tree =
     | _ ->
       let exp : Flambda.t =
         match tree with
-        | Var _ | Apply _ | Assign _ | Send _ | Proved_unreachable
+        | Var _ | Apply _ | Assign _ | Proved_unreachable
         | Static_raise _ -> tree
         | Let _ -> assert false
         | Let_mutable mutable_let ->

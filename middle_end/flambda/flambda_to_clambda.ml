@@ -423,13 +423,6 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
     assert(Lambda.compatible_layout id_layout new_value_layout);
     Uassign (id, new_value),
     Lambda.layout_unit
-  | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
-    let args, args_layout = List.split (subst_vars env args) in
-    let meth, _meth_layout = subst_var env meth in
-    let obj, _obj_layout = subst_var env obj in
-    Usend (kind, meth, obj,
-      args, args_layout, result_layout, (reg_close,mode), dbg),
-    result_layout
   | Region body ->
       let body, body_layout = to_clambda t env body in
       let is_trivial =

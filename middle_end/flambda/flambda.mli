@@ -58,18 +58,6 @@ type assign = {
   new_value : Variable.t;
 }
 
-(** The invocation of a method. *)
-type send = {
-  kind : Lambda.meth_kind;
-  meth : Variable.t;
-  obj : Variable.t;
-  args : Variable.t list;
-  dbg : Debuginfo.t;
-  reg_close : Lambda.region_close;
-  mode : Lambda.alloc_mode;
-  result_layout : Lambda.layout;
-}
-
 (** For details on these types, see projection.mli. *)
 type project_closure = Projection.project_closure
 type move_within_set_of_closures = Projection.move_within_set_of_closures
@@ -105,7 +93,6 @@ type t =
   | Let_rec of (Variable.t * named) list * t
   (** CR-someday lwhite: give Let_rec the same fields as Let. *)
   | Apply of apply
-  | Send of send
   | Assign of assign
   | If_then_else of Variable.t * t * t * Lambda.layout
   | Switch of Variable.t * switch

@@ -64,7 +64,6 @@ let description_of_toplevel_node (expr : Flambda.t) =
   | Var id -> Format.asprintf "var %a" Variable.print id
   | Apply _ -> "apply"
   | Assign _ -> "assign"
-  | Send _ -> "send"
   | Proved_unreachable -> "unreachable"
   | Let { var; _ } -> Format.asprintf "let %a" Variable.print var
   | Let_mutable _ -> "let_mutable"
@@ -169,13 +168,6 @@ let rec same (l1 : Flambda.t) (l2 : Flambda.t) =
     Mutable_variable.equal being_assigned1 being_assigned2
       && Variable.equal new_value1 new_value2
   | Assign _, _ | _, Assign _ -> false
-  | Send { kind = kind1; meth = meth1; obj = obj1; args = args1; dbg = _; },
-    Send { kind = kind2; meth = meth2; obj = obj2; args = args2; dbg = _; } ->
-    Lambda.equal_meth_kind kind1 kind2
-      && Variable.equal meth1 meth2
-      && Variable.equal obj1 obj2
-      && Misc.Stdlib.List.equal Variable.equal args1 args2
-  | Send _, _ | _, Send _ -> false
   | Proved_unreachable, Proved_unreachable -> true
 
 and same_named (named1 : Flambda.named) (named2 : Flambda.named) =
@@ -279,11 +271,6 @@ let toplevel_substitution sb tree =
     | String_switch (cond, branches, def, kind) ->
       let cond = sb cond in
       String_switch (cond, branches, def, kind)
-    | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
-      let meth = sb meth in
-      let obj = sb obj in
-      let args = List.map sb args in
-      Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout }
     | For { bound_var; from_value; to_value; direction; body } ->
       let from_value = sb from_value in
       let to_value = sb to_value in
@@ -728,16 +715,6 @@ let substitute_read_symbol_field_for_variables
       List.fold_right (fun f expr -> f expr) bind_args @@
       Flambda.Apply { func; args; kind; dbg; reg_close; mode;
                       inlined; specialise; probe; result_layout }
-    | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
-      let meth, bind_meth = make_var_subst meth in
-      let obj, bind_obj = make_var_subst obj in
-      let args, bind_args =
-        List.split (List.map make_var_subst args)
-      in
-      bind_meth @@
-      bind_obj @@
-      List.fold_right (fun f expr -> f expr) bind_args @@
-      Flambda.Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout }
     | Proved_unreachable
     | Region _
     | Tail _

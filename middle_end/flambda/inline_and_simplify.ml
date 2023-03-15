@@ -1312,13 +1312,6 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
     let cond, r = simplify env r cond in
     let body, r = simplify env r body in
     While (cond, body), ret r (A.value_unknown Other)
-  | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
-    let dbg = E.add_inlined_debuginfo env ~dbg in
-    simplify_free_variable env meth ~f:(fun env meth _meth_approx ->
-      simplify_free_variable env obj ~f:(fun env obj _obj_approx ->
-        simplify_free_variables env args ~f:(fun _env args _args_approx ->
-          Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout },
-            ret r (A.value_unknown Other))))
   | For { bound_var; from_value; to_value; direction; body; } ->
     simplify_free_variable env from_value ~f:(fun env from_value _approx ->
       simplify_free_variable env to_value ~f:(fun env to_value _approx ->

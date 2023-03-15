@@ -43,17 +43,6 @@ type assign = {
   new_value : Variable.t;
 }
 
-type send = {
-  kind : Lambda.meth_kind;
-  meth : Variable.t;
-  obj : Variable.t;
-  args : Variable.t list;
-  dbg : Debuginfo.t;
-  reg_close : Lambda.region_close;
-  mode : Lambda.alloc_mode;
-  result_layout : Lambda.layout;
-}
-
 type project_closure = Projection.project_closure
 type move_within_set_of_closures = Projection.move_within_set_of_closures
 type project_var = Projection.project_var
@@ -70,7 +59,6 @@ type t =
   | Let_mutable of let_mutable
   | Let_rec of (Variable.t * named) list * t
   | Apply of apply
-  | Send of send
   | Assign of assign
   | If_then_else of Variable.t * t * t * Lambda.layout
   | Switch of Variable.t * switch
@@ -240,19 +228,6 @@ let rec lam ppf (flam : t) =
     fprintf ppf "@[<2>(assign@ %a@ %a)@]"
       Mutable_variable.print being_assigned
       Variable.print new_value
-  | Send { kind; meth; obj; args; dbg = _; } ->
-    let print_args ppf args =
-      List.iter (fun l -> fprintf ppf "@ %a" Variable.print l) args
-    in
-    let kind =
-      match kind with
-      | Self -> "self"
-      | Public -> "public"
-      | Cached -> "cached"
-    in
-    fprintf ppf "@[<2>(send%s@ %a@ %a%a)@]" kind
-      Variable.print obj Variable.print meth
-      print_args args
   | Proved_unreachable ->
       fprintf ppf "unreachable"
   | Let { var = id; defining_expr = arg; body; _ } ->
@@ -631,10 +606,6 @@ let rec variables_usage ?ignore_uses_as_callee ?ignore_uses_as_argument
         aux body
       | Assign { being_assigned = _; new_value; } ->
         free_variable new_value
-      | Send { kind = _; meth; obj; args; dbg = _ } ->
-        free_variable meth;
-        free_variable obj;
-        List.iter free_variable args;
       | Region body ->
         aux body
       | Tail body ->
@@ -814,7 +785,7 @@ let iter_general ~toplevel f f_named maybe_named =
     | _ ->
       f t;
       match t with
-      | Var _ | Apply _ | Assign _ | Send _ | Proved_unreachable
+      | Var _ | Apply _ | Assign _ | Proved_unreachable
       | Static_raise _ -> ()
       | Let _ -> assert false
       | Let_mutable { body; _ } ->

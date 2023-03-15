@@ -49,7 +49,7 @@ let rec no_effects (flam : Flambda.t) =
     no_effects body
   | Tail body ->
     no_effects body
-  | While _ | For _ | Apply _ | Send _ | Assign _ | Static_raise _ -> false
+  | While _ | For _ | Apply _ | Assign _ | Static_raise _ -> false
   | Proved_unreachable -> true
 
 and no_effects_named (named : Flambda.named) =
