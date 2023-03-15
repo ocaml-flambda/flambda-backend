@@ -1193,7 +1193,7 @@ end = struct
         (* CR keryan: we should use the associated symbol at some point *)
         let fun_decl =
           TG.Function_type.create code_id
-            ~rec_info:(MTC.unknown Flambda_kind.rec_info)
+            ~rec_info:(TG.this_rec_info Rec_info_expr.initial)
         in
         let all_function_slots_in_set =
           Function_slot.Map.singleton function_slot
