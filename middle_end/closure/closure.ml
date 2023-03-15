@@ -135,8 +135,6 @@ let occurs_var var u =
     | Uwhile(cond, body) -> occurs cond || occurs body
     | Ufor(_id, lo, hi, _dir, body) -> occurs lo || occurs hi || occurs body
     | Uassign(id, u) -> id = var || occurs u
-    | Usend(_, met, obj, args, _, _, _, _) ->
-        occurs met || occurs obj || List.exists occurs args
     | Uunreachable -> false
     | Uregion e -> occurs e
     | Utail e -> occurs e
@@ -247,9 +245,6 @@ let lambda_smaller lam threshold =
         size := !size + 4; lambda_size low; lambda_size high; lambda_size body
     | Uassign(_id, lam) ->
         incr size;  lambda_size lam
-    | Usend(_, met, obj, args, _, _, _, _) ->
-        size := !size + 8;
-        lambda_size met; lambda_size obj; lambda_list_size args
     | Uunreachable -> ()
     | Uregion e ->
         size := !size + 2;
@@ -757,10 +752,6 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
         with Not_found ->
           id in
       Uassign(id', substitute loc st sb rn u)
-  | Usend(k, u1, u2, ul, args_layout, result_layout, pos, dbg) ->
-      let dbg = subst_debuginfo loc dbg in
-      Usend(k, substitute loc st sb rn u1, substitute loc st sb rn u2,
-            List.map (substitute loc st sb rn) ul, args_layout, result_layout, pos, dbg)
   | Uunreachable ->
       Uunreachable
   | Uregion e ->
@@ -1770,7 +1761,6 @@ let collect_exported_structured_constants a =
     | Uifthenelse (u1, u2, u3, _)
     | Ufor (_, u1, u2, _, u3) -> ulam u1; ulam u2; ulam u3
     | Uassign (_, u) -> ulam u
-    | Usend (_, u1, u2, ul, _, _, _, _) -> ulam u1; ulam u2; List.iter ulam ul
     | Uunreachable -> ()
     | Uregion u -> ulam u
     | Utail u -> ulam u

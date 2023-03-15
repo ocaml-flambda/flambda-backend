@@ -272,20 +272,6 @@ and lam ppf = function
        lam hi lam body
   | Uassign(id, expr) ->
       fprintf ppf "@[<2>(assign@ %a@ %a)@]" V.print id lam expr
-  | Usend (k, met, obj, largs, _, _, (pos,_) , _) ->
-      let form =
-        match pos with
-        | Rc_normal | Rc_nontail -> "send"
-        | Rc_close_at_apply -> "send[end_region]"
-      in
-      let args ppf largs =
-        List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      let kind =
-        if k = Lambda.Self then "self"
-        else if k = Lambda.Cached then "cache"
-        else "" in
-      fprintf ppf "@[<2>(%s%s@ %a@ %a%a)@]"
-        form kind lam obj lam met args largs
   | Uunreachable ->
       fprintf ppf "unreachable"
   | Uregion e ->

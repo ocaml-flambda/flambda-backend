@@ -59,7 +59,6 @@ let ignore_var_with_provenance (_ : VP.t) = ()
 let ignore_params (_ : VP.t list) = ()
 let ignore_params_with_layout (_ : (VP.t * Lambda.layout) list) = ()
 let ignore_direction_flag (_ : Asttypes.direction_flag) = ()
-let ignore_meth_kind (_ : Lambda.meth_kind) = ()
 let ignore_layout (_ : Lambda.layout) = ()
 
 (* CR-soon mshinwell: check we aren't traversing function bodies more than
@@ -234,15 +233,6 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
     | Uassign (var, expr) ->
       add_assignment t var;
       loop ~depth expr
-    | Usend (meth_kind, e1, e2, args, args_layout, result_layout, info, dbg) ->
-      ignore_meth_kind meth_kind;
-      loop ~depth e1;
-      loop ~depth e2;
-      List.iter (loop ~depth) args;
-      List.iter ignore_layout args_layout;
-      ignore_layout result_layout;
-      ignore_apply_kind info;
-      ignore_debuginfo dbg
     | Uunreachable ->
       ()
     | Uregion e ->
@@ -467,16 +457,6 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       ignore_var var;
       ignore_ulambda expr;
       let_stack := []
-    | Usend (meth_kind, e1, e2, args, args_layout, result_layout, info, dbg) ->
-      ignore_meth_kind meth_kind;
-      ignore_ulambda e1;
-      ignore_ulambda e2;
-      ignore_ulambda_list args;
-      List.iter ignore_layout args_layout;
-      ignore_layout result_layout;
-      let_stack := [];
-      ignore_apply_kind info;
-      ignore_debuginfo dbg
     | Uunreachable ->
       let_stack := []
     | Uregion e ->
@@ -625,11 +605,6 @@ let rec substitute_let_moveable is_let_moveable env (clam : Clambda.ulambda)
   | Uassign (var, expr) ->
     let expr = substitute_let_moveable is_let_moveable env expr in
     Uassign (var, expr)
-  | Usend (kind, e1, e2, args, args_layout, result_layout, pos, dbg) ->
-    let e1 = substitute_let_moveable is_let_moveable env e1 in
-    let e2 = substitute_let_moveable is_let_moveable env e2 in
-    let args = substitute_let_moveable_list is_let_moveable env args in
-    Usend (kind, e1, e2, args, args_layout, result_layout, pos, dbg)
   | Uunreachable ->
     Uunreachable
   | Uregion e ->
@@ -854,11 +829,6 @@ let rec un_anf_and_moveable var_info env (clam : Clambda.ulambda)
   | Uassign (var, expr) ->
     let expr = un_anf var_info env expr in
     Uassign (var, expr), Fixed
-  | Usend (kind, e1, e2, args, args_layout, result_layout, pos, dbg) ->
-    let e1 = un_anf var_info env e1 in
-    let e2 = un_anf var_info env e2 in
-    let args = un_anf_list var_info env args in
-    Usend (kind, e1, e2, args, args_layout, result_layout, pos, dbg), Fixed
   | Uunreachable ->
     Uunreachable, Fixed
   | Uregion e ->

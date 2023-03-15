@@ -519,13 +519,6 @@ let rec transl env e =
         let args_type = List.map machtype_of_layout args_layout in
         let return = machtype_of_layout result_layout in
         generic_apply (mut_from_env env clos) clos args args_type return kind dbg
-  | Usend(kind, met, obj, args, args_layout, result_layout, pos, dbg) ->
-      let met = transl env met in
-      let obj = transl env obj in
-      let args = List.map (transl env) args in
-      let args_type = List.map machtype_of_layout args_layout in
-      let return = machtype_of_layout result_layout in
-      send kind met obj args args_type return pos dbg
   | Ulet(str, kind, id, exp, body) ->
       transl_let env str kind id exp (fun env -> transl env body)
   | Uphantom_let (var, defining_expr, body) ->

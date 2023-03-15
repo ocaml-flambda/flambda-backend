@@ -103,9 +103,6 @@ and ulambda =
   | Ufor of Backend_var.With_provenance.t * ulambda * ulambda
       * direction_flag * ulambda
   | Uassign of Backend_var.t * ulambda
-  | Usend of
-      meth_kind * ulambda * ulambda * ulambda list
-      * Lambda.layout list * Lambda.layout * apply_kind * Debuginfo.t
   | Uunreachable
   | Uregion of ulambda
   | Utail of ulambda
