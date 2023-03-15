@@ -647,7 +647,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
             let obj = transl_exp ~scopes expr in
             let obj_var = Ident.create_local "obj" in
             bind_with_layout Strict (obj_var, layout_object) obj
-            (Lapply {
+            (event_after ~scopes e (Lapply {
               ap_func = Lprim(Pgetmethod Self, [Lvar id; Lvar obj_var], loc);
               ap_args = [Lvar obj_var];
               ap_result_layout = layout;
@@ -658,14 +658,14 @@ and transl_exp0 ~in_new_scope ~scopes e =
               ap_inlined = Default_inlined;
               ap_specialised = Default_specialise;
               ap_loc = loc
-            })
+            }))
         | Tmeth_name nm ->
             let obj = transl_exp ~scopes expr in
             let (tag, cache) = Translobj.meth obj nm in
             let kind = if cache = [] then Public else Cached in
             let obj_var = Ident.create_local "obj" in
             bind_with_layout Strict (obj_var, layout_object) obj
-              (Lapply {
+              (event_after ~scopes e (Lapply {
               ap_func = Lprim(Pgetmethod kind, tag :: obj :: cache, loc);
               ap_args = [obj];
               ap_result_layout = layout;
@@ -676,10 +676,10 @@ and transl_exp0 ~in_new_scope ~scopes e =
               ap_inlined = Default_inlined;
               ap_specialised = Default_specialise;
               ap_loc = loc
-            })
+            }))
         | Tmeth_ancestor(meth, path_self) ->
             let self = transl_value_path loc e.exp_env path_self in
-            Lapply {ap_loc = loc;
+            let lam = Lapply {ap_loc = loc;
                     ap_func = Lvar meth;
                     ap_args = [self];
                     ap_result_layout = layout;
@@ -689,8 +689,10 @@ and transl_exp0 ~in_new_scope ~scopes e =
                     ap_tailcall = Default_tailcall;
                     ap_inlined = Default_inlined;
                     ap_specialised = Default_specialise}
+            in
+            event_after ~scopes e lam
       in
-      event_after ~scopes e lam
+      lam
   | Texp_new (cl, {Location.loc=loc}, _, pos) ->
       let loc = of_location ~scopes loc in
       let pos = transl_apply_position pos in
