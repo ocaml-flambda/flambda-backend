@@ -23,12 +23,12 @@ module SC = Static_const
 module R = To_cmm_result
 
 let to_cmm_symbol sym : Cmm.symbol =
-  { sym_name = Symbol.linkage_name_as_string sym;
-    sym_global = Global }
+  { sym_name = Symbol.linkage_name_as_string sym; sym_global = Global }
 
 let static_value v =
   match (v : Field_of_static_block.t) with
-  | Symbol s -> C.symbol_address (Symbol.linkage_name_as_string s |> Cmm.global_symbol)
+  | Symbol s ->
+    C.symbol_address (Symbol.linkage_name_as_string s |> Cmm.global_symbol)
   | Dynamically_computed _ -> C.cint 1n
   | Tagged_immediate i ->
     C.cint
@@ -67,9 +67,7 @@ let rec static_float_array_updates symb env res acc i = function
 
 let static_boxed_number ~kind ~env ~symbol ~default ~emit ~transl ~structured v
     res updates =
-  let aux x cont =
-    emit (to_cmm_symbol symbol) (transl x) cont
-  in
+  let aux x cont = emit (to_cmm_symbol symbol) (transl x) cont in
   let env, res, updates =
     match (v : _ Or_variable.t) with
     | Const c ->
@@ -78,7 +76,8 @@ let static_boxed_number ~kind ~env ~symbol ~default ~emit ~transl ~structured v
          symbols, particularly in Classic mode. *)
       let symbol_name = Symbol.linkage_name_as_string symbol in
       let structured_constant = structured (transl c) in
-      Cmmgen_state.add_global_structured_constant symbol_name structured_constant;
+      Cmmgen_state.add_global_structured_constant symbol_name
+        structured_constant;
       env, res, updates
     | Var (v, dbg) ->
       C.make_update env res dbg kind ~symbol:(C.symbol ~dbg symbol) v ~index:0
@@ -172,9 +171,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     in
     let static_fields = List.map aux fields in
     let float_array =
-      C.emit_float_array_constant
-        (to_cmm_symbol s)
-        static_fields
+      C.emit_float_array_constant (to_cmm_symbol s) static_fields
     in
     let env, res, e = static_float_array_updates s env res updates 0 fields in
     env, R.update_data res float_array, e

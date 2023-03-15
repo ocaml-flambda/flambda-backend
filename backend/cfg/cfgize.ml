@@ -147,9 +147,7 @@ let basic_or_terminator_of_operation :
   | Icall_ind ->
     With_next_label (fun label_after -> Call { op = Indirect; label_after })
   | Icall_imm { func } ->
-    With_next_label
-      (fun label_after ->
-         Call { op = Direct func; label_after })
+    With_next_label (fun label_after -> Call { op = Direct func; label_after })
   | Itailcall_ind -> Terminator (Tailcall_func Indirect)
   | Itailcall_imm { func } ->
     Terminator
@@ -157,7 +155,13 @@ let basic_or_terminator_of_operation :
       then Tailcall_self { destination = State.get_tailrec_label state }
       else Tailcall_func (Direct func))
   | Iextcall { func; ty_res; ty_args; alloc; returns } ->
-    let external_call = { Cfg.func_symbol = { sym_name = func; sym_global = Global }; alloc; ty_res; ty_args } in
+    let external_call =
+      { Cfg.func_symbol = { sym_name = func; sym_global = Global };
+        alloc;
+        ty_res;
+        ty_args
+      }
+    in
     if returns
     then
       With_next_label

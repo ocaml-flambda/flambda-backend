@@ -913,36 +913,22 @@ val cdefine_symbol : symbol -> data_item list
 (** [emit_block symb white_header cont] prepends to [cont] the header and symbol
     for the block. [cont] must already contain the fields of the block (and may
     contain additional data items afterwards). *)
-val emit_block :
-  symbol ->
-  nativeint ->
-  data_item list ->
-  data_item list
+val emit_block : symbol -> nativeint -> data_item list -> data_item list
 
 (** Emit specific kinds of constant blocks as data items *)
-val emit_float_constant :
-  symbol -> float -> data_item list -> data_item list
+val emit_float_constant : symbol -> float -> data_item list -> data_item list
 
-val emit_string_constant :
-  symbol -> string -> data_item list -> data_item list
+val emit_string_constant : symbol -> string -> data_item list -> data_item list
 
-val emit_int32_constant :
-  symbol -> int32 -> data_item list -> data_item list
+val emit_int32_constant : symbol -> int32 -> data_item list -> data_item list
 
-val emit_int64_constant :
-  symbol -> int64 -> data_item list -> data_item list
+val emit_int64_constant : symbol -> int64 -> data_item list -> data_item list
 
 val emit_nativeint_constant :
-  symbol ->
-  nativeint ->
-  data_item list ->
-  data_item list
+  symbol -> nativeint -> data_item list -> data_item list
 
 val emit_float_array_constant :
-  symbol ->
-  float list ->
-  data_item list ->
-  data_item list
+  symbol -> float list -> data_item list -> data_item list
 
 val fundecls_size : Clambda.ufunction list -> int
 

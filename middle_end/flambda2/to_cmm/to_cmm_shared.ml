@@ -219,7 +219,8 @@ let invalid res ~message =
       let res =
         Cmm_helpers.emit_string_constant
           { sym_name = Symbol.linkage_name_as_string message_sym;
-            sym_global = Global }
+            sym_global = Global
+          }
           message []
         |> To_cmm_result.add_archive_data_items res
       in

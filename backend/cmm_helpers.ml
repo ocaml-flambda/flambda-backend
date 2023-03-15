@@ -509,7 +509,8 @@ let divimm_parameters d =
  *)
 
 let raise_symbol dbg symb =
-  Cop (Craise Lambda.Raise_regular, [Cconst_symbol (global_symbol symb, dbg)], dbg)
+  Cop
+    (Craise Lambda.Raise_regular, [Cconst_symbol (global_symbol symb, dbg)], dbg)
 
 let rec div_int c1 c2 is_safe dbg =
   match c1, c2 with
@@ -1460,7 +1461,8 @@ let xor_int e1 e2 dbg = Cop (Cxor, [e1; e2], dbg)
 (* Boxed integers *)
 
 let operations_boxed_int (bi : Primitive.boxed_integer) =
-  let sym_name = match bi with
+  let sym_name =
+    match bi with
     | Pnativeint -> caml_nativeint_ops
     | Pint32 -> caml_int32_ops
     | Pint64 -> caml_int64_ops
@@ -2673,7 +2675,9 @@ let tuplify_function arity return =
     global_symbol
       ("caml_tuplify" ^ Int.to_string arity
       ^
-      match return with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier return)
+      match return with
+      | [| Val |] -> ""
+      | _ -> "_R" ^ machtype_identifier return)
   in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
@@ -2806,8 +2810,8 @@ let final_curry_function nlocal arity result =
   let fun_name =
     global_symbol
       (curry_function_sym (Lambda.Curried { nlocal }) arity result
-       ^ "_"
-       ^ Int.to_string (narity - 1))
+      ^ "_"
+      ^ Int.to_string (narity - 1))
   in
   let args_type = List.rev arity in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
@@ -2855,8 +2859,9 @@ let intermediate_curry_functions ~nlocal ~arity result =
                 [ alloc_closure_header ~mode
                     (function_slot_size + machtype_stored_size arg_type + 1)
                     (dbg ());
-                  Cconst_symbol (global_symbol (name1 ^ "_" ^ Int.to_string (num + 1)),
-                                 dbg ());
+                  Cconst_symbol
+                    ( global_symbol (name1 ^ "_" ^ Int.to_string (num + 1)),
+                      dbg () );
                   Cconst_natint
                     ( pack_closure_info
                         ~arity:(if has_nary then narity - num - 1 else 1)
@@ -2868,9 +2873,9 @@ let intermediate_curry_functions ~nlocal ~arity result =
                 @ (if has_nary
                   then
                     [ Cconst_symbol
-                        (global_symbol (name1 ^ "_" ^ Int.to_string (num + 1) ^ "_app"),
-                         dbg ())
-                    ]
+                        ( global_symbol
+                            (name1 ^ "_" ^ Int.to_string (num + 1) ^ "_app"),
+                          dbg () ) ]
                   else [])
                 @ value_slot_given_machtype args
                 @ [Cvar clos],
@@ -2893,7 +2898,9 @@ let intermediate_curry_functions ~nlocal ~arity result =
             (fun (arg, ty) -> VP.create arg, ty)
             (direct_args @ [clos, typ_val])
         in
-        let fun_name = global_symbol (name1 ^ "_" ^ Int.to_string (num + 1) ^ "_app") in
+        let fun_name =
+          global_symbol (name1 ^ "_" ^ Int.to_string (num + 1) ^ "_app")
+        in
         let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
         let cf =
           Cfunction
@@ -3513,7 +3520,9 @@ let emit_string_constant_fields s cont =
 let emit_boxed_int32_constant_fields n cont =
   let n = Nativeint.of_int32 n in
   if size_int = 8
-  then Csymbol_address (global_symbol caml_int32_ops) :: Cint32 n :: Cint32 0n :: cont
+  then
+    Csymbol_address (global_symbol caml_int32_ops)
+    :: Cint32 n :: Cint32 0n :: cont
   else Csymbol_address (global_symbol caml_int32_ops) :: Cint n :: cont
 
 let emit_boxed_int64_constant_fields n cont =
@@ -3523,8 +3532,12 @@ let emit_boxed_int64_constant_fields n cont =
   else
     let hi = Int64.to_nativeint (Int64.shift_right n 32) in
     if big_endian
-    then Csymbol_address (global_symbol caml_int64_ops) :: Cint hi :: Cint lo :: cont
-    else Csymbol_address (global_symbol caml_int64_ops) :: Cint lo :: Cint hi :: cont
+    then
+      Csymbol_address (global_symbol caml_int64_ops)
+      :: Cint hi :: Cint lo :: cont
+    else
+      Csymbol_address (global_symbol caml_int64_ops)
+      :: Cint lo :: Cint hi :: cont
 
 let emit_boxed_nativeint_constant_fields n cont =
   Csymbol_address (global_symbol caml_nativeint_ops) :: Cint n :: cont
@@ -3585,7 +3598,8 @@ let entry_point namelist =
     List.fold_right
       (fun name next ->
         let entry_sym =
-          global_symbol (make_symbol ~compilation_unit:name "entry") in
+          global_symbol (make_symbol ~compilation_unit:name "entry")
+        in
         Csequence
           ( Cop (Capply (typ_void, Rc_normal), [cconst_symbol entry_sym], dbg ()),
             Csequence (incr_global_inited (), next) ))
@@ -3608,11 +3622,11 @@ let cint_zero = Cint 0n
 
 let global_table namelist =
   let mksym name =
-    Csymbol_address (global_symbol (make_symbol ~compilation_unit:name "gc_roots"))
+    Csymbol_address
+      (global_symbol (make_symbol ~compilation_unit:name "gc_roots"))
   in
   Cdata
-    (Cdefine_symbol (global_symbol "caml_globals")
-     :: List.map mksym namelist
+    ((Cdefine_symbol (global_symbol "caml_globals") :: List.map mksym namelist)
     @ [cint_zero])
 
 let reference_symbols namelist =
@@ -3629,7 +3643,8 @@ let globals_map v = global_data "caml_globals_map" v
 
 let frame_table namelist =
   let mksym name =
-    Csymbol_address (global_symbol (make_symbol ~compilation_unit:name "frametable"))
+    Csymbol_address
+      (global_symbol (make_symbol ~compilation_unit:name "frametable"))
   in
   Cdata
     (Cdefine_symbol (global_symbol "caml_frametable")
@@ -3641,7 +3656,8 @@ let frame_table namelist =
 let segment_table namelist symbol begname endname =
   let addsyms name lst =
     Csymbol_address (global_symbol (make_symbol ~compilation_unit:name begname))
-    :: Csymbol_address (global_symbol (make_symbol ~compilation_unit:name endname))
+    :: Csymbol_address
+         (global_symbol (make_symbol ~compilation_unit:name endname))
     :: lst
   in
   Cdata
@@ -3658,17 +3674,14 @@ let code_segment_table namelist =
 
 let predef_exception i name =
   let name_sym =
-    { sym_name = Compilenv.new_const_symbol ();
-      sym_global = Local }
+    { sym_name = Compilenv.new_const_symbol (); sym_global = Local }
   in
   let data_items = emit_string_constant name_sym name [] in
   let exn_sym = global_symbol ("caml_exn_" ^ name) in
   let tag = Obj.object_tag in
   let size = 2 in
   let fields = Csymbol_address name_sym :: cint_const (-i - 1) :: data_items in
-  let data_items =
-    emit_block exn_sym (block_header tag size) fields
-  in
+  let data_items = emit_block exn_sym (block_header tag size) fields in
   Cdata data_items
 
 (* Header for a plugin *)
@@ -3728,7 +3741,8 @@ let emit_constant_closure symb fundecls clos_vars cont =
         | { function_kind = Curried _; params_layout = [] | [_]; _ } as arity ->
           (* FIXME: is sym_global correct here? *)
           (Cint (infix_header pos) :: closure_symbol f2)
-          @ Csymbol_address { sym_name = f2.label; sym_global = symb.sym_global }
+          @ Csymbol_address
+              { sym_name = f2.label; sym_global = symb.sym_global }
             :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: emit_others (pos + 3) rem
         | arity ->
@@ -3747,7 +3761,8 @@ let emit_constant_closure symb fundecls clos_vars cont =
                  (curry_function_sym arity.function_kind params_machtypes
                     return_machtype))
             :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
-            :: Csymbol_address { sym_name = f2.label; sym_global = symb.sym_global }
+            :: Csymbol_address
+                 { sym_name = f2.label; sym_global = symb.sym_global }
             :: emit_others (pos + 4) rem)
     in
     let is_last = match remainder with [] -> true | _ :: _ -> false in
@@ -3768,7 +3783,7 @@ let emit_constant_closure symb fundecls clos_vars cont =
               arity.params_layout)
            (machtype_of_layout_changing_tagged_int_to_val arity.return_layout)))
       :: Cint (closure_info ~arity ~startenv ~is_last)
-      :: Csymbol_address { sym_name = f1.label; sym_global = symb.sym_global}
+      :: Csymbol_address { sym_name = f1.label; sym_global = symb.sym_global }
       :: emit_others 4 remainder)
 
 (* Build the NULL terminated array of gc roots *)
@@ -3786,8 +3801,7 @@ let emit_gc_roots_table ~symbols cont =
 
 let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
   let mksym sym_name =
-    { sym_name;
-      sym_global = if exported then Global else Local }
+    { sym_name; sym_global = (if exported then Global else Local) }
   in
   let space =
     (* These words will be registered as roots and as such must contain valid
@@ -3802,14 +3816,16 @@ let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
         | Some (Clambda.Uconst_field_ref label) -> Csymbol_address (mksym label))
       fields
   in
-  let data = emit_block (mksym symbol) (block_header tag (List.length fields)) space in
+  let data =
+    emit_block (mksym symbol) (block_header tag (List.length fields)) space
+  in
   Cdata data :: cont
 
 let emit_preallocated_blocks preallocated_blocks cont =
   let symbols =
     List.map
       (fun ({ Clambda.symbol } : Clambda.preallocated_block) ->
-         global_symbol symbol)
+        global_symbol symbol)
       preallocated_blocks
   in
   let c1 = emit_gc_roots_table ~symbols cont in
@@ -4105,8 +4121,7 @@ let cfloat f = Cmm.Cdouble f
 let symbol_address s = Cmm.Csymbol_address s
 
 let define_symbol ~global sym_name =
-  [Cdefine_symbol { sym_name;
-                    sym_global = if global then Global else Local }]
+  [Cdefine_symbol { sym_name; sym_global = (if global then Global else Local) }]
 
 (* Cmm phrases *)
 

@@ -343,7 +343,12 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
   | Raise _ -> fprintf ppf "Raise%a" print_args args
   | Tailcall_self { destination } ->
     dump_mach_op ppf
-      (Mach.Itailcall_imm { func = { sym_name = Printf.sprintf "self(%d)" destination; sym_global = Local } })
+      (Mach.Itailcall_imm
+         { func =
+             { sym_name = Printf.sprintf "self(%d)" destination;
+               sym_global = Local
+             }
+         })
   | Tailcall_func call ->
     dump_mach_op ppf
       (match call with
@@ -359,7 +364,8 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
     Format.fprintf ppf "%t%a" print_res dump_mach_op
       (match prim with
       | External { func_symbol = func; ty_res; ty_args; alloc } ->
-        Mach.Iextcall { func = func.sym_name; ty_res; ty_args; returns = true; alloc }
+        Mach.Iextcall
+          { func = func.sym_name; ty_res; ty_args; returns = true; alloc }
       | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
       | Checkbound { immediate = Some x } -> Mach.Iintop_imm (Icheckbound, x)
       | Checkbound { immediate = None } -> Mach.Iintop Icheckbound

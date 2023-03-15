@@ -146,12 +146,18 @@ let linearize_terminator cfg_with_layout (func : string) start
     | Tailcall_func (Direct func_symbol) ->
       [L.Lop (Itailcall_imm { func = func_symbol })], None
     | Tailcall_self { destination } ->
-      [L.Lop (Itailcall_imm { func = Cmm.global_symbol func })], Some destination
+      ( [L.Lop (Itailcall_imm { func = Cmm.global_symbol func })],
+        Some destination )
     | Call_no_return { func_symbol; alloc; ty_args; ty_res } ->
       single
         (L.Lop
            (Iextcall
-              { func = func_symbol.sym_name; alloc; ty_args; ty_res; returns = false }))
+              { func = func_symbol.sym_name;
+                alloc;
+                ty_args;
+                ty_res;
+                returns = false
+              }))
     | Call { op; label_after } ->
       let op : Mach.operation =
         match op with
@@ -164,7 +170,12 @@ let linearize_terminator cfg_with_layout (func : string) start
         match op with
         | External { func_symbol; alloc; ty_args; ty_res } ->
           Iextcall
-            { func = func_symbol.sym_name; alloc; ty_args; ty_res; returns = true }
+            { func = func_symbol.sym_name;
+              alloc;
+              ty_args;
+              ty_res;
+              returns = true
+            }
         | Checkbound { immediate = None } -> Iintop Icheckbound
         | Checkbound { immediate = Some i } -> Iintop_imm (Icheckbound, i)
         | Alloc { bytes; dbginfo; mode } -> Ialloc { bytes; dbginfo; mode }
