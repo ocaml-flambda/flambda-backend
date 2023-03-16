@@ -1,5 +1,5 @@
 (tests
- (names instance_test meet_test)
+ (names meet_test)
  (modes native)
  (instrumentation (backend bisect_ppx))
  (flags (:standard -principal))

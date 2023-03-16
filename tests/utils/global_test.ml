@@ -1,32 +1,12 @@
-module String_id = struct
-  type t = string
-
-  include Identifiable.Make (struct
-    type nonrec t = t
-
-    let equal = String.equal
-
-    let compare = String.compare
-
-    let print = Format.pp_print_string
-
-    let output out s = Printf.fprintf out "%s" s
-
-    let hash = Hashtbl.hash
-  end)
-end
-
-module I = Instance.Make (String_id)
-
 module Test_data = struct
-  open I
+  open Global
 
   open struct
     (* Simple name *)
-    let s name = { head = name; args = [] }
+    let n name : Name.t = { head = name; args = [] }
 
-    (* Simple param *)
-    let p name : I.param = { head = name; args = []; params = [] }
+    (* Simple global *)
+    let g name : t = { head = name; args = []; params = [] }
   end
 
   let [@ocamlformat "disable"] () =
@@ -56,74 +36,74 @@ module Test_data = struct
        *)
     ()
 
-  let x = s "X"
+  let x = n "X"
 
-  let x_p = p "X"
+  let x_g = g "X"
 
-  let y = s "Y"
+  let y = n "Y"
 
-  let y_p = { (p "Y") with params = [x, x_p] }
+  let y_g = { (g "Y") with params = [x, x_g] }
 
-  let a_p = p "A"
+  let a_g = g "A"
 
-  let b_p = p "B"
+  let b_g = g "B"
 
-  let m_p = { (p "M") with params = [x, x_p; y, y_p] }
+  let m_g = { (g "M") with params = [x, x_g; y, y_g] }
 
-  let i = s "I"
+  let i = n "I"
 
-  let i_p = p "I"
+  let i_g = g "I"
 
-  let o = s "O"
+  let o = n "O"
 
-  let o_p = p "O"
+  let o_g = g "O"
 
-  let conv = s "Conv"
+  let conv = n "Conv"
 
-  let conv_p = { (p "Conv") with params = [i, i_p; o, o_p] }
+  let conv_g = { (g "Conv") with params = [i, i_g; o, o_g] }
 
-  let unit_p = p "Unit"
+  let unit_g = g "Unit"
 
-  let string = s "String"
+  let string = n "String"
 
-  let string_p = p "String"
+  let string_g = g "String"
 
-  let conv_to_string = { head = "Conv"; args = [o, string] }
+  let conv_to_string = Name.{ head = "Conv"; args = [o, string] }
 
-  let conv_to_string_p =
-    { head = "Conv"; args = [o, string_p]; params = [i, i_p] }
+  let conv_to_string_g =
+    { head = "Conv"; args = [o, string_g]; params = [i, i_g] }
 
-  let opaque_p = { (p "Opaque") with params = [i, i_p] }
+  let opaque_g = { (g "Opaque") with params = [i, i_g] }
 
-  let print_p =
-    { (p "Print") with params = [i, i_p; conv_to_string, conv_to_string_p] }
+  let print_g =
+    { (g "Print") with params = [i, i_g; conv_to_string, conv_to_string_g] }
 end
 
 module Subst_tests = struct
   open struct
-    let subst param s = I.subst param (s |> I.Map.of_list)
+    let subst param s = Global.subst param (s |> Global.Name.Map.of_list)
 
-    let [@ocamlformat "disable"] case param s =
-      let s = s |> I.Map.of_list in
+    let [@ocamlformat "disable"] case glob s =
+      let s = s |> Global.Name.Map.of_list in
       Format.printf "@[<hv 2>%a@ %a@ =@ %a@]@."
-        I.print_param param
-        (I.Map.print I.print_param) s
-        I.print_param (I.subst param s)
+        Global.print glob
+        (Global.Name.Map.print Global.print) s
+        Global.print (Global.subst glob s)
   end
 
   let run () =
     Format.printf "@.Tests of subst:@.@.";
     let open Test_data in
-    case x_p [x, unit_p];
-    case y_p [x, unit_p];
-    let y_unit = subst y_p [x, unit_p] in
-    case y_unit [x, string_p];
-    case y_unit [I.erase_param y_unit, string_p];
-    case m_p [x, a_p];
-    case m_p [x, a_p; y, b_p];
-    case x_p [i, unit_p];
-    case y_p [i, unit_p];
-    case print_p [i, unit_p];
+    case x_g [x, unit_g];
+    case y_g [x, unit_g];
+    let y_unit = subst y_g [x, unit_g] in
+    case y_unit [x, string_g];
+    case y_unit [Global.to_name y_unit, string_g];
+    case m_g [x, a_g];
+    case m_g [x, a_g; y, b_g];
+    case x_g [i, unit_g];
+    case y_g [i, unit_g];
+    case print_g [i, unit_g];
     ()
 end
 
@@ -133,18 +113,18 @@ module Check_tests = struct
       let pp_list_body ppf params =
         Format.pp_print_list
           ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
-          I.print_param ppf params
+          Global.print ppf params
       in
       match params with
       | [] -> Format.fprintf ppf "[]"
       | _ :: _ -> Format.fprintf ppf "@[<hov 2>[@ %a@ ]@]" pp_list_body params
 
     let [@ocamlformat "disable"] case s params =
-      let s = s |> I.Map.of_list in
+      let s = s |> Global.Name.Map.of_list in
       Format.printf "@[<hv 2>@[<hv 2>check@ %a@ %a@]@ = %a@]@."
-        (I.Map.print I.print_param) s
+        (Global.Name.Map.print Global.print) s
         print_params params
-        Format.pp_print_bool (I.check s params)
+        Format.pp_print_bool (Global.check s params)
   end
 
   let run () =
@@ -153,23 +133,23 @@ module Check_tests = struct
     (* Trivial case: fine *)
     case [] [];
     (* Fully unapplied: fine *)
-    case [] [x_p];
+    case [] [x_g];
     (* Argument given but no parameters: bad *)
-    case [x, string_p] [];
+    case [x, string_g] [];
     (* Exactly one argument and one matching parameter: fine *)
-    case [x, string_p] [x_p];
+    case [x, string_g] [x_g];
     (* Exactly one argument and one matching parameter: fine *)
-    case [i, unit_p] [i_p];
+    case [i, unit_g] [i_g];
     (* Exactly one argument and one non-matching parameter: bad *)
-    case [i, unit_p] [o_p];
+    case [i, unit_g] [o_g];
     (* Partial application: fine *)
-    case [i, unit_p] [conv_p; i_p];
+    case [i, unit_g] [conv_g; i_g];
     (* Partial application of parameterised parameter: fine *)
-    case [conv, opaque_p; o, string_p] [conv_p; i_p; o_p];
+    case [conv, opaque_g; o, string_g] [conv_g; i_g; o_g];
     (* Partial application with too-specialised argument: bad *)
-    case [conv_to_string, opaque_p] [conv_p; i_p; o_p];
+    case [conv_to_string, opaque_g] [conv_g; i_g; o_g];
     (* As previously, but after [String] is substituted for [O]: fine *)
-    case [conv_to_string, opaque_p] [conv_to_string_p; i_p];
+    case [conv_to_string, opaque_g] [conv_to_string_g; i_g];
     ()
 end
 
