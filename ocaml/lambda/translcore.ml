@@ -642,14 +642,20 @@ and transl_exp0 ~in_new_scope ~scopes e =
         let mode = transl_alloc_mode alloc_mode in
         let loc = of_location ~scopes e.exp_loc in
         let layout = Typeopt.layout e.exp_env e.exp_type in
+        let bind_obj obj f =
+          match obj with
+          | Lvar _ -> f obj
+          | _ ->
+              let v = Ident.create_local "obj" in
+              bind_with_layout Strict (v, layout_object) obj (f (Lvar v))
+        in
         match met with
         | Tmeth_val id ->
             let obj = transl_exp ~scopes expr in
-            let obj_var = Ident.create_local "obj" in
-            bind_with_layout Strict (obj_var, layout_object) obj
+            bind_obj obj (fun obj ->
             (event_after ~scopes e (Lapply {
-              ap_func = Lprim(Pgetmethod Self, [Lvar id; Lvar obj_var], loc);
-              ap_args = [Lvar obj_var];
+              ap_func = Lprim(Pgetmethod Self, [Lvar id; obj], loc);
+              ap_args = [obj];
               ap_result_layout = layout;
               ap_mode = mode;
               ap_region_close = pos;
@@ -658,13 +664,12 @@ and transl_exp0 ~in_new_scope ~scopes e =
               ap_inlined = Default_inlined;
               ap_specialised = Default_specialise;
               ap_loc = loc
-            }))
+            })))
         | Tmeth_name nm ->
             let obj = transl_exp ~scopes expr in
             let (tag, cache) = Translobj.meth obj nm in
             let kind = if cache = [] then Public else Cached in
-            let obj_var = Ident.create_local "obj" in
-            bind_with_layout Strict (obj_var, layout_object) obj
+            bind_obj obj (fun obj ->
               (event_after ~scopes e (Lapply {
               ap_func = Lprim(Pgetmethod kind, tag :: obj :: cache, loc);
               ap_args = [obj];
@@ -676,7 +681,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
               ap_inlined = Default_inlined;
               ap_specialised = Default_specialise;
               ap_loc = loc
-            }))
+            })))
         | Tmeth_ancestor(meth, path_self) ->
             let self = transl_value_path loc e.exp_env path_self in
             let lam = Lapply {ap_loc = loc;
@@ -1002,6 +1007,8 @@ and transl_apply ~scopes
   let lapply funct args loc pos mode result_layout =
     match funct, pos with
     | Lapply ({ ap_region_close = (Rc_normal | Rc_nontail) } as ap),
+      (Rc_normal | Rc_nontail)
+    | Levent (Lapply ({ ap_region_close = (Rc_normal | Rc_nontail) } as ap), _),
       (Rc_normal | Rc_nontail) ->
         Lapply
           {ap with ap_args = ap.ap_args @ args; ap_loc = loc;
