@@ -35,6 +35,8 @@ val must_be_var : t -> (Variable.t * Coercion.t) option
 
 val must_be_symbol : t -> (Symbol.t * Coercion.t) option
 
+val must_be_constant : t -> Reg_width_const.t option
+
 val must_be_name : t -> (Name.t * Coercion.t) option
 
 (** The constant representating the given number of type "int". *)

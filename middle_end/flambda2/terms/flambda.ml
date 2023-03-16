@@ -991,6 +991,11 @@ module Function_params_and_body = struct
 
   let print = print_function_params_and_body
 
+  let pattern_match' t ~f =
+    let open A in
+    let<> bff, {expr; _} = t.abst in
+    f bff ~body:expr
+
   let pattern_match t ~f =
     let module BFF = Bound_for_function in
     let open A in
@@ -1211,6 +1216,13 @@ module Recursive_let_cont_handlers = struct
     let<> invariant_params, handlers = handlers in
     f ~invariant_params ~body handlers
 
+  let pattern_match_bound t ~f =
+    let open A1 in
+    let<> conts, { body; handlers } = t in
+    let open! A0 in
+    let<> invariant_params, handlers = handlers in
+    f conts ~invariant_params ~body handlers
+
   let pattern_match_pair t1 t2 ~f =
     A1.pattern_match_pair t1 t2
       ~f:(fun
@@ -1352,9 +1364,9 @@ module Named = struct
     | Static_consts consts -> Static_const_group.free_names consts
     | Rec_info rec_info_expr -> Rec_info_expr.free_names rec_info_expr
 
-  let print = print_named
-
   let apply_renaming = apply_renaming_named
+
+  let ids_for_export = ids_for_export_named
 
   let at_most_generative_effects (t : t) =
     match t with
@@ -1416,6 +1428,8 @@ module Named = struct
                ->
                acc)
            init
+
+  let print = print_named
 end
 
 module Invalid = struct

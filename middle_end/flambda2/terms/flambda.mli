@@ -178,9 +178,13 @@ module Named : sig
       statically-allocated constants. *)
   val is_static_consts : t -> bool
 
+  val ids_for_export : t -> Ids_for_export.t
+
   val must_be_static_consts : t -> static_const_group
 
   val at_most_generative_effects : t -> bool
+
+  val print : Format.formatter -> t -> unit
 
   val fold_code_and_sets_of_closures :
     t ->
@@ -430,6 +434,18 @@ module Recursive_let_cont_handlers : sig
       'a) ->
     'a
 
+  (** Deconstruct a continuation binding to get the bound continuations,
+      together with the expressions and handlers over which they are scoped. *)
+  val pattern_match_bound :
+    t ->
+    f:
+      (Bound_continuations.t ->
+       invariant_params:Bound_parameters.t ->
+       body:expr ->
+       Continuation_handlers.t ->
+       'a) ->
+    'a
+
   (** Deconstruct two continuation bindings using the same bound continuations. *)
   val pattern_match_pair :
     t ->
@@ -475,6 +491,11 @@ module Function_params_and_body : sig
     my_region:Variable.t ->
     my_depth:Variable.t ->
     t
+
+  val pattern_match' :
+    t ->
+    f:(Bound_for_function.t -> body:expr -> 'a) ->
+    'a
 
   (** Choose a member of the alpha-equivalence class to enable examination of
       the parameters, relations thereon and the body over which they are

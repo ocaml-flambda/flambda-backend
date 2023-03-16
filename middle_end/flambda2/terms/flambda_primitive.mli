@@ -503,3 +503,35 @@ val equal_variadic_primitive : variadic_primitive -> variadic_primitive -> bool
 val is_begin_or_end_region : t -> bool
 
 val is_end_region : t -> Variable.t option
+
+val apply_renaming_unary_primitive :
+  unary_primitive -> Renaming.t -> unary_primitive
+
+val apply_renaming_binary_primitive :
+  binary_primitive -> Renaming.t -> binary_primitive
+
+val apply_renaming_ternary_primitive :
+  ternary_primitive -> Renaming.t -> ternary_primitive
+
+val apply_renaming_variadic_primitive :
+  variadic_primitive -> Renaming.t -> variadic_primitive
+
+val print_unary_primitive :
+  Format.formatter -> unary_primitive -> unit
+
+val print_binary_primitive :
+  Format.formatter -> binary_primitive -> unit
+
+val print_ternary_primitive :
+  Format.formatter -> ternary_primitive -> unit
+
+val print_variadic_primitive :
+  Format.formatter -> variadic_primitive -> unit
+
+val ids_for_export_unary_primitive: unary_primitive -> Ids_for_export.t
+
+val ids_for_export_binary_primitive: binary_primitive -> Ids_for_export.t
+
+val ids_for_export_ternary_primitive: ternary_primitive -> Ids_for_export.t
+
+val ids_for_export_variadic_primitive: variadic_primitive -> Ids_for_export.t

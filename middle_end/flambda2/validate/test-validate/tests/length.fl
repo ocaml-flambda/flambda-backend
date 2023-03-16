@@ -1,0 +1,28 @@
+let $camlLength__first_const17 = Block 0 () in
+let code rec size(22)
+      length_0 (x)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let prim = %is_int x in
+  let Pisint = %Tag_imm prim in
+  (let untagged = %untag_imm Pisint in
+   switch untagged
+     | 0 -> k2
+     | 1 -> k (0))
+    where k2 =
+      ((let Pfield = %block_load (x, 1) in
+        apply direct(length_0)
+          (my_closure : _ -> imm tagged) (Pfield) &my_closure -> k2 * k1)
+         where k2 (apply_result) =
+           let Paddint = 1 + apply_result in
+           cont k (Paddint))
+in
+(let length = closure length_0 @length in
+ let Pmakeblock = %Block 0 (length) in
+ cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load tag(0) size(1) (module_block, 0) in
+    let $camlLength = Block 0 (field_0) in
+    cont done ($camlLength)

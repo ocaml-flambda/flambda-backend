@@ -1,0 +1,11 @@
+let code size(6) bar_0 (map_foo, param) my_closure my_region my_depth -> k * k1 =
+  apply inlined(never) map_foo (0) &my_region -> k * k1
+in
+let code rec size(5) map_foo_1 (param) my_closure my_region my_depth -> k * k1 =
+  let bar = %project_value_slot map_foo.bar my_closure in
+  apply direct(bar_0) bar (my_closure, 0) &my_region -> k * k1
+in
+(let bar = closure bar_0 @bar in
+ let map_foo = closure map_foo_1 @map_foo with { bar = bar } in
+ let $camlTests11_simple = Block 0 (bar, map_foo) in
+ cont done ($camlTests11_simple))

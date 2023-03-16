@@ -32,6 +32,7 @@ module Result_continuation : sig
     | Return of Continuation.t
     | Never_returns
 
+  val ids_for_export : t -> Ids_for_export.t
   include Container_types.S with type t := t
 
   include Contains_names.S with type t := t

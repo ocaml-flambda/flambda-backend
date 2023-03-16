@@ -1,0 +1,30 @@
+let code size(6)
+      bar_0 (foo, param : imm tagged) my_closure my_region my_depth -> k * k1 =
+  apply foo (0) &my_region -> k * k1
+in
+let code size(6)
+      partial_bar_2 (param1) my_closure my_region my_depth -> k * k1 =
+  let foo = %project_value_slot partial_bar.foo_closure my_closure in
+  let bar = %project_value_slot partial_bar.bar my_closure in
+  apply direct(bar_0) bar (foo, param1) &my_region -> k * k1
+in
+let code rec size(21)
+      foo_1 (param : imm tagged) my_closure my_region my_depth -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
+  let bar = %project_value_slot foo.bar_1 my_closure in
+  (let partial_bar = closure partial_bar_2 @partial_bar
+   with { bar = bar; foo_closure = my_closure ~ depth my_depth -> next_depth }
+   in
+   cont k2 (partial_bar))
+    where k2 (g) =
+      apply direct(partial_bar_2) g (0) &my_region -> k * k1
+in
+(let bar = closure bar_0 @bar in
+ let foo = closure foo_1 @foo with { bar_1 = bar } in
+ let Pmakeblock = %Block 0 (bar, foo) in
+ cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load tag(0) size(2) (module_block, 0) in
+    let field_1 = %block_load tag(0) size(2) (module_block, 1) in
+    let $camlTests13_simple2 = Block 0 (field_0, field_1) in
+    cont done ($camlTests13_simple2)

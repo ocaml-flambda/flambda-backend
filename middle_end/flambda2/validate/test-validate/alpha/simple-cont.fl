@@ -1,0 +1,5 @@
+(let a = 42 in cont g (a))
+  where
+    g (x) =
+      let $camlT1 = Block 1 (x) in
+      cont done ($camlT1)

@@ -1,0 +1,18 @@
+let $camlRec__first_const20 = Block 0 () in
+let code rec size(5) f_0 (x) my_closure my_region my_depth -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
+  let g = %project_function_slot (f -> g) my_closure in
+  apply direct(g_1) g (x) &my_region -> k * k1
+and code rec size(5) g_1 (x) my_closure my_region my_depth -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
+  let f = %project_function_slot (g -> f) my_closure in
+  apply direct(f_0) f (x) &my_region -> k * k1
+in
+(let f = closure f_0 @f and g = closure g_1 @g in
+ let Pmakeblock = %Block 0 (f, g) in
+ cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load tag(0) size(2) (module_block, 0) in
+    let field_1 = %block_load tag(0) size(2) (module_block, 1) in
+    let $camlRec = Block 0 (field_0, field_1) in
+    cont done ($camlRec)

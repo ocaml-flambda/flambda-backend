@@ -100,6 +100,11 @@ let[@inline always] must_be_symbol t =
       |> Option.map (fun symbol -> symbol, coercion))
     ~const:(fun _ -> None)
 
+let[@inline always] must_be_constant t =
+  pattern_match t
+    ~name:(fun _ ~coercion:_ -> None)
+    ~const:(fun t -> Some t)
+
 let[@inline always] must_be_name t =
   pattern_match t
     ~name:(fun name ~coercion -> Some (name, coercion))

@@ -1,0 +1,4 @@
+let code size(1) f_0 (x) my_closure my_region my_depth -> k * k1 = cont k (x)
+in
+let $camlApply5 = Block 0 (42) in
+cont done ($camlApply5)

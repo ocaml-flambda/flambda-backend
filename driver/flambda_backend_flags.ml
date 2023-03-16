@@ -17,6 +17,7 @@ let use_ocamlcfg = ref false            (* -ocamlcfg *)
 let dump_cfg = ref false                (* -dcfg *)
 let cfg_invariants = ref false          (* -dcfg-invariants *)
 let cfg_equivalence_check = ref false   (* -dcfg-equivalence-check *)
+let validate = ref false                (* -validate *)
 
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 let basic_block_sections = ref false    (* -basic-block-sections *)

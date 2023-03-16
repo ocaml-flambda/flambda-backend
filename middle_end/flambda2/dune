@@ -30,6 +30,8 @@
    -open
    Flambda2_to_cmm
    -open
+   Flambda2_validate
+   -open
    Flambda2_ui))
  (ocamlopt_flags
   (:standard -O3))
@@ -46,4 +48,5 @@
   flambda2_simplify_shared
   flambda2_terms
   flambda2_to_cmm
-  flambda2_ui))
+  flambda2_ui
+  flambda2_validate))

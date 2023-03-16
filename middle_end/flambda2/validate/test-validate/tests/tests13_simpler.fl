@@ -1,0 +1,21 @@
+let $camlTests13_simpler__first_const21 = Block 0 () in
+let code size(6)
+      bar_0 (foo, param : imm tagged) my_closure my_region my_depth -> k * k1 =
+  apply foo (0) &my_region -> k * k1
+in
+let code rec size(5)
+      foo_1 (param : imm tagged) my_closure my_region my_depth -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
+  let bar = %project_value_slot foo.bar my_closure in
+  apply direct(bar_0)
+    bar (my_closure ~ depth my_depth -> next_depth, 0) &my_region -> k * k1
+in
+(let bar = closure bar_0 @bar in
+ let foo = closure foo_1 @foo with { bar = bar } in
+ let Pmakeblock = %Block 0 (bar, foo) in
+ cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load tag(0) size(2) (module_block, 0) in
+    let field_1 = %block_load tag(0) size(2) (module_block, 1) in
+    let $camlTests13_simpler = Block 0 (field_0, field_1) in
+    cont done ($camlTests13_simpler)

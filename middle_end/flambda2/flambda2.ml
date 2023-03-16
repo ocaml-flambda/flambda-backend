@@ -97,7 +97,20 @@ let print_flexpect name main_dump_ppf ~raw_flambda:old_unit new_unit =
     ~header:("Before and after " ^ name)
     ~f:pp_flambda_as_flexpect (old_unit, new_unit)
 
-let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
+let validate filename (src : Flambda_unit.t) (res : Flambda_unit.t) =
+  let src_core =
+    Translate.flambda_unit_to_core src |> Normalize.normalize
+  in
+  let res_core =
+    Translate.flambda_unit_to_core res |> Normalize.normalize
+  in
+  if (Equiv.core_eq src_core res_core)
+  then
+    Format.eprintf "fλ2: %s PASS@." filename
+  else
+    Format.eprintf "fλ2: %s FAIL@." filename
+
+let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~keep_symbol_tables
     (program : Lambda.program) =
   let compilation_unit = program.compilation_unit in
   let module_block_size_in_words = program.main_module_block_size in
@@ -153,6 +166,9 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
           Profile.record_call ~accumulate:true "simplify" (fun () ->
               Simplify.run ~cmx_loader ~round raw_flambda)
         in
+        (* Run the validator *)
+        if !Flambda_backend_flags.validate
+        then validate filename raw_flambda flambda;
         (if Flambda_features.inlining_report ()
         then
           let output_prefix = Printf.sprintf "%s.%d" prefixname round in

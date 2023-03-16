@@ -119,7 +119,7 @@ end = struct
   end
 
   (* CR-someday mshinwell: Add command-line flag to control this *)
-  let max_num_possible_results = 10
+  let max_num_possible_results = 1
 
   let simplify op dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty
       ~result_var =

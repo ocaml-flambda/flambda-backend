@@ -1,0 +1,40 @@
+(executables
+ (names flvalidate)
+ (modes native)
+ (flags
+  (:standard -principal
+    -open
+    Flambda2_algorithms
+    -open
+    Flambda2_bound_identifiers
+    -open
+    Flambda2_cmx
+    -open
+    Flambda2_identifiers
+    -open
+    Flambda2_kinds
+    -open
+    Flambda2_nominal
+    -open
+    Flambda2_numbers
+    -open
+    Flambda2_term_basics
+    -open
+    Flambda2_terms
+    -open
+    Flambda2_simplify
+    -open
+    Flambda2_validate
+    -open
+    Flambda2_parser
+  )
+ )
+ (libraries
+   ocamlcommon
+   ocamloptcomp
+   flambda2
+   flambda2_validate
+   flambda2_compare
+   flambda2_parser
+   flambda2_terms
+   flambda2_cmx))

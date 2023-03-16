@@ -1,0 +1,26 @@
+let $camlAnon__first_const17 = Block 0 () in
+let code size(1)
+      `anon-fn[middle_end/flambda2/validate/test-validate/tests/anon.ml:2,4--16]_1`
+        (x)
+        my_closure my_region my_depth
+        -> k * k1 =
+  cont k (x)
+in
+let code size(14) foo_0 (x) my_closure my_region my_depth -> k * k1 =
+  let `anon-fn[middle_end/flambda2/validate/test-validate/tests/anon.ml:2,4--16]` =
+    closure
+      `anon-fn[middle_end/flambda2/validate/test-validate/tests/anon.ml:2,4--16]_1`
+      @`anon-fn[middle_end/flambda2/validate/test-validate/tests/anon.ml:2,4--16]`
+  in
+  apply
+    x
+      (`anon-fn[middle_end/flambda2/validate/test-validate/tests/anon.ml:2,4--16]`) &my_region
+      -> k * k1
+in
+(let foo = closure foo_0 @foo in
+ let Pmakeblock = %Block 0 (foo) in
+ cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load tag(0) size(1) (module_block, 0) in
+    let $camlAnon = Block 0 (field_0) in
+    cont done ($camlAnon)

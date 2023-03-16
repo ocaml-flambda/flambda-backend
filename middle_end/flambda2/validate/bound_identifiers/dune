@@ -1,0 +1,31 @@
+(include_subdirs unqualified)
+
+(library
+ (name flambda2_core_bound_identifiers)
+ (wrapped true)
+ (instrumentation (backend bisect_ppx))
+ (flags
+  (:standard
+    -principal
+    -open
+    Flambda2_algorithms
+    -open
+    Flambda2_bound_identifiers
+    -open
+    Flambda2_identifiers
+    -open
+    Flambda2_kinds
+    -open
+    Flambda2_nominal
+    -open
+    Flambda2_ui))
+ (ocamlopt_flags
+  (:standard -O3))
+ (libraries
+   ocamlcommon
+   flambda2_algorithms
+   flambda2_identifiers
+   flambda2_kinds
+   flambda2_nominal
+   flambda2_terms
+   flambda2_ui))

@@ -1,0 +1,31 @@
+let $camlOpaque_partial__first_const36 = Block 0 () in
+let code size(6)
+      bar_0 (foo, param) my_closure my_region my_depth -> k * k1 =
+  apply foo (0) &my_region -> k * k1
+in
+let code size(6) partial_bar_3 (param1) my_closure my_region my_depth -> k * k1 =
+  let bar = %project_value_slot partial_bar.bar my_closure in
+  let `anon-fn` = %project_value_slot partial_bar.`anon-fn` my_closure in
+  apply direct(bar_0) bar (`anon-fn`, param1) &my_region -> k * k1
+in
+let code size(1) `anon-fn_2` (prim) my_closure my_region my_depth -> k * k1 =
+  let Popaque = %Opaque prim in cont k (Popaque)
+in
+let code size(29) foo_1 (param) my_closure my_region my_depth -> k * k1 =
+  let bar = %project_value_slot foo.bar_1 my_closure in
+  (let `anon-fn` = closure `anon-fn_2` @`anon-fn` in
+   let partial_bar = closure partial_bar_3 @partial_bar
+   with { bar = bar; `anon-fn` = `anon-fn`} in
+   cont k2 (partial_bar))
+    where k2 (g) =
+      apply direct(partial_bar_3) g (0) &my_region -> k * k1
+in
+(let bar = closure bar_0 @bar in
+ let foo = closure foo_1 @foo with { bar_1 = bar } in
+ let Pmakeblock = %Block 0 (bar, foo) in
+ cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load tag(0) size(2) (module_block, 0) in
+    let field_1 = %block_load tag(0) size(2) (module_block, 1) in
+    let $camlOpaque_partial = Block 0 (field_0, field_1) in
+    cont done ($camlOpaque_partial)

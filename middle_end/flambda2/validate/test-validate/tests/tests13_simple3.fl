@@ -1,0 +1,82 @@
+let $camlTests13_simple3__first_const45 = Block 0 () in
+let code size(1)
+      `anon-fn[middle_end/flambda2/validate/test-validate/tests/tests13_simple3.ml:16,31--43]_2`
+        (x)
+        my_closure my_region my_depth
+        -> k * k1 =
+  cont k (x)
+in
+let code size(19)
+      `anon-fn[middle_end/flambda2/validate/test-validate/tests/tests13_simple3.ml:13,2--102]_1`
+        (param : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1 =
+  let i =
+    %project_value_slot
+      `anon-fn[middle_end/flambda2/validate/test-validate/tests/tests13_simple3.ml:13,2--102]`.i my_closure
+  in
+  let map_foo =
+    %project_value_slot
+      `anon-fn[middle_end/flambda2/validate/test-validate/tests/tests13_simple3.ml:13,2--102]`.map_foo my_closure
+  in
+  let j = i + 3 in
+  (let ignore = %Opaque j in
+   cont k2 (0))
+    where k2 (sequence) =
+      let `anon-fn[middle_end/flambda2/validate/test-validate/tests/tests13_simple3.ml:16,31--43]` =
+        closure
+          `anon-fn[middle_end/flambda2/validate/test-validate/tests/tests13_simple3.ml:16,31--43]_2`
+          @`anon-fn[middle_end/flambda2/validate/test-validate/tests/tests13_simple3.ml:16,31--43]`
+      in
+      apply inlined(never)
+        map_foo
+          (`anon-fn[middle_end/flambda2/validate/test-validate/tests/tests13_simple3.ml:16,31--43]`,
+           0)
+          &my_region -> k * k1
+in
+let code inline(always) size(29)
+      bar_0 (i : imm tagged, map_foo) my_closure my_region my_depth -> k * k1 =
+  let `anon-fn[middle_end/flambda2/validate/test-validate/tests/tests13_simple3.ml:13,2--102]` =
+    closure
+      `anon-fn[middle_end/flambda2/validate/test-validate/tests/tests13_simple3.ml:13,2--102]_1`
+      @`anon-fn[middle_end/flambda2/validate/test-validate/tests/tests13_simple3.ml:13,2--102]`
+  with { i = i; map_foo = map_foo }
+  in
+  cont k
+         (`anon-fn[middle_end/flambda2/validate/test-validate/tests/tests13_simple3.ml:13,2--102]`)
+in
+let code rec size(28)
+      map_foo_3 (f, param : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let bar = %project_value_slot map_foo.bar my_closure in
+  (let Popaque = %Opaque 0 in
+   (let untagged = %untag_imm Popaque in
+    switch untagged
+      | 0 -> k3
+      | 1 -> k4)
+     where k4 =
+       apply direct(bar_0)
+         bar (10, my_closure ~ depth my_depth -> next_depth) &my_region -> k2 * k1
+     where k3 =
+       apply direct(bar_0)
+         bar (20, my_closure ~ depth my_depth -> next_depth) &my_region -> k2 * k1)
+    where k2 (g) =
+      (apply inlined(always) g (0) &my_region -> k2 * k1
+         where k2 (g_result : imm tagged) =
+           ((let ignore = %Opaque g_result in
+             cont k2 (0))
+              where k2 (sequence) =
+                cont k (0)))
+in
+(let bar = closure bar_0 @bar in
+ let map_foo = closure map_foo_3 @map_foo with { bar = bar } in
+ let Pmakeblock = %Block 0 (bar, map_foo) in
+ cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load tag(0) size(2) (module_block, 0) in
+    let field_1 = %block_load tag(0) size(2) (module_block, 1) in
+    let $camlTests13_simple3 = Block 0 (field_0, field_1) in
+    cont done ($camlTests13_simple3)

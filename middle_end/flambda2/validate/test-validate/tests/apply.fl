@@ -1,0 +1,6 @@
+let $camlApply = Block 0 () in
+let Pmakeblock = %Block 0 (42) in
+(let Pmakeblock = %Block 0 (21) in
+ cont k (42))
+  where k define_root_symbol (module_block) =
+    cont done (Pmakeblock)

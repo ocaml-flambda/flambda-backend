@@ -1,0 +1,11 @@
+let code size(1) f_0 (x) my_closure my_region my_depth -> k * k1 =
+  cont k (x)
+in
+let code size(8) g_1 (x) my_closure my_region my_depth -> k * k1 =
+  let Pmakeblock = %Block 0 (x, x) in
+  cont k (Pmakeblock)
+in
+let $camlApply__f_2 = closure f_0 @f in
+let $camlApply__g_3 = closure g_1 @g in
+let $camlApply1 = Block 0 ($camlApply__f_2, $camlApply__g_3) in
+cont done ($camlApply1)

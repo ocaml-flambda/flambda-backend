@@ -1,0 +1,12 @@
+(include generated-rules.inc)
+
+(alias (name regen-dune-rules))
+
+(rule
+ (alias regen-dune-rules)
+ (action
+  (progn
+   (with-stdout-to generated-rules.inc.new
+    (run tools/gen_dune_rules.exe
+         foo))
+   (diff generated-rules.inc generated-rules.inc.new))))
