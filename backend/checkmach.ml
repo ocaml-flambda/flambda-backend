@@ -158,7 +158,7 @@ end = struct
 
   let top = { nor = V.Top; exn = V.Top; div = V.Top }
 
-  let relaxed = { nor = V.Safe; exn = V.Top; div = V.Safe }
+  let relaxed = { nor = V.Safe; exn = V.Top; div = V.Top }
 
   let is_top v = v = top
 
@@ -196,7 +196,7 @@ end = struct
    *     satisfy the same conditions, i.e., they are [Strict].
    *
    *  [Relaxed] is the same as [Strict] on all paths that end in a normal return
-   *  from a function, but no restrictions
+   *  from a function, but no restrictions on diverging executions or
    *  on when a function returns with a [raise] with backtrace, which is treated
    *  as an error return (whereas [raise_no_trace] is treated as normal control flow
    *  and is subject to [Strict] requirements).
