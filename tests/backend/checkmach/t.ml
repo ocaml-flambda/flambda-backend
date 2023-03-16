@@ -174,3 +174,15 @@ let[@zero_alloc] test32 x y=
 let[@inline never] test33 x = Printf.eprintf "%d\n%!" x
 let[@zero_alloc] test34 x =
   if x > 0 then (test33 x; raise Exn) else x + 1
+
+let[@inline never] allocate x = (x,x)
+let[@zero_alloc] test35 cond x =
+  while true do
+    (Sys.opaque_identity (allocate x)) |> ignore;
+    if Sys.opaque_identity cond then raise Exn
+  done
+
+let[@zero_alloc] rec g x =
+  if Sys.opaque_identity true then
+    try g x with _ -> ()
+  else raise (Failure x)
