@@ -230,7 +230,12 @@ end = struct
         codegen_options
     in
     match a with
-    | [] -> None
+    | [] ->
+      if !Clflags.zero_alloc_check_assert_all
+      then
+        Some { strict = false; assume = false; loc = Debuginfo.to_location dbg }
+      else
+        None
     | [p] -> Some p
     | _ :: _ ->
       Misc.fatal_errorf "Unexpected duplicate annotation %a"
