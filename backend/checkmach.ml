@@ -220,18 +220,25 @@ end = struct
   let is_assume t = t.assume
 
   let find codegen_options spec dbg =
+    let ignore_assert_all = ref false in
     let a =
       List.filter_map
         (fun (c : Cmm.codegen_option) ->
           match c with
           | Check { property; strict; assume; loc } when property = spec ->
             Some { strict; assume; loc }
-          | Check _ | Reduce_code_size | No_CSE | Use_linscan_regalloc -> None)
+          | Ignore_assert_all property when property = spec ->
+            ignore_assert_all := true;
+            None
+          | Ignore_assert_all _
+          | Check _ | Reduce_code_size | No_CSE | Use_linscan_regalloc ->
+            None)
         codegen_options
     in
     match a with
     | [] ->
       if !Clflags.zero_alloc_check_assert_all
+      && not !ignore_assert_all
       then
         Some { strict = false; assume = false; loc = Debuginfo.to_location dbg }
       else

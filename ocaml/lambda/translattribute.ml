@@ -144,7 +144,7 @@ let parse_ids_payload txt loc ~default ~empty cases payload =
   | Error () -> warn ()
   | Ok None -> empty
   | Ok (Some ids) ->
-      match List.assoc_opt ids cases with
+      match List.assoc_opt (List.sort String.compare ids) cases with
       | Some r -> r
       | None -> warn ()
 
@@ -254,9 +254,11 @@ let parse_property_attribute attr property =
         ~empty:(Check { property; strict = false; assume = false; loc; } )
         [
           ["assume"], Check { property; strict = false; assume = true; loc; };
+          ["assert"], Check { property; strict = false; assume = false; loc; };
           ["strict"], Check { property; strict = true; assume = false; loc; };
+          ["assert"; "strict"], Check { property; strict = true; assume = false; loc; };
           ["assume"; "strict"], Check { property; strict = true; assume = true; loc; };
-          ["strict"; "assume"], Check { property; strict = true; assume = true; loc; };
+          ["ignore"], Ignore_assert_all property
         ]
         payload
 
@@ -414,15 +416,18 @@ let add_check_attribute expr loc attributes =
         (if assume then "assume" else "assert")
         (to_string property)
         (if strict then " strict" else "")
+    | Ignore_assert_all property ->
+      Printf.sprintf "ignore %s" (to_string property)
     | Default_check -> assert false
   in
   match expr with
-  | Lfunction({ attr = { stub = false } as attr } as funct) ->
+  | Lfunction({ attr = { stub = false } as attr; } as funct) ->
     begin match get_check_attribute attributes with
     | Default_check -> expr
-    | (Check { property = p; _ }) as check ->
+    | (Ignore_assert_all p | Check { property = p; _ }) as check ->
       begin match attr.check with
       | Default_check -> ()
+      | Ignore_assert_all p'
       | Check { property = p'; strict = _; assume = _; loc = _; } ->
         if p = p' then
           Location.prerr_warning loc
