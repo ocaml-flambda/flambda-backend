@@ -72,9 +72,7 @@ let simplify_toplevel_common dacc simplify ~params ~implicit_params
           UA.create ~flow_result ~compute_slot_offsets:true uenv dacc
         in
         let uacc =
-          if not
-               (Named_rewrite_id.Map.is_empty
-                  flow_result.mutable_unboxing_result.let_rewrites)
+          if Flow.Analysis.did_perform_mutable_unboxing flow_result
           then UA.set_resimplify uacc
           else uacc
         in
