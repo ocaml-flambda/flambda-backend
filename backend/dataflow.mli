@@ -29,7 +29,7 @@ module Backward(D: DOMAIN) : sig
 
   val analyze: ?exnhandler: (D.t -> D.t) ->
                ?exnescape: D.t ->
-               ?init_lbl: (int -> D.t) ->
+               ?init_lbl: D.t ->
                transfer: (Mach.instruction -> next: D.t -> exn: D.t -> D.t) ->
                Mach.instruction ->
                D.t * (int -> D.t)
