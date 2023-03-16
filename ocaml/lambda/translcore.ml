@@ -999,13 +999,20 @@ and transl_apply ~scopes
       ~result_layout
       lam sargs loc
   =
-  let lapply funct args loc pos mode result_layout =
+  let rec lapply funct args loc pos mode result_layout =
     match funct, pos with
     | Lapply ({ ap_region_close = (Rc_normal | Rc_nontail) } as ap),
+      (Rc_normal | Rc_nontail)
+    | Levent (Lapply ({ ap_region_close = (Rc_normal | Rc_nontail) } as ap), _),
       (Rc_normal | Rc_nontail) ->
         Lapply
           {ap with ap_args = ap.ap_args @ args; ap_loc = loc;
                    ap_region_close = pos; ap_mode = mode}
+    | Llet (kind, layout, name, value, body), pos ->
+        (* The function of an application is evaluated first, so it is safe to
+           push the application under the [Llet]. *)
+        Llet (kind, layout, name, value,
+             lapply body args loc pos mode result_layout)
     | lexp, _ ->
         Lapply {
           ap_loc=loc;
