@@ -704,8 +704,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pctconst _ | Pbswap16
       | Pbbswap _ | Pint_as_pointer | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-      | Pgetmethod _
-        ->
+      | Pgetmethod _ ->
         (* Inconsistent with outer match *)
         assert false
     in
@@ -930,25 +929,24 @@ let close_exact_or_unknown_apply acc env
   in
   let mode = Alloc_mode.For_types.from_lambda mode in
   let call_kind =
-        match (callee_approx : Env.value_approximation option) with
-        | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
-          let is_tupled =
-            let meta = Code_or_metadata.code_metadata code_or_meta in
-            Code_metadata.is_tupled meta
-          in
-          if is_tupled
-          then
-            (* CR keryan : We could do better here since we know the arity, but
-               we would have to untuple the arguments and we lack information
-               for now *)
-            Call_kind.indirect_function_call_unknown_arity mode
-          else Call_kind.direct_function_call code_id mode
-        | None -> Call_kind.indirect_function_call_unknown_arity mode
-        | Some
-            ( Value_unknown | Value_symbol _ | Value_int _
-            | Block_approximation _ ) ->
-          assert false
-        (* See [close_apply] *)
+    match (callee_approx : Env.value_approximation option) with
+    | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
+      let is_tupled =
+        let meta = Code_or_metadata.code_metadata code_or_meta in
+        Code_metadata.is_tupled meta
+      in
+      if is_tupled
+      then
+        (* CR keryan : We could do better here since we know the arity, but we
+           would have to untuple the arguments and we lack information for
+           now *)
+        Call_kind.indirect_function_call_unknown_arity mode
+      else Call_kind.direct_function_call code_id mode
+    | None -> Call_kind.indirect_function_call_unknown_arity mode
+    | Some (Value_unknown | Value_symbol _ | Value_int _ | Block_approximation _)
+      ->
+      assert false
+    (* See [close_apply] *)
   in
   let acc, apply_exn_continuation =
     close_exn_continuation acc env exn_continuation

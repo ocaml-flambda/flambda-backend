@@ -66,8 +66,12 @@ type 'env trans_prim =
     quaternary :
       ( 'env,
         P.quaternary_primitive,
-        Cmm.expression -> Cmm.expression -> Cmm.expression -> Cmm.expression -> prim_res )
-        prim_helper;
+        Cmm.expression ->
+        Cmm.expression ->
+        Cmm.expression ->
+        Cmm.expression ->
+        prim_res )
+      prim_helper;
     variadic :
       ('env, P.variadic_primitive, Cmm.expression list -> prim_res) prim_helper
   }

@@ -1209,7 +1209,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       | Pbigstring_load_32 _ | Pbigstring_load_64 _
       | Parrayrefu (Pgenarray | Paddrarray | Pintarray | Pfloatarray)
       | Parrayrefs (Pgenarray | Paddrarray | Pintarray | Pfloatarray)
-      | Pcompare_ints | Pcompare_floats | Pcompare_bints _ | Pgetmethod (Self | Public)),
+      | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+      | Pgetmethod (Self | Public) ),
       ([] | [_] | _ :: _ :: _ :: _) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for binary primitive \
@@ -1225,10 +1226,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       "Closure_conversion.convert_primitive: Wrong arity for ternary primitive \
        %a (%a)"
       Printlambda.primitive prim H.print_list_of_simple_or_prim args
-  | Pgetmethod Cached, ([] | [_] | [_; _] | [_; _; _] | _ :: _ :: _ :: _ :: _ :: _) ->
+  | ( Pgetmethod Cached,
+      ([] | [_] | [_; _] | [_; _; _] | _ :: _ :: _ :: _ :: _ :: _) ) ->
     Misc.fatal_errorf
-      "Closure_conversion.convert_primitive: Wrong arity for quaternary primitive \
-       %a (%a)"
+      "Closure_conversion.convert_primitive: Wrong arity for quaternary \
+       primitive %a (%a)"
       Printlambda.primitive prim H.print_list_of_simple_or_prim args
   | (Pignore | Psequand | Psequor | Pbytes_of_string | Pbytes_to_string), _ ->
     Misc.fatal_errorf

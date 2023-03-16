@@ -97,4 +97,3 @@ let ids_for_export t =
   | Function { function_call = Indirect_known_arity; alloc_mode = _ }
   | C_call { alloc = _; is_c_builtin = _ } ->
     Ids_for_export.empty
-

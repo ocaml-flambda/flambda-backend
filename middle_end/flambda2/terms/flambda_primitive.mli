@@ -348,7 +348,7 @@ type binary_primitive =
       Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
   | Float_arith of binary_float_arith_op
   | Float_comp of unit comparison_behaviour
-  | Get_method of { is_self: bool }
+  | Get_method of { is_self : bool }
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
@@ -358,8 +358,7 @@ type ternary_primitive =
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
 
 (** Primitives taking exactly four arguments. *)
-type quaternary_primitive =
-  | Get_cached_method
+type quaternary_primitive = Get_cached_method
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =
@@ -374,7 +373,8 @@ type t =
   | Unary of unary_primitive * Simple.t
   | Binary of binary_primitive * Simple.t * Simple.t
   | Ternary of ternary_primitive * Simple.t * Simple.t * Simple.t
-  | Quaternary of quaternary_primitive * Simple.t * Simple.t * Simple.t * Simple.t
+  | Quaternary of
+      quaternary_primitive * Simple.t * Simple.t * Simple.t * Simple.t
   | Variadic of variadic_primitive * Simple.t list
 
 type primitive_application = t
@@ -414,7 +414,8 @@ val args_kind_of_ternary_primitive :
   ternary_primitive -> Flambda_kind.t * Flambda_kind.t * Flambda_kind.t
 
 val args_kind_of_quaternary_primitive :
-  quaternary_primitive -> Flambda_kind.t * Flambda_kind.t * Flambda_kind.t * Flambda_kind.t
+  quaternary_primitive ->
+  Flambda_kind.t * Flambda_kind.t * Flambda_kind.t * Flambda_kind.t
 
 type arg_kinds =
   | Variadic of Flambda_kind.t list
@@ -453,7 +454,8 @@ val result_kind_of_binary_primitive' : binary_primitive -> Flambda_kind.t
 
 val result_kind_of_ternary_primitive' : ternary_primitive -> Flambda_kind.t
 
-val result_kind_of_quaternary_primitive' : quaternary_primitive -> Flambda_kind.t
+val result_kind_of_quaternary_primitive' :
+  quaternary_primitive -> Flambda_kind.t
 
 val result_kind_of_variadic_primitive' : variadic_primitive -> Flambda_kind.t
 
@@ -512,7 +514,8 @@ val equal_binary_primitive : binary_primitive -> binary_primitive -> bool
 
 val equal_ternary_primitive : ternary_primitive -> ternary_primitive -> bool
 
-val equal_quaternary_primitive : quaternary_primitive -> quaternary_primitive -> bool
+val equal_quaternary_primitive :
+  quaternary_primitive -> quaternary_primitive -> bool
 
 val equal_variadic_primitive : variadic_primitive -> variadic_primitive -> bool
 

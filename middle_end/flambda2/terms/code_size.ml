@@ -370,7 +370,8 @@ let ternary_prim_size prim =
 
 let quaternary_prim_size prim =
   match (prim : Flambda_primitive.quaternary_primitive) with
-  | Get_cached_method -> direct_call_size (* CR ncourant: is this a good estimate? *)
+  | Get_cached_method ->
+    direct_call_size (* CR ncourant: is this a good estimate? *)
 
 let variadic_prim_size prim args =
   match (prim : Flambda_primitive.variadic_primitive) with

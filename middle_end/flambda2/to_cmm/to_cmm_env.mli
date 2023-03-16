@@ -71,8 +71,12 @@ type 'env trans_prim =
     quaternary :
       ( 'env,
         Flambda_primitive.quaternary_primitive,
-        Cmm.expression -> Cmm.expression -> Cmm.expression -> Cmm.expression -> prim_res )
-        prim_helper;
+        Cmm.expression ->
+        Cmm.expression ->
+        Cmm.expression ->
+        Cmm.expression ->
+        prim_res )
+      prim_helper;
     variadic :
       ( 'env,
         Flambda_primitive.variadic_primitive,

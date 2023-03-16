@@ -506,10 +506,7 @@ let binary_float_comp_primitive_yielding_int _env dbg x y =
   C.mk_compare_floats_untagged dbg x y
 
 let get_method dbg is_self obj met =
-  if is_self then
-    C.lookup_label obj met dbg
-  else
-    C.lookup_tag obj met dbg
+  if is_self then C.lookup_label obj met dbg else C.lookup_tag obj met dbg
 
 let get_cached_method dbg obj met cache pos =
   C.get_cached_method obj met cache pos dbg
@@ -656,8 +653,7 @@ let binary_primitive env dbg f x y =
     binary_float_comp_primitive env dbg cmp x y
   | Float_comp (Yielding_int_like_compare_functions ()) ->
     binary_float_comp_primitive_yielding_int env dbg x y
-  | Get_method { is_self } ->
-    get_method dbg is_self x y
+  | Get_method { is_self } -> get_method dbg is_self x y
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
@@ -722,8 +718,8 @@ let trans_prim : To_cmm_env.t To_cmm_env.trans_prim =
         None, res, cmm);
     quaternary =
       (fun env res dbg prim x y z w ->
-         let cmm = quaternary_primitive env dbg prim x y z w in
-         None, res, cmm);
+        let cmm = quaternary_primitive env dbg prim x y z w in
+        None, res, cmm);
     variadic =
       (fun env res dbg prim args ->
         let cmm = variadic_primitive env dbg prim args in
@@ -812,7 +808,9 @@ let prim_simple env res dbg p =
         w.free_vars
     in
     let effs = Ece.join (Ece.join (Ece.join x.effs y.effs) z.effs) w.effs in
-    let expr = quaternary_primitive env dbg quaternary x.cmm y.cmm z.cmm w.cmm in
+    let expr =
+      quaternary_primitive env dbg quaternary x.cmm y.cmm z.cmm w.cmm
+    in
     Env.simple expr free_vars, None, env, res, effs
   | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
     let args, free_vars, env, res, effs =

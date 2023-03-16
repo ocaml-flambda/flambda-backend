@@ -2307,19 +2307,19 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
           Vval Pgenval (* incorrect but only used for unboxing *) ) )
 
 let get_cached_method obj met cache pos dbg =
-      Cop
-        ( Cextcall
-            { func = "caml_get_cached_public_method";
-              ty = typ_val;
-              builtin = false;
-              returns = true;
-              effects = Arbitrary_effects;
-              coeffects = Has_coeffects;
-              alloc = false;
-              ty_args = []
-            },
-          [obj; met; cache; pos],
-          dbg )
+  Cop
+    ( Cextcall
+        { func = "caml_get_cached_public_method";
+          ty = typ_val;
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          alloc = false;
+          ty_args = []
+        },
+      [obj; met; cache; pos],
+      dbg )
 
 let apply_function (arity, result, mode) =
   let args, clos, body = apply_function_body arity result mode in
@@ -2613,10 +2613,7 @@ module Generic_fns_tbl = struct
       apply : (machtype list * machtype * Lambda.alloc_mode, unit) Hashtbl.t
     }
 
-  let make () =
-    { curry = Hashtbl.create 10;
-      apply = Hashtbl.create 10
-    }
+  let make () = { curry = Hashtbl.create 10; apply = Hashtbl.create 10 }
 
   let add t Cmx_format.{ curry_fun; apply_fun } =
     List.iter (fun f -> Hashtbl.replace t.curry f ()) curry_fun;
@@ -2632,9 +2629,7 @@ module Generic_fns_tbl = struct
       let keys = Hashtbl.fold (fun k () acc -> k :: acc) tbl [] in
       List.sort compare keys
     in
-    { curry_fun = sorted_keys t.curry;
-      apply_fun = sorted_keys t.apply
-    }
+    { curry_fun = sorted_keys t.curry; apply_fun = sorted_keys t.apply }
 end
 
 let generic_functions shared tbl =
@@ -2642,8 +2637,7 @@ let generic_functions shared tbl =
   let ({ curry_fun; apply_fun } : Cmx_format.generic_fns) =
     Generic_fns_tbl.entries tbl
   in
-  List.concat_map curry_function curry_fun
-  @ List.map apply_function apply_fun
+  List.concat_map curry_function curry_fun @ List.map apply_function apply_fun
 
 (* Primitives *)
 

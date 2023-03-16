@@ -31,7 +31,11 @@ type expr_primitive =
   | Ternary of
       P.ternary_primitive * simple_or_prim * simple_or_prim * simple_or_prim
   | Quaternary of
-      P.quaternary_primitive * simple_or_prim * simple_or_prim * simple_or_prim * simple_or_prim
+      P.quaternary_primitive
+      * simple_or_prim
+      * simple_or_prim
+      * simple_or_prim
+      * simple_or_prim
   | Variadic of P.variadic_primitive * simple_or_prim list
   | Checked of
       { validity_conditions : expr_primitive list;

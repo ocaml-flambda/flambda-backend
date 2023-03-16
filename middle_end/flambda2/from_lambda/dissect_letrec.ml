@@ -507,8 +507,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       | Lstringswitch (lam1, _, _, _, _)
       | Lifthenelse (lam1, _, _, _) ->
         Some lam1
-      | Lapply _ | Lstaticraise _ | Lvar _ | Lmutvar _ | Lprim _ ->
-        Some lam
+      | Lapply _ | Lstaticraise _ | Lvar _ | Lmutvar _ | Lprim _ -> Some lam
       | _ -> assert false
     in
     Option.iter

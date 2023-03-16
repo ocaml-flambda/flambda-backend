@@ -896,7 +896,6 @@ let blocks env block1 block2 =
     ~subst3:(fun env -> List.map (subst_field env))
     env block1 block2
 
-
 let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     Call_kind.t Comparison.t =
   let compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f : _ Comparison.t =

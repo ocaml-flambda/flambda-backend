@@ -1167,8 +1167,7 @@ let binary_primitive_eligible_for_cse p =
   | Array_load _ | Block_load _ -> false
   | String_or_bigstring_load _ -> false (* CR mshinwell: review *)
   | Bigarray_load _ -> false
-  | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _
-  | Get_method _ -> true
+  | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Get_method _ -> true
   | Float_arith _ | Float_comp _ ->
     (* We believe that under the IEEE standard it is correct to CSE
        floating-point comparison operations. However we aren't completely sure
@@ -1332,7 +1331,8 @@ let binary_classify_for_printing p =
   match p with
   | Block_load _ | Array_load _ -> Destructive
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ | Bigarray_load _ | String_or_bigstring_load _ | Get_method _ ->
+  | Float_comp _ | Bigarray_load _ | String_or_bigstring_load _ | Get_method _
+    ->
     Neither
 
 let free_names_binary_primitive p =
@@ -1493,52 +1493,42 @@ let ids_for_export_ternary_primitive p =
     Init_or_assign.ids_for_export init_or_assign
   | Bytes_or_bigstring_set _ | Bigarray_set _ -> Ids_for_export.empty
 
-type quaternary_primitive =
-  | Get_cached_method
+type quaternary_primitive = Get_cached_method
 
 let quaternary_primitive_eligible_for_cse p =
-  match p with
-  | Get_cached_method -> true
+  match p with Get_cached_method -> true
 
 let compare_quaternary_primitive p1 p2 =
-  match p1, p2 with
-  | Get_cached_method, Get_cached_method -> 0
+  match p1, p2 with Get_cached_method, Get_cached_method -> 0
 
 let equal_quaternary_primitive p1 p2 = compare_quaternary_primitive p1 p2 = 0
 
 let print_quaternary_primitive ppf p =
   let fprintf = Format.fprintf in
-  match p with
-  | Get_cached_method -> fprintf ppf "Get_cached_method"
+  match p with Get_cached_method -> fprintf ppf "Get_cached_method"
 
 let args_kind_of_quaternary_primitive p =
   match p with
   | Get_cached_method ->
-    ( object_kind, method_tag_kind, block_kind, block_index_kind )
+    object_kind, method_tag_kind, block_kind, block_index_kind
 
 let result_kind_of_quaternary_primitive p : result_kind =
-  match p with
-  | Get_cached_method -> Singleton closure_kind
+  match p with Get_cached_method -> Singleton closure_kind
 
 let effects_and_coeffects_of_quaternary_primitive p : Effects_and_coeffects.t =
-  match p with
-  | Get_cached_method -> No_effects, No_coeffects, Strict
+  match p with Get_cached_method -> No_effects, No_coeffects, Strict
 
 let quaternary_classify_for_printing p =
-  match p with
-  | Get_cached_method -> Neither
+  match p with Get_cached_method -> Neither
 
 let free_names_quaternary_primitive p =
-  match p with
-  | Get_cached_method -> Name_occurrences.empty
+  match p with Get_cached_method -> Name_occurrences.empty
 
 let apply_renaming_quaternary_primitive p _renaming =
-  match p with
-  | Get_cached_method -> Get_cached_method
+  match p with Get_cached_method -> Get_cached_method
 
 let ids_for_export_quaternary_primitive p =
-  match p with
-  | Get_cached_method -> Ids_for_export.empty
+  match p with Get_cached_method -> Ids_for_export.empty
 
 type variadic_primitive =
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
@@ -1647,7 +1637,8 @@ type t =
   | Unary of unary_primitive * Simple.t
   | Binary of binary_primitive * Simple.t * Simple.t
   | Ternary of ternary_primitive * Simple.t * Simple.t * Simple.t
-  | Quaternary of quaternary_primitive * Simple.t * Simple.t * Simple.t * Simple.t
+  | Quaternary of
+      quaternary_primitive * Simple.t * Simple.t * Simple.t * Simple.t
   | Variadic of variadic_primitive * Simple.t list
 
 type primitive_application = t
@@ -1712,13 +1703,15 @@ include Container_types.Make (struct
             let c = Simple.compare s2 s2' in
             if c <> 0
             then c
-              else
-                let c = Simple.compare s3 s3' in
-                if c <> 0 then c else Simple.compare s4 s4'
+            else
+              let c = Simple.compare s3 s3' in
+              if c <> 0 then c else Simple.compare s4 s4'
       | Variadic (p, s), Variadic (p', s') ->
         let c = compare_variadic_primitive p p' in
         if c <> 0 then c else Simple.List.compare s s'
-      | (Nullary _ | Unary _ | Binary _ | Ternary _ | Quaternary _ | Variadic _), _ ->
+      | ( ( Nullary _ | Unary _ | Binary _ | Ternary _ | Quaternary _
+          | Variadic _ ),
+          _ ) ->
         Stdlib.compare (numbering t1) (numbering t2)
 
   let equal t1 t2 = compare t1 t2 = 0
@@ -1941,7 +1934,8 @@ let effects_and_coeffects (t : t) =
   | Unary (prim, _) -> effects_and_coeffects_of_unary_primitive prim
   | Binary (prim, _, _) -> effects_and_coeffects_of_binary_primitive prim
   | Ternary (prim, _, _, _) -> effects_and_coeffects_of_ternary_primitive prim
-  | Quaternary (prim, _, _, _, _) -> effects_and_coeffects_of_quaternary_primitive prim
+  | Quaternary (prim, _, _, _, _) ->
+    effects_and_coeffects_of_quaternary_primitive prim
   | Variadic (prim, _) -> effects_and_coeffects_of_variadic_primitive prim
 
 let no_effects_or_coeffects t =
@@ -1974,7 +1968,8 @@ module Eligible_for_cse = struct
       | Unary (prim, arg) -> unary_primitive_eligible_for_cse prim ~arg
       | Binary (prim, _, _) -> binary_primitive_eligible_for_cse prim
       | Ternary (prim, _, _, _) -> ternary_primitive_eligible_for_cse prim
-      | Quaternary (prim, _, _, _, _) -> quaternary_primitive_eligible_for_cse prim
+      | Quaternary (prim, _, _, _, _) ->
+        quaternary_primitive_eligible_for_cse prim
       | Variadic (prim, args) -> variadic_primitive_eligible_for_cse prim ~args
     in
     let eligible = prim_eligible && List.exists Simple.is_var (args t) in
@@ -2091,21 +2086,22 @@ module Eligible_for_cse = struct
             then Some t
             else Some (Ternary (prim, arg1', arg2', arg3')))))
     | Quaternary (prim, arg1, arg2, arg3, arg4) -> (
-        match f arg1 with
+      match f arg1 with
+      | None -> None
+      | Some arg1' -> (
+        match f arg2 with
         | None -> None
-        | Some arg1' -> (
-            match f arg2 with
+        | Some arg2' -> (
+          match f arg3 with
+          | None -> None
+          | Some arg3' -> (
+            match f arg4 with
             | None -> None
-            | Some arg2' -> (
-                match f arg3 with
-                | None -> None
-                | Some arg3' -> (
-                    match f arg4 with
-                    | None -> None
-                    | Some arg4' ->
-                      if arg1 == arg1' && arg2 == arg2' && arg3 == arg3' && arg4 == arg4'
-                      then Some t
-                      else Some (Quaternary (prim, arg1', arg2', arg3', arg4'))))))
+            | Some arg4' ->
+              if arg1 == arg1' && arg2 == arg2' && arg3 == arg3'
+                 && arg4 == arg4'
+              then Some t
+              else Some (Quaternary (prim, arg1', arg2', arg3', arg4'))))))
     | Variadic (prim, args) ->
       let args' = List.filter_map f args in
       if List.compare_lengths args args' = 0

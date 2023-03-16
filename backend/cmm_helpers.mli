@@ -359,7 +359,12 @@ val lookup_tag : expression -> expression -> Debuginfo.t -> expression
 val lookup_label : expression -> expression -> Debuginfo.t -> expression
 
 val get_cached_method :
-  expression -> expression -> expression -> expression -> Debuginfo.t -> expression
+  expression ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
 (** Allocations *)
 

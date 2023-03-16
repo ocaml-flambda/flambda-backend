@@ -152,7 +152,8 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
       Simplify_ternary_primitive.simplify_ternary_primitive dacc original_prim
         ternary_prim ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3 ~arg3_ty dbg
         ~result_var)
-  | Quaternary (quaternary_prim, orig_arg1, orig_arg2, orig_arg3, orig_arg4) -> (
+  | Quaternary (quaternary_prim, orig_arg1, orig_arg2, orig_arg3, orig_arg4)
+    -> (
     let arg1_ty = S.simplify_simple dacc orig_arg1 ~min_name_mode in
     let arg1 = T.get_alias_exn arg1_ty in
     let arg2_ty = S.simplify_simple dacc orig_arg2 ~min_name_mode in
@@ -167,18 +168,22 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
         P.args_kind_of_quaternary_primitive quaternary_prim
       in
       check_arg_kinds prim
-        [arg1_ty, arg1_kind; arg2_ty, arg2_kind; arg3_ty, arg3_kind; arg4_ty, arg4_kind]);
+        [ arg1_ty, arg1_kind;
+          arg2_ty, arg2_kind;
+          arg3_ty, arg3_kind;
+          arg4_ty, arg4_kind ]);
     let original_prim : P.t =
-      if orig_arg1 == arg1 && orig_arg2 == arg2 && orig_arg3 = arg3 && orig_arg4 == arg4
+      if orig_arg1 == arg1 && orig_arg2 == arg2 && orig_arg3 = arg3
+         && orig_arg4 == arg4
       then prim
       else Quaternary (quaternary_prim, arg1, arg2, arg3, arg4)
     in
     match try_cse dacc ~original_prim ~min_name_mode ~result_var with
     | Applied result -> result
     | Not_applied dacc ->
-      Simplify_quaternary_primitive.simplify_quaternary_primitive dacc original_prim
-        quaternary_prim ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3 ~arg3_ty ~arg4 ~arg4_ty dbg
-        ~result_var)
+      Simplify_quaternary_primitive.simplify_quaternary_primitive dacc
+        original_prim quaternary_prim ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3
+        ~arg3_ty ~arg4 ~arg4_ty dbg ~result_var)
   | Variadic (variadic_prim, orig_args) -> (
     let args_with_tys =
       ListLabels.fold_right orig_args ~init:[] ~f:(fun arg args_rev ->

@@ -53,8 +53,7 @@ let prim (prim : Flambda_primitive.t) =
       (* Some allocating primitives ([Num_conv] to naked_int64 on arch32 for
          example) are not counted here. *)
       { zero with prim = 1 })
-  | Nullary _ -> zero
-    (* CR ncourant: get_method maybe removes a call? *)
+  | Nullary _ -> zero (* CR ncourant: get_method maybe removes a call? *)
   | Binary (_, _, _) | Ternary (_, _, _, _) | Quaternary (_, _, _, _, _) ->
     { zero with prim = 1 }
   | Variadic (prim, _) -> (
