@@ -26,7 +26,6 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 module String = Misc.Stdlib.String
-module Int = Numbers.Int
 
 (** Abstract value for each component of the domain. *)
 module V : sig
@@ -106,8 +105,6 @@ module Value : sig
 
   val is_top : t -> bool
 
-  val is_bot : t -> bool
-
   val top : t
 
   val bot : t
@@ -164,8 +161,6 @@ end = struct
   let relaxed = { nor = V.Safe; exn = V.Top; div = V.Safe }
 
   let is_top v = v = top
-
-  let is_bot v = v = bot
 
   let print ppf { nor; exn; div } =
     Format.fprintf ppf "{ nor=%a; exn=%a; div=%a }" V.print nor V.print exn
@@ -464,7 +459,6 @@ end = struct
       mutable unresolved_deps : String.Set.t;
           (** must be the current compilation unit.  *)
       unit_info : Unit_info.t;
-      mutable exit_labels : Int.Set.t
     }
 
   let create ppf current_fun_name future_funcnames unit_info =
@@ -473,7 +467,6 @@ end = struct
       future_funcnames;
       unresolved_deps = String.Set.empty;
       unit_info;
-      exit_labels = Int.Set.empty
     }
 
   let analysis_name = Printcmm.property_to_string S.property
@@ -487,19 +480,6 @@ end = struct
 
   let report t v ~msg ~desc dbg =
     report' t.ppf v ~msg ~desc ~current_fun_name:t.current_fun_name dbg
-
-  let report_labels t labels ~msg =
-    let open Format in
-    let print_intset ppf set =
-      set |> Int.Set.to_seq
-      |> pp_print_seq
-           ~pp_sep:(fun ppf () -> pp_print_char ppf ' ')
-           pp_print_int ppf
-    in
-    if !Flambda_backend_flags.dump_checkmach
-    then
-      fprintf t.ppf "*** check %s %s in %s: %a@." analysis_name msg
-        t.current_fun_name print_intset labels
 
   let report_fail t d desc dbg = report t d ~msg:"failed" ~desc dbg
 
@@ -694,10 +674,6 @@ end = struct
 
   module D = Dataflow.Backward ((Value : Dataflow.DOMAIN))
 
-  let record_exit_label t lbl =
-    if not (Int.Set.mem lbl t.exit_labels)
-    then t.exit_labels <- Int.Set.add lbl t.exit_labels
-
   let check_instr t body =
     let transfer (i : Mach.instruction) ~next ~exn =
       match i.desc with
@@ -711,47 +687,28 @@ end = struct
         Value.join exn Value.safe
       | Iraise (Raise_reraise | Raise_regular) -> exn
       | Iend -> next
-      | Iexit (lbl, _) ->
-        record_exit_label t lbl;
+      | Iexit _ ->
         report t next ~msg:"transform" ~desc:"iexit" i.dbg;
         next
       | Iifthenelse _ | Iswitch _ -> next
-      | Icatch (_rc, _ts, handlers, _body) ->
+      | Icatch (_rc, _ts, _, _body) ->
         report t next ~msg:"transform" ~desc:"catch" i.dbg;
-        List.iter (fun (lbl, _, _) -> record_exit_label t lbl) handlers;
         next
       | Itrywith (_body, (Regular | Delayed _), (_trap_stack, _handler)) ->
         report t next ~msg:"transform" ~desc:"try-with" i.dbg;
         next
     in
-    let result, get_lbl =
-      D.analyze ~exnescape:Value.exn_escape ~transfer body
-    in
-    (* The result does not check the property on paths that diverge
-       (non-terminating loops that do not reach normal or exceptional return).
-       The second pass takes care of it.
-
+    (* By default, backward analysis does not check the property on paths that
+       diverge (non-terminating loops that do not reach normal or exceptional return).
        All loops must go through an (Iexit label) instruction or a recursive
        function call. If (Iexit label) is not backward reachable from the
-       function's Normal or Exceptional Return, the value associated with the
-       label will be { norm = V.Bot; exn = B.Bot; _ }, meaning that either the
-       loop diverges or the Iexit instruction is not reachable from function
-       entry. To check divergent loops, rerun D.analyze with initial value of
-       the corresponding Iexit labels set to "Safe" instead of "Bot". *)
-    let unexplored_diverging_loop_headers =
-      Int.Set.filter (fun n -> Value.is_bot (get_lbl n)) t.exit_labels
-    in
-    let init_lbl n =
-      if Int.Set.mem n unexplored_diverging_loop_headers
-      then Value.diverges
-      else Value.bot
-    in
-    if not (Int.Set.is_empty unexplored_diverging_loop_headers)
-    then (
-      report_labels t unexplored_diverging_loop_headers ~msg:"diverging labels";
-      report t result ~msg:"result" ~desc:"fundecl" Debuginfo.none;
-      D.analyze ~exnescape:Value.exn_escape ~init_lbl ~transfer body |> fst)
-    else result
+       function's Normal or Exceptional Return, either the loop diverges or
+       the Iexit instruction is not reachable from function entry.
+
+       To check divergent loops, the initial value of "div" component
+       of all Iexit labels is set to "Safe" instead of "Bot".
+       This is conservative with respect to non-recursive Icatch. *)
+    D.analyze ~exnescape:Value.exn_escape ~init_lbl:Value.diverges ~transfer body |> fst
 
   let fundecl (f : Mach.fundecl) ~future_funcnames unit_info ppf =
     let check () =
