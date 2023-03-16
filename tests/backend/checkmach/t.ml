@@ -171,3 +171,6 @@ let[@zero_alloc] test32 x y=
    test31 y;
    (x,x)
 
+let[@inline never] test33 x = Printf.eprintf "%d\n%!" x
+let[@zero_alloc] test34 x =
+  if x > 0 then (test33 x; raise Exn) else x + 1
