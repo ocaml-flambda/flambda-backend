@@ -646,7 +646,17 @@ CAMLexport CAMLweakdef void caml_modify (value *fp, value val)
       if (Is_young(old)) return;
       /* Here, [old] can be a pointer within the major heap.
          Check for condition 2. */
-      if (caml_gc_phase == Phase_mark) caml_darken(old, NULL);
+      if (caml_gc_phase == Phase_mark) {
+        header_t hd = Hd_val(old);
+        if (Tag_hd (hd) == Infix_tag) {
+          /* Infix_tag is always Caml_white */
+          CAMLassert(Is_white_hd(hd));
+        }
+        /* Inline the white-header check, to save a pagetable lookup */
+        if (Is_white_hd(hd)) {
+          caml_darken(old, NULL);
+        }
+      }
     }
     /* Check for condition 1. */
     if (Is_block(val) && Is_young(val)) {
