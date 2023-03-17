@@ -376,6 +376,7 @@ let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
   | Array_length -> Array_length
+  | Begin_try_region -> Begin_try_region
   | Box_number (bk, alloc) ->
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Unbox_number bk -> Unbox_number bk
@@ -409,38 +410,43 @@ let infix_binop (binop : Fexpr.infix_binop) : Flambda_primitive.binary_primitive
   | Float_arith o -> Float_arith o
   | Float_comp c -> Float_comp c
 
+let block_access_kind (ak : Fexpr.block_access_kind)
+  : Flambda_primitive.Block_access_kind.t =
+  let size s : _ Or_unknown.t =
+    match s with
+    | None -> Unknown
+    | Some s -> Known (s |> Targetint_31_63.of_int64)
+  in
+  match ak with
+  | Values { field_kind; tag; size = s } ->
+    let tag : Tag.Scannable.t Or_unknown.t =
+      match tag with
+      | Some tag -> Known (tag |> tag_scannable)
+      | None -> Unknown
+    in
+    let size = size s in
+    Values { field_kind; tag; size }
+  | Naked_floats { size = s } ->
+    let size = size s in
+    Naked_floats { size }
+
 let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   match binop with
   | Array_load (ak, mut) -> Array_load (ak, mut)
-  | Block_load (access_kind, mutability) ->
-    let size s : _ Or_unknown.t =
-      match s with
-      | None -> Unknown
-      | Some s -> Known (s |> Targetint_31_63.of_int64)
-    in
-    let access_kind : Flambda_primitive.Block_access_kind.t =
-      match access_kind with
-      | Values { field_kind; tag; size = s } ->
-        let tag : Tag.Scannable.t Or_unknown.t =
-          match tag with
-          | Some tag -> Known (tag |> tag_scannable)
-          | None -> Unknown
-        in
-        let size = size s in
-        Values { field_kind; tag; size }
-      | Naked_floats { size = s } ->
-        let size = size s in
-        Naked_floats { size }
-    in
-    Block_load (access_kind, mutability)
+  | Block_load (ak, mutability) ->
+    Block_load (block_access_kind ak, mutability)
   | Phys_equal op -> Phys_equal op
   | Infix op -> infix_binop op
   | Int_arith (i, o) -> Int_arith (i, o)
   | Int_comp (i, c) -> Int_comp (i, c)
   | Int_shift (i, s) -> Int_shift (i, s)
+  | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
 
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
-  match ternop with Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
+  match ternop with
+  | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
+  | Block_set (bk, ia) ->
+    Block_set (block_access_kind bk, init_or_assign env ia)
 
 let convert_block_shape ~num_fields =
   List.init num_fields (fun _field -> Flambda_kind.With_subkind.any_value)

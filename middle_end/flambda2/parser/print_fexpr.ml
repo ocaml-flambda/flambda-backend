@@ -421,6 +421,32 @@ let infix_binop ppf (b : infix_binop) =
   | Float_arith o -> binary_float_arith_op ppf o
   | Float_comp c -> float_comp ppf c
 
+let block_access_kind ppf (access_kind : block_access_kind) =
+  let pp_size ppf (size : Int64.t option) =
+    match size with
+    | None -> ()
+    | Some size -> Format.fprintf ppf "@ size(%Li)" size
+  in
+  let pp_field_kind ppf (field_kind : block_access_field_kind) =
+    match field_kind with
+    | Any_value -> ()
+    | Immediate -> Format.fprintf ppf "@ imm"
+  in
+  match access_kind with
+  | Values { field_kind; tag; size } ->
+    Format.fprintf ppf "%a%a%a" pp_field_kind field_kind
+      (pp_option ~space:Before (pp_like "tag(%a)" Format.pp_print_int))
+      tag pp_size size
+  | Naked_floats { size } -> Format.fprintf ppf "@ float%a" pp_size size
+
+let string_accessor_width ppf saw =
+  Format.fprintf ppf "%s"
+    (match saw with
+     | Eight -> "8"
+     | Sixteen -> "16"
+     | Thirty_two -> "32"
+     | Sixty_four -> "64")
+
 let binop ppf binop a b =
   match binop with
   | Array_load (ak, mut) ->
@@ -428,27 +454,17 @@ let binop ppf binop a b =
       (array_kind ~space:Before) ak (mutability ~space:Before) mut simple a
       simple b
   | Block_load (access_kind, mut) ->
-    let pp_size ppf (size : Int64.t option) =
-      match size with
-      | None -> ()
-      | Some size -> Format.fprintf ppf "@ size(%Li)" size
-    in
-    let pp_field_kind ppf (field_kind : block_access_field_kind) =
-      match field_kind with
-      | Any_value -> ()
-      | Immediate -> Format.fprintf ppf "@ imm"
-    in
-    let pp_access_kind ppf (access_kind : block_access_kind) =
-      match access_kind with
-      | Values { field_kind; tag; size } ->
-        Format.fprintf ppf "%a%a%a" pp_field_kind field_kind
-          (pp_option ~space:Before (pp_like "tag(%a)" Format.pp_print_int))
-          tag pp_size size
-      | Naked_floats { size } -> Format.fprintf ppf "@ float%a" pp_size size
-    in
     Format.fprintf ppf "@[<2>%%block_load%a%a@ (%a,@ %a)@]"
-      (mutability ~space:Before) mut pp_access_kind access_kind simple a simple
+      (mutability ~space:Before) mut block_access_kind access_kind simple a simple
       b
+  | String_or_bigstring_load (slv, saw) ->
+    let prim = match slv with
+      | String -> "%string_load"
+      | Bytes -> "%bytes_load"
+      | Bigstring -> "%bigstring_load"
+    in
+    Format.fprintf ppf "@[<2>%s@ %a@ (%a,@ %a)@]"
+      prim string_accessor_width saw simple a simple b
   | Phys_equal comp ->
     let name = match comp with Eq -> "%phys_eq" | Neq -> "%phys_ne" in
     Format.fprintf ppf "@[<2>%s@ (%a,@ %a)@]" name simple a simple b
@@ -481,6 +497,7 @@ let unop ppf u =
   in
   match u with
   | Array_length -> str "%array_length"
+  | Begin_try_region -> str "%begin_try_region"
   | Box_number (bk, alloc) ->
     box_or_unbox "Box" bk;
     alloc_mode_for_allocations_opt ppf alloc ~space:Before
@@ -509,6 +526,10 @@ let ternop ppf t a1 a2 a3 =
   | Array_set (ak, ia) ->
     Format.fprintf ppf "@[<2>%%array_set%a@ %a.(%a) %a %a@]"
       (array_kind ~space:Before) ak simple a1 simple a2 init_or_assign ia simple
+      a3
+  | Block_set (bk, ia) ->
+    Format.fprintf ppf "@[<2>%%block_set@ %a@ %a.(%a) %a %a@]"
+      block_access_kind bk simple a1 simple a2 init_or_assign ia simple
       a3
 
 let prim ppf = function
@@ -665,7 +686,8 @@ let parens ~if_scope_is scope ppf f =
   else f scope ppf
 
 let rec expr scope ppf = function
-  | Invalid { message } -> Format.fprintf ppf "@[invalid (%s)@]" message
+  | Invalid { message } ->
+    Format.fprintf ppf "@[invalid \"%s\"@]" (message |> String.escaped)
   | Apply_cont ac -> Format.fprintf ppf "@[cont %a@]" apply_cont ac
   | Let let_ ->
     parens ~if_scope_is:Where_body scope ppf (fun scope ppf ->

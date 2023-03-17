@@ -144,6 +144,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_INLINING_STATE [@symbol "inlining_state"]
 %token KWD_INT32 [@symbol "int32"]
 %token KWD_INT64 [@symbol "int64"]
+%token KWD_INVALID [@symbol "invalid"]
 %token KWD_LAND  [@symbol "land"]
 %token KWD_LET   [@symbol "let"]
 %token KWD_LOCAL [@symbol "local"]
@@ -186,13 +187,17 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_ARRAY_LOAD [@symbol "%array_load"]
 %token PRIM_ARRAY_SET [@symbol "%array_set"]
 %token PRIM_BEGIN_REGION [@symbol "%begin_region"]
+%token PRIM_BEGIN_TRY_REGION [@symbol "%begin_try_region"]
+%token PRIM_BIGSTRING_LOAD [@symbol "%bigstring_load"]
 %token PRIM_BLOCK [@symbol "%Block"]
 %token PRIM_BLOCK_LOAD [@symbol "%block_load"]
+%token PRIM_BLOCK_SET [@symbol "%block_set"]
 %token PRIM_BOX_FLOAT [@symbol "%Box_float"]
 %token PRIM_BOX_INT32 [@symbol "%Box_int32"]
 %token PRIM_BOX_INT64 [@symbol "%Box_int64"]
 %token PRIM_BOX_NATIVEINT [@symbol "%Box_nativeint"]
 %token PRIM_BYTES_LENGTH [@symbol "%bytes_length"]
+%token PRIM_BYTES_LOAD [@symbol "%bytes_load"]
 %token PRIM_END_REGION [@symbol "%end_region"]
 %token PRIM_GET_TAG [@symbol "%get_tag"]
 %token PRIM_INT_ARITH [@symbol "%int_arith"]
@@ -207,6 +212,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_PROJECT_VALUE_SLOT [@symbol "%project_value_slot"]
 %token PRIM_PROJECT_FUNCTION_SLOT [@symbol "%project_function_slot"]
 %token PRIM_STRING_LENGTH [@symbol "%string_length"]
+%token PRIM_STRING_LOAD [@symbol "%string_load"]
 %token PRIM_TAG_IMM [@symbol "%tag_imm"]
 %token PRIM_UNBOX_FLOAT [@symbol "%unbox_float"]
 %token PRIM_UNBOX_INT32 [@symbol "%unbox_int32"]
@@ -364,6 +370,7 @@ nullop:
 
 unop:
   | PRIM_ARRAY_LENGTH { Array_length }
+  | PRIM_BEGIN_TRY_REGION { Begin_try_region }
   | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
     { Box_number (Naked_float, alloc) }
   | PRIM_BOX_INT32; alloc = alloc_mode_for_allocations_opt
@@ -409,6 +416,15 @@ prefix_binop:
     mutability = mutability;
     kind = block_access_kind;
     { Block_load (kind, mutability) }
+  | PRIM_BIGSTRING_LOAD;
+    saw = string_accessor_width;
+    { String_or_bigstring_load (Bigstring, saw) }
+  | PRIM_BYTES_LOAD;
+    saw = string_accessor_width;
+    { String_or_bigstring_load (Bytes, saw) }
+  | PRIM_STRING_LOAD;
+    saw = string_accessor_width;
+    { String_or_bigstring_load (String, saw) }
   | PRIM_PHYS_EQ { Phys_equal Eq }
   | PRIM_PHYS_NE { Phys_equal Neq }
 
@@ -416,6 +432,16 @@ mutability:
   | KWD_MUTABLE { Mutable }
   | KWD_IMMUTABLE_UNIQUE { Immutable_unique }
   | { Immutable }
+
+string_accessor_width:
+  | i = INT
+    { let (i,c) = i in
+      match int_of_string i, c with
+      | 8, None -> Eight
+      | 16, None -> Sixteen
+      | 32, None -> Thirty_two
+      | 64, None -> Sixty_four
+      | _, _ -> Misc.fatal_error "invalid string accessor width" }
 
 array_kind:
   | { Values }
@@ -535,6 +561,10 @@ ternop_app:
     arr = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple
     { Ternary (Array_set (ak, ia), arr, ix, v) }
+  | PRIM_BLOCK_SET; kind = block_access_kind;
+    block = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
+    v = simple
+    { Ternary (Block_set (kind, ia), block, ix, v) }
 ;
 
 block:
@@ -671,6 +701,7 @@ continuation_body:
 atomic_expr:
   | KWD_HCF { Invalid { message = "halt-and-catch-fire" } }
   | KWD_UNREACHABLE { Invalid { message =  "treat-as-unreachable" } }
+  | KWD_INVALID; message = STRING { Invalid { message } }
   | KWD_CONT; ac = apply_cont_expr { Apply_cont ac }
   | KWD_SWITCH; scrutinee = simple; cases = switch { Switch {scrutinee; cases} }
   | KWD_APPLY e = apply_expr { Apply e }
