@@ -96,7 +96,23 @@ int caml_page_table_lookup(void * addr)
      "-runtime-variant nnp".  The return value here should cause the
      macros in address_class.h to give the same results as when they
      are compiled with NO_NAKED_POINTERS defined. */
-  return In_heap | In_young;
+
+  caml_local_arenas* local_arenas = Caml_state->local_arenas;
+
+  if (Is_young(addr))
+    return In_heap | In_young;
+
+  if (local_arenas != NULL) {
+    int arena;
+    for (arena = 0; arena < local_arenas->count; arena++) {
+      char* start = local_arenas->arenas[arena].base;
+      char* end = start + local_arenas->arenas[arena].length;
+      if ((char*) addr >= start && (char*) addr < end)
+        return In_heap | In_local;
+    }
+  }
+
+  return In_heap;
 #else
   uintnat h, e;
 
