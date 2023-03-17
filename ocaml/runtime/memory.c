@@ -90,6 +90,14 @@ static struct page_table caml_page_table;
 
 int caml_page_table_lookup(void * addr)
 {
+#ifdef NO_NAKED_POINTERS
+  /* This case should only be hit if C stubs compiled without
+     NO_NAKED_POINTERS are linked into an executable using
+     "-runtime-variant nnp".  The return value here should cause the
+     macros in address_class.h to give the same results as when they
+     are compiled with NO_NAKED_POINTERS defined. */
+  return In_heap | In_young;
+#else
   uintnat h, e;
 
   h = Hash(Page(addr));
@@ -102,6 +110,7 @@ int caml_page_table_lookup(void * addr)
     e = caml_page_table.entries[h];
     if (Page_entry_matches(e, (uintnat)addr)) return e & 0xFF;
   }
+#endif
 }
 
 int caml_page_table_initialize(mlsize_t bytesize)
