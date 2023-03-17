@@ -54,6 +54,14 @@ let input_stringlist ic len =
   let sect = really_input_string ic len in
   get_string_list sect len
 
+let sort_intf_imports imports =
+  let imports = Array.copy imports in
+  Array.sort (fun import_info1 import_info2 ->
+      Compilation_unit.Name.compare (Import_info.name import_info2)
+        (Import_info.name import_info1))
+    imports;
+  imports
+
 let dummy_crc = String.make 32 '-'
 
 let null_crc = String.make 32 '0'
@@ -88,7 +96,7 @@ let print_required_global id = printf "\t%a\n" Compilation_unit.output id
 let print_cmo_infos cu =
   printf "Unit name: %a\n" Compilation_unit.output cu.cu_name;
   print_string "Interfaces imported:\n";
-  Array.iter print_intf_import cu.cu_imports;
+  Array.iter print_intf_import (sort_intf_imports cu.cu_imports);
   print_string "Required globals:\n";
   List.iter print_required_global cu.cu_required_globals;
   printf "Uses unsafe features: ";
@@ -118,7 +126,7 @@ let print_cma_infos (lib : Cmo_format.library) =
 let print_cmi_infos name crcs =
   printf "Unit name: %a\n" Compilation_unit.output name;
   printf "Interfaces imported:\n";
-  Array.iter print_intf_import crcs
+  Array.iter print_intf_import (sort_intf_imports crcs)
 
 let print_cmt_infos cmt =
   let open Cmt_format in
@@ -190,7 +198,7 @@ let print_generic_fns gfns =
 
 let print_cmx_infos (uir, sections, crc) =
   print_general_infos Compilation_unit.output uir.uir_unit crc uir.uir_defines
-    (fun f -> Array.iter f uir.uir_imports_cmi)
+    (fun f -> Array.iter f (sort_intf_imports uir.uir_imports_cmi))
     (fun f -> Array.iter f uir.uir_imports_cmx);
   begin
     match uir.uir_export_info with
@@ -252,7 +260,7 @@ let print_cmxs_infos header =
     (fun ui ->
       print_general_infos Compilation_unit.output ui.dynu_name ui.dynu_crc
         ui.dynu_defines
-        (fun f -> Array.iter f ui.dynu_imports_cmi)
+        (fun f -> Array.iter f (sort_intf_imports ui.dynu_imports_cmi))
         (fun f -> Array.iter f ui.dynu_imports_cmx))
     header.dynu_units
 
