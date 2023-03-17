@@ -27,7 +27,7 @@
  (action  (with-stdout-to %{targets} (run %{dep:gen_primitives.sh}))))
 
 (rule
- (targets libasmrun.a libasmrund.a libasmruni.a libasmrun_pic.a
+ (targets libasmrun.a libasmrund.a libasmruni.a libasmrun_pic.a libasmrunnnp.a
     libasmrun_shared.so libcamlrun.a libcamlrund.a libcamlruni.a libcamlrun_pic.a
     libcamlrun_shared.so ocamlrun ocamlrund ocamlruni ld.conf
     sak)
@@ -77,6 +77,7 @@
     libasmrund.a
     libasmruni.a
     libasmrun_pic.a
+    libasmrunnnp.a
     libasmrun_shared.so
   )
   (section lib)
