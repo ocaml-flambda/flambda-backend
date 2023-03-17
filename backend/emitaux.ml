@@ -219,7 +219,7 @@ let emit_frames a =
   let emit_32 n = n |> Int32.of_int |> a.efa_32 in
   let emit_frame fd =
     let flags = get_flags fd.fd_debuginfo in
-    a.efa_code_label fd.fd_lbl;
+    a.efa_label_rel fd.fd_lbl 0l;
     (* For short format, the size is guaranteed
        to be less than the constant below. *)
     if fd.fd_long then begin
