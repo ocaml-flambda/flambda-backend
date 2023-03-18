@@ -607,7 +607,11 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     in
     let sort = continuation_sort sort in
     let name, body_env =
-      fresh_cont env name ~sort ~arity:(List.length params)
+      if is_exn_handler
+      then
+        let (e, env) = fresh_exn_cont env name in
+        Exn_continuation.exn_handler e, env
+      else fresh_cont env name ~sort ~arity:(List.length params)
     in
     let body = expr body_env body in
     let env =
