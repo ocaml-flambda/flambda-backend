@@ -7,6 +7,4 @@ let foo x =
   let () = f () in
   x + 1
 
-let bar x =
-  (foo[@inlined]) x
-
+let bar x = (foo [@inlined]) x
