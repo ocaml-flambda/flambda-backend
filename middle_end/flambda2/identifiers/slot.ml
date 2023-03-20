@@ -55,12 +55,12 @@ end) : S = struct
         ({ compilation_unit = compilation_unit1;
            name = _;
            name_stamp = name_stamp1;
-           kind = kind1
+           kind = _
          } as t1)
         ({ compilation_unit = compilation_unit2;
            name = _;
            name_stamp = name_stamp2;
-           kind = kind2
+           kind = _
          } as t2) =
       if t1 == t2
       then 0
@@ -68,19 +68,12 @@ end) : S = struct
         let c = name_stamp1 - name_stamp2 in
         if c <> 0
         then c
-        else
-          let c =
-            Compilation_unit.compare compilation_unit1 compilation_unit2
-          in
-          if c <> 0 then c else Flambda_kind.With_subkind.compare kind1 kind2
+        else Compilation_unit.compare compilation_unit1 compilation_unit2
 
     let equal t1 t2 = compare t1 t2 = 0
 
     let hash t =
-      Hashtbl.hash
-        ( t.name_stamp,
-          Compilation_unit.hash t.compilation_unit,
-          Flambda_kind.With_subkind.hash t.kind )
+      Hashtbl.hash (t.name_stamp, Compilation_unit.hash t.compilation_unit)
 
     let print ppf t =
       Format.fprintf ppf "@[%t(" P.colour;
