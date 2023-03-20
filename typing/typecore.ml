@@ -3318,6 +3318,7 @@ let rec is_an_uncurried_function e =
 let is_local_returning_function cases =
   let rec loop_cases cases =
     match cases with
+    | [] -> false
     | [{pc_lhs = _; pc_guard = None; pc_rhs = e}] ->
         loop_body e
     | cases ->
