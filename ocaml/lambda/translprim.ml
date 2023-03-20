@@ -133,6 +133,14 @@ let to_modify_mode ~poly = function
     | None -> assert false
     | Some mode -> transl_modify_mode mode
 
+let layout_unboxed_pair_of_values =
+  Punboxed_product [Pvalue Pgenval; Pvalue Pgenval]
+
+let two_unboxed_pairs_of_values =
+  [ layout_unboxed_pair_of_values;
+    layout_unboxed_pair_of_values;
+  ]
+
 let lookup_primitive loc poly pos p =
   let mode = to_alloc_mode ~poly p.prim_native_repr_res in
   let arg_modes = List.map (to_modify_mode ~poly) p.prim_native_repr_args in
@@ -401,6 +409,18 @@ let lookup_primitive loc poly pos p =
     | "%obj_magic" -> Primitive(Pobj_magic Lambda.layout_any_value, 1)
     | "%array_to_iarray" -> Primitive (Parray_to_iarray, 1)
     | "%array_of_iarray" -> Primitive (Parray_of_iarray, 1)
+    | "%make_unboxed_pair_v_v" ->
+      Primitive(Pmake_unboxed_product [Pvalue Pgenval; Pvalue Pgenval], 2)
+    | "%unboxed_pair_field_0_v_v" ->
+      Primitive(Punboxed_product_field (0, [Pvalue Pgenval; Pvalue Pgenval]), 1)
+    | "%unboxed_pair_field_1_v_v" ->
+      Primitive(Punboxed_product_field (1, [Pvalue Pgenval; Pvalue Pgenval]), 1)
+    | "%make_unboxed_pair_vup_vup" ->
+      Primitive(Pmake_unboxed_product [layout_unboxed_pair_of_values; layout_unboxed_pair_of_values], 2)
+    | "%unboxed_pair_field_0_vup_vup" ->
+      Primitive(Punboxed_product_field (0, two_unboxed_pairs_of_values), 1)
+    | "%unboxed_pair_field_1_vup_vup" ->
+      Primitive(Punboxed_product_field (1, two_unboxed_pairs_of_values), 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -877,6 +897,7 @@ let lambda_primitive_needs_event_after = function
   | Parray_to_iarray | Parray_of_iarray
   | Pignore | Psetglobal _
   | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _
+  | Pmake_unboxed_product _ | Punboxed_product_field _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Praise _
   | Psequor | Psequand | Pnot | Pnegint | Paddint | Psubint | Pmulint

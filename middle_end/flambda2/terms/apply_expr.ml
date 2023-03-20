@@ -162,12 +162,12 @@ let invariant
         "For [C_call] applications the callee must be directly specified as a \
          [Symbol]:@ %a"
         print t;
-    match Flambda_arity.to_list return_arity with
+    match Flambda_arity.unarize_flat return_arity with
     | [] | [_] -> ()
     | _ :: _ :: _ ->
       Misc.fatal_errorf "Illegal return arity for C call:@ %a"
         Flambda_arity.print return_arity));
-  if List.compare_lengths args (Flambda_arity.to_list args_arity) <> 0
+  if List.compare_lengths args (Flambda_arity.unarize_flat args_arity) <> 0
   then
     Misc.fatal_errorf
       "Length of argument and arity lists disagree in [Apply]:@ %a" print t

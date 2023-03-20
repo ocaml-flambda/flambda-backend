@@ -58,7 +58,9 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
 
   let num_leading_heap_params t =
     let { params_arity; num_trailing_local_params; _ } = metadata t in
-    let n = Flambda_arity.cardinal params_arity - num_trailing_local_params in
+    let n =
+      Flambda_arity.cardinal_unarized params_arity - num_trailing_local_params
+    in
     assert (n >= 0);
     (* see [create] *)
     n
@@ -161,7 +163,7 @@ let createk k code_id ~newer_version_of ~params_arity ~num_trailing_local_params
   | true, (Always_inline | Unroll _) ->
     Misc.fatal_error "Stubs may not be annotated as [Always_inline] or [Unroll]");
   if num_trailing_local_params < 0
-     || num_trailing_local_params > Flambda_arity.cardinal params_arity
+     || num_trailing_local_params > Flambda_arity.cardinal_unarized params_arity
   then
     Misc.fatal_errorf
       "Illegal num_trailing_local_params=%d for params arity: %a"
@@ -270,22 +272,22 @@ let [@ocamlformat "disable"] print ppf
     (if not is_a_functor then Flambda_colours.elide else C.none)
     is_a_functor
     Flambda_colours.pop
-    (if Flambda_arity.is_singleton_value params_arity
+    (if Flambda_arity.is_one_param_of_kind_value params_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
     Flambda_arity.print params_arity
-    (if Flambda_arity.is_singleton_value params_arity
+    (if Flambda_arity.is_one_param_of_kind_value params_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
     num_trailing_local_params
-    (if Flambda_arity.is_singleton_value result_arity
+    (if Flambda_arity.is_one_param_of_kind_value result_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
     Flambda_arity.print result_arity
-    (if Flambda_arity.is_singleton_value result_arity
+    (if Flambda_arity.is_one_param_of_kind_value result_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop

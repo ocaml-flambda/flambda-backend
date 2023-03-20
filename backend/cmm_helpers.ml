@@ -2675,6 +2675,7 @@ let machtype_of_layout (layout : Lambda.layout) =
     (* Only 64-bit architectures, so this is always [typ_int] *)
     typ_int
   | Pvalue _ -> typ_val
+  | Punboxed_product _ -> Misc.fatal_error "TBD"
 
 let final_curry_function nlocal arity result =
   let last_arg = V.create_local "arg" in
@@ -4017,3 +4018,4 @@ let kind_of_layout (layout : Lambda.layout) =
   | Punboxed_float -> Vfloat
   | Punboxed_int _ -> Vint
   | Pvalue kind -> Vval kind
+  | Punboxed_product _ -> Misc.fatal_error "TBD"

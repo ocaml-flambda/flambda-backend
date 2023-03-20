@@ -77,6 +77,8 @@ module IR : sig
       failaction : (Continuation.t * trap_action option * simple list) option
     }
 
+  val print_simple : Format.formatter -> simple -> unit
+
   val print_named : Format.formatter -> named -> unit
 end
 

@@ -179,9 +179,9 @@ let bigarray_type_kind_and_layout env typ =
   | _ ->
       (Pbigarray_unknown, Pbigarray_unknown_layout)
 
-let value_kind env ty =
+let rec layout env ty =
   let rec loop env ~visited ~depth ~num_nodes_visited ty
-      : int * Lambda.value_kind =
+      : int * Lambda.layout =
     let[@inline] cannot_proceed () =
       Numbers.Int.Set.mem (get_id ty) visited
         || depth >= 2
@@ -189,32 +189,36 @@ let value_kind env ty =
     in
     let scty = scrape_ty env ty in
     match get_desc scty with
+    (* | _ when is_immediate (Ctype.immediacy env scty) -> *)
     | _ when is_always_gc_ignorable env scty ->
-      num_nodes_visited, Pintval
+      num_nodes_visited, Pvalue Pintval
     | Tconstr(p, _, _) when Path.same p Predef.path_int ->
-      num_nodes_visited, Pintval
+      num_nodes_visited, Pvalue Pintval
     | Tconstr(p, _, _) when Path.same p Predef.path_char ->
-      num_nodes_visited, Pintval
+      num_nodes_visited, Pvalue Pintval
     | Tconstr(p, _, _) when Path.same p Predef.path_float ->
-      num_nodes_visited, Pfloatval
+      num_nodes_visited, Pvalue Pfloatval
     | Tconstr(p, _, _) when Path.same p Predef.path_int32 ->
-      num_nodes_visited, Pboxedintval Pint32
+      num_nodes_visited, Pvalue (Pboxedintval Pint32)
     | Tconstr(p, _, _) when Path.same p Predef.path_int64 ->
-      num_nodes_visited, Pboxedintval Pint64
+      num_nodes_visited, Pvalue (Pboxedintval Pint64)
     | Tconstr(p, _, _) when Path.same p Predef.path_nativeint ->
-      num_nodes_visited, Pboxedintval Pnativeint
+      num_nodes_visited, Pvalue (Pboxedintval Pnativeint)
+    | Tconstr(p, args, _) when Path.same p Predef.path_unboxed_pair ->
+      let layouts = List.map (layout env) args in
+      num_nodes_visited, Punboxed_product layouts
     | Tconstr(p, _, _)
         when (Path.same p Predef.path_array
               || Path.same p Predef.path_floatarray) ->
-      num_nodes_visited, Parrayval (array_type_kind env ty)
+      num_nodes_visited, Pvalue (Parrayval (array_type_kind env ty))
     | Tconstr(p, _, _) ->
       if cannot_proceed () then
-        num_nodes_visited, Pgenval
+        num_nodes_visited, Pvalue Pgenval
       else begin
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         match (Env.find_type p env).type_kind with
         | exception Not_found ->
-          num_nodes_visited, Pgenval
+          num_nodes_visited, Pvalue Pgenval
         | Type_variant (constructors, _rep) ->
           let is_constant (constructor : Types.constructor_declaration) =
             match constructor.cd_args with
@@ -222,7 +226,7 @@ let value_kind env ty =
             | _ -> false
           in
           if List.for_all is_constant constructors then
-            num_nodes_visited, Pintval
+            num_nodes_visited, Pvalue Pintval
           else
             let depth = depth + 1 in
             let for_one_constructor
@@ -278,12 +282,18 @@ let value_kind env ty =
                 constructors
             in
             begin match result with
-            | None -> num_nodes_visited, Pgenval
+            | None -> num_nodes_visited, Pvalue Pgenval
             | Some (num_nodes_visited, _, consts, _, non_consts) ->
               match non_consts with
               | [] -> assert false  (* See [List.for_all is_constant], above *)
               | _::_ ->
-                num_nodes_visited, Pvariant { consts; non_consts }
+                let non_consts =
+                  List.map (fun (l, layouts) ->
+                    let value_kinds =
+                      List.map (function (Pvalue vk) -> vk | _ -> assert false) layouts
+                    in l, value_kinds) non_consts
+                in
+                num_nodes_visited, Pvalue (Pvariant { consts; non_consts })
             end
         | Type_record (labels, record_representation) ->
           let depth = depth + 1 in
@@ -304,22 +314,28 @@ let value_kind env ty =
               (false, num_nodes_visited) labels
           in
           if is_mutable then
-            num_nodes_visited, Pgenval
+            num_nodes_visited, Pvalue Pgenval
           else begin match record_representation with
             | Record_regular ->
+              let fields =
+                List.map (function (Pvalue vk) -> vk | _ -> assert false) fields
+              in
               num_nodes_visited,
-                Pvariant { consts = []; non_consts = [0, fields] }
+                Pvalue (Pvariant { consts = []; non_consts = [0, fields] })
             | Record_float ->
               num_nodes_visited,
-                Pvariant {
+                Pvalue (Pvariant {
                   consts = [];
                   non_consts = [
                     Obj.double_array_tag,
                     List.map (fun _ -> Pfloatval) fields
-                  ] }
+                  ] })
             | Record_inlined tag ->
+              let fields =
+                List.map (function (Pvalue vk) -> vk | _ -> assert false) fields
+              in
               num_nodes_visited,
-                Pvariant { consts = []; non_consts = [tag, fields] }
+                Pvalue (Pvariant { consts = []; non_consts = [tag, fields] })
             | Record_unboxed _ ->
               begin match fields with
               | [field] -> num_nodes_visited, field
@@ -328,13 +344,13 @@ let value_kind env ty =
                   have exactly one field"
               end
             | Record_extension _ ->
-              num_nodes_visited, Pgenval
+              num_nodes_visited, Pvalue Pgenval
           end
-        | Type_abstract _ | Type_open -> num_nodes_visited, Pgenval
+        | Type_abstract _ | Type_open -> num_nodes_visited, Pvalue Pgenval
       end
     | Ttuple fields ->
       if cannot_proceed () then
-        num_nodes_visited, Pgenval
+        num_nodes_visited, Pvalue Pgenval
       else begin
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         let depth = depth + 1 in
@@ -345,19 +361,20 @@ let value_kind env ty =
             num_nodes_visited
             fields
         in
+        let fields =
+          List.map (function (Pvalue vk) -> vk | _ -> assert false) fields
+        in
         num_nodes_visited,
-          Pvariant { consts = []; non_consts = [0, fields] }
+          Pvalue (Pvariant { consts = []; non_consts = [0, fields] })
       end
     | _ ->
-      num_nodes_visited, Pgenval
+      num_nodes_visited, Pvalue Pgenval
   in
   let _num_nodes_visited, value_kind =
     loop env ~visited:Numbers.Int.Set.empty ~depth:0
       ~num_nodes_visited:0 ty
   in
   value_kind
-
-let layout env ty = Lambda.Pvalue (value_kind env ty)
 
 let function_return_layout env ty =
   match is_function_type env ty with
@@ -408,7 +425,7 @@ let value_kind_union (k1 : Lambda.value_kind) (k2 : Lambda.value_kind) =
   if Lambda.equal_value_kind k1 k2 then k1
   else Pgenval
 
-let layout_union l1 l2 =
+let rec layout_union l1 l2 =
   match l1, l2 with
   | Pbottom, l
   | l, Pbottom -> l
@@ -417,5 +434,9 @@ let layout_union l1 l2 =
   | Punboxed_float, Punboxed_float -> Punboxed_float
   | Punboxed_int bi1, Punboxed_int bi2 ->
       if equal_boxed_integer bi1 bi2 then l1 else Ptop
-  | (Ptop | Pvalue _ | Punboxed_float | Punboxed_int _), _ ->
+  | Punboxed_product layouts1, Punboxed_product layouts2 ->
+      if List.compare_lengths layouts1 layouts2 <> 0 then Ptop
+      else Punboxed_product (List.map2 layout_union layouts1 layouts2)
+  | (Ptop | Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_product _),
+    _ ->
       Ptop

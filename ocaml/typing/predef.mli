@@ -54,6 +54,7 @@ val path_int64: Path.t
 val path_lazy_t: Path.t
 val path_extension_constructor: Path.t
 val path_floatarray: Path.t
+val path_unboxed_pair: Path.t
 
 val path_match_failure: Path.t
 val path_invalid_argument: Path.t

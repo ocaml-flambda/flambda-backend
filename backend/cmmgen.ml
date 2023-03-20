@@ -150,6 +150,7 @@ let get_field env layout ptr n dbg =
     | Pvalue Pintval | Punboxed_int _ -> Word_int
     | Pvalue _ -> Word_val
     | Punboxed_float -> Double
+    | Punboxed_product _ -> Misc.fatal_error "TBD"
     | Ptop ->
         Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
     | Pbottom ->
@@ -820,6 +821,7 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
              VP.print id
          | Punboxed_float | Punboxed_int _ ->
            u := No_unboxing
+         | Punboxed_product _ -> Misc.fatal_error "TBD"
          | Pvalue kind ->
            let strict = is_strict kind in
            u := join_unboxed_number_kind ~strict !u
@@ -1341,6 +1343,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
   end
   | Pvalue kind ->
     transl_let_value env str kind id exp transl_body
+  | Punboxed_product _ -> Misc.fatal_error "TBD"
 
 and make_catch (kind : Cmm.value_kind) ncatch body handler dbg =
   match body with

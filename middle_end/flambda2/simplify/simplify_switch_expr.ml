@@ -377,7 +377,7 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
     let arity =
       arg_types
       |> List.map (fun ty -> K.With_subkind.anything (T.kind ty))
-      |> Flambda_arity.create
+      |> Flambda_arity.create_singletons
     in
     let action = Apply_cont.update_args action ~args in
     let dacc =

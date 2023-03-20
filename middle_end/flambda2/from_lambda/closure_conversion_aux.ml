@@ -929,7 +929,8 @@ module Let_with_acc = struct
             ~find_code_characteristics:(fun code_id ->
               let code = Code_id.Map.find code_id code_mapping in
               { cost_metrics = Code.cost_metrics code;
-                params_arity = Flambda_arity.cardinal (Code.params_arity code)
+                params_arity =
+                  Flambda_arity.cardinal_unarized (Code.params_arity code)
               })
             set_of_closures
         | Rec_info _ -> Cost_metrics.zero
