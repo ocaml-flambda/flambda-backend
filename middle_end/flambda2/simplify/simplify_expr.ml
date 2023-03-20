@@ -66,7 +66,7 @@ let simplify_toplevel_common dacc simplify ~params ~implicit_params
         in
         let uenv =
           UE.add_function_return_or_exn_continuation uenv exn_continuation
-            (Flambda_arity.create [K.With_subkind.any_value])
+            (Flambda_arity.create_singletons [K.With_subkind.any_value])
         in
         let uacc =
           UA.create ~flow_result ~compute_slot_offsets:true uenv dacc

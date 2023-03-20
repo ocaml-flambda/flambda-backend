@@ -93,6 +93,7 @@ type prim =
   | Identity
   | Apply of Lambda.region_close * Lambda.layout
   | Revapply of Lambda.region_close * Lambda.layout
+  | Void
 
 let units_with_used_primitives = Hashtbl.create 7
 let add_used_primitive loc env path =
@@ -132,6 +133,14 @@ let to_modify_mode ~poly = function
     match poly with
     | None -> assert false
     | Some mode -> transl_modify_mode mode
+
+let layout_unboxed_pair_of_values =
+  Punboxed_product [Pvalue Pgenval; Pvalue Pgenval]
+
+let two_unboxed_pairs_of_values =
+  [ layout_unboxed_pair_of_values;
+    layout_unboxed_pair_of_values;
+  ]
 
 let lookup_primitive loc poly pos p =
   let mode = to_alloc_mode ~poly p.prim_native_repr_res in
@@ -401,6 +410,40 @@ let lookup_primitive loc poly pos p =
     | "%obj_magic" -> Primitive(Pobj_magic Lambda.layout_any_value, 1)
     | "%array_to_iarray" -> Primitive (Parray_to_iarray, 1)
     | "%array_of_iarray" -> Primitive (Parray_of_iarray, 1)
+    (* unboxed pairs of void *)
+    | "%make_unboxed_pair_o_o" ->
+      Primitive(Pmake_unboxed_product [Punboxed_product []; Punboxed_product []], 2)
+    | "%unboxed_pair_field_0_o_o" ->
+      Primitive(Punboxed_product_field (0, [Punboxed_product []; Punboxed_product []]), 1)
+    | "%unboxed_pair_field_1_o_o" ->
+      Primitive(Punboxed_product_field (1, [Punboxed_product []; Punboxed_product []]), 1)
+    (* unboxed pairs of values *)
+    | "%make_unboxed_pair_v_v" ->
+      Primitive(Pmake_unboxed_product [Pvalue Pgenval; Pvalue Pgenval], 2)
+    | "%unboxed_pair_field_0_v_v" ->
+      Primitive(Punboxed_product_field (0, [Pvalue Pgenval; Pvalue Pgenval]), 1)
+    | "%unboxed_pair_field_1_v_v" ->
+      Primitive(Punboxed_product_field (1, [Pvalue Pgenval; Pvalue Pgenval]), 1)
+    (* unboxed pairs of immediates *)
+    | "%make_unboxed_pair_i_i" ->
+      Primitive(Pmake_unboxed_product [Pvalue Pintval; Pvalue Pintval], 2)
+    | "%unboxed_pair_field_0_i_i" ->
+      Primitive(Punboxed_product_field (0, [Pvalue Pintval; Pvalue Pintval]), 1)
+    | "%unboxed_pair_field_1_i_i" ->
+      Primitive(Punboxed_product_field (1, [Pvalue Pintval; Pvalue Pintval]), 1)
+    (* unboxed pairs of (unboxed pairs of values) *)
+    | "%make_unboxed_pair_vup_vup" ->
+      Primitive(Pmake_unboxed_product [layout_unboxed_pair_of_values; layout_unboxed_pair_of_values], 2)
+    | "%unboxed_pair_field_0_vup_vup" ->
+      Primitive(Punboxed_product_field (0, two_unboxed_pairs_of_values), 1)
+    | "%unboxed_pair_field_1_vup_vup" ->
+      Primitive(Punboxed_product_field (1, two_unboxed_pairs_of_values), 1)
+    (* unboxed triples (void, int, void) *)
+    | "%make_unboxed_triple_o_i_o" ->
+      Primitive(Pmake_unboxed_product [Punboxed_product []; Pvalue Pintval; Punboxed_product []], 3)
+    (* void is special as the external is declared to have one parameter
+       but the primitive takes zero arguments *)
+    | "%void" -> Void
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -762,6 +805,7 @@ let lambda_of_prim prim_name prim loc args arg_exps =
         ap_region_close = pos;
         ap_mode = alloc_heap;
       }
+  | Void, _ -> Lprim (Pmake_unboxed_product [], [], loc)
   | (Raise _ | Raise_with_backtrace
     | Lazy_force _ | Loc _ | Primitive _ | Sys_argv | Comparison _
     | Send _ | Send_self _ | Send_cache _ | Frame_pointers | Identity
@@ -790,6 +834,7 @@ let check_primitive_arity loc p =
     | Frame_pointers -> p.prim_arity = 0
     | Identity -> p.prim_arity = 1
     | Apply _ | Revapply _ -> p.prim_arity = 2
+    | Void -> true
   in
   if not ok then raise(Error(loc, Wrong_arity_builtin_primitive p.prim_name))
 
@@ -877,6 +922,7 @@ let lambda_primitive_needs_event_after = function
   | Parray_to_iarray | Parray_of_iarray
   | Pignore | Psetglobal _
   | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _
+  | Pmake_unboxed_product _ | Punboxed_product_field _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Praise _
   | Psequor | Psequand | Pnot | Pnegint | Paddint | Psubint | Pmulint
@@ -898,7 +944,7 @@ let primitive_needs_event_after = function
       lambda_primitive_needs_event_after (comparison_primitive comp knd)
   | Lazy_force _ | Send _ | Send_self _ | Send_cache _
   | Apply _ | Revapply _ -> true
-  | Raise _ | Raise_with_backtrace | Loc _ | Frame_pointers | Identity -> false
+  | Raise _ | Raise_with_backtrace | Loc _ | Frame_pointers | Identity | Void -> false
 
 let transl_primitive_application loc p env ty mode path exp args arg_exps pos =
   let prim =

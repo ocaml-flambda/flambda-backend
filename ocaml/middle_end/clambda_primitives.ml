@@ -150,6 +150,7 @@ and layout = Lambda.layout =
   | Pvalue of value_kind
   | Punboxed_float
   | Punboxed_int of boxed_integer
+  | Punboxed_product of layout list
   | Pbottom
 
 and block_shape = Lambda.block_shape

@@ -42,10 +42,14 @@ let get_func_decl_params_arity t code_id =
      cmm_helpers.ml. *)
   let params_ty =
     List.map
-      (fun k ->
-        C.extended_machtype_of_kind k
-        |> C.Extended_machtype.change_tagged_int_to_val)
-      (Flambda_arity.to_list (Code_metadata.params_arity info))
+      (fun ks ->
+        List.map
+          (fun k ->
+            C.extended_machtype_of_kind k
+            |> C.Extended_machtype.change_tagged_int_to_val)
+          ks
+        |> Array.concat)
+      (Flambda_arity.unarize_per_parameter (Code_metadata.params_arity info))
   in
   let result_machtype =
     C.extended_machtype_of_return_arity (Code_metadata.result_arity info)

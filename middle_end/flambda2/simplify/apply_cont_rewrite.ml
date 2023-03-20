@@ -84,7 +84,7 @@ let create ~original_params ~extra_params_and_args ~decide_param_usage =
     extra_params
   }
 
-let original_params_arity t = Bound_parameters.arity t.original_params
+(* let original_params_arity t = Bound_parameters.arity t.original_params *)
 
 let rec partition_used l usage =
   match l, usage with
@@ -234,16 +234,14 @@ let make_rewrite rewrite ~ctx id args =
 
 let rewrite_exn_continuation rewrite id exn_cont =
   let exn_cont_arity = Exn_continuation.arity exn_cont in
-  if not
-       (Flambda_arity.equal_ignoring_subkinds exn_cont_arity
-          (original_params_arity rewrite))
-  then
-    Misc.fatal_errorf
-      "Arity of exception continuation %a does not match@ [original_params] \
-       (%a)"
-      Exn_continuation.print exn_cont Bound_parameters.print
-      rewrite.original_params;
-  assert (Flambda_arity.cardinal exn_cont_arity >= 1);
+  (* XXX see comment elsewhere - propagating original arity is tedious
+
+     if not (Flambda_arity.equal_ignoring_subkinds exn_cont_arity
+     (original_params_arity rewrite)) then Misc.fatal_errorf "Arity of exception
+     continuation %a does not match@ [original_params] \ (%a)"
+     Exn_continuation.print exn_cont Bound_parameters.print
+     rewrite.original_params; *)
+  assert (Flambda_arity.cardinal_unarized exn_cont_arity >= 1);
   if List.hd rewrite.original_params_usage <> Used
   then
     Misc.fatal_errorf

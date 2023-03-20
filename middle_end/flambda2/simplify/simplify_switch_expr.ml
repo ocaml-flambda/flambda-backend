@@ -104,9 +104,9 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
           | Non_inlinable_zero_arity { handler = Known handler } ->
             check_handler ~handler ~action
           | Non_inlinable_zero_arity { handler = Unknown } -> Some action
-          | Invalid _ -> None
-          | Non_inlinable_non_zero_arity _
-          | Toplevel_or_function_return_or_exn_continuation _ ->
+          | Invalid _ | Toplevel_or_function_return_or_exn_continuation _ ->
+            None
+          | Non_inlinable_non_zero_arity _ ->
             Misc.fatal_errorf
               "Inconsistency for %a between [Apply_cont.is_goto] and \
                continuation environment in [UA]:@ %a"
@@ -377,7 +377,7 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
     let arity =
       arg_types
       |> List.map (fun ty -> K.With_subkind.anything (T.kind ty))
-      |> Flambda_arity.create
+      |> Flambda_arity.create_singletons
     in
     let action = Apply_cont.update_args action ~args in
     let dacc =

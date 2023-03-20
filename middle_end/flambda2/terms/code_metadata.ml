@@ -17,9 +17,9 @@
 type t =
   { code_id : Code_id.t;
     newer_version_of : Code_id.t option;
-    params_arity : Flambda_arity.t;
+    params_arity : [`Unarized | `Complex] Flambda_arity.t;
     num_trailing_local_params : int;
-    result_arity : Flambda_arity.t;
+    result_arity : [`Unarized | `Complex] Flambda_arity.t;
     result_types : Result_types.t Or_unknown_or_bottom.t;
     contains_no_escaping_local_allocs : bool;
     stub : bool;
@@ -58,7 +58,7 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
 
   let num_leading_heap_params t =
     let { params_arity; num_trailing_local_params; _ } = metadata t in
-    let n = Flambda_arity.cardinal params_arity - num_trailing_local_params in
+    let n = Flambda_arity.num_params params_arity - num_trailing_local_params in
     assert (n >= 0);
     (* see [create] *)
     n
@@ -124,9 +124,9 @@ include Code_metadata_accessors [@inlined hint] (Metadata_view)
 type 'a create_type =
   Code_id.t ->
   newer_version_of:Code_id.t option ->
-  params_arity:Flambda_arity.t ->
+  params_arity:[`Unarized | `Complex] Flambda_arity.t ->
   num_trailing_local_params:int ->
-  result_arity:Flambda_arity.t ->
+  result_arity:[`Unarized | `Complex] Flambda_arity.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
@@ -161,7 +161,7 @@ let createk k code_id ~newer_version_of ~params_arity ~num_trailing_local_params
   | true, (Always_inline | Unroll _) ->
     Misc.fatal_error "Stubs may not be annotated as [Always_inline] or [Unroll]");
   if num_trailing_local_params < 0
-     || num_trailing_local_params > Flambda_arity.cardinal params_arity
+     || num_trailing_local_params > Flambda_arity.cardinal_unarized params_arity
   then
     Misc.fatal_errorf
       "Illegal num_trailing_local_params=%d for params arity: %a"
@@ -270,22 +270,22 @@ let [@ocamlformat "disable"] print ppf
     (if not is_a_functor then Flambda_colours.elide else C.none)
     is_a_functor
     Flambda_colours.pop
-    (if Flambda_arity.is_singleton_value params_arity
+    (if Flambda_arity.is_one_param_of_kind_value params_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
     Flambda_arity.print params_arity
-    (if Flambda_arity.is_singleton_value params_arity
+    (if Flambda_arity.is_one_param_of_kind_value params_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
     num_trailing_local_params
-    (if Flambda_arity.is_singleton_value result_arity
+    (if Flambda_arity.is_one_param_of_kind_value result_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
     Flambda_arity.print result_arity
-    (if Flambda_arity.is_singleton_value result_arity
+    (if Flambda_arity.is_one_param_of_kind_value result_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop

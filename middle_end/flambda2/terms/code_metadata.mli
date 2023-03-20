@@ -31,13 +31,14 @@ module type Code_metadata_accessors_result_type = sig
 
   val newer_version_of : 'a t -> Code_id.t option
 
-  val params_arity : 'a t -> Flambda_arity.t
+  val params_arity : 'a t -> [`Unarized | `Complex] Flambda_arity.t
 
   val num_leading_heap_params : 'a t -> int
 
+  (* XXX rename to num_trailing_local_non_unarized_params *)
   val num_trailing_local_params : 'a t -> int
 
-  val result_arity : 'a t -> Flambda_arity.t
+  val result_arity : 'a t -> [`Unarized | `Complex] Flambda_arity.t
 
   val result_types : 'a t -> Result_types.t Or_unknown_or_bottom.t
 
@@ -82,9 +83,9 @@ include Code_metadata_accessors_result_type with type 'a t := t
 type 'a create_type =
   Code_id.t ->
   newer_version_of:Code_id.t option ->
-  params_arity:Flambda_arity.t ->
+  params_arity:[`Unarized | `Complex] Flambda_arity.t ->
   num_trailing_local_params:int ->
-  result_arity:Flambda_arity.t ->
+  result_arity:[`Unarized | `Complex] Flambda_arity.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->

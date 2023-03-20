@@ -68,7 +68,8 @@ module IR : sig
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
       region : Ident.t;
-      return_arity : Flambda_arity.t
+      args_arity : [`Unarized | `Complex] Flambda_arity.t;
+      return_arity : [`Unarized | `Complex] Flambda_arity.t
     }
 
   type switch =
@@ -76,6 +77,8 @@ module IR : sig
       consts : (int * Continuation.t * trap_action option * simple list) list;
       failaction : (Continuation.t * trap_action option * simple list) option
     }
+
+  val print_simple : Format.formatter -> simple -> unit
 
   val print_named : Format.formatter -> named -> unit
 end
@@ -296,7 +299,9 @@ module Function_decls : sig
       function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
       params:(Ident.t * Flambda_kind.With_subkind.t) list ->
-      return:Flambda_arity.t ->
+      params_arity:[`Unarized | `Complex] Flambda_arity.t ->
+      removed_params:Ident.Set.t ->
+      return:[`Unarized | `Complex] Flambda_arity.t ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
       my_region:Ident.t ->
@@ -318,7 +323,9 @@ module Function_decls : sig
 
     val params : t -> (Ident.t * Flambda_kind.With_subkind.t) list
 
-    val return : t -> Flambda_arity.t
+    val params_arity : t -> [`Unarized | `Complex] Flambda_arity.t
+
+    val return : t -> [`Unarized | `Complex] Flambda_arity.t
 
     val return_continuation : t -> Continuation.t
 

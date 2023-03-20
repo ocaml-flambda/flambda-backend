@@ -95,6 +95,9 @@ type primitive =
   | Pfloatfield of int * field_read_semantics * alloc_mode
   | Psetfloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
+  (* Unboxed products *)
+  | Pmake_unboxed_product of layout list
+  | Punboxed_product_field of int * (layout list)
   (* External call *)
   | Pccall of Primitive.description
   (* Exceptions *)
@@ -225,6 +228,7 @@ and layout =
   | Pvalue of value_kind
   | Punboxed_float
   | Punboxed_int of boxed_integer
+  | Punboxed_product of layout list
   | Pbottom
 
 and block_shape =
@@ -523,6 +527,8 @@ val layout_lazy_contents : layout
 val layout_any_value : layout
 (* A layout that is Pgenval because it is bound by a letrec *)
 val layout_letrec : layout
+
+val layout_unboxed_product : layout list -> layout
 
 val layout_top : layout
 val layout_bottom : layout

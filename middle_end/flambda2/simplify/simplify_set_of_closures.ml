@@ -171,7 +171,8 @@ let simplify_function_body context ~outer_dacc function_slot_opt
   assert (not (DE.at_unit_toplevel (DA.denv dacc)));
   match
     C.simplify_function_body context dacc body ~return_continuation
-      ~exn_continuation ~return_arity:(Code.result_arity code)
+      ~exn_continuation
+      ~return_arity:(Code.result_arity code |> Flambda_arity.unarize_t)
       ~implicit_params:
         (Bound_parameters.create
            [ Bound_parameter.create my_closure
@@ -342,7 +343,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
         BP.create
           (Variable.create ("result" ^ string_of_int i))
           kind_with_subkind)
-      (Flambda_arity.to_list result_arity)
+      (Flambda_arity.unarize result_arity)
     |> Bound_parameters.create
   in
   let { params;
@@ -721,7 +722,7 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
       Cost_metrics.
         { cost_metrics = Code_metadata.cost_metrics code_metadata;
           params_arity =
-            Flambda_arity.cardinal (Code_metadata.params_arity code_metadata)
+            Flambda_arity.num_params (Code_metadata.params_arity code_metadata)
         }
     in
     Simplified_named.create_with_known_free_names ~find_code_characteristics

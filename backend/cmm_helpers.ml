@@ -1070,6 +1070,8 @@ module Extended_machtype = struct
       typ_any_int
     | Pvalue Pintval -> typ_tagged_int
     | Pvalue _ -> typ_val
+    | Punboxed_product _ ->
+      Misc.fatal_error "Punboxed_product not expected here"
 end
 
 let machtype_of_layout layout =
@@ -4002,8 +4004,8 @@ let direct_call ~dbg ty pos f_code_sym args =
   Cop (Capply (ty, pos), f_code_sym :: args, dbg)
 
 let indirect_call ~dbg ty pos alloc_mode f args_type args =
-  match args with
-  | [arg] ->
+  match args_type with
+  | [_] ->
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
     let v = Backend_var.create_local "*closure*" in
     let v' = Backend_var.With_provenance.create v in
@@ -4011,10 +4013,10 @@ let indirect_call ~dbg ty pos alloc_mode f args_type args =
       ~body:
         (Cop
            ( Capply (Extended_machtype.to_machtype ty, pos),
-             [load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v); arg; Cvar v],
+             (load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v) :: args)
+             @ [Cvar v],
              dbg ))
-  | args ->
-    call_caml_apply ty args_type Asttypes.Mutable f args pos alloc_mode dbg
+  | _ -> call_caml_apply ty args_type Asttypes.Mutable f args pos alloc_mode dbg
 
 let indirect_full_call ~dbg ty pos alloc_mode f args_type = function
   (* the single-argument case is already optimized by indirect_call *)
@@ -4143,5 +4145,5 @@ let kind_of_layout (layout : Lambda.layout) =
   | Pvalue Pfloatval -> Boxed_float
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ ->
+  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_product _ ->
     Any

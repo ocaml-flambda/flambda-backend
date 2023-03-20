@@ -3280,6 +3280,6 @@ let kind_of_layout (layout : Lambda.layout) =
   | Pvalue Pfloatval -> Boxed_float
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ -> Any
+  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_product _ -> Any
 
 let make_tuple l = match l with [e] -> e | _ -> Ctuple l
