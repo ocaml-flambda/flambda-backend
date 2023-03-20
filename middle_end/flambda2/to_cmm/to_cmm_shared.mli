@@ -100,6 +100,6 @@ val make_update :
   prev_updates:To_cmm_env.expr_with_info option ->
   To_cmm_env.t * To_cmm_result.t * To_cmm_env.expr_with_info option
 
-val check_arity : Flambda_arity.With_subkinds.t -> _ list -> bool
+val check_arity : Flambda_arity.t -> _ list -> bool
 
-val machtype_of_return_arity : Flambda_arity.With_subkinds.t -> Cmm.machtype
+val machtype_of_return_arity : Flambda_arity.t -> Cmm.machtype

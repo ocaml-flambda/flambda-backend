@@ -517,8 +517,7 @@ val get_alias_exn : t -> Simple.t
 (** For each of the kinds in an arity, create an "unknown" type. *)
 val unknown_types_from_arity : Flambda_arity.t -> t list
 
-val unknown_types_from_arity_with_subkinds :
-  Flambda_arity.With_subkinds.t -> t list
+val unknown_types_from_arity_with_subkinds : Flambda_arity.t -> t list
 
 (** For each of the kinds in an arity, create an "bottom" type. *)
 val bottom_types_from_arity : Flambda_arity.t -> t list

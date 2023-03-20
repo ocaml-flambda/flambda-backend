@@ -93,9 +93,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       Lambda.Rc_normal
     | Nontail -> Lambda.Rc_nontail
   in
-  let args_arity =
-    Apply.args_arity apply |> Flambda_arity.With_subkinds.to_list
-  in
+  let args_arity = Apply.args_arity apply |> Flambda_arity.to_list in
   let return_arity = Apply.return_arity apply in
   let args_ty = List.map C.machtype_of_kind args_arity in
   let return_ty = C.machtype_of_return_arity return_arity in
@@ -164,7 +162,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let returns = Apply.returns apply in
     let wrap =
-      match Flambda_arity.With_subkinds.to_list return_arity with
+      match Flambda_arity.to_list return_arity with
       (* Returned int32 values need to be sign_extended because it's not clear
          whether C code that returns an int32 returns one that is sign extended
          or not. There is no need to wrap other return arities. Note that
@@ -184,8 +182,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let ty_args =
       List.map C.exttype_of_kind
-        (Flambda_arity.to_list
-           (Flambda_arity.With_subkinds.to_arity (Apply.args_arity apply)))
+        (Flambda_arity.to_list (Apply.args_arity apply)
+        |> List.map K.With_subkind.kind)
     in
     ( wrap dbg
         (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee return_ty
@@ -695,7 +693,7 @@ and let_cont_rec env res invariant_params conts body =
 and continuation_handler env res handler =
   Continuation_handler.pattern_match' handler
     ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler ->
-      let arity = Bound_parameters.arity_with_subkinds params in
+      let arity = Bound_parameters.arity params in
       let env, vars = C.bound_parameters env params in
       let expr, free_vars_of_handler, res = expr env res handler in
       vars, arity, expr, free_vars_of_handler, res)

@@ -40,7 +40,7 @@ let get_func_decl_params_arity t code_id =
   let params_ty =
     List.map
       (fun k -> C.machtype_of_kind k)
-      (Flambda_arity.With_subkinds.to_list (Code_metadata.params_arity info))
+      (Flambda_arity.to_list (Code_metadata.params_arity info))
   in
   let result_ty =
     C.machtype_of_return_arity (Code_metadata.result_arity info)

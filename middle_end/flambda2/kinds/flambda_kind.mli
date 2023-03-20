@@ -150,6 +150,8 @@ module With_subkind : sig
 
   val create : kind -> Subkind.t -> t
 
+  val anything : kind -> t
+
   val kind : t -> kind
 
   val subkind : t -> Subkind.t

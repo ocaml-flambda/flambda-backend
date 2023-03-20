@@ -39,7 +39,7 @@ let [@ocamlformat "disable"] print ppf { continuation; arity; uses; } =
 let add_use t kind ~env_at_use id ~arg_types =
   try
     let arity = T.arity_of_list arg_types in
-    if not (Flambda_arity.equal arity t.arity)
+    if not (Flambda_arity.equal_ignoring_subkinds arity t.arity)
     then
       Misc.fatal_errorf
         "Arity of use (%a) doesn't match continuation's arity (%a)"
@@ -60,7 +60,7 @@ let add_use t kind ~env_at_use id ~arg_types =
 
 let union t1 t2 =
   assert (Continuation.equal t1.continuation t2.continuation);
-  assert (Flambda_arity.equal t1.arity t2.arity);
+  assert (Flambda_arity.equal_ignoring_subkinds t1.arity t2.arity);
   { continuation = t1.continuation; arity = t1.arity; uses = t1.uses @ t2.uses }
 
 let number_of_uses t = List.length t.uses
@@ -108,8 +108,11 @@ let get_arg_types_by_use_id_for_invariant_params arity l =
     (fun arg_maps t ->
       if not
            (Misc.Stdlib.List.is_prefix ~equal:Flambda_kind.equal
-              (Flambda_arity.to_list arity)
-              ~of_:(Flambda_arity.to_list t.arity))
+              (Flambda_arity.to_list arity
+              |> List.map Flambda_kind.With_subkind.kind)
+              ~of_:
+                (Flambda_arity.to_list t.arity
+                |> List.map Flambda_kind.With_subkind.kind))
       then
         Misc.fatal_errorf
           "Arity of invariant params@ (%a) is not a prefix of the arity of the \

@@ -14,50 +14,21 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Arities are lists of kinds, sometimes with subkinds, used to describe things
+(** Arities are lists of kinds (with subkinds) used to describe things
     such as the kinding of function and continuation parameter lists. *)
 
 type t
 
-type arity = t
-
-val create : Flambda_kind.t list -> t
-
-val to_list : t -> Flambda_kind.t list
-
 val nullary : t
 
-val length : t -> int
+val create : Flambda_kind.With_subkind.t list -> t
 
-val is_all_values : t -> bool
+val to_list : t -> Flambda_kind.With_subkind.t list
 
-val is_all_naked_floats : t -> bool
+val cardinal : t -> int
 
 val is_singleton_value : t -> bool
 
-include Container_types.S with type t := t
+val print : Format.formatter -> t -> unit
 
-module With_subkinds : sig
-  type t
-
-  val create : Flambda_kind.With_subkind.t list -> t
-
-  val to_list : t -> Flambda_kind.With_subkind.t list
-
-  val nullary : t
-
-  val is_nullary : t -> bool
-
-  val cardinal : t -> int
-
-  val is_singleton_value : t -> bool
-
-  val to_arity : t -> arity
-
-  (** [of_arity] sets the subkind information to [Anything]. *)
-  val of_arity : arity -> t
-
-  val compatible : t -> when_used_at:t -> bool
-
-  include Container_types.S with type t := t
-end
+val equal_ignoring_subkinds : t -> t -> bool

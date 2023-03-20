@@ -408,6 +408,8 @@ module With_subkind = struct
           subkind print kind));
     { kind; subkind }
 
+  let anything kind = create kind Anything
+
   let compatible t ~when_used_at =
     equal t.kind when_used_at.kind
     && Subkind.compatible t.subkind ~when_used_at:when_used_at.subkind

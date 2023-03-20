@@ -967,9 +967,9 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
          (Apply.inlining_state apply1)
          (Apply.inlining_state apply2)
     && Apply.Position.equal (Apply.position apply1) (Apply.position apply2)
-    && Flambda_arity.With_subkinds.equal (Apply.args_arity apply1)
+    && Flambda_arity.equal_ignoring_subkinds (Apply.args_arity apply1)
          (Apply.args_arity apply2)
-    && Flambda_arity.With_subkinds.equal
+    && Flambda_arity.equal_ignoring_subkinds
          (Apply.return_arity apply1)
          (Apply.return_arity apply2)
   in
@@ -1191,9 +1191,9 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
   |> Comparison.add_condition
        ~approximant:(fun () -> subst_code env code1)
        ~cond:
-         (Flambda_arity.With_subkinds.equal (Code.params_arity code1)
+         (Flambda_arity.equal_ignoring_subkinds (Code.params_arity code1)
             (Code.params_arity code2)
-         && Flambda_arity.With_subkinds.equal (Code.result_arity code1)
+         && Flambda_arity.equal_ignoring_subkinds (Code.result_arity code1)
               (Code.result_arity code2)
          && Bool.equal (Code.stub code1) (Code.stub code2)
          && Inline_attribute.equal (Code.inline code1) (Code.inline code2)

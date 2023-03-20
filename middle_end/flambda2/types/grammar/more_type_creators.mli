@@ -152,7 +152,7 @@ val unknown_with_subkind :
 val unknown_types_from_arity : Flambda_arity.t -> Type_grammar.t list
 
 val unknown_types_from_arity_with_subkinds :
-  Flambda_arity.With_subkinds.t -> Type_grammar.t list
+  Flambda_arity.t -> Type_grammar.t list
 
 (** For each of the kinds in an arity, create an "bottom" type. *)
 val bottom_types_from_arity : Flambda_arity.t -> Type_grammar.t list
