@@ -132,14 +132,15 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
       List.iter intervals.active ~f:(fun (interval : Interval.t) ->
           match interval.reg.loc with
           | Reg r ->
-            assert (r - first_available < num_available_registers);
-            available.(r - first_available) <- false
+            if r - first_available < num_available_registers
+            then available.(r - first_available) <- false
           | Stack _ | Unknown -> ());
       let remove_bound_overlapping (itv : Interval.t) : unit =
         match itv.reg.loc with
         | Reg r ->
-          assert (r - first_available < num_available_registers);
-          if available.(r - first_available) && Interval.overlap itv interval
+          if r - first_available < num_available_registers
+             && available.(r - first_available)
+             && Interval.overlap itv interval
           then available.(r - first_available) <- false
         | Stack _ | Unknown -> ()
       in
