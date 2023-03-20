@@ -860,7 +860,7 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
           { apply with continuation = wrapper_cont; region }
       in
       let return_arity =
-        match Flambda_arity.With_subkinds.to_list apply.return_arity with
+        match Flambda_arity.to_list apply.return_arity with
         | [return_kind] -> return_kind
         | _ :: _ ->
           Misc.fatal_errorf
@@ -1323,7 +1323,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         mode;
                         region = Env.current_region env;
                         return_arity =
-                          Flambda_arity.With_subkinds.create
+                          Flambda_arity.create
                             [Flambda_kind.With_subkind.from_lambda layout]
                       }
                     in
@@ -1528,7 +1528,7 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               mode = ap_mode;
               region = Env.current_region env;
               return_arity =
-                Flambda_arity.With_subkinds.create
+                Flambda_arity.create
                   [Flambda_kind.With_subkind.from_lambda ap_return]
             }
           in
@@ -1666,8 +1666,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       params
   in
   let return =
-    Flambda_arity.With_subkinds.create
-      [Flambda_kind.With_subkind.from_lambda return]
+    Flambda_arity.create [Flambda_kind.With_subkind.from_lambda return]
   in
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
     ~return ~return_continuation:body_cont ~exn_continuation ~my_region ~body

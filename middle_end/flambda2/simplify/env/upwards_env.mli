@@ -29,15 +29,10 @@ val add_non_inlinable_continuation :
   handler:Rebuilt_expr.t Or_unknown.t ->
   t
 
-val add_invalid_continuation :
-  t -> Continuation.t -> Flambda_arity.With_subkinds.t -> t
+val add_invalid_continuation : t -> Continuation.t -> Flambda_arity.t -> t
 
 val add_continuation_alias :
-  t ->
-  Continuation.t ->
-  Flambda_arity.With_subkinds.t ->
-  alias_for:Continuation.t ->
-  t
+  t -> Continuation.t -> Flambda_arity.t -> alias_for:Continuation.t -> t
 
 val add_linearly_used_inlinable_continuation :
   t ->
@@ -49,7 +44,7 @@ val add_linearly_used_inlinable_continuation :
   t
 
 val add_function_return_or_exn_continuation :
-  t -> Continuation.t -> Flambda_arity.With_subkinds.t -> t
+  t -> Continuation.t -> Flambda_arity.t -> t
 
 val find_continuation : t -> Continuation.t -> Continuation_in_env.t
 

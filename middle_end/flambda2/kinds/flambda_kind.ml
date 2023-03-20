@@ -414,6 +414,8 @@ module With_subkind = struct
           subkind print kind));
     { kind; subkind }
 
+  let anything kind = create kind Anything
+
   let compatible (t : t) ~(when_used_at : t) =
     equal t.kind when_used_at.kind
     && Subkind.compatible t.subkind ~when_used_at:when_used_at.subkind
@@ -565,4 +567,6 @@ module With_subkind = struct
       true
 
   let erase_subkind (t : t) : t = { t with subkind = Anything }
+
+  let equal_ignoring_subkind t1 t2 = equal (erase_subkind t1) (erase_subkind t2)
 end

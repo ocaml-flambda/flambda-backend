@@ -22,10 +22,10 @@ type t =
         cost_metrics_of_handler : Cost_metrics.t
       }
   | Non_inlinable_zero_arity of { handler : Rebuilt_expr.t Or_unknown.t }
-  | Non_inlinable_non_zero_arity of { arity : Flambda_arity.With_subkinds.t }
+  | Non_inlinable_non_zero_arity of { arity : Flambda_arity.t }
   | Toplevel_or_function_return_or_exn_continuation of
-      { arity : Flambda_arity.With_subkinds.t }
-  | Invalid of { arity : Flambda_arity.With_subkinds.t }
+      { arity : Flambda_arity.t }
+  | Invalid of { arity : Flambda_arity.t }
 
 let [@ocamlformat "disable"] print are_rebuilding_terms ppf t =
   match t with
@@ -50,18 +50,18 @@ let [@ocamlformat "disable"] print are_rebuilding_terms ppf t =
     Format.fprintf ppf "@[<hov 1>(Non_inlinable_non_zero_arity@ \
         @[<hov 1>(arity@ %a)@]\
         )@]"
-      Flambda_arity.With_subkinds.print arity
+      Flambda_arity.print arity
   | Toplevel_or_function_return_or_exn_continuation { arity } ->
     Format.fprintf ppf
       "@[<hov 1>(Toplevel_or_function_return_or_exn_continuation@ \
         @[<hov 1>(arity@ %a)@]\
         )@]"
-      Flambda_arity.With_subkinds.print arity
+      Flambda_arity.print arity
   | Invalid { arity } ->
     Format.fprintf ppf "@[<hov 1>(Invalid@ \
         @[<hov 1>(arity@ %a)@]\
         )@]"
-      Flambda_arity.With_subkinds.print arity
+      Flambda_arity.print arity
 
 let arity t =
   match t with
@@ -71,8 +71,8 @@ let arity t =
         free_names_of_handler = _;
         cost_metrics_of_handler = _
       } ->
-    Bound_parameters.arity_with_subkinds params
-  | Non_inlinable_zero_arity _ -> Flambda_arity.With_subkinds.nullary
+    Bound_parameters.arity params
+  | Non_inlinable_zero_arity _ -> Flambda_arity.nullary
   | Non_inlinable_non_zero_arity { arity }
   | Toplevel_or_function_return_or_exn_continuation { arity }
   | Invalid { arity } ->

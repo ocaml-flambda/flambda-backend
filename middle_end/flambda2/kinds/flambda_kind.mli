@@ -150,6 +150,8 @@ module With_subkind : sig
 
   val create : kind -> Subkind.t -> t
 
+  val anything : kind -> t
+
   val kind : t -> kind
 
   val subkind : t -> Subkind.t
@@ -205,4 +207,6 @@ module With_subkind : sig
   val erase_subkind : t -> t
 
   include Container_types.S with type t := t
+
+  val equal_ignoring_subkind : t -> t -> bool
 end

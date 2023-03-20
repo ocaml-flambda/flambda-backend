@@ -33,7 +33,7 @@ type simplify_toplevel =
   Downwards_acc.t ->
   Expr.t ->
   return_continuation:Continuation.t ->
-  return_arity:Flambda_arity.With_subkinds.t ->
+  return_arity:Flambda_arity.t ->
   exn_continuation:Continuation.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
@@ -41,7 +41,7 @@ type simplify_function_body =
   Downwards_acc.t ->
   Expr.t ->
   return_continuation:Continuation.t ->
-  return_arity:Flambda_arity.With_subkinds.t ->
+  return_arity:Flambda_arity.t ->
   exn_continuation:Continuation.t ->
   loopify_state:Loopify_state.t ->
   params:Bound_parameters.t ->
@@ -96,13 +96,13 @@ let split_direct_over_application apply
   let callee's_params_arity =
     Code_metadata.params_arity callee's_code_metadata
   in
-  let arity = Flambda_arity.With_subkinds.cardinal callee's_params_arity in
+  let arity = Flambda_arity.cardinal callee's_params_arity in
   let args = Apply.args apply in
   assert (arity < List.length args);
   let first_args, remaining_args = Misc.Stdlib.List.split_at arity args in
   let _, remaining_arity =
     Misc.Stdlib.List.split_at arity
-      (Apply.args_arity apply |> Flambda_arity.With_subkinds.to_list)
+      (Apply.args_arity apply |> Flambda_arity.to_list)
   in
   assert (List.compare_lengths remaining_args remaining_arity = 0);
   let func_var = Variable.create "full_apply" in
@@ -142,7 +142,7 @@ let split_direct_over_application apply
     Apply.create ~callee:(Simple.var func_var) ~continuation
       (Apply.exn_continuation apply)
       ~args:remaining_args
-      ~args_arity:(Flambda_arity.With_subkinds.create remaining_arity)
+      ~args_arity:(Flambda_arity.create remaining_arity)
       ~return_arity:(Apply.return_arity apply)
       ~call_kind:
         (Call_kind.indirect_function_call_unknown_arity apply_alloc_mode)
@@ -170,7 +170,7 @@ let split_direct_over_application apply
         List.mapi
           (fun i kind ->
             BP.create (Variable.create ("result" ^ string_of_int i)) kind)
-          (Flambda_arity.With_subkinds.to_list (Apply.return_arity apply))
+          (Flambda_arity.to_list (Apply.return_arity apply))
       in
       let call_return_continuation, call_return_continuation_free_names =
         match Apply.continuation apply with
