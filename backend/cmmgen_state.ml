@@ -76,6 +76,10 @@ let is_local_function name =
 let clear_function_names () =
   Hashtbl.clear state.function_names
 
+let add_structured_constant (sym : Cmm.symbol) cst =
+  if not (Hashtbl.mem state.structured_constants sym.sym_name) then
+    Hashtbl.replace state.structured_constants sym.sym_name (sym.sym_global, cst)
+
 let set_local_structured_constants l =
   Hashtbl.clear state.structured_constants;
   List.iter

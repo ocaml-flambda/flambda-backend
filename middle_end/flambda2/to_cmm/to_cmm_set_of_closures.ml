@@ -73,7 +73,7 @@ type for_static_sets =
        initialising updates to value slots. (We choose a particular slot to use
        for this purpose to avoid any notion of "set of closures symbol" whose
        definition would overlap with that of other symbols.) *)
-    closure_symbol_for_updates : Symbol.t
+    closure_symbol_for_updates : Cmm.symbol
         (* The closure symbol of the function slot corresponding to
            [function_slot_offset_for_updates]. *)
   }
@@ -96,9 +96,9 @@ module Make_layout_filler (P : sig
 
   val infix_header : dbg:Debuginfo.t -> function_slot_offset:int -> cmm_term
 
-  val symbol_from_linkage_name : dbg:Debuginfo.t -> Linkage_name.t -> cmm_term
+  val term_of_symbol : dbg:Debuginfo.t -> Cmm.symbol -> cmm_term
 
-  val define_global_symbol : string -> cmm_term list
+  val define_symbol : Cmm.symbol -> cmm_term list
 end) : sig
   val fill_layout :
     for_static_sets option ->
@@ -175,7 +175,7 @@ end = struct
         updates )
     | Function_slot { size; function_slot; last_function_slot } -> (
       let code_id = Function_slot.Map.find function_slot decls in
-      let code_linkage_name = Code_id.linkage_name code_id in
+      let code_symbol = R.symbol_of_code_id res code_id in
       let (kind, params_ty, result_ty), closure_code_pointers, dbg =
         get_func_decl_params_arity env code_id
       in
@@ -190,10 +190,7 @@ end = struct
           let function_symbol =
             Function_slot.Map.find function_slot closure_symbols
           in
-          List.rev_append
-            (P.define_global_symbol
-               (Symbol.linkage_name_as_string function_symbol))
-            acc
+          List.rev_append (P.define_symbol (R.symbol res function_symbol)) acc
       in
       (* We build here the **reverse** list of fields for the function slot *)
       match closure_code_pointers with
@@ -206,9 +203,7 @@ end = struct
              the expected size is 2)"
             Function_slot.print function_slot size Code_id.print code_id;
         let acc =
-          P.int ~dbg closure_info
-          :: P.symbol_from_linkage_name ~dbg code_linkage_name
-          :: acc
+          P.int ~dbg closure_info :: P.term_of_symbol ~dbg code_symbol :: acc
         in
         ( acc,
           Backend_var.Set.empty,
@@ -226,11 +221,10 @@ end = struct
              Full_and_partial_application (so the expected size is 3)"
             Function_slot.print function_slot size Code_id.print code_id;
         let acc =
-          P.symbol_from_linkage_name ~dbg code_linkage_name
+          P.term_of_symbol ~dbg code_symbol
           :: P.int ~dbg closure_info
-          :: P.symbol_from_linkage_name ~dbg
-               (Linkage_name.of_string
-                  (C.curry_function_sym kind params_ty result_ty))
+          :: P.term_of_symbol ~dbg
+               (C.curry_function_sym kind params_ty result_ty)
           :: acc
         in
         ( acc,
@@ -294,10 +288,9 @@ module Dynamic = Make_layout_filler (struct
   let infix_header ~dbg ~function_slot_offset =
     C.alloc_infix_header function_slot_offset dbg
 
-  let symbol_from_linkage_name ~dbg linkage_name =
-    C.symbol_from_linkage_name ~dbg linkage_name
+  let term_of_symbol ~dbg sym = C.symbol ~dbg sym
 
-  let define_global_symbol _ = assert false
+  let define_symbol _ = assert false
 end)
 
 (* Filling-up of statically-allocated sets of closures. *)
@@ -307,16 +300,15 @@ module Static = Make_layout_filler (struct
   let int ~dbg:_ i = C.cint i
 
   let simple ~dbg:_ env res simple =
-    let contents = C.simple_static simple in
+    let contents = C.simple_static res simple in
     contents, Backend_var.Set.empty, env, res, Ece.pure
 
   let infix_header ~dbg:_ ~function_slot_offset =
     C.cint (C.infix_header function_slot_offset)
 
-  let symbol_from_linkage_name ~dbg:_ linkage_name =
-    C.symbol_address (Cmm.global_symbol (Linkage_name.to_string linkage_name))
+  let term_of_symbol ~dbg:_ sym = C.symbol_address sym
 
-  let define_global_symbol sym = C.define_symbol (Cmm.global_symbol sym)
+  let define_symbol sym = C.define_symbol sym
 end)
 
 (* Translation of "check" attributes on functions. *)
@@ -381,14 +373,12 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
     @
     if Flambda_features.optimize_for_speed () then [] else [Cmm.Reduce_code_size]
   in
-  let linkage_name =
-    Linkage_name.to_string (Code_id.linkage_name code_id) |> Cmm.global_symbol
-  in
+  let fun_sym = R.symbol_of_code_id res code_id in
   let fun_poll =
     Env.get_code_metadata env code_id
     |> Code_metadata.poll_attribute |> Poll_attribute.to_lambda
   in
-  C.fundecl linkage_name fun_params fun_body fun_flags fun_dbg fun_poll, res
+  C.fundecl fun_sym fun_params fun_body fun_flags fun_dbg fun_poll, res
 
 let params_and_body env res code_id p ~fun_dbg ~check ~translate_expr =
   Function_params_and_body.pattern_match p
@@ -458,7 +448,7 @@ let let_static_set_of_closures0 env res closure_symbols
     with
     | Some (function_slot_offset, function_slot) -> (
       match Function_slot.Map.find function_slot closure_symbols with
-      | closure_symbol -> function_slot_offset, closure_symbol
+      | closure_symbol -> function_slot_offset, R.symbol res closure_symbol
       | exception Not_found ->
         Misc.fatal_errorf "No closure symbol for function slot %a"
           Function_slot.print function_slot)
@@ -545,7 +535,10 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
     List.fold_left2
       (fun (env, res) cid v ->
         let v = Bound_var.var v in
-        let sym = C.symbol ~dbg (Function_slot.Map.find cid closure_symbols) in
+        let sym =
+          C.symbol ~dbg
+            (R.symbol res (Function_slot.Map.find cid closure_symbols))
+        in
         Env.bind_variable env res v ~defining_expr:sym
           ~free_vars_of_defining_expr:Backend_var.Set.empty
           ~num_normal_occurrences_of_bound_vars

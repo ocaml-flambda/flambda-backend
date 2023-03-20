@@ -42,11 +42,6 @@ val tag_targetint : Targetint_32_64.t -> Targetint_32_64.t
 
 val nativeint_of_targetint : Targetint_32_64.t -> Nativeint.t
 
-val symbol_from_linkage_name :
-  dbg:Debuginfo.t -> Linkage_name.t -> Cmm.expression
-
-val symbol : dbg:Debuginfo.t -> Symbol.t -> Cmm.expression
-
 (** This does not inline effectful expressions. *)
 val name :
   To_cmm_env.t -> To_cmm_result.t -> Name.t -> To_cmm_env.translation_result
@@ -65,7 +60,9 @@ val simple :
   To_cmm_env.translation_result
 
 val simple_static :
-  Simple.t -> [`Data of Cmm.data_item list | `Var of Variable.t]
+  To_cmm_result.t ->
+  Simple.t ->
+  [`Data of Cmm.data_item list | `Var of Variable.t]
 
 (** This function translates the [Simple] at the head of the list first.
     Regarding [consider_inlining_effectful_expressions], see [simple] above. *)

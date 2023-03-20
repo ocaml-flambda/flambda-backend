@@ -34,11 +34,12 @@ end
    functions from Cmm_helpers which populate some mutable state in
    Cmmgen_state.) *)
 
-let flush_cmm_helpers_state () =
-  let aux name cst acc =
+let flush_cmm_helpers_state res () =
+  let aux name cst (res, acc) =
     match (cst : Cmmgen_state.constant) with
-    | Const_table (sym_global, l) ->
-      C.cdata (C.define_symbol { sym_name = name; sym_global } @ l) :: acc
+    | Const_table (global, l) ->
+      let res, sym = R.raw_symbol res ~global name in
+      res, C.cdata (C.define_symbol sym @ l) :: acc
     | Const_closure _ ->
       Misc.fatal_errorf
         "There shouldn't be any closures in Cmmgen_state during Flambda 2 to \
@@ -49,7 +50,7 @@ let flush_cmm_helpers_state () =
   match Cmmgen_state.get_and_clear_data_items () with
   | [] ->
     let cst_map = Cmmgen_state.get_and_clear_constants () in
-    Misc.Stdlib.String.Map.fold aux cst_map []
+    Misc.Stdlib.String.Map.fold aux cst_map (res, [])
   | _ ->
     Misc.fatal_errorf
       "There shouldn't be any data items in Cmmgen_state during Flambda 2 to \
@@ -130,7 +131,7 @@ let unit0 ~offsets flambda_unit ~all_code =
          [] body fun_codegen dbg Default_poll)
   in
   let { R.data_items; gc_roots; functions } = R.to_cmm res in
-  let cmm_helpers_data = flush_cmm_helpers_state () in
+  let _res, cmm_helpers_data = flush_cmm_helpers_state res () in
   let gc_root_data =
     C.gc_root_table
       (List.map

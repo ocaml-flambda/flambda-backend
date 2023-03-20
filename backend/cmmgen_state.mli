@@ -41,6 +41,8 @@ val is_local_function : Clambda.function_label -> bool
 
 val clear_function_names : unit -> unit
 
+val add_structured_constant : Cmm.symbol -> Clambda.ustructured_constant -> unit
+
 val set_local_structured_constants : Clambda.preallocated_constant list -> unit
 
 val add_global_structured_constant : string -> Clambda.ustructured_constant -> unit

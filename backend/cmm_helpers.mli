@@ -475,7 +475,7 @@ val machtype_identifier : machtype -> string
 (** Get the symbol for the generic currying or tuplifying wrapper with [n]
     arguments, and ensure its presence in the set of defined symbols. *)
 val curry_function_sym :
-  Lambda.function_kind -> machtype list -> machtype -> string
+  Lambda.function_kind -> machtype list -> machtype -> Cmm.symbol
 
 (** Bigarrays *)
 
@@ -958,9 +958,8 @@ val unit : dbg:Debuginfo.t -> Cmm.expression
 (** Create an expression from a variable. *)
 val var : Backend_var.t -> Cmm.expression
 
-(** Create an expression that gives the value of an object file symbol, such
-    symbol's name being given by a string. *)
-val symbol_from_string : dbg:Debuginfo.t -> string -> Cmm.expression
+(** Create an expression that gives the value of an object file symbol. *)
+val symbol : dbg:Debuginfo.t -> Cmm.symbol -> Cmm.expression
 
 (** Create a constant float expression. *)
 val float : dbg:Debuginfo.t -> float -> expression
@@ -1244,7 +1243,7 @@ val cfunction : fundecl -> phrase
 val cdata : data_item list -> phrase
 
 (** Create the gc root table from a list of root symbols. *)
-val gc_root_table : string list -> phrase
+val gc_root_table : Cmm.symbol list -> phrase
 
 (* An estimate of the number of arithmetic instructions in a Cmm expression.
    This is currently used in Flambda 2 to determine whether untagging an

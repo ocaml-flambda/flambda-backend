@@ -20,6 +20,8 @@ type t =
     data_list : Cmm.phrase list;
     functions : Cmm.fundecl list;
     current_data : Cmm.data_item list;
+    symbols : Cmm.symbol String.Map.t;
+    (* this is a map for symbols *not* from flambda2 *)
     module_symbol : Symbol.t;
     module_symbol_defined : bool;
     invalid_message_symbols : Symbol.t String.Map.t
@@ -30,10 +32,45 @@ let create ~module_symbol =
     data_list = [];
     functions = [];
     current_data = [];
+    symbols = String.Map.empty;
     module_symbol;
     module_symbol_defined = false;
     invalid_message_symbols = String.Map.empty
   }
+
+(* Symbol handling
+
+   These functions are there to ensure that a given symbol is: 1) given an
+   appropriate locality, and 2) **always** given the same locality *)
+let equal_global g g' =
+  match (g, g' : Cmm.is_global * Cmm.is_global) with
+  | Local, Local | Global, Global -> true
+  | Local, Global | Global, Local -> false
+
+let raw_symbol res ~global:sym_global sym_name : t * Cmm.symbol =
+  match String.Map.find_opt sym_name res.symbols with
+  | None ->
+    let sym : Cmm.symbol = { sym_name; sym_global } in
+    let symbols = String.Map.add sym_name sym res.symbols in
+    { res with symbols }, sym
+  | Some sym ->
+    if equal_global sym_global sym.sym_global
+    then res, sym
+    else
+      Misc.fatal_errorf "The symbol %s is declared as both local and global"
+        sym_name
+
+let symbol _res sym : Cmm.symbol =
+  let sym_name = Linkage_name.to_string (Symbol.linkage_name sym) in
+  let sym_global = Cmm.Global in
+  { sym_name; sym_global }
+
+let symbol_of_code_id _res code_id : Cmm.symbol =
+  let sym_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
+  let sym_global = Cmm.Global in
+  { sym_name; sym_global }
+
+(* *)
 
 let check_for_module_symbol t symbol =
   if Symbol.equal symbol t.module_symbol
@@ -89,7 +126,7 @@ let add_function r f = { r with functions = f :: r.functions }
 
 type result =
   { data_items : Cmm.phrase list;
-    gc_roots : Symbol.t list;
+    gc_roots : Cmm.symbol list;
     functions : Cmm.phrase list
   }
 
@@ -126,8 +163,7 @@ let to_cmm r =
       r.functions
   in
   let function_phrases = List.map (fun f -> C.cfunction f) sorted_functions in
+  (* Translate roots to Cmm symbols *)
+  let roots = List.map (symbol r) r.gc_roots in
   (* Return the data list, gc roots and function declarations *)
-  { data_items = r.data_list;
-    gc_roots = r.gc_roots;
-    functions = function_phrases
-  }
+  { data_items = r.data_list; gc_roots = roots; functions = function_phrases }

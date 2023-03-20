@@ -26,6 +26,15 @@ type t
 (** Create a result structure. *)
 val create : module_symbol:Symbol.t -> t
 
+(** Create a cmm symbol *)
+val symbol : t -> Symbol.t -> Cmm.symbol
+
+(** TODO *)
+val symbol_of_code_id : t -> Code_id.t -> Cmm.symbol
+
+(** Create a new symbol *)
+val raw_symbol : t -> global:Cmm.is_global -> string -> t * Cmm.symbol
+
 (** Archive the current data into the list of already-translated data. *)
 val archive_data : t -> t
 
@@ -57,7 +66,7 @@ val invalid_message_symbol : t -> message:string -> Symbol.t option
 
 type result = private
   { data_items : Cmm.phrase list;
-    gc_roots : Symbol.t list;
+    gc_roots : Cmm.symbol list;
     functions : Cmm.phrase list
   }
 
