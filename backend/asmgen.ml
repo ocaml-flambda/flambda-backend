@@ -339,12 +339,7 @@ type register_allocator =
   | IRC
   | LS
 
-let register_allocator () : register_allocator =
-  match String.lowercase_ascii !Flambda_backend_flags.cfg_regalloc with
-  | "irc" -> IRC
-  | "ls" -> LS
-  | "" | "upstream" -> Upstream
-  | other -> Misc.fatal_errorf "unknown register allocator (%S)" other
+let register_allocator () : register_allocator = ignore (Upstream, IRC); LS
 
 let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
   Proc.init ();
