@@ -773,6 +773,7 @@ type simplified_block_load =
   | Not_a_block
   | Block_but_cannot_simplify of Code_or_metadata.t Value_approximation.t
   | Field_contents of Symbol.t
+  | Tagged_immediate of Targetint_31_63.t
 
 let simplify_block_load acc body_env ~block ~field : simplified_block_load =
   match find_value_approximation_through_symbol acc body_env block with
@@ -785,19 +786,15 @@ let simplify_block_load acc body_env ~block ~field : simplified_block_load =
           match Reg_width_const.descr const with
           | Tagged_immediate i ->
             let i = Targetint_31_63.to_int i in
-            if i >= Array.length approx
-            then
-              Misc.fatal_errorf
-                "Trying to access the %dth field of a block approximation of \
-                 length %d."
-                i (Array.length approx);
-            approx.(i)
-          | _ -> Value_approximation.Value_unknown)
-        ~name:(fun _ ~coercion:_ -> Value_approximation.Value_unknown)
+            if i >= Array.length approx then None else Some approx.(i)
+          | _ -> Some Value_approximation.Value_unknown)
+        ~name:(fun _ ~coercion:_ -> Some Value_approximation.Value_unknown)
     in
     match approx with
-    | Value_symbol sym -> Field_contents sym
-    | _ -> Block_but_cannot_simplify approx)
+    | Some (Value_symbol sym) -> Field_contents sym
+    | Some (Value_int i) -> Tagged_immediate i
+    | Some approx -> Block_but_cannot_simplify approx
+    | None -> Not_a_block)
 
 let close_let acc env id user_visible kind defining_expr
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
@@ -989,6 +986,11 @@ let close_let acc env id user_visible kind defining_expr
         | Field_contents sym ->
           let body_env =
             Env.add_simple_to_substitute env id (Simple.symbol sym) kind
+          in
+          body acc body_env
+        | Tagged_immediate i ->
+          let body_env =
+            Env.add_simple_to_substitute env id (Simple.const_int i) kind
           in
           body acc body_env
         | Block_but_cannot_simplify approx ->
@@ -2391,6 +2393,9 @@ let wrap_final_module_block acc env ~program ~prog_return_cont
           Let_with_acc.create acc pat named ~body
         | Field_contents sym ->
           let named = Named.create_simple (Simple.symbol sym) in
+          Let_with_acc.create acc pat named ~body
+        | Tagged_immediate i ->
+          let named = Named.create_simple (Simple.const_int i) in
           Let_with_acc.create acc pat named ~body)
       (acc, body) (List.rev field_vars)
   in

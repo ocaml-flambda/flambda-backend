@@ -433,9 +433,28 @@ module Acc = struct
 
   let add_declared_symbol ~symbol ~constant t =
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
+    let approx : _ Value_approximation.t =
+      match (constant : Static_const.t) with
+      | Block (_tag, mut, fields) ->
+        if not (Mutability.is_mutable mut)
+        then
+          let approx_of_field :
+              Field_of_static_block.t -> _ Value_approximation.t = function
+            | Symbol sym -> Value_symbol sym
+            | Tagged_immediate i -> Value_int i
+            | Dynamically_computed _ -> Value_unknown
+          in
+          let fields = List.map approx_of_field fields |> Array.of_list in
+          Block_approximation (fields, Alloc_mode.For_types.unknown ())
+        else Value_unknown
+      | Set_of_closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+      | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
+      | Immutable_value_array _ | Empty_array | Mutable_string _
+      | Immutable_string _ ->
+        Value_unknown
+    in
     let symbol_approximations =
-      Symbol.Map.add symbol Value_approximation.Value_unknown
-        t.symbol_approximations
+      Symbol.Map.add symbol approx t.symbol_approximations
     in
     { t with declared_symbols; symbol_approximations }
 
