@@ -29,6 +29,8 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <sys/time.h>
+#include <time.h>
 #include "caml/config.h"
 #if defined(SUPPORT_DYNAMIC_LINKING) && !defined(BUILDING_LIBCAMLRUNS)
 #define WITH_DYNAMIC_LINKING
@@ -433,4 +435,33 @@ int caml_num_rows_fd(int fd)
 #else
   return -1;
 #endif
+}
+
+void caml_print_timestamp(FILE* channel, int formatted)
+{
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  if (!formatted) {
+    fprintf(channel, "%ld.%06d ", (long)tv.tv_sec, (int)tv.tv_usec);
+  } else {
+    struct tm tm;
+    char tz[10] = "Z";
+    localtime_r(&tv.tv_sec, &tm);
+    if (tm.tm_gmtoff != 0) {
+      long tzhour = tm.tm_gmtoff / 60 / 60;
+      long tzmin = (tm.tm_gmtoff / 60) % 60;
+      if (tzmin < 0) {tzmin += 60; tzhour--;}
+      sprintf(tz, "%+03ld:%02ld", tzhour, tzmin);
+    }
+    fprintf(channel,
+            "[%04d-%02d-%02d %02d:%02d:%02d.%06d%s] ",
+            1900 + tm.tm_year,
+            tm.tm_mon + 1,
+            tm.tm_mday,
+            tm.tm_hour,
+            tm.tm_min,
+            tm.tm_sec,
+            (int)tv.tv_usec,
+            tz);
+  }
 }
