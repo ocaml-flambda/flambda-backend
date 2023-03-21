@@ -37,6 +37,10 @@ val next_function : unit -> Clambda.ufunction option
 
 val no_more_functions : unit -> bool
 
+val is_local_function : Clambda.function_label -> bool
+
+val clear_function_names : unit -> unit
+
 val set_local_structured_constants : Clambda.preallocated_constant list -> unit
 
 val add_global_structured_constant : string -> Clambda.ustructured_constant -> unit

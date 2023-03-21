@@ -29,6 +29,7 @@ type t = {
   structured_constants :
     (string, Cmm.is_global * Clambda.ustructured_constant) Hashtbl.t;
   functions : Clambda.ufunction Queue.t;
+  function_names : (Clambda.function_label, unit) Hashtbl.t;
 }
 
 let empty = {
@@ -36,6 +37,7 @@ let empty = {
   data_items = [];
   functions = Queue.create ();
   structured_constants = Hashtbl.create 16;
+  function_names = Hashtbl.create 16;
 }
 
 let state = empty
@@ -46,8 +48,9 @@ let add_constant sym cst =
 let add_data_items items =
   state.data_items <- items :: state.data_items
 
-let add_function func =
-  Queue.add func state.functions
+let add_function (func : Clambda.ufunction) =
+  Queue.add func state.functions;
+  Hashtbl.add state.function_names func.label ()
 
 let get_and_clear_constants () =
   let constants = state.constants in
@@ -66,6 +69,12 @@ let next_function () =
 
 let no_more_functions () =
   Queue.is_empty state.functions
+
+let is_local_function name =
+  Hashtbl.mem state.function_names name
+
+let clear_function_names () =
+  Hashtbl.clear state.function_names
 
 let set_local_structured_constants l =
   Hashtbl.clear state.structured_constants;

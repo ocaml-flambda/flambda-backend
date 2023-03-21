@@ -514,8 +514,11 @@ let rec transl env e =
         (Cop(Cprobe { name; handler_code_sym; }, args, dbg))
   | Udirect_apply(lbl, args, None, result_layout, kind, dbg) ->
     let args = List.map (transl env) args in
-    (* FIXME maybe local? *)
-    direct_apply (global_symbol lbl) (machtype_of_layout result_layout) args kind dbg
+    let sym =
+      { sym_name = lbl;
+        sym_global = if Cmmgen_state.is_local_function lbl then Local else Global }
+    in
+    direct_apply sym (machtype_of_layout result_layout) args kind dbg
   | Ugeneric_apply(clos, args, args_layout, result_layout, kind, dbg) ->
       let clos = transl env clos in
       let args = List.map (transl env) args in
@@ -1676,4 +1679,6 @@ let compunit (ulam, preallocated_blocks, constants) =
   let c3 = transl_all_functions c2 in
   Cmmgen_state.set_local_structured_constants [];
   let c4 = emit_preallocated_blocks preallocated_blocks c3 in
-  emit_cmm_data_items_for_constants c4
+  let c5 = emit_cmm_data_items_for_constants c4 in
+  Cmmgen_state.clear_function_names ();
+  c5
