@@ -141,7 +141,8 @@ module S = struct
       mutable live : Reg.Set.t;
       mutable stack_offset : int;
       id : int;
-      mutable irc_work_list : irc_work_list
+      mutable irc_work_list : irc_work_list;
+      mutable ls_order : int
     }
 
   (* [basic] instruction cannot raise *)

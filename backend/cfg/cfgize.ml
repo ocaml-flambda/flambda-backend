@@ -306,7 +306,8 @@ let make_instruction : type a. State.t -> desc:a -> a Cfg.instruction =
     stack_offset;
     id;
     fdo;
-    irc_work_list = Unknown_list
+    irc_work_list = Unknown_list;
+    ls_order = -1
   }
 
 let copy_instruction :
@@ -334,7 +335,8 @@ let copy_instruction :
     stack_offset;
     id;
     fdo;
-    irc_work_list = Unknown_list
+    irc_work_list = Unknown_list;
+    ls_order = -1
   }
 
 let copy_instruction_no_reg :
@@ -364,7 +366,8 @@ let copy_instruction_no_reg :
     stack_offset;
     id;
     fdo;
-    irc_work_list = Unknown_list
+    irc_work_list = Unknown_list;
+    ls_order = -1
   }
 
 let rec get_end : Mach.instruction -> Mach.instruction =

@@ -4,13 +4,24 @@ module Array : module type of ArrayLabels
 
 module List : module type of ListLabels
 
-val bool_of_env : string -> bool
-
-val validator_debug : bool
-
 val on_fatal : f:(unit -> unit) -> unit
 
 val fatal : ('a, Format.formatter, unit, 'b) format4 -> 'a
+
+val find_param_value : string -> string option
+
+val bool_of_param : ?guard:bool * string -> string -> bool Lazy.t
+
+val validator_debug : bool Lazy.t
+
+type log_function =
+  { log :
+      'a.
+      indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a;
+    enabled : bool
+  }
+
+val make_log_function : verbose:bool -> label:string -> log_function
 
 module Instruction : sig
   type id = int
@@ -25,6 +36,12 @@ module Instruction : sig
 
   module IdMap : MoreLabels.Map.S with type key = id
 end
+
+val first_instruction_id : Cfg.basic_block -> int
+
+val int_min : int -> int -> int
+
+val int_max : int -> int -> int
 
 type cfg_infos =
   { arg : Reg.Set.t;
@@ -41,6 +58,16 @@ val collect_cfg_infos : Cfg_with_layout.t -> cfg_infos
 type liveness = Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t
 
 val liveness_analysis : Cfg_with_layout.t -> liveness
+
+val make_log_body_and_terminator :
+  log_function ->
+  instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
+  term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
+  indent:int ->
+  Cfg.basic Cfg.instruction Flambda_backend_utils.Doubly_linked_list.t ->
+  Cfg.terminator Cfg.instruction ->
+  liveness ->
+  unit
 
 module Move : sig
   type t =
@@ -73,7 +100,19 @@ val postcondition : Cfg_with_layout.t -> allow_stack_operands:bool -> unit
 
 val save_cfg : string -> Cfg_with_layout.t -> unit
 
-val update_stack_slots : Cfg_with_layout.t -> num_stack_slots:int array -> unit
+module StackSlots : sig
+  type slot = int
+
+  type t
+
+  val make : unit -> t
+
+  val get_and_incr : t -> reg_class:int -> slot
+
+  val get : t -> Reg.t -> slot
+
+  val update_cfg_with_layout : t -> Cfg_with_layout.t -> unit
+end
 
 val remove_prologue_if_not_required : Cfg_with_layout.t -> unit
 
@@ -84,8 +123,6 @@ val update_live_fields : Cfg_with_layout.t -> liveness -> unit
    information about loops is computed and used to give more weight to uses
    inside (nested) loops. *)
 val update_spill_cost : Cfg_with_layout.t -> flat:bool -> unit -> unit
-
-val is_spilled : Reg.t -> bool
 
 val check_length : string -> 'a array -> int -> unit
 
@@ -100,6 +137,8 @@ type stack_operands_rewrite =
 
 (* Substitution/map from registers to their spilled counterparts. *)
 type spilled_map = Reg.t Reg.Tbl.t
+
+val is_spilled : spilled_map -> Reg.t -> bool
 
 val use_stack_operand : spilled_map -> Reg.t array -> int -> unit
 

@@ -5,42 +5,20 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let irc_debug = false
 
-let fatal_if_not_irc_debug env_var =
-  if not irc_debug then fatal "%s is set but debugging mode is disabled" env_var
+let bool_of_param param_name =
+  bool_of_param ~guard:(irc_debug, "irc_debug") param_name
 
-let bool_of_env env_var =
-  if Cfg_regalloc_utils.bool_of_env env_var
-  then (
-    fatal_if_not_irc_debug env_var;
-    true)
-  else false
+let irc_verbose : bool Lazy.t = bool_of_param "IRC_VERBOSE"
 
-let irc_verbose : bool = bool_of_env "IRC_VERBOSE"
+let irc_invariants : bool Lazy.t = bool_of_param "IRC_INVARIANTS"
 
-let irc_invariants : bool = bool_of_env "IRC_INVARIANTS"
+let log_function =
+  lazy (make_log_function ~verbose:(Lazy.force irc_verbose) ~label:"irc")
 
-let make_indent n = String.make (2 * n) ' '
-
-let log : type a. indent:int -> (a, Format.formatter, unit) format -> a =
-  if irc_verbose
-  then
-    fun ~indent fmt ->
-    Format.eprintf ("[irc] %s" ^^ fmt ^^ "\n%!") (make_indent indent)
-  else fun ~indent:_ fmt -> Format.(ifprintf err_formatter) fmt
-
-let log_instruction_prefix ~indent (instr : _ Cfg.instruction) : unit =
-  Format.eprintf "[irc] %s #%04d " (make_indent indent) instr.id
-
-let log_instruction_suffix (instr : _ Cfg.instruction) (liveness : liveness) :
-    unit =
-  let live =
-    match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
-    | None -> Reg.Set.empty
-    | Some { before = _; across } -> across
-  in
-  Format.eprintf " arg: %a res: %a live: %a" Printmach.regs instr.arg
-    Printmach.regs instr.res Printmach.regset live;
-  Format.eprintf "\n%!"
+let log :
+    type a.
+    indent:int -> ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
+ fun ~indent ?no_eol fmt -> (Lazy.force log_function).log ~indent ?no_eol fmt
 
 let log_body_and_terminator :
     indent:int ->
@@ -48,16 +26,16 @@ let log_body_and_terminator :
     Cfg.terminator Cfg.instruction ->
     liveness ->
     unit =
- fun ~indent body term liveness ->
-  if irc_debug && irc_verbose
+ fun ~indent:_ body term _liveness ->
+  if irc_debug && (Lazy.force irc_verbose)
   then (
     DLL.iter body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
-        log_instruction_prefix ~indent instr;
+        (*log_instruction_prefix ~indent instr;*)
         Cfg.dump_basic Format.err_formatter instr.Cfg.desc;
-        log_instruction_suffix instr liveness);
-    log_instruction_prefix ~indent term;
+        (*log_instruction_suffix instr liveness*));
+    (*log_instruction_prefix ~indent term;*)
     Cfg.dump_terminator ~sep:", " Format.err_formatter term.Cfg.desc;
-    log_instruction_suffix term liveness)
+    (*log_instruction_suffix term liveness*))
 
 module Color = struct
   type t = int
@@ -189,16 +167,15 @@ module Split_mode = struct
 
   let to_string = function Off -> "off" | Naive -> "naive"
 
-  let env =
+  let value =
     let available_modes () =
       String.concat ", "
         (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
     in
     lazy
-      (match Sys.getenv_opt "IRC_SPLIT" with
+      (match find_param_value "IRC_SPLIT" with
       | None ->
-        fatal
-          "the IRC_SPLIT environment variable is not set (possible values: %s)"
+        fatal "the IRC_SPLIT parameter is not set (possible values: %s)"
           (available_modes ())
       | Some id -> (
         match String.lowercase_ascii id with
@@ -222,17 +199,17 @@ module Spilling_heuristics = struct
     | Flat_uses -> "flat_uses"
     | Hierarchical_uses -> "hierarchical_uses"
 
-  let env =
+  let value =
     let available_heuristics () =
       String.concat ", "
         (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
     in
     lazy
-      (match Sys.getenv_opt "IRC_SPILLING_HEURISTICS" with
+      (match find_param_value "IRC_SPILLING_HEURISTICS" with
       | None ->
         fatal
-          "the IRC_SPILLING_HEURISTICS environment variable is not set \
-           (possible values: %s)"
+          "the IRC_SPILLING_HEURISTICS parameter is not set (possible values: \
+           %s)"
           (available_heuristics ())
       | Some id -> (
         match String.lowercase_ascii id with

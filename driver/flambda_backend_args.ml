@@ -33,6 +33,18 @@ let mk_dcfg_invariants f =
 let mk_dcfg_equivalence_check f =
   "-dcfg-equivalence-check", Arg.Unit f, " Extra sanity checks on Cfg transformations"
 
+let mk_cfg_regalloc f =
+  "-cfg-regalloc", Arg.String f, " Select the register allocator (CFG pipeline)"
+
+let mk_cfg_regalloc_param f =
+  "-cfg-regalloc-param", Arg.String f, " Pass a parameter to the register allocator (CFG pipeline)"
+
+let mk_cfg_regalloc_validate f =
+  "-cfg-regalloc-validate", Arg.Unit f, " Validate register allocation (CFG pipeline)"
+
+let mk_no_cfg_regalloc_validate f =
+  "-no-cfg-regalloc-validate", Arg.Unit f, " Do not validate register allocation (CFG pipeline)"
+
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
   Arg.Int f,
@@ -488,6 +500,10 @@ module type Flambda_backend_options = sig
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
   val dcfg_equivalence_check : unit -> unit
+  val cfg_regalloc : string -> unit
+  val cfg_regalloc_param : string -> unit
+  val cfg_regalloc_validate : unit -> unit
+  val no_cfg_regalloc_validate : unit -> unit
 
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
@@ -575,6 +591,10 @@ struct
     mk_dcfg F.dcfg;
     mk_dcfg_invariants F.dcfg_invariants;
     mk_dcfg_equivalence_check F.dcfg_equivalence_check;
+    mk_cfg_regalloc F.cfg_regalloc;
+    mk_cfg_regalloc_param F.cfg_regalloc_param;
+    mk_cfg_regalloc_validate F.cfg_regalloc_validate;
+    mk_no_cfg_regalloc_validate F.no_cfg_regalloc_validate;
 
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
@@ -692,6 +712,10 @@ module Flambda_backend_options_impl = struct
   let dcfg = set' Flambda_backend_flags.dump_cfg
   let dcfg_invariants = set' Flambda_backend_flags.cfg_invariants
   let dcfg_equivalence_check = set' Flambda_backend_flags.cfg_equivalence_check
+  let cfg_regalloc x = Flambda_backend_flags.cfg_regalloc := x
+  let cfg_regalloc_param x = Flambda_backend_flags.cfg_regalloc_params := x :: !Flambda_backend_flags.cfg_regalloc_params
+  let cfg_regalloc_validate = set' Flambda_backend_flags.cfg_regalloc_validate
+  let no_cfg_regalloc_validate = clear' Flambda_backend_flags.cfg_regalloc_validate
 
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
@@ -891,6 +915,14 @@ module Extra_params = struct
       option := Flambda_backend_flags.Set (not b);
       false
     in
+    let set_string option =
+      option := v;
+      true
+    in
+    let add_string option =
+      option := v :: !option;
+      true
+    in
     let set_int option =
       begin match Compenv.check_int ppf name v with
       | Some i -> option := Flambda_backend_flags.Set i
@@ -900,6 +932,9 @@ module Extra_params = struct
     in
     let set' option =
       Compenv.setter ppf (fun b -> b) name [ option ] v; true
+    in
+    let clear' option =
+      Compenv.setter ppf (fun b -> not b) name [ option ] v; true
     in
     let set_int' option =
       Compenv.int_setter ppf name option v; true
@@ -917,6 +952,10 @@ module Extra_params = struct
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "cfg-equivalence-check" -> set' Flambda_backend_flags.cfg_equivalence_check
+    | "cfg-regalloc" -> set_string Flambda_backend_flags.cfg_regalloc
+    | "cfg-regalloc-param" -> add_string Flambda_backend_flags.cfg_regalloc_params
+    | "cfg-regalloc-validate" -> set' Flambda_backend_flags.cfg_regalloc_validate
+    | "no-cfg-regalloc-validate" -> clear' Flambda_backend_flags.cfg_regalloc_validate
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random

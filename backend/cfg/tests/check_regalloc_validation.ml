@@ -29,7 +29,8 @@ module Instruction = struct
       fdo = None;
       irc_work_list = Unknown_list;
       live = Reg.Set.empty;
-      stack_offset = 0
+      stack_offset = 0;
+      ls_order = -1
     }
 end
 
@@ -546,7 +547,8 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: instruction 20 has a register with an unknown location"
+      ">> Fatal error: instruction 20 has a register (V/37) with an unknown \
+       location"
 
 let () =
   check "Precoloring can't change"

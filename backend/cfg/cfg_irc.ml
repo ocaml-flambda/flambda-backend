@@ -2,7 +2,6 @@
 
 open! Cfg_regalloc_utils
 open! Cfg_irc_utils
-open! Cfg_irc_split
 module State = Cfg_irc_state
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
@@ -240,7 +239,7 @@ let freeze : State.t -> unit =
 
 let select_spilling_register_using_heuristics : State.t -> Reg.t =
  fun state ->
-  match Lazy.force Spilling_heuristics.env with
+  match Lazy.force Spilling_heuristics.value with
   | Set_choose -> (
     (* This is the "heuristics" from the IRC paper: pick any candidate, just try
        to avoid any of the temporaries introduces for spilling. *)
@@ -290,7 +289,7 @@ let select_spill : State.t -> unit =
   if irc_debug
   then
     log ~indent:2 "chose %a using heuristics %S" Printmach.reg reg
-      Spilling_heuristics.(to_string @@ Lazy.force env);
+      Spilling_heuristics.(to_string @@ Lazy.force value);
   State.remove_spill_work_list state reg;
   State.add_simplify_work_list state reg;
   freeze_moves state reg
@@ -361,6 +360,23 @@ type direction =
   | Load_after_list of Cfg.basic_instruction_list
   | Store_before_list of Cfg.basic_instruction_list
 
+module Utils = struct
+  include Cfg_irc_utils
+
+  let debug = irc_debug
+
+  let invariants = irc_invariants
+
+  let log = log
+
+  let log_body_and_terminator = log_body_and_terminator
+
+  let is_spilled reg = reg.Reg.irc_work_list = Reg.Spilled
+
+  let set_spilled reg = reg.Reg.spill <- true
+end
+
+
 (* Returns `true` if new temporaries have been introduced. *)
 let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> bool
     =
@@ -374,7 +390,7 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> bool
         spilled.spill <- true;
         (* for printing *)
         if not (Reg.anonymous reg) then spilled.Reg.raw_name <- reg.Reg.raw_name;
-        let slot = State.get_num_stack_slot state reg in
+        let slot = StackSlots.get (State.stack_slots state) reg in
         spilled.Reg.loc <- Reg.(Stack (Local slot));
         if irc_debug
         then
@@ -574,7 +590,7 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
         (fun () ->
           if not !spill_cost_is_up_to_date
           then (
-            (match Lazy.force Spilling_heuristics.env with
+            (match Lazy.force Spilling_heuristics.value with
             | Set_choose ->
               (* note: `spill_cost` will not be used by the heuristics *) ()
             | Flat_uses -> update_spill_cost cfg_with_layout ~flat:true ()
@@ -613,43 +629,23 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
 let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
  fun cfg_with_liveness ->
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
-  on_fatal ~f:(fun () -> save_cfg "irc" cfg_with_layout);
-  if irc_debug
-  then log ~indent:0 "run (%S)" (Cfg_with_layout.cfg cfg_with_layout).fun_name;
-  Reg.reinit ();
-  if irc_debug && irc_invariants
-  then (
-    log ~indent:0 "precondition";
-    precondition cfg_with_layout);
-  if irc_debug
-  then
-    Array.iteri all_precolored_regs ~f:(fun i reg ->
-        log ~indent:0 "precolored[%d] = %a (class %d)" i Printmach.reg reg
-          (Proc.register_class reg));
-  let { arg; res; max_instruction_id } = collect_cfg_infos cfg_with_layout in
-  let all_temporaries = Reg.Set.union arg res in
+  let cfg_infos =
+    Cfg_regalloc_rewrite.prelude
+      (module Utils)
+      ~f:(fun () -> save_cfg "irc" cfg_with_layout)
+      cfg_with_liveness
+  in
+  let all_temporaries = Reg.Set.union cfg_infos.arg cfg_infos.res in
   if irc_debug
   then log ~indent:0 "#temporaries=%d" (Reg.Set.cardinal all_temporaries);
   let state =
     State.make
       ~initial:(Reg.Set.elements all_temporaries)
-      ~next_instruction_id:(succ max_instruction_id) ()
+      ~next_instruction_id:(succ cfg_infos.max_instruction_id)
+      ()
   in
-  let spilling_because_split =
-    match Lazy.force Split_mode.env with
-    | Off -> []
-    | Naive -> naive_split_cfg state cfg_with_liveness
-  in
-  let spilling_because_split_or_unused : Reg.t list =
-    Reg.Set.fold
-      (fun reg acc -> if Reg.Set.mem reg arg then acc else reg :: acc)
-      res spilling_because_split
-  in
-  if irc_debug
-  then
-    List.iter spilling_because_split_or_unused ~f:(fun r ->
-        log ~indent:0 "%a <- spilling_because_split_or_unused" Printmach.reg r);
-  (match spilling_because_split_or_unused with
+  let spilling_because_unused = Reg.Set.diff cfg_infos.res cfg_infos.arg in
+  (match Reg.Set.elements spilling_because_unused with
   | [] -> ()
   | _ :: _ as spilling -> (
     List.iter spilling ~f:(fun reg -> State.add_spilled_nodes state reg);
@@ -658,24 +654,13 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
     match rewrite state cfg_with_liveness spilling ~reset:false with
     | false -> ()
     | true -> Cfg_with_liveness.invalidate_liveness cfg_with_liveness));
-  Profile.record ~accumulate:true "main"
-    (fun () -> main ~round:1 state cfg_with_liveness)
-    ();
-  (* note: slots need to be updated before prologue removal *)
-  if irc_debug
-  then
-    Array.iteri (State.num_stack_slots state)
-      ~f:(fun reg_class num_stack_slots ->
-        log ~indent:1 "stack_slots[%d]=%d" reg_class num_stack_slots);
-  update_stack_slots cfg_with_layout
-    ~num_stack_slots:(State.num_stack_slots state);
-  remove_prologue_if_not_required cfg_with_layout;
-  update_register_locations ();
-  update_live_fields cfg_with_layout
-    (Cfg_with_liveness.liveness cfg_with_liveness);
-  if irc_debug && irc_invariants
-  then (
-    log ~indent:0 "postcondition";
-    postcondition cfg_with_layout ~allow_stack_operands:true);
-  Array.iter all_precolored_regs ~f:(fun reg -> reg.Reg.degree <- 0);
+  main ~round:1 state cfg_with_liveness;
+  Cfg_regalloc_rewrite.postlude
+    (module State)
+    (module Utils)
+    state
+    ~f:(fun () ->
+      update_register_locations ();
+      Array.iter all_precolored_regs ~f:(fun reg -> reg.Reg.degree <- 0))
+    cfg_with_liveness;
   cfg_with_liveness
