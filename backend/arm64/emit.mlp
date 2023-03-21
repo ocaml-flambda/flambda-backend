@@ -500,7 +500,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Icall_imm _) -> 1
     | Lop (Itailcall_ind) -> epilogue_size ()
     | Lop (Itailcall_imm { func; _ }) ->
-      if func = !function_name then 1 else epilogue_size ()
+      if func.sym_name = !function_name then 1 else epilogue_size ()
     | Lop (Iextcall { alloc = false; }) -> 1
     | Lop (Iextcall { alloc = true; }) -> 3
     | Lop (Istackoffset _) -> 2
@@ -763,22 +763,22 @@ let emit_instr i =
           emit_load_literal i.res.(0) lbl
         end
     | Lop(Iconst_symbol s) ->
-        emit_load_symbol_addr i.res.(0) s
+        emit_load_symbol_addr i.res.(0) s.sym_name
     | Lop(Icall_ind) ->
         `	blr	{emit_reg i.arg.(0)}\n`;
         `{record_frame i.live (Dbg_other i.dbg)}\n`
     | Lop(Icall_imm { func; }) ->
-        `	bl	{emit_symbol func}\n`;
+        `	bl	{emit_symbol func.sym_name}\n`;
         `{record_frame i.live (Dbg_other i.dbg)}\n`
     | Lop(Itailcall_ind) ->
         output_epilogue (fun () -> `	br	{emit_reg i.arg.(0)}\n`)
     | Lop(Itailcall_imm { func; }) ->
-        if func = !function_name then
+        if func.sym_name = !function_name then
           match !tailrec_entry_point with
           | None -> Misc.fatal_error "jump to missing tailrec entry point"
           | Some tailrec_entry_point -> `	b	{emit_label tailrec_entry_point}\n`
         else
-          output_epilogue (fun () -> `	b	{emit_symbol func}\n`)
+          output_epilogue (fun () -> `	b	{emit_symbol func.sym_name}\n`)
     | Lop(Iextcall { func; alloc = false; }) ->
         `	bl	{emit_symbol func}\n`
     | Lop(Iextcall { func; alloc = true; }) ->
@@ -1163,23 +1163,22 @@ let fundecl fundecl =
 (* Emission of data *)
 
 let emit_item = function
-  | Cglobal_symbol s -> `	.globl	{emit_symbol s}\n`;
   | Cdefine_symbol s ->
-    if !Clflags.dlcode then begin
+    if !Clflags.dlcode || s.sym_global = Cmm.Global then begin
       (* GOT relocations against non-global symbols don't seem to work
          properly: GOT entries are not created for the symbols and the
          relocations evaluate to random other GOT entries.  For the moment
          force all symbols to be global. *)
-      `	.globl	{emit_symbol s}\n`;
+      `	.globl	{emit_symbol s.sym_name}\n`;
     end;
-    `{emit_symbol s}:\n`
+    `{emit_symbol s.sym_name}:\n`
   | Cint8 n -> `	.byte	{emit_int n}\n`
   | Cint16 n -> `	.short	{emit_int n}\n`
   | Cint32 n -> `	.long	{emit_nativeint n}\n`
   | Cint n -> `	.quad	{emit_nativeint n}\n`
   | Csingle f -> emit_float32_directive ".long" (Int32.bits_of_float f)
   | Cdouble f -> emit_float64_directive ".quad" (Int64.bits_of_float f)
-  | Csymbol_address s -> `	.quad	{emit_symbol s}\n`
+  | Csymbol_address s -> `	.quad	{emit_symbol s.sym_name}\n`
   | Cstring s -> emit_string_directive "	.ascii  " s
   | Cskip n -> if n > 0 then `	.space	{emit_int n}\n`
   | Calign n -> `	.align	{emit_int(Misc.log2 n)}\n`
