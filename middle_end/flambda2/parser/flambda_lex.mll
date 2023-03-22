@@ -39,6 +39,7 @@ let keyword_table =
     "asr", KWD_ASR;
     "available", KWD_AVAILABLE;
     "boxed", KWD_BOXED;
+    "bswap", KWD_BSWAP;
     "ccall", KWD_CCALL;
     "closure", KWD_CLOSURE;
     "code", KWD_CODE;
@@ -277,6 +278,7 @@ rule token = parse
   | "@" { AT }
   | "|"  { PIPE }
   | "~"  { TILDE }
+  | "~-"  { TILDEMINUS }
   | "&"  { AMP }
   | "^"  { CARET }
   | "===>" { BIGARROW }

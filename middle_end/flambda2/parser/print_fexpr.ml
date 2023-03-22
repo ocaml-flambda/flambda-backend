@@ -488,6 +488,13 @@ let binop ppf binop a b =
       (standard_int ~space:After)
       i simple a int_shift_op s simple b
 
+let unary_int_arith_op ppf (o : unary_int_arith_op) =
+  Format.pp_print_string ppf
+  @@
+  match o with
+  | Neg -> "~-"
+  | Swap_byte_endianness -> "bswap"
+
 let unop ppf u =
   let str s = Format.pp_print_string ppf s in
   let box_or_unbox verb_not_imm (bk : box_kind) =
@@ -498,7 +505,7 @@ let unop ppf u =
     | Naked_int64 -> print verb_not_imm "int64"
     | Naked_nativeint -> print verb_not_imm "nativeint"
   in
-  match u with
+  match (u : unop) with
   | Array_length -> str "%array_length"
   | Begin_try_region -> str "%begin_try_region"
   | Boolean_not -> str "%not"
@@ -507,6 +514,9 @@ let unop ppf u =
     alloc_mode_for_allocations_opt ppf alloc ~space:Before
   | End_region -> str "%end_region"
   | Get_tag -> str "%get_tag"
+  | Int_arith (i, o) ->
+    Format.fprintf ppf "@[<2>%%int_arith %a%a@]"
+      (standard_int ~space:After) i unary_int_arith_op o
   | Is_flat_float_array -> str "%is_flat_float_array"
   | Is_int -> str "%is_int"
   | Num_conv { src; dst } ->

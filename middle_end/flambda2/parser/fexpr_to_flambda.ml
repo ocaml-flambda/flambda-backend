@@ -385,6 +385,7 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   | Untag_immediate -> Untag_immediate
   | End_region -> End_region
   | Get_tag -> Get_tag
+  | Int_arith (i, o) -> Int_arith (i, o)
   | Is_flat_float_array -> Is_flat_float_array
   | Is_int -> Is_int { variant_only = true } (* CR vlaviron: discuss *)
   | Num_conv { src; dst } -> Num_conv { src; dst }

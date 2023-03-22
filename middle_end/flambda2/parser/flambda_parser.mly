@@ -104,6 +104,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token<string> STRING
 %token<Fexpr.compilation_unit option * string> SYMBOL
 %token TILDE [@symbol "~"]
+%token TILDEMINUS [@symbol "~-"]
 %token EOF
 
 %token KWD_ALWAYS [@symbol "always"]
@@ -115,6 +116,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_ASR   [@symbol "asr"]
 %token KWD_AVAILABLE [@symbol "available"]
 %token KWD_BOXED [@symbol "boxed"]
+%token KWD_BSWAP [@symbol "bswap"]
 %token KWD_CCALL  [@symbol "ccall"]
 %token KWD_CLOSURE  [@symbol "closure"]
 %token KWD_CODE  [@symbol "code"]
@@ -265,6 +267,8 @@ let make_boxed_const_int (i, m) : static_data =
 %type <Fexpr.kind_with_subkind list> kinds_with_subkinds_nonempty
 %type <Fexpr.variable -> Fexpr.static_data> static_data_kind
 %type <Fexpr.symbol_binding> symbol_binding
+%type <Fexpr.unary_int_arith_op> unary_int_arith_op
+%type <Fexpr.unop> unop
 %%
 
 (* CR-someday lmaurer: Modularize and generally clean up *)
@@ -372,6 +376,10 @@ nullop:
   | PRIM_BEGIN_REGION { Begin_region }
 ;
 
+unary_int_arith_op:
+  | KWD_BSWAP { Swap_byte_endianness }
+  | TILDEMINUS { Neg }
+
 unop:
   | PRIM_ARRAY_LENGTH { Array_length }
   | PRIM_BEGIN_TRY_REGION { Begin_try_region }
@@ -389,6 +397,8 @@ unop:
   | PRIM_GET_TAG { Get_tag }
   | PRIM_IS_FLAT_FLOAT_ARRAY { Is_flat_float_array }
   | PRIM_IS_INT { Is_int }
+  | PRIM_INT_ARITH; i = standard_int; o = unary_int_arith_op
+    { Int_arith (i, o) }
   | PRIM_NUM_CONV; LPAREN;
       src = convertible_type; MINUSGREATER; dst = convertible_type;
     RPAREN

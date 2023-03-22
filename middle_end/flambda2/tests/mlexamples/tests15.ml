@@ -14,3 +14,10 @@ let set_to_x b i = unsafe_set b i 'x'
 (* Exercise Boolean_not *)
 external not : bool -> bool = "%boolnot"
 let classical_id b = not (not b)
+
+(* Exercise unary int arithmetic *)
+external bswap : int -> int = "%bswap16"
+let swapped () = bswap 0x11223344
+
+external negint : int -> int = "%negint"
+let negate x = negint x
