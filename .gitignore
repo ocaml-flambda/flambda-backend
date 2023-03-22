@@ -23,6 +23,7 @@
 *.cm[ioxats]
 *.cmx[as]
 *.cmti
+*.cmsi
 *.annot
 *.exe
 *.exe.manifest

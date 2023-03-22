@@ -1056,7 +1056,7 @@ module Magic_number = struct
        that follow the current convention, Caml1999{D,T}. *)
     | "Caml2007D" | "Caml1999D" -> Some Cmxs
     | "Caml2012T" | "Caml1999T" -> Some Cmt
-    | "Camk1999S" -> Some Cms
+    | "Caml1999S" -> Some Cms
 
     | "Caml1999M" -> Some Ast_impl
     | "Caml1999N" -> Some Ast_intf
