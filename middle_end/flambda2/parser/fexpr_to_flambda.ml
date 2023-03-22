@@ -410,8 +410,8 @@ let infix_binop (binop : Fexpr.infix_binop) : Flambda_primitive.binary_primitive
   | Float_arith o -> Float_arith o
   | Float_comp c -> Float_comp c
 
-let block_access_kind (ak : Fexpr.block_access_kind)
-  : Flambda_primitive.Block_access_kind.t =
+let block_access_kind (ak : Fexpr.block_access_kind) :
+    Flambda_primitive.Block_access_kind.t =
   let size s : _ Or_unknown.t =
     match s with
     | None -> Unknown
@@ -433,8 +433,7 @@ let block_access_kind (ak : Fexpr.block_access_kind)
 let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   match binop with
   | Array_load (ak, mut) -> Array_load (ak, mut)
-  | Block_load (ak, mutability) ->
-    Block_load (block_access_kind ak, mutability)
+  | Block_load (ak, mutability) -> Block_load (block_access_kind ak, mutability)
   | Phys_equal op -> Phys_equal op
   | Infix op -> infix_binop op
   | Int_arith (i, o) -> Int_arith (i, o)
@@ -445,8 +444,7 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with
   | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
-  | Block_set (bk, ia) ->
-    Block_set (block_access_kind bk, init_or_assign env ia)
+  | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
 
 let convert_block_shape ~num_fields =
   List.init num_fields (fun _field -> Flambda_kind.With_subkind.any_value)
@@ -609,7 +607,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let name, body_env =
       if is_exn_handler
       then
-        let (e, env) = fresh_exn_cont env name in
+        let e, env = fresh_exn_cont env name in
         Exn_continuation.exn_handler e, env
       else fresh_cont env name ~sort ~arity:(List.length params)
     in

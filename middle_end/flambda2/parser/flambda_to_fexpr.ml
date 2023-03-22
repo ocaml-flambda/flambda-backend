@@ -533,8 +533,8 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
 
-let block_access_kind (bk : Flambda_primitive.Block_access_kind.t)
-  : Fexpr.block_access_kind =
+let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
+    Fexpr.block_access_kind =
   let size (s : _ Or_unknown.t) =
     match s with Known s -> Some (s |> targetint_ocaml) | Unknown -> None
   in
@@ -577,8 +577,7 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
 let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
   | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
-  | Block_set (bk, ia) ->
-    Block_set (block_access_kind bk, init_or_assign env ia)
+  | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
   | Bytes_or_bigstring_set _ | Bigarray_set _ ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
       Flambda_primitive.Without_args.print
