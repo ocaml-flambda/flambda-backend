@@ -24,7 +24,7 @@
 type t
 
 (** Create a result structure. *)
-val create : module_symbol:Symbol.t -> t
+val create : module_symbol:Symbol.t -> reachable_names:Name_occurrences.t -> t
 
 (** Create a cmm symbol *)
 val symbol : t -> Symbol.t -> Cmm.symbol

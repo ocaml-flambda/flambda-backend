@@ -62,7 +62,7 @@ let flush_cmm_helpers_state res () =
    it will already be included in the list of GC roots; otherwise it does not
    *have* to be a root. *)
 
-let unit0 ~offsets flambda_unit ~all_code =
+let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
   (* If someone wants to add 32-bit support in the future there will be a
      (merged) PR on ocaml-flambda/flambda-backend which can be used as a guide:
      https://github.com/ocaml-flambda/flambda-backend/pull/685 *)
@@ -97,7 +97,10 @@ let unit0 ~offsets flambda_unit ~all_code =
     Env.create_bound_parameter env
       (Flambda_unit.toplevel_my_region flambda_unit)
   in
-  let r = R.create ~module_symbol:(Flambda_unit.module_symbol flambda_unit) in
+  let r =
+    R.create ~reachable_names
+      ~module_symbol:(Flambda_unit.module_symbol flambda_unit)
+  in
   let body, body_free_vars, res =
     To_cmm_expr.expr env r (Flambda_unit.body flambda_unit)
   in
@@ -115,31 +118,24 @@ let unit0 ~offsets flambda_unit ~all_code =
     C.create_ccatch ~rec_flag:false ~body
       ~handlers:[C.handler ~dbg return_cont return_cont_params unit_value]
   in
+  let entry_name = Cmm_helpers.make_symbol "entry" in
+  let res, entry_sym = R.raw_symbol res ~global:Global entry_name in
   let entry =
     (* CR mshinwell: This should at least be given a source file location. *)
     let dbg = Debuginfo.none in
-    let fun_name = Cmm_helpers.make_symbol "entry" in
     let fun_codegen =
       let fun_codegen = [Cmm.Reduce_code_size; Cmm.Use_linscan_regalloc] in
       if Flambda_features.backend_cse_at_toplevel ()
       then fun_codegen
       else Cmm.No_CSE :: fun_codegen
     in
-    C.cfunction
-      (C.fundecl
-         (Cmm.global_symbol fun_name)
-         [] body fun_codegen dbg Default_poll)
+    C.cfunction (C.fundecl entry_sym [] body fun_codegen dbg Default_poll)
   in
   let { R.data_items; gc_roots; functions } = R.to_cmm res in
   let _res, cmm_helpers_data = flush_cmm_helpers_state res () in
-  let gc_root_data =
-    C.gc_root_table
-      (List.map
-         (fun sym -> Linkage_name.to_string (Symbol.linkage_name sym))
-         gc_roots)
-  in
+  let gc_root_data = C.gc_root_table gc_roots in
   (gc_root_data :: data_items) @ cmm_helpers_data @ functions @ [entry]
 
-let unit ~offsets flambda_unit ~all_code =
+let unit ~offsets ~all_code ~reachable_names flambda_unit =
   Profile.record_call "flambda_to_cmm" (fun () ->
-      unit0 ~offsets flambda_unit ~all_code)
+      unit0 ~offsets ~all_code ~reachable_names flambda_unit)

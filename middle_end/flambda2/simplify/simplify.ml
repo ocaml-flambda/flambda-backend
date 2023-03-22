@@ -20,7 +20,8 @@ type simplify_result =
   { cmx : Flambda_cmx_format.t option;
     unit : Flambda_unit.t;
     all_code : Exported_code.t;
-    exported_offsets : Exported_offsets.t
+    exported_offsets : Exported_offsets.t;
+    reachable_names : Name_occurrences.t
   }
 
 let run ~cmx_loader ~round unit =
@@ -97,7 +98,7 @@ let run ~cmx_loader ~round unit =
       in
       Slot_offsets.finalize_offsets slot_offsets ~get_code_metadata ~used_slots
   in
-  let cmx =
+  let reachable_names, cmx =
     Flambda_cmx.prepare_cmx_file_contents ~final_typing_env ~module_symbol
       ~used_value_slots ~exported_offsets all_code
   in
@@ -105,4 +106,4 @@ let run ~cmx_loader ~round unit =
     FU.create ~return_continuation ~exn_continuation ~toplevel_my_region
       ~module_symbol ~body ~used_value_slots:(Known used_value_slots)
   in
-  { cmx; unit; all_code; exported_offsets }
+  { cmx; unit; all_code; exported_offsets; reachable_names }
