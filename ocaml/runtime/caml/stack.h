@@ -87,7 +87,7 @@ struct caml_context {
 
 /* Structure of frame descriptors */
 typedef struct {
-  uintnat retaddr;
+  int32_t retaddr_rel;
   unsigned short frame_size;
   unsigned short num_live;
   unsigned short live_ofs[1 /* num_live */];
@@ -104,7 +104,7 @@ typedef struct {
 } frame_descr;
 
 typedef struct {
-  uintnat retaddr;
+  int32_t retaddr_rel;
   unsigned short marker;        /* LONG_FRAME_MARKER */
   unsigned short _pad;  /* Ensure frame_size is 4-byte aligned */
   uint32_t frame_size;
@@ -142,6 +142,10 @@ extern uintnat caml_frame_descriptors_mask;
 
 #define Hash_retaddr(addr) \
   (((uintnat)(addr) >> 3) & caml_frame_descriptors_mask)
+
+#define Retaddr_frame(d) \
+  ((uintnat)&(d)->retaddr_rel + \
+   (uintnat)(intnat)((d)->retaddr_rel))
 
 extern void caml_init_frame_descriptors(void);
 extern void caml_register_frametable(intnat *);
