@@ -528,7 +528,7 @@ let ternop ppf t a1 a2 a3 =
       (array_kind ~space:Before) ak simple a1 simple a2 init_or_assign ia simple
       a3
   | Block_set (bk, ia) ->
-    Format.fprintf ppf "@[<2>%%block_set@ %a@ %a.(%a) %a %a@]"
+    Format.fprintf ppf "@[<2>%%block_set%a@ %a.(%a)@ %a %a@]"
       block_access_kind bk simple a1 simple a2 init_or_assign ia simple
       a3
 
