@@ -102,7 +102,16 @@ val is_parameter_unit : 'a t -> Compilation_unit.Name.t -> bool
    always use persistent [Ident.t]s. *)
 val local_ident : 'a t -> Compilation_unit.t -> Ident.t option
 
-val make_cmi : 'a t -> Compilation_unit.t -> Types.signature -> alerts
+(* [implemented_parameter penv md] returns the argument to [-as-argument-for]
+   that [md] was compiled with. *)
+val implemented_parameter : 'a t -> Compilation_unit.t
+  -> Compilation_unit.t option
+
+val make_cmi : 'a t
+  -> Compilation_unit.t
+  -> Types.signature
+  -> Types.signature option
+  -> alerts
   -> Cmi_format.cmi_infos
 
 val save_cmi : 'a t -> Persistent_signature.t -> 'a -> unit

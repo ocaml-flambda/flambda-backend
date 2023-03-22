@@ -78,10 +78,25 @@ let typecheck_intf info ast =
   Warnings.check_fatal ();
   tsg
 
-let emit_signature info ast tsg =
+let typecheck_against_secondary_intf info sg =
+  match !Clflags.as_argument_for with
+  | None -> None
+  | Some arg_type ->
+      let arg_type = arg_type |> Compilation_unit.of_string in
+      (* Accessing the argument type's module (which is of course a parameter
+         unit) has the side effect of importing it, so we need to be sure it's
+         understood to be a parameter. *)
+      ignore (
+        Env.read_as_parameter Location.none
+          (Compilation_unit.name arg_type) : Types.module_type);
+      let arg_sg, _filepath = Env.find_compilation_unit arg_type in
+      ignore (Includemod.signatures info.env ~mark:Mark_both sg arg_sg);
+      Some arg_sg
+
+let emit_signature info ast tsg sg2 =
   let sg =
     let alerts = Builtin_attributes.alerts_of_sig ast in
-    Env.save_signature ~alerts tsg.Typedtree.sig_type
+    Env.save_signature ~alerts tsg.Typedtree.sig_type sg2
       info.module_name (info.output_prefix ^ ".cmi")
   in
   Typemod.save_signature info.module_name tsg
@@ -93,9 +108,10 @@ let interface ~hook_parse_tree ~hook_typed_tree info =
   hook_parse_tree ast;
   if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
     let tsg = typecheck_intf info ast in
+    let sg2 = typecheck_against_secondary_intf info tsg.sig_type in
     hook_typed_tree tsg;
     if not !Clflags.print_types then begin
-      emit_signature info ast tsg
+      emit_signature info ast tsg sg2
     end
   end
 

@@ -629,7 +629,8 @@ and module_data =
   { mda_declaration : Subst.Lazy.module_decl;
     mda_components : module_components;
     mda_address : address_lazy;
-    mda_shape: Shape.t; }
+    mda_shape: Shape.t;
+    mda_filename : Misc.filepath option }
 
 and module_entry =
   | Mod_local of module_data
@@ -917,9 +918,10 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
 let persistent_env : module_data Persistent_env.t ref =
   s_table Persistent_env.empty ()
 
-let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
+let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; filename } =
   let name = cmi.cmi_name in
   let sign = cmi.cmi_sign in
+  let secondary_sign = cmi.cmi_secondary_sign in
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent (Compilation_unit.name_as_string name) in
   let path = Pident id in
@@ -946,7 +948,18 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
       Persistent_env.local_ident !persistent_env name
     with
     | Some id -> Alocal id
-    | None -> Aunit name
+    | None ->
+        begin
+          match secondary_sign with
+          | None -> Aunit name
+          | Some _ ->
+              (* This module has two module blocks, one for each signature,
+                 stored in one outer block. Normal field accesses go through
+                 the primary (first) module block. (The secondary one is only
+                 needed when using the whole secondary block as a functor
+                 argument, as happens during -instantiate.) *)
+              Adot (Aunit name, 0)
+        end
   in
   let mda_address = Lazy_backtrack.create_forced addr in
   let mda_declaration =
@@ -955,6 +968,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let mda_shape =
     Shape.for_persistent_unit (name |> Compilation_unit.full_path_as_string)
   in
+  let mda_filename = Some filename in
   let mda_components =
     let mty = Subst.Lazy.of_modtype (Mty_signature sign) in
     let mty =
@@ -972,6 +986,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     mda_components;
     mda_address;
     mda_shape;
+    mda_filename;
   }
 
 let read_sign_of_cmi = sign_of_cmi ~freshen:true
@@ -1012,6 +1027,9 @@ let register_import_as_opaque modname =
 
 let is_parameter_unit modname =
   Persistent_env.is_parameter_unit !persistent_env modname
+
+let implemented_parameter modname =
+  Persistent_env.implemented_parameter !persistent_env modname
 
 let reset_declaration_caches () =
   Types.Uid.Tbl.clear !value_declarations;
@@ -1337,6 +1355,16 @@ let find_hash_type path env =
       tda.tda_declaration
   | Papply _ ->
       raise Not_found
+
+let find_compilation_unit cu =
+  (* This is currently only used for [-as-argument-for], which doesn't support
+     packs *)
+  let mda = find_pers_mod (Compilation_unit.name cu) in
+  let decl = Subst.Lazy.force_module_decl mda.mda_declaration in
+  match decl.md_type, mda.mda_filename with
+  | Mty_signature sg, Some filename -> sg, filename
+  | (Mty_ident _ | Mty_functor (_, _) | Mty_alias _ | Mty_signature _), _ ->
+      assert false
 
 let probes = ref String.Set.empty
 let reset_probes () = probes := String.Set.empty
@@ -1920,7 +1948,8 @@ let rec components_of_module_maker
               { mda_declaration = md';
                 mda_components = comps;
                 mda_address = addr;
-                mda_shape = shape; }
+                mda_shape = shape;
+                mda_filename = None }
             in
             c.comp_modules <-
               NameMap.add (Ident.name id) mda c.comp_modules;
@@ -2195,7 +2224,8 @@ and store_module ?(update_summary=true) ~check
     { mda_declaration = md;
       mda_components = comps;
       mda_address = addr;
-      mda_shape = shape }
+      mda_shape = shape;
+      mda_filename = None }
   in
   let summary =
     if not update_summary then env.summary
@@ -2671,12 +2701,17 @@ let persistent_structures_of_dir dir =
   |> String.Set.of_seq
 
 (* Save a signature to a file *)
-let save_signature_with_transform cmi_transform ~alerts sg modname filename =
+let save_signature_with_transform
+    cmi_transform ~alerts sg sg2 modname filename =
   Btype.cleanup_abbrev ();
   Subst.reset_for_saving ();
-  let sg = Subst.signature Make_local (Subst.for_saving Subst.identity) sg in
+  let prep_sig_for_saving sg =
+    Subst.signature Make_local (Subst.for_saving Subst.identity) sg
+  in
+  let sg = sg |> prep_sig_for_saving in
+  let sg2 = sg2 |> Option.map prep_sig_for_saving in
   let cmi =
-    Persistent_env.make_cmi !persistent_env modname sg alerts
+    Persistent_env.make_cmi !persistent_env modname sg sg2 alerts
     |> cmi_transform in
   let pm = save_sign_of_cmi
       { Persistent_env.Persistent_signature.cmi; filename } in
@@ -2684,14 +2719,14 @@ let save_signature_with_transform cmi_transform ~alerts sg modname filename =
     { Persistent_env.Persistent_signature.filename; cmi } pm;
   cmi
 
-let save_signature ~alerts sg modname filename =
+let save_signature ~alerts sg sg2 modname filename =
   save_signature_with_transform (fun cmi -> cmi)
-    ~alerts sg modname filename
+    ~alerts sg sg2 modname filename
 
-let save_signature_with_imports ~alerts sg modname filename imports =
+let save_signature_with_imports ~alerts sg sg2 modname filename imports =
   let with_imports cmi = { cmi with cmi_crcs = imports } in
   save_signature_with_transform with_imports
-    ~alerts sg modname filename
+    ~alerts sg sg2 modname filename
 
 (* Make the initial environment *)
 let (initial_safe_string, initial_unsafe_string) =

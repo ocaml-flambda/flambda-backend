@@ -24,8 +24,10 @@ type pers_flags =
 type cmi_infos = {
     cmi_name : Compilation_unit.t;
     cmi_sign : Types.signature_item list;
+    cmi_secondary_sign : Types.signature_item list option;
     cmi_is_param : bool;
     cmi_params : Compilation_unit.Name.t list;
+    cmi_arg_for : Compilation_unit.t option;
     cmi_crcs : Import_info.t array;
     cmi_flags : pers_flags list;
 }

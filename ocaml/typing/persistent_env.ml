@@ -60,6 +60,7 @@ type can_load_cmis =
 type pers_struct = {
   ps_name: CU.t;
   ps_is_param: bool;
+  ps_arg_for: CU.t option;
   ps_crcs: Import_info.t array;
   ps_filename: string;
   ps_flags: pers_flags list;
@@ -228,10 +229,12 @@ let acknowledge_pers_struct
   let name = cmi.cmi_name in
   let is_param = cmi.cmi_is_param in
   let params = cmi.cmi_params in
+  let arg_for = cmi.cmi_arg_for in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
   let ps = { ps_name = name;
              ps_is_param = is_param;
+             ps_arg_for = arg_for;
              ps_crcs = crcs;
              ps_filename = filename;
              ps_flags = flags;
@@ -444,7 +447,13 @@ let local_ident {params; _} modname =
   Param_map.find_opt (CU.name modname) !params
   |> Option.map (fun info -> info.pi_local_ident)
 
-let make_cmi penv modname sign alerts =
+let implemented_parameter {persistent_structures; _} modname =
+  match Hashtbl.find persistent_structures (CU.name modname) with
+  | exception Not_found -> None
+  | Missing -> None
+  | Found ({ ps_arg_for; _ }, _) -> ps_arg_for
+
+let make_cmi penv modname sign secondary_sign alerts =
   let flags =
     List.concat [
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
@@ -458,12 +467,17 @@ let make_cmi penv modname sign alerts =
     (* Needs to be consistent with [Translmod] *)
     parameters penv |> List.map (fun (param, _info) -> param)
   in
+  let arg_for =
+    !Clflags.as_argument_for |> Option.map Compilation_unit.of_string
+  in
   let crcs = imports penv in
   {
     cmi_name = modname;
     cmi_sign = sign;
+    cmi_secondary_sign = secondary_sign;
     cmi_is_param = is_param;
     cmi_params = params;
+    cmi_arg_for = arg_for;
     cmi_crcs = Array.of_list crcs;
     cmi_flags = flags
   }
@@ -476,6 +490,7 @@ let save_cmi penv psig pm =
         cmi_sign = _;
         cmi_is_param = is_param;
         cmi_params = _;
+        cmi_arg_for = arg_for;
         cmi_crcs = imports;
         cmi_flags = flags;
       } = cmi in
@@ -488,6 +503,7 @@ let save_cmi penv psig pm =
       let ps =
         { ps_name = modname;
           ps_is_param = is_param;
+          ps_arg_for = arg_for;
           ps_crcs =
             Array.append
               [| Import_info.create_normal cmi.cmi_name ~crc:(Some crc) |]

@@ -114,6 +114,8 @@ val find_module_address: Path.t -> t -> address
 val find_class_address: Path.t -> t -> address
 val find_constructor_address: Path.t -> t -> address
 
+val find_compilation_unit: Compilation_unit.t -> signature * Misc.filepath
+
 val shape_of_path:
   namespace:Shape.Sig_component_kind.t -> t -> Path.t -> Shape.t
 
@@ -407,14 +409,16 @@ val read_signature:
   Compilation_unit.t -> filepath -> allow_param:bool -> signature
         (* Arguments: module name, file name. Results: signature. *)
 val save_signature:
-  alerts:alerts -> signature -> Compilation_unit.t -> filepath
+  alerts:alerts -> signature -> signature option -> Compilation_unit.t
+  -> filepath
   -> Cmi_format.cmi_infos
-        (* Arguments: signature, module name, file name. *)
+        (* Arguments: signature, secondary signature, module name, file name. *)
 val save_signature_with_imports:
-  alerts:alerts -> signature -> Compilation_unit.t -> filepath
+  alerts:alerts -> signature -> signature option -> Compilation_unit.t
+  -> filepath
   -> Import_info.t array
   -> Cmi_format.cmi_infos
-        (* Arguments: signature, module name, file name,
+        (* Arguments: signature, secondary signature, module name, file name,
            imported units with their CRCs. *)
 
 (* Read in a module type, treating it as a parameter to the current
@@ -445,6 +449,10 @@ val register_import_as_opaque: Compilation_unit.Name.t -> unit
 (* [is_parameter_unit md] returns true if [md] was compiled with
    -as-parameter *)
 val is_parameter_unit: Compilation_unit.Name.t -> bool
+
+(* [implemented_parameter md] is the argument given to -as-argument-for when
+   [md] was compiled *)
+val implemented_parameter: Compilation_unit.t -> Compilation_unit.t option
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)

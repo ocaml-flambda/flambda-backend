@@ -69,9 +69,16 @@ let emit unix i =
 
 let implementation unix ~backend ~(flambda2 : flambda2) ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables =
-  let backend info ({ structure; coercion; _ } : Typedtree.implementation) =
+  let backend info ({ structure; coercion; secondary_iface }
+                    : Typedtree.implementation) =
     Compilenv.reset info.module_name;
-    let typed = structure, coercion in
+    let secondary_coercion =
+      match secondary_iface with
+      | Some { si_coercion_from_primary; si_signature = _ } ->
+        Some si_coercion_from_primary
+      | None -> None
+    in
+    let typed = structure, coercion, secondary_coercion in
     let transl_style : Translmod.compilation_unit_style =
       if Config.flambda || Config.flambda2 then Plain_block
       else Set_individual_fields

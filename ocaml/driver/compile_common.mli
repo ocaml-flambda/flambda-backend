@@ -55,7 +55,8 @@ val typecheck_intf : info -> Parsetree.signature -> Typedtree.signature
     the typedtree of the associated signature.
 *)
 
-val emit_signature : info -> Parsetree.signature -> Typedtree.signature -> unit
+val emit_signature : info -> Parsetree.signature -> Typedtree.signature
+  -> Types.signature option -> unit
 (** [emit_signature info parsetree typedtree] emits the [.cmi] file
     containing the given signature.
 *)

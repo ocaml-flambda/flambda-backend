@@ -86,6 +86,12 @@ type error =
   | With_cannot_remove_packed_modtype of Path.t * module_type
   | Cannot_implement_parameter of filepath
   | Cannot_pack_parameter of filepath
+  | Argument_for_non_parameter of Compilation_unit.t * Misc.filepath
+  | Inconsistent_argument_types of {
+      new_arg_type : Compilation_unit.t option;
+      old_arg_type : Compilation_unit.t option;
+      old_source_file : Misc.filepath;
+    }
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3135,7 +3141,34 @@ let gen_annot outputprefix sourcefile annots =
   Cmt2annot.gen_annot (Some (outputprefix ^ ".annot"))
     ~sourcefile:(Some sourcefile) ~use_summaries:false annots
 
+let check_argument_type_if_given env sourcefile actual_sig arg_module_opt
+    shape =
+  match arg_module_opt with
+  | None -> None
+  | Some arg_module ->
+      (* Accessing the argument type's module (which is of course a parameter
+         unit) has the side effect of importing it, so we need to be sure it's
+         understood to be a parameter. *)
+      ignore (
+        Env.read_as_parameter
+          Location.none
+          (Compilation_unit.name arg_module) : Types.module_type);
+      let arg_sig, arg_filename = Env.find_compilation_unit arg_module in
+      if not (Env.is_parameter_unit (Compilation_unit.name arg_module)) then
+        raise (Error (Location.none, env,
+                      Argument_for_non_parameter (arg_module, arg_filename)));
+      let coercion, _shape =
+        Includemod.compunit env ~mark:Mark_positive sourcefile actual_sig
+          arg_filename arg_sig shape
+      in
+      Some { si_signature = arg_sig;
+             si_coercion_from_primary = coercion;
+           }
+
 let type_implementation sourcefile outputprefix modulename initial_env ast =
+  let error e =
+    raise (Error (Location.in_file sourcefile, initial_env, e))
+  in
   Cmt_format.clear ();
   Misc.try_finally (fun () ->
       Typecore.reset_delayed_checks ();
@@ -3165,9 +3198,13 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         { structure = str;
           coercion = Tcoerce_none;
           shape;
-          signature = simple_sg
+          signature = simple_sg;
+          secondary_iface = None;
         } (* result is ignored by Compile.implementation *)
       end else begin
+        let arg_type =
+          !Clflags.as_argument_for |> Option.map Compilation_unit.of_string
+        in
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
         if Sys.file_exists sourceintf then begin
@@ -3187,9 +3224,21 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           || !Clflags.as_parameter then
             raise (Error (Location.in_file sourcefile, initial_env,
                           Cannot_implement_parameter intf_file));
+          let arg_type_from_cmi = Env.implemented_parameter modulename in
+          if not (Option.equal Compilation_unit.equal
+                    arg_type arg_type_from_cmi) then
+            error (Inconsistent_argument_types
+                     { new_arg_type = arg_type; old_source_file = intf_file;
+                       old_arg_type = arg_type_from_cmi });
           let coercion, shape =
             Includemod.compunit initial_env ~mark:Mark_positive
               sourcefile sg intf_file dclsig shape
+          in
+          (* Check the _mli_ against the argument type, since the mli determines
+             the visible type of the module and that's what needs to conform to
+             the argument type. *)
+          let secondary_iface =
+            check_argument_type_if_given initial_env intf_file dclsig arg_type shape
           in
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
@@ -3204,7 +3253,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           { structure = str;
             coercion;
             shape;
-            signature = dclsig
+            signature = dclsig;
+            secondary_iface;
           }
         end else begin
           if !Clflags.as_parameter then
@@ -3218,6 +3268,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           in
           check_nongen_signature finalenv simple_sg;
           normalize_signature simple_sg;
+          let secondary_iface =
+            check_argument_type_if_given initial_env sourcefile simple_sg arg_type
+              shape
+          in
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
           (* See comment above. Here the target signature contains all
@@ -3227,9 +3281,16 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           let shape = Shape.local_reduce shape in
           if not !Clflags.dont_write_files then begin
             let alerts = Builtin_attributes.alerts_of_str ast in
+            let sg2 =
+              match secondary_iface with
+              | Some { si_signature; si_coercion_from_primary = _ } ->
+                  Some si_signature
+              | None ->
+                  None
+            in
             let cmi =
               Env.save_signature ~alerts
-                simple_sg modulename (outputprefix ^ ".cmi")
+                simple_sg sg2 modulename (outputprefix ^ ".cmi")
             in
             let annots = Cmt_format.Implementation str in
             Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
@@ -3239,7 +3300,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           { structure = str;
             coercion;
             shape;
-            signature = simple_sg
+            signature = simple_sg;
+            secondary_iface
           }
         end
       end
@@ -3357,9 +3419,15 @@ let package_units initial_env objfiles cmifile modulename =
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin
+      let sg2 =
+        (* For the moment, secondary signatures are only used for argument
+           units, which don't support packs. So there can be no secondary
+           signature *)
+        None
+      in
       let cmi =
         Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
-          sg modulename
+          sg sg2 modulename
           (prefix ^ ".cmi") (Array.of_list imports)
       in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
@@ -3551,6 +3619,27 @@ let report_error ~loc _env = function
         "@[Interface %s@ found for this unit is flagged as a parameter.@ \
          It cannot be packed into a module.@]"
         path
+  | Argument_for_non_parameter(param, path) ->
+      Location.errorf ~loc
+        "Interface %s@ found for module@ %a@ is not flagged as a parameter.@ \
+         It cannot be the parameter type for this argument module."
+        path
+        Compilation_unit.print param
+  | Inconsistent_argument_types
+        { new_arg_type; old_source_file; old_arg_type } ->
+      let pp_arg_type ppf arg_type =
+        match arg_type with
+        | None -> Format.fprintf ppf "without -as-argument-for"
+        | Some arg_type ->
+            Format.fprintf ppf "with -as-argument-for %a"
+              Compilation_unit.print arg_type
+      in
+      Location.errorf ~loc
+        "Inconsistent usage of -as-argument-for. Interface@ %s@ was compiled \
+         %a@ but this module is being compiled@ %a."
+        old_source_file
+        pp_arg_type old_arg_type
+        pp_arg_type new_arg_type
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env

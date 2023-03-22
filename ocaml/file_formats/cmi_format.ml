@@ -38,15 +38,19 @@ type flags = pers_flags list
 type header = {
     header_name : Compilation_unit.t;
     header_sign : signature;
+    header_secondary_sign : signature option;
     header_is_param : bool;
     header_params : Compilation_unit.Name.t list;
+    header_arg_for : Compilation_unit.t option;
 }
 
 type cmi_infos = {
     cmi_name : Compilation_unit.t;
     cmi_sign : signature;
+    cmi_secondary_sign : signature option;
     cmi_is_param : bool;
     cmi_params : Compilation_unit.Name.t list;
+    cmi_arg_for : Compilation_unit.t option;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }
@@ -55,16 +59,20 @@ let input_cmi ic =
   let {
       header_name = name;
       header_sign = sign;
+      header_secondary_sign = secondary_sign;
       header_is_param = is_param;
       header_params = params;
+      header_arg_for = arg_for;
     } = (input_value ic : header) in
   let crcs = (input_value ic : crcs) in
   let flags = (input_value ic : flags) in
   {
       cmi_name = name;
       cmi_sign = sign;
+      cmi_secondary_sign = secondary_sign;
       cmi_params = params;
       cmi_is_param = is_param;
+      cmi_arg_for = arg_for;
       cmi_crcs = crcs;
       cmi_flags = flags;
     }
@@ -105,8 +113,10 @@ let output_cmi filename oc cmi =
     {
       header_name = cmi.cmi_name;
       header_sign = cmi.cmi_sign;
+      header_secondary_sign = cmi.cmi_secondary_sign;
       header_is_param = cmi.cmi_is_param;
       header_params = cmi.cmi_params;
+      header_arg_for = cmi.cmi_arg_for;
     };
   flush oc;
   let crc = Digest.file filename in

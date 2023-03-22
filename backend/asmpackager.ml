@@ -232,6 +232,7 @@ let build_package_cmx members cmxfile =
       ui_defines =
           List.flatten (List.map (fun info -> info.ui_defines) units) @
           [ui.ui_unit];
+      ui_implements_param = None;
       ui_imports_cmi =
           (Import_info.create modname
             ~crc_with_unit:(Some (ui.ui_unit, Env.crc_of_unit modname))) ::

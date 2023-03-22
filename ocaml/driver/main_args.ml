@@ -729,6 +729,11 @@ let mk_as_parameter f =
   "<module name> Compiles the interface as a parameter for an open module."
 ;;
 
+let mk_as_argument_for f =
+  "-as-argument-for", Arg.String f,
+  "<module name> Compiles the module as an argument for the named parameter."
+;;
+
 let mk_use_prims f =
   "-use-prims", Arg.String f, "<file>  (undocumented)"
 ;;
@@ -1017,6 +1022,7 @@ end
 module type Compiler_options = sig
   val _a : unit -> unit
   val _annot : unit -> unit
+  val _as_argument_for : string -> unit
   val _as_parameter : unit -> unit
   val _binannot : unit -> unit
   val _c : unit -> unit
@@ -1217,6 +1223,7 @@ struct
     mk_alert F._alert;
     mk_absname F._absname;
     mk_annot F._annot;
+    mk_as_argument_for F._as_argument_for;
     mk_as_parameter F._as_parameter;
     mk_binannot F._binannot;
     mk_c F._c;
@@ -1406,6 +1413,8 @@ struct
     mk_afl_instrument F._afl_instrument;
     mk_afl_inst_ratio F._afl_inst_ratio;
     mk_annot F._annot;
+    mk_as_argument_for F._as_argument_for;
+    mk_as_parameter F._as_parameter;
     mk_binannot F._binannot;
     mk_inline_branch_factor F._inline_branch_factor;
     mk_c F._c;
@@ -1925,6 +1934,7 @@ module Default = struct
     let _annot = set annotations
     let _args = Arg.read_arg
     let _args0 = Arg.read_arg0
+    let _as_argument_for s = as_argument_for := Some s
     let _as_parameter = set as_parameter
     let _binannot = set binary_annotations
     let _c = set compile_only

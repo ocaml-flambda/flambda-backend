@@ -77,6 +77,7 @@ end
 module type Compiler_options = sig
   val _a : unit -> unit
   val _annot : unit -> unit
+  val _as_argument_for : string -> unit
   val _as_parameter : unit -> unit
   val _binannot : unit -> unit
   val _c : unit -> unit

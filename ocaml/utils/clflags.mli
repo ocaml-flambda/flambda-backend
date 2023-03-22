@@ -111,6 +111,7 @@ val unique_ids : bool ref
 val locations : bool ref
 val parameters : string list ref
 val as_parameter : bool ref
+val as_argument_for : string option ref
 val dump_source : bool ref
 val dump_parsetree : bool ref
 val dump_typedtree : bool ref
