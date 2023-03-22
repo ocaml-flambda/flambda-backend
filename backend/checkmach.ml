@@ -366,12 +366,19 @@ end = struct
      dependency edges. *)
   let rec propagate t (func_info : Func_info.t) =
     let unresolved_callers = func_info.unresolved_callers in
+    let unresolved_callees = func_info.unresolved_callees in
     let value = func_info.value in
     if Value.is_top value
     then (
       (* optimization: remove incoming and outgoing dependency edges *)
       func_info.unresolved_callers <- String.Set.empty;
-      func_info.unresolved_callees <- String.Set.empty);
+      func_info.unresolved_callees <- String.Set.empty;
+      String.Set.iter (fun callee ->
+        let callee_info = get_exn t callee in
+        callee_info.unresolved_callers <-
+          String.Set.remove func_info.name callee_info.unresolved_callers;
+      ) unresolved_callees;
+    );
     String.Set.iter (join_and_propagate t ~value) unresolved_callers
 
   and join_and_propagate t ~value name =
@@ -385,7 +392,6 @@ end = struct
   let iter t ~f = String.Tbl.iter (fun _ func_info -> f func_info) t
 
   let resolve_all t =
-    (* CR gyorsh: add unresolved deps cleanup *)
     iter t ~f:(propagate t)
 
   let add_value t name value =
