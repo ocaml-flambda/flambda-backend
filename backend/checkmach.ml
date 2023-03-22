@@ -551,9 +551,8 @@ end = struct
     | None ->
       if is_future_funcname t callee
       then (
-        (* The callee is the current function (i.e., it is a self call that is
-           either a tail call or not) or defined later in the file. We have not
-           seen any calls to it yet. *)
+        (* The callee is defined later in the file. We have not seen any calls to it
+           yet. *)
         (* CR-soon gyorsh: Returning Safe is sound because the value of the
            callee, when it becomes available, will be joined to the final value
            of the caller (the current function). Analysis result depends on the
@@ -576,8 +575,8 @@ end = struct
     | Some callee_info ->
       (* Callee defined earlier in the same compilation unit, or we have already
          seen a call to this callee earlier in the same compilation unit
-         (possibly in the same function, and possibly the callee is a self
-         call), but haven't finished analysis of the callee's definition yet. *)
+         (possibly in the same function),
+         but haven't finished analysis of the callee's definition yet. *)
       (* If callee is not fully resolved, add it to dependencies. *)
       let dep =
         if is_future_funcname t callee
@@ -585,7 +584,16 @@ end = struct
         then Some callee
         else None
       in
-      callee_info.value, dep
+      let v =
+        if String.equal t.current_fun_name callee then
+          (* self-call, conservative *)
+          let v = Value.join callee_info.value Value.safe in
+          Unit_info.add_value t.unit_info callee v;
+          v
+        else
+          callee_info.value
+      in
+      v, dep
 
   let transform_call t ~next ~exn callee ~desc dbg =
     report t next ~msg:"transform_call next" ~desc dbg;
