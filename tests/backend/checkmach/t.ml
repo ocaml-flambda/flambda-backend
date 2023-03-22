@@ -182,7 +182,9 @@ let[@zero_alloc] test35 cond x =
     if Sys.opaque_identity cond then raise Exn
   done
 
-let[@zero_alloc] rec g x =
+let[@zero_alloc] rec test36 x =
   if Sys.opaque_identity true then
-    try g x with _ -> ()
+    try test37 x with _ -> ()
   else raise (Failure x)
+
+and[@zero_alloc]  test37 x = assert (String.length x > 0)
