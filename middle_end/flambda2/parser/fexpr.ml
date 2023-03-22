@@ -311,6 +311,10 @@ type string_like_value = Flambda_primitive.string_like_value =
   | Bytes
   | Bigstring
 
+type bytes_like_value = Flambda_primitive.bytes_like_value =
+  | Bytes
+  | Bigstring
+
 type infix_binop =
   | Int_arith of binary_int_arith_op (* on tagged immediates *)
   | Int_shift of int_shift_op (* on tagged immediates *)
@@ -331,6 +335,7 @@ type binop =
 type ternop =
   | Array_set of array_kind * init_or_assign
   | Block_set of block_access_kind * init_or_assign
+  | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
 
 type varop =
   | Make_block of tag_scannable * mutability * alloc_mode_for_allocations

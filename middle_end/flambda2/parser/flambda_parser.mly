@@ -189,6 +189,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_BEGIN_REGION [@symbol "%begin_region"]
 %token PRIM_BEGIN_TRY_REGION [@symbol "%begin_try_region"]
 %token PRIM_BIGSTRING_LOAD [@symbol "%bigstring_load"]
+%token PRIM_BIGSTRING_SET [@symbol "%bigstring_set"]
 %token PRIM_BLOCK [@symbol "%Block"]
 %token PRIM_BLOCK_LOAD [@symbol "%block_load"]
 %token PRIM_BLOCK_SET [@symbol "%block_set"]
@@ -198,6 +199,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_BOX_NATIVEINT [@symbol "%Box_nativeint"]
 %token PRIM_BYTES_LENGTH [@symbol "%bytes_length"]
 %token PRIM_BYTES_LOAD [@symbol "%bytes_load"]
+%token PRIM_BYTES_SET [@symbol "%bytes_set"]
 %token PRIM_END_REGION [@symbol "%end_region"]
 %token PRIM_GET_TAG [@symbol "%get_tag"]
 %token PRIM_INT_ARITH [@symbol "%int_arith"]
@@ -558,6 +560,10 @@ binop_app:
     { Binary (Int_shift (i, s), arg1, arg2) }
 ;
 
+bytes_or_bigstring_set:
+  | PRIM_BYTES_SET { Bytes }
+  | PRIM_BIGSTRING_SET { Bigstring }
+
 ternop_app:
   | PRIM_ARRAY_SET; ak = array_kind;
     arr = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
@@ -567,6 +573,9 @@ ternop_app:
     block = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple
     { Ternary (Block_set (kind, ia), block, ix, v) }
+  | blv = bytes_or_bigstring_set; saw = string_accessor_width;
+    block = simple; DOT LPAREN; ix = simple; RPAREN; v = simple
+    { Ternary (Bytes_or_bigstring_set (blv, saw), block, ix, v) }
 ;
 
 block:

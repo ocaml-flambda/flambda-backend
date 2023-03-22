@@ -445,6 +445,7 @@ let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with
   | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
+  | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
 
 let convert_block_shape ~num_fields =
   List.init num_fields (fun _field -> Flambda_kind.With_subkind.any_value)

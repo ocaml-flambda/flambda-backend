@@ -533,6 +533,13 @@ let ternop ppf t a1 a2 a3 =
   | Block_set (bk, ia) ->
     Format.fprintf ppf "@[<2>%%block_set%a@ %a.(%a)@ %a %a@]" block_access_kind
       bk simple a1 simple a2 init_or_assign ia simple a3
+  | Bytes_or_bigstring_set (blv, saw) ->
+    let prim = match blv with
+      | Bytes -> "%bytes_set"
+      | Bigstring -> "%bigstring_set"
+    in
+    Format.fprintf ppf "@[<2>%s@ %a %a.(%a) %a@]"
+      prim string_accessor_width saw simple a1 simple a2 simple a3
 
 let prim ppf = function
   | Nullary n -> nullop ppf n

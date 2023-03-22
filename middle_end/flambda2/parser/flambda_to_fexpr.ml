@@ -579,7 +579,8 @@ let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
   | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
-  | Bytes_or_bigstring_set _ | Bigarray_set _ ->
+  | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
+  | Bigarray_set _ ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Ternary op)
