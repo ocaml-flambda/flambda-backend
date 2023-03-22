@@ -108,6 +108,7 @@ let keyword_table =
     "Block", STATIC_CONST_BLOCK;
     "Float_array", STATIC_CONST_FLOAT_ARRAY;
     "Float_block", STATIC_CONST_FLOAT_BLOCK;
+    "Empty_array", STATIC_CONST_EMPTY_ARRAY;
 ]
 
 let ident_or_keyword str =

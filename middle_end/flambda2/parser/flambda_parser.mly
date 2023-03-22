@@ -223,6 +223,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token STATIC_CONST_BLOCK [@symbol "Block"]
 %token STATIC_CONST_FLOAT_ARRAY [@symbol "Float_array"]
 %token STATIC_CONST_FLOAT_BLOCK [@symbol "Float_block"]
+%token STATIC_CONST_EMPTY_ARRAY [@symbol "Empty_array"]
 
 %start flambda_unit expect_test_spec
 %type <Fexpr.alloc_mode_for_allocations> alloc_mode_for_allocations_opt
@@ -896,6 +897,7 @@ static_data:
     fs = separated_list(SEMICOLON, float_or_variable);
     RBRACKPIPE
     { Immutable_float_array fs }
+  | STATIC_CONST_EMPTY_ARRAY { Empty_array }
   | KWD_MUTABLE; s = STRING { Mutable_string { initial_value = s } }
   | s = STRING { Immutable_string s }
 ;
