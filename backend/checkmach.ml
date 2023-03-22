@@ -595,34 +595,33 @@ end = struct
       in
       v, dep
 
+  let transform_return ~(effect : V.t) dst =
+    match effect with
+    | V.Bot -> Value.bot
+    | V.Safe -> dst
+    | V.Top -> Value.transform dst
+
+  let transform_diverge ~(effect : V.t) (dst : Value.t) =
+    let div = V.join effect dst.div in
+    { dst with div }
+
+  let transform t ~next ~exn ~(effect:Value.t) desc dbg =
+    let next = transform_return ~effect:effect.nor next in
+    let exn = transform_return ~effect:effect.exn exn in
+    report t next ~msg:"transform new next" ~desc dbg;
+    report t exn ~msg:"transform new exn" ~desc dbg;
+    let r = Value.join next exn in
+    report t r ~msg:"transform join" ~desc dbg;
+    let r = transform_diverge ~effect:effect.div r in
+    report t r ~msg:"transform_call result" ~desc dbg;
+    check t r desc dbg
+
   let transform_call t ~next ~exn callee ~desc dbg =
     report t next ~msg:"transform_call next" ~desc dbg;
     report t exn ~msg:"transform_call exn" ~desc dbg;
     let callee_value, new_dep = find_callee t callee in
     update_deps t callee_value new_dep desc dbg;
-    let transform_return ~(effect : V.t) dst =
-      match effect with
-      | V.Bot -> Value.bot
-      | V.Safe -> dst
-      | V.Top -> Value.transform dst
-    in
-    let transform_diverge ~(effect : V.t) (dst : Value.t) =
-      let div = V.join effect dst.div in
-      { dst with div }
-    in
-    let next = transform_return ~effect:callee_value.nor next in
-    let exn = transform_return ~effect:callee_value.exn exn in
-    report t next ~msg:"transform_call new next" ~desc dbg;
-    report t exn ~msg:"transform_call new exn" ~desc dbg;
-    let r = Value.join next exn in
-    report t r ~msg:"transform_call join" ~desc dbg;
-    let r = transform_diverge ~effect:callee_value.div r in
-    report t r ~msg:"transform_call result" ~desc dbg;
-    check t r desc dbg
-
-  let transform t ~next ~exn msg dbg =
-    let r = Value.join (Value.transform next) (Value.transform exn) in
-    check t r msg dbg
+    transform t ~next ~exn ~effect:callee_value desc dbg
 
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
@@ -648,7 +647,7 @@ end = struct
       assert (not (Mach.operation_can_raise op));
       next
     | Iintop Icheckbound | Iintop_imm (Icheckbound, _) ->
-      transform t ~next ~exn "checkbound" dbg
+      transform t ~next ~exn ~effect:Value.top "checkbound" dbg
     | Ipoll _ (* CR gyorsh: poll points are considered allocations. *)
     | Ialloc { mode = Alloc_local; _ } ->
       assert (not (Mach.operation_can_raise op));
@@ -660,10 +659,10 @@ end = struct
     | Iprobe { name; handler_code_sym } ->
       let desc = Printf.sprintf "probe %s handler %s" name handler_code_sym in
       transform_call t ~next ~exn handler_code_sym ~desc dbg
-    | Icall_ind -> transform t ~next ~exn "indirect call" dbg
+    | Icall_ind -> transform t ~next ~exn ~effect:Value.top "indirect call" dbg
     | Itailcall_ind ->
       (* Sound to ignore [next] and [exn] because the call never returns. *)
-      transform t ~next:Value.normal_return ~exn:Value.exn_escape
+      transform t ~next:Value.normal_return ~exn:Value.exn_escape ~effect:Value.top
         "indirect tailcall" dbg
     | Icall_imm { func } ->
       transform_call t ~next ~exn func ~desc:("direct call to " ^ func) dbg
@@ -681,7 +680,7 @@ end = struct
          raises. *)
       Value.normal_return
     | Iextcall { func; alloc = true; _ } ->
-      transform t ~next ~exn ("external call to " ^ func) dbg
+      transform t ~next ~exn ~effect:Value.top ("external call to " ^ func) dbg
     | Ispecific s ->
       let r = S.transform_specific s ~next ~exn in
       check t r "Arch.specific_operation" dbg
