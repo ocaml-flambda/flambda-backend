@@ -377,6 +377,7 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
   | Array_length -> Array_length
   | Begin_try_region -> Begin_try_region
+  | Boolean_not -> Boolean_not
   | Box_number (bk, alloc) ->
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Unbox_number bk -> Unbox_number bk

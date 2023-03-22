@@ -130,6 +130,7 @@ let prim_table =
     "Block", PRIM_BLOCK;
     "block_load", PRIM_BLOCK_LOAD;
     "block_set", PRIM_BLOCK_SET;
+    "not", PRIM_BOOLEAN_NOT;
     "Box_float", PRIM_BOX_FLOAT;
     "Box_int32", PRIM_BOX_INT32;
     "Box_int64", PRIM_BOX_INT64;

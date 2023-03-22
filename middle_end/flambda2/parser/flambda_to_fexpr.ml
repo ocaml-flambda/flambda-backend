@@ -527,8 +527,9 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
     let move_to = Env.translate_function_slot env move_to in
     Project_function_slot { move_from; move_to }
   | String_length string_or_bytes -> String_length string_or_bytes
-  | Int_as_pointer | Boolean_not | Duplicate_block _ | Duplicate_array _
   | Bigarray_length _ | Int_arith _ | Float_arith _ | Reinterpret_int64_as_float
+  | Boolean_not -> Boolean_not
+  | Int_as_pointer | Duplicate_block _ | Duplicate_array _
   | Is_boxed_float | Obj_dup ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print

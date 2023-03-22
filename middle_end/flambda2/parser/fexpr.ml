@@ -251,6 +251,7 @@ type nullop = Begin_region
 type unop =
   | Array_length
   | Begin_try_region
+  | Boolean_not
   | Box_number of box_kind * alloc_mode_for_allocations
   | End_region
   | Get_tag

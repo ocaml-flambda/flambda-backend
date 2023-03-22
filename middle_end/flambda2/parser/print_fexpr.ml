@@ -501,6 +501,7 @@ let unop ppf u =
   match u with
   | Array_length -> str "%array_length"
   | Begin_try_region -> str "%begin_try_region"
+  | Boolean_not -> str "%not"
   | Box_number (bk, alloc) ->
     box_or_unbox "Box" bk;
     alloc_mode_for_allocations_opt ppf alloc ~space:Before

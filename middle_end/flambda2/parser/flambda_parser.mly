@@ -193,6 +193,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_BLOCK [@symbol "%Block"]
 %token PRIM_BLOCK_LOAD [@symbol "%block_load"]
 %token PRIM_BLOCK_SET [@symbol "%block_set"]
+%token PRIM_BOOLEAN_NOT [@symbol "%not"]
 %token PRIM_BOX_FLOAT [@symbol "%Box_float"]
 %token PRIM_BOX_INT32 [@symbol "%Box_int32"]
 %token PRIM_BOX_INT64 [@symbol "%Box_int64"]
@@ -374,6 +375,7 @@ nullop:
 unop:
   | PRIM_ARRAY_LENGTH { Array_length }
   | PRIM_BEGIN_TRY_REGION { Begin_try_region }
+  | PRIM_BOOLEAN_NOT { Boolean_not }
   | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
     { Box_number (Naked_float, alloc) }
   | PRIM_BOX_INT32; alloc = alloc_mode_for_allocations_opt
