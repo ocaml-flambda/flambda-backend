@@ -518,6 +518,7 @@ int_comp:
   | GREATER { fun s -> Yielding_bool (Gt s) }
   | LESSEQUAL { fun s -> Yielding_bool (Le s) }
   | GREATEREQUAL { fun s -> Yielding_bool (Ge s) }
+  | EQUAL { fun _ -> Yielding_bool Eq }
   | NOTEQUAL { fun _ -> Yielding_bool Neq }
   | QMARK { fun s -> Yielding_int_like_compare_functions s }
 
