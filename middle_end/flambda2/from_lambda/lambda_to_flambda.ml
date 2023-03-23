@@ -1001,7 +1001,7 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
         match arity_component with
         | Singleton kind ->
           let param = id, visible, kind in
-          env, param :: params_rev
+          handler_env, param :: params_rev
         | Unboxed_product _ ->
           let arity = Flambda_arity.create [arity_component] in
           let fields =
