@@ -1492,7 +1492,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       let acc, body = compute_body acc in
       acc, body, return_continuation, my_closure
     | Multiple_return (_, unboxed_function_slot)
-    | Unboxed_float unboxed_function_slot
+    | Unboxed_number (_, unboxed_function_slot)
     | Unboxed_float_record (_, unboxed_function_slot) ->
       let boxed_return_kind, field_variables, field_getter =
         match return with
@@ -1516,13 +1516,13 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
                      Simple.var boxed_variable,
                      Simple.const_int i ))
                 Debuginfo.none )
-        | Unboxed_float _ ->
-          ( Flambda_kind.With_subkind.boxed_float,
-            [Variable.create "unboxed_float"],
+        | Unboxed_number (bn, _) ->
+          ( Flambda_kind.With_subkind.boxed_of_boxable_number bn,
+            [Variable.create "unboxed_number"],
             fun boxed_variable _ ->
               Named.create_prim
                 (Flambda_primitive.Unary
-                   (Unbox_number Naked_float, Simple.var boxed_variable))
+                   (Unbox_number bn, Simple.var boxed_variable))
                 Debuginfo.none )
         | Unboxed_float_record (num_fields, _) ->
           let block_access_kind : P.Block_access_kind.t =
@@ -1650,8 +1650,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     | Normal_return arity -> arity, code_id
     | Multiple_return (kinds, _) ->
       Flambda_arity.With_subkinds.create kinds, Code_id.rename code_id
-    | Unboxed_float _ ->
-      ( Flambda_arity.With_subkinds.create [K.With_subkind.naked_float],
+    | Unboxed_number (bn, _) ->
+      ( Flambda_arity.With_subkinds.create
+          [K.With_subkind.naked_of_boxable_number bn],
         Code_id.rename code_id )
     | Unboxed_float_record (size, _) ->
       ( Flambda_arity.With_subkinds.create
@@ -1681,7 +1682,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     match return with
     | Normal_return _ -> main_code, by_function_slot, function_code_ids, acc
     | Multiple_return (_, unboxed_function_slot)
-    | Unboxed_float unboxed_function_slot
+    | Unboxed_number (_, unboxed_function_slot)
     | Unboxed_float_record (_, unboxed_function_slot) ->
       (* The outside caller gave us the function slot and code ID meant for the
          boxed function, which will be a wrapper. So in this branch everything
@@ -1706,8 +1707,8 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
                        ),
                      Bound_parameters.simples params ))
                 Debuginfo.none )
-        | Unboxed_float _ ->
-          ( Flambda_kind.With_subkind.boxed_float,
+        | Unboxed_number (bn, _) ->
+          ( Flambda_kind.With_subkind.boxed_of_boxable_number bn,
             fun params ->
               let arg =
                 match Bound_parameters.simples params with
@@ -1717,7 +1718,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
               Named.create_prim
                 (Flambda_primitive.Unary
                    ( Box_number
-                       ( Naked_float,
+                       ( bn,
                          if Function_decl.contains_no_escaping_local_allocs decl
                          then Alloc_mode.For_allocations.heap
                          else Alloc_mode.For_allocations.local ~region:my_region
@@ -2001,9 +2002,9 @@ let close_functions acc external_env ~current_region function_declarations =
           | Multiple_return (kinds, _) ->
             Flambda_arity.With_subkinds.create
               [Flambda_kind.With_subkind.block Tag.zero kinds]
-          | Unboxed_float _ ->
+          | Unboxed_number (bn, _) ->
             Flambda_arity.With_subkinds.create
-              [Flambda_kind.With_subkind.boxed_float]
+              [Flambda_kind.With_subkind.boxed_of_boxable_number bn]
           | Unboxed_float_record (num_fields, _) ->
             Flambda_arity.With_subkinds.create
               [Flambda_kind.With_subkind.float_block ~num_fields]

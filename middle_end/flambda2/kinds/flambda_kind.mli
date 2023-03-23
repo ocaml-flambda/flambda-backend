@@ -196,6 +196,10 @@ module With_subkind : sig
 
   val of_naked_number_kind : Naked_number_kind.t -> t
 
+  val naked_of_boxable_number : Boxable_number.t -> t
+
+  val boxed_of_boxable_number : Boxable_number.t -> t
+
   val from_lambda_value_kind : Lambda.value_kind -> t
 
   val from_lambda : Lambda.layout -> t

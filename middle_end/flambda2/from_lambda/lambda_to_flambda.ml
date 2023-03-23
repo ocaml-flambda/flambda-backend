@@ -1669,8 +1669,22 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
             ~name:(Ident.name fid ^ "_unboxed")
             Flambda_kind.With_subkind.any_value
         in
-        Unboxed_float unboxed_function_slot
-      | Pvalue (Pgenval | Pboxedintval _ | Pintval | Pvariant _ | Parrayval _)
+        Unboxed_number (Naked_float, unboxed_function_slot)
+      | Pvalue (Pboxedintval bi) ->
+        let unboxed_function_slot =
+          Function_slot.create
+            (Compilation_unit.get_current_exn ())
+            ~name:(Ident.name fid ^ "_unboxed")
+            Flambda_kind.With_subkind.any_value
+        in
+        let bn : Flambda_kind.Boxable_number.t =
+          match bi with
+          | Pint32 -> Naked_int32
+          | Pint64 -> Naked_int64
+          | Pnativeint -> Naked_nativeint
+        in
+        Unboxed_number (bn, unboxed_function_slot)
+      | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
       | Ptop | Pbottom | Punboxed_float | Punboxed_int _ ->
         normal_return ()
   in
@@ -1680,7 +1694,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   let body_cont =
     match return with
     | Normal_return _ -> Continuation.create ~sort:Return ()
-    | Multiple_return _ | Unboxed_float _ | Unboxed_float_record _ ->
+    | Multiple_return _ | Unboxed_number _ | Unboxed_float_record _ ->
       Continuation.create ~sort:Normal_or_exn ~name:"boxed_return" ()
   in
   let body_exn_cont = Continuation.create () in

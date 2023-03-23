@@ -292,7 +292,7 @@ module Function_decls : sig
     type return_kind =
       | Normal_return of Flambda_arity.With_subkinds.t
       | Multiple_return of Flambda_kind.With_subkind.t list * Function_slot.t
-      | Unboxed_float of Function_slot.t
+      | Unboxed_number of Flambda_kind.Boxable_number.t * Function_slot.t
       | Unboxed_float_record of int * Function_slot.t
 
     type t
