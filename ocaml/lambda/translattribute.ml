@@ -50,6 +50,9 @@ let is_poll_attribute =
 let is_loop_attribute =
   [ ["loop"; "ocaml.loop"], true ]
 
+let is_unboxed_attribute =
+  [ ["unboxed"; "ocaml.unboxed"], true ]
+
 let find_attribute p attributes =
   let inline_attribute = Builtin_attributes.filter_attributes p attributes in
   let attr =
@@ -433,6 +436,21 @@ let add_poll_attribute expr loc attributes =
     end
   | expr -> expr
 
+let add_unbox_return_attribute expr loc attributes =
+  match expr with
+  | Lfunction funct ->
+      let attr = find_attribute is_unboxed_attribute attributes in
+      begin match attr with
+      | None -> expr
+      | Some _ ->
+          if funct.attr.unbox_return then
+            Location.prerr_warning loc
+              (Warnings.Duplicated_attribute "unboxed");
+          let attr = { funct.attr with unbox_return = true } in
+          lfunction_with_attr ~attr funct
+      end
+  | _ -> expr
+
 (* Get the [@inlined] attribute payload (or default if not present). *)
 let get_inlined_attribute e =
   let attr = find_attribute is_inlined_attribute e.exp_attributes in
@@ -491,6 +509,9 @@ let add_function_attributes lam loc attr =
   in
   let lam =
     add_tmc_attribute lam loc attr
+  in
+  let lam =
+    add_unbox_return_attribute lam loc attr
   in
   let lam =
     (* last because poll overrides inline and local *)

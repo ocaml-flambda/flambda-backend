@@ -365,6 +365,7 @@ type function_attribute = {
   is_a_functor: bool;
   stub: bool;
   tmc_candidate: bool;
+  unbox_return: bool;
 }
 
 type scoped_location = Debuginfo.Scoped_location.t

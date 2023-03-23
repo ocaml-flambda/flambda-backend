@@ -477,6 +477,7 @@ type function_attribute = {
   is_a_functor: bool;
   stub: bool;
   tmc_candidate: bool;
+  unbox_return: bool;
 }
 
 type scoped_location = Debuginfo.Scoped_location.t
@@ -645,6 +646,7 @@ let default_function_attribute = {
   is_a_functor = false;
   stub = false;
   tmc_candidate = false;
+  unbox_return = false;
 }
 
 let default_stub_attribute =

@@ -1637,7 +1637,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       Normal_return (Flambda_arity.With_subkinds.create
                        [Flambda_kind.With_subkind.from_lambda return])
     in
-    if attr.is_a_functor || attr.stub then normal_return () else
+    if attr.stub || not attr.unbox_return then normal_return () else
     match return with
     | Pvalue (Pvariant { consts = []; non_consts = [(0, field_kinds)] }) ->
       let unboxed_function_slot =

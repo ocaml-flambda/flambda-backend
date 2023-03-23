@@ -835,6 +835,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           stub = false;
           poll = Default_poll;
           tmc_candidate = false;
+          unbox_return = false;
         } in
       let funcid = Ident.create_local ("probe_handler_" ^ name) in
       let layout = Typeopt.layout exp.exp_env exp.exp_type in

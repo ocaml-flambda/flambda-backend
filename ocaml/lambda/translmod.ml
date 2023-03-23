@@ -554,6 +554,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       is_a_functor = true;
       stub = false;
       tmc_candidate = false;
+      unbox_return = false;
     }
     ~loc
     ~mode:alloc_heap
