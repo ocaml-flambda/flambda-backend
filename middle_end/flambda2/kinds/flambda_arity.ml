@@ -82,8 +82,6 @@ let create t = t
 
 let create_singletons t = List.map (fun kind -> Component.Singleton kind) t
 
-let equal_exact t1 t2 = List.equal Component.equal_exact t1 t2
-
 let print ppf t =
   Component.print ~product_above:false ppf (Component.Unboxed_product t)
 
@@ -91,6 +89,8 @@ let to_list_not_unarized t = t
 
 let equal_ignoring_subkinds t1 t2 =
   List.equal Component.equal_ignoring_subkinds t1 t2
+
+let equal_exact t1 t2 = List.equal Component.equal_exact t1 t2
 
 let is_one_param_of_kind_value t =
   match t with
