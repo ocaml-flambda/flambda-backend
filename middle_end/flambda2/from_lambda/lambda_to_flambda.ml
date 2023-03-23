@@ -17,6 +17,9 @@
 (* "Use CPS". -- A. Kennedy, "Compiling with Continuations Continued", ICFP
    2007. *)
 
+let unboxed_product_debug () =
+  match Sys.getenv "DEBUG" with exception Not_found -> false | _ -> true
+
 module L = Lambda
 module CC = Closure_conversion
 module P = Flambda_primitive
@@ -253,12 +256,15 @@ end = struct
   let mutables_in_scope t = Ident.Map.keys t.current_values_of_mutables_in_scope
 
   let register_unboxed_product t ~unboxed_product ~fields =
-    Format.eprintf "register_unboxed_product %a: fields: %a\n%!" Ident.print
-      unboxed_product
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf (id, kind) ->
-           Format.fprintf ppf "%a :: %a" Ident.print id
-             Flambda_kind.With_subkind.print kind))
-      fields;
+    if unboxed_product_debug ()
+    then
+      Format.eprintf "register_unboxed_product %a: fields: %a\n%!" Ident.print
+        unboxed_product
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space
+           (fun ppf (id, kind) ->
+             Format.fprintf ppf "%a :: %a" Ident.print id
+               Flambda_kind.With_subkind.print kind))
+        fields;
     { t with
       unboxed_product_components_in_scope =
         Ident.Map.add unboxed_product (Array.of_list fields)
@@ -333,10 +339,12 @@ end = struct
       Ident.Map.data handler_env.current_values_of_mutables_in_scope
       @ extra_params_for_unboxed_products
     in
-    Format.eprintf "Adding continuation %a with extra params: %a\n%!"
-      Continuation.print cont
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space Ident.print)
-      (List.map fst extra_params);
+    if unboxed_product_debug ()
+    then
+      Format.eprintf "Adding continuation %a with extra params: %a\n%!"
+        Continuation.print cont
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space Ident.print)
+        (List.map fst extra_params);
     { body_env; handler_env; extra_params }
 
   let add_static_exn_continuation t static_exn cont =
@@ -424,9 +432,11 @@ end = struct
             | fields -> Array.to_list fields)
           unboxed_products
     in
-    Format.eprintf "Extra args for %a are: %a\n%!" Continuation.print cont
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space Ident.print)
-      (List.map fst (for_mutables @ for_unboxed_products));
+    if unboxed_product_debug ()
+    then
+      Format.eprintf "Extra args for %a are: %a\n%!" Continuation.print cont
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space Ident.print)
+        (List.map fst (for_mutables @ for_unboxed_products));
     for_mutables @ for_unboxed_products
 
   let extra_args_for_continuation t cont =
@@ -800,8 +810,10 @@ let transform_primitive env id (prim : L.primitive) args loc =
         (Flambda_arity.unarize_flat arity)
     in
     let env = Env.register_unboxed_product env ~unboxed_product:id ~fields in
-    Format.eprintf "Making unboxed product, bound to %a: num fields = %d\n%!"
-      Ident.print id (List.length fields);
+    if unboxed_product_debug ()
+    then
+      Format.eprintf "Making unboxed product, bound to %a: num fields = %d\n%!"
+        Ident.print id (List.length fields);
     let fields = List.map (fun ident_and_kind -> Some ident_and_kind) fields in
     Unboxed_binding (fields, env)
   | Punboxed_product_field (n, layouts), [_arg] ->
@@ -812,9 +824,12 @@ let transform_primitive env id (prim : L.primitive) args loc =
       List.map Flambda_arity.Component_for_creation.from_lambda layouts
       |> Flambda_arity.create
     in
-    Format.eprintf
-      "Punboxed_product_field bound to %a, product %a, field %d, arity %a:\n%!"
-      Ident.print id Printlambda.lambda _arg n Flambda_arity.print arity;
+    if unboxed_product_debug ()
+    then
+      Format.eprintf
+        "Punboxed_product_field bound to %a, product %a, field %d, arity %a:\n\
+         %!"
+        Ident.print id Printlambda.lambda _arg n Flambda_arity.print arity;
     let field_arity =
       (* N.B. The arity of the field being projected, bound to [id], may in
          itself be an unboxed product. *)
@@ -835,8 +850,10 @@ let transform_primitive env id (prim : L.primitive) args loc =
       |> List.map Flambda_arity.Component_for_creation.from_lambda
       |> Flambda_arity.create |> Flambda_arity.cardinal_unarized
     in
-    Format.eprintf "num_fields_prior_to_projected_fields %d\n%!"
-      num_fields_prior_to_projected_fields;
+    if unboxed_product_debug ()
+    then
+      Format.eprintf "num_fields_prior_to_projected_fields %d\n%!"
+        num_fields_prior_to_projected_fields;
     let num_projected_fields = Flambda_arity.cardinal_unarized field_arity in
     let[@inline] cut_list_down_to_projected_fields fields =
       assert (List.compare_lengths fields ids_all_fields_with_kinds = 0);
@@ -859,11 +876,13 @@ let transform_primitive env id (prim : L.primitive) args loc =
           ~fields:ids_projected_fields
       else env
     in
-    Format.eprintf
-      "Unboxed projection: emitting binding of %d ids, num projected fields %d\n\
-       %!"
-      (List.length ids_all_fields_with_kinds)
-      (List.length ids_projected_fields);
+    if unboxed_product_debug ()
+    then
+      Format.eprintf
+        "Unboxed projection: emitting binding of %d ids, num projected fields %d\n\
+         %!"
+        (List.length ids_all_fields_with_kinds)
+        (List.length ids_projected_fields);
     let field_mask =
       List.mapi
         (fun cur_field (field, kind) ->
@@ -1008,13 +1027,15 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
   let params = List.rev params_rev in
   if List.compare_lengths params orig_params <> 0
   then
-    Format.eprintf
-      "Continuation %a has unboxed arities: orig_params %a, params %a\n%!"
-      Continuation.print cont
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space Ident.print)
-      (List.map (fun (id, _, _) -> id) orig_params)
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space Ident.print)
-      (List.map (fun (id, _, _) -> id) params);
+    if unboxed_product_debug ()
+    then
+      Format.eprintf
+        "Continuation %a has unboxed arities: orig_params %a, params %a\n%!"
+        Continuation.print cont
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space Ident.print)
+        (List.map (fun (id, _, _) -> id) orig_params)
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space Ident.print)
+        (List.map (fun (id, _, _) -> id) params);
   let extra_params =
     List.map (fun (id, kind) -> id, IR.User_visible, kind) extra_params
   in
@@ -1332,16 +1353,20 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
   match lam with
   | Lvar id -> (
     assert (not (Env.is_mutable env id));
-    Format.eprintf "checking for unboxed product fields of %a\n%!" Ident.print
-      id;
+    if unboxed_product_debug ()
+    then
+      Format.eprintf "checking for unboxed product fields of %a\n%!" Ident.print
+        id;
     match Env.get_unboxed_product_fields env id with
     | None ->
-      Format.eprintf "...no unboxed fields\n%!";
+      if unboxed_product_debug () then Format.eprintf "...no unboxed fields\n%!";
       apply_cps_cont k acc env ccenv id
     | Some fields ->
-      Format.eprintf "...got unboxed fields: (%a)\n%!"
-        (Format.pp_print_list ~pp_sep:Format.pp_print_space Ident.print)
-        fields;
+      if unboxed_product_debug ()
+      then
+        Format.eprintf "...got unboxed fields: (%a)\n%!"
+          (Format.pp_print_list ~pp_sep:Format.pp_print_space Ident.print)
+          fields;
       let fields = List.map (fun id -> IR.Var id) fields in
       apply_cps_cont_simple k acc env ccenv fields)
   | Lmutvar id ->
@@ -1412,7 +1437,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         id,
         Lprim (prim, args, loc),
         body ) -> (
-    Format.eprintf "Handling let-binding: %a\n%!" Printlambda.lambda lam;
+    if unboxed_product_debug ()
+    then Format.eprintf "Handling let-binding: %a\n%!" Printlambda.lambda lam;
     match transform_primitive env id prim args loc with
     | Primitive (prim, args, loc) ->
       (* This case avoids extraneous continuations. *)
@@ -1437,14 +1463,17 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     | Unboxed_binding (ids_with_kinds, env) ->
       cps_non_tail_list acc env ccenv args
         (fun acc env ccenv (args : IR.simple list) ->
-          Format.eprintf "Unboxed_binding: ids_with_kinds=(%a) args=(%a)\n%!"
-            (Format.pp_print_list ~pp_sep:Format.pp_print_space
-               (Misc.Stdlib.Option.print (fun ppf (id, kind) ->
-                    Format.fprintf ppf "%a :: %a" Ident.print id
-                      Flambda_kind.With_subkind.print kind)))
-            ids_with_kinds
-            (Format.pp_print_list ~pp_sep:Format.pp_print_space IR.print_simple)
-            args;
+          if unboxed_product_debug ()
+          then
+            Format.eprintf "Unboxed_binding: ids_with_kinds=(%a) args=(%a)\n%!"
+              (Format.pp_print_list ~pp_sep:Format.pp_print_space
+                 (Misc.Stdlib.Option.print (fun ppf (id, kind) ->
+                      Format.fprintf ppf "%a :: %a" Ident.print id
+                        Flambda_kind.With_subkind.print kind)))
+              ids_with_kinds
+              (Format.pp_print_list ~pp_sep:Format.pp_print_space
+                 IR.print_simple)
+              args;
           let body acc ccenv = cps acc env ccenv body k k_exn in
           if List.compare_lengths ids_with_kinds args <> 0
           then
