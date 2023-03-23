@@ -795,6 +795,54 @@ let simplify_block_load acc body_env ~block ~field : simplified_block_load =
     | Some approx -> Block_but_cannot_simplify approx
     | None -> Not_a_block)
 
+type block_static_kind =
+  | Dynamic_block
+  | Computed_static of Field_of_static_block.t list
+  | Constant of Field_of_static_block.t list
+
+let classify_fields_of_block env fields alloc_mode =
+  let is_local =
+    match (alloc_mode : Alloc_mode.For_allocations.t) with
+    | Local _ -> true
+    | Heap -> false
+  in
+  let static_fields =
+    List.fold_left
+      (fun static_fields f ->
+        match static_fields with
+        | None -> None
+        | Some fields ->
+          Simple.pattern_match'
+            ~const:(fun c ->
+              match Reg_width_const.descr c with
+              | Tagged_immediate imm ->
+                Some (Field_of_static_block.Tagged_immediate imm :: fields)
+              | _ -> None)
+            ~symbol:(fun s ~coercion:_ ->
+              Some (Field_of_static_block.Symbol s :: fields))
+            ~var:(fun v ~coercion:_ ->
+              if Env.at_toplevel env
+                 && Flambda_features.classic_mode ()
+                 && not is_local
+              then
+                Some
+                  (Field_of_static_block.Dynamically_computed (v, Debuginfo.none)
+                  :: fields)
+              else None)
+            f)
+      (Some []) fields
+    |> Option.map List.rev
+  in
+  match static_fields with
+  | None -> Dynamic_block
+  | Some fields ->
+    if List.exists
+         (function
+           | Field_of_static_block.Dynamically_computed _ -> true | _ -> false)
+         fields
+    then Computed_static fields
+    else Constant fields
+
 let close_let acc env id user_visible kind defining_expr
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
   let body_env, var = Env.add_var_like env id user_visible kind in
@@ -827,88 +875,54 @@ let close_let acc env id user_visible kind defining_expr
         let approxs =
           List.map (find_value_approximation body_env) fields |> Array.of_list
         in
-        let is_local =
-          match alloc_mode with Local _ -> true | Heap -> false
-        in
-        let all_fields_static =
-          List.fold_left
-            (fun static_fields f ->
-              match static_fields with
-              | None -> None
-              | Some fields ->
-                Simple.pattern_match'
-                  ~const:(fun c ->
-                    match Reg_width_const.descr c with
-                    | Tagged_immediate imm ->
-                      Some (Field_of_static_block.Tagged_immediate imm :: fields)
-                    | _ -> None)
-                  ~symbol:(fun s ~coercion:_ ->
-                    Some (Field_of_static_block.Symbol s :: fields))
-                  ~var:(fun v ~coercion:_ ->
-                    if Env.at_toplevel env
-                       && Flambda_features.classic_mode ()
-                       && not is_local
-                    then
-                      Some
-                        (Field_of_static_block.Dynamically_computed
-                           (v, Debuginfo.none)
-                        :: fields)
-                    else None)
-                  f)
-            (Some []) fields
-          |> Option.map List.rev
-        in
-        match all_fields_static with
-        | Some static_fields ->
-          if (not (Flambda_features.classic_mode ()))
-             || not (Env.at_toplevel env)
-          then
-            let acc, sym =
-              register_const0 acc
-                (Static_const.block tag Immutable static_fields)
-                (Ident.name id)
-            in
-            let body_env =
-              Env.add_simple_to_substitute body_env id (Simple.symbol sym) kind
-            in
-            let acc =
-              Acc.add_symbol_approximation acc sym
-                (Value_approximation.Block_approximation
-                   (approxs, Alloc_mode.For_allocations.as_type alloc_mode))
-            in
-            body acc body_env
-          else
-            (* This is a possibly-inconstant statically-allocated value, so
-               cannot go through [register_const0]. The definition must be
-               placed right away. *)
-            let symbol =
-              Symbol.create
-                (Compilation_unit.get_current_exn ())
-                (Linkage_name.of_string (Variable.unique_name var))
-            in
-            let static_const = Static_const.block tag Immutable static_fields in
-            let static_consts =
-              [Static_const_or_code.create_static_const static_const]
-            in
-            let defining_expr =
-              Static_const_group.create static_consts
-              |> Named.create_static_consts
-            in
-            let body_env =
-              Env.add_simple_to_substitute body_env id (Simple.symbol symbol)
-                kind
-            in
-            let approx =
-              Value_approximation.Block_approximation
-                (approxs, Alloc_mode.For_allocations.as_type alloc_mode)
-            in
-            let acc = Acc.add_symbol_approximation acc symbol approx in
-            let acc, body = body acc body_env in
-            Let_with_acc.create acc
-              (Bound_pattern.static
-                 (Bound_static.create [Bound_static.Pattern.block_like symbol]))
-              defining_expr ~body
-        | None ->
+        let fields_kind = classify_fields_of_block env fields alloc_mode in
+        match fields_kind with
+        | Constant static_fields ->
+          let acc, sym =
+            register_const0 acc
+              (Static_const.block tag Immutable static_fields)
+              (Ident.name id)
+          in
+          let body_env =
+            Env.add_simple_to_substitute body_env id (Simple.symbol sym) kind
+          in
+          let acc =
+            Acc.add_symbol_approximation acc sym
+              (Value_approximation.Block_approximation
+                 (approxs, Alloc_mode.For_allocations.as_type alloc_mode))
+          in
+          body acc body_env
+        | Computed_static static_fields ->
+          (* This is a inconstant statically-allocated value, so cannot go
+             through [register_const0]. The definition must be placed right
+             away. *)
+          let symbol =
+            Symbol.create
+              (Compilation_unit.get_current_exn ())
+              (Linkage_name.of_string (Variable.unique_name var))
+          in
+          let static_const = Static_const.block tag Immutable static_fields in
+          let static_consts =
+            [Static_const_or_code.create_static_const static_const]
+          in
+          let defining_expr =
+            Static_const_group.create static_consts
+            |> Named.create_static_consts
+          in
+          let body_env =
+            Env.add_simple_to_substitute body_env id (Simple.symbol symbol) kind
+          in
+          let approx =
+            Value_approximation.Block_approximation
+              (approxs, Alloc_mode.For_allocations.as_type alloc_mode)
+          in
+          let acc = Acc.add_symbol_approximation acc symbol approx in
+          let acc, body = body acc body_env in
+          Let_with_acc.create acc
+            (Bound_pattern.static
+               (Bound_static.create [Bound_static.Pattern.block_like symbol]))
+            defining_expr ~body
+        | Dynamic_block ->
           let body_env =
             Env.add_block_approximation body_env var approxs
               (Alloc_mode.For_allocations.as_type alloc_mode)
