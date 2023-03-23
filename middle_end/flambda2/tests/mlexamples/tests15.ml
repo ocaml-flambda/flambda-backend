@@ -24,3 +24,7 @@ let negate x = negint x
 
 (* Exercise string literals with escape characters *)
 let my_string = " \\ \n "
+
+(* Exercise lor *)
+external ( lor ) : int -> int -> int = "%orint"
+let foo x = x lor 42

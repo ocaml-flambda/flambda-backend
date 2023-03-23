@@ -72,6 +72,7 @@ let keyword_table =
     "let", KWD_LET;
     "local", KWD_LOCAL;
     "loopify", KWD_LOOPIFY;
+    "lor", KWD_LOR;
     "lsl", KWD_LSL;
     "lsr", KWD_LSR;
     "mutable", KWD_MUTABLE;
