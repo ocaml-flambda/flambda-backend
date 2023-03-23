@@ -807,7 +807,7 @@ let transform_primitive env id (prim : L.primitive) args loc =
               (Printf.sprintf "%s_unboxed%d" (Ident.unique_name id) n)
           in
           ident, kind)
-        (Flambda_arity.unarize_flat arity)
+        (Flambda_arity.unarize arity)
     in
     let env = Env.register_unboxed_product env ~unboxed_product:id ~fields in
     if unboxed_product_debug ()
@@ -842,7 +842,7 @@ let transform_primitive env id (prim : L.primitive) args loc =
           ( Ident.create_local
               (Printf.sprintf "%s_unboxed%d" (Ident.unique_name id) n),
             kind ))
-        (Flambda_arity.unarize_flat arity)
+        (Flambda_arity.unarize arity)
     in
     let num_fields_prior_to_projected_fields =
       Misc.Stdlib.List.split_at n layouts
@@ -1012,7 +1012,7 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
                     (Printf.sprintf "%s_unboxed%d" (Ident.unique_name id) n)
                 in
                 field, kind)
-              (Flambda_arity.unarize_flat arity)
+              (Flambda_arity.unarize arity)
           in
           let handler_env =
             Env.register_unboxed_product handler_env ~unboxed_product:id ~fields
@@ -1122,7 +1122,7 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
           { apply with continuation = wrapper_cont; region }
       in
       let return_arity =
-        match Flambda_arity.unarize_flat apply.return_arity with
+        match Flambda_arity.unarize apply.return_arity with
         | [return_kind] -> return_kind
         | _ :: _ ->
           Misc.fatal_errorf

@@ -76,7 +76,7 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
     | _ -> Misc.fatal_errorf "Empty argument list for direct application"
   in
   let over_application_arity =
-    List.tl (Flambda_arity.unarize_flat (Apply.args_arity apply))
+    List.tl (Flambda_arity.unarize (Apply.args_arity apply))
   in
   (* Create the list of variables and projections *)
   let vars_and_fields =
@@ -251,7 +251,7 @@ let simplify_direct_full_application0 ~simplify_expr dacc apply function_type
                     (T.alias_type_of (K.With_subkind.kind (BP.kind param)) arg))
                 denv params args
             in
-            let result_arity = Flambda_arity.unarize_flat result_arity in
+            let result_arity = Flambda_arity.unarize result_arity in
             let denv =
               List.fold_left2
                 (fun denv kind result ->
@@ -390,7 +390,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     Misc.Stdlib.List.map2_prefix
       (fun arg kind -> arg, kind)
       args
-      (Flambda_arity.unarize_flat param_arity)
+      (Flambda_arity.unarize param_arity)
   in
   let wrapper_var = Variable.create "partial_app" in
   let compilation_unit = Compilation_unit.get_current_exn () in
@@ -966,7 +966,7 @@ let simplify_apply_shared dacc apply =
           "Argument kind %a from arity does not match kind from type %a for \
            application:@ %a"
           K.print kind T.print arg_type Apply.print apply)
-    (Flambda_arity.unarize_flat (Apply.args_arity apply))
+    (Flambda_arity.unarize (Apply.args_arity apply))
     arg_types;
   let inlining_state =
     Inlining_state.meet

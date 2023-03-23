@@ -85,8 +85,6 @@ let create_singletons t = List.map (fun kind -> Component.Singleton kind) t
 let print ppf t =
   Component.print ~product_above:false ppf (Component.Unboxed_product t)
 
-let to_list_not_unarized t = t
-
 let equal_ignoring_subkinds t1 t2 =
   List.equal Component.equal_ignoring_subkinds t1 t2
 
@@ -101,11 +99,9 @@ let is_one_param_of_kind_value t =
     true
   | [] | Component.Singleton _ :: _ | Component.Unboxed_product _ :: _ -> false
 
-let unarize t = List.map Component.unarize t
+let unarize t = t |> List.map Component.unarize |> List.concat
 
-let unarize_flat t = List.concat (unarize t)
-
-let cardinal_unarized t = List.length (unarize_flat t)
+let cardinal_unarized t = List.length (unarize t)
 
 let rec must_be_one_param t =
   match t with

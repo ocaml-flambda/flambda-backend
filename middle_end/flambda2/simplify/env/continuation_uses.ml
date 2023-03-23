@@ -95,7 +95,7 @@ let add_uses_to_arg_maps arg_maps uses =
 let empty_arg_maps arity : arg_types_by_use_id =
   List.map
     (fun _ -> Apply_cont_rewrite_id.Map.empty)
-    (Flambda_arity.unarize_flat arity)
+    (Flambda_arity.unarize arity)
 
 let get_arg_types_by_use_id t =
   add_uses_to_arg_maps (empty_arg_maps t.arity) t.uses
@@ -108,10 +108,10 @@ let get_arg_types_by_use_id_for_invariant_params arity l =
     (fun arg_maps t ->
       if not
            (Misc.Stdlib.List.is_prefix ~equal:Flambda_kind.equal
-              (Flambda_arity.unarize_flat arity
+              (Flambda_arity.unarize arity
               |> List.map Flambda_kind.With_subkind.kind)
               ~of_:
-                (Flambda_arity.unarize_flat t.arity
+                (Flambda_arity.unarize t.arity
                 |> List.map Flambda_kind.With_subkind.kind))
       then
         Misc.fatal_errorf

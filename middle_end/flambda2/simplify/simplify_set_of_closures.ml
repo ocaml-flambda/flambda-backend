@@ -342,7 +342,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
         BP.create
           (Variable.create ("result" ^ string_of_int i))
           kind_with_subkind)
-      (Flambda_arity.unarize_flat result_arity)
+      (Flambda_arity.unarize result_arity)
     |> Bound_parameters.create
   in
   let { params;

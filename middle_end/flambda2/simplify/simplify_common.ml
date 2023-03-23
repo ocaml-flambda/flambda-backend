@@ -102,7 +102,7 @@ let split_direct_over_application apply
   let first_args, remaining_args = Misc.Stdlib.List.split_at arity args in
   let _, remaining_arity =
     Misc.Stdlib.List.split_at arity
-      (Apply.args_arity apply |> Flambda_arity.unarize_flat)
+      (Apply.args_arity apply |> Flambda_arity.unarize)
   in
   assert (List.compare_lengths remaining_args remaining_arity = 0);
   let func_var = Variable.create "full_apply" in
@@ -170,7 +170,7 @@ let split_direct_over_application apply
         List.mapi
           (fun i kind ->
             BP.create (Variable.create ("result" ^ string_of_int i)) kind)
-          (Flambda_arity.unarize_flat (Apply.return_arity apply))
+          (Flambda_arity.unarize (Apply.return_arity apply))
       in
       let call_return_continuation, call_return_continuation_free_names =
         match Apply.continuation apply with

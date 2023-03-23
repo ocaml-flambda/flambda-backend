@@ -360,7 +360,7 @@ let add_exn_handler env k arity =
   let env =
     { env with exn_handlers = Continuation.Set.add k env.exn_handlers }
   in
-  match Flambda_arity.unarize_flat arity with
+  match Flambda_arity.unarize arity with
   | [] -> Misc.fatal_error "Exception handlers must have at least one parameter"
   | [_] -> env, []
   | _ :: extra_args ->

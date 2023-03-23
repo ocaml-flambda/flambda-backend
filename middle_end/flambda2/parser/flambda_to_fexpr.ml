@@ -452,13 +452,13 @@ let kind_with_subkind_opt (k : Flambda_kind.With_subkind.t) :
   if is_default_kind_with_subkind k then None else Some (k |> kind_with_subkind)
 
 let is_default_arity (a : Flambda_arity.t) =
-  match Flambda_arity.unarize_flat a with
+  match Flambda_arity.unarize a with
   | [k] -> is_default_kind_with_subkind k
   | _ -> false
 
 let arity (a : Flambda_arity.t) : Fexpr.arity =
   (* CR mshinwell: add unboxed arities to Fexpr *)
-  Flambda_arity.unarize_flat a |> List.map kind_with_subkind
+  Flambda_arity.unarize a |> List.map kind_with_subkind
 
 let arity_opt (a : Flambda_arity.t) : Fexpr.arity option =
   if is_default_arity a then None else Some (arity a)

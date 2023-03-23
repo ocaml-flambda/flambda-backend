@@ -1979,7 +1979,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       (fun n kind_with_subkind ->
         ( Ident.create_local ("param" ^ string_of_int (num_provided + n)),
           kind_with_subkind ))
-      (Flambda_arity.unarize_flat missing_arity)
+      (Flambda_arity.unarize missing_arity)
   in
   let return_continuation = Continuation.create ~sort:Return () in
   let exn_continuation =
@@ -2122,7 +2122,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         List.mapi
           (fun i kind ->
             BP.create (Variable.create ("result" ^ string_of_int i)) kind)
-          (Flambda_arity.unarize_flat apply.return_arity)
+          (Flambda_arity.unarize apply.return_arity)
       in
       let handler acc =
         let acc, call_return_continuation =
@@ -2205,7 +2205,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
     let acc, args_with_arities = find_simples_and_arity acc env apply.args in
     let args_arity = List.map snd args_with_arities in
     let split_args =
-      let arity = Flambda_arity.unarize_flat arity in
+      let arity = Flambda_arity.unarize arity in
       let split args arity =
         let rec cut n l =
           if n <= 0

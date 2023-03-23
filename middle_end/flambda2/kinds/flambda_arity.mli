@@ -33,7 +33,10 @@ type t
 module Component_for_creation : sig
   type t =
     | Singleton of Flambda_kind.With_subkind.t
-      (* The nullary unboxed product is called "void". *)
+      (* The nullary unboxed product is called "void". It is important to
+         propagate information about void layouts, even though the corresponding
+         variables have no runtime representation, as they interact with
+         currying. *)
     | Unboxed_product of t list
 
   val from_lambda : Lambda.layout -> t
@@ -66,15 +69,9 @@ module Component : sig
     | Unboxed_product of t list
 end
 
-val to_list_not_unarized : t -> Component.t list
+(** Converts, in a left-to-right depth-first order, an arity into a flattened
+    list of kinds for all parameters. *)
+val unarize : t -> Flambda_kind.With_subkind.t list
 
-(** Convert, in a left-to-right depth-first order, an arity into a flattened
-    list of kinds for each parameter. *)
-val unarize : t -> Flambda_kind.With_subkind.t list list
-
-(** Like [unarize] but only returns a single list, not one list per
-    parameter. *)
-val unarize_flat : t -> Flambda_kind.With_subkind.t list
-
-(** The length of the list returned by [unarize_flat]. *)
+(** The length of the list returned by [unarize]. *)
 val cardinal_unarized : t -> int
