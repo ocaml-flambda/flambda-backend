@@ -539,6 +539,8 @@ type primitive_transform_result =
   | Transformed of L.lambda
   | Unboxed_binding of
       (Ident.t * Flambda_kind.With_subkind.t) option list * Env.t
+      (** [Unboxed_binding] enables a subset of the unboxed values arriving from
+          the defining expression to be bound. *)
 
 let must_be_singleton_simple simples =
   match simples with
