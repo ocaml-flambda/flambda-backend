@@ -114,9 +114,9 @@ let reset () = initialise ()
 
 let create ?sort ?name () : t =
   let sort = Option.value sort ~default:Sort.Normal_or_exn in
-  let name_stamp = next_stamp () in
-  let name = Option.value name ~default:(Format.asprintf "k_%d" name_stamp) in
+  let name = Option.value name ~default:"k" in
   let compilation_unit = Compilation_unit.get_current_exn () in
+  let name_stamp = next_stamp () in
   let data : Data.t = { compilation_unit; name; name_stamp; sort } in
   Table.add !grand_table_of_continuations data
 
