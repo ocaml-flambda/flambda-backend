@@ -867,7 +867,7 @@ let transform_primitive env id (prim : L.primitive) args loc =
       cut_list_down_to_projected_fields ids_all_fields_with_kinds
     in
     let env =
-      if List.compare_length_with ids_projected_fields 1 > 0
+      if num_projected_fields > 1
       then
         (* If the field being projected is an unboxed product, we must ensure
            any occurrences of [id] get expanded to the individual fields, just
@@ -888,13 +888,18 @@ let transform_primitive env id (prim : L.primitive) args loc =
         (fun cur_field (field, kind) ->
           if cur_field < num_fields_prior_to_projected_fields
              || cur_field
-                >= num_fields_prior_to_projected_fields
-                   + List.length ids_projected_fields
+                >= num_fields_prior_to_projected_fields + num_projected_fields
           then None
           else
             match ids_projected_fields with
-            | [(_, kind)] -> Some (id, kind)
-            | [] | _ :: _ -> Some (field, kind))
+            | [(_, kind)] ->
+              (* If no splitting is occurring, we must cause [id] to be bound,
+                 being the original bound variable from the enclosing [Llet]. *)
+              Some (id, kind)
+            | [] | _ :: _ ->
+              (* In all other cases we cause one of the variables representing
+                 the individual fields of the unboxed product to be bound. *)
+              Some (field, kind))
         ids_all_fields_with_kinds
     in
     Unboxed_binding (field_mask, env)
