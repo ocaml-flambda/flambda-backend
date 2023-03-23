@@ -1301,6 +1301,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
   end
   | Pvalue kind ->
       transl_let_value env str kind id exp transl_body
+  | Punboxed_product _ -> Misc.fatal_error "TBD"
 
 and make_catch (kind : Cmm.value_kind) ncatch body handler dbg = match body with
 | Cexit (nexit,[]) when nexit=ncatch -> handler
