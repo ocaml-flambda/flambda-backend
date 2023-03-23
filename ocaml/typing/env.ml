@@ -690,7 +690,6 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
-  | Parameter_interface_unavailable of Location.t * Compilation_unit.Name.t
 
 exception Error of error
 
@@ -917,7 +916,8 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
 let persistent_env : module_data Persistent_env.t ref =
   s_table Persistent_env.empty ()
 
-let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
+let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ }
+      ~local_ident =
   let name = cmi.cmi_name in
   let sign = cmi.cmi_sign in
   let flags = cmi.cmi_flags in
@@ -936,15 +936,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     }
   in
   let addr =
-    (* CR lmaurer: This is fairly putrid: we're relying on the _exact_ place in
-       [Persistent_env] where this function is invoked, namely _after_ the local
-       binding has been assigned (by [read_as_parameter] calling
-       [add_parameter]). It's not easy to see how to avoid this, however, given
-       the complex interaction between this function and
-       [Persistent_env.acknowledge_pers_struct]. *)
-    match
-      Persistent_env.local_ident !persistent_env name
-    with
+    match local_ident with
     | Some id -> Alocal id
     | None -> Aunit name
   in
@@ -983,17 +975,15 @@ let without_cmis f x =
 
 let imports () = Persistent_env.imports !persistent_env
 
-
-let parameters () = Persistent_env.parameters !persistent_env
-
 let import_crcs ~source crcs =
   Persistent_env.import_crcs !persistent_env ~source crcs
 
+let locally_bound_imports () = Persistent_env.locally_bound_imports !persistent_env
+
+let exported_parameters () = Persistent_env.exported_parameters !persistent_env
+
 let read_pers_mod modname filename =
   Persistent_env.read !persistent_env read_sign_of_cmi modname filename
-
-let read_pers_mod_as_parameter modname =
-  Persistent_env.read_as_parameter !persistent_env read_sign_of_cmi modname
 
 let find_pers_mod name =
   Persistent_env.find !persistent_env read_sign_of_cmi name
@@ -2630,21 +2620,17 @@ let open_signature
   else open_signature None root env
 
 (* Read a signature from a file *)
-let read_signature modname filename ~allow_param =
+let read_signature modname filename =
   let mda =
-    read_pers_mod (Compilation_unit.name modname) filename ~allow_param
+    read_pers_mod (Compilation_unit.name modname) filename
   in
   let md = Subst.Lazy.force_module_decl mda.mda_declaration in
   match md.md_type with
   | Mty_signature sg -> sg
   | Mty_ident _ | Mty_functor _ | Mty_alias _ -> assert false
 
-let read_as_parameter loc modname =
-  match read_pers_mod_as_parameter modname with
-    Some Persistent_env.Persistent_signature.{ cmi } ->
-      Mty_signature cmi.Cmi_format.cmi_sign
-  | None ->
-      raise (Error(Parameter_interface_unavailable (loc, modname)))
+let register_parameter modname ~exported =
+  Persistent_env.register_parameter !persistent_env modname ~exported
 
 let is_identchar_latin1 = function
   | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'
@@ -2678,8 +2664,12 @@ let save_signature_with_transform cmi_transform ~alerts sg modname filename =
   let cmi =
     Persistent_env.make_cmi !persistent_env modname sg alerts
     |> cmi_transform in
+  let local_ident =
+    (* CR lmaurer: Sure hope this isn't necessary *)
+    None
+  in
   let pm = save_sign_of_cmi
-      { Persistent_env.Persistent_signature.cmi; filename } in
+      { Persistent_env.Persistent_signature.cmi; filename } ~local_ident in
   Persistent_env.save_cmi !persistent_env
     { Persistent_env.Persistent_signature.filename; cmi } pm;
   cmi
@@ -3822,9 +3812,6 @@ let report_error ppf = function
       fprintf ppf "'%s' is not a valid value identifier."
         name
   | Lookup_error(loc, t, err) -> report_lookup_error loc t ppf err
-  | Parameter_interface_unavailable (_loc, name) ->
-      fprintf ppf "No compiled interface found for this unit parameter %a"
-        Compilation_unit.Name.print name
 
 let () =
   Location.register_error_of_exn
@@ -3834,8 +3821,7 @@ let () =
             match err with
             | Missing_module (loc, _, _)
             | Illegal_value_name (loc, _)
-            | Lookup_error(loc, _, _)
-            | Parameter_interface_unavailable (loc, _) -> loc
+            | Lookup_error(loc, _, _) -> loc
           in
           let error_of_printer =
             if loc = Location.none

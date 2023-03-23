@@ -34,9 +34,12 @@ type error =
       filepath * CU.t * CU.t
   | Direct_reference_from_wrong_package of
       CU.t * filepath * CU.Prefix.t
-  | Illegal_import_of_parameter of CU.Name.t * filepath
-  | Not_compiled_as_parameter of CU.Name.t * filepath
-  | Imported_module_has_unset_parameter of CU.t * CU.Name.t
+  | Illegal_import_of_parameter of CU.t * filepath
+  | Not_compiled_as_parameter of CU.t * filepath
+  | Imported_module_has_unset_parameter of
+      { imported : CU.t;
+        parameter : CU.t;
+      }
 
 exception Error of error
 let error err = raise (Error err)
@@ -60,6 +63,7 @@ type can_load_cmis =
 type pers_struct = {
   ps_name: CU.t;
   ps_is_param: bool;
+  ps_local_ident: Ident.t option;
   ps_crcs: Import_info.t array;
   ps_filename: string;
   ps_flags: pers_flags list;
@@ -72,21 +76,21 @@ type 'a pers_struct_info =
   | Found of pers_struct * 'a
 
 type param_info = {
-  (* The local identifier that represents the parameter in code. Note that the
-     typing world will use a persistent identifier instead, since for types we
-     pretend the parameter is a global. *)
-  pi_local_ident: Ident.t;
+  (* Whether this parameter is visible to other compilation units. Always true
+     in normal compilation runs, since only special [-instantiate] operations
+     bind parameters internally. *)
+  pi_exported: bool;
 }
 
-module Param_map = CU.Name.Map
+module Param_map = CU.Map
+
 
 type 'a t = {
   persistent_structures :
     (CU.Name.t, 'a pers_struct_info) Hashtbl.t;
   imported_units: CU.Name.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
-  params: param_info Param_map.t ref;
-  params_in_order: CU.Name.t list ref;
+  registered_params: param_info Param_map.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -95,8 +99,7 @@ let empty () = {
   persistent_structures = Hashtbl.create 17;
   imported_units = ref CU.Name.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
-  params = ref Param_map.empty;
-  params_in_order = ref [];
+  registered_params = ref Param_map.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -106,16 +109,14 @@ let clear penv =
     persistent_structures;
     imported_units;
     imported_opaque_units;
-    params;
-    params_in_order;
+    registered_params;
     crc_units;
     can_load_cmis;
   } = penv in
   Hashtbl.clear persistent_structures;
   imported_units := CU.Name.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
-  params := Param_map.empty;
-  params_in_order := [];
+  registered_params := Param_map.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -134,17 +135,18 @@ let add_import {imported_units; _} s =
 let register_import_as_opaque {imported_opaque_units; _} s =
   imported_opaque_units := CU.Name.Set.add s !imported_opaque_units
 
-let add_parameter {params; params_in_order; _} modname =
-  let pi_local_ident = Ident.create_local (CU.Name.to_string modname) in
-  let info = { pi_local_ident } in
-  params := Param_map.add modname info !params;
-  params_in_order := !params_in_order @ [ modname ]
+let register_parameter {registered_params; _} modname ~exported =
+  let info = { pi_exported = exported } in
+  registered_params := Param_map.add modname info !registered_params
 
-let find_in_cache {persistent_structures; _} s =
+let find_info_in_cache {persistent_structures; _} s =
   match Hashtbl.find persistent_structures s with
   | exception Not_found -> None
   | Missing -> None
-  | Found (_ps, pm) -> Some pm
+  | Found (ps, pm) -> Some (ps, pm)
+
+let find_in_cache penv s =
+  find_info_in_cache penv s |> Option.map (fun (_ps, pm) -> pm)
 
 let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
@@ -172,16 +174,22 @@ let check_consistency penv ps =
     else error (Inconsistent_package_declaration_between_imports(
         ps.ps_filename, auth_unit, source_unit))
 
-let is_known_parameter {params; _} name =
-  Param_map.mem name !params
+let is_registered_parameter {registered_params; _} name =
+  Param_map.mem name !registered_params
+
+let is_unexported_parameter {registered_params; _} name =
+  match Param_map.find_opt name !registered_params with
+  | Some { pi_exported } -> not pi_exported
+  | None -> false
 
 (* Enforce the "subset rule": if A refers to B, then B's parameters must be
    included in A's parameters. *)
 let check_parameters penv modname params =
   List.iter
     (fun param ->
-       if not (is_known_parameter penv param)
-       then error (Imported_module_has_unset_parameter(modname, param)))
+       if not (is_registered_parameter penv param)
+       then error (Imported_module_has_unset_parameter
+                     { imported = modname; parameter = param }))
     params
 
 let can_load_cmis penv =
@@ -221,17 +229,78 @@ let save_pers_struct penv crc ps pm =
   Consistbl.set crc_units modname ps.ps_name crc ps.ps_filename;
   add_import penv modname
 
+let current_unit_is_instance_of _ =
+  (* Placeholder *)
+  false
+
+let need_local_ident psig ~instance_args =
+  (* There are three equivalent ways to phrase the question we're asking here:
+
+     1. Is this either a parameter or an open import?
+     2. Will the generated lambda code need a parameter to take this module's
+          value?
+     3. Is the value not statically bound?
+
+     Crucially, all modules (besides the one being compiled or instantiated)
+     must be either statically bound or toplevel parameters, since the actual
+     functor calls that instantiate open modules happen elsewhere (so that they
+     can happen exactly once). *)
+  let { Persistent_signature.cmi =
+          { cmi_name = name;
+            cmi_is_param = is_param;
+            cmi_params = params; _ }; _ } =
+    psig
+  in
+  match params, instance_args with
+  | _, _ when is_param ->
+    (* Already a parameter *)
+    true
+  | [], _ ->
+    (* Not a parameter and also not parameterised *)
+    false
+  | _, _ when CU.is_current name ->
+    (* Not actually importing it in the sense of needing its value (we're
+       building its value!) *)
+    false
+  | _, _ when current_unit_is_instance_of name ->
+    (* We're instantiating the module, so (here and only here!) we're accessing
+       its actual functor, which is a compile-time constant *)
+    (* CR lmaurer: Relying on [current_unit_is_instance_of] here feels hacky
+       when only a pretty specific call sequence gets here. *)
+    false
+  | _::_, [] ->
+    (* It needs arguments and we're not providing it any *)
+    true
+  | _, _ when List.compare_lengths params instance_args > 0 ->
+    (* Partial application *)
+    true
+  | _, _ ->
+    (* Fully applied *)
+    (* CR lmaurer: Not quite right! Some of the arguments may have parameters in
+       them, meaning they're not actually statically determined after all *)
+    false
+
+let make_local_ident_if_needed (psig : Persistent_signature.t) =
+  (* [instance_args] is not currently used *)
+  if need_local_ident psig ~instance_args:[] then
+    Some (Ident.create_local (CU.full_path_as_string psig.cmi.cmi_name))
+  else
+    None
+
+type 'a sig_reader = Persistent_signature.t -> local_ident:Ident.t option -> 'a
 
 let acknowledge_pers_struct
-      penv ~check modname pers_sig val_of_pers_sig ~allow_param =
+      penv ~check modname pers_sig (val_of_pers_sig : _ sig_reader) =
   let { Persistent_signature.filename; cmi } = pers_sig in
   let name = cmi.cmi_name in
   let is_param = cmi.cmi_is_param in
   let params = cmi.cmi_params in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
+  let local_ident = make_local_ident_if_needed pers_sig in
   let ps = { ps_name = name;
              ps_is_param = is_param;
+             ps_local_ident = local_ident;
              ps_crcs = crcs;
              ps_filename = filename;
              ps_flags = flags;
@@ -250,10 +319,6 @@ let acknowledge_pers_struct
         | Alerts _ -> ()
         | Opaque -> register_import_as_opaque penv modname)
     ps.ps_flags;
-  if is_param then begin
-    if not allow_param || CU.is_packed ps.ps_name then
-      error (Illegal_import_of_parameter(modname, filename))
-  end;
   if check then check_consistency penv ps;
   begin match CU.get_current () with
   | Some current_unit ->
@@ -265,20 +330,27 @@ let acknowledge_pers_struct
         error (Direct_reference_from_wrong_package (name, filename, prefix));
   | None -> ()
   end;
+  begin match is_param, is_registered_parameter penv name with
+  | true, false ->
+      error (Not_compiled_as_parameter(name, filename))
+  | false, true ->
+      error (Illegal_import_of_parameter(name, filename))
+  | true, true
+  | false, false -> ()
+  end;
   check_parameters penv ps.ps_name params;
   let {persistent_structures; _} = penv in
-  let pm = val_of_pers_sig pers_sig in
+  let pm = val_of_pers_sig pers_sig ~local_ident in
   Hashtbl.add persistent_structures modname (Found (ps, pm));
   (ps, pm)
 
-let read_pers_struct penv val_of_pers_sig ~check modname filename ~allow_param =
+let read_pers_struct penv val_of_pers_sig ~check modname filename =
   add_import penv modname;
   let cmi = read_cmi filename in
   let pers_sig = { Persistent_signature.filename; cmi } in
   acknowledge_pers_struct penv ~check modname pers_sig val_of_pers_sig
-    ~allow_param
 
-let find_pers_struct penv val_of_pers_sig ~check name ~allow_unknown_param =
+let find_pers_struct penv val_of_pers_sig ~check name =
   let {persistent_structures; _} = penv in
   if CU.Name.equal name CU.Name.predef_exn then raise Not_found;
   match Hashtbl.find persistent_structures name with
@@ -297,7 +369,6 @@ let find_pers_struct penv val_of_pers_sig ~check name ~allow_unknown_param =
         in
         add_import penv name;
         acknowledge_pers_struct penv ~check name psig val_of_pers_sig
-          ~allow_param:allow_unknown_param
 
 let describe_prefix ppf prefix =
   if CU.Prefix.is_empty prefix then
@@ -309,7 +380,7 @@ let describe_prefix ppf prefix =
 let check_pers_struct penv f ~loc name =
   let name_as_string = CU.Name.to_string name in
   try
-    ignore (find_pers_struct penv f ~check:false name ~allow_unknown_param:true)
+    ignore (find_pers_struct penv f ~check:false name)
   with
   | Not_found ->
       let warn = Warnings.No_cmi_file(name_as_string, None) in
@@ -351,11 +422,11 @@ let check_pers_struct penv f ~loc name =
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
 
-let read penv f modname filename ~allow_param =
-  snd (read_pers_struct penv f ~check:true modname filename ~allow_param)
+let read penv f modname filename =
+  snd (read_pers_struct penv f ~check:true modname filename)
 
 let find penv f name =
-  snd (find_pers_struct penv f ~check:true name ~allow_unknown_param:false)
+  snd (find_pers_struct penv f ~check:true name)
 
 let check penv f ~loc name =
   let {persistent_structures; _} = penv in
@@ -368,21 +439,6 @@ let check penv f ~loc name =
       !add_delayed_check_forward
         (fun () -> check_pers_struct penv f ~loc name)
   end
-
-let read_as_parameter penv val_of_pers_sig modname =
-  match !Persistent_signature.load ~unit_name:modname with
-    Some psig ->
-      (* Grossly, we have to do this part _first_ so that [Env] will end see
-         the right binding when we call [val_of_pers_sig] *)
-      add_parameter penv modname;
-      let ps, _ =
-        acknowledge_pers_struct penv ~check:true modname psig val_of_pers_sig
-          ~allow_param:true
-      in
-      if not ps.ps_is_param then
-        error (Not_compiled_as_parameter(modname, psig.filename));
-      Some psig
-  | None -> None
 
 (* CR mshinwell: delete this having moved to 4.14 build compilers *)
 module Array = struct
@@ -402,9 +458,7 @@ module Array = struct
 end
 
 let crc_of_unit penv f name =
-  let (ps, _pm) =
-    find_pers_struct penv f ~check:true name ~allow_unknown_param:true
-  in
+  let (ps, _pm) = find_pers_struct penv f ~check:true name in
   match Array.find_opt (Import_info.has_name ~name) ps.ps_crcs with
   | None -> assert false
   | Some import_info ->
@@ -421,12 +475,25 @@ let imports {imported_units; crc_units; _} =
       Import_info.create cu_name ~crc_with_unit)
     imports
 
-let parameters {params; params_in_order; _} =
-  List.map
-    (fun param ->
-      let { pi_local_ident } = Param_map.find param !params in
-      param, pi_local_ident)
-  !params_in_order
+let locally_bound_imports ({persistent_structures; _} as penv) =
+  persistent_structures
+  |> Hashtbl.to_seq_keys
+  |> Seq.filter_map
+       (fun name ->
+          let cu = CU.create CU.Prefix.empty name in
+          if is_unexported_parameter penv cu then None
+          else
+            match find_info_in_cache penv name with
+              | Some ({ ps_local_ident = Some local_ident; _ }, _) ->
+                  Some (cu, local_ident)
+              | Some ({ ps_local_ident = None; _ }, _)
+              | None -> None)
+  |> List.of_seq
+
+let exported_parameters {registered_params; _} =
+  Param_map.bindings !registered_params
+  |> List.filter_map
+       (fun (param, { pi_exported }) -> if pi_exported then Some param else None)
 
 let looked_up {persistent_structures; _} modname =
   Hashtbl.mem persistent_structures modname
@@ -440,9 +507,16 @@ let is_parameter_unit {persistent_structures; _} s =
   | Missing -> false
   | Found (ps, _) -> ps.ps_is_param
 
-let local_ident {params; _} modname =
-  Param_map.find_opt (CU.name modname) !params
-  |> Option.map (fun info -> info.pi_local_ident)
+let find_info_in_cache_non_packed penv modname =
+  if CU.is_packed modname then None
+  else
+    let name = CU.name modname in
+    find_info_in_cache penv name
+
+let local_ident penv modname =
+  match find_info_in_cache_non_packed penv modname with
+  | Some ({ ps_local_ident; _ }, _) -> ps_local_ident
+  | None -> None
 
 let make_cmi penv modname sign alerts =
   let flags =
@@ -456,7 +530,7 @@ let make_cmi penv modname sign alerts =
   let is_param = !Clflags.as_parameter in
   let params =
     (* Needs to be consistent with [Translmod] *)
-    parameters penv |> List.map (fun (param, _info) -> param)
+    exported_parameters penv
   in
   let crcs = imports penv in
   {
@@ -485,9 +559,16 @@ let save_cmi penv psig pm =
           (fun temp_filename oc -> output_cmi temp_filename oc cmi) in
       (* Enter signature in persistent table so that imports()
          will also return its crc *)
+      let local_ident =
+        (* CR lmaurer: I don't love this. We're counting on the fact that the
+           only module we're likely to save is the one we're compiling, which
+           of course can't be locally bound, but that's a hidden invariant. *)
+        None
+      in
       let ps =
         { ps_name = modname;
           ps_is_param = is_param;
+          ps_local_ident = local_ident;
           ps_crcs =
             Array.append
               [| Import_info.create_normal cmi.cmi_name ~crc:(Some crc) |]
@@ -547,23 +628,24 @@ let report_error ppf =
         "@[<hov>The file %a@ contains the an interface of a parameter.@ \
          %a is not declared as a parameter for the current unit (-parameter %a).@]"
         Location.print_filename filename
-        Compilation_unit.Name.print modname
-        Compilation_unit.Name.print modname
+        Compilation_unit.print modname
+        Compilation_unit.print modname
   | Not_compiled_as_parameter(modname, filename) ->
       fprintf ppf
         "@[<hov>The module %a@ is specified as a parameter, but %a@ \
          was not compiled with -as-parameter.@]"
-        Compilation_unit.Name.print modname
+        Compilation_unit.print modname
         Location.print_filename filename
-  | Imported_module_has_unset_parameter(modname, param) ->
+  | Imported_module_has_unset_parameter
+        { imported = modname; parameter = param } ->
       fprintf ppf
         "@[<hov>The module %a@ has parameter %a.@ \
          %a is not declared as a parameter for the current unit (-parameter %a)@ \
          and therefore %a@ is not accessible.@]"
         CU.print modname
-        CU.Name.print param
-        CU.Name.print param
-        CU.Name.print param
+        CU.print param
+        CU.print param
+        CU.print param
         CU.print modname
 
 let () =

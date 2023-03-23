@@ -30,9 +30,12 @@ type error =
       filepath * Compilation_unit.t * Compilation_unit.t
   | Direct_reference_from_wrong_package of
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
-  | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
-  | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
-  | Imported_module_has_unset_parameter of Compilation_unit.t * Compilation_unit.Name.t
+  | Illegal_import_of_parameter of Compilation_unit.t * filepath
+  | Not_compiled_as_parameter of Compilation_unit.t * filepath
+  | Imported_module_has_unset_parameter of
+      { imported : Compilation_unit.t;
+        parameter : Compilation_unit.t;
+      }
 
 exception Error of error
 
@@ -62,23 +65,22 @@ val clear_missing : 'a t -> unit
 
 val fold : 'a t -> (Compilation_unit.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
-val read : 'a t -> (Persistent_signature.t -> 'a)
-  -> Compilation_unit.Name.t -> filepath -> allow_param:bool -> 'a
-val find : 'a t -> (Persistent_signature.t -> 'a)
-  -> Compilation_unit.Name.t -> 'a
+type 'a sig_reader = Persistent_signature.t -> local_ident:Ident.t option -> 'a
+
+val read : 'a t -> 'a sig_reader -> Compilation_unit.Name.t -> filepath -> 'a
+val find : 'a t -> 'a sig_reader -> Compilation_unit.Name.t -> 'a
 
 val find_in_cache : 'a t -> Compilation_unit.Name.t -> 'a option
 
-val check : 'a t -> (Persistent_signature.t -> 'a)
-  -> loc:Location.t -> Compilation_unit.Name.t -> unit
+val check : 'a t -> 'a sig_reader -> loc:Location.t -> Compilation_unit.Name.t
+  -> unit
 
-(* Similar to [read], but does not consider the module as imported and
-   remembers it as a parameter, assigning a local identifier. [exported]
-   controls whether the parameter is exposed to other modules (usually true
-   unless [-instantiate] is happening). *)
-val read_as_parameter :
-  'a t -> (Persistent_signature.t -> 'a) -> Compilation_unit.Name.t
-  -> Persistent_signature.t option
+(* Lets it be known that the given module is a parameter and thus is expected
+   to have been compiled as such. [exported] controls whether the parameter is
+   visible as a parameter to _this_ module, which is only false if we have an
+   unusual reason to refer to the parameter (such as -instantiate or
+   -as-argument-for). *)
+val register_parameter : 'a t -> Compilation_unit.t -> exported:bool -> unit
 
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
@@ -97,9 +99,10 @@ val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
    was compiled as a parameter *)
 val is_parameter_unit : 'a t -> Compilation_unit.Name.t -> bool
 
-(* [local_ident penv md] returns the local identifier generated for [md] if [md]
-   is a parameter. This is used strictly for code generation - types should
-   always use persistent [Ident.t]s. *)
+(* [local_ident penv md] returns the local identifier generated for [md] if
+   [md] is either a parameter or a dependency with a parameter. This is used
+   strictly for code generation - types should always use persistent
+   [Ident.t]s. *)
 val local_ident : 'a t -> Compilation_unit.t -> Ident.t option
 
 val make_cmi : 'a t -> Compilation_unit.t -> Types.signature -> alerts
@@ -120,11 +123,16 @@ val import_crcs : 'a t -> source:filepath ->
 (* Return the set of compilation units imported, with their CRC *)
 val imports : 'a t -> Import_info.t list
 
-val parameters : 'a t -> (Compilation_unit.Name.t * Ident.t) list
+(* Return the list of imported compilation units (including parameters) that
+   must be bound as parameters in a toplevel functor *)
+val locally_bound_imports : 'a t -> (Compilation_unit.t * Ident.t) list
+
+(* Return the list of parameters registered to be exported from the current
+   unit, in alphabetical order *)
+val exported_parameters : 'a t -> Compilation_unit.t list
 
 (* Return the CRC of the interface of the given compilation unit *)
-val crc_of_unit: 'a t -> (Persistent_signature.t -> 'a)
-  -> Compilation_unit.Name.t -> Digest.t
+val crc_of_unit: 'a t -> 'a sig_reader -> Compilation_unit.Name.t -> Digest.t
 
 (* Forward declaration to break mutual recursion with Typecore. *)
 val add_delayed_check_forward: ((unit -> unit) -> unit) ref

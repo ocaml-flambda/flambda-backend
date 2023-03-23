@@ -86,6 +86,7 @@ type error =
   | With_cannot_remove_packed_modtype of Path.t * module_type
   | Cannot_implement_parameter of filepath
   | Cannot_pack_parameter of filepath
+  | Cannot_compile_implementation_as_parameter
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3120,11 +3121,11 @@ let () =
 
 (* File-level details *)
 
-let type_params loc params =
+let type_params params ~exported =
   List.iter
     (fun param_name ->
-       let param = param_name |> Compilation_unit.Name.of_string in
-       ignore (Env.read_as_parameter loc param : Types.module_type)
+       let param = param_name |> Compilation_unit.of_string in
+       Env.register_parameter param ~exported
     )
     params
 
@@ -3136,6 +3137,9 @@ let gen_annot outputprefix sourcefile annots =
     ~sourcefile:(Some sourcefile) ~use_summaries:false annots
 
 let type_implementation sourcefile outputprefix modulename initial_env ast =
+  let error e =
+    raise (Error (Location.in_file sourcefile, initial_env, e))
+  in
   Cmt_format.clear ();
   Misc.try_finally (fun () ->
       Typecore.reset_delayed_checks ();
@@ -3144,7 +3148,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       Env.reset_probes ();
       if !Clflags.print_types then (* #7656 *)
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
-      type_params (Location.in_file sourcefile) !Clflags.parameters;
+      type_params !Clflags.parameters ~exported:true;
       let (str, sg, names, shape, finalenv) =
         type_structure initial_env ast in
       let shape =
@@ -3168,6 +3172,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           signature = simple_sg
         } (* result is ignored by Compile.implementation *)
       end else begin
+        if !Clflags.as_parameter then
+          error Cannot_compile_implementation_as_parameter;
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
         if Sys.file_exists sourceintf then begin
@@ -3178,15 +3184,9 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             with Not_found ->
               raise(Error(Location.in_file sourcefile, Env.empty,
                           Interface_not_compiled sourceintf)) in
-          let dclsig =
-            (* Allow it to be a parameter so we can give our own error
-               message *)
-            Env.read_signature modulename intf_file ~allow_param:true
-          in
-          if Env.is_parameter_unit (Compilation_unit.name modulename)
-          || !Clflags.as_parameter then
-            raise (Error (Location.in_file sourcefile, initial_env,
-                          Cannot_implement_parameter intf_file));
+          let dclsig = Env.read_signature modulename intf_file in
+          if Env.is_parameter_unit (Compilation_unit.name modulename) then
+            error (Cannot_implement_parameter intf_file);
           let coercion, shape =
             Includemod.compunit initial_env ~mark:Mark_positive
               sourcefile sg intf_file dclsig shape
@@ -3208,8 +3208,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           }
         end else begin
           if !Clflags.as_parameter then
-            raise (Error (Location.in_file sourcefile, initial_env,
-                          Cannot_implement_parameter sourcefile));
+            error Cannot_compile_implementation_as_parameter;
           Location.prerr_warning (Location.in_file sourcefile)
             Warnings.Missing_mli;
           let coercion, shape =
@@ -3259,7 +3258,7 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi) None
 
 let type_interface env ast =
-  type_params Location.none !Clflags.parameters;
+  type_params !Clflags.parameters ~exported:true;
   transl_signature env ast
 
 (* "Packaging" of several compilation units into one unit
@@ -3309,14 +3308,13 @@ let package_units initial_env objfiles cmifile modulename =
            |> Compilation_unit.Name.of_string
          in
          let modname = Compilation_unit.create_child modulename unit in
-         let sg =
-           Env.read_signature modname (pref ^ ".cmi") ~allow_param:false in
+         let sg = Env.read_signature modname (pref ^ ".cmi") in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
          Compilation_unit.name modname,
-         Env.read_signature modname (pref ^ ".cmi") ~allow_param:false)
+         Env.read_signature modname (pref ^ ".cmi"))
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
@@ -3339,7 +3337,7 @@ let package_units initial_env objfiles cmifile modulename =
       raise(Error(Location.in_file mlifile, Env.empty,
                   Interface_not_compiled mlifile))
     end;
-    let dclsig = Env.read_signature modulename cmifile ~allow_param:false in
+    let dclsig = Env.read_signature modulename cmifile in
     let cc, _shape =
       Includemod.compunit initial_env ~mark:Mark_both
         "(obtained by packing)" sg mlifile dclsig shape
@@ -3543,14 +3541,17 @@ let report_error ~loc _env = function
         (Path.name p)
   | Cannot_implement_parameter path ->
       Location.errorf ~loc
-        "@[Interface %s@ found for this unit is flagged as a functor.@ \
-         It cannot be implemented.@]"
+        "@[Interface %s@ found for this unit is flagged as a parameter.@ \
+         It cannot be implemented directly. Use -as-argument-for instead.@]"
         path
   | Cannot_pack_parameter path ->
       Location.errorf ~loc
         "@[Interface %s@ found for this unit is flagged as a parameter.@ \
          It cannot be packed into a module.@]"
         path
+  | Cannot_compile_implementation_as_parameter ->
+      Location.errorf ~loc
+        "Cannot compile an implementation with -as-parameter."
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env

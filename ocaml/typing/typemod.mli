@@ -145,6 +145,7 @@ type error =
   | With_cannot_remove_packed_modtype of Path.t * module_type
   | Cannot_implement_parameter of Misc.filepath
   | Cannot_pack_parameter of Misc.filepath
+  | Cannot_compile_implementation_as_parameter
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

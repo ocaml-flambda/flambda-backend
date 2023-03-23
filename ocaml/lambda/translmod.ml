@@ -908,9 +908,8 @@ let required_globals ~flambda body =
   Translprim.clear_used_primitives ();
   required
 
-let add_parameters lam ~params =
-  let param_of (_, id) = id, Pvalue Pgenval in
-  let params = List.map param_of params in
+let add_parameters lam params =
+  let params = List.map (fun (_, id) -> id, Pvalue Pgenval) params in
   let inline =
     (* We want to inline the functor so that [-subst] compiles away the function
        call and actually substitutes. *)
@@ -924,16 +923,16 @@ let add_parameters lam ~params =
     ~region:true
 
 let transl_implementation_module
-      ~scopes ~params module_id (str, cc) =
+      ~scopes ~runtime_params module_id (str, cc) =
   let path = global_path module_id in
   let lam, size =
     transl_struct ~scopes Loc_unknown [] cc path str
   in
-  match params with
+  match runtime_params with
     [] ->
       lam, size
   | _ ->
-      add_parameters lam ~params, 1
+      add_parameters lam runtime_params, 1
 
 let wrap_toplevel_functor_in_struct code =
   Lprim(Pmakeblock(0, Immutable, None, Lambda.alloc_heap),
@@ -964,13 +963,14 @@ let transl_implementation_plain_block compilation_unit (str, cc) =
   Translcore.clear_probe_handlers ();
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
   let body, size =
+    let runtime_params = Env.locally_bound_imports () in
     Translobj.transl_label_init (fun () ->
-      let params = Env.parameters () in
       let body, size =
-        transl_implementation_module ~scopes ~params compilation_unit (str, cc)
+        transl_implementation_module ~scopes ~runtime_params
+          compilation_unit (str, cc)
       in
       let body, size =
-        match params with
+        match runtime_params with
         | [] ->
             body, size
         | _ :: _ ->
@@ -1568,9 +1568,9 @@ let transl_store_structure_gen
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
 let transl_store_implementation_as_functor
-      ~scopes ~params module_id (str, cc) =
+      ~scopes ~runtime_params module_id (str, cc) =
   let code, i =
-    transl_implementation_module ~scopes ~params module_id (str, cc)
+    transl_implementation_module ~scopes ~runtime_params module_id (str, cc)
   in
   let body_id = Ident.create_local "*unit-body*" in
   i,
@@ -1590,12 +1590,13 @@ let transl_store_phrases module_name str =
 
 let transl_store_gen module_name (str, restr) topl =
   transl_store_gen_init ();
-  let params = Env.parameters () in
-  match params with
+  let runtime_params = Env.locally_bound_imports () in
+  match runtime_params with
     [] ->
       transl_store_structure_gen module_name (str, restr) topl
   | _ :: _ ->
-      transl_store_implementation_as_functor module_name (str, restr) ~params
+      transl_store_implementation_as_functor module_name (str, restr)
+        ~runtime_params
 
 let transl_implementation_set_fields compilation_unit impl =
   let s = !transl_store_subst in

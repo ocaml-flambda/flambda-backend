@@ -39,14 +39,14 @@ type header = {
     header_name : Compilation_unit.t;
     header_sign : signature;
     header_is_param : bool;
-    header_params : Compilation_unit.Name.t list;
+    header_params : Compilation_unit.t list;
 }
 
 type cmi_infos = {
     cmi_name : Compilation_unit.t;
     cmi_sign : signature;
     cmi_is_param : bool;
-    cmi_params : Compilation_unit.Name.t list;
+    cmi_params : Compilation_unit.t list;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }
