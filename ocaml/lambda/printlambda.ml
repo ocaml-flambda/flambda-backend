@@ -77,6 +77,9 @@ let variant_kind print_contents ppf ~consts ~non_consts =
       ))
     non_consts
 
+let unboxed_product_debug () =
+  match Sys.getenv "DEBUG" with exception Not_found -> false | _ -> true
+
 let rec value_kind ppf = function
   | Pgenval -> ()
   | Pintval -> fprintf ppf "[int]"
@@ -86,8 +89,10 @@ let rec value_kind ppf = function
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
+(* CR mshinwell: we need to work out how to fix these printers properly *)
+
 and value_kind' ppf = function
-  | Pgenval -> fprintf ppf "[val]"
+  | Pgenval -> fprintf ppf (if unboxed_product_debug () then "[val]" else "*")
   | Pintval -> fprintf ppf "[int]"
   | Pfloatval -> fprintf ppf "[float]"
   | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
@@ -97,7 +102,8 @@ and value_kind' ppf = function
 
 let rec layout ppf layout_ =
   match layout_ with
-  | Pvalue k -> value_kind' ppf k
+  | Pvalue k ->
+    (if unboxed_product_debug () then value_kind' else value_kind) ppf k
   | Ptop -> fprintf ppf "[top]"
   | Pbottom -> fprintf ppf "[bottom]"
   | Punboxed_float -> fprintf ppf "[unboxed_float]"
