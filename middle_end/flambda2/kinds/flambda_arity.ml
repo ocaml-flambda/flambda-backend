@@ -27,6 +27,8 @@ let compare_ignoring_subkinds t1 t2 =
 
 let equal_ignoring_subkinds t1 t2 = compare_ignoring_subkinds t1 t2 = 0
 
+let equal_exact t1 t2 = List.compare Flambda_kind.With_subkind.compare t1 t2 = 0
+
 let print ppf t =
   match t with
   | [] -> Format.pp_print_string ppf "Nullary"

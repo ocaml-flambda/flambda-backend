@@ -32,3 +32,7 @@ val is_singleton_value : t -> bool
 val print : Format.formatter -> t -> unit
 
 val equal_ignoring_subkinds : t -> t -> bool
+
+(* It's usually a mistake to use this function, but it's needed for
+   [Compare]. *)
+val equal_exact : t -> t -> bool
