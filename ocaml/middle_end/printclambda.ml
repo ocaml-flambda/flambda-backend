@@ -60,6 +60,7 @@ let layout (layout : Lambda.layout) =
   | Punboxed_int Pint32 -> ":unboxed_int32"
   | Punboxed_int Pint64 -> ":unboxed_int64"
   | Punboxed_int Pnativeint -> ":unboxed_nativeint"
+  | Punboxed_product _ -> Misc.fatal_error "TODO"
 
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x
