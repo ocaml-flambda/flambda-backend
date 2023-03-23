@@ -249,7 +249,9 @@ let base_templ () : Cfg_desc.t * (unit -> int) =
   in
   let int_arg1 = args.(1) in
   let int_arg2 = args.(2) in
-  let tmp_results, tmp_result_locs = make_locs [| int.(2) |] Proc.loc_results_return in
+  let tmp_results, tmp_result_locs =
+    make_locs [| int.(2) |] Proc.loc_results_return
+  in
   let results, result_locs = make_locs [| int.(3) |] Proc.loc_results_return in
   let make_moves src dst =
     Array.map2

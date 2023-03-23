@@ -281,9 +281,9 @@ module With_subkind = struct
       | Generic_array
 
     and kind_and_subkind =
-    { kind : kind;
-      subkind : t
-    }
+      { kind : kind;
+        subkind : t
+      }
 
     let rec compatible (t : t) ~(when_used_at : t) =
       match t, when_used_at with
@@ -319,7 +319,7 @@ module With_subkind = struct
                 else
                   List.for_all2
                     (fun { kind = _; subkind = d }
-                      { kind = _; subkind = when_used_at } ->
+                         { kind = _; subkind = when_used_at } ->
                       compatible d ~when_used_at)
                     fields1 fields2)
               field_lists1 field_lists2
@@ -373,7 +373,8 @@ module With_subkind = struct
             colour Targetint_31_63.Set.print consts
             (Tag.Scannable.Map.print (fun ppf fields ->
                  Format.fprintf ppf "[%a]"
-                   (Format.pp_print_list ~pp_sep:Format.pp_print_space print_field)
+                   (Format.pp_print_list ~pp_sep:Format.pp_print_space
+                      print_field)
                    fields))
             non_consts Flambda_colours.pop
         | Float_block { num_fields } ->
@@ -413,7 +414,7 @@ module With_subkind = struct
           subkind print kind));
     { kind; subkind }
 
-  let compatible (t: t) ~(when_used_at : t) =
+  let compatible (t : t) ~(when_used_at : t) =
     equal t.kind when_used_at.kind
     && Subkind.compatible t.subkind ~when_used_at:when_used_at.subkind
 
@@ -506,9 +507,7 @@ module With_subkind = struct
               match Tag.Scannable.create tag with
               | Some tag ->
                 Tag.Scannable.Map.add tag
-                  (List.map
-                     (fun vk -> from_lambda_value_kind vk)
-                     fields)
+                  (List.map (fun vk -> from_lambda_value_kind vk) fields)
                   non_consts
               | None ->
                 Misc.fatal_errorf "Non-scannable tag %d in [Pvariant]" tag)
@@ -553,7 +552,8 @@ module With_subkind = struct
 
     let equal t1 t2 = compare t1 t2 = 0
 
-    let hash ({ kind; subkind } : t) = Hashtbl.hash (hash kind, Subkind.hash subkind)
+    let hash ({ kind; subkind } : t) =
+      Hashtbl.hash (hash kind, Subkind.hash subkind)
   end)
 
   let has_useful_subkind_info (t : t) =

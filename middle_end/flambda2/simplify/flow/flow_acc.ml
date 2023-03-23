@@ -225,7 +225,8 @@ let add_used_in_current_handler name_occurrences t =
 
 let add_apply_conts ~result_cont ~exn_cont ~result_arity t =
   update_top_of_stack ~t ~f:(fun elt ->
-      let add_func_result cont rewrite_id ~result_arity ~extra_args apply_cont_args =
+      let add_func_result cont rewrite_id ~result_arity ~extra_args
+          apply_cont_args =
         Continuation.Map.update cont
           (fun (rewrite_map_opt :
                  T.Cont_arg.t Numeric_types.Int.Map.t
@@ -243,17 +244,16 @@ let add_apply_conts ~result_cont ~exn_cont ~result_arity t =
                       Apply_cont_rewrite_id.print rewrite_id
                   | None ->
                     let rec build_map i acc =
-                      if i >= result_arity then acc
+                      if i >= result_arity
+                      then acc
                       else
                         let acc =
-                          Numeric_types.Int.Map.add i
-                            T.Cont_arg.Function_result acc
+                          Numeric_types.Int.Map.add i T.Cont_arg.Function_result
+                            acc
                         in
-                        build_map (i+1) acc
+                        build_map (i + 1) acc
                     in
-                    let map =
-                      build_map 0 Numeric_types.Int.Map.empty
-                    in
+                    let map = build_map 0 Numeric_types.Int.Map.empty in
                     let _, map =
                       List.fold_left
                         (fun (i, map) (extra_arg, _kind) ->
@@ -274,8 +274,7 @@ let add_apply_conts ~result_cont ~exn_cont ~result_arity t =
         let rewrite_id, exn_cont = exn_cont in
         add_func_result
           (Exn_continuation.exn_handler exn_cont)
-          rewrite_id
-          ~result_arity:1
+          rewrite_id ~result_arity:1
           ~extra_args:(Exn_continuation.extra_args exn_cont)
           elt.apply_cont_args
       in
@@ -283,7 +282,9 @@ let add_apply_conts ~result_cont ~exn_cont ~result_arity t =
         match result_cont with
         | None -> apply_cont_args
         | Some (rewrite_id, result_cont) ->
-          add_func_result result_cont rewrite_id ~result_arity:(Flambda_arity.With_subkinds.cardinal result_arity) ~extra_args:[] apply_cont_args
+          add_func_result result_cont rewrite_id
+            ~result_arity:(Flambda_arity.With_subkinds.cardinal result_arity)
+            ~extra_args:[] apply_cont_args
       in
       { elt with apply_cont_args })
 

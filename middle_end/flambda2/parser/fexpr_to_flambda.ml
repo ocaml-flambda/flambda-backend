@@ -259,7 +259,8 @@ let rec subkind : Fexpr.subkind -> Flambda_kind.With_subkind.Subkind.t =
     in
     let non_consts =
       non_consts
-      |> List.map (fun (tag, sk) -> tag_scannable tag, List.map value_kind_with_subkind sk)
+      |> List.map (fun (tag, sk) ->
+             tag_scannable tag, List.map value_kind_with_subkind sk)
       |> Tag.Scannable.Map.of_list
     in
     Variant { consts; non_consts }

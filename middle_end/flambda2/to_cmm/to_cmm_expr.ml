@@ -322,28 +322,26 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
    value for the current block being translated. *)
 let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
     return_cont args =
-    let return_values, free_vars, env, res, _ =
-      C.simple_list ~dbg env res args
+  let return_values, free_vars, env, res, _ = C.simple_list ~dbg env res args in
+  let return_value =
+    match return_values with
+    | [return_value] -> return_value
+    | _ -> Cmm.Ctuple return_values
+  in
+  let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
+  match Apply_cont.trap_action apply with
+  | None ->
+    let cmm, free_vars = wrap return_value free_vars in
+    cmm, free_vars, res
+  | Some (Pop _) ->
+    let cmm, free_vars =
+      wrap (C.trap_return return_value [Cmm.Pop]) free_vars
     in
-    let return_value =
-      match return_values with
-      | [ return_value ] -> return_value
-      | _ -> Cmm.Ctuple return_values
-    in
-    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-    match Apply_cont.trap_action apply with
-    | None ->
-      let cmm, free_vars = wrap return_value free_vars in
-      cmm, free_vars, res
-    | Some (Pop _) ->
-      let cmm, free_vars =
-        wrap (C.trap_return return_value [Cmm.Pop]) free_vars
-      in
-      cmm, free_vars, res
-    | Some (Push _) ->
-      Misc.fatal_errorf
-        "Return continuation %a should not be applied with a Push trap action"
-        Continuation.print return_cont
+    cmm, free_vars, res
+  | Some (Push _) ->
+    Misc.fatal_errorf
+      "Return continuation %a should not be applied with a Push trap action"
+      Continuation.print return_cont
 
 (* Invalid expressions *)
 let invalid env res ~message =
@@ -757,21 +755,31 @@ and apply_expr env res apply =
         in
         expr env res body
       | params ->
-        let wrap, env, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-        let env, cmm_params = Env.create_bound_parameters env (List.map Bound_parameter.var params) in
+        let wrap, env, res =
+          Env.flush_delayed_lets ~mode:Branching_point env res
+        in
+        let env, cmm_params =
+          Env.create_bound_parameters env (List.map Bound_parameter.var params)
+        in
         let label = Lambda.next_raise_count () in
         let params_with_machtype =
-          List.map2 (fun cmm_param param -> cmm_param, C.machtype_of_kinded_parameter param)
+          List.map2
+            (fun cmm_param param ->
+              cmm_param, C.machtype_of_kinded_parameter param)
             cmm_params params
         in
         let expr, free_vars_of_handler, res = expr env res body in
-        let handler = C.handler ~dbg:(Apply.dbg apply) label params_with_machtype expr in
+        let handler =
+          C.handler ~dbg:(Apply.dbg apply) label params_with_machtype expr
+        in
         let expr =
-          C.create_ccatch ~rec_flag:false ~handlers:[handler] ~body:(C.cexit label [call] [])
+          C.create_ccatch ~rec_flag:false ~handlers:[handler]
+            ~body:(C.cexit label [call] [])
         in
         let free_vars =
           Backend_var.Set.union free_vars
-            (C.remove_vars_with_machtype free_vars_of_handler params_with_machtype)
+            (C.remove_vars_with_machtype free_vars_of_handler
+               params_with_machtype)
         in
         let cmm, free_vars = wrap expr free_vars in
         cmm, free_vars, res))

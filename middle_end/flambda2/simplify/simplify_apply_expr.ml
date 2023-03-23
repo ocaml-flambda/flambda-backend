@@ -763,20 +763,19 @@ let simplify_direct_function_call ~simplify_expr dacc apply
            - In the overapplication case, the correct return arity is only
            present on the application expression, so all we can do is check that
            the function being overapplied returns kind Value. *)
-        begin match
-            (Flambda_arity.equal
-               (Flambda_arity.With_subkinds.to_arity result_arity)
-               (Flambda_arity.With_subkinds.to_arity result_arity_of_application))
-          with
-          | true -> ()
-          | false | exception _ ->
-            Misc.fatal_errorf
-              "Wrong return arity for direct OCaml function call (expected %a, found \
-               %a):@ %a"
-              Flambda_arity.With_subkinds.print result_arity
-              Flambda_arity.With_subkinds.print result_arity_of_application Apply.print
-              apply
-        end;
+        (match
+           Flambda_arity.equal
+             (Flambda_arity.With_subkinds.to_arity result_arity)
+             (Flambda_arity.With_subkinds.to_arity result_arity_of_application)
+         with
+        | true -> ()
+        | false | (exception _) ->
+          Misc.fatal_errorf
+            "Wrong return arity for direct OCaml function call (expected %a, \
+             found %a):@ %a"
+            Flambda_arity.With_subkinds.print result_arity
+            Flambda_arity.With_subkinds.print result_arity_of_application
+            Apply.print apply);
         simplify_direct_full_application ~simplify_expr dacc apply function_decl
           ~params_arity ~result_arity ~result_types ~down_to_up
           ~coming_from_indirect ~callee's_code_metadata)
