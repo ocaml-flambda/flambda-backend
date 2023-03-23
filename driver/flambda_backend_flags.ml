@@ -58,6 +58,16 @@ let flags_by_opt_level ~opt_level ~default ~oclassic ~o2 ~o3 =
   | Set O3 -> o3
 
 module Flambda2 = struct
+  let debug = (* -flambda2-debug *)
+    let default =
+      match Sys.getenv "FLAMBDA2_DEBUG" with
+      | exception Not_found -> false
+      | "n" | "no" | "false" | "0" -> false
+      | "y" | "yes" | "true" | "1" -> true
+      | _ -> (* CR gbury: error out ? *) true
+    in
+    ref default
+
   module Default = struct
     let classic_mode = false
     let join_points = false

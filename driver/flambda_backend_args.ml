@@ -16,6 +16,12 @@
 let format_default flag = if flag then " (default)" else ""
 let format_not_default flag = if flag then "" else " (default)"
 
+let mk_flambda2_debug f =
+  "-flambda2-debug", Arg.Unit f, " Enable debug output for the Flambda2 pass"
+
+let mk_no_flambda2_debug f =
+  "-no-flambda2-debug", Arg.Unit f, " Disable debug ouput for the flambda2 pass"
+
 let mk_ocamlcfg f =
   "-ocamlcfg", Arg.Unit f, " Use ocamlcfg"
 
@@ -511,6 +517,8 @@ module type Flambda_backend_options = sig
 
   val gc_timings : unit -> unit
 
+  val flambda2_debug : unit -> unit
+  val no_flambda2_debug : unit -> unit
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
   val flambda2_result_types_functors_only : unit -> unit
@@ -599,6 +607,8 @@ struct
 
     mk_gc_timings F.gc_timings;
 
+    mk_flambda2_debug F.flambda2_debug;
+    mk_no_flambda2_debug F.no_flambda2_debug;
     mk_flambda2_join_points F.flambda2_join_points;
     mk_no_flambda2_join_points F.no_flambda2_join_points;
     mk_flambda2_result_types_functors_only
@@ -725,6 +735,8 @@ module Flambda_backend_options_impl = struct
 
   let gc_timings = set' Flambda_backend_flags.gc_timings
 
+  let flambda2_debug = set' Flambda_backend_flags.Flambda2.debug
+  let no_flambda2_debug = clear' Flambda_backend_flags.Flambda2.debug
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
   let flambda2_result_types_functors_only () =
@@ -940,6 +952,7 @@ module Extra_params = struct
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf
     | "gstartup" -> set' Debugging.dwarf_for_startup_file
+    | "flambda2-debug" -> set' Flambda_backend_flags.Flambda2.debug
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
       (match String.lowercase_ascii v with
