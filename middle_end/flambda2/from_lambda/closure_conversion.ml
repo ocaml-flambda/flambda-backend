@@ -980,9 +980,6 @@ let close_let acc env id user_visible kind defining_expr
         match simplify_block_load acc body_env ~block ~field with
         | Unknown -> bind acc body_env
         | Not_a_block ->
-          (* Here we assume [block] has already been substituted as a known
-             symbol if it exists, and rely on the invariant that the
-             approximation of a symbol is never a symbol. *)
           if Flambda_features.check_invariants ()
           then
             (* CR keryan: This is hidden behind invariants check because it can
