@@ -757,10 +757,10 @@ method insert_move_args env arg loc stacksize =
   self#insert_moves env arg loc
 
 method insert_move_results env loc res stacksize =
+  self#insert_moves env loc res;
   if stacksize <> 0 then begin
     self#insert env (Iop(Istackoffset(-stacksize))) [||] [||]
-  end;
-  self#insert_moves env loc res
+  end
 
 (* Add an Iop opcode. Can be overridden by processor description
    to insert moves before and after the operation, i.e. for two-address
