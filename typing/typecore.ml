@@ -3074,7 +3074,7 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
              let open_args = [] in
              let mode_closure = Alloc_mode.join (mode_fun :: closed_args) in
              register_allocation_mode mode_closure;
-             let arg = Omitted { mode_closure; mode_arg; mode_ret } in
+             let arg = Omitted { mode_closure; mode_arg; mode_ret; ty_arg; ty_env = env } in
              let args = (lbl, arg) :: args in
              (ty_ret, mode_closure, open_args, closed_args, args))
       (ty_ret, mode_ret, [], [], []) (List.rev args)

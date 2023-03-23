@@ -926,7 +926,7 @@ end
 
 type 'row pattern_matching = {
   mutable cases : 'row list;
-  args : (lambda * let_kind) list;
+  args : (lambda * let_kind * layout) list;
       (** args are not just Ident.t in at least the following cases:
         - when matching the arguments of a constructor,
           direct field projections are used (make_field_args)
@@ -1433,7 +1433,7 @@ and precompile_var args cls def k =
      If the rest doesn't generate any split, abort and do_not_precompile. *)
   match args with
   | [] -> assert false
-  | _ :: ((Lvar v, _) as arg) :: rargs -> (
+  | _ :: ((Lvar v, _, _) as arg) :: rargs -> (
       (* We will use the name of the head column of the submatrix
          we compile, and this is the *second* column of our argument. *)
       match cls with
@@ -1451,7 +1451,7 @@ and precompile_var args cls def k =
                 (* we learned by pattern-matching on [args]
                    that [p::ps] has at least two arguments,
                    so [ps] must be non-empty *)
-                half_simplify_clause ~arg:(fst arg) (ps, act))
+                half_simplify_clause ~arg:(Lvar v) (ps, act))
               cls
           and var_def = Default_environment.pop_column def in
           let { me = first; matrix }, nexts =
@@ -1664,7 +1664,7 @@ let make_line_matching get_expr_args head def = function
       }
 
 type 'a division = {
-  args : (lambda * let_kind) list;
+  args : (lambda * let_kind * layout) list;
   cells : ('a * cell) list
 }
 
@@ -1754,7 +1754,7 @@ let get_pat_args_constr p rem =
   | { pat_desc = Tpat_construct (_, _, args, _) } -> args @ rem
   | _ -> assert false
 
-let get_expr_args_constr ~scopes head (arg, _mut) rem =
+let get_expr_args_constr ~scopes head (arg, _mut, layout) rem =
   let cstr =
     match head.pat_desc with
     | Patterns.Head.Construct cstr -> cstr
@@ -1766,19 +1766,19 @@ let get_expr_args_constr ~scopes head (arg, _mut) rem =
       if pos > last_pos then
         argl
       else
-        (Lprim (Pfield (pos, Reads_agree), [ arg ], loc), binding_kind)
+        (Lprim (Pfield (pos, Reads_agree), [ arg ], loc), binding_kind, layout_field)
           :: make_args (pos + 1)
     in
     make_args first_pos
   in
   if cstr.cstr_inlined <> None then
-    (arg, Alias) :: rem
+    (arg, Alias, layout) :: rem
   else
     match cstr.cstr_tag with
     | Cstr_constant _
     | Cstr_block _ ->
         make_field_accesses Alias 0 (cstr.cstr_arity - 1) rem
-    | Cstr_unboxed -> (arg, Alias) :: rem
+    | Cstr_unboxed -> (arg, Alias, layout) :: rem
     | Cstr_extension _ -> make_field_accesses Alias 1 cstr.cstr_arity rem
 
 let divide_constructor ~scopes ctx pm =
@@ -1796,10 +1796,10 @@ let get_expr_args_variant_constant = drop_expr_arg
 let nonconstant_variant_field index =
   Lambda.Pfield(index, Reads_agree)
 
-let get_expr_args_variant_nonconst ~scopes head (arg, _mut) rem =
+let get_expr_args_variant_nonconst ~scopes head (arg, _mut, _layout) rem =
   let loc = head_loc ~scopes head in
    let field_prim = nonconstant_variant_field 1 in
-  (Lprim (field_prim, [ arg ], loc), Alias) :: rem
+  (Lprim (field_prim, [ arg ], loc), Alias, layout_field) :: rem
 
 let divide_variant ~scopes row ctx { cases = cl; args; default = def } =
   let rec divide = function
@@ -2006,9 +2006,9 @@ let inline_lazy_force arg pos loc =
          tables (~ 250 elts); conditionals are better *)
     inline_lazy_force_cond arg pos loc
 
-let get_expr_args_lazy ~scopes head (arg, _mut) rem =
+let get_expr_args_lazy ~scopes head (arg, _mut, _layout) rem =
   let loc = head_loc ~scopes head in
-  (inline_lazy_force arg Rc_normal loc, Strict) :: rem
+  (inline_lazy_force arg Rc_normal loc, Strict, layout_lazy_contents) :: rem
 
 let divide_lazy ~scopes head ctx pm =
   divide_line (Context.specialize head)
@@ -2024,14 +2024,14 @@ let get_pat_args_tuple arity p rem =
   | { pat_desc = Tpat_tuple args } -> args @ rem
   | _ -> assert false
 
-let get_expr_args_tuple ~scopes head (arg, _mut) rem =
+let get_expr_args_tuple ~scopes head (arg, _mut, _layout) rem =
   let loc = head_loc ~scopes head in
   let arity = Patterns.Head.arity head in
   let rec make_args pos =
     if pos >= arity then
       rem
     else
-      (Lprim (Pfield (pos, Reads_agree), [ arg ], loc), Alias)
+      (Lprim (Pfield (pos, Reads_agree), [ arg ], loc), Alias, layout_field)
         :: make_args (pos + 1)
   in
   make_args 0
@@ -2057,7 +2057,7 @@ let get_pat_args_record num_fields p rem =
       record_matching_line num_fields lbl_pat_list @ rem
   | _ -> assert false
 
-let get_expr_args_record ~scopes head (arg, _mut) rem =
+let get_expr_args_record ~scopes head (arg, _mut, layout) rem =
   let loc = head_loc ~scopes head in
   let all_labels =
     let open Patterns.Head in
@@ -2077,24 +2077,25 @@ let get_expr_args_record ~scopes head (arg, _mut) rem =
         | Immutable -> Reads_agree
         | Mutable -> Reads_vary
       in
-      let access =
+      let access, layout =
         match lbl.lbl_repres with
         | Record_regular
         | Record_inlined _ ->
-            Lprim (Pfield (lbl.lbl_pos, sem), [ arg ], loc)
-        | Record_unboxed _ -> arg
+            Lprim (Pfield (lbl.lbl_pos, sem), [ arg ], loc), layout_field
+        | Record_unboxed _ -> arg, layout
         | Record_float ->
            (* TODO: could optimise to Alloc_local sometimes *)
-           Lprim (Pfloatfield (lbl.lbl_pos, sem, alloc_heap), [ arg ], loc)
+           Lprim (Pfloatfield (lbl.lbl_pos, sem, alloc_heap), [ arg ], loc),
+           layout_float
         | Record_extension _ ->
-            Lprim (Pfield (lbl.lbl_pos + 1, sem), [ arg ], loc)
+            Lprim (Pfield (lbl.lbl_pos + 1, sem), [ arg ], loc), layout_field
       in
       let str =
         match lbl.lbl_mut with
         | Immutable -> Alias
         | Mutable -> StrictOpt
       in
-      (access, str) :: make_args (pos + 1)
+      (access, str, layout) :: make_args (pos + 1)
   in
   make_args 0
 
@@ -2121,7 +2122,7 @@ let get_pat_args_array p rem =
   | { pat_desc = Tpat_array (_, patl) } -> patl @ rem
   | _ -> assert false
 
-let get_expr_args_array ~scopes kind head (arg, _mut) rem =
+let get_expr_args_array ~scopes kind head (arg, _mut, _layout) rem =
   let am, len =
     let open Patterns.Head in
     match head.pat_desc with
@@ -2133,11 +2134,13 @@ let get_expr_args_array ~scopes kind head (arg, _mut) rem =
     if pos >= len then
       rem
     else
+      (* CR ncourant: could do better than layout_field using kind *)
       ( Lprim
           (Parrayrefu kind, [ arg; Lconst (Const_base (Const_int pos)) ], loc),
-        match am with
+        (match am with
         | Mutable   -> StrictOpt
-        | Immutable -> Alias )
+        | Immutable -> Alias),
+        layout_field)
       :: make_args (pos + 1)
   in
   make_args 0
@@ -3276,25 +3279,25 @@ and compile_match_nonempty ~scopes value_kind repr partial ctx
     (m : Typedtree.pattern Non_empty_row.t clause pattern_matching)=
   match m with
   | { cases = []; args = [] } -> comp_exit ctx m
-  | { args = (arg, str) :: argl } ->
+  | { args = (arg, str, layout) :: argl } ->
       let v, newarg = arg_to_var arg m.cases in
-      let args = (newarg, Alias) :: argl in
+      let args = (newarg, Alias, layout) :: argl in
       let cases = List.map (half_simplify_nonempty ~arg:newarg) m.cases in
       let m = { m with args; cases } in
       let first_match, rem =
         split_and_precompile_half_simplified ~arg:newarg m in
-      combine_handlers ~scopes value_kind repr partial ctx (v, str, Lambda.layout_top, arg) first_match rem
+      combine_handlers ~scopes value_kind repr partial ctx (v, str, layout, arg) first_match rem
   | _ -> assert false
 
 and compile_match_simplified ~scopes value_kind  repr partial ctx
     (m : Simple.clause pattern_matching) =
   match m with
   | { cases = []; args = [] } -> comp_exit ctx m
-  | { args = ((Lvar v as arg), str) :: argl } ->
-      let args = (arg, Alias) :: argl in
+  | { args = ((Lvar v as arg), str, layout) :: argl } ->
+      let args = (arg, Alias, layout) :: argl in
       let m = { m with args } in
       let first_match, rem = split_and_precompile_simplified m in
-      combine_handlers value_kind ~scopes repr partial ctx (v, str, Lambda.layout_top, arg)
+      combine_handlers value_kind ~scopes repr partial ctx (v, str, layout, arg)
         first_match rem
   | _ -> assert false
 
@@ -3332,7 +3335,7 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
   | Pm pm -> (
       let arg =
         match pm.args with
-        | (first_arg, _) :: _ -> first_arg
+        | (first_arg, _, _) :: _ -> first_arg
         | _ ->
             (* We arrive in do_compile_matching from:
                - compile_matching
@@ -3556,9 +3559,9 @@ let toplevel_handler ~scopes value_kind loc ~failer partial args cases compile_f
           check_total ~scopes value_kind loc ~failer total lam raise_num
       end
 
-let compile_matching ~scopes value_kind loc ~failer repr arg pat_act_list partial =
+let compile_matching ~scopes value_kind loc ~failer repr (arg, arg_layout) pat_act_list partial =
   let partial = check_partial pat_act_list partial in
-  let args = [ (arg, Strict) ] in
+  let args = [ (arg, Strict, arg_layout) ] in
   let rows = map_on_rows (fun pat -> (pat, [])) pat_act_list in
   toplevel_handler ~scopes value_kind loc ~failer partial args rows (fun partial pm ->
     compile_match_nonempty ~scopes value_kind repr partial (Context.start 1) pm)
@@ -3577,11 +3580,11 @@ let for_trywith ~scopes value_kind loc param pat_act_list =
      the reraise (hence the [_noloc]) to avoid seeing this
      silent reraise in exception backtraces. *)
   compile_matching ~scopes value_kind loc ~failer:(Reraise_noloc param)
-    None param pat_act_list Partial
+    None (param, layout_block) pat_act_list Partial
 
 let simple_for_let ~scopes value_kind loc param pat body =
   compile_matching ~scopes value_kind loc ~failer:Raise_match_failure
-    None param [ (pat, body) ] Partial
+    None (param, Typeopt.layout pat.pat_env pat.pat_type) [ (pat, body) ] Partial
 
 (* Optimize binding of immediate tuples
 
@@ -3748,7 +3751,8 @@ let for_let ~scopes loc param pat body_kind body =
 (* Easy case since variables are available *)
 let for_tupled_function ~scopes loc kind paraml pats_act_list partial =
   let partial = check_partial_list pats_act_list partial in
-  let args = List.map (fun id -> (Lvar id, Strict)) paraml in
+  (* The arguments of a tupled function are always values since they must be fields *)
+  let args = List.map (fun id -> (Lvar id, Strict, layout_field)) paraml in
   let handler =
     toplevel_handler ~scopes kind loc ~failer:Raise_match_failure
       partial args pats_act_list in
@@ -3839,23 +3843,25 @@ let do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partia
   let repr = None in
   let arg =
     let sloc = Scoped_location.of_location ~scopes loc in
-    Lprim (Pmakeblock (0, Immutable, None, mode), paraml, sloc) in
+    (* CR ncourant: this can build a mixed block, but it should never actually be
+       created except if the pattern-matching binds it, in which case it should be
+       rejected by the typing. Do we really trust this case will not happen? *)
+    Lprim (Pmakeblock (0, Immutable, None, mode), List.map fst paraml, sloc) in
   let handler =
     let partial = check_partial pat_act_list partial in
     let rows = map_on_rows (fun p -> (p, [])) pat_act_list in
     toplevel_handler ~scopes value_kind loc ~failer:Raise_match_failure
-      partial [ (arg, Strict) ] rows in
+      partial [ (arg, Strict, layout_block) ] rows in
   handler (fun partial pm1 ->
     let pm1_half =
       { pm1 with cases = List.map (half_simplify_nonempty ~arg) pm1.cases }
     in
     let next, nexts = split_and_precompile_half_simplified ~arg pm1_half in
     let size = List.length paraml
-    and idl = List.map (function
-      | Lvar id -> id
-      | _ -> Ident.create_local "*match*") paraml in
-    let idl_with_layouts = List.map (fun id -> (id, Lambda.layout_top)) idl in
-    let args = List.map (fun id -> (Lvar id, Alias)) idl in
+    and idl_with_layouts = List.map (function
+      | Lvar id, layout -> id, layout
+      | _, layout -> Ident.create_local "*match*", layout) paraml in
+    let args = List.map (fun (id, layout) -> (Lvar id, Alias, layout)) idl_with_layouts in
     let flat_next = flatten_precompiled size args next
     and flat_nexts =
       List.map (fun (e, pm) -> (e, flatten_precompiled size args pm)) nexts
@@ -3864,24 +3870,24 @@ let do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partia
       comp_match_handlers value_kind (compile_flattened ~scopes value_kind repr) partial
         (Context.start size) flat_next flat_nexts
     in
-    List.fold_right2 (bind_with_layout Strict) idl_with_layouts paraml lam, total
+    List.fold_right2 (bind_with_layout Strict) idl_with_layouts (List.map fst paraml) lam, total
   )
 
 (* PR#4828: Believe it or not, the 'paraml' argument below
    may not be side effect free. *)
 
-let param_to_var param =
+let param_to_var (param, layout) =
   match param with
-  | Lvar v -> (v, None)
-  | _ -> (Ident.create_local "*match*", Some param)
+  | Lvar v -> (v, layout, None)
+  | _ -> (Ident.create_local "*match*", layout, Some param)
 
-let bind_opt (v, eo) k =
+let bind_opt (v, layout, eo) k =
   match eo with
   | None -> k
-  | Some e -> Lambda.bind_with_layout Strict (v, Lambda.layout_top) e k
+  | Some e -> Lambda.bind_with_layout Strict (v, layout) e k
 
 let for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partial =
   let v_paraml = List.map param_to_var paraml in
-  let paraml = List.map (fun (v, _) -> Lvar v) v_paraml in
+  let paraml = List.map (fun (v, layout, _) -> (Lvar v, layout)) v_paraml in
   List.fold_right bind_opt v_paraml
     (do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partial)

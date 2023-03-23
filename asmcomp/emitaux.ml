@@ -203,7 +203,7 @@ let emit_frames a =
              not (Debuginfo.is_none d.Debuginfo.alloc_dbg)) dbgs
         then 3 else 2
     in
-    a.efa_code_label fd.fd_lbl;
+    a.efa_label_rel fd.fd_lbl 0l;
     efa_16_checked (fd.fd_frame_size + flags);
     efa_16_checked (List.length fd.fd_live_offset);
     List.iter efa_16_checked fd.fd_live_offset;

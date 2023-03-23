@@ -362,7 +362,13 @@ let layout env ty = Lambda.Pvalue (value_kind env ty)
 let function_return_layout env ty =
   match is_function_type env ty with
   | Some (_lhs, rhs) -> layout env rhs
-  | None -> Lambda.layout_top
+  | None -> Misc.fatal_errorf "function_return_layout called on non-function type"
+
+let function2_return_layout env ty =
+  match is_function_type env ty with
+  | Some (_lhs, rhs) -> function_return_layout env rhs
+  | None -> Misc.fatal_errorf "function_return_layout called on non-function type"
+
 
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
     if the value can be represented as a float/forward/lazy *)
@@ -402,5 +408,14 @@ let value_kind_union (k1 : Lambda.value_kind) (k2 : Lambda.value_kind) =
   if Lambda.equal_value_kind k1 k2 then k1
   else Pgenval
 
-let layout_union (Pvalue layout1) (Pvalue layout2) =
-  Pvalue (value_kind_union layout1 layout2)
+let layout_union l1 l2 =
+  match l1, l2 with
+  | Pbottom, l
+  | l, Pbottom -> l
+  | Pvalue layout1, Pvalue layout2 ->
+      Pvalue (value_kind_union layout1 layout2)
+  | Punboxed_float, Punboxed_float -> Punboxed_float
+  | Punboxed_int bi1, Punboxed_int bi2 ->
+      if equal_boxed_integer bi1 bi2 then l1 else Ptop
+  | (Ptop | Pvalue _ | Punboxed_float | Punboxed_int _), _ ->
+      Ptop

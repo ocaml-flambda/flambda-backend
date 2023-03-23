@@ -51,6 +51,8 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
+(* If you update this file please also update iarrayLabels.ml *)
+
 (* An alias for the type of immutable arrays. *)
 type +'a t = 'a iarray
 

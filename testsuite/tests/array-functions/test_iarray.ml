@@ -2,6 +2,9 @@
    flags = "-extension immutable_arrays"
 *)
 
+module Iarray = Stdlib__Iarray
+external ( .:() ) : 'a iarray -> int -> 'a = "%array_safe_get"
+
 (* Copied from [test.ml], but with all the [Array.fill] tests deleted *)
 
 (* [iarray]s don't have the [make*] functions, so we redefine them here *)

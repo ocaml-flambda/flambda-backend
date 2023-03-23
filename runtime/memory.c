@@ -90,6 +90,30 @@ static struct page_table caml_page_table;
 
 int caml_page_table_lookup(void * addr)
 {
+#ifdef NO_NAKED_POINTERS
+  /* This case should only be hit if C stubs compiled without
+     NO_NAKED_POINTERS are linked into an executable using
+     "-runtime-variant nnp".  The return value here should cause the
+     macros in address_class.h to give the same results as when they
+     are compiled with NO_NAKED_POINTERS defined. */
+
+  caml_local_arenas* local_arenas = Caml_state->local_arenas;
+
+  if (Is_young(addr))
+    return In_heap | In_young;
+
+  if (local_arenas != NULL) {
+    int arena;
+    for (arena = 0; arena < local_arenas->count; arena++) {
+      char* start = local_arenas->arenas[arena].base;
+      char* end = start + local_arenas->arenas[arena].length;
+      if ((char*) addr >= start && (char*) addr < end)
+        return In_heap | In_local;
+    }
+  }
+
+  return In_heap;
+#else
   uintnat h, e;
 
   h = Hash(Page(addr));
@@ -102,6 +126,7 @@ int caml_page_table_lookup(void * addr)
     e = caml_page_table.entries[h];
     if (Page_entry_matches(e, (uintnat)addr)) return e & 0xFF;
   }
+#endif
 }
 
 int caml_page_table_initialize(mlsize_t bytesize)
@@ -646,7 +671,17 @@ CAMLexport CAMLweakdef void caml_modify (value *fp, value val)
       if (Is_young(old)) return;
       /* Here, [old] can be a pointer within the major heap.
          Check for condition 2. */
-      if (caml_gc_phase == Phase_mark) caml_darken(old, NULL);
+      if (caml_gc_phase == Phase_mark) {
+        header_t hd = Hd_val(old);
+        if (Tag_hd (hd) == Infix_tag) {
+          /* Infix_tag is always Caml_white */
+          CAMLassert(Is_white_hd(hd));
+        }
+        /* Inline the white-header check, to save a pagetable lookup */
+        if (Is_white_hd(hd)) {
+          caml_darken(old, NULL);
+        }
+      }
     }
     /* Check for condition 1. */
     if (Is_block(val) && Is_young(val)) {
