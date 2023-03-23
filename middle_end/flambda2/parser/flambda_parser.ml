@@ -17,12 +17,12 @@ module MenhirBasics = struct
     | SYMBOL of (
 # 105 "flambda_parser.mly"
       (Fexpr.compilation_unit option * string)
-# 21 "flambda_parser.ml"
+# 21 "flambda_parser_in.ml"
   )
     | STRING of (
 # 104 "flambda_parser.mly"
       (string)
-# 26 "flambda_parser.ml"
+# 26 "flambda_parser_in.ml"
   )
     | STATIC_CONST_FLOAT_BLOCK
     | STATIC_CONST_FLOAT_ARRAY
@@ -172,19 +172,27 @@ module MenhirBasics = struct
 # 74 "flambda_parser.mly"
        (string * char option)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 171 "flambda_parser_in.ml"
 =======
 # 169 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 169 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
   )
     | IDENT of (
 # 73 "flambda_parser.mly"
        (string)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 176 "flambda_parser_in.ml"
 =======
 # 174 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 174 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
   )
     | GREATEREQUALDOT
     | GREATEREQUAL
@@ -194,10 +202,14 @@ module MenhirBasics = struct
 # 68 "flambda_parser.mly"
        (float)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 185 "flambda_parser_in.ml"
 =======
 # 183 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 183 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
   )
     | EQUALDOT
     | EQUAL
@@ -271,10 +283,14 @@ let make_boxed_const_int (i, m) : static_data =
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 261 "flambda_parser_in.ml"
 =======
 # 256 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 256 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
 
 module Tables = struct
   
@@ -998,18 +1014,26 @@ module Tables = struct
 # 228 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 967 "flambda_parser_in.ml"
 =======
 # 938 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 938 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 492 "flambda_parser.mly"
     ( Heap )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 971 "flambda_parser_in.ml"
 =======
 # 942 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 942 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1037,10 +1061,14 @@ module Tables = struct
 # 255 "flambda_parser.mly"
       (Fexpr.region)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 998 "flambda_parser_in.ml"
 =======
 # 969 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 969 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic region in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -1050,18 +1078,26 @@ module Tables = struct
 # 228 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1007 "flambda_parser_in.ml"
 =======
 # 978 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 978 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 493 "flambda_parser.mly"
                          ( Local { region } )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1011 "flambda_parser_in.ml"
 =======
 # 982 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 982 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1080,18 +1116,26 @@ module Tables = struct
 # 229 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_types)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1029 "flambda_parser_in.ml"
 =======
 # 1000 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1000 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 487 "flambda_parser.mly"
     ( Heap )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1033 "flambda_parser_in.ml"
 =======
 # 1004 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1004 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1116,19 +1160,27 @@ module Tables = struct
         let _v : (
 # 229 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_types)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1058 "flambda_parser_in.ml"
 =======
 # 1029 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1029 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 488 "flambda_parser.mly"
                       ( Heap_or_local )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1062 "flambda_parser_in.ml"
 =======
 # 1033 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1033 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1154,18 +1206,26 @@ module Tables = struct
 # 229 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_types)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1087 "flambda_parser_in.ml"
 =======
 # 1058 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1058 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 489 "flambda_parser.mly"
               ( Local )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1091 "flambda_parser_in.ml"
 =======
 # 1062 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1062 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1201,10 +1261,14 @@ module Tables = struct
 # 235 "flambda_parser.mly"
       (Fexpr.continuation)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1126 "flambda_parser_in.ml"
 =======
 # 1097 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1097 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic cont in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_cont_ in
@@ -1213,10 +1277,14 @@ module Tables = struct
 # 846 "flambda_parser.mly"
     ( { cont; args; trap_action } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1134 "flambda_parser_in.ml"
 =======
 # 1105 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1105 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1295,10 +1363,14 @@ module Tables = struct
 # 255 "flambda_parser.mly"
       (Fexpr.region)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1212 "flambda_parser_in.ml"
 =======
 # 1183 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1183 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic region in
         let _6 : unit = Obj.magic _6 in
         let args : 'tv_simple_args = Obj.magic args in
@@ -1323,10 +1395,14 @@ module Tables = struct
           region;
      } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1236 "flambda_parser_in.ml"
 =======
 # 1207 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1207 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1345,18 +1421,26 @@ module Tables = struct
 # 230 "flambda_parser.mly"
       (Fexpr.array_kind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1254 "flambda_parser_in.ml"
 =======
 # 1225 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1225 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 447 "flambda_parser.mly"
     ( Values )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1258 "flambda_parser_in.ml"
 =======
 # 1229 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1229 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1381,19 +1465,27 @@ module Tables = struct
         let _v : (
 # 230 "flambda_parser.mly"
       (Fexpr.array_kind)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1283 "flambda_parser_in.ml"
 =======
 # 1254 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1254 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 448 "flambda_parser.mly"
             ( Immediates )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1287 "flambda_parser_in.ml"
 =======
 # 1258 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1258 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1419,18 +1511,26 @@ module Tables = struct
 # 230 "flambda_parser.mly"
       (Fexpr.array_kind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1312 "flambda_parser_in.ml"
 =======
 # 1283 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1283 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 449 "flambda_parser.mly"
               ( Naked_floats )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1316 "flambda_parser_in.ml"
 =======
 # 1287 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1287 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1456,10 +1556,14 @@ module Tables = struct
 # 702 "flambda_parser.mly"
             ( Invalid { message = "halt-and-catch-fire" } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1341 "flambda_parser_in.ml"
 =======
 # 1312 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1312 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1484,6 +1588,7 @@ module Tables = struct
         let _v : 'tv_atomic_expr = 
 # 703 "flambda_parser.mly"
                     ( Invalid { message =  "treat-as-unreachable" } )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1366 "flambda_parser_in.ml"
          in
@@ -1525,6 +1630,9 @@ module Tables = struct
 =======
 # 1337 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1337 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1557,10 +1665,14 @@ module Tables = struct
 # 705 "flambda_parser.mly"
                                    ( Apply_cont ac )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1434 "flambda_parser_in.ml"
 =======
 # 1369 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1369 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1600,10 +1712,14 @@ module Tables = struct
 # 706 "flambda_parser.mly"
                                                    ( Switch {scrutinee; cases} )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1473 "flambda_parser_in.ml"
 =======
 # 1408 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1408 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1636,10 +1752,14 @@ module Tables = struct
 # 707 "flambda_parser.mly"
                              ( Apply e )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1505 "flambda_parser_in.ml"
 =======
 # 1440 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1440 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1679,10 +1799,14 @@ module Tables = struct
 # 708 "flambda_parser.mly"
                              ( e )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1544 "flambda_parser_in.ml"
 =======
 # 1479 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1479 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1707,19 +1831,27 @@ module Tables = struct
         let _v : (
 # 231 "flambda_parser.mly"
       (Fexpr.binary_float_arith_op)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1569 "flambda_parser_in.ml"
 =======
 # 1504 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1504 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 510 "flambda_parser.mly"
             ( Add )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1573 "flambda_parser_in.ml"
 =======
 # 1508 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1508 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1744,19 +1876,27 @@ module Tables = struct
         let _v : (
 # 231 "flambda_parser.mly"
       (Fexpr.binary_float_arith_op)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1598 "flambda_parser_in.ml"
 =======
 # 1533 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1533 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 511 "flambda_parser.mly"
              ( Sub )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1602 "flambda_parser_in.ml"
 =======
 # 1537 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1537 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1781,19 +1921,27 @@ module Tables = struct
         let _v : (
 # 231 "flambda_parser.mly"
       (Fexpr.binary_float_arith_op)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1627 "flambda_parser_in.ml"
 =======
 # 1562 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1562 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 512 "flambda_parser.mly"
             ( Mul )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1631 "flambda_parser_in.ml"
 =======
 # 1566 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1566 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1819,18 +1967,26 @@ module Tables = struct
 # 231 "flambda_parser.mly"
       (Fexpr.binary_float_arith_op)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1656 "flambda_parser_in.ml"
 =======
 # 1591 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1591 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 513 "flambda_parser.mly"
              ( Div )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1660 "flambda_parser_in.ml"
 =======
 # 1595 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1595 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1855,19 +2011,27 @@ module Tables = struct
         let _v : (
 # 232 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1685 "flambda_parser_in.ml"
 =======
 # 1620 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1620 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 500 "flambda_parser.mly"
          ( Add )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1689 "flambda_parser_in.ml"
 =======
 # 1624 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1624 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1892,19 +2056,27 @@ module Tables = struct
         let _v : (
 # 232 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1714 "flambda_parser_in.ml"
 =======
 # 1649 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1649 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 501 "flambda_parser.mly"
           ( Sub )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1718 "flambda_parser_in.ml"
 =======
 # 1653 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1653 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1929,19 +2101,27 @@ module Tables = struct
         let _v : (
 # 232 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1743 "flambda_parser_in.ml"
 =======
 # 1678 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1678 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 502 "flambda_parser.mly"
          ( Mul )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1747 "flambda_parser_in.ml"
 =======
 # 1682 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1682 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -1966,19 +2146,27 @@ module Tables = struct
         let _v : (
 # 232 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1772 "flambda_parser_in.ml"
 =======
 # 1707 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1707 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 503 "flambda_parser.mly"
           ( Div )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1776 "flambda_parser_in.ml"
 =======
 # 1711 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1711 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2003,19 +2191,27 @@ module Tables = struct
         let _v : (
 # 232 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1801 "flambda_parser_in.ml"
 =======
 # 1736 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1736 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 504 "flambda_parser.mly"
             ( Mod )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1805 "flambda_parser_in.ml"
 =======
 # 1740 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1740 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2040,19 +2236,27 @@ module Tables = struct
         let _v : (
 # 232 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1830 "flambda_parser_in.ml"
 =======
 # 1765 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1765 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 505 "flambda_parser.mly"
              ( And )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1834 "flambda_parser_in.ml"
 =======
 # 1769 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1769 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2077,19 +2281,27 @@ module Tables = struct
         let _v : (
 # 232 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1859 "flambda_parser_in.ml"
 =======
 # 1794 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1794 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 506 "flambda_parser.mly"
             ( Or )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1863 "flambda_parser_in.ml"
 =======
 # 1798 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1798 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2115,18 +2327,26 @@ module Tables = struct
 # 232 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1888 "flambda_parser_in.ml"
 =======
 # 1823 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1823 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 507 "flambda_parser.mly"
              ( Xor )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 1892 "flambda_parser_in.ml"
 =======
 # 1827 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1827 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2187,10 +2407,14 @@ module Tables = struct
 # 541 "flambda_parser.mly"
     ( Binary (op, arg1, arg2) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1952 "flambda_parser_in.ml"
 =======
 # 1887 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1887 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2225,10 +2449,14 @@ module Tables = struct
 # 243 "flambda_parser.mly"
       (Fexpr.infix_binop)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1986 "flambda_parser_in.ml"
 =======
 # 1921 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1921 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic op in
         let arg1 : 'tv_simple = Obj.magic arg1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -2238,10 +2466,14 @@ module Tables = struct
 # 543 "flambda_parser.mly"
     ( Binary (Infix op, arg1, arg2) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 1995 "flambda_parser_in.ml"
 =======
 # 1930 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1930 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2310,19 +2542,27 @@ module Tables = struct
 # 249 "flambda_parser.mly"
       (Fexpr.mutability)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2063 "flambda_parser_in.ml"
 =======
 # 1998 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 1998 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic mut in
         let ak : (
 # 230 "flambda_parser.mly"
       (Fexpr.array_kind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2068 "flambda_parser_in.ml"
 =======
 # 2003 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2003 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic ak in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -2332,10 +2572,14 @@ module Tables = struct
 # 546 "flambda_parser.mly"
     ( Binary (Array_load (ak, mut), arg1, arg2) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2077 "flambda_parser_in.ml"
 =======
 # 2012 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2012 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2382,20 +2626,28 @@ module Tables = struct
 # 232 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2123 "flambda_parser_in.ml"
 =======
 # 2058 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2058 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic c in
         let arg1 : 'tv_simple = Obj.magic arg1 in
         let i : (
 # 257 "flambda_parser.mly"
       (Fexpr.standard_int)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2129 "flambda_parser_in.ml"
 =======
 # 2064 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2064 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic i in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -2405,10 +2657,14 @@ module Tables = struct
 # 549 "flambda_parser.mly"
     ( Binary (Int_arith (i, c), arg1, arg2) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2138 "flambda_parser_in.ml"
 =======
 # 2073 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2073 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2461,10 +2717,14 @@ module Tables = struct
 # 244 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2190 "flambda_parser_in.ml"
 =======
 # 2125 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2125 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic c in
         let arg1 : 'tv_simple = Obj.magic arg1 in
         let s : 'tv_signed_or_unsigned = Obj.magic s in
@@ -2472,10 +2732,14 @@ module Tables = struct
 # 257 "flambda_parser.mly"
       (Fexpr.standard_int)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2197 "flambda_parser_in.ml"
 =======
 # 2132 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2132 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic i in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -2485,10 +2749,14 @@ module Tables = struct
 # 553 "flambda_parser.mly"
     ( Binary (Int_comp (i, c s), arg1, arg2) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2206 "flambda_parser_in.ml"
 =======
 # 2141 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2141 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2537,10 +2805,14 @@ module Tables = struct
 # 257 "flambda_parser.mly"
       (Fexpr.standard_int)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2254 "flambda_parser_in.ml"
 =======
 # 2189 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2189 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic i in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -2550,10 +2822,14 @@ module Tables = struct
 # 556 "flambda_parser.mly"
     ( Binary (Int_shift (i, s), arg1, arg2) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2263 "flambda_parser_in.ml"
 =======
 # 2198 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2198 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2579,10 +2855,14 @@ module Tables = struct
 # 968 "flambda_parser.mly"
           ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2288 "flambda_parser_in.ml"
 =======
 # 2223 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2223 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2604,10 +2884,14 @@ module Tables = struct
 # 247 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2309 "flambda_parser_in.ml"
 =======
 # 2244 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2244 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic a in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_a_ in
@@ -2616,10 +2900,14 @@ module Tables = struct
 # 969 "flambda_parser.mly"
           ( Some a )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2317 "flambda_parser_in.ml"
 =======
 # 2252 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2252 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2680,20 +2968,28 @@ module Tables = struct
 # 228 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2377 "flambda_parser_in.ml"
 =======
 # 2312 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2312 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic alloc in
         let t : 'tv_tag = Obj.magic t in
         let m : (
 # 249 "flambda_parser.mly"
       (Fexpr.mutability)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2383 "flambda_parser_in.ml"
 =======
 # 2318 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2318 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic m in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -2704,6 +3000,7 @@ module Tables = struct
 # 229 "<standard.mly>"
     ( xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2392 "flambda_parser_in.ml"
          in
         
@@ -2713,11 +3010,14 @@ module Tables = struct
          in
 =======
 # 2328 "flambda_parser.ml"
+=======
+# 2328 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
            in
           (
 # 543 "flambda_parser.mly"
     ( Variadic (Make_block (t, m, alloc), elts) )
-# 2333 "flambda_parser.ml"
+# 2333 "flambda_parser_in.ml"
            : 'tv_block)
         in
 >>>>>>> 5855998ec (Multiple return values)
@@ -2738,18 +3038,26 @@ module Tables = struct
 # 233 "flambda_parser.mly"
       (Fexpr.block_access_field_kind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2415 "flambda_parser_in.ml"
 =======
 # 2352 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2352 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 459 "flambda_parser.mly"
     ( Any_value )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 2419 "flambda_parser_in.ml"
 =======
 # 2356 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2356 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2775,18 +3083,26 @@ module Tables = struct
 # 233 "flambda_parser.mly"
       (Fexpr.block_access_field_kind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2444 "flambda_parser_in.ml"
 =======
 # 2381 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2381 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 460 "flambda_parser.mly"
             ( Immediate )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 2448 "flambda_parser_in.ml"
 =======
 # 2385 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2385 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2822,10 +3138,14 @@ module Tables = struct
 # 233 "flambda_parser.mly"
       (Fexpr.block_access_field_kind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2483 "flambda_parser_in.ml"
 =======
 # 2420 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2420 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic field_kind in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_field_kind_ in
@@ -2834,10 +3154,14 @@ module Tables = struct
 # 453 "flambda_parser.mly"
     ( Values { field_kind; tag; size } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2491 "flambda_parser_in.ml"
 =======
 # 2428 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2428 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2870,10 +3194,14 @@ module Tables = struct
 # 455 "flambda_parser.mly"
     ( Naked_floats { size } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2523 "flambda_parser_in.ml"
 =======
 # 2460 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2460 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2891,11 +3219,15 @@ module Tables = struct
         let _v : 'tv_boption_KWD_NOALLOC_ = 
 # 130 "<standard.mly>"
     ( false )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 2541 "flambda_parser_in.ml"
 =======
 # 2478 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2478 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2921,10 +3253,14 @@ module Tables = struct
 # 132 "<standard.mly>"
     ( true )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2566 "flambda_parser_in.ml"
 =======
 # 2503 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2503 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2943,10 +3279,14 @@ module Tables = struct
 # 130 "<standard.mly>"
     ( false )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2584 "flambda_parser_in.ml"
 =======
 # 2521 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2521 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2972,10 +3312,14 @@ module Tables = struct
 # 132 "<standard.mly>"
     ( true )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2609 "flambda_parser_in.ml"
 =======
 # 2546 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2546 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -2997,10 +3341,14 @@ module Tables = struct
 # 229 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_types)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2630 "flambda_parser_in.ml"
 =======
 # 2567 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2567 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic alloc in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_alloc_ in
@@ -3009,10 +3357,14 @@ module Tables = struct
 # 785 "flambda_parser.mly"
                                       ( Function (Indirect alloc) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2638 "flambda_parser_in.ml"
 =======
 # 2575 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2575 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3065,10 +3417,14 @@ module Tables = struct
 # 229 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_types)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2690 "flambda_parser_in.ml"
 =======
 # 2627 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2627 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic alloc in
         let function_slot : 'tv_function_slot_opt = Obj.magic function_slot in
         let code_id : 'tv_code_id = Obj.magic code_id in
@@ -3081,10 +3437,14 @@ module Tables = struct
 # 791 "flambda_parser.mly"
     ( Function (Direct { code_id; function_slot; alloc }) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2702 "flambda_parser_in.ml"
 =======
 # 2639 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2639 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3117,10 +3477,14 @@ module Tables = struct
 # 793 "flambda_parser.mly"
     ( C_call { alloc = not noalloc } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2734 "flambda_parser_in.ml"
 =======
 # 2671 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2671 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3224,10 +3588,14 @@ module Tables = struct
                             ret_cont; exn_cont; body };
         code_size; is_tupled; loopify; } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2837 "flambda_parser_in.ml"
 =======
 # 2774 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2774 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3323,10 +3691,14 @@ module Tables = struct
 # 344 "flambda_parser.mly"
     ( recursive, inline, loopify, id, newer_version_of, code_size, is_tupled )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2932 "flambda_parser_in.ml"
 =======
 # 2869 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2869 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3352,10 +3724,14 @@ module Tables = struct
 # 1000 "flambda_parser.mly"
                  ( v )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2957 "flambda_parser_in.ml"
 =======
 # 2894 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2894 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3381,10 +3757,14 @@ module Tables = struct
 # 1004 "flambda_parser.mly"
                   ( i )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 2982 "flambda_parser_in.ml"
 =======
 # 2919 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2919 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3410,10 +3790,14 @@ module Tables = struct
 # 980 "flambda_parser.mly"
            ( Id )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3007 "flambda_parser_in.ml"
 =======
 # 2944 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2944 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3453,20 +3837,28 @@ module Tables = struct
 # 253 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3046 "flambda_parser_in.ml"
 =======
 # 2983 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2983 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic to_ in
         let _3 : unit = Obj.magic _3 in
         let from : (
 # 253 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3052 "flambda_parser_in.ml"
 =======
 # 2989 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2989 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic from in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -3476,10 +3868,14 @@ module Tables = struct
 # 982 "flambda_parser.mly"
     ( Change_depth { from; to_; } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3061 "flambda_parser_in.ml"
 =======
 # 2998 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 2998 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3501,10 +3897,14 @@ module Tables = struct
 # 74 "flambda_parser.mly"
        (string * char option)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3082 "flambda_parser_in.ml"
 =======
 # 3019 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3019 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic c in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_c_ in
@@ -3513,18 +3913,26 @@ module Tables = struct
 # 234 "flambda_parser.mly"
       (Fexpr.const)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3090 "flambda_parser_in.ml"
 =======
 # 3027 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3027 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 949 "flambda_parser.mly"
             ( make_const_int c )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3094 "flambda_parser_in.ml"
 =======
 # 3031 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3031 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3546,10 +3954,14 @@ module Tables = struct
 # 68 "flambda_parser.mly"
        (float)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3115 "flambda_parser_in.ml"
 =======
 # 3052 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3052 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic c in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_c_ in
@@ -3558,18 +3970,26 @@ module Tables = struct
 # 234 "flambda_parser.mly"
       (Fexpr.const)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3123 "flambda_parser_in.ml"
 =======
 # 3060 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3060 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 950 "flambda_parser.mly"
               ( Naked_float c )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3127 "flambda_parser_in.ml"
 =======
 # 3064 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3064 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3595,18 +4015,26 @@ module Tables = struct
 # 235 "flambda_parser.mly"
       (Fexpr.continuation)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3152 "flambda_parser_in.ml"
 =======
 # 3089 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3089 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 1028 "flambda_parser.mly"
                         ( Named e )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3156 "flambda_parser_in.ml"
 =======
 # 3093 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3093 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3628,10 +4056,14 @@ module Tables = struct
 # 256 "flambda_parser.mly"
       (Fexpr.special_continuation)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3177 "flambda_parser_in.ml"
 =======
 # 3114 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3114 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic s in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_s_ in
@@ -3640,18 +4072,26 @@ module Tables = struct
 # 235 "flambda_parser.mly"
       (Fexpr.continuation)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3185 "flambda_parser_in.ml"
 =======
 # 3122 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3122 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 1029 "flambda_parser.mly"
                              ( Special s )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3189 "flambda_parser_in.ml"
 =======
 # 3126 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3126 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3700,10 +4140,14 @@ module Tables = struct
 # 241 "flambda_parser.mly"
       (Fexpr.continuation_sort option)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3237 "flambda_parser_in.ml"
 =======
 # 3174 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3174 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic sort in
         let name : 'tv_continuation_id = Obj.magic name in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -3713,10 +4157,14 @@ module Tables = struct
 # 871 "flambda_parser.mly"
     ( { name; params; handler; sort } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3246 "flambda_parser_in.ml"
 =======
 # 3183 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3183 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3742,10 +4190,14 @@ module Tables = struct
 # 697 "flambda_parser.mly"
                                     ( l )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3271 "flambda_parser_in.ml"
 =======
 # 3208 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3208 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3771,10 +4223,14 @@ module Tables = struct
 # 698 "flambda_parser.mly"
                     ( a )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3296 "flambda_parser_in.ml"
 =======
 # 3233 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3233 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3796,10 +4252,14 @@ module Tables = struct
 # 73 "flambda_parser.mly"
        (string)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3317 "flambda_parser_in.ml"
 =======
 # 3254 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3254 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic e in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_e_ in
@@ -3819,7 +4279,7 @@ module Tables = struct
           (
 # 993 "flambda_parser.mly"
               ( make_located e (_startpos, _endpos) )
-# 3265 "flambda_parser.ml"
+# 3265 "flambda_parser_in.ml"
            : 'tv_continuation_id)
         in
 >>>>>>> 5855998ec (Multiple return values)
@@ -3840,18 +4300,26 @@ module Tables = struct
 # 241 "flambda_parser.mly"
       (Fexpr.continuation_sort option)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3345 "flambda_parser_in.ml"
 =======
 # 3284 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3284 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 863 "flambda_parser.mly"
     ( None )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3349 "flambda_parser_in.ml"
 =======
 # 3288 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3288 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3876,19 +4344,27 @@ module Tables = struct
         let _v : (
 # 241 "flambda_parser.mly"
       (Fexpr.continuation_sort option)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3374 "flambda_parser_in.ml"
 =======
 # 3313 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3313 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 864 "flambda_parser.mly"
             ( Some Exn )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3378 "flambda_parser_in.ml"
 =======
 # 3317 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3317 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3914,18 +4390,26 @@ module Tables = struct
 # 241 "flambda_parser.mly"
       (Fexpr.continuation_sort option)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3403 "flambda_parser_in.ml"
 =======
 # 3342 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3342 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 865 "flambda_parser.mly"
                            ( Some Define_root_symbol )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3407 "flambda_parser_in.ml"
 =======
 # 3346 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3346 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3958,18 +4442,26 @@ module Tables = struct
 # 236 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3439 "flambda_parser_in.ml"
 =======
 # 3378 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3378 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 474 "flambda_parser.mly"
                        ( Tagged_immediate )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3443 "flambda_parser_in.ml"
 =======
 # 3382 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3382 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -3994,19 +4486,27 @@ module Tables = struct
         let _v : (
 # 236 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3468 "flambda_parser_in.ml"
 =======
 # 3407 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3407 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 475 "flambda_parser.mly"
             ( Naked_immediate )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3472 "flambda_parser_in.ml"
 =======
 # 3411 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3411 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4031,19 +4531,27 @@ module Tables = struct
         let _v : (
 # 236 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3497 "flambda_parser_in.ml"
 =======
 # 3436 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3436 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 476 "flambda_parser.mly"
               ( Naked_float )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3501 "flambda_parser_in.ml"
 =======
 # 3440 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3440 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4068,19 +4576,27 @@ module Tables = struct
         let _v : (
 # 236 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3526 "flambda_parser_in.ml"
 =======
 # 3465 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3465 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 477 "flambda_parser.mly"
               ( Naked_int32 )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3530 "flambda_parser_in.ml"
 =======
 # 3469 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3469 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4105,19 +4621,27 @@ module Tables = struct
         let _v : (
 # 236 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3555 "flambda_parser_in.ml"
 =======
 # 3494 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3494 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 478 "flambda_parser.mly"
               ( Naked_int64 )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3559 "flambda_parser_in.ml"
 =======
 # 3498 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3498 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4143,18 +4667,26 @@ module Tables = struct
 # 236 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3584 "flambda_parser_in.ml"
 =======
 # 3523 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3523 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 479 "flambda_parser.mly"
                   ( Naked_nativeint )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3588 "flambda_parser_in.ml"
 =======
 # 3527 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3527 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4173,10 +4705,14 @@ module Tables = struct
 # 644 "flambda_parser.mly"
     ( [], [] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3606 "flambda_parser_in.ml"
 =======
 # 3545 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3545 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4202,10 +4738,14 @@ module Tables = struct
 # 645 "flambda_parser.mly"
                            ( ctors )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3631 "flambda_parser_in.ml"
 =======
 # 3570 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3570 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4231,10 +4771,14 @@ module Tables = struct
 # 647 "flambda_parser.mly"
                     ( [ tag ], [] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3656 "flambda_parser_in.ml"
 =======
 # 3595 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3595 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4274,10 +4818,14 @@ module Tables = struct
 # 649 "flambda_parser.mly"
       ( let (c, nc) = ctors in (tag :: c, nc) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3695 "flambda_parser_in.ml"
 =======
 # 3634 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3634 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4303,10 +4851,14 @@ module Tables = struct
 # 650 "flambda_parser.mly"
                                         ( [], nonconsts )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3720 "flambda_parser_in.ml"
 =======
 # 3659 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3659 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4346,10 +4898,14 @@ module Tables = struct
 # 311 "flambda_parser.mly"
                                              ( code_id )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3759 "flambda_parser_in.ml"
 =======
 # 3698 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3698 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4377,10 +4933,14 @@ module Tables = struct
 # 235 "flambda_parser.mly"
       (Fexpr.continuation)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3786 "flambda_parser_in.ml"
 =======
 # 3725 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3725 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic cont in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -4390,10 +4950,14 @@ module Tables = struct
 # 289 "flambda_parser.mly"
                              ( cont )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3795 "flambda_parser_in.ml"
 =======
 # 3734 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3734 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4426,10 +4990,14 @@ module Tables = struct
 # 292 "flambda_parser.mly"
                                 ( cont )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3827 "flambda_parser_in.ml"
 =======
 # 3766 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3766 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4476,18 +5044,26 @@ module Tables = struct
 # 237 "flambda_parser.mly"
       (Fexpr.expect_test_spec)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3873 "flambda_parser_in.ml"
 =======
 # 3812 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3812 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 276 "flambda_parser.mly"
     ( { before; after } )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3877 "flambda_parser_in.ml"
 =======
 # 3816 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3816 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4513,10 +5089,14 @@ module Tables = struct
 # 676 "flambda_parser.mly"
                        ( l )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3902 "flambda_parser_in.ml"
 =======
 # 3841 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3841 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4542,10 +5122,14 @@ module Tables = struct
 # 677 "flambda_parser.mly"
                    ( i )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3927 "flambda_parser_in.ml"
 =======
 # 3866 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3866 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4571,18 +5155,26 @@ module Tables = struct
 # 238 "flambda_parser.mly"
       (Fexpr.field_of_block)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3952 "flambda_parser_in.ml"
 =======
 # 3891 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3891 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 930 "flambda_parser.mly"
                ( Symbol s )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3956 "flambda_parser_in.ml"
 =======
 # 3895 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3895 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4608,18 +5200,26 @@ module Tables = struct
 # 238 "flambda_parser.mly"
       (Fexpr.field_of_block)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 3981 "flambda_parser_in.ml"
 =======
 # 3920 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3920 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 931 "flambda_parser.mly"
                  ( Dynamically_computed v )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 3985 "flambda_parser_in.ml"
 =======
 # 3924 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3924 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4641,10 +5241,14 @@ module Tables = struct
 # 74 "flambda_parser.mly"
        (string * char option)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4006 "flambda_parser_in.ml"
 =======
 # 3945 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3945 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic i in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_i_ in
@@ -4668,11 +5272,11 @@ module Tables = struct
           (
 # 901 "flambda_parser.mly"
             ( Tagged_immediate ( make_tagged_immediate ~loc:(_startpos, _endpos) i ) )
-# 3956 "flambda_parser.ml"
+# 3956 "flambda_parser_in.ml"
            : (
 # 232 "flambda_parser.mly"
       (Fexpr.field_of_block)
-# 3960 "flambda_parser.ml"
+# 3960 "flambda_parser_in.ml"
           ))
         in
 >>>>>>> 5855998ec (Multiple return values)
@@ -4707,18 +5311,26 @@ module Tables = struct
 # 239 "flambda_parser.mly"
       (Fexpr.flambda_unit)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4052 "flambda_parser_in.ml"
 =======
 # 3993 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3993 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 271 "flambda_parser.mly"
     ( body )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4056 "flambda_parser_in.ml"
 =======
 # 3997 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 3997 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4743,19 +5355,27 @@ module Tables = struct
         let _v : (
 # 240 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4081 "flambda_parser_in.ml"
 =======
 # 4022 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4022 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 524 "flambda_parser.mly"
              ( Yielding_bool Eq )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4085 "flambda_parser_in.ml"
 =======
 # 4026 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4026 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4780,19 +5400,27 @@ module Tables = struct
         let _v : (
 # 240 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4110 "flambda_parser_in.ml"
 =======
 # 4051 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4051 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 525 "flambda_parser.mly"
                 ( Yielding_bool Neq )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4114 "flambda_parser_in.ml"
 =======
 # 4055 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4055 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4817,19 +5445,27 @@ module Tables = struct
         let _v : (
 # 240 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4139 "flambda_parser_in.ml"
 =======
 # 4080 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4080 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 526 "flambda_parser.mly"
             ( Yielding_bool ( Lt ()) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4143 "flambda_parser_in.ml"
 =======
 # 4084 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4084 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4854,19 +5490,27 @@ module Tables = struct
         let _v : (
 # 240 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4168 "flambda_parser_in.ml"
 =======
 # 4109 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4109 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 527 "flambda_parser.mly"
                ( Yielding_bool ( Gt ()) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4172 "flambda_parser_in.ml"
 =======
 # 4113 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4113 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4891,19 +5535,27 @@ module Tables = struct
         let _v : (
 # 240 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4197 "flambda_parser_in.ml"
 =======
 # 4138 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4138 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 528 "flambda_parser.mly"
                  ( Yielding_bool (Le()) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4201 "flambda_parser_in.ml"
 =======
 # 4142 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4142 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4928,19 +5580,27 @@ module Tables = struct
         let _v : (
 # 240 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4226 "flambda_parser_in.ml"
 =======
 # 4167 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4167 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 529 "flambda_parser.mly"
                     ( Yielding_bool (Ge ()) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4230 "flambda_parser_in.ml"
 =======
 # 4171 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4171 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4966,18 +5626,26 @@ module Tables = struct
 # 240 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4255 "flambda_parser_in.ml"
 =======
 # 4196 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4196 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 530 "flambda_parser.mly"
              ( (Yielding_int_like_compare_functions ()) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4259 "flambda_parser_in.ml"
 =======
 # 4200 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4200 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -4999,10 +5667,14 @@ module Tables = struct
 # 68 "flambda_parser.mly"
        (float)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4280 "flambda_parser_in.ml"
 =======
 # 4221 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4221 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic f in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_f_ in
@@ -5011,18 +5683,26 @@ module Tables = struct
 # 242 "flambda_parser.mly"
       (float Fexpr.or_variable)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4288 "flambda_parser_in.ml"
 =======
 # 4229 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4229 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 910 "flambda_parser.mly"
               ( Const f )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4292 "flambda_parser_in.ml"
 =======
 # 4233 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4233 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5048,18 +5728,26 @@ module Tables = struct
 # 242 "flambda_parser.mly"
       (float Fexpr.or_variable)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4317 "flambda_parser_in.ml"
 =======
 # 4258 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4258 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 911 "flambda_parser.mly"
                  ( Var v )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4321 "flambda_parser_in.ml"
 =======
 # 4262 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4262 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5099,10 +5787,14 @@ module Tables = struct
 # 228 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4360 "flambda_parser_in.ml"
 =======
 # 4301 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4301 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic alloc in
         let function_slot : 'tv_function_slot_opt = Obj.magic function_slot in
         let code_id : 'tv_code_id = Obj.magic code_id in
@@ -5114,10 +5806,14 @@ module Tables = struct
 # 759 "flambda_parser.mly"
     ( { code_id; function_slot; alloc; } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4371 "flambda_parser_in.ml"
 =======
 # 4312 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4312 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5139,10 +5835,14 @@ module Tables = struct
 # 251 "flambda_parser.mly"
       (Fexpr.name)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4392 "flambda_parser_in.ml"
 =======
 # 4333 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4333 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic n in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_n_ in
@@ -5151,10 +5851,14 @@ module Tables = struct
 # 959 "flambda_parser.mly"
              ( n, None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4400 "flambda_parser_in.ml"
 =======
 # 4341 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4341 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5213,10 +5917,14 @@ module Tables = struct
 # 247 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4458 "flambda_parser_in.ml"
 =======
 # 4399 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4399 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic ret_arity in
         let _5 : unit = Obj.magic _5 in
         let params_arity : 'tv_blank_or_kinds_with_subkinds_ = Obj.magic params_arity in
@@ -5225,10 +5933,14 @@ module Tables = struct
 # 251 "flambda_parser.mly"
       (Fexpr.name)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4466 "flambda_parser_in.ml"
 =======
 # 4407 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4407 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic n in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -5238,10 +5950,14 @@ module Tables = struct
 # 964 "flambda_parser.mly"
     ( n, Some ({ params_arity; ret_arity } : function_arities) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4475 "flambda_parser_in.ml"
 =======
 # 4416 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4416 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5267,10 +5983,14 @@ module Tables = struct
 # 1007 "flambda_parser.mly"
                  ( v )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4500 "flambda_parser_in.ml"
 =======
 # 4441 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4441 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5289,10 +6009,14 @@ module Tables = struct
 # 1011 "flambda_parser.mly"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4518 "flambda_parser_in.ml"
 =======
 # 4459 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4459 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5325,10 +6049,14 @@ module Tables = struct
 # 1012 "flambda_parser.mly"
                             ( Some cid )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4550 "flambda_parser_in.ml"
 =======
 # 4491 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4491 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5350,10 +6078,14 @@ module Tables = struct
 # 232 "flambda_parser.mly"
       (Fexpr.binary_int_arith_op)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4571 "flambda_parser_in.ml"
 =======
 # 4512 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4512 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic o in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_o_ in
@@ -5362,18 +6094,26 @@ module Tables = struct
 # 243 "flambda_parser.mly"
       (Fexpr.infix_binop)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4579 "flambda_parser_in.ml"
 =======
 # 4520 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4520 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 407 "flambda_parser.mly"
                             ( Int_arith o )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4583 "flambda_parser_in.ml"
 =======
 # 4524 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4524 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5395,10 +6135,14 @@ module Tables = struct
 # 244 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4604 "flambda_parser_in.ml"
 =======
 # 4545 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4545 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic c in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_c_ in
@@ -5407,18 +6151,26 @@ module Tables = struct
 # 243 "flambda_parser.mly"
       (Fexpr.infix_binop)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4612 "flambda_parser_in.ml"
 =======
 # 4553 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4553 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 408 "flambda_parser.mly"
                  ( Int_comp (c Signed) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4616 "flambda_parser_in.ml"
 =======
 # 4557 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4557 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5444,18 +6196,26 @@ module Tables = struct
 # 243 "flambda_parser.mly"
       (Fexpr.infix_binop)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4641 "flambda_parser_in.ml"
 =======
 # 4582 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4582 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 409 "flambda_parser.mly"
                   ( Int_shift s )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4645 "flambda_parser_in.ml"
 =======
 # 4586 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4586 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5477,10 +6237,14 @@ module Tables = struct
 # 231 "flambda_parser.mly"
       (Fexpr.binary_float_arith_op)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4666 "flambda_parser_in.ml"
 =======
 # 4607 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4607 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic o in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_o_ in
@@ -5489,18 +6253,26 @@ module Tables = struct
 # 243 "flambda_parser.mly"
       (Fexpr.infix_binop)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4674 "flambda_parser_in.ml"
 =======
 # 4615 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4615 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 410 "flambda_parser.mly"
                               ( Float_arith o )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4678 "flambda_parser_in.ml"
 =======
 # 4619 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4619 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5522,10 +6294,14 @@ module Tables = struct
 # 240 "flambda_parser.mly"
       (unit Fexpr.comparison_behaviour)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4699 "flambda_parser_in.ml"
 =======
 # 4640 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4640 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic c in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_c_ in
@@ -5534,18 +6310,26 @@ module Tables = struct
 # 243 "flambda_parser.mly"
       (Fexpr.infix_binop)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4707 "flambda_parser_in.ml"
 =======
 # 4648 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4648 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 411 "flambda_parser.mly"
                    ( Float_comp c )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 4711 "flambda_parser_in.ml"
 =======
 # 4652 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4652 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5571,10 +6355,14 @@ module Tables = struct
 # 482 "flambda_parser.mly"
           ( Initialization )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4736 "flambda_parser_in.ml"
 =======
 # 4677 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4677 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5600,10 +6388,14 @@ module Tables = struct
 # 483 "flambda_parser.mly"
               ( Assignment Heap )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4761 "flambda_parser_in.ml"
 =======
 # 4702 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4702 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5637,10 +6429,14 @@ module Tables = struct
 # 255 "flambda_parser.mly"
       (Fexpr.region)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4794 "flambda_parser_in.ml"
 =======
 # 4735 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4735 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic region in
         let _2 : unit = Obj.magic _2 in
         let _1 : unit = Obj.magic _1 in
@@ -5651,10 +6447,14 @@ module Tables = struct
 # 484 "flambda_parser.mly"
                                    ( Assignment (Local { region }) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4804 "flambda_parser_in.ml"
 =======
 # 4745 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4745 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5701,10 +6501,14 @@ module Tables = struct
 # 797 "flambda_parser.mly"
                                         ( Always_inline )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4850 "flambda_parser_in.ml"
 =======
 # 4791 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4791 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5751,10 +6555,14 @@ module Tables = struct
 # 798 "flambda_parser.mly"
                                            ( Available_inline )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4896 "flambda_parser_in.ml"
 =======
 # 4837 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4837 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5801,10 +6609,14 @@ module Tables = struct
 # 799 "flambda_parser.mly"
                                        ( Never_inline )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4942 "flambda_parser_in.ml"
 =======
 # 4883 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4883 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5851,10 +6663,14 @@ module Tables = struct
 # 800 "flambda_parser.mly"
                                              ( Inline_attribute.Unroll i )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 4988 "flambda_parser_in.ml"
 =======
 # 4929 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4929 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5901,10 +6717,14 @@ module Tables = struct
 # 801 "flambda_parser.mly"
                                          ( Default_inline )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5034 "flambda_parser_in.ml"
 =======
 # 4975 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 4975 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -5951,10 +6771,14 @@ module Tables = struct
 # 804 "flambda_parser.mly"
                                          ( Always_inlined )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5080 "flambda_parser_in.ml"
 =======
 # 5021 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5021 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6001,10 +6825,14 @@ module Tables = struct
 # 805 "flambda_parser.mly"
                                        ( Hint_inlined )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5126 "flambda_parser_in.ml"
 =======
 # 5067 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5067 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6051,10 +6879,14 @@ module Tables = struct
 # 806 "flambda_parser.mly"
                                         ( Never_inlined )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5172 "flambda_parser_in.ml"
 =======
 # 5113 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5113 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6101,10 +6933,14 @@ module Tables = struct
 # 807 "flambda_parser.mly"
                                              ( Unroll i )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5218 "flambda_parser_in.ml"
 =======
 # 5159 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5159 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6151,10 +6987,14 @@ module Tables = struct
 # 808 "flambda_parser.mly"
                                           ( Default_inlined )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5264 "flambda_parser_in.ml"
 =======
 # 5205 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5205 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6204,10 +7044,14 @@ module Tables = struct
       { depth }
     )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5313 "flambda_parser_in.ml"
 =======
 # 5254 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5254 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6254,10 +7098,14 @@ module Tables = struct
 # 818 "flambda_parser.mly"
                                             ( i )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5359 "flambda_parser_in.ml"
 =======
 # 5300 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5300 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6283,10 +7131,14 @@ module Tables = struct
 # 686 "flambda_parser.mly"
                    ( w )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5384 "flambda_parser_in.ml"
 =======
 # 5325 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5325 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6312,10 +7164,14 @@ module Tables = struct
 # 687 "flambda_parser.mly"
                     ( a )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5409 "flambda_parser_in.ml"
 =======
 # 5350 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5350 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6340,19 +7196,27 @@ module Tables = struct
         let _v : (
 # 244 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5434 "flambda_parser_in.ml"
 =======
 # 5375 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5375 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 516 "flambda_parser.mly"
          ( fun s -> Yielding_bool (Lt s) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5438 "flambda_parser_in.ml"
 =======
 # 5379 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5379 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6377,19 +7241,27 @@ module Tables = struct
         let _v : (
 # 244 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5463 "flambda_parser_in.ml"
 =======
 # 5404 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5404 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 517 "flambda_parser.mly"
             ( fun s -> Yielding_bool (Gt s) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5467 "flambda_parser_in.ml"
 =======
 # 5408 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5408 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6414,19 +7286,27 @@ module Tables = struct
         let _v : (
 # 244 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5492 "flambda_parser_in.ml"
 =======
 # 5433 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5433 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 518 "flambda_parser.mly"
               ( fun s -> Yielding_bool (Le s) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5496 "flambda_parser_in.ml"
 =======
 # 5437 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5437 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6451,19 +7331,27 @@ module Tables = struct
         let _v : (
 # 244 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5521 "flambda_parser_in.ml"
 =======
 # 5462 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5462 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 519 "flambda_parser.mly"
                  ( fun s -> Yielding_bool (Ge s) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5525 "flambda_parser_in.ml"
 =======
 # 5466 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5466 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6488,19 +7376,27 @@ module Tables = struct
         let _v : (
 # 244 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5550 "flambda_parser_in.ml"
 =======
 # 5491 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5491 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 520 "flambda_parser.mly"
              ( fun _ -> Yielding_bool Neq )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5554 "flambda_parser_in.ml"
 =======
 # 5495 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5495 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6526,18 +7422,26 @@ module Tables = struct
 # 244 "flambda_parser.mly"
       (Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5579 "flambda_parser_in.ml"
 =======
 # 5520 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5520 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 521 "flambda_parser.mly"
           ( fun s -> Yielding_int_like_compare_functions s )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5583 "flambda_parser_in.ml"
 =======
 # 5524 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5524 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6563,10 +7467,14 @@ module Tables = struct
 # 534 "flambda_parser.mly"
             ( Lsl )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5608 "flambda_parser_in.ml"
 =======
 # 5549 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5549 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6592,10 +7500,14 @@ module Tables = struct
 # 535 "flambda_parser.mly"
             ( Lsr )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5633 "flambda_parser_in.ml"
 =======
 # 5574 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5574 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6621,10 +7533,14 @@ module Tables = struct
 # 536 "flambda_parser.mly"
             ( Asr )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5658 "flambda_parser_in.ml"
 =======
 # 5599 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5599 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6646,10 +7562,14 @@ module Tables = struct
 # 250 "flambda_parser.mly"
       (Flambda_kind.Naked_number_kind.t)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5679 "flambda_parser_in.ml"
 =======
 # 5620 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5620 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic nnk in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_nnk_ in
@@ -6658,18 +7578,26 @@ module Tables = struct
 # 246 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5687 "flambda_parser_in.ml"
 =======
 # 5628 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5628 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 615 "flambda_parser.mly"
                             ( Naked_number nnk )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5691 "flambda_parser_in.ml"
 =======
 # 5632 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5632 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6691,10 +7619,14 @@ module Tables = struct
 # 260 "flambda_parser.mly"
       (Fexpr.subkind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5712 "flambda_parser_in.ml"
 =======
 # 5653 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5653 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic subkind in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_subkind_ in
@@ -6703,18 +7635,26 @@ module Tables = struct
 # 246 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5720 "flambda_parser_in.ml"
 =======
 # 5661 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5661 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 616 "flambda_parser.mly"
                       ( Value subkind )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5724 "flambda_parser_in.ml"
 =======
 # 5665 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5665 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6739,19 +7679,27 @@ module Tables = struct
         let _v : (
 # 246 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5749 "flambda_parser_in.ml"
 =======
 # 5690 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5690 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 617 "flambda_parser.mly"
                ( Region )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5753 "flambda_parser_in.ml"
 =======
 # 5694 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5694 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6777,18 +7725,26 @@ module Tables = struct
 # 246 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5778 "flambda_parser_in.ml"
 =======
 # 5719 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5719 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 618 "flambda_parser.mly"
                  ( Rec_info )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5782 "flambda_parser_in.ml"
 =======
 # 5723 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5723 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6807,10 +7763,14 @@ module Tables = struct
 # 940 "flambda_parser.mly"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5800 "flambda_parser_in.ml"
 =======
 # 5741 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5741 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6838,10 +7798,14 @@ module Tables = struct
 # 246 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5827 "flambda_parser_in.ml"
 =======
 # 5768 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5768 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic kind in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -6851,10 +7815,14 @@ module Tables = struct
 # 941 "flambda_parser.mly"
                                     ( Some kind )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5836 "flambda_parser_in.ml"
 =======
 # 5777 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5777 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6873,10 +7841,14 @@ module Tables = struct
 # 875 "flambda_parser.mly"
     ( [] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5854 "flambda_parser_in.ml"
 =======
 # 5795 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5795 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6916,10 +7888,14 @@ module Tables = struct
 # 876 "flambda_parser.mly"
                                                                          ( vs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5893 "flambda_parser_in.ml"
 =======
 # 5834 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5834 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6952,10 +7928,14 @@ module Tables = struct
 # 936 "flambda_parser.mly"
                                                    ( { param; kind } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5925 "flambda_parser_in.ml"
 =======
 # 5866 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5866 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -6981,18 +7961,26 @@ module Tables = struct
 # 247 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5950 "flambda_parser_in.ml"
 =======
 # 5891 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5891 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 621 "flambda_parser.mly"
              ( [] )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 5954 "flambda_parser_in.ml"
 =======
 # 5895 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5895 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7018,17 +8006,25 @@ module Tables = struct
 # 247 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5979 "flambda_parser_in.ml"
 =======
 # 5920 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5920 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 622 "flambda_parser.mly"
                                                           ( ks )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 5983 "flambda_parser_in.ml"
 =======
 # 5924 "flambda_parser.ml"
+=======
+# 5924 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7053,12 +8049,16 @@ module Tables = struct
         let _v : (
 # 255 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
-# 5949 "flambda_parser.ml"
+# 5949 "flambda_parser_in.ml"
         ) = 
 # 610 "flambda_parser.mly"
                                                            ( sks )
+<<<<<<< HEAD
 # 5953 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5953 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7105,10 +8105,14 @@ module Tables = struct
 # 735 "flambda_parser.mly"
     ( ({ bindings; value_slots; body } : let_) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6029 "flambda_parser_in.ml"
 =======
 # 5999 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 5999 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7155,10 +8159,14 @@ module Tables = struct
 # 735 "flambda_parser.mly"
     ( ({ bindings; value_slots; body } : let_) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6075 "flambda_parser_in.ml"
 =======
 # 6045 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6045 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7192,10 +8200,14 @@ module Tables = struct
 # 252 "flambda_parser.mly"
       (Fexpr.named)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6108 "flambda_parser_in.ml"
 =======
 # 6078 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6078 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic defining_expr in
         let _2 : unit = Obj.magic _2 in
         let var : 'tv_variable = Obj.magic var in
@@ -7206,10 +8218,14 @@ module Tables = struct
 # 740 "flambda_parser.mly"
     ( { var; defining_expr } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6118 "flambda_parser_in.ml"
 =======
 # 6088 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6088 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7242,10 +8258,14 @@ module Tables = struct
 # 681 "flambda_parser.mly"
                            ( Let l )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6150 "flambda_parser_in.ml"
 =======
 # 6120 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6120 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7271,10 +8291,14 @@ module Tables = struct
 # 682 "flambda_parser.mly"
                           ( Let_symbol ls )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6175 "flambda_parser_in.ml"
 =======
 # 6145 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6145 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7307,10 +8331,14 @@ module Tables = struct
 # 681 "flambda_parser.mly"
                            ( Let l )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6207 "flambda_parser_in.ml"
 =======
 # 6177 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6177 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7336,10 +8364,14 @@ module Tables = struct
 # 682 "flambda_parser.mly"
                           ( Let_symbol ls )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6232 "flambda_parser_in.ml"
 =======
 # 6202 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6202 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7393,10 +8425,14 @@ module Tables = struct
 # 299 "flambda_parser.mly"
                          ( { bindings; value_slots; body } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6285 "flambda_parser_in.ml"
 =======
 # 6255 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6255 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7450,10 +8486,14 @@ module Tables = struct
 # 299 "flambda_parser.mly"
                          ( { bindings; value_slots; body } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6338 "flambda_parser_in.ml"
 =======
 # 6308 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6308 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7478,19 +8518,27 @@ module Tables = struct
         let _v : (
 # 248 "flambda_parser.mly"
       (Fexpr.loopify_attribute)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 6363 "flambda_parser_in.ml"
 =======
 # 6333 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6333 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 827 "flambda_parser.mly"
                ( Always_loopify )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 6367 "flambda_parser_in.ml"
 =======
 # 6337 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6337 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7515,19 +8563,27 @@ module Tables = struct
         let _v : (
 # 248 "flambda_parser.mly"
       (Fexpr.loopify_attribute)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 6392 "flambda_parser_in.ml"
 =======
 # 6362 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6362 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 828 "flambda_parser.mly"
               ( Never_loopify )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 6396 "flambda_parser_in.ml"
 =======
 # 6366 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6366 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7553,18 +8609,26 @@ module Tables = struct
 # 248 "flambda_parser.mly"
       (Fexpr.loopify_attribute)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6421 "flambda_parser_in.ml"
 =======
 # 6391 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6391 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 829 "flambda_parser.mly"
              ( Already_loopified )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 6425 "flambda_parser_in.ml"
 =======
 # 6395 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6395 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7597,18 +8661,26 @@ module Tables = struct
 # 248 "flambda_parser.mly"
       (Fexpr.loopify_attribute)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6457 "flambda_parser_in.ml"
 =======
 # 6427 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6427 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 830 "flambda_parser.mly"
                             ( Default_loopify_and_tailrec )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 6461 "flambda_parser_in.ml"
 =======
 # 6431 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6431 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7634,18 +8706,26 @@ module Tables = struct
 # 248 "flambda_parser.mly"
       (Fexpr.loopify_attribute)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6486 "flambda_parser_in.ml"
 =======
 # 6456 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6456 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 831 "flambda_parser.mly"
                 ( Default_loopify_and_not_tailrec )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 6490 "flambda_parser_in.ml"
 =======
 # 6460 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6460 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7664,10 +8744,14 @@ module Tables = struct
 # 822 "flambda_parser.mly"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6508 "flambda_parser_in.ml"
 =======
 # 6478 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6478 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7708,10 +8792,14 @@ module Tables = struct
 # 248 "flambda_parser.mly"
       (Fexpr.loopify_attribute)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6548 "flambda_parser_in.ml"
 =======
 # 6518 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6518 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic l in
         let _2 : unit = Obj.magic _2 in
         let _1 : unit = Obj.magic _1 in
@@ -7722,10 +8810,14 @@ module Tables = struct
 # 823 "flambda_parser.mly"
                                             ( Some l )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6558 "flambda_parser_in.ml"
 =======
 # 6528 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6528 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7744,10 +8836,14 @@ module Tables = struct
 # 139 "<standard.mly>"
     ( [] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6576 "flambda_parser_in.ml"
 =======
 # 6546 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6546 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7773,10 +8869,14 @@ module Tables = struct
 # 141 "<standard.mly>"
     ( x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6601 "flambda_parser_in.ml"
 =======
 # 6571 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6571 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7795,10 +8895,14 @@ module Tables = struct
 # 139 "<standard.mly>"
     ( [] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6619 "flambda_parser_in.ml"
 =======
 # 6589 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6589 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7824,10 +8928,14 @@ module Tables = struct
 # 141 "<standard.mly>"
     ( x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6644 "flambda_parser_in.ml"
 =======
 # 6614 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6614 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7846,10 +8954,14 @@ module Tables = struct
 # 139 "<standard.mly>"
     ( [] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6662 "flambda_parser_in.ml"
 =======
 # 6632 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6632 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7875,10 +8987,14 @@ module Tables = struct
 # 141 "<standard.mly>"
     ( x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6687 "flambda_parser_in.ml"
 =======
 # 6657 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6657 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7897,10 +9013,14 @@ module Tables = struct
 # 139 "<standard.mly>"
     ( [] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6705 "flambda_parser_in.ml"
 =======
 # 6675 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6675 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7926,10 +9046,14 @@ module Tables = struct
 # 141 "<standard.mly>"
     ( x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6730 "flambda_parser_in.ml"
 =======
 # 6700 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6700 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7948,10 +9072,14 @@ module Tables = struct
 # 139 "<standard.mly>"
     ( [] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6748 "flambda_parser_in.ml"
 =======
 # 6718 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6718 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7977,10 +9105,14 @@ module Tables = struct
 # 141 "<standard.mly>"
     ( x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6773 "flambda_parser_in.ml"
 =======
 # 6743 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6743 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -7999,10 +9131,14 @@ module Tables = struct
 # 139 "<standard.mly>"
     ( [] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6791 "flambda_parser_in.ml"
 =======
 # 6761 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6761 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8028,10 +9164,14 @@ module Tables = struct
 # 141 "<standard.mly>"
     ( x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6816 "flambda_parser_in.ml"
 =======
 # 6786 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6786 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8050,10 +9190,14 @@ module Tables = struct
 # 139 "<standard.mly>"
     ( [] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6834 "flambda_parser_in.ml"
 =======
 # 6804 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6804 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8079,10 +9223,14 @@ module Tables = struct
 # 141 "<standard.mly>"
     ( x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6859 "flambda_parser_in.ml"
 =======
 # 6829 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6829 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8108,10 +9256,14 @@ module Tables = struct
 # 285 "flambda_parser.mly"
     ( { body } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6884 "flambda_parser_in.ml"
 =======
 # 6854 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6854 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8136,19 +9288,27 @@ module Tables = struct
         let _v : (
 # 249 "flambda_parser.mly"
       (Fexpr.mutability)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 6909 "flambda_parser_in.ml"
 =======
 # 6879 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6879 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 432 "flambda_parser.mly"
                 ( Mutable )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 6913 "flambda_parser_in.ml"
 =======
 # 6883 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6883 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8174,18 +9334,26 @@ module Tables = struct
 # 249 "flambda_parser.mly"
       (Fexpr.mutability)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6938 "flambda_parser_in.ml"
 =======
 # 6908 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6908 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 433 "flambda_parser.mly"
                          ( Immutable_unique )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 6942 "flambda_parser_in.ml"
 =======
 # 6912 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6912 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8204,18 +9372,26 @@ module Tables = struct
 # 249 "flambda_parser.mly"
       (Fexpr.mutability)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 6960 "flambda_parser_in.ml"
 =======
 # 6930 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6930 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 434 "flambda_parser.mly"
     ( Immutable )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 6964 "flambda_parser_in.ml"
 =======
 # 6934 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6934 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8240,19 +9416,27 @@ module Tables = struct
         let _v : (
 # 250 "flambda_parser.mly"
       (Flambda_kind.Naked_number_kind.t)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 6989 "flambda_parser_in.ml"
 =======
 # 6959 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6959 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 600 "flambda_parser.mly"
             ( Naked_immediate )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 6993 "flambda_parser_in.ml"
 =======
 # 6963 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6963 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8277,19 +9461,27 @@ module Tables = struct
         let _v : (
 # 250 "flambda_parser.mly"
       (Flambda_kind.Naked_number_kind.t)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7018 "flambda_parser_in.ml"
 =======
 # 6988 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6988 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 601 "flambda_parser.mly"
               ( Naked_float )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7022 "flambda_parser_in.ml"
 =======
 # 6992 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 6992 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8314,19 +9506,27 @@ module Tables = struct
         let _v : (
 # 250 "flambda_parser.mly"
       (Flambda_kind.Naked_number_kind.t)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7047 "flambda_parser_in.ml"
 =======
 # 7017 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7017 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 602 "flambda_parser.mly"
               ( Naked_int32 )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7051 "flambda_parser_in.ml"
 =======
 # 7021 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7021 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8351,19 +9551,27 @@ module Tables = struct
         let _v : (
 # 250 "flambda_parser.mly"
       (Flambda_kind.Naked_number_kind.t)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7076 "flambda_parser_in.ml"
 =======
 # 7046 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7046 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 603 "flambda_parser.mly"
               ( Naked_int64 )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7080 "flambda_parser_in.ml"
 =======
 # 7050 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7050 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8389,18 +9597,26 @@ module Tables = struct
 # 250 "flambda_parser.mly"
       (Flambda_kind.Naked_number_kind.t)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7105 "flambda_parser_in.ml"
 =======
 # 7075 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7075 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 604 "flambda_parser.mly"
                   ( Naked_nativeint )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7109 "flambda_parser_in.ml"
 =======
 # 7079 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7079 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8426,18 +9642,26 @@ module Tables = struct
 # 251 "flambda_parser.mly"
       (Fexpr.name)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7134 "flambda_parser_in.ml"
 =======
 # 7104 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7104 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 954 "flambda_parser.mly"
                ( (Symbol s:name) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7138 "flambda_parser_in.ml"
 =======
 # 7108 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7108 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8463,18 +9687,26 @@ module Tables = struct
 # 251 "flambda_parser.mly"
       (Fexpr.name)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7163 "flambda_parser_in.ml"
 =======
 # 7133 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7133 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 955 "flambda_parser.mly"
                  ( (Var v:name) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7167 "flambda_parser_in.ml"
 =======
 # 7137 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7137 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8500,18 +9732,26 @@ module Tables = struct
 # 252 "flambda_parser.mly"
       (Fexpr.named)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7192 "flambda_parser_in.ml"
 =======
 # 7162 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7162 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 577 "flambda_parser.mly"
                ( Simple s )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7196 "flambda_parser_in.ml"
 =======
 # 7166 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7166 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8537,18 +9777,26 @@ module Tables = struct
 # 252 "flambda_parser.mly"
       (Fexpr.named)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7221 "flambda_parser_in.ml"
 =======
 # 7191 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7191 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 578 "flambda_parser.mly"
                ( Prim (Nullary n) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7225 "flambda_parser_in.ml"
 =======
 # 7195 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7195 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8581,18 +9829,26 @@ module Tables = struct
 # 252 "flambda_parser.mly"
       (Fexpr.named)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7257 "flambda_parser_in.ml"
 =======
 # 7227 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7227 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 579 "flambda_parser.mly"
                         ( Prim (Unary (u, a)) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7261 "flambda_parser_in.ml"
 =======
 # 7231 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7231 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8618,18 +9874,26 @@ module Tables = struct
 # 252 "flambda_parser.mly"
       (Fexpr.named)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7286 "flambda_parser_in.ml"
 =======
 # 7256 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7256 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 580 "flambda_parser.mly"
                   ( Prim b )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7290 "flambda_parser_in.ml"
 =======
 # 7260 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7260 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8655,18 +9919,26 @@ module Tables = struct
 # 252 "flambda_parser.mly"
       (Fexpr.named)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7315 "flambda_parser_in.ml"
 =======
 # 7285 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7285 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 581 "flambda_parser.mly"
                    ( Prim t )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7319 "flambda_parser_in.ml"
 =======
 # 7289 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7289 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8692,18 +9964,26 @@ module Tables = struct
 # 252 "flambda_parser.mly"
       (Fexpr.named)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7344 "flambda_parser_in.ml"
 =======
 # 7314 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7314 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 582 "flambda_parser.mly"
               ( Prim b )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7348 "flambda_parser_in.ml"
 =======
 # 7318 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7318 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8729,18 +10009,26 @@ module Tables = struct
 # 252 "flambda_parser.mly"
       (Fexpr.named)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7373 "flambda_parser_in.ml"
 =======
 # 7343 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7343 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 583 "flambda_parser.mly"
                  ( Closure c )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7377 "flambda_parser_in.ml"
 =======
 # 7347 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7347 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8768,10 +10056,14 @@ module Tables = struct
 # 254 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7404 "flambda_parser_in.ml"
 =======
 # 7374 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7374 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic ri in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -8781,18 +10073,26 @@ module Tables = struct
 # 252 "flambda_parser.mly"
       (Fexpr.named)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7413 "flambda_parser_in.ml"
 =======
 # 7383 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7383 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 589 "flambda_parser.mly"
                                      ( Rec_info ri )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7417 "flambda_parser_in.ml"
 =======
 # 7387 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7387 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8839,10 +10139,14 @@ module Tables = struct
 # 348 "flambda_parser.mly"
                                                       ( id )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7463 "flambda_parser_in.ml"
 =======
 # 7433 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7433 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8880,8 +10184,12 @@ module Tables = struct
 =======
 # 255 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
+<<<<<<< HEAD
 # 7466 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7466 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic kinds in
         let _2 : unit = Obj.magic _2 in
         let tag : 'tv_tag = Obj.magic tag in
@@ -8896,8 +10204,12 @@ module Tables = struct
 =======
 # 625 "flambda_parser.mly"
                                                             ( tag, kinds )
+<<<<<<< HEAD
 # 7476 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7476 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8923,10 +10235,14 @@ module Tables = struct
 # 652 "flambda_parser.mly"
                                                          ( ctors )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7531 "flambda_parser_in.ml"
 =======
 # 7501 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7501 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8952,10 +10268,14 @@ module Tables = struct
 # 368 "flambda_parser.mly"
                       ( Begin_region )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7556 "flambda_parser_in.ml"
 =======
 # 7526 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7526 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -8974,10 +10294,14 @@ module Tables = struct
 # 111 "<standard.mly>"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7574 "flambda_parser_in.ml"
 =======
 # 7544 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7544 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9003,10 +10327,14 @@ module Tables = struct
 # 113 "<standard.mly>"
     ( Some x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7599 "flambda_parser_in.ml"
 =======
 # 7569 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7569 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9025,10 +10353,14 @@ module Tables = struct
 # 111 "<standard.mly>"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7617 "flambda_parser_in.ml"
 =======
 # 7587 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7587 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9054,10 +10386,14 @@ module Tables = struct
 # 113 "<standard.mly>"
     ( Some x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7642 "flambda_parser_in.ml"
 =======
 # 7612 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7612 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9076,10 +10412,14 @@ module Tables = struct
 # 111 "<standard.mly>"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7660 "flambda_parser_in.ml"
 =======
 # 7630 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7630 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9105,10 +10445,14 @@ module Tables = struct
 # 113 "<standard.mly>"
     ( Some x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7685 "flambda_parser_in.ml"
 =======
 # 7655 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7655 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9127,10 +10471,14 @@ module Tables = struct
 # 111 "<standard.mly>"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7703 "flambda_parser_in.ml"
 =======
 # 7673 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7673 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9156,10 +10504,14 @@ module Tables = struct
 # 113 "<standard.mly>"
     ( Some x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7728 "flambda_parser_in.ml"
 =======
 # 7698 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7698 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9178,10 +10530,14 @@ module Tables = struct
 # 111 "<standard.mly>"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7746 "flambda_parser_in.ml"
 =======
 # 7716 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7716 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9207,10 +10563,14 @@ module Tables = struct
 # 113 "<standard.mly>"
     ( Some x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7771 "flambda_parser_in.ml"
 =======
 # 7741 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7741 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9229,10 +10589,14 @@ module Tables = struct
 # 111 "<standard.mly>"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7789 "flambda_parser_in.ml"
 =======
 # 7759 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7759 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9258,10 +10622,14 @@ module Tables = struct
 # 113 "<standard.mly>"
     ( Some x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7814 "flambda_parser_in.ml"
 =======
 # 7784 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7784 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9280,10 +10648,14 @@ module Tables = struct
 # 111 "<standard.mly>"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7832 "flambda_parser_in.ml"
 =======
 # 7802 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7802 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9309,10 +10681,14 @@ module Tables = struct
 # 113 "<standard.mly>"
     ( Some x )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7857 "flambda_parser_in.ml"
 =======
 # 7827 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7827 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9334,10 +10710,14 @@ module Tables = struct
 # 74 "flambda_parser.mly"
        (string * char option)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7878 "flambda_parser_in.ml"
 =======
 # 7848 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7848 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic i in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_i_ in
@@ -9346,10 +10726,14 @@ module Tables = struct
 # 926 "flambda_parser.mly"
           ( make_plain_int i )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7886 "flambda_parser_in.ml"
 =======
 # 7856 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7856 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9384,10 +10768,14 @@ module Tables = struct
 # 249 "flambda_parser.mly"
       (Fexpr.mutability)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 7920 "flambda_parser_in.ml"
 =======
 # 7890 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7890 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic mutability in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -9396,6 +10784,7 @@ module Tables = struct
         let _v : 'tv_prefix_binop = 
 # 418 "flambda_parser.mly"
     ( Block_load (kind, mutability) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 7929 "flambda_parser_in.ml"
          in
@@ -9497,6 +10886,9 @@ module Tables = struct
 =======
 # 7899 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7899 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9522,10 +10914,14 @@ module Tables = struct
 # 428 "flambda_parser.mly"
                  ( Phys_equal Eq )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8050 "flambda_parser_in.ml"
 =======
 # 7924 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7924 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9551,10 +10947,14 @@ module Tables = struct
 # 429 "flambda_parser.mly"
                  ( Phys_equal Neq )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8075 "flambda_parser_in.ml"
 =======
 # 7949 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7949 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9580,10 +10980,14 @@ module Tables = struct
 # 858 "flambda_parser.mly"
                 ( Regular )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8100 "flambda_parser_in.ml"
 =======
 # 7974 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7974 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9609,10 +11013,14 @@ module Tables = struct
 # 859 "flambda_parser.mly"
                 ( Reraise )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8125 "flambda_parser_in.ml"
 =======
 # 7999 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 7999 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9638,10 +11046,14 @@ module Tables = struct
 # 860 "flambda_parser.mly"
                 ( No_trace )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8150 "flambda_parser_in.ml"
 =======
 # 8024 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8024 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9663,10 +11075,14 @@ module Tables = struct
 # 254 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8171 "flambda_parser_in.ml"
 =======
 # 8045 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8045 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic ri in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_ri_ in
@@ -9675,18 +11091,26 @@ module Tables = struct
 # 253 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8179 "flambda_parser_in.ml"
 =======
 # 8053 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8053 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 994 "flambda_parser.mly"
                        ( ri )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 8183 "flambda_parser_in.ml"
 =======
 # 8057 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8057 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9714,10 +11138,14 @@ module Tables = struct
 # 254 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8210 "flambda_parser_in.ml"
 =======
 # 8084 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8084 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic ri in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -9727,18 +11155,26 @@ module Tables = struct
 # 253 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8219 "flambda_parser_in.ml"
 =======
 # 8093 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8093 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 995 "flambda_parser.mly"
                                  ( Succ ri )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 8223 "flambda_parser_in.ml"
 =======
 # 8097 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8097 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9772,10 +11208,14 @@ module Tables = struct
 # 254 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8256 "flambda_parser_in.ml"
 =======
 # 8130 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8130 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic ri in
         let d : 'tv_plain_int = Obj.magic d in
         let _1 : unit = Obj.magic _1 in
@@ -9786,18 +11226,26 @@ module Tables = struct
 # 253 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8266 "flambda_parser_in.ml"
 =======
 # 8140 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8140 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 996 "flambda_parser.mly"
                                                   ( Unroll (d, ri) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 8270 "flambda_parser_in.ml"
 =======
 # 8144 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8144 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9823,18 +11271,26 @@ module Tables = struct
 # 254 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8295 "flambda_parser_in.ml"
 =======
 # 8169 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8169 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 986 "flambda_parser.mly"
                   ( Depth i )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 8299 "flambda_parser_in.ml"
 =======
 # 8173 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8173 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9859,19 +11315,27 @@ module Tables = struct
         let _v : (
 # 254 "flambda_parser.mly"
       (Fexpr.rec_info)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 8324 "flambda_parser_in.ml"
 =======
 # 8198 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8198 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 987 "flambda_parser.mly"
             ( Infinity )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 8328 "flambda_parser_in.ml"
 =======
 # 8202 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8202 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9897,18 +11361,26 @@ module Tables = struct
 # 254 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8353 "flambda_parser_in.ml"
 =======
 # 8227 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8227 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 988 "flambda_parser.mly"
                       ( Do_not_inline )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 8357 "flambda_parser_in.ml"
 =======
 # 8231 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8231 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9934,18 +11406,26 @@ module Tables = struct
 # 254 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8382 "flambda_parser_in.ml"
 =======
 # 8256 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8256 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 989 "flambda_parser.mly"
                   ( Var dv )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 8386 "flambda_parser_in.ml"
 =======
 # 8260 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8260 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -9980,10 +11460,14 @@ module Tables = struct
 # 253 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8420 "flambda_parser_in.ml"
 =======
 # 8294 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8294 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic ri in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -9993,18 +11477,26 @@ module Tables = struct
 # 254 "flambda_parser.mly"
       (Fexpr.rec_info)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8429 "flambda_parser_in.ml"
 =======
 # 8303 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8303 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 990 "flambda_parser.mly"
                                   ( ri )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 8433 "flambda_parser_in.ml"
 =======
 # 8307 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8307 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10023,10 +11515,14 @@ module Tables = struct
 # 363 "flambda_parser.mly"
     ( Nonrecursive )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8451 "flambda_parser_in.ml"
 =======
 # 8325 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8325 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10052,10 +11548,14 @@ module Tables = struct
 # 364 "flambda_parser.mly"
             ( Recursive )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8476 "flambda_parser_in.ml"
 =======
 # 8350 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8350 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10081,18 +11581,26 @@ module Tables = struct
 # 255 "flambda_parser.mly"
       (Fexpr.region)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8501 "flambda_parser_in.ml"
 =======
 # 8375 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8375 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 835 "flambda_parser.mly"
                  ( Named v )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 8505 "flambda_parser_in.ml"
 =======
 # 8379 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8379 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10118,18 +11626,26 @@ module Tables = struct
 # 255 "flambda_parser.mly"
       (Fexpr.region)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8530 "flambda_parser_in.ml"
 =======
 # 8404 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8404 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 836 "flambda_parser.mly"
                  ( Toplevel )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 8534 "flambda_parser_in.ml"
 =======
 # 8408 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8408 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10151,10 +11667,14 @@ module Tables = struct
 # 235 "flambda_parser.mly"
       (Fexpr.continuation)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8555 "flambda_parser_in.ml"
 =======
 # 8429 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8429 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic c in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_c_ in
@@ -10163,10 +11683,14 @@ module Tables = struct
 # 840 "flambda_parser.mly"
                      ( Return c )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8563 "flambda_parser_in.ml"
 =======
 # 8437 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8437 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10192,10 +11716,14 @@ module Tables = struct
 # 841 "flambda_parser.mly"
               ( Never_returns )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8588 "flambda_parser_in.ml"
 =======
 # 8462 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8462 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10214,10 +11742,14 @@ module Tables = struct
 # 658 "flambda_parser.mly"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8606 "flambda_parser_in.ml"
 =======
 # 8480 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8480 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10245,10 +11777,14 @@ module Tables = struct
 # 247 "flambda_parser.mly"
       (Fexpr.kind_with_subkind list)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8633 "flambda_parser_in.ml"
 =======
 # 8507 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8507 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic k in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -10258,10 +11794,14 @@ module Tables = struct
 # 659 "flambda_parser.mly"
                                   ( Some k )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8642 "flambda_parser_in.ml"
 =======
 # 8516 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8516 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10283,10 +11823,14 @@ module Tables = struct
 # 238 "flambda_parser.mly"
       (Fexpr.field_of_block)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8663 "flambda_parser_in.ml"
 =======
 # 8537 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8537 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -10295,10 +11839,14 @@ module Tables = struct
 # 238 "<standard.mly>"
     ( [ x ] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8671 "flambda_parser_in.ml"
 =======
 # 8545 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8545 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10334,10 +11882,14 @@ module Tables = struct
 # 238 "flambda_parser.mly"
       (Fexpr.field_of_block)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8706 "flambda_parser_in.ml"
 =======
 # 8580 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8580 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -10346,10 +11898,14 @@ module Tables = struct
 # 240 "<standard.mly>"
     ( x :: xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8714 "flambda_parser_in.ml"
 =======
 # 8588 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8588 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10371,10 +11927,14 @@ module Tables = struct
 # 242 "flambda_parser.mly"
       (float Fexpr.or_variable)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8735 "flambda_parser_in.ml"
 =======
 # 8609 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8609 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -10383,10 +11943,14 @@ module Tables = struct
 # 238 "<standard.mly>"
     ( [ x ] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8743 "flambda_parser_in.ml"
 =======
 # 8617 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8617 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10422,10 +11986,14 @@ module Tables = struct
 # 242 "flambda_parser.mly"
       (float Fexpr.or_variable)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8778 "flambda_parser_in.ml"
 =======
 # 8652 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8652 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -10434,10 +12002,14 @@ module Tables = struct
 # 240 "<standard.mly>"
     ( x :: xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8786 "flambda_parser_in.ml"
 =======
 # 8660 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8660 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10463,10 +12035,14 @@ module Tables = struct
 # 238 "<standard.mly>"
     ( [ x ] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8811 "flambda_parser_in.ml"
 =======
 # 8685 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8685 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10506,10 +12082,14 @@ module Tables = struct
 # 240 "<standard.mly>"
     ( x :: xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8850 "flambda_parser_in.ml"
 =======
 # 8724 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8724 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10535,10 +12115,14 @@ module Tables = struct
 # 238 "<standard.mly>"
     ( [ x ] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8875 "flambda_parser_in.ml"
 =======
 # 8749 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8749 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10578,10 +12162,14 @@ module Tables = struct
 # 240 "<standard.mly>"
     ( x :: xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8914 "flambda_parser_in.ml"
 =======
 # 8788 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8788 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10607,10 +12195,14 @@ module Tables = struct
 # 238 "<standard.mly>"
     ( [ x ] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8939 "flambda_parser_in.ml"
 =======
 # 8813 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8813 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10650,10 +12242,14 @@ module Tables = struct
 # 240 "<standard.mly>"
     ( x :: xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 8978 "flambda_parser_in.ml"
 =======
 # 8852 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8852 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10679,10 +12275,14 @@ module Tables = struct
 # 238 "<standard.mly>"
     ( [ x ] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9003 "flambda_parser_in.ml"
 =======
 # 8877 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8877 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10722,10 +12322,14 @@ module Tables = struct
 # 240 "<standard.mly>"
     ( x :: xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9042 "flambda_parser_in.ml"
 =======
 # 8916 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8916 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10747,10 +12351,14 @@ module Tables = struct
 # 263 "flambda_parser.mly"
       (Fexpr.symbol_binding)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9063 "flambda_parser_in.ml"
 =======
 # 8937 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8937 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -10759,10 +12367,14 @@ module Tables = struct
 # 238 "<standard.mly>"
     ( [ x ] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9071 "flambda_parser_in.ml"
 =======
 # 8945 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8945 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10798,10 +12410,14 @@ module Tables = struct
 # 263 "flambda_parser.mly"
       (Fexpr.symbol_binding)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9106 "flambda_parser_in.ml"
 =======
 # 8980 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8980 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -10810,10 +12426,14 @@ module Tables = struct
 # 240 "<standard.mly>"
     ( x :: xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9114 "flambda_parser_in.ml"
 =======
 # 8988 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 8988 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10839,10 +12459,14 @@ module Tables = struct
 # 238 "<standard.mly>"
     ( [ x ] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9139 "flambda_parser_in.ml"
 =======
 # 9013 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9013 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10882,10 +12506,14 @@ module Tables = struct
 # 240 "<standard.mly>"
     ( x :: xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9178 "flambda_parser_in.ml"
 =======
 # 9052 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9052 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10911,10 +12539,14 @@ module Tables = struct
 # 238 "<standard.mly>"
     ( [ x ] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9203 "flambda_parser_in.ml"
 =======
 # 9077 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9077 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10954,10 +12586,14 @@ module Tables = struct
 # 240 "<standard.mly>"
     ( x :: xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9242 "flambda_parser_in.ml"
 =======
 # 9116 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9116 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -10983,10 +12619,14 @@ module Tables = struct
 # 238 "<standard.mly>"
     ( [ x ] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9267 "flambda_parser_in.ml"
 =======
 # 9141 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9141 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11026,10 +12666,14 @@ module Tables = struct
 # 240 "<standard.mly>"
     ( x :: xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9306 "flambda_parser_in.ml"
 =======
 # 9180 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9180 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11051,10 +12695,14 @@ module Tables = struct
 # 242 "flambda_parser.mly"
       (float Fexpr.or_variable)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9327 "flambda_parser_in.ml"
 =======
 # 9201 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9201 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -11063,10 +12711,14 @@ module Tables = struct
 # 238 "<standard.mly>"
     ( [ x ] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9335 "flambda_parser_in.ml"
 =======
 # 9209 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9209 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11102,10 +12754,14 @@ module Tables = struct
 # 242 "flambda_parser.mly"
       (float Fexpr.or_variable)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9370 "flambda_parser_in.ml"
 =======
 # 9244 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9244 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -11114,10 +12770,14 @@ module Tables = struct
 # 240 "<standard.mly>"
     ( x :: xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9378 "flambda_parser_in.ml"
 =======
 # 9252 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9252 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11143,10 +12803,14 @@ module Tables = struct
 # 238 "<standard.mly>"
     ( [ x ] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9403 "flambda_parser_in.ml"
 =======
 # 9277 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9277 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11186,10 +12850,14 @@ module Tables = struct
 # 240 "<standard.mly>"
     ( x :: xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9442 "flambda_parser_in.ml"
 =======
 # 9316 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9316 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11211,10 +12879,14 @@ module Tables = struct
 # 246 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9463 "flambda_parser_in.ml"
 =======
 # 9337 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9337 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -11223,10 +12895,14 @@ module Tables = struct
 # 238 "<standard.mly>"
     ( [ x ] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9471 "flambda_parser_in.ml"
 =======
 # 9345 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9345 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11262,10 +12938,14 @@ module Tables = struct
 # 246 "flambda_parser.mly"
       (Fexpr.kind_with_subkind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9506 "flambda_parser_in.ml"
 =======
 # 9380 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9380 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
@@ -11273,6 +12953,7 @@ module Tables = struct
         let _v : 'tv_separated_nonempty_list_STAR_kind_with_subkind_ = 
 # 240 "<standard.mly>"
     ( x :: xs )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 9514 "flambda_parser_in.ml"
          in
@@ -11350,6 +13031,9 @@ module Tables = struct
 =======
 # 9388 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9388 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11368,10 +13052,14 @@ module Tables = struct
 # 496 "flambda_parser.mly"
     ( Signed )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9604 "flambda_parser_in.ml"
 =======
 # 9406 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9406 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11397,10 +13085,14 @@ module Tables = struct
 # 497 "flambda_parser.mly"
                  ( Unsigned )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9629 "flambda_parser_in.ml"
 =======
 # 9431 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9431 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11426,10 +13118,14 @@ module Tables = struct
 # 973 "flambda_parser.mly"
                ( Symbol s )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9654 "flambda_parser_in.ml"
 =======
 # 9456 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9456 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11455,10 +13151,14 @@ module Tables = struct
 # 974 "flambda_parser.mly"
                  ( Var v )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9679 "flambda_parser_in.ml"
 =======
 # 9481 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9481 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11480,10 +13180,14 @@ module Tables = struct
 # 234 "flambda_parser.mly"
       (Fexpr.const)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9700 "flambda_parser_in.ml"
 =======
 # 9502 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9502 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic c in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_c_ in
@@ -11492,10 +13196,14 @@ module Tables = struct
 # 975 "flambda_parser.mly"
               ( Const c )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9708 "flambda_parser_in.ml"
 =======
 # 9510 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9510 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11535,10 +13243,14 @@ module Tables = struct
 # 976 "flambda_parser.mly"
                                     ( Coerce (s, c) )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9747 "flambda_parser_in.ml"
 =======
 # 9549 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9549 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11557,10 +13269,14 @@ module Tables = struct
 # 944 "flambda_parser.mly"
     ( [] )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9765 "flambda_parser_in.ml"
 =======
 # 9567 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9567 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11600,10 +13316,14 @@ module Tables = struct
 # 945 "flambda_parser.mly"
                                                               ( s )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9804 "flambda_parser_in.ml"
 =======
 # 9606 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9606 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11622,10 +13342,14 @@ module Tables = struct
 # 463 "flambda_parser.mly"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9822 "flambda_parser_in.ml"
 =======
 # 9624 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9624 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11672,10 +13396,14 @@ module Tables = struct
 # 464 "flambda_parser.mly"
                                                ( Some size )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9868 "flambda_parser_in.ml"
 =======
 # 9670 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9670 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11700,19 +13428,27 @@ module Tables = struct
         let _v : (
 # 256 "flambda_parser.mly"
       (Fexpr.special_continuation)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 9893 "flambda_parser_in.ml"
 =======
 # 9695 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9695 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 1033 "flambda_parser.mly"
              ( Done )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 9897 "flambda_parser_in.ml"
 =======
 # 9699 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9699 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11738,18 +13474,26 @@ module Tables = struct
 # 256 "flambda_parser.mly"
       (Fexpr.special_continuation)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9922 "flambda_parser_in.ml"
 =======
 # 9724 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9724 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 1034 "flambda_parser.mly"
               ( Error )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 9926 "flambda_parser_in.ml"
 =======
 # 9728 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9728 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11768,18 +13512,26 @@ module Tables = struct
 # 257 "flambda_parser.mly"
       (Fexpr.standard_int)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 9944 "flambda_parser_in.ml"
 =======
 # 9746 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9746 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 467 "flambda_parser.mly"
     ( Tagged_immediate )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 9948 "flambda_parser_in.ml"
 =======
 # 9750 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9750 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11804,19 +13556,27 @@ module Tables = struct
         let _v : (
 # 257 "flambda_parser.mly"
       (Fexpr.standard_int)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 9973 "flambda_parser_in.ml"
 =======
 # 9775 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9775 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 468 "flambda_parser.mly"
             ( Naked_immediate )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 9977 "flambda_parser_in.ml"
 =======
 # 9779 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9779 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11841,19 +13601,27 @@ module Tables = struct
         let _v : (
 # 257 "flambda_parser.mly"
       (Fexpr.standard_int)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10002 "flambda_parser_in.ml"
 =======
 # 9804 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9804 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 469 "flambda_parser.mly"
               ( Naked_int32 )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10006 "flambda_parser_in.ml"
 =======
 # 9808 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9808 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11878,19 +13646,27 @@ module Tables = struct
         let _v : (
 # 257 "flambda_parser.mly"
       (Fexpr.standard_int)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10031 "flambda_parser_in.ml"
 =======
 # 9833 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9833 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 470 "flambda_parser.mly"
               ( Naked_int64 )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10035 "flambda_parser_in.ml"
 =======
 # 9837 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9837 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11916,18 +13692,26 @@ module Tables = struct
 # 257 "flambda_parser.mly"
       (Fexpr.standard_int)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10060 "flambda_parser_in.ml"
 =======
 # 9862 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9862 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 471 "flambda_parser.mly"
                   ( Naked_nativeint )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10064 "flambda_parser_in.ml"
 =======
 # 9866 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9866 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -11967,10 +13751,14 @@ module Tables = struct
 # 352 "flambda_parser.mly"
     ( { symbol; fun_decl } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10103 "flambda_parser_in.ml"
 =======
 # 9905 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9905 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12026,10 +13814,14 @@ module Tables = struct
 # 249 "flambda_parser.mly"
       (Fexpr.mutability)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10158 "flambda_parser_in.ml"
 =======
 # 9960 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 9960 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic m in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -12055,16 +13847,16 @@ module Tables = struct
           let elements = 
 # 229 "<standard.mly>"
     ( xs )
-# 9970 "flambda_parser.ml"
+# 9970 "flambda_parser_in.ml"
            in
           (
 # 856 "flambda_parser.mly"
     ( (Block { tag; mutability = m; elements } : static_data) )
-# 9975 "flambda_parser.ml"
+# 9975 "flambda_parser_in.ml"
            : (
 # 252 "flambda_parser.mly"
       (Fexpr.static_data)
-# 9979 "flambda_parser.ml"
+# 9979 "flambda_parser_in.ml"
           ))
         in
 >>>>>>> 5855998ec (Multiple return values)
@@ -12088,10 +13880,14 @@ module Tables = struct
 # 68 "flambda_parser.mly"
        (float)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10197 "flambda_parser_in.ml"
 =======
 # 10001 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10001 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic f in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_f_ in
@@ -12100,18 +13896,26 @@ module Tables = struct
 # 258 "flambda_parser.mly"
       (Fexpr.static_data)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10205 "flambda_parser_in.ml"
 =======
 # 10009 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10009 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 888 "flambda_parser.mly"
               ( Boxed_float (Const f) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10209 "flambda_parser_in.ml"
 =======
 # 10013 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10013 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12133,10 +13937,14 @@ module Tables = struct
 # 74 "flambda_parser.mly"
        (string * char option)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10230 "flambda_parser_in.ml"
 =======
 # 10034 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10034 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic i in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_i_ in
@@ -12145,18 +13953,26 @@ module Tables = struct
 # 258 "flambda_parser.mly"
       (Fexpr.static_data)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10238 "flambda_parser_in.ml"
 =======
 # 10042 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10042 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 889 "flambda_parser.mly"
             ( make_boxed_const_int i )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10242 "flambda_parser_in.ml"
 =======
 # 10046 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10046 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12190,10 +14006,14 @@ module Tables = struct
 # 262 "flambda_parser.mly"
       (Fexpr.variable -> Fexpr.static_data)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10275 "flambda_parser_in.ml"
 =======
 # 10079 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10079 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic k in
         let _2 : unit = Obj.magic _2 in
         let v : 'tv_variable = Obj.magic v in
@@ -12204,18 +14024,26 @@ module Tables = struct
 # 258 "flambda_parser.mly"
       (Fexpr.static_data)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10285 "flambda_parser_in.ml"
 =======
 # 10089 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10089 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 890 "flambda_parser.mly"
                                               ( k v )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10289 "flambda_parser_in.ml"
 =======
 # 10093 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10093 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12278,16 +14106,16 @@ module Tables = struct
           let fs = 
 # 229 "<standard.mly>"
     ( xs )
-# 10140 "flambda_parser.ml"
+# 10140 "flambda_parser_in.ml"
            in
           (
 # 863 "flambda_parser.mly"
     ( Immutable_float_block fs )
-# 10145 "flambda_parser.ml"
+# 10145 "flambda_parser_in.ml"
            : (
 # 252 "flambda_parser.mly"
       (Fexpr.static_data)
-# 10149 "flambda_parser.ml"
+# 10149 "flambda_parser_in.ml"
           ))
         in
 >>>>>>> 5855998ec (Multiple return values)
@@ -12352,16 +14180,16 @@ module Tables = struct
           let fs = 
 # 229 "<standard.mly>"
     ( xs )
-# 10197 "flambda_parser.ml"
+# 10197 "flambda_parser_in.ml"
            in
           (
 # 867 "flambda_parser.mly"
     ( Immutable_float_array fs )
-# 10202 "flambda_parser.ml"
+# 10202 "flambda_parser_in.ml"
            : (
 # 252 "flambda_parser.mly"
       (Fexpr.static_data)
-# 10206 "flambda_parser.ml"
+# 10206 "flambda_parser_in.ml"
           ))
         in
 >>>>>>> 5855998ec (Multiple return values)
@@ -12391,10 +14219,14 @@ module Tables = struct
 # 104 "flambda_parser.mly"
       (string)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10426 "flambda_parser_in.ml"
 =======
 # 10234 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10234 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic s in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -12404,18 +14236,26 @@ module Tables = struct
 # 258 "flambda_parser.mly"
       (Fexpr.static_data)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10435 "flambda_parser_in.ml"
 =======
 # 10243 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10243 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 899 "flambda_parser.mly"
                             ( Mutable_string { initial_value = s } )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10439 "flambda_parser_in.ml"
 =======
 # 10247 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10247 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12437,10 +14277,14 @@ module Tables = struct
 # 104 "flambda_parser.mly"
       (string)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10460 "flambda_parser_in.ml"
 =======
 # 10268 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10268 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic s in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_s_ in
@@ -12449,18 +14293,26 @@ module Tables = struct
 # 258 "flambda_parser.mly"
       (Fexpr.static_data)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10468 "flambda_parser_in.ml"
 =======
 # 10276 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10276 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 900 "flambda_parser.mly"
                ( Immutable_string s )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10472 "flambda_parser_in.ml"
 =======
 # 10280 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10280 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12494,10 +14346,14 @@ module Tables = struct
 # 258 "flambda_parser.mly"
       (Fexpr.static_data)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10505 "flambda_parser_in.ml"
 =======
 # 10313 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10313 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic sp in
         let _2 : unit = Obj.magic _2 in
         let s : 'tv_symbol = Obj.magic s in
@@ -12508,18 +14364,26 @@ module Tables = struct
 # 259 "flambda_parser.mly"
       (Fexpr.static_data_binding)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10515 "flambda_parser_in.ml"
 =======
 # 10323 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10323 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 881 "flambda_parser.mly"
     ( { symbol = s; defining_expr = sp } )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10519 "flambda_parser_in.ml"
 =======
 # 10327 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10327 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12551,19 +14415,27 @@ module Tables = struct
         let _v : (
 # 262 "flambda_parser.mly"
       (Fexpr.variable -> Fexpr.static_data)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10551 "flambda_parser_in.ml"
 =======
 # 10359 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10359 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 904 "flambda_parser.mly"
                         ( fun v -> Boxed_float (Var v) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10555 "flambda_parser_in.ml"
 =======
 # 10363 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10363 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12595,19 +14467,27 @@ module Tables = struct
         let _v : (
 # 262 "flambda_parser.mly"
       (Fexpr.variable -> Fexpr.static_data)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10587 "flambda_parser_in.ml"
 =======
 # 10395 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10395 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 905 "flambda_parser.mly"
                         ( fun v -> Boxed_int32 (Var v) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10591 "flambda_parser_in.ml"
 =======
 # 10399 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10399 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12639,19 +14519,27 @@ module Tables = struct
         let _v : (
 # 262 "flambda_parser.mly"
       (Fexpr.variable -> Fexpr.static_data)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10623 "flambda_parser_in.ml"
 =======
 # 10431 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10431 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 906 "flambda_parser.mly"
                         ( fun v -> Boxed_int64 (Var v) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10627 "flambda_parser_in.ml"
 =======
 # 10435 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10435 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12684,18 +14572,26 @@ module Tables = struct
 # 262 "flambda_parser.mly"
       (Fexpr.variable -> Fexpr.static_data)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10659 "flambda_parser_in.ml"
 =======
 # 10467 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10467 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 907 "flambda_parser.mly"
                             ( fun v -> Boxed_nativeint (Var v) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10663 "flambda_parser_in.ml"
 =======
 # 10471 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10471 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12742,6 +14638,7 @@ module Tables = struct
 # 360 "flambda_parser.mly"
     ( { bindings; elements } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10709 "flambda_parser_in.ml"
          in
         {
@@ -12781,6 +14678,9 @@ module Tables = struct
 =======
 # 10517 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10517 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12806,18 +14706,26 @@ module Tables = struct
 # 260 "flambda_parser.mly"
       (Fexpr.subkind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10769 "flambda_parser_in.ml"
 =======
 # 10542 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10542 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 625 "flambda_parser.mly"
             ( Anything )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10773 "flambda_parser_in.ml"
 =======
 # 10546 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10546 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12849,19 +14757,27 @@ module Tables = struct
         let _v : (
 # 260 "flambda_parser.mly"
       (Fexpr.subkind)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10805 "flambda_parser_in.ml"
 =======
 # 10578 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10578 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 626 "flambda_parser.mly"
                         ( Boxed_float )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10809 "flambda_parser_in.ml"
 =======
 # 10582 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10582 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12893,19 +14809,27 @@ module Tables = struct
         let _v : (
 # 260 "flambda_parser.mly"
       (Fexpr.subkind)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10841 "flambda_parser_in.ml"
 =======
 # 10614 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10614 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 627 "flambda_parser.mly"
                         ( Boxed_int32 )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10845 "flambda_parser_in.ml"
 =======
 # 10618 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10618 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12937,19 +14861,27 @@ module Tables = struct
         let _v : (
 # 260 "flambda_parser.mly"
       (Fexpr.subkind)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10877 "flambda_parser_in.ml"
 =======
 # 10650 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10650 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 628 "flambda_parser.mly"
                         ( Boxed_int64 )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10881 "flambda_parser_in.ml"
 =======
 # 10654 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10654 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -12981,19 +14913,27 @@ module Tables = struct
         let _v : (
 # 260 "flambda_parser.mly"
       (Fexpr.subkind)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10913 "flambda_parser_in.ml"
 =======
 # 10686 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10686 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 629 "flambda_parser.mly"
                             ( Boxed_nativeint )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10917 "flambda_parser_in.ml"
 =======
 # 10690 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10690 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13026,18 +14966,26 @@ module Tables = struct
 # 260 "flambda_parser.mly"
       (Fexpr.subkind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10949 "flambda_parser_in.ml"
 =======
 # 10722 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10722 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 630 "flambda_parser.mly"
                        ( Tagged_immediate )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10953 "flambda_parser_in.ml"
 =======
 # 10726 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10726 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13077,18 +15025,26 @@ module Tables = struct
 # 260 "flambda_parser.mly"
       (Fexpr.subkind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 10992 "flambda_parser_in.ml"
 =======
 # 10765 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10765 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 631 "flambda_parser.mly"
                                              ( Float_block { num_fields } )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 10996 "flambda_parser_in.ml"
 =======
 # 10769 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10769 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13128,18 +15084,26 @@ module Tables = struct
 # 260 "flambda_parser.mly"
       (Fexpr.subkind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11035 "flambda_parser_in.ml"
 =======
 # 10808 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10808 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 633 "flambda_parser.mly"
     ( let consts, non_consts = ctors in Variant { consts; non_consts; })
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11039 "flambda_parser_in.ml"
 =======
 # 10812 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10812 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13171,19 +15135,27 @@ module Tables = struct
         let _v : (
 # 260 "flambda_parser.mly"
       (Fexpr.subkind)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11071 "flambda_parser_in.ml"
 =======
 # 10844 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10844 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 634 "flambda_parser.mly"
                         ( Float_array )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11075 "flambda_parser_in.ml"
 =======
 # 10848 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10848 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13215,19 +15187,27 @@ module Tables = struct
         let _v : (
 # 260 "flambda_parser.mly"
       (Fexpr.subkind)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11107 "flambda_parser_in.ml"
 =======
 # 10880 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10880 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 635 "flambda_parser.mly"
                       ( Immediate_array )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11111 "flambda_parser_in.ml"
 =======
 # 10884 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10884 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13259,19 +15239,27 @@ module Tables = struct
         let _v : (
 # 260 "flambda_parser.mly"
       (Fexpr.subkind)
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11143 "flambda_parser_in.ml"
 =======
 # 10916 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10916 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 636 "flambda_parser.mly"
                       ( Value_array )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11147 "flambda_parser_in.ml"
 =======
 # 10920 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10920 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13304,13 +15292,18 @@ module Tables = struct
 # 260 "flambda_parser.mly"
       (Fexpr.subkind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11179 "flambda_parser_in.ml"
 =======
 # 10952 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10952 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 637 "flambda_parser.mly"
                       ( Generic_array )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11183 "flambda_parser_in.ml"
          in
@@ -13345,6 +15338,9 @@ module Tables = struct
 =======
 # 10956 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 10956 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13378,6 +15374,7 @@ module Tables = struct
 # 229 "<standard.mly>"
     ( xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11244 "flambda_parser_in.ml"
          in
         
@@ -13387,11 +15384,14 @@ module Tables = struct
          in
 =======
 # 10989 "flambda_parser.ml"
+=======
+# 10989 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
            in
           (
 # 567 "flambda_parser.mly"
                                                          ( cs )
-# 10994 "flambda_parser.ml"
+# 10994 "flambda_parser_in.ml"
            : 'tv_switch)
         in
 >>>>>>> 5855998ec (Multiple return values)
@@ -13433,10 +15433,14 @@ module Tables = struct
 # 593 "flambda_parser.mly"
                                                 ( i,ac )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11288 "flambda_parser_in.ml"
 =======
 # 11034 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11034 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13458,10 +15462,14 @@ module Tables = struct
 # 105 "flambda_parser.mly"
       (Fexpr.compilation_unit option * string)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11309 "flambda_parser_in.ml"
 =======
 # 11055 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11055 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic e in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_e_ in
@@ -13481,7 +15489,7 @@ module Tables = struct
           (
 # 985 "flambda_parser.mly"
                ( make_located e (_startpos, _endpos) )
-# 11066 "flambda_parser.ml"
+# 11066 "flambda_parser_in.ml"
            : 'tv_symbol)
         in
 >>>>>>> 5855998ec (Multiple return values)
@@ -13505,10 +15513,14 @@ module Tables = struct
 # 259 "flambda_parser.mly"
       (Fexpr.static_data_binding)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11340 "flambda_parser_in.ml"
 =======
 # 11088 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11088 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic s in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_s_ in
@@ -13517,18 +15529,26 @@ module Tables = struct
 # 263 "flambda_parser.mly"
       (Fexpr.symbol_binding)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11348 "flambda_parser_in.ml"
 =======
 # 11096 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11096 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 303 "flambda_parser.mly"
                             ( Data s )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11352 "flambda_parser_in.ml"
 =======
 # 11100 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11100 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13554,18 +15574,26 @@ module Tables = struct
 # 263 "flambda_parser.mly"
       (Fexpr.symbol_binding)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11377 "flambda_parser_in.ml"
 =======
 # 11125 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11125 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 304 "flambda_parser.mly"
                 ( Code code )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11381 "flambda_parser_in.ml"
 =======
 # 11129 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11129 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13591,18 +15619,26 @@ module Tables = struct
 # 263 "flambda_parser.mly"
       (Fexpr.symbol_binding)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11406 "flambda_parser_in.ml"
 =======
 # 11154 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11154 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 305 "flambda_parser.mly"
                            ( Deleted_code code_id )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11410 "flambda_parser_in.ml"
 =======
 # 11158 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11158 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13628,18 +15664,26 @@ module Tables = struct
 # 263 "flambda_parser.mly"
       (Fexpr.symbol_binding)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11435 "flambda_parser_in.ml"
 =======
 # 11183 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11183 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 306 "flambda_parser.mly"
                                ( Closure s )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11439 "flambda_parser_in.ml"
 =======
 # 11187 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11187 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13665,18 +15709,26 @@ module Tables = struct
 # 263 "flambda_parser.mly"
       (Fexpr.symbol_binding)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11464 "flambda_parser_in.ml"
 =======
 # 11212 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11212 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = 
 # 307 "flambda_parser.mly"
                                ( Set_of_closures s )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11468 "flambda_parser_in.ml"
 =======
 # 11216 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11216 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13698,10 +15750,14 @@ module Tables = struct
 # 74 "flambda_parser.mly"
        (string * char option)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11489 "flambda_parser_in.ml"
 =======
 # 11237 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11237 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic tag in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_tag_ in
@@ -13721,7 +15777,7 @@ module Tables = struct
           (
 # 886 "flambda_parser.mly"
             ( make_tag ~loc:(make_loc (_startpos, _endpos)) tag )
-# 11248 "flambda_parser.ml"
+# 11248 "flambda_parser_in.ml"
            : 'tv_tag)
         in
 >>>>>>> 5855998ec (Multiple return values)
@@ -13770,10 +15826,14 @@ module Tables = struct
 # 921 "flambda_parser.mly"
                                       ( Some tag )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11545 "flambda_parser_in.ml"
 =======
 # 11295 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11295 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13792,10 +15852,14 @@ module Tables = struct
 # 922 "flambda_parser.mly"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11563 "flambda_parser_in.ml"
 =======
 # 11313 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11313 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13817,10 +15881,14 @@ module Tables = struct
 # 74 "flambda_parser.mly"
        (string * char option)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11584 "flambda_parser_in.ml"
 =======
 # 11334 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11334 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic i in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_i_ in
@@ -13829,10 +15897,14 @@ module Tables = struct
 # 914 "flambda_parser.mly"
           ( make_targetint i )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11592 "flambda_parser_in.ml"
 =======
 # 11342 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11342 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -13909,10 +15981,14 @@ module Tables = struct
 # 230 "flambda_parser.mly"
       (Fexpr.array_kind)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11668 "flambda_parser_in.ml"
 =======
 # 11418 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11418 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic ak in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -13921,6 +15997,7 @@ module Tables = struct
         let _v : 'tv_ternop_app = 
 # 563 "flambda_parser.mly"
     ( Ternary (Array_set (ak, ia), arr, ix, v) )
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 11677 "flambda_parser_in.ml"
          in
@@ -14007,6 +16084,9 @@ module Tables = struct
 =======
 # 11427 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11427 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14047,10 +16127,14 @@ module Tables = struct
 # 235 "flambda_parser.mly"
       (Fexpr.continuation)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11798 "flambda_parser_in.ml"
 =======
 # 11467 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11467 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic exn_handler in
         let _2 : unit = Obj.magic _2 in
         let _1 : unit = Obj.magic _1 in
@@ -14061,10 +16145,14 @@ module Tables = struct
 # 850 "flambda_parser.mly"
                                                          ( Push { exn_handler } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11808 "flambda_parser_in.ml"
 =======
 # 11477 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11477 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14111,10 +16199,14 @@ module Tables = struct
 # 235 "flambda_parser.mly"
       (Fexpr.continuation)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11854 "flambda_parser_in.ml"
 =======
 # 11523 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11523 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic exn_handler in
         let raise_kind : 'tv_option_raise_kind_ = Obj.magic raise_kind in
         let _2 : unit = Obj.magic _2 in
@@ -14126,10 +16218,14 @@ module Tables = struct
 # 854 "flambda_parser.mly"
     ( Pop { exn_handler; raise_kind } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11865 "flambda_parser_in.ml"
 =======
 # 11534 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11534 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14184,7 +16280,7 @@ module Tables = struct
 =======
 # 366 "flambda_parser.mly"
                       ( Array_length )
-# 11559 "flambda_parser.ml"
+# 11559 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14211,7 +16307,7 @@ module Tables = struct
         let alloc : (
 # 222 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
-# 11586 "flambda_parser.ml"
+# 11586 "flambda_parser_in.ml"
         ) = Obj.magic alloc in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -14220,7 +16316,7 @@ module Tables = struct
         let _v : 'tv_unop = 
 # 368 "flambda_parser.mly"
     ( Box_number (Naked_float, alloc) )
-# 11595 "flambda_parser.ml"
+# 11595 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14247,7 +16343,7 @@ module Tables = struct
         let alloc : (
 # 222 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
-# 11622 "flambda_parser.ml"
+# 11622 "flambda_parser_in.ml"
         ) = Obj.magic alloc in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -14256,7 +16352,7 @@ module Tables = struct
         let _v : 'tv_unop = 
 # 370 "flambda_parser.mly"
     ( Box_number (Naked_int32, alloc) )
-# 11631 "flambda_parser.ml"
+# 11631 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14283,7 +16379,7 @@ module Tables = struct
         let alloc : (
 # 222 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
-# 11658 "flambda_parser.ml"
+# 11658 "flambda_parser_in.ml"
         ) = Obj.magic alloc in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -14292,8 +16388,12 @@ module Tables = struct
         let _v : 'tv_unop = 
 # 372 "flambda_parser.mly"
     ( Box_number (Naked_int64, alloc) )
+<<<<<<< HEAD
 # 11667 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11667 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14321,10 +16421,14 @@ module Tables = struct
 # 228 "flambda_parser.mly"
       (Fexpr.alloc_mode_for_allocations)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 11942 "flambda_parser_in.ml"
 =======
 # 11694 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11694 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic alloc in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -14338,7 +16442,7 @@ module Tables = struct
 =======
 # 374 "flambda_parser.mly"
     ( Box_number (Naked_nativeint, alloc) )
-# 11703 "flambda_parser.ml"
+# 11703 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14363,8 +16467,12 @@ module Tables = struct
         let _v : 'tv_unop = 
 # 375 "flambda_parser.mly"
                       ( String_length Bytes )
+<<<<<<< HEAD
 # 11728 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11728 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14407,7 +16515,7 @@ module Tables = struct
         let _v : 'tv_unop = 
 # 376 "flambda_parser.mly"
                     ( End_region )
-# 11753 "flambda_parser.ml"
+# 11753 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14432,8 +16540,12 @@ module Tables = struct
         let _v : 'tv_unop = 
 # 377 "flambda_parser.mly"
                  ( Get_tag )
+<<<<<<< HEAD
 # 11778 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11778 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14472,7 +16584,7 @@ module Tables = struct
         let _v : 'tv_unop = 
 # 378 "flambda_parser.mly"
                              ( Is_flat_float_array )
-# 11803 "flambda_parser.ml"
+# 11803 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14660,10 +16772,14 @@ module Tables = struct
 # 386 "flambda_parser.mly"
                 ( Is_int )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12184 "flambda_parser_in.ml"
 =======
 # 11828 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11828 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14716,20 +16832,28 @@ module Tables = struct
 # 236 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12236 "flambda_parser_in.ml"
 =======
 # 11880 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11880 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic dst in
         let _4 : unit = Obj.magic _4 in
         let src : (
 # 236 "flambda_parser.mly"
       (Fexpr.standard_int_or_float)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12242 "flambda_parser_in.ml"
 =======
 # 11886 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11886 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic src in
         let _2 : unit = Obj.magic _2 in
         let _1 : unit = Obj.magic _1 in
@@ -14740,10 +16864,14 @@ module Tables = struct
 # 390 "flambda_parser.mly"
     ( Num_conv { src; dst } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12252 "flambda_parser_in.ml"
 =======
 # 11896 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11896 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14769,10 +16897,14 @@ module Tables = struct
 # 391 "flambda_parser.mly"
                 ( Opaque_identity )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12277 "flambda_parser_in.ml"
 =======
 # 11921 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11921 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14819,10 +16951,14 @@ module Tables = struct
 # 393 "flambda_parser.mly"
     ( Project_value_slot { project_from; value_slot } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12323 "flambda_parser_in.ml"
 =======
 # 11967 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 11967 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14884,7 +17020,7 @@ module Tables = struct
 =======
 # 390 "flambda_parser.mly"
     ( Project_function_slot { move_from; move_to } )
-# 12027 "flambda_parser.ml"
+# 12027 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14909,7 +17045,7 @@ module Tables = struct
         let _v : 'tv_unop = 
 # 391 "flambda_parser.mly"
                        ( String_length String )
-# 12052 "flambda_parser.ml"
+# 12052 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14934,7 +17070,7 @@ module Tables = struct
         let _v : 'tv_unop = 
 # 392 "flambda_parser.mly"
                  ( Tag_immediate )
-# 12077 "flambda_parser.ml"
+# 12077 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14959,7 +17095,7 @@ module Tables = struct
         let _v : 'tv_unop = 
 # 393 "flambda_parser.mly"
                      ( Unbox_number Naked_float )
-# 12102 "flambda_parser.ml"
+# 12102 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -14984,7 +17120,7 @@ module Tables = struct
         let _v : 'tv_unop = 
 # 394 "flambda_parser.mly"
                      ( Unbox_number Naked_int32 )
-# 12127 "flambda_parser.ml"
+# 12127 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -15009,7 +17145,7 @@ module Tables = struct
         let _v : 'tv_unop = 
 # 395 "flambda_parser.mly"
                      ( Unbox_number Naked_int64 )
-# 12152 "flambda_parser.ml"
+# 12152 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -15034,7 +17170,7 @@ module Tables = struct
         let _v : 'tv_unop = 
 # 396 "flambda_parser.mly"
                          ( Unbox_number Naked_nativeint )
-# 12177 "flambda_parser.ml"
+# 12177 "flambda_parser_in.ml"
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -15236,10 +17372,14 @@ module Tables = struct
 # 404 "flambda_parser.mly"
                    ( Untag_immediate )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12558 "flambda_parser_in.ml"
 =======
 # 12202 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 12202 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -15279,10 +17419,14 @@ module Tables = struct
 # 752 "flambda_parser.mly"
                                                             ( { var; value; } )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12597 "flambda_parser_in.ml"
 =======
 # 12241 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 12241 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -15304,10 +17448,14 @@ module Tables = struct
 # 73 "flambda_parser.mly"
        (string)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12618 "flambda_parser_in.ml"
 =======
 # 12262 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 12262 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic e in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_e_ in
@@ -15327,7 +17475,7 @@ module Tables = struct
           (
 # 1007 "flambda_parser.mly"
               ( make_located e (_startpos, _endpos) )
-# 12273 "flambda_parser.ml"
+# 12273 "flambda_parser_in.ml"
            : 'tv_value_slot_for_projection)
         in
 >>>>>>> 5855998ec (Multiple return values)
@@ -15351,10 +17499,14 @@ module Tables = struct
 # 73 "flambda_parser.mly"
        (string)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12649 "flambda_parser_in.ml"
 =======
 # 12295 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 12295 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
         ) = Obj.magic e in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
         let _startpos = _startpos_e_ in
@@ -15374,7 +17526,7 @@ module Tables = struct
           (
 # 989 "flambda_parser.mly"
               ( make_located e (_startpos, _endpos) )
-# 12306 "flambda_parser.ml"
+# 12306 "flambda_parser_in.ml"
            : 'tv_variable)
         in
 >>>>>>> 5855998ec (Multiple return values)
@@ -15424,6 +17576,7 @@ module Tables = struct
 # 229 "<standard.mly>"
     ( xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12705 "flambda_parser_in.ml"
          in
         
@@ -15433,11 +17586,14 @@ module Tables = struct
          in
 =======
 # 12354 "flambda_parser.ml"
+=======
+# 12354 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
            in
           (
 # 663 "flambda_parser.mly"
     ( Let_cont { recursive; body; bindings } )
-# 12359 "flambda_parser.ml"
+# 12359 "flambda_parser_in.ml"
            : 'tv_where_expr)
         in
 >>>>>>> 5855998ec (Multiple return values)
@@ -15458,10 +17614,14 @@ module Tables = struct
 # 744 "flambda_parser.mly"
     ( None )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12728 "flambda_parser_in.ml"
 =======
 # 12378 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 12378 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
          in
         {
           CamlinternalMenhirLib.EngineTypes.state = _menhir_s;
@@ -15509,6 +17669,7 @@ module Tables = struct
 # 229 "<standard.mly>"
     ( xs )
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12774 "flambda_parser_in.ml"
          in
         
@@ -15518,11 +17679,14 @@ module Tables = struct
          in
 =======
 # 12425 "flambda_parser.ml"
+=======
+# 12425 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
            in
           (
 # 717 "flambda_parser.mly"
     ( Some elements )
-# 12430 "flambda_parser.ml"
+# 12430 "flambda_parser_in.ml"
            : 'tv_with_value_slots_opt)
         in
 >>>>>>> 5855998ec (Multiple return values)
@@ -15561,8 +17725,12 @@ let flambda_unit =
     (Obj.magic (MenhirInterpreter.entry `Legacy 572 lexer lexbuf) : (
 # 233 "flambda_parser.mly"
       (Fexpr.flambda_unit)
+<<<<<<< HEAD
 # 12462 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 12462 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
     ))
 
 and expect_test_spec =
@@ -15571,10 +17739,14 @@ and expect_test_spec =
 # 237 "flambda_parser.mly"
       (Fexpr.expect_test_spec)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12818 "flambda_parser_in.ml"
 =======
 # 12470 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 12470 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
     ))
 
 module Incremental = struct
@@ -15590,8 +17762,12 @@ module Incremental = struct
       (Obj.magic (MenhirInterpreter.start 572 initial_position) : (
 # 233 "flambda_parser.mly"
       (Fexpr.flambda_unit)
+<<<<<<< HEAD
 # 12480 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 12480 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
       ) MenhirInterpreter.checkpoint)
   
   and expect_test_spec =
@@ -15600,10 +17776,14 @@ module Incremental = struct
 # 237 "flambda_parser.mly"
       (Fexpr.expect_test_spec)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # 12836 "flambda_parser_in.ml"
 =======
 # 12488 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 12488 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
       ) MenhirInterpreter.checkpoint)
   
 end
@@ -15611,6 +17791,7 @@ end
 # 1041 "flambda_parser.mly"
   
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 # 12844 "flambda_parser_in.ml"
 
@@ -15621,3 +17802,6 @@ end
 =======
 # 12496 "flambda_parser.ml"
 >>>>>>> 5855998ec (Multiple return values)
+=======
+# 12496 "flambda_parser_in.ml"
+>>>>>>> 8524c1758 (regen parser)
