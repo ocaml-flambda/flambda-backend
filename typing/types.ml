@@ -610,7 +610,11 @@ let get_id t = (repr t).id
 module Transient_expr = struct
   let create desc ~level ~scope ~id = {desc; level; scope; id}
   let set_desc ty d = ty.desc <- d
-  let set_stub_desc ty d = assert (ty.desc = Tvar None); ty.desc <- d
+  let set_stub_desc ty d =
+    (match ty.desc with
+    | Tvar None -> ()
+    | _ -> assert false);
+    ty.desc <- d
   let set_level ty lv = ty.level <- lv
   let set_scope ty sc = ty.scope <- sc
   let coerce ty = ty

@@ -22,9 +22,9 @@
           (f = (function {nlocal = 0} param : int 0) s = (makemutable 0 ""))
           (seq
             (ignore
-              (let (*match* = (setfield_ptr 0 s "Hello World!"))
+              (let (*match* =[int] (setfield_ptr 0 s "Hello World!"))
                 (makeblock 0)))
             (let
               (drop = (function {nlocal = 0} param : int 0)
-               *match* = (apply drop (field_mut 0 s)))
+               *match* =[int] (apply drop (field_mut 0 s)))
               (makeblock 0 A B f s drop))))))))

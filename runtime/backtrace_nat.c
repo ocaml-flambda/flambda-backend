@@ -41,7 +41,7 @@ frame_descr * caml_next_frame_descriptor(uintnat * pc, char ** sp)
     while (1) {
       d = caml_frame_descriptors[h];
       if (d == NULL) return NULL; /* happens if some code compiled without -g */
-      if (d->retaddr == *pc) break;
+      if (Retaddr_frame(d) == *pc) break;
       h = (h+1) & caml_frame_descriptors_mask;
     }
     /* Skip to next frame */

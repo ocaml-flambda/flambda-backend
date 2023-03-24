@@ -95,11 +95,6 @@ val create : Prefix.t -> Name.t -> t
     parent compilation unit as the prefix. *)
 val create_child : t -> Name.t -> t
 
-(** Create a compilation unit that's an instantiation of another unit with
-    given arguments. The arguments will be sorted alphabetically by
-    parameter name. *)
-val create_instance : t -> (Name.t * t) list -> t
-
 (** Create a compilation unit from the given [name]. No prefix is allowed;
     throws a fatal error if there is a "." in the name. (As a special case,
     a "." is allowed as the first character, to handle compilation units
@@ -195,19 +190,9 @@ val full_path : t -> Name.t list
     usual conventions. *)
 val full_path_as_string : t -> string
 
-(** Returns the arguments in the compilation unit, if it is an instance, or
-    the empty list otherwise. *)
-val arguments : t -> (Name.t * t) list
-
-(** Returns [true] iff the given compilation unit is an instance (equivalent
-    to [arguments t <> []]). *)
-val is_instance : t -> bool
-
 type error = private
   | Invalid_character of char * string
   | Bad_compilation_unit_name of string
-  | Child_of_instance of { child_name : string }
-  | Packed_instance of { name : string }
 
 (** The exception raised by conversion functions in this module. *)
 exception Error of error

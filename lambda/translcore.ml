@@ -344,11 +344,18 @@ and transl_exp0 ~in_new_scope ~scopes e =
         body_layout (event_before ~scopes body (transl_exp ~scopes body))
   | Texp_function { arg_label = _; param; cases; partial;
                     region; curry; warnings; arg_mode; alloc_mode } ->
+      (* CR ncourant: it would be better if we had [arg_layout] here *)
+      let arg_layout =
+        match is_function_type e.exp_env e.exp_type with
+        | None -> Misc.fatal_error "Translcore.transl_exp0: Type of a function is not a function type"
+        | Some (arg_type, _) ->
+            Typeopt.layout e.exp_env arg_type
+      in
       let scopes =
         if in_new_scope then scopes
         else enter_anonymous_function ~scopes
       in
-      transl_function ~scopes e alloc_mode param arg_mode cases partial warnings region curry
+      transl_function ~scopes e alloc_mode param arg_mode arg_layout cases partial warnings region curry
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim pmode);
                 exp_type = prim_type; } as funct, oargs, pos, alloc_mode)
@@ -745,7 +752,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
             optimisation in Flambda, but the concept of a mutable
             block doesn't really match what is going on here.  This
             value may subsequently turn into an immediate... *)
-         Lprim (Popaque,
+         Lprim (Popaque Lambda.layout_lazy,
                 [Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
                                   alloc_heap),
                        [transl_exp ~scopes e],
@@ -830,12 +837,14 @@ and transl_exp0 ~in_new_scope ~scopes e =
           tmc_candidate = false;
         } in
       let funcid = Ident.create_local ("probe_handler_" ^ name) in
+      let layout = Typeopt.layout exp.exp_env exp.exp_type in
+      (* CR ncourant: how do we get the layouts for the free variables? *)
       let handler =
         let scopes = enter_value_definition ~scopes funcid in
         lfunction
           ~kind:(Curried {nlocal=0})
           ~params:(List.map (fun v -> v, Lambda.layout_top) param_idents)
-          ~return:Lambda.layout_top
+          ~return:layout
           ~body
           ~loc:(of_location ~scopes exp.exp_loc)
           ~attr
@@ -845,7 +854,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let app =
         { ap_func = Lvar funcid;
           ap_args = List.map (fun id -> Lvar id) arg_idents;
-          ap_result_layout = Typeopt.layout exp.exp_env exp.exp_type;
+          ap_result_layout = layout;
           ap_region_close = Rc_normal;
           ap_mode = alloc_heap;
           ap_loc = of_location e.exp_loc ~scopes;
@@ -884,6 +893,9 @@ and pure_module m =
 
 and transl_list ~scopes expr_list =
   List.map (transl_exp ~scopes) expr_list
+
+and transl_list_with_layout ~scopes expr_list =
+  List.map (fun exp -> transl_exp ~scopes exp, Typeopt.layout exp.exp_env exp.exp_type) expr_list
 
 and transl_list_with_shape ~scopes expr_list =
   let transl_with_shape e =
@@ -937,7 +949,7 @@ and transl_apply ~scopes
       ~result_layout
       lam sargs loc
   =
-  let lapply funct args loc pos mode =
+  let lapply funct args loc pos mode result_layout =
     match funct, pos with
     | Lsend((Self | Public) as k, lmet, lobj, [], _, _, _, _), _ ->
         Lsend(k, lmet, lobj, args, pos, mode, loc, result_layout)
@@ -976,21 +988,24 @@ and transl_apply ~scopes
         }
   in
   let rec build_apply lam args loc pos ap_mode = function
-    | Omitted { mode_closure; mode_arg; mode_ret } :: l ->
+    | Omitted { mode_closure; mode_arg; mode_ret; ty_arg; ty_env } :: l ->
         assert (pos = Rc_normal);
         let defs = ref [] in
-        let protect name lam =
+        let protect name (lam, layout) =
           match lam with
-            Lvar _ | Lconst _ -> lam
+            Lvar _ | Lconst _ -> (lam, layout)
           | _ ->
               let id = Ident.create_local name in
-              defs := (id, lam) :: !defs;
-              Lvar id
+              defs := (id, layout, lam) :: !defs;
+              (Lvar id, layout)
         in
         let lam =
-          if args = [] then lam else lapply lam (List.rev args) loc pos ap_mode
+          if args = [] then
+            lam
+          else
+            lapply lam (List.rev args) loc pos ap_mode layout_function
         in
-        let handle = protect "func" lam in
+        let handle, _ = protect "func" (lam, layout_function) in
         let l =
           List.map
             (fun arg ->
@@ -1016,32 +1031,33 @@ and transl_apply ~scopes
             | Alloc_local -> false
             | Alloc_heap -> true
           in
-          lfunction ~kind:(Curried {nlocal}) ~params:[id_arg, Lambda.layout_top]
-                    ~return:Lambda.layout_top ~body ~mode ~region
+          let layout_arg = Typeopt.layout ty_env ty_arg in
+          lfunction ~kind:(Curried {nlocal}) ~params:[id_arg, layout_arg]
+                    ~return:result_layout ~body ~mode ~region
                     ~attr:default_stub_attribute ~loc
         in
         List.fold_right
-          (fun (id, lam) body -> Llet(Strict, Lambda.layout_top, id, lam, body))
+          (fun (id, layout, lam) body -> Llet(Strict, layout, id, lam, body))
           !defs body
-    | Arg arg :: l -> build_apply lam (arg :: args) loc pos ap_mode l
-    | [] -> lapply lam (List.rev args) loc pos ap_mode
+    | Arg (arg, _) :: l -> build_apply lam (arg :: args) loc pos ap_mode l
+    | [] -> lapply lam (List.rev args) loc pos ap_mode result_layout
   in
   let args =
     List.map
       (fun (_, arg) ->
          match arg with
          | Omitted _ as arg -> arg
-         | Arg exp -> Arg (transl_exp ~scopes exp))
+         | Arg exp -> Arg (transl_exp ~scopes exp, Typeopt.layout exp.exp_env exp.exp_type))
       sargs
   in
   build_apply lam [] loc position mode args
 
 and transl_curried_function
       ~scopes loc return
-      repr ~region ~curry partial warnings (param:Ident.t) cases =
+      repr ~region ~curry partial warnings (param:Ident.t) arg_layout cases =
   let max_arity = Lambda.max_arity () in
   let rec loop ~scopes loc return ~arity ~region ~curry
-            partial warnings (param:Ident.t) cases =
+            partial warnings (param:Ident.t) arg_layout cases =
     match curry, cases with
       More_args {partial_mode},
       [{c_lhs=pat; c_guard=None;
@@ -1057,12 +1073,18 @@ and transl_curried_function
       if Parmatch.inactive ~partial pat
       then
         let partial_mode = transl_alloc_mode partial_mode in
-        let layout = layout pat.pat_env pat.pat_type in
         let return_layout = function_return_layout exp_env exp_type in
+        let arg_layout' =
+          match is_function_type exp_env exp_type with
+          | None ->
+              Misc.fatal_error "Translcore.transl_curried_function: \
+                                Type of Texp_function is not function"
+          | Some (lhs, _) -> layout exp_env lhs
+        in
         let ((fnkind, params, return, region), body) =
           loop ~scopes exp_loc return_layout
             ~arity:(arity + 1) ~region:region' ~curry:curry'
-            partial' warnings' param' cases'
+            partial' warnings' param' arg_layout' cases'
         in
         let fnkind =
           match partial_mode, fnkind with
@@ -1075,8 +1097,8 @@ and transl_curried_function
              assert (nlocal = List.length params);
              Curried {nlocal = nlocal + 1}
         in
-        ((fnkind, (param, layout) :: params, return, region),
-         Matching.for_function ~scopes return_layout loc None (Lvar param)
+        ((fnkind, (param, arg_layout) :: params, return, region),
+         Matching.for_function ~scopes return_layout loc None (Lvar param, arg_layout)
            [pat, body] partial)
       else begin
         begin match partial with
@@ -1089,18 +1111,18 @@ and transl_curried_function
         | Partial -> ()
         end;
         transl_tupled_function ~scopes ~arity ~region ~curry
-          loc return repr partial param cases
+          loc return repr partial param arg_layout cases
       end
     | curry, cases ->
       transl_tupled_function ~scopes ~arity ~region ~curry
-        loc return repr partial param cases
+        loc return repr partial param arg_layout cases
   in
   loop ~scopes loc return ~arity:1 ~region ~curry
-    partial warnings param cases
+    partial warnings param arg_layout cases
 
 and transl_tupled_function
       ~scopes ~arity ~region ~curry loc return
-      repr partial (param:Ident.t) cases =
+      repr partial (param:Ident.t) arg_layout cases =
   let partial_mode =
     match curry with
     | More_args {partial_mode} | Final_arg {partial_mode} ->
@@ -1119,21 +1141,13 @@ and transl_tupled_function
               (Matching.flatten_pattern size c_lhs, c_guard, c_rhs))
             cases in
         let kinds =
-          (* All the patterns might not share the same types. We must take the
-             union of the patterns types *)
-          match pats_expr_list with
-          | [] -> assert false
-          | (pats, _, _) :: cases ->
-              let first_case_layouts =
-                List.map (fun pat -> layout pat.pat_env pat.pat_type) pats
-              in
-              List.fold_left
-                (fun kinds (pats, _, _) ->
-                   List.map2 (fun kind pat ->
-                       layout_union kind
-                         (layout pat.pat_env pat.pat_type))
-                     kinds pats)
-                first_case_layouts cases
+          match arg_layout with
+          | Pvalue (Pvariant { consts = []; non_consts = [0, kinds] }) ->
+              List.map (fun vk -> Pvalue vk) kinds
+          | _ ->
+              Misc.fatal_error
+                "Translcore.transl_tupled_function: \
+                 Argument should be a tuple, but couldn't get the kinds"
         in
         let tparams =
           List.map (fun kind -> Ident.create_local "param", kind) kinds
@@ -1147,29 +1161,16 @@ and transl_tupled_function
         ((Tupled, tparams, return, region), body)
     with Matching.Cannot_flatten ->
       transl_function0 ~scopes loc ~region ~partial_mode
-        return repr partial param cases
+        return repr partial param arg_layout cases
       end
   | _ -> transl_function0 ~scopes loc ~region ~partial_mode
-           return repr partial param cases
+           return repr partial param arg_layout cases
 
 and transl_function0
       ~scopes loc ~region ~partial_mode return
-      repr partial (param:Ident.t) cases =
-    let layout =
-      match cases with
-      | [] ->
-        (* With Camlp4, a pattern matching might be empty *)
-        Lambda.layout_top
-      | {c_lhs=pat} :: other_cases ->
-        (* All the patterns might not share the same types. We must take the
-           union of the patterns types *)
-        List.fold_left (fun ly {c_lhs=pat} ->
-          Typeopt.layout_union ly
-            (layout pat.pat_env pat.pat_type))
-          (layout pat.pat_env pat.pat_type) other_cases
-    in
+      repr partial (param:Ident.t) arg_layout cases =
     let body =
-      Matching.for_function ~scopes return loc repr (Lvar param)
+      Matching.for_function ~scopes return loc repr (Lvar param, arg_layout)
         (transl_cases ~scopes cases) partial
     in
     let region = region || not (may_allocate_in_region body) in
@@ -1179,9 +1180,9 @@ and transl_function0
         | Alloc_local -> 1
         | Alloc_heap -> 0
     in
-    ((Curried {nlocal}, [param, layout], return, region), body)
+    ((Curried {nlocal}, [param, arg_layout], return, region), body)
 
-and transl_function ~scopes e alloc_mode param arg_mode cases partial warnings region curry =
+and transl_function ~scopes e alloc_mode param arg_mode arg_layout cases partial warnings region curry =
   let mode = transl_alloc_mode alloc_mode in
   let ((kind, params, return, region), body) =
     event_function ~scopes e
@@ -1189,7 +1190,7 @@ and transl_function ~scopes e alloc_mode param arg_mode cases partial warnings r
          let pl = push_defaults e.exp_loc arg_mode cases partial warnings in
          let return_layout = function_return_layout e.exp_env e.exp_type in
          transl_curried_function ~scopes e.exp_loc return_layout
-           repr ~region ~curry partial warnings param pl)
+           repr ~region ~curry partial warnings param arg_layout pl)
   in
   let attr = default_function_attribute in
   let loc = of_location ~scopes e.exp_loc in
@@ -1467,7 +1468,7 @@ and transl_match ~scopes e arg pat_expr_list partial =
       assert (static_handlers = []);
       let mode = transl_alloc_mode alloc_mode in
       Matching.for_multiple_match ~scopes layout e.exp_loc
-        (transl_list ~scopes argl) mode val_cases partial
+        (transl_list_with_layout ~scopes argl) mode val_cases partial
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, _ :: _ ->
         let val_ids =
           List.map
@@ -1477,21 +1478,22 @@ and transl_match ~scopes e arg pat_expr_list partial =
             )
             argl
         in
-        let lvars = List.map (fun (id, _) -> Lvar id) val_ids in
+        let lvars = List.map (fun (id, layout) -> Lvar id, layout) val_ids in
         let mode = transl_alloc_mode alloc_mode in
         static_catch (transl_list ~scopes argl) val_ids
           (Matching.for_multiple_match ~scopes layout e.exp_loc
              lvars mode val_cases partial)
     | arg, [] ->
       assert (static_handlers = []);
+      let k = Typeopt.layout arg.exp_env arg.exp_type in
       Matching.for_function ~scopes layout e.exp_loc
-        None (transl_exp ~scopes arg) val_cases partial
+        None (transl_exp ~scopes arg, k) val_cases partial
     | arg, _ :: _ ->
         let val_id = Typecore.name_pattern "val" (List.map fst val_cases) in
         let k = Typeopt.layout arg.exp_env arg.exp_type in
         static_catch [transl_exp ~scopes arg] [val_id, k]
           (Matching.for_function ~scopes layout e.exp_loc
-             None (Lvar val_id) val_cases partial)
+             None (Lvar val_id, k) val_cases partial)
   in
   List.fold_left (fun body (static_exception_id, val_ids, handler) ->
     Lstaticcatch (body, (static_exception_id, val_ids), handler, layout)
@@ -1508,14 +1510,17 @@ and transl_letop ~scopes loc env let_ ands param case partial warnings =
             and_.bop_op_type and_.bop_op_path and_.bop_op_val Id_value
         in
         let exp = transl_exp ~scopes and_.bop_exp in
-        let layout = layout and_.bop_exp.exp_env and_.bop_exp.exp_type in
+        let right_layout = layout and_.bop_exp.exp_env and_.bop_exp.exp_type in
+        let result_layout = function2_return_layout
+          env and_.bop_op_type
+        in
         let lam =
-          bind_with_layout Strict (right_id, layout) exp
+          bind_with_layout Strict (right_id, right_layout) exp
             (Lapply{
                ap_loc = of_location ~scopes and_.bop_loc;
                ap_func = op;
                ap_args=[Lvar left_id; Lvar right_id];
-               ap_result_layout = Lambda.layout_top;
+               ap_result_layout = result_layout;
                ap_region_close=Rc_normal;
                ap_mode=alloc_heap;
                ap_tailcall = Default_tailcall;
@@ -1524,7 +1529,7 @@ and transl_letop ~scopes loc env let_ ands param case partial warnings =
                ap_probe=None;
              })
         in
-        bind_with_layout Strict (left_id, prev_layout) prev_lam (loop Lambda.layout_top lam rest)
+        bind_with_layout Strict (left_id, prev_layout) prev_lam (loop result_layout lam rest)
   in
   let op =
     transl_ident (of_location ~scopes let_.bop_op_name.loc) env
@@ -1532,13 +1537,31 @@ and transl_letop ~scopes loc env let_ ands param case partial warnings =
   in
   let exp = loop (layout let_.bop_exp.exp_env let_.bop_exp.exp_type) (transl_exp ~scopes let_.bop_exp) ands in
   let func =
+    let arg_layout =
+      match Typeopt.is_function_type env let_.bop_op_type with
+      | None ->
+          Misc.fatal_error
+            "Translcore.transl_letop: letop should be a function"
+      | Some (_, rhs) ->
+          match Typeopt.is_function_type env rhs with
+          | None ->
+              Misc.fatal_error
+                "Translcore.transl_letop: letop should have at least two arguments"
+          | Some (lhs, _) ->
+              match Typeopt.is_function_type env lhs with
+              | None ->
+                  Misc.fatal_error
+                    "Translcore.transl_letop: letop second argument should be a function"
+              | Some (arg_type, _) ->
+                  Typeopt.layout env arg_type
+    in
     let return_layout = layout case.c_rhs.exp_env case.c_rhs.exp_type in
     let curry = More_args { partial_mode = Alloc_mode.global } in
     let (kind, params, return, _region), body =
       event_function ~scopes case.c_rhs
         (function repr ->
            transl_curried_function ~scopes case.c_rhs.exp_loc return_layout
-             repr ~region:true ~curry partial warnings param [case])
+             repr ~region:true ~curry partial warnings param arg_layout [case])
     in
     let attr = default_function_attribute in
     let loc = of_location ~scopes case.c_rhs.exp_loc in
@@ -1550,7 +1573,7 @@ and transl_letop ~scopes loc env let_ ands param case partial warnings =
     ap_loc = of_location ~scopes loc;
     ap_func = op;
     ap_args=[exp; func];
-    ap_result_layout=Lambda.layout_top;
+    ap_result_layout=function2_return_layout env let_.bop_op_type;
     ap_region_close=Rc_normal;
     ap_mode=alloc_heap;
     ap_tailcall = Default_tailcall;

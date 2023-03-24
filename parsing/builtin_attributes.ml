@@ -37,11 +37,15 @@ let attr_order a1 a2 =
   | n -> n
 
 let warn_unused () =
-  let keys = List.of_seq (Attribute_table.to_seq_keys unused_attrs) in
-  let keys = List.sort attr_order keys in
-  List.iter (fun sloc ->
-    Location.prerr_warning sloc.loc (Warnings.Misplaced_attribute sloc.txt))
-    keys
+  (* When using -i, attributes will not have been translated, so we can't
+     warn about missing ones. *)
+  if !Clflags.print_types then ()
+  else
+    let keys = List.of_seq (Attribute_table.to_seq_keys unused_attrs) in
+    let keys = List.sort attr_order keys in
+    List.iter (fun sloc ->
+      Location.prerr_warning sloc.loc (Warnings.Misplaced_attribute sloc.txt))
+      keys
 
 (* These are the attributes that are tracked in the builtin_attrs table for
    misplaced attribute warnings.  Explicitly excluded is [deprecated_mutable],

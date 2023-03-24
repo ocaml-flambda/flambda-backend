@@ -226,7 +226,7 @@ type type_mismatch =
   | Variance
   | Record_mismatch of record_mismatch
   | Variant_mismatch of variant_change list
-  | Unboxed_representation of position
+  | Unboxed_representation of position * attributes
   | Immediate of Type_immediacy.Violation.t
 
 let report_locality_mismatch first second ppf err =
@@ -469,10 +469,13 @@ let report_type_mismatch first second decl env ppf err =
       report_record_mismatch first second decl env ppf err
   | Variant_mismatch err ->
       report_patch pp_variant_diff first second decl env ppf err
-  | Unboxed_representation ord ->
+  | Unboxed_representation (ord, attrs) ->
       pr "Their internal representations differ:@ %s %s %s."
          (choose ord first second) decl
-         "uses unboxed representation"
+         "uses unboxed representation";
+      if Builtin_attributes.has_unboxed attrs then
+        pr "@ Hint: %s %s has [%@unboxed]. Did you mean [%@%@unboxed]?"
+          (choose ord second first) decl
   | Immediate violation ->
       let first = StringLabels.capitalize_ascii first in
       match violation with
@@ -618,8 +621,8 @@ module Record_diffing = struct
     else
      match rep1, rep2 with
      | Record_unboxed _, Record_unboxed _ -> None
-     | Record_unboxed _, _ -> Some (Unboxed_representation First)
-     | _, Record_unboxed _ -> Some (Unboxed_representation Second)
+     | Record_unboxed _, _ -> Some (Unboxed_representation (First, []))
+     | _, Record_unboxed _ -> Some (Unboxed_representation (Second, []))
 
      | Record_float, Record_float -> None
      | Record_float, _ ->
@@ -766,6 +769,11 @@ module Variant_diffing = struct
       cstrs1 cstrs2 rep1 rep2
     =
     let err = compare ~loc env params1 params2 cstrs1 cstrs2 in
+    let attrs_of_only cstrs =
+      match cstrs with
+      | [cstr] -> cstr.Types.cd_attributes
+      | _ -> []
+    in
     match err, rep1, rep2 with
     | None, Variant_regular, Variant_regular
     | None, Variant_unboxed, Variant_unboxed ->
@@ -773,9 +781,9 @@ module Variant_diffing = struct
     | Some err, _, _ ->
         Some (Variant_mismatch err)
     | None, Variant_unboxed, Variant_regular ->
-        Some (Unboxed_representation First)
+        Some (Unboxed_representation (First, attrs_of_only cstrs2))
     | None, Variant_regular, Variant_unboxed ->
-        Some (Unboxed_representation Second)
+        Some (Unboxed_representation (Second, attrs_of_only cstrs1))
 end
 
 (* Inclusion between "private" annotations *)

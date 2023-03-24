@@ -1429,6 +1429,7 @@ let end_assembly() =
   emit_global_label "data_end";
   D.qword (const 0);
 
+  D.text ();
   D.align 8;                            (* PR#7591 *)
   emit_global_label "frametable";
 
@@ -1465,6 +1466,7 @@ let end_assembly() =
     D.size frametable (ConstSub (ConstThis, ConstLabel frametable))
   end;
 
+  D.data ();
   emit_probe_notes ();
 
   if system = S_linux then

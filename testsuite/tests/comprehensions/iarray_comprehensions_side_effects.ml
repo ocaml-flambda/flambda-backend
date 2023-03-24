@@ -2,6 +2,8 @@
    flags = "-extension comprehensions -extension immutable_arrays"
 *)
 
+module Iarray = Stdlib__Iarray
+
 (******************************************************************************
  *                        ******** ATTENTION! ********                        *
  *                                                                            *

@@ -1,5 +1,5 @@
 Fatal error: exception Stdlib.Exit
-Raised by primitive operation at unknown location
+Raised at unknown location
 Called from unknown location
 (Cannot print locations:
  bytecode executable program file cannot be opened;

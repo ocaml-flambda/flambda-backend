@@ -404,6 +404,7 @@
 ;    (dynlink.cmxs as dynlink/dynlink.cmxs)
     (dynlink.mli as dynlink/dynlink.mli)
     (dynlink.cmi as dynlink/dynlink.cmi)
+    (.dynlink_internal.objs/byte/dynlink.cmt as dynlink/dynlink.cmt)
     (.dynlink_internal.objs/byte/dynlink.cmti as dynlink/dynlink.cmti)
     (extract_crc.bc as dynlink/extract_crc)
 

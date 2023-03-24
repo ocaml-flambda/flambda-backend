@@ -1290,7 +1290,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                       let mode_closure = Alloc_mode.global in
                       let mode_arg = Alloc_mode.global in
                       let mode_ret = Alloc_mode.global in
-                      Omitted { mode_closure; mode_arg; mode_ret }
+                      Omitted { mode_closure; mode_arg; mode_ret; ty_arg = ty; ty_env = val_env }
                     end
             in
             let omitted =
