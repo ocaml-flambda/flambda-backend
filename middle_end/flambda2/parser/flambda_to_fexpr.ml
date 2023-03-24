@@ -529,9 +529,8 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
     Project_function_slot { move_from; move_to }
   | String_length string_or_bytes -> String_length string_or_bytes
   | Boolean_not -> Boolean_not
-  | Int_as_pointer | Duplicate_block _ | Duplicate_array _
-  | Bigarray_length _ | Float_arith _ | Reinterpret_int64_as_float
-  | Is_boxed_float | Obj_dup ->
+  | Int_as_pointer | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
+  | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
