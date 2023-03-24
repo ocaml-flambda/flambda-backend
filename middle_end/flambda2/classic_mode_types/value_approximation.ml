@@ -23,6 +23,7 @@ type 'code t =
   | Closure_approximation of
       { code_id : Code_id.t;
         function_slot : Function_slot.t;
+        value_slots : Value_slot.Set.t;
         code : 'code;
         symbol : Symbol.t option
       }
@@ -60,13 +61,20 @@ let rec free_names ~code_free_names approx =
       (fun names approx ->
         Name_occurrences.union names (free_names ~code_free_names approx))
       Name_occurrences.empty approxs
-  | Closure_approximation { code_id; function_slot; code; symbol } ->
+  | Closure_approximation { code_id; function_slot; value_slots; code; symbol }
+    ->
     let free_names = code_free_names code in
     let free_names =
       match symbol with
       | None -> free_names
       | Some sym -> Name_occurrences.add_symbol free_names sym Name_mode.normal
     in
-    Name_occurrences.add_code_id
-      (Name_occurrences.add_function_slot_in_types free_names function_slot)
-      code_id Name_mode.normal
+    let free_names =
+      Name_occurrences.add_code_id
+        (Name_occurrences.add_function_slot_in_types free_names function_slot)
+        code_id Name_mode.normal
+    in
+    Value_slot.Set.fold
+      (fun value_slot free_names ->
+        Name_occurrences.add_value_slot_in_types free_names value_slot)
+      value_slots free_names

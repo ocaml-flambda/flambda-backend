@@ -23,6 +23,7 @@ type 'code t =
   | Closure_approximation of
       { code_id : Code_id.t;
         function_slot : Function_slot.t;
+        value_slots : Value_slot.Set.t;
         code : 'code;
         symbol : Symbol.t option
       }

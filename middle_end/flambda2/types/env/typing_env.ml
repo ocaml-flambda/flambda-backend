@@ -1188,8 +1188,8 @@ end = struct
         let fields = List.map type_from_approx (Array.to_list fields) in
         MTC.immutable_block ~is_unique:false Tag.zero
           ~field_kind:Flambda_kind.value ~fields alloc_mode
-      | Closure_approximation { code_id; function_slot; code = _; symbol = _ }
-        ->
+      | Closure_approximation
+          { code_id; function_slot; value_slots; code = _; symbol = _ } ->
         (* CR keryan: we should use the associated symbol at some point *)
         let fun_decl =
           TG.Function_type.create code_id
@@ -1203,7 +1203,15 @@ end = struct
           Function_slot.Map.singleton function_slot
             (MTC.unknown Flambda_kind.value)
         in
-        let all_value_slots_in_set = Value_slot.Map.empty in
+        let all_value_slots_in_set =
+          Value_slot.Set.fold
+            (fun value_slot all_value_slots_in_set ->
+              Value_slot.Map.add value_slot
+                (MTC.unknown
+                   (Flambda_kind.With_subkind.kind (Value_slot.kind value_slot)))
+                all_value_slots_in_set)
+            value_slots Value_slot.Map.empty
+        in
         MTC.exactly_this_closure function_slot ~all_function_slots_in_set
           ~all_closure_types_in_set ~all_value_slots_in_set
           (Alloc_mode.For_types.unknown ())
@@ -1296,7 +1304,7 @@ end = struct
           | Closures { by_function_slot; alloc_mode = _ } -> (
             match TG.Row_like_for_closures.get_singleton by_function_slot with
             | None -> Value_unknown
-            | Some ((function_slot, _contents), closures_entry) -> (
+            | Some ((function_slot, contents), closures_entry) -> (
               match
                 TG.Closures_entry.find_function_type closures_entry
                   function_slot
@@ -1306,8 +1314,12 @@ end = struct
                 let code_id = TG.Function_type.code_id function_type in
                 let code_or_meta = find_code code_id in
                 Closure_approximation
-                  { code_id; function_slot; code = code_or_meta; symbol = None }
-              ))
+                  { code_id;
+                    function_slot;
+                    value_slots = Set_of_closures_contents.value_slots contents;
+                    code = code_or_meta;
+                    symbol = None
+                  }))
           | Variant { immediates = Unknown; blocks = _; is_unique = _ }
           | Variant { immediates = _; blocks = Unknown; is_unique = _ } ->
             Value_unknown
