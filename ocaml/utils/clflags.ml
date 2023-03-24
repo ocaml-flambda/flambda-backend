@@ -134,6 +134,8 @@ let dump_combine = ref false            (* -dcombine *)
 let default_timings_precision  = 3
 let timings_precision = ref default_timings_precision (* -dtimings-precision *)
 let profile_columns : Profile.column list ref = ref [] (* -dprofile/-dtimings *)
+let compress_all_artifacts = ref false
+let compress_cmt_artifacts = ref false
 
 let native_code = ref false             (* set to true under ocamlopt *)
 

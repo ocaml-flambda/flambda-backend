@@ -89,7 +89,7 @@ OCAMLPROF=config.cmo build_path_prefix_map.cmo misc.cmo identifiable.cmo \
    ast_iterator.cmo builtin_attributes.cmo \
   camlinternalMenhirLib.cmo parser.cmo \
   pprintast.cmo \
-  lexer.cmo parse.cmo ocamlprof.cmo
+  lexer.cmo parse.cmo ocamlprof.cmo compressed_marshal.cmo
 
 ocamlprof$(EXE): $(OCAMLPROF)
 ocamlprof.opt$(EXE): $(call byte2native, $(OCAMLPROF))
@@ -100,7 +100,7 @@ OCAMLCP = config.cmo build_path_prefix_map.cmo misc.cmo profile.cmo \
           warnings.cmo identifiable.cmo numbers.cmo arg_helper.cmo \
           clflags.cmo local_store.cmo \
           terminfo.cmo location.cmo load_path.cmo ccomp.cmo compenv.cmo \
-          main_args.cmo
+          main_args.cmo compressed_marshal.cmo
 
 ocamlcp$(EXE): $(OCAMLCP) ocamlcp.cmo
 ocamlcp.opt$(EXE): $(call byte2native, $(OCAMLCP) ocamlcp.cmo)
@@ -125,7 +125,7 @@ installopt::
 	  "$(INSTALL_LIBDIR)"
 
 # To help building mixed-mode libraries (OCaml + C)
-OCAMLMKLIB = config.cmo build_path_prefix_map.cmo misc.cmo ocamlmklib.cmo
+OCAMLMKLIB = config.cmo build_path_prefix_map.cmo misc.cmo ocamlmklib.cmo compressed_marshal.cmo
 
 ocamlmklib$(EXE): $(OCAMLMKLIB)
 ocamlmklib.opt$(EXE): $(call byte2native, $(OCAMLMKLIB))
@@ -134,14 +134,15 @@ ocamlmklib.opt$(EXE): $(call byte2native, $(OCAMLMKLIB))
 
 OCAMLMKTOP=config.cmo build_path_prefix_map.cmo misc.cmo \
        identifiable.cmo numbers.cmo arg_helper.cmo clflags.cmo \
-       local_store.cmo load_path.cmo profile.cmo ccomp.cmo ocamlmktop.cmo
+       local_store.cmo load_path.cmo profile.cmo ccomp.cmo ocamlmktop.cmo \
+	    compressed_marshal.cmo
 
 ocamlmktop$(EXE): $(OCAMLMKTOP)
 ocamlmktop.opt$(EXE): $(call byte2native, $(OCAMLMKTOP))
 
 # Converter olabl/ocaml 2.99 to ocaml 3
 
-LIBRARY3=config.cmo build_path_prefix_map.cmo misc.cmo warnings.cmo location.cmo
+LIBRARY3=config.cmo build_path_prefix_map.cmo misc.cmo warnings.cmo location.cmo compressed_marshal.cmo
 
 ifeq ($(UNIX_OR_WIN32),unix)
 LN := ln -sf

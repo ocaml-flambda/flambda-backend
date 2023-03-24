@@ -266,7 +266,10 @@ let need_send_fun arity result mode =
 let write_unit_info info filename =
   let oc = open_out_bin filename in
   output_string oc cmx_magic_number;
-  output_value oc info;
+  let flags =
+    if !Clflags.compress_all_artifacts then [ Compressed_marshal.Compression ] else []
+  in
+  Compressed_marshal.to_channel oc info flags;
   flush oc;
   let crc = Digest.file filename in
   Digest.output oc crc;

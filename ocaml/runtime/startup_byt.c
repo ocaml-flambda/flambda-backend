@@ -423,6 +423,12 @@ static void do_print_config(void)
 #else
          "false", 0);
 #endif
+  printf("compression_supported: %s\n",
+#ifdef HAS_ZSTD
+         "true");
+#else
+         "false");
+#endif
   printf("exec_magic_number: %s\n", EXEC_MAGIC);
 
   /* Parse ld.conf and print the effective search path */

@@ -218,8 +218,14 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     build_global_target ~ppf_dump oc targetname members ofs coercion;
     let pos_debug = pos_out oc in
     if !Clflags.debug && !events <> [] then begin
-      output_value oc (List.rev !events);
-      output_value oc (String.Set.elements !debug_dirs);
+      let flags =
+        if !Clflags.compress_all_artifacts then
+          [ Compressed_marshal.Compression ]
+        else
+          []
+      in
+      Compressed_marshal.(to_channel oc (List.rev !events) flags);
+      Compressed_marshal.(to_channel oc (String.Set.elements !debug_dirs) flags)
     end;
     let pos_final = pos_out oc in
     let imports =

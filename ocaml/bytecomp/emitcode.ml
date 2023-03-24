@@ -402,8 +402,14 @@ let to_file outchan unit_name objfile ~required_globals code =
         (Filename.dirname (Location.absolute_path objfile))
         !debug_dirs;
       let p = pos_out outchan in
-      output_value outchan !events;
-      output_value outchan (String.Set.elements !debug_dirs);
+      let flags =
+        if !Clflags.compress_all_artifacts then
+          [ Compressed_marshal.Compression ]
+        else
+          []
+       in
+      Compressed_marshal.(to_channel outchan !events flags);
+      Compressed_marshal.(to_channel outchan (String.Set.elements !debug_dirs) flags);
       (p, pos_out outchan - p)
     end else
       (0, 0) in

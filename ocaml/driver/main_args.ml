@@ -567,7 +567,13 @@ let mk_dtimings_precision f =
 let mk_dprofile f =
   "-dprofile", Arg.Unit f, Profile.options_doc
 ;;
+let mk_compress_all_artifacts f =
+  "-compress-all-artifacts", Arg.Unit f, ""
+;;
 
+let mk_compress_cmt_artifacts f =
+  "-compress-cmt-artifacts", Arg.Unit f, ""
+;;
 let mk_unbox_closures f =
   "-unbox-closures", Arg.Unit f,
   " Pass free variables via specialised arguments rather than closures"
@@ -1052,6 +1058,8 @@ module type Compiler_options = sig
   val _dtimings : unit -> unit
   val _dtimings_precision : int -> unit
   val _dprofile : unit -> unit
+  val _compress_all_artifacts : unit -> unit
+  val _compress_cmt_artifacts : unit -> unit
   val _dump_into_file : unit -> unit
   val _dump_dir : string -> unit
 
@@ -1307,6 +1315,8 @@ struct
     mk_dtimings F._dtimings;
     mk_dtimings_precision F._dtimings_precision;
     mk_dprofile F._dprofile;
+    mk_compress_all_artifacts F._compress_all_artifacts;
+    mk_compress_cmt_artifacts F._compress_cmt_artifacts;
     mk_dump_into_file F._dump_into_file;
     mk_dump_dir F._dump_dir;
 
@@ -1538,6 +1548,8 @@ struct
     mk_dtimings F._dtimings;
     mk_dtimings_precision F._dtimings_precision;
     mk_dprofile F._dprofile;
+    mk_compress_all_artifacts F._compress_all_artifacts;
+    mk_compress_cmt_artifacts F._compress_cmt_artifacts;
     mk_dump_into_file F._dump_into_file;
     mk_dump_dir F._dump_dir;
     mk_dump_pass F._dump_pass;
@@ -1919,6 +1931,10 @@ module Default = struct
     let _dprofile () = profile_columns := Profile.all_columns
     let _dtimings () = profile_columns := [`Time]
     let _dtimings_precision n = timings_precision := n
+    let _compress_all_artifacts () =
+      compress_all_artifacts := true;
+      compress_cmt_artifacts := true
+    let _compress_cmt_artifacts () = compress_cmt_artifacts := true
     let _dump_into_file = set dump_into_file
     let _dump_dir s = dump_dir := Some s
     let _for_pack s = for_package := (Some (String.capitalize_ascii s))
