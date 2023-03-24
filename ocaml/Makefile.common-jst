@@ -292,6 +292,14 @@ test: install_for_test
                fi \
              fi)
 
+promote-failed:
+	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
+	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
+	 if $$(which gfortran > /dev/null 2>&1); then \
+	   export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
+	 fi; \
+	 cd _runtest/testsuite && make promote-failed)
+
 runtest-upstream: test
 
 test-one: install_for_test

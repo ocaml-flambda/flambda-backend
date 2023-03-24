@@ -18,13 +18,13 @@
    like it in separate files, because the "compile and test output"
    infrastructure reports only one error at a time. *)
 
-let _disabled_extension = [%extension.comprehensions_experimental] ();;
+let _disabled_extension = [%extension.comprehensions] ();;
 
 (*
 Line 1, characters 26-69:
-1 | let _disabled_extension = [%extension.comprehensions_experimental] ();;
+1 | let _disabled_extension = [%extension.comprehensions] ();;
                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The extension "comprehensions_experimental" is disabled and cannot be used
+Error: The extension "comprehensions" is disabled and cannot be used
 *)
 
 

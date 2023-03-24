@@ -47,7 +47,7 @@ frame_descr * caml_next_frame_descriptor(uintnat * pc, char ** sp)
     /* Skip to next frame */
     if (d->frame_size != 0xFFFF) {
       /* Regular frame, update sp/pc and return the frame descriptor */
-      *sp += (get_frame_size(d) & 0xFFFFFFFC);
+      *sp += (caml_get_frame_size(d) & 0xFFFFFFFC);
       *pc = Saved_return_address(*sp);
 #ifdef Mask_already_scanned
       *pc = Mask_already_scanned(*pc);
@@ -169,13 +169,13 @@ static debuginfo debuginfo_extract(frame_descr* d, int alloc_idx)
   /* The special frames marking the top of an ML stack chunk are never
      returned by caml_next_frame_descriptor, so should never reach here. */
   CAMLassert(d->frame_size != 0xFFFF);
-  frame_size = get_frame_size(d);
+  frame_size = caml_get_frame_size(d);
 
   if ((frame_size & 1) == 0) {
     return NULL;
   }
   /* Recover debugging info */
-  infoptr = get_end_of_live_ofs(d);
+  infoptr = caml_get_end_of_live_ofs(d);
   if (frame_size & 2) {
     CAMLassert(alloc_idx == -1 || (0 <= alloc_idx && alloc_idx < *infoptr));
     /* skip alloc_lengths */

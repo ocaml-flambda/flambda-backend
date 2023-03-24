@@ -45,14 +45,12 @@ open Parsetree
 module Error = struct
   type malformed_extension =
     | Has_payload of payload
-    | Wrong_arguments of (Asttypes.arg_label * expression) list
-    | Wrong_tuple of pattern list
 
   type error =
     | Malformed_extension of string list * malformed_extension
     | Unknown_extension of string
-    | Disabled_extension of Clflags.Extension.t
-    | Wrong_syntactic_category of Clflags.Extension.t * string
+    | Disabled_extension of Language_extension.t
+    | Wrong_syntactic_category of Language_extension.t * string
     | Unnamed_extension
     | Bad_introduction of string * string list
 
@@ -62,7 +60,7 @@ end
 open Error
 
 let assert_extension_enabled ~loc ext =
-  if not (Clflags.Extension.is_enabled ext) then
+  if not (Language_extension.is_enabled ext) then
     raise (Error(loc, Disabled_extension ext))
 ;;
 
@@ -76,23 +74,6 @@ let report_error ~loc = function
             "@[Modular extension nodes are not allowed to have a payload,@ \
              but \"%s\" does@]"
           name
-      | Wrong_arguments arguments ->
-          Location.errorf
-            ~loc
-            "@[Expression modular extension nodes must be applied to exactly@ \
-             one unlabeled argument, but \"%s\" was applied to@ %s@]"
-            name
-            (match arguments with
-             | [Labelled _, _] -> "a labeled argument"
-             | [Optional _, _] -> "an optional argument"
-             | _ -> Int.to_string (List.length arguments) ^ " arguments")
-      | Wrong_tuple patterns ->
-          Location.errorf
-            ~loc
-            "@[Pattern modular extension nodes must be the first component of@ \
-             a pair, but \"%s\" was the first component of a %d-tuple@]"
-            name
-            (1 + List.length patterns)
     end
   | Unknown_extension name ->
       Location.errorf
@@ -105,12 +86,12 @@ let report_error ~loc = function
       Location.errorf
         ~loc
         "The extension \"%s\" is disabled and cannot be used"
-        (Clflags.Extension.to_string ext)
+        (Language_extension.to_string ext)
   | Wrong_syntactic_category(ext, cat) ->
       Location.errorf
         ~loc
         "The extension \"%s\" cannot appear in %s"
-        (Clflags.Extension.to_string ext)
+        (Language_extension.to_string ext)
         cat
   | Unnamed_extension ->
       Location.errorf
@@ -137,17 +118,15 @@ let () =
     etc.). *)
 
 (** The parameters that define how to look for [[%extension.EXTNAME]] inside
-    ASTs of a certain syntactic category.  See also the [Make_AST] functor, which
-    uses these definitions to make the e.g. [Expression] module. *)
+    ASTs of a certain syntactic category.  See also the [Make_AST] functor,
+    which uses these definitions to make the e.g. [Expression] module. *)
 module type AST_parameters = sig
   (** The AST type (e.g., [Parsetree.expression]) *)
   type ast
 
-  (** The type of the subterms that occur in the "body" slot of an extension
-      use.  This may just be [ast], but e.g. for expressions, we use function
-      applications, and the terms that a function is applied to contain label
-      information. *)
-  type raw_body
+  (** The "AST description" type, without the location and attributes (e.g.,
+      [Parsetree.expression_desc]) *)
+  type ast_desc
 
   (** The name for this syntactic category in the plural form; used for error
       messages *)
@@ -156,6 +135,10 @@ module type AST_parameters = sig
   (** How to get the location attached to an AST node.  Should just be
       [fun tm -> tm.pCAT_loc] for the appropriate syntactic category [CAT]. *)
   val location : ast -> Location.t
+
+  (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata *)
+  val wrap_desc :
+    loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
 
   (** How to construct an extension node for this AST (something of the shape
       [[%name]] or [[%%name]], depending on the AST).  Should just be
@@ -168,33 +151,30 @@ module type AST_parameters = sig
       appropriately-formed name and a body, combine them into the special
       syntactic form we use for language extensions for this syntactic
       category.  Partial inverse of [match_extension_use]. *)
-  val make_extension_use  : loc:Location.t -> extension_node:ast -> ast -> ast
+  val make_extension_use  : extension_node:ast -> ast -> ast_desc
 
   (** Given an AST node, check if it's of the special syntactic form indicating
       that this is a language extension (as created by [make_extension_node]),
-      split it back up into the extension node and the possible body terms.
+      split it back up into the extension node and the possible body.
       Doesn't do any checking about the name/format of the extension or the
       possible body terms (see [AST.match_extension]).  Partial inverse of
       [make_extension_use]. *)
-  val match_extension_use : ast -> (extension * raw_body list) option
-
-  (** Check if a [raw_body] term is legal to use as a body *)
-  val validate_extension_body : raw_body -> ast option
-
-  (** The error to throw when the list of possible body terms is wrong: either
-      when the list isn't exactly one term long, or when that single term fails
-      [validate_extension_body] *)
-  val malformed_extension : raw_body list -> malformed_extension
+  val match_extension_use : ast -> (extension * ast) option
 end
 
 module type AST = sig
   type ast
 
+  type ast_desc
+
   val plural : string
 
   val location : ast -> Location.t
 
-  val make_extension  : loc:Location.t -> string list -> ast -> ast
+  val wrap_desc :
+    loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
+
+  val make_extension : loc:Location.t -> string list -> ast -> ast_desc
 
   val match_extension : ast -> (string list * ast) option
 end
@@ -210,97 +190,115 @@ let uniformly_handled_extension names =
     corresponding module, of type [AST], for lowering and lifting language
     extension syntax from and to it. *)
 module Make_AST (AST_parameters : AST_parameters) :
-    AST with type ast = AST_parameters.ast = struct
-  include AST_parameters
+    AST with type ast      = AST_parameters.ast
+         and type ast_desc = AST_parameters.ast_desc =
+  struct
+    include AST_parameters
 
-  let make_extension ~loc names =
-    make_extension_use
-      ~loc
-      ~extension_node:
-        (make_extension_node
-           ~loc
-           ({ txt = String.concat "." ("extension" :: names); loc }, PStr []))
+    let make_extension ~loc names =
+      make_extension_use
+        ~extension_node:
+          (make_extension_node
+             ~loc
+             ({ txt = String.concat "." ("extension" :: names); loc }, PStr []))
 
-  (* This raises an error if the language extension node is malformed. Malformed
-     means either:
+    (* This raises an error if the language extension node is malformed.
+       Malformed means either:
 
-     1. The [[%extension.NAME]] extension point has a payload; extensions must
-        be empty, so other ppxes can traverse "into" them.
+       1. The [[%extension.NAME]] extension point has a payload; extensions must
+          be empty, so other ppxes can traverse "into" them.
 
-     2. The [[%extension.NAME]] extension point contains multiple body forms, or
-        body forms that are "shaped" incorrectly. *)
-  let match_extension ast =
-    match match_extension_use ast with
-    | Some (({txt = ext_name; loc = ext_loc}, ext_payload), body_list) -> begin
-        match String.split_on_char '.' ext_name with
-        | "extension" :: names when uniformly_handled_extension names -> begin
-            let raise_malformed err =
-              raise (Error(ext_loc, Malformed_extension(names, err)))
-            in
-            match ext_payload with
-            | PStr [] -> begin
-                match List.map validate_extension_body body_list with
-                | [Some body] -> Some (names, body)
-                | _ -> raise_malformed (malformed_extension body_list)
-              end
-            | _ -> raise_malformed (Has_payload ext_payload)
-          end
-        | _ -> None
-      end
-    | None -> None
+       2. The [[%extension.NAME]] extension point contains
+          body forms that are "shaped" incorrectly. *)
+    let match_extension ast =
+      match match_extension_use ast with
+      | Some (({txt = ext_name; loc = ext_loc}, ext_payload), body) ->
+        begin
+          match String.split_on_char '.' ext_name with
+          | "extension" :: names when uniformly_handled_extension names -> begin
+              let raise_malformed err =
+                raise (Error(ext_loc, Malformed_extension(names, err)))
+              in
+              match ext_payload with
+              | PStr [] -> Some (names, body)
+              | _ -> raise_malformed (Has_payload ext_payload)
+            end
+          | _ -> None
+        end
+      | None -> None
 end
 
 (** Expressions; embedded as [([%extension.EXTNAME] BODY)]. *)
 module Expression = Make_AST(struct
   type ast = expression
-  type raw_body = Asttypes.arg_label * expression (* Function arguments *)
+  type ast_desc = expression_desc
 
   let plural = "expressions"
 
   let location expr = expr.pexp_loc
 
+  let wrap_desc ~loc ~attrs = Ast_helper.Exp.mk ~loc ~attrs
+
   let make_extension_node = Ast_helper.Exp.extension
 
-  let make_extension_use ~loc ~extension_node expr =
-    Ast_helper.Exp.apply ~loc extension_node [Nolabel, expr]
+  let make_extension_use ~extension_node expr =
+    Pexp_apply(extension_node, [Nolabel, expr])
 
   let match_extension_use expr =
     match expr.pexp_desc with
-    | Pexp_apply({pexp_desc = Pexp_extension ext; _}, arguments) ->
-       Some (ext, arguments)
+    | Pexp_apply({pexp_desc = Pexp_extension ext; _},
+                 [Asttypes.Nolabel, body]) ->
+       Some (ext, body)
     | _ ->
        None
-
-  let validate_extension_body = function
-    | Asttypes.Nolabel, body -> Some body
-    | _,                _    -> None
-
-  let malformed_extension args = Wrong_arguments args
 end)
 
 (** Patterns; embedded as [[%extension.EXTNAME], BODY]. *)
 module Pattern = Make_AST(struct
   type ast = pattern
-  type raw_body = pattern
+  type ast_desc = pattern_desc
 
   let plural = "patterns"
 
   let location pat = pat.ppat_loc
 
+  let wrap_desc ~loc ~attrs = Ast_helper.Pat.mk ~loc ~attrs
+
   let make_extension_node = Ast_helper.Pat.extension
 
-  let make_extension_use ~loc ~extension_node pat =
-    Ast_helper.Pat.tuple ~loc [extension_node; pat]
+  let make_extension_use ~extension_node pat =
+    Ppat_tuple [extension_node; pat]
 
   let match_extension_use pat =
     match pat.ppat_desc with
-    | Ppat_tuple({ppat_desc = Ppat_extension ext; _} :: patterns) ->
-        Some (ext, patterns)
+    | Ppat_tuple([{ppat_desc = Ppat_extension ext; _}; pattern]) ->
+        Some (ext, pattern)
     | _ ->
        None
+end)
 
-  let validate_extension_body = Option.some
-  let malformed_extension pats = Wrong_tuple pats
+(** Module types; embedded as [functor (_ : [%extension.EXTNAME]) -> BODY]. *)
+module Module_type = Make_AST(struct
+    type ast = module_type
+    type ast_desc = module_type_desc
+
+    let plural = "module types"
+
+    let location mty = mty.pmty_loc
+
+    let wrap_desc ~loc ~attrs = Ast_helper.Mty.mk ~loc ~attrs
+
+    let make_extension_node = Ast_helper.Mty.extension
+
+    let make_extension_use ~extension_node mty =
+      Pmty_functor(Named(Location.mknoloc None, extension_node), mty)
+
+    let match_extension_use mty =
+      match mty.pmty_desc with
+      | Pmty_functor(Named({txt = None},
+                           {pmty_desc = Pmty_extension ext}), mty) ->
+        Some (ext, mty)
+      | _ -> None
 end)
 
 (******************************************************************************)
@@ -310,7 +308,7 @@ end)
 module type Of_ast_parameters = sig
   module AST : AST
   type t
-  val of_ast_internal : Clflags.Extension.t -> AST.ast -> t option
+  val of_ast_internal : Language_extension.t -> AST.ast -> t option
 end
 
 module Make_of_ast (Params : Of_ast_parameters) : sig
@@ -322,12 +320,13 @@ end = struct
     match Params.AST.match_extension ast with
     | None -> None
     | Some ([name], ast) -> begin
-        match Clflags.Extension.of_string name with
+        match Language_extension.of_string name with
         | Some ext -> begin
             assert_extension_enabled ~loc ext;
             match Params.of_ast_internal ext ast with
             | Some ext_ast -> Some ext_ast
-            | None -> raise_error (Wrong_syntactic_category(ext, Params.AST.plural))
+            | None ->
+                raise_error (Wrong_syntactic_category(ext, Params.AST.plural))
           end
         | None -> raise_error (Unknown_extension name)
       end
