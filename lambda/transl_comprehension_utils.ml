@@ -9,23 +9,23 @@ module Let_binding = struct
 
   type t =
     { let_kind   : Let_kind.t
-    ; value_kind : value_kind
+    ; layout : layout
     ; id         : Ident.t
     ; init       : lambda
     ; var        : lambda }
 
-  let make (let_kind : Let_kind.t) value_kind name init =
+  let make (let_kind : Let_kind.t) layout name init =
     let id = Ident.create_local name in
     let var = match let_kind with
       | Mutable -> Lmutvar id
       | Immutable _ -> Lvar id
     in
-    {let_kind; value_kind; id; init; var}
+    {let_kind; layout; id; init; var}
 
-  let let_one {let_kind; value_kind; id; init} body =
+  let let_one {let_kind; layout; id; init} body =
     match let_kind with
-    | Immutable let_kind -> Llet(let_kind, value_kind, id, init, body)
-    | Mutable            -> Lmutlet(value_kind, id, init, body)
+    | Immutable let_kind -> Llet(let_kind, layout, id, init, body)
+    | Mutable            -> Lmutlet(layout, id, init, body)
 
   let let_all = List.fold_right let_one
 end
@@ -43,7 +43,9 @@ module Lambda_utils = struct
         ~loc
         ~mode
         func
-        args =
+        args
+        ~result_layout
+        =
     (* These defaultscould be promoted to optional arguments if they were more
        widely used *)
     let region_close = Rc_normal in
@@ -60,6 +62,7 @@ module Lambda_utils = struct
            ; ap_inlined      = inlined
            ; ap_specialised  = specialised
            ; ap_probe        = probe
+           ; ap_result_layout = result_layout
            }
 
   module type Int_ops = sig

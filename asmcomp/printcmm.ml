@@ -231,9 +231,9 @@ let rec expr ppf = function
       fprintf ppf ")@]"
   | Csequence(e1, e2) ->
       fprintf ppf "@[<2>(seq@ %a@ %a)@]" sequence e1 sequence e2
-  | Cifthenelse(e1, _e2_dbg, e2, _e3_dbg, e3, _dbg) ->
+  | Cifthenelse(e1, _e2_dbg, e2, _e3_dbg, e3, _dbg, _kind) ->
       fprintf ppf "@[<2>(if@ %a@ %a@ %a)@]" expr e1 expr e2 expr e3
-  | Cswitch(e1, index, cases, _dbg) ->
+  | Cswitch(e1, index, cases, _dbg, _kind) ->
       let print_case i ppf =
         for j = 0 to Array.length index - 1 do
           if index.(j) = i then fprintf ppf "case %i:" j
@@ -243,7 +243,7 @@ let rec expr ppf = function
         fprintf ppf "@ @[<2>%t@ %a@]" (print_case i) sequence (fst cases.(i))
        done in
       fprintf ppf "@[<v 0>@[<2>(switch@ %a@ @]%t)@]" expr e1 print_cases
-  | Ccatch(flag, handlers, e1) ->
+  | Ccatch(flag, handlers, e1, _kind) ->
       let print_handler ppf (i, ids, e2, _dbg) =
         fprintf ppf "(%d%a)@ %a"
           i
@@ -267,7 +267,7 @@ let rec expr ppf = function
       fprintf ppf "@[<2>(exit %d" i;
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       fprintf ppf ")@]"
-  | Ctrywith(e1, id, e2, _dbg) ->
+  | Ctrywith(e1, id, e2, _dbg, _value_kind) ->
       fprintf ppf "@[<2>(try@ %a@;<1 -2>with@ %a@ %a)@]"
              sequence e1 VP.print id sequence e2
   | Cregion e ->

@@ -88,15 +88,15 @@ let rec eliminate_ref id = function
                     for_body = eliminate_ref id lf.for_body }
   | Lassign(v, e) ->
       Lassign(v, eliminate_ref id e)
-  | Lsend(k, m, o, el, pos, mode, loc) ->
+  | Lsend(k, m, o, el, pos, mode, loc, layout) ->
       Lsend(k, eliminate_ref id m, eliminate_ref id o,
-            List.map (eliminate_ref id) el, pos, mode, loc)
+            List.map (eliminate_ref id) el, pos, mode, loc, layout)
   | Levent(l, ev) ->
       Levent(eliminate_ref id l, ev)
   | Lifused(v, e) ->
       Lifused(v, eliminate_ref id e)
-  | Lregion e ->
-      Lregion(eliminate_ref id e)
+  | Lregion (e, layout) ->
+      Lregion(eliminate_ref id e, layout)
 
 (* Simplification of exits *)
 
@@ -181,10 +181,10 @@ let simplify_exits lam =
       count ~try_depth lf.for_to;
       count ~try_depth lf.for_body
   | Lassign(_v, l) -> count ~try_depth l
-  | Lsend(_k, m, o, ll, _, _, _) -> List.iter (count ~try_depth) (m::o::ll)
+  | Lsend(_k, m, o, ll, _, _, _, _) -> List.iter (count ~try_depth) (m::o::ll)
   | Levent(l, _) -> count ~try_depth l
   | Lifused(_v, l) -> count ~try_depth l
-  | Lregion l -> count ~try_depth l
+  | Lregion (l, _) -> count ~try_depth:(try_depth+1) l
 
   and count_default ~try_depth sw = match sw.sw_failaction with
   | None -> ()
@@ -220,22 +220,28 @@ let simplify_exits lam =
   *)
 
   let subst = Hashtbl.create 17 in
-  let rec simplif ~try_depth = function
-  | (Lvar _| Lmutvar _ | Lconst _) as l -> l
+  let rec simplif ~layout ~try_depth l =
+    (* layout is the expected layout of the result: [None] if we want to
+       leave it unchanged, [Some layout] if we need to update the layout of
+       the result to [layout]. *)
+    let result_layout ly = Option.value layout ~default:ly in
+    match l with
+  | Lvar _| Lmutvar _ | Lconst _ -> l
   | Lapply ap ->
-      Lapply{ap with ap_func = simplif ~try_depth ap.ap_func;
-                     ap_args = List.map (simplif ~try_depth) ap.ap_args}
+      Lapply{ap with ap_func = simplif ~layout:None ~try_depth ap.ap_func;
+                     ap_args = List.map (simplif ~layout:None ~try_depth) ap.ap_args}
   | Lfunction{kind; params; return; mode; region; body = l; attr; loc} ->
-     lfunction ~kind ~params ~return ~mode ~region ~body:(simplif ~try_depth l) ~attr ~loc
+     lfunction ~kind ~params ~return ~mode ~region
+       ~body:(simplif ~layout:None ~try_depth l) ~attr ~loc
   | Llet(str, kind, v, l1, l2) ->
-      Llet(str, kind, v, simplif ~try_depth l1, simplif ~try_depth l2)
+      Llet(str, kind, v, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
   | Lmutlet(kind, v, l1, l2) ->
-      Lmutlet(kind, v, simplif ~try_depth l1, simplif ~try_depth l2)
+      Lmutlet(kind, v, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
   | Lletrec(bindings, body) ->
-      Lletrec(List.map (fun (v, l) -> (v, simplif ~try_depth l)) bindings,
-      simplif ~try_depth body)
+      Lletrec(List.map (fun (v, l) -> (v, simplif ~layout:None ~try_depth l)) bindings,
+      simplif ~layout ~try_depth body)
   | Lprim(p, ll, loc) -> begin
-    let ll = List.map (simplif ~try_depth) ll in
+    let ll = List.map (simplif ~layout:None ~try_depth) ll in
     match p, ll with
         (* Simplify Obj.with_tag *)
       | Pccall { Primitive.prim_name = "caml_obj_with_tag"; _ },
@@ -250,21 +256,24 @@ let simplify_exits lam =
       | _ -> Lprim(p, ll, loc)
      end
   | Lswitch(l, sw, loc, kind) ->
-      let new_l = simplif ~try_depth l
+      let new_l = simplif ~layout:None ~try_depth l
       and new_consts =
-      List.map (fun (n, e) -> (n, simplif ~try_depth e)) sw.sw_consts
+      List.map (fun (n, e) -> (n, simplif ~layout ~try_depth e)) sw.sw_consts
       and new_blocks =
-      List.map (fun (n, e) -> (n, simplif ~try_depth e)) sw.sw_blocks
-      and new_fail = Option.map (simplif ~try_depth) sw.sw_failaction in
+      List.map (fun (n, e) -> (n, simplif ~layout ~try_depth e)) sw.sw_blocks
+      and new_fail = Option.map (simplif ~layout ~try_depth) sw.sw_failaction in
       Lswitch
         (new_l,
          {sw with sw_consts = new_consts ; sw_blocks = new_blocks;
                   sw_failaction = new_fail},
-         loc, kind)
+         loc, result_layout kind)
   | Lstringswitch(l,sw,d,loc, kind) ->
       Lstringswitch
-        (simplif ~try_depth l,List.map (fun (s,l) -> s,simplif ~try_depth l) sw,
-         Option.map (simplif ~try_depth) d,loc,kind)
+        (simplif ~layout:None ~try_depth l,
+         List.map (fun (s,l) -> s,simplif ~layout ~try_depth l) sw,
+         Option.map (simplif ~layout ~try_depth) d,
+         loc,
+         result_layout kind)
   | Lstaticraise (i,[]) as l ->
       begin try
         let _,handler =  Hashtbl.find subst i in
@@ -273,7 +282,7 @@ let simplify_exits lam =
       | Not_found -> l
       end
   | Lstaticraise (i,ls) ->
-      let ls = List.map (simplif ~try_depth) ls in
+      let ls = List.map (simplif ~layout:None ~try_depth) ls in
       begin try
         let xs,handler =  Hashtbl.find subst i in
         let ys = List.map (fun (x, k) -> Ident.rename x, k) xs in
@@ -295,43 +304,57 @@ let simplify_exits lam =
       | Not_found -> Lstaticraise (i,ls)
       end
   | Lstaticcatch (l1,(i,[]),(Lstaticraise (_j,[]) as l2),_) ->
-      Hashtbl.add subst i ([],simplif ~try_depth l2) ;
-      simplif ~try_depth l1
+      Hashtbl.add subst i ([],simplif ~layout ~try_depth l2) ;
+      simplif ~layout ~try_depth l1
   | Lstaticcatch (l1,(i,xs),l2,kind) ->
       let {count; max_depth} = get_exit i in
       if count = 0 then
         (* Discard staticcatch: not matching exit *)
-        simplif ~try_depth l1
+        simplif ~layout ~try_depth l1
       else if
       count = 1 && max_depth <= try_depth then begin
         (* Inline handler if there is a single occurrence and it is not
            nested within an inner try..with *)
         assert(max_depth = try_depth);
-        Hashtbl.add subst i (xs,simplif ~try_depth l2);
-        simplif ~try_depth l1
+        Hashtbl.add subst i (xs,simplif ~layout ~try_depth l2);
+        simplif ~layout:(Some (result_layout kind)) ~try_depth l1
       end else
-        Lstaticcatch (simplif ~try_depth l1, (i,xs), simplif ~try_depth l2, kind)
+        Lstaticcatch (
+          simplif ~layout ~try_depth l1,
+          (i,xs),
+          simplif ~layout ~try_depth l2,
+          result_layout kind)
   | Ltrywith(l1, v, l2, kind) ->
-      let l1 = simplif ~try_depth:(try_depth + 1) l1 in
-      Ltrywith(l1, v, simplif ~try_depth l2, kind)
-  | Lifthenelse(l1, l2, l3, kind) -> Lifthenelse(simplif ~try_depth l1,
-    simplif ~try_depth l2, simplif ~try_depth l3, kind)
-  | Lsequence(l1, l2) -> Lsequence(simplif ~try_depth l1, simplif ~try_depth l2)
-  | Lwhile lw -> Lwhile {lw with wh_cond = simplif ~try_depth lw.wh_cond;
-                                 wh_body = simplif ~try_depth lw.wh_body}
+      let l1 = simplif ~layout ~try_depth:(try_depth + 1) l1 in
+      Ltrywith(l1, v, simplif ~layout ~try_depth l2, result_layout kind)
+  | Lifthenelse(l1, l2, l3, kind) ->
+      Lifthenelse(
+        simplif ~layout:None ~try_depth l1,
+        simplif ~layout ~try_depth l2,
+        simplif ~layout ~try_depth l3,
+        result_layout kind)
+  | Lsequence(l1, l2) ->
+      Lsequence(
+        simplif ~layout:None ~try_depth l1,
+        simplif ~layout ~try_depth l2)
+  | Lwhile lw -> Lwhile {
+      lw with wh_cond = simplif ~layout:None ~try_depth lw.wh_cond;
+              wh_body = simplif ~layout:None ~try_depth lw.wh_body}
   | Lfor lf ->
-      Lfor {lf with for_from = simplif ~try_depth lf.for_from;
-                    for_to = simplif ~try_depth lf.for_to;
-                    for_body = simplif ~try_depth lf.for_body}
-  | Lassign(v, l) -> Lassign(v, simplif ~try_depth l)
-  | Lsend(k, m, o, ll, pos, mode, loc) ->
-      Lsend(k, simplif ~try_depth m, simplif ~try_depth o,
-      List.map (simplif ~try_depth) ll, pos, mode, loc)
-  | Levent(l, ev) -> Levent(simplif ~try_depth l, ev)
-  | Lifused(v, l) -> Lifused (v,simplif ~try_depth l)
-  | Lregion l -> Lregion (simplif ~try_depth l)
+      Lfor {lf with for_from = simplif ~layout:None ~try_depth lf.for_from;
+                    for_to = simplif ~layout:None ~try_depth lf.for_to;
+                    for_body = simplif ~layout:None ~try_depth lf.for_body}
+  | Lassign(v, l) -> Lassign(v, simplif ~layout:None ~try_depth l)
+  | Lsend(k, m, o, ll, pos, mode, loc, layout) ->
+      Lsend(k, simplif ~layout:None ~try_depth m, simplif ~layout:None ~try_depth o,
+            List.map (simplif ~layout:None ~try_depth) ll, pos, mode, loc, layout)
+  | Levent(l, ev) -> Levent(simplif ~layout ~try_depth l, ev)
+  | Lifused(v, l) -> Lifused (v,simplif ~layout ~try_depth l)
+  | Lregion (l, ly) -> Lregion (
+      simplif ~layout ~try_depth:(try_depth + 1) l,
+      result_layout ly)
   in
-  simplif ~try_depth:0 lam
+  simplif ~layout:None ~try_depth:0 lam
 
 (* Compile-time beta-reduction of functions immediately applied:
       Lapply(Lfunction(Curried, params, body), args, loc) ->
@@ -458,11 +481,11 @@ let simplify_lets lam =
       (* Lalias-bound variables are never assigned, so don't increase
          v's refcount *)
       count bv l
-  | Lsend(_, m, o, ll, _, _, _) -> List.iter (count bv) (m::o::ll)
+  | Lsend(_, m, o, ll, _, _, _, _) -> List.iter (count bv) (m::o::ll)
   | Levent(l, _) -> count bv l
   | Lifused(v, l) ->
       if count_var v > 0 then count bv l
-  | Lregion l ->
+  | Lregion (l, _) ->
       count bv l
 
   and count_default bv sw = match sw.sw_failaction with
@@ -553,8 +576,8 @@ let simplify_lets lam =
       let slbody = simplif lbody in
       begin try
         let kind = match kind_ref with
-          | None -> Pgenval
-          | Some [field_kind] -> field_kind
+          | None -> Lambda.layout_field
+          | Some [field_kind] -> Pvalue field_kind
           | Some _ -> assert false
         in
         mkmutlet kind v slinit (eliminate_ref v slbody)
@@ -608,12 +631,12 @@ let simplify_lets lam =
                              for_to = simplif lf.for_to;
                              for_body = simplif lf.for_body}
   | Lassign(v, l) -> Lassign(v, simplif l)
-  | Lsend(k, m, o, ll, pos, mode, loc) ->
-      Lsend(k, simplif m, simplif o, List.map simplif ll, pos, mode, loc)
+  | Lsend(k, m, o, ll, pos, mode, loc, layout) ->
+      Lsend(k, simplif m, simplif o, List.map simplif ll, pos, mode, loc, layout)
   | Levent(l, ev) -> Levent(simplif l, ev)
   | Lifused(v, l) ->
       if count_var v > 0 then simplif l else lambda_unit
-  | Lregion l -> Lregion (simplif l)
+  | Lregion (l, layout) -> Lregion (simplif l, layout)
   in
   simplif lam
 
@@ -696,7 +719,7 @@ let rec emit_tail_infos is_tail lambda =
       emit_tail_infos false for_body
   | Lassign (_, lam) ->
       emit_tail_infos false lam
-  | Lsend (_, meth, obj, args, _, _, _loc) ->
+  | Lsend (_, meth, obj, args, _, _, _loc, _) ->
       emit_tail_infos false meth;
       emit_tail_infos false obj;
       list_emit_tail_infos false args
@@ -704,7 +727,7 @@ let rec emit_tail_infos is_tail lambda =
       emit_tail_infos is_tail lam
   | Lifused (_, lam) ->
       emit_tail_infos is_tail lam
-  | Lregion lam ->
+  | Lregion (lam, _) ->
       emit_tail_infos is_tail lam
 and list_emit_tail_infos_fun f is_tail =
   List.iter (fun x -> emit_tail_infos is_tail (f x))
@@ -745,7 +768,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
       ->
         let wrapper_body, inner = aux ((optparam, id) :: map) add_region rest in
         Llet(Strict, k, id, def, wrapper_body), inner
-    | Lregion rest -> aux map true rest
+    | Lregion (rest, _) -> aux map true rest
     | _ when map = [] -> raise Exit
     | body ->
         (* Check that those *opt* identifiers don't appear in the remaining
@@ -754,12 +777,19 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         List.iter (fun (id, _) -> if Ident.Set.mem id fv then raise Exit) map;
 
         let inner_id = Ident.create_local (Ident.name fun_id ^ "_inner") in
-        let map_param p = try List.assoc p map with Not_found -> p in
-        let args = List.map (fun (p, _) -> Lvar (map_param p)) params in
+        let map_param p layout =
+          try
+            (* If the param is optional, then it must be a value *)
+            List.assoc p map, Lambda.layout_field
+          with
+            Not_found -> p, layout
+        in
+        let args = List.map (fun (p, layout) -> Lvar (fst (map_param p layout))) params in
         let wrapper_body =
           Lapply {
             ap_func = Lvar inner_id;
             ap_args = args;
+            ap_result_layout = return;
             ap_loc = Loc_unknown;
             ap_region_close = Rc_normal;
             ap_mode = alloc_heap;
@@ -769,18 +799,18 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
             ap_probe=None;
           }
         in
-        let inner_params = List.map map_param (List.map fst params) in
-        let new_ids = List.map Ident.rename inner_params in
+        let inner_params = List.map (fun (param, layout) -> map_param param layout) params in
+        let new_ids = List.map (fun (param, layout) -> (Ident.rename param, layout)) inner_params in
         let subst =
-          List.fold_left2 (fun s id new_id ->
+          List.fold_left2 (fun s (id, _) (new_id, _) ->
             Ident.Map.add id new_id s
           ) Ident.Map.empty inner_params new_ids
         in
         let body = Lambda.rename subst body in
-        let body = if add_region then Lregion body else body in
+        let body = if add_region then Lregion (body, return) else body in
         let inner_fun =
           lfunction ~kind:(Curried {nlocal=0})
-            ~params:(List.map (fun id -> id, Pgenval) new_ids)
+            ~params:new_ids
             ~return ~body ~attr ~loc ~mode ~region:true
         in
         (wrapper_body, (inner_id, inner_fun))
@@ -901,7 +931,7 @@ let simplify_local_functions lam =
     | Lfunction lf ->
         check_static lf;
         function_definition lf
-    | Lregion lam -> region lam
+    | Lregion (lam, _) -> region lam
     | lam ->
         Lambda.shallow_iter ~tail ~non_tail lam
   and non_tail lam =

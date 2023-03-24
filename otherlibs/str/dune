@@ -29,17 +29,18 @@
 
 (install
   (files
-    .str.objs/native/str.cmx
-    libstr_stubs.a
+    (.str.objs/native/str.cmx as str/str.cmx)
+    (libstr_stubs.a as str/libstr_stubs.a)
     (libstr_stubs.a as libstr_stubs_native.a) ; for special_dune compat
     (dllstr_stubs.so as stublibs/dllstr_stubs.so)
-    str.cmxa
-    str.a
-    str.cmxs
-    str.cma
-    str.mli
-    .str.objs/byte/str.cmi
-    .str.objs/byte/str.cmti
+    (str.cmxa as str/str.cmxa)
+    (str.a as str/str.a)
+    (str.cmxs as str/str.cmxs)
+    (str.cma as str/str.cma)
+    (str.mli as str/str.mli)
+    (.str.objs/byte/str.cmi as str/str.cmi)
+    (.str.objs/byte/str.cmt as str/str.cmt)
+    (.str.objs/byte/str.cmti as str/str.cmti)
   )
   (section lib)
   (package ocaml))

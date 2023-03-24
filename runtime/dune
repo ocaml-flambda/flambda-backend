@@ -26,88 +26,28 @@
    bigarray.c eventlog.c)
  (action  (with-stdout-to %{targets} (run %{dep:gen_primitives.sh}))))
 
-; Shouldn't this use foreign build sandboxing?
-
 (rule
- (targets libcamlrun.a libcamlrund.a libcamlruni.a libcamlrun_pic.a
-   libcamlrun_shared.so)
+ (targets libasmrun.a libasmrund.a libasmruni.a libasmrun_pic.a libasmrunnnp.a
+    libasmrun_shared.so libcamlrun.a libcamlrund.a libcamlruni.a libcamlrun_pic.a
+    libcamlrun_shared.so ocamlrun ocamlrund ocamlruni ld.conf
+    sak)
  (mode    fallback)
- (deps    ../Makefile.config ../Makefile.common ../Makefile.build_config ../Makefile.config_if_required Makefile
-          (glob_files caml/*.h)
-          interp.c misc.c stacks.c fix_code.c startup_aux.c startup_byt.c
-          freelist.c major_gc.c minor_gc.c memory.c alloc.c roots_byt.c
-          globroots.c fail_byt.c signals.c signals_byt.c printexc.c
-          backtrace_byt.c backtrace.c compare.c ints.c floats.c str.c array.c
-          io.c extern.c intern.c hash.c sys.c meta.c parsing.c gc_ctrl.c md5.c
-          obj.c lexing.c callback.c debugger.c weak.c compact.c finalise.c
-          custom.c dynlink.c afl.c unix.c win32.c bigarray.c main.c memprof.c 
-          domain.c caml/domain_state.tbl eventlog.c skiplist.c codefrag.c
-          instrtrace.c caml/opnames.h build_config.h prims.c)
+ (deps
+   ../Makefile.config
+   ../Makefile.build_config
+   ../Makefile.config_if_required
+   ../Makefile.common Makefile
+   (glob_files caml/*.h)
+   primitives
+   signals_osdep.h (glob_files *.S)
+   (glob_files *.c)
+ )
  (action
+ (no-infer
    (progn
-     (run make -sj8 COMPUTE_DEPS=false %{targets}))))
-
-(rule
-  (targets sak)
-  (deps sak.c caml/misc.h caml/config.h caml/s.h caml/m.h)
-  (action (run make -s COMPUTE_DEPS=false %{targets})))
-
-(rule
-  (targets build_config.h)
-  (deps ../Makefile.config sak)
-  (action (run make -s COMPUTE_DEPS=false %{targets})))
-
-(rule
-  (targets prims.c)
-  (mode fallback)
-  (deps primitives Makefile)
-  (action (run make -s COMPUTE_DEPS=false %{targets})))
-
-(rule
- (targets libasmrun.a libasmrund.a libasmruni.a libasmrun_pic.a
-   libasmrun_shared.so prims.o)
- (mode    fallback)
- (deps    ../Makefile.config ../Makefile.common ../Makefile.build_config ../Makefile.config_if_required Makefile
-  (glob_files caml/*.h)
-  signals_osdep.h (glob_files *.S)
-  startup_aux.c startup_nat.c main.c fail_nat.c roots_nat.c signals.c
-  signals_nat.c misc.c freelist.c major_gc.c minor_gc.c memory.c alloc.c
-  compare.c ints.c floats.c str.c array.c io.c extern.c intern.c hash.c sys.c
-  parsing.c gc_ctrl.c md5.c obj.c lexing.c unix.c printexc.c callback.c weak.c
-  compact.c finalise.c custom.c globroots.c backtrace_nat.c backtrace.c
-  dynlink_nat.c debugger.c meta.c dynlink.c clambda_checks.c afl.c bigarray.c memprof.c domain.c
-  caml/domain_state.tbl eventlog.c prims.c)
- (action
-  (progn
-   (run make -sj8 COMPUTE_DEPS=false %{targets}))))
-
-(rule
-  (targets ld.conf)
-  (deps ../Makefile.config build_config.h)
-  (action (run make -s COMPUTE_DEPS=false %{targets})))
-
-(rule
-  (targets ocamlrun)
-  (deps libcamlrun.a prims.o)
-  (action
-    (progn
-    (run make -s COMPUTE_DEPS=false %{targets}))))
-
-(rule
-  (targets ocamlrund)
-  ; the ocamlrun dep is a hack to serialise production of ocamlrun* so there
-  ; isn't a race on prims.o
-  (deps libcamlrund.a prims.o ocamlrun)
-  (action
-    (progn
-      (run make -s COMPUTE_DEPS=false %{targets}))))
-
-(rule
-  (targets ocamlruni)
-  (deps libcamlruni.a prims.o ocamlrund)
-  (action
-    (progn
-      (run make -s COMPUTE_DEPS=false %{targets}))))
+     (bash "touch .depend") ; hack.
+     (run make -s %{targets} COMPUTE_DEPS=false)
+     (bash "rm .depend")))))
 
 (install
   (files
@@ -137,6 +77,7 @@
     libasmrund.a
     libasmruni.a
     libasmrun_pic.a
+    libasmrunnnp.a
     libasmrun_shared.so
   )
   (section lib)

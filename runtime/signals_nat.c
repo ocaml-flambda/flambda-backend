@@ -68,7 +68,7 @@ void caml_garbage_collection(void)
     uintnat h = Hash_retaddr(Caml_state->last_return_address);
     while (1) {
       d = caml_frame_descriptors[h];
-      if (d->retaddr == Caml_state->last_return_address) break;
+      if (Retaddr_frame(d) == Caml_state->last_return_address) break;
       h = (h + 1) & caml_frame_descriptors_mask;
     }
     /* Must be an allocation frame */

@@ -80,12 +80,7 @@ let caml_int64_ops = "caml_int64_ops"
 let pos_arity_in_closinfo = 8 * size_addr - 8
        (* arity = the top 8 bits of the closinfo word *)
 
-let closure_info ~arity ~startenv ~is_last =
-  let arity =
-    match arity with
-    | Lambda.Tupled, n -> -n
-    | Lambda.Curried _, n -> n
-  in
+let pack_closure_info ~arity ~startenv ~is_last =
   assert (-128 <= arity && arity <= 127);
   assert (0 <= startenv && startenv < 1 lsl (pos_arity_in_closinfo - 2));
   Nativeint.(add (shift_left (of_int arity) pos_arity_in_closinfo)
@@ -94,6 +89,19 @@ let closure_info ~arity ~startenv ~is_last =
           (Bool.to_int is_last |> Nativeint.of_int)
           (pos_arity_in_closinfo - 1))
       (add (shift_left (of_int startenv) 1) 1n)))
+
+let closure_info' ~arity ~startenv ~is_last =
+  let arity =
+    match arity with
+    | Lambda.Tupled, l -> -List.length l
+    | Lambda.Curried _, l -> List.length l
+  in
+  pack_closure_info ~arity ~startenv ~is_last
+
+let closure_info ~(arity : Clambda.arity) ~startenv ~is_last =
+  closure_info'
+    ~arity:(arity.function_kind, arity.params_layout)
+    ~startenv ~is_last
 
 let alloc_float_header mode dbg =
   match mode with
@@ -276,12 +284,12 @@ let untag_int i dbg =
       Cop(Clsr, [c; Cconst_int (n+1, dbg)], dbg)
   | c -> asr_int c (Cconst_int (1, dbg)) dbg
 
-let mk_if_then_else dbg cond ifso_dbg ifso ifnot_dbg ifnot =
+let mk_if_then_else dbg value_kind cond ifso_dbg ifso ifnot_dbg ifnot =
   match cond with
   | Cconst_int (0, _) -> ifnot
   | Cconst_int (1, _) -> ifso
   | _ ->
-    Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg)
+    Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg, value_kind)
 
 let mk_not dbg cmm =
   match cmm with
@@ -351,7 +359,7 @@ let create_loop body dbg =
   let cont = Lambda.next_raise_count () in
   let call_cont = Cexit (cont, []) in
   let body = Csequence (body, call_cont) in
-  Ccatch (Recursive, [cont, [], body, dbg], call_cont)
+  Ccatch (Recursive, [cont, [], body, dbg], call_cont, Vval Pgenval)
 
 (* Turning integer divisions into multiply-high then shift.
    The [division_parameters] function is used in module Emit for
@@ -500,7 +508,7 @@ let rec div_int c1 c2 is_safe dbg =
                       Cop(Cdivi, [c1; c2], dbg),
                       dbg,
                       raise_symbol dbg "caml_exn_Division_by_zero",
-                      dbg)))
+                      dbg, Vint)))
 
 let mod_int c1 c2 is_safe dbg =
   match (c1, c2) with
@@ -541,7 +549,7 @@ let mod_int c1 c2 is_safe dbg =
                       Cop(Cmodi, [c1; c2], dbg),
                       dbg,
                       raise_symbol dbg "caml_exn_Division_by_zero",
-                      dbg)))
+                      dbg, Vint)))
 
 (* Division or modulo on boxed integers.  The overflow case min_int / -1
    can occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513). *)
@@ -551,7 +559,7 @@ let is_different_from x = function
   | Cconst_natint (n, _) -> n <> Nativeint.of_int x
   | _ -> false
 
-let safe_divmod_bi mkop is_safe mkm1 c1 c2 bi dbg =
+let safe_divmod_bi mkop kind is_safe mkm1 c1 c2 bi dbg =
   bind "divisor" c2 (fun c2 ->
   bind "dividend" c1 (fun c1 ->
     let c = mkop c1 c2 is_safe dbg in
@@ -562,16 +570,16 @@ let safe_divmod_bi mkop is_safe mkm1 c1 c2 bi dbg =
       Cifthenelse(Cop(Ccmpi Cne, [c2; Cconst_int (-1, dbg)], dbg),
         dbg, c,
         dbg, mkm1 c1 dbg,
-        dbg)
+        dbg, kind)
     else
       c))
 
 let safe_div_bi is_safe =
-  safe_divmod_bi div_int is_safe
+  safe_divmod_bi div_int Vint is_safe
     (fun c1 dbg -> Cop(Csubi, [Cconst_int (0, dbg); c1], dbg))
 
 let safe_mod_bi is_safe =
-  safe_divmod_bi mod_int is_safe (fun _ dbg -> Cconst_int (0, dbg))
+  safe_divmod_bi mod_int Vint is_safe (fun _ dbg -> Cconst_int (0, dbg))
 
 (* Bool *)
 
@@ -592,6 +600,7 @@ let box_float dbg m c = Cop(Calloc m, [alloc_float_header m dbg; c], dbg)
 
 let unbox_float dbg =
   map_tail
+    ~kind:Vfloat
     (function
       | Cop(Calloc _, [Cconst_natint (hdr, _); c], _)
         when Nativeint.equal hdr float_header ->
@@ -626,20 +635,20 @@ let rec remove_unit = function
   | Csequence(c, Cconst_int (1, _)) -> c
   | Csequence(c1, c2) ->
       Csequence(c1, remove_unit c2)
-  | Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg) ->
+  | Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg, kind) ->
       Cifthenelse(cond,
         ifso_dbg, remove_unit ifso,
         ifnot_dbg,
-        remove_unit ifnot, dbg)
-  | Cswitch(sel, index, cases, dbg) ->
+        remove_unit ifnot, dbg, kind)
+  | Cswitch(sel, index, cases, dbg, kind) ->
       Cswitch(sel, index,
         Array.map (fun (case, dbg) -> remove_unit case, dbg) cases,
-        dbg)
-  | Ccatch(rec_flag, handlers, body) ->
+        dbg, kind)
+  | Ccatch(rec_flag, handlers, body, kind) ->
       let map_h (n, ids, handler, dbg) = (n, ids, remove_unit handler, dbg) in
-      Ccatch(rec_flag, List.map map_h handlers, remove_unit body)
-  | Ctrywith(body, exn, handler, dbg) ->
-      Ctrywith(remove_unit body, exn, remove_unit handler, dbg)
+      Ccatch(rec_flag, List.map map_h handlers, remove_unit body, kind)
+  | Ctrywith(body, exn, handler, dbg, value_kind) ->
+      Ctrywith(remove_unit body, exn, remove_unit handler, dbg, value_kind)
   | Clet(id, c1, c2) ->
       Clet(id, c1, remove_unit c2)
   | Cop(Capply(_mty, pos), args, dbg) ->
@@ -657,8 +666,14 @@ let field_address ptr n dbg =
   then ptr
   else Cop(Cadda, [ptr; Cconst_int(n * size_addr, dbg)], dbg)
 
+let get_field_gen_given_memory_chunk memory_chunk mut ptr n dbg =
+  Cop (Cload (memory_chunk, mut), [field_address ptr n dbg], dbg)
+
 let get_field_gen mut ptr n dbg =
-  Cop(Cload (Word_val, mut), [field_address ptr n dbg], dbg)
+  get_field_gen_given_memory_chunk Word_val mut ptr n dbg
+
+let get_field_codepointer mut ptr n dbg =
+  get_field_gen_given_memory_chunk Word_int mut ptr n dbg
 
 let set_field ptr n newval init dbg =
   Cop(Cstore (Word_val, init), [field_address ptr n dbg; newval], dbg)
@@ -821,16 +836,33 @@ let lookup_label obj lab dbg =
     let table = Cop (Cload (Word_val, Mutable), [obj], dbg) in
     addr_array_ref table lab dbg)
 
-let send_function_name n (mode : Lambda.alloc_mode) =
-  let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
-  "caml_send" ^ Int.to_string n ^ suff
+let machtype_identifier t =
+  let char_of_component = function
+    | Val -> 'V'
+    | Int -> 'I'
+    | Float -> 'F'
+    | Addr ->
+      Misc.fatal_error "[Addr] is forbidden inside arity for generic functions"
+  in
+  String.of_seq (Seq.map char_of_component (Array.to_seq t))
 
-let call_cached_method obj tag cache pos args (apos,mode) dbg =
-  let arity = List.length args in
+let unique_arity_identifier arity =
+  if List.for_all (function [| Val |] -> true | _ -> false) arity
+  then Int.to_string (List.length arity)
+  else String.concat "_" (List.map machtype_identifier arity)
+
+let send_function_name arity result (mode : Lambda.alloc_mode) =
+  let res =
+    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
+  in
+  let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
+  "caml_send" ^ unique_arity_identifier arity ^ res ^ suff
+
+let call_cached_method obj tag cache pos args args_type result (apos,mode) dbg =
   let cache = array_indexing log2_size_addr cache pos dbg in
-  Compilenv.need_send_fun arity mode;
-  Cop(Capply(typ_val, apos),
-      Cconst_symbol(send_function_name arity mode, dbg) ::
+  Compilenv.need_send_fun args_type result mode;
+  Cop(Capply(result, apos),
+      Cconst_symbol(send_function_name args_type result mode, dbg) ::
         obj :: tag :: cache :: args,
       dbg)
 
@@ -877,21 +909,37 @@ let make_checkbound dbg = function
       Cop(Ccheckbound, args, dbg)
 
 (* Record application and currying functions *)
-let apply_function_name (n, (mode : Lambda.alloc_mode)) =
+let apply_function_name arity result (mode : Lambda.alloc_mode) =
+  let res =
+    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
+  in
   let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
-  "caml_apply" ^ Int.to_string n ^ suff
-let apply_function_sym n mode =
-  assert (n > 0);
-  Compilenv.need_apply_fun n mode;
-  apply_function_name (n, mode)
-let curry_function_sym ar =
-  Compilenv.need_curry_fun ar;
-  match ar with
-  | Lambda.Curried {nlocal}, n ->
-     "caml_curry" ^ Int.to_string n ^
-       (if nlocal > 0 then "L" ^ Int.to_string nlocal else "")
-  | Lambda.Tupled, n ->
-     "caml_tuplify" ^ Int.to_string n
+  "caml_apply" ^ unique_arity_identifier arity ^ res ^ suff
+
+let apply_function_sym arity result mode =
+  assert (List.length arity > 0);
+  Compilenv.need_apply_fun arity result mode;
+  apply_function_name arity result mode
+
+let curry_function_sym function_kind arity result =
+  Compilenv.need_curry_fun function_kind arity result;
+  match function_kind with
+  | Lambda.Curried { nlocal } ->
+    "caml_curry"
+    ^ unique_arity_identifier arity
+    ^ (match result with
+      | [| Val |] -> ""
+      | _ -> "_R" ^ machtype_identifier result)
+    ^ if nlocal > 0 then "L" ^ Int.to_string nlocal else ""
+  | Lambda.Tupled -> (
+    if List.exists (function [| Val |] -> false | _ -> true) arity
+    then
+      Misc.fatal_error
+        "tuplify_function is currently unsupported if arity contains non-values";
+    "caml_tuplify"
+    ^ Int.to_string (List.length arity)
+    ^
+    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result)
 
 (* Big arrays *)
 
@@ -1109,6 +1157,7 @@ let unbox_int dbg bi =
         [Cop(Cadda, [arg; Cconst_int (size_addr, dbg)], dbg)], dbg)
   in
   map_tail
+    ~kind:Vint
     (function
       | Cop(Calloc _,
             [hdr; ops;
@@ -1498,7 +1547,7 @@ let transl_isout h arg dbg = tag_int (Cop(Ccmpa Clt, [h ; arg], dbg)) dbg
 
 (* Build an actual switch (ie jump table) *)
 
-let make_switch arg cases actions dbg =
+let make_switch arg cases actions dbg kind =
   let extract_uconstant =
     function
     (* Constant integers loaded from a table should end in 1,
@@ -1549,7 +1598,7 @@ let make_switch arg cases actions dbg =
   in
   match Misc.Stdlib.Array.all_somes (Array.map extract_uconstant actions) with
   | None ->
-      Cswitch (arg,cases,actions,dbg)
+      Cswitch (arg,cases,actions,dbg, kind)
   | Some const_actions ->
       match extract_affine ~cases ~const_actions with
       | Some (offset, slope) ->
@@ -1568,10 +1617,11 @@ struct
   let gtint = Ccmpi Cgt
 
   type loc = Debuginfo.t
-  type value_kind = unit
   type arg = expression
   type test = expression
   type act = expression
+
+  type layout = value_kind
 
   (* CR mshinwell: GPR#2294 will fix the Debuginfo here *)
 
@@ -1582,15 +1632,15 @@ struct
   let make_isin h arg = Cop (Ccmpa Cge, [h ; arg], Debuginfo.none)
   let make_is_nonzero arg = arg
   let arg_as_test arg = arg
-  let make_if () cond ifso ifnot =
+  let make_if value_kind cond ifso ifnot =
     Cifthenelse (cond, Debuginfo.none, ifso, Debuginfo.none, ifnot,
-      Debuginfo.none)
-  let make_switch dbg () arg cases actions =
+      Debuginfo.none, value_kind)
+  let make_switch dbg value_kind arg cases actions =
     let actions = Array.map (fun expr -> expr, dbg) actions in
-    make_switch arg cases actions dbg
+    make_switch arg cases actions dbg value_kind
   let bind arg body = bind "switcher" arg body
 
-  let make_catch () handler = match handler with
+  let make_catch kind handler = match handler with
   | Cexit (i,[]) -> i,fun e -> e
   | _ ->
       let dbg = Debuginfo.none in
@@ -1605,7 +1655,7 @@ struct
       | Cexit (j,_) ->
           if i=j then handler
           else body
-      | _ ->  ccatch (i,[],body,handler, dbg))
+      | _ ->  ccatch (i,[],body,handler, dbg, kind))
 
   let make_exit i = Cexit (i,[])
 
@@ -1653,7 +1703,7 @@ module SwitcherBlocks = Switch.Make(SArgBlocks)
 (* Int switcher, arg in [low..high],
    cases is list of individual cases, and is sorted by first component *)
 
-let transl_int_switch dbg arg low high cases default = match cases with
+let transl_int_switch dbg value_kind arg low high cases default = match cases with
 | [] -> assert false
 | _::_ ->
     let store = StoreExp.mk_store () in
@@ -1693,13 +1743,13 @@ let transl_int_switch dbg arg low high cases default = match cases with
     bind "switcher" arg
       (fun a ->
         SwitcherBlocks.zyva
-          dbg ()
+          dbg value_kind
           (low,high)
           a
           (Array.of_list inters) store)
 
 
-let transl_switch_clambda loc arg index cases =
+let transl_switch_clambda loc value_kind arg index cases =
   let store = StoreExpForSwitch.mk_store () in
   let index =
     Array.map
@@ -1728,7 +1778,7 @@ let transl_switch_clambda loc arg index cases =
       bind "switcher" arg
         (fun a ->
            SwitcherBlocks.zyva
-             loc ()
+             loc value_kind
              (0,n_index-1)
              a
              (Array.of_list inters) store)
@@ -1747,38 +1797,36 @@ let ptr_offset ptr offset dbg =
   then ptr
   else Cop(Caddv, [ptr; Cconst_int(offset * size_addr, dbg)], dbg)
 
-let direct_apply lbl args (pos, _mode) dbg =
-  Cop(Capply(typ_val, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
+let direct_apply lbl ty args (pos, _mode) dbg =
+  Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
-let generic_apply mut clos args (pos, mode) dbg =
+let generic_apply mut clos args args_type result (pos, mode) dbg =
   match args with
   | [arg] ->
       bind "fun" clos (fun clos ->
-        Cop(Capply(typ_val, pos), [get_field_gen mut clos 0 dbg; arg; clos],
+        Cop(Capply(result, pos), [get_field_gen mut clos 0 dbg; arg; clos],
           dbg))
   | _ ->
-      let arity = List.length args in
       let cargs =
-        Cconst_symbol(apply_function_sym arity mode, dbg) :: args @ [clos]
+        Cconst_symbol(apply_function_sym args_type result mode, dbg) :: args
+        @ [clos]
       in
-      Cop(Capply(typ_val, pos), cargs, dbg)
+      Cop(Capply(result, pos), cargs, dbg)
 
-let send kind met obj args akind dbg =
-  let call_met obj args clos =
+let send kind met obj args args_type result akind dbg =
+  let call_met obj args args_type clos =
     (* met is never a simple expression, so it never gets turned into an
        Immutable load *)
-    generic_apply Asttypes.Mutable clos (obj :: args) akind dbg
+    generic_apply Asttypes.Mutable clos (obj :: args) (typ_val :: args_type)
+      result akind dbg
   in
   bind "obj" obj (fun obj ->
-      match (kind : Lambda.meth_kind), args with
-        Self, _ ->
-          bind "met" (lookup_label obj met dbg)
-            (call_met obj args)
-      | Cached, cache :: pos :: args ->
-          call_cached_method obj met cache pos args akind dbg
-      | _ ->
-          bind "met" (lookup_tag obj met dbg)
-            (call_met obj args))
+      match (kind : Lambda.meth_kind), args, args_type with
+      | Self, _, _ ->
+        bind "met" (lookup_label obj met dbg) (call_met obj args args_type)
+      | Cached, cache :: pos :: args, _ :: _ :: args_type ->
+        call_cached_method obj met cache pos args args_type result akind dbg
+      | _ -> bind "met" (lookup_tag obj met dbg) (call_met obj args args_type))
 
 (*
 CAMLprim value caml_cache_public_method (value meths, value tag, value *cache)
@@ -1825,15 +1873,15 @@ let cache_public_method meths tag cache dbg =
                      dbg)], dbg),
            dbg, Cassign(hi, Cop(Csubi, [Cvar mi; cconst_int 2], dbg)),
            dbg, Cassign(li, Cvar mi),
-           dbg),
+           dbg, Vint (* unit *)),
         Cifthenelse
           (Cop(Ccmpi Cge, [Cvar li; Cvar hi], dbg),
            dbg, Cexit (raise_num, []),
            dbg, Ctuple [],
-           dbg))))
+           dbg, Vint (* unit *)))))
        dbg,
      Ctuple [],
-     dbg),
+     dbg, Vint (* unit *)),
   Clet (
     VP.create tagged,
       Cop(Caddi, [lsl_const (Cvar li) log2_size_addr dbg;
@@ -1902,10 +1950,9 @@ let placeholder_fun_dbg ~human_name:_ = Debuginfo.none
            (app closN-1.code aN closN-1))))
 *)
 
-let apply_function_body (arity, (mode : Lambda.alloc_mode)) =
+let apply_function_body arity result (mode : Lambda.alloc_mode) =
   let dbg = placeholder_dbg in
-  let arg = Array.make arity (V.create_local "arg") in
-  for i = 1 to arity - 1 do arg.(i) <- V.create_local "arg" done;
+  let args = List.map (fun _ -> V.create_local "arg") arity in
   let clos = V.create_local "clos" in
   (* In the slowpath, a region is necessary in case
      the initial applications do local allocations *)
@@ -1917,68 +1964,87 @@ let apply_function_body (arity, (mode : Lambda.alloc_mode)) =
       | Alloc_local -> None
     end
   in
-  let rec app_fun clos n =
-    if n = arity-1 then begin
+  let rec app_fun clos args =
+    match args with
+    | [] -> Misc.fatal_error "apply_function_body for empty arity"
+    | [arg] -> (
       let app =
-        Cop(Capply(typ_val, Rc_normal),
-            [get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
-             Cvar arg.(n);
-             Cvar clos],
-            dbg ())
+        Cop
+          ( Capply (result, Rc_normal),
+            [ get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
+              Cvar arg;
+              Cvar clos ],
+            dbg () )
       in
       match region with
       | None -> app
       | Some region ->
-         (* To preserve tail-call behaviour, we do a runtime check whether
-            anything has been allocated in [region]. If not, then we can do
-            a direct tail call without waiting to end the region afterwards. *)
-         Cifthenelse(
-           Cop(Ccmpi Ceq, [Cvar region;
-                           Cop (Cbeginregion, [], dbg())], dbg ()),
-           dbg (),
-           app,
-           dbg (),
-           (let res = V.create_local "result" in
-            Clet(VP.create res, app,
-                 Csequence(Cop(Cendregion, [Cvar region], dbg ()), Cvar res))),
-           dbg ())
-    end else begin
+        (* To preserve tail-call behaviour, we do a runtime check whether
+           anything has been allocated in [region]. If not, then we can do a
+           direct tail call without waiting to end the region afterwards. *)
+        Cifthenelse
+          ( Cop
+              (Ccmpi Ceq, [Cvar region; Cop (Cbeginregion, [], dbg ())], dbg ()),
+            dbg (),
+            app,
+            dbg (),
+            (let res = V.create_local "result" in
+             Clet
+               ( VP.create res,
+                 app,
+                 Csequence (Cop (Cendregion, [Cvar region], dbg ()), Cvar res)
+               )),
+            dbg (),
+            Vval Pgenval (* Incorrect but only used for unboxing *) ))
+    | arg :: args ->
       let newclos = V.create_local "clos" in
-      Clet(VP.create newclos,
-           Cop(Capply(typ_val, Rc_normal),
-               [get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
-                Cvar arg.(n); Cvar clos], dbg ()),
-           app_fun newclos (n+1))
-    end in
+      Clet
+        ( VP.create newclos,
+          Cop
+            ( Capply (typ_val, Rc_normal),
+              [ get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
+                Cvar arg;
+                Cvar clos ],
+              dbg () ),
+          app_fun newclos args )
+  in
   let code =
     match region with
-    | None -> app_fun clos 0
+    | None -> app_fun clos args
     | Some reg ->
-       Clet(VP.create reg, Cop(Cbeginregion, [], dbg ()),
-            app_fun clos 0)
+      Clet (VP.create reg, Cop (Cbeginregion, [], dbg ()), app_fun clos args)
   in
-  let args = Array.to_list arg in
   let all_args = args @ [clos] in
-  (args, clos,
-   if arity = 1 then code else
-   Cifthenelse(
-   Cop(Ccmpi Ceq, [Cop(Casr,
-                       [get_field_gen Asttypes.Mutable (Cvar clos) 1 (dbg());
-                        Cconst_int(pos_arity_in_closinfo, dbg())], dbg());
-                   Cconst_int(arity, dbg())], dbg()),
-   dbg (),
-   Cop(Capply(typ_val, Rc_normal),
-       get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
-       :: List.map (fun s -> Cvar s) all_args,
-       dbg ()),
-   dbg (),
-   code,
-   dbg ()))
+  ( args,
+    clos,
+    if List.compare_length_with arity 1 = 0
+    then code
+    else
+      Cifthenelse
+        ( Cop
+            ( Ccmpi Ceq,
+              [ Cop
+                  ( Casr,
+                    [ get_field_gen Asttypes.Mutable (Cvar clos) 1 (dbg ());
+                      Cconst_int (pos_arity_in_closinfo, dbg ()) ],
+                    dbg () );
+                Cconst_int (List.length arity, dbg ()) ],
+              dbg () ),
+          dbg (),
+          Cop
+            ( Capply (result, Rc_normal),
+              get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
+              :: List.map (fun s -> Cvar s) all_args,
+              dbg () ),
+          dbg (),
+          code,
+          dbg (),
+          Vval Pgenval (* incorrect but only used for unboxing *) ) )
 
-let send_function (arity, mode) =
+let send_function (arity, result, mode) =
   let dbg = placeholder_dbg in
   let cconst_int i = Cconst_int (i, dbg ()) in
-  let (args, clos', body) = apply_function_body (1+arity, mode) in
+  let args, clos', body = apply_function_body (typ_val :: arity) result mode in
   let cache = V.create_local "cache"
   and obj = List.hd args
   and tag = V.create_local "tag" in
@@ -2004,7 +2070,7 @@ let send_function (arity, mode) =
                 cache_public_method (Cvar meths) tag cache (dbg ()),
                 dbg (),
                 cached_pos,
-                dbg ()),
+                dbg (), Vval Pgenval),
     Cop(Cload (Word_val, Mutable),
       [Cop(Cadda, [Cop (Cadda, [Cvar real; Cvar meths], dbg ());
        cconst_int(2*size_addr-1)], dbg ())], dbg ()))))
@@ -2012,7 +2078,7 @@ let send_function (arity, mode) =
   in
   let body = Clet(VP.create clos', clos, body) in
   let cache = cache in
-  let fun_name = send_function_name arity mode in
+  let fun_name = send_function_name arity result mode in
   let fun_args =
     [obj, typ_val; tag, typ_int; cache, typ_addr]
     @ List.map (fun id -> (id, typ_val)) (List.tl args) in
@@ -2026,14 +2092,14 @@ let send_function (arity, mode) =
     fun_dbg;
    }
 
-let apply_function arity =
-  let (args, clos, body) = apply_function_body arity in
-  let all_args = args @ [clos] in
-  let fun_name = apply_function_name arity in
+let apply_function (arity, result, mode) =
+  let (args, clos, body) = apply_function_body arity result mode in
+  let all_args = List.combine args arity @ [clos, typ_val] in
+  let fun_name = apply_function_name arity result mode in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
    {fun_name;
-    fun_args = List.map (fun arg -> (VP.create arg, typ_val)) all_args;
+    fun_args = List.map (fun (arg, ty) -> (VP.create arg, ty)) all_args;
     fun_body = body;
     fun_codegen_options = [];
     fun_poll = Default_poll;
@@ -2044,7 +2110,12 @@ let apply_function arity =
       (defun caml_tuplifyN (arg clos)
         (app clos.direct #0(arg) ... #N-1(arg) clos)) *)
 
-let tuplify_function arity =
+let tuplify_function arity return =
+  if List.exists (function [| Val |] -> false | _ -> true) arity
+  then
+    Misc.fatal_error
+      "tuplify_function is currently unsupported if arity contains non-values";
+  let arity = List.length arity in
   let dbg = placeholder_dbg in
   let arg = V.create_local "arg" in
   let clos = V.create_local "clos" in
@@ -2060,7 +2131,7 @@ let tuplify_function arity =
    {fun_name;
     fun_args = [VP.create arg, typ_val; VP.create clos, typ_val];
     fun_body =
-      Cop(Capply(typ_val, Rc_normal),
+      Cop(Capply(return, Rc_normal),
           get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
           :: access_components 0 @ [Cvar clos],
           (dbg ()));
@@ -2098,164 +2169,246 @@ let tuplify_function arity =
 *)
 
 let max_arity_optimized = 15
-let final_curry_function ~nlocal ~arity =
+
+let machtype_stored_size t =
+  if Arch.size_int = 4 then
+    Array.fold_left
+      (fun cur c ->
+         match c with
+         | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+         | Val | Int -> cur + 1
+         | Float -> cur + 2)
+      0 t
+  else
+    Array.length t
+
+let machtype_non_scanned_size t =
+  Array.fold_left
+    (fun cur c ->
+      match c with
+      | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+      | Val -> cur
+      | Int -> cur + 1
+      | Float -> cur + if Arch.size_int = 4 then 2 else 1)
+    0 t
+
+let value_slot_given_machtype t v =
+  if Array.length t > 1
+  then
+    Misc.fatal_error
+      "[value_slot_given_machtype] currently does not support complex \
+       machtypes";
+  [Cvar v]
+
+let read_from_closure_given_machtype t clos base_offset dbg =
+  if Array.length t <> 1
+  then
+    Misc.fatal_error
+      "[read_from_closure_given_machtype] currently does not support complex \
+       machtypes";
+  let memory_chunk =
+    match t.(0) with
+    | Addr -> Misc.fatal_error "[Addr] cannot be read"
+    | Val -> Word_val
+    | Int -> Word_int
+    | Float -> Double
+  in
+  Cop
+    ( Cload (memory_chunk, Asttypes.Mutable),
+      [field_address clos base_offset dbg],
+      dbg )
+
+let curry_clos_has_nary_application ~narity n =
+  narity <= max_arity_optimized && n < narity - 1
+
+let rec make_curry_apply result narity args_type args clos n =
   let dbg = placeholder_dbg in
+  match args_type with
+  | [] ->
+    Cop
+      ( Capply (result, Rc_normal),
+        (get_field_codepointer Asttypes.Mutable (Cvar clos) 2 (dbg ()) :: args)
+        @ [Cvar clos],
+        dbg () )
+  | arg_type :: args_type ->
+    let newclos = V.create_local "clos" in
+    let arg_pos = if curry_clos_has_nary_application ~narity n then 3 else 2 in
+    let clos_pos = arg_pos + machtype_stored_size arg_type in
+    Clet
+      ( VP.create newclos,
+        get_field_gen Asttypes.Mutable (Cvar clos) clos_pos (dbg ()),
+        make_curry_apply result narity args_type
+          (read_from_closure_given_machtype arg_type (Cvar clos) arg_pos (dbg ())
+          :: args)
+          newclos (n - 1) )
+
+let machtype_of_layout (layout : Lambda.layout) =
+  match layout with
+  | Ptop -> Misc.fatal_error "No machtype for layout [Ptop]"
+  | Pbottom -> Misc.fatal_error "No unique machtype for layout [Pbottom]"
+  | Punboxed_float -> typ_float
+  | Punboxed_int _ ->
+    (* Only 64-bit architectures, so this is always [typ_int] *)
+    typ_int
+  | Pvalue _ -> typ_val
+
+let final_curry_function nlocal arity result =
   let last_arg = V.create_local "arg" in
   let last_clos = V.create_local "clos" in
-  let rec curry_fun args clos n =
-    if n = 0 then
-      Cop(Capply(typ_val, Rc_normal),
-          get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ()) ::
-            args @ [Cvar last_arg; Cvar clos],
-          dbg ())
-    else
-      if n = arity - 1 || arity > max_arity_optimized then
-        begin
-      let newclos = V.create_local "clos" in
-      Clet(VP.create newclos,
-           get_field_gen Asttypes.Mutable (Cvar clos) 3 (dbg ()),
-           curry_fun (get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
-                      :: args)
-             newclos (n-1))
-        end else
-        begin
-          let newclos = V.create_local "clos" in
-          Clet(VP.create newclos,
-               get_field_gen Asttypes.Mutable (Cvar clos) 4 (dbg ()),
-               curry_fun
-                 (get_field_gen Asttypes.Mutable (Cvar clos) 3 (dbg ()) :: args)
-                 newclos (n-1))
-    end in
+  let narity = List.length arity in
   let fun_name =
-    "caml_curry" ^ Int.to_string arity
-    ^ (if nlocal > 0 then "L" ^ Int.to_string nlocal else "")
-    ^ "_" ^ Int.to_string (arity-1)
+    curry_function_sym (Lambda.Curried { nlocal }) arity result
+    ^ "_"
+    ^ Int.to_string (narity - 1)
   in
+  let args_type = List.rev arity in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
-   {fun_name;
-    fun_args = [VP.create last_arg, typ_val; VP.create last_clos, typ_val];
-    fun_body = curry_fun [] last_clos (arity-1);
-    fun_codegen_options = [];
-    fun_poll = Default_poll;
-    fun_dbg;
-   }
-
-let rec intermediate_curry_functions ~nlocal ~arity num =
-  let dbg = placeholder_dbg in
-  if num = arity - 1 then
-    [final_curry_function ~nlocal ~arity]
-  else begin
-    let name1 = "caml_curry" ^ Int.to_string arity
-                ^ (if nlocal > 0 then "L" ^ Int.to_string nlocal else "") in
-    let name2 = if num = 0 then name1 else name1 ^ "_" ^ Int.to_string num in
-    let arg = V.create_local "arg" and clos = V.create_local "clos" in
-    let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
-    let mode =
-      if num >= arity - nlocal then Lambda.alloc_local else Lambda.alloc_heap
-    in
-    let curried n : Clambda.arity = (Curried {nlocal=min nlocal n}, n) in
-    Cfunction
-     {fun_name = name2;
-      fun_args = [VP.create arg, typ_val; VP.create clos, typ_val];
+    { fun_name;
+      fun_args =
+        [VP.create last_arg, List.hd args_type; VP.create last_clos, typ_val];
       fun_body =
-         if arity - num > 2 && arity <= max_arity_optimized then
-           Cop(Calloc mode,
-               [alloc_closure_header ~mode 5 (dbg ());
-                Cconst_symbol(name1 ^ "_" ^ Int.to_string (num+1), dbg ());
-                alloc_closure_info ~arity:(curried (arity - num - 1))
-                                   ~startenv:3 ~is_last:true (dbg ());
-                Cconst_symbol(name1 ^ "_" ^ Int.to_string (num+1) ^ "_app",
-                  dbg ());
-                Cvar arg; Cvar clos],
-               dbg ())
-         else
-           Cop(Calloc mode,
-                [alloc_closure_header ~mode 4 (dbg ());
-                 Cconst_symbol(name1 ^ "_" ^ Int.to_string (num+1), dbg ());
-                 alloc_closure_info ~arity:(curried 1) ~startenv:2
-                   ~is_last:true (dbg ());
-                 Cvar arg; Cvar clos],
-                dbg ());
+        make_curry_apply result narity (List.tl args_type) [Cvar last_arg]
+          last_clos (narity - 1);
       fun_codegen_options = [];
-      fun_poll = Default_poll;
       fun_dbg;
-     }
-    ::
-      (if arity <= max_arity_optimized && arity - num > 2 then
-          let rec iter i =
-            if i <= arity then
-              let arg = V.create_local (Printf.sprintf "arg%d" i) in
-              (arg, typ_val) :: iter (i+1)
-            else []
-          in
-          let direct_args = iter (num+2) in
-          let rec iter i args clos =
-            if i = 0 then
-              Cop(Capply(typ_val, Rc_normal),
-                  (get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ()))
-                  :: args @ [Cvar clos],
-                  dbg ())
-            else
-              let newclos = V.create_local "clos" in
-              Clet(VP.create newclos,
-                   get_field_gen Asttypes.Mutable (Cvar clos) 4 (dbg ()),
-                   iter (i-1)
-                     (get_field_gen Asttypes.Mutable (Cvar clos) 3 (dbg ())
-                      :: args)
-                     newclos)
-          in
-          let fun_args =
-            List.map (fun (arg, ty) -> VP.create arg, ty)
-              (direct_args @ [clos, typ_val])
-          in
-          let fun_name = name1 ^ "_" ^ Int.to_string (num+1) ^ "_app" in
-          let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
-          let cf =
-            Cfunction
-              {fun_name;
-               fun_args;
-               fun_body = iter (num+1)
-                  (List.map (fun (arg,_) -> Cvar arg) direct_args) clos;
-               fun_codegen_options = [];
-               fun_poll = Default_poll;
-               fun_dbg;
-              }
-          in
-          cf :: intermediate_curry_functions ~nlocal ~arity (num+1)
-       else
-          intermediate_curry_functions ~nlocal ~arity (num+1))
-  end
+      fun_poll = Default_poll
+    }
 
-let curry_function = function
-  | Lambda.Tupled, n ->
-     assert (n > 0); [tuplify_function n]
-  | Lambda.Curried {nlocal}, n ->
-     assert (n > 0);
-     intermediate_curry_functions ~nlocal ~arity:n 0
+let intermediate_curry_functions ~nlocal ~arity result =
+  let name1 = curry_function_sym (Lambda.Curried { nlocal }) arity result in
+  let narity = List.length arity in
+  let dbg = placeholder_dbg in
+  let rec loop accumulated_args remaining_args num =
+    match remaining_args with
+    | [] -> Misc.fatal_error "Empty arity for [intermediate_curry_functions]"
+    | [_] -> [final_curry_function nlocal arity result]
+    | arg_type :: remaining_args ->
+      let name2 = if num = 0 then name1 else name1 ^ "_" ^ Int.to_string num in
+      let arg = V.create_local "arg" and clos = V.create_local "clos" in
+      let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
+      let mode : Lambda.alloc_mode =
+        if num >= narity - nlocal then Lambda.alloc_local else Lambda.alloc_heap
+      in
+      let has_nary = curry_clos_has_nary_application ~narity (num + 1) in
+      let function_slot_size = if has_nary then 3 else 2 in
+      Cfunction
+        { fun_name = name2;
+          fun_args = [VP.create arg, arg_type; VP.create clos, typ_val];
+          fun_body =
+            Cop
+              ( Calloc mode,
+                [ alloc_closure_header ~mode
+                    (function_slot_size + machtype_stored_size arg_type + 1)
+                    (dbg ());
+                  Cconst_symbol (name1 ^ "_" ^ Int.to_string (num + 1), dbg ());
+                  Cconst_natint
+                    ( pack_closure_info
+                        ~arity:(if has_nary then narity - num - 1 else 1)
+                        ~startenv:
+                          (function_slot_size
+                          + machtype_non_scanned_size arg_type)
+                        ~is_last:true,
+                      dbg () ) ]
+                @ (if has_nary
+                  then
+                    [ Cconst_symbol
+                        (name1 ^ "_" ^ Int.to_string (num + 1) ^ "_app", dbg ())
+                    ]
+                  else [])
+                @ value_slot_given_machtype arg_type arg
+                @ [Cvar clos],
+                dbg () );
+          fun_codegen_options = [];
+          fun_dbg;
+          fun_poll = Default_poll
+        }
+      ::
+      (if has_nary
+      then
+        let direct_args =
+          List.mapi
+            (fun i ty ->
+              V.create_local (Printf.sprintf "arg%d" (i + num + 2)), ty)
+            remaining_args
+        in
+        let fun_args =
+          List.map
+            (fun (arg, ty) -> VP.create arg, ty)
+            (direct_args @ [clos, typ_val])
+        in
+        let fun_name = name1 ^ "_" ^ Int.to_string (num + 1) ^ "_app" in
+        let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
+        let cf =
+          Cfunction
+            { fun_name;
+              fun_args;
+              fun_body =
+                make_curry_apply result narity
+                  (arg_type :: accumulated_args)
+                  (List.map (fun (arg, _) -> Cvar arg) direct_args)
+                  clos (num + 1);
+              fun_codegen_options = [];
+              fun_dbg;
+              fun_poll = Default_poll
+            }
+        in
+        [cf]
+      else [])
+      @ loop (arg_type :: accumulated_args) remaining_args (num + 1)
+  in
+  loop [] arity 0
 
-module ApplyFnSet =
-  Set.Make (struct type t = int * Lambda.alloc_mode let compare = compare end)
-module AritySet =
-  Set.Make (struct type t = Clambda.arity let compare = compare end)
+let curry_function (kind, arity, return) =
+  match kind with
+  | Lambda.Tupled -> [tuplify_function arity return]
+  | Lambda.Curried { nlocal } ->
+    intermediate_curry_functions ~nlocal ~arity return
 
-let default_apply = ApplyFnSet.of_list [2,Lambda.alloc_heap; 3,Lambda.alloc_heap]
-  (* These apply funs are always present in the main program because
-     the run-time system needs them (cf. runtime/<arch>.S) . *)
+(* These apply funs are always present in the main program because the run-time
+   system needs them (cf. runtime/<arch>.S) . *)
+
+let default_apply =
+  [ [typ_val; typ_val], typ_val, Lambda.alloc_heap;
+    [typ_val; typ_val; typ_val], typ_val, Lambda.alloc_heap ]
+
+module Generic_fns_tbl = struct
+  type t =
+    { curry : (Lambda.function_kind * machtype list * machtype, unit) Hashtbl.t;
+      apply : (machtype list * machtype * Lambda.alloc_mode, unit) Hashtbl.t;
+      send : (machtype list * machtype * Lambda.alloc_mode, unit) Hashtbl.t
+    }
+
+  let make () =
+    { curry = Hashtbl.create 10;
+      apply = Hashtbl.create 10;
+      send = Hashtbl.create 10
+    }
+
+  let add t (curry_fun, apply_fun, send_fun) =
+    List.iter (fun f -> Hashtbl.replace t.curry f ()) curry_fun;
+    List.iter (fun f -> Hashtbl.replace t.apply f ()) apply_fun;
+    List.iter (fun f -> Hashtbl.replace t.send f ()) send_fun
+
+  let entries t =
+    let sorted_keys tbl =
+      let keys = Hashtbl.fold (fun k () acc -> k :: acc) tbl [] in
+      List.sort compare keys
+    in
+    (sorted_keys t.curry, sorted_keys t.apply, sorted_keys t.send)
+end
 
 let generic_functions shared units =
-  let (apply,send,curry) =
-    List.fold_left
-      (fun (apply,send,curry) (ui : Cmx_format.unit_infos) ->
-         List.fold_right ApplyFnSet.add ui.ui_apply_fun apply,
-         List.fold_right ApplyFnSet.add ui.ui_send_fun send,
-         List.fold_right AritySet.add ui.ui_curry_fun curry)
-      (ApplyFnSet.empty,ApplyFnSet.empty,AritySet.empty)
-      units in
-  let apply = if shared then apply else ApplyFnSet.union apply default_apply in
-  let accu = ApplyFnSet.fold (fun nr accu -> apply_function nr :: accu) apply [] in
-  let accu = ApplyFnSet.fold (fun nr accu -> send_function nr :: accu) send accu in
-  AritySet.fold (fun arity accu -> curry_function arity @ accu) curry accu
+  let tbl = Generic_fns_tbl.make () in
+  if not shared then Generic_fns_tbl.add tbl ([], default_apply, []);
+  List.iter (fun (ui : Cmx_format.unit_infos) ->
+      Generic_fns_tbl.add tbl
+        (ui.ui_curry_fun, ui.ui_apply_fun, ui.ui_send_fun)
+    ) units;
+  let (curry, apply, send) = Generic_fns_tbl.entries tbl in
+  List.concat_map curry_function curry
+  @ List.map send_function send
+  @ List.map apply_function apply
 
 (* Primitives *)
 
@@ -2307,7 +2460,7 @@ let arraylength kind arg dbg =
                           dbg,
                           Cop(Clsr,
                             [hdr; Cconst_int (numfloat_shift, dbg)], dbg),
-                          dbg))
+                          dbg, Vint))
       in
       Cop(Cor, [len; Cconst_int (1, dbg)], dbg)
   | Paddrarray | Pintarray ->
@@ -2494,7 +2647,7 @@ let arrayref_unsafe kind arg1 arg2 dbg =
                       addr_array_ref arr idx dbg,
                       dbg,
                       float_array_ref arr idx dbg,
-                      dbg)))
+                      dbg, Vval Pgenval)))
   | Paddrarray ->
       addr_array_ref arg1 arg2 dbg
   | Pintarray ->
@@ -2517,7 +2670,7 @@ let arrayref_safe kind arg1 arg2 dbg =
                         addr_array_ref arr idx dbg,
                         dbg,
                         float_array_ref arr idx dbg,
-                        dbg))
+                        dbg, Vval Pgenval))
         else
           Cifthenelse(is_addr_array_hdr hdr dbg,
             dbg,
@@ -2528,7 +2681,7 @@ let arrayref_safe kind arg1 arg2 dbg =
             Csequence(
               make_checkbound dbg [float_array_length_shifted hdr dbg; idx],
               float_array_ref arr idx dbg),
-            dbg))))
+            dbg, Vval Pgenval))))
       | Paddrarray ->
           bind "index" arg2 (fun idx ->
           bind "arr" arg1 (fun arr ->
@@ -2598,7 +2751,7 @@ let arrayset_unsafe kind arg1 arg2 arg3 dbg =
                         dbg,
                         float_array_set arr index (unbox_float dbg newval)
                           dbg,
-                        dbg))))
+                        dbg, Vint (* unit *)))))
   | Paddrarray ->
       addr_array_set arg1 arg2 arg3 dbg
   | Pintarray ->
@@ -2624,7 +2777,7 @@ let arrayset_safe kind arg1 arg2 arg3 dbg =
                         float_array_set arr idx
                           (unbox_float dbg newval)
                           dbg,
-                        dbg))
+                        dbg, Vint (* unit *)))
         else
           Cifthenelse(
             is_addr_array_hdr hdr dbg,
@@ -2637,7 +2790,7 @@ let arrayset_safe kind arg1 arg2 arg3 dbg =
               make_checkbound dbg [float_array_length_shifted hdr dbg; idx],
               float_array_set arr idx
                 (unbox_float dbg newval) dbg),
-            dbg)))))
+            dbg, Vint (* unit*))))))
   | Paddrarray ->
       bind "newval" arg3 (fun newval ->
       bind "index" arg2 (fun idx ->
@@ -2886,7 +3039,7 @@ let fundecls_size fundecls =
     (fun (f : Clambda.ufunction) ->
        let indirect_call_code_pointer_size =
          match f.arity with
-         | Curried _, (0 | 1) -> 0
+         | { function_kind = Curried _; params_layout = [] | [_]; _ } -> 0
            (* arity 1 does not need an indirect call handler.
               arity 0 cannot be indirect called *)
          | _ -> 1
@@ -2908,47 +3061,51 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
       []
   in
   match (fundecls : Clambda.ufunction list) with
-    [] ->
-      (* This should probably not happen: dead code has normally been
-         eliminated and a closure cannot be accessed without going through
-         a [Project_closure], which depends on the function. *)
-      assert (clos_vars = []);
-      cdefine_symbol symb @ clos_vars @ cont
-  | f1 :: remainder ->
-      let startenv = fundecls_size fundecls in
-      let rec emit_others pos = function
-          [] -> clos_vars @ cont
-      | (f2 : Clambda.ufunction) :: rem ->
-          let is_last = match rem with [] -> true | _ :: _ -> false in
-          match f2.arity with
-          | Curried _, (0|1) as arity ->
-            Cint(infix_header pos) ::
-            (closure_symbol f2) @
-            Csymbol_address f2.label ::
-            Cint(closure_info ~arity ~startenv:(startenv - pos) ~is_last) ::
-            emit_others (pos + 3) rem
-          | arity ->
-            Cint(infix_header pos) ::
-            (closure_symbol f2) @
-            Csymbol_address(curry_function_sym f2.arity) ::
-            Cint(closure_info ~arity ~startenv:(startenv - pos) ~is_last) ::
-            Csymbol_address f2.label ::
-            emit_others (pos + 4) rem in
-      let is_last = match remainder with [] -> true | _ :: _ -> false in
-      Cint(black_closure_header (fundecls_size fundecls
-                                 + List.length clos_vars)) ::
-      cdefine_symbol symb @
-      (closure_symbol f1) @
-      match f1.arity with
-      | Curried _, (0|1) as arity ->
-        Csymbol_address f1.label ::
-        Cint(closure_info ~arity ~startenv ~is_last) ::
-        emit_others 3 remainder
-      | arity ->
-        Csymbol_address(curry_function_sym f1.arity) ::
-        Cint(closure_info ~arity ~startenv ~is_last) ::
-        Csymbol_address f1.label ::
-        emit_others 4 remainder
+  | [] ->
+    (* This should probably not happen: dead code has normally been eliminated
+       and a closure cannot be accessed without going through a
+       [Project_closure], which depends on the function. *)
+    assert (clos_vars = []);
+    cdefine_symbol symb @ clos_vars @ cont
+  | f1 :: remainder -> (
+    let startenv = fundecls_size fundecls in
+    let rec emit_others pos = function
+      | [] -> clos_vars @ cont
+      | (f2 : Clambda.ufunction) :: rem -> (
+        let is_last = match rem with [] -> true | _ :: _ -> false in
+        match f2.arity with
+        | { function_kind = Curried _; params_layout = [] | [_]; _ } as arity ->
+          (Cint (infix_header pos) :: closure_symbol f2)
+          @ Csymbol_address f2.label
+            :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
+            :: emit_others (pos + 3) rem
+        | arity ->
+          (Cint (infix_header pos) :: closure_symbol f2)
+          @ Csymbol_address
+              (curry_function_sym arity.function_kind
+                 (List.map machtype_of_layout arity.params_layout)
+                 (machtype_of_layout arity.return_layout))
+            :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
+            :: Csymbol_address f2.label
+            :: emit_others (pos + 4) rem)
+    in
+    let is_last = match remainder with [] -> true | _ :: _ -> false in
+    Cint (black_closure_header (fundecls_size fundecls + List.length clos_vars))
+    :: cdefine_symbol symb
+    @ closure_symbol f1
+    @
+    match f1.arity with
+    | { function_kind = Curried _; params_layout = [] | [_]; _ } as arity ->
+      Csymbol_address f1.label
+      :: Cint (closure_info ~arity ~startenv ~is_last)
+      :: emit_others 3 remainder
+    | arity ->
+      Csymbol_address
+        (curry_function_sym arity.function_kind
+           (List.map machtype_of_layout arity.params_layout)
+           (machtype_of_layout arity.return_layout))
+      :: Cint (closure_info ~arity ~startenv ~is_last)
+      :: Csymbol_address f1.label :: emit_others 4 remainder)
 
 (* Build the NULL terminated array of gc roots *)
 
@@ -2993,3 +3150,12 @@ let emit_preallocated_blocks preallocated_blocks cont =
   in
   let c1 = emit_gc_roots_table ~symbols cont in
   List.fold_left preallocate_block c1 preallocated_blocks
+
+let kind_of_layout (layout : Lambda.layout) =
+  match layout with
+  | Ptop | Pbottom ->
+    (* This is incorrect but only used for unboxing *)
+    Vval Pgenval
+  | Punboxed_float -> Vfloat
+  | Punboxed_int _ -> Vint
+  | Pvalue kind -> Vval kind

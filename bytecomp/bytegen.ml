@@ -109,8 +109,8 @@ let rec is_tailcall = function
    from the tail call optimization? *)
 
 let preserve_tailcall_for_prim = function
-    Popaque | Psequor | Psequand
-  | Pobj_magic ->
+    Popaque _ | Psequor | Psequand
+  | Pobj_magic _ ->
       true
   | Pbytes_to_string | Pbytes_of_string | Pignore
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _
@@ -121,6 +121,7 @@ let preserve_tailcall_for_prim = function
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat
   | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
   | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu  | Pstringrefs
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -229,7 +230,7 @@ let rec size_of_lambda env = function
   | Lprim (Pduprecord (Record_float, size), _, _) -> RHS_floatblock size
   | Levent (lam, _) -> size_of_lambda env lam
   | Lsequence (_lam, lam') -> size_of_lambda env lam'
-  | Lregion lam -> size_of_lambda env lam
+  | Lregion (lam, _) -> size_of_lambda env lam
   | _ -> RHS_nonrec
 
 (**** Merging consecutive events ****)
@@ -522,7 +523,7 @@ let comp_primitive p args =
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),
      so they should never be reached in this function. *)
-  | Pignore | Popaque | Pobj_magic
+  | Pignore | Popaque _ | Pobj_magic _
   | Pnot | Psequand | Psequor
   | Praise _
   | Pmakearray _ | Pduparray _
@@ -530,6 +531,7 @@ let comp_primitive p args =
   | Pmakeblock _
   | Pmakefloatblock _
   | Pprobe_is_enabled _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
     ->
       fatal_error "Bytegen.comp_primitive"
 
@@ -591,7 +593,7 @@ let rec comp_expr env exp sz cont =
                       (Kapply nargs :: cont1))
         end
       end
-  | Lsend(kind, met, obj, args, rc, _, _) ->
+  | Lsend(kind, met, obj, args, rc, _, _, _) ->
       assert (kind <> Cached);
       let nargs = List.length args + 1 in
       let getmethod, args' =
@@ -703,7 +705,11 @@ let rec comp_expr env exp sz cont =
         in
         comp_init env sz decl_size
       end
-  | Lprim((Popaque | Pobj_magic), [arg], _) ->
+  | Lprim((Popaque _ | Pobj_magic _), [arg], _) ->
+      comp_expr env arg sz cont
+  | Lprim((Pbox_float _ | Punbox_float), [arg], _) ->
+      comp_expr env arg sz cont
+  | Lprim((Pbox_int _ | Punbox_int _), [arg], _) ->
       comp_expr env arg sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr env arg sz (add_const_unit cont)
@@ -994,7 +1000,7 @@ let rec comp_expr env exp sz cont =
             match lam with
             | Lprim(prim, _, _) -> preserve_tailcall_for_prim prim
             | Lapply {ap_region_close=rc; _}
-            | Lsend(_, _, _, _, rc, _, _) ->
+            | Lsend(_, _, _, _, rc, _, _, _) ->
                not (is_nontail rc)
             | _ -> true
           in
@@ -1005,7 +1011,7 @@ let rec comp_expr env exp sz cont =
             let info =
               match lam with
                 Lapply{ap_args = args}  -> Event_return (List.length args)
-              | Lsend(_, _, _, args, _, _, _) ->
+              | Lsend(_, _, _, args, _, _, _, _) ->
                   Event_return (List.length args + 1)
               | Lprim(_,args,_)         -> Event_return (List.length args)
               | _                       -> Event_other
@@ -1019,7 +1025,7 @@ let rec comp_expr env exp sz cont =
       end
   | Lifused (_, exp) ->
       comp_expr env exp sz cont
-  | Lregion exp ->
+  | Lregion (exp, _) ->
       comp_expr env exp sz cont
 
 (* Compile a list of arguments [e1; ...; eN] to a primitive operation.

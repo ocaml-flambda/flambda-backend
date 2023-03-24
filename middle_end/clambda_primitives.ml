@@ -36,7 +36,7 @@ type primitive =
   | Pread_symbol of string
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
-  | Pfield of int
+  | Pfield of int * layout
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
@@ -122,6 +122,10 @@ type primitive =
   | Popaque
   (* Probes *)
   | Pprobe_is_enabled of { name : string }
+  | Punbox_float
+  | Pbox_float of alloc_mode
+  | Punbox_int of boxed_integer
+  | Pbox_int of boxed_integer * alloc_mode
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -140,6 +144,13 @@ and value_kind = Lambda.value_kind =
       non_consts : (int * value_kind list) list;
     }
   | Parrayval of array_kind
+
+and layout = Lambda.layout =
+  | Ptop
+  | Pvalue of value_kind
+  | Punboxed_float
+  | Punboxed_int of boxed_integer
+  | Pbottom
 
 and block_shape = Lambda.block_shape
 and boxed_integer = Primitive.boxed_integer =
@@ -165,3 +176,9 @@ and raise_kind = Lambda.raise_kind =
   | Raise_notrace
 
 let equal (x: primitive) (y: primitive) = x = y
+
+let result_layout (p : primitive) =
+  match p with
+  | Punbox_float -> Lambda.Punboxed_float
+  | Punbox_int bi -> Lambda.Punboxed_int bi
+  | _ -> Lambda.layout_any_value

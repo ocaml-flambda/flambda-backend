@@ -184,12 +184,16 @@ type primitive =
   (* Integer to external pointer *)
   | Pint_as_pointer
   (* Inhibition of optimisation *)
-  | Popaque
+  | Popaque of layout
   (* Statically-defined probes *)
   | Pprobe_is_enabled of { name: string }
   (* Primitives for [Obj] *)
   | Pobj_dup
-  | Pobj_magic
+  | Pobj_magic of layout
+  | Punbox_float
+  | Pbox_float of alloc_mode
+  | Punbox_int of boxed_integer
+  | Pbox_int of boxed_integer * alloc_mode
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -210,6 +214,13 @@ and value_kind =
           expected to be significant. *)
     }
   | Parrayval of array_kind
+
+and layout =
+  | Ptop
+  | Pvalue of value_kind
+  | Punboxed_float
+  | Punboxed_int of boxed_integer
+  | Pbottom
 
 and block_shape =
   value_kind list option
@@ -240,7 +251,13 @@ val equal_primitive : primitive -> primitive -> bool
 
 val equal_value_kind : value_kind -> value_kind -> bool
 
+val equal_layout : layout -> layout -> bool
+
+val compatible_layout : layout -> layout -> bool
+
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
+
+val must_be_value : layout -> value_kind
 
 type structured_constant =
     Const_base of constant
@@ -331,6 +348,8 @@ val equal_meth_kind : meth_kind -> meth_kind -> bool
 
 type shared_code = (int * int) list     (* stack size -> code label *)
 
+type static_label = int
+
 type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
@@ -351,35 +370,35 @@ type lambda =
   | Lconst of structured_constant
   | Lapply of lambda_apply
   | Lfunction of lfunction
-  | Llet of let_kind * value_kind * Ident.t * lambda * lambda
-  | Lmutlet of value_kind * Ident.t * lambda * lambda
+  | Llet of let_kind * layout * Ident.t * lambda * lambda
+  | Lmutlet of layout * Ident.t * lambda * lambda
   | Lletrec of (Ident.t * lambda) list * lambda
   | Lprim of primitive * lambda list * scoped_location
-  | Lswitch of lambda * lambda_switch * scoped_location * value_kind
+  | Lswitch of lambda * lambda_switch * scoped_location * layout
 (* switch on strings, clauses are sorted by string order,
    strings are pairwise distinct *)
   | Lstringswitch of
-      lambda * (string * lambda) list * lambda option * scoped_location * value_kind
-  | Lstaticraise of int * lambda list
-  | Lstaticcatch of lambda * (int * (Ident.t * value_kind) list) * lambda * value_kind
-  | Ltrywith of lambda * Ident.t * lambda * value_kind
-(* Lifthenelse (e, t, f, vk) evaluates t if e evaluates to 0, and evaluates f if
-   e evaluates to any other value; vk must be the value_kind of [t] and [f] *)
-  | Lifthenelse of lambda * lambda * lambda * value_kind
+      lambda * (string * lambda) list * lambda option * scoped_location * layout
+  | Lstaticraise of static_label * lambda list
+  | Lstaticcatch of lambda * (static_label * (Ident.t * layout) list) * lambda * layout
+  | Ltrywith of lambda * Ident.t * lambda * layout
+(* Lifthenelse (e, t, f, layout) evaluates t if e evaluates to 0, and evaluates f if
+   e evaluates to any other value; layout must be the layout of [t] and [f] *)
+  | Lifthenelse of lambda * lambda * lambda * layout
   | Lsequence of lambda * lambda
   | Lwhile of lambda_while
   | Lfor of lambda_for
   | Lassign of Ident.t * lambda
   | Lsend of meth_kind * lambda * lambda * lambda list
-             * region_close * alloc_mode * scoped_location
+             * region_close * alloc_mode * scoped_location * layout
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
-  | Lregion of lambda
+  | Lregion of lambda * layout
 
 and lfunction = private
   { kind: function_kind;
-    params: (Ident.t * value_kind) list;
-    return: value_kind;
+    params: (Ident.t * layout) list;
+    return: layout;
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc : scoped_location;
@@ -410,6 +429,7 @@ and lambda_for =
 and lambda_apply =
   { ap_func : lambda;
     ap_args : lambda list;
+    ap_result_layout : layout;
     ap_region_close : region_close;
     ap_mode : alloc_mode;
     ap_loc : scoped_location;
@@ -464,13 +484,41 @@ val make_key: lambda -> lambda option
 val const_unit: structured_constant
 val const_int : int -> structured_constant
 val lambda_unit: lambda
-val name_lambda: let_kind -> lambda -> (Ident.t -> lambda) -> lambda
-val name_lambda_list: lambda list -> (lambda list -> lambda) -> lambda
+
+val layout_unit : layout
+val layout_int : layout
+val layout_array : array_kind -> layout
+val layout_block : layout
+val layout_list : layout
+val layout_exception : layout
+val layout_function : layout
+val layout_object : layout
+val layout_class : layout
+val layout_module : layout
+val layout_functor : layout
+val layout_module_field : layout
+val layout_string : layout
+val layout_float : layout
+val layout_boxedint : boxed_integer -> layout
+(* A layout that is Pgenval because it is the field of a block *)
+val layout_field : layout
+val layout_lazy : layout
+val layout_lazy_contents : layout
+(* A layout that is Pgenval because we are missing layout polymorphism *)
+val layout_any_value : layout
+(* A layout that is Pgenval because it is bound by a letrec *)
+val layout_letrec : layout
+
+val layout_top : layout
+val layout_bottom : layout
+
+val name_lambda: let_kind -> lambda -> layout -> (Ident.t -> lambda) -> lambda
+val name_lambda_list: (lambda * layout) list -> (lambda list -> lambda) -> lambda
 
 val lfunction :
   kind:function_kind ->
-  params:(Ident.t * value_kind) list ->
-  return:value_kind ->
+  params:(Ident.t * layout) list ->
+  return:layout ->
   body:lambda ->
   attr:function_attribute -> (* specified with [@inline] attribute *)
   loc:scoped_location ->
@@ -543,9 +591,8 @@ val shallow_map  :
   lambda -> lambda
   (** Rewrite each immediate sub-term with the function. *)
 
-val bind : let_kind -> Ident.t -> lambda -> lambda -> lambda
-val bind_with_value_kind:
-  let_kind -> (Ident.t * value_kind) -> lambda -> lambda -> lambda
+val bind_with_layout:
+  let_kind -> (Ident.t * layout) -> lambda -> lambda -> lambda
 
 val negate_integer_comparison : integer_comparison -> integer_comparison
 val swap_integer_comparison : integer_comparison -> integer_comparison
@@ -581,7 +628,7 @@ val primitive_may_allocate : primitive -> alloc_mode option
 (***********************)
 
 (* Get a new static failure ident *)
-val next_raise_count : unit -> int
+val next_raise_count : unit -> static_label
 
 val staticfail : lambda (* Anticipated static failure *)
 
@@ -604,3 +651,9 @@ val reset: unit -> unit
 *)
 val mod_field: ?read_semantics: field_read_semantics -> int -> primitive
 val mod_setfield: int -> primitive
+
+val structured_constant_layout : structured_constant -> layout
+
+val primitive_result_layout : primitive -> layout
+
+val compute_expr_layout : layout Ident.Map.t -> lambda -> layout

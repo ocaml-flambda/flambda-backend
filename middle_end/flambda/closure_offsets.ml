@@ -68,9 +68,28 @@ let add_closure_offsets
     let map = Var_within_closure.Map.add var_within_closure pos map in
     (map, pos + 1)
   in
+  let gc_invisible_free_vars, gc_visible_free_vars =
+    Variable.Map.partition (fun _ (free_var : Flambda.specialised_to) ->
+        match free_var.kind with
+        | Ptop ->
+          Misc.fatal_error "[Ptop] can't be stored in a closure."
+        | Pbottom ->
+          Misc.fatal_error
+            "[Pbottom] should have been eliminated as dead code \
+             and not stored in a closure."
+        | Punboxed_float -> true
+        | Punboxed_int _ -> true
+        | Pvalue Pintval -> true
+        | Pvalue _ -> false)
+      free_vars
+  in
+  let free_variable_offsets, free_variable_pos =
+    Variable.Map.fold assign_free_variable_offset
+      gc_invisible_free_vars (free_variable_offsets, free_variable_pos)
+  in
   let free_variable_offsets, _ =
     Variable.Map.fold assign_free_variable_offset
-      free_vars (free_variable_offsets, free_variable_pos)
+      gc_visible_free_vars (free_variable_offsets, free_variable_pos)
   in
   { function_offsets;
     free_variable_offsets;

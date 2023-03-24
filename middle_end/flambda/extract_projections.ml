@@ -97,9 +97,9 @@ let rec analyse_expr ~which_variables expr =
       List.iter check_free_variable args
     | Assign { new_value; _ } ->
       check_free_variable new_value
-    | If_then_else (var, _, _)
+    | If_then_else (var, _, _, _)
     | Switch (var, _)
-    | String_switch (var, _, _) ->
+    | String_switch (var, _, _, _) ->
       check_free_variable var
     | Static_raise (_, args) ->
       List.iter check_free_variable args
@@ -125,7 +125,7 @@ let rec analyse_expr ~which_variables expr =
         when Variable.Map.mem move.closure which_variables ->
       projections :=
         Projection.Set.add (Move_within_set_of_closures move) !projections
-    | Prim (Pfield field_index, [var], _dbg)
+    | Prim (Pfield (field_index, Pvalue _), [var], _dbg)
         when Variable.Map.mem var which_variables ->
       projections :=
         Projection.Set.add (Field (field_index, var)) !projections

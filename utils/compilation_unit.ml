@@ -138,14 +138,10 @@ end = struct
   end)
 
   let is_valid_character first_char c =
-    let code = Char.code c in
-    if first_char
-    then code >= 65 && code <= 90 (* [A-Z] *)
-    else
-      Char.equal c '_'
-      || (code >= 48 && 57 <= 90 (* [0-9] *))
-      || (code >= 65 && code <= 90 (* [A-Z] *))
-      || (code >= 97 && code <= 122 (* [a-z] *))
+    match c with
+    | 'A' .. 'Z' -> true
+    | '_' | '0' .. '9' | 'a' .. 'z' -> not first_char
+    | _ -> false
 
   let parse_for_pack pack =
     let prefix = String.split_on_char '.' pack in
@@ -173,56 +169,73 @@ end = struct
   let to_list t = t
 end
 
-(* As with [Name.t], changing [with_prefix] or [t] requires bumping magic
-   numbers. *)
-type with_prefix =
-  { name : Name.t;
-    for_pack_prefix : Prefix.t
-  }
+module T0 : sig
+  type t
 
-(* type t = Without_prefix of Name.t [@@unboxed] | With_prefix of with_prefix *)
-type t = Obj.t
+  val for_pack_prefix_and_name : t -> Prefix.t * Name.t
 
-(* Some manual inlining is done here to ensure good performance under
-   Closure. *)
+  val name : t -> Name.t
 
-let for_pack_prefix_and_name t =
-  let tag = Obj.tag t in
-  assert (tag = 0 || tag = Obj.string_tag);
-  if tag <> 0
-  then Prefix.empty, Sys.opaque_identity (Obj.obj t : Name.t)
-  else
-    let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
-    with_prefix.for_pack_prefix, with_prefix.name
+  val for_pack_prefix : t -> Prefix.t
 
-let name t =
-  let tag = Obj.tag t in
-  assert (tag = 0 || tag = Obj.string_tag);
-  if tag <> 0
-  then Sys.opaque_identity (Obj.obj t : Name.t)
-  else
-    let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
-    with_prefix.name
+  val create : Prefix.t -> Name.t -> t
+end = struct
+  (* As with [Name.t], changing [with_prefix] or [t] requires bumping magic
+     numbers. *)
+  type with_prefix =
+    { name : Name.t;
+      for_pack_prefix : Prefix.t
+    }
 
-let for_pack_prefix t =
-  let tag = Obj.tag t in
-  assert (tag = 0 || tag = Obj.string_tag);
-  if tag <> 0
-  then Prefix.empty
-  else
-    let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
-    with_prefix.for_pack_prefix
+  (* type t = Without_prefix of Name.t [@@unboxed] | With_prefix of
+     with_prefix *)
+  type t = Obj.t
 
-let create for_pack_prefix name =
-  let empty_prefix = Prefix.is_empty for_pack_prefix in
-  if not empty_prefix
-  then (
-    Name.check_as_path_component name;
-    ListLabels.iter ~f:Name.check_as_path_component
-      (for_pack_prefix |> Prefix.to_list));
-  if empty_prefix
-  then Sys.opaque_identity (Obj.repr name)
-  else Sys.opaque_identity (Obj.repr { for_pack_prefix; name })
+  (* Some manual inlining is done here to ensure good performance under
+     Closure. *)
+
+  let for_pack_prefix_and_name t =
+    let tag = Obj.tag t in
+    assert (tag = 0 || tag = Obj.string_tag);
+    if tag <> 0
+    then Prefix.empty, Sys.opaque_identity (Obj.obj t : Name.t)
+    else
+      let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
+      with_prefix.for_pack_prefix, with_prefix.name
+
+  let name t =
+    let tag = Obj.tag t in
+    assert (tag = 0 || tag = Obj.string_tag);
+    if tag <> 0
+    then Sys.opaque_identity (Obj.obj t : Name.t)
+    else
+      let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
+      with_prefix.name
+
+  let for_pack_prefix t =
+    let tag = Obj.tag t in
+    assert (tag = 0 || tag = Obj.string_tag);
+    if tag <> 0
+    then Prefix.empty
+    else
+      let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
+      with_prefix.for_pack_prefix
+
+  let create for_pack_prefix name =
+    let empty_prefix = Prefix.is_empty for_pack_prefix in
+    let () =
+      if not empty_prefix
+      then (
+        Name.check_as_path_component name;
+        ListLabels.iter ~f:Name.check_as_path_component
+          (for_pack_prefix |> Prefix.to_list))
+    in
+    if empty_prefix
+    then Sys.opaque_identity (Obj.repr name)
+    else Sys.opaque_identity (Obj.repr { for_pack_prefix; name })
+end
+
+include T0
 
 let create_child parent name_ =
   let prefix =
@@ -301,38 +314,41 @@ let can_access_by_name t ~accessed_by:me =
   in
   t's_prefix_is_my_ancestor && t_is_not_my_strict_ancestor
 
-let which_cmx_file desired_comp_unit ~accessed_by : Name.t =
+let can_access_cmx_file = can_access_by_name
+
+let which_cmx_file desired_comp_unit ~accessed_by : t =
   let desired_prefix = for_pack_prefix desired_comp_unit in
   if Prefix.is_empty desired_prefix
   then
     (* If the unit we're looking for is not in a pack, then the correct .cmx
        file is the one with the same name as the unit, irrespective of any
        current pack. *)
-    name desired_comp_unit
+    desired_comp_unit
   else
     (* This lines up the full paths as described above. *)
-    let rec match_components ~current ~desired =
+    let rec match_components ~current ~desired ~acc_rev =
       match current, desired with
       | current_name :: current, desired_name :: desired ->
         if Name.equal current_name desired_name
         then
           (* The full paths are equal up to the current point; keep going. *)
-          match_components ~current ~desired
+          let acc_rev = current_name :: acc_rev in
+          match_components ~current ~desired ~acc_rev
         else
           (* The paths have diverged. The next component of the desired path is
              the .cmx file to load. *)
-          desired_name
+          acc_rev, desired_name
       | [], desired_name :: _desired ->
         (* The whole of the current unit's full path (including the name of the
            unit itself) is now known to be a prefix of the desired unit's pack
            *prefix*. This means we must be making a pack. The .cmx file to load
            is named after the next component of the desired unit's path (which
            may in turn be a pack). *)
-        desired_name
+        acc_rev, desired_name
       | [], [] ->
         (* The paths were equal, so the desired compilation unit is just the
            current one. *)
-        name desired_comp_unit
+        acc_rev, name desired_comp_unit
       | _ :: _, [] ->
         (* The current path is longer than the desired unit's path, which means
            we're attempting to go back up the pack hierarchy. This is an
@@ -342,8 +358,14 @@ let which_cmx_file desired_comp_unit ~accessed_by : Name.t =
            unit@ %a"
           print desired_comp_unit print accessed_by
     in
-    match_components ~current:(full_path accessed_by)
-      ~desired:(full_path desired_comp_unit)
+    let prefix_rev, name =
+      match_components ~current:(full_path accessed_by)
+        ~desired:(full_path desired_comp_unit)
+        ~acc_rev:[]
+    in
+    (* CR lmaurer: It's silly to be writing `ListLabels` out everywhere,
+       especially here. *)
+    create (ListLabels.rev prefix_rev |> Prefix.of_list) name
 
 let print_name ppf t = Format.fprintf ppf "%a" Name.print (name t)
 

@@ -137,11 +137,18 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
-let get_unit_info comp_unit ~cmx_name =
-  if CU.Name.equal cmx_name (CU.name current_unit.ui_unit)
+let get_unit_info comp_unit =
+  (* If this fails, it likely means that someone didn't call
+     [CU.which_cmx_file]. *)
+  assert (CU.can_access_cmx_file comp_unit ~accessed_by:current_unit.ui_unit);
+  (* CR lmaurer: Surely this should just compare [comp_unit] to
+     [current_unit.ui_unit], but doing so seems to break Closure. We should fix
+     that. *)
+  if CU.Name.equal (CU.name comp_unit) (CU.name current_unit.ui_unit)
   then
     Some current_unit
   else begin
+    let cmx_name = CU.name comp_unit in
     try
       CU.Name.Tbl.find global_infos_table cmx_name
     with Not_found ->
@@ -172,10 +179,10 @@ let which_cmx_file desired_comp_unit =
   CU.which_cmx_file desired_comp_unit ~accessed_by:(CU.get_current_exn ())
 
 let get_global_info global_ident =
-  get_unit_info global_ident ~cmx_name:(which_cmx_file global_ident)
+  get_unit_info (which_cmx_file global_ident)
 
 let cache_unit_info ui =
-  CU.Name.Tbl.add global_infos_table (which_cmx_file ui.ui_unit) (Some ui)
+  CU.Name.Tbl.add global_infos_table (CU.name ui.ui_unit) (Some ui)
 
 (* Return the approximation of a global identifier *)
 
@@ -221,11 +228,12 @@ let set_export_info export_info =
 let approx_for_global comp_unit =
   if CU.equal comp_unit CU.predef_exn
   then invalid_arg "approx_for_global with predef_exn compilation unit";
-  let cmx_name = which_cmx_file comp_unit in
+  let accessible_comp_unit = which_cmx_file comp_unit in
+  let cmx_name = CU.name accessible_comp_unit in
   match CU.Name.Tbl.find export_infos_table cmx_name with
   | otherwise -> Some otherwise
   | exception Not_found ->
-    match get_unit_info comp_unit ~cmx_name with
+    match get_unit_info accessible_comp_unit with
     | None -> None
     | Some ui ->
       let exported = get_flambda_export_info ui in
@@ -237,18 +245,21 @@ let approx_env () = !merged_environment
 
 (* Record that a currying function or application function is needed *)
 
-let need_curry_fun arity =
-  if not (List.mem arity current_unit.ui_curry_fun) then
-    current_unit.ui_curry_fun <- arity :: current_unit.ui_curry_fun
+let need_curry_fun kind arity result =
+  if not (List.mem (kind, arity, result) current_unit.ui_curry_fun) then
+    current_unit.ui_curry_fun <-
+      (kind, arity, result) :: current_unit.ui_curry_fun
 
-let need_apply_fun n mode =
-  assert(n > 0);
-  if not (List.mem (n,mode) current_unit.ui_apply_fun) then
-    current_unit.ui_apply_fun <- (n,mode) :: current_unit.ui_apply_fun
+let need_apply_fun arity result mode =
+  assert(List.compare_length_with arity 0 > 0);
+  if not (List.mem (arity, result, mode) current_unit.ui_apply_fun) then
+    current_unit.ui_apply_fun <-
+      (arity, result, mode) :: current_unit.ui_apply_fun
 
-let need_send_fun n mode =
-  if not (List.mem (n,mode) current_unit.ui_send_fun) then
-    current_unit.ui_send_fun <- (n,mode) :: current_unit.ui_send_fun
+let need_send_fun arity result mode =
+  if not (List.mem (arity, result, mode) current_unit.ui_send_fun) then
+    current_unit.ui_send_fun <-
+      (arity, result, mode) :: current_unit.ui_send_fun
 
 (* Write the description of the current unit *)
 

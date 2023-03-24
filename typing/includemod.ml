@@ -487,11 +487,12 @@ and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape =
       | exception Env.Error (Env.Missing_module (_, _, path)) ->
           Error Error.(Mt_core(Unbound_module_path path))
       | p1 ->
-          begin match expand_module_alias ~strengthen:false env p1 with
-          | Error e -> Error (Error.Mt_core e)
-          | Ok mty1 ->
-              match strengthened_modtypes ~in_eq ~loc ~aliasable:true env ~mark
-                      subst mty1 p1 mty2 orig_shape
+          begin match (Env.find_module_lazy p1 env).mdl_type with
+          | exception Not_found ->
+              Error (Error.Mt_core (Error.Unbound_module_path p1))
+          | mty1 ->
+              match strengthened_modtypes_lazy ~in_eq ~loc ~aliasable:true env
+                      ~mark subst mty1 p1 mty2 orig_shape
               with
               | Ok _ as x -> x
               | Error reason -> Error (Error.After_alias_expansion reason)
@@ -627,14 +628,21 @@ and functor_param ~in_eq ~loc env ~mark subst param1 param2 =
   | _, _ ->
       Error (Error.Incompatible_params (param1, param2)), env, subst
 
-and strengthened_modtypes ~in_eq ~loc ~aliasable env ~mark
+and strengthened_modtypes_lazy ~in_eq ~loc ~aliasable env ~mark
     subst mty1 path1 mty2 shape =
+  let open Subst.Lazy in
   match mty1, mty2 with
-  | Mty_ident p1, Mty_ident p2 when equal_modtype_paths env p1 subst p2 ->
+  | MtyL_ident p1, Mty_ident p2 when equal_modtype_paths env p1 subst p2 ->
       Ok (Tcoerce_none, shape)
   | _, _ ->
-      let mty1 = Mtype.strengthen ~aliasable env mty1 path1 in
+      let mty1 = Mtype.strengthen_lazy ~aliasable env mty1 path1 in
+      let mty1 = Subst.Lazy.force_modtype mty1 in
       modtypes ~in_eq ~loc env ~mark subst mty1 mty2 shape
+
+and strengthened_modtypes ~in_eq ~loc ~aliasable env ~mark
+    subst mty1 path1 mty2 shape =
+  strengthened_modtypes_lazy ~in_eq ~loc ~aliasable env ~mark
+    subst (Subst.Lazy.of_modtype mty1) path1 mty2 shape
 
 and strengthened_module_decl ~loc ~aliasable env ~mark
     subst md1 path1 md2 shape =

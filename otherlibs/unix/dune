@@ -42,19 +42,21 @@
 
 (install
   (files
-    .unix.objs/native/unix.cmx
-    .unix.objs/native/unixLabels.cmx
-    unix.cmxa
-    unix.a
-    unix.cma
-    .unix.objs/byte/unix.cmi
-    .unix.objs/byte/unix.cmti
-    .unix.objs/byte/unixLabels.cmi
-    .unix.objs/byte/unixLabels.cmti
-    unix.cmxs
-    unix.mli
-    unixLabels.mli
-    libunix_stubs.a
+    (.unix.objs/native/unix.cmx as unix/unix.cmx)
+    (.unix.objs/native/unixLabels.cmx as unix/unixLabels.cmx)
+    (unix.cmxa as unix/unix.cmxa)
+    (unix.a as unix/unix.a)
+    (unix.cma as unix/unix.cma)
+    (.unix.objs/byte/unix.cmi as unix/unix.cmi)
+    (.unix.objs/byte/unix.cmt as unix/unix.cmt)
+    (.unix.objs/byte/unix.cmti as unix/unix.cmti)
+    (.unix.objs/byte/unixLabels.cmi as unix/unixLabels.cmi)
+    (.unix.objs/byte/unixLabels.cmt as unix/unixLabels.cmt)
+    (.unix.objs/byte/unixLabels.cmti as unix/unixLabels.cmti)
+    (unix.cmxs as unix/unix.cmxs)
+    (unix.mli as unix/unix.mli)
+    (unixLabels.mli as unix/unixLabels.mli)
+    (libunix_stubs.a as unix/libunix_stubs.a)
     (libunix_stubs.a as libunix_stubs_native.a) ; for special_dune compat
     (dllunix_stubs.so as stublibs/dllunix_stubs.so)
     (socketaddr.h as caml/socketaddr.h)

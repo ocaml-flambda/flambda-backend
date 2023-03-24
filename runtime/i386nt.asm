@@ -304,7 +304,7 @@ _caml_system__code_end:
         PUBLIC  _caml_system__frametable
 _caml_system__frametable LABEL DWORD
         DWORD   1               ; one descriptor
-        DWORD   L107            ; return address into callback
+        DWORD   L107 - THIS BYTE            ; return address into callback
         WORD    -1              ; negative frame size => use callback link
         WORD    0               ; no roots here
 
