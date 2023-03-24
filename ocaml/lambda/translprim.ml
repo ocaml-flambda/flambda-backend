@@ -399,6 +399,8 @@ let lookup_primitive loc poly pos p =
     | "%compare" -> Comparison(Compare, Compare_generic)
     | "%obj_dup" -> Primitive(Pobj_dup, 1)
     | "%obj_magic" -> Primitive(Pobj_magic Lambda.layout_any_value, 1)
+    | "%array_to_iarray" -> Primitive (Parray_to_iarray, 1)
+    | "%array_of_iarray" -> Primitive (Parray_of_iarray, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -871,7 +873,9 @@ let lambda_primitive_needs_event_after = function
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
   | Pbbswap _ | Pobj_dup -> true
 
-  | Pbytes_to_string | Pbytes_of_string | Pignore | Psetglobal _
+  | Pbytes_to_string | Pbytes_of_string
+  | Parray_to_iarray | Parray_of_iarray
+  | Pignore | Psetglobal _
   | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Praise _

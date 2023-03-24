@@ -123,8 +123,8 @@ typedef struct {
 } frame_descr_long;
 
 /* Helpers for long frames */
-uint32_t get_frame_size(frame_descr *);
-unsigned char * get_end_of_live_ofs (frame_descr *d);
+uint32_t caml_get_frame_size(frame_descr *);
+unsigned char * caml_get_end_of_live_ofs (frame_descr *d);
 
 /* Allocation lengths are encoded as 0-255, giving sizes 1-256 */
 #define Wosize_encoded_alloc_len(n) ((uintnat)(n) + 1)

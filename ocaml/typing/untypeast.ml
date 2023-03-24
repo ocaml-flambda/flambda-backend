@@ -361,10 +361,9 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         let pats = List.map (sub.pat sub) list in
         match am with
         | Mutable   -> Ppat_array pats
-        | Immutable -> (Extensions.Immutable_arrays.pat_of
-                          ~loc
-                          (Iapat_immutable_array pats)
-                       ).ppat_desc
+        | Immutable -> Extensions.Immutable_arrays.pat_of
+                         ~loc
+                         (Iapat_immutable_array pats)
       end
     | Tpat_lazy p -> Ppat_lazy (sub.pat sub p)
 
@@ -430,12 +429,9 @@ let comprehension ~loc sub comp_type comp =
     { body    = sub.expr sub comp_body
     ; clauses = List.map clause comp_clauses }
   in
-  let comprehension_expr =
-    Extensions.Comprehensions.expr_of
-      ~loc
-      (comp_type (comprehension comp))
-  in
-  comprehension_expr.pexp_desc
+  Extensions.Comprehensions.expr_of
+    ~loc
+    (comp_type (comprehension comp))
 
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
@@ -507,12 +503,9 @@ let expression sub exp =
         | Mutable ->
             Pexp_array plist
         | Immutable ->
-          let expr =
             Extensions.Immutable_arrays.expr_of
               ~loc
               (Iaexp_immutable_array plist)
-          in
-          expr.pexp_desc
       end
     | Texp_list_comprehension comp ->
         comprehension
