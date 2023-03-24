@@ -611,7 +611,9 @@ let transform_primitive env (prim : L.primitive) args loc =
                  ~ifnot:(L.Lvar const_false) ~kind:Lambda.layout_int ) ))
   | (Psequand | Psequor), _ ->
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
-  | (Pbytes_to_string | Pbytes_of_string), [arg] -> Transformed arg
+  | ( (Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray),
+      [arg] ) ->
+    Transformed arg
   | Pignore, [arg] ->
     let result = L.Lconst (Const_base (Const_int 0)) in
     Transformed (L.Lsequence (arg, result))
@@ -905,18 +907,19 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigarrayref (_, _, _, Pbigarray_unknown_layout)
   | Pbigarrayset (_, _, _, Pbigarray_unknown_layout) ->
     true
-  | Pbytes_to_string | Pbytes_of_string | Pignore | Pgetglobal _ | Psetglobal _
-  | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _ | Pfield _
-  | Pfield_computed _ | Psetfield _ | Psetfield_computed _ | Pfloatfield _
-  | Psetfloatfield _ | Pduprecord _ | Psequand | Psequor | Pnot | Pnegint
-  | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint
-  | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-  | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _ | Pnegfloat _
-  | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
-  | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
-  | Pbytessetu | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _
-  | Parraysetu _ | Pisint _ | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _
-  | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _
+  | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray
+  | Pignore | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
+  | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Psetfield _
+  | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
+  | Psequand | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint | Pandint
+  | Porint | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
+  | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
+  | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
+  | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
+  | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu | Pmakearray _
+  | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _
+  | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
+  | Psubbint _ | Pmulbint _
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
@@ -1029,10 +1032,10 @@ let primitive_result_kind (prim : Lambda.primitive) :
   | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr; _ }
   | Parrayrefs (Pgenarray | Paddrarray)
   | Parrayrefu (Pgenarray | Paddrarray)
-  | Pbytes_to_string | Pbytes_of_string | Pgetglobal _ | Psetglobal _
-  | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _ | Pfield _
-  | Pfield_computed _ | Pduprecord _ | Poffsetint _ | Poffsetref _
-  | Pmakearray _ | Pduparray _ | Pbigarraydim _
+  | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray
+  | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
+  | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Pduprecord _
+  | Poffsetint _ | Poffsetref _ | Pmakearray _ | Pduparray _ | Pbigarraydim _
   | Pbigarrayref
       (_, _, (Pbigarray_complex32 | Pbigarray_complex64 | Pbigarray_unknown), _)
   | Pint_as_pointer | Pobj_dup ->
