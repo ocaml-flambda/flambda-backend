@@ -44,10 +44,6 @@ type close_functions_result =
   | Lifted of (Symbol.t * Env.value_approximation) Function_slot.Lmap.t
   | Dynamic of Set_of_closures.t * Env.value_approximation Function_slot.Map.t
 
-(* Do not use [Simple.symbol], use this function instead, to ensure that we
-   correctly compute the free names of [Code]. *)
-let use_of_symbol_as_simple acc symbol = acc, Simple.symbol symbol
-
 let declare_symbol_for_function_slot env ident function_slot : Env.t * Symbol.t
     =
   let symbol =
@@ -69,6 +65,7 @@ let register_const0 acc constant name =
     let symbol =
       Symbol.create
         (Compilation_unit.get_current_exn ())
+        (* CR mshinwell: this Variable.rename looks to be redundant *)
         (Linkage_name.of_string (Variable.unique_name (Variable.rename var)))
     in
     let acc = Acc.add_declared_symbol ~symbol ~constant acc in
@@ -158,9 +155,7 @@ let close_const0 acc (const : Lambda.structured_constant) =
       Simple.const (Reg_width_const.tagged_immediate i),
       name,
       Flambda_kind.With_subkind.tagged_immediate )
-  | Symbol s ->
-    let acc, simple = use_of_symbol_as_simple acc s in
-    acc, simple, name, Flambda_kind.With_subkind.any_value
+  | Symbol s -> acc, Simple.symbol s, name, Flambda_kind.With_subkind.any_value
   | Dynamically_computed _ ->
     Misc.fatal_errorf "Declaring a computed constant %s" name
 
@@ -203,16 +198,22 @@ let find_simples acc env ids =
 let find_simples_and_arity acc env ids =
   List.fold_left_map (fun acc id -> find_simple_with_kind acc env id) acc ids
 
-let find_value_approximation acc env simple =
+let find_value_approximation env simple =
   Simple.pattern_match' simple
     ~var:(fun var ~coercion:_ -> Env.find_var_approximation env var)
-    ~symbol:(fun sym ~coercion:_ -> Acc.find_symbol_approximation acc sym)
+    ~symbol:(fun sym ~coercion:_ -> Value_approximation.Value_symbol sym)
     ~const:(fun const ->
       match Reg_width_const.descr const with
       | Tagged_immediate i -> Value_approximation.Value_int i
       | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
       | Naked_nativeint _ ->
         Value_approximation.Value_unknown)
+
+let find_value_approximation_through_symbol acc env simple =
+  match find_value_approximation env simple with
+  | Value_approximation.Value_symbol sym ->
+    Acc.find_symbol_approximation acc sym
+  | approx -> approx
 
 module Inlining = struct
   include Closure_conversion_aux.Inlining
@@ -496,7 +497,7 @@ let close_c_call acc env ~loc ~let_bound_var
           Misc.fatal_errorf "Wrong argument and/or result kind(s) for %s"
             prim_native_name)
     | _ ->
-      let acc, callee = use_of_symbol_as_simple acc call_symbol in
+      let callee = Simple.symbol call_symbol in
       let apply =
         Apply.create ~callee ~continuation:(Return return_continuation)
           exn_continuation ~args ~args_arity:param_arity ~return_arity
@@ -628,15 +629,13 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     let symbol =
       Flambda2_import.Symbol.for_compilation_unit cu |> Symbol.create_wrapped
     in
-    let acc, simple = use_of_symbol_as_simple acc symbol in
-    let named = Named.create_simple simple in
+    let named = Named.create_simple (Simple.symbol symbol) in
     k acc (Some named)
   | Pgetpredef id, [] ->
     let symbol =
       Flambda2_import.Symbol.for_predef_ident id |> Symbol.create_wrapped
     in
-    let acc, simple = use_of_symbol_as_simple acc symbol in
-    let named = Named.create_simple simple in
+    let named = Named.create_simple (Simple.symbol symbol) in
     k acc (Some named)
   | Praise raise_kind, [_] ->
     let exn_continuation =
@@ -769,6 +768,81 @@ let close_named acc env ~let_bound_var (named : IR.named)
       ~current_region:(fst (Env.find_var env region))
       k
 
+type simplified_block_load =
+  | Unknown
+  | Not_a_block
+  | Block_but_cannot_simplify of Code_or_metadata.t Value_approximation.t
+  | Field_contents of Simple.t
+
+let simplify_block_load acc body_env ~block ~field : simplified_block_load =
+  match find_value_approximation_through_symbol acc body_env block with
+  | Value_unknown -> Unknown
+  | Closure_approximation _ | Value_symbol _ | Value_int _ -> Not_a_block
+  | Block_approximation (approx, _alloc_mode) -> (
+    let approx =
+      Simple.pattern_match field
+        ~const:(fun const ->
+          match Reg_width_const.descr const with
+          | Tagged_immediate i ->
+            let i = Targetint_31_63.to_int i in
+            if i >= Array.length approx then None else Some approx.(i)
+          | _ -> Some Value_approximation.Value_unknown)
+        ~name:(fun _ ~coercion:_ -> Some Value_approximation.Value_unknown)
+    in
+    match approx with
+    | Some (Value_symbol sym) -> Field_contents (Simple.symbol sym)
+    | Some (Value_int i) -> Field_contents (Simple.const_int i)
+    | Some approx -> Block_but_cannot_simplify approx
+    | None -> Not_a_block)
+
+type block_static_kind =
+  | Dynamic_block
+  | Computed_static of Field_of_static_block.t list
+  | Constant of Field_of_static_block.t list
+
+let classify_fields_of_block env fields alloc_mode =
+  let is_local =
+    match (alloc_mode : Alloc_mode.For_allocations.t) with
+    | Local _ -> true
+    | Heap -> false
+  in
+  let static_fields =
+    List.fold_left
+      (fun static_fields f ->
+        match static_fields with
+        | None -> None
+        | Some fields ->
+          Simple.pattern_match'
+            ~const:(fun c ->
+              match Reg_width_const.descr c with
+              | Tagged_immediate imm ->
+                Some (Field_of_static_block.Tagged_immediate imm :: fields)
+              | _ -> None)
+            ~symbol:(fun s ~coercion:_ ->
+              Some (Field_of_static_block.Symbol s :: fields))
+            ~var:(fun v ~coercion:_ ->
+              if Env.at_toplevel env
+                 && Flambda_features.classic_mode ()
+                 && not is_local
+              then
+                Some
+                  (Field_of_static_block.Dynamically_computed (v, Debuginfo.none)
+                  :: fields)
+              else None)
+            f)
+      (Some []) fields
+    |> Option.map List.rev
+  in
+  match static_fields with
+  | None -> Dynamic_block
+  | Some fields ->
+    if List.exists
+         (function
+           | Field_of_static_block.Dynamically_computed _ -> true | _ -> false)
+         fields
+    then Computed_static fields
+    else Constant fields
+
 let close_let acc env id user_visible kind defining_expr
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
   let body_env, var = Env.add_var_like env id user_visible kind in
@@ -785,76 +859,147 @@ let close_let acc env id user_visible kind defining_expr
          generated. *)
       body acc body_env
     | Some defining_expr -> (
-      let body_env =
-        match defining_expr with
-        | Prim (Variadic (Make_block (_, Immutable, alloc_mode), fields), _) ->
-          let approxs =
-            List.map
-              (fun field ->
-                match Simple.must_be_symbol field with
-                | None -> find_value_approximation acc body_env field
-                | Some (sym, _) -> Value_approximation.Value_symbol sym)
-              fields
-            |> Array.of_list
-          in
-          Some
-            (Env.add_block_approximation body_env var approxs
-               (Alloc_mode.For_allocations.as_type alloc_mode))
-        | Prim (Binary (Block_load _, block, field), _) -> (
-          match find_value_approximation acc body_env block with
-          | Value_unknown -> Some body_env
-          | Closure_approximation _ | Value_symbol _ | Value_int _ ->
-            (* Here we assume [block] has already been substituted as a known
-               symbol if it exists, and rely on the invariant that the
-               approximation of a symbol is never a symbol. *)
-            if Flambda_features.check_invariants ()
-            then
-              (* CR keryan: This is hidden behind invariants check because it
-                 can appear on correct code using Lazy or GADT. It might warrant
-                 a proper warning at some point. *)
-              Misc.fatal_errorf
-                "Unexpected approximation found when block approximation was \
-                 expected in [Closure_conversion]: %a"
-                Named.print defining_expr
-            else None
-          | Block_approximation (approx, _alloc_mode) -> (
-            let approx =
-              Simple.pattern_match field
-                ~const:(fun const ->
-                  match Reg_width_const.descr const with
-                  | Tagged_immediate i ->
-                    let i = Targetint_31_63.to_int i in
-                    if i >= Array.length approx
-                    then
-                      Misc.fatal_errorf
-                        "Trying to access the %dth field of a block \
-                         approximation of length %d."
-                        i (Array.length approx);
-                    approx.(i)
-                  | _ -> Value_approximation.Value_unknown)
-                ~name:(fun _ ~coercion:_ -> Value_approximation.Value_unknown)
-            in
-            match approx with
-            | Value_symbol sym ->
-              (* In spirit, this is the same as the simple case but more
-                 cumbersome to detect, we have to remove the now useless
-                 let-binding later. *)
-              Some
-                (Env.add_simple_to_substitute env id (Simple.symbol sym) kind)
-            | _ -> Some (Env.add_var_approximation body_env var approx)))
-        | _ -> Some body_env
+      let bound_pattern =
+        Bound_pattern.singleton (VB.create var Name_mode.normal)
       in
-      let var = VB.create var Name_mode.normal in
-      let bound_pattern = Bound_pattern.singleton var in
-      match body_env with
-      | Some body_env ->
+      let bind acc env =
         (* CR pchambart: Not tail ! The body function is the recursion *)
-        let acc, body = body acc body_env in
+        let acc, body = body acc env in
         Let_with_acc.create acc bound_pattern defining_expr ~body
-      | None ->
-        ( acc,
-          Expr.create_invalid
-            (Defining_expr_of_let (bound_pattern, defining_expr)) ))
+      in
+      match defining_expr with
+      | Prim
+          ( Variadic
+              (Make_block (Values (tag, _), Immutable, alloc_mode), fields),
+            _ ) -> (
+        let approxs =
+          List.map (find_value_approximation body_env) fields |> Array.of_list
+        in
+        let fields_kind = classify_fields_of_block env fields alloc_mode in
+        match fields_kind with
+        | Constant static_fields ->
+          let acc, sym =
+            register_const0 acc
+              (Static_const.block tag Immutable static_fields)
+              (Ident.name id)
+          in
+          let body_env =
+            Env.add_simple_to_substitute body_env id (Simple.symbol sym) kind
+          in
+          let acc =
+            Acc.add_symbol_approximation acc sym
+              (Value_approximation.Block_approximation
+                 (approxs, Alloc_mode.For_allocations.as_type alloc_mode))
+          in
+          body acc body_env
+        | Computed_static static_fields ->
+          (* This is a inconstant statically-allocated value, so cannot go
+             through [register_const0]. The definition must be placed right
+             away. *)
+          let symbol =
+            Symbol.create
+              (Compilation_unit.get_current_exn ())
+              (Linkage_name.of_string (Variable.unique_name var))
+          in
+          let static_const = Static_const.block tag Immutable static_fields in
+          let static_consts =
+            [Static_const_or_code.create_static_const static_const]
+          in
+          let defining_expr =
+            Static_const_group.create static_consts
+            |> Named.create_static_consts
+          in
+          let body_env =
+            Env.add_simple_to_substitute body_env id (Simple.symbol symbol) kind
+          in
+          let approx =
+            Value_approximation.Block_approximation
+              (approxs, Alloc_mode.For_allocations.as_type alloc_mode)
+          in
+          let acc = Acc.add_symbol_approximation acc symbol approx in
+          let acc, body = body acc body_env in
+          Let_with_acc.create acc
+            (Bound_pattern.static
+               (Bound_static.create [Bound_static.Pattern.block_like symbol]))
+            defining_expr ~body
+        | Dynamic_block ->
+          let body_env =
+            Env.add_block_approximation body_env var approxs
+              (Alloc_mode.For_allocations.as_type alloc_mode)
+          in
+          bind acc body_env)
+      | Prim
+          ( Variadic
+              ( Make_block (Values (tag, _), Immutable_unique, _alloc_mode),
+                [exn_name; exn_id] ),
+            _ )
+        when Tag.Scannable.equal tag Tag.Scannable.object_tag
+             && Env.at_toplevel env
+             && Flambda_features.classic_mode () ->
+        (* Special case to lift toplevel exception declarations *)
+        let symbol =
+          Symbol.create
+            (Compilation_unit.get_current_exn ())
+            (Linkage_name.of_string (Variable.unique_name var))
+        in
+        let transform_arg arg =
+          Simple.pattern_match' arg
+            ~var:(fun var ~coercion:_ ->
+              Field_of_static_block.Dynamically_computed (var, Debuginfo.none))
+            ~symbol:(fun sym ~coercion:_ -> Field_of_static_block.Symbol sym)
+            ~const:(fun const ->
+              Misc.fatal_errorf "Constant %a not expected as argument in %a"
+                Reg_width_const.print const Named.print defining_expr)
+        in
+        (* This is an inconstant statically-allocated value, so cannot go
+           through [register_const0]. The definition must be placed right
+           away. *)
+        let static_const =
+          Static_const.block Tag.Scannable.object_tag Immutable_unique
+            [transform_arg exn_name; transform_arg exn_id]
+        in
+        let static_consts =
+          [Static_const_or_code.create_static_const static_const]
+        in
+        let defining_expr =
+          Static_const_group.create static_consts |> Named.create_static_consts
+        in
+        let body_env =
+          Env.add_simple_to_substitute body_env id (Simple.symbol symbol) kind
+        in
+        let acc =
+          Acc.add_symbol_approximation acc symbol
+            Value_approximation.Value_unknown
+        in
+        let acc, body = body acc body_env in
+        Let_with_acc.create acc
+          (Bound_pattern.static
+             (Bound_static.create [Bound_static.Pattern.block_like symbol]))
+          defining_expr ~body
+      | Prim (Binary (Block_load _, block, field), _) -> (
+        match simplify_block_load acc body_env ~block ~field with
+        | Unknown -> bind acc body_env
+        | Not_a_block ->
+          if Flambda_features.check_invariants ()
+          then
+            (* CR keryan: This is hidden behind invariants check because it can
+               appear on correct code using Lazy or GADT. It might warrant a
+               proper warning at some point. *)
+            Misc.fatal_errorf
+              "Unexpected approximation found when block approximation was \
+               expected in [Closure_conversion]: %a"
+              Named.print defining_expr
+          else
+            ( acc,
+              Expr.create_invalid
+                (Defining_expr_of_let (bound_pattern, defining_expr)) )
+        | Field_contents sim ->
+          let body_env = Env.add_simple_to_substitute env id sim kind in
+          body acc body_env
+        | Block_but_cannot_simplify approx ->
+          let body_env = Env.add_var_approximation body_env var approx in
+          bind acc body_env)
+      | _ -> bind acc body_env)
   in
   close_named acc env ~let_bound_var:var defining_expr cont
 
@@ -1001,7 +1146,7 @@ let close_exact_or_unknown_apply acc env
 let close_apply_cont acc env ~dbg cont trap_action args : Expr_with_acc.t =
   let acc, args = find_simples acc env args in
   let trap_action = close_trap_action_opt trap_action in
-  let args_approx = List.map (find_value_approximation acc env) args in
+  let args_approx = List.map (find_value_approximation env) args in
   let acc, apply_cont =
     Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args ~dbg
   in
@@ -1013,7 +1158,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
   let untagged_scrutinee = Variable.create "untagged" in
   let untagged_scrutinee' = VB.create untagged_scrutinee Name_mode.normal in
   let known_const_scrutinee =
-    match find_value_approximation acc env scrutinee with
+    match find_value_approximation_through_symbol acc env scrutinee with
     | Value_approximation.Value_int i -> Some i
     | _ -> None
   in
@@ -1025,7 +1170,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
       (fun acc (case, cont, trap_action, args) ->
         let trap_action = close_trap_action_opt trap_action in
         let acc, args = find_simples acc env args in
-        let args_approx = List.map (find_value_approximation acc env) args in
+        let args_approx = List.map (find_value_approximation env) args in
         let action acc =
           Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args
             ~dbg:condition_dbg
@@ -1244,7 +1389,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
         Env.add_var_approximation
           (Env.add_var env id var kind)
           var
-          (find_value_approximation acc env simple))
+          (find_value_approximation_through_symbol acc env simple))
       vars_for_idents closure_env
   in
   let closure_env =
@@ -1643,7 +1788,7 @@ let close_functions acc external_env ~current_region function_declarations =
   in
   if can_be_lifted
   then
-    let symbols =
+    let symbols_with_approx =
       Function_slot.Lmap.mapi
         (fun function_slot _ ->
           let sym = Function_slot.Map.find function_slot symbol_map in
@@ -1659,8 +1804,9 @@ let close_functions acc external_env ~current_region function_declarations =
           sym, approx)
         funs
     in
+    let symbols = Function_slot.Lmap.map fst symbols_with_approx in
     let acc = Acc.add_lifted_set_of_closures ~symbols ~set_of_closures acc in
-    acc, Lifted symbols
+    acc, Lifted symbols_with_approx
   else acc, Dynamic (set_of_closures, approximations)
 
 let close_let_rec acc env ~function_declarations
@@ -1859,7 +2005,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     let arg = find_simple_from_id env wrapper_id in
     let acc, apply_cont =
       Apply_cont_with_acc.create acc
-        ~args_approx:[find_value_approximation acc env arg]
+        ~args_approx:[find_value_approximation env arg]
         apply_continuation ~args:[arg] ~dbg:Debuginfo.none
     in
     Expr_with_acc.create_apply_cont acc apply_cont
@@ -1983,7 +2129,7 @@ type call_args_split =
 
 let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   let callee = find_simple_from_id env apply.func in
-  let approx = find_value_approximation acc env callee in
+  let approx = find_value_approximation_through_symbol acc env callee in
   let code_info =
     match approx with
     | Closure_approximation { code; _ } ->
@@ -2110,7 +2256,6 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
     List.fold_left
       (fun (g2c, s2g) (symbols, set_of_closures) ->
         let id = fresh_group_id () in
-        let symbols = Function_slot.Lmap.map fst symbols in
         let bound = Bound_static.Pattern.set_of_closures symbols in
         let const =
           Static_const_or_code.create_static_const
@@ -2175,25 +2320,22 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
         defining_expr ~body)
     (acc, body) components
 
-let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
-    ~cmx_loader ~compilation_unit ~module_block_size_in_words ~program
-    ~prog_return_cont ~exn_continuation ~toplevel_my_region :
-    mode close_program_result =
-  let env = Env.create ~big_endian in
-  let module_symbol =
-    Symbol.create_wrapped
-      (Flambda2_import.Symbol.for_compilation_unit compilation_unit)
-  in
-  let module_block_tag = Tag.Scannable.zero in
+let wrap_final_module_block acc env ~program ~prog_return_cont
+    ~module_block_size_in_words ~return_cont ~module_symbol =
   let module_block_var = Variable.create "module_block" in
-  let return_cont = Continuation.create ~sort:Toplevel_return () in
-  let env, toplevel_my_region =
-    Env.add_var_like env toplevel_my_region Not_user_visible
-      Flambda_kind.With_subkind.region
-  in
-  let slot_offsets = Slot_offsets.empty in
-  let acc = Acc.create ~slot_offsets ~cmx_loader in
+  let module_block_tag = Tag.Scannable.zero in
   let load_fields_body acc =
+    let env =
+      match Acc.continuation_known_arguments ~cont:prog_return_cont acc with
+      | Some [approx] -> Env.add_var_approximation env module_block_var approx
+      | None | Some ([] | _ :: _) -> env
+    in
+    let module_block_simple =
+      let simple_var = Simple.var module_block_var in
+      match find_value_approximation env simple_var with
+      | Value_approximation.Value_symbol s -> Simple.symbol s
+      | _ -> simple_var
+    in
     let field_vars =
       List.init module_block_size_in_words (fun pos ->
           let pos_str = string_of_int pos in
@@ -2209,12 +2351,12 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
         in
         Static_const.block module_block_tag Immutable field_vars
       in
-      let acc, arg = use_of_symbol_as_simple acc module_symbol in
       let acc, apply_cont =
         (* Module initialisers return unit, but since that is taken care of
            during Cmm generation, we can instead "return" [module_symbol] here
            to ensure that its associated "let symbol" doesn't get deleted. *)
-        Apply_cont_with_acc.create acc return_cont ~args:[arg]
+        Apply_cont_with_acc.create acc return_cont
+          ~args:[Simple.symbol module_symbol]
           ~dbg:Debuginfo.none
       in
       let acc, return = Expr_with_acc.create_apply_cont acc apply_cont in
@@ -2240,35 +2382,62 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
     List.fold_left
       (fun (acc, body) (pos, var) ->
         let var = VB.create var Name_mode.normal in
+        let pat = Bound_pattern.singleton var in
         let pos = Targetint_31_63.of_int pos in
-        let named =
-          Named.create_prim
-            (Binary
-               ( Block_load (block_access, Immutable),
-                 Simple.var module_block_var,
-                 Simple.const (Reg_width_const.tagged_immediate pos) ))
-            Debuginfo.none
-        in
-        Let_with_acc.create acc (Bound_pattern.singleton var) named ~body)
+        let block = module_block_simple in
+        let field = Simple.const (Reg_width_const.tagged_immediate pos) in
+        match simplify_block_load acc env ~block ~field with
+        | Unknown | Not_a_block | Block_but_cannot_simplify _ ->
+          let named =
+            Named.create_prim
+              (Binary (Block_load (block_access, Immutable), block, field))
+              Debuginfo.none
+          in
+          Let_with_acc.create acc pat named ~body
+        | Field_contents sim ->
+          let named = Named.create_simple sim in
+          Let_with_acc.create acc pat named ~body)
       (acc, body) (List.rev field_vars)
   in
   let load_fields_handler_param =
     [BP.create module_block_var K.With_subkind.any_value]
     |> Bound_parameters.create
   in
+  (* This binds the return continuation that is free (or, at least, not bound)
+     in the incoming code. The handler for the continuation receives a tuple
+     with fields indexed from zero to [module_block_size_in_words]. The handler
+     extracts the fields; the variables bound to such fields are then used to
+     define the module block symbol. *)
+  let body acc = program acc env in
+  Let_cont_with_acc.build_non_recursive acc prog_return_cont
+    ~handler_params:load_fields_handler_param ~handler:load_fields_body ~body
+    ~is_exn_handler:false
+
+let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
+    ~cmx_loader ~compilation_unit ~module_block_size_in_words ~program
+    ~prog_return_cont ~exn_continuation ~toplevel_my_region :
+    mode close_program_result =
+  let env = Env.create ~big_endian in
+  let module_symbol =
+    Symbol.create_wrapped
+      (Flambda2_import.Symbol.for_compilation_unit compilation_unit)
+  in
+  let return_cont = Continuation.create ~sort:Toplevel_return () in
+  let env, toplevel_my_region =
+    Env.add_var_like env toplevel_my_region Not_user_visible
+      Flambda_kind.With_subkind.region
+  in
+  let slot_offsets = Slot_offsets.empty in
+  let acc = Acc.create ~slot_offsets ~cmx_loader in
   let acc, body =
-    (* This binds the return continuation that is free (or, at least, not bound)
-       in the incoming code. The handler for the continuation receives a tuple
-       with fields indexed from zero to [module_block_size_in_words]. The
-       handler extracts the fields; the variables bound to such fields are then
-       used to define the module block symbol. *)
-    let body acc = program acc env in
-    Let_cont_with_acc.build_non_recursive acc prog_return_cont
-      ~handler_params:load_fields_handler_param ~handler:load_fields_body ~body
-      ~is_exn_handler:false
+    wrap_final_module_block acc env ~program ~prog_return_cont
+      ~module_block_size_in_words ~return_cont ~module_symbol
   in
   let module_block_approximation =
     match Acc.continuation_known_arguments ~cont:prog_return_cont acc with
+    (* Module symbol may be rebuilt from a lifted block *)
+    | Some [Value_approximation.Value_symbol s] ->
+      Acc.find_symbol_approximation acc s
     | Some [approx] -> approx
     | _ -> Value_approximation.Value_unknown
   in
@@ -2295,20 +2464,8 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
       acc
   in
   let symbols_approximations =
-    let symbol_approxs =
-      List.fold_left
-        (fun sa (symbol, _) ->
-          Symbol.Map.add symbol Value_approximation.Value_unknown sa)
-        (Symbol.Map.singleton module_symbol module_block_approximation)
-        (Acc.declared_symbols acc)
-    in
-    List.fold_left
-      (fun sa (closure_map, _) ->
-        Function_slot.Lmap.fold
-          (fun _ (symbol, approx) sa -> Symbol.Map.add symbol approx sa)
-          closure_map sa)
-      symbol_approxs
-      (Acc.lifted_sets_of_closures acc)
+    Symbol.Map.add module_symbol module_block_approximation
+      (Acc.symbol_approximations acc)
   in
   let acc, body =
     List.fold_left

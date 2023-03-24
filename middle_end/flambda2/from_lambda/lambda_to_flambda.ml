@@ -1286,6 +1286,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
             (args @ extra_params)
         in
         let handler acc ccenv =
+          let ccenv = CCenv.set_not_at_toplevel ccenv in
           cps_tail acc handler_env ccenv handler k k_exn
         in
         let body acc ccenv = cps_tail acc body_env ccenv body k k_exn in
@@ -1344,6 +1345,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        [Begin_region] with its parent region. This use of the parent region will
        ensure that the parent does not get deleted unless the try region is
        unused. *)
+    (* Under a try-with block, any exception might introduce a branch to the
+       handler. So while for static catches we could simplify the body in the
+       same toplevel context, here we need to assume that all of the body could
+       be behind a branch. *)
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
     CC.close_let acc ccenv region Not_user_visible
       Flambda_kind.With_subkind.region
       (Begin_region { try_region_parent = Some (Env.current_region env) })
@@ -1648,6 +1654,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   in
   let body acc ccenv =
     let ccenv = CCenv.set_path_to_root ccenv loc in
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
     cps_tail acc new_env ccenv body body_cont body_exn_cont
   in
   let params =
@@ -1735,6 +1742,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
   cps_non_tail_var "scrutinee" acc env ccenv scrutinee
     Flambda_kind.With_subkind.any_value
     (fun acc env ccenv scrutinee ->
+      let ccenv = CCenv.set_not_at_toplevel ccenv in
       let consts_rev, wrappers = convert_arms_rev env switch.sw_consts [] in
       let blocks_rev, wrappers =
         convert_arms_rev env (List.combine block_nums sw_blocks) wrappers
@@ -1825,9 +1833,9 @@ let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~compilation_unit
     Env.create ~current_unit:compilation_unit ~return_continuation
       ~exn_continuation ~my_region:toplevel_my_region
   in
-  let toplevel acc ccenv =
+  let program acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation
   in
   CC.close_program ~mode ~big_endian ~cmx_loader ~compilation_unit
-    ~module_block_size_in_words ~program:toplevel
-    ~prog_return_cont:return_continuation ~exn_continuation ~toplevel_my_region
+    ~module_block_size_in_words ~program ~prog_return_cont:return_continuation
+    ~exn_continuation ~toplevel_my_region
