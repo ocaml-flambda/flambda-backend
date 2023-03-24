@@ -1687,9 +1687,21 @@ let close_functions acc external_env ~current_region function_declarations =
             ~loopify:Never_loopify
         in
         let code = Code_or_metadata.create_metadata_only metadata in
+        let all_function_slots =
+          Ident.Map.data function_slots_from_idents |> Function_slot.Set.of_list
+        in
+        let all_value_slots =
+          Ident.Map.data value_slots_from_idents |> Value_slot.Set.of_list
+        in
         let approx =
           Value_approximation.Closure_approximation
-            { code_id; function_slot; code; symbol = None }
+            { code_id;
+              function_slot;
+              all_function_slots;
+              all_value_slots;
+              code;
+              symbol = None
+            }
         in
         Function_slot.Map.add function_slot approx approx_map)
       Function_slot.Map.empty func_decl_list
@@ -1705,9 +1717,21 @@ let close_functions acc external_env ~current_region function_declarations =
           let approx =
             match Function_slot.Map.find function_slot approx_map with
             | Value_approximation.Closure_approximation
-                { code_id; function_slot; code; symbol = _ } ->
+                { code_id;
+                  function_slot;
+                  all_function_slots;
+                  all_value_slots;
+                  code;
+                  symbol = _
+                } ->
               Value_approximation.Closure_approximation
-                { code_id; function_slot; code; symbol = Some symbol }
+                { code_id;
+                  function_slot;
+                  all_function_slots;
+                  all_value_slots;
+                  code;
+                  symbol = Some symbol
+                }
             | _ -> assert false
             (* see above *)
           in
@@ -1747,16 +1771,6 @@ let close_functions acc external_env ~current_region function_declarations =
     in
     Function_slot.Lmap.of_list (List.rev funs)
   in
-  let approximations =
-    Function_slot.Map.mapi
-      (fun function_slot code ->
-        let code_id =
-          Code_metadata.code_id (Code_or_metadata.code_metadata code)
-        in
-        Value_approximation.Closure_approximation
-          { code_id; function_slot; code; symbol = None })
-      approximations
-  in
   let function_decls = Function_declarations.create funs in
   let value_slots =
     Ident.Map.fold
@@ -1775,6 +1789,25 @@ let close_functions acc external_env ~current_region function_declarations =
            out. *)
         Value_slot.Map.add value_slot external_simple map)
       value_slots_from_idents Value_slot.Map.empty
+  in
+  let approximations =
+    Function_slot.Map.mapi
+      (fun function_slot code ->
+        let code_id =
+          Code_metadata.code_id (Code_or_metadata.code_metadata code)
+        in
+        let all_function_slots =
+          Function_slot.Lmap.keys funs |> Function_slot.Set.of_list
+        in
+        Value_approximation.Closure_approximation
+          { code_id;
+            function_slot;
+            all_function_slots;
+            all_value_slots = Value_slot.Map.keys value_slots;
+            code;
+            symbol = None
+          })
+      approximations
   in
   let set_of_closures =
     Set_of_closures.create ~value_slots
@@ -1795,9 +1828,21 @@ let close_functions acc external_env ~current_region function_declarations =
           let approx =
             match Function_slot.Map.find function_slot approximations with
             | Value_approximation.Closure_approximation
-                { code_id; function_slot; code; symbol = _ } ->
+                { code_id;
+                  function_slot;
+                  all_function_slots;
+                  all_value_slots;
+                  code;
+                  symbol = _
+                } ->
               Value_approximation.Closure_approximation
-                { code_id; function_slot; code; symbol = Some sym }
+                { code_id;
+                  function_slot;
+                  all_function_slots;
+                  all_value_slots;
+                  code;
+                  symbol = Some sym
+                }
             | _ -> assert false
             (* see above *)
           in
