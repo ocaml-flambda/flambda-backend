@@ -174,6 +174,8 @@ let psubint = "Psubint"
 let pxorbint = "Pxorbint"
 let pxorint = "Pxorint"
 let pprobe_is_enabled = "Pprobe_is_enabled"
+let parray_of_iarray = "Parray_of_iarray"
+let parray_to_iarray = "Parray_to_iarray"
 let pabsfloat_arg = "Pabsfloat_arg"
 let paddbint_arg = "Paddbint_arg"
 let paddfloat_arg = "Paddfloat_arg"
@@ -281,6 +283,8 @@ let psubint_arg = "Psubint_arg"
 let pxorbint_arg = "Pxorbint_arg"
 let pxorint_arg = "Pxorint_arg"
 let pprobe_is_enabled_arg = "Pprobe_is_enabled_arg"
+let parray_of_iarray_arg = "Parray_of_iarray_arg"
+let parray_to_iarray_arg = "Parray_to_iarray_arg"
 let raise = "raise"
 let raise_arg = "raise_arg"
 let read_mutable = "read_mutable"
@@ -433,6 +437,8 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbox_float _ -> pbox_float
   | Punbox_int _ -> punbox_int
   | Pbox_int _ -> pbox_int
+  | Parray_of_iarray -> parray_of_iarray
+  | Parray_to_iarray -> parray_to_iarray
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string_arg
@@ -545,3 +551,5 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbox_float _ -> pbox_float_arg
   | Punbox_int _ -> punbox_int_arg
   | Pbox_int _ -> pbox_int_arg
+  | Parray_of_iarray -> parray_of_iarray_arg
+  | Parray_to_iarray -> parray_to_iarray_arg

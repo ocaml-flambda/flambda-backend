@@ -2,6 +2,9 @@
 # Build rules common to ocaml-jst and flambda-backend
 #
 
+# Get Merlin along with any Dune command
+dune := '$(CURDIR)/jane-street-merlin-setup.sh' ; '$(dune)'
+
 ws_boot   = --root=. --workspace=duneconf/boot.ws
 ws_runstd = --root=. --workspace=duneconf/runtime_stdlib.ws
 ws_main   = --root=. --workspace=duneconf/main.ws
@@ -163,10 +166,16 @@ _install: compiler
           -or -name "flambda2*.cmti" -or -name "flambda2*.cmt" \) \
           -exec cp -f {} _install/lib/ocaml/compiler-libs \;
 
-# Copy _install to the final install directory (no-op if they are the same)
+# Copy _install to the final install directory (no-op if they are the same).
+# Also generate ocamlc at the root of the repo, as this is convenient to use
+# with ocamldebug: ocamldebug inherits the pwd of the file passed as argument,
+# so breakpoints bring you to the less-convenient _build source file if you use
+# the ocamlc.byte in $prefix/bin.
 install: _install
 	mkdir -p '$(prefix)'
 	rsync --chmod=u+rw,go+r -rl _install/ '$(prefix)'
+	rm -f ocamlc
+	ln -s '$(prefix)'/bin/ocamlc.byte ocamlc
 
 # Same as above, but relies on a successfull earlier _install
 install_for_opam:
@@ -291,6 +300,14 @@ test: install_for_test
                  make --no-print-directory all; \
                fi \
              fi)
+
+promote-failed:
+	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
+	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
+	 if $$(which gfortran > /dev/null 2>&1); then \
+	   export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
+	 fi; \
+	 cd _runtest/testsuite && make promote-failed)
 
 runtest-upstream: test
 

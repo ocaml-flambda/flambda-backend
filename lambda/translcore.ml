@@ -160,20 +160,11 @@ let maybe_region_exp exp lam =
   maybe_region (fun () -> Typeopt.layout exp.exp_env exp.exp_type) lam
 
 (* Push the default values under the functional abstractions *)
-(* Also push bindings of module patterns, since this sound *)
-
-type binding =
-  | Bind_value of value_binding list
-  | Bind_module of Ident.t * string option loc * module_presence * module_expr
 
 let wrap_bindings bindings exp =
   List.fold_left
     (fun exp binds ->
-      {exp with exp_desc =
-       match binds with
-       | Bind_value binds -> Texp_let(Nonrecursive, binds, exp)
-       | Bind_module (id, name, pres, mexpr) ->
-           Texp_letmodule (Some id, name, pres, mexpr, exp)})
+      {exp with exp_desc = Texp_let(Nonrecursive, binds, exp)})
     exp bindings
 
 let rec trivial_pat pat =
@@ -203,15 +194,7 @@ let rec push_defaults loc bindings use_lhs arg_mode cases partial warnings =
              exp_desc = Texp_let
                (Nonrecursive, binds,
                 ({exp_desc = Texp_function _} as e2))}}] ->
-      push_defaults loc (Bind_value binds :: bindings) true
-                   arg_mode [{c_lhs=pat;c_guard=None;c_rhs=e2}]
-                   partial warnings
-  | [{c_lhs=pat; c_guard=None;
-      c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#modulepat"};_}];
-             exp_desc = Texp_letmodule
-               (Some id, name, pres, mexpr,
-                ({exp_desc = Texp_function _} as e2))}}] ->
-      push_defaults loc (Bind_module (id, name, pres, mexpr) :: bindings) true
+      push_defaults loc (binds :: bindings) true
                    arg_mode [{c_lhs=pat;c_guard=None;c_rhs=e2}]
                    partial warnings
   | [{c_lhs=pat; c_guard=None; c_rhs=exp} as case]
@@ -569,8 +552,6 @@ and transl_exp0 ~in_new_scope ~scopes e =
               if Config.flambda2 then
                 imm_array
               else
-                (* CR aspectorzabusky: Do we construct things correctly in this
-                   case? *)
                 match kind with
                 | Paddrarray | Pintarray ->
                   Lconst(Const_block(0, cl))
@@ -722,16 +703,10 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let lam = !transl_module ~scopes Tcoerce_none None modl in
       Lsequence(Lprim(Pignore, [lam], of_location ~scopes loc.loc),
                 transl_exp ~scopes body)
-  | Texp_letmodule(Some id, loc, Mp_present, modl, body) ->
+  | Texp_letmodule(Some id, _loc, Mp_present, modl, body) ->
       let defining_expr =
         let mod_scopes = enter_module_definition ~scopes id in
-        let lam = !transl_module ~scopes:mod_scopes Tcoerce_none None modl in
-        Levent (lam, {
-          lev_loc = of_location ~scopes loc.loc;
-          lev_kind = Lev_module_definition id;
-          lev_repr = None;
-          lev_env = Env.empty;
-        })
+        !transl_module ~scopes:mod_scopes Tcoerce_none None modl
       in
       Llet(Strict, Lambda.layout_module, id, defining_expr, transl_exp ~scopes body)
   | Texp_letmodule(_, _, Mp_absent, _, body) ->

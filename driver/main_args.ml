@@ -728,18 +728,40 @@ let mk_dump_into_file f =
 
 let mk_extension f =
   let available_extensions =
-    Clflags.Extension.(List.map to_string all)
+    Language_extension.(List.map to_string all)
   in
   "-extension", Arg.Symbol (available_extensions, f),
-  "<extension>  Enable the extension (may be specified more than once)"
+  "  Enable the specified extension (may be specified more than once)"
+;;
+
+let mk_no_extension f =
+  let available_extensions =
+    Language_extension.(List.map to_string all)
+  in
+  "-no-extension", Arg.Symbol (available_extensions, f),
+  "  Disable the specified extension (may be specified more than once)"
 ;;
 
 let mk_disable_all_extensions f =
   "-disable-all-extensions", Arg.Unit f,
-  " Disable all extensions, wherever they are specified; this flag\n\
-  \    overrides the -extension flag (whether specified before or after this\n\
-  \    flag), disables any extensions that are enabled by default, and\n\
-  \    ignores any extensions requested in OCAMLPARAM."
+  "  Disable all extensions, wherever they have been specified; this\n\
+  \    flag overrides prior uses of the -extension flag, disables any\n\
+  \    extensions that are enabled by default, and causes future uses of\n\
+  \    the -extension flag to raise an error."
+;;
+
+let mk_only_erasable_extensions f =
+  let erasable_extensions =
+    let open Language_extension in
+    all |> List.filter is_erasable |> List.map to_string |> String.concat ", "
+  in
+"-only-erasable-extensions", Arg.Unit f,
+  "  Disable all extensions that cannot be \"erased\" to attributes,\n\
+  \    wherever they have been specified; this flag overrides prior\n\
+  \    contradictory uses of the -extension flag, raises an error on\n\
+  \    future such uses, and disables any such extensions that are\n\
+  \    enabled by default.\n\
+  \    (Erasable extensions: " ^ erasable_extensions ^ ")"
 ;;
 
 let mk_dump_dir f =
@@ -940,6 +962,9 @@ let mk_afl_inst_ratio f =
   \     (advanced, see afl-fuzz docs for AFL_INST_RATIO)"
 ;;
 
+let mk_alloc_check f =
+  "-alloc-check", Arg.Unit f, "<ignored>"
+
 let mk__ f =
   "-", Arg.String f,
   "<file>  Treat <file> as a file name (even if it starts with `-')"
@@ -955,7 +980,9 @@ module type Common_options = sig
   val _app_funct : unit -> unit
   val _no_app_funct : unit -> unit
   val _disable_all_extensions : unit -> unit
+  val _only_erasable_extensions : unit -> unit
   val _extension : string -> unit
+  val _no_extension : string -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -1172,6 +1199,7 @@ module type Optcomp_options = sig
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
+  val _alloc_check : unit -> unit
 end;;
 
 module type Opttop_options = sig
@@ -1216,10 +1244,12 @@ struct
     mk_config_var F._config_var;
     mk_custom F._custom;
     mk_disable_all_extensions F._disable_all_extensions;
+    mk_only_erasable_extensions F._only_erasable_extensions;
     mk_dllib F._dllib;
     mk_dllpath F._dllpath;
     mk_dtypes F._annot;
     mk_extension F._extension;
+    mk_no_extension F._no_extension;
     mk_for_pack_byt F._for_pack;
     mk_g_byt F._g;
     mk_stop_after ~native:false F._stop_after;
@@ -1328,7 +1358,9 @@ struct
     mk_app_funct F._app_funct;
     mk_no_app_funct F._no_app_funct;
     mk_disable_all_extensions F._disable_all_extensions;
+    mk_only_erasable_extensions F._only_erasable_extensions;
     mk_extension F._extension;
+    mk_no_extension F._no_extension;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
     mk_nolabels F._nolabels;
@@ -1406,7 +1438,9 @@ struct
     mk_config_var F._config_var;
     mk_dtypes F._annot;
     mk_disable_all_extensions F._disable_all_extensions;
+    mk_only_erasable_extensions F._only_erasable_extensions;
     mk_extension F._extension;
+    mk_no_extension F._no_extension;
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
     mk_function_sections F._function_sections;
@@ -1541,6 +1575,7 @@ struct
     mk_dump_into_file F._dump_into_file;
     mk_dump_dir F._dump_dir;
     mk_dump_pass F._dump_pass;
+    mk_alloc_check F._alloc_check;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1574,7 +1609,9 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_app_funct F._app_funct;
     mk_no_app_funct F._no_app_funct;
     mk_disable_all_extensions F._disable_all_extensions;
+    mk_only_erasable_extensions F._only_erasable_extensions;
     mk_extension F._extension;
+    mk_no_extension F._no_extension;
     mk_no_float_const_prop F._no_float_const_prop;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
@@ -1668,7 +1705,9 @@ struct
     mk_app_funct F._app_funct;
     mk_no_app_funct F._no_app_funct;
     mk_disable_all_extensions F._disable_all_extensions;
+    mk_only_erasable_extensions F._only_erasable_extensions;
     mk_extension F._extension;
+    mk_no_extension F._no_extension;
     mk_noassert F._noassert;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
@@ -1763,8 +1802,11 @@ module Default = struct
     let _no_strict_formats = clear strict_formats
     let _no_strict_sequence = clear strict_sequence
     let _no_unboxed_types = clear unboxed_types
-    let _disable_all_extensions = Extension.disable_all
-    let _extension s = Extension.enable s
+    let _disable_all_extensions = Language_extension.disallow_extensions
+    let _only_erasable_extensions =
+      Language_extension.restrict_to_erasable_extensions
+    let _extension s = Language_extension.(enable (of_string_exn s))
+    let _no_extension s = Language_extension.(disable (of_string_exn s))
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include
@@ -2024,6 +2066,7 @@ module Default = struct
     let _v () = Compenv.print_version_and_library "native-code compiler"
     let _no_probes = clear probes
     let _probes = set probes
+    let _alloc_check () = ()
   end
 
   module Odoc_args = struct
