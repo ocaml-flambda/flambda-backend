@@ -323,11 +323,7 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
 let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
     return_cont args =
   let return_values, free_vars, env, res, _ = C.simple_list ~dbg env res args in
-  let return_value =
-    match return_values with
-    | [return_value] -> return_value
-    | _ -> Cmm.Ctuple return_values
-  in
+  let return_value = C.make_tuple return_values in
   let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
   match Apply_cont.trap_action apply with
   | None ->
@@ -767,6 +763,9 @@ and apply_expr env res apply =
             (fun cmm_param param ->
               cmm_param, C.machtype_of_kinded_parameter param)
             cmm_params params
+        in
+        let env =
+          Env.set_inlined_debuginfo env handler_body_inlined_debuginfo
         in
         let expr, free_vars_of_handler, res = expr env res body in
         let handler =

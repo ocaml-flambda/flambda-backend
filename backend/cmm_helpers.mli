@@ -1238,3 +1238,5 @@ val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
 val kind_of_layout : Lambda.layout -> value_kind
 
 val machtype_of_layout : Lambda.layout -> machtype
+
+val make_tuple : expression list -> expression
