@@ -1308,49 +1308,9 @@ end = struct
         let fields = List.map type_from_approx (Array.to_list fields) in
         MTC.immutable_block ~is_unique:false (Tag.Scannable.to_tag tag)
           ~shape:(Scannable shape) ~fields alloc_mode
-      | Closure_approximation
-          { code_id;
-            function_slot;
-            all_function_slots;
-            all_value_slots;
-            code = _;
-            symbol = _
-          } ->
-        (* CR keryan: we should use the associated symbol at some point *)
-        let fun_decl =
-          TG.Function_type.create code_id
-            ~rec_info:(TG.this_rec_info Rec_info_expr.initial)
-        in
-        let all_function_slots_in_set =
-          Function_slot.Set.fold
-            (fun function_slot' all_function_slots_in_set ->
-              Function_slot.Map.add function_slot'
-                (if Function_slot.equal function_slot function_slot'
-                then Or_unknown_or_bottom.Ok fun_decl
-                else Or_unknown_or_bottom.Unknown)
-                all_function_slots_in_set)
-            all_function_slots Function_slot.Map.empty
-        in
-        let all_closure_types_in_set =
-          Function_slot.Set.fold
-            (fun function_slot all_closure_types_in_set ->
-              Function_slot.Map.add function_slot
-                (MTC.unknown Flambda_kind.value)
-                all_closure_types_in_set)
-            all_function_slots Function_slot.Map.empty
-        in
-        let all_value_slots_in_set =
-          Value_slot.Set.fold
-            (fun value_slot all_value_slots_in_set ->
-              Value_slot.Map.add value_slot
-                (MTC.unknown
-                   (Flambda_kind.With_subkind.kind (Value_slot.kind value_slot)))
-                all_value_slots_in_set)
-            all_value_slots Value_slot.Map.empty
-        in
-        MTC.exactly_this_closure function_slot ~all_function_slots_in_set
-          ~all_closure_types_in_set ~all_value_slots_in_set
-          (Alloc_mode.For_types.unknown ())
+      | Closure_approximation { code_id; function_slot; code = _; symbol } ->
+        MTC.static_closure_with_this_code ~this_function_slot:function_slot
+          ~closure_symbol:symbol ~code_id
     in
     let just_after_level =
       Symbol.Map.fold
@@ -1434,11 +1394,10 @@ end = struct
           | Array _ ->
             Value_unknown
           | Closures { by_function_slot; alloc_mode = _ } -> (
-            match TG.Row_like_for_closures.get_singleton by_function_slot with
-            | None -> Value_unknown
-            | Some ((function_slot, contents), closures_entry) -> (
+            let approx_of_closures_entry ~exact function_slot closures_entry :
+                _ Value_approximation.t =
               match
-                TG.Closures_entry.find_function_type closures_entry
+                TG.Closures_entry.find_function_type closures_entry ~exact
                   function_slot
               with
               | Bottom | Unknown -> Value_unknown
@@ -1446,15 +1405,15 @@ end = struct
                 let code_id = TG.Function_type.code_id function_type in
                 let code_or_meta = find_code code_id in
                 Closure_approximation
-                  { code_id;
-                    function_slot;
-                    all_function_slots =
-                      Set_of_closures_contents.closures contents;
-                    all_value_slots =
-                      Set_of_closures_contents.value_slots contents;
-                    code = code_or_meta;
-                    symbol = None
-                  }))
+                  { code_id; function_slot; code = code_or_meta; symbol = None }
+            in
+            match TG.Row_like_for_closures.get_single_tag by_function_slot with
+            | No_singleton -> Value_unknown
+            | Exact_closure (function_slot, closures_entry) ->
+              approx_of_closures_entry ~exact:true function_slot closures_entry
+            | Incomplete_closure (function_slot, closures_entry) ->
+              approx_of_closures_entry ~exact:false function_slot closures_entry
+            )
           | Variant { immediates = Unknown; blocks = _; is_unique = _ }
           | Variant { immediates = _; blocks = Unknown; is_unique = _ } ->
             Value_unknown
