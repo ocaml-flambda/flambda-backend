@@ -250,6 +250,7 @@ type nullop = Begin_region
 
 type unop =
   | Array_length
+  | Begin_try_region
   | Box_number of box_kind * alloc_mode_for_allocations
   | End_region
   | Get_tag
@@ -299,6 +300,17 @@ type binary_float_arith_op = Flambda_primitive.binary_float_arith_op =
   | Mul
   | Div
 
+type string_accessor_width = Flambda_primitive.string_accessor_width =
+  | Eight
+  | Sixteen
+  | Thirty_two
+  | Sixty_four
+
+type string_like_value = Flambda_primitive.string_like_value =
+  | String
+  | Bytes
+  | Bigstring
+
 type infix_binop =
   | Int_arith of binary_int_arith_op (* on tagged immediates *)
   | Int_shift of int_shift_op (* on tagged immediates *)
@@ -314,8 +326,11 @@ type binop =
   | Int_comp of standard_int * signed_or_unsigned comparison_behaviour
   | Int_shift of standard_int * int_shift_op
   | Infix of infix_binop
+  | String_or_bigstring_load of string_like_value * string_accessor_width
 
-type ternop = Array_set of array_kind * init_or_assign
+type ternop =
+  | Array_set of array_kind * init_or_assign
+  | Block_set of block_access_kind * init_or_assign
 
 type varop =
   | Make_block of tag_scannable * mutability * alloc_mode_for_allocations
