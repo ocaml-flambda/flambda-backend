@@ -1189,19 +1189,35 @@ end = struct
         MTC.immutable_block ~is_unique:false Tag.zero
           ~field_kind:Flambda_kind.value ~fields alloc_mode
       | Closure_approximation
-          { code_id; function_slot; value_slots; code = _; symbol = _ } ->
+          { code_id;
+            function_slot;
+            all_function_slots;
+            all_value_slots;
+            code = _;
+            symbol = _
+          } ->
         (* CR keryan: we should use the associated symbol at some point *)
         let fun_decl =
           TG.Function_type.create code_id
             ~rec_info:(TG.this_rec_info Rec_info_expr.initial)
         in
         let all_function_slots_in_set =
-          Function_slot.Map.singleton function_slot
-            (Or_unknown_or_bottom.Ok fun_decl)
+          Function_slot.Set.fold
+            (fun function_slot' all_function_slots_in_set ->
+              Function_slot.Map.add function_slot'
+                (if Function_slot.equal function_slot function_slot'
+                then Or_unknown_or_bottom.Ok fun_decl
+                else Or_unknown_or_bottom.Unknown)
+                all_function_slots_in_set)
+            all_function_slots Function_slot.Map.empty
         in
         let all_closure_types_in_set =
-          Function_slot.Map.singleton function_slot
-            (MTC.unknown Flambda_kind.value)
+          Function_slot.Set.fold
+            (fun function_slot all_closure_types_in_set ->
+              Function_slot.Map.add function_slot
+                (MTC.unknown Flambda_kind.value)
+                all_closure_types_in_set)
+            all_function_slots Function_slot.Map.empty
         in
         let all_value_slots_in_set =
           Value_slot.Set.fold
@@ -1210,7 +1226,7 @@ end = struct
                 (MTC.unknown
                    (Flambda_kind.With_subkind.kind (Value_slot.kind value_slot)))
                 all_value_slots_in_set)
-            value_slots Value_slot.Map.empty
+            all_value_slots Value_slot.Map.empty
         in
         MTC.exactly_this_closure function_slot ~all_function_slots_in_set
           ~all_closure_types_in_set ~all_value_slots_in_set
@@ -1316,7 +1332,10 @@ end = struct
                 Closure_approximation
                   { code_id;
                     function_slot;
-                    value_slots = Set_of_closures_contents.value_slots contents;
+                    all_function_slots =
+                      Set_of_closures_contents.closures contents;
+                    all_value_slots =
+                      Set_of_closures_contents.value_slots contents;
                     code = code_or_meta;
                     symbol = None
                   }))

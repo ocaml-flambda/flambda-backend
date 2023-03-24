@@ -370,7 +370,13 @@ module Acc = struct
             let approxs = Array.map filter_inlinable approxs in
             Value_approximation.Block_approximation (approxs, alloc_mode)
           | Closure_approximation
-              { code_id; function_slot; value_slots; code; _ } -> (
+              { code_id;
+                function_slot;
+                all_function_slots;
+                all_value_slots;
+                code;
+                _
+              } -> (
             let metadata = Code_or_metadata.code_metadata code in
             if not (Code_or_metadata.code_present code)
             then approx
@@ -387,7 +393,8 @@ module Acc = struct
                 Value_approximation.Closure_approximation
                   { code_id;
                     function_slot;
-                    value_slots;
+                    all_function_slots;
+                    all_value_slots;
                     code = Code_or_metadata.create_metadata_only metadata;
                     symbol = None
                   })
