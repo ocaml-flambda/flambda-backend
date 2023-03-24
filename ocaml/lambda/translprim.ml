@@ -887,12 +887,13 @@ let transl_primitive loc p env ty ~poly_mode path =
     | None -> prim
     | Some prim -> prim
   in
+  let to_alloc_mode = to_alloc_mode ~poly:poly_mode in
   let rec make_params ty repr_args repr_res =
     match repr_args, repr_res with
     | [], (_, res_repr) ->
       let res_sort = sort_of_native_repr res_repr in
       [], Typeopt.layout env (to_location loc) (Sort.of_const res_sort) ty
-    | ((_, arg_repr) :: repr_args), _ ->
+    | (((_, arg_repr) as arg) :: repr_args), _ ->
       match Typeopt.is_function_type env ty with
       | None ->
           Misc.fatal_errorf "Primitive %s type does not correspond to arity"
@@ -902,13 +903,18 @@ let transl_primitive loc p env ty ~poly_mode path =
           let arg_layout =
             Typeopt.layout env (to_location loc) (Sort.of_const arg_sort) arg_ty
           in
+          let arg_mode = to_alloc_mode arg in
           let params, return = make_params ret_ty repr_args repr_res in
-          (Ident.create_local "prim", arg_layout) :: params, return
+          { name = Ident.create_local "prim";
+            layout = arg_layout;
+            attributes = Lambda.default_param_attribute;
+            mode = arg_mode }
+          :: params, return
   in
   let params, return =
     make_params ty p.prim_native_repr_args p.prim_native_repr_res
   in
-  let args = List.map (fun (id, _) -> Lvar id) params in
+  let args = List.map (fun p -> Lvar p.name) params in
   match params with
   | [] -> lambda_of_prim p.prim_name prim loc args None
   | _ ->
@@ -918,8 +924,6 @@ let transl_primitive loc p env ty ~poly_mode path =
          loc
      in
      let body = lambda_of_prim p.prim_name prim loc args None in
-     let to_alloc_mode m = to_alloc_mode ~poly:poly_mode m in
-     let arg_modes = List.map to_alloc_mode p.prim_native_repr_args in
      let region =
        match to_alloc_mode p.prim_native_repr_res with
        | Alloc_heap -> true
@@ -931,7 +935,7 @@ let transl_primitive loc p env ty ~poly_mode path =
        | Alloc_heap :: args -> count_nlocal args
        | (Alloc_local :: _) as args -> List.length args
      in
-     let nlocal = count_nlocal arg_modes in
+     let nlocal = count_nlocal (List.map to_alloc_mode p.prim_native_repr_args) in
      lfunction
        ~kind:(Curried {nlocal})
        ~params

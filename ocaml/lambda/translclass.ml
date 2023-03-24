@@ -67,6 +67,9 @@ let lapply ap =
   | _ ->
       Lapply ap
 
+let lparam name layout : Lambda.lparam =
+  { name; layout; attributes = Lambda.default_param_attribute; mode = alloc_heap }
+
 let mkappl (func, args, layout) =
   Lprim
     (Popaque layout,
@@ -217,7 +220,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
          in
          Lambda.lfunction
                    ~kind:(Curried {nlocal=0})
-                   ~params:((param, arg_layout)::params)
+                   ~params:(lparam param arg_layout::params)
                    ~return:layout_obj
                    ~attr:default_function_attribute
                    ~loc:(of_location ~scopes pat.pat_loc)
@@ -261,9 +264,9 @@ let rec build_object_init_0
       let ((_,inh_init), obj_init) =
         build_object_init ~scopes cl_table obj params (envs,[]) copy_env cl in
       let obj_init =
-        if ids = [] then obj_init else lfunction layout_obj [self, layout_obj] obj_init in
+        if ids = [] then obj_init else lfunction layout_obj [lparam self layout_obj] obj_init in
       (inh_init, lfunction (if ids = [] then layout_obj else layout_function)
-         [env, layout_block] (subst_env env inh_init obj_init))
+         [lparam env layout_block] (subst_env env inh_init obj_init))
 
 
 let bind_method tbl lab id cl_init =
@@ -505,7 +508,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
         in
         Lambda.lfunction
                   ~kind:(Curried {nlocal=0})
-                  ~params:((param, arg_layout)::params)
+                  ~params:(lparam param arg_layout :: params)
                   ~return:return_layout
                   ~attr:default_function_attribute
                   ~loc:(of_location ~scopes pat.pat_loc)
@@ -555,7 +558,7 @@ let rec transl_class_rebind_0 ~scopes (self:Ident.t) obj_init cl vf =
   | _ ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
-      (path, path_lam, lfunction layout_obj [self, layout_obj] obj_init)
+      (path, path_lam, lfunction layout_obj [lparam self layout_obj] obj_init)
 
 let transl_class_rebind ~scopes cl vf =
   try
@@ -577,7 +580,7 @@ let transl_class_rebind ~scopes cl vf =
     in
     let _, path_lam, obj_init' =
       transl_class_rebind_0 ~scopes self obj_init0 cl vf in
-    let id = (obj_init' = lfunction layout_obj [self, layout_obj] obj_init0) in
+    let id = (obj_init' = lfunction layout_obj [lparam self layout_obj] obj_init0) in
     if id then path_lam else
 
     let cla = Ident.create_local "class"
@@ -586,15 +589,15 @@ let transl_class_rebind ~scopes cl vf =
     and table = Ident.create_local "table"
     and envs = Ident.create_local "envs" in
     Llet(
-    Strict, layout_function, new_init, lfunction layout_function [obj_init, layout_function] obj_init',
+    Strict, layout_function, new_init, lfunction layout_function [lparam obj_init layout_function] obj_init',
     Llet(
     Alias, layout_block, cla, path_lam,
     Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
           [mkappl(Lvar new_init, [lfield cla 0], layout_function);
-           lfunction layout_function [table, layout_table]
+           lfunction layout_function [lparam table layout_table]
              (Llet(Strict, layout_function, env_init,
                    mkappl(lfield cla 1, [Lvar table], layout_function),
-                   lfunction layout_function [envs, layout_block]
+                   lfunction layout_function [lparam envs layout_block]
                      (mkappl(Lvar new_init,
                              [mkappl(Lvar env_init, [Lvar envs], layout_obj)], layout_function))));
            lfield cla 2;
@@ -648,7 +651,7 @@ let rec builtin_meths self env env2 body =
   | Lsend(Cached, met, arg, [_;_], _, _, _, _) ->
       let s, args = conv arg in
       ("send_"^s, met :: args)
-  | Lfunction {kind = Curried _; params = [x, _]; body} ->
+  | Lfunction {kind = Curried _; params = [{name = x; _}]; body} ->
       let rec enter self = function
         | Lprim(Parraysetu _, [Lvar s; Lvar n; Lvar x'], _)
           when Ident.same x x' && List.mem s self ->
@@ -731,7 +734,7 @@ let free_methods l =
         fv := Ident.Set.add meth !fv
     | Lsend _ -> ()
     | Lfunction{params} ->
-        List.iter (fun (param, _) -> fv := Ident.Set.remove param !fv) params
+        List.iter (fun p -> fv := Ident.Set.remove p.name !fv) params
     | Llet(_, _k, id, _arg, _body)
     | Lmutlet(_k, id, _arg, _body) ->
         fv := Ident.Set.remove id !fv
@@ -790,7 +793,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let no_env_update _ _ env = env in
   let msubst arr = function
       Lfunction {kind = Curried _ as kind; region;
-                 params = (self, layout) :: args; return; body} ->
+                 params = self :: args; return; body} ->
         let env = Ident.create_local "env" in
         let body' =
           if new_ids = [] then body else
@@ -799,13 +802,13 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
           (* Doesn't seem to improve size for bytecode *)
           (* if not !Clflags.native_code then raise Not_found; *)
           if not arr || !Clflags.debug then raise Not_found;
-          builtin_meths [self] env env2 (lfunction return args body')
+          builtin_meths [self.name] env env2 (lfunction return args body')
         with Not_found ->
-          [lfunction ~kind ~region return ((self, layout) :: args)
+          [lfunction ~kind ~region return (self :: args)
              (if not (Ident.Set.mem env (free_variables body')) then body' else
               Llet(Alias, layout_block, env,
                    Lprim(Pfield_computed Reads_vary,
-                         [Lvar self; Lvar env2],
+                         [Lvar self.name; Lvar env2],
                          Loc_unknown),
                    body'))]
         end
@@ -873,7 +876,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                            ~return:layout_function
                            ~mode:alloc_heap
                            ~region:true
-                           ~params:[cla, layout_table] ~body:cl_init) in
+                           ~params:[lparam cla layout_table] ~body:cl_init) in
     Llet(Strict, layout_function, class_init, cl_init, lam (free_variables cl_init))
   and lbody fv =
     if List.for_all (fun id -> not (Ident.Set.mem id fv)) ids then
@@ -898,7 +901,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                           ~return:layout_function
                           ~mode:alloc_heap
                           ~region:true
-                          ~params:[cla, layout_table] ~body:cl_init;
+                          ~params:[lparam cla layout_table] ~body:cl_init;
            lambda_unit; lenvs],
          Loc_unknown)
   in
@@ -952,7 +955,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let lclass lam =
     Llet(Strict, layout_function, class_init,
          Lambda.lfunction
-                   ~kind:(Curried {nlocal=0}) ~params:[cla, layout_table]
+                   ~kind:(Curried {nlocal=0}) ~params:[lparam cla layout_table]
                    ~return:layout_function
                    ~attr:default_function_attribute
                    ~loc:Loc_unknown
@@ -984,7 +987,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
          ~mode:alloc_heap
          ~region:true
          ~return:layout_function
-         ~params:[cla, layout_table]
+         ~params:[lparam cla layout_table]
          ~body:(def_ids cla cl_init))
   in
   let lupdate_cache =

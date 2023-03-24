@@ -293,11 +293,18 @@ module Function_decls : sig
   module Function_decl : sig
     type t
 
+    type param =
+      { name : Ident.t;
+        kind : Flambda_kind.With_subkind.t;
+        attributes : Lambda.parameter_attribute;
+        mode : Lambda.alloc_mode
+      }
+
     val create :
       let_rec_ident:Ident.t option ->
       function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
-      params:(Ident.t * Flambda_kind.With_subkind.t) list ->
+      params:param list ->
       return:Flambda_arity.t ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
@@ -318,7 +325,7 @@ module Function_decls : sig
 
     val kind : t -> Lambda.function_kind
 
-    val params : t -> (Ident.t * Flambda_kind.With_subkind.t) list
+    val params : t -> param list
 
     val return : t -> Flambda_arity.t
 

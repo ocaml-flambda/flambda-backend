@@ -1611,7 +1611,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
        their wrapper functions) to be inlined *)
     let n =
       List.fold_left
-        (fun n (id, _) -> n + if V.name id = "*opt*" then 8 else 1)
+        (fun n (id, _, _) -> n + if V.name id = "*opt*" then 8 else 1)
         0
         fun_params
     in
@@ -1627,7 +1627,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
       | Never_inline -> min_int
       | Unroll _ -> assert false
     in
-    let fun_params = List.map (fun (var, _) -> VP.create var) fun_params in
+    let fun_params = List.map (fun (var, _, _) -> VP.create var) fun_params in
     if lambda_smaller ubody threshold
     then fundesc.fun_inline <- Some(fun_params, ubody);
 
