@@ -484,7 +484,7 @@ module Acc = struct
     | Value_unknown | Closure_approximation _ | Block_approximation _
     | Value_int _ ->
       (* We need all defined symbols to be present in [symbol_approximations],
-         even their approximation is [Value_unknown] *)
+         even when their approximation is [Value_unknown] *)
       { t with
         symbol_approximations =
           Symbol.Map.add symbol approx t.symbol_approximations
