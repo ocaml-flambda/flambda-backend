@@ -32,6 +32,8 @@ module Region_stack : sig
   (* A nested set of regions, with the innermost at the head *)
   type t = Reg.t array list
 
+  val equal : t -> t -> bool
+
   (* Given two region stacks that are suffixes of the same
      original stack, return their common suffix.
 
@@ -44,6 +46,9 @@ module Region_stack : sig
 end  = struct
   type t = Reg.t array list
 
+  let equal a b =
+    (a == b) || List.equal (==) a b
+
   let common_suffix xs ys =
     if xs == ys || List.compare_lengths xs ys <= 0
     then xs
@@ -52,11 +57,12 @@ end  = struct
   let strip_suffix ~suffix t =
     match suffix with
     | [] -> t
+    | _ when suffix == t -> []
     | suff ->
        let pre, suff' =
          Misc.Stdlib.List.split_at (List.length t - List.length suff) t
        in
-       assert (suff' == suff);
+       assert (equal suff' suff);
        pre
 end
 
@@ -812,8 +818,7 @@ method insert_endregions env regions =
      self#insert env (Iop Iendregion) final_region [| |]
 
 method insert_endregions_until env ~suffix regions =
-  if suffix != regions then
-    self#insert_endregions env (Region_stack.strip_suffix ~suffix regions)
+  self#insert_endregions env (Region_stack.strip_suffix ~suffix regions)
 
 (* Emit an expression, which is assumed not to end any regions early.
    (This holds for any expression not in tail position of Cregion)
@@ -825,7 +830,7 @@ method emit_expr (env:environment) exp =
   match self#emit_expr_aux env exp with
   | None -> None
   | Some (res, unclosed) ->
-     assert (unclosed == env.regions);
+     assert (Region_stack.equal unclosed env.regions);
      Some res
 
 (* Emit an expression which may end some regions early.
@@ -957,7 +962,7 @@ method emit_expr_aux (env:environment) exp :
                   loc_arg (Proc.loc_external_results (Reg.typv rd)) in
               self#insert_move_results env loc_res rd stack_ofs;
               set_traps_for_raise env;
-              assert (unclosed_regions == env.regions);
+              assert (Region_stack.equal unclosed_regions env.regions);
               if returns then ret rd else None
           | Ialloc { bytes = _; mode } ->
               let rd = self#regs_for typ_val in
@@ -972,19 +977,19 @@ method emit_expr_aux (env:environment) exp :
               self#insert_debug env (Iop op) dbg [||] rd;
               self#emit_stores env new_args rd;
               set_traps_for_raise env;
-              assert (unclosed_regions == env.regions);
+              assert (Region_stack.equal unclosed_regions env.regions);
               ret rd
           | Iprobe _ ->
               let r1 = self#emit_tuple env new_args in
               let rd = self#regs_for ty in
               let rd = self#insert_op_debug env new_op dbg r1 rd in
               set_traps_for_raise env;
-              assert (unclosed_regions == env.regions);
+              assert (Region_stack.equal unclosed_regions env.regions);
               ret rd
           | op ->
               let r1 = self#emit_tuple env new_args in
               let rd = self#regs_for ty in
-              assert (unclosed_regions == env.regions);
+              assert (Region_stack.equal unclosed_regions env.regions);
               ret (self#insert_op_debug env op dbg r1 rd)
       end
   | Csequence(e1, e2) ->
@@ -1189,7 +1194,7 @@ method emit_expr_aux (env:environment) exp :
      | None -> None
      | Some (rd, reg' :: unclosed) when reg == reg' ->
         (* Compiling e closed no regions *)
-        assert (unclosed == old_regions);
+        assert (Region_stack.equal unclosed old_regions);
         self#insert_endregions env [reg];
         Some (rd, unclosed)
      | Some (rd, unclosed) ->
