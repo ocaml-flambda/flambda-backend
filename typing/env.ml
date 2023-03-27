@@ -148,7 +148,7 @@ type module_unbound_reason =
 
 type summary =
     Env_empty
-  | Env_value of summary * Ident.t * value_description
+  | Env_value of summary * Ident.t * value_description * Types.value_mode
   | Env_type of summary * Ident.t * type_declaration
   | Env_extension of summary * Ident.t * extension_constructor
   | Env_module of summary * Ident.t * module_presence * module_declaration
@@ -165,7 +165,7 @@ type summary =
 
 let map_summary f = function
     Env_empty -> Env_empty
-  | Env_value (s, id, d) -> Env_value (f s, id, d)
+  | Env_value (s, id, d, m) -> Env_value (f s, id, d, m)
   | Env_type (s, id, d) -> Env_type (f s, id, d)
   | Env_extension (s, id, d) -> Env_extension (f s, id, d)
   | Env_module (s, id, p, d) -> Env_module (f s, id, p, d)
@@ -1965,7 +1965,7 @@ and store_value ?check mode id addr decl shape env =
   in
   { env with
     values = IdTbl.add id (Val_bound vda) env.values;
-    summary = Env_value(env.summary, id, decl) }
+    summary = Env_value(env.summary, id, decl, mode) }
 
 and store_constructor ~check type_decl type_id cstr_id cstr env =
   if check && not type_decl.type_loc.Location.loc_ghost

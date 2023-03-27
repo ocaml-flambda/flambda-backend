@@ -36,8 +36,8 @@ let rec env_from_summary sum subst =
       match sum with
         Env_empty ->
           Env.empty
-      | Env_value(s, id, desc) ->
-          Env.add_value id (Subst.value_description subst desc)
+      | Env_value(s, id, desc, mode) ->
+          Env.add_value ~mode id (Subst.value_description subst desc)
                         (env_from_summary s subst)
       | Env_type(s, id, desc) ->
           Env.add_type ~check:false id
