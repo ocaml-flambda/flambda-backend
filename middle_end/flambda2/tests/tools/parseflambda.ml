@@ -27,12 +27,7 @@ let parse_flambda filename =
     Format.printf "back to fexpr:@.%a@." Print_fexpr.flambda_unit fl3;
     fl3
   | Error e ->
-    (match e with
-    | Parsing_error (msg, loc) ->
-      Format.eprintf "%a:@.Syntax error: %s@." Location.print_loc loc msg
-    | Lexing_error (error, loc) ->
-      Format.eprintf "%a:@.Lex error: %a@." Location.print_loc loc
-        Flambda_lex.pp_error error);
+    Test_utils.dump_error e;
     exit 1
 
 let _ =

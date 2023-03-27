@@ -119,31 +119,62 @@ let compute_loops_of_back_edges cfg back_edges =
   List.fold_left back_edges ~init:EdgeMap.empty ~f:(fun acc edge ->
       EdgeMap.add edge (compute_loop_of_back_edge cfg edge) acc)
 
+type header_map = loop list Label.Map.t
+
+let compute_header_map loops =
+  let compare_loop_by_cardinal left right =
+    Int.compare (Label.Set.cardinal left) (Label.Set.cardinal right)
+  in
+  EdgeMap.fold
+    (fun { Edge.src = _; dst = header } labels acc ->
+      Label.Map.update header
+        (function
+          | None -> Some [labels]
+          | Some l -> Some (List.merge ~cmp:compare_loop_by_cardinal [labels] l))
+        acc)
+    loops Label.Map.empty
+
 type loop_depths = int Label.Map.t
 
-let compute_loop_depths cfg (loops : loops) =
+(* Merge loops when not properly nested. *)
+let merge_loops l =
+  let rec fl ~curr ~acc l =
+    match l with
+    | [] -> List.rev (curr :: acc)
+    | hd :: tl ->
+      if Label.Set.subset curr hd
+      then fl ~curr:hd ~acc:(curr :: acc) tl
+      else fl ~curr:(Label.Set.union curr hd) ~acc tl
+  in
+  match l with [] -> [] | hd :: tl -> fl ~curr:hd ~acc:[] tl
+
+let compute_loop_depths cfg header_map =
+  let incr_label map label =
+    Label.Map.update label
+      (function
+        | None ->
+          fatal "Cfg_loop_infos.compute_loop_depths: unknown label %d" label
+        | Some depth -> Some (succ depth))
+      map
+  in
+  let incr_loop map loop =
+    Label.Set.fold (fun label map -> incr_label map label) loop map
+  in
   let init =
     Cfg.fold_blocks cfg ~init:Label.Map.empty ~f:(fun label _block acc ->
         Label.Map.add label 0 acc)
   in
-  EdgeMap.fold
-    (fun _edge labels acc ->
-      Label.Set.fold
-        (fun label acc ->
-          Label.Map.update label
-            (function
-              | None ->
-                fatal "Cfg_loop_infos.compute_loop_depths: unknown label %d"
-                  label
-              | Some depth -> Some (succ depth))
-            acc)
-        labels acc)
-    loops init
+  Label.Map.fold
+    (fun _header loop_list acc ->
+      List.fold_left loop_list ~init:acc ~f:incr_loop)
+    (Label.Map.map merge_loops header_map)
+    init
 
 type t =
   { dominators : dominators;
     back_edges : Edge.t list;
     loops : loops;
+    header_map : header_map;
     loop_depths : loop_depths
   }
 
@@ -151,7 +182,8 @@ let build cfg =
   let dominators = compute_dominators cfg in
   let back_edges = compute_back_edges cfg dominators in
   let loops = compute_loops_of_back_edges cfg back_edges in
-  let loop_depths = compute_loop_depths cfg loops in
+  let header_map = compute_header_map loops in
+  let loop_depths = compute_loop_depths cfg header_map in
   if debug
   then (
     Format.eprintf "*** Cfg_loop_infos.build for %S\n" cfg.Cfg.fun_name;
@@ -169,4 +201,4 @@ let build cfg =
         Label.Set.iter (Format.eprintf "- %d:\n") labels)
       loops;
     Label.Map.iter (Format.eprintf "loop depth for %d is %d\n") loop_depths);
-  { dominators; back_edges; loops; loop_depths }
+  { dominators; back_edges; loops; header_map; loop_depths }

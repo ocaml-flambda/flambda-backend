@@ -208,6 +208,9 @@ type nullary_primitive =
       (** Starting delimiter of local allocation region, returning a region
           name. For regions for the "try" part of a "try...with", use
           [Begin_try_region] (below) instead. *)
+  | Enter_inlined_apply of { dbg : Debuginfo.t }
+      (** Used in classic mode to denote the start of an inlined function body.
+          This is then used in to_cmm to correctly add inlined debuginfo. *)
 
 (** Untagged binary integer arithmetic operations.
 
@@ -247,7 +250,10 @@ type unary_primitive =
   (* CR gbury: Invariant check: 0 < dimension <= 3 *)
   | String_length of string_or_bytes
   | Int_as_pointer
-  | Opaque_identity of { middle_end_only : bool }
+  | Opaque_identity of
+      { middle_end_only : bool;
+        kind : Flambda_kind.t
+      }
   | Int_arith of Flambda_kind.Standard_int.t * unary_int_arith_op
   | Float_arith of unary_float_arith_op
   | Num_conv of

@@ -47,45 +47,57 @@ let get_module_info comp_unit =
          not Flambda 2, and cannot be loaded"
         Compilation_unit.Name.print cmx_name
 
-let print_rawflambda ppf unit =
-  if Flambda_features.dump_rawflambda ()
-  then
-    Format.fprintf ppf "\n%tAfter CPS conversion:%t@ %a@."
-      Flambda_colours.each_file Flambda_colours.pop Flambda_unit.print unit;
-  if Flambda_features.dump_rawfexpr ()
-  then
-    Format.fprintf ppf "\n%tAfter CPS conversion:%t@ %a@."
-      Flambda_colours.each_file Flambda_colours.pop Print_fexpr.flambda_unit
-      (unit |> Flambda_to_fexpr.conv)
-
-let print_flambda name ppf unit =
-  if Flambda_features.dump_flambda ()
-  then
-    Format.fprintf ppf "\n%tAfter %s:%t@ %a@." Flambda_colours.each_file name
-      Flambda_colours.pop Flambda_unit.print unit;
-  if Flambda_features.dump_fexpr ()
-  then
-    Format.fprintf ppf "\n%tAfter %s:%t@ %a@." Flambda_colours.each_file name
-      Flambda_colours.pop Print_fexpr.flambda_unit
-      (unit |> Flambda_to_fexpr.conv)
-
-let output_flexpect ~ml_filename ~raw_flambda:old_unit new_unit =
-  if Flambda_features.dump_flexpect ()
-  then
-    let basename = Filename.chop_suffix ml_filename ".ml" in
-    let filename = basename ^ ".flt" in
-    let before = old_unit |> Flambda_to_fexpr.conv in
-    let after = new_unit |> Flambda_to_fexpr.conv in
-    let test : Fexpr.expect_test_spec = { before; after } in
-    let out = open_out filename in
-    Misc.try_finally
-      ~always:(fun () -> close_out out)
-      (fun () ->
-        let ppf = out |> Format.formatter_of_out_channel in
-        Print_fexpr.expect_test_spec ppf test;
+let dump_to_target_if_any main_dump_ppf target ~header ~f a =
+  match (target : Flambda_features.dump_target) with
+  | Nowhere -> ()
+  | Main_dump_stream ->
+    Format.fprintf main_dump_ppf "\n%t%s:%t@ %a@." Flambda_colours.each_file
+      header Flambda_colours.pop f a
+  | File filename ->
+    Misc.protect_writing_to_file ~filename ~f:(fun out ->
+        let ppf = Format.formatter_of_out_channel out in
+        f ppf a;
         Format.pp_print_flush ppf ())
 
-let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~keep_symbol_tables
+let dump_if_enabled ppf enabled ~header ~f a =
+  let target : Flambda_features.dump_target =
+    if enabled then Main_dump_stream else Nowhere
+  in
+  dump_to_target_if_any ppf target ~header ~f a
+
+let pp_flambda_as_fexpr ppf unit =
+  Print_fexpr.flambda_unit ppf (unit |> Flambda_to_fexpr.conv)
+
+let print_rawflambda ppf unit =
+  dump_if_enabled ppf
+    (Flambda_features.dump_rawflambda ())
+    ~header:"After CPS conversion" ~f:Flambda_unit.print unit;
+  dump_to_target_if_any ppf
+    (Flambda_features.dump_rawfexpr ())
+    ~header:"After CPS conversion" ~f:pp_flambda_as_fexpr unit
+
+let print_flambda name ppf unit =
+  let header = "After " ^ name in
+  dump_if_enabled ppf
+    (Flambda_features.dump_flambda ())
+    ~header ~f:Flambda_unit.print unit;
+  dump_to_target_if_any ppf
+    (Flambda_features.dump_fexpr ())
+    ~header ~f:pp_flambda_as_fexpr unit
+
+let pp_flambda_as_flexpect ppf (old_unit, new_unit) =
+  let before = old_unit |> Flambda_to_fexpr.conv in
+  let after = new_unit |> Flambda_to_fexpr.conv in
+  let test : Fexpr.expect_test_spec = { before; after } in
+  Print_fexpr.expect_test_spec ppf test
+
+let print_flexpect name main_dump_ppf ~raw_flambda:old_unit new_unit =
+  dump_to_target_if_any main_dump_ppf
+    (Flambda_features.dump_flexpect ())
+    ~header:("Before and after " ^ name)
+    ~f:pp_flambda_as_flexpect (old_unit, new_unit)
+
+let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
     (program : Lambda.program) =
   let compilation_unit = program.compilation_unit in
   let module_block_size_in_words = program.main_module_block_size in
@@ -150,7 +162,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~keep_symbol_tables
           Compiler_hooks.execute Inlining_tree inlining_tree);
         Compiler_hooks.execute Flambda2 flambda;
         print_flambda "simplify" ppf flambda;
-        output_flexpect ~ml_filename:filename ~raw_flambda flambda;
+        print_flexpect "simplify" ppf ~raw_flambda flambda;
         flambda, exported_offsets, cmx, all_code
     in
     (match cmx with

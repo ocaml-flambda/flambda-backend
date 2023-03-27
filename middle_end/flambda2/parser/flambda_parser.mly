@@ -55,9 +55,11 @@ let make_boxed_const_int (i, m) : static_data =
 
 /* Tokens */
 
+%token AMP   [@symbol "&"]
 %token AT    [@symbol "@"]
 %token BIGARROW [@symbol "===>"]
 %token BLANK [@symbol "_"]
+%token CARET [@symbol "^"]
 %token COLON  [@symbol ":"]
 %token COMMA [@symbol ","]
 %token DOT   [@symbol "."]
@@ -71,6 +73,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token <string> IDENT
 %token <string * char option> INT
 %token LBRACE [@symbol "{"]
+%token LBRACK [@symbol "["]
 %token LBRACKPIPE [@symbol "[|"]
 %token LESS   [@symbol "<"]
 %token LESSDOT [@symbol "<."]
@@ -81,7 +84,8 @@ let make_boxed_const_int (i, m) : static_data =
 %token MINUS    [@symbol "-"]
 %token MINUSDOT [@symbol "-."]
 %token MINUSGREATER [@symbol "->"]
-%token NOTEQUALDOT [@symbol "!=."]
+%token NOTEQUAL [@symbol "<>"]
+%token NOTEQUALDOT [@symbol "<>."]
 %token QMARK [@symbol "?"]
 %token QMARKDOT [@symbol "?."]
 %token PIPE [@symbol "|"]
@@ -89,6 +93,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PLUS     [@symbol "+"]
 %token PLUSDOT  [@symbol "+."]
 %token RBRACE [@symbol "}"]
+%token RBRACK [@symbol "]"]
 %token RBRACKPIPE [@symbol "|]"]
 %token RPAREN [@symbol ")"]
 %token SEMICOLON [@symbol ";"]
@@ -104,10 +109,11 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_ALWAYS [@symbol "always"]
 %token KWD_AND   [@symbol "and"]
 %token KWD_ANDWHERE [@symbol "andwhere"]
+%token KWD_ANY   [@symbol "any"]
 %token KWD_APPLY [@symbol "apply"]
+%token KWD_ARRAY [@symbol "array"]
 %token KWD_ASR   [@symbol "asr"]
 %token KWD_AVAILABLE [@symbol "available"]
-%token KWD_BLOCK [@symbol "Block"]
 %token KWD_BOXED [@symbol "boxed"]
 %token KWD_CCALL  [@symbol "ccall"]
 %token KWD_CLOSURE  [@symbol "closure"]
@@ -125,9 +131,8 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_EXN   [@symbol "exn"]
 %token KWD_REGION [@symbol "region"]
 %token KWD_FLOAT [@symbol "float"]
-%token KWD_FLOAT_ARRAY [@symbol "Float_array"]
-%token KWD_FLOAT_BLOCK [@symbol "Float_block"]
 %token KWD_HCF   [@symbol "halt_and_catch_fire"]
+%token KWD_HEAP_OR_LOCAL [@symbol "heap_or_local"]
 %token KWD_HINT  [@symbol "hint"]
 %token KWD_ID    [@symbol "id"]
 %token KWD_IMM   [@symbol "imm" ]
@@ -139,8 +144,11 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_INLINING_STATE [@symbol "inlining_state"]
 %token KWD_INT32 [@symbol "int32"]
 %token KWD_INT64 [@symbol "int64"]
+%token KWD_INVALID [@symbol "invalid"]
 %token KWD_LAND  [@symbol "land"]
 %token KWD_LET   [@symbol "let"]
+%token KWD_LOCAL [@symbol "local"]
+%token KWD_LOOPIFY [@symbol "loopify"]
 %token KWD_LOR   [@symbol "lor"]
 %token KWD_LSL   [@symbol "lsl"]
 %token KWD_LSR   [@symbol "lsr"]
@@ -151,6 +159,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_NEWER_VERSION_OF [@symbol "newer_version_of"]
 %token KWD_NOALLOC [@symbol "noalloc"]
 %token KWD_NOTRACE [@symbol "notrace"]
+%token KWD_OF     [@symbol "of"]
 %token KWD_POP    [@symbol "pop"]
 %token KWD_PUSH   [@symbol "push"]
 %token KWD_REC    [@symbol "rec"]
@@ -163,6 +172,8 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_SWITCH [@symbol "switch"]
 %token KWD_TAG    [@symbol "tag"]
 %token KWD_TAGGED [@symbol "tagged"]
+%token KWD_TAILREC [@symbol "tailrec"]
+%token KWD_TOPLEVEL [@symbol "toplevel"]
 %token KWD_TUPLED [@symbol "tupled"]
 %token KWD_UNIT   [@symbol "unit"]
 %token KWD_UNREACHABLE [@symbol "unreachable"]
@@ -175,17 +186,24 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_ARRAY_LENGTH [@symbol "%array_length"]
 %token PRIM_ARRAY_LOAD [@symbol "%array_load"]
 %token PRIM_ARRAY_SET [@symbol "%array_set"]
+%token PRIM_BEGIN_REGION [@symbol "%begin_region"]
+%token PRIM_BEGIN_TRY_REGION [@symbol "%begin_try_region"]
+%token PRIM_BIGSTRING_LOAD [@symbol "%bigstring_load"]
 %token PRIM_BLOCK [@symbol "%Block"]
 %token PRIM_BLOCK_LOAD [@symbol "%block_load"]
+%token PRIM_BLOCK_SET [@symbol "%block_set"]
 %token PRIM_BOX_FLOAT [@symbol "%Box_float"]
 %token PRIM_BOX_INT32 [@symbol "%Box_int32"]
 %token PRIM_BOX_INT64 [@symbol "%Box_int64"]
 %token PRIM_BOX_NATIVEINT [@symbol "%Box_nativeint"]
 %token PRIM_BYTES_LENGTH [@symbol "%bytes_length"]
+%token PRIM_BYTES_LOAD [@symbol "%bytes_load"]
+%token PRIM_END_REGION [@symbol "%end_region"]
 %token PRIM_GET_TAG [@symbol "%get_tag"]
 %token PRIM_INT_ARITH [@symbol "%int_arith"]
 %token PRIM_INT_COMP [@symbol "%int_comp"]
 %token PRIM_INT_SHIFT [@symbol "%int_shift"]
+%token PRIM_IS_FLAT_FLOAT_ARRAY [@symbol "%is_flat_float_array"]
 %token PRIM_IS_INT [@symbol "%is_int"]
 %token PRIM_NUM_CONV [@symbol "%num_conv"]
 %token PRIM_OPAQUE [@symbol "%Opaque"]
@@ -194,6 +212,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_PROJECT_VALUE_SLOT [@symbol "%project_value_slot"]
 %token PRIM_PROJECT_FUNCTION_SLOT [@symbol "%project_function_slot"]
 %token PRIM_STRING_LENGTH [@symbol "%string_length"]
+%token PRIM_STRING_LOAD [@symbol "%string_load"]
 %token PRIM_TAG_IMM [@symbol "%tag_imm"]
 %token PRIM_UNBOX_FLOAT [@symbol "%unbox_float"]
 %token PRIM_UNBOX_INT32 [@symbol "%unbox_int32"]
@@ -201,12 +220,19 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_UNBOX_NATIVEINT [@symbol "%unbox_nativeint"]
 %token PRIM_UNTAG_IMM [@symbol "%untag_imm"]
 
+%token STATIC_CONST_BLOCK [@symbol "Block"]
+%token STATIC_CONST_FLOAT_ARRAY [@symbol "Float_array"]
+%token STATIC_CONST_FLOAT_BLOCK [@symbol "Float_block"]
+
 %start flambda_unit expect_test_spec
+%type <Fexpr.alloc_mode_for_allocations> alloc_mode_for_allocations_opt
+%type <Fexpr.alloc_mode_for_types> alloc_mode_for_types_opt
 %type <Fexpr.array_kind> array_kind
 %type <Fexpr.binary_float_arith_op> binary_float_arith_op
 %type <Fexpr.binary_int_arith_op> binary_int_arith_op
 %type <Fexpr.block_access_field_kind> block_access_field_kind
 %type <Fexpr.const> const
+%type <Fexpr.continuation> continuation
 %type <Fexpr.standard_int_or_float> convertible_type
 %type <Fexpr.expect_test_spec> expect_test_spec
 %type <Fexpr.field_of_block> field_of_block
@@ -216,19 +242,23 @@ let make_boxed_const_int (i, m) : static_data =
 %type <float Fexpr.or_variable> float_or_variable
 %type <Fexpr.infix_binop> infix_binop
 %type <Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour> int_comp
-%type <Fexpr.kind> kind
+(* %type <Fexpr.kind> kind *)
 %type <Fexpr.kind_with_subkind> kind_with_subkind
 %type <Fexpr.kind_with_subkind list> kinds_with_subkinds
+%type <Fexpr.loopify_attribute> loopify
 %type <Fexpr.mutability> mutability
 %type <Flambda_kind.Naked_number_kind.t> naked_number_kind
 %type <Fexpr.name> name
 %type <Fexpr.named> named
 %type <Fexpr.rec_info> rec_info
 %type <Fexpr.rec_info> rec_info_atom
+%type <Fexpr.region> region
 %type <Fexpr.special_continuation> special_continuation
 %type <Fexpr.standard_int> standard_int
 %type <Fexpr.static_data> static_data
 %type <Fexpr.static_data_binding> static_data_binding
+%type <Fexpr.subkind> subkind
+%type <Fexpr.subkind list> subkinds_nonempty
 %type <Fexpr.variable -> Fexpr.static_data> static_data_kind
 %type <Fexpr.symbol_binding> symbol_binding
 %%
@@ -290,23 +320,28 @@ code:
     MINUSGREATER; ret_cont = continuation_id;
     exn_cont = exn_continuation_id;
     ret_arity = return_arity;
-    is_tupled = boption(KWD_TUPLED);
     EQUAL; body = expr;
-    { let recursive, inline, id, newer_version_of, code_size = header in
+    { let
+        recursive, inline, loopify, id, newer_version_of, code_size, is_tupled
+        =
+        header
+      in
       { id; newer_version_of; param_arity = None; ret_arity; recursive; inline;
         params_and_body = { params; closure_var; region_var; depth_var;
                             ret_cont; exn_cont; body };
-        code_size; is_tupled; } }
+        code_size; is_tupled; loopify; } }
 ;
 
 code_header:
   | KWD_CODE;
     recursive = recursive;
     inline = option(inline);
+    loopify = loopify_opt;
     KWD_SIZE LPAREN; code_size = code_size; RPAREN;
     newer_version_of = option(newer_version_of);
+    is_tupled = boption(KWD_TUPLED);
     id = code_id;
-    { recursive, inline, id, newer_version_of, code_size }
+    { recursive, inline, loopify, id, newer_version_of, code_size, is_tupled }
 ;
 
 newer_version_of:
@@ -329,14 +364,25 @@ recursive:
   | KWD_REC { Recursive }
 ;
 
+nullop:
+  | PRIM_BEGIN_REGION { Begin_region }
+;
+
 unop:
   | PRIM_ARRAY_LENGTH { Array_length }
-  | PRIM_BOX_FLOAT { Box_number Naked_float }
-  | PRIM_BOX_INT32 { Box_number Naked_int32 }
-  | PRIM_BOX_INT64 { Box_number Naked_int64 }
-  | PRIM_BOX_NATIVEINT { Box_number Naked_nativeint }
+  | PRIM_BEGIN_TRY_REGION { Begin_try_region }
+  | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
+    { Box_number (Naked_float, alloc) }
+  | PRIM_BOX_INT32; alloc = alloc_mode_for_allocations_opt
+    { Box_number (Naked_int32, alloc) }
+  | PRIM_BOX_INT64; alloc = alloc_mode_for_allocations_opt
+    { Box_number (Naked_int64, alloc) }
+  | PRIM_BOX_NATIVEINT; alloc = alloc_mode_for_allocations_opt
+    { Box_number (Naked_nativeint, alloc) }
   | PRIM_BYTES_LENGTH { String_length Bytes }
+  | PRIM_END_REGION { End_region }
   | PRIM_GET_TAG { Get_tag }
+  | PRIM_IS_FLAT_FLOAT_ARRAY { Is_flat_float_array }
   | PRIM_IS_INT { Is_int }
   | PRIM_NUM_CONV; LPAREN;
       src = convertible_type; MINUSGREATER; dst = convertible_type;
@@ -370,6 +416,15 @@ prefix_binop:
     mutability = mutability;
     kind = block_access_kind;
     { Block_load (kind, mutability) }
+  | PRIM_BIGSTRING_LOAD;
+    saw = string_accessor_width;
+    { String_or_bigstring_load (Bigstring, saw) }
+  | PRIM_BYTES_LOAD;
+    saw = string_accessor_width;
+    { String_or_bigstring_load (Bytes, saw) }
+  | PRIM_STRING_LOAD;
+    saw = string_accessor_width;
+    { String_or_bigstring_load (String, saw) }
   | PRIM_PHYS_EQ { Phys_equal Eq }
   | PRIM_PHYS_NE { Phys_equal Neq }
 
@@ -377,6 +432,16 @@ mutability:
   | KWD_MUTABLE { Mutable }
   | KWD_IMMUTABLE_UNIQUE { Immutable_unique }
   | { Immutable }
+
+string_accessor_width:
+  | i = INT
+    { let (i,c) = i in
+      match int_of_string i, c with
+      | 8, None -> Eight
+      | 16, None -> Sixteen
+      | 32, None -> Thirty_two
+      | 64, None -> Sixty_four
+      | _, _ -> Misc.fatal_error "invalid string accessor width" }
 
 array_kind:
   | { Values }
@@ -415,7 +480,17 @@ convertible_type:
 
 init_or_assign:
   | EQUAL { Initialization }
-  | LESSMINUS { Assignment Alloc_mode.With_region.heap }
+  | LESSMINUS { Assignment Heap }
+  | LESSMINUS AMP; region = region { Assignment (Local { region }) }
+
+alloc_mode_for_types_opt:
+  | { Heap }
+  | KWD_HEAP_OR_LOCAL { Heap_or_local }
+  | KWD_LOCAL { Local }
+
+alloc_mode_for_allocations_opt:
+  | { Heap }
+  | AMP; region = region { Local { region } }
 
 signed_or_unsigned:
   | { Signed }
@@ -442,6 +517,7 @@ int_comp:
   | GREATER { fun s -> Yielding_bool (Gt s) }
   | LESSEQUAL { fun s -> Yielding_bool (Le s) }
   | GREATEREQUAL { fun s -> Yielding_bool (Ge s) }
+  | NOTEQUAL { fun _ -> Yielding_bool Neq }
   | QMARK { fun s -> Yielding_int_like_compare_functions s }
 
 float_comp:
@@ -485,17 +561,21 @@ ternop_app:
     arr = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple
     { Ternary (Array_set (ak, ia), arr, ix, v) }
+  | PRIM_BLOCK_SET; kind = block_access_kind;
+    block = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
+    v = simple
+    { Ternary (Block_set (kind, ia), block, ix, v) }
 ;
 
 block:
-  | PRIM_BLOCK; m = mutability; t = tag; LPAREN;
-    elts = separated_list(COMMA, simple);
-    RPAREN
-    { Variadic (Make_block (t, m), elts) }
+  | PRIM_BLOCK; m = mutability; t = tag; alloc = alloc_mode_for_allocations_opt;
+    LPAREN; elts = separated_list(COMMA, simple); RPAREN
+    { Variadic (Make_block (t, m, alloc), elts) }
 ;
 
 named:
   | s = simple { Simple s }
+  | n = nullop { Prim (Nullary n) }
   | u = unop a = simple { Prim (Unary (u, a)) }
   | b = binop_app { Prim b }
   | t = ternop_app { Prim t }
@@ -523,32 +603,60 @@ naked_number_kind:
   | KWD_INT64 { Naked_int64 }
   | KWD_NATIVEINT { Naked_nativeint }
 ;
+(*
 kind:
   | KWD_VAL { Flambda_kind.value }
   | nnk = naked_number_kind { Flambda_kind.naked_number nnk }
   | KWD_REGION { Flambda_kind.region }
   | KWD_REC_INFO { Flambda_kind.rec_info }
 ;
+*)
 kind_with_subkind:
-  | KWD_VAL { Flambda_kind.With_subkind.any_value }
-  | nnk = naked_number_kind { Flambda_kind.With_subkind.of_naked_number_kind nnk }
-  | KWD_FLOAT KWD_BOXED { Flambda_kind.With_subkind.boxed_float }
-  | KWD_INT32 KWD_BOXED { Flambda_kind.With_subkind.boxed_int32 }
-  | KWD_INT64 KWD_BOXED { Flambda_kind.With_subkind.boxed_int64 }
-  | KWD_NATIVEINT KWD_BOXED { Flambda_kind.With_subkind.boxed_nativeint }
-  | KWD_IMM KWD_TAGGED { Flambda_kind.With_subkind.tagged_immediate }
+  | nnk = naked_number_kind { Naked_number nnk }
+  | subkind = subkind { Value subkind }
+  | KWD_REGION { Region }
+  | KWD_REC_INFO { Rec_info }
 ;
 kinds_with_subkinds :
   | KWD_UNIT { [] }
   | ks = separated_nonempty_list(STAR, kind_with_subkind) { ks }
 ;
+subkind:
+  | KWD_VAL { Anything }
+  | KWD_FLOAT KWD_BOXED { Boxed_float }
+  | KWD_INT32 KWD_BOXED { Boxed_int32 }
+  | KWD_INT64 KWD_BOXED { Boxed_int64 }
+  | KWD_NATIVEINT KWD_BOXED { Boxed_nativeint }
+  | KWD_IMM KWD_TAGGED { Tagged_immediate }
+  | KWD_FLOAT; CARET; num_fields = plain_int { Float_block { num_fields } }
+  | LBRACK; ctors = ctors; RBRACK
+    { let consts, non_consts = ctors in Variant { consts; non_consts; }}
+  | KWD_FLOAT KWD_ARRAY { Float_array }
+  | KWD_IMM KWD_ARRAY { Immediate_array }
+  | KWD_VAL KWD_ARRAY { Value_array }
+  | KWD_ANY KWD_ARRAY { Generic_array }
+;
+subkinds_nonempty:
+  | sks = separated_nonempty_list(STAR, subkind) { sks }
+;
+(* LR(1) restrictions make this a bit awkward to write *)
+ctors:
+  | { [], [] }
+  | ctors = ctors_nonempty { ctors }
+ctors_nonempty:
+  | tag = targetint { [ tag ], [] }
+  | tag = targetint; PIPE; ctors = ctors_nonempty
+      { let (c, nc) = ctors in (tag :: c, nc) }
+  | nonconsts = nonconst_ctors_nonempty { [], nonconsts }
+nonconst_ctors_nonempty:
+  | ctors = separated_nonempty_list(PIPE, nonconst_ctor) { ctors }
+;
+nonconst_ctor:
+  | tag = tag; KWD_OF; kinds = subkinds_nonempty { tag, kinds }
+;
 return_arity:
   | { None }
   | COLON k = kinds_with_subkinds { Some k }
-;
-kind_arg_opt:
-  | { None }
-  | LBRACE; k = kind; RBRACE { Some k }
 ;
 
 /* expr is staged so that let and where play nicely together. In particular, in
@@ -593,6 +701,7 @@ continuation_body:
 atomic_expr:
   | KWD_HCF { Invalid { message = "halt-and-catch-fire" } }
   | KWD_UNREACHABLE { Invalid { message =  "treat-as-unreachable" } }
+  | KWD_INVALID; message = STRING { Invalid { message } }
   | KWD_CONT; ac = apply_cont_expr { Apply_cont ac }
   | KWD_SWITCH; scrutinee = simple; cases = switch { Switch {scrutinee; cases} }
   | KWD_APPLY e = apply_expr { Apply e }
@@ -646,15 +755,18 @@ value_slot:
 fun_decl:
   | KWD_CLOSURE; code_id = code_id;
     function_slot = function_slot_opt;
-    { { code_id; function_slot; } }
+    alloc = alloc_mode_for_allocations_opt;
+    { { code_id; function_slot; alloc; } }
 ;
 
 apply_expr:
   | call_kind = call_kind;
     inlined = option(inlined);
     inlining_state = option(inlining_state);
-    func = func_name_with_optional_arities
-    args = simple_args MINUSGREATER
+    func = func_name_with_optional_arities;
+    args = simple_args;
+    AMP region = region;
+    MINUSGREATER
     r = result_continuation e = exn_continuation
      { let (func, arities) = func in {
        func;
@@ -665,13 +777,18 @@ apply_expr:
           inlined;
           inlining_state;
           arities;
+          region;
      } }
 ;
 
 call_kind:
-  | { Function Indirect }
-  | KWD_DIRECT; LPAREN; code_id = code_id; function_slot = function_slot_opt; RPAREN
-    { Function (Direct { code_id; function_slot }) }
+  | alloc = alloc_mode_for_types_opt; { Function (Indirect alloc) }
+  | KWD_DIRECT; LPAREN;
+      code_id = code_id;
+      function_slot = function_slot_opt;
+      alloc = alloc_mode_for_types_opt;
+    RPAREN
+    { Function (Direct { code_id; function_slot; alloc }) }
   | KWD_CCALL; noalloc = boption(KWD_NOALLOC)
     { C_call { alloc = not noalloc } }
 ;
@@ -699,6 +816,25 @@ inlining_state:
 
 inlining_state_depth:
   | KWD_DEPTH LPAREN; i = plain_int; RPAREN { i }
+;
+
+loopify_opt:
+  | { None }
+  | KWD_LOOPIFY LPAREN; l = loopify; RPAREN { Some l }
+;
+
+loopify:
+  | KWD_ALWAYS { Always_loopify }
+  | KWD_NEVER { Never_loopify }
+  | KWD_DONE { Already_loopified }
+  | KWD_DEFAULT KWD_TAILREC { Default_loopify_and_tailrec }
+  | KWD_DEFAULT { Default_loopify_and_not_tailrec }
+;
+
+region:
+  | v = variable { Named v }
+  | KWD_TOPLEVEL { Toplevel }
+;
 
 result_continuation:
   | c = continuation { Return c }
@@ -746,17 +882,17 @@ static_data_binding:
 ;
 
 static_data:
-  | KWD_BLOCK; m = mutability; tag = tag; LPAREN;
+  | STATIC_CONST_BLOCK; m = mutability; tag = tag; LPAREN;
     elements = separated_list(COMMA, field_of_block); RPAREN
     { (Block { tag; mutability = m; elements } : static_data) }
   | f = FLOAT { Boxed_float (Const f) }
   | i = INT { make_boxed_const_int i }
   | v = variable; COLON; k = static_data_kind { k v }
-  | KWD_FLOAT_BLOCK; LPAREN;
+  | STATIC_CONST_FLOAT_BLOCK; LPAREN;
     fs = separated_list(COMMA, float_or_variable);
     RPAREN
     { Immutable_float_block fs }
-  | KWD_FLOAT_ARRAY; LBRACKPIPE;
+  | STATIC_CONST_FLOAT_ARRAY; LBRACKPIPE;
     fs = separated_list(SEMICOLON, float_or_variable);
     RBRACKPIPE
     { Immutable_float_array fs }

@@ -213,8 +213,13 @@ let print_out_value ppf tree =
         end
     | Oval_list tl ->
         fprintf ppf "@[<1>[%a]@]" (print_tree_list print_tree_1 ";") tl
-    | Oval_array tl ->
-        fprintf ppf "@[<2>[|%a|]@]" (print_tree_list print_tree_1 ";") tl
+    | Oval_array (tl, am) ->
+        let sigil = match am with
+          | Mutable   -> '|'
+          | Immutable -> ':'
+        in
+        fprintf ppf "@[<2>[%c%a%c]@]"
+          sigil (print_tree_list print_tree_1 ";") tl sigil
     | Oval_constr (name, []) -> print_ident ppf name
     | Oval_variant (name, None) -> fprintf ppf "`%s" name
     | Oval_stuff s -> pp_print_string ppf s
@@ -324,7 +329,7 @@ and print_out_ret mode rm ppf ty =
   | _, Oam_global -> print_out_type_2 rm ppf ty
 
 and print_out_type_local m ppf ty =
-  if Clflags.Extension.is_enabled Local then begin
+  if Language_extension.is_enabled Local then begin
     pp_print_string ppf "local_";
     pp_print_space ppf ();
     print_out_type_2 m ppf ty
@@ -436,7 +441,7 @@ and print_typargs ppf =
       pp_close_box ppf ();
       pp_print_space ppf ()
 and print_out_label ppf (name, mut_or_gbl, arg) =
-  if Clflags.Extension.is_enabled Local then
+  if Language_extension.is_enabled Local then
     let flag =
       match mut_or_gbl with
       | Ogom_mutable -> "mutable "
@@ -775,7 +780,7 @@ and print_out_type_decl kwd ppf td =
     print_unboxed
 
 and print_simple_out_gf_type ppf (ty, gf) =
-  let locals_enabled = Clflags.Extension.is_enabled Local in
+  let locals_enabled = Language_extension.is_enabled Local in
   match gf with
   | Ogf_global ->
     if locals_enabled then begin

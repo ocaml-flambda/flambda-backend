@@ -68,7 +68,7 @@ module IR : sig
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
       region : Ident.t;
-      return : Flambda_kind.With_subkind.t
+      return_arity : Flambda_arity.With_subkinds.t
     }
 
   type switch =
@@ -101,7 +101,12 @@ module Env : sig
 
   type t
 
+  (** Create an environment marked as being at toplevel. *)
   val create : big_endian:bool -> t
+
+  val set_not_at_toplevel : t -> t
+
+  val at_toplevel : t -> bool
 
   val clear_local_bindings : t -> t
 
@@ -199,10 +204,7 @@ module Acc : sig
   val declared_symbols : t -> (Symbol.t * Static_const.t) list
 
   val lifted_sets_of_closures :
-    t ->
-    ((Symbol.t * Env.value_approximation) Function_slot.Lmap.t
-    * Flambda.Set_of_closures.t)
-    list
+    t -> (Symbol.t Function_slot.Lmap.t * Flambda.Set_of_closures.t) list
 
   val shareable_constants : t -> Symbol.t Static_const.Map.t
 
@@ -217,7 +219,7 @@ module Acc : sig
   val add_declared_symbol : symbol:Symbol.t -> constant:Static_const.t -> t -> t
 
   val add_lifted_set_of_closures :
-    symbols:(Symbol.t * Env.value_approximation) Function_slot.Lmap.t ->
+    symbols:Symbol.t Function_slot.Lmap.t ->
     set_of_closures:Flambda.Set_of_closures.t ->
     t ->
     t
@@ -278,6 +280,8 @@ module Acc : sig
   val add_symbol_approximation : t -> Symbol.t -> Env.value_approximation -> t
 
   val find_symbol_approximation : t -> Symbol.t -> Env.value_approximation
+
+  val symbol_approximations : t -> Env.value_approximation Symbol.Map.t
 end
 
 (** Used to represent information about a set of function declarations during
@@ -292,7 +296,7 @@ module Function_decls : sig
       function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
       params:(Ident.t * Flambda_kind.With_subkind.t) list ->
-      return:Flambda_kind.With_subkind.t ->
+      return:Flambda_arity.With_subkinds.t ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
       my_region:Ident.t ->
@@ -314,7 +318,7 @@ module Function_decls : sig
 
     val params : t -> (Ident.t * Flambda_kind.With_subkind.t) list
 
-    val return : t -> Flambda_kind.With_subkind.t
+    val return : t -> Flambda_arity.With_subkinds.t
 
     val return_continuation : t -> Continuation.t
 

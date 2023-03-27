@@ -2,6 +2,7 @@
 
 module Array = ArrayLabels
 module List = ListLabels
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let bool_of_env env_var =
   match Sys.getenv_opt env_var |> Option.map String.lowercase_ascii with
@@ -40,9 +41,6 @@ module Instruction = struct
   module IdMap = MoreLabels.Map.Make (Int)
 end
 
-let[@inline] int_max (left : int) (right : int) =
-  if left >= right then left else right
-
 type cfg_infos =
   { arg : Reg.Set.t;
     res : Reg.Set.t;
@@ -61,7 +59,7 @@ let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
         | Reg _ | Stack _ -> ())
   in
   let update_max_id (instr : _ Cfg.instruction) : unit =
-    max_id := int_max !max_id instr.id
+    max_id := Int.max !max_id instr.id
   in
   Cfg_with_layout.iter_instructions
     cfg_with_layout (* CR xclerc for xclerc: use fold *)
@@ -151,13 +149,19 @@ let make_temporary :
 let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  Cfg.iter_blocks cfg ~f:(fun _label block ->
-      Cfg.BasicInstructionList.filter_left block.body ~f:(fun instr ->
-          not (Cfg.is_noop_move instr)));
-  Eliminate_fallthrough_blocks.run cfg_with_layout;
-  Merge_straightline_blocks.run cfg_with_layout;
-  Eliminate_dead_code.run_dead_block cfg_with_layout;
-  Simplify_terminator.run cfg;
+  Profile.record ~accumulate:true "remove-noop-move"
+    (fun () ->
+      Cfg.iter_blocks cfg ~f:(fun _label block ->
+          DLL.filter_left block.body ~f:(fun instr ->
+              not (Cfg.is_noop_move instr))))
+    ();
+  Profile.record ~accumulate:true "eliminate" Eliminate_fallthrough_blocks.run
+    cfg_with_layout;
+  Profile.record ~accumulate:true "merge" Merge_straightline_blocks.run
+    cfg_with_layout;
+  Profile.record ~accumulate:true "dead_block"
+    Eliminate_dead_code.run_dead_block cfg_with_layout;
+  Profile.record ~accumulate:true "terminator" Simplify_terminator.run cfg;
   cfg_with_layout
 
 let precondition : Cfg_with_layout.t -> unit =
@@ -378,9 +382,9 @@ let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
   in
   if not prologue_required
   then
-    (* note: `Cfize` has put the prologue in the entry block *)
+    (* note: `Cfgize` has put the prologue in the entry block *)
     let block = Cfg.get_block_exn cfg cfg.entry_label in
-    Cfg.BasicInstructionList.filter_left block.body ~f:(fun instr ->
+    DLL.filter_left block.body ~f:(fun instr ->
         match instr.Cfg.desc with Cfg.Prologue -> false | _ -> true)
 
 let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
@@ -393,7 +397,7 @@ let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
     | Some { Cfg_liveness.before = _; across } -> instr.live <- across
   in
   Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun _label block ->
-      Cfg.BasicInstructionList.iter block.body ~f:set_liveness;
+      DLL.iter block.body ~f:set_liveness;
       set_liveness block.terminator)
 
 (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
@@ -430,9 +434,7 @@ let update_spill_cost : Cfg_with_layout.t -> flat:bool -> unit -> unit =
           1
         | Some depth -> pow10 depth
       in
-      Cfg.BasicInstructionList.iter
-        ~f:(fun instr -> update_instr cost instr)
-        block.body;
+      DLL.iter ~f:(fun instr -> update_instr cost instr) block.body;
       (* Ignore probes *)
       match block.terminator.desc with
       | Prim { op = Probe _; _ } -> ()
@@ -490,7 +492,7 @@ let may_use_stack_operands_everywhere :
 
 let insert_block :
     Cfg_with_layout.t ->
-    Cfg.BasicInstructionList.t ->
+    Cfg.basic_instruction_list ->
     after:Cfg.basic_block ->
     next_instruction_id:(unit -> Instruction.id) ->
     unit =
@@ -505,7 +507,7 @@ let insert_block :
       "Cannot insert a block after block %a: it has no successors" Label.print
       predecessor_block.start;
   let last_insn =
-    match Cfg.BasicInstructionList.last body with
+    match DLL.last body with
     | None -> Misc.fatal_error "Inserting an empty block"
     | Some i -> i
   in
@@ -520,9 +522,8 @@ let insert_block :
       first := false;
       body)
     else
-      let new_body = Cfg.BasicInstructionList.make_empty () in
-      Cfg.BasicInstructionList.iter body ~f:(fun instr ->
-          Cfg.BasicInstructionList.add_end new_body (copy instr));
+      let new_body = DLL.make_empty () in
+      DLL.iter body ~f:(fun instr -> DLL.add_end new_body (copy instr));
       new_body
   in
   Label.Set.iter

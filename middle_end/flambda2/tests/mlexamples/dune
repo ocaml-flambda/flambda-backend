@@ -1,6 +1,22 @@
+(include generated-rules.inc)
+
+(alias (name regen-dune-rules))
+
 (rule
- (alias runtest)
+ (alias regen-dune-rules)
  (action
   (progn
-   (run ../tools/flexpect.exe tests0.flt)
-   (diff? tests0.flt tests0.flt.corrected))))
+   (with-stdout-to generated-rules.inc.new
+    (run tools/gen_dune_rules.exe
+         local
+         tests0
+         tests2
+         tests3
+         tests4
+         tests4a
+         tests5
+         tests6
+         tests7
+         tests11
+         tests14))
+   (diff generated-rules.inc generated-rules.inc.new))))

@@ -2,7 +2,12 @@
    * setup-ocamlc.byte-build-env
    ** ocamlc.byte
       flags = "-dlambda -dno-unique-ids"
-   *** check-ocamlc.byte-output
+   *** stack-allocation
+   **** check-ocamlc.byte-output
+        compiler_reference = "${test_source_directory}/ref_spec.stack.reference"
+   *** no-stack-allocation
+   **** check-ocamlc.byte-output
+        compiler_reference = "${test_source_directory}/ref_spec.heap.reference"
 *)
 
 type 'a custom_rec = { x : unit; mutable y : 'a }

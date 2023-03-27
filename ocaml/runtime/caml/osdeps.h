@@ -108,6 +108,9 @@ extern char_os *caml_secure_getenv(char_os const *var);
    cannot be determined, return -1. */
 extern int caml_num_rows_fd(int fd);
 
+/* Print a timestamp for verbose GC logs */
+extern void caml_print_timestamp(FILE* channel, int formatted);
+
 #ifdef _WIN32
 
 extern int caml_win32_rename(const wchar_t *, const wchar_t *);

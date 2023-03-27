@@ -44,6 +44,7 @@ type iterator = {
   class_type_field: iterator -> class_type_field -> unit;
   constructor_declaration: iterator -> constructor_declaration -> unit;
   expr: iterator -> expression -> unit;
+  expr_extension : iterator -> Extensions.Expression.t -> unit;
   extension: iterator -> extension -> unit;
   extension_constructor: iterator -> extension_constructor -> unit;
   include_declaration: iterator -> include_declaration -> unit;
@@ -56,9 +57,11 @@ type iterator = {
   module_expr: iterator -> module_expr -> unit;
   module_type: iterator -> module_type -> unit;
   module_type_declaration: iterator -> module_type_declaration -> unit;
+  module_type_extension: iterator -> Extensions.Module_type.t -> unit;
   open_declaration: iterator -> open_declaration -> unit;
   open_description: iterator -> open_description -> unit;
   pat: iterator -> pattern -> unit;
+  pat_extension: iterator -> Extensions.Pattern.t -> unit;
   payload: iterator -> payload -> unit;
   signature: iterator -> signature -> unit;
   signature_item: iterator -> signature_item -> unit;

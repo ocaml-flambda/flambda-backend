@@ -243,7 +243,8 @@ module Init_or_assign = struct
   let to_lambda t : Lambda.initialization_or_assignment =
     match t with
     | Initialization -> Heap_initialization
-    | Assignment mode -> Assignment (Alloc_mode.For_allocations.to_lambda mode)
+    | Assignment mode ->
+      Assignment (Alloc_mode.For_allocations.to_lambda_modify mode)
 
   let free_names t =
     match t with
@@ -574,9 +575,12 @@ type nullary_primitive =
   | Optimised_out of K.t
   | Probe_is_enabled of { name : string }
   | Begin_region
+  | Enter_inlined_apply of { dbg : Debuginfo.t }
 
 let nullary_primitive_eligible_for_cse = function
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region -> false
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+  | Enter_inlined_apply _ ->
+    false
 
 let compare_nullary_primitive p1 p2 =
   match p1, p2 with
@@ -585,12 +589,23 @@ let compare_nullary_primitive p1 p2 =
   | Probe_is_enabled { name = name1 }, Probe_is_enabled { name = name2 } ->
     String.compare name1 name2
   | Begin_region, Begin_region -> 0
-  | Invalid _, (Optimised_out _ | Probe_is_enabled _ | Begin_region) -> -1
-  | Optimised_out _, (Probe_is_enabled _ | Begin_region) -> -1
+  | Enter_inlined_apply { dbg = dbg1 }, Enter_inlined_apply { dbg = dbg2 } ->
+    Debuginfo.compare dbg1 dbg2
+  | ( Invalid _,
+      ( Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Enter_inlined_apply _ ) ) ->
+    -1
+  | Optimised_out _, (Probe_is_enabled _ | Begin_region | Enter_inlined_apply _)
+    ->
+    -1
   | Optimised_out _, Invalid _ -> 1
-  | Probe_is_enabled _, Begin_region -> -1
+  | Probe_is_enabled _, (Begin_region | Enter_inlined_apply _) -> -1
   | Probe_is_enabled _, (Invalid _ | Optimised_out _) -> 1
+  | Begin_region, Enter_inlined_apply _ -> -1
   | Begin_region, (Invalid _ | Optimised_out _ | Probe_is_enabled _) -> 1
+  | ( Enter_inlined_apply _,
+      (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ) ->
+    1
 
 let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
 
@@ -605,6 +620,9 @@ let print_nullary_primitive ppf p =
   | Probe_is_enabled { name } ->
     Format.fprintf ppf "@[<hov 1>(Probe_is_enabled@ %s)@]" name
   | Begin_region -> Format.pp_print_string ppf "Begin_region"
+  | Enter_inlined_apply { dbg } ->
+    Format.fprintf ppf "@[<hov 1>(Enter_inlined_apply@ %a)@]"
+      Debuginfo.print_compact dbg
 
 let result_kind_of_nullary_primitive p : result_kind =
   match p with
@@ -612,6 +630,7 @@ let result_kind_of_nullary_primitive p : result_kind =
   | Optimised_out k -> Singleton k
   | Probe_is_enabled _ -> Singleton K.naked_immediate
   | Begin_region -> Singleton K.region
+  | Enter_inlined_apply _ -> Unit
 
 let effects_and_coeffects_of_begin_region : Effects_and_coeffects.t =
   (* Ensure these don't get moved, but allow them to be deleted. *)
@@ -626,10 +645,16 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
        moved around. *)
     Arbitrary_effects, Has_coeffects, Strict
   | Begin_region -> effects_and_coeffects_of_begin_region
+  | Enter_inlined_apply _ ->
+    (* This doesn't really have effects, but without effects, these primitives
+       get deleted during lambda_to_flambda. *)
+    Arbitrary_effects, Has_coeffects, Strict
 
 let nullary_classify_for_printing p =
   match p with
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region -> Neither
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+  | Enter_inlined_apply _ ->
+    Neither
 
 type unary_primitive =
   | Duplicate_block of { kind : Duplicate_block_kind.t }
@@ -644,7 +669,10 @@ type unary_primitive =
   | Bigarray_length of { dimension : int }
   | String_length of string_or_bytes
   | Int_as_pointer
-  | Opaque_identity of { middle_end_only : bool }
+  | Opaque_identity of
+      { middle_end_only : bool;
+        kind : K.t
+      }
   | Int_arith of Flambda_kind.Standard_int.t * unary_int_arith_op
   | Float_arith of unary_float_arith_op
   | Num_conv of
@@ -798,9 +826,10 @@ let compare_unary_primitive p1 p2 =
     else
       let c = Value_slot.compare value_slot1 value_slot2 in
       if c <> 0 then c else K.With_subkind.compare kind1 kind2
-  | ( Opaque_identity { middle_end_only = middle_end_only1 },
-      Opaque_identity { middle_end_only = middle_end_only2 } ) ->
-    Bool.compare middle_end_only1 middle_end_only2
+  | ( Opaque_identity { middle_end_only = middle_end_only1; kind = kind1 },
+      Opaque_identity { middle_end_only = middle_end_only2; kind = kind2 } ) ->
+    let c = Bool.compare middle_end_only1 middle_end_only2 in
+    if c <> 0 then c else K.compare kind1 kind2
   | ( ( Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
       | String_length _ | Int_as_pointer | Opaque_identity _ | Int_arith _
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
@@ -828,8 +857,9 @@ let print_unary_primitive ppf p =
   | Get_tag -> fprintf ppf "Get_tag"
   | String_length _ -> fprintf ppf "String_length"
   | Int_as_pointer -> fprintf ppf "Int_as_pointer"
-  | Opaque_identity { middle_end_only } ->
-    fprintf ppf "@[(Opaque_identity@ (middle_end_only %b))@]" middle_end_only
+  | Opaque_identity { middle_end_only; kind } ->
+    fprintf ppf "@[(Opaque_identity@ (middle_end_only %b) (kind %a))@]"
+      middle_end_only K.print kind
   | Int_arith (_k, o) -> print_unary_int_arith_op ppf o
   | Num_conv { src; dst } ->
     fprintf ppf "Num_conv_%a_to_%a"
@@ -868,7 +898,7 @@ let arg_kind_of_unary_primitive p =
   | Get_tag -> K.value
   | String_length _ -> K.value
   | Int_as_pointer -> K.value
-  | Opaque_identity _ -> K.value
+  | Opaque_identity { middle_end_only = _; kind } -> kind
   | Int_arith (kind, _) -> K.Standard_int.to_kind kind
   | Num_conv { src; dst = _ } -> K.Standard_int_or_float.to_kind src
   | Boolean_not -> K.value
@@ -894,7 +924,7 @@ let result_kind_of_unary_primitive p : result_kind =
     (* This primitive is *only* to be used when the resulting pointer points at
        something which is a valid OCaml value (even if outside of the heap). *)
     Singleton K.value
-  | Opaque_identity _ -> Singleton K.value
+  | Opaque_identity { middle_end_only = _; kind } -> Singleton kind
   | Int_arith (kind, _) -> Singleton (K.Standard_int.to_kind kind)
   | Num_conv { src = _; dst } -> Singleton (K.Standard_int_or_float.to_kind dst)
   | Boolean_not -> Singleton K.value
@@ -904,9 +934,8 @@ let result_kind_of_unary_primitive p : result_kind =
   | Bigarray_length _ -> Singleton K.naked_immediate
   | Unbox_number kind -> Singleton (K.Boxable_number.unboxed_kind kind)
   | Untag_immediate -> Singleton K.naked_immediate
-  | Box_number _ | Tag_immediate | Project_function_slot _
-  | Project_value_slot _ ->
-    Singleton K.value
+  | Box_number _ | Tag_immediate | Project_function_slot _ -> Singleton K.value
+  | Project_value_slot { kind; _ } -> Singleton (K.With_subkind.kind kind)
   | Is_boxed_float | Is_flat_float_array -> Singleton K.naked_immediate
   | Begin_try_region -> Singleton K.region
   | End_region -> Singleton K.value
@@ -1660,7 +1689,9 @@ let equal t1 t2 = compare t1 t2 = 0
 
 let free_names t =
   match t with
-  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
+  | Nullary
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Enter_inlined_apply _ ) ->
     Name_occurrences.empty
   | Unary (prim, x0) ->
     Name_occurrences.union
@@ -1685,7 +1716,9 @@ let free_names t =
 let apply_renaming t renaming =
   let apply simple = Simple.apply_renaming simple renaming in
   match t with
-  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
+  | Nullary
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Enter_inlined_apply _ ) ->
     t
   | Unary (prim, x0) ->
     let prim' = apply_renaming_unary_primitive prim renaming in
@@ -1713,7 +1746,9 @@ let apply_renaming t renaming =
 
 let ids_for_export t =
   match t with
-  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
+  | Nullary
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Enter_inlined_apply _ ) ->
     Ids_for_export.empty
   | Unary (prim, x0) ->
     Ids_for_export.union

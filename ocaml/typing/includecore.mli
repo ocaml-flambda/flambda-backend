@@ -104,7 +104,7 @@ type type_mismatch =
   | Variance
   | Record_mismatch of record_mismatch
   | Variant_mismatch of variant_change list
-  | Unboxed_representation of position
+  | Unboxed_representation of position * attributes
   | Immediate of Type_immediacy.Violation.t
 
 val value_descriptions:

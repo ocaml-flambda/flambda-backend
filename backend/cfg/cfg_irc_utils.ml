@@ -1,6 +1,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Cfg_regalloc_utils
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let irc_debug = false
 
@@ -43,15 +44,14 @@ let log_instruction_suffix (instr : _ Cfg.instruction) (liveness : liveness) :
 
 let log_body_and_terminator :
     indent:int ->
-    Cfg.BasicInstructionList.t ->
+    Cfg.basic_instruction_list ->
     Cfg.terminator Cfg.instruction ->
     liveness ->
     unit =
  fun ~indent body term liveness ->
   if irc_debug && irc_verbose
   then (
-    Cfg.BasicInstructionList.iter body
-      ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
+    DLL.iter body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
         log_instruction_prefix ~indent instr;
         Cfg.dump_basic Format.err_formatter instr.Cfg.desc;
         log_instruction_suffix instr liveness);

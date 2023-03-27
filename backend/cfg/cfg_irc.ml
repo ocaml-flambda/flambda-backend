@@ -4,6 +4,7 @@ open! Cfg_regalloc_utils
 open! Cfg_irc_utils
 open! Cfg_irc_split
 module State = Cfg_irc_state
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let build : State.t -> Cfg_with_liveness.t -> unit =
  fun state cfg_with_liveness ->
@@ -64,9 +65,8 @@ let build : State.t -> Cfg_with_liveness.t -> unit =
 
 let make_work_list : State.t -> unit =
  fun state ->
-  let initial = State.get_and_clear_initial state in
   if irc_debug then log ~indent:1 "make_work_list";
-  List.iter initial ~f:(fun reg ->
+  State.iter_and_clear_initial state ~f:(fun reg ->
       let deg = reg.Reg.degree in
       if irc_debug
       then
@@ -125,22 +125,31 @@ let combine : State.t -> Reg.t -> Reg.t -> unit =
  fun state u v ->
   if irc_debug
   then log ~indent:2 "combine u=%a v=%a" Printmach.reg u Printmach.reg v;
-  if State.mem_freeze_work_list state v
-  then State.remove_freeze_work_list state v
-  else State.remove_spill_work_list state v;
-  State.add_coalesced_nodes state v;
-  State.add_alias state v u;
+  Profile.record ~accumulate:true "part1"
+    (fun () ->
+      if State.mem_freeze_work_list state v
+      then State.remove_freeze_work_list state v
+      else State.remove_spill_work_list state v;
+      State.add_coalesced_nodes state v;
+      State.add_alias state v u)
+    ();
   (* note: See book errata
      (https://www.cs.princeton.edu/~appel/modern/ml/errata98.html) *)
-  State.union_move_list state u (State.find_move_list state v);
-  State.enable_moves_one state v;
-  State.iter_adjacent state v ~f:(fun t ->
-      State.add_edge state t u;
-      State.decr_degree state t);
-  if State.mem_freeze_work_list state u && u.Reg.degree >= k u
-  then (
-    State.remove_freeze_work_list state u;
-    State.add_spill_work_list state u)
+  Profile.record ~accumulate:true "part2"
+    (fun () ->
+      State.union_move_list state u (State.find_move_list state v);
+      State.enable_moves_one state v;
+      State.iter_adjacent state v ~f:(fun t ->
+          State.add_edge state t u;
+          State.decr_degree state t))
+    ();
+  Profile.record ~accumulate:true "part3"
+    (fun () ->
+      if State.mem_freeze_work_list state u && u.Reg.degree >= k u
+      then (
+        State.remove_freeze_work_list state u;
+        State.add_spill_work_list state u))
+    ()
 
 let add_work_list : State.t -> Reg.t -> unit =
  fun state reg ->
@@ -166,25 +175,42 @@ let coalesce : State.t -> unit =
   if Reg.same u v
   then (
     if irc_debug then log ~indent:2 "case #1/4";
-    State.add_coalesced_moves state m;
-    add_work_list state u)
+    Profile.record ~accumulate:true "case1"
+      (fun () ->
+        State.add_coalesced_moves state m;
+        add_work_list state u)
+      ())
   else if State.is_precolored state v || State.mem_adj_set state u v
   then (
     if irc_debug then log ~indent:2 "case #2/4";
-    State.add_constrained_moves state m;
-    add_work_list state u;
-    add_work_list state v)
+    Profile.record ~accumulate:true "case2"
+      (fun () ->
+        State.add_constrained_moves state m;
+        add_work_list state u;
+        add_work_list state v)
+      ())
   else if match State.is_precolored state u with
-          | true -> all_adjacent_are_ok state u v
-          | false -> conservative state u v
+          | true ->
+            Profile.record ~accumulate:true "all_adjacent_are_ok"
+              (fun () -> all_adjacent_are_ok state u v)
+              ()
+          | false ->
+            Profile.record ~accumulate:true "conservative"
+              (fun () -> conservative state u v)
+              ()
   then (
     if irc_debug then log ~indent:2 "case #3/4";
-    State.add_coalesced_moves state m;
-    combine state u v;
-    add_work_list state u)
+    Profile.record ~accumulate:true "case3"
+      (fun () ->
+        State.add_coalesced_moves state m;
+        combine state u v;
+        add_work_list state u)
+      ())
   else (
     if irc_debug then log ~indent:2 "case #4/4";
-    State.add_active_moves state m)
+    Profile.record ~accumulate:true "case4"
+      (fun () -> State.add_active_moves state m)
+      ())
 
 let freeze_moves : State.t -> Reg.t -> unit =
  fun state u ->
@@ -330,10 +356,10 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
       n.Reg.irc_color <- alias.Reg.irc_color)
 
 type direction =
-  | Load_before_cell of Cfg.BasicInstructionList.cell
-  | Store_after_cell of Cfg.BasicInstructionList.cell
-  | Load_after_list of Cfg.BasicInstructionList.t
-  | Store_before_list of Cfg.BasicInstructionList.t
+  | Load_before_cell of Cfg.basic Cfg.instruction DLL.cell
+  | Store_after_cell of Cfg.basic Cfg.instruction DLL.cell
+  | Load_after_list of Cfg.basic_instruction_list
+  | Store_before_list of Cfg.basic_instruction_list
 
 (* Returns `true` if new temporaries have been introduced. *)
 let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> bool
@@ -416,14 +442,10 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> bool
               ~copy:instr ~from ~to_
           in
           match direction with
-          | Load_before_cell cell ->
-            Cfg.BasicInstructionList.insert_before cell new_instr
-          | Store_after_cell cell ->
-            Cfg.BasicInstructionList.insert_after cell new_instr
-          | Load_after_list list ->
-            Cfg.BasicInstructionList.add_end list new_instr
-          | Store_before_list list ->
-            Cfg.BasicInstructionList.add_begin list new_instr);
+          | Load_before_cell cell -> DLL.insert_before cell new_instr
+          | Store_after_cell cell -> DLL.insert_after cell new_instr
+          | Load_after_list list -> DLL.add_end list new_instr
+          | Store_before_list list -> DLL.add_begin list new_instr);
         temp)
       else reg
     in
@@ -442,8 +464,8 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> bool
       then (
         log ~indent:2 "body of #%d, before:" label;
         log_body_and_terminator ~indent:3 block.body block.terminator liveness);
-      Cfg.BasicInstructionList.iter_cell block.body ~f:(fun cell ->
-          let instr = Cfg.BasicInstructionList.instr cell in
+      DLL.iter_cell block.body ~f:(fun cell ->
+          let instr = DLL.value cell in
           match
             Profile.record ~accumulate:true "stack_operands"
               (fun () -> Cfg_stack_operands.basic spilled_map instr)
@@ -466,10 +488,10 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> bool
         (let sharing = Reg.Tbl.create 8 in
          rewrite_instruction ~direction:(Load_after_list block.body)
            ~sharing:(Reg.Tbl.create 8) block.terminator;
-         let new_instrs = Cfg.BasicInstructionList.make_empty () in
+         let new_instrs = DLL.make_empty () in
          rewrite_instruction ~direction:(Store_before_list new_instrs) ~sharing
            block.terminator;
-         if not (Cfg.BasicInstructionList.is_empty new_instrs)
+         if not (DLL.is_empty new_instrs)
          then
            (* insert block *)
            Cfg_regalloc_utils.insert_block

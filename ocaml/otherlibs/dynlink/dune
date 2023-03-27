@@ -31,6 +31,7 @@
     numbers
     arg_helper
     clflags
+    language_extension
     profile
     consistbl
     terminfo
@@ -41,6 +42,9 @@
     longident
     docstrings
     syntaxerr
+    extensions_parsing
+    extensions
+    ast_iterator
     ast_helper
     ast_mapper
     attr_helper
@@ -105,6 +109,7 @@
 (copy_files ../../utils/numbers.ml)
 (copy_files ../../utils/arg_helper.ml)
 (copy_files ../../utils/clflags.ml)
+(copy_files ../../utils/language_extension.ml)
 (copy_files ../../utils/profile.ml)
 (copy_files ../../utils/consistbl.ml)
 (copy_files ../../utils/terminfo.ml)
@@ -120,6 +125,9 @@
 (copy_files ../../parsing/longident.ml)
 (copy_files ../../parsing/docstrings.ml)
 (copy_files ../../parsing/syntaxerr.ml)
+(copy_files ../../parsing/extensions_parsing.ml)
+(copy_files ../../parsing/extensions.ml)
+(copy_files ../../parsing/ast_iterator.ml)
 (copy_files ../../parsing/ast_helper.ml)
 (copy_files ../../parsing/ast_mapper.ml)
 (copy_files ../../parsing/attr_helper.ml)
@@ -157,6 +165,7 @@
 (copy_files ../../utils/numbers.mli)
 (copy_files ../../utils/arg_helper.mli)
 (copy_files ../../utils/clflags.mli)
+(copy_files ../../utils/language_extension.mli)
 (copy_files ../../utils/profile.mli)
 (copy_files ../../utils/consistbl.mli)
 (copy_files ../../utils/terminfo.mli)
@@ -172,6 +181,9 @@
 (copy_files ../../parsing/longident.mli)
 (copy_files ../../parsing/docstrings.mli)
 (copy_files ../../parsing/syntaxerr.mli)
+(copy_files ../../parsing/extensions_parsing.mli)
+(copy_files ../../parsing/extensions.mli)
+(copy_files ../../parsing/ast_iterator.mli)
 (copy_files ../../parsing/ast_helper.mli)
 (copy_files ../../parsing/ast_mapper.mli)
 (copy_files ../../parsing/attr_helper.mli)
@@ -251,6 +263,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Numbers.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Profile.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Clflags.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Terminfo.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Location.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ident.cmo
@@ -274,6 +287,9 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Persistent_env.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Docstrings.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_helper.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Extensions_parsing.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Extensions.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_iterator.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Builtin_attributes.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Type_immediacy.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Attr_helper.cmo
@@ -318,6 +334,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Numbers.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Profile.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Clflags.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Terminfo.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Location.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ident.cmx
@@ -341,6 +358,9 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Persistent_env.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Extensions_parsing.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Extensions.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_iterator.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Type_immediacy.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Attr_helper.cmx
@@ -384,6 +404,7 @@
 ;    (dynlink.cmxs as dynlink/dynlink.cmxs)
     (dynlink.mli as dynlink/dynlink.mli)
     (dynlink.cmi as dynlink/dynlink.cmi)
+    (.dynlink_internal.objs/byte/dynlink.cmt as dynlink/dynlink.cmt)
     (.dynlink_internal.objs/byte/dynlink.cmti as dynlink/dynlink.cmti)
     (extract_crc.bc as dynlink/extract_crc)
 

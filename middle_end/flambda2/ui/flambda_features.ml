@@ -89,6 +89,11 @@ let unicode () =
 
 let check_invariants () = !Clflags.flambda_invariant_checks
 
+type dump_target = Flambda_backend_flags.Flambda2.Dump.target =
+  | Nowhere
+  | Main_dump_stream
+  | File of Misc.filepath
+
 let dump_rawflambda () = !Clflags.dump_rawflambda
 
 let dump_flambda () = !Clflags.dump_flambda

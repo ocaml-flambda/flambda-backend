@@ -461,16 +461,18 @@ and pattern_or ctxt f x =
       pp f "@[<hov0>%a@]" (list ~sep:"@ | " (pattern1 ctxt)) orpats
 
 and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
-  let rec pattern_list_helper f = function
+  let rec pattern_list_helper f p = match p with
     | {ppat_desc =
          Ppat_construct
            ({ txt = Lident("::") ;_},
-            Some ([], {ppat_desc = Ppat_tuple([pat1; pat2]);_}));
-       ppat_attributes = []}
-
-      ->
+            Some ([], inner_pat));
+       ppat_attributes = []} ->
+      begin match Extensions.Pattern.of_ast inner_pat, inner_pat.ppat_desc with
+      | None, Ppat_tuple([pat1; pat2]) ->
         pp f "%a::%a" (simple_pattern ctxt) pat1 pattern_list_helper pat2 (*RA*)
-    | p -> pattern1 ctxt f p
+      | _ -> pattern1 ctxt f p
+      end
+    | _ -> pattern1 ctxt f p
   in
   if x.ppat_attributes <> [] then pattern ctxt f x
   else match x.ppat_desc with
@@ -495,7 +497,9 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
 
 and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
   if x.ppat_attributes <> [] then pattern ctxt f x
-  else match x.ppat_desc with
+  else match Extensions.Pattern.of_ast x with
+    | Some epat -> simple_pattern_extension ctxt f epat
+    | None -> match x.ppat_desc with
     | Ppat_construct (({txt=Lident ("()"|"[]" as x);_}), None) ->
         pp f  "%s" x
     | Ppat_any -> pp f "_";
@@ -539,13 +543,21 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
     | Ppat_extension e -> extension ctxt f e
     | Ppat_open (lid, p) ->
         let with_paren =
-        match p.ppat_desc with
+        match Extensions.Pattern.of_ast p with
+        | Some epat -> begin match epat with
+        | Epat_immutable_array (Iapat_immutable_array _) -> false
+        end
+        | None -> match p.ppat_desc with
         | Ppat_array _ | Ppat_record _
         | Ppat_construct (({txt=Lident ("()"|"[]");_}), None) -> false
         | _ -> true in
         pp f "@[<2>%a.%a @]" longident_loc lid
           (paren with_paren @@ pattern1 ctxt) p
     | _ -> paren true (pattern ctxt) f x
+
+and simple_pattern_extension ctxt f : Extensions.Pattern.t -> unit = function
+  | Epat_immutable_array (Iapat_immutable_array l) ->
+      pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
 
 and maybe_local_pat ctxt is_local f p =
   if is_local then
@@ -665,7 +677,9 @@ and expression ctxt f x =
   if x.pexp_attributes <> [] then
     pp f "((%a)@,%a)" (expression ctxt) {x with pexp_attributes=[]}
       (attributes ctxt) x.pexp_attributes
-  else match x.pexp_desc with
+  else match Extensions.Expression.of_ast x with
+    | Some eexpr -> extension_expr ctxt f eexpr
+    | None -> match x.pexp_desc with
     | Pexp_function _ | Pexp_fun _ | Pexp_match _ | Pexp_try _ | Pexp_sequence _
     | Pexp_newtype _
       when ctxt.pipe || ctxt.semi ->
@@ -1104,6 +1118,9 @@ and module_type ctxt f x =
     pp f "((%a)%a)" (module_type ctxt) {x with pmty_attributes=[]}
       (attributes ctxt) x.pmty_attributes
   end else
+    match Extensions.Module_type.of_ast x with
+    | Some emty -> module_type_extension ctxt f emty
+    | None ->
     match x.pmty_desc with
     | Pmty_functor (Unit, mt2) ->
         pp f "@[<hov2>functor () ->@ %a@]" (module_type ctxt) mt2
@@ -1122,6 +1139,12 @@ and module_type ctxt f x =
           (module_type1 ctxt) mt
           (list (with_constraint ctxt) ~sep:"@ and@ ") l
     | _ -> module_type1 ctxt f x
+
+and module_type_extension ctxt f : Extensions.Module_type.t -> _ = function
+  | Emty_strengthen { mty; mod_id } ->
+      pp f "@[<hov2>%a@ with@ %a@]"
+        (module_type1 ctxt) mty
+        longident_loc mod_id
 
 and with_constraint ctxt f = function
   | Pwith_type (li, ({ptype_params= ls ;_} as td)) ->
@@ -1147,7 +1170,10 @@ and with_constraint ctxt f = function
 
 and module_type1 ctxt f x =
   if x.pmty_attributes <> [] then module_type ctxt f x
-  else match x.pmty_desc with
+  else match Extensions.Module_type.of_ast x with
+    | Some emty -> module_type_extension1 ctxt f emty
+    | None ->
+    match x.pmty_desc with
     | Pmty_ident li ->
         pp f "%a" longident_loc li;
     | Pmty_alias li ->
@@ -1159,6 +1185,9 @@ and module_type1 ctxt f x =
         pp f "@[<hov2>module@ type@ of@ %a@]" (module_expr ctxt) me
     | Pmty_extension e -> extension ctxt f e
     | _ -> paren true (module_type ctxt) f x
+
+and module_type_extension1 ctxt f : Extensions.Module_type.t -> _ = function
+  | Emty_strengthen _ as emty -> paren true (module_type_extension ctxt) f emty
 
 and signature ctxt f x =  list ~sep:"@\n" (signature_item ctxt) f x
 
@@ -1758,6 +1787,62 @@ and directive_argument f x =
   | Pdir_int (n, Some m) -> pp f "@ %s%c" n m
   | Pdir_ident (li) -> pp f "@ %a" longident li
   | Pdir_bool (b) -> pp f "@ %s" (string_of_bool b)
+
+and extension_expr ctxt f (x : Extensions.Expression.t) =
+  match x with
+  | Eexp_comprehension comp    -> comprehension_expr ctxt f comp
+  | Eexp_immutable_array iaexp -> immutable_array_expr ctxt f iaexp
+
+and comprehension_expr ctxt f (x : Extensions.Comprehensions.expression) =
+  let punct, comp = match x with
+    | Cexp_list_comprehension  comp ->
+        "", comp
+    | Cexp_array_comprehension (amut, comp) ->
+        let punct = match amut with
+          | Mutable  -> "|"
+          | Immutable -> ":"
+        in
+        punct, comp
+  in
+  comprehension ctxt f ~open_:("[" ^ punct) ~close:(punct ^ "]") comp
+
+and comprehension ctxt f ~open_ ~close x =
+  let Extensions.Comprehensions.{ body; clauses } = x in
+  pp f "@[<hv0>@[<hv2>%s%a@ @[<hv2>%a@]%s@]@]"
+    open_
+    (expression ctxt) body
+    (list ~sep:"@ " (comprehension_clause ctxt)) clauses
+    close
+
+and comprehension_clause ctxt f (x : Extensions.Comprehensions.clause) =
+  match x with
+  | For bindings ->
+      pp f "@[for %a@]" (list ~sep:"@]@ @[and " (comprehension_binding ctxt)) bindings
+  | When cond ->
+      pp f "@[when %a@]" (expression ctxt) cond
+
+and comprehension_binding ctxt f x =
+  let Extensions.Comprehensions.{ pattern = pat; iterator; attributes = attrs } = x in
+  pp f "%a%a %a"
+    (attributes ctxt) attrs
+    (pattern ctxt) pat
+    (comprehension_iterator ctxt) iterator
+
+and comprehension_iterator ctxt f (x : Extensions.Comprehensions.iterator) =
+  match x with
+  | Range { start; stop; direction } ->
+      pp f "=@ %a %a%a"
+        (expression ctxt) start
+        direction_flag direction
+        (expression ctxt) stop
+  | In seq ->
+      pp f "in %a" (expression ctxt) seq
+
+and immutable_array_expr ctxt f (x : Extensions.Immutable_arrays.expression) =
+  match x with
+  | Iaexp_immutable_array elts ->
+      pp f "@[<0>@[<2>[:%a:]@]@]"
+         (list (simple_expr (under_semi ctxt)) ~sep:";") elts
 
 let toplevel_phrase f x =
   match x with

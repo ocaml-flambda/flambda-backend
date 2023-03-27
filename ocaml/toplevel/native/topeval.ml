@@ -62,7 +62,7 @@ let close_phrase lam =
              [Lprim (Pgetglobal glb, [], Loc_unknown)],
              Loc_unknown)
     in
-    Llet(Strict, Lambda.layout_top, id, glob, l)
+    Llet(Strict, Lambda.layout_module_field, id, glob, l)
   ) (free_variables lam) lam
 
 let toplevel_value id =
@@ -134,12 +134,11 @@ let name_expression ~loc ~attrs exp =
    in
    let sg = [Sig_value(id, vd, Exported)] in
    let pat =
-     { pat_desc = Tpat_var(id, mknoloc name);
+     { pat_desc = Tpat_var(id, mknoloc name, Value_mode.global);
        pat_loc = loc;
        pat_extra = [];
        pat_type = exp.exp_type;
        pat_env = exp.exp_env;
-       pat_mode = Value_mode.global;
        pat_attributes = []; }
    in
    let vb =

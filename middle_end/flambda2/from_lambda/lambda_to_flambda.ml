@@ -611,11 +611,12 @@ let transform_primitive env (prim : L.primitive) args loc =
                  ~ifnot:(L.Lvar const_false) ~kind:Lambda.layout_int ) ))
   | (Psequand | Psequor), _ ->
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
-  | (Pbytes_to_string | Pbytes_of_string), [arg] -> Transformed arg
+  | ( (Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray),
+      [arg] ) ->
+    Transformed arg
   | Pignore, [arg] ->
-    let ident = Ident.create_local "ignore" in
     let result = L.Lconst (Const_base (Const_int 0)) in
-    Transformed (L.Llet (Strict, Lambda.layout_any_value, ident, arg, result))
+    Transformed (L.Lsequence (arg, result))
   | Pfield _, [L.Lprim (Pgetglobal cu, [], _)]
     when Compilation_unit.equal cu (Env.current_unit env) ->
     Misc.fatal_error
@@ -858,8 +859,19 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
         CC.close_apply acc ccenv
           { apply with continuation = wrapper_cont; region }
       in
+      let return_arity =
+        match Flambda_arity.With_subkinds.to_list apply.return_arity with
+        | [return_kind] -> return_kind
+        | _ :: _ ->
+          Misc.fatal_errorf
+            "Multiple return values for application of %a not supported yet"
+            Ident.print apply.func
+        | [] ->
+          Misc.fatal_errorf "Nullary return arity for application of %a"
+            Ident.print apply.func
+      in
       CC.close_let_cont acc ccenv ~name:wrapper_cont ~is_exn_handler:false
-        ~params:[return_value, Not_user_visible, apply.return]
+        ~params:[return_value, Not_user_visible, return_arity]
         ~recursive:Nonrecursive ~body ~handler
   in
   restore_continuation_context acc env ccenv apply.continuation ~close_early
@@ -895,18 +907,19 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigarrayref (_, _, _, Pbigarray_unknown_layout)
   | Pbigarrayset (_, _, _, Pbigarray_unknown_layout) ->
     true
-  | Pbytes_to_string | Pbytes_of_string | Pignore | Pgetglobal _ | Psetglobal _
-  | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _ | Pfield _
-  | Pfield_computed _ | Psetfield _ | Psetfield_computed _ | Pfloatfield _
-  | Psetfloatfield _ | Pduprecord _ | Psequand | Psequor | Pnot | Pnegint
-  | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint
-  | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-  | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _ | Pnegfloat _
-  | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
-  | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
-  | Pbytessetu | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _
-  | Parraysetu _ | Pisint _ | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _
-  | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _
+  | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray
+  | Pignore | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
+  | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Psetfield _
+  | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
+  | Psequand | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint | Pandint
+  | Porint | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
+  | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
+  | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
+  | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
+  | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu | Pmakearray _
+  | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _
+  | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
+  | Psubbint _ | Pmulbint _
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
@@ -942,8 +955,9 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigstring_set_16 true
   | Pbigstring_set_32 true
   | Pbigstring_set_64 true
-  | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer | Popaque
-  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic ->
+  | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer | Popaque _
+  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _ | Pbox_float _ | Punbox_float
+  | Punbox_int _ | Pbox_int _ ->
     false
 
 let primitive_result_kind (prim : Lambda.primitive) :
@@ -1004,23 +1018,35 @@ let primitive_result_kind (prim : Lambda.primitive) :
   | Pmulbint (bi, _)
   | Pbintofint (bi, _)
   | Pcvtbint (_, bi, _)
-  | Pbbswap (bi, _) -> (
+  | Pbbswap (bi, _)
+  | Pbox_int (bi, _) -> (
     match bi with
     | Pint32 -> Flambda_kind.With_subkind.boxed_int32
     | Pint64 -> Flambda_kind.With_subkind.boxed_int64
     | Pnativeint -> Flambda_kind.With_subkind.boxed_nativeint)
+  | Popaque layout | Pobj_magic layout ->
+    Flambda_kind.With_subkind.from_lambda layout
+  | Praise _ ->
+    (* CR ncourant: this should be bottom, but we don't have it *)
+    Flambda_kind.With_subkind.any_value
   | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr; _ }
-  | Praise _
   | Parrayrefs (Pgenarray | Paddrarray)
   | Parrayrefu (Pgenarray | Paddrarray)
-  | Pbytes_to_string | Pbytes_of_string | Pgetglobal _ | Psetglobal _
-  | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _ | Pfield _
-  | Pfield_computed _ | Pduprecord _ | Poffsetint _ | Poffsetref _
-  | Pmakearray _ | Pduparray _ | Pbigarraydim _
+  | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray
+  | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
+  | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Pduprecord _
+  | Poffsetint _ | Poffsetref _ | Pmakearray _ | Pduparray _ | Pbigarraydim _
   | Pbigarrayref
       (_, _, (Pbigarray_complex32 | Pbigarray_complex64 | Pbigarray_unknown), _)
-  | Pint_as_pointer | Popaque | Pobj_dup | Pobj_magic ->
+  | Pint_as_pointer | Pobj_dup ->
     Flambda_kind.With_subkind.any_value
+  | Pbox_float _ -> Flambda_kind.With_subkind.boxed_float
+  | Punbox_float -> Flambda_kind.With_subkind.naked_float
+  | Punbox_int bi -> (
+    match bi with
+    | Pint32 -> Flambda_kind.With_subkind.naked_int32
+    | Pint64 -> Flambda_kind.With_subkind.naked_int64
+    | Pnativeint -> Flambda_kind.With_subkind.naked_nativeint)
 
 type cps_continuation =
   | Tail of Continuation.t
@@ -1263,6 +1289,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
             (args @ extra_params)
         in
         let handler acc ccenv =
+          let ccenv = CCenv.set_not_at_toplevel ccenv in
           cps_tail acc handler_env ccenv handler k k_exn
         in
         let body acc ccenv = cps_tail acc body_env ccenv body k k_exn in
@@ -1295,9 +1322,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         probe = None;
                         mode;
                         region = Env.current_region env;
-                        return =
-                          Flambda_kind.With_subkind.from_lambda
-                            Lambda.layout_top
+                        return_arity =
+                          Flambda_arity.With_subkinds.create
+                            [Flambda_kind.With_subkind.from_lambda layout]
                       }
                     in
                     wrap_return_continuation acc env ccenv apply))
@@ -1321,6 +1348,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        [Begin_region] with its parent region. This use of the parent region will
        ensure that the parent does not get deleted unless the try region is
        unused. *)
+    (* Under a try-with block, any exception might introduce a branch to the
+       handler. So while for static catches we could simplify the body in the
+       same toplevel context, here we need to assume that all of the body could
+       be behind a branch. *)
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
     CC.close_let acc ccenv region Not_user_visible
       Flambda_kind.With_subkind.region
       (Begin_region { try_region_parent = Some (Env.current_region env) })
@@ -1361,10 +1393,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     let lam = switch_for_if_then_else ~cond ~ifso ~ifnot ~kind in
     cps acc env ccenv lam k k_exn
   | Lsequence (lam1, lam2) ->
-    let ident = Ident.create_local "sequence" in
-    cps acc env ccenv
-      (L.Llet (Strict, Lambda.layout_top, ident, lam1, lam2))
-      k k_exn
+    let k acc env ccenv _value = cps acc env ccenv lam2 k k_exn in
+    cps_non_tail_simple acc env ccenv lam1 k k_exn
   | Lwhile
       { wh_cond = cond; wh_body = body; wh_cond_region = _; wh_body_region = _ }
     ->
@@ -1497,7 +1527,9 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               probe = ap_probe;
               mode = ap_mode;
               region = Env.current_region env;
-              return = Flambda_kind.With_subkind.from_lambda ap_return
+              return_arity =
+                Flambda_arity.With_subkinds.create
+                  [Flambda_kind.With_subkind.from_lambda ap_return]
             }
           in
           wrap_return_continuation acc env ccenv apply)
@@ -1621,10 +1653,11 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   let function_slot =
     Function_slot.create
       (Compilation_unit.get_current_exn ())
-      ~name:(Ident.name fid)
+      ~name:(Ident.name fid) Flambda_kind.With_subkind.any_value
   in
   let body acc ccenv =
     let ccenv = CCenv.set_path_to_root ccenv loc in
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
     cps_tail acc new_env ccenv body body_cont body_exn_cont
   in
   let params =
@@ -1632,7 +1665,10 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       (fun (param, kind) -> param, Flambda_kind.With_subkind.from_lambda kind)
       params
   in
-  let return = Flambda_kind.With_subkind.from_lambda return in
+  let return =
+    Flambda_arity.With_subkinds.create
+      [Flambda_kind.With_subkind.from_lambda return]
+  in
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
     ~return ~return_continuation:body_cont ~exn_continuation ~my_region ~body
     ~attr ~loc ~free_idents_of_body recursive ~closure_alloc_mode:mode
@@ -1709,6 +1745,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
   cps_non_tail_var "scrutinee" acc env ccenv scrutinee
     Flambda_kind.With_subkind.any_value
     (fun acc env ccenv scrutinee ->
+      let ccenv = CCenv.set_not_at_toplevel ccenv in
       let consts_rev, wrappers = convert_arms_rev env switch.sw_consts [] in
       let blocks_rev, wrappers =
         convert_arms_rev env (List.combine block_nums sw_blocks) wrappers
@@ -1799,9 +1836,9 @@ let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~compilation_unit
     Env.create ~current_unit:compilation_unit ~return_continuation
       ~exn_continuation ~my_region:toplevel_my_region
   in
-  let toplevel acc ccenv =
+  let program acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation
   in
   CC.close_program ~mode ~big_endian ~cmx_loader ~compilation_unit
-    ~module_block_size_in_words ~program:toplevel
-    ~prog_return_cont:return_continuation ~exn_continuation ~toplevel_my_region
+    ~module_block_size_in_words ~program ~prog_return_cont:return_continuation
+    ~exn_continuation ~toplevel_my_region

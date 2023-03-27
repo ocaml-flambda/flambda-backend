@@ -166,6 +166,9 @@ let add_type_exception bv te =
 let pattern_bv = ref String.Map.empty
 
 let rec add_pattern bv pat =
+  match Extensions.Pattern.of_ast pat with
+  | Some epat -> add_pattern_extension bv epat
+  | None      ->
   match pat.ppat_desc with
     Ppat_any -> ()
   | Ppat_var _ -> ()
@@ -192,6 +195,9 @@ let rec add_pattern bv pat =
   | Ppat_open ( m, p) -> let bv = open_module bv m.txt in add_pattern bv p
   | Ppat_exception p -> add_pattern bv p
   | Ppat_extension e -> handle_extension e
+and add_pattern_extension bv : Extensions.Pattern.t -> _ = function
+  | Epat_immutable_array (Iapat_immutable_array pl) ->
+      List.iter (add_pattern bv) pl
 
 let add_pattern bv pat =
   pattern_bv := bv;
@@ -199,6 +205,9 @@ let add_pattern bv pat =
   !pattern_bv
 
 let rec add_expr bv exp =
+  match Extensions.Expression.of_ast exp with
+  | Some eexp -> add_expr_extension bv eexp
+  | None ->
   match exp.pexp_desc with
     Pexp_ident l -> add bv l
   | Pexp_constant _ -> ()
@@ -271,6 +280,47 @@ let rec add_expr bv exp =
   | Pexp_extension e -> handle_extension e
   | Pexp_unreachable -> ()
 
+and add_expr_extension bv : Extensions.Expression.t -> _ = function
+  | Eexp_comprehension cexp -> add_comprehension_expr bv cexp
+  | Eexp_immutable_array iaexp -> add_immutable_array_expr bv iaexp
+
+and add_comprehension_expr bv : Extensions.Comprehensions.expression -> _ =
+  function
+  | Cexp_list_comprehension comp -> add_comprehension bv comp
+  | Cexp_array_comprehension (_, comp) -> add_comprehension bv comp
+
+and add_comprehension bv
+      ({ body; clauses } : Extensions.Comprehensions.comprehension) =
+  let bv = List.fold_left add_comprehension_clause bv clauses in
+  add_expr bv body
+
+and add_comprehension_clause bv : Extensions.Comprehensions.clause -> _ =
+  function
+    (* fold_left here is a little suspicious, because the different
+       clauses should be interpreted in parallel. But this treatment
+       echoes the treatment in [Pexp_let] (in [add_bindings]). *)
+  | For cbs -> List.fold_left add_comprehension_clause_binding bv cbs
+  | When expr -> add_expr bv expr; bv
+
+and add_comprehension_clause_binding bv
+      ({ pattern; iterator; attributes = _ } :
+         Extensions.Comprehensions.clause_binding) =
+  let bv = add_pattern bv pattern in
+  add_comprehension_iterator bv iterator;
+  bv
+
+and add_comprehension_iterator bv : Extensions.Comprehensions.iterator -> _ =
+  function
+  | Range { start; stop; direction = _ } ->
+    add_expr bv start;
+    add_expr bv stop
+  | In expr ->
+    add_expr bv expr
+
+and add_immutable_array_expr bv : Extensions.Immutable_arrays.expression -> _ =
+  function
+  | Iaexp_immutable_array exprs -> List.iter (add_expr bv) exprs
+
 and add_cases bv cases =
   List.iter (add_case bv) cases
 
@@ -290,6 +340,9 @@ and add_binding_op bv bv' pbop =
   add_pattern bv' pbop.pbop_pat
 
 and add_modtype bv mty =
+  match Extensions.Module_type.of_ast mty with
+  | Some emty -> add_modtype_extension bv emty
+  | None ->
   match mty.pmty_desc with
     Pmty_ident l -> add bv l
   | Pmty_alias l -> add_module_path bv l
@@ -320,6 +373,11 @@ and add_modtype bv mty =
   | Pmty_typeof m -> add_module_expr bv m
   | Pmty_extension e -> handle_extension e
 
+and add_modtype_extension bv : Extensions.Module_type.t -> _ = function
+  | Emty_strengthen { mty; mod_id } ->
+     add_modtype bv mty;
+     add_module_path bv mod_id
+
 and add_module_alias bv l =
   (* If we are in delayed dependencies mode, we delay the dependencies
        induced by "Lident s" *)
@@ -332,6 +390,9 @@ and add_module_alias bv l =
     | _ -> add_module_path bv l; bound (* cannot delay *)
 
 and add_modtype_binding bv mty =
+  match Extensions.Module_type.of_ast mty with
+  | Some emty -> add_modtype_extension_binding bv emty
+  | None ->
   match mty.pmty_desc with
     Pmty_alias l ->
       add_module_alias bv l
@@ -341,6 +402,13 @@ and add_modtype_binding bv mty =
       add_module_binding bv modl
   | _ ->
       add_modtype bv mty; bound
+
+and add_modtype_extension_binding bv : Extensions.Module_type.t -> _ = function
+  | Emty_strengthen { mty; mod_id } ->
+     (* treat like a [with] constraint *)
+     add_modtype bv mty;
+     add_module_path bv mod_id;
+     bound
 
 and add_signature bv sg =
   ignore (add_signature_binding bv sg)

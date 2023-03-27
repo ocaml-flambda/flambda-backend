@@ -1,0 +1,29 @@
+let code f_0 deleted in
+let $camlTests2__f_1 =
+  closure f_0_1 @f
+and code rec loopify(never) size(21) newer_version_of(f_0)
+      f_0_1 (x : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let prim = %int_comp x > 0 in
+  switch prim
+    | 0 -> k (42)
+    | 1 -> k2
+    where k2 =
+      ((let Psubint = x - 1 in
+        apply direct(f_0_1)
+          ($camlTests2__f_1 : _ -> imm tagged)
+            (Psubint)
+            &my_region
+            -> k2 * k1)
+         where k2 (apply_result : imm tagged) =
+           let Paddint = 1 + apply_result in
+           cont k (Paddint))
+in
+apply direct(f_0_1) inlining_state(depth(10))
+  ($camlTests2__f_1 : _ -> imm tagged) (4) &toplevel -> k * error
+  where k (apply_result : imm tagged) =
+    let Paddint = 1 + apply_result in
+    let $camlTests2 = Block 0 ($camlTests2__f_1, Paddint) in
+    cont done ($camlTests2)

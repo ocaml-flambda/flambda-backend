@@ -676,7 +676,10 @@ let rec emit_tail_infos is_tail lambda =
   | Lletrec (bindings, body) ->
       List.iter (fun (_, lam) -> emit_tail_infos false lam) bindings;
       emit_tail_infos is_tail body
-  | Lprim ((Pbytes_to_string | Pbytes_of_string), [arg], _) ->
+  | Lprim ((Pbytes_to_string | Pbytes_of_string |
+            Parray_to_iarray | Parray_of_iarray),
+           [arg],
+           _) ->
       emit_tail_infos is_tail arg
   | Lprim (Psequand, [arg1; arg2], _)
   | Lprim (Psequor, [arg1; arg2], _) ->
@@ -777,8 +780,14 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         List.iter (fun (id, _) -> if Ident.Set.mem id fv then raise Exit) map;
 
         let inner_id = Ident.create_local (Ident.name fun_id ^ "_inner") in
-        let map_param p = try List.assoc p map with Not_found -> p in
-        let args = List.map (fun (p, _) -> Lvar (map_param p)) params in
+        let map_param p layout =
+          try
+            (* If the param is optional, then it must be a value *)
+            List.assoc p map, Lambda.layout_field
+          with
+            Not_found -> p, layout
+        in
+        let args = List.map (fun (p, layout) -> Lvar (fst (map_param p layout))) params in
         let wrapper_body =
           Lapply {
             ap_func = Lvar inner_id;
@@ -793,10 +802,10 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
             ap_probe=None;
           }
         in
-        let inner_params = List.map map_param (List.map fst params) in
-        let new_ids = List.map Ident.rename inner_params in
+        let inner_params = List.map (fun (param, layout) -> map_param param layout) params in
+        let new_ids = List.map (fun (param, layout) -> (Ident.rename param, layout)) inner_params in
         let subst =
-          List.fold_left2 (fun s id new_id ->
+          List.fold_left2 (fun s (id, _) (new_id, _) ->
             Ident.Map.add id new_id s
           ) Ident.Map.empty inner_params new_ids
         in
@@ -804,7 +813,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         let body = if add_region then Lregion (body, return) else body in
         let inner_fun =
           lfunction ~kind:(Curried {nlocal=0})
-            ~params:(List.map (fun id -> id, Lambda.layout_top) new_ids)
+            ~params:new_ids
             ~return ~body ~attr ~loc ~mode ~region:true
         in
         (wrapper_body, (inner_id, inner_fun))

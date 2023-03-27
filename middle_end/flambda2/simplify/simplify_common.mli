@@ -115,7 +115,6 @@ val project_tuple :
     application of the leftover arguments. *)
 val split_direct_over_application :
   Apply_expr.t ->
-  result_arity:Flambda_arity.With_subkinds.t ->
   apply_alloc_mode:Alloc_mode.For_types.t ->
   current_region:Variable.t ->
   callee's_code_id:Code_id.t ->

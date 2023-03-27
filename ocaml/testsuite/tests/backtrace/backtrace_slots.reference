@@ -24,4 +24,4 @@ Called from Backtrace_slots.f in file "backtrace_slots.ml", line 40, characters 
 Called from Backtrace_slots.g in file "backtrace_slots.ml", line 44, characters 4-11
 Called from Backtrace_slots.run in file "backtrace_slots.ml", line 51, characters 11-23
 Uncaught exception Invalid_argument("index out of bounds")
-Raised by primitive operation at Backtrace_slots.run in file "backtrace_slots.ml", line 51, characters 14-22
+Raised at Backtrace_slots.run in file "backtrace_slots.ml", line 51, characters 14-22

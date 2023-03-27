@@ -39,12 +39,11 @@ let get_func_decl_params_arity t code_id =
   let info = Env.get_code_metadata t code_id in
   let params_ty =
     List.map
-      (fun k -> C.machtype_of_kind (Flambda_kind.With_subkind.kind k))
+      (fun k -> C.machtype_of_kind k)
       (Flambda_arity.With_subkinds.to_list (Code_metadata.params_arity info))
   in
   let result_ty =
-    C.machtype_of_return_arity
-      (Flambda_arity.With_subkinds.to_arity (Code_metadata.result_arity info))
+    C.machtype_of_return_arity (Code_metadata.result_arity info)
   in
   let kind : Lambda.function_kind =
     if Code_metadata.is_tupled info
@@ -100,7 +99,7 @@ end) : sig
     Code_id.t Function_slot.Map.t ->
     Debuginfo.t ->
     startenv:int ->
-    (Simple.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
+    Simple.t Value_slot.Map.t ->
     Env.t ->
     To_cmm_result.t ->
     Ece.t ->
@@ -128,7 +127,8 @@ end = struct
         Ece.pure,
         updates )
     | Value_slot { value_slot; is_scanned; size = _ } ->
-      let simple, kind = Value_slot.Map.find value_slot value_slots in
+      let simple = Value_slot.Map.find value_slot value_slots in
+      let kind = Value_slot.kind value_slot in
       if (not
             (Flambda_kind.equal
                (Flambda_kind.With_subkind.kind kind)

@@ -169,58 +169,73 @@ end = struct
   let to_list t = t
 end
 
-(* As with [Name.t], changing [with_prefix] or [t] requires bumping magic
-   numbers. *)
-type with_prefix =
-  { name : Name.t;
-    for_pack_prefix : Prefix.t
-  }
+module T0 : sig
+  type t
 
-(* type t = Without_prefix of Name.t [@@unboxed] | With_prefix of with_prefix *)
-type t = Obj.t
+  val for_pack_prefix_and_name : t -> Prefix.t * Name.t
 
-(* Some manual inlining is done here to ensure good performance under
-   Closure. *)
+  val name : t -> Name.t
 
-let for_pack_prefix_and_name t =
-  let tag = Obj.tag t in
-  assert (tag = 0 || tag = Obj.string_tag);
-  if tag <> 0
-  then Prefix.empty, Sys.opaque_identity (Obj.obj t : Name.t)
-  else
-    let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
-    with_prefix.for_pack_prefix, with_prefix.name
+  val for_pack_prefix : t -> Prefix.t
 
-let name t =
-  let tag = Obj.tag t in
-  assert (tag = 0 || tag = Obj.string_tag);
-  if tag <> 0
-  then Sys.opaque_identity (Obj.obj t : Name.t)
-  else
-    let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
-    with_prefix.name
+  val create : Prefix.t -> Name.t -> t
+end = struct
+  (* As with [Name.t], changing [with_prefix] or [t] requires bumping magic
+     numbers. *)
+  type with_prefix =
+    { name : Name.t;
+      for_pack_prefix : Prefix.t
+    }
 
-let for_pack_prefix t =
-  let tag = Obj.tag t in
-  assert (tag = 0 || tag = Obj.string_tag);
-  if tag <> 0
-  then Prefix.empty
-  else
-    let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
-    with_prefix.for_pack_prefix
+  (* type t = Without_prefix of Name.t [@@unboxed] | With_prefix of
+     with_prefix *)
+  type t = Obj.t
 
-let create for_pack_prefix name =
-  let empty_prefix = Prefix.is_empty for_pack_prefix in
-  let () =
-    if not empty_prefix
-    then (
-      Name.check_as_path_component name;
-      ListLabels.iter ~f:Name.check_as_path_component
-        (for_pack_prefix |> Prefix.to_list))
-  in
-  if empty_prefix
-  then Sys.opaque_identity (Obj.repr name)
-  else Sys.opaque_identity (Obj.repr { for_pack_prefix; name })
+  (* Some manual inlining is done here to ensure good performance under
+     Closure. *)
+
+  let for_pack_prefix_and_name t =
+    let tag = Obj.tag t in
+    assert (tag = 0 || tag = Obj.string_tag);
+    if tag <> 0
+    then Prefix.empty, Sys.opaque_identity (Obj.obj t : Name.t)
+    else
+      let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
+      with_prefix.for_pack_prefix, with_prefix.name
+
+  let name t =
+    let tag = Obj.tag t in
+    assert (tag = 0 || tag = Obj.string_tag);
+    if tag <> 0
+    then Sys.opaque_identity (Obj.obj t : Name.t)
+    else
+      let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
+      with_prefix.name
+
+  let for_pack_prefix t =
+    let tag = Obj.tag t in
+    assert (tag = 0 || tag = Obj.string_tag);
+    if tag <> 0
+    then Prefix.empty
+    else
+      let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
+      with_prefix.for_pack_prefix
+
+  let create for_pack_prefix name =
+    let empty_prefix = Prefix.is_empty for_pack_prefix in
+    let () =
+      if not empty_prefix
+      then (
+        Name.check_as_path_component name;
+        ListLabels.iter ~f:Name.check_as_path_component
+          (for_pack_prefix |> Prefix.to_list))
+    in
+    if empty_prefix
+    then Sys.opaque_identity (Obj.repr name)
+    else Sys.opaque_identity (Obj.repr { for_pack_prefix; name })
+end
+
+include T0
 
 let create_child parent name_ =
   let prefix =

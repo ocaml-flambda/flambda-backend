@@ -269,6 +269,8 @@ Line 1, characters 15-21:
                    ^^^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 2 more arguments will make the value non-local
 |}]
 let apply3 x = f4 x x x
 [%%expect{|
@@ -277,6 +279,8 @@ Line 1, characters 15-23:
                    ^^^^^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 let apply4 x =
   f4 x x x x
@@ -313,6 +317,8 @@ Line 1, characters 15-18:
                    ^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 let apply2 x = g x x
 [%%expect{|
@@ -320,15 +326,59 @@ val apply2 : int -> local_ 'a -> int -> int = <fun>
 |}]
 let apply3 x = g x x x
 [%%expect{|
-Line 1, characters 15-22:
+Line 1, characters 15-20:
 1 | let apply3 x = g x x x
-                   ^^^^^^^
+                   ^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let apply3_wrapped x = (g x x) x
+[%%expect{|
+Line 1, characters 23-32:
+1 | let apply3_wrapped x = (g x x) x
+                           ^^^^^^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 let apply4 x = g x x x x
 [%%expect{|
-val apply4 : int -> int = <fun>
+Line 1, characters 15-20:
+1 | let apply4 x = g x x x x
+                   ^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let apply4_wrapped x = (g x x) x x
+[%%expect{|
+val apply4_wrapped : int -> int = <fun>
+|}]
+let ill_typed () = g 1 2 3 4 5
+[%%expect{|
+Line 1, characters 19-20:
+1 | let ill_typed () = g 1 2 3 4 5
+                       ^
+Error: This function has type local_ 'a -> int -> (local_ 'b -> int -> int)
+       It is applied to too many arguments; maybe you forgot a `;'.
+|}]
+
+(*
+ * Defaulting of modes in module type of (like mli-less files)
+ *)
+
+let f g = g (local_ (1, 2)) 1 2 3 [@nontail]
+[%%expect{|
+val f : (local_ int * int -> int -> int -> int -> 'a) -> 'a = <fun>
+|}]
+module type F = module type of struct
+  let f g = g (local_ (1, 2)) 1 2 3 [@nontail]
+end
+[%%expect{|
+module type F =
+  sig val f : (local_ int * int -> int -> int -> int -> 'a) -> 'a end
 |}]
 
 (*
@@ -370,7 +420,17 @@ Error: This local value escapes its region
 let app42 (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
   f ~a:(local_ ref 1) 2 ~c:4
 [%%expect{|
-val app42 :
+Line 2, characters 2-21:
+2 |   f ~a:(local_ ref 1) 2 ~c:4
+      ^^^^^^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let app42_wrapped (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
+  (f ~a:(local_ ref 1)) 2 ~c:4
+[%%expect{|
+val app42_wrapped :
   (a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) ->
   b:local_ int ref -> unit = <fun>
 |}]
@@ -417,18 +477,40 @@ Line 1, characters 52-65:
                                                         ^^^^^^^^^^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 let app42' (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
   f ~a:(ref 1) 2 ~c:4
 [%%expect{|
-val app42' :
+Line 2, characters 2-14:
+2 |   f ~a:(ref 1) 2 ~c:4
+      ^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let app42'_wrapped (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
+  (f ~a:(ref 1)) 2 ~c:4
+[%%expect{|
+val app42'_wrapped :
   (a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) ->
   b:local_ int ref -> unit = <fun>
 |}]
 let app43' (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
   f ~a:(ref 1) 2
 [%%expect{|
-val app43' :
+Line 2, characters 2-14:
+2 |   f ~a:(ref 1) 2
+      ^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let app43'_wrapped (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
+  (f ~a:(ref 1)) 2
+[%%expect{|
+val app43'_wrapped :
   (a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) ->
   b:local_ int ref -> c:int -> unit = <fun>
 |}]
@@ -474,7 +556,13 @@ let bug2 () =
   let res = bar ~a:"world" in
   res
 [%%expect{|
-val bug2 : unit -> c:int -> unit = <fun>
+Line 5, characters 19-33:
+5 |   let bar = local_ foo ~b:"hello" in
+                       ^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after a in the function's type should be applied separately.
 |}]
 let bug3 () =
   let foo : a:local_ string -> (b:local_ string -> (c:int -> unit)) =
@@ -489,6 +577,52 @@ Line 3, characters 63-64:
                                                                    ^
 Error: The value a is local, so cannot be used inside a closure that might escape
 |}]
+let overapp ~(local_ a) ~b = (); fun ~c ~d -> ()
+
+let () = overapp ~a:1 ~b:2 ~c:3 ~d:4
+[%%expect{|
+val overapp : a:local_ 'a -> b:'b -> (c:'c -> d:'d -> unit) = <fun>
+Line 3, characters 9-26:
+3 | let () = overapp ~a:1 ~b:2 ~c:3 ~d:4
+             ^^^^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+
+let () = overapp ~b:2 ~a:1 ~c:3 ~d:4
+[%%expect{|
+Line 1, characters 20-21:
+1 | let () = overapp ~b:2 ~a:1 ~c:3 ~d:4
+                        ^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after this one in the function's type should be applied separately.
+|}]
+
+let () = overapp ~c:1 ~b:2
+[%%expect{|
+Line 1, characters 25-26:
+1 | let () = overapp ~c:1 ~b:2
+                             ^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after this one in the function's type should be applied separately.
+|}]
+
+let () = overapp ~d:1 ~a:2
+[%%expect{|
+Line 1, characters 9-26:
+1 | let () = overapp ~d:1 ~a:2
+             ^^^^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling a local value, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after b in the function's type should be applied separately.
+|}]
+
 
 (* Regression test for bug with mishandled regional function modes *)
 let bug4 : local_ (string -> foo:string -> unit) -> (string -> unit) =
@@ -498,6 +632,8 @@ Line 2, characters 11-25:
 2 |   fun f -> f ~foo:"hello"
                ^^^^^^^^^^^^^^
 Error: This value escapes its region
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 
 let bug4' () =
@@ -510,6 +646,8 @@ Line 3, characters 25-31:
                              ^^^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument may make the value non-local
 |}]
 
 (*
@@ -552,6 +690,8 @@ Line 1, characters 61-65:
                                                                  ^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 
 (* Optional argument elimination eta-expands and therefore allocates *)
@@ -620,10 +760,10 @@ let baduse (f : _ -> _ -> _) x y = lazy (f x y)
 let result = baduse (fun a b -> local_ (a,b)) 1 2
 [%%expect{|
 val baduse : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c lazy_t = <fun>
-Line 2, characters 32-44:
+Line 2, characters 20-45:
 2 | let result = baduse (fun a b -> local_ (a,b)) 1 2
-                                    ^^^^^^^^^^^^
-Error: This value escapes its region
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function is local returning, but was expected otherwise
 |}]
 
 
@@ -673,9 +813,9 @@ val local_closure : unit -> unit = <fun>
  *)
 let toplevel_stack = local_ {contents=42}
 [%%expect{|
-Line 1, characters 4-18:
+Line 1, characters 21-41:
 1 | let toplevel_stack = local_ {contents=42}
-        ^^^^^^^^^^^^^^
+                         ^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region
 |}]
 
@@ -688,9 +828,9 @@ module M : sig end
 
 let _ = local_ {contents=42}
 [%%expect{|
-Line 1, characters 4-5:
+Line 1, characters 8-28:
 1 | let _ = local_ {contents=42}
-        ^
+            ^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region
 |}]
 
@@ -1263,10 +1403,10 @@ val foo : unit -> local_ string = <fun>
 
 let foo : unit -> string = fun () -> local_ "hello"
 [%%expect{|
-Line 1, characters 37-51:
+Line 1, characters 27-51:
 1 | let foo : unit -> string = fun () -> local_ "hello"
-                                         ^^^^^^^^^^^^^^
-Error: This value escapes its region
+                               ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function is local returning, but was expected otherwise
 |}]
 
 (* Unboxed type constructors do not affect regionality *)
@@ -1904,7 +2044,7 @@ val primloc : int32 -> int = <fun>
 |}]
 
 (* (&&) and (||) tail call on the right *)
-let testbool1 f = let local_ r = ref 42 in (f r || false) && true 
+let testbool1 f = let local_ r = ref 42 in (f r || false) && true
 
 let testbool2 f = let local_ r = ref 42 in true && (false || f r)
 [%%expect{|
@@ -2577,7 +2717,7 @@ Error: This value escapes its region
 
 (* on construction of array, we ensure elements are global *)
 
-let f (local_ x : string) = 
+let f (local_ x : string) =
   [|x; "foo"|]
 [%%expect{|
 Line 2, characters 4-5:
@@ -2586,21 +2726,46 @@ Line 2, characters 4-5:
 Error: This value escapes its region
 |}]
 
-let f (x : string) = 
+let f (x : string) =
   [|x; "foo"|]
 [%%expect{|
 val f : string -> string array = <fun>
-|}]  
+|}]
 
 
-(* on pattern matching of array, 
-   elements are strengthened to global 
+(* on pattern matching of array,
+   elements are strengthened to global
   even if array itself is local *)
-let f (local_ a : string array) = 
+let f (local_ a : string array) =
   match a with
   | [| x; _ |] -> ref x
   | _ -> ref "foo"
 
 [%%expect{|
 val f : local_ string array -> string ref = <fun>
-|}]  
+|}]
+
+(* reported internal to Jane Street as TANDC-1742 *)
+
+module M = struct
+  let fold_until :
+    'a list -> init:'accum ->
+    f:local_ ('accum -> 'a -> ('accum, 'final) Either.t) ->
+    finish:local_ ('accum -> 'final) ->
+    'final =
+    fun _ -> assert false
+
+  (* this led to a poor error message about a value that escapes its region,
+     but really it's just under-applied *)
+  let f () = fold_until [] ~init:0 ~f:(fun _ _ -> Right ())
+end
+
+[%%expect {|
+Line 11, characters 13-59:
+11 |   let f () = fold_until [] ~init:0 ~f:(fun _ _ -> Right ())
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
+|}]

@@ -65,7 +65,7 @@ and strengthen_lazy_sig' ~aliasable env sg p =
     [] -> []
   | (SigL_value(_, _, _) as sigelt) :: rem ->
       sigelt :: strengthen_lazy_sig' ~aliasable env rem p
-  | SigL_type(id, {type_kind=Type_abstract}, _, _) :: rem
+  | SigL_type(id, {type_kind=Type_abstract _}, _, _) :: rem
     when Btype.is_row_name (Ident.name id) ->
       strengthen_lazy_sig' ~aliasable env rem p
   | SigL_type(id, decl, rs, vis) :: rem ->
@@ -77,7 +77,7 @@ and strengthen_lazy_sig' ~aliasable env sg p =
             let manif =
               Some(Btype.newgenty(Tconstr(Pdot(p, Ident.name id),
                                           decl.type_params, ref Mnil))) in
-            if decl.type_kind = Type_abstract then
+            if decl_is_abstract decl then
               { decl with type_private = Public; type_manifest = manif }
             else
               { decl with type_manifest = manif }
@@ -126,8 +126,6 @@ and strengthen_lazy_decl ~aliasable env md p =
   | _ when aliasable -> {md with mdl_type = MtyL_alias p}
   | mty -> {md with mdl_type = strengthen_lazy ~aliasable env mty p}
 
-let () = Env.strengthen := strengthen_lazy
-
 let strengthen ~aliasable env mty p =
   let mty = strengthen_lazy ~aliasable env (Subst.Lazy.of_modtype mty) p in
   Subst.Lazy.force_modtype mty
@@ -151,9 +149,10 @@ let rec sig_make_manifest sg =
         let manif =
           Some (Btype.newgenty(Tconstr(Pident id, decl.type_params, ref Mnil)))
         in
-        if decl.type_kind = Type_abstract then
+        match decl.type_kind with
+        | Type_abstract _ ->
           { decl with type_private = Public; type_manifest = manif }
-        else
+        | (Type_record _ | Type_variant _ | Type_open) ->
           { decl with type_manifest = manif }
     in
     Sig_type(Ident.rename id, newdecl, rs, vis) :: sig_make_manifest rem
@@ -210,6 +209,45 @@ let scrape_for_type_of env pres mty =
     | _ -> mty
   in
   make_aliases_absent pres (loop env None mty)
+
+(* Expand manifest module type names at the top of the given module type *)
+
+let rec scrape_alias_lazy env ?path mty =
+  let open Subst.Lazy in
+  match mty, path with
+    MtyL_ident p, _ ->
+      begin try
+        scrape_alias_lazy env (Env.find_modtype_expansion_lazy p env) ?path
+      with Not_found ->
+        mty
+      end
+  | MtyL_alias path, _ ->
+      begin try
+        scrape_alias_lazy env ((Env.find_module_lazy path env).mdl_type) ~path
+      with Not_found ->
+        (*Location.prerr_warning Location.none
+          (Warnings.No_cmi_file (Path.name path));*)
+        mty
+      end
+  | mty, Some path ->
+      strengthen_lazy ~aliasable:true env mty path
+  | _ -> mty
+
+(* Non-lazy version of scrape_alias *)
+let scrape_alias env mty =
+  Subst.Lazy.of_modtype mty
+  |> scrape_alias_lazy env
+  |> Subst.Lazy.force_modtype
+
+let () = Env.scrape_alias := fun env mty -> scrape_alias_lazy env mty
+
+let find_type_of_module ~strengthen ~aliasable env path =
+  if strengthen then
+    let md = Env.find_module_lazy path env in
+    let mty = strengthen_lazy ~aliasable env md.mdl_type path in
+    Subst.Lazy.force_modtype mty
+  else
+    (Env.find_module path env).md_type
 
 (* In nondep_supertype, env is only used for the type it assigns to id.
    Hence there is no need to keep env up-to-date by adding the bindings
@@ -409,13 +447,9 @@ let no_code_needed env mty = no_code_needed_mod env Mp_present mty
 
 (* Check whether a module type may return types *)
 
-let rec contains_type env = function
-    Mty_ident path ->
-      begin try match (Env.find_modtype path env).mtd_type with
-      | None -> raise Exit (* PR#6427 *)
-      | Some mty -> contains_type env mty
-      with Not_found -> raise Exit
-      end
+let rec contains_type env mty =
+  match scrape env mty with
+    Mty_ident _ -> raise Exit (* PR#6427 *)
   | Mty_signature sg ->
       contains_type_sig env sg
   | Mty_functor (_, body) ->
@@ -427,7 +461,7 @@ and contains_type_sig env = List.iter (contains_type_item env)
 
 and contains_type_item env = function
     Sig_type (_,({type_manifest = None} |
-                 {type_kind = Type_abstract; type_private = Private}),_, _)
+                 {type_kind = Type_abstract _; type_private = Private}),_, _)
   | Sig_modtype _
   | Sig_typext (_, {ext_args = Cstr_record _}, _, _) ->
       (* We consider that extension constructors with an inlined
@@ -524,7 +558,7 @@ let rec remove_aliases_mty env args pres mty =
       Mty_signature sg ->
         Mp_present, Mty_signature (remove_aliases_sig env args' sg)
     | Mty_alias _ ->
-        let mty' = Env.scrape_alias env mty in
+        let mty' = scrape_alias env mty in
         if mty' = mty then begin
           pres, mty
         end else begin

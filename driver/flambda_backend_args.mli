@@ -28,6 +28,7 @@ module type Flambda_backend_options = sig
   val dcfg_equivalence_check : unit -> unit
 
   val reorder_blocks_random : int -> unit
+  val basic_block_sections : unit -> unit
 
   val dasm_comments : unit -> unit
   val dno_asm_comments : unit -> unit
@@ -94,8 +95,10 @@ module type Flambda_backend_options = sig
   val flambda2_unicode : unit -> unit
 
   val drawfexpr : unit -> unit
+  val drawfexpr_to : string -> unit
   val dfexpr : unit -> unit
-  val dflexpect : unit -> unit
+  val dfexpr_to : string -> unit
+  val dflexpect_to : string -> unit
   val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
   val dflow : unit -> unit

@@ -44,10 +44,6 @@ type close_functions_result =
   | Lifted of (Symbol.t * Env.value_approximation) Function_slot.Lmap.t
   | Dynamic of Set_of_closures.t * Env.value_approximation Function_slot.Map.t
 
-(* Do not use [Simple.symbol], use this function instead, to ensure that we
-   correctly compute the free names of [Code]. *)
-let use_of_symbol_as_simple acc symbol = acc, Simple.symbol symbol
-
 let declare_symbol_for_function_slot env ident function_slot : Env.t * Symbol.t
     =
   let symbol =
@@ -69,6 +65,7 @@ let register_const0 acc constant name =
     let symbol =
       Symbol.create
         (Compilation_unit.get_current_exn ())
+        (* CR mshinwell: this Variable.rename looks to be redundant *)
         (Linkage_name.of_string (Variable.unique_name (Variable.rename var)))
     in
     let acc = Acc.add_declared_symbol ~symbol ~constant acc in
@@ -154,15 +151,16 @@ let close_const0 acc (const : Lambda.structured_constant) =
   let acc, const, name = declare_const acc const in
   match const with
   | Tagged_immediate i ->
-    acc, Simple.const (Reg_width_const.tagged_immediate i), name
-  | Symbol s ->
-    let acc, simple = use_of_symbol_as_simple acc s in
-    acc, simple, name
+    ( acc,
+      Simple.const (Reg_width_const.tagged_immediate i),
+      name,
+      Flambda_kind.With_subkind.tagged_immediate )
+  | Symbol s -> acc, Simple.symbol s, name, Flambda_kind.With_subkind.any_value
   | Dynamically_computed _ ->
     Misc.fatal_errorf "Declaring a computed constant %s" name
 
 let close_const acc const =
-  let acc, simple, name = close_const0 acc const in
+  let acc, simple, name, _kind = close_const0 acc const in
   let named = Named.create_simple simple in
   acc, named, name
 
@@ -183,23 +181,39 @@ let find_simple_from_id env id = fst (find_simple_from_id_with_kind env id)
 let find_simple acc env (simple : IR.simple) =
   match simple with
   | Const const ->
-    let acc, simple, _ = close_const0 acc const in
+    let acc, simple, _, _ = close_const0 acc const in
     acc, simple
   | Var id -> acc, find_simple_from_id env id
+
+let find_simple_with_kind acc env (simple : IR.simple) =
+  match simple with
+  | Const const ->
+    let acc, simple, _, kind = close_const0 acc const in
+    acc, (simple, kind)
+  | Var id -> acc, find_simple_from_id_with_kind env id
 
 let find_simples acc env ids =
   List.fold_left_map (fun acc id -> find_simple acc env id) acc ids
 
-let find_value_approximation acc env simple =
+let find_simples_and_arity acc env ids =
+  List.fold_left_map (fun acc id -> find_simple_with_kind acc env id) acc ids
+
+let find_value_approximation env simple =
   Simple.pattern_match' simple
     ~var:(fun var ~coercion:_ -> Env.find_var_approximation env var)
-    ~symbol:(fun sym ~coercion:_ -> Acc.find_symbol_approximation acc sym)
+    ~symbol:(fun sym ~coercion:_ -> Value_approximation.Value_symbol sym)
     ~const:(fun const ->
       match Reg_width_const.descr const with
       | Tagged_immediate i -> Value_approximation.Value_int i
       | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
       | Naked_nativeint _ ->
         Value_approximation.Value_unknown)
+
+let find_value_approximation_through_symbol acc env simple =
+  match find_value_approximation env simple with
+  | Value_approximation.Value_symbol sym ->
+    Acc.find_symbol_approximation acc sym
+  | approx -> approx
 
 module Inlining = struct
   include Closure_conversion_aux.Inlining
@@ -261,7 +275,7 @@ module Inlining = struct
   let make_inlined_body acc ~callee ~region_inlined_into ~params ~args
       ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
       ~exn_continuation ~return_continuation ~apply_exn_continuation
-      ~apply_return_continuation ~apply_depth =
+      ~apply_return_continuation ~apply_depth ~apply_dbg =
     let rec_info =
       match apply_depth with
       | None -> Rec_info_expr.initial
@@ -290,10 +304,19 @@ module Inlining = struct
       in
       acc, Expr.apply_renaming body renaming
     in
-    Inlining_helpers.make_inlined_body ~callee ~region_inlined_into ~params
-      ~args ~my_closure ~my_region ~my_depth ~rec_info ~body:(acc, body)
-      ~exn_continuation ~return_continuation ~apply_exn_continuation
-      ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming
+    let acc, body =
+      Inlining_helpers.make_inlined_body ~callee ~region_inlined_into ~params
+        ~args ~my_closure ~my_region ~my_depth ~rec_info ~body:(acc, body)
+        ~exn_continuation ~return_continuation ~apply_exn_continuation
+        ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming
+    in
+    Let_with_acc.create acc
+      (Bound_pattern.singleton
+         (VB.create (Variable.create "inlined_dbg") Name_mode.normal))
+      (Named.create_prim
+         (Nullary (Enter_inlined_apply { dbg = apply_dbg }))
+         Debuginfo.none)
+      ~body
 
   let wrap_inlined_body_for_exn_extra_args acc ~extra_args
       ~apply_exn_continuation ~apply_return_continuation ~result_arity
@@ -314,6 +337,7 @@ module Inlining = struct
       ~make_inlined_body ~apply_cont_create ~let_cont_create
 
   let inline acc ~apply ~apply_depth ~func_desc:code =
+    let apply_dbg = Apply.dbg apply in
     let callee = Apply.callee apply in
     let region_inlined_into = Apply.region apply in
     let args = Apply.args apply in
@@ -344,7 +368,7 @@ module Inlining = struct
           make_inlined_body ~callee ~region_inlined_into
             ~params:(Bound_parameters.vars params)
             ~args ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
-            ~exn_continuation ~return_continuation ~apply_depth
+            ~exn_continuation ~return_continuation ~apply_depth ~apply_dbg
         in
         let acc = Acc.with_free_names Name_occurrences.empty acc in
         let acc = Acc.increment_metrics cost_metrics acc in
@@ -416,13 +440,14 @@ let close_c_call acc env ~loc ~let_bound_var
   in
   let param_arity =
     List.map kind_of_primitive_native_repr prim_native_repr_args
-    |> Flambda_arity.create
+    |> Flambda_arity.create |> Flambda_arity.With_subkinds.of_arity
   in
   let return_kind = kind_of_primitive_native_repr prim_native_repr_res in
-  let return_arity = Flambda_arity.create [return_kind] in
+  let return_arity =
+    Flambda_arity.create [return_kind] |> Flambda_arity.With_subkinds.of_arity
+  in
   let call_kind =
-    Call_kind.c_call ~alloc:prim_alloc ~param_arity ~return_arity
-      ~is_c_builtin:prim_c_builtin
+    Call_kind.c_call ~alloc:prim_alloc ~is_c_builtin:prim_c_builtin
   in
   let call_symbol =
     let prim_name =
@@ -472,10 +497,11 @@ let close_c_call acc env ~loc ~let_bound_var
           Misc.fatal_errorf "Wrong argument and/or result kind(s) for %s"
             prim_native_name)
     | _ ->
-      let acc, callee = use_of_symbol_as_simple acc call_symbol in
+      let callee = Simple.symbol call_symbol in
       let apply =
         Apply.create ~callee ~continuation:(Return return_continuation)
-          exn_continuation ~args ~call_kind dbg ~inlined:Default_inlined
+          exn_continuation ~args ~args_arity:param_arity ~return_arity
+          ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Inlining_state.default ~round:0)
           ~probe_name:None ~position:Normal
           ~relative_history:(Env.relative_history_from_scoped ~loc env)
@@ -603,15 +629,13 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     let symbol =
       Flambda2_import.Symbol.for_compilation_unit cu |> Symbol.create_wrapped
     in
-    let acc, simple = use_of_symbol_as_simple acc symbol in
-    let named = Named.create_simple simple in
+    let named = Named.create_simple (Simple.symbol symbol) in
     k acc (Some named)
   | Pgetpredef id, [] ->
     let symbol =
       Flambda2_import.Symbol.for_predef_ident id |> Symbol.create_wrapped
     in
-    let acc, simple = use_of_symbol_as_simple acc symbol in
-    let named = Named.create_simple simple in
+    let named = Named.create_simple (Simple.symbol symbol) in
     k acc (Some named)
   | Praise raise_kind, [_] ->
     let exn_continuation =
@@ -656,29 +680,31 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
       | Pmakearray (_, _, _mode) ->
         register_const0 acc Static_const.empty_array "empty_array"
-      | Pbytes_to_string | Pbytes_of_string | Pignore | Pgetglobal _
-      | Psetglobal _ | Pgetpredef _ | Pfield _ | Pfield_computed _ | Psetfield _
-      | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
-      | Pccall _ | Praise _ | Psequand | Psequor | Pnot | Pnegint | Paddint
-      | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint
-      | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
-      | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
-      | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
-      | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
-      | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
-      | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _ | Parrayrefu _
-      | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout
-      | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
-      | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
-      | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
-      | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
-      | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
-      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _
-      | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbigstring_load_16 _
-      | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_set_16 _
-      | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pctconst _ | Pbswap16
-      | Pbbswap _ | Pint_as_pointer | Popaque | Pprobe_is_enabled _ | Pobj_dup
-      | Pobj_magic ->
+      | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray
+      | Parray_to_iarray | Pignore | Pgetglobal _ | Psetglobal _ | Pgetpredef _
+      | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _
+      | Pfloatfield _ | Psetfloatfield _ | Pduprecord _ | Pccall _ | Praise _
+      | Psequand | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint
+      | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
+      | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats
+      | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat
+      | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
+      | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu
+      | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs
+      | Pbytessets | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
+      | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout | Pbintofint _
+      | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _
+      | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _
+      | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _
+      | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _
+      | Pstring_load_32 _ | Pstring_load_64 _ | Pbytes_load_16 _
+      | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _
+      | Pbytes_set_64 _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
+      | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
+      | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _
+      | Pint_as_pointer | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
+      | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+        ->
         (* Inconsistent with outer match *)
         assert false
     in
@@ -743,6 +769,81 @@ let close_named acc env ~let_bound_var (named : IR.named)
       ~current_region:(fst (Env.find_var env region))
       k
 
+type simplified_block_load =
+  | Unknown
+  | Not_a_block
+  | Block_but_cannot_simplify of Code_or_metadata.t Value_approximation.t
+  | Field_contents of Simple.t
+
+let simplify_block_load acc body_env ~block ~field : simplified_block_load =
+  match find_value_approximation_through_symbol acc body_env block with
+  | Value_unknown -> Unknown
+  | Closure_approximation _ | Value_symbol _ | Value_int _ -> Not_a_block
+  | Block_approximation (approx, _alloc_mode) -> (
+    let approx =
+      Simple.pattern_match field
+        ~const:(fun const ->
+          match Reg_width_const.descr const with
+          | Tagged_immediate i ->
+            let i = Targetint_31_63.to_int i in
+            if i >= Array.length approx then None else Some approx.(i)
+          | _ -> Some Value_approximation.Value_unknown)
+        ~name:(fun _ ~coercion:_ -> Some Value_approximation.Value_unknown)
+    in
+    match approx with
+    | Some (Value_symbol sym) -> Field_contents (Simple.symbol sym)
+    | Some (Value_int i) -> Field_contents (Simple.const_int i)
+    | Some approx -> Block_but_cannot_simplify approx
+    | None -> Not_a_block)
+
+type block_static_kind =
+  | Dynamic_block
+  | Computed_static of Field_of_static_block.t list
+  | Constant of Field_of_static_block.t list
+
+let classify_fields_of_block env fields alloc_mode =
+  let is_local =
+    match (alloc_mode : Alloc_mode.For_allocations.t) with
+    | Local _ -> true
+    | Heap -> false
+  in
+  let static_fields =
+    List.fold_left
+      (fun static_fields f ->
+        match static_fields with
+        | None -> None
+        | Some fields ->
+          Simple.pattern_match'
+            ~const:(fun c ->
+              match Reg_width_const.descr c with
+              | Tagged_immediate imm ->
+                Some (Field_of_static_block.Tagged_immediate imm :: fields)
+              | _ -> None)
+            ~symbol:(fun s ~coercion:_ ->
+              Some (Field_of_static_block.Symbol s :: fields))
+            ~var:(fun v ~coercion:_ ->
+              if Env.at_toplevel env
+                 && Flambda_features.classic_mode ()
+                 && not is_local
+              then
+                Some
+                  (Field_of_static_block.Dynamically_computed (v, Debuginfo.none)
+                  :: fields)
+              else None)
+            f)
+      (Some []) fields
+    |> Option.map List.rev
+  in
+  match static_fields with
+  | None -> Dynamic_block
+  | Some fields ->
+    if List.exists
+         (function
+           | Field_of_static_block.Dynamically_computed _ -> true | _ -> false)
+         fields
+    then Computed_static fields
+    else Constant fields
+
 let close_let acc env id user_visible kind defining_expr
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
   let body_env, var = Env.add_var_like env id user_visible kind in
@@ -759,76 +860,147 @@ let close_let acc env id user_visible kind defining_expr
          generated. *)
       body acc body_env
     | Some defining_expr -> (
-      let body_env =
-        match defining_expr with
-        | Prim (Variadic (Make_block (_, Immutable, alloc_mode), fields), _) ->
-          let approxs =
-            List.map
-              (fun field ->
-                match Simple.must_be_symbol field with
-                | None -> find_value_approximation acc body_env field
-                | Some (sym, _) -> Value_approximation.Value_symbol sym)
-              fields
-            |> Array.of_list
-          in
-          Some
-            (Env.add_block_approximation body_env var approxs
-               (Alloc_mode.For_allocations.as_type alloc_mode))
-        | Prim (Binary (Block_load _, block, field), _) -> (
-          match find_value_approximation acc body_env block with
-          | Value_unknown -> Some body_env
-          | Closure_approximation _ | Value_symbol _ | Value_int _ ->
-            (* Here we assume [block] has already been substituted as a known
-               symbol if it exists, and rely on the invariant that the
-               approximation of a symbol is never a symbol. *)
-            if Flambda_features.check_invariants ()
-            then
-              (* CR keryan: This is hidden behind invariants check because it
-                 can appear on correct code using Lazy or GADT. It might warrant
-                 a proper warning at some point. *)
-              Misc.fatal_errorf
-                "Unexpected approximation found when block approximation was \
-                 expected in [Closure_conversion]: %a"
-                Named.print defining_expr
-            else None
-          | Block_approximation (approx, _alloc_mode) -> (
-            let approx =
-              Simple.pattern_match field
-                ~const:(fun const ->
-                  match Reg_width_const.descr const with
-                  | Tagged_immediate i ->
-                    let i = Targetint_31_63.to_int i in
-                    if i >= Array.length approx
-                    then
-                      Misc.fatal_errorf
-                        "Trying to access the %dth field of a block \
-                         approximation of length %d."
-                        i (Array.length approx);
-                    approx.(i)
-                  | _ -> Value_approximation.Value_unknown)
-                ~name:(fun _ ~coercion:_ -> Value_approximation.Value_unknown)
-            in
-            match approx with
-            | Value_symbol sym ->
-              (* In spirit, this is the same as the simple case but more
-                 cumbersome to detect, we have to remove the now useless
-                 let-binding later. *)
-              Some
-                (Env.add_simple_to_substitute env id (Simple.symbol sym) kind)
-            | _ -> Some (Env.add_var_approximation body_env var approx)))
-        | _ -> Some body_env
+      let bound_pattern =
+        Bound_pattern.singleton (VB.create var Name_mode.normal)
       in
-      let var = VB.create var Name_mode.normal in
-      let bound_pattern = Bound_pattern.singleton var in
-      match body_env with
-      | Some body_env ->
+      let bind acc env =
         (* CR pchambart: Not tail ! The body function is the recursion *)
-        let acc, body = body acc body_env in
+        let acc, body = body acc env in
         Let_with_acc.create acc bound_pattern defining_expr ~body
-      | None ->
-        ( acc,
-          Expr.create_invalid
-            (Defining_expr_of_let (bound_pattern, defining_expr)) ))
+      in
+      match defining_expr with
+      | Prim
+          ( Variadic
+              (Make_block (Values (tag, _), Immutable, alloc_mode), fields),
+            _ ) -> (
+        let approxs =
+          List.map (find_value_approximation body_env) fields |> Array.of_list
+        in
+        let fields_kind = classify_fields_of_block env fields alloc_mode in
+        match fields_kind with
+        | Constant static_fields ->
+          let acc, sym =
+            register_const0 acc
+              (Static_const.block tag Immutable static_fields)
+              (Ident.name id)
+          in
+          let body_env =
+            Env.add_simple_to_substitute body_env id (Simple.symbol sym) kind
+          in
+          let acc =
+            Acc.add_symbol_approximation acc sym
+              (Value_approximation.Block_approximation
+                 (approxs, Alloc_mode.For_allocations.as_type alloc_mode))
+          in
+          body acc body_env
+        | Computed_static static_fields ->
+          (* This is a inconstant statically-allocated value, so cannot go
+             through [register_const0]. The definition must be placed right
+             away. *)
+          let symbol =
+            Symbol.create
+              (Compilation_unit.get_current_exn ())
+              (Linkage_name.of_string (Variable.unique_name var))
+          in
+          let static_const = Static_const.block tag Immutable static_fields in
+          let static_consts =
+            [Static_const_or_code.create_static_const static_const]
+          in
+          let defining_expr =
+            Static_const_group.create static_consts
+            |> Named.create_static_consts
+          in
+          let body_env =
+            Env.add_simple_to_substitute body_env id (Simple.symbol symbol) kind
+          in
+          let approx =
+            Value_approximation.Block_approximation
+              (approxs, Alloc_mode.For_allocations.as_type alloc_mode)
+          in
+          let acc = Acc.add_symbol_approximation acc symbol approx in
+          let acc, body = body acc body_env in
+          Let_with_acc.create acc
+            (Bound_pattern.static
+               (Bound_static.create [Bound_static.Pattern.block_like symbol]))
+            defining_expr ~body
+        | Dynamic_block ->
+          let body_env =
+            Env.add_block_approximation body_env var approxs
+              (Alloc_mode.For_allocations.as_type alloc_mode)
+          in
+          bind acc body_env)
+      | Prim
+          ( Variadic
+              ( Make_block (Values (tag, _), Immutable_unique, _alloc_mode),
+                [exn_name; exn_id] ),
+            _ )
+        when Tag.Scannable.equal tag Tag.Scannable.object_tag
+             && Env.at_toplevel env
+             && Flambda_features.classic_mode () ->
+        (* Special case to lift toplevel exception declarations *)
+        let symbol =
+          Symbol.create
+            (Compilation_unit.get_current_exn ())
+            (Linkage_name.of_string (Variable.unique_name var))
+        in
+        let transform_arg arg =
+          Simple.pattern_match' arg
+            ~var:(fun var ~coercion:_ ->
+              Field_of_static_block.Dynamically_computed (var, Debuginfo.none))
+            ~symbol:(fun sym ~coercion:_ -> Field_of_static_block.Symbol sym)
+            ~const:(fun const ->
+              Misc.fatal_errorf "Constant %a not expected as argument in %a"
+                Reg_width_const.print const Named.print defining_expr)
+        in
+        (* This is an inconstant statically-allocated value, so cannot go
+           through [register_const0]. The definition must be placed right
+           away. *)
+        let static_const =
+          Static_const.block Tag.Scannable.object_tag Immutable_unique
+            [transform_arg exn_name; transform_arg exn_id]
+        in
+        let static_consts =
+          [Static_const_or_code.create_static_const static_const]
+        in
+        let defining_expr =
+          Static_const_group.create static_consts |> Named.create_static_consts
+        in
+        let body_env =
+          Env.add_simple_to_substitute body_env id (Simple.symbol symbol) kind
+        in
+        let acc =
+          Acc.add_symbol_approximation acc symbol
+            Value_approximation.Value_unknown
+        in
+        let acc, body = body acc body_env in
+        Let_with_acc.create acc
+          (Bound_pattern.static
+             (Bound_static.create [Bound_static.Pattern.block_like symbol]))
+          defining_expr ~body
+      | Prim (Binary (Block_load _, block, field), _) -> (
+        match simplify_block_load acc body_env ~block ~field with
+        | Unknown -> bind acc body_env
+        | Not_a_block ->
+          if Flambda_features.check_invariants ()
+          then
+            (* CR keryan: This is hidden behind invariants check because it can
+               appear on correct code using Lazy or GADT. It might warrant a
+               proper warning at some point. *)
+            Misc.fatal_errorf
+              "Unexpected approximation found when block approximation was \
+               expected in [Closure_conversion]: %a"
+              Named.print defining_expr
+          else
+            ( acc,
+              Expr.create_invalid
+                (Defining_expr_of_let (bound_pattern, defining_expr)) )
+        | Field_contents sim ->
+          let body_env = Env.add_simple_to_substitute env id sim kind in
+          body acc body_env
+        | Block_but_cannot_simplify approx ->
+          let body_env = Env.add_var_approximation body_env var approx in
+          bind acc body_env)
+      | _ -> bind acc body_env)
   in
   close_named acc env ~let_bound_var:var defining_expr cont
 
@@ -893,7 +1065,7 @@ let close_exact_or_unknown_apply acc env
        mode;
        region_close;
        region;
-       return = _
+       return_arity
      } :
       IR.apply) callee_approx ~replace_region : Expr_with_acc.t =
   let callee = find_simple_from_id env func in
@@ -909,9 +1081,9 @@ let close_exact_or_unknown_apply acc env
       ( acc,
         match (callee_approx : Env.value_approximation option) with
         | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
-          let return_arity, is_tupled =
+          let is_tupled =
             let meta = Code_or_metadata.code_metadata code_or_meta in
-            Code_metadata.(result_arity meta, is_tupled meta)
+            Code_metadata.is_tupled meta
           in
           if is_tupled
           then
@@ -919,7 +1091,7 @@ let close_exact_or_unknown_apply acc env
                we would have to untuple the arguments and we lack information
                for now *)
             Call_kind.indirect_function_call_unknown_arity mode
-          else Call_kind.direct_function_call code_id ~return_arity mode
+          else Call_kind.direct_function_call code_id mode
         | None -> Call_kind.indirect_function_call_unknown_arity mode
         | Some
             ( Value_unknown | Value_symbol _ | Value_int _
@@ -935,7 +1107,8 @@ let close_exact_or_unknown_apply acc env
   let acc, apply_exn_continuation =
     close_exn_continuation acc env exn_continuation
   in
-  let acc, args = find_simples acc env args in
+  let acc, args_with_arity = find_simples_and_arity acc env args in
+  let args, args_arity = List.split args_with_arity in
   let inlined_call = Inlined_attribute.from_lambda inlined in
   let probe_name =
     match probe with None -> None | Some { name } -> Some name
@@ -947,7 +1120,9 @@ let close_exact_or_unknown_apply acc env
   in
   let apply =
     Apply.create ~callee ~continuation:(Return continuation)
-      apply_exn_continuation ~args ~call_kind
+      apply_exn_continuation ~args
+      ~args_arity:(Flambda_arity.With_subkinds.create args_arity)
+      ~return_arity ~call_kind
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
@@ -972,7 +1147,7 @@ let close_exact_or_unknown_apply acc env
 let close_apply_cont acc env ~dbg cont trap_action args : Expr_with_acc.t =
   let acc, args = find_simples acc env args in
   let trap_action = close_trap_action_opt trap_action in
-  let args_approx = List.map (find_value_approximation acc env) args in
+  let args_approx = List.map (find_value_approximation env) args in
   let acc, apply_cont =
     Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args ~dbg
   in
@@ -984,7 +1159,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
   let untagged_scrutinee = Variable.create "untagged" in
   let untagged_scrutinee' = VB.create untagged_scrutinee Name_mode.normal in
   let known_const_scrutinee =
-    match find_value_approximation acc env scrutinee with
+    match find_value_approximation_through_symbol acc env scrutinee with
     | Value_approximation.Value_int i -> Some i
     | _ -> None
   in
@@ -996,7 +1171,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
       (fun acc (case, cont, trap_action, args) ->
         let trap_action = close_trap_action_opt trap_action in
         let acc, args = find_simples acc env args in
-        let args_approx = List.map (find_value_approximation acc env) args in
+        let args_approx = List.map (find_value_approximation env) args in
         let action acc =
           Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args
             ~dbg:condition_dbg
@@ -1147,12 +1322,12 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
 
      Note that free variables corresponding to predefined exception identifiers
      have been filtered out by [close_functions], above. *)
-  let value_slots_to_bind, value_slots_for_idents =
+  let (value_slots_to_bind : Value_slot.t Variable.Map.t), vars_for_idents =
     Ident.Map.fold
-      (fun id value_slots_for_idents (to_bind, var_for_ident) ->
+      (fun id value_slot (value_slots_to_bind, vars_for_idents) ->
         let var = Variable.create_with_same_name_as_ident id in
-        ( Variable.Map.add var value_slots_for_idents to_bind,
-          Ident.Map.add id var var_for_ident ))
+        ( Variable.Map.add var value_slot value_slots_to_bind,
+          Ident.Map.add id var vars_for_idents ))
       value_slots_from_idents
       (Variable.Map.empty, Ident.Map.empty)
   in
@@ -1215,8 +1390,8 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
         Env.add_var_approximation
           (Env.add_var env id var kind)
           var
-          (find_value_approximation acc env simple))
-      value_slots_for_idents closure_env
+          (find_value_approximation_through_symbol acc env simple))
+      vars_for_idents closure_env
   in
   let closure_env =
     List.fold_right
@@ -1293,14 +1468,12 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     Variable.Map.fold
       (fun var value_slot (acc, body) ->
         let var = VB.create var Name_mode.normal in
+        let kind = Value_slot.kind value_slot in
         let named =
           Named.create_prim
             (Unary
                ( Project_value_slot
-                   { project_from = function_slot;
-                     value_slot;
-                     kind = K.With_subkind.any_value
-                   },
+                   { project_from = function_slot; value_slot; kind },
                  my_closure' ))
             Debuginfo.none
         in
@@ -1373,8 +1546,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     Code.create code_id ~params_and_body
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
       ~num_trailing_local_params:(Function_decl.num_trailing_local_params decl)
-      ~result_arity:(Flambda_arity.With_subkinds.create [return])
-      ~result_types:Unknown
+      ~result_arity:return ~result_types:Unknown
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
       ~stub ~inline
@@ -1416,16 +1588,18 @@ let close_functions acc external_env ~current_region function_declarations =
         (* Filter out predefined exception identifiers and simple substitutions.
            The former will be turned into symbols, and the latter substituted
            when we closure-convert the body *)
-        let has_non_var_subst, subst_var =
+        let has_non_var_subst, subst_var, kind =
           match Env.find_simple_to_substitute_exn external_env id with
-          | exception Not_found -> false, None
-          | simple, _kind ->
+          | exception Not_found ->
+            let _, kind = find_simple_from_id_with_kind external_env id in
+            false, None, kind
+          | simple, kind ->
             Simple.pattern_match simple
-              ~const:(fun _ -> true, None)
+              ~const:(fun _ -> true, None, kind)
               ~name:(fun name ~coercion:_ ->
                 Name.pattern_match name
-                  ~var:(fun var -> false, Some var)
-                  ~symbol:(fun _ -> true, None))
+                  ~var:(fun var -> false, Some var, kind)
+                  ~symbol:(fun _ -> true, None, kind))
         in
         if has_non_var_subst || Ident.is_predef id
         then map
@@ -1435,7 +1609,7 @@ let close_functions acc external_env ~current_region function_declarations =
             | None -> Ident.name id
             | Some var -> Variable.name var
           in
-          Ident.Map.add id (Value_slot.create compilation_unit ~name) map)
+          Ident.Map.add id (Value_slot.create compilation_unit ~name kind) map)
       (Function_decls.all_free_idents function_declarations)
       Ident.Map.empty
   in
@@ -1480,8 +1654,7 @@ let close_functions acc external_env ~current_region function_declarations =
           List.map (fun (_, kind) -> kind) params
           |> Flambda_arity.With_subkinds.create
         in
-        let return = Function_decl.return decl in
-        let result_arity = Flambda_arity.With_subkinds.create [return] in
+        let result_arity = Function_decl.return decl in
         let poll_attribute =
           Poll_attribute.from_lambda (Function_decl.poll_attribute decl)
         in
@@ -1515,9 +1688,21 @@ let close_functions acc external_env ~current_region function_declarations =
             ~loopify:Never_loopify
         in
         let code = Code_or_metadata.create_metadata_only metadata in
+        let all_function_slots =
+          Ident.Map.data function_slots_from_idents |> Function_slot.Set.of_list
+        in
+        let all_value_slots =
+          Ident.Map.data value_slots_from_idents |> Value_slot.Set.of_list
+        in
         let approx =
           Value_approximation.Closure_approximation
-            { code_id; function_slot; code; symbol = None }
+            { code_id;
+              function_slot;
+              all_function_slots;
+              all_value_slots;
+              code;
+              symbol = None
+            }
         in
         Function_slot.Map.add function_slot approx approx_map)
       Function_slot.Map.empty func_decl_list
@@ -1533,9 +1718,21 @@ let close_functions acc external_env ~current_region function_declarations =
           let approx =
             match Function_slot.Map.find function_slot approx_map with
             | Value_approximation.Closure_approximation
-                { code_id; function_slot; code; symbol = _ } ->
+                { code_id;
+                  function_slot;
+                  all_function_slots;
+                  all_value_slots;
+                  code;
+                  symbol = _
+                } ->
               Value_approximation.Closure_approximation
-                { code_id; function_slot; code; symbol = Some symbol }
+                { code_id;
+                  function_slot;
+                  all_function_slots;
+                  all_value_slots;
+                  code;
+                  symbol = Some symbol
+                }
             | _ -> assert false
             (* see above *)
           in
@@ -1575,28 +1772,43 @@ let close_functions acc external_env ~current_region function_declarations =
     in
     Function_slot.Lmap.of_list (List.rev funs)
   in
+  let function_decls = Function_declarations.create funs in
+  let value_slots =
+    Ident.Map.fold
+      (fun id value_slot map ->
+        let kind = Value_slot.kind value_slot in
+        let external_simple, kind' =
+          find_simple_from_id_with_kind external_env id
+        in
+        if not (K.With_subkind.equal kind kind')
+        then
+          Misc.fatal_errorf "Value slot kinds %a and %a don't match for slot %a"
+            K.With_subkind.print kind K.With_subkind.print kind'
+            Value_slot.print value_slot;
+        (* We're sure [external_simple] is a variable since
+           [value_slot_from_idents] has already filtered constants and symbols
+           out. *)
+        Value_slot.Map.add value_slot external_simple map)
+      value_slots_from_idents Value_slot.Map.empty
+  in
   let approximations =
     Function_slot.Map.mapi
       (fun function_slot code ->
         let code_id =
           Code_metadata.code_id (Code_or_metadata.code_metadata code)
         in
-        Value_approximation.Closure_approximation
-          { code_id; function_slot; code; symbol = None })
-      approximations
-  in
-  let function_decls = Function_declarations.create funs in
-  let value_slots =
-    Ident.Map.fold
-      (fun id value_slot map ->
-        let external_simple, kind =
-          find_simple_from_id_with_kind external_env id
+        let all_function_slots =
+          Function_slot.Lmap.keys funs |> Function_slot.Set.of_list
         in
-        (* We're sure [external_simple] is a variable since
-           [value_slot_from_idents] has already filtered constants and symbols
-           out. *)
-        Value_slot.Map.add value_slot (external_simple, kind) map)
-      value_slots_from_idents Value_slot.Map.empty
+        Value_approximation.Closure_approximation
+          { code_id;
+            function_slot;
+            all_function_slots;
+            all_value_slots = Value_slot.Map.keys value_slots;
+            code;
+            symbol = None
+          })
+      approximations
   in
   let set_of_closures =
     Set_of_closures.create ~value_slots
@@ -1610,24 +1822,37 @@ let close_functions acc external_env ~current_region function_declarations =
   in
   if can_be_lifted
   then
-    let symbols =
+    let symbols_with_approx =
       Function_slot.Lmap.mapi
         (fun function_slot _ ->
           let sym = Function_slot.Map.find function_slot symbol_map in
           let approx =
             match Function_slot.Map.find function_slot approximations with
             | Value_approximation.Closure_approximation
-                { code_id; function_slot; code; symbol = _ } ->
+                { code_id;
+                  function_slot;
+                  all_function_slots;
+                  all_value_slots;
+                  code;
+                  symbol = _
+                } ->
               Value_approximation.Closure_approximation
-                { code_id; function_slot; code; symbol = Some sym }
+                { code_id;
+                  function_slot;
+                  all_function_slots;
+                  all_value_slots;
+                  code;
+                  symbol = Some sym
+                }
             | _ -> assert false
             (* see above *)
           in
           sym, approx)
         funs
     in
+    let symbols = Function_slot.Lmap.map fst symbols_with_approx in
     let acc = Acc.add_lifted_set_of_closures ~symbols ~set_of_closures acc in
-    acc, Lifted symbols
+    acc, Lifted symbols_with_approx
   else acc, Dynamic (set_of_closures, approximations)
 
 let close_let_rec acc env ~function_declarations
@@ -1738,7 +1963,7 @@ let close_let_rec acc env ~function_declarations
       named ~body
 
 let wrap_partial_application acc env apply_continuation (apply : IR.apply)
-    approx args missing_args ~arity ~num_trailing_local_params
+    approx ~provided ~missing_arity ~arity ~num_trailing_local_params
     ~contains_no_escaping_local_allocs =
   (* In case of partial application, creates a wrapping function from scratch to
      allow inlining and lifting *)
@@ -1746,21 +1971,21 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   let function_slot =
     Function_slot.create
       (Compilation_unit.get_current_exn ())
-      ~name:(Ident.name wrapper_id)
+      ~name:(Ident.name wrapper_id) K.With_subkind.any_value
   in
-  let args_arity = List.length args in
+  let num_provided = List.length provided in
   let params =
     List.mapi
       (fun n kind_with_subkind ->
-        ( Ident.create_local ("param" ^ string_of_int (args_arity + n)),
+        ( Ident.create_local ("param" ^ string_of_int (num_provided + n)),
           kind_with_subkind ))
-      (Flambda_arity.With_subkinds.to_list missing_args)
+      (Flambda_arity.With_subkinds.to_list missing_arity)
   in
   let return_continuation = Continuation.create ~sort:Return () in
   let exn_continuation =
     IR.{ exn_handler = Continuation.create (); extra_args = [] }
   in
-  let all_args = args @ List.map (fun (a, _) -> IR.Var a) params in
+  let all_args = provided @ List.map (fun (a, _) -> IR.Var a) params in
   let result_mode =
     if contains_no_escaping_local_allocs
     then Lambda.alloc_heap
@@ -1802,10 +2027,10 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     let num_leading_heap_params =
       Flambda_arity.With_subkinds.cardinal arity - num_trailing_local_params
     in
-    if args_arity <= num_leading_heap_params
+    if num_provided <= num_leading_heap_params
     then Lambda.alloc_heap, num_trailing_local_params
     else
-      let num_supplied_local_args = args_arity - num_leading_heap_params in
+      let num_supplied_local_args = num_provided - num_leading_heap_params in
       Lambda.alloc_local, num_trailing_local_params - num_supplied_local_args
   in
   if not (Lambda.sub_mode closure_alloc_mode apply.IR.mode)
@@ -1816,16 +2041,17 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   let function_declarations =
     [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
         ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
-        ~params ~return:apply.return ~return_continuation ~exn_continuation
-        ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
-        ~free_idents_of_body ~closure_alloc_mode ~num_trailing_local_params
-        ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
+        ~params ~return:apply.return_arity ~return_continuation
+        ~exn_continuation ~my_region:apply.region ~body:fbody ~attr
+        ~loc:apply.loc ~free_idents_of_body ~closure_alloc_mode
+        ~num_trailing_local_params ~contains_no_escaping_local_allocs
+        Recursive.Non_recursive ]
   in
   let body acc env =
     let arg = find_simple_from_id env wrapper_id in
     let acc, apply_cont =
       Apply_cont_with_acc.create acc
-        ~args_approx:[find_value_approximation acc env arg]
+        ~args_approx:[find_value_approximation env arg]
         apply_continuation ~args:[arg] ~dbg:Debuginfo.none
     in
     Expr_with_acc.create_apply_cont acc apply_cont
@@ -1833,8 +2059,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   close_let_rec acc env ~function_declarations ~body
     ~current_region:apply.region
 
-let wrap_over_application acc env full_call (apply : IR.apply) over_args
-    ~contains_no_escaping_local_allocs ~result_arity =
+let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
+    ~remaining_arity ~contains_no_escaping_local_allocs =
   let wrapper_cont = Continuation.create () in
   let returned_func = Variable.create "func" in
   (* See comments in [Simplify_common.split_direct_over_application] about this
@@ -1842,7 +2068,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
   let apply_return_continuation =
     Apply.Result_continuation.Return apply.continuation
   in
-  let acc, args = find_simples acc env over_args in
+  let acc, remaining = find_simples acc env remaining in
   let apply_dbg = Debuginfo.from_location apply.loc in
   let needs_region =
     match apply.mode, contains_no_escaping_local_allocs with
@@ -1882,7 +2108,8 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
     in
     let over_application =
       Apply.create ~callee:(Simple.var returned_func) ~continuation
-        apply_exn_continuation ~args ~call_kind apply_dbg ~inlined
+        apply_exn_continuation ~args:remaining ~args_arity:remaining_arity
+        ~return_arity:apply.return_arity ~call_kind apply_dbg ~inlined
         ~inlining_state:(Inlining_state.default ~round:0)
         ~probe_name ~position
         ~relative_history:(Env.relative_history_from_scoped ~loc:apply.loc env)
@@ -1895,7 +2122,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
         List.mapi
           (fun i kind ->
             BP.create (Variable.create ("result" ^ string_of_int i)) kind)
-          (Flambda_arity.With_subkinds.to_list result_arity)
+          (Flambda_arity.With_subkinds.to_list apply.return_arity)
       in
       let handler acc =
         let acc, call_return_continuation =
@@ -1936,12 +2163,19 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
 
 type call_args_split =
   | Exact of IR.simple list
-  | Partial_app of IR.simple list * Flambda_arity.With_subkinds.t
-  | Over_app of IR.simple list * IR.simple list
+  | Partial_app of
+      { provided : IR.simple list;
+        missing_arity : Flambda_arity.With_subkinds.t
+      }
+  | Over_app of
+      { full : IR.simple list;
+        remaining : IR.simple list;
+        remaining_arity : Flambda_arity.With_subkinds.t
+      }
 
 let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   let callee = find_simple_from_id env apply.func in
-  let approx = find_value_approximation acc env callee in
+  let approx = find_value_approximation_through_symbol acc env callee in
   let code_info =
     match approx with
     | Closure_approximation { code; _ } ->
@@ -1950,8 +2184,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         ( Code_metadata.params_arity metadata,
           Code_metadata.is_tupled metadata,
           Code_metadata.num_trailing_local_params metadata,
-          Code_metadata.contains_no_escaping_local_allocs metadata,
-          Code_metadata.result_arity metadata )
+          Code_metadata.contains_no_escaping_local_allocs metadata )
     | Value_unknown -> None
     | Value_symbol _ | Value_int _ | Block_approximation _ ->
       if Flambda_features.check_invariants ()
@@ -1968,8 +2201,9 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
       ( arity,
         is_tupled,
         num_trailing_local_params,
-        contains_no_escaping_local_allocs,
-        result_arity ) -> (
+        contains_no_escaping_local_allocs ) -> (
+    let acc, args_with_arities = find_simples_and_arity acc env apply.args in
+    let args_arity = List.map snd args_with_arities in
     let split_args =
       let arity = Flambda_arity.With_subkinds.to_list arity in
       let split args arity =
@@ -1989,11 +2223,20 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         then Exact args
         else if args_l < arity_l
         then
-          let _, missing_args = cut args_l arity in
-          Partial_app (args, Flambda_arity.With_subkinds.create missing_args)
+          let _provided_arity, missing_arity = cut args_l arity in
+          Partial_app
+            { provided = args;
+              missing_arity = Flambda_arity.With_subkinds.create missing_arity
+            }
         else
-          let args, remaining_args = cut arity_l args in
-          Over_app (args, remaining_args)
+          let full, remaining = cut arity_l args in
+          let _, remaining_arity = cut arity_l args_arity in
+          Over_app
+            { full;
+              remaining;
+              remaining_arity =
+                Flambda_arity.With_subkinds.create remaining_arity
+            }
       in
       let arity =
         if is_tupled
@@ -2007,11 +2250,11 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
       close_exact_or_unknown_apply acc env
         { apply with args; continuation = apply.continuation }
         (Some approx) ~replace_region:None
-    | Partial_app (args, missing_args) ->
-      wrap_partial_application acc env apply.continuation apply approx args
-        missing_args ~arity ~num_trailing_local_params
+    | Partial_app { provided; missing_arity } ->
+      wrap_partial_application acc env apply.continuation apply approx ~provided
+        ~missing_arity ~arity ~num_trailing_local_params
         ~contains_no_escaping_local_allocs
-    | Over_app (args, remaining_args) ->
+    | Over_app { full; remaining; remaining_arity } ->
       let full_args_call apply_continuation ~region acc =
         let mode =
           if contains_no_escaping_local_allocs
@@ -2019,11 +2262,18 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           else Lambda.alloc_local
         in
         close_exact_or_unknown_apply acc env
-          { apply with args; continuation = apply_continuation; mode }
+          { apply with
+            args = full;
+            continuation = apply_continuation;
+            mode;
+            return_arity =
+              Flambda_arity.With_subkinds.create
+                [Flambda_kind.With_subkind.any_value]
+          }
           (Some approx) ~replace_region:(Some region)
       in
-      wrap_over_application acc env full_args_call apply remaining_args
-        ~contains_no_escaping_local_allocs ~result_arity)
+      wrap_over_application acc env full_args_call apply ~remaining
+        ~remaining_arity ~contains_no_escaping_local_allocs)
 
 module CIS = Code_id_or_symbol
 module GroupMap = Numbers.Int.Map
@@ -2052,7 +2302,6 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
     List.fold_left
       (fun (g2c, s2g) (symbols, set_of_closures) ->
         let id = fresh_group_id () in
-        let symbols = Function_slot.Lmap.map fst symbols in
         let bound = Bound_static.Pattern.set_of_closures symbols in
         let const =
           Static_const_or_code.create_static_const
@@ -2117,25 +2366,22 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
         defining_expr ~body)
     (acc, body) components
 
-let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
-    ~cmx_loader ~compilation_unit ~module_block_size_in_words ~program
-    ~prog_return_cont ~exn_continuation ~toplevel_my_region :
-    mode close_program_result =
-  let env = Env.create ~big_endian in
-  let module_symbol =
-    Symbol.create_wrapped
-      (Flambda2_import.Symbol.for_compilation_unit compilation_unit)
-  in
-  let module_block_tag = Tag.Scannable.zero in
+let wrap_final_module_block acc env ~program ~prog_return_cont
+    ~module_block_size_in_words ~return_cont ~module_symbol =
   let module_block_var = Variable.create "module_block" in
-  let return_cont = Continuation.create ~sort:Toplevel_return () in
-  let env, toplevel_my_region =
-    Env.add_var_like env toplevel_my_region Not_user_visible
-      Flambda_kind.With_subkind.region
-  in
-  let slot_offsets = Slot_offsets.empty in
-  let acc = Acc.create ~slot_offsets ~cmx_loader in
+  let module_block_tag = Tag.Scannable.zero in
   let load_fields_body acc =
+    let env =
+      match Acc.continuation_known_arguments ~cont:prog_return_cont acc with
+      | Some [approx] -> Env.add_var_approximation env module_block_var approx
+      | None | Some ([] | _ :: _) -> env
+    in
+    let module_block_simple =
+      let simple_var = Simple.var module_block_var in
+      match find_value_approximation env simple_var with
+      | Value_approximation.Value_symbol s -> Simple.symbol s
+      | _ -> simple_var
+    in
     let field_vars =
       List.init module_block_size_in_words (fun pos ->
           let pos_str = string_of_int pos in
@@ -2151,12 +2397,12 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
         in
         Static_const.block module_block_tag Immutable field_vars
       in
-      let acc, arg = use_of_symbol_as_simple acc module_symbol in
       let acc, apply_cont =
         (* Module initialisers return unit, but since that is taken care of
            during Cmm generation, we can instead "return" [module_symbol] here
            to ensure that its associated "let symbol" doesn't get deleted. *)
-        Apply_cont_with_acc.create acc return_cont ~args:[arg]
+        Apply_cont_with_acc.create acc return_cont
+          ~args:[Simple.symbol module_symbol]
           ~dbg:Debuginfo.none
       in
       let acc, return = Expr_with_acc.create_apply_cont acc apply_cont in
@@ -2182,35 +2428,62 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
     List.fold_left
       (fun (acc, body) (pos, var) ->
         let var = VB.create var Name_mode.normal in
+        let pat = Bound_pattern.singleton var in
         let pos = Targetint_31_63.of_int pos in
-        let named =
-          Named.create_prim
-            (Binary
-               ( Block_load (block_access, Immutable),
-                 Simple.var module_block_var,
-                 Simple.const (Reg_width_const.tagged_immediate pos) ))
-            Debuginfo.none
-        in
-        Let_with_acc.create acc (Bound_pattern.singleton var) named ~body)
+        let block = module_block_simple in
+        let field = Simple.const (Reg_width_const.tagged_immediate pos) in
+        match simplify_block_load acc env ~block ~field with
+        | Unknown | Not_a_block | Block_but_cannot_simplify _ ->
+          let named =
+            Named.create_prim
+              (Binary (Block_load (block_access, Immutable), block, field))
+              Debuginfo.none
+          in
+          Let_with_acc.create acc pat named ~body
+        | Field_contents sim ->
+          let named = Named.create_simple sim in
+          Let_with_acc.create acc pat named ~body)
       (acc, body) (List.rev field_vars)
   in
   let load_fields_handler_param =
     [BP.create module_block_var K.With_subkind.any_value]
     |> Bound_parameters.create
   in
+  (* This binds the return continuation that is free (or, at least, not bound)
+     in the incoming code. The handler for the continuation receives a tuple
+     with fields indexed from zero to [module_block_size_in_words]. The handler
+     extracts the fields; the variables bound to such fields are then used to
+     define the module block symbol. *)
+  let body acc = program acc env in
+  Let_cont_with_acc.build_non_recursive acc prog_return_cont
+    ~handler_params:load_fields_handler_param ~handler:load_fields_body ~body
+    ~is_exn_handler:false
+
+let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
+    ~cmx_loader ~compilation_unit ~module_block_size_in_words ~program
+    ~prog_return_cont ~exn_continuation ~toplevel_my_region :
+    mode close_program_result =
+  let env = Env.create ~big_endian in
+  let module_symbol =
+    Symbol.create_wrapped
+      (Flambda2_import.Symbol.for_compilation_unit compilation_unit)
+  in
+  let return_cont = Continuation.create ~sort:Toplevel_return () in
+  let env, toplevel_my_region =
+    Env.add_var_like env toplevel_my_region Not_user_visible
+      Flambda_kind.With_subkind.region
+  in
+  let slot_offsets = Slot_offsets.empty in
+  let acc = Acc.create ~slot_offsets ~cmx_loader in
   let acc, body =
-    (* This binds the return continuation that is free (or, at least, not bound)
-       in the incoming code. The handler for the continuation receives a tuple
-       with fields indexed from zero to [module_block_size_in_words]. The
-       handler extracts the fields; the variables bound to such fields are then
-       used to define the module block symbol. *)
-    let body acc = program acc env in
-    Let_cont_with_acc.build_non_recursive acc prog_return_cont
-      ~handler_params:load_fields_handler_param ~handler:load_fields_body ~body
-      ~is_exn_handler:false
+    wrap_final_module_block acc env ~program ~prog_return_cont
+      ~module_block_size_in_words ~return_cont ~module_symbol
   in
   let module_block_approximation =
     match Acc.continuation_known_arguments ~cont:prog_return_cont acc with
+    (* Module symbol may be rebuilt from a lifted block *)
+    | Some [Value_approximation.Value_symbol s] ->
+      Acc.find_symbol_approximation acc s
     | Some [approx] -> approx
     | _ -> Value_approximation.Value_unknown
   in
@@ -2237,20 +2510,8 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
       acc
   in
   let symbols_approximations =
-    let symbol_approxs =
-      List.fold_left
-        (fun sa (symbol, _) ->
-          Symbol.Map.add symbol Value_approximation.Value_unknown sa)
-        (Symbol.Map.singleton module_symbol module_block_approximation)
-        (Acc.declared_symbols acc)
-    in
-    List.fold_left
-      (fun sa (closure_map, _) ->
-        Function_slot.Lmap.fold
-          (fun _ (symbol, approx) sa -> Symbol.Map.add symbol approx sa)
-          closure_map sa)
-      symbol_approxs
-      (Acc.lifted_sets_of_closures acc)
+    Symbol.Map.add module_symbol module_block_approximation
+      (Acc.symbol_approximations acc)
   in
   let acc, body =
     List.fold_left

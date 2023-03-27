@@ -225,7 +225,6 @@ type type_declaration =
     type_expansion_scope: int;
     type_loc: Location.t;
     type_attributes: Parsetree.attributes;
-    type_immediate: Type_immediacy.t;
     type_unboxed_default: bool;
     type_uid: Uid.t;
  }
@@ -233,7 +232,7 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract
+    Type_abstract of {immediate : Type_immediacy.t}
   | Type_record of 'lbl list * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
@@ -436,6 +435,26 @@ let item_visibility = function
   | Sig_class (_, _, _, vis)
   | Sig_class_type (_, _, _, vis) -> vis
 
+let kind_abstract = Type_abstract { immediate = Unknown }
+
+let decl_is_abstract decl =
+  match decl.type_kind with
+  | Type_abstract _ -> true
+  | Type_record _ | Type_variant _ | Type_open -> false
+
+let find_unboxed_type decl =
+  match decl.type_kind with
+    Type_record ([{ld_type = arg; _}], Record_unboxed _)
+  | Type_variant ([{cd_args = Cstr_tuple [arg,_]; _}], Variant_unboxed)
+  | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
+                  Variant_unboxed) ->
+    Some arg
+  | Type_record (_, ( Record_regular | Record_float | Record_inlined _
+                    | Record_extension _ | Record_unboxed _ ))
+  | Type_variant (_, ( Variant_regular | Variant_unboxed ))
+  | Type_abstract _ | Type_open ->
+    None
+
 type label_description =
   { lbl_name: string;                   (* Short name *)
     lbl_res: type_expr;                 (* Type of the result *)
@@ -591,7 +610,11 @@ let get_id t = (repr t).id
 module Transient_expr = struct
   let create desc ~level ~scope ~id = {desc; level; scope; id}
   let set_desc ty d = ty.desc <- d
-  let set_stub_desc ty d = assert (ty.desc = Tvar None); ty.desc <- d
+  let set_stub_desc ty d =
+    (match ty.desc with
+    | Tvar None -> ()
+    | _ -> assert false);
+    ty.desc <- d
   let set_level ty lv = ty.level <- lv
   let set_scope ty sc = ty.scope <- sc
   let coerce ty = ty
