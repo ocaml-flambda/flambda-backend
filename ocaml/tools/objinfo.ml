@@ -73,9 +73,6 @@ let print_impl_import import =
 let print_line name =
   printf "\t%s\n" name
 
-let print_modname_line modname =
-  printf "\t%a\n" Compilation_unit.Name.output modname
-
 let print_name_line cu =
   printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
 
@@ -117,7 +114,7 @@ let print_cmi_infos name crcs is_param params =
   printf "Unit name: %a\n" Compilation_unit.output name;
   printf "Is parameter: %s\n" (if is_param then "YES" else "no");
   print_string "Parameters:\n";
-  List.iter print_modname_line params;
+  List.iter print_name_line params;
   printf "Interfaces imported:\n";
   Array.iter print_intf_import crcs
 
