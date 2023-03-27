@@ -64,7 +64,7 @@ module IR = struct
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
       region : Ident.t;
-      return : Flambda_kind.With_subkind.t
+      return_arity : Flambda_arity.With_subkinds.t
     }
 
   type switch =
@@ -141,7 +141,8 @@ module Env = struct
       value_approximations : value_approximation Variable.Map.t;
       big_endian : bool;
       path_to_root : Debuginfo.Scoped_location.t;
-      inlining_history_tracker : Inlining_history.Tracker.t
+      inlining_history_tracker : Inlining_history.Tracker.t;
+      at_toplevel : bool
     }
 
   let current_unit t = t.current_unit
@@ -160,8 +161,13 @@ module Env = struct
       value_approximations = Variable.Map.empty;
       big_endian;
       path_to_root = Debuginfo.Scoped_location.Loc_unknown;
-      inlining_history_tracker = Inlining_history.Tracker.empty current_unit
+      inlining_history_tracker = Inlining_history.Tracker.empty current_unit;
+      at_toplevel = true
     }
+
+  let set_not_at_toplevel t = { t with at_toplevel = false }
+
+  let at_toplevel t = t.at_toplevel
 
   let clear_local_bindings
       { variables = _;
@@ -172,7 +178,8 @@ module Env = struct
         value_approximations;
         big_endian;
         path_to_root;
-        inlining_history_tracker
+        inlining_history_tracker;
+        at_toplevel
       } =
     let simples_to_substitute =
       Ident.Map.filter
@@ -187,7 +194,8 @@ module Env = struct
       value_approximations;
       big_endian;
       path_to_root;
-      inlining_history_tracker
+      inlining_history_tracker;
+      at_toplevel
     }
 
   let with_depth t depth_var = { t with current_depth = Some depth_var }
@@ -318,9 +326,7 @@ module Acc = struct
   type t =
     { declared_symbols : (Symbol.t * Static_const.t) list;
       lifted_sets_of_closures :
-        ((Symbol.t * Env.value_approximation) Function_slot.Lmap.t
-        * Flambda.Set_of_closures.t)
-        list;
+        (Symbol.t Function_slot.Lmap.t * Flambda.Set_of_closures.t) list;
       shareable_constants : Symbol.t Static_const.Map.t;
       symbol_approximations : Env.value_approximation Symbol.Map.t;
       approximation_for_external_symbol : Symbol.t -> Env.value_approximation;
@@ -369,7 +375,14 @@ module Acc = struct
           | Block_approximation (approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
             Value_approximation.Block_approximation (approxs, alloc_mode)
-          | Closure_approximation { code_id; function_slot; code; _ } -> (
+          | Closure_approximation
+              { code_id;
+                function_slot;
+                all_function_slots;
+                all_value_slots;
+                code;
+                _
+              } -> (
             let metadata = Code_or_metadata.code_metadata code in
             if not (Code_or_metadata.code_present code)
             then approx
@@ -386,6 +399,8 @@ module Acc = struct
                 Value_approximation.Closure_approximation
                   { code_id;
                     function_slot;
+                    all_function_slots;
+                    all_value_slots;
                     code = Code_or_metadata.create_metadata_only metadata;
                     symbol = None
                   })
@@ -427,7 +442,30 @@ module Acc = struct
 
   let add_declared_symbol ~symbol ~constant t =
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
-    { t with declared_symbols }
+    let approx : _ Value_approximation.t =
+      match (constant : Static_const.t) with
+      | Block (_tag, mut, fields) ->
+        if not (Mutability.is_mutable mut)
+        then
+          let approx_of_field :
+              Field_of_static_block.t -> _ Value_approximation.t = function
+            | Symbol sym -> Value_symbol sym
+            | Tagged_immediate i -> Value_int i
+            | Dynamically_computed _ -> Value_unknown
+          in
+          let fields = List.map approx_of_field fields |> Array.of_list in
+          Block_approximation (fields, Alloc_mode.For_types.unknown ())
+        else Value_unknown
+      | Set_of_closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+      | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
+      | Immutable_value_array _ | Empty_array | Mutable_string _
+      | Immutable_string _ ->
+        Value_unknown
+    in
+    let symbol_approximations =
+      Symbol.Map.add symbol approx t.symbol_approximations
+    in
+    { t with declared_symbols; symbol_approximations }
 
   let add_lifted_set_of_closures ~symbols ~set_of_closures t =
     { t with
@@ -441,18 +479,27 @@ module Acc = struct
     in
     { t with shareable_constants }
 
+  let find_symbol_approximation t symbol =
+    try Symbol.Map.find symbol t.symbol_approximations
+    with Not_found -> t.approximation_for_external_symbol symbol
+
   let add_symbol_approximation t symbol approx =
-    if Value_approximation.is_unknown approx
-    then t
-    else
+    match (approx : _ Value_approximation.t) with
+    | Value_symbol s ->
+      (* This should not happen. But in case it does, we don't want to add an
+         indirection *)
+      Misc.fatal_errorf "Symbol %a approximated to symbol %a" Symbol.print
+        symbol Symbol.print s
+    | Value_unknown | Closure_approximation _ | Block_approximation _
+    | Value_int _ ->
+      (* We need all defined symbols to be present in [symbol_approximations],
+         even when their approximation is [Value_unknown] *)
       { t with
         symbol_approximations =
           Symbol.Map.add symbol approx t.symbol_approximations
       }
 
-  let find_symbol_approximation t symbol =
-    try Symbol.Map.find symbol t.symbol_approximations
-    with Not_found -> t.approximation_for_external_symbol symbol
+  let symbol_approximations t = t.symbol_approximations
 
   let add_code ~code_id ~code t =
     { t with code = Code_id.Map.add code_id code t.code }
@@ -616,7 +663,7 @@ module Function_decls = struct
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
         params : (Ident.t * Flambda_kind.With_subkind.t) list;
-        return : Flambda_kind.With_subkind.t;
+        return : Flambda_arity.With_subkinds.t;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
         my_region : Ident.t;
@@ -797,9 +844,8 @@ module Expr_with_acc = struct
         match Apply.call_kind apply with
         | Function { function_call = Direct _; _ } -> true
         | Function
-            { function_call = Indirect_unknown_arity | Indirect_known_arity _;
-              _
-            } ->
+            { function_call = Indirect_unknown_arity | Indirect_known_arity; _ }
+          ->
           false
         | Method _ -> false
         | C_call _ -> false)

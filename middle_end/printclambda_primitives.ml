@@ -72,7 +72,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       in
       let name = "make" ^ mode ^ mut in
       fprintf ppf "%s %i%a" name tag Printlambda.block_shape shape
-  | Pfield n -> fprintf ppf "field %i" n
+  | Pfield (n, layout) -> fprintf ppf "field%a %i" Printlambda.layout layout n
   | Pfield_computed -> fprintf ppf "field_computed"
   | Psetfield(n, ptr, init) ->
       let instr =
@@ -84,8 +84,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         match init with
         | Heap_initialization -> "(heap-init)"
         | Root_initialization -> "(root-init)"
-        | Assignment Alloc_heap -> ""
-        | Assignment Alloc_local -> "(local)"
+        | Assignment Modify_heap -> ""
+        | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setfield_%s%s %i" instr init n
   | Psetfield_computed (ptr, init) ->
@@ -98,8 +98,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         match init with
         | Heap_initialization -> "(heap-init)"
         | Root_initialization -> "(root-init)"
-        | Assignment Alloc_heap -> ""
-        | Assignment Alloc_local -> "(local)"
+        | Assignment Modify_heap -> ""
+        | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setfield_%s%s_computed" instr init
   | Pfloatfield (n, Alloc_heap) -> fprintf ppf "floatfield %i" n
@@ -109,8 +109,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         match init with
         | Heap_initialization -> "(heap-init)"
         | Root_initialization -> "(root-init)"
-        | Assignment Alloc_heap -> ""
-        | Assignment Alloc_local -> "(local)"
+        | Assignment Modify_heap -> ""
+        | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
       fprintf ppf "setfloatfield%s %i" init n
   | Pduprecord (rep, size) ->
@@ -230,3 +230,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
   | Popaque -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
+  | Pbox_float m -> fprintf ppf "box_float.%s" (alloc_kind m)
+  | Punbox_float -> fprintf ppf "unbox_float"
+  | Pbox_int (bi, m) ->
+    fprintf ppf "box_%s.%s" (boxed_integer_name bi) (alloc_kind m)
+  | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)

@@ -315,7 +315,7 @@ type escaping_context =
   | Partial_application
 
 type value_lock =
-  | Lock of { mode : Value_mode.t; escaping_context : escaping_context option }
+  | Lock of { mode : Alloc_mode.t; escaping_context : escaping_context option }
   | Region_lock
 
 module IdTbl =
@@ -691,7 +691,6 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
-  | Parameter_interface_unavailable of Location.t * Compilation_unit.Name.t
 
 exception Error of error
 
@@ -801,11 +800,11 @@ let check_functor_application =
        f0_path:Path.t -> args:(Path.t * Types.module_type) list ->
        arg_path:Path.t -> arg_mty:module_type -> param_mty:module_type ->
        t -> unit)
-let strengthen =
-  (* to be filled with Mtype.strengthen *)
-  ref ((fun ~aliasable:_ _env _mty _path -> assert false) :
-         aliasable:bool -> t -> Subst.Lazy.modtype ->
-         Path.t -> Subst.Lazy.modtype)
+
+let scrape_alias =
+  (* to be filled with Mtype.scrape_alias *)
+  ref ((fun _env _mty -> assert false) :
+        t -> Subst.Lazy.modtype -> Subst.Lazy.modtype)
 
 let md md_type =
   {md_type; md_attributes=[]; md_loc=Location.none
@@ -918,7 +917,8 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
 let persistent_env : module_data Persistent_env.t ref =
   s_table Persistent_env.empty ()
 
-let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; filename } =
+let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; filename }
+      ~local_ident =
   let name = cmi.cmi_name in
   let sign = cmi.cmi_sign in
   let secondary_sign = cmi.cmi_secondary_sign in
@@ -938,15 +938,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; filename } =
     }
   in
   let addr =
-    (* CR lmaurer: This is fairly putrid: we're relying on the _exact_ place in
-       [Persistent_env] where this function is invoked, namely _after_ the local
-       binding has been assigned (by [read_as_parameter] calling
-       [add_parameter]). It's not easy to see how to avoid this, however, given
-       the complex interaction between this function and
-       [Persistent_env.acknowledge_pers_struct]. *)
-    match
-      Persistent_env.local_ident !persistent_env name
-    with
+    match local_ident with
     | Some id -> Alocal id
     | None ->
         begin
@@ -998,17 +990,15 @@ let without_cmis f x =
 
 let imports () = Persistent_env.imports !persistent_env
 
-
-let parameters () = Persistent_env.parameters !persistent_env
-
 let import_crcs ~source crcs =
   Persistent_env.import_crcs !persistent_env ~source crcs
 
+let locally_bound_imports () = Persistent_env.locally_bound_imports !persistent_env
+
+let exported_parameters () = Persistent_env.exported_parameters !persistent_env
+
 let read_pers_mod modname filename =
   Persistent_env.read !persistent_env read_sign_of_cmi modname filename
-
-let read_pers_mod_as_parameter modname =
-  Persistent_env.read_as_parameter !persistent_env read_sign_of_cmi modname
 
 let find_pers_mod name =
   Persistent_env.find !persistent_env read_sign_of_cmi name
@@ -1130,7 +1120,7 @@ and find_functor_components path env =
   | Functor_comps f -> f
   | Structure_comps _ -> raise Not_found
 
-let find_module ~alias path env =
+let find_module path env =
   match path with
   | Pident id ->
       let data = find_ident_module id env in
@@ -1141,8 +1131,7 @@ let find_module ~alias path env =
       Subst.Lazy.force_module_decl data.mda_declaration
   | Papply(p1, p2) ->
       let fc = find_functor_components p1 env in
-      if alias then md (fc.fcomp_res)
-      else md (modtype_of_functor_appl fc p1 p2)
+      md (modtype_of_functor_appl fc p1 p2)
 
 let find_module_lazy ~alias path env =
   match path with
@@ -1160,11 +1149,6 @@ let find_module_lazy ~alias path env =
         else md (modtype_of_functor_appl fc p1 p2)
       in
       Subst.Lazy.of_module_decl md
-
-let find_strengthened_module ~aliasable path env =
-  let md = find_module_lazy ~alias:true path env in
-  let mty = !strengthen ~aliasable env md.mdl_type path in
-  Subst.Lazy.force_modtype mty
 
 let find_value_full path env =
   match path with
@@ -1248,7 +1232,7 @@ let find_type_data path env =
       | decl ->
           {
             tda_declaration = decl;
-            tda_descriptions = Type_abstract;
+            tda_descriptions = kind_abstract;
             tda_shape = Shape.leaf decl.type_uid;
           }
       | exception Not_found -> find_type_full p env
@@ -1266,7 +1250,7 @@ let find_type_data path env =
               List.find (fun cstr -> cstr.cstr_name = s) cstrs
             with Not_found -> assert false
           end
-        | Type_record _ | Type_abstract | Type_open -> assert false
+        | Type_record _ | Type_abstract _ | Type_open -> assert false
         end
       in
       type_of_cstr path cstr
@@ -1503,9 +1487,6 @@ and expand_modtype_path env path =
   | Some (MtyL_ident path) -> normalize_modtype_path env path
   | _ | exception Not_found -> path
 
-let find_module path env =
-  find_module ~alias:false path env
-
 let find_module_lazy path env =
   find_module_lazy ~alias:false path env
 
@@ -1516,7 +1497,7 @@ let find_type_expansion path env =
   let decl = find_type path env in
   match decl.type_manifest with
   | Some body when decl.type_private = Public
-              || decl.type_kind <> Type_abstract
+              || not (decl_is_abstract decl)
               || Btype.has_constr_row body ->
       (decl.type_params, body, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
@@ -1704,29 +1685,6 @@ let find_shadowed_types path env =
     (find_shadowed wrap_identity
        (fun env -> env.types) (fun comps -> comps.comp_types) path env)
 
-(* Expand manifest module type names at the top of the given module type *)
-
-let rec scrape_alias env ?path mty =
-  let open Subst.Lazy in
-  match mty, path with
-    MtyL_ident p, _ ->
-      begin try
-        scrape_alias env (find_modtype_expansion_lazy p env) ?path
-      with Not_found ->
-        mty
-      end
-  | MtyL_alias path, _ ->
-      begin try
-        scrape_alias env ((find_module_lazy path env).mdl_type) ~path
-      with Not_found ->
-        (*Location.prerr_warning Location.none
-          (Warnings.No_cmi_file (Path.name path));*)
-        mty
-      end
-  | mty, Some path ->
-      !strengthen ~aliasable:true env mty path
-  | _ -> mty
-
 (* Given a signature and a root path, prefix all idents in the signature
    by the root path and build the corresponding substitution. *)
 
@@ -1825,7 +1783,7 @@ let is_identchar c =
 let rec components_of_module_maker
           {cm_env; cm_prefixing_subst;
            cm_path; cm_addr; cm_mty; cm_shape} : _ result =
-  match scrape_alias cm_env cm_mty with
+  match !scrape_alias cm_env cm_mty with
     MtyL_signature sg ->
       let c =
         { comp_values = NameMap.empty;
@@ -1894,7 +1852,7 @@ let rec components_of_module_maker
                         add_to_tbl descr.lbl_name descr c.comp_labels)
                     lbls;
                   Type_record (lbls, repr)
-              | Type_abstract -> Type_abstract
+              | Type_abstract imm -> Type_abstract imm
               | Type_open -> Type_open
             in
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
@@ -2140,7 +2098,7 @@ and store_type ~check id info shape env =
           (fun env (lbl_id, lbl) ->
             store_label ~check info id lbl_id lbl env)
           env labels
-    | Type_abstract -> Type_abstract, env
+    | Type_abstract imm -> Type_abstract imm, env
     | Type_open -> Type_open, env
   in
   let tda =
@@ -2162,7 +2120,7 @@ and store_type_infos ~tda_shape id info env =
   let tda =
     {
       tda_declaration = info;
-      tda_descriptions = Type_abstract;
+      tda_descriptions = kind_abstract;
       tda_shape
     }
   in
@@ -2261,8 +2219,6 @@ and store_cltype id desc shape env =
   { env with
     cltypes = IdTbl.add id cltda env.cltypes;
     summary = Env_cltype(env.summary, id, desc) }
-
-let scrape_alias env mty = scrape_alias env mty
 
 (* Compute the components of a functor application in a path. *)
 
@@ -2378,10 +2334,6 @@ let add_module ?arg ?shape id presence mty env =
 let add_local_type path info env =
   { env with
     local_constraints = Path.Map.add path info env.local_constraints }
-
-(* Non-lazy version of scrape_alias *)
-let scrape_alias t mty =
-  mty |> Subst.Lazy.of_modtype |> scrape_alias t |> Subst.Lazy.force_modtype
 
 (* Insertion of bindings by name *)
 
@@ -2660,21 +2612,17 @@ let open_signature
   else open_signature None root env
 
 (* Read a signature from a file *)
-let read_signature modname filename ~allow_param =
+let read_signature modname filename =
   let mda =
-    read_pers_mod (Compilation_unit.name modname) filename ~allow_param
+    read_pers_mod (Compilation_unit.name modname) filename
   in
   let md = Subst.Lazy.force_module_decl mda.mda_declaration in
   match md.md_type with
   | Mty_signature sg -> sg
   | Mty_ident _ | Mty_functor _ | Mty_alias _ -> assert false
 
-let read_as_parameter loc modname =
-  match read_pers_mod_as_parameter modname with
-    Some Persistent_env.Persistent_signature.{ cmi } ->
-      Mty_signature cmi.Cmi_format.cmi_sign
-  | None ->
-      raise (Error(Parameter_interface_unavailable (loc, modname)))
+let register_parameter modname ~exported =
+  Persistent_env.register_parameter !persistent_env modname ~exported
 
 let is_identchar_latin1 = function
   | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'
@@ -2713,8 +2661,12 @@ let save_signature_with_transform
   let cmi =
     Persistent_env.make_cmi !persistent_env modname sg sg2 alerts
     |> cmi_transform in
+  let local_ident =
+    (* CR lmaurer: Sure hope this isn't necessary *)
+    None
+  in
   let pm = save_sign_of_cmi
-      { Persistent_env.Persistent_signature.cmi; filename } in
+      { Persistent_env.Persistent_signature.cmi; filename } ~local_ident in
   Persistent_env.save_cmi !persistent_env
     { Persistent_env.Persistent_signature.filename; cmi } pm;
   cmi
@@ -2957,7 +2909,7 @@ let lock_mode ~errors ~loc env id vmode locks =
       match lock with
       | Region_lock -> Value_mode.local_to_regional vmode
       | Lock {mode; escaping_context} ->
-          match Value_mode.submode vmode mode with
+          match Value_mode.submode vmode (Value_mode.of_alloc mode) with
           | Ok () -> vmode
           | Error _ ->
               may_lookup_error errors loc env
@@ -3298,7 +3250,7 @@ let lookup_label ~errors ~use ~loc usage lid env =
 let lookup_all_labels_from_type ~use ~loc usage ty_path env =
   match find_type_descrs ty_path env with
   | exception Not_found -> []
-  | Type_variant _ | Type_abstract | Type_open -> []
+  | Type_variant _ | Type_abstract _ | Type_open -> []
   | Type_record (lbls, _) ->
       List.map
         (fun lbl ->
@@ -3320,7 +3272,7 @@ let lookup_constructor ~errors ~use ~loc usage lid env =
 let lookup_all_constructors_from_type ~use ~loc usage ty_path env =
   match find_type_descrs ty_path env with
   | exception Not_found -> []
-  | Type_record _ | Type_abstract | Type_open -> []
+  | Type_record _ | Type_abstract _ | Type_open -> []
   | Type_variant (cstrs, _) ->
       List.map
         (fun cstr ->
@@ -3857,9 +3809,6 @@ let report_error ppf = function
       fprintf ppf "'%s' is not a valid value identifier."
         name
   | Lookup_error(loc, t, err) -> report_lookup_error loc t ppf err
-  | Parameter_interface_unavailable (_loc, name) ->
-      fprintf ppf "No compiled interface found for this unit parameter %a"
-        Compilation_unit.Name.print name
 
 let () =
   Location.register_error_of_exn
@@ -3869,8 +3818,7 @@ let () =
             match err with
             | Missing_module (loc, _, _)
             | Illegal_value_name (loc, _)
-            | Lookup_error(loc, _, _)
-            | Parameter_interface_unavailable (loc, _) -> loc
+            | Lookup_error(loc, _, _) -> loc
           in
           let error_of_printer =
             if loc = Location.none

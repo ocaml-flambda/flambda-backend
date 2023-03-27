@@ -521,6 +521,11 @@ let nullary_primitive _env res dbg prim =
     let expr = Cmm.Cop (Cprobe_is_enabled { name }, [], dbg) in
     None, res, expr
   | Begin_region -> None, res, C.beginregion ~dbg
+  | Enter_inlined_apply _ ->
+    Misc.fatal_errorf
+      "The primitive [Enter_inlined_apply] should not be translated by \
+       [to_cmm_primitive] but should instead be handled in [to_cmm_expr] to \
+       correctly adjust the inlined debuginfo in the env."
 
 let unary_primitive env res dbg f arg =
   match (f : P.unary_primitive) with
@@ -539,8 +544,9 @@ let unary_primitive env res dbg f arg =
         ~addr:(C.field_address arg (4 + dimension) dbg) )
   | String_length _ -> None, res, C.string_length arg dbg
   | Int_as_pointer -> None, res, C.int_as_pointer arg dbg
-  | Opaque_identity { middle_end_only = true } -> None, res, arg
-  | Opaque_identity { middle_end_only = false } -> None, res, C.opaque arg dbg
+  | Opaque_identity { middle_end_only = true; kind = _ } -> None, res, arg
+  | Opaque_identity { middle_end_only = false; kind = _ } ->
+    None, res, C.opaque arg dbg
   | Int_arith (kind, op) ->
     None, res, unary_int_arith_primitive env dbg kind op arg
   | Float_arith op -> None, res, unary_float_arith_primitive env dbg op arg
@@ -586,12 +592,17 @@ let unary_primitive env res dbg f arg =
       let message = dead_slots_msg dbg [c1; c2] [] in
       let expr, res = C.invalid res ~message in
       None, res, expr)
-  | Project_value_slot { project_from; value_slot; kind = _ } -> (
+  | Project_value_slot { project_from; value_slot; kind } -> (
     match
       value_slot_offset env value_slot, function_slot_offset env project_from
     with
     | Live_value_slot { offset; _ }, Live_function_slot { offset = base; _ } ->
-      None, res, C.get_field_gen Asttypes.Immutable arg (offset - base) dbg
+      let memory_chunk = To_cmm_shared.memory_chunk_of_kind kind in
+      let expr =
+        C.get_field_gen_given_memory_chunk memory_chunk Asttypes.Immutable arg
+          (offset - base) dbg
+      in
+      None, res, expr
     | Dead_value_slot, Live_function_slot _ ->
       let message = dead_slots_msg dbg [] [value_slot] in
       let expr, res = C.invalid res ~message in

@@ -110,8 +110,7 @@ let rec apply_coercion loc strict restr arg =
       let carg = apply_coercion loc Alias cc_arg (Lvar param) in
       apply_coercion_result loc strict arg [param, Lambda.layout_module] [carg] cc_res
   | Tcoerce_primitive { pc_desc; pc_env; pc_type; pc_poly_mode } ->
-      let poly_mode = Option.map Translcore.transl_alloc_mode pc_poly_mode in
-      Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode None
+      Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode:pc_poly_mode None
   | Tcoerce_alias (env, path, cc) ->
       let lam = transl_module_path loc env path in
       name_lambda strict arg Lambda.layout_module
@@ -164,7 +163,7 @@ and wrap_id_pos_list loc id_pos_list get_field lam =
     List.fold_left (fun (lam, s) (id',pos,c) ->
       if Ident.Set.mem id' fv then
         let id'' = Ident.create_local (Ident.name id') in
-        (Llet(Alias, Lambda.layout_top, id'',
+        (Llet(Alias, Lambda.layout_module_field, id'',
              apply_coercion loc Alias c (get_field pos),lam),
          Ident.Map.add id' id'' s)
       else (lam, s))
@@ -427,7 +426,7 @@ let eval_rec_bindings bindings cont =
   | (Ignore_loc loc, None, rhs) :: rem ->
       Lsequence(Lprim(Pignore, [rhs], loc), bind_strict rem)
   | (Id id, None, rhs) :: rem ->
-      Llet(Strict, Lambda.layout_top, id, rhs, bind_strict rem)
+      Llet(Strict, Lambda.layout_module, id, rhs, bind_strict rem)
   | (_id, Some _, _rhs) :: rem ->
       bind_strict rem
   and patch_forwards = function
@@ -458,7 +457,7 @@ let compile_recmodule ~scopes compile_rhs bindings cont =
   eval_rec_bindings
     (reorder_rec_bindings
        (List.map
-          (fun {mb_id=id; mb_name; mb_expr=modl; mb_loc=loc; _} ->
+          (fun {mb_id=id; mb_name; mb_expr=modl; _} ->
              let id_or_ignore_loc, shape =
                match id with
                | None ->
@@ -466,7 +465,7 @@ let compile_recmodule ~scopes compile_rhs bindings cont =
                  Ignore_loc loc, Result.Error Unnamed
                | Some id -> Id id, init_shape id modl
              in
-             (id_or_ignore_loc, modl.mod_loc, shape, compile_rhs id modl loc))
+             (id_or_ignore_loc, modl.mod_loc, shape, compile_rhs id modl))
           bindings))
     cont
 
@@ -629,12 +628,8 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
                       match cc with
                       | Tcoerce_primitive p ->
                           let loc = of_location ~scopes p.pc_loc in
-                          let poly_mode =
-                            Option.map
-                              Translcore.transl_alloc_mode p.pc_poly_mode
-                          in
                           Translprim.transl_primitive
-                            loc p.pc_desc p.pc_env p.pc_type ~poly_mode None
+                            loc p.pc_desc p.pc_env p.pc_type ~poly_mode:p.pc_poly_mode None
                       | _ -> apply_coercion loc Strict cc (get_field pos))
                     pos_cc_list, loc)
             and id_pos_list =
@@ -725,14 +720,6 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
                                of_location ~scopes mb.mb_name.loc), body),
               size
           | Some id ->
-              let module_body =
-                Levent (module_body, {
-                  lev_loc = of_location ~scopes mb.mb_loc;
-                  lev_kind = Lev_module_definition id;
-                  lev_repr = None;
-                  lev_env = Env.empty;
-                })
-              in
               Llet(pure_module mb.mb_expr, Lambda.layout_module, id, module_body, body), size
           end
       | Tstr_module ({mb_presence=Mp_absent}) ->
@@ -746,21 +733,13 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
             transl_structure ~scopes loc ext_fields cc rootpath final_env rem
           in
           let lam =
-            compile_recmodule ~scopes (fun id modl loc ->
+            compile_recmodule ~scopes (fun id modl ->
               match id with
               | None -> transl_module ~scopes Tcoerce_none None modl
               | Some id ->
-                  let module_body =
-                    transl_module
-                      ~scopes:(enter_module_definition ~scopes id)
-                      Tcoerce_none (field_path rootpath id) modl
-                  in
-                  Levent (module_body, {
-                    lev_loc = of_location ~scopes loc;
-                    lev_kind = Lev_module_definition id;
-                    lev_repr = None;
-                    lev_env = Env.empty;
-                  })
+                  transl_module
+                    ~scopes:(enter_module_definition ~scopes id)
+                    Tcoerce_none (field_path rootpath id) modl
             ) bindings body
           in
           lam, size
@@ -921,9 +900,8 @@ let transl_paired_module_blocks primary_lam restr =
                   Loc_unknown))),
   2
 
-let add_parameters lam ~params =
-  let param_of (_, id) = id, Pvalue Pgenval in
-  let params = List.map param_of params in
+let add_parameters lam params =
+  let params = List.map (fun (_, id) -> id, Pvalue Pgenval) params in
   let inline =
     (* We want to inline the functor so that [-subst] compiles away the function
        call and actually substitutes. *)
@@ -937,7 +915,7 @@ let add_parameters lam ~params =
     ~region:true
 
 let transl_implementation_module
-      ~scopes ~params module_id (str, cc, cc2) =
+      ~scopes ~runtime_params module_id (str, cc, cc2) =
   let path = global_path module_id in
   let lam, size =
     transl_struct ~scopes Loc_unknown [] cc path str
@@ -947,11 +925,11 @@ let transl_implementation_module
     | None -> lam, size
     | Some cc2 -> transl_paired_module_blocks lam cc2
   in
-  match params with
+  match runtime_params with
     [] ->
       lam, size
   | _ ->
-      add_parameters lam ~params, 1
+      add_parameters lam runtime_params, 1
 
 let wrap_toplevel_functor_in_struct code =
   Lprim(Pmakeblock(0, Immutable, None, Lambda.alloc_heap),
@@ -982,13 +960,14 @@ let transl_implementation_plain_block compilation_unit impl =
   Translcore.clear_probe_handlers ();
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
   let body, size =
+    let runtime_params = Env.locally_bound_imports () in
     Translobj.transl_label_init (fun () ->
-      let params = Env.parameters () in
       let body, size =
-        transl_implementation_module ~scopes ~params compilation_unit impl
+        transl_implementation_module ~scopes ~runtime_params compilation_unit
+          impl
       in
       let body, size =
-        match params with
+        match runtime_params with
         | [] ->
             body, size
         | _ :: _ ->
@@ -1156,8 +1135,7 @@ let field_of_str loc str =
   fun (pos, cc) ->
     match cc with
     | Tcoerce_primitive { pc_desc; pc_env; pc_type; pc_poly_mode } ->
-        let poly_mode = Option.map Translcore.transl_alloc_mode pc_poly_mode in
-        Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode None
+        Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode:pc_poly_mode None
     | Tcoerce_alias (env, path, cc) ->
         let lam = transl_module_path loc env path in
         apply_coercion loc Alias cc lam
@@ -1305,7 +1283,7 @@ let transl_store_structure ~scopes get_glob rootpath map prims aliases str =
         | Tstr_recmodule bindings ->
             let ids = List.filter_map (fun mb -> mb.mb_id) bindings in
             compile_recmodule ~scopes
-              (fun id modl _loc ->
+              (fun id modl ->
                  Lambda.subst no_env_update subst
                    (match id with
                     | None ->
@@ -1484,13 +1462,10 @@ let transl_store_structure ~scopes get_glob rootpath map prims aliases str =
     List.fold_right (add_ident may_coerce) idlist subst
 
   and store_primitive (pos, prim) cont =
-    let poly_mode =
-      Option.map Translcore.transl_alloc_mode prim.pc_poly_mode
-    in
     Lsequence(Lprim(mod_setfield pos,
                     [get_glob Loc_unknown;
                      Translprim.transl_primitive Loc_unknown
-                       prim.pc_desc prim.pc_env prim.pc_type ~poly_mode None],
+                       prim.pc_desc prim.pc_env prim.pc_type ~poly_mode:prim.pc_poly_mode None],
                     Loc_unknown),
               cont)
 
@@ -1625,12 +1600,12 @@ let transl_store_structure_gen
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
 let transl_store_implementation_as_functor
-      ~scopes ~params module_id impl =
+      ~scopes ~runtime_params module_id impl =
   (* CR lmaurer: This can actually do better than fall back to
      [transl_implementation_module], now that [transl_store_gen] isn't
      hard-coded to set the fields of a global. *)
   let code, i =
-    transl_implementation_module ~scopes ~params module_id impl
+    transl_implementation_module ~scopes ~runtime_params module_id impl
   in
   let body_id = Ident.create_local "*unit-body*" in
   i,
@@ -1650,12 +1625,12 @@ let transl_store_phrases module_name str =
 
 let transl_store_gen module_name impl topl =
   transl_store_gen_init ();
-  let params = Env.parameters () in
-  match params with
+  let runtime_params = Env.locally_bound_imports () in
+  match runtime_params with
     [] ->
       transl_store_structure_gen module_name impl topl
   | _ :: _ ->
-      transl_store_implementation_as_functor module_name impl ~params
+      transl_store_implementation_as_functor module_name impl ~runtime_params
 
 let transl_implementation_set_fields compilation_unit impl =
   let s = !transl_store_subst in
@@ -1700,7 +1675,7 @@ let toploop_getvalue id =
                   Loc_unknown);
     ap_args=[Lconst(Const_base(
       Const_string (toplevel_name id, Location.none, None)))];
-    ap_result_layout = Lambda.layout_top;
+    ap_result_layout = Lambda.layout_any_value;
     ap_region_close=Rc_normal;
     ap_mode=alloc_heap;
     ap_tailcall=Default_tailcall;
@@ -1719,7 +1694,7 @@ let toploop_setvalue id lam =
       [Lconst(Const_base(
          Const_string(toplevel_name id, Location.none, None)));
        lam];
-    ap_result_layout = Lambda.layout_top;
+    ap_result_layout = Lambda.layout_unit;
     ap_region_close=Rc_normal;
     ap_mode=alloc_heap;
     ap_tailcall=Default_tailcall;
@@ -1731,7 +1706,7 @@ let toploop_setvalue id lam =
 let toploop_setvalue_id id = toploop_setvalue id (Lvar id)
 
 let close_toplevel_term (lam, ()) =
-  Ident.Set.fold (fun id l -> Llet(Strict, Lambda.layout_top, id,
+  Ident.Set.fold (fun id l -> Llet(Strict, Lambda.layout_any_value, id,
                                   toploop_getvalue id, l))
                 (free_variables lam) lam
 
@@ -1777,7 +1752,7 @@ let transl_toplevel_item ~scopes item =
   | Tstr_recmodule bindings ->
       let idents = List.filter_map (fun mb -> mb.mb_id) bindings in
       compile_recmodule ~scopes
-        (fun id modl _loc ->
+        (fun id modl ->
            match id with
            | None ->
              transl_module ~scopes Tcoerce_none None modl

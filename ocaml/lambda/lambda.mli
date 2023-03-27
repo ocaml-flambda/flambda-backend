@@ -38,15 +38,23 @@ type alloc_mode = private
   | Alloc_heap
   | Alloc_local
 
+type modify_mode = private
+  | Modify_heap
+  | Modify_maybe_stack
+
 val alloc_heap : alloc_mode
 
 (* Actually [Alloc_heap] if [Config.stack_allocation] is [false] *)
 val alloc_local : alloc_mode
 
+val modify_heap : modify_mode
+
+val modify_maybe_stack : modify_mode
+
 type initialization_or_assignment =
   (* [Assignment Alloc_local] is a mutation of a block that may be heap or local.
      [Assignment Alloc_heap] is a mutation of a block that's definitely heap. *)
-  | Assignment of alloc_mode
+  | Assignment of modify_mode
   (* Initialization of in heap values, like [caml_initialize] C primitive.  The
      field should not have been read before and initialization should happen
      only once. *)
@@ -176,12 +184,21 @@ type primitive =
   (* Integer to external pointer *)
   | Pint_as_pointer
   (* Inhibition of optimisation *)
-  | Popaque
+  | Popaque of layout
   (* Statically-defined probes *)
   | Pprobe_is_enabled of { name: string }
   (* Primitives for [Obj] *)
   | Pobj_dup
-  | Pobj_magic
+  | Pobj_magic of layout
+  | Punbox_float
+  | Pbox_float of alloc_mode
+  | Punbox_int of boxed_integer
+  | Pbox_int of boxed_integer * alloc_mode
+  (* Jane Street extensions *)
+  | Parray_to_iarray (* Unsafely reinterpret a mutable array as an immutable
+                        one; O(1) *)
+  | Parray_of_iarray (* Unsafely reinterpret an immutable array as a mutable
+                        one; O(1) *)
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -204,7 +221,11 @@ and value_kind =
   | Parrayval of array_kind
 
 and layout =
+  | Ptop
   | Pvalue of value_kind
+  | Punboxed_float
+  | Punboxed_int of boxed_integer
+  | Pbottom
 
 and block_shape =
   value_kind list option
@@ -332,6 +353,8 @@ val equal_meth_kind : meth_kind -> meth_kind -> bool
 
 type shared_code = (int * int) list     (* stack size -> code label *)
 
+type static_label = int
+
 type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
@@ -361,11 +384,11 @@ type lambda =
    strings are pairwise distinct *)
   | Lstringswitch of
       lambda * (string * lambda) list * lambda option * scoped_location * layout
-  | Lstaticraise of int * lambda list
-  | Lstaticcatch of lambda * (int * (Ident.t * layout) list) * lambda * layout
+  | Lstaticraise of static_label * lambda list
+  | Lstaticcatch of lambda * (static_label * (Ident.t * layout) list) * lambda * layout
   | Ltrywith of lambda * Ident.t * lambda * layout
-(* Lifthenelse (e, t, f) evaluates t if e evaluates to 0, and
-   evaluates f if e evaluates to any other value *)
+(* Lifthenelse (e, t, f, layout) evaluates t if e evaluates to 0, and evaluates f if
+   e evaluates to any other value; layout must be the layout of [t] and [f] *)
   | Lifthenelse of lambda * lambda * lambda * layout
   | Lsequence of lambda * lambda
   | Lwhile of lambda_while
@@ -439,7 +462,6 @@ and lambda_event_kind =
   | Lev_after of Types.type_expr
   | Lev_function
   | Lev_pseudo
-  | Lev_module_definition of Ident.t
 
 type program =
   { compilation_unit : Compilation_unit.t;
@@ -488,6 +510,7 @@ val layout_lazy : layout
 val layout_lazy_contents : layout
 (* A layout that is Pgenval because we are missing layout polymorphism *)
 val layout_any_value : layout
+(* A layout that is Pgenval because it is bound by a letrec *)
 val layout_letrec : layout
 
 val layout_top : layout
@@ -609,7 +632,7 @@ val primitive_may_allocate : primitive -> alloc_mode option
 (***********************)
 
 (* Get a new static failure ident *)
-val next_raise_count : unit -> int
+val next_raise_count : unit -> static_label
 
 val staticfail : lambda (* Anticipated static failure *)
 
@@ -636,3 +659,5 @@ val mod_setfield: int -> primitive
 val structured_constant_layout : structured_constant -> layout
 
 val primitive_result_layout : primitive -> layout
+
+val compute_expr_layout : layout Ident.Map.t -> lambda -> layout

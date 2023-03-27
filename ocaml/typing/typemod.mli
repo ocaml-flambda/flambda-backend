@@ -145,6 +145,7 @@ type error =
   | With_cannot_remove_packed_modtype of Path.t * module_type
   | Cannot_implement_parameter of Misc.filepath
   | Cannot_pack_parameter of Misc.filepath
+  | Cannot_compile_implementation_as_parameter
   | Argument_for_non_parameter of Compilation_unit.t * Misc.filepath
   | Inconsistent_argument_types of {
       new_arg_type: Compilation_unit.t option;

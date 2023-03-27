@@ -27,15 +27,20 @@
 
 let debug = false
 
+module DLL = Flambda_backend_utils.Doubly_linked_list
+
+type layout = Label.t DLL.t
+
 type t =
   { cfg : Cfg.t;
-    mutable layout : Label.t list;
+    mutable layout : layout;
     mutable new_labels : Label.Set.t;
-    preserve_orig_labels : bool
+    preserve_orig_labels : bool;
+    sections : (Label.t, string) Hashtbl.t
   }
 
 let create cfg ~layout ~preserve_orig_labels ~new_labels =
-  { cfg; layout; new_labels; preserve_orig_labels }
+  { cfg; layout; new_labels; preserve_orig_labels; sections = Hashtbl.create 3 }
 
 let cfg t = t.cfg
 
@@ -45,45 +50,71 @@ let preserve_orig_labels t = t.preserve_orig_labels
 
 let new_labels t = t.new_labels
 
+let label_set_of_layout : layout -> Label.Set.t =
+ fun layout -> DLL.fold_right layout ~init:Label.Set.empty ~f:Label.Set.add
+
 let set_layout t layout =
   (if debug
   then
-    let cur_layout = Label.Set.of_list t.layout in
-    let new_layout = Label.Set.of_list layout in
-    if not
-         (Label.Set.equal cur_layout new_layout
-         && Label.equal (List.hd layout) t.cfg.entry_label)
+    let cur_layout = label_set_of_layout t.layout in
+    let new_layout = label_set_of_layout layout in
+    let hd_is_entry =
+      match DLL.hd layout with
+      | None -> false
+      | Some label -> Label.equal label t.cfg.entry_label
+    in
+    if not (hd_is_entry && Label.Set.equal cur_layout new_layout)
     then
       Misc.fatal_error
         "Cfg set_layout: new layout is not a permutation of the current \
          layout, or first label is not entry");
   t.layout <- layout
 
+let assign_blocks_to_section t labels name =
+  List.iter
+    (fun label ->
+      match Hashtbl.find_opt t.sections label with
+      | Some new_name ->
+        Misc.fatal_errorf
+          "Cannot add %d->%s section mapping, already have %d->%s" label name
+          label new_name ()
+      | None -> Hashtbl.replace t.sections label name)
+    labels
+
+let get_section t label = Hashtbl.find_opt t.sections label
+
 let remove_block t label =
   Cfg.remove_block_exn t.cfg label;
-  t.layout <- List.filter (fun l -> not (Label.equal l label)) t.layout;
+  DLL.remove_first t.layout ~f:(fun l -> Label.equal l label);
   t.new_labels <- Label.Set.remove label t.new_labels
 
 let remove_blocks t labels_to_remove =
-  if not (Label.Set.is_empty labels_to_remove)
+  let num_to_remove = Label.Set.cardinal labels_to_remove in
+  if num_to_remove > 0
   then (
     Cfg.remove_blocks t.cfg labels_to_remove;
-    t.layout
-      <- List.filter (fun l -> not (Label.Set.mem l labels_to_remove)) t.layout;
+    (* CR-soon xclerc: would be simpler with a function such as
+       `DoublyLinkedList.remove : 'a cell -> unit` called from
+       `DoublyLinkedList.iter_cell` *)
+    (try
+       let num_removed = ref 0 in
+       DLL.filter_left t.layout ~f:(fun l ->
+           if !num_removed = num_to_remove then raise Exit;
+           let to_remove = Label.Set.mem l labels_to_remove in
+           if to_remove then incr num_removed;
+           not to_remove)
+     with Exit -> ());
     t.new_labels <- Label.Set.diff t.new_labels labels_to_remove)
 
 let add_block t (block : Cfg.basic_block) ~after =
   t.new_labels <- Label.Set.add block.start t.new_labels;
-  let initial_len = List.length t.layout in
-  t.layout
-    <- List.fold_right
-         (fun label layout ->
-           if Label.equal label after
-           then label :: block.start :: layout
-           else label :: layout)
-         t.layout [];
-  assert (List.length t.layout = initial_len + 1);
-  Cfg.add_block_exn t.cfg block
+  match
+    DLL.find_cell_opt t.layout ~f:(fun label -> Label.equal label after)
+  with
+  | None -> Misc.fatal_error "Cfg set_layout: 'after' block is not present"
+  | Some cell ->
+    DLL.insert_after cell block.start;
+    Cfg.add_block_exn t.cfg block
 
 let is_trap_handler t label =
   let block = Cfg.get_block_exn t.cfg label in
@@ -95,14 +126,12 @@ let dump ppf t ~msg =
   let open Format in
   fprintf ppf "\ncfg for %s\n" msg;
   fprintf ppf "%s\n" t.cfg.fun_name;
-  fprintf ppf "layout.length=%d\n" (List.length t.layout);
+  fprintf ppf "layout.length=%d\n" (DLL.length t.layout);
   fprintf ppf "blocks.length=%d\n" (Label.Tbl.length t.cfg.blocks);
   let print_block label =
     let block = Label.Tbl.find t.cfg.blocks label in
     fprintf ppf "\n%d:\n" label;
-    Cfg.BasicInstructionList.iter
-      ~f:(fprintf ppf "%a\n" Cfg.print_basic)
-      block.body;
+    DLL.iter ~f:(fprintf ppf "%a\n" Cfg.print_basic) block.body;
     Cfg.print_terminator ppf block.terminator;
     fprintf ppf "\npredecessors:";
     Label.Set.iter (fprintf ppf " %d") block.predecessors;
@@ -114,7 +143,7 @@ let dump ppf t ~msg =
       (Cfg.successor_labels ~normal:false ~exn:true block);
     fprintf ppf "\n"
   in
-  List.iter print_block t.layout
+  DLL.iter ~f:print_block t.layout
 
 let print_row r ppf = Format.dprintf "@,@[<v 1><tr>%t@]@,</tr>" r ppf
 
@@ -210,7 +239,7 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
       (print_row
          (print_cell ~col_span:col_count ~align:Center
             (Format.dprintf ".L%d:I%d:S%d%s%s%s" label show_index
-               (Cfg.BasicInstructionList.length block.body)
+               (DLL.length block.body)
                (if block.stack_offset > 0
                then ":T" ^ string_of_int block.stack_offset
                else "")
@@ -226,7 +255,7 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
                   Format.pp_print_int)
                (Label.Set.to_seq block.predecessors))))
         ppf;
-      Cfg.BasicInstructionList.iter
+      DLL.iter
         ~f:(fun (i : _ Cfg.instruction) ->
           (print_row
              (print_cell ~align:Right (Format.dprintf "%d" i.id)
@@ -273,16 +302,14 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
       then print_arrow ppf (name label) "placeholder" ~style:"dashed")
   in
   (* print all the blocks, even if they don't appear in the layout *)
-  List.iteri
-    (fun index label ->
+  DLL.iteri t.layout ~f:(fun i label ->
       let block = Label.Tbl.find t.cfg.blocks label in
-      print_block_dot label block (Some index))
-    t.layout;
-  if List.length t.layout < Label.Tbl.length t.cfg.blocks
+      print_block_dot label block (Some i));
+  if DLL.length t.layout < Label.Tbl.length t.cfg.blocks
   then
     Label.Tbl.iter
       (fun label block ->
-        match List.find_opt (fun lbl -> Label.equal label lbl) t.layout with
+        match DLL.find_opt ~f:(fun lbl -> Label.equal label lbl) t.layout with
         | None -> print_block_dot label block None
         | _ -> ())
       t.cfg.blocks;
@@ -347,12 +374,12 @@ end
 
 let reorder_blocks_random ?random_state t =
   (* Ensure entry block remains first *)
-  let original_layout = layout t in
+  let original_layout = DLL.to_list (layout t) in
   let new_layout =
     List.hd original_layout
     :: Permute.list ?random_state (List.tl original_layout)
   in
-  set_layout t new_layout
+  set_layout t (DLL.of_list new_layout)
 
 let iter_instructions :
     t ->
@@ -361,7 +388,7 @@ let iter_instructions :
     unit =
  fun cfg_with_layout ~instruction ~terminator ->
   Cfg.iter_blocks cfg_with_layout.cfg ~f:(fun _label block ->
-      Cfg.BasicInstructionList.iter ~f:instruction block.body;
+      DLL.iter ~f:instruction block.body;
       terminator block.terminator)
 
 let fold_instructions :
@@ -373,8 +400,6 @@ let fold_instructions :
     a =
  fun cfg_with_layout ~instruction ~terminator ~init ->
   Cfg.fold_blocks cfg_with_layout.cfg ~init ~f:(fun _label block acc ->
-      let acc =
-        Cfg.BasicInstructionList.fold_left ~f:instruction ~init:acc block.body
-      in
+      let acc = DLL.fold_left ~f:instruction ~init:acc block.body in
       let acc = terminator acc block.terminator in
       acc)

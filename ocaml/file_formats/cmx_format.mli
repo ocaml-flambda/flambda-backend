@@ -49,6 +49,12 @@ type unit_infos =
                                           (* Interfaces imported *)
     mutable ui_imports_cmx: Import_info.t array;
                                           (* Infos imported *)
+    mutable ui_runtime_params: Compilation_unit.t list;
+                                          (* Implementation imports which are
+                                             bound as parameters at runtime,
+                                             including source-level parameters
+                                             as well as implementation imports
+                                             with unbound parameters *)
     mutable ui_curry_fun:
       (Lambda.function_kind * machtype list * machtype) list;
                                           (* Currying functions needed *)

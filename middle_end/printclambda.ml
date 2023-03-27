@@ -51,7 +51,15 @@ let rec value_kind0 ppf kind =
       non_consts
 
 let value_kind kind = Format.asprintf "%a" value_kind0 kind
-let layout (Lambda.Pvalue kind) = value_kind kind
+let layout (layout : Lambda.layout) =
+  match layout with
+  | Pvalue kind -> value_kind kind
+  | Ptop -> ":top"
+  | Pbottom -> ":bottom"
+  | Punboxed_float -> ":unboxed_float"
+  | Punboxed_int Pint32 -> ":unboxed_int32"
+  | Punboxed_int Pint64 -> ":unboxed_int64"
+  | Punboxed_int Pnativeint -> ":unboxed_nativeint"
 
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x

@@ -37,11 +37,15 @@ let attr_order a1 a2 =
   | n -> n
 
 let warn_unused () =
-  let keys = List.of_seq (Attribute_table.to_seq_keys unused_attrs) in
-  let keys = List.sort attr_order keys in
-  List.iter (fun sloc ->
-    Location.prerr_warning sloc.loc (Warnings.Misplaced_attribute sloc.txt))
-    keys
+  (* When using -i, attributes will not have been translated, so we can't
+     warn about missing ones. *)
+  if !Clflags.print_types then ()
+  else
+    let keys = List.of_seq (Attribute_table.to_seq_keys unused_attrs) in
+    let keys = List.sort attr_order keys in
+    List.iter (fun sloc ->
+      Location.prerr_warning sloc.loc (Warnings.Misplaced_attribute sloc.txt))
+      keys
 
 (* These are the attributes that are tracked in the builtin_attrs table for
    misplaced attribute warnings.  Explicitly excluded is [deprecated_mutable],
@@ -92,11 +96,14 @@ let builtin_attrs =
 
 let is_builtin_attr s = Hashtbl.mem builtin_attrs s
 
-let mk_internal ?(loc= !default_loc) name payload =
-  if is_builtin_attr name.txt
-  then Attribute_table.add unused_attrs name ();
-  Attr.mk ~loc name payload
+type attr_tracking_time = Parser | Invariant_check
 
+let register_attr attr_tracking_time name =
+  match attr_tracking_time with
+  | Parser when !Clflags.all_ppx <> [] -> ()
+  | Parser | Invariant_check ->
+    if is_builtin_attr name.txt then
+      Attribute_table.replace unused_attrs name ()
 
 let ident_of_payload = function
   | PStr[{pstr_desc=Pstr_eval({pexp_desc=Pexp_ident {txt=Lident id}},_)}] ->
@@ -216,6 +223,16 @@ let mark_warn_on_literal_pattern_used l =
       mark_used a.attr_name
     | _ -> ())
     l
+
+let mark_payload_attrs_used payload =
+  let iter =
+    { Ast_iterator.default_iterator
+      with attribute = fun self a ->
+        mark_used a.attr_name;
+        Ast_iterator.default_iterator.attribute self a
+    }
+  in
+  iter.payload iter payload
 
 let alerts_of_attrs l =
   List.fold_left
@@ -503,7 +520,7 @@ let has_curry attrs =
 
 let check_local ext_names other_names attr =
   if has_attribute ext_names attr then
-    if not (Clflags.Extension.is_enabled Local) then
+    if not (Language_extension.is_enabled Local) then
       Error ()
     else
       Ok true
@@ -539,7 +556,7 @@ let tailcall attr =
 
 let has_include_functor attr =
   if has_attribute ["extension.include_functor"] attr then
-    if not (Clflags.Extension.is_enabled Include_functor) then
+    if not (Language_extension.is_enabled Include_functor) then
       Error ()
     else
       Ok true

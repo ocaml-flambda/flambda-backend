@@ -735,11 +735,14 @@ let rec remove_unit = function
 let field_address ptr n dbg =
   if n = 0 then ptr else Cop (Cadda, [ptr; Cconst_int (n * size_addr, dbg)], dbg)
 
+let get_field_gen_given_memory_chunk memory_chunk mut ptr n dbg =
+  Cop (Cload (memory_chunk, mut), [field_address ptr n dbg], dbg)
+
 let get_field_gen mut ptr n dbg =
-  Cop (Cload (Word_val, mut), [field_address ptr n dbg], dbg)
+  get_field_gen_given_memory_chunk Word_val mut ptr n dbg
 
 let get_field_codepointer mut ptr n dbg =
-  Cop (Cload (Word_int, mut), [field_address ptr n dbg], dbg)
+  get_field_gen_given_memory_chunk Word_int mut ptr n dbg
 
 let set_field ptr n newval init dbg =
   Cop (Cstore (Word_val, init), [field_address ptr n dbg; newval], dbg)
@@ -1103,9 +1106,9 @@ let apply_function_sym arity result mode =
   apply_function_name arity result mode
 
 let curry_function_sym function_kind arity result =
-  Compilenv.need_curry_fun function_kind arity result;
   match function_kind with
   | Lambda.Curried { nlocal } ->
+    Compilenv.need_curry_fun function_kind arity result;
     "caml_curry"
     ^ unique_arity_identifier arity
     ^ (match result with
@@ -1113,10 +1116,15 @@ let curry_function_sym function_kind arity result =
       | _ -> "_R" ^ machtype_identifier result)
     ^ if nlocal > 0 then "L" ^ Int.to_string nlocal else ""
   | Lambda.Tupled -> (
-    if List.exists (function [| Val |] -> false | _ -> true) arity
+    if List.exists (function [| Val |] | [| Int |] -> false | _ -> true) arity
     then
       Misc.fatal_error
         "tuplify_function is currently unsupported if arity contains non-values";
+    (* Always use [Val] to ensure we don't generate duplicate tuplify functions
+       when [Int] machtypes are involved. *)
+    Compilenv.need_curry_fun function_kind
+      (List.map (fun _ -> [| Val |]) arity)
+      result;
     "caml_tuplify"
     ^ Int.to_string (List.length arity)
     ^
@@ -2520,7 +2528,7 @@ let apply_function (arity, result, mode) =
  *)
 
 let tuplify_function arity return =
-  if List.exists (function [| Val |] -> false | _ -> true) arity
+  if List.exists (function [| Val |] | [| Int |] -> false | _ -> true) arity
   then
     Misc.fatal_error
       "tuplify_function is currently unsupported if arity contains non-values";
@@ -2535,7 +2543,11 @@ let tuplify_function arity return =
       get_field_gen Asttypes.Mutable (Cvar arg) i (dbg ())
       :: access_components (i + 1)
   in
-  let fun_name = "caml_tuplify" ^ Int.to_string arity in
+  let fun_name =
+    "caml_tuplify" ^ Int.to_string arity
+    ^
+    match return with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier return
+  in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
     { fun_name;
@@ -2654,7 +2666,15 @@ let rec make_curry_apply result narity args_type args clos n =
           :: args)
           newclos (n - 1) )
 
-let machtype_of_layout = function Lambda.Pvalue _ -> typ_val
+let machtype_of_layout (layout : Lambda.layout) =
+  match layout with
+  | Ptop -> Misc.fatal_error "No machtype for layout [Ptop]"
+  | Pbottom -> Misc.fatal_error "No unique machtype for layout [Pbottom]"
+  | Punboxed_float -> typ_float
+  | Punboxed_int _ ->
+    (* Only 64-bit architectures, so this is always [typ_int] *)
+    typ_int
+  | Pvalue _ -> typ_val
 
 let final_curry_function nlocal arity result =
   let last_arg = V.create_local "arg" in
@@ -2951,8 +2971,8 @@ type assignment_kind =
 let assignment_kind (ptr : Lambda.immediate_or_pointer)
     (init : Lambda.initialization_or_assignment) =
   match init, ptr with
-  | Assignment Alloc_heap, Pointer -> Caml_modify
-  | Assignment Alloc_local, Pointer ->
+  | Assignment Modify_heap, Pointer -> Caml_modify
+  | Assignment Modify_maybe_stack, Pointer ->
     assert Config.stack_allocation;
     Caml_modify_local
   | Heap_initialization, _ -> Caml_initialize
@@ -3989,4 +4009,11 @@ let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
   | Assert p -> [Assert (transl_property p)]
   | Assume p -> [Assume (transl_property p)]
 
-let kind_of_layout (Lambda.Pvalue kind) = Vval kind
+let kind_of_layout (layout : Lambda.layout) =
+  match layout with
+  | Ptop | Pbottom ->
+    (* This is incorrect but only used for unboxing *)
+    Vval Pgenval
+  | Punboxed_float -> Vfloat
+  | Punboxed_int _ -> Vint
+  | Pvalue kind -> Vval kind

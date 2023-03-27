@@ -18,6 +18,12 @@
 open Asttypes
 open Types
 
+(* This variant is used for printing which type of comprehension something is
+   found in; it's used by [type_forcing_context], which see. *)
+type comprehension_type =
+  | List_comprehension
+  | Array_comprehension of mutable_flag
+
 (* This variant is used to print improved error messages, and does not affect
    the behavior of the typechecker itself.
 
@@ -31,13 +37,16 @@ type type_forcing_context =
   | If_no_else_branch
   | While_loop_conditional
   | While_loop_body
-  | In_comprehension_argument
   | For_loop_start_index
   | For_loop_stop_index
   | For_loop_body
   | Assert_condition
   | Sequence_left_hand_side
   | When_guard
+  | Comprehension_in_iterator of comprehension_type
+  | Comprehension_for_start
+  | Comprehension_for_stop
+  | Comprehension_when
 
 (* The combination of a type and a "type forcing context". The intent is that it
    describes a type that is "expected" (required) by the context. If unifying
@@ -100,8 +109,13 @@ type existential_restriction =
   | In_class_def (** or in [class c = let ... in ...] *)
   | In_self_pattern (** or in self pattern *)
 
+type module_patterns_restriction =
+  | Modules_allowed of { scope : int }
+  | Modules_rejected
+
 val type_binding:
         Env.t -> rec_flag ->
+          ?force_global:bool ->
           Parsetree.value_binding list ->
           Typedtree.value_binding list * Env.t
 val type_let:
@@ -119,7 +133,7 @@ val type_self_pattern:
         Env.t -> Parsetree.pattern ->
         Typedtree.pattern * pattern_variable list
 val check_partial:
-        ?lev:int -> Env.t -> type_expr ->
+        ?lev:int -> module_patterns_restriction -> Env.t -> type_expr ->
         Location.t -> Typedtree.value Typedtree.case list -> Typedtree.partial
 val type_expect:
         Env.t -> Parsetree.expression -> type_expected -> Typedtree.expression
@@ -134,7 +148,7 @@ val type_argument:
 val option_some:
   Env.t -> Typedtree.expression -> value_mode -> Typedtree.expression
 val option_none:
-  Env.t -> type_expr -> value_mode -> Location.t -> Typedtree.expression
+  Env.t -> type_expr -> Location.t -> Typedtree.expression
 val extract_option_type: Env.t -> type_expr -> type_expr
 val generalizable: int -> type_expr -> bool
 val reset_delayed_checks: unit -> unit
@@ -149,7 +163,15 @@ val has_poly_constraint : Parsetree.pattern -> bool
 val name_pattern : string -> Typedtree.pattern list -> Ident.t
 val name_cases : string -> Typedtree.value Typedtree.case list -> Ident.t
 
-val escape : loc:Location.t -> env:Env.t -> value_mode -> unit
+(* Why are we calling [submode]? This tells us why. *)
+type submode_reason =
+  | Application of type_expr
+      (* Check that the result of an application is a submode of the expected mode
+         from the context *)
+
+  | Other (* add more cases here for better hints *)
+
+val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> value_mode -> unit
 
 val self_coercion : (Path.t * Location.t list ref) list ref
 
@@ -206,6 +228,7 @@ type error =
   | Unexpected_existential of existential_restriction * string * string list
   | Invalid_interval
   | Invalid_for_loop_index
+  | Invalid_comprehension_for_range_iterator_index
   | No_value_clauses
   | Exception_pattern_disallowed
   | Mixed_value_and_exception_patterns_under_guard
@@ -220,7 +243,7 @@ type error =
   | Probe_name_undefined of string
   (* CR-soon mshinwell: Use an inlined record *)
   | Probe_is_enabled_format
-  | Extension_not_enabled of Clflags.Extension.t
+  | Extension_not_enabled of Language_extension.t
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Illegal_letrec_pat
@@ -233,12 +256,15 @@ type error =
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
   | Expr_not_a_record_type of type_expr
-  | Local_value_escapes of Value_mode.error * Env.escaping_context option
+  | Local_value_escapes of Value_mode.error * submode_reason * Env.escaping_context option
+  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of type_expr
   | Uncurried_function_escapes
   | Local_return_annotation_mismatch of Location.t
+  | Function_returns_local
   | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
   | Optional_poly_param
+
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

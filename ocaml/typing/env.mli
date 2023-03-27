@@ -86,13 +86,11 @@ val without_cmis: ('a -> 'b) -> 'a -> 'b
 val find_value: Path.t -> t -> value_description
 val find_type: Path.t -> t -> type_declaration
 val find_type_descrs: Path.t -> t -> type_descriptions
+val find_module_lazy: Path.t -> t -> Subst.Lazy.module_decl
 val find_module: Path.t -> t -> module_declaration
 val find_modtype: Path.t -> t -> modtype_declaration
 val find_class: Path.t -> t -> class_declaration
 val find_cltype: Path.t -> t -> class_type_declaration
-
-val find_strengthened_module:
-  aliasable:bool -> Path.t -> t -> module_type
 
 val find_ident_constructor: Ident.t -> t -> constructor_description
 val find_ident_label: Ident.t -> t -> label_description
@@ -391,7 +389,7 @@ val enter_unbound_module : string -> module_unbound_reason -> t -> t
 
 (* Lock the environment *)
 
-val add_lock : ?escaping_context:escaping_context -> Types.value_mode -> t -> t
+val add_lock : ?escaping_context:escaping_context -> Types.alloc_mode -> t -> t
 val add_region_lock : t -> t
 
 (* Initialize the cache of in-core module interfaces. *)
@@ -405,8 +403,7 @@ val set_unit_name: Compilation_unit.t option -> unit
 val get_unit_name: unit -> Compilation_unit.t option
 
 (* Read, save a signature to/from a file *)
-val read_signature:
-  Compilation_unit.t -> filepath -> allow_param:bool -> signature
+val read_signature: Compilation_unit.t -> filepath -> signature
         (* Arguments: module name, file name. Results: signature. *)
 val save_signature:
   alerts:alerts -> signature -> signature option -> Compilation_unit.t
@@ -421,10 +418,10 @@ val save_signature_with_imports:
         (* Arguments: signature, secondary signature, module name, file name,
            imported units with their CRCs. *)
 
-(* Read in a module type, treating it as a parameter to the current
-   compilation unit (which is thus a functor unit). *)
-val read_as_parameter:
-  Location.t -> Compilation_unit.Name.t -> module_type
+(* Register a module as a parameter. If [exported] is true, it's a parameter to
+   _this_ unit. Otherwise, it's a parameter we're referring to for another
+   reason (such as -instantiate or -as-argument-for). *)
+val register_parameter: Compilation_unit.t -> exported:bool -> unit
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
@@ -435,10 +432,13 @@ val imports: unit -> Import_info.t list
 (* may raise Persistent_env.Consistbl.Inconsistency *)
 val import_crcs: source:string -> Import_info.t array -> unit
 
-(* Return the set of taken by the module, along with each one's local
-   identifier. Should be exactly the modules passed to [-parameter] on the
-   command line. *)
-val parameters: unit -> (Compilation_unit.Name.t * Ident.t) list
+(* Return the set of imports represented as parameters, along with the
+   local variable representing each *)
+val locally_bound_imports: unit -> (Compilation_unit.t * Ident.t) list
+
+(* Return the list of parameters registered to be exported from the current
+   unit, in alphabetical order *)
+val exported_parameters: unit -> Compilation_unit.t list
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
 val is_imported_opaque: Compilation_unit.Name.t -> bool
@@ -472,7 +472,6 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
-  | Parameter_interface_unavailable of Location.t * Compilation_unit.Name.t
 
 exception Error of error
 
@@ -505,9 +504,8 @@ val check_well_formed_module:
 (* Forward declaration to break mutual recursion with Typecore. *)
 val add_delayed_check_forward: ((unit -> unit) -> unit) ref
 (* Forward declaration to break mutual recursion with Mtype. *)
-val strengthen:
-    (aliasable:bool -> t -> Subst.Lazy.modtype ->
-     Path.t -> Subst.Lazy.modtype) ref
+val scrape_alias:
+    (t -> Subst.Lazy.modtype -> Subst.Lazy.modtype) ref
 (* Forward declaration to break mutual recursion with Ctype. *)
 val same_constr: (t -> type_expr -> type_expr -> bool) ref
 (* Forward declaration to break mutual recursion with Printtyp. *)
@@ -548,7 +546,6 @@ val fold_cltypes:
 
 
 (** Utilities *)
-val scrape_alias: t -> module_type -> module_type
 val check_value_name: string -> Location.t -> unit
 
 val print_address : Format.formatter -> address -> unit

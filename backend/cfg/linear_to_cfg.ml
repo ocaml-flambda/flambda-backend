@@ -28,10 +28,11 @@
 module C = Cfg
 module L = Linear
 module T = Trap_stack.Make (Label)
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
 type t =
   { cfg : Cfg.t;
-    mutable layout : Label.t list;
+    layout : Cfg_with_layout.layout;
     mutable new_labels : Label.Set.t;
         (** Labels added by cfg construction, except entry. Used for testing of
             the mapping back to Linear IR. *)
@@ -71,7 +72,7 @@ let entry_id = 1
 
 let create cfg ~tailrec_label =
   { cfg;
-    layout = [];
+    layout = DLL.make_empty ();
     new_labels = Label.Set.empty;
     trap_handlers = Label.Set.empty;
     trap_stacks = Label.Tbl.create 31;
@@ -168,7 +169,7 @@ let create_empty_block t start ~stack_offset ~traps =
   in
   let block : C.basic_block =
     { start;
-      body = Cfg.BasicInstructionList.make_empty ();
+      body = DLL.make_empty ();
       terminator;
       exn = None;
       predecessors = Label.Set.empty;
@@ -183,7 +184,7 @@ let create_empty_block t start ~stack_offset ~traps =
   then
     Misc.fatal_errorf "A block with starting label %d is already registered"
       start;
-  t.layout <- start :: t.layout;
+  DLL.add_end t.layout start;
   block
 
 let register_block t (block : C.basic_block) traps =
@@ -302,17 +303,20 @@ let check_and_register_traps t =
   in
   C.iter_blocks t.cfg ~f
 
+(* CR gyorsh: [linear_to_cfg] currently drops section names *)
 let get_or_make_label t (insn : Linear.instruction) : Linear_utils.labelled_insn
     =
   match insn.desc with
-  | Llabel label -> { label; insn }
+  | Llabel { label; _ } -> { label; insn }
   | Lend -> Misc.fatal_error "Unexpected end of function instead of label"
   | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Lbranch _ | Lcondbranch _
   | Lcondbranch3 _ | Lswitch _ | Lentertrap | Ladjust_stack_offset _
   | Lpushtrap _ | Lpoptrap | Lraise _ ->
     let label = Cmm.new_label () in
     t.new_labels <- Label.Set.add label t.new_labels;
-    let insn = Linear.instr_cons (Llabel label) [||] [||] insn in
+    let insn =
+      Linear.instr_cons (Llabel { label; section_name = None }) [||] [||] insn
+    in
     { label; insn }
 
 let of_cmm_float_test ~lbl ~inv (cmp : Cmm.float_comparison) : C.float_test =
@@ -414,8 +418,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     terminator_fallthrough (fun label_after -> Prim { op = prim; label_after })
   in
   let basic desc =
-    C.BasicInstructionList.add_end block.body
-      (create_instruction t desc i ~stack_offset);
+    DLL.add_end block.body (create_instruction t desc i ~stack_offset);
     create_blocks t i.next block ~stack_offset ~traps
   in
   match i.desc with
@@ -425,7 +428,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     then
       Misc.fatal_errorf "End of function without terminator for block %d"
         block.start
-  | Llabel start ->
+  | Llabel { label = start; _ } ->
     (* Not all labels need to start a new block. Keep the translation from
      *  linear to cfg simple, and optimize (remove/merge blocks) in a
      *  separate pass, because:
@@ -489,15 +492,13 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     t.trap_handlers <- Label.Set.add lbl_handler t.trap_handlers;
     record_traps t lbl_handler traps;
     let desc = C.Pushtrap { lbl_handler } in
-    C.BasicInstructionList.add_end block.body
-      (create_instruction t desc ~stack_offset i);
+    DLL.add_end block.body (create_instruction t desc ~stack_offset i);
     let stack_offset = stack_offset + Proc.trap_size_in_bytes in
     let traps = T.push traps lbl_handler in
     create_blocks t i.next block ~stack_offset ~traps
   | Lpoptrap ->
     let desc = C.Poptrap in
-    C.BasicInstructionList.add_end block.body
-      (create_instruction t desc ~stack_offset i);
+    DLL.add_end block.body (create_instruction t desc ~stack_offset i);
     let stack_offset = stack_offset - Proc.trap_size_in_bytes in
     if stack_offset < 0
     then Misc.fatal_error "Lpoptrap moves the stack offset below zero";
@@ -513,7 +514,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     create_blocks t i.next block ~stack_offset ~traps
   | Lentertrap ->
     (* Must be the first instruction in the block. *)
-    assert (C.BasicInstructionList.is_empty block.body);
+    assert (DLL.is_empty block.body);
     block.is_trap_handler <- true;
     create_blocks t i.next block ~stack_offset ~traps
   | Lprologue -> basic C.Prologue
@@ -551,8 +552,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       terminator_prim (Probe { name; handler_code_sym })
     | Istackoffset bytes ->
       let desc = C.Op (C.Stackoffset bytes) in
-      C.BasicInstructionList.add_end block.body
-        (create_instruction t desc i ~stack_offset);
+      DLL.add_end block.body (create_instruction t desc i ~stack_offset);
       let stack_offset = stack_offset + bytes in
       create_blocks t i.next block ~stack_offset ~traps
     | Ipoll { return_label = None } ->
@@ -632,6 +632,5 @@ let run (f : Linear.fundecl) ~preserve_orig_labels =
      processed. *)
   check_and_register_traps t;
   Cfg.register_predecessors_for_all_blocks t.cfg;
-  (* Layout was constructed in reverse, fix it now: *)
-  Cfg_with_layout.create t.cfg ~layout:(List.rev t.layout) ~preserve_orig_labels
+  Cfg_with_layout.create t.cfg ~layout:t.layout ~preserve_orig_labels
     ~new_labels:t.new_labels

@@ -26,6 +26,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 module CL = Cfg_with_layout
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let add cl =
   (* Fabricate debug info when missing, because it is required to emit discriminators.
@@ -57,10 +58,8 @@ let add cl =
   let layout = CL.layout cl in
   let update_block prev label =
     let block = Cfg.get_block_exn cfg label in
-    let prev =
-      Cfg.BasicInstructionList.fold_left ~f:update_instr ~init:prev block.body
-    in
+    let prev = DLL.fold_left ~f:update_instr ~init:prev block.body in
     let prev = update_instr prev block.terminator in
     prev
   in
-  ignore (List.fold_left update_block cfg.fun_dbg layout : Debuginfo.t)
+  ignore (DLL.fold_left ~f:update_block ~init:cfg.fun_dbg layout : Debuginfo.t)

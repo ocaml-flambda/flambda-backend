@@ -35,14 +35,9 @@ let scrape_ty env ty =
       let ty = Ctype.expand_head_opt env (Ctype.correct_levels ty) in
       begin match get_desc ty with
       | Tconstr (p, _, _) ->
-          begin match Env.find_type p env with
-          | {type_kind = ( Type_variant (_, Variant_unboxed)
-          | Type_record (_, Record_unboxed _) ); _} -> begin
-              match Typedecl_unboxed.get_unboxed_type_representation env ty with
-              | None -> ty
-              | Some ty2 -> ty2
-          end
-          | _ -> ty
+          begin match find_unboxed_type (Env.find_type p env) with
+          | Some _ -> Ctype.get_unboxed_type_approximation env ty
+          | None -> ty
           | exception Not_found -> ty
           end
       | _ ->
@@ -70,18 +65,20 @@ let is_base_type env ty base_ty_path =
   | Tconstr(p, _, _) -> Path.same p base_ty_path
   | _ -> false
 
-let is_immediate = function
-  | Type_immediacy.Unknown -> false
-  | Type_immediacy.Always -> true
-  | Type_immediacy.Always_on_64bits ->
-      (* In bytecode, we don't know at compile time whether we are
-         targeting 32 or 64 bits. *)
-      !Clflags.native_code && Sys.word_size = 64
+let is_always_gc_ignorable env ty =
+  let imm : Type_immediacy.t =
+    (* We check that we're compiling to (64-bit) native code before counting
+       immediate64 types as gc_ignorable, because bytecode is intended to be
+       platform independent. *)
+    if !Clflags.native_code && Sys.word_size = 64
+    then Always_on_64bits
+    else Always
+  in
+  Result.is_ok (Ctype.check_type_immediate env ty imm)
 
 let maybe_pointer_type env ty =
   let ty = scrape_ty env ty in
-  if is_immediate (Ctype.immediacy env ty) then Immediate
-  else Pointer
+  if is_always_gc_ignorable env ty then Immediate else Pointer
 
 let maybe_pointer exp = maybe_pointer_type exp.exp_env exp.exp_type
 
@@ -96,7 +93,7 @@ type classification =
    Returning [Any] is safe, though may skip some optimizations. *)
 let classify env ty : classification =
   let ty = scrape_ty env ty in
-  if maybe_pointer_type env ty = Immediate then Int
+  if is_always_gc_ignorable env ty then Int
   else match get_desc ty with
   | Tvar _ | Tunivar _ ->
       Any
@@ -112,7 +109,7 @@ let classify env ty : classification =
       else begin
         try
           match (Env.find_type p env).type_kind with
-          | Type_abstract ->
+          | Type_abstract _ ->
               Any
           | Type_record _ | Type_variant _ | Type_open ->
               Addr
@@ -129,7 +126,8 @@ let classify env ty : classification =
 
 let array_type_kind env ty =
   match scrape_poly env ty with
-  | Tconstr(p, [elt_ty], _) when Path.same p Predef.path_array ->
+  | Tconstr(p, [elt_ty], _)
+    when Path.same p Predef.path_array || Path.same p Predef.path_iarray ->
       begin match classify env elt_ty with
       | Any -> if Config.flat_float_array then Pgenarray else Paddrarray
       | Float -> if Config.flat_float_array then Pfloatarray else Paddrarray
@@ -191,7 +189,7 @@ let value_kind env ty =
     in
     let scty = scrape_ty env ty in
     match get_desc scty with
-    | _ when is_immediate (Ctype.immediacy env scty) ->
+    | _ when is_always_gc_ignorable env scty ->
       num_nodes_visited, Pintval
     | Tconstr(p, _, _) when Path.same p Predef.path_int ->
       num_nodes_visited, Pintval
@@ -332,7 +330,7 @@ let value_kind env ty =
             | Record_extension _ ->
               num_nodes_visited, Pgenval
           end
-        | Type_abstract | Type_open -> num_nodes_visited, Pgenval
+        | Type_abstract _ | Type_open -> num_nodes_visited, Pgenval
       end
     | Ttuple fields ->
       if cannot_proceed () then
@@ -364,7 +362,13 @@ let layout env ty = Lambda.Pvalue (value_kind env ty)
 let function_return_layout env ty =
   match is_function_type env ty with
   | Some (_lhs, rhs) -> layout env rhs
-  | None -> Lambda.layout_top
+  | None -> Misc.fatal_errorf "function_return_layout called on non-function type"
+
+let function2_return_layout env ty =
+  match is_function_type env ty with
+  | Some (_lhs, rhs) -> function_return_layout env rhs
+  | None -> Misc.fatal_errorf "function_return_layout called on non-function type"
+
 
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
     if the value can be represented as a float/forward/lazy *)
@@ -387,7 +391,7 @@ let classify_lazy_argument : Typedtree.expression ->
         ( Const_int _ | Const_char _ | Const_string _
         | Const_int32 _ | Const_int64 _ | Const_nativeint _ )
     | Texp_function _
-    | Texp_construct (_, {cstr_arity = 0}, _) ->
+    | Texp_construct (_, {cstr_arity = 0}, _, _) ->
        `Constant_or_function
     | Texp_constant(Const_float _) ->
        if Config.flat_float_array
@@ -404,5 +408,14 @@ let value_kind_union (k1 : Lambda.value_kind) (k2 : Lambda.value_kind) =
   if Lambda.equal_value_kind k1 k2 then k1
   else Pgenval
 
-let layout_union (Pvalue layout1) (Pvalue layout2) =
-  Pvalue (value_kind_union layout1 layout2)
+let layout_union l1 l2 =
+  match l1, l2 with
+  | Pbottom, l
+  | l, Pbottom -> l
+  | Pvalue layout1, Pvalue layout2 ->
+      Pvalue (value_kind_union layout1 layout2)
+  | Punboxed_float, Punboxed_float -> Punboxed_float
+  | Punboxed_int bi1, Punboxed_int bi2 ->
+      if equal_boxed_integer bi1 bi2 then l1 else Ptop
+  | (Ptop | Pvalue _ | Punboxed_float | Punboxed_int _), _ ->
+      Ptop

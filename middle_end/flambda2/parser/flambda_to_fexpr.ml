@@ -145,6 +145,8 @@ module Env : sig
   val bind_special_continuation :
     t -> Continuation.t -> to_:Fexpr.special_continuation -> t
 
+  val bind_toplevel_region : t -> Variable.t -> t
+
   val find_var_exn : t -> Variable.t -> Fexpr.variable
 
   val find_symbol_exn : t -> Symbol.t -> Fexpr.symbol
@@ -152,6 +154,8 @@ module Env : sig
   val find_code_id_exn : t -> Code_id.t -> Fexpr.code_id
 
   val find_continuation_exn : t -> Continuation.t -> Fexpr.continuation
+
+  val find_region_exn : t -> Variable.t -> Fexpr.region
 
   val translate_function_slot : t -> Function_slot.t -> Fexpr.function_slot
 
@@ -243,7 +247,7 @@ end = struct
       | "k" -> Printf.sprintf "k%d" tag
       | _ -> default_add_tag name tag
 
-    let mk_fexpr_id name = Fexpr.Named (name |> nowhere)
+    let mk_fexpr_id name : Fexpr.continuation = Named (name |> nowhere)
   end)
 
   type t =
@@ -252,7 +256,8 @@ end = struct
       code_ids : Code_id_name_map.t;
       function_slots : Function_slot_name_map.t;
       vars_within_closures : Value_slot_name_map.t;
-      continuations : Continuation_name_map.t
+      continuations : Continuation_name_map.t;
+      toplevel_region : Variable.t option
     }
 
   let create () =
@@ -261,7 +266,8 @@ end = struct
       code_ids = Code_id_name_map.empty;
       function_slots = Function_slot_name_map.create ();
       vars_within_closures = Value_slot_name_map.create ();
-      continuations = Continuation_name_map.empty
+      continuations = Continuation_name_map.empty;
+      toplevel_region = None
     }
 
   let bind_var t v =
@@ -277,7 +283,10 @@ end = struct
         (Compilation_unit.get_current_exn ())
     in
     if not is_local
-    then Misc.fatal_errorf "Cannot bind non-local symbol %a" Symbol.print s;
+    then
+      Misc.fatal_errorf "Cannot bind non-local symbol %a@ Current unit is %a"
+        Symbol.print s Compilation_unit.print
+        (Compilation_unit.get_current_exn ());
     let s, symbols = Symbol_name_map.bind t.symbols s in
     (None, s) |> nowhere, { t with symbols }
 
@@ -295,6 +304,8 @@ end = struct
       Continuation_name_map.bind_to t.continuations c (Special s)
     in
     { t with continuations }
+
+  let bind_toplevel_region t v = { t with toplevel_region = Some v }
 
   let find_var_exn t v = Variable_name_map.find_exn t.variables v
 
@@ -323,6 +334,11 @@ end = struct
 
   let find_continuation_exn t c =
     Continuation_name_map.find_exn t.continuations c
+
+  let find_region_exn t r : Fexpr.region =
+    match t.toplevel_region with
+    | Some toplevel_region when Variable.equal toplevel_region r -> Toplevel
+    | _ -> Named (find_var_exn t r)
 
   let translate_function_slot t c =
     Function_slot_name_map.translate t.function_slots c
@@ -398,9 +414,42 @@ let is_default_kind_with_subkind (k : Flambda_kind.With_subkind.t) =
   Flambda_kind.is_value (Flambda_kind.With_subkind.kind k)
   && not (Flambda_kind.With_subkind.has_useful_subkind_info k)
 
+let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
+  match k with
+  | Anything -> Anything
+  | Boxed_float -> Boxed_float
+  | Boxed_int32 -> Boxed_int32
+  | Boxed_int64 -> Boxed_int64
+  | Boxed_nativeint -> Boxed_nativeint
+  | Tagged_immediate -> Tagged_immediate
+  | Variant { consts; non_consts } -> variant_subkind consts non_consts
+  | Float_array -> Float_array
+  | Immediate_array -> Immediate_array
+  | Value_array -> Value_array
+  | Generic_array -> Generic_array
+  | Float_block { num_fields } -> Float_block { num_fields }
+
+and variant_subkind consts non_consts : Fexpr.subkind =
+  let consts =
+    consts |> Targetint_31_63.Set.elements |> List.map Targetint_31_63.to_int64
+  in
+  let non_consts =
+    non_consts |> Tag.Scannable.Map.bindings
+    |> List.map (fun (tag, sk) -> Tag.Scannable.to_int tag, List.map subkind sk)
+  in
+  Variant { consts; non_consts }
+
+let kind_with_subkind (k : Flambda_kind.With_subkind.t) :
+    Fexpr.kind_with_subkind =
+  match Flambda_kind.With_subkind.kind k with
+  | Value -> Value (subkind (Flambda_kind.With_subkind.subkind k))
+  | Naked_number nnk -> Naked_number nnk
+  | Region -> Region
+  | Rec_info -> Rec_info
+
 let kind_with_subkind_opt (k : Flambda_kind.With_subkind.t) :
     Fexpr.kind_with_subkind option =
-  if is_default_kind_with_subkind k then None else Some k
+  if is_default_kind_with_subkind k then None else Some (k |> kind_with_subkind)
 
 let is_default_arity (a : Flambda_arity.With_subkinds.t) =
   match Flambda_arity.With_subkinds.to_list a with
@@ -408,7 +457,7 @@ let is_default_arity (a : Flambda_arity.With_subkinds.t) =
   | _ -> false
 
 let arity (a : Flambda_arity.With_subkinds.t) : Fexpr.arity =
-  Flambda_arity.With_subkinds.to_list a
+  Flambda_arity.With_subkinds.to_list a |> List.map kind_with_subkind
 
 let arity_opt (a : Flambda_arity.With_subkinds.t) : Fexpr.arity option =
   if is_default_arity a then None else Some (arity a)
@@ -425,13 +474,44 @@ let targetint_ocaml (i : Targetint_31_63.t) : Fexpr.targetint =
 let recursive_flag (r : Recursive.t) : Fexpr.is_recursive =
   match r with Recursive -> Recursive | Non_recursive -> Nonrecursive
 
+let alloc_mode_for_allocations env (alloc : Alloc_mode.For_allocations.t) :
+    Fexpr.alloc_mode_for_allocations =
+  match alloc with
+  | Heap -> Heap
+  | Local { region = r } ->
+    let r = Env.find_region_exn env r in
+    Local { region = r }
+
+let alloc_mode_for_types (alloc : Alloc_mode.For_types.t) :
+    Fexpr.alloc_mode_for_types =
+  match alloc with
+  | Heap -> Heap
+  | Heap_or_local -> Heap_or_local
+  | Local -> Local
+
+let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
+    Fexpr.init_or_assign =
+  match ia with
+  | Initialization -> Initialization
+  | Assignment alloc -> Assignment (alloc_mode_for_allocations env alloc)
+
+let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
+  match op with
+  | Begin_region -> Begin_region
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _ ->
+    Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
+      (Flambda_primitive.Nullary op)
+
 let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   match op with
   | Array_length -> Array_length
-  (* CR mshinwell: support local allocs in fexpr *)
-  | Box_number (bk, _alloc_mode) -> Box_number bk
+  | Box_number (bk, alloc) ->
+    Box_number (bk, alloc_mode_for_allocations env alloc)
   | Tag_immediate -> Tag_immediate
   | Get_tag -> Get_tag
+  | Begin_try_region -> Begin_try_region
+  | End_region -> End_region
+  | Is_flat_float_array -> Is_flat_float_array
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)
   | Num_conv { src; dst } -> Num_conv { src; dst }
   | Opaque_identity _ -> Opaque_identity
@@ -448,33 +528,34 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | String_length string_or_bytes -> String_length string_or_bytes
   | Int_as_pointer | Boolean_not | Duplicate_block _ | Duplicate_array _
   | Bigarray_length _ | Int_arith _ | Float_arith _ | Reinterpret_int64_as_float
-  | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
-  | Obj_dup ->
+  | Is_boxed_float | Obj_dup ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
+
+let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
+    Fexpr.block_access_kind =
+  let size (s : _ Or_unknown.t) =
+    match s with Known s -> Some (s |> targetint_ocaml) | Unknown -> None
+  in
+  match bk with
+  | Values { field_kind; size = s; tag } ->
+    let size = s |> size in
+    let tag =
+      match tag with
+      | Unknown -> None
+      | Known tag -> Some (tag |> Tag.Scannable.to_int)
+    in
+    Values { field_kind; size; tag }
+  | Naked_floats { size = s } ->
+    let size = s |> size in
+    Naked_floats { size }
 
 let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   match op with
   | Array_load (ak, mut) -> Array_load (ak, mut)
   | Block_load (access_kind, mutability) ->
-    let size (s : _ Or_unknown.t) =
-      match s with Known s -> Some (s |> targetint_ocaml) | Unknown -> None
-    in
-    let access_kind : Fexpr.block_access_kind =
-      match access_kind with
-      | Values { field_kind; size = s; tag } ->
-        let size = s |> size in
-        let tag =
-          match tag with
-          | Unknown -> None
-          | Known tag -> Some (tag |> Tag.Scannable.to_int)
-        in
-        Values { field_kind; size; tag }
-      | Naked_floats { size = s } ->
-        let size = s |> size in
-        Naked_floats { size }
-    in
+    let access_kind = block_access_kind access_kind in
     Block_load (access_kind, mutability)
   | Phys_equal op -> Phys_equal op
   | Int_arith (Tagged_immediate, o) -> Infix (Int_arith o)
@@ -487,23 +568,27 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Int_shift (i, s) -> Int_shift (i, s)
   | Float_arith o -> Infix (Float_arith o)
   | Float_comp c -> Infix (Float_comp c)
-  | String_or_bigstring_load _ | Bigarray_load _ ->
+  | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
+  | Bigarray_load _ ->
     Misc.fatal_errorf "TODO: Binary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)
 
-let ternop (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
+let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
-  | Array_set (ak, ia) -> Array_set (ak, ia)
-  | Block_set _ | Bytes_or_bigstring_set _ | Bigarray_set _ ->
+  | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
+  | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
+  | Bytes_or_bigstring_set _ | Bigarray_set _ ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Ternary op)
 
-let varop (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
+let varop env (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
   match op with
-  | Make_block (Values (tag, _), mutability, _alloc_mode) ->
-    Make_block (tag |> Tag.Scannable.to_int, mutability)
+  | Make_block (Values (tag, _), mutability, alloc) ->
+    let tag = tag |> Tag.Scannable.to_int in
+    let alloc = alloc_mode_for_allocations env alloc in
+    Make_block (tag, mutability, alloc)
   | Make_block (Naked_floats, _, _) | Make_array _ ->
     Misc.fatal_errorf "TODO: Variadic primitive: %a"
       Flambda_primitive.Without_args.print
@@ -511,17 +596,18 @@ let varop (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
 
 let prim env (p : Flambda_primitive.t) : Fexpr.prim =
   match p with
-  | Nullary _ -> Misc.fatal_errorf "TODO: Nullary primitive"
+  | Nullary op -> Nullary (nullop env op)
   | Unary (op, arg) -> Unary (unop env op, simple env arg)
   | Binary (op, arg1, arg2) ->
     Binary (binop op, simple env arg1, simple env arg2)
   | Ternary (op, arg1, arg2, arg3) ->
-    Ternary (ternop op, simple env arg1, simple env arg2, simple env arg3)
-  | Variadic (op, args) -> Variadic (varop op, List.map (simple env) args)
+    Ternary (ternop env op, simple env arg1, simple env arg2, simple env arg3)
+  | Variadic (op, args) -> Variadic (varop env op, List.map (simple env) args)
 
 let value_slots env map =
   List.map
-    (fun (var, (value, kind)) ->
+    (fun (var, value) ->
+      let kind = Value_slot.kind var in
       if not
            (Flambda_kind.equal
               (Flambda_kind.With_subkind.kind kind)
@@ -533,7 +619,7 @@ let value_slots env map =
       { Fexpr.var; value })
     (map |> Value_slot.Map.bindings)
 
-let function_declaration env code_id function_slot : Fexpr.fun_decl =
+let function_declaration env code_id function_slot alloc : Fexpr.fun_decl =
   let code_id = Env.find_code_id_exn env code_id in
   let function_slot = Env.translate_function_slot env function_slot in
   (* Omit the function slot when possible *)
@@ -542,13 +628,15 @@ let function_declaration env code_id function_slot : Fexpr.fun_decl =
     then None
     else Some function_slot
   in
-  { code_id; function_slot }
+  let alloc = alloc |> alloc_mode_for_allocations env in
+  { code_id; function_slot; alloc }
 
 let set_of_closures env sc =
+  let alloc = Set_of_closures.alloc_mode sc in
   let fun_decls =
     List.map
       (fun (function_slot, fun_decl) ->
-        function_declaration env fun_decl function_slot)
+        function_declaration env fun_decl function_slot alloc)
       (Set_of_closures.function_decls sc
       |> Function_declarations.funs_in_order |> Function_slot.Lmap.bindings)
   in
@@ -712,6 +800,12 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
         then None
         else Some (Code.inline code)
       in
+      let loopify =
+        if Flambda2_terms.Loopify_attribute.equal (Code.loopify code)
+             Default_loopify_and_not_tailrec
+        then None
+        else Some (Code.loopify code)
+      in
       let is_tupled = Code.is_tupled code in
       let params_and_body =
         Flambda.Function_params_and_body.pattern_match
@@ -763,6 +857,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
           ret_arity;
           recursive;
           inline;
+          loopify;
           params_and_body;
           code_size;
           is_tupled
@@ -885,31 +980,30 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
   let args = List.map (simple env) (Apply_expr.args app) in
   let call_kind : Fexpr.call_kind =
     match Apply_expr.call_kind app with
-    | Function
-        { function_call = Direct { code_id; return_arity = _ }; alloc_mode = _ }
-      ->
+    | Function { function_call = Direct code_id; alloc_mode } ->
       let code_id = Env.find_code_id_exn env code_id in
       let function_slot = None in
       (* CR mshinwell: remove [function_slot] *)
-      Function (Direct { code_id; function_slot })
+      let alloc = alloc_mode_for_types alloc_mode in
+      Function (Direct { code_id; function_slot; alloc })
     | Function
-        { function_call = Indirect_unknown_arity | Indirect_known_arity _;
-          alloc_mode = _
+        { function_call = Indirect_unknown_arity | Indirect_known_arity;
+          alloc_mode
         } ->
-      Function Indirect
+      let alloc = alloc_mode_for_types alloc_mode in
+      Function (Indirect alloc)
     | C_call { alloc; _ } -> C_call { alloc }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
   in
+  let param_arity = Apply_expr.args_arity app in
+  let return_arity = Apply_expr.return_arity app in
   let arities : Fexpr.function_arities option =
     match Apply_expr.call_kind app with
-    | Function
-        { function_call = Indirect_known_arity { param_arity; return_arity };
-          alloc_mode = _
-        } ->
+    | Function { function_call = Indirect_known_arity; alloc_mode = _ } ->
       let params_arity = Some (arity param_arity) in
       let ret_arity = arity return_arity in
       Some { params_arity; ret_arity }
-    | Function { function_call = Direct { return_arity; _ }; alloc_mode = _ } ->
+    | Function { function_call = Direct _; alloc_mode = _ } ->
       if is_default_arity return_arity
       then None
       else
@@ -919,13 +1013,9 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
         in
         let ret_arity = arity return_arity in
         Some { params_arity; ret_arity }
-    | C_call { param_arity; return_arity; _ } ->
-      let params_arity =
-        Some (arity (param_arity |> Flambda_arity.With_subkinds.of_arity))
-      in
-      let ret_arity =
-        arity (return_arity |> Flambda_arity.With_subkinds.of_arity)
-      in
+    | C_call _ ->
+      let params_arity = Some (arity param_arity) in
+      let ret_arity = arity return_arity in
       Some { params_arity; ret_arity }
     | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
     | Method _ ->
@@ -937,6 +1027,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
     else Some (Apply_expr.inlined app)
   in
   let inlining_state = inlining_state (Apply_expr.inlining_state app) in
+  let region = Env.find_region_exn env (Apply_expr.region app) in
   Apply
     { func;
       continuation;
@@ -945,7 +1036,8 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       call_kind;
       inlined;
       inlining_state;
-      arities
+      arities;
+      region
     }
 
 and apply_cont_expr env app_cont : Fexpr.expr =
@@ -1095,9 +1187,11 @@ let bind_all_code_ids env unit =
 let conv flambda_unit =
   let done_ = Flambda_unit.return_continuation flambda_unit in
   let error = Flambda_unit.exn_continuation flambda_unit in
+  let toplevel = Flambda_unit.toplevel_my_region flambda_unit in
   let env = Env.create () in
   let env = Env.bind_special_continuation env done_ ~to_:Done in
   let env = Env.bind_special_continuation env error ~to_:Error in
+  let env = Env.bind_toplevel_region env toplevel in
   (* Bind all code ids in toplevel let bindings at the start, since they don't
      necessarily occur in dependency order *)
   let env = bind_all_code_ids env flambda_unit in

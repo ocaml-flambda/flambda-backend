@@ -68,17 +68,17 @@ void caml_garbage_collection(void)
     uintnat h = Hash_retaddr(Caml_state->last_return_address);
     while (1) {
       d = caml_frame_descriptors[h];
-      if (d->retaddr == Caml_state->last_return_address) break;
+      if (Retaddr_frame(d) == Caml_state->last_return_address) break;
       h = (h + 1) & caml_frame_descriptors_mask;
     }
     /* Must be an allocation frame */
     CAMLassert(d && d->frame_size != 0xFFFF &&
-               (get_frame_size(d) & 2));
+               (caml_get_frame_size(d) & 2));
   }
 
   /* Compute the total allocation size at this point,
      including allocations combined by Comballoc */
-  alloc_len = get_end_of_live_ofs(d);
+  alloc_len = caml_get_end_of_live_ofs(d);
   nallocs = *alloc_len++;
 
   if (nallocs == 0) {

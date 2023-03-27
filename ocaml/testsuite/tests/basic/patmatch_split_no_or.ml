@@ -16,7 +16,8 @@ let last_is_anys = function
 [%%expect{|
 (let
   (last_is_anys/11 =
-     (function param/13[(consts ()) (non_consts ([0: [int], [int]]))] : int
+     (function {nlocal = 0}
+       param/13[(consts ()) (non_consts ([0: [int], [int]]))] : int
        (catch
          (if (field 0 param/13) (if (field 1 param/13) (exit 1) 1)
            (if (field 1 param/13) (exit 1) 2))
@@ -33,7 +34,8 @@ let last_is_vars = function
 [%%expect{|
 (let
   (last_is_vars/18 =
-     (function param/22[(consts ()) (non_consts ([0: [int], [int]]))] : int
+     (function {nlocal = 0}
+       param/22[(consts ()) (non_consts ([0: [int], [int]]))] : int
        (catch
          (if (field 0 param/22) (if (field 1 param/22) (exit 3) 1)
            (if (field 1 param/22) (exit 3) 2))
@@ -75,8 +77,8 @@ let f = function
    B/27 = (apply (field 0 (global Toploop!)) "B/27")
    A/26 = (apply (field 0 (global Toploop!)) "A/26")
    f/29 =
-     (function param/31[(consts ()) (non_consts ([0: *, [int], [int]]))]
-       : int
+     (function {nlocal = 0}
+       param/31[(consts ()) (non_consts ([0: *, [int], [int]]))] : int
        (let (*match*/32 =a (field 0 param/31))
          (catch
            (if (== *match*/32 A/26) (if (field 1 param/31) 1 (exit 8))

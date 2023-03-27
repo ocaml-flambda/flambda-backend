@@ -287,7 +287,6 @@
  (flags
   (-strict-sequence
    -principal
-   -absname
    -w
    +a-4-9-40-41-42-44-45-48-66
    -warn-error
@@ -336,6 +335,7 @@
   (backend bisect_ppx))
  (flags
   (:standard -principal))
+ (ocamlopt_flags (:standard -runtime-variant nnp))
  (libraries
   flambda_backend_driver
   memtrace
@@ -790,7 +790,6 @@
   (trap_stack.mli as compiler-libs/trap_stack.mli)
   (cfg_equivalence.mli as compiler-libs/cfg_equivalence.mli)
   (ocaml/extensions.mli as compiler-libs/extensions.mli)
-  (ocaml/translcomprehension.mli as compiler-libs/translcomprehension.mli)
   (.ocamloptcomp.objs/byte/linear_format.cmi
    as
    compiler-libs/linear_format.cmi)

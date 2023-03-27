@@ -47,6 +47,10 @@ type continuation_sort =
 (* There's also [Return] and [Toplevel_return], but those don't need to be
  * specified explicitly *)
 
+type region =
+  | Named of variable
+  | Toplevel
+
 type const =
   | Naked_immediate of immediate
   | Tagged_immediate of immediate
@@ -94,7 +98,28 @@ type static_data =
 
 type kind = Flambda_kind.t
 
-type kind_with_subkind = Flambda_kind.With_subkind.t
+type subkind =
+  | Anything
+  | Boxed_float
+  | Boxed_int32
+  | Boxed_int64
+  | Boxed_nativeint
+  | Tagged_immediate
+  | Variant of
+      { consts : targetint list;
+        non_consts : (tag_scannable * subkind list) list
+      }
+  | Float_block of { num_fields : int }
+  | Float_array
+  | Immediate_array
+  | Value_array
+  | Generic_array
+
+type kind_with_subkind =
+  | Value of subkind
+  | Naked_number of Flambda_kind.Naked_number_kind.t
+  | Region
+  | Rec_info
 
 type static_data_binding =
   { symbol : symbol;
@@ -130,7 +155,7 @@ type coercion =
 
 type kinded_parameter =
   { param : variable;
-    kind : Flambda_kind.With_subkind.t option
+    kind : kind_with_subkind option
   }
 
 type name =
@@ -191,9 +216,18 @@ type string_or_bytes = Flambda_primitive.string_or_bytes =
   | String
   | Bytes
 
-type init_or_assign = Flambda_primitive.Init_or_assign.t =
+type alloc_mode_for_allocations =
+  | Heap
+  | Local of { region : region }
+
+type alloc_mode_for_types =
+  | Heap
+  | Heap_or_local
+  | Local
+
+type init_or_assign =
   | Initialization
-  | Assignment of Alloc_mode.For_allocations.t
+  | Assignment of alloc_mode_for_allocations
 
 type 'signed_or_unsigned comparison =
       'signed_or_unsigned Flambda_primitive.comparison =
@@ -212,10 +246,15 @@ type signed_or_unsigned = Flambda_primitive.signed_or_unsigned =
   | Signed
   | Unsigned
 
+type nullop = Begin_region
+
 type unop =
   | Array_length
-  | Box_number of box_kind
+  | Begin_try_region
+  | Box_number of box_kind * alloc_mode_for_allocations
+  | End_region
   | Get_tag
+  | Is_flat_float_array
   | Is_int
   | Num_conv of
       { src : standard_int_or_float;
@@ -261,6 +300,17 @@ type binary_float_arith_op = Flambda_primitive.binary_float_arith_op =
   | Mul
   | Div
 
+type string_accessor_width = Flambda_primitive.string_accessor_width =
+  | Eight
+  | Sixteen
+  | Thirty_two
+  | Sixty_four
+
+type string_like_value = Flambda_primitive.string_like_value =
+  | String
+  | Bytes
+  | Bigstring
+
 type infix_binop =
   | Int_arith of binary_int_arith_op (* on tagged immediates *)
   | Int_shift of int_shift_op (* on tagged immediates *)
@@ -276,25 +326,31 @@ type binop =
   | Int_comp of standard_int * signed_or_unsigned comparison_behaviour
   | Int_shift of standard_int * int_shift_op
   | Infix of infix_binop
+  | String_or_bigstring_load of string_like_value * string_accessor_width
 
-type ternop = Array_set of array_kind * init_or_assign
+type ternop =
+  | Array_set of array_kind * init_or_assign
+  | Block_set of block_access_kind * init_or_assign
 
-type varop = Make_block of tag_scannable * mutability
+type varop =
+  | Make_block of tag_scannable * mutability * alloc_mode_for_allocations
 
 type prim =
+  | Nullary of nullop
   | Unary of unop * simple
   | Binary of binop * simple * simple
   | Ternary of ternop * simple * simple * simple
   | Variadic of varop * simple list
 
-type arity = Flambda_kind.With_subkind.t list
+type arity = kind_with_subkind list
 
 type function_call =
   | Direct of
       { code_id : code_id;
-        function_slot : function_slot option
+        function_slot : function_slot option;
+        alloc : alloc_mode_for_types
       }
-  | Indirect
+  | Indirect of alloc_mode_for_types
 (* Will translate to indirect_known_arity or indirect_unknown_arity depending on
    whether the apply record's arities field has a value *)
 
@@ -329,6 +385,13 @@ type inlined_attribute = Inlined_attribute.t =
 
 type inlining_state = { depth : int (* CR lmaurer: Add inlining arguments *) }
 
+type loopify_attribute = Loopify_attribute.t =
+  | Always_loopify
+  | Never_loopify
+  | Already_loopified
+  | Default_loopify_and_tailrec
+  | Default_loopify_and_not_tailrec
+
 type apply =
   { func : name;
     continuation : result_continuation;
@@ -337,7 +400,8 @@ type apply =
     call_kind : call_kind;
     arities : function_arities option;
     inlined : inlined_attribute option;
-    inlining_state : inlining_state option
+    inlining_state : inlining_state option;
+    region : region
   }
 
 type size = int
@@ -386,7 +450,9 @@ and named =
 
 and fun_decl =
   { code_id : code_id;
-    function_slot : function_slot option (* defaults to same name as code id *)
+    function_slot : function_slot option (* defaults to same name as code id *);
+    alloc : alloc_mode_for_allocations
+        (* alloc mode for set of closures (ignored except on first binding) *)
   }
 
 and let_cont =
@@ -430,7 +496,8 @@ and code =
     inline : inline_attribute option;
     params_and_body : params_and_body;
     code_size : code_size;
-    is_tupled : bool
+    is_tupled : bool;
+    loopify : loopify_attribute option
   }
 
 and code_size = int

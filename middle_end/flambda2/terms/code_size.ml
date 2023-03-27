@@ -309,6 +309,7 @@ let nullary_prim_size prim =
   | Optimised_out _ -> 0
   | Probe_is_enabled { name = _ } -> 4
   | Begin_region -> 1
+  | Enter_inlined_apply _ -> 0
 
 let unary_prim_size prim =
   match (prim : Flambda_primitive.unary_primitive) with
@@ -394,7 +395,7 @@ let apply apply =
   (* CR mshinwell: Check / fix these numbers *)
   | Function { function_call = Indirect_unknown_arity; alloc_mode = _ } ->
     indirect_call_size
-  | Function { function_call = Indirect_known_arity _; alloc_mode = _ } ->
+  | Function { function_call = Indirect_known_arity; alloc_mode = _ } ->
     indirect_call_size
   | C_call { alloc = true; _ } -> alloc_extcall_size
   | C_call { alloc = false; _ } -> nonalloc_extcall_size

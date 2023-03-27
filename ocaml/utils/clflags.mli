@@ -208,15 +208,6 @@ val set_dumped_pass : string -> bool -> unit
 val dump_into_file : bool ref
 val dump_dir : string option ref
 
-module Extension : sig
-  type t = Comprehensions | Local | Include_functor | Polymorphic_parameters
-  val enable : string -> unit
-  val is_enabled : t -> bool
-  val to_string : t -> string
-  val all : t list
-  val disable_all : unit -> unit
-end
-
 (* Support for flags that can also be set from an environment variable *)
 type 'a env_reader = {
   parse : string -> 'a option;

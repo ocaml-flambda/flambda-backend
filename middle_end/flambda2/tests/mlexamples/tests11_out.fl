@@ -1,0 +1,92 @@
+let code `anon-fn[tests11.ml:15,52--67]_2` deleted in
+let code `anon-fn[tests11.ml:15,39--51]_3` deleted in
+let code `anon-fn[tests11.ml:15,2--70]_1` deleted in
+let code bar_0 deleted in
+let code map_foo_4 deleted in
+let code loopify(never) size(1) newer_version_of(`anon-fn[tests11.ml:15,39--51]_3`)
+      `anon-fn[tests11.ml:15,39--51]_3_1` (x)
+        my_closure my_region my_depth
+        -> k * k1 =
+  cont k (x)
+in
+let $`camlTests11__anon-fn[tests11.ml:15,39--51]_7` =
+  closure `anon-fn[tests11.ml:15,39--51]_3_1`
+    @`anon-fn[tests11.ml:15,39--51]`
+in
+let code loopify(never) size(1) newer_version_of(`anon-fn[tests11.ml:15,52--67]_2`)
+      `anon-fn[tests11.ml:15,52--67]_2_1` (param : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : [ 0 | 0 of val * val ] =
+  cont k (0)
+in
+let $`camlTests11__anon-fn[tests11.ml:15,52--67]_6` =
+  closure `anon-fn[tests11.ml:15,52--67]_2_1`
+    @`anon-fn[tests11.ml:15,52--67]`
+in
+let code loopify(never) size(7) newer_version_of(`anon-fn[tests11.ml:15,2--70]_1`)
+      `anon-fn[tests11.ml:15,2--70]_1_1` (param : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1 =
+  let map_foo =
+    %project_value_slot `anon-fn[tests11.ml:15,2--70]`.map_foo my_closure
+  in
+  apply inlined(never)
+    map_foo
+      ($`camlTests11__anon-fn[tests11.ml:15,39--51]_7`,
+       $`camlTests11__anon-fn[tests11.ml:15,52--67]_6`,
+       0)
+      &my_region
+      -> k * k1
+in
+let code loopify(never) size(16) newer_version_of(bar_0)
+      bar_0_1 (map_foo) my_closure my_region my_depth -> k * k1 =
+  let `anon-fn[tests11.ml:15,2--70]` =
+    closure `anon-fn[tests11.ml:15,2--70]_1_1`
+      @`anon-fn[tests11.ml:15,2--70]`
+  with { map_foo = map_foo }
+  in
+  cont k (`anon-fn[tests11.ml:15,2--70]`)
+in
+let $camlTests11__bar_5 = closure bar_0_1 @bar in
+let $camlTests11__map_foo_8 =
+  closure map_foo_4_1 @map_foo
+and code rec loopify(never) size(51) newer_version_of(map_foo_4)
+      map_foo_4_1 (f, seq, param : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : [ 0 | 0 of val * val ] =
+  apply seq (0) &my_region -> k2 * k1
+    where k2 (`*match*` : [ 0 | 0 of val * val ]) =
+      let prim = %is_int `*match*` in
+      (switch prim
+         | 0 -> k2
+         | 1 -> k (0)
+         where k2 =
+           ((let Popaque = %Opaque 0 in
+             (let untagged = %untag_imm Popaque in
+              switch untagged
+                | 0 -> k3
+                | 1 -> k4)
+               where k4 =
+                 apply direct(bar_0_1)
+                   $camlTests11__bar_5
+                     ($camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth)
+                     &my_region
+                     -> k2 * k1
+               where k3 =
+                 apply direct(bar_0_1)
+                   $camlTests11__bar_5
+                     ($camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth)
+                     &my_region
+                     -> k2 * k1)
+              where k2 (switch_result) =
+                ((let Pfield = %block_load (`*match*`, 0) in
+                  apply f (Pfield) &my_region -> k2 * k1)
+                   where k2 (apply_result) =
+                     let Pmakeblock = %Block 0 (apply_result, switch_result)
+                     in
+                     cont k (Pmakeblock))))
+in
+let $camlTests11 = Block 0 ($camlTests11__bar_5, $camlTests11__map_foo_8) in
+cont done ($camlTests11)

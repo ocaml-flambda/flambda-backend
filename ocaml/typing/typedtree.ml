@@ -40,7 +40,6 @@ and 'a pattern_data =
     pat_loc: Location.t;
     pat_extra : (pat_extra * Location.t * attribute list) list;
     pat_type: type_expr;
-    pat_mode: value_mode;
     pat_env: Env.t;
     pat_attributes: attribute list;
    }
@@ -54,9 +53,9 @@ and pat_extra =
 and 'k pattern_desc =
   (* value patterns *)
   | Tpat_any : value pattern_desc
-  | Tpat_var : Ident.t * string loc -> value pattern_desc
+  | Tpat_var : Ident.t * string loc * value_mode -> value pattern_desc
   | Tpat_alias :
-      value general_pattern * Ident.t * string loc -> value pattern_desc
+      value general_pattern * Ident.t * string loc * value_mode -> value pattern_desc
   | Tpat_constant : constant -> value pattern_desc
   | Tpat_tuple : value general_pattern list -> value pattern_desc
   | Tpat_construct :
@@ -70,7 +69,8 @@ and 'k pattern_desc =
       (Longident.t loc * label_description * value general_pattern) list *
         closed_flag ->
       value pattern_desc
-  | Tpat_array : value general_pattern list -> value pattern_desc
+  | Tpat_array :
+      mutable_flag * value general_pattern list -> value pattern_desc
   | Tpat_lazy : value general_pattern -> value pattern_desc
   (* computation patterns *)
   | Tpat_value : tpat_value_argument -> computation pattern_desc
@@ -87,7 +87,6 @@ and expression =
     exp_loc: Location.t;
     exp_extra: (exp_extra * Location.t * attribute list) list;
     exp_type: type_expr;
-    exp_mode: value_mode;
     exp_env: Env.t;
     exp_attributes: attribute list;
    }
@@ -111,23 +110,28 @@ and expression_desc =
   | Texp_function of { arg_label : arg_label; param : Ident.t;
       cases : value case list; partial : partial;
       region : bool; curry : fun_curry_state;
-      warnings : Warnings.state; }
-  | Texp_apply of expression * (arg_label * apply_arg) list * apply_position
+      warnings : Warnings.state;
+      arg_mode : Types.alloc_mode;
+      alloc_mode : Types.alloc_mode }
+  | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Types.alloc_mode
   | Texp_match of expression * computation case list * partial
   | Texp_try of expression * value case list
-  | Texp_tuple of expression list
+  | Texp_tuple of expression list * Types.alloc_mode
   | Texp_construct of
-      Longident.t loc * constructor_description * expression list
-  | Texp_variant of label * expression option
+      Longident.t loc * constructor_description * expression list * Types.alloc_mode option
+  | Texp_variant of label * (expression * Types.alloc_mode) option
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
+      alloc_mode : Types.alloc_mode option
     }
-  | Texp_field of expression * Longident.t loc * label_description
+  | Texp_field of expression * Longident.t loc * label_description * Types.alloc_mode option
   | Texp_setfield of
-      expression * Longident.t loc * label_description * expression
-  | Texp_array of expression list
+      expression * Types.alloc_mode * Longident.t loc * label_description * expression
+  | Texp_array of mutable_flag * expression list * Types.alloc_mode
+  | Texp_list_comprehension of comprehension
+  | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * expression
   | Texp_while of {
@@ -136,10 +140,6 @@ and expression_desc =
       wh_body : expression;
       wh_body_region : bool
     }
-  | Texp_list_comprehension of
-      expression * comprehension list
-  | Texp_arr_comprehension of
-      expression * comprehension list
   | Texp_for of {
       for_id  : Ident.t;
       for_pat : Parsetree.pattern;
@@ -149,7 +149,7 @@ and expression_desc =
       for_body : expression;
       for_region : bool;
     }
-  | Texp_send of expression * meth * apply_position
+  | Texp_send of expression * meth * apply_position * Types.alloc_mode
   | Texp_new of
       Path.t * Longident.t loc * Types.class_declaration * apply_position
   | Texp_instvar of Path.t * Path.t * string loc
@@ -185,15 +185,31 @@ and meth =
   | Tmeth_ancestor of Ident.t * Path.t
 
 and comprehension =
-   {
-      clauses: comprehension_clause list;
-      guard : expression option
-   }
+  {
+    comp_body : expression;
+    comp_clauses : comprehension_clause list
+  }
 
 and comprehension_clause =
-  | From_to of Ident.t * Parsetree.pattern *
-      expression * expression * direction_flag
-  | In of pattern * expression
+  | Texp_comp_for of comprehension_clause_binding list
+  | Texp_comp_when of expression
+
+and comprehension_clause_binding =
+  {
+    comp_cb_iterator : comprehension_iterator;
+    comp_cb_attributes : attribute list
+  }
+
+and comprehension_iterator =
+  | Texp_comp_range of
+      { ident     : Ident.t
+      ; pattern   : Parsetree.pattern
+      ; start     : expression
+      ; stop      : expression
+      ; direction : direction_flag }
+  | Texp_comp_in of
+      { pattern  : pattern
+      ; sequence : expression }
 
 and 'k case =
     {
@@ -223,7 +239,9 @@ and ('a, 'b) arg_or_omitted =
 and omitted_parameter =
   { mode_closure : alloc_mode;
     mode_arg : alloc_mode;
-    mode_ret : alloc_mode }
+    mode_ret : alloc_mode;
+    ty_arg : Types.type_expr;
+    ty_env : Env.t }
 
 and apply_arg = (expression, omitted_parameter) arg_or_omitted
 
@@ -708,7 +726,6 @@ let as_computation_pattern (p : pattern) : computation general_pattern =
     pat_loc = p.pat_loc;
     pat_extra = [];
     pat_type = p.pat_type;
-    pat_mode = p.pat_mode;
     pat_env = p.pat_env;
     pat_attributes = [];
   }
@@ -745,13 +762,13 @@ type pattern_action =
 let shallow_iter_pattern_desc
   : type k . pattern_action -> k pattern_desc -> unit
   = fun f -> function
-  | Tpat_alias(p, _, _) -> f.f p
+  | Tpat_alias(p, _, _, _) -> f.f p
   | Tpat_tuple patl -> List.iter f.f patl
   | Tpat_construct(_, _, patl, _) -> List.iter f.f patl
   | Tpat_variant(_, pat, _) -> Option.iter f.f pat
   | Tpat_record (lbl_pat_list, _) ->
       List.iter (fun (_, _, pat) -> f.f pat) lbl_pat_list
-  | Tpat_array patl -> List.iter f.f patl
+  | Tpat_array (_, patl) -> List.iter f.f patl
   | Tpat_lazy p -> f.f p
   | Tpat_any
   | Tpat_var _
@@ -765,16 +782,16 @@ type pattern_transformation =
 let shallow_map_pattern_desc
   : type k . pattern_transformation -> k pattern_desc -> k pattern_desc
   = fun f d -> match d with
-  | Tpat_alias (p1, id, s) ->
-      Tpat_alias (f.f p1, id, s)
+  | Tpat_alias (p1, id, s, m) ->
+      Tpat_alias (f.f p1, id, s, m)
   | Tpat_tuple pats ->
       Tpat_tuple (List.map f.f pats)
   | Tpat_record (lpats, closed) ->
       Tpat_record (List.map (fun (lid, l,p) -> lid, l, f.f p) lpats, closed)
   | Tpat_construct (lid, c, pats, ty) ->
       Tpat_construct (lid, c, List.map f.f pats, ty)
-  | Tpat_array pats ->
-      Tpat_array (List.map f.f pats)
+  | Tpat_array (am, pats) ->
+      Tpat_array (am, List.map f.f pats)
   | Tpat_lazy p1 -> Tpat_lazy (f.f p1)
   | Tpat_variant (x1, Some p1, x2) ->
       Tpat_variant (x1, Some (f.f p1), x2)
@@ -827,9 +844,9 @@ let rec iter_bound_idents
   : type k . _ -> k general_pattern -> _
   = fun f pat ->
   match pat.pat_desc with
-  | Tpat_var (id, s) ->
+  | Tpat_var (id, s, _mode) ->
      f (id,s,pat.pat_type)
-  | Tpat_alias(p, id, s) ->
+  | Tpat_alias(p, id, s, _mode) ->
       iter_bound_idents f p;
       f (id,s,pat.pat_type)
   | Tpat_or(p1, _, _) ->
@@ -865,11 +882,11 @@ let let_bound_idents_with_modes bindings =
   let rec loop : type k . k general_pattern -> _ =
     fun pat ->
       match pat.pat_desc with
-      | Tpat_var (id, { loc }) ->
-          Ident.Tbl.add modes id (loc, pat.pat_mode)
-      | Tpat_alias(p, id, { loc }) ->
+      | Tpat_var (id, { loc }, mode) ->
+          Ident.Tbl.add modes id (loc, mode)
+      | Tpat_alias(p, id, { loc }, mode) ->
           loop p;
-          Ident.Tbl.add modes id (loc, pat.pat_mode)
+          Ident.Tbl.add modes id (loc, mode)
       | d -> shallow_iter_pattern_desc { f = loop } d
   in
   List.iter (fun vb -> loop vb.vb_pat) bindings;
@@ -887,14 +904,14 @@ let alpha_var env id = List.assoc id env
 let rec alpha_pat
   : type k . _ -> k general_pattern -> k general_pattern
   = fun env p -> match p.pat_desc with
-  | Tpat_var (id, s) -> (* note the ``Not_found'' case *)
+  | Tpat_var (id, s, mode) -> (* note the ``Not_found'' case *)
       {p with pat_desc =
-       try Tpat_var (alpha_var env id, s) with
+       try Tpat_var (alpha_var env id, s, mode) with
        | Not_found -> Tpat_any}
-  | Tpat_alias (p1, id, s) ->
+  | Tpat_alias (p1, id, s, mode) ->
       let new_p =  alpha_pat env p1 in
       begin try
-        {p with pat_desc = Tpat_alias (new_p, alpha_var env id, s)}
+        {p with pat_desc = Tpat_alias (new_p, alpha_var env id, s, mode)}
       with
       | Not_found -> new_p
       end

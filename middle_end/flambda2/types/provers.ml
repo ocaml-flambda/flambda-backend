@@ -815,33 +815,37 @@ let prove_alloc_mode_of_boxed_number env t :
   | Naked_nativeint _ | Rec_info _ | Region _ ->
     wrong_kind "Value" t
 
-let never_holds_locally_allocated_values env var kind : _ proof_of_property =
-  let t = TE.find env (Name.var var) (Some kind) in
-  match expand_head env t with
-  | Value (Ok (Variant { blocks; _ })) -> (
-    match blocks with
-    | Unknown -> Unknown
-    | Known blocks -> (
-      if TG.Row_like_for_blocks.is_bottom blocks
-      then Proved ()
-      else
-        match blocks.alloc_mode with
-        | Heap -> Proved ()
-        | Local | Heap_or_local -> Unknown))
-  | Value (Ok (Boxed_float (_, alloc_mode)))
-  | Value (Ok (Boxed_int32 (_, alloc_mode)))
-  | Value (Ok (Boxed_int64 (_, alloc_mode)))
-  | Value (Ok (Boxed_nativeint (_, alloc_mode)))
-  | Value (Ok (Mutable_block { alloc_mode }))
-  | Value (Ok (Closures { alloc_mode; _ }))
-  | Value (Ok (Array { alloc_mode; _ })) -> (
-    match alloc_mode with Heap -> Proved () | Local | Heap_or_local -> Unknown)
-  | Value (Ok (String _)) -> Proved ()
-  | Value Unknown -> Unknown
-  | Value Bottom -> Unknown
-  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-  | Naked_nativeint _ | Rec_info _ | Region _ ->
-    Proved ()
+let never_holds_locally_allocated_values env var : _ proof_of_property =
+  match TE.find_or_missing env (Name.var var) with
+  | None -> Unknown
+  | Some ty -> (
+    match expand_head env ty with
+    | Value (Ok (Variant { blocks; _ })) -> (
+      match blocks with
+      | Unknown -> Unknown
+      | Known blocks -> (
+        if TG.Row_like_for_blocks.is_bottom blocks
+        then Proved ()
+        else
+          match blocks.alloc_mode with
+          | Heap -> Proved ()
+          | Local | Heap_or_local -> Unknown))
+    | Value (Ok (Boxed_float (_, alloc_mode)))
+    | Value (Ok (Boxed_int32 (_, alloc_mode)))
+    | Value (Ok (Boxed_int64 (_, alloc_mode)))
+    | Value (Ok (Boxed_nativeint (_, alloc_mode)))
+    | Value (Ok (Mutable_block { alloc_mode }))
+    | Value (Ok (Closures { alloc_mode; _ }))
+    | Value (Ok (Array { alloc_mode; _ })) -> (
+      match alloc_mode with
+      | Heap -> Proved ()
+      | Local | Heap_or_local -> Unknown)
+    | Value (Ok (String _)) -> Proved ()
+    | Value Unknown -> Unknown
+    | Value Bottom -> Unknown
+    | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+    | Naked_nativeint _ | Rec_info _ | Region _ ->
+      Proved ())
 
 let prove_physical_equality env t1 t2 =
   let incompatible_naked_numbers t1 t2 =

@@ -7,5 +7,7 @@
 >8      string  O               bytecode object data (.cmo)
 >8      string  A               bytecode library data (.cma)
 >8      string  Y               native object data (.cmx)
+>8      string  y               native object data with flambda (.cmx)
 >8      string  Z               native library data (.cmxa)
+>8      string  z               native library data with flambda (.cmxa)
 >9      string  >\0             (Version %3.3s).

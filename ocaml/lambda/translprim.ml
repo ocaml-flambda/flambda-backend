@@ -22,6 +22,7 @@ open Typedtree
 open Typeopt
 open Lambda
 open Debuginfo.Scoped_location
+open Translmode
 
 type error =
   | Unknown_builtin_primitive of string
@@ -85,9 +86,9 @@ type prim =
   | Raise_with_backtrace
   | Lazy_force of Lambda.region_close
   | Loc of loc_kind
-  | Send of Lambda.region_close
-  | Send_self of Lambda.region_close
-  | Send_cache of Lambda.region_close
+  | Send of Lambda.region_close * Lambda.layout
+  | Send_self of Lambda.region_close * Lambda.layout
+  | Send_cache of Lambda.region_close * Lambda.layout
   | Frame_pointers
   | Identity
   | Apply of Lambda.region_close * Lambda.layout
@@ -122,11 +123,19 @@ let to_alloc_mode ~poly = function
   | Prim_poly, _ ->
     match poly with
     | None -> assert false
-    | Some mode -> mode
+    | Some mode -> transl_alloc_mode mode
+
+let to_modify_mode ~poly = function
+  | Prim_global, _ -> modify_heap
+  | Prim_local, _ -> modify_maybe_stack
+  | Prim_poly, _ ->
+    match poly with
+    | None -> assert false
+    | Some mode -> transl_modify_mode mode
 
 let lookup_primitive loc poly pos p =
   let mode = to_alloc_mode ~poly p.prim_native_repr_res in
-  let arg_modes = List.map (to_alloc_mode ~poly) p.prim_native_repr_args in
+  let arg_modes = List.map (to_modify_mode ~poly) p.prim_native_repr_args in
   let prim = match p.prim_name with
     | "%identity" -> Identity
     | "%bytes_to_string" -> Primitive (Pbytes_to_string, 1)
@@ -376,11 +385,11 @@ let lookup_primitive loc poly pos p =
     | "%bswap_int64" -> Primitive ((Pbbswap(Pint64, mode)), 1)
     | "%bswap_native" -> Primitive ((Pbbswap(Pnativeint, mode)), 1)
     | "%int_as_pointer" -> Primitive (Pint_as_pointer, 1)
-    | "%opaque" -> Primitive (Popaque, 1)
+    | "%opaque" -> Primitive (Popaque Lambda.layout_any_value, 1)
     | "%sys_argv" -> Sys_argv
-    | "%send" -> Send pos
-    | "%sendself" -> Send_self pos
-    | "%sendcache" -> Send_cache pos
+    | "%send" -> Send (pos, Lambda.layout_any_value)
+    | "%sendself" -> Send_self (pos, Lambda.layout_any_value)
+    | "%sendcache" -> Send_cache (pos, Lambda.layout_any_value)
     | "%equal" -> Comparison(Equal, Compare_generic)
     | "%notequal" -> Comparison(Not_equal, Compare_generic)
     | "%lessequal" -> Comparison(Less_equal, Compare_generic)
@@ -389,7 +398,9 @@ let lookup_primitive loc poly pos p =
     | "%greaterthan" -> Comparison(Greater_than, Compare_generic)
     | "%compare" -> Comparison(Compare, Compare_generic)
     | "%obj_dup" -> Primitive(Pobj_dup, 1)
-    | "%obj_magic" -> Primitive(Pobj_magic, 1)
+    | "%obj_magic" -> Primitive(Pobj_magic Lambda.layout_any_value, 1)
+    | "%array_to_iarray" -> Primitive (Parray_to_iarray, 1)
+    | "%array_of_iarray" -> Primitive (Parray_of_iarray, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -718,16 +729,16 @@ let lambda_of_prim prim_name prim loc args arg_exps =
   | Loc kind, [arg] ->
       let lam = lambda_of_loc kind loc in
       Lprim(Pmakeblock(0, Immutable, None, alloc_heap), [lam; arg], loc)
-  | Send pos, [obj; meth] ->
-      Lsend(Public, meth, obj, [], pos, alloc_heap, loc, Lambda.layout_top)
-  | Send_self pos, [obj; meth] ->
-      Lsend(Self, meth, obj, [], pos, alloc_heap, loc, Lambda.layout_top)
-  | Send_cache apos, [obj; meth; cache; pos] ->
+  | Send (pos, layout), [obj; meth] ->
+      Lsend(Public, meth, obj, [], pos, alloc_heap, loc, layout)
+  | Send_self (pos, layout), [obj; meth] ->
+      Lsend(Self, meth, obj, [], pos, alloc_heap, loc, layout)
+  | Send_cache (apos, layout), [obj; meth; cache; pos] ->
       (* Cached mode only works in the native backend *)
       if !Clflags.native_code then
-        Lsend(Cached, meth, obj, [cache; pos], apos, alloc_heap, loc, Lambda.layout_top)
+        Lsend(Cached, meth, obj, [cache; pos], apos, alloc_heap, loc, layout)
       else
-        Lsend(Public, meth, obj, [], apos, alloc_heap, loc, Lambda.layout_top)
+        Lsend(Public, meth, obj, [], apos, alloc_heap, loc, layout)
   | Frame_pointers, [] ->
       let frame_pointers =
         if !Clflags.native_code && Config.with_frame_pointers then 1 else 0
@@ -760,8 +771,8 @@ let lambda_of_prim prim_name prim loc args arg_exps =
 let check_primitive_arity loc p =
   let mode =
     match p.prim_native_repr_res with
-    | Prim_global, _ | Prim_poly, _ -> Some alloc_heap
-    | Prim_local, _ -> Some alloc_local
+    | Prim_global, _ | Prim_poly, _ -> Some Alloc_mode.global
+    | Prim_local, _ -> Some Alloc_mode.local
   in
   let prim = lookup_primitive loc mode Rc_normal p in
   let ok =
@@ -796,7 +807,7 @@ let transl_primitive loc p env ty ~poly_mode path =
     | Some prim -> prim
   in
   let rec make_params ty n =
-    if n <= 0 then []
+    if n <= 0 then [], Typeopt.layout env ty
     else
       match Typeopt.is_function_type env ty with
       | None ->
@@ -804,9 +815,10 @@ let transl_primitive loc p env ty ~poly_mode path =
             (Primitive.byte_name p)
       | Some (arg_ty, ret_ty) ->
           let arg_layout = Typeopt.layout env arg_ty in
-          (Ident.create_local "prim", arg_layout) :: make_params ret_ty (n-1)
+          let params, return = make_params ret_ty (n-1) in
+          (Ident.create_local "prim", arg_layout) :: params, return
   in
-  let params = make_params ty p.prim_arity in
+  let params, return = make_params ty p.prim_arity in
   let args = List.map (fun (id, _) -> Lvar id) params in
   match params with
   | [] -> lambda_of_prim p.prim_name prim loc args None
@@ -834,7 +846,7 @@ let transl_primitive loc p env ty ~poly_mode path =
      lfunction
        ~kind:(Curried {nlocal})
        ~params
-       ~return:Lambda.layout_top
+       ~return
        ~attr:default_stub_attribute
        ~loc
        ~body
@@ -847,6 +859,7 @@ let lambda_primitive_needs_event_after = function
      collect the call stack. *)
   | Pduprecord _ | Pccall _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pstringrefs | Pbytesrefs
+  | Pbox_float _ | Pbox_int _
   | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
   | Parrayrefu (Pgenarray | Pfloatarray) | Parraysetu (Pgenarray | Pfloatarray)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
@@ -860,7 +873,9 @@ let lambda_primitive_needs_event_after = function
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
   | Pbbswap _ | Pobj_dup -> true
 
-  | Pbytes_to_string | Pbytes_of_string | Pignore | Psetglobal _
+  | Pbytes_to_string | Pbytes_of_string
+  | Parray_to_iarray | Parray_of_iarray
+  | Pignore | Psetglobal _
   | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Praise _
@@ -872,8 +887,8 @@ let lambda_primitive_needs_event_after = function
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
-  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque
-  | Pobj_magic -> false
+  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque _
+  | Pobj_magic _ | Punbox_float | Punbox_int _  -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)
 let primitive_needs_event_after = function
@@ -892,8 +907,8 @@ let transl_primitive_application loc p env ty mode path exp args arg_exps pos =
   in
   let has_constant_constructor =
     match arg_exps with
-    | [_; {exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _)}]
-    | [{exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _)}; _]
+    | [_; {exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _, _)}]
+    | [{exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _, _)}; _]
     | [_; {exp_desc = Texp_variant(_, None)}]
     | [{exp_desc = Texp_variant(_, None)}; _] -> true
     | _ -> false

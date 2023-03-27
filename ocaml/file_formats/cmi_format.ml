@@ -40,7 +40,7 @@ type header = {
     header_sign : signature;
     header_secondary_sign : signature option;
     header_is_param : bool;
-    header_params : Compilation_unit.Name.t list;
+    header_params : Compilation_unit.t list;
     header_arg_for : Compilation_unit.t option;
 }
 
@@ -49,7 +49,7 @@ type cmi_infos = {
     cmi_sign : signature;
     cmi_secondary_sign : signature option;
     cmi_is_param : bool;
-    cmi_params : Compilation_unit.Name.t list;
+    cmi_params : Compilation_unit.t list;
     cmi_arg_for : Compilation_unit.t option;
     cmi_crcs : crcs;
     cmi_flags : flags;

@@ -65,7 +65,8 @@ let simplify_project_value_slot function_slot value_slot kind ~min_name_mode
         else T.get_alias_exn (S.simplify_simple dacc simple ~min_name_mode)
       in
       let dacc =
-        DA.add_variable dacc result_var (T.alias_type_of K.value simple)
+        DA.add_variable dacc result_var
+          (T.alias_type_of (K.With_subkind.kind kind) simple)
       in
       SPR.create (Named.create_simple simple) ~try_reify:true dacc
     | Need_meet ->
@@ -75,7 +76,7 @@ let simplify_project_value_slot function_slot value_slot kind ~min_name_mode
           ~shape:
             (T.closure_with_at_least_this_value_slot
                ~this_function_slot:function_slot value_slot
-               ~value_slot_var:(Bound_var.var result_var))
+               ~value_slot_var:(Bound_var.var result_var) ~value_slot_kind:kind)
           ~result_var ~result_kind:(K.With_subkind.kind kind)
       in
       let dacc = DA.add_use_of_value_slot result.dacc value_slot in
@@ -468,8 +469,9 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
     SPR.create_unknown dacc ~result_var K.naked_immediate ~original_term
   | Invalid -> SPR.create_invalid dacc
 
-let simplify_opaque_identity dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
-  SPR.create_unknown dacc ~result_var K.value ~original_term
+let simplify_opaque_identity dacc ~kind ~original_term ~arg:_ ~arg_ty:_
+    ~result_var =
+  SPR.create_unknown dacc ~result_var kind ~original_term
 
 let simplify_begin_try_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   SPR.create_unknown dacc ~result_var K.region ~original_term
@@ -595,7 +597,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Duplicate_array { kind; source_mutability; destination_mutability } ->
       simplify_duplicate_array ~kind ~source_mutability ~destination_mutability
     | Duplicate_block { kind } -> simplify_duplicate_block ~kind
-    | Opaque_identity { middle_end_only = _ } -> simplify_opaque_identity
+    | Opaque_identity { middle_end_only = _; kind } ->
+      simplify_opaque_identity ~kind
     | Begin_try_region -> simplify_begin_try_region
     | End_region -> simplify_end_region
     | Obj_dup -> simplify_obj_dup dbg

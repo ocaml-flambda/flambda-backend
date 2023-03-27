@@ -26,10 +26,13 @@ val remove_vars_with_machtype :
 
 val exttype_of_kind : Flambda_kind.t -> Cmm.exttype
 
-val machtype_of_kind : Flambda_kind.t -> Cmm.machtype_component array
+val machtype_of_kind :
+  Flambda_kind.With_subkind.t -> Cmm.machtype_component array
 
 val machtype_of_kinded_parameter :
   Bound_parameter.t -> Cmm.machtype_component array
+
+val memory_chunk_of_kind : Flambda_kind.With_subkind.t -> Cmm.memory_chunk
 
 (** Create a constant int expression from a targetint. *)
 val targetint : dbg:Debuginfo.t -> Targetint_32_64.t -> Cmm.expression
@@ -99,4 +102,4 @@ val make_update :
 
 val check_arity : Flambda_arity.With_subkinds.t -> _ list -> bool
 
-val machtype_of_return_arity : Flambda_arity.t -> Cmm.machtype
+val machtype_of_return_arity : Flambda_arity.With_subkinds.t -> Cmm.machtype

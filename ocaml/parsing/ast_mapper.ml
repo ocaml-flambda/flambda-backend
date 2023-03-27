@@ -46,6 +46,7 @@ type mapper = {
   constructor_declaration: mapper -> constructor_declaration
                            -> constructor_declaration;
   expr: mapper -> expression -> expression;
+  expr_extension: mapper -> Extensions.Expression.t -> Extensions.Expression.t;
   extension: mapper -> extension -> extension;
   extension_constructor: mapper -> extension_constructor
                          -> extension_constructor;
@@ -60,9 +61,12 @@ type mapper = {
   module_type: mapper -> module_type -> module_type;
   module_type_declaration: mapper -> module_type_declaration
                            -> module_type_declaration;
+  module_type_extension: mapper
+    -> Extensions.Module_type.t -> Extensions.Module_type.t;
   open_declaration: mapper -> open_declaration -> open_declaration;
   open_description: mapper -> open_description -> open_description;
   pat: mapper -> pattern -> pattern;
+  pat_extension: mapper -> Extensions.Pattern.t -> Extensions.Pattern.t;
   payload: mapper -> payload -> payload;
   signature: mapper -> signature -> signature;
   signature_item: mapper -> signature_item -> signature_item;
@@ -272,10 +276,18 @@ let map_functor_param sub = function
 module MT = struct
   (* Type expressions for the module language *)
 
-  let map sub {pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} =
+  let map sub
+        ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
     let open Mty in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
+    match Extensions.Module_type.of_ast mty with
+    | Some emty -> begin
+        Extensions_parsing.Module_type.wrap_desc ~loc ~attrs @@
+        match sub.module_type_extension sub emty with
+        | Emty_strengthen smty -> Extensions.Strengthen.mty_of ~loc smty
+      end
+    | None ->
     match desc with
     | Pmty_ident s -> ident ~loc ~attrs (map_loc sub s)
     | Pmty_alias s -> alias ~loc ~attrs (map_loc sub s)
@@ -331,6 +343,13 @@ module MT = struct
         let attrs = sub.attributes sub attrs in
         extension ~loc ~attrs (sub.extension sub x)
     | Psig_attribute x -> attribute ~loc (sub.attribute sub x)
+
+  let map_extension sub :
+        Extensions.Module_type.t -> Extensions.Module_type.t = function
+    | Emty_strengthen { mty; mod_id } ->
+       let mty = sub.module_type sub mty in
+       let mod_id = map_loc sub mod_id in
+       Emty_strengthen { mty; mod_id }
 end
 
 
@@ -385,10 +404,58 @@ end
 module E = struct
   (* Value expressions for the core language *)
 
-  let map sub {pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} =
+  module C = Extensions.Comprehensions
+  module IA = Extensions.Immutable_arrays
+
+  let map_iterator sub : C.iterator -> C.iterator = function
+    | Range { start; stop; direction } ->
+      Range { start = sub.expr sub start;
+              stop = sub.expr sub stop;
+              direction }
+    | In expr -> In (sub.expr sub expr)
+
+  let map_clause_binding sub : C.clause_binding -> C.clause_binding = function
+    | { pattern; iterator; attributes } ->
+      { pattern = sub.pat sub pattern;
+        iterator = map_iterator sub iterator;
+        attributes = sub.attributes sub attributes }
+
+  let map_clause sub : C.clause -> C.clause = function
+    | For cbs -> For (List.map (map_clause_binding sub) cbs)
+    | When expr -> When (sub.expr sub expr)
+
+  let map_comp sub : C.comprehension -> C.comprehension = function
+    | { body; clauses } -> { body = sub.expr sub body;
+                            clauses = List.map (map_clause sub) clauses }
+
+  let map_cexp sub : C.expression -> C.expression = function
+    | Cexp_list_comprehension comp ->
+      Cexp_list_comprehension (map_comp sub comp)
+    | Cexp_array_comprehension (mut, comp) ->
+      Cexp_array_comprehension (mut, map_comp sub comp)
+
+  let map_iaexp sub : IA.expression -> IA.expression = function
+    | Iaexp_immutable_array elts ->
+      Iaexp_immutable_array (List.map (sub.expr sub) elts)
+
+  let map_ext sub : Extensions.Expression.t -> Extensions.Expression.t =
+    function
+    | Eexp_comprehension cexp -> Eexp_comprehension (map_cexp sub cexp)
+    | Eexp_immutable_array iaexp -> Eexp_immutable_array (map_iaexp sub iaexp)
+
+  let map sub
+        ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
     let open Exp in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
+    match Extensions.Expression.of_ast exp with
+    | Some eexp -> begin
+        Extensions_parsing.Expression.wrap_desc ~loc ~attrs @@
+        match sub.expr_extension sub eexp with
+        | Eexp_comprehension   c -> Extensions.Comprehensions.expr_of   ~loc c
+        | Eexp_immutable_array i -> Extensions.Immutable_arrays.expr_of ~loc i
+    end
+    | None ->
     match desc with
     | Pexp_ident x -> ident ~loc ~attrs (map_loc sub x)
     | Pexp_constant x -> constant ~loc ~attrs (sub.constant sub x)
@@ -477,10 +544,27 @@ end
 module P = struct
   (* Patterns *)
 
-  let map sub {ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} =
+  module IA = Extensions.Immutable_arrays
+
+  let map_iapat sub : IA.pattern -> IA.pattern = function
+    | Iapat_immutable_array elts ->
+      Iapat_immutable_array (List.map (sub.pat sub) elts)
+
+  let map_ext sub : Extensions.Pattern.t -> Extensions.Pattern.t = function
+    | Epat_immutable_array iapat -> Epat_immutable_array (map_iapat sub iapat)
+
+  let map sub
+        ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     let open Pat in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
+    match Extensions.Pattern.of_ast pat with
+    | Some epat -> begin
+        Extensions_parsing.Pattern.wrap_desc ~loc ~attrs @@
+        match sub.pat_extension sub epat with
+        | Epat_immutable_array i -> Extensions.Immutable_arrays.pat_of ~loc i
+    end
+    | None ->
     match desc with
     | Ppat_any -> any ~loc ~attrs ()
     | Ppat_var s -> var ~loc ~attrs (map_loc sub s)
@@ -590,6 +674,7 @@ let default_mapper =
     signature = (fun this l -> List.map (this.signature_item this) l);
     signature_item = MT.map_signature_item;
     module_type = MT.map;
+    module_type_extension = MT.map_extension;
     with_constraint = MT.map_with_constraint;
     class_declaration =
       (fun this -> CE.class_infos this (this.class_expr this));
@@ -621,7 +706,9 @@ let default_mapper =
       );
 
     pat = P.map;
+    pat_extension = P.map_ext;
     expr = E.map;
+    expr_extension = E.map_ext;
     binding_op = E.map_binding_op;
 
     module_declaration =
@@ -769,7 +856,7 @@ let extension_of_error {kind; main; sub} =
         List.map (fun msg -> Str.extension (extension_of_sub msg)) sub)
 
 let attribute_of_warning loc s =
-  Builtin_attributes.mk_internal
+  Attr.mk
     {loc; txt = "ocaml.ppwarning" }
     (PStr ([Str.eval ~loc (Exp.constant (Pconst_string (s, loc, None)))]))
 

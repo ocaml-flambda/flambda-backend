@@ -39,7 +39,7 @@ INCLUDES = $(addprefix -I $(ROOTDIR)/,utils parsing typing bytecomp \
                        middle_end middle_end/closure middle_end/flambda \
                        middle_end/flambda/base_types driver toplevel \
                        file_formats lambda)
-COMPFLAGS = -absname -w +a-4-9-41-42-44-45-48-70 -strict-sequence \
+COMPFLAGS = -absname -w +a-4-9-40-41-42-44-45-48-70 -strict-sequence \
 -warn-error +A -principal -safe-string -strict-formats -bin-annot $(INCLUDES)
 LINKFLAGS = $(INCLUDES)
 VPATH := $(filter-out -I,$(INCLUDES))
@@ -86,7 +86,8 @@ OCAMLPROF=config.cmo build_path_prefix_map.cmo misc.cmo identifiable.cmo \
   numbers.cmo arg_helper.cmo clflags.cmo terminfo.cmo \
   warnings.cmo location.cmo longident.cmo docstrings.cmo \
   syntaxerr.cmo ast_helper.cmo \
-  extensions.cmo builtin_attributes.cmo \
+  language_extension.cmo extensions_parsing.cmo extensions.cmo \
+   ast_iterator.cmo builtin_attributes.cmo \
   camlinternalMenhirLib.cmo parser.cmo \
   pprintast.cmo \
   lexer.cmo parse.cmo ocamlprof.cmo
@@ -98,7 +99,7 @@ opt.opt: profiling.cmx
 
 OCAMLCP = config.cmo build_path_prefix_map.cmo misc.cmo profile.cmo \
           warnings.cmo identifiable.cmo numbers.cmo arg_helper.cmo \
-          clflags.cmo local_store.cmo \
+          language_extension.cmo clflags.cmo local_store.cmo \
           terminfo.cmo location.cmo load_path.cmo ccomp.cmo compenv.cmo \
           main_args.cmo
 
@@ -328,6 +329,12 @@ endif
 clean::
 	rm -f -- caml-tex caml-tex.exe caml_tex.cm?
 
+# Debug printer script
+debug_printers: debug_printers.ml debug_printers.cmo
+	echo 'load_printer "tools/$(basename $<).cmo"' > '$@'
+	awk '{ print "install_printer Debug_printers." $$2 }' \
+	  < '$<' >> '$@'
+
 # Common stuff
 
 %.cmo: %.ml
@@ -340,7 +347,7 @@ clean::
 	$(CAMLOPT) $(COMPFLAGS) -c - $<
 
 clean::
-	rm -f *.cmo *.cmi *.cma *.dll *.so *.lib *.a
+	rm -f debug_printers *.cmo *.cmi *.cma *.dll *.so *.lib *.a
 
 CAMLDEP=$(BOOT_OCAMLC) -depend
 DEPFLAGS=-slash

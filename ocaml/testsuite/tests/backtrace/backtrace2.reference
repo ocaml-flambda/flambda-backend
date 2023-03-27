@@ -32,7 +32,7 @@ Uncaught exception Backtrace2.Error("f")
 Raised at Backtrace2.test_Error in file "backtrace2.ml", line 32, characters 62-71
 Called from Backtrace2.run in file "backtrace2.ml", line 62, characters 11-23
 Uncaught exception Invalid_argument("index out of bounds")
-Raised by primitive operation at Backtrace2.run in file "backtrace2.ml", line 62, characters 14-22
+Raised at Backtrace2.run in file "backtrace2.ml", line 62, characters 14-22
 test_Not_found
 Uncaught exception Not_found
 Raised at Backtrace2.test_Not_found.aux in file "backtrace2.ml", line 36, characters 18-33

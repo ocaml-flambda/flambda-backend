@@ -19,6 +19,7 @@ let cfg_invariants = ref false          (* -dcfg-invariants *)
 let cfg_equivalence_check = ref false   (* -dcfg-equivalence-check *)
 
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
+let basic_block_sections = ref false    (* -basic-block-sections *)
 
 let dasm_comments = ref false (* -dasm-comments *)
 
@@ -122,9 +123,11 @@ module Flambda2 = struct
   let function_result_types = ref Default
 
   module Dump = struct
-    let rawfexpr = ref false
-    let fexpr = ref false
-    let flexpect = ref false
+    type target = Nowhere | Main_dump_stream | File of Misc.filepath
+
+    let rawfexpr = ref Nowhere
+    let fexpr = ref Nowhere
+    let flexpect = ref Nowhere
     let slot_offsets = ref false
     let freshen = ref false
     let flow = ref false

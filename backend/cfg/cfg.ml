@@ -28,221 +28,13 @@
 let verbose = ref false
 
 include Cfg_intf.S
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
-module BasicInstructionList = struct
-  (* CR-someday xclerc: as noted on the pull request [1], it could be beneficial
-     to consider alternative representations to avoid a "dummy" value, e.g. by
-     using a sentinel or an encoding similar to the one used by `Queue.cell`.
-
-     [1] https://github.com/ocaml-flambda/flambda-backend/pull/897 *)
-
-  type instr = basic instruction
-
-  type node =
-    { instr : instr;
-      mutable prev : node;
-      mutable next : node
-    }
-
-  (* CR xclerc for xclerc: a dummy instruction value has probably been
-     introduced by another pull request. *)
-  let dummy_instruction : instr =
-    { desc = Prologue;
-      arg = [||];
-      res = [||];
-      dbg = Debuginfo.none;
-      fdo = Fdo_info.none;
-      live = Reg.Set.empty;
-      stack_offset = -1;
-      id = -1;
-      irc_work_list = Unknown_list
-    }
-
-  let rec dummy_node =
-    { instr = dummy_instruction; prev = dummy_node; next = dummy_node }
-
-  let is_dummy_node node = node.instr.id < 0
-
-  let[@inline] unattached_node instr =
-    { instr; prev = dummy_node; next = dummy_node }
-
-  type t =
-    { mutable length : int;
-      mutable first : node;
-      mutable last : node
-    }
-
-  type cell =
-    { node : node;
-      t : t
-    }
-
-  let insert_before cell instr =
-    let new_node = unattached_node instr in
-    new_node.prev <- cell.node.prev;
-    new_node.next <- cell.node;
-    cell.node.prev <- new_node;
-    cell.t.length <- succ cell.t.length;
-    if is_dummy_node new_node.prev
-    then cell.t.first <- new_node
-    else new_node.prev.next <- new_node
-
-  let insert_after cell instr =
-    let new_node = unattached_node instr in
-    new_node.next <- cell.node.next;
-    new_node.prev <- cell.node;
-    cell.node.next <- new_node;
-    cell.t.length <- succ cell.t.length;
-    if is_dummy_node new_node.next
-    then cell.t.last <- new_node
-    else new_node.next.prev <- new_node
-
-  let instr cell = cell.node.instr
-
-  let make_empty () = { length = 0; first = dummy_node; last = dummy_node }
-
-  let make_single instr =
-    let node = unattached_node instr in
-    { length = 1; first = node; last = node }
-
-  let hd t =
-    let first = t.first in
-    if is_dummy_node first then None else Some first.instr
-
-  let last t =
-    let last = t.last in
-    if is_dummy_node last then None else Some last.instr
-
-  let add_begin t instr =
-    let node = unattached_node instr in
-    let len = t.length in
-    if Int.equal len 0
-    then (
-      t.first <- node;
-      t.last <- node;
-      t.length <- 1)
-    else (
-      node.next <- t.first;
-      t.first.prev <- node;
-      t.first <- node;
-      t.length <- succ len)
-
-  let add_end t instr =
-    let node = unattached_node instr in
-    let len = t.length in
-    if Int.equal len 0
-    then (
-      t.first <- node;
-      t.last <- node;
-      t.length <- 1)
-    else (
-      node.prev <- t.last;
-      t.last.next <- node;
-      t.last <- node;
-      t.length <- succ len)
-
-  let of_list l =
-    let res = make_empty () in
-    List.iter (fun x -> add_end res x) l;
-    res
-
-  let is_empty t = Int.equal t.length 0
-
-  let length t = t.length
-
-  let remove t curr =
-    if is_dummy_node curr.prev
-    then t.first <- curr.next
-    else curr.prev.next <- curr.next;
-    if is_dummy_node curr.next
-    then t.last <- curr.prev
-    else curr.next.prev <- curr.prev;
-    t.length <- pred t.length
-
-  let filter_left t ~f =
-    let curr = ref t.first in
-    while not (is_dummy_node !curr) do
-      if not (f !curr.instr) then remove t !curr;
-      curr := !curr.next
-    done
-
-  let filter_right t ~f =
-    let curr = ref t.last in
-    while not (is_dummy_node !curr) do
-      if not (f !curr.instr) then remove t !curr;
-      curr := !curr.prev
-    done
-
-  let iter t ~f =
-    let curr = ref t.first in
-    while not (is_dummy_node !curr) do
-      f !curr.instr;
-      curr := !curr.next
-    done
-
-  let iter_cell t ~f =
-    let curr = ref t.first in
-    while not (is_dummy_node !curr) do
-      let next = !curr.next in
-      let cell = { node = !curr; t } in
-      f cell;
-      curr := next
-    done
-
-  let iter2 t t' ~f =
-    let curr = ref t.first in
-    let curr' = ref t'.first in
-    while (not (is_dummy_node !curr)) && not (is_dummy_node !curr') do
-      f !curr.instr !curr'.instr;
-      curr := !curr.next;
-      curr' := !curr'.next
-    done;
-    if not (Bool.equal (is_dummy_node !curr) (is_dummy_node !curr'))
-    then invalid_arg "BasicInstructionList.iter2"
-
-  let fold_left t ~f ~init =
-    let res = ref init in
-    let curr = ref t.first in
-    while not (is_dummy_node !curr) do
-      res := f !res !curr.instr;
-      curr := !curr.next
-    done;
-    !res
-
-  let fold_right t ~f ~init =
-    let res = ref init in
-    let curr = ref t.last in
-    while not (is_dummy_node !curr) do
-      res := f !curr.instr !res;
-      curr := !curr.prev
-    done;
-    !res
-
-  let transfer ~to_ ~from () =
-    match to_.length, from.length with
-    | _, 0 ->
-      (* nothing to do *)
-      ()
-    | 0, _ ->
-      to_.first <- from.first;
-      to_.last <- from.last;
-      to_.length <- from.length;
-      from.first <- dummy_node;
-      from.last <- dummy_node;
-      from.length <- 0
-    | _ ->
-      to_.last.next <- from.first;
-      from.first.prev <- to_.last;
-      to_.last <- from.last;
-      to_.length <- to_.length + from.length;
-      from.first <- dummy_node;
-      from.last <- dummy_node;
-      from.length <- 0
-end
+type basic_instruction_list = basic instruction DLL.t
 
 type basic_block =
   { start : Label.t;
-    body : BasicInstructionList.t;
+    body : basic_instruction_list;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
     mutable stack_offset : int;
@@ -270,6 +62,8 @@ let create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls
     fun_args;
     fun_dbg;
     entry_label = 1;
+    (* CR gyorsh: We should use [Cmm.new_label ()] here, but validator tests
+       currently rely on it to be initialized as above. *)
     blocks = Label.Tbl.create 31;
     fun_fast;
     fun_contains_calls;
@@ -385,7 +179,7 @@ let get_block_exn t label =
 let can_raise_interproc block = block.can_raise && Option.is_none block.exn
 
 let first_instruction_id (block : basic_block) : int =
-  match BasicInstructionList.hd block.body with
+  match DLL.hd block.body with
   | None -> block.terminator.id
   | Some first_instr -> first_instr.id
 

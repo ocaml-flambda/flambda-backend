@@ -32,31 +32,37 @@ type t =
     modtypes: module_type Path.Map.t;
     for_saving: bool;
     loc: Location.t option;
+    mutable last_compose: (t * t) option  (* Memoized composition *)
   }
-
 let identity =
   { types = Path.Map.empty;
     modules = Path.Map.empty;
     modtypes = Path.Map.empty;
     for_saving = false;
     loc = None;
+    last_compose = None;
   }
 
-let add_type_path id p s = { s with types = Path.Map.add id (Path p) s.types }
+let add_type_path id p s =
+  { s with types = Path.Map.add id (Path p) s.types; last_compose = None }
 let add_type id p s = add_type_path (Pident id) p s
 
 let add_type_function id ~params ~body s =
-  { s with types = Path.Map.add id (Type_function { params; body }) s.types }
+  { s with types = Path.Map.add id (Type_function { params; body }) s.types;
+    last_compose = None
+  }
 
-let add_module_path id p s = { s with modules = Path.Map.add id p s.modules }
+let add_module_path id p s =
+  { s with modules = Path.Map.add id p s.modules; last_compose = None }
 let add_module id p s = add_module_path (Pident id) p s
 
-let add_modtype_path p ty s = { s with modtypes = Path.Map.add p ty s.modtypes }
+let add_modtype_path p ty s =
+  { s with modtypes = Path.Map.add p ty s.modtypes; last_compose = None }
 let add_modtype id ty s = add_modtype_path (Pident id) ty s
 
-let for_saving s = { s with for_saving = true }
+let for_saving s = { s with for_saving = true; last_compose = None }
 
-let change_locs s loc = { s with loc = Some loc }
+let change_locs s loc = { s with loc = Some loc; last_compose = None }
 
 let loc s x =
   match s.loc with
@@ -305,7 +311,7 @@ let type_declaration' copy_scope s decl =
     type_arity = decl.type_arity;
     type_kind =
       begin match decl.type_kind with
-        Type_abstract -> Type_abstract
+        Type_abstract imm -> Type_abstract imm
       | Type_variant (cstrs, rep) ->
           Type_variant (List.map (constructor_declaration copy_scope s) cstrs,
                         rep)
@@ -326,7 +332,6 @@ let type_declaration' copy_scope s decl =
     type_expansion_scope = Btype.lowest_level;
     type_loc = loc s decl.type_loc;
     type_attributes = attrs s decl.type_attributes;
-    type_immediate = decl.type_immediate;
     type_unboxed_default = decl.type_unboxed_default;
     type_uid = decl.type_uid;
   }
@@ -717,12 +722,19 @@ and modtype scoping s t =
 and compose s1 s2 =
   if s1 == identity then s2 else
   if s2 == identity then s1 else
-  { types = merge_path_maps (type_replacement s2) s1.types s2.types;
-    modules = merge_path_maps (module_path s2) s1.modules s2.modules;
-    modtypes = merge_path_maps (modtype Keep s2) s1.modtypes s2.modtypes;
-    for_saving = s1.for_saving || s2.for_saving;
-    loc = keep_latest_loc s1.loc s2.loc;
-  }
+  match s2.last_compose with
+  | Some (t,s) when t == s1 -> s
+  | _ ->
+      let s =
+        { types = merge_path_maps (type_replacement s2) s1.types s2.types;
+          modules = merge_path_maps (module_path s2) s1.modules s2.modules;
+          modtypes = merge_path_maps (modtype Keep s2) s1.modtypes s2.modtypes;
+          for_saving = s1.for_saving || s2.for_saving;
+          loc = keep_latest_loc s1.loc s2.loc;
+          last_compose = None
+        }
+      in
+      s2.last_compose <- Some (s1,s); s
 
 
 let subst_lazy_signature_item scoping s comp =

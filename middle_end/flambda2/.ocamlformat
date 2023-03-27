@@ -1,5 +1,6 @@
 # Please make a pull request to change this file.
 # Keep this file in sync with other .ocamlformat files in this repo.
+disable=false
 assignment-operator=begin-line
 cases-exp-indent=2
 doc-comments=before

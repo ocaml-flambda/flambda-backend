@@ -1017,7 +1017,7 @@ let emit_instr i =
         ()
     | Lreturn ->
         output_epilogue (fun () -> `	ret\n`)
-    | Llabel lbl ->
+    | Llabel { label = lbl; _ } ->
         `{emit_label lbl}:\n`
     | Lbranch lbl ->
         `	b	{emit_label lbl}\n`
