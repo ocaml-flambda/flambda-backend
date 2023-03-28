@@ -141,8 +141,7 @@ let print_cms_infos cms =
   let open Cms_format in
   printf "Cms unit name: %a\n" Compilation_unit.output cms.cms_modname;
   printf "Source file: %s\n"
-    (match cms.cms_sourcefile with None -> "(none)" | Some f -> f);
-  printf "\n"
+    (match cms.cms_sourcefile with None -> "(none)" | Some f -> f)
 
 let print_general_infos print_name name crc defines iter_cmi iter_cmx =
   printf "Name: %a\n" print_name name;
