@@ -415,6 +415,12 @@ let lookup_primitive loc poly pos p =
       Primitive(Punboxed_product_field (0, [Pvalue Pgenval; Pvalue Pgenval]), 1)
     | "%unboxed_pair_field_1_v_v" ->
       Primitive(Punboxed_product_field (1, [Pvalue Pgenval; Pvalue Pgenval]), 1)
+    | "%make_unboxed_pair_i_i" ->
+      Primitive(Pmake_unboxed_product [Pvalue Pintval; Pvalue Pintval], 2)
+    | "%unboxed_pair_field_0_i_i" ->
+      Primitive(Punboxed_product_field (0, [Pvalue Pintval; Pvalue Pintval]), 1)
+    | "%unboxed_pair_field_1_i_i" ->
+      Primitive(Punboxed_product_field (1, [Pvalue Pintval; Pvalue Pintval]), 1)
     | "%make_unboxed_pair_vup_vup" ->
       Primitive(Pmake_unboxed_product [layout_unboxed_pair_of_values; layout_unboxed_pair_of_values], 2)
     | "%unboxed_pair_field_0_vup_vup" ->

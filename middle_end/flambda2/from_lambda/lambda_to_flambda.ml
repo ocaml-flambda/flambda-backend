@@ -797,19 +797,9 @@ let transform_primitive env id (prim : L.primitive) args loc =
         layouts
         (Format.pp_print_list ~pp_sep:Format.pp_print_space Printlambda.lambda)
         args;
-    let arity =
-      List.map Flambda_arity.Component_for_creation.from_lambda layouts
-      |> Flambda_arity.create
-    in
     let fields =
-      List.mapi
-        (fun n kind ->
-          let ident =
-            Ident.create_local
-              (Printf.sprintf "%s_unboxed%d" (Ident.unique_name id) n)
-          in
-          ident, kind)
-        (Flambda_arity.unarize arity)
+      Flambda_arity.from_lambda_list layouts
+      |> Flambda_arity.fresh_idents_unarized ~id
     in
     let env = Env.register_unboxed_product env ~unboxed_product:id ~fields in
     if unboxed_product_debug ()
@@ -822,10 +812,7 @@ let transform_primitive env id (prim : L.primitive) args loc =
     let layouts_array = Array.of_list layouts in
     if n < 0 || n >= Array.length layouts_array
     then Misc.fatal_errorf "Invalid field index %d for Punboxed_product_field" n;
-    let arity =
-      List.map Flambda_arity.Component_for_creation.from_lambda layouts
-      |> Flambda_arity.create
-    in
+    let arity = Flambda_arity.from_lambda_list layouts in
     if unboxed_product_debug ()
     then
       Format.eprintf
@@ -839,12 +826,7 @@ let transform_primitive env id (prim : L.primitive) args loc =
       |> fun component -> [component] |> Flambda_arity.create
     in
     let ids_all_fields_with_kinds =
-      List.mapi
-        (fun n kind ->
-          ( Ident.create_local
-              (Printf.sprintf "%s_unboxed%d" (Ident.unique_name id) n),
-            kind ))
-        (Flambda_arity.unarize arity)
+      Flambda_arity.fresh_idents_unarized arity ~id
     in
     let num_fields_prior_to_projected_fields =
       Misc.Stdlib.List.split_at n layouts
@@ -1718,6 +1700,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         probe = None;
                         mode;
                         region = Env.current_region env;
+                        args_arity = None;
                         return_arity =
                           Flambda_arity.create_singletons
                             [Flambda_kind.With_subkind.from_lambda layout]
@@ -1924,6 +1907,7 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               probe = ap_probe;
               mode = ap_mode;
               region = Env.current_region env;
+              args_arity;
               return_arity =
                 Flambda_arity.create_singletons
                   [Flambda_kind.With_subkind.from_lambda ap_return]
@@ -2053,24 +2037,63 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       (Compilation_unit.get_current_exn ())
       ~name:(Ident.name fid) Flambda_kind.With_subkind.any_value
   in
-  let body acc ccenv =
-    let ccenv = CCenv.set_path_to_root ccenv loc in
-    let ccenv = CCenv.set_not_at_toplevel ccenv in
-    cps_tail acc new_env ccenv body body_cont body_exn_cont
-  in
+  let params_arity = Flambda_arity.from_lambda_list (List.map snd params) in
+  let unarized_per_param = Flambda_arity.unarize_per_parameter params_arity in
+  assert (List.compare_lengths params unarized_per_param = 0);
+  let unboxed_products = ref Ident.Map.empty in
   let params =
-    List.map
-      (fun (param, kind) -> param, Flambda_kind.With_subkind.from_lambda kind)
-      params
+    List.concat_map
+      (fun ((param, _layout), kinds) ->
+        match kinds with
+        | [] -> []
+        | [kind] -> [param, kind]
+        | _ :: _ ->
+          if unboxed_product_debug ()
+          then
+            Format.eprintf
+              "splitting unboxed product for function parameter %a\n%!"
+              Ident.print param;
+          let fields =
+            List.mapi
+              (fun n kind ->
+                let ident =
+                  Ident.create_local
+                    (Printf.sprintf "%s_unboxed%d" (Ident.unique_name param) n)
+                in
+                ident, kind)
+              kinds
+          in
+          unboxed_products := Ident.Map.add param fields !unboxed_products;
+          fields)
+      (List.combine params unarized_per_param)
   in
+  let unboxed_products = !unboxed_products in
+  let removed_params = Ident.Map.keys unboxed_products in
   let return =
     Flambda_arity.create_singletons
       [Flambda_kind.With_subkind.from_lambda return]
   in
+  let body acc ccenv =
+    let ccenv = CCenv.set_path_to_root ccenv loc in
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
+    let new_env =
+      Ident.Map.fold
+        (fun unboxed_product fields new_env ->
+          if unboxed_product_debug ()
+          then
+            Format.eprintf
+              "registering unboxed product for function parameter %a\n%!"
+              Ident.print unboxed_product;
+          Env.register_unboxed_product new_env ~unboxed_product ~fields)
+        unboxed_products new_env
+    in
+    cps_tail acc new_env ccenv body body_cont body_exn_cont
+  in
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
-    ~return ~return_continuation:body_cont ~exn_continuation ~my_region ~body
-    ~attr ~loc ~free_idents_of_body recursive ~closure_alloc_mode:mode
-    ~num_trailing_local_params ~contains_no_escaping_local_allocs:region
+    ~params_arity ~removed_params ~return ~return_continuation:body_cont
+    ~exn_continuation ~my_region ~body ~attr ~loc ~free_idents_of_body recursive
+    ~closure_alloc_mode:mode ~num_trailing_local_params
+    ~contains_no_escaping_local_allocs:region
 
 and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
     ~scrutinee (k : Continuation.t) (k_exn : Continuation.t) : Expr_with_acc.t =

@@ -44,7 +44,7 @@ module Component = struct
       Format.fprintf ppf "@[<hov 1>%s%a%s@]"
         (if product_above then "(" else "")
         (Format.pp_print_list
-           ~pp_sep:(fun ppf () -> Format.fprintf ppf " @<1>\u{2a2f} ")
+           ~pp_sep:(fun ppf () -> Format.fprintf ppf " @<1>\u{2a02} ")
            (print ~product_above:true))
         ts
         (if product_above then ")" else "")
@@ -83,7 +83,10 @@ let create t = t
 let create_singletons t = List.map (fun kind -> Component.Singleton kind) t
 
 let print ppf t =
-  Component.print ~product_above:false ppf (Component.Unboxed_product t)
+  Format.fprintf ppf "@[(%a)@]"
+    (Format.pp_print_list (Component.print ~product_above:false)
+       ~pp_sep:(fun ppf () -> Format.fprintf ppf " @<1>\u{2a2f} "))
+    t
 
 let equal_ignoring_subkinds t1 t2 =
   List.equal Component.equal_ignoring_subkinds t1 t2
@@ -101,6 +104,18 @@ let is_one_param_of_kind_value t =
 
 let unarize t = t |> List.map Component.unarize |> List.concat
 
+let unarize_per_parameter t = t |> List.map Component.unarize
+
+let fresh_idents_unarized t ~id =
+  List.mapi
+    (fun n kind ->
+      let ident =
+        Ident.create_local
+          (Printf.sprintf "%s_unboxed%d" (Ident.unique_name id) n)
+      in
+      ident, kind)
+    (unarize t)
+
 let cardinal_unarized t = List.length (unarize t)
 
 let rec must_be_one_param t =
@@ -108,3 +123,6 @@ let rec must_be_one_param t =
   | [Component.Singleton kind] -> Some kind
   | [Component.Unboxed_product component] -> must_be_one_param component
   | [] | (Component.Singleton _ | Component.Unboxed_product _) :: _ -> None
+
+let from_lambda_list layouts =
+  layouts |> List.map Component_for_creation.from_lambda |> create

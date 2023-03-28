@@ -73,5 +73,18 @@ end
     list of kinds for all parameters. *)
 val unarize : t -> Flambda_kind.With_subkind.t list
 
+(** Like [unarize] but returns one list per parameter. *)
+val unarize_per_parameter : t -> Flambda_kind.With_subkind.t list list
+
+(** Given an arity and an identifier, produce a list of identifiers (with
+    corresponding kinds) whose length matches [unarize t], with names derived
+    from the given identifier. *)
+val fresh_idents_unarized :
+  t -> id:Ident.t -> (Ident.t * Flambda_kind.With_subkind.t) list
+
 (** The length of the list returned by [unarize]. *)
 val cardinal_unarized : t -> int
+
+(** Take a list of Lambda layouts, one per parameter, and form the
+corresponding arity. *)
+val from_lambda_list : Lambda.layout list -> t

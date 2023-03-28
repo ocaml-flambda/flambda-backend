@@ -64,6 +64,7 @@ module IR = struct
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
       region : Ident.t;
+      args_arity : Flambda_arity.t option;
       return_arity : Flambda_arity.t
     }
 
@@ -663,6 +664,8 @@ module Function_decls = struct
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
         params : (Ident.t * Flambda_kind.With_subkind.t) list;
+        removed_params : Ident.Set.t;
+        params_arity : Flambda_arity.t;
         return : Flambda_arity.t;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
@@ -677,11 +680,11 @@ module Function_decls = struct
         contains_no_escaping_local_allocs : bool
       }
 
-    let create ~let_rec_ident ~function_slot ~kind ~params ~return
-        ~return_continuation ~exn_continuation ~my_region ~body
-        ~(attr : Lambda.function_attribute) ~loc ~free_idents_of_body recursive
-        ~closure_alloc_mode ~num_trailing_local_params
-        ~contains_no_escaping_local_allocs =
+    let create ~let_rec_ident ~function_slot ~kind ~params ~params_arity
+        ~removed_params ~return ~return_continuation ~exn_continuation
+        ~my_region ~body ~(attr : Lambda.function_attribute) ~loc
+        ~free_idents_of_body recursive ~closure_alloc_mode
+        ~num_trailing_local_params ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
         | None -> Ident.create_local "unnamed_function"
@@ -691,6 +694,8 @@ module Function_decls = struct
         function_slot;
         kind;
         params;
+        params_arity;
+        removed_params;
         return;
         return_continuation;
         exn_continuation;
@@ -713,6 +718,8 @@ module Function_decls = struct
 
     let params t = t.params
 
+    let params_arity t = t.params_arity
+
     let return t = t.return
 
     let return_continuation t = t.return_continuation
@@ -723,7 +730,7 @@ module Function_decls = struct
 
     let body t = t.body
 
-    let free_idents t = t.free_idents_of_body
+    let free_idents t = Ident.Set.diff t.free_idents_of_body t.removed_params
 
     let inline t = t.attr.inline
 

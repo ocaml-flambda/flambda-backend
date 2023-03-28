@@ -1065,6 +1065,7 @@ let close_exact_or_unknown_apply acc env
        mode;
        region_close;
        region;
+       args_arity;
        return_arity
      } :
       IR.apply) callee_approx ~replace_region : Expr_with_acc.t =
@@ -1108,7 +1109,12 @@ let close_exact_or_unknown_apply acc env
     close_exn_continuation acc env exn_continuation
   in
   let acc, args_with_arity = find_simples_and_arity acc env args in
-  let args, args_arity = List.split args_with_arity in
+  let args, split_args_arity = List.split args_with_arity in
+  let args_arity =
+    match args_arity with
+    | Some args_arity -> args_arity
+    | None -> Flambda_arity.create_singletons split_args_arity
+  in
   let inlined_call = Inlined_attribute.from_lambda inlined in
   let probe_name =
     match probe with None -> None | Some { name } -> Some name
@@ -1120,9 +1126,7 @@ let close_exact_or_unknown_apply acc env
   in
   let apply =
     Apply.create ~callee ~continuation:(Return continuation)
-      apply_exn_continuation ~args
-      ~args_arity:(Flambda_arity.create_singletons args_arity)
-      ~return_arity ~call_kind
+      apply_exn_continuation ~args ~args_arity ~return_arity ~call_kind
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
@@ -2038,14 +2042,15 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     Misc.fatal_errorf "Partial application of %a with wrong mode at %s"
       Ident.print apply.IR.func
       (Debuginfo.Scoped_location.string_of_scoped_location apply.IR.loc);
+  let params_arity = Flambda_arity.create_singletons (List.map snd params) in
   let function_declarations =
     [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
         ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
-        ~params ~return:apply.return_arity ~return_continuation
-        ~exn_continuation ~my_region:apply.region ~body:fbody ~attr
-        ~loc:apply.loc ~free_idents_of_body ~closure_alloc_mode
-        ~num_trailing_local_params ~contains_no_escaping_local_allocs
-        Recursive.Non_recursive ]
+        ~params ~params_arity ~removed_params:Ident.Set.empty
+        ~return:apply.return_arity ~return_continuation ~exn_continuation
+        ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
+        ~free_idents_of_body ~closure_alloc_mode ~num_trailing_local_params
+        ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
   in
   let body acc env =
     let arg = find_simple_from_id env wrapper_id in

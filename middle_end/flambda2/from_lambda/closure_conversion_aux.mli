@@ -68,6 +68,7 @@ module IR : sig
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
       region : Ident.t;
+      args_arity : Flambda_arity.t option;
       return_arity : Flambda_arity.t
     }
 
@@ -298,6 +299,8 @@ module Function_decls : sig
       function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
       params:(Ident.t * Flambda_kind.With_subkind.t) list ->
+      params_arity:Flambda_arity.t ->
+      removed_params:Ident.Set.t ->
       return:Flambda_arity.t ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
@@ -319,6 +322,8 @@ module Function_decls : sig
     val kind : t -> Lambda.function_kind
 
     val params : t -> (Ident.t * Flambda_kind.With_subkind.t) list
+
+    val params_arity : t -> Flambda_arity.t
 
     val return : t -> Flambda_arity.t
 
