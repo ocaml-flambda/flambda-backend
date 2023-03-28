@@ -1062,7 +1062,7 @@ let warn_not_inlined_if_needed (apply : IR.apply) reason =
   match apply.inlined with
   | Hint_inlined | Never_inlined | Default_inlined -> ()
   | Always_inlined -> warn Inlining_helpers.Inlined
-  | Unroll _ -> warn Inlining_helpers.Unroll
+  | Unroll _ -> warn Inlining_helpers.Unrolled
 
 let close_exact_or_unknown_apply acc env
     ({ kind;

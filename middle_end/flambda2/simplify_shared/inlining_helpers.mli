@@ -71,6 +71,6 @@ val wrap_inlined_body_for_exn_extra_args :
 
 type attribute_kind =
   | Inlined
-  | Unroll
+  | Unrolled
 
 val inlined_attribute_on_partial_application_msg : attribute_kind -> string

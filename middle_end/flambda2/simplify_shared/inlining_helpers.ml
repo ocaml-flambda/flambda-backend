@@ -118,9 +118,11 @@ let wrap_inlined_body_for_exn_extra_args acc ~extra_args ~apply_exn_continuation
 
 type attribute_kind =
   | Inlined
-  | Unroll
+  | Unrolled
 
-let string_of_kind = function Inlined -> "[@inlined]" | Unroll -> "[@unroll]]"
+let string_of_kind = function
+  | Inlined -> "[@inlined]"
+  | Unrolled -> "[@unrolled]]"
 
 let inlined_attribute_on_partial_application_msg kind =
   string_of_kind kind ^ " attributes may not be used on partial applications"
