@@ -1491,26 +1491,28 @@ let primitive_result_layout (p : primitive) =
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
 
-let rec compute_expr_layout kinds lam =
+let rec compute_expr_layout0 kinds layout_of_id lam =
   match lam with
   | Lvar id | Lmutvar id ->
     begin
-      try Ident.Map.find id kinds
+      try layout_of_id id
       with Not_found ->
-        Misc.fatal_errorf "Unbound layout for variable %a" Ident.print id
+        try Ident.Map.find id kinds
+        with Not_found ->
+          Misc.fatal_errorf "Unbound layout for variable %a" Ident.print id
     end
   | Lconst cst -> structured_constant_layout cst
   | Lfunction _ -> layout_function
   | Lapply { ap_result_layout; _ } -> ap_result_layout
   | Lsend (_, _, _, _, _, _, _, layout) -> layout
   | Llet(_, kind, id, _, body) | Lmutlet(kind, id, _, body) ->
-    compute_expr_layout (Ident.Map.add id kind kinds) body
+    compute_expr_layout0 (Ident.Map.add id kind kinds) layout_of_id body
   | Lletrec(defs, body) ->
     let kinds =
       List.fold_left (fun kinds (id, _) -> Ident.Map.add id layout_letrec kinds)
         kinds defs
     in
-    compute_expr_layout kinds body
+    compute_expr_layout0 kinds layout_of_id body
   | Lprim(p, _, _) ->
     primitive_result_layout p
   | Lswitch(_, _, _, kind) | Lstringswitch(_, _, _, _, kind)
@@ -1519,8 +1521,14 @@ let rec compute_expr_layout kinds lam =
     kind
   | Lstaticraise (_, _) ->
     layout_bottom
-  | Lsequence(_, body) | Levent(body, _) -> compute_expr_layout kinds body
+  | Lsequence(_, body) | Levent(body, _) ->
+    compute_expr_layout0 kinds layout_of_id body
   | Lwhile _ | Lfor _ | Lassign _ -> layout_unit
   | Lifused _ ->
       assert false
 
+let compute_expr_layout layout_of_id lam =
+  compute_expr_layout0 Ident.Map.empty layout_of_id lam
+
+let compute_expr_layout_map layouts lam =
+  compute_expr_layout0 layouts (fun _ -> raise Not_found) lam

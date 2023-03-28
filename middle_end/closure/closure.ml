@@ -1143,7 +1143,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
                                 _approx_res)), uargs)
         when nargs > List.length params_layout ->
           let nparams = List.length params_layout in
-          let args_kinds = List.map (Lambda.compute_expr_layout kinds) args in
+          let args_kinds = List.map (Lambda.compute_expr_layout_map kinds) args in
           let args = List.map (fun arg -> V.create_local "arg", arg) uargs in
           (* CR mshinwell: Edit when Lapply has kinds *)
           let kinds =
@@ -1190,14 +1190,14 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           warning_if_forced_inlined ~loc ~attribute "Unknown function";
           fail_if_probe ~probe "Unknown function";
           (Ugeneric_apply(ufunct, uargs,
-                          List.map (Lambda.compute_expr_layout kinds) args,
+                          List.map (Lambda.compute_expr_layout_map kinds) args,
                           ap_result_layout, (pos, mode), dbg), Value_unknown)
       end
   | Lsend(kind, met, obj, args, pos, mode, loc, result_layout) ->
       let (umet, _) = close env met in
       let (uobj, _) = close env obj in
       let dbg = Debuginfo.from_location loc in
-      let args_layout = List.map (Lambda.compute_expr_layout kinds) args in
+      let args_layout = List.map (Lambda.compute_expr_layout_map kinds) args in
       (Usend(kind, umet, uobj, close_list env args, args_layout, result_layout, (pos,mode), dbg),
        Value_unknown)
   | Llet(str, kind, id, lam, body) ->
