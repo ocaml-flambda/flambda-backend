@@ -270,8 +270,8 @@ let subst_set_of_closures env set =
   let value_slots =
     Set_of_closures.value_slots set
     |> Value_slot.Map.bindings
-    |> List.map (fun (var, (simple, kind)) ->
-           subst_value_slot env var, (subst_simple env simple, kind))
+    |> List.map (fun (var, simple) ->
+           subst_value_slot env var, subst_simple env simple)
     |> Value_slot.Map.of_list
   in
   let alloc = Set_of_closures.alloc_mode set in
@@ -756,7 +756,8 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
    * similar (and less worrisome) with function slots. *)
   let value_slots_by_value set =
     Value_slot.Map.bindings (Set_of_closures.value_slots set)
-    |> List.map (fun (var, (value, kind)) -> kind, subst_simple env value, var)
+    |> List.map (fun (var, value) ->
+           Value_slot.kind var, subst_simple env value, var)
   in
   (* We want to process the whole map to find new correspondences between
    * value slots, so we need to remember whether we've found any mismatches *)

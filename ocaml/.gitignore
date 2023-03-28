@@ -273,6 +273,7 @@ _build
 /tools/make_opcodes.ml
 /tools/caml-tex
 /tools/eventlog_metadata
+/tools/debug_printers
 
 /toplevel/byte/topeval.mli
 /toplevel/byte/trace.mli
@@ -291,3 +292,6 @@ _build
 
 /otherlibs/dynlink/natdynlinkops
 
+# Jane Street Merlin support
+/.local-merlin-binaries
+/.local-ocaml-lib

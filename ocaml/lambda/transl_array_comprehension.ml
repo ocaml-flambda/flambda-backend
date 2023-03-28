@@ -203,6 +203,7 @@ module Precompute_array_size : sig
   val safe_product_pos :
     ?variable_name:string -> loc:scoped_location -> lambda list -> lambda
 end = struct
+  (* Modeled after [Translcore.assert_failed] *)
   let raise_overflow_exn ~loc =
     let loc' = Debuginfo.Scoped_location.to_location loc in
     let slot =
@@ -211,8 +212,11 @@ end = struct
         Env.initial_safe_string
         Predef.path_invalid_argument
     in
-    (* CR aspectorzabusky: Should I call [Translprim.event_after] here?
-       [Translcore.asssert_failed] does (via a local intermediary). *)
+    (* CR-someday aspectorzabusky: We might want to raise an event here for
+       debug tracing (cf. [Translcore.assert_failed] and
+       [Translprim.event_after]), but it's not clear what event that would be,
+       and this isn't a feature we expect to use.  We can add it when it seems
+       important, or when we upstream this change. *)
     Lprim(Praise Raise_regular,
           [Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
                  [ slot
@@ -509,7 +513,8 @@ let binding
       ~scopes
       ~loc
       { comp_cb_iterator; comp_cb_attributes = _ } =
-  (* CR aspectorzabusky: What do we do with attributes here? *)
+  (* No attributes are meaningful here; see the definition of
+     [comp_cb_attributes]. *)
   iterator ~transl_exp ~loc ~scopes comp_cb_iterator
 
 (** Translate the contents of a single [for ... and ...] clause (the contents of
@@ -748,8 +753,6 @@ let body
   let set_element_raw elt =
     (* array.(index) <- elt *)
     Lprim(Parraysetu array_kind, [array.var; index.var; elt], loc)
-      (* CR aspectorzabusky: Is [array_kind] safe here, since it could be
-         [Pgenarray]?  Do we have to learn which it should be? *)
   in
   let set_element_in_bounds elt = match array_sizing with
     | Fixed_size ->
@@ -835,18 +838,15 @@ let comprehension
         (Iterator_bindings.all_let_bindings var_bindings)
         (Lifthenelse(Iterator_bindings.Fixed_size_array.are_any_empty
                        ~loc var_bindings,
-           (* If the array is known to be empty, we short-circuit and return
-              the empty array *)
+           (* If the array is known to be empty, we short-circuit and return the
+              empty array; all empty arrays are identical, so we don't care
+              about its kind or mutability *)
            Lprim(
              Pmakearray(Pgenarray, Immutable, Lambda.alloc_heap),
              [],
              loc),
            (* Otherwise, we translate it normally *)
            comprehension,
-           (* CR aspectorzabusky: My understanding is that all empty arrays
-              are identical, no matter their [array_kind], and that's why I
-              can use [Pgenarray] to create the empty array above but still
-              use [array_kind] here.  Is that right? *)
            (* (And the result has the [value_kind] of the array) *)
            (Pvalue (Parrayval array_kind))))
   | Dynamic_size_info ->

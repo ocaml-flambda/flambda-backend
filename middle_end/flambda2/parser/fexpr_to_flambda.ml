@@ -133,7 +133,11 @@ let fresh_code_id env { Fexpr.txt = name; loc = _ } =
   c, { env with code_ids = DM.add name c env.code_ids }
 
 let fresh_function_slot env { Fexpr.txt = name; loc = _ } =
-  let c = Function_slot.create (Compilation_unit.get_current_exn ()) ~name in
+  let c =
+    Function_slot.create
+      (Compilation_unit.get_current_exn ())
+      ~name Flambda_kind.With_subkind.any_value
+  in
   UT.add env.function_slots name c;
   c
 
@@ -142,14 +146,14 @@ let fresh_or_existing_function_slot env ({ Fexpr.txt = name; loc = _ } as id) =
   | None -> fresh_function_slot env id
   | Some function_slot -> function_slot
 
-let fresh_value_slot env { Fexpr.txt = name; loc = _ } =
-  let c = Value_slot.create (Compilation_unit.get_current_exn ()) ~name in
+let fresh_value_slot env { Fexpr.txt = name; loc = _ } kind =
+  let c = Value_slot.create (Compilation_unit.get_current_exn ()) ~name kind in
   WT.add env.vars_within_closures name c;
   c
 
-let fresh_or_existing_value_slot env ({ Fexpr.txt = name; _ } as id) =
+let fresh_or_existing_value_slot env ({ Fexpr.txt = name; _ } as id) kind =
   match WT.find_opt env.vars_within_closures name with
-  | None -> fresh_value_slot env id
+  | None -> fresh_value_slot env id kind
   | Some value_slot -> value_slot
 
 let print_scoped_location ppf loc =
@@ -372,6 +376,7 @@ let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
   | Array_length -> Array_length
+  | Begin_try_region -> Begin_try_region
   | Box_number (bk, alloc) ->
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Unbox_number bk -> Unbox_number bk
@@ -385,10 +390,11 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   | Opaque_identity ->
     Opaque_identity { middle_end_only = false; kind = Flambda_kind.value }
   | Project_value_slot { project_from; value_slot } ->
-    let value_slot = fresh_or_existing_value_slot env value_slot in
+    (* CR mshinwell: support non-value kinds *)
+    let kind = Flambda_kind.With_subkind.any_value in
+    let value_slot = fresh_or_existing_value_slot env value_slot kind in
     let project_from = fresh_or_existing_function_slot env project_from in
-    Project_value_slot
-      { project_from; value_slot; kind = Flambda_kind.With_subkind.any_value }
+    Project_value_slot { project_from; value_slot; kind }
   | Project_function_slot { move_from; move_to } ->
     let move_from = fresh_or_existing_function_slot env move_from in
     let move_to = fresh_or_existing_function_slot env move_to in
@@ -404,38 +410,41 @@ let infix_binop (binop : Fexpr.infix_binop) : Flambda_primitive.binary_primitive
   | Float_arith o -> Float_arith o
   | Float_comp c -> Float_comp c
 
+let block_access_kind (ak : Fexpr.block_access_kind) :
+    Flambda_primitive.Block_access_kind.t =
+  let size s : _ Or_unknown.t =
+    match s with
+    | None -> Unknown
+    | Some s -> Known (s |> Targetint_31_63.of_int64)
+  in
+  match ak with
+  | Values { field_kind; tag; size = s } ->
+    let tag : Tag.Scannable.t Or_unknown.t =
+      match tag with
+      | Some tag -> Known (tag |> tag_scannable)
+      | None -> Unknown
+    in
+    let size = size s in
+    Values { field_kind; tag; size }
+  | Naked_floats { size = s } ->
+    let size = size s in
+    Naked_floats { size }
+
 let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   match binop with
   | Array_load (ak, mut) -> Array_load (ak, mut)
-  | Block_load (access_kind, mutability) ->
-    let size s : _ Or_unknown.t =
-      match s with
-      | None -> Unknown
-      | Some s -> Known (s |> Targetint_31_63.of_int64)
-    in
-    let access_kind : Flambda_primitive.Block_access_kind.t =
-      match access_kind with
-      | Values { field_kind; tag; size = s } ->
-        let tag : Tag.Scannable.t Or_unknown.t =
-          match tag with
-          | Some tag -> Known (tag |> tag_scannable)
-          | None -> Unknown
-        in
-        let size = size s in
-        Values { field_kind; tag; size }
-      | Naked_floats { size = s } ->
-        let size = size s in
-        Naked_floats { size }
-    in
-    Block_load (access_kind, mutability)
+  | Block_load (ak, mutability) -> Block_load (block_access_kind ak, mutability)
   | Phys_equal op -> Phys_equal op
   | Infix op -> infix_binop op
   | Int_arith (i, o) -> Int_arith (i, o)
   | Int_comp (i, c) -> Int_comp (i, c)
   | Int_shift (i, s) -> Int_shift (i, s)
+  | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
 
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
-  match ternop with Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
+  match ternop with
+  | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
+  | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
 
 let convert_block_shape ~num_fields =
   List.init num_fields (fun _field -> Flambda_kind.With_subkind.any_value)
@@ -490,10 +499,11 @@ let set_of_closures env fun_decls value_slots alloc =
     |> Function_slot.Lmap.of_list |> Function_declarations.create
   in
   let value_slots = Option.value value_slots ~default:[] in
-  let value_slots : (Simple.t * Flambda_kind.With_subkind.t) Value_slot.Map.t =
+  let value_slots : Simple.t Value_slot.Map.t =
     let convert ({ var; value } : Fexpr.one_value_slot) =
-      ( fresh_or_existing_value_slot env var,
-        (simple env value, Flambda_kind.With_subkind.any_value) )
+      (* CR mshinwell: support non-value kinds *)
+      ( fresh_or_existing_value_slot env var Flambda_kind.With_subkind.any_value,
+        simple env value )
     in
     List.map convert value_slots |> Value_slot.Map.of_list
   in
@@ -595,7 +605,11 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     in
     let sort = continuation_sort sort in
     let name, body_env =
-      fresh_cont env name ~sort ~arity:(List.length params)
+      if is_exn_handler
+      then
+        let e, env = fresh_exn_cont env name in
+        Exn_continuation.exn_handler e, env
+      else fresh_cont env name ~sort ~arity:(List.length params)
     in
     let body = expr body_env body in
     let env =

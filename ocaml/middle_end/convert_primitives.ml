@@ -28,7 +28,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pmakeblock (tag, mutability, shape, mode)
   | Pmakefloatblock (mutability, mode) ->
       Pmakearray (Pfloatarray, mutability, mode)
-  | Pfield (field, _) -> Pfield field
+  | Pfield (field, _sem) -> Pfield (field, Pvalue Pgenval)
   | Pfield_computed _sem -> Pfield_computed
   | Psetfield (field, imm_or_pointer, init_or_assign) ->
       Psetfield (field, imm_or_pointer, init_or_assign)
@@ -166,6 +166,8 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pgetglobal _
   | Psetglobal _
   | Pgetpredef _
+  | Parray_to_iarray
+  | Parray_of_iarray
     ->
       Misc.fatal_errorf "lambda primitive %a can't be converted to \
                          clambda primitive"

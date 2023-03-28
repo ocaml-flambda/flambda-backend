@@ -556,9 +556,9 @@ module Generic_array = struct
 end
 
 let ppat_iarray loc elts =
-  (Extensions.Immutable_arrays.pat_of
-     ~loc:(make_loc loc)
-     (Iapat_immutable_array elts)).ppat_desc
+  Extensions.Immutable_arrays.pat_of
+    ~loc:(make_loc loc)
+    (Iapat_immutable_array elts)
 
 let expecting loc nonterm =
     raise Syntaxerr.(Error(Expecting(make_loc loc, nonterm)))
@@ -42309,9 +42309,9 @@ module Tables = struct
       ( Generic_array.expression
           "[:" ":]"
           (fun elts ->
-            (Extensions.Immutable_arrays.expr_of
+             Extensions.Immutable_arrays.expr_of
                ~loc:(make_loc _sloc)
-               (Iaexp_immutable_array elts)).pexp_desc)
+               (Iaexp_immutable_array elts))
           _1 )
 # 42317 "parsing/parser.ml"
             
@@ -42397,9 +42397,9 @@ module Tables = struct
       ( Generic_array.expression
           "[:" ":]"
           (fun elts ->
-            (Extensions.Immutable_arrays.expr_of
+             Extensions.Immutable_arrays.expr_of
                ~loc:(make_loc _sloc)
-               (Iaexp_immutable_array elts)).pexp_desc)
+               (Iaexp_immutable_array elts))
           _1 )
 # 42405 "parsing/parser.ml"
             
@@ -42469,9 +42469,9 @@ module Tables = struct
       ( Generic_array.expression
           "[:" ":]"
           (fun elts ->
-            (Extensions.Immutable_arrays.expr_of
+             Extensions.Immutable_arrays.expr_of
                ~loc:(make_loc _sloc)
-               (Iaexp_immutable_array elts)).pexp_desc)
+               (Iaexp_immutable_array elts))
           _1 )
 # 42477 "parsing/parser.ml"
             
@@ -42583,9 +42583,9 @@ module Tables = struct
       ( Generic_array.expression
           "[:" ":]"
           (fun elts ->
-            (Extensions.Immutable_arrays.expr_of
+             Extensions.Immutable_arrays.expr_of
                ~loc:(make_loc _sloc)
-               (Iaexp_immutable_array elts)).pexp_desc)
+               (Iaexp_immutable_array elts))
           _1 )
 # 42591 "parsing/parser.ml"
             
@@ -42686,9 +42686,9 @@ module Tables = struct
       ( Generic_array.expression
           "[:" ":]"
           (fun elts ->
-            (Extensions.Immutable_arrays.expr_of
+             Extensions.Immutable_arrays.expr_of
                ~loc:(make_loc _sloc)
-               (Iaexp_immutable_array elts)).pexp_desc)
+               (Iaexp_immutable_array elts))
           _1 )
 # 42694 "parsing/parser.ml"
             
@@ -42781,9 +42781,9 @@ module Tables = struct
       ( Generic_array.expression
           "[:" ":]"
           (fun elts ->
-            (Extensions.Immutable_arrays.expr_of
+             Extensions.Immutable_arrays.expr_of
                ~loc:(make_loc _sloc)
-               (Iaexp_immutable_array elts)).pexp_desc)
+               (Iaexp_immutable_array elts))
           _1 )
 # 42789 "parsing/parser.ml"
             
@@ -43006,7 +43006,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 2603 "parsing/parser.mly"
-    ( (Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1).pexp_desc )
+    ( Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
 # 43011 "parsing/parser.ml"
               
             in
@@ -43107,7 +43107,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 2603 "parsing/parser.mly"
-    ( (Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1).pexp_desc )
+    ( Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
 # 43112 "parsing/parser.ml"
               
             in
@@ -43208,7 +43208,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 2603 "parsing/parser.mly"
-    ( (Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1).pexp_desc )
+    ( Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
 # 43213 "parsing/parser.ml"
               
             in
@@ -43324,7 +43324,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 2603 "parsing/parser.mly"
-    ( (Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1).pexp_desc )
+    ( Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
 # 43329 "parsing/parser.ml"
               
             in
@@ -43462,7 +43462,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 2603 "parsing/parser.mly"
-    ( (Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1).pexp_desc )
+    ( Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
 # 43467 "parsing/parser.ml"
               
             in
@@ -43600,7 +43600,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 2603 "parsing/parser.mly"
-    ( (Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1).pexp_desc )
+    ( Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
 # 43605 "parsing/parser.ml"
               
             in

@@ -54,6 +54,7 @@ type iterator = {
   module_expr: iterator -> module_expr -> unit;
   module_type: iterator -> module_type -> unit;
   module_type_declaration: iterator -> module_type_declaration -> unit;
+  module_type_extension: iterator -> Extensions.Module_type.t -> unit;
   open_declaration: iterator -> open_declaration -> unit;
   open_description: iterator -> open_description -> unit;
   pat: iterator -> pattern -> unit;
@@ -246,9 +247,13 @@ let iter_functor_param sub = function
 module MT = struct
   (* Type expressions for the module language *)
 
-  let iter sub {pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} =
+  let iter sub
+        ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
     sub.location sub loc;
     sub.attributes sub attrs;
+    match Extensions.Module_type.of_ast mty with
+    | Some emty -> sub.module_type_extension sub emty
+    | None ->
     match desc with
     | Pmty_ident s -> iter_loc sub s
     | Pmty_alias s -> iter_loc sub s
@@ -299,6 +304,11 @@ module MT = struct
         sub.attributes sub attrs;
         sub.extension sub x
     | Psig_attribute x -> sub.attribute sub x
+
+  let iter_extension sub : Extensions.Module_type.t -> _ = function
+    | Emty_strengthen { mty; mod_id } ->
+       iter sub mty;
+       iter_loc sub mod_id
 end
 
 
@@ -592,6 +602,7 @@ let default_iterator =
     signature = (fun this l -> List.iter (this.signature_item this) l);
     signature_item = MT.iter_signature_item;
     module_type = MT.iter;
+    module_type_extension = MT.iter_extension;
     with_constraint = MT.iter_with_constraint;
     class_declaration =
       (fun this -> CE.class_infos this (this.class_expr this));

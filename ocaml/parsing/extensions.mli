@@ -17,6 +17,9 @@
     For details on the rationale behind this approach (and for some of the gory
     details), see [Extensions_parsing]. *)
 
+(*********************************************)
+(* Individual extensions *)
+
 (** The ASTs for list and array comprehensions *)
 module Comprehensions : sig
   type iterator =
@@ -33,7 +36,7 @@ module Comprehensions : sig
     { pattern    : Parsetree.pattern
     ; iterator   : iterator
     ; attributes : Parsetree.attribute list }
-    (** PAT (in/=) ... [@...] *)
+    (** [@...] PAT (in/=) ... *)
 
   type clause =
     | For of clause_binding list
@@ -55,7 +58,7 @@ module Comprehensions : sig
         [:BODY ...CLAUSES...:] (flag = Immutable)
           (only allowed with [-extension immutable_arrays]) *)
 
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression_desc
 end
 
 (** The ASTs for immutable arrays.  When we merge this upstream, we'll merge
@@ -65,16 +68,25 @@ module Immutable_arrays : sig
   type expression =
     | Iaexp_immutable_array of Parsetree.expression list
     (** [: E1; ...; En :] *)
-    (* CR aspectorzabusky: Or [Iaexp_iarray]? *)
 
   type pattern =
     | Iapat_immutable_array of Parsetree.pattern list
     (** [: P1; ...; Pn :] **)
-    (* CR aspectorzabusky: Or [Iapat_iarray]? *)
 
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression
-  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression_desc
+  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern_desc
 end
+
+(** The ASTs for module type strengthening. *)
+module Strengthen : sig
+  type module_type =
+    { mty : Parsetree.module_type; mod_id : Longident.t Location.loc }
+
+  val mty_of : loc:Location.t -> module_type -> Parsetree.module_type_desc
+end
+
+(******************************************)
+(* General facility, which we export *)
 
 (** The module type of language extension ASTs, instantiated once for each
     syntactic category.  We tend to call the pattern-matching functions here
@@ -94,9 +106,14 @@ module type AST = sig
       if it's not a language extension term, return [None]; if it's a disabled
       language extension term, raise an error.
 
-      AN IMPORTANT NOTE: We indent calls to this function *very* strangely: we
-      *do not change the indentation level* when we match on its result!
-      E.g. from [type_expect_] in [typecore.ml]:
+      AN IMPORTANT NOTE: The design of this function is careful to make merge
+      conflicts with upstream less likely: we want no edits at all -- not even
+      indentation -- to surrounding code. This is why we return a [t option],
+      not some structure that could include the [ast_desc] if there is no
+      extension.
+
+      Indentation: we *do not change the indentation level* when we match on
+      this function's result!  E.g. from [type_expect_] in [typecore.ml]:
 
       {[
         match Extensions.Expression.of_ast sexp with
@@ -123,11 +140,12 @@ module type AST = sig
       Note that we match on the result of this function, forward to
       [type_expect_extension] if we get something, and otherwise do the real
       match on [sexp.pexp_desc] *without going up an indentation level*.  This
-      is important to reduce the number of merge conflicts with upstream by
-      avoiding changing the body of every single important function in the type
-      checker to add pointless indentation. *)
+      is important to reduce the number of merge conflicts. *)
   val of_ast : ast -> t option
 end
+
+(******************************************)
+(* Individual syntactic categories *)
 
 (** Language extensions in expressions *)
 module Expression : sig
@@ -144,4 +162,12 @@ module Pattern : sig
     | Epat_immutable_array of Immutable_arrays.pattern
 
   include AST with type t := t and type ast := Parsetree.pattern
+end
+
+(** Language extensions in module types *)
+module Module_type : sig
+  type t =
+    | Emty_strengthen of Strengthen.module_type
+
+  include AST with type t := t and type ast := Parsetree.module_type
 end

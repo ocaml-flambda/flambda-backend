@@ -194,6 +194,11 @@ type primitive =
   | Pbox_float of alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
+  (* Jane Street extensions *)
+  | Parray_to_iarray (* Unsafely reinterpret a mutable array as an immutable
+                        one; O(1) *)
+  | Parray_of_iarray (* Unsafely reinterpret an immutable array as a mutable
+                        one; O(1) *)
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -457,7 +462,6 @@ and lambda_event_kind =
   | Lev_after of Types.type_expr
   | Lev_function
   | Lev_pseudo
-  | Lev_module_definition of Ident.t
 
 type program =
   { compilation_unit : Compilation_unit.t;

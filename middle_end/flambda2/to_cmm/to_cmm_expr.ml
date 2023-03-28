@@ -94,12 +94,9 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     | Nontail -> Lambda.Rc_nontail
   in
   let args_arity =
-    Apply.args_arity apply |> Flambda_arity.With_subkinds.to_arity
-    |> Flambda_arity.to_list
+    Apply.args_arity apply |> Flambda_arity.With_subkinds.to_list
   in
-  let return_arity =
-    Apply.return_arity apply |> Flambda_arity.With_subkinds.to_arity
-  in
+  let return_arity = Apply.return_arity apply in
   let args_ty = List.map C.machtype_of_kind args_arity in
   let return_ty = C.machtype_of_return_arity return_arity in
   match Apply.call_kind apply with
@@ -167,14 +164,14 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let returns = Apply.returns apply in
     let wrap =
-      match Flambda_arity.to_list return_arity with
+      match Flambda_arity.With_subkinds.to_list return_arity with
       (* Returned int32 values need to be sign_extended because it's not clear
          whether C code that returns an int32 returns one that is sign extended
          or not. There is no need to wrap other return arities. Note that
          extcalls of arity 0 are allowed (these never return). *)
       | [] -> fun _dbg cmm -> cmm
       | [kind] -> (
-        match kind with
+        match Flambda_kind.With_subkind.kind kind with
         | Naked_number Naked_int32 -> C.sign_extend_32
         | Naked_number
             (Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint)
@@ -614,21 +611,21 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
   (* Define and initialize the mutable Cmm variables for extra args *)
   let cmm =
     List.fold_left
-      (fun cmm (mut_var, (kind : K.t)) ->
+      (fun cmm (mut_var, kind) ->
         (* CR mshinwell: Fix [provenance] *)
         let mut_var =
           Backend_var.With_provenance.create ?provenance:None mut_var
         in
         let dummy_value =
-          match kind with
+          match K.With_subkind.kind kind with
           | Value -> C.int ~dbg 1
           | Naked_number Naked_float -> C.float ~dbg 0.
           | Naked_number
               (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
             C.int ~dbg 0
           | Region | Rec_info ->
-            Misc.fatal_errorf "No dummy value available for kind %a" K.print
-              kind
+            Misc.fatal_errorf "No dummy value available for kind %a"
+              K.With_subkind.print kind
         in
         C.letin_mut mut_var (C.machtype_of_kind kind) dummy_value cmm)
       trywith mut_vars
@@ -698,7 +695,7 @@ and let_cont_rec env res invariant_params conts body =
 and continuation_handler env res handler =
   Continuation_handler.pattern_match' handler
     ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler ->
-      let arity = Bound_parameters.arity params in
+      let arity = Bound_parameters.arity_with_subkinds params in
       let env, vars = C.bound_parameters env params in
       let expr, free_vars_of_handler, res = expr env res handler in
       vars, arity, expr, free_vars_of_handler, res)

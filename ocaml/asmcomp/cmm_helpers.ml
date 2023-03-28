@@ -666,11 +666,14 @@ let field_address ptr n dbg =
   then ptr
   else Cop(Cadda, [ptr; Cconst_int(n * size_addr, dbg)], dbg)
 
+let get_field_gen_given_memory_chunk memory_chunk mut ptr n dbg =
+  Cop (Cload (memory_chunk, mut), [field_address ptr n dbg], dbg)
+
 let get_field_gen mut ptr n dbg =
-  Cop(Cload (Word_val, mut), [field_address ptr n dbg], dbg)
+  get_field_gen_given_memory_chunk Word_val mut ptr n dbg
 
 let get_field_codepointer mut ptr n dbg =
-  Cop (Cload (Word_int, mut), [field_address ptr n dbg], dbg)
+  get_field_gen_given_memory_chunk Word_int mut ptr n dbg
 
 let set_field ptr n newval init dbg =
   Cop(Cstore (Word_val, init), [field_address ptr n dbg; newval], dbg)

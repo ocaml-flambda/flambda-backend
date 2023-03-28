@@ -611,7 +611,9 @@ let transform_primitive env (prim : L.primitive) args loc =
                  ~ifnot:(L.Lvar const_false) ~kind:Lambda.layout_int ) ))
   | (Psequand | Psequor), _ ->
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
-  | (Pbytes_to_string | Pbytes_of_string), [arg] -> Transformed arg
+  | ( (Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray),
+      [arg] ) ->
+    Transformed arg
   | Pignore, [arg] ->
     let result = L.Lconst (Const_base (Const_int 0)) in
     Transformed (L.Lsequence (arg, result))
@@ -905,18 +907,19 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigarrayref (_, _, _, Pbigarray_unknown_layout)
   | Pbigarrayset (_, _, _, Pbigarray_unknown_layout) ->
     true
-  | Pbytes_to_string | Pbytes_of_string | Pignore | Pgetglobal _ | Psetglobal _
-  | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _ | Pfield _
-  | Pfield_computed _ | Psetfield _ | Psetfield_computed _ | Pfloatfield _
-  | Psetfloatfield _ | Pduprecord _ | Psequand | Psequor | Pnot | Pnegint
-  | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint
-  | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-  | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _ | Pnegfloat _
-  | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
-  | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
-  | Pbytessetu | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _
-  | Parraysetu _ | Pisint _ | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _
-  | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _
+  | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray
+  | Pignore | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
+  | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Psetfield _
+  | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
+  | Psequand | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint | Pandint
+  | Porint | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
+  | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
+  | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
+  | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
+  | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu | Pmakearray _
+  | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _
+  | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
+  | Psubbint _ | Pmulbint _
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
@@ -1029,10 +1032,10 @@ let primitive_result_kind (prim : Lambda.primitive) :
   | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr; _ }
   | Parrayrefs (Pgenarray | Paddrarray)
   | Parrayrefu (Pgenarray | Paddrarray)
-  | Pbytes_to_string | Pbytes_of_string | Pgetglobal _ | Psetglobal _
-  | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _ | Pfield _
-  | Pfield_computed _ | Pduprecord _ | Poffsetint _ | Poffsetref _
-  | Pmakearray _ | Pduparray _ | Pbigarraydim _
+  | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray
+  | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
+  | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Pduprecord _
+  | Poffsetint _ | Poffsetref _ | Pmakearray _ | Pduparray _ | Pbigarraydim _
   | Pbigarrayref
       (_, _, (Pbigarray_complex32 | Pbigarray_complex64 | Pbigarray_unknown), _)
   | Pint_as_pointer | Pobj_dup ->
@@ -1286,6 +1289,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
             (args @ extra_params)
         in
         let handler acc ccenv =
+          let ccenv = CCenv.set_not_at_toplevel ccenv in
           cps_tail acc handler_env ccenv handler k k_exn
         in
         let body acc ccenv = cps_tail acc body_env ccenv body k k_exn in
@@ -1344,6 +1348,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        [Begin_region] with its parent region. This use of the parent region will
        ensure that the parent does not get deleted unless the try region is
        unused. *)
+    (* Under a try-with block, any exception might introduce a branch to the
+       handler. So while for static catches we could simplify the body in the
+       same toplevel context, here we need to assume that all of the body could
+       be behind a branch. *)
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
     CC.close_let acc ccenv region Not_user_visible
       Flambda_kind.With_subkind.region
       (Begin_region { try_region_parent = Some (Env.current_region env) })
@@ -1644,10 +1653,11 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   let function_slot =
     Function_slot.create
       (Compilation_unit.get_current_exn ())
-      ~name:(Ident.name fid)
+      ~name:(Ident.name fid) Flambda_kind.With_subkind.any_value
   in
   let body acc ccenv =
     let ccenv = CCenv.set_path_to_root ccenv loc in
+    let ccenv = CCenv.set_not_at_toplevel ccenv in
     cps_tail acc new_env ccenv body body_cont body_exn_cont
   in
   let params =
@@ -1735,6 +1745,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
   cps_non_tail_var "scrutinee" acc env ccenv scrutinee
     Flambda_kind.With_subkind.any_value
     (fun acc env ccenv scrutinee ->
+      let ccenv = CCenv.set_not_at_toplevel ccenv in
       let consts_rev, wrappers = convert_arms_rev env switch.sw_consts [] in
       let blocks_rev, wrappers =
         convert_arms_rev env (List.combine block_nums sw_blocks) wrappers
@@ -1825,9 +1836,9 @@ let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~compilation_unit
     Env.create ~current_unit:compilation_unit ~return_continuation
       ~exn_continuation ~my_region:toplevel_my_region
   in
-  let toplevel acc ccenv =
+  let program acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation
   in
   CC.close_program ~mode ~big_endian ~cmx_loader ~compilation_unit
-    ~module_block_size_in_words ~program:toplevel
-    ~prog_return_cont:return_continuation ~exn_continuation ~toplevel_my_region
+    ~module_block_size_in_words ~program ~prog_return_cont:return_continuation
+    ~exn_continuation ~toplevel_my_region

@@ -96,7 +96,7 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
   let _, body =
     List.fold_left (fun (pos, body) param ->
         let lam : Flambda.named =
-          Prim (Pfield pos, [tuple_param_var], Debuginfo.none)
+          Prim (Pfield (pos, Pvalue Pgenval), [tuple_param_var], Debuginfo.none)
         in
         pos + 1, Flambda.create_let param lam body)
       (0, call) params
@@ -419,7 +419,9 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
         (If_then_else (cond, arg2, Var const_false, Lambda.layout_int)))
   | Lprim ((Psequand | Psequor), _, _) ->
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
-  | Lprim ((Pbytes_to_string | Pbytes_of_string | Pobj_magic _),
+  | Lprim ((Pbytes_to_string | Pbytes_of_string |
+            Parray_to_iarray | Parray_of_iarray |
+            Pobj_magic _),
            [arg], _) ->
     close t env arg
   | Lprim (Pignore, [arg], _) ->
@@ -733,9 +735,9 @@ let lambda_to_flambda ~backend ~compilation_unit ~size lam
       Flambda.create_let
         sym_v (Symbol block_symbol)
          (Flambda.create_let result_v
-            (Prim (Pfield 0, [sym_v], Debuginfo.none))
+            (Prim (Pfield (0, Pvalue Pgenval), [sym_v], Debuginfo.none))
             (Flambda.create_let value_v
-              (Prim (Pfield pos, [result_v], Debuginfo.none))
+              (Prim (Pfield (pos, Pvalue Pgenval), [result_v], Debuginfo.none))
               (Var value_v))))
   in
   let module_initializer : Flambda.program_body =

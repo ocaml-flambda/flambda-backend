@@ -760,10 +760,10 @@ let baduse (f : _ -> _ -> _) x y = lazy (f x y)
 let result = baduse (fun a b -> local_ (a,b)) 1 2
 [%%expect{|
 val baduse : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c lazy_t = <fun>
-Line 2, characters 32-44:
+Line 2, characters 20-45:
 2 | let result = baduse (fun a b -> local_ (a,b)) 1 2
-                                    ^^^^^^^^^^^^
-Error: This value escapes its region
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function is local returning, but was expected otherwise
 |}]
 
 
@@ -1403,10 +1403,10 @@ val foo : unit -> local_ string = <fun>
 
 let foo : unit -> string = fun () -> local_ "hello"
 [%%expect{|
-Line 1, characters 37-51:
+Line 1, characters 27-51:
 1 | let foo : unit -> string = fun () -> local_ "hello"
-                                         ^^^^^^^^^^^^^^
-Error: This value escapes its region
+                               ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function is local returning, but was expected otherwise
 |}]
 
 (* Unboxed type constructors do not affect regionality *)

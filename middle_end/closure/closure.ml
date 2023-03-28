@@ -52,9 +52,9 @@ let rec split_list n l =
 
 let rec add_to_closure_env env_param pos cenv = function
     [] -> cenv
-  | id :: rem ->
+  | (id, kind) :: rem ->
       V.Map.add id
-        (Uprim(P.Pfield pos, [Uvar env_param], Debuginfo.none))
+        (Uprim(P.Pfield (pos, kind), [Uvar env_param], Debuginfo.none))
           (add_to_closure_env env_param (pos+1) cenv rem)
 
 let is_gc_ignorable kind =
@@ -67,7 +67,12 @@ let is_gc_ignorable kind =
   | Pvalue (Pgenval | Pfloatval | Pboxedintval _ | Pvariant _ | Parrayval _) -> false
 
 let split_closure_fv kinds fv =
-  List.partition (fun id -> is_gc_ignorable (V.Map.find id kinds)) fv
+  List.fold_right (fun id (not_scanned, scanned) ->
+      let kind = V.Map.find id kinds in
+      if is_gc_ignorable kind
+      then ((id, kind) :: not_scanned, scanned)
+      else (not_scanned, (id, kind)::scanned))
+    fv ([], [])
 
 (* Auxiliary for accessing globals.  We change the name of the global
    to the name of the corresponding asm symbol.  This is done here
@@ -532,10 +537,10 @@ let simplif_prim_pure ~backend fpc p (args, approxs) dbg =
         (Uprim(p, args, dbg), Value_tuple (mode, Array.of_list approxs))
       end
   (* Field access *)
-  | Pfield n, _, [ Value_const(Uconst_ref(_, Some (Uconst_block(_, l)))) ]
+  | Pfield (n, _), _, [ Value_const(Uconst_ref(_, Some (Uconst_block(_, l)))) ]
     when n < List.length l ->
       make_const (List.nth l n)
-  | Pfield n, [ Uprim(P.Pmakeblock _, ul, _) ], [approx]
+  | Pfield (n, _), [ Uprim(P.Pmakeblock _, ul, _) ], [approx]
     when n < List.length ul ->
       (* This case is particularly useful for removing allocations
          for optional parameters *)
@@ -943,7 +948,7 @@ let check_constant_result ulam approx =
           let glb =
             Uprim(P.Pread_symbol id, [], Debuginfo.none)
           in
-          Uprim(P.Pfield i, [glb], Debuginfo.none), approx
+          Uprim(P.Pfield (i, Lambda.layout_any_value), [glb], Debuginfo.none), approx
       end
   | _ -> (ulam, approx)
 
@@ -1303,7 +1308,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
   | Lprim(Pignore, [arg], _loc) ->
       let expr, approx = make_const_int 0 in
       Usequence(fst (close env arg), expr), approx
-  | Lprim(( Pbytes_to_string | Pbytes_of_string | Pobj_magic _),
+  | Lprim(( Pbytes_to_string | Pbytes_of_string | Pobj_magic _ |
+            Parray_of_iarray | Parray_to_iarray ),
           [arg], _loc) ->
       close env arg
   | Lprim(Pgetglobal cu, [], loc) ->
@@ -1316,7 +1322,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
   | Lprim(Pfield (n, _), [lam], loc) ->
       let (ulam, approx) = close env lam in
       let dbg = Debuginfo.from_location loc in
-      check_constant_result (Uprim(P.Pfield n, [ulam], dbg))
+      check_constant_result (Uprim(P.Pfield (n, Lambda.layout_any_value), [ulam], dbg))
                             (field_approx n approx)
   | Lprim(Psetfield(n, is_ptr, init),
           [Lprim(Pgetglobal cu, [], _); lam], loc)->
@@ -1658,9 +1664,9 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
     if !useless_env then [], [] else not_scanned_fv, scanned_fv in
   let env = { backend; fenv; cenv; mutable_vars; kinds; catch_env } in
   (Uclosure {
-      functions = clos ;
-      not_scanned_slots = List.map (close_var env) not_scanned_fv ;
-      scanned_slots = List.map (close_var env) scanned_fv
+      functions = clos;
+      not_scanned_slots = List.map (fun (id, _kind) -> close_var env id) not_scanned_fv;
+      scanned_slots = List.map (fun (id, _kind) -> close_var env id) scanned_fv
     },
    infos)
 

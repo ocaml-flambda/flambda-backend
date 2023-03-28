@@ -65,7 +65,8 @@ let simplify_project_value_slot function_slot value_slot kind ~min_name_mode
         else T.get_alias_exn (S.simplify_simple dacc simple ~min_name_mode)
       in
       let dacc =
-        DA.add_variable dacc result_var (T.alias_type_of K.value simple)
+        DA.add_variable dacc result_var
+          (T.alias_type_of (K.With_subkind.kind kind) simple)
       in
       SPR.create (Named.create_simple simple) ~try_reify:true dacc
     | Need_meet ->
@@ -75,7 +76,7 @@ let simplify_project_value_slot function_slot value_slot kind ~min_name_mode
           ~shape:
             (T.closure_with_at_least_this_value_slot
                ~this_function_slot:function_slot value_slot
-               ~value_slot_var:(Bound_var.var result_var))
+               ~value_slot_var:(Bound_var.var result_var) ~value_slot_kind:kind)
           ~result_var ~result_kind:(K.With_subkind.kind kind)
       in
       let dacc = DA.add_use_of_value_slot result.dacc value_slot in

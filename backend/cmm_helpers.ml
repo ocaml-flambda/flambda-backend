@@ -735,11 +735,14 @@ let rec remove_unit = function
 let field_address ptr n dbg =
   if n = 0 then ptr else Cop (Cadda, [ptr; Cconst_int (n * size_addr, dbg)], dbg)
 
+let get_field_gen_given_memory_chunk memory_chunk mut ptr n dbg =
+  Cop (Cload (memory_chunk, mut), [field_address ptr n dbg], dbg)
+
 let get_field_gen mut ptr n dbg =
-  Cop (Cload (Word_val, mut), [field_address ptr n dbg], dbg)
+  get_field_gen_given_memory_chunk Word_val mut ptr n dbg
 
 let get_field_codepointer mut ptr n dbg =
-  Cop (Cload (Word_int, mut), [field_address ptr n dbg], dbg)
+  get_field_gen_given_memory_chunk Word_int mut ptr n dbg
 
 let set_field ptr n newval init dbg =
   Cop (Cstore (Word_val, init), [field_address ptr n dbg; newval], dbg)
@@ -1103,9 +1106,9 @@ let apply_function_sym arity result mode =
   apply_function_name arity result mode
 
 let curry_function_sym function_kind arity result =
-  Compilenv.need_curry_fun function_kind arity result;
   match function_kind with
   | Lambda.Curried { nlocal } ->
+    Compilenv.need_curry_fun function_kind arity result;
     "caml_curry"
     ^ unique_arity_identifier arity
     ^ (match result with
@@ -1113,10 +1116,15 @@ let curry_function_sym function_kind arity result =
       | _ -> "_R" ^ machtype_identifier result)
     ^ if nlocal > 0 then "L" ^ Int.to_string nlocal else ""
   | Lambda.Tupled -> (
-    if List.exists (function [| Val |] -> false | _ -> true) arity
+    if List.exists (function [| Val |] | [| Int |] -> false | _ -> true) arity
     then
       Misc.fatal_error
         "tuplify_function is currently unsupported if arity contains non-values";
+    (* Always use [Val] to ensure we don't generate duplicate tuplify functions
+       when [Int] machtypes are involved. *)
+    Compilenv.need_curry_fun function_kind
+      (List.map (fun _ -> [| Val |]) arity)
+      result;
     "caml_tuplify"
     ^ Int.to_string (List.length arity)
     ^
@@ -2520,7 +2528,7 @@ let apply_function (arity, result, mode) =
  *)
 
 let tuplify_function arity return =
-  if List.exists (function [| Val |] -> false | _ -> true) arity
+  if List.exists (function [| Val |] | [| Int |] -> false | _ -> true) arity
   then
     Misc.fatal_error
       "tuplify_function is currently unsupported if arity contains non-values";
@@ -2535,7 +2543,11 @@ let tuplify_function arity return =
       get_field_gen Asttypes.Mutable (Cvar arg) i (dbg ())
       :: access_components (i + 1)
   in
-  let fun_name = "caml_tuplify" ^ Int.to_string arity in
+  let fun_name =
+    "caml_tuplify" ^ Int.to_string arity
+    ^
+    match return with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier return
+  in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
     { fun_name;

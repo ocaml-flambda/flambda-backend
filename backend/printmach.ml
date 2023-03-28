@@ -82,6 +82,21 @@ let regsetaddr' ?(print_reg = reg) ppf s =
 
 let regsetaddr ppf s = regsetaddr' ppf s
 
+let trap_stack ppf (ts : Mach.trap_stack) =
+  let rec has_specific = function
+    | Uncaught -> false
+    | Generic_trap ts -> has_specific ts
+    | Specific_trap _ -> true
+  in
+  if has_specific ts then begin
+    let rec p ppf = function
+      | Uncaught -> Format.fprintf ppf "U"
+      | Generic_trap ts -> Format.fprintf ppf "G:%a" p ts
+      | Specific_trap (lbl, ts) -> Format.fprintf ppf "S%d:%a" lbl p ts
+    in
+    Format.fprintf ppf "<%a>" p ts
+  end else ()
+
 let intcomp = function
   | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
   | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
@@ -268,12 +283,11 @@ let rec instr ppf i =
         fprintf ppf "@]@,%a@]" instr cases.(i)
       done;
       fprintf ppf "@,endswitch"
-  | Icatch(flag, _ts, handlers, body) ->
-      fprintf ppf "@[<v 2>catch%a@,%a@;<0 -2>with"
-        Printcmm.rec_flag flag instr body;
-      let h (nfail, _trap_stack, handler) =
-        (* CR vlaviron: print the trap stacks ? *)
-        fprintf ppf "(%d)@,%a@;" nfail instr handler in
+  | Icatch(flag, ts, handlers, body) ->
+      fprintf ppf "@[<v 2>catch%a%a@,%a@;<0 -2>with"
+        Printcmm.rec_flag flag trap_stack ts instr body;
+      let h (nfail, ts, handler) =
+        fprintf ppf "(%d)%a@,%a@;" nfail trap_stack ts instr handler in
       let rec aux = function
         | [] -> ()
         | [v] -> h v
@@ -286,9 +300,9 @@ let rec instr ppf i =
       fprintf ppf "@;<0 -2>endcatch@]"
   | Iexit (i, traps) ->
       fprintf ppf "exit%a(%d)" Printcmm.trap_action_list traps i
-  | Itrywith(body, kind, (_ts, handler)) ->
-      fprintf ppf "@[<v 2>try%a@,%a@;<0 -2>with@,%a@;<0 -2>endtry@]"
-             Printcmm.trywith_kind kind instr body instr handler
+  | Itrywith(body, kind, (ts, handler)) ->
+      fprintf ppf "@[<v 2>try%a@,%a@;<0 -2>with%a@,%a@;<0 -2>endtry@]"
+             Printcmm.trywith_kind kind instr body trap_stack ts instr handler
   | Iraise k ->
       fprintf ppf "%s %a" (Lambda.raise_kind k) reg i.arg.(0)
   end;

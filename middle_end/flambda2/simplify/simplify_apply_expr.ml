@@ -398,6 +398,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let compilation_unit = Compilation_unit.get_current_exn () in
   let wrapper_function_slot =
     Function_slot.create compilation_unit ~name:"partial_app_closure"
+      K.With_subkind.any_value
   in
   let new_closure_alloc_mode, num_trailing_local_params =
     (* If the closure has a local suffix, and we've supplied enough args to hit
@@ -473,12 +474,13 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
             { var : Variable.t;
               (* name to bind to projected variable *)
               value : Simple.t;
-              kind : K.With_subkind.t;
-              (* value to store in closure, with kind *)
+              (* value to store in closure *)
               value_slot : Value_slot.t
             }
     end in
-    let mk_value_slot () = Value_slot.create compilation_unit ~name:"arg" in
+    let mk_value_slot kind =
+      Value_slot.create compilation_unit ~name:"arg" kind
+    in
     let applied_value (value, kind) =
       Simple.pattern_match' value
         ~const:(fun const -> Const const)
@@ -492,14 +494,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               Misc.fatal_errorf
                 "Simple %a which is a symbol should be of kind Value"
                 Simple.print value;
-            In_closure
-              { var;
-                value;
-                kind = K.With_subkind.any_value;
-                value_slot = mk_value_slot ()
-              })
+            In_closure { var; value; value_slot = mk_value_slot kind })
         ~var:(fun var ~coercion:_ ->
-          In_closure { var; value; kind; value_slot = mk_value_slot () })
+          In_closure { var; value; value_slot = mk_value_slot kind })
     in
     let applied_callee =
       applied_value (Apply.callee apply, K.With_subkind.any_value)
@@ -539,8 +536,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         (fun (expr, cost_metrics, free_names) applied_value ->
           match applied_value with
           | Const _ | Symbol _ -> expr, cost_metrics, free_names
-          | In_closure { var; value_slot; value = _; kind } ->
+          | In_closure { var; value_slot; value = _ } ->
             let arg = VB.create var Name_mode.normal in
+            let kind = Value_slot.kind value_slot in
             let prim =
               P.Unary
                 ( Project_value_slot
@@ -617,8 +615,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         (fun value ->
           match value with
           | Const _ | Symbol _ -> None
-          | In_closure { value_slot; value; kind; var = _ } ->
-            Some (value_slot, (value, kind)))
+          | In_closure { value_slot; value; var = _ } -> Some (value_slot, value))
         applied_values
       |> Value_slot.Map.of_list
     in
@@ -709,18 +706,6 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       "[Apply] terms with a [probe_name] (i.e. that call a tracing probe) must \
        always be marked as [Never_inline]:@ %a"
       Apply.print apply);
-  let result_arity_of_application = Apply.return_arity apply in
-  if not
-       (Flambda_arity.equal
-          (Flambda_arity.With_subkinds.to_arity result_arity)
-          (Flambda_arity.With_subkinds.to_arity result_arity_of_application))
-  then
-    Misc.fatal_errorf
-      "Wrong return arity for direct OCaml function call (expected %a, found \
-       %a):@ %a"
-      Flambda_arity.With_subkinds.print result_arity
-      Flambda_arity.With_subkinds.print result_arity_of_application Apply.print
-      apply;
   let coming_from_indirect = Option.is_none callee's_code_id_from_call_kind in
   let callee's_code_id : _ Or_bottom.t =
     match callee's_code_id_from_call_kind with
@@ -765,24 +750,66 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       let args = Apply.args apply in
       let provided_num_args = List.length args in
       let num_params = Flambda_arity.With_subkinds.cardinal params_arity in
+      let result_arity_of_application = Apply.return_arity apply in
       if provided_num_args = num_params
-      then
+      then (
+        (* This check can only be performed for exact applications:
+
+           - In the partial application case, the type checker should have
+           specified kind Value as the return kind of the application
+           (propagated through Lambda to this point), and it would be wrong to
+           compare against the return arity of the fully-applied function.
+
+           - In the overapplication case, the correct return arity is only
+           present on the application expression, so all we can do is check that
+           the function being overapplied returns kind Value. *)
+        if not
+             (Flambda_arity.equal
+                (Flambda_arity.With_subkinds.to_arity result_arity)
+                (Flambda_arity.With_subkinds.to_arity
+                   result_arity_of_application))
+        then
+          Misc.fatal_errorf
+            "Wrong return arity for direct OCaml function call\n\
+            \     (expected %a, found  %a):@ %a"
+            Flambda_arity.With_subkinds.print result_arity
+            Flambda_arity.With_subkinds.print result_arity_of_application
+            Apply.print apply;
         simplify_direct_full_application ~simplify_expr dacc apply function_decl
           ~params_arity ~result_arity ~result_types ~down_to_up
-          ~coming_from_indirect ~callee's_code_metadata
+          ~coming_from_indirect ~callee's_code_metadata)
       else if provided_num_args > num_params
-      then
+      then (
+        (* See comment above. *)
+        if not
+             (Flambda_arity.is_singleton_value
+                (Flambda_arity.With_subkinds.to_arity result_arity))
+        then
+          Misc.fatal_errorf
+            "Non-singleton-value return arity for overapplied OCaml function:@ \
+             %a"
+            Apply.print apply;
         simplify_direct_over_application ~simplify_expr dacc apply ~down_to_up
           ~coming_from_indirect ~apply_alloc_mode ~current_region
-          ~callee's_code_id ~callee's_code_metadata
+          ~callee's_code_id ~callee's_code_metadata)
       else if provided_num_args > 0 && provided_num_args < num_params
-      then
+      then (
+        (* See comment above. *)
+        if not
+             (Flambda_arity.is_singleton_value
+                (Flambda_arity.With_subkinds.to_arity
+                   result_arity_of_application))
+        then
+          Misc.fatal_errorf
+            "Non-singleton-value return arity for partially-applied OCaml \
+             function:@ %a"
+            Apply.print apply;
         simplify_direct_partial_application ~simplify_expr dacc apply
           ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
           ~param_arity:params_arity ~result_arity ~recursive ~down_to_up
           ~coming_from_indirect ~closure_alloc_mode_from_type ~current_region
           ~num_trailing_local_params:
-            (Code_metadata.num_trailing_local_params callee's_code_metadata)
+            (Code_metadata.num_trailing_local_params callee's_code_metadata))
       else
         Misc.fatal_errorf
           "Function with %d params when simplifying direct OCaml function call \
