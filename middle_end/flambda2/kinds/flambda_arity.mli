@@ -48,6 +48,8 @@ val create : Component_for_creation.t list -> t
 
 val create_singletons : Flambda_kind.With_subkind.t list -> t
 
+val components : t -> Component_for_creation.t list
+
 (** "No parameters".  (Not e.g. "one parameter of type void".) *)
 val nullary : t
 

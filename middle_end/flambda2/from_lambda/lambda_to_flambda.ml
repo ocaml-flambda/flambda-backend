@@ -51,10 +51,14 @@ module Env : sig
   val register_unboxed_product :
     t ->
     unboxed_product:Ident.t ->
+    before_unarization:Flambda_arity.Component_for_creation.t ->
     fields:(Ident.t * Flambda_kind.With_subkind.t) list ->
     t
 
-  val get_unboxed_product_fields : t -> Ident.t -> Ident.t list option
+  val get_unboxed_product_fields :
+    t ->
+    Ident.t ->
+    (Flambda_arity.Component_for_creation.t * Ident.t list) option
 
   type add_continuation_result = private
     { body_env : t;
@@ -86,8 +90,6 @@ module Env : sig
 
   val extra_args_for_continuation_with_kinds :
     t -> Continuation.t -> (Ident.t * Flambda_kind.With_subkind.t) list
-
-  val get_mutable_variable : t -> Ident.t -> Ident.t
 
   val get_mutable_variable_with_kind :
     t -> Ident.t -> Ident.t * Flambda_kind.With_subkind.t
@@ -189,7 +191,9 @@ end = struct
         (Ident.t * Flambda_kind.With_subkind.t) Ident.Map.t;
       mutables_needed_by_continuations : Ident.Set.t Continuation.Map.t;
       unboxed_product_components_in_scope :
-        (Ident.t * Flambda_kind.With_subkind.t) array Ident.Map.t;
+        (Flambda_arity.Component_for_creation.t
+        * (Ident.t * Flambda_kind.With_subkind.t) array)
+        Ident.Map.t;
       unboxed_product_components_needed_by_continuations :
         Ident.Set.t Continuation.Map.t;
       try_stack : Continuation.t list;
@@ -255,7 +259,7 @@ end = struct
 
   let mutables_in_scope t = Ident.Map.keys t.current_values_of_mutables_in_scope
 
-  let register_unboxed_product t ~unboxed_product ~fields =
+  let register_unboxed_product t ~unboxed_product ~before_unarization ~fields =
     if unboxed_product_debug ()
     then
       Format.eprintf "register_unboxed_product %a: fields: %a\n%!" Ident.print
@@ -267,7 +271,8 @@ end = struct
         fields;
     { t with
       unboxed_product_components_in_scope =
-        Ident.Map.add unboxed_product (Array.of_list fields)
+        Ident.Map.add unboxed_product
+          (before_unarization, Array.of_list fields)
           t.unboxed_product_components_in_scope
     }
 
@@ -312,8 +317,11 @@ end = struct
     in
     let unboxed_product_components_in_scope =
       Ident.Map.map
-        (fun fields ->
-          Array.map (fun (field, layout) -> Ident.rename field, layout) fields)
+        (fun (before_unarization, fields) ->
+          let fields =
+            Array.map (fun (field, layout) -> Ident.rename field, layout) fields
+          in
+          before_unarization, fields)
         t.unboxed_product_components_in_scope
     in
     let handler_env =
@@ -333,7 +341,7 @@ end = struct
     in
     let extra_params_for_unboxed_products =
       Ident.Map.data handler_env.unboxed_product_components_in_scope
-      |> List.map Array.to_list |> List.concat
+      |> List.map snd |> List.map Array.to_list |> List.concat
     in
     let extra_params =
       Ident.Map.data handler_env.current_values_of_mutables_in_scope
@@ -429,7 +437,7 @@ end = struct
               Misc.fatal_errorf
                 "No field list registered for unboxed product %a" Ident.print
                 unboxed_product
-            | fields -> Array.to_list fields)
+            | _, fields -> Array.to_list fields)
           unboxed_products
     in
     if unboxed_product_debug ()
@@ -448,12 +456,11 @@ end = struct
       Misc.fatal_errorf "Mutable variable %a not bound in env" Ident.print id
     | id, kind -> id, kind
 
-  let get_mutable_variable t id = fst (get_mutable_variable_with_kind t id)
-
   let get_unboxed_product_fields t id =
     match Ident.Map.find id t.unboxed_product_components_in_scope with
     | exception Not_found -> None
-    | fields -> Some (List.map fst (Array.to_list fields))
+    | before_unarization, fields ->
+      Some (before_unarization, List.map fst (Array.to_list fields))
 
   let entering_region t id ~continuation_closing_region
       ~continuation_after_closing_region =
@@ -797,11 +804,16 @@ let transform_primitive env id (prim : L.primitive) args loc =
         layouts
         (Format.pp_print_list ~pp_sep:Format.pp_print_space Printlambda.lambda)
         args;
-    let fields =
-      Flambda_arity.from_lambda_list layouts
-      |> Flambda_arity.fresh_idents_unarized ~id
+    let arity_component =
+      Flambda_arity.Component_for_creation.Unboxed_product
+        (List.map Flambda_arity.Component_for_creation.from_lambda layouts)
     in
-    let env = Env.register_unboxed_product env ~unboxed_product:id ~fields in
+    let arity = Flambda_arity.create [arity_component] in
+    let fields = Flambda_arity.fresh_idents_unarized ~id arity in
+    let env =
+      Env.register_unboxed_product env ~unboxed_product:id
+        ~before_unarization:arity_component ~fields
+    in
     if unboxed_product_debug ()
     then
       Format.eprintf "Making unboxed product, bound to %a: num fields = %d\n%!"
@@ -819,12 +831,12 @@ let transform_primitive env id (prim : L.primitive) args loc =
         "Punboxed_product_field bound to %a, product %a, field %d, arity %a:\n\
          %!"
         Ident.print id Printlambda.lambda _arg n Flambda_arity.print arity;
-    let field_arity =
+    let field_arity_component =
       (* N.B. The arity of the field being projected, bound to [id], may in
          itself be an unboxed product. *)
       layouts_array.(n) |> Flambda_arity.Component_for_creation.from_lambda
-      |> fun component -> [component] |> Flambda_arity.create
     in
+    let field_arity = Flambda_arity.create [field_arity_component] in
     let ids_all_fields_with_kinds =
       Flambda_arity.fresh_idents_unarized arity ~id
     in
@@ -857,7 +869,7 @@ let transform_primitive env id (prim : L.primitive) args loc =
            any occurrences of [id] get expanded to the individual fields, just
            like we do in the [Pmake_unboxed_product] case above. *)
         Env.register_unboxed_product env ~unboxed_product:id
-          ~fields:ids_projected_fields
+          ~before_unarization:field_arity_component ~fields:ids_projected_fields
       else env
     in
     if unboxed_product_debug ()
@@ -1004,7 +1016,8 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
               (Flambda_arity.unarize arity)
           in
           let handler_env =
-            Env.register_unboxed_product handler_env ~unboxed_product:id ~fields
+            Env.register_unboxed_product handler_env ~unboxed_product:id
+              ~before_unarization:arity_component ~fields
           in
           let new_params_rev =
             List.map (fun (id, kind) -> id, IR.Not_user_visible, kind) fields
@@ -1307,26 +1320,45 @@ let primitive_result_kind (prim : Lambda.primitive) : Flambda_arity.t =
     Misc.fatal_errorf "Primitive not allowed here:@ %a" Printlambda.primitive
       prim
 
+type non_tail_continuation =
+  Acc.t ->
+  Env.t ->
+  CCenv.t ->
+  IR.simple list ->
+  Flambda_arity.Component_for_creation.t ->
+  Expr_with_acc.t
+
+type non_tail_list_continuation =
+  Acc.t ->
+  Env.t ->
+  CCenv.t ->
+  IR.simple list ->
+  Flambda_arity.Component_for_creation.t list ->
+  Expr_with_acc.t
+
 type cps_continuation =
   | Tail of Continuation.t
-  | Non_tail of (Acc.t -> Env.t -> CCenv.t -> IR.simple list -> Expr_with_acc.t)
+  | Non_tail of non_tail_continuation
 
-let apply_cps_cont_simple k ?(dbg = Debuginfo.none) acc env ccenv simples =
+let apply_cps_cont_simple k ?(dbg = Debuginfo.none) acc env ccenv simples
+    (arity_component : Flambda_arity.Component_for_creation.t) =
   match k with
   | Tail k -> apply_cont_with_extra_args acc env ccenv ~dbg k None simples
-  | Non_tail k -> k acc env ccenv simples
+  | Non_tail k -> k acc env ccenv simples arity_component
 
-let apply_cps_cont k ?dbg acc env ccenv id =
-  apply_cps_cont_simple k ?dbg acc env ccenv [IR.Var id]
+let apply_cps_cont k ?dbg acc env ccenv id
+    (arity_component : Flambda_arity.Component_for_creation.t) =
+  apply_cps_cont_simple k ?dbg acc env ccenv [IR.Var id] arity_component
 
-let maybe_insert_let_cont result_var_name kind k acc env ccenv body =
+let maybe_insert_let_cont result_var_name layout k acc env ccenv body =
   match k with
   | Tail k -> body acc env ccenv k
   | Non_tail k ->
     let result_var = Ident.create_local result_var_name in
+    let arity = Flambda_arity.Component_for_creation.from_lambda layout in
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
-      ~params:[result_var, IR.Not_user_visible, kind]
-      ~handler:(fun acc env ccenv -> k acc env ccenv [IR.Var result_var])
+      ~params:[result_var, IR.Not_user_visible, layout]
+      ~handler:(fun acc env ccenv -> k acc env ccenv [IR.Var result_var] arity)
       ~body
 
 let name_if_not_var acc ccenv name simple kind body =
@@ -1349,19 +1381,29 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     match Env.get_unboxed_product_fields env id with
     | None ->
       if unboxed_product_debug () then Format.eprintf "...no unboxed fields\n%!";
-      apply_cps_cont k acc env ccenv id
-    | Some fields ->
+      let _var, kind = CCenv.find_var ccenv id in
+      let arity_component =
+        Flambda_arity.Component_for_creation.Singleton kind
+      in
+      apply_cps_cont k acc env ccenv id arity_component
+    | Some (before_unarization, fields) ->
       if unboxed_product_debug ()
       then
         Format.eprintf "...got unboxed fields: (%a)\n%!"
           (Format.pp_print_list ~pp_sep:Format.pp_print_space Ident.print)
           fields;
       let fields = List.map (fun id -> IR.Var id) fields in
-      apply_cps_cont_simple k acc env ccenv fields)
+      apply_cps_cont_simple k acc env ccenv fields before_unarization)
   | Lmutvar id ->
-    let return_id = Env.get_mutable_variable env id in
+    (* CR mshinwell: note: mutable variables of non-singleton layouts are not
+       supported *)
+    let return_id, kind = Env.get_mutable_variable_with_kind env id in
     apply_cps_cont k acc env ccenv return_id
-  | Lconst const -> apply_cps_cont_simple k acc env ccenv [IR.Const const]
+      (Flambda_arity.Component_for_creation.Singleton kind)
+  | Lconst const ->
+    apply_cps_cont_simple k acc env ccenv [IR.Const const]
+      (* CR mshinwell: improve layout here *)
+      (Singleton Flambda_kind.With_subkind.any_value)
   | Lapply
       { ap_func;
         ap_args;
@@ -1386,7 +1428,10 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     let func =
       cps_function env ~fid:id ~recursive:(Non_recursive : Recursive.t) func
     in
-    let body acc ccenv = apply_cps_cont k ~dbg acc env ccenv id in
+    let body acc ccenv =
+      apply_cps_cont k ~dbg acc env ccenv id
+        (Singleton Flambda_kind.With_subkind.any_value)
+    in
     CC.close_let_rec acc ccenv ~function_declarations:[func] ~body
       ~current_region:(Env.current_region env)
   | Lmutlet (value_kind, id, defining_expr, body) ->
@@ -1441,7 +1486,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         else None
       in
       cps_non_tail_list acc env ccenv args
-        (fun acc env ccenv args ->
+        (fun acc env ccenv args _arity ->
           let body acc ccenv = cps acc env ccenv body k k_exn in
           let region = Env.current_region env in
           CC.close_let acc ccenv id User_visible
@@ -1451,7 +1496,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         k_exn
     | Unboxed_binding (ids_with_kinds, env) ->
       cps_non_tail_list acc env ccenv args
-        (fun acc env ccenv (args : IR.simple list) ->
+        (fun acc env ccenv (args : IR.simple list) _arity ->
           if unboxed_product_debug ()
           then
             Format.eprintf "Unboxed_binding: ids_with_kinds=(%a) args=(%a)\n%!"
@@ -1503,7 +1548,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       Misc.fatal_errorf "Lassign on non-mutable variable %a" Ident.print
         being_assigned;
     cps_non_tail_simple acc env ccenv new_value
-      (fun acc env ccenv new_value ->
+      (fun acc env ccenv new_value _arity ->
         let new_value = must_be_singleton_simple new_value in
         let env, new_id = Env.update_mutable_variable env being_assigned in
         let body acc ccenv =
@@ -1602,9 +1647,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
             \       variable  binding:@ %a" Printlambda.lambda lam
         | Some kind ->
           cps_non_tail_list acc env ccenv args
-            (fun acc env ccenv args ->
+            (fun acc env ccenv args _arity ->
               let body acc ccenv =
-                apply_cps_cont ~dbg k acc env ccenv result_var
+                apply_cps_cont ~dbg k acc env ccenv result_var (Singleton kind)
               in
               CC.close_let acc ccenv result_var Not_user_visible kind
                 (Prim
@@ -1631,7 +1676,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
   | Lstaticraise (static_exn, args) ->
     let continuation = Env.get_static_exn_continuation env static_exn in
     cps_non_tail_list acc env ccenv args
-      (fun acc env ccenv args ->
+      (fun acc env ccenv args _arity ->
         let extra_args =
           List.map
             (fun var : IR.simple -> Var var)
@@ -1674,13 +1719,13 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           ~params ~recursive ~body ~handler)
   | Lsend (meth_kind, meth, obj, args, pos, mode, loc, layout) ->
     cps_non_tail_simple acc env ccenv obj
-      (fun acc env ccenv obj ->
+      (fun acc env ccenv obj _obj_arity ->
         let obj = must_be_singleton_simple obj in
         cps_non_tail_var "meth" acc env ccenv meth
           Flambda_kind.With_subkind.any_value
-          (fun acc env ccenv meth ->
+          (fun acc env ccenv meth _meth_arity ->
             cps_non_tail_list acc env ccenv args
-              (fun acc env ccenv args ->
+              (fun acc env ccenv args args_arity ->
                 maybe_insert_let_cont "send_result" layout k acc env ccenv
                   (fun acc env ccenv k ->
                     let exn_continuation : IR.exn_continuation =
@@ -1700,7 +1745,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         probe = None;
                         mode;
                         region = Env.current_region env;
-                        args_arity = None;
+                        args_arity = Some (Flambda_arity.create args_arity);
                         return_arity =
                           Flambda_arity.create_singletons
                             [Flambda_kind.With_subkind.from_lambda layout]
@@ -1772,7 +1817,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     let lam = switch_for_if_then_else ~cond ~ifso ~ifnot ~kind in
     cps acc env ccenv lam k k_exn
   | Lsequence (lam1, lam2) ->
-    let k acc env ccenv _value = cps acc env ccenv lam2 k k_exn in
+    let k acc env ccenv _value _arity = cps acc env ccenv lam2 k k_exn in
     cps_non_tail_simple acc env ccenv lam1 k k_exn
   | Lwhile
       { wh_cond = cond; wh_body = body; wh_cond_region = _; wh_body_region = _ }
@@ -1796,11 +1841,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       Misc.fatal_errorf "Lassign on non-mutable variable %a" Ident.print
         being_assigned;
     cps_non_tail_simple acc env ccenv new_value
-      (fun acc env ccenv new_value ->
+      (fun acc env ccenv new_value _arity ->
         let new_value = must_be_singleton_simple new_value in
         let env, new_id = Env.update_mutable_variable env being_assigned in
         let body acc ccenv =
           apply_cps_cont_simple k acc env ccenv [Const L.const_unit]
+            (Singleton Flambda_kind.With_subkind.tagged_immediate)
         in
         let _, value_kind =
           Env.get_mutable_variable_with_kind env being_assigned
@@ -1871,25 +1917,48 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                     apply_cont_with_extra_args acc env ccenv ~dbg k None
                       [IR.Var wrap_return]))))
 
-and cps_non_tail_simple acc env ccenv lam k k_exn =
+and cps_non_tail_simple :
+    Acc.t ->
+    Env.t ->
+    CCenv.t ->
+    Lambda.lambda ->
+    non_tail_continuation ->
+    Continuation.t ->
+    Expr_with_acc.t =
+ fun acc env ccenv lam (k : non_tail_continuation) k_exn ->
   cps acc env ccenv lam (Non_tail k) k_exn
 
-and cps_non_tail_var name acc env ccenv lam kind k k_exn =
+and cps_non_tail_var :
+    string ->
+    Acc.t ->
+    Env.t ->
+    CCenv.t ->
+    Lambda.lambda ->
+    Flambda_kind.With_subkind.t ->
+    (Acc.t ->
+    Env.t ->
+    CCenv.t ->
+    Ident.t ->
+    Flambda_arity.Component_for_creation.t ->
+    Expr_with_acc.t) ->
+    Continuation.t ->
+    Expr_with_acc.t =
+ fun name acc env ccenv lam kind k k_exn ->
   cps_non_tail_simple acc env ccenv lam
-    (fun acc env ccenv simple ->
+    (fun acc env ccenv simple arity ->
       let simple = must_be_singleton_simple simple in
       name_if_not_var acc ccenv name simple kind (fun var acc ccenv ->
-          k acc env ccenv var))
+          k acc env ccenv var arity))
     k_exn
 
 and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
     ap_inlined ap_probe ap_return (k : Continuation.t) (k_exn : Continuation.t)
     : Expr_with_acc.t =
   cps_non_tail_list acc env ccenv ap_args
-    (fun acc env ccenv args ->
+    (fun acc env ccenv args args_arity ->
       cps_non_tail_var "func" acc env ccenv ap_func
         Flambda_kind.With_subkind.any_value
-        (fun acc env ccenv func ->
+        (fun acc env ccenv func _func_arity ->
           let exn_continuation : IR.exn_continuation =
             { exn_handler = k_exn;
               extra_args = extra_args_for_exn_continuation env k_exn
@@ -1907,7 +1976,7 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               probe = ap_probe;
               mode = ap_mode;
               region = Env.current_region env;
-              args_arity;
+              args_arity = Some (Flambda_arity.create args_arity);
               return_arity =
                 Flambda_arity.create_singletons
                   [Flambda_kind.With_subkind.from_lambda ap_return]
@@ -1921,24 +1990,32 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     (k_exn : Continuation.t) : Expr_with_acc.t =
   cps acc env ccenv lam (Tail k) k_exn
 
-and cps_non_tail_list acc env ccenv lams k k_exn =
+and cps_non_tail_list :
+    Acc.t ->
+    Env.t ->
+    CCenv.t ->
+    Lambda.lambda list ->
+    non_tail_list_continuation ->
+    Continuation.t ->
+    Expr_with_acc.t =
+ fun acc env ccenv lams (k : non_tail_list_continuation) k_exn ->
   let lams = List.rev lams in
   (* Always evaluate right-to-left. *)
   cps_non_tail_list_core acc env ccenv lams
-    (fun acc env ccenv ids -> k acc env ccenv (List.rev ids))
+    (fun acc env ccenv ids (arity : Flambda_arity.Component_for_creation.t list) ->
+      k acc env ccenv (List.rev ids) (List.rev arity))
     k_exn
 
 and cps_non_tail_list_core acc env ccenv (lams : L.lambda list)
-    (k : Acc.t -> Env.t -> CCenv.t -> IR.simple list -> Expr_with_acc.t)
-    (k_exn : Continuation.t) =
+    (k : non_tail_list_continuation) (k_exn : Continuation.t) =
   match lams with
-  | [] -> k acc env ccenv []
+  | [] -> k acc env ccenv [] []
   | lam :: lams ->
     cps_non_tail_simple acc env ccenv lam
-      (fun acc env ccenv simples ->
+      (fun acc env ccenv simples arity ->
         cps_non_tail_list_core acc env ccenv lams
-          (fun acc env ccenv simples' ->
-            k acc env ccenv (List.rev simples @ simples'))
+          (fun acc env ccenv simples' arity' ->
+            k acc env ccenv (List.rev simples @ simples') (arity :: arity'))
           k_exn)
       k_exn
 
@@ -2043,7 +2120,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   let unboxed_products = ref Ident.Map.empty in
   let params =
     List.concat_map
-      (fun ((param, _layout), kinds) ->
+      (fun ((param, layout), kinds) ->
         match kinds with
         | [] -> []
         | [kind] -> [param, kind]
@@ -2063,7 +2140,13 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
                 ident, kind)
               kinds
           in
-          unboxed_products := Ident.Map.add param fields !unboxed_products;
+          let before_unarization =
+            Flambda_arity.Component_for_creation.from_lambda layout
+          in
+          unboxed_products
+            := Ident.Map.add param
+                 (before_unarization, fields)
+                 !unboxed_products;
           fields)
       (List.combine params unarized_per_param)
   in
@@ -2078,13 +2161,14 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     let ccenv = CCenv.set_not_at_toplevel ccenv in
     let new_env =
       Ident.Map.fold
-        (fun unboxed_product fields new_env ->
+        (fun unboxed_product (before_unarization, fields) new_env ->
           if unboxed_product_debug ()
           then
             Format.eprintf
               "registering unboxed product for function parameter %a\n%!"
               Ident.print unboxed_product;
-          Env.register_unboxed_product new_env ~unboxed_product ~fields)
+          Env.register_unboxed_product new_env ~unboxed_product
+            ~before_unarization ~fields)
         unboxed_products new_env
     in
     cps_tail acc new_env ccenv body body_cont body_exn_cont
@@ -2165,7 +2249,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
   in
   cps_non_tail_var "scrutinee" acc env ccenv scrutinee
     Flambda_kind.With_subkind.any_value
-    (fun acc env ccenv scrutinee ->
+    (fun acc env ccenv scrutinee _arity ->
       let ccenv = CCenv.set_not_at_toplevel ccenv in
       let consts_rev, wrappers = convert_arms_rev env switch.sw_consts [] in
       let blocks_rev, wrappers =
