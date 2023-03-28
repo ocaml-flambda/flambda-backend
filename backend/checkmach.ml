@@ -398,8 +398,7 @@ end = struct
 
   let iter t ~f = String.Tbl.iter (fun _ func_info -> f func_info) t
 
-  let resolve_all t =
-    iter t ~f:(propagate t)
+  let resolve_all t = iter t ~f:(propagate t)
 
   let add_value t name value =
     let (_ : Func_info.t) = get_or_create t name in
@@ -471,7 +470,7 @@ end = struct
           (** functions defined later in the same compilation unit  *)
       mutable unresolved_deps : String.Set.t;
           (** must be the current compilation unit.  *)
-      unit_info : Unit_info.t;
+      unit_info : Unit_info.t
     }
 
   let create ppf current_fun_name future_funcnames unit_info =
@@ -479,7 +478,7 @@ end = struct
       current_fun_name;
       future_funcnames;
       unresolved_deps = String.Set.empty;
-      unit_info;
+      unit_info
     }
 
   let analysis_name = Printcmm.property_to_string S.property
@@ -558,8 +557,8 @@ end = struct
     | None ->
       if is_future_funcname t callee
       then (
-        (* The callee is defined later in the file. We have not seen any calls to it
-           yet. *)
+        (* The callee is defined later in the file. We have not seen any calls
+           to it yet. *)
         (* CR-soon gyorsh: Returning Safe is sound because the value of the
            callee, when it becomes available, will be joined to the final value
            of the caller (the current function). Analysis result depends on the
@@ -582,8 +581,8 @@ end = struct
     | Some callee_info ->
       (* Callee defined earlier in the same compilation unit, or we have already
          seen a call to this callee earlier in the same compilation unit
-         (possibly in the same function),
-         but haven't finished analysis of the callee's definition yet. *)
+         (possibly in the same function), but haven't finished analysis of the
+         callee's definition yet. *)
       (* If callee is not fully resolved, add it to dependencies. *)
       let dep =
         if is_future_funcname t callee
@@ -592,13 +591,13 @@ end = struct
         else None
       in
       let v =
-        if String.equal t.current_fun_name callee then
+        if String.equal t.current_fun_name callee
+        then (
           (* self-call, conservative *)
           let v = Value.join callee_info.value Value.safe in
           Unit_info.add_value t.unit_info callee v;
-          v
-        else
-          callee_info.value
+          v)
+        else callee_info.value
       in
       v, dep
 
@@ -612,7 +611,7 @@ end = struct
     let div = V.join effect dst.div in
     { dst with div }
 
-  let transform t ~next ~exn ~(effect:Value.t) desc dbg =
+  let transform t ~next ~exn ~(effect : Value.t) desc dbg =
     let next = transform_return ~effect:effect.nor next in
     let exn = transform_return ~effect:effect.exn exn in
     report t next ~msg:"transform new next" ~desc dbg;
@@ -669,8 +668,8 @@ end = struct
     | Icall_ind -> transform t ~next ~exn ~effect:Value.top "indirect call" dbg
     | Itailcall_ind ->
       (* Sound to ignore [next] and [exn] because the call never returns. *)
-      transform t ~next:Value.normal_return ~exn:Value.exn_escape ~effect:Value.top
-        "indirect tailcall" dbg
+      transform t ~next:Value.normal_return ~exn:Value.exn_escape
+        ~effect:Value.top "indirect tailcall" dbg
     | Icall_imm { func } ->
       transform_call t ~next ~exn func ~desc:("direct call to " ^ func) dbg
     | Itailcall_imm { func } ->
@@ -719,16 +718,18 @@ end = struct
         next
     in
     (* By default, backward analysis does not check the property on paths that
-       diverge (non-terminating loops that do not reach normal or exceptional return).
-       All loops must go through an (Iexit label) instruction or a recursive
-       function call. If (Iexit label) is not backward reachable from the
-       function's Normal or Exceptional Return, either the loop diverges or
+       diverge (non-terminating loops that do not reach normal or exceptional
+       return). All loops must go through an (Iexit label) instruction or a
+       recursive function call. If (Iexit label) is not backward reachable from
+       the function's Normal or Exceptional Return, either the loop diverges or
        the Iexit instruction is not reachable from function entry.
 
-       To check divergent loops, the initial value of "div" component
-       of all Iexit labels is set to "Safe" instead of "Bot".
-       This is conservative with respect to non-recursive Icatch. *)
-    D.analyze ~exnescape:Value.exn_escape ~init_lbl:Value.diverges ~transfer body |> fst
+       To check divergent loops, the initial value of "div" component of all
+       Iexit labels is set to "Safe" instead of "Bot". This is conservative with
+       respect to non-recursive Icatch. *)
+    D.analyze ~exnescape:Value.exn_escape ~init_lbl:Value.diverges ~transfer
+      body
+    |> fst
 
   let fundecl (f : Mach.fundecl) ~future_funcnames unit_info ppf =
     let check () =
