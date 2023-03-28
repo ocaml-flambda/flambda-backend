@@ -98,22 +98,22 @@ check-fmt:
 	fi
 
 .PHONY: regen-flambda2-parser
-regen-flambda2-parser:
-	$(dune) build $(ws_main) @middle_end/flambda2/parser/regen --auto-promote || true
+regen-flambda2-parser: $(dune_config_targets)
+	$(dune) build $(ws_boot) @middle_end/flambda2/parser/regen --auto-promote || true
 # Make sure regeneration is idempotent, and also check that the previous step
 # worked (can't tell the difference between failure and successful
 # auto-promotion)
-	$(dune) build $(ws_main) @middle_end/flambda2/parser/regen
+	$(dune) build $(ws_boot) @middle_end/flambda2/parser/regen
 
 .PHONY: regen-flambda2-tests
-regen-flambda2-tests: runtime-stdlib # Need to build this first for some reason
-	$(dune) build $(ws_main) \
+regen-flambda2-tests: boot-compiler regen-flambda2-test-dune-rules
+	$(dune) build $(ws_runstd) \
 	  @middle_end/flambda2/tests/regen --auto-promote || true
-	$(dune) build $(ws_main) \
+	$(dune) build $(ws_runstd) \
 	  @middle_end/flambda2/tests/regen
 
 .PHONY: regen-flambda2-test-dune-rules
-regen-flambda2-test-dune-rules: runtime-stdlib
+regen-flambda2-test-dune-rules: $(dune_config_targets)
 	$(dune) build $(ws_boot) \
 	  @middle_end/flambda2/tests/regen-dune-rules --auto-promote || true
 	$(dune) build $(ws_boot) \

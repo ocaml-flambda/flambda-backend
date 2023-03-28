@@ -866,7 +866,8 @@ end = struct
       closure_map;
     (* Fill value slot slots *)
     Value_slot.Map.iter
-      (fun value_slot (_, kind) ->
+      (fun value_slot _ ->
+        let kind = Value_slot.kind value_slot in
         let size, is_unboxed =
           match Flambda_kind.With_subkind.kind kind with
           | Region | Rec_info ->

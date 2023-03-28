@@ -303,17 +303,20 @@ let check_and_register_traps t =
   in
   C.iter_blocks t.cfg ~f
 
+(* CR gyorsh: [linear_to_cfg] currently drops section names *)
 let get_or_make_label t (insn : Linear.instruction) : Linear_utils.labelled_insn
     =
   match insn.desc with
-  | Llabel label -> { label; insn }
+  | Llabel { label; _ } -> { label; insn }
   | Lend -> Misc.fatal_error "Unexpected end of function instead of label"
   | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Lbranch _ | Lcondbranch _
   | Lcondbranch3 _ | Lswitch _ | Lentertrap | Ladjust_stack_offset _
   | Lpushtrap _ | Lpoptrap | Lraise _ ->
     let label = Cmm.new_label () in
     t.new_labels <- Label.Set.add label t.new_labels;
-    let insn = Linear.instr_cons (Llabel label) [||] [||] insn in
+    let insn =
+      Linear.instr_cons (Llabel { label; section_name = None }) [||] [||] insn
+    in
     { label; insn }
 
 let of_cmm_float_test ~lbl ~inv (cmp : Cmm.float_comparison) : C.float_test =
@@ -425,7 +428,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     then
       Misc.fatal_errorf "End of function without terminator for block %d"
         block.start
-  | Llabel start ->
+  | Llabel { label = start; _ } ->
     (* Not all labels need to start a new block. Keep the translation from
      *  linear to cfg simple, and optimize (remove/merge blocks) in a
      *  separate pass, because:

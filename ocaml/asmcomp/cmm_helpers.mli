@@ -194,9 +194,19 @@ val remove_unit : expression -> expression
 val field_address : expression -> int -> Debuginfo.t -> expression
 
 (** [get_field_gen mut ptr n dbg] returns an expression for the access to the
-    [n]th field of the block pointed to by [ptr] *)
+    [n]th field of the block pointed to by [ptr].  The [memory_chunk] used is
+    always [Word_val]. *)
 val get_field_gen :
   Asttypes.mutable_flag -> expression -> int -> Debuginfo.t -> expression
+
+(** Like [get_field_gen] but allows use of a different [memory_chunk]. *)
+val get_field_gen_given_memory_chunk :
+  Cmm.memory_chunk ->
+  Asttypes.mutable_flag ->
+  expression ->
+  int ->
+  Debuginfo.t ->
+  expression
 
 (** [set_field ptr n newval init dbg] returns an expression for setting the
     [n]th field of the block pointed to by [ptr] to [newval] *)

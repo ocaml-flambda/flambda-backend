@@ -62,6 +62,8 @@ let create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls
     fun_args;
     fun_dbg;
     entry_label = 1;
+    (* CR gyorsh: We should use [Cmm.new_label ()] here, but validator tests
+       currently rely on it to be initialized as above. *)
     blocks = Label.Tbl.create 31;
     fun_fast;
     fun_contains_calls;

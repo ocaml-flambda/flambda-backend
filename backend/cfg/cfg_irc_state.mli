@@ -17,7 +17,7 @@ val is_precolored : t -> Reg.t -> bool
 
 val is_precolored_or_colored : t -> Reg.t -> bool
 
-val get_and_clear_initial : t -> Reg.t list
+val iter_and_clear_initial : t -> f:(Reg.t -> unit) -> unit
 
 val is_empty_simplify_work_list : t -> bool
 

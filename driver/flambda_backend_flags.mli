@@ -20,6 +20,7 @@ val cfg_invariants : bool ref
 val cfg_equivalence_check : bool ref
 
 val reorder_blocks_random : int option ref
+val basic_block_sections : bool ref
 
 val dasm_comments : bool ref
 

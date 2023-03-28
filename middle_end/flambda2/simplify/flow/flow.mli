@@ -110,4 +110,7 @@ module Analysis : sig
     used_value_slots:Name_occurrences.t Or_unknown.t ->
     Acc.t ->
     Flow_types.Flow_result.t
+
+  (** [true] iff the mutable unboxing pass actually did unbox things *)
+  val did_perform_mutable_unboxing : Flow_types.Flow_result.t -> bool
 end

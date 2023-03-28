@@ -24,4 +24,4 @@ Called from Backtrace_deprecated.f in file "backtrace_deprecated.ml", line 14, c
 Called from Backtrace_deprecated.g in file "backtrace_deprecated.ml", line 18, characters 4-11
 Called from Backtrace_deprecated.run in file "backtrace_deprecated.ml", line 25, characters 11-23
 Uncaught exception Invalid_argument("index out of bounds")
-Raised by primitive operation at Backtrace_deprecated.run in file "backtrace_deprecated.ml", line 25, characters 14-22
+Raised at Backtrace_deprecated.run in file "backtrace_deprecated.ml", line 25, characters 14-22

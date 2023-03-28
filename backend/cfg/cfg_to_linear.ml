@@ -91,7 +91,21 @@ let mk_float_cond ~lt ~eq ~gt ~uo =
   | false, false, false, true -> Must_be_last
   | true, false, false, true -> Must_be_last
 
-let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
+let cross_section cfg_with_layout src dst =
+  if !Flambda_backend_flags.basic_block_sections
+     && not (Label.equal dst Linear_utils.labelled_insn_end.label)
+  then
+    let src_section = CL.get_section cfg_with_layout src in
+    let dst_section = CL.get_section cfg_with_layout dst in
+    match src_section, dst_section with
+    | None, None -> false
+    | Some src_name, Some dst_name -> not (String.equal src_name dst_name)
+    | Some _, None -> Misc.fatal_errorf "Missing section for %d" dst
+    | None, Some _ -> Misc.fatal_errorf "Missing section for %d" src
+  else false
+
+let linearize_terminator cfg_with_layout func start
+    (terminator : Cfg.terminator Cfg.instruction)
     ~(next : Linear_utils.labelled_insn) : L.instruction * Label.t option =
   (* CR-someday gyorsh: refactor, a lot of redundant code for different cases *)
   (* CR-someday gyorsh: for successor labels that are not fallthrough, order of
@@ -102,15 +116,23 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
   (* If one of the successors is a fallthrough label, do not emit a jump for it.
      Otherwise, the last jump is unconditional. *)
   let branch_or_fallthrough d lbl =
-    if Label.equal next.label lbl then d else d @ [L.Lbranch lbl]
+    if cross_section cfg_with_layout start lbl
+       || not (Label.equal next.label lbl)
+    then d @ [L.Lbranch lbl]
+    else d
   in
   let single d = [d], None in
   let emit_bool (c1, l1) (c2, l2) =
+    let branch_or_fallthrough_next =
+      if cross_section cfg_with_layout start next.label
+      then [L.Lbranch next.label]
+      else []
+    in
     (* c1 must be the inverse of c2 *)
     match Label.equal l1 next.label, Label.equal l2 next.label with
-    | true, true -> []
-    | false, true -> [L.Lcondbranch (c1, l1)]
-    | true, false -> [L.Lcondbranch (c2, l2)]
+    | true, true -> branch_or_fallthrough_next
+    | false, true -> [L.Lcondbranch (c1, l1)] @ branch_or_fallthrough_next
+    | true, false -> [L.Lcondbranch (c2, l2)] @ branch_or_fallthrough_next
     | false, false ->
       if Label.equal l1 l2
       then [L.Lbranch l1]
@@ -118,13 +140,13 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
   in
   let desc_list, tailrec_label =
     match terminator.desc with
-    | Return -> single L.Lreturn
-    | Raise kind -> single (L.Lraise kind)
-    | Tailcall_func Indirect -> single (L.Lop Itailcall_ind)
+    | Return -> [L.Lreturn], None
+    | Raise kind -> [L.Lraise kind], None
+    | Tailcall_func Indirect -> [L.Lop Itailcall_ind], None
     | Tailcall_func (Direct { func_symbol }) ->
-      single (L.Lop (Itailcall_imm { func = func_symbol }))
+      [L.Lop (Itailcall_imm { func = func_symbol })], None
     | Tailcall_self { destination } ->
-      [L.Lop (Itailcall_imm { func = Cfg.fun_name cfg })], Some destination
+      [L.Lop (Itailcall_imm { func })], Some destination
     | Call_no_return { func_symbol; alloc; ty_args; ty_res } ->
       single
         (L.Lop
@@ -238,7 +260,12 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
         if Label.Set.cardinal cond_successor_labels = 2 && can_emit_Lcondbranch3
         then
           (* generates one cmp instruction for all conditional jumps here *)
-          let find l = if Label.equal next.label l then None else Some l in
+          let find l =
+            if (not (cross_section cfg_with_layout start l))
+               && Label.equal next.label l
+            then None
+            else Some l
+          in
           [L.Lcondbranch3 (find lt, find eq, find gt)], None
         else
           let init = branch_or_fallthrough [] last in
@@ -273,6 +300,8 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
 let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
     ~(prev_block : Cfg.basic_block) =
   if block.is_trap_handler
+  then true
+  else if cross_section cfg_with_layout prev_block.start block.start
   then true
   else
     match Label.Set.elements block.predecessors with
@@ -309,6 +338,9 @@ let adjust_stack_offset body (block : Cfg.basic_block)
     let delta_bytes = block_stack_offset - prev_stack_offset in
     to_linear_instr (Ladjust_stack_offset { delta_bytes }) ~next:body
 
+let make_Llabel cfg_with_layout label =
+  Linear.Llabel { label; section_name = CL.get_section cfg_with_layout label }
+
 (* CR-someday gyorsh: handle duplicate labels in new layout: print the same
    block more than once. *)
 let run cfg_with_layout =
@@ -324,7 +356,8 @@ let run cfg_with_layout =
       assert (Label.equal label block.start);
       let body =
         let terminator, terminator_tailrec_label =
-          linearize_terminator cfg block.terminator ~next:!next
+          linearize_terminator cfg_with_layout cfg.fun_name block.start
+            block.terminator ~next:!next
         in
         (match !tailrec_label, terminator_tailrec_label with
         | (Some _ | None), None -> ()
@@ -346,9 +379,12 @@ let run cfg_with_layout =
           let prev = DLL.value prev_cell in
           let prev_block = Label.Tbl.find cfg.blocks prev in
           let body =
-            if not (need_starting_label cfg_with_layout block ~prev_block)
-            then body
-            else to_linear_instr (Llabel block.start) ~next:body
+            if need_starting_label cfg_with_layout block ~prev_block
+            then
+              to_linear_instr
+                (make_Llabel cfg_with_layout block.start)
+                ~next:body
+            else body
           in
           adjust_stack_offset body block ~prev_block
       in
@@ -361,6 +397,11 @@ let run cfg_with_layout =
   let fun_prologue_required =
     Proc.prologue_required ~fun_contains_calls ~fun_num_stack_slots
   in
+  let fun_section_name =
+    if !Flambda_backend_flags.basic_block_sections
+    then CL.get_section cfg_with_layout cfg.entry_label
+    else None
+  in
   { Linear.fun_name = cfg.fun_name;
     fun_body = !next.insn;
     fun_tailrec_entry_point_label = !tailrec_label;
@@ -369,7 +410,8 @@ let run cfg_with_layout =
     fun_contains_calls;
     fun_num_stack_slots;
     fun_frame_required;
-    fun_prologue_required
+    fun_prologue_required;
+    fun_section_name
   }
 
 let layout_of_block_list : Cfg.basic_block list -> Cfg_with_layout.layout =

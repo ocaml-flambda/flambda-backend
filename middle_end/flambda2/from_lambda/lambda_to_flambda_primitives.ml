@@ -630,8 +630,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
               ( Make_array (Naked_floats, mutability, mode),
                 List.map unbox_float args ),
             Variadic (Make_array (Values, mutability, mode), args) )))
-  | Popaque, [arg] -> Unary (Opaque_identity { middle_end_only = false }, arg)
-  | Pobj_magic, [arg] -> Unary (Opaque_identity { middle_end_only = true }, arg)
+  | Popaque layout, [arg] ->
+    let kind = K.With_subkind.kind (K.With_subkind.from_lambda layout) in
+    Unary (Opaque_identity { middle_end_only = false; kind }, arg)
+  | Pobj_magic layout, [arg] ->
+    let kind = K.With_subkind.kind (K.With_subkind.from_lambda layout) in
+    Unary (Opaque_identity { middle_end_only = true; kind }, arg)
   | Pduprecord (repr, num_fields), [arg] ->
     let kind : P.Duplicate_block_kind.t =
       match repr with
@@ -718,6 +722,22 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
          ( Float_comp (Yielding_bool (convert_float_comparison comp)),
            unbox_float arg1,
            unbox_float arg2 ))
+  | Punbox_float, [arg] -> Unary (Unbox_number Naked_float, arg)
+  | Pbox_float mode, [arg] ->
+    Unary
+      ( Box_number
+          ( Naked_float,
+            Alloc_mode.For_allocations.from_lambda mode ~current_region ),
+        arg )
+  | Punbox_int bi, [arg] ->
+    let kind = boxable_number_of_boxed_integer bi in
+    Unary (Unbox_number kind, arg)
+  | Pbox_int (bi, mode), [arg] ->
+    let kind = boxable_number_of_boxed_integer bi in
+    Unary
+      ( Box_number
+          (kind, Alloc_mode.For_allocations.from_lambda mode ~current_region),
+        arg )
   | Pfield_computed sem, [obj; field] ->
     let block_access : P.Block_access_kind.t =
       Values { tag = Unknown; size = Unknown; field_kind = Any_value }
@@ -1161,10 +1181,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       Printlambda.primitive prim H.print_list_of_simple_or_prim args
   | ( ( Pfield _ | Pnegint | Pnot | Poffsetint _ | Pintoffloat | Pfloatofint _
       | Pnegfloat _ | Pabsfloat _ | Pstringlength | Pbyteslength | Pbintofint _
-      | Pintofbint _ | Pnegbint _ | Popaque | Pduprecord _ | Parraylength _
+      | Pintofbint _ | Pnegbint _ | Popaque _ | Pduprecord _ | Parraylength _
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
       | Pbbswap _ | Pisint _ | Pint_as_pointer | Pbigarraydim _ | Pobj_dup
-      | Pobj_magic ),
+      | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+        ),
       ([] | _ :: _ :: _) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -1198,7 +1219,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       "Closure_conversion.convert_primitive: Wrong arity for ternary primitive \
        %a (%a)"
       Printlambda.primitive prim H.print_list_of_simple_or_prim args
-  | (Pignore | Psequand | Psequor | Pbytes_of_string | Pbytes_to_string), _ ->
+  | ( ( Pignore | Psequand | Psequor | Pbytes_of_string | Pbytes_to_string
+      | Parray_of_iarray | Parray_to_iarray ),
+      _ ) ->
     Misc.fatal_errorf
       "[%a] should have been removed by [Lambda_to_flambda.transform_primitive]"
       Printlambda.primitive prim

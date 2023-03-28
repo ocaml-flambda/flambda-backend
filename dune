@@ -288,7 +288,6 @@
  (flags
   (-strict-sequence
    -principal
-   -absname
    -w
    +a-4-9-40-41-42-44-45-48-66
    -warn-error
@@ -337,6 +336,7 @@
   (backend bisect_ppx))
  (flags
   (:standard -principal))
+ (ocamlopt_flags (:standard -runtime-variant nnp))
  (libraries
   flambda_backend_driver
   memtrace

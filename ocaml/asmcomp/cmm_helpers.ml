@@ -666,11 +666,14 @@ let field_address ptr n dbg =
   then ptr
   else Cop(Cadda, [ptr; Cconst_int(n * size_addr, dbg)], dbg)
 
+let get_field_gen_given_memory_chunk memory_chunk mut ptr n dbg =
+  Cop (Cload (memory_chunk, mut), [field_address ptr n dbg], dbg)
+
 let get_field_gen mut ptr n dbg =
-  Cop(Cload (Word_val, mut), [field_address ptr n dbg], dbg)
+  get_field_gen_given_memory_chunk Word_val mut ptr n dbg
 
 let get_field_codepointer mut ptr n dbg =
-  Cop (Cload (Word_int, mut), [field_address ptr n dbg], dbg)
+  get_field_gen_given_memory_chunk Word_int mut ptr n dbg
 
 let set_field ptr n newval init dbg =
   Cop(Cstore (Word_val, init), [field_address ptr n dbg; newval], dbg)
@@ -2239,7 +2242,15 @@ let rec make_curry_apply result narity args_type args clos n =
           :: args)
           newclos (n - 1) )
 
-let machtype_of_layout = function Lambda.Pvalue _ -> typ_val
+let machtype_of_layout (layout : Lambda.layout) =
+  match layout with
+  | Ptop -> Misc.fatal_error "No machtype for layout [Ptop]"
+  | Pbottom -> Misc.fatal_error "No unique machtype for layout [Pbottom]"
+  | Punboxed_float -> typ_float
+  | Punboxed_int _ ->
+    (* Only 64-bit architectures, so this is always [typ_int] *)
+    typ_int
+  | Pvalue _ -> typ_val
 
 let final_curry_function nlocal arity result =
   let last_arg = V.create_local "arg" in
@@ -3140,5 +3151,11 @@ let emit_preallocated_blocks preallocated_blocks cont =
   let c1 = emit_gc_roots_table ~symbols cont in
   List.fold_left preallocate_block c1 preallocated_blocks
 
-let kind_of_layout (Lambda.Pvalue kind) = Vval kind
-
+let kind_of_layout (layout : Lambda.layout) =
+  match layout with
+  | Ptop | Pbottom ->
+    (* This is incorrect but only used for unboxing *)
+    Vval Pgenval
+  | Punboxed_float -> Vfloat
+  | Punboxed_int _ -> Vint
+  | Pvalue kind -> Vval kind

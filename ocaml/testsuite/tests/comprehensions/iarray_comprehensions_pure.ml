@@ -1,7 +1,12 @@
 (* TEST
-   flags = "-extension comprehensions_experimental -extension immutable_arrays_experimental"
+   flags = "-extension comprehensions -extension immutable_arrays"
    * expect
 *)
+
+module Iarray = Stdlib__Iarray;;
+[%%expect{|
+module Iarray = Stdlib__Iarray
+|}];;
 
 (******************************************************************************
  *                        ******** ATTENTION! ********                        *
@@ -407,6 +412,58 @@ Line 1, characters 12-15:
 Error: This expression has type float but an expression was expected of type
          int
        because it is in a range-based for iterator start index in a comprehension
+|}];;
+
+(* Using first-class module patterns isn't supported yet *)
+
+module type S = sig
+  type t
+  val x : t
+end;;
+
+let t = (module struct
+  type t = int
+  let x = 3
+end : S);;
+[%%expect {|
+module type S = sig type t val x : t end
+val t : (module S) = <module>
+|}];;
+
+[: M.x for (module M : S) in [: t :] :];;
+[%%expect {|
+Line 1, characters 19-20:
+1 | [: M.x for (module M : S) in [: t :] :];;
+                       ^
+Error: Modules are not allowed in this pattern.
+|}];;
+
+[: M.x
+   for (module M : S) in
+   [: (module struct
+         type t = int
+         let x = 3
+       end : S)
+   :]
+:];;
+[%%expect {|
+Line 2, characters 15-16:
+2 |    for (module M : S) in
+                   ^
+Error: Modules are not allowed in this pattern.
+|}];;
+
+[: M.x
+   for (module M : S) in
+   [: (let t = t in
+       t)
+   :]
+:];;
+[%%expect {|
+Line 2, characters 15-16:
+2 |    for (module M : S) in
+                   ^
+Error: Modules are not allowed in this pattern.
 |}];;
 
 (* No duplicating variables in a for-and clause *)

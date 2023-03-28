@@ -1,6 +1,9 @@
 (* TEST
-   flags = "-extension immutable_arrays_experimental"
+   flags = "-extension immutable_arrays"
 *)
+
+module Iarray = Stdlib__Iarray
+external ( .:() ) : 'a iarray -> int -> 'a = "%array_safe_get"
 
 (* Copied from [test.ml], but with all the [Array.fill] tests deleted *)
 

@@ -69,6 +69,8 @@ and pat_extra =
   | Tpat_unpack
         (** (module P)     { pat_desc  = Tpat_var "P"
                            ; pat_extra = (Tpat_unpack, _, _) :: ... }
+            (module _)     { pat_desc  = Tpat_any
+                           ; pat_extra = (Tpat_unpack, _, _) :: ... }
          *)
 
 and 'k pattern_desc =
@@ -357,15 +359,20 @@ and comprehension_clause_binding =
   {
     comp_cb_iterator : comprehension_iterator;
     comp_cb_attributes : attribute list
+    (** No built-in attributes are meaningful here; this would correspond to
+        [[body for[@attr] x in xs]], and there are no built-in attributes that
+        would be efficacious there.  (The only ones that might make sense would
+        be inlining, but you can't do that with list/array items that are being
+        iterated over.) *)
   }
-  (* We move the pattern into the [comprehension_iterator], compared to the
-     untyped syntax tree, so that range-based iterators can have just an
-     identifier instead of a full pattern *)
+  (** We move the pattern into the [comprehension_iterator], compared to the
+      untyped syntax tree, so that range-based iterators can have just an
+      identifier instead of a full pattern *)
 
 and comprehension_iterator =
   | Texp_comp_range of
       { ident     : Ident.t
-      ; pattern   : Parsetree.pattern (* Redundant with [ident] *)
+      ; pattern   : Parsetree.pattern (** Redundant with [ident] *)
       ; start     : expression
       ; stop      : expression
       ; direction : direction_flag }
@@ -403,7 +410,11 @@ and ('a, 'b) arg_or_omitted =
 and omitted_parameter =
   { mode_closure : Types.alloc_mode;
     mode_arg : Types.alloc_mode;
-    mode_ret : Types.alloc_mode }
+    mode_ret : Types.alloc_mode;
+    (* CR ncourant: actually, we only need this to be able to compute the layout
+       in [Translcore], change this when merging with the front-end. *)
+    ty_arg : Types.type_expr;
+    ty_env : Env.t}
 
 and apply_arg = (expression, omitted_parameter) arg_or_omitted
 

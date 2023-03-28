@@ -16,6 +16,8 @@ val make_single : 'a -> 'a t
 
 val of_list : 'a list -> 'a t
 
+val clear : 'a t -> unit
+
 val hd : 'a t -> 'a option
 
 val last : 'a t -> 'a option

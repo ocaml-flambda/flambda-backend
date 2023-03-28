@@ -470,7 +470,8 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
         Flambda.print_named named
     end
   | Read_symbol_field (symbol, field) ->
-    Uprim (Pfield field, [to_clambda_symbol env symbol], Debuginfo.none),
+    Uprim (Pfield (field, Pvalue Pgenval),
+      [to_clambda_symbol env symbol], Debuginfo.none),
     Lambda.layout_any_value
   | Set_of_closures set_of_closures ->
     to_clambda_set_of_closures t env set_of_closures,
@@ -503,14 +504,20 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
     let fun_offset = get_fun_offset t closure_id in
     let var_offset = get_fv_offset t var in
     let pos = var_offset - fun_offset in
-    Uprim (Pfield pos,
+    Uprim (Pfield (pos, kind),
       [check_field t (check_closure t ulam (Expr (Var closure)))
          pos (Some named)],
       Debuginfo.none),
     kind
-  | Prim (Pfield index, [block], dbg) ->
+  | Prim (Pfield (index, layout), [block], dbg) ->
+    begin match layout with
+      | Pvalue _ -> ()
+      | _ ->
+        Misc.fatal_errorf "Pfield can only be of layout value %a"
+          Flambda.print_named named
+    end;
     let block, _block_layout = subst_var env block in
-    Uprim (Pfield index, [check_field t block index None], dbg),
+    Uprim (Pfield (index, layout), [check_field t block index None], dbg),
     Lambda.layout_field
   | Prim (Psetfield (index, maybe_ptr, init), [block; new_value], dbg) ->
     let block, _block_layout = subst_var env block in
@@ -650,7 +657,7 @@ and to_clambda_set_of_closures t env
         in
         let pos = var_offset - fun_offset in
         Env.add_subst env id
-          (Uprim (Pfield pos, [Clambda.Uvar env_var], Debuginfo.none))
+          (Uprim (Pfield (pos, spec_to.kind), [Clambda.Uvar env_var], Debuginfo.none))
           spec_to.kind
       in
       let env = Variable.Map.fold add_env_free_variable free_vars env in
@@ -698,6 +705,13 @@ and to_clambda_set_of_closures t env
   let not_scanned_fv, scanned_fv =
     Variable.Map.partition (fun _ (free_var : Flambda.specialised_to) ->
         match free_var.kind with
+        | Ptop -> Misc.fatal_error "[Ptop] can't be stored in a closure."
+        | Pbottom ->
+          Misc.fatal_error
+            "[Pbottom] should have been eliminated as dead code \
+             and not stored in a closure."
+        | Punboxed_float -> true
+        | Punboxed_int _ -> true
         | Pvalue Pintval -> true
         | Pvalue _ -> false)
       free_vars
@@ -747,7 +761,11 @@ and to_clambda_closed_set_of_closures t env symbol
     in
     let body =
       let body, body_layout = to_clambda t env_body function_decl.body in
-      assert(Lambda.compatible_layout body_layout function_decl.return_layout);
+      if not (Lambda.compatible_layout body_layout function_decl.return_layout) then
+        Misc.fatal_errorf "Incompatible layouts:@.body: %a@.function: %a@.%a@."
+          Printlambda.layout body_layout
+          Printlambda.layout function_decl.return_layout
+          Printclambda.clambda body;
       Un_anf.apply ~ppf_dump:t.ppf_dump ~what:symbol body
     in
     assert (

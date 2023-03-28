@@ -31,6 +31,7 @@
     (bigarray.cmxs as bigarray/bigarray.cmxs)
     (bigarray.cma as bigarray/bigarray.cma)
     (.bigarray.objs/byte/bigarray.cmi as bigarray/bigarray.cmi)
+    (.bigarray.objs/byte/bigarray.cmt as bigarray/bigarray.cmt)
     (.bigarray.objs/byte/bigarray.cmti as bigarray/bigarray.cmti)
     (bigarray.mli as bigarray/bigarray.mli)
   )

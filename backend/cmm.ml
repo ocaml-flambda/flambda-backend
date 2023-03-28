@@ -107,11 +107,8 @@ type float_comparison = Lambda.float_comparison =
 let negate_float_comparison = Lambda.negate_float_comparison
 
 let swap_float_comparison = Lambda.swap_float_comparison
-type label = int
 
-type exit_label =
-  | Return_lbl
-  | Lbl of label
+type label = int
 
 let init_label = 99
 
@@ -127,6 +124,12 @@ let set_label l =
 let cur_label () = !label_counter
 
 let new_label() = incr label_counter; !label_counter
+
+type static_label = Lambda.static_label
+
+type exit_label =
+  | Return_lbl
+  | Lbl of static_label
 
 type rec_flag = Nonrecursive | Recursive
 
@@ -242,7 +245,7 @@ type expression =
       * Debuginfo.t * value_kind
   | Ccatch of
       rec_flag
-        * (label * (Backend_var.With_provenance.t * machtype) list
+        * (static_label * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t) list
         * expression * value_kind
   | Cexit of exit_label * expression list * trap_action list

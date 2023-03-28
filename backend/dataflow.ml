@@ -34,6 +34,13 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot) ?(init_lbl = D.bot)
   and set_lbl n x =
     Hashtbl.replace lbls n x in
 
+  let exn_from_trap_stack generic_exn (trap_stack : Mach.trap_stack) =
+    match trap_stack with
+    | Uncaught -> exnescape
+    | Generic_trap _ -> generic_exn
+    | Specific_trap (lbl, _) -> get_lbl lbl
+  in
+
   let rec before end_ exn i =
     match i.desc with
     | Iend ->
@@ -55,29 +62,40 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot) ?(init_lbl = D.bot)
             (fun accu case -> D.join accu (before bx exn case))
             D.bot cases in
         transfer i ~next:b1 ~exn
-    | Icatch(rc, _trap_stack, handlers, body) ->
+    | Icatch(rc, trap_stack, handlers, body) ->
         let bx = before end_ exn i.next in
         begin match rc with
         | Cmm.Nonrecursive ->
             List.iter
-              (fun (n, _trap_stack, h) -> set_lbl n (before bx exn h))
+              (fun (n, trap_stack, h) ->
+                 let exnh = exn_from_trap_stack exn trap_stack in
+                 set_lbl n (before bx exnh h))
             handlers
         | Cmm.Recursive ->
-            let update changed (n, _trap_stack, h) =
+            let update changed (n, trap_stack, h) =
               let b0 = get_lbl n in
-              let b1 = before bx exn h in
+              let exnh = exn_from_trap_stack exn trap_stack in
+              let b1 = before bx exnh h in
               if D.lessequal b1 b0 then changed else (set_lbl n b1; true) in
             while List.fold_left update false handlers do () done
         end;
-        let b = before bx exn body in
+        let exnb = exn_from_trap_stack exn trap_stack in
+        let b = before bx exnb body in
         transfer i ~next:b ~exn
     | Iexit (n, _trap_actions) ->
         transfer i ~next:(get_lbl n) ~exn
-    | Itrywith(body, _trywith_kind, (_trap_stack, handler)) ->
-      (* CR gyorsh: implement more precise control flow handling for Delayed try-with *)
+    | Itrywith(body, Regular, (trap_stack, handler)) ->
         let bx = before end_ exn i.next in
-        let bh = exnhandler (before bx exn handler) in
+        let exnh = exn_from_trap_stack exn trap_stack in
+        let bh = exnhandler (before bx exnh handler) in
         let bb = before bx bh body in
+        transfer i ~next:bb ~exn
+    | Itrywith(body, Delayed nfail, (trap_stack, handler)) ->
+        let bx = before end_ exn i.next in
+        let exnh = exn_from_trap_stack exn trap_stack in
+        let bh = exnhandler (before bx exnh handler) in
+        set_lbl nfail bh;
+        let bb = before bx exn body in
         transfer i ~next:bb ~exn
     | Iraise _ ->
         transfer i ~next:D.bot ~exn

@@ -270,11 +270,12 @@ let subst_set_of_closures env set =
   let value_slots =
     Set_of_closures.value_slots set
     |> Value_slot.Map.bindings
-    |> List.map (fun (var, (simple, kind)) ->
-           subst_value_slot env var, (subst_simple env simple, kind))
+    |> List.map (fun (var, simple) ->
+           subst_value_slot env var, subst_simple env simple)
     |> Value_slot.Map.of_list
   in
-  Set_of_closures.create Alloc_mode.For_allocations.heap ~value_slots decls
+  let alloc = Set_of_closures.alloc_mode set in
+  Set_of_closures.create alloc ~value_slots decls
 
 let subst_rec_info_expr _env ri =
   (* Only depth variables can occur in [Rec_info_expr], and we only mess with
@@ -288,9 +289,9 @@ let subst_field env (field : Field_of_static_block.t) =
 
 let subst_call_kind env (call_kind : Call_kind.t) : Call_kind.t =
   match call_kind with
-  | Function { function_call = Direct code_id; _ } ->
+  | Function { function_call = Direct code_id; alloc_mode } ->
     let code_id = subst_code_id env code_id in
-    Call_kind.direct_function_call code_id Alloc_mode.For_types.heap
+    Call_kind.direct_function_call code_id alloc_mode
   | _ -> call_kind
 
 let rec subst_expr env e =
@@ -660,6 +661,10 @@ let unary_prim_ops env (prim_op1 : Flambda_primitive.unary_primitive)
 
 let primitives env prim1 prim2 : Flambda_primitive.t Comparison.t =
   match (prim1 : Flambda_primitive.t), (prim2 : Flambda_primitive.t) with
+  | Nullary prim_op1, Nullary prim_op2 ->
+    if Flambda_primitive.equal_nullary_primitive prim_op1 prim_op2
+    then Equivalent
+    else Different { approximant = prim1 }
   | Unary (prim_op1, arg1), Unary (prim_op2, arg2) ->
     pairs ~f1:unary_prim_ops ~f2:simple_exprs ~subst2:subst_simple env
       (prim_op1, arg1) (prim_op2, arg2)
@@ -751,7 +756,8 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
    * similar (and less worrisome) with function slots. *)
   let value_slots_by_value set =
     Value_slot.Map.bindings (Set_of_closures.value_slots set)
-    |> List.map (fun (var, (value, kind)) -> kind, subst_simple env value, var)
+    |> List.map (fun (var, value) ->
+           Value_slot.kind var, subst_simple env value, var)
   in
   (* We want to process the whole map to find new correspondences between
    * value slots, so we need to remember whether we've found any mismatches *)
@@ -900,24 +906,42 @@ let method_kinds _env (method_kind1 : Call_kind.Method_kind.t)
 
 let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     Call_kind.t Comparison.t =
-  match call_kind1, call_kind2 with
-  | ( Function { function_call = Direct code_id1; _ },
-      Function { function_call = Direct code_id2; _ } ) ->
-    if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
-    then Equivalent
+  let compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f : _ Comparison.t =
+    if Alloc_mode.For_types.compare alloc_mode1 alloc_mode2 = 0
+    then f ()
     else Different { approximant = call_kind1 }
-  | ( Function { function_call = Indirect_known_arity; _ },
-      Function { function_call = Indirect_known_arity; _ } ) ->
-    Equivalent
-  | ( Function { function_call = Indirect_unknown_arity; _ },
-      Function { function_call = Indirect_unknown_arity; _ } ) ->
-    Equivalent
-  | ( Method { kind = kind1; obj = obj1; _ },
-      Method { kind = kind2; obj = obj2; _ } ) ->
-    pairs ~f1:method_kinds ~f2:simple_exprs ~subst2:subst_simple env
-      (kind1, obj1) (kind2, obj2)
-    |> Comparison.map ~f:(fun (kind, obj) ->
-           Call_kind.method_call kind ~obj Alloc_mode.For_types.heap)
+  in
+  match call_kind1, call_kind2 with
+  | ( Function { function_call = Direct code_id1; alloc_mode = alloc_mode1 },
+      Function { function_call = Direct code_id2; alloc_mode = alloc_mode2 } )
+    ->
+    compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f:(fun () ->
+        if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
+        then Equivalent
+        else Different { approximant = call_kind1 })
+  | ( Function { function_call = Indirect_known_arity; alloc_mode = alloc_mode1 },
+      Function
+        { function_call = Indirect_known_arity; alloc_mode = alloc_mode2 } ) ->
+    compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f:(fun () -> Equivalent)
+  | ( Function
+        { function_call = Indirect_unknown_arity; alloc_mode = alloc_mode1 },
+      Function
+        { function_call = Indirect_unknown_arity; alloc_mode = alloc_mode2 } )
+    ->
+    compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f:(fun () -> Equivalent)
+  | ( Method { kind = kind1; obj = obj1; alloc_mode = alloc_mode1 },
+      Method { kind = kind2; obj = obj2; alloc_mode = alloc_mode2 } ) ->
+    if Alloc_mode.For_types.compare alloc_mode1 alloc_mode2 = 0
+    then
+      pairs ~f1:method_kinds ~f2:simple_exprs ~subst2:subst_simple env
+        (kind1, obj1) (kind2, obj2)
+      |> Comparison.map ~f:(fun (kind, obj) ->
+             Call_kind.method_call kind ~obj alloc_mode1)
+    else
+      Different
+        { approximant =
+            Call_kind.method_call kind1 ~obj:(subst_simple env obj1) alloc_mode1
+        }
   | ( C_call { alloc = alloc1; is_c_builtin = _ },
       C_call { alloc = alloc2; is_c_builtin = _ } ) ->
     if Bool.equal alloc1 alloc2
@@ -1092,7 +1116,8 @@ and let_symbol_exprs env (bound_static1, static_consts1, body1)
     Comparison.chain static_consts_comp ~ok ~if_equivalent:static_consts2
   in
   let body1' =
-    exprs env body1 body2 |> Comparison.chain ~ok ~if_equivalent:body2
+    log Expr.print body1 body2 (fun () -> exprs env body1 body2)
+    |> Comparison.chain ~ok ~if_equivalent:body2
   in
   if !ok
   then Equivalent
@@ -1129,6 +1154,7 @@ and static_consts env (const1 : Static_const_or_code.t)
     else Different { approximant = subst_static_const env const1 }
 
 and codes env (code1 : Code.t) (code2 : Code.t) =
+  log Code.print code1 code2 @@ fun () ->
   let bodies env params_and_body1 params_and_body2 =
     Function_params_and_body.pattern_match_pair params_and_body1
       params_and_body2

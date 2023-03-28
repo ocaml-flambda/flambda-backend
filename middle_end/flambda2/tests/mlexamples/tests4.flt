@@ -35,9 +35,8 @@ let code size(122)
       let Pmakeblock = %Block 0 ($camlTests4__int32121, Paddbint) in
       let Pmakeblock_1 = %Block 0 (x, Pmakeblock) in
       cont k2 (Pmakeblock_1)
-    where
-           k2
-           (pair : [ 0 of imm tagged * [ 0 of int32 boxed * int64 boxed ] ]) =
+    where k2
+            (pair : [ 0 of imm tagged * [ 0 of int32 boxed * int64 boxed ] ]) =
       let b = %block_load (pair, 1) in
       let a = %block_load (pair, 0) in
       let Pfield = %block_load (b, 0) in
@@ -174,7 +173,7 @@ let code pr2162_3_as_int64_3 deleted in
 let code pr2162_2_first_0 deleted in
 let code pr2162_3_2 deleted in
 let code pr2162_2_1 deleted in
-let code size(32) newer_version_of(pr2162_2_first_0)
+let code loopify(never) size(32) newer_version_of(pr2162_2_first_0)
       pr2162_2_first_0_1 (z : imm tagged, x : imm tagged, y : float boxed)
         my_closure my_region my_depth
         -> k * k1
@@ -201,7 +200,7 @@ in
 let $camlTests4__pr2162_2_first_4 =
   closure pr2162_2_first_0_1 @pr2162_2_first
 in
-let code size(32) newer_version_of(pr2162_2_1)
+let code loopify(never) size(32) newer_version_of(pr2162_2_1)
       pr2162_2_1_1 (z : imm tagged, x : imm tagged, y : float boxed)
         my_closure my_region my_depth
         -> k * k1
@@ -226,7 +225,7 @@ let code size(32) newer_version_of(pr2162_2_1)
       cont k (Psubfloat)
 in
 let $camlTests4__pr2162_2_5 = closure pr2162_2_1_1 @pr2162_2 in
-let code size(32) newer_version_of(pr2162_3_2)
+let code loopify(never) size(32) newer_version_of(pr2162_3_2)
       pr2162_3_2_1 (z : imm tagged, x : imm tagged, y : float boxed)
         my_closure my_region my_depth
         -> k * k1
@@ -251,7 +250,7 @@ let code size(32) newer_version_of(pr2162_3_2)
       cont k (Psubfloat)
 in
 let $camlTests4__pr2162_3_6 = closure pr2162_3_2_1 @pr2162_3 in
-let code size(48) newer_version_of(pr2162_3_as_int64_3)
+let code loopify(never) size(48) newer_version_of(pr2162_3_as_int64_3)
       pr2162_3_as_int64_3_1
         (z : imm tagged, x : imm tagged, y : int64 boxed, y' : int32 boxed)
         my_closure my_region my_depth

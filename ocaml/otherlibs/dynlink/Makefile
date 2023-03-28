@@ -80,6 +80,7 @@ COMPILERLIBS_SOURCES=\
   utils/local_store.ml \
   utils/load_path.ml \
   utils/clflags.ml \
+  utils/language_extension.ml \
   utils/profile.ml \
   utils/consistbl.ml \
   utils/terminfo.ml \

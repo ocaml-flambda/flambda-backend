@@ -583,7 +583,7 @@ let merge_constraint initial_env loc sg lid constr =
             type_params =
               List.map (fun _ -> Btype.newgenvar()) sdecl.ptype_params;
             type_arity = arity;
-            type_kind = Type_abstract;
+            type_kind = Types.kind_abstract;
             type_private = Private;
             type_manifest = None;
             type_variance =
@@ -604,7 +604,6 @@ let merge_constraint initial_env loc sg lid constr =
             type_is_newtype = false;
             type_expansion_scope = Btype.lowest_level;
             type_attributes = [];
-            type_immediate = Unknown;
             type_unboxed_default = false;
             type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           }
@@ -835,6 +834,9 @@ let map_ext fn exts =
    making them abstract otherwise. *)
 
 let rec approx_modtype env smty =
+  match Extensions.Module_type.of_ast smty with
+  | Some emty -> approx_modtype_extension env emty
+  | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
       let path =
@@ -891,6 +893,9 @@ let rec approx_modtype env smty =
       mty
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
+
+and approx_modtype_extension _env : Extensions.Module_type.t -> _ = function
+  | Emty_strengthen { mty=_; mod_id=_ } -> failwith "strengthen not yet implemented"
 
 and approx_module_declaration env pmd =
   {
@@ -1370,6 +1375,9 @@ and transl_modtype_functor_arg env sarg =
 
 and transl_modtype_aux env smty =
   let loc = smty.pmty_loc in
+  match Extensions.Module_type.of_ast smty with
+  | Some emty -> transl_modtype_extension_aux env emty
+  | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
       let path = transl_modtype_longident loc env lid.txt in
@@ -1430,6 +1438,9 @@ and transl_modtype_aux env smty =
       mkmty (Tmty_typeof tmty) mty env loc smty.pmty_attributes
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
+
+and transl_modtype_extension_aux _env : Extensions.Module_type.t -> _ = function
+  | Emty_strengthen { mty=_ ; mod_id=_ } -> failwith "Strengthen not yet implemented"
 
 and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
   let lid, with_info = match constr with
@@ -2300,7 +2311,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
           Named (id, param, mty), Types.Named (id, mty.mty_type), newenv,
           var, true
       in
-      let newenv = Env.add_lock Value_mode.global newenv in
+      let newenv = Env.add_lock Alloc_mode.global newenv in
       let body, body_shape = type_module true funct_body None newenv sbody in
       { mod_desc = Tmod_functor(t_arg, body);
         mod_type = Mty_functor(ty_arg, body.mod_type);

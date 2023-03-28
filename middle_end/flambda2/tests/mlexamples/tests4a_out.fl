@@ -1,0 +1,23 @@
+let code pr2162_3_as_int64_0 deleted in
+let code loopify(never) size(21) newer_version_of(pr2162_3_as_int64_0)
+      pr2162_3_as_int64_0_1 (z : imm tagged, x : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  (let untagged = %untag_imm z in
+   switch untagged
+     | 0 -> k2 (x)
+     | 1 -> k3)
+    where k3 =
+      let Pmulint = x * 2 in
+      cont k2 (Pmulint)
+    where k2 (y : imm tagged) =
+      let prim = %phys_eq (y, x) in
+      let Pintcomp = %Tag_imm prim in
+      cont k (Pintcomp)
+in
+let $camlTests4a__pr2162_3_as_int64_1 =
+  closure pr2162_3_as_int64_0_1 @pr2162_3_as_int64
+in
+let $camlTests4a = Block 0 ($camlTests4a__pr2162_3_as_int64_1) in
+cont done ($camlTests4a)

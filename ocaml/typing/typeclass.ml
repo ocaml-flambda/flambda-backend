@@ -967,8 +967,8 @@ and class_fields_second_pass cl_num sign met_env fields =
 and class_structure cl_num virt self_scope final val_env met_env loc
   { pcstr_self = spat; pcstr_fields = str } =
   (* Environment for substructures *)
-  let val_env = Env.add_lock Value_mode.global val_env in
-  let met_env = Env.add_lock Value_mode.global met_env in
+  let val_env = Env.add_lock Alloc_mode.global val_env in
+  let met_env = Env.add_lock Alloc_mode.global met_env in
   let par_env = met_env in
 
   (* Location of self. Used for locations of self arguments *)
@@ -1190,10 +1190,10 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       let partial =
         let dummy = type_exp val_env (Ast_helper.Exp.unreachable ()) in
-        Typecore.check_partial val_env pat.pat_type pat.pat_loc
+        Typecore.check_partial Modules_rejected val_env pat.pat_type pat.pat_loc
           [{c_lhs = pat; c_guard = None; c_rhs = dummy}]
       in
-      let val_env' = Env.add_lock Value_mode.global val_env' in
+      let val_env' = Env.add_lock Alloc_mode.global val_env' in
       Ctype.raise_nongen_level ();
       let cl = class_expr cl_num val_env' met_env virt self_scope scl' in
       Ctype.end_def ();
@@ -1290,7 +1290,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                       let mode_closure = Alloc_mode.global in
                       let mode_arg = Alloc_mode.global in
                       let mode_ret = Alloc_mode.global in
-                      Omitted { mode_closure; mode_arg; mode_ret }
+                      Omitted { mode_closure; mode_arg; mode_ret; ty_arg = ty; ty_env = val_env }
                     end
             in
             let omitted =
@@ -1471,7 +1471,7 @@ let temp_abbrev loc env id arity uid =
     Env.add_type ~check:true id
       {type_params = !params;
        type_arity = arity;
-       type_kind = Type_abstract;
+       type_kind = Types.kind_abstract;
        type_private = Public;
        type_manifest = Some ty;
        type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1480,7 +1480,6 @@ let temp_abbrev loc env id arity uid =
        type_expansion_scope = Btype.lowest_level;
        type_loc = loc;
        type_attributes = []; (* or keep attrs from the class decl? *)
-       type_immediate = Unknown;
        type_unboxed_default = false;
        type_uid = uid;
       }
@@ -1706,7 +1705,7 @@ let class_infos define_class kind
     {
      type_params = obj_params;
      type_arity = arity;
-     type_kind = Type_abstract;
+     type_kind = Types.kind_abstract;
      type_private = Public;
      type_manifest = Some obj_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1715,7 +1714,6 @@ let class_infos define_class kind
      type_expansion_scope = Btype.lowest_level;
      type_loc = cl.pci_loc;
      type_attributes = []; (* or keep attrs from cl? *)
-     type_immediate = Unknown;
      type_unboxed_default = false;
      type_uid = dummy_class.cty_uid;
     }
@@ -1729,7 +1727,7 @@ let class_infos define_class kind
     {
      type_params = cl_params;
      type_arity = arity;
-     type_kind = Type_abstract;
+     type_kind = Types.kind_abstract;
      type_private = Public;
      type_manifest = Some cl_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1738,7 +1736,6 @@ let class_infos define_class kind
      type_expansion_scope = Btype.lowest_level;
      type_loc = cl.pci_loc;
      type_attributes = []; (* or keep attrs from cl? *)
-     type_immediate = Unknown;
      type_unboxed_default = false;
      type_uid = dummy_class.cty_uid;
     }

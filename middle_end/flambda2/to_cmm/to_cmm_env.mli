@@ -93,6 +93,19 @@ val enter_function_body :
   exn_continuation:Continuation.t ->
   t
 
+(** {2 Debuginfo} *)
+
+(** Add the inlined debuginfo from the env to the debuginfo provided,
+    in order to get the correct debuginfo to attach. *)
+val add_inlined_debuginfo : t -> Debuginfo.t -> Debuginfo.t
+
+(** Adjust the inlined debuginfo in the env to represent the fact
+    that we entered the inlined body of a function. *)
+val enter_inlined_apply : t -> Debuginfo.t -> t
+
+(** Set the inlined debuginfo. *)
+val set_inlined_debuginfo : t -> Debuginfo.t -> t
+
 (** {2 Continuations} *)
 
 (** Returns the return continuation of the environment. *)
@@ -280,19 +293,23 @@ val extra_info : t -> Simple.t -> extra_info option
     label), or inlined at any unique use site. *)
 type cont = private
   | Jump of
-      { cont : Cmm.label;
+      { cont : Lambda.static_label;
         param_types : Cmm.machtype list
       }
   | Inline of
       { handler_params : Bound_parameters.t;
         handler_params_occurrences : Num_occurrences.t Variable.Map.t;
-        handler_body : Flambda.Expr.t
+        handler_body : Flambda.Expr.t;
+        handler_body_inlined_debuginfo : Debuginfo.t
       }
 
 (** Record that the given continuation should be compiled to a jump, creating a
     fresh Cmm continuation identifier for it. *)
 val add_jump_cont :
-  t -> Continuation.t -> param_types:Cmm.machtype list -> Cmm.label * t
+  t ->
+  Continuation.t ->
+  param_types:Cmm.machtype list ->
+  Lambda.static_label * t
 
 (** Record that the given continuation should be inlined. *)
 val add_inline_cont :
@@ -308,8 +325,8 @@ val add_inline_cont :
 val add_exn_handler :
   t ->
   Continuation.t ->
-  Flambda_arity.t ->
-  t * (Backend_var.t * Flambda_kind.t) list
+  Flambda_arity.With_subkinds.t ->
+  t * (Backend_var.t * Flambda_kind.With_subkind.t) list
 
 (** Return whether the given continuation has been registered as an exception
     handler. *)
@@ -327,4 +344,4 @@ val get_continuation : t -> Continuation.t -> cont
 (** Returns the Cmm continuation identifier bound to a continuation. Produces a
     fatal error if given an unbound continuation, or a continuation that was
     registered (using [add_inline_cont]) to be inlined. *)
-val get_cmm_continuation : t -> Continuation.t -> Cmm.label
+val get_cmm_continuation : t -> Continuation.t -> Lambda.static_label

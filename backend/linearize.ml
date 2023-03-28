@@ -34,18 +34,22 @@ let copy_instr d i n =
    Label the beginning of the given instruction sequence.
    - If the sequence starts with a branch, jump over it.
    - If the sequence is the end, (tail call position), just do nothing
+
 *)
 
 let get_label n = match n.desc with
     Lbranch lbl -> (lbl, n)
-  | Llabel lbl -> (lbl, n)
+  | Llabel { label = lbl; _ } -> (lbl, n)
   | Lend -> (-1, n)
-  | _ -> let lbl = Cmm.new_label() in (lbl, cons_instr (Llabel lbl) n)
+  | _ ->
+    let lbl = Cmm.new_label() in
+    (* CR gyorsh: basic block sections are not supported in [linearize]. *)
+    (lbl, cons_instr (Llabel { label = lbl; section_name = None; }) n)
 
 (* Check the fallthrough label *)
 let check_label n = match n.desc with
   | Lbranch lbl -> lbl
-  | Llabel lbl -> lbl
+  | Llabel { label = lbl; _ } -> lbl
   | _ -> -1
 
 
@@ -111,7 +115,7 @@ let add_branch lbl n =
   if lbl >= 0 then
     let n1 = discard_dead_code n in
     match n1.desc with
-    | Llabel lbl1 when lbl1 = lbl -> n1
+    | Llabel { label = lbl1; _ } when lbl1 = lbl -> n1
     | _ -> cons_instr (Lbranch lbl) n1
   else
     discard_dead_code n
@@ -284,7 +288,7 @@ let linear i n contains_calls =
                 let n = adjust_trap_depth delta n in
                 let env = { env with trap_stack = ts; } in
                 let n =
-                  cons_instr (Llabel lbl_handler)
+                  cons_instr (Llabel { label = lbl_handler; section_name = None; } )
                     (linear env handler (add_branch lbl_end n))
                 in
                 n, ts)
@@ -344,7 +348,7 @@ let add_prologue first_insn prologue_required =
     | _ ->
       let tailrec_entry_point_label = Cmm.new_label () in
       let tailrec_entry_point =
-        { desc = Llabel tailrec_entry_point_label;
+        { desc = Llabel { label = tailrec_entry_point_label; section_name = None; };
           next = insn;
           arg = [| |];
           res = [| |];
@@ -413,4 +417,5 @@ let fundecl f =
     fun_num_stack_slots;
     fun_frame_required;
     fun_prologue_required;
+    fun_section_name = None;
   }

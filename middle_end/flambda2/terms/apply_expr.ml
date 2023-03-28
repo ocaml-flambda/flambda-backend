@@ -137,7 +137,7 @@ let [@ocamlformat "disable"] print ppf
 
 let invariant
     ({ callee;
-       continuation;
+       continuation = _;
        exn_continuation = _;
        args;
        args_arity;
@@ -171,16 +171,7 @@ let invariant
      <> 0
   then
     Misc.fatal_errorf
-      "Length of argument and arity lists disagree in [Apply]:@ %a" print t;
-  match continuation with
-  | Never_returns ->
-    if not (Flambda_arity.With_subkinds.is_nullary return_arity)
-    then
-      Misc.fatal_errorf
-        "This [Apply] never returns and so should have a nullary return arity, \
-         but instead has a return arity of %a:@ %a"
-        Flambda_arity.With_subkinds.print return_arity print t
-  | Return _ -> ()
+      "Length of argument and arity lists disagree in [Apply]:@ %a" print t
 
 let create ~callee ~continuation exn_continuation ~args ~args_arity
     ~return_arity ~(call_kind : Call_kind.t) dbg ~inlined ~inlining_state

@@ -143,9 +143,20 @@ let mut_from_env env ptr =
       else Asttypes.Mutable
     | _ -> Asttypes.Mutable
 
-let get_field env ptr n dbg =
+let get_field env layout ptr n dbg =
   let mut = mut_from_env env ptr in
-  get_field_gen mut ptr n dbg
+  let memory_chunk =
+    match layout with
+    | Pvalue Pintval | Punboxed_int _ -> Word_int
+    | Pvalue _ -> Word_val
+    | Punboxed_float -> Double
+    | Ptop ->
+        Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
+    | Pbottom ->
+        Misc.fatal_errorf "get_field with Pbottom: %a" Debuginfo.print_compact
+          dbg
+  in
+  get_field_gen_given_memory_chunk memory_chunk mut ptr n dbg
 
 type rhs_kind =
   | RHS_block of Lambda.alloc_mode * int
@@ -506,9 +517,19 @@ let rec transl env e =
   | Ugeneric_apply(clos, args, args_layout, result_layout, kind, dbg) ->
       let clos = transl env clos in
       let args = List.map (transl env) args in
-      let args_type = List.map machtype_of_layout args_layout in
-      let return = machtype_of_layout result_layout in
-      generic_apply (mut_from_env env clos) clos args args_type return kind dbg
+      if List.mem Pbottom args_layout then
+        (* [machtype_of_layout] will fail on Pbottom, convert it to a sequence
+           and remove the call, preserving the execution order. *)
+        List.fold_left2 (fun rest arg arg_layout ->
+            if arg_layout = Pbottom then
+              arg
+            else
+              Csequence(remove_unit arg, rest)
+          ) (Ctuple []) args args_layout
+      else
+        let args_type = List.map machtype_of_layout args_layout in
+        let return = machtype_of_layout result_layout in
+        generic_apply (mut_from_env env clos) clos args args_type return kind dbg
   | Usend(kind, met, obj, args, args_layout, result_layout, pos, dbg) ->
       let met = transl env met in
       let obj = transl env obj in
@@ -654,6 +675,7 @@ let rec transl env e =
          | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
          | Pasrbint _ | Pbintcomp (_, _) | Pstring_load _ | Pbytes_load _
          | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
+         | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
          | Pbbswap _), _)
         ->
           fatal_error "Cmmgen.transl:prim"
@@ -787,10 +809,21 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
      each argument.  *)
   let report args =
     List.iter2
-      (fun (_id, Pvalue kind, u) c ->
-         let strict = is_strict kind in
-         u := join_unboxed_number_kind ~strict !u
-             (is_unboxed_number_cmm c)
+      (fun (id, (layout : Lambda.layout), u) c ->
+         match layout with
+         | Ptop ->
+           Misc.fatal_errorf "Variable %a with layout [Ptop] can't be compiled"
+             VP.print id
+         | Pbottom ->
+           Misc.fatal_errorf
+             "Variable %a with layout [Pbottom] can't be compiled"
+             VP.print id
+         | Punboxed_float | Punboxed_int _ ->
+           u := No_unboxing
+         | Pvalue kind ->
+           let strict = is_strict kind in
+           u := join_unboxed_number_kind ~strict !u
+               (is_unboxed_number_cmm c)
       )
       ids args
   in
@@ -798,12 +831,12 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
   let body = transl env_body body in
   let new_env, rewrite, ids =
     List.fold_right
-      (fun (id, _kind, u) (env, rewrite, ids) ->
+      (fun (id, layout, u) (env, rewrite, ids) ->
          match !u with
          | No_unboxing | Boxed (_, true) | No_result ->
              env,
              (fun x -> x) :: rewrite,
-             (id, Cmm.typ_val) :: ids
+             (id, machtype_of_layout layout) :: ids
          | Boxed (bn, false) ->
              let unboxed_id = V.create_local (VP.name id) in
              add_unboxed_id (VP.var id) unboxed_id bn env,
@@ -901,8 +934,8 @@ and transl_prim_1 env p arg dbg =
     Popaque ->
       opaque (transl env arg) dbg
   (* Heap operations *)
-  | Pfield n ->
-      get_field env (transl env arg) n dbg
+  | Pfield (n, layout) ->
+      get_field env layout (transl env arg) n dbg
   | Pfloatfield (n,mode) ->
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
@@ -918,7 +951,15 @@ and transl_prim_1 env p arg dbg =
       offsetint n (transl env arg) dbg
   | Poffsetref n ->
       offsetref n (transl env arg) dbg
+  | Punbox_int bi ->
+    transl_unbox_int dbg env bi arg
+  | Pbox_int (bi, m) ->
+    box_int dbg bi m (transl env arg)
   (* Floating-point operations *)
+  | Punbox_float ->
+      transl_unbox_float dbg env arg
+  | Pbox_float m ->
+      box_float dbg m (transl env arg)
   | Pfloatofint m ->
       box_float dbg m (Cop(Cfloatofint, [untag_int(transl env arg) dbg], dbg))
   | Pintoffloat ->
@@ -1153,6 +1194,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
   | Pprobe_is_enabled _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
         Printclambda_primitives.primitive p
@@ -1213,6 +1255,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
   | Pprobe_is_enabled _
+  | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
         Printclambda_primitives.primitive p
@@ -1235,7 +1278,7 @@ and transl_unbox_sized size dbg env exp =
   | Thirty_two -> transl_unbox_int dbg env Pint32 exp
   | Sixty_four -> transl_unbox_int dbg env Pint64 exp
 
-and transl_let env str (Pvalue kind : Lambda.layout) id exp transl_body =
+and transl_let_value env str (kind : Lambda.value_kind) id exp transl_body =
   let dbg = Debuginfo.none in
   let cexp = transl env exp in
   let unboxing =
@@ -1274,6 +1317,30 @@ and transl_let env str (Pvalue kind : Lambda.layout) id exp transl_body =
       | (Immutable | Immutable_unique), _ -> Clet (v, cexp, body)
       | Mutable, bn -> Clet_mut (v, typ_of_boxed_number bn, cexp, body)
       end
+
+and transl_let env str (layout : Lambda.layout) id exp transl_body =
+  match layout with
+  | Ptop ->
+    Misc.fatal_errorf "Variable %a with layout [Ptop] can't be compiled"
+      VP.print id
+  | Pbottom ->
+    let cexp = transl env exp in
+    (* N.B. [body] must still be traversed even if [exp] will never return:
+       there may be constant closures inside that need lifting out. *)
+    let _cbody : expression = transl_body env in
+    cexp
+  | Punboxed_float | Punboxed_int _ -> begin
+      let cexp = transl env exp in
+      let cbody = transl_body env in
+      match str with
+      | (Immutable | Immutable_unique) ->
+        Clet(id, cexp, cbody)
+      | Mutable ->
+        let typ = machtype_of_layout layout in
+        Clet_mut(id, typ, cexp, cbody)
+  end
+  | Pvalue kind ->
+    transl_let_value env str kind id exp transl_body
 
 and make_catch (kind : Cmm.value_kind) ncatch body handler dbg =
   match body with
