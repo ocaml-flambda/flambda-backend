@@ -1526,7 +1526,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
          (Exn_continuation.exn_handler exn_continuation)
   in
   let closure_info, acc = Acc.pop_closure_info acc in
-  let params_arity = Bound_parameters.arity params in
+  let params_arity = Function_decl.params_arity decl in
   let is_tupled =
     match Function_decl.kind decl with Curried _ -> false | Tupled -> true
   in
