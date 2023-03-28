@@ -2012,6 +2012,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         args = all_args;
         continuation = return_continuation;
         exn_continuation;
+        inlined = Lambda.Default_inlined;
         mode = result_mode
       }
       (Some approx) ~replace_region:None
