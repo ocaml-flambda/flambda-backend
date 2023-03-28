@@ -69,4 +69,7 @@ let make_partial x y =
   let p = make_unboxed_pair_i_i x y in
   let partial = takes_two_unboxed_pairs p in
   let q = make_unboxed_pair_i_i y x in
-  partial q
+  (Sys.opaque_identity partial) q
+
+let () =
+  Printf.printf "%d\n%!" (make_partial 100 42)
