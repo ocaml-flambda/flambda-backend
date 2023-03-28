@@ -85,7 +85,7 @@ let create_singletons t = List.map (fun kind -> Component.Singleton kind) t
 let components t = t
 
 let print ppf t =
-  Format.fprintf ppf "@[(%a)@]"
+  Format.fprintf ppf "@[%a@]"
     (Format.pp_print_list (Component.print ~product_above:false)
        ~pp_sep:(fun ppf () -> Format.fprintf ppf " @<1>\u{2a2f} "))
     t

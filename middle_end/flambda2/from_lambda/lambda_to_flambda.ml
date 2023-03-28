@@ -824,7 +824,11 @@ let transform_primitive env id (prim : L.primitive) args loc =
     let layouts_array = Array.of_list layouts in
     if n < 0 || n >= Array.length layouts_array
     then Misc.fatal_errorf "Invalid field index %d for Punboxed_product_field" n;
-    let arity = Flambda_arity.from_lambda_list layouts in
+    let arity_component =
+      Flambda_arity.Component_for_creation.Unboxed_product
+        (List.map Flambda_arity.Component_for_creation.from_lambda layouts)
+    in
+    let arity = Flambda_arity.create [arity_component] in
     if unboxed_product_debug ()
     then
       Format.eprintf
@@ -1381,7 +1385,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     match Env.get_unboxed_product_fields env id with
     | None ->
       if unboxed_product_debug () then Format.eprintf "...no unboxed fields\n%!";
-      let _var, kind = CCenv.find_var ccenv id in
+      let kind =
+        match CCenv.find_simple_to_substitute_exn ccenv id with
+        | exception Not_found -> snd (CCenv.find_var ccenv id)
+        | _, kind -> kind
+      in
       let arity_component =
         Flambda_arity.Component_for_creation.Singleton kind
       in
@@ -2150,6 +2158,15 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
           fields)
       (List.combine params unarized_per_param)
   in
+  if unboxed_product_debug ()
+  then
+    if List.compare_lengths params unarized_per_param <> 0
+    then
+      Format.eprintf "flattened param list for %a:@ %a\n%!" Ident.print fid
+        (Format.pp_print_list (fun ppf (id, kind) ->
+             Format.fprintf ppf "%a :: %a" Ident.print id
+               Flambda_kind.With_subkind.print kind))
+        params;
   let unboxed_products = !unboxed_products in
   let removed_params = Ident.Map.keys unboxed_products in
   let return =
