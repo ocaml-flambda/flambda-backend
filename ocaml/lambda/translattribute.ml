@@ -423,7 +423,7 @@ let add_poll_attribute expr loc attributes =
       | Default_poll -> ()
       | Error_poll ->
           Location.prerr_warning loc
-            (Warnings.Duplicated_attribute "error_poll")
+            (Warnings.Duplicated_attribute "poll error")
       end;
       let attr = { attr with poll } in
       check_poll_inline loc attr;
