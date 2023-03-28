@@ -30,3 +30,13 @@ let[@zero_alloc strict] test9 n =
 (* let[@zero_alloc] test33 s = failwith ("msg"^s) *)
 
 let[@zero_alloc] test34 s = failwith s
+
+(* [test37] allocates on exn return in closure but not in flambda or flambda2,
+   and conservative handling of callees causes test36 to fail zero_alloc check even
+   though it does not allocate on normal return. *)
+let[@zero_alloc] rec test36 x =
+  if Sys.opaque_identity true then
+    try test37 x with _ -> ()
+  else raise (Failure x)
+
+and[@zero_alloc]  test37 x = assert (String.length x > 0)
