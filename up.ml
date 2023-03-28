@@ -51,3 +51,17 @@ let caller x y =
   let p = make_unboxed_pair_i_i x y in
   takes_unboxed_pair p
 
+let[@inline never] takes_two_unboxed_pairs
+      (p : (int, int) unboxed_pair)
+      (q : (int, int) unboxed_pair) =
+  let p0 = unboxed_pair_field_0_i_i p in
+  let p1 = unboxed_pair_field_1_i_i p in
+  let q0 = unboxed_pair_field_0_i_i p in
+  let q1 = unboxed_pair_field_1_i_i p in
+  p0 + p1 + q0 + q1
+
+let caller2 x y =
+  let p = make_unboxed_pair_i_i x y in
+  let q = make_unboxed_pair_i_i y x in
+  takes_two_unboxed_pairs p q
+

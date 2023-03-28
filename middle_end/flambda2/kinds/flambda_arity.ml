@@ -36,18 +36,17 @@ module Component = struct
     | Unboxed_product ts1, Unboxed_product ts2 -> List.equal equal_exact ts1 ts2
     | Singleton _, Unboxed_product _ | Unboxed_product _, Singleton _ -> false
 
-  let rec print ~product_above ppf t =
+  let rec print ~product_above:_ ppf t =
     match t with
     | Singleton kind -> Flambda_kind.With_subkind.print ppf kind
     | Unboxed_product [] -> Format.pp_print_string ppf "void"
     | Unboxed_product ts ->
-      Format.fprintf ppf "@[<hov 1>%s%a%s@]"
-        (if product_above then "(" else "")
+      Format.fprintf ppf "@[<hov 1>%t#%t(%a)@]" Flambda_colours.unboxed_product
+        Flambda_colours.pop
         (Format.pp_print_list
-           ~pp_sep:(fun ppf () -> Format.fprintf ppf " @<1>\u{2a02} ")
+           ~pp_sep:(fun ppf () -> Format.fprintf ppf " @<1>\u{2a2f} ")
            (print ~product_above:true))
         ts
-        (if product_above then ")" else "")
 
   let rec unarize t =
     match t with
@@ -86,7 +85,7 @@ let components t = t
 
 let print ppf t =
   Format.fprintf ppf "@[%a@]"
-    (Format.pp_print_list (Component.print ~product_above:false)
+    (Format.pp_print_list (Component.print ~product_above:true)
        ~pp_sep:(fun ppf () -> Format.fprintf ppf " @<1>\u{2a2f} "))
     t
 
