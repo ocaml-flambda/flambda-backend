@@ -127,3 +127,35 @@ let rec must_be_one_param t =
 
 let from_lambda_list layouts =
   layouts |> List.map Component_for_creation.from_lambda |> create
+
+let rec partially_apply t ~num_unarized_params_provided =
+  if num_unarized_params_provided < 0
+  then
+    Misc.fatal_errorf "Bad num_unarized_params_provided (%d): %a"
+      num_unarized_params_provided print t
+  else
+    match t with
+    | [] ->
+      if num_unarized_params_provided <> 0
+      then
+        Misc.fatal_errorf
+          "Have run out of parameters in arity, but %d unarized arguments \
+           remain"
+          num_unarized_params_provided
+      else []
+    | component :: components ->
+      if num_unarized_params_provided = 0
+      then t
+      else
+        let unarized_component = Component.unarize component in
+        let unarized_component_length = List.length unarized_component in
+        if num_unarized_params_provided < unarized_component_length
+        then
+          Misc.fatal_errorf
+            "Cannot subdivide unboxed product %a (%d unarized arguments remain)"
+            print t num_unarized_params_provided
+        else
+          let num_unarized_params_provided =
+            num_unarized_params_provided - unarized_component_length
+          in
+          partially_apply components ~num_unarized_params_provided
