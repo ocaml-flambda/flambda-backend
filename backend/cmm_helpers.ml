@@ -1004,8 +1004,77 @@ let lookup_label obj lab dbg =
       let table = Cop (Cload (Word_val, Mutable), [obj], dbg) in
       addr_array_ref table lab dbg)
 
+module Extended_machtype_component = struct
+  type t =
+    | Val
+    | Addr
+    | Tagged_int
+    | Any_int
+    | Float
+
+  let of_machtype_component (component : machtype_component) =
+    match component with
+    | Val -> Val
+    | Addr -> Addr
+    | Int -> Any_int
+    | Float -> Float
+
+  let to_machtype_component t : machtype_component =
+    match t with
+    | Val -> Val
+    | Addr -> Addr
+    | Tagged_int | Any_int -> Int
+    | Float -> Float
+
+  let change_tagged_int_to_val t : machtype_component =
+    match t with
+    | Val -> Val
+    | Addr -> Addr
+    | Tagged_int -> Val
+    | Any_int -> Int
+    | Float -> Float
+end
+
+module Extended_machtype = struct
+  type t = Extended_machtype_component.t array
+
+  let typ_val = [| Extended_machtype_component.Val |]
+
+  let typ_tagged_int = [| Extended_machtype_component.Tagged_int |]
+
+  let typ_any_int = [| Extended_machtype_component.Any_int |]
+
+  let typ_int64 = [| Extended_machtype_component.Any_int |]
+
+  let typ_float = [| Extended_machtype_component.Float |]
+
+  let typ_void = [||]
+
+  let of_machtype machtype =
+    Array.map Extended_machtype_component.of_machtype_component machtype
+
+  let to_machtype t =
+    Array.map Extended_machtype_component.to_machtype_component t
+
+  let change_tagged_int_to_val t =
+    Array.map Extended_machtype_component.change_tagged_int_to_val t
+
+  let of_layout (layout : Lambda.layout) =
+    match layout with
+    | Ptop -> Misc.fatal_error "No Extended_machtype for layout [Ptop]"
+    | Pbottom ->
+      Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
+    | Punboxed_float -> typ_float
+    | Punboxed_int _ ->
+      (* Only 64-bit architectures, so this is always [typ_int] *)
+      typ_any_int
+    | Pvalue Pintval -> typ_tagged_int
+    | Pvalue _ -> typ_val
+end
+
 let machtype_identifier t =
-  let char_of_component = function
+  let char_of_component (component : machtype_component) =
+    match component with
     | Val -> 'V'
     | Int -> 'I'
     | Float -> 'F'
@@ -1014,7 +1083,18 @@ let machtype_identifier t =
   in
   String.of_seq (Seq.map char_of_component (Array.to_seq t))
 
-let unique_arity_identifier arity =
+let extended_machtype_identifier t =
+  let char_of_component (component : Extended_machtype_component.t) =
+    match component with
+    | Val | Tagged_int -> 'V'
+    | Any_int -> 'I'
+    | Float -> 'F'
+    | Addr ->
+      Misc.fatal_error "[Addr] is forbidden inside arity for generic functions"
+  in
+  String.of_seq (Seq.map char_of_component (Array.to_seq t))
+
+let unique_arity_identifier (arity : Cmm.machtype list) =
   if List.for_all (function [| Val |] -> true | _ -> false) arity
   then Int.to_string (List.length arity)
   else String.concat "_" (List.map machtype_identifier arity)
@@ -1107,6 +1187,7 @@ let make_checkbound dbg = function
   | args -> Cop (Ccheckbound, args, dbg)
 
 (* Record application and currying functions *)
+
 let apply_function_name arity result (mode : Lambda.alloc_mode) =
   let res =
     match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
@@ -2170,6 +2251,10 @@ let direct_apply lbl ty args (pos, _mode) dbg =
   Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
 let call_caml_apply ty args_type mut clos args pos mode dbg =
+  let args_type =
+    List.map Extended_machtype.change_tagged_int_to_val args_type
+  in
+  let ty = Extended_machtype.change_tagged_int_to_val ty in
   let really_call_caml_apply clos args =
     let cargs =
       (Cconst_symbol (apply_function_sym args_type ty mode, dbg) :: args)
@@ -2214,14 +2299,17 @@ let generic_apply mut clos args args_type result (pos, mode) dbg =
   | [arg] ->
     bind "fun" clos (fun clos ->
         Cop
-          (Capply (result, pos), [get_field_gen mut clos 0 dbg; arg; clos], dbg))
+          ( Capply (Extended_machtype.to_machtype result, pos),
+            [get_field_gen mut clos 0 dbg; arg; clos],
+            dbg ))
   | _ -> call_caml_apply result args_type mut clos args pos mode dbg
 
 let send kind met obj args args_type result akind dbg =
   let call_met obj args args_type clos =
     (* met is never a simple expression, so it never gets turned into an
        Immutable load *)
-    generic_apply Asttypes.Mutable clos (obj :: args) (typ_val :: args_type)
+    generic_apply Asttypes.Mutable clos (obj :: args)
+      (Extended_machtype.typ_val :: args_type)
       result akind dbg
   in
   bind "obj" obj (fun obj ->
@@ -2229,6 +2317,8 @@ let send kind met obj args args_type result akind dbg =
       | Self, _, _ ->
         bind "met" (lookup_label obj met dbg) (call_met obj args args_type)
       | Cached, cache :: pos :: args, _ :: _ :: args_type ->
+        let args_type = List.map Extended_machtype.to_machtype args_type in
+        let result = Extended_machtype.to_machtype result in
         call_cached_method obj met cache pos args args_type result akind dbg
       | _ -> bind "met" (lookup_tag obj met dbg) (call_met obj args args_type))
 
@@ -2537,6 +2627,8 @@ let send_function (arity, result, mode) =
     }
 
 let apply_function (arity, result, mode) =
+  (* Treat tagged int arguments and results as [typ_val], to avoid generating
+     excessive numbers of caml_apply functions. *)
   let args, clos, body = apply_function_body arity result mode in
   let all_args = List.combine args arity @ [clos, typ_val] in
   let fun_name = apply_function_name arity result mode in
@@ -3913,7 +4005,7 @@ let indirect_call ~dbg ty pos alloc_mode f args_type args =
     letin v' ~defining_expr:f
       ~body:
         (Cop
-           ( Capply (ty, pos),
+           ( Capply (Extended_machtype.to_machtype ty, pos),
              [load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v); arg; Cvar v],
              dbg ))
   | args ->
@@ -3931,7 +4023,11 @@ let indirect_full_call ~dbg ty pos alloc_mode f args_type = function
       load ~dbg Word_int Asttypes.Mutable ~addr:(field_address (Cvar v) 2 dbg)
     in
     letin v' ~defining_expr:f
-      ~body:(Cop (Capply (ty, pos), (fun_ptr :: args) @ [Cvar v], dbg))
+      ~body:
+        (Cop
+           ( Capply (Extended_machtype.to_machtype ty, pos),
+             (fun_ptr :: args) @ [Cvar v],
+             dbg ))
 
 let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~index =
   let ba_data_f = field_address bigarray 1 dbg in

@@ -43,7 +43,7 @@ let get_func_decl_params_arity t code_id =
       (Flambda_arity.With_subkinds.to_list (Code_metadata.params_arity info))
   in
   let result_ty =
-    C.machtype_of_return_arity (Code_metadata.result_arity info)
+    C.extended_machtype_of_return_arity (Code_metadata.result_arity info)
   in
   let kind : Lambda.function_kind =
     if Code_metadata.is_tupled info
@@ -219,6 +219,7 @@ end = struct
              store code ID %a which is classified as \
              Full_and_partial_application (so the expected size is 3)"
             Function_slot.print function_slot size Code_id.print code_id;
+        let result_ty = C.Extended_machtype.to_machtype result_ty in
         let acc =
           P.symbol_from_linkage_name ~dbg code_linkage_name
           :: P.int ~dbg closure_info
