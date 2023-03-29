@@ -61,6 +61,36 @@ let record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply =
   DA.map_flow_acc dacc
     ~f:(record_free_names_of_apply_as_used0 ~use_id ~exn_cont_use_id apply)
 
+let loopify_decision_for_call dacc apply =
+  let denv = DA.denv dacc in
+  match DE.closure_info denv with
+  | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
+    Loopify_state.do_not_loopify
+  | Closure { return_continuation; exn_continuation; my_closure; _ } ->
+    let tenv = DE.typing_env denv in
+    let[@inline always] canon simple =
+      Simple.without_coercion (TE.get_canonical_simple_exn tenv simple)
+    in
+    if Simple.equal (canon (Simple.var my_closure)) (canon (Apply.callee apply))
+       && (match Apply.continuation apply with
+          | Never_returns ->
+            (* If we never return, then this call is a tail-call *)
+            true
+          | Return apply_return_continuation ->
+            Continuation.equal apply_return_continuation return_continuation)
+       && Exn_continuation.equal
+            (Apply.exn_continuation apply)
+            (Exn_continuation.create ~exn_handler:exn_continuation
+               ~extra_args:[])
+    then DE.loopify_state denv
+    else Loopify_state.do_not_loopify
+
+let simplify_self_tail_call dacc apply self_cont ~down_to_up =
+  Simplify_apply_cont_expr.simplify_apply_cont dacc
+    (Apply_cont_expr.create self_cont ~args:(Apply.args apply)
+       ~dbg:(Apply.dbg apply))
+    ~down_to_up
+
 let simplify_direct_tuple_application ~simplify_expr dacc apply
     ~apply_alloc_mode ~current_region ~callee's_code_id ~callee's_code_metadata
     ~down_to_up =
@@ -152,7 +182,7 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
   in
   after_rebuild expr uacc
 
-let simplify_direct_full_application0 ~simplify_expr dacc apply function_type
+let simplify_direct_full_application ~simplify_expr dacc apply function_type
     ~params_arity ~result_arity ~(result_types : _ Or_unknown_or_bottom.t)
     ~down_to_up ~coming_from_indirect ~callee's_code_metadata =
   let inlined =
@@ -202,144 +232,109 @@ let simplify_direct_full_application0 ~simplify_expr dacc apply function_type
   in
   match inlined with
   | Some (dacc, inlined) -> simplify_expr dacc inlined ~down_to_up
-  | None ->
-    let dacc, use_id, result_continuation =
-      let result_continuation = Apply.continuation apply in
-      match result_continuation, result_types with
-      | Never_returns, (Unknown | Bottom | Ok _) | Return _, Bottom ->
-        dacc, None, Apply.Result_continuation.Never_returns
-      | Return apply_return_continuation, Unknown ->
-        let dacc, use_id =
-          DA.record_continuation_use dacc apply_return_continuation
-            (Non_inlinable { escaping = true })
-            ~env_at_use:(DA.denv dacc)
-            ~arg_types:(T.unknown_types_from_arity_with_subkinds result_arity)
-        in
-        dacc, Some use_id, result_continuation
-      | Return apply_return_continuation, Ok result_types ->
-        Result_types.pattern_match result_types
-          ~f:(fun ~params ~results env_extension ->
-            if Flambda_arity.With_subkinds.cardinal params_arity
-               <> Bound_parameters.cardinal params
-            then
-              Misc.fatal_errorf
-                "Params arity %a does not match up with params in the result \
-                 types structure:@ %a@ for application:@ %a"
-                Flambda_arity.With_subkinds.print params_arity
-                Result_types.print result_types Apply.print apply;
-            if Flambda_arity.With_subkinds.cardinal result_arity
-               <> Bound_parameters.cardinal results
-            then
-              Misc.fatal_errorf
-                "Result arity %a does not match up with the result types \
-                 structure:@ %a@ for application:@ %a"
-                Flambda_arity.With_subkinds.print params_arity
-                Result_types.print result_types Apply.print apply;
-            let denv = DA.denv dacc in
-            let denv =
-              DE.add_parameters_with_unknown_types ~name_mode:Name_mode.in_types
-                denv params
-            in
-            let params = Bound_parameters.to_list params in
-            let results = Bound_parameters.to_list results in
-            let denv =
-              let args = Apply.args apply in
-              assert (List.compare_lengths params args = 0);
-              List.fold_left2
-                (fun denv param arg ->
-                  DE.add_equation_on_variable denv (BP.var param)
-                    (T.alias_type_of (K.With_subkind.kind (BP.kind param)) arg))
-                denv params args
-            in
-            let result_arity =
-              Flambda_arity.With_subkinds.to_list result_arity
-            in
-            let denv =
-              List.fold_left2
-                (fun denv kind result ->
-                  DE.add_variable denv
-                    (VB.create (BP.var result) NM.in_types)
-                    (T.unknown_with_subkind kind))
-                denv result_arity results
-            in
-            let denv = DE.extend_typing_environment denv env_extension in
-            (* Note: the result types of the application will go into a meet
-               with the kind information on the parameter(s) of the return
-               continuation (just like the normal [Apply_cont] case where the
-               meet is only done upon reaching the handler). *)
-            let arg_types =
-              List.map2
-                (fun kind result_var ->
-                  T.alias_type_of (K.With_subkind.kind kind)
-                    (BP.simple result_var))
-                result_arity results
-            in
-            let dacc = DA.with_denv dacc denv in
-            let dacc, use_id =
-              DA.record_continuation_use dacc apply_return_continuation
-                (Non_inlinable { escaping = true })
-                ~env_at_use:(DA.denv dacc) ~arg_types
-            in
-            dacc, Some use_id, result_continuation)
-    in
-    let dacc, exn_cont_use_id =
-      DA.record_continuation_use dacc
-        (Exn_continuation.exn_handler (Apply.exn_continuation apply))
-        (Non_inlinable { escaping = true })
-        ~env_at_use:(DA.denv dacc)
-        ~arg_types:
-          (T.unknown_types_from_arity_with_subkinds
-             (Exn_continuation.arity (Apply.exn_continuation apply)))
-    in
-    let apply = Apply.with_continuation apply result_continuation in
-    let dacc =
-      record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply
-    in
-    down_to_up dacc
-      ~rebuild:
-        (rebuild_non_inlined_direct_full_application apply ~use_id
-           ~exn_cont_use_id ~result_arity ~coming_from_indirect)
-
-let loopify_decision_for_call dacc apply =
-  let denv = DA.denv dacc in
-  match DE.closure_info denv with
-  | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
-    Loopify_state.do_not_loopify
-  | Closure { return_continuation; exn_continuation; my_closure; _ } ->
-    let tenv = DE.typing_env denv in
-    let[@inline always] canon simple =
-      Simple.without_coercion (TE.get_canonical_simple_exn tenv simple)
-    in
-    if Simple.equal (canon (Simple.var my_closure)) (canon (Apply.callee apply))
-       && (match Apply.continuation apply with
-          | Never_returns ->
-            (* If we never return, then this call is a tail-call *)
-            true
-          | Return apply_return_continuation ->
-            Continuation.equal apply_return_continuation return_continuation)
-       && Exn_continuation.equal
-            (Apply.exn_continuation apply)
-            (Exn_continuation.create ~exn_handler:exn_continuation
-               ~extra_args:[])
-    then DE.loopify_state denv
-    else Loopify_state.do_not_loopify
-
-let simplify_self_tail_call dacc apply self_cont ~down_to_up =
-  Simplify_apply_cont_expr.simplify_apply_cont dacc
-    (Apply_cont_expr.create self_cont ~args:(Apply.args apply)
-       ~dbg:(Apply.dbg apply))
-    ~down_to_up
-
-let simplify_direct_full_application ~simplify_expr dacc apply function_type
-    ~params_arity ~result_arity ~result_types ~down_to_up ~coming_from_indirect
-    ~callee's_code_metadata =
-  match loopify_decision_for_call dacc apply with
-  | Loopify self_cont ->
-    simplify_self_tail_call dacc apply self_cont ~down_to_up
-  | Do_not_loopify ->
-    simplify_direct_full_application0 ~simplify_expr dacc apply function_type
-      ~params_arity ~result_arity ~result_types ~down_to_up
-      ~coming_from_indirect ~callee's_code_metadata
+  | None -> (
+    match loopify_decision_for_call dacc apply with
+    | Loopify self_cont ->
+      simplify_self_tail_call dacc apply self_cont ~down_to_up
+    | Do_not_loopify ->
+      let dacc, use_id, result_continuation =
+        let result_continuation = Apply.continuation apply in
+        match result_continuation, result_types with
+        | Never_returns, (Unknown | Bottom | Ok _) | Return _, Bottom ->
+          dacc, None, Apply.Result_continuation.Never_returns
+        | Return apply_return_continuation, Unknown ->
+          let dacc, use_id =
+            DA.record_continuation_use dacc apply_return_continuation
+              (Non_inlinable { escaping = true })
+              ~env_at_use:(DA.denv dacc)
+              ~arg_types:(T.unknown_types_from_arity_with_subkinds result_arity)
+          in
+          dacc, Some use_id, result_continuation
+        | Return apply_return_continuation, Ok result_types ->
+          Result_types.pattern_match result_types
+            ~f:(fun ~params ~results env_extension ->
+              if Flambda_arity.With_subkinds.cardinal params_arity
+                 <> Bound_parameters.cardinal params
+              then
+                Misc.fatal_errorf
+                  "Params arity %a does not match up with params in the result \
+                   types structure:@ %a@ for application:@ %a"
+                  Flambda_arity.With_subkinds.print params_arity
+                  Result_types.print result_types Apply.print apply;
+              if Flambda_arity.With_subkinds.cardinal result_arity
+                 <> Bound_parameters.cardinal results
+              then
+                Misc.fatal_errorf
+                  "Result arity %a does not match up with the result types \
+                   structure:@ %a@ for application:@ %a"
+                  Flambda_arity.With_subkinds.print params_arity
+                  Result_types.print result_types Apply.print apply;
+              let denv = DA.denv dacc in
+              let denv =
+                DE.add_parameters_with_unknown_types
+                  ~name_mode:Name_mode.in_types denv params
+              in
+              let params = Bound_parameters.to_list params in
+              let results = Bound_parameters.to_list results in
+              let denv =
+                let args = Apply.args apply in
+                assert (List.compare_lengths params args = 0);
+                List.fold_left2
+                  (fun denv param arg ->
+                    DE.add_equation_on_variable denv (BP.var param)
+                      (T.alias_type_of
+                         (K.With_subkind.kind (BP.kind param))
+                         arg))
+                  denv params args
+              in
+              let result_arity =
+                Flambda_arity.With_subkinds.to_list result_arity
+              in
+              let denv =
+                List.fold_left2
+                  (fun denv kind result ->
+                    DE.add_variable denv
+                      (VB.create (BP.var result) NM.in_types)
+                      (T.unknown_with_subkind kind))
+                  denv result_arity results
+              in
+              let denv = DE.extend_typing_environment denv env_extension in
+              (* Note: the result types of the application will go into a meet
+                 with the kind information on the parameter(s) of the return
+                 continuation (just like the normal [Apply_cont] case where the
+                 meet is only done upon reaching the handler). *)
+              let arg_types =
+                List.map2
+                  (fun kind result_var ->
+                    T.alias_type_of (K.With_subkind.kind kind)
+                      (BP.simple result_var))
+                  result_arity results
+              in
+              let dacc = DA.with_denv dacc denv in
+              let dacc, use_id =
+                DA.record_continuation_use dacc apply_return_continuation
+                  (Non_inlinable { escaping = true })
+                  ~env_at_use:(DA.denv dacc) ~arg_types
+              in
+              dacc, Some use_id, result_continuation)
+      in
+      let dacc, exn_cont_use_id =
+        DA.record_continuation_use dacc
+          (Exn_continuation.exn_handler (Apply.exn_continuation apply))
+          (Non_inlinable { escaping = true })
+          ~env_at_use:(DA.denv dacc)
+          ~arg_types:
+            (T.unknown_types_from_arity_with_subkinds
+               (Exn_continuation.arity (Apply.exn_continuation apply)))
+      in
+      let apply = Apply.with_continuation apply result_continuation in
+      let dacc =
+        record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply
+      in
+      down_to_up dacc
+        ~rebuild:
+          (rebuild_non_inlined_direct_full_application apply ~use_id
+             ~exn_cont_use_id ~result_arity ~coming_from_indirect))
 
 (* CR mshinwell: need to work out what to do for local alloc transformations
    when there are zero args. *)
