@@ -24,17 +24,52 @@ module Int = Numbers.Int
 module V = Backend_var
 module VP = Backend_var.With_provenance
 
-type region_stack = Reg.t array list
+module Region_stack : sig
+  (* A nested set of regions, with the innermost at the head *)
+  type t = Reg.t array list
+
+  val equal : t -> t -> bool
+
+  (* Given two region stacks that are suffixes of the same
+     original stack, return their common suffix.
+
+     (This is always the shorter of the two arguments) *)
+  val common_suffix : t -> t -> t
+
+  (* Given a region stack R and one of its suffixes S,
+     return the prefix P where R = P @ S *)
+  val strip_suffix : suffix:t -> t -> t
+end  = struct
+  type t = Reg.t array list
+
+  let equal a b =
+    (a == b) || List.equal (==) a b
+
+  let common_suffix xs ys =
+    if xs == ys || List.compare_lengths xs ys <= 0
+    then xs
+    else ys
+
+  let strip_suffix ~suffix t =
+    match suffix with
+    | [] -> t
+    | _ when suffix == t -> []
+    | suff ->
+       let pre, suff' =
+         Misc.Stdlib.List.split_at (List.length t - List.length suff) t
+       in
+       assert (equal suff' suff);
+       pre
+end
 
 type environment =
   { vars : (Reg.t array
             * Backend_var.Provenance.t option
             * Asttypes.mutable_flag) V.Map.t;
-    static_exceptions : (Reg.t array list * region_stack) Int.Map.t;
+    static_exceptions : (Reg.t array list * Region_stack.t) Int.Map.t;
     (** Which registers must be populated when jumping to the given
         handler. *)
-    regions : region_stack;
-    region_tail : bool;
+    regions : Region_stack.t;
   }
 
 let env_add ?(mut=Asttypes.Immutable) var regs env =
@@ -66,22 +101,7 @@ let env_empty = {
   vars = V.Map.empty;
   static_exceptions = Int.Map.empty;
   regions = [];
-  region_tail = false;
 }
-
-(* Assuming [rs] is equal to or a suffix of [env.regions],
-   return the last region in [env.regions] but not [rs]
-   (or None if they are equal) *)
-let env_close_regions env rs =
-  let rec aux v es rs =
-    match es, rs with
-    | [], [] -> v
-    | (r :: _), (r' :: _) when r == r' -> v
-    | [], _::_ ->
-       Misc.fatal_error "Selectgen.env_close_regions: not a suffix"
-    | r :: es, rs -> aux (Some r) es rs
-  in
-  aux None env.regions rs
 
 (* Infer the type of the result of an operation *)
 
@@ -193,7 +213,7 @@ let join env opt_r1 seq1 opt_r2 seq2 =
   match (opt_r1, opt_r2) with
     (None, _) -> opt_r2
   | (_, None) -> opt_r1
-  | (Some r1, Some r2) ->
+  | (Some (r1, uncl1), Some (r2, uncl2)) ->
       let l1 = Array.length r1 in
       assert (l1 = Array.length r2);
       let r = Array.make l1 Reg.dummy in
@@ -215,7 +235,10 @@ let join env opt_r1 seq1 opt_r2 seq2 =
           seq2#insert_move env r2.(i) r.(i)
         end
       done;
-      Some r
+      let suffix = Region_stack.common_suffix uncl1 uncl2 in
+      seq1#insert_endregions_until env ~suffix uncl1;
+      seq2#insert_endregions_until env ~suffix uncl2;
+      Some (r, suffix)
 
 (* Same, for N branches *)
 
@@ -225,18 +248,19 @@ let join_array env rs =
     let (r, _) = rs.(i) in
     match r with
     | None -> ()
-    | Some r ->
+    | Some (r, uncl) ->
       match !some_res with
-      | None -> some_res := Some (r, Array.map (fun r -> r.typ) r)
-      | Some (r', types) ->
+      | None ->
+        some_res := Some (r, Array.map (fun r -> r.typ) r, uncl)
+      | Some (r', types, uncl') ->
         let types =
           Array.map2 (fun r typ -> Cmm.lub_component r.typ typ) r types
         in
-        some_res := Some (r', types)
+        some_res := Some (r', types, Region_stack.common_suffix uncl uncl')
   done;
   match !some_res with
     None -> None
-  | Some (template, types) ->
+  | Some (template, types, regions) ->
       let size_res = Array.length template in
       let res = Array.make size_res Reg.dummy in
       for i = 0 to size_res - 1 do
@@ -246,9 +270,11 @@ let join_array env rs =
         let (r, s) = rs.(i) in
         match r with
           None -> ()
-        | Some r -> s#insert_moves env r res
+        | Some (r, uncl) ->
+           s#insert_moves env r res;
+           s#insert_endregions_until env ~suffix:regions uncl;
       done;
-      Some res
+      Some (res, regions)
 
 (* Name of function being compiled *)
 let current_function_name = ref ""
@@ -330,7 +356,7 @@ end
 
 (* The default instruction selection class *)
 
-class virtual selector_generic = object (self)
+class virtual selector_generic = object (self : 'self)
 
 (* A syntactic criterion used in addition to judgements about (co)effects as
    to whether the evaluation of a given expression may be deferred by
@@ -641,23 +667,50 @@ method insert_op_debug env op dbg rs rd =
 method insert_op env op rs rd =
   self#insert_op_debug env op Debuginfo.none rs rd
 
-(* Add the instructions for the given expression
-   at the end of the self sequence *)
+method insert_endregions env regions =
+  match regions with
+  | [] -> ()
+  | regions ->
+     (* Coalesce multiple simultaneous Iendregion *)
+     let final_region = List.hd (List.rev regions) in
+     self#insert env (Iop Iendregion) final_region [| |]
 
+method insert_endregions_until env ~suffix regions =
+  self#insert_endregions env (Region_stack.strip_suffix ~suffix regions)
+
+(* Emit an expression, which is assumed not to end any regions early.
+   (This holds for any expression not in tail position of Cregion)
+
+   Returns:
+     - [None] if the expression does not finish normally (e.g. raises)
+     - [Some rs] if the expression yields a result in registers [rs] *)
 method emit_expr (env:environment) exp =
-  (* Environment used in recursive calls not in tail position *)
-  let env' =
-    if env.region_tail then {env with region_tail=false} else env in
+  match self#emit_expr_aux env exp with
+  | None -> None
+  | Some (res, unclosed) ->
+     assert (Region_stack.equal unclosed env.regions);
+     Some res
+
+(* Emit an expression which may end some regions early.
+
+   Returns:
+    - [None] if the expression does not finish normally (e.g. raises)
+    - [Some (rs, unclosed)] if the expression yields a result in [rs],
+      having left [unclosed] (a suffix of env.regions) regions open *)
+method emit_expr_aux (env:environment) exp :
+  (Reg.t array * Region_stack.t) option =
+  (* Normal case of returning a value: no regions are closed *)
+  let ret res = Some (res, env.regions) in
   match exp with
     Cconst_int (n, _dbg) ->
       let r = self#regs_for typ_int in
-      Some(self#insert_op env (Iconst_int(Nativeint.of_int n)) [||] r)
+      ret (self#insert_op env (Iconst_int(Nativeint.of_int n)) [||] r)
   | Cconst_natint (n, _dbg) ->
       let r = self#regs_for typ_int in
-      Some(self#insert_op env (Iconst_int n) [||] r)
+      ret (self#insert_op env (Iconst_int n) [||] r)
   | Cconst_float (n, _dbg) ->
       let r = self#regs_for typ_float in
-      Some(self#insert_op env (Iconst_float (Int64.bits_of_float n)) [||] r)
+      ret (self#insert_op env (Iconst_float (Int64.bits_of_float n)) [||] r)
   | Cconst_symbol (n, _dbg) ->
       (* Cconst_symbol _ evaluates to a statically-allocated address, so its
          value fits in a typ_int register and is never changed by the GC.
@@ -667,46 +720,46 @@ method emit_expr (env:environment) exp =
          registered in the compilation unit's global roots structure, so
          adding this register to the frame table would be redundant *)
       let r = self#regs_for typ_int in
-      Some(self#insert_op env (Iconst_symbol n) [||] r)
+      ret (self#insert_op env (Iconst_symbol n) [||] r)
   | Cvar v ->
       begin try
-        Some(env_find v env)
+        ret (env_find v env)
       with Not_found ->
         Misc.fatal_error("Selection.emit_expr: unbound var " ^ V.unique_name v)
       end
   | Clet(v, e1, e2) ->
-      begin match self#emit_expr env' e1 with
+      begin match self#emit_expr env e1 with
         None -> None
-      | Some r1 -> self#emit_expr (self#bind_let env v r1) e2
+      | Some r1 -> self#emit_expr_aux (self#bind_let env v r1) e2
       end
   | Clet_mut(v, k, e1, e2) ->
-      begin match self#emit_expr env' e1 with
+      begin match self#emit_expr env e1 with
         None -> None
-      | Some r1 -> self#emit_expr (self#bind_let_mut env v k r1) e2
+      | Some r1 -> self#emit_expr_aux (self#bind_let_mut env v k r1) e2
       end
   | Cphantom_let (_var, _defining_expr, body) ->
-      self#emit_expr env body
+      self#emit_expr_aux env body
   | Cassign(v, e1) ->
       let rv =
         try
           env_find_mut v env
         with Not_found ->
           Misc.fatal_error ("Selection.emit_expr: unbound var " ^ V.name v) in
-      begin match self#emit_expr env' e1 with
+      begin match self#emit_expr env e1 with
         None -> None
       | Some r1 ->
-          self#insert_moves env r1 rv; Some [||]
+          self#insert_moves env r1 rv; ret [||]
       end
   | Ctuple [] ->
-      Some [||]
+      ret [||]
   | Ctuple exp_list ->
-      begin match self#emit_parts_list env' exp_list with
+      begin match self#emit_parts_list env exp_list with
         None -> None
       | Some(simple_list, ext_env) ->
-          Some(self#emit_tuple ext_env simple_list)
+          ret (self#emit_tuple ext_env simple_list)
       end
   | Cop(Craise k, [arg], dbg) ->
-      begin match self#emit_expr env' arg with
+      begin match self#emit_expr env arg with
         None -> None
       | Some r1 ->
           let rd = [|Proc.loc_exn_bucket|] in
@@ -715,7 +768,7 @@ method emit_expr (env:environment) exp =
           None
       end
   | Cop(Ccmpf _, _, dbg) ->
-      self#emit_expr env
+      self#emit_expr_aux env
         (Cifthenelse (exp,
           dbg, Cconst_int (1, dbg),
           dbg, Cconst_int (0, dbg),
@@ -725,35 +778,42 @@ method emit_expr (env:environment) exp =
         None -> None
       | Some (simple_args, env) ->
          let rs = self#emit_tuple env simple_args in
-         Some (self#insert_op_debug env Iopaque dbg rs rs)
+         ret (self#insert_op_debug env Iopaque dbg rs rs)
       end
   | Cop(op, args, dbg) ->
-      begin match self#emit_parts_list env' args with
+      begin match self#emit_parts_list env args with
         None -> None
       | Some(simple_args, env) ->
           let ty = oper_result_type op in
+          let unclosed_regions =
+            match op with
+            | Capply (_, Rc_close_at_apply) -> List.tl env.regions
+            | _ -> env.regions
+          in
           let (new_op, new_args) = self#select_operation op simple_args dbg in
           match new_op with
             Icall_ind ->
               let r1 = self#emit_tuple env new_args in
               let rarg = Array.sub r1 1 (Array.length r1 - 1) in
               let rd = self#regs_for ty in
+              self#insert_endregions_until env ~suffix:unclosed_regions env.regions;
               let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv rarg) in
               let loc_res = Proc.loc_results (Reg.typv rd) in
               self#insert_move_args env rarg loc_arg stack_ofs;
               self#insert_debug env (Iop new_op) dbg
                           (Array.append [|r1.(0)|] loc_arg) loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
-              Some rd
+              Some (rd, unclosed_regions)
           | Icall_imm _ ->
               let r1 = self#emit_tuple env new_args in
               let rd = self#regs_for ty in
+              self#insert_endregions_until env ~suffix:unclosed_regions env.regions;
               let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv r1) in
               let loc_res = Proc.loc_results (Reg.typv rd) in
               self#insert_move_args env r1 loc_arg stack_ofs;
               self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
-              Some rd
+              Some (rd, unclosed_regions)
           | Iextcall { ty_args; _} ->
               let (loc_arg, stack_ofs) =
                 self#emit_extcall_args env ty_args new_args in
@@ -762,7 +822,8 @@ method emit_expr (env:environment) exp =
                 self#insert_op_debug env new_op dbg
                   loc_arg (Proc.loc_external_results (Reg.typv rd)) in
               self#insert_move_results env loc_res rd stack_ofs;
-              Some rd
+              assert (Region_stack.equal unclosed_regions env.regions);
+              ret rd
           | Ialloc { bytes = _; mode } ->
               let rd = self#regs_for typ_val in
               let bytes = size_expr env (Ctuple new_args) in
@@ -775,31 +836,33 @@ method emit_expr (env:environment) exp =
               in
               self#insert_debug env (Iop op) dbg [||] rd;
               self#emit_stores env new_args rd;
-              Some rd
+              assert (Region_stack.equal unclosed_regions env.regions);
+              ret rd
           | op ->
               let r1 = self#emit_tuple env new_args in
               let rd = self#regs_for ty in
-              Some (self#insert_op_debug env op dbg r1 rd)
+              assert (Region_stack.equal unclosed_regions env.regions);
+              ret (self#insert_op_debug env op dbg r1 rd)
       end
   | Csequence(e1, e2) ->
-      begin match self#emit_expr env' e1 with
+      begin match self#emit_expr env e1 with
         None -> None
-      | Some _ -> self#emit_expr env e2
+      | Some _ -> self#emit_expr_aux env e2
       end
   | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg, _kind) ->
       let (cond, earg) = self#select_condition econd in
-      begin match self#emit_expr env' earg with
+      begin match self#emit_expr env earg with
         None -> None
       | Some rarg ->
-          let (rif, sif) = self#emit_sequence env eif in
-          let (relse, selse) = self#emit_sequence env eelse in
+          let (rif, (sif : 'self)) = self#emit_sequence env eif in
+          let (relse, (selse : 'self)) = self#emit_sequence env eelse in
           let r = join env rif sif relse selse in
           self#insert env (Iifthenelse(cond, sif#extract, selse#extract))
                       rarg [||];
           r
       end
   | Cswitch(esel, index, ecases, _dbg, _kind) ->
-      begin match self#emit_expr env' esel with
+      begin match self#emit_expr env esel with
         None -> None
       | Some rsel ->
           let rscases =
@@ -812,7 +875,7 @@ method emit_expr (env:environment) exp =
           r
       end
   | Ccatch(_, [], e1, _) ->
-      self#emit_expr env e1
+      self#emit_expr_aux env e1
   | Ccatch(rec_flag, handlers, body, _) ->
       let handlers =
         List.map (fun (nfail, ids, e2, dbg) ->
@@ -824,9 +887,6 @@ method emit_expr (env:environment) exp =
             (nfail, ids, rs, e2, dbg))
           handlers
       in
-      let env =
-        (* Disable region-fusion on loops *)
-        match rec_flag with Recursive -> env' | Nonrecursive -> env in
       let env =
         (* Since the handlers may be recursive, and called from the body,
            the same environment is used for translating both the handlers and
@@ -853,7 +913,7 @@ method emit_expr (env:environment) exp =
         [||] [||];
       r
   | Cexit (nfail,args) ->
-      begin match self#emit_parts_list env' args with
+      begin match self#emit_parts_list env args with
         None -> None
       | Some (simple_list, ext_env) ->
           let src = self#emit_tuple ext_env simple_list in
@@ -870,10 +930,7 @@ method emit_expr (env:environment) exp =
           Array.iter (fun reg -> assert(reg.typ <> Addr)) src;
           self#insert_moves env src tmp_regs ;
           self#insert_moves env tmp_regs (Array.concat dest_args) ;
-          begin match env_close_regions env dest_regions with
-          | None -> ()
-          | Some regs -> self#insert env (Iop Iendregion) regs [||]
-          end;
+          self#insert_endregions_until env ~suffix:dest_regions env.regions;
           self#insert env (Iexit nfail) [||] [||];
           None
       end
@@ -899,22 +956,33 @@ method emit_expr (env:environment) exp =
       r
   | Cregion e ->
      assert (Config.stack_allocation);
+     let old_regions = env.regions in
      let reg = self#regs_for typ_int in
      self#insert env (Iop Ibeginregion) [| |] reg;
-     let env = { env with regions = reg::env.regions; region_tail = true } in
-     begin match self#emit_expr env e with
-       None -> None
-     | Some _ as res ->
-        self#insert env (Iop Iendregion) reg [| |];
-        res
+     let env = { env with regions = reg :: old_regions } in
+     begin match self#emit_expr_aux env e with
+     | None -> None
+     | Some (rd, reg' :: unclosed) when reg == reg' ->
+        (* Compiling e closed no regions *)
+        assert (Region_stack.equal unclosed old_regions);
+        self#insert_endregions env [reg];
+        Some (rd, unclosed)
+     | Some (rd, unclosed) ->
+        (* Compiling e closed [reg], and possibly other regions too *)
+        assert (List.length unclosed <= List.length old_regions);
+        Some (rd, unclosed)
      end
   | Ctail e ->
-      assert env.region_tail;
-      self#emit_expr env e
+     begin match env.regions with
+     | [] -> Misc.fatal_error "Selectgen.emit_expr: Ctail but not in tail of a region"
+     | cl :: rest ->
+       self#insert_endregions env [cl];
+       self#emit_expr_aux { env with regions = rest } e
+     end
 
-method private emit_sequence (env:environment) exp =
-  let s = {< instr_seq = dummy_instr >} in
-  let r = s#emit_expr env exp in
+method private emit_sequence (env:environment) exp : _ * 'self=
+  let s : 'self = {< instr_seq = dummy_instr >} in
+  let r = s#emit_expr_aux env exp in
   (r, s)
 
 method private bind_let (env:environment) v r1 =
@@ -1088,49 +1156,54 @@ method emit_stores env data regs_addr =
 method private insert_return (env:environment) r =
   match r with
     None -> ()
-  | Some r ->
+  | Some (r, unclosed_regions) ->
+      self#insert_endregions env unclosed_regions;
       let loc = Proc.loc_results (Reg.typv r) in
-      if env.region_tail then
-        self#insert env (Iop Iendregion) (List.hd env.regions) [||];
       self#insert_moves env r loc;
       self#insert env Ireturn loc [||]
 
 method private emit_return (env:environment) exp =
-  self#insert_return env (self#emit_expr env exp)
+  self#insert_return env (self#emit_expr_aux env exp)
 
+method private tail_call_possible (env:environment) (pos:Lambda.region_close) =
+  match pos, env.regions with
+  | (Rc_normal | Rc_nontail), [] -> true
+  | (Rc_normal | Rc_nontail), _ :: _ -> false
+  | Rc_close_at_apply, [] ->
+     Misc.fatal_error "Selectgen: Rc_close_at_apply with no region to close"
+  | Rc_close_at_apply, [_] -> true
+  | Rc_close_at_apply, _ :: _ :: _ -> false
+
+(* Emit an expression in tail position of a function,
+   closing all regions in [env.regions] *)
 method emit_tail (env:environment) exp =
-  let env' =
-    if env.region_tail then {env with region_tail=false} else env in
   match exp with
     Clet(v, e1, e2) ->
-      begin match self#emit_expr env' e1 with
+      begin match self#emit_expr env e1 with
         None -> ()
       | Some r1 -> self#emit_tail (self#bind_let env v r1) e2
       end
   | Clet_mut (v, k, e1, e2) ->
-     begin match self#emit_expr env' e1 with
+     begin match self#emit_expr env e1 with
        None -> ()
      | Some r1 -> self#emit_tail (self#bind_let_mut env v k r1) e2
      end
   | Cphantom_let (_var, _defining_expr, body) ->
       self#emit_tail env body
   | Cop((Capply(ty, ((Rc_close_at_apply | Rc_normal) as pos))) as op,
-        args, dbg) ->
-      let tail = (pos = Lambda.Rc_close_at_apply) in
-      let endregion = env.region_tail in
-      begin match self#emit_parts_list env' args with
+        args, dbg)
+       when self#tail_call_possible env pos ->
+      begin match self#emit_parts_list env args with
         None -> ()
       | Some(simple_args, env) ->
           let (new_op, new_args) = self#select_operation op simple_args dbg in
           match new_op with
             Icall_ind ->
               let r1 = self#emit_tuple env new_args in
-              if endregion && tail then
-                self#insert env (Iop Iendregion) (List.hd env.regions) [||];
-              let endregion = endregion && not tail in
               let rarg = Array.sub r1 1 (Array.length r1 - 1) in
+              self#insert_endregions env env.regions;
               let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv rarg) in
-              if stack_ofs = 0 && not endregion then begin
+              if stack_ofs = 0 then begin
                 let call = Iop (Itailcall_ind) in
                 self#insert_moves env rarg loc_arg;
                 self#insert_debug env call dbg
@@ -1141,27 +1214,18 @@ method emit_tail (env:environment) exp =
                 self#insert_move_args env rarg loc_arg stack_ofs;
                 self#insert_debug env (Iop new_op) dbg
                             (Array.append [|r1.(0)|] loc_arg) loc_res;
-                if not endregion then begin
-                  self#insert env (Iop(Istackoffset(-stack_ofs))) [||] [||]
-                end else begin
-                  self#insert_move_results env loc_res rd stack_ofs;
-                  self#insert env (Iop Iendregion) (List.hd env.regions) [||];
-                  self#insert_moves env rd loc_res
-                end;
+                self#insert env (Iop(Istackoffset(-stack_ofs))) [||] [||];
                 self#insert env Ireturn loc_res [||]
               end
           | Icall_imm { func; } ->
               let r1 = self#emit_tuple env new_args in
-              if endregion && tail then
-                self#insert env (Iop Iendregion) (List.hd env.regions) [||];
-              let endregion = endregion && not tail in
+              self#insert_endregions env env.regions;
               let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv r1) in
-              if stack_ofs = 0 && not endregion then begin
+              if stack_ofs = 0 then begin
                 let call = Iop (Itailcall_imm { func; }) in
                 self#insert_moves env r1 loc_arg;
                 self#insert_debug env call dbg loc_arg [||];
-              end else if func = !current_function_name
-                       && not endregion then begin
+              end else if func = !current_function_name then begin
                 let call = Iop (Itailcall_imm { func; }) in
                 let loc_arg' = Proc.loc_parameters (Reg.typv r1) in
                 self#insert_moves env r1 loc_arg';
@@ -1171,25 +1235,19 @@ method emit_tail (env:environment) exp =
                 let loc_res = Proc.loc_results (Reg.typv rd) in
                 self#insert_move_args env r1 loc_arg stack_ofs;
                 self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
-                if not endregion then begin
-                  self#insert env (Iop(Istackoffset(-stack_ofs))) [||] [||]
-                end else begin
-                  self#insert_move_results env loc_res rd stack_ofs;
-                  self#insert env (Iop Iendregion) (List.hd env.regions) [||];
-                  self#insert_moves env rd loc_res
-                end;
+                self#insert env (Iop(Istackoffset(-stack_ofs))) [||] [||];
                 self#insert env Ireturn loc_res [||]
               end
           | _ -> Misc.fatal_error "Selection.emit_tail"
       end
   | Csequence(e1, e2) ->
-      begin match self#emit_expr env' e1 with
+      begin match self#emit_expr env e1 with
         None -> ()
       | Some _ -> self#emit_tail env e2
       end
   | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg, _kind) ->
       let (cond, earg) = self#select_condition econd in
-      begin match self#emit_expr env' earg with
+      begin match self#emit_expr env earg with
         None -> ()
       | Some rarg ->
           self#insert env
@@ -1198,7 +1256,7 @@ method emit_tail (env:environment) exp =
                       rarg [||]
       end
   | Cswitch(esel, index, ecases, _dbg, _kind) ->
-      begin match self#emit_expr env' esel with
+      begin match self#emit_expr env esel with
         None -> ()
       | Some rsel ->
           let cases =
@@ -1219,9 +1277,6 @@ method emit_tail (env:environment) exp =
                 ids in
             (nfail, ids, rs, e2, dbg))
           handlers in
-      let env =
-        (* Disable region-fusion on loops *)
-        match rec_flag with Recursive -> env' | Nonrecursive -> env in
       let env =
         List.fold_left (fun env (nfail, _ids, rs, _e2, _dbg) ->
             env_add_static_exception nfail rs env)
@@ -1258,19 +1313,16 @@ method emit_tail (env:environment) exp =
       self#insert_return env opt_r1
   | Cregion e ->
       assert (Config.stack_allocation);
-      if env.region_tail then
-        self#emit_return env exp
-      else begin
-        let reg = self#regs_for typ_int in
-        self#insert env (Iop Ibeginregion) [| |] reg;
-        let env' = { env with regions = reg::env.regions; region_tail = true } in
-        self#emit_tail env' e
-      end
+      let reg = self#regs_for typ_int in
+      self#insert env (Iop Ibeginregion) [| |] reg;
+      self#emit_tail {env with regions = reg::env.regions} e
   | Ctail e ->
-      assert env.region_tail;
-      self#insert env' (Iop Iendregion) (List.hd env.regions) [| |];
-      self#emit_tail { env with regions = List.tl env.regions;
-                                region_tail = false } e
+      begin match env.regions with
+      | [] -> Misc.fatal_error "Selectgen.emit_tail: Ctail not inside Cregion"
+      | reg :: regions ->
+         self#insert_endregions env [reg];
+         self#emit_tail { env with regions } e
+      end
   | Cop _
   | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
   | Cvar _
