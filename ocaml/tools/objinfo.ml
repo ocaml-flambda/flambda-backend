@@ -138,6 +138,12 @@ let print_cmt_infos cmt =
     | Some shape -> Format.printf "\n%a" Shape.print shape)
   end
 
+let print_cms_infos cms =
+  let open Cms_format in
+  printf "Cms unit name: %a\n" Compilation_unit.output cms.cms_modname;
+  printf "Source file: %s\n"
+    (match cms.cms_sourcefile with None -> "(none)" | Some f -> f)
+
 let linkage_name comp_unit =
   Symbol.for_compilation_unit comp_unit
   |> Symbol.linkage_name_for_ocamlobjinfo
@@ -350,6 +356,10 @@ let dump_obj_by_kind filename ic obj_kind =
          | None -> ()
          | Some cmt -> print_cmt_infos cmt
        end
+    | Cms ->
+      close_in ic;
+      let cms = Cms_format.read filename in
+      print_cms_infos cms
     | Cmx _config ->
        let ui = (input_value ic : unit_infos) in
        let crc = Digest.input ic in
