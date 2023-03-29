@@ -181,3 +181,5 @@ let[@zero_alloc] test35 cond x =
     (Sys.opaque_identity (allocate x)) |> ignore;
     if Sys.opaque_identity cond then raise Exn
   done
+
+let[@zero_alloc] test36 a i : int = a.(i)
