@@ -20,7 +20,7 @@ let mk_flambda2_debug f =
   "-flambda2-debug", Arg.Unit f, " Enable debug output for the Flambda2 pass"
 
 let mk_no_flambda2_debug f =
-  "-no-flambda2-debug", Arg.Unit f, " Disable debug ouput for the flambda2 pass"
+  "-no-flambda2-debug", Arg.Unit f, " Disable debug ouput for the Flambda2 pass"
 
 let mk_ocamlcfg f =
   "-ocamlcfg", Arg.Unit f, " Use ocamlcfg"
