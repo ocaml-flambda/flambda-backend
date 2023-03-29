@@ -1005,9 +1005,7 @@ let rebuild_method_call apply ~use_id ~exn_cont_use_id uacc ~after_rebuild =
       apply
   in
   let uacc, expr =
-    EB.rewrite_fixed_arity_apply uacc ~use_id
-      (Apply.return_arity apply)
-      apply
+    EB.rewrite_fixed_arity_apply uacc ~use_id (Apply.return_arity apply) apply
   in
   after_rebuild expr uacc
 
@@ -1043,8 +1041,7 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
       (Non_inlinable { escaping = true })
       ~env_at_use:denv
       ~arg_types:
-        (T.unknown_types_from_arity_with_subkinds
-           (Apply.return_arity apply))
+        (T.unknown_types_from_arity_with_subkinds (Apply.return_arity apply))
   in
   let dacc, exn_cont_use_id =
     DA.record_continuation_use dacc
