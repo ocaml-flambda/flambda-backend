@@ -56,8 +56,8 @@ let[@inline never] takes_two_unboxed_pairs
       (q : (int, int) unboxed_pair) =
   let p0 = unboxed_pair_field_0_i_i p in
   let p1 = unboxed_pair_field_1_i_i p in
-  let q0 = unboxed_pair_field_0_i_i p in
-  let q1 = unboxed_pair_field_1_i_i p in
+  let q0 = unboxed_pair_field_0_i_i q in
+  let q1 = unboxed_pair_field_1_i_i q in
   p0 + p1 + q0 + q1
 
 let caller2 x y =
