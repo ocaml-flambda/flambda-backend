@@ -110,6 +110,7 @@ objinfo.cmo : \
     ../file_formats/cmxs_format.cmi \
     ../file_formats/cmx_format.cmi \
     ../file_formats/cmt_format.cmi \
+    ../file_formats/cms_format.cmi \
     ../file_formats/cmo_format.cmi \
     ../file_formats/cmi_format.cmi \
     ../bytecomp/bytesections.cmi \
@@ -128,6 +129,7 @@ objinfo.cmx : \
     ../file_formats/cmxs_format.cmi \
     ../file_formats/cmx_format.cmi \
     ../file_formats/cmt_format.cmx \
+    ../file_formats/cms_format.cmx \
     ../file_formats/cmo_format.cmi \
     ../file_formats/cmi_format.cmx \
     ../bytecomp/bytesections.cmx \
@@ -143,6 +145,7 @@ ocamlcmt.cmo : \
     ../driver/compmisc.cmi \
     ../utils/compilation_unit.cmi \
     ../file_formats/cmt_format.cmi \
+    ../file_formats/cms_format.cmi \
     ../typing/cmt2annot.cmo \
     ../utils/clflags.cmi \
     ../typing/annot.cmi
@@ -157,6 +160,7 @@ ocamlcmt.cmx : \
     ../driver/compmisc.cmx \
     ../utils/compilation_unit.cmx \
     ../file_formats/cmt_format.cmx \
+    ../file_formats/cms_format.cmx \
     ../typing/cmt2annot.cmx \
     ../utils/clflags.cmx \
     ../typing/annot.cmi
