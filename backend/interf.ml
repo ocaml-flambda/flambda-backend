@@ -17,13 +17,13 @@
    Annotate pseudoregs with interference lists and preference lists. *)
 
 module IntPairSet =
-  Hashtbl.MakeSeeded(struct
+  Hashtbl.Make(struct
     type t = int * int
 
     let equal ((a1, b1) : int * int) (a2, b2) =
       a1 = a2 && b1 = b2
 
-    let hash = Hashtbl.seeded_hash
+    let hash = Hashtbl.hash
   end)
 
 let mat = IntPairSet.create 42
