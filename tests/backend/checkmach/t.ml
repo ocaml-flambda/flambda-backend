@@ -102,9 +102,6 @@ let[@zero_alloc] test21 n =
     if n > 0 then raise (Exn_int !i);
   done
 
-
-(* The check is too conservative about recursive catch to handle the following: *)
-
 let[@zero_alloc] test22 n =
   let e = (Exn_int n) in
   for i = 0 to n do
