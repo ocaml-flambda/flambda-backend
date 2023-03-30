@@ -335,7 +335,6 @@
   (backend bisect_ppx))
  (flags
   (:standard -principal))
- (ocamlopt_flags (:standard -runtime-variant nnp))
  (libraries
   flambda_backend_driver
   memtrace
