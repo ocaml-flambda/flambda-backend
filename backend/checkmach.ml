@@ -767,7 +767,7 @@ end
 
 (** Check that functions do not allocate on the heap (local allocations are ignored) *)
 module Spec_alloc : Spec = struct
-  let property = Cmm.Noalloc
+  let property = Cmm.Zero_alloc
 
   let enabled () = !Flambda_backend_flags.alloc_check
 

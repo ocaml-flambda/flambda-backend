@@ -39,7 +39,7 @@ let is_tailcall_attribute =
   [ ["tailcall"; "ocaml.tailcall"], true ]
 
 let is_property_attribute = function
-  | Noalloc -> [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
+  | Zero_alloc -> [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
 
 let is_tmc_attribute =
   [ ["tail_mod_cons"; "ocaml.tail_mod_cons"], true ]
@@ -301,7 +301,7 @@ let get_property_attribute l p =
   let attr = find_attribute (is_property_attribute p) l in
   parse_property_attribute attr p
 
-let get_check_attribute l = get_property_attribute l Noalloc
+let get_check_attribute l = get_property_attribute l Zero_alloc
 
 let get_poll_attribute l =
   let attr = find_attribute is_poll_attribute l in
@@ -399,7 +399,7 @@ let add_local_attribute expr loc attributes =
 
 let add_check_attribute expr loc attributes =
   let to_string = function
-    | Noalloc -> "zero_alloc"
+    | Zero_alloc -> "zero_alloc"
   in
   let to_string = function
     | Check { property; strict; assume; loc = _} ->

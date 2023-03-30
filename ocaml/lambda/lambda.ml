@@ -434,7 +434,7 @@ type local_attribute =
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
 type property =
-  | Noalloc
+  | Zero_alloc
 
 type poll_attribute =
   | Error_poll (* [@poll error] *)

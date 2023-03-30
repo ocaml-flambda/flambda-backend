@@ -11,13 +11,13 @@
 (**************************************************************************)
 
 module Property = struct
-  type t = Noalloc
+  type t = Zero_alloc
 
-  let print ppf = function Noalloc -> Format.fprintf ppf "alloc"
+  let print ppf = function Zero_alloc -> Format.fprintf ppf "zero_alloc"
 
-  let equal x y = match x, y with Noalloc, Noalloc -> true
+  let equal x y = match x, y with Zero_alloc, Zero_alloc -> true
 
-  let from_lambda : Lambda.property -> t = function Noalloc -> Noalloc
+  let from_lambda : Lambda.property -> t = function Zero_alloc -> Zero_alloc
 end
 
 type t =

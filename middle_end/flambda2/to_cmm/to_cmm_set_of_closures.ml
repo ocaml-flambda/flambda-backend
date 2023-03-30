@@ -316,7 +316,7 @@ end)
 (* Translation of "check" attributes on functions. *)
 
 let transl_property : Check_attribute.Property.t -> Cmm.property = function
-  | Noalloc -> Noalloc
+  | Zero_alloc -> Zero_alloc
 
 let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
   function

@@ -255,7 +255,7 @@ type expression =
   | Ctail of expression
 
 type property =
-  | Noalloc
+  | Zero_alloc
 
 type codegen_option =
   | Reduce_code_size
