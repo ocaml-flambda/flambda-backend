@@ -294,8 +294,8 @@ module type Spec = sig
   (** Is the check enabled? *)
   val enabled : unit -> bool
 
-  (** [get_value_opt f] returns the value recorded for function [f] in [Compenv], either
-      because the check passed or because of user-defined "assume" annotation.
+  (** [get_value_opt f] returns the value recorded for function [f] in [Compilenv],
+      either because the check passed or because of user-defined "assume" annotation.
       If [f] was compiled with checks disabled, returns None.
   *)
   val get_value_opt : string -> Value.t option
