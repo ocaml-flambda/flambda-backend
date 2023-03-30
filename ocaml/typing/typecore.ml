@@ -3895,19 +3895,6 @@ let unify_exp env exp expected_ty =
   with Error(loc, env, Expr_type_clash(err, tfc, None)) ->
     raise (Error(loc, env, Expr_type_clash(err, tfc, Some exp.exp_desc)))
 
-(* Ensure that no bound ident's type mentions a type variable from an inner
-   scope.
-*)
-
-let check_scope_escape_let_bound_idents env value_bindings =
-  List.iter
-    (fun (_, ident_loc, bound_ident_type) ->
-       try unify env bound_ident_type (newvar Layout.any)
-       with Unify trace ->
-         let loc = ident_loc.loc in
-         raise (Error(loc, env, Pattern_type_clash(trace, None))))
-    (let_bound_idents_full value_bindings)
-
 (* If [is_inferred e] is true, [e] will be typechecked without using
    the "expected type" provided by the context. *)
 
@@ -4096,6 +4083,12 @@ and type_expect_
       let may_contain_modules =
         List.exists (fun pvb -> may_contain_modules pvb.pvb_pat) spat_sexp_list
       in
+      (* If the patterns contain module unpacks, there is a possibility that
+          the types of the let body or bound expressions mention types
+          introduced by those unpacks. The below code checks for scope escape
+          via both of these pathways (body, bound expressions).
+      *)
+      let outer_level = get_current_level () in
       let allow_modules =
         if may_contain_modules
         then begin
@@ -4120,22 +4113,36 @@ and type_expect_
         if rec_flag = Recursive then
           check_recursive_bindings env pat_exp_list
       in
-      (* If the patterns contain module unpacks, there is a possibility that the
-         type of the let body or variables bound by the let mention types
-         introduced by those unpacks. (The latter can only happen with recursive
-         definitions.) Here, we check for scope escape via both
-         of these pathways (body, variables).
+      (* The "bound expressions" component of the scope escape check.
 
-         Checking unification within an environment extended with the module
-         bindings allows us to correctly accept more programs. This environment
-         allows unification to identify more cases where a type introduced by
-         the module is equal to a type introduced at an outer scope.
+         This kind of scope escape is relevant only for recursive
+         module definitions.
       *)
+      if rec_flag = Recursive && may_contain_modules then begin
+        List.iter
+          (fun vb ->
+             (* [type_let] already generalized bound expressions' types
+                in-place. We first take an instance before checking scope
+                escape at the outer level to avoid losing generality of
+                types added to [new_env].
+             *)
+             let bound_exp = vb.vb_expr in
+             generalize_structure bound_exp.exp_type;
+             let bound_exp_type = Ctype.instance bound_exp.exp_type in
+             let loc = proper_exp_loc bound_exp in
+             let outer_var = newvar2 outer_level Layout.any in
+             (* Checking unification within an environment extended with the
+                module bindings allows us to correctly accept more programs.
+                This environment allows unification to identify more cases where
+                a type introduced by the module is equal to a type introduced at
+                an outer scope. *)
+             unify_exp_types loc new_env bound_exp_type outer_var)
+          pat_exp_list
+      end;
       if may_contain_modules then begin
         end_def ();
+        (* The "body" component of the scope escape check. *)
         unify_exp new_env body (newvar Layout.any);
-        if rec_flag = Recursive then
-          check_scope_escape_let_bound_idents new_env pat_exp_list
       end;
       re {
         exp_desc = Texp_let(rec_flag, pat_exp_list, body);
