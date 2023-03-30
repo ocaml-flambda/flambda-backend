@@ -303,9 +303,8 @@ module type Spec = sig
   (** [set_value f v] record the value of the function named [f] in [Compilenv]. *)
   val set_value : string -> Value.t -> unit
 
-  (** Does the operation satisfy the property? *)
-  val transform_specific :
-    Arch.specific_operation -> next:Value.t -> exn:Value.t -> Value.t
+  (** Summary of target specific operations. *)
+  val transform_specific : Arch.specific_operation -> Value.t
 
   val property : Cmm.property
 end
@@ -690,8 +689,8 @@ end = struct
     | Iextcall { func; alloc = true; _ } ->
       transform t ~next ~exn ~effect:Value.top ("external call to " ^ func) dbg
     | Ispecific s ->
-      let r = S.transform_specific s ~next ~exn in
-      check t r "Arch.specific_operation" dbg
+      transform t ~next ~exn ~effect:(S.transform_specific s)
+        "Arch.specific_operation" dbg
 
   module D = Dataflow.Backward ((Value : Dataflow.DOMAIN))
 
@@ -813,8 +812,13 @@ module Spec_alloc : Spec = struct
           div = decode_diverge div
         }
 
-  let transform_specific s ~next ~exn:_ =
-    if Arch.operation_allocates s then Value.transform next else next
+  let transform_specific s =
+    (* Conservatively assume that operation can return normally. *)
+    let nor = if Arch.operation_allocates s then V.Top else V.Safe in
+    let exn = if Arch.operation_can_raise s then nor else V.Bot in
+    (* Assume that the operation does not diverge. *)
+    let div = V.Bot in
+    { Value.nor; exn; div }
 end
 
 module Check_alloc = Analysis (Spec_alloc)
