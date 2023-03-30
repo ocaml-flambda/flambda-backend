@@ -7214,7 +7214,6 @@ and type_comprehension_clause ~loc ~comprehension_type ~container_type env
       in
       env, Texp_comp_when tcond
 
-(* Uses [pattern_variables] *)
 and type_comprehension_binding
       ~loc
       ~comprehension_type
@@ -7229,7 +7228,6 @@ and type_comprehension_binding
       attributes
   }
 
-(* Uses [pattern_variables] *)
 and type_comprehension_iterator
       ~loc ~env ~comprehension_type ~container_type tps pattern
   : Extensions.Comprehensions.iterator -> _ = function
