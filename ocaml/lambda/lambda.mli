@@ -326,9 +326,10 @@ type check_attribute =
   | Check of { property: property;
                strict: bool;
                (* [strict=true] property holds on all paths.
-                  [strict=false] if the function returns normally or diverges,
+                  [strict=false] if the function returns normally,
                   then the property holds (but property violations on
-                  exceptional returns are ignored). *)
+                  exceptional returns or divering loops are ignored).
+                  This definition may not be applicable to new properties. *)
                assume: bool;
                (* [assume=false] assume without checking that the
                   property holds *)
