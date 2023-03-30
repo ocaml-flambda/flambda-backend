@@ -305,7 +305,7 @@ val add_module_lazy: update_summary:bool ->
   Ident.t -> module_presence -> Subst.Lazy.modtype -> t -> t
 val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool ->
   Ident.t -> module_presence -> module_declaration -> t -> t
-val add_module_declaration_lazy: update_summary:bool ->
+val add_module_declaration_lazy: ?arg:bool -> update_summary:bool ->
   Ident.t -> module_presence -> Subst.Lazy.module_decl -> t -> t
 val add_modtype: Ident.t -> modtype_declaration -> t -> t
 val add_modtype_lazy: update_summary:bool ->

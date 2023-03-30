@@ -2243,7 +2243,8 @@ and add_extension ~check ?shape ~rebind id ext env =
   let shape = shape_or_leaf ext.ext_uid shape in
   store_extension ~check ~rebind id addr ext shape env
 
-and add_module_declaration ?(arg=false) ?shape ~check id presence md env =
+and add_module_declaration_lazy
+      ~update_summary ?(arg=false) ?shape ?(check=false) id presence md env =
   let check =
     if not check then
       None
@@ -2252,27 +2253,24 @@ and add_module_declaration ?(arg=false) ?shape ~check id presence md env =
     else
       Some (fun s -> Warnings.Unused_module s)
   in
-  let md = Subst.Lazy.of_module_decl md in
   let addr = module_declaration_address env id presence md in
-  let shape = shape_or_leaf md.mdl_uid shape in
-  let env = store_module ~check id addr presence md shape env in
+  let shape = shape_or_leaf md.Subst.Lazy.mdl_uid shape in
+  let env =
+    store_module ~update_summary ~check id addr presence md shape env
+  in
   if arg then add_functor_arg id env else env
 
-and add_module_declaration_lazy ~update_summary id presence md env =
-  let addr = module_declaration_address env id presence md in
-  let shape = Shape.leaf md.Subst.Lazy.mdl_uid in
-  let env =
-    store_module ~update_summary ~check:None id addr presence md shape env
-  in
-  env
+let add_module_declaration ?(arg=false) ?shape ~check id presence md env =
+  add_module_declaration_lazy ~update_summary:true ~arg ?shape ~check id
+    presence (Subst.Lazy.of_module_decl md) env
 
-and add_modtype ?shape id info env =
-  let shape = shape_or_leaf info.mtd_uid shape in
-  store_modtype id (Subst.Lazy.of_modtype_decl info) shape env
-
-and add_modtype_lazy ~update_summary id info env =
-  let shape = Shape.leaf info.Subst.Lazy.mtdl_uid in
+and add_modtype_lazy ~update_summary ?shape id info env =
+  let shape = shape_or_leaf info.Subst.Lazy.mtdl_uid shape in
   store_modtype ~update_summary id info shape env
+
+let add_modtype ?shape id info env =
+  add_modtype_lazy ~update_summary:true ?shape id
+    (Subst.Lazy.of_modtype_decl info) env
 
 and add_class ?shape id ty env =
   let addr = class_declaration_address env id ty in
@@ -2409,7 +2407,10 @@ let add_type = add_type ?shape:None
 let add_extension = add_extension ?shape:None
 let add_class = add_class ?shape:None
 let add_cltype = add_cltype ?shape:None
+let add_modtype_lazy = add_modtype_lazy ?shape:None
 let add_modtype = add_modtype ?shape:None
+let add_module_declaration_lazy ?(arg=false) =
+  add_module_declaration_lazy ~arg ?shape:None ?check:None
 let add_signature sg env =
   let _, env = add_signature (Shape.Map.empty, None) sg env in
   env
