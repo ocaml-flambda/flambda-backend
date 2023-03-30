@@ -99,7 +99,7 @@ int caml_page_table_lookup(void * addr)
 
   caml_local_arenas* local_arenas = Caml_state->local_arenas;
 
-  if (Is_young(addr))
+  if (Is_young((value) addr))
     return In_heap | In_young;
 
   if (local_arenas != NULL) {
