@@ -766,10 +766,10 @@ end = struct
 end
 
 (** Check that functions do not allocate on the heap (local allocations are ignored) *)
-module Spec_alloc : Spec = struct
+module Spec_zero_alloc : Spec = struct
   let property = Cmm.Zero_alloc
 
-  let enabled () = !Flambda_backend_flags.alloc_check
+  let enabled () = !Flambda_backend_flags.zero_alloc_check
 
   (* Compact the mapping from function name to Value.t to reduce size of Checks
      in cmx and memory consumption Compilenv. Different components have
@@ -821,19 +821,19 @@ module Spec_alloc : Spec = struct
     { Value.nor; exn; div }
 end
 
-module Check_alloc = Analysis (Spec_alloc)
+module Check_zero_alloc = Analysis (Spec_zero_alloc)
 
 (** Information about the current unit. *)
 let unit_info = Unit_info.create ()
 
 let fundecl ppf_dump ~future_funcnames fd =
-  Check_alloc.fundecl fd ~future_funcnames unit_info ppf_dump;
+  Check_zero_alloc.fundecl fd ~future_funcnames unit_info ppf_dump;
   fd
 
 let reset_unit_info () = Unit_info.reset unit_info
 
 let record_unit_info ppf_dump =
-  Check_alloc.record_unit unit_info ppf_dump;
+  Check_zero_alloc.record_unit unit_info ppf_dump;
   Compilenv.cache_checks (Compilenv.current_unit_infos ()).ui_checks
 
 let () = Location.register_error_of_exn Annotation.report_error
