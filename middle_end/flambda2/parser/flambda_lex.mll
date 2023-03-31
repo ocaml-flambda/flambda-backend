@@ -66,6 +66,7 @@ let keyword_table =
     "inlining_state", KWD_INLINING_STATE;
     "int32", KWD_INT32;
     "int64", KWD_INT64;
+    "invalid", KWD_INVALID;
     "land", KWD_LAND;
     "let", KWD_LET;
     "local", KWD_LOCAL;
@@ -122,13 +123,17 @@ let prim_table =
     "array_load", PRIM_ARRAY_LOAD;
     "array_set", PRIM_ARRAY_SET;
     "begin_region", PRIM_BEGIN_REGION;
+    "begin_try_region", PRIM_BEGIN_TRY_REGION;
+    "bigstring_load", PRIM_BIGSTRING_LOAD;
     "Block", PRIM_BLOCK;
     "block_load", PRIM_BLOCK_LOAD;
+    "block_set", PRIM_BLOCK_SET;
     "Box_float", PRIM_BOX_FLOAT;
     "Box_int32", PRIM_BOX_INT32;
     "Box_int64", PRIM_BOX_INT64;
     "Box_nativeint", PRIM_BOX_NATIVEINT;
     "bytes_length", PRIM_BYTES_LENGTH;
+    "bytes_load", PRIM_BYTES_LOAD;
     "end_region", PRIM_END_REGION;
     "get_tag", PRIM_GET_TAG;
     "int_arith", PRIM_INT_ARITH;
@@ -143,6 +148,7 @@ let prim_table =
     "project_value_slot", PRIM_PROJECT_VALUE_SLOT;
     "project_function_slot", PRIM_PROJECT_FUNCTION_SLOT;
     "string_length", PRIM_STRING_LENGTH;
+    "string_load", PRIM_STRING_LOAD;
     "Tag_imm", PRIM_TAG_IMM;
     "unbox_float", PRIM_UNBOX_FLOAT;
     "unbox_int32", PRIM_UNBOX_INT32;

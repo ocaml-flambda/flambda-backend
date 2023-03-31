@@ -26,7 +26,9 @@ module type Common_options = sig
   val _app_funct : unit -> unit
   val _no_app_funct : unit -> unit
   val _disable_all_extensions : unit -> unit
+  val _only_erasable_extensions : unit -> unit
   val _extension : string -> unit
+  val _no_extension : string -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -78,6 +80,7 @@ module type Compiler_options = sig
   val _a : unit -> unit
   val _annot : unit -> unit
   val _binannot : unit -> unit
+  val _binannot_cms : unit -> unit
   val _c : unit -> unit
   val _cc : string -> unit
   val _cclib : string -> unit

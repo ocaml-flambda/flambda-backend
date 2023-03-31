@@ -243,6 +243,9 @@ type primitive =
   | Pbox_float of alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
+  (* Jane Street extensions *)
+  | Parray_to_iarray
+  | Parray_of_iarray
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -563,7 +566,6 @@ and lambda_event_kind =
   | Lev_after of Types.type_expr
   | Lev_function
   | Lev_pseudo
-  | Lev_module_definition of Ident.t
 
 type program =
   { compilation_unit : Compilation_unit.t;
@@ -1304,7 +1306,9 @@ let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
 
 let primitive_may_allocate : primitive -> alloc_mode option = function
-  | Pbytes_to_string | Pbytes_of_string | Pignore -> None
+  | Pbytes_to_string | Pbytes_of_string
+  | Parray_to_iarray | Parray_of_iarray
+  | Pignore -> None
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> None
   | Pmakeblock (_, _, _, m) -> Some m
   | Pmakefloatblock (_, m) -> Some m
@@ -1474,6 +1478,7 @@ let primitive_result_layout (p : primitive) =
   | Pint_as_pointer ->
       (* CR ncourant: use an unboxed int64 here when it exists *)
       layout_any_value
+  | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
 
 let rec compute_expr_layout kinds lam =
   match lam with

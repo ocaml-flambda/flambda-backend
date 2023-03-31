@@ -143,6 +143,15 @@ END {
     if (errored){
         printf ("\n#### Some fatal error occurred during testing.\n\n");
         exit (3);
+    }else if (only_report_failed_tests){
+        for (key in RESULTS){
+            if (RESULTS[key] == "f"){
+                split(key, key_parts);
+                test_file = key_parts[1];
+                gsub("'", "", test_file);
+                printf("%s\n", test_file);
+            }
+        }
     }else{
         for (key in SKIPPED){
             if (!SKIPPED[key]){

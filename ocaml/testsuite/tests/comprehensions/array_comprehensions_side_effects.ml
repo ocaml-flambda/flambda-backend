@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-extension comprehensions_experimental"
+   flags = "-extension comprehensions"
 *)
 
 (******************************************************************************

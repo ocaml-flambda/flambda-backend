@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-extension immutable_arrays_experimental"
+   flags = "-extension immutable_arrays"
    * expect
 *)
 
@@ -193,17 +193,17 @@ Iarray.sub iarray 0 2, Iarray.sub iarray 2 3;;
 
 Iarray.sub iarray (-1) 3;;
 [%%expect{|
-Exception: Invalid_argument "Array.sub".
+Exception: Invalid_argument "Iarray.sub".
 |}];;
 
 Iarray.sub iarray 1 (-3);;
 [%%expect{|
-Exception: Invalid_argument "Array.sub".
+Exception: Invalid_argument "Iarray.sub".
 |}];;
 
 Iarray.sub iarray 3 10;;
 [%%expect{|
-Exception: Invalid_argument "Array.sub".
+Exception: Invalid_argument "Iarray.sub".
 |}];;
 
 Iarray.to_list iarray;;
@@ -225,18 +225,6 @@ Iarray.to_array iarray;;
 Iarray.of_array mfarray;;
 [%%expect{|
 - : float iarray = [:1.5; 2.5; 3.5; 4.5; 5.5:]
-|}];;
-
-(* [Array] has an analog to [Iarray.to_array] *)
-Array.of_iarray ifarray;;
-[%%expect{|
-- : float array = [|1.5; 2.5; 3.5; 4.5; 5.5|]
-|}];;
-
-(* [Array] has an analog to [Iarray.of_array] *)
-Array.to_iarray marray;;
-[%%expect{|
-- : int iarray = [:1; 2; 3; 4; 5:]
 |}];;
 
 (* [Iarray.to_array] creates a fresh mutable array every time *)
