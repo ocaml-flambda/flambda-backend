@@ -180,3 +180,57 @@ let[@zero_alloc] test35 cond x =
   done
 
 let[@zero_alloc] test36 a i : int = a.(i)
+
+
+module Params = struct
+  exception E
+
+  (* A bit of testing for function arguments: pattern match, mutable fields, optional *)
+  type t = { x : int; y : int }
+
+  let[@zero_alloc] test1 {x; y}  = Printf.eprintf "%d\n%!" y; raise E
+  let[@zero_alloc] test2 t = test1 t
+
+  let[@zero_alloc] test3 t () =
+    let {x; y} = t in
+    Printf.eprintf "%d\n%!" y; raise E
+  let[@zero_alloc] test4 t = test3 t ()
+
+
+  type s = { a : int; mutable b : int }
+  let[@zero_alloc] test5 {a; b}  = Printf.eprintf "%d\n%!" b; raise E
+
+  let[@zero_alloc] test6 {b; a}  = Printf.eprintf "%d\n%!" b; raise E
+
+  let[@zero_alloc] test7 ?t ~d () =
+    let b =
+      match (t:t option) with
+      | None -> d
+      | Some {x; y } -> y
+    in
+    Printf.eprintf "%d\n%!" b; raise E
+
+
+  let[@zero_alloc] test8 ?t =
+    test7 ?t ~d:42 ()
+
+  let[@zero_alloc] test9 ?s ~d () =
+    let b =
+      match (s:s option) with
+      | None -> d
+      | Some {a; b } -> b
+    in
+    Printf.eprintf "%d\n%!" b; raise E
+
+  let[@zero_alloc] test10 ?s =
+    test9 ?s ~d:42 ()
+
+  let[@zero_alloc] test11 s =
+    Printf.eprintf "%d\n%!" s.b; raise E
+
+  let[@zero_alloc] test12 ?(s= {a = 4; b = 5}) ~d () =
+    test11 s
+
+  let[@zero_alloc] test13 () =
+    test12 ~d:42 ()
+end
