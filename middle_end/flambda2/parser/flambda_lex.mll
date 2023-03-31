@@ -302,7 +302,7 @@ rule token = parse
          { error ~lexbuf (Invalid_literal lit) }
   | '"' (([^ '"'] | '\\' '"')* as s) '"'
          (* CR-someday lmaurer: Escape sequences, multiline strings *)
-         { STRING s }
+         { STRING (Scanf.unescaped s) }
   | eof  { EOF }
   | _ as ch
          { error ~lexbuf (Illegal_character ch) }

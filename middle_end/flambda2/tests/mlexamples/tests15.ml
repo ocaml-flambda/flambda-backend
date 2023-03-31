@@ -21,3 +21,6 @@ let swapped () = bswap 0x11223344
 
 external negint : int -> int = "%negint"
 let negate x = negint x
+
+(* Exercise string literals with escape characters *)
+let my_string = " \\ \n "
