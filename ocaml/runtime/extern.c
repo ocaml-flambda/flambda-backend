@@ -653,7 +653,7 @@ static void extern_code_pointer(char * codeptr)
   }
 }
 
-/* Marshaling the non-environment part of closures */
+/* Marshaling the non-scanned-environment part of closures */
 
 #ifdef NO_NAKED_POINTERS
 Caml_inline mlsize_t extern_closure_up_to_env(value v)
@@ -677,6 +677,10 @@ Caml_inline mlsize_t extern_closure_up_to_env(value v)
     }
   } while (!Is_last_closinfo(info));
   CAMLassert(i <= startenv);
+  /* The non-scanned part of the environment */
+  while (i < startenv) {
+    extern_int(Long_val(Field(v, i++)));
+  }
   return startenv;
 }
 #endif
