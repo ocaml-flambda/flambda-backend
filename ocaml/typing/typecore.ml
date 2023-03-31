@@ -714,7 +714,7 @@ type module_patterns_restriction =
 type module_variables =
   | Modvars_allowed of
       { scope: int;
-        mutable module_variables: module_variable list;
+        module_variables: module_variable list;
       }
   | Modvars_rejected
   | Modvars_ignored
@@ -722,7 +722,7 @@ type module_variables =
 type type_pat_state =
   { mutable tps_pattern_variables: pattern_variable list;
     mutable tps_pattern_force: (unit -> unit) list;
-    tps_module_variables: module_variables;
+    mutable tps_module_variables: module_variables;
   }
 
 let create_type_pat_state allow_modules =
@@ -746,13 +746,15 @@ let copy_type_pat_state
       }
   =
   { tps_pattern_variables;
+    tps_module_variables;
     tps_pattern_force;
-    tps_module_variables =
-      (match tps_module_variables with
-       | Modvars_allowed { scope; module_variables } ->
-           Modvars_allowed { scope; module_variables }
-       | Modvars_ignored | Modvars_rejected as x -> x)
   }
+
+let blit_type_pat_state ~src ~dst =
+  dst.tps_pattern_variables <- src.tps_pattern_variables;
+  dst.tps_module_variables <- src.tps_module_variables;
+  dst.tps_pattern_force <- src.tps_pattern_force;
+;;
 
 let maybe_add_pattern_variables_ghost loc_let env pv =
   List.fold_right
@@ -832,15 +834,18 @@ let enter_variable
       | Modvars_ignored -> Ident.create_local name.txt
       | Modvars_rejected ->
           raise (Error (loc, Env.empty, Modules_not_allowed));
-      | Modvars_allowed ({ scope } as modvars_allowed) ->
+      | Modvars_allowed { scope; module_variables } ->
           escape ~loc ~env:Env.empty ~reason:Other mode;
           let id = Ident.create_scoped name.txt ~scope in
-          modvars_allowed.module_variables <-
+          let module_variables =
             { mv_id = id;
               mv_name = name;
               mv_loc = loc;
               mv_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-            } :: modvars_allowed.module_variables;
+            } :: module_variables
+          in
+          tps.tps_module_variables <-
+            Modvars_allowed { scope; module_variables; };
           id
     end else
       Ident.create_local name.txt
@@ -2464,7 +2469,7 @@ and type_pat_aux
   | Ppat_or(sp1, sp2) ->
       begin match mode with
       | Normal ->
-          let tps1 = tps in
+          let tps1 = copy_type_pat_state tps in
           let tps2 = copy_type_pat_state tps in
           let equation_level = !gadt_equations_level in
           let outter_lev = get_current_level () in
@@ -2492,8 +2497,17 @@ and type_pat_aux
           ) p2_variables;
           let vars, alpha_env =
             enter_orpat_variables loc !env p1_variables p2_variables in
+          (* Propagate the outcome of checking the or-pattern back to
+             the type_pat_state that the caller passed in.
+          *)
+          blit_type_pat_state
+            ~src:
+              { tps_pattern_variables = vars;
+                tps_pattern_force = tps1.tps_pattern_force;
+                tps_module_variables = tps1.tps_module_variables;
+              }
+            ~dst:tps;
           let p2 = alpha_pat alpha_env p2 in
-          tps.tps_pattern_variables <- vars;
           rp k { pat_desc = Tpat_or (p1, p2, None);
                  pat_loc = loc; pat_extra = [];
                  pat_type = instance expected_ty;
