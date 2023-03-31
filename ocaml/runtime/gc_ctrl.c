@@ -60,7 +60,11 @@ static void check_head (value v)
   CAMLassert (Is_block (v));
   CAMLassert (Is_in_heap (v));
 
+#ifndef NO_NAKED_POINTERS
+  /* This cannot be checked in no-naked-pointers mode: [v] might be a
+     statically-allocated empty array. */
   CAMLassert (Wosize_val (v) != 0);
+#endif
   CAMLassert (Color_hd (Hd_val (v)) != Caml_blue);
   CAMLassert (Is_in_heap (v));
   if (Tag_val (v) == Infix_tag){
@@ -97,7 +101,9 @@ static void check_block (header_t *hp)
     CAMLassert (Wosize_val (v) % Double_wosize == 0);
     break;
   case Custom_tag:
+#ifndef NO_NAKED_POINTERS
     CAMLassert (!Is_in_heap (Custom_ops_val (v)));
+#endif
     break;
 
   case Infix_tag:
