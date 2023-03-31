@@ -3149,7 +3149,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       if !Clflags.print_types then (* #7656 *)
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
       let (str, sg, names, shape, finalenv) =
-        type_structure initial_env ast in
+        Profile.record_call "infer" (fun () ->
+          type_structure initial_env ast) in
       let shape =
         Shape.set_uid_if_none shape
           (Uid.of_compilation_unit_id modulename)
@@ -3183,21 +3184,23 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
                           Interface_not_compiled sourceintf)) in
           let dclsig = Env.read_signature modulename intf_file in
           let coercion, shape =
-            Includemod.compunit initial_env ~mark:Mark_positive
-              sourcefile sg intf_file dclsig shape
+            Profile.record_call "check_sig" (fun () ->
+              Includemod.compunit initial_env ~mark:Mark_positive
+                sourcefile sg intf_file dclsig shape)
           in
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
           (* It is important to run these checks after the inclusion test above,
              so that value declarations which are not used internally but
              exported are not reported as being unused. *)
-          let shape = Shape.local_reduce shape in
-          let annots = Cmt_format.Implementation str in
-          Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
-            annots (Some sourcefile) initial_env None (Some shape);
-          Cms_format.save_cms (outputprefix ^ ".cms") modulename
-            (Some sourcefile) (Some shape);
-          gen_annot outputprefix sourcefile annots;
+          Profile.record_call "save_cmt" (fun () ->
+            let shape = Shape.local_reduce shape in
+            let annots = Cmt_format.Implementation str in
+            Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
+              annots (Some sourcefile) initial_env None (Some shape);
+            Cms_format.save_cms (outputprefix ^ ".cms") modulename
+              (Some sourcefile) (Some shape);
+            gen_annot outputprefix sourcefile annots);
           { structure = str;
             coercion;
             shape;
@@ -3207,8 +3210,9 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           Location.prerr_warning (Location.in_file sourcefile)
             Warnings.Missing_mli;
           let coercion, shape =
-            Includemod.compunit initial_env ~mark:Mark_positive
-              sourcefile sg "(inferred signature)" simple_sg shape
+            Profile.record_call "check_sig" (fun () ->
+              Includemod.compunit initial_env ~mark:Mark_positive
+                sourcefile sg "(inferred signature)" simple_sg shape)
           in
           check_nongen_signature finalenv simple_sg;
           normalize_signature simple_sg;
@@ -3222,15 +3226,17 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           if not !Clflags.dont_write_files then begin
             let alerts = Builtin_attributes.alerts_of_str ast in
             let cmi =
-              Env.save_signature ~alerts
-                simple_sg modulename (outputprefix ^ ".cmi")
+              Profile.record_call "save_cmi" (fun () ->
+                Env.save_signature ~alerts
+                  simple_sg modulename (outputprefix ^ ".cmi"))
             in
-            let annots = Cmt_format.Implementation str in
-            Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
-              annots (Some sourcefile) initial_env (Some cmi) (Some shape);
-            Cms_format.save_cms  (outputprefix ^ ".cms") modulename
-              (Some sourcefile) (Some shape);
-            gen_annot outputprefix sourcefile annots
+            Profile.record_call "save_cmt" (fun () ->
+              let annots = Cmt_format.Implementation str in
+              Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
+                annots (Some sourcefile) initial_env (Some cmi) (Some shape);
+              Cms_format.save_cms  (outputprefix ^ ".cms") modulename
+                (Some sourcefile) (Some shape);
+              gen_annot outputprefix sourcefile annots)
           end;
           { structure = str;
             coercion;
@@ -3241,15 +3247,16 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       end
     )
     ~exceptionally:(fun () ->
-        let annots =
-          Cmt_format.Partial_implementation
-            (Array.of_list (Cmt_format.get_saved_types ()))
-        in
-        Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
-          annots (Some sourcefile) initial_env None None;
-        Cms_format.save_cms  (outputprefix ^ ".cms") modulename
-          (Some sourcefile) None;
-        gen_annot outputprefix sourcefile annots
+        Profile.record_call "save_cmt" (fun () ->
+          let annots =
+            Cmt_format.Partial_implementation
+              (Array.of_list (Cmt_format.get_saved_types ()))
+          in
+          Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
+            annots (Some sourcefile) initial_env None None;
+          Cms_format.save_cms  (outputprefix ^ ".cms") modulename
+            (Some sourcefile) None;
+          gen_annot outputprefix sourcefile annots)
       )
 
 let save_signature modname tsg outputprefix source_file initial_env cmi =
