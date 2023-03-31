@@ -1,5 +1,4 @@
 let[@zero_alloc strict][@inline never] foo n m = n + m
-let[@inline never] bar n m = (n, m)
 let[@zero_alloc][@inline never] baz n =
   if n > 0 then
     n * 3
