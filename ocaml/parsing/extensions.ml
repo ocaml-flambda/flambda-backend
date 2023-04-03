@@ -10,13 +10,12 @@ open Extensions_parsing
 
    When we spot a comprehension for an immutable array, we need to make sure
    that both [comprehensions] and [immutable_arrays] are enabled.  But our
-   general mechanism for checking for enabled extensions (in
-   Extensions_parsing.Translate(...).of_ast) won't work well here: it triggers
-   when converting from e.g. [[%extensions.comprehensions.array] ...]  to the
-   comprehensions-specific AST. But if we spot a
-   [[%extensions.comprehensions.immutable]], there is no expression to
-   translate.  So we just check for the immutable arrays extension when
-   processing a comprehension expression for an immutable array.
+   general mechanism for checking for enabled extensions (in [of_ast]) won't
+   work well here: it triggers when converting from
+   e.g. [[%extensions.comprehensions.array] ...]  to the comprehensions-specific
+   AST. But if we spot a [[%extensions.comprehensions.immutable]], there is no
+   expression to translate.  So we just check for the immutable arrays extension
+   when processing a comprehension expression for an immutable array.
 
    Note [Wrapping with make_extension]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -42,7 +41,7 @@ open Extensions_parsing
 
 (** List and array comprehensions *)
 module Comprehensions = struct
-  let extension_string = Clflags.Extension.to_string Comprehensions
+  let extension_string = Language_extension.to_string Comprehensions
 
   type iterator =
     | Range of { start     : expression
@@ -90,8 +89,8 @@ module Comprehensions = struct
      v}
   *)
 
-  let comprehension_expr ~loc names =
-    Expression.make_extension ~loc (extension_string :: names)
+  let comprehension_expr ~loc names x =
+    Expression.wrap_desc ~loc ~attrs:[] @@ Expression.make_extension ~loc (extension_string :: names) x
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
       the [expr_of_...] family of expressions, culminating in
@@ -205,9 +204,9 @@ module Comprehensions = struct
 
   let expand_comprehension_extension_expr expr =
     match Expression.match_extension expr with
-    | Some (comprehensions :: name, expr)
+    | Some (comprehensions :: names, expr)
       when String.equal comprehensions extension_string ->
-        name, expr
+        names, expr
     | Some (name, _) ->
         Desugaring_error.raise expr (Non_comprehension_extension_point name)
     | None ->
@@ -277,7 +276,7 @@ module Immutable_arrays = struct
   type nonrec pattern =
     | Iapat_immutable_array of pattern list
 
-  let extension_string = Clflags.Extension.to_string Immutable_arrays
+  let extension_string = Language_extension.to_string Immutable_arrays
 
   let expr_of ~loc = function
     | Iaexp_immutable_array elts ->
@@ -297,7 +296,30 @@ module Immutable_arrays = struct
 
   let of_pat expr = match expr.ppat_desc with
     | Ppat_array elts -> Iapat_immutable_array elts
-    | _ -> failwith "Malformed immutable array expression"
+    | _ -> failwith "Malformed immutable array pattern"
+end
+
+(** Module strengthening *)
+module Strengthen = struct
+  type nonrec module_type =
+    { mty : Parsetree.module_type; mod_id : Longident.t Location.loc }
+
+  let extension_string = Language_extension.to_string Module_strengthening
+
+  (* Encoding: [S with M] becomes [functor (_ : S) -> (module M)], where
+     the [(module M)] is a [Pmty_alias].  This isn't syntax we can write, but
+     [(module M)] can be the inferred type for [M], so this should be fine. *)
+
+  let mty_of ~loc { mty; mod_id } =
+    (* See Note [Wrapping with make_extension] *)
+    Module_type.make_extension ~loc [extension_string] @@
+      Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
+        (Ast_helper.Mty.alias mod_id)
+
+  let of_mty mty = match mty.pmty_desc with
+    | Pmty_functor(Named(_, mty), {pmty_desc = Pmty_alias mod_id}) ->
+       { mty; mod_id }
+    | _ -> failwith "Malformed strengthened module type"
 end
 
 (******************************************************************************)
@@ -318,7 +340,7 @@ module Expression = struct
       | Eexp_comprehension   of Comprehensions.expression
       | Eexp_immutable_array of Immutable_arrays.expression
 
-    let of_ast_internal (ext : Clflags.Extension.t) expr = match ext with
+    let of_ast_internal (ext : Language_extension.t) expr = match ext with
       | Comprehensions ->
         Some (Eexp_comprehension (Comprehensions.comprehension_expr_of_expr expr))
       | Immutable_arrays ->
@@ -337,9 +359,26 @@ module Pattern = struct
     type t =
       | Epat_immutable_array of Immutable_arrays.pattern
 
-    let of_ast_internal (ext : Clflags.Extension.t) pat = match ext with
+    let of_ast_internal (ext : Language_extension.t) pat = match ext with
       | Immutable_arrays ->
         Some (Epat_immutable_array (Immutable_arrays.of_pat pat))
+      | _ -> None
+  end
+
+  include M
+  include Make_of_ast(M)
+end
+
+module Module_type = struct
+  module M = struct
+    module AST = Extensions_parsing.Module_type
+
+    type t =
+      | Emty_strengthen of Strengthen.module_type
+
+    let of_ast_internal (ext : Language_extension.t) mty = match ext with
+      | Module_strengthening ->
+        Some (Emty_strengthen (Strengthen.of_mty mty))
       | _ -> None
   end
 

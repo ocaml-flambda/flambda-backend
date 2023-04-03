@@ -410,6 +410,25 @@ let emit_call_bound_errors () =
     emit_call "caml_ml_array_bound_error"
   end
 
+(* Record jump tables *)
+type jump_table =
+  { table_lbl: string;
+    elems: Linear.label array }
+
+let jump_tables = ref ([] : jump_table list)
+
+let emit_jump_table t =
+  _label t.table_lbl;
+  for i = 0 to Array.length t.elems - 1 do
+    D.long (ConstSub (ConstLabel(emit_label t.elems.(i)),
+                      ConstLabel t.table_lbl))
+  done
+
+let emit_jump_tables () =
+  D.align ~data:true 4;
+  List.iter emit_jump_table !jump_tables;
+  jump_tables := []
+
 (* Record function info for dwarf and emit label if needed. *)
 let emit_dwarf_for_fundecl fun_name fun_dbg =
   match Emitaux.Dwarf_helpers.record_dwarf_for_fundecl ~fun_name fun_dbg with
@@ -1260,19 +1279,11 @@ let emit_instr fallthrough i =
       I.add (reg tmp2) (reg tmp1);
       I.jmp (reg tmp1);
 
-      begin match system with
-      | S_mingw64 | S_cygwin -> D.section [".rdata"] (Some "dr") []
-      | S_macosx | S_win64 -> ()
-        (* with LLVM/OS X and MASM, use the text segment *)
-      | _ -> D.section [".rodata"] None []
-      end;
-      D.align ~data:true 4;
-      _label lbl;
-      for i = 0 to Array.length jumptbl - 1 do
-        D.long (ConstSub (ConstLabel(emit_label jumptbl.(i)),
-                         ConstLabel lbl))
-      done;
-      emit_function_or_basic_block_section_name ()
+      let table =
+        { table_lbl = lbl;
+          elems = jumptbl }
+      in
+      jump_tables := table :: !jump_tables
   | Lentertrap ->
       if fp then begin
         let delta = frame_size () - 16 (* retaddr + rbp *) in
@@ -1778,6 +1789,9 @@ let end_assembly () =
   (* Emit probe handler wrappers *)
   List.iter emit_probe_handler_wrapper !probes;
 
+  emit_named_text_section (Cmm_helpers.make_symbol "jump_tables");
+  emit_jump_tables ();
+
   let code_end = Cmm_helpers.make_symbol "code_end" in
   emit_named_text_section code_end;
   if system = S_macosx then I.nop ();
@@ -1792,6 +1806,7 @@ let end_assembly () =
   emit_global_label "data_end";
   D.qword (const 0);
 
+  D.text ();
   D.align ~data:true 8;                            (* PR#7591 *)
   emit_global_label "frametable";
 
@@ -1828,6 +1843,7 @@ let end_assembly () =
     D.size frametable (ConstSub (ConstThis, ConstLabel frametable))
   end;
 
+  D.data ();
   emit_probe_notes ();
   emit_trap_notes ();
 

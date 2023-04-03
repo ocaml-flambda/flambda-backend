@@ -509,6 +509,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Tag_immediate -> Tag_immediate
   | Get_tag -> Get_tag
+  | Begin_try_region -> Begin_try_region
   | End_region -> End_region
   | Is_flat_float_array -> Is_flat_float_array
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)
@@ -527,32 +528,34 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | String_length string_or_bytes -> String_length string_or_bytes
   | Int_as_pointer | Boolean_not | Duplicate_block _ | Duplicate_array _
   | Bigarray_length _ | Int_arith _ | Float_arith _ | Reinterpret_int64_as_float
-  | Is_boxed_float | Begin_try_region | Obj_dup ->
+  | Is_boxed_float | Obj_dup ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
+
+let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
+    Fexpr.block_access_kind =
+  let size (s : _ Or_unknown.t) =
+    match s with Known s -> Some (s |> targetint_ocaml) | Unknown -> None
+  in
+  match bk with
+  | Values { field_kind; size = s; tag } ->
+    let size = s |> size in
+    let tag =
+      match tag with
+      | Unknown -> None
+      | Known tag -> Some (tag |> Tag.Scannable.to_int)
+    in
+    Values { field_kind; size; tag }
+  | Naked_floats { size = s } ->
+    let size = s |> size in
+    Naked_floats { size }
 
 let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   match op with
   | Array_load (ak, mut) -> Array_load (ak, mut)
   | Block_load (access_kind, mutability) ->
-    let size (s : _ Or_unknown.t) =
-      match s with Known s -> Some (s |> targetint_ocaml) | Unknown -> None
-    in
-    let access_kind : Fexpr.block_access_kind =
-      match access_kind with
-      | Values { field_kind; size = s; tag } ->
-        let size = s |> size in
-        let tag =
-          match tag with
-          | Unknown -> None
-          | Known tag -> Some (tag |> Tag.Scannable.to_int)
-        in
-        Values { field_kind; size; tag }
-      | Naked_floats { size = s } ->
-        let size = s |> size in
-        Naked_floats { size }
-    in
+    let access_kind = block_access_kind access_kind in
     Block_load (access_kind, mutability)
   | Phys_equal op -> Phys_equal op
   | Int_arith (Tagged_immediate, o) -> Infix (Int_arith o)
@@ -565,7 +568,8 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Int_shift (i, s) -> Int_shift (i, s)
   | Float_arith o -> Infix (Float_arith o)
   | Float_comp c -> Infix (Float_comp c)
-  | String_or_bigstring_load _ | Bigarray_load _ ->
+  | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
+  | Bigarray_load _ ->
     Misc.fatal_errorf "TODO: Binary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)
@@ -573,7 +577,8 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
 let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
   | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
-  | Block_set _ | Bytes_or_bigstring_set _ | Bigarray_set _ ->
+  | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
+  | Bytes_or_bigstring_set _ | Bigarray_set _ ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Ternary op)

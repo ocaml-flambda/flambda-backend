@@ -457,6 +457,9 @@ let primitive ppf = function
   | Pbox_int (bi, m) ->
       fprintf ppf "box_%s%s" (boxed_integer_name bi) (alloc_kind m)
 
+  | Parray_to_iarray -> fprintf ppf "array_to_iarray"
+  | Parray_of_iarray -> fprintf ppf "array_of_iarray"
+
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
   | Pbytes_to_string -> "Pbytes_to_string"
@@ -568,6 +571,8 @@ let name_of_primitive = function
   | Pbox_float _ -> "Pbox_float"
   | Punbox_int _ -> "Punbox_int"
   | Pbox_int _ -> "Pbox_int"
+  | Parray_of_iarray -> "Parray_of_iarray"
+  | Parray_to_iarray -> "Parray_to_iarray"
 
 let check_attribute ppf check =
   let check_property = function
@@ -805,8 +810,6 @@ let rec lam ppf = function
        | Lev_after _  -> "after"
        | Lev_function -> "funct-body"
        | Lev_pseudo -> "pseudo"
-       | Lev_module_definition ident ->
-         Format.asprintf "module-defn(%a)" Ident.print ident
       in
       (* -dno-locations also hides the placement of debug events;
          this is good for the readability of the resulting output (usually

@@ -21,11 +21,6 @@ let rec rev_dlist_concat_map l f acc = local_
   | el :: l -> rev_dlist_concat_map l f (f el acc)
 ;;
 
-(* CR aspectorzabusky: At one point these functions were structured as
-   [let ... = let rec loop ... in loop ...], and I just inlined the [loop]
-   because it wasn't doing anything.   But were there efficiency reasons I
-   missed? *)
-
 let rec rev_dlist_concat_iterate_up from to_ f acc = local_
   if to_ < from
   then acc

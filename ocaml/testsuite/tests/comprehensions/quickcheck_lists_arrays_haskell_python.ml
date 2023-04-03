@@ -1,11 +1,12 @@
 (* -*- compile-command: "ocamlopt -w +A-4-40-42-44 str.cmxa unix.cmxa quickcheck_lists_arrays_haskell_python.ml -o quickcheck-lists-arrays-haskell-python && ./quickcheck-lists-arrays-haskell-python"; -*- *)
 
-(* CR aspectorzabusky: This file was great for validating comprehensions, but we
-   can't put it in the compiler test suite: it spins up three different REPL
-   processes, one each for Haskell, Python, and OCaml, and we can't count on the
-   first two existing.  But it would be a shame to delete this code and just
-   leave `comprehensions_from_quickcheck.ml`; if things change, it's good to
-   have access to QuickCheck.  What should we do with this, do we think? *)
+(* NB: This file was great for validating comprehensions, but we can't put it in
+   the compiler test suite: it spins up three different REPL processes, one each
+   for Haskell, Python, and OCaml, and we can't count on the first two existing.
+   But it would be a shame to delete this code and just leave
+   `comprehensions_from_quickcheck.ml`; if things change, it's good to have
+   access to QuickCheck.  Consequently, the code is still here, but as it's not
+   built it is actively bitrotting. *)
 
 module No_polymorphic_compare = struct
   let ( = )      = Int.equal

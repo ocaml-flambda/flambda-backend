@@ -105,7 +105,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
             <case>
               pattern 
                 Tpat_var "n"
-                alloc_mode <modevar>
+                alloc_mode global
               expression 
                 Texp_apply
                 apply_mode Tail
@@ -118,7 +118,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                     expression 
                       Texp_apply
                       apply_mode Default
-                      alloc_mode <modevar>
+                      alloc_mode global
                       expression 
                         Texp_ident "fib"
                       [
@@ -127,7 +127,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                           expression 
                             Texp_apply
                             apply_mode Default
-                            alloc_mode <modevar>
+                            alloc_mode global
                             expression 
                               Texp_ident "Stdlib!.-"
                             [
@@ -146,7 +146,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                     expression 
                       Texp_apply
                       apply_mode Default
-                      alloc_mode <modevar>
+                      alloc_mode global
                       expression 
                         Texp_ident "fib"
                       [
@@ -155,7 +155,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                           expression 
                             Texp_apply
                             apply_mode Default
-                            alloc_mode <modevar>
+                            alloc_mode global
                             expression 
                               Texp_ident "Stdlib!.-"
                             [

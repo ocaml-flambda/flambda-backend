@@ -34,6 +34,7 @@ UTILS = \
   utils/local_store.cmo \
   utils/load_path.cmo \
   utils/clflags.cmo \
+  utils/language_extension.cmo \
   utils/profile.cmo \
   utils/terminfo.cmo \
   utils/ccomp.cmo \
@@ -104,6 +105,7 @@ TYPING = \
   typing/tast_mapper.cmo \
   typing/stypes.cmo \
   file_formats/cmt_format.cmo \
+  file_formats/cms_format.cmo \
   typing/cmt2annot.cmo \
   typing/untypeast.cmo \
   typing/includemod.cmo \
@@ -114,8 +116,6 @@ TYPING = \
   typing/parmatch.cmo \
   typing/typedecl_properties.cmo \
   typing/typedecl_variance.cmo \
-  typing/typedecl_unboxed.cmo \
-  typing/typedecl_immediacy.cmo \
   typing/typedecl_separability.cmo \
   lambda/debuginfo.cmo lambda/lambda.cmo \
   typing/typedecl.cmo \

@@ -83,7 +83,7 @@ static link* frametables_list_tail(link *list) {
 /* Special marker instead of frame_size for frame_descr in long format */
 static uint32_t LONG_FRAME_MARKER = 0x7FFF;
 
-uint32_t get_frame_size(frame_descr *d) {
+uint32_t caml_get_frame_size(frame_descr *d) {
   CAMLassert(d && d->frame_size != 0xFFFF);
   if (d->frame_size == LONG_FRAME_MARKER) {
     /* Handle long frames */
@@ -95,7 +95,7 @@ uint32_t get_frame_size(frame_descr *d) {
 }
 
 /* Skip to end of live_ofs */
-unsigned char * get_end_of_live_ofs (frame_descr *d) {
+unsigned char * caml_get_end_of_live_ofs (frame_descr *d) {
   CAMLassert(d && d->frame_size != 0xFFFF);
   if (d->frame_size == LONG_FRAME_MARKER) {
     /* Handle long frames */
@@ -109,10 +109,10 @@ unsigned char * get_end_of_live_ofs (frame_descr *d) {
 static frame_descr * next_frame_descr(frame_descr * d) {
   unsigned char num_allocs = 0, *p;
   uint32_t frame_size;
-  CAMLassert(d->retaddr >= 4096);
+  CAMLassert(Retaddr_frame(d) >= 4096);
   if (d->frame_size != 0xFFFF) {
-    frame_size = get_frame_size(d);
-    p = get_end_of_live_ofs(d);
+    frame_size = caml_get_frame_size(d);
+    p = caml_get_end_of_live_ofs(d);
     /* Skip alloc_lengths if present */
     if (frame_size & 2) {
       num_allocs = *p;
@@ -151,7 +151,7 @@ static void fill_hashtable(link *frametables) {
     len = *tbl;
     d = (frame_descr *)(tbl + 1);
     for (j = 0; j < len; j++) {
-      h = Hash_retaddr(d->retaddr);
+      h = Hash_retaddr(Retaddr_frame(d));
       while (caml_frame_descriptors[h] != NULL) {
         h = (h+1) & caml_frame_descriptors_mask;
       }
@@ -220,7 +220,7 @@ static void remove_entry(frame_descr * d) {
   uintnat r;
   uintnat j;
 
-  i = Hash_retaddr(d->retaddr);
+  i = Hash_retaddr(Retaddr_frame(d));
   while (caml_frame_descriptors[i] != d) {
     i = (i+1) & caml_frame_descriptors_mask;
   }
@@ -232,7 +232,7 @@ static void remove_entry(frame_descr * d) {
   i = (i+1) & caml_frame_descriptors_mask;
   // r3
   if(caml_frame_descriptors[i] == NULL) return;
-  r = Hash_retaddr(caml_frame_descriptors[i]->retaddr);
+  r = Hash_retaddr(Retaddr_frame(caml_frame_descriptors[i]));
   /* If r is between i and j (cyclically), i.e. if
      caml_frame_descriptors[i]->retaddr don't need to be moved */
   if(( ( j < r )  && ( r <= i ) ) ||
@@ -657,7 +657,7 @@ void caml_do_local_roots_nat(scanning_action maj, scanning_action min,
       h = Hash_retaddr(retaddr);
       while(1) {
         d = caml_frame_descriptors[h];
-        if (d->retaddr == retaddr) break;
+        if (Retaddr_frame(d) == retaddr) break;
         h = (h+1) & caml_frame_descriptors_mask;
       }
       if (d->frame_size != 0xFFFF) {
@@ -688,7 +688,7 @@ void caml_do_local_roots_nat(scanning_action maj, scanning_action min,
           }
         }
         /* Move to next frame */
-        sp += (get_frame_size(d) & 0xFFFFFFFC);
+        sp += (caml_get_frame_size(d) & 0xFFFFFFFC);
         retaddr = Saved_return_address(sp);
 #ifdef Mask_already_scanned
         retaddr = Mask_already_scanned(retaddr);

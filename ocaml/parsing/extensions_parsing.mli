@@ -77,15 +77,13 @@ module Error : sig
   (** Someone used [[%extension.EXTNAME]] wrong *)
   type malformed_extension =
     | Has_payload of Parsetree.payload
-    | Wrong_arguments of (Asttypes.arg_label * Parsetree.expression) list
-    | Wrong_tuple of Parsetree.pattern list
 
   (** An error triggered when desugaring a language extension from an OCaml AST *)
   type error =
     | Malformed_extension of string list * malformed_extension
     | Unknown_extension of string
-    | Disabled_extension of Clflags.Extension.t
-    | Wrong_syntactic_category of Clflags.Extension.t * string
+    | Disabled_extension of Language_extension.t
+    | Wrong_syntactic_category of Language_extension.t * string
     | Unnamed_extension
     | Bad_introduction of string * string list
 
@@ -100,6 +98,10 @@ module type AST = sig
   (** The AST type (e.g., [Parsetree.expression]) *)
   type ast
 
+  (** The "AST description" type, without the location and attributes (e.g.,
+      [Parsetree.expression_desc]) *)
+  type ast_desc
+
   (** The name for this syntactic category in the plural form; used for error
       messages (e.g., "expressions") *)
   val plural : string
@@ -107,10 +109,14 @@ module type AST = sig
   (** How to get the location attached to an AST node *)
   val location : ast -> Location.t
 
+  (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata *)
+  val wrap_desc :
+    loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
+
   (** Embed a language extension term in the AST with the given name
       and body (the [ast]).  The name will be joined with dots
       and preceded by [extension.].  Partial inverse of [match_extension]. *)
-  val make_extension  : loc:Location.t -> string list -> ast -> ast
+  val make_extension  : loc:Location.t -> string list -> ast -> ast_desc
 
   (** Given an AST node, check if it's a language extension term; if it is,
       split it back up into its name (the [string list]) and the body (the
@@ -125,8 +131,12 @@ end
     adding these lazily as we need them. When you add another one, make
     sure also to add special handling in [Ast_iterator] and [Ast_mapper]. *)
 
-module Expression : AST with type ast = Parsetree.expression
-module Pattern    : AST with type ast = Parsetree.pattern
+module Expression  : AST with type ast      = Parsetree.expression
+                          and type ast_desc = Parsetree.expression_desc
+module Pattern     : AST with type ast      = Parsetree.pattern
+                          and type ast_desc = Parsetree.pattern_desc
+module Module_type : AST with type ast      = Parsetree.module_type
+                          and type ast_desc = Parsetree.module_type_desc
 
 (** Each syntactic category will include a module that meets this signature.
     Then, the [Make_of_ast] functor produces the functions that actually
@@ -159,7 +169,7 @@ module type Of_ast_parameters = sig
       so when building the pattern extension AST, this function will
       return [None] when the extension in [Comprehensions].)
   *)
-  val of_ast_internal : Clflags.Extension.t -> AST.ast -> t option
+  val of_ast_internal : Language_extension.t -> AST.ast -> t option
 end
 
 (** Build the [of_ast] function from [Of_ast_parameters]. The result
@@ -179,4 +189,4 @@ end
     intended to be used in "extensions.ml" when a certain piece of syntax
     requires two extensions to be enabled at once (e.g., immutable array
     comprehensions such as [[:x for x = 1 to 10:]]). *)
-val assert_extension_enabled : loc:Location.t -> Clflags.Extension.t -> unit
+val assert_extension_enabled : loc:Location.t -> Language_extension.t -> unit

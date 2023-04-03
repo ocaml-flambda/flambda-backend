@@ -378,12 +378,13 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     Location.prerr_warning
       (Debuginfo.to_location dbg)
       (Warnings.Inlining_impossible
-         "[@inlined] attributes may not be used on partial applications")
+         Inlining_helpers.(inlined_attribute_on_partial_application_msg Inlined))
   | Unroll _ ->
     Location.prerr_warning
       (Debuginfo.to_location dbg)
       (Warnings.Inlining_impossible
-         "[@unroll] attributes may not be used on partial applications")
+         Inlining_helpers.(
+           inlined_attribute_on_partial_application_msg Unrolled))
   | Default_inlined | Hint_inlined -> ());
   let arity = Flambda_arity.With_subkinds.cardinal param_arity in
   let args_arity = List.length args in

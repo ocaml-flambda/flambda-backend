@@ -145,6 +145,7 @@ default:
 	@echo "  promote DIR=p   promote the output for the tests located in path p"
 	@echo "  promote LIST=f  promote the output for the tests listed in f (one \
 	per line)"
+	@echo "  promote-failed  promote all the tests that failed in the previous run"
 	@echo "  lib             build library modules"
 	@echo "  tools           build test tools"
 	@echo "  clean           delete generated files"
@@ -348,3 +349,12 @@ clean:
 report:
 	@if [ ! -f $(TESTLOG) ]; then echo "No $(TESTLOG) file."; exit 1; fi
 	@$(AWK) -f ./summarize.awk < $(TESTLOG)
+
+.PHONY: promote-failed
+promote-failed: lib tools
+	@if [ ! -f $(TESTLOG) ]; then echo "No $(TESTLOG) file."; exit 1; fi
+	@for test in \
+	     $$(awk -f ./summarize.awk -v only_report_failed_tests=1 < $(TESTLOG)); \
+	 do \
+	   $(MAKE) promote TEST="$$test"; \
+	 done

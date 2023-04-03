@@ -47,7 +47,7 @@ type error =
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
   | Not_an_object of type_expr
-  | Unsupported_extension of Clflags.Extension.t
+  | Unsupported_extension of Language_extension.t
   | Polymorphic_optional_param
 
 exception Error of Location.t * Env.t * error
@@ -403,7 +403,7 @@ let rec extract_params styp =
   | _ -> final styp
 
 let check_arg_type styp =
-  if not (Clflags.Extension.is_enabled Polymorphic_parameters) then begin
+  if not (Language_extension.is_enabled Polymorphic_parameters) then begin
     match styp.ptyp_desc with
     | Ptyp_poly _ ->
         raise (Error (styp.ptyp_loc, Env.empty,
@@ -1004,7 +1004,7 @@ let report_error env ppf = function
       fprintf ppf "@[The type %a@ is not an object type@]"
         Printtyp.type_expr ty
   | Unsupported_extension ext ->
-      let ext = Clflags.Extension.to_string ext in
+      let ext = Language_extension.to_string ext in
       fprintf ppf "@[The %s extension is disabled@ \
                    To enable it, pass the '-extension %s' flag@]" ext ext
   | Polymorphic_optional_param ->
