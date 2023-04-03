@@ -49,6 +49,8 @@ let emit_label lbl =
 
 (* Symbols *)
 
+(* CR sdolan: Support local symbol definitions & references on arm64 *)
+
 let emit_symbol s =
   if macosx then emit_string "_";
   Emitaux.emit_symbol '$' s

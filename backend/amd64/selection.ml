@@ -245,7 +245,9 @@ method select_addressing _chunk exp =
   then (Iindexed 0, exp)
   else match a with
     | Asymbol s ->
-        (Ibased(s.sym_name, s.sym_global = Cmm.Global, d), Ctuple [])
+        let glob : Arch.sym_global =
+          match s.sym_global with Global -> Global | Local -> Local in
+        (Ibased(s.sym_name, glob, d), Ctuple [])
     | Alinear e ->
         (Iindexed d, e)
     | Aadd(e1, e2) ->

@@ -321,10 +321,11 @@ let res32 i n = emit_subreg reg_low_32_name DWORD i.res.(n)
 
 let addressing addr typ i n =
   match addr with
-  | Ibased(s, glob, ofs) ->
-      add_used_symbol s;
-      let s : Cmm.symbol = { sym_name = s; sym_global = if glob then Global else Local } in
-      mem64_rip typ (emit_cmm_symbol s) ~ofs
+  | Ibased(sym_name, sym_global, ofs) ->
+      add_used_symbol sym_name;
+      let sym_global : Cmm.is_global =
+        match sym_global with Global -> Global | Local -> Local in
+      mem64_rip typ (emit_cmm_symbol { sym_name ; sym_global }) ~ofs
   | Iindexed d ->
       mem64 typ d (arg64 i n)
   | Iindexed2 d ->
@@ -1249,7 +1250,7 @@ let emit_instr fallthrough i =
        to control ocaml probe handlers independently from stap probe handlers.
        It is placed immediately after stap semaphore, and is the same
        size - hence offset 2. *)
-    I.mov (addressing (Ibased(semaphore_sym, true, 2)) WORD i 0) (res16 i 0);
+    I.mov (addressing (Ibased(semaphore_sym, Global, 2)) WORD i 0) (res16 i 0);
     (* If the semaphore is 0, then the result is 0, otherwise 1. *)
     I.cmp (int 0) (res16 i 0);
     I.set (cond (Iunsigned Cne)) (res8 i 0);
@@ -1399,6 +1400,9 @@ let fundecl fundecl =
     D.private_extern (emit_symbol fundecl.fun_name)
   else
     D.global (emit_symbol fundecl.fun_name);
+  (* Even if the function name is Local, still emit an
+     actual linker symbol for it. This provides symbols
+     for perf, gdb, and similar tools *)
   D.label (emit_symbol fundecl.fun_name);
   D.label (label_name (emit_symbol fundecl.fun_name));
   emit_debug_info fundecl.fun_dbg;

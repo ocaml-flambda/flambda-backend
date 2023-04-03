@@ -3739,7 +3739,6 @@ let emit_constant_closure symb fundecls clos_vars cont =
         let is_last = match rem with [] -> true | _ :: _ -> false in
         match f2.arity with
         | { function_kind = Curried _; params_layout = [] | [_]; _ } as arity ->
-          (* FIXME: is sym_global correct here? *)
           (Cint (infix_header pos) :: closure_symbol f2)
           @ Csymbol_address
               { sym_name = f2.label; sym_global = symb.sym_global }
@@ -3824,8 +3823,8 @@ let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
 let emit_preallocated_blocks preallocated_blocks cont =
   let symbols =
     List.map
-      (fun ({ Clambda.symbol } : Clambda.preallocated_block) ->
-        global_symbol symbol)
+      (fun ({ Clambda.symbol; exported } : Clambda.preallocated_block) ->
+        { sym_name = symbol; sym_global = (if exported then Global else Local) })
       preallocated_blocks
   in
   let c1 = emit_gc_roots_table ~symbols cont in

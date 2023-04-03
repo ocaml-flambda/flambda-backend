@@ -65,8 +65,10 @@ let command_line_options =
 
 open Format
 
+type sym_global = Global | Local
+
 type addressing_mode =
-    Ibased of string * bool * int       (* symbol + displ *)
+    Ibased of string * sym_global * int (* symbol + displ *)
   | Iindexed of int                     (* reg + displ *)
   | Iindexed2 of int                    (* reg + reg + displ *)
   | Iscaled of int * int                (* reg * scale + displ *)
@@ -306,7 +308,7 @@ let float_cond_and_need_swap cond =
 let equal_addressing_mode left right =
   match left, right with
   | Ibased (left_sym, left_glob, left_displ), Ibased (right_sym, right_glob, right_displ) ->
-    String.equal left_sym right_sym && Bool.equal left_glob right_glob && Int.equal left_displ right_displ
+    String.equal left_sym right_sym && left_glob = right_glob && Int.equal left_displ right_displ
   | Iindexed left_displ, Iindexed right_displ ->
     Int.equal left_displ right_displ
   | Iindexed2 left_displ, Iindexed2 right_displ ->
