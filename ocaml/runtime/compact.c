@@ -308,7 +308,7 @@ static void do_compaction (intnat new_allocation_policy)
         if (q != 0 && Is_white_hd (q)){
           size_t sz = Bhsize_hd (q);
           char *newadr = compact_allocate (sz);
-          if (newadr != (char*) p) memmove (newadr, p, sz);
+          memmove (newadr, p, sz);
           p += Wsize_bsize (sz);
         }else{
           CAMLassert (q == 0 || Is_blue_hd (q));
