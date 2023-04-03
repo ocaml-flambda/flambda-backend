@@ -198,6 +198,7 @@ let oper_result_type = function
        naked pointer into the local allocation stack. *)
     typ_int
   | Cendregion -> typ_void
+  | Ctuple_field (_, ty) -> ty
 
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
@@ -463,6 +464,7 @@ method is_simple_expr = function
       | Ccsel _
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
       | Cvalueofint | Cintofvalue
+      | Ctuple_field _
       | Ccmpf _ -> List.for_all self#is_simple_expr args
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
@@ -510,6 +512,7 @@ method effects_of exp =
       | Cload (_, Asttypes.Immutable) -> EC.none
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
+      | Ctuple_field _
       | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor
       | Cbswap _
       | Ccsel _
@@ -854,6 +857,13 @@ method emit_expr (env:environment) exp =
          let rs = self#emit_tuple env simple_args in
          Some (self#insert_op_debug env Iopaque dbg rs rs)
       end
+  | Cop(Ctuple_field(field, _layout), [arg], dbg) ->
+    begin match self#emit_expr env arg with
+        None -> None
+      | Some loc_exp ->
+        (* All fields are of size one *)
+        Some [|loc_exp.(field)|]
+    end
   | Cop(op, args, dbg) ->
       begin match self#emit_parts_list env' args with
         None -> None

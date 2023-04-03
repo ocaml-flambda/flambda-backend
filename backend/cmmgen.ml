@@ -434,6 +434,36 @@ let rec is_unboxed_number_cmm = function
     | Ccatch (_, _, _, _) ->
       No_unboxing
 
+type layout_atom =
+  | LValue
+  | Lunboxed_float
+  | Lunboxed_int of Lambda.boxed_integer
+
+let rec take_n n l =
+  if n <= 0 then []
+  else
+    match l with
+    | [] -> assert false
+    | h :: t -> h :: (take_n (n-1) t)
+
+let rec flatten_layout (layout : Lambda.layout) =
+  match layout with
+  | Ptop -> assert false
+  | Pbottom -> []
+  | Pvalue _ -> [LValue]
+  | Punboxed_float -> [Lunboxed_float]
+  | Punboxed_int b -> [Lunboxed_int b]
+  | Punboxed_product l ->
+    List.flatten (List.map flatten_layout l)
+
+let layout_machtype (atom : layout_atom) =
+  match atom with
+  | LValue -> typ_val
+  | Lunboxed_float -> typ_float
+  | Lunboxed_int _ ->
+    (* Only 64-bit architectures, so this is always [typ_int] *)
+    typ_int
+
 (* Translate an expression *)
 
 let rec transl env e =
@@ -570,6 +600,27 @@ let rec transl env e =
   (* Primitives *)
   | Uprim(prim, args, dbg) ->
       begin match (simplif_primitive prim, args) with
+
+        | (Pmake_unboxed_product layouts, args) ->
+          let rec loop offset args layouts acc =
+            match args, layouts with
+            | [], [] ->
+              Ctuple acc
+            | [], _ | _, [] -> assert false
+            | arg :: args, layout :: layouts ->
+              let arg = transl env arg in
+              bind "arg" arg (fun arg ->
+                  let layout = flatten_layout layout in
+                  let skip = List.length layout in
+                  let loads =
+                    List.mapi (fun i layout ->
+                        Cop (Ctuple_field (i,(layout_machtype layout)) , [arg], dbg))
+                      layout
+                  in
+                  loop (offset + skip) args layouts (loads @ acc)
+                )
+          in
+          loop 0 (List.rev args) (List.rev layouts) []
       | (Pread_symbol sym, []) ->
           Cconst_symbol (sym, dbg)
       | (Pmakeblock _, []) ->
@@ -677,7 +728,8 @@ let rec transl env e =
          | Pasrbint _ | Pbintcomp (_, _) | Pstring_load _ | Pbytes_load _
          | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
          | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-         | Pbbswap _), _)
+         | Pbbswap _
+         | Punboxed_product_field _), _)
         ->
           fatal_error "Cmmgen.transl:prim"
       end
@@ -1001,6 +1053,20 @@ and transl_prim_1 env p arg dbg =
   | Pbswap16 ->
       tag_int (bswap16 (ignore_high_bit_int (untag_int
         (transl env arg) dbg)) dbg) dbg
+  | Punboxed_product_field (field, layouts) ->
+    Cmm_helpers.bind "unboxed_product" (transl env arg) (fun arg ->
+    let prev_layouts =
+      List.map flatten_layout (take_n field layouts) |>
+      List.flatten
+    in
+    let skip = List.length prev_layouts in
+    let layout = List.nth layouts field in
+    let loads =
+      List.mapi (fun i layout ->
+          Cop (Ctuple_field (skip + i, layout_machtype layout), [arg], dbg))
+        (flatten_layout layout)
+    in
+    Ctuple loads)
   | (Pfield_computed | Psequand | Psequor
     | Paddint | Psubint | Pmulint | Pandint
     | Porint | Pxorint | Plslint | Plsrint | Pasrint
@@ -1017,7 +1083,9 @@ and transl_prim_1 env p arg dbg =
     | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
     | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
     | Pbigarraydim _ | Pstring_load _ | Pbytes_load _ | Pbytes_set _
-    | Pbigstring_load _ | Pbigstring_set _ | Pprobe_is_enabled _)
+    | Pbigstring_load _ | Pbigstring_set _ | Pprobe_is_enabled _
+    | Pmake_unboxed_product _
+    )
     ->
       fatal_errorf "Cmmgen.transl_prim_1: %a"
         Printclambda_primitives.primitive p
@@ -1197,6 +1265,8 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
   | Pprobe_is_enabled _
   | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Pmake_unboxed_product _
+  | Punboxed_product_field _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
         Printclambda_primitives.primitive p
@@ -1258,6 +1328,8 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
   | Pprobe_is_enabled _
   | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Pmake_unboxed_product _
+  | Punboxed_product_field _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
         Printclambda_primitives.primitive p

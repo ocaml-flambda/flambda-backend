@@ -235,3 +235,17 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pbox_int (bi, m) ->
     fprintf ppf "box_%s.%s" (boxed_integer_name bi) (alloc_kind m)
   | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)
+  | Pmake_unboxed_product layouts ->
+    fprintf ppf "make_unboxed_product(@[<hov 2>%a@])"
+      (Format.pp_print_list
+         ~pp_sep:(fun ppf () -> Format.fprintf ppf ",@ ")
+         Printlambda.layout)
+      layouts
+  | Punboxed_product_field (field, layouts) ->
+    fprintf ppf "unboxed_product_field(@[<hov 2>%a@]) %i"
+      (Format.pp_print_list
+         ~pp_sep:(fun ppf () -> Format.fprintf ppf ",@ ")
+         Printlambda.layout)
+      layouts
+    field
+

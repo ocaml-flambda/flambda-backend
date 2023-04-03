@@ -126,6 +126,9 @@ type primitive =
   | Pbox_float of alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
+  (* Unboxed products *)
+  | Pmake_unboxed_product of layout list
+  | Punboxed_product_field of int * (layout list)
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
