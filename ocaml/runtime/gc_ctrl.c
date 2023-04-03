@@ -60,7 +60,11 @@ static void check_head (value v)
   CAMLassert (Is_block (v));
   CAMLassert (Is_in_heap (v));
 
+#ifndef NO_NAKED_POINTERS
+  /* This cannot be checked in no-naked-pointers mode: [v] might be a
+     statically-allocated empty array. */
   CAMLassert (Wosize_val (v) != 0);
+#endif
   CAMLassert (Color_hd (Hd_val (v)) != Caml_blue);
   CAMLassert (Is_in_heap (v));
   if (Tag_val (v) == Infix_tag){
@@ -81,12 +85,13 @@ static void check_head (value v)
 
 static void check_block (header_t *hp)
 {
-  mlsize_t i;
+  mlsize_t i, start;
+  tag_t tag = Tag_hp (hp);
   value v = Val_hp (hp);
   value f;
 
   check_head (v);
-  switch (Tag_hp (hp)){
+  switch (tag){
   case Abstract_tag: break;
   case String_tag:
     break;
@@ -97,7 +102,9 @@ static void check_block (header_t *hp)
     CAMLassert (Wosize_val (v) % Double_wosize == 0);
     break;
   case Custom_tag:
+#ifndef NO_NAKED_POINTERS
     CAMLassert (!Is_in_heap (Custom_ops_val (v)));
+#endif
     break;
 
   case Infix_tag:
@@ -106,7 +113,10 @@ static void check_block (header_t *hp)
 
   default:
     CAMLassert (Tag_hp (hp) < No_scan_tag);
-    for (i = 0; i < Wosize_hp (hp); i++){
+    /* For closures, skip to the start of the scannable environment */
+    if (tag == Closure_tag) start = Start_env_closinfo(Closinfo_val(v));
+    else start = 0;
+    for (i = start; i < Wosize_hp (hp); i++){
       f = Field (v, i);
       if (Is_block (f) && Is_in_heap (f)){
         check_head (f);
