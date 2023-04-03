@@ -2565,7 +2565,7 @@ let type_pat category ?no_existentials ?(mode=Normal)
 
 (* this function is passed to Partial.parmatch
    to type check gadt nonexhaustiveness *)
-let partial_pred ~lev ~splitting_mode ~allow_modules ?(explode=0)
+let partial_pred ~lev ~allow_modules ~splitting_mode ?(explode=0)
       env expected_ty constrs labels p =
   let env = ref env in
   let state = save_state env in
@@ -2592,7 +2592,7 @@ let check_partial
   let explode = match cases with [_] -> 5 | _ -> 0 in
   let splitting_mode = Refine_or {inside_nonsplit_or = false} in
   Parmatch.check_partial
-    (partial_pred ~lev ~splitting_mode ~explode ~allow_modules env expected_ty)
+    (partial_pred ~lev ~allow_modules ~splitting_mode ~explode env expected_ty)
     loc cases
 
 let check_unused
@@ -2601,8 +2601,7 @@ let check_unused
   Parmatch.check_unused
     (fun refute constrs labels spat ->
       match
-        partial_pred ~lev ~splitting_mode:Backtrack_or ~explode:5
-          ~allow_modules
+        partial_pred ~lev ~allow_modules ~splitting_mode:Backtrack_or ~explode:5
           env expected_ty constrs labels spat
       with
         Some pat when refute ->
@@ -6391,8 +6390,9 @@ and type_cases
   let lev = get_current_level () in
   let allow_modules =
     if may_contain_modules then begin
-      let scope = create_scope () in
-      Modules_allowed { scope }
+      (* The corresponding check for scope escape is done together with the
+         check for GADT-induced existentials. *)
+      Modules_allowed { scope = lev }
     end else Modules_rejected
   in
   let take_partial_instance =
