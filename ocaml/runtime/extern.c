@@ -502,6 +502,14 @@ Caml_inline void extern_int(intnat n)
   }
 }
 
+Caml_inline void extern_unboxed_int(intnat n)
+{
+  if (extern_flags & COMPAT_32)
+    extern_failwith("output_value: cannot marshal unboxed values on 32 bit");
+
+  writecode64(CODE_UNBOXED_INT64, n);
+}
+
 /* Marshaling references to previously-marshaled blocks */
 
 Caml_inline void extern_shared_reference(uintnat d)
@@ -679,7 +687,7 @@ Caml_inline mlsize_t extern_closure_up_to_env(value v)
   CAMLassert(i <= startenv);
   /* The non-scanned part of the environment */
   while (i < startenv) {
-    extern_int(Long_val(Field(v, i++)));
+    extern_unboxed_int(Field(v, i++));
   }
   return startenv;
 }
