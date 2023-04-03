@@ -268,14 +268,10 @@ let iter_shallow_tail f = function
       f e1;
       f e2;
       true
-  | Cregion e ->
-      f e;
-      true
-  | Ctail e ->
-      f e;
-      true
   | Cexit _ | Cop (Craise _, _, _) ->
       true
+  | Cregion _
+  | Ctail _
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
@@ -314,12 +310,10 @@ let map_shallow_tail ?kind f = function
   | Ctrywith(e1, id, e2, dbg, kind_before) ->
       Ctrywith(f e1, id, f e2, dbg,
               Option.value kind ~default:kind_before)
-  | Cregion e ->
-      Cregion(f e)
-  | Ctail e ->
-      Ctail(f e)
   | Cexit _ | Cop (Craise _, _, _) as cmm ->
       cmm
+  | Cregion _
+  | Ctail _
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
@@ -331,6 +325,8 @@ let map_shallow_tail ?kind f = function
 
 let map_tail ?kind f =
   let rec loop = function
+    | Cregion _
+    | Ctail _
     | Cconst_int _
     | Cconst_natint _
     | Cconst_float _
