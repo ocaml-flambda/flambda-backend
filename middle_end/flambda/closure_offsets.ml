@@ -16,10 +16,142 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
+type layout_atom =
+  | Value
+  | Value_int
+  | Unboxed_float
+  | Unboxed_int of Lambda.boxed_integer
+
+type ('visible, 'invisible) decomposition' =
+  | Gc_visible of ('visible * layout_atom)
+  | Gc_invisible of ('invisible * layout_atom)
+  | Product of ('visible, 'invisible) decomposition' array
+
+type decomposition =
+  | Atom of (int * layout_atom)
+  | Product of decomposition array
+type parts = decomposition
+
+let equal_parts (p1 : parts) p2 = p1 = p2
+let print_parts ppf _p =
+  Format.fprintf ppf "TODO offset parts"
+
 type result = {
   function_offsets : int Closure_id.Map.t;
-  free_variable_offsets : int Var_within_closure.Map.t;
+  free_variable_offsets : parts Var_within_closure.Map.t;
 }
+
+let rec decompose (layout : Lambda.layout) : _ decomposition' =
+  match layout with
+  | Ptop ->
+    Misc.fatal_error "[Ptop] can't be stored in a closure."
+  | Pbottom ->
+    Misc.fatal_error
+      "[Pbottom] should have been eliminated as dead code \
+       and not stored in a closure."
+  | Punboxed_float -> Gc_invisible ((), Unboxed_float)
+  | Punboxed_int bi -> Gc_invisible ((), Unboxed_int bi)
+  | Pvalue Pintval -> Gc_invisible ((), Value_int)
+  | Pvalue _ -> Gc_visible ((), Value)
+  | Punboxed_product l ->
+    Product (Array.of_list (List.map decompose l))
+
+let rec solidify (dec : (int, int) decomposition') : decomposition =
+  match dec with
+  | Gc_visible (off, layout) -> Atom (off, layout)
+  | Gc_invisible (off, layout) -> Atom (off, layout)
+  | Product a ->
+    Product (Array.map solidify a)
+
+let rec fold_decompose
+    (f1 : 'acc -> 'a -> layout_atom -> 'acc * 'b) (f2 : 'acc -> 'c -> layout_atom -> 'acc * 'd)
+    (acc : 'acc) (d : ('a, 'c) decomposition') :
+  'acc * ('b, 'd) decomposition' =
+  match d with
+  | Gc_visible (v, layout) ->
+    let acc, v = f1 acc v layout in
+    acc, Gc_visible (v, layout)
+  | Gc_invisible (v, layout) ->
+    let acc, v = f2 acc v layout in
+    acc, Gc_invisible (v, layout)
+  | Product elts ->
+    let acc, elts = Array.fold_left_map (fold_decompose f1 f2) acc elts in
+    acc, Product elts
+
+let layout_atom_size (layout : layout_atom) =
+  match layout with
+  | Value
+  | Value_int
+  | Unboxed_float
+  | Unboxed_int _ -> 1
+
+let assign_visible_offsets init_pos (var, dec) =
+  let f_visible acc () layout =
+    acc + layout_atom_size layout, acc
+  in
+  let f_invisible acc () _layout =
+    acc, ()
+  in
+  let acc, dec = fold_decompose f_visible f_invisible init_pos dec in
+  acc, (var, dec)
+
+let assign_invisible_offsets init_pos (var, dec) =
+  let f_visible acc off _layout =
+    acc, off
+  in
+  let f_invisible acc () layout =
+    acc + layout_atom_size layout, acc
+  in
+  let acc, dec = fold_decompose f_visible f_invisible init_pos dec in
+  acc, (var, solidify dec)
+
+(* let rec layout_size (layout : Lambda.layout) = *)
+(*   match layout with *)
+(*   | Ptop -> *)
+(*     Misc.fatal_error "[Ptop] can't be stored in a closure." *)
+(*   | Pbottom -> *)
+(*     Misc.fatal_error *)
+(*       "[Pbottom] should have been eliminated as dead code \ *)
+(*        and not stored in a closure." *)
+(*   | Punboxed_float *)
+(*   | Punboxed_int _ *)
+(*   | Pvalue Pintval *)
+(*   | Pvalue _ -> 1 *)
+(*   | Punboxed_product l -> *)
+(*     List.fold_left (fun acc e -> acc + layout_size e) 0 l *)
+(* let _ = ignore layout_size *)
+
+(* let split_scannable layout = *)
+(*   let rec loop (layout : Lambda.layout) path = *)
+(*     match layout with *)
+(*     | Ptop -> *)
+(*       Misc.fatal_error "[Ptop] can't be stored in a closure." *)
+(*     | Pbottom -> *)
+(*       Misc.fatal_error *)
+(*         "[Pbottom] should have been eliminated as dead code \ *)
+(*          and not stored in a closure." *)
+(*     | Punboxed_float -> { gc_invisible = [Unboxed_float, path]; gc_visible = [] } *)
+(*     | Punboxed_int bi -> { gc_invisible = [Unboxed_int bi, path]; gc_visible = [] } *)
+(*     | Pvalue Pintval -> { gc_invisible = [Value_int, path]; gc_visible = [] } *)
+(*     | Pvalue _ -> { gc_invisible = []; gc_visible = [Value, path] } *)
+(*     | Punboxed_product l -> *)
+(*       let splits = List.mapi (fun i layout -> loop layout (i :: path)) l in *)
+(*       let merged = *)
+(*         List.fold_left (fun { gc_invisible; gc_visible } e -> *)
+(*             { gc_invisible = e.gc_invisible @ gc_invisible; *)
+(*               gc_visible = e.gc_visible @ gc_visible; }) *)
+(*           { gc_invisible = []; gc_visible = [] } splits *)
+(*       in *)
+(*       (\* match merged.gc_invisible with *\) *)
+(*       (\* | [] -> { gc_invisible = []; gc_visible = [layout, path] } *\) *)
+(*       (\* | _ -> *\) *)
+(*       (\*   match merged.gc_visible with *\) *)
+(*       (\*   | [] -> { gc_visible = []; gc_invisible = [layout, path] } *\) *)
+(*       (\*   | _ -> *\) *)
+(*       merged *)
+(*   in *)
+(*   loop layout [] *)
+
 
 let add_closure_offsets
       { function_offsets; free_variable_offsets }
@@ -58,39 +190,20 @@ let add_closure_offsets
      accesses. *)
   (* CR-someday mshinwell: As discussed with lwhite, maybe this isn't
      ideal, and the self accesses should be explicitly marked too. *)
-  let assign_free_variable_offset var _ (map, pos) =
-    let var_within_closure = Var_within_closure.wrap var in
-    if Var_within_closure.Map.mem var_within_closure map then begin
-      Misc.fatal_errorf "Closure_offsets.add_closure_offsets: free variable \
-          offset for %a would be defined multiple times"
-        Var_within_closure.print var_within_closure
-    end;
-    let map = Var_within_closure.Map.add var_within_closure pos map in
-    (map, pos + 1)
+  let free_vars = Variable.Map.bindings free_vars in
+  let free_vars = List.map (fun (var, (free_var : Flambda.specialised_to)) ->
+      var, decompose free_var.kind) free_vars in
+  let free_variable_pos, free_vars =
+    List.fold_left_map assign_visible_offsets free_variable_pos free_vars
   in
-  let gc_invisible_free_vars, gc_visible_free_vars =
-    Variable.Map.partition (fun _ (free_var : Flambda.specialised_to) ->
-        match free_var.kind with
-        | Ptop ->
-          Misc.fatal_error "[Ptop] can't be stored in a closure."
-        | Pbottom ->
-          Misc.fatal_error
-            "[Pbottom] should have been eliminated as dead code \
-             and not stored in a closure."
-        | Punboxed_float -> true
-        | Punboxed_int _ -> true
-        | Pvalue Pintval -> true
-        | Pvalue _ -> false
-        | Punboxed_product _ -> Misc.fatal_error "TODO")
-      free_vars
+  let _free_variable_pos, free_vars =
+    List.fold_left_map assign_invisible_offsets free_variable_pos free_vars
   in
-  let free_variable_offsets, free_variable_pos =
-    Variable.Map.fold assign_free_variable_offset
-      gc_invisible_free_vars (free_variable_offsets, free_variable_pos)
-  in
-  let free_variable_offsets, _ =
-    Variable.Map.fold assign_free_variable_offset
-      gc_visible_free_vars (free_variable_offsets, free_variable_pos)
+  let free_variable_offsets =
+    List.fold_left (fun map (var, dec) ->
+        let var_within_closure = Var_within_closure.wrap var in
+        Var_within_closure.Map.add var_within_closure dec map)
+      free_variable_offsets free_vars
   in
   { function_offsets;
     free_variable_offsets;
