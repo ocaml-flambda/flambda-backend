@@ -48,6 +48,8 @@ val internal_assembler : bool ref
 val gc_timings : bool ref
 
 module Flambda2 : sig
+  val debug : bool ref
+
   module Default : sig
     val classic_mode : bool
     val join_points : bool

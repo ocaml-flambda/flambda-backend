@@ -9,6 +9,8 @@
   after indirect overtail: OK
    during direct overtail: OK
     after direct overtail: OK
+  during inlined tailcall: OK
+   after inlined tailcall: OK
             apply merging: OK
          toplevel binding: OK
      toplevel rec binding: OK

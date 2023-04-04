@@ -673,18 +673,19 @@ and simplify_set_of_closures original_env r
   let r = ret r (A.value_set_of_closures value_set_of_closures) in
   set_of_closures, r, value_set_of_closures.freshening
 
+and mark_region_used_for_apply ~(reg_close : Lambda.region_close) ~(mode : Lambda.alloc_mode) r =
+  match reg_close, mode with
+  | (Rc_normal | Rc_nontail), Alloc_heap -> r
+  | Rc_close_at_apply, _
+  | _, Alloc_local -> R.set_region_use r true
+
 and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
   let {
     Flambda. func = lhs_of_application; args; kind = _; dbg; reg_close; mode;
     inlined = inlined_requested; specialise = specialise_requested;
     probe = probe_requested; result_layout
   } = apply in
-  let r =
-    match reg_close, mode with
-    | (Rc_normal | Rc_nontail), Alloc_heap -> r
-    | Rc_close_at_apply, _
-    | _, Alloc_local -> R.set_region_use r true
-  in
+  let r = mark_region_used_for_apply ~reg_close ~mode r in
   let dbg = E.add_inlined_debuginfo env ~dbg in
   simplify_free_variable env lhs_of_application
     ~f:(fun env lhs_of_application lhs_of_application_approx ->
@@ -1312,6 +1313,7 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
     let body, r = simplify env r body in
     While (cond, body), ret r (A.value_unknown Other)
   | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
+    let r = mark_region_used_for_apply ~reg_close ~mode r in
     let dbg = E.add_inlined_debuginfo env ~dbg in
     simplify_free_variable env meth ~f:(fun env meth _meth_approx ->
       simplify_free_variable env obj ~f:(fun env obj _obj_approx ->

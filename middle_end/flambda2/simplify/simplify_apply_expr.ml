@@ -378,12 +378,13 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     Location.prerr_warning
       (Debuginfo.to_location dbg)
       (Warnings.Inlining_impossible
-         "[@inlined] attributes may not be used on partial applications")
+         Inlining_helpers.(inlined_attribute_on_partial_application_msg Inlined))
   | Unroll _ ->
     Location.prerr_warning
       (Debuginfo.to_location dbg)
       (Warnings.Inlining_impossible
-         "[@unroll] attributes may not be used on partial applications")
+         Inlining_helpers.(
+           inlined_attribute_on_partial_application_msg Unrolled))
   | Default_inlined | Hint_inlined -> ());
   let arity = Flambda_arity.With_subkinds.cardinal param_arity in
   let args_arity = List.length args in
@@ -1005,9 +1006,7 @@ let rebuild_method_call apply ~use_id ~exn_cont_use_id uacc ~after_rebuild =
       apply
   in
   let uacc, expr =
-    EB.rewrite_fixed_arity_apply uacc ~use_id
-      (Flambda_arity.With_subkinds.create [K.With_subkind.any_value])
-      apply
+    EB.rewrite_fixed_arity_apply uacc ~use_id (Apply.return_arity apply) apply
   in
   after_rebuild expr uacc
 
@@ -1027,19 +1026,23 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
   in
   let denv = DA.denv dacc in
   DE.check_simple_is_bound denv obj;
-  let expected_arity =
-    List.map (fun _ -> K.value) arg_types |> Flambda_arity.create
+  let args_arity =
+    Apply.args_arity apply |> Flambda_arity.With_subkinds.to_arity
   in
-  let args_arity = T.arity_of_list arg_types in
-  if not (Flambda_arity.equal expected_arity args_arity)
+  let args_arity_from_types = T.arity_of_list arg_types in
+  if not (Flambda_arity.equal args_arity_from_types args_arity)
   then
     Misc.fatal_errorf
-      "All arguments to a method call must be of kind [Value]:@ %a" Apply.print
+      "Arity %a of [Apply] arguments doesn't match parameter arity %a of \
+       method:@ %a"
+      Flambda_arity.print args_arity Flambda_arity.print args_arity Apply.print
       apply;
   let dacc, use_id =
     DA.record_continuation_use dacc apply_cont
       (Non_inlinable { escaping = true })
-      ~env_at_use:denv ~arg_types:[T.any_value]
+      ~env_at_use:denv
+      ~arg_types:
+        (T.unknown_types_from_arity_with_subkinds (Apply.return_arity apply))
   in
   let dacc, exn_cont_use_id =
     DA.record_continuation_use dacc

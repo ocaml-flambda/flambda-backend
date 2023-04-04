@@ -20,9 +20,10 @@
 *.lib
 *.dll
 *.la
-*.cm[ioxat]
+*.cm[ioxats]
 *.cmx[as]
 *.cmti
+*.cmsi
 *.annot
 *.exe
 *.exe.manifest

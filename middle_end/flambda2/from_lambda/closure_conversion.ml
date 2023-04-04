@@ -1053,6 +1053,17 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
     Let_cont_with_acc.build_recursive acc
       ~invariant_params:Bound_parameters.empty ~handlers ~body
 
+let warn_not_inlined_if_needed (apply : IR.apply) reason =
+  let warn kind =
+    Location.prerr_warning
+      (Debuginfo.Scoped_location.to_location apply.loc)
+      (Warnings.Inlining_impossible (reason kind))
+  in
+  match apply.inlined with
+  | Hint_inlined | Never_inlined | Default_inlined -> ()
+  | Always_inlined -> warn Inlining_helpers.Inlined
+  | Unroll _ -> warn Inlining_helpers.Unrolled
+
 let close_exact_or_unknown_apply acc env
     ({ kind;
        func;
@@ -1066,7 +1077,7 @@ let close_exact_or_unknown_apply acc env
        region_close;
        region;
        return_arity
-     } :
+     } as ir_apply :
       IR.apply) callee_approx ~replace_region : Expr_with_acc.t =
   let callee = find_simple_from_id env func in
   let current_region =
@@ -1133,7 +1144,10 @@ let close_exact_or_unknown_apply acc env
   if Flambda_features.classic_mode ()
   then
     match Inlining.inlinable env apply callee_approx with
-    | Not_inlinable -> Expr_with_acc.create_apply acc apply
+    | Not_inlinable ->
+      warn_not_inlined_if_needed ir_apply (fun _ ->
+          "Function information unavailable");
+      Expr_with_acc.create_apply acc apply
     | Inlinable func_desc ->
       let acc = Acc.mark_continuation_as_untrackable continuation acc in
       let acc =
@@ -1998,6 +2012,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         args = all_args;
         continuation = return_continuation;
         exn_continuation;
+        inlined = Lambda.Default_inlined;
         mode = result_mode
       }
       (Some approx) ~replace_region:None
@@ -2087,8 +2102,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
       close_exn_continuation acc env apply.exn_continuation
     in
     let inlined = Inlined_attribute.from_lambda apply.inlined in
-    (* Keeping the attributes is useless in classic mode but matches the
-       behaviour of simplify, and this split is done either way *)
+    (* Keeping the inlining attributes matches the behaviour of simplify *)
     let probe_name =
       match apply.probe with None -> None | Some { name } -> Some name
     in
@@ -2251,6 +2265,8 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         { apply with args; continuation = apply.continuation }
         (Some approx) ~replace_region:None
     | Partial_app { provided; missing_arity } ->
+      warn_not_inlined_if_needed apply
+        Inlining_helpers.inlined_attribute_on_partial_application_msg;
       wrap_partial_application acc env apply.continuation apply approx ~provided
         ~missing_arity ~arity ~num_trailing_local_params
         ~contains_no_escaping_local_allocs
