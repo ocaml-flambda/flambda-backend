@@ -25,7 +25,7 @@
    ;; CR gyorsh: it is not clear what the ":standard" flags are, and they
    ;; may change depending on the version of dune.
    ;; Consider hard-coded flags, such as -O3.
-   (:standard -alloc-check -caml-apply-inline-fast-path)))
+   (:standard -alloc-check)))
  (boot
   (flags
    (:standard -warn-error +A))))
