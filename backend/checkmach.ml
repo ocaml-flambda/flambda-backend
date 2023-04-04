@@ -655,9 +655,10 @@ end = struct
       (* does not allocate even when it raises because checkbound exception is
          static. *)
       transform t ~next ~exn ~effect:Value.safe "checkbound" dbg
-    | Ipoll _ (* Ignore poll points even though they may trigger an allocations,
-                 because otherwise all loops would be considered allocating when
-                 poll insertion is enabled. [@poll error] should be used instead. *)
+    | Ipoll _
+    (* Ignore poll points even though they may trigger an allocations, because
+       otherwise all loops would be considered allocating when poll insertion is
+       enabled. [@poll error] should be used instead. *)
     | Ialloc { mode = Alloc_local; _ } ->
       assert (not (Mach.operation_can_raise op));
       next
