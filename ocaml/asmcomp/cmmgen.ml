@@ -368,6 +368,8 @@ let is_unboxed_number_cmm ~strict cmm =
         | _ ->
             notify No_unboxing
         end
+    | Cregion e | Ctail e ->
+        aux e
     | l ->
         if not (Cmm.iter_shallow_tail aux l) then
           notify No_unboxing
