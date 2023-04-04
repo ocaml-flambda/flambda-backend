@@ -655,10 +655,10 @@ end = struct
       (* does not allocate even when it raises because checkbound exception is
          static. *)
       transform t ~next ~exn ~effect:Value.safe "checkbound" dbg
+    | Ipoll _ (* CR gyorsh: poll points are considered allocations. *)
     | Ialloc { mode = Alloc_local; _ } ->
       assert (not (Mach.operation_can_raise op));
       next
-    | Ipoll _ (* CR gyorsh: poll points are considered allocations. *)
     | Ialloc { mode = Alloc_heap; _ } ->
       assert (not (Mach.operation_can_raise op));
       let r = Value.transform next in
