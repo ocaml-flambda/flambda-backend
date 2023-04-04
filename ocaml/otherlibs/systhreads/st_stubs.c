@@ -37,8 +37,8 @@
 #include "caml/sys.h"
 #include "caml/memprof.h"
 
-/* threads.h is *not* included since it contains the _external_ declarations for
-   the caml_c_thread_register and caml_c_thread_unregister functions. */
+#define CAMLextern_libthreads
+#include "threads.h"
 
 #ifndef NATIVE_CODE
 /* Initial size of bytecode stack when a thread is created (4 Ko) */
@@ -54,6 +54,23 @@
 #else
 #include "st_posix.h"
 #endif
+
+/* Atomics */
+#if defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ == 8
+  /* GCC 4.8 shipped with a working implementation of atomics, but no
+     stdatomic.h header, so we need to use GCC-specific intrinsics. */
+
+  #define _Atomic /* GCC intrinsics work on normal variables */
+  #define atomic_store(v, x) \
+    __atomic_store_n((v), (x), __ATOMIC_SEQ_CST)
+  #define atomic_load(v) \
+    __atomic_load_n((v), __ATOMIC_SEQ_CST)
+  #define atomic_exchange(v, x) \
+    __atomic_exchange_n((v), (x), __ATOMIC_SEQ_CST)
+#else
+  #include <stdatomic.h>
+#endif
+
 
 /* The ML value describing a thread (heap-allocated) */
 
@@ -111,7 +128,7 @@ static caml_thread_t all_threads = NULL;
 static caml_thread_t curr_thread = NULL;
 
 /* The master lock protecting the OCaml runtime system */
-static st_masterlock caml_master_lock;
+static _Atomic struct caml_locking_scheme* caml_locking_scheme;
 
 /* Whether the "tick" thread is already running */
 static int caml_tick_thread_running = 0;
@@ -142,6 +159,36 @@ static st_retcode caml_threadstatus_wait (value);
 extern struct longjmp_buffer caml_termination_jmpbuf;
 extern void (*caml_termination_hook)(void);
 #endif
+
+/* The default locking scheme */
+static st_masterlock default_master_lock;
+struct caml_locking_scheme default_locking_scheme =
+  { &default_master_lock,
+    (void (*)(void*))&st_masterlock_acquire,
+    (void (*)(void*))&st_masterlock_release,
+    (void (*)(void*))&st_masterlock_init,
+    (int (*)(void*))&st_masterlock_waiters,
+    (void (*)(void*))&st_thread_yield };
+
+static void acquire_runtime_lock()
+{
+  struct caml_locking_scheme* s;
+
+ retry:
+  s = atomic_load(&caml_locking_scheme);
+  s->lock(s->context);
+  if (atomic_load(&caml_locking_scheme) != s) {
+    s->unlock(s->context);
+    goto retry;
+  }
+}
+
+static void release_runtime_lock()
+{
+  struct caml_locking_scheme* s;
+  s = atomic_load(&caml_locking_scheme);
+  s->unlock(s->context);
+}
 
 /* Hook for scanning the stacks of the other threads */
 
@@ -182,7 +229,7 @@ static void memprof_ctx_iter(th_ctx_action f, void* data)
 
 /* Saving and restoring runtime state in curr_thread */
 
-Caml_inline void caml_thread_save_runtime_state(void)
+CAMLexport void caml_thread_save_runtime_state(void)
 {
 #ifdef NATIVE_CODE
   curr_thread->top_of_stack = Caml_state->top_of_stack;
@@ -208,8 +255,12 @@ Caml_inline void caml_thread_save_runtime_state(void)
   caml_memprof_leave_thread();
 }
 
-Caml_inline void caml_thread_restore_runtime_state(void)
+CAMLexport void caml_thread_restore_runtime_state(void)
 {
+  /* Update curr_thread to point to the thread descriptor corresponding
+     to the thread currently executing */
+  curr_thread = st_tls_get(thread_descriptor_key);
+
 #ifdef NATIVE_CODE
   Caml_state->top_of_stack = curr_thread->top_of_stack;
   Caml_state->bottom_of_stack= curr_thread->bottom_of_stack;
@@ -234,6 +285,19 @@ Caml_inline void caml_thread_restore_runtime_state(void)
   caml_memprof_enter_thread(curr_thread->memprof_ctx);
 }
 
+CAMLexport void caml_switch_runtime_locking_scheme(struct caml_locking_scheme* new)
+{
+  struct caml_locking_scheme* old;
+
+  caml_thread_save_runtime_state();
+  old = atomic_exchange(&caml_locking_scheme, new);
+  /* We hold 'old', but it is no longer the runtime lock */
+  old->unlock(old->context);
+  acquire_runtime_lock();
+  caml_thread_restore_runtime_state();
+}
+
+
 /* Hooks for caml_enter_blocking_section and caml_leave_blocking_section */
 
 
@@ -243,7 +307,7 @@ static void caml_thread_enter_blocking_section(void)
      of the current thread */
   caml_thread_save_runtime_state();
   /* Tell other threads that the runtime is free */
-  st_masterlock_release(&caml_master_lock);
+  release_runtime_lock();
 }
 
 static void caml_thread_leave_blocking_section(void)
@@ -255,11 +319,7 @@ static void caml_thread_leave_blocking_section(void)
   DWORD error = GetLastError();
 #endif
   /* Wait until the runtime is free */
-  st_masterlock_acquire(&caml_master_lock);
-  /* Update curr_thread to point to the thread descriptor corresponding
-     to the thread currently executing */
-  curr_thread = st_tls_get(thread_descriptor_key);
-  /* Restore the runtime state from the curr_thread descriptor */
+  acquire_runtime_lock();
   caml_thread_restore_runtime_state();
 #ifdef _WIN32
   SetLastError(error);
@@ -419,6 +479,7 @@ static void caml_thread_remove_info(caml_thread_t th)
 static void caml_thread_reinitialize(void)
 {
   struct channel * chan;
+  struct caml_locking_scheme* s;
 
   /* Remove all other threads (now nonexistent)
      from the doubly-linked list of threads */
@@ -430,7 +491,8 @@ static void caml_thread_reinitialize(void)
   /* Reinitialize the master lock machinery,
      just in case the fork happened while other threads were doing
      caml_leave_blocking_section */
-  st_masterlock_init(&caml_master_lock);
+  s = atomic_load(&caml_locking_scheme);
+  s->reinitialize_after_fork(s->context);
   /* Tick thread is not currently running in child process, will be
      re-created at next Thread.create */
   caml_tick_thread_running = 0;
@@ -454,7 +516,8 @@ CAMLprim value caml_thread_initialize(value unit)   /* ML */
   /* OS-specific initialization */
   st_initialize();
   /* Initialize and acquire the master lock */
-  st_masterlock_init(&caml_master_lock);
+  st_masterlock_init(&default_master_lock);
+  caml_locking_scheme = &default_locking_scheme;
   /* Initialize the keys */
   st_tls_newkey(&thread_descriptor_key);
   st_tls_newkey(&last_channel_locked_key);
@@ -562,7 +625,7 @@ static void caml_thread_stop(void)
   /* OS-specific cleanups */
   st_thread_cleanup();
   /* Release the runtime system */
-  st_masterlock_release(&caml_master_lock);
+  release_runtime_lock();
 }
 
 /* Create a thread */
@@ -658,7 +721,7 @@ CAMLexport int caml_c_thread_register(void)
   th->top_of_stack = (char *) &err;
 #endif
   /* Take master lock to protect access to the chaining of threads */
-  st_masterlock_acquire(&caml_master_lock);
+  acquire_runtime_lock();
   /* Add thread info block to the list of threads */
   if (all_threads == NULL) {
     th->next = th;
@@ -673,7 +736,7 @@ CAMLexport int caml_c_thread_register(void)
   /* Associate the thread descriptor with the thread */
   st_tls_set(thread_descriptor_key, (void *) th);
   /* Release the master lock */
-  st_masterlock_release(&caml_master_lock);
+  release_runtime_lock();
   /* Now we can re-enter the run-time system and heap-allocate the descriptor */
   caml_leave_blocking_section();
   th->descr = caml_thread_new_descriptor(Val_unit);  /* no closure */
@@ -694,7 +757,7 @@ CAMLexport int caml_c_thread_unregister(void)
   /* Not registered? */
   if (th == NULL) return 0;
   /* Wait until the runtime is available */
-  st_masterlock_acquire(&caml_master_lock);
+  acquire_runtime_lock();
   /* Forget the thread descriptor */
   st_tls_set(thread_descriptor_key, NULL);
   /* Remove thread info block from list of threads, and free it */
@@ -703,7 +766,7 @@ CAMLexport int caml_c_thread_unregister(void)
      so that it does not prevent the whole process from exiting (#9971) */
   if (all_threads == NULL) caml_thread_cleanup(Val_unit);
   /* Release the runtime */
-  st_masterlock_release(&caml_master_lock);
+  release_runtime_lock();
   return 1;
 }
 
@@ -771,21 +834,34 @@ CAMLprim value caml_thread_exit(value unit)   /* ML */
 
 CAMLprim value caml_thread_yield(value unit)        /* ML */
 {
-  if (st_masterlock_waiters(&caml_master_lock) == 0) return Val_unit;
+  struct caml_locking_scheme* s;
 
-  /* Do all the parts of a blocking section enter/leave except lock
-     manipulation, which we'll do more efficiently in st_thread_yield. (Since
-     our blocking section doesn't contain anything interesting, don't bother
-     with saving errno.)
-  */
-  caml_raise_async_if_exception(caml_process_pending_signals_exn(),
-                                "signal handler");
-  caml_thread_save_runtime_state();
-  st_thread_yield(&caml_master_lock);
-  curr_thread = st_tls_get(thread_descriptor_key);
-  caml_thread_restore_runtime_state();
-  caml_raise_async_if_exception(caml_process_pending_signals_exn(),
-                                "signal handler");
+  s = atomic_load(&caml_locking_scheme);
+  if (s->count_waiters != NULL && s->yield != NULL) {
+    if (s->count_waiters(s->context) == 0) return Val_unit;
+
+    /* Do all the parts of a blocking section enter/leave except lock
+       manipulation, which we'll do more efficiently in st_thread_yield. (Since
+       our blocking section doesn't contain anything interesting, don't bother
+       with saving errno.)
+    */
+    caml_raise_async_if_exception(caml_process_pending_signals_exn(),
+                                  "signal handler");
+    caml_thread_save_runtime_state();
+    s->yield(s->context);
+    if (atomic_load(&caml_locking_scheme) != s) {
+      /* The lock we have is no longer the runtime lock */
+      s->unlock(s->context);
+      acquire_runtime_lock();
+    }
+    caml_thread_restore_runtime_state();
+    caml_raise_async_if_exception(caml_process_pending_signals_exn(),
+                                  "signal handler");
+  } else {
+    caml_enter_blocking_section();
+    st_fallback_yield();
+    caml_leave_blocking_section();
+  }
 
   return Val_unit;
 }

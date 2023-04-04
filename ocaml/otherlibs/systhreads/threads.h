@@ -50,8 +50,12 @@ CAMLextern void caml_leave_blocking_section (void);
    use the runtime system (typically, a blocking I/O operation).
 */
 
-CAMLextern int caml_c_thread_register(void);
-CAMLextern int caml_c_thread_unregister(void);
+/* These functions are defined in the threads library, not the runtime */
+#ifndef CAMLextern_libthreads
+#define CAMLextern_libthreads CAMLextern
+#endif
+CAMLextern_libthreads int caml_c_thread_register(void);
+CAMLextern_libthreads int caml_c_thread_unregister(void);
 
 /* If a thread is created by C code (instead of by OCaml itself),
    it must be registered with the OCaml runtime system before
@@ -60,6 +64,40 @@ CAMLextern int caml_c_thread_unregister(void);
    Before the thread finishes, it must call [caml_c_thread_unregister].
    Both functions return 1 on success, 0 on error.
 */
+
+struct caml_locking_scheme {
+  void* context;
+  void (*lock)(void*);
+  void (*unlock)(void*);
+
+  /* Called after fork().
+     The lock should be held after this function returns. */
+  void (*reinitialize_after_fork)(void*);
+
+  /* count_waiters and yield are used in a faster implementation of
+     Thread.yield, but may be NULL (in which case a fallback is
+     used) */
+  int (*count_waiters)(void*);
+  void (*yield)(void*);
+};
+
+/* Switch to a new runtime locking scheme.
+
+   The old runtime lock must be held (i.e. not in a blocking section),
+   and the new runtime lock must not be held. After this function
+   returns, the old lock is released and the new one is held.
+
+   There is a period during this function when neither lock is held,
+   so context-switches may occur. */
+CAMLextern_libthreads
+void caml_switch_runtime_locking_scheme(struct caml_locking_scheme*);
+
+CAMLextern_libthreads
+void caml_thread_save_runtime_state(void);
+
+CAMLextern_libthreads
+void caml_thread_restore_runtime_state(void);
+
 
 #ifdef __cplusplus
 }
