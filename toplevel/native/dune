@@ -36,7 +36,7 @@
   (section bin)
   (package ocaml))
 
-; 
+;
 ; (install
 ;   (files
 ;     (ocamltoplevel.cma as compiler-libs/ocamltoplevel.cma)
@@ -63,4 +63,4 @@
 ;   )
 ;   (section lib)
 ;   (package ocaml))
-; 
+;
