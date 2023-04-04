@@ -180,7 +180,6 @@ module Module_type : AST with type ast      = Parsetree.module_type
     Then, the [Make_of_ast] functor produces the functions that actually convert
     from the [Parsetree] AST to our extended one of novel syntactic features. *)
 module type Of_ast_parameters = sig
-
   (** Which syntactic category is this for?  E.g., [module AST = Expression]. *)
   module AST : AST
 

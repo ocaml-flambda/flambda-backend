@@ -484,7 +484,7 @@ module Module_type = Make_AST(struct
       match mty.pmty_desc with
       | Pmty_functor(Named({txt = None},
                            {pmty_desc = Pmty_extension ext}), mty) ->
-        Some (ext, mty)
+          Some (ext, mty)
       | _ -> None
 end)
 
