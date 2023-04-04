@@ -1,3 +1,9 @@
+open Flambda2_bound_identifiers
+open Flambda2_identifiers
+open Flambda2_kinds
+open Flambda2_nominal
+open Flambda2_numbers
+open Flambda2_term_basics
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 module TEE = Flambda2_types.Typing_env_extension
@@ -27,6 +33,7 @@ let test_recursive_meet () =
   let alias name = T.alias_type_of Flambda_kind.value (Simple.name name) in
   let mk_block_type name =
     T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
+      Alloc_mode.For_types.heap
       ~fields:[alias name]
   in
   let env = TE.add_equation env n_x (mk_block_type n_y) in
@@ -35,10 +42,12 @@ let test_recursive_meet () =
   let ty1 =
     T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
       ~fields:[alias n_v; alias n_v]
+      Alloc_mode.For_types.heap
   in
   let ty2 =
     T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
       ~fields:[alias n_x; alias n_y]
+      Alloc_mode.For_types.heap
   in
   Format.eprintf "Environment: %a@." TE.print env;
   match T.meet env ty1 ty2 with
@@ -64,10 +73,12 @@ let test_bottom_detection () =
   let ty1 =
     T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
       ~fields:[alias n_x; alias n_x]
+      Alloc_mode.For_types.heap
   in
   let ty2 =
     T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
       ~fields:[const 0; const 1]
+      Alloc_mode.For_types.heap
   in
   Format.eprintf "Environment: %a@." TE.print env;
   match T.meet env ty1 ty2 with
@@ -93,15 +104,18 @@ let test_bottom_recursive () =
   let ty_x =
     T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
       ~fields:[T.unknown Flambda_kind.value; alias n_x]
+      Alloc_mode.For_types.heap
   in
   let env = TE.add_equation env n_x ty_x in
   let ty_cell2 =
     T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
       ~fields:[const 1; T.unknown Flambda_kind.value]
+      Alloc_mode.For_types.heap
   in
   let ty_cell1 =
     T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
       ~fields:[const 0; ty_cell2]
+      Alloc_mode.For_types.heap
   in
   Format.eprintf "Environment: %a@." TE.print env;
   match T.meet env (alias n_x) ty_cell1 with
@@ -134,14 +148,17 @@ let test_double_recursion () =
   let ty_x =
     T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
       ~fields:[alias n_x; alias n_y; alias n_z]
+      Alloc_mode.For_types.heap
   in
   let ty_y =
     T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
       ~fields:[alias n_y; alias n_z; alias n_x]
+      Alloc_mode.For_types.heap
   in
   let ty_z =
     T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
       ~fields:[alias n_z; alias n_x; alias n_y]
+      Alloc_mode.For_types.heap
   in
   let env = TE.add_equation env n_x ty_x in
   let env = TE.add_equation env n_y ty_y in
@@ -154,9 +171,8 @@ let test_double_recursion () =
 
 let _ =
   let comp_unit =
-    let id = Ident.create_persistent "Test" in
-    let linkage_name = Linkage_name.of_string "camlTest" in
-    Compilation_unit.create id linkage_name
+    let linkage_name = Compilation_unit.Name.of_string "camlTest" in
+    Compilation_unit.create Compilation_unit.Prefix.empty linkage_name
   in
-  Compilation_unit.set_current comp_unit;
+  Compilation_unit.set_current (Some comp_unit);
   test_double_recursion ()
