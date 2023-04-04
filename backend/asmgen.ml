@@ -283,7 +283,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
          CFG's linscan is enabled solely by passing `-cfg-regalloc ls` on
          the command line or putting "cfg-regalloc=ls" in the `OCAMLPARAM`
          environment variable. *)
-    let force_linscan = should_use_linscan fd in
+    let force_linscan = should_use_linscan fd && false in
     match force_linscan, register_allocator () with
     | false, ((IRC | LS) as regalloc) ->
       fd
