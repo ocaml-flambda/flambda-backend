@@ -25,7 +25,7 @@
    ;; CR gyorsh: it is not clear what the ":standard" flags are, and they
    ;; may change depending on the version of dune.
    ;; Consider hard-coded flags, such as -O3.
-   (:standard -alloc-check)))
+   (:standard -alloc-check -caml-apply-inline-fast-path)))
  (boot
   (flags
    (:standard -warn-error +A))))
@@ -76,7 +76,7 @@
    ident path primitive shape types btype oprint subst predef datarepr
    cmi_format persistent_env env type_immediacy errortrace
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
-   tast_iterator tast_mapper signature_group cmt_format untypeast
+   tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter
    typetexp patterns printpat parmatch stypes typedecl typeopt rec_check
    typecore
@@ -293,6 +293,7 @@
     (tast_iterator.mli as compiler-libs/tast_iterator.mli)
     (tast_mapper.mli as compiler-libs/tast_mapper.mli)
     (cmt_format.mli as compiler-libs/cmt_format.mli)
+    (cms_format.mli as compiler-libs/cms_format.mli)
     (untypeast.mli as compiler-libs/untypeast.mli)
     (includemod.mli as compiler-libs/includemod.mli)
     (typetexp.mli as compiler-libs/typetexp.mli)

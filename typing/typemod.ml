@@ -1474,7 +1474,7 @@ and transl_signature env (sg : Parsetree.signature) =
           Typedecl.transl_value_decl env item.psig_loc sdesc
         in
         Signature_names.check_value names tdesc.val_loc tdesc.val_id;
-        Env.register_uid tdesc.val_val.val_uid tdesc.val_loc;
+        Env.register_uid tdesc.val_val.val_uid ~loc:tdesc.val_loc ~attributes:tdesc.val_attributes;
         mksig (Tsig_value tdesc) env loc,
         [Sig_value(tdesc.val_id, tdesc.val_val, Exported)],
         newenv
@@ -1485,7 +1485,7 @@ and transl_signature env (sg : Parsetree.signature) =
         List.iter (fun td ->
           Signature_names.check_type names td.typ_loc td.typ_id;
           if not (Btype.is_row_name (Ident.name td.typ_id)) then
-            Env.register_uid td.typ_type.type_uid td.typ_loc
+            Env.register_uid td.typ_type.type_uid ~loc:td.typ_loc ~attributes:td.typ_attributes
         ) decls;
         let sig_items =
           map_rec_type_with_row_types ~rec_flag
@@ -1515,7 +1515,7 @@ and transl_signature env (sg : Parsetree.signature) =
               Some (`Substituted_away subst)
           in
           Signature_names.check_type ?info names td.typ_loc td.typ_id;
-          Env.register_uid td.typ_type.type_uid td.typ_loc
+          Env.register_uid td.typ_type.type_uid ~loc:td.typ_loc ~attributes:td.typ_attributes
         ) decls;
         mksig (Tsig_typesubst decls) env loc, [], newenv
     | Psig_typext styext ->
@@ -1525,7 +1525,7 @@ and transl_signature env (sg : Parsetree.signature) =
         let constructors = tyext.tyext_constructors in
         List.iter (fun ext ->
           Signature_names.check_typext names ext.ext_loc ext.ext_id;
-          Env.register_uid ext.ext_type.ext_uid ext.ext_loc
+          Env.register_uid ext.ext_type.ext_uid ~loc:ext.ext_loc ~attributes:ext.ext_attributes
         ) constructors;
         let tsg = map_ext (fun es ext ->
             Sig_typext(ext.ext_id, ext.ext_type, es, Exported)
@@ -1541,7 +1541,8 @@ and transl_signature env (sg : Parsetree.signature) =
           constructor.ext_id;
         Env.register_uid
           constructor.ext_type.ext_uid
-          constructor.ext_loc;
+          ~loc:constructor.ext_loc
+          ~attributes:constructor.ext_attributes;
         let tsg =
           Sig_typext(constructor.ext_id, constructor.ext_type,
                      Text_exception, Exported)
@@ -1573,7 +1574,7 @@ and transl_signature env (sg : Parsetree.signature) =
               Env.enter_module_declaration ~scope name pres md env
             in
             Signature_names.check_module names pmd.pmd_name.loc id;
-            Env.register_uid md.md_uid md.md_loc;
+            Env.register_uid md.md_uid ~loc:md.md_loc ~attributes:md.md_attributes;
             Some id, newenv
         in
         let sig_item =
@@ -1618,7 +1619,7 @@ and transl_signature env (sg : Parsetree.signature) =
           `Substituted_away (Subst.add_module id path Subst.identity)
         in
         Signature_names.check_module ~info names pms.pms_name.loc id;
-        Env.register_uid md.md_uid md.md_loc;
+        Env.register_uid md.md_uid ~loc:md.md_loc ~attributes:md.md_attributes;
         let sig_item =
           mksig (Tsig_modsubst {ms_id=id; ms_name=pms.pms_name;
                                 ms_manifest=path; ms_txt=pms.pms_manifest;
@@ -1639,7 +1640,7 @@ and transl_signature env (sg : Parsetree.signature) =
         in
         List.iter (fun (id, md, uid) ->
           Signature_names.check_module names md.md_loc id;
-          Env.register_uid uid md.md_loc
+          Env.register_uid uid ~loc:md.md_loc ~attributes:md.md_attributes
         ) decls;
         let sig_items =
           map_rec (fun rs (id, md, uid) ->
@@ -1657,7 +1658,7 @@ and transl_signature env (sg : Parsetree.signature) =
     | Psig_modtype pmtd ->
         let newenv, mtd, decl = transl_modtype_decl env pmtd in
         Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
-        Env.register_uid decl.mtd_uid mtd.mtd_loc;
+        Env.register_uid decl.mtd_uid ~loc:mtd.mtd_loc ~attributes:mtd.mtd_attributes;
         mksig (Tsig_modtype mtd) env loc,
         [Sig_modtype (mtd.mtd_id, decl, Exported)],
         newenv
@@ -1676,7 +1677,7 @@ and transl_signature env (sg : Parsetree.signature) =
           | _ -> `Unpackable_modtype_substituted_away (mtd.mtd_id,subst)
         in
         Signature_names.check_modtype ~info names pmtd.pmtd_loc mtd.mtd_id;
-        Env.register_uid decl.mtd_uid mtd.mtd_loc;
+        Env.register_uid decl.mtd_uid ~loc:mtd.mtd_loc ~attributes:mtd.mtd_attributes;
         mksig (Tsig_modtypesubst mtd) env loc,
         [],
         newenv
@@ -1723,7 +1724,7 @@ and transl_signature env (sg : Parsetree.signature) =
           Signature_names.check_class names loc cls.cls_id;
           Signature_names.check_class_type names loc cls.cls_ty_id;
           Signature_names.check_type names loc cls.cls_typesharp_id;
-          Env.register_uid cls.cls_decl.cty_uid cls.cls_decl.cty_loc;
+          Env.register_uid cls.cls_decl.cty_uid ~loc:cls.cls_decl.cty_loc ~attributes:cls.cls_decl.cty_attributes;
         ) classes;
         let tsg =
           map_rec (fun rs cls ->
@@ -1750,7 +1751,8 @@ and transl_signature env (sg : Parsetree.signature) =
           Signature_names.check_type names loc decl.clsty_typesharp_id;
           Env.register_uid
             decl.clsty_ty_decl.clty_uid
-            decl.clsty_ty_decl.clty_loc;
+            ~loc:decl.clsty_ty_decl.clty_loc
+            ~attributes:decl.clsty_ty_decl.clty_attributes;
         ) classes;
         let tsg =
           map_rec (fun rs decl ->
@@ -2579,7 +2581,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               let (first_loc, _) = List.hd modes in
               Signature_names.check_value names first_loc id;
               let vd =  Env.find_value (Pident id) newenv in
-              Env.register_uid vd.val_uid vd.val_loc;
+              Env.register_uid vd.val_uid ~loc:vd.val_loc ~attributes:vd.val_attributes;
               Sig_value(id, vd, Exported) :: acc,
               Shape.Map.add_value shape_map id vd.val_uid
             )
@@ -2593,7 +2595,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     | Pstr_primitive sdesc ->
         let (desc, newenv) = Typedecl.transl_value_decl env loc sdesc in
         Signature_names.check_value names desc.val_loc desc.val_id;
-        Env.register_uid desc.val_val.val_uid desc.val_val.val_loc;
+        Env.register_uid desc.val_val.val_uid ~loc:desc.val_val.val_loc ~attributes:desc.val_val.val_attributes;
         Tstr_primitive desc,
         [Sig_value(desc.val_id, desc.val_val, Exported)],
         Shape.Map.add_value shape_map desc.val_id desc.val_val.val_uid,
@@ -2611,7 +2613,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           (fun shape_map -> function
             | Sig_type (id, vd, _, _) ->
               if not (Btype.is_row_name (Ident.name id)) then begin
-                Env.register_uid vd.type_uid vd.type_loc;
+                Env.register_uid vd.type_uid ~loc:vd.type_loc ~attributes:vd.type_attributes;
                 Shape.Map.add_type shape_map id vd.type_uid
               end else shape_map
             | _ -> assert false
@@ -2630,7 +2632,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         let constructors = tyext.tyext_constructors in
         let shape_map = List.fold_left (fun shape_map ext ->
             Signature_names.check_typext names ext.ext_loc ext.ext_id;
-            Env.register_uid ext.ext_type.ext_uid ext.ext_loc;
+            Env.register_uid ext.ext_type.ext_uid ~loc:ext.ext_loc ~attributes:ext.ext_attributes;
             Shape.Map.add_extcons shape_map ext.ext_id ext.ext_type.ext_uid
           ) shape_map constructors
         in
@@ -2647,7 +2649,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           constructor.ext_id;
         Env.register_uid
           constructor.ext_type.ext_uid
-          constructor.ext_loc;
+          ~loc:constructor.ext_loc
+          ~attributes:constructor.ext_attributes;
         Tstr_exception ext,
         [Sig_typext(constructor.ext_id,
                     constructor.ext_type,
@@ -2683,7 +2686,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           }
         in
         let md_shape = Shape.set_uid_if_none md_shape md_uid in
-        Env.register_uid md_uid pmb_loc;
+        Env.register_uid md_uid ~loc:pmb_loc ~attributes:attrs;
         (*prerr_endline (Ident.unique_toplevel_name id);*)
         Mtype.lower_nongen outer_scope md.md_type;
         let id, newenv, sg =
@@ -2781,7 +2784,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         in
         let shape_map =
           List.fold_left (fun map (id, mb, uid, shape) ->
-            Env.register_uid uid mb.mb_loc;
+            Env.register_uid uid ~loc:mb.mb_loc ~attributes:mb.mb_attributes;
             Shape.Map.add_module map id shape
           ) shape_map mbs
         in
@@ -2800,7 +2803,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         (* check that it is non-abstract *)
         let newenv, mtd, decl = transl_modtype_decl env pmtd in
         Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
-        Env.register_uid decl.mtd_uid decl.mtd_loc;
+        Env.register_uid decl.mtd_uid ~loc:decl.mtd_loc ~attributes:decl.mtd_attributes;
         let id = mtd.mtd_id in
         let map = Shape.Map.add_module_type shape_map id decl.mtd_uid in
         Tstr_modtype mtd, [Sig_modtype (id, decl, Exported)], map, newenv
@@ -2819,7 +2822,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
             Signature_names.check_class_type names loc cls.cls_ty_id;
             Signature_names.check_type names loc cls.cls_obj_id;
             Signature_names.check_type names loc cls.cls_typesharp_id;
-            Env.register_uid cls.cls_decl.cty_uid loc;
+            Env.register_uid cls.cls_decl.cty_uid ~loc ~attributes:cls.cls_decl.cty_attributes;
             let map f id acc = f acc id cls.cls_decl.cty_uid in
             map Shape.Map.add_class cls.cls_id acc
             |> map Shape.Map.add_class_type cls.cls_ty_id
@@ -2850,7 +2853,9 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
             Signature_names.check_class_type names loc decl.clsty_ty_id;
             Signature_names.check_type names loc decl.clsty_obj_id;
             Signature_names.check_type names loc decl.clsty_typesharp_id;
-            Env.register_uid decl.clsty_ty_decl.clty_uid loc;
+            Env.register_uid decl.clsty_ty_decl.clty_uid
+              ~loc
+              ~attributes:decl.clsty_ty_decl.clty_attributes;
             let map f id acc = f acc id decl.clsty_ty_decl.clty_uid in
             map Shape.Map.add_class_type decl.clsty_ty_id acc
             |> map Shape.Map.add_type decl.clsty_obj_id
@@ -3144,7 +3149,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       if !Clflags.print_types then (* #7656 *)
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
       let (str, sg, names, shape, finalenv) =
-        type_structure initial_env ast in
+        Profile.record_call "infer" (fun () ->
+          type_structure initial_env ast) in
       let shape =
         Shape.set_uid_if_none shape
           (Uid.of_compilation_unit_id modulename)
@@ -3178,19 +3184,23 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
                           Interface_not_compiled sourceintf)) in
           let dclsig = Env.read_signature modulename intf_file in
           let coercion, shape =
-            Includemod.compunit initial_env ~mark:Mark_positive
-              sourcefile sg intf_file dclsig shape
+            Profile.record_call "check_sig" (fun () ->
+              Includemod.compunit initial_env ~mark:Mark_positive
+                sourcefile sg intf_file dclsig shape)
           in
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
           (* It is important to run these checks after the inclusion test above,
              so that value declarations which are not used internally but
              exported are not reported as being unused. *)
-          let shape = Shape.local_reduce shape in
-          let annots = Cmt_format.Implementation str in
-          Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
-            annots (Some sourcefile) initial_env None (Some shape);
-          gen_annot outputprefix sourcefile annots;
+          Profile.record_call "save_cmt" (fun () ->
+            let shape = Shape.local_reduce shape in
+            let annots = Cmt_format.Implementation str in
+            Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
+              annots (Some sourcefile) initial_env None (Some shape);
+            Cms_format.save_cms (outputprefix ^ ".cms") modulename
+              (Some sourcefile) (Some shape);
+            gen_annot outputprefix sourcefile annots);
           { structure = str;
             coercion;
             shape;
@@ -3200,8 +3210,9 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           Location.prerr_warning (Location.in_file sourcefile)
             Warnings.Missing_mli;
           let coercion, shape =
-            Includemod.compunit initial_env ~mark:Mark_positive
-              sourcefile sg "(inferred signature)" simple_sg shape
+            Profile.record_call "check_sig" (fun () ->
+              Includemod.compunit initial_env ~mark:Mark_positive
+                sourcefile sg "(inferred signature)" simple_sg shape)
           in
           check_nongen_signature finalenv simple_sg;
           normalize_signature simple_sg;
@@ -3215,13 +3226,17 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           if not !Clflags.dont_write_files then begin
             let alerts = Builtin_attributes.alerts_of_str ast in
             let cmi =
-              Env.save_signature ~alerts
-                simple_sg modulename (outputprefix ^ ".cmi")
+              Profile.record_call "save_cmi" (fun () ->
+                Env.save_signature ~alerts
+                  simple_sg modulename (outputprefix ^ ".cmi"))
             in
-            let annots = Cmt_format.Implementation str in
-            Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
-              annots (Some sourcefile) initial_env (Some cmi) (Some shape);
-            gen_annot outputprefix sourcefile annots
+            Profile.record_call "save_cmt" (fun () ->
+              let annots = Cmt_format.Implementation str in
+              Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
+                annots (Some sourcefile) initial_env (Some cmi) (Some shape);
+              Cms_format.save_cms  (outputprefix ^ ".cms") modulename
+                (Some sourcefile) (Some shape);
+              gen_annot outputprefix sourcefile annots)
           end;
           { structure = str;
             coercion;
@@ -3232,18 +3247,23 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       end
     )
     ~exceptionally:(fun () ->
-        let annots =
-          Cmt_format.Partial_implementation
-            (Array.of_list (Cmt_format.get_saved_types ()))
-        in
-        Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
-          annots (Some sourcefile) initial_env None None;
-        gen_annot outputprefix sourcefile annots
+        Profile.record_call "save_cmt" (fun () ->
+          let annots =
+            Cmt_format.Partial_implementation
+              (Array.of_list (Cmt_format.get_saved_types ()))
+          in
+          Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
+            annots (Some sourcefile) initial_env None None;
+          Cms_format.save_cms  (outputprefix ^ ".cms") modulename
+            (Some sourcefile) None;
+          gen_annot outputprefix sourcefile annots)
       )
 
 let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
-    (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi) None
+    (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi) None;
+  Cms_format.save_cms  (outputprefix ^ ".cmsi") modname
+    (Some source_file) None
 
 let type_interface env ast =
   transl_signature env ast
@@ -3331,6 +3351,8 @@ let package_units initial_env objfiles cmifile modulename =
     in
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None (Some shape);
+    Cms_format.save_cms  (prefix ^ ".cms") modulename
+      None (Some shape);
     cc
   end else begin
     (* Determine imports *)
@@ -3350,6 +3372,8 @@ let package_units initial_env objfiles cmifile modulename =
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
         (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) None initial_env
         (Some cmi) (Some shape);
+      Cms_format.save_cms (prefix ^ ".cms")  modulename
+        None (Some shape);
     end;
     Tcoerce_none
   end

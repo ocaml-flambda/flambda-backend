@@ -289,12 +289,6 @@ void caml_darken (value v, value *p)
       h = Hd_val (v);
       t = Tag_hd (h);
     }
-#ifdef NO_NAKED_POINTERS
-    /* We insist that naked pointers to outside the heap point to things that
-       look like values with headers coloured black.  This is always
-       strictly necessary because the compactor relies on it. */
-    CAMLassert (Is_in_heap (v) || Is_black_hd (h));
-#endif
     CAMLassert (!Is_blue_hd (h));
     if (Is_white_hd (h)){
       caml_ephe_list_pure = 0;
@@ -474,10 +468,6 @@ Caml_inline void mark_ephe_darken(struct mark_stack* stk, value v, mlsize_t i,
       child -= Infix_offset_val(child);
       chd = Hd_val(child);
     }
-#ifdef NO_NAKED_POINTERS
-    /* See [caml_darken] for a description of this assertion. */
-    CAMLassert (Is_in_heap (child) || Is_black_hd (chd));
-#endif
     if (Is_white_hd (chd)){
       caml_ephe_list_pure = 0;
       Hd_val (child) = Blackhd_hd (chd);
@@ -659,10 +649,6 @@ Caml_noinline static intnat do_some_marking
         hd = Hd_val(block);
       }
 
-#ifdef NO_NAKED_POINTERS
-      /* See [caml_darken] for a description of this assertion. */
-      CAMLassert (Is_in_heap (block) || Is_black_hd (hd));
-#endif
       CAMLassert(Is_white_hd(hd) || Is_black_hd(hd));
       if (!Is_white_hd (hd)) {
         /* Already black, nothing to do */

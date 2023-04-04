@@ -4072,7 +4072,8 @@ and type_expect_
           (Pat.construct ~loc:default_loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "None"))))
              None)
-          (Exp.apply (Exp.extension (mknoloc "extension.escape", PStr []))
+          (Exp.apply ~loc:default_loc
+             (Exp.extension (mknoloc "extension.escape", PStr []))
              [Nolabel, default]);
        ]
       in
