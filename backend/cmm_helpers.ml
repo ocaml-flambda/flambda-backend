@@ -672,7 +672,7 @@ let test_bool dbg cmm =
 
 let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
-let unbox_float dbg =
+let rec unbox_float dbg =
   map_tail ~kind:Vfloat (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
       when Nativeint.equal hdr float_header
@@ -682,6 +682,19 @@ let unbox_float dbg =
       match Cmmgen_state.structured_constant_of_sym s with
       | Some (Uconst_float x) -> Cconst_float (x, dbg) (* or keep _dbg? *)
       | _ -> Cop (Cload (Double, Immutable), [cmm], dbg))
+    | Cregion e as cmm -> (
+      (* It is valid to push unboxing inside a Cregion except when the extra
+         unboxing logic pushes a tail call out of tail position *)
+      match
+        map_tail ~kind:Vfloat
+          (function
+            | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
+            | Ctail e -> Ctail (unbox_float dbg e)
+            | e -> unbox_float dbg e)
+          e
+      with
+      | e -> Cregion e
+      | exception Exit -> Cop (Cload (Double, Immutable), [cmm], dbg))
     | cmm -> Cop (Cload (Double, Immutable), [cmm], dbg))
 
 (* Complex *)
@@ -1409,7 +1422,7 @@ let alloc_matches_boxed_int bi ~hdr ~ops =
     && String.equal sym caml_int64_ops
   | (Pnativeint | Pint32 | Pint64), _, _ -> false
 
-let unbox_int dbg bi =
+let rec unbox_int dbg bi =
   let default arg =
     if size_int = 4 && bi = Primitive.Pint64
     then split_int64_for_32bit_target arg dbg
@@ -1458,6 +1471,19 @@ let unbox_int dbg bi =
             Ctuple
               [natint_const_untagged dbg low; natint_const_untagged dbg high]
       | _ -> default cmm)
+    | Cregion e as cmm -> (
+      (* It is valid to push unboxing inside a Cregion except when the extra
+         unboxing logic pushes a tail call out of tail position *)
+      match
+        map_tail ~kind:Vint
+          (function
+            | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
+            | Ctail e -> Ctail (unbox_int dbg bi e)
+            | e -> unbox_int dbg bi e)
+          e
+      with
+      | e -> Cregion e
+      | exception Exit -> default cmm)
     | cmm -> default cmm)
 
 let make_unsigned_int bi arg dbg =

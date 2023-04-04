@@ -394,8 +394,7 @@ let rec is_unboxed_number_cmm = function
           No_unboxing
       end
     | Cexit _ | Cop (Craise _, _, _) -> No_result
-    | Cregion _ | Ctail _ -> No_unboxing
-    | Csequence (_, a)
+    | Csequence (_, a) | Cregion a | Ctail a
     | Clet (_, _, a) | Cphantom_let (_, _, a) | Clet_mut (_, _, _, a) ->
       is_unboxed_number_cmm a
     | Cconst_int _
