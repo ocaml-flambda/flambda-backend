@@ -695,6 +695,7 @@ let rec unbox_float dbg =
       with
       | e -> Cregion e
       | exception Exit -> Cop (Cload (Double, Immutable), [cmm], dbg))
+    | Ctail e -> Ctail (unbox_float dbg e)
     | cmm -> Cop (Cload (Double, Immutable), [cmm], dbg))
 
 (* Complex *)
@@ -1484,6 +1485,7 @@ let rec unbox_int dbg bi =
       with
       | e -> Cregion e
       | exception Exit -> default cmm)
+    | Ctail e -> Ctail (unbox_int dbg bi e)
     | cmm -> default cmm)
 
 let make_unsigned_int bi arg dbg =
