@@ -2666,7 +2666,7 @@ let rec make_curry_apply result narity args_type args clos n =
           :: args)
           newclos (n - 1) )
 
-let machtype_of_layout (layout : Lambda.layout) =
+let rec machtype_of_layout (layout : Lambda.layout) =
   match layout with
   | Ptop -> Misc.fatal_error "No machtype for layout [Ptop]"
   | Pbottom -> Misc.fatal_error "No unique machtype for layout [Pbottom]"
@@ -2675,7 +2675,8 @@ let machtype_of_layout (layout : Lambda.layout) =
     (* Only 64-bit architectures, so this is always [typ_int] *)
     typ_int
   | Pvalue _ -> typ_val
-  | Punboxed_product _ -> Misc.fatal_error "TBD"
+  | Punboxed_product fields ->
+    Array.concat @@ List.map machtype_of_layout fields
 
 let final_curry_function nlocal arity result =
   let last_arg = V.create_local "arg" in

@@ -251,15 +251,22 @@ let layout_of_atom (atom : Closure_offsets.layout_atom) : Lambda.layout =
   | Unboxed_float -> Punboxed_float
   | Unboxed_int bi -> Punboxed_int bi
 
-let load_var_field ~fun_offset ~check_field (parts : Closure_offsets.parts) : Clambda.ulambda =
-  match parts with
-  (* | [] -> failwith "TODO void" *)
-  | Atom (var_offset, layout) ->
-    let pos = var_offset - fun_offset in
-    Uprim (Pfield (pos, layout_of_atom layout),
-           [check_field pos],
-           Debuginfo.none)
-  | _ -> failwith "TODO multiple parts"
+let load_env_field ~fun_offset
+    ~closure_using_field (parts : Closure_offsets.parts) : Clambda.ulambda =
+  let rec rebuild (parts : Closure_offsets.parts) : Clambda.ulambda * Clambda_primitives.layout =
+    match parts with
+    | Atom (var_offset, layout) ->
+      let pos = var_offset - fun_offset in
+      let layout = layout_of_atom layout in
+      Uprim (Pfield (pos, layout), [closure_using_field pos], Debuginfo.none), layout
+    | Product parts ->
+      let parts = Array.to_list @@ Array.map rebuild parts in
+      let parts, layouts = List.split parts in
+      Uprim (Pmake_unboxed_product layouts, parts, Debuginfo.none),
+      Punboxed_product layouts
+  in
+  let expr, _layout = rebuild parts in
+  expr
 
 let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
   match flam with
@@ -524,7 +531,8 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
         check_field t (check_closure t ulam (Expr (Var closure)))
           pos (Some named)
       in
-      load_var_field ~fun_offset ~check_field var_offset, kind
+      load_env_field ~fun_offset ~closure_using_field:check_field var_offset,
+      kind
     end
   | Prim (Pfield (index, layout), [block], dbg) ->
     begin match layout with
@@ -672,14 +680,11 @@ and to_clambda_set_of_closures t env
               Variable.print id
               Flambda.print_set_of_closures set_of_closures
         in
-        match var_offset with
-        (* | [] -> failwith "TODO void closure building" *)
-        | Atom (var_offset, _layout) ->
-          let pos = var_offset - fun_offset in
-          Env.add_subst env id
-            (Uprim (Pfield (pos, spec_to.kind), [Clambda.Uvar env_var], Debuginfo.none))
-            spec_to.kind
-        | _ -> failwith "TODO multiple parts closure building"
+        let expr =
+          let closure_using_field _pos = Clambda.Uvar env_var in
+          load_env_field ~fun_offset ~closure_using_field var_offset
+        in
+        Env.add_subst env id expr spec_to.kind
       in
       let env = Variable.Map.fold add_env_free_variable free_vars env in
       (* Add the Clambda expressions for all functions defined in the current
