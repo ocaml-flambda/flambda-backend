@@ -185,4 +185,6 @@ let result_layout (p : primitive) =
   match p with
   | Punbox_float -> Lambda.Punboxed_float
   | Punbox_int bi -> Lambda.Punboxed_int bi
+  | Pmake_unboxed_product layouts -> Lambda.Punboxed_product layouts
+  | Punboxed_product_field (field, layouts) -> List.nth layouts field
   | _ -> Lambda.layout_any_value

@@ -4018,4 +4018,6 @@ let kind_of_layout (layout : Lambda.layout) =
   | Punboxed_float -> Vfloat
   | Punboxed_int _ -> Vint
   | Pvalue kind -> Vval kind
-  | Punboxed_product _ -> Misc.fatal_error "TBD"
+  | Punboxed_product _ ->
+    (* This is incorrect but only used for unboxing *)
+    Vval Pgenval

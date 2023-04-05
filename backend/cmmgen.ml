@@ -1403,6 +1403,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
        there may be constant closures inside that need lifting out. *)
     let _cbody : expression = transl_body env in
     cexp
+  | Punboxed_product _
   | Punboxed_float | Punboxed_int _ -> begin
       let cexp = transl env exp in
       let cbody = transl_body env in
@@ -1415,7 +1416,6 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
   end
   | Pvalue kind ->
     transl_let_value env str kind id exp transl_body
-  | Punboxed_product _ -> Misc.fatal_error "TBD"
 
 and make_catch (kind : Cmm.value_kind) ncatch body handler dbg =
   match body with
