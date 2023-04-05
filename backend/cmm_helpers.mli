@@ -467,11 +467,6 @@ val opaque : expression -> Debuginfo.t -> expression
     generic functions. *)
 val machtype_identifier : machtype -> string
 
-(** Get the symbol for the generic application with [n] arguments, and ensure
-    its presence in the set of defined symbols *)
-val apply_function_sym :
-  machtype list -> machtype -> Lambda.alloc_mode -> string
-
 (** Get the symbol for the generic currying or tuplifying wrapper with [n]
     arguments, and ensure its presence in the set of defined symbols. *)
 val curry_function_sym :

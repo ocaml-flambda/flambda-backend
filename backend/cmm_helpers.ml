@@ -1194,6 +1194,8 @@ let apply_function_name arity result (mode : Lambda.alloc_mode) =
   "caml_apply" ^ unique_arity_identifier arity ^ res ^ suff
 
 let apply_function_sym arity result mode =
+  let arity = List.map Extended_machtype.change_tagged_int_to_val arity in
+  let result = Extended_machtype.change_tagged_int_to_val result in
   assert (List.length arity > 0);
   Compilenv.need_apply_fun arity result mode;
   apply_function_name arity result mode
@@ -2255,13 +2257,7 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
   let ty = Extended_machtype.to_machtype extended_ty in
   let really_call_caml_apply clos args =
     let cargs =
-      Cconst_symbol
-        ( apply_function_sym
-            (List.map Extended_machtype.change_tagged_int_to_val
-               extended_args_type)
-            (Extended_machtype.change_tagged_int_to_val extended_ty)
-            mode,
-          dbg )
+      Cconst_symbol (apply_function_sym extended_args_type extended_ty mode, dbg)
       :: args
       @ [clos]
     in
