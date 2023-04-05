@@ -544,19 +544,16 @@ and apply_renaming_head_of_kind_value head renaming =
         alloc_mode
       } ->
     let length' = apply_renaming length renaming in
-    let fields_list = Array.to_list fields in
-    let fields_list' =
-      Misc.Stdlib.List.map_sharing
-        (fun field -> apply_renaming field renaming)
-        fields_list
+    let fields' =
+      Array.map (fun field -> apply_renaming field renaming) fields
     in
-    if length == length' && fields_list == fields_list'
+    if length == length' && Array.for_all2 ( == ) fields fields'
     then head
     else
       Array
         { element_kind;
           length = length';
-          contents = Known (Immutable { fields = Array.of_list fields_list' });
+          contents = Known (Immutable { fields = fields' });
           alloc_mode
         }
 
@@ -1605,20 +1602,19 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_value head
       remove_unused_value_slots_and_shortcut_aliases length ~used_value_slots
         ~canonicalise
     in
-    let fields_list = Array.to_list fields in
-    let fields_list' =
-      Misc.Stdlib.List.map_sharing
+    let fields' =
+      Array.map
         (remove_unused_value_slots_and_shortcut_aliases ~used_value_slots
            ~canonicalise)
-        fields_list
+        fields
     in
-    if length == length' && fields_list == fields_list'
+    if length == length' && Array.for_all2 ( == ) fields fields'
     then head
     else
       Array
         { element_kind;
           length = length';
-          contents = Known (Immutable { fields = Array.of_list fields_list' });
+          contents = Known (Immutable { fields = fields' });
           alloc_mode
         }
 
@@ -2068,19 +2064,16 @@ and project_head_of_kind_value ~to_project ~expand head =
         alloc_mode
       } ->
     let length' = project_variables_out ~to_project ~expand length in
-    let fields_list = Array.to_list fields in
-    let fields_list' =
-      Misc.Stdlib.List.map_sharing
-        (project_variables_out ~to_project ~expand)
-        fields_list
+    let fields' =
+      Array.map (project_variables_out ~to_project ~expand) fields
     in
-    if length == length' && fields_list == fields_list'
+    if length == length' && Array.for_all2 ( == ) fields fields'
     then head
     else
       Array
         { element_kind;
           length = length';
-          contents = Known (Immutable { fields = Array.of_list fields_list' });
+          contents = Known (Immutable { fields = fields' });
           alloc_mode
         }
 
@@ -3104,7 +3097,12 @@ module Head_of_kind_naked_immediate = struct
     then Bottom
     else Ok (Naked_immediates imms)
 
-  let create_naked_immediates_non_empty imms = Naked_immediates imms
+  let create_naked_immediates_non_empty imms =
+    if Targetint_31_63.Set.is_empty imms
+    then
+      Misc.fatal_error
+        "Head_of_kind_naked_immediates.create_naked_immediates_non_empty";
+    Naked_immediates imms
 
   let create_is_int ty = Is_int ty
 
@@ -3123,7 +3121,10 @@ module Make_head_of_kind_naked_number (N : Container_types.S) = struct
   let create_set is : _ Or_bottom.t =
     if N.Set.is_empty is then Bottom else Ok is
 
-  let create_non_empty_set is = is
+  let create_non_empty_set is =
+    if N.Set.is_empty is
+    then Misc.fatal_error "Make_head_of_kind_naked_number.create_non_empty_set";
+    is
 
   let union = N.Set.union
 

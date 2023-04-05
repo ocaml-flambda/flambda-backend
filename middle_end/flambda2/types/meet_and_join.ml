@@ -296,19 +296,20 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
     | None ->
       map_result ~f:ET.to_type (meet_expanded_head env expanded1 expanded2)
     | Some simple2 -> (
-      match meet_expanded_head env expanded1 expanded2 with
-      | Ok (Left_input, env_extension) ->
-        let env_extension =
-          add_equation simple2 (ET.to_type expanded1) env_extension
-        in
-        Ok (Right_input, env_extension)
-      | Ok ((Right_input | Both_inputs), env_extension) ->
-        Ok (Right_input, env_extension)
-      | Ok (New_result expanded, env_extension) ->
-        let env_extension =
-          add_equation simple2 (ET.to_type expanded) env_extension
-        in
-        Ok (Right_input, env_extension)
+      (* Here we are meeting a non-alias type on the left with an alias on the
+         right. In all cases, the return type is the alias, so we will always
+         return [Right_input]; the interesting part will be the extension. *)
+      let env_extension : TEE.t Or_bottom.t =
+        match meet_expanded_head env expanded1 expanded2 with
+        | Ok (Left_input, env_extension) ->
+          Ok (add_equation simple2 (ET.to_type expanded1) env_extension)
+        | Ok ((Right_input | Both_inputs), env_extension) -> Ok env_extension
+        | Ok (New_result expanded, env_extension) ->
+          Ok (add_equation simple2 (ET.to_type expanded) env_extension)
+        | Bottom -> Bottom
+      in
+      match env_extension with
+      | Ok env_extension -> Ok (Right_input, env_extension)
       | Bottom -> Bottom))
   | Some simple1 as simple1_opt -> (
     match simple2 with
@@ -321,32 +322,41 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
         Expand_head.expand_head0 typing_env t2
           ~known_canonical_simple_at_in_types_mode:simple2
       in
-      match meet_expanded_head env expanded1 expanded2 with
-      | Ok (Right_input, env_extension) ->
-        let env_extension =
-          add_equation simple1 (ET.to_type expanded2) env_extension
-        in
-        Ok (Left_input, env_extension)
-      | Ok ((Left_input | Both_inputs), env_extension) ->
-        Ok (Left_input, env_extension)
-      | Ok (New_result expanded, env_extension) ->
-        let env_extension =
-          add_equation simple1 (ET.to_type expanded) env_extension
-        in
-        Ok (Left_input, env_extension)
+      (* We always return [Left_input] (see comment above) *)
+      let env_extension : TEE.t Or_bottom.t =
+        match meet_expanded_head env expanded1 expanded2 with
+        | Ok (Right_input, env_extension) ->
+          Ok (add_equation simple1 (ET.to_type expanded2) env_extension)
+        | Ok ((Left_input | Both_inputs), env_extension) -> Ok env_extension
+        | Ok (New_result expanded, env_extension) ->
+          Ok (add_equation simple1 (ET.to_type expanded) env_extension)
+        | Bottom -> Bottom
+      in
+      match env_extension with
+      | Ok env_extension -> Ok (Left_input, env_extension)
       | Bottom -> Bottom)
     | Some simple2 as simple2_opt ->
+      (* We are doing a meet between two alias types. Whatever happens, the
+         resulting extension of the global meet will contain an alias equation
+         between the two inputs, so both the left-hand alias and the right-hand
+         alias are correct results for the meet, allowing us to return
+         [Both_inputs] in all cases. *)
       if Simple.equal simple1 simple2
          || Meet_env.already_meeting env simple1 simple2
       then
-        (* This produces "=simple" for the output rather than a type that might
-           need transformation back from an expanded head (as would happen if we
-           used the next case). *)
+        (* The alias is either already present or being added in another path
+           that will be merged with this one; no need to add any extension
+           here *)
         Ok (Both_inputs, TEE.empty)
       else (
         assert (not (Simple.equal simple1 simple2));
         let env = Meet_env.now_meeting env simple1 simple2 in
         let add_alias_equation env_extension =
+          (* [add_equation] does nothing if the first argument is not a name
+             (e.g. a constant). We indeed don't care about equations of the form
+             [constant = constant], but we need to make sure we don't drop
+             equations of the form [constant = name] just because they're in the
+             wrong order. *)
           match Simple.must_be_name simple2 with
           | Some _ ->
             add_equation simple2 (TG.alias_type_of kind simple1) env_extension
@@ -369,18 +379,23 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
            simple2, either input can be used to express the result; so we will
            return Both_inputs as the result in all cases. The only thing
            remaining to compute is the extension. *)
-        match meet_expanded_head env expanded1 expanded2 with
-        | Ok ((Both_inputs | Left_input | Right_input), env_extension) ->
-          (* No additional extension except for the new alias *)
-          Ok (Both_inputs, add_alias_equation env_extension)
-        | Ok (New_result expanded, env_extension) ->
-          (* The new result is tracked in the extension *)
-          let env_extension =
-            env_extension
-            |> add_equation simple1 (ET.to_type expanded)
-            |> add_alias_equation
-          in
-          Ok (Both_inputs, env_extension)
+        let env_extension : TEE.t Or_bottom.t =
+          match meet_expanded_head env expanded1 expanded2 with
+          | Ok ((Both_inputs | Left_input | Right_input), env_extension) ->
+            (* No additional extension except for the new alias *)
+            Ok (add_alias_equation env_extension)
+          | Ok (New_result expanded, env_extension) ->
+            (* The new result is tracked in the extension *)
+            let env_extension =
+              env_extension
+              |> add_equation simple1 (ET.to_type expanded)
+              |> add_alias_equation
+            in
+            Ok env_extension
+          | Bottom -> Bottom
+        in
+        match env_extension with
+        | Ok env_extension -> Ok (Both_inputs, env_extension)
         | Bottom -> Bottom))
 
 and meet_expanded_head env (expanded1 : ET.t) (expanded2 : ET.t) :
