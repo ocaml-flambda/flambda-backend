@@ -97,8 +97,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     Apply.args_arity apply |> Flambda_arity.With_subkinds.to_list
   in
   let return_arity = Apply.return_arity apply in
-  let args_ty = List.map C.machtype_of_kind args_arity in
-  let return_ty = C.machtype_of_return_arity return_arity in
+  let args_ty = List.map C.extended_machtype_of_kind args_arity in
+  let return_ty = C.extended_machtype_of_return_arity return_arity in
   match Apply.call_kind apply with
   | Function { function_call = Direct code_id; alloc_mode = _ } -> (
     let code_metadata = Env.get_code_metadata env code_id in
@@ -113,7 +113,9 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     let code_linkage_name = Code_id.linkage_name code_id in
     match Apply.probe_name apply with
     | None ->
-      ( C.direct_call ~dbg return_ty pos
+      ( C.direct_call ~dbg
+          (C.Extended_machtype.to_machtype return_ty)
+          pos
           (C.symbol_from_linkage_name ~dbg code_linkage_name)
           args,
         free_vars,
@@ -188,7 +190,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
            (Flambda_arity.With_subkinds.to_arity (Apply.args_arity apply)))
     in
     ( wrap dbg
-        (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee return_ty
+        (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee
+           (C.Extended_machtype.to_machtype return_ty)
            args),
       free_vars,
       env,

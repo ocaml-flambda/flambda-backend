@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+val debug : unit -> bool
+
 module Apply = Flambda.Apply
 module Apply_cont = Flambda.Apply_cont
 module Code = Code

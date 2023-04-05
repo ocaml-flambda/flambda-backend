@@ -484,8 +484,10 @@ let rec transl env e =
                 Cconst_symbol
                   (curry_function_sym
                      arity.function_kind
-                     (List.map machtype_of_layout arity.params_layout)
-                     (machtype_of_layout arity.return_layout),
+                     (List.map machtype_of_layout_changing_tagged_int_to_val
+                       arity.params_layout)
+                     (machtype_of_layout_changing_tagged_int_to_val
+                       arity.return_layout),
                    dbg) ::
                 alloc_closure_info ~arity
                                    ~startenv:(startenv - pos) ~is_last dbg ::
@@ -518,8 +520,8 @@ let rec transl env e =
       let clos = transl env clos in
       let args = List.map (transl env) args in
       if List.mem Pbottom args_layout then
-        (* [machtype_of_layout] will fail on Pbottom, convert it to a sequence
-           and remove the call, preserving the execution order. *)
+        (* [Extended_machtype.of_layout] will fail on Pbottom, convert it to a
+           sequence and remove the call, preserving the execution order. *)
         List.fold_left2 (fun rest arg arg_layout ->
             if arg_layout = Pbottom then
               arg
@@ -527,15 +529,15 @@ let rec transl env e =
               Csequence(remove_unit arg, rest)
           ) (Ctuple []) args args_layout
       else
-        let args_type = List.map machtype_of_layout args_layout in
-        let return = machtype_of_layout result_layout in
+        let args_type = List.map Extended_machtype.of_layout args_layout in
+        let return = Extended_machtype.of_layout result_layout in
         generic_apply (mut_from_env env clos) clos args args_type return kind dbg
   | Usend(kind, met, obj, args, args_layout, result_layout, pos, dbg) ->
       let met = transl env met in
       let obj = transl env obj in
       let args = List.map (transl env) args in
-      let args_type = List.map machtype_of_layout args_layout in
-      let return = machtype_of_layout result_layout in
+      let args_type = List.map Extended_machtype.of_layout args_layout in
+      let return = Extended_machtype.of_layout result_layout in
       send kind met obj args args_type return pos dbg
   | Ulet(str, kind, id, exp, body) ->
       transl_let env str kind id exp (fun env -> transl env body)

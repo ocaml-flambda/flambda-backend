@@ -54,6 +54,21 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     Cmm.typ_int
   | Region | Rec_info -> assert false
 
+let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
+  match Flambda_kind.With_subkind.kind kind with
+  | Value -> (
+    match Flambda_kind.With_subkind.subkind kind with
+    | Tagged_immediate -> Extended_machtype.typ_tagged_int
+    | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
+    | Variant _ | Float_block _ | Float_array | Immediate_array | Value_array
+    | Generic_array ->
+      Extended_machtype.typ_val)
+  | Naked_number Naked_float -> Extended_machtype.typ_float
+  | Naked_number Naked_int64 -> Extended_machtype.typ_int64
+  | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) ->
+    Extended_machtype.typ_any_int
+  | Region | Rec_info -> assert false
+
 let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     =
   match Flambda_kind.With_subkind.kind kind with
@@ -238,14 +253,14 @@ let make_update env res dbg kind ~symbol var ~index ~prev_updates =
 let check_arity arity args =
   Flambda_arity.With_subkinds.cardinal arity = List.length args
 
-let machtype_of_return_arity arity =
+let extended_machtype_of_return_arity arity =
   (* Functions that never return have arity 0. In that case, we use the most
      restrictive machtype to ensure that the return value of the function is not
      used. *)
   match Flambda_arity.With_subkinds.to_list arity with
-  | [] -> Cmm.typ_void
+  | [] -> Extended_machtype.typ_void
   (* Regular functions with a single return value *)
-  | [k] -> machtype_of_kind k
+  | [k] -> extended_machtype_of_kind k
   | _ ->
     (* CR gbury: update when unboxed tuples are used *)
     Misc.fatal_errorf "Functions are currently limited to a single return value"

@@ -37,13 +37,19 @@ type closure_code_pointers =
 
 let get_func_decl_params_arity t code_id =
   let info = Env.get_code_metadata t code_id in
+  (* Avoid generation of excessive amounts of caml_curry functions that only
+     distinguish between values and tagged integers; see comments in
+     cmm_helpers.ml. *)
   let params_ty =
     List.map
-      (fun k -> C.machtype_of_kind k)
+      (fun k ->
+        C.extended_machtype_of_kind k
+        |> C.Extended_machtype.change_tagged_int_to_val)
       (Flambda_arity.With_subkinds.to_list (Code_metadata.params_arity info))
   in
-  let result_ty =
-    C.machtype_of_return_arity (Code_metadata.result_arity info)
+  let result_machtype =
+    C.extended_machtype_of_return_arity (Code_metadata.result_arity info)
+    |> C.Extended_machtype.change_tagged_int_to_val
   in
   let kind : Lambda.function_kind =
     if Code_metadata.is_tupled info
@@ -56,7 +62,7 @@ let get_func_decl_params_arity t code_id =
     | Curried _, ([] | [_]) -> Full_application_only
     | (Curried _ | Tupled), _ -> Full_and_partial_application
   in
-  let arity = kind, params_ty, result_ty in
+  let arity = kind, params_ty, result_machtype in
   arity, closure_code_pointers, Code_metadata.dbg info
 
 type for_static_sets =
