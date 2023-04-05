@@ -1098,10 +1098,19 @@ let send_function_name arity result (mode : Lambda.alloc_mode) =
 let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
     =
   let cache = array_indexing log2_size_addr cache pos dbg in
-  Compilenv.need_send_fun args_type result mode;
+  Compilenv.need_send_fun
+    (List.map Extended_machtype.change_tagged_int_to_val args_type)
+    (Extended_machtype.change_tagged_int_to_val result)
+    mode;
   Cop
-    ( Capply (result, apos),
-      Cconst_symbol (send_function_name args_type result mode, dbg)
+    ( Capply (Extended_machtype.to_machtype result, apos),
+      (* See the cases for caml_apply regarding [change_tagged_int_to_val]. *)
+      Cconst_symbol
+        ( send_function_name
+            (List.map Extended_machtype.change_tagged_int_to_val args_type)
+            (Extended_machtype.change_tagged_int_to_val result)
+            mode,
+          dbg )
       :: obj :: tag :: cache :: args,
       dbg )
 
@@ -2313,8 +2322,6 @@ let send kind met obj args args_type result akind dbg =
       | Self, _, _ ->
         bind "met" (lookup_label obj met dbg) (call_met obj args args_type)
       | Cached, cache :: pos :: args, _ :: _ :: args_type ->
-        let args_type = List.map Extended_machtype.to_machtype args_type in
-        let result = Extended_machtype.to_machtype result in
         call_cached_method obj met cache pos args args_type result akind dbg
       | _ -> bind "met" (lookup_tag obj met dbg) (call_met obj args args_type))
 

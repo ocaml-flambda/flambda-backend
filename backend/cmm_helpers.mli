@@ -351,79 +351,6 @@ val string_length : expression -> Debuginfo.t -> expression
 
 val bigstring_length : expression -> Debuginfo.t -> expression
 
-(** Objects *)
-
-(** Lookup a method by its hash, using [caml_get_public_method]. Arguments:
-
-    - obj : the object from which to lookup
-
-    - tag : the hash of the method name, as a tagged integer *)
-val lookup_tag : expression -> expression -> Debuginfo.t -> expression
-
-(** Lookup a method by its offset in the method table. Arguments:
-
-    - obj : the object from which to lookup
-
-    - lab : the position of the required method in the object's method array, as
-    a tagged integer *)
-val lookup_label : expression -> expression -> Debuginfo.t -> expression
-
-(** Lookup and call a method using the method cache. Arguments:
-
-    - obj : the object from which to lookup
-
-    - tag : the hash of the method name, as a tagged integer
-
-    - cache : the method cache array
-
-    - pos : the position of the cache entry in the cache array
-
-    - args : the additional arguments to the method call *)
-val call_cached_method :
-  expression ->
-  expression ->
-  expression ->
-  expression ->
-  expression list ->
-  machtype list ->
-  machtype ->
-  Clambda.apply_kind ->
-  Debuginfo.t ->
-  expression
-
-(** Allocations *)
-
-(** Allocate a block of regular values with the given tag *)
-val make_alloc :
-  mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
-
-(** Allocate a block of unboxed floats with the given tag *)
-val make_float_alloc :
-  mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
-
-(** Bounds checking *)
-
-(** Generate a [Ccheckbound] term *)
-val make_checkbound : Debuginfo.t -> expression list -> expression
-
-(** [check_bound safety access_size dbg length a2 k] prefixes expression [k]
-    with a check that reading [access_size] bits starting at position [a2] in a
-    string/bytes value of length [length] is within bounds, unless [safety] is
-    [Unsafe]. *)
-val check_bound :
-  Lambda.is_safe ->
-  Clambda_primitives.memory_access_size ->
-  Debuginfo.t ->
-  expression ->
-  expression ->
-  expression ->
-  expression
-
-(** Sys.opaque_identity *)
-val opaque : expression -> Debuginfo.t -> expression
-
-(** Generic application functions *)
-
 module Extended_machtype_component : sig
   (** Like [Cmm.machtype_component] but has a case explicitly for tagged
       integers.  This enables caml_apply functions to be insensitive to whether
@@ -463,7 +390,80 @@ module Extended_machtype : sig
   val to_machtype : t -> machtype
 end
 
-(** Get an identifier for a given extended machtype, used in the name of the
+(** Objects *)
+
+(** Lookup a method by its hash, using [caml_get_public_method]. Arguments:
+
+    - obj : the object from which to lookup
+
+    - tag : the hash of the method name, as a tagged integer *)
+val lookup_tag : expression -> expression -> Debuginfo.t -> expression
+
+(** Lookup a method by its offset in the method table. Arguments:
+
+    - obj : the object from which to lookup
+
+    - lab : the position of the required method in the object's method array, as
+    a tagged integer *)
+val lookup_label : expression -> expression -> Debuginfo.t -> expression
+
+(** Lookup and call a method using the method cache. Arguments:
+
+    - obj : the object from which to lookup
+
+    - tag : the hash of the method name, as a tagged integer
+
+    - cache : the method cache array
+
+    - pos : the position of the cache entry in the cache array
+
+    - args : the additional arguments to the method call *)
+val call_cached_method :
+  expression ->
+  expression ->
+  expression ->
+  expression ->
+  expression list ->
+  Extended_machtype.t list ->
+  Extended_machtype.t ->
+  Clambda.apply_kind ->
+  Debuginfo.t ->
+  expression
+
+(** Allocations *)
+
+(** Allocate a block of regular values with the given tag *)
+val make_alloc :
+  mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
+
+(** Allocate a block of unboxed floats with the given tag *)
+val make_float_alloc :
+  mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
+
+(** Bounds checking *)
+
+(** Generate a [Ccheckbound] term *)
+val make_checkbound : Debuginfo.t -> expression list -> expression
+
+(** [check_bound safety access_size dbg length a2 k] prefixes expression [k]
+    with a check that reading [access_size] bits starting at position [a2] in a
+    string/bytes value of length [length] is within bounds, unless [safety] is
+    [Unsafe]. *)
+val check_bound :
+  Lambda.is_safe ->
+  Clambda_primitives.memory_access_size ->
+  Debuginfo.t ->
+  expression ->
+  expression ->
+  expression ->
+  expression
+
+(** Sys.opaque_identity *)
+val opaque : expression -> Debuginfo.t -> expression
+
+(** Generic application functions *)
+
+(** Get an identifier for a given machtype, used in the name of the
     generic functions. *)
 val machtype_identifier : machtype -> string
 
