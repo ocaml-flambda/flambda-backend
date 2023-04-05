@@ -1072,6 +1072,13 @@ module Extended_machtype = struct
     | Pvalue _ -> typ_val
 end
 
+let machtype_of_layout layout =
+  layout |> Extended_machtype.of_layout |> Extended_machtype.to_machtype
+
+let machtype_of_layout_changing_tagged_int_to_val layout =
+  layout |> Extended_machtype.of_layout
+  |> Extended_machtype.change_tagged_int_to_val
+
 let machtype_identifier t =
   let char_of_component (component : machtype_component) =
     match component with
@@ -2782,16 +2789,6 @@ let rec make_curry_apply result narity args_type args clos n =
           :: args)
           newclos (n - 1) )
 
-let machtype_of_layout (layout : Lambda.layout) =
-  match layout with
-  | Ptop -> Misc.fatal_error "No machtype for layout [Ptop]"
-  | Pbottom -> Misc.fatal_error "No unique machtype for layout [Pbottom]"
-  | Punboxed_float -> typ_float
-  | Punboxed_int _ ->
-    (* Only 64-bit architectures, so this is always [typ_int] *)
-    typ_int
-  | Pvalue _ -> typ_val
-
 let final_curry_function nlocal arity result =
   let last_arg = V.create_local "arg" in
   let last_clos = V.create_local "clos" in
@@ -3711,11 +3708,19 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
             :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: emit_others (pos + 3) rem
         | arity ->
+          (* See note in the apply function code about the conversion from
+             tagged integer to value machtypes. *)
+          let params_machtypes =
+            List.map machtype_of_layout_changing_tagged_int_to_val
+              arity.params_layout
+          in
+          let return_machtype =
+            machtype_of_layout_changing_tagged_int_to_val arity.return_layout
+          in
           (Cint (infix_header pos) :: closure_symbol f2)
           @ Csymbol_address
-              (curry_function_sym arity.function_kind
-                 (List.map machtype_of_layout arity.params_layout)
-                 (machtype_of_layout arity.return_layout))
+              (curry_function_sym arity.function_kind params_machtypes
+                 return_machtype)
             :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: Csymbol_address f2.label
             :: emit_others (pos + 4) rem)
@@ -3733,8 +3738,9 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
     | arity ->
       Csymbol_address
         (curry_function_sym arity.function_kind
-           (List.map machtype_of_layout arity.params_layout)
-           (machtype_of_layout arity.return_layout))
+           (List.map machtype_of_layout_changing_tagged_int_to_val
+              arity.params_layout)
+           (machtype_of_layout_changing_tagged_int_to_val arity.return_layout))
       :: Cint (closure_info ~arity ~startenv ~is_last)
       :: Csymbol_address f1.label :: emit_others 4 remainder)
 

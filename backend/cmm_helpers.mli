@@ -388,6 +388,11 @@ module Extended_machtype : sig
 
   (** Conversion to a normal Cmm machtype. *)
   val to_machtype : t -> machtype
+
+  (** Like [to_machtype] but tagged integer extended machtypes are mapped to
+      value machtypes.  This is used to avoid excessive numbers of generic
+      functions being generated (see comments in cmm_helpers.ml). *)
+  val change_tagged_int_to_val : t -> machtype
 end
 
 (** Objects *)
@@ -1272,3 +1277,5 @@ val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
 val kind_of_layout : Lambda.layout -> value_kind
 
 val machtype_of_layout : Lambda.layout -> machtype
+
+val machtype_of_layout_changing_tagged_int_to_val : Lambda.layout -> machtype
