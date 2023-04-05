@@ -33,9 +33,9 @@ end
 val iter_cfg_order :
   Cfg_with_layout.t -> Order.t -> f:(Cfg.basic_block -> unit) -> unit
 
-(* The [trap_handler] parameter to the [instruction] and [terminator]
-   functions is set to [true] iff the instruction if the first one of
-   a block which is a trap handler. *)
+(* The [trap_handler] parameter to the [instruction] and [terminator] functions
+   is set to [true] iff the instruction if the first one of a block which is a
+   trap handler. *)
 val iter_instructions_order :
   Cfg_with_layout.t ->
   Order.t ->

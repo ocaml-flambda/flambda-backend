@@ -180,8 +180,11 @@ let rewrite_gen :
   !new_temporaries
 
 let prelude :
-  (module Utils) -> on_fatal_callback:(unit -> unit) -> Cfg_with_liveness.t -> cfg_infos =
-  fun (module Utils) ~on_fatal_callback cfg_with_liveness ->
+    (module Utils) ->
+    on_fatal_callback:(unit -> unit) ->
+    Cfg_with_liveness.t ->
+    cfg_infos =
+ fun (module Utils) ~on_fatal_callback cfg_with_liveness ->
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
   on_fatal ~f:on_fatal_callback;
   if Utils.debug

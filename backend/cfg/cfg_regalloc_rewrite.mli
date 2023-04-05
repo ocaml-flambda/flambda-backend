@@ -47,7 +47,10 @@ val rewrite_gen :
 (* Runs the first steps common to register allocators, reinitializing registers,
    checking preconditions, and collecting information from the CFG. *)
 val prelude :
-  (module Utils) -> on_fatal_callback:(unit -> unit) -> Cfg_with_liveness.t -> cfg_infos
+  (module Utils) ->
+  on_fatal_callback:(unit -> unit) ->
+  Cfg_with_liveness.t ->
+  cfg_infos
 
 (* Runs the last steps common to register allocators, updating the CFG (stack
    slots, live fields, and prologue), running [f], and checking

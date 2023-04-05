@@ -370,8 +370,12 @@ module Utils = struct
 end
 
 (* Returns `true` if new temporaries have been introduced. *)
-let rewrite : State.t -> Cfg_with_liveness.t -> spilled_nodes:Reg.t list -> reset:bool -> bool
-    =
+let rewrite :
+    State.t ->
+    Cfg_with_liveness.t ->
+    spilled_nodes:Reg.t list ->
+    reset:bool ->
+    bool =
  fun state cfg_with_liveness ~spilled_nodes ~reset ->
   let new_temporaries =
     Cfg_regalloc_rewrite.rewrite_gen
@@ -507,8 +511,8 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
   let spilling_because_unused = Reg.Set.diff cfg_infos.res cfg_infos.arg in
   (match Reg.Set.elements spilling_because_unused with
   | [] -> ()
-  | (_ :: _) as spilled_nodes -> (
-      List.iter spilled_nodes ~f:(fun reg -> State.add_spilled_nodes state reg);
+  | _ :: _ as spilled_nodes -> (
+    List.iter spilled_nodes ~f:(fun reg -> State.add_spilled_nodes state reg);
     (* note: rewrite will remove the `spilling` registers from the "spilled"
        work list and set the field to unknown. *)
     match rewrite state cfg_with_liveness ~spilled_nodes ~reset:false with
