@@ -1004,8 +1004,84 @@ let lookup_label obj lab dbg =
       let table = Cop (Cload (Word_val, Mutable), [obj], dbg) in
       addr_array_ref table lab dbg)
 
+module Extended_machtype_component = struct
+  type t =
+    | Val
+    | Addr
+    | Tagged_int
+    | Any_int
+    | Float
+
+  let of_machtype_component (component : machtype_component) =
+    match component with
+    | Val -> Val
+    | Addr -> Addr
+    | Int -> Any_int
+    | Float -> Float
+
+  let to_machtype_component t : machtype_component =
+    match t with
+    | Val -> Val
+    | Addr -> Addr
+    | Tagged_int | Any_int -> Int
+    | Float -> Float
+
+  let change_tagged_int_to_val t : machtype_component =
+    match t with
+    | Val -> Val
+    | Addr -> Addr
+    | Tagged_int -> Val
+    | Any_int -> Int
+    | Float -> Float
+end
+
+module Extended_machtype = struct
+  type t = Extended_machtype_component.t array
+
+  let typ_val = [| Extended_machtype_component.Val |]
+
+  let typ_tagged_int = [| Extended_machtype_component.Tagged_int |]
+
+  let typ_any_int = [| Extended_machtype_component.Any_int |]
+
+  let typ_int64 = [| Extended_machtype_component.Any_int |]
+
+  let typ_float = [| Extended_machtype_component.Float |]
+
+  let typ_void = [||]
+
+  let of_machtype machtype =
+    Array.map Extended_machtype_component.of_machtype_component machtype
+
+  let to_machtype t =
+    Array.map Extended_machtype_component.to_machtype_component t
+
+  let change_tagged_int_to_val t =
+    Array.map Extended_machtype_component.change_tagged_int_to_val t
+
+  let of_layout (layout : Lambda.layout) =
+    match layout with
+    | Ptop -> Misc.fatal_error "No Extended_machtype for layout [Ptop]"
+    | Pbottom ->
+      Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
+    | Punboxed_float -> typ_float
+    | Punboxed_int _ ->
+      (* Only 64-bit architectures, so this is always [typ_int] *)
+      typ_any_int
+    | Pvalue Pintval -> typ_tagged_int
+    | Pvalue _ -> typ_val
+end
+
+let machtype_of_layout layout =
+  layout |> Extended_machtype.of_layout |> Extended_machtype.to_machtype
+
+let machtype_of_layout_changing_tagged_int_to_val layout =
+  layout |> Extended_machtype.of_layout
+  |> Extended_machtype.change_tagged_int_to_val
+
 let machtype_identifier t =
-  let char_of_component = function
+  let char_of_component (component : machtype_component) =
+    match component with
     | Val -> 'V'
     | Int -> 'I'
     | Float -> 'F'
@@ -1014,7 +1090,7 @@ let machtype_identifier t =
   in
   String.of_seq (Seq.map char_of_component (Array.to_seq t))
 
-let unique_arity_identifier arity =
+let unique_arity_identifier (arity : Cmm.machtype list) =
   if List.for_all (function [| Val |] -> true | _ -> false) arity
   then Int.to_string (List.length arity)
   else String.concat "_" (List.map machtype_identifier arity)
@@ -1029,10 +1105,19 @@ let send_function_name arity result (mode : Lambda.alloc_mode) =
 let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
     =
   let cache = array_indexing log2_size_addr cache pos dbg in
-  Compilenv.need_send_fun args_type result mode;
+  Compilenv.need_send_fun
+    (List.map Extended_machtype.change_tagged_int_to_val args_type)
+    (Extended_machtype.change_tagged_int_to_val result)
+    mode;
   Cop
-    ( Capply (result, apos),
-      Cconst_symbol (send_function_name args_type result mode, dbg)
+    ( Capply (Extended_machtype.to_machtype result, apos),
+      (* See the cases for caml_apply regarding [change_tagged_int_to_val]. *)
+      Cconst_symbol
+        ( send_function_name
+            (List.map Extended_machtype.change_tagged_int_to_val args_type)
+            (Extended_machtype.change_tagged_int_to_val result)
+            mode,
+          dbg )
       :: obj :: tag :: cache :: args,
       dbg )
 
@@ -1107,6 +1192,7 @@ let make_checkbound dbg = function
   | args -> Cop (Ccheckbound, args, dbg)
 
 (* Record application and currying functions *)
+
 let apply_function_name arity result (mode : Lambda.alloc_mode) =
   let res =
     match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
@@ -1115,6 +1201,8 @@ let apply_function_name arity result (mode : Lambda.alloc_mode) =
   "caml_apply" ^ unique_arity_identifier arity ^ res ^ suff
 
 let apply_function_sym arity result mode =
+  let arity = List.map Extended_machtype.change_tagged_int_to_val arity in
+  let result = Extended_machtype.change_tagged_int_to_val result in
   assert (List.length arity > 0);
   Compilenv.need_apply_fun arity result mode;
   apply_function_name arity result mode
@@ -2169,10 +2257,14 @@ let ptr_offset ptr offset dbg =
 let direct_apply lbl ty args (pos, _mode) dbg =
   Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
-let call_caml_apply ty args_type mut clos args pos mode dbg =
+let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
+  (* Treat tagged int arguments and results as [typ_val], to avoid generating
+     excessive numbers of caml_apply functions. *)
+  let ty = Extended_machtype.to_machtype extended_ty in
   let really_call_caml_apply clos args =
     let cargs =
-      (Cconst_symbol (apply_function_sym args_type ty mode, dbg) :: args)
+      Cconst_symbol (apply_function_sym extended_args_type extended_ty mode, dbg)
+      :: args
       @ [clos]
     in
     Cop (Capply (ty, pos), cargs, dbg)
@@ -2196,7 +2288,7 @@ let call_caml_apply ty args_type mut clos args pos mode dbg =
                           [ get_field_gen mut clos 1 dbg;
                             Cconst_int (pos_arity_in_closinfo, dbg) ],
                           dbg );
-                      Cconst_int (List.length args_type, dbg) ],
+                      Cconst_int (List.length extended_args_type, dbg) ],
                     dbg ),
                 dbg,
                 Cop
@@ -2214,14 +2306,17 @@ let generic_apply mut clos args args_type result (pos, mode) dbg =
   | [arg] ->
     bind "fun" clos (fun clos ->
         Cop
-          (Capply (result, pos), [get_field_gen mut clos 0 dbg; arg; clos], dbg))
+          ( Capply (Extended_machtype.to_machtype result, pos),
+            [get_field_gen mut clos 0 dbg; arg; clos],
+            dbg ))
   | _ -> call_caml_apply result args_type mut clos args pos mode dbg
 
 let send kind met obj args args_type result akind dbg =
   let call_met obj args args_type clos =
     (* met is never a simple expression, so it never gets turned into an
        Immutable load *)
-    generic_apply Asttypes.Mutable clos (obj :: args) (typ_val :: args_type)
+    generic_apply Asttypes.Mutable clos (obj :: args)
+      (Extended_machtype.typ_val :: args_type)
       result akind dbg
   in
   bind "obj" obj (fun obj ->
@@ -2693,16 +2788,6 @@ let rec make_curry_apply result narity args_type args clos n =
              (dbg ())
           :: args)
           newclos (n - 1) )
-
-let machtype_of_layout (layout : Lambda.layout) =
-  match layout with
-  | Ptop -> Misc.fatal_error "No machtype for layout [Ptop]"
-  | Pbottom -> Misc.fatal_error "No unique machtype for layout [Pbottom]"
-  | Punboxed_float -> typ_float
-  | Punboxed_int _ ->
-    (* Only 64-bit architectures, so this is always [typ_int] *)
-    typ_int
-  | Pvalue _ -> typ_val
 
 let final_curry_function nlocal arity result =
   let last_arg = V.create_local "arg" in
@@ -3623,11 +3708,19 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
             :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: emit_others (pos + 3) rem
         | arity ->
+          (* See note in the apply function code about the conversion from
+             tagged integer to value machtypes. *)
+          let params_machtypes =
+            List.map machtype_of_layout_changing_tagged_int_to_val
+              arity.params_layout
+          in
+          let return_machtype =
+            machtype_of_layout_changing_tagged_int_to_val arity.return_layout
+          in
           (Cint (infix_header pos) :: closure_symbol f2)
           @ Csymbol_address
-              (curry_function_sym arity.function_kind
-                 (List.map machtype_of_layout arity.params_layout)
-                 (machtype_of_layout arity.return_layout))
+              (curry_function_sym arity.function_kind params_machtypes
+                 return_machtype)
             :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: Csymbol_address f2.label
             :: emit_others (pos + 4) rem)
@@ -3645,8 +3738,9 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
     | arity ->
       Csymbol_address
         (curry_function_sym arity.function_kind
-           (List.map machtype_of_layout arity.params_layout)
-           (machtype_of_layout arity.return_layout))
+           (List.map machtype_of_layout_changing_tagged_int_to_val
+              arity.params_layout)
+           (machtype_of_layout_changing_tagged_int_to_val arity.return_layout))
       :: Cint (closure_info ~arity ~startenv ~is_last)
       :: Csymbol_address f1.label :: emit_others 4 remainder)
 
@@ -3913,7 +4007,7 @@ let indirect_call ~dbg ty pos alloc_mode f args_type args =
     letin v' ~defining_expr:f
       ~body:
         (Cop
-           ( Capply (ty, pos),
+           ( Capply (Extended_machtype.to_machtype ty, pos),
              [load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v); arg; Cvar v],
              dbg ))
   | args ->
@@ -3931,7 +4025,11 @@ let indirect_full_call ~dbg ty pos alloc_mode f args_type = function
       load ~dbg Word_int Asttypes.Mutable ~addr:(field_address (Cvar v) 2 dbg)
     in
     letin v' ~defining_expr:f
-      ~body:(Cop (Capply (ty, pos), (fun_ptr :: args) @ [Cvar v], dbg))
+      ~body:
+        (Cop
+           ( Capply (Extended_machtype.to_machtype ty, pos),
+             (fun_ptr :: args) @ [Cvar v],
+             dbg ))
 
 let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~index =
   let ba_data_f = field_address bigarray 1 dbg in
