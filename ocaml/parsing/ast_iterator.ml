@@ -52,6 +52,7 @@ type iterator = {
   module_declaration: iterator -> module_declaration -> unit;
   module_substitution: iterator -> module_substitution -> unit;
   module_expr: iterator -> module_expr -> unit;
+  module_expr_extension: iterator -> Extensions.Module_expr.t -> unit;
   module_type: iterator -> module_type -> unit;
   module_type_declaration: iterator -> module_type_declaration -> unit;
   module_type_extension: iterator -> Extensions.Module_type.t -> unit;
@@ -315,9 +316,24 @@ end
 module M = struct
   (* Value expressions for the module language *)
 
-  let iter sub {pmod_loc = loc; pmod_desc = desc; pmod_attributes = attrs} =
+  module I = Extensions.Instances
+
+  let iter_instance _sub : I.instance -> _ = function
+    | _ -> () (* Currently treating these as atomic? *)
+
+  let iter_instance_expr sub : I.module_expr -> _ = function
+    | Imod_instance i -> iter_instance sub i
+
+  let iter_ext sub : Extensions.Module_expr.t -> _ = function
+    | Emod_instance i -> iter_instance_expr sub i
+
+  let iter sub
+        ({pmod_loc = loc; pmod_desc = desc; pmod_attributes = attrs} as expr) =
     sub.location sub loc;
     sub.attributes sub attrs;
+    match Extensions.Module_expr.of_ast expr with
+    | Some ext -> sub.module_expr_extension sub ext
+    | None ->
     match desc with
     | Pmod_ident x -> iter_loc sub x
     | Pmod_structure str -> sub.structure sub str
@@ -599,6 +615,7 @@ let default_iterator =
     structure = (fun this l -> List.iter (this.structure_item this) l);
     structure_item = M.iter_structure_item;
     module_expr = M.iter;
+    module_expr_extension = M.iter_ext;
     signature = (fun this l -> List.iter (this.signature_item this) l);
     signature_item = MT.iter_signature_item;
     module_type = MT.iter;

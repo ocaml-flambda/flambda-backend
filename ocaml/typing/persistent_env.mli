@@ -36,6 +36,19 @@ type error =
       { imported : Compilation_unit.t;
         parameter : Compilation_unit.t;
       }
+  | Imported_module_has_no_such_parameter of
+      { imported : Compilation_unit.t;
+        valid_parameters : Compilation_unit.t list;
+        parameter : Compilation_unit.t;
+        value : Compilation_unit.t;
+      }
+  | Not_compiled_as_argument of Compilation_unit.t * filepath
+  | Argument_type_mismatch of
+      { value : Compilation_unit.t;
+        filename : filepath;
+        expected : Compilation_unit.t;
+        actual : Compilation_unit.t;
+  }
 
 exception Error of error
 
@@ -63,16 +76,35 @@ val empty : unit -> 'a t
 val clear : 'a t -> unit
 val clear_missing : 'a t -> unit
 
-val fold : 'a t -> (Compilation_unit.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
+type instance_args := (Compilation_unit.t * Compilation_unit.t) list
 
-type 'a sig_reader = Persistent_signature.t -> local_ident:Ident.t option -> 'a
+val fold : 'a t
+  -> (Compilation_unit.Name.t -> instance_args:instance_args -> 'a -> 'b -> 'b)
+  -> 'b -> 'b
 
-val read : 'a t -> 'a sig_reader -> Compilation_unit.Name.t -> filepath -> 'a
-val find : 'a t -> 'a sig_reader -> Compilation_unit.Name.t -> 'a
+(* CR lmaurer: Definitely some mess here. Don't need both [instance_args] and
+   [global]. *)
+type 'a sig_reader =
+  Persistent_signature.t
+  -> instance_args:instance_args
+  -> global:Global.t
+  -> local_ident:Ident.t option
+  -> 'a
 
-val find_in_cache : 'a t -> Compilation_unit.Name.t -> 'a option
+val read : 'a t -> 'a sig_reader
+  -> Compilation_unit.Name.t
+  -> instance_args:instance_args
+  -> filepath -> 'a
+
+val find : 'a t -> 'a sig_reader -> Compilation_unit.Name.t
+  -> instance_args:instance_args -> 'a
+
+val find_in_cache : 'a t -> Compilation_unit.Name.t
+  -> instance_args:instance_args
+  -> 'a option
 
 val check : 'a t -> 'a sig_reader -> loc:Location.t -> Compilation_unit.Name.t
+  -> instance_args:instance_args
   -> unit
 
 (* Lets it be known that the given module is a parameter and thus is expected
@@ -85,7 +117,8 @@ val register_parameter : 'a t -> Compilation_unit.t -> exported:bool -> unit
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
    [penv] (it may have failed) *)
-val looked_up : 'a t -> Compilation_unit.Name.t -> bool
+val looked_up : 'a t -> Compilation_unit.Name.t -> instance_args:instance_args
+  -> bool
 
 (* [is_imported_opaque penv md] checks if [md] has been imported
    in [penv] as an opaque module *)
@@ -110,6 +143,15 @@ val local_ident : 'a t -> Compilation_unit.t -> Ident.t option
 val implemented_parameter : 'a t -> Compilation_unit.t
   -> Compilation_unit.t option
 
+val global_of_global_name : 'a t -> 'a sig_reader -> Global.Name.t -> Global.t
+
+val global_of_compilation_unit : 'a t -> 'a sig_reader -> Compilation_unit.t
+  -> Global.t
+
+val compilation_unit_of_global : Global.t -> Compilation_unit.t
+
+val compilation_unit_of_global_name : Global.Name.t -> Compilation_unit.t
+
 val make_cmi : 'a t
   -> Compilation_unit.t
   -> Types.signature
@@ -117,7 +159,7 @@ val make_cmi : 'a t
   -> alerts
   -> Cmi_format.cmi_infos
 
-val save_cmi : 'a t -> Persistent_signature.t -> 'a -> unit
+val save_cmi : 'a t -> 'a sig_reader -> Persistent_signature.t -> 'a -> unit
 
 val can_load_cmis : 'a t -> can_load_cmis
 val set_can_load_cmis : 'a t -> can_load_cmis -> unit

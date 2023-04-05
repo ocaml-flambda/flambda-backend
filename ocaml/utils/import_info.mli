@@ -31,11 +31,17 @@ module CU = Compilation_unit
 
 type t
 
-val create : CU.Name.t -> crc_with_unit:(CU.t * string) option -> t
+val create :
+  CU.Name.t ->
+  instance_arguments:(CU.t * CU.t) list ->
+  crc_with_unit:(CU.t * string) option ->
+  t
 
 val create_normal : CU.t -> crc:string option -> t
 
 val name : t -> CU.Name.t
+
+val instance_arguments : t -> (CU.t * CU.t) list
 
 (** This function will cause a fatal error if a [CU.t] was not provided when the
     supplied value of type [t] was created. *)

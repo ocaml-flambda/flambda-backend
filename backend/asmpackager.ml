@@ -235,6 +235,7 @@ let build_package_cmx members cmxfile =
       ui_implements_param = None;
       ui_imports_cmi =
           (Import_info.create modname
+            ~instance_arguments:[]
             ~crc_with_unit:(Some (ui.ui_unit, Env.crc_of_unit modname))) ::
             filter (Asmlink.extract_crc_interfaces ());
       ui_imports_cmx =

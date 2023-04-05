@@ -917,9 +917,14 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
 let persistent_env : module_data Persistent_env.t ref =
   s_table Persistent_env.empty ()
 
-let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; filename }
-      ~local_ident =
-  let name = cmi.cmi_name in
+let rec sign_of_cmi ~freshen
+      { Persistent_env.Persistent_signature.cmi; filename }
+      ~instance_args ~global ~local_ident =
+  let name =
+    match instance_args with
+    | [] -> cmi.cmi_name
+    | _ -> Compilation_unit.create_instance cmi.cmi_name instance_args
+  in
   let sign = cmi.cmi_sign in
   let secondary_sign = cmi.cmi_secondary_sign in
   let flags = cmi.cmi_flags in
@@ -954,8 +959,10 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; filename }
         end
   in
   let mda_address = Lazy_backtrack.create_forced addr in
+  let instance_subst = subst_of_instance_args global in
   let mda_declaration =
     Subst.(Lazy.module_decl Make_local identity (Lazy.of_module_decl md))
+    |> Subst.Lazy.module_decl Keep instance_subst
   in
   let mda_shape =
     Shape.for_persistent_unit (name |> Compilation_unit.full_path_as_string)
@@ -963,6 +970,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; filename }
   let mda_filename = Some filename in
   let mda_components =
     let mty = Subst.Lazy.of_modtype (Mty_signature sign) in
+    let mty = Subst.Lazy.modtype Keep instance_subst mty in
     let mty =
       if freshen then
         Subst.Lazy.modtype (Subst.Rescope (Path.scope path))
@@ -980,10 +988,25 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; filename }
     mda_shape;
     mda_filename;
   }
+and find_pers_mod name ~instance_args =
+  Persistent_env.find !persistent_env read_sign_of_cmi name ~instance_args
+and read_sign_of_cmi pers_sig ~instance_args =
+  sign_of_cmi pers_sig ~instance_args ~freshen:true
+and subst_of_instance_args (global : Global.t) =
+  match global with
+  | { params = []; args = []; head = _ } -> Subst.identity
+  | _ ->
+      List.fold_left
+        (fun subst (param, value) ->
+            let param_id = Ident.create_global param in
+            let value_id = Ident.create_global (value |> Global.to_name) in
+            Subst.add_module param_id (Pident value_id) subst)
+        (* Go over both the parameters and the arguments, since the
+            parameters may have new types due to other parameters *)
+        Subst.identity
+        (global.params @ global.args)
 
-let read_sign_of_cmi = sign_of_cmi ~freshen:true
-
-let save_sign_of_cmi = sign_of_cmi ~freshen:false
+let save_sign_of_cmi = sign_of_cmi ~instance_args:[] ~freshen:false
 
 let without_cmis f x =
   Persistent_env.without_cmis !persistent_env f x
@@ -999,9 +1022,6 @@ let exported_parameters () = Persistent_env.exported_parameters !persistent_env
 
 let read_pers_mod modname filename =
   Persistent_env.read !persistent_env read_sign_of_cmi modname filename
-
-let find_pers_mod name =
-  Persistent_env.find !persistent_env read_sign_of_cmi name
 
 let check_pers_mod ~loc name =
   Persistent_env.check !persistent_env read_sign_of_cmi ~loc name
@@ -1089,15 +1109,28 @@ let check_functor_appl
       ~arg_path ~arg_mty ~param_mty
       env
 
-let modname_of_ident id = Ident.name id |> Compilation_unit.Name.of_string
-
 (* Lookup by identifier *)
+
+let modname_and_instance_args_of_global_name g =
+  let cu = g |> Persistent_env.compilation_unit_of_global_name in
+  Compilation_unit.name cu, Compilation_unit.instance_arguments cu
+
+let modname_and_instance_args_of_ident id =
+  assert (Ident.is_global id); (* includes instance *)
+  match Ident.to_global id with
+  | Some g ->
+      modname_and_instance_args_of_global_name g
+  | None ->
+      let name = Ident.name id |> Compilation_unit.Name.of_string in
+      name, []
 
 let find_ident_module id env =
   match find_same_module id env.modules with
   | Mod_local data -> data
   | Mod_unbound _ -> raise Not_found
-  | Mod_persistent -> find_pers_mod (id |> modname_of_ident)
+  | Mod_persistent ->
+      let modname, instance_args = id |> modname_and_instance_args_of_ident in
+      find_pers_mod modname ~instance_args
 
 let rec find_module_components path env =
   match path with
@@ -1340,10 +1373,17 @@ let find_hash_type path env =
   | Papply _ ->
       raise Not_found
 
+let find_compilation_unit_data cu =
+  (* Supporting packed units here might be desirable but it would be more
+     trouble than it's worth: this code is currently only used for
+     [-as-argument-for] and [-instantiate], which don't support packs *)
+  assert (not (Compilation_unit.is_packed cu));
+  let name = Compilation_unit.name cu in
+  let instance_args = Compilation_unit.instance_arguments cu in
+  find_pers_mod name ~instance_args
+
 let find_compilation_unit cu =
-  (* This is currently only used for [-as-argument-for], which doesn't support
-     packs *)
-  let mda = find_pers_mod (Compilation_unit.name cu) in
+  let mda = find_compilation_unit_data cu in
   let decl = Subst.Lazy.force_module_decl mda.mda_declaration in
   match decl.md_type, mda.mda_filename with
   | Mty_signature sg, Some filename -> sg, filename
@@ -1569,14 +1609,17 @@ let make_copy_of_types env0 =
 type iter_cont = unit -> unit
 let iter_env_cont = ref []
 
+let global_ident_is_looked_up id =
+  let modname, instance_args = id |> modname_and_instance_args_of_ident in
+  Persistent_env.looked_up !persistent_env modname ~instance_args
+
 let rec scrape_alias_for_visit env mty =
   let open Subst.Lazy in
   match mty with
   | MtyL_alias path -> begin
       match path with
       | Pident id
-        when Ident.is_global id
-          && not (Persistent_env.looked_up !persistent_env (id |> modname_of_ident)) ->
+        when Ident.is_global id && not (global_ident_is_looked_up id) ->
           false
       | path -> (* PR#6600: find_module may raise Not_found *)
           try
@@ -1616,8 +1659,12 @@ let iter_env wrap proj1 proj2 f env () =
        | Mod_local data ->
            iter_components (Pident id) path data.mda_components
        | Mod_persistent ->
-           let modname = modname_of_ident id in
-           match Persistent_env.find_in_cache !persistent_env modname with
+           let modname, instance_args =
+             id |> modname_and_instance_args_of_ident
+           in
+           match
+             Persistent_env.find_in_cache !persistent_env modname ~instance_args
+           with
            | None -> ()
            | Some data ->
                iter_components (Pident id) path data.mda_components)
@@ -1639,7 +1686,7 @@ let same_types env1 env2 =
 
 let used_persistent () =
   Persistent_env.fold !persistent_env
-    (fun s _m r -> Compilation_unit.Name.Set.add s r)
+    (fun s ~instance_args:_ _m r -> Compilation_unit.Name.Set.add s r)
     Compilation_unit.Name.Set.empty
 
 let find_all_comps wrap proj s (p, mda) =
@@ -2613,8 +2660,9 @@ let open_signature
 
 (* Read a signature from a file *)
 let read_signature modname filename =
+  let instance_args = Compilation_unit.instance_arguments modname in
   let mda =
-    read_pers_mod (Compilation_unit.name modname) filename
+    read_pers_mod (Compilation_unit.name modname) filename ~instance_args
   in
   let md = Subst.Lazy.force_module_decl mda.mda_declaration in
   match md.md_type with
@@ -2665,9 +2713,29 @@ let save_signature_with_transform
     (* CR lmaurer: Sure hope this isn't necessary *)
     None
   in
+  let global : Global.t =
+    let head = Compilation_unit.name_as_string modname in
+    (* CR lmaurer: Yuck. Duplicating some logic here. *)
+    if Compilation_unit.is_packed modname then
+      (* This won't matter anyway *)
+      { head; args = []; params = [] }
+    else
+      let params =
+        List.map
+          (fun param ->
+             let glob =
+               Persistent_env.global_of_compilation_unit !persistent_env
+                 read_sign_of_cmi param
+             in
+             (glob |> Global.to_name, glob))
+          cmi.cmi_params
+      in
+      { head; params; args = [] }
+  in
   let pm = save_sign_of_cmi
-      { Persistent_env.Persistent_signature.cmi; filename } ~local_ident in
-  Persistent_env.save_cmi !persistent_env
+      { Persistent_env.Persistent_signature.cmi; filename } ~local_ident ~global
+  in
+  Persistent_env.save_cmi !persistent_env read_sign_of_cmi
     { Persistent_env.Persistent_signature.filename; cmi } pm;
   cmi
 
@@ -2889,12 +2957,15 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
       report_module_unbound ~errors ~loc env reason
   | Mod_persistent -> begin
       let name = s |> Compilation_unit.Name.of_string in
+      (* This is only used when processing [Longident.t]s, which never have
+         instance arguments *)
+      let instance_args = [] in
       match load with
       | Don't_load ->
-          check_pers_mod ~loc name;
+          check_pers_mod ~loc name ~instance_args;
           path, (() : a)
       | Load -> begin
-          match find_pers_mod name with
+          match find_pers_mod name ~instance_args with
           | mda ->
               use_module ~use ~loc path mda;
               path, (mda : a)
@@ -3484,7 +3555,15 @@ let fold_modules f lid env acc =
                f name p md acc
            | Mod_persistent ->
                let modname = name |> Compilation_unit.Name.of_string in
-               match Persistent_env.find_in_cache !persistent_env modname with
+               match
+                 (* CR lmaurer: Setting instance args to [] here isn't right. We
+                    really should have [IdTbl.fold_name] provide the whole ident
+                    rather than just the name. It looks like the only immediate
+                    consequence of this is that spellcheck won't suggest
+                    instance names (which is good!). *)
+                 Persistent_env.find_in_cache !persistent_env modname
+                   ~instance_args:[]
+               with
                | None -> acc
                | Some mda ->
                    let md =
@@ -3549,7 +3628,12 @@ let filter_non_loaded_persistent f env =
          | Mod_unbound _ -> acc
          | Mod_persistent ->
              let modname = name |> Compilation_unit.Name.of_string in
-             match Persistent_env.find_in_cache !persistent_env modname with
+             match
+               (* CR lmaurer: Again, setting [instance_args] to [] here is weird
+                  but fine for the moment *)
+               Persistent_env.find_in_cache !persistent_env modname
+                 ~instance_args:[]
+             with
              | Some _ -> acc
              | None ->
                  if f (Ident.create_persistent name) then

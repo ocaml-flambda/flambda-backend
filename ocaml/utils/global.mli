@@ -50,6 +50,13 @@ type subst = t Name.Map.t
 
 val subst : t -> subst -> t
 
+(** Apply a substitution to the arguments and parameters in [t] but not to [t]
+    itself. Useful if [subst] is constructed from some parameter-argument pairs
+    and [t] is one of the parameters, since we want to handle any
+    interdependencies but the substitution applied to [t] itself is
+    uninterestingly just the corresponding value. *)
+val subst_inside : t -> subst -> t
+
 (** Check that a substitution is a valid (possibly partial) instantiation of
     a module with the given parameter list. Each name being substituted must
     appear in the list. *)

@@ -229,6 +229,10 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let for_pack_prefix = CU.Prefix.from_clflags () in
     let modname = targetname |> CU.Name.of_string in
     let cu_name = CU.create for_pack_prefix modname in
+    let instance_arguments =
+      (* Instances not supported with packs *)
+      []
+    in
     let compunit =
       { cu_name;
         cu_pos = pos_code;
@@ -236,7 +240,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
         cu_reloc = List.rev !relocs;
         cu_imports =
           Array.of_list
-            ((Import_info.create modname
+            ((Import_info.create modname ~instance_arguments
                ~crc_with_unit:(Some (cu_name, Env.crc_of_unit modname)))
               :: imports);
         cu_runtime_params = [||]; (* Open modules not supported with packs *)

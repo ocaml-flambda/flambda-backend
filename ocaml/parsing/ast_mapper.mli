@@ -87,6 +87,8 @@ type mapper = {
   module_declaration: mapper -> module_declaration -> module_declaration;
   module_substitution: mapper -> module_substitution -> module_substitution;
   module_expr: mapper -> module_expr -> module_expr;
+  module_expr_extension: mapper ->
+    Extensions.Module_expr.t -> Extensions.Module_expr.t;
   module_type: mapper -> module_type -> module_type;
   module_type_declaration: mapper -> module_type_declaration
                            -> module_type_declaration;

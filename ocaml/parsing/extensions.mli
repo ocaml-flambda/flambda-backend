@@ -85,6 +85,19 @@ module Strengthen : sig
   val mty_of : loc:Location.t -> module_type -> Parsetree.module_type_desc
 end
 
+module Instances : sig
+  type instance = Global.Name.t = {
+    head : string;
+    args : (instance * instance) list
+  }
+
+  type module_expr =
+    | Imod_instance of instance
+
+  val module_expr_of : loc:Location.t -> module_expr
+    -> Parsetree.module_expr_desc
+end
+
 (******************************************)
 (* General facility, which we export *)
 
@@ -170,4 +183,12 @@ module Module_type : sig
     | Emty_strengthen of Strengthen.module_type
 
   include AST with type t := t and type ast := Parsetree.module_type
+end
+
+(** Language extensions in module expressions *)
+module Module_expr : sig
+  type t =
+    | Emod_instance of Instances.module_expr
+
+  include AST with type t := t and type ast := Parsetree.module_expr
 end

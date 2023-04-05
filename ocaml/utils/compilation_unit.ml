@@ -23,20 +23,15 @@ module String = Misc.Stdlib.String
 type error =
   | Invalid_character of char * string
   | Bad_compilation_unit_name of string
+  | Child_of_instance of { child_name : string }
+  | Packed_instance of { name : string }
+  | Duplicate_argument of
+      { param : string;
+        value1 : string;
+        value2 : string
+      }
 
 exception Error of error
-
-(* CR-someday lmaurer: Move this to [Identifiable] and change /all/ definitions
-   of [output] that delegate to [print] to use it. Yes, they're all broken. *)
-let output_of_print print =
-  let output out_channel t =
-    let ppf = Format.formatter_of_out_channel out_channel in
-    print ppf t;
-    (* Must flush the formatter immediately because it has a buffer separate
-       from the output channel's buffer *)
-    Format.pp_print_flush ppf ()
-  in
-  output
 
 module Name : sig
   type t
@@ -71,7 +66,7 @@ end = struct
 
     let print = String.print
 
-    let output = output_of_print print
+    let output = Misc.output_of_print print
   end)
 
   let isupper chr = Char.equal (Char.uppercase_ascii chr) chr
@@ -134,7 +129,7 @@ end = struct
         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ".")
         Name.print ppf p
 
-    let output = output_of_print print
+    let output = Misc.output_of_print print
   end)
 
   let is_valid_character first_char c =
@@ -170,38 +165,57 @@ end = struct
 end
 
 module T0 : sig
-  type t
+  type descr = private
+    { name : Name.t;
+      for_pack_prefix : Prefix.t;
+      arguments : (t * t) list
+    }
 
-  val for_pack_prefix_and_name : t -> Prefix.t * Name.t
+  and t
+
+  val descr : t -> descr
 
   val name : t -> Name.t
 
+  val is_plain_name : t -> bool
+
   val for_pack_prefix : t -> Prefix.t
 
-  val create : Prefix.t -> Name.t -> t
+  val instance_arguments : t -> (t * t) list
+
+  val create_full : Prefix.t -> Name.t -> (t * t) list -> t
+
+  val compare : t -> t -> int
 end = struct
-  (* As with [Name.t], changing [with_prefix] or [t] requires bumping magic
+  (* As with [Name.t], changing [descr] or [t] requires bumping magic
      numbers. *)
-  type with_prefix =
+  type descr =
     { name : Name.t;
-      for_pack_prefix : Prefix.t
+      for_pack_prefix : Prefix.t;
+      arguments : (t * t) list
     }
 
   (* type t = Without_prefix of Name.t [@@unboxed] | With_prefix of
      with_prefix *)
-  type t = Obj.t
+  and t = Obj.t
 
   (* Some manual inlining is done here to ensure good performance under
      Closure. *)
 
-  let for_pack_prefix_and_name t =
+  let is_plain_name t =
+    let tag = Obj.tag t in
+    tag = Obj.string_tag
+
+  let descr t =
     let tag = Obj.tag t in
     assert (tag = 0 || tag = Obj.string_tag);
     if tag <> 0
-    then Prefix.empty, Sys.opaque_identity (Obj.obj t : Name.t)
-    else
-      let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
-      with_prefix.for_pack_prefix, with_prefix.name
+    then
+      { name = Sys.opaque_identity (Obj.obj t : Name.t);
+        for_pack_prefix = Prefix.empty;
+        arguments = []
+      }
+    else Sys.opaque_identity (Obj.obj t : descr)
 
   let name t =
     let tag = Obj.tag t in
@@ -209,7 +223,7 @@ end = struct
     if tag <> 0
     then Sys.opaque_identity (Obj.obj t : Name.t)
     else
-      let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
+      let with_prefix = Sys.opaque_identity (Obj.obj t : descr) in
       with_prefix.name
 
   let for_pack_prefix t =
@@ -218,26 +232,81 @@ end = struct
     if tag <> 0
     then Prefix.empty
     else
-      let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
-      with_prefix.for_pack_prefix
+      let descr = Sys.opaque_identity (Obj.obj t : descr) in
+      descr.for_pack_prefix
 
-  let create for_pack_prefix name =
+  let instance_arguments t =
+    let tag = Obj.tag t in
+    assert (tag = 0 || tag = Obj.string_tag);
+    if tag <> 0
+    then []
+    else
+      let descr = Sys.opaque_identity (Obj.obj t : descr) in
+      descr.arguments
+
+  let rec compare t1 t2 =
+    if t1 == t2
+    then 0
+    else
+      let { for_pack_prefix = for_pack_prefix1;
+            name = name1;
+            arguments = args1
+          } =
+        descr t1
+      in
+      let { for_pack_prefix = for_pack_prefix2;
+            name = name2;
+            arguments = args2
+          } =
+        descr t2
+      in
+      let c = Name.compare name1 name2 in
+      if c <> 0
+      then c
+      else
+        let c = Prefix.compare for_pack_prefix1 for_pack_prefix2 in
+        if c <> 0 then c else List.compare compare_instance_arg args1 args2
+
+  and compare_instance_arg (param1, value1) (param2, value2) =
+    let c = compare param1 param2 in
+    if c <> 0 then c else compare value1 value2
+
+  let create_full for_pack_prefix name arguments =
     let empty_prefix = Prefix.is_empty for_pack_prefix in
+    let empty_arguments = match arguments with [] -> true | _ -> false in
     let () =
       if not empty_prefix
       then (
+        let () =
+          if not empty_arguments
+          then
+            (* CR-someday lmaurer: [for_pack_prefix] and [arguments] would make
+               for better output but it doesn't seem worth moving both [error]
+               and [print] to before this point *)
+            raise (Error (Packed_instance { name = name |> Name.to_string }))
+        in
         Name.check_as_path_component name;
         ListLabels.iter ~f:Name.check_as_path_component
           (for_pack_prefix |> Prefix.to_list))
     in
-    if empty_prefix
+    let arguments =
+      ListLabels.sort arguments ~cmp:(fun (param1, _) (param2, _) ->
+          compare param1 param2)
+    in
+    if empty_prefix && empty_arguments
     then Sys.opaque_identity (Obj.repr name)
-    else Sys.opaque_identity (Obj.repr { for_pack_prefix; name })
+    else Sys.opaque_identity (Obj.repr { for_pack_prefix; name; arguments })
 end
 
 include T0
 
+let create prefix name = create_full prefix name []
+
 let create_child parent name_ =
+  if not (Prefix.is_empty (for_pack_prefix parent))
+  then
+    (* CR-someday lmaurer: Same as for [create_full] *)
+    raise (Error (Child_of_instance { child_name = name_ |> Name.to_string }));
   let prefix =
     (for_pack_prefix parent |> Prefix.to_list) @ [name parent] |> Prefix.of_list
   in
@@ -261,6 +330,9 @@ let predef_exn = create Prefix.empty Name.predef_exn
 
 let name_as_string t = name t |> Name.to_string
 
+let equal_to_name t other_name =
+  is_plain_name t && Name.equal other_name (name t)
+
 let with_for_pack_prefix t for_pack_prefix = create for_pack_prefix (name t)
 
 let is_packed t = not (Prefix.is_empty (for_pack_prefix t))
@@ -268,31 +340,101 @@ let is_packed t = not (Prefix.is_empty (for_pack_prefix t))
 include Identifiable.Make (struct
   type nonrec t = t
 
-  let compare t1 t2 =
-    if t1 == t2
-    then 0
-    else
-      let for_pack_prefix1, name1 = for_pack_prefix_and_name t1 in
-      let for_pack_prefix2, name2 = for_pack_prefix_and_name t2 in
-      let c = Name.compare name1 name2 in
-      if c <> 0 then c else Prefix.compare for_pack_prefix1 for_pack_prefix2
+  let compare = compare
 
   let equal x y = if x == y then true else compare x y = 0
 
-  let print fmt t =
-    let for_pack_prefix, name = for_pack_prefix_and_name t in
-    if Prefix.is_empty for_pack_prefix
-    then Format.fprintf fmt "%a" Name.print name
-    else Format.fprintf fmt "%a.%a" Prefix.print for_pack_prefix Name.print name
+  let rec print fmt t =
+    let { for_pack_prefix; name; arguments } = descr t in
+    let () =
+      if Prefix.is_empty for_pack_prefix
+      then Format.fprintf fmt "%a" Name.print name
+      else
+        Format.fprintf fmt "%a.%a" Prefix.print for_pack_prefix Name.print name
+    in
+    ListLabels.iter ~f:(print_arg fmt) arguments
 
-  let output = output_of_print print
+  and print_arg fmt (param, value) =
+    Format.fprintf fmt "[%a:%a]" print param print value
 
-  let hash t =
-    let for_pack_prefix, name = for_pack_prefix_and_name t in
-    Hashtbl.hash (Name.hash name, Prefix.hash for_pack_prefix)
+  let output = Misc.output_of_print print
+
+  let rec hash t =
+    let { for_pack_prefix; name; arguments } = descr t in
+    Hashtbl.hash
+      ( Name.hash name,
+        Prefix.hash for_pack_prefix,
+        ListLabels.map ~f:hash_arg arguments )
+
+  and hash_arg (param, value) = Hashtbl.hash (hash param, hash value)
 end)
 
+let full_path_as_string t =
+  (* We take care not to break sharing when the prefix is empty. However we
+     can't share in the case where there is a prefix. *)
+  if Prefix.is_empty (for_pack_prefix t)
+  then Name.to_string (name t)
+  else Format.asprintf "%a" print t
+
+let is_instance t =
+  match instance_arguments t with [] -> false | _ :: _ -> true
+
+let create_instance t arguments =
+  let { for_pack_prefix; name; arguments = existing_arguments } = descr t in
+  let cmp (param1, _) (param2, _) = compare param1 param2 in
+  let arguments = ListLabels.sort ~cmp arguments in
+  let arguments =
+    List.merge_map ~cmp
+      ~left_only:(fun arg -> arg)
+      ~right_only:(fun arg -> arg)
+      ~both:(fun (param, value1) (value2, _) ->
+        raise
+          (Error
+             (Duplicate_argument
+                { param = full_path_as_string param;
+                  value1 = full_path_as_string value1;
+                  value2 = full_path_as_string value2
+                })))
+      arguments existing_arguments
+  in
+  create_full for_pack_prefix name arguments
+
+let split_instance_exn t =
+  match descr t with
+  | { arguments = []; _ } ->
+    Misc.fatal_errorf "@[<hov 1>Not an instance:@ %a@]" print t
+  | { name; for_pack_prefix; arguments } ->
+    create_full for_pack_prefix name [], arguments
+
 let full_path t = Prefix.to_list (for_pack_prefix t) @ [name t]
+
+let flatten t =
+  let rec flatten_arg (param, value) ~depth =
+    assert (not (is_packed value));
+    let param_name = name param in
+    let { name; arguments; _ } = descr value in
+    (depth, param_name, name)
+    :: ListLabels.concat_map ~f:(flatten_arg ~depth:(depth + 1)) arguments
+  in
+  let { for_pack_prefix; name; arguments } = descr t in
+  ( for_pack_prefix,
+    name,
+    ListLabels.concat_map ~f:(flatten_arg ~depth:0) arguments )
+
+let base_filename t =
+  (* This is a one-way function. Please don't parse anything out of it. Consider
+     the following formatting details to be a state secret (shared only with
+     Dune). *)
+  let _prefix, name, arguments = flatten t in
+  let arg_segments =
+    ListLabels.map arguments ~f:(fun (depth, _param, value) ->
+        (* Dropping the parameter names in the hopes of keeping the filenames
+           _extremely_ long rather than _excruciatingly_ long. I will not be
+           surprised if we decide that we're better off with the parameter names
+           because the filenames are beyond hope anyway. *)
+        String.make (depth + 1) '-' ^ (value |> Name.to_string))
+  in
+  String.concat "" ((name |> Name.to_string) :: arg_segments)
 
 let is_parent t ~child =
   List.equal Name.equal (full_path t) (Prefix.to_list (for_pack_prefix child))
@@ -325,6 +467,7 @@ let which_cmx_file desired_comp_unit ~accessed_by : t =
        current pack. *)
     desired_comp_unit
   else
+    let () = assert (not (is_instance desired_comp_unit)) in
     (* This lines up the full paths as described above. *)
     let rec match_components ~current ~desired ~acc_rev =
       match current, desired with
@@ -368,13 +511,6 @@ let which_cmx_file desired_comp_unit ~accessed_by : t =
     create (ListLabels.rev prefix_rev |> Prefix.of_list) name
 
 let print_name ppf t = Format.fprintf ppf "%a" Name.print (name t)
-
-let full_path_as_string t =
-  (* We take care not to break sharing when the prefix is empty. However we
-     can't share in the case where there is a prefix. *)
-  if Prefix.is_empty (for_pack_prefix t)
-  then Name.to_string (name t)
-  else Format.asprintf "%a" print t
 
 let to_global_ident_for_bytecode t =
   Ident.create_persistent (full_path_as_string t)

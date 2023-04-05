@@ -115,7 +115,11 @@ let check_consistency ~unit cmis cmxs =
 let extract_crc_interfaces () =
   CU.Name.Tbl.fold (fun name () crcs ->
       let crc_with_unit = Cmi_consistbl.find crc_interfaces name in
-      Import_info.create name ~crc_with_unit :: crcs)
+      let instance_arguments =
+        (* We never import an interface with instance arguments *)
+        []
+      in
+      Import_info.create name ~crc_with_unit ~instance_arguments :: crcs)
     interfaces
     []
 

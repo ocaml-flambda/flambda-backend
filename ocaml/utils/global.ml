@@ -114,24 +114,25 @@ let union_args args1 args2 =
               print value1
               print value2)
 
-let rec subst ({ head; args; params } as param) (s : subst) =
+let rec subst param (s : subst) =
   match Subst.find_opt (to_name param) s with
   | Some rhs -> rhs
-  | None ->
-      let matching_params, non_matching_params =
-        List.partition_map
-          (fun (name, value) ->
-              match Subst.find_opt (to_name value) s with
-              | Some rhs -> Left (name, rhs)
-              | None -> Right (name, value))
-          params
-      in
-      let args = List.map (fun pair -> subst_pair pair s) args in
-      let params =
-        List.map (fun pair -> subst_pair pair s) non_matching_params
-      in
-      let args = union_args args matching_params in
-      { head; args; params }
+  | None -> subst_inside param s
+and subst_inside { head; args; params } (s : subst) =
+  let matching_params, non_matching_params =
+    List.partition_map
+      (fun (name, value) ->
+         match Subst.find_opt (to_name value) s with
+         | Some rhs -> Left (name, rhs)
+         | None -> Right (name, value))
+      params
+  in
+  let args = List.map (fun pair -> subst_pair pair s) args in
+  let params =
+    List.map (fun pair -> subst_pair pair s) non_matching_params
+  in
+  let args = union_args args matching_params in
+  { head; args; params }
 and subst_pair (name, value) s =
   name, subst value s
 

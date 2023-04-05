@@ -215,7 +215,11 @@ let check_consistency file_name cu =
 let extract_crc_interfaces () =
   Consistbl.extract !interfaces crc_interfaces
   |> List.map (fun (name, crc_with_unit) ->
-       Import_info.create name ~crc_with_unit)
+       let instance_arguments =
+         (* Interfaces are always imported with no instance arguments *)
+         []
+       in
+       Import_info.create name ~instance_arguments ~crc_with_unit)
 
 let clear_crc_interfaces () =
   Consistbl.clear crc_interfaces;

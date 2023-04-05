@@ -55,6 +55,7 @@ type iterator = {
   module_declaration: iterator -> module_declaration -> unit;
   module_substitution: iterator -> module_substitution -> unit;
   module_expr: iterator -> module_expr -> unit;
+  module_expr_extension: iterator -> Extensions.Module_expr.t -> unit;
   module_type: iterator -> module_type -> unit;
   module_type_declaration: iterator -> module_type_declaration -> unit;
   module_type_extension: iterator -> Extensions.Module_type.t -> unit;

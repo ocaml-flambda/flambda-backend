@@ -301,6 +301,30 @@ module Module_type = Make_AST(struct
       | _ -> None
 end)
 
+(** Module expressions; embedded as [[%extension.EXTNAME](BODY)]. *)
+module Module_expr = Make_AST(struct
+    type ast = module_expr
+    type ast_desc = module_expr_desc
+
+    let plural = "module expressions"
+
+    let location mexpr = mexpr.pmod_loc
+
+    let wrap_desc ~loc ~attrs = Ast_helper.Mod.mk ~loc ~attrs
+
+    let make_extension_node = Ast_helper.Mod.extension
+
+    let make_extension_use ~extension_node mexpr =
+      Pmod_apply(extension_node, mexpr)
+
+    let match_extension_use mexpr =
+      match mexpr.pmod_desc with
+      | Pmod_apply({pmod_desc = Pmod_extension ext; _}, mexpr) ->
+          Some (ext, mexpr)
+      | _ ->
+          None
+  end)
+
 (******************************************************************************)
 (** Generically lift and lower our custom language extension ASTs from/to OCaml
     ASTs. *)

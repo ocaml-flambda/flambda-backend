@@ -58,6 +58,8 @@ type mapper = {
   module_declaration: mapper -> module_declaration -> module_declaration;
   module_substitution: mapper -> module_substitution -> module_substitution;
   module_expr: mapper -> module_expr -> module_expr;
+  module_expr_extension: mapper
+    -> Extensions.Module_expr.t -> Extensions.Module_expr.t;
   module_type: mapper -> module_type -> module_type;
   module_type_declaration: mapper -> module_type_declaration
                            -> module_type_declaration;
@@ -354,12 +356,30 @@ end
 
 
 module M = struct
-  (* Value expressions for the module language *)
+  module I = Extensions.Instances
 
-  let map sub {pmod_loc = loc; pmod_desc = desc; pmod_attributes = attrs} =
+  (* Value expressions for the module language *)
+  let map_instance _sub : I.instance -> I.instance = function
+    | i -> i (* Currently treating these as atomic? *)
+
+  let map_instance_expr sub : I.module_expr -> I.module_expr = function
+    | Imod_instance i -> Imod_instance (map_instance sub i)
+
+  let map_ext sub : Extensions.Module_expr.t -> Extensions.Module_expr.t = function
+    | Emod_instance i -> Emod_instance (map_instance_expr sub i)
+
+  let map sub
+        ({pmod_loc = loc; pmod_desc = desc; pmod_attributes = attrs} as mexpr) =
     let open Mod in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
+    match Extensions.Module_expr.of_ast mexpr with
+    | Some ext -> begin
+        Extensions_parsing.Module_expr.wrap_desc ~loc ~attrs @@
+        match sub.module_expr_extension sub ext with
+        | Emod_instance i -> Extensions.Instances.module_expr_of ~loc i
+      end
+    | None ->
     match desc with
     | Pmod_ident x -> ident ~loc ~attrs (map_loc sub x)
     | Pmod_structure str -> structure ~loc ~attrs (sub.structure sub str)
@@ -671,6 +691,7 @@ let default_mapper =
     structure = (fun this l -> List.map (this.structure_item this) l);
     structure_item = M.map_structure_item;
     module_expr = M.map;
+    module_expr_extension = M.map_ext;
     signature = (fun this l -> List.map (this.signature_item this) l);
     signature_item = MT.map_signature_item;
     module_type = MT.map;

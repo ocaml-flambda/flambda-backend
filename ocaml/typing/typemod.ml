@@ -2240,42 +2240,16 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
     (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
 
 and type_module_aux ~alias sttn funct_body anchor env smod =
+  match Extensions.Module_expr.of_ast smod with
+    Some ext ->
+      type_module_extension_aux ~alias sttn env smod ext
+  | None ->
   match smod.pmod_desc with
     Pmod_ident lid ->
       let path =
         Env.lookup_module_path ~load:(not alias) ~loc:smod.pmod_loc lid.txt env
       in
-      let md = { mod_desc = Tmod_ident (path, lid);
-                 mod_type = Mty_alias path;
-                 mod_env = env;
-                 mod_attributes = smod.pmod_attributes;
-                 mod_loc = smod.pmod_loc } in
-      let aliasable = not (Env.is_functor_arg path env) in
-      let shape =
-        Env.shape_of_path ~namespace:Shape.Sig_component_kind.Module env path
-      in
-      let md =
-        if alias && aliasable then
-          (Env.add_required_global path env; md)
-        else begin
-          let mty = Mtype.find_type_of_module
-              ~strengthen:sttn ~aliasable env path
-          in
-          match mty with
-          | Mty_alias p1 when not alias ->
-              let p1 = Env.normalize_module_path (Some smod.pmod_loc) env p1 in
-              let mty = Includemod.expand_module_alias
-                  ~strengthen:sttn env p1 in
-              { md with
-                mod_desc =
-                  Tmod_constraint (md, mty, Tmodtype_implicit,
-                                   Tcoerce_alias (env, path, Tcoerce_none));
-                mod_type = mty }
-          | mty ->
-              { md with mod_type = mty }
-        end
-      in
-      md, shape
+      type_module_path_aux ~alias sttn env path lid smod
   | Pmod_structure sstr ->
       let (str, sg, names, shape, _finalenv) =
         type_structure funct_body anchor env sstr in
@@ -2377,6 +2351,55 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       Shape.leaf_for_unpack
   | Pmod_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
+
+and type_module_extension_aux ~alias sttn env smod
+      : Extensions.Module_expr.t -> _ =
+  function
+  | Emod_instance (Imod_instance glob) ->
+      (* Assume the name we have is truly a global. Someday we'll allow
+         local aliases in instance names and at that point this won't work. *)
+      let path = Pident (glob |> Ident.create_global) in
+      let lid =
+        (* Only used by [untypeast] *)
+        let name =
+          Format.asprintf "*instance %a*" Global.Name.print glob
+        in
+        Lident name |> Location.mknoloc
+      in
+      type_module_path_aux ~alias sttn env path lid smod
+
+and type_module_path_aux ~alias sttn env path lid smod =
+  let md = { mod_desc = Tmod_ident (path, lid);
+             mod_type = Mty_alias path;
+             mod_env = env;
+             mod_attributes = smod.pmod_attributes;
+             mod_loc = smod.pmod_loc } in
+  let aliasable = not (Env.is_functor_arg path env) in
+  let shape =
+    Env.shape_of_path ~namespace:Shape.Sig_component_kind.Module env path
+  in
+  let md =
+    if alias && aliasable then
+      (Env.add_required_global path env; md)
+    else begin
+      let mty = Mtype.find_type_of_module
+          ~strengthen:sttn ~aliasable env path
+      in
+      match mty with
+      | Mty_alias p1 when not alias ->
+          let p1 = Env.normalize_module_path (Some smod.pmod_loc) env p1 in
+          let mty = Includemod.expand_module_alias
+              ~strengthen:sttn env p1 in
+          { md with
+            mod_desc =
+              Tmod_constraint (md, mty, Tmodtype_implicit,
+                               Tcoerce_alias (env, path, Tcoerce_none));
+            mod_type = mty }
+      | mty ->
+          { md with mod_type = mty }
+    end
+  in
+  md, shape
 
 and type_application loc strengthen funct_body env smod =
   let rec extract_application funct_body env sargs smod =

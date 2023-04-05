@@ -137,6 +137,8 @@ module Pattern     : AST with type ast      = Parsetree.pattern
                           and type ast_desc = Parsetree.pattern_desc
 module Module_type : AST with type ast      = Parsetree.module_type
                           and type ast_desc = Parsetree.module_type_desc
+module Module_expr : AST with type ast      = Parsetree.module_expr
+                          and type ast_desc = Parsetree.module_expr_desc
 
 (** Each syntactic category will include a module that meets this signature.
     Then, the [Make_of_ast] functor produces the functions that actually

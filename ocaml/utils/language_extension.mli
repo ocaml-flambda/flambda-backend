@@ -8,6 +8,7 @@ type t =
   | Polymorphic_parameters
   | Immutable_arrays
   | Module_strengthening
+  | Instances
 
 (** Equality on language extensions *)
 val equal : t -> t -> bool

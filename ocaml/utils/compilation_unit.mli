@@ -95,6 +95,11 @@ val create : Prefix.t -> Name.t -> t
     parent compilation unit as the prefix. *)
 val create_child : t -> Name.t -> t
 
+(** Create a compilation unit that's an instantiation of another unit with
+    given arguments. The arguments will be sorted alphabetically by
+    parameter name. *)
+val create_instance : t -> (t * t) list -> t
+
 (** Create a compilation unit from the given [name]. No prefix is allowed;
     throws a fatal error if there is a "." in the name. (As a special case,
     a "." is allowed as the first character, to handle compilation units
@@ -172,6 +177,14 @@ val name : t -> Name.t
    finished. *)
 val name_as_string : t -> string
 
+(** Whether the compilation unit is a name without any prefix or instance
+    arguments. *)
+val is_plain_name : t -> bool
+
+(** Whether the compilation unit has the given name and neither a prefix nor any
+    instance arguments. *)
+val equal_to_name : t -> Name.t -> bool
+
 (** The "-for-pack" prefix associated with the given compilation unit. *)
 val for_pack_prefix : t -> Prefix.t
 
@@ -190,9 +203,49 @@ val full_path : t -> Name.t list
     usual conventions. *)
 val full_path_as_string : t -> string
 
+(** Returns the string that should form the base of the .cmx/o file for this
+    unit. Usually just [name_as_string t] uncapitalized, but if there are
+    instance arguments, they're encoded in a Bash-friendly but otherwise
+    unspecified manner. *)
+val base_filename : t -> Misc.filepath
+
+(** Return a representation of the name as its prefix, its name, and its
+    arguments with nesting levels attached. Good for implementing horrible name
+    mangling and little else. So:
+
+      * [Foo] ==> [[], "Foo", []]
+      * [Foo[X:Bar]] ==> [[], "Foo", [(0, "X", "Bar")]]
+      * [Foo[X:Bar][Y:Baz]] ==> [[], "Foo", [(0, "X", "Bar"); (0, "Y", "Baz")]]
+      * [Foo[X:Bar[Y:Baz]]] ==> [[], "Foo", [(0, "X", "Bar"); (1, "Y", "Baz")]]
+
+    I believe it's possible to parse this form back to the usual nested form,
+    which one should only want to do in order to prove the encoding is
+    unambiguous.
+*)
+val flatten : t -> Prefix.t * Name.t * (int * Name.t * Name.t) list
+
+(** Returns the arguments in the compilation unit, if it is an instance, or
+    the empty list otherwise. *)
+val instance_arguments : t -> (t * t) list
+
+(** Returns [true] iff the given compilation unit is an instance (equivalent
+    to [instance_arguments t <> []]). *)
+val is_instance : t -> bool
+
+(** Returns the unit that was instantiated and the arguments it was given, if
+    this is an instance, throwing a fatal error otherwise. *)
+val split_instance_exn : t -> t * (t * t) list
+
 type error = private
   | Invalid_character of char * string
   | Bad_compilation_unit_name of string
+  | Child_of_instance of { child_name : string }
+  | Packed_instance of { name : string }
+  | Duplicate_argument of
+      { param : string;
+        value1 : string;
+        value2 : string
+      }
 
 (** The exception raised by conversion functions in this module. *)
 exception Error of error
