@@ -370,14 +370,14 @@ module Utils = struct
 end
 
 (* Returns `true` if new temporaries have been introduced. *)
-let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> bool
+let rewrite : State.t -> Cfg_with_liveness.t -> spilled_nodes:Reg.t list -> reset:bool -> bool
     =
- fun state cfg_with_liveness spilled_nodes ~reset ->
+ fun state cfg_with_liveness ~spilled_nodes ~reset ->
   let new_temporaries =
     Cfg_regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)
-      state cfg_with_liveness spilled_nodes
+      state cfg_with_liveness ~spilled_nodes
   in
   match new_temporaries, reset with
   | [], _ -> false
@@ -477,7 +477,7 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
           log ~indent:1 "/!\\ register %a needs to be spilled" Printmach.reg reg);
     match
       Profile.record ~accumulate:true "rewrite"
-        (fun () -> rewrite state cfg_with_liveness spilled_nodes ~reset:true)
+        (fun () -> rewrite state cfg_with_liveness ~spilled_nodes ~reset:true)
         ()
     with
     | false -> ()
@@ -492,7 +492,7 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
   let cfg_infos =
     Cfg_regalloc_rewrite.prelude
       (module Utils)
-      ~f:(fun () -> save_cfg "irc" cfg_with_layout)
+      ~on_fatal_callback:(fun () -> save_cfg "irc" cfg_with_layout)
       cfg_with_liveness
   in
   let all_temporaries = Reg.Set.union cfg_infos.arg cfg_infos.res in
@@ -507,11 +507,11 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
   let spilling_because_unused = Reg.Set.diff cfg_infos.res cfg_infos.arg in
   (match Reg.Set.elements spilling_because_unused with
   | [] -> ()
-  | _ :: _ as spilling -> (
-    List.iter spilling ~f:(fun reg -> State.add_spilled_nodes state reg);
+  | (_ :: _) as spilled_nodes -> (
+      List.iter spilled_nodes ~f:(fun reg -> State.add_spilled_nodes state reg);
     (* note: rewrite will remove the `spilling` registers from the "spilled"
        work list and set the field to unknown. *)
-    match rewrite state cfg_with_liveness spilling ~reset:false with
+    match rewrite state cfg_with_liveness ~spilled_nodes ~reset:false with
     | false -> ()
     | true -> Cfg_with_liveness.invalidate_liveness cfg_with_liveness));
   Profile.record ~accumulate:true "main"

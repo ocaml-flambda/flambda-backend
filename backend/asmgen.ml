@@ -252,11 +252,14 @@ type register_allocator =
   | IRC
   | LS
 
-let register_allocator () : register_allocator =
-  match String.lowercase_ascii !Flambda_backend_flags.cfg_regalloc with
-  | "irc" -> IRC
-  | "ls" -> LS
-  | "" | "upstream" -> Upstream
+let default_allocator = Upstream
+
+let register_allocator fd : register_allocator =
+  match String.lowercase_ascii !Flambda_backend_flags.regalloc with
+  | "irc" -> if should_use_linscan fd then Upstream else IRC
+  | "ls" -> if should_use_linscan fd then Upstream else LS
+  | "upstream" -> Upstream
+  | "" -> default_allocator
   | other -> Misc.fatal_errorf "unknown register allocator (%S)" other
 
 let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
@@ -281,18 +284,10 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
   ++ Profile.record ~accumulate:true "checkmach" (Checkmach.fundecl ppf_dump)
   ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
-      (* CR-someday xclerc for xclerc: we still interpret `-linscan` (and
-         equivalent) as meaning "Upstream's linscan" for the time being. We
-         may switch to CFG's linscan when, after large-scale testing, we are
-         confident the CFG version is ready for production. In the meantime,
-         CFG's linscan is enabled solely by passing `-cfg-regalloc ls` on
-         the command line or putting "cfg-regalloc=ls" in the `OCAMLPARAM`
-         environment variable. *)
-    let force_linscan = should_use_linscan fd in
-    match force_linscan, register_allocator () with
-    | false, ((IRC | LS) as regalloc) ->
+    match register_allocator fd with
+    | ((IRC | LS) as regalloc) ->
       fd
-      ++ Profile.record ~accumulate:true "irc" (fun fd ->
+      ++ Profile.record ~accumulate:true "cfg" (fun fd ->
         let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
@@ -300,11 +295,8 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         in
         let cfg_description =
-          match !Flambda_backend_flags.cfg_regalloc_validate with
-          | false -> None
-          | true ->
-            Some (Profile.record ~accumulate:true "cfg_create_description"
-                    Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg))
+          Profile.record ~accumulate:true "cfg_create_description"
+            Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
         in
         cfg
         ++ begin match regalloc with
@@ -322,7 +314,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
         ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
-    | true, _ | false, Upstream ->
+    | Upstream ->
       fd
       ++ Profile.record ~accumulate:true "default" (fun fd ->
         fd

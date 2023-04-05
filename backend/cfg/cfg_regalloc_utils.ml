@@ -13,7 +13,7 @@ let fatal fmt =
   Misc.fatal_errorf fmt
 
 let find_param_value param_name =
-  !Flambda_backend_flags.cfg_regalloc_params
+  !Flambda_backend_flags.regalloc_params
   |> List.rev
   |> List.find_map ~f:(fun param ->
          match String.split_on_char ':' param with
@@ -470,7 +470,7 @@ module StackSlots = struct
     t.num_stack_slots.(reg_class) <- succ res;
     res
 
-  let[@inline] get t reg =
+  let[@inline] get_or_create t reg =
     match Reg.Tbl.find_opt t.stack_slots reg with
     | Some slot -> slot
     | None ->

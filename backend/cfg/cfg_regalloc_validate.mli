@@ -3,7 +3,7 @@
 module Description : sig
   type t
 
-  val create : Cfg_with_layout.t -> t
+  val create : Cfg_with_layout.t -> t option
 end
 
 module Error : sig

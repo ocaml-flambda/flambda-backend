@@ -1,7 +1,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Cfg_regalloc_utils
-module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let irc_debug = false
 

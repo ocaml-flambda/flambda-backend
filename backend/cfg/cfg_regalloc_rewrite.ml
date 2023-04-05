@@ -43,10 +43,10 @@ let rewrite_gen :
     (module Utils) ->
     s ->
     Cfg_with_liveness.t ->
-    Reg.t list ->
+    spilled_nodes:Reg.t list ->
     Reg.t list =
  fun (module State : State with type t = s) (module Utils) state
-     cfg_with_liveness spilled_nodes ->
+     cfg_with_liveness ~spilled_nodes ->
   if Utils.debug then Utils.log ~indent:1 "rewrite";
   let spilled_map : Reg.t Reg.Tbl.t =
     List.fold_left spilled_nodes ~init:(Reg.Tbl.create 17)
@@ -56,7 +56,7 @@ let rewrite_gen :
         Utils.set_spilled spilled;
         (* for printing *)
         if not (Reg.anonymous reg) then spilled.Reg.raw_name <- reg.Reg.raw_name;
-        let slot = StackSlots.get (State.stack_slots state) reg in
+        let slot = StackSlots.get_or_create (State.stack_slots state) reg in
         spilled.Reg.loc <- Reg.(Stack (Local slot));
         if Utils.debug
         then
@@ -180,10 +180,10 @@ let rewrite_gen :
   !new_temporaries
 
 let prelude :
-    (module Utils) -> f:(unit -> unit) -> Cfg_with_liveness.t -> cfg_infos =
- fun (module Utils) ~f cfg_with_liveness ->
+  (module Utils) -> on_fatal_callback:(unit -> unit) -> Cfg_with_liveness.t -> cfg_infos =
+  fun (module Utils) ~on_fatal_callback cfg_with_liveness ->
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
-  on_fatal ~f;
+  on_fatal ~f:on_fatal_callback;
   if Utils.debug
   then
     Utils.log ~indent:0 "run (%S)"

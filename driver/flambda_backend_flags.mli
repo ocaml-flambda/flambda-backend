@@ -18,9 +18,9 @@ val use_ocamlcfg : bool ref
 val dump_cfg : bool ref
 val cfg_invariants : bool ref
 val cfg_equivalence_check : bool ref
-val cfg_regalloc : string ref
-val cfg_regalloc_params : string list ref
-val cfg_regalloc_validate : bool ref
+val regalloc : string ref
+val regalloc_params : string list ref
+val regalloc_validate : bool ref
 
 val reorder_blocks_random : int option ref
 val basic_block_sections : bool ref

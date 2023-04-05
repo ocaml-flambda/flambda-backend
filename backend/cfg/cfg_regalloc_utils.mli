@@ -105,7 +105,7 @@ module StackSlots : sig
 
   val get_and_incr : t -> reg_class:int -> slot
 
-  val get : t -> Reg.t -> slot
+  val get_or_create : t -> Reg.t -> slot
 
   val update_cfg_with_layout : t -> Cfg_with_layout.t -> unit
 end

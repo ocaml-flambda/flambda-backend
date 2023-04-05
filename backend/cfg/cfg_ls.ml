@@ -22,12 +22,12 @@ module Utils = struct
   let set_spilled _reg = ()
 end
 
-let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> unit =
- fun state cfg_with_liveness spilled_nodes ->
+let rewrite : State.t -> Cfg_with_liveness.t -> spilled_nodes:Reg.t list -> unit =
+ fun state cfg_with_liveness ~spilled_nodes ->
   Cfg_regalloc_rewrite.rewrite_gen
     (module State)
     (module Utils)
-    state cfg_with_liveness spilled_nodes
+    state cfg_with_liveness ~spilled_nodes
   |> ignore
 
 (* Equivalent to [build_intervals] in "backend/interval.ml". *)
@@ -132,14 +132,14 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
       List.iter intervals.active ~f:(fun (interval : Interval.t) ->
           match interval.reg.loc with
           | Reg r ->
-            assert (r - first_available < num_available_registers);
+            if (r - first_available < num_available_registers) then
             available.(r - first_available) <- false
           | Stack _ | Unknown -> ());
       let remove_bound_overlapping (itv : Interval.t) : unit =
         match itv.reg.loc with
         | Reg r ->
-          assert (r - first_available < num_available_registers);
-          if available.(r - first_available) && Interval.overlap itv interval
+          if (r - first_available < num_available_registers)
+          && available.(r - first_available) && Interval.overlap itv interval
           then available.(r - first_available) <- false
         | Stack _ | Unknown -> ()
       in
@@ -228,7 +228,7 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
   in
   if not (Reg.Set.is_empty spilled)
   then (
-    rewrite state cfg_with_liveness (Reg.Set.elements spilled);
+    rewrite state cfg_with_liveness ~spilled_nodes:(Reg.Set.elements spilled);
     Cfg_with_liveness.invalidate_liveness cfg_with_liveness;
     main ~round:(succ round) state cfg_with_liveness)
 
@@ -238,7 +238,7 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
   let cfg_infos =
     Cfg_regalloc_rewrite.prelude
       (module Utils)
-      ~f:(fun () ->
+      ~on_fatal_callback:(fun () ->
         Option.iter
           (fun (intervals, active) ->
             Format.eprintf "Cfg_ls.run (on_fatal):";
@@ -259,9 +259,9 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
   in
   (match Reg.Set.elements spilling_because_unused with
   | [] -> ()
-  | _ :: _ as spilling ->
-    List.iter spilling ~f:(fun reg -> reg.Reg.spill <- true);
-    rewrite state cfg_with_liveness spilling;
+  | (_ :: _) as spilled_nodes ->
+    List.iter spilled_nodes ~f:(fun reg -> reg.Reg.spill <- true);
+    rewrite state cfg_with_liveness ~spilled_nodes;
     Cfg_with_liveness.invalidate_liveness cfg_with_liveness);
   main ~round:1 state cfg_with_liveness;
   Cfg_regalloc_rewrite.postlude

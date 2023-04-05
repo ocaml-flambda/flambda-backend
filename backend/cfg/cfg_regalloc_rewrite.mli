@@ -33,20 +33,21 @@ module type Utils = sig
 end
 
 (* This is the `rewrite` function from IRC, parametrized by state, functions for
-   debugging, and function to test/set the "spilled" state of a register. *)
+   debugging, and function to test/set the "spilled" state of a register. It
+   inserts spills and reloads for registers in the [spilled_nodes] parameter
+   (thus basically corresponding to Upstream's [Reload] pass). *)
 val rewrite_gen :
   (module State with type t = 's) ->
   (module Utils) ->
   's ->
   Cfg_with_liveness.t ->
-  Reg.t list ->
+  spilled_nodes:Reg.t list ->
   Reg.t list
 
 (* Runs the first steps common to register allocators, reinitializing registers,
-   checking preconditions, and collecting information from the CFG. [f] is
-   registered as the [on_fatal] callback. *)
+   checking preconditions, and collecting information from the CFG. *)
 val prelude :
-  (module Utils) -> f:(unit -> unit) -> Cfg_with_liveness.t -> cfg_infos
+  (module Utils) -> on_fatal_callback:(unit -> unit) -> Cfg_with_liveness.t -> cfg_infos
 
 (* Runs the last steps common to register allocators, updating the CFG (stack
    slots, live fields, and prologue), running [f], and checking

@@ -73,13 +73,13 @@ jobs:
           - name: irc
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            ocamlparam: '_,w=-46,cfg-regalloc=irc,cfg-regalloc-param=IRC_SPLIT:off,cfg-regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses'
+            ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=IRC_SPLIT:off,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses'
             check_arch: true
 
           - name: ls
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            ocamlparam: '_,w=-46,cfg-regalloc=ls,cfg-regalloc-param=LS_ORDER:layout'
+            ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=LS_ORDER:layout'
             check_arch: true
 
           - name: build_upstream_closure
