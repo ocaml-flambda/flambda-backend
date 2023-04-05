@@ -1083,17 +1083,6 @@ let machtype_identifier t =
   in
   String.of_seq (Seq.map char_of_component (Array.to_seq t))
 
-let extended_machtype_identifier t =
-  let char_of_component (component : Extended_machtype_component.t) =
-    match component with
-    | Val | Tagged_int -> 'V'
-    | Any_int -> 'I'
-    | Float -> 'F'
-    | Addr ->
-      Misc.fatal_error "[Addr] is forbidden inside arity for generic functions"
-  in
-  String.of_seq (Seq.map char_of_component (Array.to_seq t))
-
 let unique_arity_identifier (arity : Cmm.machtype list) =
   if List.for_all (function [| Val |] -> true | _ -> false) arity
   then Int.to_string (List.length arity)
@@ -2250,14 +2239,21 @@ let ptr_offset ptr offset dbg =
 let direct_apply lbl ty args (pos, _mode) dbg =
   Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
-let call_caml_apply ty args_type mut clos args pos mode dbg =
-  let args_type =
-    List.map Extended_machtype.change_tagged_int_to_val args_type
-  in
-  let ty = Extended_machtype.change_tagged_int_to_val ty in
+let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
+  (* Treat tagged int arguments and results as [typ_val], to avoid generating
+     excessive numbers of caml_apply functions. *)
+  let args_type = List.map Extended_machtype.to_machtype extended_args_type in
+  let ty = Extended_machtype.to_machtype extended_ty in
   let really_call_caml_apply clos args =
     let cargs =
-      (Cconst_symbol (apply_function_sym args_type ty mode, dbg) :: args)
+      Cconst_symbol
+        ( apply_function_sym
+            (List.map Extended_machtype.change_tagged_int_to_val
+               extended_args_type)
+            (Extended_machtype.change_tagged_int_to_val extended_ty)
+            mode,
+          dbg )
+      :: args
       @ [clos]
     in
     Cop (Capply (ty, pos), cargs, dbg)
@@ -2627,8 +2623,6 @@ let send_function (arity, result, mode) =
     }
 
 let apply_function (arity, result, mode) =
-  (* Treat tagged int arguments and results as [typ_val], to avoid generating
-     excessive numbers of caml_apply functions. *)
   let args, clos, body = apply_function_body arity result mode in
   let all_args = List.combine args arity @ [clos, typ_val] in
   let fun_name = apply_function_name arity result mode in

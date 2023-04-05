@@ -467,10 +467,6 @@ end
     generic functions. *)
 val machtype_identifier : machtype -> string
 
-(** Get an identifier for a given extended machtype, used in the name of the
-    generic functions. *)
-val extended_machtype_identifier : Extended_machtype.t -> string
-
 (** Get the symbol for the generic application with [n] arguments, and ensure
     its presence in the set of defined symbols *)
 val apply_function_sym :
