@@ -2253,7 +2253,6 @@ let direct_apply lbl ty args (pos, _mode) dbg =
 let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
   (* Treat tagged int arguments and results as [typ_val], to avoid generating
      excessive numbers of caml_apply functions. *)
-  let args_type = List.map Extended_machtype.to_machtype extended_args_type in
   let ty = Extended_machtype.to_machtype extended_ty in
   let really_call_caml_apply clos args =
     let cargs =
@@ -2282,7 +2281,7 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
                           [ get_field_gen mut clos 1 dbg;
                             Cconst_int (pos_arity_in_closinfo, dbg) ],
                           dbg );
-                      Cconst_int (List.length args_type, dbg) ],
+                      Cconst_int (List.length extended_args_type, dbg) ],
                     dbg ),
                 dbg,
                 Cop
