@@ -255,14 +255,14 @@ type expression =
   | Ctail of expression
 
 type property =
-  | Noalloc
+  | Zero_alloc
 
 type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
-  | Assert of property
-  | Assume of property
+  | Check of { property: property; strict: bool; assume: bool;
+               loc : Location.t; }
 
 type fundecl =
   { fun_name: string;

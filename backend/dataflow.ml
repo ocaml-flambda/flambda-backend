@@ -24,12 +24,13 @@ end
 
 module Backward(D: DOMAIN) = struct
 
-let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot) ~transfer instr =
+let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot) ?(init_lbl = D.bot)
+      ~transfer instr =
 
   let lbls =
     (Hashtbl.create 20 : (int, D.t) Hashtbl.t) in
   let get_lbl n =
-    match Hashtbl.find_opt lbls n with None -> D.bot | Some b -> b
+    match Hashtbl.find_opt lbls n with None -> init_lbl | Some b -> b
   and set_lbl n x =
     Hashtbl.replace lbls n x in
 
