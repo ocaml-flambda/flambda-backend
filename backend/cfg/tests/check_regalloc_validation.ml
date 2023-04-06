@@ -365,12 +365,11 @@ let check name f ~exp_std ~exp_err =
     with_wrap_ppf Format.std_formatter (fun () ->
         with_wrap_ppf Format.err_formatter (fun () ->
             try
-              let old_regalloc_validate =
-                !Flambda_backend_flags.regalloc_validate
-              in
-              Flambda_backend_flags.regalloc_validate := true;
               let desc =
-                try Cfg_regalloc_validate.Description.create before
+                try
+                  Misc.protect_refs
+                    [R (Flambda_backend_flags.regalloc_validate, true)]
+                    (fun () -> Cfg_regalloc_validate.Description.create before)
                 with Misc.Fatal_error ->
                   Format.printf
                     "fatal exception raised when creating description";
@@ -381,10 +380,7 @@ let check name f ~exp_std ~exp_err =
                 | None ->
                   Format.printf "description was not generated";
                   raise Break_test
-                | Some desc ->
-                  Flambda_backend_flags.regalloc_validate
-                    := old_regalloc_validate;
-                  desc
+                | Some desc -> desc
               in
               let res =
                 try Cfg_regalloc_validate.test desc after
