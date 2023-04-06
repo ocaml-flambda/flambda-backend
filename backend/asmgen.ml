@@ -306,10 +306,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
           | Upstream -> assert false
         end
         ++ Cfg_with_liveness.cfg_with_layout
-        ++ begin match cfg_description with
-          | None -> Fun.id
-          | Some cfg_description -> Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
-        end
+        ++ Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
         ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"

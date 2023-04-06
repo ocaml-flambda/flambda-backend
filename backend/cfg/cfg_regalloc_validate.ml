@@ -1417,6 +1417,9 @@ let test (desc : Description.t) (cfg : Cfg_with_layout.t) :
     Error { source = At_instruction error; res_instr; res_block; desc; cfg }
 
 let run desc cfg =
-  match test desc cfg with
-  | Ok cfg -> cfg
-  | Error error -> Cfg_regalloc_utils.fatal "%a%!" Error.dump error
+  match desc with
+  | None -> cfg
+  | Some desc -> (
+    match test desc cfg with
+    | Ok cfg -> cfg
+    | Error error -> Cfg_regalloc_utils.fatal "%a%!" Error.dump error)
