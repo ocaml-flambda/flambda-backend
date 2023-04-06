@@ -256,8 +256,9 @@ let default_allocator = Upstream
 
 let register_allocator fd : register_allocator =
   match String.lowercase_ascii !Flambda_backend_flags.regalloc with
-  | "irc" -> if should_use_linscan fd then Upstream else IRC
-  | "ls" -> if should_use_linscan fd then Upstream else LS
+  | "cfg" -> if should_use_linscan fd then LS else IRC
+  | "irc" -> IRC
+  | "ls" -> LS
   | "upstream" -> Upstream
   | "" -> default_allocator
   | other -> Misc.fatal_errorf "unknown register allocator (%S)" other
