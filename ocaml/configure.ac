@@ -72,7 +72,6 @@ AC_CONFIG_AUX_DIR([build-aux])
 AC_SUBST([CONFIGURE_ARGS])
 AC_SUBST([native_compiler])
 AC_SUBST([VERSION], [AC_PACKAGE_VERSION])
-AC_SUBST([OCAML_DEVELOPMENT_VERSION], [OCAML__DEVELOPMENT_VERSION])
 AC_SUBST([OCAML_RELEASE_EXTRA], [OCAML__RELEASE_EXTRA])
 AC_SUBST([OCAML_VERSION_MAJOR], [OCAML__VERSION_MAJOR])
 AC_SUBST([OCAML_VERSION_MINOR], [OCAML__VERSION_MINOR])
@@ -440,6 +439,15 @@ AC_ARG_ENABLE([stack-allocation],
   [AS_HELP_STRING([--enable-stack-allocation],
     [enable stack allocation of local values])])
 
+AC_ARG_ENABLE([dev],
+  [AS_HELP_STRING([--enable-dev],
+    [enable development mode (build in -opaque, low optimization, warnings as errors)])])
+
+AS_IF([test x"$enable_dev" = "xyes"],
+  [enable_dev_subst=true],
+  [enable_dev_subst=false])
+AC_SUBST([OCAML_DEVELOPMENT_VERSION], [$enable_dev_subst])
+
 AC_ARG_ENABLE([poll-insertion],
   [AS_HELP_STRING([--enable-poll-insertion],
     [enable insertion of poll points])])
@@ -627,7 +635,7 @@ AS_CASE([$ocaml_cv_cc_vendor],
   warn_error_flag='-Werror'
   cc_warnings='-Wall -Wdeclaration-after-statement'])
 
-AS_CASE([$enable_warn_error,OCAML__DEVELOPMENT_VERSION],
+AS_CASE([$enable_warn_error,$enable_dev],
   [yes,*|,true],
     [cc_warnings="$cc_warnings $warn_error_flag"])
 
@@ -1944,7 +1952,7 @@ AS_IF([test "x$documentation_tool_cmd" = 'x']
 
 
 
-AS_CASE([$enable_ocamltest,OCAML__DEVELOPMENT_VERSION],
+AS_CASE([$enable_ocamltest,$enable_dev],
   [yes,*|,true],[ocamltest='ocamltest'],
   [ocamltest=''])
 
