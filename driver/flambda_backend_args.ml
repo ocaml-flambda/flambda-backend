@@ -945,9 +945,9 @@ module Extra_params = struct
     let set' option =
       Compenv.setter ppf (fun b -> b) name [ option ] v; true
     in
-    let clear' option =
+    (*let clear' option =
       Compenv.setter ppf (fun b -> not b) name [ option ] v; true
-    in
+    in*)
     let set_int' option =
       Compenv.int_setter ppf name option v; true
     in
