@@ -967,7 +967,6 @@ module Extra_params = struct
     | "regalloc" -> set_string Flambda_backend_flags.regalloc
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
-    | "no-regalloc-validate" -> clear' Flambda_backend_flags.regalloc_validate
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
