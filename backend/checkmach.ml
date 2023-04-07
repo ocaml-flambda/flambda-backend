@@ -245,9 +245,9 @@ end = struct
       (Printcmm.property_to_string property)
       (if t.strict then " strict" else "")
       (fun_dbg
-        |> List.map (fun dbg ->
-          Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
-        |> String.concat ",")
+      |> List.map (fun dbg ->
+             Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
+      |> String.concat ",")
       fun_name
 
   let report_error = function
@@ -265,7 +265,7 @@ module Func_info = struct
      dependencies as the compilation unit is scanned. *)
   type t =
     { name : string;  (** function name *)
-      mutable dbg : Debuginfo.t; (** debug info associated with the function *)
+      mutable dbg : Debuginfo.t;  (** debug info associated with the function *)
       mutable value : Value.t;  (** the result of the check *)
       mutable annotation : Annotation.t option;
           (** [value] must be lessequal than the expected value
@@ -346,7 +346,8 @@ module Unit_info : sig
   (** [cleanup_deps] remove resolved dependencies starting from [name]. *)
   val cleanup_deps : t -> string -> unit
 
-  val record_annotation : t -> string -> Debuginfo.t -> Annotation.t option -> unit
+  val record_annotation :
+    t -> string -> Debuginfo.t -> Annotation.t option -> unit
 
   val resolve_all : t -> unit
 
@@ -539,8 +540,11 @@ end = struct
              functions. *)
           raise
             (Annotation.Invalid
-               { a; fun_name = func_info.name; fun_dbg = func_info.dbg;
-                 property = S.property }));
+               { a;
+                 fun_name = func_info.name;
+                 fun_dbg = func_info.dbg;
+                 property = S.property
+               }));
       report_func_info ~msg:"record" ppf func_info;
       S.set_value func_info.name func_info.value
     in
