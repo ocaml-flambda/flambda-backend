@@ -159,7 +159,22 @@ let is_move_basic : Cfg.basic -> bool =
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
  fun instr -> is_move_basic instr.desc
 
-let all_precolored_regs : Reg.t array = Proc.all_phys_regs
+let all_precolored_regs : Reg.t array =
+  Proc.init ();
+  let num_available_registers =
+    Array.fold_left Proc.num_available_registers ~f:( + ) ~init:0
+  in
+  let res = Array.make num_available_registers Reg.dummy in
+  let i = ref 0 in
+  for reg_class = 0 to pred Proc.num_register_classes do
+    let first_available_register = Proc.first_available_register.(reg_class) in
+    let num_available_registers = Proc.num_available_registers.(reg_class) in
+    for reg_idx = 0 to pred num_available_registers do
+      res.(!i) <- Proc.phys_reg (first_available_register + reg_idx);
+      incr i
+    done
+  done;
+  res
 
 let k reg = Proc.num_available_registers.(Proc.register_class reg)
 
