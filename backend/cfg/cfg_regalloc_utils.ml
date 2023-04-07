@@ -345,8 +345,6 @@ let postcondition : Cfg_with_layout.t -> allow_stack_operands:bool -> unit =
   in
   let reg_class = ref 0 in
   Array.iter2 max_stack_slots fun_num_stack_slots ~f:(fun max_slot num_slots ->
-      (* CR-soon xclerc for xclerc: make the condition stricter if max_slot >=
-         num_slots *)
       if succ max_slot <> num_slots
       then
         fatal
