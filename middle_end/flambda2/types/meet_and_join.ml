@@ -24,18 +24,6 @@ module TE = Typing_env
 module TEE = Typing_env_extension
 open Or_unknown.Let_syntax
 
-let add_equation (simple : Simple.t) ty_of_simple env_extension =
-  match Simple.must_be_name simple with
-  | Some (name, coercion_from_name_to_simple) ->
-    let coercion_from_simple_to_name =
-      Coercion.inverse coercion_from_name_to_simple
-    in
-    let ty_of_name =
-      TG.apply_coercion ty_of_simple coercion_from_simple_to_name
-    in
-    TEE.add_or_replace_equation env_extension name ty_of_name
-  | None -> env_extension
-
 let all_aliases_of env simple_opt ~in_env =
   match simple_opt with
   | None -> Aliases.Alias_set.empty
@@ -51,9 +39,42 @@ type 'a meet_return_value =
   | Both_inputs
   | New_result of 'a
 
+type extension_with_memory =
+  { pairs_of_names : Name.Pair.Set.t;
+    extension : TEE.t
+  }
+
+let empty_extension =
+  { pairs_of_names = Name.Pair.Set.empty; extension = TEE.empty }
+
+let no_memory extension = { pairs_of_names = Name.Pair.Set.empty; extension }
+
+let add_equation (simple : Simple.t) ty_of_simple
+    ({ pairs_of_names; extension } as env_extension) =
+  match Simple.must_be_name simple with
+  | Some (name, coercion_from_name_to_simple) ->
+    let coercion_from_simple_to_name =
+      Coercion.inverse coercion_from_name_to_simple
+    in
+    let ty_of_name =
+      TG.apply_coercion ty_of_simple coercion_from_simple_to_name
+    in
+    let pairs_of_names =
+      match TG.get_alias_opt ty_of_name with
+      | None -> pairs_of_names
+      | Some simple' -> (
+        match Simple.must_be_name simple' with
+        | None -> pairs_of_names
+        | Some (name', _coercion) ->
+          Name.Pair.Set.add (name, name') pairs_of_names)
+    in
+    let extension = TEE.add_or_replace_equation extension name ty_of_name in
+    { pairs_of_names; extension }
+  | None -> env_extension
+
 type 'a meet_result =
   | Bottom
-  | Ok of 'a meet_return_value * TEE.t
+  | Ok of 'a meet_return_value * extension_with_memory
 
 let map_result ~f = function
   | Bottom -> Bottom
@@ -72,12 +93,81 @@ let extract_value res left right =
 let set_meet (type a b) (module S : Container_types_intf.Set with type t = a)
     (s1 : a) (s2 : a) ~(of_set : a -> b) : b meet_result =
   match S.subset s1 s2, S.subset s2 s1 with
-  | true, true -> Ok (Both_inputs, TEE.empty)
-  | true, false -> Ok (Left_input, TEE.empty)
-  | false, true -> Ok (Right_input, TEE.empty)
+  | true, true -> Ok (Both_inputs, empty_extension)
+  | true, false -> Ok (Left_input, empty_extension)
+  | false, true -> Ok (Right_input, empty_extension)
   | false, false ->
     let s = S.inter s1 s2 in
-    if S.is_empty s then Bottom else Ok (New_result (of_set s), TEE.empty)
+    if S.is_empty s then Bottom else Ok (New_result (of_set s), empty_extension)
+
+module Map_meet (M : Container_types_intf.Map) = struct
+  let meet ~(meet_data : Meet_env.t -> 'a -> 'a -> 'a meet_result)
+      ~(meet_env_extension :
+         Meet_env.t ->
+         extension_with_memory ->
+         extension_with_memory ->
+         extension_with_memory Or_bottom.t) meet_env (left : 'a M.t)
+      (right : 'a M.t) : 'a M.t meet_result =
+    let any_bottom = ref false in
+    let all_left = ref true in
+    let all_right = ref true in
+    let env_extensions = ref empty_extension in
+    let meet_env = ref meet_env in
+    let result_map =
+      M.merge
+        (fun _key left_data right_data ->
+          match left_data, right_data with
+          | None, None -> None
+          | Some data, None | None, Some data -> Some data
+          | Some left_data, Some right_data -> (
+            match meet_data !meet_env left_data right_data with
+            | Bottom ->
+              any_bottom := true;
+              None
+            | Ok (data_result, env_extension) -> (
+              meet_env
+                := Meet_env.assume_already_meeting !meet_env
+                     env_extension.pairs_of_names;
+              (match
+                 meet_env_extension !meet_env !env_extensions env_extension
+               with
+              | Bottom -> any_bottom := true
+              | Ok env_extension ->
+                meet_env
+                  := Meet_env.assume_already_meeting !meet_env
+                       env_extension.pairs_of_names;
+                env_extensions := env_extension);
+              match data_result with
+              | Left_input ->
+                all_right := false;
+                Some left_data
+              | Right_input ->
+                all_left := false;
+                Some right_data
+              | Both_inputs ->
+                (* Arbitrarily pick one *)
+                Some left_data
+              | New_result data ->
+                all_left := false;
+                all_right := false;
+                Some data)))
+        left right
+    in
+    if !any_bottom
+    then Bottom
+    else
+      let result =
+        match !all_left, !all_right with
+        | true, true -> Both_inputs
+        | true, false -> Left_input
+        | false, true -> Right_input
+        | false, false -> New_result result_map
+      in
+      Ok (result, !env_extensions)
+end
+
+module Function_slot_map_meet = Map_meet (Function_slot.Map)
+module Value_slot_map_meet = Map_meet (Value_slot.Map)
 
 type 'a pairwise_disjunction_meet_arg =
   { is_bottom : 'a -> bool;
@@ -115,7 +205,13 @@ let pairwise_disjunction_meet ~join_env_extension meetx meety env x1 x2 y1 y2 =
       else
         let env = Meet_env.env env in
         let join_env = Join_env.create env ~left_env:env ~right_env:env in
-        join_env_extension join_env xext yext
+        let pairs_of_names =
+          Name.Pair.Set.inter xext.pairs_of_names yext.pairs_of_names
+        in
+        let extension =
+          join_env_extension join_env xext.extension yext.extension
+        in
+        { pairs_of_names; extension }
     in
     match xr, yr with
     | Both_inputs, Both_inputs -> Ok (Both_inputs, env_extension)
@@ -131,33 +227,104 @@ let pairwise_disjunction_meet ~join_env_extension meetx meety env x1 x2 y1 y2 =
       then Bottom
       else Ok (New_result (x, y), env_extension))
 
+type _ combine_results_meet_ops =
+  | Meet :
+      { meet : Meet_env.t -> 'a -> 'a -> 'a meet_result;
+        next : 'b combine_results_meet_ops
+      }
+      -> ('a * 'b) combine_results_meet_ops
+  | End : unit combine_results_meet_ops
+
+type _ combine_results_inputs =
+  | Input :
+      { input : 'a;
+        next : 'b combine_results_inputs
+      }
+      -> ('a * 'b) combine_results_inputs
+  | End : unit combine_results_inputs
+
+let rec build_values : type a. a combine_results_inputs -> a = function
+  | Input { input; next } -> input, build_values next
+  | End -> ()
+
+let extract_values res left right =
+  match res with
+  | Left_input -> build_values left
+  | Right_input -> build_values right
+  | Both_inputs -> build_values left
+  | New_result value -> value
+
 let combine_results env
-    ~(meet_env_extension : Meet_env.t -> TEE.t -> TEE.t -> TEE.t Or_bottom.t)
-    ~rebuild ~result_a ~result_b ~left_a ~right_a ~left_b ~right_b =
-  match result_a, result_b with
-  | Bottom, _ | _, Bottom -> Bottom
-  | Ok (result_a, env_extension_a), Ok (result_b, env_extension_b) -> (
-    match meet_env_extension env env_extension_a env_extension_b with
-    | Bottom -> Bottom
-    | Ok env_extension -> (
-      match result_a, result_b with
-      | Both_inputs, Both_inputs -> Ok (Both_inputs, env_extension)
-      | (Left_input | Both_inputs), (Left_input | Both_inputs) ->
-        Ok (Left_input, env_extension)
-      | (Right_input | Both_inputs), (Right_input | Both_inputs) ->
-        Ok (Right_input, env_extension)
-      | New_result _, _
-      | _, New_result _
-      | Left_input, Right_input
-      | Right_input, Left_input ->
-        let result_a = extract_value result_a left_a right_a in
-        let result_b = extract_value result_b left_b right_b in
-        Ok (New_result (rebuild result_a result_b), env_extension)))
+    ~(meet_env_extension :
+       Meet_env.t ->
+       extension_with_memory ->
+       extension_with_memory ->
+       extension_with_memory Or_bottom.t)
+    ~(meet_ops : 'a combine_results_meet_ops)
+    ~(left_inputs : 'a combine_results_inputs)
+    ~(right_inputs : 'a combine_results_inputs) ~(rebuild : 'a -> 'b) :
+    'b meet_result =
+  let rec do_meets :
+      type a.
+      Meet_env.t ->
+      a combine_results_meet_ops ->
+      a combine_results_inputs ->
+      a combine_results_inputs ->
+      a meet_result =
+   fun meet_env meet_ops left right : a meet_result ->
+    match meet_ops, left, right with
+    | End, End, End -> Ok (Both_inputs, empty_extension)
+    | ( Meet { meet; next = next_meet },
+        Input { input = left_input; next = next_left },
+        Input { input = right_input; next = next_right } ) -> (
+      match meet meet_env left_input right_input with
+      | Bottom -> Bottom
+      | Ok (result_hd, env_extension_hd) -> (
+        let meet_env =
+          Meet_env.assume_already_meeting env env_extension_hd.pairs_of_names
+        in
+        match do_meets meet_env next_meet next_left next_right with
+        | Bottom -> Bottom
+        | Ok (result_tl, env_extension_tl) -> (
+          let meet_env =
+            Meet_env.assume_already_meeting env env_extension_tl.pairs_of_names
+          in
+          match
+            meet_env_extension meet_env env_extension_hd env_extension_tl
+          with
+          | Bottom -> Bottom
+          | Ok env_extension -> (
+            match result_hd, result_tl with
+            | Both_inputs, Both_inputs -> Ok (Both_inputs, env_extension)
+            | (Left_input | Both_inputs), (Left_input | Both_inputs) ->
+              Ok (Left_input, env_extension)
+            | (Right_input | Both_inputs), (Right_input | Both_inputs) ->
+              Ok (Right_input, env_extension)
+            | New_result _, _
+            | _, New_result _
+            | Left_input, Right_input
+            | Right_input, Left_input ->
+              let result_hd = extract_value result_hd left_input right_input in
+              let result_tl = extract_values result_tl next_left next_right in
+              Ok (New_result (result_hd, result_tl), env_extension)))))
+  in
+  map_result ~f:rebuild (do_meets env meet_ops left_inputs right_inputs)
+
+let combine_results2 env ~meet_env_extension ~meet_a ~meet_b ~left_a ~right_a
+    ~left_b ~right_b ~rebuild =
+  combine_results env ~meet_env_extension
+    ~meet_ops:
+      (Meet { meet = meet_a; next = Meet { meet = meet_b; next = End } })
+    ~left_inputs:
+      (Input { input = left_a; next = Input { input = left_b; next = End } })
+    ~right_inputs:
+      (Input { input = right_a; next = Input { input = right_b; next = End } })
+    ~rebuild:(fun (a, (b, ())) -> rebuild a b)
 
 let meet_code_id (env : Meet_env.t) (code_id1 : Code_id.t)
     (code_id2 : Code_id.t) : Code_id.t meet_result =
   if Code_id.equal code_id1 code_id2
-  then Ok (Both_inputs, TEE.empty)
+  then Ok (Both_inputs, empty_extension)
   else
     let typing_env = Meet_env.env env in
     match
@@ -169,10 +336,10 @@ let meet_code_id (env : Meet_env.t) (code_id1 : Code_id.t)
     | Bottom -> Bottom
     | Ok code_id ->
       if Code_id.equal code_id code_id1
-      then Ok (Left_input, TEE.empty)
+      then Ok (Left_input, empty_extension)
       else if Code_id.equal code_id code_id2
-      then Ok (Right_input, TEE.empty)
-      else Ok (New_result code_id, TEE.empty)
+      then Ok (Right_input, empty_extension)
+      else Ok (New_result code_id, empty_extension)
 
 type meet_keep_side =
   | Left
@@ -185,14 +352,14 @@ type meet_keep_side =
 
 exception Bottom_meet
 
-let meet_alloc_mode (alloc_mode1 : Alloc_mode.For_types.t)
+let meet_alloc_mode _meet_env (alloc_mode1 : Alloc_mode.For_types.t)
     (alloc_mode2 : Alloc_mode.For_types.t) : Alloc_mode.For_types.t meet_result
     =
   match alloc_mode1, alloc_mode2 with
   | Heap_or_local, Heap_or_local | Heap, Heap | Local, Local ->
-    Ok (Both_inputs, TEE.empty)
-  | Heap_or_local, _ -> Ok (Right_input, TEE.empty)
-  | _, Heap_or_local -> Ok (Left_input, TEE.empty)
+    Ok (Both_inputs, empty_extension)
+  | Heap_or_local, _ -> Ok (Right_input, empty_extension)
+  | _, Heap_or_local -> Ok (Left_input, empty_extension)
   | Heap, Local | Local, Heap ->
     (* It is not safe to pick either [Heap] or [Local] and moreover we should
        never be in this situation by virtue of the OCaml type checker; it is
@@ -211,11 +378,11 @@ let[@inline always] meet_unknown meet_contents ~contents_is_bottom env
     (or_unknown1 : _ Or_unknown.t) (or_unknown2 : _ Or_unknown.t) :
     _ Or_unknown.t meet_result =
   match or_unknown1, or_unknown2 with
-  | Unknown, Unknown -> Ok (Both_inputs, TEE.empty)
+  | Unknown, Unknown -> Ok (Both_inputs, empty_extension)
   | Known contents, _ when contents_is_bottom contents -> Bottom
   | _, Known contents when contents_is_bottom contents -> Bottom
-  | _, Unknown -> Ok (Left_input, TEE.empty)
-  | Unknown, _ -> Ok (Right_input, TEE.empty)
+  | _, Unknown -> Ok (Left_input, empty_extension)
+  | Unknown, _ -> Ok (Right_input, empty_extension)
   | Known contents1, Known contents2 ->
     map_result
       ~f:(fun contents -> Or_unknown.Known contents)
@@ -299,7 +466,7 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
       (* Here we are meeting a non-alias type on the left with an alias on the
          right. In all cases, the return type is the alias, so we will always
          return [Right_input]; the interesting part will be the extension. *)
-      let env_extension : TEE.t Or_bottom.t =
+      let env_extension : extension_with_memory Or_bottom.t =
         match meet_expanded_head env expanded1 expanded2 with
         | Ok (Left_input, env_extension) ->
           Ok (add_equation simple2 (ET.to_type expanded1) env_extension)
@@ -323,7 +490,7 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
           ~known_canonical_simple_at_in_types_mode:simple2
       in
       (* We always return [Left_input] (see comment above) *)
-      let env_extension : TEE.t Or_bottom.t =
+      let env_extension : extension_with_memory Or_bottom.t =
         match meet_expanded_head env expanded1 expanded2 with
         | Ok (Right_input, env_extension) ->
           Ok (add_equation simple1 (ET.to_type expanded2) env_extension)
@@ -347,7 +514,7 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
         (* The alias is either already present or being added in another path
            that will be merged with this one; no need to add any extension
            here *)
-        Ok (Both_inputs, TEE.empty)
+        Ok (Both_inputs, empty_extension)
       else (
         assert (not (Simple.equal simple1 simple2));
         let env = Meet_env.now_meeting env simple1 simple2 in
@@ -379,7 +546,7 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
            simple2, either input can be used to express the result; so we will
            return Both_inputs as the result in all cases. The only thing
            remaining to compute is the extension. *)
-        let env_extension : TEE.t Or_bottom.t =
+        let env_extension : extension_with_memory Or_bottom.t =
           match meet_expanded_head env expanded1 expanded2 with
           | Ok ((Both_inputs | Left_input | Right_input), env_extension) ->
             (* No additional extension except for the new alias *)
@@ -401,9 +568,9 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
 and meet_expanded_head env (expanded1 : ET.t) (expanded2 : ET.t) :
     ET.t meet_result =
   match ET.descr expanded1, ET.descr expanded2 with
-  | Unknown, Unknown -> Ok (Both_inputs, TEE.empty)
-  | _, Unknown -> Ok (Left_input, TEE.empty)
-  | Unknown, _ -> Ok (Right_input, TEE.empty)
+  | Unknown, Unknown -> Ok (Both_inputs, empty_extension)
+  | _, Unknown -> Ok (Left_input, empty_extension)
+  | Unknown, _ -> Ok (Right_input, empty_extension)
   | Bottom, _ -> Bottom
   | _, Bottom -> Bottom
   | Ok descr1, Ok descr2 -> meet_expanded_head0 env descr1 descr2
@@ -460,10 +627,10 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     map_result
       ~f:(fun alloc_mode ->
         TG.Head_of_kind_value.create_mutable_block alloc_mode)
-      (meet_alloc_mode alloc_mode1 alloc_mode2)
+      (meet_alloc_mode env alloc_mode1 alloc_mode2)
   | Variant { blocks; _ }, Mutable_block { alloc_mode = alloc_mode_right } -> (
     match blocks with
-    | Unknown -> Ok (Right_input, TEE.empty)
+    | Unknown -> Ok (Right_input, empty_extension)
     | Known { alloc_mode = alloc_mode_left; _ } -> (
       (* CR vlaviron: This is not nice. We're more or less treating
          [Mutable_block] as more precise than [Variant], while losing precision
@@ -488,7 +655,7 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
          I have several ideas to fix this, but none of them are simple so we
          will need to have a proper discussion before I commit to implementing
          one. *)
-      match meet_alloc_mode alloc_mode_left alloc_mode_right with
+      match meet_alloc_mode env alloc_mode_left alloc_mode_right with
       | Bottom -> Bottom
       | Ok ((Both_inputs | Right_input), ext) -> Ok (Right_input, ext)
       | Ok (Left_input, ext) ->
@@ -502,10 +669,10 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
             ext )))
   | Mutable_block { alloc_mode = alloc_mode_left }, Variant { blocks; _ } -> (
     match blocks with
-    | Unknown -> Ok (Left_input, TEE.empty)
+    | Unknown -> Ok (Left_input, empty_extension)
     | Known { alloc_mode = alloc_mode_right; _ } -> (
       (* CR vlaviron: see symmetric case above *)
-      match meet_alloc_mode alloc_mode_left alloc_mode_right with
+      match meet_alloc_mode env alloc_mode_left alloc_mode_right with
       | Bottom -> Bottom
       | Ok ((Both_inputs | Left_input), ext) -> Ok (Left_input, ext)
       | Ok (Right_input, ext) ->
@@ -518,43 +685,36 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
           ( New_result (TG.Head_of_kind_value.create_mutable_block alloc_mode),
             ext )))
   | Boxed_float (n1, alloc_mode1), Boxed_float (n2, alloc_mode2) ->
-    combine_results env ~meet_env_extension
-      ~rebuild:TG.Head_of_kind_value.create_boxed_float
-      ~result_a:(meet env n1 n2)
-      ~result_b:(meet_alloc_mode alloc_mode1 alloc_mode2)
-      ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1 ~right_b:alloc_mode2
+    combine_results2 env ~meet_env_extension
+      ~rebuild:TG.Head_of_kind_value.create_boxed_float ~meet_a:meet
+      ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
+      ~right_b:alloc_mode2
   | Boxed_int32 (n1, alloc_mode1), Boxed_int32 (n2, alloc_mode2) ->
-    combine_results env ~meet_env_extension
-      ~rebuild:TG.Head_of_kind_value.create_boxed_int32
-      ~result_a:(meet env n1 n2)
-      ~result_b:(meet_alloc_mode alloc_mode1 alloc_mode2)
-      ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1 ~right_b:alloc_mode2
+    combine_results2 env ~meet_env_extension
+      ~rebuild:TG.Head_of_kind_value.create_boxed_int32 ~meet_a:meet
+      ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
+      ~right_b:alloc_mode2
   | Boxed_int64 (n1, alloc_mode1), Boxed_int64 (n2, alloc_mode2) ->
-    combine_results env ~meet_env_extension
-      ~rebuild:TG.Head_of_kind_value.create_boxed_int64
-      ~result_a:(meet env n1 n2)
-      ~result_b:(meet_alloc_mode alloc_mode1 alloc_mode2)
-      ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1 ~right_b:alloc_mode2
+    combine_results2 env ~meet_env_extension
+      ~rebuild:TG.Head_of_kind_value.create_boxed_int64 ~meet_a:meet
+      ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
+      ~right_b:alloc_mode2
   | Boxed_nativeint (n1, alloc_mode1), Boxed_nativeint (n2, alloc_mode2) ->
-    combine_results env ~meet_env_extension
-      ~rebuild:TG.Head_of_kind_value.create_boxed_nativeint
-      ~result_a:(meet env n1 n2)
-      ~result_b:(meet_alloc_mode alloc_mode1 alloc_mode2)
-      ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1 ~right_b:alloc_mode2
+    combine_results2 env ~meet_env_extension
+      ~rebuild:TG.Head_of_kind_value.create_boxed_nativeint ~meet_a:meet
+      ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
+      ~right_b:alloc_mode2
   | Boxed_vec128 (n1, alloc_mode1), Boxed_vec128 (n2, alloc_mode2) ->
-    combine_results env ~meet_env_extension
-      ~rebuild:TG.Head_of_kind_value.create_boxed_vec128
-      ~result_a:(meet env n1 n2)
-      ~result_b:(meet_alloc_mode alloc_mode1 alloc_mode2)
-      ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1 ~right_b:alloc_mode2
+    combine_results2 env ~meet_env_extension
+      ~rebuild:TG.Head_of_kind_value.create_boxed_vec128 ~meet_a:meet
+      ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
+      ~right_b:alloc_mode2
   | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
       Closures
         { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->
-    combine_results env ~meet_env_extension
+    combine_results2 env ~meet_env_extension
       ~rebuild:TG.Head_of_kind_value.create_closures
-      ~result_a:
-        (meet_row_like_for_closures env by_function_slot1 by_function_slot2)
-      ~result_b:(meet_alloc_mode alloc_mode1 alloc_mode2)
+      ~meet_a:meet_row_like_for_closures ~meet_b:meet_alloc_mode
       ~left_a:by_function_slot1 ~right_a:by_function_slot2 ~left_b:alloc_mode1
       ~right_b:alloc_mode2
   | String strs1, String strs2 ->
@@ -586,23 +746,37 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
 and meet_array_type env (element_kind1, length1, contents1, alloc_mode1)
     (element_kind2, length2, contents2, alloc_mode2) =
   let element_kind = meet_array_element_kinds element_kind1 element_kind2 in
-  let length = meet env length1 length2 in
-  let contents_and_mode =
-    combine_results env ~meet_env_extension
-      ~rebuild:(fun x y -> x, y)
-      ~result_a:(meet_array_contents env contents1 contents2
-                   ~meet_element_kind:element_kind)
-      ~result_b:(meet_alloc_mode alloc_mode1 alloc_mode2)
-      ~left_a:contents1 ~right_a:contents2 ~left_b:alloc_mode1
-      ~right_b:alloc_mode2
-  in
   combine_results env ~meet_env_extension
-    ~rebuild:(fun length (contents, alloc_mode) ->
+    ~rebuild:(fun (length, (contents, (alloc_mode, ()))) ->
       TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
         contents alloc_mode)
-    ~result_a:length ~result_b:contents_and_mode ~left_a:length1
-    ~right_a:length2 ~left_b:(contents1, alloc_mode1)
-    ~right_b:(contents2, alloc_mode2)
+    ~meet_ops:
+      (Meet
+         { meet;
+           next =
+             Meet
+               { meet = meet_array_contents ~meet_element_kind:element_kind;
+                 next = Meet { meet = meet_alloc_mode; next = End }
+               }
+         })
+    ~left_inputs:
+      (Input
+         { input = length1;
+           next =
+             Input
+               { input = contents1;
+                 next = Input { input = alloc_mode1; next = End }
+               }
+         })
+    ~right_inputs:
+      (Input
+         { input = length2;
+           next =
+             Input
+               { input = contents2;
+                 next = Input { input = alloc_mode2; next = End }
+               }
+         })
 
 and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     (array_contents2 : TG.array_contents Or_unknown.t)
@@ -611,7 +785,7 @@ and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     (fun env (array_contents1 : TG.array_contents)
          (array_contents2 : TG.array_contents) : TG.array_contents meet_result ->
       match array_contents1, array_contents2 with
-      | Mutable, Mutable -> Ok (Both_inputs, TEE.empty)
+      | Mutable, Mutable -> Ok (Both_inputs, empty_extension)
       | Mutable, Immutable _ | Immutable _, Mutable -> Bottom
       | Immutable { fields = fields1 }, Immutable { fields = fields2 } ->
         if Array.length fields1 <> Array.length fields2
@@ -675,13 +849,13 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
   let module I = Targetint_31_63 in
   let keep_side side : _ meet_result =
     match side with
-    | Left -> Ok (Left_input, TEE.empty)
-    | Right -> Ok (Right_input, TEE.empty)
+    | Left -> Ok (Left_input, empty_extension)
+    | Right -> Ok (Right_input, empty_extension)
   in
   let keep_other_side side : _ meet_result =
     match side with
-    | Left -> Ok (Right_input, TEE.empty)
-    | Right -> Ok (Left_input, TEE.empty)
+    | Left -> Ok (Right_input, empty_extension)
+    | Right -> Ok (Left_input, empty_extension)
   in
   let meet_with_shape ~rebuild ty shape side =
     map_result ~f:rebuild
@@ -744,7 +918,7 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     (* We can't return Bottom, as it would be unsound, so we need to either do
        the actual meet with Naked_immediates, or just give up and return one of
        the arguments. *)
-    Ok (Left_input, TEE.empty)
+    Ok (Left_input, empty_extension)
 
 and meet_head_of_kind_naked_float _env t1 t2 =
   set_meet
@@ -788,10 +962,10 @@ and meet_head_of_kind_naked_vec128 _env t1 t2 : _ Or_bottom.t =
 and meet_head_of_kind_rec_info _env _t1 _t2 =
   (* CR-someday lmaurer: This could be doing things like discovering two depth
      variables are equal *)
-  Ok (Both_inputs, TEE.empty)
+  Ok (Both_inputs, empty_extension)
 
 and meet_head_of_kind_region _env () () : _ meet_result =
-  Ok (Both_inputs, TEE.empty)
+  Ok (Both_inputs, empty_extension)
 
 and meet_row_like :
       'index 'maps_to 'row_tag 'known.
@@ -859,37 +1033,43 @@ and meet_row_like :
     | None -> env_extension := Some ext
     | Some ext2 ->
       assert need_join;
-      env_extension := Some (join_env_extension join_env ext2 ext)
+      let extension =
+        join_env_extension join_env ext2.extension ext.extension
+      in
+      let pairs_of_names =
+        Name.Pair.Set.inter ext2.pairs_of_names ext.pairs_of_names
+      in
+      env_extension := Some { pairs_of_names; extension }
   in
   let meet_index (i1 : 'index TG.row_like_index) (i2 : 'index TG.row_like_index)
       : 'index TG.row_like_index meet_result =
     match i1, i2 with
     | Known i1', Known i2' ->
-      if equal_index i1' i2' then Ok (Both_inputs, TEE.empty) else Bottom
+      if equal_index i1' i2' then Ok (Both_inputs, empty_extension) else Bottom
     | Known known, At_least at_least ->
       if subset_index at_least known
       then
         (* [at_least] is included in [known] hence [Known known] is included in
            [At_least at_least], hence [Known known] \inter [At_least at_least] =
            [Known known] *)
-        Ok (Left_input, TEE.empty)
+        Ok (Left_input, empty_extension)
       else Bottom
     | At_least at_least, Known known ->
       if subset_index at_least known
-      then Ok (Right_input, TEE.empty)
+      then Ok (Right_input, empty_extension)
       else Bottom
     | At_least i1', At_least i2' ->
       if subset_index i1' i2'
       then
         if subset_index i2' i1'
-        then Ok (Both_inputs, TEE.empty)
-        else Ok (Right_input, TEE.empty)
+        then Ok (Both_inputs, empty_extension)
+        else Ok (Right_input, empty_extension)
       else if subset_index i2' i1'
-      then Ok (Left_input, TEE.empty)
+      then Ok (Left_input, empty_extension)
       else
         Ok
           ( New_result (TG.Row_like_index.at_least (union_index i1' i2')),
-            TEE.empty )
+            empty_extension )
   in
   let bottom_case () =
     result_is_t1 := false;
@@ -904,11 +1084,20 @@ and meet_row_like :
       match meet_maps_to meet_env case1.maps_to case2.maps_to with
       | Bottom -> bottom_case ()
       | Ok (maps_to_result, env_extension') -> (
+        let meet_env =
+          Meet_env.assume_already_meeting meet_env env_extension'.pairs_of_names
+        in
         match
-          meet_env_extension meet_env case1.env_extension case2.env_extension
+          meet_env_extension meet_env
+            (no_memory case1.env_extension)
+            (no_memory case2.env_extension)
         with
         | Bottom -> bottom_case ()
         | Ok env_extension'' -> (
+          let meet_env =
+            Meet_env.assume_already_meeting meet_env
+              env_extension''.pairs_of_names
+          in
           match meet_env_extension meet_env env_extension' env_extension'' with
           | Bottom -> bottom_case ()
           | Ok env_extension ->
@@ -928,9 +1117,11 @@ and meet_row_like :
               extract_value maps_to_result case1.maps_to case2.maps_to
             in
             let env_extension =
-              if need_join then env_extension else TEE.empty
+              if need_join then env_extension else empty_extension
             in
-            Some (TG.Row_like_case.create ~maps_to ~index ~env_extension))))
+            Some
+              (TG.Row_like_case.create ~maps_to ~index
+                 ~env_extension:env_extension.extension))))
   in
   let meet_knowns case1 case2 : ('index, 'maps_to) TG.Row_like_case.t option =
     match case1, case2 with
@@ -986,18 +1177,17 @@ and meet_row_like_for_blocks env
       TG.Row_like_for_blocks.t)
     ({ known_tags = known2; other_tags = other2; alloc_mode = alloc_mode2 } :
       TG.Row_like_for_blocks.t) : TG.Row_like_for_blocks.t meet_result =
-  combine_results env ~meet_env_extension
+  combine_results2 env ~meet_env_extension
     ~rebuild:(fun (known_tags, other_tags) alloc_mode ->
       TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags ~alloc_mode)
-    ~result_a:
-      (meet_row_like ~meet_maps_to:meet_int_indexed_product
-         ~equal_index:TG.Block_size.equal ~subset_index:TG.Block_size.subset
-         ~union_index:TG.Block_size.union ~is_empty_map_known:Tag.Map.is_empty
-         ~get_singleton_map_known:Tag.Map.get_singleton
-         ~merge_map_known:Tag.Map.merge env ~known1 ~known2 ~other1 ~other2)
-    ~result_b:(meet_alloc_mode alloc_mode1 alloc_mode2)
-    ~left_a:(known1, other1) ~right_a:(known2, other2) ~left_b:alloc_mode1
-    ~right_b:alloc_mode2
+    ~meet_a:(fun env (known1, other1) (known2, other2) ->
+      meet_row_like ~meet_maps_to:meet_int_indexed_product
+        ~equal_index:TG.Block_size.equal ~subset_index:TG.Block_size.subset
+        ~union_index:TG.Block_size.union ~is_empty_map_known:Tag.Map.is_empty
+        ~get_singleton_map_known:Tag.Map.get_singleton
+        ~merge_map_known:Tag.Map.merge env ~known1 ~known2 ~other1 ~other2)
+    ~meet_b:meet_alloc_mode ~left_a:(known1, other1) ~right_a:(known2, other2)
+    ~left_b:alloc_mode1 ~right_b:alloc_mode2
 
 and meet_row_like_for_closures env
     ({ known_closures = known1; other_closures = other1 } :
@@ -1027,141 +1217,39 @@ and meet_closures_entry (env : Meet_env.t)
        value_slot_types = value_slot_types2
      } :
       TG.Closures_entry.t) : TG.Closures_entry.t meet_result =
-  let any_bottom = ref false in
-  let all_left = ref true in
-  let all_right = ref true in
-  let env_extensions = ref TEE.empty in
-  let function_types =
-    Function_slot.Map.merge
-      (fun _function_slot func_type1 func_type2 ->
-        match func_type1, func_type2 with
-        | None, None -> None
-        | Some func_type, None | None, Some func_type -> Some func_type
-        | Some func_type1, Some func_type2 -> (
-          match meet_function_type env func_type1 func_type2 with
-          | Bottom ->
-            any_bottom := true;
-            None
-          | Ok (func_type_result, env_extension) -> (
-            (match meet_env_extension env !env_extensions env_extension with
-            | Bottom -> any_bottom := true
-            | Ok env_extension -> env_extensions := env_extension);
-            match func_type_result with
-            | Left_input ->
-              all_right := false;
-              Some func_type1
-            | Right_input ->
-              all_left := false;
-              Some func_type2
-            | Both_inputs ->
-              (* Arbitrarily pick one *)
-              Some func_type1
-            | New_result func_type ->
-              all_left := false;
-              all_right := false;
-              Some func_type)))
-      function_types1 function_types2
-  in
-  if !any_bottom
-  then Bottom
-  else
-    let function_types_result =
-      match !all_left, !all_right with
-      | true, true -> Both_inputs
-      | true, false -> Left_input
-      | false, true -> Right_input
-      | false, false -> New_result function_types
-    in
-    let function_types_result : _ meet_result =
-      Ok (function_types_result, TEE.empty)
-    in
-    let closure_types_result =
-      meet_product_function_slot_indexed env closure_types1 closure_types2
-    in
-    let value_slot_types_result =
-      meet_product_value_slot_indexed env value_slot_types1 value_slot_types2
-    in
-    let function_types_and_closure_types_result =
-      combine_results env ~meet_env_extension ~result_a:function_types_result
-        ~result_b:closure_types_result ~left_a:function_types1
-        ~right_a:function_types2 ~left_b:closure_types1 ~right_b:closure_types2
-        ~rebuild:(fun function_types closure_types ->
-          function_types, closure_types)
-    in
-    combine_results env ~meet_env_extension
-      ~result_a:function_types_and_closure_types_result
-      ~result_b:value_slot_types_result
-      ~left_a:(function_types1, closure_types1)
-      ~right_a:(function_types2, closure_types2)
-      ~left_b:value_slot_types1 ~right_b:value_slot_types2
-      ~rebuild:(fun (function_types, closure_types) value_slot_types ->
-        TG.Closures_entry.create ~function_types ~closure_types
-          ~value_slot_types)
-
-and meet_generic_product :
-      'key 'key_map.
-      Meet_env.t ->
-      components_by_index1:'key_map ->
-      components_by_index2:'key_map ->
-      merge:
-        (('key -> TG.t option -> TG.t option -> TG.t option) ->
-        'key_map ->
-        'key_map ->
-        'key_map) ->
-      'key_map meet_result =
- fun env ~components_by_index1 ~components_by_index2 ~merge ->
-  let any_bottom = ref false in
-  let all_left = ref true in
-  let all_right = ref true in
-  let env_extension = ref TEE.empty in
-  let components_by_index =
-    merge
-      (fun _index ty1_opt ty2_opt ->
-        match ty1_opt, ty2_opt with
-        | None, None -> assert false
-        | Some ty1, None ->
-          all_right := false;
-          Some ty1
-        | None, Some ty2 ->
-          all_left := false;
-          Some ty2
-        | Some ty1, Some ty2 -> (
-          match meet env ty1 ty2 with
-          | Ok (meet_result, env_extension') -> (
-            match meet_env_extension env !env_extension env_extension' with
-            | Bottom ->
-              any_bottom := true;
-              Some (MTC.bottom_like ty1)
-            | Ok extension -> (
-              env_extension := extension;
-              match meet_result with
-              | Left_input ->
-                all_right := false;
-                Some ty1
-              | Right_input ->
-                all_left := false;
-                Some ty2
-              | Both_inputs -> Some ty1
-              | New_result ty ->
-                all_left := false;
-                all_right := false;
-                Some ty))
-          | Bottom ->
-            any_bottom := true;
-            Some (MTC.bottom_like ty1)))
-      components_by_index1 components_by_index2
-  in
-  if !any_bottom
-  then Bottom
-  else
-    let result =
-      match !all_left, !all_right with
-      | true, true -> Both_inputs
-      | true, false -> Left_input
-      | false, true -> Right_input
-      | false, false -> New_result components_by_index
-    in
-    Ok (result, !env_extension)
+  combine_results env ~meet_env_extension
+    ~meet_ops:
+      (Meet
+         { meet =
+             Function_slot_map_meet.meet ~meet_env_extension
+               ~meet_data:meet_function_type;
+           next =
+             Meet
+               { meet = meet_product_function_slot_indexed;
+                 next =
+                   Meet { meet = meet_product_value_slot_indexed; next = End }
+               }
+         })
+    ~left_inputs:
+      (Input
+         { input = function_types1;
+           next =
+             Input
+               { input = closure_types1;
+                 next = Input { input = value_slot_types1; next = End }
+               }
+         })
+    ~right_inputs:
+      (Input
+         { input = function_types2;
+           next =
+             Input
+               { input = closure_types2;
+                 next = Input { input = value_slot_types2; next = End }
+               }
+         })
+    ~rebuild:(fun (function_types, (closure_types, (value_slot_types, ()))) ->
+      TG.Closures_entry.create ~function_types ~closure_types ~value_slot_types)
 
 and meet_product_function_slot_indexed env
     ({ function_slot_components_by_index = components_by_index1 } :
@@ -1170,8 +1258,8 @@ and meet_product_function_slot_indexed env
       TG.Product.Function_slot_indexed.t) :
     TG.Product.Function_slot_indexed.t meet_result =
   map_result ~f:TG.Product.Function_slot_indexed.create
-    (meet_generic_product env ~components_by_index1 ~components_by_index2
-       ~merge:Function_slot.Map.merge)
+    (Function_slot_map_meet.meet ~meet_data:meet ~meet_env_extension env
+       components_by_index1 components_by_index2)
 
 and meet_product_value_slot_indexed env
     ({ value_slot_components_by_index = components_by_index1 } :
@@ -1180,8 +1268,8 @@ and meet_product_value_slot_indexed env
       TG.Product.Value_slot_indexed.t) :
     TG.Product.Value_slot_indexed.t meet_result =
   map_result ~f:TG.Product.Value_slot_indexed.create
-    (meet_generic_product env ~components_by_index1 ~components_by_index2
-       ~merge:Value_slot.Map.merge)
+    (Value_slot_map_meet.meet ~meet_data:meet ~meet_env_extension env
+       components_by_index1 components_by_index2)
 
 and meet_int_indexed_product env (prod1 : TG.Product.Int_indexed.t)
     (prod2 : TG.Product.Int_indexed.t) : _ meet_result =
@@ -1199,7 +1287,8 @@ and meet_array_of_types env fields1 fields2 ~length =
   let any_bottom = ref false in
   let all_left = ref true in
   let all_right = ref true in
-  let env_extension = ref TEE.empty in
+  let env_extension = ref empty_extension in
+  let env = ref env in
   let fields =
     Array.init length (fun index ->
         let get_opt fields =
@@ -1214,14 +1303,19 @@ and meet_array_of_types env fields1 fields2 ~length =
           all_left := false;
           t
         | Some ty1, Some ty2 -> (
-          match meet env ty1 ty2 with
+          match meet !env ty1 ty2 with
           | Ok (meet_result, env_extension') -> (
-            match meet_env_extension env !env_extension env_extension' with
+            env
+              := Meet_env.assume_already_meeting !env
+                   env_extension'.pairs_of_names;
+            match meet_env_extension !env !env_extension env_extension' with
             | Bottom ->
               any_bottom := true;
               MTC.bottom_like ty1
             | Ok extension -> (
               env_extension := extension;
+              env
+                := Meet_env.assume_already_meeting !env extension.pairs_of_names;
               match meet_result with
               | Left_input ->
                 all_right := false;
@@ -1255,9 +1349,9 @@ and meet_function_type (env : Meet_env.t)
     (func_type2 : TG.Function_type.t Or_unknown_or_bottom.t) :
     TG.Function_type.t Or_unknown_or_bottom.t meet_result =
   match func_type1, func_type2 with
-  | Bottom, Bottom | Unknown, Unknown -> Ok (Both_inputs, TEE.empty)
-  | Bottom, _ | _, Unknown -> Ok (Left_input, TEE.empty)
-  | _, Bottom | Unknown, _ -> Ok (Right_input, TEE.empty)
+  | Bottom, Bottom | Unknown, Unknown -> Ok (Both_inputs, empty_extension)
+  | Bottom, _ | _, Unknown -> Ok (Left_input, empty_extension)
+  | _, Bottom | Unknown, _ -> Ok (Right_input, empty_extension)
   | ( Ok { code_id = code_id1; rec_info = rec_info1 },
       Ok { code_id = code_id2; rec_info = rec_info2 } ) ->
     let rebuild code_id rec_info =
@@ -1267,51 +1361,57 @@ and meet_function_type (env : Meet_env.t)
          [Simplify_apply_expr.simplify_direct_function_call]. *)
       Or_unknown_or_bottom.Ok (TG.Function_type.create code_id ~rec_info)
     in
-    combine_results env ~meet_env_extension ~rebuild
-      ~result_a:(meet_code_id env code_id1 code_id2)
-      ~left_a:code_id1 ~right_a:code_id2
-      ~result_b:(meet env rec_info1 rec_info2)
-      ~left_b:rec_info1 ~right_b:rec_info2
+    combine_results2 env ~meet_env_extension ~rebuild ~meet_a:meet_code_id
+      ~left_a:code_id1 ~right_a:code_id2 ~meet_b:meet ~left_b:rec_info1
+      ~right_b:rec_info2
 
-and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
-    TEE.t =
+and meet_env_extension0 env (ext1 : extension_with_memory)
+    (ext2 : extension_with_memory) extra_extensions : extension_with_memory =
   (* A symmetrical meet would be hard to implement, as the inner meets can
      produce extra extensions that need to be merged with the result.
 
      To get around this, we'll suppose that [t2] is smaller than [t1] and add
      equations from [t2] to [t1], along with all extra equations *)
-  let equations, extra_extensions =
+  let equations, extra_extensions, env =
     Name.Map.fold
-      (fun name ty (eqs, extra_extensions) ->
+      (fun name ty (eqs, extra_extensions, env) ->
         match Name.Map.find_opt name eqs with
         | None ->
           MTC.check_equation name ty;
-          Name.Map.add name ty eqs, extra_extensions
+          Name.Map.add name ty eqs, extra_extensions, env
         | Some ty0 -> (
           match meet env ty0 ty with
           | Bottom -> raise Bottom_meet
           | Ok (res, new_ext) -> (
             let extra_extensions =
-              if TEE.is_empty new_ext
+              if TEE.is_empty new_ext.extension
               then extra_extensions
               else new_ext :: extra_extensions
+            in
+            let env =
+              Meet_env.assume_already_meeting env new_ext.pairs_of_names
             in
             match res with
             | Left_input | Both_inputs ->
               (* The equation is already there *)
-              eqs, extra_extensions
+              eqs, extra_extensions, env
             | Right_input ->
-              Name.Map.add (*replace*) name ty eqs, extra_extensions
+              Name.Map.add (*replace*) name ty eqs, extra_extensions, env
             | New_result ty ->
               MTC.check_equation name ty;
-              Name.Map.add (*replace*) name ty eqs, extra_extensions)))
-      (TEE.to_map ext2)
-      (TEE.to_map ext1, extra_extensions)
+              Name.Map.add (*replace*) name ty eqs, extra_extensions, env)))
+      (TEE.to_map ext2.extension)
+      (TEE.to_map ext1.extension, extra_extensions, env)
   in
-  let ext = TEE.from_map equations in
+  let extension = TEE.from_map equations in
+  let pairs_of_names =
+    Name.Pair.Set.union ext1.pairs_of_names ext2.pairs_of_names
+  in
+  let ext = { pairs_of_names; extension } in
   match extra_extensions with
   | [] -> ext
   | new_ext :: extra_extensions ->
+    (* CR vlaviron: think about this comment and update it (might be fixed ?) *)
     (* CR-someday vlaviron: It's a bad idea to drop the extensions in the
        general case, but since we lack the property that the new extensions are
        stricter than the existing ones we can get into an infinite loop here
@@ -1323,7 +1423,8 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
        systematically. *)
     meet_env_extension0 env ext new_ext extra_extensions
 
-and meet_env_extension (env : Meet_env.t) t1 t2 : TEE.t Or_bottom.t =
+and meet_env_extension (env : Meet_env.t) t1 t2 :
+    extension_with_memory Or_bottom.t =
   try Ok (meet_env_extension0 env t1 t2 []) with Bottom_meet -> Bottom
 
 and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
@@ -1991,7 +2092,8 @@ and join_env_extension env (ext1 : TEE.t) (ext2 : TEE.t) : TEE.t =
 let meet env ty1 ty2 : _ Or_bottom.t =
   match meet env ty1 ty2 with
   | Bottom -> Bottom
-  | Ok (r, env_extension) -> Ok (extract_value r ty1 ty2, env_extension)
+  | Ok (r, env_extension) ->
+    Ok (extract_value r ty1 ty2, env_extension.extension)
 
 let meet_shape env t ~shape ~result_var ~result_kind : _ Or_bottom.t =
   let result = Bound_name.create_var result_var in
@@ -1999,3 +2101,8 @@ let meet_shape env t ~shape ~result_var ~result_kind : _ Or_bottom.t =
   match meet (Meet_env.create env) t shape with
   | Bottom -> Bottom
   | Ok (_, env_extension) -> Ok env_extension
+
+let meet_env_extension env ext1 ext2 : _ Or_bottom.t =
+  match meet_env_extension env (no_memory ext1) (no_memory ext2) with
+  | Bottom -> Bottom
+  | Ok ext -> Ok ext.extension
