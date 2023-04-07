@@ -71,6 +71,8 @@ module Meet_env : sig
       [Simple]s. The arguments do not have to be provided in the same order as
       when [now_meeting] was called. *)
   val already_meeting : t -> Simple.t -> Simple.t -> bool
+
+  val assume_already_meeting : t -> Name.Pair.Set.t -> t
 end
 
 module Join_env : sig

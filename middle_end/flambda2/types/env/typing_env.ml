@@ -179,13 +179,15 @@ module Meet_or_join_env_base : sig
 
   val env : t -> typing_env
 
-  val now_meeting_or_joining : in_place:bool -> t -> Simple.t -> Simple.t -> t
+  val now_meeting_or_joining : t -> Simple.t -> Simple.t -> t
 
   val already_meeting_or_joining : t -> Simple.t -> Simple.t -> bool
+
+  val assume_already_meeting_or_joining : t -> Name.Pair.Set.t -> t
 end = struct
   type t =
     { env : typing_env;
-      mutable already_meeting_or_joining : Name.Pair.Set.t
+      already_meeting_or_joining : Name.Pair.Set.t
     }
 
   let [@ocamlformat "disable"] print ppf { env; already_meeting_or_joining; } =
@@ -211,7 +213,7 @@ end = struct
         Simple.pattern_match simple2 ~const ~name:(fun name2 ~coercion:_ ->
             already_meeting_or_joining_names t name1 name2))
 
-  let now_meeting_or_joining_names ~in_place t name1 name2 =
+  let now_meeting_or_joining_names t name1 name2 =
     if already_meeting_or_joining_names t name1 name2
     then
       Misc.fatal_errorf "Already meeting_or_joining %a and %a:@ %a" Name.print
@@ -219,17 +221,22 @@ end = struct
     let already_meeting_or_joining =
       Name.Pair.Set.add (name1, name2) t.already_meeting_or_joining
     in
-    if in_place
-    then (
-      t.already_meeting_or_joining <- already_meeting_or_joining;
-      t)
-    else { t with already_meeting_or_joining }
+    { t with already_meeting_or_joining }
 
-  let now_meeting_or_joining ~in_place t simple1 simple2 =
+  let now_meeting_or_joining t simple1 simple2 =
     let const _const = t in
     Simple.pattern_match simple1 ~const ~name:(fun name1 ~coercion:_ ->
         Simple.pattern_match simple2 ~const ~name:(fun name2 ~coercion:_ ->
-            now_meeting_or_joining_names ~in_place t name1 name2))
+            now_meeting_or_joining_names t name1 name2))
+
+  let assume_already_meeting_or_joining t name_pair_set =
+    (* Note: we don't check that the new elements don't already appear, as we
+       expect this function to be used in some contexts where we might have
+       duplicates. *)
+    let already_meeting_or_joining =
+      Name.Pair.Set.union name_pair_set t.already_meeting_or_joining
+    in
+    { t with already_meeting_or_joining }
 end
 
 module Meet_env : sig
@@ -244,12 +251,16 @@ module Meet_env : sig
   val now_meeting : t -> Simple.t -> Simple.t -> t
 
   val already_meeting : t -> Simple.t -> Simple.t -> bool
+
+  val assume_already_meeting : t -> Name.Pair.Set.t -> t
 end = struct
   include Meet_or_join_env_base
 
-  let now_meeting = now_meeting_or_joining ~in_place:true
+  let now_meeting = now_meeting_or_joining
 
   let already_meeting = already_meeting_or_joining
+
+  let assume_already_meeting = assume_already_meeting_or_joining
 end
 
 type meet_type =
@@ -318,8 +329,8 @@ end = struct
       Continue
         { t with
           central_env =
-            Meet_or_join_env_base.now_meeting_or_joining ~in_place:false
-              t.central_env simple1 simple2;
+            Meet_or_join_env_base.now_meeting_or_joining t.central_env simple1
+              simple2;
           depth = t.depth + 1
         }
 
