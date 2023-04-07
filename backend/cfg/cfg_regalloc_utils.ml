@@ -345,7 +345,11 @@ let postcondition : Cfg_with_layout.t -> allow_stack_operands:bool -> unit =
   in
   let reg_class = ref 0 in
   Array.iter2 max_stack_slots fun_num_stack_slots ~f:(fun max_slot num_slots ->
-      if succ max_slot <> num_slots
+      (* CR-soon xclerc for xclerc: make the condition stricter. The present
+         condition ensure safety: no access out of bounds (i.e. to another
+         frame), but could be made stricter to ensure optimiality (i.e. we use
+         every element from the frame). *)
+      if max_slot >= num_slots
       then
         fatal
           "register class %d has a max slot of %d, but the number of slots is \
