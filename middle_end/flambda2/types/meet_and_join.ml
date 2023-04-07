@@ -1370,8 +1370,19 @@ and meet_env_extension0 env (ext1 : extension_with_memory)
   (* A symmetrical meet would be hard to implement, as the inner meets can
      produce extra extensions that need to be merged with the result.
 
-     To get around this, we'll suppose that [t2] is smaller than [t1] and add
-     equations from [t2] to [t1], along with all extra equations *)
+     To get around this, we'll iterate on the smaller extension, adding its
+     equations to the bigger one, and collecting any extension from recursive
+     meets into extra extensions that we will merge recursively. Invariants on
+     meet results (all equations in the extension are strictly more precise than
+     those in the original env, and all pairs of simples that have been visited
+     together are propagated) should ensure that we always terminate reasonably
+     quickly. *)
+  let ext1, ext2 =
+    if Name.Map.cardinal ext1.extension.equations
+       > Name.Map.cardinal ext2.extension.equations
+    then ext1, ext2
+    else ext2, ext1
+  in
   let equations, extra_extensions, env =
     Name.Map.fold
       (fun name ty (eqs, extra_extensions, env) ->
