@@ -118,7 +118,12 @@ module Map_meet (M : Container_types_intf.Map) = struct
         (fun _key left_data right_data ->
           match left_data, right_data with
           | None, None -> None
-          | Some data, None | None, Some data -> Some data
+          | Some data, None ->
+            all_right := false;
+            Some data
+          | None, Some data ->
+            all_left := false;
+            Some data
           | Some left_data, Some right_data -> (
             match meet_data !meet_env left_data right_data with
             | Bottom ->
