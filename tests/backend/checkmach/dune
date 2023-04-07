@@ -228,7 +228,8 @@
  (action (diff fail11.output fail11.output.corrected)))
 
 (rule
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main")
+                  %{ocaml-config:flambda}))
  (targets fail12.output.corrected)
  (deps (:ml fail12.ml) filter.sh)
  (action
@@ -241,7 +242,7 @@
 
 (rule
  (alias   runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (deps fail12.output fail12.output.corrected)
  (action (diff fail12.output fail12.output.corrected)))
 
