@@ -230,19 +230,17 @@ end = struct
           | Ignore_assert_all property when property = spec ->
             ignore_assert_all := true;
             None
-          | Ignore_assert_all _
-          | Check _ | Reduce_code_size | No_CSE | Use_linscan_regalloc ->
+          | Ignore_assert_all _ | Check _ | Reduce_code_size | No_CSE
+          | Use_linscan_regalloc ->
             None)
         codegen_options
     in
     match a with
     | [] ->
-      if !Clflags.zero_alloc_check_assert_all
-      && not !ignore_assert_all
+      if !Clflags.zero_alloc_check_assert_all && not !ignore_assert_all
       then
         Some { strict = false; assume = false; loc = Debuginfo.to_location dbg }
-      else
-        None
+      else None
     | [p] -> Some p
     | _ :: _ ->
       Misc.fatal_errorf "Unexpected duplicate annotation %a"

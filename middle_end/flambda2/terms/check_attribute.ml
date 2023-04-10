@@ -50,8 +50,7 @@ let from_lambda : Lambda.check_attribute -> t = function
 let equal x y =
   match x, y with
   | Default_check, Default_check -> true
-  | Ignore_assert_all p1, Ignore_assert_all p2 ->
-    Property.equal p1 p2
+  | Ignore_assert_all p1, Ignore_assert_all p2 -> Property.equal p1 p2
   | ( Check { property = p1; strict = s1; assume = a1; loc = loc1 },
       Check { property = p2; strict = s2; assume = a2; loc = loc2 } ) ->
     Property.equal p1 p2 && Bool.equal s1 s2 && Bool.equal a1 a2 && loc1 = loc2
