@@ -610,23 +610,41 @@ type visibility =
   | Exported
   | Hidden
 
-type module_type =
+type rec_status =
+    Trec_not                   (* first in a nonrecursive group *)
+  | Trec_first                 (* first in a recursive group *)
+  | Trec_next                  (* not first in a recursive/nonrecursive group *)
+
+type ext_status =
+    Text_first                     (* first constructor in an extension *)
+  | Text_next                      (* not first constructor in an extension *)
+  | Text_exception
+
+type module_presence =
+  | Mp_present
+  | Mp_absent
+
+(* A Pod.t encapsulates bits of module types which can be lazy *)
+module type Pod = sig
+  type 'a t
+end
+
+module type S = sig
+  type 'a pod
+
+  type module_type =
     Mty_ident of Path.t
   | Mty_signature of signature
   | Mty_functor of functor_parameter * module_type
   | Mty_alias of Path.t
 
-and functor_parameter =
+  and functor_parameter =
   | Unit
   | Named of Ident.t option * module_type
 
-and module_presence =
-  | Mp_present
-  | Mp_absent
+  and signature = signature_item list pod
 
-and signature = signature_item list
-
-and signature_item =
+  and signature_item =
     Sig_value of Ident.t * value_description * visibility
   | Sig_type of Ident.t * type_declaration * rec_status * visibility
   | Sig_typext of Ident.t * extension_constructor * ext_status * visibility
@@ -636,7 +654,7 @@ and signature_item =
   | Sig_class of Ident.t * class_declaration * rec_status * visibility
   | Sig_class_type of Ident.t * class_type_declaration * rec_status * visibility
 
-and module_declaration =
+  and module_declaration =
   {
     md_type: module_type;
     md_attributes: Parsetree.attributes;
@@ -644,23 +662,32 @@ and module_declaration =
     md_uid: Uid.t;
   }
 
-and modtype_declaration =
+  and modtype_declaration =
   {
     mtd_type: module_type option;  (* None: abstract *)
     mtd_attributes: Parsetree.attributes;
     mtd_loc: Location.t;
     mtd_uid: Uid.t;
   }
+end
 
-and rec_status =
-    Trec_not                   (* first in a nonrecursive group *)
-  | Trec_first                 (* first in a recursive group *)
-  | Trec_next                  (* not first in a recursive/nonrecursive group *)
+module Make(Pod : Pod) : S with type 'a pod = 'a Pod.t
 
-and ext_status =
-    Text_first                     (* first constructor in an extension *)
-  | Text_next                      (* not first constructor in an extension *)
-  | Text_exception
+module Map_pods(From : S)(To : S) : sig
+  type mapper =
+    {
+      map_signature: mapper -> From.signature -> To.signature;
+    }
+
+  val module_declaration: mapper -> From.module_declaration -> To.module_declaration
+  val modtype_declaration: mapper -> From.modtype_declaration -> To.modtype_declaration
+  val module_type: mapper -> From.module_type -> To.module_type
+  val signature: mapper -> From.signature -> To.signature
+  val signature_item: mapper -> From.signature_item -> To.signature_item
+  val functor_parameter: mapper -> From.functor_parameter -> To.functor_parameter
+end
+
+include module type of Make(struct type 'a t = 'a end)
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)

@@ -571,7 +571,7 @@ and components_maker = {
   cm_prefixing_subst: Subst.t;
   cm_path: Path.t;
   cm_addr: address_lazy;
-  cm_mty: Subst.Lazy.modtype;
+  cm_mty: Subst.Lazy.module_type;
   cm_shape: Shape.t;
 }
 
@@ -632,7 +632,7 @@ and type_data =
     tda_shape : Shape.t; }
 
 and module_data =
-  { mda_declaration : Subst.Lazy.module_decl;
+  { mda_declaration : Subst.Lazy.module_declaration;
     mda_components : module_components;
     mda_address : address_lazy;
     mda_shape: Shape.t; }
@@ -809,7 +809,7 @@ let check_functor_application =
 let scrape_alias =
   (* to be filled with Mtype.scrape_alias *)
   ref ((fun _env _mty -> assert false) :
-        t -> Subst.Lazy.modtype -> Subst.Lazy.modtype)
+        t -> Subst.Lazy.module_type -> Subst.Lazy.module_type)
 
 let md md_type =
   {md_type; md_attributes=[]; md_loc=Location.none
@@ -1391,7 +1391,7 @@ let rec normalize_module_path lax env = function
 
 and expand_module_path lax env path =
   try match find_module_lazy ~alias:true path env with
-    {mdl_type=MtyL_alias path1} ->
+    {md_type=Mty_alias path1} ->
       let path' = normalize_module_path lax env path1 in
       if not (lax || !Clflags.transparent_modules) then begin
         let id = Path.head path in
@@ -1448,8 +1448,8 @@ let rec normalize_modtype_path env path =
   expand_modtype_path env path
 
 and expand_modtype_path env path =
-  match (find_modtype_lazy path env).mtdl_type with
-  | Some (MtyL_ident path) -> normalize_modtype_path env path
+  match (find_modtype_lazy path env).mtd_type with
+  | Some (Mty_ident path) -> normalize_modtype_path env path
   | _ | exception Not_found -> path
 
 let find_module_lazy path env =
@@ -1485,7 +1485,7 @@ let find_type_expansion_opt path env =
   | _ -> raise Not_found
 
 let find_modtype_expansion_lazy path env =
-  match (find_modtype_lazy path env).mtdl_type with
+  match (find_modtype_lazy path env).mtd_type with
   | None -> raise Not_found
   | Some mty -> mty
 
@@ -1537,7 +1537,7 @@ let iter_env_cont = ref []
 let rec scrape_alias_for_visit env mty =
   let open Subst.Lazy in
   match mty with
-  | MtyL_alias path -> begin
+  | Mty_alias path -> begin
       match path with
       | Pident id
         when Ident.is_global id
@@ -1545,7 +1545,7 @@ let rec scrape_alias_for_visit env mty =
           false
       | path -> (* PR#6600: find_module may raise Not_found *)
           try
-            scrape_alias_for_visit env (find_module_lazy path env).mdl_type
+            scrape_alias_for_visit env (find_module_lazy path env).md_type
           with Not_found -> false
     end
   | _ -> true
@@ -1658,46 +1658,46 @@ let prefix_idents root prefixing_sub sg =
   let rec prefix_idents root items_and_paths prefixing_sub =
     function
     | [] -> (List.rev items_and_paths, prefixing_sub)
-    | SigL_value(id, _, _) as item :: rem ->
+    | Sig_value(id, _, _) as item :: rem ->
       let p = Pdot(root, Ident.name id) in
       prefix_idents root
         ((item, p) :: items_and_paths) prefixing_sub rem
-    | SigL_type(id, td, rs, vis) :: rem ->
+    | Sig_type(id, td, rs, vis) :: rem ->
       let p = Pdot(root, Ident.name id) in
       prefix_idents root
-        ((SigL_type(id, td, rs, vis), p) :: items_and_paths)
+        ((Sig_type(id, td, rs, vis), p) :: items_and_paths)
         (Subst.add_type id p prefixing_sub)
         rem
-    | SigL_typext(id, ec, es, vis) :: rem ->
+    | Sig_typext(id, ec, es, vis) :: rem ->
       let p = Pdot(root, Ident.name id) in
       (* we extend the substitution in case of an inlined record *)
       prefix_idents root
-        ((SigL_typext(id, ec, es, vis), p) :: items_and_paths)
+        ((Sig_typext(id, ec, es, vis), p) :: items_and_paths)
         (Subst.add_type id p prefixing_sub)
         rem
-    | SigL_module(id, pres, md, rs, vis) :: rem ->
+    | Sig_module(id, pres, md, rs, vis) :: rem ->
       let p = Pdot(root, Ident.name id) in
       prefix_idents root
-        ((SigL_module(id, pres, md, rs, vis), p) :: items_and_paths)
+        ((Sig_module(id, pres, md, rs, vis), p) :: items_and_paths)
         (Subst.add_module id p prefixing_sub)
         rem
-    | SigL_modtype(id, mtd, vis) :: rem ->
+    | Sig_modtype(id, mtd, vis) :: rem ->
       let p = Pdot(root, Ident.name id) in
       prefix_idents root
-        ((SigL_modtype(id, mtd, vis), p) :: items_and_paths)
+        ((Sig_modtype(id, mtd, vis), p) :: items_and_paths)
         (Subst.add_modtype id (Mty_ident p) prefixing_sub)
         rem
-    | SigL_class(id, cd, rs, vis) :: rem ->
+    | Sig_class(id, cd, rs, vis) :: rem ->
       (* pretend this is a type, cf. PR#6650 *)
       let p = Pdot(root, Ident.name id) in
       prefix_idents root
-        ((SigL_class(id, cd, rs, vis), p) :: items_and_paths)
+        ((Sig_class(id, cd, rs, vis), p) :: items_and_paths)
         (Subst.add_type id p prefixing_sub)
         rem
-    | SigL_class_type(id, ctd, rs, vis) :: rem ->
+    | Sig_class_type(id, ctd, rs, vis) :: rem ->
       let p = Pdot(root, Ident.name id) in
       prefix_idents root
-        ((SigL_class_type(id, ctd, rs, vis), p) :: items_and_paths)
+        ((Sig_class_type(id, ctd, rs, vis), p) :: items_and_paths)
         (Subst.add_type id p prefixing_sub)
         rem
   in
@@ -1728,8 +1728,8 @@ let module_declaration_address env id presence md =
   match presence with
   | Mp_absent -> begin
       let open Subst.Lazy in
-      match md.mdl_type with
-      | MtyL_alias path -> Lazy_backtrack.create (ModAlias {env; path})
+      match md.md_type with
+      | Mty_alias path -> Lazy_backtrack.create (ModAlias {env; path})
       | _ -> assert false
     end
   | Mp_present ->
@@ -1749,7 +1749,7 @@ let rec components_of_module_maker
           {cm_env; cm_prefixing_subst;
            cm_path; cm_addr; cm_mty; cm_shape} : _ result =
   match !scrape_alias cm_env cm_mty with
-    MtyL_signature sg ->
+    Mty_signature sg ->
       let c =
         { comp_values = NameMap.empty;
           comp_constrs = NameMap.empty;
@@ -1771,7 +1771,7 @@ let rec components_of_module_maker
       in
       List.iter (fun ((item : Subst.Lazy.signature_item), path) ->
         match item with
-          SigL_value(id, decl, _) ->
+          Sig_value(id, decl, _) ->
             let decl' = Subst.value_description sub decl in
             let addr =
               match decl.val_kind with
@@ -1784,7 +1784,7 @@ let rec components_of_module_maker
                 vda_mode = Value_mode.global; vda_shape }
             in
             c.comp_values <- NameMap.add (Ident.name id) vda c.comp_values;
-        | SigL_type(id, decl, _, _) ->
+        | Sig_type(id, decl, _, _) ->
             let final_decl = Subst.type_declaration sub decl in
             Btype.set_static_row_name final_decl
               (Subst.type_path sub (Path.Pident id));
@@ -1828,7 +1828,7 @@ let rec components_of_module_maker
             in
             c.comp_types <- NameMap.add (Ident.name id) tda c.comp_types;
             env := store_type_infos ~tda_shape:shape id decl !env
-        | SigL_typext(id, ext, _, _) ->
+        | Sig_typext(id, ext, _, _) ->
             let ext' = Subst.extension_constructor sub ext in
             let descr =
               Datarepr.extension_descr ~current_unit:(get_unit_name ()) path
@@ -1842,7 +1842,7 @@ let rec components_of_module_maker
               { cda_description = descr; cda_address = Some addr; cda_shape }
             in
             c.comp_constrs <- add_to_tbl (Ident.name id) cda c.comp_constrs
-        | SigL_module(id, pres, md, _, _) ->
+        | Sig_module(id, pres, md, _, _) ->
             let md' =
               (* The prefixed items get the same scope as [cm_path], which is
                  the prefix. *)
@@ -1852,20 +1852,20 @@ let rec components_of_module_maker
             let addr =
               match pres with
               | Mp_absent -> begin
-                  match md.mdl_type with
-                  | MtyL_alias path ->
+                  match md.md_type with
+                  | Mty_alias path ->
                       Lazy_backtrack.create (ModAlias {env = !env; path})
                   | _ -> assert false
                 end
               | Mp_present -> next_address ()
             in
             let alerts =
-              Builtin_attributes.alerts_of_attrs md.mdl_attributes
+              Builtin_attributes.alerts_of_attrs md.md_attributes
             in
             let shape = Shape.proj cm_shape (Shape.Item.module_ id) in
             let comps =
-              components_of_module ~alerts ~uid:md.mdl_uid !env
-                sub path addr md.mdl_type shape
+              components_of_module ~alerts ~uid:md.md_uid !env
+                sub path addr md.md_type shape
             in
             let mda =
               { mda_declaration = md';
@@ -1878,7 +1878,7 @@ let rec components_of_module_maker
             env :=
               store_module ~update_summary:false ~check:None
                 id addr pres md shape !env
-        | SigL_modtype(id, decl, _) ->
+        | Sig_modtype(id, decl, _) ->
             let final_decl =
               (* The prefixed items get the same scope as [cm_path], which is
                  the prefix. *)
@@ -1893,7 +1893,7 @@ let rec components_of_module_maker
             c.comp_modtypes <-
               NameMap.add (Ident.name id) mtda c.comp_modtypes;
             env := store_modtype ~update_summary:false id decl shape !env
-        | SigL_class(id, decl, _, _) ->
+        | Sig_class(id, decl, _, _) ->
             let decl' = Subst.class_declaration sub decl in
             let addr = next_address () in
             let shape = Shape.proj cm_shape (Shape.Item.class_ id) in
@@ -1903,7 +1903,7 @@ let rec components_of_module_maker
                 clda_shape = shape; }
             in
             c.comp_classes <- NameMap.add (Ident.name id) clda c.comp_classes
-        | SigL_class_type(id, decl, _, _) ->
+        | Sig_class_type(id, decl, _, _) ->
             let decl' = Subst.cltype_declaration sub decl in
             let shape = Shape.proj cm_shape (Shape.Item.class_type id) in
             let cltda = { cltda_declaration = decl'; cltda_shape = shape } in
@@ -1911,7 +1911,7 @@ let rec components_of_module_maker
               NameMap.add (Ident.name id) cltda c.comp_cltypes)
         items_and_paths;
         Ok (Structure_comps c)
-  | MtyL_functor(arg, ty_res) ->
+  | Mty_functor(arg, ty_res) ->
       let sub = cm_prefixing_subst in
       let scoping = Subst.Rescope (Path.scope cm_path) in
       let open Subst.Lazy in
@@ -1927,8 +1927,8 @@ let rec components_of_module_maker
           fcomp_shape = cm_shape;
           fcomp_cache = Hashtbl.create 17;
           fcomp_subst_cache = Hashtbl.create 17 })
-  | MtyL_ident _ -> Error No_components_abstract
-  | MtyL_alias p -> Error (No_components_alias p)
+  | Mty_ident _ -> Error No_components_abstract
+  | Mty_alias p -> Error (No_components_alias p)
 
 (* Insertion of bindings by identifier + path *)
 
@@ -2134,13 +2134,13 @@ and store_extension ~check ~rebind id addr ext shape env =
 and store_module ?(update_summary=true) ~check
                  id addr presence md shape env =
   let open Subst.Lazy in
-  let loc = md.mdl_loc in
+  let loc = md.md_loc in
   Option.iter
-    (fun f -> check_usage loc id md.mdl_uid f !module_declarations) check;
-  let alerts = Builtin_attributes.alerts_of_attrs md.mdl_attributes in
+    (fun f -> check_usage loc id md.md_uid f !module_declarations) check;
+  let alerts = Builtin_attributes.alerts_of_attrs md.md_attributes in
   let comps =
-    components_of_module ~alerts ~uid:md.mdl_uid
-      env Subst.identity (Pident id) addr md.mdl_type shape
+    components_of_module ~alerts ~uid:md.md_uid
+      env Subst.identity (Pident id) addr md.md_type shape
   in
   let mda =
     { mda_declaration = md;
@@ -2156,7 +2156,7 @@ and store_module ?(update_summary=true) ~check
     summary }
 
 and store_modtype ?(update_summary=true) id info shape env =
-  Builtin_attributes.mark_alerts_used info.Subst.Lazy.mtdl_attributes;
+  Builtin_attributes.mark_alerts_used info.Subst.Lazy.mtd_attributes;
   let mtda = { mtda_declaration = info; mtda_shape = shape } in
   let summary =
     if not update_summary then env.summary
@@ -2254,7 +2254,7 @@ and add_module_declaration_lazy
       Some (fun s -> Warnings.Unused_module s)
   in
   let addr = module_declaration_address env id presence md in
-  let shape = shape_or_leaf md.Subst.Lazy.mdl_uid shape in
+  let shape = shape_or_leaf md.Subst.Lazy.md_uid shape in
   let env =
     store_module ~update_summary ~check id addr presence md shape env
   in
@@ -2265,7 +2265,7 @@ let add_module_declaration ?(arg=false) ?shape ~check id presence md env =
     presence (Subst.Lazy.of_module_decl md) env
 
 and add_modtype_lazy ~update_summary ?shape id info env =
-  let shape = shape_or_leaf info.Subst.Lazy.mtdl_uid shape in
+  let shape = shape_or_leaf info.Subst.Lazy.mtd_uid shape in
   store_modtype ~update_summary id info shape env
 
 let add_modtype ?shape id info env =
@@ -2282,10 +2282,10 @@ and add_cltype ?shape id ty env =
   store_cltype id ty shape env
 
 let add_module_lazy ~update_summary id presence mty env =
-  let md = Subst.Lazy.{mdl_type = mty;
-                       mdl_attributes = [];
-                       mdl_loc = Location.none;
-                       mdl_uid = Uid.internal_not_actually_unique}
+  let md = Subst.Lazy.{md_type = mty;
+                       md_attributes = [];
+                       md_loc = Location.none;
+                       md_uid = Uid.internal_not_actually_unique}
   in
   add_module_declaration_lazy ~update_summary id presence md env
 
@@ -2390,25 +2390,25 @@ let rec add_signature (map, mod_shape) sg env =
 let add_item_lazy (map, mod_shape) comp env =
   let open Subst.Lazy in
   match comp with
-  | SigL_value(id, decl, _) ->
+  | Sig_value(id, decl, _) ->
       let map, shape = proj_shape (map, mod_shape) (Shape.Item.value id) in
       map, add_value ?shape id decl env
-  | SigL_type(id, decl, _, _) ->
+  | Sig_type(id, decl, _, _) ->
       let map, shape = proj_shape (map, mod_shape) (Shape.Item.type_ id) in
       map, add_type ~check:false ?shape id decl env
-  | SigL_typext(id, ext, _, _) ->
+  | Sig_typext(id, ext, _, _) ->
       let map, shape = proj_shape (map, mod_shape) (Shape.Item.extension_constructor id) in
       map, add_extension ~check:false ?shape ~rebind:false id ext env
-  | SigL_module(id, presence, md, _, _) ->
+  | Sig_module(id, presence, md, _, _) ->
       let map, shape = proj_shape (map, mod_shape) (Shape.Item.module_ id) in
       map, add_module_declaration_lazy ~update_summary:true ?shape id presence md env
-  | SigL_modtype(id, decl, _)  ->
+  | Sig_modtype(id, decl, _)  ->
       let map, shape = proj_shape (map, mod_shape) (Shape.Item.module_type id) in
       map, add_modtype_lazy ~update_summary:true ?shape id decl env
-  | SigL_class(id, decl, _, _) ->
+  | Sig_class(id, decl, _, _) ->
       let map, shape = proj_shape (map, mod_shape) (Shape.Item.class_ id) in
       map, add_class ?shape id decl env
-  | SigL_class_type(id, decl, _, _) ->
+  | Sig_class_type(id, decl, _, _) ->
       let map, shape = proj_shape (map, mod_shape) (Shape.Item.class_type id) in
       map, add_cltype ?shape id decl env
 
@@ -2814,8 +2814,8 @@ let use_type ~use ~loc path tda =
 let use_modtype ~use ~loc path desc =
   let open Subst.Lazy in
   if use then begin
-    mark_modtype_used desc.mtdl_uid;
-    Builtin_attributes.check_alerts loc desc.mtdl_attributes
+    mark_modtype_used desc.mtd_uid;
+    Builtin_attributes.check_alerts loc desc.mtd_attributes
       (Path.name path)
   end
 

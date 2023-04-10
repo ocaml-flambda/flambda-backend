@@ -238,44 +238,44 @@ module FieldMap = Map.Make(struct
 let item_ident_name =
   let open Subst.Lazy in
   function
-    SigL_value(id, d, _) -> (id, d.val_loc, field_desc Field_value id)
-  | SigL_type(id, d, _, _) -> (id, d.type_loc, field_desc Field_type  id )
-  | SigL_typext(id, d, _, _) ->
+    Sig_value(id, d, _) -> (id, d.val_loc, field_desc Field_value id)
+  | Sig_type(id, d, _, _) -> (id, d.type_loc, field_desc Field_type  id )
+  | Sig_typext(id, d, _, _) ->
       let kind =
         if Path.same d.ext_type_path Predef.path_exn
         then Field_exception
         else Field_typext
       in
       (id, d.ext_loc, field_desc kind id)
-  | SigL_module(id, _, d, _, _) -> (id, d.mdl_loc, field_desc Field_module id)
-  | SigL_modtype(id, d, _) -> (id, d.mtdl_loc, field_desc Field_modtype id)
-  | SigL_class(id, d, _, _) -> (id, d.cty_loc, field_desc Field_class id)
-  | SigL_class_type(id, d, _, _) ->
+  | Sig_module(id, _, d, _, _) -> (id, d.md_loc, field_desc Field_module id)
+  | Sig_modtype(id, d, _) -> (id, d.mtd_loc, field_desc Field_modtype id)
+  | Sig_class(id, d, _, _) -> (id, d.cty_loc, field_desc Field_class id)
+  | Sig_class_type(id, d, _, _) ->
       (id, d.clty_loc, field_desc Field_classtype id)
 
 let is_runtime_component =
   let open Subst.Lazy in
   function
-  | SigL_value(_,{val_kind = Val_prim _}, _)
-  | SigL_type(_,_,_,_)
-  | SigL_module(_,Mp_absent,_,_,_)
-  | SigL_modtype(_,_,_)
-  | SigL_class_type(_,_,_,_) -> false
-  | SigL_value(_,_,_)
-  | SigL_typext(_,_,_,_)
-  | SigL_module(_,Mp_present,_,_,_)
-  | SigL_class(_,_,_,_) -> true
+  | Sig_value(_,{val_kind = Val_prim _}, _)
+  | Sig_type(_,_,_,_)
+  | Sig_module(_,Mp_absent,_,_,_)
+  | Sig_modtype(_,_,_)
+  | Sig_class_type(_,_,_,_) -> false
+  | Sig_value(_,_,_)
+  | Sig_typext(_,_,_,_)
+  | Sig_module(_,Mp_present,_,_,_)
+  | Sig_class(_,_,_,_) -> true
 
 let item_visibility =
   let open Subst.Lazy in
   function
-  | SigL_value (_, _, vis)
-  | SigL_type (_, _, _, vis)
-  | SigL_typext (_, _, _, vis)
-  | SigL_module (_, _, _, _, vis)
-  | SigL_modtype (_, _, vis)
-  | SigL_class (_, _, _, vis)
-  | SigL_class_type (_, _, _, vis) -> vis
+  | Sig_value (_, _, vis)
+  | Sig_type (_, _, _, vis)
+  | Sig_typext (_, _, _, vis)
+  | Sig_module (_, _, _, _, vis)
+  | Sig_modtype (_, _, vis)
+  | Sig_class (_, _, _, vis)
+  | Sig_class_type (_, _, _, vis) -> vis
 
 
 (* Print a coercion *)
@@ -373,7 +373,7 @@ let pair_components subst sig1_comps sig2 =
       let (id2, _loc, name2) = item_ident_name item2 in
       let name2, report =
         match item2, name2 with
-          SigL_type (_, {type_manifest=None}, _, _), {name=s; kind=Field_type}
+          Sig_type (_, {type_manifest=None}, _, _), {name=s; kind=Field_type}
           when Btype.is_row_name s ->
             (* Do not report in case of failure,
                as the main type will generate an error *)
@@ -385,14 +385,14 @@ let pair_components subst sig1_comps sig2 =
       | (id1, item1, pos1) ->
         let new_subst =
           match item2 with
-            SigL_type _ ->
+            Sig_type _ ->
               Subst.add_type id2 (Path.Pident id1) subst
-          | SigL_module _ ->
+          | Sig_module _ ->
               Subst.add_module id2 (Path.Pident id1) subst
-          | SigL_modtype _ ->
+          | Sig_modtype _ ->
               Subst.add_modtype id2 (Mty_ident (Path.Pident id1)) subst
-          | SigL_value _ | SigL_typext _
-          | SigL_class _ | SigL_class_type _ ->
+          | Sig_value _ | Sig_typext _
+          | Sig_class _ | Sig_class_type _ ->
               subst
         in
         pair new_subst
@@ -500,20 +500,20 @@ let rec modtypes ~in_eq ~loc env ~mark subst mty1 mty2 shape =
 and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape =
   let open Subst.Lazy in
   match mty1, mty2 with
-  | (MtyL_alias p1, MtyL_alias p2) ->
+  | (Mty_alias p1, Mty_alias p2) ->
       if Env.is_functor_arg p2 env then
         Error (Error.Invalid_module_alias p2)
       else if not (equal_module_paths env p1 subst p2) then
           Error Error.(Mt_core Incompatible_aliases)
       else Ok (Tcoerce_none, orig_shape)
-  | (MtyL_alias p1, _) -> begin
+  | (Mty_alias p1, _) -> begin
       match
         Env.normalize_module_path (Some Location.none) env p1
       with
       | exception Env.Error (Env.Missing_module (_, _, path)) ->
           Error Error.(Mt_core(Unbound_module_path path))
       | p1 ->
-          begin match (Env.find_module_lazy p1 env).mdl_type with
+          begin match (Env.find_module_lazy p1 env).md_type with
           | exception Not_found ->
               Error (Error.Mt_core (Error.Unbound_module_path p1))
           | mty1 ->
@@ -524,7 +524,7 @@ and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape =
               | Error reason -> Error (Error.After_alias_expansion reason)
           end
     end
-  | (MtyL_ident p1, MtyL_ident p2) ->
+  | (Mty_ident p1, Mty_ident p2) ->
       let p1 = Env.normalize_modtype_path env p1 in
       let p2 = Env.normalize_modtype_path env (Subst.modtype_path subst p2) in
       if Path.same p1 p2 then Ok (Tcoerce_none, orig_shape)
@@ -534,20 +534,20 @@ and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape =
             try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape
         | None, _  | _, None -> Error (Error.Mt_core Abstract_module_type)
         end
-  | (MtyL_ident p1, _) ->
+  | (Mty_ident p1, _) ->
       let p1 = Env.normalize_modtype_path env p1 in
       begin match expand_modtype_path_lazy env p1 with
       | Some p1 ->
           try_modtypes ~in_eq ~loc env ~mark subst p1 mty2 orig_shape
       | None -> Error (Error.Mt_core Abstract_module_type)
       end
-  | (_, MtyL_ident p2) ->
+  | (_, Mty_ident p2) ->
       let p2 = Env.normalize_modtype_path env (Subst.modtype_path subst p2) in
       begin match expand_modtype_path_lazy env p2 with
       | Some p2 -> try_modtypes ~in_eq ~loc env ~mark subst mty1 p2 orig_shape
       | None ->
           begin match mty1 with
-          | MtyL_functor _ ->
+          | Mty_functor _ ->
               let params1 =
                 retrieve_functor_params env (Subst.Lazy.force_modtype mty1)
               in
@@ -556,14 +556,14 @@ and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape =
           | _ -> Error Error.(Mt_core Not_an_identifier)
           end
       end
-  | (MtyL_signature sig1, MtyL_signature sig2) ->
+  | (Mty_signature sig1, Mty_signature sig2) ->
       begin match
         signatures ~in_eq ~loc env ~mark subst sig1 sig2 orig_shape
       with
       | Ok _ as ok -> ok
       | Error e -> Error (Error.Signature e)
       end
-  | MtyL_functor (param1, res1), MtyL_functor (param2, res2) ->
+  | Mty_functor (param1, res1), Mty_functor (param2, res2) ->
       let cc_arg, env, subst =
         functor_param ~in_eq ~loc env ~mark:(negate_mark mark)
           subst param1 param2
@@ -621,8 +621,8 @@ and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape =
       | Ok _, Error res ->
           Error Error.(Functor (Result res))
       end
-  | MtyL_functor _, _
-  | _, MtyL_functor _ ->
+  | Mty_functor _, _
+  | _, Mty_functor _ ->
       let params1 =
         retrieve_functor_params env (Subst.Lazy.force_modtype mty1)
       in
@@ -631,7 +631,7 @@ and try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 orig_shape =
       in
       let d = Error.sdiff params1 params2 in
       Error Error.(Functor (Params d))
-  | _, MtyL_alias _ ->
+  | _, Mty_alias _ ->
       Error (Error.Mt_core Error.Not_an_alias)
 
 (* Functor parameters *)
@@ -675,7 +675,7 @@ and strengthened_modtypes ~in_eq ~loc ~aliasable env ~mark
     subst mty1 path1 mty2 shape =
   let open Subst.Lazy in
   match mty1, mty2 with
-  | MtyL_ident p1, MtyL_ident p2 when equal_modtype_paths env p1 subst p2 ->
+  | Mty_ident p1, Mty_ident p2 when equal_modtype_paths env p1 subst p2 ->
       Ok (Tcoerce_none, shape)
   | _, _ ->
       let mty1 = Mtype.strengthen_lazy ~aliasable env mty1 path1 in
@@ -687,11 +687,10 @@ and strengthened_module_decl ~loc ~aliasable env ~mark
   | Mty_ident p1, Mty_ident p2 when equal_modtype_paths env p1 subst p2 ->
       Ok (Tcoerce_none, shape)
   | _, _ ->
-      let open Subst.Lazy in
-      let md1 = of_module_decl md1 in
+      let md1 = Subst.Lazy.of_module_decl md1 in
       let md1 = Mtype.strengthen_lazy_decl ~aliasable env md1 path1 in
-      let mty2 = of_modtype md2.md_type in
-      modtypes ~in_eq:false ~loc env ~mark subst md1.mdl_type mty2 shape
+      let mty2 = Subst.Lazy.of_modtype md2.md_type in
+      modtypes ~in_eq:false ~loc env ~mark subst md1.md_type mty2 shape
 
 (* Inclusion between signatures *)
 
@@ -706,7 +705,7 @@ and signatures ~in_eq ~loc env ~mark subst sig1 sig2 mod_shape =
   let (id_pos_list,_) =
     List.fold_left
       (fun (l,pos) -> function
-          SigL_module (id, Mp_present, _, _, _) ->
+          Sig_module (id, Mp_present, _, _, _) ->
             ((id,pos,Tcoerce_none)::l , pos+1)
         | item -> (l, if is_runtime_component item then pos+1 else pos))
       ([], 0) sig1 in
@@ -757,7 +756,7 @@ and signature_components :
       let shape_modified = ref false in
       let id, item, shape_map, present_at_runtime =
         match sigi1, sigi2 with
-        | SigL_value(id1, valdecl1, _) ,SigL_value(_id2, valdecl2, _) ->
+        | Sig_value(id1, valdecl1, _) ,Sig_value(_id2, valdecl2, _) ->
             let item =
               value_descriptions ~loc env ~mark subst id1 valdecl1 valdecl2
             in
@@ -768,14 +767,14 @@ and signature_components :
             in
             let shape_map = Shape.Map.add_value_proj shape_map id1 orig_shape in
             id1, item, shape_map, present_at_runtime
-        | SigL_type(id1, tydec1, _, _), SigL_type(_id2, tydec2, _, _) ->
+        | Sig_type(id1, tydec1, _, _), Sig_type(_id2, tydec2, _, _) ->
             let item =
               type_declarations ~loc env ~mark subst id1 tydec1 tydec2
             in
             let item = mark_error_as_unrecoverable item in
             let shape_map = Shape.Map.add_type_proj shape_map id1 orig_shape in
             id1, item, shape_map, false
-        | SigL_typext(id1, ext1, _, _), SigL_typext(_id2, ext2, _, _) ->
+        | Sig_typext(id1, ext1, _, _), Sig_typext(_id2, ext2, _, _) ->
             let item =
               extension_constructors ~loc env ~mark  subst id1 ext1 ext2
             in
@@ -784,7 +783,7 @@ and signature_components :
               Shape.Map.add_extcons_proj shape_map id1 orig_shape
             in
             id1, item, shape_map, true
-        | SigL_module(id1, pres1, mty1, _, _), SigL_module(_, pres2, mty2, _, _)
+        | Sig_module(id1, pres1, mty1, _, _), Sig_module(_, pres2, mty2, _, _)
           -> begin
               let orig_shape =
                 Shape.(proj orig_shape (Item.module_ id1))
@@ -797,7 +796,7 @@ and signature_components :
                 match item with
                 | Ok (cc, shape) ->
                     if shape != orig_shape then shape_modified := true;
-                    let mod_shape = Shape.set_uid_if_none shape mty1.mdl_uid in
+                    let mod_shape = Shape.set_uid_if_none shape mty1.md_uid in
                     Ok cc, Shape.Map.add_module shape_map id1 mod_shape
                 | Error diff ->
                     Error (Error.Module_type diff),
@@ -807,17 +806,17 @@ and signature_components :
                     Shape.Map.add_module shape_map id1 orig_shape
               in
               let present_at_runtime, item =
-                match pres1, pres2, mty1.mdl_type with
+                match pres1, pres2, mty1.md_type with
                 | Mp_present, Mp_present, _ -> true, item
                 | _, Mp_absent, _ -> false, item
-                | Mp_absent, Mp_present, MtyL_alias p1 ->
+                | Mp_absent, Mp_present, Mty_alias p1 ->
                     true, Result.map (fun i -> Tcoerce_alias (env, p1, i)) item
                 | Mp_absent, Mp_present, _ -> assert false
               in
               let item = mark_error_as_unrecoverable item in
               id1, item, shape_map, present_at_runtime
             end
-        | SigL_modtype(id1, info1, _), SigL_modtype(_id2, info2, _) ->
+        | Sig_modtype(id1, info1, _), Sig_modtype(_id2, info2, _) ->
             let item =
               modtype_infos ~in_eq ~loc env ~mark  subst id1 info1 info2
             in
@@ -826,7 +825,7 @@ and signature_components :
             in
             let item = mark_error_as_unrecoverable item in
             id1, item, shape_map, false
-        | SigL_class(id1, decl1, _, _), SigL_class(_id2, decl2, _, _) ->
+        | Sig_class(id1, decl1, _, _), Sig_class(_id2, decl2, _, _) ->
             let item =
               class_declarations env subst decl1 decl2
             in
@@ -835,7 +834,7 @@ and signature_components :
             in
             let item = mark_error_as_unrecoverable item in
             id1, item, shape_map, true
-        | SigL_class_type(id1, info1, _, _), SigL_class_type(_id2, info2, _, _) ->
+        | Sig_class_type(id1, info1, _, _), Sig_class_type(_id2, info2, _, _) ->
             let item =
               class_type_declarations ~loc env subst info1 info2
             in
@@ -881,36 +880,36 @@ and signature_components :
 and module_declarations  ~in_eq ~loc env ~mark  subst id1 md1 md2 orig_shape =
   let open Subst.Lazy in
   Builtin_attributes.check_alerts_inclusion
-    ~def:md1.mdl_loc
-    ~use:md2.mdl_loc
+    ~def:md1.md_loc
+    ~use:md2.md_loc
     loc
-    md1.mdl_attributes md2.mdl_attributes
+    md1.md_attributes md2.md_attributes
     (Ident.name id1);
   let p1 = Path.Pident id1 in
   if mark_positive mark then
-    Env.mark_module_used md1.mdl_uid;
+    Env.mark_module_used md1.md_uid;
   strengthened_modtypes  ~in_eq ~loc ~aliasable:true env ~mark subst
-    md1.mdl_type p1 md2.mdl_type orig_shape
+    md1.md_type p1 md2.md_type orig_shape
 
 (* Inclusion between module type specifications *)
 
 and modtype_infos ~in_eq ~loc env ~mark subst id info1 info2 =
   let open Subst.Lazy in
   Builtin_attributes.check_alerts_inclusion
-    ~def:info1.mtdl_loc
-    ~use:info2.mtdl_loc
+    ~def:info1.mtd_loc
+    ~use:info2.mtd_loc
     loc
-    info1.mtdl_attributes info2.mtdl_attributes
+    info1.mtd_attributes info2.mtd_attributes
     (Ident.name id);
   let info2 = Subst.Lazy.modtype_decl Keep subst info2 in
   let r =
-    match (info1.mtdl_type, info2.mtdl_type) with
+    match (info1.mtd_type, info2.mtd_type) with
       (None, None) -> Ok Tcoerce_none
     | (Some _, None) -> Ok Tcoerce_none
     | (Some mty1, Some mty2) ->
         check_modtype_equiv ~in_eq ~loc env ~mark mty1 mty2
     | (None, Some mty2) ->
-        let mty1 = MtyL_ident(Path.Pident id) in
+        let mty1 = Mty_ident(Path.Pident id) in
         check_modtype_equiv ~in_eq ~loc env ~mark mty1 mty2 in
   match r with
   | Ok _ as ok -> ok
