@@ -183,6 +183,7 @@ module Annotation : sig
     Invalid of
       { a : t;
         fun_name : string;
+        fun_dbg : Debuginfo.t;
         property : Cmm.property
       }
 end = struct
@@ -235,20 +236,25 @@ end = struct
     Invalid of
       { a : t;
         fun_name : string;
+        fun_dbg : Debuginfo.t;
         property : Cmm.property
       }
 
-  let print_error ppf t ~fun_name ~property =
-    Format.fprintf ppf "Annotation check for %s%s failed on function %s"
+  let print_error ppf t ~fun_name ~fun_dbg ~property =
+    Format.fprintf ppf "Annotation check for %s%s failed on function %s (%s)"
       (Printcmm.property_to_string property)
       (if t.strict then " strict" else "")
+      (fun_dbg
+      |> List.map (fun dbg ->
+             Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
+      |> String.concat ",")
       fun_name
 
   let report_error = function
-    | Invalid { a; fun_name; property } ->
+    | Invalid { a; fun_name; fun_dbg; property } ->
       Some
         (Location.error_of_printer ~loc:a.loc
-           (print_error ~fun_name ~property)
+           (print_error ~fun_name ~fun_dbg ~property)
            a)
     | _ -> None
 end
@@ -259,6 +265,7 @@ module Func_info = struct
      dependencies as the compilation unit is scanned. *)
   type t =
     { name : string;  (** function name *)
+      mutable dbg : Debuginfo.t;  (** debug info associated with the function *)
       mutable value : Value.t;  (** the result of the check *)
       mutable annotation : Annotation.t option;
           (** [value] must be lessequal than the expected value
@@ -269,6 +276,7 @@ module Func_info = struct
 
   let create name =
     { name;
+      dbg = Debuginfo.none;
       value = Value.bot;
       annotation = None;
       unresolved_callers = String.Set.empty;
@@ -338,7 +346,8 @@ module Unit_info : sig
   (** [cleanup_deps] remove resolved dependencies starting from [name]. *)
   val cleanup_deps : t -> string -> unit
 
-  val record_annotation : t -> string -> Annotation.t option -> unit
+  val record_annotation :
+    t -> string -> Debuginfo.t -> Annotation.t option -> unit
 
   val resolve_all : t -> unit
 
@@ -405,10 +414,11 @@ end = struct
 
   let join_value t name value = join_and_propagate t name ~value
 
-  let record_annotation t name annotation =
+  let record_annotation t name dbg annotation =
     let func_info = get_or_create t name in
     if Option.is_some func_info.annotation
     then Misc.fatal_errorf "Duplicate symbol %s" name;
+    func_info.dbg <- dbg;
     func_info.annotation <- annotation
 
   let record_deps t ~caller ~callees =
@@ -530,7 +540,11 @@ end = struct
              functions. *)
           raise
             (Annotation.Invalid
-               { a; fun_name = func_info.name; property = S.property }));
+               { a;
+                 fun_name = func_info.name;
+                 fun_dbg = func_info.dbg;
+                 property = S.property
+               }));
       report_func_info ~msg:"record" ppf func_info;
       S.set_value func_info.name func_info.value
     in
@@ -740,7 +754,7 @@ end = struct
       let fun_name = f.fun_name in
       let t = create ppf fun_name future_funcnames unit_info in
       let a = Annotation.find f.fun_codegen_options S.property f.fun_dbg in
-      Unit_info.record_annotation unit_info fun_name a;
+      Unit_info.record_annotation unit_info fun_name f.fun_dbg a;
       match a with
       | Some a when Annotation.is_assume a ->
         let expected_value = Annotation.expected_value a in
