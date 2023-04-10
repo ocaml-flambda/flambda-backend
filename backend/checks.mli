@@ -1,10 +1,6 @@
 (** Symbols of function that pass certain checks for special properties. *)
 
-type value =
-  { nor : bool option;
-    exn : bool option;
-    div : bool option
-  }
+type value = int option
 
 type t
 
