@@ -792,42 +792,36 @@ module Spec_zero_alloc : Spec = struct
      in cmx and memory consumption Compilenv. Different components have
      different frequencies of Top/Bot. The most likely value is encoded as None
      (i.e., not stored). *)
-  let encode_return (v : V.t) =
-    match v with Top -> None | Safe -> Some true | Bot -> Some false
+  let encode (v : V.t) = match v with Top -> 0 | Safe -> 1 | Bot -> 2
 
-  let decode_return = function
-    | None -> V.Top
-    | Some true -> V.Safe
-    | Some false -> V.Bot
+  let decode = function
+    | 0 -> V.Top
+    | 1 -> V.Safe
+    | 2 -> V.Bot
+    | n -> Misc.fatal_errorf "Checkmach cannot decode %d" n
 
-  let encode_diverge (v : V.t) =
-    match v with Top -> Some false | Safe -> Some true | Bot -> None
+  let encode (v : Value.t) : Checks.value =
+    let c = (encode v.div lsl 4) lor (encode v.exn lsl 2) lor encode v.nor in
+    if c = 0 then None else Some c
 
-  let decode_diverge = function
-    | None -> V.Bot
-    | Some true -> V.Safe
-    | Some false -> V.Top
+  let decode : Checks.value -> Value.t = function
+    | None -> Value.top
+    | Some d ->
+      if d = 0 then Misc.fatal_error "Checkmach unexpected 0 encoding";
+      let nor = decode (d land 3) in
+      let exn = decode ((d lsr 2) land 3) in
+      let div = decode ((d lsr 4) land 3) in
+      { nor; exn; div }
 
   let set_value s (v : Value.t) =
     let checks = (Compilenv.current_unit_infos ()).ui_checks in
-    let new_value : Checks.value =
-      { nor = encode_return v.nor;
-        exn = encode_return v.exn;
-        div = encode_diverge v.div
-      }
-    in
-    Checks.set_value checks s new_value
+    Checks.set_value checks s (encode v)
 
   let get_value_opt s =
     let checks = Compilenv.cached_checks in
     match Checks.get_value checks s with
     | None -> None
-    | Some ({ nor; exn; div } : Checks.value) ->
-      Some
-        { Value.nor = decode_return nor;
-          exn = decode_return exn;
-          div = decode_diverge div
-        }
+    | Some (c : Checks.value) -> Some (decode c)
 
   let transform_specific s =
     (* Conservatively assume that operation can return normally. *)
