@@ -171,6 +171,8 @@ end
 module Annotation : sig
   type t
 
+  val get_loc : t -> Location.t
+
   val find : Cmm.codegen_option list -> Cmm.property -> Debuginfo.t -> t option
 
   val expected_value : t -> Value.t
@@ -210,6 +212,8 @@ end = struct
       loc : Location.t
           (** Source location of the annotation, used for error messages. *)
     }
+
+  let get_loc t = t.loc
 
   let expected_value t = if t.strict then Value.safe else Value.relaxed
 
@@ -531,6 +535,8 @@ end = struct
       (match func_info.annotation with
       | None -> ()
       | Some a ->
+        Builtin_attributes.mark_property_checked analysis_name
+          (Annotation.get_loc a);
         if (not (Annotation.is_assume a))
            && not
                 (Value.lessequal func_info.value (Annotation.expected_value a))
