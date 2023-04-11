@@ -143,8 +143,12 @@ let loc_parameters arg =
   let (loc, _ofs) =
     calling_conventions 0 7 100 103 incoming (- size_domainstate_args) arg
   in loc
-let loc_results res =
-  let (loc, _ofs) = calling_conventions 0 7 100 103 not_supported 0 res in loc
+let loc_results_call res =
+  calling_conventions 0 7 100 103 outgoing (- size_domainstate_args) res
+let loc_results_return res =
+  let (loc, _ofs) =
+    calling_conventions 0 7 100 103 incoming (- size_domainstate_args) res
+  in loc
 
 (*   C calling conventions under SVR4:
      use GPR 2-6 and FPR 0,2,4,6 just like ML calling conventions.

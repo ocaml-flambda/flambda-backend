@@ -4143,3 +4143,5 @@ let kind_of_layout (layout : Lambda.layout) =
   | Punboxed_float -> Vfloat
   | Punboxed_int _ -> Vint
   | Pvalue kind -> Vval kind
+
+let make_tuple l = match l with [e] -> e | _ -> Ctuple l
