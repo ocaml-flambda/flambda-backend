@@ -4,7 +4,7 @@ open! Cfg_regalloc_utils
 open! Cfg_irc_utils
 module Doubly_linked_list = Flambda_backend_utils.Doubly_linked_list
 
-module RegWorkList = ArraySet.Make (struct
+module RegWorkList = Flambda_backend_utils.Array_set.Make (struct
   type t = Reg.t
 
   let compare left right = Int.compare left.Reg.stamp right.Reg.stamp
@@ -16,7 +16,7 @@ let reg_set_of_reg_work_list (rwl : RegWorkList.t) : Reg.Set.t =
   RegWorkList.fold rwl ~init:Reg.Set.empty ~f:(fun acc elem ->
       Reg.Set.add elem acc)
 
-module InstructionWorkList = ArraySet.Make (struct
+module InstructionWorkList = Flambda_backend_utils.Array_set.Make (struct
   type t = Instruction.t
 
   let compare = Instruction.compare

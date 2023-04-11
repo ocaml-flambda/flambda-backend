@@ -82,35 +82,39 @@ module Make_dataflow (D : Dataflow_direction_S) :
           label : Label.t
         }
 
+      let dummy = { priority = min_int; label = min_int }
+
       let compare t1 t2 =
         match Int.compare t1.priority t2.priority with
         | 0 -> Label.compare t1.label t2.label
         | c -> c
     end
 
-    module WorkSet = Set.Make (WorkSetElement)
+    module WorkSet = Flambda_backend_utils.Array_set.Make (WorkSetElement)
 
     type t =
       { priorities : int Label.Tbl.t;
-        mutable work_set : WorkSet.t
+        work_set : WorkSet.t
       }
 
     type element = Label.t
 
-    let create ~priorities = { priorities; work_set = WorkSet.empty }
+    let create ~priorities =
+      let work_set =
+        WorkSet.make ~original_capacity:(Label.Tbl.length priorities)
+      in
+      { priorities; work_set }
 
     let add t label =
       let priority = Label.Tbl.find t.priorities label in
-      t.work_set <- WorkSet.add { label; priority } t.work_set
+      WorkSet.add t.work_set { label; priority }
 
     let is_empty t = WorkSet.is_empty t.work_set
 
-    let choose t = WorkSet.max_elt t.work_set
-
     let remove_and_return t =
-      let element = choose t in
-      t.work_set <- WorkSet.remove element t.work_set;
-      element.label
+      match WorkSet.choose_and_remove t.work_set with
+      | None -> assert false (* XXX *)
+      | Some { priority = _; label } -> label
   end
 
   type work_state =
