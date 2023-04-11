@@ -177,11 +177,13 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Specific (Ifloat_iround | Ifloat_round _))
   | Op (Intop_imm (Icomp _, _)) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
-  | Op (Intop_imm (Iadd, _)) when (Reg.same_loc instr.arg.(0) instr.res.(0)) ->
+  | Op (Intop_imm (Iadd, _)) ->
+    (* Conservatively assume it will be turned into a `lea` instruction,
+       and ask for everything to be in registers. *)
     May_still_have_spilled_registers
   | Op (Intop(Ilsl | Ilsr | Iasr)) ->
     may_use_stack_operand_for_result map instr ~num_args:2
-  | Op(Intop_imm((Iadd | Isub | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr), _)) ->
+  | Op(Intop_imm((Isub | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr), _)) ->
     may_use_stack_operand_for_result map instr ~num_args:1
   | Op (Csel _) (* CR gyorsh: optimize *)
   | Op (Specific (Ilfence | Isfence | Imfence))
