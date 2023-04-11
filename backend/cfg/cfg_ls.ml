@@ -92,6 +92,8 @@ let build_intervals : State.t -> Cfg_with_liveness.t -> unit =
       incr pos;
       update_instr !pos term ~trap_handler
         ~destroyed:(Proc.destroyed_at_terminator term.desc);
+      (* Increment a second time to be in line with upstream `Iend` instructions
+         present at the end of every "block". *)
       incr pos);
   Reg.Tbl.iter (fun reg (range : Range.t) -> add_range reg range) current_ranges;
   Reg.Tbl.iter
