@@ -24,6 +24,18 @@
      as compiler-libs/flambda_backend_utils__Doubly_linked_list.cmx)
     (.flambda_backend_utils.objs/native/flambda_backend_utils__Doubly_linked_list.o
      as compiler-libs/flambda_backend_utils__Doubly_linked_list.o)
+    (array_set.mli as compiler-libs/array_set.ml)
+    (array_set.mli as compiler-libs/array_set.mli)
+    (.flambda_backend_utils.objs/byte/flambda_backend_utils__Array_set.cmi
+     as compiler-libs/flambda_backend_utils__Array_set.cmi)
+    (.flambda_backend_utils.objs/byte/flambda_backend_utils__Array_set.cmti
+     as compiler-libs/flambda_backend_utils__Array_set.cmti)
+    (.flambda_backend_utils.objs/byte/flambda_backend_utils__Array_set.cmt
+     as compiler-libs/flambda_backend_utils__Array_set.cmt)
+    (.flambda_backend_utils.objs/native/flambda_backend_utils__Array_set.cmx
+     as compiler-libs/flambda_backend_utils__Array_set.cmx)
+    (.flambda_backend_utils.objs/native/flambda_backend_utils__Array_set.o
+     as compiler-libs/flambda_backend_utils__Array_set.o)
   )
   (section lib)
   (package ocaml))
