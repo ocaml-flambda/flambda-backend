@@ -268,6 +268,26 @@ let load_env_field ~fun_offset
   let expr, _layout = rebuild parts in
   expr
 
+let rec fold_left_layout (f : 'acc -> 'e -> Closure_offsets.layout_atom -> 'acc)
+    (acc : 'acc) (expr : Clambda.ulambda) (layout : Clambda_primitives.layout) : 'acc =
+  match layout with
+  | Ptop ->
+    Misc.fatal_error "[Ptop] can't be stored in a closure."
+  | Pbottom ->
+    Misc.fatal_error
+      "[Pbottom] should have been eliminated as dead code \
+       and not stored in a closure."
+  | Punboxed_float -> f acc expr Unboxed_float
+  | Punboxed_int bi -> f acc expr (Unboxed_int bi)
+  | Pvalue Pintval -> f acc expr Value_int
+  | Pvalue _ -> f acc expr Value
+  | Punboxed_product layouts ->
+    List.fold_left (fun acc (field, layout) ->
+        let expr : Clambda.ulambda =
+          Uprim (Punboxed_product_field (field, layouts), [expr], Debuginfo.none) in
+        fold_left_layout f acc expr layout) acc
+      (List.mapi (fun i v -> i, v) layouts)
+
 let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
   match flam with
   | Var var -> subst_var env var
@@ -729,37 +749,22 @@ and to_clambda_set_of_closures t env
   in
   let functions = List.map to_clambda_function all_functions in
   let not_scanned_fv, scanned_fv =
-    Variable.Map.partition (fun _ (free_var : Flambda.specialised_to) ->
-        match free_var.kind with
-        | Ptop -> Misc.fatal_error "[Ptop] can't be stored in a closure."
-        | Pbottom ->
-          Misc.fatal_error
-            "[Pbottom] should have been eliminated as dead code \
-             and not stored in a closure."
-        | Punboxed_float -> true
-        | Punboxed_int _ -> true
-        | Pvalue Pintval -> true
-        | Pvalue _ -> false
-        | Punboxed_product _ ->
-          true
-          (* Misc.fatal_error "TBD" *)
-    )
-      free_vars
+    let free_vars = Variable.Map.bindings free_vars in
+    List.fold_left (fun acc (_var, (free_var : Flambda.specialised_to)) ->
+        let f (not_scanned_fv, scanned_fv)
+            (expr: Clambda.ulambda) (atom : Closure_offsets.layout_atom) =
+          match atom with
+          | Value -> not_scanned_fv, (expr :: scanned_fv)
+          | Value_int | Unboxed_float | Unboxed_int _ ->
+            (expr :: not_scanned_fv, scanned_fv)
+        in
+        let closure, var_layout = subst_var env free_var.var in
+        assert(Lambda.compatible_layout var_layout free_var.kind);
+        fold_left_layout f acc closure free_var.kind
+      ) ([],[]) free_vars
   in
-  let to_closure_args free_vars =
-    List.map snd (
-      Variable.Map.bindings (Variable.Map.map (
-          fun (free_var : Flambda.specialised_to) ->
-            let var, var_layout = subst_var env free_var.var in
-            assert(Lambda.compatible_layout var_layout free_var.kind);
-            var
-        ) free_vars))
-  in
-  Uclosure {
-    functions ;
-    not_scanned_slots = to_closure_args not_scanned_fv ;
-    scanned_slots = to_closure_args scanned_fv
-  }
+  let not_scanned_slots, scanned_slots = List.rev not_scanned_fv, List.rev scanned_fv in
+  Uclosure { functions; not_scanned_slots; scanned_slots; }
 
 and to_clambda_closed_set_of_closures t env symbol
       ({ function_decls; } : Flambda.set_of_closures)
