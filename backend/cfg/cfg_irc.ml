@@ -499,8 +499,8 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
       ~on_fatal_callback:(fun () -> save_cfg "irc" cfg_with_layout)
       cfg_with_liveness
   in
-  (* CR xclerc for xclerc: consider moving the computation of temporaries
-     and the creation of the state to `prelude`. *)
+  (* CR xclerc for xclerc: consider moving the computation of temporaries and
+     the creation of the state to `prelude`. *)
   let all_temporaries = Reg.Set.union cfg_infos.arg cfg_infos.res in
   if irc_debug
   then log ~indent:0 "#temporaries=%d" (Reg.Set.cardinal all_temporaries);
