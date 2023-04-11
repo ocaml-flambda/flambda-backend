@@ -202,8 +202,11 @@ let loc_parameters arg =
   let (loc, _ofs) =
     calling_conventions 0 9 100 109 incoming (- size_domainstate_args) arg
   in loc
-let loc_results res =
-  let (loc, _ofs) = calling_conventions 0 0 100 100 not_supported 0 res
+let loc_results_call res =
+  calling_conventions 0 9 100 109 outgoing (- size_domainstate_args) res
+let loc_results_return res =
+  let (loc, _ofs) =
+    calling_conventions 0 9 100 109 incoming (- size_domainstate_args) res
   in loc
 
 let max_arguments_for_tailcalls = 10 (* in regs *) + 64 (* in domain state *)
