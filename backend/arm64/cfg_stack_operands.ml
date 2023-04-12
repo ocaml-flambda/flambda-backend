@@ -2,7 +2,7 @@
 
 open! Cfg_regalloc_utils
 
-let debug = true
+let debug = false
 
 let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   match instr.desc with

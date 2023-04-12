@@ -4,7 +4,7 @@
 
 open! Cfg_regalloc_utils
 
-let debug = true
+let debug = false
 
 let may_use_stack_operand_for_second_argument
   : type a . spilled_map -> a Cfg.instruction -> stack_operands_rewrite

@@ -235,19 +235,12 @@ let make_temporary :
 let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  Profile.record ~accumulate:true "remove-noop-move"
-    (fun () ->
-      Cfg.iter_blocks cfg ~f:(fun _label block ->
-          DLL.filter_left block.body ~f:(fun instr ->
-              not (Cfg.is_noop_move instr))))
-    ();
-  Profile.record ~accumulate:true "eliminate" Eliminate_fallthrough_blocks.run
-    cfg_with_layout;
-  Profile.record ~accumulate:true "merge" Merge_straightline_blocks.run
-    cfg_with_layout;
-  Profile.record ~accumulate:true "dead_block"
-    Eliminate_dead_code.run_dead_block cfg_with_layout;
-  Profile.record ~accumulate:true "terminator" Simplify_terminator.run cfg;
+  Cfg.iter_blocks cfg ~f:(fun _label block ->
+      DLL.filter_left block.body ~f:(fun instr -> not (Cfg.is_noop_move instr)));
+  Eliminate_fallthrough_blocks.run cfg_with_layout;
+  Merge_straightline_blocks.run cfg_with_layout;
+  Eliminate_dead_code.run_dead_block cfg_with_layout;
+  Simplify_terminator.run cfg;
   cfg_with_layout
 
 let precondition : Cfg_with_layout.t -> unit =
