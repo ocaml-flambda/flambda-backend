@@ -172,7 +172,7 @@ val safe_mod_bi :
     [ifso], and [ifnot_dbg] to the else branch [ifnot] *)
 val mk_if_then_else :
   Debuginfo.t ->
-  Cmm.value_kind ->
+  Cmm.kind_for_unboxing ->
   expression ->
   Debuginfo.t ->
   expression ->
@@ -768,13 +768,13 @@ val make_switch :
   int array ->
   (expression * Debuginfo.t) array ->
   Debuginfo.t ->
-  Cmm.value_kind ->
+  Cmm.kind_for_unboxing ->
   expression
 
 (** [transl_int_switch loc kind arg low high cases default] *)
 val transl_int_switch :
   Debuginfo.t ->
-  Cmm.value_kind ->
+  Cmm.kind_for_unboxing ->
   expression ->
   int ->
   int ->
@@ -785,7 +785,7 @@ val transl_int_switch :
 (** [transl_switch_clambda loc kind arg index cases] *)
 val transl_switch_clambda :
   Debuginfo.t ->
-  Cmm.value_kind ->
+  Cmm.kind_for_unboxing ->
   expression ->
   int array ->
   expression array ->
@@ -794,7 +794,7 @@ val transl_switch_clambda :
 (** [strmatch_compile dbg arg default cases] *)
 val strmatch_compile :
   Debuginfo.t ->
-  Cmm.value_kind ->
+  Cmm.kind_for_unboxing ->
   expression ->
   expression option ->
   (string * expression) list ->
@@ -1274,7 +1274,7 @@ val transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list
 (* CR lmaurer: Return [Linkage_name.t] instead *)
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
 
-val kind_of_layout : Lambda.layout -> value_kind
+val kind_of_layout : Lambda.layout -> kind_for_unboxing
 
 val machtype_of_layout : Lambda.layout -> machtype
 
