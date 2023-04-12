@@ -229,6 +229,7 @@ module type Optcommon_options = sig
   val _dlinear :  unit -> unit
   val _dinterval : unit -> unit
   val _dstartup :  unit -> unit
+  val _debug_ocaml : unit -> unit
 end;;
 
 module type Optcomp_options = sig

@@ -921,6 +921,10 @@ let mk_dstartup f =
   "-dstartup", Arg.Unit f, " (undocumented)"
 ;;
 
+let mk_debug_ocaml f =
+  "-debug-ocaml", Arg.Unit f, " Debugging output for the compiler\n\
+                               (internal use only)"
+
 let mk_opaque f =
   "-opaque", Arg.Unit f,
   " Does not generate cross-module optimization information\n\
@@ -1184,6 +1188,7 @@ module type Optcommon_options = sig
   val _dlinear :  unit -> unit
   val _dinterval : unit -> unit
   val _dstartup :  unit -> unit
+  val _debug_ocaml : unit -> unit
 end;;
 
 module type Optcomp_options = sig
@@ -1578,6 +1583,7 @@ struct
     mk_dump_into_file F._dump_into_file;
     mk_dump_dir F._dump_dir;
     mk_dump_pass F._dump_pass;
+    mk_debug_ocaml F._debug_ocaml;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1686,6 +1692,8 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
     mk_dump_pass F._dump_pass;
+    mk_debug_ocaml F._debug_ocaml;
+
     mk_eval F._eval;
   ]
 end;;
@@ -1882,6 +1890,7 @@ module Default = struct
     let _dspill = set dump_spill
     let _dsplit = set dump_split
     let _dstartup = set keep_startup_file
+    let _debug_ocaml = set debug_ocaml
     let _dump_pass pass = set_dumped_pass pass true
     let _inline spec =
       Float_arg_helper.parse spec "Syntax: -inline <n> | <round>=<n>[,...]"

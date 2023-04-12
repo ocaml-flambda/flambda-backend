@@ -132,6 +132,7 @@ let dump_linear = ref false             (* -dlinear *)
 let dump_interval = ref false           (* -dinterval *)
 let keep_startup_file = ref false       (* -dstartup *)
 let dump_combine = ref false            (* -dcombine *)
+let debug_ocaml = ref false             (* -debug-ocaml *)
 let default_timings_precision  = 3
 let timings_precision = ref default_timings_precision (* -dtimings-precision *)
 let profile_columns : Profile.column list ref = ref [] (* -dprofile/-dtimings *)
