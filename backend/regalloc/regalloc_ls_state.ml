@@ -109,8 +109,8 @@ let[@inline] invariant_intervals state cfg_with_liveness =
               | None -> Some interval
               | Some _reg ->
                 fatal
-                  "Regalloc_ls_state.invariant_intervals: state.intervals duplicate \
-                   register %a"
+                  "Regalloc_ls_state.invariant_intervals: state.intervals \
+                   duplicate register %a"
                   Printmach.reg interval.reg)
             acc)
     in
@@ -155,7 +155,8 @@ let invariant_active_field (reg_class : int) (field_name : string)
       if hd.Interval.end_ > prev.Interval.end_
       then
         fatal
-          "Regalloc_ls_state.invariant_active_field: active.(%d).%s is not sorted"
+          "Regalloc_ls_state.invariant_active_field: active.(%d).%s is not \
+           sorted"
           reg_class field_name
       else is hd tl
   in

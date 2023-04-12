@@ -351,9 +351,7 @@ end = struct
 
   let add_instr_id ~seen_ids ~context id =
     if Hashtbl.mem seen_ids id
-    then
-      Regalloc_utils.fatal "Duplicate instruction no. %d while %s" id
-        context;
+    then Regalloc_utils.fatal "Duplicate instruction no. %d while %s" id context;
     Hashtbl.add seen_ids id ()
 
   let add_basic ~seen_ids ~successor_id t instr =
@@ -455,8 +453,8 @@ end = struct
       (fun (reg_desc : Register.t) loc_reg ->
         match reg_desc.reg_id, Location.of_reg loc_reg with
         | _, None ->
-          Regalloc_utils.fatal
-            "%s: location is still unknown after allocation" context
+          Regalloc_utils.fatal "%s: location is still unknown after allocation"
+            context
         | Named { stamp = _ }, _ -> ()
         | Preassigned { location = l1 }, Some l2 when Location.equal l1 l2 -> ()
         | Preassigned { location = prev_loc }, Some new_loc ->
@@ -493,8 +491,7 @@ end = struct
           id old_successor_id successor_id;
       (* CR-someday azewierzejew: Avoid using polymrphic compare. *)
       if instr.desc <> old_instr.desc
-      then
-        Regalloc_utils.fatal "The desc of instruction with id %d changed" id;
+      then Regalloc_utils.fatal "The desc of instruction with id %d changed" id;
       verify_reg_arrays ~id instr old_instr;
       (* Return new successor id which is the id of the current instruction. *)
       id

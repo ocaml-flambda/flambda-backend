@@ -162,7 +162,9 @@ let rewrite_gen :
                 instr);
       if instruction_contains_spilled block.terminator
       then
-        match Regalloc_stack_operands.terminator spilled_map block.terminator with
+        match
+          Regalloc_stack_operands.terminator spilled_map block.terminator
+        with
         | All_spilled_registers_rewritten -> ()
         | May_still_have_spilled_registers ->
           (let sharing = Reg.Tbl.create 8 in
