@@ -320,7 +320,7 @@ module Description : sig
   val find_terminator :
     t -> terminator instruction -> terminator Instruction.t option
 
-  val create : Cfg_with_layout.t -> t
+  val create : Cfg_with_layout.t -> t option
 
   val verify : t -> Cfg_with_layout.t -> unit
 
@@ -385,9 +385,9 @@ end = struct
         res = Array.map Register.create instr.res
       }
 
-  let create cfg =
+  let do_create cfg =
     Cfg_regalloc_utils.precondition cfg;
-    if Cfg_regalloc_utils.validator_debug
+    if Lazy.force Cfg_regalloc_utils.validator_debug
     then
       (* CR-someday: We don't save the file with [fun_name] in the filename
          because there is an appended stamp that is fragile and is annoying when
@@ -439,6 +439,11 @@ end = struct
           first_instruction_id)
       (Cfg_with_layout.cfg cfg).Cfg.blocks;
     t
+
+  let create cfg =
+    match !Flambda_backend_flags.regalloc_validate with
+    | false -> None
+    | true -> Some (do_create cfg)
 
   let verify_reg_array ~context ~reg_arr ~loc_arr =
     if Array.length reg_arr <> Array.length loc_arr
@@ -1361,7 +1366,7 @@ let verify_entrypoint (equations : Equation_set.t) (desc : Description.t)
 
 let test (desc : Description.t) (cfg : Cfg_with_layout.t) :
     (Cfg_with_layout.t, Error.t) Result.t =
-  if Cfg_regalloc_utils.validator_debug
+  if Lazy.force Cfg_regalloc_utils.validator_debug
   then
     (* CR-someday: We don't save the file with [fun_name] in the filename
        because there is an appended stamp that is fragile and is annoying when
@@ -1388,7 +1393,7 @@ let test (desc : Description.t) (cfg : Cfg_with_layout.t) :
         "Unable to compute validation equation sets from CFG for function %s@."
         (Cfg_with_layout.cfg cfg).fun_name
   in
-  if Cfg_regalloc_utils.validator_debug
+  if Lazy.force Cfg_regalloc_utils.validator_debug
   then
     (* CR-someday: We don't save the file with [fun_name] in the filename
        because there is an appended stamp that is fragile and is annoying when
@@ -1412,6 +1417,9 @@ let test (desc : Description.t) (cfg : Cfg_with_layout.t) :
     Error { source = At_instruction error; res_instr; res_block; desc; cfg }
 
 let run desc cfg =
-  match test desc cfg with
-  | Ok cfg -> cfg
-  | Error error -> Cfg_regalloc_utils.fatal "%a%!" Error.dump error
+  match desc with
+  | None -> cfg
+  | Some desc -> (
+    match test desc cfg with
+    | Ok cfg -> cfg
+    | Error error -> Cfg_regalloc_utils.fatal "%a%!" Error.dump error)

@@ -250,15 +250,18 @@ let cfgize (f : Mach.fundecl) : Cfg_with_layout.t =
 type register_allocator =
   | Upstream
   | IRC
+  | LS
 
-let register_allocator : register_allocator =
-  match Sys.getenv_opt "REGISTER_ALLOCATOR" with
-  | None -> Upstream
-  | Some id ->
-    match String.lowercase_ascii id with
-    | "irc" -> IRC
-    | "" | "upstream" -> Upstream
-    | _ -> Misc.fatal_errorf "unknown register allocator %S" id
+let default_allocator = Upstream
+
+let register_allocator fd : register_allocator =
+  match String.lowercase_ascii !Flambda_backend_flags.regalloc with
+  | "cfg" -> if should_use_linscan fd then LS else IRC
+  | "irc" -> IRC
+  | "ls" -> LS
+  | "upstream" -> Upstream
+  | "" -> default_allocator
+  | other -> Misc.fatal_errorf "unknown register allocator (%S)" other
 
 let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   Proc.init ();
@@ -283,11 +286,10 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Profile.record ~accumulate:true "checkmach"
        (Checkmach.fundecl ~future_funcnames:funcnames ppf_dump)
   ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
-    let force_linscan = should_use_linscan fd in
-    match force_linscan, register_allocator with
-    | false, IRC ->
+    match register_allocator fd with
+    | ((IRC | LS) as regalloc) ->
       fd
-      ++ Profile.record ~accumulate:true "irc" (fun fd ->
+      ++ Profile.record ~accumulate:true "cfg" (fun fd ->
         let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
@@ -299,7 +301,11 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
             Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
         in
         cfg
-        ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
+        ++ begin match regalloc with
+          | IRC -> Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
+          | LS -> Profile.record ~accumulate:true "cfg_ls" Cfg_ls.run
+          | Upstream -> assert false
+        end
         ++ Cfg_with_liveness.cfg_with_layout
         ++ Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
         ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
@@ -307,7 +313,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
         ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
-    | true, _ | false, Upstream ->
+    | Upstream ->
       fd
       ++ Profile.record ~accumulate:true "default" (fun fd ->
         fd

@@ -73,11 +73,14 @@ jobs:
           - name: irc
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            ocamlparam: ''
+            ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=IRC_SPLIT:off,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses'
             check_arch: true
-            register_allocator: irc
-            irc_split: off
-            irc_spilling_heuristics: flat_uses
+
+          - name: ls
+            config: --enable-middle-end=flambda2
+            os: ubuntu-latest
+            ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=LS_ORDER:layout'
+            check_arch: true
 
           - name: irc_frame_pointers
             config: --enable-middle-end=flambda2 --enable-frame-pointers
@@ -97,9 +100,6 @@ jobs:
       # On macOS, the testsuite is slow, so run only on push to main (#507)
       run_testsuite: "${{matrix.os != 'macos-latest' || (github.event_name == 'push' && github.event.ref == 'refs/heads/main')}}"
       build_upstream: "${{matrix.name == 'build_upstream_closure'}}"
-      REGISTER_ALLOCATOR: "${{matrix.register_allocator}}"
-      IRC_SPLIT: "${{matrix.irc_split}}"
-      IRC_SPILLING_HEURISTICS: "${{matrix.irc_spilling_heuristics}}"
 
     steps:
     - name: Checkout the Flambda backend repo

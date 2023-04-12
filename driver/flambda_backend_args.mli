@@ -26,6 +26,10 @@ module type Flambda_backend_options = sig
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
   val dcfg_equivalence_check : unit -> unit
+  val regalloc : string -> unit
+  val regalloc_param : string -> unit
+  val regalloc_validate : unit -> unit
+  val no_regalloc_validate : unit -> unit
 
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit

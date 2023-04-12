@@ -231,6 +231,7 @@
   cfg_liveness
   cfg_loop_infos
   cfg_regalloc_utils
+  cfg_regalloc_rewrite
   cfg_regalloc_validate
   cfg_to_linear_desc
   cfg_stack_operands
@@ -238,6 +239,9 @@
   cfg_irc_state
   cfg_irc_utils
   cfg_irc_split
+  cfg_ls
+  cfg_ls_state
+  cfg_ls_utils
   eliminate_dead_code
   disconnect_block
   eliminate_dead_blocks
@@ -767,6 +771,7 @@
   (cfg_liveness.mli as compiler-libs/cfg_liveness.mli)
   (cfg_loop_infos.mli as compiler-libs/cfg_loop_infos.mli)
   (cfg_regalloc_utils.mli as compiler-libs/cfg_regalloc_utils.mli)
+  (cfg_regalloc_rewrite.mli as compiler-libs/cfg_regalloc_rewrite.mli)
   (cfg_regalloc_validate.mli as compiler-libs/cfg_regalloc_validate.mli)
   (cfg_to_linear_desc.mli as compiler-libs/cfg_to_linear_desc.mli)
   (cfg_stack_operands.mli as compiler-libs/cfg_stack_operands.mli)
@@ -774,6 +779,9 @@
   (cfg_irc_state.mli as compiler-libs/cfg_irc_state.mli)
   (cfg_irc_utils.mli as compiler-libs/cfg_irc_utils.mli)
   (cfg_irc_split.mli as compiler-libs/cfg_irc_split.mli)
+  (cfg_ls.mli as compiler-libs/cfg_ls.mli)
+  (cfg_ls_state.mli as compiler-libs/cfg_ls_state.mli)
+  (cfg_ls_utils.mli as compiler-libs/cfg_ls_utils.mli)
   (eliminate_dead_code.mli as compiler-libs/eliminate_dead_code.mli)
   (disconnect_block.mli as compiler-libs/disconnect_block.mli)
   (eliminate_dead_blocks.mli as compiler-libs/eliminate_dead_blocks.mli)
@@ -1266,6 +1274,18 @@
   (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmti
    as
    compiler-libs/cfg_regalloc_utils.cmti)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_rewrite.cmi
+    as
+    compiler-libs/cfg_regalloc_rewrite.cmi)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_rewrite.cmo
+    as
+    compiler-libs/cfg_regalloc_rewrite.cmo)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_rewrite.cmt
+    as
+    compiler-libs/cfg_regalloc_rewrite.cmt)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_rewrite.cmti
+    as
+    compiler-libs/cfg_regalloc_rewrite.cmti)
   (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmi
    as
    compiler-libs/cfg_regalloc_validate.cmi)
@@ -1342,6 +1362,18 @@
   (.ocamloptcomp.objs/byte/cfg_irc_state.cmti
    as
    compiler-libs/cfg_irc_state.cmti)
+  (.ocamloptcomp.objs/byte/cfg_ls.cmi as compiler-libs/cfg_ls.cmi)
+  (.ocamloptcomp.objs/byte/cfg_ls.cmo as compiler-libs/cfg_ls.cmo)
+  (.ocamloptcomp.objs/byte/cfg_ls.cmt as compiler-libs/cfg_ls.cmt)
+  (.ocamloptcomp.objs/byte/cfg_ls.cmti as compiler-libs/cfg_ls.cmti)
+  (.ocamloptcomp.objs/byte/cfg_ls_state.cmi as compiler-libs/cfg_ls_state.cmi)
+  (.ocamloptcomp.objs/byte/cfg_ls_state.cmo as compiler-libs/cfg_ls_state.cmo)
+  (.ocamloptcomp.objs/byte/cfg_ls_state.cmt as compiler-libs/cfg_ls_state.cmt)
+  (.ocamloptcomp.objs/byte/cfg_ls_state.cmti as compiler-libs/cfg_ls_state.cmti)
+  (.ocamloptcomp.objs/byte/cfg_ls_utils.cmi as compiler-libs/cfg_ls_utils.cmi)
+  (.ocamloptcomp.objs/byte/cfg_ls_utils.cmo as compiler-libs/cfg_ls_utils.cmo)
+  (.ocamloptcomp.objs/byte/cfg_ls_utils.cmt as compiler-libs/cfg_ls_utils.cmt)
+  (.ocamloptcomp.objs/byte/cfg_ls_utils.cmti as compiler-libs/cfg_ls_utils.cmti)
   (.ocamloptcomp.objs/byte/eliminate_dead_code.cmi
    as
    compiler-libs/eliminate_dead_code.cmi)
@@ -1578,8 +1610,11 @@
    as
    compiler-libs/cfg_loop_infos.cmx)
   (.ocamloptcomp.objs/native/cfg_regalloc_utils.cmx
-   as
-   compiler-libs/cfg_regalloc_utils.cmx)
+    as
+    compiler-libs/cfg_regalloc_utils.cmx)
+  (.ocamloptcomp.objs/native/cfg_regalloc_rewrite.cmx
+    as
+    compiler-libs/cfg_regalloc_rewrite.cmx)
   (.ocamloptcomp.objs/native/cfg_regalloc_validate.cmx
    as
    compiler-libs/cfg_regalloc_validate.cmx)
@@ -1599,6 +1634,9 @@
   (.ocamloptcomp.objs/native/cfg_irc_state.cmx
    as
    compiler-libs/cfg_irc_state.cmx)
+  (.ocamloptcomp.objs/native/cfg_ls.cmx as compiler-libs/cfg_ls.cmx)
+  (.ocamloptcomp.objs/native/cfg_ls_state.cmx as compiler-libs/cfg_ls_state.cmx)
+  (.ocamloptcomp.objs/native/cfg_ls_utils.cmx as compiler-libs/cfg_ls_utils.cmx)
   (.ocamloptcomp.objs/native/eliminate_dead_code.cmx
    as
    compiler-libs/eliminate_dead_code.cmx)

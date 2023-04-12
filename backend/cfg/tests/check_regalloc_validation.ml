@@ -29,7 +29,8 @@ module Instruction = struct
       fdo = None;
       irc_work_list = Unknown_list;
       live = Reg.Set.empty;
-      stack_offset = 0
+      stack_offset = 0;
+      ls_order = -1
     }
 end
 
@@ -367,11 +368,21 @@ let check name f ~exp_std ~exp_err =
         with_wrap_ppf Format.err_formatter (fun () ->
             try
               let desc =
-                try Cfg_regalloc_validate.Description.create before
+                try
+                  Misc.protect_refs
+                    [R (Flambda_backend_flags.regalloc_validate, true)]
+                    (fun () -> Cfg_regalloc_validate.Description.create before)
                 with Misc.Fatal_error ->
                   Format.printf
                     "fatal exception raised when creating description";
                   raise Break_test
+              in
+              let desc =
+                match desc with
+                | None ->
+                  Format.printf "description was not generated";
+                  raise Break_test
+                | Some desc -> desc
               in
               let res =
                 try Cfg_regalloc_validate.test desc after
@@ -548,7 +559,8 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: instruction 20 has a register with an unknown location"
+      ">> Fatal error: instruction 20 has a register (V/37) with an unknown \
+       location"
 
 let () =
   check "Precoloring can't change"
