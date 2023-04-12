@@ -16,7 +16,7 @@
 
 [@@@ocaml.warning "-49"]
 [@@@ocaml.flambda_o3]
-[@@@zero_alloc check]
+[@@@ocaml.zero_alloc check]
 
 (* Exceptions *)
 

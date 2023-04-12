@@ -14,7 +14,7 @@
 (**************************************************************************)
 
 [@@@ocaml.flambda_o3]
-[@@@zero_alloc check]
+[@@@ocaml.zero_alloc check]
 
 (* CamlinternalAtomic is a dependency of Stdlib, so it is compiled with
    -nopervasives. *)

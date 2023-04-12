@@ -13,7 +13,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-[@@@zero_alloc check]
+[@@@ocaml.zero_alloc check]
 
 (* Padding position. *)
 type padty =
