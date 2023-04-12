@@ -38,7 +38,7 @@ module type Flambda_backend_options = sig
   val dno_asm_comments : unit -> unit
 
   val heap_reduction_threshold : int -> unit
-  val alloc_check : unit -> unit
+  val zero_alloc_check : unit -> unit
   val dcheckmach : unit -> unit
 
   val disable_poll_insertion : unit -> unit

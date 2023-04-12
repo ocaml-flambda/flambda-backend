@@ -283,7 +283,8 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Profile.record ~accumulate:true "cse" CSE.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_cse
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
-  ++ Profile.record ~accumulate:true "checkmach" (Checkmach.fundecl ppf_dump)
+  ++ Profile.record ~accumulate:true "checkmach"
+       (Checkmach.fundecl ~future_funcnames:funcnames ppf_dump)
   ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
     match register_allocator fd with
     | ((IRC | LS) as regalloc) ->

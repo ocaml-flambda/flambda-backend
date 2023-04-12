@@ -361,15 +361,18 @@ and sequence ppf = function
 
 and expression ppf e = fprintf ppf "%a" expr e
 
-let property : Cmm.property -> string = function
-    | Noalloc -> "noalloc"
+let property_to_string : Cmm.property -> string = function
+  | Zero_alloc -> "zero_alloc"
 
 let codegen_option = function
   | Reduce_code_size -> "reduce_code_size"
   | No_CSE -> "no_cse"
   | Use_linscan_regalloc -> "linscan"
-  | Assert p -> "assert "^(property p)
-  | Assume p -> "assume "^(property p)
+  | Check { property; strict; assume; loc = _ } ->
+    Printf.sprintf "%s %s%s"
+      (if assume then "assume" else "assert")
+      (property_to_string property)
+      (if strict then " strict" else "")
 
 let print_codegen_options ppf l =
   List.iter (fun c -> fprintf ppf " %s" (codegen_option c)) l

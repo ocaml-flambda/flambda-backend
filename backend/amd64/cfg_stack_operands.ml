@@ -178,6 +178,8 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Intop_imm (Icomp _, _)) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
   | Op (Intop_imm (Iadd, _)) ->
+    (* Conservatively assume it will be turned into a `lea` instruction,
+       and ask for everything to be in registers. *)
     May_still_have_spilled_registers
   | Op (Intop(Ilsl | Ilsr | Iasr)) ->
     may_use_stack_operand_for_result map instr ~num_args:2

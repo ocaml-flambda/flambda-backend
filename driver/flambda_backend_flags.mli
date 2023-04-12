@@ -29,7 +29,7 @@ val dasm_comments : bool ref
 
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
-val alloc_check : bool ref
+val zero_alloc_check : bool ref
 val dump_checkmach : bool ref
 
 val disable_poll_insertion : bool ref

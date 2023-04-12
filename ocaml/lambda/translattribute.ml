@@ -39,7 +39,7 @@ let is_tailcall_attribute =
   [ ["tailcall"; "ocaml.tailcall"], true ]
 
 let is_property_attribute = function
-  | Noalloc -> [ ["noalloc"; "ocaml.noalloc"], true ]
+  | Zero_alloc -> [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
 
 let is_tmc_attribute =
   [ ["tail_mod_cons"; "ocaml.tail_mod_cons"], true ]
@@ -109,6 +109,44 @@ let get_bool_from_exp exp =
       | "true" -> Result.Ok true
       | "false" -> Result.Ok false
       | _ -> Result.Error ())
+
+let get_ids_from_exp exp =
+  let open Parsetree in
+  (match exp with
+   | { pexp_desc = Pexp_apply (exp, args) } ->
+     get_id_from_exp exp ::
+     List.map (function
+       | (Asttypes.Nolabel, arg) -> get_id_from_exp arg
+       | (_, _) -> Result.Error ())
+       args
+   | _ -> [get_id_from_exp exp])
+  |> List.fold_left (fun acc r ->
+    match acc, r with
+    | Result.Ok ids, Ok id -> Result.Ok (id::ids)
+    | (Result.Error _ | Ok _), _ -> Result.Error ())
+    (Ok [])
+  |> Result.map List.rev
+
+
+let parse_ids_payload txt loc ~default ~empty cases payload =
+  let[@local] warn () =
+    let ( %> ) f g x = g (f x) in
+    let msg =
+      cases
+      |> List.map (fst %> String.concat " " %> Printf.sprintf "'%s'")
+      |> String.concat ", "
+      |> Printf.sprintf "It must be either %s or empty"
+    in
+    Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
+    default
+  in
+  match get_optional_payload get_ids_from_exp payload with
+  | Error () -> warn ()
+  | Ok None -> empty
+  | Ok (Some ids) ->
+      match List.assoc_opt ids cases with
+      | Some r -> r
+      | None -> warn ()
 
 let parse_id_payload txt loc ~default ~empty cases payload =
   let[@local] warn () =
@@ -207,15 +245,18 @@ let parse_local_attribute attr =
         ]
         payload
 
-let parse_property_attribute attr p =
+let parse_property_attribute attr property =
   match attr with
   | None -> Default_check
   | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload}->
-      parse_id_payload txt loc
+      parse_ids_payload txt loc
         ~default:Default_check
-        ~empty:(Assert p)
+        ~empty:(Check { property; strict = false; assume = false; loc; } )
         [
-          "assume", Assume p;
+          ["assume"], Check { property; strict = false; assume = true; loc; };
+          ["strict"], Check { property; strict = true; assume = false; loc; };
+          ["assume"; "strict"], Check { property; strict = true; assume = true; loc; };
+          ["strict"; "assume"], Check { property; strict = true; assume = true; loc; };
         ]
         payload
 
@@ -260,7 +301,7 @@ let get_property_attribute l p =
   let attr = find_attribute (is_property_attribute p) l in
   parse_property_attribute attr p
 
-let get_check_attribute l = get_property_attribute l Noalloc
+let get_check_attribute l = get_property_attribute l Zero_alloc
 
 let get_poll_attribute l =
   let attr = find_attribute is_poll_attribute l in
@@ -358,23 +399,27 @@ let add_local_attribute expr loc attributes =
 
 let add_check_attribute expr loc attributes =
   let to_string = function
-    | Noalloc -> "noalloc"
+    | Zero_alloc -> "zero_alloc"
   in
   let to_string = function
-    | Assert p -> to_string p
-    | Assume p -> Printf.sprintf "%s assume" (to_string p)
+    | Check { property; strict; assume; loc = _} ->
+      Printf.sprintf "%s %s%s"
+        (if assume then "assume" else "assert")
+        (to_string property)
+        (if strict then " strict" else "")
     | Default_check -> assert false
   in
   match expr with
   | Lfunction({ attr = { stub = false } as attr } as funct) ->
     begin match get_check_attribute attributes with
     | Default_check -> expr
-    | (Assert _ | Assume _) as check ->
+    | (Check { property = p; _ }) as check ->
       begin match attr.check with
       | Default_check -> ()
-      | Assert Noalloc | Assume Noalloc ->
+      | Check { property = p'; strict = _; assume = _; loc = _; } ->
+        if p = p' then
           Location.prerr_warning loc
-            (Warnings.Duplicated_attribute (to_string check))
+            (Warnings.Duplicated_attribute (to_string check));
       end;
       let attr = { attr with check } in
       lfunction_with_attr ~attr funct
