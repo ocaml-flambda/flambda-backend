@@ -693,12 +693,12 @@ let rec transl env e =
       return_unit dbg
         (ccatch
            (raise_num, [],
-            create_loop(transl_if env (Vval Pgenval) Unknown dbg cond
+            create_loop(transl_if env Any Unknown dbg cond
                     dbg (remove_unit(transl env body))
                     dbg (Cexit (raise_num,[])))
               dbg,
             Ctuple [],
-            dbg, Vval Pgenval))
+            dbg, Any))
   | Ufor(id, low, high, dir, body) ->
       let dbg = Debuginfo.none in
       let tst = match dir with Upto -> Cgt   | Downto -> Clt in
@@ -729,11 +729,11 @@ let rec transl env e =
                                   dbg),
                                 dbg, Cexit (raise_num,[]),
                                 dbg, Ctuple [],
-                                dbg, Vint (* unit *))))))
+                                dbg, Any)))))
                       dbg,
-                   dbg, Vint (* unit*)),
+                   dbg, Any),
                  Ctuple [],
-                 dbg, Vint (* unit *)))))
+                 dbg, Any))))
   | Uassign(id, exp) ->
       let dbg = Debuginfo.none in
       let cexp = transl env exp in
@@ -751,31 +751,19 @@ let rec transl env e =
   | Utail e ->
       Ctail (transl env e)
 
-and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
+and transl_catch (kind : Cmm.kind_for_unboxing) env nfail ids body handler dbg =
   let ids = List.map (fun (id, kind) -> (id, kind, ref No_result)) ids in
   (* Translate the body, and while doing so, collect the "unboxing type" for
      each argument.  *)
   let report args =
     List.iter2
-      (fun (id, (layout : Lambda.layout), u) c ->
-         match layout with
-         | Ptop ->
-           Misc.fatal_errorf "Variable %a with layout [Ptop] can't be compiled"
-             VP.print id
-         | Pbottom ->
-           Misc.fatal_errorf
-             "Variable %a with layout [Pbottom] can't be compiled"
-             VP.print id
-         | Punboxed_float | Punboxed_int _ ->
-           u := No_unboxing
-         | Pvalue kind ->
-           let strict =
-             match kind with
-             | Pfloatval | Pboxedintval _ -> false
-             | Pintval | Pgenval | Pvariant _ | Parrayval _ -> true
-           in
-           u := join_unboxed_number_kind ~strict !u
-               (is_unboxed_number_cmm ~strict c)
+      (fun (_id, layout, u) c ->
+         let strict = match kind_of_layout layout with
+           | Boxed_integer _ | Boxed_float -> false
+           | Any -> true
+         in
+         u := join_unboxed_number_kind ~strict !u
+             (is_unboxed_number_cmm ~strict c)
       )
       ids args
   in
@@ -926,7 +914,7 @@ and transl_prim_1 env p arg dbg =
       arraylength kind (transl env arg) dbg
   (* Boolean operations *)
   | Pnot ->
-      transl_if env Vint Then_false_else_true
+      transl_if env Any Then_false_else_true
         dbg arg
         dbg (Cconst_int (1, dbg))
         dbg (Cconst_int (3, dbg))
@@ -985,7 +973,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   (* Boolean operations *)
   | Psequand ->
       let dbg' = Debuginfo.none in
-      transl_sequand env Vint Then_true_else_false
+      transl_sequand env Any Then_true_else_false
         dbg arg1
         dbg' arg2
         dbg (Cconst_int (3, dbg))
@@ -995,7 +983,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
            Cifthenelse(test_bool dbg (Cvar id), transl env arg2, Cvar id)) *)
   | Psequor ->
       let dbg' = Debuginfo.none in
-      transl_sequor env Vint Then_true_else_false
+      transl_sequor env Any Then_true_else_false
         dbg arg1
         dbg' arg2
         dbg (Cconst_int (3, dbg))
@@ -1304,7 +1292,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
   | Pvalue kind ->
       transl_let_value env str kind id exp transl_body
 
-and make_catch (kind : Cmm.value_kind) ncatch body handler dbg = match body with
+and make_catch (kind : Cmm.kind_for_unboxing) ncatch body handler dbg = match body with
 | Cexit (nexit,[]) when nexit=ncatch -> handler
 | _ ->  ccatch (ncatch, [], body, handler, dbg, kind)
 
@@ -1313,7 +1301,7 @@ and is_shareable_cont exp =
   | Cexit (_,[]) -> true
   | _ -> false
 
-and make_shareable_cont (kind : Cmm.value_kind) dbg mk exp =
+and make_shareable_cont (kind : Cmm.kind_for_unboxing) dbg mk exp =
   if is_shareable_cont exp then mk exp
   else begin
     let nfail = next_raise_count () in
@@ -1325,7 +1313,7 @@ and make_shareable_cont (kind : Cmm.value_kind) dbg mk exp =
       dbg
   end
 
-and transl_if env (kind : Cmm.value_kind) (approx : then_else)
+and transl_if env (kind : Cmm.kind_for_unboxing) (approx : then_else)
       (dbg : Debuginfo.t) cond
       (then_dbg : Debuginfo.t) then_
       (else_dbg : Debuginfo.t) else_ =
@@ -1414,7 +1402,7 @@ and transl_if env (kind : Cmm.value_kind) (approx : then_else)
             else_dbg else_
     end
 
-and transl_sequand env (kind : Cmm.value_kind) (approx : then_else)
+and transl_sequand env (kind : Cmm.kind_for_unboxing) (approx : then_else)
       (arg1_dbg : Debuginfo.t) arg1
       (arg2_dbg : Debuginfo.t) arg2
       (then_dbg : Debuginfo.t) then_
@@ -1430,7 +1418,7 @@ and transl_sequand env (kind : Cmm.value_kind) (approx : then_else)
          else_dbg shareable_else)
     else_
 
-and transl_sequor env (kind : Cmm.value_kind) (approx : then_else)
+and transl_sequor env (kind : Cmm.kind_for_unboxing) (approx : then_else)
       (arg1_dbg : Debuginfo.t) arg1
       (arg2_dbg : Debuginfo.t) arg2
       (then_dbg : Debuginfo.t) then_
@@ -1447,7 +1435,7 @@ and transl_sequor env (kind : Cmm.value_kind) (approx : then_else)
     then_
 
 (* This assumes that [arg] can be safely discarded if it is not used. *)
-and transl_switch dbg (kind : Cmm.value_kind) env arg index cases = match Array.length cases with
+and transl_switch dbg (kind : Cmm.kind_for_unboxing) env arg index cases = match Array.length cases with
 | 0 -> fatal_error "Cmmgen.transl_switch"
 | 1 -> transl env cases.(0)
 | _ ->

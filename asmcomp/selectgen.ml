@@ -772,7 +772,7 @@ method emit_expr_aux (env:environment) exp :
         (Cifthenelse (exp,
           dbg, Cconst_int (1, dbg),
           dbg, Cconst_int (0, dbg),
-          dbg, Vint))
+          dbg, Any))
   | Cop(Copaque, args, dbg) ->
       begin match self#emit_parts_list env args with
         None -> None
