@@ -297,7 +297,6 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         in
         let cfg_description =
-          Profile.record ~accumulate:true "cfg_create_description"
             Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
         in
         cfg

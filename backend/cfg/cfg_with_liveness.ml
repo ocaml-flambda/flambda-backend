@@ -17,10 +17,7 @@ let[@inline] compute_liveness_if_necessary t =
   match t.liveness with
   | Some liveness -> liveness
   | None ->
-    let liveness =
-      Profile.record ~accumulate:true "liveness_analysis" liveness_analysis
-        t.cfg_with_layout
-    in
+    let liveness = liveness_analysis t.cfg_with_layout in
     t.liveness <- Some liveness;
     liveness
 

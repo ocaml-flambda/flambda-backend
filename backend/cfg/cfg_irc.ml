@@ -155,31 +155,22 @@ let combine : State.t -> Reg.t -> Reg.t -> unit =
  fun state u v ->
   if irc_debug
   then log ~indent:2 "combine u=%a v=%a" Printmach.reg u Printmach.reg v;
-  Profile.record ~accumulate:true "part1"
-    (fun () ->
-      if State.mem_freeze_work_list state v
-      then State.remove_freeze_work_list state v
-      else State.remove_spill_work_list state v;
-      State.add_coalesced_nodes state v;
-      State.add_alias state v u)
-    ();
+  if State.mem_freeze_work_list state v
+  then State.remove_freeze_work_list state v
+  else State.remove_spill_work_list state v;
+  State.add_coalesced_nodes state v;
+  State.add_alias state v u;
   (* note: See book errata
      (https://www.cs.princeton.edu/~appel/modern/ml/errata98.html) *)
-  Profile.record ~accumulate:true "part2"
-    (fun () ->
-      State.union_move_list state u (State.find_move_list state v);
-      State.enable_moves_one state v;
-      State.iter_adjacent state v ~f:(fun t ->
-          State.add_edge state t u;
-          State.decr_degree state t))
-    ();
-  Profile.record ~accumulate:true "part3"
-    (fun () ->
-      if State.mem_freeze_work_list state u && u.Reg.degree >= k u
-      then (
-        State.remove_freeze_work_list state u;
-        State.add_spill_work_list state u))
-    ()
+  State.union_move_list state u (State.find_move_list state v);
+  State.enable_moves_one state v;
+  State.iter_adjacent state v ~f:(fun t ->
+      State.add_edge state t u;
+      State.decr_degree state t);
+  if State.mem_freeze_work_list state u && u.Reg.degree >= k u
+  then (
+    State.remove_freeze_work_list state u;
+    State.add_spill_work_list state u)
 
 let add_work_list : State.t -> Reg.t -> unit =
  fun state reg ->
@@ -205,42 +196,25 @@ let coalesce : State.t -> unit =
   if Reg.same u v
   then (
     if irc_debug then log ~indent:2 "case #1/4";
-    Profile.record ~accumulate:true "case1"
-      (fun () ->
-        State.add_coalesced_moves state m;
-        add_work_list state u)
-      ())
+    State.add_coalesced_moves state m;
+    add_work_list state u)
   else if State.is_precolored state v || State.mem_adj_set state u v
   then (
     if irc_debug then log ~indent:2 "case #2/4";
-    Profile.record ~accumulate:true "case2"
-      (fun () ->
-        State.add_constrained_moves state m;
-        add_work_list state u;
-        add_work_list state v)
-      ())
+    State.add_constrained_moves state m;
+    add_work_list state u;
+    add_work_list state v)
   else if match State.is_precolored state u with
-          | true ->
-            Profile.record ~accumulate:true "all_adjacent_are_ok"
-              (fun () -> all_adjacent_are_ok state u v)
-              ()
-          | false ->
-            Profile.record ~accumulate:true "conservative"
-              (fun () -> conservative state u v)
-              ()
+          | true -> all_adjacent_are_ok state u v
+          | false -> conservative state u v
   then (
     if irc_debug then log ~indent:2 "case #3/4";
-    Profile.record ~accumulate:true "case3"
-      (fun () ->
-        State.add_coalesced_moves state m;
-        combine state u v;
-        add_work_list state u)
-      ())
+    State.add_coalesced_moves state m;
+    combine state u v;
+    add_work_list state u)
   else (
     if irc_debug then log ~indent:2 "case #4/4";
-    Profile.record ~accumulate:true "case4"
-      (fun () -> State.add_active_moves state m)
-      ())
+    State.add_active_moves state m)
 
 let freeze_moves : State.t -> Reg.t -> unit =
  fun state u ->
@@ -451,9 +425,7 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
   let log_work_list_desc prefix =
     if irc_debug then log ~indent:1 "%s -- %s" prefix (work_lists_desc state)
   in
-  Profile.record ~accumulate:true "build"
-    (fun () -> build state cfg_with_liveness)
-    ();
+  build state cfg_with_liveness;
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
   if irc_debug
   then (
@@ -468,41 +440,35 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
       RegisterStamp.PairSet.iter adj_set ~f:(fun p ->
           log ~indent:1 "(%d, %d) <- adj_set" (RegisterStamp.fst p)
             (RegisterStamp.snd p)));
-  Profile.record ~accumulate:true "make_work_list" make_work_list state;
+  make_work_list state;
   State.invariant state;
   if irc_debug then log_work_list_desc "before loop";
   let spill_cost_is_up_to_date = ref false in
   let continue = ref true in
   while !continue do
     if not (State.is_empty_simplify_work_list state)
-    then Profile.record ~accumulate:true "simplify" simplify state
+    then simplify state
     else if not (State.is_empty_work_list_moves state)
-    then Profile.record ~accumulate:true "coalesce" coalesce state
+    then coalesce state
     else if not (State.is_empty_freeze_work_list state)
-    then Profile.record ~accumulate:true "freeze" freeze state
+    then freeze state
     else if not (State.is_empty_spill_work_list state)
-    then
-      Profile.record ~accumulate:true "select_spill"
-        (fun () ->
-          if not !spill_cost_is_up_to_date
-          then (
-            (match Lazy.force Spilling_heuristics.value with
-            | Set_choose ->
-              (* note: `spill_cost` will not be used by the heuristics *) ()
-            | Flat_uses -> update_spill_cost cfg_with_layout ~flat:true ()
-            | Hierarchical_uses ->
-              update_spill_cost cfg_with_layout ~flat:false ());
-            spill_cost_is_up_to_date := true);
-          select_spill state)
-        ()
+    then (
+      if not !spill_cost_is_up_to_date
+      then (
+        (match Lazy.force Spilling_heuristics.value with
+        | Set_choose ->
+          (* note: `spill_cost` will not be used by the heuristics *) ()
+        | Flat_uses -> update_spill_cost cfg_with_layout ~flat:true ()
+        | Hierarchical_uses -> update_spill_cost cfg_with_layout ~flat:false ());
+        spill_cost_is_up_to_date := true);
+      select_spill state)
     else continue := false;
     if irc_debug then log_work_list_desc "end of loop";
     State.invariant state
   done;
   if irc_debug then log ~indent:1 "(after loop)";
-  Profile.record ~accumulate:true "assign_colors"
-    (fun () -> assign_colors state cfg_with_layout)
-    ();
+  assign_colors state cfg_with_layout;
   State.invariant state;
   match State.spilled_nodes state with
   | [] -> if irc_debug then log ~indent:1 "(end of main)"
@@ -511,11 +477,7 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
     then
       List.iter spilled_nodes ~f:(fun reg ->
           log ~indent:1 "/!\\ register %a needs to be spilled" Printmach.reg reg);
-    match
-      Profile.record ~accumulate:true "rewrite"
-        (fun () -> rewrite state cfg_with_liveness ~spilled_nodes ~reset:true)
-        ()
-    with
+    match rewrite state cfg_with_liveness ~spilled_nodes ~reset:true with
     | false -> ()
     | true ->
       State.invariant state;
@@ -552,9 +514,7 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
     match rewrite state cfg_with_liveness ~spilled_nodes ~reset:false with
     | false -> ()
     | true -> Cfg_with_liveness.invalidate_liveness cfg_with_liveness));
-  Profile.record ~accumulate:true "main"
-    (fun () -> main ~round:1 state cfg_with_liveness)
-    ();
+  main ~round:1 state cfg_with_liveness;
   Cfg_regalloc_rewrite.postlude
     (module State)
     (module Utils)

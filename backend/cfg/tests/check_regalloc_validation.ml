@@ -367,6 +367,10 @@ let check name f ~exp_std ~exp_err =
     with_wrap_ppf Format.std_formatter (fun () ->
         with_wrap_ppf Format.err_formatter (fun () ->
             try
+              let old_regalloc_validate =
+                !Flambda_backend_flags.regalloc_validate
+              in
+              Flambda_backend_flags.regalloc_validate := true;
               let desc =
                 try
                   Misc.protect_refs

@@ -85,6 +85,9 @@ let rewrite_gen :
     done;
     !i < len
   in
+  let[@inline] instruction_contains_spilled (instr : _ Cfg.instruction) : bool =
+    array_contains_spilled instr.arg || array_contains_spilled instr.res
+  in
   let rewrite_instruction ~(direction : direction)
       ~(sharing : (Reg.t * [`load | `store]) Reg.Tbl.t)
       (instr : _ Cfg.instruction) : unit =
@@ -147,36 +150,40 @@ let rewrite_gen :
           liveness);
       DLL.iter_cell block.body ~f:(fun cell ->
           let instr = DLL.value cell in
-          match Cfg_stack_operands.basic spilled_map instr with
-          | All_spilled_registers_rewritten -> ()
-          | May_still_have_spilled_registers ->
-            let sharing = Reg.Tbl.create 8 in
-            rewrite_instruction ~direction:(Load_before_cell cell) ~sharing
-              instr;
-            rewrite_instruction ~direction:(Store_after_cell cell) ~sharing
-              instr);
-      match Cfg_stack_operands.terminator spilled_map block.terminator with
-      | All_spilled_registers_rewritten -> ()
-      | May_still_have_spilled_registers ->
-        (let sharing = Reg.Tbl.create 8 in
-         rewrite_instruction ~direction:(Load_after_list block.body)
-           ~sharing:(Reg.Tbl.create 8) block.terminator;
-         let new_instrs = DLL.make_empty () in
-         rewrite_instruction ~direction:(Store_before_list new_instrs) ~sharing
-           block.terminator;
-         if not (DLL.is_empty new_instrs)
-         then
-           (* insert block *)
-           Cfg_regalloc_utils.insert_block
-             (Cfg_with_liveness.cfg_with_layout cfg_with_liveness)
-             new_instrs ~after:block ~next_instruction_id:(fun () ->
-               State.get_and_incr_instruction_id state));
-        if Utils.debug
-        then (
-          Utils.log ~indent:2 "and after:";
-          Utils.log_body_and_terminator ~indent:3 block.body block.terminator
-            liveness;
-          Utils.log ~indent:2 "end"));
+          if instruction_contains_spilled instr
+          then
+            match Cfg_stack_operands.basic spilled_map instr with
+            | All_spilled_registers_rewritten -> ()
+            | May_still_have_spilled_registers ->
+              let sharing = Reg.Tbl.create 8 in
+              rewrite_instruction ~direction:(Load_before_cell cell) ~sharing
+                instr;
+              rewrite_instruction ~direction:(Store_after_cell cell) ~sharing
+                instr);
+      if instruction_contains_spilled block.terminator
+      then
+        match Cfg_stack_operands.terminator spilled_map block.terminator with
+        | All_spilled_registers_rewritten -> ()
+        | May_still_have_spilled_registers ->
+          (let sharing = Reg.Tbl.create 8 in
+           rewrite_instruction ~direction:(Load_after_list block.body)
+             ~sharing:(Reg.Tbl.create 8) block.terminator;
+           let new_instrs = DLL.make_empty () in
+           rewrite_instruction ~direction:(Store_before_list new_instrs)
+             ~sharing block.terminator;
+           if not (DLL.is_empty new_instrs)
+           then
+             (* insert block *)
+             Cfg_regalloc_utils.insert_block
+               (Cfg_with_liveness.cfg_with_layout cfg_with_liveness)
+               new_instrs ~after:block ~next_instruction_id:(fun () ->
+                 State.get_and_incr_instruction_id state));
+          if Utils.debug
+          then (
+            Utils.log ~indent:2 "and after:";
+            Utils.log_body_and_terminator ~indent:3 block.body block.terminator
+              liveness;
+            Utils.log ~indent:2 "end"));
   !new_temporaries
 
 let prelude :
