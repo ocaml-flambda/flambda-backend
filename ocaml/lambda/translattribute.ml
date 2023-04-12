@@ -304,7 +304,8 @@ let get_property_attribute l p =
    | None, _ -> ()
    | _, Default_check -> ()
    | Some attr, Check _ ->
-     Builtin_attributes.register_property attr.attr_name);
+     if !Clflags.zero_alloc_check && !Clflags.native_code then
+       Builtin_attributes.register_property attr.attr_name);
    res
 
 let get_check_attribute l = get_property_attribute l Zero_alloc
