@@ -297,17 +297,17 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         in
         let cfg_description =
-            Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
+            Regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
         in
         cfg
         ++ begin match regalloc with
-          | IRC -> Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
-          | LS -> Profile.record ~accumulate:true "cfg_ls" Cfg_ls.run
+          | IRC -> Profile.record ~accumulate:true "cfg_irc" Regalloc_irc.run
+          | LS -> Profile.record ~accumulate:true "cfg_ls" Regalloc_ls.run
           | Upstream -> assert false
         end
         ++ Cfg_with_liveness.cfg_with_layout
-        ++ Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
-        ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
+        ++ Profile.record ~accumulate:true "cfg_validate_description" (Regalloc_validate.run cfg_description)
+        ++ Profile.record ~accumulate:true "cfg_simplify" Regalloc_utils.simplify_cfg
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)

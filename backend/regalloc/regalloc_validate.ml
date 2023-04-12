@@ -67,7 +67,7 @@ end = struct
       let word_size = 8 in
       if Sys.word_size <> word_size * byte_bits
       then
-        Cfg_regalloc_utils.fatal
+        Regalloc_utils.fatal
           "regalloc validation only supports 64 bit architecture, got word \
            size %d"
           Sys.word_size;
@@ -76,7 +76,7 @@ end = struct
     let byte_offset_to_word_index offset =
       if offset mod word_size <> 0
       then
-        Cfg_regalloc_utils.fatal
+        Regalloc_utils.fatal
           "regalloc validation expects aligned offsets, got offset %d with \
            remainder %d"
           offset (offset mod word_size);
@@ -174,7 +174,7 @@ end = struct
     let loc = Location.of_reg reg in
     if Option.is_some loc <> Reg.is_preassigned reg
     then
-      Cfg_regalloc_utils.fatal
+      Regalloc_utils.fatal
         "Mismatch between register having location (%b) and register being a \
          preassigned register (%b)"
         (Option.is_some loc) (Reg.is_preassigned reg);
@@ -352,7 +352,7 @@ end = struct
   let add_instr_id ~seen_ids ~context id =
     if Hashtbl.mem seen_ids id
     then
-      Cfg_regalloc_utils.fatal "Duplicate instruction no. %d while %s" id
+      Regalloc_utils.fatal "Duplicate instruction no. %d while %s" id
         context;
     Hashtbl.add seen_ids id ()
 
@@ -362,7 +362,7 @@ end = struct
       ~context:"adding a basic instruction to the description" id;
     if is_regalloc_specific_basic instr.desc
     then
-      Cfg_regalloc_utils.fatal
+      Regalloc_utils.fatal
         "Instruction no. %d is specific to the regalloc phase while creating \
          pre-allocation description"
         id;
@@ -386,8 +386,8 @@ end = struct
       }
 
   let do_create cfg =
-    Cfg_regalloc_utils.precondition cfg;
-    if Lazy.force Cfg_regalloc_utils.validator_debug
+    Regalloc_utils.precondition cfg;
+    if Lazy.force Regalloc_utils.validator_debug
     then
       (* CR-someday: We don't save the file with [fun_name] in the filename
          because there is an appended stamp that is fragile and is annoying when
@@ -413,7 +413,7 @@ end = struct
              (match reg.reg_id with
              | Preassigned _ -> ()
              | Named _ ->
-               Cfg_regalloc_utils.fatal
+               Regalloc_utils.fatal
                  "Register in function arguments that isn't preassigned: %a"
                  Register.print reg);
              reg)
@@ -448,19 +448,19 @@ end = struct
   let verify_reg_array ~context ~reg_arr ~loc_arr =
     if Array.length reg_arr <> Array.length loc_arr
     then
-      Cfg_regalloc_utils.fatal
+      Regalloc_utils.fatal
         "%s: register array length has changed. Before: %d. Now: %d." context
         (Array.length reg_arr) (Array.length loc_arr);
     Array.iter2
       (fun (reg_desc : Register.t) loc_reg ->
         match reg_desc.reg_id, Location.of_reg loc_reg with
         | _, None ->
-          Cfg_regalloc_utils.fatal
+          Regalloc_utils.fatal
             "%s: location is still unknown after allocation" context
         | Named { stamp = _ }, _ -> ()
         | Preassigned { location = l1 }, Some l2 when Location.equal l1 l2 -> ()
         | Preassigned { location = prev_loc }, Some new_loc ->
-          Cfg_regalloc_utils.fatal
+          Regalloc_utils.fatal
             "%s: changed preassigned register's location from %a to %a" context
             Location.print prev_loc Location.print new_loc)
       reg_arr loc_arr;
@@ -486,7 +486,7 @@ end = struct
     | Some { instr = old_instr; successor_id = old_successor_id }, false ->
       if not (Int.equal old_successor_id successor_id)
       then
-        Cfg_regalloc_utils.fatal
+        Regalloc_utils.fatal
           "The instruction's no. %d successor id has changed. Before \
            allocation: %d. After allocation (ignoring instructions added by \
            allocation): %d."
@@ -494,7 +494,7 @@ end = struct
       (* CR-someday azewierzejew: Avoid using polymrphic compare. *)
       if instr.desc <> old_instr.desc
       then
-        Cfg_regalloc_utils.fatal "The desc of instruction with id %d changed" id;
+        Regalloc_utils.fatal "The desc of instruction with id %d changed" id;
       verify_reg_arrays ~id instr old_instr;
       (* Return new successor id which is the id of the current instruction. *)
       id
@@ -504,12 +504,12 @@ end = struct
          ignored. *)
       successor_id
     | Some _, true ->
-      Cfg_regalloc_utils.fatal
+      Regalloc_utils.fatal
         "Register allocation changed existing instruction no. %d into a \
          register allocation specific instruction"
         id
     | None, false ->
-      Cfg_regalloc_utils.fatal
+      Regalloc_utils.fatal
         "Register allocation added non-regalloc specific instruction no. %d" id
 
   let compare_terminators ~successor_ids ~id (old_instr : terminator)
@@ -519,7 +519,7 @@ end = struct
       let s2 = Label.Tbl.find successor_ids l2 in
       if not (Int.equal s1 s2)
       then
-        Cfg_regalloc_utils.fatal
+        Regalloc_utils.fatal
           "When checking equivalence of labels before and after allocation got \
            different successor id's. Successor (label, instr id) before: (%d, \
            %d). Successor (label, instr id) after: (%d, %d)."
@@ -583,7 +583,7 @@ end = struct
       compare_label l1 l2
     | Poll_and_jump l1, Poll_and_jump l2 -> compare_label l1 l2
     | _ ->
-      Cfg_regalloc_utils.fatal
+      Regalloc_utils.fatal
         "The desc of terminator with id %d changed, before: %a, after: %a." id
         (Cfg.dump_terminator ~sep:", ")
         old_instr
@@ -607,7 +607,7 @@ end = struct
            instruction can be found in the next block. *)
         Label.Tbl.find successor_ids successor
       | _ ->
-        Cfg_regalloc_utils.fatal
+        Regalloc_utils.fatal
           "Register allocation added a terminator no. %d but that's not \
            allowed for this type of terminator: %a"
           id Cfg.print_terminator instr)
@@ -651,7 +651,7 @@ end = struct
         | _, true -> block.terminator.id
         | Always label, false -> get_id (Cfg.get_block_exn cfg label)
         | _, false ->
-          Cfg_regalloc_utils.fatal
+          Regalloc_utils.fatal
             "Register allocation added a terminator no. %d but that's not \
              allowed for this type of terminator: %a"
             block.terminator.id Cfg.print_terminator block.terminator)
@@ -665,7 +665,7 @@ end = struct
     successor_ids
 
   let verify t cfg =
-    Cfg_regalloc_utils.postcondition cfg ~allow_stack_operands:true;
+    Regalloc_utils.postcondition cfg ~allow_stack_operands:true;
     verify_reg_array ~reg_arr:t.reg_fun_args ~context:"In function arguments"
       ~loc_arr:(Cfg_with_layout.cfg cfg).fun_args;
     let seen_ids =
@@ -700,14 +700,14 @@ end = struct
         in
         if (not (Hashtbl.mem seen_ids id)) && not can_be_removed
         then
-          Cfg_regalloc_utils.fatal
+          Regalloc_utils.fatal
             "Instruction no. %d was deleted by register allocator" id)
       t.instructions;
     Hashtbl.iter
       (fun id _ ->
         if not (Hashtbl.mem seen_ids id)
         then
-          Cfg_regalloc_utils.fatal
+          Regalloc_utils.fatal
             "Terminator no. %d was deleted by register allocator" id)
       t.terminators
 end
@@ -1202,7 +1202,7 @@ module Transfer (Desc_val : Description_value) :
         assert (Array.length instr.res = 0);
         t
       | _ ->
-        Cfg_regalloc_utils.fatal
+        Regalloc_utils.fatal
           "Register allocation added a terminator no. %d but that's not \
            allowed for this type of terminator: %a"
           instr.id Cfg.print_terminator instr)
@@ -1366,7 +1366,7 @@ let verify_entrypoint (equations : Equation_set.t) (desc : Description.t)
 
 let test (desc : Description.t) (cfg : Cfg_with_layout.t) :
     (Cfg_with_layout.t, Error.t) Result.t =
-  if Lazy.force Cfg_regalloc_utils.validator_debug
+  if Lazy.force Regalloc_utils.validator_debug
   then
     (* CR-someday: We don't save the file with [fun_name] in the filename
        because there is an appended stamp that is fragile and is annoying when
@@ -1389,11 +1389,11 @@ let test (desc : Description.t) (cfg : Cfg_with_layout.t) :
     | Aborted ((res_instr, res_block), error) ->
       res_instr, res_block, Error error
     | Max_iterations_reached ->
-      Cfg_regalloc_utils.fatal
+      Regalloc_utils.fatal
         "Unable to compute validation equation sets from CFG for function %s@."
         (Cfg_with_layout.cfg cfg).fun_name
   in
-  if Lazy.force Cfg_regalloc_utils.validator_debug
+  if Lazy.force Regalloc_utils.validator_debug
   then
     (* CR-someday: We don't save the file with [fun_name] in the filename
        because there is an appended stamp that is fragile and is annoying when
@@ -1422,4 +1422,4 @@ let run desc cfg =
   | Some desc -> (
     match test desc cfg with
     | Ok cfg -> cfg
-    | Error error -> Cfg_regalloc_utils.fatal "%a%!" Error.dump error)
+    | Error error -> Regalloc_utils.fatal "%a%!" Error.dump error)

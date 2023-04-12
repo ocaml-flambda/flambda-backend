@@ -1,6 +1,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Cfg_regalloc_utils
+open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 module type State = sig
@@ -152,7 +152,7 @@ let rewrite_gen :
           let instr = DLL.value cell in
           if instruction_contains_spilled instr
           then
-            match Cfg_stack_operands.basic spilled_map instr with
+            match Regalloc_stack_operands.basic spilled_map instr with
             | All_spilled_registers_rewritten -> ()
             | May_still_have_spilled_registers ->
               let sharing = Reg.Tbl.create 8 in
@@ -162,7 +162,7 @@ let rewrite_gen :
                 instr);
       if instruction_contains_spilled block.terminator
       then
-        match Cfg_stack_operands.terminator spilled_map block.terminator with
+        match Regalloc_stack_operands.terminator spilled_map block.terminator with
         | All_spilled_registers_rewritten -> ()
         | May_still_have_spilled_registers ->
           (let sharing = Reg.Tbl.create 8 in
@@ -174,7 +174,7 @@ let rewrite_gen :
            if not (DLL.is_empty new_instrs)
            then
              (* insert block *)
-             Cfg_regalloc_utils.insert_block
+             Regalloc_utils.insert_block
                (Cfg_with_liveness.cfg_with_layout cfg_with_liveness)
                new_instrs ~after:block ~next_instruction_id:(fun () ->
                  State.get_and_incr_instruction_id state));

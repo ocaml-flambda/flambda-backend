@@ -1,7 +1,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Cfg_regalloc_utils
-open! Cfg_ls_utils
+open! Regalloc_utils
+open! Regalloc_ls_utils
 
 type t
 

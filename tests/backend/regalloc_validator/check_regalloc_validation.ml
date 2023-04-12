@@ -371,7 +371,7 @@ let check name f ~exp_std ~exp_err =
                 try
                   Misc.protect_refs
                     [R (Flambda_backend_flags.regalloc_validate, true)]
-                    (fun () -> Cfg_regalloc_validate.Description.create before)
+                    (fun () -> Regalloc_validate.Description.create before)
                 with Misc.Fatal_error ->
                   Format.printf
                     "fatal exception raised when creating description";
@@ -385,7 +385,7 @@ let check name f ~exp_std ~exp_err =
                 | Some desc -> desc
               in
               let res =
-                try Cfg_regalloc_validate.test desc after
+                try Regalloc_validate.test desc after
                 with Misc.Fatal_error ->
                   Format.printf
                     "fatal exception raised when validating description";
@@ -398,7 +398,7 @@ let check name f ~exp_std ~exp_err =
                 else Format.printf "Validation changed cfg"
               | Error error ->
                 Format.printf "Validation failed: %a"
-                  Cfg_regalloc_validate.Error.print error
+                  Regalloc_validate.Error.print error
             with Break_test -> ()))
   in
   if exp_std = std_out && exp_err = err_out
@@ -435,7 +435,7 @@ let ( .!() ) (block : Block.t) (index : int) : Basic.t =
   List.nth block.body index
 
 (* let () = check "IRC works on base templ" (fun templ _ -> let cfg =
-   Cfg_desc.make templ in cfg, Cfg_irc.run cfg) ~exp_std:"" ~exp_err:"" *)
+   Cfg_desc.make templ in cfg, Regalloc_irc.run cfg) ~exp_std:"" ~exp_err:"" *)
 
 let () =
   check "Duplicate instruction found when creating description"
