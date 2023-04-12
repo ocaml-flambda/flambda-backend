@@ -2743,12 +2743,10 @@ let make_tuple l = match l with [e] -> e | _ -> Ctuple l
 
 let value_slot_given_machtype vs =
   let non_scanned, scanned =
-    List.partition (fun (_, c) ->
-        match c with
-        | Int | Float -> true
-        | Val -> false
-        | Addr -> assert false
-      ) vs
+    List.partition
+      (fun (_, c) ->
+        match c with Int | Float -> true | Val -> false | Addr -> assert false)
+      vs
   in
   List.map (fun (v, _) -> Cvar v) (non_scanned @ scanned)
 
@@ -2757,19 +2755,17 @@ let read_from_closure_given_machtype t clos base_offset dbg =
     Cop (Cload (chunk, Asttypes.Mutable), [field_address clos offset dbg], dbg)
   in
   let _, l =
-    List.fold_left_map (fun (non_scanned_pos, scanned_pos) c ->
+    List.fold_left_map
+      (fun (non_scanned_pos, scanned_pos) c ->
         match c with
         | Int ->
-          (non_scanned_pos + 1, scanned_pos),
-          load Word_int non_scanned_pos
+          (non_scanned_pos + 1, scanned_pos), load Word_int non_scanned_pos
         | Float ->
-          (non_scanned_pos + (if Arch.size_int = 4 then 2 else 1), scanned_pos),
-          load Double non_scanned_pos
-        | Val ->
-          (non_scanned_pos, scanned_pos + 1),
-          load Word_val scanned_pos
-        | Addr -> Misc.fatal_error "[Addr] cannot be read"
-      ) (base_offset, base_offset + machtype_non_scanned_size t)
+          ( ((non_scanned_pos + if Arch.size_int = 4 then 2 else 1), scanned_pos),
+            load Double non_scanned_pos )
+        | Val -> (non_scanned_pos, scanned_pos + 1), load Word_val scanned_pos
+        | Addr -> Misc.fatal_error "[Addr] cannot be read")
+      (base_offset, base_offset + machtype_non_scanned_size t)
       (Array.to_list t)
   in
   make_tuple l
@@ -2833,7 +2829,10 @@ let intermediate_curry_functions ~nlocal ~arity result =
     | arg_type :: remaining_args ->
       let name2 = if num = 0 then name1 else name1 ^ "_" ^ Int.to_string num in
       let clos = V.create_local "clos" in
-      let args = List.init (Array.length arg_type) (fun i -> V.create_local "arg", arg_type.(i)) in
+      let args =
+        List.init (Array.length arg_type) (fun i ->
+            V.create_local "arg", arg_type.(i))
+      in
       let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
       let mode : Lambda.alloc_mode =
         if num >= narity - nlocal then Lambda.alloc_local else Lambda.alloc_heap
@@ -2842,7 +2841,9 @@ let intermediate_curry_functions ~nlocal ~arity result =
       let function_slot_size = if has_nary then 3 else 2 in
       Cfunction
         { fun_name = name2;
-          fun_args = List.map (fun (arg, t) -> VP.create arg, [|t|]) args @ [VP.create clos, typ_val];
+          fun_args =
+            List.map (fun (arg, t) -> VP.create arg, [| t |]) args
+            @ [VP.create clos, typ_val];
           fun_body =
             Cop
               ( Calloc mode,
