@@ -98,9 +98,6 @@ let cache_reload_result nfail before handler after_handler env =
   in
   reload_cache := Numbers.Int.Map.add nfail entry !reload_cache
 
-let reset_cache () =
-  reload_cache := Numbers.Int.Map.empty
-
 let spill_reg env r =
   try
     env, Reg.Map.find r env.spill_env
@@ -444,6 +441,10 @@ let cache_spill_result nfail env after_handler handler before_handler =
     }
   in
   spill_cache := Numbers.Int.Map.add nfail entry !spill_cache
+
+let reset_cache () =
+  spill_cache := Numbers.Int.Map.empty;
+  reload_cache := Numbers.Int.Map.empty
 
 let spill_reg_no_add (env : spill_env) r =
   try Reg.Map.find r env.spill_env
