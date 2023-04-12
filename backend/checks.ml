@@ -24,7 +24,7 @@ let reset t =
   t.enabled <- false
 
 let merge src ~into:dst =
-  if !Flambda_backend_flags.zero_alloc_check
+  if !Clflags.zero_alloc_check
   then (
     let join _key b1 b2 = Some (b1 || b2) in
     dst.nor <- String.Map.union join dst.nor src.nor;

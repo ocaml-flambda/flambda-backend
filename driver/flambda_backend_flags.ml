@@ -28,7 +28,6 @@ let dasm_comments = ref false (* -dasm-comments *)
 
 let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
-let zero_alloc_check = ref false        (* -zero-alloc-check *)
 let dump_checkmach = ref false          (* -dcheckmach *)
 
 let disable_poll_insertion = ref (not Config.poll_insertion)

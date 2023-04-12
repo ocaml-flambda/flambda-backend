@@ -742,7 +742,8 @@ module Flambda_backend_options_impl = struct
 
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
-  let zero_alloc_check = set' Flambda_backend_flags.zero_alloc_check
+
+  let zero_alloc_check = set' Clflags.zero_alloc_check
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
 
   let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
@@ -972,7 +973,7 @@ module Extra_params = struct
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
-    | "zero-alloc-check" -> set' Flambda_backend_flags.zero_alloc_check
+    | "zero-alloc-check" -> set' Clflags.zero_alloc_check
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
     | "poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
     | "long-frames" -> set' Flambda_backend_flags.allow_long_frames
