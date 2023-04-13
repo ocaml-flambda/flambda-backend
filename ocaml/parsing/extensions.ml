@@ -90,7 +90,8 @@ module Comprehensions = struct
   *)
 
   let comprehension_expr ~loc names x =
-    Expression.wrap_desc ~loc ~attrs:[] @@ Expression.make_extension ~loc (extension_string :: names) x
+    Expression.wrap_desc ~loc:Location.{loc with loc_ghost = true} ~attrs:[] @@
+    Expression.make_extension ~loc (extension_string :: names) x
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
       the [expr_of_...] family of expressions, culminating in
@@ -141,10 +142,7 @@ module Comprehensions = struct
          (comprehension_expr ~loc ["body"] body))
 
   let expr_of ~loc eexpr =
-    let ghost_loc = { loc with Location.loc_ghost = true } in
-    let expr_of_comprehension_type type_ =
-      expr_of_comprehension ~loc:ghost_loc ~type_
-    in
+    let expr_of_comprehension_type type_ = expr_of_comprehension ~loc ~type_ in
     (* See Note [Wrapping with make_extension] *)
     Expression.make_extension ~loc [extension_string] @@
     match eexpr with

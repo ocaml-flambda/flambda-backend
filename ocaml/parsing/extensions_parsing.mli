@@ -113,9 +113,12 @@ module type AST = sig
   val wrap_desc :
     loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
 
-  (** Embed a language extension term in the AST with the given name
-      and body (the [ast]).  The name will be joined with dots
-      and preceded by [extension.].  Partial inverse of [match_extension]. *)
+  (** Embed a language extension term in the AST with the given name and body
+      (the [ast]).  The name will be joined with dots and preceded by
+      [extension.].  The location will be made into a ghost location, as it only
+      goes on the generated parts of the AST; NB that when the result is wrapped
+      up in an [ast] node by [wrap_desc], the result may need to be made [ghost]
+      as well.  Partial inverse of [match_extension]. *)
   val make_extension  : loc:Location.t -> string list -> ast -> ast_desc
 
   (** Given an AST node, check if it's a language extension term; if it is,
