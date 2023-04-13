@@ -266,7 +266,9 @@ let extended_machtype_of_return_arity arity =
     let len =
       List.fold_left (fun acc mtype -> acc + Array.length mtype) 0 machtypes
     in
-    let res = Array.make len Cmm_helpers.Extended_machtype_component.Addr (* not used *) in
+    let res =
+      Array.make len Cmm_helpers.Extended_machtype_component.Addr (* not used *)
+    in
     let _ =
       List.fold_left
         (fun acc mtype ->
