@@ -100,6 +100,106 @@ let set_meet (type a b) (module S : Container_types_intf.Set with type t = a)
     let s = S.inter s1 s2 in
     if S.is_empty s then Bottom else Ok (New_result (of_set s), empty_extension)
 
+type ('key, 'data, 'mapping) fold2 =
+  { fold2 :
+      'acc.
+      ('key -> 'data option -> 'data option -> 'acc -> 'acc) ->
+      'mapping ->
+      'mapping ->
+      'acc ->
+      'acc
+  }
+
+let meet_mapping (type key data mapping)
+    ~(meet_env_extension :
+       Meet_env.t ->
+       extension_with_memory ->
+       extension_with_memory ->
+       extension_with_memory Or_bottom.t)
+    ~(meet_data : Meet_env.t -> data -> data -> data meet_result)
+    ~(fold2 : (key, data, mapping) fold2) ~meet_env ~(left : mapping)
+    ~(right : mapping) ~(rebuild : (key * data) list -> mapping) :
+    mapping meet_result =
+  let { fold2 } = fold2 in
+  let open struct
+    type t =
+      { all_left : bool;
+        all_right : bool;
+        mapping : (key * data) list;
+        meet_env : Meet_env.t;
+        extension : extension_with_memory
+      }
+
+    exception Bottom_result
+  end in
+  try
+    let res =
+      fold2
+        (fun key data_left_opt data_right_opt
+             { all_left; all_right; mapping; meet_env; extension } ->
+          match data_left_opt, data_right_opt with
+          | None, None -> assert false
+          | Some data_left, None ->
+            { all_left;
+              all_right = false;
+              mapping = (key, data_left) :: mapping;
+              meet_env;
+              extension
+            }
+          | None, Some data_right ->
+            { all_left = false;
+              all_right;
+              mapping = (key, data_right) :: mapping;
+              meet_env;
+              extension
+            }
+          | Some data_left, Some data_right -> (
+            match meet_data meet_env data_left data_right with
+            | Bottom -> raise Bottom_result
+            | Ok (res, data_extension) -> (
+              let meet_env =
+                Meet_env.assume_already_meeting meet_env
+                  data_extension.pairs_of_names
+              in
+              match meet_env_extension meet_env extension data_extension with
+              | Bottom -> raise Bottom_result
+              | Ok extension -> (
+                let meet_env =
+                  Meet_env.assume_already_meeting meet_env
+                    data_extension.pairs_of_names
+                in
+                let[@local] result ~all_left ~all_right data =
+                  { all_left;
+                    all_right;
+                    mapping = (key, data) :: mapping;
+                    meet_env;
+                    extension
+                  }
+                in
+                match res with
+                | Both_inputs -> result ~all_left ~all_right data_left
+                | Left_input -> result ~all_left ~all_right:false data_left
+                | Right_input -> result ~all_left:false ~all_right data_right
+                | New_result data ->
+                  result ~all_left:false ~all_right:false data))))
+        left right
+        { all_left = true;
+          all_right = true;
+          mapping = [];
+          meet_env;
+          extension = empty_extension
+        }
+    in
+    let result =
+      match res.all_left, res.all_right with
+      | true, true -> Both_inputs
+      | true, false -> Left_input
+      | false, true -> Right_input
+      | false, false -> New_result (rebuild res.mapping)
+    in
+    Ok (result, res.extension)
+  with Bottom_result -> Bottom
+
 module Map_meet (M : Container_types_intf.Map) = struct
   let meet ~(meet_data : Meet_env.t -> 'a -> 'a -> 'a meet_result)
       ~(meet_env_extension :
@@ -108,67 +208,23 @@ module Map_meet (M : Container_types_intf.Map) = struct
          extension_with_memory ->
          extension_with_memory Or_bottom.t) meet_env (left : 'a M.t)
       (right : 'a M.t) : 'a M.t meet_result =
-    let any_bottom = ref false in
-    let all_left = ref true in
-    let all_right = ref true in
-    let env_extensions = ref empty_extension in
-    let meet_env = ref meet_env in
-    let result_map =
-      M.merge
-        (fun _key left_data right_data ->
-          match left_data, right_data with
-          | None, None -> None
-          | Some data, None ->
-            all_right := false;
-            Some data
-          | None, Some data ->
-            all_left := false;
-            Some data
-          | Some left_data, Some right_data -> (
-            match meet_data !meet_env left_data right_data with
-            | Bottom ->
-              any_bottom := true;
-              None
-            | Ok (data_result, env_extension) -> (
-              meet_env
-                := Meet_env.assume_already_meeting !meet_env
-                     env_extension.pairs_of_names;
-              (match
-                 meet_env_extension !meet_env !env_extensions env_extension
-               with
-              | Bottom -> any_bottom := true
-              | Ok env_extension ->
-                meet_env
-                  := Meet_env.assume_already_meeting !meet_env
-                       env_extension.pairs_of_names;
-                env_extensions := env_extension);
-              match data_result with
-              | Left_input ->
-                all_right := false;
-                Some left_data
-              | Right_input ->
-                all_left := false;
-                Some right_data
-              | Both_inputs ->
-                (* Arbitrarily pick one *)
-                Some left_data
-              | New_result data ->
-                all_left := false;
-                all_right := false;
-                Some data)))
-        left right
-    in
-    if !any_bottom
-    then Bottom
-    else
-      let result =
-        match !all_left, !all_right with
-        | true, true -> Both_inputs
-        | true, false -> Left_input
-        | false, true -> Right_input
-        | false, false -> New_result result_map
+    let fold2 f m1 m2 init =
+      let r = ref init in
+      let _m =
+        M.merge
+          (fun key left right ->
+            r := f key left right !r;
+            left)
+          m1 m2
       in
-      Ok (result, !env_extensions)
+      !r
+    in
+    let rebuild l =
+      List.fold_left (fun m (key, data) -> M.add key data m) M.empty l
+    in
+    let fold2 = { fold2 } in
+    meet_mapping ~meet_env_extension ~meet_data ~fold2 ~meet_env ~left ~right
+      ~rebuild
 end
 
 module Function_slot_map_meet = Map_meet (Function_slot.Map)
@@ -1289,65 +1345,28 @@ and meet_int_indexed_product env (prod1 : TG.Product.Int_indexed.t)
       (meet_array_of_types env fields1 fields2 ~length)
 
 and meet_array_of_types env fields1 fields2 ~length =
-  let any_bottom = ref false in
-  let all_left = ref true in
-  let all_right = ref true in
-  let env_extension = ref empty_extension in
-  let env = ref env in
-  let fields =
-    Array.init length (fun index ->
-        let get_opt fields =
-          if index >= Array.length fields then None else Some fields.(index)
-        in
-        match get_opt fields1, get_opt fields2 with
-        | None, None -> assert false
-        | Some t, None ->
-          all_right := false;
-          t
-        | None, Some t ->
-          all_left := false;
-          t
-        | Some ty1, Some ty2 -> (
-          match meet !env ty1 ty2 with
-          | Ok (meet_result, env_extension') -> (
-            env
-              := Meet_env.assume_already_meeting !env
-                   env_extension'.pairs_of_names;
-            match meet_env_extension !env !env_extension env_extension' with
-            | Bottom ->
-              any_bottom := true;
-              MTC.bottom_like ty1
-            | Ok extension -> (
-              env_extension := extension;
-              env
-                := Meet_env.assume_already_meeting !env extension.pairs_of_names;
-              match meet_result with
-              | Left_input ->
-                all_right := false;
-                ty1
-              | Right_input ->
-                all_left := false;
-                ty2
-              | Both_inputs -> ty1
-              | New_result ty ->
-                all_left := false;
-                all_right := false;
-                ty))
-          | Bottom ->
-            any_bottom := true;
-            MTC.bottom_like ty1))
+  let fold2 f left right init =
+    let r = ref init in
+    for i = 0 to length - 1 do
+      let left_data = if i >= Array.length left then None else Some left.(i) in
+      let right_data =
+        if i >= Array.length right then None else Some right.(i)
+      in
+      r := f i left_data right_data !r
+    done;
+    !r
   in
-  if !any_bottom
-  then Bottom
-  else
-    let result =
-      match !all_left, !all_right with
-      | true, true -> Both_inputs
-      | true, false -> Left_input
-      | false, true -> Right_input
-      | false, false -> New_result fields
-    in
-    Ok (result, !env_extension)
+  let rebuild l =
+    match l with
+    | [] -> [||]
+    | (_key, data) :: _ ->
+      let result = Array.make length data in
+      List.iter (fun (key, data) -> result.(key) <- data) l;
+      result
+  in
+  let fold2 = { fold2 } in
+  meet_mapping ~meet_env_extension ~meet_data:meet ~fold2 ~meet_env:env
+    ~left:fields1 ~right:fields2 ~rebuild
 
 and meet_function_type (env : Meet_env.t)
     (func_type1 : TG.Function_type.t Or_unknown_or_bottom.t)
