@@ -610,11 +610,12 @@ let rec transl env e =
             | arg :: args, layout :: layouts ->
               let arg = transl env arg in
               bind "arg" arg (fun arg ->
-                  let layout = flatten_layout layout in
+                  let layout = List.map layout_machtype @@ flatten_layout layout in
+                  let layout_a = Array.of_list layout in
                   let skip = List.length layout in
                   let loads =
                     List.mapi (fun i layout ->
-                        Cop (Ctuple_field (i,(layout_machtype layout)) , [arg], dbg))
+                        Cop (Ctuple_field (i, layout_a) , [arg], dbg))
                       layout
                   in
                   loop (offset + skip) args layouts (loads @ acc)
@@ -1055,19 +1056,8 @@ and transl_prim_1 env p arg dbg =
       tag_int (bswap16 (ignore_high_bit_int (untag_int
         (transl env arg) dbg)) dbg) dbg
   | Punboxed_product_field (field, layouts) ->
-    Cmm_helpers.bind "unboxed_product" (transl env arg) (fun arg ->
-    let prev_layouts =
-      List.map flatten_layout (take_n field layouts) |>
-      List.flatten
-    in
-    let skip = List.length prev_layouts in
-    let layout = List.nth layouts field in
-    let loads =
-      List.mapi (fun i layout ->
-          Cop (Ctuple_field (skip + i, layout_machtype layout), [arg], dbg))
-        (flatten_layout layout)
-    in
-    Ctuple loads)
+    let layouts = Array.of_list (List.map machtype_of_layout layouts) in
+    Cop (Ctuple_field (field, layouts), [transl env arg], dbg)
   | (Pfield_computed | Psequand | Psequor
     | Paddint | Psubint | Pmulint | Pandint
     | Porint | Pxorint | Plslint | Plsrint | Pasrint

@@ -198,7 +198,7 @@ let oper_result_type = function
        naked pointer into the local allocation stack. *)
     typ_int
   | Cendregion -> typ_void
-  | Ctuple_field (_, ty) -> ty
+  | Ctuple_field (field, fields_ty) -> fields_ty.(field)
 
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
@@ -857,12 +857,18 @@ method emit_expr (env:environment) exp =
          let rs = self#emit_tuple env simple_args in
          Some (self#insert_op_debug env Iopaque dbg rs rs)
       end
-  | Cop(Ctuple_field(field, _layout), [arg], dbg) ->
+  | Cop(Ctuple_field(field, fields_layout), [arg], dbg) ->
     begin match self#emit_expr env arg with
         None -> None
       | Some loc_exp ->
-        (* All fields are of size one *)
-        Some [|loc_exp.(field)|]
+        let flat_size a = Array.fold_left (fun acc t -> acc + Array.length t) 0 a in
+        assert(Array.length loc_exp = flat_size fields_layout);
+        let before = Array.sub fields_layout 0 field in
+        let size_before = flat_size before in
+        let field_slice =
+          Array.sub loc_exp size_before (Array.length fields_layout.(field))
+        in
+        Some field_slice
     end
   | Cop(op, args, dbg) ->
       begin match self#emit_parts_list env' args with

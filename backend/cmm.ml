@@ -217,7 +217,7 @@ and operation =
   | Cprobe_is_enabled of { name: string }
   | Copaque
   | Cbeginregion | Cendregion
-  | Ctuple_field of int * machtype
+  | Ctuple_field of int * machtype array
 
 type value_kind =
   | Vval of Lambda.value_kind (* Valid OCaml values *)

@@ -2649,7 +2649,8 @@ let value_slot_given_machtype t' v =
   | [_] -> Cvar v
   | _ ->
     let field (_off, i) =
-      Cop (Ctuple_field(i, t'), [Cvar v], Debuginfo.none)
+      let fields_types = Array.map (fun t -> [|t|]) t' in
+      Cop (Ctuple_field(i, fields_types), [Cvar v], Debuginfo.none)
     in
     Ctuple (List.map field t)
 
