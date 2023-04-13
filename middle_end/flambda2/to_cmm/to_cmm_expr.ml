@@ -754,6 +754,9 @@ and apply_expr env res apply =
         in
         expr env res body
       | params ->
+        (* CR ncourant: we create a cexit/ccatch pair here, to be able to
+           destruct the output which is a tuple. When we get a way to
+           destructure Ctuples, we should use this constructor here instead. *)
         let wrap, env, res =
           Env.flush_delayed_lets ~mode:Branching_point env res
         in
