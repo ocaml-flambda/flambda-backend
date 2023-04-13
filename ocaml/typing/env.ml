@@ -2244,7 +2244,7 @@ and add_extension ~check ?shape ~rebind id ext env =
   store_extension ~check ~rebind id addr ext shape env
 
 and add_module_declaration_lazy
-      ~update_summary ?(arg=false) ?shape ?(check=false) id presence md env =
+      ~update_summary ?(arg=false) ?shape ~check id presence md env =
   let check =
     if not check then
       None
@@ -2287,7 +2287,7 @@ let add_module_lazy ~update_summary id presence mty env =
                        md_loc = Location.none;
                        md_uid = Uid.internal_not_actually_unique}
   in
-  add_module_declaration_lazy ~update_summary id presence md env
+  add_module_declaration_lazy ~update_summary ~check:false id presence md env
 
 let add_module ?arg ?shape id presence mty env =
   add_module_declaration ~check:false ?arg ?shape id presence (md mty) env
@@ -2349,79 +2349,75 @@ let add_region_lock env =
 
 (* Insertion of all components of a signature *)
 
-let proj_shape (map, mod_shape) item =
+let proj_shape map mod_shape item =
   match mod_shape with
   | None -> map, None
   | Some mod_shape ->
       let shape = Shape.proj mod_shape item in
       Shape.Map.add map item shape, Some shape
 
-let add_item (map, mod_shape) comp env =
-  match comp with
-  | Sig_value(id, decl, _) ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.value id) in
-      map, add_value ?shape id decl env
-  | Sig_type(id, decl, _, _) ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.type_ id) in
-      map, add_type ~check:false ?shape id decl env
-  | Sig_typext(id, ext, _, _) ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.extension_constructor id) in
-      map, add_extension ~check:false ?shape ~rebind:false id ext env
-  | Sig_module(id, presence, md, _, _) ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.module_ id) in
-      map, add_module_declaration ~check:false ?shape id presence md env
-  | Sig_modtype(id, decl, _)  ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.module_type id) in
-      map, add_modtype ?shape id decl env
-  | Sig_class(id, decl, _, _) ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.class_ id) in
-      map, add_class ?shape id decl env
-  | Sig_class_type(id, decl, _, _) ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.class_type id) in
-      map, add_cltype ?shape id decl env
+module Add_signature(M : sig
+  include Types.S
+  val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool
+    -> Ident.t -> module_presence -> module_declaration -> t -> t
+  val add_modtype: ?shape:Shape.t -> Ident.t -> modtype_declaration -> t -> t
+end) = struct
+  open M
 
-let rec add_signature (map, mod_shape) sg env =
-  match sg with
-      [] -> map, env
-  | comp :: rem ->
-      let map, env = add_item (map, mod_shape) comp env in
-      add_signature (map, mod_shape) rem env
+  let add_item map mod_shape comp env =
+    match comp with
+    | Sig_value(id, decl, _) ->
+        let map, shape = proj_shape map mod_shape (Shape.Item.value id) in
+        map, add_value ?shape id decl env
+    | Sig_type(id, decl, _, _) ->
+        let map, shape = proj_shape map mod_shape (Shape.Item.type_ id) in
+        map, add_type ~check:false ?shape id decl env
+    | Sig_typext(id, ext, _, _) ->
+        let map, shape = proj_shape map mod_shape (Shape.Item.extension_constructor id) in
+        map, add_extension ~check:false ?shape ~rebind:false id ext env
+    | Sig_module(id, presence, md, _, _) ->
+        let map, shape = proj_shape map mod_shape (Shape.Item.module_ id) in
+        map, add_module_declaration ~check:false ?shape id presence md env
+    | Sig_modtype(id, decl, _)  ->
+        let map, shape = proj_shape map mod_shape (Shape.Item.module_type id) in
+        map, add_modtype ?shape id decl env
+    | Sig_class(id, decl, _, _) ->
+        let map, shape = proj_shape map mod_shape (Shape.Item.class_ id) in
+        map, add_class ?shape id decl env
+    | Sig_class_type(id, decl, _, _) ->
+        let map, shape = proj_shape map mod_shape (Shape.Item.class_type id) in
+        map, add_cltype ?shape id decl env
+  
+  let rec add_signature map mod_shape sg env =
+    match sg with
+        [] -> map, env
+    | comp :: rem ->
+        let map, env = add_item map mod_shape comp env in
+        add_signature map mod_shape rem env
+end
 
-let add_item_lazy (map, mod_shape) comp env =
-  let open Subst.Lazy in
-  match comp with
-  | Sig_value(id, decl, _) ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.value id) in
-      map, add_value ?shape id decl env
-  | Sig_type(id, decl, _, _) ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.type_ id) in
-      map, add_type ~check:false ?shape id decl env
-  | Sig_typext(id, ext, _, _) ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.extension_constructor id) in
-      map, add_extension ~check:false ?shape ~rebind:false id ext env
-  | Sig_module(id, presence, md, _, _) ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.module_ id) in
-      map, add_module_declaration_lazy ~update_summary:true ?shape id presence md env
-  | Sig_modtype(id, decl, _)  ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.module_type id) in
-      map, add_modtype_lazy ~update_summary:true ?shape id decl env
-  | Sig_class(id, decl, _, _) ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.class_ id) in
-      map, add_class ?shape id decl env
-  | Sig_class_type(id, decl, _, _) ->
-      let map, shape = proj_shape (map, mod_shape) (Shape.Item.class_type id) in
-      map, add_cltype ?shape id decl env
+let add_signature = 
+  let module M = Add_signature(struct
+    include Types
+    let add_module_declaration = add_module_declaration
+    let add_modtype = add_modtype
+  end)
+  in
+  M.add_signature
 
-let rec add_signature_lazy (map, mod_shape) sg env =
-  match sg with
-      [] -> map, env
-  | comp :: rem ->
-      let map, env = add_item_lazy (map, mod_shape) comp env in
-      add_signature_lazy (map, mod_shape) rem env
+let add_signature_lazy =
+  let module M = Add_signature(struct
+    include Subst.Lazy
+    let add_module_declaration =
+      add_module_declaration_lazy ~update_summary:true
+    let add_modtype = add_modtype_lazy ~update_summary:true
+  end)
+  in
+  M.add_signature
 
 let enter_signature_and_shape ~scope ~parent_shape mod_shape sg env =
   let sg = Subst.signature (Rescope scope) Subst.identity sg in
-  let shape, env = add_signature (parent_shape, mod_shape) sg env in
+  let shape, env = add_signature parent_shape mod_shape sg env in
   sg, shape, env
 
 let enter_signature ?mod_shape ~scope sg env =
@@ -2442,12 +2438,12 @@ let add_cltype = add_cltype ?shape:None
 let add_modtype_lazy = add_modtype_lazy ?shape:None
 let add_modtype = add_modtype ?shape:None
 let add_module_declaration_lazy ?(arg=false) =
-  add_module_declaration_lazy ~arg ?shape:None ?check:None
+  add_module_declaration_lazy ~arg ?shape:None ~check:false
 let add_signature sg env =
-  let _, env = add_signature (Shape.Map.empty, None) sg env in
+  let _, env = add_signature Shape.Map.empty None sg env in
   env
 let add_signature_lazy sg env =
-  let _, env = add_signature_lazy (Shape.Map.empty, None) sg env in
+  let _, env = add_signature_lazy Shape.Map.empty None sg env in
   env
 
 (* Add "unbound" bindings *)
