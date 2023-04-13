@@ -654,14 +654,14 @@ and functor_param ~in_eq ~loc env ~mark subst param1 param2 =
       let env, subst =
         match name1, name2 with
         | Some id1, Some id2 ->
-            Env.add_module_lazy ~update_summary:true id1 Mp_present arg2' env,
+            Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env,
             Subst.add_module id2 (Path.Pident id1) subst
         | None, Some id2 ->
             let id1 = Ident.rename id2 in
-            Env.add_module_lazy ~update_summary:true id1 Mp_present arg2' env,
+            Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env,
             Subst.add_module id2 (Path.Pident id1) subst
         | Some id1, None ->
-            Env.add_module_lazy ~update_summary:true id1 Mp_present arg2' env, subst
+            Env.add_module_lazy ~update_summary:false id1 Mp_present arg2' env, subst
         | None, None ->
             env, subst
       in
