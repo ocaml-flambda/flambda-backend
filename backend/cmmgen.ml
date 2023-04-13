@@ -600,28 +600,8 @@ let rec transl env e =
   (* Primitives *)
   | Uprim(prim, args, dbg) ->
       begin match (simplif_primitive prim, args) with
-
-        | (Pmake_unboxed_product layouts, args) ->
-          let rec loop offset args layouts acc =
-            match args, layouts with
-            | [], [] ->
-              Ctuple acc
-            | [], _ | _, [] -> assert false
-            | arg :: args, layout :: layouts ->
-              let arg = transl env arg in
-              bind "arg" arg (fun arg ->
-                  let layout = List.map layout_machtype @@ flatten_layout layout in
-                  let layout_a = Array.of_list layout in
-                  let skip = List.length layout in
-                  let loads =
-                    List.mapi (fun i layout ->
-                        Cop (Ctuple_field (i, layout_a) , [arg], dbg))
-                      layout
-                  in
-                  loop (offset + skip) args layouts (loads @ acc)
-                )
-          in
-          loop 0 (List.rev args) (List.rev layouts) []
+      | (Pmake_unboxed_product layouts, args) ->
+          Ctuple (List.map (transl env) args)
       | (Pread_symbol sym, []) ->
           Cconst_symbol (sym, dbg)
       | (Pmakeblock _, []) ->
