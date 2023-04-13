@@ -758,7 +758,9 @@ and signature_components :
         match sigi1, sigi2 with
         | Sig_value(id1, valdecl1, _) ,Sig_value(_id2, valdecl2, _) ->
             let item =
-              value_descriptions ~loc env ~mark subst id1 valdecl1 valdecl2
+              value_descriptions ~loc env ~mark subst id1
+                (Subst.Lazy.force_value_description valdecl1)
+                (Subst.Lazy.force_value_description valdecl2)
             in
             let item = mark_error_as_recoverable item in
             let present_at_runtime = match valdecl2.val_kind with

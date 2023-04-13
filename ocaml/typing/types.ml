@@ -119,15 +119,7 @@ module Vars = Misc.Stdlib.String.Map
 
 (* Value descriptions *)
 
-type value_description =
-  { val_type: type_expr;                (* Type of the value *)
-    val_kind: value_kind;
-    val_loc: Location.t;
-    val_attributes: Parsetree.attributes;
-    val_uid: Uid.t;
-  }
-
-and value_kind =
+type value_kind =
     Val_reg                             (* Regular value *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
@@ -349,6 +341,14 @@ end
 module type Wrapped = sig
   type 'a wrapped
 
+  type value_description =
+    { val_type: type_expr wrapped;                (* Type of the value *)
+      val_kind: value_kind;
+      val_loc: Location.t;
+      val_attributes: Parsetree.attributes;
+      val_uid: Uid.t;
+    }
+
   type module_type =
     Mty_ident of Path.t
   | Mty_signature of signature
@@ -399,6 +399,7 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
   type mapper =
     {
       map_signature: mapper -> signature -> To.signature;
+      map_type_expr: mapper -> type_expr wrapped -> type_expr To.wrapped
     }
 
   let signature m = m.map_signature m
@@ -413,6 +414,15 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
   and functor_parameter m = function
       | Unit -> To.Unit
       | Named (id,mty) -> To.Named (id, module_type m mty)
+
+  let value_description m {val_type; val_kind; val_attributes; val_loc; val_uid} =
+    To.{
+      val_type = m.map_type_expr m val_type;
+      val_kind;
+      val_attributes;
+      val_loc;
+      val_uid
+    }
 
   let module_declaration m {md_type; md_attributes; md_loc; md_uid} =
     To.{
@@ -432,7 +442,7 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
 
   let signature_item m = function
     | Sig_value (id,vd,vis) ->
-        To.Sig_value (id,vd,vis)
+        To.Sig_value (id, value_description m vd, vis)
     | Sig_type (id,td,rs,vis) ->
         To.Sig_type (id,td,rs,vis)
     | Sig_module (id,pres,md,rs,vis) ->

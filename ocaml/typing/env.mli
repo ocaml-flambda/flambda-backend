@@ -84,7 +84,7 @@ val without_cmis: ('a -> 'b) -> 'a -> 'b
 
 (* Lookup by paths *)
 
-val find_value: Path.t -> t -> value_description
+val find_value: Path.t -> t -> Subst.Lazy.value_description
 val find_type: Path.t -> t -> type_declaration
 val find_type_descrs: Path.t -> t -> type_descriptions
 val find_module_lazy: Path.t -> t -> Subst.Lazy.module_declaration
@@ -214,7 +214,7 @@ val lookup_error: Location.t -> t -> lookup_error -> 'a
 
 val lookup_value:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * value_description * Types.value_mode
+  Path.t * Subst.Lazy.value_description * Types.value_mode
 val lookup_type:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * type_declaration
@@ -293,9 +293,12 @@ val make_copy_of_types: t -> (t -> t)
 
 (* Insertion by identifier *)
 
+val add_value_lazy:
+    ?check:(string -> Warnings.t) -> ?mode:(Types.value_mode) ->
+    Ident.t -> Subst.Lazy.value_description -> t -> t
 val add_value:
     ?check:(string -> Warnings.t) -> ?mode:(Types.value_mode) ->
-    Ident.t -> value_description -> t -> t
+    Ident.t -> Types.value_description -> t -> t
 val add_type: check:bool -> Ident.t -> type_declaration -> t -> t
 val add_extension:
   check:bool -> rebind:bool -> Ident.t -> extension_constructor -> t -> t
@@ -463,7 +466,7 @@ val in_signature: bool -> t -> t
 val is_in_signature: t -> bool
 
 val set_value_used_callback:
-    value_description -> (unit -> unit) -> unit
+    Subst.Lazy.value_description -> (unit -> unit) -> unit
 val set_type_used_callback:
     type_declaration -> ((unit -> unit) -> unit) -> unit
 
@@ -494,7 +497,7 @@ val print_path: (Format.formatter -> Path.t -> unit) ref
 (** Folds *)
 
 val fold_values:
-  (string -> Path.t -> value_description -> 'a -> 'a) ->
+  (string -> Path.t -> Subst.Lazy.value_description -> 'a -> 'a) ->
   Longident.t option -> t -> 'a -> 'a
 val fold_types:
   (string -> Path.t -> type_declaration -> 'a -> 'a) ->
