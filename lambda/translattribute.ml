@@ -299,7 +299,14 @@ let get_local_attribute l =
 
 let get_property_attribute l p =
   let attr = find_attribute (is_property_attribute p) l in
-  parse_property_attribute attr p
+  let res = parse_property_attribute attr p in
+  (match attr, res with
+   | None, _ -> ()
+   | _, Default_check -> ()
+   | Some attr, Check _ ->
+     if !Clflags.zero_alloc_check && !Clflags.native_code then
+       Builtin_attributes.register_property attr.attr_name);
+   res
 
 let get_check_attribute l = get_property_attribute l Zero_alloc
 
