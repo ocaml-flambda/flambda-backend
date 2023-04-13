@@ -261,6 +261,18 @@ let extended_machtype_of_return_arity arity =
   | [] -> Extended_machtype.typ_void
   (* Regular functions with a single return value *)
   | [k] -> extended_machtype_of_kind k
-  | _ ->
-    (* CR gbury: update when unboxed tuples are used *)
-    Misc.fatal_errorf "Functions are currently limited to a single return value"
+  | arity ->
+    let machtypes = List.map extended_machtype_of_kind arity in
+    let len =
+      List.fold_left (fun acc mtype -> acc + Array.length mtype) 0 machtypes
+    in
+    let res = Array.make len Cmm_helpers.Extended_machtype_component.Addr (* not used *) in
+    let _ =
+      List.fold_left
+        (fun acc mtype ->
+          let len = Array.length mtype in
+          Array.blit mtype 0 res acc len;
+          acc + len)
+        0 machtypes
+    in
+    res

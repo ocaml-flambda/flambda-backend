@@ -325,33 +325,22 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
    value for the current block being translated. *)
 let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
     return_cont args =
-  match args with
-  | [return_value] -> (
-    let To_cmm_env.
-          { env; res; expr = { cmm = return_value; free_vars; effs = _ } } =
-      C.simple ~dbg env res return_value
+  let return_values, free_vars, env, res, _ = C.simple_list ~dbg env res args in
+  let return_value = C.make_tuple return_values in
+  let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
+  match Apply_cont.trap_action apply with
+  | None ->
+    let cmm, free_vars = wrap return_value free_vars in
+    cmm, free_vars, res
+  | Some (Pop _) ->
+    let cmm, free_vars =
+      wrap (C.trap_return return_value [Cmm.Pop]) free_vars
     in
-    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-    match Apply_cont.trap_action apply with
-    | None ->
-      let cmm, free_vars = wrap return_value free_vars in
-      cmm, free_vars, res
-    | Some (Pop _) ->
-      let cmm, free_vars =
-        wrap (C.trap_return return_value [Cmm.Pop]) free_vars
-      in
-      cmm, free_vars, res
-    | Some (Push _) ->
-      Misc.fatal_errorf
-        "Return continuation %a should not be applied with a Push trap action"
-        Continuation.print return_cont)
-  | _ ->
-    (* CR gbury: add support using unboxed tuples *)
+    cmm, free_vars, res
+  | Some (Push _) ->
     Misc.fatal_errorf
-      "Return continuation %a should be applied to a single argument in@\n\
-       %a@\n\
-       Multiple return values from functions are not yet supported"
-      Continuation.print return_cont Apply_cont.print apply
+      "Return continuation %a should not be applied with a Push trap action"
+      Continuation.print return_cont
 
 (* Invalid expressions *)
 let invalid env res ~message =
@@ -737,17 +726,8 @@ and apply_expr env res apply =
     let cmm, free_vars = wrap call free_vars in
     cmm, free_vars, res
   | Return k -> (
-    let[@inline always] unsupported () =
-      (* CR gbury: add support using unboxed tuples *)
-      Misc.fatal_errorf
-        "Return continuation %a should be applied to a single argument in@\n\
-         %a@\n\
-         Multiple return values from functions are not yet supported"
-        Continuation.print k Apply.print apply
-    in
     match Env.get_continuation env k with
-    | Jump { param_types = []; cont = _ } -> unsupported ()
-    | Jump { param_types = [_]; cont } ->
+    | Jump { param_types = _; cont } ->
       (* Case 2 *)
       let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
       let cmm, free_vars = wrap (C.cexit cont [call] []) free_vars in
@@ -761,7 +741,6 @@ and apply_expr env res apply =
       (* Case 3 *)
       let handler_params = Bound_parameters.to_list handler_params in
       match handler_params with
-      | [] -> unsupported ()
       | [param] ->
         let var = Bound_parameter.var param in
         let env, res =
@@ -774,8 +753,38 @@ and apply_expr env res apply =
           Env.set_inlined_debuginfo env handler_body_inlined_debuginfo
         in
         expr env res body
-      | _ :: _ -> unsupported ())
-    | Jump _ -> unsupported ())
+      | params ->
+        let wrap, env, res =
+          Env.flush_delayed_lets ~mode:Branching_point env res
+        in
+        let env, cmm_params =
+          Env.create_bound_parameters env (List.map Bound_parameter.var params)
+        in
+        let label = Lambda.next_raise_count () in
+        let params_with_machtype =
+          List.map2
+            (fun cmm_param param ->
+              cmm_param, C.machtype_of_kinded_parameter param)
+            cmm_params params
+        in
+        let env =
+          Env.set_inlined_debuginfo env handler_body_inlined_debuginfo
+        in
+        let expr, free_vars_of_handler, res = expr env res body in
+        let handler =
+          C.handler ~dbg:(Apply.dbg apply) label params_with_machtype expr
+        in
+        let expr =
+          C.create_ccatch ~rec_flag:false ~handlers:[handler]
+            ~body:(C.cexit label [call] [])
+        in
+        let free_vars =
+          Backend_var.Set.union free_vars
+            (C.remove_vars_with_machtype free_vars_of_handler
+               params_with_machtype)
+        in
+        let cmm, free_vars = wrap expr free_vars in
+        cmm, free_vars, res))
 
 and apply_cont env res apply_cont =
   let dbg_with_inlined =
