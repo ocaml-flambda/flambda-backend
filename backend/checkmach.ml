@@ -173,7 +173,8 @@ module Annotation : sig
 
   val get_loc : t -> Location.t
 
-  val find : Cmm.codegen_option list -> Cmm.property -> Debuginfo.t -> t option
+  val find :
+    Cmm.codegen_option list -> Cmm.property -> string -> Debuginfo.t -> t option
 
   val expected_value : t -> Value.t
 
@@ -219,7 +220,7 @@ end = struct
 
   let is_assume t = t.assume
 
-  let find codegen_options spec dbg =
+  let find codegen_options spec fun_name dbg =
     let ignore_assert_all = ref false in
     let a =
       List.filter_map
@@ -237,14 +238,16 @@ end = struct
     in
     match a with
     | [] ->
-      if !Clflags.zero_alloc_check_assert_all && not !ignore_assert_all
+      if !Clflags.zero_alloc_check_assert_all
+         && (not !ignore_assert_all)
+         && not (String.ends_with ~suffix:"__entry" fun_name)
       then
         Some { strict = false; assume = false; loc = Debuginfo.to_location dbg }
       else None
     | [p] -> Some p
     | _ :: _ ->
-      Misc.fatal_errorf "Unexpected duplicate annotation %a"
-        Debuginfo.print_compact dbg ()
+      Misc.fatal_errorf "Unexpected duplicate annotation %a for %s"
+        Debuginfo.print_compact dbg fun_name ()
 
   exception
     Invalid of
@@ -769,7 +772,9 @@ end = struct
     let check () =
       let fun_name = f.fun_name in
       let t = create ppf fun_name future_funcnames unit_info in
-      let a = Annotation.find f.fun_codegen_options S.property f.fun_dbg in
+      let a =
+        Annotation.find f.fun_codegen_options S.property fun_name f.fun_dbg
+      in
       Unit_info.record_annotation unit_info fun_name f.fun_dbg a;
       match a with
       | Some a when Annotation.is_assume a ->
