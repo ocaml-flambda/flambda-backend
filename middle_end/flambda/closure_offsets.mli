@@ -19,16 +19,9 @@
 (** Assign numerical offsets, within closure blocks, for code pointers and
     environment entries. *)
 
-type layout_atom =
-  | Value
-  | Value_int
-  | Unboxed_float
-  | Unboxed_int of Lambda.boxed_integer
+type layout_atom = Clambda_layout.atom
 
-type decomposition =
-  | Atom of (int * layout_atom)
-  | Product of decomposition array
-type parts = decomposition
+type parts = Clambda_layout.decomposition
 
 val equal_parts : parts -> parts -> bool
 val print_parts : Format.formatter -> parts -> unit

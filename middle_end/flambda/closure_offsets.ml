@@ -16,20 +16,9 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
-type layout_atom =
-  | Value
-  | Value_int
-  | Unboxed_float
-  | Unboxed_int of Lambda.boxed_integer
+type layout_atom = Clambda_layout.atom
 
-type ('visible, 'invisible) decomposition' =
-  | Gc_visible of ('visible * layout_atom)
-  | Gc_invisible of ('invisible * layout_atom)
-  | Product of ('visible, 'invisible) decomposition' array
-
-type decomposition =
-  | Atom of (int * layout_atom)
-  | Product of decomposition array
+type decomposition = Clambda_layout.decomposition
 type parts = decomposition
 
 let equal_parts (p1 : parts) p2 = p1 = p2
@@ -40,70 +29,6 @@ type result = {
   function_offsets : int Closure_id.Map.t;
   free_variable_offsets : parts Var_within_closure.Map.t;
 }
-
-let rec decompose (layout : Lambda.layout) : _ decomposition' =
-  match layout with
-  | Ptop ->
-    Misc.fatal_error "[Ptop] can't be stored in a closure."
-  | Pbottom ->
-    Misc.fatal_error
-      "[Pbottom] should have been eliminated as dead code \
-       and not stored in a closure."
-  | Punboxed_float -> Gc_invisible ((), Unboxed_float)
-  | Punboxed_int bi -> Gc_invisible ((), Unboxed_int bi)
-  | Pvalue Pintval -> Gc_invisible ((), Value_int)
-  | Pvalue _ -> Gc_visible ((), Value)
-  | Punboxed_product l ->
-    Product (Array.of_list (List.map decompose l))
-
-let rec solidify (dec : (int, int) decomposition') : decomposition =
-  match dec with
-  | Gc_visible (off, layout) -> Atom (off, layout)
-  | Gc_invisible (off, layout) -> Atom (off, layout)
-  | Product a ->
-    Product (Array.map solidify a)
-
-let rec fold_decompose
-    (f1 : 'acc -> 'a -> layout_atom -> 'acc * 'b) (f2 : 'acc -> 'c -> layout_atom -> 'acc * 'd)
-    (acc : 'acc) (d : ('a, 'c) decomposition') :
-  'acc * ('b, 'd) decomposition' =
-  match d with
-  | Gc_visible (v, layout) ->
-    let acc, v = f1 acc v layout in
-    acc, Gc_visible (v, layout)
-  | Gc_invisible (v, layout) ->
-    let acc, v = f2 acc v layout in
-    acc, Gc_invisible (v, layout)
-  | Product elts ->
-    let acc, elts = Array.fold_left_map (fold_decompose f1 f2) acc elts in
-    acc, Product elts
-
-let layout_atom_size (layout : layout_atom) =
-  match layout with
-  | Value
-  | Value_int
-  | Unboxed_float
-  | Unboxed_int _ -> 1
-
-let assign_visible_offsets init_pos (var, dec) =
-  let f_visible acc () layout =
-    acc + layout_atom_size layout, acc
-  in
-  let f_invisible acc () _layout =
-    acc, ()
-  in
-  let acc, dec = fold_decompose f_visible f_invisible init_pos dec in
-  acc, (var, dec)
-
-let assign_invisible_offsets init_pos (var, dec) =
-  let f_visible acc off _layout =
-    acc, off
-  in
-  let f_invisible acc () layout =
-    acc + layout_atom_size layout, acc
-  in
-  let acc, dec = fold_decompose f_visible f_invisible init_pos dec in
-  acc, (var, solidify dec)
 
 let add_closure_offsets
       { function_offsets; free_variable_offsets }
@@ -144,12 +69,11 @@ let add_closure_offsets
      ideal, and the self accesses should be explicitly marked too. *)
   let free_vars = Variable.Map.bindings free_vars in
   let free_vars = List.map (fun (var, (free_var : Flambda.specialised_to)) ->
-      var, decompose free_var.kind) free_vars in
-  let free_variable_pos, free_vars =
-    List.fold_left_map assign_visible_offsets free_variable_pos free_vars
-  in
-  let _free_variable_pos, free_vars =
-    List.fold_left_map assign_invisible_offsets free_variable_pos free_vars
+      var, free_var.kind) free_vars in
+  let free_vars =
+    Clambda_layout.decompose_free_vars
+      ~base_offset:free_variable_pos
+      ~free_vars
   in
   let free_variable_offsets =
     List.fold_left (fun map (var, dec) ->

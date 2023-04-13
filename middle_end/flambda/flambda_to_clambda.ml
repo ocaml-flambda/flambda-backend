@@ -255,7 +255,7 @@ let load_env_field ~fun_offset
     ~closure_using_field (parts : Closure_offsets.parts) : Clambda.ulambda =
   let rec rebuild (parts : Closure_offsets.parts) : Clambda.ulambda * Clambda_primitives.layout =
     match parts with
-    | Atom (var_offset, layout) ->
+    | Atom { offset = var_offset; layout } ->
       let pos = var_offset - fun_offset in
       let layout = layout_of_atom layout in
       Uprim (Pfield (pos, layout), [closure_using_field pos], Debuginfo.none), layout
@@ -267,26 +267,6 @@ let load_env_field ~fun_offset
   in
   let expr, _layout = rebuild parts in
   expr
-
-let rec fold_left_layout (f : 'acc -> 'e -> Closure_offsets.layout_atom -> 'acc)
-    (acc : 'acc) (expr : Clambda.ulambda) (layout : Clambda_primitives.layout) : 'acc =
-  match layout with
-  | Ptop ->
-    Misc.fatal_error "[Ptop] can't be stored in a closure."
-  | Pbottom ->
-    Misc.fatal_error
-      "[Pbottom] should have been eliminated as dead code \
-       and not stored in a closure."
-  | Punboxed_float -> f acc expr Unboxed_float
-  | Punboxed_int bi -> f acc expr (Unboxed_int bi)
-  | Pvalue Pintval -> f acc expr Value_int
-  | Pvalue _ -> f acc expr Value
-  | Punboxed_product layouts ->
-    List.fold_left (fun acc (field, layout) ->
-        let expr : Clambda.ulambda =
-          Uprim (Punboxed_product_field (field, layouts), [expr], Debuginfo.none) in
-        fold_left_layout f acc expr layout) acc
-      (List.mapi (fun i v -> i, v) layouts)
 
 let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
   match flam with
@@ -760,7 +740,7 @@ and to_clambda_set_of_closures t env
         in
         let closure, var_layout = subst_var env free_var.var in
         assert(Lambda.compatible_layout var_layout free_var.kind);
-        fold_left_layout f acc closure free_var.kind
+        Clambda_layout.fold_left_layout f acc closure free_var.kind
       ) ([],[]) free_vars
   in
   let not_scanned_slots, scanned_slots = List.rev not_scanned_fv, List.rev scanned_fv in

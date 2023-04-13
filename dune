@@ -81,6 +81,7 @@
   backend_var
   clambda
   clambda_primitives
+  clambda_layout
   compilenv
   mangling
   convert_primitives
@@ -524,6 +525,7 @@
   (backend_var.mli as compiler-libs/backend_var.mli)
   (clambda.mli as compiler-libs/clambda.mli)
   (clambda_primitives.mli as compiler-libs/clambda_primitives.mli)
+  (clambda_layout.mli as compiler-libs/clambda_layout.mli)
   (compilenv.mli as compiler-libs/compilenv.mli)
   (mangling.mli as compiler-libs/mangling.mli)
   (convert_primitives.mli as compiler-libs/convert_primitives.mli)
