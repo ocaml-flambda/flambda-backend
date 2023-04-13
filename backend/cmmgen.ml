@@ -873,7 +873,8 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
              VP.print id
          | Punboxed_float | Punboxed_int _ ->
            u := No_unboxing
-         | Punboxed_product _ -> Misc.fatal_error "TBD"
+         | Punboxed_product _ ->
+           u := No_unboxing
          | Pvalue kind ->
            let strict = is_strict kind in
            u := join_unboxed_number_kind ~strict !u
