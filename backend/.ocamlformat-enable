@@ -12,3 +12,5 @@ asm_targets/**/*.ml
 asm_targets/**/*.mli
 debug/**/*.ml
 debug/**/*.mli
+regalloc/**/*.ml
+regalloc/**/*.mli

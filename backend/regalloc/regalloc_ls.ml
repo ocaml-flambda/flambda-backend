@@ -1,13 +1,13 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Cfg_regalloc_utils
-open! Cfg_ls_utils
-module State = Cfg_ls_state
+open! Regalloc_utils
+open! Regalloc_ls_utils
+module State = Regalloc_ls_state
 
 let snapshot_for_fatal = ref None
 
 module Utils = struct
-  include Cfg_ls_utils
+  include Regalloc_ls_utils
 
   let debug = ls_debug
 
@@ -25,7 +25,7 @@ end
 let rewrite : State.t -> Cfg_with_liveness.t -> spilled_nodes:Reg.t list -> unit
     =
  fun state cfg_with_liveness ~spilled_nodes ->
-  Cfg_regalloc_rewrite.rewrite_gen
+  Regalloc_rewrite.rewrite_gen
     (module State)
     (module Utils)
     state cfg_with_liveness ~spilled_nodes
@@ -240,12 +240,12 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
  fun cfg_with_liveness ->
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
   let cfg_infos =
-    Cfg_regalloc_rewrite.prelude
+    Regalloc_rewrite.prelude
       (module Utils)
       ~on_fatal_callback:(fun () ->
         Option.iter
           (fun (intervals, active) ->
-            Format.eprintf "Cfg_ls.run (on_fatal):";
+            Format.eprintf "Regalloc_ls.run (on_fatal):";
             Format.eprintf "\n\nactives:\n";
             Array.iteri active ~f:(fun i a ->
                 Format.eprintf "class %d:\n %a\n" i ClassIntervals.print a);
@@ -268,7 +268,7 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
     rewrite state cfg_with_liveness ~spilled_nodes;
     Cfg_with_liveness.invalidate_liveness cfg_with_liveness);
   main ~round:1 state cfg_with_liveness;
-  Cfg_regalloc_rewrite.postlude
+  Regalloc_rewrite.postlude
     (module State)
     (module Utils)
     state

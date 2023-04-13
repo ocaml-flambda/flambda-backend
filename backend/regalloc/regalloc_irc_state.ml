@@ -1,7 +1,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Cfg_regalloc_utils
-open! Cfg_irc_utils
+open! Regalloc_utils
+open! Regalloc_irc_utils
 module Doubly_linked_list = Flambda_backend_utils.Doubly_linked_list
 
 module RegWorkList = ArraySet.Make (struct

@@ -1,8 +1,8 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Cfg_regalloc_utils
-open! Cfg_irc_utils
-module State = Cfg_irc_state
+open! Regalloc_utils
+open! Regalloc_irc_utils
+module State = Regalloc_irc_state
 
 (* Remove the frame pointer from the passed array if present, returning the
    passed array otherwise *)
@@ -360,7 +360,7 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
       n.Reg.irc_color <- alias.Reg.irc_color)
 
 module Utils = struct
-  include Cfg_irc_utils
+  include Regalloc_irc_utils
 
   let debug = irc_debug
 
@@ -384,7 +384,7 @@ let rewrite :
     bool =
  fun state cfg_with_liveness ~spilled_nodes ~reset ->
   let new_temporaries =
-    Cfg_regalloc_rewrite.rewrite_gen
+    Regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)
       state cfg_with_liveness ~spilled_nodes
@@ -488,7 +488,7 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
  fun cfg_with_liveness ->
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
   let cfg_infos =
-    Cfg_regalloc_rewrite.prelude
+    Regalloc_rewrite.prelude
       (module Utils)
       ~on_fatal_callback:(fun () -> save_cfg "irc" cfg_with_layout)
       cfg_with_liveness
@@ -515,7 +515,7 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
     | false -> ()
     | true -> Cfg_with_liveness.invalidate_liveness cfg_with_liveness));
   main ~round:1 state cfg_with_liveness;
-  Cfg_regalloc_rewrite.postlude
+  Regalloc_rewrite.postlude
     (module State)
     (module Utils)
     state

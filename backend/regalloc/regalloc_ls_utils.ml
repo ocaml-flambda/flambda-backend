@@ -1,6 +1,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Cfg_regalloc_utils
+open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let ls_debug = false
@@ -102,7 +102,7 @@ let iter_instructions_order :
   iter_cfg_order cfg_with_layout order ~f:(fun block ->
       let trap_handler_id =
         if block.is_trap_handler
-        then Cfg_regalloc_utils.first_instruction_id block
+        then Regalloc_utils.first_instruction_id block
         else min_int
       in
       DLL.iter block.body ~f:(fun instr ->

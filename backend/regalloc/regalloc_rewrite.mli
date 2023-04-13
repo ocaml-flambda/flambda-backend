@@ -1,6 +1,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open Cfg_regalloc_utils
+open Regalloc_utils
 
 module type State = sig
   type t

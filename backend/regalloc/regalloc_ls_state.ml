@@ -1,7 +1,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Cfg_regalloc_utils
-open! Cfg_ls_utils
+open! Regalloc_utils
+open! Regalloc_ls_utils
 
 type t =
   { mutable intervals : Interval.t list;
@@ -66,30 +66,30 @@ let[@inline] get_and_incr_instruction_id state =
 
 let rec check_ranges (prev : Range.t) (l : Range.t list) : int =
   if prev.begin_ > prev.end_
-  then fatal "Cfg_ls_state.check_ranges: prev.begin_ > prev.end_";
+  then fatal "Regalloc_ls_state.check_ranges: prev.begin_ > prev.end_";
   match l with
   | [] -> prev.end_
   | hd :: tl ->
     if prev.end_ >= hd.begin_
-    then fatal "Cfg_ls_state.check_ranges: prev.end_ >= hd.begin_";
+    then fatal "Regalloc_ls_state.check_ranges: prev.end_ >= hd.begin_";
     check_ranges hd tl
 
 let rec check_intervals (prev : Interval.t) (l : Interval.t list) : unit =
   if prev.begin_ > prev.end_
-  then fatal "Cfg_ls_state.check_intervals: prev.begin_ > prev.end_";
+  then fatal "Regalloc_ls_state.check_intervals: prev.begin_ > prev.end_";
   (match prev.ranges with
-  | [] -> fatal "Cfg_ls_state.check_intervals: no ranges"
+  | [] -> fatal "Regalloc_ls_state.check_intervals: no ranges"
   | hd :: tl ->
     if hd.begin_ <> prev.begin_
-    then fatal "Cfg_ls_state.check_intervals: hd.begin_ <> prev.begin_";
+    then fatal "Regalloc_ls_state.check_intervals: hd.begin_ <> prev.begin_";
     let end_ = check_ranges hd tl in
     if end_ <> prev.end_
-    then fatal "Cfg_ls_state.check_intervals: end_ <> prev.end_");
+    then fatal "Regalloc_ls_state.check_intervals: end_ <> prev.end_");
   match l with
   | [] -> ()
   | hd :: tl ->
     if prev.begin_ > hd.begin_
-    then fatal "Cfg_ls_state.check_intervals: prev.begin_ > hd.begin_";
+    then fatal "Regalloc_ls_state.check_intervals: prev.begin_ > hd.begin_";
     check_intervals hd tl
 
 let rec is_in_a_range ls_order (l : Range.t list) : bool =
@@ -109,8 +109,8 @@ let[@inline] invariant_intervals state cfg_with_liveness =
               | None -> Some interval
               | Some _reg ->
                 fatal
-                  "Cfg_ls_state.invariant_intervals: state.intervals duplicate \
-                   register %a"
+                  "Regalloc_ls_state.invariant_intervals: state.intervals \
+                   duplicate register %a"
                   Printmach.reg interval.reg)
             acc)
     in
@@ -121,24 +121,24 @@ let[@inline] invariant_intervals state cfg_with_liveness =
           match Reg.Map.find_opt reg interval_map with
           | None ->
             fatal
-              "Cfg_ls_state.invariant_intervals: register %a is not in \
+              "Regalloc_ls_state.invariant_intervals: register %a is not in \
                interval_map"
               Printmach.reg reg
           | Some interval ->
             if instr.ls_order < interval.begin_
             then
               fatal
-                "Cfg_ls_state.invariant_intervals: instr.ls_order < \
+                "Regalloc_ls_state.invariant_intervals: instr.ls_order < \
                  interval.begin_";
             if instr.ls_order > interval.end_
             then
               fatal
-                "Cfg_ls_state.invariant_intervals: instr.ls_order > \
+                "Regalloc_ls_state.invariant_intervals: instr.ls_order > \
                  interval.end_";
             if not (is_in_a_range instr.ls_order interval.ranges)
             then
               fatal
-                "Cfg_ls_state.invariant_intervals: not (is_in_a_range \
+                "Regalloc_ls_state.invariant_intervals: not (is_in_a_range \
                  instr.ls_order interval.ranges)")
         instr.live
     in
@@ -155,7 +155,8 @@ let invariant_active_field (reg_class : int) (field_name : string)
       if hd.Interval.end_ > prev.Interval.end_
       then
         fatal
-          "Cfg_ls_state.invariant_active_field: active.(%d).%s is not sorted"
+          "Regalloc_ls_state.invariant_active_field: active.(%d).%s is not \
+           sorted"
           reg_class field_name
       else is hd tl
   in
