@@ -2510,8 +2510,12 @@ and type_pat_aux
   | Ppat_or(sp1, sp2) ->
       begin match mode with
       | Normal ->
+          (* Reset pattern forces for just [tps2] because later we append
+             [tps1] and [tps2]'s pattern forces, and we don't want to
+             duplicate [tps]'s pattern forces.
+          *)
           let tps1 = copy_type_pat_state tps in
-          let tps2 = copy_type_pat_state tps in
+          let tps2 = {(copy_type_pat_state tps) with tps_pattern_force = []} in
           let equation_level = !gadt_equations_level in
           let outter_lev = get_current_level () in
           (* introduce a new scope *)
@@ -2544,7 +2548,11 @@ and type_pat_aux
           blit_type_pat_state
             ~src:
               { tps_pattern_variables = vars;
-                tps_pattern_force = tps1.tps_pattern_force;
+                (* We want to propagate all pattern forces, regardless of
+                   which branch they were found in.
+                *)
+                tps_pattern_force =
+                  tps2.tps_pattern_force @ tps1.tps_pattern_force;
                 tps_module_variables = tps1.tps_module_variables;
               }
             ~dst:tps;
