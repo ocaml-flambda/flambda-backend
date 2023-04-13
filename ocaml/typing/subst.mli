@@ -136,6 +136,7 @@ module Lazy : sig
   val of_signature : Types.signature -> signature
   val of_signature_items : signature_item list -> signature
   val of_signature_item : Types.signature_item -> signature_item
+  val of_functor_parameter : Types.functor_parameter -> functor_parameter
 
   val module_decl : scoping -> t -> module_decl -> module_decl
   val modtype : scoping -> t -> modtype -> modtype
@@ -149,4 +150,5 @@ module Lazy : sig
   val force_signature : signature -> Types.signature
   val force_signature_once : signature -> signature_item list
   val force_signature_item : signature_item -> Types.signature_item
+  val force_functor_parameter : functor_parameter -> Types.functor_parameter
 end

@@ -37,6 +37,8 @@ val strengthen_lazy: aliasable:bool -> Env.t -> Subst.Lazy.modtype -> Path.t -> 
 val strengthen: aliasable:bool -> Env.t -> module_type -> Path.t -> module_type
         (* Strengthen abstract type components relative to the
            given path. *)
+val strengthen_lazy_decl:
+  aliasable:bool -> Env.t -> Subst.Lazy.module_decl -> Path.t -> Subst.Lazy.module_decl
 val strengthen_decl:
   aliasable:bool -> Env.t -> module_declaration -> Path.t -> module_declaration
 
