@@ -89,6 +89,7 @@ val find_type: Path.t -> t -> type_declaration
 val find_type_descrs: Path.t -> t -> type_descriptions
 val find_module_lazy: Path.t -> t -> Subst.Lazy.module_declaration
 val find_module: Path.t -> t -> module_declaration
+val find_modtype_lazy: Path.t -> t -> Subst.Lazy.modtype_declaration
 val find_modtype: Path.t -> t -> modtype_declaration
 val find_class: Path.t -> t -> class_declaration
 val find_cltype: Path.t -> t -> class_type_declaration
