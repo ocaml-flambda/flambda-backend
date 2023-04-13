@@ -2594,15 +2594,19 @@ let tuplify_function arity return =
 
 let max_arity_optimized = 15
 
+let machtype_component_size c =
+  match c with
+  | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+  | Val | Int -> 1
+  | Float -> if Arch.size_int = 4 then 2 else 1
+
+let float_size = if Arch.size_int = 4 then 2 else 1
+
 let machtype_stored_size t =
   if Arch.size_int = 4
   then
     Array.fold_left
-      (fun cur c ->
-        match c with
-        | Addr -> Misc.fatal_error "[Addr] cannot be stored"
-        | Val | Int -> cur + 1
-        | Float -> cur + 2)
+      (fun cur c -> cur + machtype_component_size c)
       0 t
   else Array.length t
 
@@ -2616,30 +2620,58 @@ let machtype_non_scanned_size t =
       | Float -> cur + if Arch.size_int = 4 then 2 else 1)
     0 t
 
-let value_slot_given_machtype t v =
-  if Array.length t > 1
-  then
-    Misc.fatal_error
-      "[value_slot_given_machtype] currently does not support complex machtypes";
-  [Cvar v]
-
-let read_from_closure_given_machtype t clos base_offset dbg =
-  if Array.length t <> 1
-  then
-    Misc.fatal_error
-      "[read_from_closure_given_machtype] currently does not support complex \
-       machtypes";
-  let memory_chunk =
-    match t.(0) with
-    | Addr -> Misc.fatal_error "[Addr] cannot be read"
-    | Val -> Word_val
-    | Int -> Word_int
-    | Float -> Double
+let assign_offsets t base_offset =
+  let base_non_scanned_offset, t =
+    Array.fold_left_map (fun pos c ->
+        match c with
+        | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+        | Val -> pos + 1, (pos, c)
+        | Int
+        | Float -> pos, (-1, c))
+      base_offset t
   in
-  Cop
-    ( Cload (memory_chunk, Asttypes.Mutable),
-      [field_address clos base_offset dbg],
-      dbg )
+  let _size, t =
+    Array.fold_left_map (fun pos (off, c) ->
+        match c with
+        | Addr -> assert false
+        | Val -> pos, (off, c)
+        | Int -> pos + 1, (pos, c)
+        | Float -> pos + float_size, (pos, c))
+      base_non_scanned_offset t
+  in
+  t
+
+let value_slot_given_machtype t' v =
+  let t = assign_offsets t' 0 in
+  let t = List.mapi (fun i (offset, _c) -> offset, i) (Array.to_list t) in
+  let t = List.sort (fun (o1, _) (o2, _) -> compare o1 o2) t in
+  match t with
+  | [_] -> Cvar v
+  | _ ->
+    let field (_off, i) =
+      Cop (Ctuple_field(i, t'), [Cvar v], Debuginfo.none)
+    in
+    Ctuple (List.map field t)
+
+let read_from_closure_given_machtype t clos dbg =
+  let field (base_offset, typ) =
+    let memory_chunk =
+      match typ with
+      | Addr -> Misc.fatal_error "[Addr] cannot be read"
+      | Val -> Word_val
+      | Int -> Word_int
+      | Float -> Double
+    in
+    Cop
+      ( Cload (memory_chunk, Asttypes.Mutable),
+        [field_address clos base_offset dbg],
+        dbg )
+  in
+  let t = Array.to_list @@ Array.map field t in
+  match t with
+  | [ t ] -> t
+  | _ ->
+    Ctuple t
 
 let curry_clos_has_nary_application ~narity n =
   narity <= max_arity_optimized && n < narity - 1
@@ -2656,12 +2688,13 @@ let rec make_curry_apply result narity args_type args clos n =
   | arg_type :: args_type ->
     let newclos = V.create_local "clos" in
     let arg_pos = if curry_clos_has_nary_application ~narity n then 3 else 2 in
+    let arg_type_offset = assign_offsets arg_type arg_pos in
     let clos_pos = arg_pos + machtype_stored_size arg_type in
     Clet
       ( VP.create newclos,
         get_field_gen Asttypes.Mutable (Cvar clos) clos_pos (dbg ()),
         make_curry_apply result narity args_type
-          (read_from_closure_given_machtype arg_type (Cvar clos) arg_pos
+          (read_from_closure_given_machtype arg_type_offset (Cvar clos)
              (dbg ())
           :: args)
           newclos (n - 1) )
@@ -2742,7 +2775,7 @@ let intermediate_curry_functions ~nlocal ~arity result =
                         (name1 ^ "_" ^ Int.to_string (num + 1) ^ "_app", dbg ())
                     ]
                   else [])
-                @ value_slot_given_machtype arg_type arg
+                @ [value_slot_given_machtype arg_type arg]
                 @ [Cvar clos],
                 dbg () );
           fun_codegen_options = [];
