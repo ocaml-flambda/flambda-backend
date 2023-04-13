@@ -214,7 +214,7 @@ module Map_meet (M : Container_types_intf.Map) = struct
         M.merge
           (fun key left right ->
             r := f key left right !r;
-            left)
+            None)
           m1 m2
       in
       !r
