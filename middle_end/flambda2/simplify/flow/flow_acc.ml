@@ -243,17 +243,11 @@ let add_apply_conts ~result_cont ~exn_cont ~result_arity t =
                     Misc.fatal_errorf "Introducing a rewrite id twice %a"
                       Apply_cont_rewrite_id.print rewrite_id
                   | None ->
-                    let rec build_map i acc =
-                      if i >= result_arity
-                      then acc
-                      else
-                        let acc =
-                          Numeric_types.Int.Map.add i T.Cont_arg.Function_result
-                            acc
-                        in
-                        build_map (i + 1) acc
+                    let map =
+                      Numeric_types.Int.Map.of_list
+                        (List.init result_arity (fun i ->
+                             i, T.Cont_arg.Function_result))
                     in
-                    let map = build_map 0 Numeric_types.Int.Map.empty in
                     let _, map =
                       List.fold_left
                         (fun (i, map) (extra_arg, _kind) ->
