@@ -77,22 +77,22 @@ let atom_size (layout : atom) =
   | Unboxed_float
   | Unboxed_int _ -> 1
 
-let assign_visible_offsets init_pos (var, dec) =
-  let f_visible acc () layout =
-    acc + atom_size layout, acc
-  in
-  let f_invisible acc () _layout =
+let assign_invisible_offsets init_pos (var, dec) =
+  let f_visible acc () _layout =
     acc, ()
+  in
+  let f_invisible acc () layout =
+    acc + atom_size layout, acc
   in
   let acc, dec = fold_decompose f_visible f_invisible init_pos dec in
   acc, (var, dec)
 
-let assign_invisible_offsets init_pos (var, dec) =
-  let f_visible acc off _layout =
-    acc, off
-  in
-  let f_invisible acc () layout =
+let assign_visible_offsets init_pos (var, dec) =
+  let f_visible acc () layout =
     acc + atom_size layout, acc
+  in
+  let f_invisible acc off _layout =
+    acc, off
   in
   let acc, dec = fold_decompose f_visible f_invisible init_pos dec in
   acc, (var, solidify dec)
@@ -102,9 +102,9 @@ let decompose_free_vars ~base_offset ~free_vars =
     List.map (fun (var, kind) -> var, decompose kind) free_vars
   in
   let base_offset, free_vars =
-    List.fold_left_map assign_visible_offsets base_offset free_vars
+    List.fold_left_map assign_invisible_offsets base_offset free_vars
   in
   let _base_offset, free_vars =
-    List.fold_left_map assign_invisible_offsets base_offset free_vars
+    List.fold_left_map assign_visible_offsets base_offset free_vars
   in
   free_vars

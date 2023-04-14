@@ -50,30 +50,53 @@ let rec split_list n l =
     | a::l -> let (l1, l2) = split_list (n-1) l in (a::l1, l2)
   end
 
-let rec add_to_closure_env env_param pos cenv = function
-    [] -> cenv
-  | (id, kind) :: rem ->
-      V.Map.add id
-        (Uprim(P.Pfield (pos, kind), [Uvar env_param], Debuginfo.none))
-          (add_to_closure_env env_param (pos+1) cenv rem)
-
-let is_gc_ignorable kind =
-  match kind with
-  | Ptop -> Misc.fatal_error "[Ptop] can't be stored in a closure."
-  | Pbottom -> Misc.fatal_error "[Pbottom] should not be stored in a closure."
-  | Punboxed_float -> true
-  | Punboxed_int _ -> true
-  | Pvalue Pintval -> true
-  | Pvalue (Pgenval | Pfloatval | Pboxedintval _ | Pvariant _ | Parrayval _) -> false
-  | Punboxed_product _ -> Misc.fatal_error "TBD"
-
 let split_closure_fv kinds fv =
-  List.fold_right (fun id (not_scanned, scanned) ->
-      let kind = V.Map.find id kinds in
-      if is_gc_ignorable kind
-      then ((id, kind) :: not_scanned, scanned)
-      else (not_scanned, (id, kind)::scanned))
-    fv ([], [])
+  let (not_scanned_fv, scanned_fv) =
+    List.fold_left (fun acc id ->
+        let kind = V.Map.find id kinds in
+        let f (not_scanned_fv, scanned_fv) expr (atom : Clambda_layout.atom) =
+          match atom with
+          | Value -> not_scanned_fv, ((expr, atom) :: scanned_fv)
+          | Value_int | Unboxed_float | Unboxed_int _ ->
+            ((expr, atom) :: not_scanned_fv, scanned_fv)
+        in
+        Clambda_layout.fold_left_layout f acc (Uvar id) kind)
+      ([],[]) fv
+  in
+  (List.rev not_scanned_fv, List.rev scanned_fv)
+
+let layout_of_atom (atom : Closure_offsets.layout_atom) : Lambda.layout =
+  match atom with
+  | Value -> Pvalue Pgenval
+  | Value_int -> Pvalue Pintval
+  | Unboxed_float -> Punboxed_float
+  | Unboxed_int bi -> Punboxed_int bi
+
+let load_env_field ~base_offset
+    ~closure (parts : Clambda_layout.decomposition) : Clambda.ulambda =
+  let rec rebuild (parts : Closure_offsets.parts) : Clambda.ulambda * Clambda_primitives.layout =
+    match parts with
+    | Atom { offset = var_offset; layout } ->
+      let pos = var_offset + base_offset in
+      let layout = layout_of_atom layout in
+      Uprim (Pfield (pos, layout), [closure], Debuginfo.none), layout
+    | Product parts ->
+      let parts = Array.to_list @@ Array.map rebuild parts in
+      let parts, layouts = List.split parts in
+      Uprim (Pmake_unboxed_product layouts, parts, Debuginfo.none),
+      Punboxed_product layouts
+  in
+  let expr, _layout = rebuild parts in
+  expr
+
+let add_to_closure_env env_param base_offset fv =
+  List.fold_left (fun cenv (id, decomp) ->
+      let expr =
+        load_env_field ~base_offset ~closure:(Uvar env_param)
+          decomp
+      in
+      V.Map.add id expr cenv)
+    V.Map.empty fv
 
 (* Auxiliary for accessing globals.  We change the name of the global
    to the name of the corresponding asm symbol.  This is done here
@@ -1498,7 +1521,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
   let fv =
     V.Set.elements (free_variables (Lletrec(fun_defs, lambda_unit))) in
   let not_scanned_fv, scanned_fv = split_closure_fv kinds fv in
-  let not_scanned_fv_size = List.length not_scanned_fv in
+  let free_vars = List.map (fun id -> id, V.Map.find id kinds) fv in
   (* Build the function descriptors for the functions.
      Initially all functions are assumed not to need their environment
      parameter. *)
@@ -1560,13 +1583,13 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
   (* Translate each function definition *)
   let clos_fundef (id, params, return, body, mode, check, fundesc, dbg) env_pos =
     let env_param = V.create_local "env" in
-    let cenv_fv =
-      add_to_closure_env env_param
-        (fv_pos - env_pos) V.Map.empty not_scanned_fv
+    let decomposition =
+      Clambda_layout.decompose_free_vars
+        ~base_offset:0
+        ~free_vars
     in
     let cenv_fv =
-      add_to_closure_env env_param
-        (fv_pos - env_pos + not_scanned_fv_size) cenv_fv scanned_fv
+      add_to_closure_env env_param (fv_pos - env_pos) decomposition
     in
     let cenv_body =
       List.fold_right2
@@ -1663,11 +1686,10 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
   let (clos, infos) = List.split clos_info_list in
   let not_scanned_fv, scanned_fv =
     if !useless_env then [], [] else not_scanned_fv, scanned_fv in
-  let env = { backend; fenv; cenv; mutable_vars; kinds; catch_env } in
   (Uclosure {
       functions = clos;
-      not_scanned_slots = List.map (fun (id, _kind) -> close_var env id) not_scanned_fv;
-      scanned_slots = List.map (fun (id, _kind) -> close_var env id) scanned_fv
+      not_scanned_slots = List.map (fun (expr, _kind) -> expr) not_scanned_fv;
+      scanned_slots = List.map (fun (expr, _kind) -> expr) scanned_fv
     },
    infos)
 
