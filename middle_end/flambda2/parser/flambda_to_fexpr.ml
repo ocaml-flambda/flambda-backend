@@ -956,13 +956,7 @@ and cont_handler env cont_id (sort : Continuation.Sort.t) h =
       { name = cont_id; params; sort; handler })
 
 and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
-  let func =
-    Simple.pattern_match (Apply_expr.callee app)
-      ~name:(fun n ~coercion:_ -> (* CR lmaurer: Add coercions *) name env n)
-      ~const:(fun c ->
-        Misc.fatal_errorf "Unexpected const as callee: %a" Reg_width_const.print
-          c)
-  in
+  let func = simple env (Apply_expr.callee app) in
   let continuation : Fexpr.result_continuation =
     match Apply_expr.continuation app with
     | Return c -> Return (Env.find_continuation_exn env c)

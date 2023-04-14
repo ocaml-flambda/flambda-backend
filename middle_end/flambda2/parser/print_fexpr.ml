@@ -264,10 +264,6 @@ let simple_args ~space ~omit_if_empty ppf = function
   | [] when omit_if_empty -> ()
   | args -> pp_spaced ~space ppf "(@[<hv>%a@])" (pp_comma_list simple) args
 
-let name ppf : name -> unit = function
-  | Symbol s -> symbol ppf s
-  | Var v -> variable ppf v
-
 let mutability ~space ppf mut =
   let str =
     match mut with
@@ -670,10 +666,10 @@ let or_blank f ppf ob =
 
 let func_name_with_optional_arities ppf (n, arities) =
   match arities with
-  | None -> name ppf n
+  | None -> simple ppf n
   | Some { params_arity; ret_arity } ->
-    Format.fprintf ppf "@[<2>(%a :@ %a ->@ %a@,)@]" name n (or_blank arity)
-      params_arity arity ret_arity
+    Format.fprintf ppf "@[<1>(%a@ : @[%a ->@ %a@]@,)@]" simple n
+      (or_blank arity) params_arity arity ret_arity
 
 type scope =
   | Outer

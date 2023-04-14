@@ -393,7 +393,7 @@ type loopify_attribute = Loopify_attribute.t =
   | Default_loopify_and_not_tailrec
 
 type apply =
-  { func : name;
+  { func : simple;
     continuation : result_continuation;
     exn_continuation : continuation;
     args : simple list;

@@ -327,15 +327,6 @@ let rec simple env (s : Fexpr.simple) : Simple.t =
   | Symbol sym -> Simple.symbol (get_symbol env sym)
   | Coerce (s, co) -> Simple.apply_coercion_exn (simple env s) (coercion env co)
 
-let name env (s : Fexpr.name) : Name.t =
-  match s with
-  | Var { txt = v; loc } -> (
-    match VM.find_opt v env.variables with
-    | None ->
-      Misc.fatal_errorf "Unbound variable %s : %a" v print_scoped_location loc
-    | Some var -> Name.var var)
-  | Symbol sym -> Name.symbol (get_symbol env sym)
-
 let field_of_block env (v : Fexpr.field_of_block) : Field_of_static_block.t =
   match v with
   | Symbol s -> Symbol (get_symbol env s)
@@ -985,9 +976,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let exn_continuation = find_exn_cont env exn_continuation in
     let region = find_region env region in
     let apply =
-      Flambda.Apply.create
-        ~callee:(Simple.name (name env func))
-        ~continuation exn_continuation
+      Flambda.Apply.create ~callee:(simple env func) ~continuation
+        exn_continuation
         ~args:((List.map (simple env)) args)
         ~args_arity ~return_arity ~call_kind Debuginfo.none ~inlined
         ~inlining_state ~probe_name:None ~position:Normal
