@@ -63,12 +63,6 @@
  (deps fail15.output fail15.output.corrected)
  (action (diff fail15.output fail15.output.corrected)))
 
-
-;; test for expected compilation errors
-
-;; Closure does not optimize the function away, so the unchecked attribute
-;; warning is only with flambda and flambda2.
-
 ;;; Check that the warning is printed and compilation is successful.
 (rule
  (alias   runtest)
