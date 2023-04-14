@@ -17,6 +17,9 @@ let use_ocamlcfg = ref false            (* -ocamlcfg *)
 let dump_cfg = ref false                (* -dcfg *)
 let cfg_invariants = ref false          (* -dcfg-invariants *)
 let cfg_equivalence_check = ref false   (* -dcfg-equivalence-check *)
+let regalloc = ref ""                   (* -regalloc *)
+let regalloc_params = ref ([] : string list)  (* -regalloc-param *)
+let regalloc_validate = ref false       (* -[no-]regalloc-validate *)
 
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 let basic_block_sections = ref false    (* -basic-block-sections *)
@@ -25,7 +28,6 @@ let dasm_comments = ref false (* -dasm-comments *)
 
 let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
-let alloc_check = ref false             (* -alloc-check *)
 let dump_checkmach = ref false          (* -dcheckmach *)
 
 let disable_poll_insertion = ref (not Config.poll_insertion)
@@ -58,6 +60,8 @@ let flags_by_opt_level ~opt_level ~default ~oclassic ~o2 ~o3 =
   | Set O3 -> o3
 
 module Flambda2 = struct
+  let debug = ref false (* -flambda2-debug *)
+
   module Default = struct
     let classic_mode = false
     let join_points = false

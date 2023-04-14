@@ -218,11 +218,10 @@ and operation =
   | Copaque
   | Cbeginregion | Cendregion
 
-type value_kind =
-  | Vval of Lambda.value_kind (* Valid OCaml values *)
-  | Vint (* Untagged integers and off-heap pointers *)
-  | Vaddr (* Derived pointers *)
-  | Vfloat (* Unboxed floating-point numbers *)
+type kind_for_unboxing =
+  | Any
+  | Boxed_integer of Lambda.boxed_integer
+  | Boxed_float
 
 type expression =
     Cconst_int of int * Debuginfo.t
@@ -240,29 +239,29 @@ type expression =
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
   | Cifthenelse of expression * Debuginfo.t * expression
-      * Debuginfo.t * expression * Debuginfo.t * value_kind
+      * Debuginfo.t * expression * Debuginfo.t * kind_for_unboxing
   | Cswitch of expression * int array * (expression * Debuginfo.t) array
-      * Debuginfo.t * value_kind
+      * Debuginfo.t * kind_for_unboxing
   | Ccatch of
       rec_flag
         * (static_label * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t) list
-        * expression * value_kind
+        * expression * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
   | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
-      * expression * Debuginfo.t * value_kind
+      * expression * Debuginfo.t * kind_for_unboxing
   | Cregion of expression
   | Ctail of expression
 
 type property =
-  | Noalloc
+  | Zero_alloc
 
 type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
-  | Assert of property
-  | Assume of property
+  | Check of { property: property; strict: bool; assume: bool;
+               loc : Location.t; }
 
 type fundecl =
   { fun_name: string;
@@ -319,14 +318,10 @@ let iter_shallow_tail f = function
       f e1;
       f e2;
       true
-  | Cregion e ->
-      f e;
-      true
-  | Ctail e ->
-      f e;
-      true
   | Cexit _ | Cop (Craise _, _, _) ->
       true
+  | Cregion _
+  | Ctail _
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
@@ -365,12 +360,10 @@ let map_shallow_tail ?kind f = function
   | Ctrywith(e1, kind', id, e2, dbg, kind_before) ->
       Ctrywith(f e1, kind', id, f e2, dbg,
               Option.value kind ~default:kind_before)
-  | Cregion e ->
-      Cregion(f e)
-  | Ctail e ->
-      Ctail(f e)
   | Cexit _ | Cop (Craise _, _, _) as cmm ->
       cmm
+  | Cregion _
+  | Ctail _
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
@@ -382,6 +375,8 @@ let map_shallow_tail ?kind f = function
 
 let map_tail ?kind f =
   let rec loop = function
+    | Cregion _
+    | Ctail _
     | Cconst_int _
     | Cconst_natint _
     | Cconst_float _

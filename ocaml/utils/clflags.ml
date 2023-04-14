@@ -68,6 +68,7 @@ and all_ppx = ref ([] : string list)        (* -ppx *)
 let absname = ref false                 (* -absname *)
 let annotations = ref false             (* -annot *)
 let binary_annotations = ref false      (* -bin-annot *)
+let binary_annotations_cms = ref false  (* -bin-annot-cms *)
 and use_threads = ref false             (* -thread *)
 and noassert = ref false                (* -noassert *)
 and verbose = ref false                 (* -verbose *)
@@ -631,3 +632,5 @@ let create_usage_msg program =
 
 let print_arguments program =
   Arg.usage !arg_spec (create_usage_msg program)
+
+let zero_alloc_check = ref false                   (* -zero-alloc-check *)

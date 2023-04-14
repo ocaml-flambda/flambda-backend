@@ -1,14 +1,15 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open Cfg_regalloc_utils
+open Regalloc_utils
 
 val irc_debug : bool
 
-val irc_verbose : bool
+val irc_verbose : bool Lazy.t
 
-val irc_invariants : bool
+val irc_invariants : bool Lazy.t
 
-val log : indent:int -> ('a, Format.formatter, unit) format -> 'a
+val log :
+  indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
 val log_body_and_terminator :
   indent:int ->
@@ -67,6 +68,7 @@ val k : Reg.t -> int
 
 val update_register_locations : unit -> unit
 
+(* CR-soon xclerc for xclerc: remove this module. *)
 module Split_mode : sig
   type t =
     | Off
@@ -76,7 +78,7 @@ module Split_mode : sig
 
   val to_string : t -> string
 
-  val env : t Lazy.t
+  val value : t Lazy.t
 end
 
 module Spilling_heuristics : sig
@@ -89,7 +91,7 @@ module Spilling_heuristics : sig
 
   val to_string : t -> string
 
-  val env : t Lazy.t
+  val value : t Lazy.t
 end
 
 module ArraySet : sig

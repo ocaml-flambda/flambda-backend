@@ -37,12 +37,24 @@ jobs:
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
 
-          - name: flambda2
+          - name: flambda2_debug_runtime
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
             ocamlparam: ''
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
+
+          - name: flambda2_debug_runtime_nnp
+            config: --enable-middle-end=flambda2 --disable-naked-pointers
+            os: ubuntu-latest
+            ocamlparam: ''
+            use_runtime: d
+            ocamlrunparam: "v=0,V=1"
+
+          - name: flambda2_nnp
+            config: --enable-middle-end=flambda2 --disable-naked-pointers
+            os: ubuntu-latest
+            ocamlparam: ''
 
           - name: flambda2_frame_pointers
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion
@@ -61,11 +73,20 @@ jobs:
           - name: irc
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            ocamlparam: ''
+            ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=IRC_SPLIT:off,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true
-            register_allocator: irc
-            irc_split: off
-            irc_spilling_heuristics: flat_uses
+
+          - name: irc_frame_pointers
+            config: --enable-middle-end=flambda2 --enable-frame-pointers
+            os: ubuntu-latest
+            ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=IRC_SPLIT:off,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
+            check_arch: true
+
+          - name: ls
+            config: --enable-middle-end=flambda2
+            os: ubuntu-latest
+            ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
+            check_arch: true
 
           - name: build_upstream_closure
             config: --enable-middle-end=closure
@@ -76,9 +97,6 @@ jobs:
       # On macOS, the testsuite is slow, so run only on push to main (#507)
       run_testsuite: "${{matrix.os != 'macos-latest' || (github.event_name == 'push' && github.event.ref == 'refs/heads/main')}}"
       build_upstream: "${{matrix.name == 'build_upstream_closure'}}"
-      REGISTER_ALLOCATOR: "${{matrix.register_allocator}}"
-      IRC_SPLIT: "${{matrix.irc_split}}"
-      IRC_SPILLING_HEURISTICS: "${{matrix.irc_spilling_heuristics}}"
 
     steps:
     - name: Checkout the Flambda backend repo

@@ -114,9 +114,16 @@ let reset () = initialise ()
 
 let create ?sort ?name () : t =
   let sort = Option.value sort ~default:Sort.Normal_or_exn in
-  let name = Option.value name ~default:"k" in
   let compilation_unit = Compilation_unit.get_current_exn () in
   let name_stamp = next_stamp () in
+  let name =
+    let default =
+      if Flambda_features.debug_flambda2 ()
+      then Format.asprintf "k%d" name_stamp
+      else "k"
+    in
+    Option.value name ~default
+  in
   let data : Data.t = { compilation_unit; name; name_stamp; sort } in
   Table.add !grand_table_of_continuations data
 

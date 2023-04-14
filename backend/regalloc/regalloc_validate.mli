@@ -3,7 +3,7 @@
 module Description : sig
   type t
 
-  val create : Cfg_with_layout.t -> t
+  val create : Cfg_with_layout.t -> t option
 end
 
 module Error : sig
@@ -15,4 +15,4 @@ end
 val test :
   Description.t -> Cfg_with_layout.t -> (Cfg_with_layout.t, Error.t) Result.t
 
-val run : Description.t -> Cfg_with_layout.t -> Cfg_with_layout.t
+val run : Description.t option -> Cfg_with_layout.t -> Cfg_with_layout.t

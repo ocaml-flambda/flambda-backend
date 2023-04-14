@@ -26,6 +26,10 @@ module type Flambda_backend_options = sig
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
   val dcfg_equivalence_check : unit -> unit
+  val regalloc : string -> unit
+  val regalloc_param : string -> unit
+  val regalloc_validate : unit -> unit
+  val no_regalloc_validate : unit -> unit
 
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
@@ -34,7 +38,7 @@ module type Flambda_backend_options = sig
   val dno_asm_comments : unit -> unit
 
   val heap_reduction_threshold : int -> unit
-  val alloc_check : unit -> unit
+  val zero_alloc_check : unit -> unit
   val dcheckmach : unit -> unit
 
   val disable_poll_insertion : unit -> unit
@@ -49,6 +53,8 @@ module type Flambda_backend_options = sig
 
   val gc_timings : unit -> unit
 
+  val flambda2_debug : unit -> unit
+  val no_flambda2_debug : unit -> unit
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
   val flambda2_result_types_functors_only : unit -> unit

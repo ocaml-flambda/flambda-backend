@@ -19,6 +19,8 @@
 
 (copy_files# backend/internal_assembler/*.ml{,i})
 
+(copy_files# backend/regalloc/*.ml{,i})
+
 (copy_files# driver/optcompile.ml{,i})
 
 (copy_files# driver/flambda_backend_main.ml{,i})
@@ -168,6 +170,7 @@
   branch_relaxation
   branch_relaxation_intf
   cfgize
+  checks
   cmm_helpers
   cmm_builtins
   cmm_invariants
@@ -229,14 +232,7 @@
   cfg_deadcode
   cfg_liveness
   cfg_loop_infos
-  cfg_regalloc_utils
-  cfg_regalloc_validate
   cfg_to_linear_desc
-  cfg_stack_operands
-  cfg_irc
-  cfg_irc_state
-  cfg_irc_utils
-  cfg_irc_split
   eliminate_dead_code
   disconnect_block
   eliminate_dead_blocks
@@ -249,6 +245,18 @@
   simplify_terminator
   trap_stack
   cfg_equivalence
+  ;; backend/regalloc
+  regalloc_irc
+  regalloc_irc_split
+  regalloc_irc_state
+  regalloc_irc_utils
+  regalloc_ls
+  regalloc_ls_state
+  regalloc_ls_utils
+  regalloc_rewrite
+  regalloc_stack_operands
+  regalloc_utils
+  regalloc_validate
   ;; file_formats/
   linear_format
   cfg_format

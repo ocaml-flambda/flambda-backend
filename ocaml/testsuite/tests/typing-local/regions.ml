@@ -82,6 +82,16 @@ let () =
   check_empty "after direct overtail"
 
 
+let[@inline always] do_inlined_tailcall g =
+  let local_ r = ref 42 in
+  let _ = opaque_identity r in
+  g ()
+
+let () =
+  do_inlined_tailcall (fun () ->
+    check_empty "during inlined tailcall");
+  check_empty "after inlined tailcall"
+
 
 let[@inline never] local_ret a b = local_ ref (a + b)
 let[@inline never] calls_local_ret () =

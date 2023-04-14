@@ -93,12 +93,10 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       Lambda.Rc_normal
     | Nontail -> Lambda.Rc_nontail
   in
-  let args_arity =
-    Apply.args_arity apply |> Flambda_arity.With_subkinds.to_list
-  in
+  let args_arity = Apply.args_arity apply |> Flambda_arity.to_list in
   let return_arity = Apply.return_arity apply in
-  let args_ty = List.map C.machtype_of_kind args_arity in
-  let return_ty = C.machtype_of_return_arity return_arity in
+  let args_ty = List.map C.extended_machtype_of_kind args_arity in
+  let return_ty = C.extended_machtype_of_return_arity return_arity in
   match Apply.call_kind apply with
   | Function { function_call = Direct code_id; alloc_mode = _ } -> (
     let code_metadata = Env.get_code_metadata env code_id in
@@ -113,7 +111,9 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     let code_linkage_name = Code_id.linkage_name code_id in
     match Apply.probe_name apply with
     | None ->
-      ( C.direct_call ~dbg return_ty pos
+      ( C.direct_call ~dbg
+          (C.Extended_machtype.to_machtype return_ty)
+          pos
           (C.symbol_from_linkage_name ~dbg code_linkage_name)
           args,
         free_vars,
@@ -164,7 +164,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let returns = Apply.returns apply in
     let wrap =
-      match Flambda_arity.With_subkinds.to_list return_arity with
+      match Flambda_arity.to_list return_arity with
       (* Returned int32 values need to be sign_extended because it's not clear
          whether C code that returns an int32 returns one that is sign extended
          or not. There is no need to wrap other return arities. Note that
@@ -184,11 +184,12 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let ty_args =
       List.map C.exttype_of_kind
-        (Flambda_arity.to_list
-           (Flambda_arity.With_subkinds.to_arity (Apply.args_arity apply)))
+        (Flambda_arity.to_list (Apply.args_arity apply)
+        |> List.map K.With_subkind.kind)
     in
     ( wrap dbg
-        (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee return_ty
+        (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee
+           (C.Extended_machtype.to_machtype return_ty)
            args),
       free_vars,
       env,
@@ -322,33 +323,22 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
    value for the current block being translated. *)
 let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
     return_cont args =
-  match args with
-  | [return_value] -> (
-    let To_cmm_env.
-          { env; res; expr = { cmm = return_value; free_vars; effs = _ } } =
-      C.simple ~dbg env res return_value
+  let return_values, free_vars, env, res, _ = C.simple_list ~dbg env res args in
+  let return_value = C.make_tuple return_values in
+  let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
+  match Apply_cont.trap_action apply with
+  | None ->
+    let cmm, free_vars = wrap return_value free_vars in
+    cmm, free_vars, res
+  | Some (Pop _) ->
+    let cmm, free_vars =
+      wrap (C.trap_return return_value [Cmm.Pop]) free_vars
     in
-    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-    match Apply_cont.trap_action apply with
-    | None ->
-      let cmm, free_vars = wrap return_value free_vars in
-      cmm, free_vars, res
-    | Some (Pop _) ->
-      let cmm, free_vars =
-        wrap (C.trap_return return_value [Cmm.Pop]) free_vars
-      in
-      cmm, free_vars, res
-    | Some (Push _) ->
-      Misc.fatal_errorf
-        "Return continuation %a should not be applied with a Push trap action"
-        Continuation.print return_cont)
-  | _ ->
-    (* CR gbury: add support using unboxed tuples *)
+    cmm, free_vars, res
+  | Some (Push _) ->
     Misc.fatal_errorf
-      "Return continuation %a should be applied to a single argument in@\n\
-       %a@\n\
-       Multiple return values from functions are not yet supported"
-      Continuation.print return_cont Apply_cont.print apply
+      "Return continuation %a should not be applied with a Push trap action"
+      Continuation.print return_cont
 
 (* Invalid expressions *)
 let invalid env res ~message =
@@ -695,7 +685,7 @@ and let_cont_rec env res invariant_params conts body =
 and continuation_handler env res handler =
   Continuation_handler.pattern_match' handler
     ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler ->
-      let arity = Bound_parameters.arity_with_subkinds params in
+      let arity = Bound_parameters.arity params in
       let env, vars = C.bound_parameters env params in
       let expr, free_vars_of_handler, res = expr env res handler in
       vars, arity, expr, free_vars_of_handler, res)
@@ -734,17 +724,8 @@ and apply_expr env res apply =
     let cmm, free_vars = wrap call free_vars in
     cmm, free_vars, res
   | Return k -> (
-    let[@inline always] unsupported () =
-      (* CR gbury: add support using unboxed tuples *)
-      Misc.fatal_errorf
-        "Return continuation %a should be applied to a single argument in@\n\
-         %a@\n\
-         Multiple return values from functions are not yet supported"
-        Continuation.print k Apply.print apply
-    in
     match Env.get_continuation env k with
-    | Jump { param_types = []; cont = _ } -> unsupported ()
-    | Jump { param_types = [_]; cont } ->
+    | Jump { param_types = _; cont } ->
       (* Case 2 *)
       let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
       let cmm, free_vars = wrap (C.cexit cont [call] []) free_vars in
@@ -758,7 +739,6 @@ and apply_expr env res apply =
       (* Case 3 *)
       let handler_params = Bound_parameters.to_list handler_params in
       match handler_params with
-      | [] -> unsupported ()
       | [param] ->
         let var = Bound_parameter.var param in
         let env, res =
@@ -771,8 +751,41 @@ and apply_expr env res apply =
           Env.set_inlined_debuginfo env handler_body_inlined_debuginfo
         in
         expr env res body
-      | _ :: _ -> unsupported ())
-    | Jump _ -> unsupported ())
+      | params ->
+        (* CR ncourant: we create a cexit/ccatch pair here, to be able to
+           destruct the output which is a tuple. When we get a way to
+           destructure Ctuples, we should use this constructor here instead. *)
+        let wrap, env, res =
+          Env.flush_delayed_lets ~mode:Branching_point env res
+        in
+        let env, cmm_params =
+          Env.create_bound_parameters env (List.map Bound_parameter.var params)
+        in
+        let label = Lambda.next_raise_count () in
+        let params_with_machtype =
+          List.map2
+            (fun cmm_param param ->
+              cmm_param, C.machtype_of_kinded_parameter param)
+            cmm_params params
+        in
+        let env =
+          Env.set_inlined_debuginfo env handler_body_inlined_debuginfo
+        in
+        let expr, free_vars_of_handler, res = expr env res body in
+        let handler =
+          C.handler ~dbg:(Apply.dbg apply) label params_with_machtype expr
+        in
+        let expr =
+          C.create_ccatch ~rec_flag:false ~handlers:[handler]
+            ~body:(C.cexit label [call] [])
+        in
+        let free_vars =
+          Backend_var.Set.union free_vars
+            (C.remove_vars_with_machtype free_vars_of_handler
+               params_with_machtype)
+        in
+        let cmm, free_vars = wrap expr free_vars in
+        cmm, free_vars, res))
 
 and apply_cont env res apply_cont =
   let dbg_with_inlined =
@@ -947,8 +960,6 @@ and switch env res switch =
         (0, res, scrutinee_free_vars)
     in
     (* CR-someday poechsel: Put a more precise value kind here *)
-    let expr =
-      C.transl_switch_clambda dbg (Vval Pgenval) scrutinee index cases
-    in
+    let expr = C.transl_switch_clambda dbg Any scrutinee index cases in
     let cmm, free_vars = wrap expr free_vars in
     cmm, free_vars, res

@@ -29,7 +29,8 @@ module Instruction = struct
       fdo = None;
       irc_work_list = Unknown_list;
       live = Reg.Set.empty;
-      stack_offset = 0
+      stack_offset = 0;
+      ls_order = -1
     }
 end
 
@@ -249,8 +250,10 @@ let base_templ () : Cfg_desc.t * (unit -> int) =
   in
   let int_arg1 = args.(1) in
   let int_arg2 = args.(2) in
-  let tmp_results, tmp_result_locs = make_locs [| int.(2) |] Proc.loc_results in
-  let results, result_locs = make_locs [| int.(3) |] Proc.loc_results in
+  let tmp_results, tmp_result_locs =
+    make_locs [| int.(2) |] Proc.loc_results_return
+  in
+  let results, result_locs = make_locs [| int.(3) |] Proc.loc_results_return in
   let make_moves src dst =
     Array.map2
       (fun src dst : Basic.t ->
@@ -365,14 +368,24 @@ let check name f ~exp_std ~exp_err =
         with_wrap_ppf Format.err_formatter (fun () ->
             try
               let desc =
-                try Cfg_regalloc_validate.Description.create before
+                try
+                  Misc.protect_refs
+                    [R (Flambda_backend_flags.regalloc_validate, true)]
+                    (fun () -> Regalloc_validate.Description.create before)
                 with Misc.Fatal_error ->
                   Format.printf
                     "fatal exception raised when creating description";
                   raise Break_test
               in
+              let desc =
+                match desc with
+                | None ->
+                  Format.printf "description was not generated";
+                  raise Break_test
+                | Some desc -> desc
+              in
               let res =
-                try Cfg_regalloc_validate.test desc after
+                try Regalloc_validate.test desc after
                 with Misc.Fatal_error ->
                   Format.printf
                     "fatal exception raised when validating description";
@@ -385,7 +398,7 @@ let check name f ~exp_std ~exp_err =
                 else Format.printf "Validation changed cfg"
               | Error error ->
                 Format.printf "Validation failed: %a"
-                  Cfg_regalloc_validate.Error.print error
+                  Regalloc_validate.Error.print error
             with Break_test -> ()))
   in
   if exp_std = std_out && exp_err = err_out
@@ -422,7 +435,7 @@ let ( .!() ) (block : Block.t) (index : int) : Basic.t =
   List.nth block.body index
 
 (* let () = check "IRC works on base templ" (fun templ _ -> let cfg =
-   Cfg_desc.make templ in cfg, Cfg_irc.run cfg) ~exp_std:"" ~exp_err:"" *)
+   Cfg_desc.make templ in cfg, Regalloc_irc.run cfg) ~exp_std:"" ~exp_err:"" *)
 
 let () =
   check "Duplicate instruction found when creating description"
@@ -546,7 +559,8 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: instruction 20 has a register with an unknown location"
+      ">> Fatal error: instruction 20 has a register (V/37) with an unknown \
+       location"
 
 let () =
   check "Precoloring can't change"
@@ -830,7 +844,7 @@ let make_loop ~loop_loc_first n =
   let extra_regs =
     Array.init n (fun _ -> { (Reg.create Int) with loc = int_arg3.loc })
   in
-  let results, result_locs = make_locs [| int_arg1 |] Proc.loc_results in
+  let results, result_locs = make_locs [| int_arg1 |] Proc.loc_results_return in
   let make_moves src dst =
     Array.map2
       (fun src dst : Basic.t ->

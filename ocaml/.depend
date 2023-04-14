@@ -630,6 +630,7 @@ typing/cmt2annot.cmo : \
     typing/envaux.cmi \
     typing/env.cmi \
     file_formats/cmt_format.cmi \
+    file_formats/cms_format.cmi \
     parsing/asttypes.cmi \
     typing/annot.cmi
 typing/cmt2annot.cmx : \
@@ -644,6 +645,7 @@ typing/cmt2annot.cmx : \
     typing/envaux.cmx \
     typing/env.cmx \
     file_formats/cmt_format.cmx \
+    file_formats/cms_format.cmx \
     parsing/asttypes.cmi \
     typing/annot.cmi
 typing/ctype.cmo : \
@@ -910,6 +912,7 @@ typing/includemod.cmo : \
     utils/diffing.cmi \
     typing/ctype.cmi \
     file_formats/cmt_format.cmi \
+    file_formats/cms_format.cmi \
     parsing/builtin_attributes.cmi \
     typing/btype.cmi \
     typing/includemod.cmi
@@ -933,6 +936,7 @@ typing/includemod.cmx : \
     utils/diffing.cmx \
     typing/ctype.cmx \
     file_formats/cmt_format.cmx \
+    file_formats/cms_format.cmx \
     parsing/builtin_attributes.cmx \
     typing/btype.cmx \
     typing/includemod.cmi
@@ -1460,6 +1464,7 @@ typing/typeclass.cmo : \
     typing/env.cmi \
     typing/ctype.cmi \
     file_formats/cmt_format.cmi \
+    file_formats/cms_format.cmi \
     utils/clflags.cmi \
     parsing/builtin_attributes.cmi \
     typing/btype.cmi \
@@ -1488,6 +1493,7 @@ typing/typeclass.cmx : \
     typing/env.cmx \
     typing/ctype.cmx \
     file_formats/cmt_format.cmx \
+    file_formats/cms_format.cmx \
     utils/clflags.cmx \
     parsing/builtin_attributes.cmx \
     typing/btype.cmx \
@@ -1534,6 +1540,7 @@ typing/typecore.cmo : \
     typing/env.cmi \
     typing/ctype.cmi \
     file_formats/cmt_format.cmi \
+    file_formats/cms_format.cmi \
     utils/clflags.cmi \
     parsing/builtin_attributes.cmi \
     typing/btype.cmi \
@@ -1569,6 +1576,7 @@ typing/typecore.cmx : \
     typing/env.cmx \
     typing/ctype.cmx \
     file_formats/cmt_format.cmx \
+    file_formats/cms_format.cmx \
     utils/clflags.cmx \
     parsing/builtin_attributes.cmx \
     typing/btype.cmx \
@@ -1811,6 +1819,7 @@ typing/typemod.cmo : \
     utils/config.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmt_format.cmi \
+    file_formats/cms_format.cmi \
     typing/cmt2annot.cmo \
     file_formats/cmi_format.cmi \
     utils/clflags.cmi \
@@ -1850,6 +1859,7 @@ typing/typemod.cmx : \
     utils/config.cmx \
     utils/compilation_unit.cmx \
     file_formats/cmt_format.cmx \
+    file_formats/cms_format.cmx \
     typing/cmt2annot.cmx \
     file_formats/cmi_format.cmx \
     utils/clflags.cmx \
@@ -4187,6 +4197,22 @@ file_formats/cmt_format.cmo : \
     file_formats/cmi_format.cmi \
     utils/clflags.cmi \
     file_formats/cmt_format.cmi
+file_formats/cms_format.cmo : \
+    typing/types.cmi \
+    typing/typedtree.cmi \
+    typing/tast_mapper.cmi \
+    typing/shape.cmi \
+    utils/misc.cmi \
+    parsing/location.cmi \
+    utils/load_path.cmi \
+    parsing/lexer.cmi \
+    utils/import_info.cmi \
+    typing/env.cmi \
+    utils/config.cmi \
+    utils/compilation_unit.cmi \
+    file_formats/cmi_format.cmi \
+    utils/clflags.cmi \
+    file_formats/cms_format.cmi
 file_formats/cmt_format.cmx : \
     typing/types.cmx \
     typing/typedtree.cmx \
@@ -4203,12 +4229,36 @@ file_formats/cmt_format.cmx : \
     file_formats/cmi_format.cmx \
     utils/clflags.cmx \
     file_formats/cmt_format.cmi
+file_formats/cms_format.cmx : \
+    typing/types.cmx \
+    typing/typedtree.cmx \
+    typing/tast_mapper.cmx \
+    typing/shape.cmx \
+    utils/misc.cmx \
+    parsing/location.cmx \
+    utils/load_path.cmx \
+    parsing/lexer.cmx \
+    utils/import_info.cmx \
+    typing/env.cmx \
+    utils/config.cmx \
+    utils/compilation_unit.cmx \
+    file_formats/cmi_format.cmx \
+    utils/clflags.cmx \
+    file_formats/cms_format.cmi
 file_formats/cmt_format.cmi : \
     typing/types.cmi \
     typing/typedtree.cmi \
     typing/shape.cmi \
     parsing/location.cmi \
     utils/import_info.cmi \
+    typing/env.cmi \
+    utils/compilation_unit.cmi \
+    file_formats/cmi_format.cmi
+file_formats/cms_format.cmi : \
+    typing/types.cmi \
+    typing/typedtree.cmi \
+    typing/shape.cmi \
+    parsing/location.cmi \
     typing/env.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmi_format.cmi

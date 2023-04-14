@@ -628,10 +628,10 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
           in
           match behaviour with
           | Invalid ->
-            let arity = Bound_parameters.arity_with_subkinds params in
+            let arity = Bound_parameters.arity params in
             UE.add_invalid_continuation uenv cont arity
           | Alias_for alias_for ->
-            let arity = Bound_parameters.arity_with_subkinds params in
+            let arity = Bound_parameters.arity params in
             UE.add_continuation_alias uenv cont arity ~alias_for
           | Unknown ->
             UE.add_non_inlinable_continuation uenv cont ~params

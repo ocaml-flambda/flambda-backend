@@ -24,7 +24,7 @@ module VP = Backend_var.With_provenance
 module type I = sig
   val string_block_length : Cmm.expression -> Cmm.expression
   val transl_switch :
-      Debuginfo.t -> Cmm.value_kind -> Cmm.expression -> int -> int ->
+      Debuginfo.t -> Cmm.kind_for_unboxing -> Cmm.expression -> int -> int ->
         (int * Cmm.expression) list -> Cmm.expression ->
           Cmm.expression
 end
@@ -380,7 +380,7 @@ module Make(I:I) = struct
     | Cexit (_e,[],_traps) ->  k arg
     | _ ->
         let e = next_raise_count () in
-        ccatch (e,[],k (Cexit (Lbl e,[],[])),arg,dbg, Vval Pgenval)
+        ccatch (e,[],k (Cexit (Lbl e,[],[])),arg,dbg, Any)
 
     let compile dbg value_kind str default cases =
 (* We do not attempt to really optimise default=None *)

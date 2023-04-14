@@ -26,11 +26,12 @@ val remove_vars_with_machtype :
 
 val exttype_of_kind : Flambda_kind.t -> Cmm.exttype
 
-val machtype_of_kind :
-  Flambda_kind.With_subkind.t -> Cmm.machtype_component array
+val machtype_of_kind : Flambda_kind.With_subkind.t -> Cmm.machtype
 
-val machtype_of_kinded_parameter :
-  Bound_parameter.t -> Cmm.machtype_component array
+val extended_machtype_of_kind :
+  Flambda_kind.With_subkind.t -> Cmm_helpers.Extended_machtype.t
+
+val machtype_of_kinded_parameter : Bound_parameter.t -> Cmm.machtype
 
 val memory_chunk_of_kind : Flambda_kind.With_subkind.t -> Cmm.memory_chunk
 
@@ -100,6 +101,7 @@ val make_update :
   prev_updates:To_cmm_env.expr_with_info option ->
   To_cmm_env.t * To_cmm_result.t * To_cmm_env.expr_with_info option
 
-val check_arity : Flambda_arity.With_subkinds.t -> _ list -> bool
+val check_arity : Flambda_arity.t -> _ list -> bool
 
-val machtype_of_return_arity : Flambda_arity.With_subkinds.t -> Cmm.machtype
+val extended_machtype_of_return_arity :
+  Flambda_arity.t -> Cmm_helpers.Extended_machtype.t

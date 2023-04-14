@@ -87,19 +87,16 @@ let add_non_inlinable_continuation t cont ~params ~handler =
   if Bound_parameters.is_empty params
   then add_continuation0 t cont (Non_inlinable_zero_arity { handler })
   else
-    let arity = Bound_parameters.arity_with_subkinds params in
+    let arity = Bound_parameters.arity params in
     add_continuation0 t cont (Non_inlinable_non_zero_arity { arity })
 
 let add_invalid_continuation t cont arity =
   add_continuation0 t cont (Invalid { arity })
 
 let add_continuation_alias t cont arity ~alias_for =
-  let arity = Flambda_arity.With_subkinds.to_arity arity in
   let alias_for = resolve_continuation_aliases t alias_for in
-  let alias_for_arity =
-    continuation_arity t alias_for |> Flambda_arity.With_subkinds.to_arity
-  in
-  if not (Flambda_arity.equal arity alias_for_arity)
+  let alias_for_arity = continuation_arity t alias_for in
+  if not (Flambda_arity.equal_ignoring_subkinds arity alias_for_arity)
   then
     Misc.fatal_errorf
       "%a (arity %a) cannot be an alias for %a (arity %a) since the two \

@@ -16,6 +16,12 @@
 let format_default flag = if flag then " (default)" else ""
 let format_not_default flag = if flag then "" else " (default)"
 
+let mk_flambda2_debug f =
+  "-flambda2-debug", Arg.Unit f, " Enable debug output for the Flambda2 pass"
+
+let mk_no_flambda2_debug f =
+  "-no-flambda2-debug", Arg.Unit f, " Disable debug output for the Flambda2 pass"
+
 let mk_ocamlcfg f =
   "-ocamlcfg", Arg.Unit f, " Use ocamlcfg"
 
@@ -32,6 +38,18 @@ let mk_dcfg_invariants f =
 
 let mk_dcfg_equivalence_check f =
   "-dcfg-equivalence-check", Arg.Unit f, " Extra sanity checks on Cfg transformations"
+
+let mk_regalloc f =
+  "-regalloc", Arg.String f, " Select the register allocator"
+
+let mk_regalloc_param f =
+  "-regalloc-param", Arg.String f, " Pass a parameter to the register allocator"
+
+let mk_regalloc_validate f =
+  "-regalloc-validate", Arg.Unit f, " Validate register allocation"
+
+let mk_no_regalloc_validate f =
+  "-no-regalloc-validate", Arg.Unit f, " Do not validate register allocation"
 
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
@@ -65,9 +83,9 @@ let mk_heap_reduction_threshold f =
     Flambda_backend_flags.default_heap_reduction_threshold
 ;;
 
-let mk_alloc_check f =
-  "-alloc-check", Arg.Unit f, " Check that annoted functions do not allocate \
-                                and do not have indirect calls"
+let mk_zero_alloc_check f =
+  "-zero-alloc-check", Arg.Unit f, " Check that annoted functions do not allocate \
+                                    and do not have indirect calls"
 
 let mk_dcheckmach f =
   "-dcheckmach", Arg.Unit f, " (undocumented)"
@@ -488,6 +506,10 @@ module type Flambda_backend_options = sig
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
   val dcfg_equivalence_check : unit -> unit
+  val regalloc : string -> unit
+  val regalloc_param : string -> unit
+  val regalloc_validate : unit -> unit
+  val no_regalloc_validate : unit -> unit
 
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
@@ -496,7 +518,7 @@ module type Flambda_backend_options = sig
   val dno_asm_comments : unit -> unit
 
   val heap_reduction_threshold : int -> unit
-  val alloc_check : unit -> unit
+  val zero_alloc_check : unit -> unit
   val dcheckmach : unit -> unit
 
   val disable_poll_insertion : unit -> unit
@@ -511,6 +533,8 @@ module type Flambda_backend_options = sig
 
   val gc_timings : unit -> unit
 
+  val flambda2_debug : unit -> unit
+  val no_flambda2_debug : unit -> unit
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
   val flambda2_result_types_functors_only : unit -> unit
@@ -575,6 +599,10 @@ struct
     mk_dcfg F.dcfg;
     mk_dcfg_invariants F.dcfg_invariants;
     mk_dcfg_equivalence_check F.dcfg_equivalence_check;
+    mk_regalloc F.regalloc;
+    mk_regalloc_param F.regalloc_param;
+    mk_regalloc_validate F.regalloc_validate;
+    mk_no_regalloc_validate F.no_regalloc_validate;
 
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
@@ -583,7 +611,7 @@ struct
     mk_dno_asm_comments F.dno_asm_comments;
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
-    mk_alloc_check F.alloc_check;
+    mk_zero_alloc_check F.zero_alloc_check;
     mk_dcheckmach F.dcheckmach;
 
     mk_disable_poll_insertion F.disable_poll_insertion;
@@ -599,6 +627,8 @@ struct
 
     mk_gc_timings F.gc_timings;
 
+    mk_flambda2_debug F.flambda2_debug;
+    mk_no_flambda2_debug F.no_flambda2_debug;
     mk_flambda2_join_points F.flambda2_join_points;
     mk_no_flambda2_join_points F.no_flambda2_join_points;
     mk_flambda2_result_types_functors_only
@@ -692,6 +722,10 @@ module Flambda_backend_options_impl = struct
   let dcfg = set' Flambda_backend_flags.dump_cfg
   let dcfg_invariants = set' Flambda_backend_flags.cfg_invariants
   let dcfg_equivalence_check = set' Flambda_backend_flags.cfg_equivalence_check
+  let regalloc x = Flambda_backend_flags.regalloc := x
+  let regalloc_param x = Flambda_backend_flags.regalloc_params := x :: !Flambda_backend_flags.regalloc_params
+  let regalloc_validate = set' Flambda_backend_flags.regalloc_validate
+  let no_regalloc_validate = clear' Flambda_backend_flags.regalloc_validate
 
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
@@ -708,7 +742,8 @@ module Flambda_backend_options_impl = struct
 
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
-  let alloc_check = set' Flambda_backend_flags.alloc_check
+
+  let zero_alloc_check = set' Clflags.zero_alloc_check
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
 
   let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
@@ -725,6 +760,8 @@ module Flambda_backend_options_impl = struct
 
   let gc_timings = set' Flambda_backend_flags.gc_timings
 
+  let flambda2_debug = set' Flambda_backend_flags.Flambda2.debug
+  let no_flambda2_debug = clear' Flambda_backend_flags.Flambda2.debug
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
   let flambda2_result_types_functors_only () =
@@ -891,6 +928,14 @@ module Extra_params = struct
       option := Flambda_backend_flags.Set (not b);
       false
     in
+    let set_string option =
+      option := v;
+      true
+    in
+    let add_string option =
+      option := v :: !option;
+      true
+    in
     let set_int option =
       begin match Compenv.check_int ppf name v with
       | Some i -> option := Flambda_backend_flags.Set i
@@ -901,6 +946,9 @@ module Extra_params = struct
     let set' option =
       Compenv.setter ppf (fun b -> b) name [ option ] v; true
     in
+    (*let clear' option =
+      Compenv.setter ppf (fun b -> not b) name [ option ] v; true
+    in*)
     let set_int' option =
       Compenv.int_setter ppf name option v; true
     in
@@ -917,12 +965,15 @@ module Extra_params = struct
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "cfg-equivalence-check" -> set' Flambda_backend_flags.cfg_equivalence_check
+    | "regalloc" -> set_string Flambda_backend_flags.regalloc
+    | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
+    | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
-    | "alloc-check" -> set' Flambda_backend_flags.alloc_check
+    | "zero-alloc-check" -> set' Clflags.zero_alloc_check
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
     | "poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
     | "long-frames" -> set' Flambda_backend_flags.allow_long_frames
@@ -940,6 +991,7 @@ module Extra_params = struct
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf
     | "gstartup" -> set' Debugging.dwarf_for_startup_file
+    | "flambda2-debug" -> set' Flambda_backend_flags.Flambda2.debug
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
       (match String.lowercase_ascii v with

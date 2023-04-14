@@ -18,6 +18,9 @@ val use_ocamlcfg : bool ref
 val dump_cfg : bool ref
 val cfg_invariants : bool ref
 val cfg_equivalence_check : bool ref
+val regalloc : string ref
+val regalloc_params : string list ref
+val regalloc_validate : bool ref
 
 val reorder_blocks_random : int option ref
 val basic_block_sections : bool ref
@@ -26,7 +29,6 @@ val dasm_comments : bool ref
 
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
-val alloc_check : bool ref
 val dump_checkmach : bool ref
 
 val disable_poll_insertion : bool ref
@@ -48,6 +50,8 @@ val internal_assembler : bool ref
 val gc_timings : bool ref
 
 module Flambda2 : sig
+  val debug : bool ref
+
   module Default : sig
     val classic_mode : bool
     val join_points : bool

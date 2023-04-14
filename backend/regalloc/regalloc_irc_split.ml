@@ -1,8 +1,8 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Cfg_regalloc_utils
-open! Cfg_irc_utils
-module State = Cfg_irc_state
+open! Regalloc_utils
+open! Regalloc_irc_utils
+module State = Regalloc_irc_state
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 (* CR-soon azewierzejew: With the terminator change all the naive split points

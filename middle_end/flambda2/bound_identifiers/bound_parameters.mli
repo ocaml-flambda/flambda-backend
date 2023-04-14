@@ -32,8 +32,6 @@ val same_number : t -> t -> bool
 
 val arity : t -> Flambda_arity.t
 
-val arity_with_subkinds : t -> Flambda_arity.With_subkinds.t
-
 val check_no_duplicates : t -> unit
 
 val cardinal : t -> int

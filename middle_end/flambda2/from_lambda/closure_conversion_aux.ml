@@ -64,7 +64,7 @@ module IR = struct
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
       region : Ident.t;
-      return_arity : Flambda_arity.With_subkinds.t
+      return_arity : Flambda_arity.t
     }
 
   type switch =
@@ -663,7 +663,7 @@ module Function_decls = struct
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
         params : (Ident.t * Flambda_kind.With_subkind.t) list;
-        return : Flambda_arity.With_subkinds.t;
+        return : Flambda_arity.t;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
         my_region : Ident.t;
@@ -929,8 +929,7 @@ module Let_with_acc = struct
             ~find_code_characteristics:(fun code_id ->
               let code = Code_id.Map.find code_id code_mapping in
               { cost_metrics = Code.cost_metrics code;
-                params_arity =
-                  Flambda_arity.With_subkinds.cardinal (Code.params_arity code)
+                params_arity = Flambda_arity.cardinal (Code.params_arity code)
               })
             set_of_closures
         | Rec_info _ -> Cost_metrics.zero
