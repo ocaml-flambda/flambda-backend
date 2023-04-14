@@ -254,9 +254,7 @@ let parse_property_attribute attr property =
         ~empty:(Check { property; strict = false; assume = false; loc; } )
         [
           ["assume"], Check { property; strict = false; assume = true; loc; };
-          ["assert"], Check { property; strict = false; assume = false; loc; };
           ["strict"], Check { property; strict = true; assume = false; loc; };
-          ["assert"; "strict"], Check { property; strict = true; assume = false; loc; };
           ["assume"; "strict"], Check { property; strict = true; assume = true; loc; };
           ["ignore"], Ignore_assert_all property
         ]
