@@ -250,11 +250,10 @@ let make_update env res dbg kind ~symbol var ~index ~prev_updates =
   in
   env, res, Some update
 
-let check_arity arity args =
-  Flambda_arity.With_subkinds.cardinal arity = List.length args
+let check_arity arity args = Flambda_arity.cardinal arity = List.length args
 
 let extended_machtype_of_return_arity arity =
-  match Flambda_arity.With_subkinds.to_list arity with
+  match Flambda_arity.to_list arity with
   | [] ->
     (* Functions that never return have arity 0. In that case, we use the most
        restrictive machtype to ensure that the return value of the function is

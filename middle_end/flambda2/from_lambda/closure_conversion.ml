@@ -238,8 +238,7 @@ module Inlining = struct
     | Some (Closure_approximation { code; _ }) ->
       let metadata = Code_or_metadata.code_metadata code in
       let fun_params_length =
-        Code_metadata.params_arity metadata
-        |> Flambda_arity.With_subkinds.to_arity |> Flambda_arity.length
+        Code_metadata.params_arity metadata |> Flambda_arity.cardinal
       in
       if (not (Code_or_metadata.code_present code))
          || fun_params_length > List.length (Apply_expr.args apply)
@@ -440,11 +439,12 @@ let close_c_call acc env ~loc ~let_bound_var
   in
   let param_arity =
     List.map kind_of_primitive_native_repr prim_native_repr_args
-    |> Flambda_arity.create |> Flambda_arity.With_subkinds.of_arity
+    |> List.map K.With_subkind.anything
+    |> Flambda_arity.create
   in
   let return_kind = kind_of_primitive_native_repr prim_native_repr_res in
   let return_arity =
-    Flambda_arity.create [return_kind] |> Flambda_arity.With_subkinds.of_arity
+    Flambda_arity.create [K.With_subkind.anything return_kind]
   in
   let call_kind =
     Call_kind.c_call ~alloc:prim_alloc ~is_c_builtin:prim_c_builtin
@@ -1132,7 +1132,7 @@ let close_exact_or_unknown_apply acc env
   let apply =
     Apply.create ~callee ~continuation:(Return continuation)
       apply_exn_continuation ~args
-      ~args_arity:(Flambda_arity.With_subkinds.create args_arity)
+      ~args_arity:(Flambda_arity.create args_arity)
       ~return_arity ~call_kind
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
@@ -1536,7 +1536,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
          (Exn_continuation.exn_handler exn_continuation)
   in
   let closure_info, acc = Acc.pop_closure_info acc in
-  let params_arity = Bound_parameters.arity_with_subkinds params in
+  let params_arity = Bound_parameters.arity params in
   let is_tupled =
     match Function_decl.kind decl with Curried _ -> false | Tupled -> true
   in
@@ -1665,8 +1665,7 @@ let close_functions acc external_env ~current_region function_declarations =
         let code_id = Function_slot.Map.find function_slot function_code_ids in
         let params = Function_decl.params decl in
         let params_arity =
-          List.map (fun (_, kind) -> kind) params
-          |> Flambda_arity.With_subkinds.create
+          List.map (fun (_, kind) -> kind) params |> Flambda_arity.create
         in
         let result_arity = Function_decl.return decl in
         let poll_attribute =
@@ -1993,7 +1992,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       (fun n kind_with_subkind ->
         ( Ident.create_local ("param" ^ string_of_int (num_provided + n)),
           kind_with_subkind ))
-      (Flambda_arity.With_subkinds.to_list missing_arity)
+      (Flambda_arity.to_list missing_arity)
   in
   let return_continuation = Continuation.create ~sort:Return () in
   let exn_continuation =
@@ -2040,7 +2039,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   in
   let closure_alloc_mode, num_trailing_local_params =
     let num_leading_heap_params =
-      Flambda_arity.With_subkinds.cardinal arity - num_trailing_local_params
+      Flambda_arity.cardinal arity - num_trailing_local_params
     in
     if num_provided <= num_leading_heap_params
     then Lambda.alloc_heap, num_trailing_local_params
@@ -2136,7 +2135,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         List.mapi
           (fun i kind ->
             BP.create (Variable.create ("result" ^ string_of_int i)) kind)
-          (Flambda_arity.With_subkinds.to_list apply.return_arity)
+          (Flambda_arity.to_list apply.return_arity)
       in
       let handler acc =
         let acc, call_return_continuation =
@@ -2179,12 +2178,12 @@ type call_args_split =
   | Exact of IR.simple list
   | Partial_app of
       { provided : IR.simple list;
-        missing_arity : Flambda_arity.With_subkinds.t
+        missing_arity : Flambda_arity.t
       }
   | Over_app of
       { full : IR.simple list;
         remaining : IR.simple list;
-        remaining_arity : Flambda_arity.With_subkinds.t
+        remaining_arity : Flambda_arity.t
       }
 
 let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
@@ -2219,7 +2218,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
     let acc, args_with_arities = find_simples_and_arity acc env apply.args in
     let args_arity = List.map snd args_with_arities in
     let split_args =
-      let arity = Flambda_arity.With_subkinds.to_list arity in
+      let arity = Flambda_arity.to_list arity in
       let split args arity =
         let rec cut n l =
           if n <= 0
@@ -2240,7 +2239,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           let _provided_arity, missing_arity = cut args_l arity in
           Partial_app
             { provided = args;
-              missing_arity = Flambda_arity.With_subkinds.create missing_arity
+              missing_arity = Flambda_arity.create missing_arity
             }
         else
           let full, remaining = cut arity_l args in
@@ -2248,8 +2247,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           Over_app
             { full;
               remaining;
-              remaining_arity =
-                Flambda_arity.With_subkinds.create remaining_arity
+              remaining_arity = Flambda_arity.create remaining_arity
             }
       in
       let arity =
@@ -2283,8 +2281,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
             continuation = apply_continuation;
             mode;
             return_arity =
-              Flambda_arity.With_subkinds.create
-                [Flambda_kind.With_subkind.any_value]
+              Flambda_arity.create [Flambda_kind.With_subkind.any_value]
           }
           (Some approx) ~replace_region:(Some region)
       in
