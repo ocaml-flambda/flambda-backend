@@ -325,10 +325,10 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
     TG.mutable_array ~element_kind:Unknown ~length:any_tagged_immediate
       alloc_mode
 
+let bottom_with_subkind kind = bottom (Flambda_kind.With_subkind.kind kind)
+
 let unknown_types_from_arity arity =
-  List.map (fun kind -> unknown_with_subkind kind) (Flambda_arity.to_list arity)
+  List.map unknown_with_subkind (Flambda_arity.to_list arity)
 
 let bottom_types_from_arity arity =
-  List.map
-    (fun kind -> bottom kind)
-    (Flambda_arity.to_list arity |> List.map Flambda_kind.With_subkind.kind)
+  List.map bottom_with_subkind (Flambda_arity.to_list arity)
