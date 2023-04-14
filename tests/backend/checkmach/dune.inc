@@ -259,21 +259,17 @@
 (rule
  (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (targets test_attr_unused.output.corrected)
- (deps test_attr_unused.ml)
+ (deps (:ml test_attr_unused.ml) filter.sh)
  (action
    (with-outputs-to test_attr_unused.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 0
-     (run %{bin:ocamlopt.opt} %{deps} -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
     (run "./filter.sh")
-  ))))
+   ))))
 
 (rule
  (alias   runtest)
- (enabled_if (and (= %{context_name} "main")
-                  %{ocaml-config:flambda}))
- (deps test_attr_unused.output
-       test_attr_unused.output.corrected)
- (action
-        (diff test_attr_unused.output
-              test_attr_unused.output.corrected)))
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (deps test_attr_unused.output test_attr_unused.output.corrected)
+ (action (diff test_attr_unused.output test_attr_unused.output.corrected)))
