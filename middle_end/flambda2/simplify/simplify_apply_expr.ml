@@ -55,7 +55,7 @@ let record_free_names_of_apply_as_used0 apply ~use_id ~exn_cont_use_id data_flow
   in
   Flow.Acc.add_apply_conts
     ~exn_cont:(exn_cont_use_id, exn_cont)
-    ~result_cont data_flow
+    ~result_cont ~result_arity:(Apply.return_arity apply) data_flow
 
 let record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply =
   DA.map_flow_acc dacc

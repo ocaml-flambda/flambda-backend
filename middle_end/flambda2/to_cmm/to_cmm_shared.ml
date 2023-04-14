@@ -254,13 +254,15 @@ let check_arity arity args =
   Flambda_arity.With_subkinds.cardinal arity = List.length args
 
 let extended_machtype_of_return_arity arity =
-  (* Functions that never return have arity 0. In that case, we use the most
-     restrictive machtype to ensure that the return value of the function is not
-     used. *)
   match Flambda_arity.With_subkinds.to_list arity with
-  | [] -> Extended_machtype.typ_void
-  (* Regular functions with a single return value *)
-  | [k] -> extended_machtype_of_kind k
-  | _ ->
-    (* CR gbury: update when unboxed tuples are used *)
-    Misc.fatal_errorf "Functions are currently limited to a single return value"
+  | [] ->
+    (* Functions that never return have arity 0. In that case, we use the most
+       restrictive machtype to ensure that the return value of the function is
+       not used. *)
+    Extended_machtype.typ_void
+  | [k] ->
+    (* Regular functions with a single return value *)
+    extended_machtype_of_kind k
+  | arity ->
+    (* Functions returning multiple values *)
+    List.map extended_machtype_of_kind arity |> Array.concat
