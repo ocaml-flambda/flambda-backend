@@ -1,3 +1,21 @@
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps s.ml t.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps t5.ml test_assume.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -O3)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main")
+                   %{ocaml-config:flambda} ))
+ (deps test_flambda.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
 
 (rule
  (enabled_if (= %{context_name} "main"))
@@ -214,3 +232,48 @@
  (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (deps fail12.output fail12.output.corrected)
  (action (diff fail12.output fail12.output.corrected)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (targets test_attribute_error_duplicate.output.corrected)
+ (deps test_attribute_error_duplicate.ml)
+ (action
+   (with-outputs-to test_attribute_error_duplicate.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{deps} -color never -error-style short -c -zero-alloc-check -O3))
+    (run "./filter.sh")
+  ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_attribute_error_duplicate.output
+       test_attribute_error_duplicate.output.corrected)
+ (action
+        (diff test_attribute_error_duplicate.output
+              test_attribute_error_duplicate.output.corrected)))
+
+
+(rule
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (targets test_attr_unused.output.corrected)
+ (deps test_attr_unused.ml)
+ (action
+   (with-outputs-to test_attr_unused.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 0
+     (run %{bin:ocamlopt.opt} %{deps} -color never -error-style short -c -zero-alloc-check -O3))
+    (run "./filter.sh")
+  ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main")
+                  %{ocaml-config:flambda}))
+ (deps test_attr_unused.output
+       test_attr_unused.output.corrected)
+ (action
+        (diff test_attr_unused.output
+              test_attr_unused.output.corrected)))
