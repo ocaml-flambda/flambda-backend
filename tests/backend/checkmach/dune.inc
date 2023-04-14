@@ -1,3 +1,4 @@
+
 (rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
@@ -8,12 +9,11 @@
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (deps t5.ml test_assume.ml)
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
 
 (rule
  (alias   runtest)
- (enabled_if (and (= %{context_name} "main")
-                   %{ocaml-config:flambda} ))
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (deps test_flambda.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
 
