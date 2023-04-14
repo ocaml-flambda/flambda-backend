@@ -234,27 +234,22 @@
  (action (diff fail12.output fail12.output.corrected)))
 
 (rule
- (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (targets test_attribute_error_duplicate.output.corrected)
- (deps test_attribute_error_duplicate.ml)
+ (deps (:ml test_attribute_error_duplicate.ml) filter.sh)
  (action
    (with-outputs-to test_attribute_error_duplicate.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{deps} -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
     (run "./filter.sh")
-  ))))
+   ))))
 
 (rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
- (deps test_attribute_error_duplicate.output
-       test_attribute_error_duplicate.output.corrected)
- (action
-        (diff test_attribute_error_duplicate.output
-              test_attribute_error_duplicate.output.corrected)))
-
+ (deps test_attribute_error_duplicate.output test_attribute_error_duplicate.output.corrected)
+ (action (diff test_attribute_error_duplicate.output test_attribute_error_duplicate.output.corrected)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
