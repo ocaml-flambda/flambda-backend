@@ -435,11 +435,12 @@ and variant_subkind consts non_consts : Fexpr.subkind =
   in
   let non_consts =
     non_consts |> Tag.Scannable.Map.bindings
-    |> List.map (fun (tag, sk) -> Tag.Scannable.to_int tag, List.map subkind sk)
+    |> List.map (fun (tag, sk) ->
+           Tag.Scannable.to_int tag, List.map kind_with_subkind sk)
   in
   Variant { consts; non_consts }
 
-let kind_with_subkind (k : Flambda_kind.With_subkind.t) :
+and kind_with_subkind (k : Flambda_kind.With_subkind.t) :
     Fexpr.kind_with_subkind =
   match Flambda_kind.With_subkind.kind k with
   | Value -> Value (subkind (Flambda_kind.With_subkind.subkind k))

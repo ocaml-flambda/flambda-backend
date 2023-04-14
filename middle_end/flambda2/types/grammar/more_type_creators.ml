@@ -303,11 +303,7 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
     let non_const_ctors =
       Tag.Scannable.Map.map
         (fun fields ->
-          List.map
-            (fun subkind ->
-              unknown_with_subkind
-                (Flambda_kind.With_subkind.create Flambda_kind.value subkind))
-            fields)
+          List.map (fun subkind -> unknown_with_subkind subkind) fields)
         non_consts
     in
     variant ~const_ctors ~non_const_ctors alloc_mode
