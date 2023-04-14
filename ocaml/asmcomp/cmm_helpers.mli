@@ -149,7 +149,7 @@ val safe_mod_bi :
     then branch [ifso], and [ifnot_dbg] to the else branch [ifnot] *)
 val mk_if_then_else :
   Debuginfo.t ->
-  Cmm.value_kind ->
+  Cmm.kind_for_unboxing ->
   expression ->
   Debuginfo.t -> expression ->
   Debuginfo.t -> expression ->
@@ -599,20 +599,20 @@ val transl_isout : expression -> expression -> Debuginfo.t -> expression
     or optimize as a static table lookup when possible. *)
 val make_switch :
   expression -> int array -> (expression * Debuginfo.t) array -> Debuginfo.t ->
-  Cmm.value_kind -> expression
+  Cmm.kind_for_unboxing -> expression
 
 (** [transl_int_switch loc kind arg low high cases default] *)
 val transl_int_switch :
-  Debuginfo.t -> Cmm.value_kind -> expression -> int -> int ->
+  Debuginfo.t -> Cmm.kind_for_unboxing -> expression -> int -> int ->
   (int * expression) list -> expression -> expression
 
 (** [transl_switch_clambda loc kind arg index cases] *)
 val transl_switch_clambda :
-  Debuginfo.t -> Cmm.value_kind -> expression -> int array -> expression array -> expression
+  Debuginfo.t -> Cmm.kind_for_unboxing -> expression -> int array -> expression array -> expression
 
 (** [strmatch_compile dbg arg default cases] *)
 val strmatch_compile :
-  Debuginfo.t -> Cmm.value_kind -> expression -> expression option ->
+  Debuginfo.t -> Cmm.kind_for_unboxing -> expression -> expression option ->
   (string * expression) list -> expression
 
 (** Closures and function applications *)
@@ -744,8 +744,10 @@ val emit_preallocated_blocks :
 
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
 
-val kind_of_layout : Lambda.layout -> value_kind
+val kind_of_layout : Lambda.layout -> kind_for_unboxing
 
 val machtype_of_layout : Lambda.layout -> machtype
 
 val machtype_of_layout_changing_tagged_int_to_val : Lambda.layout -> machtype
+
+val make_tuple : expression list -> expression

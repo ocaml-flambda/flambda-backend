@@ -58,12 +58,7 @@ let var_set t = Variable.Set.of_list (vars t)
 
 let rename t = List.map (fun t -> BP.rename t) t
 
-let arity t =
-  List.map (fun t -> Flambda_kind.With_subkind.kind (BP.kind t)) t
-  |> Flambda_arity.create
-
-let arity_with_subkinds t =
-  List.map (fun t -> BP.kind t) t |> Flambda_arity.With_subkinds.create
+let arity t = List.map (fun t -> BP.kind t) t |> Flambda_arity.create
 
 let free_names t =
   List.fold_left

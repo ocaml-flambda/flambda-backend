@@ -150,6 +150,7 @@ build_and_test_upstream: build_upstream
 	      echo "Running testsuite sequentially"; \
               make --no-print-directory all; \
             fi
+	cd _build_upstream && $(MAKE) check_all_arches
 
 .PHONY: coverage
 coverage: boot-runtest

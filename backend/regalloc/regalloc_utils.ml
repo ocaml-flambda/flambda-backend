@@ -4,18 +4,6 @@ module Array = ArrayLabels
 module List = ListLabels
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-let bool_of_env env_var =
-  match Sys.getenv_opt env_var |> Option.map String.lowercase_ascii with
-  | Some ("1" | "true" | "on") -> true
-  | Some ("0" | "false" | "off") | None -> false
-  | Some var ->
-    Misc.fatal_errorf
-      "the %s variable is \"%s\" but should be one of: \"0\", \"1\", \"true\", \
-       \"false\", \"on\", \"off\""
-      env_var var
-
-let validator_debug = bool_of_env "CFG_REGALLOC_VALIDATOR_DEBUG"
-
 let fatal_callback = ref (fun () -> ())
 
 let on_fatal ~f = fatal_callback := f
@@ -23,6 +11,64 @@ let on_fatal ~f = fatal_callback := f
 let fatal fmt =
   !fatal_callback ();
   Misc.fatal_errorf fmt
+
+let find_param_value param_name =
+  !Flambda_backend_flags.regalloc_params
+  |> List.rev
+  |> List.find_map ~f:(fun param ->
+         match String.split_on_char ':' param with
+         | [] -> None
+         | name :: rest ->
+           if String.equal name param_name
+           then Some (String.concat ":" rest)
+           else None)
+
+let bool_of_param ?guard param_name =
+  lazy
+    (let res =
+       match
+         find_param_value param_name |> Option.map String.lowercase_ascii
+       with
+       | Some ("1" | "true" | "on") -> true
+       | Some ("0" | "false" | "off") | None -> false
+       | Some value ->
+         Misc.fatal_errorf
+           "the %s variable is %S but should be one of: \"0\", \"1\", \
+            \"true\", \"false\", \"on\", \"off\""
+           param_name value
+     in
+     (if res
+     then
+       match guard with
+       | None -> ()
+       | Some (guard_value, guard_name) ->
+         if not guard_value
+         then fatal "%s is set but %s is not" param_name guard_name);
+     res)
+
+let validator_debug = bool_of_param "CFG_REGALLOC_VALIDATOR_DEBUG"
+
+let make_indent n = String.make (2 * n) ' '
+
+type log_function =
+  { log :
+      'a.
+      indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a;
+    enabled : bool
+  }
+
+let make_log_function : verbose:bool -> label:string -> log_function =
+ fun ~verbose ~label ->
+  let log =
+    if verbose
+    then
+      fun ~indent ?no_eol fmt ->
+      Format.eprintf
+        ("[%s] %s" ^^ fmt ^^ match no_eol with None -> "\n%!" | Some () -> "")
+        label (make_indent indent)
+    else fun ~indent:_ ?no_eol:_ fmt -> Format.(ifprintf err_formatter) fmt
+  in
+  { log; enabled = verbose }
 
 module Instruction = struct
   type id = int
@@ -40,6 +86,11 @@ module Instruction = struct
   module IdSet = MoreLabels.Set.Make (Int)
   module IdMap = MoreLabels.Map.Make (Int)
 end
+
+let first_instruction_id (block : Cfg.basic_block) : int =
+  match DLL.hd block.body with
+  | None -> block.terminator.id
+  | Some instr -> instr.id
 
 type cfg_infos =
   { arg : Reg.Set.t;
@@ -94,6 +145,40 @@ let liveness_analysis : Cfg_with_layout.t -> liveness =
     fatal "Unable to compute liveness from CFG for function %s@."
       cfg.Cfg.fun_name
 
+let log_instruction_suffix (instr : _ Cfg.instruction) (liveness : liveness) :
+    unit =
+  let live =
+    match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
+    | None -> Reg.Set.empty
+    | Some { before = _; across } -> across
+  in
+  let live = live |> Reg.Set.elements |> Array.of_list in
+  if Array.length instr.arg > 0
+  then Format.eprintf " arg:%a" Printmach.regs instr.arg;
+  if Array.length instr.res > 0
+  then Format.eprintf " res:%a" Printmach.regs instr.res;
+  if Array.length live > 0 then Format.eprintf " live:%a" Printmach.regs live;
+  Format.eprintf "\n%!"
+
+let make_log_body_and_terminator :
+    log_function ->
+    instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
+    term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
+    indent:int ->
+    Cfg.basic_instruction_list ->
+    Cfg.terminator Cfg.instruction ->
+    liveness ->
+    unit =
+ fun { log; enabled } ~instr_prefix ~term_prefix ~indent body term liveness ->
+  DLL.iter body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
+      log ~indent ~no_eol:() "%s " (instr_prefix instr);
+      if enabled then Cfg.dump_basic Format.err_formatter instr.Cfg.desc;
+      if enabled then log_instruction_suffix instr liveness);
+  log ~indent ~no_eol:() "%s " (term_prefix term);
+  if enabled
+  then Cfg.dump_terminator ~sep:", " Format.err_formatter term.Cfg.desc;
+  if enabled then log_instruction_suffix term liveness
+
 module Move = struct
   type t =
     | Plain
@@ -122,7 +207,8 @@ module Move = struct
       (* note: recomputed anyway *)
       stack_offset = instr.stack_offset;
       id;
-      irc_work_list = Unknown_list
+      irc_work_list = Unknown_list;
+      ls_order = -1
     }
 
   let to_string = function Plain -> "move" | Load -> "load" | Store -> "store"
@@ -149,19 +235,12 @@ let make_temporary :
 let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  Profile.record ~accumulate:true "remove-noop-move"
-    (fun () ->
-      Cfg.iter_blocks cfg ~f:(fun _label block ->
-          DLL.filter_left block.body ~f:(fun instr ->
-              not (Cfg.is_noop_move instr))))
-    ();
-  Profile.record ~accumulate:true "eliminate" Eliminate_fallthrough_blocks.run
-    cfg_with_layout;
-  Profile.record ~accumulate:true "merge" Merge_straightline_blocks.run
-    cfg_with_layout;
-  Profile.record ~accumulate:true "dead_block"
-    Eliminate_dead_code.run_dead_block cfg_with_layout;
-  Profile.record ~accumulate:true "terminator" Simplify_terminator.run cfg;
+  Cfg.iter_blocks cfg ~f:(fun _label block ->
+      DLL.filter_left block.body ~f:(fun instr -> not (Cfg.is_noop_move instr)));
+  Eliminate_fallthrough_blocks.run cfg_with_layout;
+  Merge_straightline_blocks.run cfg_with_layout;
+  Eliminate_dead_code.run_dead_block cfg_with_layout;
+  Simplify_terminator.run cfg;
   cfg_with_layout
 
 let precondition : Cfg_with_layout.t -> unit =
@@ -274,10 +353,13 @@ let postcondition : Cfg_with_layout.t -> allow_stack_operands:bool -> unit =
     | Reg _ -> ()
     | Stack (Incoming _ | Outgoing _ | Domainstate _) -> ()
     | Stack (Local slot) ->
+      if slot < 0
+      then fatal "instruction %d is using an invalid slot (%d)" id slot;
       let reg_class = Proc.register_class reg in
       max_stack_slots.(reg_class) <- max max_stack_slots.(reg_class) slot
     | Unknown ->
-      fatal "instruction %d has a register with an unknown location" id
+      fatal "instruction %d has a register (%a) with an unknown location" id
+        Printmach.reg reg
   in
   let registers_must_not_be_unknown (id : Instruction.id) (regs : Reg.t array) :
       unit =
@@ -345,7 +427,11 @@ let postcondition : Cfg_with_layout.t -> allow_stack_operands:bool -> unit =
   in
   let reg_class = ref 0 in
   Array.iter2 max_stack_slots fun_num_stack_slots ~f:(fun max_slot num_slots ->
-      if succ max_slot <> num_slots
+      (* CR-soon xclerc for xclerc: make the condition stricter. The present
+         condition ensure safety: no access out of bounds (i.e. to another
+         frame), but could be made stricter to ensure optimiality (i.e. we use
+         every element from the frame). *)
+      if max_slot >= num_slots
       then
         fatal
           "register class %d has a max slot of %d, but the number of slots is \
@@ -363,15 +449,40 @@ let save_cfg : string -> Cfg_with_layout.t -> unit =
       Printf.sprintf "label:%d stack_offset:%d" label block.stack_offset)
     ~annotate_succ:(Printf.sprintf "%d->%d") str
 
-let update_stack_slots : Cfg_with_layout.t -> num_stack_slots:int array -> unit
-    =
- fun cfg_with_layout ~num_stack_slots ->
-  let fun_num_stack_slots =
-    (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
-  in
-  for reg_class = 0 to pred Proc.num_register_classes do
-    fun_num_stack_slots.(reg_class) <- num_stack_slots.(reg_class)
-  done
+module StackSlots = struct
+  type slot = int
+
+  type t =
+    { stack_slots : int Reg.Tbl.t;
+      num_stack_slots : int array
+    }
+
+  let[@inline] make () =
+    let stack_slots = Reg.Tbl.create 128 in
+    let num_stack_slots = Array.make Proc.num_register_classes 0 in
+    { stack_slots; num_stack_slots }
+
+  let[@inline] get_and_incr t ~reg_class =
+    let res = t.num_stack_slots.(reg_class) in
+    t.num_stack_slots.(reg_class) <- succ res;
+    res
+
+  let[@inline] get_or_create t reg =
+    match Reg.Tbl.find_opt t.stack_slots reg with
+    | Some slot -> slot
+    | None ->
+      let res = get_and_incr t ~reg_class:(Proc.register_class reg) in
+      Reg.Tbl.replace t.stack_slots reg res;
+      res
+
+  let[@inline] update_cfg_with_layout t cfg_with_layout =
+    let fun_num_stack_slots =
+      (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
+    in
+    for reg_class = 0 to pred Proc.num_register_classes do
+      fun_num_stack_slots.(reg_class) <- t.num_stack_slots.(reg_class)
+    done
+end
 
 let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
@@ -444,8 +555,6 @@ let update_spill_cost : Cfg_with_layout.t -> flat:bool -> unit -> unit =
       | Specific_can_raise _ | Poll_and_jump _ ->
         update_instr cost block.terminator)
 
-let is_spilled reg = reg.Reg.irc_work_list = Reg.Spilled
-
 let check_length str arr expected =
   let actual = Array.length arr in
   if expected <> actual
@@ -471,20 +580,22 @@ type stack_operands_rewrite =
 
 type spilled_map = Reg.t Reg.Tbl.t
 
-let use_stack_operand (map : Reg.t Reg.Tbl.t) (regs : Reg.t array) (index : int)
-    : unit =
+let is_spilled (map : spilled_map) (reg : Reg.t) : bool = Reg.Tbl.mem map reg
+
+let use_stack_operand (map : spilled_map) (regs : Reg.t array) (index : int) :
+    unit =
   let reg = regs.(index) in
   match Reg.Tbl.find_opt map reg with
   | None -> fatal "register %a is missing from the map" Printmach.reg reg
   | Some spilled_reg -> regs.(index) <- spilled_reg
 
-let may_use_stack_operands_array : Reg.t Reg.Tbl.t -> Reg.t array -> unit =
+let may_use_stack_operands_array : spilled_map -> Reg.t array -> unit =
  fun map regs ->
   Array.iteri regs ~f:(fun i reg ->
-      if is_spilled reg then use_stack_operand map regs i)
+      if is_spilled map reg then use_stack_operand map regs i)
 
 let may_use_stack_operands_everywhere :
-    type a. Reg.t Reg.Tbl.t -> a Cfg.instruction -> stack_operands_rewrite =
+    type a. spilled_map -> a Cfg.instruction -> stack_operands_rewrite =
  fun map instr ->
   may_use_stack_operands_array map instr.arg;
   may_use_stack_operands_array map instr.res;
@@ -543,7 +654,8 @@ let insert_block :
               live = last_insn.live;
               stack_offset = last_insn.stack_offset;
               id = next_instruction_id ();
-              irc_work_list = Unknown_list
+              irc_work_list = Unknown_list;
+              ls_order = -1
             };
           (* The [predecessor_block] is the only predecessor. *)
           predecessors = Label.Set.singleton predecessor_block.start;

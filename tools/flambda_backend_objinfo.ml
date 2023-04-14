@@ -232,8 +232,7 @@ let print_cmx_infos (uir, sections, crc) =
   end;
   print_generic_fns uir.uir_generic_fns;
   printf "Force link: %s\n" (if uir.uir_force_link then "YES" else "no");
-  printf "Functions with neither allocations nor indirect calls:\n";
-  String.Set.iter print_line uir.uir_checks.ui_noalloc_functions
+  Checks.Raw.print uir.uir_checks
 
 let print_cmxa_infos (lib : Cmx_format.library_infos) =
   printf "Extra C object files:";

@@ -1,11 +1,11 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open Cfg_regalloc_utils
-open Cfg_irc_utils
+open Regalloc_utils
+open Regalloc_irc_utils
 
 type t
 
-val make : initial:Reg.t list -> next_instruction_id:int -> unit -> t
+val make : initial:Reg.t list -> next_instruction_id:Instruction.id -> unit -> t
 
 val add_initial_one : t -> Reg.t -> unit
 
@@ -119,11 +119,7 @@ val find_alias : t -> Reg.t -> Reg.t
 
 val add_alias : t -> Reg.t -> Reg.t -> unit
 
-val get_and_incr_num_stack_slots : t -> int -> int
-
-val get_num_stack_slot : t -> Reg.t -> int
-
-val num_stack_slots : t -> int array
+val stack_slots : t -> StackSlots.t
 
 val get_and_incr_instruction_id : t -> Instruction.id
 

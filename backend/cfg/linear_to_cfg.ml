@@ -113,7 +113,8 @@ let create_instruction t desc ~stack_offset (i : Linear.instruction) :
     live = i.live;
     stack_offset;
     id = get_new_linear_id t;
-    irc_work_list = Unknown_list
+    irc_work_list = Unknown_list;
+    ls_order = -1
   }
 
 let record_traps t label traps =
@@ -164,7 +165,8 @@ let create_empty_block t start ~stack_offset ~traps =
       live = Reg.Set.empty;
       stack_offset;
       id = get_new_linear_id t;
-      irc_work_list = Unknown_list
+      irc_work_list = Unknown_list;
+      ls_order = -1
     }
   in
   let block : C.basic_block =

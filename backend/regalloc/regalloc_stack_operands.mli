@@ -1,6 +1,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Cfg_regalloc_utils
+open! Regalloc_utils
 
 (* The functions below can rewrite (in place) a spilled register (in arg or
    res), if the operand constraints of the instruction allow it. The passed

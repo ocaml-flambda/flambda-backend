@@ -43,7 +43,7 @@ let make_switch n selector caselist =
     List.iter (fun pos -> index.(pos) <- i) posl;
     actv.(i) <- (e, dbg)
   done;
-  Cswitch(selector, index, actv, dbg, value_kind ())
+  Cswitch(selector, index, actv, dbg, Any)
 
 let access_array base numelt size =
   match numelt with
@@ -240,7 +240,7 @@ expr:
   | LPAREN SEQ sequence RPAREN { $3 }
   | LPAREN IF expr expr expr RPAREN
       { Cifthenelse($3, debuginfo (), $4, debuginfo (), $5, debuginfo (),
-                    value_kind ()) }
+                    Any) }
   | LPAREN SWITCH INTCONST expr caselist RPAREN { make_switch $3 $4 $5 }
   | LPAREN WHILE expr sequence RPAREN
       {
@@ -251,22 +251,22 @@ expr:
             Cconst_int (x, _) when x <> 0 -> $4
           | _ -> Cifthenelse($3, debuginfo (), $4, debuginfo (),
                              (Cexit(Cmm.Lbl lbl0,[],[])),
-                             debuginfo (), value_kind ()) in
+                             debuginfo (), Any) in
         Ccatch(Nonrecursive, [lbl0, [], Ctuple [], debuginfo ()],
           Ccatch(Recursive,
             [lbl1, [], Csequence(body, Cexit(Cmm.Lbl lbl1, [], [])), debuginfo ()],
-            Cexit(Cmm.Lbl lbl1, [], []), value_kind ()), value_kind ()) }
+            Cexit(Cmm.Lbl lbl1, [], []), Any), Any) }
   | LPAREN EXIT traps IDENT exprlist RPAREN
     { Cexit(Cmm.Lbl (find_label $4), List.rev $5, $3) }
   | LPAREN CATCH sequence WITH catch_handlers RPAREN
     { let handlers = $5 in
       List.iter (fun (_, l, _, _) ->
         List.iter (fun (x, _) -> unbind_ident x) l) handlers;
-      Ccatch(Recursive, handlers, $3, value_kind ()) }
+      Ccatch(Recursive, handlers, $3, Any) }
   | EXIT        { Cexit(Cmm.Lbl 0,[],[]) }
   | LPAREN TRY sequence WITH bind_ident sequence RPAREN
       { unbind_ident $5; Ctrywith($3, Regular, $5, $6, debuginfo (),
-                                  value_kind ()) }
+                                  Any) }
   | LPAREN VAL expr expr RPAREN
       { let open Asttypes in
         Cop(Cload (Word_val, Mutable), [access_array $3 $4 Arch.size_addr],

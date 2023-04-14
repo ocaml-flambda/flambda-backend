@@ -31,8 +31,9 @@ val all_phys_regs : Reg.t array
 
 (* Calling conventions *)
 val loc_arguments: Cmm.machtype -> Reg.t array * int
-val loc_results: Cmm.machtype -> Reg.t array
+val loc_results_call: Cmm.machtype -> Reg.t array * int
 val loc_parameters: Cmm.machtype -> Reg.t array
+val loc_results_return: Cmm.machtype -> Reg.t array
 (* For argument number [n] split across multiple registers, the target-specific
    implementation of [loc_external_arguments] must return [regs] such that
    [regs.(n).(0)] is to hold the part of the value at the lowest address. *)

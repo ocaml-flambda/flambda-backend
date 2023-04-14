@@ -107,7 +107,7 @@ type subkind =
   | Tagged_immediate
   | Variant of
       { consts : targetint list;
-        non_consts : (tag_scannable * subkind list) list
+        non_consts : (tag_scannable * kind_with_subkind list) list
       }
   | Float_block of { num_fields : int }
   | Float_array
@@ -115,7 +115,7 @@ type subkind =
   | Value_array
   | Generic_array
 
-type kind_with_subkind =
+and kind_with_subkind =
   | Value of subkind
   | Naked_number of Flambda_kind.Naked_number_kind.t
   | Region

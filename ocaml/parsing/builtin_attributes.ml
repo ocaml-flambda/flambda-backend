@@ -36,16 +36,31 @@ let attr_order a1 a2 =
   | 0 -> Int.compare a1.loc.loc_start.pos_lnum a2.loc.loc_start.pos_lnum
   | n -> n
 
+let unchecked_properties = Attribute_table.create 1
+let mark_property_checked txt loc =
+  Attribute_table.remove unchecked_properties { txt; loc }
+let register_property attr =
+    Attribute_table.replace unchecked_properties attr ()
+let warn_unchecked_property () =
+  let keys = List.of_seq (Attribute_table.to_seq_keys unchecked_properties) in
+  let keys = List.sort attr_order keys in
+  List.iter (fun sloc ->
+    Location.prerr_warning sloc.loc (Warnings.Unchecked_property_attribute sloc.txt))
+    keys
+
 let warn_unused () =
   (* When using -i, attributes will not have been translated, so we can't
      warn about missing ones. *)
   if !Clflags.print_types then ()
   else
+  begin
+    warn_unchecked_property ();
     let keys = List.of_seq (Attribute_table.to_seq_keys unused_attrs) in
     let keys = List.sort attr_order keys in
     List.iter (fun sloc ->
       Location.prerr_warning sloc.loc (Warnings.Misplaced_attribute sloc.txt))
       keys
+  end
 
 (* These are the attributes that are tracked in the builtin_attrs table for
    misplaced attribute warnings.  Explicitly excluded is [deprecated_mutable],
@@ -84,6 +99,7 @@ let builtin_attrs =
   ; "tail"; "ocaml.tail"; "extension.tail"
   ; "include_functor"; "ocaml.include_functor"; "extension.include_functor"
   ; "noalloc"; "ocaml.noalloc"
+  ; "zero_alloc"; "ocaml.zero_alloc"
   ; "untagged"; "ocaml.untagged"
   ; "poll"; "ocaml.poll"
   ; "loop"; "ocaml.loop"
@@ -434,6 +450,14 @@ let parse_int_payload attr =
       "A constant payload of type int was expected";
     None
 
+let parse_ident_payload attr =
+  match ident_of_payload attr.attr_payload with
+  | Some i -> Some i
+  | None ->
+    warn_payload attr.attr_loc attr.attr_name.txt
+      "A constant payload of type ident was expected";
+    None
+
 let clflags_attribute_without_payload attr ~name clflags_ref =
   when_attribute_is [name; "ocaml." ^ name] attr ~f:(fun () ->
     match parse_empty_payload attr with
@@ -489,6 +513,20 @@ let inline_attribute attr =
         Clflags.Float_arg_helper.parse s err_msg Clflags.inline_threshold
       | None -> warn_payload attr.attr_loc attr.attr_name.txt err_msg)
 
+let parse_attribute_with_ident_payload attr ~name ~f =
+  when_attribute_is [name; "ocaml." ^ name] attr ~f:(fun () ->
+    match parse_ident_payload attr with
+    | Some i -> f i
+    | None -> ())
+
+let zero_alloc_attribute (attr : Parsetree.attribute)  =
+  parse_attribute_with_ident_payload attr
+    ~name:"zero_alloc" ~f:(function
+      | "check" -> Clflags.zero_alloc_check := true
+      | _ ->
+        warn_payload attr.attr_loc attr.attr_name.txt
+          "Only 'check' is supported")
+
 let afl_inst_ratio_attribute attr =
   clflags_attribute_with_int_payload attr
     ~name:"afl_inst_ratio" Clflags.afl_inst_ratio
@@ -507,7 +545,8 @@ let parse_standard_implementation_attributes attr =
   inline_attribute attr;
   afl_inst_ratio_attribute attr;
   flambda_o3_attribute attr;
-  flambda_oclassic_attribute attr
+  flambda_oclassic_attribute attr;
+  zero_alloc_attribute attr
 
 let has_local_opt attrs =
   has_attribute ["ocaml.local_opt"; "local_opt"] attrs

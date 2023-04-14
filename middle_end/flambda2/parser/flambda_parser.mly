@@ -257,7 +257,7 @@ let make_boxed_const_int (i, m) : static_data =
 %type <Fexpr.static_data> static_data
 %type <Fexpr.static_data_binding> static_data_binding
 %type <Fexpr.subkind> subkind
-%type <Fexpr.subkind list> subkinds_nonempty
+%type <Fexpr.kind_with_subkind list> kinds_with_subkinds_nonempty
 %type <Fexpr.variable -> Fexpr.static_data> static_data_kind
 %type <Fexpr.symbol_binding> symbol_binding
 %%
@@ -635,8 +635,8 @@ subkind:
   | KWD_VAL KWD_ARRAY { Value_array }
   | KWD_ANY KWD_ARRAY { Generic_array }
 ;
-subkinds_nonempty:
-  | sks = separated_nonempty_list(STAR, subkind) { sks }
+kinds_with_subkinds_nonempty:
+  | sks = separated_nonempty_list(STAR, kind_with_subkind) { sks }
 ;
 (* LR(1) restrictions make this a bit awkward to write *)
 ctors:
@@ -651,7 +651,7 @@ nonconst_ctors_nonempty:
   | ctors = separated_nonempty_list(PIPE, nonconst_ctor) { ctors }
 ;
 nonconst_ctor:
-  | tag = tag; KWD_OF; kinds = subkinds_nonempty { tag, kinds }
+  | tag = tag; KWD_OF; kinds = kinds_with_subkinds_nonempty { tag, kinds }
 ;
 return_arity:
   | { None }

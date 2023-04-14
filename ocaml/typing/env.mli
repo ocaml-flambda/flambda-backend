@@ -305,7 +305,7 @@ val add_module_lazy: update_summary:bool ->
   Ident.t -> module_presence -> Subst.Lazy.modtype -> t -> t
 val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool ->
   Ident.t -> module_presence -> module_declaration -> t -> t
-val add_module_declaration_lazy: update_summary:bool ->
+val add_module_declaration_lazy: ?arg:bool -> update_summary:bool ->
   Ident.t -> module_presence -> Subst.Lazy.module_decl -> t -> t
 val add_modtype: Ident.t -> modtype_declaration -> t -> t
 val add_modtype_lazy: update_summary:bool ->
@@ -336,6 +336,7 @@ val filter_non_loaded_persistent : (Ident.t -> bool) -> t -> t
 (* Insertion of all fields of a signature. *)
 
 val add_signature: signature -> t -> t
+val add_signature_lazy: Subst.Lazy.signature_item list -> t -> t
 
 (* Insertion of all fields of a signature, relative to the given path.
    Used to implement open. Returns None if the path refers to a functor,

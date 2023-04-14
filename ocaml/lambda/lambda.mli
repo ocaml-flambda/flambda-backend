@@ -315,7 +315,7 @@ type local_attribute =
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
 type property =
-  | Noalloc
+  | Zero_alloc
 
 type poll_attribute =
   | Error_poll (* [@poll error] *)
@@ -323,8 +323,18 @@ type poll_attribute =
 
 type check_attribute =
   | Default_check
-  | Assert of property
-  | Assume of property
+  | Check of { property: property;
+               strict: bool;
+               (* [strict=true] property holds on all paths.
+                  [strict=false] if the function returns normally,
+                  then the property holds (but property violations on
+                  exceptional returns or divering loops are ignored).
+                  This definition may not be applicable to new properties. *)
+               assume: bool;
+               (* [assume=false] assume without checking that the
+                  property holds *)
+               loc: Location.t;
+             }
 
 type loop_attribute =
   | Always_loop (* [@loop] or [@loop always] *)
@@ -366,6 +376,7 @@ type function_attribute = {
   stub: bool;
   tmc_candidate: bool;
 }
+
 
 type scoped_location = Debuginfo.Scoped_location.t
 

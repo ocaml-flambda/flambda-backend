@@ -435,11 +435,12 @@ and variant_subkind consts non_consts : Fexpr.subkind =
   in
   let non_consts =
     non_consts |> Tag.Scannable.Map.bindings
-    |> List.map (fun (tag, sk) -> Tag.Scannable.to_int tag, List.map subkind sk)
+    |> List.map (fun (tag, sk) ->
+           Tag.Scannable.to_int tag, List.map kind_with_subkind sk)
   in
   Variant { consts; non_consts }
 
-let kind_with_subkind (k : Flambda_kind.With_subkind.t) :
+and kind_with_subkind (k : Flambda_kind.With_subkind.t) :
     Fexpr.kind_with_subkind =
   match Flambda_kind.With_subkind.kind k with
   | Value -> Value (subkind (Flambda_kind.With_subkind.subkind k))
@@ -451,15 +452,15 @@ let kind_with_subkind_opt (k : Flambda_kind.With_subkind.t) :
     Fexpr.kind_with_subkind option =
   if is_default_kind_with_subkind k then None else Some (k |> kind_with_subkind)
 
-let is_default_arity (a : Flambda_arity.With_subkinds.t) =
-  match Flambda_arity.With_subkinds.to_list a with
+let is_default_arity (a : Flambda_arity.t) =
+  match Flambda_arity.to_list a with
   | [k] -> is_default_kind_with_subkind k
   | _ -> false
 
-let arity (a : Flambda_arity.With_subkinds.t) : Fexpr.arity =
-  Flambda_arity.With_subkinds.to_list a |> List.map kind_with_subkind
+let arity (a : Flambda_arity.t) : Fexpr.arity =
+  Flambda_arity.to_list a |> List.map kind_with_subkind
 
-let arity_opt (a : Flambda_arity.With_subkinds.t) : Fexpr.arity option =
+let arity_opt (a : Flambda_arity.t) : Fexpr.arity option =
   if is_default_arity a then None else Some (arity a)
 
 let kinded_parameter env (kp : Bound_parameter.t) :

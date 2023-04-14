@@ -218,11 +218,10 @@ and operation =
   | Copaque
   | Cbeginregion | Cendregion
 
-type value_kind =
-  | Vval of Lambda.value_kind (* Valid OCaml values *)
-  | Vint (* Untagged integers and off-heap pointers *)
-  | Vaddr (* Derived pointers *)
-  | Vfloat (* Unboxed floating-point numbers *)
+type kind_for_unboxing =
+  | Any
+  | Boxed_integer of Lambda.boxed_integer
+  | Boxed_float
 
 type expression =
     Cconst_int of int * Debuginfo.t
@@ -240,29 +239,29 @@ type expression =
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
   | Cifthenelse of expression * Debuginfo.t * expression
-      * Debuginfo.t * expression * Debuginfo.t * value_kind
+      * Debuginfo.t * expression * Debuginfo.t * kind_for_unboxing
   | Cswitch of expression * int array * (expression * Debuginfo.t) array
-      * Debuginfo.t * value_kind
+      * Debuginfo.t * kind_for_unboxing
   | Ccatch of
       rec_flag
         * (static_label * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t) list
-        * expression * value_kind
+        * expression * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
   | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
-      * expression * Debuginfo.t * value_kind
+      * expression * Debuginfo.t * kind_for_unboxing
   | Cregion of expression
   | Ctail of expression
 
 type property =
-  | Noalloc
+  | Zero_alloc
 
 type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
-  | Assert of property
-  | Assume of property
+  | Check of { property: property; strict: bool; assume: bool;
+               loc : Location.t; }
 
 type fundecl =
   { fun_name: string;

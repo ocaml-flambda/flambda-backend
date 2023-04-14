@@ -45,7 +45,7 @@ let get_func_decl_params_arity t code_id =
       (fun k ->
         C.extended_machtype_of_kind k
         |> C.Extended_machtype.change_tagged_int_to_val)
-      (Flambda_arity.With_subkinds.to_list (Code_metadata.params_arity info))
+      (Flambda_arity.to_list (Code_metadata.params_arity info))
   in
   let result_machtype =
     C.extended_machtype_of_return_arity (Code_metadata.result_arity info)
@@ -322,13 +322,13 @@ end)
 (* Translation of "check" attributes on functions. *)
 
 let transl_property : Check_attribute.Property.t -> Cmm.property = function
-  | Noalloc -> Noalloc
+  | Zero_alloc -> Zero_alloc
 
 let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
   function
   | Default_check -> []
-  | Assert p -> [Assert (transl_property p)]
-  | Assume p -> [Assume (transl_property p)]
+  | Check { property; strict; assume; loc } ->
+    [Check { property = transl_property property; strict; assume; loc }]
 
 (* Translation of the bodies of functions. *)
 

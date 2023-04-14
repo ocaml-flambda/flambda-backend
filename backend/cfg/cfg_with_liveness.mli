@@ -1,6 +1,6 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-open! Cfg_regalloc_utils
+open! Regalloc_utils
 
 type t
 (* Holds a Cfg_with_layout.t value, and a "cache" of the liveness information

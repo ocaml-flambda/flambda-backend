@@ -106,8 +106,7 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
           UE.add_function_return_or_exn_continuation
             (UE.create (DA.are_rebuilding_terms dacc))
             (Exn_continuation.exn_handler exn_continuation)
-            (Flambda_arity.With_subkinds.create
-               [Flambda_kind.With_subkind.any_value])
+            (Flambda_arity.create [Flambda_kind.With_subkind.any_value])
         in
         let uenv =
           match Apply.continuation apply with
@@ -194,15 +193,6 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
     in
     if not (Code_or_metadata.code_present code_or_metadata)
     then Missing_code
-    else if Loopify_attribute.was_loopified
-              (Code_metadata.loopify
-                 (Code_or_metadata.code_metadata code_or_metadata))
-            &&
-            match inlined with
-            | Unroll _ -> true
-            | Never_inlined | Default_inlined | Always_inlined | Hint_inlined ->
-              false
-    then Unroll_attribute_used_with_loopified_function
     else
       (* The unrolling process is rather subtle, but it boils down to two steps:
 

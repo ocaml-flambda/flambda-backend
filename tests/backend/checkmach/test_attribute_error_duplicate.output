@@ -1,9 +1,9 @@
-File "test_attribute_error_duplicate.ml", line 1, characters 15-22:
-Warning 54 [duplicated-attribute]: the "noalloc" attribute is used more than once on this expression
-File "test_attribute_error_duplicate.ml", line 2, characters 22-29:
-Warning 54 [duplicated-attribute]: the "noalloc" attribute is used more than once on this expression
-File "test_attribute_error_duplicate.ml", line 3, characters 5-12:
-Warning 47 [attribute-payload]: illegal payload for attribute 'noalloc'.
-It must be either 'assume' or empty
-File "test_attribute_error_duplicate.ml", line 1, characters 30-37:
-Error: Annotation check for noalloc failed on function camlTest_attribute_error_duplicate__test1_HIDE_STAMP
+File "test_attribute_error_duplicate.ml", line 1, characters 25-35:
+Warning 54 [duplicated-attribute]: the "zero_alloc" attribute is used more than once on this expression
+File "test_attribute_error_duplicate.ml", line 2, characters 32-42:
+Warning 54 [duplicated-attribute]: the "zero_alloc" attribute is used more than once on this expression
+File "test_attribute_error_duplicate.ml", line 3, characters 5-15:
+Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
+It must be either 'assume', 'strict', 'assume strict', 'strict assume' or empty
+File "test_attribute_error_duplicate.ml", line 1, characters 5-15:
+Error: Annotation check for zero_alloc strict failed on function Test_attribute_error_duplicate.test1 (camlTest_attribute_error_duplicate__test1_HIDE_STAMP)
