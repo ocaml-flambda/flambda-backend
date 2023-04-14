@@ -1,3 +1,4 @@
+
 (rule
  (enabled_if (= %{context_name} "main"))
  (targets fail1.output.corrected)
@@ -38,7 +39,7 @@
  (enabled_if (= %{context_name} "main"))
  (targets fail3.output.corrected)
  (deps (:ml t3.ml fail3.ml) filter.sh)
-  (action
+ (action
    (with-outputs-to fail3.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
@@ -52,12 +53,11 @@
  (deps fail3.output fail3.output.corrected)
  (action (diff fail3.output fail3.output.corrected)))
 
-
 (rule
  (enabled_if (= %{context_name} "main"))
  (targets fail4.output.corrected)
  (deps (:ml t4.ml fail4.ml) filter.sh)
-  (action
+ (action
    (with-outputs-to fail4.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
@@ -107,7 +107,6 @@
  (deps fail6.output fail6.output.corrected)
  (action (diff fail6.output fail6.output.corrected)))
 
-
 (rule
  (enabled_if (= %{context_name} "main"))
  (targets fail7.output.corrected)
@@ -125,7 +124,6 @@
  (enabled_if (= %{context_name} "main"))
  (deps fail7.output fail7.output.corrected)
  (action (diff fail7.output fail7.output.corrected)))
-
 
 (rule
  (enabled_if (= %{context_name} "main"))
@@ -145,7 +143,6 @@
  (deps fail8.output fail8.output.corrected)
  (action (diff fail8.output fail8.output.corrected)))
 
-
 (rule
  (enabled_if (= %{context_name} "main"))
  (targets fail9.output.corrected)
@@ -163,8 +160,6 @@
  (enabled_if (= %{context_name} "main"))
  (deps fail9.output fail9.output.corrected)
  (action (diff fail9.output fail9.output.corrected)))
-
-
 
 (rule
  (enabled_if (= %{context_name} "main"))
@@ -203,8 +198,7 @@
  (action (diff fail11.output fail11.output.corrected)))
 
 (rule
- (enabled_if (and (= %{context_name} "main")
-                  %{ocaml-config:flambda}))
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (targets fail12.output.corrected)
  (deps (:ml fail12.ml) filter.sh)
  (action
