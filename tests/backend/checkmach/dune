@@ -1,6 +1,3 @@
-;; CR-someday gyorsh: refactor this file using something like cinaps to
-;; avoid copy-paste of the rules for different files.
-
 (include dune.inc)
 
 (rule (with-stdout-to dune.inc.gen (run ./gen/gen_dune.exe)))
