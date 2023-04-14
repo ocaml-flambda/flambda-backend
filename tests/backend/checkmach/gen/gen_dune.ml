@@ -12,6 +12,8 @@ let () =
     in
     let enabled_if =
       if flambda_only then
+        (* what we really want to say if dune knew about flambda2:
+           (or %{ocaml-config:flambda} %{ocaml-config:flambda2}) *)
         {|(enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))|}
       else
         {|(enabled_if (= %{context_name} "main"))|}

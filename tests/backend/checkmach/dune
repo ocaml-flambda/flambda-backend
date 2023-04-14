@@ -16,10 +16,7 @@
 (rule
  (alias   runtest)
  (enabled_if (and (= %{context_name} "main")
-                   %{ocaml-config:flambda}
-                  ;; what we really want to say but dune doesn't know about flambda2:
-                  ;; (or %{ocaml-config:flambda} %{ocaml-config:flambda2})
-                  ))
+                   %{ocaml-config:flambda} ))
  (deps test_flambda.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
 
