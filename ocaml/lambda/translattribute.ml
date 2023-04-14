@@ -309,6 +309,9 @@ let get_property_attribute l p =
    | Some _, Ignore_assert_all _ -> ()
    | Some attr, Check _ ->
      if !Clflags.zero_alloc_check && !Clflags.native_code then
+       (* The warning for unchecked functions will not trigger if the check is requested
+          through the [@@@zero_alloc all] top-level annotation rather than through the
+          function annotation [@zero_alloc]. *)
        Builtin_attributes.register_property attr.attr_name);
    res
 
