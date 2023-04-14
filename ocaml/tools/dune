@@ -93,7 +93,7 @@
 
 (rule
   (target debug_printers)
-  (deps debug_printers.ml %{cma:debug_printers})
+  (deps debug_printers.ml %{cmo:debug_printers})
   (action
     (with-stdout-to %{target}
       (progn
