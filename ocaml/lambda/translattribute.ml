@@ -303,8 +303,10 @@ let get_property_attribute l p =
   let attr = find_attribute (is_property_attribute p) l in
   let res = parse_property_attribute attr p in
   (match attr, res with
-   | None, _ -> ()
+   | None, Default_check -> ()
    | _, Default_check -> ()
+   | None, (Check _ | Ignore_assert_all _ ) -> assert false
+   | Some _, Ignore_assert_all _ -> ()
    | Some attr, Check _ ->
      if !Clflags.zero_alloc_check && !Clflags.native_code then
        Builtin_attributes.register_property attr.attr_name);
