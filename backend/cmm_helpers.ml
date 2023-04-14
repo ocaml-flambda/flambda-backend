@@ -2739,30 +2739,36 @@ let machtype_non_scanned_size t =
       | Float -> cur + if Arch.size_int = 4 then 2 else 1)
     0 t
 
-let value_slot_given_machtype t v =
-  if Array.length t > 1
-  then
-    Misc.fatal_error
-      "[value_slot_given_machtype] currently does not support complex machtypes";
-  [Cvar v]
+let make_tuple l = match l with [e] -> e | _ -> Ctuple l
+
+let value_slot_given_machtype vs =
+  let non_scanned, scanned =
+    List.partition
+      (fun (_, c) ->
+        match c with Int | Float -> true | Val -> false | Addr -> assert false)
+      vs
+  in
+  List.map (fun (v, _) -> Cvar v) (non_scanned @ scanned)
 
 let read_from_closure_given_machtype t clos base_offset dbg =
-  if Array.length t <> 1
-  then
-    Misc.fatal_error
-      "[read_from_closure_given_machtype] currently does not support complex \
-       machtypes";
-  let memory_chunk =
-    match t.(0) with
-    | Addr -> Misc.fatal_error "[Addr] cannot be read"
-    | Val -> Word_val
-    | Int -> Word_int
-    | Float -> Double
+  let load chunk offset =
+    Cop (Cload (chunk, Asttypes.Mutable), [field_address clos offset dbg], dbg)
   in
-  Cop
-    ( Cload (memory_chunk, Asttypes.Mutable),
-      [field_address clos base_offset dbg],
-      dbg )
+  let _, l =
+    List.fold_left_map
+      (fun (non_scanned_pos, scanned_pos) c ->
+        match c with
+        | Int ->
+          (non_scanned_pos + 1, scanned_pos), load Word_int non_scanned_pos
+        | Float ->
+          ( ((non_scanned_pos + if Arch.size_int = 4 then 2 else 1), scanned_pos),
+            load Double non_scanned_pos )
+        | Val -> (non_scanned_pos, scanned_pos + 1), load Word_val scanned_pos
+        | Addr -> Misc.fatal_error "[Addr] cannot be read")
+      (base_offset, base_offset + machtype_non_scanned_size t)
+      (Array.to_list t)
+  in
+  make_tuple l
 
 let curry_clos_has_nary_application ~narity n =
   narity <= max_arity_optimized && n < narity - 1
@@ -2822,7 +2828,11 @@ let intermediate_curry_functions ~nlocal ~arity result =
     | [_] -> [final_curry_function nlocal arity result]
     | arg_type :: remaining_args ->
       let name2 = if num = 0 then name1 else name1 ^ "_" ^ Int.to_string num in
-      let arg = V.create_local "arg" and clos = V.create_local "clos" in
+      let clos = V.create_local "clos" in
+      let args =
+        List.init (Array.length arg_type) (fun i ->
+            V.create_local "arg", arg_type.(i))
+      in
       let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
       let mode : Lambda.alloc_mode =
         if num >= narity - nlocal then Lambda.alloc_local else Lambda.alloc_heap
@@ -2831,7 +2841,9 @@ let intermediate_curry_functions ~nlocal ~arity result =
       let function_slot_size = if has_nary then 3 else 2 in
       Cfunction
         { fun_name = name2;
-          fun_args = [VP.create arg, arg_type; VP.create clos, typ_val];
+          fun_args =
+            List.map (fun (arg, t) -> VP.create arg, [| t |]) args
+            @ [VP.create clos, typ_val];
           fun_body =
             Cop
               ( Calloc mode,
@@ -2853,7 +2865,7 @@ let intermediate_curry_functions ~nlocal ~arity result =
                         (name1 ^ "_" ^ Int.to_string (num + 1) ^ "_app", dbg ())
                     ]
                   else [])
-                @ value_slot_given_machtype arg_type arg
+                @ value_slot_given_machtype args
                 @ [Cvar clos],
                 dbg () );
           fun_codegen_options = [];
@@ -4133,5 +4145,3 @@ let kind_of_layout (layout : Lambda.layout) =
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
   | Ptop | Pbottom | Punboxed_float | Punboxed_int _ ->
     Any
-
-let make_tuple l = match l with [e] -> e | _ -> Ctuple l
