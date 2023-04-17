@@ -4,7 +4,7 @@
 (rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
- (deps s.ml t.ml t6.ml)
+ (deps s.ml t.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
 
 (rule
@@ -350,3 +350,25 @@
  (action
         (diff test_attr_unused.output
               test_attr_unused.output.corrected)))
+
+
+;;; Check that the warning is printed and compilation is successful.
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (targets t6.output.corrected)
+ (deps t6.ml)
+ (action
+   (with-outputs-to t6.output.corrected
+    (with-accepted-exit-codes 0
+     (run %{bin:ocamlopt.opt} %{deps} -color never -error-style short -c -zero-alloc-check -g -O3))
+  )))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps t6.output
+       t6.output.corrected)
+ (action
+        (diff t6.output
+              t6.output.corrected)))
