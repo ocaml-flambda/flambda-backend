@@ -1,6 +1,6 @@
 let $camlTests3__string16 = "index out of bounds" in
-let code f_1 deleted in
 let code foo_0 deleted in
+let code f_1 deleted in
 let $camlTests3__exn_bucket169 =
   Block 0 ($`*predef*`.caml_exn_Invalid_argument, $camlTests3__string16)
 in
