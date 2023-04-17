@@ -71,13 +71,13 @@ and code rec loopify(never) size(51) newer_version_of(map_foo_4)
                where k4 =
                  apply direct(bar_0_1)
                    $camlTests11__bar_5
-                     ($camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth)
+                     ($camlTests11__map_foo_8 ~ depth 0 -> succ my_depth)
                      &my_region
                      -> k2 * k1
                where k3 =
                  apply direct(bar_0_1)
                    $camlTests11__bar_5
-                     ($camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth)
+                     ($camlTests11__map_foo_8 ~ depth 0 -> succ my_depth)
                      &my_region
                      -> k2 * k1)
               where k2 (switch_result) =
