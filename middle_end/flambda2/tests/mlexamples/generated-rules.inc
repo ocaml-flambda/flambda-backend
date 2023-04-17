@@ -7,6 +7,49 @@
  (alias runtest)
  (action
   (progn
+   (run ../tools/flexpect.exe code_order.flt)
+   (diff? code_order.flt code_order.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe code_order_in.fl)
+   (diff? code_order_in.fl code_order_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe code_order_out.fl)
+   (diff? code_order_out.fl code_order_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets code_order.flt.new code_order_in.fl.new code_order_out.fl.new)
+ (deps code_order.ml)
+ (action
+   (run ocamlopt -c code_order.ml -nopervasives -nostdlib
+        -drawfexpr-to code_order_in.fl.new
+        -dfexpr-to code_order_out.fl.new
+        -dflexpect-to code_order.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff code_order_in.fl code_order_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff code_order_out.fl code_order_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff code_order.flt code_order.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
    (run ../tools/flexpect.exe local.flt)
    (diff? local.flt local.flt.corrected))))
 

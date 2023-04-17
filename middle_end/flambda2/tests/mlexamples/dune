@@ -8,6 +8,7 @@
   (progn
    (with-stdout-to generated-rules.inc.new
     (run tools/gen_dune_rules.exe
+         code_order
          local
          tests0
          tests2

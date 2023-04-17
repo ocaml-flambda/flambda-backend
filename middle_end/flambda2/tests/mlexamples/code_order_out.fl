@@ -1,0 +1,84 @@
+let code g0_0 deleted in
+let code g2_2 deleted and code g1_1 deleted in
+let code g3_3 deleted in
+let code g4_4 deleted in
+let code g5_7 deleted in
+let code g6_5 deleted in
+let code g8_8 deleted and code g7_6 deleted in
+let code g9_9 deleted in
+let code loopify(never) size(1) newer_version_of(g0_0)
+      g0_0_1 (param : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  cont k (0)
+in
+let code loopify(never) size(1) newer_version_of(g4_4)
+      g4_4_1 (param : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  cont k (0)
+in
+let code loopify(never) size(1) newer_version_of(g9_9)
+      g9_9_1 (param : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  cont k (0)
+in
+let $camlCode_order__g0_10 =
+  closure g0_0_1 @g0
+and $camlCode_order__g1_11 =
+  closure g1_1_1 @g1
+and $camlCode_order__g2_12 =
+  closure g2_2_1 @g2
+and $camlCode_order__g3_13 =
+  closure g3_3_1 @g3
+and $camlCode_order__g4_14 =
+  closure g4_4_1 @g4
+and $camlCode_order__g6_15 =
+  closure g6_5_1 @g6
+and $camlCode_order__g7_16 =
+  closure g7_6_1 @g7
+and $camlCode_order__g5_17 =
+  closure g5_7_1 @g5
+and $camlCode_order__g8_18 =
+  closure g8_8_1 @g8
+and $camlCode_order__g9_19 =
+  closure g9_9_1 @g9
+and code loopify(never) size(4) newer_version_of(g5_7)
+      g5_7_1 (param : imm tagged) my_closure my_region my_depth -> k * k1 =
+  apply direct(g1_1_1) $camlCode_order__g1_11 (0) &my_region -> k * k1
+and code rec loopify(never) size(4) newer_version_of(g2_2)
+      g2_2_1 (param : imm tagged) my_closure my_region my_depth -> k * k1 =
+  apply direct(g1_1_1) $camlCode_order__g1_11 (0) &my_region -> k * k1
+and code loopify(never) size(4) newer_version_of(g6_5)
+      g6_5_1 (param : imm tagged) my_closure my_region my_depth -> k * k1 =
+  apply direct(g5_7_1) $camlCode_order__g5_17 (0) &my_region -> k * k1
+and code rec loopify(never) size(4) newer_version_of(g8_8)
+      g8_8_1 (param : imm tagged) my_closure my_region my_depth -> k * k1 =
+  apply direct(g7_6_1) $camlCode_order__g7_16 (0) &my_region -> k * k1
+and code rec loopify(never) size(4) newer_version_of(g1_1)
+      g1_1_1 (param : imm tagged) my_closure my_region my_depth -> k * k1 =
+  apply direct(g2_2_1) $camlCode_order__g2_12 (0) &my_region -> k * k1
+and code loopify(never) size(4) newer_version_of(g3_3)
+      g3_3_1 (param : imm tagged) my_closure my_region my_depth -> k * k1 =
+  apply direct(g1_1_1) $camlCode_order__g1_11 (0) &my_region -> k * k1
+and code rec loopify(never) size(4) newer_version_of(g7_6)
+      g7_6_1 (param : imm tagged) my_closure my_region my_depth -> k * k1 =
+  apply direct(g8_8_1) $camlCode_order__g8_18 (0) &my_region -> k * k1
+in
+let $camlCode_order =
+  Block 0 ($camlCode_order__g0_10,
+           $camlCode_order__g1_11,
+           $camlCode_order__g2_12,
+           $camlCode_order__g3_13,
+           $camlCode_order__g4_14,
+           $camlCode_order__g6_15,
+           $camlCode_order__g7_16,
+           $camlCode_order__g5_17,
+           $camlCode_order__g8_18,
+           $camlCode_order__g9_19)
+in
+cont done ($camlCode_order)
