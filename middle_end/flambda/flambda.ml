@@ -82,7 +82,7 @@ type t =
   | While of t * t
   | For of for_loop
   | Region of t
-  | Tail of t
+  | Exclave of t
   | Proved_unreachable
 
 and named =
@@ -360,8 +360,8 @@ let rec lam ppf (flam : t) =
       Variable.print to_value lam body
   | Region body ->
     fprintf ppf "@[<2>(region@ %a)@]" lam body
-  | Tail body ->
-    fprintf ppf "@[<2>(tail@ %a)@]" lam body
+  | Exclave body ->
+    fprintf ppf "@[<2>(exclave@ %a)@]" lam body
 
 and print_named ppf (named : named) =
   match named with
@@ -635,7 +635,7 @@ let rec variables_usage ?ignore_uses_as_callee ?ignore_uses_as_argument
         List.iter free_variable args;
       | Region body ->
         aux body
-      | Tail body ->
+      | Exclave body ->
         aux body
       | Proved_unreachable -> ()
     in
@@ -836,7 +836,7 @@ let iter_general ~toplevel f f_named maybe_named =
         Option.iter aux def
       | Region body ->
         aux body
-      | Tail body ->
+      | Exclave body ->
         aux body
   and aux_named (named : named) =
     f_named named;

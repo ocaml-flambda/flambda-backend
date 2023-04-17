@@ -207,7 +207,7 @@ type expression =
   | Ctrywith of expression * Backend_var.With_provenance.t * expression
       * Debuginfo.t * value_kind
   | Cregion of expression
-  | Ctail of expression
+  | Cexclave of expression
 
 type codegen_option =
   | Reduce_code_size
@@ -271,7 +271,7 @@ let iter_shallow_tail f = function
   | Cexit _ | Cop (Craise _, _, _) ->
       true
   | Cregion _
-  | Ctail _
+  | Cexclave _
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
@@ -313,7 +313,7 @@ let map_shallow_tail ?kind f = function
   | Cexit _ | Cop (Craise _, _, _) as cmm ->
       cmm
   | Cregion _
-  | Ctail _
+  | Cexclave _
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
@@ -326,7 +326,7 @@ let map_shallow_tail ?kind f = function
 let map_tail ?kind f =
   let rec loop = function
     | Cregion _
-    | Ctail _
+    | Cexclave _
     | Cconst_int _
     | Cconst_natint _
     | Cconst_float _
@@ -368,7 +368,7 @@ let iter_shallow f = function
       f e1; f e2
   | Cregion e ->
       f e
-  | Ctail e ->
+  | Cexclave e ->
       f e
   | Cconst_int _
   | Cconst_natint _
@@ -405,8 +405,8 @@ let map_shallow f = function
       Ctrywith (f e1, id, f e2, dbg, value_kind)
   | Cregion e ->
       Cregion (f e)
-  | Ctail e ->
-      Ctail (f e)
+  | Cexclave e ->
+      Cexclave (f e)
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _

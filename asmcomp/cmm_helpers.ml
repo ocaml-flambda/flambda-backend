@@ -1893,7 +1893,7 @@ let has_local_allocs e =
   let rec loop = function
     | Cregion e ->
         (* Local allocations within a nested region do not affect this region,
-           except inside a Ctail block *)
+           except inside a Cexclave block *)
         loop_until_tail e
     | Cop (Calloc Alloc_local, _, _)
     | Cop ((Cextcall _ | Capply _), _, _) ->
@@ -1901,7 +1901,7 @@ let has_local_allocs e =
     | e ->
         iter_shallow loop e
   and loop_until_tail = function
-    | Ctail e -> loop e
+    | Cexclave e -> loop e
     | Cregion _ -> ()
     | e -> ignore (iter_shallow_tail loop_until_tail e)
   in
@@ -1911,13 +1911,13 @@ let has_local_allocs e =
 
 let remove_region_tail e =
   let rec has_tail = function
-    | Ctail _
+    | Cexclave _
     | Cop(Capply(_, Rc_close_at_apply), _, _) -> raise Exit
     | Cregion _ -> ()
     | e -> ignore (iter_shallow_tail has_tail e)
   in
   let rec remove_tail = function
-    | Ctail e -> e
+    | Cexclave e -> e
     | Cop(Capply(mach, Rc_close_at_apply), args, dbg) ->
        Cop(Capply(mach, Rc_normal), args, dbg)
     | Cregion _ as e -> e

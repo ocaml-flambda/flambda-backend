@@ -388,7 +388,7 @@ method is_simple_expr = function
       | Ccmpf _ -> List.for_all self#is_simple_expr args
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
-  | Ctrywith _ | Cregion _ | Ctail _ -> false
+  | Ctrywith _ | Cregion _ | Cexclave _ -> false
 
 (* Analyses the effects and coeffects of an expression.  This is used across
    a whole list of expressions with a view to determining which expressions
@@ -435,7 +435,7 @@ method effects_of exp =
     in
     EC.join from_op (EC.join_list_map args self#effects_of)
   | Cassign _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _
-  | Cregion _ | Ctail _ ->
+  | Cregion _ | Cexclave _ ->
     EC.arbitrary
 
 (* Says whether an integer constant is a suitable immediate argument for
@@ -972,9 +972,9 @@ method emit_expr_aux (env:environment) exp :
         assert (List.length unclosed <= List.length old_regions);
         Some (rd, unclosed)
      end
-  | Ctail e ->
+  | Cexclave e ->
      begin match env.regions with
-     | [] -> Misc.fatal_error "Selectgen.emit_expr: Ctail but not in tail of a region"
+     | [] -> Misc.fatal_error "Selectgen.emit_expr: Cexclave but not in tail of a region"
      | cl :: rest ->
        self#insert_endregions env [cl];
        self#emit_expr_aux { env with regions = rest } e
@@ -1316,9 +1316,9 @@ method emit_tail (env:environment) exp =
       let reg = self#regs_for typ_int in
       self#insert env (Iop Ibeginregion) [| |] reg;
       self#emit_tail {env with regions = reg::env.regions} e
-  | Ctail e ->
+  | Cexclave e ->
       begin match env.regions with
-      | [] -> Misc.fatal_error "Selectgen.emit_tail: Ctail not inside Cregion"
+      | [] -> Misc.fatal_error "Selectgen.emit_tail: Cexclave not inside Cregion"
       | reg :: regions ->
          self#insert_endregions env [reg];
          self#emit_tail { env with regions } e

@@ -190,7 +190,7 @@ let rec expr_size env = function
       | _ -> assert false)
   | Uregion exp ->
       expr_size env exp
-  | Utail exp ->
+  | Uexclave exp ->
       expr_size env exp
   | _ -> RHS_nonrec
 
@@ -744,8 +744,8 @@ let rec transl env e =
       Cop(Cload (Word_int, Mutable), [Cconst_int (0, dbg)], dbg)
   | Uregion e ->
       region (transl env e)
-  | Utail e ->
-      Ctail (transl env e)
+  | Uexclave e ->
+      Cexclave (transl env e)
 
 and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
   let ids = List.map (fun (id, kind) -> (id, kind, ref No_result)) ids in

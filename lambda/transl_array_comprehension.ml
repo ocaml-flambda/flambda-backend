@@ -459,8 +459,7 @@ let iterator ~transl_exp ~scopes ~loc
              ; for_from   = start.var
              ; for_to     = stop.var
              ; for_dir    = direction
-             ; for_body   = body
-             ; for_region = true }
+             ; for_body   = body }
       in
       mk_iterator, Range { start
                          ; stop
@@ -486,7 +485,6 @@ let iterator ~transl_exp ~scopes ~loc
              ; for_from   = l0
              ; for_to     = iter_len.var - l1
              ; for_dir    = Upto
-             ; for_region = true
              ; for_body   =
                  Matching.for_let
                    ~scopes

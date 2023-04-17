@@ -264,6 +264,7 @@ type error =
   | Function_returns_local
   | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
   | Optional_poly_param
+  | Exclave_in_nontail_position
 
 
 exception Error of Location.t * Env.t * error
