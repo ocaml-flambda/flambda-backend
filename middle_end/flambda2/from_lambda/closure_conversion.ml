@@ -2347,6 +2347,8 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
       group_to_bound_consts
   in
   let components = SCC.connected_components_sorted_from_roots_to_leaf graph in
+  (* Empirically, our SCC seems to perform a stable sort, so this assumes that
+     [components] preserves the original order as much as possible. *)
   Array.fold_left
     (fun (acc, body) (component : SCC.component) ->
       let group_ids =
