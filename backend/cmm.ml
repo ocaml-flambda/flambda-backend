@@ -260,6 +260,7 @@ type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
+  | Ignore_assert_all of property
   | Check of { property: property; strict: bool; assume: bool;
                loc : Location.t; }
 
