@@ -684,6 +684,7 @@ module Lazy = struct
   include Lazy_types
 
   let of_value x = Wrap.of_value x
+  let of_lazy = Wrap.of_lazy
   let substitute s = Wrap.substitute ~compose Keep s
 
   let of_module_decl = lazy_module_decl

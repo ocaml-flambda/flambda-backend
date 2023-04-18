@@ -88,11 +88,11 @@ val compose: t -> t -> t
 val ctype_apply_env_empty:
   (type_expr list -> type_expr -> type_expr list -> type_expr) ref
 
-
 module Lazy : sig
   include Types.Wrapped
 
   val of_value : 'a -> 'a wrapped
+  val of_lazy : 'a Lazy.t -> 'a wrapped
   val substitute : t -> 'a wrapped -> 'a wrapped
 
   val of_module_decl : Types.module_declaration -> module_declaration

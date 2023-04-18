@@ -23,7 +23,7 @@ type pers_flags =
 
 type cmi_infos = {
     cmi_name : Compilation_unit.t;
-    cmi_sign : Types.signature_item list;
+    cmi_sign : Subst.Lazy.signature;
     cmi_crcs : Import_info.t array;
     cmi_flags : pers_flags list;
 }
