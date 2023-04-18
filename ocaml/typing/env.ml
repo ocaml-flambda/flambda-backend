@@ -1509,7 +1509,7 @@ let make_copy_of_types env0 =
     try
       Hashtbl.find memo (get_id t)
     with Not_found ->
-      let t2 = Subst.type_expr Subst.identity t in
+      let t2 = Subst.Lazy.substitute Subst.identity (Subst.Lazy.of_value t) in
       Hashtbl.add memo (get_id t) t2;
       t2
   in
@@ -1517,9 +1517,7 @@ let make_copy_of_types env0 =
     | Val_unbound _ as entry -> entry
     | Val_bound vda ->
         let desc = vda.vda_description in
-        let t = Subst.Lazy.force_type_expr desc.val_type
-          |> copy
-          |> Subst.Lazy.of_type_expr
+        let t = copy (Subst.Lazy.force_type_expr desc.val_type)
         in
         let desc = { desc with val_type = t } in
         Val_bound { vda with vda_description = desc }

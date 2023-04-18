@@ -685,15 +685,16 @@ let subst_lazy_signature_item scoping s comp =
 module Lazy = struct
   include Lazy_types
 
+  let of_value x = Wrap.of_value x
+  let substitute s = Wrap.substitute ~compose Keep s
+
   let of_module_decl = lazy_module_decl
   let of_modtype = lazy_modtype
   let of_modtype_decl = lazy_modtype_decl
   let of_signature sg = Wrap.of_lazy (lazy (List.map lazy_signature_item sg))
-  let of_signature_items sg = Wrap.of_value sg
   let of_signature_item = lazy_signature_item
   let of_functor_parameter = lazy_functor_parameter
   let of_value_description = lazy_value_description
-  let of_type_expr (t : type_expr) = Wrap.of_value t
 
   let module_decl = subst_lazy_module_decl
   let modtype = subst_lazy_modtype
