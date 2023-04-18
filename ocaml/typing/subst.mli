@@ -90,7 +90,7 @@ val ctype_apply_env_empty:
 
 
 module Lazy : sig
-  include Types.S
+  include Types.Wrapped
 
   val of_module_decl : Types.module_declaration -> module_declaration
   val of_modtype : Types.module_type -> module_type

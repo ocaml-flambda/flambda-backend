@@ -342,12 +342,12 @@ type module_presence =
   | Mp_present
   | Mp_absent
 
-module type Pod = sig
+module type Wrap = sig
   type 'a t
 end
 
-module type S = sig
-  type 'a pod
+module type Wrapped = sig
+  type 'a wrapped
 
   type module_type =
     Mty_ident of Path.t
@@ -359,7 +359,7 @@ module type S = sig
   | Unit
   | Named of Ident.t option * module_type
 
-  and signature = signature_item list pod
+  and signature = signature_item list wrapped
 
   and signature_item =
     Sig_value of Ident.t * value_description * visibility
@@ -388,13 +388,13 @@ module type S = sig
   }
 end
 
-module Make(Pod : Pod) = struct
-  (* Avoid repeating everything in S *)
-  module rec M : S with type 'a pod = 'a Pod.t = M
+module Make_wrapped(Wrap : Wrap) = struct
+  (* Avoid repeating everything in Wrapped *)
+  module rec M : Wrapped with type 'a wrapped = 'a Wrap.t = M
   include M
 end
 
-module Map_pods(From : S)(To : S) = struct
+module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
   open From
   type mapper =
     {
@@ -447,7 +447,7 @@ module Map_pods(From : S)(To : S) = struct
         To.Sig_class_type (id,ctd,rs,vis)
 end
 
-include Make(struct type 'a t = 'a end)
+include Make_wrapped(struct type 'a t = 'a end)
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)

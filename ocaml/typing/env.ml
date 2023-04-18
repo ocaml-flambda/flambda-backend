@@ -2356,7 +2356,7 @@ let proj_shape map mod_shape item =
       let shape = Shape.proj mod_shape item in
       Shape.Map.add map item shape, Some shape
 
-module Add_signature(T : Types.S)(M : sig
+module Add_signature(T : Types.Wrapped)(M : sig
   val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool
     -> Ident.t -> module_presence -> T.module_declaration -> t -> t
   val add_modtype: ?shape:Shape.t -> Ident.t -> T.modtype_declaration -> t -> t

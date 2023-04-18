@@ -447,14 +447,15 @@ type scoping =
   | Make_local
   | Rescope of int
 
-module Pod : sig
+module Wrap : sig
   type subst = t
   type 'a t
 
   val of_value : 'a -> 'a t
   val of_lazy : 'a Lazy.t -> 'a t
   val force : (scoping -> subst -> 'a -> 'a) -> 'a t -> 'a
-  val substitute : compose:(subst -> subst -> subst) -> scoping -> subst -> 'a t -> 'a t
+  val substitute :
+    compose:(subst -> subst -> subst) -> scoping -> subst -> 'a t -> 'a t
 end = struct
   type subst = t
 
@@ -489,7 +490,7 @@ end = struct
     | None -> x)
 end
 
-module Lazy_types = Types.Make(Pod)
+module Lazy_types = Types.Make_wrapped(Wrap)
 open Lazy_types
 
 let rename_bound_idents scoping s sg =
@@ -544,11 +545,11 @@ let rename_bound_idents scoping s sg =
   in
   rename_bound_idents s [] sg
 
-module To_lazy = Types.Map_pods(Types)(Lazy_types)
+module To_lazy = Types.Map_wrapped(Types)(Lazy_types)
 
 let to_lazy =
   let map_signature m sg =
-    lazy (List.map (To_lazy.signature_item m) sg) |> Pod.of_lazy
+    lazy (List.map (To_lazy.signature_item m) sg) |> Wrap.of_lazy
   in
   To_lazy.{map_signature}
 
@@ -558,7 +559,7 @@ let lazy_modtype = To_lazy.module_type to_lazy
 let lazy_modtype_decl = To_lazy.modtype_declaration to_lazy
 let lazy_signature_item = To_lazy.signature_item to_lazy
 
-module From_lazy = Types.Map_pods(Lazy_types)(Types)
+module From_lazy = Types.Map_wrapped(Lazy_types)(Types)
 
 let rec subst_lazy_module_decl scoping s md =
   let md_type = subst_lazy_modtype scoping s md.md_type in
@@ -601,10 +602,10 @@ and subst_lazy_modtype_decl scoping s mtd =
     mtd_uid = mtd.mtd_uid }
 
 and subst_lazy_signature scoping s sg =
-  Pod.substitute ~compose scoping s sg
+  Wrap.substitute ~compose scoping s sg
 
 and force_signature_once sg =
-  Pod.force force_signature_once' sg
+  Wrap.force force_signature_once' sg
 
 and force_signature_once' scoping s sg =
   (* Components of signature may be mutually recursive (e.g. type declarations
@@ -680,8 +681,8 @@ module Lazy = struct
   let of_module_decl = lazy_module_decl
   let of_modtype = lazy_modtype
   let of_modtype_decl = lazy_modtype_decl
-  let of_signature sg = Pod.of_lazy (lazy (List.map lazy_signature_item sg))
-  let of_signature_items sg = Pod.of_value sg
+  let of_signature sg = Wrap.of_lazy (lazy (List.map lazy_signature_item sg))
+  let of_signature_items sg = Wrap.of_value sg
   let of_signature_item = lazy_signature_item
   let of_functor_parameter = lazy_functor_parameter
 

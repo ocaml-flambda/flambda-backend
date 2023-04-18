@@ -624,13 +624,13 @@ type module_presence =
   | Mp_present
   | Mp_absent
 
-(* A Pod.t encapsulates bits of module types which can be lazy *)
-module type Pod = sig
+(* Wrap.t encapsulates bits of module types which can be lazy *)
+module type Wrap = sig
   type 'a t
 end
 
-module type S = sig
-  type 'a pod
+module type Wrapped = sig
+  type 'a wrapped
 
   type module_type =
     Mty_ident of Path.t
@@ -642,7 +642,7 @@ module type S = sig
   | Unit
   | Named of Ident.t option * module_type
 
-  and signature = signature_item list pod
+  and signature = signature_item list wrapped
 
   and signature_item =
     Sig_value of Ident.t * value_description * visibility
@@ -671,23 +671,26 @@ module type S = sig
   }
 end
 
-module Make(Pod : Pod) : S with type 'a pod = 'a Pod.t
+module Make_wrapped(Wrap : Wrap) : Wrapped with type 'a wrapped = 'a Wrap.t
 
-module Map_pods(From : S)(To : S) : sig
+module Map_wrapped(From : Wrapped)(To : Wrapped) : sig
   type mapper =
     {
       map_signature: mapper -> From.signature -> To.signature;
     }
 
-  val module_declaration: mapper -> From.module_declaration -> To.module_declaration
-  val modtype_declaration: mapper -> From.modtype_declaration -> To.modtype_declaration
-  val module_type: mapper -> From.module_type -> To.module_type
-  val signature: mapper -> From.signature -> To.signature
-  val signature_item: mapper -> From.signature_item -> To.signature_item
-  val functor_parameter: mapper -> From.functor_parameter -> To.functor_parameter
+  val module_declaration :
+    mapper -> From.module_declaration -> To.module_declaration
+  val modtype_declaration :
+    mapper -> From.modtype_declaration -> To.modtype_declaration
+  val module_type : mapper -> From.module_type -> To.module_type
+  val signature : mapper -> From.signature -> To.signature
+  val signature_item : mapper -> From.signature_item -> To.signature_item
+  val functor_parameter :
+    mapper -> From.functor_parameter -> To.functor_parameter
 end
 
-include S with type 'a pod = 'a
+include Wrapped with type 'a wrapped = 'a
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)
