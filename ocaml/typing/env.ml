@@ -1517,8 +1517,7 @@ let make_copy_of_types env0 =
     | Val_unbound _ as entry -> entry
     | Val_bound vda ->
         let desc = vda.vda_description in
-        let t = copy (Subst.Lazy.force_type_expr desc.val_type)
-        in
+        let t = copy (Subst.Lazy.force_type_expr desc.val_type) in
         let desc = { desc with val_type = t } in
         Val_bound { vda with vda_description = desc }
   in

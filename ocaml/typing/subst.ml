@@ -553,6 +553,9 @@ let lazy_signature_item = To_lazy.signature_item to_lazy
 
 module From_lazy = Types.Map_wrapped(Lazy_types)(Types)
 
+let force_type_expr ty = Wrap.force (fun _ s ty ->
+  For_copy.with_scope (fun copy_scope -> typexp copy_scope s ty)) ty
+
 let rec subst_lazy_value_description s descr =
   { val_type = Wrap.substitute ~compose Keep s descr.val_type;
     val_kind = descr.val_kind;
@@ -560,11 +563,6 @@ let rec subst_lazy_value_description s descr =
     val_attributes = attrs s descr.val_attributes;
     val_uid = descr.val_uid;
   }
-
-and force_type_expr ty = Wrap.force (fun _scoping s ty ->
-  For_copy.with_scope (fun copy_scope ->
-    typexp copy_scope s ty
-  )) ty
 
 and subst_lazy_module_decl scoping s md =
   let md_type = subst_lazy_modtype scoping s md.md_type in
