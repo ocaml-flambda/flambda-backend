@@ -687,7 +687,7 @@ module Map_pods(From : S)(To : S) : sig
   val functor_parameter: mapper -> From.functor_parameter -> To.functor_parameter
 end
 
-include module type of Make(struct type 'a t = 'a end)
+include S with type 'a pod = 'a
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)
