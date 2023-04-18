@@ -2356,13 +2356,12 @@ let proj_shape map mod_shape item =
       let shape = Shape.proj mod_shape item in
       Shape.Map.add map item shape, Some shape
 
-module Add_signature(M : sig
-  include Types.S
+module Add_signature(T : Types.S)(M : sig
   val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool
-    -> Ident.t -> module_presence -> module_declaration -> t -> t
-  val add_modtype: ?shape:Shape.t -> Ident.t -> modtype_declaration -> t -> t
+    -> Ident.t -> module_presence -> T.module_declaration -> t -> t
+  val add_modtype: ?shape:Shape.t -> Ident.t -> T.modtype_declaration -> t -> t
 end) = struct
-  open M
+  open T
 
   let add_item map mod_shape comp env =
     match comp with
@@ -2377,10 +2376,10 @@ end) = struct
         map, add_extension ~check:false ?shape ~rebind:false id ext env
     | Sig_module(id, presence, md, _, _) ->
         let map, shape = proj_shape map mod_shape (Shape.Item.module_ id) in
-        map, add_module_declaration ~check:false ?shape id presence md env
+        map, M.add_module_declaration ~check:false ?shape id presence md env
     | Sig_modtype(id, decl, _)  ->
         let map, shape = proj_shape map mod_shape (Shape.Item.module_type id) in
-        map, add_modtype ?shape id decl env
+        map, M.add_modtype ?shape id decl env
     | Sig_class(id, decl, _, _) ->
         let map, shape = proj_shape map mod_shape (Shape.Item.class_ id) in
         map, add_class ?shape id decl env
@@ -2397,8 +2396,7 @@ end) = struct
 end
 
 let add_signature = 
-  let module M = Add_signature(struct
-    include Types
+  let module M = Add_signature(Types)(struct
     let add_module_declaration = add_module_declaration
     let add_modtype = add_modtype
   end)
@@ -2406,8 +2404,7 @@ let add_signature =
   M.add_signature
 
 let add_signature_lazy =
-  let module M = Add_signature(struct
-    include Subst.Lazy
+  let module M = Add_signature(Subst.Lazy)(struct
     let add_module_declaration =
       add_module_declaration_lazy ~update_summary:true
     let add_modtype = add_modtype_lazy ~update_summary:true
