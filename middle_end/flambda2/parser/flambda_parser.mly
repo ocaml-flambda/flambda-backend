@@ -104,6 +104,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token<string> STRING
 %token<Fexpr.compilation_unit option * string> SYMBOL
 %token TILDE [@symbol "~"]
+%token TILDEMINUS [@symbol "~-"]
 %token EOF
 
 %token KWD_ALWAYS [@symbol "always"]
@@ -115,6 +116,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_ASR   [@symbol "asr"]
 %token KWD_AVAILABLE [@symbol "available"]
 %token KWD_BOXED [@symbol "boxed"]
+%token KWD_BSWAP [@symbol "bswap"]
 %token KWD_CCALL  [@symbol "ccall"]
 %token KWD_CLOSURE  [@symbol "closure"]
 %token KWD_CODE  [@symbol "code"]
@@ -189,15 +191,18 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_BEGIN_REGION [@symbol "%begin_region"]
 %token PRIM_BEGIN_TRY_REGION [@symbol "%begin_try_region"]
 %token PRIM_BIGSTRING_LOAD [@symbol "%bigstring_load"]
+%token PRIM_BIGSTRING_SET [@symbol "%bigstring_set"]
 %token PRIM_BLOCK [@symbol "%Block"]
 %token PRIM_BLOCK_LOAD [@symbol "%block_load"]
 %token PRIM_BLOCK_SET [@symbol "%block_set"]
+%token PRIM_BOOLEAN_NOT [@symbol "%not"]
 %token PRIM_BOX_FLOAT [@symbol "%Box_float"]
 %token PRIM_BOX_INT32 [@symbol "%Box_int32"]
 %token PRIM_BOX_INT64 [@symbol "%Box_int64"]
 %token PRIM_BOX_NATIVEINT [@symbol "%Box_nativeint"]
 %token PRIM_BYTES_LENGTH [@symbol "%bytes_length"]
 %token PRIM_BYTES_LOAD [@symbol "%bytes_load"]
+%token PRIM_BYTES_SET [@symbol "%bytes_set"]
 %token PRIM_END_REGION [@symbol "%end_region"]
 %token PRIM_GET_TAG [@symbol "%get_tag"]
 %token PRIM_INT_ARITH [@symbol "%int_arith"]
@@ -223,6 +228,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token STATIC_CONST_BLOCK [@symbol "Block"]
 %token STATIC_CONST_FLOAT_ARRAY [@symbol "Float_array"]
 %token STATIC_CONST_FLOAT_BLOCK [@symbol "Float_block"]
+%token STATIC_CONST_EMPTY_ARRAY [@symbol "Empty_array"]
 
 %start flambda_unit expect_test_spec
 %type <Fexpr.alloc_mode_for_allocations> alloc_mode_for_allocations_opt
@@ -261,6 +267,8 @@ let make_boxed_const_int (i, m) : static_data =
 %type <Fexpr.kind_with_subkind list> kinds_with_subkinds_nonempty
 %type <Fexpr.variable -> Fexpr.static_data> static_data_kind
 %type <Fexpr.symbol_binding> symbol_binding
+%type <Fexpr.unary_int_arith_op> unary_int_arith_op
+%type <Fexpr.unop> unop
 %%
 
 (* CR-someday lmaurer: Modularize and generally clean up *)
@@ -368,9 +376,14 @@ nullop:
   | PRIM_BEGIN_REGION { Begin_region }
 ;
 
+unary_int_arith_op:
+  | KWD_BSWAP { Swap_byte_endianness }
+  | TILDEMINUS { Neg }
+
 unop:
   | PRIM_ARRAY_LENGTH { Array_length }
   | PRIM_BEGIN_TRY_REGION { Begin_try_region }
+  | PRIM_BOOLEAN_NOT { Boolean_not }
   | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
     { Box_number (Naked_float, alloc) }
   | PRIM_BOX_INT32; alloc = alloc_mode_for_allocations_opt
@@ -384,6 +397,8 @@ unop:
   | PRIM_GET_TAG { Get_tag }
   | PRIM_IS_FLAT_FLOAT_ARRAY { Is_flat_float_array }
   | PRIM_IS_INT { Is_int }
+  | PRIM_INT_ARITH; i = standard_int; o = unary_int_arith_op
+    { Int_arith (i, o) }
   | PRIM_NUM_CONV; LPAREN;
       src = convertible_type; MINUSGREATER; dst = convertible_type;
     RPAREN
@@ -517,6 +532,7 @@ int_comp:
   | GREATER { fun s -> Yielding_bool (Gt s) }
   | LESSEQUAL { fun s -> Yielding_bool (Le s) }
   | GREATEREQUAL { fun s -> Yielding_bool (Ge s) }
+  | EQUAL { fun _ -> Yielding_bool Eq }
   | NOTEQUAL { fun _ -> Yielding_bool Neq }
   | QMARK { fun s -> Yielding_int_like_compare_functions s }
 
@@ -556,6 +572,10 @@ binop_app:
     { Binary (Int_shift (i, s), arg1, arg2) }
 ;
 
+bytes_or_bigstring_set:
+  | PRIM_BYTES_SET { Bytes }
+  | PRIM_BIGSTRING_SET { Bigstring }
+
 ternop_app:
   | PRIM_ARRAY_SET; ak = array_kind;
     arr = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
@@ -565,6 +585,9 @@ ternop_app:
     block = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple
     { Ternary (Block_set (kind, ia), block, ix, v) }
+  | blv = bytes_or_bigstring_set; saw = string_accessor_width;
+    block = simple; DOT LPAREN; ix = simple; RPAREN; v = simple
+    { Ternary (Bytes_or_bigstring_set (blv, saw), block, ix, v) }
 ;
 
 block:
@@ -896,6 +919,7 @@ static_data:
     fs = separated_list(SEMICOLON, float_or_variable);
     RBRACKPIPE
     { Immutable_float_array fs }
+  | STATIC_CONST_EMPTY_ARRAY { Empty_array }
   | KWD_MUTABLE; s = STRING { Mutable_string { initial_value = s } }
   | s = STRING { Immutable_string s }
 ;
