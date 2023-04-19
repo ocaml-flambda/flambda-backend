@@ -416,7 +416,7 @@ let () =
   reg_show_prim "show_val"
     (fun env loc id lid ->
        let _path, desc, _ = Env.lookup_value ~loc lid env in
-       [ Sig_value (id, desc, Exported) ]
+       [ Sig_value (id, Subst.Lazy.force_value_description desc, Exported) ]
     )
     "Print the signature of the corresponding value."
 

@@ -574,7 +574,7 @@ val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 
 val subst:
-  (Ident.t -> Types.value_description -> Env.t -> Env.t) ->
+  (Ident.t -> Subst.Lazy.value_description -> Env.t -> Env.t) ->
   ?freshen_bound_variables:bool ->
   lambda Ident.Map.t -> lambda -> lambda
 (** [subst update_env ?freshen_bound_variables s lt]

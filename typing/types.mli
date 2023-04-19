@@ -384,15 +384,7 @@ module Vars  : Map.S with type key = string
 
 (* Value descriptions *)
 
-type value_description =
-  { val_type: type_expr;                (* Type of the value *)
-    val_kind: value_kind;
-    val_loc: Location.t;
-    val_attributes: Parsetree.attributes;
-    val_uid: Uid.t;
-  }
-
-and value_kind =
+type value_kind =
     Val_reg                             (* Regular value *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
@@ -632,6 +624,14 @@ end
 module type Wrapped = sig
   type 'a wrapped
 
+  type value_description =
+    { val_type: type_expr wrapped;                (* Type of the value *)
+      val_kind: value_kind;
+      val_loc: Location.t;
+      val_attributes: Parsetree.attributes;
+      val_uid: Uid.t;
+    }
+
   type module_type =
     Mty_ident of Path.t
   | Mty_signature of signature
@@ -677,8 +677,11 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) : sig
   type mapper =
     {
       map_signature: mapper -> From.signature -> To.signature;
+      map_type_expr: mapper -> type_expr From.wrapped -> type_expr To.wrapped
     }
 
+  val value_description :
+    mapper -> From.value_description -> To.value_description
   val module_declaration :
     mapper -> From.module_declaration -> To.module_declaration
   val modtype_declaration :

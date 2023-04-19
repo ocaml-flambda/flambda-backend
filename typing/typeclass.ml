@@ -1171,7 +1171,9 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
           begin fun (id, id', _ty) ->
             let path = Pident id' in
             (* do not mark the value as being used *)
-            let vd = Env.find_value path val_env' in
+            let vd = Env.find_value path val_env'
+              |> Subst.Lazy.force_value_description
+            in
             (id,
              {exp_desc =
               Texp_ident(path, mknoloc (Longident.Lident (Ident.name id)), vd,
@@ -1334,7 +1336,9 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                modes;
              let path = Pident id in
              (* do not mark the value as used *)
-             let vd = Env.find_value path val_env in
+             let vd = Env.find_value path val_env
+               |> Subst.Lazy.force_value_description
+             in
              Ctype.begin_def ();
              let expr =
                {exp_desc =
@@ -1352,7 +1356,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                {val_type = expr.exp_type; val_kind = Val_ivar (Immutable,
                                                                cl_num);
                 val_attributes = [];
-                Types.val_loc = vd.Types.val_loc;
+                Types.val_loc = vd.val_loc;
                 val_uid = vd.val_uid;
                }
              in

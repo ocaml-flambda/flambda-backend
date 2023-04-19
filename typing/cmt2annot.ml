@@ -83,7 +83,7 @@ let rec iterator ~scope rebuild_env =
         let annot =
           try
             let desc = Env.find_value path env in
-            let dloc = desc.Types.val_loc in
+            let dloc = desc.Subst.Lazy.val_loc in
             if dloc.Location.loc_ghost then Annot.Iref_external
             else Annot.Iref_internal dloc
           with Not_found ->
