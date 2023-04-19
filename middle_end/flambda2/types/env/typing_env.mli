@@ -55,26 +55,6 @@ module Serializable : sig
     t -> Symbol.t -> (Code_id.t -> 'code) -> 'code Value_approximation.t
 end
 
-module Meet_env : sig
-  type t
-
-  val print : Format.formatter -> t -> unit
-
-  val create : typing_env -> t
-
-  val env : t -> typing_env
-
-  (** Note that we are now in the process of meeting the given two [Simple]s. *)
-  val now_meeting : t -> Simple.t -> Simple.t -> t
-
-  (** Determine whether we are now in the process of meeting the given two
-      [Simple]s. The arguments do not have to be provided in the same order as
-      when [now_meeting] was called. *)
-  val already_meeting : t -> Simple.t -> Simple.t -> bool
-
-  val assume_already_meeting : t -> Name.Pair.Set.t -> t
-end
-
 module Join_env : sig
   type t
 
@@ -98,10 +78,10 @@ module Join_env : sig
 end
 
 type meet_type =
-  Meet_env.t ->
+  t ->
   Type_grammar.t ->
   Type_grammar.t ->
-  (Type_grammar.t * Typing_env_extension.t) Or_bottom.t
+  (Type_grammar.t * t) Or_bottom.t
 
 val print : Format.formatter -> t -> unit
 
@@ -126,6 +106,8 @@ val add_definition : t -> Bound_name.t -> Flambda_kind.t -> t
 (** The caller is to ensure that the supplied type is the most precise available
     for the given name. *)
 val add_equation : t -> Name.t -> Type_grammar.t -> meet_type:meet_type -> t
+
+val add_equation_strict : t -> Name.t -> Type_grammar.t -> meet_type:meet_type -> t Or_bottom.t
 
 val add_definitions_of_params : t -> params:Bound_parameters.t -> t
 
@@ -165,6 +147,8 @@ val mem_simple : ?min_name_mode:Name_mode.t -> t -> Simple.t -> bool
    then adding equations in the wrong order can make equations disappear. *)
 val add_env_extension : t -> Typing_env_extension.t -> meet_type:meet_type -> t
 
+val add_env_extension_strict : t -> Typing_env_extension.t -> meet_type:meet_type -> t Or_bottom.t
+
 val add_env_extension_with_extra_variables :
   t -> Typing_env_extension.With_extra_variables.t -> meet_type:meet_type -> t
 
@@ -203,5 +187,7 @@ val code_age_relation : t -> Code_age_relation.t
 val with_code_age_relation : t -> Code_age_relation.t -> t
 
 val cut : t -> cut_after:Scope.t -> Typing_env_level.t
+
+val cut_as_extension : t -> cut_after:Scope.t -> Typing_env_extension.t
 
 val free_names_transitive : t -> Type_grammar.t -> Name_occurrences.t

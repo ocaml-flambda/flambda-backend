@@ -16,7 +16,7 @@
 
 (** Greatest lower bound of two types. *)
 val meet :
-  Typing_env.Meet_env.t ->
+  Typing_env.t ->
   Type_grammar.t ->
   Type_grammar.t ->
   (Type_grammar.t * Typing_env_extension.t) Or_bottom.t
@@ -38,7 +38,15 @@ val meet_shape :
   Typing_env_extension.t Or_bottom.t
 
 val meet_env_extension :
-  Typing_env.Meet_env.t ->
+  Typing_env.t ->
   Typing_env_extension.t ->
   Typing_env_extension.t ->
   Typing_env_extension.t Or_bottom.t
+
+(* This function has a slightly different interface; it is meant to be used only
+   by functions in Typing_env *)
+val meet_type :
+  Typing_env.t ->
+  Type_grammar.t ->
+  Type_grammar.t ->
+  (Type_grammar.t * Typing_env.t) Or_bottom.t

@@ -182,8 +182,6 @@ module Meet_or_join_env_base : sig
   val now_meeting_or_joining : t -> Simple.t -> Simple.t -> t
 
   val already_meeting_or_joining : t -> Simple.t -> Simple.t -> bool
-
-  val assume_already_meeting_or_joining : t -> Name.Pair.Set.t -> t
 end = struct
   type t =
     { env : typing_env;
@@ -228,43 +226,13 @@ end = struct
     Simple.pattern_match simple1 ~const ~name:(fun name1 ~coercion:_ ->
         Simple.pattern_match simple2 ~const ~name:(fun name2 ~coercion:_ ->
             now_meeting_or_joining_names t name1 name2))
-
-  let assume_already_meeting_or_joining t name_pair_set =
-    (* Note: we don't check that the new elements don't already appear, as we
-       expect this function to be used in some contexts where we might have
-       duplicates. *)
-    let already_meeting_or_joining =
-      Name.Pair.Set.union name_pair_set t.already_meeting_or_joining
-    in
-    { t with already_meeting_or_joining }
-end
-
-module Meet_env : sig
-  type t
-
-  val print : Format.formatter -> t -> unit
-
-  val create : typing_env -> t
-
-  val env : t -> typing_env
-
-  val now_meeting : t -> Simple.t -> Simple.t -> t
-
-  val already_meeting : t -> Simple.t -> Simple.t -> bool
-
-  val assume_already_meeting : t -> Name.Pair.Set.t -> t
-end = struct
-  include Meet_or_join_env_base
-
-  let now_meeting = now_meeting_or_joining
-
-  let already_meeting = already_meeting_or_joining
-
-  let assume_already_meeting = assume_already_meeting_or_joining
 end
 
 type meet_type =
-  Meet_env.t -> TG.t -> TG.t -> (TG.t * Typing_env_extension.t) Or_bottom.t
+  t ->
+  TG.t ->
+  TG.t ->
+  (TG.t * t) Or_bottom.t
 
 module Join_env : sig
   type t
@@ -723,6 +691,8 @@ let invariant_for_new_equation (t : t) name ty =
       Misc.fatal_errorf "New equation@ %a@ =@ %a@ has unbound names@ (%a):@ %a"
         Name.print name TG.print ty Name_occurrences.print unbound_names print t)
 
+exception Bottom_equation
+
 let rec add_equation0 (t : t) name ty =
   (if Flambda_features.Debug.concrete_types_only_on_canonicals ()
   then
@@ -775,7 +745,7 @@ let rec add_equation0 (t : t) name ty =
   in
   with_current_level t ~current_level
 
-and add_equation1 t name ty ~(meet_type : meet_type) =
+and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
   (if Flambda_features.check_invariants ()
   then
     let existing_ty = find t name None in
@@ -875,15 +845,13 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
       let[@inline always] name eqn_name ~coercion =
         assert (Coercion.is_id coercion);
         (* true by definition *)
-        if Name.equal name eqn_name
-        then ty, t
-        else
-          let env = Meet_env.create t in
-          let existing_ty = find t eqn_name (Some (TG.kind ty)) in
-          match meet_type env ty existing_ty with
-          | Bottom -> MTC.bottom (TG.kind ty), t
-          | Ok (meet_ty, env_extension) ->
-            meet_ty, add_env_extension t env_extension ~meet_type
+        let existing_ty = find t eqn_name (Some (TG.kind ty)) in
+        match meet_type t ty existing_ty with
+        | Bottom ->
+          if raise_on_bottom then raise Bottom_equation
+          else MTC.bottom (TG.kind ty), t
+        | Ok (meet_ty, env) ->
+          meet_ty, env
       in
       Simple.pattern_match bare_lhs ~name ~const:(fun _ -> ty, t)
     in
@@ -894,9 +862,9 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
     in
     Simple.pattern_match bare_lhs ~name ~const:(fun _ -> t)
 
-and[@inline always] add_equation t name ty ~meet_type =
+and[@inline always] add_equation ~raise_on_bottom t name ty ~meet_type =
   let ty = TG.recover_some_aliases ty in
-  match add_equation1 t name ty ~meet_type with
+  match add_equation1 ~raise_on_bottom t name ty ~meet_type with
   | exception Binding_time_resolver_failure ->
     (* Addition of aliases between names that are both in external compilation
        units failed, e.g. due to a missing .cmx file. Simply drop the
@@ -904,9 +872,9 @@ and[@inline always] add_equation t name ty ~meet_type =
     t
   | t -> t
 
-and add_env_extension t (env_extension : Typing_env_extension.t) ~meet_type =
+and add_env_extension ~raise_on_bottom t (env_extension : Typing_env_extension.t) ~meet_type =
   Typing_env_extension.fold
-    ~equation:(fun name ty t -> add_equation t name ty ~meet_type)
+    ~equation:(fun name ty t -> add_equation ~raise_on_bottom t name ty ~meet_type)
     env_extension t
 
 and add_env_extension_with_extra_variables t
@@ -914,7 +882,7 @@ and add_env_extension_with_extra_variables t
   Typing_env_extension.With_extra_variables.fold
     ~variable:(fun var kind t ->
       add_variable_definition t var kind Name_mode.in_types)
-    ~equation:(fun name ty t -> add_equation t name ty ~meet_type)
+    ~equation:(fun name ty t -> add_equation ~raise_on_bottom:false t name ty ~meet_type)
     env_extension t
 
 let add_env_extension_from_level t level ~meet_type : t =
@@ -925,13 +893,25 @@ let add_env_extension_from_level t level ~meet_type : t =
   in
   let t =
     Name.Map.fold
-      (fun name ty t -> add_equation t name ty ~meet_type)
+      (fun name ty t -> add_equation ~raise_on_bottom:false t name ty ~meet_type)
       (TEL.equations level) t
   in
   Variable.Map.fold
     (fun var proj t -> add_symbol_projection t var proj)
     (TEL.symbol_projections level)
     t
+
+let add_equation_strict t name ty ~meet_type : _ Or_bottom.t =
+  try Ok (add_equation ~raise_on_bottom:true t name ty ~meet_type)
+  with Bottom_equation -> Bottom
+
+let add_env_extension_strict t env_extension ~meet_type : _ Or_bottom.t =
+  try Ok (add_env_extension ~raise_on_bottom:true t env_extension ~meet_type)
+  with Bottom_equation -> Bottom
+
+let add_equation = add_equation ~raise_on_bottom:false
+
+let add_env_extension = add_env_extension ~raise_on_bottom:false
 
 let add_definitions_of_params t ~params =
   List.fold_left
@@ -996,6 +976,10 @@ let cut t ~cut_after =
     (* Owing to the check above it is certain that we want [t.current_level]
        included in the result. *)
     loop (One_level.level t.current_level) t.prev_levels
+
+let cut_as_extension t ~cut_after =
+  Typing_env_level.as_extension_without_bindings
+    (cut t ~cut_after)
 
 let type_simple_in_term_exn t ?min_name_mode simple =
   (* If [simple] is a variable then it should not come from a missing .cmx file,
