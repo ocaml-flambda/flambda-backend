@@ -92,19 +92,23 @@ val ctype_apply_env_empty:
 module Lazy : sig
   include Types.Wrapped
 
+  val of_value : 'a -> 'a wrapped
+  val substitute : t -> 'a wrapped -> 'a wrapped
+
   val of_module_decl : Types.module_declaration -> module_declaration
   val of_modtype : Types.module_type -> module_type
   val of_modtype_decl : Types.modtype_declaration -> modtype_declaration
   val of_signature : Types.signature -> signature
-  val of_signature_items : signature_item list -> signature
   val of_signature_item : Types.signature_item -> signature_item
   val of_functor_parameter : Types.functor_parameter -> functor_parameter
+  val of_value_description : Types.value_description -> value_description
 
   val module_decl : scoping -> t -> module_declaration -> module_declaration
   val modtype : scoping -> t -> module_type -> module_type
   val modtype_decl : scoping -> t -> modtype_declaration -> modtype_declaration
   val signature : scoping -> t -> signature -> signature
   val signature_item : scoping -> t -> signature_item -> signature_item
+  val value_description : t -> value_description -> value_description
 
   val force_module_decl : module_declaration -> Types.module_declaration
   val force_modtype : module_type -> Types.module_type
@@ -113,4 +117,6 @@ module Lazy : sig
   val force_signature_once : signature -> signature_item list
   val force_signature_item : signature_item -> Types.signature_item
   val force_functor_parameter : functor_parameter -> Types.functor_parameter
+  val force_value_description : value_description -> Types.value_description
+  val force_type_expr : type_expr wrapped -> type_expr
 end

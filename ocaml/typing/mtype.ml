@@ -117,7 +117,7 @@ and strengthen_lazy_sig' ~aliasable env sg p =
 and strengthen_lazy_sig ~aliasable env sg p =
   let sg = Subst.Lazy.force_signature_once sg in
   let sg = strengthen_lazy_sig' ~aliasable env sg p in
-  Subst.Lazy.of_signature_items sg
+  Subst.Lazy.of_value sg
 
 and strengthen_lazy_decl ~aliasable env md p =
   let open Subst.Lazy in
