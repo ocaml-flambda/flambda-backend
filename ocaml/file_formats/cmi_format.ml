@@ -56,12 +56,18 @@ type crcs = Import_info.t array  (* smaller on disk than using a list *)
 type flags = pers_flags list
 type header = Compilation_unit.t * Serialized.signature
 
-type cmi_infos = {
+type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.t;
-    cmi_sign : Subst.Lazy.signature;
+    cmi_sign : 'sg;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }
+
+type cmi_infos_lazy = Subst.Lazy.signature cmi_infos_generic
+type cmi_infos = Types.signature cmi_infos_generic
+
+let force_cmi_infos cmi =
+  { cmi with cmi_sign = Subst.Lazy.force_signature cmi.cmi_sign }
 
 module Deserialize = Types.Map_wrapped(Serialized)(Subst.Lazy)
 
@@ -94,7 +100,7 @@ let serialize oc base =
   let map_type_expr _ ty = Subst.Lazy.force_type_expr ty |> marshal in
   Serialize.signature {map_signature; map_type_expr}
 
-let input_cmi ic =
+let input_cmi_lazy ic =
   let read_bytes n =
     let buf = Bytes.create n in
     match In_channel.really_input ic buf 0 n with
@@ -113,7 +119,7 @@ let input_cmi ic =
       cmi_flags = flags;
     }
 
-let read_cmi filename =
+let read_cmi_lazy filename =
   let ic = open_in_bin filename in
   try
     let buffer =
@@ -132,7 +138,7 @@ let read_cmi filename =
         raise(Error(Not_an_interface filename))
       end
     end;
-    let cmi = input_cmi ic in
+    let cmi = input_cmi_lazy ic in
     close_in ic;
     cmi
   with End_of_file | Failure _ ->
@@ -171,6 +177,10 @@ let output_cmi filename oc cmi =
   output_value oc (crcs : crcs);
   output_value oc (cmi.cmi_flags : flags);
   crc
+
+
+let input_cmi ic = input_cmi_lazy ic |> force_cmi_infos
+let read_cmi filename = read_cmi_lazy filename |> force_cmi_infos
 
 (* Error report *)
 
