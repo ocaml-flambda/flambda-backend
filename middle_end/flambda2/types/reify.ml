@@ -207,10 +207,11 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
     match
       Expand_head.expand_head env t |> Expand_head.Expanded_type.descr_oub
     with
-    | Value (Ok (Variant { is_unique; blocks; immediates })) -> (
-      match blocks, immediates with
-      | Known blocks, Known imms ->
-        if Expand_head.is_bottom env imms
+    | Value (Ok (Variant { is_unique; blocks; immediates; extensions = _ }))
+      -> (
+      match blocks with
+      | Known blocks ->
+        if Expand_head.is_bottom env immediates
         then
           match TG.Row_like_for_blocks.get_singleton blocks with
           | None ->
@@ -255,7 +256,7 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
               | None -> try_canonical_simple ()))
         else if TG.Row_like_for_blocks.is_bottom blocks
         then
-          match Provers.meet_naked_immediates env imms with
+          match Provers.meet_naked_immediates env immediates with
           | Known_result imms -> (
             match Targetint_31_63.Set.get_singleton imms with
             | None -> try_canonical_simple ()
@@ -264,8 +265,7 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
           | Need_meet -> try_canonical_simple ()
           | Invalid -> Invalid
         else try_canonical_simple ()
-      | Known _, Unknown | Unknown, Known _ | Unknown, Unknown ->
-        try_canonical_simple ())
+      | Unknown -> try_canonical_simple ())
     | Value (Ok (Mutable_block _)) -> try_canonical_simple ()
     | Value (Ok (Closures { by_function_slot = _; alloc_mode = _ })) ->
       try_canonical_simple ()

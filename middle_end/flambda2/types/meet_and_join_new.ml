@@ -180,79 +180,6 @@ end
 module Function_slot_map_meet = Map_meet (Function_slot.Map)
 module Value_slot_map_meet = Map_meet (Value_slot.Map)
 
-type 'a pairwise_disjunction_meet_arg =
-  { is_bottom : 'a -> bool;
-    mk_bottom : unit -> 'a;
-    meet : TE.t -> 'a -> 'a -> 'a meet_result
-  }
-
-(* Note: We want to avoid allocating the arguments to this function. Since we
-   currently can't lift them (some limitations around coercions), we force
-   inlining of this function, which should allow the compiler to track the
-   individual fields and remove the allocation. Fortunately there is only one
-   call site at the moment, so this shouldn't produce any code duplication. *)
-let[@inline] pairwise_disjunction_meet ~join_env_extension ~meet_type meetx
-    meety initial_env x1 x2 y1 y2 =
-  let join_scope = TE.current_scope initial_env in
-  let env = TE.increment_scope initial_env in
-  let to_extension scoped_env =
-    TE.cut scoped_env ~cut_after:join_scope
-    |> Typing_env_level.as_extension_without_bindings
-  in
-  let direct_return r =
-    map_env r ~f:(fun scoped_env ->
-        TE.add_env_extension_strict initial_env (to_extension scoped_env)
-          ~meet_type:(New meet_type))
-  in
-  match meetx.meet env x1 x2, meety.meet env y1 y2 with
-  | Bottom, Bottom -> Bottom
-  | Ok (xr, env), Bottom ->
-    let x = extract_value xr x1 x2 in
-    if meetx.is_bottom x
-    then Bottom
-    else
-      let y = meety.mk_bottom () in
-      direct_return (Ok (New_result (x, y), env))
-  | Bottom, Ok (yr, env) ->
-    let y = extract_value yr y1 y2 in
-    if meety.is_bottom y
-    then Bottom
-    else
-      let x = meetx.mk_bottom () in
-      direct_return (Ok (New_result (x, y), env))
-  | Ok (xr, xenv), Ok (yr, yenv) ->
-    let x = extract_value xr x1 x2 in
-    let y = extract_value yr y1 y2 in
-    let bottom_x = meetx.is_bottom x in
-    let bottom_y = meety.is_bottom y in
-    let result_env _ : _ Or_bottom.t =
-      let[@local] add_extension ext =
-        TE.add_env_extension_strict initial_env ext ~meet_type:(New meet_type)
-      in
-      if bottom_x
-      then if bottom_y then Bottom else add_extension (to_extension yenv)
-      else if bottom_y
-      then add_extension (to_extension xenv)
-      else
-        let x_extension = to_extension xenv in
-        let y_extension = to_extension yenv in
-        let join_env = Join_env.create env ~left_env:xenv ~right_env:yenv in
-        let extension = join_env_extension join_env x_extension y_extension in
-        add_extension extension
-    in
-    let result =
-      match xr, yr with
-      | Both_inputs, Both_inputs -> Both_inputs
-      | (Left_input | Both_inputs), (Left_input | Both_inputs) -> Left_input
-      | (Right_input | Both_inputs), (Right_input | Both_inputs) -> Right_input
-      | Left_input, Right_input
-      | Right_input, Left_input
-      | New_result _, _
-      | _, New_result _ ->
-        New_result (x, y)
-    in
-    map_env ~f:result_env (Ok (result, initial_env (* ignored *)))
-
 module Combine_results_meet_ops = struct
   type _ t =
     | [] : unit t
@@ -566,16 +493,27 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
 and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (head2 : TG.head_of_kind_value) : TG.head_of_kind_value meet_result =
   match head1, head2 with
-  | ( Variant { blocks = blocks1; immediates = imms1; is_unique = is_unique1 },
-      Variant { blocks = blocks2; immediates = imms2; is_unique = is_unique2 } )
-    ->
+  | ( Variant
+        { blocks = blocks1;
+          immediates = imms1;
+          extensions = extensions1;
+          is_unique = is_unique1
+        },
+      Variant
+        { blocks = blocks2;
+          immediates = imms2;
+          extensions = extensions2;
+          is_unique = is_unique2
+        } ) ->
     (* Uniqueness tracks whether duplication/lifting is allowed. It must always
        be propagated, both for meet and join. *)
     let is_unique = is_unique1 || is_unique2 in
     map_result
-      ~f:(fun (blocks, immediates) ->
-        TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates)
-      (meet_variant env ~blocks1 ~imms1 ~blocks2 ~imms2)
+      ~f:(fun (blocks, immediates, extensions) ->
+        TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates
+          ~extensions)
+      (meet_variant env ~blocks1 ~imms1 ~blocks2 ~imms2 ~extensions1
+         ~extensions2)
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     map_result
@@ -744,35 +682,97 @@ and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
       | Immutable { fields } -> Array.exists TG.is_obviously_bottom fields)
     env array_contents1 array_contents2
 
-and meet_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms1 : TG.t Or_unknown.t)
-    ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms2 : TG.t Or_unknown.t) :
-    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t Or_unknown.t) meet_result =
-  let blocks_meet =
-    { is_bottom =
-        (fun blocks ->
-          match (blocks : _ Or_unknown.t) with
-          | Unknown -> false
-          | Known blocks -> TG.Row_like_for_blocks.is_bottom blocks);
-      mk_bottom = (fun () -> Or_unknown.Known TG.Row_like_for_blocks.bottom);
-      meet =
-        meet_unknown meet_row_like_for_blocks
-          ~contents_is_bottom:TG.Row_like_for_blocks.is_bottom
-    }
+and meet_variant initial_env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
+    ~(imms1 : TG.t) ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
+    ~(imms2 : TG.t) ~(extensions1 : TG.variant_extensions)
+    ~(extensions2 : TG.variant_extensions) :
+    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t * TG.variant_extensions)
+    meet_result =
+  let join_scope = TE.current_scope initial_env in
+  let env = TE.increment_scope initial_env in
+  let to_extension scoped_env =
+    TE.cut scoped_env ~cut_after:join_scope
+    |> Typing_env_level.as_extension_without_bindings
   in
-  let immediates_meet =
-    { is_bottom =
-        (fun immediates ->
-          match (immediates : _ Or_unknown.t) with
-          | Unknown -> false
-          | Known imms -> TG.is_obviously_bottom imms);
-      mk_bottom = (fun () -> Or_unknown.Known TG.bottom_naked_immediate);
-      meet = meet_unknown meet ~contents_is_bottom:TG.is_obviously_bottom
-    }
+  let direct_return r =
+    map_env r ~f:(fun scoped_env ->
+        TE.add_env_extension_strict initial_env (to_extension scoped_env)
+          ~meet_type:(New meet_type))
   in
-  pairwise_disjunction_meet ~join_env_extension ~meet_type blocks_meet
-    immediates_meet env blocks1 blocks2 imms1 imms2
+  let env_imms, env_blocks = Or_bottom.Ok env, Or_bottom.Ok env in
+  let env_imms, env_blocks =
+    match extensions1 with
+    | No_extensions -> env_imms, env_blocks
+    | Ext { when_immediate; when_block } ->
+      ( Or_bottom.bind env_imms ~f:(fun env ->
+            TE.add_env_extension_strict env when_immediate
+              ~meet_type:(New meet_type)),
+        Or_bottom.bind env_blocks ~f:(fun env ->
+            TE.add_env_extension_strict env when_block
+              ~meet_type:(New meet_type)) )
+  in
+  let env_imms, env_blocks =
+    match extensions2 with
+    | No_extensions -> env_imms, env_blocks
+    | Ext { when_immediate; when_block } ->
+      ( Or_bottom.bind env_imms ~f:(fun env ->
+            TE.add_env_extension_strict env when_immediate
+              ~meet_type:(New meet_type)),
+        Or_bottom.bind env_blocks ~f:(fun env ->
+            TE.add_env_extension_strict env when_block
+              ~meet_type:(New meet_type)) )
+  in
+  let immediates_result : _ meet_result =
+    match env_imms with Bottom -> Bottom | Ok env -> meet env imms1 imms2
+  in
+  let blocks_result : _ meet_result =
+    match env_blocks with
+    | Bottom -> Bottom
+    | Ok env ->
+      meet_unknown meet_row_like_for_blocks
+        ~contents_is_bottom:TG.Row_like_for_blocks.is_bottom env blocks1 blocks2
+  in
+  match immediates_result, blocks_result with
+  | Bottom, Bottom -> Bottom
+  | Ok (imms_result, env), Bottom ->
+    let imms = extract_value imms_result imms1 imms2 in
+    let blocks = Or_unknown.Known TG.Row_like_for_blocks.bottom in
+    (* CR vlaviron: recover when this is actually one of the inputs *)
+    direct_return (Ok (New_result (blocks, imms, TG.No_extensions), env))
+  | Bottom, Ok (blocks_result, env) ->
+    let blocks = extract_value blocks_result blocks1 blocks2 in
+    let imms = TG.bottom_naked_immediate in
+    (* CR vlaviron: recover when this is actually one of the inputs *)
+    direct_return (Ok (New_result (blocks, imms, TG.No_extensions), env))
+  | Ok (imms_result, env_imms), Ok (blocks_result, env_blocks) ->
+    let imms = extract_value imms_result imms1 imms2 in
+    let blocks = extract_value blocks_result blocks1 blocks2 in
+    let when_immediate = to_extension env_imms in
+    let when_block = to_extension env_blocks in
+    let extensions : TG.variant_extensions =
+      if TEE.is_empty when_immediate && TEE.is_empty when_block
+      then
+        No_extensions
+        (* CR vlaviron: If both extensions have equations in common, the join
+           below will add them to the result environment. Keeping those common
+           equations in the variant extensions then becomes redundant, but we
+           don't have an easy way to detect redundancy. *)
+      else Ext { when_immediate; when_block }
+    in
+    let join_env =
+      Join_env.create initial_env ~left_env:env_imms ~right_env:env_blocks
+    in
+    let result_extension =
+      join_env_extension join_env when_immediate when_block
+    in
+    let result_env =
+      (* Not strict, as we don't expect to be able to get bottom equations from
+         joining non-bottom ones *)
+      TE.add_env_extension initial_env result_extension
+        ~meet_type:(New meet_type)
+    in
+    (* CR vlaviron: recover when this is actually one of the inputs *)
+    Ok (New_result (blocks, imms, extensions), result_env)
 
 and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     (t2 : TG.head_of_kind_naked_immediate) :
@@ -1507,16 +1507,26 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
 and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (head2 : TG.head_of_kind_value) : TG.head_of_kind_value Or_unknown.t =
   match head1, head2 with
-  | ( Variant { blocks = blocks1; immediates = imms1; is_unique = is_unique1 },
-      Variant { blocks = blocks2; immediates = imms2; is_unique = is_unique2 } )
-    ->
-    let>+ blocks, immediates =
-      join_variant env ~blocks1 ~imms1 ~blocks2 ~imms2
+  | ( Variant
+        { blocks = blocks1;
+          immediates = imms1;
+          extensions = extensions1;
+          is_unique = is_unique1
+        },
+      Variant
+        { blocks = blocks2;
+          immediates = imms2;
+          extensions = extensions2;
+          is_unique = is_unique2
+        } ) ->
+    let>+ blocks, immediates, extensions =
+      join_variant env ~blocks1 ~imms1 ~extensions1 ~blocks2 ~imms2 ~extensions2
     in
     (* Uniqueness tracks whether duplication/lifting is allowed. It must always
        be propagated, both for meet and join. *)
     let is_unique = is_unique1 || is_unique2 in
     TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates
+      ~extensions
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
@@ -1612,16 +1622,36 @@ and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     env array_contents1 array_contents2
 
 and join_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms1 : TG.t Or_unknown.t)
-    ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms2 : TG.t Or_unknown.t) :
-    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t Or_unknown.t) Or_unknown.t =
+    ~(imms1 : TG.t) ~(extensions1 : TG.variant_extensions)
+    ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t) ~(imms2 : TG.t)
+    ~(extensions2 : TG.variant_extensions) :
+    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t * TG.variant_extensions)
+    Or_unknown.t =
   let blocks = join_unknown join_row_like_for_blocks env blocks1 blocks2 in
-  let imms = join_unknown (join ?bound_name:None) env imms1 imms2 in
-  match blocks, imms with
-  | Unknown, Unknown -> Unknown
-  | Known _, Unknown | Unknown, Known _ | Known _, Known _ ->
-    Known (blocks, imms)
+  let imms = join ?bound_name:None env imms1 imms2 in
+  let extensions : TG.variant_extensions =
+    match extensions1, extensions2 with
+    | No_extensions, Ext _ | Ext _, No_extensions | No_extensions, No_extensions
+      ->
+      No_extensions
+    | ( Ext { when_immediate = when_immediate1; when_block = when_block1 },
+        Ext { when_immediate = when_immediate2; when_block = when_block2 } ) ->
+      let when_immediate =
+        join_env_extension env when_immediate1 when_immediate2
+      in
+      let when_block = join_env_extension env when_block1 when_block2 in
+      if TEE.is_empty when_immediate && TEE.is_empty when_block
+      then No_extensions
+      else Ext { when_immediate; when_block }
+  in
+  match blocks, imms, extensions with
+  | Unknown, Unknown, No_extensions -> Unknown
+  | Unknown, Unknown, Ext _ ->
+    Known (Unknown, TG.any_naked_immediate, extensions)
+  | Known _, Unknown, (No_extensions | Ext _) ->
+    Known (blocks, TG.any_naked_immediate, extensions)
+  | (Unknown | Known _), Known imms, (No_extensions | Ext _) ->
+    Known (blocks, imms, extensions)
 
 and join_head_of_kind_naked_immediate env
     (head1 : TG.Head_of_kind_naked_immediate.t)

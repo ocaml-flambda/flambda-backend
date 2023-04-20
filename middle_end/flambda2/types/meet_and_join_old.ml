@@ -337,16 +337,26 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
 and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (head2 : TG.head_of_kind_value) : _ Or_bottom.t =
   match head1, head2 with
-  | ( Variant { blocks = blocks1; immediates = imms1; is_unique = is_unique1 },
-      Variant { blocks = blocks2; immediates = imms2; is_unique = is_unique2 } )
-    ->
+  | ( Variant
+        { blocks = blocks1;
+          immediates = imms1;
+          extensions = _;
+          is_unique = is_unique1
+        },
+      Variant
+        { blocks = blocks2;
+          immediates = imms2;
+          extensions = _;
+          is_unique = is_unique2
+        } ) ->
     let<+ blocks, immediates, env_extension =
       meet_variant env ~blocks1 ~imms1 ~blocks2 ~imms2
     in
     (* Uniqueness tracks whether duplication/lifting is allowed. It must always
        be propagated, both for meet and join. *)
     let is_unique = is_unique1 || is_unique2 in
-    ( TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates,
+    ( TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates
+        ~extensions:No_extensions,
       env_extension )
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
@@ -484,11 +494,9 @@ and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     env array_contents1 array_contents2
 
 and meet_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms1 : TG.t Or_unknown.t)
-    ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms2 : TG.t Or_unknown.t) :
-    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t Or_unknown.t * TEE.t)
-    Or_bottom.t =
+    ~(imms1 : TG.t) ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
+    ~(imms2 : TG.t) :
+    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t * TEE.t) Or_bottom.t =
   let blocks =
     meet_unknown meet_row_like_for_blocks
       ~contents_is_bottom:TG.Row_like_for_blocks.is_bottom env blocks1 blocks2
@@ -499,19 +507,16 @@ and meet_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
     | Ok (Or_unknown.Known blocks', _) ->
       if TG.Row_like_for_blocks.is_bottom blocks' then Bottom else blocks
   in
-  let imms =
-    meet_unknown meet ~contents_is_bottom:TG.is_obviously_bottom env imms1 imms2
-  in
+  let imms = meet env imms1 imms2 in
   let imms : _ Or_bottom.t =
     match imms with
-    | Bottom | Ok (Or_unknown.Unknown, _) -> imms
-    | Ok (Or_unknown.Known imms', _) ->
-      if TG.is_obviously_bottom imms' then Bottom else imms
+    | Bottom -> imms
+    | Ok (imms', _) -> if TG.is_obviously_bottom imms' then Bottom else imms
   in
   match blocks, imms with
   | Bottom, Bottom -> Bottom
   | Ok (blocks, env_extension), Bottom ->
-    let immediates : _ Or_unknown.t = Known TG.bottom_naked_immediate in
+    let immediates = TG.bottom_naked_immediate in
     Ok (blocks, immediates, env_extension)
   | Bottom, Ok (immediates, env_extension) ->
     let blocks : _ Or_unknown.t = Known TG.Row_like_for_blocks.bottom in
@@ -520,9 +525,7 @@ and meet_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
     (match (blocks : _ Or_unknown.t) with
     | Unknown -> ()
     | Known blocks -> assert (not (TG.Row_like_for_blocks.is_bottom blocks)));
-    (match (immediates : _ Or_unknown.t) with
-    | Unknown -> ()
-    | Known imms -> assert (not (TG.is_obviously_bottom imms)));
+    assert (not (TG.is_obviously_bottom immediates));
     let env_extension =
       let env = Meet_env.env env in
       let join_env = Join_env.create env ~left_env:env ~right_env:env in
@@ -1243,9 +1246,18 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
 and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (head2 : TG.head_of_kind_value) : TG.head_of_kind_value Or_unknown.t =
   match head1, head2 with
-  | ( Variant { blocks = blocks1; immediates = imms1; is_unique = is_unique1 },
-      Variant { blocks = blocks2; immediates = imms2; is_unique = is_unique2 } )
-    ->
+  | ( Variant
+        { blocks = blocks1;
+          immediates = imms1;
+          extensions = _;
+          is_unique = is_unique1
+        },
+      Variant
+        { blocks = blocks2;
+          immediates = imms2;
+          extensions = _;
+          is_unique = is_unique2
+        } ) ->
     let>+ blocks, immediates =
       join_variant env ~blocks1 ~imms1 ~blocks2 ~imms2
     in
@@ -1253,6 +1265,7 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
        be propagated, both for meet and join. *)
     let is_unique = is_unique1 || is_unique2 in
     TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates
+      ~extensions:No_extensions
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
@@ -1349,18 +1362,20 @@ and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     env array_contents1 array_contents2
 
 and join_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms1 : TG.t Or_unknown.t)
-    ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms2 : TG.t Or_unknown.t) :
-    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t Or_unknown.t) Or_unknown.t =
+    ~(imms1 : TG.t) ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
+    ~(imms2 : TG.t) :
+    (TG.Row_like_for_blocks.t Or_unknown.t * TG.t) Or_unknown.t =
   let blocks_join env b1 b2 : _ Or_unknown.t =
     join_row_like_for_blocks env b1 b2
   in
   let blocks = join_unknown blocks_join env blocks1 blocks2 in
-  let imms = join_unknown (join ?bound_name:None) env imms1 imms2 in
+  let imms = join ?bound_name:None env imms1 imms2 in
   match blocks, imms with
   | Unknown, Unknown -> Unknown
   | Known _, Unknown | Unknown, Known _ | Known _, Known _ ->
+    let imms =
+      match imms with Known imms -> imms | Unknown -> MTC.unknown_like imms1
+    in
     Known (blocks, imms)
 
 and join_head_of_kind_naked_immediate env

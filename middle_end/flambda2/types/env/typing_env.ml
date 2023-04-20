@@ -1420,12 +1420,19 @@ end = struct
             | Incomplete_closure (function_slot, closures_entry) ->
               approx_of_closures_entry ~exact:false function_slot closures_entry
             )
-          | Variant { immediates = Unknown; blocks = _; is_unique = _ }
-          | Variant { immediates = _; blocks = Unknown; is_unique = _ } ->
+          | Variant
+              { immediates = _;
+                blocks = Unknown;
+                extensions = _;
+                is_unique = _
+              } ->
             Value_unknown
           | Variant
-              { immediates = Known imms; blocks = Known blocks; is_unique = _ }
-            ->
+              { immediates = imms;
+                blocks = Known blocks;
+                extensions = _;
+                is_unique = _
+              } ->
             if TG.is_obviously_bottom imms
             then
               match TG.Row_like_for_blocks.get_singleton blocks with
