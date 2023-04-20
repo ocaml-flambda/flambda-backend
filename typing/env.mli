@@ -215,7 +215,7 @@ val lookup_error: Location.t -> t -> lookup_error -> 'a
 
 val lookup_value:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * Subst.Lazy.value_description * Types.value_mode
+  Path.t * value_description * Types.value_mode
 val lookup_type:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * type_declaration
