@@ -59,8 +59,8 @@ let these_naked_nativeints is = TG.these_naked_nativeints is
 let these_naked_vec128s vs = TG.these_naked_vec128s vs
 
 let any_tagged_immediate =
-  TG.create_variant ~is_unique:false ~immediates:Unknown
-    ~blocks:(Known TG.Row_like_for_blocks.bottom)
+  TG.create_variant ~is_unique:false ~immediates:TG.any_naked_immediate
+    ~blocks:(Known TG.Row_like_for_blocks.bottom) ~extensions:No_extensions
 
 let these_tagged_immediates0 imms =
   match Targetint_31_63.Set.get_singleton imms with
@@ -70,8 +70,8 @@ let these_tagged_immediates0 imms =
     then TG.bottom_value
     else
       TG.create_variant ~is_unique:false
-        ~immediates:(Known (these_naked_immediates imms))
-        ~blocks:(Known TG.Row_like_for_blocks.bottom)
+        ~immediates:(these_naked_immediates imms)
+        ~blocks:(Known TG.Row_like_for_blocks.bottom) ~extensions:No_extensions
 
 let these_tagged_immediates imms = these_tagged_immediates0 imms
 
@@ -122,8 +122,8 @@ let any_boxed_vec128 =
   TG.box_vec128 TG.any_naked_vec128 (Alloc_mode.For_types.unknown ())
 
 let any_block =
-  TG.create_variant ~is_unique:false
-    ~immediates:(Known TG.bottom_naked_immediate) ~blocks:Unknown
+  TG.create_variant ~is_unique:false ~immediates:TG.bottom_naked_immediate
+    ~blocks:Unknown ~extensions:No_extensions
 
 let blocks_with_these_tags tags alloc_mode : _ Or_unknown.t =
   if not (Tag.Set.for_all Tag.is_structured_block tags)
@@ -134,8 +134,8 @@ let blocks_with_these_tags tags alloc_mode : _ Or_unknown.t =
         tags alloc_mode
     in
     Known
-      (TG.create_variant ~is_unique:false
-         ~immediates:(Known TG.bottom_naked_immediate) ~blocks:(Known blocks))
+      (TG.create_variant ~is_unique:false ~immediates:TG.bottom_naked_immediate
+         ~blocks:(Known blocks) ~extensions:No_extensions)
 
 let immutable_block ~is_unique tag ~field_kind alloc_mode ~fields =
   match Targetint_31_63.of_int_option (List.length fields) with
@@ -143,11 +143,12 @@ let immutable_block ~is_unique tag ~field_kind alloc_mode ~fields =
     (* CR-someday mshinwell: This should be a special kind of error. *)
     Misc.fatal_error "Block too long for target"
   | Some _size ->
-    TG.create_variant ~is_unique ~immediates:(Known TG.bottom_naked_immediate)
+    TG.create_variant ~is_unique ~immediates:TG.bottom_naked_immediate
       ~blocks:
         (Known
            (TG.Row_like_for_blocks.create ~field_kind ~field_tys:fields
               (Closed tag) alloc_mode))
+      ~extensions:No_extensions
 
 let immutable_block_with_size_at_least ~tag ~n ~field_kind ~field_n_minus_one =
   let n = Targetint_31_63.to_int n in
@@ -157,12 +158,12 @@ let immutable_block_with_size_at_least ~tag ~n ~field_kind ~field_n_minus_one =
         then unknown field_kind
         else TG.alias_type_of field_kind (Simple.var field_n_minus_one))
   in
-  TG.create_variant ~is_unique:false
-    ~immediates:(Known (bottom K.naked_immediate))
+  TG.create_variant ~is_unique:false ~immediates:TG.bottom_naked_immediate
     ~blocks:
       (Known
          (TG.Row_like_for_blocks.create ~field_kind ~field_tys (Open tag)
             (Alloc_mode.For_types.unknown ())))
+    ~extensions:No_extensions
 
 let variant ~const_ctors ~non_const_ctors alloc_mode =
   let blocks =
@@ -174,8 +175,8 @@ let variant ~const_ctors ~non_const_ctors alloc_mode =
     in
     TG.Row_like_for_blocks.create_exactly_multiple ~field_tys_by_tag alloc_mode
   in
-  TG.create_variant ~is_unique:false ~immediates:(Known const_ctors)
-    ~blocks:(Known blocks)
+  TG.create_variant ~is_unique:false ~immediates:const_ctors
+    ~blocks:(Known blocks) ~extensions:No_extensions
 
 let exactly_this_closure function_slot ~all_function_slots_in_set:function_types
     ~all_closure_types_in_set:closure_types
