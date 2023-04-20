@@ -5336,7 +5336,6 @@ and type_expect_
 
 and type_ident env ?(recarg=Rejected) lid =
   let (path, desc, mode) = Env.lookup_value ~loc:lid.loc lid.txt env in
-  let desc = Subst.Lazy.force_value_description desc in
   let is_recarg =
     match get_desc desc.val_type with
     | Tconstr(p, _, _) -> Path.is_constructor_typath p
@@ -7279,7 +7278,6 @@ let type_expression env sexp =
       let (_path, desc, _mode) =
         Env.lookup_value ~use:false ~loc lid.txt env
       in
-      let desc = Subst.Lazy.force_value_description desc in
       {exp with exp_type = desc.val_type}
   | _ -> exp
 

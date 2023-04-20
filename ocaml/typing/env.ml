@@ -3183,7 +3183,7 @@ let lookup_module_path ~errors ~use ~loc ~load lid env : Path.t =
       let path_f, _comp_f, path_arg = lookup_apply ~errors ~use ~loc lid env in
       Papply(path_f, path_arg)
 
-let lookup_value ~errors ~use ~loc lid env =
+let lookup_value_lazy ~errors ~use ~loc lid env =
   match lid with
   | Lident s -> lookup_ident_value ~errors ~use ~loc s env
   | Ldot(l, s) ->
@@ -3280,7 +3280,7 @@ let find_module_by_name lid env =
 
 let find_value_by_name lid env =
   let loc = Location.(in_file !input_name) in
-  let path, desc, _ = lookup_value ~errors:false ~use:false ~loc lid env in
+  let path, desc, _ = lookup_value_lazy ~errors:false ~use:false ~loc lid env in
   path, Subst.Lazy.force_value_description desc
 
 let find_type_by_name lid env =
@@ -3317,7 +3317,8 @@ let lookup_module ?(use=true) ~loc lid env =
 
 let lookup_value ?(use=true) ~loc lid env =
   check_value_name (Longident.last lid) loc;
-  lookup_value ~errors:true ~use ~loc lid env
+  let path, desc, mode = lookup_value_lazy ~errors:true ~use ~loc lid env in
+  path, Subst.Lazy.force_value_description desc, mode
 
 let lookup_type ?(use=true) ~loc lid env =
   lookup_type ~errors:true ~use ~loc lid env
