@@ -364,11 +364,16 @@ let alloc_mode_for_types (alloc : Fexpr.alloc_mode_for_types) =
   | Heap_or_local -> Alloc_mode.For_types.unknown ()
   | Local -> Alloc_mode.For_types.local ()
 
-let init_or_assign env (ia : Fexpr.init_or_assign) :
+let alloc_mode_for_assignments (alloc : Fexpr.alloc_mode_for_assignments) =
+  match alloc with
+  | Heap -> Alloc_mode.For_assignments.heap
+  | Local -> Alloc_mode.For_assignments.local ()
+
+let init_or_assign _env (ia : Fexpr.init_or_assign) :
     Flambda_primitive.Init_or_assign.t =
   match ia with
   | Initialization -> Initialization
-  | Assignment alloc -> Assignment (alloc_mode_for_allocations env alloc)
+  | Assignment alloc -> Assignment (alloc_mode_for_assignments alloc)
 
 let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
   match nullop with Begin_region -> Begin_region
