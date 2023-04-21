@@ -140,7 +140,7 @@ let create_archive archive file_list =
                                quoted_archive (quote_files file_list))
     | _ ->
         assert(String.length Config.ar > 0);
-        command(Printf.sprintf "%s rc %s %s"
+        command(Printf.sprintf "%s Trc %s %s"
                 Config.ar quoted_archive (quote_files file_list))
 
 let expand_libname cclibs =
