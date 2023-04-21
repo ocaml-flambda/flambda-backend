@@ -97,10 +97,10 @@ let windows =
   | S_mingw64 | S_cygwin | S_win64 -> true
   | _ -> false
 
-let string_of_string_literal s =
-  let b = Buffer.create (String.length s + 2) in
+let string_of_substring_literal k n s =
+  let b = Buffer.create (n + 2) in
   let last_was_escape = ref false in
-  for i = 0 to String.length s - 1 do
+  for i = k to k + n - 1 do
     let c = s.[i] in
     if c >= '0' && c <= '9' then
       if !last_was_escape
@@ -115,6 +115,9 @@ let string_of_string_literal s =
     end
   done;
   Buffer.contents b
+
+let string_of_string_literal s =
+  string_of_substring_literal 0 (String.length s) s
 
 let string_of_symbol prefix s =
   let spec = ref false in
