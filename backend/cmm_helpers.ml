@@ -4144,7 +4144,7 @@ let gc_root_table syms =
   let table_symbol = make_symbol ?compilation_unit:None "gc_roots" in
   cdata
     (define_symbol { sym_name = table_symbol; sym_global = Global }
-    @ List.map (fun s -> symbol_address (global_symbol s)) syms
+    @ List.map (fun s -> symbol_address s) syms
     @ [cint 0n])
 
 let cmm_arith_size (e : Cmm.expression) =
