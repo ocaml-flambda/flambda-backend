@@ -119,10 +119,15 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         res,
         Ece.all )
     | Some name ->
-      (* CR gbury: not sure how probes work, would probes work if the code_id is
-         referred to by a local symbol (i.e. assembler label) and not a global
-         symbol ? *)
-      assert (code_sym.sym_global = Cmm.Global);
+      (* To be on the safe side, insist that code symbols for probes are
+         global. *)
+      (match code_sym.sym_global with
+      | Global -> ()
+      | Local ->
+        Misc.fatal_errorf
+          "Code symbol %s for code ID %a, being used to call a probe, is not \
+           global"
+          code_sym.sym_name Code_id.print code_id);
       ( C.probe ~dbg ~name ~handler_code_linkage_name:code_sym.sym_name ~args
         |> C.return_unit dbg,
         free_vars,

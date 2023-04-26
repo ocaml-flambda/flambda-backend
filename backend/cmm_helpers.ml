@@ -1208,38 +1208,35 @@ let apply_function_sym arity result mode =
   Compilenv.need_apply_fun arity result mode;
   global_symbol (apply_function_name arity result mode)
 
-let curry_function_sym function_kind arity result =
-  let sym_name =
-    match function_kind with
-    | Lambda.Curried { nlocal } ->
-      Compilenv.need_curry_fun function_kind arity result;
-      "caml_curry"
-      ^ unique_arity_identifier arity
-      ^ (match result with
-        | [| Val |] -> ""
-        | _ -> "_R" ^ machtype_identifier result)
-      ^ if nlocal > 0 then "L" ^ Int.to_string nlocal else ""
-    | Lambda.Tupled -> (
-      if List.exists
-           (function [| Val |] | [| Int |] -> false | _ -> true)
-           arity
-      then
-        Misc.fatal_error
-          "tuplify_function is currently unsupported if arity contains \
-           non-values";
-      (* Always use [Val] to ensure we don't generate duplicate tuplify
-         functions when [Int] machtypes are involved. *)
-      Compilenv.need_curry_fun function_kind
-        (List.map (fun _ -> [| Val |]) arity)
-        result;
-      "caml_tuplify"
-      ^ Int.to_string (List.length arity)
-      ^
-      match result with
+let curry_function_sym_name function_kind arity result =
+  match function_kind with
+  | Lambda.Curried { nlocal } ->
+    Compilenv.need_curry_fun function_kind arity result;
+    "caml_curry"
+    ^ unique_arity_identifier arity
+    ^ (match result with
       | [| Val |] -> ""
       | _ -> "_R" ^ machtype_identifier result)
-  in
-  { sym_name; sym_global = Global }
+    ^ if nlocal > 0 then "L" ^ Int.to_string nlocal else ""
+  | Lambda.Tupled -> (
+    if List.exists (function [| Val |] | [| Int |] -> false | _ -> true) arity
+    then
+      Misc.fatal_error
+        "tuplify_function is currently unsupported if arity contains non-values";
+    (* Always use [Val] to ensure we don't generate duplicate tuplify functions
+       when [Int] machtypes are involved. *)
+    Compilenv.need_curry_fun function_kind
+      (List.map (fun _ -> [| Val |]) arity)
+      result;
+    "caml_tuplify"
+    ^ Int.to_string (List.length arity)
+    ^
+    match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result)
+
+let curry_function_sym function_kind arity result =
+  { sym_name = curry_function_sym_name function_kind arity result;
+    sym_global = Global
+  }
 
 (* Big arrays *)
 
@@ -2817,8 +2814,8 @@ let final_curry_function nlocal arity result =
   let narity = List.length arity in
   let fun_name =
     global_symbol
-      ((curry_function_sym (Lambda.Curried { nlocal }) arity result).sym_name
-     ^ "_"
+      (curry_function_sym_name (Lambda.Curried { nlocal }) arity result
+      ^ "_"
       ^ Int.to_string (narity - 1))
   in
   let args_type = List.rev arity in
@@ -2837,7 +2834,7 @@ let final_curry_function nlocal arity result =
 
 let intermediate_curry_functions ~nlocal ~arity result =
   let name1 =
-    (curry_function_sym (Lambda.Curried { nlocal }) arity result).sym_name
+    curry_function_sym_name (Lambda.Curried { nlocal }) arity result
   in
   let narity = List.length arity in
   let dbg = placeholder_dbg in
@@ -4144,7 +4141,7 @@ let gc_root_table syms =
   let table_symbol = make_symbol ?compilation_unit:None "gc_roots" in
   cdata
     (define_symbol { sym_name = table_symbol; sym_global = Global }
-    @ List.map (fun s -> symbol_address s) syms
+    @ List.map symbol_address syms
     @ [cint 0n])
 
 let cmm_arith_size (e : Cmm.expression) =

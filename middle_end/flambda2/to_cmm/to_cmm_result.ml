@@ -22,7 +22,8 @@ type t =
     current_data : Cmm.data_item list;
     reachable_names : Name_occurrences.t;
     symbols : Cmm.symbol String.Map.t;
-    (* this is a map for symbols *not* from flambda2 *)
+    (* This map is only used for symbols not directly translated from
+       [Symbol.t], e.g. module entry point names. *)
     module_symbol : Symbol.t;
     module_symbol_defined : bool;
     invalid_message_symbols : Symbol.t String.Map.t
@@ -44,11 +45,6 @@ let create ~module_symbol ~reachable_names =
 
    These functions are there to ensure that a given symbol is: 1) given an
    appropriate locality, and 2) **always** given the same locality *)
-let equal_global g g' =
-  match (g, g' : Cmm.is_global * Cmm.is_global) with
-  | Local, Local | Global, Global -> true
-  | Local, Global | Global, Local -> false
-
 let raw_symbol res ~global:sym_global sym_name : t * Cmm.symbol =
   match String.Map.find_opt sym_name res.symbols with
   | None ->
@@ -56,7 +52,7 @@ let raw_symbol res ~global:sym_global sym_name : t * Cmm.symbol =
     let symbols = String.Map.add sym_name sym res.symbols in
     { res with symbols }, sym
   | Some sym ->
-    if equal_global sym_global sym.sym_global
+    if Cmm.equal_is_global sym_global sym.sym_global
     then res, sym
     else
       Misc.fatal_errorf "The symbol %s is declared as both local and global"
