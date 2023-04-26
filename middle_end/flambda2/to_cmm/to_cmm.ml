@@ -50,8 +50,7 @@ let flush_cmm_helpers_state res =
   match Cmmgen_state.get_and_clear_data_items () with
   | [] ->
     let cst_map = Cmmgen_state.get_and_clear_constants () in
-    let _res, items = Misc.Stdlib.String.Map.fold aux cst_map (res, []) in
-    items
+    Misc.Stdlib.String.Map.fold aux cst_map (res, [])
   | _ ->
     Misc.fatal_errorf
       "There shouldn't be any data items in Cmmgen_state during Flambda 2 to \
@@ -133,7 +132,7 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
     C.cfunction (C.fundecl entry_sym [] body fun_codegen dbg Default_poll)
   in
   let { R.data_items; gc_roots; functions } = R.to_cmm res in
-  let cmm_helpers_data = flush_cmm_helpers_state res in
+  let _res, cmm_helpers_data = flush_cmm_helpers_state res in
   let gc_root_data = C.gc_root_table gc_roots in
   (gc_root_data :: data_items) @ cmm_helpers_data @ functions @ [entry]
 
