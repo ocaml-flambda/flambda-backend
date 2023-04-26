@@ -146,13 +146,13 @@ let linearize_terminator cfg_with_layout (func : string) start
     | Tailcall_func (Direct func_symbol) ->
       [L.Lop (Itailcall_imm { func = func_symbol })], None
     | Tailcall_self { destination } ->
-      ( [L.Lop (Itailcall_imm { func = Cmm.global_symbol func })],
+      ( [L.Lop (Itailcall_imm { func = { sym_name = func; sym_global = Local } })],
         Some destination )
     | Call_no_return { func_symbol; alloc; ty_args; ty_res } ->
       single
         (L.Lop
            (Iextcall
-              { func = func_symbol.sym_name;
+              { func = func_symbol;
                 alloc;
                 ty_args;
                 ty_res;
@@ -170,7 +170,7 @@ let linearize_terminator cfg_with_layout (func : string) start
         match op with
         | External { func_symbol; alloc; ty_args; ty_res } ->
           Iextcall
-            { func = func_symbol.sym_name;
+            { func = func_symbol;
               alloc;
               ty_args;
               ty_res;

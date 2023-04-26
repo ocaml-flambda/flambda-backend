@@ -156,7 +156,7 @@ let basic_or_terminator_of_operation :
       else Tailcall_func (Direct func))
   | Iextcall { func; ty_res; ty_args; alloc; returns } ->
     let external_call =
-      { Cfg.func_symbol = { sym_name = func; sym_global = Global };
+      { Cfg.func_symbol = func;
         alloc;
         ty_res;
         ty_args

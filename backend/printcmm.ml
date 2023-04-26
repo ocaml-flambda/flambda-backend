@@ -393,7 +393,8 @@ let fundecl ppf f =
          print_cases f.fun_args sequence f.fun_body)
 
 let data_item ppf = function
-  | Cdefine_symbol s -> fprintf ppf "\"%s\":" s.sym_name
+  | Cdefine_symbol {sym_name; sym_global = Local} -> fprintf ppf "\"%s\":" sym_name
+  | Cdefine_symbol {sym_name; sym_global = Global} -> fprintf ppf "global \"%s\":" sym_name
   | Cint8 n -> fprintf ppf "byte %i" n
   | Cint16 n -> fprintf ppf "int16 %i" n
   | Cint32 n -> fprintf ppf "int32 %s" (Nativeint.to_string n)

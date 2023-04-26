@@ -35,7 +35,7 @@ module S = struct
     | Direct of Cmm.symbol
 
   type external_call_operation =
-    { func_symbol : Cmm.symbol;
+    { func_symbol : string;
       alloc : bool;
       ty_res : Cmm.machtype;
       ty_args : Cmm.exttype list

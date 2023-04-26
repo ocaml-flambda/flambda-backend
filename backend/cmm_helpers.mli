@@ -1222,7 +1222,7 @@ val cfloat : float -> data_item
 val symbol_address : symbol -> data_item
 
 (** Definition for a static symbol. *)
-val define_symbol : global:bool -> string -> data_item list
+val define_symbol : symbol -> data_item list
 
 (** {2 Static structure helpers} *)
 

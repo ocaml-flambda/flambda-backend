@@ -337,8 +337,8 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
       done;
       let i = label_count - 1 in
       fprintf ppf "case %d: goto %d" i labels.(i))
-  | Call_no_return { func_symbol : Cmm.symbol; _ } ->
-    fprintf ppf "Call_no_return %s%a" func_symbol.sym_name print_args args
+  | Call_no_return { func_symbol; _ } ->
+    fprintf ppf "Call_no_return %s%a" func_symbol print_args args
   | Return -> fprintf ppf "Return%a" print_args args
   | Raise _ -> fprintf ppf "Raise%a" print_args args
   | Tailcall_self { destination } ->
@@ -365,7 +365,7 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
       (match prim with
       | External { func_symbol = func; ty_res; ty_args; alloc } ->
         Mach.Iextcall
-          { func = func.sym_name; ty_res; ty_args; returns = true; alloc }
+          { func = func; ty_res; ty_args; returns = true; alloc }
       | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
       | Checkbound { immediate = Some x } -> Mach.Iintop_imm (Icheckbound, x)
       | Checkbound { immediate = None } -> Mach.Iintop Icheckbound

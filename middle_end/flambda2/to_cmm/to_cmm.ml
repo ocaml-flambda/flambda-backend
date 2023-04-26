@@ -37,10 +37,8 @@ end
 let flush_cmm_helpers_state () =
   let aux name cst acc =
     match (cst : Cmmgen_state.constant) with
-    | Const_table (Local, l) ->
-      C.cdata (C.define_symbol ~global:false name @ l) :: acc
-    | Const_table (Global, l) ->
-      C.cdata (C.define_symbol ~global:true name @ l) :: acc
+    | Const_table (sym_global, l) ->
+      C.cdata (C.define_symbol {sym_name = name; sym_global} @ l) :: acc
     | Const_closure _ ->
       Misc.fatal_errorf
         "There shouldn't be any closures in Cmmgen_state during Flambda 2 to \

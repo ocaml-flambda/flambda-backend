@@ -541,7 +541,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     | Iextcall { func; alloc; ty_args; ty_res; returns = false } ->
       terminator
         (C.Call_no_return
-           { func_symbol = { sym_name = func; sym_global = Global };
+           { func_symbol = func;
              alloc;
              ty_args;
              ty_res
@@ -551,7 +551,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     | Iextcall { func; alloc; ty_args; ty_res; returns = true } ->
       terminator_prim
         (External
-           { func_symbol = { sym_name = func; sym_global = Global };
+           { func_symbol = func;
              alloc;
              ty_args;
              ty_res

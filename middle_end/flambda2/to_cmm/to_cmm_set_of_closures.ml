@@ -316,7 +316,7 @@ module Static = Make_layout_filler (struct
   let symbol_from_linkage_name ~dbg:_ linkage_name =
     C.symbol_address (Cmm.global_symbol (Linkage_name.to_string linkage_name))
 
-  let define_global_symbol sym = C.define_symbol ~global:true sym
+  let define_global_symbol sym = C.define_symbol (Cmm.global_symbol sym)
 end)
 
 (* Translation of "check" attributes on functions. *)

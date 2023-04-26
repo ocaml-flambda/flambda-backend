@@ -4119,8 +4119,8 @@ let cfloat f = Cmm.Cdouble f
 
 let symbol_address s = Cmm.Csymbol_address s
 
-let define_symbol ~global sym_name =
-  [Cdefine_symbol { sym_name; sym_global = (if global then Global else Local) }]
+let define_symbol symbol =
+  [Cdefine_symbol symbol]
 
 (* Cmm phrases *)
 
@@ -4136,7 +4136,7 @@ let fundecl fun_name fun_args fun_body fun_codegen_options fun_dbg fun_poll =
 let gc_root_table syms =
   let table_symbol = make_symbol ?compilation_unit:None "gc_roots" in
   cdata
-    (define_symbol ~global:true table_symbol
+    (define_symbol { sym_name = table_symbol; sym_global = Global }
     @ List.map (fun s -> symbol_address (global_symbol s)) syms
     @ [cint 0n])
 
