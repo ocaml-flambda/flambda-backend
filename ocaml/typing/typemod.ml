@@ -2581,6 +2581,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               let (first_loc, _) = List.hd modes in
               Signature_names.check_value names first_loc id;
               let vd =  Env.find_value (Pident id) newenv in
+              let vd = Subst.Lazy.force_value_description vd in
               Env.register_uid vd.val_uid ~loc:vd.val_loc ~attributes:vd.val_attributes;
               Sig_value(id, vd, Exported) :: acc,
               Shape.Map.add_value shape_map id vd.val_uid

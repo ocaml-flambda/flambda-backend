@@ -6775,7 +6775,7 @@ and type_let
                     add_delayed_check
                       (fun () ->
                          if not !used then
-                           Location.prerr_warning vd.Types.val_loc
+                           Location.prerr_warning vd.Subst.Lazy.val_loc
                              ((if !some_used then check_strict else check) name)
                       );
                   Env.set_value_used_callback

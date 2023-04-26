@@ -484,6 +484,10 @@ let binop ppf binop a b =
       (standard_int ~space:After)
       i simple a int_shift_op s simple b
 
+let unary_int_arith_op ppf (o : unary_int_arith_op) =
+  Format.pp_print_string ppf
+  @@ match o with Neg -> "~-" | Swap_byte_endianness -> "bswap"
+
 let unop ppf u =
   let str s = Format.pp_print_string ppf s in
   let box_or_unbox verb_not_imm (bk : box_kind) =
@@ -494,14 +498,19 @@ let unop ppf u =
     | Naked_int64 -> print verb_not_imm "int64"
     | Naked_nativeint -> print verb_not_imm "nativeint"
   in
-  match u with
+  match (u : unop) with
   | Array_length -> str "%array_length"
   | Begin_try_region -> str "%begin_try_region"
+  | Boolean_not -> str "%not"
   | Box_number (bk, alloc) ->
     box_or_unbox "Box" bk;
     alloc_mode_for_allocations_opt ppf alloc ~space:Before
   | End_region -> str "%end_region"
   | Get_tag -> str "%get_tag"
+  | Int_arith (i, o) ->
+    Format.fprintf ppf "@[<2>%%int_arith %a%a@]"
+      (standard_int ~space:After)
+      i unary_int_arith_op o
   | Is_flat_float_array -> str "%is_flat_float_array"
   | Is_int -> str "%is_int"
   | Num_conv { src; dst } ->
@@ -529,6 +538,12 @@ let ternop ppf t a1 a2 a3 =
   | Block_set (bk, ia) ->
     Format.fprintf ppf "@[<2>%%block_set%a@ %a.(%a)@ %a %a@]" block_access_kind
       bk simple a1 simple a2 init_or_assign ia simple a3
+  | Bytes_or_bigstring_set (blv, saw) ->
+    let prim =
+      match blv with Bytes -> "%bytes_set" | Bigstring -> "%bigstring_set"
+    in
+    Format.fprintf ppf "@[<2>%s@ %a %a.(%a) %a@]" prim string_accessor_width saw
+      simple a1 simple a2 simple a3
 
 let prim ppf = function
   | Nullary n -> nullop ppf n

@@ -1654,13 +1654,11 @@ let compunit (ulam, preallocated_blocks, constants) =
                        (* This function is often large and run only once.
                           Compilation time matter more than runtime.
                           See MPR#7630 *)
-                       fun_codegen_options =
-                         if Config.flambda then [
-                           Reduce_code_size;
-                           No_CSE;
-                           Use_linscan_regalloc;
-                         ]
-                         else [ Reduce_code_size; Use_linscan_regalloc ];
+                       fun_codegen_options = [
+                         Reduce_code_size;
+                         No_CSE;
+                         Use_linscan_regalloc;
+                       ];
                        fun_dbg  = Debuginfo.none;
                        fun_poll = Default_poll }] in
   let c2 = transl_clambda_constants constants c1 in
