@@ -155,13 +155,7 @@ let basic_or_terminator_of_operation :
       then Tailcall_self { destination = State.get_tailrec_label state }
       else Tailcall_func (Direct func))
   | Iextcall { func; ty_res; ty_args; alloc; returns } ->
-    let external_call =
-      { Cfg.func_symbol = func;
-        alloc;
-        ty_res;
-        ty_args
-      }
-    in
+    let external_call = { Cfg.func_symbol = func; alloc; ty_res; ty_args } in
     if returns
     then
       With_next_label

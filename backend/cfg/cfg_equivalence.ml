@@ -184,8 +184,7 @@ let check_external_call_operation :
     Cfg.external_call_operation ->
     unit =
  fun location expected result ->
-  if not
-       (String.equal expected.func_symbol result.func_symbol)
+  if not (String.equal expected.func_symbol result.func_symbol)
   then different location "function symbol";
   if not (Bool.equal expected.alloc result.alloc)
   then different location "allocating";

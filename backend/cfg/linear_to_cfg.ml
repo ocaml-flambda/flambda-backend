@@ -540,22 +540,11 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       terminator desc
     | Iextcall { func; alloc; ty_args; ty_res; returns = false } ->
       terminator
-        (C.Call_no_return
-           { func_symbol = func;
-             alloc;
-             ty_args;
-             ty_res
-           })
+        (C.Call_no_return { func_symbol = func; alloc; ty_args; ty_res })
     | Icall_ind -> terminator_call Indirect
     | Icall_imm { func } -> terminator_call (Direct func)
     | Iextcall { func; alloc; ty_args; ty_res; returns = true } ->
-      terminator_prim
-        (External
-           { func_symbol = func;
-             alloc;
-             ty_args;
-             ty_res
-           })
+      terminator_prim (External { func_symbol = func; alloc; ty_args; ty_res })
     | Iintop Icheckbound -> terminator_prim (Checkbound { immediate = None })
     | Iintop_imm (Icheckbound, i) ->
       terminator_prim (Checkbound { immediate = Some i })

@@ -3777,10 +3777,10 @@ let emit_constant_closure symb fundecls clos_vars cont =
     | arity ->
       Csymbol_address
         (global_symbol
-          (curry_function_sym arity.function_kind
-           (List.map machtype_of_layout_changing_tagged_int_to_val
-              arity.params_layout)
-           (machtype_of_layout_changing_tagged_int_to_val arity.return_layout)))
+           (curry_function_sym arity.function_kind
+              (List.map machtype_of_layout_changing_tagged_int_to_val
+                 arity.params_layout)
+              (machtype_of_layout_changing_tagged_int_to_val arity.return_layout)))
       :: Cint (closure_info ~arity ~startenv ~is_last)
       :: Csymbol_address { sym_name = f1.label; sym_global = symb.sym_global }
       :: emit_others 4 remainder)
@@ -4119,8 +4119,7 @@ let cfloat f = Cmm.Cdouble f
 
 let symbol_address s = Cmm.Csymbol_address s
 
-let define_symbol symbol =
-  [Cdefine_symbol symbol]
+let define_symbol symbol = [Cdefine_symbol symbol]
 
 (* Cmm phrases *)
 

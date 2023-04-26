@@ -364,8 +364,7 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
     Format.fprintf ppf "%t%a" print_res dump_mach_op
       (match prim with
       | External { func_symbol = func; ty_res; ty_args; alloc } ->
-        Mach.Iextcall
-          { func = func; ty_res; ty_args; returns = true; alloc }
+        Mach.Iextcall { func; ty_res; ty_args; returns = true; alloc }
       | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
       | Checkbound { immediate = Some x } -> Mach.Iintop_imm (Icheckbound, x)
       | Checkbound { immediate = None } -> Mach.Iintop Icheckbound
