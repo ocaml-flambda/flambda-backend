@@ -475,3 +475,46 @@
 (rule
  (alias regen)
  (action (diff tests14.flt tests14.flt.new)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/flexpect.exe tests15.flt)
+   (diff? tests15.flt tests15.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests15_in.fl)
+   (diff? tests15_in.fl tests15_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests15_out.fl)
+   (diff? tests15_out.fl tests15_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets tests15.flt.new tests15_in.fl.new tests15_out.fl.new)
+ (deps tests15.ml)
+ (action
+   (run ocamlopt -c tests15.ml -nopervasives -nostdlib
+        -drawfexpr-to tests15_in.fl.new
+        -dfexpr-to tests15_out.fl.new
+        -dflexpect-to tests15.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests15_in.fl tests15_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests15_out.fl tests15_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests15.flt tests15.flt.new)))

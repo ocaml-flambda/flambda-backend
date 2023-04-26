@@ -119,15 +119,7 @@ module Vars = Misc.Stdlib.String.Map
 
 (* Value descriptions *)
 
-type value_description =
-  { val_type: type_expr;                (* Type of the value *)
-    val_kind: value_kind;
-    val_loc: Location.t;
-    val_attributes: Parsetree.attributes;
-    val_uid: Uid.t;
-  }
-
-and value_kind =
+type value_kind =
     Val_reg                             (* Regular value *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
@@ -328,23 +320,48 @@ type visibility =
   | Exported
   | Hidden
 
-type module_type =
+type rec_status =
+  Trec_not                   (* first in a nonrecursive group *)
+| Trec_first                 (* first in a recursive group *)
+| Trec_next                  (* not first in a recursive/nonrecursive group *)
+
+type ext_status =
+  Text_first                     (* first constructor of an extension *)
+| Text_next                      (* not first constructor of an extension *)
+| Text_exception                 (* an exception *)
+
+type module_presence =
+  | Mp_present
+  | Mp_absent
+
+module type Wrap = sig
+  type 'a t
+end
+
+module type Wrapped = sig
+  type 'a wrapped
+
+  type value_description =
+    { val_type: type_expr wrapped;                (* Type of the value *)
+      val_kind: value_kind;
+      val_loc: Location.t;
+      val_attributes: Parsetree.attributes;
+      val_uid: Uid.t;
+    }
+
+  type module_type =
     Mty_ident of Path.t
   | Mty_signature of signature
   | Mty_functor of functor_parameter * module_type
   | Mty_alias of Path.t
 
-and functor_parameter =
+  and functor_parameter =
   | Unit
   | Named of Ident.t option * module_type
 
-and module_presence =
-  | Mp_present
-  | Mp_absent
+  and signature = signature_item list wrapped
 
-and signature = signature_item list
-
-and signature_item =
+  and signature_item =
     Sig_value of Ident.t * value_description * visibility
   | Sig_type of Ident.t * type_declaration * rec_status * visibility
   | Sig_typext of Ident.t * extension_constructor * ext_status * visibility
@@ -354,7 +371,7 @@ and signature_item =
   | Sig_class of Ident.t * class_declaration * rec_status * visibility
   | Sig_class_type of Ident.t * class_type_declaration * rec_status * visibility
 
-and module_declaration =
+  and module_declaration =
   {
     md_type: module_type;
     md_attributes: Parsetree.attributes;
@@ -362,24 +379,85 @@ and module_declaration =
     md_uid: Uid.t;
   }
 
-and modtype_declaration =
+  and modtype_declaration =
   {
     mtd_type: module_type option;  (* Note: abstract *)
     mtd_attributes: Parsetree.attributes;
     mtd_loc: Location.t;
     mtd_uid: Uid.t;
   }
+end
 
-and rec_status =
-    Trec_not                   (* first in a nonrecursive group *)
-  | Trec_first                 (* first in a recursive group *)
-  | Trec_next                  (* not first in a recursive/nonrecursive group *)
+module Make_wrapped(Wrap : Wrap) = struct
+  (* Avoid repeating everything in Wrapped *)
+  module rec M : Wrapped with type 'a wrapped = 'a Wrap.t = M
+  include M
+end
 
-and ext_status =
-    Text_first                     (* first constructor of an extension *)
-  | Text_next                      (* not first constructor of an extension *)
-  | Text_exception                 (* an exception *)
+module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
+  open From
+  type mapper =
+    {
+      map_signature: mapper -> signature -> To.signature;
+      map_type_expr: mapper -> type_expr wrapped -> type_expr To.wrapped
+    }
 
+  let signature m = m.map_signature m
+
+  let rec module_type m = function
+    | Mty_ident p -> To.Mty_ident p
+    | Mty_alias p -> To.Mty_alias p
+    | Mty_functor (parm,mty) ->
+        To.Mty_functor (functor_parameter m parm, module_type m mty)
+    | Mty_signature sg -> To.Mty_signature (signature m sg)
+
+  and functor_parameter m = function
+      | Unit -> To.Unit
+      | Named (id,mty) -> To.Named (id, module_type m mty)
+
+  let value_description m {val_type; val_kind; val_attributes; val_loc; val_uid} =
+    To.{
+      val_type = m.map_type_expr m val_type;
+      val_kind;
+      val_attributes;
+      val_loc;
+      val_uid
+    }
+
+  let module_declaration m {md_type; md_attributes; md_loc; md_uid} =
+    To.{
+      md_type = module_type m md_type;
+      md_attributes;
+      md_loc;
+      md_uid;
+    }
+
+  let modtype_declaration m {mtd_type; mtd_attributes; mtd_loc; mtd_uid} =
+    To.{
+      mtd_type = Option.map (module_type m) mtd_type;
+      mtd_attributes;
+      mtd_loc;
+      mtd_uid;
+    }
+
+  let signature_item m = function
+    | Sig_value (id,vd,vis) ->
+        To.Sig_value (id, value_description m vd, vis)
+    | Sig_type (id,td,rs,vis) ->
+        To.Sig_type (id,td,rs,vis)
+    | Sig_module (id,pres,md,rs,vis) ->
+        To.Sig_module (id, pres, module_declaration m md, rs, vis)
+    | Sig_modtype (id,mtd,vis) ->
+        To.Sig_modtype (id, modtype_declaration m mtd, vis)
+    | Sig_typext (id,ec,es,vis) ->
+        To.Sig_typext (id,ec,es,vis)
+    | Sig_class (id,cd,rs,vis) ->
+        To.Sig_class (id,cd,rs,vis)
+    | Sig_class_type (id,ctd,rs,vis) ->
+        To.Sig_class_type (id,ctd,rs,vis)
+end
+
+include Make_wrapped(struct type 'a t = 'a end)
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)

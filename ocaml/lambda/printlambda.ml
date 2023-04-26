@@ -580,6 +580,8 @@ let check_attribute ppf check =
   in
   match check with
   | Default_check -> ()
+  | Ignore_assert_all p ->
+    fprintf ppf "ignore assert all %s@ " (check_property p)
   | Check {property=p; assume; strict; loc = _} ->
     fprintf ppf "%s %s%s@ "
       (if assume then "assume" else "assert")

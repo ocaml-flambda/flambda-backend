@@ -734,7 +734,7 @@ let forward_try_expand_safe = (* Forward declaration *)
 
 let rec normalize_package_path env p =
   let t =
-    try (Env.find_modtype p env).mtd_type
+    try (Env.find_modtype_lazy p env).mtd_type
     with Not_found -> None
   in
   match t with

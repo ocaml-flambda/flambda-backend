@@ -633,4 +633,5 @@ let create_usage_msg program =
 let print_arguments program =
   Arg.usage !arg_spec (create_usage_msg program)
 
-let zero_alloc_check = ref false                   (* -zero-alloc-check *)
+let zero_alloc_check = ref false            (* -zero-alloc-check *)
+let zero_alloc_check_assert_all = ref false (* -zero-alloc-check-assert-all *)
