@@ -1463,7 +1463,7 @@ method emit_tail (env:environment) exp =
                 let call = Iop (Itailcall_imm { func; }) in
                 self#insert_moves env r1 loc_arg;
                 self#insert_debug env call dbg loc_arg [||];
-              end else if func = !current_function_name && trap_stack_is_empty env then begin
+              end else if func.sym_name = !current_function_name && trap_stack_is_empty env then begin
                 let call = Iop (Itailcall_imm { func; }) in
                 let loc_arg' = Proc.loc_parameters (Reg.typv r1) in
                 self#insert_moves env r1 loc_arg';
@@ -1628,7 +1628,7 @@ method private emit_tail_sequence env exp =
 (* Sequentialization of a function definition *)
 
 method emit_fundecl ~future_funcnames f =
-  current_function_name := f.Cmm.fun_name;
+  current_function_name := f.Cmm.fun_name.sym_name;
   let rargs =
     List.map
       (fun (id, ty) -> let r = self#regs_for ty in name_regs id r; r)
@@ -1645,7 +1645,7 @@ method emit_fundecl ~future_funcnames f =
   self#insert_moves env loc_arg rarg;
   let polled_body =
     if Polling.requires_prologue_poll ~future_funcnames
-         ~fun_name:f.Cmm.fun_name body
+         ~fun_name:f.Cmm.fun_name.sym_name body
       then
         instr_cons_debug
           (Iop(Ipoll { return_label = None })) [||] [||] f.Cmm.fun_dbg body
@@ -1654,7 +1654,7 @@ method emit_fundecl ~future_funcnames f =
     in
   let body_with_prologue = self#extract_onto polled_body in
   instr_iter (fun instr -> self#mark_instr instr.Mach.desc) body_with_prologue;
-  { fun_name = f.Cmm.fun_name;
+  { fun_name = f.Cmm.fun_name.sym_name;
     fun_args = loc_arg;
     fun_body = body_with_prologue;
     fun_codegen_options = f.Cmm.fun_codegen_options;

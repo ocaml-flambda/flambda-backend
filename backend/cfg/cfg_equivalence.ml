@@ -204,8 +204,8 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     ()
   | Const_float expected, Const_float result when Int64.equal expected result ->
     ()
-  | Const_symbol expected, Const_symbol result when String.equal expected result
-    ->
+  | Const_symbol expected, Const_symbol result
+    when String.equal expected.sym_name result.sym_name ->
     ()
   | Stackoffset expected, Stackoffset result when Int.equal expected result ->
     ()
@@ -307,9 +307,9 @@ let check_func_call_operation :
  fun location expected result ->
   match expected, result with
   | Indirect, Indirect -> ()
-  | ( Direct { func_symbol = expected_func_symbol },
-      Direct { func_symbol = result_func_symbol } )
-    when String.equal expected_func_symbol result_func_symbol ->
+  | Direct expected_func_symbol, Direct result_func_symbol
+    when String.equal expected_func_symbol.sym_name result_func_symbol.sym_name
+    ->
     ()
   | _ -> different location "function call operation"
  [@@ocaml.warning "-4"]

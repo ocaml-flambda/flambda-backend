@@ -37,17 +37,15 @@ end
 let flush_cmm_helpers_state () =
   let aux name cst acc =
     match (cst : Cmmgen_state.constant) with
-    | Const_table (Local, l) ->
-      C.cdata (C.define_symbol ~global:false name @ l) :: acc
-    | Const_table (Global, l) ->
-      C.cdata (C.define_symbol ~global:true name @ l) :: acc
+    | Const_table (sym_global, l) ->
+      C.cdata (C.define_symbol { sym_name = name; sym_global } @ l) :: acc
     | Const_closure _ ->
       Misc.fatal_errorf
         "There shouldn't be any closures in Cmmgen_state during Flambda 2 to \
          Cmm translation"
   in
   (* reset the structured constants, just in case *)
-  Cmmgen_state.set_structured_constants [];
+  Cmmgen_state.set_local_structured_constants [];
   match Cmmgen_state.get_and_clear_data_items () with
   | [] ->
     let cst_map = Cmmgen_state.get_and_clear_constants () in
@@ -126,7 +124,10 @@ let unit0 ~offsets flambda_unit ~all_code =
       then fun_codegen
       else Cmm.No_CSE :: fun_codegen
     in
-    C.cfunction (C.fundecl fun_name [] body fun_codegen dbg Default_poll)
+    C.cfunction
+      (C.fundecl
+         (Cmm.global_symbol fun_name)
+         [] body fun_codegen dbg Default_poll)
   in
   let { R.data_items; gc_roots; functions } = R.to_cmm res in
   let cmm_helpers_data = flush_cmm_helpers_state () in

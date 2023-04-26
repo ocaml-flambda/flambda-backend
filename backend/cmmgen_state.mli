@@ -19,11 +19,9 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type is_global = Global | Local
-
 type constant =
-  | Const_closure of is_global * Clambda.ufunction list * Clambda.uconstant list
-  | Const_table of is_global * Cmm.data_item list
+  | Const_closure of Cmm.is_global * Clambda.ufunction list * Clambda.uconstant list
+  | Const_table of Cmm.is_global * Cmm.data_item list
 
 val add_constant : Misc.Stdlib.String.t -> constant -> unit
 
@@ -39,9 +37,15 @@ val next_function : unit -> Clambda.ufunction option
 
 val no_more_functions : unit -> bool
 
-val set_structured_constants : Clambda.preallocated_constant list -> unit
+val is_local_function : Clambda.function_label -> bool
 
-val add_structured_constant : string -> Clambda.ustructured_constant -> unit
+val clear_function_names : unit -> unit
+
+val set_local_structured_constants : Clambda.preallocated_constant list -> unit
+
+val add_global_structured_constant : string -> Clambda.ustructured_constant -> unit
+
+val get_structured_constant : string -> (Cmm.is_global * Clambda.ustructured_constant) option
 
 (* Also looks up using Compilenv.structured_constant_of_symbol *)
 val structured_constant_of_sym : string -> Clambda.ustructured_constant option

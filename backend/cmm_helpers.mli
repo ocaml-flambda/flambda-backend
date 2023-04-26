@@ -807,7 +807,7 @@ val ptr_offset : expression -> int -> Debuginfo.t -> expression
 
 (** Direct application of a function via a symbol *)
 val direct_apply :
-  string ->
+  symbol ->
   machtype ->
   expression list ->
   Clambda.apply_kind ->
@@ -881,7 +881,7 @@ val entry_point : Compilation_unit.t list -> phrase
 val global_table : Compilation_unit.t list -> phrase
 
 (** Add references to the given symbols *)
-val reference_symbols : string list -> phrase
+val reference_symbols : symbol list -> phrase
 
 (** Generate the caml_globals_map structure, as a marshalled string constant.
     The runtime representation of the type here must match that of [type
@@ -908,46 +908,32 @@ val plugin_header : Cmxs_format.dynunit list -> phrase
 (** Emit constant symbols *)
 
 (** Produce the data_item list corresponding to a symbol definition *)
-val cdefine_symbol : string * Cmmgen_state.is_global -> data_item list
+val cdefine_symbol : symbol -> data_item list
 
 (** [emit_block symb white_header cont] prepends to [cont] the header and symbol
     for the block. [cont] must already contain the fields of the block (and may
     contain additional data items afterwards). *)
-val emit_block :
-  string * Cmmgen_state.is_global ->
-  nativeint ->
-  data_item list ->
-  data_item list
+val emit_block : symbol -> nativeint -> data_item list -> data_item list
 
 (** Emit specific kinds of constant blocks as data items *)
-val emit_float_constant :
-  string * Cmmgen_state.is_global -> float -> data_item list -> data_item list
+val emit_float_constant : symbol -> float -> data_item list -> data_item list
 
-val emit_string_constant :
-  string * Cmmgen_state.is_global -> string -> data_item list -> data_item list
+val emit_string_constant : symbol -> string -> data_item list -> data_item list
 
-val emit_int32_constant :
-  string * Cmmgen_state.is_global -> int32 -> data_item list -> data_item list
+val emit_int32_constant : symbol -> int32 -> data_item list -> data_item list
 
-val emit_int64_constant :
-  string * Cmmgen_state.is_global -> int64 -> data_item list -> data_item list
+val emit_int64_constant : symbol -> int64 -> data_item list -> data_item list
 
 val emit_nativeint_constant :
-  string * Cmmgen_state.is_global ->
-  nativeint ->
-  data_item list ->
-  data_item list
+  symbol -> nativeint -> data_item list -> data_item list
 
 val emit_float_array_constant :
-  string * Cmmgen_state.is_global ->
-  float list ->
-  data_item list ->
-  data_item list
+  symbol -> float list -> data_item list -> data_item list
 
 val fundecls_size : Clambda.ufunction list -> int
 
 val emit_constant_closure :
-  string * Cmmgen_state.is_global ->
+  symbol ->
   Clambda.ufunction list ->
   data_item list ->
   data_item list ->
@@ -1233,17 +1219,17 @@ val cint : nativeint -> data_item
 val cfloat : float -> data_item
 
 (** Static symbol. *)
-val symbol_address : string -> data_item
+val symbol_address : symbol -> data_item
 
 (** Definition for a static symbol. *)
-val define_symbol : global:bool -> string -> data_item list
+val define_symbol : symbol -> data_item list
 
 (** {2 Static structure helpers} *)
 
 (** [fundecl name args body codegen_options dbg] creates a cmm function
     declaration for a function [name] with binding [args] over [body]. *)
 val fundecl :
-  string ->
+  symbol ->
   (Backend_var.With_provenance.t * machtype) list ->
   expression ->
   codegen_option list ->
