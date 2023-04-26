@@ -481,7 +481,7 @@ let rec transl env e =
                 transl_fundecls (pos + 3) rem
               | arity ->
                 Cconst_symbol
-                  (global_symbol (curry_function_sym
+                  ((curry_function_sym
                      arity.function_kind
                      (List.map machtype_of_layout_changing_tagged_int_to_val
                        arity.params_layout)

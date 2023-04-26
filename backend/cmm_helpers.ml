@@ -1208,7 +1208,7 @@ let apply_function_sym arity result mode =
   Compilenv.need_apply_fun arity result mode;
   global_symbol (apply_function_name arity result mode)
 
-let curry_function_sym function_kind arity result =
+let curry_function_sym_name function_kind arity result =
   match function_kind with
   | Lambda.Curried { nlocal } ->
     Compilenv.need_curry_fun function_kind arity result;
@@ -1232,6 +1232,11 @@ let curry_function_sym function_kind arity result =
     ^ Int.to_string (List.length arity)
     ^
     match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result)
+
+let curry_function_sym function_kind arity result =
+  { sym_name = curry_function_sym_name function_kind arity result;
+    sym_global = Global
+  }
 
 (* Big arrays *)
 
@@ -2809,7 +2814,7 @@ let final_curry_function nlocal arity result =
   let narity = List.length arity in
   let fun_name =
     global_symbol
-      (curry_function_sym (Lambda.Curried { nlocal }) arity result
+      (curry_function_sym_name (Lambda.Curried { nlocal }) arity result
       ^ "_"
       ^ Int.to_string (narity - 1))
   in
@@ -2828,7 +2833,9 @@ let final_curry_function nlocal arity result =
     }
 
 let intermediate_curry_functions ~nlocal ~arity result =
-  let name1 = curry_function_sym (Lambda.Curried { nlocal }) arity result in
+  let name1 =
+    curry_function_sym_name (Lambda.Curried { nlocal }) arity result
+  in
   let narity = List.length arity in
   let dbg = placeholder_dbg in
   let rec loop accumulated_args remaining_args num =
@@ -3756,9 +3763,8 @@ let emit_constant_closure symb fundecls clos_vars cont =
           in
           (Cint (infix_header pos) :: closure_symbol f2)
           @ Csymbol_address
-              (global_symbol
-                 (curry_function_sym arity.function_kind params_machtypes
-                    return_machtype))
+              (curry_function_sym arity.function_kind params_machtypes
+                 return_machtype)
             :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: Csymbol_address
                  { sym_name = f2.label; sym_global = symb.sym_global }
@@ -3776,11 +3782,10 @@ let emit_constant_closure symb fundecls clos_vars cont =
       :: emit_others 3 remainder
     | arity ->
       Csymbol_address
-        (global_symbol
-           (curry_function_sym arity.function_kind
-              (List.map machtype_of_layout_changing_tagged_int_to_val
-                 arity.params_layout)
-              (machtype_of_layout_changing_tagged_int_to_val arity.return_layout)))
+        (curry_function_sym arity.function_kind
+           (List.map machtype_of_layout_changing_tagged_int_to_val
+              arity.params_layout)
+           (machtype_of_layout_changing_tagged_int_to_val arity.return_layout))
       :: Cint (closure_info ~arity ~startenv ~is_last)
       :: Csymbol_address { sym_name = f1.label; sym_global = symb.sym_global }
       :: emit_others 4 remainder)
@@ -3844,7 +3849,7 @@ let unit ~dbg = Cconst_int (1, dbg)
 
 let var v = Cvar v
 
-let symbol_from_string ~dbg sym = Cconst_symbol (global_symbol sym, dbg)
+let symbol ~dbg sym = Cconst_symbol (sym, dbg)
 
 let float ~dbg f = Cconst_float (f, dbg)
 
@@ -4136,7 +4141,7 @@ let gc_root_table syms =
   let table_symbol = make_symbol ?compilation_unit:None "gc_roots" in
   cdata
     (define_symbol { sym_name = table_symbol; sym_global = Global }
-    @ List.map (fun s -> symbol_address (global_symbol s)) syms
+    @ List.map symbol_address syms
     @ [cint 0n])
 
 let cmm_arith_size (e : Cmm.expression) =

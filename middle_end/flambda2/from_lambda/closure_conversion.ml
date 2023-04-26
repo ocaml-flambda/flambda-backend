@@ -35,7 +35,10 @@ module VB = Bound_var
 type 'a close_program_metadata =
   | Normal : [`Normal] close_program_metadata
   | Classic :
-      (Exported_code.t * Flambda_cmx_format.t option * Exported_offsets.t)
+      (Exported_code.t
+      * Name_occurrences.t
+      * Flambda_cmx_format.t option
+      * Exported_offsets.t)
       -> [`Classic] close_program_metadata
 
 type 'a close_program_result = Flambda_unit.t * 'a close_program_metadata
@@ -2580,7 +2583,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
       Slot_offsets.finalize_offsets (Acc.slot_offsets acc) ~get_code_metadata
         ~used_slots
     in
-    let cmx =
+    let reachable_names, cmx =
       Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations
         ~module_symbol ~exported_offsets ~used_value_slots all_code
     in
@@ -2589,4 +2592,4 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
         ~toplevel_my_region ~body ~module_symbol
         ~used_value_slots:(Known used_value_slots)
     in
-    unit, Classic (all_code, cmx, exported_offsets)
+    unit, Classic (all_code, reachable_names, cmx, exported_offsets)

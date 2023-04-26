@@ -228,6 +228,7 @@ type kind_for_unboxing =
   | Boxed_float
 
 type is_global = Global | Local
+val equal_is_global : is_global -> is_global -> bool
 
 (* Symbols are marked with whether they are local or global,
    at both definition and use sites.
