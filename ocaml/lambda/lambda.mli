@@ -323,6 +323,7 @@ type poll_attribute =
 
 type check_attribute =
   | Default_check
+  | Ignore_assert_all of property
   | Check of { property: property;
                strict: bool;
                (* [strict=true] property holds on all paths.
@@ -331,7 +332,7 @@ type check_attribute =
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
                assume: bool;
-               (* [assume=false] assume without checking that the
+               (* [assume=true] assume without checking that the
                   property holds *)
                loc: Location.t;
              }
@@ -573,7 +574,7 @@ val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 
 val subst:
-  (Ident.t -> Types.value_description -> Env.t -> Env.t) ->
+  (Ident.t -> Subst.Lazy.value_description -> Env.t -> Env.t) ->
   ?freshen_bound_variables:bool ->
   lambda Ident.Map.t -> lambda -> lambda
 (** [subst update_env ?freshen_bound_variables s lt]

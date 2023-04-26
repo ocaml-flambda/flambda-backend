@@ -4135,6 +4135,7 @@ let transl_property : Lambda.property -> Cmm.property = function
 
 let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
   | Default_check -> []
+  | Ignore_assert_all p -> [Ignore_assert_all (transl_property p)]
   | Check { property; strict; assume; loc } ->
     [Check { property = transl_property property; strict; assume; loc }]
 

@@ -280,7 +280,23 @@ let print_line b = function
   | Byte n -> bprintf b "\t.byte\t%a" cst n
   | Bytes s ->
       if system = S_solaris then buf_bytes_directive b ".byte" s
-      else bprintf b "\t.ascii\t\"%s\"" (string_of_string_literal s)
+      else
+        (* Very long lines can cause gas to be extremely slow so split up large
+          string literals. It turns out that gas reads files in 32kb chunks
+          so splitting the string into blocks of 25k characters should be close
+          to the sweet spot even with a lot of escapes. *)
+        let chunk_size = 25000 in
+        let rec chunk i =
+          if String.length s - i > chunk_size
+            then (
+              bprintf b "\t.ascii\t\"%s\"\n"
+                (string_of_substring_literal i chunk_size s);
+              chunk (i + chunk_size))
+            else i
+        in
+        let i = chunk 0 in
+        bprintf b "\t.ascii\t\"%s\""
+          (string_of_substring_literal i (String.length s - i) s)
   | Comment s -> bprintf b "\t\t\t\t/* %s */" s
   | Global s -> bprintf b "\t.globl\t%s" s;
   | Hidden s -> bprintf b "\t.hidden\t%s" s;
