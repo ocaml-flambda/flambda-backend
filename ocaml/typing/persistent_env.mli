@@ -74,10 +74,6 @@ val check : 'a t -> (Persistent_signature.t -> 'a)
    [penv] (it may have failed) *)
 val looked_up : 'a t -> Compilation_unit.Name.t -> bool
 
-(* [is_imported penv md] checks if [md] has been successfully
-   imported in the environment [penv] *)
-val is_imported : 'a t -> Compilation_unit.Name.t -> bool
-
 (* [is_imported_opaque penv md] checks if [md] has been imported
    in [penv] as an opaque module *)
 val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool

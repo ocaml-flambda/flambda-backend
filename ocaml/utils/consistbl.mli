@@ -45,6 +45,14 @@ end) : sig
              [source] is the name of the file from which the information
              comes from.  This is used for error reporting. *)
 
+  val check_did_exist: t -> Module_name.t
+     -> (Data.t * Digest.t * filepath) option
+     -> bool
+        (* Same as [check], but:
+           1. allows the addition of weak dependencies;
+           2. returns whether the module name was already known by the table
+              (whether as a weak or strong dependency) or not. *)
+
   val check_noadd: t -> Module_name.t -> Data.t -> Digest.t -> filepath -> unit
         (* Same as [check], but raise [Not_available] if no CRC was previously
              associated with [name]. *)
@@ -61,11 +69,13 @@ end) : sig
 
   val find: t -> Module_name.t -> (Data.t * Digest.t) option
 
-  val extract:
+  val extract: ?no_dups:unit ->
     Module_name.t list -> t -> (Module_name.t * (Data.t * Digest.t) option) list
         (* [extract tbl names] returns an associative list mapping each string
            in [names] to the data and CRC associated with it in [tbl]. If no CRC
-           is associated with a name then it is mapped to [None]. *)
+           is associated with a name then it is mapped to [None].
+           If [no_dups] is provided then the list of module names won't be
+           deduped by this function. *)
 
   val extract_map :
     Module_name.Set.t -> t -> (Data.t * Digest.t) option Module_name.Map.t
