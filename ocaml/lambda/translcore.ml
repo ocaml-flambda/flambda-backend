@@ -103,7 +103,13 @@ let transl_apply_position position =
     else Rc_normal
 
 let may_allocate_in_region lam =
-  let rec loop = function
+  (* loop_region raises, if the lambda might allocate in parent region *)
+  let rec loop_region lam =
+    shallow_iter ~tail:(function
+      | Lexclave body -> loop body
+      | _ -> ()
+    ) ~non_tail:(fun _ -> ()) lam
+  and loop = function
     | Lvar _ | Lmutvar _ | Lconst _ -> ()
 
     | Lfunction {mode=Alloc_heap} -> ()
@@ -118,14 +124,16 @@ let may_allocate_in_region lam =
        | None | Some Alloc_heap ->
           List.iter loop args
        end
-    | Lregion (_body, _layout) ->
-       (* [_body] might do local allocations, but not in the current region *)
-       ()
-    | Lwhile {wh_cond_region=false} -> raise Exit
-    | Lwhile {wh_body_region=false} -> raise Exit
-    | Lwhile _ -> ()
-    | Lfor {for_region=false} -> raise Exit
-    | Lfor {for_from; for_to} -> loop for_from; loop for_to
+    | Lregion (body, _layout) ->
+       (* [body] might allocate in the parent region because of exclave, and thus
+          [Lregion body] might allocate in the current region *)
+      loop_region body
+    | Lexclave _body ->
+      (* [_body] might do local allocations, but not in the current region;
+        rather, it's in the parent region *)
+      ()
+    | Lwhile {wh_cond; wh_body} -> loop wh_cond; loop wh_body
+    | Lfor {for_from; for_to; for_body} -> loop for_from; loop for_to; loop for_body
     | ( Lapply _ | Llet _ | Lmutlet _ | Lletrec _ | Lswitch _ | Lstringswitch _
       | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
       | Lifthenelse _ | Lsequence _ | Lassign _ | Lsend _
@@ -140,18 +148,19 @@ let may_allocate_in_region lam =
   end
 
 let maybe_region get_layout lam =
-  let rec remove_tail_markers = function
+  let rec remove_tail_markers_and_exclave = function
     | Lapply ({ap_region_close = Rc_close_at_apply} as ap) ->
        Lapply ({ap with ap_region_close = Rc_normal})
     | Lsend (k, lmet, lobj, largs, Rc_close_at_apply, mode, loc, layout) ->
        Lsend (k, lmet, lobj, largs, Rc_normal, mode, loc, layout)
     | Lregion _ as lam -> lam
+    | Lexclave lam -> lam
     | lam ->
-       Lambda.shallow_map ~tail:remove_tail_markers ~non_tail:Fun.id lam
+       Lambda.shallow_map ~tail:remove_tail_markers_and_exclave ~non_tail:Fun.id lam
   in
   if not Config.stack_allocation then lam
   else if may_allocate_in_region lam then Lregion (lam, get_layout ())
-  else remove_tail_markers lam
+  else remove_tail_markers_and_exclave lam
 
 let maybe_region_layout layout lam =
   maybe_region (fun () -> layout) lam
@@ -592,22 +601,15 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_sequence(expr1, expr2) ->
       Lsequence(transl_exp ~scopes expr1,
                 event_before ~scopes expr2 (transl_exp ~scopes expr2))
-  | Texp_while {wh_body; wh_body_region; wh_cond; wh_cond_region} ->
+  | Texp_while {wh_body; wh_cond } ->
       let cond = transl_exp ~scopes wh_cond in
       let body = transl_exp ~scopes wh_body in
       Lwhile {
-        wh_cond =
-          if wh_cond_region then
-            maybe_region_layout layout_int cond
-          else cond;
-        wh_cond_region;
+        wh_cond = maybe_region_layout layout_int cond;
         wh_body = event_before ~scopes wh_body
-                    (if wh_body_region then
-                       maybe_region_layout layout_unit body
-                     else body);
-        wh_body_region;
+                    (maybe_region_layout layout_unit body);
       }
-  | Texp_for {for_id; for_from; for_to; for_dir; for_body; for_region} ->
+  | Texp_for {for_id; for_from; for_to; for_dir; for_body} ->
       let body = transl_exp ~scopes for_body in
       Lfor {
         for_id;
@@ -615,10 +617,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
         for_to = transl_exp ~scopes for_to;
         for_dir;
         for_body = event_before ~scopes for_body
-                     (if for_region then
-                        maybe_region_layout layout_unit body
-                      else body);
-        for_region;
+                     (maybe_region_layout layout_unit body);
       }
   | Texp_send(expr, met, pos, alloc_mode) ->
       let lam =
@@ -884,6 +883,10 @@ and transl_exp0 ~in_new_scope ~scopes e =
       Lprim(Pprobe_is_enabled {name}, [], of_location ~scopes e.exp_loc)
     else
       lambda_unit
+  | Texp_exclave e ->
+    let l = transl_exp ~scopes e in
+    if Config.stack_allocation then Lexclave l
+    else l
 
 and pure_module m =
   match m.mod_desc with
