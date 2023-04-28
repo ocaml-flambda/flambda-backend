@@ -136,9 +136,7 @@ and expression_desc =
   | Texp_sequence of expression * expression
   | Texp_while of {
       wh_cond : expression;
-      wh_cond_region : bool;
       wh_body : expression;
-      wh_body_region : bool
     }
   | Texp_for of {
       for_id  : Ident.t;
@@ -147,7 +145,6 @@ and expression_desc =
       for_to   : expression;
       for_dir  : direction_flag;
       for_body : expression;
-      for_region : bool;
     }
   | Texp_send of expression * meth * apply_position * Types.alloc_mode
   | Texp_new of
@@ -176,6 +173,7 @@ and expression_desc =
   | Texp_open of open_declaration * expression
   | Texp_probe of { name:string; handler:expression; }
   | Texp_probe_is_enabled of { name:string }
+  | Texp_exclave of expression
 
 and ident_kind = Id_value | Id_prim of Types.alloc_mode option
 

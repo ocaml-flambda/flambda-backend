@@ -411,6 +411,7 @@ type lambda =
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda * layout
+  | Lexclave of lambda
 
 and lfunction = private
   { kind: function_kind;
@@ -426,11 +427,7 @@ and lfunction = private
 
 and lambda_while =
   { wh_cond : lambda;
-    wh_cond_region : bool; (* false if the condition may locally allocate in
-                              the region containing the loop *)
     wh_body : lambda;
-    wh_body_region : bool  (* false if the body may locally allocate in
-                              the region containing the loop *)
   }
 
 and lambda_for =
@@ -439,8 +436,6 @@ and lambda_for =
     for_to : lambda;
     for_dir : direction_flag;
     for_body : lambda;
-    for_region : bool;     (* false if the body may locally allocate in the
-                              region containing the loop *)
   }
 
 and lambda_apply =
