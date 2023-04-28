@@ -931,7 +931,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
       flags
   in
   let md =
-    { md_type =  Mty_signature sign;
+    { Subst.Lazy.md_type = Mty_signature sign;
       md_loc = Location.none;
       md_attributes = [];
       md_uid = Uid.of_compilation_unit_id name;
@@ -939,13 +939,13 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   in
   let mda_address = Lazy_backtrack.create_forced (Aunit name) in
   let mda_declaration =
-    Subst.(Lazy.module_decl Make_local identity (Lazy.of_module_decl md))
+    Subst.(Lazy.module_decl Make_local identity md)
   in
   let mda_shape =
     Shape.for_persistent_unit (name |> Compilation_unit.full_path_as_string)
   in
   let mda_components =
-    let mty = Subst.Lazy.of_modtype (Mty_signature sign) in
+    let mty = Subst.Lazy.Mty_signature sign in
     let mty =
       if freshen then
         Subst.Lazy.modtype (Subst.Rescope (Path.scope path))
@@ -2649,7 +2649,9 @@ let persistent_structures_of_dir dir =
 let save_signature_with_transform cmi_transform ~alerts sg modname filename =
   Btype.cleanup_abbrev ();
   Subst.reset_for_saving ();
-  let sg = Subst.signature Make_local (Subst.for_saving Subst.identity) sg in
+  let sg = Subst.Lazy.of_signature sg
+    |> Subst.Lazy.signature Make_local (Subst.for_saving Subst.identity)
+  in
   let cmi =
     Persistent_env.make_cmi !persistent_env modname sg alerts
     |> cmi_transform in

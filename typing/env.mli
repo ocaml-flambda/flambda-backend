@@ -411,12 +411,12 @@ val read_signature: Compilation_unit.t -> filepath -> signature
         (* Arguments: module name, file name. Results: signature. *)
 val save_signature:
   alerts:alerts -> signature -> Compilation_unit.t -> filepath
-  -> Cmi_format.cmi_infos
+  -> Cmi_format.cmi_infos_lazy
         (* Arguments: signature, module name, file name. *)
 val save_signature_with_imports:
   alerts:alerts -> signature -> Compilation_unit.t -> filepath
   -> Import_info.t array
-  -> Cmi_format.cmi_infos
+  -> Cmi_format.cmi_infos_lazy
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
 

@@ -41,12 +41,12 @@ let error err = raise (Error err)
 module Persistent_signature = struct
   type t =
     { filename : string;
-      cmi : Cmi_format.cmi_infos }
+      cmi : Cmi_format.cmi_infos_lazy }
 
   let load = ref (fun ~unit_name ->
       let unit_name = CU.Name.to_string unit_name in
       match Load_path.find_uncap (unit_name ^ ".cmi") with
-      | filename -> Some { filename; cmi = read_cmi filename }
+      | filename -> Some { filename; cmi = read_cmi_lazy filename }
       | exception Not_found -> None)
 end
 
@@ -223,7 +223,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
 
 let read_pers_struct penv val_of_pers_sig check modname filename =
   add_import penv modname;
-  let cmi = read_cmi filename in
+  let cmi = read_cmi_lazy filename in
   let pers_sig = { Persistent_signature.filename; cmi } in
   let pm = val_of_pers_sig pers_sig in
   let ps = acknowledge_pers_struct penv check modname pers_sig pm in

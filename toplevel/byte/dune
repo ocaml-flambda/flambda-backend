@@ -54,6 +54,7 @@
                     stdlib__Gc
                     stdlib__Genlex
                     stdlib__Hashtbl
+                    stdlib__In_channel
                     stdlib__Int
                     stdlib__Int32
                     stdlib__Int64
@@ -68,6 +69,7 @@
                     stdlib__Obj
                     stdlib__Oo
                     stdlib__Option
+                    stdlib__Out_channel
                     stdlib__Parsing
                     stdlib__Pervasives
                     stdlib__Printexc

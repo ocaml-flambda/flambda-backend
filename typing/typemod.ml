@@ -3370,8 +3370,9 @@ let package_units initial_env objfiles cmifile modulename =
           sg modulename
           (prefix ^ ".cmi") (Array.of_list imports)
       in
+      let sign = Subst.Lazy.force_signature cmi.Cmi_format.cmi_sign in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
-        (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) None initial_env
+        (Cmt_format.Packed (sign, objfiles)) None initial_env
         (Some cmi) (Some shape);
       Cms_format.save_cms (prefix ^ ".cms")  modulename
         None (Some shape);
