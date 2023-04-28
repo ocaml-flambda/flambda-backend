@@ -36,7 +36,7 @@ let rec env_from_summary sum subst =
       match sum with
         Env_empty ->
           Env.empty
-      | Env_value(s, id, desc) ->
+      | Env_value(s, id, desc, mode) ->
           let desc =
             Subst.Lazy.of_value_description desc
             |> Subst.Lazy.value_description subst

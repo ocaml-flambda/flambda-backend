@@ -619,13 +619,11 @@ let rec unbox_float dbg =
           map_tail ~kind:Any
             (function
               | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
-              | Ctail e -> Ctail (unbox_float dbg e)
               | e -> unbox_float dbg e)
             e
         with
         | e -> Cregion e
         | exception Exit -> Cop (Cload (Double, Immutable), [cmm], dbg))
-      | Ctail e -> Ctail (unbox_float dbg e)
       | cmm -> Cop(Cload (Double, Immutable), [cmm], dbg)
     )
 
@@ -1309,13 +1307,11 @@ let rec unbox_int dbg bi =
           map_tail ~kind:Any
             (function
               | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
-              | Ctail e -> Ctail (unbox_int dbg bi e)
               | e -> unbox_int dbg bi e)
             e
         with
         | e -> Cregion e
         | exception Exit -> default cmm)
-      | Ctail e -> Ctail (unbox_int dbg bi e)
       | cmm ->
           default cmm
     )
