@@ -149,7 +149,7 @@ val safe_mod_bi :
     then branch [ifso], and [ifnot_dbg] to the else branch [ifnot] *)
 val mk_if_then_else :
   Debuginfo.t ->
-  Cmm.value_kind ->
+  Cmm.kind_for_unboxing ->
   expression ->
   Debuginfo.t -> expression ->
   Debuginfo.t -> expression ->
@@ -280,6 +280,50 @@ val float_array_set :
 val string_length : expression -> Debuginfo.t -> expression
 val bigstring_length : expression -> Debuginfo.t -> expression
 
+module Extended_machtype_component : sig
+  (** Like [Cmm.machtype_component] but has a case explicitly for tagged
+      integers.  This enables caml_apply functions to be insensitive to whether
+      a particular argument or return value is a tagged integer or a normal
+      value.  In turn this significantly reduces the number of caml_apply
+      functions that are generated. *)
+  type t =
+    | Val
+    | Addr
+    | Tagged_int
+    | Any_int
+    | Float
+end
+
+module Extended_machtype : sig
+  type t = Extended_machtype_component.t array
+
+  val typ_val : t
+
+  val typ_tagged_int : t
+
+  val typ_any_int : t
+
+  val typ_int64 : t
+
+  val typ_float : t
+
+  val typ_void : t
+
+  (** Conversion from a normal Cmm machtype. *)
+  val of_machtype : machtype -> t
+
+  (** Conversion from a Lambda layout. *)
+  val of_layout : Lambda.layout -> t
+
+  (** Conversion to a normal Cmm machtype. *)
+  val to_machtype : t -> machtype
+
+  (** Like [to_machtype] but tagged integer extended machtypes are mapped to
+      value machtypes.  This is used to avoid excessive numbers of generic
+      functions being generated (see comments in cmm_helpers.ml). *)
+  val change_tagged_int_to_val : t -> machtype
+end
+
 (** Objects *)
 
 (** Lookup a method by its hash, using [caml_get_public_method]
@@ -308,8 +352,8 @@ val call_cached_method :
   expression ->
   expression ->
   expression list ->
-  machtype list ->
-  machtype ->
+  Extended_machtype.t list ->
+  Extended_machtype.t ->
   Clambda.apply_kind ->
   Debuginfo.t ->
   expression
@@ -343,14 +387,9 @@ val opaque : expression -> Debuginfo.t -> expression
 
 (** Generic application functions *)
 
-(** Get an identifier for a given machtype, used in the name of the generic
-    functions. *)
+(** Get an identifier for a given machtype, used in the name of the
+    generic functions. *)
 val machtype_identifier : machtype -> string
-
-(** Get the symbol for the generic application with [n] arguments, and ensure
-    its presence in the set of defined symbols *)
-val apply_function_sym :
-  machtype list -> machtype -> Lambda.alloc_mode -> string
 
 (** Get the symbol for the generic currying or tuplifying wrapper with [n]
     arguments, and ensure its presence in the set of defined symbols. *)
@@ -560,20 +599,20 @@ val transl_isout : expression -> expression -> Debuginfo.t -> expression
     or optimize as a static table lookup when possible. *)
 val make_switch :
   expression -> int array -> (expression * Debuginfo.t) array -> Debuginfo.t ->
-  Cmm.value_kind -> expression
+  Cmm.kind_for_unboxing -> expression
 
 (** [transl_int_switch loc kind arg low high cases default] *)
 val transl_int_switch :
-  Debuginfo.t -> Cmm.value_kind -> expression -> int -> int ->
+  Debuginfo.t -> Cmm.kind_for_unboxing -> expression -> int -> int ->
   (int * expression) list -> expression -> expression
 
 (** [transl_switch_clambda loc kind arg index cases] *)
 val transl_switch_clambda :
-  Debuginfo.t -> Cmm.value_kind -> expression -> int array -> expression array -> expression
+  Debuginfo.t -> Cmm.kind_for_unboxing -> expression -> int array -> expression array -> expression
 
 (** [strmatch_compile dbg arg default cases] *)
 val strmatch_compile :
-  Debuginfo.t -> Cmm.value_kind -> expression -> expression option ->
+  Debuginfo.t -> Cmm.kind_for_unboxing -> expression -> expression option ->
   (string * expression) list -> expression
 
 (** Closures and function applications *)
@@ -595,8 +634,8 @@ val generic_apply :
   Asttypes.mutable_flag ->
   expression ->
   expression list ->
-  machtype list ->
-  machtype ->
+  Extended_machtype.t list ->
+  Extended_machtype.t ->
   Clambda.apply_kind ->
   Debuginfo.t ->
   expression
@@ -613,8 +652,8 @@ val send :
   expression ->
   expression ->
   expression list ->
-  machtype list ->
-  machtype ->
+  Extended_machtype.t list ->
+  Extended_machtype.t ->
   Clambda.apply_kind ->
   Debuginfo.t ->
   expression
@@ -705,6 +744,10 @@ val emit_preallocated_blocks :
 
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
 
-val kind_of_layout : Lambda.layout -> value_kind
+val kind_of_layout : Lambda.layout -> kind_for_unboxing
 
 val machtype_of_layout : Lambda.layout -> machtype
+
+val machtype_of_layout_changing_tagged_int_to_val : Lambda.layout -> machtype
+
+val make_tuple : expression list -> expression

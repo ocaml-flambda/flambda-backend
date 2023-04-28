@@ -650,7 +650,7 @@ let end_assembly() =
   `	.quad	0\n`;
   (* Emit the frame descriptors *)
   `	{emit_string data_space}\n`; (* not rodata because relocations inside *)
-  let lbl = Compilenv.make_symbol (Some "frametable") in
+  let lbl = Cmm_helpers.make_symbol "frametable" in
   declare_global_data lbl;
   `{emit_symbol lbl}:\n`;
   emit_frames

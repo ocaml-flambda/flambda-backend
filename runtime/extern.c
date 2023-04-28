@@ -663,7 +663,6 @@ static void extern_code_pointer(char * codeptr)
 
 /* Marshaling the non-scanned-environment part of closures */
 
-#ifdef NO_NAKED_POINTERS
 Caml_inline mlsize_t extern_closure_up_to_env(value v)
 {
   mlsize_t startenv, i;
@@ -691,7 +690,6 @@ Caml_inline mlsize_t extern_closure_up_to_env(value v)
   }
   return startenv;
 }
-#endif
 
 /* Marshal the given value in the output buffer */
 
@@ -789,7 +787,6 @@ static void extern_rec(value v)
       extern_record_location(v, h);
       break;
     }
-#ifdef NO_NAKED_POINTERS
     case Closure_tag: {
       mlsize_t i;
       extern_header(sz, tag);
@@ -809,7 +806,6 @@ static void extern_rec(value v)
       v = Field(v, i);
       continue;
     }
-#endif
     default: {
       extern_header(sz, tag);
       size_32 += 1 + sz;

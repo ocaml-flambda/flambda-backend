@@ -434,7 +434,7 @@ type local_attribute =
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
 type property =
-  | Noalloc
+  | Zero_alloc
 
 type poll_attribute =
   | Error_poll (* [@poll error] *)
@@ -442,8 +442,12 @@ type poll_attribute =
 
 type check_attribute =
   | Default_check
-  | Assert of property
-  | Assume of property
+  | Ignore_assert_all of property
+  | Check of { property: property;
+               strict: bool;
+               assume: bool;
+               loc: Location.t;
+             }
 
 type loop_attribute =
   | Always_loop (* [@loop] or [@loop always] *)
@@ -1087,7 +1091,7 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
           let rebind id id' new_env =
             match find_in_old id with
             | exception Not_found -> new_env
-            | vd -> Env.add_value id' vd new_env
+            | vd -> Env.add_value_lazy id' vd new_env
           in
           let update_free id new_env =
             match find_in_old id with
@@ -1126,7 +1130,7 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
 let rename idmap lam =
   let update_env oldid vd env =
     let newid = Ident.Map.find oldid idmap in
-    Env.add_value newid vd env
+    Env.add_value_lazy newid vd env
   in
   let s = Ident.Map.map (fun new_id -> Lvar new_id) idmap in
   subst update_env s lam

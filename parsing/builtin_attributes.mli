@@ -66,6 +66,13 @@ val register_attr : attr_tracking_time -> string Location.loc -> unit
 val mark_alert_used : Parsetree.attribute -> unit
 val mark_alerts_used : Parsetree.attributes -> unit
 
+(** Properties such as the zero_alloc attribute that are checked
+    in late stages of compilation in the backend.
+    Registering them helps detect code that is not checked,
+    because it is optimized away by the middle-end.  *)
+val register_property : string Location.loc -> unit
+val mark_property_checked : string -> Location.t -> unit
+
 (** Marks "warn_on_literal_pattern" attributes used for the purposes of
     misplaced attribute warnings.  Call this when moving things with alert
     attributes into the environment. *)

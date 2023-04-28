@@ -967,7 +967,7 @@ let mk_afl_inst_ratio f =
 ;;
 
 let mk_alloc_check f =
-  "-alloc-check", Arg.Unit f, "<ignored>"
+  "-zero-alloc-check", Arg.Unit f, "<ignored>"
 
 let mk__ f =
   "-", Arg.String f,
