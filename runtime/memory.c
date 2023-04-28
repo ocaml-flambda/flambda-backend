@@ -91,7 +91,10 @@ static struct page_table caml_page_table;
 int caml_page_table_lookup(void * addr)
 {
 #ifdef NO_NAKED_POINTERS
-  /* This case should only be hit if C stubs compiled without
+  /* This avoids consulting the page table at all when the compiler
+     is configured using --disable-naked-pointers.
+
+     This case can also be hit if C stubs compiled without
      NO_NAKED_POINTERS are linked into an executable using
      "-runtime-variant nnp".  The return value here should cause the
      macros in address_class.h to give the same results as when they
@@ -99,8 +102,8 @@ int caml_page_table_lookup(void * addr)
 
   caml_local_arenas* local_arenas = Caml_state->local_arenas;
 
-  if (Is_young(addr))
-    return In_heap | In_young;
+  if (Is_young((value) addr))
+    return In_young;
 
   if (local_arenas != NULL) {
     int arena;
@@ -108,7 +111,7 @@ int caml_page_table_lookup(void * addr)
       char* start = local_arenas->arenas[arena].base;
       char* end = start + local_arenas->arenas[arena].length;
       if ((char*) addr >= start && (char*) addr < end)
-        return In_heap | In_local;
+        return In_local;
     }
   }
 

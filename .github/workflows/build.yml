@@ -9,7 +9,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: closure-nnp-local
+          - name: closure-local
             config: --enable-stack-allocation
             os: ubuntu-latest
             ocamlparam: ''
