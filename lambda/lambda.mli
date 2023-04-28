@@ -315,7 +315,7 @@ type local_attribute =
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
 type property =
-  | Noalloc
+  | Zero_alloc
 
 type poll_attribute =
   | Error_poll (* [@poll error] *)
@@ -323,8 +323,19 @@ type poll_attribute =
 
 type check_attribute =
   | Default_check
-  | Assert of property
-  | Assume of property
+  | Ignore_assert_all of property
+  | Check of { property: property;
+               strict: bool;
+               (* [strict=true] property holds on all paths.
+                  [strict=false] if the function returns normally,
+                  then the property holds (but property violations on
+                  exceptional returns or divering loops are ignored).
+                  This definition may not be applicable to new properties. *)
+               assume: bool;
+               (* [assume=true] assume without checking that the
+                  property holds *)
+               loc: Location.t;
+             }
 
 type loop_attribute =
   | Always_loop (* [@loop] or [@loop always] *)
@@ -366,6 +377,7 @@ type function_attribute = {
   stub: bool;
   tmc_candidate: bool;
 }
+
 
 type scoped_location = Debuginfo.Scoped_location.t
 
@@ -557,7 +569,7 @@ val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 
 val subst:
-  (Ident.t -> Types.value_description -> Env.t -> Env.t) ->
+  (Ident.t -> Subst.Lazy.value_description -> Env.t -> Env.t) ->
   ?freshen_bound_variables:bool ->
   lambda Ident.Map.t -> lambda -> lambda
 (** [subst update_env ?freshen_bound_variables s lt]

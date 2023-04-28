@@ -36,9 +36,12 @@ let rec env_from_summary sum subst =
       match sum with
         Env_empty ->
           Env.empty
-      | Env_value(s, id, desc, mode) ->
-          Env.add_value ~mode id (Subst.value_description subst desc)
-                        (env_from_summary s subst)
+      | Env_value(s, id, desc) ->
+          let desc =
+            Subst.Lazy.of_value_description desc
+            |> Subst.Lazy.value_description subst
+          in
+          Env.add_value_lazy ~mode id desc (env_from_summary s subst)
       | Env_type(s, id, desc) ->
           Env.add_type ~check:false id
             (Subst.type_declaration subst desc)
@@ -48,12 +51,17 @@ let rec env_from_summary sum subst =
             (Subst.extension_constructor subst desc)
             (env_from_summary s subst)
       | Env_module(s, id, pres, desc) ->
-          Env.add_module_declaration ~check:false id pres
-            (Subst.module_declaration Keep subst desc)
+          let desc =
+            Subst.Lazy.module_decl Keep subst (Subst.Lazy.of_module_decl desc)
+          in
+          Env.add_module_declaration_lazy ~update_summary:true id pres desc
             (env_from_summary s subst)
       | Env_modtype(s, id, desc) ->
-          Env.add_modtype id (Subst.modtype_declaration Keep subst desc)
-                          (env_from_summary s subst)
+          let desc =
+            Subst.Lazy.modtype_decl Keep subst (Subst.Lazy.of_modtype_decl desc)
+          in
+          Env.add_modtype_lazy ~update_summary:true id desc
+            (env_from_summary s subst)
       | Env_class(s, id, desc) ->
           Env.add_class id (Subst.class_declaration subst desc)
                         (env_from_summary s subst)
@@ -70,8 +78,10 @@ let rec env_from_summary sum subst =
           end
       | Env_functor_arg(Env_module(s, id, pres, desc), id')
             when Ident.same id id' ->
-          Env.add_module_declaration ~check:false
-            id pres (Subst.module_declaration Keep subst desc)
+          let desc =
+            Subst.Lazy.module_decl Keep subst (Subst.Lazy.of_module_decl desc)
+          in
+          Env.add_module_declaration_lazy ~update_summary:true id pres desc
             ~arg:true (env_from_summary s subst)
       | Env_functor_arg _ -> assert false
       | Env_constraints(s, map) ->

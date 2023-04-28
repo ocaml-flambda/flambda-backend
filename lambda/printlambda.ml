@@ -576,12 +576,17 @@ let name_of_primitive = function
 
 let check_attribute ppf check =
   let check_property = function
-    | Noalloc -> "noalloc"
+    | Zero_alloc -> "zero_alloc"
   in
   match check with
   | Default_check -> ()
-  | Assert p -> fprintf ppf "assert %s@ " (check_property p)
-  | Assume p -> fprintf ppf "assume %s@ " (check_property p)
+  | Ignore_assert_all p ->
+    fprintf ppf "ignore assert all %s@ " (check_property p)
+  | Check {property=p; assume; strict; loc = _} ->
+    fprintf ppf "%s %s%s@ "
+      (if assume then "assume" else "assert")
+      (check_property p)
+      (if strict then " strict" else "")
 
 let function_attribute ppf t =
   if t.is_a_functor then

@@ -61,7 +61,7 @@ val path_of_module : Typedtree.module_expr -> Path.t option
 
 val save_signature:
   Compilation_unit.t -> Typedtree.signature -> string -> string ->
-  Env.t -> Cmi_format.cmi_infos -> unit
+  Env.t -> Cmi_format.cmi_infos_lazy -> unit
 
 val package_units:
   Env.t -> string list -> string -> Compilation_unit.t -> Typedtree.module_coercion
