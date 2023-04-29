@@ -133,6 +133,8 @@ module Env : sig
     continuation_after_closing_region:Continuation.t ->
     t
 
+  val leaving_region : t -> t
+
   val entering_try_region : t -> Ident.t -> t
 
   val leaving_try_region : t -> t
@@ -363,6 +365,14 @@ end = struct
           { continuation_closing_region; continuation_after_closing_region }
           t.region_closure_continuations
     }
+
+  let leaving_region t =
+    match t.region_stack with
+    | [] -> Misc.fatal_error "Cannot pop region, region stack is empty"
+    | Regular _ :: region_stack -> { t with region_stack }
+    | Try_with region :: _ ->
+      Misc.fatal_errorf "Attempted to pop region but found try region %a"
+        Ident.print region
 
   let entering_try_region t region =
     { t with region_stack = Try_with region :: t.region_stack }
@@ -1436,6 +1446,13 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
   | Lregion (body, _) when not (Flambda_features.stack_allocation_enabled ()) ->
     cps acc env ccenv body k k_exn
+  | Lexclave body ->
+    let region = Env.current_region env in
+    CC.close_let acc ccenv (Ident.create_local "unit")
+      Not_user_visible Flambda_kind.With_subkind.tagged_immediate
+      (End_region region) ~body:(fun acc ccenv ->
+        let env = Env.leaving_region env in
+        cps acc env ccenv body k k_exn)
   | Lregion (body, layout) ->
     (* Here we need to build the region closure continuation (see long comment
        above). Since we're not in tail position, we also need to have a new
@@ -1726,7 +1743,8 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
         | Lmutvar _ | Lapply _ | Lfunction _ | Llet _ | Lmutlet _ | Lletrec _
         | Lprim _ | Lswitch _ | Lstringswitch _ | Lstaticraise _
         | Lstaticcatch _ | Ltrywith _ | Lifthenelse _ | Lsequence _ | Lwhile _
-        | Lfor _ | Lassign _ | Lsend _ | Levent _ | Lifused _ | Lregion _ ->
+        | Lfor _ | Lassign _ | Lsend _ | Levent _ | Lifused _ | Lregion _
+        | Lexclave _ ->
           (* The continuations created here (and for failactions) are local. The
              bodies of the let_conts will not modify mutable variables. Hence,
              it is safe to exclude them from passing along the extra arguments

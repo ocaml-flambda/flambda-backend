@@ -534,6 +534,10 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
   | Lregion (body, _) ->
     let letrec = prepare_letrec recursive_set current_let body letrec in
     { letrec with needs_region = true }
+  | Lexclave _ ->
+    Misc.fatal_errorf
+      "Cannot yet handle Lexclave directly under let rec with Flambda 2:@ %a"
+      Printlambda.lambda lam
   [@@ocaml.warning "-fragile-match"]
 
 let dissect_letrec ~bindings ~body =
