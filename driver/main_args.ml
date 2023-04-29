@@ -40,6 +40,10 @@ let mk_binannot f =
   "-bin-annot", Arg.Unit f, " Save typedtree in <filename>.cmt"
 ;;
 
+let mk_binannot_cms f =
+  "-bin-annot-cms", Arg.Unit f, " Save shapes in <filename>.cms"
+;;
+
 let mk_c f =
   "-c", Arg.Unit f, " Compile only (do not link)"
 ;;
@@ -962,9 +966,6 @@ let mk_afl_inst_ratio f =
   \     (advanced, see afl-fuzz docs for AFL_INST_RATIO)"
 ;;
 
-let mk_alloc_check f =
-  "-alloc-check", Arg.Unit f, "<ignored>"
-
 let mk__ f =
   "-", Arg.String f,
   "<file>  Treat <file> as a file name (even if it starts with `-')"
@@ -1034,6 +1035,7 @@ module type Compiler_options = sig
   val _a : unit -> unit
   val _annot : unit -> unit
   val _binannot : unit -> unit
+  val _binannot_cms : unit -> unit
   val _c : unit -> unit
   val _cc : string -> unit
   val _cclib : string -> unit
@@ -1199,7 +1201,6 @@ module type Optcomp_options = sig
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
-  val _alloc_check : unit -> unit
 end;;
 
 module type Opttop_options = sig
@@ -1233,6 +1234,7 @@ struct
     mk_absname F._absname;
     mk_annot F._annot;
     mk_binannot F._binannot;
+    mk_binannot_cms F._binannot_cms;
     mk_c F._c;
     mk_cc F._cc;
     mk_cclib F._cclib;
@@ -1424,6 +1426,7 @@ struct
     mk_afl_inst_ratio F._afl_inst_ratio;
     mk_annot F._annot;
     mk_binannot F._binannot;
+    mk_binannot_cms F._binannot_cms;
     mk_inline_branch_factor F._inline_branch_factor;
     mk_c F._c;
     mk_cc F._cc;
@@ -1575,7 +1578,6 @@ struct
     mk_dump_into_file F._dump_into_file;
     mk_dump_dir F._dump_dir;
     mk_dump_pass F._dump_pass;
-    mk_alloc_check F._alloc_check;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1952,6 +1954,7 @@ module Default = struct
     let _args = Arg.read_arg
     let _args0 = Arg.read_arg0
     let _binannot = set binary_annotations
+    let _binannot_cms = set binary_annotations_cms
     let _c = set compile_only
     let _cc s = c_compiler := (Some s)
     let _cclib s = Compenv.defer (ProcessObjects (Misc.rev_split_words s))
@@ -2066,7 +2069,6 @@ module Default = struct
     let _v () = Compenv.print_version_and_library "native-code compiler"
     let _no_probes = clear probes
     let _probes = set probes
-    let _alloc_check () = ()
   end
 
   module Odoc_args = struct

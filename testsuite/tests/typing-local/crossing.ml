@@ -344,3 +344,17 @@ type t2 = { x : int; } [@@unboxed]
 val f : local_ M.t -> M.t = <fun>
 val f : local_ t2 -> t2 = <fun>
 |}]
+
+(* This test needs the snapshotting in is_always_global to prevent a type error
+   from the use of the gadt equation in the inner scope. *)
+type _ t_gadt = Int : int t_gadt
+type 'a t_rec = { fld : 'a }
+
+let f (type a) (x : a t_gadt) (y : a) =
+  match x with
+    Int -> { fld = y }.fld
+[%%expect{|
+type _ t_gadt = Int : int t_gadt
+type 'a t_rec = { fld : 'a; }
+val f : 'a t_gadt -> 'a -> 'a = <fun>
+|}]

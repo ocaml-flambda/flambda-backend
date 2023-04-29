@@ -144,8 +144,16 @@ let loc_arguments arg =
   calling_conventions 0 5 100 99 outgoing arg
 let loc_parameters arg =
   let (loc, _ofs) = calling_conventions 0 5 100 99 incoming arg in loc
-let loc_results res =
-  let (loc, _ofs) = calling_conventions 0 5 100 100 not_supported res in loc
+
+(* CR vlaviron: The old code used to allow a single float register for
+   the return registers (even though the case was never used). I've
+   chosen to forbid it to match the convention for parameters.
+   Unboxed float return values will thus end up either on the reserved
+   region of the domain state or on the stack. *)
+let loc_results_call res =
+  calling_conventions 0 5 100 99 outgoing res
+let loc_results_return res =
+  let (loc, _ofs) = calling_conventions 0 5 100 99 incoming res in loc
 
 let max_arguments_for_tailcalls =
   6 (* in registers *) + 64 (* in domain state *)

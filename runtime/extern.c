@@ -502,6 +502,14 @@ Caml_inline void extern_int(intnat n)
   }
 }
 
+Caml_inline void extern_unboxed_int(intnat n)
+{
+  if (extern_flags & COMPAT_32)
+    extern_failwith("output_value: cannot marshal unboxed values on 32 bit");
+
+  writecode64(CODE_UNBOXED_INT64, n);
+}
+
 /* Marshaling references to previously-marshaled blocks */
 
 Caml_inline void extern_shared_reference(uintnat d)
@@ -653,9 +661,8 @@ static void extern_code_pointer(char * codeptr)
   }
 }
 
-/* Marshaling the non-environment part of closures */
+/* Marshaling the non-scanned-environment part of closures */
 
-#ifdef NO_NAKED_POINTERS
 Caml_inline mlsize_t extern_closure_up_to_env(value v)
 {
   mlsize_t startenv, i;
@@ -677,9 +684,12 @@ Caml_inline mlsize_t extern_closure_up_to_env(value v)
     }
   } while (!Is_last_closinfo(info));
   CAMLassert(i <= startenv);
+  /* The non-scanned part of the environment */
+  while (i < startenv) {
+    extern_unboxed_int(Field(v, i++));
+  }
   return startenv;
 }
-#endif
 
 /* Marshal the given value in the output buffer */
 
@@ -777,7 +787,6 @@ static void extern_rec(value v)
       extern_record_location(v, h);
       break;
     }
-#ifdef NO_NAKED_POINTERS
     case Closure_tag: {
       mlsize_t i;
       extern_header(sz, tag);
@@ -797,7 +806,6 @@ static void extern_rec(value v)
       v = Field(v, i);
       continue;
     }
-#endif
     default: {
       extern_header(sz, tag);
       size_32 += 1 + sz;

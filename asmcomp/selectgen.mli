@@ -29,6 +29,8 @@ val env_find : Backend_var.t -> environment -> Reg.t array
 
 val size_expr : environment -> Cmm.expression -> int
 
+module Region_stack : sig type t end
+
 module Effect : sig
   type t =
     | None
@@ -159,8 +161,14 @@ class virtual selector_generic : object
   method insert_move_results :
     environment -> Reg.t array -> Reg.t array -> int -> unit
   method insert_moves : environment -> Reg.t array -> Reg.t array -> unit
+  method insert_endregions :
+    environment -> Reg.t array list -> unit
+  method insert_endregions_until :
+    environment -> suffix:Region_stack.t -> Region_stack.t -> unit
   method emit_expr :
     environment -> Cmm.expression -> Reg.t array option
+  method emit_expr_aux :
+    environment -> Cmm.expression -> (Reg.t array * Region_stack.t) option
   method emit_tail : environment -> Cmm.expression -> unit
 
   (* [contains_calls] is declared as a reference instance variable,

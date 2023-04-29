@@ -46,7 +46,7 @@
  (no-infer
    (progn
      (bash "touch .depend") ; hack.
-     (run make -s %{targets} COMPUTE_DEPS=false)
+     (run make -sj8 %{targets} COMPUTE_DEPS=false)
      (bash "rm .depend")))))
 
 (install

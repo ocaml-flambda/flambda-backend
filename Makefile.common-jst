@@ -2,9 +2,6 @@
 # Build rules common to ocaml-jst and flambda-backend
 #
 
-# Get Merlin along with any Dune command
-dune := '$(CURDIR)/jane-street-merlin-setup.sh' ; '$(dune)'
-
 ws_boot   = --root=. --workspace=duneconf/boot.ws
 ws_runstd = --root=. --workspace=duneconf/runtime_stdlib.ws
 ws_main   = --root=. --workspace=duneconf/main.ws
@@ -98,11 +95,16 @@ duneconf/%.ws:
 $(ocamldir)/duneconf/dirs-to-ignore.inc:
 	echo "(data_only_dirs yacc $(ocaml_subdirs_to_ignore))" > $@
 
-_build/_bootinstall: Makefile.config duneconf/boot.ws duneconf/runtime_stdlib.ws duneconf/main.ws \
-	$(ocamldir)/duneconf/dirs-to-ignore.inc \
-	$(ocamldir)/duneconf/jst-extra.inc \
-	dune-project
+# Targets that should be prerequisites to any target that runs Dune
+dune_config_targets = \
+  duneconf/boot.ws \
+  duneconf/runtime_stdlib.ws \
+  duneconf/main.ws \
+  $(ocamldir)/duneconf/dirs-to-ignore.inc \
+  $(ocamldir)/duneconf/jst-extra.inc \
+  dune-project
 
+_build/_bootinstall: Makefile.config $(dune_config_targets)
 	echo -n '$(NATDYNLINKOPTS)' > $(ocamldir)/otherlibs/dynlink/natdynlinkops
 
 # flags.sexp
@@ -166,16 +168,10 @@ _install: compiler
           -or -name "flambda2*.cmti" -or -name "flambda2*.cmt" \) \
           -exec cp -f {} _install/lib/ocaml/compiler-libs \;
 
-# Copy _install to the final install directory (no-op if they are the same).
-# Also generate ocamlc at the root of the repo, as this is convenient to use
-# with ocamldebug: ocamldebug inherits the pwd of the file passed as argument,
-# so breakpoints bring you to the less-convenient _build source file if you use
-# the ocamlc.byte in $prefix/bin.
+# Copy _install to the final install directory (no-op if they are the same)
 install: _install
 	mkdir -p '$(prefix)'
 	rsync --chmod=u+rw,go+r -rl _install/ '$(prefix)'
-	rm -f ocamlc
-	ln -s '$(prefix)'/bin/ocamlc.byte ocamlc
 
 # Same as above, but relies on a successfull earlier _install
 install_for_opam:

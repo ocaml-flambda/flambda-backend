@@ -81,6 +81,7 @@ val all_ppx : string list ref
 val absname : bool ref
 val annotations : bool ref
 val binary_annotations : bool ref
+val binary_annotations_cms : bool ref
 val use_threads : bool ref
 val noassert : bool ref
 val verbose : bool ref
@@ -282,3 +283,7 @@ val print_arguments : string -> unit
 
 (* [reset_arguments ()] clear all declared arguments *)
 val reset_arguments : unit -> unit
+
+val zero_alloc_check : bool ref
+val zero_alloc_check_assert_all : bool ref
+
