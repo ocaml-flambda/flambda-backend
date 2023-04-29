@@ -47,7 +47,7 @@ let rec no_effects (flam : Flambda.t) =
     no_effects body
   | Region body ->
     no_effects body
-  | Tail body ->
+  | Exclave body ->
     no_effects body
   | While _ | For _ | Apply _ | Send _ | Assign _ | Static_raise _ -> false
   | Proved_unreachable -> true

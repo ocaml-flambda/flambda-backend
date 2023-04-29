@@ -439,7 +439,7 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
       in
       if is_trivial then body, body_layout
       else Uregion body, body_layout
-  | Tail body ->
+  | Exclave body ->
       let body, body_layout = to_clambda t env body in
       let is_trivial =
         match body with
@@ -447,7 +447,7 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
         | _ -> false
       in
       if is_trivial then body, body_layout
-      else Utail body, body_layout
+      else Uexclave body, body_layout
   | Proved_unreachable -> Uunreachable, Lambda.layout_bottom
 
 and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambda.layout =

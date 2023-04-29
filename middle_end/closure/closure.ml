@@ -98,14 +98,14 @@ let region ulam =
   if is_trivial then ulam
   else Uregion ulam
 
-let tail ulam =
+let exclave ulam =
   let is_trivial =
     match ulam with
     | Uvar _ | Uconst _ -> true
     | _ -> false
   in
   if is_trivial then ulam
-  else Utail ulam
+  else Uexclave ulam
 
 (* Check if a variable occurs in a [clambda] term. *)
 
@@ -144,7 +144,7 @@ let occurs_var var u =
         occurs met || occurs obj || List.exists occurs args
     | Uunreachable -> false
     | Uregion e -> occurs e
-    | Utail e -> occurs e
+    | Uexclave e -> occurs e
   and occurs_array a =
     try
       for i = 0 to Array.length a - 1 do
@@ -259,7 +259,7 @@ let lambda_smaller lam threshold =
     | Uregion e ->
         size := !size + 2;
         lambda_size e
-    | Utail e ->
+    | Uexclave e ->
         lambda_size e
   and lambda_list_size l = List.iter lambda_size l
   and lambda_array_size a = Array.iter lambda_size a in
@@ -286,7 +286,7 @@ let rec is_pure = function
   | Ulet(Immutable, _, _var, def, body) ->
       is_pure def && is_pure body
   | Uregion body -> is_pure body
-  | Utail body -> is_pure body
+  | Uexclave body -> is_pure body
   | _ -> false
 
 (* Simplify primitive operations on known arguments *)
@@ -770,8 +770,8 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
       Uunreachable
   | Uregion e ->
       region (substitute loc st sb rn e)
-  | Utail e ->
-      tail (substitute loc st sb rn e)
+  | Uexclave e ->
+      exclave (substitute loc st sb rn e)
 
 type env = {
   backend : (module Backend_intf.S);
@@ -923,7 +923,7 @@ let direct_apply env fundesc ufunct uargs pos result_layout mode ~probe ~loc ~at
      let body =
        match pos with
        | Rc_normal | Rc_nontail -> body
-       | Rc_close_at_apply -> tail body
+       | Rc_close_at_apply -> exclave body
      in
      bind_params env loc fundesc params uargs ufunct body
 
@@ -1175,7 +1175,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           let body =
             match pos with
             | Rc_normal | Rc_nontail -> body
-            | Rc_close_at_apply -> tail body
+            | Rc_close_at_apply -> exclave body
           in
           let result =
             List.fold_left2 (fun body (id, defining_expr) kind ->
@@ -1450,6 +1450,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
   | Lregion (lam, _) ->
       let ulam, approx = close env lam in
       region ulam, approx
+  | Lexclave lam ->
+      let ulam, approx = close env lam in
+      exclave ulam, approx
 
 and close_list env = function
     [] -> []
@@ -1786,7 +1789,7 @@ let collect_exported_structured_constants a =
     | Usend (_, u1, u2, ul, _, _, _, _) -> ulam u1; ulam u2; List.iter ulam ul
     | Uunreachable -> ()
     | Uregion u -> ulam u
-    | Utail u -> ulam u
+    | Uexclave u -> ulam u
   in
   approx a
 
