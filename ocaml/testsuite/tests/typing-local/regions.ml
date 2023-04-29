@@ -25,6 +25,16 @@ let () =
   uses_local 42;
   check_empty "function call"
 
+let[@inline never] uses_exclave x =
+  let local_ r = ref x in
+  let _ = opaque_identity r in
+  [%exclave] (
+    check_empty "cleanup upon exclave"
+  )
+let () =
+  uses_exclave 42
+
+
 let[@inline never] uses_local_try x =
   try
     let r = local_ ref x in

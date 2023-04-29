@@ -122,7 +122,7 @@ Error: Type declarations do not match:
          type !'a t = private < x : int; .. > constraint 'a = 'a t
        is not included in
          type 'a t
-       Their parameters differ
+       Their parameters differ:
        The type 'b t as 'b is not equal to the type 'a
 type 'a t = private 'a constraint 'a = < x : int; .. >
 type t = [ `Closed ]

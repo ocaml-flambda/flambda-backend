@@ -22,7 +22,9 @@ let report ~name ~text =
 
 let typecheck_with_extension ?(full_name = false) name =
   let success =
-    match Typecore.type_expression Env.empty extension_parsed_expression with
+    match Typecore.type_expression Env.initial_safe_string
+            extension_parsed_expression
+    with
     | _ -> true
     | exception (Extensions_parsing.Error.Error _) -> false
   in
@@ -145,6 +147,17 @@ Language_extension.with_set extension ~enabled:false (fun () ->
 Language_extension.with_set extension ~enabled:true (fun () ->
   typecheck_with_extension "disabled locally via [with_set] and also globally");
 
+(* Test that we only allow you to pass one layouts extension flag *)
+should_fail "Enable two layouts"
+  (fun () ->
+     Language_extension.(enable (Layouts Alpha));
+     Language_extension.(enable (Layouts Beta)));
+
+should_fail "Enable and disable layouts"
+  (fun () ->
+     Language_extension.(enable (Layouts Alpha));
+     Language_extension.(disable (Layouts Beta)));
+
 (* Test disallowing extensions *)
 
 try_disallowing_extensions
@@ -186,4 +199,4 @@ report
   ~text:("\"" ^ extension_name ^ "\" is " ^
          if Language_extension.is_enabled extension
          then "INCORRECTLY enabled"
-         else "correctly disabled")
+         else "correctly disabled");

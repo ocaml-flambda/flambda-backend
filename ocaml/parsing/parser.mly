@@ -746,6 +746,15 @@ let mk_directive ~loc name arg =
       pdir_loc = make_loc loc;
     }
 
+let check_layout loc id =
+  begin
+    match id with
+    | ("any" | "value" | "void" | "immediate64" | "immediate") -> ()
+    | _ -> expecting loc "layout"
+  end;
+  let loc = make_loc loc in
+  Attr.mk ~loc (mkloc id loc) (PStr [])
+
 %}
 
 /* Tokens */
@@ -3305,12 +3314,27 @@ type_parameters:
       { [] }
   | p = type_parameter
       { [p] }
-  | LPAREN ps = separated_nonempty_llist(COMMA, type_parameter) RPAREN
+  | LPAREN
+    ps = separated_nonempty_llist(COMMA, parenthesized_type_parameter)
+    RPAREN
       { ps }
 ;
-type_parameter:
-    type_variance type_variable        { $2, $1 }
+
+layout:
+  ident { check_layout $loc($1) $1 }
 ;
+
+parenthesized_type_parameter:
+    type_parameter { $1 }
+  | type_variance type_variable COLON layout
+      { {$2 with ptyp_attributes = [$4]}, $1 }
+;
+
+type_parameter:
+    type_variance type_variable attributes
+      { {$2 with ptyp_attributes = $3}, $1 }
+;
+
 type_variable:
   mktyp(
     QUOTE tyvar = ident

@@ -204,7 +204,9 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       (inh_init,
        let build params rem =
          let param = name_pattern "param" pat in
-         let param_layout = Typeopt.layout pat.pat_env pat.pat_type in
+         let param_layout =
+           Typeopt.layout pat.pat_env pat.pat_loc pat.pat_type
+         in
          Lambda.lfunction
                    ~kind:(Curried {nlocal=0}) ~params:((param, param_layout)::params)
                    ~return:layout_obj
@@ -479,7 +481,9 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
         transl_class_rebind ~scopes obj_init cl vf in
       let build params rem =
         let param = name_pattern "param" pat in
-        let param_layout = Typeopt.layout pat.pat_env pat.pat_type in
+        let param_layout =
+          Typeopt.layout pat.pat_env pat.pat_loc pat.pat_type
+        in
         let return_layout = layout_class in
         Lambda.lfunction
                   ~kind:(Curried {nlocal=0}) ~params:((param, param_layout)::params)
@@ -504,7 +508,8 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
   | Tcl_let (rec_flag, defs, _vals, cl) ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
-      (path, path_lam, Translcore.transl_let ~scopes rec_flag defs layout_obj obj_init)
+      (path, path_lam,
+       Translcore.transl_let ~scopes rec_flag defs layout_obj obj_init)
   | Tcl_structure _ -> raise Exit
   | Tcl_constraint (cl', _, _, _, _) ->
       let path, path_lam, obj_init =
@@ -525,7 +530,8 @@ let rec transl_class_rebind_0 ~scopes (self:Ident.t) obj_init cl vf =
       let path, path_lam, obj_init =
         transl_class_rebind_0 ~scopes self obj_init cl vf
       in
-      (path, path_lam, Translcore.transl_let ~scopes rec_flag defs layout_obj obj_init)
+      (path, path_lam,
+       Translcore.transl_let ~scopes rec_flag defs layout_obj obj_init)
   | _ ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
@@ -721,7 +727,7 @@ let free_methods l =
     | Lvar _ | Lmutvar _ | Lconst _ | Lapply _
     | Lprim _ | Lswitch _ | Lstringswitch _ | Lstaticraise _
     | Lifthenelse _ | Lsequence _ | Lwhile _
-    | Levent _ | Lifused _ | Lregion _ -> ()
+    | Levent _ | Lifused _ | Lregion _ | Lexclave _ -> ()
   in free l; !fv
 
 let transl_class ~scopes ids cl_id pub_meths cl vflag =
