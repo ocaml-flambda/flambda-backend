@@ -24,6 +24,9 @@
 (** Asttypes exposes basic definitions shared both by Parsetree and Types. *)
 open Asttypes
 
+(** Layouts contains support for type layouts *)
+open Layouts
+
 (** Type expressions for the core language.
 
     The [type_desc] variant defines all the possible type expressions one can
@@ -61,8 +64,8 @@ type row_field
 type field_kind
 type commutable
 
-type type_desc =
-  | Tvar of string option
+and type_desc =
+  | Tvar of { name : string option; layout : layout }
   (** [Tvar (Some "a")] ==> ['a] or ['_a]
       [Tvar None]       ==> [_] *)
 
@@ -121,7 +124,7 @@ type type_desc =
   | Tvariant of row_desc
   (** Representation of polymorphic variants, see [row_desc]. *)
 
-  | Tunivar of string option
+  | Tunivar of { name : string option; layout : layout }
   (** Occurrence of a type variable introduced by a
       forall quantifier / [Tpoly]. *)
 
@@ -470,7 +473,6 @@ module Separability : sig
 end
 
 (* Type definitions *)
-
 type type_declaration =
   { type_params: type_expr list;
     type_arity: int;
@@ -492,7 +494,9 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract of {immediate : Type_immediacy.t}
+    Type_abstract of {layout : layout}
+  (* The layout here is authoritative if the manifest is [None].  Otherwise,
+     it's an upper bound; look at the manifest for the most precise layout. *)
   | Type_record of 'lbl list  * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
@@ -503,16 +507,38 @@ and ('lbl, 'cstr) type_kind =
    for motivating examples where subsitution or instantiation may refine the
    immediacy of a type.  *)
 
-and record_representation =
-    Record_regular                      (* All fields are boxed / tagged *)
-  | Record_float                        (* All fields are floats *)
-  | Record_unboxed of bool    (* Unboxed single-field record, inlined or not *)
-  | Record_inlined of int               (* Inlined record *)
-  | Record_extension of Path.t          (* Inlined record under extension *)
+(* CR layouts: after removing the void translation from lambda, we could get rid of
+   this src_index / runtime_tag distinction.  But I am leaving it in because it
+   may not be long before we need it again.
 
+   In particular, lambda will need to do something about computing offsets for
+   block projections when not everything is one word wide, whether that's
+   because of void or because of other layouts.  One option is to change these
+   projections to be more abstract and pass the layout information to other
+   stages of the compiler, as is currently done for unboxed projection
+   operations, but at the moment our plan is to do this math in lambda in the
+   case of normal projections from boxes. *)
+and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
+                       runtime_tag: int}    (* The runtime tag *)
+        | Extension of Path.t * layout array
+
+and record_representation =
+  | Record_unboxed of layout
+  | Record_inlined of tag * variant_representation
+  (* For an inlined record, we record the representation of the variant that
+     contains it and the tag of the relevant constructor of that variant. *)
+  | Record_boxed of layout array
+  | Record_float (* All fields are floats *)
+
+
+(* For unboxed variants, we record the layout of the mandatory single argument.
+   For boxed variants, we record the layouts for the arguments of each
+   constructor.  For boxed inlined records, this is just a length 1 array with
+   the layout of the record itself, not the layouts of each field.  *)
 and variant_representation =
-    Variant_regular          (* Constant or boxed constructors *)
-  | Variant_unboxed          (* One unboxed single-field constructor *)
+  | Variant_unboxed of layout
+  | Variant_boxed of layout array array
+  | Variant_extensible
 
 and global_flag =
   | Global
@@ -525,6 +551,7 @@ and label_declaration =
     ld_mutable: mutable_flag;
     ld_global: global_flag;
     ld_type: type_expr;
+    ld_layout : layout;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -544,9 +571,15 @@ and constructor_arguments =
   | Cstr_tuple of (type_expr * global_flag) list
   | Cstr_record of label_declaration list
 
-(* The kind of an abstract type declaration with an unknown immediacy *)
-val kind_abstract : ('a,'b) type_kind
+val kind_abstract : layout:layout -> ('a,'b) type_kind
+val kind_abstract_value : ('a,'b) type_kind
+val kind_abstract_immediate : ('a,'b) type_kind
+val kind_abstract_any : ('a,'b) type_kind
 val decl_is_abstract : type_declaration -> bool
+
+(** Type kinds provide an upper bound on layouts of a type (which is precise if
+    the type has no manifest). *)
+val layout_bound_of_kind : ('a,'b) type_kind -> layout
 
 (* Returns the inner type, if unboxed. *)
 val find_unboxed_type : type_declaration -> type_expr option
@@ -556,6 +589,8 @@ type extension_constructor =
     ext_type_path: Path.t;
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
+    ext_arg_layouts: layout array;
+    ext_constant: bool;
     ext_ret_type: type_expr option;
     ext_private: private_flag;
     ext_loc: Location.t;
@@ -703,8 +738,11 @@ type constructor_description =
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
     cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
+    cstr_arg_layouts: layout array;     (* Layouts of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
-    cstr_tag: constructor_tag;          (* Tag for heap blocks *)
+    cstr_tag: tag;                      (* Tag for heap blocks *)
+    cstr_repr: variant_representation;  (* Repr of the outer variant *)
+    cstr_constant: bool;                (* True if all args are void *)
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)
     cstr_generalized: bool;             (* Constrained return type? *)
@@ -712,22 +750,24 @@ type constructor_description =
     cstr_loc: Location.t;
     cstr_attributes: Parsetree.attributes;
     cstr_inlined: type_declaration option;
+      (* [Some decl] here iff the cstr has an inline record (which is decl) *)
     cstr_uid: Uid.t;
    }
 
-and constructor_tag =
-    Cstr_constant of int                (* Constant constructor (an int) *)
-  | Cstr_block of int                   (* Regular constructor (a block) *)
-  | Cstr_unboxed                        (* Constructor of an unboxed type *)
-  | Cstr_extension of Path.t * bool     (* Extension constructor
-                                           true if a constant false if a block*)
-
 (* Constructors are the same *)
-val equal_tag :  constructor_tag -> constructor_tag -> bool
+val equal_tag :  tag -> tag -> bool
 
 (* Constructors may be the same, given potential rebinding *)
 val may_equal_constr :
     constructor_description ->  constructor_description -> bool
+
+(* Equality *)
+
+val equal_record_representation :
+  record_representation -> record_representation -> bool
+
+val equal_variant_representation :
+  variant_representation -> variant_representation -> bool
 
 type label_description =
   { lbl_name: string;                   (* Short name *)
@@ -735,14 +775,24 @@ type label_description =
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
     lbl_global: global_flag;        (* Is this a nonlocal field? *)
+    lbl_layout : layout;                (* Layout of the argument *)
     lbl_pos: int;                       (* Position in block *)
+    lbl_num: int;                       (* Position in the type *)
     lbl_all: label_description array;   (* All the labels in this type *)
-    lbl_repres: record_representation;  (* Representation for this record *)
+    lbl_repres: record_representation;  (* Representation for outer record *)
     lbl_private: private_flag;          (* Read-only field? *)
     lbl_loc: Location.t;
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;
   }
+
+(** The special value we assign to lbl_pos for label descriptions corresponding
+    to void types, because they can't sensibly be projected.
+
+    CR-someday layouts: This should be removed once we have unarization, as it
+    will be up to a later stage of the compiler to erase void.
+*)
+val lbl_pos_void : int
 
 (** Extracts the list of "value" identifiers bound by a signature.
     "Value" identifiers are identifiers for signature components that
@@ -780,12 +830,16 @@ val undo_compress: snapshot -> unit
  *)
 
 val link_type: type_expr -> type_expr -> unit
-        (* Set the desc field of [t1] to [Tlink t2], logging the old
-           value if there is an active snapshot *)
+        (* Set the desc field of [t1] to [Tlink t2], logging the old value if
+           there is an active snapshot.  Any layout information in [t1]'s desc
+           is thrown away without checking - calls to this in unification should
+           first check that [t2]'s layout is a sublayout of [t1]. *)
 val set_type_desc: type_expr -> type_desc -> unit
         (* Set directly the desc field, without sharing *)
 val set_level: type_expr -> int -> unit
 val set_scope: type_expr -> int -> unit
+val set_var_layout: type_expr -> layout -> unit
+        (* May only be called on Tvars *)
 val set_name:
     (Path.t * type_expr list) option ref ->
     (Path.t * type_expr list) option -> unit

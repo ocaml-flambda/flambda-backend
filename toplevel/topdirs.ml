@@ -18,6 +18,7 @@
 open Format
 open Misc
 open Longident
+open Layouts
 open Types
 open Toploop
 
@@ -232,7 +233,7 @@ let printer_type ppf typename =
 
 let match_simple_printer_type desc printer_type =
   Ctype.begin_def();
-  let ty_arg = Ctype.newvar() in
+  let ty_arg = Ctype.newvar Layout.value in
   begin try
     Ctype.unify !toplevel_env
       (Ctype.newconstr printer_type [ty_arg])
@@ -246,7 +247,7 @@ let match_simple_printer_type desc printer_type =
 
 let match_generic_printer_type desc path args printer_type =
   Ctype.begin_def();
-  let args = List.map (fun _ -> Ctype.newvar ()) args in
+  let args = List.map (fun _ -> Ctype.newvar Layout.value) args in
   let ty_target = Ctype.newty (Tconstr (path, args, ref Mnil)) in
   let ty_args =
     List.map (fun ty_var -> Ctype.newconstr printer_type [ty_var]) args in
@@ -466,8 +467,8 @@ let is_exception_constructor env type_expr =
   Ctype.is_equal env true [type_expr] [Predef.type_exn]
 
 let is_extension_constructor = function
-  | Cstr_extension _ -> true
-  | _ -> false
+  | Extension _ -> true
+  | Ordinary _ -> false
 
 let () =
   (* This show_prim function will only show constructor types
@@ -488,6 +489,8 @@ let () =
            { ext_type_path = path;
              ext_type_params = type_decl.type_params;
              ext_args = Cstr_tuple desc.cstr_args;
+             ext_arg_layouts = desc.cstr_arg_layouts;
+             ext_constant = desc.cstr_constant;
              ext_ret_type = ret_type;
              ext_private = Asttypes.Public;
              ext_loc = desc.cstr_loc;
@@ -519,6 +522,8 @@ let () =
          { ext_type_path = Predef.path_exn;
            ext_type_params = [];
            ext_args = Cstr_tuple desc.cstr_args;
+           ext_arg_layouts = desc.cstr_arg_layouts;
+           ext_constant = desc.cstr_constant;
            ext_ret_type = ret_type;
            ext_private = Asttypes.Public;
            ext_loc = desc.cstr_loc;

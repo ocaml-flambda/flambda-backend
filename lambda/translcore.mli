@@ -23,7 +23,9 @@ open Debuginfo.Scoped_location
 
 val pure_module : module_expr -> let_kind
 
-(* Used for translating Alloc_heap values in classes and modules *)
+(* Used for translating Alloc_heap values in classes and modules.  [transl_exp]
+   and [transl_scoped_exp] must be called on expressions whose types have sort
+   value. *)
 val transl_exp: scopes:scopes -> expression -> lambda
 val transl_apply: scopes:scopes
                   -> ?tailcall:tailcall_attribute
@@ -42,11 +44,14 @@ val transl_extension_constructor: scopes:scopes ->
   Env.t -> Longident.t option ->
   extension_constructor -> lambda
 
-val transl_scoped_exp : scopes:scopes -> expression -> lambda
+val transl_scoped_exp :
+  scopes:scopes -> expression -> lambda
 
 type error =
     Free_super_var
   | Unreachable_reached
+  | Bad_probe_layout of Ident.t
+  | Non_value_layout of Layouts.Layout.Violation.violation
 
 exception Error of Location.t * error
 

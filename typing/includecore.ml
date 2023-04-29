@@ -17,6 +17,7 @@
 
 open Asttypes
 open Path
+open Layouts
 open Types
 open Typedtree
 
@@ -183,7 +184,8 @@ type record_change =
 
 type record_mismatch =
   | Label_mismatch of record_change list
-  | Unboxed_float_representation of position
+  | Inlined_representation of position
+  | Float_representation of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error
@@ -227,7 +229,8 @@ type type_mismatch =
   | Record_mismatch of record_mismatch
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
-  | Immediate of Type_immediacy.Violation.t
+  | Extensible_representation of position
+  | Layout of Layout.Violation.violation
 
 let report_locality_mismatch first second ppf err =
   let {order; nonlocal} = err in
@@ -351,7 +354,11 @@ let report_record_mismatch first second decl env ppf err =
   match err with
   | Label_mismatch patch ->
       report_patch pp_record_diff first second decl env ppf patch
-  | Unboxed_float_representation ord ->
+  | Inlined_representation ord ->
+      pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
+        (choose ord first second) decl
+        "is an inlined record"
+  | Float_representation ord ->
       pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
         (choose ord first second) decl
         "uses unboxed float representation"
@@ -455,7 +462,7 @@ let report_type_mismatch first second decl env ppf err =
       (* This error can come from implicit parameter disagreement or from
          explicit `constraint`s.  Both affect the parameters, hence this choice
          of explanatory text *)
-      pr "Their parameters differ@,";
+      pr "Their parameters differ:@,";
       report_type_inequality env ppf err
   | Manifest err ->
       report_type_inequality env ppf err
@@ -476,14 +483,12 @@ let report_type_mismatch first second decl env ppf err =
       if Builtin_attributes.has_unboxed attrs then
         pr "@ Hint: %s %s has [%@unboxed]. Did you mean [%@%@unboxed]?"
           (choose ord second first) decl
-  | Immediate violation ->
-      let first = StringLabels.capitalize_ascii first in
-      match violation with
-      | Type_immediacy.Violation.Not_always_immediate ->
-          pr "%s is not an immediate type." first
-      | Type_immediacy.Violation.Not_always_immediate_on_64bits ->
-          pr "%s is not a type that is always immediate on 64 bit platforms."
-            first
+  | Extensible_representation ord ->
+      pr "Their internal representations differ:@ %s %s %s."
+         (choose ord first second) decl
+         "is extensible"
+  | Layout v ->
+      Layout.Violation.report_with_name ~name:first ppf v
 
 let compare_global_flags flag0 flag1 =
   match flag0, flag1 with
@@ -624,18 +629,19 @@ module Record_diffing = struct
      | Record_unboxed _, _ -> Some (Unboxed_representation (First, []))
      | _, Record_unboxed _ -> Some (Unboxed_representation (Second, []))
 
+     | Record_inlined _, Record_inlined _ -> None
+     | Record_inlined _, _ ->
+        Some (Record_mismatch (Inlined_representation First))
+     | _, Record_inlined _ ->
+        Some (Record_mismatch (Inlined_representation Second))
+
      | Record_float, Record_float -> None
      | Record_float, _ ->
-        Some (Record_mismatch (Unboxed_float_representation First))
+        Some (Record_mismatch (Float_representation First))
      | _, Record_float ->
-        Some (Record_mismatch (Unboxed_float_representation Second))
+        Some (Record_mismatch (Float_representation Second))
 
-     | Record_regular, Record_regular
-     | Record_inlined _, Record_inlined _
-     | Record_extension _, Record_extension _ -> None
-     | (Record_regular|Record_inlined _|Record_extension _),
-       (Record_regular|Record_inlined _|Record_extension _) ->
-        assert false
+     | Record_boxed _, Record_boxed _ -> None
 
 end
 
@@ -775,15 +781,19 @@ module Variant_diffing = struct
       | _ -> []
     in
     match err, rep1, rep2 with
-    | None, Variant_regular, Variant_regular
-    | None, Variant_unboxed, Variant_unboxed ->
-        None
+    | None, Variant_unboxed _, Variant_unboxed _
+    | None, Variant_boxed _, Variant_boxed _
+    | None, Variant_extensible, Variant_extensible -> None
     | Some err, _, _ ->
         Some (Variant_mismatch err)
-    | None, Variant_unboxed, Variant_regular ->
+    | None, Variant_unboxed _, Variant_boxed _ ->
         Some (Unboxed_representation (First, attrs_of_only cstrs2))
-    | None, Variant_regular, Variant_unboxed ->
+    | None, Variant_boxed _, Variant_unboxed _ ->
         Some (Unboxed_representation (Second, attrs_of_only cstrs1))
+    | None, Variant_extensible, _ ->
+      Some (Extensible_representation First)
+    | None, _, Variant_extensible ->
+      Some (Extensible_representation Second)
 end
 
 (* Inclusion between "private" annotations *)
@@ -990,15 +1000,17 @@ let type_declarations ?(equality = false) ~loc env ~mark name
   in
   if err <> None then err else
   let err = match (decl1.type_kind, decl2.type_kind) with
-      (_, Type_abstract { immediate = imm }) ->
-       (* Note that [imm] is an approximation (it may be [Unknown] even if
-          [decl2] is actually immediate). In that case, [decl2] must have a
-          manifest, which we're already checking for equality above. Similarly,
-          [decl1]'s kind may conservatively approximate its immediacy, but
-          [check_decl_immediate] will expand its manifest.  *)
-       (match Ctype.check_decl_immediate env decl1 imm with
-        | Ok () -> None
-        | Error v -> Some (Immediate v))
+      (_, Type_abstract { layout }) ->
+       (* Note that [layout] is an upper bound.  If it isn't tight, [decl2] must
+          have a manifest, which we're already checking for equality
+          above. Similarly, [decl1]'s kind may conservatively approximate its
+          layout, but [check_decl_layout] will expand its manifest.  *)
+        (match
+           Ctype.check_decl_layout ~reason:Dummy_reason_result_ignored
+             env decl1 layout
+         with
+         | Ok _ -> None
+         | Error v -> Some (Layout v))
     | (Type_variant (cstrs1, rep1), Type_variant (cstrs2, rep2)) ->
         if mark then begin
           let mark usage cstrs =

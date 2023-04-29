@@ -80,6 +80,8 @@ val list_remove: 'a -> 'a list -> 'a list
            element equal to [x] removed. *)
 val split_last: 'a list -> 'a list * 'a
         (* Return the last element and the other elements of the given list. *)
+val last : 'a list -> 'a option
+        (* Return the last element of a list if it's nonempty *)
 
 type ref_and_value = R : 'a ref * 'a -> ref_and_value
 
@@ -164,6 +166,10 @@ module Stdlib : sig
         and the element itself as second argument. *)
 
     val all_somes : 'a option array -> 'a array option
+
+    val equal : ('a -> 'a -> bool) -> 'a array -> 'a array -> bool
+    (** Compare two arrays for equality, using the supplied predicate for
+        element equality *)
   end
 
   module String : sig

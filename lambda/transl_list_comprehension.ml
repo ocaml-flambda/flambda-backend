@@ -165,6 +165,11 @@ type translated_iterator =
     desugars into a higher-order function which is applied to another function
     containing the body of the iteration; that body function can't be filled in
     until the rest of the translations have been done. *)
+(* CR layouts v2: the value that is passed to this function for [transl_exp]
+   (and all the other [~transl_exp] parameters in this file) must only be called
+   on expressions whose types have sort value.  Probably [transl_exp] will have
+   been updated to allow other sorts by the time we allow array elements other
+   than value, but check that.  *)
 let iterator ~transl_exp ~scopes = function
   | Texp_comp_range { ident; pattern = _; start; stop; direction } ->
       (* We have to let-bind [start] and [stop] so that they're evaluated in the
@@ -194,8 +199,10 @@ let iterator ~transl_exp ~scopes = function
       { builder      = rev_dlist_concat_map
       ; arg_lets     = [iter_list]
       ; element
-      ; element_kind = Typeopt.layout pattern.pat_env pattern.pat_type
+      ; element_kind =
+          Typeopt.layout pattern.pat_env pattern.pat_loc pattern.pat_type
       ; add_bindings =
+          (* CR layouts: to change when we allow non-values in sequences *)
           Matching.for_let
             ~scopes pattern.pat_loc (Lvar element) pattern (Pvalue Pgenval)
       }

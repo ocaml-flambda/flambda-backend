@@ -1,5 +1,7 @@
 (** Language extensions provided by ocaml-jst *)
 
+type maturity = Stable | Beta | Alpha
+
 (** The type of language extensions *)
 type t =
   | Comprehensions
@@ -8,12 +10,17 @@ type t =
   | Polymorphic_parameters
   | Immutable_arrays
   | Module_strengthening
+  | Layouts of maturity
 
 (** Equality on language extensions *)
 val equal : t -> t -> bool
 
 (** A list of all possible language extensions *)
 val all : t list
+
+(** A maximal list of compatible language extensions (of the layouts extensions,
+    "layouts_alpha" is selected). *)
+val max_compatible : t list
 
 (** Check if a language extension is "erasable", i.e. whether it can be
     harmlessly translated to attributes and compiled with the upstream

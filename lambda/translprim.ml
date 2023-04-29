@@ -444,8 +444,9 @@ let glb_array_type t1 t2 =
   | Pfloatarray, Pfloatarray -> Pfloatarray
 
 (* Specialize a primitive from available type information. *)
-
-let specialize_primitive env ty ~has_constant_constructor prim =
+(* CR layouts v2: This function had a loc argument added just to support the void
+   check error message.  Take it out when we remove that. *)
+let specialize_primitive env loc ty ~has_constant_constructor prim =
   let param_tys =
     match is_function_type env ty with
     | None -> []
@@ -500,7 +501,11 @@ let specialize_primitive env ty ~has_constant_constructor prim =
       | _, _ -> Some (Primitive (Pbigarrayset(unsafe, n, k, l), arity))
     end
   | Primitive (Pmakeblock(tag, mut, None, mode), arity), fields -> begin
-      let shape = List.map (fun typ -> Lambda.must_be_value (Typeopt.layout env typ)) fields in
+      let shape =
+        List.map (fun typ ->
+          Lambda.must_be_value (Typeopt.layout env (to_location loc) typ))
+          fields
+      in
       let useful = List.exists (fun knd -> knd <> Pgenval) shape in
       if useful then
         Some (Primitive (Pmakeblock(tag, mut, Some shape, mode),arity))
@@ -802,19 +807,19 @@ let transl_primitive loc p env ty ~poly_mode path =
   in
   let has_constant_constructor = false in
   let prim =
-    match specialize_primitive env ty ~has_constant_constructor prim with
+    match specialize_primitive env loc ty ~has_constant_constructor prim with
     | None -> prim
     | Some prim -> prim
   in
   let rec make_params ty n =
-    if n <= 0 then [], Typeopt.layout env ty
+    if n <= 0 then [], Typeopt.layout env (to_location loc) ty
     else
       match Typeopt.is_function_type env ty with
       | None ->
           Misc.fatal_errorf "Primitive %s type does not correspond to arity"
             (Primitive.byte_name p)
       | Some (arg_ty, ret_ty) ->
-          let arg_layout = Typeopt.layout env arg_ty in
+          let arg_layout = Typeopt.layout env (to_location loc) arg_ty in
           let params, return = make_params ret_ty (n-1) in
           (Ident.create_local "prim", arg_layout) :: params, return
   in
@@ -907,14 +912,14 @@ let transl_primitive_application loc p env ty mode path exp args arg_exps pos =
   in
   let has_constant_constructor =
     match arg_exps with
-    | [_; {exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _, _)}]
-    | [{exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _, _)}; _]
+    | [_; {exp_desc = Texp_construct(_, {cstr_constant}, _, _)}]
+    | [{exp_desc = Texp_construct(_, {cstr_constant}, _, _)}; _] -> cstr_constant
     | [_; {exp_desc = Texp_variant(_, None)}]
     | [{exp_desc = Texp_variant(_, None)}; _] -> true
     | _ -> false
   in
   let prim =
-    match specialize_primitive env ty ~has_constant_constructor prim with
+    match specialize_primitive env loc ty ~has_constant_constructor prim with
     | None -> prim
     | Some prim -> prim
   in

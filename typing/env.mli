@@ -34,7 +34,7 @@ type module_unbound_reason =
 
 type summary =
     Env_empty
-  | Env_value of summary * Ident.t * value_description
+  | Env_value of summary * Ident.t * value_description * Types.value_mode
   | Env_type of summary * Ident.t * type_declaration
   | Env_extension of summary * Ident.t * extension_constructor
   | Env_module of summary * Ident.t * module_presence * module_declaration
@@ -198,6 +198,7 @@ type lookup_error =
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
   | Local_value_used_in_closure of Longident.t * escaping_context option
+  | Local_value_used_in_exclave of Longident.t
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
 
@@ -395,6 +396,7 @@ val enter_unbound_module : string -> module_unbound_reason -> t -> t
 
 val add_lock : ?escaping_context:escaping_context -> Types.alloc_mode -> t -> t
 val add_region_lock : t -> t
+val add_exclave_lock : t -> t
 
 (* Initialize the cache of in-core module interfaces. *)
 val reset_cache: preserve_persistent_env:bool -> unit
