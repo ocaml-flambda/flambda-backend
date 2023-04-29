@@ -1395,9 +1395,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
   | Lsequence (lam1, lam2) ->
     let k acc env ccenv _value = cps acc env ccenv lam2 k k_exn in
     cps_non_tail_simple acc env ccenv lam1 k k_exn
-  | Lwhile
-      { wh_cond = cond; wh_body = body; wh_cond_region = _; wh_body_region = _ }
-    ->
+  | Lwhile { wh_cond = cond; wh_body = body } ->
     (* CR-someday mshinwell: make use of wh_cond_region / wh_body_region? *)
     let env, loop = rec_catch_for_while_loop env cond body in
     cps acc env ccenv loop k k_exn
@@ -1406,8 +1404,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         for_from = start;
         for_to = stop;
         for_dir = dir;
-        for_body = body;
-        for_region = _
+        for_body = body
       } ->
     let env, loop = rec_catch_for_for_loop env ident start stop dir body in
     cps acc env ccenv loop k k_exn
