@@ -639,26 +639,30 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   | Pduprecord (repr, num_fields), [arg] ->
     let kind : P.Duplicate_block_kind.t =
       match repr with
-      | Record_regular ->
+      | Record_boxed _ ->
         Values
           { tag = Tag.Scannable.zero;
             length = Targetint_31_63.of_int num_fields
           }
       | Record_float ->
         Naked_floats { length = Targetint_31_63.of_int num_fields }
-      | Record_unboxed _ -> Misc.fatal_error "Pduprecord of unboxed record"
-      | Record_inlined tag ->
+      | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->
+        Misc.fatal_error "Pduprecord of unboxed record"
+      | Record_inlined (Ordinary {runtime_tag; _}, Variant_boxed _) ->
         Values
-          { tag = Tag.Scannable.create_exn tag;
+          { tag = Tag.Scannable.create_exn runtime_tag;
             length = Targetint_31_63.of_int num_fields
           }
-      | Record_extension _ ->
+      | Record_inlined (Extension _, Variant_extensible) ->
         Values
           { tag = Tag.Scannable.zero;
             (* The "+1" is because there is an extra field containing the hashed
                constructor. *)
             length = Targetint_31_63.of_int (num_fields + 1)
           }
+      | Record_inlined (Ordinary _, Variant_extensible)
+      | Record_inlined (Extension _, Variant_boxed _) ->
+        assert false
     in
     Unary (Duplicate_block { kind }, arg)
   | Pnegint, [arg] -> Unary (Int_arith (I.Tagged_immediate, Neg), arg)

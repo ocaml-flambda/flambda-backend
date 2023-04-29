@@ -389,6 +389,7 @@ let name_expression ~loc ~attrs exp =
     { vb_pat = pat;
       vb_expr = exp;
       vb_attributes = attrs;
+      vb_sort = Layouts.Sort.value;
       vb_loc = loc; }
   in
   let item =
@@ -428,7 +429,7 @@ let execute_phrase print_outcome ppf phr =
       Typecore.force_delayed_checks ();
       let str, sg', rewritten =
         match str.str_items with
-        | [ { str_desc = Tstr_eval (e, attrs) ; str_loc = loc } ]
+        | [ { str_desc = Tstr_eval (e, _, attrs) ; str_loc = loc } ]
         | [ { str_desc = Tstr_value (Asttypes.Nonrecursive,
                                       [{ vb_expr = e
                                        ; vb_pat =

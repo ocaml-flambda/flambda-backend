@@ -280,11 +280,13 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         | _ -> Misc.fatal_error "Dissect_letrec.prepare_letrec duprecord"
       in
       match kind with
-      | Types.Record_regular -> build_block cl size (Normal 0) arg letrec
-      | Types.Record_inlined tag -> build_block cl size (Normal tag) arg letrec
-      | Types.Record_extension _ ->
+      | Types.Record_boxed _ -> build_block cl size (Normal 0) arg letrec
+      | Types.Record_unboxed _ | Types.Record_inlined (_, Variant_unboxed _) ->
+        assert false
+      | Types.Record_inlined (Ordinary {runtime_tag; _}, _) ->
+        build_block cl size (Normal runtime_tag) arg letrec
+      | Types.Record_inlined (Extension _, _) ->
         build_block cl (size + 1) (Normal 0) arg letrec
-      | Types.Record_unboxed _ -> assert false
       | Types.Record_float -> build_block cl size Boxed_float arg letrec)
     | None -> dead_code lam letrec)
   | Lconst const -> (
