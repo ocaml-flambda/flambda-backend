@@ -159,12 +159,31 @@ let typevars ppf vs =
   List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
 ;;
 
+let layout_array i ppf layouts =
+  array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Layouts.Layout.format l)
+    ppf layouts
+
+let tag ppf = let open Types in function
+  | Ordinary {src_index;runtime_tag} ->
+      fprintf ppf "Ordinary {index: %d; tag: %d}" src_index runtime_tag
+  | Extension (p,_) -> fprintf ppf "Extension %a" fmt_path p
+
+let variant_representation i ppf = let open Types in function
+  | Variant_unboxed l ->
+    line i ppf "Variant_unboxed %a\n" Layouts.Layout.format l
+  | Variant_boxed layouts ->
+    line i ppf "Variant_boxed %a\n"
+      (array (i+1) (fun _ ppf -> layout_array (i+1) ppf)) layouts
+  | Variant_extensible -> line i ppf "Variant_inlined\n"
+
 let record_representation i ppf = let open Types in function
-  | Record_regular -> line i ppf "Record_regular\n"
+  | Record_unboxed l ->
+    line i ppf "Record_unboxed %a\n" Layouts.Layout.format l
+  | Record_boxed layouts ->
+    line i ppf "Record_boxed %a\n" (layout_array i) layouts
+  | Record_inlined (t,v) ->
+    line i ppf "Record_inlined (%a, %a)\n" tag t (variant_representation i) v
   | Record_float -> line i ppf "Record_float\n"
-  | Record_unboxed b -> line i ppf "Record_unboxed %b\n" b
-  | Record_inlined i -> line i ppf "Record_inlined %d\n" i
-  | Record_extension p -> line i ppf "Record_extension %a\n" fmt_path p
 
 let attribute i ppf k a =
   line i ppf "%s \"%s\"\n" k a.Parsetree.attr_name.txt;
@@ -377,9 +396,10 @@ and expression i ppf x =
       alloc_mode i ppf am;
       expression i ppf e;
       list i label_x_apply_arg ppf l;
-  | Texp_match (e, l, _partial) ->
+  | Texp_match (e, sort, l, _partial) ->
       line i ppf "Texp_match\n";
       expression i ppf e;
+      line i ppf "%a\n" Layouts.Layout.format (Layouts.Layout.of_sort sort);
       list i case ppf l;
   | Texp_try (e, l) ->
       line i ppf "Texp_try\n";
@@ -432,9 +452,10 @@ and expression i ppf x =
       expression i ppf e1;
       expression i ppf e2;
       option i expression ppf eo;
-  | Texp_sequence (e1, e2) ->
+  | Texp_sequence (e1, l, e2) ->
       line i ppf "Texp_sequence\n";
       expression i ppf e1;
+      line i ppf "%a\n" Layouts.Layout.format l;
       expression i ppf e2;
   | Texp_while {wh_cond; wh_body} ->
       line i ppf "Texp_while\n";
@@ -893,9 +914,10 @@ and structure_item i ppf x =
   line i ppf "structure_item %a\n" fmt_location x.str_loc;
   let i = i+1 in
   match x.str_desc with
-  | Tstr_eval (e, attrs) ->
+  | Tstr_eval (e, l, attrs) ->
       line i ppf "Tstr_eval\n";
       attributes i ppf attrs;
+      line i ppf "%a\n" Layouts.Layout.format l;
       expression i ppf e;
   | Tstr_value (rf, l) ->
       line i ppf "Tstr_value %a\n" fmt_rec_flag rf;

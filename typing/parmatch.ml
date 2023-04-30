@@ -17,6 +17,7 @@
 
 open Misc
 open Asttypes
+open Layouts
 open Types
 open Typedtree
 
@@ -259,9 +260,9 @@ let records_args l1 l2 =
   | [],(_,_,p2)::rem2 -> combine (omega::r1) (p2::r2) [] rem2
   | (_,_,p1)::rem1,[] -> combine (p1::r1) (omega::r2) rem1 []
   | (_,lbl1,p1)::rem1, ( _,lbl2,p2)::rem2 ->
-      if lbl1.lbl_pos < lbl2.lbl_pos then
+      if lbl1.lbl_num < lbl2.lbl_num then
         combine (p1::r1) (omega::r2) rem1 l2
-      else if lbl1.lbl_pos > lbl2.lbl_pos then
+      else if lbl1.lbl_num > lbl2.lbl_num then
         combine (omega::r1) (p2::r2) l1 rem2
       else (* same label on both sides *)
         combine (p1::r1) (p2::r2) rem1 rem2 in
@@ -381,11 +382,11 @@ let record_arg ph =
 
 let extract_fields lbls arg =
   let get_field pos arg =
-    match List.find (fun (lbl,_) -> pos = lbl.lbl_pos) arg with
+    match List.find (fun (lbl,_) -> pos = lbl.lbl_num) arg with
     | _, p -> p
     | exception Not_found -> omega
   in
-  List.map (fun lbl -> get_field lbl.lbl_pos arg) lbls
+  List.map (fun lbl -> get_field lbl.lbl_num arg) lbls
 
 (* Build argument list when p2 >= p1, where p1 is a simple pattern *)
 let simple_match_args discr head args =
@@ -455,7 +456,7 @@ let discr_pat q pss =
            less pretty. *)
         let fields =
           List.fold_right (fun lbl r ->
-            if List.exists (fun l -> l.lbl_pos = lbl.lbl_pos) r then
+            if List.exists (fun l -> l.lbl_num = lbl.lbl_num) r then
               r
             else
               lbl :: r
@@ -732,7 +733,9 @@ let close_variant env row =
         | Rabsent | Rpresent _ -> (nm, static))
       (orig_name, true) fields in
   if not closed || name != orig_name then begin
-    let more' = if static then Btype.newgenty Tnil else Btype.newgenvar () in
+    let more' =
+      if static then Btype.newgenty Tnil else Btype.newgenvar Layout.value
+    in
     (* this unification cannot fail *)
     Ctype.unify env more
       (Btype.newgenty
@@ -752,7 +755,7 @@ let full_match closing env =  match env with
   let open Patterns.Head in
   match discr.pat_desc with
   | Any -> assert false
-  | Construct { cstr_tag = Cstr_extension _ ; _ } -> false
+  | Construct { cstr_tag = Extension _ ; _ } -> false
   | Construct c -> List.length env = c.cstr_consts + c.cstr_nonconsts
   | Variant { type_row; _ } ->
       let fields =
@@ -797,10 +800,10 @@ let should_extend ext env = match ext with
   | (p,_)::_ ->
       let open Patterns.Head in
       begin match p.pat_desc with
-      | Construct {cstr_tag=(Cstr_constant _|Cstr_block _|Cstr_unboxed)} ->
+      | Construct {cstr_tag=Ordinary _} ->
           let path = get_constructor_type_path p.pat_type p.pat_env in
           Path.same path ext
-      | Construct {cstr_tag=(Cstr_extension _)} -> false
+      | Construct {cstr_tag=Extension _} -> false
       | Constant _ | Tuple _ | Variant _ | Record _
       | Array _ | Lazy -> false
       | Any -> assert false
@@ -880,22 +883,21 @@ let complete_constrs constr used_constrs =
       constrs in
   (* Split constructors to put constant ones first *)
   let const, nonconst =
-    List.partition (fun cnstr -> cnstr.cstr_arity = 0) others in
+    List.partition (fun cnstr -> cnstr.cstr_constant) others in
   const @ nonconst
 
 let build_other_constrs env p =
   let open Patterns.Head in
   match p.pat_desc with
-  | Construct ({ cstr_tag = Cstr_extension _ }) -> extra_pat
-  | Construct
-      ({ cstr_tag = Cstr_constant _ | Cstr_block _ | Cstr_unboxed } as c) ->
-        let constr = { p with pat_desc = c } in
-        let get_constr q =
-          match q.pat_desc with
-          | Construct c -> c
-          | _ -> fatal_error "Parmatch.get_constr" in
-        let used_constrs =  List.map (fun (p,_) -> get_constr p) env in
-        pat_of_constrs p (complete_constrs constr used_constrs)
+  | Construct ({ cstr_tag = Extension _ }) -> extra_pat
+  | Construct ({ cstr_tag = Ordinary _} as c) ->
+      let constr = { p with pat_desc = c } in
+      let get_constr q =
+        match q.pat_desc with
+        | Construct c -> c
+        | _ -> fatal_error "Parmatch.get_constr" in
+      let used_constrs =  List.map (fun (p,_) -> get_constr p) env in
+      pat_of_constrs p (complete_constrs constr used_constrs)
   | _ -> extra_pat
 
 (* Auxiliary for build_other *)
@@ -921,7 +923,7 @@ let build_other ext env =
   | (d, _) :: _ ->
       let open Patterns.Head in
       match d.pat_desc with
-      | Construct { cstr_tag = Cstr_extension _ } ->
+      | Construct { cstr_tag = Extension _ } ->
           (* let c = {c with cstr_name = "*extension*"} in *) (* PR#7330 *)
           make_pat
             (Tpat_var (Ident.create_local "*extension*",
@@ -1787,9 +1789,9 @@ and record_lubs l1 l2 =
   | [],_ -> l2
   | _,[] -> l1
   | (lid1, lbl1,p1)::rem1, (lid2, lbl2,p2)::rem2 ->
-      if lbl1.lbl_pos < lbl2.lbl_pos then
+      if lbl1.lbl_num < lbl2.lbl_num then
         (lid1, lbl1,p1)::lub_rec rem1 l2
-      else if lbl2.lbl_pos < lbl1.lbl_pos  then
+      else if lbl2.lbl_num < lbl1.lbl_num  then
         (lid2, lbl2,p2)::lub_rec l1 rem2
       else
         (lid1, lbl1,lub p1 p2)::lub_rec rem1 rem2 in
@@ -2027,8 +2029,7 @@ let extendable_path path =
     Path.same path Predef.path_option)
 
 let rec collect_paths_from_pat r p = match p.pat_desc with
-| Tpat_construct(_, {cstr_tag=(Cstr_constant _|Cstr_block _|Cstr_unboxed)},
-                 ps, _) ->
+| Tpat_construct(_, {cstr_tag=Ordinary _}, ps, _) ->
     let path = get_constructor_type_path p.pat_type p.pat_env in
     List.fold_left
       collect_paths_from_pat
@@ -2036,7 +2037,7 @@ let rec collect_paths_from_pat r p = match p.pat_desc with
       ps
 | Tpat_any|Tpat_var _|Tpat_constant _| Tpat_variant (_,None,_) -> r
 | Tpat_tuple ps | Tpat_array (_, ps)
-| Tpat_construct (_, {cstr_tag=Cstr_extension _}, ps, _)->
+| Tpat_construct (_, {cstr_tag=Extension _}, ps, _)->
     List.fold_left collect_paths_from_pat r ps
 | Tpat_record (lps,_) ->
     List.fold_left

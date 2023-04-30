@@ -82,6 +82,9 @@ let builtin_attrs =
   ; "warn_on_literal_pattern"; "ocaml.warn_on_literal_pattern"
   ; "immediate"; "ocaml.immediate"
   ; "immediate64"; "ocaml.immediate64"
+  ; "void"; "ocaml.void"
+  ; "value"; "ocaml.value"
+  ; "any"; "ocaml.any"
   ; "boxed"; "ocaml.boxed"
   ; "unboxed"; "ocaml.unboxed"
   ; "principal"; "ocaml.principal"
@@ -419,9 +422,35 @@ let warn_on_literal_pattern attrs =
 let explicit_arity attrs =
   has_attribute ["ocaml.explicit_arity"; "explicit_arity"] attrs
 
-let immediate attrs = has_attribute ["ocaml.immediate"; "immediate"] attrs
-
-let immediate64 attrs = has_attribute ["ocaml.immediate64"; "immediate64"] attrs
+let layout ~legacy_immediate attrs =
+  let layout =
+    List.find_map
+      (fun a -> match a.attr_name.txt with
+         | "ocaml.void"|"void" -> Some (a, Void)
+         | "ocaml.value"|"value" -> Some (a, Value)
+         | "ocaml.any"|"any" -> Some (a, Any)
+         | "ocaml.immediate"|"immediate" -> Some (a, Immediate)
+         | "ocaml.immediate64"|"immediate64" -> Some (a, Immediate64)
+         | _ -> None
+        ) attrs
+  in
+  match layout with
+  | None -> Ok None
+  | Some (a, Value) ->
+    mark_used a.attr_name;
+    Ok (Some Value)
+  | Some (a, (Immediate | Immediate64 as l)) ->
+    mark_used a.attr_name;
+    if   legacy_immediate
+      || Language_extension.(   is_enabled (Layouts Beta)
+                             || is_enabled (Layouts Alpha))
+    then Ok (Some l)
+    else Error (a.attr_loc, l)
+  | Some (a, (Any | Void as l)) ->
+    mark_used a.attr_name;
+    if Language_extension.is_enabled (Layouts Alpha)
+    then Ok (Some l)
+    else Error (a.attr_loc, l)
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
    attributes cannot be input by the user, they are added by the

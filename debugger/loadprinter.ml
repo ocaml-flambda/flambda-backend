@@ -17,6 +17,7 @@
 
 open Misc
 open Longident
+open Layouts
 open Types
 
 (* Error report *)
@@ -104,15 +105,15 @@ let match_printer_type desc typename =
   let printer_type =
     match
       Env.find_type_by_name
-        (Ldot(Lident "Topdirs", typename)) Env.empty
+        (Ldot(Lident "Topdirs", typename)) Env.initial_safe_string
     with
     | path, _ -> path
     | exception Not_found ->
         raise (Error(Unbound_identifier(Ldot(Lident "Topdirs", typename))))
   in
   Ctype.begin_def();
-  let ty_arg = Ctype.newvar() in
-  Ctype.unify Env.empty
+  let ty_arg = Ctype.newvar Layout.any in
+  Ctype.unify Env.initial_safe_string
     (Ctype.newconstr printer_type [ty_arg])
     (Ctype.instance desc.val_type);
   Ctype.end_def();

@@ -14,6 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Layouts
 open Types
 
 type type_definition = type_declaration
@@ -185,7 +186,7 @@ let free_variables ty =
   Ctype.free_variables ty
   |> List.map (fun ty ->
       match get_desc ty with
-        Tvar text -> {text; id = get_id ty}
+        Tvar { name = text } -> {text; id = get_id ty}
       | _ ->
           (* Ctype.free_variables only returns Tvar nodes *)
           assert false)
@@ -399,8 +400,8 @@ let check_type
     (* "Indifferent" case, the empty context is sufficient. *)
     | (_                  , Ind    ) -> empty
     (* Variable case, add constraint. *)
-    | (Tvar(alpha)        , m      ) ->
-        TVarMap.singleton {text = alpha; id = get_id ty} m
+    | (Tvar { name }      , m      ) ->
+        TVarMap.singleton {text = name; id = get_id ty} m
     (* "Separable" case for constructors with known memory representation. *)
     | (Tarrow _           , Sep    )
     | (Ttuple _           , Sep    )
@@ -470,8 +471,18 @@ let worst_msig decl = List.map (fun _ -> Deepsep) decl.type_params
 
     Note: this differs from {!Types.Separability.default_signature},
     which does not have access to the declaration and its immediacy. *)
+(* CR layouts v2: At the moment things that are not value are certainly
+   separable: they must be any or void, and there are no runtime values
+   of either of those things.  So, we put the same exception here for them
+   as is described above for immediate.  But check whether we still believe
+   this when we add unboxed floats, or, better, just delete the float
+   array optimization and this entire file at that point. *)
 let msig_of_external_type env decl =
-  if Result.is_ok (Ctype.check_decl_immediate env decl Always_on_64bits)
+  let check_layout =
+    Ctype.check_decl_layout ~reason:Dummy_reason_result_ignored env decl
+  in
+  if Result.is_error (check_layout Layout.value)
+     || Result.is_ok (check_layout Layout.immediate64)
   then best_msig decl
   else worst_msig decl
 
@@ -536,8 +547,8 @@ let msig_of_context : decl_loc:Location.t -> parameters:type_expr list
         | Ind -> true
         | Sep | Deepsep -> false in
       match get_desc param_instance with
-      | Tvar text ->
-          let var = {text; id = get_id param_instance} in
+      | Tvar { name } ->
+          let var = {text = name; id = get_id param_instance} in
           (get context var) :: acc, (set_ind context var)
       | _ ->
           let instance_exis = free_variables param_instance in

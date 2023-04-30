@@ -220,6 +220,8 @@ and value_kind =
     }
   | Parrayval of array_kind
 
+(* Because we check for and error on void in the translation to lambda, we don't
+   need a constructor for it here. *)
 and layout =
   | Ptop
   | Pvalue of value_kind

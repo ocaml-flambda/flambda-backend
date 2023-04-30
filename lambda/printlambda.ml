@@ -178,15 +178,11 @@ let print_bigarray name unsafe kind ppf layout =
      | Pbigarray_c_layout -> "C"
      | Pbigarray_fortran_layout -> "Fortran")
 
-let record_rep ppf r =
-  match r with
-  | Record_regular -> fprintf ppf "regular"
-  | Record_inlined i -> fprintf ppf "inlined(%i)" i
-  | Record_unboxed false -> fprintf ppf "unboxed"
-  | Record_unboxed true -> fprintf ppf "inlined(unboxed)"
+let record_rep ppf r = match r with
+  | Record_unboxed _ -> fprintf ppf "unboxed"
+  | Record_boxed _ -> fprintf ppf "boxed"
+  | Record_inlined _ -> fprintf ppf "inlined"
   | Record_float -> fprintf ppf "float"
-  | Record_extension path -> fprintf ppf "ext(%a)" Printtyp.path path
-;;
 
 let block_shape ppf shape = match shape with
   | None | Some [] -> ()

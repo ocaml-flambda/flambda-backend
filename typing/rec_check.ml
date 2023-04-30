@@ -153,12 +153,12 @@ let classify_expression : Typedtree.expression -> sd =
     (* non-binding cases *)
     | Texp_open (_, e)
     | Texp_letmodule (_, _, _, _, e)
-    | Texp_sequence (_, e)
+    | Texp_sequence (_, _, e)
     | Texp_letexception (_, e)
     | Texp_exclave e ->
         classify_expression env e
 
-    | Texp_construct (_, {cstr_tag = Cstr_unboxed}, [e], _) ->
+    | Texp_construct (_, {cstr_repr = Variant_unboxed _}, [e], _) ->
         classify_expression env e
     | Texp_construct _ ->
         Static
@@ -546,7 +546,7 @@ let rec expression : Typedtree.expression -> term_judg =
       value_bindings rec_flag bindings >> expression body
     | Texp_letmodule (x, _, _, mexp, e) ->
       module_binding (x, mexp) >> expression e
-    | Texp_match (e, cases, _) ->
+    | Texp_match (e, _, cases, _) ->
       (*
          (Gi; mi |- pi -> ei : m)^i
          G |- e : sum(mi)^i
@@ -618,14 +618,14 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_construct (_, desc, exprs, _) ->
       let access_constructor =
         match desc.cstr_tag with
-        | Cstr_extension (pth, _) ->
+        | Extension (pth, _) ->
           path pth << Dereference
         | _ -> empty
       in
-      let m' = match desc.cstr_tag with
-        | Cstr_unboxed ->
+      let m' = match desc.cstr_repr with
+        | Variant_unboxed _ ->
           Return
-        | Cstr_constant _ | Cstr_block _ | Cstr_extension _ ->
+        | Variant_boxed _ | Variant_extensible ->
           Guard
       in
       join [
@@ -643,9 +643,8 @@ let rec expression : Typedtree.expression -> term_judg =
                     representation = rep } ->
         let field_mode = match rep with
           | Record_float -> Dereference
-          | Record_unboxed _ -> Return
-          | Record_regular | Record_inlined _
-          | Record_extension _ -> Guard
+          | Record_unboxed _ | Record_inlined (_,Variant_unboxed _) -> Return
+          | Record_boxed _ | Record_inlined _ -> Guard
         in
         let field (_label, field_def) = match field_def with
             Kept _ -> empty
@@ -686,7 +685,7 @@ let rec expression : Typedtree.expression -> term_judg =
         expression e1 << Dereference;
         expression e2 << Dereference;
       ]
-    | Texp_sequence (e1, e2) ->
+    | Texp_sequence (e1, _, e2) ->
       (*
         G1 |- e1: m[Guard]
         G2 |- e2: m
@@ -965,7 +964,7 @@ and structure : Typedtree.structure -> term_judg =
    where G is an output and m, G' are inputs *)
 and structure_item : Typedtree.structure_item -> bind_judg =
   fun s m env -> match s.str_desc with
-    | Tstr_eval (e, _) ->
+    | Tstr_eval (e, _, _) ->
       (*
         Ge |- e: m[Guard]
         G |- items: m -| G'

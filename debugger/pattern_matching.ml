@@ -225,7 +225,7 @@ and match_concrete_type pattern obj cstr ty ty_list =
                filter (ty_res, ty)
              with Unify ->
                fatal_error "pattern_matching: types should match");
-            pattern_matching patt (Debugcom.get_field obj lbl.info.lbl_pos)
+            pattern_matching patt (Debugcom.get_field obj lbl.info.lbl_num)
                              ty_arg
       in
         (match pattern with
