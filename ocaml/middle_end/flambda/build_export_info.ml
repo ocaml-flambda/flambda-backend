@@ -260,7 +260,7 @@ let rec approx_of_expr (env : Env.t) (flam : Flambda.t) : Export_info.approx =
     end
   | Region body ->
     approx_of_expr env body
-  | Exclave body ->
+  | Tail body ->
     approx_of_expr env body
   | Assign _ -> Value_id (Env.new_unit_descr env)
   | For _ -> Value_id (Env.new_unit_descr env)

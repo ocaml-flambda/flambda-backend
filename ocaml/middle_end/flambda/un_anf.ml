@@ -245,7 +245,7 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
       ()
     | Uregion e ->
       loop ~depth e
-    | Uexclave e ->
+    | Utail e ->
       loop ~depth e
   in
   loop ~depth:0 clam;
@@ -478,7 +478,7 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
     | Uregion e ->
       let_stack := [];
       loop e
-    | Uexclave e ->
+    | Utail e ->
       let_stack := [];
       loop e
   in
@@ -631,9 +631,9 @@ let rec substitute_let_moveable is_let_moveable env (clam : Clambda.ulambda)
   | Uregion e ->
     let e = substitute_let_moveable is_let_moveable env e in
     Uregion (e)
-  | Uexclave e ->
+  | Utail e ->
     let e = substitute_let_moveable is_let_moveable env e in
-    Uexclave (e)
+    Utail (e)
 
 and substitute_let_moveable_list is_let_moveable env clams =
   List.map (substitute_let_moveable is_let_moveable env) clams
@@ -860,9 +860,9 @@ let rec un_anf_and_moveable var_info env (clam : Clambda.ulambda)
   | Uregion e ->
     let e = un_anf var_info env e in
     Uregion e, Fixed
-  | Uexclave e ->
+  | Utail e ->
     let e = un_anf var_info env e in
-    Uexclave e, Fixed
+    Utail e, Fixed
 
 and un_anf var_info env clam : Clambda.ulambda =
   let clam, _moveable = un_anf_and_moveable var_info env clam in

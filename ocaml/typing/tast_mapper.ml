@@ -370,8 +370,8 @@ let expr sub x =
           sub.expr sub exp2
         )
     | Texp_while wh ->
-        Texp_while { wh_cond = sub.expr sub wh.wh_cond;
-                     wh_body = sub.expr sub wh.wh_body
+        Texp_while { wh with wh_cond = sub.expr sub wh.wh_cond;
+                             wh_body = sub.expr sub wh.wh_body
                    }
     | Texp_for tf ->
         Texp_for {tf with for_from = sub.expr sub tf.for_from;
@@ -438,8 +438,6 @@ let expr sub x =
     | Texp_probe {name; handler} ->
       Texp_probe {name; handler = sub.expr sub handler }
     | Texp_probe_is_enabled _ as e -> e
-    | Texp_exclave exp ->
-        Texp_exclave (sub.expr sub exp)
   in
   {x with exp_extra; exp_desc; exp_env}
 
