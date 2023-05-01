@@ -767,9 +767,8 @@ end = struct
        To check divergent loops, the initial value of "div" component of all
        Iexit labels is set to "Safe" instead of "Bot". This is conservative with
        respect to non-recursive Icatch and Itrywith handlers. *)
-    D.analyze ~exnescape:Value.exn_escape ~init_lbl:Value.diverges ~transfer
-      body
-    |> fst
+    let init_lbl ~rc _ = if rc then Value.diverges else Value.bot in
+    D.analyze ~exnescape:Value.exn_escape ~init_lbl ~transfer body |> fst
 
   let fundecl (f : Mach.fundecl) ~future_funcnames unit_info ppf =
     let check () =
