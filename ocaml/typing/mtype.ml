@@ -309,29 +309,33 @@ let rec sig_make_manifest sg =
     in
     Sig_modtype(Ident.rename id, newdecl, vis) :: sig_make_manifest rem
 
-let rec make_aliases_absent pres mty =
+let rec make_aliases_absent ?(aliased=false) pres mty =
   match mty with
   | Mty_alias _ -> Mp_absent, mty
   | Mty_signature sg ->
-      pres, Mty_signature(make_aliases_absent_sig sg)
+      let make_item = function
+        | Sig_module(id, pres, md, rs, priv) ->
+          let pres, md = if aliased
+            then Mp_absent, md
+            else
+              let pres, md_type =
+                make_aliases_absent ~aliased:false pres md.md_type
+              in
+              pres, { md with md_type }
+          in
+          Sig_module(id, pres, md, rs, priv)
+        | item -> item
+      in
+      pres, Mty_signature(List.map make_item sg)
   | Mty_functor(arg, res) ->
-      let _, res = make_aliases_absent Mp_present res in
+      let _, res = make_aliases_absent ~aliased:false Mp_present res in
       pres, Mty_functor(arg, res)
   | Mty_ident _ ->
       pres, mty
   | Mty_strengthen (mty,p,a) ->
-      let pres, res = make_aliases_absent pres mty in
+      let aliased = aliased || a in
+      let pres, res = make_aliases_absent ~aliased pres mty in
       pres, Mty_strengthen (res,p,a)
-
-and make_aliases_absent_sig sg =
-  match sg with
-    [] -> []
-  | Sig_module(id, pres, md, rs, priv) :: rem ->
-      let pres, md_type = make_aliases_absent pres md.md_type in
-      let md = { md with md_type } in
-      Sig_module(id, pres, md, rs, priv) :: make_aliases_absent_sig rem
-  | sigelt :: rem ->
-      sigelt :: make_aliases_absent_sig rem
 
 let scrape_for_type_of env pres mty =
   let rec loop env mty =
