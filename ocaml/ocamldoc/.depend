@@ -661,6 +661,7 @@ odoc_sig.cmo : \
     odoc_class.cmo \
     ../parsing/longident.cmi \
     ../parsing/location.cmi \
+    ../typing/layouts.cmi \
     ../typing/ident.cmi \
     ../parsing/extensions.cmi \
     ../typing/ctype.cmi \
@@ -686,6 +687,7 @@ odoc_sig.cmx : \
     odoc_class.cmx \
     ../parsing/longident.cmx \
     ../parsing/location.cmx \
+    ../typing/layouts.cmx \
     ../typing/ident.cmx \
     ../parsing/extensions.cmx \
     ../typing/ctype.cmx \

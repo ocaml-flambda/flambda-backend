@@ -168,11 +168,14 @@ let rec expr_size env = function
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
      RHS_nonrec
-  | Uprim (Pduprecord ((Record_regular | Record_inlined _), sz), _, _) ->
+  | Uprim (Pduprecord ((Record_boxed _ | Record_inlined (_, Variant_boxed _)),
+                       sz), _, _) ->
       RHS_block (Lambda.alloc_heap, sz)
-  | Uprim (Pduprecord (Record_unboxed _, _), _, _) ->
+  | Uprim (Pduprecord ((Record_unboxed _
+                       | Record_inlined (_, Variant_unboxed _)),
+                       _), _, _) ->
       assert false
-  | Uprim (Pduprecord (Record_extension _, sz), _, _) ->
+  | Uprim (Pduprecord (Record_inlined (_, Variant_extensible), sz), _, _) ->
       RHS_block (Lambda.alloc_heap, sz + 1)
   | Uprim (Pduprecord (Record_float, sz), _, _) ->
       RHS_floatblock (Lambda.alloc_heap, sz)
@@ -190,7 +193,7 @@ let rec expr_size env = function
       | _ -> assert false)
   | Uregion exp ->
       expr_size env exp
-  | Utail exp ->
+  | Uexclave exp ->
       expr_size env exp
   | _ -> RHS_nonrec
 
@@ -368,7 +371,7 @@ let is_unboxed_number_cmm ~strict cmm =
         | _ ->
             notify No_unboxing
         end
-    | Cregion e | Ctail e ->
+    | Cregion e ->
         aux e
     | l ->
         if not (Cmm.iter_shallow_tail aux l) then
@@ -748,8 +751,8 @@ let rec transl env e =
       Cop(Cload (Word_int, Mutable), [Cconst_int (0, dbg)], dbg)
   | Uregion e ->
       region (transl env e)
-  | Utail e ->
-      Ctail (transl env e)
+  | Uexclave e ->
+      Cexclave (transl env e)
 
 and transl_catch (kind : Cmm.kind_for_unboxing) env nfail ids body handler dbg =
   let ids = List.map (fun (id, kind) -> (id, kind, ref No_result)) ids in

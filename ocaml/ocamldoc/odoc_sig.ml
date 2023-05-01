@@ -16,6 +16,7 @@
 (** Analysis of interface files. *)
 
 open Asttypes
+open Layouts
 open Types
 open Odoc_parameter
 open Odoc_value
@@ -416,6 +417,7 @@ module Analyser =
           { Typedtree.ld_id; ld_mutable; ld_type; ld_loc; ld_attributes } =
         get_field env comments @@
         {Types.ld_id; ld_mutable; ld_global = Unrestricted;
+         ld_layout=Layout.any (* ignored *);
          ld_type=ld_type.Typedtree.ctyp_type;
          ld_loc; ld_attributes; ld_uid=Types.Uid.internal_not_actually_unique} in
       let open Typedtree in
