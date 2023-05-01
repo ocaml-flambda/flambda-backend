@@ -16,5 +16,5 @@ open Format
 
 let print fmt =
   if !Clflags.debug_ocaml
-  then printf (fmt ^^ "@\n@?")
+  then printf (fmt ^^ "@.")
   else ifprintf std_formatter fmt
