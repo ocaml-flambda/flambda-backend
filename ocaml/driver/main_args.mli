@@ -50,7 +50,7 @@ module type Common_options = sig
   val _version : unit -> unit
   val _vnum : unit -> unit
   val _w : string -> unit
-
+  val _debug_ocaml : unit -> unit
 
   val anonymous : string -> unit
 end
@@ -229,7 +229,6 @@ module type Optcommon_options = sig
   val _dlinear :  unit -> unit
   val _dinterval : unit -> unit
   val _dstartup :  unit -> unit
-  val _debug_ocaml : unit -> unit
 end;;
 
 module type Optcomp_options = sig

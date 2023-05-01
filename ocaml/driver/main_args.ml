@@ -1009,6 +1009,7 @@ module type Common_options = sig
   val _version : unit -> unit
   val _vnum : unit -> unit
   val _w : string -> unit
+  val _debug_ocaml : unit -> unit
 
   val anonymous : string -> unit
 end
@@ -1188,7 +1189,6 @@ module type Optcommon_options = sig
   val _dlinear :  unit -> unit
   val _dinterval : unit -> unit
   val _dstartup :  unit -> unit
-  val _debug_ocaml : unit -> unit
 end;;
 
 module type Optcomp_options = sig
@@ -1346,6 +1346,7 @@ struct
     mk_dprofile F._dprofile;
     mk_dump_into_file F._dump_into_file;
     mk_dump_dir F._dump_dir;
+    mk_debug_ocaml F._debug_ocaml;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1414,6 +1415,7 @@ struct
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
     mk_dinstr F._dinstr;
+    mk_debug_ocaml F._debug_ocaml;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1746,6 +1748,7 @@ struct
     mk_vnum F._vnum;
     mk_w F._w;
     mk__ F.anonymous;
+    mk_debug_ocaml F._debug_ocaml;
   ]
 end;;
 
@@ -1831,6 +1834,7 @@ module Default = struct
     let _unsafe_string = set unsafe_string
     let _w s =
       Warnings.parse_options false s |> Option.iter Location.(prerr_alert none)
+    let _debug_ocaml = set debug_ocaml
 
     let anonymous = Compenv.anonymous
 
@@ -1890,7 +1894,6 @@ module Default = struct
     let _dspill = set dump_spill
     let _dsplit = set dump_split
     let _dstartup = set keep_startup_file
-    let _debug_ocaml = set debug_ocaml
     let _dump_pass pass = set_dumped_pass pass true
     let _inline spec =
       Float_arg_helper.parse spec "Syntax: -inline <n> | <round>=<n>[,...]"
