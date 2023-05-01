@@ -12,31 +12,31 @@
 ;*                                                                        *
 ;**************************************************************************
 
-(copy_files# ../*.ml*)
-
-(library
- (name ocamltoplevel_native)
- (wrapped false)
- (modes native)
- (flags (:standard -principal))
- (libraries ocamlcommon ocamloptcomp dynlink_internal)
- (modules :standard \ topstart expunge))
-
-(executable
- (name topstart)
- (modes native)
- (flags (:standard -principal))
- (modules topstart)
- (libraries ocamltoplevel_native))
-
-(install
-  (files
-    (topstart.exe as ocamlnat)
-  )
-  (section bin)
-  (package ocaml))
-
-;
+; (copy_files# ../*.ml*)
+; 
+; (library
+;  (name ocamltoplevel_native)
+;  (wrapped false)
+;  (modes native)
+;  (flags (:standard -principal))
+;  (libraries ocamlcommon ocamloptcomp dynlink_internal)
+;  (modules :standard \ topstart expunge))
+; 
+; (executable
+;  (name topstart)
+;  (modes native)
+;  (flags (:standard -principal))
+;  (modules topstart)
+;  (libraries ocamltoplevel_native))
+; 
+; (install
+;   (files
+;     (topstart.exe as ocamlnat)
+;   )
+;   (section bin)
+;   (package ocaml))
+; 
+; 
 ; (install
 ;   (files
 ;     (ocamltoplevel.cma as compiler-libs/ocamltoplevel.cma)
@@ -63,4 +63,4 @@
 ;   )
 ;   (section lib)
 ;   (package ocaml))
-;
+; 

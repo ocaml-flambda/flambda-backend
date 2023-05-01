@@ -186,7 +186,6 @@ type error =
   | Function_returns_local
   | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
   | Optional_poly_param
-  | Exclave_in_nontail_position
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -274,20 +273,10 @@ let mk_expected ?explanation ty = { ty; explanation; }
 let case lhs rhs =
   {c_lhs = lhs; c_guard = None; c_rhs = rhs}
 
-type function_position = Tail | Nontail
-
-
-type region_position =
-  (* not the tail of a region*)
-  | RNontail
-  (* tail of a region,
-     together with the mode of that region,
-     and whether it is also the tail of a function
-     (for tail call escape detection) *)
-  | RTail of Value_mode.t * function_position
+type mode_position = Tail | Nontail
 
 type expected_mode =
-  { position : region_position;
+  { position : mode_position;
     escaping_context : Env.escaping_context option;
     (* the upper bound of mode*)
     mode : Value_mode.t;
@@ -312,51 +301,35 @@ type expected_mode =
     (* for t in tuple_modes, t <= regional_to_global mode *)
   }
 
-let tail_call_escape = function
-  | RTail (_, Tail) -> true
-  | _ -> false
-
 let apply_position env (expected_mode : expected_mode) sexp : apply_position =
   let fail err =
     raise (Error (sexp.pexp_loc, env, Bad_tail_annotation err))
   in
   match
     Builtin_attributes.tailcall sexp.pexp_attributes,
-    tail_call_escape expected_mode.position
+    expected_mode.position
   with
-  | Ok (None | Some `Tail_if_possible), false  -> Default
-  | Ok (None | Some `Tail | Some `Tail_if_possible), true -> Tail
+  | Ok (None | Some `Tail_if_possible), Nontail -> Default
+  | Ok (None | Some `Tail | Some `Tail_if_possible), Tail -> Tail
   | Ok (Some `Nontail), _ -> Nontail
-  | Ok (Some `Tail), false -> fail `Not_a_tailcall
+  | Ok (Some `Tail), Nontail -> fail `Not_a_tailcall
   | Error `Conflict, _ -> fail `Conflict
 
 let mode_default mode =
-  { position = RNontail;
+  { position = Nontail;
     escaping_context = None;
     mode = mode;
     exact = false;
     tuple_modes = [] }
 
-(* used when entering a function;
-mode is the mode of the function region *)
 let mode_return mode =
-  { (mode_default (Value_mode.local_to_regional mode)) with
-    position = RTail (mode, Tail);
+  { (mode_default mode) with
+    position = Tail;
     escaping_context = Some Return;
-  }
-
-(* used when entering a region.*)
-let mode_region mode =
-  { (mode_default (Value_mode.local_to_regional mode)) with
-    position = RTail (mode, Nontail);
-    escaping_context = None;
   }
 
 let mode_local =
   mode_default Value_mode.local
-
-let mode_local_with_position position =
-  { mode_local with position }
 
 let mode_global =
   mode_default Value_mode.global
@@ -388,7 +361,7 @@ let mode_partial_application expected_mode =
 
 
 let mode_trywith expected_mode =
-  { expected_mode with position = RNontail }
+  { expected_mode with position = Nontail }
 
 let mode_tuple mode tuple_modes =
   { (mode_default mode) with
@@ -407,8 +380,7 @@ let mode_argument ~funct ~index ~position ~partial_app alloc_mode =
                 Id_prim _), 1, Tail ->
      (* The second argument to (&&) and (||) is in
         tail position if the call is *)
-      (* vmode is wrong; fine because of mode crossing on boolean *)
-     mode_return vmode
+     mode_return (Value_mode.local_to_regional vmode)
   | Texp_ident (_, _, _, Id_prim _), _, _ ->
      (* Other primitives cannot be tail-called *)
      mode_default vmode
@@ -419,7 +391,7 @@ let mode_argument ~funct ~index ~position ~partial_app alloc_mode =
 
 let mode_lazy =
   { mode_global with
-    position = RTail (Value_mode.global, Tail) }
+    position = Tail }
 
 
 let submode ~loc ~env ~reason mode expected_mode =
@@ -3213,7 +3185,6 @@ let rec is_nonexpansive exp =
   | Texp_letop _
   | Texp_extension_constructor _ ->
     false
-  | Texp_exclave e -> is_nonexpansive e
 
 and is_nonexpansive_mod mexp =
   match mexp.mod_desc with
@@ -3643,8 +3614,7 @@ let check_partial_application ~statement exp =
             | Texp_ifthenelse (_, e1, Some e2) ->
                 check e1; check e2
             | Texp_let (_, _, e) | Texp_sequence (_, e) | Texp_open (_, e)
-            | Texp_letexception (_, e) | Texp_letmodule (_, _, _, _, e)
-            | Texp_exclave e ->
+            | Texp_letexception (_, e) | Texp_letmodule (_, _, _, _, e) ->
                 check e
             | Texp_apply _ | Texp_send _ | Texp_new _ | Texp_letop _ ->
                 Location.prerr_warning exp_loc
@@ -4173,36 +4143,6 @@ and type_expect_
           ty_expected_explained
       in
       { exp with exp_loc = loc }
-  | Pexp_apply
-      ({ pexp_desc = Pexp_extension({
-         txt = "extension.exclave" | "ocaml.exclave" | "exclave" as txt}, PStr []) },
-       [Nolabel, sbody]) ->
-      if (txt = "extension.exclave") && not (Language_extension.is_enabled Local) then
-          raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Local));
-      begin
-        match expected_mode.position with
-        | RNontail ->
-          raise (Error (loc, env, Exclave_in_nontail_position))
-        | RTail (mode, _) ->
-          (* mode' is RNontail, because currently our language cannot construct
-             region in the tail of another region.*)
-          let mode' = mode_default mode in
-          (* The middle-end relies on all functions which allocate into their
-             parent's region having a return mode of local. *)
-          submode ~loc ~env ~reason:Other Value_mode.local mode';
-          let new_env = Env.add_exclave_lock env in
-          let exp =
-            type_expect ?in_function ~recarg new_env mode' sbody ty_expected_explained
-          in
-          submode ~loc ~env ~reason:Other Value_mode.regional expected_mode;
-          { exp_desc = Texp_exclave exp;
-            exp_loc = loc;
-            exp_extra = [];
-            exp_type = exp.exp_type;
-            exp_env = env;
-            exp_attributes = sexp.pexp_attributes;
-          }
-      end
   | Pexp_apply(sfunct, sargs) ->
       assert (sargs <> []);
       let position = apply_position env expected_mode sexp in
@@ -4673,45 +4613,50 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_while(scond, sbody) ->
-      let cond_env = Env.add_region_lock env in
-      let mode = mode_region Value_mode.local in
+      let cond_env,wh_cond_region =
+        if is_local_returning_expr scond then env, false
+        else Env.add_region_lock env, true
+      in
       let wh_cond =
-        type_expect cond_env mode scond
+        type_expect cond_env mode_local scond
           (mk_expected ~explanation:While_loop_conditional Predef.type_bool)
       in
-      let body_env = Env.add_region_lock env in
-      let position = RTail (Value_mode.local, Nontail) in
+      let body_env,wh_body_region =
+        if is_local_returning_expr sbody then env, false
+        else Env.add_region_lock env, true
+      in
       let wh_body =
-        type_statement ~explanation:While_loop_body
-          ~position body_env sbody
+        type_statement ~explanation:While_loop_body body_env sbody
       in
       rue {
         exp_desc =
-          Texp_while {wh_cond; wh_body};
+          Texp_while {wh_cond; wh_cond_region; wh_body; wh_body_region};
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_for(param, slow, shigh, dir, sbody) ->
       let for_from =
-        type_expect env (mode_region Value_mode.local) slow
+        type_expect env mode_local slow
           (mk_expected ~explanation:For_loop_start_index Predef.type_int)
       in
       let for_to =
-        type_expect env (mode_region Value_mode.local) shigh
+        type_expect env mode_local shigh
           (mk_expected ~explanation:For_loop_stop_index Predef.type_int)
       in
       let for_id, new_env =
         type_for_loop_index ~loc ~env ~param
       in
-      let new_env = Env.add_region_lock new_env in
-      let position = RTail (Value_mode.local, Nontail) in
+      let new_env, for_region =
+        if is_local_returning_expr sbody then new_env, false
+        else Env.add_region_lock new_env, true
+      in
       let for_body =
-        type_statement ~explanation:For_loop_body ~position new_env sbody
+        type_statement ~explanation:For_loop_body new_env sbody
       in
       rue {
         exp_desc = Texp_for {for_id; for_pat = param; for_from; for_to;
-                             for_dir = dir; for_body};
+                             for_dir = dir; for_body; for_region};
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
         exp_attributes = sexp.pexp_attributes;
@@ -5552,7 +5497,7 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
     else begin
       let ret_value_mode = Value_mode.of_alloc ret_mode in
       let ret_value_mode =
-        if region_locked then mode_return ret_value_mode
+        if region_locked then mode_return (Value_mode.local_to_regional ret_value_mode)
         else begin
           match Alloc_mode.submode Alloc_mode.local ret_mode with
           | Ok () -> mode_local
@@ -6384,9 +6329,9 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
 
 (* Typing of statements (expressions whose values are discarded) *)
 
-and type_statement ?explanation ?(position=RNontail) env sexp =
+and type_statement ?explanation env sexp =
   begin_def();
-  let exp = type_exp env (mode_local_with_position position) sexp in
+  let exp = type_exp env mode_local sexp in
   end_def();
   let ty = expand_head env exp.exp_type and tv = newvar() in
   if is_Tvar ty && get_level ty > get_level tv then
@@ -7984,9 +7929,6 @@ let report_error ~loc env = function
         (match err with
          | `Conflict -> "is contradictory"
          | `Not_a_tailcall -> "is not on a tail call")
-  | Exclave_in_nontail_position ->
-    Location.errorf ~loc
-        "Exclave expression should only be in tail position of the current region"
   | Optional_poly_param ->
       Location.errorf ~loc
         "Optional parameters cannot be polymorphic"

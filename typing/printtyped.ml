@@ -436,15 +436,18 @@ and expression i ppf x =
       line i ppf "Texp_sequence\n";
       expression i ppf e1;
       expression i ppf e2;
-  | Texp_while {wh_cond; wh_body} ->
+  | Texp_while {wh_cond; wh_cond_region; wh_body; wh_body_region} ->
       line i ppf "Texp_while\n";
+      line i ppf "cond_region %b\n" wh_cond_region;
       expression i ppf wh_cond;
+      line i ppf "body_region %b\n" wh_body_region;
       expression i ppf wh_body;
-  | Texp_for {for_id; for_from; for_to; for_dir; for_body} ->
+  | Texp_for {for_id; for_from; for_to; for_dir; for_body; for_region} ->
       line i ppf "Texp_for \"%a\" %a\n"
         fmt_ident for_id fmt_direction_flag for_dir;
       expression i ppf for_from;
       expression i ppf for_to;
+      line i ppf "region %b\n" for_region;
       expression i ppf for_body
   | Texp_send (e, Tmeth_name s, _, am) ->
       line i ppf "Texp_send \"%s\"\n" s;
@@ -505,9 +508,6 @@ and expression i ppf x =
       expression i ppf handler;
   | Texp_probe_is_enabled {name} ->
       line i ppf "Texp_probe_is_enabled \"%s\"\n" name;
-  | Texp_exclave (e) ->
-      line i ppf "Texp_exclave";
-      expression i ppf e;
 
 and value_description i ppf x =
   line i ppf "value_description %a %a\n" fmt_ident x.val_id fmt_location

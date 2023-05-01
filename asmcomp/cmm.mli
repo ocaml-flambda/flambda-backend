@@ -210,7 +210,7 @@ type expression =
   | Ctrywith of expression * Backend_var.With_provenance.t * expression
       * Debuginfo.t * kind_for_unboxing
   | Cregion of expression
-  | Cexclave of expression
+  | Ctail of expression
 
 type codegen_option =
   | Reduce_code_size
