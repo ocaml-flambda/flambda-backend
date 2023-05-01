@@ -184,6 +184,19 @@ and fun_curry_state =
             functions, which might result in this arg no longer being
             final *)
 
+(** Layouts in the typed tree: Compilation of the typed tree to lambda sometimes
+    requires layout information.  Our approach is to propagate layout
+    information inward during compilation.  This requires us to annotate places
+    in the typed tree where the layout of a subexpression is not determined by
+    the layout of the expression containing it.  For example, to the left of a
+    semicolon, or in value_bindings.
+
+    CR layouts v1.5: Some of these were mainly needed for void (e.g., left of a
+    semicolon).  If we redo how void is compiled, perhaps we can drop those.  On
+    the other hand, there are some places we're not annotating now (e.g.,
+    function arguments) that will need annotations in the future because we'll
+    allow other layouts there.  Just do a rationalization pass on this.
+*)
 and expression_desc =
     Texp_ident of
       Path.t * Longident.t loc * Types.value_description * ident_kind
@@ -231,13 +244,13 @@ and expression_desc =
                          (Labelled "y", Some (Texp_constant Const_int 3))
                         ])
          *)
-  | Texp_match of expression * computation case list * partial
+  | Texp_match of expression * Layouts.sort * computation case list * partial
         (** match E0 with
             | P1 -> E1
             | P2 | exception P3 -> E2
             | exception P4 -> E3
 
-            [Texp_match (E0, [(P1, E1); (P2 | exception P3, E2);
+            [Texp_match (E0, sort_of_E0, [(P1, E1); (P2 | exception P3, E2);
                               (exception P4, E3)], _)]
          *)
   | Texp_try of expression * value case list
@@ -290,10 +303,15 @@ and expression_desc =
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
-  | Texp_sequence of expression * expression
+  | Texp_sequence of expression * Layouts.layout * expression
+    (* CR layouts v5: The layout above is only used for the void sanity check now.
+       Remove it at an appropriate time. *)
   | Texp_while of {
       wh_cond : expression;
       wh_body : expression;
+      wh_body_layout : Layouts.layout
+      (* CR layouts v5: The layout above is only used for the void sanity check
+         now.  Remove it at an appropriate time. *)
     }
   | Texp_for of {
       for_id  : Ident.t;
@@ -302,6 +320,9 @@ and expression_desc =
       for_to   : expression;
       for_dir  : direction_flag;
       for_body : expression;
+      for_body_layout : Layouts.layout;
+      (* CR layouts v5: The layout above is only used for the void sanity check
+         now.  Remove it at an appropriate time. *)
     }
   | Texp_send of expression * meth * apply_position * Types.alloc_mode
     (** [alloc_mode] is the allocation mode of the result *)
@@ -521,7 +542,9 @@ and structure_item =
   }
 
 and structure_item_desc =
-    Tstr_eval of expression * attributes
+    Tstr_eval of expression * Layouts.layout * attributes
+    (* CR layouts v5: The above layout is now only used to implement the void
+       sanity check.  Consider removing when void is handled properly. *)
   | Tstr_value of rec_flag * value_binding list
   | Tstr_primitive of value_description
   | Tstr_type of rec_flag * type_declaration list
@@ -550,6 +573,7 @@ and value_binding =
   {
     vb_pat: pattern;
     vb_expr: expression;
+    vb_sort: Layouts.sort;
     vb_attributes: attributes;
     vb_loc: Location.t;
   }
@@ -758,6 +782,7 @@ and type_declaration =
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attributes;
+    typ_layout_annotation: Layouts.layout option;
    }
 
 and type_kind =
@@ -929,9 +954,9 @@ val exists_pattern: (pattern -> bool) -> pattern -> bool
 val let_bound_idents: value_binding list -> Ident.t list
 val let_bound_idents_full:
     value_binding list -> (Ident.t * string loc * Types.type_expr) list
-val let_bound_idents_with_modes:
+val let_bound_idents_with_modes_and_sorts:
   value_binding list
-  -> (Ident.t * (Location.t * Types.value_mode) list) list
+  -> (Ident.t * (Location.t * Types.value_mode * Layouts.sort) list) list
 
 (** Alpha conversion of patterns *)
 val alpha_pat:
@@ -941,8 +966,11 @@ val mknoloc: 'a -> 'a Asttypes.loc
 val mkloc: 'a -> Location.t -> 'a Asttypes.loc
 
 val pat_bound_idents: 'k general_pattern -> Ident.t list
+val pat_bound_idents_with_types:
+  'k general_pattern -> (Ident.t * Types.type_expr) list
 val pat_bound_idents_full:
-  'k general_pattern -> (Ident.t * string loc * Types.type_expr) list
+  Layouts.sort -> 'k general_pattern
+  -> (Ident.t * string loc * Types.type_expr * Layouts.sort) list
 
 (** Splits an or pattern into its value (left) and exception (right) parts. *)
 val split_pattern:

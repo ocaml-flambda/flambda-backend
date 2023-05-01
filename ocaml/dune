@@ -73,8 +73,8 @@
    asttypes parsetree
 
    ;; TYPING
-   ident path primitive shape types btype oprint subst predef datarepr
-   cmi_format persistent_env env type_immediacy errortrace
+   ident path primitive shape layouts types btype oprint subst predef datarepr
+   cmi_format persistent_env env errortrace
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter
@@ -269,6 +269,7 @@
     (ident.mli as compiler-libs/ident.mli)
     (path.mli as compiler-libs/path.mli)
     (primitive.mli as compiler-libs/primitive.mli)
+    (layouts.mli as compiler-libs/layouts.mli)
     (types.mli as compiler-libs/types.mli)
     (btype.mli as compiler-libs/btype.mli)
     (binutils.mli as compiler-libs/binutils.mli)
@@ -281,7 +282,6 @@
     (cmi_format.mli as compiler-libs/cmi_format.mli)
     (persistent_env.mli as compiler-libs/persistent_env.mli)
     (env.mli as compiler-libs/env.mli)
-    (type_immediacy.mli as compiler-libs/type_immediacy.mli)
     (typedtree.mli as compiler-libs/typedtree.mli)
     (printtyped.mli as compiler-libs/printtyped.mli)
     (ctype.mli as compiler-libs/ctype.mli)

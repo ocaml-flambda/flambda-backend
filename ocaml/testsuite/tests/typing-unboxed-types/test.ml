@@ -92,9 +92,9 @@ Error: This type cannot be unboxed because
 |}];;
 
 (* let rec must be rejected *)
-type t10 = A of t10 [@@ocaml.unboxed];;
+type t10 = A of t10 [@@ocaml.unboxed] [@@value];;
 [%%expect{|
-type t10 = A of t10 [@@unboxed]
+type t10 = A of t10 [@@value] [@@unboxed]
 |}];;
 let rec x = A x;;
 [%%expect{|
@@ -280,11 +280,10 @@ in assert (f x = L 3.14);;
 - : unit = ()
 |}];;
 
-
 (* Check for a potential infinite loop in the typing algorithm. *)
-type 'a t12 = M of 'a t12 [@@ocaml.unboxed];;
+type 'a t12 = M of 'a t12 [@@ocaml.unboxed] [@@value];;
 [%%expect{|
-type 'a t12 = M of 'a t12 [@@unboxed]
+type 'a t12 = M of 'a t12 [@@value] [@@unboxed]
 |}];;
 let f (a : int t12 array) = a.(0);;
 [%%expect{|

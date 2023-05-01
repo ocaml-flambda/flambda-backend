@@ -108,9 +108,10 @@ let pivot_level = 2 * lowest_level - 1
 
 (**** Some type creators ****)
 
-let newgenty desc      = newty2 ~level:generic_level desc
-let newgenvar ?name () = newgenty (Tvar name)
-let newgenstub ~scope  = newty3 ~level:generic_level ~scope (Tvar None)
+let newgenty desc = newty2 ~level:generic_level desc
+let newgenvar ?name layout = newgenty (Tvar { name; layout })
+let newgenstub ~scope layout =
+  newty3 ~level:generic_level ~scope (Tvar { name=None; layout })
 
 (*
 let newmarkedvar level =
@@ -440,7 +441,8 @@ let copy_row f fixed row keep more =
 let copy_commu c = if is_commu_ok c then commu_ok else commu_var ()
 
 let rec copy_type_desc ?(keep_names=false) f = function
-    Tvar _ as ty        -> if keep_names then ty else Tvar None
+    Tvar { layout; _ } as tv ->
+     if keep_names then tv else Tvar { name=None; layout }
   | Tarrow (p, ty1, ty2, c)-> Tarrow (p, f ty1, f ty2, copy_commu c)
   | Ttuple l            -> Ttuple (List.map f l)
   | Tconstr (p, l, _)   -> Tconstr (p, List.map f l, ref Mnil)

@@ -279,13 +279,17 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         | [arg] -> arg
         | _ -> Misc.fatal_error "Dissect_letrec.prepare_letrec duprecord"
       in
-      match kind with
-      | Types.Record_regular -> build_block cl size (Normal 0) arg letrec
-      | Types.Record_inlined tag -> build_block cl size (Normal tag) arg letrec
-      | Types.Record_extension _ ->
+      match[@ocaml.warning "fragile-match"] kind with
+      | Record_boxed _ -> build_block cl size (Normal 0) arg letrec
+      | Record_inlined (Ordinary { runtime_tag; _ }, Variant_boxed _) ->
+        build_block cl size (Normal runtime_tag) arg letrec
+      | Record_inlined (Extension _, Variant_extensible) ->
         build_block cl (size + 1) (Normal 0) arg letrec
-      | Types.Record_unboxed _ -> assert false
-      | Types.Record_float -> build_block cl size Boxed_float arg letrec)
+      | Record_float -> build_block cl size Boxed_float arg letrec
+      | Record_inlined (Extension _, _)
+      | Record_inlined (Ordinary _, (Variant_unboxed _ | Variant_extensible))
+      | Record_unboxed _ ->
+        Misc.fatal_errorf "Unexpected record kind:@ %a" Printlambda.lambda lam)
     | None -> dead_code lam letrec)
   | Lconst const -> (
     match current_let with

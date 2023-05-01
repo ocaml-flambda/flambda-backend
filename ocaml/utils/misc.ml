@@ -95,6 +95,11 @@ let rec split_last = function
       let (lst, last) = split_last tl in
       (hd :: lst, last)
 
+let rec last = function
+  | [] -> None
+  | [x] -> Some x
+  | _ :: tl -> last tl
+
 module Stdlib = struct
   module List = struct
     include List
@@ -217,6 +222,20 @@ module Stdlib = struct
         Some (Array.map (function None -> raise_notrace Exit | Some x -> x) a)
       with
       | Exit -> None
+
+    let equal eq_elt l1 l2 =
+      (* Basically inlines [Array.for_all2] to avoid the [raise] *)
+      let n = Array.length l1 in
+      Int.equal n (Array.length l2) &&
+      let rec loop i =
+        if Int.equal i n then
+          true
+        else if eq_elt (Array.unsafe_get l1 i) (Array.unsafe_get l2 i) then
+          loop (succ i)
+        else
+          false
+      in
+      loop 0
   end
 
   module String = struct

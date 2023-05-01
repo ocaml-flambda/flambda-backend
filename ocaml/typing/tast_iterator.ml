@@ -96,7 +96,7 @@ let class_declaration sub x =
 let structure_item sub {str_desc; str_env; _} =
   sub.env sub str_env;
   match str_desc with
-  | Tstr_eval   (exp, _) -> sub.expr sub exp
+  | Tstr_eval   (exp, _, _) -> sub.expr sub exp
   | Tstr_value  (rec_flag, list) -> sub.value_bindings sub (rec_flag, list)
   | Tstr_primitive v -> sub.value_description sub v
   | Tstr_type (rec_flag, list) -> sub.type_declarations sub (rec_flag, list)
@@ -214,7 +214,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
         | (_, Arg exp) -> sub.expr sub exp
         | (_, Omitted _) -> ())
         list
-  | Texp_match (exp, cases, _) ->
+  | Texp_match (exp, _, cases, _) ->
       sub.expr sub exp;
       List.iter (sub.case sub) cases
   | Texp_try (exp, cases) ->
@@ -257,7 +257,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
       sub.expr sub exp1;
       sub.expr sub exp2;
       Option.iter (sub.expr sub) expo
-  | Texp_sequence (exp1, exp2) ->
+  | Texp_sequence (exp1, _, exp2) ->
       sub.expr sub exp1;
       sub.expr sub exp2
   | Texp_while { wh_cond; wh_body } ->
