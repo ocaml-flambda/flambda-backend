@@ -377,10 +377,7 @@ let () =
 let find_type_of_module ~strengthen ~aliasable env path =
   if strengthen then
     let md = Env.find_module_lazy path env in
-    (* RL FIXME: If we don't scape here, we get lots of warnings about unused
-        value declarations *)
-    let mty = scrape_lazy env md.md_type in
-    let mty = strengthen_lazy ~aliasable mty path in
+    let mty = strengthen_lazy ~aliasable md.md_type path in
     Subst.Lazy.force_modtype mty
   else
     (Env.find_module path env).md_type
