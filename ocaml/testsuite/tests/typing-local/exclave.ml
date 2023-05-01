@@ -16,10 +16,9 @@ val escape : 'a -> unit = <fun>
   on the function's type to know if it allocates in caller's
   region. *)
 let foo () =
-  exclave_ (
+  exclave_
     let local_ y = Some 42 in
     y
-  )
 [%%expect{|
 val foo : unit -> local_ int option = <fun>
 |}]
@@ -32,12 +31,11 @@ val foo : unit -> local_ int option = <fun>
   because it might still allocate in outer region
     *)
 let foo () =
-  exclave_ (
+  exclave_
     let local_ _y = Some 42 in
     let x = Some 42 in
     let _ = escape x in
     x
-  )
 [%%expect{|
 val foo : unit -> local_ int option = <fun>
 |}]
@@ -46,11 +44,10 @@ val foo : unit -> local_ int option = <fun>
   because I don't know any reliable mechanisms in type checker to do that.
   So it's better to be safe and say that "it might allocate in outer region". *)
 let foo x =
-  exclave_ (
+  exclave_
     let x = Some 42 in
     let _ = escape x in
     x
-  )
 [%%expect{|
 val foo : 'a -> local_ int option = <fun>
 |}]
@@ -58,11 +55,10 @@ val foo : 'a -> local_ int option = <fun>
 
 (* Below we do some usual testing  *)
 let foo x =
-  exclave_ (
+  exclave_
     let local_ y = None in
     (* y is not global *)
     ref y
-  )
 [%%expect{|
 Line 5, characters 8-9:
 5 |     ref y
@@ -73,22 +69,22 @@ Error: This value escapes its region
 (* following we check error detection *)
 let foo x =
   let local_ y = "foo" in
-  exclave_ (Some y)
+  exclave_ Some y
 [%%expect{|
-Line 3, characters 17-18:
-3 |   exclave_ (Some y)
-                     ^
+Line 3, characters 16-17:
+3 |   exclave_ Some y
+                    ^
 Error: The value y is local, so cannot be used inside exclave
 |}]
 
 let foo x =
   let local_ y = "foo" in
-  let z = exclave_ (Some y) in
+  let z = exclave_ Some y in
   z
 [%%expect{|
-Line 3, characters 10-27:
-3 |   let z = exclave_ (Some y) in
-              ^^^^^^^^^^^^^^^^^
+Line 3, characters 10-25:
+3 |   let z = exclave_ Some y in
+              ^^^^^^^^^^^^^^^
 Error: Exclave expression should only be in tail position of the current region
 |}]
 
@@ -168,10 +164,9 @@ let foo () =
   let local_ z = "hello" in
   x.a <- z;
   while true do
-    exclave_ (
+    exclave_
       let local_ y = "hello" in
       x.a <- y
-    )
   done
 
 [%%expect{|
@@ -183,10 +178,10 @@ Error: This value escapes its region
 |}]
 
 let foo x =
-  exclave_ (
+  exclave_
     let local_ y = Some x in
     y
-  );;
+  ;;
 
 let bar _ =
   match foo 5 with
