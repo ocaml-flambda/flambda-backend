@@ -31,7 +31,6 @@
     numbers
     arg_helper
     clflags
-    debug
     language_extension
     profile
     consistbl
@@ -110,7 +109,6 @@
 (copy_files ../../utils/numbers.ml)
 (copy_files ../../utils/arg_helper.ml)
 (copy_files ../../utils/clflags.ml)
-(copy_files ../../utils/debug.ml)
 (copy_files ../../utils/language_extension.ml)
 (copy_files ../../utils/profile.ml)
 (copy_files ../../utils/consistbl.ml)
@@ -167,7 +165,6 @@
 (copy_files ../../utils/numbers.mli)
 (copy_files ../../utils/arg_helper.mli)
 (copy_files ../../utils/clflags.mli)
-(copy_files ../../utils/debug.mli)
 (copy_files ../../utils/language_extension.mli)
 (copy_files ../../utils/profile.mli)
 (copy_files ../../utils/consistbl.mli)
@@ -266,7 +263,6 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Numbers.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Profile.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Clflags.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debug.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Terminfo.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Location.cmo
@@ -338,7 +334,6 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Numbers.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Profile.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Clflags.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debug.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Terminfo.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Location.cmx

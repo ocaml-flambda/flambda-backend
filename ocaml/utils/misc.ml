@@ -1252,3 +1252,10 @@ module Magic_number = struct
            | Error err -> Error (Unexpected_error err)
            | Ok () -> Ok info
 end
+
+module Debug = struct
+  let print fmt =
+    if !Clflags.debug_ocaml
+    then printf (fmt ^^ "@.")
+    else ifprintf std_formatter fmt
+end
