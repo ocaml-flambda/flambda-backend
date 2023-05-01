@@ -34,6 +34,7 @@ UTILS = \
   utils/local_store.cmo \
   utils/load_path.cmo \
   utils/clflags.cmo \
+  utils/debug.cmo \
   utils/language_extension.cmo \
   utils/profile.cmo \
   utils/terminfo.cmo \

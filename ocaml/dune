@@ -60,7 +60,7 @@
  (modules
    ;; UTILS
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
-   profile terminfo ccomp warnings consistbl strongly_connected_components
+   debug profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
    local_store target_system compilation_unit import_info linkage_name symbol
    lazy_backtrack diffing diffing_with_keys language_extension

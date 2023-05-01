@@ -698,17 +698,3 @@ module Magic_number : sig
 
   val all_kinds : kind list
 end
-
-(** Compiler debugging support. *)
-module Debug : sig
-  open Format
-
-  (** Print some output to stdout, if [-debug-ocaml] is given on this
-      invocation of ocaml. Example:
-
-      {[
-        Debug.print "The type is %a" Printtyp.raw_type_expr ty
-      ]}
-  *)
-  val print : ('a, formatter, unit) format -> 'a
-end
