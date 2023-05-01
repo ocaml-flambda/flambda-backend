@@ -788,14 +788,17 @@ let rec lam ppf = function
       fprintf ppf "@[<2>(if@ %a@ %a@ %a)@]" lam lcond lam lif lam lelse
   | Lsequence(l1, l2) ->
       fprintf ppf "@[<2>(seq@ %a@ %a)@]" lam l1 sequence l2
-  | Lwhile {wh_cond; wh_body} ->
-      fprintf ppf "@[<2>(while@ %a@ %a)@]"
-        lam wh_cond lam wh_body
-  | Lfor {for_id; for_from; for_to; for_dir; for_body} ->
-      fprintf ppf "@[<2>(for %a@ %a@ %s@ %a@ %a)@]"
+  | Lwhile {wh_cond; wh_cond_region; wh_body; wh_body_region} ->
+      let cond_mode = if wh_cond_region then alloc_heap else alloc_local in
+      let body_mode = if wh_body_region then alloc_heap else alloc_local in
+      fprintf ppf "@[<2>(while@ %s %a@ %s %a)@]"
+        (alloc_mode cond_mode) lam wh_cond (alloc_mode body_mode) lam wh_body
+  | Lfor {for_id; for_from; for_to; for_dir; for_body; for_region} ->
+      let mode = if for_region then alloc_heap else alloc_local in
+      fprintf ppf "@[<2>(for %a@ %a@ %s@ %a@ %s %a)@]"
        Ident.print for_id lam for_from
        (match for_dir with Upto -> "to" | Downto -> "downto")
-       lam for_to lam for_body
+       lam for_to (alloc_mode mode) lam for_body
   | Lassign(id, expr) ->
       fprintf ppf "@[<2>(assign@ %a@ %a)@]" Ident.print id lam expr
   | Lsend (k, met, obj, largs, pos, reg, _, _) ->
@@ -835,8 +838,6 @@ let rec lam ppf = function
       fprintf ppf "@[<2>(ifused@ %a@ %a)@]" Ident.print id lam expr
   | Lregion (expr, _) ->
       fprintf ppf "@[<2>(region@ %a)@]" lam expr
-  | Lexclave expr ->
-      fprintf ppf "@[<2>(exclave@ %a)@]" lam expr
 
 and sequence ppf = function
   | Lsequence(l1, l2) ->

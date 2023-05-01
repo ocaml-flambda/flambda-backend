@@ -293,7 +293,9 @@ and expression_desc =
   | Texp_sequence of expression * expression
   | Texp_while of {
       wh_cond : expression;
+      wh_cond_region : bool; (* False means allocates in outer region *)
       wh_body : expression;
+      wh_body_region : bool  (* False means allocates in outer region *)
     }
   | Texp_for of {
       for_id  : Ident.t;
@@ -302,6 +304,9 @@ and expression_desc =
       for_to   : expression;
       for_dir  : direction_flag;
       for_body : expression;
+      for_region : bool;
+      (* for_region = true means we create a region for the body.  false means
+         it may allocated in the containing region *)
     }
   | Texp_send of expression * meth * apply_position * Types.alloc_mode
     (** [alloc_mode] is the allocation mode of the result *)
@@ -332,7 +337,6 @@ and expression_desc =
         (** let open[!] M in e *)
   | Texp_probe of { name:string; handler:expression; }
   | Texp_probe_is_enabled of { name:string }
-  | Texp_exclave of expression
 
 and ident_kind = Id_value | Id_prim of Types.alloc_mode option
 

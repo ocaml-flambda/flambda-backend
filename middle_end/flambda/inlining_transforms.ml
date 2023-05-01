@@ -133,7 +133,7 @@ let inline_by_copying_function_body ~env ~r
   in
   let body =
     match reg_close with
-    | Lambda.Rc_close_at_apply -> Flambda.Exclave body
+    | Lambda.Rc_close_at_apply -> Flambda.Tail body
     | Lambda.Rc_normal | Lambda.Rc_nontail -> body
   in
   let bindings_for_params_to_args =

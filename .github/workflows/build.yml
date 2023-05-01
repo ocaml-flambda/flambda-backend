@@ -21,6 +21,13 @@ jobs:
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
+          - name: i386
+            config: --enable-stack-allocation=no CC='cc32' AS='as --32' ASPP='gcc -m32 -c' -host i386-linux PARTIALLD='ld -r -melf_i386'
+            os: ubuntu-20.04
+            ocamlparam: ''
+            boot_config: CC='cc32' AS='as --32' ASPP='gcc -m32 -c' -host i386-linux PARTIALLD='ld -r -melf_i386'
+            boot_cachekey: 32bit
+
     env:
       J: "3"
 
@@ -28,6 +35,11 @@ jobs:
     - name: Install GNU parallel
       if: matrix.os == 'macos-latest'
       run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install parallel
+
+    - name: Install GCC 32-bit libraries
+      if: matrix.name == 'i386'
+      run: |
+        sudo apt-get install gcc-multilib gfortran-multilib
 
     - name: Checkout the ocaml-jst repo
       uses: actions/checkout@master
@@ -48,6 +60,13 @@ jobs:
         repository: 'ocaml/ocaml'
         path: 'ocaml-414'
         ref: '4.14'
+
+    - name: Setup 32-bit C compiler
+      if: matrix.name == 'i386' && steps.cache.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p ocaml-414/_install/bin
+        { echo '#!/bin/sh'; echo 'exec gcc -m32 "$@"'; } > ocaml-414/_install/bin/cc32
+        chmod +x ocaml-414/_install/bin/cc32
 
     - name: Build OCaml 4.14
       if: steps.cache.outputs.cache-hit != 'true'

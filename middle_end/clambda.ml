@@ -97,7 +97,7 @@ and ulambda =
       * Lambda.layout list * Lambda.layout * apply_kind * Debuginfo.t
   | Uunreachable
   | Uregion of ulambda
-  | Uexclave of ulambda
+  | Utail of ulambda
 
 and ufunction = {
   label  : function_label;

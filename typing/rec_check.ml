@@ -154,8 +154,7 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_open (_, e)
     | Texp_letmodule (_, _, _, _, e)
     | Texp_sequence (_, e)
-    | Texp_letexception (_, e)
-    | Texp_exclave e ->
+    | Texp_letexception (_, e) ->
         classify_expression env e
 
     | Texp_construct (_, {cstr_tag = Cstr_unboxed}, [e], _) ->
@@ -837,7 +836,6 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_probe {handler} ->
       expression handler << Dereference
     | Texp_probe_is_enabled _ -> empty
-    | Texp_exclave e -> expression e
 
 and comprehension_clauses clauses =
   List.concat_map

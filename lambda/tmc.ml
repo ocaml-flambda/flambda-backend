@@ -668,9 +668,6 @@ let rec choice ctx t =
     | Lregion (lam, layout) ->
         let+ lam = choice ctx ~tail lam in
         Lregion (lam, layout)
-    | Lexclave lam ->
-        let+ lam = choice ctx ~tail lam in
-        Lexclave lam
 
   and choice_apply ctx ~tail apply =
     let exception No_tmc in

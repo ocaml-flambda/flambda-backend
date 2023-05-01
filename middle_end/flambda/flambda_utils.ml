@@ -78,7 +78,7 @@ let description_of_toplevel_node (expr : Flambda.t) =
   | While _ -> "while"
   | For _ -> "for"
   | Region _ -> "region"
-  | Exclave _ -> "exclave"
+  | Tail _ -> "tail"
 
 let equal_direction_flag
       (x : Asttypes.direction_flag)
@@ -161,9 +161,9 @@ let rec same (l1 : Flambda.t) (l2 : Flambda.t) =
   | Region body1, Region body2 ->
     same body1 body2
   | Region _, _ | _, Region _ -> false
-  | Exclave body1, Exclave body2 ->
+  | Tail body1, Tail body2 ->
     same body1 body2
-  | Exclave _, _ | _, Exclave _ -> false
+  | Tail _, _ | _, Tail _ -> false
   | Assign { being_assigned = being_assigned1; new_value = new_value1; },
     Assign { being_assigned = being_assigned2; new_value = new_value2; } ->
     Mutable_variable.equal being_assigned1 being_assigned2
@@ -291,7 +291,7 @@ let toplevel_substitution sb tree =
     | Static_raise (static_exn, args) ->
       let args = List.map sb args in
       Static_raise (static_exn, args)
-    | Static_catch _ | Try_with _ | While _ | Region _ | Exclave _
+    | Static_catch _ | Try_with _ | While _ | Region _ | Tail _
     | Let _ | Let_rec _ | Proved_unreachable -> flam
   in
   let aux_named (named : Flambda.named) : Flambda.named =
@@ -742,7 +742,7 @@ let substitute_read_symbol_field_for_variables
       Flambda.Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout }
     | Proved_unreachable
     | Region _
-    | Exclave _
+    | Tail _
     | While _
     | Try_with _
     | Static_catch _ ->

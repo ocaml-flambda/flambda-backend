@@ -300,7 +300,7 @@ module Inconstants (P:Param) (Backend:Backend_intf.S) = struct
     | Region body ->
       mark_curr curr;
       mark_loop ~toplevel [] body
-    | Exclave body ->
+    | Tail body ->
       mark_curr curr;
       mark_loop ~toplevel [] body
     | Proved_unreachable ->
