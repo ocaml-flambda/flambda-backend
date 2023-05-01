@@ -27,7 +27,9 @@ module Function_decl = Closure_conversion_aux.Function_decls.Function_decl
 module Env : sig
   type t
 
-  type region_stack_element
+  type region_stack_element = private
+    | Regular of Ident.t
+    | Try_with of Ident.t
 
   val create :
     current_unit:Compilation_unit.t ->
@@ -152,7 +154,8 @@ module Env : sig
   (** Hack for staticfail (which should eventually use
       [pop_regions_up_to_context]) *)
   val pop_region :
-    region_stack_element list -> (Ident.t * region_stack_element list) option
+    region_stack_element list ->
+    (region_stack_element * region_stack_element list) option
 
   val pop_regions_up_to_context : t -> Continuation.t -> Ident.t option
 
@@ -407,7 +410,7 @@ end = struct
 
   let pop_region = function
     | [] -> None
-    | (Try_with region | Regular region) :: rest -> Some (region, rest)
+    | ((Try_with _ | Regular _) as region) :: rest -> Some (region, rest)
 
   let pop_regions_up_to_context t continuation =
     let initial_stack_context = region_stack_in_cont_scope t continuation in
@@ -535,32 +538,39 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
        allocation region"
       Continuation.print continuation;
   let rec add_end_regions acc ~region_stack_now =
-    (* CR pchambart: this probably can't be exercised right now, no lambda
-       jumping through a region seems to be generated. *)
+    (* This can maybe only be exercised right now using "match with exception",
+       since that causes jumps out of try-regions (but not normal regions). *)
     (* CR pchambart: This closes all the regions between region_stack_now and
        region_stack_at_handler, but closing only the last one should be
        sufficient. *)
-    let add_end_region region ~region_stack_now after_everything =
+    let add_end_region (region : Env.region_stack_element) ~region_stack_now
+        after_everything =
       let add_remaining_end_regions acc =
         add_end_regions acc ~region_stack_now
       in
       let body = add_remaining_end_regions acc after_everything in
       fun acc ccenv ->
-        CC.close_let acc ccenv
-          (Ident.create_local "unit")
-          Not_user_visible Flambda_kind.With_subkind.tagged_immediate
-          (End_region region) ~body
+        match region with
+        | Try_with _ -> body acc ccenv
+        | Regular region_ident ->
+          CC.close_let acc ccenv
+            (Ident.create_local "unit")
+            Not_user_visible Flambda_kind.With_subkind.tagged_immediate
+            (End_region region_ident) ~body
     in
     let no_end_region after_everything = after_everything in
     match
       Env.pop_region region_stack_now, Env.pop_region region_stack_at_handler
     with
     | None, None -> no_end_region
-    | Some (region1, region_stack_now), Some (region2, _) ->
-      if Ident.same region1 region2
+    | ( Some
+          ( ((Regular region_ident1 | Try_with region_ident1) as region1),
+            region_stack_now ),
+        Some ((Regular region_ident2 | Try_with region_ident2), _) ) ->
+      if Ident.same region_ident1 region_ident2
       then no_end_region
       else add_end_region region1 ~region_stack_now
-    | Some (region, region_stack_now), None ->
+    | Some (((Regular _ | Try_with _) as region), region_stack_now), None ->
       add_end_region region ~region_stack_now
     | None, Some _ -> assert false
     (* see above *)
