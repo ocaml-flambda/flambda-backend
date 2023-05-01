@@ -106,11 +106,14 @@ val foo : unit -> unit = <fun>
 (* we also require tail position *)
 let foo () =
   while true do
-    exclave_ ();
+    (exclave_ ());
     ()
   done
 [%%expect{|
-val foo : unit -> unit = <fun>
+Line 3, characters 4-17:
+3 |     (exclave_ ());
+        ^^^^^^^^^^^^^
+Error: Exclave expression should only be in tail position of the current region
 |}]
 
 (* following we test FOR loop *)
@@ -124,11 +127,14 @@ val foo : unit -> unit = <fun>
 
 let foo () =
   for i = 1 to 42 do
-    exclave_ ();
+    (exclave_ ());
     ()
   done
 [%%expect{|
-val foo : unit -> unit = <fun>
+Line 3, characters 4-17:
+3 |     (exclave_ ());
+        ^^^^^^^^^^^^^
+Error: Exclave expression should only be in tail position of the current region
 |}]
 
 type t = { nonlocal_ x : int option }
