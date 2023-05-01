@@ -154,7 +154,7 @@ type module_unbound_reason =
 
 type summary =
     Env_empty
-  | Env_value of summary * Ident.t * value_description
+  | Env_value of summary * Ident.t * value_description * Types.value_mode
   | Env_type of summary * Ident.t * type_declaration
   | Env_extension of summary * Ident.t * extension_constructor
   | Env_module of summary * Ident.t * module_presence * module_declaration
@@ -171,7 +171,7 @@ type summary =
 
 let map_summary f = function
     Env_empty -> Env_empty
-  | Env_value (s, id, d) -> Env_value (f s, id, d)
+  | Env_value (s, id, d, m) -> Env_value (f s, id, d, m)
   | Env_type (s, id, d) -> Env_type (f s, id, d)
   | Env_extension (s, id, d) -> Env_extension (f s, id, d)
   | Env_module (s, id, p, d) -> Env_module (f s, id, p, d)
@@ -323,6 +323,7 @@ type escaping_context =
 type value_lock =
   | Lock of { mode : Alloc_mode.t; escaping_context : escaping_context option }
   | Region_lock
+  | Exclave_lock
 
 module IdTbl =
   struct
@@ -691,6 +692,7 @@ type lookup_error =
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
   | Local_value_used_in_closure of Longident.t * escaping_context option
+  | Local_value_used_in_exclave of Longident.t
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
@@ -763,12 +765,12 @@ let is_ident = function
 
 let is_ext cda =
   match cda.cda_description with
-  | {cstr_tag = Cstr_extension _} -> true
+  | {cstr_tag = Extension _} -> true
   | _ -> false
 
 let is_local_ext cda =
   match cda.cda_description with
-  | {cstr_tag = Cstr_extension(p, _)} -> is_ident p
+  | {cstr_tag = Extension (p,_)} -> is_ident p
   | _ -> false
 
 let diff env1 env2 =
@@ -1207,7 +1209,7 @@ let find_type_data path env =
       | decl ->
           {
             tda_declaration = decl;
-            tda_descriptions = kind_abstract;
+            tda_descriptions = kind_abstract_any;
             tda_shape = Shape.leaf decl.type_uid;
           }
       | exception Not_found -> find_type_full p env
@@ -1974,7 +1976,8 @@ and store_value ?check mode id addr decl shape env =
   { env with
     values = IdTbl.add id (Val_bound vda) env.values;
     summary =
-      Env_value(env.summary, id, Subst.Lazy.force_value_description decl) }
+      Env_value(env.summary, id, Subst.Lazy.force_value_description decl,
+        mode) }
 
 and store_constructor ~check type_decl type_id cstr_id cstr env =
   if check && not type_decl.type_loc.Location.loc_ghost
@@ -2087,7 +2090,7 @@ and store_type_infos ~tda_shape id info env =
   let tda =
     {
       tda_declaration = info;
-      tda_descriptions = kind_abstract;
+      tda_descriptions = kind_abstract_any;
       tda_shape
     }
   in
@@ -2351,6 +2354,9 @@ let add_lock ?escaping_context mode env =
 let add_region_lock env =
   { env with values = IdTbl.add_lock Region_lock env.values }
 
+let add_exclave_lock env =
+  { env with values = IdTbl.add_lock Exclave_lock env.values }
+
 (* Insertion of all components of a signature *)
 
 let proj_shape map mod_shape item =
@@ -2391,7 +2397,7 @@ end) = struct
     | Sig_class_type(id, decl, _, _) ->
         let map, shape = proj_shape map mod_shape (Shape.Item.class_type id) in
         map, add_cltype ?shape id decl env
-  
+
   let rec add_signature map mod_shape sg env =
     match sg with
         [] -> map, env
@@ -2400,7 +2406,7 @@ end) = struct
         add_signature map mod_shape rem env
 end
 
-let add_signature = 
+let add_signature =
   let module M = Add_signature(Types)(struct
     let add_value ?shape id vd =
       add_value_lazy ?shape id (Subst.Lazy.of_value_description vd)
@@ -2899,11 +2905,20 @@ let lock_mode ~errors ~loc env id vmode locks =
       match lock with
       | Region_lock -> Value_mode.local_to_regional vmode
       | Lock {mode; escaping_context} ->
+        begin
           match Value_mode.submode vmode (Value_mode.of_alloc mode) with
           | Ok () -> vmode
           | Error _ ->
               may_lookup_error errors loc env
-                (Local_value_used_in_closure (id, escaping_context)))
+                (Local_value_used_in_closure (id, escaping_context))
+        end
+      | Exclave_lock ->
+        match Value_mode.submode vmode Value_mode.regional with
+        | Ok () -> Value_mode.regional_to_local vmode
+        | Error _ ->
+          may_lookup_error errors loc env
+            (Local_value_used_in_exclave id);
+    )
     vmode locks
 
 let lookup_ident_value ~errors ~use ~loc name env =
@@ -3784,6 +3799,10 @@ let report_lookup_error _loc env ppf = function
                           is an argument to a tail call@]"
       | _ -> ()
       end
+  | Local_value_used_in_exclave lid ->
+    fprintf ppf "@[The value %a is local, so cannot be used \
+                 inside exclave @]"
+      !print_longident lid
 
 let report_error ppf = function
   | Missing_module(_, path1, path2) ->

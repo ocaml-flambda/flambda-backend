@@ -446,11 +446,13 @@ stdlib__Iarray.cmi : iarray.mli \
     stdlib__Seq.cmi
 stdlib__IarrayLabels.cmo : iarrayLabels.ml \
     stdlib.cmi \
-    stdlib__Iarray.cmi \
+    stdlib__Seq.cmi \
+    stdlib__Array.cmi \
     stdlib__IarrayLabels.cmi
 stdlib__IarrayLabels.cmx : iarrayLabels.ml \
     stdlib.cmx \
-    stdlib__Iarray.cmx \
+    stdlib__Seq.cmx \
+    stdlib__Array.cmx \
     stdlib__IarrayLabels.cmi
 stdlib__IarrayLabels.cmi : iarrayLabels.mli \
     stdlib.cmi \
