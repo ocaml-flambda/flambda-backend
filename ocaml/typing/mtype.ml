@@ -19,55 +19,60 @@ open Asttypes
 open Path
 open Types
 
-let rec scrape_lazy env mty =
-  let open Subst.Lazy in
-  match mty with
-    Mty_ident p ->
-      begin try
-        scrape_lazy env (Env.find_modtype_expansion_lazy p env)
-      with Not_found ->
-        mty
-      end
-  | _ -> mty
-
-let scrape env mty =
-  match mty with
-    Types.Mty_ident p ->
-     Subst.Lazy.force_modtype (scrape_lazy env (Mty_ident p))
-  | _ -> mty
-
 let freshen ~scope mty =
   Subst.modtype (Rescope scope) Subst.identity mty
 
-let rec strengthen_lazy ~aliasable env mty p =
+(* Strengthen a type as far as possible without unfolding abbreviations,
+  pushing strengthening into signatures and functors. Return None if we
+  couldn't push it inwards (or eliminate it) and an Mty_strengthen node
+  needs to be constructed instead. *)
+let rec reduce_strengthen_lazy ~aliasable mty p =
   let open Subst.Lazy in
-  match scrape_lazy env mty with
+  match mty with
     Mty_signature sg ->
-      Mty_signature(strengthen_lazy_sig ~aliasable env sg p)
+      Some (Mty_signature(strengthen_lazy_sig ~aliasable sg p))
+
   | Mty_functor(Named (Some param, arg), res)
     when !Clflags.applicative_functors ->
-      let env =
-        Env.add_module_lazy ~update_summary:false param Mp_present arg env
-      in
-      Mty_functor(Named (Some param, arg),
-        strengthen_lazy ~aliasable:false env res (Papply(p, Pident param)))
+      Some (Mty_functor(Named (Some param, arg),
+        strengthen_lazy ~aliasable:false res (Papply(p, Pident param))))
   | Mty_functor(Named (None, arg), res)
     when !Clflags.applicative_functors ->
       let param = Ident.create_scoped ~scope:(Path.scope p) "Arg" in
-      Mty_functor(Named (Some param, arg),
-        strengthen_lazy ~aliasable:false env res (Papply(p, Pident param)))
-  | mty ->
-      mty
+      Some (Mty_functor(Named (Some param, arg),
+        strengthen_lazy ~aliasable:false res (Papply(p, Pident param))))
 
-and strengthen_lazy_sig' ~aliasable env sg p =
+  | Mty_strengthen (mty,q,a) when aliasable && not a ->
+      (* RL FIXME: Normally, we have S/M/N = S/M. However, if the inner
+        strengthening is not aliasable and the outer is, will strengthen
+        types in S with M and modules with N. This check preserves that
+        behaviour, although it's not entirely clear that this is what we
+        want. *)
+      begin match reduce_strengthen_lazy ~aliasable:a mty q with
+      | Some mty -> reduce_strengthen_lazy ~aliasable mty p
+      | None -> None
+      end
+  | Mty_alias _ | Mty_functor _ | Mty_strengthen _ ->
+      (* Strengthening aliases and already strengthened types is a no-op. *)
+      Some mty
+  | Mty_ident _ -> None
+
+(* Strengthen a type by pushing strengthening inward and/or constructing
+    appropriate Mty_strengthen nodes. *)
+and strengthen_lazy ~aliasable mty p =
+  match reduce_strengthen_lazy ~aliasable mty p with
+  | Some mty -> mty
+  | None -> Subst.Lazy.Mty_strengthen (mty,p,aliasable)
+
+and strengthen_lazy_sig' ~aliasable sg p =
   let open Subst.Lazy in
   match sg with
     [] -> []
   | (Sig_value(_, _, _) as sigelt) :: rem ->
-      sigelt :: strengthen_lazy_sig' ~aliasable env rem p
+      sigelt :: strengthen_lazy_sig' ~aliasable rem p
   | Sig_type(id, {type_kind=Type_abstract}, _, _) :: rem
     when Btype.is_row_name (Ident.name id) ->
-      strengthen_lazy_sig' ~aliasable env rem p
+      strengthen_lazy_sig' ~aliasable rem p
   | Sig_type(id, decl, rs, vis) :: rem ->
       let newdecl =
         match decl.type_manifest, decl.type_private, decl.type_kind with
@@ -83,57 +88,187 @@ and strengthen_lazy_sig' ~aliasable env sg p =
               { decl with type_manifest = manif }
       in
       Sig_type(id, newdecl, rs, vis) ::
-        strengthen_lazy_sig' ~aliasable env rem p
+        strengthen_lazy_sig' ~aliasable rem p
   | (Sig_typext _ as sigelt) :: rem ->
-      sigelt :: strengthen_lazy_sig' ~aliasable env rem p
+      sigelt :: strengthen_lazy_sig' ~aliasable rem p
   | Sig_module(id, pres, md, rs, vis) :: rem ->
       let str =
-        strengthen_lazy_decl ~aliasable env md (Pdot(p, Ident.name id))
+        strengthen_lazy_decl ~aliasable md (Pdot(p, Ident.name id))
       in
-      let env =
-        Env.add_module_declaration_lazy ~update_summary:false id pres md env in
       Sig_module(id, pres, str, rs, vis)
-      :: strengthen_lazy_sig' ~aliasable env rem p
-      (* Need to add the module in case it defines manifest module types *)
+      :: strengthen_lazy_sig' ~aliasable rem p
   | Sig_modtype(id, decl, vis) :: rem ->
       let newdecl =
         match decl.mtd_type with
         | Some _ when not aliasable ->
             (* [not alisable] condition needed because of recursive modules.
-               See [Typemod.check_recmodule_inclusion]. *)
+                See [Typemod.check_recmodule_inclusion]. *)
             decl
         | _ ->
             {decl with mtd_type = Some(Mty_ident(Pdot(p,Ident.name id)))}
       in
-      let env = Env.add_modtype_lazy ~update_summary:false id decl env in
       Sig_modtype(id, newdecl, vis) ::
-      strengthen_lazy_sig' ~aliasable env rem p
-      (* Need to add the module type in case it is manifest *)
+      strengthen_lazy_sig' ~aliasable rem p
   | (Sig_class _ as sigelt) :: rem ->
-      sigelt :: strengthen_lazy_sig' ~aliasable env rem p
+      sigelt :: strengthen_lazy_sig' ~aliasable rem p
   | (Sig_class_type _ as sigelt) :: rem ->
-      sigelt :: strengthen_lazy_sig' ~aliasable env rem p
+      sigelt :: strengthen_lazy_sig' ~aliasable rem p
 
-and strengthen_lazy_sig ~aliasable env sg p =
+and strengthen_lazy_sig ~aliasable sg p =
   let sg = Subst.Lazy.force_signature_once sg in
-  let sg = strengthen_lazy_sig' ~aliasable env sg p in
+  let sg = strengthen_lazy_sig' ~aliasable sg p in
   Subst.Lazy.of_value sg
 
-and strengthen_lazy_decl ~aliasable env md p =
+and strengthen_lazy_decl ~aliasable md p =
   let open Subst.Lazy in
   match md.md_type with
   | Mty_alias _ -> md
   | _ when aliasable -> {md with md_type = Mty_alias p}
-  | mty -> {md with md_type = strengthen_lazy ~aliasable env mty p}
+  | mty -> {md with md_type = strengthen_lazy ~aliasable mty p}
 
-let strengthen ~aliasable env mty p =
-  let mty = strengthen_lazy ~aliasable env (Subst.Lazy.of_modtype mty) p in
+let strengthen ~aliasable mty p =
+  let mty = strengthen_lazy ~aliasable (Subst.Lazy.of_modtype mty) p in
   Subst.Lazy.force_modtype mty
 
-let strengthen_decl ~aliasable env md p =
-  let md = strengthen_lazy_decl ~aliasable env
-             (Subst.Lazy.of_module_decl md) p in
+let strengthen_decl ~aliasable md p =
+  let md = strengthen_lazy_decl ~aliasable (Subst.Lazy.of_module_decl md) p in
   Subst.Lazy.force_module_decl md
+
+(* Perform one reduction on a module type, returning None is it couldn't be
+  reduced. Possible reductions are unfolding type abbreviations, pushing
+  strengthening inwards and, if aliases is true, resolving module aliases. *)
+let rec reduce_lazy ~aliases env mty =
+  let open Subst.Lazy in
+  match mty with
+    Mty_ident p ->
+      begin try
+        Some (Env.find_modtype_expansion_lazy p env)
+      with Not_found ->
+        None
+      end
+  | Mty_alias path when aliases ->
+        begin try
+          let mty = (Env.find_module_lazy path env).md_type in
+          let mty = strengthen_lazy ~aliasable:true mty path in
+          Some mty
+        with Not_found ->
+          (*Location.prerr_warning Location.none
+            (Warnings.No_cmi_file (Path.name path));*)
+          None
+        end
+  | Mty_strengthen (mty, p, aliasable) ->
+      begin match reduce_strengthen_lazy ~aliasable mty p with
+      | Some mty -> Some mty
+      | None ->
+        begin match reduce_lazy ~aliases env mty with
+        | Some mty -> Some (strengthen_lazy ~aliasable mty p)
+        | None -> None
+        end
+      end
+  | Mty_signature _ | Mty_functor _ | Mty_alias _ -> None
+
+let rec scrape_lazy ~aliases env mty =
+  match reduce_lazy ~aliases env mty with
+  | Some mty -> scrape_lazy ~aliases env mty
+  | None -> mty
+
+let reduce_lazy env mty = reduce_lazy ~aliases:false env mty
+
+let reduce env mty =
+  Subst.Lazy.of_modtype mty
+  |> reduce_lazy env
+  |> Option.map Subst.Lazy.force_modtype
+
+(* Expand delayed strengthening *)
+
+let rec expand_lazy env mty =
+  let open Subst.Lazy in
+  match mty with
+  | Mty_strengthen _ ->
+    begin match reduce_lazy env mty with
+    | Some mty -> expand_lazy env mty
+    | None -> mty
+    end
+  | _ -> mty
+
+let expand env mty =
+  Subst.Lazy.of_modtype mty
+  |> expand_lazy env
+  |> Subst.Lazy.force_modtype
+
+(* Expand delayed strengthening up to the given paths. Note that if M.N is in
+    paths then M must be in paths, too. This is guaranteed by expand_to below. *)
+
+let rec expand_paths_lazy paths env =
+  let open Subst.Lazy in
+  function
+    Mty_signature sg ->
+      Mty_signature (expand_paths_lazy_sig paths env sg)
+  | Mty_functor (param,res) ->
+      let param = match param with
+        Unit -> Unit
+      | Named (name,mty) -> Named (name, expand_paths_lazy paths env mty)
+      in
+      let res = expand_paths_lazy paths env res in
+      Mty_functor (param,res)
+  | Mty_strengthen (_,p,_) as mty when Path.Set.mem p paths ->
+      (* If the path we're strengthening with is in paths then we need to
+          unfold the node. *)
+      begin match reduce_lazy env mty with
+      | Some mty -> expand_paths_lazy paths env mty
+      | None -> assert false
+      end
+  | Mty_strengthen (mty,p,a) ->
+      (* If the path we're strengthening with isn't in paths then we can
+          can just unfold the strengthened type but keep the Mty_strengthen
+          node. *)
+      let mty = expand_paths_lazy paths env mty in
+      Mty_strengthen (mty,p,a)
+  | Mty_ident _ | Mty_alias _ as mty ->
+      mty
+
+and expand_paths_lazy_sig paths env sg =
+  let open Subst.Lazy in
+  force_signature_once sg
+  |> expand_paths_lazy_sig_items paths env
+  |> of_value
+
+and expand_paths_lazy_sig_items paths env =
+  let open Subst.Lazy in
+  function
+    [] -> []
+  | Sig_module (id,pres,md,rs,vis) :: rem  ->
+      let md = { md with md_type = expand_paths_lazy paths env md.md_type }
+      in
+      let env =
+        Env.add_module_declaration_lazy ~update_summary:false id pres md env
+      in
+      Sig_module (id,pres,md,rs,vis)
+        :: expand_paths_lazy_sig_items paths env rem
+  | Sig_modtype (id,mtd,vis) :: rem ->
+      let mt = Option.map (expand_paths_lazy paths env) mtd.mtd_type in
+      let mtd = { mtd with mtd_type = mt } in
+      let env = Env.add_modtype_lazy ~update_summary:false id mtd env in
+      Sig_modtype (id,mtd,vis) :: expand_paths_lazy_sig_items paths env rem
+  | item :: rem -> item :: expand_paths_lazy_sig_items paths env rem
+
+let expand_to env sg paths =
+  let rec add_paths paths = function
+    | Pdot (p,_) -> add_paths (Path.Set.add p paths) p
+    | _ -> paths
+  in
+  let paths = List.fold_left add_paths Path.Set.empty paths in
+  Subst.Lazy.of_signature sg
+  |> expand_paths_lazy_sig paths env
+  |> Subst.Lazy.force_signature
+
+(* Substitution can potentially produce nodes like Mty_strengthen(Mty_alias)
+    which can be simplified which is what this function does. *)
+
+let rec simplify = function
+  | Mty_strengthen (mty,p,aliasable) ->
+      strengthen ~aliasable (simplify mty) p
+  | mty -> mty
 
 let rec sig_make_manifest sg =
   match sg with
@@ -182,8 +317,11 @@ let rec make_aliases_absent pres mty =
   | Mty_functor(arg, res) ->
       let _, res = make_aliases_absent Mp_present res in
       pres, Mty_functor(arg, res)
-  | mty ->
+  | Mty_ident _ ->
       pres, mty
+  | Mty_strengthen (mty,p,a) ->
+      let pres, res = make_aliases_absent pres mty in
+      pres, Mty_strengthen (res,p,a)
 
 and make_aliases_absent_sig sg =
   match sg with
@@ -196,42 +334,27 @@ and make_aliases_absent_sig sg =
       sigelt :: make_aliases_absent_sig rem
 
 let scrape_for_type_of env pres mty =
-  let rec loop env path mty =
-    match mty, path with
-    | Mty_alias path, _ -> begin
+  let rec loop env mty =
+    match simplify mty with
+    | Mty_alias path -> begin
         try
           let md = Env.find_module path env in
-          loop env (Some path) md.md_type
+          let mty = strengthen ~aliasable:false md.md_type path in
+          loop env mty
         with Not_found -> mty
       end
-    | mty, Some path ->
-        strengthen ~aliasable:false env mty path
+    | Mty_strengthen (_,_,aliasable) when aliasable ->
+      begin match reduce env mty with
+      | Some mty -> loop env mty
+      | None -> mty
+      end
     | _ -> mty
   in
-  make_aliases_absent pres (loop env None mty)
+  make_aliases_absent pres (loop env mty)
 
 (* Expand manifest module type names at the top of the given module type *)
 
-let rec scrape_alias_lazy env ?path mty =
-  let open Subst.Lazy in
-  match mty, path with
-    Mty_ident p, _ ->
-      begin try
-        scrape_alias_lazy env (Env.find_modtype_expansion_lazy p env) ?path
-      with Not_found ->
-        mty
-      end
-  | Mty_alias path, _ ->
-      begin try
-        scrape_alias_lazy env ((Env.find_module_lazy path env).md_type) ~path
-      with Not_found ->
-        (*Location.prerr_warning Location.none
-          (Warnings.No_cmi_file (Path.name path));*)
-        mty
-      end
-  | mty, Some path ->
-      strengthen_lazy ~aliasable:true env mty path
-  | _ -> mty
+let scrape_alias_lazy env mty = scrape_lazy ~aliases:true env mty
 
 (* Non-lazy version of scrape_alias *)
 let scrape_alias env mty =
@@ -239,12 +362,25 @@ let scrape_alias env mty =
   |> scrape_alias_lazy env
   |> Subst.Lazy.force_modtype
 
-let () = Env.scrape_alias := fun env mty -> scrape_alias_lazy env mty
+let scrape_lazy env mty = scrape_lazy ~aliases:false env mty
+
+let scrape env mty =
+  match mty with
+    Mty_ident _ | Mty_strengthen _ ->
+      Subst.Lazy.force_modtype (scrape_lazy env (Subst.Lazy.of_modtype mty))
+  | _ -> mty
+
+let () =
+  Printtyp.expand_module_type := expand ;
+  Env.scrape_alias := scrape_alias_lazy
 
 let find_type_of_module ~strengthen ~aliasable env path =
   if strengthen then
     let md = Env.find_module_lazy path env in
-    let mty = strengthen_lazy ~aliasable env md.md_type path in
+    (* RL FIXME: If we don't scape here, we get lots of warnings about unused
+        value declarations *)
+    let mty = scrape_lazy env md.md_type in
+    let mty = strengthen_lazy ~aliasable mty path in
     Subst.Lazy.force_modtype mty
   else
     (Env.find_module path env).md_type
@@ -256,7 +392,8 @@ let find_type_of_module ~strengthen ~aliasable env path =
 type variance = Co | Contra | Strict
 
 let rec nondep_mty_with_presence env va ids pres mty =
-  match mty with
+  (* RL FIXME: do we actually need to expand Mty_strengthen and Mty_with here? *)
+  match expand env mty with
     Mty_ident p ->
       begin match Path.find_free_opt ids p with
       | Some id ->
@@ -297,6 +434,15 @@ let rec nondep_mty_with_presence env va ids pres mty =
                     nondep_mty res_env va ids res)
       in
       pres, mty
+  | Mty_strengthen (mty,p,aliasable) ->
+      (* RL FIXME: Is this right? We can end up strengthening an abstract type with a dependent module
+         path. For now, let's just drop such paths? *)
+      let pres,mty = nondep_mty_with_presence env va ids pres mty
+      in
+      let mty =
+        if Path.exists_free ids p then mty else strengthen ~aliasable mty p
+      in
+      pres,mty
 
 and nondep_mty env va ids mty =
   snd (nondep_mty_with_presence env va ids Mp_present mty)
@@ -374,7 +520,7 @@ let enrich_typedecl env p id decl =
         end
 
 let rec enrich_modtype env p mty =
-  match mty with
+  match expand env mty with
     Mty_signature sg ->
       Mty_signature(List.map (enrich_item env p) sg)
   | _ ->
@@ -399,6 +545,7 @@ let rec type_paths env p mty =
   | Mty_alias _ -> []
   | Mty_signature sg -> type_paths_sig env p sg
   | Mty_functor _ -> []
+  | Mty_strengthen _ -> []
 
 and type_paths_sig env p sg =
   match sg with
@@ -424,6 +571,7 @@ let rec no_code_needed_mod env pres mty =
       | Mty_signature sg -> no_code_needed_sig env sg
       | Mty_functor _ -> false
       | Mty_alias _ -> false
+      | Mty_strengthen _ -> false
     end
 
 and no_code_needed_sig env sg =
@@ -456,6 +604,7 @@ let rec contains_type env mty =
       contains_type env body
   | Mty_alias _ ->
       ()
+  | Mty_strengthen _ -> raise Exit
 
 and contains_type_sig env = List.iter (contains_type_item env)
 

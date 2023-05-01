@@ -2062,6 +2062,10 @@ let with_hidden_items ids f =
 let add_sigitem env x =
   Env.add_signature (Signature_group.flatten x) env
 
+let expand_module_type =
+  ref ((fun _env _mty -> assert false) :
+      Env.t -> module_type -> module_type)
+
 let rec tree_of_modtype ?(ellipsis=false) = function
   | Mty_ident p ->
       Omty_ident (tree_of_path Module_type p)
@@ -2076,6 +2080,16 @@ let rec tree_of_modtype ?(ellipsis=false) = function
       Omty_functor (param, res)
   | Mty_alias p ->
       Omty_alias (tree_of_path Module p)
+  | Mty_strengthen _ as mty ->
+      begin match !expand_module_type !printing_env mty with
+      | Mty_strengthen (mty, p, aliasable) ->
+          let unaliasable =
+                not aliasable && not (Env.is_functor_arg p !printing_env)
+          in
+          Omty_strengthen
+            (tree_of_modtype ~ellipsis mty, tree_of_path Module p, unaliasable)
+      | mty -> tree_of_modtype ~ellipsis mty
+      end
 
 and tree_of_functor_parameter = function
   | Unit ->

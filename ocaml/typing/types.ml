@@ -352,6 +352,7 @@ module type Wrapped = sig
   | Mty_signature of signature
   | Mty_functor of functor_parameter * module_type
   | Mty_alias of Path.t
+  | Mty_strengthen of module_type * Path.t * bool
 
   and functor_parameter =
   | Unit
@@ -408,6 +409,8 @@ module Map_wrapped(From : Wrapped)(To : Wrapped) = struct
     | Mty_functor (parm,mty) ->
         To.Mty_functor (functor_parameter m parm, module_type m mty)
     | Mty_signature sg -> To.Mty_signature (signature m sg)
+    | Mty_strengthen (mty,p,aliasable) ->
+        To.Mty_strengthen (module_type m mty, p, aliasable)
 
   and functor_parameter m = function
       | Unit -> To.Unit

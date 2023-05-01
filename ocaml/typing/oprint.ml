@@ -764,6 +764,11 @@ and print_simple_out_module_type ppf =
   | Omty_alias id -> fprintf ppf "(module %a)" print_ident id
   | Omty_functor _ as non_simple ->
      fprintf ppf "(%a)" print_out_module_type non_simple
+  | Omty_strengthen (mty, id, unaliasable) ->
+     fprintf ppf "(%a with %a%s)"
+       print_simple_out_module_type mty
+       print_ident id
+       (if unaliasable then " [@unaliasable]" else "")
 and print_out_signature ppf =
   function
     [] -> ()

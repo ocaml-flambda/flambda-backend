@@ -577,7 +577,7 @@ let () =
                (if secretly_the_same_path env path new_path
                 then acc
                 else def Trec_not :: acc)
-         | Mty_ident _ | Mty_signature _ | Mty_functor _ ->
+         | Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_strengthen _ ->
              List.rev (def (is_rec_module id md) :: acc)
        in
        accum_aliases path md []
@@ -601,7 +601,7 @@ let () =
                (if secretly_the_same_path env path new_path
                 then acc
                 else def :: acc)
-         | None | Some (Mty_alias _ | Mty_signature _ | Mty_functor _) ->
+         | None | Some (Mty_alias _ | Mty_signature _ | Mty_functor _ | Mty_strengthen _) ->
              List.rev (def :: acc)
        in
        accum_defs path mtd []

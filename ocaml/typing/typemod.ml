@@ -695,7 +695,7 @@ let merge_constraint initial_env loc sg lid constr =
         let mty = md'.md_type in
         let mty = Mtype.scrape_for_type_of ~remove_aliases sig_env mty in
         let md'' = { md' with md_type = mty } in
-        let newmd = Mtype.strengthen_decl ~aliasable:false sig_env md'' path in
+        let newmd = Mtype.strengthen_decl ~aliasable:false md'' path in
         ignore(Includemod.modtypes  ~mark:Mark_both ~loc sig_env
                  newmd.md_type md.md_type);
         return
@@ -791,6 +791,7 @@ let merge_constraint initial_env loc sg lid constr =
             by the caller. So what we do with the scope doesn't really matter. But
             making it local makes it unlikely that we will ever use the result of
             this function unfreshened without issue. *)
+          let sg = Mtype.expand_to initial_env sg !real_ids in
           Subst.signature Make_local sub sg
       | None -> sg
     in
@@ -1991,6 +1992,7 @@ let rec nongen_modtype env f = function
             Env.add_module ~arg:true id Mp_present param env
       in
       nongen_modtype env f body
+  | Mty_strengthen (mty,_ ,_) -> nongen_modtype env f mty
 
 and nongen_signature_item env f = function
     Sig_value(_id, desc, _) -> f env desc.val_type
@@ -2069,13 +2071,12 @@ let check_recmodule_inclusion env bindings =
      recursive definitions being accepted.  A good choice appears to be
      the number of mutually recursive declarations. *)
 
-  let subst_and_strengthen env scope s id mty =
+  let subst_and_strengthen scope s id mty =
     let mty = Subst.modtype (Rescope scope) s mty in
     match id with
     | None -> mty
     | Some id ->
-        Mtype.strengthen ~aliasable:false env mty
-          (Subst.module_path s (Pident id))
+        Mtype.strengthen ~aliasable:false mty (Subst.module_path s (Pident id))
   in
 
   let rec check_incl first_time n env s =
@@ -2103,7 +2104,7 @@ let check_recmodule_inclusion env bindings =
                let mty_actual' =
                  if first_time
                  then mty_actual
-                 else subst_and_strengthen env scope s (Some id) mty_actual
+                 else subst_and_strengthen scope s (Some id) mty_actual
                in
                Env.add_module ~arg:false ~shape id' Mp_present mty_actual' env)
           env bindings1 in
@@ -2123,7 +2124,7 @@ let check_recmodule_inclusion env bindings =
       let check_inclusion
             (id, name, mty_decl, modl, mty_actual, attrs, loc, shape, uid) =
         let mty_decl' = Subst.modtype (Rescope scope) s mty_decl.mty_type
-        and mty_actual' = subst_and_strengthen env scope s id mty_actual in
+        and mty_actual' = subst_and_strengthen scope s id mty_actual in
         let coercion, shape =
           try
             Includemod.modtypes_with_shape ~shape
@@ -2187,8 +2188,13 @@ and package_constraints env loc mty constrs =
     match Mtype.scrape env mty with
     | Mty_signature sg ->
         Mty_signature (package_constraints_sig env loc sg constrs)
-    | Mty_functor _ | Mty_alias _ -> assert false
-    | Mty_ident p -> raise(Error(loc, env, Cannot_scrape_package_type p))
+    | mty ->
+      let rec ident = function
+          Mty_ident p -> p
+        | Mty_strengthen (mty,_,_) -> ident mty
+        | Mty_functor _ | Mty_alias _ | Mty_signature _ -> assert false
+      in
+      raise(Error(loc, env, Cannot_scrape_package_type (ident mty)))
   end
 
 let modtype_of_package env loc p fl =
@@ -3051,6 +3057,7 @@ let rec normalize_modtype = function
   | Mty_alias _ -> ()
   | Mty_signature sg -> normalize_signature sg
   | Mty_functor(_param, body) -> normalize_modtype body
+  | Mty_strengthen (mty,_,_) -> normalize_modtype mty
 
 and normalize_signature sg = List.iter normalize_signature_item sg
 

@@ -659,6 +659,7 @@ module type Wrapped = sig
   | Mty_signature of signature
   | Mty_functor of functor_parameter * module_type
   | Mty_alias of Path.t
+  | Mty_strengthen of module_type * Path.t * bool
 
   and functor_parameter =
   | Unit
