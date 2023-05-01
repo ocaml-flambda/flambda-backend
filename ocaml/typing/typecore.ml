@@ -754,6 +754,10 @@ type type_pat_state =
   { mutable tps_pattern_variables: pattern_variable list;
     mutable tps_pattern_force: (unit -> unit) list;
     mutable tps_module_variables: module_variables;
+    (* Mutation will not change the constructor of [tps_module_variables], just
+       the contained [module_variables] list. [module_variables] could be made
+       mutable instead, but we felt this made the code more awkward.
+    *)
   }
 
 let create_type_pat_state allow_modules =
