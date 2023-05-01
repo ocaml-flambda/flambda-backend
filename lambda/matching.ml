@@ -89,6 +89,7 @@
 
 open Misc
 open Asttypes
+open Layouts
 open Types
 open Typedtree
 open Lambda
@@ -98,7 +99,19 @@ open Printpat
 
 module Scoped_location = Debuginfo.Scoped_location
 
+type error =
+    Non_value_layout of Layout.Violation.violation
+
+exception Error of Location.t * error
+
 let dbg = false
+
+(* CR layouts v2: When we're ready to allow non-values, these can be deleted or
+   changed to check for void. *)
+let layout_must_be_value loc layout =
+  match Layout.(sub layout value) with
+  | Ok () -> ()
+  | Error e -> raise (Error (loc, Non_value_layout e))
 
 (*
    Compatibility predicate that considers potential rebindings of constructors
@@ -139,7 +152,7 @@ let all_record_args lbls =
             (mknoloc (Longident.Lident "?temp?"), lbl, Patterns.omega))
           lbl_all
       in
-      List.iter (fun ((_, lbl, _) as x) -> t.(lbl.lbl_pos) <- x) lbls;
+      List.iter (fun ((_, lbl, _) as x) -> t.(lbl.lbl_num) <- x) lbls;
       Array.to_list t
 
 let expand_record_head h =
@@ -151,7 +164,7 @@ let expand_record_head h =
   | _ -> h
 
 let bind_alias p id ~arg ~action =
-  let k = Typeopt.layout p.pat_env p.pat_type in
+  let k = Typeopt.layout p.pat_env p.pat_loc p.pat_type in
   bind_with_layout Alias (id, k) arg action
 
 let head_loc ~scopes head =
@@ -1147,7 +1160,7 @@ let can_group discr pat =
   | Constant (Const_int64 _), Constant (Const_int64 _)
   | Constant (Const_nativeint _), Constant (Const_nativeint _) ->
       true
-  | Construct { cstr_tag = Cstr_extension _ as discr_tag }, Construct pat_cstr
+  | Construct { cstr_tag = Extension _ as discr_tag }, Construct pat_cstr
     ->
       (* Extension constructors with distinct names may be equal thanks to
          constructor rebinding. So we need to produce a specialized
@@ -1419,7 +1432,7 @@ and split_no_or cls args def k =
           ((idef, next) :: nexts)
   and should_split group_discr =
     match group_discr.pat_desc with
-    | Patterns.Head.Construct { cstr_tag = Cstr_extension _ } ->
+    | Patterns.Head.Construct { cstr_tag = Extension _ } ->
         (* it is unlikely that we will raise anything, so we split now *)
         true
     | _ -> false
@@ -1573,10 +1586,10 @@ and precompile_or ~arg (cls : Simple.clause list) ors args def k =
             let patbound_action_vars =
               (* variables bound in the or-pattern
                  that are used in the orpm actions *)
-              Typedtree.pat_bound_idents_full orp
-              |> List.filter (fun (id, _, _) -> Ident.Set.mem id pm_fv)
-              |> List.map (fun (id, _, ty) ->
-                     (id, Typeopt.layout orp.pat_env ty))
+              Typedtree.pat_bound_idents_with_types orp
+              |> List.filter (fun (id, _) -> Ident.Set.mem id pm_fv)
+              |> List.map (fun (id, ty) ->
+                     (id, Typeopt.layout orp.pat_env orp.pat_loc ty))
             in
             let or_num = next_raise_count () in
             let new_patl = Patterns.omega_list patl in
@@ -1751,7 +1764,13 @@ let get_key_constr = function
 
 let get_pat_args_constr p rem =
   match p with
-  | { pat_desc = Tpat_construct (_, _, args, _) } -> args @ rem
+  | { pat_desc = Tpat_construct (_, {cstr_arg_layouts}, args, _) } ->
+    List.iteri
+      (fun i arg -> layout_must_be_value arg.pat_loc cstr_arg_layouts.(i))
+      args;
+      (* CR layouts v2: This sanity check will have to go (or be replaced with a
+         void-specific check) when we have other non-value sorts *)
+    args @ rem
   | _ -> assert false
 
 let get_expr_args_constr ~scopes head (arg, _mut, layout) rem =
@@ -1761,25 +1780,29 @@ let get_expr_args_constr ~scopes head (arg, _mut, layout) rem =
     | _ -> fatal_error "Matching.get_expr_args_constr"
   in
   let loc = head_loc ~scopes head in
+  (* CR layouts v2: This sanity check should be removed or changed to
+     specifically check for void when we add other non-value sorts. *)
+  Array.iter (fun layout -> layout_must_be_value head.pat_loc layout)
+    cstr.cstr_arg_layouts;
   let make_field_accesses binding_kind first_pos last_pos argl =
     let rec make_args pos =
       if pos > last_pos then
         argl
       else
-        (Lprim (Pfield (pos, Reads_agree), [ arg ], loc), binding_kind, layout_field)
-          :: make_args (pos + 1)
+        (Lprim (Pfield (pos, Reads_agree), [ arg ], loc), binding_kind,
+         layout_field)
+        :: make_args (pos + 1)
     in
     make_args first_pos
   in
   if cstr.cstr_inlined <> None then
     (arg, Alias, layout) :: rem
   else
-    match cstr.cstr_tag with
-    | Cstr_constant _
-    | Cstr_block _ ->
+    match cstr.cstr_repr with
+    | Variant_boxed _ ->
         make_field_accesses Alias 0 (cstr.cstr_arity - 1) rem
-    | Cstr_unboxed -> (arg, Alias, layout) :: rem
-    | Cstr_extension _ -> make_field_accesses Alias 1 cstr.cstr_arity rem
+    | Variant_unboxed _ -> (arg, Alias, layout) :: rem
+    | Variant_extensible -> make_field_accesses Alias 1 cstr.cstr_arity rem
 
 let divide_constructor ~scopes ctx pm =
   divide
@@ -1820,13 +1843,13 @@ let divide_variant ~scopes row ctx { cases = cl; args; default = def } =
           | None ->
               add_in_div
                 (make_matching get_expr_args_variant_constant head def ctx)
-                ( = ) (Cstr_constant tag) (patl, action) variants
+                ( = ) (tag, true) (patl, action) variants
           | Some pat ->
               add_in_div
                 (make_matching
                    (get_expr_args_variant_nonconst ~scopes)
                    head def ctx)
-                ( = ) (Cstr_block tag)
+                ( = ) (tag, false)
                 (pat :: patl, action)
                 variants
       )
@@ -2047,7 +2070,12 @@ let divide_tuple ~scopes head ctx pm =
 
 let record_matching_line num_fields lbl_pat_list =
   let patv = Array.make num_fields Patterns.omega in
-  List.iter (fun (_, lbl, pat) -> patv.(lbl.lbl_pos) <- pat) lbl_pat_list;
+  List.iter (fun (_, lbl, pat) ->
+    (* CR layouts v5: This void sanity check can be removed when we add proper
+       void support (or whenever we remove `lbl_pos_void`) *)
+    layout_must_be_value lbl.lbl_loc lbl.lbl_layout;
+    patv.(lbl.lbl_pos) <- pat)
+    lbl_pat_list;
   Array.to_list patv
 
 let get_pat_args_record num_fields p rem =
@@ -2072,22 +2100,32 @@ let get_expr_args_record ~scopes head (arg, _mut, layout) rem =
       rem
     else
       let lbl = all_labels.(pos) in
+      layout_must_be_value lbl.lbl_loc lbl.lbl_layout;
       let sem =
         match lbl.lbl_mut with
         | Immutable -> Reads_agree
         | Mutable -> Reads_vary
       in
       let access, layout =
+        (* CR layouts v2: Here we'll need to get the layout from the
+           record_representation and translate it to `Lambda.layout`, rather
+           than just using layout_field everywhere.  (Though layout_field is
+           safe for now, particularly after checking for void above.)  I think
+           only the sort information matters here, so when we make that change
+           we'll probably want a cheaper version of the `Typeopt.layout`
+           function that avoids calling `value_kind` in the value case. *)
         match lbl.lbl_repres with
-        | Record_regular
-        | Record_inlined _ ->
+        | Record_boxed _
+        | Record_inlined (_, Variant_boxed _) ->
             Lprim (Pfield (lbl.lbl_pos, sem), [ arg ], loc), layout_field
-        | Record_unboxed _ -> arg, layout
+        | Record_unboxed _
+        | Record_inlined (_, Variant_unboxed _) -> arg, layout
         | Record_float ->
            (* TODO: could optimise to Alloc_local sometimes *)
            Lprim (Pfloatfield (lbl.lbl_pos, sem, alloc_heap), [ arg ], loc),
+           (* CR layouts v2: is this really unboxed float? *)
            layout_float
-        | Record_extension _ ->
+        | Record_inlined (_, Variant_extensible) ->
             Lprim (Pfield (lbl.lbl_pos + 1, sem), [ arg ], loc), layout_field
       in
       let str =
@@ -2790,41 +2828,50 @@ let combine_constant value_kind loc arg cst partial ctx def
 let split_cases tag_lambda_list =
   let rec split_rec = function
     | [] -> ([], [])
-    | (cstr_tag, act) :: rem -> (
+    | ({cstr_tag; cstr_repr; cstr_constant}, act) :: rem -> (
         let consts, nonconsts = split_rec rem in
-        match cstr_tag with
-        | Cstr_constant n -> ((n, act) :: consts, nonconsts)
-        | Cstr_block n -> (consts, (n, act) :: nonconsts)
-        | Cstr_unboxed -> (consts, (0, act) :: nonconsts)
-        | Cstr_extension _ -> assert false
+        match cstr_tag, cstr_repr with
+        | Ordinary _, Variant_unboxed _ -> (consts, (0, act) :: nonconsts)
+        | Ordinary {runtime_tag}, Variant_boxed _ when cstr_constant ->
+          ((runtime_tag, act) :: consts, nonconsts)
+        | Ordinary {runtime_tag}, Variant_boxed _ ->
+          (consts, (runtime_tag, act) :: nonconsts)
+        | _, Variant_extensible -> assert false
+        | Extension _, _ -> assert false
       )
   in
   let const, nonconst = split_rec tag_lambda_list in
   (sort_int_lambda_list const, sort_int_lambda_list nonconst)
 
-let split_extension_cases tag_lambda_list =
-  let rec split_rec = function
-    | [] -> ([], [])
-    | (cstr_tag, act) :: rem -> (
-        let consts, nonconsts = split_rec rem in
-        match cstr_tag with
-        | Cstr_extension (path, true) -> ((path, act) :: consts, nonconsts)
-        | Cstr_extension (path, false) -> (consts, (path, act) :: nonconsts)
-        | _ -> assert false
-      )
+(* The bool tracks whether the constructor is constant, because we don't have a
+   constructor_description available for polymorphic variants *)
+let split_variant_cases (tag_lambda_list : ((int * bool) * lambda) list) =
+  let const, nonconst =
+    List.partition_map
+      (fun (tag, act) -> match tag with
+         | (n, true) -> Left (n, act)
+         | (n, false) -> Right (n, act))
+      tag_lambda_list
   in
-  split_rec tag_lambda_list
+  (sort_int_lambda_list const, sort_int_lambda_list nonconst)
+
+let split_extension_cases tag_lambda_list =
+  List.partition_map
+    (fun ({cstr_constant; cstr_tag}, act) ->
+       match cstr_constant, cstr_tag with
+       | true, Extension (path,_) -> Left (path, act)
+       | false, Extension (path,_)-> Right (path, act)
+       | _, Ordinary _ -> assert false)
+    tag_lambda_list
 
 let combine_constructor value_kind loc arg pat_env cstr partial ctx def
     (descr_lambda_list, total1, pats) =
-  let tag_lambda (cstr, act) = (cstr.cstr_tag, act) in
   match cstr.cstr_tag with
-  | Cstr_extension _ ->
+  | Extension _ ->
       (* Special cases for extensions *)
       let fail, local_jumps = mk_failaction_neg partial ctx def in
       let lambda1 =
-        let consts, nonconsts =
-          split_extension_cases (List.map tag_lambda descr_lambda_list) in
+        let consts, nonconsts = split_extension_cases descr_lambda_list in
         let default, consts, nonconsts =
           match fail with
           | None -> (
@@ -2875,8 +2922,7 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
           mk_failaction_pos partial constrs ctx def
       in
       let descr_lambda_list = fails @ descr_lambda_list in
-      let consts, nonconsts =
-        split_cases (List.map tag_lambda descr_lambda_list) in
+      let consts, nonconsts = split_cases descr_lambda_list in
       let lambda1 =
         match (fail_opt, same_actions descr_lambda_list) with
         | None, Some act -> act (* Identical actions, no failure *)
@@ -2984,7 +3030,7 @@ let combine_variant value_kind loc row arg partial ctx def
     else
       mk_failaction_neg partial ctx def
   in
-  let consts, nonconsts = split_cases tag_lambda_list in
+  let consts, nonconsts = split_variant_cases tag_lambda_list in
   let lambda1 =
     match (fail, one_action) with
     | None, Some act -> act
@@ -3584,7 +3630,8 @@ let for_trywith ~scopes value_kind loc param pat_act_list =
 
 let simple_for_let ~scopes value_kind loc param pat body =
   compile_matching ~scopes value_kind loc ~failer:Raise_match_failure
-    None (param, Typeopt.layout pat.pat_env pat.pat_type) [ (pat, body) ] Partial
+    None (param, Typeopt.layout pat.pat_env pat.pat_loc pat.pat_type)
+    [ (pat, body) ] Partial
 
 (* Optimize binding of immediate tuples
 
@@ -3668,6 +3715,7 @@ let rec map_return f = function
     | Lwhile _ | Lfor _ | Lassign _ | Lifused _ ) as l ->
       f l
   | Lregion (l, layout) -> Lregion (map_return f l, layout)
+  | Lexclave l -> Lexclave (map_return f l)
 
 (* The 'opt' reference indicates if the optimization is worthy.
 
@@ -3727,18 +3775,18 @@ let for_let ~scopes loc param pat body_kind body =
       Lsequence (param, body)
   | Tpat_var (id, _, _) ->
       (* fast path, and keep track of simple bindings to unboxable numbers *)
-      let k = Typeopt.layout pat.pat_env pat.pat_type in
+      let k = Typeopt.layout pat.pat_env pat.pat_loc pat.pat_type in
       Llet (Strict, k, id, param, body)
   | _ ->
       let opt = ref false in
       let nraise = next_raise_count () in
-      let catch_ids = pat_bound_idents_full pat in
+      let catch_ids = pat_bound_idents_with_types pat in
       let ids_with_kinds =
         List.map
-          (fun (id, _, typ) -> (id, Typeopt.layout pat.pat_env typ))
+          (fun (id, typ) -> (id, Typeopt.layout pat.pat_env pat.pat_loc typ))
           catch_ids
       in
-      let ids = List.map (fun (id, _, _) -> id) catch_ids in
+      let ids = List.map (fun (id, _) -> id) catch_ids in
       let bind =
         map_return (assign_pat ~scopes body_kind opt nraise ids loc pat) param in
       if !opt then
@@ -3891,3 +3939,25 @@ let for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partial =
   let paraml = List.map (fun (v, layout, _) -> (Lvar v, layout)) v_paraml in
   List.fold_right bind_opt v_paraml
     (do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partial)
+
+(* Error report *)
+(* CR layouts v2: This file didn't use to have the report_error infrastructure -
+   I added it only for the void sanity checking in this module, which I'm not
+   sure is even needed.  Reevaluate. *)
+open Format
+
+let report_error ppf = function
+  | Non_value_layout err ->
+      fprintf ppf
+        "Non-value detected in translation:@ Please report this error to \
+         the Jane Street compilers team.@ %a"
+        (Layout.Violation.report_with_name ~name:"This expression") err
+
+let () =
+  Location.register_error_of_exn
+    (function
+      | Error (loc, err) ->
+          Some (Location.error_of_printer ~loc report_error err)
+      | _ ->
+        None
+    )

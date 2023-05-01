@@ -638,7 +638,7 @@ File "w53.ml", line 376, characters 39-43:
 376 |   external z : int64 -> int64 = "x" [@@poll error] (* rejected *)
                                              ^^^^
 Warning 53 [misplaced-attribute]: the "poll" attribute cannot appear in this context
-File "w53.ml", line 385, characters 17-26:
-385 |   let f2 = fun [@immediate] (type a) (x : a) -> x (* rejected *)
-                       ^^^^^^^^^
-Warning 53 [misplaced-attribute]: the "immediate" attribute cannot appear in this context
+File "w53.ml", line 389, characters 17-22:
+389 |   let f3 = fun [@boxed] (type a) (x : a) -> x (* rejected *)
+                       ^^^^^
+Warning 53 [misplaced-attribute]: the "boxed" attribute cannot appear in this context

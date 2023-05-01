@@ -1,1 +1,8 @@
-val x : '_weak1 Foo.t
+File "baz.ml", line 1, characters 8-18:
+1 | let x = Bar.foo ()
+            ^^^^^^^^^^
+Error: This expression has type 'a Foo.t
+       but an expression was expected of type ('b : '_representable_layout_1)
+       'a Foo.t has layout any, which is not representable.
+       No .cmi file found containing Foo.t.
+       Hint: Adding "foo" to your dependencies might help.
