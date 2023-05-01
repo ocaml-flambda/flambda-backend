@@ -783,19 +783,29 @@ let functor_parameter sub : functor_parameter -> Parsetree.functor_parameter =
 let module_type (sub : mapper) mty =
   let loc = sub.location sub mty.mty_loc in
   let attrs = sub.attributes sub mty.mty_attributes in
-  let desc = match mty.mty_desc with
-      Tmty_ident (_path, lid) -> Pmty_ident (map_loc sub lid)
-    | Tmty_alias (_path, lid) -> Pmty_alias (map_loc sub lid)
-    | Tmty_signature sg -> Pmty_signature (sub.signature sub sg)
-    | Tmty_functor (arg, mtype2) ->
-        Pmty_functor (functor_parameter sub arg, sub.module_type sub mtype2)
-    | Tmty_with (mtype, list) ->
-        Pmty_with (sub.module_type sub mtype,
-          List.map (sub.with_constraint sub) list)
-    | Tmty_typeof mexpr ->
-        Pmty_typeof (sub.module_expr sub mexpr)
-  in
-  Mty.mk ~loc ~attrs desc
+  match mty.mty_desc with
+    Tmty_ident (_path, lid) ->
+      Mty.mk ~loc ~attrs (Pmty_ident (map_loc sub lid))
+  | Tmty_alias (_path, lid) ->
+      Mty.mk ~loc ~attrs (Pmty_alias (map_loc sub lid))
+  | Tmty_signature sg -> 
+      Mty.mk ~loc ~attrs (Pmty_signature (sub.signature sub sg))
+  | Tmty_functor (arg, mtype2) ->
+      Mty.mk ~loc ~attrs
+        (Pmty_functor
+          (functor_parameter sub arg, sub.module_type sub mtype2))
+  | Tmty_with (mtype, list) ->
+      Mty.mk ~loc ~attrs
+        (Pmty_with (sub.module_type sub mtype,
+          List.map (sub.with_constraint sub) list))
+  | Tmty_typeof mexpr ->
+    Mty.mk ~loc ~attrs (Pmty_typeof (sub.module_expr sub mexpr))
+  | Tmty_strengthen (mtype, lid) ->
+      Jane_syntax.Module_type.mty_of ~loc ~attrs
+        (Jane_syntax.Module_type.Jmty_strengthen
+            { mty = sub.module_type sub mtype;
+              mod_id = map_loc sub lid
+            })
 
 let with_constraint sub (_path, lid, cstr) =
   match cstr with

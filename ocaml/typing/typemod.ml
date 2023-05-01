@@ -843,7 +843,7 @@ let map_ext fn exts =
 
 let rec approx_modtype env smty =
   match Jane_syntax.Module_type.of_ast smty with
-  | Some (jmty, attrs) -> approx_modtype_jane_syntax env attrs jmty
+  | Some (jmty, _attrs) -> approx_modtype_jane_syntax env jmty
   | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
@@ -902,9 +902,15 @@ let rec approx_modtype env smty =
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-and approx_modtype_jane_syntax _env _attrs : Jane_syntax.Module_type.t -> _ =
-  function
-  | Jmty_strengthen { mty=_; mod_id=_ } -> failwith "strengthen not yet implemented"
+and approx_modtype_jane_syntax env = function
+  | Jane_syntax.Module_type.Jmty_strengthen { mty = smty; mod_id } ->
+    let mty = approx_modtype env smty in
+    let path =
+      Env.lookup_module_path ~use:false ~load:false
+        ~loc:smty.pmty_loc mod_id.txt env
+    in
+    let aliasable = not (Env.is_functor_arg path env) in
+    Mty_strengthen (mty, path, aliasable)
 
 and approx_module_declaration env pmd =
   {
@@ -1395,7 +1401,7 @@ and transl_modtype_functor_arg env sarg =
 and transl_modtype_aux env smty =
   let loc = smty.pmty_loc in
   match Jane_syntax.Module_type.of_ast smty with
-  | Some (jmty, attrs) -> transl_modtype_jane_syntax_aux env attrs jmty
+  | Some (jmty, _attrs) -> transl_modtype_jane_syntax_aux ~loc env jmty
   | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
@@ -1458,10 +1464,22 @@ and transl_modtype_aux env smty =
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-and transl_modtype_jane_syntax_aux _env _attrs
-    : Jane_syntax.Module_type.t -> _ =
-  function
-  | Jmty_strengthen { mty=_ ; mod_id=_ } -> failwith "Strengthen not yet implemented"
+and transl_modtype_jane_syntax_aux ~loc env = function
+  | Jane_syntax.Module_type.Jmty_strengthen { mty ; mod_id } ->
+      let tmty = transl_modtype_aux env mty in
+      let path, md =
+        Env.lookup_module ~use:false ~loc mod_id.txt env
+      in
+      let aliasable = not (Env.is_functor_arg path env) in
+      ignore
+        (Includemod.modtypes ~loc env
+          ~mark:Includemod.Mark_neither tmty.mty_type md.md_type);
+      mkmty
+        (Tmty_strengthen (tmty, mod_id))
+        (Mty_strengthen (tmty.mty_type, path, aliasable))
+        env
+        loc
+        []
 
 and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
   let lid, with_info = match constr with
