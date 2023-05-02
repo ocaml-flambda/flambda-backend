@@ -673,8 +673,11 @@ end = struct
     | Iintop
         ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
         | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ )
-    | Ivalueofint | Iintofvalue | Icsel _ | Iname_for_debugger _ ->
+    | Icsel _ | Iname_for_debugger _ ->
       assert (Mach.operation_is_pure op);
+      assert (not (Mach.operation_can_raise op));
+      next
+    | Ivalueofint | Iintofvalue ->
       assert (not (Mach.operation_can_raise op));
       next
     | Istackoffset _ | Iprobe_is_enabled _ | Iopaque | Ibeginregion | Iendregion
