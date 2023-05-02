@@ -119,7 +119,7 @@ type string_or_bytes =
 module Init_or_assign : sig
   type t =
     | Initialization
-    | Assignment of Alloc_mode.For_allocations.t
+    | Assignment of Alloc_mode.For_assignments.t
 
   val to_lambda : t -> Lambda.initialization_or_assignment
 end

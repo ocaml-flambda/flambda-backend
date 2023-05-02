@@ -90,12 +90,10 @@ let standard_int_or_float_of_boxed_integer (bint : L.boxed_integer) :
 let convert_block_access_field_kind i_or_p : P.Block_access_field_kind.t =
   match i_or_p with L.Immediate -> Immediate | L.Pointer -> Any_value
 
-let convert_init_or_assign (i_or_a : L.initialization_or_assignment)
-    ~current_region : P.Init_or_assign.t =
+let convert_init_or_assign (i_or_a : L.initialization_or_assignment) :
+    P.Init_or_assign.t =
   match i_or_a with
-  | Assignment mode ->
-    Assignment
-      (Alloc_mode.For_allocations.from_lambda_modify mode ~current_region)
+  | Assignment mode -> Assignment (Alloc_mode.For_assignments.from_lambda mode)
   | Heap_initialization -> Initialization
   | Root_initialization ->
     Misc.fatal_error "[Root_initialization] should not appear in Flambda input"
@@ -503,21 +501,19 @@ let array_load_unsafe ~array ~index (array_kind : P.Array_kind.t)
       (Binary (Array_load (Naked_floats, Mutable), array, index))
       ~current_region
 
-let array_set_unsafe ~array ~index ~new_value (array_kind : P.Array_kind.t)
-    ~current_region : H.expr_primitive =
+let array_set_unsafe ~array ~index ~new_value (array_kind : P.Array_kind.t) :
+    H.expr_primitive =
   match array_kind with
   | Immediates | Values ->
     Ternary
-      ( Array_set (array_kind, Assignment Alloc_mode.For_allocations.heap),
+      ( Array_set (array_kind, Assignment Alloc_mode.For_assignments.heap),
         array,
         index,
         new_value )
   | Naked_floats ->
     Ternary
       ( Array_set
-          ( Naked_floats,
-            Assignment (Alloc_mode.For_allocations.local ~region:current_region)
-          ),
+          (Naked_floats, Assignment (Alloc_mode.For_assignments.local ())),
         array,
         index,
         unbox_float new_value )
@@ -754,8 +750,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       Values { tag = Unknown; size = Unknown; field_kind }
     in
     Ternary
-      ( Block_set
-          (block_access, convert_init_or_assign init_or_assign ~current_region),
+      ( Block_set (block_access, convert_init_or_assign init_or_assign),
         obj,
         field,
         value )
@@ -931,9 +926,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     let imm = Targetint_31_63.of_int index in
     check_non_negative_imm imm "Psetfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
-    let init_or_assign =
-      convert_init_or_assign initialization_or_assignment ~current_region
-    in
+    let init_or_assign = convert_init_or_assign initialization_or_assignment in
     let block_access : P.Block_access_kind.t =
       Values { tag = Unknown; size = Unknown; field_kind }
     in
@@ -946,9 +939,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     let block_access : P.Block_access_kind.t =
       Naked_floats { size = Unknown }
     in
-    let init_or_assign =
-      convert_init_or_assign initialization_or_assignment ~current_region
-    in
+    let init_or_assign = convert_init_or_assign initialization_or_assignment in
     Ternary
       ( Block_set (block_access, init_or_assign),
         block,
@@ -990,11 +981,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
          (array_load_unsafe ~array ~index ~current_region))
   | Parraysetu array_kind, [array; index; new_value] ->
     match_on_array_kind ~array array_kind
-      (array_set_unsafe ~array ~index ~new_value ~current_region)
+      (array_set_unsafe ~array ~index ~new_value)
   | Parraysets array_kind, [array; index; new_value] ->
     check_array_access ~dbg ~array ~index
       (match_on_array_kind ~array array_kind
-         (array_set_unsafe ~array ~index ~new_value ~current_region))
+         (array_set_unsafe ~array ~index ~new_value))
   | Pbytessetu (* unsafe *), [bytes; index; new_value] ->
     bytes_like_set_unsafe ~access_size:Eight Bytes bytes index new_value
   | Pbytessets, [bytes; index; new_value] ->
@@ -1022,9 +1013,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     in
     Ternary
       ( Block_set
-          ( block_access,
-            Assignment (Alloc_mode.For_allocations.local ~region:current_region)
-          ),
+          (block_access, Assignment (Alloc_mode.For_assignments.local ())),
         block,
         Simple Simple.const_zero,
         new_ref_value )

@@ -225,9 +225,13 @@ type alloc_mode_for_types =
   | Heap_or_local
   | Local
 
+type alloc_mode_for_assignments =
+  | Heap
+  | Local
+
 type init_or_assign =
   | Initialization
-  | Assignment of alloc_mode_for_allocations
+  | Assignment of alloc_mode_for_assignments
 
 type 'signed_or_unsigned comparison =
       'signed_or_unsigned Flambda_primitive.comparison =
