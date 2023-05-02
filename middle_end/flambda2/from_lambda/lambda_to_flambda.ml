@@ -31,6 +31,8 @@ module Env : sig
     | Regular of Ident.t
     | Try_with of Ident.t
 
+  val same_region : region_stack_element -> region_stack_element -> bool
+
   val create :
     current_unit:Compilation_unit.t ->
     return_continuation:Continuation.t ->
@@ -174,6 +176,12 @@ end = struct
   type region_stack_element =
     | Regular of Ident.t
     | Try_with of Ident.t
+
+  let same_region region1 region2 =
+    match region1, region2 with
+    | Regular _, Try_with _ | Try_with _, Regular _ -> false
+    | Regular id1, Regular id2 | Try_with id1, Try_with id2 ->
+      Ident.same id1 id2
 
   type t =
     { current_unit : Compilation_unit.t;
@@ -563,11 +571,8 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
       Env.pop_region region_stack_now, Env.pop_region region_stack_at_handler
     with
     | None, None -> no_end_region
-    | ( Some
-          ( ((Regular region_ident1 | Try_with region_ident1) as region1),
-            region_stack_now ),
-        Some ((Regular region_ident2 | Try_with region_ident2), _) ) ->
-      if Ident.same region_ident1 region_ident2
+    | Some (region1, region_stack_now), Some (region2, _) ->
+      if Env.same_region region1 region2
       then no_end_region
       else add_end_region region1 ~region_stack_now
     | Some (((Regular _ | Try_with _) as region), region_stack_now), None ->
