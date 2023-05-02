@@ -724,7 +724,7 @@ end = struct
     | Iextcall { alloc = false; returns = false; _ } ->
       (* Sound to ignore [next] and [exn] because the call never returns or
          raises. *)
-      Value.normal_return
+      Value.bot
     | Iextcall { func; alloc = true; _ } ->
       transform t ~next ~exn ~effect:Value.top ("external call to " ^ func) dbg
     | Ispecific s ->
