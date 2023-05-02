@@ -97,10 +97,8 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
     Env.create_bound_parameter env
       (Flambda_unit.toplevel_my_region flambda_unit)
   in
-  let r =
-    R.create ~reachable_names
-      ~module_symbol:(Flambda_unit.module_symbol flambda_unit)
-  in
+  let module_symbol = Flambda_unit.module_symbol flambda_unit in
+  let r = R.create ~reachable_names ~module_symbol in
   let body, body_free_vars, res =
     To_cmm_expr.expr env r (Flambda_unit.body flambda_unit)
   in
@@ -128,6 +126,12 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
       if Flambda_features.backend_cse_at_toplevel ()
       then fun_codegen
       else Cmm.No_CSE :: fun_codegen
+    in
+    let body =
+      C.letin
+        (Backend_var.With_provenance.create (R.module_block_var res))
+        ~defining_expr:(C.symbol ~dbg (R.symbol_definition res module_symbol))
+        ~body
     in
     C.cfunction (C.fundecl entry_sym [] body fun_codegen dbg Default_poll)
   in

@@ -153,7 +153,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     fail_if_probe apply;
     let callee =
       match Simple.must_be_symbol callee_simple with
-      | Some (sym, _) -> (To_cmm_result.symbol res sym).sym_name
+      | Some (sym, _) -> (To_cmm_result.symbol_definition res sym).sym_name
       | None ->
         Misc.fatal_errorf "Expected a function symbol instead of:@ %a"
           Simple.print callee_simple

@@ -26,10 +26,15 @@ type t =
        [Symbol.t], e.g. module entry point names. *)
     module_symbol : Symbol.t;
     module_symbol_defined : bool;
+    module_block_var : Backend_var.t;
     invalid_message_symbols : Symbol.t String.Map.t
   }
 
 let create ~module_symbol ~reachable_names =
+  let module_block_var =
+    Backend_var.create_local
+      (Linkage_name.to_string (Symbol.linkage_name module_symbol))
+  in
   { gc_roots = [];
     data_list = [];
     functions = [];
@@ -38,6 +43,7 @@ let create ~module_symbol ~reachable_names =
     symbols = String.Map.empty;
     module_symbol;
     module_symbol_defined = false;
+    module_block_var;
     invalid_message_symbols = String.Map.empty
   }
 
@@ -58,7 +64,7 @@ let raw_symbol res ~global:sym_global sym_name : t * Cmm.symbol =
       Misc.fatal_errorf "The symbol %s is declared as both local and global"
         sym_name
 
-let symbol res sym =
+let symbol_definition res sym =
   let sym_name = Linkage_name.to_string (Symbol.linkage_name sym) in
   let sym_global =
     if Compilation_unit.is_current (Symbol.compilation_unit sym)
@@ -68,6 +74,11 @@ let symbol res sym =
   in
   let s : Cmm.symbol = { sym_name; sym_global } in
   s
+
+let symbol res dbg sym =
+  if Symbol.equal sym res.module_symbol
+  then Cmm_helpers.var res.module_block_var
+  else Cmm_helpers.symbol ~dbg (symbol_definition res sym)
 
 let symbol_of_code_id res code_id : Cmm.symbol =
   let sym_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
@@ -159,6 +170,8 @@ let add_invalid_message_symbol t symbol ~message =
 let invalid_message_symbol t ~message =
   String.Map.find_opt message t.invalid_message_symbols
 
+let module_block_var t = t.module_block_var
+
 let to_cmm r =
   (* Make sure the module symbol is defined *)
   let r = define_module_symbol_if_missing r in
@@ -173,6 +186,6 @@ let to_cmm r =
   in
   let function_phrases = List.map (fun f -> C.cfunction f) sorted_functions in
   (* Translate roots to Cmm symbols *)
-  let roots = List.map (symbol r) r.gc_roots in
+  let roots = List.map (symbol_definition r) r.gc_roots in
   (* Return the data list, gc roots and function declarations *)
   { data_items = r.data_list; gc_roots = roots; functions = function_phrases }

@@ -31,7 +31,10 @@ type t
 val create : module_symbol:Symbol.t -> reachable_names:Name_occurrences.t -> t
 
 (** Translate an existing [Symbol.t] to a Cmm symbol. *)
-val symbol : t -> Symbol.t -> Cmm.symbol
+val symbol_definition : t -> Symbol.t -> Cmm.symbol
+
+(** Translate a reference to an existing [Symbol.t] to Cmm. *)
+val symbol : t -> Debuginfo.t -> Symbol.t -> Cmm.expression
 
 (** Produce the Cmm function symbol for a piece of code. *)
 val symbol_of_code_id : t -> Code_id.t -> Cmm.symbol
@@ -60,8 +63,13 @@ val add_gc_roots : t -> Symbol.t list -> t
 val add_function : t -> Cmm.fundecl -> t
 
 (** Record the given symbol as having been defined. This is used to keep track
-    of whether the module block symbol for the current unit has been defined. *)
+    of whether the module block symbol for the current unit has been defined.
+    If this function is supplied with the module block symbol then it will
+    return [Some global_sym] where [global_sym] is the global alias to the
+    module block.  Other calls to [symbol] will return the local alias. *)
 val check_for_module_symbol : t -> Symbol.t -> t
+
+val module_block_var : t -> Backend_var.t
 
 (** Caching of symbols associated with [Invalid] messages. *)
 val add_invalid_message_symbol : t -> Symbol.t -> message:string -> t
