@@ -75,6 +75,13 @@ utils/consistbl.cmx : \
     utils/consistbl.cmi
 utils/consistbl.cmi : \
     utils/misc.cmi
+utils/debug.cmo : \
+    utils/clflags.cmi \
+    utils/debug.cmi
+utils/debug.cmx : \
+    utils/clflags.cmx \
+    utils/debug.cmi
+utils/debug.cmi :
 utils/diffing.cmo : \
     utils/misc.cmi \
     utils/diffing.cmi
