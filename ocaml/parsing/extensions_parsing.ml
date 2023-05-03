@@ -179,6 +179,9 @@ module type AST = sig
 
   val make_extension : string list -> ast -> ast_desc
 
+  val make_entire_extension :
+    loc:Location.t -> string -> (unit -> ast) -> ast_desc
+
   val match_extension : ast -> (string list * ast) option
 end
 
@@ -205,6 +208,10 @@ module Make_AST (AST_parameters : AST_parameters) :
              ({ txt = String.concat "." ("extension" :: names);
                 loc = !Ast_helper.default_loc },
               PStr []))
+
+    let make_entire_extension ~loc name ast =
+      make_extension [name]
+        (Ast_helper.with_default_loc (Location.ghostify loc) ast)
 
     (* This raises an error if the language extension node is malformed.
        Malformed means either:

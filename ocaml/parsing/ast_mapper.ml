@@ -285,7 +285,7 @@ module MT = struct
     | Some emty -> begin
         Extensions_parsing.Module_type.wrap_desc ~loc ~attrs @@
         match sub.module_type_extension sub emty with
-        | Emty_strengthen smty -> Extensions.Strengthen.mty_of smty
+        | Emty_strengthen smty -> Extensions.Strengthen.mty_of ~loc smty
       end
     | None ->
     match desc with
@@ -452,8 +452,8 @@ module E = struct
     | Some eexp -> begin
         Extensions_parsing.Expression.wrap_desc ~loc ~attrs @@
         match sub.expr_extension sub eexp with
-        | Eexp_comprehension   c -> Extensions.Comprehensions.expr_of   c
-        | Eexp_immutable_array i -> Extensions.Immutable_arrays.expr_of i
+        | Eexp_comprehension   c -> Extensions.Comprehensions.expr_of   ~loc c
+        | Eexp_immutable_array i -> Extensions.Immutable_arrays.expr_of ~loc i
     end
     | None ->
     match desc with
@@ -562,7 +562,7 @@ module P = struct
     | Some epat -> begin
         Extensions_parsing.Pattern.wrap_desc ~loc ~attrs @@
         match sub.pat_extension sub epat with
-        | Epat_immutable_array i -> Extensions.Immutable_arrays.pat_of i
+        | Epat_immutable_array i -> Extensions.Immutable_arrays.pat_of ~loc i
     end
     | None ->
     match desc with

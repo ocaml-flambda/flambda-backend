@@ -17,8 +17,8 @@ open Extensions_parsing
    expression to translate.  So we just check for the immutable arrays extension
    when processing a comprehension expression for an immutable array.
 
-   Note [Wrapping with make_extension]
-   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   Note [Wrapping with make_entire_extension]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
    The topmost node in the encoded AST must always look like e.g.
    [%extension.comprehensions]. This allows the decoding machinery to know
@@ -31,12 +31,12 @@ open Extensions_parsing
    structurally impossible/hard to forget taking this final step.
 
    However, the final step is only one line of code (a call to
-   [make_extension]), but yet the name of the extension varies, as does the type
-   of the payload. It would thus take several lines of code to execute this
-   command otherwise, along with dozens of lines to create the structure in the
-   first place. And so instead we just manually call [make_extension] and refer
-   to this Note as a reminder to authors of future extensions to remember to do
-   this wrapping.
+   [make_entire_extension]), but yet the name of the extension varies, as does
+   the type of the payload. It would thus take several lines of code to execute
+   this command otherwise, along with dozens of lines to create the structure in
+   the first place. And so instead we just manually call [make_entire_extension]
+   and refer to this Note as a reminder to authors of future extensions to
+   remember to do this wrapping.
 *)
 
 (** List and array comprehensions *)
@@ -132,20 +132,20 @@ module Comprehensions = struct
          clauses
          (comprehension_expr ["body"] body))
 
-  let expr_of eexpr =
-    (* See Note [Wrapping with make_extension] *)
-    Expression.make_extension [extension_string] @@
-    match eexpr with
-    | Cexp_list_comprehension comp ->
-        expr_of_comprehension ~type_:["list"] comp
-    | Cexp_array_comprehension (amut, comp) ->
-        expr_of_comprehension
-          ~type_:[ "array"
-                 ; match amut with
-                   | Mutable   -> "mutable"
-                   | Immutable -> "immutable"
-                 ]
-          comp
+  let expr_of ~loc eexpr =
+    (* See Note [Wrapping with make_entire_extension] *)
+    Expression.make_entire_extension ~loc extension_string (fun () ->
+      match eexpr with
+      | Cexp_list_comprehension comp ->
+          expr_of_comprehension ~type_:["list"] comp
+      | Cexp_array_comprehension (amut, comp) ->
+          expr_of_comprehension
+            ~type_:[ "array"
+                   ; match amut with
+                     | Mutable   -> "mutable"
+                     | Immutable -> "immutable"
+                   ]
+            comp)
 
   (** Then, we define how to go from the OCaml AST to the nice AST; this is
       the [..._of_expr] family of expressions, culminating in
@@ -264,21 +264,21 @@ module Immutable_arrays = struct
 
   let extension_string = Language_extension.to_string Immutable_arrays
 
-  let expr_of = function
+  let expr_of ~loc = function
     | Iaexp_immutable_array elts ->
-      (* See Note [Wrapping with make_extension] *)
-      Expression.make_extension [extension_string] @@
-      Ast_helper.Exp.array elts
+      (* See Note [Wrapping with make_entire_extension] *)
+      Expression.make_entire_extension ~loc extension_string (fun () ->
+        Ast_helper.Exp.array elts)
 
   let of_expr expr = match expr.pexp_desc with
     | Pexp_array elts -> Iaexp_immutable_array elts
     | _ -> failwith "Malformed immutable array expression"
 
-  let pat_of = function
+  let pat_of ~loc = function
     | Iapat_immutable_array elts ->
-      (* See Note [Wrapping with make_extension] *)
-      Pattern.make_extension [extension_string] @@
-      Ast_helper.Pat.array elts
+      (* See Note [Wrapping with make_entire_extension] *)
+      Pattern.make_entire_extension ~loc extension_string (fun () ->
+        Ast_helper.Pat.array elts)
 
   let of_pat expr = match expr.ppat_desc with
     | Ppat_array elts -> Iapat_immutable_array elts
@@ -296,11 +296,11 @@ module Strengthen = struct
      the [(module M)] is a [Pmty_alias].  This isn't syntax we can write, but
      [(module M)] can be the inferred type for [M], so this should be fine. *)
 
-  let mty_of { mty; mod_id } =
-    (* See Note [Wrapping with make_extension] *)
-    Module_type.make_extension [extension_string] @@
-    Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
-      (Ast_helper.Mty.alias mod_id)
+  let mty_of ~loc { mty; mod_id } =
+    (* See Note [Wrapping with make_entire_extension] *)
+    Module_type.make_entire_extension ~loc extension_string (fun () ->
+      Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
+        (Ast_helper.Mty.alias mod_id))
 
   let of_mty mty = match mty.pmty_desc with
     | Pmty_functor(Named(_, mty), {pmty_desc = Pmty_alias mod_id}) ->

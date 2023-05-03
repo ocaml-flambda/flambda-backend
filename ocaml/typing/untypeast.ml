@@ -362,6 +362,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         match am with
         | Mutable   -> Ppat_array pats
         | Immutable -> Extensions.Immutable_arrays.pat_of
+                         ~loc
                          (Iapat_immutable_array pats)
       end
     | Tpat_lazy p -> Ppat_lazy (sub.pat sub p)
@@ -500,12 +501,15 @@ let expression sub exp =
         | Mutable ->
             Pexp_array plist
         | Immutable ->
-            Extensions.Immutable_arrays.expr_of (Iaexp_immutable_array plist)
+            Extensions.Immutable_arrays.expr_of
+              ~loc (Iaexp_immutable_array plist)
       end
     | Texp_list_comprehension comp ->
-        comprehension sub (fun comp -> Cexp_list_comprehension comp) comp
+        comprehension
+          ~loc sub (fun comp -> Cexp_list_comprehension comp) comp
     | Texp_array_comprehension (amut, comp) ->
-        comprehension sub (fun comp -> Cexp_array_comprehension (amut, comp)) comp
+        comprehension
+          ~loc sub (fun comp -> Cexp_array_comprehension (amut, comp)) comp
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Pexp_ifthenelse (sub.expr sub exp1,
           sub.expr sub exp2,

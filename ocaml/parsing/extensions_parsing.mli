@@ -132,6 +132,15 @@ module type AST = sig
       [match_extension]. *)
   val make_extension  : string list -> ast -> ast_desc
 
+  (** As [make_extension], but specifically for the AST node corresponding to
+      the entire piece of extension syntax (e.g., for a list comprehension, the
+      whole [[x for x in xs]], and not a subterm like [for x in xs]).  This sets
+      [Ast_helper.default_loc] locally to the [ghost] version of the provided
+      location, which is why the [ast] is generated from a function call; it is
+      during this call that the location is so set. *)
+  val make_entire_extension :
+    loc:Location.t -> string -> (unit -> ast) -> ast_desc
+
   (** Given an AST node, check if it's a language extension term; if it is,
       split it back up into its name (the [string list]) and the body (the
       [ast]); the resulting name is split on dots and the leading [extension]

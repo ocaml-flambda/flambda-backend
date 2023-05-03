@@ -58,7 +58,7 @@ module Comprehensions : sig
         [:BODY ...CLAUSES...:] (flag = Immutable)
           (only allowed with [-extension immutable_arrays]) *)
 
-  val expr_of : expression -> Parsetree.expression_desc
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression_desc
 end
 
 (** The ASTs for immutable arrays.  When we merge this upstream, we'll merge
@@ -73,8 +73,8 @@ module Immutable_arrays : sig
     | Iapat_immutable_array of Parsetree.pattern list
     (** [: P1; ...; Pn :] **)
 
-  val expr_of : expression -> Parsetree.expression_desc
-  val pat_of : pattern -> Parsetree.pattern_desc
+  val expr_of : loc:Location.t -> expression -> Parsetree.expression_desc
+  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern_desc
 end
 
 (** The ASTs for module type strengthening. *)
@@ -82,7 +82,7 @@ module Strengthen : sig
   type module_type =
     { mty : Parsetree.module_type; mod_id : Longident.t Location.loc }
 
-  val mty_of : module_type -> Parsetree.module_type_desc
+  val mty_of : loc:Location.t -> module_type -> Parsetree.module_type_desc
 end
 
 (******************************************)
