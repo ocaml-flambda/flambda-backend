@@ -14,13 +14,11 @@ let reset t =
   t.enabled <- false
 
 let merge src ~into:dst =
-  if !Clflags.zero_alloc_check
-  then (
-    let join key b1 b2 =
-      Misc.fatal_errorf "Unexpected merge %s %d %d" key b1 b2
-    in
-    dst.zero_alloc <- String.Map.union join dst.zero_alloc src.zero_alloc;
-    dst.enabled <- dst.enabled || src.enabled)
+  let join key b1 b2 =
+    Misc.fatal_errorf "Unexpected merge %s %d %d" key b1 b2
+  in
+  dst.zero_alloc <- String.Map.union join dst.zero_alloc src.zero_alloc;
+  dst.enabled <- dst.enabled || src.enabled
 
 type value = int option
 

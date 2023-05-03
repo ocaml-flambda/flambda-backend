@@ -551,6 +551,7 @@ end = struct
         Builtin_attributes.mark_property_checked analysis_name
           (Annotation.get_loc a);
         if (not (Annotation.is_assume a))
+           && S.enabled ()
            && not
                 (Value.lessequal func_info.value (Annotation.expected_value a))
         then
@@ -570,10 +571,8 @@ end = struct
     Unit_info.iter unit_info ~f:record
 
   let record_unit unit_info ppf =
-    if S.enabled ()
-    then
-      Profile.record_call ~accumulate:true ("record_unit " ^ analysis_name)
-        (fun () -> record_unit unit_info ppf)
+    Profile.record_call ~accumulate:true ("record_unit " ^ analysis_name)
+      (fun () -> record_unit unit_info ppf)
 
   let update_deps t v dep desc dbg =
     match dep with
@@ -802,8 +801,7 @@ end = struct
         Unit_info.cleanup_deps unit_info fun_name;
         report_unit_info ppf unit_info ~msg:"after cleanup_deps"
     in
-    if S.enabled ()
-    then Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
+    Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
 end
 
 (** Check that functions do not allocate on the heap (local allocations are ignored) *)
