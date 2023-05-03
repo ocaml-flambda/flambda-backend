@@ -324,21 +324,19 @@
  (action (diff test_attr_unused.output test_attr_unused.output.corrected)))
 
 (rule
- (alias   runtest)
  (enabled_if (= %{context_name} "main"))
  (targets t6.output.corrected)
- (deps t6.ml)
+ (deps (:ml t6.ml) filter.sh)
  (action
    (with-outputs-to t6.output.corrected
+    (pipe-outputs
     (with-accepted-exit-codes 0
-     (run %{bin:ocamlopt.opt} %{deps} -color never -error-style short -c -zero-alloc-check -g -O3))
-  )))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+    (run "./filter.sh")
+   ))))
 
 (rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
- (deps t6.output
-       t6.output.corrected)
- (action
-        (diff t6.output
-              t6.output.corrected)))
+ (deps t6.output t6.output.corrected)
+ (action (diff t6.output t6.output.corrected)))
