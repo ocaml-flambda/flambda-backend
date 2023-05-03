@@ -343,10 +343,8 @@ module Generic_array = struct
   let pattern    : _ -> _ -> _ -> (pattern,    pattern_desc)    t -> _ = to_ast
 end
 
-let ppat_iarray loc elts =
-  Extensions.Immutable_arrays.pat_of
-    ~loc:(make_loc loc)
-    (Iapat_immutable_array elts)
+let ppat_iarray elts =
+  Extensions.Immutable_arrays.pat_of (Iapat_immutable_array elts)
 
 let expecting loc nonterm =
     raise Syntaxerr.(Error(Expecting(make_loc loc, nonterm)))
@@ -2612,7 +2610,7 @@ comprehension_clause:
 
 %inline comprehension_expr:
   comprehension_ext_expr
-    { Extensions.Comprehensions.expr_of ~loc:(make_loc $sloc) $1 }
+    { Extensions.Comprehensions.expr_of $1 }
 ;
 
 %inline array_simple(ARR_OPEN, ARR_CLOSE, contents_semi_list):
@@ -2701,7 +2699,6 @@ comprehension_clause:
           "[:" ":]"
           (fun elts ->
              Extensions.Immutable_arrays.expr_of
-               ~loc:(make_loc $sloc)
                (Iaexp_immutable_array elts))
           $1 }
   | LBRACKET expr_semi_list RBRACKET
@@ -3125,7 +3122,7 @@ simple_delimited_pattern:
     | array_patterns(LBRACKETCOLON, COLONRBRACKET)
         { Generic_array.pattern
             "[:" ":]"
-            (ppat_iarray $sloc)
+            ppat_iarray
             $1 }
   ) { $1 }
 

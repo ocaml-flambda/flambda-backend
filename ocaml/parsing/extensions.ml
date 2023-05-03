@@ -91,18 +91,17 @@ module Comprehensions = struct
 
   (** [comprehension_expr] handles making sure that [loc] is ghost, and every other
       function in this module does the same *)
-  let comprehension_expr ~loc names x =
-    Expression.wrap_desc ~loc:(Location.ghostify loc) ~attrs:[] @@
-    Expression.make_extension ~loc (extension_string :: names) x
+  let comprehension_expr names x =
+    Expression.wrap_desc ~attrs:[] @@
+    Expression.make_extension (extension_string :: names) x
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
       the [expr_of_...] family of expressions, culminating in
       [expr_of_comprehension_expr]. *)
 
-  let expr_of_iterator ~loc = function
+  let expr_of_iterator = function
     | Range { start; stop; direction } ->
         comprehension_expr
-          ~loc
           [ "for"
           ; "range"
           ; match direction with
@@ -110,55 +109,42 @@ module Comprehensions = struct
             | Downto -> "downto" ]
           (Ast_helper.Exp.tuple [start; stop])
     | In seq ->
-        comprehension_expr ~loc ["for"; "in"] seq
+        comprehension_expr ["for"; "in"] seq
 
-  let expr_of_clause_binding ~loc { pattern; iterator; attributes } =
-    Ast_helper.Vb.mk
-      ~loc:(Location.ghostify loc)
-      ~attrs:attributes
-      pattern
-      (expr_of_iterator ~loc iterator)
+  let expr_of_clause_binding { pattern; iterator; attributes } =
+    Ast_helper.Vb.mk ~attrs:attributes pattern (expr_of_iterator iterator)
 
-  let expr_of_clause ~loc clause rest = match clause with
+  let expr_of_clause clause rest = match clause with
     | For iterators ->
         comprehension_expr
-          ~loc
           ["for"]
           (Ast_helper.Exp.let_
-             Nonrecursive
-             (List.map (expr_of_clause_binding ~loc) iterators)
+             Nonrecursive (List.map expr_of_clause_binding iterators)
              rest)
     | When cond ->
-        comprehension_expr
-          ~loc
-          ["when"]
-          (Ast_helper.Exp.sequence cond rest)
+        comprehension_expr ["when"] (Ast_helper.Exp.sequence cond rest)
 
-  let expr_of_comprehension ~loc ~type_ { body; clauses } =
+  let expr_of_comprehension ~type_ { body; clauses } =
     comprehension_expr
-      ~loc
       type_
       (List.fold_right
-         (expr_of_clause ~loc)
+         expr_of_clause
          clauses
-         (comprehension_expr ~loc ["body"] body))
+         (comprehension_expr ["body"] body))
 
-  let expr_of ~loc eexpr =
-    let expr_of_comprehension_type type_ = expr_of_comprehension ~loc ~type_ in
+  let expr_of eexpr =
     (* See Note [Wrapping with make_extension] *)
-    Expression.make_extension ~loc [extension_string] @@
+    Expression.make_extension [extension_string] @@
     match eexpr with
     | Cexp_list_comprehension comp ->
-        expr_of_comprehension_type ["list"]  comp
+        expr_of_comprehension ~type_:["list"] comp
     | Cexp_array_comprehension (amut, comp) ->
-        expr_of_comprehension_type
-          [ "array"
-          ; match amut with
-            | Mutable   ->
-                "mutable"
-            | Immutable ->
-                "immutable"
-          ]
+        expr_of_comprehension
+          ~type_:[ "array"
+                 ; match amut with
+                   | Mutable   -> "mutable"
+                   | Immutable -> "immutable"
+                 ]
           comp
 
   (** Then, we define how to go from the OCaml AST to the nice AST; this is
@@ -278,21 +264,21 @@ module Immutable_arrays = struct
 
   let extension_string = Language_extension.to_string Immutable_arrays
 
-  let expr_of ~loc = function
+  let expr_of = function
     | Iaexp_immutable_array elts ->
       (* See Note [Wrapping with make_extension] *)
-      Expression.make_extension ~loc [extension_string] @@
-      Ast_helper.Exp.array ~loc:(Location.ghostify loc) elts
+      Expression.make_extension [extension_string] @@
+      Ast_helper.Exp.array elts
 
   let of_expr expr = match expr.pexp_desc with
     | Pexp_array elts -> Iaexp_immutable_array elts
     | _ -> failwith "Malformed immutable array expression"
 
-  let pat_of ~loc = function
+  let pat_of = function
     | Iapat_immutable_array elts ->
       (* See Note [Wrapping with make_extension] *)
-      Pattern.make_extension ~loc [extension_string] @@
-      Ast_helper.Pat.array ~loc:(Location.ghostify loc) elts
+      Pattern.make_extension [extension_string] @@
+      Ast_helper.Pat.array elts
 
   let of_pat expr = match expr.ppat_desc with
     | Ppat_array elts -> Iapat_immutable_array elts
@@ -310,11 +296,11 @@ module Strengthen = struct
      the [(module M)] is a [Pmty_alias].  This isn't syntax we can write, but
      [(module M)] can be the inferred type for [M], so this should be fine. *)
 
-  let mty_of ~loc { mty; mod_id } =
+  let mty_of { mty; mod_id } =
     (* See Note [Wrapping with make_extension] *)
-    Module_type.make_extension ~loc [extension_string] @@
-      Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
-        (Ast_helper.Mty.alias mod_id)
+    Module_type.make_extension [extension_string] @@
+    Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
+      (Ast_helper.Mty.alias mod_id)
 
   let of_mty mty = match mty.pmty_desc with
     | Pmty_functor(Named(_, mty), {pmty_desc = Pmty_alias mod_id}) ->

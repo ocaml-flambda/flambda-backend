@@ -118,25 +118,19 @@ module type AST = sig
   (** How to get the location attached to an AST node *)
   val location : ast -> Location.t
 
-  (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata *)
+  (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata.  When
+      creating [ast] nodes afresh for an extension, the location should be
+      omitted; in this case, it will default to [!Ast_helper.default_loc], which
+      should be [ghost]. *)
   val wrap_desc :
-    loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
+    ?loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
 
   (** Embed a language extension term in the AST with the given name and body
       (the [ast]).  The name will be joined with dots and preceded by
-      [extension.].  The location will be made into a ghost location, as it only
-      goes on the generated parts of the AST.
-
-      NB: When the result is wrapped up in an [ast] node by [wrap_desc], the
-      result probably needs to be made [ghost] as well.  The same holds for
-      other wrapping (e.g., wrapping a [pattern] and [expression] in a
-      [value_binding] with [Ast_helper.Vb.mk]); any location on a generated
-      OCaml AST node needs to be [ghost].  If locations aren't marked as ghost,
-      the compiler will work fine, but ppxlib may detect that you've violation
-      its well-formedness constraints and fail to parse your input.
-
-      Partial inverse of [match_extension]. *)
-  val make_extension  : loc:Location.t -> string list -> ast -> ast_desc
+      [extension.].  Any locations in the generated AST will be set to
+      [!Ast_helper.default_loc], which should be [ghost].  Partial inverse of
+      [match_extension]. *)
+  val make_extension  : string list -> ast -> ast_desc
 
   (** Given an AST node, check if it's a language extension term; if it is,
       split it back up into its name (the [string list]) and the body (the
