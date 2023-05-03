@@ -235,24 +235,6 @@
 
 (rule
  (enabled_if (= %{context_name} "main"))
- (targets test_attribute_error_duplicate.output.corrected)
- (deps (:ml test_attribute_error_duplicate.ml) filter.sh)
- (action
-   (with-outputs-to test_attribute_error_duplicate.output.corrected
-    (pipe-outputs
-    (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
-    (run "./filter.sh")
-   ))))
-
-(rule
- (alias   runtest)
- (enabled_if (= %{context_name} "main"))
- (deps test_attribute_error_duplicate.output test_attribute_error_duplicate.output.corrected)
- (action (diff test_attribute_error_duplicate.output test_attribute_error_duplicate.output.corrected)))
-
-(rule
- (enabled_if (= %{context_name} "main"))
  (targets fail13.output.corrected)
  (deps (:ml fail13.ml) filter.sh)
  (action
@@ -304,6 +286,24 @@
  (enabled_if (= %{context_name} "main"))
  (deps fail15.output fail15.output.corrected)
  (action (diff fail15.output fail15.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_attribute_error_duplicate.output.corrected)
+ (deps (:ml test_attribute_error_duplicate.ml) filter.sh)
+ (action
+   (with-outputs-to test_attribute_error_duplicate.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_attribute_error_duplicate.output test_attribute_error_duplicate.output.corrected)
+ (action (diff test_attribute_error_duplicate.output test_attribute_error_duplicate.output.corrected)))
 
 (rule
  (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
