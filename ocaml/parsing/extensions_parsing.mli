@@ -74,7 +74,10 @@
     whenever constructing an OCaml AST node -- whether with [wrap_desc], the
     functions in [Ast_helper], or some other way -- the location provided needs
     to be made ghost.  The functions that construct [ast_desc]s handle this for
-    you, but when moving to the OCaml world it has to be done manually. *)
+    you, but when moving to the OCaml world it has to be done manually.  If
+    locations aren't marked as ghost, the compiler will work fine, but ppxlib
+    may detect that you've violation its well-formedness constraints and fail to
+    parse your input. *)
 
 (** Errors around the extension representation.  These should mostly just be
     fatal, but they're needed for one test case
@@ -128,7 +131,9 @@ module type AST = sig
       result probably needs to be made [ghost] as well.  The same holds for
       other wrapping (e.g., wrapping a [pattern] and [expression] in a
       [value_binding] with [Ast_helper.Vb.mk]); any location on a generated
-      OCaml AST node needs to be [ghost]!
+      OCaml AST node needs to be [ghost].  If locations aren't marked as ghost,
+      the compiler will work fine, but ppxlib may detect that you've violation
+      its well-formedness constraints and fail to parse your input.
 
       Partial inverse of [match_extension]. *)
   val make_extension  : loc:Location.t -> string list -> ast -> ast_desc
