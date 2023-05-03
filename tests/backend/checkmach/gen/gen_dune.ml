@@ -54,7 +54,7 @@ let () =
   print_test ~flambda_only:false ~deps:"s.ml t.ml";
   print_test ~flambda_only:false ~deps:"t5.ml test_assume.ml";
   print_test ~flambda_only:true ~deps:"test_flambda.ml";
-  for i = 1 to 12 do
+  for i = 1 to 15 do
     let extra_dep =
       match i with
       | 3 | 4 -> Some (Printf.sprintf "t%d.ml" i)
@@ -73,4 +73,7 @@ let () =
   (* Closure does not optimize the function away, so the unchecked attribute
      warning is only with flambda and flambda2. *)
   print_test_expected_output ~flambda_only:true ~extra_dep:None
-    ~exit_code:0 "test_attr_unused"
+    ~exit_code:0 "test_attr_unused";
+  (* Checks that the warning is printed and compilation is successful. *)
+  print_test_expected_output ~flambda_only:false ~extra_dep:None
+    ~exit_code:0 "t6"

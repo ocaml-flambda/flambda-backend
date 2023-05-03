@@ -252,6 +252,60 @@
  (action (diff test_attribute_error_duplicate.output test_attribute_error_duplicate.output.corrected)))
 
 (rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail13.output.corrected)
+ (deps (:ml fail13.ml) filter.sh)
+ (action
+   (with-outputs-to fail13.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail13.output fail13.output.corrected)
+ (action (diff fail13.output fail13.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail14.output.corrected)
+ (deps (:ml fail14.ml) filter.sh)
+ (action
+   (with-outputs-to fail14.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail14.output fail14.output.corrected)
+ (action (diff fail14.output fail14.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail15.output.corrected)
+ (deps (:ml fail15.ml) filter.sh)
+ (action
+   (with-outputs-to fail15.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail15.output fail15.output.corrected)
+ (action (diff fail15.output fail15.output.corrected)))
+
+(rule
  (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (targets test_attr_unused.output.corrected)
  (deps (:ml test_attr_unused.ml) filter.sh)
@@ -268,3 +322,23 @@
  (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (deps test_attr_unused.output test_attr_unused.output.corrected)
  (action (diff test_attr_unused.output test_attr_unused.output.corrected)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (targets t6.output.corrected)
+ (deps t6.ml)
+ (action
+   (with-outputs-to t6.output.corrected
+    (with-accepted-exit-codes 0
+     (run %{bin:ocamlopt.opt} %{deps} -color never -error-style short -c -zero-alloc-check -g -O3))
+  )))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps t6.output
+       t6.output.corrected)
+ (action
+        (diff t6.output
+              t6.output.corrected)))
