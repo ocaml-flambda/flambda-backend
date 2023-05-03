@@ -1249,7 +1249,7 @@ let build_or_pat env loc lid =
   let make_row more =
     create_row ~fields ~more ~closed:false ~fixed:None ~name in
   let ty = newty (Tvariant (make_row (newvar Layout.value))) in
-  let gloc = {loc with Location.loc_ghost=true} in
+  let gloc = Location.ghostify loc in
   let row' = ref (make_row (newvar Layout.value)) in
   let pats =
     List.map
@@ -2247,7 +2247,7 @@ and type_pat_aux
         pat_env = !env }
   | Ppat_interval (Pconst_char c1, Pconst_char c2) ->
       let open Ast_helper.Pat in
-      let gloc = {loc with Location.loc_ghost=true} in
+      let gloc = Location.ghostify loc in
       let rec loop c1 c2 =
         if c1 = c2 then constant ~loc:gloc (Pconst_char c1)
         else
@@ -5319,7 +5319,7 @@ and type_expect_
         | { pbop_pat = spat; _} :: rest ->
             (* CR layouts v5: eliminate value requirement *)
             let ty = newvar Layout.value in
-            let loc = { slet.pbop_op.loc with Location.loc_ghost = true } in
+            let loc = Location.ghostify slet.pbop_op.loc in
             let spat_acc = Ast_helper.Pat.tuple ~loc [spat_acc; spat] in
             let ty_acc = newty (Ttuple [ty_acc; ty]) in
             loop spat_acc ty_acc rest
@@ -5726,7 +5726,7 @@ and type_label_access env srecord usage lid =
    (Handling of * modifiers contributed by Thorsten Ohl.) *)
 
 and type_format loc str env =
-  let loc = {loc with Location.loc_ghost = true} in
+  let loc = Location.ghostify loc in
   try
     CamlinternalFormatBasics.(CamlinternalFormat.(
       let mk_exp_loc pexp_desc = {
@@ -6764,7 +6764,7 @@ and type_let
                (* propagate type annotation to pattern,
                   to allow it to be generalized in -principal mode *)
                Pat.constraint_
-                 ~loc:{spat.ppat_loc with Location.loc_ghost=true}
+                 ~loc:(Location.ghostify spat.ppat_loc)
                  spat
                  sty
            | _ -> spat

@@ -196,7 +196,7 @@ module Make_AST (AST_parameters : AST_parameters) :
     include AST_parameters
 
     let make_extension ~loc names =
-      let loc = Location.{loc with loc_ghost = true} in
+      let loc = Location.ghostify loc in
       make_extension_use
         ~extension_node:
           (make_extension_node
