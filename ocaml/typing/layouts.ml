@@ -575,8 +575,9 @@ end
 
   let sub sub super =
     let ok = Ok () in
-    let err = Error (Violation.not_a_sublayout sub super) in
-    let equality_check is_eq = if is_eq then ok else err in
+    let equality_check is_eq = if is_eq then ok
+      else Error (Violation.not_a_sublayout sub super)
+    in
     match get sub, get super with
     | _, Const Any -> ok
     | Const c1, Const c2 when equal_const c1 c2 -> ok
