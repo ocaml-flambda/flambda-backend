@@ -112,7 +112,7 @@ module Comprehensions = struct
 
   let expr_of_clause_binding ~loc { pattern; iterator; attributes } =
     Ast_helper.Vb.mk
-      ~loc
+      ~loc:{loc with loc_ghost = true}
       ~attrs:attributes
       pattern
       (expr_of_iterator ~loc iterator)
