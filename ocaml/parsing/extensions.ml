@@ -90,7 +90,7 @@ module Comprehensions = struct
   *)
 
   let comprehension_expr ~loc names x =
-    Expression.wrap_desc ~loc:Location.{loc with loc_ghost = true} ~attrs:[] @@
+    Expression.wrap_desc ~loc:(Location.ghostify loc) ~attrs:[] @@
     Expression.make_extension ~loc (extension_string :: names) x
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
@@ -112,7 +112,7 @@ module Comprehensions = struct
 
   let expr_of_clause_binding ~loc { pattern; iterator; attributes } =
     Ast_helper.Vb.mk
-      ~loc:{loc with loc_ghost = true}
+      ~loc:(Location.ghostify loc)
       ~attrs:attributes
       pattern
       (expr_of_iterator ~loc iterator)
