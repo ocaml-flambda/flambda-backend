@@ -280,7 +280,7 @@ module Immutable_arrays = struct
     | Iaexp_immutable_array elts ->
       (* See Note [Wrapping with make_extension] *)
       Expression.make_extension ~loc [extension_string] @@
-      Ast_helper.Exp.array ~loc elts
+      Ast_helper.Exp.array ~loc:(Location.ghostify loc) elts
 
   let of_expr expr = match expr.pexp_desc with
     | Pexp_array elts -> Iaexp_immutable_array elts
@@ -290,7 +290,7 @@ module Immutable_arrays = struct
     | Iapat_immutable_array elts ->
       (* See Note [Wrapping with make_extension] *)
       Pattern.make_extension ~loc [extension_string] @@
-      Ast_helper.Pat.array ~loc elts
+      Ast_helper.Pat.array ~loc:(Location.ghostify loc) elts
 
   let of_pat expr = match expr.ppat_desc with
     | Ppat_array elts -> Iapat_immutable_array elts
