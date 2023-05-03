@@ -54,20 +54,25 @@ let () =
   print_test ~flambda_only:false ~deps:"s.ml t.ml";
   print_test ~flambda_only:false ~deps:"t5.ml test_assume.ml";
   print_test ~flambda_only:true ~deps:"test_flambda.ml";
-  for i = 1 to 15 do
-    let extra_dep =
-      match i with
-      | 3 | 4 -> Some (Printf.sprintf "t%d.ml" i)
-      | _ -> None
-    in
-    let flambda_only =
-      match i with
-      | 12 -> true
-      | _ -> false
-    in
-    let name = Printf.sprintf "fail%d" i in
-    print_test_expected_output ~flambda_only ~extra_dep ~exit_code:2 name
-  done;
+
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail1";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail2";
+  print_test_expected_output ~flambda_only:false ~extra_dep:(Some "t3.ml")
+    ~exit_code:2 "fail3";
+  print_test_expected_output ~flambda_only:false ~extra_dep:(Some "t4.ml")
+    ~exit_code:2 "fail4";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail5";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail6";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail7";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail8";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail9";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail10";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail11";
+  print_test_expected_output ~flambda_only:true  ~extra_dep:None ~exit_code:2 "fail12";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail13";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail14";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail15";
+
   print_test_expected_output ~flambda_only:false ~extra_dep:None
     ~exit_code:2 "test_attribute_error_duplicate";
   (* Closure does not optimize the function away, so the unchecked attribute
