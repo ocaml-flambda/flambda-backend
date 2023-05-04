@@ -188,118 +188,123 @@ let norm = function
 let ctype_apply_env_empty = ref (fun _ -> assert false)
 
 (* Similar to [Ctype.nondep_type_rec]. *)
-let rec typexp copy_scope s ty =
-  let desc = get_desc ty in
-  match desc with
-    Tvar _ | Tunivar _ ->
-      if s.for_saving || get_id ty < 0 then
-        let ty' =
-          if s.for_saving then newpersty (norm desc)
-          else newty2 ~level:(get_level ty) desc
-        in
-        For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
-        ty'
-      else ty
-  | Tsubst (ty, _) ->
-      ty
-  | Tfield (m, k, _t1, _t2) when not s.for_saving && m = dummy_method
-      && field_kind_repr k <> Fabsent && get_level ty < generic_level ->
-      (* do not copy the type of self when it is not generalized *)
-      ty
-(* cannot do it, since it would omit substitution
-  | Tvariant row when not (static_row row) ->
-      ty
-*)
-  | _ ->
-    let tm = row_of_type ty in
-    let has_fixed_row =
-      not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
-    (* Make a stub *)
-    let layout = Layout.any in
-    let ty' =
-      if s.for_saving then newpersty (Tvar {name = None; layout})
-      else newgenstub ~scope:(get_scope ty) layout
-    in
-    For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
-    let desc =
-      if has_fixed_row then
-        match get_desc tm with (* PR#7348 *)
-          Tconstr (Pdot(m,i), tl, _abbrev) ->
-            let i' = String.sub i 0 (String.length i - 4) in
-            Tconstr(type_path s (Pdot(m,i')), tl, ref Mnil)
-        | _ -> assert false
-      else match desc with
-      | Tconstr (p, args, _abbrev) ->
-         let args = List.map (typexp copy_scope s) args in
-         begin match Path.Map.find p s.types with
-         | exception Not_found -> Tconstr(type_path s p, args, ref Mnil)
-         | Path _ -> Tconstr(type_path s p, args, ref Mnil)
-         | Type_function { params; body } ->
-            Tlink (!ctype_apply_env_empty params body args)
-         end
-      | Tpackage(p, fl) ->
-          Tpackage(modtype_path s p,
-                    List.map (fun (n, ty) -> (n, typexp copy_scope s ty)) fl)
-      | Tobject (t1, name) ->
-          let t1' = typexp copy_scope s t1 in
-          let name' =
-            match !name with
-            | None -> None
-            | Some (p, tl) ->
-                if to_subst_by_type_function s p
-                then None
-                else Some (type_path s p, List.map (typexp copy_scope s) tl)
+let typexp copy_scope s =
+  (* defining this in terms of [loop] means we do not have to allocate
+     partial-application closures each time we pass [loop] unapplied to a
+     higher-order function *)
+  let rec loop ty =
+    let desc = get_desc ty in
+    match desc with
+      Tvar _ | Tunivar _ ->
+        if s.for_saving || get_id ty < 0 then
+          let ty' =
+            if s.for_saving then newpersty (norm desc)
+            else newty2 ~level:(get_level ty) desc
           in
-          Tobject (t1', ref name')
-      | Tvariant row ->
-          let more = row_more row in
-          let mored = get_desc more in
-          (* We must substitute in a subtle way *)
-          (* Tsubst takes a tuple containing the row var and the variant *)
-          begin match mored with
-            Tsubst (_, Some ty2) ->
-              (* This variant type has been already copied *)
-              (* Change the stub to avoid Tlink in the new type *)
-              For_copy.redirect_desc copy_scope ty (Tsubst (ty2, None));
-              Tlink ty2
-          | _ ->
-              let dup =
-                s.for_saving || get_level more = generic_level ||
-                static_row row || is_Tconstr more in
-              (* Various cases for the row variable *)
-              let more' =
-                match mored with
-                  Tsubst (ty, None) -> ty
-                | Tconstr _ | Tnil -> typexp copy_scope s more
-                | Tunivar _ | Tvar _ ->
-                    if s.for_saving then newpersty (norm mored)
-                    else if dup && is_Tvar more then newgenty mored
-                    else more
-                | _ -> assert false
-              in
-              (* Register new type first for recursion *)
-              For_copy.redirect_desc copy_scope more
-                (Tsubst (more', Some ty'));
-              (* TODO: check if more' can be eliminated *)
-              (* Return a new copy *)
-              let row =
-                copy_row (typexp copy_scope s) true row (not dup) more' in
-              match row_name row with
+          For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
+          ty'
+        else ty
+    | Tsubst (ty, _) ->
+        ty
+    | Tfield (m, k, _t1, _t2) when not s.for_saving && m = dummy_method
+        && field_kind_repr k <> Fabsent && get_level ty < generic_level ->
+        (* do not copy the type of self when it is not generalized *)
+        ty
+(*   cannot do it, since it would omit substitution
+    | Tvariant row when not (static_row row) ->
+        ty
+*)
+    | _ ->
+      let tm = row_of_type ty in
+      let has_fixed_row =
+        not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
+      (* Make a stub *)
+      let layout = Layout.any in
+      let ty' =
+        if s.for_saving then newpersty (Tvar {name = None; layout})
+        else newgenstub ~scope:(get_scope ty) layout
+      in
+      For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
+      let desc =
+        if has_fixed_row then
+          match get_desc tm with (* PR#7348 *)
+            Tconstr (Pdot(m,i), tl, _abbrev) ->
+              let i' = String.sub i 0 (String.length i - 4) in
+              Tconstr(type_path s (Pdot(m,i')), tl, ref Mnil)
+          | _ -> assert false
+        else match desc with
+        | Tconstr (p, args, _abbrev) ->
+           let args = List.map loop args in
+           begin match Path.Map.find p s.types with
+           | exception Not_found -> Tconstr(type_path s p, args, ref Mnil)
+           | Path _ -> Tconstr(type_path s p, args, ref Mnil)
+           | Type_function { params; body } ->
+              Tlink (!ctype_apply_env_empty params body args)
+           end
+        | Tpackage(p, fl) ->
+            Tpackage(modtype_path s p,
+                      List.map (fun (n, ty) -> (n, loop ty)) fl)
+        | Tobject (t1, name) ->
+            let t1' = loop t1 in
+            let name' =
+              match !name with
+              | None -> None
               | Some (p, tl) ->
-                  let name =
-                    if to_subst_by_type_function s p then None
-                    else Some (type_path s p, tl)
-                  in
-                  Tvariant (set_row_name row name)
-              | None ->
-                  Tvariant row
-          end
-      | Tfield(_label, kind, _t1, t2) when field_kind_repr kind = Fabsent ->
-          Tlink (typexp copy_scope s t2)
-      | _ -> copy_type_desc (typexp copy_scope s) desc
-    in
-    Transient_expr.set_stub_desc ty' desc;
-    ty'
+                  if to_subst_by_type_function s p
+                  then None
+                  else Some (type_path s p, List.map loop tl)
+            in
+            Tobject (t1', ref name')
+        | Tvariant row ->
+            let more = row_more row in
+            let mored = get_desc more in
+            (* We must substitute in a subtle way *)
+            (* Tsubst takes a tuple containing the row var and the variant *)
+            begin match mored with
+              Tsubst (_, Some ty2) ->
+                (* This variant type has been already copied *)
+                (* Change the stub to avoid Tlink in the new type *)
+                For_copy.redirect_desc copy_scope ty (Tsubst (ty2, None));
+                Tlink ty2
+            | _ ->
+                let dup =
+                  s.for_saving || get_level more = generic_level ||
+                  static_row row || is_Tconstr more in
+                (* Various cases for the row variable *)
+                let more' =
+                  match mored with
+                    Tsubst (ty, None) -> ty
+                  | Tconstr _ | Tnil -> loop more
+                  | Tunivar _ | Tvar _ ->
+                      if s.for_saving then newpersty (norm mored)
+                      else if dup && is_Tvar more then newgenty mored
+                      else more
+                  | _ -> assert false
+                in
+                (* Register new type first for recursion *)
+                For_copy.redirect_desc copy_scope more
+                  (Tsubst (more', Some ty'));
+                (* TODO: check if more' can be eliminated *)
+                (* Return a new copy *)
+                let row =
+                  copy_row loop true row (not dup) more' in
+                match row_name row with
+                | Some (p, tl) ->
+                    let name =
+                      if to_subst_by_type_function s p then None
+                      else Some (type_path s p, tl)
+                    in
+                    Tvariant (set_row_name row name)
+                | None ->
+                    Tvariant row
+            end
+        | Tfield(_label, kind, _t1, t2) when field_kind_repr kind = Fabsent ->
+            Tlink (loop t2)
+        | _ -> copy_type_desc loop desc
+      in
+      Transient_expr.set_stub_desc ty' desc;
+      ty'
+  in loop
 
 (*
    Always make a copy of the type. If this is not done, type levels
