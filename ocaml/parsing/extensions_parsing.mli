@@ -70,14 +70,15 @@
     syntax [{% 'name1.name2.....nameN' | a %}] in the BNF.  Other pieces of the
     OCaml AST are used as normal.
 
-    One important detail which we can't fully hide is that of ghost locations:
-    whenever constructing an OCaml AST node -- whether with [wrap_desc], the
-    functions in [Ast_helper], or some other way -- the location provided needs
-    to be made ghost.  The functions that construct [ast_desc]s handle this for
-    you, but when moving to the OCaml world it has to be done manually.  If
-    locations aren't marked as ghost, the compiler will work fine, but ppxlib
-    may detect that you've violation its well-formedness constraints and fail to
-    parse your input. *)
+    One detail which we hide as much as possible is locations: whenever
+    constructing an OCaml AST node -- whether with [wrap_desc], the functions in
+    [Ast_helper], or some other way -- the location should be left to be
+    defaulted (and the default, [!Ast_helper.make_default], should be ghost).
+    The [make_entire_extension] function will handle making sure this default
+    location is set appropriately.  If this isn't done and any locations on
+    subterms aren't marked as ghost, the compiler will work fine, but ppxlib may
+    detect that you've violated its well-formedness constraints and fail to
+    parse the resulting AST. *)
 
 (** Errors around the extension representation.  These should mostly just be
     fatal, but they're needed for one test case
