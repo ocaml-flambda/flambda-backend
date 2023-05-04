@@ -446,6 +446,33 @@ module Sign_diff = struct
     }
 end
 
+(* Quickly compare module types without expanding them *)
+let rec shallow_modtypes env subst mty1 mty2 =
+  let open Subst.Lazy in
+  match mty1, mty2 with
+  | Mty_alias p1, Mty_alias p2 ->
+      not (Env.is_functor_arg p2 env) && equal_module_paths env p1 subst p2
+  | Mty_ident p1, Mty_ident p2 ->
+      equal_modtype_paths env p1 subst p2
+  | Mty_strengthen (mty1,p1,_), Mty_strengthen (mty2,p2,_)
+        when shallow_modtypes env subst mty1 mty2
+          && shallow_module_paths env subst p1 mty2 p2 ->
+      true
+  | Mty_strengthen (mty1,_,_), mty2 ->
+      (* S with M <= S *)
+      shallow_modtypes env subst mty1 mty2
+  | _ -> false
+
+and shallow_module_paths env subst p1 mty2 p2 =
+  equal_module_paths env p1 subst p2 ||
+  (* This shortcut is a significant win in some cases. Note we don't apply it
+     recursively as doing seems to be a net loss. *)
+  match (Env.find_module_lazy p1 env).md_type with
+    | Mty_strengthen (mty1,p1,_) ->
+        shallow_modtypes env subst mty1 mty2
+          && equal_module_paths env p1 subst p2
+    | _ | exception Not_found -> false
+
 (**
    In the group of mutual functions below, the [~in_eq] argument is [true] when
    we are in fact checking equality of module types.
@@ -461,32 +488,6 @@ end
    computing [(A.T << B.T) and (B.T << A.T)], avoiding the exponential slowdown
    described above.
 *)
-
-(* Quickly compare module types without expanding them *)
-let shallow_modtypes env subst mty1 mty2 =
-  let open Subst.Lazy in
-  let rec cmp_modtypes mty1 mty2 =
-    match mty1, mty2 with
-    | Mty_alias p1, Mty_alias p2 ->
-        not (Env.is_functor_arg p2 env) && equal_module_paths env p1 subst p2
-    | Mty_ident p1, Mty_ident p2 ->
-        equal_modtype_paths env p1 subst p2
-    | Mty_strengthen (mty1,p1,_), Mty_strengthen (mty2,p2,_)
-          when cmp_modtypes mty1 mty2 && cmp_strengthen_paths p1 mty2 p2 ->
-        true
-    | Mty_strengthen (mty1,_,_), mty2 ->
-        (* S/M <= S *)
-        cmp_modtypes mty1 mty2
-    | _ -> false
-  and cmp_strengthen_paths p1 mty2 p2 =
-    equal_module_paths env p1 subst p2 ||
-      match (Env.find_module_lazy p1 env).md_type with
-        | Mty_strengthen (mty1,p1,_) ->
-            (* M : S/N ==> S/M < S/N *)
-            cmp_modtypes mty1 mty2 && equal_module_paths env p1 subst p2
-        | _ | exception Not_found -> false
-  in
-  cmp_modtypes mty1 mty2
 
 let rec modtypes ~in_eq ~loc env ~mark subst mty1 mty2 shape =
   match try_modtypes ~in_eq ~loc env ~mark subst mty1 mty2 shape with

@@ -100,7 +100,7 @@ and strengthen_lazy_sig' ~aliasable sg p =
         match decl.mtd_type with
         | Some _ when not aliasable ->
             (* [not alisable] condition needed because of recursive modules.
-                See [Typemod.check_recmodule_inclusion]. *)
+               See [Typemod.check_recmodule_inclusion]. *)
             decl
         | _ ->
             {decl with mtd_type = Some(Mty_ident(Pdot(p,Ident.name id)))}
