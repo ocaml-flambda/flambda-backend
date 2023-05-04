@@ -1,24 +1,8 @@
 let $camlTests14__first_const57 = Block 0 () in
-let code size(26)
-      gadt_match_3 (x : [ 0 |1 | 0 of imm tagged ], n)
-        my_closure my_region my_depth
-        -> k * k1 =
-  (let prim = %is_int x in
-   let is_scrutinee_int = %Tag_imm prim in
-   let untagged = %untag_imm is_scrutinee_int in
-   switch untagged
-     | 0 -> k3
-     | 1 -> k4)
-    where k4 =
-      let untagged = %untag_imm x in
-      switch untagged
-        | 0 -> k (n)
-        | 1 -> k2
-    where k3 =
-      invalid "Zero_switch_arms"
-    where k2 =
-      let Popaque = %Opaque n in
-      cont k (Popaque)
+let code size(5)
+      set_0 (t) my_closure my_region my_depth -> k * k1 : imm tagged =
+  let Psetfield = %block_set imm t.(0) <- 42 in
+  cont k (Psetfield)
 in
 let code size(6)
       nth_char_1 (s, n : imm tagged)
@@ -28,11 +12,6 @@ let code size(6)
   let prim = %string_load 8 (s, n) in
   let Pstringrefu = %Tag_imm prim in
   cont k (Pstringrefu)
-in
-let code size(5)
-      set_0 (t) my_closure my_region my_depth -> k * k1 : imm tagged =
-  let Psetfield = %block_set imm t.(0) <- 42 in
-  cont k (Psetfield)
 in
 let code size(31)
       needs_try_region_2 (param : imm tagged)
@@ -59,6 +38,27 @@ let code size(31)
             cont k1 pop(reraise k1) (`exn`)))
     where k2 (n : imm tagged) =
       cont k (1)
+in
+let code size(26)
+      gadt_match_3 (x : [ 0 |1 | 0 of imm tagged ], n)
+        my_closure my_region my_depth
+        -> k * k1 =
+  (let prim = %is_int x in
+   let is_scrutinee_int = %Tag_imm prim in
+   let untagged = %untag_imm is_scrutinee_int in
+   switch untagged
+     | 0 -> k3
+     | 1 -> k4)
+    where k4 =
+      let untagged = %untag_imm x in
+      switch untagged
+        | 0 -> k (n)
+        | 1 -> k2
+    where k3 =
+      invalid "Zero_switch_arms"
+    where k2 =
+      let Popaque = %Opaque n in
+      cont k (Popaque)
 in
 (let set = closure set_0 @set in
  let nth_char = closure nth_char_1 @nth_char in

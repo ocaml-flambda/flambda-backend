@@ -73,12 +73,10 @@ let bindings_to_place_in_any_order t =
     [{ let_bound; simplified_defining_expr; original_defining_expr }]
   | Multiple_bindings_to_symbols
       { bound_vars_to_symbols; original_defining_expr } ->
-    ListLabels.fold_left bound_vars_to_symbols ~init:[]
-      ~f:(fun bindings (bound_var, symbol) ->
+    ListLabels.map bound_vars_to_symbols ~f:(fun (bound_var, symbol) ->
         let let_bound = Bound_pattern.singleton bound_var in
         let simplified_defining_expr =
           Simple.symbol symbol |> Flambda.Named.create_simple
           |> Simplified_named.create
         in
-        { let_bound; simplified_defining_expr; original_defining_expr }
-        :: bindings)
+        { let_bound; simplified_defining_expr; original_defining_expr })
