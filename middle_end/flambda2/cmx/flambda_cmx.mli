@@ -40,7 +40,7 @@ val prepare_cmx_file_contents :
   used_value_slots:Value_slot.Set.t ->
   exported_offsets:Exported_offsets.t ->
   Exported_code.t ->
-  Flambda_cmx_format.t option
+  Name_occurrences.t * Flambda_cmx_format.t option
 
 val prepare_cmx_from_approx :
   approxs:Code_or_metadata.t Value_approximation.t Symbol.Map.t ->
@@ -48,4 +48,4 @@ val prepare_cmx_from_approx :
   exported_offsets:Exported_offsets.t ->
   used_value_slots:Value_slot.Set.t ->
   Exported_code.t ->
-  Flambda_cmx_format.t option
+  Name_occurrences.t * Flambda_cmx_format.t option

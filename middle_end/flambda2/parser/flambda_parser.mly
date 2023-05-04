@@ -495,7 +495,7 @@ convertible_type:
 init_or_assign:
   | EQUAL { Initialization }
   | LESSMINUS { Assignment Heap }
-  | LESSMINUS AMP; region = region { Assignment (Local { region }) }
+  | LESSMINUS AMP { Assignment Local }
 
 alloc_mode_for_types_opt:
   | { Heap }

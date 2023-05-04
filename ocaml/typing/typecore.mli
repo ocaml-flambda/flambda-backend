@@ -16,6 +16,7 @@
 (* Type inference for the core language *)
 
 open Asttypes
+open Layouts
 open Types
 
 (* This variant is used for printing which type of comprehension something is
@@ -109,10 +110,6 @@ type existential_restriction =
   | In_class_def (** or in [class c = let ... in ...] *)
   | In_self_pattern (** or in self pattern *)
 
-type module_patterns_restriction =
-  | Modules_allowed of { scope : int }
-  | Modules_rejected
-
 val type_binding:
         Env.t -> rec_flag ->
           ?force_global:bool ->
@@ -133,7 +130,7 @@ val type_self_pattern:
         Env.t -> Parsetree.pattern ->
         Typedtree.pattern * pattern_variable list
 val check_partial:
-        ?lev:int -> module_patterns_restriction -> Env.t -> type_expr ->
+        ?lev:int -> Env.t -> type_expr ->
         Location.t -> Typedtree.value Typedtree.case list -> Typedtree.partial
 val type_expect:
         Env.t -> Parsetree.expression -> type_expected -> Typedtree.expression
@@ -197,6 +194,7 @@ type error =
       Datatype_kind.t * Longident.t * (Path.t * Path.t) * (Path.t * Path.t) list
   | Invalid_format of string
   | Not_an_object of type_expr * type_forcing_context option
+  | Not_a_value of Layout.Violation.violation * type_forcing_context option
   | Undefined_method of type_expr * string * string list option
   | Undefined_self_method of string * string list
   | Virtual_class of Longident.t
@@ -264,6 +262,8 @@ type error =
   | Function_returns_local
   | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
   | Optional_poly_param
+  | Exclave_in_nontail_position
+  | Layout_not_enabled of Layout.const
 
 
 exception Error of Location.t * Env.t * error

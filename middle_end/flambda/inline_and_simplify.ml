@@ -939,7 +939,7 @@ and simplify_over_application env r ~args ~args_approxs ~function_decls
   in
   let expr =
     match reg_close with
-    | Lambda.Rc_close_at_apply -> Flambda.Tail expr
+    | Lambda.Rc_close_at_apply -> Flambda.Exclave expr
     | Lambda.Rc_normal | Lambda.Rc_nontail-> expr
   in
   simplify (E.set_never_inline env) r expr
@@ -1462,10 +1462,10 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
      let r = R.set_region_use r use_outer_region in
      if use_inner_region then Region body, r
      else body, r
-  | Tail body ->
+  | Exclave body ->
      let r = R.set_region_use r true in
      let body, r = simplify env r body in
-     Tail body, r
+     Exclave body, r
   | Proved_unreachable -> tree, ret r A.value_bottom
 
 and simplify_list env r l =

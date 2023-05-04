@@ -223,11 +223,24 @@ type kind_for_unboxing =
   | Boxed_integer of Lambda.boxed_integer
   | Boxed_float
 
+type is_global = Global | Local
+
+let equal_is_global g g' =
+  match g, g' with
+  | Local, Local | Global, Global -> true
+  | Local, Global | Global, Local -> false
+
+type symbol =
+  { sym_name : string;
+    sym_global : is_global }
+
+let global_symbol sym_name = { sym_name; sym_global = Global }
+
 type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
-  | Cconst_symbol of string * Debuginfo.t
+  | Cconst_symbol of symbol * Debuginfo.t
   | Cvar of Backend_var.t
   | Clet of Backend_var.With_provenance.t * expression * expression
   | Clet_mut of Backend_var.With_provenance.t * machtype
@@ -265,7 +278,7 @@ type codegen_option =
                loc : Location.t; }
 
 type fundecl =
-  { fun_name: string;
+  { fun_name: symbol;
     fun_args: (Backend_var.With_provenance.t * machtype) list;
     fun_body: expression;
     fun_codegen_options : codegen_option list;
@@ -274,15 +287,14 @@ type fundecl =
   }
 
 type data_item =
-    Cdefine_symbol of string
-  | Cglobal_symbol of string
+    Cdefine_symbol of symbol
   | Cint8 of int
   | Cint16 of int
   | Cint32 of nativeint
   | Cint of nativeint
   | Csingle of float
   | Cdouble of float
-  | Csymbol_address of string
+  | Csymbol_address of symbol
   | Cstring of string
   | Cskip of int
   | Calign of int

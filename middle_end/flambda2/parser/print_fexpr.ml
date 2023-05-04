@@ -299,10 +299,8 @@ let alloc_mode_for_types_opt ppf (alloc : alloc_mode_for_types) ~space =
 let init_or_assign ppf ia =
   match ia with
   | Initialization -> Format.pp_print_string ppf "="
-  | Assignment alloc ->
-    Format.fprintf ppf "@[<h><-%a@]"
-      (alloc_mode_for_allocations_opt ~space:Before)
-      alloc
+  | Assignment Heap -> Format.pp_print_string ppf "<-"
+  | Assignment Local -> Format.pp_print_string ppf "<-&"
 
 let boxed_variable ppf var ~kind =
   Format.fprintf ppf "%a : %s boxed" variable var kind

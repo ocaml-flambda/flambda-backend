@@ -19,17 +19,17 @@
 
 module S = Misc.Stdlib.String
 
-type is_global = Global | Local
-
 type constant =
-  | Const_closure of is_global * Clambda.ufunction list * Clambda.uconstant list
-  | Const_table of is_global * Cmm.data_item list
+  | Const_closure of Cmm.is_global * Clambda.ufunction list * Clambda.uconstant list
+  | Const_table of Cmm.is_global * Cmm.data_item list
 
 type t = {
   mutable constants : constant S.Map.t;
   mutable data_items : Cmm.data_item list list;
-  structured_constants : (string,  Clambda.ustructured_constant) Hashtbl.t;
+  structured_constants :
+    (string, Cmm.is_global * Clambda.ustructured_constant) Hashtbl.t;
   functions : Clambda.ufunction Queue.t;
+  function_names : (Clambda.function_label, unit) Hashtbl.t;
 }
 
 let empty = {
@@ -37,6 +37,7 @@ let empty = {
   data_items = [];
   functions = Queue.create ();
   structured_constants = Hashtbl.create 16;
+  function_names = Hashtbl.create 16;
 }
 
 let state = empty
@@ -47,8 +48,9 @@ let add_constant sym cst =
 let add_data_items items =
   state.data_items <- items :: state.data_items
 
-let add_function func =
-  Queue.add func state.functions
+let add_function (func : Clambda.ufunction) =
+  Queue.add func state.functions;
+  Hashtbl.add state.function_names func.label ()
 
 let get_and_clear_constants () =
   let constants = state.constants in
@@ -68,21 +70,33 @@ let next_function () =
 let no_more_functions () =
   Queue.is_empty state.functions
 
-let set_structured_constants l =
+let is_local_function name =
+  Hashtbl.mem state.function_names name
+
+let clear_function_names () =
+  Hashtbl.clear state.function_names
+
+let add_structured_constant (sym : Cmm.symbol) cst =
+  if not (Hashtbl.mem state.structured_constants sym.sym_name) then
+    Hashtbl.replace state.structured_constants sym.sym_name (sym.sym_global, cst)
+
+let set_local_structured_constants l =
   Hashtbl.clear state.structured_constants;
   List.iter
     (fun (c : Clambda.preallocated_constant) ->
-       Hashtbl.add state.structured_constants c.symbol c.definition
+       Hashtbl.add state.structured_constants c.symbol (Cmm.Local, c.definition)
     )
     l
 
-let add_structured_constant sym cst =
-  Hashtbl.replace state.structured_constants sym cst
+let add_global_structured_constant sym cst =
+  if not (Hashtbl.mem state.structured_constants sym) then
+    Hashtbl.replace state.structured_constants sym (Cmm.Global, cst)
 
 let get_structured_constant s =
   Hashtbl.find_opt state.structured_constants s
 
 let structured_constant_of_sym s =
   match Compilenv.structured_constant_of_symbol s with
-  | None -> get_structured_constant s
+  | None ->
+    Option.map snd (Hashtbl.find_opt state.structured_constants s)
   | Some _ as r -> r

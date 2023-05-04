@@ -364,7 +364,7 @@ let add_directive name dir_fun dir_info =
   Hashtbl.add directive_table name dir_fun;
   Hashtbl.add directive_info_table name dir_info
 
-(* Give a name to an unnamed expression *)
+(* Give a name to an unnamed expression of layout Value *)
 
 let name_expression ~loc ~attrs exp =
   let name = "_$" in
@@ -389,7 +389,8 @@ let name_expression ~loc ~attrs exp =
     { vb_pat = pat;
       vb_expr = exp;
       vb_attributes = attrs;
-      vb_loc = loc; }
+      vb_loc = loc;
+      vb_sort = Layouts.Sort.value }
   in
   let item =
     { str_desc = Tstr_value(Nonrecursive, [vb]);
@@ -428,7 +429,7 @@ let execute_phrase print_outcome ppf phr =
       Typecore.force_delayed_checks ();
       let str, sg', rewritten =
         match str.str_items with
-        | [ { str_desc = Tstr_eval (e, attrs) ; str_loc = loc } ]
+        | [ { str_desc = Tstr_eval (e, _, attrs) ; str_loc = loc } ]
         | [ { str_desc = Tstr_value (Asttypes.Nonrecursive,
                                       [{ vb_expr = e
                                        ; vb_pat =

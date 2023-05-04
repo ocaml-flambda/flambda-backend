@@ -551,6 +551,7 @@ end = struct
         Builtin_attributes.mark_property_checked analysis_name
           (Annotation.get_loc a);
         if (not (Annotation.is_assume a))
+           && S.enabled ()
            && not
                 (Value.lessequal func_info.value (Annotation.expected_value a))
         then
@@ -570,10 +571,8 @@ end = struct
     Unit_info.iter unit_info ~f:record
 
   let record_unit unit_info ppf =
-    if S.enabled ()
-    then
-      Profile.record_call ~accumulate:true ("record_unit " ^ analysis_name)
-        (fun () -> record_unit unit_info ppf)
+    Profile.record_call ~accumulate:true ("record_unit " ^ analysis_name)
+      (fun () -> record_unit unit_info ppf)
 
   let update_deps t v dep desc dbg =
     match dep with
@@ -673,8 +672,11 @@ end = struct
     | Iintop
         ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
         | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ )
-    | Ivalueofint | Iintofvalue | Icsel _ | Iname_for_debugger _ ->
+    | Icsel _ | Iname_for_debugger _ ->
       assert (Mach.operation_is_pure op);
+      assert (not (Mach.operation_can_raise op));
+      next
+    | Ivalueofint | Iintofvalue ->
       assert (not (Mach.operation_can_raise op));
       next
     | Istackoffset _ | Iprobe_is_enabled _ | Iopaque | Ibeginregion | Iendregion
@@ -707,9 +709,9 @@ end = struct
       (* Sound to ignore [next] and [exn] because the call never returns. *)
       transform t ~next:Value.normal_return ~exn:Value.exn_escape
         ~effect:Value.top "indirect tailcall" dbg
-    | Icall_imm { func } ->
+    | Icall_imm { func = { sym_name = func; _ } } ->
       transform_call t ~next ~exn func ~desc:("direct call to " ^ func) dbg
-    | Itailcall_imm { func } ->
+    | Itailcall_imm { func = { sym_name = func; _ } } ->
       (* Sound to ignore [next] and [exn] because the call never returns. *)
       transform_call t ~next:Value.normal_return ~exn:Value.exn_escape func
         ~desc:("direct tailcall to " ^ func)
@@ -721,7 +723,7 @@ end = struct
     | Iextcall { alloc = false; returns = false; _ } ->
       (* Sound to ignore [next] and [exn] because the call never returns or
          raises. *)
-      Value.normal_return
+      Value.bot
     | Iextcall { func; alloc = true; _ } ->
       transform t ~next ~exn ~effect:Value.top ("external call to " ^ func) dbg
     | Ispecific s ->
@@ -799,8 +801,7 @@ end = struct
         Unit_info.cleanup_deps unit_info fun_name;
         report_unit_info ppf unit_info ~msg:"after cleanup_deps"
     in
-    if S.enabled ()
-    then Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
+    Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
 end
 
 (** Check that functions do not allocate on the heap (local allocations are ignored) *)

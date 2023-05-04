@@ -17,6 +17,7 @@
 
 open Misc
 open Path
+open Layouts
 open Types
 open Btype
 
@@ -149,12 +150,39 @@ let newpersty desc =
   create_expr
     desc ~level:generic_level ~scope:Btype.lowest_level ~id:!new_id
 
-(* ensure that all occurrences of 'Tvar None' are physically shared *)
-let tvar_none = Tvar None
-let tunivar_none = Tunivar None
+(* ensure that all occurrences of 'Tvar None' are physically shared when saving
+   artifacts *)
+let tvar_none_any = Tvar { name = None; layout = Layout.any }
+let tvar_none_imm = Tvar { name = None; layout = Layout.immediate }
+let tvar_none_imm64 = Tvar { name = None; layout = Layout.immediate64 }
+let tvar_none_val = Tvar { name = None; layout = Layout.value }
+let tvar_none_void = Tvar { name = None; layout = Layout.void }
+
+let tunivar_none_any = Tunivar { name = None; layout = Layout.any }
+let tunivar_none_imm = Tunivar { name = None; layout = Layout.immediate }
+let tunivar_none_imm64 = Tunivar { name = None; layout = Layout.immediate64 }
+let tunivar_none_val = Tunivar { name = None; layout = Layout.value }
+let tunivar_none_void = Tunivar { name = None; layout = Layout.void}
+
 let norm = function
-  | Tvar None -> tvar_none
-  | Tunivar None -> tunivar_none
+  | (Tvar { name = None; layout }) as t -> begin
+      match Layout.get layout with
+      | Const Any -> tvar_none_any
+      | Const Immediate -> tvar_none_imm
+      | Const Immediate64 -> tvar_none_imm64
+      | Const Value -> tvar_none_val
+      | Const Void -> tvar_none_void
+      | Var _ -> t
+    end
+  | (Tunivar { name = None; layout }) as t -> begin
+      match Layout.get layout with
+      | Const Any -> tunivar_none_any
+      | Const Immediate -> tunivar_none_imm
+      | Const Immediate64 -> tunivar_none_imm64
+      | Const Value -> tunivar_none_val
+      | Const Void -> tunivar_none_void
+      | Var _ -> t
+    end
   | d -> d
 
 let ctype_apply_env_empty = ref (fun _ -> assert false)
@@ -187,9 +215,10 @@ let rec typexp copy_scope s ty =
     let has_fixed_row =
       not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
     (* Make a stub *)
+    let layout = Layout.any in
     let ty' =
-      if s.for_saving then newpersty (Tvar None)
-      else newgenstub ~scope:(get_scope ty)
+      if s.for_saving then newpersty (Tvar {name = None; layout})
+      else newgenstub ~scope:(get_scope ty) layout
     in
     For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
     let desc =
@@ -284,6 +313,7 @@ let label_declaration copy_scope s l =
     ld_id = l.ld_id;
     ld_mutable = l.ld_mutable;
     ld_global = l.ld_global;
+    ld_layout = l.ld_layout;
     ld_type = typexp copy_scope s l.ld_type;
     ld_loc = loc s l.ld_loc;
     ld_attributes = attrs s l.ld_attributes;
@@ -402,6 +432,8 @@ let extension_constructor' copy_scope s ext =
   { ext_type_path = type_path s ext.ext_type_path;
     ext_type_params = List.map (typexp copy_scope s) ext.ext_type_params;
     ext_args = constructor_arguments copy_scope s ext.ext_args;
+    ext_arg_layouts = ext.ext_arg_layouts;
+    ext_constant = ext.ext_constant;
     ext_ret_type = Option.map (typexp copy_scope s) ext.ext_ret_type;
     ext_private = ext.ext_private;
     ext_attributes = attrs s ext.ext_attributes;
@@ -684,6 +716,7 @@ module Lazy = struct
   include Lazy_types
 
   let of_value x = Wrap.of_value x
+  let of_lazy = Wrap.of_lazy
   let substitute s = Wrap.substitute ~compose Keep s
 
   let of_module_decl = lazy_module_decl

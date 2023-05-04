@@ -35,7 +35,7 @@ exception Error of error
 let cmm_invariants ppf fd_cmm =
   let print_fundecl =
     if !Clflags.dump_cmm then Printcmm.fundecl
-    else fun ppf fdecl -> Format.fprintf ppf "%s" fdecl.fun_name
+    else fun ppf fdecl -> Format.fprintf ppf "%s" fdecl.fun_name.sym_name
   in
   if !Clflags.cmm_invariants && Cmm_invariants.run ppf fd_cmm then
     Misc.fatal_errorf "Cmm invariants failed on following fundecl:@.%a@."
@@ -364,7 +364,7 @@ let compile_phrases ~ppf_dump ps =
     let funcnames =
       List.fold_left (fun s p ->
           match p with
-          | Cfunction fd -> String.Set.add fd.fun_name s
+          | Cfunction fd -> String.Set.add fd.fun_name.sym_name s
           | Cdata _ -> s)
         String.Set.empty ps
     in
@@ -376,7 +376,7 @@ let compile_phrases ~ppf_dump ps =
           match p with
           | Cfunction fd ->
             compile_fundecl ~ppf_dump ~funcnames fd;
-            compile ~funcnames:(String.Set.remove fd.fun_name funcnames) ps
+            compile ~funcnames:(String.Set.remove fd.fun_name.sym_name funcnames) ps
           | Cdata dl ->
             compile_data dl;
             compile ~funcnames ps
@@ -391,7 +391,7 @@ let compile_phrase ~ppf_dump p =
 let compile_genfuns ~ppf_dump f =
   List.iter
     (function
-       | (Cfunction {fun_name = name}) as ph when f name ->
+       | (Cfunction {fun_name = name}) as ph when f name.sym_name ->
            compile_phrase ~ppf_dump ph
        | _ -> ())
     (Cmm_helpers.generic_functions true
@@ -454,7 +454,7 @@ let end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
     (Cmm_helpers.reference_symbols
        (List.filter_map (fun prim ->
            if not (Primitive.native_name_is_external prim) then None
-           else Some (Primitive.native_name prim))
+           else Some (Cmm.global_symbol (Primitive.native_name prim)))
           !Translmod.primitive_declarations));
   emit_end_assembly sourcefile ()
 

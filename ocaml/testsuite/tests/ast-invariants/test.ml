@@ -85,5 +85,5 @@ let rec walk dir =
     (Sys.readdir dir)
 
 let () =
-  List.iter Language_extension.enable Language_extension.all;
+  List.iter Language_extension.enable Language_extension.max_compatible;
   walk root

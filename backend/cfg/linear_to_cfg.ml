@@ -530,19 +530,19 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     | Itailcall_ind -> terminator (C.Tailcall_func Indirect)
     | Itailcall_imm { func = func_symbol } ->
       let desc =
-        if String.equal func_symbol (C.fun_name t.cfg)
+        if String.equal func_symbol.sym_name (C.fun_name t.cfg)
         then
           match t.tailrec_label with
           | None -> Misc.fatal_error "tail call to missing tailrec entry point"
           | Some destination -> C.Tailcall_self { destination }
-        else C.Tailcall_func (Direct { func_symbol })
+        else C.Tailcall_func (Direct func_symbol)
       in
       terminator desc
     | Iextcall { func; alloc; ty_args; ty_res; returns = false } ->
       terminator
         (C.Call_no_return { func_symbol = func; alloc; ty_args; ty_res })
     | Icall_ind -> terminator_call Indirect
-    | Icall_imm { func } -> terminator_call (Direct { func_symbol = func })
+    | Icall_imm { func } -> terminator_call (Direct func)
     | Iextcall { func; alloc; ty_args; ty_res; returns = true } ->
       terminator_prim (External { func_symbol = func; alloc; ty_args; ty_res })
     | Iintop Icheckbound -> terminator_prim (Checkbound { immediate = None })

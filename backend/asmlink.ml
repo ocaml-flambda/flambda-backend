@@ -309,7 +309,7 @@ let named_startup_file () =
 
 let force_linking_of_startup ~ppf_dump =
   Asmgen.compile_phrase ~ppf_dump
-    (Cmm.Cdata ([Cmm.Csymbol_address "caml_startup"]))
+    (Cmm.Cdata ([Cmm.Csymbol_address (Cmm.global_symbol "caml_startup")]))
 
 let make_globals_map units_list =
   (* The order in which entries appear in the globals map does not matter

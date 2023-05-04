@@ -35,7 +35,10 @@ module VB = Bound_var
 type 'a close_program_metadata =
   | Normal : [`Normal] close_program_metadata
   | Classic :
-      (Exported_code.t * Flambda_cmx_format.t option * Exported_offsets.t)
+      (Exported_code.t
+      * Name_occurrences.t
+      * Flambda_cmx_format.t option
+      * Exported_offsets.t)
       -> [`Classic] close_program_metadata
 
 type 'a close_program_result = Flambda_unit.t * 'a close_program_metadata
@@ -1640,17 +1643,20 @@ let close_functions acc external_env ~current_region function_declarations =
         Ident.Map.add id function_slot map)
       Ident.Map.empty func_decl_list
   in
-  let function_code_ids =
-    List.fold_left
-      (fun map decl ->
+  let function_code_ids_in_order =
+    List.map
+      (fun decl ->
         let function_slot = Function_decl.function_slot decl in
         let code_id =
           Code_id.create
             ~name:(Function_slot.to_string function_slot)
             compilation_unit
         in
-        Function_slot.Map.add function_slot code_id map)
-      Function_slot.Map.empty func_decl_list
+        function_slot, code_id)
+      func_decl_list
+  in
+  let function_code_ids =
+    Function_slot.Map.of_list function_code_ids_in_order
   in
   let approx_map =
     List.fold_left
@@ -1775,16 +1781,7 @@ let close_functions acc external_env ~current_region function_declarations =
       func_decl_list
   in
   let acc = Acc.with_free_names Name_occurrences.empty acc in
-  (* CR lmaurer: funs has arbitrary order (ultimately coming from
-     function_declarations) *)
-  let funs =
-    let funs =
-      Function_slot.Map.fold
-        (fun cid code_id funs -> (cid, code_id) :: funs)
-        function_code_ids []
-    in
-    Function_slot.Lmap.of_list (List.rev funs)
-  in
+  let funs = function_code_ids_in_order |> Function_slot.Lmap.of_list in
   let function_decls = Function_declarations.create funs in
   let value_slots =
     Ident.Map.fold
@@ -2301,7 +2298,7 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
       n
   in
   let group_to_bound_consts, symbol_to_groups =
-    Code_id.Map.fold
+    Code_id.Lmap.fold
       (fun code_id code (g2c, s2g) ->
         let id = fresh_group_id () in
         let bound = Bound_static.Pattern.code code_id in
@@ -2353,23 +2350,26 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
       group_to_bound_consts
   in
   let components = SCC.connected_components_sorted_from_roots_to_leaf graph in
+  (* Empirically, our SCC seems to perform a stable sort, so this assumes that
+     [components] preserves the original order as much as possible. *)
   Array.fold_left
     (fun (acc, body) (component : SCC.component) ->
       let group_ids =
         match component with
         | No_loop group_id -> [group_id]
-        | Has_loop group_ids -> group_ids
+        | Has_loop group_ids -> List.sort Int.compare group_ids
       in
       let bound_static, static_consts =
-        List.fold_left
-          (fun (bound_static, static_consts) group_id ->
+        List.map
+          (fun group_id ->
             let bound_symbol, static_const =
               try GroupMap.find group_id group_to_bound_consts
               with Not_found ->
                 Misc.fatal_errorf "Unbound static consts group ID %d" group_id
             in
-            bound_symbol :: bound_static, static_const :: static_consts)
-          ([], []) group_ids
+            bound_symbol, static_const)
+          group_ids
+        |> List.split
       in
       let defining_expr =
         Static_const_group.create static_consts |> Named.create_static_consts
@@ -2546,7 +2546,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
   then
     Misc.fatal_error "Information on nested closures should be empty at the end";
   let get_code_metadata code_id =
-    Code_id.Map.find code_id (Acc.code acc) |> Code.code_metadata
+    Code_id.Map.find code_id (Acc.code_map acc) |> Code.code_metadata
   in
   match mode with
   | Normal ->
@@ -2560,7 +2560,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
     unit, Normal
   | Classic ->
     let all_code =
-      Exported_code.add_code (Acc.code acc)
+      Exported_code.add_code (Acc.code_map acc)
         ~keep_code:(fun _ -> false)
         (Exported_code.mark_as_imported
            (Flambda_cmx.get_imported_code cmx_loader ()))
@@ -2580,7 +2580,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
       Slot_offsets.finalize_offsets (Acc.slot_offsets acc) ~get_code_metadata
         ~used_slots
     in
-    let cmx =
+    let reachable_names, cmx =
       Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations
         ~module_symbol ~exported_offsets ~used_value_slots all_code
     in
@@ -2589,4 +2589,4 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
         ~toplevel_my_region ~body ~module_symbol
         ~used_value_slots:(Known used_value_slots)
     in
-    unit, Classic (all_code, cmx, exported_offsets)
+    unit, Classic (all_code, reachable_names, cmx, exported_offsets)
