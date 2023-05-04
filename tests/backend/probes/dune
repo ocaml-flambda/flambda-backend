@@ -1,0 +1,5 @@
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps t1.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -warn-error "+190" -c)))
