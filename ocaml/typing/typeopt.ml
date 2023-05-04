@@ -349,40 +349,44 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
     end
   | Variant_boxed _layouts ->
     let depth = depth + 1 in
+    (* allocate closures for folding outside of [for_one_constructor],
+       so that they're not allocated fresh each time around
+       [for_one_constructor] *)
+    let tuple_fold_fun num_nodes_visited (ty, _) =
+      let num_nodes_visited = num_nodes_visited + 1 in
+      (* CR layouts v2: when we add other layouts, we'll need to check
+         here that we aren't about to call value_kind on a different
+         sort (we can get this info from the variant representation).
+         For now we rely on the sanity check at the top of value_kind
+         to rule out void. *)
+      value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
+    in
+    let record_fold_fun
+          (is_mutable, num_nodes_visited)
+          (label:Types.label_declaration) =
+      let is_mutable =
+        match label.ld_mutable with
+        | Mutable -> true
+        | Immutable -> is_mutable
+      in
+      let num_nodes_visited = num_nodes_visited + 1 in
+      let num_nodes_visited, field =
+        value_kind env ~loc ~visited ~depth ~num_nodes_visited
+          label.ld_type
+      in
+      (is_mutable, num_nodes_visited), field
+    in
     let for_one_constructor (constructor : Types.constructor_declaration)
-          ~depth ~num_nodes_visited =
+          ~num_nodes_visited =
       let num_nodes_visited = num_nodes_visited + 1 in
       match constructor.cd_args with
       | Cstr_tuple fields ->
         let num_nodes_visited, fields =
-          List.fold_left_map
-            (fun num_nodes_visited (ty, _) ->
-               let num_nodes_visited = num_nodes_visited + 1 in
-               (* CR layouts v2: when we add other layouts, we'll need to check
-                  here that we aren't about to call value_kind on a different
-                  sort (we can get this info from the variant representation).
-                  For now we rely on the sanity check at the top of value_kind
-                  to rule out void. *)
-               value_kind env ~loc ~visited ~depth ~num_nodes_visited ty)
-            num_nodes_visited fields
+          List.fold_left_map tuple_fold_fun num_nodes_visited fields
         in
         (false, num_nodes_visited), fields
       | Cstr_record labels ->
-        List.fold_left_map
-          (fun (is_mutable, num_nodes_visited)
-               (label:Types.label_declaration) ->
-              let is_mutable =
-                match label.ld_mutable with
-                | Mutable -> true
-                | Immutable -> is_mutable
-              in
-              let num_nodes_visited = num_nodes_visited + 1 in
-              let num_nodes_visited, field =
-                value_kind env ~loc ~visited ~depth ~num_nodes_visited
-                  label.ld_type
-              in
-              (is_mutable, num_nodes_visited), field)
-          (false, num_nodes_visited) labels
+        List.fold_left_map record_fold_fun (false, num_nodes_visited) labels
     in
     let is_constant (cstr: Types.constructor_declaration) =
       (* CR layouts v5: This won't count constructors with void args as
@@ -401,7 +405,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
           | Some (num_nodes_visited,
                   next_const, consts, next_tag, non_consts) ->
             let (is_mutable, num_nodes_visited), fields =
-              for_one_constructor constructor ~depth ~num_nodes_visited
+              for_one_constructor constructor ~num_nodes_visited
             in
             if is_mutable then None
             else if List.compare_length_with fields 0 = 0 then
