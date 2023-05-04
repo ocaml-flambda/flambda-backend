@@ -391,7 +391,6 @@ let find_type_of_module ~strengthen ~aliasable env path =
 type variance = Co | Contra | Strict
 
 let rec nondep_mty_with_presence env va ids pres mty =
-  (* RL FIXME: do we actually need to expand Mty_strengthen and Mty_with here? *)
   match expand env mty with
     Mty_ident p ->
       begin match Path.find_free_opt ids p with
@@ -434,8 +433,8 @@ let rec nondep_mty_with_presence env va ids pres mty =
       in
       pres, mty
   | Mty_strengthen (mty,p,aliasable) ->
-      (* RL FIXME: Is this right? We can end up strengthening an abstract type with a dependent module
-         path. For now, let's just drop such paths? *)
+      (* If we end up strengthening an abstract type with a dependent module,
+        just drop the strengthening. *)
       let pres,mty = nondep_mty_with_presence env va ids pres mty
       in
       let mty =
