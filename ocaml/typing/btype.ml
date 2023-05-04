@@ -471,7 +471,7 @@ module For_copy : sig
 
   val redirect_desc: copy_scope -> type_expr -> type_desc -> unit
 
-  val with_scope: (copy_scope -> 'a) -> 'a
+  val with_scope: ((copy_scope -> 'a)[@local]) -> 'a
 end = struct
   type copy_scope = {
     mutable saved_desc : (transient_expr * type_desc) list;

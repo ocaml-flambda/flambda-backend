@@ -185,7 +185,7 @@ module For_copy : sig
   val redirect_desc: copy_scope -> type_expr -> type_desc -> unit
         (* Temporarily change a type description *)
 
-  val with_scope: (copy_scope -> 'a) -> 'a
+  val with_scope: ((copy_scope -> 'a)[@local]) -> 'a
         (* [with_scope f] calls [f] and restores saved type descriptions
            before returning its result. *)
 end
