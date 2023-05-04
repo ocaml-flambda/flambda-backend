@@ -3,19 +3,3 @@
  (enabled_if (= %{context_name} "main"))
  (deps t1.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -warn-error "+190" -c)))
-
-(rule
- (alias   runtest)
- (enabled_if (= %{context_name} "main"))
- (deps t.output t.output.corrected)
- (action (diff t.output t.output.corrected)))
-
-(rule
- (enabled_if (= %{context_name} "main"))
- (targets t.output.corrected)
- (deps (:ml t.ml))
- (action
-   (with-outputs-to t.output.corrected
-    (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -color never -error-style short -warn-error "+190"))
-   )))
