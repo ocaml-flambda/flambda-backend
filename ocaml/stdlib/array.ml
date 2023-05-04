@@ -199,12 +199,12 @@ let exists p a =
   loop 0
 
 let for_all p a =
-  let n = length a in
+  (* take [n], [p], and [a] as parameters to avoid a closure allocation *)
   let rec loop n p a i =
     if i = n then true
     else if p (unsafe_get a i) then loop n p a (succ i)
     else false in
-  loop n p a 0
+  loop (length a) p a 0
 
 let for_all2 p l1 l2 =
   let n1 = length l1
