@@ -254,7 +254,6 @@ let make_boxed_const_int (i, m) : static_data =
 %type <Fexpr.loopify_attribute> loopify
 %type <Fexpr.mutability> mutability
 %type <Flambda_kind.Naked_number_kind.t> naked_number_kind
-%type <Fexpr.name> name
 %type <Fexpr.named> named
 %type <Fexpr.rec_info> rec_info
 %type <Fexpr.rec_info> rec_info_atom
@@ -974,18 +973,13 @@ const:
   | c = FLOAT { Naked_float c }
 ;
 
-name:
-  | s = symbol { (Symbol s:name) }
-  | v = variable { (Var v:name) }
-;
-
 func_name_with_optional_arities:
-  | n = name { n, None }
+  | s = simple { s, None }
   | LPAREN;
-      n = name; COLON; params_arity = blank_or(kinds_with_subkinds);
+      s = simple; COLON; params_arity = blank_or(kinds_with_subkinds);
       MINUSGREATER; ret_arity = kinds_with_subkinds;
     RPAREN
-    { n, Some ({ params_arity; ret_arity } : function_arities) }
+    { s, Some ({ params_arity; ret_arity } : function_arities) }
 ;
 
 blank_or(a):

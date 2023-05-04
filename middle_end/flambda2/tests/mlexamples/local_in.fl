@@ -46,7 +46,8 @@ let code rec size(34)
     where k2 =
       ((let Pfield = %block_load (l, 1) in
         apply direct(map_local_1 heap_or_local)
-          (my_closure : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
+          (my_closure ~ depth my_depth -> next_depth
+           : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
             (f, Pfield)
             &my_region
             -> k2 * k1)
@@ -74,7 +75,10 @@ let code rec size(22)
     where k2 =
       ((let Pfield = %block_load (l, 1) in
         apply direct(length_2)
-          (my_closure : _ -> imm tagged) (Pfield) &my_region -> k2 * k1)
+          (my_closure ~ depth my_depth -> next_depth : _ -> imm tagged)
+            (Pfield)
+            &my_region
+            -> k2 * k1)
          where k2 (apply_result : imm tagged) =
            let Paddint = 1 + apply_result in
            cont k (Paddint))
@@ -106,7 +110,8 @@ let code rec loopify(default tailrec) size(27)
       let Pmakeblock = %Block 0 (Pfield, l2) in
       let Pfield_1 = %block_load (l1, 1) in
       apply direct(rev_app_4)
-        (my_closure : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
+        (my_closure ~ depth my_depth -> next_depth
+         : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
           (Pfield_1, Pmakeblock)
           &my_region
           -> k * k1
@@ -144,8 +149,10 @@ let code rec size(60)
                 cont k (Pmakeblock)
               where k2 =
                 apply direct(find_span_6 heap_or_local)
-                  (my_closure : _ ->
-                    [ 0 of [ 0 | 0 of val * val ] * [ 0 | 0 of val * val ] ])
+                  (my_closure ~ depth my_depth -> next_depth
+                   : _ ->
+                     [ 0 of [ 0 | 0 of val * val ] * [ 0 | 0 of val * val ] ]
+                   )
                     (break_here, l_1, acc_1)
                     &my_region
                     -> k * k1))
@@ -167,8 +174,8 @@ let code rec size(41)
       | 1 -> k2 (0))
      where k3 =
        (apply direct(find_span_6 heap_or_local)
-          (find_span : _ ->
-            [ 0 of [ 0 | 0 of val * val ] * [ 0 | 0 of val * val ] ])
+          (find_span ~ depth my_depth -> next_depth
+           : _ -> [ 0 of [ 0 | 0 of val * val ] * [ 0 | 0 of val * val ] ])
             (break_here, l, 0)
             &`region`
             -> k3 * k1
@@ -177,7 +184,8 @@ let code rec size(41)
                      [ 0 of [ 0 | 0 of val * val ] * [ 0 | 0 of val * val ] ]) =
             ((let Pfield = %block_load (`*match*`, 1) in
               apply direct(spans_5)
-                (my_closure : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
+                (my_closure ~ depth my_depth -> next_depth
+                 : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
                   (break_here, Pfield)
                   &`region`
                   -> k3 * k1)
@@ -186,8 +194,8 @@ let code rec size(41)
                           [ 0 | 0 of val * [ 0 | 0 of val * val ] ]) =
                  ((let Pfield = %block_load (`*match*`, 0) in
                    apply direct(rev_app_4)
-                     (rev_app : _ ->
-                       [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
+                     (rev_app
+                      : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
                        (Pfield, 0)
                        &`region`
                        -> k3 * k1)
@@ -276,8 +284,8 @@ in
                       @`anon-fn[local.ml:24,27--43]`
                   in
                   apply direct(map_local_1 heap_or_local)
-                    (map_local : _ ->
-                      [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
+                    (map_local
+                     : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
                       (`anon-fn[local.ml:24,27--43]`, ns)
                       &`region`
                       -> k3 * error)
