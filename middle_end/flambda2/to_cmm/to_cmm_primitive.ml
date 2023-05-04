@@ -139,7 +139,7 @@ let array_load ~dbg (kind : P.Array_kind.t) ~arr ~index =
 let addr_array_store init ~arr ~index ~new_value dbg =
   match (init : P.Init_or_assign.t) with
   | Assignment Heap -> C.addr_array_set arr index new_value dbg
-  | Assignment (Local _) -> C.addr_array_set_local arr index new_value dbg
+  | Assignment Local -> C.addr_array_set_local arr index new_value dbg
   | Initialization -> C.addr_array_initialize arr index new_value dbg
 
 let array_set ~dbg (kind : P.Array_kind.t) (init : P.Init_or_assign.t) ~arr
