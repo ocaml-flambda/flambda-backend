@@ -163,7 +163,6 @@ type error =
   | Invalid_extension_constructor_payload
   | Not_an_extension_constructor
   | Probe_format
-  | Probe_name_too_long of string
   | Probe_name_format of string
   | Probe_name_undefined of string
   | Probe_is_enabled_format
@@ -255,7 +254,7 @@ type recarg =
 let probe_name_max_length = 100
 let check_probe_name name loc env =
   if String.length name > probe_name_max_length then
-    raise (Error (loc, env, (Probe_name_too_long name)));
+    Location.prerr_warning loc (Warnings.Probe_name_too_long name);
   String.iter (fun c ->
     match c with
     | 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' -> ()
@@ -8029,11 +8028,6 @@ let report_error ~loc env = function
   | Not_an_extension_constructor ->
       Location.errorf ~loc
         "This constructor is not an extension constructor."
-  | Probe_name_too_long name ->
-      Location.errorf ~loc
-        "This probe name is too long: `%s'. \
-         Probe names must be at most %d characters long."
-        name probe_name_max_length
   | Probe_name_format name ->
       Location.errorf ~loc
         "Illegal characters in probe name `%s'. \
