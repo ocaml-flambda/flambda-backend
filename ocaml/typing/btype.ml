@@ -290,7 +290,9 @@ let fold_type_expr f init ty =
     List.fold_left (fun result (_n, ty) -> f result ty) init fl
 
 let iter_type_expr f ty =
-  fold_type_expr (fun () v -> f v) () ty
+  ignore (fold_type_expr (fun f v -> f v; f) f ty : type_expr -> unit)
+    (* written to avoid allocating a closure; the type annotation is to
+       suppress warning 5 *)
 
 let rec iter_abbrev f = function
     Mnil                   -> ()
