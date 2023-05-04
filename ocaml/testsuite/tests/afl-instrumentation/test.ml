@@ -60,14 +60,12 @@ let random () = opaque @@
   if Random.int 100 < 50 then print_string "a" else print_string "b";
   if Random.int 100 < 50 then print_string "a" else print_string "b"
 
-(*
 let already_forced = lazy (ref 42)
 let _ = Lazy.force already_forced
 
 let laziness () = opaque @@
   let _ = Lazy.force already_forced in
   Gc.major ()
-*)
 
 let tests =
   [| ("lists", fun () -> lists 42);
@@ -78,5 +76,5 @@ let tests =
      ("classes", fun () -> classes 42);
      ("obj_ordering", obj_ordering);
      (* ("random", random); *)
-(*     ("laziness", laziness); *)
+     ("laziness", laziness);
   |]
