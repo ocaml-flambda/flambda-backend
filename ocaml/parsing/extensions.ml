@@ -89,8 +89,6 @@ module Comprehensions = struct
      v}
   *)
 
-  (** [comprehension_expr] handles making sure that [loc] is ghost, and every other
-      function in this module does the same *)
   let comprehension_expr names x =
     Expression.wrap_desc ~attrs:[] @@
     Expression.make_extension (extension_string :: names) x
