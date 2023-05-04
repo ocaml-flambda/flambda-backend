@@ -43,13 +43,11 @@ let rec reduce_strengthen_lazy ~aliasable mty p =
         strengthen_lazy ~aliasable:false res (Papply(p, Pident param))))
 
   | Mty_strengthen (mty,q,a) when aliasable && not a ->
-      (* RL FIXME: Normally, we have S/M/N = S/M. However, if the inner
-        strengthening is not aliasable and the outer is, will strengthen
-        types in S with M and modules with N. This check preserves that
-        behaviour, although it's not entirely clear that this is what we
-        want. *)
-      begin match reduce_strengthen_lazy ~aliasable:a mty q with
-      | Some mty -> reduce_strengthen_lazy ~aliasable mty p
+      (* Normally, we have S/M/N = S/M. However, if the inner strengthening is
+        not aliasable and the outer is, we strengthen types in S with M and
+        modules with N. We might consider changing this in the future. *)
+      begin match reduce_strengthen_lazy ~aliasable:false mty q with
+      | Some mty -> reduce_strengthen_lazy ~aliasable:true mty p
       | None -> None
       end
   | Mty_alias _ | Mty_functor _ | Mty_strengthen _ ->
