@@ -301,22 +301,25 @@ let create_coerced_singleton_let uacc var defining_expr
         generate_outer_binding Name_mode.phantom
       | Nothing_deleted_at_runtime -> generate_outer_binding Name_mode.normal)
 
-let make_new_let_bindings uacc
-    ~(bindings_outermost_first : Simplify_named_result.binding_to_place list)
-    ~body =
+type binding_to_place =
+  { let_bound : Bound_pattern.t;
+    simplified_defining_expr : Simplified_named.t;
+    original_defining_expr : Named.t option
+  }
+
+let make_new_let_bindings uacc ~bindings_outermost_first ~body =
   (* The name occurrences component of [uacc] is expected to be in the state
      described in the comment at the top of [Simplify_let.rebuild_let]. *)
   ListLabels.fold_left (List.rev bindings_outermost_first) ~init:(body, uacc)
     ~f:(fun
          (expr, uacc)
-         ({ let_bound; simplified_defining_expr; original_defining_expr } :
-           Simplify_named_result.binding_to_place)
+         { let_bound; simplified_defining_expr; original_defining_expr }
        ->
-      let ({ named = defining_expr;
-             free_names = free_names_of_defining_expr;
-             cost_metrics = cost_metrics_of_defining_expr
-           }) =
-        (simplified_defining_expr : Simplified_named.t)
+      let { Simplified_named.named = defining_expr;
+            free_names = free_names_of_defining_expr;
+            cost_metrics = cost_metrics_of_defining_expr
+          } =
+        simplified_defining_expr
       in
       let defining_expr = Simplified_named.to_named defining_expr in
       let expr, uacc, creation_result =
@@ -336,12 +339,12 @@ let make_new_let_bindings uacc
         | Nothing_deleted_at_runtime -> uacc
         | Defining_expr_deleted_at_compile_time
         | Defining_expr_deleted_at_runtime -> (
-          match (original_defining_expr : Named.t) with
-          | Prim (prim, _dbg) ->
+          match original_defining_expr with
+          | Some (Prim (prim, _dbg)) ->
             UA.notify_removed ~operation:(Removed_operations.prim prim) uacc
-          | Set_of_closures _ ->
+          | Some (Set_of_closures _) ->
             UA.notify_removed ~operation:Removed_operations.alloc uacc
-          | Simple _ | Static_consts _ | Rec_info _ -> uacc)
+          | Some (Simple _ | Static_consts _ | Rec_info _) | None -> uacc)
       in
       expr, uacc)
 

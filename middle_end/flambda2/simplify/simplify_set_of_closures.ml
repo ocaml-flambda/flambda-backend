@@ -681,8 +681,8 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
       (DA.denv dacc)
       (Function_slot.Lmap.bindings closure_symbols)
   in
-  Simplify_named_result.have_lifted_set_of_closures (DA.with_denv dacc denv)
-    bindings
+  Simplify_named_result.create_have_lifted_set_of_closures
+    (DA.with_denv dacc denv) bindings
     ~original_defining_expr:(Named.create_set_of_closures set_of_closures)
 
 let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
@@ -720,9 +720,12 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
       (Named.create_set_of_closures set_of_closures)
       ~free_names:(Named.free_names named)
   in
-  Simplify_named_result.have_simplified_to_single_term dacc bound_vars
-    defining_expr
-    ~original_defining_expr:(Named.create_set_of_closures set_of_closures)
+  Simplify_named_result.create dacc
+    [ { Expr_builder.let_bound = bound_vars;
+        simplified_defining_expr = defining_expr;
+        original_defining_expr =
+          Some (Named.create_set_of_closures set_of_closures)
+      } ]
 
 type lifting_decision_result =
   { can_lift : bool;
