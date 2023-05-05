@@ -260,14 +260,6 @@ let expand_to env sg paths =
   |> expand_paths_lazy_sig paths env
   |> Subst.Lazy.force_signature
 
-(* Substitution can potentially produce nodes like Mty_strengthen(Mty_alias)
-    which can be simplified which is what this function does. *)
-
-let rec simplify = function
-  | Mty_strengthen (mty,p,aliasable) ->
-      strengthen ~aliasable (simplify mty) p
-  | mty -> mty
-
 let rec sig_make_manifest sg =
   match sg with
     [] -> []
@@ -336,23 +328,18 @@ let rec make_aliases_absent ?(aliased=false) pres mty =
       pres, Mty_strengthen (res,p,a)
 
 let scrape_for_type_of env pres mty =
-  let rec loop env mty =
-    match simplify mty with
+  let rec loop env outer = function
     | Mty_alias path -> begin
         try
           let md = Env.find_module path env in
           let mty = strengthen ~aliasable:false md.md_type path in
-          loop env mty
-        with Not_found -> mty
+          loop env mty mty
+        with Not_found -> outer
       end
-    | Mty_strengthen (_,_,aliasable) when aliasable ->
-      begin match reduce env mty with
-      | Some mty -> loop env mty
-      | None -> mty
-      end
-    | _ -> mty
+    | Mty_strengthen (inner,_,_) -> loop env outer inner
+    | _ -> outer
   in
-  make_aliases_absent pres (loop env mty)
+  make_aliases_absent pres (loop env mty mty)
 
 (* Expand manifest module type names at the top of the given module type *)
 
