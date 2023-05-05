@@ -13,20 +13,12 @@ let code rec size(22)
      | 0 -> k (7)
      | 1 -> k2)
     where k2 =
-<<<<<<< HEAD
-      let Psubint = x - 1 in
-      apply direct(g_1)
-        (g ~ depth my_depth -> next_depth : _ -> imm tagged)
+      let Psubint = y - 1 in
+      apply direct(f_0)
+        (f ~ depth my_depth -> next_depth : _ -> imm tagged)
           (Psubint)
           &my_region
           -> k * k1
-||||||| cae4953ce (Preserve order of declarations in various places (#1319))
-      let Psubint = x - 1 in
-      apply direct(g_1) (g : _ -> imm tagged) (Psubint) &my_region -> k * k1
-=======
-      let Psubint = y - 1 in
-      apply direct(f_0) (f : _ -> imm tagged) (Psubint) &my_region -> k * k1
->>>>>>> parent of cae4953ce (Preserve order of declarations in various places (#1319))
 and code rec size(22)
       f_0 (x : imm tagged)
         my_closure my_region my_depth
@@ -41,20 +33,12 @@ and code rec size(22)
      | 0 -> k (42)
      | 1 -> k2)
     where k2 =
-<<<<<<< HEAD
-      let Psubint = y - 1 in
-      apply direct(f_0)
-        (f ~ depth my_depth -> next_depth : _ -> imm tagged)
+      let Psubint = x - 1 in
+      apply direct(g_1)
+        (g ~ depth my_depth -> next_depth : _ -> imm tagged)
           (Psubint)
           &my_region
           -> k * k1
-||||||| cae4953ce (Preserve order of declarations in various places (#1319))
-      let Psubint = y - 1 in
-      apply direct(f_0) (f : _ -> imm tagged) (Psubint) &my_region -> k * k1
-=======
-      let Psubint = x - 1 in
-      apply direct(g_1) (g : _ -> imm tagged) (Psubint) &my_region -> k * k1
->>>>>>> parent of cae4953ce (Preserve order of declarations in various places (#1319))
 in
 (let f = closure f_0 @f and g = closure g_1 @g in
  let Pmakeblock = %Block 0 (f, g) in
