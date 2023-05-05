@@ -85,7 +85,7 @@ and code rec loopify(never) size(69) newer_version_of(map_foo_4)
                      @`anon-fn[tests11.ml:15,2--70]`
                  with {
                    map_foo =
-                     $camlTests11__map_foo_8 ~ depth 0 -> succ my_depth
+                     $camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth
                  }
                  in
                  cont k2 (`anon-fn[tests11.ml:15,2--70]`)
@@ -95,7 +95,7 @@ and code rec loopify(never) size(69) newer_version_of(map_foo_4)
                      @`anon-fn[tests11.ml:15,2--70]`
                  with {
                    map_foo =
-                     $camlTests11__map_foo_8 ~ depth 0 -> succ my_depth
+                     $camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth
                  }
                  in
                  cont k2 (`anon-fn[tests11.ml:15,2--70]`))
