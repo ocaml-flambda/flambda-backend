@@ -69,19 +69,9 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
           closure_bound_names_inside_function
       | name ->
         let name = Bound_name.name name in
-        let coercion =
-          (* The name at its binding site always has empty rec info by
-             definition. Since [my_closure] does have rec info (namely
-             [my_depth]), [my_closure] and the bound name are aliases only up to
-             a coercion. This is particularly important when lifting so that we
-             rewrite [my_closure] to the coerced symbol. *)
-          Coercion.change_depth ~from:Rec_info_expr.initial
-            ~to_:(Rec_info_expr.var my_depth)
-        in
-        let aliased = Simple.with_coercion (Simple.name name) coercion in
         DE.add_variable denv
           (Bound_var.create my_closure NM.normal)
-          (T.alias_type_of K.value aliased))
+          (T.alias_type_of K.value (Simple.name name)))
   in
   let denv =
     let my_region = Bound_var.create my_region Name_mode.normal in
