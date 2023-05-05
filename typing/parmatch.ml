@@ -1916,8 +1916,7 @@ module Conv = struct
             | Mutable   -> Ppat_array pats
             | Immutable ->
                 Extensions.Immutable_arrays.pat_of
-                  ~loc:pat.pat_loc
-                  (Iapat_immutable_array pats)
+                  ~loc:pat.pat_loc (Iapat_immutable_array pats)
           in
           mkpat ppat
       | Tpat_lazy p ->

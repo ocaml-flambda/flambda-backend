@@ -403,7 +403,7 @@ let value_binding sub vb =
     (sub.pat sub vb.vb_pat)
     (sub.expr sub vb.vb_expr)
 
-let comprehension ~loc sub comp_type comp =
+let comprehension sub comp_type comp =
   let open Extensions.Comprehensions in
   let iterator = function
     | Texp_comp_range { ident = _; pattern; start ; stop ; direction } ->
@@ -429,9 +429,7 @@ let comprehension ~loc sub comp_type comp =
     { body    = sub.expr sub comp_body
     ; clauses = List.map clause comp_clauses }
   in
-  Extensions.Comprehensions.expr_of
-    ~loc
-    (comp_type (comprehension comp))
+  Extensions.Comprehensions.expr_of (comp_type (comprehension comp))
 
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
@@ -504,8 +502,7 @@ let expression sub exp =
             Pexp_array plist
         | Immutable ->
             Extensions.Immutable_arrays.expr_of
-              ~loc
-              (Iaexp_immutable_array plist)
+              ~loc (Iaexp_immutable_array plist)
       end
     | Texp_list_comprehension comp ->
         comprehension

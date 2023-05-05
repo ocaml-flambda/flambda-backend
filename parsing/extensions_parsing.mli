@@ -36,20 +36,20 @@
 
     b. We define an *overall auxiliary AST* for each syntactic category that's
        just for our language extensions; for expressions, it's called
-       [Extensions.Expression.t].  It contains one constructor for each of the AST types
-       defined as described in design point (1).  This addresses concern (2); we
-       can now match on actual OCaml constructors, as long as we can get a hold
-       of them.  And to do that…
+       [Extensions.Expression.t].  It contains one constructor for each of the
+       AST types defined as described in design point (1).  This addresses
+       concern (2); we can now match on actual OCaml constructors, as long as we
+       can get a hold of them.  And to do that…
 
-    c. We define a general scheme for how we represent language extensions in terms
-       of the existing ASTs, and provide a few primitives for consuming/creating
-       AST nodes of this form, for each syntactic category.  There's not a lot
-       of abstraction to be done, or at least it's not (yet) apparent what
-       abstraction there is to do, so most of this remains manual.  (Setting up
-       a full lens-based/otherwise bidirectional approach sounds like a great
-       opportunity for yak-shaving, but not *actually* a good idea.)  This
-       solves concern (3), and by doing it uniformly helps us address multiple
-       cases at one stroke.
+    c. We define a general scheme for how we represent language extensions in
+       terms of the existing ASTs, and provide a few primitives for
+       consuming/creating AST nodes of this form, for each syntactic category.
+       There's not a lot of abstraction to be done, or at least it's not (yet)
+       apparent what abstraction there is to do, so most of this remains manual.
+       (Setting up a full lens-based/otherwise bidirectional approach sounds
+       like a great opportunity for yak-shaving, but not *actually* a good
+       idea.)  This solves concern (3), and by doing it uniformly helps us
+       address multiple cases at one stroke.
 
     Then, for each syntactic category, we define a module (in extensions.ml)
     that contains functions for converting between the Parsetree representation
@@ -68,7 +68,17 @@
     writing out extension points or attributes directly, we write the result of
     [Some_ast.make_extension ~loc [name1; name2; ...; NameN] a] as the special
     syntax [{% 'name1.name2.....nameN' | a %}] in the BNF.  Other pieces of the
-    OCaml AST are used as normal. *)
+    OCaml AST are used as normal.
+
+    One detail which we hide as much as possible is locations: whenever
+    constructing an OCaml AST node -- whether with [wrap_desc], the functions in
+    [Ast_helper], or some other way -- the location should be left to be
+    defaulted (and the default, [!Ast_helper.make_default], should be ghost).
+    The [make_entire_extension] function will handle making sure this default
+    location is set appropriately.  If this isn't done and any locations on
+    subterms aren't marked as ghost, the compiler will work fine, but ppxlib may
+    detect that you've violated its well-formedness constraints and fail to
+    parse the resulting AST. *)
 
 (** Errors around the extension representation.  These should mostly just be
     fatal, but they're needed for one test case
@@ -109,14 +119,28 @@ module type AST = sig
   (** How to get the location attached to an AST node *)
   val location : ast -> Location.t
 
-  (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata *)
+  (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata.  When
+      creating [ast] nodes afresh for an extension, the location should be
+      omitted; in this case, it will default to [!Ast_helper.default_loc], which
+      should be [ghost]. *)
   val wrap_desc :
-    loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
+    ?loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
 
-  (** Embed a language extension term in the AST with the given name
-      and body (the [ast]).  The name will be joined with dots
-      and preceded by [extension.].  Partial inverse of [match_extension]. *)
-  val make_extension  : loc:Location.t -> string list -> ast -> ast_desc
+  (** Embed a language extension term in the AST with the given name and body
+      (the [ast]).  The name will be joined with dots and preceded by
+      [extension.].  Any locations in the generated AST will be set to
+      [!Ast_helper.default_loc], which should be [ghost].  Partial inverse of
+      [match_extension]. *)
+  val make_extension  : string list -> ast -> ast_desc
+
+  (** As [make_extension], but specifically for the AST node corresponding to
+      the entire piece of extension syntax (e.g., for a list comprehension, the
+      whole [[x for x in xs]], and not a subterm like [for x in xs]).  This sets
+      [Ast_helper.default_loc] locally to the [ghost] version of the provided
+      location, which is why the [ast] is generated from a function call; it is
+      during this call that the location is so set. *)
+  val make_entire_extension :
+    loc:Location.t -> string -> (unit -> ast) -> ast_desc
 
   (** Given an AST node, check if it's a language extension term; if it is,
       split it back up into its name (the [string list]) and the body (the
