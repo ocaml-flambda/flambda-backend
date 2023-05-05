@@ -208,9 +208,7 @@ module Acc : sig
 
   val shareable_constants : t -> Symbol.t Static_const.Map.t
 
-  val code : t -> Code.t Code_id.Lmap.t
-
-  val code_map : t -> Code.t Code_id.Map.t
+  val code : t -> Code.t Code_id.Map.t
 
   val free_names : t -> Name_occurrences.t
 

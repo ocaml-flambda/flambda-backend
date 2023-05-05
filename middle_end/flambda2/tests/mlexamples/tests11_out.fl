@@ -56,7 +56,7 @@ and code loopify(never) size(4) newer_version_of(`anon-fn[tests11.ml:15,2--70]_1
         my_closure my_region my_depth
         -> k * k1 =
   apply direct(map_foo_4_1) inlined(never) inlining_state(depth(1))
-    $camlTests11__map_foo_8 ~ depth 0 -> do_not_inline
+    $camlTests11__map_foo_8 ~ depth do_not_inline -> do_not_inline
       ($`camlTests11__anon-fn[tests11.ml:15,39--51]_7`,
        $`camlTests11__anon-fn[tests11.ml:15,52--67]_6`,
        0)
@@ -85,7 +85,7 @@ and code rec loopify(never) size(69) newer_version_of(map_foo_4)
                      @`anon-fn[tests11.ml:15,2--70]`
                  with {
                    map_foo =
-                     $camlTests11__map_foo_8 ~ depth 0 -> succ my_depth
+                     $camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth
                  }
                  in
                  cont k2 (`anon-fn[tests11.ml:15,2--70]`)
@@ -95,7 +95,7 @@ and code rec loopify(never) size(69) newer_version_of(map_foo_4)
                      @`anon-fn[tests11.ml:15,2--70]`
                  with {
                    map_foo =
-                     $camlTests11__map_foo_8 ~ depth 0 -> succ my_depth
+                     $camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth
                  }
                  in
                  cont k2 (`anon-fn[tests11.ml:15,2--70]`))
@@ -111,7 +111,7 @@ and code loopify(never) size(4) newer_version_of(`anon-fn[tests11.ml:15,2--70]_1
         my_closure my_region my_depth
         -> k * k1 =
   apply direct(map_foo_4_1) inlined(never) inlining_state(depth(1))
-    $camlTests11__map_foo_8 ~ depth 0 -> do_not_inline
+    $camlTests11__map_foo_8 ~ depth do_not_inline -> do_not_inline
       ($`camlTests11__anon-fn[tests11.ml:15,39--51]_7`,
        $`camlTests11__anon-fn[tests11.ml:15,52--67]_6`,
        0)

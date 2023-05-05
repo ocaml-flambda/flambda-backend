@@ -27,8 +27,6 @@ module type S = sig
 
   val fold : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
 
-  val fold_left_map : ('a -> key -> 'b -> 'a * 'c) -> 'a -> 'b t -> 'a * 'c t
-
   val filter : (key -> 'a -> bool) -> 'a t -> 'a t
 
   val keys : _ t -> key list
@@ -91,13 +89,6 @@ module Make (T : Thing) : S with type key = T.t = struct
   let iter f m = List.iter (fun (k, v) -> f k v) m
 
   let fold f m b = List.fold_left (fun b (k, v) -> f k v b) b m
-
-  let fold_left_map f a m =
-    List.fold_left_map
-      (fun a (k, v) ->
-        let a, c = f a k v in
-        a, (k, c))
-      a m
 
   let filter p m = List.filter (fun (k, v) -> p k v) m
 

@@ -1,7 +1,7 @@
-let code pr2162_2_first_0 deleted in
-let code pr2162_2_1 deleted in
-let code pr2162_3_2 deleted in
 let code pr2162_3_as_int64_3 deleted in
+let code pr2162_2_first_0 deleted in
+let code pr2162_3_2 deleted in
+let code pr2162_2_1 deleted in
 let code loopify(never) size(32) newer_version_of(pr2162_2_first_0)
       pr2162_2_first_0_1 (z : imm tagged, x : imm tagged, y : float boxed)
         my_closure my_region my_depth
