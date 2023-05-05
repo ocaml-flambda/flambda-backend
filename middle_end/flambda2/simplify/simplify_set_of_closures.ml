@@ -508,9 +508,10 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
   then
     Misc.fatal_errorf "Did not expect lifted constants in [dacc]:@ %a" DA.print
       dacc;
-  let (fun_types, outer_dacc), all_function_decls_in_set =
-    Function_slot.Lmap.fold_left_map
-      (fun (fun_types, outer_dacc) function_slot old_code_id ->
+  let all_function_decls_in_set, fun_types, outer_dacc =
+    Function_slot.Lmap.fold
+      (fun function_slot old_code_id
+           (result_function_decls_in_set, fun_types, outer_dacc) ->
         let code_id, outer_dacc =
           simplify_function context ~outer_dacc function_slot old_code_id
             ~closure_bound_names_inside_function:closure_bound_names_inside
@@ -523,20 +524,27 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
           in
           C.function_decl_type code_id ~rec_info
         in
+        let result_function_decls_in_set =
+          (function_slot, code_id) :: result_function_decls_in_set
+        in
         let fun_types =
           Function_slot.Map.add function_slot function_type fun_types
         in
-        (fun_types, outer_dacc), code_id)
-      (Function_slot.Map.empty, outer_dacc)
+        result_function_decls_in_set, fun_types, outer_dacc)
       all_function_decls_in_set
+      ([], Function_slot.Map.empty, outer_dacc)
   in
   let code_ids_to_remember_this_set =
-    Function_slot.Lmap.fold
-      (fun _function_slot code_id code_ids -> Code_id.Set.add code_id code_ids)
-      all_function_decls_in_set Code_id.Set.empty
+    List.fold_left
+      (fun code_ids (_function_slot, code_id) ->
+        Code_id.Set.add code_id code_ids)
+      Code_id.Set.empty all_function_decls_in_set
   in
   let dacc =
     DA.add_code_ids_to_remember outer_dacc code_ids_to_remember_this_set
+  in
+  let all_function_decls_in_set =
+    Function_slot.Lmap.of_list (List.rev all_function_decls_in_set)
   in
   let closure_types_by_bound_name =
     let closure_types_via_aliases =
@@ -664,22 +672,22 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
       (LCS.singleton set_of_closures_lifted_constant)
   in
   let denv, bindings =
-    List.fold_left_map
-      (fun denv (function_slot, closure_symbol) ->
-        match Function_slot.Map.find function_slot closure_bound_vars with
+    Function_slot.Map.fold
+      (fun function_slot bound_var (denv, bindings) ->
+        match Function_slot.Map.find function_slot closure_symbols_map with
         | exception Not_found ->
-          Misc.fatal_errorf "No bound variable for function slot %a"
+          Misc.fatal_errorf "No closure symbol for function slot %a"
             Function_slot.print function_slot
-        | bound_var ->
+        | closure_symbol ->
           let denv =
             let simple = Simple.symbol closure_symbol in
             let typ = T.alias_type_of K.value simple in
             DE.add_variable denv bound_var typ
           in
-          let binding = bound_var, closure_symbol in
-          denv, binding)
-      (DA.denv dacc)
-      (Function_slot.Lmap.bindings closure_symbols)
+          let bindings = (bound_var, closure_symbol) :: bindings in
+          denv, bindings)
+      closure_bound_vars
+      (DA.denv dacc, [])
   in
   Simplify_named_result.have_lifted_set_of_closures (DA.with_denv dacc denv)
     bindings

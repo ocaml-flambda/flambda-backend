@@ -330,8 +330,7 @@ module Acc = struct
       shareable_constants : Symbol.t Static_const.Map.t;
       symbol_approximations : Env.value_approximation Symbol.Map.t;
       approximation_for_external_symbol : Symbol.t -> Env.value_approximation;
-      code_in_reverse_order : Code.t list;
-      code_map : Code.t Code_id.Map.t;
+      code : Code.t Code_id.Map.t;
       free_names : Name_occurrences.t;
       continuation_applications : continuation_application Continuation.Map.t;
       cost_metrics : Cost_metrics.t;
@@ -419,8 +418,7 @@ module Acc = struct
         (if Flambda_features.classic_mode ()
         then approximation_loader cmx_loader
         else fun _symbol -> Value_approximation.Value_unknown);
-      code_in_reverse_order = [];
-      code_map = Code_id.Map.empty;
+      code = Code_id.Map.empty;
       free_names = Name_occurrences.empty;
       continuation_applications = Continuation.Map.empty;
       cost_metrics = Cost_metrics.zero;
@@ -436,13 +434,7 @@ module Acc = struct
 
   let shareable_constants t = t.shareable_constants
 
-  let code t =
-    (* This only gets called once *)
-    List.rev t.code_in_reverse_order
-    |> List.map (fun code -> Code.code_id code, code)
-    |> Code_id.Lmap.of_list
-
-  let code_map t = t.code_map
+  let code t = t.code
 
   let free_names t = t.free_names
 
@@ -510,10 +502,7 @@ module Acc = struct
   let symbol_approximations t = t.symbol_approximations
 
   let add_code ~code_id ~code t =
-    { t with
-      code_map = Code_id.Map.add code_id code t.code_map;
-      code_in_reverse_order = code :: t.code_in_reverse_order
-    }
+    { t with code = Code_id.Map.add code_id code t.code }
 
   let add_free_names free_names t =
     { t with free_names = Name_occurrences.union free_names t.free_names }
@@ -935,7 +924,7 @@ module Let_with_acc = struct
         | Simple simple -> Code_size.simple simple |> Cost_metrics.from_size
         | Static_consts _consts -> Cost_metrics.zero
         | Set_of_closures set_of_closures ->
-          let code_mapping = Acc.code_map acc in
+          let code_mapping = Acc.code acc in
           Cost_metrics.set_of_closures
             ~find_code_characteristics:(fun code_id ->
               let code = Code_id.Map.find code_id code_mapping in

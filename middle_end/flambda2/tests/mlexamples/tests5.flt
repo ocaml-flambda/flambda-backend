@@ -1,25 +1,5 @@
 let $camlTests5__first_const28 = Block 0 () in
 let code rec size(22)
-      f_0 (x : imm tagged)
-        my_closure my_region my_depth
-        -> k * k1
-        : imm tagged =
-  let next_depth = rec_info (succ my_depth) in
-  let g = %project_function_slot (f -> g) my_closure in
-  let prim = %int_comp x < 4 in
-  let Pintcomp = %Tag_imm prim in
-  (let untagged = %untag_imm Pintcomp in
-   switch untagged
-     | 0 -> k (42)
-     | 1 -> k2)
-    where k2 =
-      let Psubint = x - 1 in
-      apply direct(g_1)
-        (g ~ depth my_depth -> next_depth : _ -> imm tagged)
-          (Psubint)
-          &my_region
-          -> k * k1
-and code rec size(22)
       g_1 (y : imm tagged)
         my_closure my_region my_depth
         -> k * k1
@@ -33,12 +13,48 @@ and code rec size(22)
      | 0 -> k (7)
      | 1 -> k2)
     where k2 =
+<<<<<<< HEAD
+      let Psubint = x - 1 in
+      apply direct(g_1)
+        (g ~ depth my_depth -> next_depth : _ -> imm tagged)
+          (Psubint)
+          &my_region
+          -> k * k1
+||||||| cae4953ce (Preserve order of declarations in various places (#1319))
+      let Psubint = x - 1 in
+      apply direct(g_1) (g : _ -> imm tagged) (Psubint) &my_region -> k * k1
+=======
+      let Psubint = y - 1 in
+      apply direct(f_0) (f : _ -> imm tagged) (Psubint) &my_region -> k * k1
+>>>>>>> parent of cae4953ce (Preserve order of declarations in various places (#1319))
+and code rec size(22)
+      f_0 (x : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let g = %project_function_slot (f -> g) my_closure in
+  let prim = %int_comp x < 4 in
+  let Pintcomp = %Tag_imm prim in
+  (let untagged = %untag_imm Pintcomp in
+   switch untagged
+     | 0 -> k (42)
+     | 1 -> k2)
+    where k2 =
+<<<<<<< HEAD
       let Psubint = y - 1 in
       apply direct(f_0)
         (f ~ depth my_depth -> next_depth : _ -> imm tagged)
           (Psubint)
           &my_region
           -> k * k1
+||||||| cae4953ce (Preserve order of declarations in various places (#1319))
+      let Psubint = y - 1 in
+      apply direct(f_0) (f : _ -> imm tagged) (Psubint) &my_region -> k * k1
+=======
+      let Psubint = x - 1 in
+      apply direct(g_1) (g : _ -> imm tagged) (Psubint) &my_region -> k * k1
+>>>>>>> parent of cae4953ce (Preserve order of declarations in various places (#1319))
 in
 (let f = closure f_0 @f and g = closure g_1 @g in
  let Pmakeblock = %Block 0 (f, g) in
@@ -49,7 +65,7 @@ in
     let $camlTests5 = Block 0 (field_0, field_1) in
     cont done ($camlTests5)
 ===>
-let code g_1 deleted and code f_0 deleted in
+let code f_0 deleted and code g_1 deleted in
 let code rec loopify(never) size(18) newer_version_of(g_1)
       g_1_1 (y : imm tagged)
         my_closure my_region my_depth

@@ -66,12 +66,6 @@ module type S = sig
 
   val fold : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
 
-  (** Simultaneously map over the elements and accumulate a value. The
-      arguments are ordered so as to make the order preservation as explicit as
-      possible (the accumulator is produced from the values _before_ the key
-      and value being passed). *)
-  val fold_left_map : ('a -> key -> 'b -> 'a * 'c) -> 'a -> 'b t -> 'a * 'c t
-
   val filter : (key -> 'a -> bool) -> 'a t -> 'a t
 
   val keys : _ t -> key list

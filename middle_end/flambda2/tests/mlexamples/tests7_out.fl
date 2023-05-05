@@ -1,8 +1,8 @@
 let $camlTests7__empty_block4 = Block 0 () in
 let $camlTests7__immstring7 = "Cow" in
 let $camlTests7__immstring10 = "Sheep" in
-let code f_0 deleted in
 let code foo_1 deleted in
+let code f_0 deleted in
 let code loopify(never) size(16) newer_version_of(f_0)
       f_0_1 (x : imm tagged, str)
         my_closure my_region my_depth
