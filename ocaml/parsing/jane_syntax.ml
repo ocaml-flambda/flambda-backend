@@ -284,6 +284,37 @@ module Immutable_arrays = struct
     | _ -> failwith "Malformed immutable array pattern"
 end
 
+(** [include functor] *)
+module Include_functor = struct
+  type signature_item =
+    | Ifsig_include_functor of include_description
+
+  type structure_item =
+    | Ifstr_include_functor of include_declaration
+
+  let extension_string = Language_extension.to_string Include_functor
+
+  let sig_item_of ~loc = function
+    | Ifsig_include_functor incl ->
+        (* See Note [Wrapping with make_entire_jane_syntax] *)
+        Signature_item.make_entire_jane_syntax ~loc extension_string (fun () ->
+          Ast_helper.Sig.include_ incl)
+
+  let of_sig_item sigi = match sigi.psig_desc with
+    | Psig_include incl -> Ifsig_include_functor incl
+    | _ -> failwith "Malformed [include functor] in signature"
+
+  let str_item_of ~loc = function
+    | Ifstr_include_functor incl ->
+        (* See Note [Wrapping with make_entire_extension] *)
+        Structure_item.make_entire_jane_syntax ~loc extension_string (fun () ->
+          Ast_helper.Str.include_ incl)
+
+  let of_str_item stri = match stri.pstr_desc with
+    | Pstr_include incl -> Ifstr_include_functor incl
+    | _ -> failwith "Malformed [include functor] in structure"
+end
+
 (** Module strengthening *)
 module Strengthen = struct
   type nonrec module_type =
@@ -364,6 +395,40 @@ module Module_type = struct
     let of_ast_internal (feat : Feature.t) mty = match feat with
       | Language_extension Module_strengthening ->
         Some (Jmty_strengthen (Strengthen.of_mty mty))
+      | _ -> None
+  end
+
+  include M
+  include Make_of_ast(M)
+end
+
+module Signature_item = struct
+  module M = struct
+    module AST = Jane_syntax_parsing.Signature_item
+
+    type t =
+      | Jsig_include_functor of Include_functor.signature_item
+
+    let of_ast_internal (feat : Feature.t) sigi = match feat with
+      | Language_extension Include_functor ->
+        Some (Jsig_include_functor (Include_functor.of_sig_item sigi))
+      | _ -> None
+  end
+
+  include M
+  include Make_of_ast(M)
+end
+
+module Structure_item = struct
+  module M = struct
+    module AST = Jane_syntax_parsing.Structure_item
+
+    type t =
+      | Jstr_include_functor of Include_functor.structure_item
+
+    let of_ast_internal (feat : Feature.t) stri = match feat with
+      | Language_extension Include_functor ->
+        Some (Jstr_include_functor (Include_functor.of_str_item stri))
       | _ -> None
   end
 

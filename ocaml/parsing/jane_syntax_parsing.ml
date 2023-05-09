@@ -363,7 +363,7 @@ end
    way; this function filters them out. *)
 let uniformly_handled_extension name =
   match name with
-  | "local"|"global"|"nonlocal"|"escape"|"include_functor"|"curry" -> false
+  | "local"|"global"|"nonlocal"|"escape"|"curry" -> false
   | _ -> true
 
 (** Given the [AST_parameters] for a syntactic category, produce the

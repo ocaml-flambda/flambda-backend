@@ -100,8 +100,12 @@ type mapper = {
   payload: mapper -> payload -> payload;
   signature: mapper -> signature -> signature;
   signature_item: mapper -> signature_item -> signature_item;
+  signature_item_jane_syntax: mapper ->
+    Jane_syntax.Signature_item.t -> Jane_syntax.Signature_item.t;
   structure: mapper -> structure -> structure;
   structure_item: mapper -> structure_item -> structure_item;
+  structure_item_jane_syntax: mapper ->
+    Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t;
   typ: mapper -> core_type -> core_type;
   type_declaration: mapper -> type_declaration -> type_declaration;
   type_extension: mapper -> type_extension -> type_extension;

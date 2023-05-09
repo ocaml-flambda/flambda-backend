@@ -171,7 +171,6 @@ val has_global: Parsetree.attributes -> (bool,unit) result
 val has_nonlocal: Parsetree.attributes -> (bool,unit) result
 val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
-val has_include_functor : Parsetree.attributes -> (bool,unit) result
 
 (* [layout] gets the layout in the attributes if one is present.  It is the
    central point at which the layout extension flags are checked.  We always
