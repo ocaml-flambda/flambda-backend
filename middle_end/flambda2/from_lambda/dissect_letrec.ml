@@ -575,19 +575,7 @@ let dissect_letrec ~bindings ~body =
         id, Lprim (Pccall desc, [size], Loc_unknown))
       letrec.blocks
   in
-  let real_body = body in
-  let bound_ids_freshening =
-    List.map (fun (bound_id, _) -> bound_id, Ident.rename bound_id) bindings
-    |> Ident.Map.of_list
-  in
-  let cont = next_raise_count () in
-  let body =
-    if not letrec.needs_region
-    then body
-    else
-      let args = List.map (fun (bound_id, _) -> Lvar bound_id) bindings in
-      Lstaticraise (cont, args)
-  in
+  let body = if not letrec.needs_region then body else Lexclave body in
   let effects_then_body = lsequence (letrec.effects, body) in
   let functions =
     match letrec.functions with
@@ -617,19 +605,7 @@ let dissect_letrec ~bindings ~body =
             body ))
       with_preallocations letrec.consts
   in
-  let substituted = Lambda.rename letrec.substitution with_constants in
-  let body_layout = Lambda.layout_top in
-  if not letrec.needs_region
-  then substituted
-  else
-    Lstaticcatch
-      ( Lregion (Lambda.rename bound_ids_freshening substituted, body_layout),
-        ( cont,
-          List.map
-            (fun (bound_id, _) -> bound_id, Lambda.layout_letrec)
-            bindings ),
-        real_body,
-        body_layout )
+  Lambda.rename letrec.substitution with_constants
 
 type dissected =
   | Dissected of Lambda.lambda
