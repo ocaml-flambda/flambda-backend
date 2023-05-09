@@ -81,4 +81,6 @@ let () =
     ~exit_code:0 "test_attr_unused";
   (* Checks that the warning is printed and compilation is successful. *)
   print_test_expected_output ~flambda_only:false ~extra_dep:None
-    ~exit_code:0 "t6"
+    ~exit_code:0 "t6";
+  (* Check that entry function and functors are ignored with  [@@@zero_alloc all] *)
+  print_test ~flambda_only:false ~deps:"t7.ml"

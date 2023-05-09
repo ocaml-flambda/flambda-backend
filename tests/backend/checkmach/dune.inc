@@ -340,3 +340,9 @@
  (enabled_if (= %{context_name} "main"))
  (deps t6.output t6.output.corrected)
  (action (diff t6.output t6.output.corrected)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps t7.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
