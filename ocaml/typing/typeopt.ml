@@ -196,6 +196,24 @@ let value_kind_of_value_layout layout =
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
   | Any | Void -> assert false
 
+module TTbl = struct
+  module M = struct
+    type t = Types.type_expr
+    let hash t = Types.get_id t
+    let equal t1 t2 = Types.get_id t1 = Types.get_id t2
+  end
+  module Tbl = Hashtbl.Make(M)
+  include Tbl
+end
+
+type memo = {
+  depth : int;
+  num_nodes_visited : int;
+  kind : Lambda.value_kind;
+}
+
+let produced_types : memo TTbl.t = TTbl.create 100
+
 (* Invariant: [value_kind] functions may only be called on types with layout
    value. *)
 (* CR layouts v2: However, the current version allows for it to be called on
@@ -227,7 +245,7 @@ let value_kind_of_value_layout layout =
    When we eliminate the safety check here, we should think again about where
    and how sort variables are defaulted.
 *)
-let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
+let rec value_kind' env ~loc ~visited ~depth ~num_nodes_visited ty
   : int * value_kind =
   let[@inline] cannot_proceed () =
     Numbers.Int.Set.mem (get_id ty) visited
@@ -476,6 +494,23 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
         in
         (num_nodes_visited, Pvariant { consts = []; non_consts })
     end
+
+and value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
+  : int * value_kind =
+  let memo () =
+    let num_nodes_visited, kind =
+      value_kind' env ~loc ~visited ~depth ~num_nodes_visited ty
+    in
+    TTbl.replace produced_types ty { depth; kind; num_nodes_visited };
+    num_nodes_visited, kind
+  in
+  match TTbl.find_opt produced_types ty with
+  | Some { depth = prev_depth; num_nodes_visited = prev_num_nodes_visited; kind } ->
+      if prev_depth <= depth && prev_num_nodes_visited <= num_nodes_visited then
+        num_nodes_visited, kind
+      else memo ()
+  | None ->
+      memo ()
 
 let value_kind env loc ty =
   let (_num_nodes_visited, value_kind) =
