@@ -483,6 +483,10 @@ let alloc_mode_for_allocations env (alloc : Alloc_mode.For_allocations.t) :
     let r = Env.find_region_exn env r in
     Local { region = r }
 
+let alloc_mode_for_assignments _env (alloc : Alloc_mode.For_assignments.t) :
+    Fexpr.alloc_mode_for_assignments =
+  match alloc with Heap -> Heap | Local -> Local
+
 let alloc_mode_for_types (alloc : Alloc_mode.For_types.t) :
     Fexpr.alloc_mode_for_types =
   match alloc with
@@ -494,7 +498,7 @@ let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
     Fexpr.init_or_assign =
   match ia with
   | Initialization -> Initialization
-  | Assignment alloc -> Assignment (alloc_mode_for_allocations env alloc)
+  | Assignment alloc -> Assignment (alloc_mode_for_assignments env alloc)
 
 let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
   match op with
@@ -959,13 +963,7 @@ and cont_handler env cont_id (sort : Continuation.Sort.t) h =
       { name = cont_id; params; sort; handler })
 
 and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
-  let func =
-    Simple.pattern_match (Apply_expr.callee app)
-      ~name:(fun n ~coercion:_ -> (* CR lmaurer: Add coercions *) name env n)
-      ~const:(fun c ->
-        Misc.fatal_errorf "Unexpected const as callee: %a" Reg_width_const.print
-          c)
-  in
+  let func = simple env (Apply_expr.callee app) in
   let continuation : Fexpr.result_continuation =
     match Apply_expr.continuation app with
     | Return c -> Return (Env.find_continuation_exn env c)

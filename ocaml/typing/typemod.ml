@@ -18,6 +18,7 @@ open Longident
 open Path
 open Asttypes
 open Parsetree
+open Layouts
 open Types
 open Format
 
@@ -84,6 +85,7 @@ type error =
   | Invalid_type_subst_rhs
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
+  | Toplevel_nonvalue of string * sort
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -314,7 +316,7 @@ let check_type_decl env sg loc id row_id newdecl decl =
   in
   let env = Env.add_signature sg env in
   Includemod.type_declarations ~mark:Mark_both ~loc env fresh_id newdecl decl;
-  Typedecl.check_coherence env loc path newdecl
+  ignore (Typedecl.check_coherence env loc path newdecl)
 
 let make_variance p n i =
   let open Variance in
@@ -579,11 +581,12 @@ let merge_constraint initial_env loc sg lid constr =
       when Ident.name id = s && Typedecl.is_fixed_type sdecl ->
         let decl_row =
           let arity = List.length sdecl.ptype_params in
-          {
-            type_params =
-              List.map (fun _ -> Btype.newgenvar()) sdecl.ptype_params;
+          { type_params =
+              (* layout any is fine on the params because they get thrown away
+                 below *)
+              List.map (fun _ -> Btype.newgenvar Layout.any) sdecl.ptype_params;
             type_arity = arity;
-            type_kind = Types.kind_abstract;
+            type_kind = Types.kind_abstract ~layout:Layout.value;
             type_private = Private;
             type_manifest = None;
             type_variance =
@@ -1971,8 +1974,8 @@ let check_nongen_signature_item env sig_item =
 let check_nongen_signature env sg =
   List.iter (check_nongen_signature_item env) sg
 
-let remove_mode_variables env sg =
-  let rm _env ty = Ctype.remove_mode_variables ty; false in
+let remove_mode_and_layout_variables env sg =
+  let rm _env ty = Ctype.remove_mode_and_layout_variables ty; false in
   List.exists (nongen_signature_item env rm) sg |> ignore
 
 (* Helpers for typing recursive modules *)
@@ -2557,7 +2560,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           Builtin_attributes.warning_scope attrs
             (fun () -> Typecore.type_expression env sexpr)
         in
-        Tstr_eval (expr, attrs), [], shape_map, env
+        let layout = Ctype.type_layout expr.exp_env expr.exp_type in
+        Tstr_eval (expr, layout, attrs), [], shape_map, env
     | Pstr_value(rec_flag, sdefs) ->
         let force_global =
           (* Values bound by '_' still escape in the toplevel, because
@@ -2575,10 +2579,17 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           List.fold_left
             (fun (acc, shape_map) (id, modes) ->
               List.iter
-                (fun (loc, mode) ->
-                   Typecore.escape ~loc ~env:newenv ~reason:Other mode)
+                (fun (loc, mode, sort) ->
+                   Typecore.escape ~loc ~env:newenv ~reason:Other mode;
+                   (* CR layouts v5: this layout check has the effect of
+                      defaulting the sort of top-level bindings to value, which
+                      will change. *)
+                   if not (Layout.(equate (of_sort sort) value)) then
+                     raise (Error (loc, env,
+                                   Toplevel_nonvalue (Ident.name id,sort)))
+                )
                 modes;
-              let (first_loc, _) = List.hd modes in
+              let (first_loc, _, _) = List.hd modes in
               Signature_names.check_value names first_loc id;
               let vd =  Env.find_value (Pident id) newenv in
               let vd = Subst.Lazy.force_value_description vd in
@@ -2587,7 +2598,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               Shape.Map.add_value shape_map id vd.val_uid
             )
             ([], shape_map)
-            (let_bound_idents_with_modes defs)
+            (let_bound_idents_with_modes_and_sorts defs)
         in
         Tstr_value(rec_flag, defs),
         List.rev items,
@@ -2947,16 +2958,16 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
   else Builtin_attributes.warning_scope [] run
 
 (* The toplevel will print some types not present in the signature *)
-let remove_mode_variables_for_toplevel str =
+let remove_mode_and_layout_variables_for_toplevel str =
   match str.str_items with
   | [{ str_desc =
-         ( Tstr_eval (exp, _)
+         ( Tstr_eval (exp, _, _)
          | Tstr_value (Nonrecursive,
                        [{vb_pat = {pat_desc=Tpat_any};
                          vb_expr = exp}])) }] ->
      (* These types are printed by the toplevel,
         even though they do not appear in sg *)
-     Ctype.remove_mode_variables exp.exp_type
+     Ctype.remove_mode_and_layout_variables exp.exp_type
   | _ -> ()
 
 let type_toplevel_phrase env sig_acc s =
@@ -2965,8 +2976,8 @@ let type_toplevel_phrase env sig_acc s =
   Typecore.reset_allocations ();
   let (str, sg, to_remove_from_sg, shape, env) =
     type_structure ~toplevel:(Some sig_acc) false None env s in
-  remove_mode_variables env sg;
-  remove_mode_variables_for_toplevel str;
+  remove_mode_and_layout_variables env sg;
+  remove_mode_and_layout_variables_for_toplevel str;
   Typecore.optimise_allocations ();
   (str, sg, to_remove_from_sg, shape, env)
 
@@ -3053,12 +3064,14 @@ let lookup_type_in_sig sg =
 let type_package env m p fl =
   (* Same as Pexp_letmodule *)
   (* remember original level *)
+  let outer_scope = Ctype.get_current_level () in
   Ctype.begin_def ();
   let modl, scope = Typetexp.TyVarEnv.with_local_scope begin fun () ->
     let modl, _mod_shape = type_module env m in
     let scope = Ctype.create_scope () in
     modl, scope
   end in
+  Mtype.lower_nongen outer_scope modl.mod_type;
   let fl', env =
     match fl with
     | [] -> [], env
@@ -3107,7 +3120,8 @@ let type_package env m p fl =
   in
   List.iter
     (fun (n, ty) ->
-      try Ctype.unify env ty (Ctype.newvar ())
+       (* CR layouts v5: relax value requirement. *)
+      try Ctype.unify env ty (Ctype.newvar Layout.value)
       with Ctype.Unify _ ->
         raise (Error(modl.mod_loc, env, Scoping_pack (n,ty))))
     fl';
@@ -3158,7 +3172,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       in
       let simple_sg = Signature_names.simplify finalenv names sg in
       if !Clflags.print_types then begin
-        remove_mode_variables finalenv sg;
+        remove_mode_and_layout_variables finalenv sg;
         Typecore.force_delayed_checks ();
         Typecore.optimise_allocations ();
         let shape = Shape.local_reduce shape in
@@ -3370,8 +3384,9 @@ let package_units initial_env objfiles cmifile modulename =
           sg modulename
           (prefix ^ ".cmi") (Array.of_list imports)
       in
+      let sign = Subst.Lazy.force_signature cmi.Cmi_format.cmi_sign in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
-        (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) None initial_env
+        (Cmt_format.Packed (sign, objfiles)) None initial_env
         (Some cmi) (Some shape);
       Cms_format.save_cms (prefix ^ ".cms")  modulename
         None (Some shape);
@@ -3551,6 +3566,10 @@ let report_error ~loc _env = function
         "The module type@ %s@ is not a valid type for a packed module:@ \
          it is defined as a local substitution for a non-path module type."
         (Path.name p)
+  | Toplevel_nonvalue (id, sort) ->
+      Location.errorf ~loc
+        "@[Top-level module bindings must have layout value, but@ \
+         %s has layout@ %a.@]" id Layout.format (Layout.of_sort sort)
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env

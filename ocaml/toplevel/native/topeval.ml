@@ -18,6 +18,7 @@
 open Format
 open Misc
 open Parsetree
+open Layouts
 open Types
 open Typedtree
 open Outcometree
@@ -144,6 +145,9 @@ let name_expression ~loc ~attrs exp =
    let vb =
      { vb_pat = pat;
        vb_expr = exp;
+       (* CR layouts v2: revisit when we allow non-value top-level module
+          bindings *)
+       vb_sort = Sort.value;
        vb_attributes = attrs;
        vb_loc = loc; }
    in

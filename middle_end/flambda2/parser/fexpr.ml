@@ -225,9 +225,13 @@ type alloc_mode_for_types =
   | Heap_or_local
   | Local
 
+type alloc_mode_for_assignments =
+  | Heap
+  | Local
+
 type init_or_assign =
   | Initialization
-  | Assignment of alloc_mode_for_allocations
+  | Assignment of alloc_mode_for_assignments
 
 type 'signed_or_unsigned comparison =
       'signed_or_unsigned Flambda_primitive.comparison =
@@ -404,7 +408,7 @@ type loopify_attribute = Loopify_attribute.t =
   | Default_loopify_and_not_tailrec
 
 type apply =
-  { func : name;
+  { func : simple;
     continuation : result_continuation;
     exn_continuation : continuation;
     args : simple list;

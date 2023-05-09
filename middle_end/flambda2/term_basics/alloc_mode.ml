@@ -98,21 +98,6 @@ module For_allocations = struct
       assert (Flambda_features.stack_allocation_enabled ());
       Lambda.alloc_local
 
-  let from_lambda_modify (mode : Lambda.modify_mode) ~current_region =
-    if not (Flambda_features.stack_allocation_enabled ())
-    then Heap
-    else
-      match mode with
-      | Modify_heap -> Heap
-      | Modify_maybe_stack -> Local { region = current_region }
-
-  let to_lambda_modify t =
-    match t with
-    | Heap -> Lambda.modify_heap
-    | Local _ ->
-      assert (Flambda_features.stack_allocation_enabled ());
-      Lambda.modify_maybe_stack
-
   let free_names t =
     match t with
     | Heap -> Name_occurrences.empty
@@ -130,4 +115,39 @@ module For_allocations = struct
     match t with
     | Heap -> Ids_for_export.empty
     | Local { region } -> Ids_for_export.singleton_variable region
+end
+
+module For_assignments = struct
+  type t =
+    | Heap
+    | Local
+
+  let print ppf t =
+    match t with
+    | Heap -> Format.pp_print_string ppf "Heap"
+    | Local -> Format.pp_print_string ppf "Local"
+
+  let compare t1 t2 =
+    match t1, t2 with
+    | Heap, Heap -> 0
+    | Local, Local -> 0
+    | Heap, Local -> -1
+    | Local, Heap -> 1
+
+  let heap = Heap
+
+  let local () =
+    if Flambda_features.stack_allocation_enabled () then Local else Heap
+
+  let from_lambda (mode : Lambda.modify_mode) =
+    if not (Flambda_features.stack_allocation_enabled ())
+    then Heap
+    else match mode with Modify_heap -> Heap | Modify_maybe_stack -> Local
+
+  let to_lambda t =
+    match t with
+    | Heap -> Lambda.modify_heap
+    | Local ->
+      assert (Flambda_features.stack_allocation_enabled ());
+      Lambda.modify_maybe_stack
 end

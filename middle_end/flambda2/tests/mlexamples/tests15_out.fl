@@ -7,12 +7,12 @@ let $camlTests15__Pmakeblock21 =
 in
 let $camlTests15__immstring69 = " \\ \n " in
 let code list_to_array_0 deleted in
+let code is_c_1 deleted in
 let code set_to_x_2 deleted in
-let code foo_6 deleted in
+let code classical_id_3 deleted in
 let code swapped_4 deleted in
 let code negate_5 deleted in
-let code classical_id_3 deleted in
-let code is_c_1 deleted in
+let code foo_6 deleted in
 let code loopify(never) size(11) newer_version_of(list_to_array_0)
       list_to_array_0_1 (param : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
         my_closure my_region my_depth

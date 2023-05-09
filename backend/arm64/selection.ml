@@ -95,7 +95,7 @@ method! effects_of e =
 method select_addressing chunk = function
   | Cop((Caddv | Cadda), [Cconst_symbol (s, _); Cconst_int (n, _)], _)
     when use_direct_addressing s ->
-      (Ibased(s, n), Ctuple [])
+      (Ibased(s.sym_name, n), Ctuple [])
   | Cop((Caddv | Cadda), [arg; Cconst_int (n, _)], _)
     when is_offset chunk n ->
       (Iindexed n, arg)
@@ -105,7 +105,7 @@ method select_addressing chunk = function
       (Iindexed n, Cop(op, [arg1; arg2], dbg))
   | Cconst_symbol (s, _)
     when use_direct_addressing s ->
-      (Ibased(s, 0), Ctuple [])
+      (Ibased(s.sym_name, 0), Ctuple [])
   | arg ->
       (Iindexed 0, arg)
 

@@ -41,6 +41,11 @@ let init lexbuf fname =
   }
 ;;
 
+let ghostify l =
+  if l.loc_ghost
+  then l
+  else { l with loc_ghost = true }
+
 let symbol_rloc () = {
   loc_start = Parsing.symbol_start_pos ();
   loc_end = Parsing.symbol_end_pos ();
