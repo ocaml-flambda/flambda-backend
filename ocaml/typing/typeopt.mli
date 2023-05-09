@@ -52,3 +52,6 @@ val layout_union :
       Lambda.layout -> Lambda.layout -> Lambda.layout
   (** [layout_union layout1 layout2] is a layout at least as general as
       [layout1] and [layout2] *)
+
+val reset_cache : unit -> unit
+

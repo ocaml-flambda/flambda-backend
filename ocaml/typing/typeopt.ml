@@ -214,6 +214,8 @@ type memo = {
 
 let produced_types : memo TTbl.t = TTbl.create 100
 
+let reset_cache () = TTbl.reset produced_types
+
 (* Invariant: [value_kind] functions may only be called on types with layout
    value. *)
 (* CR layouts v2: However, the current version allows for it to be called on
