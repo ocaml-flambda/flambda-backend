@@ -238,9 +238,7 @@ end = struct
     in
     match a with
     | [] ->
-      if !Clflags.zero_alloc_check_assert_all
-         && (not !ignore_assert_all)
-         && not (String.ends_with ~suffix:"__entry" fun_name)
+      if !Clflags.zero_alloc_check_assert_all && not !ignore_assert_all
       then
         Some { strict = false; assume = false; loc = Debuginfo.to_location dbg }
       else None

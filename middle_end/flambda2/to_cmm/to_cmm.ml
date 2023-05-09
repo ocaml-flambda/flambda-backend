@@ -124,7 +124,11 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
     (* CR mshinwell: This should at least be given a source file location. *)
     let dbg = Debuginfo.none in
     let fun_codegen =
-      let fun_codegen = [Cmm.Reduce_code_size; Cmm.Use_linscan_regalloc] in
+      let fun_codegen =
+        [ Cmm.Reduce_code_size;
+          Cmm.Use_linscan_regalloc;
+          Cmm.Ignore_assert_all Cmm.Zero_alloc ]
+      in
       if Flambda_features.backend_cse_at_toplevel ()
       then fun_codegen
       else Cmm.No_CSE :: fun_codegen
