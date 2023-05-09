@@ -350,3 +350,6 @@ let set_o3 () =
 
 let opt_flag_handler : Clflags.Opt_flag_handler.t =
   { set_oclassic; set_o2; set_o3 }
+
+let () =
+  if Clflags.is_flambda2 () then set_o2 ()

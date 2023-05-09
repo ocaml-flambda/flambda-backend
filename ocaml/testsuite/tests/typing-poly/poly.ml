@@ -1018,12 +1018,14 @@ type u = 'a t as 'a
 |}];;
 
 (* pass typetexp, but fails during Typedecl.check_recursion *)
-type ('a1, 'b1) ty1 = 'a1 -> unit constraint 'a1 = [> `V1 of ('a1, 'b1) ty2 as 'b1]
-and  ('a2, 'b2) ty2 = 'b2 -> unit constraint 'b2 = [> `V2 of ('a2, 'b2) ty1 as 'a2];;
+type ('a1, 'b1) ty1 = 'a1 -> unit
+  constraint 'a1 = [> `V1 of ('a1, 'b1) ty2 as 'b1]
+and  ('a2, 'b2) ty2 = 'b2 -> unit
+  constraint 'b2 = [> `V2 of ('a2, 'b2) ty1 as 'a2];;
 [%%expect {|
-Line 1, characters 0-83:
-1 | type ('a1, 'b1) ty1 = 'a1 -> unit constraint 'a1 = [> `V1 of ('a1, 'b1) ty2 as 'b1]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Lines 1-2, characters 0-51:
+1 | type ('a1, 'b1) ty1 = 'a1 -> unit
+2 |   constraint 'a1 = [> `V1 of ('a1, 'b1) ty2 as 'b1]
 Error: The definition of ty1 contains a cycle:
        [> `V1 of ('a, 'b) ty2 as 'b ] as 'a
 |}];;

@@ -31,6 +31,11 @@
 #define CAML_ABSF_MASK caml_absf_mask
 #endif
 
+        .globl caml_call_gc
+        .weak caml_call_gc
+caml_call_gc:
+        int3
+
         .globl  CALL_GEN_CODE
         .align  ALIGN
 CALL_GEN_CODE:

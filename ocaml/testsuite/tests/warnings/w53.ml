@@ -382,5 +382,9 @@ end
 module TestNewtypeAttr = struct
   (* Check for handling of attributes on Pexp_newtype *)
   let f1 = fun [@inline] (type a) (x : a) -> x (* accepted *)
-  let f2 = fun [@immediate] (type a) (x : a) -> x (* rejected *)
+
+  let f2 = fun [@value] (type a) (x : a) -> x
+  (* accepted (it's a layout annotation) *)
+
+  let f3 = fun [@boxed] (type a) (x : a) -> x (* rejected *)
 end

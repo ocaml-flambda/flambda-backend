@@ -230,41 +230,21 @@ type string_or_bytes =
 module Init_or_assign = struct
   type t =
     | Initialization
-    | Assignment of Alloc_mode.For_allocations.t
+    | Assignment of Alloc_mode.For_assignments.t
 
   let [@ocamlformat "disable"] print ppf t =
     let fprintf = Format.fprintf in
     match t with
     | Initialization -> fprintf ppf "Init"
-    | Assignment mode -> fprintf ppf "Assign %a" Alloc_mode.For_allocations.print mode
+    | Assignment Heap -> fprintf ppf "Assign Heap"
+    | Assignment Local -> fprintf ppf "Assign Local"
 
   let compare = Stdlib.compare
 
   let to_lambda t : Lambda.initialization_or_assignment =
     match t with
     | Initialization -> Heap_initialization
-    | Assignment mode ->
-      Assignment (Alloc_mode.For_allocations.to_lambda_modify mode)
-
-  let free_names t =
-    match t with
-    | Initialization -> Name_occurrences.empty
-    | Assignment alloc_mode -> Alloc_mode.For_allocations.free_names alloc_mode
-
-  let apply_renaming t renaming =
-    match t with
-    | Initialization -> Initialization
-    | Assignment alloc_mode ->
-      let alloc_mode' =
-        Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
-      in
-      if alloc_mode == alloc_mode' then t else Assignment alloc_mode'
-
-  let ids_for_export t =
-    match t with
-    | Initialization -> Ids_for_export.empty
-    | Assignment alloc_mode ->
-      Alloc_mode.For_allocations.ids_for_export alloc_mode
+    | Assignment mode -> Assignment (Alloc_mode.For_assignments.to_lambda mode)
 end
 
 type array_like_operation =
@@ -1444,37 +1424,17 @@ let ternary_classify_for_printing p =
 
 let free_names_ternary_primitive p =
   match p with
-  | Block_set (_kind, init_or_assign) ->
-    Init_or_assign.free_names init_or_assign
-  | Array_set (_kind, init_or_assign) ->
-    Init_or_assign.free_names init_or_assign
-  | Bytes_or_bigstring_set _ | Bigarray_set _ -> Name_occurrences.empty
+  | Block_set _ | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _ ->
+    Name_occurrences.empty
 
-let apply_renaming_ternary_primitive p renaming =
+let apply_renaming_ternary_primitive p _ =
   match p with
-  | Block_set (kind, init_or_assign) ->
-    let init_or_assign' =
-      Init_or_assign.apply_renaming init_or_assign renaming
-    in
-    if init_or_assign == init_or_assign'
-    then p
-    else Block_set (kind, init_or_assign')
-  | Array_set (kind, init_or_assign) ->
-    let init_or_assign' =
-      Init_or_assign.apply_renaming init_or_assign renaming
-    in
-    if init_or_assign == init_or_assign'
-    then p
-    else Array_set (kind, init_or_assign')
-  | Bytes_or_bigstring_set _ | Bigarray_set _ -> p
+  | Block_set _ | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _ -> p
 
 let ids_for_export_ternary_primitive p =
   match p with
-  | Block_set (_kind, init_or_assign) ->
-    Init_or_assign.ids_for_export init_or_assign
-  | Array_set (_kind, init_or_assign) ->
-    Init_or_assign.ids_for_export init_or_assign
-  | Bytes_or_bigstring_set _ | Bigarray_set _ -> Ids_for_export.empty
+  | Block_set _ | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _ ->
+    Ids_for_export.empty
 
 type variadic_primitive =
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t

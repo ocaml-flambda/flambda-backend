@@ -83,8 +83,7 @@ let code size(102)
                 cont k2 (ifnot_result)
               where k3 =
                 let prim = %unbox_float apply_result in
-                let ifso_result = %array_set float arr.(i) <- &my_region prim
-                in
+                let ifso_result = %array_set float arr.(i) <-& prim in
                 cont k2 (ifso_result)
               where k2 (if_then_else_result) =
                 cont k (if_then_else_result)))
@@ -139,7 +138,7 @@ let code loopify(never) size(65) newer_version_of(foo_0)
            cont k (0)
          where k2 =
            let prim = %unbox_float apply_result in
-           let ifso_result = %array_set float arr.(i) <- &my_region prim in
+           let ifso_result = %array_set float arr.(i) <-& prim in
            cont k (0))
 in
 let $camlTests3__foo_2 = closure foo_0_1 @foo in

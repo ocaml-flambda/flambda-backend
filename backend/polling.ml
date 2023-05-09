@@ -149,8 +149,8 @@ let potentially_recursive_tailcall ~future_funcnames funbody =
          So, every such infinite sequence must contain many forward-referencing
          tail calls, so polling only on those suffices.  This is checked using
          the set [future_funcnames]. *)
-      if String.Set.mem func future_funcnames
-         || function_is_assumed_to_never_poll func
+      if String.Set.mem func.sym_name future_funcnames
+         || function_is_assumed_to_never_poll func.sym_name
       then Might_not_poll
       else Always_polls
     | Iop op ->

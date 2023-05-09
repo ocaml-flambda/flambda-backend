@@ -31,6 +31,7 @@
     numbers
     arg_helper
     clflags
+    debug
     language_extension
     profile
     consistbl
@@ -52,8 +53,8 @@
     ident
     path
     primitive
-    type_immediacy
     shape
+    layouts
     types
     btype
     lazy_backtrack
@@ -109,6 +110,7 @@
 (copy_files ../../utils/numbers.ml)
 (copy_files ../../utils/arg_helper.ml)
 (copy_files ../../utils/clflags.ml)
+(copy_files ../../utils/debug.ml)
 (copy_files ../../utils/language_extension.ml)
 (copy_files ../../utils/profile.ml)
 (copy_files ../../utils/consistbl.ml)
@@ -135,8 +137,8 @@
 (copy_files ../../typing/ident.ml)
 (copy_files ../../typing/path.ml)
 (copy_files ../../typing/primitive.ml)
-(copy_files ../../typing/type_immediacy.ml)
 (copy_files ../../typing/shape.ml)
+(copy_files ../../typing/layouts.ml)
 (copy_files ../../typing/types.ml)
 (copy_files ../../typing/btype.ml)
 (copy_files ../../typing/subst.ml)
@@ -165,6 +167,7 @@
 (copy_files ../../utils/numbers.mli)
 (copy_files ../../utils/arg_helper.mli)
 (copy_files ../../utils/clflags.mli)
+(copy_files ../../utils/debug.mli)
 (copy_files ../../utils/language_extension.mli)
 (copy_files ../../utils/profile.mli)
 (copy_files ../../utils/consistbl.mli)
@@ -191,8 +194,8 @@
 (copy_files ../../typing/ident.mli)
 (copy_files ../../typing/path.mli)
 (copy_files ../../typing/primitive.mli)
-(copy_files ../../typing/type_immediacy.mli)
 (copy_files ../../typing/shape.mli)
+(copy_files ../../typing/layouts.mli)
 (copy_files ../../typing/types.mli)
 (copy_files ../../typing/btype.mli)
 (copy_files ../../typing/subst.mli)
@@ -263,6 +266,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Numbers.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Profile.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Clflags.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debug.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Terminfo.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Location.cmo
@@ -273,30 +277,30 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Linkage_name.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Symbol.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Path.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Syntaxerr.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Bytesections.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Cmi_format.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debuginfo.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Consistbl.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Shape.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Datarepr.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Load_path.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lazy_backtrack.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Persistent_env.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Docstrings.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Syntaxerr.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lazy_backtrack.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_helper.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Extensions_parsing.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Extensions.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_iterator.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Builtin_attributes.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Type_immediacy.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Load_path.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_mapper.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Layouts.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Bytesections.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Cmi_format.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debuginfo.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Consistbl.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Shape.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Datarepr.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Persistent_env.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Attr_helper.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Primitive.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Predef.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_mapper.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Env.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lambda.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Dll.cmo
@@ -334,6 +338,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Numbers.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Profile.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Clflags.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debug.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Terminfo.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Location.cmx
@@ -344,30 +349,30 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Linkage_name.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Symbol.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Path.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Bytesections.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Cmi_format.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debuginfo.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Consistbl.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Shape.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Datarepr.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Load_path.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lazy_backtrack.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Persistent_env.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Extensions_parsing.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Extensions.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Load_path.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_iterator.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Type_immediacy.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_mapper.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Layouts.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Bytesections.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Cmi_format.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debuginfo.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Consistbl.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Shape.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Datarepr.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Persistent_env.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Attr_helper.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Primitive.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Predef.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_mapper.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Env.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lambda.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Dll.cmx

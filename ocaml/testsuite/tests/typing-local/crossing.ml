@@ -105,13 +105,13 @@ Error: This value escapes its region
 |}]
 
 (* 5. polymorphic variant arguments crosses mode on construction*)
-let f : local_ _ -> [> `Number of int] = 
+let f : local_ _ -> [> `Number of int] =
   fun n -> `Number n
 [%%expect{|
 val f : local_ int -> [> `Number of int ] = <fun>
-|}]  
+|}]
 
-let f : local_ _ -> [> `Text of string] = 
+let f : local_ _ -> [> `Text of string] =
   fun n -> `Text n
 [%%expect{|
 Line 2, characters 17-18:
@@ -121,13 +121,13 @@ Error: This value escapes its region
 |}]
 
 (* tuple elements crosses mode at construction *)
-let f : local_ _ -> int * int = 
+let f : local_ _ -> int * int =
   fun n -> (n, n)
 [%%expect{|
 val f : local_ int -> int * int = <fun>
-|}]  
+|}]
 
-let f : local_ _ -> string * string = 
+let f : local_ _ -> string * string =
   fun n -> (n, n)
 [%%expect{|
 Line 2, characters 12-13:
@@ -137,13 +137,13 @@ Error: This value escapes its region
 |}]
 
 (* array elements crosses mode at construction *)
-let f : local_ _ -> int array = 
-  fun n -> [|n; n|] 
+let f : local_ _ -> int array =
+  fun n -> [|n; n|]
 [%%expect{|
 val f : local_ int -> int array = <fun>
 |}]
 
-let f: local_ _ -> string array = 
+let f: local_ _ -> string array =
   fun n -> [|n; n|]
 [%%expect{|
 Line 2, characters 13-14:
@@ -152,10 +152,10 @@ Line 2, characters 13-14:
 Error: This value escapes its region
 |}]
 
-(* after discussion with sdolan, we agree that 
+(* after discussion with sdolan, we agree that
   the following cannot type check because of lock;
   lazy is not commonly used anyway. *)
-let f: local_ _ -> int lazy_t = 
+let f: local_ _ -> int lazy_t =
   fun n -> lazy n
 [%%expect{|
 Line 2, characters 16-17:
@@ -180,8 +180,8 @@ Line 2, characters 11-14:
 Error: This value escapes its region
 |}]
 
-(* the expected type is not considered when mode crossing the result of 
-pexp_field. However, upon function definition, the expected type of 
+(* the expected type is not considered when mode crossing the result of
+pexp_field. However, upon function definition, the expected type of
 the body will be used to mode cross *)
 let f : local_ _ -> int =
   fun r -> r.x
@@ -255,7 +255,7 @@ val f : local_ bar -> int = <fun>
 
 (* This example is identical to the last one,
    except the type annotation. *)
-(* This example works because function body 
+(* This example works because function body
    crosses modes based on its expected type *)
 let f : local_ _ -> int =
   fun b ->
@@ -285,7 +285,7 @@ let f : local_ foo -> _ =
 val f : local_ foo -> int = <fun>
 |}]
 
-(* this example works again because function body crosses modes 
+(* this example works again because function body crosses modes
    based on its expected type *)
 let f : local_ _ -> int =
   fun r ->
@@ -323,7 +323,7 @@ Error: This value escapes its region
 |}]
 
 
-(* Following tests immediacy detection, 
+(* Following tests immediacy detection,
    given by goldfirere *)
 module M : sig
   type t [@@immediate]
@@ -333,11 +333,11 @@ end
 
 type t2 = { x : int } [@@unboxed]
 
-let f : local_ _ -> M.t = 
+let f : local_ _ -> M.t =
   fun x -> x
 
-let f : local_ _ -> t2 = 
-  fun x -> x  
+let f : local_ _ -> t2 =
+  fun x -> x
 [%%expect{|
 module M : sig type t [@@immediate] end
 type t2 = { x : int; } [@@unboxed]

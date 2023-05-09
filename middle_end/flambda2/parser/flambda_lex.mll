@@ -49,6 +49,7 @@ let keyword_table =
     "deleted", KWD_DELETED;
     "depth", KWD_DEPTH;
     "direct", KWD_DIRECT;
+    "do_not_inline", KWD_DO_NOT_INLINE;
     "done", KWD_DONE;
     "end", KWD_END;
     "error", KWD_ERROR;

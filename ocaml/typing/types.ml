@@ -16,6 +16,7 @@
 (* Representation of types and declarations *)
 
 open Asttypes
+open Layouts
 
 (* Type expressions for the core language *)
 
@@ -28,7 +29,7 @@ type transient_expr =
 and type_expr = transient_expr
 
 and type_desc =
-    Tvar of string option
+  | Tvar of { name : string option; layout : layout }
   | Tarrow of arrow_desc * type_expr * type_expr * commutable
   | Ttuple of type_expr list
   | Tconstr of Path.t * type_expr list * abbrev_memo ref
@@ -38,7 +39,7 @@ and type_desc =
   | Tlink of type_expr
   | Tsubst of type_expr * type_expr option
   | Tvariant of row_desc
-  | Tunivar of string option
+  | Tunivar of { name : string option; layout : layout }
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
 
@@ -224,21 +225,25 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract of {immediate : Type_immediacy.t}
+    Type_abstract of {layout : layout}
   | Type_record of 'lbl list * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
 
+and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
+                       runtime_tag: int}   (* The runtime tag *)
+        | Extension of Path.t * layout array
+
 and record_representation =
-    Record_regular                      (* All fields are boxed / tagged *)
-  | Record_float                        (* All fields are floats *)
-  | Record_unboxed of bool    (* Unboxed single-field record, inlined or not *)
-  | Record_inlined of int               (* Inlined record *)
-  | Record_extension of Path.t          (* Inlined record under extension *)
+  | Record_unboxed of layout
+  | Record_inlined of tag * variant_representation
+  | Record_boxed of layout array
+  | Record_float
 
 and variant_representation =
-    Variant_regular          (* Constant or boxed constructors *)
-  | Variant_unboxed          (* One unboxed single-field constructor *)
+  | Variant_unboxed of layout
+  | Variant_boxed of layout array array
+  | Variant_extensible
 
 and global_flag =
   | Global
@@ -251,6 +256,7 @@ and label_declaration =
     ld_mutable: mutable_flag;
     ld_global: global_flag;
     ld_type: type_expr;
+    ld_layout : layout;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -274,6 +280,8 @@ type extension_constructor =
   { ext_type_path: Path.t;
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
+    ext_arg_layouts: layout array;
+    ext_constant: bool;
     ext_ret_type: type_expr option;
     ext_private: private_flag;
     ext_loc: Location.t;
@@ -467,8 +475,11 @@ type constructor_description =
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
     cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
+    cstr_arg_layouts: layout array;     (* Layouts of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
-    cstr_tag: constructor_tag;          (* Tag for heap blocks *)
+    cstr_tag: tag;                      (* Tag for heap blocks *)
+    cstr_repr: variant_representation;  (* Repr of the outer variant *)
+    cstr_constant: bool;                (* True if all args are void *)
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)
     cstr_generalized: bool;             (* Constrained return type? *)
@@ -479,49 +490,111 @@ type constructor_description =
     cstr_uid: Uid.t;
    }
 
-and constructor_tag =
-    Cstr_constant of int                (* Constant constructor (an int) *)
-  | Cstr_block of int                   (* Regular constructor (a block) *)
-  | Cstr_unboxed                        (* Constructor of an unboxed type *)
-  | Cstr_extension of Path.t * bool     (* Extension constructor
-                                           true if a constant false if a block*)
-
 let equal_tag t1 t2 =
   match (t1, t2) with
-  | Cstr_constant i1, Cstr_constant i2 -> i2 = i1
-  | Cstr_block i1, Cstr_block i2 -> i2 = i1
-  | Cstr_unboxed, Cstr_unboxed -> true
-  | Cstr_extension (path1, b1), Cstr_extension (path2, b2) ->
-      Path.same path1 path2 && b1 = b2
-  | (Cstr_constant _|Cstr_block _|Cstr_unboxed|Cstr_extension _), _ -> false
+  | Ordinary {src_index=i1}, Ordinary {src_index=i2} ->
+    i2 = i1 (* If i1 = i2, the runtime_tags will also be equal *)
+  | Extension (path1,_), Extension (path2,_) -> Path.same path1 path2
+  | (Ordinary _ | Extension _), _ -> false
+
+let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
+  | Variant_unboxed lay1, Variant_unboxed lay2 ->
+      Layout.equal lay1 lay2
+  | Variant_boxed lays1, Variant_boxed lays2 ->
+      Misc.Stdlib.Array.equal (Misc.Stdlib.Array.equal Layout.equal) lays1 lays2
+  | Variant_extensible, Variant_extensible ->
+      true
+  | (Variant_unboxed _ | Variant_boxed _ | Variant_extensible), _ ->
+      false
+
+let equal_record_representation r1 r2 = match r1, r2 with
+  | Record_unboxed lay1, Record_unboxed lay2 ->
+      Layout.equal lay1 lay2
+  | Record_inlined (tag1, vr1), Record_inlined (tag2, vr2) ->
+      equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
+  | Record_boxed lays1, Record_boxed lays2 ->
+      Misc.Stdlib.Array.equal Layout.equal lays1 lays2
+  | Record_float, Record_float ->
+      true
+  | (Record_unboxed _ | Record_inlined _ | Record_boxed _ | Record_float), _ ->
+      false
 
 let may_equal_constr c1 c2 =
   c1.cstr_arity = c2.cstr_arity
   && (match c1.cstr_tag,c2.cstr_tag with
-     | Cstr_extension _,Cstr_extension _ ->
+     | Extension _, Extension _ ->
          (* extension constructors may be rebindings of each other *)
          true
      | tag1, tag2 ->
          equal_tag tag1 tag2)
 
 
-let kind_abstract = Type_abstract { immediate = Unknown }
+let kind_abstract ~layout = Type_abstract { layout }
+(* CR-someday layouts: We could match on the layout and return one of the below
+   to share more - test whether the memory savings is worth the runtime cost of
+   the match.  I implemented a similar optimization in Subst.norm, but was
+   surprised to find basically no impact on artifact sizes. *)
+
+let kind_abstract_value = kind_abstract ~layout:Layout.value
+let kind_abstract_immediate = kind_abstract ~layout:Layout.immediate
+let kind_abstract_any = kind_abstract ~layout:Layout.any
 
 let decl_is_abstract decl =
   match decl.type_kind with
   | Type_abstract _ -> true
   | Type_record _ | Type_variant _ | Type_open -> false
 
+let all_void layouts =
+  Array.for_all (fun l ->
+    match Layout.get l with
+    | Const Void -> true
+    | Const (Any | Immediate | Immediate64 | Value) | Var _ -> false)
+    layouts
+
+let layout_bound_of_record_representation : record_representation -> _ =
+  let open Layout in function
+  | Record_unboxed l -> l
+  | Record_float -> value
+  | Record_inlined (tag,rep) -> begin
+      match (tag,rep) with
+      | Extension _, _ -> value
+      | _, Variant_extensible -> value
+      | Ordinary _, Variant_unboxed l -> l (* n must be 0 here *)
+      | Ordinary {src_index}, Variant_boxed layouts ->
+        if all_void layouts.(src_index)
+        then immediate
+        else value
+    end
+  | Record_boxed layouts when all_void layouts -> immediate
+  | Record_boxed _ -> value
+
+let layout_bound_of_variant_representation : variant_representation -> _ =
+  let open Layout in function
+  | Variant_unboxed l -> l
+  | Variant_boxed layouts ->
+    if Array.for_all all_void layouts then immediate else value
+  | Variant_extensible -> value
+
+(* should not mutate sorts *)
+let layout_bound_of_kind : _ type_kind -> _ =
+  let open Layout in function
+  | Type_abstract { layout } -> layout
+  | Type_open -> value
+  | Type_record (_,rep) -> layout_bound_of_record_representation rep
+  | Type_variant (_, rep) -> layout_bound_of_variant_representation rep
+
 let find_unboxed_type decl =
   match decl.type_kind with
     Type_record ([{ld_type = arg; _}], Record_unboxed _)
-  | Type_variant ([{cd_args = Cstr_tuple [arg,_]; _}], Variant_unboxed)
+  | Type_record ([{ld_type = arg; _}], Record_inlined (_, Variant_unboxed _))
+  | Type_variant ([{cd_args = Cstr_tuple [arg,_]; _}], Variant_unboxed _)
   | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
-                  Variant_unboxed) ->
+                  Variant_unboxed _) ->
     Some arg
-  | Type_record (_, ( Record_regular | Record_float | Record_inlined _
-                    | Record_extension _ | Record_unboxed _ ))
-  | Type_variant (_, ( Variant_regular | Variant_unboxed ))
+  | Type_record (_, ( Record_inlined _ | Record_unboxed _
+                    | Record_boxed _ | Record_float ))
+  | Type_variant (_, ( Variant_boxed _ | Variant_unboxed _
+                     | Variant_extensible ))
   | Type_abstract _ | Type_open ->
     None
 
@@ -531,14 +604,18 @@ type label_description =
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
     lbl_global: global_flag;        (* Is this a global field? *)
+    lbl_layout : layout;                (* Layout of the argument *)
     lbl_pos: int;                       (* Position in block *)
+    lbl_num: int;                       (* Position in type *)
     lbl_all: label_description array;   (* All the labels in this type *)
-    lbl_repres: record_representation;  (* Representation for this record *)
+    lbl_repres: record_representation;  (* Representation for outer record *)
     lbl_private: private_flag;          (* Read-only field? *)
     lbl_loc: Location.t;
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;
-   }
+  }
+
+let lbl_pos_void = -1
 
 let rec bound_value_identifiers = function
     [] -> []
@@ -682,11 +759,16 @@ module Transient_expr = struct
   let set_desc ty d = ty.desc <- d
   let set_stub_desc ty d =
     (match ty.desc with
-    | Tvar None -> ()
+    | Tvar {name = None; _} -> ()
     | _ -> assert false);
     ty.desc <- d
   let set_level ty lv = ty.level <- lv
   let set_scope ty sc = ty.scope <- sc
+  let set_var_layout ty layout' =
+    match ty.desc with
+    | Tvar { name; _ } ->
+      set_desc ty (Tvar { name; layout = layout' })
+    | _ -> assert false
   let coerce ty = ty
   let repr = repr
   let type_expr ty = ty
@@ -867,13 +949,17 @@ let link_type ty ty' =
   (* Name is a user-supplied name for this unification variable (obtained
    * through a type annotation for instance). *)
   match desc, ty'.desc with
-    Tvar name, Tvar name' ->
+    Tvar { name }, Tvar { name = name'; layout = layout' } ->
       begin match name, name' with
-      | Some _, None -> log_type ty'; Transient_expr.set_desc ty' (Tvar name)
+      | Some _, None ->
+        log_type ty';
+        Transient_expr.set_desc ty' (Tvar { name; layout = layout' })
       | None, Some _ -> ()
       | Some _, Some _ ->
-          if ty.level < ty'.level then
-            (log_type ty'; Transient_expr.set_desc ty' (Tvar name))
+        if ty.level < ty'.level then begin
+          log_type ty';
+          Transient_expr.set_desc ty' (Tvar { name; layout = layout' })
+        end
       | None, None   -> ()
       end
   | _ -> ()
@@ -902,6 +988,10 @@ let set_scope ty scope =
     if ty.id <= !last_snapshot then log_change (Cscope (ty, ty.scope));
     Transient_expr.set_scope ty scope
   end
+let set_var_layout ty layout =
+  let ty = repr ty in
+  log_type ty;
+  Transient_expr.set_var_layout ty layout
 let set_univar rty ty =
   log_change (Cuniv (rty, !rty)); rty := Some ty
 let set_name nm v =

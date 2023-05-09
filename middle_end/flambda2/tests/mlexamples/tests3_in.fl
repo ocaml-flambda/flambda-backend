@@ -83,8 +83,7 @@ let code size(102)
                 cont k2 (ifnot_result)
               where k3 =
                 let prim = %unbox_float apply_result in
-                let ifso_result = %array_set float arr.(i) <- &my_region prim
-                in
+                let ifso_result = %array_set float arr.(i) <-& prim in
                 cont k2 (ifso_result)
               where k2 (if_then_else_result) =
                 cont k (if_then_else_result)))

@@ -15,6 +15,7 @@
 
 (* Typechecking of type expressions for the core language *)
 
+open Layouts
 open Types
 
 module TyVarEnv : sig
@@ -61,11 +62,14 @@ val transl_simple_type_delayed
 val transl_type_scheme:
         Env.t -> Parsetree.core_type -> Typedtree.core_type
 val transl_type_param:
-  Env.t -> Parsetree.core_type -> Typedtree.core_type
+  Env.t -> Parsetree.core_type -> layout -> Typedtree.core_type
 
 val get_alloc_mode : Parsetree.core_type -> alloc_mode_const
 
 exception Already_bound
+
+type value_loc =
+    Fun_arg | Fun_ret | Tuple | Poly_variant | Package_constraint | Object_field
 
 type error =
   | Unbound_type_variable of string * string list
@@ -90,6 +94,8 @@ type error =
   | Not_an_object of type_expr
   | Unsupported_extension of Language_extension.t
   | Polymorphic_optional_param
+  | Non_value of
+      {vloc : value_loc; typ : type_expr; err : Layout.Violation.violation}
 
 exception Error of Location.t * Env.t * error
 

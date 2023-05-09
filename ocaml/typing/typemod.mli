@@ -20,6 +20,7 @@
 
 *)
 
+open Layouts
 open Types
 
 module Signature_names : sig
@@ -61,7 +62,7 @@ val path_of_module : Typedtree.module_expr -> Path.t option
 
 val save_signature:
   Compilation_unit.t -> Typedtree.signature -> string -> string ->
-  Env.t -> Cmi_format.cmi_infos -> unit
+  Env.t -> Cmi_format.cmi_infos_lazy -> unit
 
 val package_units:
   Env.t -> string list -> string -> Compilation_unit.t -> Typedtree.module_coercion
@@ -143,6 +144,7 @@ type error =
   | Invalid_type_subst_rhs
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
+  | Toplevel_nonvalue of string * sort
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

@@ -108,22 +108,18 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       then args @ [callee]
       else args
     in
-    let code_linkage_name = Code_id.linkage_name code_id in
+    let code_sym = To_cmm_result.symbol_of_code_id res code_id in
     match Apply.probe_name apply with
     | None ->
       ( C.direct_call ~dbg
           (C.Extended_machtype.to_machtype return_ty)
-          pos
-          (C.symbol_from_linkage_name ~dbg code_linkage_name)
-          args,
+          pos (C.symbol ~dbg code_sym) args,
         free_vars,
         env,
         res,
         Ece.all )
     | Some name ->
-      ( C.probe ~dbg ~name
-          ~handler_code_linkage_name:(Linkage_name.to_string code_linkage_name)
-          ~args
+      ( C.probe ~dbg ~name ~handler_code_linkage_name:code_sym.sym_name ~args
         |> C.return_unit dbg,
         free_vars,
         env,
@@ -157,7 +153,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     fail_if_probe apply;
     let callee =
       match Simple.must_be_symbol callee_simple with
-      | Some (sym, _) -> Symbol.linkage_name sym |> Linkage_name.to_string
+      | Some (sym, _) -> (To_cmm_result.symbol res sym).sym_name
       | None ->
         Misc.fatal_errorf "Expected a function symbol instead of:@ %a"
           Simple.print callee_simple

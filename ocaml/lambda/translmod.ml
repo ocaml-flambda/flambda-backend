@@ -18,6 +18,7 @@
 
 open Misc
 open Asttypes
+open Layouts
 open Types
 open Typedtree
 open Lambda
@@ -38,8 +39,19 @@ type unsafe_info =
 type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
+| Non_value_layout of type_expr * Layout.Violation.violation
 
 exception Error of Location.t * error
+
+(* CR layouts v2: This is used as part of the "void safety check" in the case of
+   `Tstr_eval`, where we want to allow `any` in particular.  Remove when we
+   remove the safety check. *)
+let layout_must_not_be_void loc ty layout =
+  match Layout.(sub layout void) with
+  | Ok () ->
+    let violation = Layout.(Violation.not_a_sublayout layout value) in
+    raise (Error (loc, Non_value_layout (ty, violation)))
+  | Error _ -> ()
 
 let cons_opt x_opt xs =
   match x_opt with
@@ -655,15 +667,18 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
       size
   | item :: rem ->
       match item.str_desc with
-      | Tstr_eval (expr, _) ->
+      | Tstr_eval (expr, layout, _) ->
           let body, size =
             transl_structure ~scopes loc fields cc rootpath final_env rem
           in
+          layout_must_not_be_void expr.exp_loc expr.exp_type layout;
           Lsequence(transl_exp ~scopes expr, body), size
       | Tstr_value(rec_flag, pat_expr_list) ->
           (* Translate bindings first *)
           let mk_lam_let =
-            transl_let ~scopes ~in_structure:true rec_flag pat_expr_list Lambda.layout_module_field in
+            transl_let ~scopes ~in_structure:true rec_flag pat_expr_list
+              Lambda.layout_module_field
+          in
           let ext_fields =
             List.rev_append (let_bound_idents pat_expr_list) fields in
           (* Then, translate remainder of struct *)
@@ -1089,7 +1104,8 @@ let transl_store_structure ~scopes glob map prims aliases str =
       Lambda.subst no_env_update subst cont
     | item :: rem ->
         match item.str_desc with
-        | Tstr_eval (expr, _attrs) ->
+        | Tstr_eval (expr, layout, _attrs) ->
+            layout_must_not_be_void expr.exp_loc expr.exp_type layout;
             Lsequence(Lambda.subst no_env_update subst
                         (transl_exp ~scopes expr),
                       transl_store ~scopes rootpath subst cont rem)
@@ -1484,8 +1500,9 @@ let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
   let f str =
     let expr =
       match str with
-      | [ { str_desc = Tstr_eval (expr, _attrs) } ] when topl ->
+      | [ { str_desc = Tstr_eval (expr, layout, _attrs) } ] when topl ->
         assert (size = 0);
+        layout_must_not_be_void expr.exp_loc expr.exp_type layout;
         Lambda.subst (fun _ _ env -> env) !transl_store_subst
           (transl_exp ~scopes expr)
       | str ->
@@ -1582,13 +1599,15 @@ let close_toplevel_term (lam, ()) =
 
 let transl_toplevel_item ~scopes item =
   match item.str_desc with
-    Tstr_eval (expr, _)
+    (* These first two cases are special compilation for toplevel "let _ =
+       expr", so that Toploop can display the result of the expression.
+       Otherwise, the normal compilation would result in a Lsequence returning
+       unit. *)
+    Tstr_eval (expr, layout, _) ->
+      layout_must_not_be_void expr.exp_loc expr.exp_type layout;
+      transl_exp ~scopes expr
   | Tstr_value(Nonrecursive,
                [{vb_pat = {pat_desc=Tpat_any};vb_expr = expr}]) ->
-      (* special compilation for toplevel "let _ = expr", so
-         that Toploop can display the result of the expression.
-         Otherwise, the normal compilation would result
-         in a Lsequence returning unit. *)
       transl_exp ~scopes expr
   | Tstr_value(rec_flag, pat_expr_list) ->
       let idents = let_bound_idents pat_expr_list in
@@ -1848,6 +1867,12 @@ let report_error loc = function
         print_cycle cycle chapter section
   | Conflicting_inline_attributes ->
       Location.errorf "@[Conflicting 'inline' attributes@]"
+  | Non_value_layout (ty, err) ->
+      Location.errorf
+        "Non-value detected in [translmod]:@ Please report this error to \
+         the Jane Street compilers team.@ %a"
+        (Layout.Violation.report_with_offender
+           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
 
 let () =
   Location.register_error_of_exn

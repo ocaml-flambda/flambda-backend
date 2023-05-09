@@ -63,6 +63,13 @@ let extcall_signature ppf (ty_res, ty_args) =
       fprintf ppf "->%a" machtype ty_res
   end
 
+let is_global ppf = function
+  | Global -> fprintf ppf "G"
+  | Local -> fprintf ppf "L"
+
+let symbol ppf s =
+  fprintf ppf "%a:\"%s\"" is_global s.sym_global s.sym_name
+
 let integer_comparison = function
   | Ceq -> "=="
   | Cne -> "!="
@@ -230,12 +237,13 @@ let operation d = function
   | Cbeginregion -> "beginregion"
   | Cendregion -> "endregion"
 
+
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n
   | Cconst_natint (n, _dbg) ->
     fprintf ppf "%s" (Nativeint.to_string n)
   | Cconst_float (n, _dbg) -> fprintf ppf "%F" n
-  | Cconst_symbol (s, _dbg) -> fprintf ppf "\"%s\"" s
+  | Cconst_symbol (s, _dbg) -> fprintf ppf "%a:\"%s\"" is_global s.sym_global s.sym_name
   | Cvar id -> V.print ppf id
   | Clet(id, def, (Clet(_, _, _) as body)) ->
       let print_binding id ppf def =
@@ -389,19 +397,19 @@ let fundecl ppf f =
      cases in
   with_location_mapping ~label:"Function" ~dbg:f.fun_dbg ppf (fun () ->
   fprintf ppf "@[<1>(function%s%a@ %s@;<1 4>@[<1>(%a)@]@ @[%a@])@]@."
-         (location f.fun_dbg) print_codegen_options f.fun_codegen_options f.fun_name
+         (location f.fun_dbg) print_codegen_options f.fun_codegen_options f.fun_name.sym_name
          print_cases f.fun_args sequence f.fun_body)
 
 let data_item ppf = function
-  | Cdefine_symbol s -> fprintf ppf "\"%s\":" s
-  | Cglobal_symbol s -> fprintf ppf "global \"%s\"" s
+  | Cdefine_symbol {sym_name; sym_global = Local} -> fprintf ppf "\"%s\":" sym_name
+  | Cdefine_symbol {sym_name; sym_global = Global} -> fprintf ppf "global \"%s\":" sym_name
   | Cint8 n -> fprintf ppf "byte %i" n
   | Cint16 n -> fprintf ppf "int16 %i" n
   | Cint32 n -> fprintf ppf "int32 %s" (Nativeint.to_string n)
   | Cint n -> fprintf ppf "int %s" (Nativeint.to_string n)
   | Csingle f -> fprintf ppf "single %F" f
   | Cdouble f -> fprintf ppf "double %F" f
-  | Csymbol_address s -> fprintf ppf "addr \"%s\"" s
+  | Csymbol_address s -> fprintf ppf "addr %a:\"%s\"" is_global s.sym_global s.sym_name
   | Cstring s -> fprintf ppf "string \"%s\"" s
   | Cskip n -> fprintf ppf "skip %i" n
   | Calign n -> fprintf ppf "align %i" n

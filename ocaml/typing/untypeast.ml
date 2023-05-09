@@ -168,7 +168,7 @@ let structure_item sub item =
   let loc = sub.location sub item.str_loc in
   let desc =
     match item.str_desc with
-      Tstr_eval (exp, attrs) -> Pstr_eval (sub.expr sub exp, attrs)
+      Tstr_eval (exp, _, attrs) -> Pstr_eval (sub.expr sub exp, attrs)
     | Tstr_value (rec_flag, list) ->
         Pstr_value (rec_flag, List.map (sub.value_binding sub) list)
     | Tstr_primitive vd ->
@@ -403,7 +403,7 @@ let value_binding sub vb =
     (sub.pat sub vb.vb_pat)
     (sub.expr sub vb.vb_expr)
 
-let comprehension ~loc sub comp_type comp =
+let comprehension sub comp_type comp =
   let open Extensions.Comprehensions in
   let iterator = function
     | Texp_comp_range { ident = _; pattern; start ; stop ; direction } ->
@@ -429,9 +429,7 @@ let comprehension ~loc sub comp_type comp =
     { body    = sub.expr sub comp_body
     ; clauses = List.map clause comp_clauses }
   in
-  Extensions.Comprehensions.expr_of
-    ~loc
-    (comp_type (comprehension comp))
+  Extensions.Comprehensions.expr_of (comp_type (comprehension comp))
 
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
@@ -467,7 +465,7 @@ let expression sub exp =
               | Omitted _ -> list
               | Arg exp -> (label, sub.expr sub exp) :: list
           ) list [])
-    | Texp_match (exp, cases, _) ->
+    | Texp_match (exp, _, cases, _) ->
       Pexp_match (sub.expr sub exp, List.map (sub.case sub) cases)
     | Texp_try (exp, cases) ->
         Pexp_try (sub.expr sub exp, List.map (sub.case sub) cases)
@@ -504,8 +502,7 @@ let expression sub exp =
             Pexp_array plist
         | Immutable ->
             Extensions.Immutable_arrays.expr_of
-              ~loc
-              (Iaexp_immutable_array plist)
+              ~loc (Iaexp_immutable_array plist)
       end
     | Texp_list_comprehension comp ->
         comprehension
@@ -517,7 +514,7 @@ let expression sub exp =
         Pexp_ifthenelse (sub.expr sub exp1,
           sub.expr sub exp2,
           Option.map (sub.expr sub) expo)
-    | Texp_sequence (exp1, exp2) ->
+    | Texp_sequence (exp1, _layout, exp2) ->
         Pexp_sequence (sub.expr sub exp1, sub.expr sub exp2)
     | Texp_while {wh_cond; wh_body} ->
         Pexp_while (sub.expr sub wh_cond, sub.expr sub wh_body)
@@ -604,6 +601,16 @@ let expression sub exp =
                      , [])
                ; pstr_loc = loc
                }]))
+    | Texp_exclave exp ->
+        Pexp_apply ({
+        pexp_desc =
+          Pexp_extension
+            ({ txt = "ocaml.exclave"; loc}
+            , PStr []);
+        pexp_loc = loc;
+        pexp_loc_stack = [];
+        pexp_attributes = [];
+      }, [Nolabel, sub.expr sub exp])
   in
   List.fold_right (exp_extra sub) exp.exp_extra
     (Exp.mk ~loc ~attrs desc)
