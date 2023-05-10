@@ -247,25 +247,21 @@ let pairwise_disjunction_meet ~join_env_extension ~meet_type meetx meety
     in
     map_env ~f:result_env (Ok (result, initial_env (* ignored *)))
 
-type _ combine_results_meet_ops =
-  | Meet :
-      { meet : TE.t -> 'a -> 'a -> 'a meet_result;
-        next : 'b combine_results_meet_ops
-      }
-      -> ('a * 'b) combine_results_meet_ops
-  | End : unit combine_results_meet_ops
+module Combine_results_meet_ops = struct
+  type _ t =
+    | [] : unit t
+    | ( :: ) : ((TE.t -> 'a -> 'a -> 'a meet_result) * 'b t) -> ('a * 'b) t
+end
 
-type _ combine_results_inputs =
-  | Input :
-      { input : 'a;
-        next : 'b combine_results_inputs
-      }
-      -> ('a * 'b) combine_results_inputs
-  | End : unit combine_results_inputs
+module Combine_results_inputs = struct
+  type _ t =
+    | [] : unit t
+    | ( :: ) : ('a * 'b t) -> ('a * 'b) t
+end
 
-let rec build_values : type a. a combine_results_inputs -> a = function
-  | Input { input; next } -> input, build_values next
-  | End -> ()
+let rec build_values : type a. a Combine_results_inputs.t -> a = function
+  | input :: next -> input, build_values next
+  | [] -> ()
 
 let extract_values res left right =
   match res with
@@ -274,23 +270,21 @@ let extract_values res left right =
   | Both_inputs -> build_values left
   | New_result value -> value
 
-let combine_results env ~(meet_ops : 'a combine_results_meet_ops)
-    ~(left_inputs : 'a combine_results_inputs)
-    ~(right_inputs : 'a combine_results_inputs) ~(rebuild : 'a -> 'b) :
+let combine_results env ~(meet_ops : 'a Combine_results_meet_ops.t)
+    ~(left_inputs : 'a Combine_results_inputs.t)
+    ~(right_inputs : 'a Combine_results_inputs.t) ~(rebuild : 'a -> 'b) :
     'b meet_result =
   let rec do_meets :
       type a.
       TE.t ->
-      a combine_results_meet_ops ->
-      a combine_results_inputs ->
-      a combine_results_inputs ->
+      a Combine_results_meet_ops.t ->
+      a Combine_results_inputs.t ->
+      a Combine_results_inputs.t ->
       a meet_result =
    fun env meet_ops left right : a meet_result ->
     match meet_ops, left, right with
-    | End, End, End -> Ok (Both_inputs, env)
-    | ( Meet { meet; next = next_meet },
-        Input { input = left_input; next = next_left },
-        Input { input = right_input; next = next_right } ) -> (
+    | [], [], [] -> Ok (Both_inputs, env)
+    | meet :: next_meet, left_input :: next_left, right_input :: next_right -> (
       match meet env left_input right_input with
       | Bottom -> Bottom
       | Ok (result_hd, env) -> (
@@ -315,14 +309,8 @@ let combine_results env ~(meet_ops : 'a combine_results_meet_ops)
 
 let combine_results2 env ~meet_a ~meet_b ~left_a ~right_a ~left_b ~right_b
     ~rebuild =
-  combine_results env
-    ~meet_ops:
-      (Meet { meet = meet_a; next = Meet { meet = meet_b; next = End } })
-    ~left_inputs:
-      (Input { input = left_a; next = Input { input = left_b; next = End } })
-    ~right_inputs:
-      (Input { input = right_a; next = Input { input = right_b; next = End } })
-    ~rebuild:(fun (a, (b, ())) -> rebuild a b)
+  combine_results env ~meet_ops:[meet_a; meet_b] ~left_inputs:[left_a; left_b]
+    ~right_inputs:[right_a; right_b] ~rebuild:(fun (a, (b, ())) -> rebuild a b)
 
 let meet_code_id (env : TE.t) (code_id1 : Code_id.t) (code_id2 : Code_id.t) :
     Code_id.t meet_result =
@@ -708,32 +696,11 @@ and meet_array_type env (element_kind1, length1, contents1, alloc_mode1)
       TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
         contents alloc_mode)
     ~meet_ops:
-      (Meet
-         { meet;
-           next =
-             Meet
-               { meet = meet_array_contents ~meet_element_kind:element_kind;
-                 next = Meet { meet = meet_alloc_mode; next = End }
-               }
-         })
-    ~left_inputs:
-      (Input
-         { input = length1;
-           next =
-             Input
-               { input = contents1;
-                 next = Input { input = alloc_mode1; next = End }
-               }
-         })
-    ~right_inputs:
-      (Input
-         { input = length2;
-           next =
-             Input
-               { input = contents2;
-                 next = Input { input = alloc_mode2; next = End }
-               }
-         })
+      [ meet;
+        meet_array_contents ~meet_element_kind:element_kind;
+        meet_alloc_mode ]
+    ~left_inputs:[length1; contents1; alloc_mode1]
+    ~right_inputs:[length2; contents2; alloc_mode2]
 
 and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     (array_contents2 : TG.array_contents Or_unknown.t)
@@ -1189,33 +1156,11 @@ and meet_closures_entry (env : TE.t)
       TG.Closures_entry.t) : TG.Closures_entry.t meet_result =
   combine_results env
     ~meet_ops:
-      (Meet
-         { meet = Function_slot_map_meet.meet ~meet_data:meet_function_type;
-           next =
-             Meet
-               { meet = meet_product_function_slot_indexed;
-                 next =
-                   Meet { meet = meet_product_value_slot_indexed; next = End }
-               }
-         })
-    ~left_inputs:
-      (Input
-         { input = function_types1;
-           next =
-             Input
-               { input = closure_types1;
-                 next = Input { input = value_slot_types1; next = End }
-               }
-         })
-    ~right_inputs:
-      (Input
-         { input = function_types2;
-           next =
-             Input
-               { input = closure_types2;
-                 next = Input { input = value_slot_types2; next = End }
-               }
-         })
+      [ Function_slot_map_meet.meet ~meet_data:meet_function_type;
+        meet_product_function_slot_indexed;
+        meet_product_value_slot_indexed ]
+    ~left_inputs:[function_types1; closure_types1; value_slot_types1]
+    ~right_inputs:[function_types2; closure_types2; value_slot_types2]
     ~rebuild:(fun (function_types, (closure_types, (value_slot_types, ()))) ->
       TG.Closures_entry.create ~function_types ~closure_types ~value_slot_types)
 
