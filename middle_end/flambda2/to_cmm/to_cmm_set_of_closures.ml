@@ -368,6 +368,11 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
       "Unbound free_vars in function body when translating to cmm: %a@\n\
        function body: %a" Backend_var.Set.print fun_free_vars
       Printcmm.expression fun_body;
+  let fun_body =
+    if !Clflags.afl_instrument
+    then Afl_instrument.instrument_function fun_body fun_dbg
+    else fun_body
+  in
   let fun_flags =
     transl_check_attrib check
     @

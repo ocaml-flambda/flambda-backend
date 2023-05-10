@@ -112,17 +112,21 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
     Misc.fatal_errorf
       "Unbound free_vars in module init code when translating to cmm: %a"
       Backend_var.Set.print free_vars;
+  (* CR mshinwell: This should at least be given a source file location. *)
+  let dbg = Debuginfo.none in
   let body =
-    let dbg = Debuginfo.none in
     let unit_value = C.targetint ~dbg Targetint_32_64.one in
     C.create_ccatch ~rec_flag:false ~body
       ~handlers:[C.handler ~dbg return_cont return_cont_params unit_value]
   in
+  let body =
+    if !Clflags.afl_instrument
+    then Afl_instrument.instrument_initialiser body (fun () -> dbg)
+    else body
+  in
   let entry_name = Cmm_helpers.make_symbol "entry" in
   let res, entry_sym = R.raw_symbol res ~global:Global entry_name in
   let entry =
-    (* CR mshinwell: This should at least be given a source file location. *)
-    let dbg = Debuginfo.none in
     let fun_codegen =
       let fun_codegen = [Cmm.Reduce_code_size; Cmm.Use_linscan_regalloc] in
       if Flambda_features.backend_cse_at_toplevel ()
