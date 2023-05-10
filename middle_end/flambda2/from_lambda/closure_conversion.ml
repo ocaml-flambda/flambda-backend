@@ -259,7 +259,7 @@ module Inlining = struct
           | Never_inlined ->
             ( Call_site_inlining_decision_type.Never_inlined_attribute,
               Not_inlinable )
-          | Always_inlined | Hint_inlined ->
+          | Always_inlined _ | Hint_inlined ->
             Call_site_inlining_decision_type.Attribute_always, Inlinable code
           | Default_inlined | Unroll _ ->
             (* Closure ignores completely [@unrolled] attributes, so it seems
@@ -1056,17 +1056,6 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
     Let_cont_with_acc.build_recursive acc
       ~invariant_params:Bound_parameters.empty ~handlers ~body
 
-let warn_not_inlined_if_needed (apply : IR.apply) reason =
-  let warn kind =
-    Location.prerr_warning
-      (Debuginfo.Scoped_location.to_location apply.loc)
-      (Warnings.Inlining_impossible (reason kind))
-  in
-  match apply.inlined with
-  | Hint_inlined | Never_inlined | Default_inlined -> ()
-  | Always_inlined -> warn Inlining_helpers.Inlined
-  | Unroll _ -> warn Inlining_helpers.Unrolled
-
 let close_exact_or_unknown_apply acc env
     ({ kind;
        func;
@@ -1080,7 +1069,7 @@ let close_exact_or_unknown_apply acc env
        region_close;
        region;
        return_arity
-     } as ir_apply :
+     } :
       IR.apply) callee_approx ~replace_region : Expr_with_acc.t =
   let callee = find_simple_from_id env func in
   let current_region =
@@ -1148,8 +1137,11 @@ let close_exact_or_unknown_apply acc env
   then
     match Inlining.inlinable env apply callee_approx with
     | Not_inlinable ->
-      warn_not_inlined_if_needed ir_apply (fun _ ->
-          "Function information unavailable");
+      let apply =
+        Apply.with_inlined_attribute apply
+          (Inlined_attribute.with_use_info (Apply.inlined apply)
+             Unused_because_function_unknown)
+      in
       Expr_with_acc.create_apply acc apply
     | Inlinable func_desc ->
       let acc = Acc.mark_continuation_as_untrackable continuation acc in
@@ -2266,8 +2258,14 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         { apply with args; continuation = apply.continuation }
         (Some approx) ~replace_region:None
     | Partial_app { provided; missing_arity } ->
-      warn_not_inlined_if_needed apply
-        Inlining_helpers.inlined_attribute_on_partial_application_msg;
+      (match apply.inlined with
+      | Always_inlined | Unroll _ ->
+        Location.prerr_warning
+          (Debuginfo.Scoped_location.to_location apply.loc)
+          (Warnings.Inlining_impossible
+             Inlining_helpers.(
+               inlined_attribute_on_partial_application_msg Inlined))
+      | Never_inlined | Hint_inlined | Default_inlined -> ());
       wrap_partial_application acc env apply.continuation apply approx ~provided
         ~missing_arity ~arity ~num_trailing_local_params
         ~contains_no_escaping_local_allocs

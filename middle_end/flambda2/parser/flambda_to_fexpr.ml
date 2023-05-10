@@ -1022,10 +1022,16 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
     | Method _ ->
       None
   in
-  let inlined =
+  let inlined : Fexpr.inlined_attribute option =
     if Flambda2_terms.Inlined_attribute.is_default (Apply_expr.inlined app)
     then None
-    else Some (Apply_expr.inlined app)
+    else
+      match Apply_expr.inlined app with
+      | Default_inlined -> Some Default_inlined
+      | Hint_inlined -> Some Hint_inlined
+      | Always_inlined _ -> Some Always_inlined
+      | Unroll (n, _) -> Some (Unroll n)
+      | Never_inlined -> Some Never_inlined
   in
   let inlining_state = inlining_state (Apply_expr.inlining_state app) in
   let region = Env.find_region_exn env (Apply_expr.region app) in

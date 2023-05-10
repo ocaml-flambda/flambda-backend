@@ -373,3 +373,5 @@ let region t = t.region
 let args_arity t = t.args_arity
 
 let return_arity t = t.return_arity
+
+let with_inlined_attribute t inlined = { t with inlined }

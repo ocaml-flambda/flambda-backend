@@ -59,6 +59,21 @@ let bind_var_to_simple ~dbg_with_inlined:dbg env res v
 
 (* Helpers for the translation of [Apply] expressions. *)
 
+let warn_if_unused_inlined_attribute apply ~dbg_with_inlined =
+  match Inlined_attribute.use_info (Apply.inlined apply) with
+  | None -> ()
+  | Some use_info ->
+    let reason =
+      Format.asprintf "\n  %s  (the full inlining stack was: %a)"
+        (match Inlined_attribute.Use_info.explanation use_info with
+        | None -> ""
+        | Some explanation -> explanation ^ "\n")
+        Debuginfo.print_compact dbg_with_inlined
+    in
+    Location.prerr_warning
+      (Debuginfo.to_location dbg_with_inlined)
+      (Warnings.Inlining_impossible reason)
+
 let translate_apply0 ~dbg_with_inlined:dbg env res apply =
   let callee_simple = Apply.callee apply in
   let args = Apply.args apply in
@@ -216,6 +231,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
    handler with extra arguments. *)
 let translate_apply env res apply =
   let dbg = Env.add_inlined_debuginfo env (Apply.dbg apply) in
+  warn_if_unused_inlined_attribute apply ~dbg_with_inlined:dbg;
   let call, free_vars, env, res, effs =
     translate_apply0 ~dbg_with_inlined:dbg env res apply
   in
