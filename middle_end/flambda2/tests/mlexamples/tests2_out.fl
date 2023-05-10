@@ -13,7 +13,8 @@ and code rec loopify(never) size(21) newer_version_of(f_0)
     where k2 =
       ((let Psubint = x - 1 in
         apply direct(f_0_1)
-          ($camlTests2__f_1 ~ depth 0 -> succ my_depth : _ -> imm tagged)
+          ($camlTests2__f_1 ~ depth my_depth -> succ my_depth
+           : _ -> imm tagged)
             (Psubint)
             &my_region
             -> k2 * k1)

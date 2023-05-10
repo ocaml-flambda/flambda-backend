@@ -24,14 +24,14 @@ let $camlLocal__const_block180 = Block 0 ($camlLocal__immstring51, 49, 2) in
 let $camlLocal__Pmakeblock182 =
   Block 0 ($`*predef*`.caml_exn_Assert_failure, $camlLocal__const_block180)
 in
-let code return_local_0 deleted in
-let code map_local_1 deleted in
-let code length_2 deleted in
 let code `anon-fn[local.ml:24,27--43]_3` deleted in
 let code rev_app_4 deleted in
 let code find_span_6 deleted in
 let code spans_5 deleted in
+let code length_2 deleted in
 let code is_even_7 deleted in
+let code map_local_1 deleted in
+let code return_local_0 deleted in
 let code loopify(never) size(1) newer_version_of(return_local_0)
       return_local_0_1 (param : imm tagged)
         my_closure my_region my_depth
@@ -54,7 +54,7 @@ and code rec loopify(never) size(31) newer_version_of(map_local_1)
     where k2 =
       ((let Pfield = %block_load (l, 1) in
         apply direct(map_local_1_1 heap_or_local)
-          ($camlLocal__map_local_9 ~ depth 0 -> succ my_depth
+          ($camlLocal__map_local_9 ~ depth my_depth -> succ my_depth
            : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
             (f, Pfield)
             &my_region
@@ -82,8 +82,8 @@ and code rec loopify(never) size(19) newer_version_of(length_2)
     where k2 =
       ((let Pfield = %block_load (l, 1) in
         apply direct(length_2_1)
-          ($camlLocal__length_10 ~ depth 0 -> succ my_depth : _ -> imm tagged
-           )
+          ($camlLocal__length_10 ~ depth my_depth -> succ my_depth
+           : _ -> imm tagged)
             (Pfield)
             &my_region
             -> k2 * k1)
@@ -104,7 +104,8 @@ apply direct(length_2_1)
   where k =
     let `region` = %begin_region in
     (apply direct(length_2_1) inlining_state(depth(30))
-       ($camlLocal__length_10 ~ depth 0 -> unroll 0 3 : _ -> imm tagged)
+       ($camlLocal__length_10 ~ depth unroll 1 2 -> unroll 0 3
+        : _ -> imm tagged)
          (0)
          &`region`
          -> k1 * error
@@ -191,7 +192,7 @@ apply direct(length_2_1)
                    | 1 -> k2 (0)
                    where k3 =
                      (apply direct(find_span_6_1 heap_or_local)
-                        ($camlLocal__find_span_14 ~ depth 0 -> succ my_depth
+                        ($camlLocal__find_span_14 ~ depth my_depth -> succ my_depth
                          : _ ->
                            [ 0 of [ 0 | 0 of val * val ] *
                                [ 0 | 0 of val * val ] ]
@@ -205,7 +206,7 @@ apply direct(length_2_1)
                                        [ 0 | 0 of val * val ] ]) =
                           ((let Pfield = %block_load (`*match*`, 1) in
                             apply direct(spans_5_1)
-                              ($camlLocal__spans_13 ~ depth 0 -> succ my_depth
+                              ($camlLocal__spans_13 ~ depth my_depth -> succ my_depth
                                : _ ->
                                  [ 0 | 0 of val * [ 0 | 0 of val * val ] ]
                                )
@@ -280,7 +281,7 @@ apply direct(length_2_1)
                               cont k (Pmakeblock)
                             where k2 =
                               apply direct(find_span_6_1 heap_or_local)
-                                ($camlLocal__find_span_14 ~ depth 0 -> succ my_depth
+                                ($camlLocal__find_span_14 ~ depth my_depth -> succ my_depth
                                  : _ ->
                                    [ 0 of [ 0 | 0 of val * val ] *
                                        [ 0 | 0 of val * val ] ]

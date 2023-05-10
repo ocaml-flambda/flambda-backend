@@ -1,0 +1,8 @@
+(rule
+ (alias   runtest)
+ (enabled_if
+  (and (= %{context_name} "main")
+       (= %{system} "linux")
+       (= %{architecture} "amd64")))
+ (deps t1.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -warn-error "+190" -c)))

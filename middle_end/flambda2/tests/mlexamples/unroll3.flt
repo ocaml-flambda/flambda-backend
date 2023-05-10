@@ -1,25 +1,5 @@
 let $camlUnroll3__first_const32 = Block 0 () in
 let code rec size(22)
-      even_0 (n : imm tagged)
-        my_closure my_region my_depth
-        -> k * k1
-        : imm tagged =
-  let next_depth = rec_info (succ my_depth) in
-  let odd = %project_function_slot (even -> odd) my_closure in
-  let prim = %phys_eq (n, 0) in
-  let Pintcomp = %Tag_imm prim in
-  (let untagged = %untag_imm Pintcomp in
-   switch untagged
-     | 0 -> k2
-     | 1 -> k (1))
-    where k2 =
-      let Psubint = n - 1 in
-      apply direct(odd_1)
-        (odd ~ depth my_depth -> next_depth : _ -> imm tagged)
-          (Psubint)
-          &my_region
-          -> k * k1
-and code rec size(22)
       odd_1 (n : imm tagged)
         my_closure my_region my_depth
         -> k * k1
@@ -36,6 +16,26 @@ and code rec size(22)
       let Psubint = n - 1 in
       apply direct(even_0)
         (even ~ depth my_depth -> next_depth : _ -> imm tagged)
+          (Psubint)
+          &my_region
+          -> k * k1
+and code rec size(22)
+      even_0 (n : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let odd = %project_function_slot (even -> odd) my_closure in
+  let prim = %phys_eq (n, 0) in
+  let Pintcomp = %Tag_imm prim in
+  (let untagged = %untag_imm Pintcomp in
+   switch untagged
+     | 0 -> k2
+     | 1 -> k (1))
+    where k2 =
+      let Psubint = n - 1 in
+      apply direct(odd_1)
+        (odd ~ depth my_depth -> next_depth : _ -> imm tagged)
           (Psubint)
           &my_region
           -> k * k1
@@ -58,7 +58,7 @@ in
     let $camlUnroll3 = Block 0 (field_0, field_1, field_2, field_3) in
     cont done ($camlUnroll3)
 ===>
-let code odd_1 deleted and code even_0 deleted in
+let code even_0 deleted and code odd_1 deleted in
 let code rec loopify(never) size(18) newer_version_of(even_0)
       even_0_1 (n : imm tagged)
         my_closure my_region my_depth
@@ -71,7 +71,8 @@ let code rec loopify(never) size(18) newer_version_of(even_0)
     where k2 =
       let Psubint = n - 1 in
       apply direct(odd_1_1)
-        ($camlUnroll3__odd_3 ~ depth 0 -> succ my_depth : _ -> imm tagged)
+        ($camlUnroll3__odd_3 ~ depth my_depth -> succ my_depth
+         : _ -> imm tagged)
           (Psubint)
           &my_region
           -> k * k1
@@ -87,7 +88,8 @@ and code rec loopify(never) size(18) newer_version_of(odd_1)
     where k2 =
       let Psubint = n - 1 in
       apply direct(even_0_1)
-        ($camlUnroll3__even_2 ~ depth 0 -> succ my_depth : _ -> imm tagged)
+        ($camlUnroll3__even_2 ~ depth my_depth -> succ my_depth
+         : _ -> imm tagged)
           (Psubint)
           &my_region
           -> k * k1
@@ -97,7 +99,7 @@ and $camlUnroll3__odd_3 =
   closure odd_1_1 @odd
 in
 apply direct(odd_1_1) inlining_state(depth(20))
-  ($camlUnroll3__odd_3 ~ depth 0 -> unroll 0 2 : _ -> imm tagged)
+  ($camlUnroll3__odd_3 ~ depth unroll 1 1 -> unroll 0 2 : _ -> imm tagged)
     (2)
     &toplevel
     -> k * error

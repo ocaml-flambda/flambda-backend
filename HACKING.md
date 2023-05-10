@@ -122,7 +122,7 @@ and proceed as follows:
 make coldstart
 make coreall
 ```
-Then edit `runtime/exec.h` and `utils/config.mlp` to bump the numbers.  Then:
+Then edit `runtime/caml/exec.h` and `utils/config.mlp` to bump the numbers.  Then:
 ```
 make coreall
 make bootstrap

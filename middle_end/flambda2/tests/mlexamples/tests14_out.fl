@@ -1,7 +1,7 @@
-let code set_0 deleted in
-let code nth_char_1 deleted in
-let code needs_try_region_2 deleted in
 let code gadt_match_3 deleted in
+let code nth_char_1 deleted in
+let code set_0 deleted in
+let code needs_try_region_2 deleted in
 let code loopify(never) size(5) newer_version_of(set_0)
       set_0_1 (t) my_closure my_region my_depth -> k * k1 : imm tagged =
   let Psetfield = %block_set imm t.(0) <- 42 in

@@ -327,3 +327,18 @@ promote-one: install_for_test
 .PHONY: hacking
 hacking: _build/_bootinstall
 	$(dune) build $(ws_boot) -w $(boot_targets)
+
+# The `hacking-emacs-poller` and `hacking-emacs-builder` targets make it
+# possible to run the polling build with Emacs's `M-x compile`.  You should run
+# `make hacking-emacs-poller` in your terminal from the root directory of the
+# repo, and set Emacs's `compile-command` to `make hacking-emacs-builder` (from
+# the appropriate directory).
+
+.PHONY: hacking-emacs-poller
+hacking-emacs-poller: _build/_bootinstall
+	$(dune) build $(ws_boot) --passive-watch-mode
+
+.PHONY: hacking-emacs-builder
+hacking-emacs-builder: _build/_bootinstall
+	$(dune) rpc build $(ws_boot) -w $(boot_targets)
+	$(dune) diagnostics

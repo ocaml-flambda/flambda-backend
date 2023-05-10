@@ -136,14 +136,17 @@ module type AST_parameters = sig
       [fun tm -> tm.pCAT_loc] for the appropriate syntactic category [CAT]. *)
   val location : ast -> Location.t
 
-  (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata *)
+  (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata.  When
+      creating [ast] nodes afresh for an extension, the location should be
+      omitted; in this case, it will default to [!Ast_helper.default_loc], which
+      should be [ghost]. *)
   val wrap_desc :
-    loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
+    ?loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
 
   (** How to construct an extension node for this AST (something of the shape
       [[%name]] or [[%%name]], depending on the AST).  Should just be
-      [Ast_helper.CAT.extension] for the appropriate syntactic category
-      [CAT]. *)
+      [Ast_helper.CAT.extension] for the appropriate syntactic category [CAT].
+      (This means that [?loc] should default to [!Ast_helper.default_loc.].) *)
   val make_extension_node :
     ?loc:Location.t -> ?attrs:attributes -> extension -> ast
 
@@ -172,9 +175,12 @@ module type AST = sig
   val location : ast -> Location.t
 
   val wrap_desc :
-    loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
+    ?loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
 
-  val make_extension : loc:Location.t -> string list -> ast -> ast_desc
+  val make_extension : string list -> ast -> ast_desc
+
+  val make_entire_extension :
+    loc:Location.t -> string -> (unit -> ast) -> ast_desc
 
   val match_extension : ast -> (string list * ast) option
 end
@@ -195,12 +201,17 @@ module Make_AST (AST_parameters : AST_parameters) :
   struct
     include AST_parameters
 
-    let make_extension ~loc names =
+    let make_extension names =
       make_extension_use
         ~extension_node:
           (make_extension_node
-             ~loc
-             ({ txt = String.concat "." ("extension" :: names); loc }, PStr []))
+             ({ txt = String.concat "." ("extension" :: names);
+                loc = !Ast_helper.default_loc },
+              PStr []))
+
+    let make_entire_extension ~loc name ast =
+      make_extension [name]
+        (Ast_helper.with_default_loc (Location.ghostify loc) ast)
 
     (* This raises an error if the language extension node is malformed.
        Malformed means either:
@@ -237,7 +248,7 @@ module Expression = Make_AST(struct
 
   let location expr = expr.pexp_loc
 
-  let wrap_desc ~loc ~attrs = Ast_helper.Exp.mk ~loc ~attrs
+  let wrap_desc ?loc ~attrs = Ast_helper.Exp.mk ?loc ~attrs
 
   let make_extension_node = Ast_helper.Exp.extension
 
@@ -262,7 +273,7 @@ module Pattern = Make_AST(struct
 
   let location pat = pat.ppat_loc
 
-  let wrap_desc ~loc ~attrs = Ast_helper.Pat.mk ~loc ~attrs
+  let wrap_desc ?loc ~attrs = Ast_helper.Pat.mk ?loc ~attrs
 
   let make_extension_node = Ast_helper.Pat.extension
 
@@ -286,7 +297,7 @@ module Module_type = Make_AST(struct
 
     let location mty = mty.pmty_loc
 
-    let wrap_desc ~loc ~attrs = Ast_helper.Mty.mk ~loc ~attrs
+    let wrap_desc ?loc ~attrs = Ast_helper.Mty.mk ?loc ~attrs
 
     let make_extension_node = Ast_helper.Mty.extension
 

@@ -1,25 +1,5 @@
 let $camlTests5__first_const28 = Block 0 () in
 let code rec size(22)
-      f_0 (x : imm tagged)
-        my_closure my_region my_depth
-        -> k * k1
-        : imm tagged =
-  let next_depth = rec_info (succ my_depth) in
-  let g = %project_function_slot (f -> g) my_closure in
-  let prim = %int_comp x < 4 in
-  let Pintcomp = %Tag_imm prim in
-  (let untagged = %untag_imm Pintcomp in
-   switch untagged
-     | 0 -> k (42)
-     | 1 -> k2)
-    where k2 =
-      let Psubint = x - 1 in
-      apply direct(g_1)
-        (g ~ depth my_depth -> next_depth : _ -> imm tagged)
-          (Psubint)
-          &my_region
-          -> k * k1
-and code rec size(22)
       g_1 (y : imm tagged)
         my_closure my_region my_depth
         -> k * k1
@@ -39,6 +19,26 @@ and code rec size(22)
           (Psubint)
           &my_region
           -> k * k1
+and code rec size(22)
+      f_0 (x : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let g = %project_function_slot (f -> g) my_closure in
+  let prim = %int_comp x < 4 in
+  let Pintcomp = %Tag_imm prim in
+  (let untagged = %untag_imm Pintcomp in
+   switch untagged
+     | 0 -> k (42)
+     | 1 -> k2)
+    where k2 =
+      let Psubint = x - 1 in
+      apply direct(g_1)
+        (g ~ depth my_depth -> next_depth : _ -> imm tagged)
+          (Psubint)
+          &my_region
+          -> k * k1
 in
 (let f = closure f_0 @f and g = closure g_1 @g in
  let Pmakeblock = %Block 0 (f, g) in
@@ -49,7 +49,7 @@ in
     let $camlTests5 = Block 0 (field_0, field_1) in
     cont done ($camlTests5)
 ===>
-let code g_1 deleted and code f_0 deleted in
+let code f_0 deleted and code g_1 deleted in
 let code rec loopify(never) size(18) newer_version_of(g_1)
       g_1_1 (y : imm tagged)
         my_closure my_region my_depth
@@ -62,7 +62,8 @@ let code rec loopify(never) size(18) newer_version_of(g_1)
     where k2 =
       let Psubint = y - 1 in
       apply direct(f_0_1)
-        ($camlTests5__f_2 ~ depth 0 -> succ my_depth : _ -> imm tagged)
+        ($camlTests5__f_2 ~ depth my_depth -> succ my_depth : _ -> imm tagged
+         )
           (Psubint)
           &my_region
           -> k * k1
@@ -82,7 +83,8 @@ and code rec loopify(never) size(18) newer_version_of(f_0)
     where k2 =
       let Psubint = x - 1 in
       apply direct(g_1_1)
-        ($camlTests5__g_3 ~ depth 0 -> succ my_depth : _ -> imm tagged)
+        ($camlTests5__g_3 ~ depth my_depth -> succ my_depth : _ -> imm tagged
+         )
           (Psubint)
           &my_region
           -> k * k1

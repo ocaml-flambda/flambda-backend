@@ -1,4 +1,4 @@
-let code odd_2 deleted and code even_1 deleted in
+let code even_1 deleted and code odd_2 deleted in
 let code parity_is_0 deleted in
 let code k_3 deleted in
 let code rec loopify(never) size(26) newer_version_of(even_1)
@@ -138,7 +138,7 @@ apply direct(k_3_1) inlined(hint) inlining_state(depth(21))
           where k3 =
             let Psubint = n - 1 in
             apply direct(odd_2_2) inlining_state(depth(1))
-              $camlUnroll4__odd_9 ~ depth 0 -> succ my_depth
+              $camlUnroll4__odd_9 ~ depth my_depth -> succ my_depth
                 (Psubint)
                 &my_region
                 -> k1 * k2
@@ -151,7 +151,7 @@ apply direct(k_3_1) inlined(hint) inlining_state(depth(21))
           where k3 =
             let Psubint = n - 1 in
             apply direct(even_1_2) inlining_state(depth(1))
-              $camlUnroll4__even_8 ~ depth 0 -> succ my_depth
+              $camlUnroll4__even_8 ~ depth my_depth -> succ my_depth
                 (Psubint)
                 &my_region
                 -> k1 * k2

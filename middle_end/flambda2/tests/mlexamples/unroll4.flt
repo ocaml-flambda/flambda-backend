@@ -1,22 +1,5 @@
 let $camlUnroll4__first_const49 = Block 0 () in
 let code rec size(29)
-      even_1 (n : imm tagged) my_closure my_region my_depth -> k * k1 =
-  let next_depth = rec_info (succ my_depth) in
-  let k = %project_value_slot even.k my_closure in
-  let odd = %project_function_slot (even -> odd) my_closure in
-  let prim = %phys_eq (n, 0) in
-  let Pintcomp = %Tag_imm prim in
-  (let untagged = %untag_imm Pintcomp in
-   switch untagged
-     | 0 -> k2
-     | 1 -> k3)
-    where k3 =
-      apply inlined(hint) k (1) &my_region -> k * k1
-    where k2 =
-      let Psubint = n - 1 in
-      apply direct(odd_2)
-        odd ~ depth my_depth -> next_depth (Psubint) &my_region -> k * k1
-and code rec size(29)
       odd_2 (n : imm tagged) my_closure my_region my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let k = %project_value_slot odd.k my_closure in
@@ -33,6 +16,23 @@ and code rec size(29)
       let Psubint = n - 1 in
       apply direct(even_1)
         even ~ depth my_depth -> next_depth (Psubint) &my_region -> k * k1
+and code rec size(29)
+      even_1 (n : imm tagged) my_closure my_region my_depth -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
+  let k = %project_value_slot even.k my_closure in
+  let odd = %project_function_slot (even -> odd) my_closure in
+  let prim = %phys_eq (n, 0) in
+  let Pintcomp = %Tag_imm prim in
+  (let untagged = %untag_imm Pintcomp in
+   switch untagged
+     | 0 -> k2
+     | 1 -> k3)
+    where k3 =
+      apply inlined(hint) k (1) &my_region -> k * k1
+    where k2 =
+      let Psubint = n - 1 in
+      apply direct(odd_2)
+        odd ~ depth my_depth -> next_depth (Psubint) &my_region -> k * k1
 in
 let code inline(always) size(87)
       parity_is_0 (p : imm tagged, n : imm tagged, k)
@@ -74,7 +74,7 @@ in
     let $camlUnroll4 = Block 0 (field_0, field_1, field_2, field_3) in
     cont done ($camlUnroll4)
 ===>
-let code odd_2 deleted and code even_1 deleted in
+let code even_1 deleted and code odd_2 deleted in
 let code parity_is_0 deleted in
 let code k_3 deleted in
 let code rec loopify(never) size(26) newer_version_of(even_1)
@@ -214,7 +214,7 @@ apply direct(k_3_1) inlined(hint) inlining_state(depth(21))
           where k3 =
             let Psubint = n - 1 in
             apply direct(odd_2_2) inlining_state(depth(1))
-              $camlUnroll4__odd_9 ~ depth 0 -> succ my_depth
+              $camlUnroll4__odd_9 ~ depth my_depth -> succ my_depth
                 (Psubint)
                 &my_region
                 -> k1 * k2
@@ -227,7 +227,7 @@ apply direct(k_3_1) inlined(hint) inlining_state(depth(21))
           where k3 =
             let Psubint = n - 1 in
             apply direct(even_1_2) inlining_state(depth(1))
-              $camlUnroll4__even_8 ~ depth 0 -> succ my_depth
+              $camlUnroll4__even_8 ~ depth my_depth -> succ my_depth
                 (Psubint)
                 &my_region
                 -> k1 * k2
