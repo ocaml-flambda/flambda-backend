@@ -289,6 +289,24 @@
 
 (rule
  (enabled_if (= %{context_name} "main"))
+ (targets fail16.output.corrected)
+ (deps (:ml fail16.ml) filter.sh)
+ (action
+   (with-outputs-to fail16.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail16.output fail16.output.corrected)
+ (action (diff fail16.output fail16.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
  (targets test_attribute_error_duplicate.output.corrected)
  (deps (:ml test_attribute_error_duplicate.ml) filter.sh)
  (action
