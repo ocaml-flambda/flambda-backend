@@ -30,7 +30,12 @@ module Use_info = struct
         "the optimizer decided not to inline the function given its \
          definition, or because its definition was not visible"
     | Unused_because_function_unknown ->
-      Some "the optimizer did not know what function was being applied"
+      Some
+        ("the optimizer did not know what function was being applied"
+        ^
+        if Flambda_features.classic_mode ()
+        then " (is it marked [@inline never]?)"
+        else "")
 end
 
 type t =
