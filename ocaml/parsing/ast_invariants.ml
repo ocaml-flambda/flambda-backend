@@ -27,6 +27,9 @@ let complex_id loc = err loc "Functor application not allowed here."
 let module_type_substitution_missing_rhs loc =
   err loc "Module type substitution with no right hand side"
 let empty_comprehension loc = err loc "Comprehension with no clauses"
+let no_val_params loc = err loc "Functions must have a value parameter."
+let non_jane_syntax_function loc =
+  err loc "Functions must be constructed using Jane Street syntax."
 
 let simple_longident id =
   let rec is_simple = function
@@ -71,8 +74,23 @@ let iterator =
       List.iter (fun (id, _) -> simple_longident id) fields
     | _ -> ()
   in
+  let n_ary_function loc (params, _constraint, body) =
+    let open Jane_syntax.N_ary_functions in
+    match body with
+    | Pfunction_cases _ -> ()
+    | Pfunction_body _ ->
+        if
+          not (
+            List.exists
+              (function
+                | Pparam_val _ -> true
+                | Pparam_newtype _ -> false)
+              params)
+        then no_val_params loc
+  in
   let jexpr _self loc (jexp : Jane_syntax.Expression.t) =
     match jexp with
+    | Jexp_n_ary_function n_ary -> n_ary_function loc n_ary
     | Jexp_comprehension
         ( Cexp_list_comprehension {clauses = []; body = _}
         | Cexp_array_comprehension (_, {clauses = []; body = _}) )
@@ -107,6 +125,7 @@ let iterator =
     | Pexp_new id -> simple_longident id
     | Pexp_record (fields, _) ->
       List.iter (fun (id, _) -> simple_longident id) fields
+    | Pexp_function _ | Pexp_fun _ -> non_jane_syntax_function loc
     | _ -> ()
   in
   let extension_constructor self ec =

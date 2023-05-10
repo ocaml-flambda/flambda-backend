@@ -514,6 +514,7 @@ module E = struct
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
   module L = Jane_syntax.Layouts
+  module N_ary = Jane_syntax.N_ary_functions
 
   let map_iterator sub : C.iterator -> C.iterator = function
     | Range { start; stop; direction } ->
@@ -560,11 +561,50 @@ module E = struct
       let inner_expr = sub.expr sub inner_expr in
       Lexp_newtype (str, layout, inner_expr)
 
+  let map_function_param sub : N_ary.function_param -> N_ary.function_param =
+    function
+    | Pparam_newtype (newtype, annot, loc) ->
+      Pparam_newtype
+        ( map_loc sub newtype
+        , map_opt (map_loc_txt sub sub.layout_annotation) annot
+        , sub.location sub loc )
+    | Pparam_val (label, def, pat) ->
+      Pparam_val (label, Option.map (sub.expr sub) def, sub.pat sub pat)
+
+  let map_type_constraint sub : N_ary.type_constraint -> N_ary.type_constraint =
+    function
+    | Pconstraint ty -> Pconstraint (sub.typ sub ty)
+    | Pcoerce (ty1, ty2) ->
+        Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2)
+
+  let map_function_constraint sub
+      : N_ary.function_constraint -> N_ary.function_constraint =
+    function
+    | { mode_annotations; type_constraint } ->
+      { mode_annotations;
+        type_constraint = map_type_constraint sub type_constraint;
+      }
+
+  let map_function_body sub : N_ary.function_body -> N_ary.function_body =
+    function
+    | Pfunction_body exp -> Pfunction_body (sub.expr sub exp)
+    | Pfunction_cases (cases, loc, attrs) ->
+      Pfunction_cases
+        (sub.cases sub cases, sub.location sub loc, sub.attributes sub attrs)
+
+  let map_n_ary_exp sub : N_ary.expression -> N_ary.expression = function
+    | (params, constraint_, body) ->
+      let params = List.map (map_function_param sub) params in
+      let constraint_ = Option.map (map_function_constraint sub) constraint_ in
+      let body = map_function_body sub body in
+      params, constraint_, body
+
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
     | Jexp_comprehension x -> Jexp_comprehension (map_cexp sub x)
     | Jexp_immutable_array x -> Jexp_immutable_array (map_iaexp sub x)
     | Jexp_layout x -> Jexp_layout (map_layout_exp sub x)
+    | Jexp_n_ary_function x -> Jexp_n_ary_function (map_n_ary_exp sub x)
 
   let map sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
@@ -585,9 +625,11 @@ module E = struct
         let_ ~loc ~attrs r (List.map (sub.value_binding sub) vbs)
           (sub.expr sub e)
     | Pexp_fun (lab, def, p, e) ->
-        fun_ ~loc ~attrs lab (map_opt (sub.expr sub) def) (sub.pat sub p)
-          (sub.expr sub e)
-    | Pexp_function pel -> function_ ~loc ~attrs (sub.cases sub pel)
+        (fun_ ~loc ~attrs lab (map_opt (sub.expr sub) def) (sub.pat sub p)
+          (sub.expr sub e) [@alert "-prefer_jane_syntax"])
+    | Pexp_function pel ->
+        (function_ ~loc ~attrs (sub.cases sub pel)
+           [@alert "-prefer_jane_syntax"])
     | Pexp_apply (e, l) ->
         apply ~loc ~attrs (sub.expr sub e) (List.map (map_snd (sub.expr sub)) l)
     | Pexp_match (e, pel) ->
@@ -737,10 +779,10 @@ module CE = struct
     | Pcl_structure s ->
         structure ~loc ~attrs (sub.class_structure sub s)
     | Pcl_fun (lab, e, p, ce) ->
-        fun_ ~loc ~attrs lab
+        (fun_ ~loc ~attrs lab
           (map_opt (sub.expr sub) e)
           (sub.pat sub p)
-          (sub.class_expr sub ce)
+          (sub.class_expr sub ce) [@alert "-prefer_jane_syntax"])
     | Pcl_apply (ce, l) ->
         apply ~loc ~attrs (sub.class_expr sub ce)
           (List.map (map_snd (sub.expr sub)) l)

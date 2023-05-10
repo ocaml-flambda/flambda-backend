@@ -142,6 +142,7 @@ utils/language_extension_kernel.cmo : \
 utils/language_extension_kernel.cmx : \
     utils/language_extension_kernel.cmi
 utils/language_extension_kernel.cmi :
+utils/language_extension_kernel_intf.cmi :
 utils/lazy_backtrack.cmo : \
     utils/lazy_backtrack.cmi
 utils/lazy_backtrack.cmx : \
@@ -3682,7 +3683,6 @@ middle_end/convert_primitives.cmo : \
     lambda/printlambda.cmi \
     typing/primitive.cmi \
     utils/misc.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
     middle_end/clambda_primitives.cmi \
     middle_end/convert_primitives.cmi
@@ -3690,7 +3690,6 @@ middle_end/convert_primitives.cmx : \
     lambda/printlambda.cmx \
     typing/primitive.cmx \
     utils/misc.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
     middle_end/clambda_primitives.cmx \
     middle_end/convert_primitives.cmi
@@ -3816,6 +3815,7 @@ lambda/lambda.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
+    typing/layouts.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
@@ -3831,6 +3831,7 @@ lambda/lambda.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
+    typing/layouts.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
@@ -3845,6 +3846,7 @@ lambda/lambda.cmi : \
     typing/primitive.cmi \
     typing/path.cmi \
     parsing/location.cmi \
+    typing/layouts.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \

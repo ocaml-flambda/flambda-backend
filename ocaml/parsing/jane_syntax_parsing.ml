@@ -545,7 +545,7 @@ module Make_with_attribute
         ; attr_payload = payload
         }
       in
-      (* See Note [Outer attributes at end] *)
+      (* See Note [Outer attributes at end] in jane_syntax.ml *)
       with_attributes ast (attributes ast @ [ attr ])
 
     let match_jane_syntax ast =

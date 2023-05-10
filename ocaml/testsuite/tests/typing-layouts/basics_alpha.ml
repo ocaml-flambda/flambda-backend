@@ -78,9 +78,9 @@ Error: The type constraints are not consistent.
 
 let f1 () : t_any = assert false;;
 [%%expect{|
-Line 1, characters 10-32:
+Line 1, characters 20-32:
 1 | let f1 () : t_any = assert false;;
-              ^^^^^^^^^^^^^^^^^^^^^^
+                        ^^^^^^^^^^^^
 Error: This expression has type t_any but an expression was expected of type
          ('a : '_representable_layout_3)
        t_any has layout any, which is not representable.

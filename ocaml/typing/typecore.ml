@@ -202,16 +202,16 @@ type error =
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
 
-let error_of_filter_arrow_failure ~explanation in_function ty_fun
+let error_of_filter_arrow_failure ~explanation ~first ty_fun
   : filter_arrow_failure -> _ = function
   | Unification_error unif_err ->
       Expr_type_clash(unif_err, explanation, None)
   | Label_mismatch { got; expected; expected_type} ->
       Abstract_wrong_label { got; expected; expected_type; explanation }
   | Not_a_function -> begin
-      match in_function with
-      | Some _ -> Too_many_arguments(ty_fun, explanation)
-      | None   -> Not_a_function(ty_fun, explanation)
+      if first
+      then Not_a_function(ty_fun, explanation)
+      else Too_many_arguments(ty_fun, explanation)
     end
   | Layout_error (ty, err) -> Function_type_not_rep (ty, err)
 
@@ -3662,6 +3662,7 @@ let is_local_returning_expr e =
         | Jexp_immutable_array _ -> false, e.pexp_loc
         | Jexp_layout (Lexp_constant _) -> false, e.pexp_loc
         | Jexp_layout (Lexp_newtype (_, _, e)) -> loop e
+        | Jexp_n_ary_function _ -> false, e.pexp_loc
       end
     | None      ->
     match e.pexp_desc with
@@ -3736,7 +3737,18 @@ let is_local_returning_function cases =
     if Builtin_attributes.has_curry e.pexp_attributes then
       is_local_returning_expr e
     else begin
-      match e.pexp_desc, e.pexp_attributes with
+      match Jane_syntax.Expression.of_ast e with
+      | Some (jexp, _attrs) -> begin
+          match jexp with
+          | Jexp_n_ary_function (_, _, Pfunction_cases (cases, _, _)) ->
+              loop_cases cases
+          | Jexp_n_ary_function (_, _, Pfunction_body body) ->
+              loop_body body
+          | Jexp_comprehension _ | Jexp_immutable_array _ ->
+              is_local_returning_expr e
+          | Jexp_layout (Lexp_constant _ | Lexp_newtype _) -> false
+        end
+      | None -> match e.pexp_desc, e.pexp_attributes with
       | Pexp_fun(_, _, _, e), _ -> loop_body e
       | Pexp_function cases, _ -> loop_cases cases
       | Pexp_constraint (e, _), _ -> loop_body e
@@ -3746,6 +3758,25 @@ let is_local_returning_function cases =
     end
   in
   loop_cases cases
+
+(* The "rest of the function" extends from the start of the first parameter
+   to the end of the overall function. The parser does not construct such
+   a location so we forge one for type errors.
+*)
+let loc_rest_of_function
+    ~(loc_function : Location.t) params_suffix body : Location.t
+  =
+  let open Jane_syntax.N_ary_functions in
+  match params_suffix, body with
+  | param :: _, _ ->
+      let loc_start =
+        match param with
+        | Pparam_newtype (_, _, loc_param) -> loc_param.loc_start
+        | Pparam_val (_, _, pat) -> pat.ppat_loc.loc_start
+      in
+      { loc_start; loc_end = loc_function.loc_end; loc_ghost = true }
+  | [], Pfunction_body pexp -> pexp.pexp_loc
+  | [], Pfunction_cases (_, loc_cases, _) -> loc_cases
 
 (* Approximate the type of an expression, for better recursion *)
 
@@ -3828,7 +3859,32 @@ let type_pattern_approx env spat ty_expected =
       end;
   | _ -> ()
 
-let rec type_function_approx env loc label spato sexp in_function ty_expected =
+let type_approx_constraint ~loc env constraint_ ty_expected =
+  let open Jane_syntax.N_ary_functions in
+  match constraint_ with
+  | Pconstraint sty ->
+      let ty_expected' = approx_type env sty in
+      begin try unify env ty_expected' ty_expected with Unify err ->
+        raise (Error (loc, env, Expr_type_clash (err, None, None)))
+      end;
+      ty_expected'
+  | Pcoerce (_sty1, sty2) ->
+      let ty = approx_type env sty2 in
+      begin try unify env ty ty_expected with Unify trace ->
+        raise (Error (loc, env, Expr_type_clash (trace, None, None)))
+      end;
+      ty_expected
+
+let type_approx_constraint_opt ~loc env constraint_ ty_expected =
+  let open Jane_syntax.N_ary_functions in
+  match constraint_ with
+  | None -> ty_expected
+  | Some { type_constraint; mode_annotations = _ } ->
+      type_approx_constraint ~loc env type_constraint ty_expected
+
+let type_approx_fun_one_param
+    env loc label spato ty_expected ~first ~in_function
+  =
   let mode_annots, has_poly =
     match spato with
     | None -> None, false
@@ -3839,16 +3895,12 @@ let rec type_function_approx env loc label spato sexp in_function ty_expected =
           raise(Error(spat.ppat_loc, env, Optional_poly_param));
         Some mode_annots, has_poly
   in
-  let loc_fun, ty_fun =
-    match in_function with
-    | Some (loc, ty) -> loc, ty
-    | None -> loc, ty_expected
-  in
+  let loc_fun, ty_fun = in_function in
   let { ty_arg; arg_mode; ty_ret; _ } =
     try filter_arrow env ty_expected label ~force_tpoly:(not has_poly)
     with Filter_arrow_failed err ->
       let err =
-        error_of_filter_arrow_failure ~explanation:None in_function ty_fun err
+        error_of_filter_arrow_failure ~explanation:None ~first ty_fun err
       in
       raise (Error(loc_fun, env, err))
   in
@@ -3861,75 +3913,114 @@ let rec type_function_approx env loc label spato sexp in_function ty_expected =
     | None -> ()
     | Some spat -> type_pattern_approx env spat ty_arg
   end;
-  let in_function = Some (loc_fun, ty_fun) in
-  type_approx_aux env sexp in_function ty_ret
+  ty_ret
 
-and type_approx_aux env sexp in_function ty_expected =
+let rec type_approx env sexp ty_expected =
+  let loc = sexp.pexp_loc in
   match Jane_syntax.Expression.of_ast sexp with
-  | Some (jexp, _attrs) -> type_approx_aux_jane_syntax jexp
+  | Some (jexp, _attrs) -> type_approx_aux_jane_syntax ~loc env jexp ty_expected
   | None      -> match sexp.pexp_desc with
-    Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
-  | Pexp_fun (l, _, p, e) ->
-      type_function_approx env sexp.pexp_loc l (Some p) e
-        in_function ty_expected
-  | Pexp_function ({pc_rhs=e}::_) ->
-      type_function_approx env sexp.pexp_loc Nolabel None e
-        in_function ty_expected
-  | Pexp_match (_, {pc_rhs=e}::_) -> type_approx_aux env e None ty_expected
-  | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
+    Pexp_let (_, _, e) -> type_approx env e ty_expected
+  | Pexp_fun _ ->
+      Misc.fatal_error "[type_approx] didn't expect [Pexp_fun]"
+  | Pexp_function _ ->
+      Misc.fatal_error "[type_approx] didn't expect [Pexp_function]"
+  | Pexp_match (_, {pc_rhs=e}::_) -> type_approx env e ty_expected
+  | Pexp_try (e, _) -> type_approx env e ty_expected
   | Pexp_tuple l ->
       let tys = List.map
                   (fun _ -> newvar (Layout.value ~why:Tuple_element)) l
       in
       let ty = newty (Ttuple tys) in
       begin try unify env ty ty_expected with Unify err ->
-        raise(Error(sexp.pexp_loc, env, Expr_type_clash (err, None, None)))
+        raise(Error(loc, env, Expr_type_clash (err, None, None)))
       end;
       List.iter2
-        (fun e ty -> type_approx_aux env e None ty)
+        (fun e ty -> type_approx env e ty)
         l tys
-  | Pexp_ifthenelse (_,e,_) -> type_approx_aux env e None ty_expected
-  | Pexp_sequence (_,e) -> type_approx_aux env e None ty_expected
+  | Pexp_ifthenelse (_,e,_) -> type_approx env e ty_expected
+  | Pexp_sequence (_,e) -> type_approx env e ty_expected
   | Pexp_constraint (e, sty) ->
-      let ty_expected' = approx_type env sty in
-      begin try unify env ty_expected' ty_expected with Unify err ->
-        raise(Error(sexp.pexp_loc, env, Expr_type_clash (err, None, None)))
-      end;
-      type_approx_aux env e None ty_expected'
-  | Pexp_coerce (_, _, sty) ->
-      let ty = approx_type env sty in
-      begin try unify env ty ty_expected with Unify trace ->
-        raise(Error(sexp.pexp_loc, env, Expr_type_clash (trace, None, None)))
-      end
+      let ty_expected =
+        type_approx_constraint env (Pconstraint sty) ty_expected ~loc
+      in
+      type_approx env e ty_expected
+  | Pexp_coerce (_, sty1, sty2) ->
+      ignore
+        (type_approx_constraint env (Pcoerce (sty1, sty2)) ty_expected ~loc
+           : type_expr)
   | Pexp_apply
       ({ pexp_desc = Pexp_extension(
          {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
        [Nolabel, e]) ->
-    type_approx_aux env e None ty_expected
+    type_approx env e ty_expected
   | Pexp_apply
       ({ pexp_desc = Pexp_extension(
          {txt = "extension.unique" | "ocaml.unique" | "unique"}, PStr []) },
        [Nolabel, e]) ->
-    type_approx_aux env e None ty_expected
+    type_approx env e ty_expected
   | Pexp_apply
       ({ pexp_desc = Pexp_extension(
         {txt = "extension.once" | "ocaml.once" | "once"}, PStr []) },
       [Nolabel, e]) ->
-    type_approx_aux env e None ty_expected
+    type_approx env e ty_expected
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.escape"}, PStr []) },
        [Nolabel, e]) ->
-    type_approx_aux env e None ty_expected
+    type_approx env e ty_expected
   | _ -> ()
 
-and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
+and type_approx_aux_jane_syntax
+    ~loc
+    env
+    (jexp : Jane_syntax.Expression.t)
+    ty_expected
+  =
+  match jexp with
   | Jexp_comprehension _
   | Jexp_immutable_array _
   | Jexp_layout (Lexp_constant _)
   | Jexp_layout (Lexp_newtype _) -> ()
+  | Jexp_n_ary_function (params, c, body) ->
+      type_approx_function ~loc env params c body ty_expected
 
-let type_approx env sexp ty =
-  type_approx_aux env sexp None ty
+and type_approx_function =
+  let rec loop env params c body ty_expected ~in_function ~first =
+    let open Jane_syntax.N_ary_functions in
+    let loc_function, _ = in_function in
+    let loc = loc_rest_of_function ~loc_function params body in
+    (* We can approximate types up to the first newtype parameter, whereupon
+      we give up.
+    *)
+    match params with
+    | Pparam_newtype _ :: _ -> ()
+    | Pparam_val (label, _, pat) :: params ->
+        let ty_res =
+          type_approx_fun_one_param env loc label (Some pat) ty_expected
+            ~first ~in_function
+        in
+        loop env params c body ty_res ~in_function ~first:false
+    | [] ->
+        (* In the [Pconstraint] case, we override the [ty_expected] that
+           gets passed to the approximating of the rest of the type.
+        *)
+        let ty_expected =
+          type_approx_constraint_opt env c ty_expected ~loc
+        in
+        match body with
+        | Pfunction_body body ->
+            type_approx env body ty_expected
+        | Pfunction_cases ({pc_rhs = e} :: _, _, _) ->
+            let ty_res =
+              type_approx_fun_one_param env loc Nolabel None ty_expected
+                ~in_function ~first
+            in
+            type_approx env e ty_res
+        | Pfunction_cases ([], _, _) -> ()
+  in
+  fun ~loc env params c body ty_expected : unit ->
+    loop env params c body ty_expected
+      ~in_function:(loc, ty_expected) ~first:true
 
 (* Check that all univars are safe in a type. Both exp.exp_type and
    ty_expected should already be generalized. *)
@@ -4290,10 +4381,12 @@ let rec is_inferred sexp =
   | Pexp_sequence (_, e) | Pexp_open (_, e) -> is_inferred e
   | Pexp_ifthenelse (_, e1, Some e2) -> is_inferred e1 && is_inferred e2
   | _ -> false
+
 and is_inferred_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension _
   | Jexp_immutable_array _
   | Jexp_layout (Lexp_constant _ | Lexp_newtype _) -> false
+  | Jexp_n_ary_function _ -> false
 
 (* check if the type of %apply or %revapply matches the type expected by
    the specialized typing rule for those primitives.
@@ -5985,7 +6078,8 @@ and type_binding_op_ident env s =
   assert (kind = Id_value);
   path, desc
 
-and type_function ?in_function loc attrs env (expected_mode : expected_mode)
+and type_function
+    ?in_function loc attrs env (expected_mode : expected_mode)
       ty_expected_explained arg_label ~mode_annots ~has_poly caselist =
   let { ty = ty_expected; explanation } = ty_expected_explained in
   let alloc_mode = Value.regional_to_global_alloc expected_mode.mode in
@@ -6023,8 +6117,9 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
     in
     try filter_arrow env ty_expected' arg_label ~force_tpoly
     with Filter_arrow_failed err ->
+      let first = Option.is_none in_function in
       let err =
-        error_of_filter_arrow_failure ~explanation in_function ty_fun err
+        error_of_filter_arrow_failure ~explanation ~first ty_fun err
       in
       raise (Error(loc_fun, env, err))
   in
@@ -7284,6 +7379,7 @@ and type_let
     | Jexp_immutable_array _
     | Jexp_layout (Lexp_constant _) -> false
     | Jexp_layout (Lexp_newtype (_, _, e)) -> sexp_is_fun e
+    | Jexp_n_ary_function _ -> true
   in
   let vb_is_fun { pvb_expr = sexp; _ } = sexp_is_fun sexp in
   let entirely_functions = List.for_all vb_is_fun spat_sexp_list in
@@ -7689,6 +7785,80 @@ and type_expect_jane_syntax
   | Jexp_layout x ->
       type_layout_expr
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~rue ~attributes x
+  | Jexp_n_ary_function x ->
+      type_n_ary_function
+        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
+
+and type_n_ary_function
+      ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes
+      ((params, constraint_, body) : Jane_syntax.N_ary_functions.expression)
+    =
+    (* TODO nroberts: in later commit, actually typecheck this. *)
+    let open Ast_helper in
+    let open Jane_syntax.N_ary_functions in
+    let fun_body =
+      match body with
+      | Pfunction_body body -> body
+      | Pfunction_cases (cases, loc, attrs) ->
+          (Exp.function_ cases ~attrs ~loc [@alert "-prefer_jane_syntax"])
+    in
+    let constrained_body =
+      let loc = { fun_body.pexp_loc with loc_ghost = true } in
+      match constraint_ with
+      | None -> fun_body
+      | Some { mode_annotations; type_constraint } ->
+          let body =
+            match type_constraint with
+            | Pconstraint constraint_ ->
+                Exp.constraint_ fun_body constraint_ ~loc
+            | Pcoerce (ty1, ty2) ->
+                Exp.coerce fun_body ty1 ty2 ~loc
+          in
+          List.fold_left
+            (fun body mode ->
+               let attr_name =
+                 (* this is hacky but will go away in the next PR *)
+                 match mode.txt with
+                 | Local -> "extension.local"
+                 | Unique -> "extension.unique"
+                 | Once -> "extension.once"
+               in
+                Exp.attr
+                  body
+                  { attr_name = mknoloc attr_name
+                  ; attr_payload = PStr []
+                  ; attr_loc = mode.loc
+                  })
+            body
+            mode_annotations
+    in
+    let ast =
+      let loc : Location.t = { loc with loc_ghost = true } in
+      List.fold_right
+        (fun param body ->
+           match param with
+           | Pparam_val (l, o, p) ->
+               let loc = { loc with loc_start = p.ppat_loc.loc_start } in
+               (Exp.fun_ l o p body ~loc [@alert "-prefer_jane_syntax"])
+           | Pparam_newtype (newtype, layout, newtype_loc) ->
+               let loc = { loc with loc_start = newtype_loc.loc_start } in
+               match layout with
+               | None -> Exp.newtype newtype body ~loc
+               | Some layout ->
+                   Jane_syntax.Layouts.expr_of ~loc
+                     (Lexp_newtype (newtype, layout, body)))
+        params
+        constrained_body
+    in
+    let ast =
+      { pexp_desc = ast.pexp_desc;
+        pexp_attributes = ast.pexp_attributes @ attributes;
+        pexp_loc = loc;
+        pexp_loc_stack = [];
+      }
+    in
+    type_expect_
+      env expected_mode ast { ty = ty_expected; explanation }
 
 (* What modes should comprehensions use?  Let us be generic over the sequence
    type we use for comprehensions, calling it [sequence] (standing for either
