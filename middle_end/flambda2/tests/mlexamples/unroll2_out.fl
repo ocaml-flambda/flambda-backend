@@ -1,0 +1,79 @@
+let code foo_0 deleted in
+let code bar_1 deleted in
+let $camlUnroll2__foo_2 =
+  closure foo_0_1 @foo
+and code rec loopify(never) size(23) newer_version_of(foo_0)
+      foo_0_1 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
+  let Popaque = %Opaque 1 in
+  (let untagged = %untag_imm Popaque in
+   switch untagged
+     | 0 -> k2
+     | 1 -> k3)
+    where k3 =
+      let Paddint = x + 1 in
+      apply direct(foo_0_1)
+        $camlUnroll2__foo_2 ~ depth 0 -> succ my_depth
+          (Paddint)
+          &my_region
+          -> k * k1
+    where k2 =
+      let Psubint = x - 1 in
+      apply direct(foo_0_1)
+        $camlUnroll2__foo_2 ~ depth 0 -> succ my_depth
+          (Psubint)
+          &my_region
+          -> k * k1
+in
+let code loopify(never) size(61) newer_version_of(bar_1)
+      bar_1_1 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
+  let Popaque = %Opaque 1 in
+  (let untagged = %untag_imm Popaque in
+   switch untagged
+     | 0 -> k2
+     | 1 -> k3)
+    where k3 =
+      let Paddint = x + 1 in
+      let Popaque_1 = %Opaque 1 in
+      ((let untagged = %untag_imm Popaque_1 in
+        switch untagged
+          | 0 -> k3
+          | 1 -> k4)
+         where k4 =
+           let Paddint_1 = Paddint + 1 in
+           apply direct(foo_0_1) inlining_state(depth(20))
+             $camlUnroll2__foo_2 ~ depth 0 -> unroll 0 2
+               (Paddint_1)
+               &my_region
+               -> k * k1
+         where k3 =
+           let Psubint = Paddint - 1 in
+           apply direct(foo_0_1) inlining_state(depth(20))
+             $camlUnroll2__foo_2 ~ depth 0 -> unroll 0 2
+               (Psubint)
+               &my_region
+               -> k * k1)
+    where k2 =
+      let Psubint = x - 1 in
+      let Popaque_1 = %Opaque 1 in
+      ((let untagged = %untag_imm Popaque_1 in
+        switch untagged
+          | 0 -> k2
+          | 1 -> k3)
+         where k3 =
+           let Paddint = Psubint + 1 in
+           apply direct(foo_0_1) inlining_state(depth(20))
+             $camlUnroll2__foo_2 ~ depth 0 -> unroll 0 2
+               (Paddint)
+               &my_region
+               -> k * k1
+         where k2 =
+           let Psubint_1 = Psubint - 1 in
+           apply direct(foo_0_1) inlining_state(depth(20))
+             $camlUnroll2__foo_2 ~ depth 0 -> unroll 0 2
+               (Psubint_1)
+               &my_region
+               -> k * k1)
+in
+let $camlUnroll2__bar_3 = closure bar_1_1 @bar in
+let $camlUnroll2 = Block 0 ($camlUnroll2__foo_2, $camlUnroll2__bar_3) in
+cont done ($camlUnroll2)

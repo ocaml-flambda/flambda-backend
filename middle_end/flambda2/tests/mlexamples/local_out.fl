@@ -103,14 +103,16 @@ apply direct(length_2_1)
       | 1 -> k
   where k =
     let `region` = %begin_region in
-    (apply direct(length_2_1) inlining_state(depth(10))
-       ($camlLocal__length_10 ~ depth 0 -> unroll 2 1 : _ -> imm tagged)
-         ($camlLocal__const_block11)
+    (apply direct(length_2_1) inlining_state(depth(30))
+       ($camlLocal__length_10 ~ depth 0 -> unroll 0 3 : _ -> imm tagged)
+         (0)
          &`region`
          -> k1 * error
        where k1 (apply_result : imm tagged) =
          let Paddint = 1 + apply_result in
-         let prim = %phys_eq (Paddint, 3) in
+         let Paddint_1 = 1 + Paddint in
+         let Paddint_2 = 1 + Paddint_1 in
+         let prim = %phys_eq (Paddint_2, 3) in
          switch prim
            | 0 -> error pop(regular error) ($camlLocal__Pmakeblock70)
            | 1 -> k

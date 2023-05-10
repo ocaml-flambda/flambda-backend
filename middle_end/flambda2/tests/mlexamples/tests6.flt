@@ -37,37 +37,5 @@ in
     let $camlTests6 = Block 0 (field_0) in
     cont done ($camlTests6)
 ===>
-let code f_0 deleted in
-let `region` = %begin_region in
-let $camlTests6__f_1 =
-  closure f_0_1 @f
-and code rec loopify(never) size(21) newer_version_of(f_0)
-      f_0_1 (x : imm tagged)
-        my_closure my_region my_depth
-        -> k * k1
-        : imm tagged =
-  let prim = %int_comp x > 0 in
-  switch prim
-    | 0 -> k (42)
-    | 1 -> k2
-    where k2 =
-      ((let Psubint = x - 1 in
-        apply direct(f_0_1)
-          ($camlTests6__f_1 ~ depth 0 -> succ my_depth : _ -> imm tagged)
-            (Psubint)
-            &my_region
-            -> k2 * k1)
-         where k2 (apply_result : imm tagged) =
-           let Paddint = 1 + apply_result in
-           cont k (Paddint))
-in
-apply direct(f_0_1) inlining_state(depth(10))
-  ($camlTests6__f_1 ~ depth 0 -> unroll 9 1 : _ -> imm tagged)
-    (2)
-    &`region`
-    -> k * error
-  where k (apply_result : imm tagged) =
-    let Paddint = 1 + apply_result in
-    let `unit` = %end_region `region` in
-    let $camlTests6 = Block 0 (Paddint) in
-    cont done ($camlTests6)
+let $camlTests6 = Block 0 (45) in
+cont done ($camlTests6)

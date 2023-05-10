@@ -213,9 +213,7 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
       in
       match unrolling_depth with
       | Some 0 -> Unrolling_depth_exceeded
-      | Some _ ->
-        might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
-          ~return_arity
+      | Some _ -> Continue_unrolling
       | None -> (
         (* lmaurer: This seems semantically dodgy: If we really think of a free
            depth variable as [Unknown], then we shouldn't be considering
@@ -253,6 +251,6 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
               (* This sets off step 1 in the comment above; see
                  [Inlining_transforms] for how [unroll_to] is ultimately
                  handled. *)
-              Attribute_unroll unroll_to
+              Begin_unrolling unroll_to
             else Unrolling_depth_exceeded
           | Always_inlined | Hint_inlined -> Attribute_always))

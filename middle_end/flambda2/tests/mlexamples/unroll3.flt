@@ -1,0 +1,108 @@
+let $camlUnroll3__first_const32 = Block 0 () in
+let code rec size(22)
+      even_0 (n : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let odd = %project_function_slot (even -> odd) my_closure in
+  let prim = %phys_eq (n, 0) in
+  let Pintcomp = %Tag_imm prim in
+  (let untagged = %untag_imm Pintcomp in
+   switch untagged
+     | 0 -> k2
+     | 1 -> k (1))
+    where k2 =
+      let Psubint = n - 1 in
+      apply direct(odd_1)
+        (odd ~ depth my_depth -> next_depth : _ -> imm tagged)
+          (Psubint)
+          &my_region
+          -> k * k1
+and code rec size(22)
+      odd_1 (n : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let even = %project_function_slot (odd -> even) my_closure in
+  let prim = %phys_eq (n, 0) in
+  let Pintcomp = %Tag_imm prim in
+  (let untagged = %untag_imm Pintcomp in
+   switch untagged
+     | 0 -> k2
+     | 1 -> k (0))
+    where k2 =
+      let Psubint = n - 1 in
+      apply direct(even_0)
+        (even ~ depth my_depth -> next_depth : _ -> imm tagged)
+          (Psubint)
+          &my_region
+          -> k * k1
+in
+(let even = closure even_0 @even and odd = closure odd_1 @odd in
+ apply direct(even_0) unroll(4)
+   (even : _ -> imm tagged) (3) &toplevel -> k1 * error
+   where k1 (three_is_even : imm tagged) =
+     (apply direct(odd_1) unroll(2)
+        (odd : _ -> imm tagged) (4) &toplevel -> k1 * error
+        where k1 (four_is_odd : imm tagged) =
+          let Pmakeblock = %Block 0 (even, odd, three_is_even, four_is_odd)
+          in
+          cont k (Pmakeblock)))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load tag(0) size(4) (module_block, 0) in
+    let field_1 = %block_load tag(0) size(4) (module_block, 1) in
+    let field_2 = %block_load tag(0) size(4) (module_block, 2) in
+    let field_3 = %block_load tag(0) size(4) (module_block, 3) in
+    let $camlUnroll3 = Block 0 (field_0, field_1, field_2, field_3) in
+    cont done ($camlUnroll3)
+===>
+let code odd_1 deleted and code even_0 deleted in
+let code rec loopify(never) size(18) newer_version_of(even_0)
+      even_0_1 (n : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let prim = %phys_eq (n, 0) in
+  switch prim
+    | 0 -> k2
+    | 1 -> k (1)
+    where k2 =
+      let Psubint = n - 1 in
+      apply direct(odd_1_1)
+        ($camlUnroll3__odd_3 ~ depth 0 -> succ my_depth : _ -> imm tagged)
+          (Psubint)
+          &my_region
+          -> k * k1
+and code rec loopify(never) size(18) newer_version_of(odd_1)
+      odd_1_1 (n : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let prim = %phys_eq (n, 0) in
+  switch prim
+    | 0 -> k2
+    | 1 -> k (0)
+    where k2 =
+      let Psubint = n - 1 in
+      apply direct(even_0_1)
+        ($camlUnroll3__even_2 ~ depth 0 -> succ my_depth : _ -> imm tagged)
+          (Psubint)
+          &my_region
+          -> k * k1
+and $camlUnroll3__even_2 =
+  closure even_0_1 @even
+and $camlUnroll3__odd_3 =
+  closure odd_1_1 @odd
+in
+apply direct(odd_1_1) inlining_state(depth(20))
+  ($camlUnroll3__odd_3 ~ depth 0 -> unroll 0 2 : _ -> imm tagged)
+    (2)
+    &toplevel
+    -> k * error
+  where k (four_is_odd : imm tagged) =
+    let $camlUnroll3 =
+      Block 0 ($camlUnroll3__even_2, $camlUnroll3__odd_3, 0, four_is_odd)
+    in
+    cont done ($camlUnroll3)

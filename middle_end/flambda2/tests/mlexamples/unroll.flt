@@ -1,0 +1,75 @@
+let $camlUnroll__first_const21 = Block 0 () in
+let code rec size(26)
+      fact_0 (n : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let prim = %phys_eq (n, 0) in
+  let Pintcomp = %Tag_imm prim in
+  (let untagged = %untag_imm Pintcomp in
+   switch untagged
+     | 0 -> k2
+     | 1 -> k (1))
+    where k2 =
+      ((let Psubint = n - 1 in
+        apply direct(fact_0)
+          (my_closure ~ depth my_depth -> next_depth : _ -> imm tagged)
+            (Psubint)
+            &my_region
+            -> k2 * k1)
+         where k2 (apply_result : imm tagged) =
+           let Pmulint = n * apply_result in
+           cont k (Pmulint))
+in
+(let fact = closure fact_0 @fact in
+ apply direct(fact_0) unroll(4)
+   (fact : _ -> imm tagged) (6) &toplevel -> k1 * error
+   where k1 (i : imm tagged) =
+     (apply direct(fact_0) unroll(7)
+        (fact : _ -> imm tagged) (6) &toplevel -> k1 * error
+        where k1 (j : imm tagged) =
+          let Pmakeblock = %Block 0 (fact, i, j) in
+          cont k (Pmakeblock)))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load tag(0) size(3) (module_block, 0) in
+    let field_1 = %block_load tag(0) size(3) (module_block, 1) in
+    let field_2 = %block_load tag(0) size(3) (module_block, 2) in
+    let $camlUnroll = Block 0 (field_0, field_1, field_2) in
+    cont done ($camlUnroll)
+===>
+let code fact_0 deleted in
+let $camlUnroll__fact_1 =
+  closure fact_0_1 @fact
+and code rec loopify(never) size(23) newer_version_of(fact_0)
+      fact_0_1 (n : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let prim = %phys_eq (n, 0) in
+  switch prim
+    | 0 -> k2
+    | 1 -> k (1)
+    where k2 =
+      ((let Psubint = n - 1 in
+        apply direct(fact_0_1)
+          ($camlUnroll__fact_1 ~ depth 0 -> succ my_depth : _ -> imm tagged)
+            (Psubint)
+            &my_region
+            -> k2 * k1)
+         where k2 (apply_result : imm tagged) =
+           let Pmulint = n * apply_result in
+           cont k (Pmulint))
+in
+apply direct(fact_0_1) inlining_state(depth(40))
+  ($camlUnroll__fact_1 ~ depth 0 -> unroll 0 4 : _ -> imm tagged)
+    (2)
+    &toplevel
+    -> k * error
+  where k (apply_result : imm tagged) =
+    let Pmulint = 3 * apply_result in
+    let Pmulint_1 = 4 * Pmulint in
+    let Pmulint_2 = 5 * Pmulint_1 in
+    let Pmulint_3 = 6 * Pmulint_2 in
+    let $camlUnroll = Block 0 ($camlUnroll__fact_1, Pmulint_3, 720) in
+    cont done ($camlUnroll)
