@@ -64,7 +64,9 @@ let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
       let simple =
         if Coercion.is_id (Simple.coercion simple)
         then simple
-        else T.get_alias_exn (S.simplify_simple dacc simple ~min_name_mode)
+        else
+          let _ty, simple = S.simplify_simple dacc simple ~min_name_mode in
+          simple
       in
       let dacc =
         DA.add_variable dacc result_var
