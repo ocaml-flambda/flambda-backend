@@ -260,6 +260,17 @@ module Stdlib = struct
           false
       in
       loop 0
+
+    let map_sharing f a =
+      let same = ref true in
+      let f' x =
+        let x' = f x in
+        if x != x' then
+          same := false;
+        x'
+      in
+      let a' = (Array.map [@inlined hint]) f' a in
+      if !same then a else a'
   end
 
   module String = struct

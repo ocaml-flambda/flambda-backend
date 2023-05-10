@@ -545,9 +545,11 @@ and apply_renaming_head_of_kind_value head renaming =
       } ->
     let length' = apply_renaming length renaming in
     let fields' =
-      Array.map (fun field -> apply_renaming field renaming) fields
+      Misc.Stdlib.Array.map_sharing
+        (fun field -> apply_renaming field renaming)
+        fields
     in
-    if length == length' && Array.for_all2 ( == ) fields fields'
+    if length == length' && fields == fields'
     then head
     else
       Array
@@ -1603,12 +1605,12 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_value head
         ~canonicalise
     in
     let fields' =
-      Array.map
+      Misc.Stdlib.Array.map_sharing
         (remove_unused_value_slots_and_shortcut_aliases ~used_value_slots
            ~canonicalise)
         fields
     in
-    if length == length' && Array.for_all2 ( == ) fields fields'
+    if length == length' && fields == fields'
     then head
     else
       Array
@@ -2065,9 +2067,11 @@ and project_head_of_kind_value ~to_project ~expand head =
       } ->
     let length' = project_variables_out ~to_project ~expand length in
     let fields' =
-      Array.map (project_variables_out ~to_project ~expand) fields
+      Misc.Stdlib.Array.map_sharing
+        (project_variables_out ~to_project ~expand)
+        fields
     in
-    if length == length' && Array.for_all2 ( == ) fields fields'
+    if length == length' && fields == fields'
     then head
     else
       Array

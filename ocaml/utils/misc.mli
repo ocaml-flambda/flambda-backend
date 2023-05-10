@@ -202,6 +202,10 @@ module Stdlib : sig
     val equal : ('a -> 'a -> bool) -> 'a array -> 'a array -> bool
     (** Compare two arrays for equality, using the supplied predicate for
         element equality *)
+
+    val map_sharing : ('a -> 'a) -> 'a array -> 'a array
+    (** [map_sharing f a] is [map f a]. If for all elements of the array
+        [f e == e] then [map_sharing f a == a] *)
   end
 
 (** {2 Extensions to the String module} *)
