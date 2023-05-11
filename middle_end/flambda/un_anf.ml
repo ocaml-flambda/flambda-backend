@@ -248,7 +248,9 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
     | Uregion e ->
       loop ~depth e
     | Uexclave e ->
-      loop ~depth e
+      (* Make sure we don't substitute into a `Uexclave`, which can be bad if the
+         definition reads from a local value *)
+      loop ~depth:(depth + 1) e
   in
   loop ~depth:0 clam;
   let linear_let_bound_vars, used_let_bound_vars, assigned =
