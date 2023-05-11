@@ -605,7 +605,11 @@ let dissect_letrec ~bindings ~body =
             body ))
       with_preallocations letrec.consts
   in
-  Lambda.rename letrec.substitution with_constants
+  let substituted = Lambda.rename letrec.substitution with_constants in
+  let body_layout = Lambda.layout_top in
+  if letrec.needs_region
+  then Lregion (substituted, body_layout)
+  else substituted
 
 type dissected =
   | Dissected of Lambda.lambda
