@@ -82,13 +82,18 @@ type continuation_handler_classification =
   | Regular
   | May_inline
 
-let classify_continuation_handler _k handler
+let classify_continuation_handler k handler
     ~(num_free_occurrences : Num_occurrences.t Or_unknown.t)
     ~is_applied_with_traps : continuation_handler_classification =
   let is_exn_handler = Continuation_handler.is_exn_handler handler in
   match[@warning "-4"]
     num_free_occurrences, is_exn_handler, is_applied_with_traps
   with
+  | Known Zero, false, false ->
+    (* CR gbury: not sure we still need this case *)
+    Misc.fatal_errorf
+      "Found unused let-bound continuation %a, this should not happen"
+      Continuation.print k
   | Known Zero, _, _ -> Drop (* this can happen in classic mode *)
   | Known One, false, false -> May_inline
   | _ -> Regular

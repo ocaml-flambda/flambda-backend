@@ -519,7 +519,7 @@ and let_cont env res (let_cont : Flambda.Let_cont.t) =
             Let_cont.print let_cont;
         let_cont_rec env res invariant_params conts body)
 
-(* The bound continuation [k] is never used, **but** cna appear in push/pop
+(* The bound continuation [k] is never used, **but** can appear in push/pop
    trap, in which cases the push/pops should be removed. *)
 and let_cont_dropped env res k body =
   let env = Env.add_dropped_cont env k in
