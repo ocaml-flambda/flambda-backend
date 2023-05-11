@@ -715,6 +715,17 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       ~register_const_string:(fun acc -> register_const_string acc)
       prim ~args dbg ~current_region k
 
+let close_raise acc env ~raise_kind ~args loc exn_continuation ~current_region =
+  let prim : Lambda.primitive = Praise raise_kind in
+  let exn_continuation = Some exn_continuation in
+  let named : IR.named =
+    Prim { prim; args; loc; exn_continuation; region = current_region }
+  in
+  close_primitive acc env ~let_bound_var:(Variable.create "unused") named prim
+    ~args loc exn_continuation
+    ~current_region:(fst (Env.find_var env current_region))
+    (fun _acc _named -> assert false (* see above *))
+
 let close_trap_action_opt trap_action =
   Option.map
     (fun (trap_action : IR.trap_action) : Trap_action.t ->
