@@ -2,11 +2,9 @@ module Test_data = struct
   open Global
 
   open struct
-    (* Simple name *)
-    let n name : Name.t = { head = name; args = [] }
+    let n ?(args = []) head : Name.t = Name.create head args
 
-    (* Simple global *)
-    let g name : t = { head = name; args = []; params = [] }
+    let g ?(args = []) ?(params = []) head = create head args ~params
   end
 
   let [@ocamlformat "disable"] () =
@@ -42,13 +40,13 @@ module Test_data = struct
 
   let y = n "Y"
 
-  let y_g = { (g "Y") with params = [x, x_g] }
+  let y_g = g "Y" ~params:[x, x_g]
 
   let a_g = g "A"
 
   let b_g = g "B"
 
-  let m_g = { (g "M") with params = [x, x_g; y, y_g] }
+  let m_g = g "M" ~params:[x, x_g; y, y_g]
 
   let i = n "I"
 
@@ -60,7 +58,7 @@ module Test_data = struct
 
   let conv = n "Conv"
 
-  let conv_g = { (g "Conv") with params = [i, i_g; o, o_g] }
+  let conv_g = g "Conv" ~params:[i, i_g; o, o_g]
 
   let unit_g = g "Unit"
 
@@ -68,15 +66,13 @@ module Test_data = struct
 
   let string_g = g "String"
 
-  let conv_to_string = Name.{ head = "Conv"; args = [o, string] }
+  let conv_to_string = n "Conv" ~args:[o, string]
 
-  let conv_to_string_g =
-    { head = "Conv"; args = [o, string_g]; params = [i, i_g] }
+  let conv_to_string_g = g "Conv" ~args:[o, string_g] ~params:[i, i_g]
 
-  let opaque_g = { (g "Opaque") with params = [i, i_g] }
+  let opaque_g = g "Opaque" ~params:[i, i_g]
 
-  let print_g =
-    { (g "Print") with params = [i, i_g; conv_to_string, conv_to_string_g] }
+  let print_g = g "Print" ~params:[i, i_g; conv_to_string, conv_to_string_g]
 end
 
 module Subst_tests = struct

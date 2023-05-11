@@ -1,12 +1,14 @@
 [@@@ocaml.warning "+a-9-40-41-42"]
 
 module Name : sig
-  type t = {
+  type t = private {
     head : string;
     args : (t * t) list;
   }
 
   include Identifiable.S with type t := t
+
+  val create : string -> (t * t) list -> t
 end
 
 (** A name, with both the arguments it's being passed and the parameters it's
@@ -36,13 +38,15 @@ end
     argument for [Y[X\Foo]] rather than [Y]. (Here, [Y[X\Foo]] stands for the
     record [{ head = Y; args = [ X, Foo ] }] of type [t].)
 *)
-type t = {
+type t = private {
   head : string;
   args : (Name.t * t) list;
   params : (Name.t * t) list;
 }
 
 include Identifiable.S with type t := t
+
+val create : string -> (Name.t * t) list -> params:(Name.t * t) list -> t
 
 val to_name : t -> Name.t
 
