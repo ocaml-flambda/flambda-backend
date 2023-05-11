@@ -294,6 +294,21 @@ let translate_raise ~dbg_with_inlined:dbg env res apply exn_handler args =
     Misc.fatal_errorf "Exception continuation %a has no arguments:@ \n%a"
       Continuation.print exn_handler Apply_cont.print apply
 
+type push_or_pop =
+  | Push
+  | Pop
+
+let trap_action env exn_handler action =
+  match Env.get_continuation env exn_handler with
+  | Dropped -> []
+  | Jump { cont; _ } -> (
+    match action with Pop -> [Cmm.Pop] | Push -> [Cmm.Push cont])
+  | Inline _ ->
+    Misc.fatal_errorf
+      "Continuation %a is registered for inlining, it cannot be used in a push \
+       trap"
+      Continuation.print exn_handler
+
 let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
     cont args =
   if List.compare_lengths types args = 0
@@ -301,16 +316,8 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
     let trap_actions =
       match Apply_cont.trap_action apply with
       | None -> []
-      | Some (Pop _) -> [Cmm.Pop]
-      | Some (Push { exn_handler }) -> (
-        match Env.get_continuation env exn_handler with
-        | Dropped -> []
-        | Jump { cont; _ } -> [Cmm.Push cont]
-        | Inline _ ->
-          Misc.fatal_errorf
-            "Continuation %a is registered for inlining, it cannot be used in \
-             a push trap"
-            Continuation.print exn_handler)
+      | Some (Pop { exn_handler; _ }) -> trap_action env exn_handler Pop
+      | Some (Push { exn_handler }) -> trap_action env exn_handler Push
     in
     let args, free_vars, env, res, _ = C.simple_list ~dbg env res args in
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
@@ -333,16 +340,7 @@ let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
     let cmm, free_vars = wrap return_value free_vars in
     cmm, free_vars, res
   | Some (Pop { exn_handler; _ }) ->
-    let trap_actions =
-      match Env.get_continuation env exn_handler with
-      | Dropped -> []
-      | Jump _ -> [Cmm.Pop]
-      | Inline _ ->
-        Misc.fatal_errorf
-          "Continuation %a is registered for inlining, it cannot be used in a \
-           pop trap"
-          Continuation.print exn_handler
-    in
+    let trap_actions = trap_action env exn_handler Pop in
     let cmm, free_vars =
       wrap (C.trap_return return_value trap_actions) free_vars
     in
