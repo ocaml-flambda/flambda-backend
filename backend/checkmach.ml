@@ -765,8 +765,11 @@ end = struct
        the Iexit instruction is not reachable from function entry.
 
        To check divergent loops, the initial value of "div" component of all
-       Iexit labels of recurisve Icatch handlers is set to "Safe" instead of "Bot".  *)
-    D.analyze ~exnescape:Value.exn_escape ~init_rc_lbl:Value.diverges ~transfer body |> fst
+       Iexit labels of recurisve Icatch handlers is set to "Safe" instead of
+       "Bot". *)
+    D.analyze ~exnescape:Value.exn_escape ~init_rc_lbl:Value.diverges ~transfer
+      body
+    |> fst
 
   let fundecl (f : Mach.fundecl) ~future_funcnames unit_info ppf =
     let check () =
