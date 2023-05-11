@@ -31,7 +31,11 @@ type t =
   { types: type_replacement Path.Map.t;
     modules: Path.t Path.Map.t;
     modtypes: module_type Path.Map.t;
-    for_saving: bool;
+
+    (* given function should be applied to all layouts when saving; this commons
+       them up and truncates their histories *)
+    for_saving: (layout -> layout) option;
+
     loc: Location.t option;
     mutable last_compose: (t * t) option  (* Memoized composition *)
   }
@@ -39,7 +43,7 @@ let identity =
   { types = Path.Map.empty;
     modules = Path.Map.empty;
     modtypes = Path.Map.empty;
-    for_saving = false;
+    for_saving = None;
     loc = None;
     last_compose = None;
   }
@@ -61,7 +65,34 @@ let add_modtype_path p ty s =
   { s with modtypes = Path.Map.add p ty s.modtypes; last_compose = None }
 let add_modtype id ty s = add_modtype_path (Pident id) ty s
 
-let for_saving s = { s with for_saving = true; last_compose = None }
+let for_saving s =
+  (* CR layouts: it would be better to put all this stuff outside this
+     function, but it's in here because we really want to tailor the reason
+     to describe the module a symbol is imported from. But RAE's initial
+     attempt to do this based on filename caused spurious "inconsistent
+     assumption" errors that couldn't immediately be solved. Revisit
+     with a better approach. *)
+  let reason = Layout.Imported in
+  let any = Layout.of_const Any ~why:reason in
+  let void = Layout.of_const Void ~why:reason in
+  let value = Layout.of_const Value ~why:reason in
+  let immediate = Layout.of_const Immediate ~why:reason in
+  let immediate64 = Layout.of_const Immediate64 ~why:reason in
+  let share_layout lay =
+    match Layout.get lay with
+    | Const Any -> any
+    | Const Void -> void
+    | Const Value -> value
+    | Const Immediate -> immediate
+    | Const Immediate64 -> immediate64
+    | Var _ -> lay
+  in
+  { s with for_saving = Some share_layout; last_compose = None }
+
+let apply_share_layout s lay =
+  match s.for_saving with
+  | Some share_layout -> share_layout lay
+  | None -> lay
 
 let change_locs s loc = { s with loc = Some loc; last_compose = None }
 
@@ -69,7 +100,8 @@ let loc s x =
   match s.loc with
   | Some l -> l
   | None ->
-    if s.for_saving && not !Clflags.keep_locs then Location.none else x
+    if Option.is_some s.for_saving && not !Clflags.keep_locs
+    then Location.none else x
 
 let remove_loc =
   let open Ast_mapper in
@@ -84,11 +116,11 @@ let is_not_doc = function
 
 let attrs s x =
   let x =
-    if s.for_saving && not !Clflags.keep_docs then
+    if Option.is_some s.for_saving && not !Clflags.keep_docs then
       List.filter is_not_doc x
     else x
   in
-    if s.for_saving && not !Clflags.keep_locs
+    if Option.is_some s.for_saving && not !Clflags.keep_locs
     then remove_loc.Ast_mapper.attributes remove_loc x
     else x
 
@@ -150,16 +182,25 @@ let newpersty desc =
   create_expr
     desc ~level:generic_level ~scope:Btype.lowest_level ~id:!new_id
 
+let norm s desc = match s with
+  | { for_saving = Some share_layout; _ } -> begin match desc with
+    | Tvar { name; layout } -> Tvar { name; layout = share_layout layout }
+    | Tunivar { name; layout } -> Tunivar { name; layout = share_layout layout }
+    | desc -> desc
+  end
+  | { for_saving = None; _ } -> assert false
+
 let ctype_apply_env_empty = ref (fun _ -> assert false)
 
 (* Similar to [Ctype.nondep_type_rec]. *)
 let rec typexp copy_scope s ty =
+  let for_saving = Option.is_some s.for_saving in
   let desc = get_desc ty in
   match desc with
     Tvar _ | Tunivar _ ->
-      if s.for_saving || get_id ty < 0 then
+      if for_saving || get_id ty < 0 then
         let ty' =
-          if s.for_saving then newpersty desc
+          if for_saving then newpersty (norm s desc)
           else newty2 ~level:(get_level ty) desc
         in
         For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
@@ -167,7 +208,7 @@ let rec typexp copy_scope s ty =
       else ty
   | Tsubst (ty, _) ->
       ty
-  | Tfield (m, k, _t1, _t2) when not s.for_saving && m = dummy_method
+  | Tfield (m, k, _t1, _t2) when not for_saving && m = dummy_method
       && field_kind_repr k <> Fabsent && get_level ty < generic_level ->
       (* do not copy the type of self when it is not generalized *)
       ty
@@ -182,7 +223,7 @@ let rec typexp copy_scope s ty =
     (* Make a stub *)
     let layout = Layout.any ~why:Dummy_layout in
     let ty' =
-      if s.for_saving then newpersty (Tvar {name = None; layout})
+      if for_saving then newpersty (Tvar {name = None; layout})
       else newgenstub ~scope:(get_scope ty) layout
     in
     For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
@@ -229,7 +270,7 @@ let rec typexp copy_scope s ty =
               Tlink ty2
           | _ ->
               let dup =
-                s.for_saving || get_level more = generic_level ||
+                for_saving || get_level more = generic_level ||
                 static_row row || is_Tconstr more in
               (* Various cases for the row variable *)
               let more' =
@@ -237,7 +278,7 @@ let rec typexp copy_scope s ty =
                   Tsubst (ty, None) -> ty
                 | Tconstr _ | Tnil -> typexp copy_scope s more
                 | Tunivar _ | Tvar _ ->
-                    if s.for_saving then newpersty mored
+                    if for_saving then newpersty mored
                     else if dup && is_Tvar more then newgenty mored
                     else more
                 | _ -> assert false
@@ -278,7 +319,7 @@ let label_declaration copy_scope s l =
     ld_id = l.ld_id;
     ld_mutable = l.ld_mutable;
     ld_global = l.ld_global;
-    ld_layout = l.ld_layout;
+    ld_layout = apply_share_layout s l.ld_layout;
     ld_type = typexp copy_scope s l.ld_type;
     ld_loc = loc s l.ld_loc;
     ld_attributes = attrs s l.ld_attributes;
@@ -301,16 +342,49 @@ let constructor_declaration copy_scope s c =
     cd_uid = c.cd_uid;
   }
 
+(* called only when for_saving is set *)
+let constructor_tag share_layout = function
+  | Ordinary _ as tag -> tag
+  | Extension (path, lays) -> Extension (path, Array.map share_layout lays)
+
+(* called only when for_saving is set *)
+let variant_representation share_layout = function
+  | Variant_unboxed -> Variant_unboxed
+  | Variant_boxed layss ->
+    Variant_boxed (Array.map (Array.map share_layout) layss)
+  | Variant_extensible -> Variant_extensible
+
+(* called only when for_saving is set *)
+let record_representation share_layout = function
+  | Record_unboxed -> Record_unboxed
+  | Record_inlined (tag, variant_rep) ->
+    Record_inlined (constructor_tag share_layout tag,
+                    variant_representation share_layout variant_rep)
+  | Record_boxed lays -> Record_boxed (Array.map share_layout lays)
+  | Record_float -> Record_float
+
 let type_declaration' copy_scope s decl =
+  let share_layout, for_saving = match s.for_saving with
+    | Some share_layout -> share_layout, true
+    | None -> Fun.id, false
+  in
   { type_params = List.map (typexp copy_scope s) decl.type_params;
     type_arity = decl.type_arity;
     type_kind =
       begin match decl.type_kind with
         Type_abstract -> Type_abstract
       | Type_variant (cstrs, rep) ->
+          let rep = if for_saving
+            then variant_representation share_layout rep
+            else rep
+          in
           Type_variant (List.map (constructor_declaration copy_scope s) cstrs,
                         rep)
       | Type_record(lbls, rep) ->
+          let rep = if for_saving
+            then record_representation share_layout rep
+            else rep
+          in
           Type_record (List.map (label_declaration copy_scope s) lbls, rep)
       | Type_open -> Type_open
       end;
@@ -320,7 +394,7 @@ let type_declaration' copy_scope s decl =
           None -> None
         | Some ty -> Some(typexp copy_scope s ty)
       end;
-    type_layout = decl.type_layout;
+    type_layout = share_layout decl.type_layout;
     type_private = decl.type_private;
     type_variance = decl.type_variance;
     type_separability = decl.type_separability;
@@ -398,12 +472,16 @@ let extension_constructor' copy_scope s ext =
   { ext_type_path = type_path s ext.ext_type_path;
     ext_type_params = List.map (typexp copy_scope s) ext.ext_type_params;
     ext_args = constructor_arguments copy_scope s ext.ext_args;
-    ext_arg_layouts = ext.ext_arg_layouts;
+    ext_arg_layouts = begin match s.for_saving with
+      | Some share_layouts -> Array.map share_layouts ext.ext_arg_layouts
+      | None -> ext.ext_arg_layouts
+    end;
     ext_constant = ext.ext_constant;
     ext_ret_type = Option.map (typexp copy_scope s) ext.ext_ret_type;
     ext_private = ext.ext_private;
     ext_attributes = attrs s ext.ext_attributes;
-    ext_loc = if s.for_saving then Location.none else ext.ext_loc;
+    ext_loc = if Option.is_some s.for_saving
+      then Location.none else ext.ext_loc;
     ext_uid = ext.ext_uid;
   }
 
@@ -651,7 +729,9 @@ and compose s1 s2 =
         { types = merge_path_maps (type_replacement s2) s1.types s2.types;
           modules = merge_path_maps (module_path s2) s1.modules s2.modules;
           modtypes = merge_path_maps (modtype Keep s2) s1.modtypes s2.modtypes;
-          for_saving = s1.for_saving || s2.for_saving;
+          for_saving = Misc.Stdlib.Option.first_some
+                         s1.for_saving
+                         (fun () -> s2.for_saving);
           loc = keep_latest_loc s1.loc s2.loc;
           last_compose = None
         }

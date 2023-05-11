@@ -168,6 +168,7 @@ module Layout : sig
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
     | Concrete_creation of concrete_layout_reason
+    | Imported
 
   type interact_reason =
     | Gadt_equation of Path.t

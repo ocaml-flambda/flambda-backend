@@ -275,6 +275,7 @@ module Layout = struct
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
     | Concrete_creation of concrete_layout_reason
+    | Imported
 
   type interact_reason =
     | Gadt_equation of Path.t
@@ -667,6 +668,8 @@ module Layout = struct
          format_value_creation_reason ppf value
       | Concrete_creation concrete ->
          format_concrete_layout_reason ppf concrete
+      | Imported ->
+         fprintf ppf "imported from another compilation unit"
 
     let format_interact_reason ppf = function
       | Gadt_equation name ->
@@ -1044,6 +1047,8 @@ module Layout = struct
          fprintf ppf "Void_creation %a" void_creation_reason void
       | Concrete_creation concrete ->
          fprintf ppf "Concrete_creation %a" concrete_layout_reason concrete
+      | Imported ->
+         fprintf ppf "Imported"
 
     let interact_reason ppf = function
       | Gadt_equation p ->
