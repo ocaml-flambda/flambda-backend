@@ -84,4 +84,6 @@ let () =
   print_test_expected_output ~flambda_only:false ~extra_dep:None
     ~exit_code:0 "t6";
   (* Check that entry function and functors are ignored with  [@@@zero_alloc all] *)
-  print_test ~flambda_only:false ~deps:"t7.ml"
+  print_test ~flambda_only:false ~deps:"t7.ml";
+  (* Check that compiler generated stubs are ignored with [@@@zero_alloc all] *)
+  print_test ~flambda_only:false ~deps:"test_stub_dep.ml test_stub.ml"
