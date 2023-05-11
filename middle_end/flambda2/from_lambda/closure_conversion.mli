@@ -70,6 +70,15 @@ val close_switch :
   IR.switch ->
   Expr_with_acc.t
 
+val close_raise :
+  Acc.t ->
+  Env.t ->
+  raise_kind:Lambda.raise_kind ->
+  arg:IR.simple ->
+  Lambda.scoped_location ->
+  IR.exn_continuation ->
+  Expr_with_acc.t
+
 type 'a close_program_metadata =
   | Normal : [`Normal] close_program_metadata
   | Classic :

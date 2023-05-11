@@ -601,9 +601,32 @@ let close_exn_continuation acc env (exn_continuation : IR.exn_continuation) =
     Exn_continuation.create ~exn_handler:exn_continuation.exn_handler
       ~extra_args )
 
+let close_raise acc env ~raise_kind ~arg loc exn_continuation =
+  let acc, exn_cont = close_exn_continuation acc env exn_continuation in
+  let exn_handler = Exn_continuation.exn_handler exn_cont in
+  let acc, arg = find_simple acc env arg in
+  let args =
+    (* CR mshinwell: Share with [Lambda_to_flambda_primitives_helpers] *)
+    let extra_args =
+      List.map
+        (fun (simple, _kind) -> simple)
+        (Exn_continuation.extra_args exn_cont)
+    in
+    arg :: extra_args
+  in
+  let raise_kind = Some (Trap_action.Raise_kind.from_lambda raise_kind) in
+  let trap_action = Trap_action.Pop { exn_handler; raise_kind } in
+  let dbg = Debuginfo.from_location loc in
+  let acc, apply_cont =
+    Apply_cont_with_acc.create acc ~trap_action exn_handler ~args ~dbg
+  in
+  (* Since raising of an exception doesn't terminate, we don't call [k]. *)
+  Expr_with_acc.create_apply_cont acc apply_cont
+
 let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     loc (exn_continuation : IR.exn_continuation option) ~current_region
     (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
+  let orig_exn_continuation = exn_continuation in
   let acc, exn_continuation =
     match exn_continuation with
     | None -> acc, None
@@ -611,6 +634,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       let acc, cont = close_exn_continuation acc env exn_continuation in
       acc, Some cont
   in
+  let orig_args = args in
   let acc, args = find_simples acc env args in
   let dbg = Debuginfo.from_location loc in
   match prim, args with
@@ -642,29 +666,14 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     k acc (Some named)
   | Praise raise_kind, [_] ->
     let exn_continuation =
-      match exn_continuation with
+      match orig_exn_continuation with
       | None ->
         Misc.fatal_errorf "Praise is missing exception continuation: %a"
           IR.print_named named
       | Some exn_continuation -> exn_continuation
     in
-    let exn_handler = Exn_continuation.exn_handler exn_continuation in
-    let args =
-      (* CR mshinwell: Share with [Lambda_to_flambda_primitives_helpers] *)
-      let extra_args =
-        List.map
-          (fun (simple, _kind) -> simple)
-          (Exn_continuation.extra_args exn_continuation)
-      in
-      args @ extra_args
-    in
-    let raise_kind = Some (Trap_action.Raise_kind.from_lambda raise_kind) in
-    let trap_action = Trap_action.Pop { exn_handler; raise_kind } in
-    let acc, apply_cont =
-      Apply_cont_with_acc.create acc ~trap_action exn_handler ~args ~dbg
-    in
-    (* Since raising of an exception doesn't terminate, we don't call [k]. *)
-    Expr_with_acc.create_apply_cont acc apply_cont
+    close_raise acc env ~raise_kind ~arg:(List.hd orig_args) loc
+      exn_continuation
   | (Pmakeblock _ | Pmakefloatblock _ | Pmakearray _), [] ->
     (* Special case for liftable empty block or array *)
     let acc, sym =

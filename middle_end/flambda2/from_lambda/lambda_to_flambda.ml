@@ -985,94 +985,6 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Punbox_int _ | Pbox_int _ ->
     false
 
-let primitive_result_kind (prim : Lambda.primitive) :
-    Flambda_kind.With_subkind.t =
-  match prim with
-  | Pccall { prim_native_repr_res = _, Untagged_int; _ } ->
-    Flambda_kind.With_subkind.tagged_immediate
-  | Pccall { prim_native_repr_res = _, Unboxed_float; _ }
-  | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
-  | Pmulfloat _ | Pdivfloat _ | Pfloatfield _
-  | Parrayrefs Pfloatarray
-  | Parrayrefu Pfloatarray
-  | Pbigarrayref (_, _, (Pbigarray_float32 | Pbigarray_float64), _) ->
-    Flambda_kind.With_subkind.boxed_float
-  | Pccall { prim_native_repr_res = _, Unboxed_integer Pnativeint; _ }
-  | Pbigarrayref (_, _, Pbigarray_native_int, _) ->
-    Flambda_kind.With_subkind.boxed_nativeint
-  | Pccall { prim_native_repr_res = _, Unboxed_integer Pint32; _ }
-  | Pstring_load_32 _ | Pbytes_load_32 _ | Pbigstring_load_32 _
-  | Pbigarrayref (_, _, Pbigarray_int32, _) ->
-    Flambda_kind.With_subkind.boxed_int32
-  | Pccall { prim_native_repr_res = _, Unboxed_integer Pint64; _ }
-  | Pstring_load_64 _ | Pbytes_load_64 _ | Pbigstring_load_64 _
-  | Pbigarrayref (_, _, Pbigarray_int64, _) ->
-    Flambda_kind.With_subkind.boxed_int64
-  | Pnegint | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint
-  | Plsrint | Pasrint | Pmodint _ | Pdivint _ | Pignore | Psequand | Psequor
-  | Pnot | Pbytesrefs | Pstringrefs | Pbytessets | Pstring_load_16 _
-  | Pbytes_load_16 _ | Pbigstring_load_16 _ | Pbytes_set_16 _ | Pbytes_set_32 _
-  | Pbytes_set_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
-  | Pbigstring_set_64 _ | Pintcomp _ | Pcompare_ints | Pcompare_floats
-  | Pcompare_bints _ | Pintoffloat | Pfloatcomp _ | Parraysets _
-  | Pbigarrayset _ | Psetfield _ | Psetfield_computed _ | Psetfloatfield _
-  | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu
-  | Parraylength _ | Parraysetu _ | Pisint _ | Pbintcomp _ | Pintofbint _
-  | Pisout
-  | Parrayrefs Pintarray
-  | Parrayrefu Pintarray
-  | Pprobe_is_enabled _ | Pctconst _ | Pbswap16
-  | Pbigarrayref
-      ( _,
-        _,
-        ( Pbigarray_sint8 | Pbigarray_uint8 | Pbigarray_sint16
-        | Pbigarray_uint16 | Pbigarray_caml_int ),
-        _ ) ->
-    Flambda_kind.With_subkind.tagged_immediate
-  | Pdivbint { size = bi; _ }
-  | Pmodbint { size = bi; _ }
-  | Pandbint (bi, _)
-  | Porbint (bi, _)
-  | Pxorbint (bi, _)
-  | Plslbint (bi, _)
-  | Plsrbint (bi, _)
-  | Pasrbint (bi, _)
-  | Pnegbint (bi, _)
-  | Paddbint (bi, _)
-  | Psubbint (bi, _)
-  | Pmulbint (bi, _)
-  | Pbintofint (bi, _)
-  | Pcvtbint (_, bi, _)
-  | Pbbswap (bi, _)
-  | Pbox_int (bi, _) -> (
-    match bi with
-    | Pint32 -> Flambda_kind.With_subkind.boxed_int32
-    | Pint64 -> Flambda_kind.With_subkind.boxed_int64
-    | Pnativeint -> Flambda_kind.With_subkind.boxed_nativeint)
-  | Popaque layout | Pobj_magic layout ->
-    Flambda_kind.With_subkind.from_lambda layout
-  | Praise _ ->
-    (* CR ncourant: this should be bottom, but we don't have it *)
-    Flambda_kind.With_subkind.any_value
-  | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr; _ }
-  | Parrayrefs (Pgenarray | Paddrarray)
-  | Parrayrefu (Pgenarray | Paddrarray)
-  | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray
-  | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
-  | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Pduprecord _
-  | Poffsetint _ | Poffsetref _ | Pmakearray _ | Pduparray _ | Pbigarraydim _
-  | Pbigarrayref
-      (_, _, (Pbigarray_complex32 | Pbigarray_complex64 | Pbigarray_unknown), _)
-  | Pint_as_pointer | Pobj_dup ->
-    Flambda_kind.With_subkind.any_value
-  | Pbox_float _ -> Flambda_kind.With_subkind.boxed_float
-  | Punbox_float -> Flambda_kind.With_subkind.naked_float
-  | Punbox_int bi -> (
-    match bi with
-    | Pint32 -> Flambda_kind.With_subkind.naked_int32
-    | Pint64 -> Flambda_kind.With_subkind.naked_int64
-    | Pnativeint -> Flambda_kind.With_subkind.naked_nativeint)
-
 type cps_continuation =
   | Tail of Continuation.t
   | Non_tail of (Acc.t -> Env.t -> CCenv.t -> IR.simple -> Expr_with_acc.t)
@@ -1256,30 +1168,35 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         ~current_region:(Env.current_region env)
     | Dissected lam -> cps acc env ccenv lam k k_exn)
   | Lprim (prim, args, loc) -> (
-    match transform_primitive env prim args loc with
-    | Primitive (prim, args, loc) ->
-      let name = Printlambda.name_of_primitive prim in
-      let result_var = Ident.create_local name in
-      let exn_continuation : IR.exn_continuation option =
-        if primitive_can_raise prim
-        then
-          Some
-            { exn_handler = k_exn;
-              extra_args = extra_args_for_exn_continuation env k_exn
-            }
-        else None
-      in
-      let current_region = Env.current_region env in
-      let dbg = Debuginfo.from_location loc in
-      cps_non_tail_list acc env ccenv args
-        (fun acc env ccenv args ->
-          let body acc ccenv = apply_cps_cont ~dbg k acc env ccenv result_var in
-          CC.close_let acc ccenv result_var Not_user_visible
-            (primitive_result_kind prim)
-            (Prim { prim; args; loc; exn_continuation; region = current_region })
-            ~body)
-        k_exn
-    | Transformed lam -> cps acc env ccenv lam k k_exn)
+    match[@ocaml.warning "-fragile-match"] prim with
+    | Praise raise_kind -> (
+      match args with
+      | [_] ->
+        cps_non_tail_list acc env ccenv args
+          (fun acc _env ccenv args ->
+            let exn_continuation : IR.exn_continuation =
+              { exn_handler = k_exn;
+                extra_args = extra_args_for_exn_continuation env k_exn
+              }
+            in
+            CC.close_raise acc ccenv ~raise_kind ~arg:(List.hd args) loc
+              exn_continuation)
+          k_exn
+      | [] | _ :: _ ->
+        Misc.fatal_errorf "Wrong number of arguments for Lraise: %a"
+          Printlambda.primitive prim)
+    | _ ->
+      let id = Ident.create_local "prim" in
+      let result_layout = L.primitive_result_layout prim in
+      (match result_layout with
+      | Pvalue _ | Punboxed_float | Punboxed_int _ -> ()
+      | Ptop | Pbottom ->
+        Misc.fatal_errorf "Invalid result layout %a for primitive %a"
+          Printlambda.layout result_layout Printlambda.primitive prim);
+      (* CR mshinwell: find a way of making these lets non-user-visible *)
+      cps acc env ccenv
+        (L.Llet (Strict, result_layout, id, lam, L.Lvar id))
+        k k_exn)
   | Lswitch (scrutinee, switch, loc, kind) ->
     maybe_insert_let_cont "switch_result" kind k acc env ccenv
       (fun acc env ccenv k ->
