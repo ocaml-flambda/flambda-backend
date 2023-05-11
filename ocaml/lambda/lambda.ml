@@ -1491,12 +1491,15 @@ let primitive_result_layout (p : primitive) =
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
 
-let rec compute_expr_layout kinds lam =
-  match lam with
+let compute_expr_layout free_vars_kind lam =
+  let rec compute_expr_layout kinds = function
   | Lvar id | Lmutvar id ->
     begin
       try Ident.Map.find id kinds
       with Not_found ->
+        match free_vars_kind id with
+        | Some kind -> kind
+        | None ->
         Misc.fatal_errorf "Unbound layout for variable %a" Ident.print id
     end
   | Lconst cst -> structured_constant_layout cst
@@ -1524,4 +1527,5 @@ let rec compute_expr_layout kinds lam =
   | Lifused _ ->
       assert false
   | Lexclave e -> compute_expr_layout kinds e
-
+  in
+  compute_expr_layout Ident.Map.empty lam

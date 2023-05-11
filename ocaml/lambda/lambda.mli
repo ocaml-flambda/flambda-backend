@@ -669,4 +669,4 @@ val structured_constant_layout : structured_constant -> layout
 
 val primitive_result_layout : primitive -> layout
 
-val compute_expr_layout : layout Ident.Map.t -> lambda -> layout
+val compute_expr_layout : (Ident.t -> layout option) -> lambda -> layout
