@@ -302,9 +302,15 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
       match Apply_cont.trap_action apply with
       | None -> []
       | Some (Pop _) -> [Cmm.Pop]
-      | Some (Push { exn_handler }) ->
-        let cont = Env.get_cmm_continuation env exn_handler in
-        [Cmm.Push cont]
+      | Some (Push { exn_handler }) -> (
+        match Env.get_continuation env exn_handler with
+        | Dropped -> []
+        | Jump { cont; _ } -> [Cmm.Push cont]
+        | Inline _ ->
+          Misc.fatal_errorf
+            "Continuation %a is registered for inlining, it cannot be used in \
+             a push trap"
+            Continuation.print exn_handler)
     in
     let args, free_vars, env, res, _ = C.simple_list ~dbg env res args in
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
@@ -326,9 +332,19 @@ let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
   | None ->
     let cmm, free_vars = wrap return_value free_vars in
     cmm, free_vars, res
-  | Some (Pop _) ->
+  | Some (Pop { exn_handler; _ }) ->
+    let trap_actions =
+      match Env.get_continuation env exn_handler with
+      | Dropped -> []
+      | Jump _ -> [Cmm.Pop]
+      | Inline _ ->
+        Misc.fatal_errorf
+          "Continuation %a is registered for inlining, it cannot be used in a \
+           pop trap"
+          Continuation.print exn_handler
+    in
     let cmm, free_vars =
-      wrap (C.trap_return return_value [Cmm.Pop]) free_vars
+      wrap (C.trap_return return_value trap_actions) free_vars
     in
     cmm, free_vars, res
   | Some (Push _) ->
@@ -490,7 +506,8 @@ and let_cont env res (let_cont : Flambda.Let_cont.t) =
             ~num_free_occurrences ~is_applied_with_traps
         with
         | May_inline -> let_cont_inlined env res k handler body
-        | Regular -> let_cont_not_inlined env res k handler body)
+        | Regular -> let_cont_not_inlined env res k handler body
+        | Drop -> let_cont_dropped env res k body)
   | Recursive handlers ->
     Recursive_let_cont_handlers.pattern_match handlers
       ~f:(fun ~invariant_params ~body conts ->
@@ -501,6 +518,12 @@ and let_cont env res (let_cont : Flambda.Let_cont.t) =
              handlers:@ %a"
             Let_cont.print let_cont;
         let_cont_rec env res invariant_params conts body)
+
+(* The bound continuation [k] is never used, **but** cna appear in push/pop
+   trap, in which cases the push/pops should be removed. *)
+and let_cont_dropped env res k body =
+  let env = Env.add_dropped_cont env k in
+  expr env res body
 
 (* The bound continuation [k] will be inlined. *)
 and let_cont_inlined env res k handler body =
@@ -721,6 +744,10 @@ and apply_expr env res apply =
     cmm, free_vars, res
   | Return k -> (
     match Env.get_continuation env k with
+    | Dropped ->
+      Misc.fatal_errorf
+        "To_cmm internal error: continuation %a was dropped but is used in %a"
+        Continuation.print k Apply.print apply
     | Jump { param_types = _; cont } ->
       (* Case 2 *)
       let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
@@ -797,6 +824,10 @@ and apply_cont env res apply_cont =
       args
   else
     match Env.get_continuation env k with
+    | Dropped ->
+      Misc.fatal_errorf
+        "To_cmm internal error: continuation %a was dropped but is used in %a"
+        Continuation.print k Apply_cont.print apply_cont
     | Jump { param_types; cont } ->
       translate_jump_to_continuation ~dbg_with_inlined env res apply_cont
         param_types cont args

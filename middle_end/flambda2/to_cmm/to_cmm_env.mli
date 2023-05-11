@@ -292,6 +292,7 @@ val extra_info : t -> Simple.t -> extra_info option
     translated as a static jump to a Cmm continuation (represented as a Cmm
     label), or inlined at any unique use site. *)
 type cont = private
+  | Dropped
   | Jump of
       { cont : Lambda.static_label;
         param_types : Cmm.machtype list
@@ -302,6 +303,10 @@ type cont = private
         handler_body : Flambda.Expr.t;
         handler_body_inlined_debuginfo : Debuginfo.t
       }
+
+(** Record that the given continuation should be dropped because it is unused,
+    and that its uses in push/pop traps can be erased *)
+val add_dropped_cont : t -> Continuation.t -> t
 
 (** Record that the given continuation should be compiled to a jump, creating a
     fresh Cmm continuation identifier for it. *)

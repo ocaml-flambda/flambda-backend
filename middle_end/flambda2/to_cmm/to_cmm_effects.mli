@@ -66,6 +66,7 @@ val classify_let_binding :
 (** Classification of continuations, indicating what may be done with the
     handler expression. *)
 type continuation_handler_classification = private
+  | Drop
   | Regular
   | May_inline
 

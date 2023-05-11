@@ -27,6 +27,7 @@ type expr_with_info =
   }
 
 type cont =
+  | Dropped
   | Jump of
       { cont : Lambda.static_label;
         param_types : Cmm.machtype list
@@ -324,6 +325,9 @@ let resolve_alias env var =
 let get_cmm_continuation env k =
   match Continuation.Map.find k env.conts with
   | Jump { cont; _ } -> cont
+  | Dropped ->
+    Misc.fatal_errorf "Continuation %a is registered to be dropped, not a jump"
+      Continuation.print k
   | Inline _ ->
     Misc.fatal_errorf "Continuation %a is registered for inlining, not a jump"
       Continuation.print k
@@ -336,6 +340,10 @@ let get_continuation env k =
     Misc.fatal_errorf "Could not find continuation %a in env during to_cmm"
       Continuation.print k
   | res -> res
+
+let add_dropped_cont env k =
+  let conts = Continuation.Map.add k Dropped env.conts in
+  { env with conts }
 
 let add_jump_cont env k ~param_types =
   let cont = Lambda.next_raise_count () in

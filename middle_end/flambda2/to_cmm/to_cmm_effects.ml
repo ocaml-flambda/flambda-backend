@@ -78,25 +78,17 @@ let classify_let_binding var
     | _, _, Strict -> Regular)
 
 type continuation_handler_classification =
+  | Drop
   | Regular
   | May_inline
 
-let cont_is_known_to_have_exactly_one_occurrence k (num : _ Or_unknown.t) =
-  match num with
-  | Unknown -> false
-  | Known num -> (
-    match (num : Num_occurrences.t) with
-    | One -> true
-    | More_than_one -> false
-    | Zero ->
-      Misc.fatal_errorf
-        "Found unused let-bound continuation %a, this should not happen"
-        Continuation.print k)
-
-let classify_continuation_handler k handler ~num_free_occurrences
+let classify_continuation_handler _k handler
+    ~(num_free_occurrences : Num_occurrences.t Or_unknown.t)
     ~is_applied_with_traps : continuation_handler_classification =
-  if (not (Continuation_handler.is_exn_handler handler))
-     && (not is_applied_with_traps)
-     && cont_is_known_to_have_exactly_one_occurrence k num_free_occurrences
-  then May_inline
-  else Regular
+  let is_exn_handler = Continuation_handler.is_exn_handler handler in
+  match[@warning "-4"]
+    num_free_occurrences, is_exn_handler, is_applied_with_traps
+  with
+  | Known Zero, _, _ -> Drop (* this can happen in classic mode *)
+  | Known One, false, false -> May_inline
+  | _ -> Regular
