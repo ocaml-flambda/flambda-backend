@@ -542,7 +542,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       Printlambda.lambda lam
   [@@ocaml.warning "-fragile-match"]
 
-let dissect_letrec ~bindings ~body =
+let dissect_letrec ~bindings ~body ~free_vars_kind =
   let letbound = Ident.Set.of_list (List.map fst bindings) in
   let letrec =
     List.fold_right
@@ -575,19 +575,7 @@ let dissect_letrec ~bindings ~body =
         id, Lprim (Pccall desc, [size], Loc_unknown))
       letrec.blocks
   in
-  let real_body = body in
-  let bound_ids_freshening =
-    List.map (fun (bound_id, _) -> bound_id, Ident.rename bound_id) bindings
-    |> Ident.Map.of_list
-  in
-  let cont = next_raise_count () in
-  let body =
-    if not letrec.needs_region
-    then body
-    else
-      let args = List.map (fun (bound_id, _) -> Lvar bound_id) bindings in
-      Lstaticraise (cont, args)
-  in
+  let body = if not letrec.needs_region then body else Lexclave body in
   let effects_then_body = lsequence (letrec.effects, body) in
   let functions =
     match letrec.functions with
@@ -618,29 +606,32 @@ let dissect_letrec ~bindings ~body =
       with_preallocations letrec.consts
   in
   let substituted = Lambda.rename letrec.substitution with_constants in
-  let body_layout = Lambda.layout_top in
-  if not letrec.needs_region
-  then substituted
-  else
-    Lstaticcatch
-      ( Lregion (Lambda.rename bound_ids_freshening substituted, body_layout),
-        ( cont,
-          List.map
-            (fun (bound_id, _) -> bound_id, Lambda.layout_letrec)
-            bindings ),
-        real_body,
-        body_layout )
+  if letrec.needs_region
+  then
+    let body_layout =
+      let bindings =
+        Ident.Map.map (fun _ -> Lambda.layout_letrec)
+        @@ Ident.Map.of_list bindings
+      in
+      let free_vars_kind id : Lambda.layout option =
+        try Some (Ident.Map.find id bindings)
+        with Not_found -> free_vars_kind id
+      in
+      Lambda.compute_expr_layout free_vars_kind body
+    in
+    Lregion (substituted, body_layout)
+  else substituted
 
 type dissected =
   | Dissected of Lambda.lambda
   | Unchanged
 
-let dissect_letrec ~bindings ~body =
+let dissect_letrec ~bindings ~body ~free_vars_kind =
   let is_a_function = function _, Lfunction _ -> true | _, _ -> false in
   if List.for_all is_a_function bindings
   then Unchanged
   else
-    try Dissected (dissect_letrec ~bindings ~body)
+    try Dissected (dissect_letrec ~bindings ~body ~free_vars_kind)
     with Bug ->
       Misc.fatal_errorf "let-rec@.%a@." Printlambda.lambda
         (Lletrec (bindings, body))
