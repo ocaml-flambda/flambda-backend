@@ -109,6 +109,7 @@ module Analysis : sig
     exn_continuation:Continuation.t ->
     code_age_relation:Code_age_relation.t ->
     used_value_slots:Name_occurrences.t Or_unknown.t ->
+    code_ids_to_never_delete:Code_id.Set.t ->
     Acc.t ->
     Flow_types.Flow_result.t
 
