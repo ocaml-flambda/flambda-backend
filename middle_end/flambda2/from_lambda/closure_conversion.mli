@@ -74,10 +74,9 @@ val close_raise :
   Acc.t ->
   Env.t ->
   raise_kind:Lambda.raise_kind ->
-  args:IR.simple list ->
+  arg:IR.simple ->
   Lambda.scoped_location ->
   IR.exn_continuation ->
-  current_region:Ident.t ->
   Expr_with_acc.t
 
 type 'a close_program_metadata =

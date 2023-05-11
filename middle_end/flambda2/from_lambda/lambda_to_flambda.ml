@@ -1514,22 +1514,22 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     | Dissected lam -> cps acc env ccenv lam k k_exn)
   | Lprim (prim, args, loc) -> (
     match[@ocaml.warning "-fragile-match"] prim with
-    | Praise raise_kind ->
-      (match args with
-      | [_] -> ()
+    | Praise raise_kind -> (
+      match args with
+      | [_] ->
+        cps_non_tail_list acc env ccenv args
+          (fun acc _env ccenv args _arity ->
+            let exn_continuation : IR.exn_continuation =
+              { exn_handler = k_exn;
+                extra_args = extra_args_for_exn_continuation env k_exn
+              }
+            in
+            CC.close_raise acc ccenv ~raise_kind ~arg:(List.hd args) loc
+              exn_continuation)
+          k_exn
       | [] | _ :: _ ->
         Misc.fatal_errorf "Wrong number of arguments for Lraise: %a"
-          Printlambda.primitive prim);
-      cps_non_tail_list acc env ccenv args
-        (fun acc _env ccenv args _arity ->
-          let exn_continuation : IR.exn_continuation =
-            { exn_handler = k_exn;
-              extra_args = extra_args_for_exn_continuation env k_exn
-            }
-          in
-          CC.close_raise acc ccenv ~raise_kind ~args loc exn_continuation
-            ~current_region:(Env.current_region env))
-        k_exn
+          Printlambda.primitive prim)
     | _ ->
       let id = Ident.create_local "prim" in
       let result_layout = L.primitive_result_layout prim in
