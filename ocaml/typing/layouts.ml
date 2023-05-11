@@ -320,14 +320,18 @@ module Layout = struct
 
   let any_dummy_layout =
     { layout = Any; history = Creation (Any_creation Dummy_layout) }
+  let value_v1_safety_check =
+    { layout = Sort Sort.value;
+      history = Creation (Value_creation V1_safety_check) }
 
   let any ~why = match why with
     | Dummy_layout -> any_dummy_layout  (* memoize this one common case *)
     | _ -> fresh_layout Any ~why:(Any_creation why)
   let void ~why =
     fresh_layout (Sort Sort.void) ~why:(Void_creation why)
-  let value ~why =
-    fresh_layout (Sort Sort.value) ~why:(Value_creation why)
+  let value ~(why : value_creation_reason) = match why with
+    | V1_safety_check -> value_v1_safety_check
+    | _ -> fresh_layout (Sort Sort.value) ~why:(Value_creation why)
   let immediate64 ~why =
     fresh_layout Immediate64 ~why:(Immediate64_creation why)
   let immediate ~why =
