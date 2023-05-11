@@ -542,7 +542,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       Printlambda.lambda lam
   [@@ocaml.warning "-fragile-match"]
 
-let dissect_letrec ~bindings ~body =
+let dissect_letrec ~bindings ~body ~free_vars_kind =
   let letbound = Ident.Set.of_list (List.map fst bindings) in
   let letrec =
     List.fold_right
@@ -606,21 +606,32 @@ let dissect_letrec ~bindings ~body =
       with_preallocations letrec.consts
   in
   let substituted = Lambda.rename letrec.substitution with_constants in
-  let body_layout = Lambda.layout_top in
   if letrec.needs_region
-  then Lregion (substituted, body_layout)
+  then
+    let body_layout =
+      let bindings =
+        Ident.Map.map (fun _ -> Lambda.layout_letrec)
+        @@ Ident.Map.of_list bindings
+      in
+      let free_vars_kind id : Lambda.layout option =
+        try Some (Ident.Map.find id bindings)
+        with Not_found -> free_vars_kind id
+      in
+      Lambda.compute_expr_layout free_vars_kind body
+    in
+    Lregion (substituted, body_layout)
   else substituted
 
 type dissected =
   | Dissected of Lambda.lambda
   | Unchanged
 
-let dissect_letrec ~bindings ~body =
+let dissect_letrec ~bindings ~body ~free_vars_kind =
   let is_a_function = function _, Lfunction _ -> true | _, _ -> false in
   if List.for_all is_a_function bindings
   then Unchanged
   else
-    try Dissected (dissect_letrec ~bindings ~body)
+    try Dissected (dissect_letrec ~bindings ~body ~free_vars_kind)
     with Bug ->
       Misc.fatal_errorf "let-rec@.%a@." Printlambda.lambda
         (Lletrec (bindings, body))

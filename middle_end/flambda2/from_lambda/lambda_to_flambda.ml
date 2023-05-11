@@ -1242,7 +1242,13 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
    * in
    * cps_non_tail_simple acc env ccenv defining_expr k k_exn *)
   | Lletrec (bindings, body) -> (
-    match Dissect_letrec.dissect_letrec ~bindings ~body with
+    let free_vars_kind id =
+      let _, kind_with_subkind = CCenv.find_var ccenv id in
+      Some
+        (Flambda_kind.to_lambda
+           (Flambda_kind.With_subkind.kind kind_with_subkind))
+    in
+    match Dissect_letrec.dissect_letrec ~bindings ~body ~free_vars_kind with
     | Unchanged ->
       let function_declarations = cps_function_bindings env bindings in
       let body acc ccenv = cps acc env ccenv body k k_exn in
