@@ -25,7 +25,7 @@ end
 module Backward(D: DOMAIN) = struct
 
 let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot)
-      ?(init_lbl = (fun ~rc:_ _ -> D.bot))
+      ?(init_rc_lbl = D.bot)
       ~transfer instr =
 
   let lbls =
@@ -34,7 +34,8 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot)
     (Hashtbl.create 1 : (int, unit) Hashtbl.t) in
   let add_rc_lbl n =
     if not (Hashtbl.mem rc_lbls n) then Hashtbl.add rc_lbls n () in
-  let init_lbl n = init_lbl ~rc:(Hashtbl.mem rc_lbls n) n in
+  let init_lbl n =
+    if Hashtbl.mem rc_lbls n then init_rc_lbl else D.bot in
   let get_lbl n =
     match Hashtbl.find_opt lbls n with None -> init_lbl n | Some b -> b
   and set_lbl n x =
