@@ -278,7 +278,7 @@ module Immutable_arrays = struct
       Pattern.make_entire_jane_syntax ~loc extension_string (fun () ->
         Ast_helper.Pat.array elts)
 
-  let of_pat expr = match expr.ppat_desc with
+  let of_pat pat = match pat.ppat_desc with
     | Ppat_array elts -> Iapat_immutable_array elts
     | _ -> failwith "Malformed immutable array pattern"
 end
