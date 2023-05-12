@@ -106,6 +106,13 @@ let enter_catch_body env nfail =
   }
 
 let mk_traps env nfail =
+  let catch_trywith_depths_inverse =
+    env.catch_trywith_depths
+    |> IntMap.bindings
+    |> List.map (fun (nfail, depth) -> depth, nfail)
+    |> List.to_seq
+    |> IntMap.of_seq
+  in
   let handler_depth =
     match IntMap.find_opt nfail env.catch_trywith_depths with
     | None -> Misc.fatal_errorf "Cmmgen.mk_traps: Unknown handler %d" nfail
@@ -114,7 +121,13 @@ let mk_traps env nfail =
   if handler_depth = env.trywith_depth then []
   else begin
     assert (handler_depth <= env.trywith_depth);
-    List.init (env.trywith_depth - handler_depth) (fun _ -> Pop)
+    List.init (env.trywith_depth - handler_depth)
+      (fun offset ->
+        let depth = handler_depth + offset in
+        match IntMap.find depth catch_trywith_depths_inverse with
+        | exception Not_found ->
+          Misc.fatal_errorf "No exception handler for depth %d" depth
+        | nfail -> Pop (Pop_specific nfail))
   end
 
 (* Description of the "then" and "else" continuations in [transl_if]. If

@@ -325,7 +325,7 @@ let destroyed_at_pushtrap =
   [| r11 |]
 
 let has_pushtrap traps =
-  List.exists (function Cmm.Push _ -> true | Pop -> false) traps
+  List.exists (function Cmm.Push _ -> true | Pop _ -> false) traps
 
 (* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function

@@ -458,7 +458,7 @@ let rec add_blocks :
           | Cmm.Push handler_id ->
             let lbl_handler = State.get_catch_handler state ~handler_id in
             make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })
-          | Cmm.Pop -> make_instruction state ~desc:Cfg.Poptrap
+          | Cmm.Pop _ -> make_instruction state ~desc:Cfg.Poptrap
         in
         DLL.add_end body instr)
       trap_actions;
@@ -524,7 +524,9 @@ let rec add_blocks :
       else
         terminate_block
           ~trap_actions:
-            (if State.is_iend_with_poptrap state last then [Cmm.Pop] else [])
+            (if State.is_iend_with_poptrap state last
+            then [Cmm.Pop Pop_generic]
+            else [])
           (copy_instruction_no_reg state last ~desc:(Cfg.Always next))
     | Ireturn trap_actions ->
       terminate_block ~trap_actions

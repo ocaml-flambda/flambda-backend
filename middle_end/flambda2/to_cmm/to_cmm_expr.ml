@@ -318,7 +318,9 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
     let trap_actions =
       match Apply_cont.trap_action apply with
       | None -> []
-      | Some (Pop _) -> [Cmm.Pop]
+      | Some (Pop { exn_handler; _ }) ->
+        let cont = Env.get_cmm_continuation env exn_handler in
+        [Cmm.Pop (Pop_specific cont)]
       | Some (Push { exn_handler }) ->
         let cont = Env.get_cmm_continuation env exn_handler in
         [Cmm.Push cont]
@@ -343,9 +345,10 @@ let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
   | None ->
     let cmm, free_vars = wrap return_value free_vars in
     cmm, free_vars, res
-  | Some (Pop _) ->
+  | Some (Pop { exn_handler; _ }) ->
+    let cont = Env.get_cmm_continuation env exn_handler in
     let cmm, free_vars =
-      wrap (C.trap_return return_value [Cmm.Pop]) free_vars
+      wrap (C.trap_return return_value [Cmm.Pop (Pop_specific cont)]) free_vars
     in
     cmm, free_vars, res
   | Some (Push _) ->
