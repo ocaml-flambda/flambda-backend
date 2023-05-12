@@ -461,7 +461,7 @@ module Pattern = Make_AST(struct
     | Ppat_tuple([{ppat_desc = Ppat_extension ext; _}; pattern]) ->
         Some (ext, pattern)
     | _ ->
-       None
+        None
 end)
 
 (** Module types; embedded as [functor (_ : [%jane.FEATNAME]) -> BODY]. *)
