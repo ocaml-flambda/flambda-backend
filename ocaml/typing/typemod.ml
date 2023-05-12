@@ -586,7 +586,8 @@ let merge_constraint initial_env loc sg lid constr =
                  below *)
               List.map (fun _ -> Btype.newgenvar Layout.any) sdecl.ptype_params;
             type_arity = arity;
-            type_kind = Types.kind_abstract ~layout:Layout.value;
+            type_kind = Type_abstract;
+            type_layout = Layout.value;
             type_private = Private;
             type_manifest = None;
             type_variance =

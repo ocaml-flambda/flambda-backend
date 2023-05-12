@@ -210,6 +210,7 @@ type type_declaration =
   { type_params: type_expr list;
     type_arity: int;
     type_kind: type_decl_kind;
+    type_layout: layout;
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -225,7 +226,7 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract of {layout : layout}
+    Type_abstract
   | Type_record of 'lbl list * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
@@ -528,60 +529,10 @@ let may_equal_constr c1 c2 =
      | tag1, tag2 ->
          equal_tag tag1 tag2)
 
-
-let kind_abstract ~layout = Type_abstract { layout }
-(* CR-someday layouts: We could match on the layout and return one of the below
-   to share more - test whether the memory savings is worth the runtime cost of
-   the match.  I implemented a similar optimization in Subst.norm, but was
-   surprised to find basically no impact on artifact sizes. *)
-
-let kind_abstract_value = kind_abstract ~layout:Layout.value
-let kind_abstract_immediate = kind_abstract ~layout:Layout.immediate
-let kind_abstract_any = kind_abstract ~layout:Layout.any
-
 let decl_is_abstract decl =
   match decl.type_kind with
-  | Type_abstract _ -> true
+  | Type_abstract -> true
   | Type_record _ | Type_variant _ | Type_open -> false
-
-let all_void layouts =
-  Array.for_all (fun l ->
-    match Layout.get l with
-    | Const Void -> true
-    | Const (Any | Immediate | Immediate64 | Value) | Var _ -> false)
-    layouts
-
-let layout_bound_of_record_representation : record_representation -> _ =
-  let open Layout in function
-  | Record_unboxed l -> l
-  | Record_float -> value
-  | Record_inlined (tag,rep) -> begin
-      match (tag,rep) with
-      | Extension _, _ -> value
-      | _, Variant_extensible -> value
-      | Ordinary _, Variant_unboxed l -> l (* n must be 0 here *)
-      | Ordinary {src_index}, Variant_boxed layouts ->
-        if all_void layouts.(src_index)
-        then immediate
-        else value
-    end
-  | Record_boxed layouts when all_void layouts -> immediate
-  | Record_boxed _ -> value
-
-let layout_bound_of_variant_representation : variant_representation -> _ =
-  let open Layout in function
-  | Variant_unboxed l -> l
-  | Variant_boxed layouts ->
-    if Array.for_all all_void layouts then immediate else value
-  | Variant_extensible -> value
-
-(* should not mutate sorts *)
-let layout_bound_of_kind : _ type_kind -> _ =
-  let open Layout in function
-  | Type_abstract { layout } -> layout
-  | Type_open -> value
-  | Type_record (_,rep) -> layout_bound_of_record_representation rep
-  | Type_variant (_, rep) -> layout_bound_of_variant_representation rep
 
 let find_unboxed_type decl =
   match decl.type_kind with
@@ -595,7 +546,7 @@ let find_unboxed_type decl =
                     | Record_boxed _ | Record_float ))
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed _
                      | Variant_extensible ))
-  | Type_abstract _ | Type_open ->
+  | Type_abstract | Type_open ->
     None
 
 type label_description =

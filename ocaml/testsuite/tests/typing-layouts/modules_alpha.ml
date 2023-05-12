@@ -46,7 +46,7 @@ module type S1'' = S1 with type s = t_void;;
 Line 1, characters 27-42:
 1 | module type S1'' = S1 with type s = t_void;;
                                ^^^^^^^^^^^^^^^
-Error: This type has layout void, which is not a sublayout of value.
+Error: Type t_void has layout void, which is not a sublayout of value.
 |}]
 
 module type S1_2 = sig
@@ -181,7 +181,7 @@ end;;
 Line 2, characters 2-31:
 2 |   type t = Bar3.t [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This type has layout value, which is not a sublayout of immediate.
+Error: Type Bar3/2.t has layout value, which is not a sublayout of immediate.
 |}];;
 
 module rec Foo3 : sig
@@ -363,7 +363,7 @@ module type S3_2 = sig type t [@@immediate] end
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
-Error: This type has layout value, which is not a sublayout of immediate.
+Error: Type string has layout value, which is not a sublayout of immediate.
 |}]
 
 (*****************************************)

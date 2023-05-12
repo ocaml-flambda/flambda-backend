@@ -478,6 +478,17 @@ type type_declaration =
   { type_params: type_expr list;
     type_arity: int;
     type_kind: type_decl_kind;
+
+    type_layout: layout;
+    (* for an abstract decl kind: this is the stored layout for the type;
+       expansion might find a type with a more precise layout.
+
+       for other decl kinds: this is a cached layout, computed from the
+       decl kind. EXCEPTION: if a type's layout is refined by a gadt equation,
+       the layout stored here might be a sublayout of the layout that would
+       be computed from the decl kind. This happens in
+       Ctype.add_layout_equation. *)
+
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -495,16 +506,14 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract of {layout : layout}
-  (* The layout here is authoritative if the manifest is [None].  Otherwise,
-     it's an upper bound; look at the manifest for the most precise layout. *)
+    Type_abstract   (* layout is stored in the type_declaration *)
   | Type_record of 'lbl list  * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
 (* In the case of abbreviations (declarations whose kind is [Type_abstract] and
-   which have a manifest), the [immediate] field of [Type_abstract] is a
-   conservative approximation (it may be [Unknown] when the type is actually
-   immediate).  It is therefore necessary to check the manifest.  See PR#10017
+   which have a manifest), the [type_layout] field of [type_declaration] is a
+   conservative approximation (it may be e.g. [value] when the type is actually
+   [immediate]).  It is therefore necessary to check the manifest.  See PR#10017
    for motivating examples where subsitution or instantiation may refine the
    immediacy of a type.  *)
 
@@ -572,15 +581,7 @@ and constructor_arguments =
   | Cstr_tuple of (type_expr * global_flag) list
   | Cstr_record of label_declaration list
 
-val kind_abstract : layout:layout -> ('a,'b) type_kind
-val kind_abstract_value : ('a,'b) type_kind
-val kind_abstract_immediate : ('a,'b) type_kind
-val kind_abstract_any : ('a,'b) type_kind
 val decl_is_abstract : type_declaration -> bool
-
-(** Type kinds provide an upper bound on layouts of a type (which is precise if
-    the type has no manifest). *)
-val layout_bound_of_kind : ('a,'b) type_kind -> layout
 
 (* Returns the inner type, if unboxed. *)
 val find_unboxed_type : type_declaration -> type_expr option
