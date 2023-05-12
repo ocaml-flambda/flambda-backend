@@ -88,4 +88,11 @@ module Backward(D: DOMAIN) : sig
      unhandled exception.  It defaults to [D.bot].
   *)
 
+
+  (* CR-someday gyorsh: The function [get_lbl] returned from [analyze]
+     does not provide enough information to the caller of [analyze]
+     to tell whether a label does not exist, exists but unreachable,
+     or exists and is reachable and has the same value as the
+     initial one. *)
+
 end

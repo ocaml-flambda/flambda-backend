@@ -80,6 +80,12 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot)
             handlers
         | Cmm.Recursive ->
             List.iter (fun (n, _, _) -> add_rc_lbl n) handlers;
+            (* If [transfer] is monotonic and [D.t] satisfies
+               the finite ascending chains condition,
+               then the [while] loop below is guaranteed to terminate
+               with [lbls] at the least fixed point of [before bx exnh h].
+               Labels that retain their initial value at fixed point
+               may be implicitly represented and absent from [lbls]. *)
             let update changed (n, trap_stack, h) =
               let b0 = get_lbl n in
               let exnh = exn_from_trap_stack exn trap_stack in
