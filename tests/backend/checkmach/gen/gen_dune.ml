@@ -73,6 +73,8 @@ let () =
   print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail14";
   print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail15";
   print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail16";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail17";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail18";
 
   print_test_expected_output ~flambda_only:false ~extra_dep:None
     ~exit_code:2 "test_attribute_error_duplicate";
