@@ -650,7 +650,7 @@ let default_function_attribute = {
 }
 
 let default_stub_attribute =
-  { default_function_attribute with stub = true }
+  { default_function_attribute with stub = true; check = Ignore_assert_all Zero_alloc }
 
 (* Build sharing keys *)
 (*
