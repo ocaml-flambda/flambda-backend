@@ -151,7 +151,7 @@ type subst = t Subst.t
 let subst t s =
   let rec subst ({ head; args; params } as t) s ~changed =
     match Subst.find_opt (to_name t) s with
-    | Some rhs -> rhs
+    | Some rhs -> changed := true; rhs
     | None ->
         let matching_params, non_matching_params =
           List.partition_map
