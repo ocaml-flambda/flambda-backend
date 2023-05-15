@@ -669,7 +669,7 @@ let transl_declaration env sdecl (id, uid) =
               (* This is improved in [update_decl_layout] - see the comment
                  on the Variant_unboxed case above.*)
               let layout = Option.value layout_annotation ~default:Layout.any in
-              Record_unboxed layout, layout
+              Record_unboxed, layout
             else (if List.for_all (fun l -> is_float env l.Types.ld_type) lbls'
             then Record_float
             else Record_boxed (Array.make (List.length lbls) Layout.any)),
@@ -1066,12 +1066,9 @@ let update_constructor_arguments_layouts env loc cd_args layouts =
    It is called after the circularity checks and the delayed layout checks
    have happened, so we can fully compute layouts of types.
 
-   For @@unboxed types in particular, this function is an important part
-   of correctness.  Before this function is called, the layout recorded in
-   kinds in [Variant_unboxed] and [Record_unboxed] is just a copy of any
-   provided layout annotation, with no checking.  Here we replace it with
-   an accurate layout computed from the inner type (which is checked
-   against the annotation at the end of [transl_type_decl]).
+   This function is an important part
+   of correctness, as it also checks that the computed layout of a type
+   declaration is consistent (i.e. a sublayout of) any layout annotation.
 *)
 (* CR layouts v2: This isn't quite right, because recursive uses of types
    being declared in this same blob will have the layouts on their layout
@@ -1091,11 +1088,11 @@ let update_decl_layout env dpath decl =
   (* returns updated labels, updated rep, and updated layout *)
   let update_record_kind loc lbls rep =
     match lbls, rep with
-    | [Types.{ld_type; ld_id; ld_loc} as lbl], Record_unboxed _ ->
+    | [Types.{ld_type; ld_id; ld_loc} as lbl], Record_unboxed ->
       check_representable ~reason:(Label_declaration ld_id)
         env ld_loc Record ld_type;
       let ld_layout = Ctype.type_layout env ld_type in
-      [{lbl with ld_layout}], Record_unboxed ld_layout, ld_layout
+      [{lbl with ld_layout}], Record_unboxed, ld_layout
     | _, Record_boxed layouts ->
       let lbls, all_void = update_label_layouts env loc lbls (Some layouts) in
       let layout = Layout.for_boxed_record ~all_void in
@@ -1108,7 +1105,7 @@ let update_decl_layout env dpath decl =
         List.map (fun lbl -> { lbl with ld_layout = Layout.value }) lbls
       in
       lbls, rep, Layout.value
-    | (([] | (_ :: _)), Record_unboxed _ | _, Record_inlined _) -> assert false
+    | (([] | (_ :: _)), Record_unboxed | _, Record_inlined _) -> assert false
   in
 
   (* returns updated constructors, updated rep, and updated layout *)

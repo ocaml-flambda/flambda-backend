@@ -2118,7 +2118,7 @@ let get_expr_args_record ~scopes head (arg, _mut, layout) rem =
         | Record_boxed _
         | Record_inlined (_, Variant_boxed _) ->
             Lprim (Pfield (lbl.lbl_pos, sem), [ arg ], loc), layout_field
-        | Record_unboxed _
+        | Record_unboxed
         | Record_inlined (_, Variant_unboxed _) -> arg, layout
         | Record_float ->
            (* TODO: could optimise to Alloc_local sometimes *)

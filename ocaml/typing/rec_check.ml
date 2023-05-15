@@ -163,7 +163,7 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_construct _ ->
         Static
 
-    | Texp_record { representation = Record_unboxed _;
+    | Texp_record { representation = Record_unboxed;
                     fields = [| _, Overridden (_,e) |] } ->
         classify_expression env e
     | Texp_record _ ->
@@ -643,7 +643,7 @@ let rec expression : Typedtree.expression -> term_judg =
                     representation = rep } ->
         let field_mode = match rep with
           | Record_float -> Dereference
-          | Record_unboxed _ | Record_inlined (_,Variant_unboxed _) -> Return
+          | Record_unboxed | Record_inlined (_,Variant_unboxed _) -> Return
           | Record_boxed _ | Record_inlined _ -> Guard
         in
         let field (_label, field_def) = match field_def with

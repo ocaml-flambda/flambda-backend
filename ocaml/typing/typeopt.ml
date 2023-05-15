@@ -427,7 +427,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
 and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
       (labels : Types.label_declaration list) rep =
   match rep with
-  | (Record_unboxed _ | (Record_inlined (_,Variant_unboxed _))) -> begin
+  | (Record_unboxed | (Record_inlined (_,Variant_unboxed _))) -> begin
       (* CR layouts v1.5: This should only be reachable in the case of a missing
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
          needed when we deal with missing cmis. *)
@@ -473,7 +473,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
             [0, fields]
           | Record_inlined (Extension _, _) ->
             [0, fields]
-          | Record_unboxed _ -> assert false
+          | Record_unboxed -> assert false
         in
         (num_nodes_visited, Pvariant { consts = []; non_consts })
     end

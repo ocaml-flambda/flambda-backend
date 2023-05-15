@@ -625,9 +625,9 @@ module Record_diffing = struct
       Some (Record_mismatch (Label_mismatch patch))
     else
      match rep1, rep2 with
-     | Record_unboxed _, Record_unboxed _ -> None
-     | Record_unboxed _, _ -> Some (Unboxed_representation (First, []))
-     | _, Record_unboxed _ -> Some (Unboxed_representation (Second, []))
+     | Record_unboxed, Record_unboxed -> None
+     | Record_unboxed, _ -> Some (Unboxed_representation (First, []))
+     | _, Record_unboxed -> Some (Unboxed_representation (Second, []))
 
      | Record_inlined _, Record_inlined _ -> None
      | Record_inlined _, _ ->

@@ -288,7 +288,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       | Record_float -> build_block cl size Boxed_float arg letrec
       | Record_inlined (Extension _, _)
       | Record_inlined (Ordinary _, (Variant_unboxed _ | Variant_extensible))
-      | Record_unboxed _ ->
+      | Record_unboxed ->
         Misc.fatal_errorf "Unexpected record kind:@ %a" Printlambda.lambda lam)
     | None -> dead_code lam letrec)
   | Lconst const -> (

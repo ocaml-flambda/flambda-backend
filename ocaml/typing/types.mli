@@ -533,7 +533,7 @@ and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
         | Extension of Path.t * layout array
 
 and record_representation =
-  | Record_unboxed of layout
+  | Record_unboxed
   | Record_inlined of tag * variant_representation
   (* For an inlined record, we record the representation of the variant that
      contains it and the tag of the relevant constructor of that variant. *)
