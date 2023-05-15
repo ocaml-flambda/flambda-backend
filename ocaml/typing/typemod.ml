@@ -576,10 +576,12 @@ let merge_constraint initial_env loc sg lid constr =
           { type_params =
               (* layout any is fine on the params because they get thrown away
                  below *)
-              List.map (fun _ -> Btype.newgenvar Layout.any) sdecl.ptype_params;
+              List.map
+                (fun _ -> Btype.newgenvar (Layout.any ~why:Dummy_layout))
+                sdecl.ptype_params;
             type_arity = arity;
             type_kind = Type_abstract;
-            type_layout = Layout.value;
+            type_layout = Layout.value ~why:(Unknown "merge_constraint");
             type_private = Private;
             type_manifest = None;
             type_variance =
@@ -2661,7 +2663,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    (* CR layouts v5: this layout check has the effect of
                       defaulting the sort of top-level bindings to value, which
                       will change. *)
-                   if not (Layout.(equate (of_sort sort) value)) then
+                   if not Sort.(equate sort value)
+                   then
                      raise (Error (loc, env,
                                    Toplevel_nonvalue (Ident.name id,sort)))
                 )
@@ -3167,7 +3170,8 @@ let type_package env m p fl =
   List.iter
     (fun (n, ty) ->
        (* CR layouts v5: relax value requirement. *)
-      try Ctype.unify env ty (Ctype.newvar Layout.value)
+      try Ctype.unify env ty
+            (Ctype.newvar (Layout.value ~why:Structure_element))
       with Ctype.Unify _ ->
         raise (Error(modl.mod_loc, env, Scoping_pack (n,ty))))
     fl';
@@ -3615,7 +3619,7 @@ let report_error ~loc _env = function
   | Toplevel_nonvalue (id, sort) ->
       Location.errorf ~loc
         "@[Top-level module bindings must have layout value, but@ \
-         %s has layout@ %a.@]" id Layout.format (Layout.of_sort sort)
+         %s has layout@ %a.@]" id Sort.format sort
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env

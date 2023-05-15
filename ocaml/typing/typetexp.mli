@@ -98,9 +98,9 @@ type error =
   | Unsupported_extension of Language_extension.t
   | Polymorphic_optional_param
   | Non_value of
-      {vloc : value_loc; typ : type_expr; err : Layout.Violation.violation}
+      {vloc : value_loc; typ : type_expr; err : Layout.Violation.t}
   | Non_sort of
-      {vloc : sort_loc; typ : type_expr; err : Layout.Violation.violation}
+      {vloc : sort_loc; typ : type_expr; err : Layout.Violation.t}
 
 exception Error of Location.t * Env.t * error
 

@@ -53,7 +53,7 @@ type unsafe_info =
 type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
-| Non_value_layout of Types.type_expr * Layouts.Layout.Violation.violation
+| Non_value_layout of Types.type_expr * Layouts.Layout.Violation.t
 
 exception Error of Location.t * error
 

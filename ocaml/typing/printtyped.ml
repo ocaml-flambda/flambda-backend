@@ -399,7 +399,7 @@ and expression i ppf x =
   | Texp_match (e, sort, l, _partial) ->
       line i ppf "Texp_match\n";
       expression i ppf e;
-      line i ppf "%a\n" Layouts.Layout.format (Layouts.Layout.of_sort sort);
+      line i ppf "%a\n" Layouts.Sort.format sort;
       list i case ppf l;
   | Texp_try (e, l) ->
       line i ppf "Texp_try\n";

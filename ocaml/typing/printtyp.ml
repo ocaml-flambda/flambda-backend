@@ -467,7 +467,7 @@ let strings_of_paths namespace p =
   List.map (Format.asprintf "%a" !Oprint.out_ident) trees
 
 let () = Env.print_path := path
-let () = Layouts.Layout.Violation.set_printtyp_path path
+let () = Layouts.Layout.set_printtyp_path path
 
 (* Print a recursive annotation *)
 
@@ -1487,7 +1487,7 @@ let rec tree_of_type_decl id decl =
     match Builtin_attributes.layout ~legacy_immediate:true decl.type_attributes
     with
     | Ok l -> l
-    | Error (_, l) -> Some l
+    | Error (loc, l) -> Some (Location.mkloc l loc)
   in
   let ty, priv, unboxed =
     match decl.type_kind with
@@ -1519,7 +1519,7 @@ let rec tree_of_type_decl id decl =
       otype_params = args;
       otype_type = ty;
       otype_private = priv;
-      otype_layout = lay;
+      otype_layout = Option.map Location.get_txt lay;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }
 
@@ -1880,7 +1880,7 @@ let dummy =
     type_params = [];
     type_arity = 0;
     type_kind = Type_abstract;
-    type_layout = Layout.any;
+    type_layout = Layout.any ~why:Dummy_layout;
     type_private = Public;
     type_manifest = None;
     type_variance = [];
@@ -2123,7 +2123,7 @@ let trees_of_type_expansion'
       | Tvar { layout; _ } | Tunivar { layout; _ } ->
           let olay = match Layouts.Layout.get layout with
             | Const clay -> Olay_const clay
-            | Var   v    -> Olay_var   (Sort.var_name v)
+            | Var v      -> Olay_var (Sort.var_name v)
           in
           Otyp_layout_annot (out, olay)
       | _ ->
@@ -2244,7 +2244,8 @@ let hide_variant_name t =
       newty2 ~level:(get_level t)
         (Tvariant
            (create_row ~fields ~fixed ~closed ~name:None
-              ~more:(newvar2 (get_level more) Layout.value)))
+              ~more:(newvar2 (get_level more)
+                       (Layout.value ~why:Row_variable))))
   | _ -> t
 
 let prepare_expansion Errortrace.{ty; expanded} =
@@ -2454,7 +2455,9 @@ let explanation (type variety) intro prev env
               (Layout.Violation.report_with_offender_sort
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Unequal_var_layouts (t1,l1,t2,l2) ->
-      let fmt_history t = Layout.format_history ~pp_name:type_expr ~name:t in
+      let fmt_history t =
+        Layout.format_history ~intro:(fun ppf -> type_expr ppf t)
+      in
       Some (dprintf "@ because their layouts are different.@[<v>%a%a@]"
               (fmt_history t1) l1 (fmt_history t2) l2)
 

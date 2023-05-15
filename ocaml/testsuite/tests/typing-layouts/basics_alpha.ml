@@ -1196,3 +1196,22 @@ Error: This pattern matches values of type (M.t_void, M.t_void) eq
 (* CR layouts v2: error message is OK, but it could probably be better.
    But a similar case without layouts is already pretty bad, so try
    that before spending too much time here. *)
+
+(**************************************************)
+(* Test 24: checking that #poly_var patterns work *)
+
+type ('a : void) poly_var = [`A of int * 'a | `B]
+
+let f #poly_var = "hello"
+
+[%%expect{|
+Line 1, characters 41-43:
+1 | type ('a : void) poly_var = [`A of int * 'a | `B]
+                                             ^^
+Error: This type ('a : value) should be an instance of type ('a0 : void)
+       'a has layout void, which does not overlap with value.
+|}]
+(* CR layouts bug: this should be accepted (or maybe we should reject
+   the type definition if we're not allowing `void` things in structures).
+   This bug is a goof at the top of Typecore.build_or_pat;
+   there is another CR layouts there. *)
