@@ -523,7 +523,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
         | Mutable -> Reads_vary
       in
       begin match lbl.lbl_repres with
-          Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
+          Record_boxed | Record_inlined (_, Variant_boxed _) ->
           Lprim (Pfield (lbl.lbl_pos, sem), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) -> targ
@@ -542,7 +542,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
       in
       let access =
         match lbl.lbl_repres with
-          Record_boxed _
+          Record_boxed
         | Record_inlined (_, Variant_boxed _) ->
           Psetfield(lbl.lbl_pos, maybe_pointer newval, mode)
         | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->
@@ -1410,7 +1410,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                in
                let access =
                  match repres with
-                   Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
+                   Record_boxed | Record_inlined (_, Variant_boxed _) ->
                    Pfield (i, sem)
                  | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->
                    assert false
@@ -1437,7 +1437,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         if mut = Mutable then raise Not_constant;
         let cl = List.map extract_constant ll in
         match repres with
-        | Record_boxed _ -> Lconst(Const_block(0, cl))
+        | Record_boxed -> Lconst(Const_block(0, cl))
         | Record_inlined (Ordinary {runtime_tag}, Variant_boxed _) ->
             Lconst(Const_block(runtime_tag, cl))
         | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->
@@ -1450,7 +1450,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
       with Not_constant ->
         let loc = of_location ~scopes loc in
         match repres with
-          Record_boxed _ ->
+          Record_boxed ->
             Lprim(Pmakeblock(0, mut, Some shape, Option.get mode), ll, loc)
         | Record_inlined (Ordinary {runtime_tag}, Variant_boxed _) ->
             Lprim(Pmakeblock(runtime_tag, mut, Some shape, Option.get mode),
@@ -1486,7 +1486,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
       | Overridden (_lid, expr) ->
           let upd =
             match repres with
-              Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
+              Record_boxed | Record_inlined (_, Variant_boxed _) ->
                 let ptr = maybe_pointer expr in
                 Psetfield(lbl.lbl_pos, ptr, Assignment modify_heap)
             | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->

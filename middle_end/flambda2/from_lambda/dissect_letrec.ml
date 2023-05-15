@@ -280,7 +280,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         | _ -> Misc.fatal_error "Dissect_letrec.prepare_letrec duprecord"
       in
       match[@ocaml.warning "fragile-match"] kind with
-      | Record_boxed _ -> build_block cl size (Normal 0) arg letrec
+      | Record_boxed -> build_block cl size (Normal 0) arg letrec
       | Record_inlined (Ordinary { runtime_tag; _ }, Variant_boxed _) ->
         build_block cl size (Normal runtime_tag) arg letrec
       | Record_inlined (Extension _, Variant_extensible) ->

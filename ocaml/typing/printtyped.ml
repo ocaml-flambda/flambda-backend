@@ -179,8 +179,8 @@ let variant_representation i ppf = let open Types in function
 let record_representation i ppf = let open Types in function
   | Record_unboxed l ->
     line i ppf "Record_unboxed %a\n" Layouts.Layout.format l
-  | Record_boxed layouts ->
-    line i ppf "Record_boxed %a\n" (layout_array i) layouts
+  | Record_boxed ->
+    line i ppf "Record_boxed\n"
   | Record_inlined (t,v) ->
     line i ppf "Record_inlined (%a, %a)\n" tag t (variant_representation i) v
   | Record_float -> line i ppf "Record_float\n"

@@ -635,7 +635,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   | Pduprecord (repr, num_fields), [arg] ->
     let kind : P.Duplicate_block_kind.t =
       match repr with
-      | Record_boxed _ ->
+      | Record_boxed ->
         Values
           { tag = Tag.Scannable.zero;
             length = Targetint_31_63.of_int num_fields

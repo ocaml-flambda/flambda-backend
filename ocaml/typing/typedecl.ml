@@ -671,8 +671,8 @@ let transl_declaration env sdecl (id, uid) =
               let layout = Option.value layout_annotation ~default:Layout.any in
               Record_unboxed layout, layout
             else (if List.for_all (fun l -> is_float env l.Types.ld_type) lbls'
-            then Record_float
-            else Record_boxed (Array.make (List.length lbls) Layout.any)),
+                  then Record_float
+                  else Record_boxed),
                  (* why value here? See comment above this big [match] *)
                  Layout.value
           in
@@ -1022,22 +1022,16 @@ let check_representable ~reason env loc lloc typ =
 *)
 (* [update_label_layouts] additionally returns whether all the layouts
    were void *)
-let update_label_layouts env loc lbls named =
+let update_label_layouts env loc lbls =
   (* "named" distinguishes between top-level records (for which we need to
      update the kind with the layouts) and inlined records *)
   (* CR layouts v5: it wouldn't be too hard to support records that are all
      void.  just needs a bit of refactoring in translcore *)
-  let update =
-    match named with
-    | None -> fun _ _ -> ()
-    | Some layouts -> fun idx layout -> layouts.(idx) <- layout
-  in
   let lbls =
-    List.mapi (fun idx (Types.{ld_type; ld_id; ld_loc} as lbl) ->
+    List.map (fun (Types.{ld_type; ld_id; ld_loc} as lbl) ->
       check_representable ~reason:(Label_declaration ld_id)
         env ld_loc Record ld_type;
       let ld_layout = Ctype.type_layout env ld_type in
-      update idx ld_layout;
       {lbl with ld_layout}
     ) lbls
   in
@@ -1058,7 +1052,7 @@ let update_constructor_arguments_layouts env loc cd_args layouts =
       layouts.(idx) <- Ctype.type_layout env ty) tys;
     cd_args, Array.for_all Layout.is_void layouts
   | Types.Cstr_record lbls ->
-    let lbls, all_void = update_label_layouts env loc lbls None in
+    let lbls, all_void = update_label_layouts env loc lbls in
     layouts.(0) <- Layout.value;
     Types.Cstr_record lbls, all_void
 
@@ -1096,8 +1090,8 @@ let update_decl_layout env dpath decl =
         env ld_loc Record ld_type;
       let ld_layout = Ctype.type_layout env ld_type in
       [{lbl with ld_layout}], Record_unboxed ld_layout, ld_layout
-    | _, Record_boxed layouts ->
-      let lbls, all_void = update_label_layouts env loc lbls (Some layouts) in
+    | _, Record_boxed ->
+      let lbls, all_void = update_label_layouts env loc lbls in
       let layout = Layout.for_boxed_record ~all_void in
       lbls, rep, layout
     | _, Record_float ->

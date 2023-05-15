@@ -537,7 +537,7 @@ and record_representation =
   | Record_inlined of tag * variant_representation
   (* For an inlined record, we record the representation of the variant that
      contains it and the tag of the relevant constructor of that variant. *)
-  | Record_boxed of layout array
+  | Record_boxed
   | Record_float (* All fields are floats *)
 
 

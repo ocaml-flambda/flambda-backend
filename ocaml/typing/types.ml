@@ -238,7 +238,7 @@ and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
 and record_representation =
   | Record_unboxed of layout
   | Record_inlined of tag * variant_representation
-  | Record_boxed of layout array
+  | Record_boxed
   | Record_float
 
 and variant_representation =
@@ -513,11 +513,11 @@ let equal_record_representation r1 r2 = match r1, r2 with
       Layout.equal lay1 lay2
   | Record_inlined (tag1, vr1), Record_inlined (tag2, vr2) ->
       equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
-  | Record_boxed lays1, Record_boxed lays2 ->
-      Misc.Stdlib.Array.equal Layout.equal lays1 lays2
+  | Record_boxed, Record_boxed ->
+      true
   | Record_float, Record_float ->
       true
-  | (Record_unboxed _ | Record_inlined _ | Record_boxed _ | Record_float), _ ->
+  | (Record_unboxed _ | Record_inlined _ | Record_boxed | Record_float), _ ->
       false
 
 let may_equal_constr c1 c2 =
@@ -543,7 +543,7 @@ let find_unboxed_type decl =
                   Variant_unboxed _) ->
     Some arg
   | Type_record (_, ( Record_inlined _ | Record_unboxed _
-                    | Record_boxed _ | Record_float ))
+                    | Record_boxed | Record_float ))
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed _
                      | Variant_extensible ))
   | Type_abstract | Type_open ->

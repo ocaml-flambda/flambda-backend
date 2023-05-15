@@ -2115,7 +2115,7 @@ let get_expr_args_record ~scopes head (arg, _mut, layout) rem =
            we'll probably want a cheaper version of the `Typeopt.layout`
            function that avoids calling `value_kind` in the value case. *)
         match lbl.lbl_repres with
-        | Record_boxed _
+        | Record_boxed
         | Record_inlined (_, Variant_boxed _) ->
             Lprim (Pfield (lbl.lbl_pos, sem), [ arg ], loc), layout_field
         | Record_unboxed _

@@ -469,7 +469,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
           | Record_float ->
             [ Obj.double_array_tag,
               List.map (fun _ -> Pfloatval) fields ]
-          | Record_boxed _ ->
+          | Record_boxed ->
             [0, fields]
           | Record_inlined (Extension _, _) ->
             [0, fields]

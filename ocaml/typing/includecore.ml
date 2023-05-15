@@ -641,7 +641,7 @@ module Record_diffing = struct
      | _, Record_float ->
         Some (Record_mismatch (Float_representation Second))
 
-     | Record_boxed _, Record_boxed _ -> None
+     | Record_boxed, Record_boxed -> None
 
 end
 
