@@ -406,3 +406,9 @@
  (enabled_if (= %{context_name} "main"))
  (deps test_stub_dep.ml test_stub.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (deps t1.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))

@@ -228,7 +228,7 @@ module Params = struct
   let[@zero_alloc] test11 s =
     Printf.eprintf "%d\n%!" s.b; raise E
 
-  let[@zero_alloc] test12 ?(s= {a = 4; b = 5}) ~d () =
+  let test12 ?(s= {a = 4; b = 5}) ~d () =
     test11 s
 
   let[@zero_alloc] test13 () =

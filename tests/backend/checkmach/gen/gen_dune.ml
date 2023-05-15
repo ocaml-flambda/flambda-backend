@@ -88,4 +88,7 @@ let () =
   (* Check that entry function and functors are ignored with  [@@@zero_alloc all] *)
   print_test ~flambda_only:false ~deps:"t7.ml";
   (* Check that compiler generated stubs are ignored with [@@@zero_alloc all] *)
-  print_test ~flambda_only:false ~deps:"test_stub_dep.ml test_stub.ml"
+  print_test ~flambda_only:false ~deps:"test_stub_dep.ml test_stub.ml";
+  (* flambda2 generates an indirect call but we don't yet have a way to exclude it
+     without excluding closure. *)
+  print_test ~flambda_only:true ~deps:"t1.ml";
