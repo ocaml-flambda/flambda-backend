@@ -1676,8 +1676,12 @@ let compunit (ulam, preallocated_blocks, constants) =
                            Reduce_code_size;
                            No_CSE;
                            Use_linscan_regalloc;
+                           Ignore_assert_all Zero_alloc;
                          ]
-                         else [ Reduce_code_size; Use_linscan_regalloc ];
+                         else [ Reduce_code_size;
+                                Use_linscan_regalloc;
+                                Ignore_assert_all Zero_alloc;
+                              ];
                        fun_dbg  = Debuginfo.none;
                        fun_poll = Default_poll }] in
   let c2 = transl_clambda_constants constants c1 in

@@ -289,6 +289,60 @@
 
 (rule
  (enabled_if (= %{context_name} "main"))
+ (targets fail16.output.corrected)
+ (deps (:ml fail16.ml) filter.sh)
+ (action
+   (with-outputs-to fail16.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail16.output fail16.output.corrected)
+ (action (diff fail16.output fail16.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail17.output.corrected)
+ (deps (:ml fail17.ml) filter.sh)
+ (action
+   (with-outputs-to fail17.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail17.output fail17.output.corrected)
+ (action (diff fail17.output fail17.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail18.output.corrected)
+ (deps (:ml fail18.ml) filter.sh)
+ (action
+   (with-outputs-to fail18.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail18.output fail18.output.corrected)
+ (action (diff fail18.output fail18.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
  (targets test_attribute_error_duplicate.output.corrected)
  (deps (:ml test_attribute_error_duplicate.ml) filter.sh)
  (action
@@ -340,3 +394,21 @@
  (enabled_if (= %{context_name} "main"))
  (deps t6.output t6.output.corrected)
  (action (diff t6.output t6.output.corrected)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps t7.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_stub_dep.ml test_stub.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (deps t1.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))

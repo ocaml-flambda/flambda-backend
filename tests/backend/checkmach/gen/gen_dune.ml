@@ -72,6 +72,9 @@ let () =
   print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail13";
   print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail14";
   print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail15";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail16";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail17";
+  print_test_expected_output ~flambda_only:false ~extra_dep:None ~exit_code:2 "fail18";
 
   print_test_expected_output ~flambda_only:false ~extra_dep:None
     ~exit_code:2 "test_attribute_error_duplicate";
@@ -81,4 +84,11 @@ let () =
     ~exit_code:0 "test_attr_unused";
   (* Checks that the warning is printed and compilation is successful. *)
   print_test_expected_output ~flambda_only:false ~extra_dep:None
-    ~exit_code:0 "t6"
+    ~exit_code:0 "t6";
+  (* Check that entry function and functors are ignored with  [@@@zero_alloc all] *)
+  print_test ~flambda_only:false ~deps:"t7.ml";
+  (* Check that compiler generated stubs are ignored with [@@@zero_alloc all] *)
+  print_test ~flambda_only:false ~deps:"test_stub_dep.ml test_stub.ml";
+  (* flambda2 generates an indirect call but we don't yet have a way to exclude it
+     without excluding closure. *)
+  print_test ~flambda_only:true ~deps:"t1.ml";
