@@ -199,7 +199,7 @@ let dummy_label =
     lbl_mut = Immutable; lbl_global = Unrestricted;
     lbl_layout = Layout.any;
     lbl_num = -1; lbl_pos = -1; lbl_all = [||];
-    lbl_repres = Record_unboxed Layout.any;
+    lbl_repres = Record_unboxed;
     lbl_private = Public;
     lbl_loc = Location.none;
     lbl_attributes = [];

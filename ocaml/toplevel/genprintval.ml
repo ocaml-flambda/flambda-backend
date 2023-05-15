@@ -453,7 +453,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           | _ -> 0
                         in
                         let unbx =
-                          match rep with Record_unboxed _ -> true | _ -> false
+                          match rep with Record_unboxed -> true | _ -> false
                         in
                         tree_of_record_fields depth
                           env path decl.type_params ty_list

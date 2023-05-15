@@ -236,7 +236,7 @@ and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
         | Extension of Path.t * layout array
 
 and record_representation =
-  | Record_unboxed of layout
+  | Record_unboxed
   | Record_inlined of tag * variant_representation
   | Record_boxed
   | Record_float
@@ -509,15 +509,15 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
       false
 
 let equal_record_representation r1 r2 = match r1, r2 with
-  | Record_unboxed lay1, Record_unboxed lay2 ->
-      Layout.equal lay1 lay2
+  | Record_unboxed, Record_unboxed ->
+      true
   | Record_inlined (tag1, vr1), Record_inlined (tag2, vr2) ->
       equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
   | Record_boxed, Record_boxed ->
       true
   | Record_float, Record_float ->
       true
-  | (Record_unboxed _ | Record_inlined _ | Record_boxed | Record_float), _ ->
+  | (Record_unboxed | Record_inlined _ | Record_boxed | Record_float), _ ->
       false
 
 let may_equal_constr c1 c2 =
@@ -536,13 +536,13 @@ let decl_is_abstract decl =
 
 let find_unboxed_type decl =
   match decl.type_kind with
-    Type_record ([{ld_type = arg; _}], Record_unboxed _)
+    Type_record ([{ld_type = arg; _}], Record_unboxed)
   | Type_record ([{ld_type = arg; _}], Record_inlined (_, Variant_unboxed _))
   | Type_variant ([{cd_args = Cstr_tuple [arg,_]; _}], Variant_unboxed _)
   | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
                   Variant_unboxed _) ->
     Some arg
-  | Type_record (_, ( Record_inlined _ | Record_unboxed _
+  | Type_record (_, ( Record_inlined _ | Record_unboxed
                     | Record_boxed | Record_float ))
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed _
                      | Variant_extensible ))

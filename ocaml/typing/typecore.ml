@@ -1669,7 +1669,7 @@ module Label = NameChoice (struct
     Env.lookup_all_labels_from_type ~loc usage path env
   let in_env lbl =
     match lbl.lbl_repres with
-    | Record_boxed | Record_float | Record_unboxed _ -> true
+    | Record_boxed | Record_float | Record_unboxed -> true
     | Record_inlined _ -> false
 end)
 
@@ -4614,7 +4614,7 @@ and type_expect_
       let alloc_mode =
         if List.exists
             (function
-              | _, { lbl_repres = Record_unboxed _; _ }, _ -> false
+              | _, { lbl_repres = Record_unboxed; _ }, _ -> false
               | _ -> true)
             lbl_exp_list then
           Some (register_allocation expected_mode)
@@ -6080,7 +6080,7 @@ and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
     let snap = if vars = [] then None else Some (Btype.snapshot ()) in
     let rmode =
       match label.lbl_repres with
-      | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->
+      | Record_unboxed | Record_inlined (_, Variant_unboxed _) ->
         expected_mode
       | _ -> mode_subcomponent expected_mode
     in

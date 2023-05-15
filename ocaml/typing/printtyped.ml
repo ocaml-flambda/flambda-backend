@@ -177,8 +177,8 @@ let variant_representation i ppf = let open Types in function
   | Variant_extensible -> line i ppf "Variant_inlined\n"
 
 let record_representation i ppf = let open Types in function
-  | Record_unboxed l ->
-    line i ppf "Record_unboxed %a\n" Layouts.Layout.format l
+  | Record_unboxed ->
+    line i ppf "Record_unboxed\n"
   | Record_boxed ->
     line i ppf "Record_boxed\n"
   | Record_inlined (t,v) ->
