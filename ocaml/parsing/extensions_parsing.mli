@@ -80,26 +80,22 @@
     detect that you've violated its well-formedness constraints and fail to
     parse the resulting AST. *)
 
-(** Errors around the extension representation.  These should mostly just be
-    fatal, but they're needed for one test case
-    (tests/ast-invariants/test.ml). *)
-module Error : sig
-  (** Someone used [[%extension.EXTNAME]] wrong *)
-  type malformed_extension =
-    | Has_payload of Parsetree.payload
+(** An AST-style representation of the names used when generating extension
+    nodes for modular extensions.  We use this to abstract over the details of
+    how they're encoded, so we have some flexibility in changing them (although
+    comments may refer to the specific encoding choices).  This is also why we
+    don't expose any functions for rendering or parsing these names; that's all
+    handled internally. *)
+module Extension_node_name : sig
+  (** A modular extension's extension node's name broken down into its
+      components: the extension name plus any subparts.  This is a nonempty list
+      corresponding to the dot-separated components of the name, less
+      [extension.]. *)
+  type t = ( :: ) of string * string list
 
-  (** An error triggered when desugaring a language extension from an OCaml AST *)
-  type error =
-    | Malformed_extension of string list * malformed_extension
-    | Unknown_extension of string
-    | Disabled_extension of Language_extension.t
-    | Wrong_syntactic_category of Language_extension.t * string
-    | Unnamed_extension
-    | Bad_introduction of string * string list
-
-  (** The main exception type thrown when desugaring a language extension from an
-      OCaml AST; we also use the occasional [Misc.fatal_errorf]. *)
-  exception Error of Location.t * error
+  (** Print out a modular extension extension node name, in quotes; for use in
+      error messages. *)
+  val pp_quoted_name : Format.formatter -> t -> unit
 end
 
 (** The type of modules that lift and lower language extension terms from and
@@ -131,7 +127,7 @@ module type AST = sig
       [extension.].  Any locations in the generated AST will be set to
       [!Ast_helper.default_loc], which should be [ghost].  Partial inverse of
       [match_extension]. *)
-  val make_extension  : string list -> ast -> ast_desc
+  val make_extension  : Extension_node_name.t -> ast -> ast_desc
 
   (** As [make_extension], but specifically for the AST node corresponding to
       the entire piece of extension syntax (e.g., for a list comprehension, the
@@ -143,12 +139,12 @@ module type AST = sig
     loc:Location.t -> string -> (unit -> ast) -> ast_desc
 
   (** Given an AST node, check if it's a language extension term; if it is,
-      split it back up into its name (the [string list]) and the body (the
-      [ast]); the resulting name is split on dots and the leading [extension]
-      component is dropped.  If the language extension term is malformed in any
-      way, raises an error; if the input isn't a language extension term,
-      returns [None].  Partial inverse of [make_extension]. *)
-  val match_extension : ast -> (string list * ast) option
+      split it back up into its name and the body; the resulting name is split
+      on dots and the leading [extension] component is dropped.  If the language
+      extension term is malformed in any way, raises an error; if the input
+      isn't a language extension term, returns [None].  Partial inverse of
+      [make_extension]. *)
+  val match_extension : ast -> (Extension_node_name.t * ast) option
 end
 
 (** One [AST] module per syntactic category we currently care about; we're
@@ -214,3 +210,16 @@ end
     requires two extensions to be enabled at once (e.g., immutable array
     comprehensions such as [[:x for x = 1 to 10:]]). *)
 val assert_extension_enabled : loc:Location.t -> Language_extension.t -> unit
+
+(** Errors around the extension representation.  These should mostly just be
+    fatal, but they're needed for one test case
+    (language-extensions/language_extensions.ml). *)
+module Error : sig
+  (** An error triggered when desugaring a language extension from an OCaml
+      AST; left abstract because it should always be fatal *)
+  type error
+
+  (** The exception type thrown when desugaring a language extension from an
+      OCaml AST *)
+  exception Error of Location.t * error
+end

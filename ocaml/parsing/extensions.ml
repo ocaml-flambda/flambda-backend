@@ -151,26 +151,27 @@ module Comprehensions = struct
 
   module Desugaring_error = struct
     type error =
-      | Non_comprehension_extension_point of string list
+      | Non_comprehension_extension_point of Extension_node_name.t
       | Non_extension
       | Bad_comprehension_extension_point of string list
       | No_clauses
 
     let report_error ~loc = function
-      | Non_comprehension_extension_point name ->
+      | Non_comprehension_extension_point ext_name ->
           Location.errorf ~loc
-            "Tried to desugar the non-comprehension extension point \
-             \"extension.%s\" as part of a comprehension expression"
-            (String.concat "." name)
+            "Tried to desugar the non-comprehension extension point %a@ \
+             as part of a comprehension expression"
+            Extension_node_name.pp_quoted_name ext_name
       | Non_extension ->
           Location.errorf ~loc
-            "Tried to desugar a non-extension expression as part of a \
-             comprehension expression"
-      | Bad_comprehension_extension_point name ->
+            "Tried to desugar a non-extension expression@ \
+             as part of a comprehension expression"
+      | Bad_comprehension_extension_point subparts ->
           Location.errorf ~loc
-            "Unknown, unexpected, or malformed comprehension extension point \
-             \"extension.comprehension.%s\""
-            (String.concat "." name)
+            "Unknown, unexpected, or malformed@ \
+             comprehension extension point %a"
+            Extension_node_name.pp_quoted_name
+            Extension_node_name.(extension_string :: subparts)
       | No_clauses ->
           Location.errorf ~loc
             "Tried to desugar a comprehension with no clauses"
@@ -191,8 +192,8 @@ module Comprehensions = struct
     | Some (comprehensions :: names, expr)
       when String.equal comprehensions extension_string ->
         names, expr
-    | Some (name, _) ->
-        Desugaring_error.raise expr (Non_comprehension_extension_point name)
+    | Some (ext_name, _) ->
+        Desugaring_error.raise expr (Non_comprehension_extension_point ext_name)
     | None ->
         Desugaring_error.raise expr Non_extension
 

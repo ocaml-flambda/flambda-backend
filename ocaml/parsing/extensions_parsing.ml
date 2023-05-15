@@ -42,18 +42,99 @@
 open Parsetree
 
 (******************************************************************************)
+(** Collect all the extension-node-name-building machinery in one place so that
+    it can be changed all at once. *)
+
+(** An AST-style representation of the names used when generating extension
+    nodes for modular extensions; see the .mli file for more details. *)
+module Extension_node_name : sig
+  (** A nonempty list of name components, without the leading root [extension.];
+      see the .mli file for more details. *)
+  type t = ( :: ) of string * string list
+
+  (** Convert a modular extension extension node's name to the string form used
+      in the OCaml AST; not exposed. *)
+  val to_string : t -> string
+
+  (** Parse an OCaml extension node's name:
+        - [Some (Ok _)] if it's a legal modular extension name;
+        - [Some (Error ())] if it's the bare [extension]; and
+        - [None] if it doesn't start with the leading [extension].
+      Not exposed. *)
+  val of_string : string -> (t, unit) result option
+
+  (** Print out a modular extension extension node name, in quotes; for use in
+      error messages. *)
+  val pp_quoted_name : Format.formatter -> t -> unit
+
+  (** Print out an empty extension node with a modular extension name,
+      accompanied by an indefinite article; for use in error messages.  Not
+      exposed. *)
+  val pp_a_node : Format.formatter -> t -> unit
+
+  (** Print out the illegal empty quasi-modular extension extension node with no
+      name beyond [extension]; for use in error messages.  Not exposed. *)
+  val pp_bad_empty_node : Format.formatter -> unit -> unit
+end = struct
+  (** The three parameters that control how we encode modular extension
+      extension node names.  When updating these, update comments that refer to
+      them! *)
+  module Config = struct
+    (** The separator between name components *)
+    let separator = '.'
+
+    (** The leading namespace that identifies this extension point as reserved
+        for a modular extension *)
+    let root = "extension"
+
+    (** For printing purposes, the appropriate indefinite article for [root] *)
+    let article = "an"
+  end
+
+  include Config
+  let separator_str = String.make 1 separator
+
+  type t = ( :: ) of string * string list
+
+  let to_string (ext :: subparts) =
+    String.concat separator_str (root :: ext :: subparts)
+
+  let of_string str = match String.split_on_char separator str with
+    | root' :: parts when String.equal root root' -> begin
+        match parts with
+        | ext :: subparts -> Some (Ok (ext :: subparts))
+        | []              -> Some (Error ())
+      end
+    | _ :: _ | [] -> None
+
+  let pp_quoted_name ppf t = Format.fprintf ppf "\"%s\"" (to_string t)
+
+  let pp_extension_node ppf id = Format.fprintf ppf "[%%%s]" id
+
+  let pp_a_node ppf t =
+    Format.fprintf ppf "%s %a" article pp_extension_node (to_string t)
+
+  let pp_bad_empty_node ppf () = pp_extension_node ppf root
+end
+
+(******************************************************************************)
 module Error = struct
+  (** Someone used [[%extension.EXTNAME]] wrong *)
   type malformed_extension =
     | Has_payload of payload
 
+  (** An error triggered when desugaring a language extension from an OCaml
+      AST; should always be fatal *)
   type error =
-    | Malformed_extension of string list * malformed_extension
+    | Malformed_extension of Extension_node_name.t * malformed_extension
     | Unknown_extension of string
     | Disabled_extension of Language_extension.t
     | Wrong_syntactic_category of Language_extension.t * string
     | Unnamed_extension
-    | Bad_introduction of string * string list
+    | Bad_introduction of Extension_node_name.t
 
+  (** The exception type thrown when desugaring a language extension from an
+      OCaml AST *)
   exception Error of Location.t * error
 end
 
@@ -65,23 +146,21 @@ let assert_extension_enabled ~loc ext =
 ;;
 
 let report_error ~loc = function
-  | Malformed_extension(name, malformed) -> begin
-      let name = String.concat "." ("extension" :: name) in
+  | Malformed_extension(ext_name, malformed) -> begin
       match malformed with
       | Has_payload _payload ->
           Location.errorf
             ~loc
             "@[Modular extension nodes are not allowed to have a payload,@ \
-             but \"%s\" does@]"
-          name
+             but %a does@]"
+          Extension_node_name.pp_quoted_name ext_name
     end
   | Unknown_extension name ->
       Location.errorf
         ~loc
-        "@[Unknown extension \"%s\" referenced via an@ [%%extension.%s] \
-         extension node@]"
+        "@[Unknown extension \"%s\" referenced via@ %a extension node@]"
         name
-        name
+        Extension_node_name.pp_a_node Extension_node_name.[name]
   | Disabled_extension ext ->
       Location.errorf
         ~loc
@@ -96,15 +175,16 @@ let report_error ~loc = function
   | Unnamed_extension ->
       Location.errorf
         ~loc
-        "Cannot have an extension node named [%%extension]"
-  | Bad_introduction(name, subnames) ->
+        "Cannot have an extension node named %a"
+        Extension_node_name.pp_bad_empty_node ()
+  | Bad_introduction(ext :: _ as ext_name) ->
       Location.errorf
         ~loc
-        "@[The extension \"%s\" was referenced improperly; it started with an@ \
-         [%%extension.%s] extension node,@ not an [%%extension.%s] one@]"
-        name
-        (String.concat "." (name :: subnames))
-        name
+        "@[The extension \"%s\" was referenced improperly; it started with@ %a \
+         extension node,@ not %a one@]"
+        ext
+        Extension_node_name.pp_a_node ext_name
+        Extension_node_name.pp_a_node Extension_node_name.[ext]
 
 let () =
   Location.register_error_of_exn
@@ -177,19 +257,19 @@ module type AST = sig
   val wrap_desc :
     ?loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
 
-  val make_extension : string list -> ast -> ast_desc
+  val make_extension : Extension_node_name.t -> ast -> ast_desc
 
   val make_entire_extension :
     loc:Location.t -> string -> (unit -> ast) -> ast_desc
 
-  val match_extension : ast -> (string list * ast) option
+  val match_extension : ast -> (Extension_node_name.t * ast) option
 end
 
 (* Some extensions written before this file existed are handled in their own
    way; this function filters them out. *)
-let uniformly_handled_extension names =
-  match names with
-  | [("local"|"global"|"nonlocal"|"escape"|"include_functor"|"curry")] -> false
+let uniformly_handled_extension name =
+  match name with
+  | "local"|"global"|"nonlocal"|"escape"|"include_functor"|"curry" -> false
   | _ -> true
 
 (** Given the [AST_parameters] for a syntactic category, produce the
@@ -201,12 +281,12 @@ module Make_AST (AST_parameters : AST_parameters) :
   struct
     include AST_parameters
 
-    let make_extension names =
+    let make_extension ext_name =
       make_extension_use
         ~extension_node:
           (make_extension_node
-             ({ txt = String.concat "." ("extension" :: names);
-                loc = !Ast_helper.default_loc },
+             ({ txt = Extension_node_name.to_string ext_name
+              ; loc = !Ast_helper.default_loc },
               PStr []))
 
     let make_entire_extension ~loc name ast =
@@ -225,16 +305,19 @@ module Make_AST (AST_parameters : AST_parameters) :
       match match_extension_use ast with
       | Some (({txt = ext_name; loc = ext_loc}, ext_payload), body) ->
         begin
-          match String.split_on_char '.' ext_name with
-          | "extension" :: names when uniformly_handled_extension names -> begin
+          let raise_error err = raise (Error(ext_loc, err)) in
+          match Extension_node_name.of_string ext_name with
+          | Some (Ok (ext :: _ as ext_name))
+            when uniformly_handled_extension ext -> begin
               let raise_malformed err =
-                raise (Error(ext_loc, Malformed_extension(names, err)))
+                raise_error (Malformed_extension(ext_name, err))
               in
               match ext_payload with
-              | PStr [] -> Some (names, body)
+              | PStr [] -> Some (ext_name, body)
               | _ -> raise_malformed (Has_payload ext_payload)
             end
-          | _ -> None
+          | Some (Error ()) -> raise_error Unnamed_extension
+          | Some (Ok (_ :: _)) | None -> None
         end
       | None -> None
 end
@@ -341,8 +424,6 @@ end = struct
           end
         | None -> raise_error (Unknown_extension name)
       end
-    | Some ([], _) ->
-        raise_error Unnamed_extension
-    | Some (name :: subnames, _) ->
-        raise_error (Bad_introduction(name, subnames))
+    | Some (_ :: _ :: _ as ext_name, _) ->
+        raise_error (Bad_introduction(ext_name))
 end
