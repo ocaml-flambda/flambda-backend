@@ -741,6 +741,8 @@ type constructor_description =
     cstr_existentials: type_expr list;  (* list of existentials *)
     cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
     cstr_arg_layouts: layout array;     (* Layouts of the arguments *)
+    (* CR layouts v5: I think this and some other layouts may no longer
+       be necessary to store. Re-examine after v5 is written. *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
