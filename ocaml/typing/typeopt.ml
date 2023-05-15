@@ -26,7 +26,7 @@ open Lambda
    the void sanity check.  When we're ready to take that out, remove the errors
    stuff. *)
 type error =
-    Non_value_layout of type_expr * Layout.Violation.violation
+    Non_value_layout of type_expr * Layout.Violation.t
 
 exception Error of Location.t * error
 
@@ -80,11 +80,10 @@ let is_always_gc_ignorable env ty =
        immediate64 types as gc_ignorable, because bytecode is intended to be
        platform independent. *)
     if !Clflags.native_code && Sys.word_size = 64
-    then Layout.immediate64
-    else Layout.immediate
+    then Layout.immediate64 ~why:Gc_ignorable_check
+    else Layout.immediate ~why:Gc_ignorable_check
   in
-  Result.is_ok
-    (Ctype.check_type_layout ~reason:V1_safety_check env ty layout)
+  Result.is_ok (Ctype.check_type_layout env ty layout)
 
 let maybe_pointer_type env ty =
   let ty = scrape_ty env ty in
@@ -255,20 +254,20 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
        This should be understood, but for now I'm doing the simple fall back
        thing so I can test the performance difference.
     *)
-    match Ctype.check_type_layout ~reason:V1_safety_check env scty Layout.value
+    match Ctype.check_type_layout env scty (Layout.value ~why:V1_safety_check)
     with
     | Ok _ -> ()
     | Error _ ->
       match
-        Ctype.(check_type_layout ~reason:V1_safety_check env
-                 (correct_levels ty) Layout.value)
+        Ctype.(check_type_layout env
+                 (correct_levels ty) (Layout.value ~why:V1_safety_check))
       with
       | Ok _ -> ()
-      | Error e ->
-        if e.missing_cmi then
-          () (* CR layouts v1.5: stop allowing missing cmis *)
-        else
-          raise (Error (loc, Non_value_layout (ty, e)))
+      | Error violation ->
+        if not (Layout.Violation.is_missing_cmi violation)
+        then raise (Error (loc, Non_value_layout (ty, violation)))
+        (* CR layouts v1.5: stop allowing missing cmis *)
+
   end;
   match get_desc scty with
   | Tconstr(p, _, _) when Path.same p Predef.path_int ->
