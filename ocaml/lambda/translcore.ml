@@ -479,7 +479,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
                   ll,
                   of_location ~scopes e.exp_loc)
           end
-      | Extension (path, _), Variant_extensible ->
+      | Extension path, Variant_extensible ->
           let lam = transl_extension_path
                       (of_location ~scopes e.exp_loc) e.exp_env path in
           if cstr.cstr_constant
@@ -1459,7 +1459,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             (match ll with [v] -> v | _ -> assert false)
         | Record_float ->
             Lprim(Pmakefloatblock (mut, Option.get mode), ll, loc)
-        | Record_inlined (Extension (path, _), Variant_extensible) ->
+        | Record_inlined (Extension path, Variant_extensible) ->
             let slot = transl_extension_path loc env path in
             Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape), Option.get mode),
                   slot :: ll, loc)

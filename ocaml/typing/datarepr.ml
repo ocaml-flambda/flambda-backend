@@ -166,7 +166,7 @@ let extension_descr ~current_unit path_ext ext =
         Some type_ret -> type_ret
       | None -> newgenconstr ext.ext_type_path ext.ext_type_params
   in
-  let cstr_tag = Extension (path_ext, ext.ext_arg_layouts) in
+  let cstr_tag = Extension path_ext in
   let existentials, cstr_args, cstr_inlined =
     constructor_args ~current_unit ext.ext_private ext.ext_args ext.ext_ret_type
       path_ext (Record_inlined (cstr_tag, Variant_extensible))

@@ -770,7 +770,7 @@ let is_ext cda =
 
 let is_local_ext cda =
   match cda.cda_description with
-  | {cstr_tag = Extension (p,_)} -> is_ident p
+  | {cstr_tag = Extension p} -> is_ident p
   | _ -> false
 
 let diff env1 env2 =

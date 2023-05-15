@@ -1629,7 +1629,7 @@ let transl_extension_constructor ~scope env type_path type_params
         end;
         let path =
           match cdescr.cstr_tag with
-            Extension (path,_) -> path
+            Extension path -> path
           | _ -> assert false
         in
         let args =

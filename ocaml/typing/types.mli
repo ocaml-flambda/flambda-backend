@@ -530,7 +530,7 @@ and ('lbl, 'cstr) type_kind =
    case of normal projections from boxes. *)
 and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
                        runtime_tag: int}    (* The runtime tag *)
-        | Extension of Path.t * layout array
+        | Extension of Path.t
 
 and record_representation =
   | Record_unboxed
