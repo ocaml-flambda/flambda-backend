@@ -148,26 +148,29 @@ include T0
 module Subst = Name.Map
 type subst = t Subst.t
 
-let rec subst ({ head; args; params } as param) (s : subst) =
-  match Subst.find_opt (to_name param) s with
-  | Some rhs -> rhs
-  | None ->
-      let matching_params, non_matching_params =
-        List.partition_map
-          (fun (name, value) ->
-              match Subst.find_opt (to_name value) s with
-              | Some rhs -> Left (name, rhs)
-              | None -> Right (name, value))
-          params
-      in
-      let args = List.map (fun pair -> subst_pair pair s) args in
-      let params =
-        List.map (fun pair -> subst_pair pair s) non_matching_params
-      in
-      let args = List.merge compare_arg_name args matching_params in
-      create head args ~params
-and subst_pair (name, value) s =
-  name, subst value s
+let subst t s =
+  let rec subst ({ head; args; params } as t) s ~changed =
+    match Subst.find_opt (to_name t) s with
+    | Some rhs -> rhs
+    | None ->
+        let matching_params, non_matching_params =
+          List.partition_map
+            (fun ((name, value) as pair) ->
+                match Subst.find_opt (to_name value) s with
+                | Some rhs -> changed := true; Left (name, rhs)
+                | None -> Right pair)
+            params
+        in
+        let args = subst_alist args s ~changed in
+        let params = subst_alist non_matching_params s ~changed in
+        let args = List.merge compare_arg_name args matching_params in
+        create head args ~params
+  and subst_alist l s ~changed =
+    List.map (fun (name, value) -> name, subst value s ~changed) l
+  in
+  let changed = ref false in
+  let new_t = subst t s ~changed in
+  if !changed then new_t else t
 
 let check s params =
   (* This could do more - say, check that the replacement (the argument) has
