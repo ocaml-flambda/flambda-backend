@@ -480,14 +480,8 @@ type type_declaration =
     type_kind: type_decl_kind;
 
     type_layout: layout;
-    (* for an abstract decl kind: this is the stored layout for the type;
-       expansion might find a type with a more precise layout.
-
-       for other decl kinds: this is a cached layout, computed from the
-       decl kind. EXCEPTION: if a type's layout is refined by a gadt equation,
-       the layout stored here might be a sublayout of the layout that would
-       be computed from the decl kind. This happens in
-       Ctype.add_layout_equation. *)
+    (* This is an upper bound; expansion might find a type with a more precise
+       layout. *)
 
     type_private: private_flag;
     type_manifest: type_expr option;
