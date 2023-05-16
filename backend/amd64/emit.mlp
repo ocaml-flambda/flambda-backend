@@ -746,10 +746,7 @@ let find_or_add_semaphore name enabled_at_init dbg =
        assert false
      | Some b, Some b' ->
        if not (Bool.equal b b') then
-         Misc.fatal_errorf
-           "Inconsistent use of ~enabled_at_init in [%%probe %s ..] at %a"
-           name
-           Debuginfo.print_compact dbg);
+         raise (Error (Inconsistent_probe_init (name,dbg))));
     label
   | None ->
     let sym = "caml_probes_semaphore_"^name in
