@@ -337,7 +337,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
       (cstrs : Types.constructor_declaration list) rep =
   match rep with
   | Variant_extensible -> assert false
-  | Variant_unboxed _ -> begin
+  | Variant_unboxed -> begin
       (* CR layouts v1.5: This should only be reachable in the case of a missing
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
          needed when we deal with missing cmis. *)
@@ -427,7 +427,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
 and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
       (labels : Types.label_declaration list) rep =
   match rep with
-  | (Record_unboxed | (Record_inlined (_,Variant_unboxed _))) -> begin
+  | (Record_unboxed | (Record_inlined (_,Variant_unboxed))) -> begin
       (* CR layouts v1.5: This should only be reachable in the case of a missing
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
          needed when we deal with missing cmis. *)

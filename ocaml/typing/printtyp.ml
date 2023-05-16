@@ -1500,7 +1500,7 @@ let rec tree_of_type_decl id decl =
     | Type_variant (cstrs, rep) ->
         let unboxed =
           match rep with
-          | Variant_unboxed _ -> true
+          | Variant_unboxed -> true
           | Variant_boxed _ | Variant_extensible -> false
         in
         tree_of_manifest (Otyp_sum (List.map tree_of_constructor cstrs)),

@@ -415,7 +415,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                     in
                     let unbx =
                       match rep with
-                      | Variant_unboxed _ -> true
+                      | Variant_unboxed -> true
                       | Variant_boxed _ | Variant_extensible -> false
                     in
                     begin

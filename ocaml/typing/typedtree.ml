@@ -882,7 +882,7 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
       | Tpat_construct(_, cstr, patl, _) ->
           let sorts =
             match cstr.cstr_repr with
-            | Variant_unboxed _ -> [ sort ]
+            | Variant_unboxed -> [ sort ]
             | Variant_boxed _ | Variant_extensible ->
               Array.to_list (Array.map Layout.sort_of_layout
                                           cstr.cstr_arg_layouts)

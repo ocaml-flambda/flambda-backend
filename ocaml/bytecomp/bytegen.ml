@@ -189,7 +189,7 @@ let rec size_of_lambda env = function
     when check_recordwith_updates id body ->
       begin match kind with
       | Record_boxed _ | Record_inlined (_, Variant_boxed _) -> RHS_block size
-      | Record_unboxed | Record_inlined (_, Variant_unboxed _) -> assert false
+      | Record_unboxed | Record_inlined (_, Variant_unboxed) -> assert false
       | Record_float -> RHS_floatblock size
       | Record_inlined (_, Variant_extensible) -> RHS_block (size + 1)
       end
@@ -227,7 +227,7 @@ let rec size_of_lambda env = function
                        size), _, _) ->
       RHS_block size
   | Lprim (Pduprecord ((Record_unboxed
-                       | Record_inlined (_, Variant_unboxed _)),
+                       | Record_inlined (_, Variant_unboxed)),
            _), _, _) ->
       assert false
   | Lprim (Pduprecord (Record_inlined (_, Variant_extensible), size), _, _) ->

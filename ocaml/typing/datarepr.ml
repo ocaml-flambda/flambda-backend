@@ -102,7 +102,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
     match rep with
     | Variant_extensible -> assert false
     | Variant_boxed layouts -> layouts
-    | Variant_unboxed layout -> [| [| layout |] |]
+    | Variant_unboxed -> [| [| decl.type_layout |] |]
   in
   let all_void layouts = Array.for_all Layout.is_void layouts in
   let num_consts = ref 0 and num_nonconsts = ref 0 in

@@ -546,7 +546,7 @@ and record_representation =
    constructor.  For boxed inlined records, this is just a length 1 array with
    the layout of the record itself, not the layouts of each field.  *)
 and variant_representation =
-  | Variant_unboxed of layout
+  | Variant_unboxed
   | Variant_boxed of layout array array
   | Variant_extensible
 

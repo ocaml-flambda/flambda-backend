@@ -158,7 +158,7 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_exclave e ->
         classify_expression env e
 
-    | Texp_construct (_, {cstr_repr = Variant_unboxed _}, [e], _) ->
+    | Texp_construct (_, {cstr_repr = Variant_unboxed}, [e], _) ->
         classify_expression env e
     | Texp_construct _ ->
         Static
@@ -623,7 +623,7 @@ let rec expression : Typedtree.expression -> term_judg =
         | _ -> empty
       in
       let m' = match desc.cstr_repr with
-        | Variant_unboxed _ ->
+        | Variant_unboxed ->
           Return
         | Variant_boxed _ | Variant_extensible ->
           Guard
@@ -643,7 +643,7 @@ let rec expression : Typedtree.expression -> term_judg =
                     representation = rep } ->
         let field_mode = match rep with
           | Record_float -> Dereference
-          | Record_unboxed | Record_inlined (_,Variant_unboxed _) -> Return
+          | Record_unboxed | Record_inlined (_,Variant_unboxed) -> Return
           | Record_boxed _ | Record_inlined _ -> Guard
         in
         let field (_label, field_def) = match field_def with

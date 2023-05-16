@@ -781,14 +781,14 @@ module Variant_diffing = struct
       | _ -> []
     in
     match err, rep1, rep2 with
-    | None, Variant_unboxed _, Variant_unboxed _
+    | None, Variant_unboxed, Variant_unboxed
     | None, Variant_boxed _, Variant_boxed _
     | None, Variant_extensible, Variant_extensible -> None
     | Some err, _, _ ->
         Some (Variant_mismatch err)
-    | None, Variant_unboxed _, Variant_boxed _ ->
+    | None, Variant_unboxed, Variant_boxed _ ->
         Some (Unboxed_representation (First, attrs_of_only cstrs2))
-    | None, Variant_boxed _, Variant_unboxed _ ->
+    | None, Variant_boxed _, Variant_unboxed ->
         Some (Unboxed_representation (Second, attrs_of_only cstrs1))
     | None, Variant_extensible, _ ->
       Some (Extensible_representation First)

@@ -242,7 +242,7 @@ and record_representation =
   | Record_float
 
 and variant_representation =
-  | Variant_unboxed of layout
+  | Variant_unboxed
   | Variant_boxed of layout array array
   | Variant_extensible
 
@@ -499,13 +499,13 @@ let equal_tag t1 t2 =
   | (Ordinary _ | Extension _), _ -> false
 
 let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
-  | Variant_unboxed lay1, Variant_unboxed lay2 ->
-      Layout.equal lay1 lay2
+  | Variant_unboxed, Variant_unboxed ->
+      true
   | Variant_boxed lays1, Variant_boxed lays2 ->
       Misc.Stdlib.Array.equal (Misc.Stdlib.Array.equal Layout.equal) lays1 lays2
   | Variant_extensible, Variant_extensible ->
       true
-  | (Variant_unboxed _ | Variant_boxed _ | Variant_extensible), _ ->
+  | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
       false
 
 let equal_record_representation r1 r2 = match r1, r2 with
@@ -537,14 +537,14 @@ let decl_is_abstract decl =
 let find_unboxed_type decl =
   match decl.type_kind with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
-  | Type_record ([{ld_type = arg; _}], Record_inlined (_, Variant_unboxed _))
-  | Type_variant ([{cd_args = Cstr_tuple [arg,_]; _}], Variant_unboxed _)
+  | Type_record ([{ld_type = arg; _}], Record_inlined (_, Variant_unboxed))
+  | Type_variant ([{cd_args = Cstr_tuple [arg,_]; _}], Variant_unboxed)
   | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
-                  Variant_unboxed _) ->
+                  Variant_unboxed) ->
     Some arg
   | Type_record (_, ( Record_inlined _ | Record_unboxed
                     | Record_boxed _ | Record_float ))
-  | Type_variant (_, ( Variant_boxed _ | Variant_unboxed _
+  | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
                      | Variant_extensible ))
   | Type_abstract | Type_open ->
     None

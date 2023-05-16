@@ -640,13 +640,12 @@ let transl_declaration env sdecl (id, uid) =
                1) Here we trust and record the layout annotation.  It may be
                   needed for mutually defined types.
                2) In [update_decl_layout] we compute an accurate layout from the
-                  rest of the kind (the inner part of the unboxed type).
-                  We replace the layout here with that accurate layout,
+                  rest of the kind (the inner part of the unboxed type),
                   and check that the accurate layout is a sublayout of the
                   annotation.
                *)
             let layout = Option.value layout_annotation ~default:Layout.any in
-            Variant_unboxed layout, layout
+            Variant_unboxed, layout
           else
             (* We mark all arg layouts "any" here.  They are updated later,
                after the circular type checks make it safe to check layouts. *)
@@ -1112,14 +1111,14 @@ let update_decl_layout env dpath decl =
   let update_variant_kind cstrs rep =
     (* CR layouts: factor out duplication *)
     match cstrs, rep with
-    | [{Types.cd_args;cd_loc} as cstr], Variant_unboxed _ -> begin
+    | [{Types.cd_args;cd_loc} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [ty,_] -> begin
             (* CR layouts: check_representable should return the sort *)
             check_representable ~reason:(Constructor_declaration 0)
               env cd_loc Cstr_tuple ty;
             let layout = Ctype.type_layout env ty in
-            cstrs, Variant_unboxed layout, layout
+            cstrs, Variant_unboxed, layout
           end
         | Cstr_record [{ld_type; ld_id; ld_loc} as lbl] -> begin
             check_representable ~reason:(Label_declaration ld_id)
@@ -1127,7 +1126,7 @@ let update_decl_layout env dpath decl =
             let ld_layout = Ctype.type_layout env ld_type in
             [{ cstr with Types.cd_args =
                            Cstr_record [{ lbl with ld_layout }] }],
-            Variant_unboxed ld_layout, ld_layout
+            Variant_unboxed, ld_layout
           end
         | (Cstr_tuple ([] | _ :: _ :: _) | Cstr_record ([] | _ :: _ :: _)) ->
           assert false
@@ -1147,7 +1146,7 @@ let update_decl_layout env dpath decl =
         if all_voids then Layout.immediate else Layout.value
       in
       List.rev cstrs, rep, layout
-    | (([] | (_ :: _)), Variant_unboxed _ | _, Variant_extensible) ->
+    | (([] | (_ :: _)), Variant_unboxed | _, Variant_extensible) ->
       assert false
   in
 

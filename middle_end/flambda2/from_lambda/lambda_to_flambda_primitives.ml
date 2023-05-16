@@ -655,7 +655,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
             length = Targetint_31_63.of_int (num_fields + 1)
           }
       | Record_inlined (Extension _, _)
-      | Record_inlined (Ordinary _, (Variant_unboxed _ | Variant_extensible))
+      | Record_inlined (Ordinary _, (Variant_unboxed | Variant_extensible))
       | Record_unboxed ->
         Misc.fatal_errorf "Cannot handle record kind for Pduprecord: %a"
           Printlambda.primitive prim
