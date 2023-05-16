@@ -398,6 +398,7 @@ static void start_cycle (void)
   CAMLassert (redarken_first_chunk == NULL);
   caml_gc_message (0x01, "Starting new major GC cycle\n");
   marked_words = 0;
+  p_backlog = 0.0;
   caml_darken_all_roots_start ();
   caml_gc_phase = Phase_mark;
   heap_wsz_at_cycle_start = Caml_state->stat_heap_wsz;
@@ -1164,7 +1165,6 @@ void caml_major_collection_slice (intnat howmuch)
 void caml_finish_major_cycle (void)
 {
   if (caml_gc_phase == Phase_idle){
-    p_backlog = 0.0; /* full major GC cycle, the backlog becomes irrelevant */
     start_cycle ();
   }
   while (caml_gc_phase == Phase_mark) mark_slice (LONG_MAX);
