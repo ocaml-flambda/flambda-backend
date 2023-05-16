@@ -699,7 +699,7 @@ end = struct
       assert (not (Mach.operation_can_raise op));
       let r = Value.transform next in
       check t r "heap allocation" dbg
-    | Iprobe { name; handler_code_sym } ->
+    | Iprobe { name; handler_code_sym; enabled_at_init=__ } ->
       let desc = Printf.sprintf "probe %s handler %s" name handler_code_sym in
       transform_call t ~next ~exn handler_code_sym ~desc dbg
     | Icall_ind -> transform t ~next ~exn ~effect:Value.top "indirect call" dbg

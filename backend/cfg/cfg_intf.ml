@@ -51,7 +51,8 @@ module S = struct
     | Checkbound of { immediate : int option }
     | Probe of
         { name : string;
-          handler_code_sym : string
+          handler_code_sym : string;
+          enabled_at_init: bool;
         }
 
   type operation =

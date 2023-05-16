@@ -368,8 +368,8 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
       | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
       | Checkbound { immediate = Some x } -> Mach.Iintop_imm (Icheckbound, x)
       | Checkbound { immediate = None } -> Mach.Iintop Icheckbound
-      | Probe { name; handler_code_sym } ->
-        Mach.Iprobe { name; handler_code_sym });
+      | Probe { name; handler_code_sym; enabled_at_init } ->
+        Mach.Iprobe { name; handler_code_sym; enabled_at_init });
     Format.fprintf ppf "%sgoto %d" sep label_after
   | Specific_can_raise { op; label_after } ->
     Format.fprintf ppf "%a" specific_can_raise op;

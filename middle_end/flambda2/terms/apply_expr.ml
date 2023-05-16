@@ -79,7 +79,7 @@ type t =
     dbg : Debuginfo.t;
     inlined : Inlined_attribute.t;
     inlining_state : Inlining_state.t;
-    probe_name : string option;
+    probe_name : (string * bool) option;
     position : Position.t;
     relative_history : Inlining_history.Relative.t;
     region : Variable.t
@@ -127,7 +127,10 @@ let [@ocamlformat "disable"] print ppf
     (fun ppf probe_name ->
       match probe_name with
       | None -> Format.pp_print_string ppf "()"
-      | Some probe_name -> Format.pp_print_string ppf probe_name)
+      | Some (probe_name, enable_at_init) ->
+        Format.pp_print_string ppf probe_name;
+        if enable_at_init then Format.pp_print_string ppf "enable_at_init";
+    )
     probe_name
     (fun ppf position ->
        match position with

@@ -511,10 +511,10 @@ let rec transl env e =
       let ptr = transl env arg in
       let dbg = Debuginfo.none in
       ptr_offset ptr offset dbg
-  | Udirect_apply(handler_code_sym, args, Some { name; }, _, _, dbg) ->
+  | Udirect_apply(handler_code_sym, args, Some { name; enabled_at_init }, _, _, dbg) ->
       let args = List.map (transl env) args in
       return_unit dbg
-        (Cop(Cprobe { name; handler_code_sym; }, args, dbg))
+        (Cop(Cprobe { name; handler_code_sym; enabled_at_init }, args, dbg))
   | Udirect_apply(lbl, args, None, result_layout, kind, dbg) ->
     let args = List.map (transl env) args in
     let sym =

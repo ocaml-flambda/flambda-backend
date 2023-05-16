@@ -863,7 +863,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           Llet(pure, Lambda.layout_module, oid,
                !transl_module ~scopes Tcoerce_none None od.open_expr, body)
       end
-  | Texp_probe {name; handler=exp} ->
+  | Texp_probe {name; handler=exp; enabled_at_init} ->
     if !Clflags.native_code && !Clflags.probes then begin
       let lam = transl_exp ~scopes exp in
       let map =
@@ -946,7 +946,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           ap_tailcall = Default_tailcall;
           ap_inlined = Never_inlined;
           ap_specialised = Always_specialise;
-          ap_probe = Some {name};
+          ap_probe = Some {name; enabled_at_init};
         }
       in
       begin match Config.flambda || Config.flambda2 with

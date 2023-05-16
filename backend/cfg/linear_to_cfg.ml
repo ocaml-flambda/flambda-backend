@@ -550,8 +550,8 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       terminator_prim (Checkbound { immediate = Some i })
     | Ialloc { bytes; dbginfo; mode } ->
       terminator_prim (Alloc { bytes; dbginfo; mode })
-    | Iprobe { name; handler_code_sym } ->
-      terminator_prim (Probe { name; handler_code_sym })
+    | Iprobe { name; handler_code_sym; enabled_at_init } ->
+      terminator_prim (Probe { name; handler_code_sym; enabled_at_init })
     | Istackoffset bytes ->
       let desc = C.Op (C.Stackoffset bytes) in
       DLL.add_end block.body (create_instruction t desc i ~stack_offset);

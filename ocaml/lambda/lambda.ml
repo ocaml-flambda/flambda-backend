@@ -411,7 +411,7 @@ let equal_inlined_attribute (x : inlined_attribute) (y : inlined_attribute) =
     | Hint_inlined | Unroll _ | Default_inlined), _ ->
     false
 
-type probe_desc = { name: string }
+type probe_desc = { name: string; enabled_at_init: bool; }
 type probe = probe_desc option
 
 type specialise_attribute =

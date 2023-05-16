@@ -171,7 +171,7 @@ let linearize_terminator cfg_with_layout (func : string) start
         | Checkbound { immediate = None } -> Iintop Icheckbound
         | Checkbound { immediate = Some i } -> Iintop_imm (Icheckbound, i)
         | Alloc { bytes; dbginfo; mode } -> Ialloc { bytes; dbginfo; mode }
-        | Probe { name; handler_code_sym } -> Iprobe { name; handler_code_sym }
+        | Probe { name; handler_code_sym; enabled_at_init } -> Iprobe { name; handler_code_sym; enabled_at_init }
       in
       branch_or_fallthrough [L.Lop op] label_after, None
     | Specific_can_raise { op; label_after } ->

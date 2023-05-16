@@ -89,7 +89,7 @@ type operation =
         (b) If [is_assignment] is [true], any information about other [Reg.t]s
             that have been previously deemed to hold the value of that
             identifier is forgotten. *)
-  | Iprobe of { name: string; handler_code_sym: string; }
+  | Iprobe of { name: string; handler_code_sym: string; enabled_at_init: bool; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
 
