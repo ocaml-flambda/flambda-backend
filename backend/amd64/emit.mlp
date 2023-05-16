@@ -740,7 +740,7 @@ let find_or_add_semaphore name =
     probe_semaphores := String.Map.add name sym !probe_semaphores;
     sym
 
-let emit_call_probe_handler_wrapper i ~probe_label =
+let emit_call_probe_handler_wrapper i ~enabled_at_init ~probe_label =
   assert !frame_required;
   let wrap_label = probe_handler_wrapper_name probe_label in
   (* We emit a cmp instruction that is effectively a nop:
@@ -757,7 +757,10 @@ let emit_call_probe_handler_wrapper i ~probe_label =
        encoding which produces an incorrect relocation and changes the meaning
        of the program. *)
     (* Emit the required encoding of "cmp $0, %eax" directly, using .byte *)
-    D.byte (Const 0x3dL);
+    if enabled_at_init then
+      D.byte (Const 0xe8L)
+    else
+      D.byte (Const 0x3dL);
     D.byte (Const 0L);
     D.byte (Const 0L);
     D.byte (Const 0L);
@@ -1222,7 +1225,7 @@ let emit_instr fallthrough i =
   | Lop(Iendregion) ->
       I.mov (arg i 0) (domain_field Domainstate.Domain_local_sp)
   | Lop (Iname_for_debugger _) -> ()
-  | Lop (Iprobe _) ->
+  | Lop (Iprobe { enabled_at_init; _ }) ->
     let probe_label = new_label () in
     let probe =
       { probe_label;
@@ -1238,7 +1241,7 @@ let emit_instr fallthrough i =
        intervening wrapper that deals with getting the arguments to the probe
        in the correct place and managing the spilling/reloading of live
        registers.  See [emit_probe_handler_wrapper] below. *)
-    emit_call_probe_handler_wrapper i ~probe_label
+    emit_call_probe_handler_wrapper i ~enabled_at_init ~probe_label
   | Lop (Iprobe_is_enabled { name; }) ->
     let semaphore_sym = find_or_add_semaphore name in
     (* Load unsigned 2-byte integer value of the semaphore.
@@ -1584,7 +1587,8 @@ let emit_probe_handler_wrapper p =
   let wrap_label = probe_handler_wrapper_name p.probe_label in
   let probe_name, handler_code_sym =
     match p.probe_insn.desc with
-    | Lop (Iprobe { name; handler_code_sym; }) -> name, handler_code_sym
+    | Lop (Iprobe { name; handler_code_sym; enabled_at_init = _; }) ->
+      name, handler_code_sym
     | _ -> assert false
   in
   (* Restore stack frame info as it was at the probe site, so we can easily
