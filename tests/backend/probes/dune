@@ -6,3 +6,21 @@
        (= %{architecture} "amd64")))
  (deps t1.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -warn-error "+190" -c)))
+
+(executable
+ (name t2)
+ (modules t2))
+
+(rule
+ (alias   runtest)
+ (enabled_if
+  (and (= %{context_name} "main")
+       (= %{system} "linux")
+       (= %{architecture} "amd64")))
+ (deps t2.expected t2.output)
+ (action (diff t2.expected t2.output)))
+
+(rule
+ (target t2.output)
+ (deps t2.exe)
+ (action (with-outputs-to %{target} (run %{deps}))))
