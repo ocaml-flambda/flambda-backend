@@ -2631,7 +2631,7 @@ Error: This local value escapes its region
         Adding 1 more argument will make the value non-local
 |}]
 
-(* Reported internal to Jane Street as COMPILERS-1504 *)
+(* Regression test for printing of [local_] *)
 
 module M : sig
   val f : string -> string -> local_ string
@@ -2660,3 +2660,67 @@ Error: Signature mismatch:
        The type string -> local_ (string -> local_ string)
        is not compatible with the type string -> string -> local_ string
 |}]
+
+(* Escaping uncurried functions *)
+
+(* Valid; [local_ int -> int -> int] is [local_ int -> local_ (int -> int)] *)
+let f () = ((fun x y -> x + y) : (local_ int -> int -> int));;
+[%%expect{|
+val f : unit -> local_ int -> int -> int = <fun>
+|}];;
+
+(* Illegal: the return mode on (int -> int) is global. *)
+let f () = ((fun x y -> x + y) : (local_ int -> (int -> int)));;
+[%%expect{|
+Line 1, characters 12-30:
+1 | let f () = ((fun x y -> x + y) : (local_ int -> (int -> int)));;
+                ^^^^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied
+|}];;
+
+(* ok if curried *)
+let f () = ((fun x -> (fun y -> x + y) [@extension.curry])
+            : (local_ int -> (int -> int)));;
+[%%expect{|
+val f : unit -> local_ int -> (int -> int) = <fun>
+|}];;
+
+(* Illegal: the expected mode is global *)
+let f () = local_ ((fun x y -> x + y) : (_ -> _));;
+[%%expect{|
+Line 1, characters 19-37:
+1 | let f () = local_ ((fun x y -> x + y) : (_ -> _));;
+                       ^^^^^^^^^^^^^^^^^^
+Error: This function or one of its parameters escape their region
+       when it is partially applied
+|}];;
+
+(* ok if curried *)
+let f () = local_ ((fun x -> (fun y -> x + y) [@extension.curry]) : (_ -> _));;
+[%%expect{|
+val f : unit -> local_ (int -> (int -> int)) = <fun>
+|}];;
+
+(* Type annotations on a [local_] binding are interpreted in a local context,
+ * so [int -> int -> int] is secretly [int -> local_ (int -> int)]. Contrast
+ * with the below type error where `local_` is omitted on the binding.
+ *)
+let foo () =
+  let local_ _bar1 : int -> int -> int = local_ (fun x y -> x + y) in
+  let local_ _bar2 z : int -> int -> int = local_ (fun x y -> x + y + z) in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}];;
+
+let foo () =
+  let _bar : int -> int -> int = local_ (fun x y -> x + y) in
+  ()
+[%%expect{|
+Line 2, characters 33-58:
+2 |   let _bar : int -> int -> int = local_ (fun x y -> x + y) in
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type int -> local_ (int -> int)
+       but an expression was expected of type int -> int -> int
+|}];;
