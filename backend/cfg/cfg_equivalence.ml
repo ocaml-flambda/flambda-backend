@@ -294,12 +294,18 @@ let check_prim_call_operation :
     when Option.equal Int.equal expected_immediate result_immediate ->
     ()
   | ( Probe
-        { name = expected_name; handler_code_sym = expected_handler_code_sym; enabled_at_init = expected_enabled_at_init },
-      Probe { name = result_name; handler_code_sym = result_handler_code_sym; enabled_at_init = result_enabled_at_init } )
+        { name = expected_name;
+          handler_code_sym = expected_handler_code_sym;
+          enabled_at_init = expected_enabled_at_init
+        },
+      Probe
+        { name = result_name;
+          handler_code_sym = result_handler_code_sym;
+          enabled_at_init = result_enabled_at_init
+        } )
     when String.equal expected_name result_name
          && String.equal expected_handler_code_sym result_handler_code_sym
-              && Bool.equal expected_enabled_at_init result_enabled_at_init
-    ->
+         && Bool.equal expected_enabled_at_init result_enabled_at_init ->
     ()
   | _ -> different location "primitive call operation"
  [@@ocaml.warning "-4"]

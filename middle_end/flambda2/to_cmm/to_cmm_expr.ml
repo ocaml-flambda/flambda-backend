@@ -119,7 +119,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         res,
         Ece.all )
     | Some (name, enabled_at_init) ->
-      ( C.probe ~dbg ~name ~handler_code_linkage_name:code_sym.sym_name ~args ~enabled_at_init
+      ( C.probe ~dbg ~name ~handler_code_linkage_name:code_sym.sym_name ~args
+          ~enabled_at_init
         |> C.return_unit dbg,
         free_vars,
         env,

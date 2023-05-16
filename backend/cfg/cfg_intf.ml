@@ -52,7 +52,7 @@ module S = struct
     | Probe of
         { name : string;
           handler_code_sym : string;
-          enabled_at_init: bool;
+          enabled_at_init : bool
         }
 
   type operation =

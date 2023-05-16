@@ -218,7 +218,10 @@ let basic_or_terminator_of_operation :
   | Iprobe { name; handler_code_sym; enabled_at_init } ->
     With_next_label
       (fun label_after ->
-         Prim { op = Probe { name; handler_code_sym; enabled_at_init }; label_after })
+        Prim
+          { op = Probe { name; handler_code_sym; enabled_at_init };
+            label_after
+          })
   | Iprobe_is_enabled { name } -> Basic (Op (Probe_is_enabled { name }))
   | Ibeginregion -> Basic (Op Begin_region)
   | Iendregion -> Basic (Op End_region)
