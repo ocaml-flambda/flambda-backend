@@ -307,7 +307,9 @@ promote-failed:
 
 runtest-upstream: test
 
-test-one: install_for_test
+test-one: install_for_test test-one-no-rebuild
+
+test-one-no-rebuild:
 	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
 	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
 	 if $$(which gfortran > /dev/null 2>&1); then \
@@ -315,7 +317,9 @@ test-one: install_for_test
 	 fi; \
 	 cd _runtest/testsuite && make one $(if $(TEST),TEST="tests/$(TEST)") $(if $(DIR),DIR="tests/$(DIR)"))
 
-promote-one: install_for_test
+promote-one: install_for_test promote-one-no-rebuild
+
+promote-one-no-rebuild:
 	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
 	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
 	 if $$(which gfortran > /dev/null 2>&1); then \
