@@ -75,7 +75,8 @@ type mapper = {
   constructor_declaration: mapper -> constructor_declaration
                            -> constructor_declaration;
   expr: mapper -> expression -> expression;
-  expr_extension: mapper -> Extensions.Expression.t -> Extensions.Expression.t;
+  expr_jane_syntax:
+    mapper -> Jane_syntax.Expression.t -> Jane_syntax.Expression.t;
   extension: mapper -> extension -> extension;
   extension_constructor: mapper -> extension_constructor
                          -> extension_constructor;
@@ -90,12 +91,12 @@ type mapper = {
   module_type: mapper -> module_type -> module_type;
   module_type_declaration: mapper -> module_type_declaration
                            -> module_type_declaration;
-  module_type_extension: mapper ->
-    Extensions.Module_type.t -> Extensions.Module_type.t;
+  module_type_jane_syntax: mapper ->
+    Jane_syntax.Module_type.t -> Jane_syntax.Module_type.t;
   open_declaration: mapper -> open_declaration -> open_declaration;
   open_description: mapper -> open_description -> open_description;
   pat: mapper -> pattern -> pattern;
-  pat_extension: mapper -> Extensions.Pattern.t -> Extensions.Pattern.t;
+  pat_jane_syntax: mapper -> Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t;
   payload: mapper -> payload -> payload;
   signature: mapper -> signature -> signature;
   signature_item: mapper -> signature_item -> signature_item;

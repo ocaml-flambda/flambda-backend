@@ -1,24 +1,27 @@
-(** Syntax for our custom ocaml-jst language extensions.  This module provides
-    two things:
+(** Syntax for Jane Street's novel syntactic features.  This module provides
+    three things:
 
     1. First-class ASTs for all syntax introduced by our language extensions,
-       one for each OCaml AST we extend, divided up into one extension per
-       module and all available at once through modules named after the
-       syntactic category ([Expression.t], etc.).
+       plus one for built-in features; these are split out into a different
+       module each ([Comprehensions], etc.).
 
-    2. A way to interpret these values as terms of the coresponding OCaml ASTs,
-       and to match on terms of those OCaml ASTs to see if they're language
-       extension terms.
+    2. A first-class AST for each OCaml AST, unifying all our novel syntactic
+       features in modules named after the syntactic category
+       ([Expression.t], etc.).
 
-    We keep our language extensions separate so that we can avoid having to
-    modify the existing AST, as this would break compatibility with every
-    existing ppx.
+    3. A way to interpret these values as terms of the coresponding OCaml ASTs,
+       and to match on terms of those OCaml ASTs to see if they're terms from
+       our novel syntax.
+
+    We keep our novel syntax separate so that we can avoid having to modify the
+    existing AST, as this would break compatibility with every existing ppx and
+    other such tooling.
 
     For details on the rationale behind this approach (and for some of the gory
-    details), see [Extensions_parsing]. *)
+    details), see [Jane_syntax_parsing]. *)
 
 (*********************************************)
-(* Individual extensions *)
+(* Individual features *)
 
 (** The ASTs for list and array comprehensions *)
 module Comprehensions : sig
@@ -88,23 +91,24 @@ end
 (******************************************)
 (* General facility, which we export *)
 
-(** The module type of language extension ASTs, instantiated once for each
-    syntactic category.  We tend to call the pattern-matching functions here
-    with unusual indentation, not indenting the [None] branch further so as to
-    avoid merge conflicts with upstream. *)
+(** The module type of our extended ASTs for our novel syntax, instantiated once
+    for each syntactic category.  We tend to call the pattern-matching functions
+    here with unusual indentation, not indenting the [None] branch further so as
+    to avoid merge conflicts with upstream. *)
 module type AST = sig
-  (** The AST for all our ocaml-jst language extensions; one constructor per
-      language extension that extends the expression language.  Some extensions
-      are handled separately and thus are not listed here. *)
+  (** The AST for all our Jane Street syntax; one constructor per feature that
+      extends the given syntactic category.  Some extensions are handled
+      separately and thus are not listed here. *)
   type t
 
   (** The corresponding OCaml AST *)
   type ast
 
-  (** Given an OCaml AST node, check to see if it corresponds to a language
-      extension term.  If it is, and the extension is enabled, then return it;
-      if it's not a language extension term, return [None]; if it's a disabled
-      language extension term, raise an error.
+  (** Given an OCaml AST node, check to see if it corresponds to an embedded
+      term from our novel syntax.  If it does, as long as the feature isn't a
+      disabled language extension, then return it; if it's not a piece of novel
+      syntax, return [None]; if it's an embedded term from a disabled language
+      extension, raise an error.
 
       AN IMPORTANT NOTE: The design of this function is careful to make merge
       conflicts with upstream less likely: we want no edits at all -- not even
@@ -116,10 +120,16 @@ module type AST = sig
       this function's result!  E.g. from [type_expect_] in [typecore.ml]:
 
       {[
-        match Extensions.Expression.of_ast sexp with
-        | Some eexp ->
-            type_expect_extension
-              ~loc ~env ~expected_mode ~ty_expected ~explanation eexp
+        match Jane_syntax.Expression.of_ast sexp with
+        | Some jexp ->
+            type_expect_jane_syntax
+              ~loc
+              ~env
+              ~expected_mode
+              ~ty_expected
+              ~explanation
+              ~attributes:sexp.pexp_attributes
+              jexp
         | None      -> match sexp.pexp_desc with
         | Pexp_ident lid ->
             let path, mode, desc, kind = type_ident env ~recarg lid in
@@ -138,7 +148,7 @@ module type AST = sig
       ]}
 
       Note that we match on the result of this function, forward to
-      [type_expect_extension] if we get something, and otherwise do the real
+      [type_expect_jane_syntax] if we get something, and otherwise do the real
       match on [sexp.pexp_desc] *without going up an indentation level*.  This
       is important to reduce the number of merge conflicts. *)
   val of_ast : ast -> t option
@@ -147,27 +157,27 @@ end
 (******************************************)
 (* Individual syntactic categories *)
 
-(** Language extensions in expressions *)
+(** Novel syntax in expressions *)
 module Expression : sig
   type t =
-    | Eexp_comprehension   of Comprehensions.expression
-    | Eexp_immutable_array of Immutable_arrays.expression
+    | Jexp_comprehension   of Comprehensions.expression
+    | Jexp_immutable_array of Immutable_arrays.expression
 
   include AST with type t := t and type ast := Parsetree.expression
 end
 
-(** Language extensions in patterns *)
+(** Novel syntax in patterns *)
 module Pattern : sig
   type t =
-    | Epat_immutable_array of Immutable_arrays.pattern
+    | Jpat_immutable_array of Immutable_arrays.pattern
 
   include AST with type t := t and type ast := Parsetree.pattern
 end
 
-(** Language extensions in module types *)
+(** Novel syntax in module types *)
 module Module_type : sig
   type t =
-    | Emty_strengthen of Strengthen.module_type
+    | Jmty_strengthen of Strengthen.module_type
 
   include AST with type t := t and type ast := Parsetree.module_type
 end
