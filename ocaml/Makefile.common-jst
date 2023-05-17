@@ -309,13 +309,22 @@ runtest-upstream: test
 
 test-one: install_for_test test-one-no-rebuild
 
+# If the TEST argument is passed as `ocaml/testsuite/tests/foo` (as is invited by
+# tab completion) then look for it in `tests/foo`. Otherwise, if it's passed as
+# just `foo`, then look for it in `tests/foo` for backward compatibility.
+locate_test = \
+  $(shell \
+    test=$(shell echo "$1" | sed 's|^ocaml/testsuite/tests/||g'); \
+    echo "tests/$${test}"; \
+  )
+
 test-one-no-rebuild:
 	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
 	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
 	 if $$(which gfortran > /dev/null 2>&1); then \
 	   export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
 	 fi; \
-	 cd _runtest/testsuite && make one $(if $(TEST),TEST="tests/$(TEST)") $(if $(DIR),DIR="tests/$(DIR)"))
+	 cd _runtest/testsuite && make one $(if $(TEST),TEST=$(call locate_test,$(TEST))) $(if $(DIR),DIR=$(call locate_test,$(DIR))))
 
 promote-one: install_for_test promote-one-no-rebuild
 
@@ -325,7 +334,7 @@ promote-one-no-rebuild:
 	 if $$(which gfortran > /dev/null 2>&1); then \
 	   export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
 	 fi; \
-	 cd _runtest/testsuite && make promote $(if $(TEST),TEST="tests/$(TEST)") $(if $(DIR),DIR="tests/$(DIR)"))
+	 cd _runtest/testsuite && make promote $(if $(TEST),TEST=$(call locate_test,$(TEST))) $(if $(DIR),DIR=$(call locate_test,$(DIR))))
 
 # This target is like a polling version of upstream "make ocamlopt"
 .PHONY: hacking
