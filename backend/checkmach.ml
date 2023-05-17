@@ -1006,15 +1006,7 @@ end = struct
         Annotation.find f.fun_codegen_options S.property fun_name f.fun_dbg
       in
       Unit_info.record_annotation unit_info fun_name f.fun_dbg a;
-      match a with
-      | Some a when Annotation.is_assume a ->
-        let expected_value = Annotation.expected_value a in
-        report t expected_value ~msg:"assumed" ~desc:"fundecl" f.fun_dbg;
-        Unit_info.join_value unit_info fun_name expected_value
-      | None ->
-      | Some a ->
-        let expected_value = Annotation.expected_value a in
-        report t expected_value ~msg:"assert" ~desc:"fundecl" f.fun_dbg;
+      let really_check () =
         let res = check_instr t f.fun_body in
         let msg =
           if String.Map.is_empty t.unresolved_deps
@@ -1030,6 +1022,18 @@ end = struct
         report_unit_info ppf unit_info ~msg:"after join value";
         Unit_info.cleanup_deps unit_info fun_name;
         report_unit_info ppf unit_info ~msg:"after cleanup_deps"
+      in
+      match a with
+      | Some a when Annotation.is_assume a ->
+        let expected_value = Annotation.expected_value a in
+        report t expected_value ~msg:"assumed" ~desc:"fundecl" f.fun_dbg;
+        Unit_info.join_value unit_info fun_name expected_value
+      | None ->
+        really_check ()
+      | Some a ->
+        let expected_value = Annotation.expected_value a in
+        report t expected_value ~msg:"assert" ~desc:"fundecl" f.fun_dbg;
+        really_check ()
     in
     Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
 end
