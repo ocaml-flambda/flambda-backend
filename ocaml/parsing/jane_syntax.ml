@@ -306,7 +306,7 @@ module Include_functor = struct
 
   let str_item_of ~loc = function
     | Ifstr_include_functor incl ->
-        (* See Note [Wrapping with make_entire_extension] *)
+        (* See Note [Wrapping with make_entire_jane_syntax] *)
         Structure_item.make_entire_jane_syntax ~loc extension_string (fun () ->
           Ast_helper.Str.include_ incl)
 
