@@ -801,7 +801,7 @@
   (simplify_terminator.mli as compiler-libs/simplify_terminator.mli)
   (trap_stack.mli as compiler-libs/trap_stack.mli)
   (cfg_equivalence.mli as compiler-libs/cfg_equivalence.mli)
-  (ocaml/extensions.mli as compiler-libs/extensions.mli)
+  (ocaml/jane_syntax.mli as compiler-libs/jane_syntax.mli)
   (.ocamloptcomp.objs/byte/linear_format.cmi
    as
    compiler-libs/linear_format.cmi)

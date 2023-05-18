@@ -61,7 +61,7 @@ PARSING = \
   parsing/docstrings.cmo \
   parsing/syntaxerr.cmo \
   parsing/ast_helper.cmo \
-  parsing/extensions_parsing.cmo parsing/extensions.cmo \
+  parsing/jane_syntax_parsing.cmo parsing/jane_syntax.cmo \
   parsing/pprintast.cmo \
   parsing/ast_iterator.cmo \
   parsing/builtin_attributes.cmo \

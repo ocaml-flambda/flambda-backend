@@ -26,7 +26,7 @@ let typecheck_with_extension ?(full_name = false) name =
             extension_parsed_expression
     with
     | _ -> true
-    | exception (Extensions_parsing.Error.Error _) -> false
+    | exception (Jane_syntax_parsing.Error.Error _) -> false
   in
   report
     ~name:(if full_name

@@ -1,6 +1,6 @@
 open Asttypes
 open Parsetree
-open Extensions_parsing
+open Jane_syntax_parsing
 
 (******************************************************************************)
 (** Individual language extension modules *)
@@ -12,31 +12,31 @@ open Extensions_parsing
    that both [comprehensions] and [immutable_arrays] are enabled.  But our
    general mechanism for checking for enabled extensions (in [of_ast]) won't
    work well here: it triggers when converting from
-   e.g. [[%extensions.comprehensions.array] ...]  to the comprehensions-specific
-   AST. But if we spot a [[%extensions.comprehensions.immutable]], there is no
+   e.g. [[%jane.comprehensions.array] ...]  to the comprehensions-specific
+   AST. But if we spot a [[%jane.comprehensions.immutable]], there is no
    expression to translate.  So we just check for the immutable arrays extension
    when processing a comprehension expression for an immutable array.
 
-   Note [Wrapping with make_entire_extension]
-   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   Note [Wrapping with make_entire_jane_syntax]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
    The topmost node in the encoded AST must always look like e.g.
-   [%extension.comprehensions]. This allows the decoding machinery to know
-   what extension is being used and what function to call to do the decoding.
+   [%jane.comprehensions]. This allows the decoding machinery to know what
+   extension is being used and what function to call to do the decoding.
    Accordingly, during encoding, after doing the hard work of converting the
    extension syntax tree into e.g. Parsetree.expression, we need to make a final
-   step of wrapping the result in an [%extension.xyz] node. Ideally, this step
-   would be done by part of our general structure, like we separate [of_ast]
-   and [of_ast_internal] in the decode structure; this design would make it
+   step of wrapping the result in an [%jane.xyz] node. Ideally, this step would
+   be done by part of our general structure, like we separate [of_ast] and
+   [of_ast_internal] in the decode structure; this design would make it
    structurally impossible/hard to forget taking this final step.
 
    However, the final step is only one line of code (a call to
-   [make_entire_extension]), but yet the name of the extension varies, as does
+   [make_entire_jane_syntax]), but yet the name of the feature varies, as does
    the type of the payload. It would thus take several lines of code to execute
    this command otherwise, along with dozens of lines to create the structure in
-   the first place. And so instead we just manually call [make_entire_extension]
-   and refer to this Note as a reminder to authors of future extensions to
-   remember to do this wrapping.
+   the first place. And so instead we just manually call
+   [make_entire_jane_syntax] and refer to this Note as a reminder to authors of
+   future syntax features to remember to do this wrapping.
 *)
 
 (** List and array comprehensions *)
@@ -69,8 +69,8 @@ module Comprehensions = struct
 
   (* The desugared-to-OCaml version of comprehensions is described by the
      following BNF, where [{% '...' | expr %}] refers to the result of
-     [Expression.make_extension] (via [comprehension_expr]) as described at the
-     top of [extensions_parsing.mli].
+     [Expression.make_jane_syntax] (via [comprehension_expr]) as described at
+     the top of [jane_syntax_parsing.mli].
 
      {v
          comprehension ::=
@@ -91,7 +91,7 @@ module Comprehensions = struct
 
   let comprehension_expr names x =
     Expression.wrap_desc ~attrs:[] @@
-    Expression.make_extension (extension_string :: names) x
+    Expression.make_jane_syntax (extension_string :: names) x
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
       the [expr_of_...] family of expressions, culminating in
@@ -130,10 +130,10 @@ module Comprehensions = struct
          clauses
          (comprehension_expr ["body"] body))
 
-  let expr_of ~loc eexpr =
-    (* See Note [Wrapping with make_entire_extension] *)
-    Expression.make_entire_extension ~loc extension_string (fun () ->
-      match eexpr with
+  let expr_of ~loc cexpr =
+    (* See Note [Wrapping with make_entire_jane_syntax] *)
+    Expression.make_entire_jane_syntax ~loc extension_string (fun () ->
+      match cexpr with
       | Cexp_list_comprehension comp ->
           expr_of_comprehension ~type_:["list"] comp
       | Cexp_array_comprehension (amut, comp) ->
@@ -151,27 +151,27 @@ module Comprehensions = struct
 
   module Desugaring_error = struct
     type error =
-      | Non_comprehension_extension_point of Extension_node_name.t
+      | Non_comprehension_embedding of Embedded_name.t
       | Non_extension
-      | Bad_comprehension_extension_point of string list
+      | Bad_comprehension_embedding of string list
       | No_clauses
 
     let report_error ~loc = function
-      | Non_comprehension_extension_point ext_name ->
+      | Non_comprehension_embedding ext_name ->
           Location.errorf ~loc
-            "Tried to desugar the non-comprehension extension point %a@ \
+            "Tried to desugar the non-comprehension embedded term %a@ \
              as part of a comprehension expression"
-            Extension_node_name.pp_quoted_name ext_name
+            Embedded_name.pp_quoted_name ext_name
       | Non_extension ->
           Location.errorf ~loc
-            "Tried to desugar a non-extension expression@ \
+            "Tried to desugar a non-embedded expression@ \
              as part of a comprehension expression"
-      | Bad_comprehension_extension_point subparts ->
+      | Bad_comprehension_embedding subparts ->
           Location.errorf ~loc
             "Unknown, unexpected, or malformed@ \
-             comprehension extension point %a"
-            Extension_node_name.pp_quoted_name
-            Extension_node_name.(extension_string :: subparts)
+             comprehension embedded term %a"
+            Embedded_name.pp_quoted_name
+            Embedded_name.(extension_string :: subparts)
       | No_clauses ->
           Location.errorf ~loc
             "Tried to desugar a comprehension with no clauses"
@@ -188,12 +188,12 @@ module Comprehensions = struct
   end
 
   let expand_comprehension_extension_expr expr =
-    match Expression.match_extension expr with
+    match Expression.match_jane_syntax expr with
     | Some (comprehensions :: names, expr)
       when String.equal comprehensions extension_string ->
         names, expr
     | Some (ext_name, _) ->
-        Desugaring_error.raise expr (Non_comprehension_extension_point ext_name)
+        Desugaring_error.raise expr (Non_comprehension_embedding ext_name)
     | None ->
         Desugaring_error.raise expr Non_extension
 
@@ -208,7 +208,7 @@ module Comprehensions = struct
     | ["for"; "in"], seq ->
         In seq
     | bad, _ ->
-        Desugaring_error.raise expr (Bad_comprehension_extension_point bad)
+        Desugaring_error.raise expr (Bad_comprehension_embedding bad)
 
   let clause_binding_of_vb { pvb_pat; pvb_expr; pvb_attributes; pvb_loc = _ } =
     { pattern = pvb_pat
@@ -230,7 +230,7 @@ module Comprehensions = struct
     | ["body"], body ->
         { body; clauses = [] }
     | bad, _ ->
-        Desugaring_error.raise expr (Bad_comprehension_extension_point bad)
+        Desugaring_error.raise expr (Bad_comprehension_embedding bad)
 
   let comprehension_of_expr expr =
     match raw_comprehension_of_expr expr with
@@ -250,7 +250,7 @@ module Comprehensions = struct
         assert_extension_enabled ~loc:expr.pexp_loc Immutable_arrays;
         Cexp_array_comprehension (Immutable, comprehension_of_expr comp)
     | bad, _ ->
-        Desugaring_error.raise expr (Bad_comprehension_extension_point bad)
+        Desugaring_error.raise expr (Bad_comprehension_embedding bad)
 end
 
 (** Immutable arrays *)
@@ -265,8 +265,8 @@ module Immutable_arrays = struct
 
   let expr_of ~loc = function
     | Iaexp_immutable_array elts ->
-      (* See Note [Wrapping with make_entire_extension] *)
-      Expression.make_entire_extension ~loc extension_string (fun () ->
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      Expression.make_entire_jane_syntax ~loc extension_string (fun () ->
         Ast_helper.Exp.array elts)
 
   let of_expr expr = match expr.pexp_desc with
@@ -275,8 +275,8 @@ module Immutable_arrays = struct
 
   let pat_of ~loc = function
     | Iapat_immutable_array elts ->
-      (* See Note [Wrapping with make_entire_extension] *)
-      Pattern.make_entire_extension ~loc extension_string (fun () ->
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      Pattern.make_entire_jane_syntax ~loc extension_string (fun () ->
         Ast_helper.Pat.array elts)
 
   let of_pat expr = match expr.ppat_desc with
@@ -296,8 +296,8 @@ module Strengthen = struct
      [(module M)] can be the inferred type for [M], so this should be fine. *)
 
   let mty_of ~loc { mty; mod_id } =
-    (* See Note [Wrapping with make_entire_extension] *)
-    Module_type.make_entire_extension ~loc extension_string (fun () ->
+    (* See Note [Wrapping with make_entire_jane_syntax] *)
+    Module_type.make_entire_jane_syntax ~loc extension_string (fun () ->
       Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
         (Ast_helper.Mty.alias mod_id))
 
@@ -319,17 +319,17 @@ end
 
 module Expression = struct
   module M = struct
-    module AST = Extensions_parsing.Expression
+    module AST = Jane_syntax_parsing.Expression
 
     type t =
-      | Eexp_comprehension   of Comprehensions.expression
-      | Eexp_immutable_array of Immutable_arrays.expression
+      | Jexp_comprehension   of Comprehensions.expression
+      | Jexp_immutable_array of Immutable_arrays.expression
 
-    let of_ast_internal (ext : Language_extension.t) expr = match ext with
-      | Comprehensions ->
-        Some (Eexp_comprehension (Comprehensions.comprehension_expr_of_expr expr))
-      | Immutable_arrays ->
-        Some (Eexp_immutable_array (Immutable_arrays.of_expr expr))
+    let of_ast_internal (feat : Feature.t) expr = match feat with
+      | Language_extension Comprehensions ->
+        Some (Jexp_comprehension (Comprehensions.comprehension_expr_of_expr expr))
+      | Language_extension Immutable_arrays ->
+        Some (Jexp_immutable_array (Immutable_arrays.of_expr expr))
       | _ -> None
   end
 
@@ -339,14 +339,14 @@ end
 
 module Pattern = struct
   module M = struct
-    module AST = Extensions_parsing.Pattern
+    module AST = Jane_syntax_parsing.Pattern
 
     type t =
-      | Epat_immutable_array of Immutable_arrays.pattern
+      | Jpat_immutable_array of Immutable_arrays.pattern
 
-    let of_ast_internal (ext : Language_extension.t) pat = match ext with
-      | Immutable_arrays ->
-        Some (Epat_immutable_array (Immutable_arrays.of_pat pat))
+    let of_ast_internal (feat : Feature.t) pat = match feat with
+      | Language_extension Immutable_arrays ->
+        Some (Jpat_immutable_array (Immutable_arrays.of_pat pat))
       | _ -> None
   end
 
@@ -356,14 +356,14 @@ end
 
 module Module_type = struct
   module M = struct
-    module AST = Extensions_parsing.Module_type
+    module AST = Jane_syntax_parsing.Module_type
 
     type t =
-      | Emty_strengthen of Strengthen.module_type
+      | Jmty_strengthen of Strengthen.module_type
 
-    let of_ast_internal (ext : Language_extension.t) mty = match ext with
-      | Module_strengthening ->
-        Some (Emty_strengthen (Strengthen.of_mty mty))
+    let of_ast_internal (feat : Feature.t) mty = match feat with
+      | Language_extension Module_strengthening ->
+        Some (Jmty_strengthen (Strengthen.of_mty mty))
       | _ -> None
   end
 

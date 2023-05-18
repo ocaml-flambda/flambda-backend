@@ -467,7 +467,7 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
            ({ txt = Lident("::") ;_},
             Some ([], inner_pat));
        ppat_attributes = []} ->
-      begin match Extensions.Pattern.of_ast inner_pat, inner_pat.ppat_desc with
+      begin match Jane_syntax.Pattern.of_ast inner_pat, inner_pat.ppat_desc with
       | None, Ppat_tuple([pat1; pat2]) ->
         pp f "%a::%a" (simple_pattern ctxt) pat1 pattern_list_helper pat2 (*RA*)
       | _ -> pattern1 ctxt f p
@@ -497,8 +497,8 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
 
 and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
   if x.ppat_attributes <> [] then pattern ctxt f x
-  else match Extensions.Pattern.of_ast x with
-    | Some epat -> simple_pattern_extension ctxt f epat
+  else match Jane_syntax.Pattern.of_ast x with
+    | Some jpat -> simple_pattern_jane_syntax ctxt f jpat
     | None -> match x.ppat_desc with
     | Ppat_construct (({txt=Lident ("()"|"[]" as x);_}), None) ->
         pp f  "%s" x
@@ -543,9 +543,9 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
     | Ppat_extension e -> extension ctxt f e
     | Ppat_open (lid, p) ->
         let with_paren =
-        match Extensions.Pattern.of_ast p with
-        | Some epat -> begin match epat with
-        | Epat_immutable_array (Iapat_immutable_array _) -> false
+        match Jane_syntax.Pattern.of_ast p with
+        | Some jpat -> begin match jpat with
+        | Jpat_immutable_array (Iapat_immutable_array _) -> false
         end
         | None -> match p.ppat_desc with
         | Ppat_array _ | Ppat_record _
@@ -555,8 +555,8 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
           (paren with_paren @@ pattern1 ctxt) p
     | _ -> paren true (pattern ctxt) f x
 
-and simple_pattern_extension ctxt f : Extensions.Pattern.t -> unit = function
-  | Epat_immutable_array (Iapat_immutable_array l) ->
+and simple_pattern_jane_syntax ctxt f : Jane_syntax.Pattern.t -> unit = function
+  | Jpat_immutable_array (Iapat_immutable_array l) ->
       pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
 
 and maybe_local_pat ctxt is_local f p =
@@ -677,8 +677,8 @@ and expression ctxt f x =
   if x.pexp_attributes <> [] then
     pp f "((%a)@,%a)" (expression ctxt) {x with pexp_attributes=[]}
       (attributes ctxt) x.pexp_attributes
-  else match Extensions.Expression.of_ast x with
-    | Some eexpr -> extension_expr ctxt f eexpr
+  else match Jane_syntax.Expression.of_ast x with
+    | Some jexpr -> jane_syntax_expr ctxt f jexpr
     | None -> match x.pexp_desc with
     | Pexp_function _ | Pexp_fun _ | Pexp_match _ | Pexp_try _ | Pexp_sequence _
     | Pexp_newtype _
@@ -1118,8 +1118,8 @@ and module_type ctxt f x =
     pp f "((%a)%a)" (module_type ctxt) {x with pmty_attributes=[]}
       (attributes ctxt) x.pmty_attributes
   end else
-    match Extensions.Module_type.of_ast x with
-    | Some emty -> module_type_extension ctxt f emty
+    match Jane_syntax.Module_type.of_ast x with
+    | Some jmty -> module_type_jane_syntax ctxt f jmty
     | None ->
     match x.pmty_desc with
     | Pmty_functor (Unit, mt2) ->
@@ -1140,8 +1140,8 @@ and module_type ctxt f x =
           (list (with_constraint ctxt) ~sep:"@ and@ ") l
     | _ -> module_type1 ctxt f x
 
-and module_type_extension ctxt f : Extensions.Module_type.t -> _ = function
-  | Emty_strengthen { mty; mod_id } ->
+and module_type_jane_syntax ctxt f : Jane_syntax.Module_type.t -> _ = function
+  | Jmty_strengthen { mty; mod_id } ->
       pp f "@[<hov2>%a@ with@ %a@]"
         (module_type1 ctxt) mty
         longident_loc mod_id
@@ -1170,8 +1170,8 @@ and with_constraint ctxt f = function
 
 and module_type1 ctxt f x =
   if x.pmty_attributes <> [] then module_type ctxt f x
-  else match Extensions.Module_type.of_ast x with
-    | Some emty -> module_type_extension1 ctxt f emty
+  else match Jane_syntax.Module_type.of_ast x with
+    | Some jmty -> module_type_jane_syntax1 ctxt f jmty
     | None ->
     match x.pmty_desc with
     | Pmty_ident li ->
@@ -1186,8 +1186,9 @@ and module_type1 ctxt f x =
     | Pmty_extension e -> extension ctxt f e
     | _ -> paren true (module_type ctxt) f x
 
-and module_type_extension1 ctxt f : Extensions.Module_type.t -> _ = function
-  | Emty_strengthen _ as emty -> paren true (module_type_extension ctxt) f emty
+and module_type_jane_syntax1 ctxt f : Jane_syntax.Module_type.t -> _ = function
+  | Jmty_strengthen _ as jmty ->
+      paren true (module_type_jane_syntax ctxt) f jmty
 
 and signature ctxt f x =  list ~sep:"@\n" (signature_item ctxt) f x
 
@@ -1788,13 +1789,13 @@ and directive_argument f x =
   | Pdir_ident (li) -> pp f "@ %a" longident li
   | Pdir_bool (b) -> pp f "@ %s" (string_of_bool b)
 
-and extension_expr ctxt f (x : Extensions.Expression.t) =
-  match x with
-  | Eexp_comprehension comp    -> comprehension_expr ctxt f comp
-  | Eexp_immutable_array iaexp -> immutable_array_expr ctxt f iaexp
+and jane_syntax_expr ctxt f (jexp : Jane_syntax.Expression.t) =
+  match jexp with
+  | Jexp_comprehension comp    -> comprehension_expr ctxt f comp
+  | Jexp_immutable_array iaexp -> immutable_array_expr ctxt f iaexp
 
-and comprehension_expr ctxt f (x : Extensions.Comprehensions.expression) =
-  let punct, comp = match x with
+and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
+  let punct, comp = match cexp with
     | Cexp_list_comprehension  comp ->
         "", comp
     | Cexp_array_comprehension (amut, comp) ->
@@ -1806,15 +1807,15 @@ and comprehension_expr ctxt f (x : Extensions.Comprehensions.expression) =
   in
   comprehension ctxt f ~open_:("[" ^ punct) ~close:(punct ^ "]") comp
 
-and comprehension ctxt f ~open_ ~close x =
-  let Extensions.Comprehensions.{ body; clauses } = x in
+and comprehension ctxt f ~open_ ~close cexp =
+  let Jane_syntax.Comprehensions.{ body; clauses } = cexp in
   pp f "@[<hv0>@[<hv2>%s%a@ @[<hv2>%a@]%s@]@]"
     open_
     (expression ctxt) body
     (list ~sep:"@ " (comprehension_clause ctxt)) clauses
     close
 
-and comprehension_clause ctxt f (x : Extensions.Comprehensions.clause) =
+and comprehension_clause ctxt f (x : Jane_syntax.Comprehensions.clause) =
   match x with
   | For bindings ->
       pp f "@[for %a@]" (list ~sep:"@]@ @[and " (comprehension_binding ctxt)) bindings
@@ -1822,13 +1823,13 @@ and comprehension_clause ctxt f (x : Extensions.Comprehensions.clause) =
       pp f "@[when %a@]" (expression ctxt) cond
 
 and comprehension_binding ctxt f x =
-  let Extensions.Comprehensions.{ pattern = pat; iterator; attributes = attrs } = x in
+  let Jane_syntax.Comprehensions.{ pattern = pat; iterator; attributes = attrs } = x in
   pp f "%a%a %a"
     (attributes ctxt) attrs
     (pattern ctxt) pat
     (comprehension_iterator ctxt) iterator
 
-and comprehension_iterator ctxt f (x : Extensions.Comprehensions.iterator) =
+and comprehension_iterator ctxt f (x : Jane_syntax.Comprehensions.iterator) =
   match x with
   | Range { start; stop; direction } ->
       pp f "=@ %a %a%a"
@@ -1838,7 +1839,7 @@ and comprehension_iterator ctxt f (x : Extensions.Comprehensions.iterator) =
   | In seq ->
       pp f "in %a" (expression ctxt) seq
 
-and immutable_array_expr ctxt f (x : Extensions.Immutable_arrays.expression) =
+and immutable_array_expr ctxt f (x : Jane_syntax.Immutable_arrays.expression) =
   match x with
   | Iaexp_immutable_array elts ->
       pp f "@[<0>@[<2>[:%a:]@]@]"

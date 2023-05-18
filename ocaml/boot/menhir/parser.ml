@@ -556,7 +556,7 @@ module Generic_array = struct
 end
 
 let ppat_iarray loc elts =
-  Extensions.Immutable_arrays.pat_of
+  Jane_syntax.Immutable_arrays.pat_of
     ~loc:(make_loc loc)
     (Iapat_immutable_array elts)
 
@@ -6812,12 +6812,12 @@ module Tables = struct
             MenhirLib.EngineTypes.next = _menhir_stack;
           };
         } = _menhir_stack in
-        let xs : (Extensions.Comprehensions.clause_binding list) = Obj.magic xs in
+        let xs : (Jane_syntax.Comprehensions.clause_binding list) = Obj.magic xs in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos__1_ in
         let _endpos = _endpos_xs_ in
-        let _v : (Extensions.Comprehensions.clause) = let _2 =
+        let _v : (Jane_syntax.Comprehensions.clause) = let _2 =
           let xs = 
 # 253 "<standard.mly>"
     ( List.rev xs )
@@ -6831,7 +6831,7 @@ module Tables = struct
         in
         
 # 2595 "parsing/parser.mly"
-      ( Extensions.Comprehensions.For _2 )
+      ( Jane_syntax.Comprehensions.For _2 )
 # 6836 "parsing/parser.ml"
          in
         {
@@ -6861,9 +6861,9 @@ module Tables = struct
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__2_ in
-        let _v : (Extensions.Comprehensions.clause) = 
+        let _v : (Jane_syntax.Comprehensions.clause) = 
 # 2597 "parsing/parser.mly"
-      ( Extensions.Comprehensions.When _2 )
+      ( Jane_syntax.Comprehensions.When _2 )
 # 6868 "parsing/parser.ml"
          in
         {
@@ -6894,20 +6894,20 @@ module Tables = struct
             };
           };
         } = _menhir_stack in
-        let _3 : (Extensions.Comprehensions.iterator) = Obj.magic _3 in
+        let _3 : (Jane_syntax.Comprehensions.iterator) = Obj.magic _3 in
         let _2 : (Parsetree.pattern) = Obj.magic _2 in
         let _1 : (Parsetree.attributes) = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__3_ in
-        let _v : (Extensions.Comprehensions.clause_binding) = let _1 = 
+        let _v : (Jane_syntax.Comprehensions.clause_binding) = let _1 = 
 # 4222 "parsing/parser.mly"
     ( _1 )
 # 6907 "parsing/parser.ml"
          in
         
 # 2578 "parsing/parser.mly"
-      ( Extensions.Comprehensions.{ pattern = _2 ; iterator = _3 ; attributes = _1 } )
+      ( Jane_syntax.Comprehensions.{ pattern = _2 ; iterator = _3 ; attributes = _1 } )
 # 6912 "parsing/parser.ml"
          in
         {
@@ -6958,7 +6958,7 @@ module Tables = struct
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__5_ in
-        let _v : (Extensions.Comprehensions.clause_binding) = let _1 = 
+        let _v : (Jane_syntax.Comprehensions.clause_binding) = let _1 = 
 # 4222 "parsing/parser.mly"
     ( _1 )
 # 6965 "parsing/parser.ml"
@@ -6972,7 +6972,7 @@ module Tables = struct
         let _sloc = (_symbolstartpos, _endpos) in
         
 # 2585 "parsing/parser.mly"
-      ( Extensions.Comprehensions.
+      ( Jane_syntax.Comprehensions.
           { pattern    = _3
           ; iterator   = In (mkexp_stack ~loc:_sloc ~kwd_loc:(_loc__2_) _5)
           ; attributes = _1
@@ -7021,9 +7021,9 @@ module Tables = struct
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__4_ in
-        let _v : (Extensions.Comprehensions.iterator) = 
+        let _v : (Jane_syntax.Comprehensions.iterator) = 
 # 2571 "parsing/parser.mly"
-      ( Extensions.Comprehensions.Range { start = _2 ; stop = _4 ; direction = _3 } )
+      ( Jane_syntax.Comprehensions.Range { start = _2 ; stop = _4 ; direction = _3 } )
 # 7028 "parsing/parser.ml"
          in
         {
@@ -7053,9 +7053,9 @@ module Tables = struct
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__2_ in
-        let _v : (Extensions.Comprehensions.iterator) = 
+        let _v : (Jane_syntax.Comprehensions.iterator) = 
 # 2573 "parsing/parser.mly"
-      ( Extensions.Comprehensions.In _2 )
+      ( Jane_syntax.Comprehensions.In _2 )
 # 7060 "parsing/parser.ml"
          in
         {
@@ -32808,11 +32808,11 @@ module Tables = struct
           MenhirLib.EngineTypes.endp = _endpos_x_;
           MenhirLib.EngineTypes.next = _menhir_stack;
         } = _menhir_stack in
-        let x : (Extensions.Comprehensions.clause) = Obj.magic x in
+        let x : (Jane_syntax.Comprehensions.clause) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
         let _endpos = _endpos_x_ in
-        let _v : (Extensions.Comprehensions.clause list) = 
+        let _v : (Jane_syntax.Comprehensions.clause list) = 
 # 1121 "parsing/parser.mly"
     ( [ x ] )
 # 32819 "parsing/parser.ml"
@@ -32839,12 +32839,12 @@ module Tables = struct
             MenhirLib.EngineTypes.next = _menhir_stack;
           };
         } = _menhir_stack in
-        let x : (Extensions.Comprehensions.clause) = Obj.magic x in
-        let xs : (Extensions.Comprehensions.clause list) = Obj.magic xs in
+        let x : (Jane_syntax.Comprehensions.clause) = Obj.magic x in
+        let xs : (Jane_syntax.Comprehensions.clause list) = Obj.magic xs in
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos_xs_ in
         let _endpos = _endpos_x_ in
-        let _v : (Extensions.Comprehensions.clause list) = 
+        let _v : (Jane_syntax.Comprehensions.clause list) = 
 # 1123 "parsing/parser.mly"
     ( x :: xs )
 # 32851 "parsing/parser.ml"
@@ -33340,11 +33340,11 @@ module Tables = struct
           MenhirLib.EngineTypes.endp = _endpos_x_;
           MenhirLib.EngineTypes.next = _menhir_stack;
         } = _menhir_stack in
-        let x : (Extensions.Comprehensions.clause_binding) = Obj.magic x in
+        let x : (Jane_syntax.Comprehensions.clause_binding) = Obj.magic x in
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos_x_ in
         let _endpos = _endpos_x_ in
-        let _v : (Extensions.Comprehensions.clause_binding list) = let xs = 
+        let _v : (Jane_syntax.Comprehensions.clause_binding list) = let xs = 
 # 1147 "parsing/parser.mly"
     ( [ x ] )
 # 33351 "parsing/parser.ml"
@@ -33382,13 +33382,13 @@ module Tables = struct
             };
           };
         } = _menhir_stack in
-        let x : (Extensions.Comprehensions.clause_binding) = Obj.magic x in
+        let x : (Jane_syntax.Comprehensions.clause_binding) = Obj.magic x in
         let _2 : unit = Obj.magic _2 in
-        let xs : (Extensions.Comprehensions.clause_binding list) = Obj.magic xs in
+        let xs : (Jane_syntax.Comprehensions.clause_binding list) = Obj.magic xs in
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
         let _startpos = _startpos_xs_ in
         let _endpos = _endpos_x_ in
-        let _v : (Extensions.Comprehensions.clause_binding list) = let xs = 
+        let _v : (Jane_syntax.Comprehensions.clause_binding list) = let xs = 
 # 1151 "parsing/parser.mly"
     ( x :: xs )
 # 33395 "parsing/parser.ml"
@@ -42492,7 +42492,7 @@ module Tables = struct
       ( Generic_array.expression
           "[:" ":]"
           (fun elts ->
-             Extensions.Immutable_arrays.expr_of
+             Jane_syntax.Immutable_arrays.expr_of
                ~loc:(make_loc _sloc)
                (Iaexp_immutable_array elts))
           _1 )
@@ -42580,7 +42580,7 @@ module Tables = struct
       ( Generic_array.expression
           "[:" ":]"
           (fun elts ->
-             Extensions.Immutable_arrays.expr_of
+             Jane_syntax.Immutable_arrays.expr_of
                ~loc:(make_loc _sloc)
                (Iaexp_immutable_array elts))
           _1 )
@@ -42652,7 +42652,7 @@ module Tables = struct
       ( Generic_array.expression
           "[:" ":]"
           (fun elts ->
-             Extensions.Immutable_arrays.expr_of
+             Jane_syntax.Immutable_arrays.expr_of
                ~loc:(make_loc _sloc)
                (Iaexp_immutable_array elts))
           _1 )
@@ -42766,7 +42766,7 @@ module Tables = struct
       ( Generic_array.expression
           "[:" ":]"
           (fun elts ->
-             Extensions.Immutable_arrays.expr_of
+             Jane_syntax.Immutable_arrays.expr_of
                ~loc:(make_loc _sloc)
                (Iaexp_immutable_array elts))
           _1 )
@@ -42869,7 +42869,7 @@ module Tables = struct
       ( Generic_array.expression
           "[:" ":]"
           (fun elts ->
-             Extensions.Immutable_arrays.expr_of
+             Jane_syntax.Immutable_arrays.expr_of
                ~loc:(make_loc _sloc)
                (Iaexp_immutable_array elts))
           _1 )
@@ -42964,7 +42964,7 @@ module Tables = struct
       ( Generic_array.expression
           "[:" ":]"
           (fun elts ->
-             Extensions.Immutable_arrays.expr_of
+             Jane_syntax.Immutable_arrays.expr_of
                ~loc:(make_loc _sloc)
                (Iaexp_immutable_array elts))
           _1 )
@@ -43148,7 +43148,7 @@ module Tables = struct
           };
         } = _menhir_stack in
         let _4 : unit = Obj.magic _4 in
-        let xs : (Extensions.Comprehensions.clause list) = Obj.magic xs in
+        let xs : (Jane_syntax.Comprehensions.clause list) = Obj.magic xs in
         let _2 : (Parsetree.expression) = Obj.magic _2 in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
@@ -43173,13 +43173,13 @@ module Tables = struct
                   in
                   
 # 2601 "parsing/parser.mly"
-    ( Extensions.Comprehensions.{ body = _2; clauses = _3 } )
+    ( Jane_syntax.Comprehensions.{ body = _2; clauses = _3 } )
 # 43178 "parsing/parser.ml"
                   
                 in
                 
 # 2606 "parsing/parser.mly"
-      ( Extensions.Comprehensions.Cexp_list_comprehension  _1 )
+      ( Jane_syntax.Comprehensions.Cexp_list_comprehension  _1 )
 # 43184 "parsing/parser.ml"
                 
               in
@@ -43189,7 +43189,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 2615 "parsing/parser.mly"
-    ( Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
+    ( Jane_syntax.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
 # 43194 "parsing/parser.ml"
               
             in
@@ -43249,7 +43249,7 @@ module Tables = struct
           };
         } = _menhir_stack in
         let _4 : unit = Obj.magic _4 in
-        let xs : (Extensions.Comprehensions.clause list) = Obj.magic xs in
+        let xs : (Jane_syntax.Comprehensions.clause list) = Obj.magic xs in
         let _2 : (Parsetree.expression) = Obj.magic _2 in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
@@ -43274,13 +43274,13 @@ module Tables = struct
                   in
                   
 # 2601 "parsing/parser.mly"
-    ( Extensions.Comprehensions.{ body = _2; clauses = _3 } )
+    ( Jane_syntax.Comprehensions.{ body = _2; clauses = _3 } )
 # 43279 "parsing/parser.ml"
                   
                 in
                 
 # 2608 "parsing/parser.mly"
-      ( Extensions.Comprehensions.Cexp_array_comprehension (Mutable, _1) )
+      ( Jane_syntax.Comprehensions.Cexp_array_comprehension (Mutable, _1) )
 # 43285 "parsing/parser.ml"
                 
               in
@@ -43290,7 +43290,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 2615 "parsing/parser.mly"
-    ( Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
+    ( Jane_syntax.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
 # 43295 "parsing/parser.ml"
               
             in
@@ -43350,7 +43350,7 @@ module Tables = struct
           };
         } = _menhir_stack in
         let _4 : unit = Obj.magic _4 in
-        let xs : (Extensions.Comprehensions.clause list) = Obj.magic xs in
+        let xs : (Jane_syntax.Comprehensions.clause list) = Obj.magic xs in
         let _2 : (Parsetree.expression) = Obj.magic _2 in
         let _1 : unit = Obj.magic _1 in
         let _endpos__0_ = _menhir_stack.MenhirLib.EngineTypes.endp in
@@ -43375,13 +43375,13 @@ module Tables = struct
                   in
                   
 # 2601 "parsing/parser.mly"
-    ( Extensions.Comprehensions.{ body = _2; clauses = _3 } )
+    ( Jane_syntax.Comprehensions.{ body = _2; clauses = _3 } )
 # 43380 "parsing/parser.ml"
                   
                 in
                 
 # 2610 "parsing/parser.mly"
-      ( Extensions.Comprehensions.Cexp_array_comprehension (Immutable, _1) )
+      ( Jane_syntax.Comprehensions.Cexp_array_comprehension (Immutable, _1) )
 # 43386 "parsing/parser.ml"
                 
               in
@@ -43391,7 +43391,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 2615 "parsing/parser.mly"
-    ( Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
+    ( Jane_syntax.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
 # 43396 "parsing/parser.ml"
               
             in
@@ -43463,7 +43463,7 @@ module Tables = struct
           };
         } = _menhir_stack in
         let _4 : unit = Obj.magic _4 in
-        let xs : (Extensions.Comprehensions.clause list) = Obj.magic xs in
+        let xs : (Jane_syntax.Comprehensions.clause list) = Obj.magic xs in
         let _2_inlined1 : (Parsetree.expression) = Obj.magic _2_inlined1 in
         let _1_inlined1 : unit = Obj.magic _1_inlined1 in
         let _2 : unit = Obj.magic _2 in
@@ -43491,13 +43491,13 @@ module Tables = struct
                   in
                   
 # 2601 "parsing/parser.mly"
-    ( Extensions.Comprehensions.{ body = _2; clauses = _3 } )
+    ( Jane_syntax.Comprehensions.{ body = _2; clauses = _3 } )
 # 43496 "parsing/parser.ml"
                   
                 in
                 
 # 2606 "parsing/parser.mly"
-      ( Extensions.Comprehensions.Cexp_list_comprehension  _1 )
+      ( Jane_syntax.Comprehensions.Cexp_list_comprehension  _1 )
 # 43502 "parsing/parser.ml"
                 
               in
@@ -43507,7 +43507,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 2615 "parsing/parser.mly"
-    ( Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
+    ( Jane_syntax.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
 # 43512 "parsing/parser.ml"
               
             in
@@ -43601,7 +43601,7 @@ module Tables = struct
           };
         } = _menhir_stack in
         let _4 : unit = Obj.magic _4 in
-        let xs : (Extensions.Comprehensions.clause list) = Obj.magic xs in
+        let xs : (Jane_syntax.Comprehensions.clause list) = Obj.magic xs in
         let _2_inlined1 : (Parsetree.expression) = Obj.magic _2_inlined1 in
         let _1_inlined1 : unit = Obj.magic _1_inlined1 in
         let _2 : unit = Obj.magic _2 in
@@ -43629,13 +43629,13 @@ module Tables = struct
                   in
                   
 # 2601 "parsing/parser.mly"
-    ( Extensions.Comprehensions.{ body = _2; clauses = _3 } )
+    ( Jane_syntax.Comprehensions.{ body = _2; clauses = _3 } )
 # 43634 "parsing/parser.ml"
                   
                 in
                 
 # 2608 "parsing/parser.mly"
-      ( Extensions.Comprehensions.Cexp_array_comprehension (Mutable, _1) )
+      ( Jane_syntax.Comprehensions.Cexp_array_comprehension (Mutable, _1) )
 # 43640 "parsing/parser.ml"
                 
               in
@@ -43645,7 +43645,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 2615 "parsing/parser.mly"
-    ( Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
+    ( Jane_syntax.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
 # 43650 "parsing/parser.ml"
               
             in
@@ -43739,7 +43739,7 @@ module Tables = struct
           };
         } = _menhir_stack in
         let _4 : unit = Obj.magic _4 in
-        let xs : (Extensions.Comprehensions.clause list) = Obj.magic xs in
+        let xs : (Jane_syntax.Comprehensions.clause list) = Obj.magic xs in
         let _2_inlined1 : (Parsetree.expression) = Obj.magic _2_inlined1 in
         let _1_inlined1 : unit = Obj.magic _1_inlined1 in
         let _2 : unit = Obj.magic _2 in
@@ -43767,13 +43767,13 @@ module Tables = struct
                   in
                   
 # 2601 "parsing/parser.mly"
-    ( Extensions.Comprehensions.{ body = _2; clauses = _3 } )
+    ( Jane_syntax.Comprehensions.{ body = _2; clauses = _3 } )
 # 43772 "parsing/parser.ml"
                   
                 in
                 
 # 2610 "parsing/parser.mly"
-      ( Extensions.Comprehensions.Cexp_array_comprehension (Immutable, _1) )
+      ( Jane_syntax.Comprehensions.Cexp_array_comprehension (Immutable, _1) )
 # 43778 "parsing/parser.ml"
                 
               in
@@ -43783,7 +43783,7 @@ module Tables = struct
               let _sloc = (_symbolstartpos, _endpos) in
               
 # 2615 "parsing/parser.mly"
-    ( Extensions.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
+    ( Jane_syntax.Comprehensions.expr_of ~loc:(make_loc _sloc) _1 )
 # 43788 "parsing/parser.ml"
               
             in

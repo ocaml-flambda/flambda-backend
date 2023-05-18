@@ -1522,8 +1522,8 @@ module Analyser =
     (** Return a module_type_kind from a Parsetree.module_type and a Types.module_type *)
     and analyse_module_type_kind
       ?(erased = Name.Map.empty) env current_module_name module_type sig_module_type =
-      match Extensions.Module_type.of_ast module_type with
-      | Some (Emty_strengthen _) -> failwith "strengthen not implemented yet"
+      match Jane_syntax.Module_type.of_ast module_type with
+      | Some (Jmty_strengthen _) -> failwith "strengthen not implemented yet"
       | None ->
       match module_type.Parsetree.pmty_desc with
         Parsetree.Pmty_ident longident ->
@@ -1623,8 +1623,8 @@ module Analyser =
     (** analyse of a Parsetree.module_type and a Types.module_type.*)
     and analyse_module_kind
         ?(erased = Name.Map.empty) env current_module_name module_type sig_module_type =
-      match Extensions.Module_type.of_ast module_type with
-      | Some (Emty_strengthen _) -> failwith "strengthen not implemented yet"
+      match Jane_syntax.Module_type.of_ast module_type with
+      | Some (Jmty_strengthen _) -> failwith "strengthen not implemented yet"
       | None ->
       match module_type.Parsetree.pmty_desc with
       | Parsetree.Pmty_ident _longident ->
