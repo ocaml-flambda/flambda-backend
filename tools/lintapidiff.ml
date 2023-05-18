@@ -123,7 +123,7 @@ module Ast = struct
   let rec add_item ~f path inherits map item =
     let rec add_module_type path ty (inherits, map) =
       let self = add_item ~f path inherits in
-      match Extensions.Module_type.of_ast ty with
+      match Jane_syntax.Module_type.of_ast ty with
       | Some _ -> .
       | None ->
       match ty.pmty_desc with

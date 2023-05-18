@@ -5,22 +5,18 @@
 (* If you don't use these as applications, they don't pass through the modular
    extensions machinery and fail with a normal OCaml error *)
 
-let _ = [%extension];;
+let _ = [%jane];;
 [%%expect{|
-Line 1, characters 10-19:
-1 | let _ = [%extension];;
-              ^^^^^^^^^
-Error: Uninterpreted extension 'extension'.
+Line 1, characters 10-14:
+1 | let _ = [%jane];;
+              ^^^^
+Error: Uninterpreted extension 'jane'.
 |}];;
 
-let _ = [%extension "payload"];;
+let _ = [%jane "payload"];;
 [%%expect{|
-Line 1, characters 10-19:
-1 | let _ = [%extension "payload"];;
-              ^^^^^^^^^
-Error: Uninterpreted extension 'extension'.
+Line 1, characters 10-14:
+1 | let _ = [%jane "payload"];;
+              ^^^^
+Error: Uninterpreted extension 'jane'.
 |}];;
-
-
-
-
