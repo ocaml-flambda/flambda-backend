@@ -36,8 +36,6 @@ module Import_map : sig
     original_compilation_unit:Compilation_unit.t ->
     t
 
-  val is_empty : t -> bool
-
   val const : t -> Const.t -> Const.t
 
   val variable : t -> Variable.t -> Variable.t
@@ -75,24 +73,6 @@ end = struct
              allowed for variables that are not used in the compilation unit
              they are defined in. *)
     }
-
-  let is_empty
-      { symbols;
-        variables;
-        simples;
-        consts;
-        code_ids;
-        continuations;
-        used_value_slots;
-        original_compilation_unit = _
-      } =
-    Symbol.Map.is_empty symbols
-    && Variable.Map.is_empty variables
-    && Simple.Map.is_empty simples
-    && Const.Map.is_empty consts
-    && Code_id.Map.is_empty code_ids
-    && Continuation.Map.is_empty continuations
-    && Value_slot.Set.is_empty used_value_slots
 
   let create ~symbols ~variables ~simples ~consts ~code_ids ~continuations
       ~used_value_slots ~original_compilation_unit =
@@ -154,9 +134,10 @@ let create_import_map ~symbols ~variables ~simples ~consts ~code_ids
     Import_map.create ~symbols ~variables ~simples ~consts ~code_ids
       ~continuations ~used_value_slots ~original_compilation_unit
   in
-  if Import_map.is_empty import_map
-  then empty
-  else { empty with import_map = Some import_map }
+  (* It's tempting to set [import_map] to [None] if everything is empty, but
+     this is incorrect: an import map of [None] is equivalent to having _all_
+     value slots used, not none (see [value_slot_is_used]). *)
+  { empty with import_map = Some import_map }
 
 let has_import_map t = Option.is_some t.import_map
 
@@ -180,7 +161,11 @@ let is_empty { continuations; variables; code_ids; symbols; import_map } =
   &&
   match import_map with
   | None -> true
-  | Some import_map -> Import_map.is_empty import_map
+  | Some _ ->
+    (* If there is any import map at all, then this renaming is not necessarily
+       the identity: any value slots _not_ present in [used_value_slots] will
+       cause value slots to be removed. *)
+    false
 
 let compose0
     ~second:
