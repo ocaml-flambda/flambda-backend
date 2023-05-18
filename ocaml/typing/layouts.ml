@@ -517,6 +517,17 @@ module Layout = struct
 
   include Report_missing_cmi
 
+  (* CR layouts: should this be configurable? In the meantime, you
+     may want to change these to experiment / debug. *)
+
+  (* should we print histories at all? *)
+  let display_histories = false
+
+  (* should we print histories in a way users can understand?
+     The alternative is to print out all the data, which may be useful
+     during debugging. *)
+  let flattened_histories = true
+
   (* This module is just to keep all the helper functions more locally
      scoped. *)
   module Format_history : sig
@@ -585,7 +596,7 @@ module Layout = struct
       | Enumeration ->
          fprintf ppf "an enumeration variant (all constructors are constant)"
       | Primitive id ->
-         fprintf ppf "the primitive immediate type %s" (Ident.name id)
+         fprintf ppf "it equals the primitive immediate type %s" (Ident.name id)
       | Immediate_polymorphic_variant ->
          fprintf ppf "an immediate polymorphic variant"
       | Gc_ignorable_check ->
@@ -616,7 +627,8 @@ module Layout = struct
       | Boxed_record -> fprintf ppf "a boxed record"
       | Boxed_variant -> fprintf ppf "a boxed variant"
       | Extensible_variant -> fprintf ppf "an extensible variant"
-      | Primitive id -> fprintf ppf "the primitive value type %s" (Ident.name id)
+      | Primitive id ->
+        fprintf ppf "it equals the primitive value type %s" (Ident.name id)
       | Type_argument -> fprintf ppf "a type argument defaulted to have layout value"
       | Tuple -> fprintf ppf "a tuple type"
       | Row_variable -> fprintf ppf "a row variable"
@@ -659,7 +671,7 @@ module Layout = struct
 
     let format_creation_reason ppf : creation_reason -> unit = function
       | Annotated (ctx, _) ->
-          fprintf ppf "the annotation on %a" format_annotation_context ctx
+          fprintf ppf "of the annotation on %a" format_annotation_context ctx
       | Any_creation any ->
          format_any_creation_reason ppf any
       | Immediate_creation immediate ->
@@ -682,17 +694,6 @@ module Layout = struct
         fprintf ppf "updating a type variable"
       | Sublayout ->
         fprintf ppf "sublayout check"
-
-    (* CR layouts: should this be configurable? In the meantime, you
-       may want to change these to experiment / debug. *)
-
-    (* should we print histories at all? *)
-    let display_histories = false
-
-    (* should we print histories in a way users can understand?
-       The alternative is to print out all the data, which may be useful
-       during debugging. *)
-    let flattened_histories = true
 
     (* a flattened_history describes the history of a layout L. That
        layout has been constrained to be a sublayout of layouts L1..Ln.
@@ -750,7 +751,7 @@ module Layout = struct
       history []
 
     let format_flattened_row ppf (lay, reasons) =
-      fprintf ppf "%a, due to" format_desc lay;
+      fprintf ppf "%a, because" format_desc lay;
       match reasons with
       | [reason] -> fprintf ppf "@ %a." format_creation_reason reason
       | _ ->
@@ -759,13 +760,13 @@ module Layout = struct
 
     let format_flattened_history ~intro ppf t =
       let fh = flatten_history t.layout t.history in
-      fprintf ppf "@;@[<v 2>%t " intro;
+      fprintf ppf "@[<v 2>%t " intro;
       begin match fh with
       | [row] -> format_flattened_row ppf row
       | _ -> fprintf ppf "a sublayout of all of the following:@ @[<v 2>  %a@]"
                (pp_print_list format_flattened_row) fh
       end;
-      fprintf ppf "@]"
+      fprintf ppf "@]@;"
 
     (* this isn't really formatted for user consumption *)
     let format_history_tree ~intro ppf t =
@@ -822,13 +823,21 @@ module Layout = struct
           dprintf "an unknown layout",
           sublayout_format "might not be" l2, Some p
       in
-      fprintf ppf "@[<v>@[<hov 2>%s%a has %t,@ which %t.@]%a%a@]"
-        preamble
-        pp_former former
-        fmt_l1
-        fmt_l2
-        (format_history ~intro:(dprintf "The layout of %a is" pp_former former)) l1
-        (format_history ~intro:(dprintf "But the layout of %a is required to be" pp_former former)) l2;
+      if display_histories then begin
+        let connective = match t with
+          | Not_a_sublayout _ | Missing_cmi _ -> "be a sublayout of"
+          | No_intersection _ -> "have overlap with"
+        in
+        fprintf ppf "%a%a"
+          (format_history ~intro:(dprintf "The layout of %a is" pp_former former)) l1
+          (format_history ~intro:(dprintf "But the layout of %a must %s" pp_former former connective)) l2;
+      end else begin
+        fprintf ppf "@[<hov 2>%s%a has %t,@ which %t.@]"
+          preamble
+          pp_former former
+          fmt_l1
+          fmt_l2
+      end;
       report_missing_cmi ppf missing_cmi_option
 
     let pp_t ppf x = fprintf ppf "%t" x
