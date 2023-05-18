@@ -1739,7 +1739,7 @@ and transl_signature env (sg : Parsetree.signature) =
         let (od, newenv) = type_open_descr env sod in
         mksig (Tsig_open od) env loc, [], newenv
     | Psig_include sincl ->
-        transl_include ~functor_:false ~loc:item.psig_loc env sig_acc sincl
+        transl_include ~functor_:false ~loc env sig_acc sincl
     | Psig_class cl ->
         let (classes, newenv) = Typeclass.class_descriptions env cl in
         List.iter (fun cls ->

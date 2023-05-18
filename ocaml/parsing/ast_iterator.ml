@@ -283,9 +283,8 @@ module MT = struct
     | Pwith_modtypesubst (lid, mty) ->
         iter_loc sub lid; sub.module_type sub mty
 
-  module IF = Jane_syntax.Include_functor
-
-  let iter_sig_include_functor sub : IF.signature_item -> unit = function
+  let iter_sig_include_functor sub
+    : Jane_syntax.Include_functor.signature_item -> unit = function
     | Ifsig_include_functor incl -> sub.include_description sub incl
 
   let iter_signature_item_jst sub : Jane_syntax.Signature_item.t -> unit =
@@ -345,9 +344,8 @@ module M = struct
     | Pmod_unpack e -> sub.expr sub e
     | Pmod_extension x -> sub.extension sub x
 
-  module IF = Jane_syntax.Include_functor
-
-  let iter_str_include_functor sub : IF.structure_item -> unit = function
+  let iter_str_include_functor sub
+    : Jane_syntax.Include_functor.structure_item -> unit = function
     | Ifstr_include_functor incl -> sub.include_declaration sub incl
 
   let iter_structure_item_jst sub : Jane_syntax.Structure_item.t -> unit =

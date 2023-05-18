@@ -498,9 +498,14 @@ module Signature_item = Make_AST(struct
 
     let location sigi = sigi.psig_loc
 
-    (* The attributes are only set in [ast_mapper], so dropping them here is
-       fine, as there won't be any to set *)
-    let wrap_desc ?loc ~attrs:_ = Ast_helper.Sig.mk ?loc
+    (* The attributes are only set in [ast_mapper], so requiring them to be
+       empty here is fine, as there won't be any to set in that case. *)
+    let wrap_desc ?loc ~attrs =
+      match attrs with
+      | [] -> Ast_helper.Sig.mk ?loc
+      | _ :: _ ->
+          Misc.fatal_errorf
+            "Jane syntax: Cannot put attributes on a signature item"
 
     let make_extension_node = Ast_helper.Sig.extension
 
@@ -534,9 +539,14 @@ module Structure_item = Make_AST(struct
 
     let location stri = stri.pstr_loc
 
-    (* The attributes are only set in [ast_mapper], so dropping them here is
-       fine, as there won't be any to set *)
-    let wrap_desc ?loc ~attrs:_ = Ast_helper.Str.mk ?loc
+    (* The attributes are only set in [ast_mapper], so requiring them to be
+       empty here is fine, as there won't be any to set in that case. *)
+    let wrap_desc ?loc ~attrs =
+      match attrs with
+      | [] -> Ast_helper.Str.mk ?loc
+      | _ :: _ ->
+          Misc.fatal_errorf
+            "Jane syntax: Cannot put attributes on a structure item"
 
     let make_extension_node = Ast_helper.Str.extension
 

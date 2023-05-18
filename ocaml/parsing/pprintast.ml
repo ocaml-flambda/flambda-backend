@@ -1101,7 +1101,6 @@ and class_expr ctxt f x =
           (override o.popen_override) longident_loc o.popen_expr
           (class_expr ctxt) e
 
-(* When we upstream [include functor], we can re-inline this *)
 and include_ : 'a. ctxt -> formatter ->
                    functor_:bool ->
                    contents:(ctxt -> formatter -> 'a -> unit) ->
