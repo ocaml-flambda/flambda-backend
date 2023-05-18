@@ -26,19 +26,6 @@ let fail_if_probe apply =
        always be direct applications of an OCaml function:@ %a"
       Apply.print apply
 
-let warn_not_inlined_if_needed apply reason =
-  match Apply.inlined apply with
-  | Hint_inlined | Never_inlined | Default_inlined -> ()
-  | Always_inlined | Unroll _ ->
-    let dbg = Apply.dbg apply in
-    let reason =
-      Format.asprintf "%s@ (the full inlining stack was:@ %a)" reason
-        Debuginfo.print_compact dbg
-    in
-    Location.prerr_warning
-      (Debuginfo.to_location dbg)
-      (Warnings.Inlining_impossible reason)
-
 let record_free_names_of_apply_as_used0 apply ~use_id ~exn_cont_use_id data_flow
     =
   let data_flow =
@@ -181,6 +168,10 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
   in
   after_rebuild expr uacc
 
+type inlining_decision =
+  | Do_not_inline of { erase_attribute : bool }
+  | Inline of DA.t * Expr.t
+
 let simplify_direct_full_application ~simplify_expr dacc apply function_type
     ~params_arity ~result_arity ~(result_types : _ Or_unknown_or_bottom.t)
     ~down_to_up ~coming_from_indirect ~callee's_code_metadata =
@@ -203,35 +194,28 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
         ~are_rebuilding_terms:(DA.are_rebuilding_terms dacc)
         ~apply decision;
     match Call_site_inlining_decision_type.can_inline decision with
-    | Do_not_inline { warn_if_attribute_ignored; because_of_definition } ->
-      (* emission of the warning at this point should not happen, if it does,
-         then that means that {Inlining_decision.make_decision_for_call_site}
-         did not honour the attributes on the call site *)
-      if warn_if_attribute_ignored
-         && Are_rebuilding_terms.are_rebuilding (DA.are_rebuilding_terms dacc)
-      then
-        if because_of_definition
-        then
-          warn_not_inlined_if_needed apply
-            "[@inlined] attribute was not used on this function application \
-             (the optimizer decided not to inline the function given its \
-             definition)"
-        else
-          (* XXX talk to Pierre O. about message *)
-          warn_not_inlined_if_needed apply
-            "[@inlined] attribute was not used on this function \
-             application{Do_not_inline}";
-      None
+    | Do_not_inline { erase_attribute_if_ignored } ->
+      Do_not_inline { erase_attribute = erase_attribute_if_ignored }
     | Inline { unroll_to; was_inline_always } ->
       let dacc, inlined =
         Inlining_transforms.inline dacc ~apply ~unroll_to ~was_inline_always
           function_type
       in
-      Some (dacc, inlined)
+      Inline (dacc, inlined)
   in
   match inlined with
-  | Some (dacc, inlined) -> simplify_expr dacc inlined ~down_to_up
-  | None -> (
+  | Inline (dacc, inlined) -> simplify_expr dacc inlined ~down_to_up
+  | Do_not_inline { erase_attribute } -> (
+    let apply =
+      let inlined : Inlined_attribute.t =
+        if erase_attribute
+        then Default_inlined
+        else
+          Inlined_attribute.with_use_info (Apply.inlined apply)
+            Unused_because_of_call_site_decision
+      in
+      Apply.with_inlined_attribute apply inlined
+    in
     match loopify_decision_for_call dacc apply with
     | Loopify self_cont ->
       simplify_self_tail_call dacc apply self_cont ~down_to_up
@@ -366,7 +350,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     | Return continuation -> continuation
   in
   (match Apply.inlined apply with
-  | Always_inlined | Never_inlined ->
+  | Always_inlined _ | Never_inlined ->
     Location.prerr_warning
       (Debuginfo.to_location dbg)
       (Warnings.Inlining_impossible
@@ -694,7 +678,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
     ~current_region function_decl ~down_to_up =
   (match Apply.probe_name apply, Apply.inlined apply with
   | None, _ | Some _, Never_inlined -> ()
-  | Some _, (Hint_inlined | Unroll _ | Default_inlined | Always_inlined) ->
+  | Some _, (Hint_inlined | Unroll _ | Default_inlined | Always_inlined _) ->
     Misc.fatal_errorf
       "[Apply] terms with a [probe_name] (i.e. that call a tracing probe) must \
        always be marked as [Never_inline]:@ %a"
@@ -807,6 +791,11 @@ let rebuild_function_call_where_callee's_type_unavailable apply call_kind
     Apply.with_call_kind apply call_kind
     |> Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
   in
+  let apply =
+    Apply.with_inlined_attribute apply
+      (Inlined_attribute.with_use_info (Apply.inlined apply)
+         Unused_because_function_unknown)
+  in
   let uacc, expr =
     EB.rewrite_fixed_arity_apply uacc ~use_id (Apply.return_arity apply) apply
   in
@@ -892,11 +881,6 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
     | Indirect_unknown_arity -> is_function_decl_tupled
   in
   let type_unavailable () =
-    if Are_rebuilding_terms.are_rebuilding (DA.are_rebuilding_terms dacc)
-    then
-      warn_not_inlined_if_needed apply
-        "[@inlined] attribute was not used on this function application (the \
-         optimizer did not know what function was being applied)";
     simplify_function_call_where_callee's_type_unavailable dacc apply call
       ~apply_alloc_mode ~down_to_up
   in

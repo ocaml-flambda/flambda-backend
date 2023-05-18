@@ -100,10 +100,7 @@ let [@ocamlformat "disable"] print ppf t =
       threshold
 
 type can_inline =
-  | Do_not_inline of
-      { warn_if_attribute_ignored : bool;
-        because_of_definition : bool
-      }
+  | Do_not_inline of { erase_attribute_if_ignored : bool }
   | Inline of
       { unroll_to : int option;
         was_inline_always : bool
@@ -115,17 +112,14 @@ let can_inline (t : t) : can_inline =
   | Recursion_depth_exceeded | Speculatively_not_inline _
   | Definition_says_not_to_inline | Argument_types_not_useful ->
     (* If there's an [@inlined] attribute on this, something's gone wrong *)
-    Do_not_inline
-      { warn_if_attribute_ignored = true; because_of_definition = true }
+    Do_not_inline { erase_attribute_if_ignored = false }
   | Never_inlined_attribute ->
     (* If there's an [@inlined] attribute on this, something's gone wrong *)
-    Do_not_inline
-      { warn_if_attribute_ignored = true; because_of_definition = true }
+    Do_not_inline { erase_attribute_if_ignored = false }
   | Unrolling_depth_exceeded ->
     (* If there's an [@unrolled] attribute on this, then we'll ignore the
        attribute when we stop unrolling, which is fine *)
-    Do_not_inline
-      { warn_if_attribute_ignored = false; because_of_definition = true }
+    Do_not_inline { erase_attribute_if_ignored = true }
   | Attribute_unroll unroll_to ->
     Inline { unroll_to = Some unroll_to; was_inline_always = false }
   | Definition_says_inline { was_inline_always } ->
