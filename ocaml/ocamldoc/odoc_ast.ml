@@ -1037,13 +1037,13 @@ module Analyser =
                 [] -> pos_limit
               | item2 :: _ -> item2.Parsetree.pstr_loc.Location.loc_start.Lexing.pos_cnum
             in
-            let (maybe_more, new_env, elements) = analyse_structure_item
+            let (maybe_more, new_env, elements) = analyse_structure_item_nondesc
                 env
                 current_module_name
                 item.Parsetree.pstr_loc
                 pos_limit2
                 comment_opt
-                item.Parsetree.pstr_desc
+                item
                 typedtree
                 table
                 table_values
@@ -1051,6 +1051,27 @@ module Analyser =
             ele_comments @ elements @ (iter new_env (item.Parsetree.pstr_loc.Location.loc_end.Lexing.pos_cnum + maybe_more) q)
       in
       iter env last_pos parsetree
+
+   and analyse_structure_item_include ~env ~comment_opt _incl =
+     (* we add a dummy included module which will be replaced by a correct
+        one at the end of the module analysis,
+        to use the Path.t of the included modules in the typdtree. *)
+     let im =
+       {
+         im_name = "dummy" ;
+         im_module = None ;
+         im_info = comment_opt ;
+       }
+     in
+     (0, env, [ Element_included_module im ]) (* FIXME: extend the environment? With what? *)
+
+   and analyse_structure_item_jst env _current_module_name _loc _pos_limit comment_opt jstritem _typedtree
+        _table _table_values =
+     match (jstritem : Jane_syntax.Structure_item.t) with
+      | Jstr_include_functor ifincl -> begin match ifincl with
+          | Ifstr_include_functor incl ->
+              analyse_structure_item_include ~env ~comment_opt incl
+        end
 
    (** Analysis of a parse tree structure item to obtain a new environment and a list of elements.*)
    and analyse_structure_item env current_module_name loc pos_limit comment_opt parsetree_item_desc _typedtree
@@ -1653,18 +1674,22 @@ module Analyser =
           in
           (0, new_env, f ~first: true loc.Location.loc_start.Lexing.pos_cnum class_type_decl_list)
 
-      | Parsetree.Pstr_include _ ->
-          (* we add a dummy included module which will be replaced by a correct
-             one at the end of the module analysis,
-             to use the Path.t of the included modules in the typdtree. *)
-          let im =
-            {
-              im_name = "dummy" ;
-              im_module = None ;
-              im_info = comment_opt ;
-            }
-          in
-          (0, env, [ Element_included_module im ]) (* FIXME: extend the environment? With what? *)
+      | Parsetree.Pstr_include incl ->
+          analyse_structure_item_include ~env ~comment_opt incl
+
+   and analyse_structure_item_nondesc env current_module_name loc pos_limit comment_opt parsetree_item _typedtree
+        table table_values =
+     match Jane_syntax.Structure_item.of_ast parsetree_item with
+     | Some jparsetree_item ->
+         analyse_structure_item_jst
+           env current_module_name loc pos_limit comment_opt
+           jparsetree_item
+           _typedtree table table_values
+     | None ->
+         analyse_structure_item
+           env current_module_name loc pos_limit comment_opt
+           parsetree_item.Parsetree.pstr_desc
+           _typedtree table table_values
 
      (** Analysis of a [Parsetree.module_expr] and a name to return a [t_module].*)
      and analyse_module env current_module_name module_name comment_opt p_module_expr tt_module_expr =
