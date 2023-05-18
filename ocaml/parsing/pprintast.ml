@@ -1108,8 +1108,8 @@ and include_ : 'a. ctxt -> formatter ->
                    'a include_infos ->
                    unit =
   fun ctxt f ~functor_ ~contents incl ->
-    pp f "@[<hov2>include%a@ %a@]%a"
-      (if functor_ then fun f () -> pp f "@ functor" else fun _ () -> ()) ()
+    pp f "@[<hov2>include%t@ %a@]%a"
+      (if functor_ then fun f -> pp f "@ functor" else fun _ -> ())
       (contents ctxt) incl.pincl_mod
       (item_attributes ctxt) incl.pincl_attributes
 
