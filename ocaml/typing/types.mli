@@ -480,8 +480,10 @@ type type_declaration =
     type_kind: type_decl_kind;
 
     type_layout: layout;
-    (* for an abstract decl kind: this is the stored layout for the type;
-       expansion might find a type with a more precise layout.
+    (* for an abstract decl kind or for [@@unboxed] types: this is the stored
+       layout for the type; expansion might find a type with a more precise
+       layout. See PR#10017 for motivating examples where subsitution or
+       instantiation may refine the immediacy of a type.
 
        for other decl kinds: this is a cached layout, computed from the
        decl kind. EXCEPTION: if a type's layout is refined by a gadt equation,
@@ -506,16 +508,10 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract   (* layout is stored in the type_declaration *)
+    Type_abstract
   | Type_record of 'lbl list  * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
-(* In the case of abbreviations (declarations whose kind is [Type_abstract] and
-   which have a manifest), the [type_layout] field of [type_declaration] is a
-   conservative approximation (it may be e.g. [value] when the type is actually
-   [immediate]).  It is therefore necessary to check the manifest.  See PR#10017
-   for motivating examples where subsitution or instantiation may refine the
-   immediacy of a type.  *)
 
 (* CR layouts: after removing the void translation from lambda, we could get rid of
    this src_index / runtime_tag distinction.  But I am leaving it in because it

@@ -531,6 +531,79 @@ let verify_unboxed_attr unboxed_attr sdecl =
       end
   end
 
+(* Note [Default layouts in transl_declaration]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   For every type declaration we create in transl_declaration, we must
+   choose the layout to use in the [type_layout] field.
+
+   1. If there is a layout annotation, use that. We might later compute
+      a more precise layout for the type (e.g. [type t : value = int] or
+      [type t : value = A | B | C]); this will be updated in
+      [update_decl_layout], which also ensures that the updated layout is
+      a sublayout of the annotated layout.
+
+   2. If there is no annotation but there is a manifest, use the layout
+      of the manifest.
+
+   3. If there is no annotation and no manifest, the default layout
+      depends on the kind:
+
+      - Abstract types: In this case, we have a fully abstract type declaration,
+        like [type t]. We wish to default these to have layout [value] for
+        backward compatibility.
+
+      - [@@unboxed] records and variants: We use [any] as the default.
+        This default gets updated in [update_decl_layout], when we can
+        safely look up the layout of the field. Recursive uses
+        of the unboxed type are OK, because [update_decl_layout] uses
+        [Ctype.type_layout], which looks through unboxed types (and thus
+        the choice of [any] is not observed on recursive occurrences).
+
+      - Other records and variants: The layout of these depends on the layouts
+        of their fields: an enumeration variant is an [immediate], and someday
+        (* CR layouts v5: today is the someday! *) we will allow records
+        comprising only [void]s, which will also be [immediate].
+
+        So we choose a default of [value], which gets updated in
+        [update_decl_layout]. This default choice does get used when updating
+        the layouts of other types that (recursively) mention the current type,
+        but that's OK: the update in [update_decl_layout] can only change a
+        [value] to become [immediate], and yet that change can never affect
+        the decision of whether an outer record/variant is a [value] or
+        [immediate] (only choices of [void] can do that).
+
+        (Again, any unboxed records/variants are looked through by
+        [type_layout], so a void one of those is OK.)
+
+        It is tempting to use [any] as the default here, but that causes
+        trouble around recursive occurrences in [update_decl_layout].
+
+      - Extensible variants: These really are [value]s, so we just use
+        that as the default.
+
+   There is a notable flaw in this plan, as we see in this example:
+
+   {[
+     type t7 = A | B | C | D of t7_void
+     and t7_2 = { x : t7 } [@@unboxed]
+     and t7_void [@@void]
+
+     type t7_3 = t7_2 [@@immediate]
+   ]}
+
+   The proper layout of [t7] is [immediate], but that's hard to know. Because
+   [t7] has no layout annotation and no manifest, it gets a default layout
+   of [value]. [t7_2] gets a default of [any]. We update [t7]'s layout to be
+   [immediate] in [update_decl_layout]. But when updating [t7_2]'s layout, we
+   use the *original, default* layout for [t7]: [value]. This means that the
+   layout recorded for [t7_2] is actually [value]. The program above is still
+   accepted, because the layout check in [check_coherence] uses [type_layout],
+   which looks through unboxed types. So it's all OK for users, but it's
+   unfortunate that the stored layout on [t7_2] is imprecise.
+
+   (* CR layouts: improve this *)
+*)
+
 let transl_declaration env sdecl (id, uid) =
   (* Bind type parameters *)
   TyVarEnv.reset ();
@@ -567,20 +640,9 @@ let transl_declaration env sdecl (id, uid) =
       let cty = transl_simple_type env ~closed:no_row Global sty in
       Some cty, Some cty.ctyp_type
   in
-  (* layout_default is the layout to use when there is no annotation
-     and no manifest; all layouts except for abstract types with no
-     manifest are updated in [update_decl_layout]. Even though we will
-     do this update, we still choose to default layouts to [value]:
-     the layout we produce here is what's used to compute the layouts
-     of the other types in the mutually recursive group. If we specify
-     [any] here, that computation fails.
-
-     Key correctness criterion of this default-to-value plan: knowing that
-     a type is a sublayout of value never matters. That is, if we have
-     type t = ... s ... and s = ... t ..., then knowing that t has some
-     sublayout of value (say, immediate) can never effect the layout of s
-     (and vice versa). This is true today, because only a void layout matters
-     (because constructors with all void arguments are considered constant).
+  (* layout_default is the layout to use for now as the type_layout when there
+     is no annotation and no manifest.
+     See Note [Default layouts in transl_declaration].
   *)
   let (tkind, kind, layout_default) =
     match sdecl.ptype_kind with
@@ -636,16 +698,7 @@ let transl_declaration env sdecl (id, uid) =
         let tcstrs, cstrs = List.split (List.map make_cstr scstrs) in
         let rep, layout =
           if unbox then
-            (* For @@unboxed types with layout annotations, we do the following:
-               1) Here we trust and record the layout annotation.  It may be
-                  needed for mutually defined types.
-               2) In [update_decl_layout] we compute an accurate layout from the
-                  rest of the kind (the inner part of the unboxed type),
-                  and check that the accurate layout is a sublayout of the
-                  annotation.
-               *)
-            let layout = Option.value layout_annotation ~default:Layout.any in
-            Variant_unboxed, layout
+            Variant_unboxed, Layout.any
           else
             (* We mark all arg layouts "any" here.  They are updated later,
                after the circular type checks make it safe to check layouts. *)
@@ -657,7 +710,6 @@ let transl_declaration env sdecl (id, uid) =
                    | Cstr_record _ -> [| Layout.any |])
                 (Array.of_list cstrs)
             ),
-            (* why value here? See comment above this big [match] *)
             Layout.value
         in
           Ttype_variant tcstrs, Type_variant (cstrs, rep), layout
@@ -665,14 +717,10 @@ let transl_declaration env sdecl (id, uid) =
           let lbls, lbls' = transl_labels env None true lbls in
           let rep, layout =
             if unbox then
-              (* This is improved in [update_decl_layout] - see the comment
-                 on the Variant_unboxed case above.*)
-              let layout = Option.value layout_annotation ~default:Layout.any in
-              Record_unboxed, layout
+              Record_unboxed, Layout.any
             else (if List.for_all (fun l -> is_float env l.Types.ld_type) lbls'
             then Record_float
             else Record_boxed (Array.make (List.length lbls) Layout.any)),
-                 (* why value here? See comment above this big [match] *)
                  Layout.value
           in
           Ttype_record lbls, Type_record(lbls', rep), layout
@@ -691,7 +739,7 @@ let transl_declaration env sdecl (id, uid) =
          improving it at a later point in transl_type_decl).
        - If there's no annotation and no manifest, we fill in with the
          default calculated above here. It will get updated in
-         [update_decl_layout].
+         [update_decl_layout]. See Note [Default layouts in transl_declaration].
     *)
     (* CR layouts: Is the estimation mentioned in the second bullet above
        doing anything for us?  Abstract types are updated by
@@ -1066,22 +1114,9 @@ let update_constructor_arguments_layouts env loc cd_args layouts =
    have happened, so we can fully compute layouts of types.
 
    This function is an important part
-   of correctness, as it also checks that the computed layout of a type
-   declaration is consistent (i.e. a sublayout of) any layout annotation.
-*)
-(* CR layouts v2: This isn't quite right, because recursive uses of types
-   being declared in this same blob will have the layouts on their layout
-   annotations, which may not be as good as possible. For example:
-
-   {|
-     type t_void : void
-     type t_voidish : any = t_void
-     and t_should_be_imm = { f1 : t_voidish; f2 : t_voidish }
-   |}
-
-   [update_decl_layout] will use [any] as the layout for t_voidish, inferring
-   the wrong layout for [t_should_be_imm]. And also the check_representable
-   will likely fail. Somehow this has to deal with this scenario.
+   of correctness, as it also checks that the layout computed from a kind
+   is consistent (i.e. a sublayout of) any layout annotation.
+   See Note [Default layouts in transl_declaration].
 *)
 let update_decl_layout env dpath decl =
   (* returns updated labels, updated rep, and updated layout *)
