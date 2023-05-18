@@ -347,6 +347,34 @@ module type AST = sig
   val of_ast : ast -> t option
 end
 
+module Core_type = struct
+  module M = struct
+    module AST = Jane_syntax_parsing.Core_type
+
+    type t = |
+
+    let of_ast_internal (feat : Feature.t) _typ = match feat with
+      | _ -> None
+  end
+
+  include M
+  include Make_of_ast(M)
+end
+
+module Constructor_argument = struct
+  module M = struct
+    module AST = Jane_syntax_parsing.Core_type
+
+    type t = |
+
+    let of_ast_internal (feat : Feature.t) _carg = match feat with
+      | _ -> None
+  end
+
+  include M
+  include Make_of_ast(M)
+end
+
 module Expression = struct
   module M = struct
     module AST = Jane_syntax_parsing.Expression
