@@ -534,16 +534,21 @@ let verify_unboxed_attr unboxed_attr sdecl =
 (* Note [Default layouts in transl_declaration]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    For every type declaration we create in transl_declaration, we must
-   choose the layout to use in the [type_layout] field.
+   choose the layout to use in the [type_layout] field. Note that choices
+   2 and 3 below consult the layouts of other types. In the case that these
+   types are declared in the same mutually recursive group, those layouts
+   will be approximations; see the comments on [enter_type].
 
-   1. If there is a layout annotation, use that. We might later compute
-      a more precise layout for the type (e.g. [type t : value = int] or
-      [type t : value = A | B | C]); this will be updated in
-      [update_decl_layout], which also ensures that the updated layout is
-      a sublayout of the annotated layout.
+   1. If there is a layout annotation, use that. We might later compute a more
+      precise layout for the type (e.g. [type t : value = int] or [type t :
+      value = A | B | C]); this will be updated in [update_decl_layout] (updates
+      from the kind) or [check_coherence] (updates from the manifest), which
+      also ensures that the updated layout is a sublayout of the annotated
+      layout.
 
    2. If there is no annotation but there is a manifest, use the layout
-      of the manifest.
+      of the manifest. This gets improved in [check_coherence], after
+      the manifest layout might be more accurate.
 
    3. If there is no annotation and no manifest, the default layout
       depends on the kind:
@@ -581,7 +586,8 @@ let verify_unboxed_attr unboxed_attr sdecl =
       - Extensible variants: These really are [value]s, so we just use
         that as the default.
 
-   There is a notable flaw in this plan, as we see in this example:
+   The layouts in type declarations are always just upper bounds, as
+   we see in this example:
 
    {[
      type t7 = A | B | C | D of t7_void
@@ -601,7 +607,7 @@ let verify_unboxed_attr unboxed_attr sdecl =
    which looks through unboxed types. So it's all OK for users, but it's
    unfortunate that the stored layout on [t7_2] is imprecise.
 
-   (* CR layouts: improve this *)
+   (* CR layouts: see if we can do better here. *)
 *)
 
 let transl_declaration env sdecl (id, uid) =
