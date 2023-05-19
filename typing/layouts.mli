@@ -227,6 +227,10 @@ module Layout : sig
     default:t -> Parsetree.attributes ->
     (t, Location.t * const) result
 
+  (** Choose an appropriate layout for a boxed record type, given whether
+      all of its fields are [void]. *)
+  val for_boxed_record : all_void:bool -> t
+
   (******************************)
   (* elimination *)
 

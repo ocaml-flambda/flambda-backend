@@ -171,8 +171,8 @@ let rec expr_size env = function
   | Uprim (Pduprecord ((Record_boxed _ | Record_inlined (_, Variant_boxed _)),
                        sz), _, _) ->
       RHS_block (Lambda.alloc_heap, sz)
-  | Uprim (Pduprecord ((Record_unboxed _
-                       | Record_inlined (_, Variant_unboxed _)),
+  | Uprim (Pduprecord ((Record_unboxed
+                       | Record_inlined (_, Variant_unboxed)),
                        _), _, _) ->
       assert false
   | Uprim (Pduprecord (Record_inlined (_, Variant_extensible), sz), _, _) ->

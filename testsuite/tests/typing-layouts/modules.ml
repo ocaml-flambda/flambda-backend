@@ -128,7 +128,7 @@ end;;
 Line 2, characters 2-31:
 2 |   type t = Bar3.t [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This type has layout value, which is not a sublayout of immediate.
+Error: Type Bar3.t has layout value, which is not a sublayout of immediate.
 |}];;
 
 module rec Foo3 : sig
@@ -174,7 +174,7 @@ module type S3_2 = sig type t [@@immediate] end
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
-Error: This type has layout value, which is not a sublayout of immediate.
+Error: Type string has layout value, which is not a sublayout of immediate.
 |}]
 
 (*****************************************)

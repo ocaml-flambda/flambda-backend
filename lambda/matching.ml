@@ -1801,7 +1801,7 @@ let get_expr_args_constr ~scopes head (arg, _mut, layout) rem =
     match cstr.cstr_repr with
     | Variant_boxed _ ->
         make_field_accesses Alias 0 (cstr.cstr_arity - 1) rem
-    | Variant_unboxed _ -> (arg, Alias, layout) :: rem
+    | Variant_unboxed -> (arg, Alias, layout) :: rem
     | Variant_extensible -> make_field_accesses Alias 1 cstr.cstr_arity rem
 
 let divide_constructor ~scopes ctx pm =
@@ -2118,8 +2118,8 @@ let get_expr_args_record ~scopes head (arg, _mut, layout) rem =
         | Record_boxed _
         | Record_inlined (_, Variant_boxed _) ->
             Lprim (Pfield (lbl.lbl_pos, sem), [ arg ], loc), layout_field
-        | Record_unboxed _
-        | Record_inlined (_, Variant_unboxed _) -> arg, layout
+        | Record_unboxed
+        | Record_inlined (_, Variant_unboxed) -> arg, layout
         | Record_float ->
            (* TODO: could optimise to Alloc_local sometimes *)
            Lprim (Pfloatfield (lbl.lbl_pos, sem, alloc_heap), [ arg ], loc),
@@ -2831,7 +2831,7 @@ let split_cases tag_lambda_list =
     | ({cstr_tag; cstr_repr; cstr_constant}, act) :: rem -> (
         let consts, nonconsts = split_rec rem in
         match cstr_tag, cstr_repr with
-        | Ordinary _, Variant_unboxed _ -> (consts, (0, act) :: nonconsts)
+        | Ordinary _, Variant_unboxed -> (consts, (0, act) :: nonconsts)
         | Ordinary {runtime_tag}, Variant_boxed _ when cstr_constant ->
           ((runtime_tag, act) :: consts, nonconsts)
         | Ordinary {runtime_tag}, Variant_boxed _ ->

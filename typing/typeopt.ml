@@ -119,7 +119,7 @@ let classify env ty : classification =
       else begin
         try
           match (Env.find_type p env).type_kind with
-          | Type_abstract _ ->
+          | Type_abstract ->
               Any
           | Type_record _ | Type_variant _ | Type_open ->
               Addr
@@ -289,21 +289,21 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
     num_nodes_visited, Parrayval (array_type_kind env ty)
   | Tconstr(p, _, _) -> begin
     try
-      let kind = (Env.find_type p env).type_kind in
+      let decl = Env.find_type p env in
       if cannot_proceed () then
         num_nodes_visited,
-        value_kind_of_value_layout (layout_bound_of_kind kind)
+        value_kind_of_value_layout decl.type_layout
       else
         let visited = Numbers.Int.Set.add (get_id ty) visited in
-        match kind with
+        match decl.type_kind with
         | Type_variant (cstrs, rep) ->
           value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited cstrs rep
         | Type_record (labels, rep) ->
           let depth = depth + 1 in
           value_kind_record env ~loc ~visited ~depth ~num_nodes_visited labels rep
-        | Type_abstract {layout} ->
+        | Type_abstract ->
           num_nodes_visited,
-          value_kind_of_value_layout layout
+          value_kind_of_value_layout decl.type_layout
         | Type_open -> num_nodes_visited, Pgenval
     with Not_found -> num_nodes_visited, Pgenval
     (* CR layouts v1.5: stop allowing missing cmis. *)
@@ -337,7 +337,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
       (cstrs : Types.constructor_declaration list) rep =
   match rep with
   | Variant_extensible -> assert false
-  | Variant_unboxed _ -> begin
+  | Variant_unboxed -> begin
       (* CR layouts v1.5: This should only be reachable in the case of a missing
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
          needed when we deal with missing cmis. *)
@@ -427,7 +427,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
 and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
       (labels : Types.label_declaration list) rep =
   match rep with
-  | (Record_unboxed _ | (Record_inlined (_,Variant_unboxed _))) -> begin
+  | (Record_unboxed | (Record_inlined (_,Variant_unboxed))) -> begin
       (* CR layouts v1.5: This should only be reachable in the case of a missing
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
          needed when we deal with missing cmis. *)
@@ -473,7 +473,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
             [0, fields]
           | Record_inlined (Extension _, _) ->
             [0, fields]
-          | Record_unboxed _ -> assert false
+          | Record_unboxed -> assert false
         in
         (num_nodes_visited, Pvariant { consts = []; non_consts })
     end
