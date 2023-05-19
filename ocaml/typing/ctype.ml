@@ -379,7 +379,7 @@ let in_pervasives p =
 let is_datatype decl=
   match decl.type_kind with
     Type_record _ | Type_variant _ | Type_open -> true
-  | Type_abstract _ -> false
+  | Type_abstract -> false
 
 
                   (**********************************************)
@@ -613,7 +613,7 @@ let closed_type_decl decl =
   try
     List.iter mark_type decl.type_params;
     begin match decl.type_kind with
-      Type_abstract _ ->
+      Type_abstract ->
         ()
     | Type_variant (v, _rep) ->
         List.iter
@@ -1289,7 +1289,8 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope layout =
   {
     type_params = [];
     type_arity = 0;
-    type_kind = Type_abstract {layout};
+    type_kind = Type_abstract;
+    type_layout = layout;
     type_private = Public;
     type_manifest = manifest;
     type_variance = [];
@@ -1357,7 +1358,7 @@ let instance_parameterized_type_2 sch_args sch_lst sch =
 
 (* [map_kind f kind] maps [f] over all the types in [kind]. [f] must preserve layouts *)
 let map_kind f = function
-  | (Type_abstract _ | Type_open) as k -> k
+  | (Type_abstract | Type_open) as k -> k
   | Type_variant (cl, rep) ->
       Type_variant (
         List.map
@@ -1938,10 +1939,11 @@ let rec estimate_type_layout env ty =
   let open Layout in
   match get_desc ty with
   | Tconstr(p, _, _) -> begin
-      match Env.find_type p env with
-      | { type_kind = k } -> Layout (layout_bound_of_kind k)
-      | exception Not_found -> Layout (missing_cmi_any p)
-    end
+    try
+      Layout (Env.find_type p env).type_layout
+    with
+      Not_found -> Layout (missing_cmi_any p)
+  end
   | Tvariant row ->
       if tvariant_not_immediate row
       then Layout value
@@ -1991,10 +1993,8 @@ let rec constrain_type_layout ~reason ~fixed env ty layout fuel =
   match get_desc ty with
   | Tconstr(p, _args, _abbrev) -> begin
       let layout_bound =
-        begin match Env.find_type p env with
-        | { type_kind = k; _ } -> layout_bound_of_kind k
-        | exception Not_found -> Layout.missing_cmi_any p
-        end
+        try (Env.find_type p env).type_layout
+        with Not_found -> Layout.missing_cmi_any p
       in
       match Layout.sub layout_bound layout with
       | Ok () as ok -> ok
@@ -2025,7 +2025,7 @@ let constrain_type_layout ~reason env ty layout =
   constrain_type_layout ~reason ~fixed:false env ty layout 100
 
 let check_decl_layout ~reason env decl layout =
-  match Layout.sub (layout_bound_of_kind decl.type_kind) layout with
+  match Layout.sub decl.type_layout layout with
   | Ok () as ok -> ok
   | Error _ as err ->
       match decl.type_manifest with
@@ -2137,7 +2137,7 @@ let generic_abbrev env path =
 let generic_private_abbrev env path =
   try
     match Env.find_type path env with
-      {type_kind = Type_abstract _;
+      {type_kind = Type_abstract;
        type_private = Private;
        type_manifest = Some body} ->
          get_level body = generic_level
@@ -2803,9 +2803,9 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
           mcomp_variant_description type_pairs env v1 v2
       | Type_open, Type_open ->
           mcomp_list type_pairs env tl1 tl2
-      | Type_abstract _, Type_abstract _ -> ()
-      | Type_abstract _, _ when not (non_aliasable p1 decl)-> ()
-      | _, Type_abstract _ when not (non_aliasable p2 decl') -> ()
+      | Type_abstract, Type_abstract -> ()
+      | Type_abstract, _ when not (non_aliasable p1 decl)-> ()
+      | _, Type_abstract when not (non_aliasable p2 decl') -> ()
       | _ -> raise Incompatible
   with Not_found -> ()
 
@@ -2892,9 +2892,7 @@ let layout_of_abstract_type_declaration env p =
        which guards the case of unify3 that reaches this function.  Would be
        nice to eliminate the duplication, but is seems tricky to do so without
        complicating unify3. *)
-    match (Env.find_type p env).type_kind with
-    | Type_abstract {layout} -> layout
-    | _ -> assert false
+    (Env.find_type p env).type_layout
   with
     Not_found -> assert false
 
@@ -2902,8 +2900,7 @@ let add_layout_equation ~reason env destination layout1 =
   (* Here we check whether the source and destination layouts intersect.  If
      they don't, we can give a type error.  If they do, and destination is
      abstract, we can improve type checking by assigning destination that
-     layout.  If destination is not abstract, we can't locally improve its
-     layout, so we're slightly incomplete.  *)
+     layout. *)
   match intersect_type_layout ~reason !env destination layout1 with
   | Error err -> raise_for Unify (Bad_layout (destination,err))
   | Ok layout -> begin
@@ -2912,12 +2909,10 @@ let add_layout_equation ~reason env destination layout1 =
         begin
           try
             let decl = Env.find_type p !env in
-            match decl.type_kind with
-            | Type_abstract {layout=layout'} when
-                not (Layout.equal layout layout') ->
-              let decl = {decl with type_kind = Type_abstract {layout}} in
-              env := Env.add_local_type p decl !env
-            | (Type_record _ | Type_variant _ | Type_open | Type_abstract _) -> ()
+            if not (Layout.equal layout decl.type_layout)
+            then
+              let refined_decl = { decl with type_layout = layout } in
+              env := Env.add_local_type p refined_decl !env
           with
             Not_found -> ()
         end
@@ -3002,7 +2997,7 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
     | (n, _) :: nl, _ ->
         let lid = concat_longident (Longident.Lident "Pkg") n in
         match Env.find_type_by_name lid env' with
-        | (_, {type_arity = 0; type_kind = Type_abstract _;
+        | (_, {type_arity = 0; type_kind = Type_abstract;
                type_private = Public; type_manifest = Some t2}) ->
             begin match nondep_instance env' lv2 id2 t2 with
             | t -> (n, t) :: complete nl fl2
@@ -3012,7 +3007,7 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
                 else
                   raise Exit
             end
-        | (_, {type_arity = 0; type_kind = Type_abstract _;
+        | (_, {type_arity = 0; type_kind = Type_abstract;
                type_private = Public; type_manifest = None})
           when allow_absent ->
             complete nl fl2
@@ -5956,9 +5951,7 @@ let nondep_type_decl env mid is_covariant decl =
     let params = List.map (nondep_type_rec env mid) decl.type_params in
     let tk =
       try map_kind (nondep_type_rec env mid) decl.type_kind
-      with Nondep_cannot_erase _ when is_covariant ->
-        Types.kind_abstract
-          ~layout:(layout_bound_of_kind decl.type_kind)
+      with Nondep_cannot_erase _ when is_covariant -> Type_abstract
     and tm, priv =
       match decl.type_manifest with
       | None -> None, decl.type_private
@@ -5980,6 +5973,7 @@ let nondep_type_decl env mid is_covariant decl =
     { type_params = params;
       type_arity = decl.type_arity;
       type_kind = tk;
+      type_layout = decl.type_layout;
       type_manifest = tm;
       type_private = priv;
       type_variance = decl.type_variance;

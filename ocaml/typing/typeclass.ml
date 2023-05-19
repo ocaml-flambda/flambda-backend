@@ -1510,7 +1510,8 @@ let temp_abbrev loc env id arity uid =
     Env.add_type ~check:true id
       {type_params = !params;
        type_arity = arity;
-       type_kind = Types.kind_abstract_value;
+       type_kind = Type_abstract;
+       type_layout = Layout.value;
        type_private = Public;
        type_manifest = Some ty;
        type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1744,7 +1745,8 @@ let class_infos define_class kind
     {
      type_params = obj_params;
      type_arity = arity;
-     type_kind = Types.kind_abstract_value;
+     type_kind = Type_abstract;
+     type_layout = Layout.value;
      type_private = Public;
      type_manifest = Some obj_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1766,7 +1768,8 @@ let class_infos define_class kind
     {
      type_params = cl_params;
      type_arity = arity;
-     type_kind = Types.kind_abstract_value;
+     type_kind = Type_abstract;
+     type_layout = Layout.value;
      type_private = Public;
      type_manifest = Some cl_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;

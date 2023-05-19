@@ -341,7 +341,7 @@ let type_declaration' copy_scope s decl =
     type_arity = decl.type_arity;
     type_kind =
       begin match decl.type_kind with
-        Type_abstract imm -> Type_abstract imm
+        Type_abstract -> Type_abstract
       | Type_variant (cstrs, rep) ->
           Type_variant (List.map (constructor_declaration copy_scope s) cstrs,
                         rep)
@@ -355,6 +355,7 @@ let type_declaration' copy_scope s decl =
           None -> None
         | Some ty -> Some(typexp copy_scope s ty)
       end;
+    type_layout = decl.type_layout;
     type_private = decl.type_private;
     type_variance = decl.type_variance;
     type_separability = decl.type_separability;

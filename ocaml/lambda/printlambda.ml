@@ -179,7 +179,7 @@ let print_bigarray name unsafe kind ppf layout =
      | Pbigarray_fortran_layout -> "Fortran")
 
 let record_rep ppf r = match r with
-  | Record_unboxed _ -> fprintf ppf "unboxed"
+  | Record_unboxed -> fprintf ppf "unboxed"
   | Record_boxed _ -> fprintf ppf "boxed"
   | Record_inlined _ -> fprintf ppf "inlined"
   | Record_float -> fprintf ppf "float"

@@ -63,7 +63,8 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
-  | Layout of Layout.Violation.violation
+  | Layout_coherence_check of type_expr * Layout.Violation.violation
+  | Layout_update_check of Path.t * Layout.Violation.violation
   | Layout_sort of
       { lloc : layout_sort_loc
       ; typ : type_expr
@@ -138,14 +139,15 @@ let enter_type rec_flag env sdecl (id, uid) =
 
      Consider a declaration like:
 
-        type t = foo -> int
+        type t = foo list_of_values
         and foo = Bar
 
      When [enter_type] is called, we haven't yet analyzed anything about the
      manifests and kinds of the declarations, so it's natural to give [t] and
      [foo] layout [Any].  But, while translating [t]'s manifest, we'll need to
-     know [foo] has layout [value], because it is used as a function argument.
-     And this check will occur before we've looked at [foo] at all.
+     know [foo] has layout [value], because it is used as the argument to
+     [list_of_values]. And this check will occur before we've looked at [foo] at
+     all.
 
      One can imagine solutions, like estimating the layout based on the kind
      (tricky for unboxed) or parameterizing the type_expr translation with an
@@ -182,8 +184,8 @@ let enter_type rec_flag env sdecl (id, uid) =
      If [r] were, e.g., defined to be [int list], step 3 would fail.
 
      To handle the original layout example, we piggyback off that approach - the
-     layout of the variable put in manifests here is updated when constraints are
-     checked and then unified with the real manifest and checked against the
+     layout of the variable put in manifests here is updated when constraints
+     are checked and then unified with the real manifest and checked against the
      kind. *)
   let layout =
     (* We set ~legacy_immediate to true because we're looking at a declaration
@@ -231,7 +233,8 @@ let enter_type rec_flag env sdecl (id, uid) =
              Btype.newgenvar layout)
           sdecl.ptype_params;
       type_arity = arity;
-      type_kind = Types.kind_abstract ~layout;
+      type_kind = Type_abstract;
+      type_layout = layout;
       type_private = sdecl.ptype_private;
       type_manifest = Some (Ctype.newvar layout);
       type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -528,6 +531,85 @@ let verify_unboxed_attr unboxed_attr sdecl =
       end
   end
 
+(* Note [Default layouts in transl_declaration]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   For every type declaration we create in transl_declaration, we must
+   choose the layout to use in the [type_layout] field. Note that choices
+   2 and 3 below consult the layouts of other types. In the case that these
+   types are declared in the same mutually recursive group, those layouts
+   will be approximations; see the comments on [enter_type].
+
+   1. If there is a layout annotation, use that. We might later compute a more
+      precise layout for the type (e.g. [type t : value = int] or [type t :
+      value = A | B | C]); this will be updated in [update_decl_layout] (updates
+      from the kind) or [check_coherence] (updates from the manifest), which
+      also ensures that the updated layout is a sublayout of the annotated
+      layout.
+
+   2. If there is no annotation but there is a manifest, use the layout
+      of the manifest. This gets improved in [check_coherence], after
+      the manifest layout might be more accurate.
+
+   3. If there is no annotation and no manifest, the default layout
+      depends on the kind:
+
+      - Abstract types: In this case, we have a fully abstract type declaration,
+        like [type t]. We wish to default these to have layout [value] for
+        backward compatibility.
+
+      - [@@unboxed] records and variants: We use [any] as the default.
+        This default gets updated in [update_decl_layout], when we can
+        safely look up the layout of the field. Recursive uses
+        of the unboxed type are OK, because [update_decl_layout] uses
+        [Ctype.type_layout], which looks through unboxed types (and thus
+        the choice of [any] is not observed on recursive occurrences).
+
+      - Other records and variants: The layout of these depends on the layouts
+        of their fields: an enumeration variant is an [immediate], and someday
+        (* CR layouts v5: today is the someday! *) we will allow records
+        comprising only [void]s, which will also be [immediate].
+
+        So we choose a default of [value], which gets updated in
+        [update_decl_layout]. This default choice does get used when updating
+        the layouts of other types that (recursively) mention the current type,
+        but that's OK: the update in [update_decl_layout] can only change a
+        [value] to become [immediate], and yet that change can never affect
+        the decision of whether an outer record/variant is a [value] or
+        [immediate] (only choices of [void] can do that).
+
+        (Again, any unboxed records/variants are looked through by
+        [type_layout], so a void one of those is OK.)
+
+        It is tempting to use [any] as the default here, but that causes
+        trouble around recursive occurrences in [update_decl_layout].
+
+      - Extensible variants: These really are [value]s, so we just use
+        that as the default.
+
+   The layouts in type declarations are always just upper bounds, as
+   we see in this example:
+
+   {[
+     type t7 = A | B | C | D of t7_void
+     and t7_2 = { x : t7 } [@@unboxed]
+     and t7_void [@@void]
+
+     type t7_3 = t7_2 [@@immediate]
+   ]}
+
+   The proper layout of [t7] is [immediate], but that's hard to know. Because
+   [t7] has no layout annotation and no manifest, it gets a default layout
+   of [value]. [t7_2] gets a default of [any]. We update [t7]'s layout to be
+   [immediate] in [update_decl_layout]. But when updating [t7_2]'s layout, we
+   use the *original, default* layout for [t7]: [value]. This means that the
+   layout recorded for [t7_2] is actually [value]. The program above is still
+   accepted, because the layout check in [check_coherence] uses [type_layout],
+   which looks through unboxed types. So it's all OK for users, but it's
+   unfortunate that the stored layout on [t7_2] is imprecise.
+
+   (* CR layouts: see if we can do better here. *)
+*)
+
 let transl_declaration env sdecl (id, uid) =
   (* Bind type parameters *)
   TyVarEnv.reset ();
@@ -564,36 +646,14 @@ let transl_declaration env sdecl (id, uid) =
       let cty = transl_simple_type env ~closed:no_row Global sty in
       Some cty, Some cty.ctyp_type
   in
-  let (tkind, kind) =
+  (* layout_default is the layout to use for now as the type_layout when there
+     is no annotation and no manifest.
+     See Note [Default layouts in transl_declaration].
+  *)
+  let (tkind, kind, layout_default) =
     match sdecl.ptype_kind with
       | Ptype_abstract ->
-        let layout =
-          (* - If there's an annotation, we use that. It's checked at in
-               [check_coherence] for abstract types and at the end of
-               [transl_type_decl] for others.
-             - If there's no annotation but there is a manifest, we estimate the
-               layout based on the manifest here. This upper bound saves time
-               later by avoiding expanding the manifest in layout checks, but it
-               would be sound to leave in `any`. We can't give a perfectly
-               accurate layout here because we don't have access to the
-               manifests of mutually defined types (but we could one day consider
-               improving it at a later point in transl_type_decl).
-             - If there's no annotation and no manifest, we just default to
-               value here. We could conceivably, in the future, try to learn
-               something from the uses of the type (particularly in a group of
-               mutually recursive types).  But not here in transl_declaration,
-               which can't see those.
-          *)
-          (* CR layouts: Is the estimation mentioned in the second bullet above
-             doing anything for us?  Abstract types are updated by
-             check_coherence and record/variant types are updated by
-             update_decl_layouts.  *)
-          match layout_annotation, man with
-          | Some annot, _ -> annot
-          | None, Some typ -> Ctype.estimate_type_layout env typ
-          | None, None -> Layout.value
-        in
-        Ttype_abstract, Type_abstract {layout}
+        Ttype_abstract, Type_abstract, Layout.value
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -642,22 +702,9 @@ let transl_declaration env sdecl (id, uid) =
             (fun () -> make_cstr scstr)
         in
         let tcstrs, cstrs = List.split (List.map make_cstr scstrs) in
-        let rep =
+        let rep, layout =
           if unbox then
-            (* For @@unboxed types with layout annotations, we do the following:
-               1) Here we trust and record the layout annotation.  It may be
-                  needed for mutually defined types.
-               2) In [update_decl_layout] we compute an accurate layout from the
-                  rest of the kind (the inner part of the unboxed type).  This
-                  is done without reference to the annotation and it may be
-                  unrelated.  We replace the layout here with that accurate
-                  layout.
-               3) At the end of [transl_type_decl], we check the accuracy of
-                  annotations, which will in this case be a check that the
-                  accurate layout from step 2 is a sublayout of the annotation.
-            *)
-            let layout = Option.value layout_annotation ~default:Layout.any in
-            Variant_unboxed layout
+            Variant_unboxed, Layout.any
           else
             (* We mark all arg layouts "any" here.  They are updated later,
                after the circular type checks make it safe to check layouts. *)
@@ -668,36 +715,53 @@ let transl_declaration env sdecl (id, uid) =
                    | Cstr_tuple args -> Array.make (List.length args) Layout.any
                    | Cstr_record _ -> [| Layout.any |])
                 (Array.of_list cstrs)
-            )
+            ),
+            Layout.value
         in
-          Ttype_variant tcstrs, Type_variant (cstrs, rep)
+          Ttype_variant tcstrs, Type_variant (cstrs, rep), layout
       | Ptype_record lbls ->
           let lbls, lbls' = transl_labels env None true lbls in
-          let rep =
+          let rep, layout =
             if unbox then
-              (* This is improved in [update_decl_layout] - see the comment
-                 on the Variant_unboxed case above.*)
-              let layout =
-                Option.value
-                  layout_annotation
-                  ~default:Layout.any
-              in
-              Record_unboxed layout
-            else if List.for_all (fun l -> is_float env l.Types.ld_type) lbls'
+              Record_unboxed, Layout.any
+            else (if List.for_all (fun l -> is_float env l.Types.ld_type) lbls'
             then Record_float
-            else Record_boxed
-                   (Array.make
-                      (List.length lbls)
-                      Layout.any)
+            else Record_boxed (Array.make (List.length lbls) Layout.any)),
+                 Layout.value
           in
-          Ttype_record lbls, Type_record(lbls', rep)
-      | Ptype_open -> Ttype_open, Type_open
+          Ttype_record lbls, Type_record(lbls', rep), layout
+      | Ptype_open ->
+        Ttype_open, Type_open, Layout.value
       in
+    let layout =
+    (* - If there's an annotation, we use that. It's checked against
+         a kind in [update_decl_layout] and the manifest in [check_coherence].
+       - If there's no annotation but there is a manifest, we estimate the
+         layout based on the manifest here. This upper bound saves time
+         later by avoiding expanding the manifest in layout checks, but it
+         would be sound to leave in `any`. We can't give a perfectly
+         accurate layout here because we don't have access to the
+         manifests of mutually defined types (but we could one day consider
+         improving it at a later point in transl_type_decl).
+       - If there's no annotation and no manifest, we fill in with the
+         default calculated above here. It will get updated in
+         [update_decl_layout]. See Note [Default layouts in transl_declaration].
+    *)
+    (* CR layouts: Is the estimation mentioned in the second bullet above
+       doing anything for us?  Abstract types are updated by
+       check_coherence and record/variant types are updated by
+       update_decl_layout.  *)
+      match layout_annotation, man with
+      | Some annot, _ -> annot
+      | None, Some typ -> Ctype.estimate_type_layout env typ
+      | None, None -> layout_default
+    in
     let arity = List.length params in
     let decl =
       { type_params = params;
         type_arity = arity;
         type_kind = kind;
+        type_layout = layout;
         type_private = sdecl.ptype_private;
         type_manifest = man;
         type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -801,7 +865,7 @@ let check_constraints env sdecl (_, decl) =
     (fun (sty, _) ty -> check_constraints_rec env sty.ptyp_loc visited ty)
     sdecl.ptype_params decl.type_params;
   begin match decl.type_kind with
-  | Type_abstract _ -> ()
+  | Type_abstract -> ()
   | Type_variant (l, _rep) ->
       let find_pl = function
           Ptype_variant pl -> pl
@@ -861,18 +925,14 @@ let check_constraints env sdecl (_, decl) =
    need to check that the equation refers to a type of the same kind
    with the same constructors and labels.
 
-   If the kind is [Type_abstract {layout}], we need to check that [layout]
-   (where we've stored the layout annotation, if any) corresponds to the
-   manifest (e.g., in the case where [layout] is immediate, we should check the
+   If the kind is [Type_abstract], we need to check that [type_layout] (where
+   we've stored the layout annotation, if any) corresponds to the manifest
+   (e.g., in the case where [type_layout] is immediate, we should check the
    manifest is immediate).  It would also be nice to store the best possible
    layout for this type in the kind, to avoid expansions later.  So, we do the
    relatively expensive thing of computing the best possible layout for the
-   manifest, checking that it's a sublayout of [layout], and then replacing
-   [layout] with what we computed.
-
-   CR layouts: Can the layout bits of this just be folded in with the layout
-   annotations check at the end of transl_type_decl, or are there other ways
-   to get non-trivial layouts in Type_abstract?
+   manifest, checking that it's a sublayout of [type_layout], and then replacing
+   [type_layout] with what we computed.
 
    CR layouts: if easy, factor out the shared backtracking logic from here
    and is_always_global.
@@ -911,7 +971,7 @@ let check_coherence env loc dpath decl =
           end
       | _ -> raise(Error(loc, Definition_mismatch (ty, env, None)))
       end
-  | { type_kind = Type_abstract {layout};
+  | { type_kind = Type_abstract;
       type_manifest = Some ty } ->
     let layout' =
       if !Clflags.principal || Env.has_local_constraints env then
@@ -924,9 +984,10 @@ let check_coherence env loc dpath decl =
       else
         Ctype.type_layout env ty
     in
-    begin match Layout.sub layout' layout with
-    | Ok () -> { decl with type_kind = Type_abstract {layout = layout'} }
-    | Error v -> raise (Error (loc, Layout v))
+    begin match Layout.sub layout' decl.type_layout with
+    | Ok () -> { decl with type_layout = layout' }
+    | Error v ->
+      raise (Error (loc, Layout_coherence_check (ty,v)))
     end
   | { type_manifest = None } -> decl
 
@@ -979,7 +1040,7 @@ let default_decl_layout decl =
   let default_kind = function
     (* Nothing to do in abstract case because we don't put new sort variables
        there. *)
-    | Type_abstract _ | Type_open -> ()
+    | Type_abstract | Type_open -> ()
     | Type_record (ldecls, _) -> List.iter default_ldecl ldecls
     | Type_variant (cdecls, _) -> List.iter default_cdecl cdecls
   in
@@ -1012,6 +1073,8 @@ let check_representable ~reason env loc lloc typ =
    including which fields of a record are void.  This would be hard to do during
    [transl_declaration] due to mutually recursive types.
 *)
+(* [update_label_layouts] additionally returns whether all the layouts
+   were void *)
 let update_label_layouts env loc lbls named =
   (* "named" distinguishes between top-level records (for which we need to
      update the kind with the layouts) and inlined records *)
@@ -1033,8 +1096,12 @@ let update_label_layouts env loc lbls named =
   in
   if List.for_all (fun l -> Layout.(equal void l.ld_layout)) lbls then
     raise (Error (loc, Layout_empty_record))
-  else lbls
+  else lbls, false
+(* CR layouts v5: return true for a record with all voids *)
 
+(* In addition to updated constructor arguments, returns whether
+   all arguments are void, useful for detecting enumerations that
+   can be [immediate]. *)
 let update_constructor_arguments_layouts env loc cd_args layouts =
   match cd_args with
   | Types.Cstr_tuple tys ->
@@ -1042,34 +1109,34 @@ let update_constructor_arguments_layouts env loc cd_args layouts =
       check_representable ~reason:(Constructor_declaration idx)
         env loc Cstr_tuple ty;
       layouts.(idx) <- Ctype.type_layout env ty) tys;
-    cd_args
+    cd_args, Array.for_all Layout.is_void layouts
   | Types.Cstr_record lbls ->
-    let lbls = update_label_layouts env loc lbls None in
+    let lbls, all_void = update_label_layouts env loc lbls None in
     layouts.(0) <- Layout.value;
-    Types.Cstr_record lbls
+    Types.Cstr_record lbls, all_void
 
 (* This function updates layout stored in kinds with more accurate layouts.
    It is called after the circularity checks and the delayed layout checks
    have happened, so we can fully compute layouts of types.
 
-   For @@unboxed types in particular, this function is an important part
-   of correctness.  Before this function is called, the layout recorded in
-   kinds in [Variant_unboxed] and [Record_unboxed] is just a copy of any
-   provided layout annotation, with no checking.  Here we replace it with
-   an accurate layout computed from the inner type (which is checked
-   against the annotation at the end of [transl_type_decl]).
+   This function is an important part
+   of correctness, as it also checks that the layout computed from a kind
+   is consistent (i.e. a sublayout of) any layout annotation.
+   See Note [Default layouts in transl_declaration].
 *)
-let update_decl_layout env decl =
+let update_decl_layout env dpath decl =
+  (* returns updated labels, updated rep, and updated layout *)
   let update_record_kind loc lbls rep =
     match lbls, rep with
-    | [Types.{ld_type; ld_id; ld_loc} as lbl], Record_unboxed _ ->
+    | [Types.{ld_type; ld_id; ld_loc} as lbl], Record_unboxed ->
       check_representable ~reason:(Label_declaration ld_id)
         env ld_loc Record ld_type;
       let ld_layout = Ctype.type_layout env ld_type in
-      [{lbl with ld_layout}], Record_unboxed ld_layout
+      [{lbl with ld_layout}], Record_unboxed, ld_layout
     | _, Record_boxed layouts ->
-      let lbls = update_label_layouts env loc lbls (Some layouts) in
-      lbls, rep
+      let lbls, all_void = update_label_layouts env loc lbls (Some layouts) in
+      let layout = Layout.for_boxed_record ~all_void in
+      lbls, rep, layout
     | _, Record_float ->
       (* CR layouts v2: When we have an unboxed float layout, does it make
          sense to use that here?  The use of value feels inaccurate, but I think
@@ -1077,21 +1144,22 @@ let update_decl_layout env decl =
       let lbls =
         List.map (fun lbl -> { lbl with ld_layout = Layout.value }) lbls
       in
-      lbls, rep
-    | (([] | (_ :: _)), Record_unboxed _ | _, Record_inlined _) -> assert false
+      lbls, rep, Layout.value
+    | (([] | (_ :: _)), Record_unboxed | _, Record_inlined _) -> assert false
   in
 
+  (* returns updated constructors, updated rep, and updated layout *)
   let update_variant_kind cstrs rep =
     (* CR layouts: factor out duplication *)
     match cstrs, rep with
-    | [{Types.cd_args;cd_loc} as cstr], Variant_unboxed _ -> begin
+    | [{Types.cd_args;cd_loc} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [ty,_] -> begin
             (* CR layouts: check_representable should return the sort *)
             check_representable ~reason:(Constructor_declaration 0)
               env cd_loc Cstr_tuple ty;
             let layout = Ctype.type_layout env ty in
-            cstrs, Variant_unboxed layout
+            cstrs, Variant_unboxed, layout
           end
         | Cstr_record [{ld_type; ld_id; ld_loc} as lbl] -> begin
             check_representable ~reason:(Label_declaration ld_id)
@@ -1099,38 +1167,58 @@ let update_decl_layout env decl =
             let ld_layout = Ctype.type_layout env ld_type in
             [{ cstr with Types.cd_args =
                            Cstr_record [{ lbl with ld_layout }] }],
-            Variant_unboxed ld_layout
+            Variant_unboxed, ld_layout
           end
         | (Cstr_tuple ([] | _ :: _ :: _) | Cstr_record ([] | _ :: _ :: _)) ->
           assert false
       end
     | cstrs, Variant_boxed layouts ->
-      let (_,cstrs) =
-        List.fold_left (fun (idx,cstrs) cstr ->
-          let cd_args =
+      let (_,cstrs,all_voids) =
+        List.fold_left (fun (idx,cstrs,all_voids) cstr ->
+          let cd_args, all_void =
             update_constructor_arguments_layouts env cstr.Types.cd_loc
               cstr.Types.cd_args layouts.(idx)
           in
           let cstr = { cstr with Types.cd_args } in
-          (idx+1,cstr::cstrs)
-        ) (0,[]) cstrs
+          (idx+1,cstr::cstrs,all_voids && all_void)
+        ) (0,[],true) cstrs
       in
-      List.rev cstrs, rep
-    | (([] | (_ :: _)), Variant_unboxed _ | _, Variant_extensible) ->
+      let layout =
+        if all_voids then Layout.immediate else Layout.value
+      in
+      List.rev cstrs, rep, layout
+    | (([] | (_ :: _)), Variant_unboxed | _, Variant_extensible) ->
       assert false
   in
 
-  match decl.type_kind with
-  | Type_abstract _ | Type_open -> decl
-  | Type_record (lbls, rep) ->
-    let lbls, rep = update_record_kind decl.type_loc lbls rep in
-    { decl with type_kind = Type_record (lbls, rep) }
-  | Type_variant (cstrs, rep) ->
-    let cstrs, rep = update_variant_kind cstrs rep in
-    { decl with type_kind = Type_variant (cstrs, rep) }
+  let new_decl, new_layout = match decl.type_kind with
+    | Type_abstract -> decl, decl.type_layout
+    | Type_open ->
+      let type_layout = Layout.value in
+      { decl with type_layout }, type_layout
+    | Type_record (lbls, rep) ->
+      let lbls, rep, type_layout = update_record_kind decl.type_loc lbls rep in
+      { decl with type_kind = Type_record (lbls, rep); type_layout },
+      type_layout
+    | Type_variant (cstrs, rep) ->
+      let cstrs, rep, type_layout = update_variant_kind cstrs rep in
+      { decl with type_kind = Type_variant (cstrs, rep); type_layout },
+      type_layout
+  in
+
+  (* check that the layout computed from the kind matches the layout
+     annotation, which was stored in decl.type_layout *)
+  if new_layout != decl.type_layout then
+    begin match Layout.sub new_layout decl.type_layout with
+    | Ok () -> ()
+    | Error err -> raise(Error(decl.type_loc, Layout_update_check (dpath,err)))
+    end;
+  new_decl
 
 let update_decls_layout env decls =
-  List.map (fun (id, decl) -> (id, update_decl_layout env decl)) decls
+  List.map
+    (fun (id, decl) -> (id, update_decl_layout env (Pident id) decl))
+    decls
 
 (* Check that recursion is well-founded *)
 
@@ -1311,7 +1399,7 @@ let check_duplicates sdecl_list =
 (* Force recursion to go through id for private types*)
 let name_recursion sdecl id decl =
   match decl with
-  | { type_kind = Type_abstract _;
+  | { type_kind = Type_abstract;
       type_manifest = Some ty;
       type_private = Private; } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
@@ -1502,21 +1590,6 @@ let transl_type_decl env rec_flag sdecl_list =
         { tdecl with typ_type = decl }
       ) tdecls decls
   in
-  (* Check layout annotations.  We can skip abstract types: If they have no
-     manifest there is nothing to check, and abbreviations are checked as part
-     of check_abbrev/check_coherence. *)
-  (* CR layouts: can we also skip this if the annotation is value and the type
-     isn't unboxed (or abstract)? *)
-  List.iter (fun tdecl ->
-    match tdecl.typ_layout_annotation, tdecl.typ_type.type_kind with
-    | None, _ -> ()
-    | Some _, Type_abstract _ -> ()
-    | Some layout, (Type_record _ | Type_variant _ | Type_open) ->
-      match Ctype.check_decl_layout ~reason:Dummy_reason_result_ignored
-              final_env tdecl.typ_type layout with
-      | Ok _ -> ()
-      | Error v -> raise(Error(tdecl.typ_loc, Layout v)))
-    final_decls;
   (* Done *)
   (final_decls, final_env)
 
@@ -1538,10 +1611,9 @@ let transl_extension_constructor ~scope env type_path type_params
           | Cstr_record _ -> 1
         in
         let layouts = Array.make num_args Layout.any in
-        let args =
+        let args, constant =
           update_constructor_arguments_layouts env sext.pext_loc args layouts
         in
-        let constant = Array.for_all Layout.(equal void) layouts in
           args, layouts, constant, ret_type, Text_decl(svars, targs, tret_type)
     | Pext_rebind lid ->
         let usage : Env.constructor_usage =
@@ -2012,7 +2084,6 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
      declaration [sdecl] in the outer environment [outer_env]. *)
   let env = outer_env in
   let loc = sdecl.ptype_loc in
-  (* CR aspectorzabusky: Log that it's from a constraint? *)
   let tparams = make_params env (Pident id) sdecl.ptype_params in
   let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
   let arity = List.length params in
@@ -2064,22 +2135,24 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   if arity_ok && not (decl_is_abstract sig_decl)
   && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
-  let type_kind, type_unboxed_default =
+  let type_kind, type_unboxed_default, type_layout =
     (* Here, `man = None` indicates we have a "fake" with constraint built by
        [Typetexp.create_package_mty] for a package type. *)
     if arity_ok && man <> None then
-      sig_decl.type_kind, sig_decl.type_unboxed_default
+      sig_decl.type_kind, sig_decl.type_unboxed_default, sig_decl.type_layout
     else
-      (* CR layouts: this is a gross hack.  See the comments in the
-         [Ptyp_package] case of [Typetexp.transl_type_aux]. *)
+      (* CR layouts v2: this is a gross hack.  See the comments in the
+         [Ptyp_package] case of [Typetexp.transl_type_aux].
+         This seems just wrong to RAE. *)
       let layout = Layout.value in
         (* Layout.(of_attributes ~default:value sdecl.ptype_attributes) *)
-      Types.kind_abstract ~layout, false
+      Type_abstract, false, layout
   in
   let new_sig_decl =
     { type_params = params;
       type_arity = arity;
       type_kind;
+      type_layout;
       type_private = priv;
       type_manifest = man;
       type_variance = [];
@@ -2117,6 +2190,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_params = new_sig_decl.type_params;
       type_arity = new_sig_decl.type_arity;
       type_kind = new_sig_decl.type_kind;
+      type_layout = new_sig_decl.type_layout;
       type_private = new_sig_decl.type_private;
       type_manifest = new_sig_decl.type_manifest;
       type_unboxed_default = new_sig_decl.type_unboxed_default;
@@ -2160,7 +2234,8 @@ let abstract_type_decl ~injective layout params =
   let decl =
     { type_params = params;
       type_arity = arity;
-      type_kind = Types.kind_abstract ~layout;
+      type_kind = Type_abstract;
+      type_layout = layout;
       type_private = Public;
       type_manifest = None;
       type_variance = Variance.unknown_signature ~injective ~arity;
@@ -2360,7 +2435,7 @@ let report_error ppf = function
       | Type_record (tl, _), _ ->
           explain_unbound ppf ty tl (fun l -> l.Types.ld_type)
             "field" (fun l -> Ident.name l.Types.ld_id ^ ": ")
-      | Type_abstract _, Some ty' ->
+      | Type_abstract, Some ty' ->
           explain_unbound_single ppf ty ty'
       | _ -> ()
       end;
@@ -2459,7 +2534,14 @@ let report_error ppf = function
          a direct argument or result of the primitive,@ \
          it should not occur deeply into its type.@]"
         (match kind with Unboxed -> "@unboxed" | Untagged -> "@untagged")
-  | Layout v -> Layout.Violation.report_with_name ~name:"This type" ppf v
+  | Layout_update_check (dpath,v) ->
+    (* the type is always printed just above, so print out just the head of the
+       path instead of something like [t/3] *)
+    let offender ppf = fprintf ppf "Type %s" (Ident.name (Path.head dpath)) in
+    Layout.Violation.report_with_offender ~offender ppf v
+  | Layout_coherence_check (ty,v) ->
+    let offender ppf = fprintf ppf "Type %a" Printtyp.type_expr ty in
+    Layout.Violation.report_with_offender ~offender ppf v
   | Layout_sort {lloc; typ; err} ->
     let s =
       match lloc with
