@@ -9,14 +9,17 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-type desc = { name: string; enabled_at_init: bool; }
+type desc =
+  { name : string;
+    enabled_at_init : bool
+  }
 
 type t = desc option
 
 let from_lambda : Lambda.probe -> t = function
   | None -> None
-  | Some { name: string; enabled_at_init: bool; } ->
-    Some { name; enabled_at_init; }
+  | Some { name : string; enabled_at_init : bool } ->
+    Some { name; enabled_at_init }
 
 let print ppf = function
   | None -> Format.pp_print_string ppf "()"

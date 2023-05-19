@@ -11,7 +11,10 @@
 (**************************************************************************)
 (** Annotation on function call that represents a probe. *)
 
-type desc = { name: string; enabled_at_init: bool; }
+type desc =
+  { name : string;
+    enabled_at_init : bool
+  }
 
 type t = desc option
 
