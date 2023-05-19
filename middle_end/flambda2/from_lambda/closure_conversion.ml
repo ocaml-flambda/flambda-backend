@@ -1124,11 +1124,7 @@ let close_exact_or_unknown_apply acc env
   let acc, args_with_arity = find_simples_and_arity acc env args in
   let args, args_arity = List.split args_with_arity in
   let inlined_call = Inlined_attribute.from_lambda inlined in
-  let probe_name =
-    match probe with
-    | None -> None
-    | Some { name; enabled_at_init } -> Some (name, enabled_at_init)
-  in
+  let probe_name = Probe.from_lambda probe in
   let position =
     match region_close with
     | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
@@ -2107,11 +2103,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
     in
     let inlined = Inlined_attribute.from_lambda apply.inlined in
     (* Keeping the inlining attributes matches the behaviour of simplify *)
-    let probe_name =
-      match apply.probe with
-      | None -> None
-      | Some { name; enabled_at_init } -> Some (name, enabled_at_init)
-    in
+    let probe_name = Probe.from_lambda apply.probe in
     let position =
       match apply.region_close with
       | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
