@@ -743,6 +743,9 @@ let find_or_add_semaphore name enabled_at_init dbg =
          String.Map.remove name !probe_semaphores |>
          String.Map.add name d
      | Some _, None ->
+       (*  [find_or_add_semaphore] is called with None for Iprobe_is_enabled
+           during code emission only. [find_or_add_semaphore] us called with
+           Some to emit probe notes only after all code is emitted. *)
        assert false
      | Some b, Some b' ->
        if not (Bool.equal b b') then
@@ -770,7 +773,8 @@ let emit_call_probe_handler_wrapper i ~enabled_at_init ~probe_label =
        result, instead of relying on an assembler that might choose a different
        encoding which produces an incorrect relocation and changes the meaning
        of the program. *)
-    (* Emit the required encoding of "cmp $0, %eax" directly, using .byte *)
+    (* Emit the required encoding of "cmp $0, %eax" or "call" directly,
+       using .byte *)
     if enabled_at_init then
       D.byte (Const 0xe8L)
     else
