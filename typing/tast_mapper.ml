@@ -439,8 +439,8 @@ let expr sub x =
         e
     | Texp_open (od, e) ->
         Texp_open (sub.open_declaration sub od, sub.expr sub e)
-    | Texp_probe {name; handler} ->
-      Texp_probe {name; handler = sub.expr sub handler }
+    | Texp_probe {name; handler; enabled_at_init;} ->
+      Texp_probe {name; handler = sub.expr sub handler; enabled_at_init}
     | Texp_probe_is_enabled _ as e -> e
     | Texp_exclave exp ->
         Texp_exclave (sub.expr sub exp)
