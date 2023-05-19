@@ -1131,6 +1131,7 @@ val probe :
   dbg:Debuginfo.t ->
   name:string ->
   handler_code_linkage_name:string ->
+  enabled_at_init:bool ->
   args:expression list ->
   expression
 

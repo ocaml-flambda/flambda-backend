@@ -5498,7 +5498,8 @@ and type_expect_
           raise (Error (loc, env, Invalid_extension_constructor_payload))
       end
   | Pexp_extension ({ txt = ("probe" | "ocaml.probe"); _ }, payload) ->
-      begin match payload with
+    let name, name_loc, args =
+      match payload with
       | PStr
           ([{ pstr_desc =
                 Pstr_eval
@@ -5508,22 +5509,37 @@ and type_expect_
                                (Pexp_constant (Pconst_string(name,_,None)));
                              pexp_loc = name_loc;
                              _ }
-                          , [Nolabel, arg]))
+                          , args))
                    ; _ }
-                  , _)}]) ->
-        check_probe_name name name_loc env;
-        let env = Env.add_lock Alloc_mode.global env in
-        Env.add_probe name;
-        let exp = type_expect env mode_global arg
-                    (mk_expected Predef.type_unit) in
-        rue {
-          exp_desc = Texp_probe {name; handler=exp};
-          exp_loc = loc; exp_extra = [];
-          exp_type = instance Predef.type_unit;
-          exp_attributes = sexp.pexp_attributes;
-          exp_env = env }
+                  , _)}]) -> name, name_loc, args
       | _ -> raise (Error (loc, env, Probe_format))
-    end
+    in
+    let bool_of_string = function
+      | "true" -> true
+      | "false" -> false
+      | _ -> raise (Error (loc, env, Probe_format))
+    in
+    let arg, enabled_at_init =
+      match args with
+      | [Nolabel, arg] -> arg, false
+      | [Labelled "enabled_at_init",
+         { pexp_desc =
+             Pexp_construct({ txt = Longident.Lident b; _ },
+                            None); _ };
+         Nolabel, arg] -> arg, bool_of_string b
+      | _ -> raise (Error (loc, env, Probe_format))
+    in
+    check_probe_name name name_loc env;
+    let env = Env.add_lock Alloc_mode.global env in
+    Env.add_probe name;
+    let exp = type_expect env mode_global arg
+                (mk_expected Predef.type_unit) in
+    rue {
+      exp_desc = Texp_probe {name; handler=exp; enabled_at_init};
+      exp_loc = loc; exp_extra = [];
+      exp_type = instance Predef.type_unit;
+      exp_attributes = sexp.pexp_attributes;
+      exp_env = env }
   | Pexp_extension ({ txt = ("probe_is_enabled"
                             |"ocaml.probe_is_enabled"); _ }, payload) ->
       begin match payload with
@@ -8041,8 +8057,9 @@ let report_error ~loc env = function
         name name
   | Probe_format ->
       Location.errorf ~loc
-        "Probe points must consist of a name, as a string \
-         literal, followed by a single expression of type unit."
+        "Probe points must consist of a name, as a string literal, \
+         optionally followed by ~enabled_at_init:true or ~enabled_at_init:false, \
+         followed by a single expression of type unit."
   | Probe_is_enabled_format ->
       Location.errorf ~loc
         "%%probe_is_enabled points must specify a single probe name as a \

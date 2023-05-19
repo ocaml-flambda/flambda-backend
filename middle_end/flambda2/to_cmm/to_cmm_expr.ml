@@ -92,12 +92,12 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
   let args, args_free_vars, env, res, _ = C.simple_list ~dbg env res args in
   let free_vars = Backend_var.Set.union callee_free_vars args_free_vars in
   let fail_if_probe apply =
-    match Apply.probe_name apply with
+    match Apply.probe apply with
     | None -> ()
     | Some _ ->
       Misc.fatal_errorf
-        "[Apply] terms with a [probe_name] (i.e. that call a tracing probe) \
-         must always be direct applications of an OCaml function:@ %a"
+        "[Apply] terms with a [probe] (i.e. that call a tracing probe) must \
+         always be direct applications of an OCaml function:@ %a"
         Apply.print apply
   in
   let pos =
@@ -124,7 +124,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       else args
     in
     let code_sym = To_cmm_result.symbol_of_code_id res code_id in
-    match Apply.probe_name apply with
+    match Apply.probe apply with
     | None ->
       ( C.direct_call ~dbg
           (C.Extended_machtype.to_machtype return_ty)
@@ -133,8 +133,9 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         env,
         res,
         Ece.all )
-    | Some name ->
+    | Some { name; enabled_at_init } ->
       ( C.probe ~dbg ~name ~handler_code_linkage_name:code_sym.sym_name ~args
+          ~enabled_at_init
         |> C.return_unit dbg,
         free_vars,
         env,

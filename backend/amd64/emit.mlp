@@ -732,15 +732,32 @@ let reset_probes () =
   probes := [];
   probe_semaphores := String.Map.empty
 
-let find_or_add_semaphore name =
+let find_or_add_semaphore name enabled_at_init dbg =
   match String.Map.find_opt name !probe_semaphores with
-  | Some label -> label
+  | Some (label, e) ->
+    (match e, enabled_at_init with
+     | None, None -> ()
+     | None, Some _ ->
+       let d = (label, enabled_at_init) in
+       probe_semaphores :=
+         String.Map.remove name !probe_semaphores |>
+         String.Map.add name d
+     | Some _, None ->
+       (*  [find_or_add_semaphore] is called with None for Iprobe_is_enabled
+           during code emission only. [find_or_add_semaphore] us called with
+           Some to emit probe notes only after all code is emitted. *)
+       assert false
+     | Some b, Some b' ->
+       if not (Bool.equal b b') then
+         raise (Error (Inconsistent_probe_init (name,dbg))));
+    label
   | None ->
     let sym = "caml_probes_semaphore_"^name in
-    probe_semaphores := String.Map.add name sym !probe_semaphores;
+    let d = (sym, enabled_at_init) in
+    probe_semaphores := String.Map.add name d !probe_semaphores;
     sym
 
-let emit_call_probe_handler_wrapper i ~probe_label =
+let emit_call_probe_handler_wrapper i ~enabled_at_init ~probe_label =
   assert !frame_required;
   let wrap_label = probe_handler_wrapper_name probe_label in
   (* We emit a cmp instruction that is effectively a nop:
@@ -756,8 +773,12 @@ let emit_call_probe_handler_wrapper i ~probe_label =
        result, instead of relying on an assembler that might choose a different
        encoding which produces an incorrect relocation and changes the meaning
        of the program. *)
-    (* Emit the required encoding of "cmp $0, %eax" directly, using .byte *)
-    D.byte (Const 0x3dL);
+    (* Emit the required encoding of "cmp $0, %eax" or "call" directly,
+       using .byte *)
+    if enabled_at_init then
+      D.byte (Const 0xe8L)
+    else
+      D.byte (Const 0x3dL);
     D.byte (Const 0L);
     D.byte (Const 0L);
     D.byte (Const 0L);
@@ -1222,7 +1243,7 @@ let emit_instr fallthrough i =
   | Lop(Iendregion) ->
       I.mov (arg i 0) (domain_field Domainstate.Domain_local_sp)
   | Lop (Iname_for_debugger _) -> ()
-  | Lop (Iprobe _) ->
+  | Lop (Iprobe { enabled_at_init; _ }) ->
     let probe_label = new_label () in
     let probe =
       { probe_label;
@@ -1238,9 +1259,9 @@ let emit_instr fallthrough i =
        intervening wrapper that deals with getting the arguments to the probe
        in the correct place and managing the spilling/reloading of live
        registers.  See [emit_probe_handler_wrapper] below. *)
-    emit_call_probe_handler_wrapper i ~probe_label
+    emit_call_probe_handler_wrapper i ~enabled_at_init ~probe_label
   | Lop (Iprobe_is_enabled { name; }) ->
-    let semaphore_sym = find_or_add_semaphore name in
+    let semaphore_sym = find_or_add_semaphore name None i.dbg in
     (* Load unsigned 2-byte integer value of the semaphore.
        According to the documentation [1],
        semaphores are of type unsigned short.
@@ -1584,7 +1605,8 @@ let emit_probe_handler_wrapper p =
   let wrap_label = probe_handler_wrapper_name p.probe_label in
   let probe_name, handler_code_sym =
     match p.probe_insn.desc with
-    | Lop (Iprobe { name; handler_code_sym; }) -> name, handler_code_sym
+    | Lop (Iprobe { name; handler_code_sym; enabled_at_init = _; }) ->
+      name, handler_code_sym
     | _ -> assert false
   in
   (* Restore stack frame info as it was at the probe site, so we can easily
@@ -1739,9 +1761,10 @@ let emit_probe_notes0 () =
     Printf.sprintf "%d@%s" (Reg.size_of_contents_in_bytes arg) arg_name
   in
   let describe_one_probe p =
-    let probe_name =
+    let probe_name, enabled_at_init =
       match p.probe_insn.desc with
-      | Lop (Iprobe { name; _; }) -> name
+      | Lop (Iprobe { name; enabled_at_init; handler_code_sym=_; }) ->
+        name, enabled_at_init
       | _ -> assert false
     in
     let args =
@@ -1750,7 +1773,10 @@ let emit_probe_notes0 () =
         []
       |> String.concat " "
     in
-    let semaphore_label = emit_symbol (find_or_add_semaphore probe_name) in
+    let semsym =
+      find_or_add_semaphore probe_name (Some enabled_at_init) p.probe_insn.dbg
+    in
+    let semaphore_label = emit_symbol semsym in
     let emit_desc () =
       D.qword (ConstLabel (emit_label p.probe_label));
       (match is_macosx_system with
@@ -1771,12 +1797,15 @@ let emit_probe_notes0 () =
    | true ->
      D.section ["__TEXT";"__probes"] None ["regular"]);
   D.align ~data:true 2;
-  String.Map.iter (fun _ label ->
+  String.Map.iter (fun _ (label, enabled_at_init) ->
+      (* Unresolved weak symbols have a zero value regardless
+         of the following initialization. *)
+      let enabled_at_init = Option.value enabled_at_init ~default:false in
       D.weak label;
       D.hidden label;
       _label label;
       D.word (const 0); (* for systemtap probes *)
-      D.word (const 0); (* for ocaml probes *)
+      D.word (const (Bool.to_int enabled_at_init)); (* for ocaml probes *)
       add_def_symbol label)
     !probe_semaphores
 

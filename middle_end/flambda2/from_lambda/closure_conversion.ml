@@ -506,7 +506,7 @@ let close_c_call acc env ~loc ~let_bound_var
           exn_continuation ~args ~args_arity:param_arity ~return_arity
           ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Inlining_state.default ~round:0)
-          ~probe_name:None ~position:Normal
+          ~probe:None ~position:Normal
           ~relative_history:(Env.relative_history_from_scoped ~loc env)
           ~region:current_region
       in
@@ -1113,9 +1113,7 @@ let close_exact_or_unknown_apply acc env
   let acc, args_with_arity = find_simples_and_arity acc env args in
   let args, args_arity = List.split args_with_arity in
   let inlined_call = Inlined_attribute.from_lambda inlined in
-  let probe_name =
-    match probe with None -> None | Some { name } -> Some name
-  in
+  let probe = Probe.from_lambda probe in
   let position =
     match region_close with
     | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
@@ -1129,7 +1127,7 @@ let close_exact_or_unknown_apply acc env
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
-      ~probe_name ~position
+      ~probe ~position
       ~relative_history:(Env.relative_history_from_scoped ~loc env)
       ~region:current_region
   in
@@ -2091,9 +2089,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
     in
     let inlined = Inlined_attribute.from_lambda apply.inlined in
     (* Keeping the inlining attributes matches the behaviour of simplify *)
-    let probe_name =
-      match apply.probe with None -> None | Some { name } -> Some name
-    in
+    let probe = Probe.from_lambda apply.probe in
     let position =
       match apply.region_close with
       | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
@@ -2113,7 +2109,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         apply_exn_continuation ~args:remaining ~args_arity:remaining_arity
         ~return_arity:apply.return_arity ~call_kind apply_dbg ~inlined
         ~inlining_state:(Inlining_state.default ~round:0)
-        ~probe_name ~position
+        ~probe ~position
         ~relative_history:(Env.relative_history_from_scoped ~loc:apply.loc env)
         ~region:apply_region
     in

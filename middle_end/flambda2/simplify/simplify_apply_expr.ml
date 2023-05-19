@@ -18,11 +18,11 @@ open! Flambda.Import
 open! Simplify_import
 
 let fail_if_probe apply =
-  match Apply.probe_name apply with
+  match Apply.probe apply with
   | None -> ()
   | Some _ ->
     Misc.fatal_errorf
-      "[Apply] terms with a [probe_name] (i.e. that call a tracing probe) must \
+      "[Apply] terms with a [probe] (i.e. that call a tracing probe) must \
        always be direct applications of an OCaml function:@ %a"
       Apply.print apply
 
@@ -503,7 +503,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           exn_continuation ~args ~args_arity:param_arity
           ~return_arity:result_arity ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Apply.inlining_state apply)
-          ~position:Normal ~probe_name:None
+          ~position:Normal ~probe:None
           ~relative_history:Inlining_history.Relative.empty ~region:my_region
       in
       let cost_metrics =
@@ -676,11 +676,11 @@ let simplify_direct_function_call ~simplify_expr dacc apply
     ~callee's_function_slot ~result_arity ~result_types ~recursive
     ~must_be_detupled ~closure_alloc_mode_from_type ~apply_alloc_mode
     ~current_region function_decl ~down_to_up =
-  (match Apply.probe_name apply, Apply.inlined apply with
+  (match Apply.probe apply, Apply.inlined apply with
   | None, _ | Some _, Never_inlined -> ()
   | Some _, (Hint_inlined | Unroll _ | Default_inlined | Always_inlined _) ->
     Misc.fatal_errorf
-      "[Apply] terms with a [probe_name] (i.e. that call a tracing probe) must \
+      "[Apply] terms with a [probe] (i.e. that call a tracing probe) must \
        always be marked as [Never_inline]:@ %a"
       Apply.print apply);
   let coming_from_indirect = Option.is_none callee's_code_id_from_call_kind in
@@ -957,8 +957,8 @@ let simplify_apply_shared dacc apply =
       ~return_arity:(Apply.return_arity apply)
       ~call_kind:(Apply.call_kind apply)
       (DE.add_inlined_debuginfo (DA.denv dacc) (Apply.dbg apply))
-      ~inlined:(Apply.inlined apply) ~inlining_state
-      ~probe_name:(Apply.probe_name apply) ~position:(Apply.position apply)
+      ~inlined:(Apply.inlined apply) ~inlining_state ~probe:(Apply.probe apply)
+      ~position:(Apply.position apply)
       ~relative_history:
         (Inlining_history.Relative.concat
            ~earlier:(DE.relative_history (DA.denv dacc))

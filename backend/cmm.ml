@@ -213,7 +213,7 @@ and operation =
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound
-  | Cprobe of { name: string; handler_code_sym: string; }
+  | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
   | Cprobe_is_enabled of { name: string }
   | Copaque
   | Cbeginregion | Cendregion
