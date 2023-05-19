@@ -1677,19 +1677,19 @@ module Analyser =
       | Parsetree.Pstr_include incl ->
           analyse_structure_item_include ~env ~comment_opt incl
 
-   and analyse_structure_item_nondesc env current_module_name loc pos_limit comment_opt parsetree_item _typedtree
+   and analyse_structure_item_nondesc env current_module_name loc pos_limit comment_opt parsetree_item typedtree
         table table_values =
      match Jane_syntax.Structure_item.of_ast parsetree_item with
      | Some jparsetree_item ->
          analyse_structure_item_jst
            env current_module_name loc pos_limit comment_opt
            jparsetree_item
-           _typedtree table table_values
+           typedtree table table_values
      | None ->
          analyse_structure_item
            env current_module_name loc pos_limit comment_opt
            parsetree_item.Parsetree.pstr_desc
-           _typedtree table table_values
+           typedtree table table_values
 
      (** Analysis of a [Parsetree.module_expr] and a name to return a [t_module].*)
      and analyse_module env current_module_name module_name comment_opt p_module_expr tt_module_expr =
