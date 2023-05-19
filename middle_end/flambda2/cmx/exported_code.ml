@@ -99,7 +99,7 @@ let ids_for_export t =
     t Ids_for_export.empty
 
 let apply_renaming code_id_map renaming t =
-  if Renaming.is_empty renaming && Code_id.Map.is_empty code_id_map
+  if Renaming.is_identity renaming && Code_id.Map.is_empty code_id_map
   then t
   else
     Code_id.Map.fold
