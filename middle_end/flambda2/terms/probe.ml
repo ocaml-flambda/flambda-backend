@@ -9,6 +9,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
 type desc =
   { name : string;
     enabled_at_init : bool
@@ -16,12 +17,14 @@ type desc =
 
 type t = desc option
 
-let from_lambda : Lambda.probe -> t = function
+let from_lambda (p : Lambda.probe) =
+  match p with
   | None -> None
   | Some { name : string; enabled_at_init : bool } ->
     Some { name; enabled_at_init }
 
-let print ppf = function
+let print ppf t =
+  match t with
   | None -> Format.pp_print_string ppf "()"
   | Some { name; enabled_at_init } ->
     Format.pp_print_string ppf name;

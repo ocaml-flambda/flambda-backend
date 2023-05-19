@@ -11,7 +11,7 @@
 (**************************************************************************)
 (** Annotation on function call that represents a probe. *)
 
-type desc =
+type desc = private
   { name : string;
     enabled_at_init : bool
   }
