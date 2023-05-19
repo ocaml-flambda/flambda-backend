@@ -68,6 +68,10 @@ end = struct
          [Flambda_cmx.compute_reachable_names_and_code] we have to assume that
          code IDs can be missing (and so we cannot detect code IDs that are
          really missing at this point). *)
+      (* CR lmaurer: We should consider storing the _unused_ value slots rather
+         than the used ones. This is the only place in this file where a bigger
+         set means _fewer_ changes, and it means we can never know when an
+         import map will have no effect (see PR #1398). *)
       original_compilation_unit : Compilation_unit.t
           (* This complements [used_value_slots]. Removal of value slots is only
              allowed for variables that are not used in the compilation unit
@@ -154,7 +158,7 @@ let [@ocamlformat "disable"] print ppf
     Code_ids.print code_ids
     Symbols.print symbols
 
-let is_empty { continuations; variables; code_ids; symbols; import_map } =
+let is_identity { continuations; variables; code_ids; symbols; import_map } =
   Continuations.is_empty continuations
   && Variables.is_empty variables
   && Code_ids.is_empty code_ids && Symbols.is_empty symbols
@@ -163,8 +167,8 @@ let is_empty { continuations; variables; code_ids; symbols; import_map } =
   | None -> true
   | Some _ ->
     (* If there is any import map at all, then this renaming is not necessarily
-       the identity: any value slots _not_ present in [used_value_slots] will
-       cause value slots to be removed. *)
+       the identity: any value slots _not_ present in [used_value_slots] will be
+       removed from closures. *)
     false
 
 let compose0
@@ -202,9 +206,9 @@ let compose0
   }
 
 let compose ~second ~first =
-  if is_empty second
+  if is_identity second
   then first
-  else if is_empty first
+  else if is_identity first
   then second
   else compose0 ~second ~first
 
