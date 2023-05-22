@@ -145,13 +145,6 @@ val implemented_parameter : 'a t -> Compilation_unit.t
 
 val global_of_global_name : 'a t -> 'a sig_reader -> Global.Name.t -> Global.t
 
-val global_of_compilation_unit : 'a t -> 'a sig_reader -> Compilation_unit.t
-  -> Global.t
-
-val compilation_unit_of_global : Global.t -> Compilation_unit.t
-
-val compilation_unit_of_global_name : Global.Name.t -> Compilation_unit.t
-
 val make_cmi : 'a t
   -> Compilation_unit.t
   -> Types.signature

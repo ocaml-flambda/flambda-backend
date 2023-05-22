@@ -1118,7 +1118,7 @@ let check_functor_appl
 (* Lookup by identifier *)
 
 let modname_and_instance_args_of_global_name g =
-  let cu = g |> Persistent_env.compilation_unit_of_global_name in
+  let cu = Compilation_unit.of_global_name g in
   Compilation_unit.name cu, Compilation_unit.instance_arguments cu
 
 let modname_and_instance_args_of_ident id =
@@ -2730,9 +2730,15 @@ let save_signature_with_transform
         List.map
           (fun param ->
              let glob =
-               Persistent_env.global_of_compilation_unit !persistent_env
-                 read_sign_of_cmi param
+               param
+               |> Compilation_unit.to_global_name_exn
+               |> Persistent_env.global_of_global_name !persistent_env
+                    read_sign_of_cmi
              in
+             (* Right now it looks a bit silly to be producing a bunch of
+                key-value pairs of the form (x, x), but once we have
+                parameterised parameters, this [Global.t] will express their
+                interdependencies. *)
              (glob |> Global.to_name, glob))
           cmi.cmi_params
       in

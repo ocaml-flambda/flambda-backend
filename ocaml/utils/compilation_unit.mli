@@ -100,6 +100,22 @@ val create_child : t -> Name.t -> t
     parameter name. *)
 val create_instance : t -> (t * t) list -> t
 
+(** Create the compilation unit named by the given [Global.Name.t]. Only
+    meaningful if the global name is a _complete instantiation_, which is to say
+    either (a) the named module has no parameters, or (b) there is an argument
+    for each parameter and each argument is itself a complete instantiation.
+    This ensures the name determines a compile-time constant, and then the [t]
+    returned here is the module corresponding to that constant. *)
+val of_global_name : Global.Name.t -> t
+
+(** Convert the compilation unit to a [Global.Name.t], if possible (which is
+    to say, if its prefix is empty). *)
+val to_global_name : t -> Global.Name.t option
+
+(** Like [to_global_name] but throw a fatal error if there is a non-empty
+    prefix. *)
+val to_global_name_exn : t -> Global.Name.t
+
 (** Create a compilation unit from the given [name]. No prefix is allowed;
     throws a fatal error if there is a "." in the name. (As a special case,
     a "." is allowed as the first character, to handle compilation units

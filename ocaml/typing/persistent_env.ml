@@ -386,35 +386,8 @@ type 'a sig_reader =
 (* CR lmaurer: Probably want to use [Global.Name.t] in [Compilation_unit.t] to
    be rid of all this back-and-forth. *)
 
-let rec compilation_unit_of_global_name Global.Name.{ head; args } =
-  let head = head |> CU.Name.of_string |> CU.create CU.Prefix.empty in
-  let args = args |> List.map compilation_units_of_global_name_pair in
-  CU.create_instance head args
-and compilation_units_of_global_name_pair (param, value) =
-  compilation_unit_of_global_name param,
-  compilation_unit_of_global_name value
-
-let rec compilation_unit_of_global Global.{ head; args; params = _ } =
-  let head = head |> CU.Name.of_string |> CU.create CU.Prefix.empty in
-  let args = args |> List.map compilation_units_of_global_pair in
-  CU.create_instance head args
-and compilation_units_of_global_pair (param, value) =
-  compilation_unit_of_global_name param,
-  compilation_unit_of_global value
-
-let rec global_name_of_compilation_unit cu : Global.Name.t =
-  if CU.is_packed cu then
-    Misc.fatal_errorf "Can't make global of packed compilation unit@ %a"
-      CU.print cu;
-  let head = CU.name_as_string cu in
-  let args =
-    List.map
-      (fun (param, value) ->
-         global_name_of_compilation_unit param,
-         global_name_of_compilation_unit value)
-      (CU.instance_arguments cu)
-  in
-  Global.Name.create head args
+let global_name_of_compilation_unit cu : Global.Name.t =
+  Compilation_unit.to_global_name_exn cu
 
 let rec acknowledge_pers_struct
       penv ~check modname pers_sig (val_of_pers_sig : _ sig_reader)
@@ -459,8 +432,10 @@ let rec acknowledge_pers_struct
   | false, false -> ()
   end;
   check_parameters penv name ~params ~instance_args;
+  (* nix if_needed and just use the global to decide *)
   let local_ident = make_local_ident_if_needed pers_sig ~instance_args in
   let global =
+    (* combine with check_parameters *)
     compute_global penv val_of_pers_sig name ~params ~instance_args ~check:true
   in
   let ps = { ps_name = name;
@@ -596,7 +571,9 @@ and compute_global penv val_of_pers_sig modname ~params ~instance_args ~check =
                global_of_compilation_unit penv val_of_pers_sig actual_type_unit
              in
              if not (Global.equal expected_type actual_type) then begin
-               let expected_type_unit = compilation_unit_of_global expected_type in
+               let expected_type_unit =
+                 CU.of_global_name (Global.to_name expected_type)
+                in
                if CU.equal expected_type_unit actual_type_unit then
                  (* This shouldn't happen, I don't think, but if it does, I'd rather
                    not output an "X != X" sort of error message *)
@@ -616,10 +593,10 @@ and compute_global penv val_of_pers_sig modname ~params ~instance_args ~check =
   end;
   Global.subst global_without_args subst
 
-and global_of_global_name penv val_of_pers_sig
-    (Global.Name.{ head; args }) : Global.t =
-  let unit_name = head |> CU.Name.of_string in
-  let instance_args = args |> List.map compilation_units_of_global_name_pair in
+and global_of_global_name penv val_of_pers_sig name : Global.t =
+  let cu = CU.of_global_name name in
+  let unit_name = CU.name cu in
+  let instance_args = CU.instance_arguments cu in
   let ps, _pm =
     find_pers_struct penv val_of_pers_sig ~check:true unit_name ~instance_args
   in

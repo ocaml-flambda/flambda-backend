@@ -183,7 +183,13 @@ module T0 : sig
 
   val instance_arguments : t -> (t * t) list
 
+  val to_global_name : t -> Global.Name.t option
+
+  val to_global_name_exn : t -> Global.Name.t
+
   val create_full : Prefix.t -> Name.t -> (t * t) list -> t
+
+  val of_global_name : Global.Name.t -> t
 
   val compare : t -> t -> int
 end = struct
@@ -195,8 +201,15 @@ end = struct
       arguments : (t * t) list
     }
 
-  (* type t = Without_prefix of Name.t [@@unboxed] | With_prefix of
-     with_prefix *)
+  and full =
+    | With_prefix of
+        { name : Name.t;
+          for_pack_prefix : Prefix.t
+        }
+    | Global of Global.Name.t
+
+  (* type t = Bare_name of Name.t [@@unboxed] | With_prefix of with_prefix |
+     Global of Global.Name.t *)
   and t = Obj.t
 
   (* Some manual inlining is done here to ensure good performance under
@@ -205,6 +218,20 @@ end = struct
   let is_plain_name t =
     let tag = Obj.tag t in
     tag = Obj.string_tag
+
+  let of_plain_name name : t = Obj.repr (name : Name.t)
+
+  let of_full full : t = Obj.repr (full : full)
+
+  let of_global_name (glob : Global.Name.t) =
+    match glob with
+    | { head; args = [] } -> of_plain_name (Name.of_string head)
+    | _ -> of_full (Global glob)
+
+  let convert_arguments l =
+    ListLabels.map
+      ~f:(fun (name, value) -> of_global_name name, of_global_name value)
+      l
 
   let descr t =
     let tag = Obj.tag t in
@@ -215,7 +242,15 @@ end = struct
         for_pack_prefix = Prefix.empty;
         arguments = []
       }
-    else Sys.opaque_identity (Obj.obj t : descr)
+    else
+      let full = Sys.opaque_identity (Obj.obj t : full) in
+      match full with
+      | With_prefix { name; for_pack_prefix } ->
+        { name; for_pack_prefix; arguments = [] }
+      | Global { head; args } ->
+        let name = Name.of_string head in
+        let arguments = convert_arguments args in
+        { name; arguments; for_pack_prefix = Prefix.empty }
 
   let name t =
     let tag = Obj.tag t in
@@ -223,8 +258,10 @@ end = struct
     if tag <> 0
     then Sys.opaque_identity (Obj.obj t : Name.t)
     else
-      let with_prefix = Sys.opaque_identity (Obj.obj t : descr) in
-      with_prefix.name
+      let full = Sys.opaque_identity (Obj.obj t : full) in
+      match full with
+      | With_prefix { name; _ } -> name
+      | Global { head; _ } -> Name.of_string head
 
   let for_pack_prefix t =
     let tag = Obj.tag t in
@@ -232,8 +269,10 @@ end = struct
     if tag <> 0
     then Prefix.empty
     else
-      let descr = Sys.opaque_identity (Obj.obj t : descr) in
-      descr.for_pack_prefix
+      let full = Sys.opaque_identity (Obj.obj t : full) in
+      match full with
+      | With_prefix { for_pack_prefix; _ } -> for_pack_prefix
+      | Global _ -> Prefix.empty
 
   let instance_arguments t =
     let tag = Obj.tag t in
@@ -241,8 +280,10 @@ end = struct
     if tag <> 0
     then []
     else
-      let descr = Sys.opaque_identity (Obj.obj t : descr) in
-      descr.arguments
+      let full = Sys.opaque_identity (Obj.obj t : full) in
+      match full with
+      | With_prefix _ -> []
+      | Global { args; _ } -> convert_arguments args
 
   let rec compare t1 t2 =
     if t1 == t2
@@ -271,6 +312,23 @@ end = struct
     let c = compare param1 param2 in
     if c <> 0 then c else compare value1 value2
 
+  let to_global_name_exn t =
+    if is_plain_name t
+    then
+      let name = Sys.opaque_identity (Obj.obj t : Name.t) in
+      Global.Name.create (Name.to_string name) []
+    else
+      let full = Sys.opaque_identity (Obj.obj t : full) in
+      match full with
+      | With_prefix { name; _ } ->
+        raise (Error (Packed_instance { name = name |> Name.to_string }))
+      | Global glob -> glob
+
+  let to_global_name t =
+    try Some (to_global_name_exn t) with Error (Packed_instance _) -> None
+
+  let of_global_name name = of_full (Global name)
+
   let create_full for_pack_prefix name arguments =
     let empty_prefix = Prefix.is_empty for_pack_prefix in
     let empty_arguments = match arguments with [] -> true | _ -> false in
@@ -294,8 +352,18 @@ end = struct
           compare param1 param2)
     in
     if empty_prefix && empty_arguments
-    then Sys.opaque_identity (Obj.repr name)
-    else Sys.opaque_identity (Obj.repr { for_pack_prefix; name; arguments })
+    then of_plain_name name
+    else if empty_prefix
+    then
+      let head = Name.to_string name in
+      let arguments =
+        ListLabels.map
+          ~f:(fun (name, value) ->
+            to_global_name_exn name, to_global_name_exn value)
+          arguments
+      in
+      of_full (Global (Global.Name.create head arguments))
+    else of_full (With_prefix { for_pack_prefix; name })
 end
 
 include T0
