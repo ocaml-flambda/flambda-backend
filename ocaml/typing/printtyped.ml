@@ -169,16 +169,16 @@ let tag ppf = let open Types in function
   | Extension (p,_) -> fprintf ppf "Extension %a" fmt_path p
 
 let variant_representation i ppf = let open Types in function
-  | Variant_unboxed l ->
-    line i ppf "Variant_unboxed %a\n" Layouts.Layout.format l
+  | Variant_unboxed ->
+    line i ppf "Variant_unboxed\n"
   | Variant_boxed layouts ->
     line i ppf "Variant_boxed %a\n"
       (array (i+1) (fun _ ppf -> layout_array (i+1) ppf)) layouts
   | Variant_extensible -> line i ppf "Variant_inlined\n"
 
 let record_representation i ppf = let open Types in function
-  | Record_unboxed l ->
-    line i ppf "Record_unboxed %a\n" Layouts.Layout.format l
+  | Record_unboxed ->
+    line i ppf "Record_unboxed\n"
   | Record_boxed layouts ->
     line i ppf "Record_boxed %a\n" (layout_array i) layouts
   | Record_inlined (t,v) ->

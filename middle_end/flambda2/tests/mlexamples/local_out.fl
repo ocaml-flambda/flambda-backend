@@ -24,14 +24,14 @@ let $camlLocal__const_block180 = Block 0 ($camlLocal__immstring51, 49, 2) in
 let $camlLocal__Pmakeblock182 =
   Block 0 ($`*predef*`.caml_exn_Assert_failure, $camlLocal__const_block180)
 in
+let code return_local_0 deleted in
+let code map_local_1 deleted in
+let code length_2 deleted in
 let code `anon-fn[local.ml:24,27--43]_3` deleted in
 let code rev_app_4 deleted in
 let code find_span_6 deleted in
 let code spans_5 deleted in
-let code length_2 deleted in
 let code is_even_7 deleted in
-let code map_local_1 deleted in
-let code return_local_0 deleted in
 let code loopify(never) size(1) newer_version_of(return_local_0)
       return_local_0_1 (param : imm tagged)
         my_closure my_region my_depth

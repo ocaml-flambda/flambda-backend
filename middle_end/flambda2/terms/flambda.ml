@@ -47,7 +47,7 @@ end = struct
     { t with delayed_renaming }
 
   let[@inline always] descr t ~apply_renaming_descr =
-    if Renaming.is_empty t.delayed_renaming
+    if Renaming.is_identity t.delayed_renaming
     then t.descr
     else
       let descr = apply_renaming_descr t.descr t.delayed_renaming in
@@ -309,7 +309,7 @@ and apply_renaming_function_params_and_body ({ abst; is_my_closure_used } as t)
 and apply_renaming_static_const_or_code
     (static_const_or_code : static_const_or_code) renaming :
     static_const_or_code =
-  if Renaming.is_empty renaming
+  if Renaming.is_identity renaming
   then static_const_or_code
   else
     match static_const_or_code with

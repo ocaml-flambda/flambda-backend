@@ -22,6 +22,25 @@ let code size(18)
     where k2 =
       cont k1 pop(regular k1) ($camlTests15__Pmakeblock21)
 in
+let code size(18)
+      is_c_1
+        (x,
+         param :
+           [ 0 of imm tagged |1 of imm tagged |2 of imm tagged
+           |3 of imm tagged ])
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  (let prim = %get_tag param in
+   let scrutinee_tag = %Tag_imm prim in
+   let untagged = %untag_imm scrutinee_tag in
+   let eq = %int_comp imm untagged = 2i in
+   switch eq
+     | 0 -> k2
+     | 1 -> k (1))
+    where k2 =
+      cont k (0)
+in
 let code size(5)
       set_to_x_2 (b, i : imm tagged)
         my_closure my_region my_depth
@@ -31,13 +50,14 @@ let code size(5)
   let Pbytessetu = %bytes_set 8 b.(i) prim in
   cont k (Pbytessetu)
 in
-let code size(2)
-      foo_6 (x : imm tagged)
+let code size(3)
+      classical_id_3 (b : imm tagged)
         my_closure my_region my_depth
         -> k * k1
         : imm tagged =
-  let Porint = x lor 42 in
-  cont k (Porint)
+  let Pnot = %not b in
+  let Pnot_1 = %not Pnot in
+  cont k (Pnot_1)
 in
 let code size(9)
       swapped_4 (param : imm tagged)
@@ -57,33 +77,13 @@ let code size(2)
   let Pnegint = %int_arith ~- x in
   cont k (Pnegint)
 in
-let code size(3)
-      classical_id_3 (b : imm tagged)
+let code size(2)
+      foo_6 (x : imm tagged)
         my_closure my_region my_depth
         -> k * k1
         : imm tagged =
-  let Pnot = %not b in
-  let Pnot_1 = %not Pnot in
-  cont k (Pnot_1)
-in
-let code size(18)
-      is_c_1
-        (x,
-         param :
-           [ 0 of imm tagged |1 of imm tagged |2 of imm tagged
-           |3 of imm tagged ])
-        my_closure my_region my_depth
-        -> k * k1
-        : imm tagged =
-  (let prim = %get_tag param in
-   let scrutinee_tag = %Tag_imm prim in
-   let untagged = %untag_imm scrutinee_tag in
-   let eq = %int_comp imm untagged = 2i in
-   switch eq
-     | 0 -> k2
-     | 1 -> k (1))
-    where k2 =
-      cont k (0)
+  let Porint = x lor 42 in
+  cont k (Porint)
 in
 (let list_to_array = closure list_to_array_0 @list_to_array in
  let is_c = closure is_c_1 @is_c in

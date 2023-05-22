@@ -259,7 +259,7 @@ module Inlining = struct
           | Never_inlined ->
             ( Call_site_inlining_decision_type.Never_inlined_attribute,
               Not_inlinable )
-          | Always_inlined | Hint_inlined ->
+          | Always_inlined _ | Hint_inlined ->
             Call_site_inlining_decision_type.Attribute_always, Inlinable code
           | Default_inlined | Unroll _ ->
             (* Closure ignores completely [@unrolled] attributes, so it seems
@@ -506,7 +506,7 @@ let close_c_call acc env ~loc ~let_bound_var
           exn_continuation ~args ~args_arity:param_arity ~return_arity
           ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Inlining_state.default ~round:0)
-          ~probe_name:None ~position:Normal
+          ~probe:None ~position:Normal
           ~relative_history:(Env.relative_history_from_scoped ~loc env)
           ~region:current_region
       in
@@ -1056,17 +1056,6 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
     Let_cont_with_acc.build_recursive acc
       ~invariant_params:Bound_parameters.empty ~handlers ~body
 
-let warn_not_inlined_if_needed (apply : IR.apply) reason =
-  let warn kind =
-    Location.prerr_warning
-      (Debuginfo.Scoped_location.to_location apply.loc)
-      (Warnings.Inlining_impossible (reason kind))
-  in
-  match apply.inlined with
-  | Hint_inlined | Never_inlined | Default_inlined -> ()
-  | Always_inlined -> warn Inlining_helpers.Inlined
-  | Unroll _ -> warn Inlining_helpers.Unrolled
-
 let close_exact_or_unknown_apply acc env
     ({ kind;
        func;
@@ -1080,7 +1069,7 @@ let close_exact_or_unknown_apply acc env
        region_close;
        region;
        return_arity
-     } as ir_apply :
+     } :
       IR.apply) callee_approx ~replace_region : Expr_with_acc.t =
   let callee = find_simple_from_id env func in
   let current_region =
@@ -1124,9 +1113,7 @@ let close_exact_or_unknown_apply acc env
   let acc, args_with_arity = find_simples_and_arity acc env args in
   let args, args_arity = List.split args_with_arity in
   let inlined_call = Inlined_attribute.from_lambda inlined in
-  let probe_name =
-    match probe with None -> None | Some { name } -> Some name
-  in
+  let probe = Probe.from_lambda probe in
   let position =
     match region_close with
     | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
@@ -1140,7 +1127,7 @@ let close_exact_or_unknown_apply acc env
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
-      ~probe_name ~position
+      ~probe ~position
       ~relative_history:(Env.relative_history_from_scoped ~loc env)
       ~region:current_region
   in
@@ -1148,8 +1135,11 @@ let close_exact_or_unknown_apply acc env
   then
     match Inlining.inlinable env apply callee_approx with
     | Not_inlinable ->
-      warn_not_inlined_if_needed ir_apply (fun _ ->
-          "Function information unavailable");
+      let apply =
+        Apply.with_inlined_attribute apply
+          (Inlined_attribute.with_use_info (Apply.inlined apply)
+             Unused_because_function_unknown)
+      in
       Expr_with_acc.create_apply acc apply
     | Inlinable func_desc ->
       let acc = Acc.mark_continuation_as_untrackable continuation acc in
@@ -1643,17 +1633,20 @@ let close_functions acc external_env ~current_region function_declarations =
         Ident.Map.add id function_slot map)
       Ident.Map.empty func_decl_list
   in
-  let function_code_ids =
-    List.fold_left
-      (fun map decl ->
+  let function_code_ids_in_order =
+    List.map
+      (fun decl ->
         let function_slot = Function_decl.function_slot decl in
         let code_id =
           Code_id.create
             ~name:(Function_slot.to_string function_slot)
             compilation_unit
         in
-        Function_slot.Map.add function_slot code_id map)
-      Function_slot.Map.empty func_decl_list
+        function_slot, code_id)
+      func_decl_list
+  in
+  let function_code_ids =
+    Function_slot.Map.of_list function_code_ids_in_order
   in
   let approx_map =
     List.fold_left
@@ -1778,16 +1771,7 @@ let close_functions acc external_env ~current_region function_declarations =
       func_decl_list
   in
   let acc = Acc.with_free_names Name_occurrences.empty acc in
-  (* CR lmaurer: funs has arbitrary order (ultimately coming from
-     function_declarations) *)
-  let funs =
-    let funs =
-      Function_slot.Map.fold
-        (fun cid code_id funs -> (cid, code_id) :: funs)
-        function_code_ids []
-    in
-    Function_slot.Lmap.of_list (List.rev funs)
-  in
+  let funs = function_code_ids_in_order |> Function_slot.Lmap.of_list in
   let function_decls = Function_declarations.create funs in
   let value_slots =
     Ident.Map.fold
@@ -2105,9 +2089,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
     in
     let inlined = Inlined_attribute.from_lambda apply.inlined in
     (* Keeping the inlining attributes matches the behaviour of simplify *)
-    let probe_name =
-      match apply.probe with None -> None | Some { name } -> Some name
-    in
+    let probe = Probe.from_lambda apply.probe in
     let position =
       match apply.region_close with
       | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
@@ -2127,7 +2109,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         apply_exn_continuation ~args:remaining ~args_arity:remaining_arity
         ~return_arity:apply.return_arity ~call_kind apply_dbg ~inlined
         ~inlining_state:(Inlining_state.default ~round:0)
-        ~probe_name ~position
+        ~probe ~position
         ~relative_history:(Env.relative_history_from_scoped ~loc:apply.loc env)
         ~region:apply_region
     in
@@ -2266,8 +2248,14 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         { apply with args; continuation = apply.continuation }
         (Some approx) ~replace_region:None
     | Partial_app { provided; missing_arity } ->
-      warn_not_inlined_if_needed apply
-        Inlining_helpers.inlined_attribute_on_partial_application_msg;
+      (match apply.inlined with
+      | Always_inlined | Unroll _ ->
+        Location.prerr_warning
+          (Debuginfo.Scoped_location.to_location apply.loc)
+          (Warnings.Inlining_impossible
+             Inlining_helpers.(
+               inlined_attribute_on_partial_application_msg Inlined))
+      | Never_inlined | Hint_inlined | Default_inlined -> ());
       wrap_partial_application acc env apply.continuation apply approx ~provided
         ~missing_arity ~arity ~num_trailing_local_params
         ~contains_no_escaping_local_allocs
@@ -2304,7 +2292,7 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
       n
   in
   let group_to_bound_consts, symbol_to_groups =
-    Code_id.Map.fold
+    Code_id.Lmap.fold
       (fun code_id code (g2c, s2g) ->
         let id = fresh_group_id () in
         let bound = Bound_static.Pattern.code code_id in
@@ -2356,23 +2344,26 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
       group_to_bound_consts
   in
   let components = SCC.connected_components_sorted_from_roots_to_leaf graph in
+  (* Empirically, our SCC seems to perform a stable sort, so this assumes that
+     [components] preserves the original order as much as possible. *)
   Array.fold_left
     (fun (acc, body) (component : SCC.component) ->
       let group_ids =
         match component with
         | No_loop group_id -> [group_id]
-        | Has_loop group_ids -> group_ids
+        | Has_loop group_ids -> List.sort Int.compare group_ids
       in
       let bound_static, static_consts =
-        List.fold_left
-          (fun (bound_static, static_consts) group_id ->
+        List.map
+          (fun group_id ->
             let bound_symbol, static_const =
               try GroupMap.find group_id group_to_bound_consts
               with Not_found ->
                 Misc.fatal_errorf "Unbound static consts group ID %d" group_id
             in
-            bound_symbol :: bound_static, static_const :: static_consts)
-          ([], []) group_ids
+            bound_symbol, static_const)
+          group_ids
+        |> List.split
       in
       let defining_expr =
         Static_const_group.create static_consts |> Named.create_static_consts
@@ -2549,7 +2540,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
   then
     Misc.fatal_error "Information on nested closures should be empty at the end";
   let get_code_metadata code_id =
-    Code_id.Map.find code_id (Acc.code acc) |> Code.code_metadata
+    Code_id.Map.find code_id (Acc.code_map acc) |> Code.code_metadata
   in
   match mode with
   | Normal ->
@@ -2563,7 +2554,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
     unit, Normal
   | Classic ->
     let all_code =
-      Exported_code.add_code (Acc.code acc)
+      Exported_code.add_code (Acc.code_map acc)
         ~keep_code:(fun _ -> false)
         (Exported_code.mark_as_imported
            (Flambda_cmx.get_imported_code cmx_loader ()))

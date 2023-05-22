@@ -24,13 +24,20 @@ end
 
 module Backward(D: DOMAIN) = struct
 
-let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot) ?(init_lbl = D.bot)
+let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot)
+      ?(init_rc_lbl = D.bot)
       ~transfer instr =
 
   let lbls =
     (Hashtbl.create 20 : (int, D.t) Hashtbl.t) in
+  let rc_lbls =
+    (Hashtbl.create 1 : (int, unit) Hashtbl.t) in
+  let add_rc_lbl n =
+    if not (Hashtbl.mem rc_lbls n) then Hashtbl.add rc_lbls n () in
+  let init_lbl n =
+    if Hashtbl.mem rc_lbls n then init_rc_lbl else D.bot in
   let get_lbl n =
-    match Hashtbl.find_opt lbls n with None -> init_lbl | Some b -> b
+    match Hashtbl.find_opt lbls n with None -> init_lbl n | Some b -> b
   and set_lbl n x =
     Hashtbl.replace lbls n x in
 
@@ -72,6 +79,13 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot) ?(init_lbl = D.bot)
                  set_lbl n (before bx exnh h))
             handlers
         | Cmm.Recursive ->
+            List.iter (fun (n, _, _) -> add_rc_lbl n) handlers;
+            (* If [transfer] is monotonic and [D.t] satisfies
+               the finite ascending chains condition,
+               then the [while] loop below is guaranteed to terminate
+               with [lbls] at the least fixed point of [before bx exnh h].
+               Labels that retain their initial value at fixed point
+               may be implicitly represented and absent from [lbls]. *)
             let update changed (n, trap_stack, h) =
               let b0 = get_lbl n in
               let exnh = exn_from_trap_stack exn trap_stack in

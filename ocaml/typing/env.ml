@@ -1209,7 +1209,7 @@ let find_type_data path env =
       | decl ->
           {
             tda_declaration = decl;
-            tda_descriptions = kind_abstract_any;
+            tda_descriptions = Type_abstract;
             tda_shape = Shape.leaf decl.type_uid;
           }
       | exception Not_found -> find_type_full p env
@@ -1227,7 +1227,7 @@ let find_type_data path env =
               List.find (fun cstr -> cstr.cstr_name = s) cstrs
             with Not_found -> assert false
           end
-        | Type_record _ | Type_abstract _ | Type_open -> assert false
+        | Type_record _ | Type_abstract | Type_open -> assert false
         end
       in
       type_of_cstr path cstr
@@ -1820,7 +1820,7 @@ let rec components_of_module_maker
                         add_to_tbl descr.lbl_name descr c.comp_labels)
                     lbls;
                   Type_record (lbls, repr)
-              | Type_abstract imm -> Type_abstract imm
+              | Type_abstract -> Type_abstract
               | Type_open -> Type_open
             in
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
@@ -2068,7 +2068,7 @@ and store_type ~check id info shape env =
           (fun env (lbl_id, lbl) ->
             store_label ~check info id lbl_id lbl env)
           env labels
-    | Type_abstract imm -> Type_abstract imm, env
+    | Type_abstract -> Type_abstract, env
     | Type_open -> Type_open, env
   in
   let tda =
@@ -2090,7 +2090,7 @@ and store_type_infos ~tda_shape id info env =
   let tda =
     {
       tda_declaration = info;
-      tda_descriptions = kind_abstract_any;
+      tda_descriptions = Type_abstract;
       tda_shape
     }
   in
@@ -3255,7 +3255,7 @@ let lookup_label ~errors ~use ~loc usage lid env =
 let lookup_all_labels_from_type ~use ~loc usage ty_path env =
   match find_type_descrs ty_path env with
   | exception Not_found -> []
-  | Type_variant _ | Type_abstract _ | Type_open -> []
+  | Type_variant _ | Type_abstract | Type_open -> []
   | Type_record (lbls, _) ->
       List.map
         (fun lbl ->
@@ -3277,7 +3277,7 @@ let lookup_constructor ~errors ~use ~loc usage lid env =
 let lookup_all_constructors_from_type ~use ~loc usage ty_path env =
   match find_type_descrs ty_path env with
   | exception Not_found -> []
-  | Type_record _ | Type_abstract _ | Type_open -> []
+  | Type_record _ | Type_abstract | Type_open -> []
   | Type_variant (cstrs, _) ->
       List.map
         (fun cstr ->

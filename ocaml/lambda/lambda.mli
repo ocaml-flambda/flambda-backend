@@ -298,7 +298,7 @@ type inlined_attribute =
 val equal_inline_attribute : inline_attribute -> inline_attribute -> bool
 val equal_inlined_attribute : inlined_attribute -> inlined_attribute -> bool
 
-type probe_desc = { name: string }
+type probe_desc = { name: string; enabled_at_init: bool; }
 type probe = probe_desc option
 
 type specialise_attribute =
@@ -669,4 +669,4 @@ val structured_constant_layout : structured_constant -> layout
 
 val primitive_result_layout : primitive -> layout
 
-val compute_expr_layout : layout Ident.Map.t -> lambda -> layout
+val compute_expr_layout : (Ident.t -> layout option) -> lambda -> layout

@@ -847,7 +847,7 @@ let pats_of_type ?(always=false) env ty =
               labels
           in
           [make_pat (Tpat_record (fields, Closed)) ty env]
-      | Type_variant _ | Type_abstract _ | Type_open -> [omega]
+      | Type_variant _ | Type_abstract | Type_open -> [omega]
       end
   | Ttuple tl ->
       [make_pat (Tpat_tuple (omegas (List.length tl))) ty env]
@@ -1915,7 +1915,7 @@ module Conv = struct
           let ppat = match am with
             | Mutable   -> Ppat_array pats
             | Immutable ->
-                Extensions.Immutable_arrays.pat_of
+                Jane_syntax.Immutable_arrays.pat_of
                   ~loc:pat.pat_loc (Iapat_immutable_array pats)
           in
           mkpat ppat

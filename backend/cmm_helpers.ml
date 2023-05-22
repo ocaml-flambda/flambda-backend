@@ -4028,8 +4028,12 @@ let beginregion ~dbg = Cop (Cbeginregion, [], dbg)
 
 let endregion ~dbg region = Cop (Cendregion, [region], dbg)
 
-let probe ~dbg ~name ~handler_code_linkage_name ~args =
-  Cop (Cprobe { name; handler_code_sym = handler_code_linkage_name }, args, dbg)
+let probe ~dbg ~name ~handler_code_linkage_name ~enabled_at_init ~args =
+  Cop
+    ( Cprobe
+        { name; handler_code_sym = handler_code_linkage_name; enabled_at_init },
+      args,
+      dbg )
 
 let load ~dbg kind mut ~addr = Cop (Cload (kind, mut), [addr], dbg)
 

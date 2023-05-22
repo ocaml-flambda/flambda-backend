@@ -238,9 +238,7 @@ end = struct
     in
     match a with
     | [] ->
-      if !Clflags.zero_alloc_check_assert_all
-         && (not !ignore_assert_all)
-         && not (String.ends_with ~suffix:"__entry" fun_name)
+      if !Clflags.zero_alloc_check_assert_all && not !ignore_assert_all
       then
         Some { strict = false; assume = false; loc = Debuginfo.to_location dbg }
       else None
@@ -701,7 +699,7 @@ end = struct
       assert (not (Mach.operation_can_raise op));
       let r = Value.transform next in
       check t r "heap allocation" dbg
-    | Iprobe { name; handler_code_sym } ->
+    | Iprobe { name; handler_code_sym; enabled_at_init = __ } ->
       let desc = Printf.sprintf "probe %s handler %s" name handler_code_sym in
       transform_call t ~next ~exn handler_code_sym ~desc dbg
     | Icall_ind -> transform t ~next ~exn ~effect:Value.top "indirect call" dbg
@@ -764,9 +762,9 @@ end = struct
        the Iexit instruction is not reachable from function entry.
 
        To check divergent loops, the initial value of "div" component of all
-       Iexit labels is set to "Safe" instead of "Bot". This is conservative with
-       respect to non-recursive Icatch and Itrywith handlers. *)
-    D.analyze ~exnescape:Value.exn_escape ~init_lbl:Value.diverges ~transfer
+       Iexit labels of recurisve Icatch handlers is set to "Safe" instead of
+       "Bot". *)
+    D.analyze ~exnescape:Value.exn_escape ~init_rc_lbl:Value.diverges ~transfer
       body
     |> fst
 

@@ -52,11 +52,12 @@ this_test_tests_that
   "compiler-generated extension nodes start with \"extension.\""
 ;;
 
-(* In particular: As long as we're in ocaml-jst, the compiler translates list
-   comprehensions to an AST in terms of %-annotated extension nodes.  We want to
-   confirm that we're only touching ones we intend to use, which we mark by
-   beginning them with the string "extension.".  We print out the other ones we
-   find, which should be the exact four that were present in the source. *)
+(* In particular: As long as we're in the Jane Street compiler, the compiler
+   translates list comprehensions to an AST in terms of %-annotated extension
+   nodes.  We want to confirm that we're only touching ones we intend to use,
+   which we mark by beginning them with the string "extension.".  We print out
+   the other ones we find, which should be the exact four that were present in
+   the source. *)
 
 let starts_with pfx str =
   String.length str >= String.length pfx

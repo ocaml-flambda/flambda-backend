@@ -1,0 +1,5 @@
+File "user_error6.ml", line 21, characters 24-51:
+21 | let _bad_introduction = [%jane.something.nested] ();;
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The extension "something" was referenced improperly; it started with
+       a [%jane.something.nested] extension node, not a [%jane.something] one

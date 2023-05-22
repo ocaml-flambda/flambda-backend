@@ -690,8 +690,8 @@ method select_operation op args _dbg =
     (Iintop_atomic { op = Compare_and_swap; size; addr }, [compare_with; set_to; eloc])
   | (Ccheckbound, _) ->
     self#select_arith Icheckbound args
-  | (Cprobe { name; handler_code_sym; }, _) ->
-    Iprobe { name; handler_code_sym; }, args
+  | (Cprobe { name; handler_code_sym; enabled_at_init; }, _) ->
+    Iprobe { name; handler_code_sym; enabled_at_init; }, args
   | (Cprobe_is_enabled {name}, _) -> Iprobe_is_enabled {name}, []
   | (Cbeginregion, _) -> Ibeginregion, []
   | (Cendregion, _) -> Iendregion, args

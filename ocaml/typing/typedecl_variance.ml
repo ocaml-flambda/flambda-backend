@@ -313,7 +313,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
     | Some ty -> [false, ty]
   in
   match decl.type_kind with
-    Type_abstract _ | Type_open ->
+    Type_abstract | Type_open ->
       compute_variance_type env ~check rloc decl mn
   | Type_variant (tll,_rep) ->
       if List.for_all (fun c -> c.Types.cd_res = None) tll then

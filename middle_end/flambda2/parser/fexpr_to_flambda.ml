@@ -964,8 +964,13 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         | None | Some { params_arity = None; ret_arity = _ } ->
           Misc.fatal_errorf "Must specify arities for C call")
     in
-    let inlined =
-      inlined |> Option.value ~default:Inlined_attribute.Default_inlined
+    let inlined : Inlined_attribute.t =
+      match inlined with
+      | None | Some Default_inlined -> Default_inlined
+      | Some Hint_inlined -> Hint_inlined
+      | Some Always_inlined -> Always_inlined Expected_to_be_used
+      | Some (Unroll n) -> Unroll (n, Expected_to_be_used)
+      | Some Never_inlined -> Never_inlined
     in
     let inlining_state =
       match inlining_state with
@@ -983,7 +988,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         exn_continuation
         ~args:((List.map (simple env)) args)
         ~args_arity ~return_arity ~call_kind Debuginfo.none ~inlined
-        ~inlining_state ~probe_name:None ~position:Normal
+        ~inlining_state ~probe:None ~position:Normal
         ~relative_history:Inlining_history.Relative.empty ~region
     in
     Flambda.Expr.create_apply apply

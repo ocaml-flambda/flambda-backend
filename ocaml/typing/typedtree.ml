@@ -174,7 +174,7 @@ and expression_desc =
   | Texp_unreachable
   | Texp_extension_constructor of Longident.t loc * Path.t
   | Texp_open of open_declaration * expression
-  | Texp_probe of { name:string; handler:expression; }
+  | Texp_probe of { name:string; handler:expression; enabled_at_init:bool; }
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
 
@@ -882,7 +882,7 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
       | Tpat_construct(_, cstr, patl, _) ->
           let sorts =
             match cstr.cstr_repr with
-            | Variant_unboxed _ -> [ sort ]
+            | Variant_unboxed -> [ sort ]
             | Variant_boxed _ | Variant_extensible ->
               Array.to_list (Array.map Layout.sort_of_layout
                                           cstr.cstr_arg_layouts)

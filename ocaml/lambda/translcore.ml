@@ -468,7 +468,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           (* CR layouts v5: This could have void args, but for now we've ruled
              that out with the layout check in transl_list_with_shape *)
           Lconst(const_int runtime_tag)
-      | Ordinary _, Variant_unboxed _ ->
+      | Ordinary _, Variant_unboxed ->
           (match ll with [v] -> v | _ -> assert false)
       | Ordinary {runtime_tag}, Variant_boxed _ ->
           begin try
@@ -491,7 +491,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
             Lprim(Pmakeblock(0, Immutable, Some (Pgenval :: shape),
                              transl_alloc_mode (Option.get alloc_mode)),
                   lam :: ll, of_location ~scopes e.exp_loc)
-      | Extension _, (Variant_boxed _ | Variant_unboxed _)
+      | Extension _, (Variant_boxed _ | Variant_unboxed)
       | Ordinary _, Variant_extensible -> assert false
       end
   | Texp_extension_constructor (_, path) ->
@@ -526,7 +526,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
           Lprim (Pfield (lbl.lbl_pos, sem), [targ],
                  of_location ~scopes e.exp_loc)
-        | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) -> targ
+        | Record_unboxed | Record_inlined (_, Variant_unboxed) -> targ
         | Record_float ->
           let mode = transl_alloc_mode (Option.get alloc_mode) in
           Lprim (Pfloatfield (lbl.lbl_pos, sem, mode), [targ],
@@ -545,7 +545,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           Record_boxed _
         | Record_inlined (_, Variant_boxed _) ->
           Psetfield(lbl.lbl_pos, maybe_pointer newval, mode)
-        | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->
+        | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
           assert false
         | Record_float -> Psetfloatfield (lbl.lbl_pos, mode)
         | Record_inlined (_, Variant_extensible) ->
@@ -863,7 +863,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           Llet(pure, Lambda.layout_module, oid,
                !transl_module ~scopes Tcoerce_none None od.open_expr, body)
       end
-  | Texp_probe {name; handler=exp} ->
+  | Texp_probe {name; handler=exp; enabled_at_init} ->
     if !Clflags.native_code && !Clflags.probes then begin
       let lam = transl_exp ~scopes exp in
       let map =
@@ -946,7 +946,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           ap_tailcall = Default_tailcall;
           ap_inlined = Never_inlined;
           ap_specialised = Always_specialise;
-          ap_probe = Some {name};
+          ap_probe = Some {name; enabled_at_init};
         }
       in
       begin match Config.flambda || Config.flambda2 with
@@ -1412,7 +1412,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                  match repres with
                    Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
                    Pfield (i, sem)
-                 | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->
+                 | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
                    assert false
                  | Record_inlined (_, Variant_extensible) -> Pfield (i + 1, sem)
                  | Record_float ->
@@ -1440,7 +1440,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_boxed _ -> Lconst(Const_block(0, cl))
         | Record_inlined (Ordinary {runtime_tag}, Variant_boxed _) ->
             Lconst(Const_block(runtime_tag, cl))
-        | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->
+        | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
             Lconst(match cl with [v] -> v | _ -> assert false)
         | Record_float ->
             Lconst(Const_float_block(List.map extract_float cl))
@@ -1455,7 +1455,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_inlined (Ordinary {runtime_tag}, Variant_boxed _) ->
             Lprim(Pmakeblock(runtime_tag, mut, Some shape, Option.get mode),
                   ll, loc)
-        | Record_unboxed _ | Record_inlined (Ordinary _, Variant_unboxed _) ->
+        | Record_unboxed | Record_inlined (Ordinary _, Variant_unboxed) ->
             (match ll with [v] -> v | _ -> assert false)
         | Record_float ->
             Lprim(Pmakefloatblock (mut, Option.get mode), ll, loc)
@@ -1463,7 +1463,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             let slot = transl_extension_path loc env path in
             Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape), Option.get mode),
                   slot :: ll, loc)
-        | Record_inlined (Extension _, (Variant_unboxed _ | Variant_boxed _))
+        | Record_inlined (Extension _, (Variant_unboxed | Variant_boxed _))
         | Record_inlined (Ordinary _, Variant_extensible) ->
             assert false
     in
@@ -1489,7 +1489,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
               Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
                 let ptr = maybe_pointer expr in
                 Psetfield(lbl.lbl_pos, ptr, Assignment modify_heap)
-            | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->
+            | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
                 assert false
             | Record_float ->
                 Psetfloatfield (lbl.lbl_pos, Assignment modify_heap)

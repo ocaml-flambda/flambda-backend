@@ -438,8 +438,8 @@ and subst_apply env apply =
   let args_arity = Apply_expr.args_arity apply in
   let return_arity = Apply_expr.return_arity apply in
   Apply_expr.create ~callee ~continuation exn_continuation ~args ~call_kind dbg
-    ~inlined ~inlining_state ~probe_name:None ~position ~relative_history
-    ~region ~args_arity ~return_arity
+    ~inlined ~inlining_state ~probe:None ~position ~relative_history ~region
+    ~args_arity ~return_arity
   |> Expr.create_apply
 
 and subst_apply_cont env apply_cont =
@@ -1002,7 +1002,7 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
             ~args:args1' ~call_kind:call_kind1' (Apply.dbg apply1)
             ~inlined:(Apply.inlined apply1)
             ~inlining_state:(Apply.inlining_state apply1)
-            ~probe_name:None ~position:(Apply.position apply1)
+            ~probe:None ~position:(Apply.position apply1)
             ~relative_history:(Apply_expr.relative_history apply1)
             ~region:(Apply_expr.region apply1)
             ~args_arity:(Apply_expr.args_arity apply1)

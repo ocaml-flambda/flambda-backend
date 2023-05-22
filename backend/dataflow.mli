@@ -29,7 +29,7 @@ module Backward(D: DOMAIN) : sig
 
   val analyze: ?exnhandler: (D.t -> D.t) ->
                ?exnescape: D.t ->
-               ?init_lbl: D.t ->
+               ?init_rc_lbl: D.t ->
                transfer: (Mach.instruction -> next: D.t -> exn: D.t -> D.t) ->
                Mach.instruction ->
                D.t * (int -> D.t)
@@ -87,5 +87,12 @@ module Backward(D: DOMAIN) : sig
      It is the abstract state corresponding to exiting the function on an
      unhandled exception.  It defaults to [D.bot].
   *)
+
+
+  (* CR-someday gyorsh: The function [get_lbl] returned from [analyze]
+     does not provide enough information to the caller of [analyze]
+     to tell whether a label does not exist, exists but unreachable,
+     or exists and is reachable and has the same value as the
+     initial one. *)
 
 end

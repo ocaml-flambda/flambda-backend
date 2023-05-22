@@ -1416,7 +1416,7 @@ let rec tree_of_type_decl id decl =
         Some ty
   in
   begin match decl.type_kind with
-  | Type_abstract _ -> ()
+  | Type_abstract -> ()
   | Type_variant (cstrs, _rep) ->
       List.iter
         (fun c ->
@@ -1436,7 +1436,7 @@ let rec tree_of_type_decl id decl =
   let type_defined decl =
     let abstr =
       match decl.type_kind with
-        Type_abstract _ ->
+        Type_abstract ->
           decl.type_manifest = None || decl.type_private = Private
       | Type_record _ ->
           decl.type_private = Private
@@ -1491,7 +1491,7 @@ let rec tree_of_type_decl id decl =
   in
   let ty, priv, unboxed =
     match decl.type_kind with
-    | Type_abstract _ ->
+    | Type_abstract ->
         begin match ty_manifest with
         | None -> (Otyp_abstract, Public, false)
         | Some ty ->
@@ -1500,7 +1500,7 @@ let rec tree_of_type_decl id decl =
     | Type_variant (cstrs, rep) ->
         let unboxed =
           match rep with
-          | Variant_unboxed _ -> true
+          | Variant_unboxed -> true
           | Variant_boxed _ | Variant_extensible -> false
         in
         tree_of_manifest (Otyp_sum (List.map tree_of_constructor cstrs)),
@@ -1509,7 +1509,7 @@ let rec tree_of_type_decl id decl =
     | Type_record(lbls, rep) ->
         tree_of_manifest (Otyp_record (List.map tree_of_label lbls)),
         decl.type_private,
-        (match rep with Record_unboxed _ -> true | _ -> false)
+        (match rep with Record_unboxed -> true | _ -> false)
     | Type_open ->
         tree_of_manifest Otyp_open,
         decl.type_private,
@@ -1879,7 +1879,8 @@ let dummy =
   {
     type_params = [];
     type_arity = 0;
-    type_kind = Types.kind_abstract_value;
+    type_kind = Type_abstract;
+    type_layout = Layout.any;
     type_private = Public;
     type_manifest = None;
     type_variance = [];

@@ -31,7 +31,7 @@ val empty : t
 
 val print : Format.formatter -> t -> unit
 
-val is_empty : t -> bool
+val is_identity : t -> bool
 
 val create_import_map :
   symbols:Symbol.t Symbol.Map.t ->

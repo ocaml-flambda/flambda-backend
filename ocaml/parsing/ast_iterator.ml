@@ -41,7 +41,7 @@ type iterator = {
   class_type_field: iterator -> class_type_field -> unit;
   constructor_declaration: iterator -> constructor_declaration -> unit;
   expr: iterator -> expression -> unit;
-  expr_extension: iterator -> Extensions.Expression.t -> unit;
+  expr_jane_syntax: iterator -> Jane_syntax.Expression.t -> unit;
   extension: iterator -> extension -> unit;
   extension_constructor: iterator -> extension_constructor -> unit;
   include_declaration: iterator -> include_declaration -> unit;
@@ -54,11 +54,11 @@ type iterator = {
   module_expr: iterator -> module_expr -> unit;
   module_type: iterator -> module_type -> unit;
   module_type_declaration: iterator -> module_type_declaration -> unit;
-  module_type_extension: iterator -> Extensions.Module_type.t -> unit;
+  module_type_jane_syntax: iterator -> Jane_syntax.Module_type.t -> unit;
   open_declaration: iterator -> open_declaration -> unit;
   open_description: iterator -> open_description -> unit;
   pat: iterator -> pattern -> unit;
-  pat_extension: iterator -> Extensions.Pattern.t -> unit;
+  pat_jane_syntax: iterator -> Jane_syntax.Pattern.t -> unit;
   payload: iterator -> payload -> unit;
   signature: iterator -> signature -> unit;
   signature_item: iterator -> signature_item -> unit;
@@ -251,8 +251,8 @@ module MT = struct
         ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
     sub.location sub loc;
     sub.attributes sub attrs;
-    match Extensions.Module_type.of_ast mty with
-    | Some emty -> sub.module_type_extension sub emty
+    match Jane_syntax.Module_type.of_ast mty with
+    | Some jmty -> sub.module_type_jane_syntax sub jmty
     | None ->
     match desc with
     | Pmty_ident s -> iter_loc sub s
@@ -305,8 +305,8 @@ module MT = struct
         sub.extension sub x
     | Psig_attribute x -> sub.attribute sub x
 
-  let iter_extension sub : Extensions.Module_type.t -> _ = function
-    | Emty_strengthen { mty; mod_id } ->
+  let iter_jane_syntax sub : Jane_syntax.Module_type.t -> _ = function
+    | Jmty_strengthen { mty; mod_id } ->
        iter sub mty;
        iter_loc sub mod_id
 end
@@ -357,8 +357,8 @@ end
 module E = struct
   (* Value expressions for the core language *)
 
-  module C = Extensions.Comprehensions
-  module IA = Extensions.Immutable_arrays
+  module C = Jane_syntax.Comprehensions
+  module IA = Jane_syntax.Immutable_arrays
 
   let iter_iterator sub : C.iterator -> _ = function
     | Range { start; stop; direction = _ } ->
@@ -390,16 +390,16 @@ module E = struct
     | Iaexp_immutable_array elts ->
       List.iter (sub.expr sub) elts
 
-  let iter_ext sub : Extensions.Expression.t -> _ = function
-    | Eexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
-    | Eexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
+  let iter_jst sub : Jane_syntax.Expression.t -> _ = function
+    | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
+    | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
 
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
     sub.location sub loc;
     sub.attributes sub attrs;
-    match Extensions.Expression.of_ast expr with
-    | Some eexp -> sub.expr_extension sub eexp
+    match Jane_syntax.Expression.of_ast expr with
+    | Some jexp -> sub.expr_jane_syntax sub jexp
     | None ->
     match desc with
     | Pexp_ident x -> iter_loc sub x
@@ -485,21 +485,21 @@ end
 module P = struct
   (* Patterns *)
 
-  module IA = Extensions.Immutable_arrays
+  module IA = Jane_syntax.Immutable_arrays
 
   let iter_iapat sub : IA.pattern -> _ = function
     | Iapat_immutable_array elts ->
       List.iter (sub.pat sub) elts
 
-  let iter_ext sub : Extensions.Pattern.t -> _ = function
-    | Epat_immutable_array iapat -> iter_iapat sub iapat
+  let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
+    | Jpat_immutable_array iapat -> iter_iapat sub iapat
 
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     sub.location sub loc;
     sub.attributes sub attrs;
-    match Extensions.Pattern.of_ast pat with
-    | Some epat -> sub.pat_extension sub epat
+    match Jane_syntax.Pattern.of_ast pat with
+    | Some jpat -> sub.pat_jane_syntax sub jpat
     | None ->
     match desc with
     | Ppat_any -> ()
@@ -602,7 +602,7 @@ let default_iterator =
     signature = (fun this l -> List.iter (this.signature_item this) l);
     signature_item = MT.iter_signature_item;
     module_type = MT.iter;
-    module_type_extension = MT.iter_extension;
+    module_type_jane_syntax = MT.iter_jane_syntax;
     with_constraint = MT.iter_with_constraint;
     class_declaration =
       (fun this -> CE.class_infos this (this.class_expr this));
@@ -634,9 +634,9 @@ let default_iterator =
       );
 
     pat = P.iter;
-    pat_extension = P.iter_ext;
+    pat_jane_syntax = P.iter_jst;
     expr = E.iter;
-    expr_extension = E.iter_ext;
+    expr_jane_syntax = E.iter_jst;
     binding_op = E.iter_binding_op;
 
     module_declaration =

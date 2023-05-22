@@ -18,6 +18,7 @@
 type error =
   | Stack_frame_too_large of int
   | Stack_frame_way_too_large of int
+  | Inconsistent_probe_init of string * Debuginfo.t
 
 exception Error of error
 
@@ -506,3 +507,7 @@ let report_error ppf = function
                         Use -long-frames compiler flag." n
   | Stack_frame_way_too_large n ->
     Format.fprintf ppf "stack frame too large (%d bytes)." n
+  | Inconsistent_probe_init (name, dbg) ->
+    Format.fprintf ppf "Inconsistent use of ~enabled_at_init in [%%probe %s ..] at %a"
+      name Debuginfo.print_compact dbg
+

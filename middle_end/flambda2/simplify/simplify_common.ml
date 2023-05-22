@@ -148,7 +148,7 @@ let split_direct_over_application apply
         (Call_kind.indirect_function_call_unknown_arity apply_alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
-      ~probe_name:(Apply.probe_name apply) ~position:(Apply.position apply)
+      ~probe:(Apply.probe apply) ~position:(Apply.position apply)
       ~relative_history:(Apply.relative_history apply)
       ~region
   in
@@ -235,7 +235,7 @@ let split_direct_over_application apply
       ~call_kind:(Call_kind.direct_function_call callee's_code_id alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
-      ~probe_name:(Apply.probe_name apply) ~position:(Apply.position apply)
+      ~probe:(Apply.probe apply) ~position:(Apply.position apply)
       ~relative_history:(Apply.relative_history apply)
       ~region:current_region
   in

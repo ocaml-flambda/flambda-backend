@@ -247,6 +247,9 @@ module Layout = struct
     | Ok (Some l) -> Ok l
     | Error _ as e -> e
 
+  let for_boxed_record ~all_void =
+    if all_void then immediate else value
+
   (******************************)
   (* elimination *)
 

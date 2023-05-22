@@ -230,7 +230,7 @@ let free_names t =
   | Immutable_value_array fields -> free_names_of_fields fields
 
 let apply_renaming t renaming =
-  if Renaming.is_empty renaming
+  if Renaming.is_identity renaming
   then t
   else
     match t with

@@ -187,7 +187,7 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
   let inlined = Apply.inlined apply in
   match inlined with
   | Never_inlined -> Never_inlined_attribute
-  | Default_inlined | Unroll _ | Always_inlined | Hint_inlined -> (
+  | Default_inlined | Unroll _ | Always_inlined _ | Hint_inlined -> (
     let code_or_metadata =
       DE.find_code_exn (DA.denv dacc) (FT.code_id function_type)
     in
@@ -247,7 +247,7 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
             else
               might_inline dacc ~apply ~code_or_metadata ~function_type
                 ~simplify_expr ~return_arity
-          | Unroll unroll_to ->
+          | Unroll (unroll_to, _) ->
             if Simplify_rec_info_expr.can_unroll dacc rec_info
             then
               (* This sets off step 1 in the comment above; see
@@ -255,4 +255,4 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
                  handled. *)
               Attribute_unroll unroll_to
             else Unrolling_depth_exceeded
-          | Always_inlined | Hint_inlined -> Attribute_always))
+          | Always_inlined _ | Hint_inlined -> Attribute_always))
