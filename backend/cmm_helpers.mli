@@ -866,6 +866,10 @@ module Generic_fns_tbl : sig
   val of_fns : Cmx_format.generic_fns -> t
 
   val entries : t -> Cmx_format.generic_fns
+
+  module Precomputed : sig
+    val gen : unit -> t
+  end
 end
 
 val generic_functions : bool -> Generic_fns_tbl.t -> Cmm.phrase list

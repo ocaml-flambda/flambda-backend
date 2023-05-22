@@ -246,6 +246,8 @@ module type Optcomp_options = sig
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
+  val _use_cached_startup : string -> unit
+  val _gen_cached_startup : string -> unit
 end;;
 
 module type Opttop_options = sig

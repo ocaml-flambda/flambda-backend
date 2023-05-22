@@ -363,6 +363,11 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   compile_phrase (Cmm_helpers.global_table name_list);
   let globals_map = make_globals_map units in
   compile_phrase (Cmm_helpers.globals_map globals_map);
+  let name_list =
+    if Option.is_some !Clflags.use_cached_startup then
+      CU.create CU.Prefix.empty (CU.Name.of_string "_cached_startup") :: name_list
+    else name_list
+  in
   compile_phrase
     (Cmm_helpers.data_segment_table (startup_comp_unit :: name_list));
   (* CR mshinwell: We should have a separate notion of "backend compilation
@@ -447,12 +452,51 @@ let link_shared unix ~ppf_dump objfiles output_name =
     remove_file startup_obj
   )
 
+let make_cached_startup_functions unix  ~ppf_dump ~sourcefile_for_dwarf =
+  Location.input_name := "caml_cached_startup"; (* set name of "current" input *)
+  let startup_comp_unit =
+    CU.create CU.Prefix.empty (CU.Name.of_string "_cached_startup")
+  in
+  Compilenv.reset startup_comp_unit;
+  Emitaux.Dwarf_helpers.init ~disable_dwarf:(not !Dwarf_flags.dwarf_for_startup_file)
+    sourcefile_for_dwarf;
+  let genfns = Cmm_helpers.Generic_fns_tbl.Precomputed.gen () in
+  Emit.begin_assembly unix;
+  let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
+  Profile.record_call "genfns" (fun () ->
+  List.iter compile_phrase
+    (Cmm_helpers.emit_preallocated_blocks []
+      (Cmm_helpers.generic_functions false genfns)));
+  if !Clflags.output_complete_object then
+    force_linking_of_startup ~ppf_dump;
+  Emit.end_assembly ()
+
+let cached_startup unix ~ppf_dump output_name =
+  Profile.record_call output_name (fun () ->
+    let startup = output_name ^ ext_asm in
+    let sourcefile_for_dwarf = sourcefile_for_dwarf ~named_startup_file:true startup in
+    Profile.record_call "compile_unit" (fun () ->
+      Asmgen.compile_unit ~output_prefix:output_name
+        ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
+        ~obj_filename:(output_name ^ ext_obj)
+        ~may_reduce_heap:true
+        ~ppf_dump
+        (fun () ->
+          make_cached_startup_functions unix ~ppf_dump ~sourcefile_for_dwarf)
+    );
+  )
+
 let call_linker file_list_rev startup_file output_name =
   let main_dll = !Clflags.output_c_object
                  && Filename.check_suffix output_name Config.ext_dll
   and main_obj_runtime = !Clflags.output_complete_object
   in
   let files = startup_file :: (List.rev file_list_rev) in
+  let files =
+    match !Clflags.use_cached_startup with
+    | Some p -> p :: files
+    | None -> files
+  in
   let files, c_lib =
     if (not !Clflags.output_c_object) || main_dll || main_obj_runtime then
       files @ (List.rev !Clflags.ccobjs) @ runtime_lib (),

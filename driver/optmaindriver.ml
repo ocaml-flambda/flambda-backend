@@ -80,7 +80,13 @@ let main unix argv ppf ~flambda2 =
     if !Flambda_backend_flags.gc_timings then Gc_timings.start_collection ();
     if !Clflags.plugin then
       Compenv.fatal "-plugin is only supported up to OCaml 4.08.0";
-    begin try
+    if Option.is_some !Clflags.gen_cached_startup then begin
+      Compmisc.init_path ();
+      let file_prefix = Option.get !Clflags.gen_cached_startup in
+      Compmisc.with_ppf_dump ~file_prefix (fun ppf_dump ->
+          Asmlink.cached_startup unix ~ppf_dump file_prefix);
+      Warnings.check_fatal ();
+    end else begin try
       Compenv.process_deferred_actions
         (ppf,
          Optcompile.implementation unix ~backend ~flambda2,

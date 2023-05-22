@@ -2958,14 +2958,14 @@ module Generic_fns_tbl = struct
       send = Hashtbl.create 10
     }
 
-  let add t Cmx_format.{ curry_fun; apply_fun; send_fun } =
+  let add_uncached t Cmx_format.{ curry_fun; apply_fun; send_fun } =
     List.iter (fun f -> Hashtbl.replace t.curry f ()) curry_fun;
     List.iter (fun f -> Hashtbl.replace t.apply f ()) apply_fun;
     List.iter (fun f -> Hashtbl.replace t.send f ()) send_fun
 
   let of_fns fns =
     let t = make () in
-    add t fns;
+    add_uncached t fns;
     t
 
   let entries t : Cmx_format.generic_fns =
@@ -2977,6 +2977,106 @@ module Generic_fns_tbl = struct
       apply_fun = sorted_keys t.apply;
       send_fun = sorted_keys t.send
     }
+
+  module Precomputed = struct
+    let check_result = function [| Val |] -> true | _ -> false
+
+    let len_arity arity =
+      List.fold_left
+        (fun acc a -> match a with [| Val |] -> acc + 1 | _ -> acc)
+        0 arity
+
+    let is_curry (kind, arity, result) =
+      if not (check_result result)
+      then false
+      else
+        match kind with
+        | Lambda.Tupled ->
+          let l = len_arity arity in
+          2 <= l && l <= 20
+        | Lambda.Curried { nlocal } ->
+          let l = len_arity arity in
+          let in_bounds = 2 <= l && l <= 126 in
+          if not in_bounds
+          then false
+          else if nlocal = 0
+          then true
+          else if nlocal = 1
+          then true
+          else if nlocal = l
+          then true
+          else if l <= 20
+          then true
+          else false
+
+    let is_send (arity, result, alloc) =
+      if not (check_result result)
+      then false
+      else
+        match alloc with
+        | Lambda.Alloc_local -> len_arity arity = 0
+        | Lambda.Alloc_heap -> len_arity arity <= 10
+
+    let is_apply (arity, result, alloc) =
+      if not (check_result result)
+      then false
+      else
+        match alloc with
+        | Lambda.Alloc_local ->
+          let l = len_arity arity in
+          2 <= l && l <= 20
+        | Lambda.Alloc_heap ->
+          let l = len_arity arity in
+          2 <= l && l <= 403
+
+    let gen () =
+      let arity n = List.init n (fun _ -> [| Val |]) in
+      let result = [| Val |] in
+      let tuplify = List.init 100 (fun n -> Lambda.Tupled, arity n, result) in
+      let curry =
+        List.init 128 (fun n ->
+            List.init 128 (fun nlocal ->
+                Lambda.Curried { nlocal }, arity n, result))
+        |> List.concat
+      in
+      let send =
+        List.init 20 (fun n ->
+            [ arity n, result, Lambda.alloc_local;
+              arity n, result, Lambda.alloc_heap ])
+        |> List.concat
+      in
+      let apply =
+        List.init 404 (fun n ->
+            [ arity n, result, Lambda.alloc_local;
+              arity n, result, Lambda.alloc_heap ])
+        |> List.concat
+      in
+      let t = make () in
+      add_uncached t
+        Cmx_format.
+          { curry_fun = List.filter (fun x -> is_curry x) (tuplify @ curry);
+            send_fun = List.filter (fun x -> is_send x) send;
+            apply_fun = List.filter (fun x -> is_apply x) apply
+          };
+      t
+  end
+
+  let add t (Cmx_format.{ curry_fun; apply_fun; send_fun } as f) =
+    match !Clflags.use_cached_startup with
+    | None -> add_uncached t f
+    | Some _ ->
+      List.iter
+        (fun f ->
+          if not (Precomputed.is_curry f) then Hashtbl.replace t.curry f ())
+        curry_fun;
+      List.iter
+        (fun f ->
+          if not (Precomputed.is_apply f) then Hashtbl.replace t.apply f ())
+        apply_fun;
+      List.iter
+        (fun f ->
+          if not (Precomputed.is_send f) then Hashtbl.replace t.send f ())
+        send_fun
 end
 
 let generic_functions shared tbl =
