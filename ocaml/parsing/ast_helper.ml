@@ -89,8 +89,8 @@ module Typ = struct
            that would be a dependency cycle -- [Jane_syntax] depends rather
            crucially on [Ast_helper].  However, this just recurses looking for
            constructors and variables, so it *should* be fine even so.  If
-           Jane-syntax embeddings ever change so that this breaks,, we'll need
-           to resolve this knot. *)
+           Jane-syntax embeddings ever change so that this breaks, we'll need to
+           resolve this knot. *)
         match t.ptyp_desc with
         | Ptyp_any -> Ptyp_any
         | Ptyp_var x ->
