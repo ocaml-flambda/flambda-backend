@@ -67,6 +67,7 @@ type iterator = {
   structure_item: iterator -> structure_item -> unit;
   structure_item_jane_syntax: iterator -> Jane_syntax.Structure_item.t -> unit;
   typ: iterator -> core_type -> unit;
+  typ_jane_syntax: iterator -> Jane_syntax.Core_type.t -> unit;
   row_field: iterator -> row_field -> unit;
   object_field: iterator -> object_field -> unit;
   type_declaration: iterator -> type_declaration -> unit;
@@ -115,9 +116,16 @@ module T = struct
     | Otag (_, t) -> sub.typ sub t
     | Oinherit t -> sub.typ sub t
 
-  let iter sub {ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs} =
+  let iter_jst _sub : Jane_syntax.Core_type.t -> _ = function
+    | _ -> .
+
+  let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
+                  as typ) =
     sub.location sub loc;
     sub.attributes sub attrs;
+    match Jane_syntax.Core_type.of_ast typ with
+    | Some jtyp -> sub.typ_jane_syntax sub jtyp
+    | None ->
     match desc with
     | Ptyp_any
     | Ptyp_var _ -> ()
@@ -645,6 +653,7 @@ let default_iterator =
     type_declaration = T.iter_type_declaration;
     type_kind = T.iter_type_kind;
     typ = T.iter;
+    typ_jane_syntax = T.iter_jst;
     row_field = T.row_field;
     object_field = T.object_field;
     type_extension = T.iter_type_extension;

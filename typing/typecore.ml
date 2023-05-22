@@ -3460,6 +3460,9 @@ let is_local_returning_function cases =
 (* Approximate the type of an expression, for better recursion *)
 
 let rec approx_type env sty =
+  match Jane_syntax.Core_type.of_ast sty with
+  | Some jty -> approx_type_jst env jty
+  | None ->
   match sty.ptyp_desc with
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
       (* CR layouts v5: value requirement here to be relaxed *)
@@ -3501,6 +3504,9 @@ let rec approx_type env sty =
      should probably be sort variable.  See Test21 in typing-layouts/basics.ml
      (which mentions approx_type) for why it can't be value.  *)
   | _ -> newvar Layout.any
+
+and approx_type_jst _env : Jane_syntax.Core_type.t -> _ = function
+  | _ -> .
 
 let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array _ -> ()

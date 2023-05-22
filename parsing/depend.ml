@@ -96,6 +96,9 @@ let handle_extension ext =
     ()
 
 let rec add_type bv ty =
+  match Jane_syntax.Core_type.of_ast ty with
+  | Some jty -> add_type_jst bv jty
+  | None ->
   match ty.ptyp_desc with
     Ptyp_any -> ()
   | Ptyp_var _ -> ()
@@ -118,6 +121,9 @@ let rec add_type bv ty =
   | Ptyp_poly(_, t) -> add_type bv t
   | Ptyp_package pt -> add_package_type bv pt
   | Ptyp_extension e -> handle_extension e
+
+and add_type_jst _bv : Jane_syntax.Core_type.t -> _ = function
+  | _ -> .
 
 and add_package_type bv (lid, l) =
   add bv lid;

@@ -431,6 +431,9 @@ and transl_type_aux env policy mode styp =
     { ctyp_desc; ctyp_type; ctyp_env = env;
       ctyp_loc = loc; ctyp_attributes = styp.ptyp_attributes }
   in
+  match Jane_syntax.Core_type.of_ast styp with
+  | Some etyp -> transl_type_aux_jst env policy mode etyp
+  | None ->
   match styp.ptyp_desc with
     Ptyp_any ->
       let ty = TyVarEnv.new_anon_var styp.ptyp_loc env Layout.any policy in
@@ -821,6 +824,10 @@ and transl_type_aux env policy mode styp =
            }) ty
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
+
+and transl_type_aux_jst _env _policy _mode
+      : Jane_syntax.Core_type.t -> _ = function
+  | _ -> .
 
 and transl_fields env policy o fields =
   let hfields = Hashtbl.create 17 in
