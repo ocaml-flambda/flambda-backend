@@ -126,11 +126,7 @@ module Witnesses : sig
 
   val empty : t
 
-  val is_empty : t -> bool
-
   val join : t -> t -> t
-
-  val diff : t -> t -> t
 
   val create : Witness.kind -> Debuginfo.t -> t
 
@@ -143,6 +139,8 @@ module Witnesses : sig
       exn : t;
       div : t
     }
+
+  val simplify : components -> components
 end = struct
   include Set.Make (Witness)
 
@@ -156,6 +154,15 @@ end = struct
     { nor : t;
       exn : t;
       div : t
+    }
+
+  let simplify { nor; exn; div } =
+    { div =
+        (* don't print diverge witnesses unless they are the only ones. *)
+        (if is_empty nor && is_empty exn then empty else div);
+      nor;
+      (* only print the exn witnesses that are not also nor witnesses. *)
+      exn = diff exn nor
     }
 end
 
@@ -428,7 +435,8 @@ end = struct
       |> String.concat ",")
       fun_name
 
-  let print_witnesses { Witnesses.nor; exn; div } : Location.msg list =
+  let print_witnesses w : Location.msg list =
+    let { Witnesses.nor; exn; div } = Witnesses.simplify w in
     let rec take_first n l =
       match l with
       | [] -> []
@@ -440,14 +448,7 @@ end = struct
       |> List.concat
     in
     let l =
-      List.concat
-        [ (* don't print diverge witnesses unless they are the only ones. *)
-          (if Witnesses.is_empty nor && Witnesses.is_empty exn
-          then f div "diverge"
-          else []);
-          f nor "";
-          (* only print the exn witnesses that are not also nor witnesses. *)
-          f (Witnesses.diff exn nor) "exceptional return" ]
+      List.concat [f div "diverge"; f nor ""; f exn "exceptional return"]
     in
     let cutoff = 20 in
     if List.length l < cutoff
