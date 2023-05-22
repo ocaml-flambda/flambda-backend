@@ -152,24 +152,23 @@ module Comprehensions = struct
   module Desugaring_error = struct
     type error =
       | Non_comprehension_embedding of Embedded_name.t
-      | Non_extension
+      | Non_embedding
       | Bad_comprehension_embedding of string list
       | No_clauses
 
     let report_error ~loc = function
-      | Non_comprehension_embedding ext_name ->
+      | Non_comprehension_embedding name ->
           Location.errorf ~loc
             "Tried to desugar the non-comprehension embedded term %a@ \
              as part of a comprehension expression"
-            Embedded_name.pp_quoted_name ext_name
-      | Non_extension ->
+            Embedded_name.pp_quoted_name name
+      | Non_embedding ->
           Location.errorf ~loc
             "Tried to desugar a non-embedded expression@ \
              as part of a comprehension expression"
       | Bad_comprehension_embedding subparts ->
           Location.errorf ~loc
-            "Unknown, unexpected, or malformed@ \
-             comprehension embedded term %a"
+            "Unknown, unexpected, or malformed@ comprehension embedded term %a"
             Embedded_name.pp_quoted_name
             Embedded_name.(extension_string :: subparts)
       | No_clauses ->
@@ -195,7 +194,7 @@ module Comprehensions = struct
     | Some (ext_name, _) ->
         Desugaring_error.raise expr (Non_comprehension_embedding ext_name)
     | None ->
-        Desugaring_error.raise expr Non_extension
+        Desugaring_error.raise expr Non_embedding
 
   let iterator_of_expr expr =
     match expand_comprehension_extension_expr expr with
@@ -339,7 +338,7 @@ module Strengthen = struct
 end
 
 (******************************************************************************)
-(** The interface to language extensions, which we export *)
+(** The interface to our novel syntax, which we export *)
 
 module type AST = sig
   type t
