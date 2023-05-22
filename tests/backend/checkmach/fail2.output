@@ -1,2 +1,4 @@
 File "fail2.ml", line 1, characters 5-15:
 Error: Annotation check for zero_alloc strict failed on function Fail2.test (camlFail2__test_HIDE_STAMP)
+File "fail2.ml", line 1, characters 33-38:
+  allocate 24 bytes
