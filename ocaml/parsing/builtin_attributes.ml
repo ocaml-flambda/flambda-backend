@@ -100,7 +100,6 @@ let builtin_attrs =
   ; "local"; "ocaml.local"; "extension.local"
   ; "nontail"; "ocaml.nontail"; "extension.nontail"
   ; "tail"; "ocaml.tail"; "extension.tail"
-  ; "include_functor"; "ocaml.include_functor"; "extension.include_functor"
   ; "noalloc"; "ocaml.noalloc"
   ; "zero_alloc"; "ocaml.zero_alloc"
   ; "untagged"; "ocaml.untagged"
@@ -624,12 +623,3 @@ let tailcall attr =
           (Warnings.Attribute_payload
              (t.attr_name.txt, "Only 'hint' is supported"));
         Ok (Some `Tail_if_possible)
-
-let has_include_functor attr =
-  if has_attribute ["extension.include_functor"] attr then
-    if not (Language_extension.is_enabled Include_functor) then
-      Error ()
-    else
-      Ok true
-  else
-    Ok false

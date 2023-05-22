@@ -80,8 +80,17 @@ type mapper = {
   extension: mapper -> extension -> extension;
   extension_constructor: mapper -> extension_constructor
                          -> extension_constructor;
+
   include_declaration: mapper -> include_declaration -> include_declaration;
+  (** In Jane Street's OCaml, this may be called for [include functor]s, and
+      thus the thing being included might be a functor and not a plain module
+      type *)
+
   include_description: mapper -> include_description -> include_description;
+  (** In Jane Street's OCaml, this may be called for [include functor]s, and
+      thus the thing being included might be a functor and not a plain module
+      type *)
+
   label_declaration: mapper -> label_declaration -> label_declaration;
   location: mapper -> Location.t -> Location.t;
   module_binding: mapper -> module_binding -> module_binding;
@@ -100,8 +109,12 @@ type mapper = {
   payload: mapper -> payload -> payload;
   signature: mapper -> signature -> signature;
   signature_item: mapper -> signature_item -> signature_item;
+  signature_item_jane_syntax: mapper ->
+    Jane_syntax.Signature_item.t -> Jane_syntax.Signature_item.t;
   structure: mapper -> structure -> structure;
   structure_item: mapper -> structure_item -> structure_item;
+  structure_item_jane_syntax: mapper ->
+    Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t;
   typ: mapper -> core_type -> core_type;
   type_declaration: mapper -> type_declaration -> type_declaration;
   type_extension: mapper -> type_extension -> type_extension;

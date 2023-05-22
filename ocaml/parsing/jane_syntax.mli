@@ -80,6 +80,22 @@ module Immutable_arrays : sig
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern_desc
 end
 
+(** The ASTs for [include functor].  When we merge this upstream, we'll merge
+    these into the existing [P{sig,str}_include] constructors (similar to what
+    we did with [T{sig,str}_include], but without depending on typechecking). *)
+module Include_functor : sig
+  type signature_item =
+    | Ifsig_include_functor of Parsetree.include_description
+
+  type structure_item =
+    | Ifstr_include_functor of Parsetree.include_declaration
+
+  val sig_item_of :
+    loc:Location.t -> signature_item -> Parsetree.signature_item_desc
+  val str_item_of :
+    loc:Location.t -> structure_item -> Parsetree.structure_item_desc
+end
+
 (** The ASTs for module type strengthening. *)
 module Strengthen : sig
   type module_type =
@@ -180,4 +196,20 @@ module Module_type : sig
     | Jmty_strengthen of Strengthen.module_type
 
   include AST with type t := t and type ast := Parsetree.module_type
+end
+
+(** Novel syntax in signature items *)
+module Signature_item : sig
+  type t =
+    | Jsig_include_functor of Include_functor.signature_item
+
+  include AST with type t := t and type ast := Parsetree.signature_item
+end
+
+(** Novel syntax in structure items *)
+module Structure_item : sig
+  type t =
+    | Jstr_include_functor of Include_functor.structure_item
+
+  include AST with type t := t and type ast := Parsetree.structure_item
 end

@@ -65,8 +65,10 @@ type iterator = {
   payload: iterator -> payload -> unit;
   signature: iterator -> signature -> unit;
   signature_item: iterator -> signature_item -> unit;
+  signature_item_jane_syntax: iterator -> Jane_syntax.Signature_item.t -> unit;
   structure: iterator -> structure -> unit;
   structure_item: iterator -> structure_item -> unit;
+  structure_item_jane_syntax: iterator -> Jane_syntax.Structure_item.t -> unit;
   typ: iterator -> core_type -> unit;
   row_field: iterator -> row_field -> unit;
   object_field: iterator -> object_field -> unit;

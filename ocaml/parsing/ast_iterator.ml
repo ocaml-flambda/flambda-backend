@@ -62,8 +62,10 @@ type iterator = {
   payload: iterator -> payload -> unit;
   signature: iterator -> signature -> unit;
   signature_item: iterator -> signature_item -> unit;
+  signature_item_jane_syntax: iterator -> Jane_syntax.Signature_item.t -> unit;
   structure: iterator -> structure -> unit;
   structure_item: iterator -> structure_item -> unit;
+  structure_item_jane_syntax: iterator -> Jane_syntax.Structure_item.t -> unit;
   typ: iterator -> core_type -> unit;
   row_field: iterator -> row_field -> unit;
   object_field: iterator -> object_field -> unit;
@@ -281,8 +283,19 @@ module MT = struct
     | Pwith_modtypesubst (lid, mty) ->
         iter_loc sub lid; sub.module_type sub mty
 
-  let iter_signature_item sub {psig_desc = desc; psig_loc = loc} =
+  let iter_sig_include_functor sub
+    : Jane_syntax.Include_functor.signature_item -> unit = function
+    | Ifsig_include_functor incl -> sub.include_description sub incl
+
+  let iter_signature_item_jst sub : Jane_syntax.Signature_item.t -> unit =
+    function
+    | Jsig_include_functor ifincl -> iter_sig_include_functor sub ifincl
+
+  let iter_signature_item sub ({psig_desc = desc; psig_loc = loc} as sigi) =
     sub.location sub loc;
+    match Jane_syntax.Signature_item.of_ast sigi with
+    | Some jsigi -> sub.signature_item_jane_syntax sub jsigi
+    | None ->
     match desc with
     | Psig_value vd -> sub.value_description sub vd
     | Psig_type (_, l)
@@ -331,8 +344,19 @@ module M = struct
     | Pmod_unpack e -> sub.expr sub e
     | Pmod_extension x -> sub.extension sub x
 
-  let iter_structure_item sub {pstr_loc = loc; pstr_desc = desc} =
+  let iter_str_include_functor sub
+    : Jane_syntax.Include_functor.structure_item -> unit = function
+    | Ifstr_include_functor incl -> sub.include_declaration sub incl
+
+  let iter_structure_item_jst sub : Jane_syntax.Structure_item.t -> unit =
+    function
+    | Jstr_include_functor ifincl -> iter_str_include_functor sub ifincl
+
+  let iter_structure_item sub ({pstr_loc = loc; pstr_desc = desc} as stri) =
     sub.location sub loc;
+    match Jane_syntax.Structure_item.of_ast stri with
+    | Some jstri -> sub.structure_item_jane_syntax sub jstri
+    | None ->
     match desc with
     | Pstr_eval (x, attrs) ->
         sub.attributes sub attrs; sub.expr sub x
@@ -598,9 +622,11 @@ let default_iterator =
   {
     structure = (fun this l -> List.iter (this.structure_item this) l);
     structure_item = M.iter_structure_item;
+    structure_item_jane_syntax = M.iter_structure_item_jst;
     module_expr = M.iter;
     signature = (fun this l -> List.iter (this.signature_item this) l);
     signature_item = MT.iter_signature_item;
+    signature_item_jane_syntax = MT.iter_signature_item_jst;
     module_type = MT.iter;
     module_type_jane_syntax = MT.iter_jane_syntax;
     with_constraint = MT.iter_with_constraint;
