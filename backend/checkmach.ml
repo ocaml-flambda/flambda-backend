@@ -611,9 +611,11 @@ end = struct
   and join_and_propagate t ~value name =
     let func_info = get_exn t name in
     let new_value = Value.join func_info.value value in
-    if not (Value.lessequal new_value func_info.value)
+    let old_value = func_info.value in
+    (* propagate witnesses *)
+    func_info.value <- new_value;
+    if not (Value.lessequal new_value old_value)
     then (
-      func_info.value <- new_value;
       propagate t func_info)
 
   let iter t ~f = String.Tbl.iter (fun _ func_info -> f func_info) t
