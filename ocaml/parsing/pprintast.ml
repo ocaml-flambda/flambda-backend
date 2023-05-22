@@ -344,7 +344,11 @@ and core_type ctxt f x =
 
 and core_type1 ctxt f x =
   if has_non_curry_attr x.ptyp_attributes then core_type ctxt f x
-  else match x.ptyp_desc with
+  else
+    match Jane_syntax.Core_type.of_ast x with
+    | Some jtyp -> core_type1_jane_syntax ctxt f jtyp
+    | None ->
+    match x.ptyp_desc with
     | Ptyp_any -> pp f "_";
     | Ptyp_var s -> tyvar f  s;
     | Ptyp_tuple l ->  pp f "(%a)" (list (core_type1 ctxt) ~sep:"@;*@;") l
@@ -419,6 +423,9 @@ and core_type1 ctxt f x =
                (list aux  ~sep:"@ and@ ")  cstrs)
     | Ptyp_extension e -> extension ctxt f e
     | _ -> paren true (core_type ctxt) f x
+
+and core_type1_jane_syntax _ctxt _f : Jane_syntax.Core_type.t -> _ = function
+  | _ -> .
 
 and return_type ctxt f x =
   if x.ptyp_attributes <> [] then maybe_local_type core_type1 ctxt f x

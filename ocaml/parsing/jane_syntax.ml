@@ -278,7 +278,7 @@ module Immutable_arrays = struct
       Pattern.make_entire_jane_syntax ~loc extension_string (fun () ->
         Ast_helper.Pat.array elts)
 
-  let of_pat expr = match expr.ppat_desc with
+  let of_pat pat = match pat.ppat_desc with
     | Ppat_array elts -> Iapat_immutable_array elts
     | _ -> failwith "Malformed immutable array pattern"
 end
@@ -345,6 +345,34 @@ module type AST = sig
   type ast
 
   val of_ast : ast -> t option
+end
+
+module Core_type = struct
+  module M = struct
+    module AST = Jane_syntax_parsing.Core_type
+
+    type t = |
+
+    let of_ast_internal (feat : Feature.t) _typ = match feat with
+      | _ -> None
+  end
+
+  include M
+  include Make_of_ast(M)
+end
+
+module Constructor_argument = struct
+  module M = struct
+    module AST = Jane_syntax_parsing.Constructor_argument
+
+    type t = |
+
+    let of_ast_internal (feat : Feature.t) _carg = match feat with
+      | _ -> None
+  end
+
+  include M
+  include Make_of_ast(M)
 end
 
 module Expression = struct

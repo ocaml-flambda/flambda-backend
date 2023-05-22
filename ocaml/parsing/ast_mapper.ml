@@ -78,6 +78,7 @@ type mapper = {
   structure_item_jane_syntax: mapper ->
     Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t;
   typ: mapper -> core_type -> core_type;
+  typ_jane_syntax: mapper -> Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t;
   type_declaration: mapper -> type_declaration -> type_declaration;
   type_extension: mapper -> type_extension -> type_extension;
   type_exception: mapper -> type_exception -> type_exception;
@@ -137,10 +138,22 @@ module T = struct
     in
     Of.mk ~loc ~attrs desc
 
-  let map sub {ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs} =
+  let map_jst _sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
+    function
+    | _ -> .
+
+  let map sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
+                 as typ) =
     let open Typ in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
+    match Jane_syntax.Core_type.of_ast typ with
+    | Some jtyp -> begin
+        Jane_syntax_parsing.Core_type.wrap_desc ~loc ~attrs @@
+        match sub.typ_jane_syntax sub jtyp with
+        | _ -> .
+    end
+    | None ->
     match desc with
     | Ptyp_any -> any ~loc ~attrs ()
     | Ptyp_var s -> var ~loc ~attrs s
@@ -740,6 +753,7 @@ let default_mapper =
     type_declaration = T.map_type_declaration;
     type_kind = T.map_type_kind;
     typ = T.map;
+    typ_jane_syntax = T.map_jst;
     type_extension = T.map_type_extension;
     type_exception = T.map_type_exception;
     extension_constructor = T.map_extension_constructor;
