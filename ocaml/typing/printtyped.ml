@@ -917,7 +917,7 @@ and structure_item i ppf x =
   | Tstr_eval (e, l, attrs) ->
       line i ppf "Tstr_eval\n";
       attributes i ppf attrs;
-      line i ppf "%a\n" Layouts.Layout.format l;
+      Layouts.Layout.(line i ppf "%a\n" format (of_sort l));
       expression i ppf e;
   | Tstr_value (rf, l) ->
       line i ppf "Tstr_value %a\n" fmt_rec_flag rf;

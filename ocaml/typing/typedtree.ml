@@ -346,7 +346,7 @@ and structure_item =
   }
 
 and structure_item_desc =
-    Tstr_eval of expression * layout * attributes
+    Tstr_eval of expression * sort * attributes
   | Tstr_value of rec_flag * value_binding list
   | Tstr_primitive of value_description
   | Tstr_type of rec_flag * type_declaration list

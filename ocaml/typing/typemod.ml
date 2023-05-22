@@ -2628,12 +2628,14 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     | None ->
     match desc with
     | Pstr_eval (sexpr, attrs) ->
-        let expr =
+        (* We restrict [Tstr_eval] expressions to representable layouts to
+           support the native toplevel.  See the special handling of [Tstr_eval]
+           near the top of [execute_phrase] in [opttoploop.ml]. *)
+        let expr, sort =
           Builtin_attributes.warning_scope attrs
-            (fun () -> Typecore.type_expression env sexpr)
+            (fun () -> Typecore.type_representable_expression env sexpr)
         in
-        let layout = Ctype.type_layout expr.exp_env expr.exp_type in
-        Tstr_eval (expr, layout, attrs), [], shape_map, env
+        Tstr_eval (expr, sort, attrs), [], shape_map, env
     | Pstr_value(rec_flag, sdefs) ->
         let force_global =
           (* Values bound by '_' still escape in the toplevel, because
