@@ -363,7 +363,7 @@ end
 
 module Constructor_argument = struct
   module M = struct
-    module AST = Jane_syntax_parsing.Core_type
+    module AST = Jane_syntax_parsing.Constructor_argument
 
     type t = |
 

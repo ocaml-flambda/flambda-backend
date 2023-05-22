@@ -415,12 +415,13 @@ module Make_AST (AST_parameters : AST_parameters) :
       | None -> None
 end
 
-(** Types; embedded as [[[%jane.FEATNAME] * BODY]]. *)
-module Core_type = Make_AST(struct
+(** The AST parameters for every subset of types; embedded as
+    [[[%jane.FEATNAME] * BODY]]. *)
+module Type_AST_parameters = struct
   type ast = core_type
   type ast_desc = core_type_desc
 
-  let plural = "types"
+  (* Missing [plural] *)
 
   let location typ = typ.ptyp_loc
 
@@ -437,30 +438,20 @@ module Core_type = Make_AST(struct
         Some (ext, typ)
     | _ ->
         None
+end
+
+(** Types; embedded as [[[%jane.FEATNAME] * BODY]]. *)
+module Core_type = Make_AST(struct
+    include Type_AST_parameters
+
+    let plural = "types"
 end)
 
 (** Constructor arguments; the same as types, but used in fewer places *)
 module Constructor_argument = Make_AST(struct
-  type ast = core_type
-  type ast_desc = core_type_desc
+  include Type_AST_parameters
 
   let plural = "constructor arguments"
-
-  let location typ = typ.ptyp_loc
-
-  let wrap_desc ?loc ~attrs = Ast_helper.Typ.mk ?loc ~attrs
-
-  let make_extension_node = Ast_helper.Typ.extension
-
-  let make_extension_use ~extension_node typ =
-    Ptyp_tuple [extension_node; typ]
-
-  let match_extension_use typ =
-    match typ.ptyp_desc with
-    | Ptyp_tuple([{ptyp_desc = Ptyp_extension ext; _}; typ]) ->
-        Some (ext, typ)
-    | _ ->
-        None
 end)
 
 (** Expressions; embedded as [([%jane.FEATNAME] BODY)]. *)
