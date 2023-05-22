@@ -28,71 +28,59 @@
 module String = Misc.Stdlib.String
 
 module Witness = struct
-
   type kind =
-    | Alloc of { bytes: int; dbginfo : Debuginfo.alloc_dbginfo }
+    | Alloc of
+        { bytes : int;
+          dbginfo : Debuginfo.alloc_dbginfo
+        }
     | Indirect_call
     | Indirect_tailcall
-    | Direct_call of { callee: string; }
-    | Direct_tailcall of { callee:string; }
-    | Missing_summary of { callee: string }
-    | Forward_call of { callee: string }
-    | Extcall of { callee: string }
+    | Direct_call of { callee : string }
+    | Direct_tailcall of { callee : string }
+    | Missing_summary of { callee : string }
+    | Forward_call of { callee : string }
+    | Extcall of { callee : string }
     | Arch_specific
     | Probe of
         { name : string;
-          handler_code_sym : string;
+          handler_code_sym : string
         }
 
   type t =
-    {
-      kind : kind;
-      dbg : Debuginfo.t;
+    { kind : kind;
+      dbg : Debuginfo.t
     }
 
-  let create kind dbg =
-    { kind; dbg; }
+  let create kind dbg = { kind; dbg }
 
-  let compare { dbg=dbg1; kind=kind1 } {dbg=dbg2; kind=kind2 } =
+  let compare { dbg = dbg1; kind = kind1 } { dbg = dbg2; kind = kind2 } =
     let c = Debuginfo.compare dbg1 dbg2 in
-    if c <> 0 then c else
-    compare kind1 kind2
+    if c <> 0 then c else compare kind1 kind2
 
   let print_kind ppf kind =
     let open Format in
     match kind with
-    | Alloc { bytes; dbginfo=_; } ->
-      fprintf ppf "allocate %d bytes"
-        bytes;
+    | Alloc { bytes; dbginfo = _ } -> fprintf ppf "allocate %d bytes" bytes
     | Indirect_call -> fprintf ppf "indirect call"
     | Indirect_tailcall -> fprintf ppf "indirect tailcall"
-    | Direct_call  { callee; } ->
-      fprintf ppf "direct call %s" callee
-    | Direct_tailcall { callee:string } ->
+    | Direct_call { callee } -> fprintf ppf "direct call %s" callee
+    | Direct_tailcall { callee : string } ->
       fprintf ppf "direct tailcall %s" callee
-    | Missing_summary  { callee } ->
-      fprintf ppf "missing summary for %s" callee
+    | Missing_summary { callee } -> fprintf ppf "missing summary for %s" callee
     | Forward_call { callee } ->
       fprintf ppf "conservatively handles call or tailcall %s" callee
-    | Extcall  { callee } ->
-      fprintf ppf "external call to %s" callee
-    | Arch_specific ->
-      fprintf ppf "arch specific operation"
-    | Probe { name; handler_code_sym; }  ->
+    | Extcall { callee } -> fprintf ppf "external call to %s" callee
+    | Arch_specific -> fprintf ppf "arch specific operation"
+    | Probe { name; handler_code_sym } ->
       fprintf ppf "probe %s handler %s" name handler_code_sym
 
   let get_alloc_dbginfo kind =
     match kind with
-    | Alloc { bytes=_; dbginfo; } -> Some dbginfo
-    | Indirect_call
-    | Indirect_tailcall
-    | Direct_call _
-    | Direct_tailcall _
-    | Missing_summary  _
-    | Forward_call _
-    | Extcall _
-    | Arch_specific
-    | Probe _ -> None
+    | Alloc { bytes = _; dbginfo } -> Some dbginfo
+    | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
+    | Missing_summary _ | Forward_call _ | Extcall _ | Arch_specific | Probe _
+      ->
+      None
 
   let print ppf { kind; dbg } =
     Format.fprintf ppf "%a %a" print_kind kind Debuginfo.print_compact dbg
@@ -100,15 +88,16 @@ module Witness = struct
   let print_error component t : Location.msg list =
     let mkloc pp dbg suffix =
       let loc = Debuginfo.to_location dbg in
-      Location.mkloc (fun ppf ->
-        pp ppf;
-        (* Show inlined locations. If dbg has only one item, it will already
-           be shown as [loc]. *)
-        if List.length t.dbg > 1 then
-          Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg;
-        if not (String.equal "" component) then
-          Format.fprintf ppf " on a path to %s" component;
-        Format.fprintf ppf "%s" suffix)
+      Location.mkloc
+        (fun ppf ->
+          pp ppf;
+          (* Show inlined locations. If dbg has only one item, it will already
+             be shown as [loc]. *)
+          if List.length t.dbg > 1
+          then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg;
+          if not (String.equal "" component)
+          then Format.fprintf ppf " on a path to %s" component;
+          Format.fprintf ppf "%s" suffix)
         loc
     in
     let pp_kind ppf = print_kind ppf t.kind in
@@ -117,42 +106,63 @@ module Witness = struct
     | Some alloc_dbginfo ->
       (* One Ialloc is a result of comballoc, print details of each location. *)
       let suffix =
-        Printf.sprintf " combining %d allocations below" (List.length alloc_dbginfo)
+        Printf.sprintf " combining %d allocations below"
+          (List.length alloc_dbginfo)
       in
       let details =
-        List.map (fun (item : Debuginfo.alloc_dbginfo_item) ->
-          let pp_alloc ppf =
-            Format.fprintf ppf "allocate %d words" item.alloc_words
-          in
-          mkloc pp_alloc item.alloc_dbg "")
-        alloc_dbginfo
+        List.map
+          (fun (item : Debuginfo.alloc_dbginfo_item) ->
+            let pp_alloc ppf =
+              Format.fprintf ppf "allocate %d words" item.alloc_words
+            in
+            mkloc pp_alloc item.alloc_dbg "")
+          alloc_dbginfo
       in
-      (mkloc pp_kind t.dbg suffix)::details
+      mkloc pp_kind t.dbg suffix :: details
 end
 
 module Witnesses : sig
   type t
-  val empty : t
-  val is_empty : t -> bool
-  val join : t -> t -> t
-  val diff : t -> t -> t
-  val create : Witness.kind -> Debuginfo.t -> t
-  val print : Format.formatter -> t -> unit
-  val elements : t -> Witness.t list
-  type components = { nor : t; exn: t; div : t }
 
+  val empty : t
+
+  val is_empty : t -> bool
+
+  val join : t -> t -> t
+
+  val diff : t -> t -> t
+
+  val create : Witness.kind -> Debuginfo.t -> t
+
+  val print : Format.formatter -> t -> unit
+
+  val elements : t -> Witness.t list
+
+  type components =
+    { nor : t;
+      exn : t;
+      div : t
+    }
 end = struct
-  include Set.Make(Witness)
+  include Set.Make (Witness)
+
   let join = union
+
   let create kind dbg = singleton (Witness.create kind dbg)
+
   let print ppf t = Format.pp_print_seq Witness.print ppf (to_seq t)
-  type components = { nor : t; exn: t; div : t}
+
+  type components =
+    { nor : t;
+      exn : t;
+      div : t
+    }
 end
 
 (** Abstract value for each component of the domain. *)
 module V : sig
   type t =
-    | Top of Witnesses.t (** Property may not hold on some paths. *)
+    | Top of Witnesses.t  (** Property may not hold on some paths. *)
     | Safe  (** Property holds on all paths.  *)
     | Bot  (** Not reachable. *)
 
@@ -160,7 +170,7 @@ module V : sig
 
   val join : t -> t -> t
 
-  val transform : Witnesses.t -> t ->  t
+  val transform : Witnesses.t -> t -> t
 
   val replace_witnesses : Witnesses.t -> t -> t
 
@@ -168,7 +178,7 @@ module V : sig
 
   val is_not_safe : t -> bool
 
-  val print : witnesses: bool -> Format.formatter -> t -> unit
+  val print : witnesses:bool -> Format.formatter -> t -> unit
 end = struct
   type t =
     | Top of Witnesses.t
@@ -189,7 +199,7 @@ end = struct
     | Safe, Safe -> true
     | Top _, Top _ -> true
     | Bot, Safe -> true
-    | Bot, Top _-> true
+    | Bot, Top _ -> true
     | Safe, Top _ -> true
     | Top _, (Bot | Safe) -> false
     | Safe, Bot -> false
@@ -205,28 +215,23 @@ end = struct
     | Safe -> Top w
     | Top w' -> Top (Witnesses.join w w')
 
-  let replace_witnesses w t =
-    match t with
-    | Top _ -> Top w
-    | Bot | Safe -> t
+  let replace_witnesses w t = match t with Top _ -> Top w | Bot | Safe -> t
 
   let diff_witnesses ~expected ~actual =
-    if (lessequal actual expected) then Witnesses.empty
-    else begin
+    if lessequal actual expected
+    then Witnesses.empty
+    else (
       assert (expected = Safe);
-      match actual with
-      | Bot | Safe -> assert false
-      | Top w -> w
-    end
+      match actual with Bot | Safe -> assert false | Top w -> w)
 
   let is_not_safe = function Top _ -> true | Safe | Bot -> false
 
   let print ~witnesses ppf = function
     | Bot -> Format.fprintf ppf "bot"
-    | Top w -> Format.fprintf ppf "top";
+    | Top w ->
+      Format.fprintf ppf "top";
       if witnesses then Format.fprintf ppf " (%a)" Witnesses.print w
     | Safe -> Format.fprintf ppf "safe"
-
 end
 
 (** Abstract value associated with each program location in a function. *)
@@ -267,7 +272,6 @@ module Value : sig
   val replace_witnesses : Witnesses.t -> t -> t
 
   val diff_witnesses : expected:t -> actual:t -> Witnesses.components
-
 end = struct
   (** Lifts V to triples  *)
   type t =
@@ -295,18 +299,17 @@ end = struct
     }
 
   let replace_witnesses w t =
-    {
-      nor = V.replace_witnesses w t.nor;
+    { nor = V.replace_witnesses w t.nor;
       exn = V.replace_witnesses w t.exn;
-      div = V.replace_witnesses w t.div;
+      div = V.replace_witnesses w t.div
     }
 
   let diff_witnesses ~expected ~actual =
-    {
-      Witnesses.nor = V.diff_witnesses ~expected:expected.nor ~actual:actual.nor;
+    { Witnesses.nor = V.diff_witnesses ~expected:expected.nor ~actual:actual.nor;
       Witnesses.exn = V.diff_witnesses ~expected:expected.exn ~actual:actual.exn;
-      Witnesses.div = V.diff_witnesses ~expected:expected.div ~actual:actual.div;
+      Witnesses.div = V.diff_witnesses ~expected:expected.div ~actual:actual.div
     }
+
   let normal_return = { bot with nor = V.Safe }
 
   let exn_escape = { bot with exn = V.Safe }
@@ -317,13 +320,12 @@ end = struct
 
   let top w = { nor = V.Top w; exn = V.Top w; div = V.Top w }
 
-  let relaxed = { nor = V.Safe; exn = V.Top Witnesses.empty; div = V.Top Witnesses.empty}
+  let relaxed =
+    { nor = V.Safe; exn = V.Top Witnesses.empty; div = V.Top Witnesses.empty }
 
   let print ~witnesses ppf { nor; exn; div } =
-    let pp = (V.print ~witnesses) in
-    Format.fprintf ppf "{ nor=%a; exn=%a; div=%a }"
-      pp nor pp exn
-      pp div
+    let pp = V.print ~witnesses in
+    Format.fprintf ppf "{ nor=%a; exn=%a; div=%a }" pp nor pp exn pp div
 end
 
 (**  Representation of user-provided annotations as abstract values *)
@@ -430,34 +432,29 @@ end = struct
     let rec take_first n l =
       match l with
       | [] -> []
-      | hd::tl ->
-        if n > 0 then
-          hd::(take_first (n-1) tl)
-        else
-          []
+      | hd :: tl -> if n > 0 then hd :: take_first (n - 1) tl else []
     in
     let f t component =
-      t
-      |> Witnesses.elements
+      t |> Witnesses.elements
       |> List.map (Witness.print_error component)
       |> List.concat
     in
     let l =
       List.concat
-        [
-          (* don't print diverge witnesses unless they are the only ones. *)
-          if Witnesses.is_empty nor && Witnesses.is_empty exn then f div "diverge" else [];
+        [ (* don't print diverge witnesses unless they are the only ones. *)
+          (if Witnesses.is_empty nor && Witnesses.is_empty exn
+          then f div "diverge"
+          else []);
           f nor "";
           (* only print the exn witnesses that are not also nor witnesses. *)
-          f (Witnesses.diff exn nor) "exceptional return"
-        ]
+          f (Witnesses.diff exn nor) "exceptional return" ]
     in
     let cutoff = 20 in
     if List.length l < cutoff
     then l
     else
       let print_dots = Location.mknoloc (fun ppf -> Format.fprintf ppf "...") in
-      (take_first cutoff l)@[print_dots]
+      take_first cutoff l @ [print_dots]
 
   let report_error = function
     | Invalid { a; fun_name; fun_dbg; property; witnesses } ->
@@ -481,7 +478,8 @@ module Func_info = struct
           (** [value] must be lessequal than the expected value
           if there is user-defined annotation on this function. *)
       mutable unresolved_callers : String.Set.t;  (** direct callers  *)
-      mutable unresolved_callees : Witnesses.t String.Map.t  (** direct callees  *)
+      mutable unresolved_callees : Witnesses.t String.Map.t
+          (** direct callees  *)
     }
 
   let create name =
@@ -505,7 +503,8 @@ module Func_info = struct
     fprintf ppf "%s %s %a@,(unresolved callees: %a)@,(unresolved callers: %a)@."
       msg t.name (Value.print ~witnesses) t.value print_names
       (t.unresolved_callees |> String.Map.to_seq |> Seq.map (fun (k, _) -> k))
-      print_names (String.Set.to_seq t.unresolved_callers)
+      print_names
+      (String.Set.to_seq t.unresolved_callers)
 end
 
 module type Spec = sig
@@ -551,7 +550,8 @@ module Unit_info : sig
 
   (** [record_deps t ~caller ~callees] caller and callees must be in the current
       compilation unit.  *)
-  val record_deps : t -> caller:string -> callees:(Witnesses.t String.Map.t) -> unit
+  val record_deps :
+    t -> caller:string -> callees:Witnesses.t String.Map.t -> unit
 
   (** [cleanup_deps] remove resolved dependencies starting from [name]. *)
   val cleanup_deps : t -> string -> unit
@@ -589,20 +589,24 @@ end = struct
     let value = func_info.value in
     let value =
       (* conservative use of summaries for unresolved dependencies *)
-      let w = Witnesses.create (Forward_call { callee = func_info.name })
-                Debuginfo.none in
+      let w =
+        Witnesses.create
+          (Forward_call { callee = func_info.name })
+          Debuginfo.none
+      in
       let v = V.join value.nor value.exn |> V.replace_witnesses w in
       { Value.nor = v; exn = v; div = value.div }
     in
-    String.Set.iter (replace_witnesses_and_propagate t ~value ~callee:func_info.name)
+    String.Set.iter
+      (replace_witnesses_and_propagate t ~value ~callee:func_info.name)
       unresolved_callers
 
-  and replace_witnesses_and_propagate t ~(value:Value.t) ~callee name =
+  and replace_witnesses_and_propagate t ~(value : Value.t) ~callee name =
     let func_info = get_exn t name in
     match String.Map.find_opt callee func_info.unresolved_callees with
     | None ->
       Misc.fatal_errorf "missing witnesses for unresolved_callee %s of %s"
-                callee name
+        callee name
     | Some w ->
       let v = V.replace_witnesses w value.nor in
       let value = { value with nor = v; exn = v } in
@@ -614,9 +618,7 @@ end = struct
     let old_value = func_info.value in
     (* propagate witnesses *)
     func_info.value <- new_value;
-    if not (Value.lessequal new_value old_value)
-    then (
-      propagate t func_info)
+    if not (Value.lessequal new_value old_value) then propagate t func_info
 
   let iter t ~f = String.Tbl.iter (fun _ func_info -> f func_info) t
 
@@ -710,8 +712,9 @@ end = struct
     if !Flambda_backend_flags.dump_checkmach
     then
       Format.fprintf ppf "*** check %s %s in %s: %s with %a (%a)\n"
-        analysis_name msg current_fun_name desc (Value.print ~witnesses:true) v
-        Debuginfo.print_compact dbg
+        analysis_name msg current_fun_name desc
+        (Value.print ~witnesses:true)
+        v Debuginfo.print_compact dbg
 
   let report t v ~msg ~desc dbg =
     report' t.ppf v ~msg ~desc ~current_fun_name:t.current_fun_name dbg
@@ -750,19 +753,21 @@ end = struct
         let expected_value = Annotation.expected_value a in
         if (not (Annotation.is_assume a))
            && S.enabled ()
-           && not
-                (Value.lessequal func_info.value expected_value)
+           && not (Value.lessequal func_info.value expected_value)
         then
-          (* CR-soon gyorsh: keeping track of all the witnesses until the end
-             of the compilation unit will be expensive. For functions that do
-             not have any dependencies, we can check annotations earlier,
-             as soon as the function is analyzed, or as soon as its dependencies
-             are resolved, print the error, and remove the witnesses
-             from the stored values. *)
+          (* CR-soon gyorsh: keeping track of all the witnesses until the end of
+             the compilation unit will be expensive. For functions that do not
+             have any dependencies, we can check annotations earlier, as soon as
+             the function is analyzed, or as soon as its dependencies are
+             resolved, print the error, and remove the witnesses from the stored
+             values. *)
           (* CR gyorsh: we can add error recovering mode where we sets the
              expected value as the actual value and continue analysis of other
              functions. *)
-          let witnesses = Value.diff_witnesses ~expected:expected_value ~actual:func_info.value in
+          let witnesses =
+            Value.diff_witnesses ~expected:expected_value
+              ~actual:func_info.value
+          in
           raise
             (Annotation.Invalid
                { a;
@@ -792,8 +797,8 @@ end = struct
       report t v ~msg:"unresolved" ~desc dbg
     | None -> report t v ~msg:"resolved" ~desc dbg
 
-  (* [find_callee] returns the value associated with the callee and a new dependency to
-     record if there is one. *)
+  (* [find_callee] returns the value associated with the callee and a new
+     dependency to record if there is one. *)
   let find_callee t callee dbg =
     match Unit_info.find_opt t.unit_info callee with
     | None ->
@@ -816,8 +821,8 @@ end = struct
           | None ->
             let w = Witnesses.create (Missing_summary { callee }) dbg in
             let v = Value.top w in
-            report t v ~msg:"callee compiled without checks"
-              ~desc:callee Debuginfo.none;
+            report t v ~msg:"callee compiled without checks" ~desc:callee
+              Debuginfo.none;
             v
           | Some v -> v
         in
@@ -871,10 +876,9 @@ end = struct
     report t exn ~msg:"transform_call exn" ~desc dbg;
     let callee_value, new_dep = find_callee t callee dbg in
     update_deps t callee_value new_dep w desc dbg;
-    (* Abstract witnesses of a call to the single witness
-       for the callee name. Summary of tailcall self
-       won't be affected because it is set to Safe not Top
-       by [find_callee]. *)
+    (* Abstract witnesses of a call to the single witness for the callee name.
+       Summary of tailcall self won't be affected because it is set to Safe not
+       Top by [find_callee]. *)
     let callee_value = Value.replace_witnesses w callee_value in
     transform t ~next ~exn ~effect:callee_value desc dbg
 
@@ -917,7 +921,7 @@ end = struct
       next
     | Ialloc { mode = Alloc_heap; bytes; dbginfo } ->
       assert (not (Mach.operation_can_raise op));
-      let w = Witnesses.create (Alloc {bytes; dbginfo }) dbg in
+      let w = Witnesses.create (Alloc { bytes; dbginfo }) dbg in
       let r = Value.transform w next in
       check t r "heap allocation" dbg
     | Iprobe { name; handler_code_sym } ->
@@ -932,8 +936,8 @@ end = struct
       (* Sound to ignore [next] and [exn] because the call never returns. *)
       let w = Witnesses.create Indirect_tailcall dbg in
       let effect = Value.top w in
-      transform t ~next:Value.normal_return ~exn:Value.exn_escape
-        ~effect "indirect tailcall" dbg
+      transform t ~next:Value.normal_return ~exn:Value.exn_escape ~effect
+        "indirect tailcall" dbg
     | Icall_imm { func = { sym_name = func; _ } } ->
       let w = Witnesses.create (Direct_call { callee = func }) dbg in
       transform_call t ~next ~exn func w ~desc:("direct call to " ^ func) dbg
@@ -1030,8 +1034,7 @@ end = struct
         let expected_value = Annotation.expected_value a in
         report t expected_value ~msg:"assumed" ~desc:"fundecl" f.fun_dbg;
         Unit_info.join_value unit_info fun_name expected_value
-      | None ->
-        really_check ()
+      | None -> really_check ()
       | Some a ->
         let expected_value = Annotation.expected_value a in
         report t expected_value ~msg:"assert" ~desc:"fundecl" f.fun_dbg;
