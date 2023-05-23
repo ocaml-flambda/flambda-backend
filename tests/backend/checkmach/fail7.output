@@ -1,6 +1,2 @@
 File "fail7.ml", line 7, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail7.test (camlFail7__test_HIDE_STAMP)
-File "fail7.ml", line 10, characters 23-34:
-  allocate 24 bytes
-File "fail7.ml", line 11, characters 23-41:
-  allocate 24 bytes

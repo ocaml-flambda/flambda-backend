@@ -1,4 +1,2 @@
 File "fail14.ml", line 6, characters 5-15:
 Error: Annotation check for zero_alloc strict failed on function Fail14.foo (camlFail14__foo_HIDE_STAMP)
-File "fail14.ml", line 6, characters 44-54:
-  direct tailcall camlFail14__pass_HIDE_STAMP on a path to exceptional return

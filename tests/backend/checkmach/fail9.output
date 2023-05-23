@@ -1,4 +1,2 @@
 File "fail9.ml", line 1, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail9.g (camlFail9__g_HIDE_STAMP)
-File "fail9.ml", line 3, characters 8-11:
-  direct call camlFail9__g_HIDE_STAMP

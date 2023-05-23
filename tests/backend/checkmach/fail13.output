@@ -1,8 +1,2 @@
 File "fail13.ml", line 3, characters 15-29:
 Error: Annotation check for zero_alloc failed on function Fail13.fail_loud2 (camlFail13__fail_loud2_HIDE_STAMP)
-File "fail13.ml", line 3, characters 24-29:
-  allocate 48 bytes combining 2 allocations below
-File "fail13.ml", line 3, characters 19-29:
-  allocate 3 words
-File "fail13.ml", line 3, characters 24-29:
-  allocate 3 words

@@ -1,4 +1,2 @@
 File "fail4.ml", line 2, characters 5-15:
 Error: Annotation check for zero_alloc strict failed on function Fail4.test (camlFail4__test_HIDE_STAMP)
-File "fail4.ml", line 2, characters 33-43:
-  direct tailcall camlT4__test1_HIDE_STAMP
