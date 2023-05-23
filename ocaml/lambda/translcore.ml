@@ -41,9 +41,9 @@ let use_dup_for_constant_mutable_arrays_bigger_than = 4
    changed to check for void. *)
 let sort_must_be_value ~why loc sort =
   if not Sort.(equate sort value) then
-    let violation = Layout.(Violation.Not_a_sublayout
-                              (of_sort ~why sort,
-                               value ~why:V1_safety_check)) in
+    let violation = Layout.(Violation.of_ (Not_a_sublayout
+                                             (of_sort ~why sort,
+                                              value ~why:V1_safety_check))) in
     raise (Error (loc, Non_value_layout violation))
 
 let layout_must_be_value loc layout =
@@ -65,8 +65,8 @@ let layout_must_not_be_void loc layout =
   Layout.default_to_value layout;
   match Layout.(sub layout (void ~why:V1_safety_check)) with
   | Ok _ ->
-     let violation = Layout.(Violation.Not_a_sublayout
-                               (layout, value ~why:V1_safety_check)) in
+     let violation = Layout.(Violation.of_ (Not_a_sublayout
+                               (layout, value ~why:V1_safety_check))) in
     raise (Error (loc, Non_value_layout violation))
   | Error _ -> ()
 

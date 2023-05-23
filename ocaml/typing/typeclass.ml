@@ -1366,9 +1366,9 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                (fun (loc, mode, sort) ->
                   Typecore.escape ~loc ~env:val_env ~reason:Other mode;
                   if not (Sort.equate sort Sort.value)
-                  then let viol = Layout.Violation.Not_a_sublayout(
+                  then let viol = Layout.Violation.of_ (Not_a_sublayout(
                     Layout.of_sort ~why:Let_binding sort,
-                    Layout.value ~why:Class_let_binding)
+                    Layout.value ~why:Class_let_binding))
                     in
                     raise (Error(loc, met_env,
                                  Non_value_binding (Ident.name id, viol)))

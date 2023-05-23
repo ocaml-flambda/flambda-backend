@@ -263,9 +263,10 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
                  (correct_levels ty) (Layout.value ~why:V1_safety_check))
       with
       | Ok _ -> ()
-      | Error (Missing_cmi _) -> ()
-      (* CR layouts v1.5: stop allowing missing cmis *)
-      | Error e -> raise (Error (loc, Non_value_layout (ty, e)))
+      | Error violation ->
+        if not (Layout.Violation.is_missing_cmi violation)
+        then raise (Error (loc, Non_value_layout (ty, violation)))
+        (* CR layouts v1.5: stop allowing missing cmis *)
 
   end;
   match get_desc scty with

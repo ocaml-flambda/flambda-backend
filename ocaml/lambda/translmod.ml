@@ -57,8 +57,8 @@ exception Error of Location.t * error
 let sort_must_not_be_void loc ty sort =
   let layout = Layout.of_sort sort in
   if Layout.is_void layout then
-    let violation = Layout.(Violation.Not_a_sublayout
-                              (layout, value ~why:V1_safety_check)) in
+    let violation = Layout.(Violation.of_ (Not_a_sublayout
+                              (layout, value ~why:V1_safety_check))) in
     raise (Error (loc, Non_value_layout (ty, violation)))
 
 let cons_opt x_opt xs =

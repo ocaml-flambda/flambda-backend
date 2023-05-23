@@ -177,13 +177,19 @@ module Layout : sig
     | Sublayout
 
   module Violation : sig
-    type nonrec t =
+    type violation =
       | Not_a_sublayout of t * t
       | No_intersection of t * t
-      | Missing_cmi of Path.t * t * t
-        (* means: we can't prove that lay1 is a sublayout of lay2 because
-           lay1's cmi is missing *)
 
+    type t
+
+    val of_ : violation -> t
+
+    (** Mark a [t] as having arisen from a missing cmi *)
+    val record_missing_cmi : missing_cmi_for:Path.t -> t -> t
+
+    (** Is this error from a missing cmi? *)
+    val is_missing_cmi : t -> bool
 
     (* CR layouts: The [offender] arguments below are always
        [Printtyp.type_expr], so we should either stash that in a ref (like with

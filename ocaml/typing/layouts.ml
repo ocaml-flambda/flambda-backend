@@ -799,10 +799,24 @@ module Layout = struct
   module Violation = struct
     open Format
 
-    type nonrec t =
+    type violation =
       | Not_a_sublayout of t * t
       | No_intersection of t * t
-      | Missing_cmi of Path.t * t * t
+
+    type nonrec t = { violation : violation
+                    ; missing_cmi : Path.t option }
+       (* [missing_cmi]: is this error a result of a missing cmi file?
+          This is stored separately from the [violation] because it's
+          used to change the behavior of [value_kind], and we don't
+          want that function to inspect something that is purely about
+          the choice of error message. (Though the [Path.t] payload *is*
+          indeed just about the payload.) *)
+
+    let of_ violation = { violation; missing_cmi = None }
+
+    let record_missing_cmi ~missing_cmi_for t = { t with missing_cmi = Some missing_cmi_for }
+
+    let is_missing_cmi { missing_cmi } = Option.is_some missing_cmi
 
     let report_general preamble pp_former former ppf t =
       let sublayout_format verb l2 = match get l2 with
@@ -810,22 +824,26 @@ module Layout = struct
         | Const _ -> dprintf "%s a sublayout of %a" verb format l2
       in
       let l1, l2, fmt_l1, fmt_l2, missing_cmi_option = match t with
-        | Not_a_sublayout(l1, l2) ->
-          l1, l2,
-          dprintf "layout %a" format l1,
-          sublayout_format "is not" l2, None
-        | No_intersection(l1, l2) ->
+        | { violation = Not_a_sublayout(l1, l2); missing_cmi } ->
+          begin match missing_cmi with
+          | None ->
+            l1, l2,
+            dprintf "layout %a" format l1,
+            sublayout_format "is not" l2, None
+          | Some p ->
+            l1, l2,
+            dprintf "an unknown layout",
+            sublayout_format "might not be" l2, Some p
+          end
+        | { violation = No_intersection(l1, l2); missing_cmi } ->
+          assert (Option.is_none missing_cmi);
           l1, l2,
           dprintf "layout %a" format l1,
           dprintf "does not overlap with %a" format l2, None
-        | Missing_cmi(p, l1, l2) ->
-          l1, l2,
-          dprintf "an unknown layout",
-          sublayout_format "might not be" l2, Some p
       in
       if display_histories then begin
-        let connective = match t with
-          | Not_a_sublayout _ | Missing_cmi _ -> "be a sublayout of"
+        let connective = match t.violation with
+          | Not_a_sublayout _ -> "be a sublayout of"
           | No_intersection _ -> "have overlap with"
         in
         fprintf ppf "%a%a"
@@ -894,15 +912,15 @@ module Layout = struct
     | (Immediate | Immediate64), Sort s ->
       if Sort.equate s Sort.value
       then Ok l1
-      else Error (Violation.No_intersection (l1, l2))
+      else Error (Violation.of_ (No_intersection (l1, l2)))
     | Sort s, (Immediate | Immediate64) ->
       if Sort.equate s Sort.value
       then Ok l2
-      else Error (Violation.No_intersection (l1, l2))
+      else Error (Violation.of_ (No_intersection (l1, l2)))
     | Sort s1, Sort s2 ->
       if Sort.equate s1 s2
       then Ok { l1 with history = combine_histories reason l1 l2 }
-      else Error (Violation.No_intersection (l1, l2))
+      else Error (Violation.of_ (No_intersection (l1, l2)))
 
   (* this is hammered on; it must be fast! *)
   let check_sub sub super : sub_result =
@@ -923,12 +941,12 @@ module Layout = struct
 
   let sub sub super = match check_sub sub super with
     | Sub | Equal -> Ok ()
-    | Not_sub -> Error (Violation.Not_a_sublayout (sub, super))
+    | Not_sub -> Error (Violation.of_ (Not_a_sublayout (sub, super)))
 
   let sub_with_history sub super = match check_sub sub super with
     | Sub | Equal ->
       Ok { sub with history = combine_histories Sublayout sub super }
-    | Not_sub -> Error (Violation.Not_a_sublayout (sub, super))
+    | Not_sub -> Error (Violation.of_ (Not_a_sublayout (sub, super)))
 
   let is_void = function
     | { layout = Sort s } -> Sort.is_void s
