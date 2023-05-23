@@ -87,12 +87,12 @@ exception Error of Location.t * error
 let layout_of_attributes ~legacy_immediate ~reason attrs =
   match Layout.of_attributes ~legacy_immediate ~reason attrs with
   | Ok l -> l
-  | Error (loc, c) -> raise (Error (loc, Layout_not_enabled c))
+  | Error { loc; txt } -> raise (Error (loc, Layout_not_enabled txt))
 
 let layout_of_attributes_default ~legacy_immediate ~reason ~default attrs =
   match Layout.of_attributes_default ~legacy_immediate ~reason ~default attrs with
   | Ok l -> l
-  | Error (loc, c) -> raise (Error (loc, Layout_not_enabled c))
+  | Error { loc; txt } -> raise (Error (loc, Layout_not_enabled txt))
 
 let get_unboxed_from_attributes sdecl =
   let unboxed = Builtin_attributes.has_unboxed sdecl.ptype_attributes in
@@ -2148,9 +2148,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       sig_decl.type_kind, sig_decl.type_unboxed_default, sig_decl.type_layout
     else
       (* CR layouts v2: this is a gross hack.  See the comments in the
-         [Ptyp_package] case of [Typetexp.transl_type_aux].
-         This seems just wrong to RAE. *)
-      let layout = Layout.value ~why:With_constraint_hack in
+         [Ptyp_package] case of [Typetexp.transl_type_aux]. *)
+      let layout = Layout.value ~why:Package_hack in
         (* Layout.(of_attributes ~default:value sdecl.ptype_attributes) *)
       Type_abstract, false, layout
   in
@@ -2274,8 +2273,7 @@ let approx_type_decl sdecl_list =
        let params =
          List.map (fun (styp,_) ->
            layout_of_attributes_default ~legacy_immediate:false
-             ~reason:(Type_parameter (Pident id,
-                                      parameter_name styp))
+             ~reason:(Type_parameter (Pident id, parameter_name styp))
              ~default:(Layout.value ~why:Type_argument)
              styp.ptyp_attributes)
            sdecl.ptype_params

@@ -1487,7 +1487,7 @@ let rec tree_of_type_decl id decl =
     match Builtin_attributes.layout ~legacy_immediate:true decl.type_attributes
     with
     | Ok l -> l
-    | Error (loc, l) -> Some (Location.mkloc l loc)
+    | Error l_loc -> Some l_loc
   in
   let ty, priv, unboxed =
     match decl.type_kind with

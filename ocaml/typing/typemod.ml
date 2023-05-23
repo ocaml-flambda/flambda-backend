@@ -2664,9 +2664,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                       defaulting the sort of top-level bindings to value, which
                       will change. *)
                    if not Sort.(equate sort value)
-                   then
-                     raise (Error (loc, env,
-                                   Toplevel_nonvalue (Ident.name id,sort)))
+                   then raise (Error (loc, env,
+                                      Toplevel_nonvalue (Ident.name id,sort)))
                 )
                 modes;
               let (first_loc, _, _) = List.hd modes in

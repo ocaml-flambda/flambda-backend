@@ -208,9 +208,7 @@ end = struct
       ~finally:(fun () -> univars := old_univars)
 
   let make_poly_univars vars =
-    List.map (fun name -> name,
-                          newvar ~name (Layout.value ~why:Univar))
-      vars
+    List.map (fun name -> name, newvar ~name (Layout.value ~why:Univar)) vars
 
   let check_poly_univars env loc vars =
     vars |> List.iter (fun (_, v) -> generalize v);
@@ -443,9 +441,10 @@ and transl_type_aux env policy mode styp =
   | None ->
   match styp.ptyp_desc with
     Ptyp_any ->
-      let ty = TyVarEnv.new_anon_var styp.ptyp_loc env
-                 (Layout.any ~why:Wildcard) policy in
-      ctyp Ttyp_any ty
+     let ty =
+       TyVarEnv.new_anon_var styp.ptyp_loc env (Layout.any ~why:Wildcard) policy
+     in
+     ctyp Ttyp_any ty
   | Ptyp_var name ->
     let ty =
       if not (valid_tyvar_name name) then
@@ -619,11 +618,13 @@ and transl_type_aux env policy mode styp =
               (row_fields row)
           in
           (* NB: row is always non-static here; more is thus never Tnil *)
-          let more = TyVarEnv.new_var
-                       (Layout.value ~why:Row_variable) policy in
+          let more =
+            TyVarEnv.new_var (Layout.value ~why:Row_variable) policy
+          in
           let row =
             create_row ~fields ~more
-              ~closed:true ~fixed:None ~name:(Some (path, ty_args)) in
+              ~closed:true ~fixed:None ~name:(Some (path, ty_args))
+          in
           newty (Tvariant row)
       | Tobject (fi, _) ->
           let _, tv = flatten_fields fi in
@@ -815,8 +816,7 @@ and transl_type_aux env policy mode styp =
                           ) l in
       List.iter (fun (s,{ctyp_type=ty}) ->
         match
-          Ctype.constrain_type_layout
-            env ty (Layout.value ~why:Package_hack)
+          Ctype.constrain_type_layout env ty (Layout.value ~why:Package_hack)
         with
         | Ok _ -> ()
         | Error e ->

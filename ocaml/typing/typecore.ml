@@ -5350,8 +5350,8 @@ and type_expect_
                 ~default:(Layout.value ~why:Univar) sexp.pexp_attributes
         with
         | Ok l -> l
-        | Error (loc, layout) ->
-          raise (Error (loc, env, Layout_not_enabled layout))
+        | Error { loc; txt } ->
+          raise (Error (loc, env, Layout_not_enabled txt))
       in
       let ty =
         if Typetexp.valid_tyvar_name name then
@@ -6932,8 +6932,9 @@ and type_let
       spat_sexp_list in
   let is_recursive = (rec_flag = Recursive) in
   let sorts = List.map (fun _ -> Sort.new_var ()) spatl in
-  let nvs = List.map (fun s -> newvar (Layout.of_sort ~why:Let_binding s))
-              sorts in
+  let nvs =
+    List.map (fun s -> newvar (Layout.of_sort ~why:Let_binding s)) sorts
+  in
   if is_recursive then begin_def ();
   let (pat_list, new_env, force, pvs, mvs) =
     type_pattern_list Value existential_context env spatl nvs allow_modules

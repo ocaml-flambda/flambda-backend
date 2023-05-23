@@ -236,7 +236,6 @@ module Layout = struct
     | Class_argument
     | Structure_element
     | Debug_printer_argument
-    | With_constraint_hack
     | V1_safety_check
     | Unknown of string
 
@@ -327,7 +326,7 @@ module Layout = struct
       history = Creation (Value_creation V1_safety_check) }
 
   let any ~why = match why with
-    | Dummy_layout -> any_dummy_layout  (* memoize this one common case *)
+    | Dummy_layout -> any_dummy_layout  (* share this one common case *)
     | _ -> fresh_layout Any ~why:(Any_creation why)
   let void ~why =
     fresh_layout (Sort Sort.void) ~why:(Void_creation why)
@@ -407,18 +406,17 @@ module Layout = struct
   (******************************)
   (* elimination and defaulting *)
 
-  (* The description of a layout. Do not store this for any length of time;
-     it is meant to use just to inspect a layout and then be discarded. *)
   type desc =
     | Const of const
-    | Var of Sort.var   (* this variable is never filled in *)
+    | Var of Sort.var
 
   let format_desc ppf = let open Format in function
     | Const c -> fprintf ppf "%s" (string_of_const c)
     | Var v -> fprintf ppf "%s" (Sort.var_name v)
 
   (* considers sort variables < Any, but otherwise just checks for equality.
-     Never does mutation. *)
+     Never does mutation.
+     Pre-condition: no filled-in sort variables. *)
   let sub_desc d1 d2 = match d1, d2 with
     | Const c1, Const c2 -> sub_const c1 c2
     | Var _, Const Any -> Sub
@@ -659,8 +657,6 @@ module Layout = struct
          fprintf ppf "stored in a module structure"
       | Debug_printer_argument ->
          fprintf ppf "used as the argument to a debugger printer function"
-      | With_constraint_hack ->
-         fprintf ppf "used in a `with` constraint"
       | V1_safety_check ->
           fprintf ppf "to be value for the V1 safety check"
       | Unknown s -> fprintf ppf "unknown @[(please alert the Jane Street@;\
@@ -750,7 +746,8 @@ module Layout = struct
         | Creation reason ->
           add internal reason acc
       in
-      history []
+      fun internal hist ->
+      history [] internal hist
 
     let format_flattened_row ppf (lay, reasons) =
       fprintf ppf "%a, because" format_desc lay;
@@ -846,7 +843,7 @@ module Layout = struct
       if display_histories then begin
         let connective = match t.violation with
           | Not_a_sublayout _ -> "be a sublayout of"
-          | No_intersection _ -> "have overlap with"
+          | No_intersection _ -> "overlap with"
         in
         fprintf ppf "%a%a"
           (format_history ~intro:(dprintf "The layout of %a is" pp_former former)) l1
@@ -1056,7 +1053,6 @@ module Layout = struct
       | Class_argument -> fprintf ppf "Class_argument"
       | Structure_element -> fprintf ppf "Structure_element"
       | Debug_printer_argument -> fprintf ppf "Debug_printer_argument"
-      | With_constraint_hack -> fprintf ppf "With_constraint_hack"
       | V1_safety_check -> fprintf ppf "V1_safety_check"
       | Unknown s -> fprintf ppf "Unknown %s" s
 

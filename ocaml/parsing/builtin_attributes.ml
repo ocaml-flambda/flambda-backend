@@ -434,24 +434,24 @@ let layout ~legacy_immediate attrs =
          | _ -> None
         ) attrs
   in
-  let locate a lay = Location.mkloc lay a.attr_loc in
   match layout with
   | None -> Ok None
-  | Some (a, Value) ->
-    mark_used a.attr_name;
-    Ok (Some (locate a Value))
-  | Some (a, (Immediate | Immediate64 as l)) ->
-    mark_used a.attr_name;
-    if   legacy_immediate
-      || Language_extension.(   is_enabled (Layouts Beta)
-                             || is_enabled (Layouts Alpha))
-    then Ok (Some (locate a l))
-    else Error (a.attr_loc, l)
-  | Some (a, (Any | Void as l)) ->
-    mark_used a.attr_name;
-    if Language_extension.is_enabled (Layouts Alpha)
-    then Ok (Some (locate a l))
-    else Error (a.attr_loc, l)
+  | Some (a, l) ->
+     mark_used a.attr_name;
+     let l_loc = Location.mkloc l a.attr_loc in
+     let check b =
+       if b
+       then Ok (Some l_loc)
+       else Error l_loc
+     in
+     match l with
+     | Value -> check true
+     | Immediate | Immediate64 ->
+        check  (legacy_immediate
+             || Language_extension.(   is_enabled (Layouts Beta)
+                                    || is_enabled (Layouts Alpha)))
+     | Any | Void ->
+        check (Language_extension.is_enabled (Layouts Alpha))
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
    attributes cannot be input by the user, they are added by the

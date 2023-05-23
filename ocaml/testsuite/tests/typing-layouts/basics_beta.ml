@@ -448,7 +448,7 @@ val f18 : 'a -> 'a = <fun>
 (* Test 22: approx_type catch-all can't be restricted to value *)
 
 (* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
-   sort.  Bring back here when we have one enabled by default. *)
+   sort.  Bring back here when we have one. *)
 
 type t_void [@@void];;
 [%%expect{|
@@ -457,3 +457,15 @@ Line 1, characters 12-20:
                 ^^^^^^^^
 Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
+
+(********************************************************************)
+(* Test 23: checking the error message from impossible GADT matches *)
+
+(* CR layouts: This test moves to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)
+
+(**************************************************)
+(* Test 24: checking that #poly_var patterns work *)
+
+(* CR layouts: This test moves to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)

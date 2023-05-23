@@ -133,7 +133,6 @@ module Layout : sig
     | Class_argument
     | Structure_element
     | Debug_printer_argument
-    | With_constraint_hack
     | V1_safety_check
     | Unknown of string  (* CR layouts: get rid of these *)
 
@@ -159,6 +158,9 @@ module Layout : sig
     | Unification_var
     | Initial_typedecl_env
     | Dummy_layout
+      (* This is used when the layout is about to get overwritten;
+         key example: when creating a fresh tyvar that is immediately
+         unified to correct levels *)
 
   type creation_reason =
     | Annotated of annotation_context * Location.t
@@ -262,7 +264,7 @@ module Layout : sig
       true.  See comment on [Builtin_attributes.layout].  *)
   val of_attributes :
     legacy_immediate:bool -> reason:annotation_context -> Parsetree.attributes ->
-    (t option, Location.t * const) result
+    (t option, const Location.loc) result
 
   (** Find a layout in attributes, defaulting to ~default.  Returns error if a
       disallowed layout is present, but always allows immediate if
@@ -270,7 +272,7 @@ module Layout : sig
   val of_attributes_default :
     legacy_immediate:bool -> reason:annotation_context ->
     default:t -> Parsetree.attributes ->
-    (t, Location.t * const) result
+    (t, const Location.loc) result
 
   (** Choose an appropriate layout for a boxed record type, given whether
       all of its fields are [void]. *)
@@ -283,6 +285,7 @@ module Layout : sig
   (******************************)
   (* elimination and defaulting *)
 
+  (* The description of a layout, used as a return type from [get]. *)
   type desc =
     | Const of const
     | Var of Sort.var

@@ -1980,7 +1980,8 @@ let rec estimate_type_layout env ty =
    that can occur, though, and may need a more principled solution later).
 
    Precondition: [layout] is not [any]. This common case is short-circuited
-   before calling this function.
+   before calling this function. (Though the current implementation is still
+   correct on [any].)
 *)
 let rec constrain_type_layout ~fixed env ty layout fuel =
   let constrain_unboxed ty =
