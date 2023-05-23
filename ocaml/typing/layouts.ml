@@ -48,20 +48,32 @@ module Sort = struct
 
   let new_var () = Var (ref None)
 
-  let rec repr ~default : t -> t = function
+  let rec repr : t -> t = function
     | Const _ as t -> t
     | Var r as t -> begin match !r with
-      | None -> begin match default with
-        | None -> t
-        | Some const -> begin
-            let t = of_const const in
-            r := Some t;
-            t
-          end
-      end
+      | None -> t
       | Some s -> begin
-          let result = repr ~default s in
+          let result = repr s in
           r := Some result; (* path compression *)
+          result
+        end
+    end
+
+  (* To avoid allocating *)
+  let default_value : t option = Some (Const Value)
+  let default_void : t option = Some (Const Void)
+
+  let[@inline] default = function
+    | Value -> default_value
+    | Void -> default_void
+
+  let rec repr_default_value : t -> const = function
+    | Const c -> c
+    | Var r -> begin match !r with
+      | None -> r := default_value; Value
+      | Some s -> begin
+          let result = repr_default_value s in
+          r := default result; (* path compression *)
           result
         end
     end
@@ -248,17 +260,21 @@ module Layout = struct
     | Error _ as e -> e
 
   (******************************)
-  (* elimination *)
+  (* elimination and defaulting *)
 
   type desc =
     | Const of const
     | Var of Sort.var
 
-  let repr ~default (t : t) : desc = match t.layout with
+  let of_desc = function
+    | Const c -> of_const c
+    | Var v -> of_sort (Sort.of_var v)
+
+  let get (t : t) : desc = match t.layout with
     | Any _ -> Const Any
     | Immediate -> Const Immediate
     | Immediate64 -> Const Immediate64
-    | Sort s -> begin match Sort.repr ~default s with
+    | Sort s -> begin match Sort.repr s with
       (* NB: this match isn't as silly as it looks: those are
          different constructors on the left than on the right *)
       | Const Void -> Const Void
@@ -266,11 +282,19 @@ module Layout = struct
       | Var v -> Var v
     end
 
-  let get = repr ~default:None
+  let get_default_value (t : t) : const = match t.layout with
+    | Any _ -> Any
+    | Immediate -> Immediate
+    | Immediate64 -> Immediate64
+    | Sort s -> begin match Sort.repr_default_value s with
+      (* As above, this turns Sort.consts to Layout.consts *)
+      | Value -> Value
+      | Void -> Void
+    end
 
-  let of_desc = function
-    | Const c -> of_const c
-    | Var v -> of_sort (Sort.of_var v)
+  let default_to_value t = ignore (get_default_value t)
+
+  let is_void t = Void = get_default_value t
 
   (* CR layouts: this function is suspect; it seems likely to reisenberg
      that refactoring could get rid of it *)
@@ -583,19 +607,6 @@ end
     | Const (Immediate64 | Immediate), _ ->
       equality_check (equate super value)
     | _, _ -> equality_check (equate sub super)
-
-  (*********************************)
-  (* defaulting *)
-
-  let get_defaulting ~default t =
-    match repr ~default:(Some default) t with
-    | Const result -> result
-    | Var _ -> assert false
-
-  let constrain_default_value = get_defaulting ~default:Sort.Value
-  let is_void l = Void = constrain_default_value l
-  let default_to_value t =
-    ignore (get_defaulting ~default:Value t)
 
   (*********************************)
   (* debugging *)

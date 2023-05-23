@@ -228,7 +228,7 @@ module Layout : sig
     (t, Location.t * const) result
 
   (******************************)
-  (* elimination *)
+  (* elimination and defaulting *)
 
   type desc =
     | Const of const
@@ -238,6 +238,20 @@ module Layout : sig
       sort variables. Returns [Var] if the final, non-variable layout has not
       yet been determined. *)
   val get : t -> desc
+
+  (** [get_default_value] extracts the layout as a `const`.  If it's a sort
+      variable, it is set to [value] first. *)
+  val get_default_value : t -> const
+
+  (** [default_to_value t] is [ignore (get_default_value t)] *)
+  val default_to_value : t -> unit
+
+  (** [is_void t] is [Void = get_default_value t].  In particular, it will
+      default the layout to value if needed to make this false. *)
+  val is_void : t -> bool
+  (* CR layouts v5: When we have proper support for void, we'll want to change
+     these three functions to default to void - it's the most efficient thing
+     when we have a choice. *)
 
   val of_desc : desc -> t
 
@@ -295,13 +309,6 @@ module Layout : sig
 
   (*********************************)
   (* defaulting *)
-  val constrain_default_value : t -> const
-  val is_void : t -> bool
-  (* CR layouts v5: When we have proper support for void, we'll want to change
-     things to default to void - it's the most efficient thing when we have a
-     choice. *)
-
-  val default_to_value : t -> unit
 
   (*********************************)
   (* debugging *)
