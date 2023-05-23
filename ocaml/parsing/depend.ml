@@ -212,7 +212,7 @@ let add_pattern bv pat =
 
 let rec add_expr bv exp =
   match Jane_syntax.Expression.of_ast exp with
-  | Some jexp -> add_expr_jane_syntax bv jexp
+  | Some (jexp, _attrs) -> add_expr_jane_syntax bv jexp
   | None ->
   match exp.pexp_desc with
     Pexp_ident l -> add bv l

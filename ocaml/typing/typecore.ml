@@ -3378,7 +3378,7 @@ let is_local_returning_expr e =
   in
   let rec loop e =
     match Jane_syntax.Expression.of_ast e with
-    | Some jexp -> begin
+    | Some (jexp, _attrs) -> begin
         match jexp with
         | Jexp_comprehension   _ -> false, e.pexp_loc
         | Jexp_immutable_array _ -> false, e.pexp_loc
@@ -3575,7 +3575,7 @@ let rec type_function_approx env loc label spato sexp in_function ty_expected =
 
 and type_approx_aux env sexp in_function ty_expected =
   match Jane_syntax.Expression.of_ast sexp with
-  | Some jexp -> type_approx_aux_jane_syntax jexp
+  | Some (jexp, _attrs) -> type_approx_aux_jane_syntax jexp
   | None      -> match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
@@ -3979,7 +3979,7 @@ let unify_exp env exp expected_ty =
 
 let rec is_inferred sexp =
   match Jane_syntax.Expression.of_ast sexp with
-  | Some jexp -> is_inferred_jane_syntax jexp
+  | Some (jexp, _attrs) -> is_inferred_jane_syntax jexp
   | None      -> match sexp.pexp_desc with
   | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint _
   | Pexp_coerce _ | Pexp_send _ | Pexp_new _ -> true
@@ -4073,14 +4073,14 @@ and type_expect_
     exp
   in
   match Jane_syntax.Expression.of_ast sexp with
-  | Some jexp ->
+  | Some (jexp, attributes) ->
       type_expect_jane_syntax
         ~loc
         ~env
         ~expected_mode
         ~ty_expected
         ~explanation
-        ~attributes:sexp.pexp_attributes
+        ~attributes
         jexp
   | None      -> match sexp.pexp_desc with
   | Pexp_ident lid ->
@@ -6832,7 +6832,7 @@ and type_let
   in
   let rec sexp_is_fun sexp =
     match Jane_syntax.Expression.of_ast sexp with
-    | Some jexp -> jexp_is_fun jexp
+    | Some (jexp, _attrs) -> jexp_is_fun jexp
     | None      -> match sexp.pexp_desc with
     | Pexp_fun _ | Pexp_function _ -> true
     | Pexp_constraint (e, _)

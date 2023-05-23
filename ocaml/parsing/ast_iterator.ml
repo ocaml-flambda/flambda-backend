@@ -429,10 +429,12 @@ module E = struct
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
     sub.location sub loc;
-    sub.attributes sub attrs;
     match Jane_syntax.Expression.of_ast expr with
-    | Some jexp -> sub.expr_jane_syntax sub jexp
+    | Some (jexp, attrs) ->
+        sub.attributes sub attrs;
+        sub.expr_jane_syntax sub jexp
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Pexp_ident x -> iter_loc sub x
     | Pexp_constant _ -> ()

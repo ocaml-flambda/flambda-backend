@@ -442,6 +442,17 @@ let comprehension sub comp_type comp =
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
   let attrs = sub.attributes sub exp.exp_attributes in
+  let attrs = ref attrs in
+  (* Hack so we can return an extra value out of the [match] expression for Jane
+     Street internal expressions without needing to modify every case, which
+     would open us up to more merge conflicts.
+  *)
+  let add_jane_syntax_attributes
+        { Jane_syntax_parsing.With_attributes.desc; jane_syntax_attributes }
+    =
+    attrs := jane_syntax_attributes @ !attrs;
+    desc
+  in
   let desc =
     match exp.exp_desc with
       Texp_ident (_path, lid, _, _) -> Pexp_ident (map_loc sub lid)
@@ -511,13 +522,16 @@ let expression sub exp =
         | Immutable ->
             Jane_syntax.Immutable_arrays.expr_of
               ~loc (Iaexp_immutable_array plist)
+            |> add_jane_syntax_attributes
       end
     | Texp_list_comprehension comp ->
         comprehension
           ~loc sub (fun comp -> Cexp_list_comprehension comp) comp
+        |> add_jane_syntax_attributes
     | Texp_array_comprehension (amut, comp) ->
         comprehension
           ~loc sub (fun comp -> Cexp_array_comprehension (amut, comp)) comp
+        |> add_jane_syntax_attributes
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Pexp_ifthenelse (sub.expr sub exp1,
           sub.expr sub exp2,
@@ -621,7 +635,7 @@ let expression sub exp =
       }, [Nolabel, sub.expr sub exp])
   in
   List.fold_right (exp_extra sub) exp.exp_extra
-    (Exp.mk ~loc ~attrs desc)
+    (Exp.mk ~loc ~attrs:!attrs desc)
 
 let binding_op sub bop pat =
   let pbop_op = bop.bop_op_name in

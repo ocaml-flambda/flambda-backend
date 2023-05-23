@@ -61,7 +61,10 @@ module Comprehensions : sig
         [:BODY ...CLAUSES...:] (flag = Immutable)
           (only allowed with [-extension immutable_arrays]) *)
 
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression_desc
+  val expr_of :
+    loc:Location.t
+    -> expression
+    -> Parsetree.expression_desc Jane_syntax_parsing.With_attributes.t
 end
 
 (** The ASTs for immutable arrays.  When we merge this upstream, we'll merge
@@ -76,7 +79,11 @@ module Immutable_arrays : sig
     | Iapat_immutable_array of Parsetree.pattern list
     (** [: P1; ...; Pn :] **)
 
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression_desc
+  val expr_of :
+    loc:Location.t
+    -> expression
+    -> Parsetree.expression_desc Jane_syntax_parsing.With_attributes.t
+
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern_desc
 end
 
@@ -114,7 +121,14 @@ end
 module type AST = sig
   (** The AST for all our Jane Street syntax; one constructor per feature that
       extends the given syntactic category.  Some extensions are handled
-      separately and thus are not listed here. *)
+      separately and thus are not listed here.
+
+      This type will be something like [jane_syntax_ast * Parsetree.attributes]
+      in cases where the Jane Syntax encoding of the AST uses attributes. In
+      these cases, the [Parsetree.attributes] are the *rest* of the attributes
+      after removing Jane Syntax-related attributes. Callers of [of_ast] should
+      refer to these attributes rather than, for example, [pexp_attributes].
+  *)
   type t
 
   (** The corresponding OCaml AST *)
@@ -194,7 +208,9 @@ module Expression : sig
     | Jexp_comprehension   of Comprehensions.expression
     | Jexp_immutable_array of Immutable_arrays.expression
 
-  include AST with type t := t and type ast := Parsetree.expression
+  include AST
+    with type t := t * Parsetree.attributes
+     and type ast := Parsetree.expression
 end
 
 (** Novel syntax in patterns *)

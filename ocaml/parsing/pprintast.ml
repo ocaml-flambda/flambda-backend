@@ -669,12 +669,13 @@ and sugar_expr ctxt f e =
   | _ -> false
 
 and expression ctxt f x =
+  match Jane_syntax.Expression.of_ast x with
+  | Some (jexpr, attrs) -> jane_syntax_expr ctxt attrs f jexpr
+  | None ->
   if x.pexp_attributes <> [] then
     pp f "((%a)@,%a)" (expression ctxt) {x with pexp_attributes=[]}
       (attributes ctxt) x.pexp_attributes
-  else match Jane_syntax.Expression.of_ast x with
-    | Some jexpr -> jane_syntax_expr ctxt f jexpr
-    | None -> match x.pexp_desc with
+  else match x.pexp_desc with
     | Pexp_function _ | Pexp_fun _ | Pexp_match _ | Pexp_try _ | Pexp_sequence _
     | Pexp_newtype _
       when ctxt.pipe || ctxt.semi ->
@@ -1809,8 +1810,11 @@ and directive_argument f x =
   | Pdir_ident (li) -> pp f "@ %a" longident li
   | Pdir_bool (b) -> pp f "@ %s" (string_of_bool b)
 
-and jane_syntax_expr ctxt f (jexp : Jane_syntax.Expression.t) =
-  match jexp with
+and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) =
+  if attrs <> [] then
+    pp f "((%a)@,%a)" (jane_syntax_expr ctxt []) jexp
+      (attributes ctxt) attrs
+  else match jexp with
   | Jexp_comprehension comp    -> comprehension_expr ctxt f comp
   | Jexp_immutable_array iaexp -> immutable_array_expr ctxt f iaexp
 
