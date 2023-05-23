@@ -620,14 +620,15 @@ module P = struct
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     let open Pat in
     let loc = sub.location sub loc in
-    let attrs = sub.attributes sub attrs in
     match Jane_syntax.Pattern.of_ast pat with
-    | Some jpat -> begin
+    | Some (jpat, attrs) -> begin
+        let attrs = sub.attributes sub attrs in
         Jane_syntax_parsing.AST.wrap_desc Pattern ~loc ~attrs @@
         match sub.pat_jane_syntax sub jpat with
         | Jpat_immutable_array i -> Jane_syntax.Immutable_arrays.pat_of ~loc i
     end
     | None ->
+    let attrs = sub.attributes sub attrs in
     match desc with
     | Ppat_any -> any ~loc ~attrs ()
     | Ppat_var s -> var ~loc ~attrs (map_loc sub s)

@@ -351,7 +351,7 @@ module Generic_array = struct
 
   module Pattern = struct
     type t = pattern Simple.t
-    let to_pattern_desc open_ close array (t : t) : pattern_desc =
+    let to_ast open_ close array (t : t) =
       Simple.to_ast open_ close array t
   end
 end
@@ -776,6 +776,12 @@ let mkexp_jane_syntax
       { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
   =
   mkexp_attrs ~loc desc (None, jane_syntax_attributes)
+
+let mkpat_jane_syntax
+      ~loc
+      { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
+  =
+  mkpat_attrs ~loc desc (None, jane_syntax_attributes)
 
 %}
 
@@ -3159,18 +3165,19 @@ simple_delimited_pattern:
     | LBRACKET pattern_semi_list error
       { unclosed "[" $loc($1) "]" $loc($3) }
     | array_patterns(LBRACKETBAR, BARRBRACKET)
-        { Generic_array.Pattern.to_pattern_desc
+        { Generic_array.Pattern.to_ast
             "[|" "|]"
             (fun elts -> Ppat_array elts)
             $1
         }
-    | array_patterns(LBRACKETCOLON, COLONRBRACKET)
-        { Generic_array.Pattern.to_pattern_desc
+  ) { $1 }
+  | array_patterns(LBRACKETCOLON, COLONRBRACKET)
+      { mkpat_jane_syntax ~loc:$sloc
+          (Generic_array.Pattern.to_ast
             "[:" ":]"
             (ppat_iarray $sloc)
-            $1
-        }
-  ) { $1 }
+            $1)
+      }
 
 pattern_comma_list(self):
     pattern_comma_list(self) COMMA pattern      { $3 :: $1 }

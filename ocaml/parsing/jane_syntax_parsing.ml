@@ -572,8 +572,8 @@ module Expression = Make_with_attribute (struct
   let with_attributes expr pexp_attributes = { expr with pexp_attributes }
 end)
 
-(** Patterns; embedded as [[%jane.FEATNAME], BODY]. *)
-module Pattern = Make_with_extension_node (struct
+(** Patterns; embedded using an attribute on the pattern. *)
+module Pattern = Make_with_attribute (struct
   type ast = pattern
   type ast_desc = pattern_desc
 
@@ -583,17 +583,9 @@ module Pattern = Make_with_extension_node (struct
 
   let wrap_desc ?loc ~attrs = Ast_helper.Pat.mk ?loc ~attrs
 
-  let make_extension_node = Ast_helper.Pat.extension
-
-  let make_extension_use ~extension_node pat =
-    Ppat_tuple [extension_node; pat]
-
-  let match_extension_use pat =
-    match pat.ppat_desc with
-    | Ppat_tuple([{ppat_desc = Ppat_extension ext; _}; pattern]) ->
-      Some (ext, pattern)
-    | _ ->
-      None
+  let desc pat = pat.ppat_desc
+  let attributes pat = pat.ppat_attributes
+  let with_attributes pat ppat_attributes = { pat with ppat_attributes }
 end)
 
 (** Module types; embedded using an attribute on the module type. *)
@@ -704,7 +696,7 @@ module AST = struct
   type (_, _) t =
     | Expression :
         (Parsetree.expression, Parsetree.expression_desc With_attributes.t) t
-    | Pattern : (Parsetree.pattern, Parsetree.pattern_desc) t
+    | Pattern : (Parsetree.pattern, Parsetree.pattern_desc With_attributes.t) t
     | Module_type :
         (Parsetree.module_type, Parsetree.module_type_desc With_attributes.t) t
     | Signature_item :

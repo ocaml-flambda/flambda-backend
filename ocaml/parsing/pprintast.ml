@@ -442,6 +442,9 @@ and return_type ctxt f x =
 (********************pattern********************)
 (* be cautious when use [pattern], [pattern1] is preferred *)
 and pattern ctxt f x =
+  match Jane_syntax.Pattern.of_ast x with
+  | Some (jpat, attrs) -> pattern_jane_syntax ctxt attrs f jpat
+  | None ->
   if x.ppat_attributes <> [] then begin
     pp f "((%a)%a)" (pattern ctxt) {x with ppat_attributes=[]}
       (attributes ctxt) x.ppat_attributes
@@ -501,8 +504,9 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
 and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
   if x.ppat_attributes <> [] then pattern ctxt f x
   else match Jane_syntax.Pattern.of_ast x with
-    | Some jpat -> simple_pattern_jane_syntax ctxt f jpat
-    | None -> match x.ppat_desc with
+    | Some (jpat, attrs) -> pattern_jane_syntax ctxt attrs f jpat
+    | None ->
+    match x.ppat_desc with
     | Ppat_construct (({txt=Lident ("()"|"[]" as x);_}), None) ->
         pp f  "%s" x
     | Ppat_any -> pp f "_";
@@ -547,7 +551,7 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
     | Ppat_open (lid, p) ->
         let with_paren =
         match Jane_syntax.Pattern.of_ast p with
-        | Some jpat -> begin match jpat with
+        | Some (jpat, _attrs) -> begin match jpat with
         | Jpat_immutable_array (Iapat_immutable_array _) -> false
         end
         | None -> match p.ppat_desc with
@@ -558,9 +562,14 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
           (paren with_paren @@ pattern1 ctxt) p
     | _ -> paren true (pattern ctxt) f x
 
-and simple_pattern_jane_syntax ctxt f : Jane_syntax.Pattern.t -> unit = function
-  | Jpat_immutable_array (Iapat_immutable_array l) ->
-      pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
+and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
+  if attrs <> [] then
+    pp f "((%a)%a)" (pattern_jane_syntax ctxt []) pat
+      (attributes ctxt) attrs
+  else
+    match pat with
+    | Jpat_immutable_array (Iapat_immutable_array l) ->
+        pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
 
 and maybe_local_pat ctxt is_local f p =
   if is_local then

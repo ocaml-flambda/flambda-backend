@@ -302,6 +302,13 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
   let loc = sub.location sub pat.pat_loc in
   (* todo: fix attributes on extras *)
   let attrs = sub.attributes sub pat.pat_attributes in
+  let attrs = ref attrs in
+  let add_jane_syntax_attributes
+        { Jane_syntax_parsing.With_attributes.desc; jane_syntax_attributes }
+    =
+    attrs := jane_syntax_attributes @ !attrs;
+    desc
+  in
   let desc =
   match pat with
       { pat_extra=[Tpat_unpack, loc, _attrs]; pat_desc = Tpat_any; _ } ->
@@ -369,9 +376,11 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         let pats = List.map (sub.pat sub) list in
         match am with
         | Mutable   -> Ppat_array pats
-        | Immutable -> Jane_syntax.Immutable_arrays.pat_of
-                         ~loc
-                         (Iapat_immutable_array pats)
+        | Immutable ->
+          Jane_syntax.Immutable_arrays.pat_of
+            ~loc
+            (Iapat_immutable_array pats)
+          |> add_jane_syntax_attributes
       end
     | Tpat_lazy p -> Ppat_lazy (sub.pat sub p)
 
@@ -379,7 +388,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | Tpat_value p -> (sub.pat sub (p :> pattern)).ppat_desc
     | Tpat_or (p1, p2, _) -> Ppat_or (sub.pat sub p1, sub.pat sub p2)
   in
-  Pat.mk ~loc ~attrs desc
+  Pat.mk ~loc ~attrs:!attrs desc
 
 let exp_extra sub (extra, loc, attrs) sexp =
   let loc = sub.location sub loc in

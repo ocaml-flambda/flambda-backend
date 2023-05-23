@@ -535,10 +535,12 @@ module P = struct
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     sub.location sub loc;
-    sub.attributes sub attrs;
     match Jane_syntax.Pattern.of_ast pat with
-    | Some jpat -> sub.pat_jane_syntax sub jpat
+    | Some (jpat, attrs) ->
+        sub.attributes sub attrs;
+        sub.pat_jane_syntax sub jpat
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Ppat_any -> ()
     | Ppat_var s -> iter_loc sub s

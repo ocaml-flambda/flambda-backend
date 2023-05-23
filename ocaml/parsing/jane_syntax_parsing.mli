@@ -141,7 +141,7 @@ module AST : sig
   type ('ast, 'ast_desc) t =
     | Expression :
         (Parsetree.expression, Parsetree.expression_desc With_attributes.t) t
-    | Pattern : (Parsetree.pattern, Parsetree.pattern_desc) t
+    | Pattern : (Parsetree.pattern, Parsetree.pattern_desc With_attributes.t) t
     | Module_type :
         (Parsetree.module_type, Parsetree.module_type_desc With_attributes.t) t
     | Signature_item :

@@ -173,7 +173,7 @@ let pattern_bv = ref String.Map.empty
 
 let rec add_pattern bv pat =
   match Jane_syntax.Pattern.of_ast pat with
-  | Some jpat -> add_pattern_jane_syntax bv jpat
+  | Some (jpat, _attrs) -> add_pattern_jane_syntax bv jpat
   | None      ->
   match pat.ppat_desc with
     Ppat_any -> ()

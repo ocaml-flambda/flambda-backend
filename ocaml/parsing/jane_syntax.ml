@@ -295,8 +295,9 @@ module Immutable_arrays = struct
       AST.make_entire_jane_syntax Pattern ~loc extension_string (fun () ->
         Ast_helper.Pat.array elts)
 
+  (* Returns remaining unconsumed attributes *)
   let of_pat pat = match pat.ppat_desc with
-    | Ppat_array elts -> Iapat_immutable_array elts
+    | Ppat_array elts -> Iapat_immutable_array elts, pat.ppat_attributes
     | _ -> failwith "Malformed immutable array pattern"
 end
 
@@ -406,7 +407,8 @@ module Pattern = struct
 
   let of_ast_internal (feat : Feature.t) pat = match feat with
     | Language_extension Immutable_arrays ->
-      Some (Jpat_immutable_array (Immutable_arrays.of_pat pat))
+      let expr, attrs = Immutable_arrays.of_pat pat in
+      Some (Jpat_immutable_array expr, attrs)
     | _ -> None
 
   let of_ast = AST.make_of_ast Pattern ~of_ast_internal

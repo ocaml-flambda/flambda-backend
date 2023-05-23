@@ -84,7 +84,10 @@ module Immutable_arrays : sig
     -> expression
     -> Parsetree.expression_desc Jane_syntax_parsing.With_attributes.t
 
-  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern_desc
+  val pat_of :
+    loc:Location.t
+    -> pattern
+    -> Parsetree.pattern_desc Jane_syntax_parsing.With_attributes.t
 end
 
 (** The ASTs for [include functor].  When we merge this upstream, we'll merge
@@ -225,7 +228,9 @@ module Pattern : sig
   type t =
     | Jpat_immutable_array of Immutable_arrays.pattern
 
-  include AST with type t := t and type ast := Parsetree.pattern
+  include AST
+    with type t := t * Parsetree.attributes
+     and type ast := Parsetree.pattern
 end
 
 (** Novel syntax in module types *)
