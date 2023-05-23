@@ -90,6 +90,13 @@ let mk_zero_alloc_check f =
 let mk_dcheckmach f =
   "-dcheckmach", Arg.Unit f, " (undocumented)"
 
+let mk_checkmach_details_cutoff f =
+  "-checkmach-details-cutoff", Arg.Int f,
+  Printf.sprintf " Do not show more than this number of error locations \
+                  in each function that fails the check \
+                  (default %d, negaitve to show all)"
+  Flambda_backend_flags.default_checkmach_details_cutoff
+
 let mk_disable_poll_insertion f =
   "-disable-poll-insertion", Arg.Unit f, " Do not insert poll points"
 
@@ -520,6 +527,7 @@ module type Flambda_backend_options = sig
   val heap_reduction_threshold : int -> unit
   val zero_alloc_check : unit -> unit
   val dcheckmach : unit -> unit
+  val checkmach_details_cutoff : int -> unit
 
   val disable_poll_insertion : unit -> unit
   val enable_poll_insertion : unit -> unit
@@ -613,6 +621,7 @@ struct
     mk_heap_reduction_threshold F.heap_reduction_threshold;
     mk_zero_alloc_check F.zero_alloc_check;
     mk_dcheckmach F.dcheckmach;
+    mk_checkmach_details_cutoff F.checkmach_details_cutoff;
 
     mk_disable_poll_insertion F.disable_poll_insertion;
     mk_enable_poll_insertion F.enable_poll_insertion;
@@ -745,6 +754,8 @@ module Flambda_backend_options_impl = struct
 
   let zero_alloc_check = set' Clflags.zero_alloc_check
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
+  let checkmach_details_cutoff n =
+    Flambda_backend_flags.checkmach_details_cutoff := n
 
   let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
   let enable_poll_insertion = clear' Flambda_backend_flags.disable_poll_insertion
@@ -975,6 +986,8 @@ module Extra_params = struct
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "zero-alloc-check" -> set' Clflags.zero_alloc_check
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
+    | "checkmach-details-cutoff" ->
+      set_int' Flambda_backend_flags.checkmach_details_cutoff
     | "poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
     | "long-frames" -> set' Flambda_backend_flags.allow_long_frames
     | "debug-long-frames-threshold" ->
