@@ -7,7 +7,9 @@
 #include <caml/callback.h>
 #include <caml/memory.h>
 #include <caml/signals.h>
-#include <caml/threads.h>
+
+/* should be caml/threads.h, but this is what ocamltest needs */
+#include <threads.h>
 
 
 value blocking_section(value unused)

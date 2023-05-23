@@ -211,7 +211,7 @@ install_for_test: _install
 	 done; \
 	 ln -s _install/lib/ocaml stdlib; \
 	 mkdir runtime; \
-	 for f in ocamlrun* stdlib/caml stdlib/stublibs/*; do \
+	 for f in ocamlrun* stdlib/caml stdlib/stublibs/* runtime/caml/threads.h; do \
 	   ln -s ../$$f runtime/`basename $$f`; \
 	 done; \
 	 ln -s . lex; ln -s . yacc; \
