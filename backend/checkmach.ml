@@ -144,6 +144,9 @@ module Witnesses : sig
 end = struct
   include Set.Make (Witness)
 
+  (* CR gyorsh: consider using Flambda_backend_flags.checkmach_details_cutoff to
+     limit the size of this set. The downside is that it won't get tested as
+     much. Only keep witnesses for functions that need checking. *)
   let join = union
 
   let create kind dbg = singleton (Witness.create kind dbg)
@@ -279,6 +282,8 @@ module Value : sig
   val replace_witnesses : Witnesses.t -> t -> t
 
   val diff_witnesses : expected:t -> actual:t -> Witnesses.components
+
+  val remove_witnesses : t -> t
 end = struct
   (** Lifts V to triples  *)
   type t =
@@ -316,6 +321,8 @@ end = struct
       Witnesses.exn = V.diff_witnesses ~expected:expected.exn ~actual:actual.exn;
       Witnesses.div = V.diff_witnesses ~expected:expected.div ~actual:actual.div
     }
+
+  let remove_witnesses t = replace_witnesses Witnesses.empty t
 
   let normal_return = { bot with nor = V.Safe }
 
@@ -450,9 +457,13 @@ end = struct
     let l =
       List.concat [f div "diverge"; f nor ""; f exn "exceptional return"]
     in
-    let cutoff = 20 in
-    if List.length l < cutoff
+    let cutoff = !Flambda_backend_flags.checkmach_details_cutoff in
+    let len = List.length l in
+    if cutoff < 0 || len < cutoff
     then l
+    else if cutoff = 0
+    then (* don't even print the dots *)
+      []
     else
       let print_dots = Location.mknoloc (fun ppf -> Format.fprintf ppf "...") in
       take_first cutoff l @ [print_dots]
@@ -1013,7 +1024,7 @@ end = struct
         Annotation.find f.fun_codegen_options S.property fun_name f.fun_dbg
       in
       Unit_info.record_annotation unit_info fun_name f.fun_dbg a;
-      let really_check () =
+      let really_check ~keep_witnesses =
         let res = check_instr t f.fun_body in
         let msg =
           if String.Map.is_empty t.unresolved_deps
@@ -1021,6 +1032,14 @@ end = struct
           else "unresolved deps"
         in
         report t res ~msg ~desc:"fundecl" f.fun_dbg;
+        let keep_all_witnesses =
+          !Flambda_backend_flags.checkmach_details_cutoff < 0
+        in
+        let res =
+          if keep_witnesses || keep_all_witnesses
+          then res
+          else Value.remove_witnesses res
+        in
         report_unit_info ppf unit_info ~msg:"before record deps";
         Unit_info.record_deps unit_info ~callees:t.unresolved_deps
           ~caller:fun_name;
@@ -1035,11 +1054,12 @@ end = struct
         let expected_value = Annotation.expected_value a in
         report t expected_value ~msg:"assumed" ~desc:"fundecl" f.fun_dbg;
         Unit_info.join_value unit_info fun_name expected_value
-      | None -> really_check ()
+      | None -> really_check ~keep_witnesses:false
       | Some a ->
         let expected_value = Annotation.expected_value a in
         report t expected_value ~msg:"assert" ~desc:"fundecl" f.fun_dbg;
-        really_check ()
+        (* Only keep witnesses for functions that need checking. *)
+        really_check ~keep_witnesses:true
     in
     Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
 end
