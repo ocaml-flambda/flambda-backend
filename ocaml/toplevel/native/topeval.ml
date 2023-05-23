@@ -18,7 +18,6 @@
 open Format
 open Misc
 open Parsetree
-open Layouts
 open Types
 open Typedtree
 open Outcometree
@@ -123,7 +122,7 @@ let pr_item =
 
 let phrase_seqid = ref 0
 
-let name_expression ~loc ~attrs exp =
+let name_expression ~loc ~attrs sort exp =
   let name = "_$" in
   let id = Ident.create_local name in
   let vd =
@@ -145,9 +144,7 @@ let name_expression ~loc ~attrs exp =
    let vb =
      { vb_pat = pat;
        vb_expr = exp;
-       (* CR layouts v2: revisit when we allow non-value top-level module
-          bindings *)
-       vb_sort = Sort.value;
+       vb_sort = sort;
        vb_attributes = attrs;
        vb_loc = loc; }
    in
@@ -201,8 +198,8 @@ let execute_phrase print_outcome ppf phr =
          tool-toplevel/topeval.ml in the testsuite) *)
       let str, sg', rewritten =
          match find_eval_phrase str with
-         | Some (e, attrs, loc) ->
-             let str, sg' = name_expression ~loc ~attrs e in
+         | Some (e, sort, attrs, loc) ->
+             let str, sg' = name_expression ~loc ~attrs sort e in
              str, sg', true
          | None -> str, sg', false
       in
