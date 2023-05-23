@@ -596,8 +596,8 @@ module Pattern = Make_with_extension_node (struct
       None
 end)
 
-(** Module types; embedded as [functor (_ : [%jane.FEATNAME]) -> BODY]. *)
-module Module_type = Make_with_extension_node (struct
+(** Module types; embedded using an attribute on the module type. *)
+module Module_type = Make_with_attribute (struct
     type ast = module_type
     type ast_desc = module_type_desc
 
@@ -607,17 +607,9 @@ module Module_type = Make_with_extension_node (struct
 
     let wrap_desc ?loc ~attrs = Ast_helper.Mty.mk ?loc ~attrs
 
-    let make_extension_node = Ast_helper.Mty.extension
-
-    let make_extension_use ~extension_node mty =
-      Pmty_functor(Named(Location.mknoloc None, extension_node), mty)
-
-    let match_extension_use mty =
-      match mty.pmty_desc with
-      | Pmty_functor(Named({txt = None},
-                           {pmty_desc = Pmty_extension ext}), mty) ->
-        Some (ext, mty)
-      | _ -> None
+    let desc mty = mty.pmty_desc
+    let attributes mty = mty.pmty_attributes
+    let with_attributes mty pmty_attributes = { mty with pmty_attributes }
 end)
 
 (** Signature items; embedded as
@@ -713,7 +705,8 @@ module AST = struct
     | Expression :
         (Parsetree.expression, Parsetree.expression_desc With_attributes.t) t
     | Pattern : (Parsetree.pattern, Parsetree.pattern_desc) t
-    | Module_type : (Parsetree.module_type, Parsetree.module_type_desc) t
+    | Module_type :
+        (Parsetree.module_type, Parsetree.module_type_desc With_attributes.t) t
     | Signature_item :
         (Parsetree.signature_item, Parsetree.signature_item_desc) t
     | Structure_item :

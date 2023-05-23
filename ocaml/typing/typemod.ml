@@ -831,7 +831,7 @@ let map_ext fn exts =
 
 let rec approx_modtype env smty =
   match Jane_syntax.Module_type.of_ast smty with
-  | Some jmty -> approx_modtype_jane_syntax env jmty
+  | Some (jmty, attrs) -> approx_modtype_jane_syntax env attrs jmty
   | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
@@ -890,7 +890,8 @@ let rec approx_modtype env smty =
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-and approx_modtype_jane_syntax _env : Jane_syntax.Module_type.t -> _ = function
+and approx_modtype_jane_syntax _env _attrs : Jane_syntax.Module_type.t -> _ =
+  function
   | Jmty_strengthen { mty=_; mod_id=_ } -> failwith "strengthen not yet implemented"
 
 and approx_module_declaration env pmd =
@@ -1382,7 +1383,7 @@ and transl_modtype_functor_arg env sarg =
 and transl_modtype_aux env smty =
   let loc = smty.pmty_loc in
   match Jane_syntax.Module_type.of_ast smty with
-  | Some jmty -> transl_modtype_jane_syntax_aux env jmty
+  | Some (jmty, attrs) -> transl_modtype_jane_syntax_aux env attrs jmty
   | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
@@ -1445,7 +1446,9 @@ and transl_modtype_aux env smty =
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-and transl_modtype_jane_syntax_aux _env : Jane_syntax.Module_type.t -> _ = function
+and transl_modtype_jane_syntax_aux _env _attrs
+    : Jane_syntax.Module_type.t -> _ =
+  function
   | Jmty_strengthen { mty=_ ; mod_id=_ } -> failwith "Strengthen not yet implemented"
 
 and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =

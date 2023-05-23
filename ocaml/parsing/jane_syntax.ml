@@ -348,9 +348,10 @@ module Strengthen = struct
       Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
         (Ast_helper.Mty.alias mod_id))
 
+  (* Returns remaining unconsumed attributes *)
   let of_mty mty = match mty.pmty_desc with
     | Pmty_functor(Named(_, mty), {pmty_desc = Pmty_alias mod_id}) ->
-       { mty; mod_id }
+       { mty; mod_id }, mty.pmty_attributes
     | _ -> failwith "Malformed strengthened module type"
 end
 
@@ -417,7 +418,8 @@ module Module_type = struct
 
   let of_ast_internal (feat : Feature.t) mty = match feat with
     | Language_extension Module_strengthening ->
-      Some (Jmty_strengthen (Strengthen.of_mty mty))
+      let mty, attrs = Strengthen.of_mty mty in
+      Some (Jmty_strengthen mty, attrs)
     | _ -> None
 
   let of_ast = AST.make_of_ast Module_type ~of_ast_internal

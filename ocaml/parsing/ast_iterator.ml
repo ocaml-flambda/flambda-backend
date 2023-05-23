@@ -262,10 +262,12 @@ module MT = struct
   let iter sub
         ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
     sub.location sub loc;
-    sub.attributes sub attrs;
     match Jane_syntax.Module_type.of_ast mty with
-    | Some jmty -> sub.module_type_jane_syntax sub jmty
+    | Some (jmty, attrs) ->
+        sub.attributes sub attrs;
+        sub.module_type_jane_syntax sub jmty
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Pmty_ident s -> iter_loc sub s
     | Pmty_alias s -> iter_loc sub s

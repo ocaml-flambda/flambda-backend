@@ -108,7 +108,10 @@ module Strengthen : sig
   type module_type =
     { mty : Parsetree.module_type; mod_id : Longident.t Location.loc }
 
-  val mty_of : loc:Location.t -> module_type -> Parsetree.module_type_desc
+  val mty_of :
+    loc:Location.t
+    -> module_type
+    -> Parsetree.module_type_desc Jane_syntax_parsing.With_attributes.t
 end
 
 (******************************************)
@@ -230,7 +233,9 @@ module Module_type : sig
   type t =
     | Jmty_strengthen of Strengthen.module_type
 
-  include AST with type t := t and type ast := Parsetree.module_type
+  include AST
+    with type t := t * Parsetree.attributes
+     and type ast := Parsetree.module_type
 end
 
 (** Novel syntax in signature items *)

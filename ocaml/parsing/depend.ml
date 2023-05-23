@@ -347,7 +347,7 @@ and add_binding_op bv bv' pbop =
 
 and add_modtype bv mty =
   match Jane_syntax.Module_type.of_ast mty with
-  | Some jmty -> add_modtype_jane_syntax bv jmty
+  | Some (jmty, _attrs) -> add_modtype_jane_syntax bv jmty
   | None ->
   match mty.pmty_desc with
     Pmty_ident l -> add bv l
@@ -397,7 +397,7 @@ and add_module_alias bv l =
 
 and add_modtype_binding bv mty =
   match Jane_syntax.Module_type.of_ast mty with
-  | Some jmty -> add_modtype_jane_syntax_binding bv jmty
+  | Some (jmty, _attrs) -> add_modtype_jane_syntax_binding bv jmty
   | None ->
   match mty.pmty_desc with
     Pmty_alias l ->

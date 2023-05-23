@@ -299,14 +299,15 @@ module MT = struct
         ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
     let open Mty in
     let loc = sub.location sub loc in
-    let attrs = sub.attributes sub attrs in
     match Jane_syntax.Module_type.of_ast mty with
-    | Some jmty -> begin
+    | Some (jmty, attrs) -> begin
+        let attrs = sub.attributes sub attrs in
         Jane_syntax_parsing.AST.wrap_desc Module_type ~loc ~attrs @@
         match sub.module_type_jane_syntax sub jmty with
         | Jmty_strengthen smty -> Jane_syntax.Strengthen.mty_of ~loc smty
       end
     | None ->
+    let attrs = sub.attributes sub attrs in
     match desc with
     | Pmty_ident s -> ident ~loc ~attrs (map_loc sub s)
     | Pmty_alias s -> alias ~loc ~attrs (map_loc sub s)

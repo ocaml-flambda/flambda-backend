@@ -142,7 +142,8 @@ module AST : sig
     | Expression :
         (Parsetree.expression, Parsetree.expression_desc With_attributes.t) t
     | Pattern : (Parsetree.pattern, Parsetree.pattern_desc) t
-    | Module_type : (Parsetree.module_type, Parsetree.module_type_desc) t
+    | Module_type :
+        (Parsetree.module_type, Parsetree.module_type_desc With_attributes.t) t
     | Signature_item :
         (Parsetree.signature_item, Parsetree.signature_item_desc) t
     | Structure_item :
