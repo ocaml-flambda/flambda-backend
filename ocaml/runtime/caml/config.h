@@ -245,10 +245,9 @@ typedef uint64_t uintnat;
  */
 #define Max_percent_free_def 500
 
-/* Default setting for the major GC slice smoothing window: 1
-   (i.e. no smoothing)
+/* Default setting for the major GC slice smoothing window
 */
-#define Major_window_def 1
+#define Major_window_def 3
 
 /* Maximum size of the major GC slice smoothing window. */
 #define Max_major_window 50

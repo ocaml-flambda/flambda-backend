@@ -115,7 +115,7 @@ int caml_ephe_list_pure;
 static value *ephes_checked_if_pure;
 static value *ephes_to_check;
 
-int caml_major_window = 1;
+int caml_major_window = Major_window_def;
 double caml_major_ring[Max_major_window] = { 0. };
 int caml_major_ring_index = 0;
 double caml_major_work_credit = 0.0;
