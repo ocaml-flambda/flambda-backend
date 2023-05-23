@@ -3461,7 +3461,7 @@ let is_local_returning_function cases =
 
 let rec approx_type env sty =
   match Jane_syntax.Core_type.of_ast sty with
-  | Some jty -> approx_type_jst env jty
+  | Some (jty, attrs) -> approx_type_jst env attrs jty
   | None ->
   match sty.ptyp_desc with
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
@@ -3505,7 +3505,7 @@ let rec approx_type env sty =
      (which mentions approx_type) for why it can't be value.  *)
   | _ -> newvar Layout.any
 
-and approx_type_jst _env : Jane_syntax.Core_type.t -> _ = function
+and approx_type_jst _env _attrs : Jane_syntax.Core_type.t -> _ = function
   | _ -> .
 
 let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function

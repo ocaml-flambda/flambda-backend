@@ -147,8 +147,10 @@ module AST : sig
         (Parsetree.signature_item, Parsetree.signature_item_desc) t
     | Structure_item :
         (Parsetree.structure_item, Parsetree.structure_item_desc) t
-    | Core_type : (Parsetree.core_type, Parsetree.core_type_desc) t
-    | Constructor_argument : (Parsetree.core_type, Parsetree.core_type_desc) t
+    | Core_type :
+        (Parsetree.core_type, Parsetree.core_type_desc With_attributes.t) t
+    | Constructor_argument :
+        (Parsetree.core_type, Parsetree.core_type_desc With_attributes.t) t
 
   (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata.  When
       creating [ast] nodes afresh to embed our novel syntax, the location should

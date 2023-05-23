@@ -122,10 +122,12 @@ module T = struct
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                   as typ) =
     sub.location sub loc;
-    sub.attributes sub attrs;
     match Jane_syntax.Core_type.of_ast typ with
-    | Some jtyp -> sub.typ_jane_syntax sub jtyp
+    | Some (jtyp, attrs) ->
+        sub.attributes sub attrs;
+        sub.typ_jane_syntax sub jtyp
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Ptyp_any
     | Ptyp_var _ -> ()

@@ -97,7 +97,7 @@ let handle_extension ext =
 
 let rec add_type bv ty =
   match Jane_syntax.Core_type.of_ast ty with
-  | Some jty -> add_type_jst bv jty
+  | Some (jty, _attrs) -> add_type_jst bv jty
   | None ->
   match ty.ptyp_desc with
     Ptyp_any -> ()

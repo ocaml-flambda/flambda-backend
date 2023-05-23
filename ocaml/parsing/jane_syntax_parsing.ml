@@ -537,28 +537,20 @@ module Type_AST_syntactic_category = struct
 
   let wrap_desc ?loc ~attrs = Ast_helper.Typ.mk ?loc ~attrs
 
-  let make_extension_node = Ast_helper.Typ.extension
-
-  let make_extension_use ~extension_node typ =
-    Ptyp_tuple [extension_node; typ]
-
-  let match_extension_use typ =
-    match typ.ptyp_desc with
-    | Ptyp_tuple([{ptyp_desc = Ptyp_extension ext; _}; typ]) ->
-        Some (ext, typ)
-    | _ ->
-        None
+  let attributes typ = typ.ptyp_attributes
+  let with_attributes typ ptyp_attributes = { typ with ptyp_attributes }
+  let desc typ = typ.ptyp_desc
 end
 
 (** Types; embedded as [[[%jane.FEATNAME] * BODY]]. *)
-module Core_type = Make_with_extension_node (struct
+module Core_type = Make_with_attribute (struct
     include Type_AST_syntactic_category
 
     let plural = "types"
 end)
 
 (** Constructor arguments; the same as types, but used in fewer places *)
-module Constructor_argument = Make_with_extension_node (struct
+module Constructor_argument = Make_with_attribute (struct
   include Type_AST_syntactic_category
 
   let plural = "constructor arguments"
@@ -726,8 +718,10 @@ module AST = struct
         (Parsetree.signature_item, Parsetree.signature_item_desc) t
     | Structure_item :
         (Parsetree.structure_item, Parsetree.structure_item_desc) t
-    | Core_type : (Parsetree.core_type, Parsetree.core_type_desc) t
-    | Constructor_argument : (Parsetree.core_type, Parsetree.core_type_desc) t
+    | Core_type :
+        (Parsetree.core_type, Parsetree.core_type_desc With_attributes.t) t
+    | Constructor_argument :
+        (Parsetree.core_type, Parsetree.core_type_desc With_attributes.t) t
 
   let to_module (type ast ast_desc) (t : (ast, ast_desc) t) :
     (module AST with type ast = ast and type ast_desc = ast_desc) =

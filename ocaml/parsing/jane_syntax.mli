@@ -191,7 +191,9 @@ end
 module Core_type : sig
   type t = |
 
-  include AST with type t := t and type ast := Parsetree.core_type
+  include AST
+    with type t := t * Parsetree.attributes
+     and type ast := Parsetree.core_type
 end
 
 (** Novel syntax in constructor arguments; this isn't a core AST type,
@@ -199,7 +201,9 @@ end
 module Constructor_argument : sig
   type t = |
 
-  include AST with type t := t and type ast := Parsetree.core_type
+  include AST
+    with type t := t * Parsetree.attributes
+     and type ast := Parsetree.core_type
 end
 
 (** Novel syntax in expressions *)

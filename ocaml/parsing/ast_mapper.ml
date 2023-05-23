@@ -146,14 +146,15 @@ module T = struct
                  as typ) =
     let open Typ in
     let loc = sub.location sub loc in
-    let attrs = sub.attributes sub attrs in
     match Jane_syntax.Core_type.of_ast typ with
-    | Some jtyp -> begin
+    | Some (jtyp, attrs) -> begin
+        let attrs = sub.attributes sub attrs in
         Jane_syntax_parsing.AST.wrap_desc Core_type ~loc ~attrs @@
         match sub.typ_jane_syntax sub jtyp with
         | _ -> .
     end
     | None ->
+    let attrs = sub.attributes sub attrs in
     match desc with
     | Ptyp_any -> any ~loc ~attrs ()
     | Ptyp_var s -> var ~loc ~attrs s

@@ -319,6 +319,9 @@ and type_with_label ctxt f (label, c) =
   | Optional s -> pp f "?%s:%a" s (maybe_local_type core_type1 ctxt) c
 
 and core_type ctxt f x =
+  match Jane_syntax.Core_type.of_ast x with
+  | Some (jtyp, attrs) -> core_type_jane_syntax ctxt attrs f jtyp
+  | None ->
   let filtered_attrs = filter_curry_attrs x.ptyp_attributes in
   if filtered_attrs <> [] then begin
     pp f "((%a)%a)" (core_type ctxt) {x with ptyp_attributes=[]}
@@ -343,11 +346,11 @@ and core_type ctxt f x =
     | _ -> pp f "@[<2>%a@]" (core_type1 ctxt) x
 
 and core_type1 ctxt f x =
+  match Jane_syntax.Core_type.of_ast x with
+  | Some (jtyp, attrs) -> core_type1_jane_syntax ctxt attrs f jtyp
+  | None ->
   if has_non_curry_attr x.ptyp_attributes then core_type ctxt f x
   else
-    match Jane_syntax.Core_type.of_ast x with
-    | Some jtyp -> core_type1_jane_syntax ctxt f jtyp
-    | None ->
     match x.ptyp_desc with
     | Ptyp_any -> pp f "_";
     | Ptyp_var s -> tyvar f  s;
@@ -424,7 +427,12 @@ and core_type1 ctxt f x =
     | Ptyp_extension e -> extension ctxt f e
     | _ -> paren true (core_type ctxt) f x
 
-and core_type1_jane_syntax _ctxt _f : Jane_syntax.Core_type.t -> _ = function
+and core_type1_jane_syntax _ctxt _attrs _f : Jane_syntax.Core_type.t -> _ =
+  function
+  | _ -> .
+
+and core_type_jane_syntax _ctxt _attrs _f : Jane_syntax.Core_type.t -> _ =
+  function
   | _ -> .
 
 and return_type ctxt f x =
