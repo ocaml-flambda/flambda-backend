@@ -528,12 +528,17 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
   | Proved (Tagged_immediate | Boxed (Heap, _, _)) -> elide_primitive ()
   | Proved (Boxed ((Heap_or_local | Local), boxable_number, contents_ty)) ->
     let extra_bindings, contents, contents_ty, dacc =
-      match T.get_alias_exn contents_ty with
+      match
+        TE.get_alias_then_canonical_simple_exn ~min_name_mode:NM.normal
+          typing_env contents_ty
+      with
       | exception Not_found ->
         (* Add a projection so we have a variable bound to the contents of the
            boxed value. This means that when the contents are used directly,
            e.g. after unboxing of the boxed value, the duplicated block itself
-           can become unused. *)
+           can become unused. This might have the effect of moving a projection
+           earlier in the event that it already exists later, but this is
+           probably fine: this operation isn't that common. *)
         let contents_var = Variable.create "obj_dup_contents" in
         let contents_expr =
           Named.create_prim (Unary (Unbox_number boxable_number, arg)) dbg

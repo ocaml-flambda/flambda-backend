@@ -108,6 +108,10 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
       if not try_reify
       then
         Ok
+          (* Any additional bindings apart from the original one being
+             simplified are inserted before such original binding, allowing the
+             simplified version of that binding to reference the new
+             variables. *)
           (Simplify_named_result.create dacc
              (extra_bindings
              @ [ { Expr_builder.let_bound = bound_pattern;
@@ -228,8 +232,8 @@ let removed_operations ~(original : Named.t) (result : _ Or_invalid.t) =
                Flambda_primitive.equal original_prim rewritten_prim
              | { named = Simple _ | Set_of_closures _ | Rec_info _; _ } -> false)
            (Simplify_named_result.bindings_to_place result)
-      then Removed_operations.prim original_prim
-      else zero
+      then zero
+      else Removed_operations.prim original_prim
     | Rec_info _ -> zero)
 
 let simplify_named dacc bound_pattern named ~simplify_function_body =
