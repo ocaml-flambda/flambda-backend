@@ -1002,10 +1002,10 @@ void caml_major_collection_slice (intnat howmuch)
   }
   if (p < dp) p = dp;
   if (p < caml_extra_heap_resources) p = caml_extra_heap_resources;
-  p += backlog_words / Caml_state->stat_heap_wsz;
+  p += (double)backlog_words / (double)Caml_state->stat_heap_wsz;
   backlog_words = 0;
   if (p > 0.3){
-    backlog_words = (p - 0.3) * Caml_state->stat_heap_wsz;
+    backlog_words = (uintnat)((p - 0.3) * (double)Caml_state->stat_heap_wsz);
     p = 0.3;
   }
 
@@ -1024,7 +1024,7 @@ void caml_major_collection_slice (intnat howmuch)
                          ARCH_INTNAT_PRINTF_FORMAT "du\n",
                    (intnat) (p * 1000000));
   caml_gc_message (0x40, "work backlog = %"
-                         ARCH_INTNAT_PRINTF_FORMAT "du\n",
+                         ARCH_INTNAT_PRINTF_FORMAT "d\n",
                    backlog_words);
 
   for (i = 0; i < caml_major_window; i++){
