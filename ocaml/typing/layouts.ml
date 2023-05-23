@@ -139,8 +139,6 @@ type sort = Sort.t
 module Layout = struct
   type fixed_layout_reason =
     | Let_binding
-    | Function_argument
-    | Function_result
     | Tuple_element
     | Probe
     | Package_hack
@@ -153,6 +151,8 @@ module Layout = struct
     | Match
     | Constructor_declaration of int
     | Label_declaration of Ident.t
+    | Function_argument
+    | Function_result
 
   type annotation_location =
     | Type_declaration of Path.t
@@ -301,8 +301,6 @@ module Layout = struct
 
     let fixed_layout_reason_layout = function
       | Let_binding
-      | Function_argument
-      | Function_result
       | Tuple_element
       | Probe
       | Package_hack
@@ -315,8 +313,6 @@ module Layout = struct
     let format_fixed_layout_reason ppf =
       function
       | Let_binding -> fprintf ppf "let-bound"
-      | Function_argument -> fprintf ppf "a function argument"
-      | Function_result -> fprintf ppf "a function result"
       | Tuple_element -> fprintf ppf "a tuple element"
       | Probe -> fprintf ppf "a probe"
       | Package_hack -> fprintf ppf "used as a value in a first-class module"
@@ -334,6 +330,8 @@ module Layout = struct
       | Label_declaration lbl ->
         fprintf ppf "used in the declaration of the record field \"%a\""
           Ident.print lbl
+      | Function_argument -> fprintf ppf "a function argument"
+      | Function_result -> fprintf ppf "a function result"
 
     let format_annotation_location ppf : annotation_location -> unit = function
       | Type_declaration p ->
@@ -615,8 +613,6 @@ end
 
     let fixed_layout_reason ppf : fixed_layout_reason -> unit = function
       | Let_binding -> fprintf ppf "Let_binding"
-      | Function_argument -> fprintf ppf "Function_argument"
-      | Function_result -> fprintf ppf "Function_result"
       | Tuple_element -> fprintf ppf "Tuple_element"
       | Probe -> fprintf ppf "Probe"
       | Package_hack -> fprintf ppf "Package_hack"
@@ -632,6 +628,8 @@ end
           fprintf ppf "Constructor_declaration %d" idx
       | Label_declaration lbl ->
           fprintf ppf "Label_declaration %a" Ident.print lbl
+      | Function_argument -> fprintf ppf "Function_argument"
+      | Function_result -> fprintf ppf "Function_result"
 
     let annotation_location ppf : annotation_location -> unit = function
       | Type_declaration p ->

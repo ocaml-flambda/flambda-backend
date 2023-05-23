@@ -113,8 +113,6 @@ module Layout : sig
 
   type fixed_layout_reason =
     | Let_binding
-    | Function_argument
-    | Function_result
     | Tuple_element
     | Probe
     | Package_hack
@@ -127,6 +125,8 @@ module Layout : sig
     | Match
     | Constructor_declaration of int
     | Label_declaration of Ident.t
+    | Function_argument
+    | Function_result
 
   type annotation_location =
     | Type_declaration of Path.t

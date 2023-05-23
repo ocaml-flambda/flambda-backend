@@ -159,11 +159,20 @@ end = struct
   type t
 end;;
 [%%expect {|
-Line 2, characters 15-21:
-2 |   val create : Bar3.t -> unit
-                   ^^^^^^
-Error: Function argument types must have layout value.
-        Bar3.t has layout void, which is not a sublayout of value.
+Lines 9-11, characters 6-3:
+ 9 | ......struct
+10 |   type t
+11 | end..
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Bar3.t end
+       is not included in
+         sig type t [@@void] end
+       Type declarations do not match:
+         type t = Bar3.t
+       is not included in
+         type t [@@void]
+       the first has layout value, which is not a sublayout of void.
 |}];;
 
 module rec Foo3 : sig

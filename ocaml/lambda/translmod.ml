@@ -45,8 +45,16 @@ exception Error of Location.t * error
 
 (* CR layouts v2: This is used as part of the "void safety check" in the case of
    `Tstr_eval`, where we want to allow `any` in particular.  Remove when we
-   remove the safety check. *)
+   remove the safety check. But we still default to value before checking for
+   void, to allow for sort variables arising in situations like a module
+   that is just:
+
+     exit 1;;
+
+   When this sanity check is removed, consider whether it must be replaced with
+   some defaulting. *)
 let layout_must_not_be_void loc ty layout =
+  Layout.default_to_value layout;
   match Layout.(sub layout void) with
   | Ok () ->
     let violation = Layout.(Violation.not_a_sublayout layout value) in

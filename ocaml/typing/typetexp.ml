@@ -28,7 +28,10 @@ open Ctype
 exception Already_bound
 
 type value_loc =
-    Fun_arg | Fun_ret | Tuple | Poly_variant | Package_constraint | Object_field
+    Tuple | Poly_variant | Package_constraint | Object_field
+
+type sort_loc =
+    Fun_arg | Fun_ret
 
 type error =
   | Unbound_type_variable of string * string list
@@ -55,6 +58,8 @@ type error =
   | Polymorphic_optional_param
   | Non_value of
       {vloc : value_loc; typ : type_expr; err : Layout.Violation.violation}
+  | Non_sort of
+      {vloc : sort_loc; typ : type_expr; err : Layout.Violation.violation}
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -478,21 +483,20 @@ and transl_type_aux env policy mode styp =
           let arg_mode = Alloc_mode.of_const arg_mode in
           let ret_mode = Alloc_mode.of_const ret_mode in
           let arrow_desc = (l, arg_mode, ret_mode) in
-          (* CR layouts v2: For now, we require function arguments and returns
-             to have layout value.  See comment in [Ctype.filter_arrow].  *)
+          (* CR layouts v3: For now, we require function arguments and returns
+             to have a representable layout.  See comment in
+             [Ctype.filter_arrow].  *)
           begin match
-            constrain_type_layout ~reason:(Fixed_layout Function_argument)
-              env arg_ty Layout.value,
-            constrain_type_layout ~reason:(Fixed_layout Function_result)
-              env ret_cty.ctyp_type Layout.value
+            Ctype.type_sort ~reason:Function_argument env arg_ty,
+            Ctype.type_sort ~reason:Function_result env ret_cty.ctyp_type
           with
           | Ok _, Ok _ -> ()
           | Error e, _ ->
             raise (Error(arg.ptyp_loc, env,
-                         Non_value {vloc = Fun_arg; err = e; typ = arg_ty}))
+                         Non_sort {vloc = Fun_arg; err = e; typ = arg_ty}))
           | _, Error e ->
             raise (Error(ret.ptyp_loc, env,
-                         Non_value
+                         Non_sort
                            {vloc = Fun_ret; err = e; typ = ret_cty.ctyp_type}))
           end;
           let ty =
@@ -1099,14 +1103,21 @@ let report_error env ppf = function
   | Non_value {vloc; typ; err} ->
     let s =
       match vloc with
-      | Fun_arg -> "Function argument"
-      | Fun_ret -> "Function return"
       | Tuple -> "Tuple element"
       | Poly_variant -> "Polymorpic variant constructor argument"
       | Package_constraint -> "Signature package constraint"
       | Object_field -> "Object field"
     in
     fprintf ppf "@[%s types must have layout value.@ \ %a@]"
+      s (Layout.Violation.report_with_offender
+           ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
+  | Non_sort {vloc; typ; err} ->
+    let s =
+      match vloc with
+      | Fun_arg -> "Function argument"
+      | Fun_ret -> "Function return"
+    in
+    fprintf ppf "@[%s types must have a representable layout.@ \ %a@]"
       s (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
 

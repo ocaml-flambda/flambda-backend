@@ -51,8 +51,16 @@ let layout_must_be_value loc layout =
 
 (* CR layouts v2: In the places where this is used, we want to allow any (the
    left of a semicolon and loop bodies).  So we want this instead of the usual
-   sanity check for value.  *)
+   sanity check for value.  But we still default to value before checking for
+   void, to allow for sort variables arising in situations like
+
+     let foo () = raise Foo; ()
+
+   When this sanity check is removed, consider whether we are still defaulting
+   appropriately.
+*)
 let layout_must_not_be_void loc layout =
+  Layout.default_to_value layout;
   match Layout.(sub layout void) with
   | Ok () ->
     let violation = Layout.(Violation.not_a_sublayout layout value) in
