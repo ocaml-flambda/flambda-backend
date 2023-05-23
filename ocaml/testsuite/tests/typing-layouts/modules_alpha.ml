@@ -156,23 +156,15 @@ end
 and Bar3 : sig
   type t [@@void]
 end = struct
-  type t
+  type t [@@void]
 end;;
 [%%expect {|
-Lines 9-11, characters 6-3:
- 9 | ......struct
-10 |   type t
-11 | end..
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = Bar3.t end
-       is not included in
-         sig type t [@@void] end
-       Type declarations do not match:
-         type t = Bar3.t
-       is not included in
-         type t [@@void]
-       the first has layout value, which is not a sublayout of void.
+Line 4, characters 13-19:
+4 |   let create _ = ()
+                 ^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       'a has layout void, which is not a sublayout of value.
 |}];;
 
 module rec Foo3 : sig
