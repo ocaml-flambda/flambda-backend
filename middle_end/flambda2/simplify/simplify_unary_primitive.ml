@@ -524,6 +524,8 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
     let dacc = DA.add_variable dacc result_var arg_ty in
     SPR.create (Named.create_simple arg) ~try_reify:true dacc
   in
+  (* CR mshinwell: We could consider extending this to handle normal blocks in
+     addition to boxed numbers. *)
   match T.prove_is_a_boxed_or_tagged_number typing_env arg_ty with
   | Proved (Tagged_immediate | Boxed (Heap, _, _)) -> elide_primitive ()
   | Proved (Boxed ((Heap_or_local | Local), boxable_number, contents_ty)) ->
