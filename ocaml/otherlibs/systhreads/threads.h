@@ -74,10 +74,9 @@ struct caml_locking_scheme {
      The lock should be held after this function returns. */
   void (*reinitialize_after_fork)(void*);
 
-  /* count_waiters and yield are used in a faster implementation of
-     Thread.yield, but may be NULL (in which case a fallback is
-     used) */
-  int (*count_waiters)(void*);
+  /* can_skip_yield and yield are both called with the lock held,
+     and expect it held on return */
+  int (*can_skip_yield)(void*);
   void (*yield)(void*);
 };
 

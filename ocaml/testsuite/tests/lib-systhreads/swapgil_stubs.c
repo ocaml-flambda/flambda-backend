@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <sys/select.h>
+#include <sched.h>
 #include <caml/mlvalues.h>
 #include <caml/callback.h>
 #include <caml/memory.h>
@@ -65,6 +66,19 @@ static void runtime_unlock(void* m)
   if (pthread_mutex_unlock(m) != 0) abort();
 }
 
+static void runtime_yield(void* m)
+{
+  if (pthread_mutex_unlock(m) != 0) abort();
+  sched_yield();
+  if (pthread_mutex_lock(m) != 0) abort();
+}
+
+static void runtime_reinitialize(void* m)
+{
+  /* This test doesn't fork, so this never runs. */
+  abort();
+}
+
 value swap_gil(value unused)
 {
   struct caml_locking_scheme* s;
@@ -79,9 +93,9 @@ value swap_gil(value unused)
   s->context = m;
   s->lock = runtime_lock;
   s->unlock = runtime_unlock;
-  s->reinitialize_after_fork = NULL;
-  s->count_waiters = NULL;
-  s->yield = NULL;
+  s->reinitialize_after_fork = runtime_reinitialize;
+  s->can_skip_yield = NULL;
+  s->yield = runtime_yield;
   caml_switch_runtime_locking_scheme(s);
   return Val_unit;
 }

@@ -128,7 +128,7 @@ static caml_thread_t all_threads = NULL;
 static caml_thread_t curr_thread = NULL;
 
 /* The master lock protecting the OCaml runtime system */
-static _Atomic struct caml_locking_scheme* caml_locking_scheme;
+static struct caml_locking_scheme* _Atomic caml_locking_scheme;
 
 /* Whether the "tick" thread is already running */
 static int caml_tick_thread_running = 0;
@@ -162,6 +162,7 @@ extern void (*caml_termination_hook)(void);
 
 /* The default locking scheme */
 static st_masterlock default_master_lock;
+
 struct caml_locking_scheme default_locking_scheme =
   { &default_master_lock,
     (void (*)(void*))&st_masterlock_acquire,
@@ -174,10 +175,16 @@ static void acquire_runtime_lock()
 {
   struct caml_locking_scheme* s;
 
+  /* The locking scheme may be changed by the thread that currently
+     holds it. This means that it may change while we're waiting to
+     acquire it, so by the time we acquire it it may no longer be the
+     right scheme. */
+
  retry:
   s = atomic_load(&caml_locking_scheme);
   s->lock(s->context);
   if (atomic_load(&caml_locking_scheme) != s) {
+    /* This is no longer the right scheme. Unlock and try again */
     s->unlock(s->context);
     goto retry;
   }
@@ -185,6 +192,8 @@ static void acquire_runtime_lock()
 
 static void release_runtime_lock()
 {
+  /* There is no tricky case here like in acquire, as only the holder
+     of the lock can change it. (Here, that's us) */
   struct caml_locking_scheme* s;
   s = atomic_load(&caml_locking_scheme);
   s->unlock(s->context);
@@ -837,31 +846,26 @@ CAMLprim value caml_thread_yield(value unit)        /* ML */
   struct caml_locking_scheme* s;
 
   s = atomic_load(&caml_locking_scheme);
-  if (s->count_waiters != NULL && s->yield != NULL) {
-    if (s->count_waiters(s->context) == 0) return Val_unit;
+  if (s->can_skip_yield != NULL && s->can_skip_yield(s->context))
+    return Val_unit;
 
-    /* Do all the parts of a blocking section enter/leave except lock
-       manipulation, which we'll do more efficiently in st_thread_yield. (Since
-       our blocking section doesn't contain anything interesting, don't bother
-       with saving errno.)
-    */
-    caml_raise_async_if_exception(caml_process_pending_signals_exn(),
-                                  "signal handler");
-    caml_thread_save_runtime_state();
-    s->yield(s->context);
-    if (atomic_load(&caml_locking_scheme) != s) {
-      /* The lock we have is no longer the runtime lock */
-      s->unlock(s->context);
-      acquire_runtime_lock();
-    }
-    caml_thread_restore_runtime_state();
-    caml_raise_async_if_exception(caml_process_pending_signals_exn(),
-                                  "signal handler");
-  } else {
-    caml_enter_blocking_section();
-    st_fallback_yield();
-    caml_leave_blocking_section();
+  /* Do all the parts of a blocking section enter/leave except lock
+     manipulation, which we'll do more efficiently in st_thread_yield. (Since
+     our blocking section doesn't contain anything interesting, don't bother
+     with saving errno.)
+  */
+  caml_raise_async_if_exception(caml_process_pending_signals_exn(),
+                                "signal handler");
+  caml_thread_save_runtime_state();
+  s->yield(s->context);
+  if (atomic_load(&caml_locking_scheme) != s) {
+    /* The lock we have is no longer the runtime lock */
+    s->unlock(s->context);
+    acquire_runtime_lock();
   }
+  caml_thread_restore_runtime_state();
+  caml_raise_async_if_exception(caml_process_pending_signals_exn(),
+                                "signal handler");
 
   return Val_unit;
 }

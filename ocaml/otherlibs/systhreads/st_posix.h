@@ -269,20 +269,6 @@ Caml_inline void st_thread_yield(st_masterlock * m)
   pthread_mutex_unlock(&m->lock);
 }
 
-Caml_inline void st_fallback_yield()
-{
-#ifdef __linux__
-  /* sched_yield() doesn't do what we want in Linux 2.6 and up (PR#2663) */
-  /* but not doing anything here would actually disable preemption (PR#7669) */
-  struct timespec t;
-  t.tv_sec = 0;
-  t.tv_nsec = 1;
-  nanosleep(&t, NULL);
-#else
-  sched_yield();
-#endif
-}
-
 /* Mutexes */
 
 typedef pthread_mutex_t * st_mutex;
