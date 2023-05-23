@@ -1102,7 +1102,7 @@ let update_label_layouts env loc lbls named =
       {lbl with ld_layout}
     ) lbls
   in
-  if List.for_all (fun l -> Layout.is_void l.ld_layout) lbls then
+  if List.for_all (fun l -> Layout.is_void_defaulting l.ld_layout) lbls then
     raise (Error (loc, Layout_empty_record))
   else lbls, false
 (* CR layouts v5: return true for a record with all voids *)
@@ -1117,7 +1117,7 @@ let update_constructor_arguments_layouts env loc cd_args layouts =
       check_representable ~reason:(Constructor_declaration idx)
         env loc Cstr_tuple ty;
       layouts.(idx) <- Ctype.type_layout env ty) tys;
-    cd_args, Array.for_all Layout.is_void layouts
+    cd_args, Array.for_all Layout.is_void_defaulting layouts
   | Types.Cstr_record lbls ->
     let lbls, all_void = update_label_layouts env loc lbls None in
     layouts.(0) <- Layout.value ~why:Boxed_record;

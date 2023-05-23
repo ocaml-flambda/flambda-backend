@@ -45,6 +45,8 @@ module Sort = struct
   let void = Const Void
   let value = Const Value
 
+  let some_value = Some value
+
   let of_const = function
     | Void -> void
     | Value -> value
@@ -133,12 +135,12 @@ module Sort = struct
     | Unequal -> false
     | Equal_mutated_first | Equal_mutated_second | Equal_no_mutation -> true
 
-  (* Pre-condition: all sort variables are filled in *)
-  let rec is_void = function
+  let rec is_void_defaulting = function
     | Const Void -> true
     | Var v -> begin match !v with
-               | None -> assert false
-               | Some s -> is_void s
+      (* CR layouts v5: this should probably default to void now *)
+               | None -> v := some_value; false
+               | Some s -> is_void_defaulting s
                end
     | Const Value -> false
 
@@ -948,8 +950,8 @@ module Layout = struct
       Ok { sub with history = combine_histories Sublayout sub super }
     | Not_sub -> Error (Violation.of_ (Not_a_sublayout (sub, super)))
 
-  let is_void = function
-    | { layout = Sort s } -> Sort.is_void s
+  let is_void_defaulting = function
+    | { layout = Sort s } -> Sort.is_void_defaulting s
     | _ -> false
 
   let is_any = function
