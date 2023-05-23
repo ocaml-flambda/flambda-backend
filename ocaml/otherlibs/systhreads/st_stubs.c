@@ -163,12 +163,17 @@ extern void (*caml_termination_hook)(void);
 /* The default locking scheme */
 static st_masterlock default_master_lock;
 
+static int default_can_skip_yield(void* m)
+{
+  return st_masterlock_waiters(m) == 0;
+}
+
 struct caml_locking_scheme default_locking_scheme =
   { &default_master_lock,
     (void (*)(void*))&st_masterlock_acquire,
     (void (*)(void*))&st_masterlock_release,
     (void (*)(void*))&st_masterlock_init,
-    (int (*)(void*))&st_masterlock_waiters,
+    default_can_skip_yield,
     (void (*)(void*))&st_thread_yield };
 
 static void acquire_runtime_lock()
