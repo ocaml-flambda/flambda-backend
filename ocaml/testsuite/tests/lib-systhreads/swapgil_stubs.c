@@ -69,7 +69,16 @@ static void runtime_unlock(void* m)
 static void runtime_yield(void* m)
 {
   if (pthread_mutex_unlock(m) != 0) abort();
+#ifdef __linux__
+  /* sched_yield() doesn't do what we want in Linux 2.6 and up (PR#2663) */
+  /* but not doing anything here would actually disable preemption (PR#7669) */
+  struct timespec t;
+  t.tv_sec = 0;
+  t.tv_nsec = 1;
+  nanosleep(&t, NULL);
+#else
   sched_yield();
+#endif
   if (pthread_mutex_lock(m) != 0) abort();
 }
 
