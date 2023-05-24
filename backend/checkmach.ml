@@ -71,7 +71,7 @@ module Witness = struct
       fprintf ppf "direct tailcall %s" callee
     | Missing_summary { callee } -> fprintf ppf "missing summary for %s" callee
     | Forward_call { callee } ->
-      fprintf ppf "conservatively handles call or tailcall %s" callee
+      fprintf ppf "foward call or tailcall (conservatively handled) %s" callee
     | Extcall { callee } -> fprintf ppf "external call to %s" callee
     | Arch_specific -> fprintf ppf "arch specific operation"
     | Probe { name; handler_code_sym } ->
