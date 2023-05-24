@@ -22,7 +22,7 @@ let () =
  (alias   runtest)
  ${enabled_if}
  (deps ${deps})
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3 -w +199+198)))
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
@@ -56,7 +56,7 @@ let () =
     (pipe-outputs
     (with-accepted-exit-codes ${exit_code}
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff ${cutoff} -O3))
+          -zero-alloc-check -checkmach-details-cutoff ${cutoff} -O3 -w +199+198))
     (run "./filter.sh")
    ))))
 
@@ -114,3 +114,7 @@ let () =
   (* flambda2 generates an indirect call but we don't yet have a way to exclude it
      without excluding closure. *)
   print_test ~flambda_only:true ~deps:"t1.ml";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:0
+    "test_warning198";
+  (* closure does not delete dead functions *)
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:(Some "test_warning199.mli") ~exit_code:0 "test_warning199";
