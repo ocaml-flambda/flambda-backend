@@ -65,10 +65,18 @@ CAMLextern_libthreads int caml_c_thread_unregister(void);
    Both functions return 1 on success, 0 on error.
 */
 
+enum caml_thread_type { Thread_type_caml, Thread_type_c_registered };
 struct caml_locking_scheme {
   void* context;
   void (*lock)(void*);
   void (*unlock)(void*);
+
+  /* If non-NULL, these functions are called when threads start and stop.
+     For threads created by OCaml, that's at creation and termination.
+     For threads created by C, that's at caml_c_thread_register/unregister.
+     The lock is not held when these functions are called. */
+  void (*thread_start)(void*, enum caml_thread_type);
+  void (*thread_stop)(void*, enum caml_thread_type);
 
   /* Called after fork().
      The lock should be held after this function returns. */
