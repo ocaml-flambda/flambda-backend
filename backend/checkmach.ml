@@ -58,7 +58,7 @@ module Witness = struct
     (* compare by [dbg] first to print the errors in the order
        they appear in the source file. *)
     let c = Debuginfo.compare dbg1 dbg2 in
-    if c <> 0 then c else compare kind1 kind2
+    if c <> 0 then c else Stdlib.compare kind1 kind2
 
   let print_kind ppf kind =
     let open Format in
