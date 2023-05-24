@@ -7518,15 +7518,11 @@ let type_let existential_ctx env rec_flag spat_sexp_list =
 
 (* Typing of toplevel expressions *)
 
-(* CR layouts: In many places, we call this (or various related functions like
-   type_expect) and then immediately call `type_layout` to find the layout of
-   the resulting type.  This feels like it could be improved - perhaps
-   type_expression could cheaply keep track of the layout of the type it's
-   computing and return it? *)
-let type_expression env sexp =
+let type_expression env layout sexp =
   Typetexp.TyVarEnv.reset ();
   begin_def();
-  let exp = type_exp env mode_global sexp in
+  let expected = mk_expected (newvar layout) in
+  let exp = type_expect env mode_global sexp expected in
   end_def();
   if maybe_expansive exp then lower_contravariant env exp.exp_type;
   generalize exp.exp_type;
@@ -7539,6 +7535,13 @@ let type_expression env sexp =
       in
       {exp with exp_type = desc.val_type}
   | _ -> exp
+
+let type_representable_expression env sexp =
+  let sort = Sort.new_var () in
+  let exp = type_expression env (Layout.of_sort sort) sexp in
+  exp, sort
+
+let type_expression env sexp = type_expression env Layout.any sexp
 
 (* Error report *)
 
