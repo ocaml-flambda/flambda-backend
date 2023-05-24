@@ -168,7 +168,7 @@ static int default_can_skip_yield(void* m)
   return st_masterlock_waiters(m) == 0;
 }
 
-struct caml_locking_scheme default_locking_scheme =
+struct caml_locking_scheme caml_default_locking_scheme =
   { &default_master_lock,
     (void (*)(void*))&st_masterlock_acquire,
     (void (*)(void*))&st_masterlock_release,
@@ -531,7 +531,7 @@ CAMLprim value caml_thread_initialize(value unit)   /* ML */
   st_initialize();
   /* Initialize and acquire the master lock */
   st_masterlock_init(&default_master_lock);
-  caml_locking_scheme = &default_locking_scheme;
+  caml_locking_scheme = &caml_default_locking_scheme;
   /* Initialize the keys */
   st_tls_newkey(&thread_descriptor_key);
   st_tls_newkey(&last_channel_locked_key);

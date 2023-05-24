@@ -80,6 +80,8 @@ struct caml_locking_scheme {
   void (*yield)(void*);
 };
 
+struct caml_locking_scheme caml_default_locking_scheme;
+
 /* Switch to a new runtime locking scheme.
 
    The old runtime lock must be held (i.e. not in a blocking section),
