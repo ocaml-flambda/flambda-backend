@@ -176,7 +176,7 @@ and rewrite_exp iflag sexp =
 
 and rw_exp iflag sexp =
   match Jane_syntax.Expression.of_ast sexp with
-  | Some jexp -> rewrite_exp_jane_syntax iflag jexp
+  | Some (jexp, _attrs) -> rewrite_exp_jane_syntax iflag jexp
   | None ->
   match sexp.pexp_desc with
     Pexp_ident _lid -> ()
