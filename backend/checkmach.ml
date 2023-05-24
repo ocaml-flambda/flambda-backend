@@ -47,16 +47,15 @@ module Witness = struct
         }
 
   type t =
-    {
-      dbg : Debuginfo.t;
+    { dbg : Debuginfo.t;
       kind : kind
     }
 
   let create dbg kind = { dbg; kind }
 
   let compare { dbg = dbg1; kind = kind1 } { dbg = dbg2; kind = kind2 } =
-    (* compare by [dbg] first to print the errors in the order
-       they appear in the source file. *)
+    (* compare by [dbg] first to print the errors in the order they appear in
+       the source file. *)
     let c = Debuginfo.compare dbg1 dbg2 in
     if c <> 0 then c else Stdlib.compare kind1 kind2
 
@@ -464,7 +463,7 @@ end = struct
       []
     else
       let print_dots = Location.mknoloc (fun ppf -> Format.fprintf ppf "...") in
-      let details, _ =  Misc.Stdlib.List.split_at cutoff l in
+      let details, _ = Misc.Stdlib.List.split_at cutoff l in
       details @ [print_dots]
 
   let report_error = function
@@ -1075,10 +1074,10 @@ module Spec_zero_alloc : Spec = struct
      (i.e., not stored). *)
   let encode (v : V.t) = match v with Top _ -> 0 | Safe -> 1 | Bot -> 2
 
-  (* Witnesses are not used across functions and not stored in cmx.
-     Witnesses that appear in a function's summary are only used for error
-     messages about that function, not about its callers. Witnesses from the
-     summary of a callee are ignored, and replaced by the name of the callee. *)
+  (* Witnesses are not used across functions and not stored in cmx. Witnesses
+     that appear in a function's summary are only used for error messages about
+     that function, not about its callers. Witnesses from the summary of a
+     callee are ignored, and replaced by the name of the callee. *)
   let decoded_witness = Witnesses.empty
 
   let decode = function
