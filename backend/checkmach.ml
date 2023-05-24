@@ -47,13 +47,16 @@ module Witness = struct
         }
 
   type t =
-    { kind : kind;
-      dbg : Debuginfo.t
+    {
+      dbg : Debuginfo.t;
+      kind : kind
     }
 
-  let create kind dbg = { kind; dbg }
+  let create dbg kind = { dbg; kind }
 
   let compare { dbg = dbg1; kind = kind1 } { dbg = dbg2; kind = kind2 } =
+    (* compare by [dbg] first to print the errors in the order
+       they appear in the source file. *)
     let c = Debuginfo.compare dbg1 dbg2 in
     if c <> 0 then c else compare kind1 kind2
 
@@ -149,7 +152,7 @@ end = struct
      much. Only keep witnesses for functions that need checking. *)
   let join = union
 
-  let create kind dbg = singleton (Witness.create kind dbg)
+  let create kind dbg = singleton (Witness.create dbg kind)
 
   let print ppf t = Format.pp_print_seq Witness.print ppf (to_seq t)
 
