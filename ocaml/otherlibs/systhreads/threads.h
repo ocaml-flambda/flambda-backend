@@ -80,7 +80,7 @@ struct caml_locking_scheme {
   void (*yield)(void*);
 };
 
-struct caml_locking_scheme caml_default_locking_scheme;
+extern struct caml_locking_scheme caml_default_locking_scheme;
 
 /* Switch to a new runtime locking scheme.
 
