@@ -94,7 +94,7 @@ let mk_checkmach_details_cutoff f =
   "-checkmach-details-cutoff", Arg.Int f,
   Printf.sprintf " Do not show more than this number of error locations \
                   in each function that fails the check \
-                  (default %d, negaitve to show all)"
+                  (default %d, negative to show all)"
   Flambda_backend_flags.default_checkmach_details_cutoff
 
 let mk_disable_poll_insertion f =
