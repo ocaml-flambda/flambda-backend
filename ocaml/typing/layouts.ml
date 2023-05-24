@@ -48,12 +48,12 @@ module Sort = struct
 
   let new_var () = Var (ref None)
 
-  let rec repr : t -> t = function
+  let rec get : t -> t = function
     | Const _ as t -> t
     | Var r as t -> begin match !r with
       | None -> t
       | Some s -> begin
-          let result = repr s in
+          let result = get s in
           if result != s then r := Some result; (* path compression *)
           result
         end
@@ -66,12 +66,12 @@ module Sort = struct
     | Value -> default_value
     | Void -> default_void
 
-  let rec repr_default_value : t -> const = function
+  let rec get_default_value : t -> const = function
     | Const c -> c
     | Var r -> begin match !r with
       | None -> r := default_value; Value
       | Some s -> begin
-          let result = repr_default_value s in
+          let result = get_default_value s in
           r := default result; (* path compression *)
           result
         end
@@ -276,7 +276,7 @@ module Layout = struct
     | Any _ -> Const Any
     | Immediate -> Const Immediate
     | Immediate64 -> Const Immediate64
-    | Sort s -> begin match Sort.repr s with
+    | Sort s -> begin match Sort.get s with
       (* NB: this match isn't as silly as it looks: those are
          different constructors on the left than on the right *)
       | Const Void -> Const Void
@@ -288,7 +288,7 @@ module Layout = struct
     | Any _ -> Any
     | Immediate -> Immediate
     | Immediate64 -> Immediate64
-    | Sort s -> begin match Sort.repr_default_value s with
+    | Sort s -> begin match Sort.get_default_value s with
       (* As above, this turns Sort.consts to Layout.consts *)
       | Value -> Value
       | Void -> Void

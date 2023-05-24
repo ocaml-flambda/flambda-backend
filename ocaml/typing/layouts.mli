@@ -238,7 +238,7 @@ module Layout : sig
     | Const of const
     | Var of Sort.var
 
-  (** Extract the [const] from a [Layout.t], looking through unified
+  (** Extract the [desc] from a [Layout.t], looking through unified
       sort variables. Returns [Var] if the final, non-variable layout has not
       yet been determined. *)
   val get : t -> desc
