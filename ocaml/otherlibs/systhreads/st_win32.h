@@ -186,16 +186,11 @@ Caml_inline int st_masterlock_waiters(st_masterlock * m)
 
 /* Scheduling hints */
 
-Caml_inline void st_fallback_yield()
+Caml_inline void st_thread_yield(st_masterlock * m)
 {
   LeaveCriticalSection(m);
   Sleep(0);
   EnterCriticalSection(m);
-}
-
-Caml_inline void st_thread_yield(st_masterlock * m)
-{
-  st_fallback_yield();
 }
 
 /* Mutexes */
