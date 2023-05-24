@@ -54,12 +54,11 @@ module Sort = struct
       | None -> t
       | Some s -> begin
           let result = repr s in
-          r := Some result; (* path compression *)
+          if result != s then r := Some result; (* path compression *)
           result
         end
     end
 
-  (* To avoid allocating *)
   let default_value : t option = Some (Const Value)
   let default_void : t option = Some (Const Void)
 
