@@ -342,7 +342,7 @@ module type AST_syntactic_category = sig
       be omitted; in this case, it will default to [!Ast_helper.default_loc],
       which should be [ghost]. *)
   val wrap_desc :
-    ?loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
+    ?loc:Location.t -> attrs:attributes -> ast_desc -> ast
 end
 
 module type AST = sig
@@ -392,7 +392,7 @@ let parse_embedding_exn ~loc ~payload ~name ~embedding_syntax =
 
 module With_attributes = struct
   type 'desc t =
-    { jane_syntax_attributes : Parsetree.attributes
+    { jane_syntax_attributes : attributes
     ; desc : 'desc
     }
 end
@@ -428,8 +428,8 @@ module Make_with_attribute
        include AST_syntactic_category
 
        val desc : ast -> ast_desc
-       val attributes : ast -> Parsetree.attributes
-       val with_attributes : ast -> Parsetree.attributes -> ast
+       val attributes : ast -> attributes
+       val with_attributes : ast -> attributes -> ast
      end) :
     AST with type ast      = AST_syntactic_category.ast
          and type ast_desc =
@@ -694,19 +694,13 @@ end)
 
 module AST = struct
   type (_, _) t =
-    | Expression :
-        (Parsetree.expression, Parsetree.expression_desc With_attributes.t) t
-    | Pattern : (Parsetree.pattern, Parsetree.pattern_desc With_attributes.t) t
-    | Module_type :
-        (Parsetree.module_type, Parsetree.module_type_desc With_attributes.t) t
-    | Signature_item :
-        (Parsetree.signature_item, Parsetree.signature_item_desc) t
-    | Structure_item :
-        (Parsetree.structure_item, Parsetree.structure_item_desc) t
-    | Core_type :
-        (Parsetree.core_type, Parsetree.core_type_desc With_attributes.t) t
-    | Constructor_argument :
-        (Parsetree.core_type, Parsetree.core_type_desc With_attributes.t) t
+    | Expression : (expression, expression_desc With_attributes.t) t
+    | Pattern : (pattern, pattern_desc With_attributes.t) t
+    | Module_type : (module_type, module_type_desc With_attributes.t) t
+    | Signature_item : (signature_item, signature_item_desc) t
+    | Structure_item : (structure_item, structure_item_desc) t
+    | Core_type : (core_type, core_type_desc With_attributes.t) t
+    | Constructor_argument : (core_type, core_type_desc With_attributes.t) t
 
   let to_module (type ast ast_desc) (t : (ast, ast_desc) t) :
     (module AST with type ast = ast and type ast_desc = ast_desc) =
