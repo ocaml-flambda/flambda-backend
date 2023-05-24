@@ -4,11 +4,14 @@ Parsing and printing round-tripped successfully!
 
 [(i, j)
   for i = 0 to 9 when (i mod 2) = 0 for j = 0 to i when (i > 4) && (j > 4)]
+Parsing and printing round-tripped successfully!
 
-**** Test that compiler-generated extension nodes start with "extension." ****
+(([((x)[@attr1 ]) for ((x)[@attr2 ]) in (([])[@attr3 ])])[@attr4 ])
 
-User [%extension] nodes found:
-  [%expr ...]
-  [%low ...]
-  [%high ...]
-  [%cond ...]
+**** Test that compiler-generated attributes start with "jane." ****
+
+User attribute [@...] nodes found:
+  [@expr ...]
+  [@low ...]
+  [@high ...]
+  [@cond ...]
