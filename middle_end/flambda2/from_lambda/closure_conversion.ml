@@ -85,9 +85,6 @@ let register_const acc constant name : Acc.t * Field_of_static_block.t * string
   let acc, symbol = register_const0 acc constant name in
   acc, Symbol symbol, name
 
-let register_const_string acc str =
-  register_const0 acc (Static_const.immutable_string str) "string"
-
 let rec declare_const acc (const : Lambda.structured_constant) :
     Acc.t * Field_of_static_block.t * string =
   let module SC = Static_const in
@@ -714,9 +711,8 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     k acc (Some (Named.create_simple (Simple.symbol sym)))
   | prim, args ->
     Lambda_to_flambda_primitives.convert_and_bind acc exn_continuation
-      ~big_endian:(Env.big_endian env)
-      ~register_const_string:(fun acc -> register_const_string acc)
-      prim ~args dbg ~current_region k
+      ~big_endian:(Env.big_endian env) ~register_const0 prim ~args dbg
+      ~current_region k
 
 let close_trap_action_opt trap_action =
   Option.map
@@ -742,10 +738,8 @@ let close_named acc env ~let_bound_var (named : IR.named)
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Unary (Tag_immediate, Prim (Unary (Get_tag, Simple named)))
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
-      ~register_const_string:(fun acc -> register_const_string acc)
-      prim Debuginfo.none
-      (fun acc named -> k acc (Some named))
+    Lambda_to_flambda_primitives_helpers.bind_rec acc None ~register_const0 prim
+      Debuginfo.none (fun acc named -> k acc (Some named))
   | Begin_region { try_region_parent } ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       match try_region_parent with
@@ -754,19 +748,15 @@ let close_named acc env ~let_bound_var (named : IR.named)
         let try_region_parent = find_simple_from_id env try_region_parent in
         Unary (Begin_try_region, Simple try_region_parent)
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
-      ~register_const_string:(fun acc -> register_const_string acc)
-      prim Debuginfo.none
-      (fun acc named -> k acc (Some named))
+    Lambda_to_flambda_primitives_helpers.bind_rec acc None ~register_const0 prim
+      Debuginfo.none (fun acc named -> k acc (Some named))
   | End_region id ->
     let named = find_simple_from_id env id in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Unary (End_region, Simple named)
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
-      ~register_const_string:(fun acc -> register_const_string acc)
-      prim Debuginfo.none
-      (fun acc named -> k acc (Some named))
+    Lambda_to_flambda_primitives_helpers.bind_rec acc None ~register_const0 prim
+      Debuginfo.none (fun acc named -> k acc (Some named))
   | Prim { prim; args; loc; exn_continuation; region } ->
     close_primitive acc env ~let_bound_var named prim ~args loc exn_continuation
       ~current_region:(fst (Env.find_var env region))
