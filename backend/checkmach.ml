@@ -447,11 +447,6 @@ end = struct
 
   let print_witnesses w : Location.msg list =
     let { Witnesses.nor; exn; div } = Witnesses.simplify w in
-    let rec take_first n l =
-      match l with
-      | [] -> []
-      | hd :: tl -> if n > 0 then hd :: take_first (n - 1) tl else []
-    in
     let f t component =
       t |> Witnesses.elements
       |> List.map (Witness.print_error component)
@@ -469,7 +464,8 @@ end = struct
       []
     else
       let print_dots = Location.mknoloc (fun ppf -> Format.fprintf ppf "...") in
-      take_first cutoff l @ [print_dots]
+      let details, _ =  Misc.Stdlib.List.split_at cutoff l in
+      details @ [print_dots]
 
   let report_error = function
     | Invalid { a; fun_name; fun_dbg; property; witnesses } ->
