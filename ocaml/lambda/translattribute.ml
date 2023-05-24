@@ -297,7 +297,7 @@ let get_local_attribute l =
   let attr = find_attribute is_local_attribute l in
   parse_local_attribute attr
 
-let get_property_attribute l p =
+let get_property_attribute l p ~fun_attr =
   let attr = find_attribute (is_property_attribute p) l in
   let res = parse_property_attribute attr p in
   (match attr, res with
@@ -305,15 +305,26 @@ let get_property_attribute l p =
    | _, Default_check -> ()
    | None, (Check _ | Ignore_assert_all _ ) -> assert false
    | Some _, Ignore_assert_all _ -> ()
-   | Some attr, Check _ ->
+   | Some attr, Check { assume; _ } ->
      if !Clflags.zero_alloc_check && !Clflags.native_code then
        (* The warning for unchecked functions will not trigger if the check is requested
           through the [@@@zero_alloc all] top-level annotation rather than through the
           function annotation [@zero_alloc]. *)
-       Builtin_attributes.register_property attr.attr_name);
+       if assume then begin
+         let never_specialise =
+           if Config.flambda then
+              fun_attr.specialise = Never_specialise
+           else
+              (* closure drops [@specialise never] and never specialises *)
+              true
+         in
+         if not ((fun_attr.inline = Never_inline) && never_specialise) then
+          Location.prerr_warning attr.attr_name.loc
+            (Warnings.Misplaced_assume_attribute attr.attr_name.txt)
+       end
+       else
+         Builtin_attributes.register_property attr.attr_name);
    res
-
-let get_check_attribute l = get_property_attribute l Zero_alloc
 
 let get_poll_attribute l =
   let attr = find_attribute is_poll_attribute l in
@@ -425,7 +436,7 @@ let add_check_attribute expr loc attributes =
   in
   match expr with
   | Lfunction({ attr = { stub = false } as attr; } as funct) ->
-    begin match get_check_attribute attributes with
+    begin match get_property_attribute attributes Zero_alloc ~fun_attr:attr with
     | Default_check -> expr
     | (Ignore_assert_all p | Check { property = p; _ }) as check ->
       begin match attr.check with
