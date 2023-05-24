@@ -57,7 +57,7 @@ open Closure_conversion_aux
 val bind_rec :
   Acc.t ->
   Exn_continuation.t option ->
-  register_const_string:(Acc.t -> string -> Acc.t * Symbol.t) ->
+  register_const0:(Acc.t -> Static_const.t -> string -> Acc.t * Symbol.t) ->
   expr_primitive ->
   Debuginfo.t ->
   (Acc.t -> Flambda.Named.t -> Expr_with_acc.t) ->

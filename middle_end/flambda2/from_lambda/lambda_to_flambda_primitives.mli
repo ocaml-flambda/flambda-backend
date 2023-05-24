@@ -21,7 +21,7 @@ val convert_and_bind :
   Acc.t ->
   big_endian:bool ->
   Exn_continuation.t option ->
-  register_const_string:(Acc.t -> string -> Acc.t * Symbol.t) ->
+  register_const0:(Acc.t -> Static_const.t -> string -> Acc.t * Symbol.t) ->
   Lambda.primitive ->
   args:Simple.t list ->
   Debuginfo.t ->
