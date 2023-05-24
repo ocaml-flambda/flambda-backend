@@ -7,17 +7,24 @@ let () =
     else
       {|(enabled_if (= %{context_name} "main"))|}
   in
+  let buf = Buffer.create 1000 in
   let print_test ~flambda_only ~deps =
     let enabled_if = enabled_if flambda_only in
-    Printf.printf
+    let subst = function
+      | "enabled_if" -> enabled_if
+      | "deps" -> deps
+      | _ -> "assert false"
+    in
+    Buffer.clear buf;
+    Buffer.add_substitute buf subst
     {|
 (rule
  (alias   runtest)
- %s
- (deps %s)
- (action (run %%{bin:ocamlopt.opt} %%{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
-|}
-    enabled_if deps
+ ${enabled_if}
+ (deps ${deps})
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+|};
+    Buffer.output_buffer Out_channel.stdout buf
   in
   let print_test_expected_output ~cutoff ~flambda_only ~extra_dep ~exit_code name =
     let enabled_if = enabled_if flambda_only in
@@ -29,28 +36,37 @@ let () =
       in
       Printf.sprintf {|(:ml %s%s.ml)|} s name
     in
-  Printf.printf
+    let subst = function
+      | "enabled_if" -> enabled_if
+      | "name" -> name
+      | "ml_deps" -> ml_deps
+      | "exit_code" -> string_of_int exit_code
+      | "cutoff" -> string_of_int cutoff
+      | _ -> assert false
+    in
+    Buffer.clear buf;
+    Buffer.add_substitute buf subst
     {|
 (rule
- %s
- (targets %s.output.corrected)
- (deps %s filter.sh)
+ ${enabled_if}
+ (targets ${name}.output.corrected)
+ (deps ${ml_deps} filter.sh)
  (action
-   (with-outputs-to %s.output.corrected
+   (with-outputs-to ${name}.output.corrected
     (pipe-outputs
-    (with-accepted-exit-codes %d
-     (run %%{bin:ocamlopt.opt} %%{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff %d -O3))
+    (with-accepted-exit-codes ${exit_code}
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff ${cutoff} -O3))
     (run "./filter.sh")
    ))))
 
 (rule
  (alias   runtest)
- %s
- (deps %s.output %s.output.corrected)
- (action (diff %s.output %s.output.corrected)))
-|}
-  enabled_if name ml_deps name exit_code cutoff enabled_if name name name name
+ ${enabled_if}
+ (deps ${name}.output ${name}.output.corrected)
+ (action (diff ${name}.output ${name}.output.corrected)))
+|};
+    Buffer.output_buffer Out_channel.stdout buf
   in
   let default_cutoff = 20 in
   print_test ~flambda_only:false ~deps:"s.ml t.ml";
