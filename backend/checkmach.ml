@@ -165,7 +165,7 @@ end = struct
   let simplify { nor; exn; div } =
     { div =
         (* don't print diverge witnesses unless they are the only ones. *)
-        (if is_empty nor && is_empty exn then empty else div);
+        (if is_empty nor && is_empty exn then div else empty);
       nor;
       (* only print the exn witnesses that are not also nor witnesses. *)
       exn = diff exn nor
