@@ -190,7 +190,7 @@ let bigarray_type_kind_and_layout env typ =
       (Pbigarray_unknown, Pbigarray_unknown_layout)
 
 let value_kind_of_value_layout layout =
-  match Layout.get_default_value layout with
+  match Layout.repr_default_value layout with
   | Value -> Pgenval
   | Immediate -> Pintval
   | Immediate64 ->

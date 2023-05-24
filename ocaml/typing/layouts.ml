@@ -269,7 +269,7 @@ module Layout = struct
     | Const c -> of_const c
     | Var v -> of_sort (Sort.of_var v)
 
-  let get (t : t) : desc = match t.layout with
+  let repr (t : t) : desc = match t.layout with
     | Any _ -> Const Any
     | Immediate -> Const Immediate
     | Immediate64 -> Const Immediate64
@@ -281,7 +281,7 @@ module Layout = struct
       | Var v -> Var v
     end
 
-  let get_default_value (t : t) : const = match t.layout with
+  let repr_default_value (t : t) : const = match t.layout with
     | Any _ -> Any
     | Immediate -> Immediate
     | Immediate64 -> Immediate64
@@ -291,14 +291,14 @@ module Layout = struct
       | Void -> Void
     end
 
-  let default_to_value t = ignore (get_default_value t)
+  let default_to_value t = ignore (repr_default_value t)
 
-  let is_void t = Void = get_default_value t
+  let is_void t = Void = repr_default_value t
 
   (* CR layouts: this function is suspect; it seems likely to reisenberg
      that refactoring could get rid of it *)
   let sort_of_layout l =
-    match get l with
+    match repr l with
     | Const Void -> Sort.void
     | Const (Value | Immediate | Immediate64) -> Sort.value
     | Const Any -> Misc.fatal_error "Layout.sort_of_layout"
@@ -307,7 +307,7 @@ module Layout = struct
   (*********************************)
   (* pretty printing *)
 
-  let to_string lay = match get lay with
+  let to_string lay = match repr lay with
     | Const c -> string_of_const c
     | Var v -> Sort.var_name v
 
@@ -523,7 +523,7 @@ module Layout = struct
       let l1, problem, l2 = match t.message with
         | Not_a_sublayout(l1, l2) ->
             l1,
-            (match get l2 with
+            (match repr l2 with
              | Var   _ -> Is_not_representable
              | Const _ -> Is_not_a_sublayout_of),
             l2
@@ -582,7 +582,7 @@ end
     let equality_check is_eq l = if is_eq then Ok l else err in
     (* it's OK not to cache the result of [get], because [get] does path
        compression *)
-    Result.map (add_reason reason) @@ match get l1, get l2 with
+    Result.map (add_reason reason) @@ match repr l1, repr l2 with
     | Const Any, _ -> Ok { layout = l2.layout; history = l1.history }
     | _, Const Any -> Ok l1
     | Const c1, Const c2 when equal_const c1 c2 -> Ok l1
@@ -599,7 +599,7 @@ end
     let equality_check is_eq = if is_eq then ok
       else Error (Violation.not_a_sublayout sub super)
     in
-    match get sub, get super with
+    match repr sub, repr super with
     | _, Const Any -> ok
     | Const c1, Const c2 when equal_const c1 c2 -> ok
     | Const Immediate, Const Immediate64 -> ok

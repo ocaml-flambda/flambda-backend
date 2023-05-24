@@ -166,7 +166,7 @@ let tunivar_none_void = Tunivar { name = None; layout = Layout.void}
 
 let norm = function
   | (Tvar { name = None; layout }) as t -> begin
-      match Layout.get layout with
+      match Layout.repr layout with
       | Const Any -> tvar_none_any
       | Const Immediate -> tvar_none_imm
       | Const Immediate64 -> tvar_none_imm64
@@ -175,7 +175,7 @@ let norm = function
       | Var _ -> t
     end
   | (Tunivar { name = None; layout }) as t -> begin
-      match Layout.get layout with
+      match Layout.repr layout with
       | Const Any -> tunivar_none_any
       | Const Immediate -> tunivar_none_imm
       | Const Immediate64 -> tunivar_none_imm64

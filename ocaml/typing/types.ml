@@ -546,7 +546,7 @@ let decl_is_abstract decl =
 
 let all_void layouts =
   Array.for_all (fun l ->
-    match Layout.get l with
+    match Layout.repr l with
     | Const Void -> true
     | Const (Any | Immediate | Immediate64 | Value) | Var _ -> false)
     layouts

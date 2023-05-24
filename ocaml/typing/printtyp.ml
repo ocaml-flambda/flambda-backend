@@ -1367,7 +1367,7 @@ let prepare_type_constructor_arguments = function
 let param_layout ty =
   match get_desc ty with
   | Tvar { layout; _ } | Tunivar { layout; _ } ->
-    begin match Layouts.Layout.get layout with
+    begin match Layouts.Layout.repr layout with
     | Const Value -> None
     | Const clay -> Some (Olay_const clay)
     | Var v -> Some (Olay_var (Sort.var_name v))
@@ -2120,7 +2120,7 @@ let trees_of_type_expansion'
     if var_layouts then
       match get_desc ty with
       | Tvar { layout; _ } | Tunivar { layout; _ } ->
-          let olay = match Layouts.Layout.get layout with
+          let olay = match Layouts.Layout.repr layout with
             | Const clay -> Olay_const clay
             | Var   v    -> Olay_var   (Sort.var_name v)
           in
