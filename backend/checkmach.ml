@@ -1075,8 +1075,14 @@ module Spec_zero_alloc : Spec = struct
      (i.e., not stored). *)
   let encode (v : V.t) = match v with Top _ -> 0 | Safe -> 1 | Bot -> 2
 
+  (* Witnesses are not used across functions and not stored in cmx.
+     Witnesses that appear in a function's summary are only used for error
+     messages about that function, not about its callers. Witnesses from the
+     summary of a callee are ignored, and replaced by the name of the callee. *)
+  let decoded_witness = Witnesses.empty
+
   let decode = function
-    | 0 -> V.Top Witnesses.empty
+    | 0 -> V.Top decoded_witness
     | 1 -> V.Safe
     | 2 -> V.Bot
     | n -> Misc.fatal_errorf "Checkmach cannot decode %d" n
@@ -1086,7 +1092,7 @@ module Spec_zero_alloc : Spec = struct
     if c = 0 then None else Some c
 
   let decode : Checks.value -> Value.t = function
-    | None -> Value.top Witnesses.empty
+    | None -> Value.top decoded_witness
     | Some d ->
       if d = 0 then Misc.fatal_error "Checkmach unexpected 0 encoding";
       let nor = decode (d land 3) in
