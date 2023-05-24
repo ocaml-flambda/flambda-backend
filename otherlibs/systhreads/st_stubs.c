@@ -172,6 +172,8 @@ struct caml_locking_scheme caml_default_locking_scheme =
   { &default_master_lock,
     (void (*)(void*))&st_masterlock_acquire,
     (void (*)(void*))&st_masterlock_release,
+    NULL,
+    NULL,
     (void (*)(void*))&st_masterlock_init,
     default_can_skip_yield,
     (void (*)(void*))&st_thread_yield };
@@ -649,6 +651,7 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
   caml_thread_t th = (caml_thread_t) arg;
   value clos;
   void * signal_stack;
+  struct caml_locking_scheme* sch;
 #ifdef NATIVE_CODE
   struct longjmp_buffer termination_buf;
   char tos;
@@ -659,6 +662,9 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
   /* Associate the thread descriptor with the thread */
   st_tls_set(thread_descriptor_key, (void *) th);
   st_thread_set_id(Ident(th->descr));
+  sch = atomic_load(&caml_locking_scheme);
+  if (sch->thread_start != NULL)
+    sch->thread_start(sch->context, Thread_type_caml);
   /* Acquire the global mutex */
   caml_leave_blocking_section();
   st_thread_set_id(Ident(th->descr));
@@ -673,6 +679,9 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
     caml_modify(&(Start_closure(th->descr)), Val_unit);
     caml_callback_exn(clos, Val_unit);
     caml_thread_stop();
+    sch = atomic_load(&caml_locking_scheme);
+    if (sch->thread_stop != NULL)
+      sch->thread_stop(sch->context, Thread_type_caml);
 #ifdef NATIVE_CODE
   }
 #endif
@@ -722,9 +731,14 @@ CAMLprim value caml_thread_new(value clos)          /* ML */
 CAMLexport int caml_c_thread_register(void)
 {
   caml_thread_t th;
+  struct caml_locking_scheme* sch;
 #ifdef NATIVE_CODE
   st_retcode err;
 #endif
+
+  sch = atomic_load(&caml_locking_scheme);
+  if (sch->thread_start != NULL)
+    sch->thread_start(sch->context, Thread_type_c_registered);
 
   /* Already registered? */
   if (st_tls_get(thread_descriptor_key) != NULL) return 0;
@@ -767,6 +781,7 @@ CAMLexport int caml_c_thread_register(void)
 
 CAMLexport int caml_c_thread_unregister(void)
 {
+  struct caml_locking_scheme* sch;
   caml_thread_t th = st_tls_get(thread_descriptor_key);
   /* Not registered? */
   if (th == NULL) return 0;
@@ -781,6 +796,9 @@ CAMLexport int caml_c_thread_unregister(void)
   if (all_threads == NULL) caml_thread_cleanup(Val_unit);
   /* Release the runtime */
   release_runtime_lock();
+  sch = atomic_load(&caml_locking_scheme);
+  if (sch->thread_stop != NULL)
+    sch->thread_stop(sch->context, Thread_type_c_registered);
   return 1;
 }
 

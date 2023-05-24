@@ -6,6 +6,9 @@ include systhreads
 *** native
 *)
 
+external setup : unit -> unit = "swap_gil_setup"
+let () = setup ()
+
 let counter = ref 0
 
 external blocking_section : unit -> unit = "blocking_section"

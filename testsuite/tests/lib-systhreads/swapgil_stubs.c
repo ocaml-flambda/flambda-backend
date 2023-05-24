@@ -24,13 +24,18 @@ struct c_thread {
   pthread_t thread;
 };
 
+static __thread enum caml_thread_type thread_ty = Thread_type_caml;
+static __thread int started = 0;
 void* threadfn(struct c_thread* th)
 {
+  thread_ty = Thread_type_c_registered;
   caml_c_thread_register();
   caml_leave_blocking_section();
   caml_callback(th->callback, Val_unit);
   caml_enter_blocking_section();
+  if (!started) abort();
   caml_c_thread_unregister();
+  if (started) abort();
   return NULL;
 }
 
@@ -60,16 +65,19 @@ static void runtime_lock(void* m)
   timeout.tv_sec = 0;
   timeout.tv_usec = 1;
   select(0, NULL, NULL, NULL, &timeout);
+  if (!started) abort();
   if (pthread_mutex_lock(m) != 0) abort();
 }
 
 static void runtime_unlock(void* m)
 {
+  if (!started) abort();
   if (pthread_mutex_unlock(m) != 0) abort();
 }
 
 static void runtime_yield(void* m)
 {
+  if (!started) abort();
   if (pthread_mutex_unlock(m) != 0) abort();
 #ifdef __linux__
   /* sched_yield() doesn't do what we want in Linux 2.6 and up (PR#2663) */
@@ -84,10 +92,29 @@ static void runtime_yield(void* m)
   if (pthread_mutex_lock(m) != 0) abort();
 }
 
+static void runtime_thread_start(void* m, enum caml_thread_type ty)
+{
+  if (ty != thread_ty) abort();
+  started = 1;
+}
+
+static void runtime_thread_stop(void* m, enum caml_thread_type ty)
+{
+  if (ty != thread_ty) abort();
+  started = 0;
+}
+
 static void runtime_reinitialize(void* m)
 {
   /* This test doesn't fork, so this never runs. */
   abort();
+}
+
+value swap_gil_setup(value unused)
+{
+  caml_default_locking_scheme.thread_start = runtime_thread_start;
+  caml_default_locking_scheme.thread_stop = runtime_thread_stop;
+  started = 1;
 }
 
 value swap_gil(value unused)
@@ -104,6 +131,8 @@ value swap_gil(value unused)
   s->context = m;
   s->lock = runtime_lock;
   s->unlock = runtime_unlock;
+  s->thread_start = runtime_thread_start;
+  s->thread_stop = runtime_thread_stop;
   s->reinitialize_after_fork = runtime_reinitialize;
   s->can_skip_yield = NULL;
   s->yield = runtime_yield;
