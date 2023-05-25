@@ -57,7 +57,9 @@ let simplify_toplevel_common dacc simplify ~params ~implicit_params
         in
         let flow_result =
           Flow.Analysis.analyze data_flow ~print_name ~code_age_relation
-            ~used_value_slots ~return_continuation ~exn_continuation
+            ~used_value_slots
+            ~code_ids_to_never_delete:(DA.code_ids_to_never_delete dacc)
+            ~return_continuation ~exn_continuation
         in
         let uenv =
           UE.add_function_return_or_exn_continuation

@@ -28,13 +28,14 @@ type t =
     flow_acc : Flow.Acc.t;
     demoted_exn_handlers : Continuation.Set.t;
     code_ids_to_remember : Code_id.Set.t;
+    code_ids_to_never_delete : Code_id.Set.t;
     slot_offsets : Slot_offsets.t Code_id.Map.t
   }
 
 let [@ocamlformat "disable"] print ppf
       { denv; continuation_uses_env; shareable_constants; used_value_slots;
         lifted_constants; flow_acc; demoted_exn_handlers; code_ids_to_remember;
-        slot_offsets } =
+        code_ids_to_never_delete; slot_offsets } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(denv@ %a)@]@ \
       @[<hov 1>(continuation_uses_env@ %a)@]@ \
@@ -44,6 +45,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(flow_acc@ %a)@]@ \
       @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
       @[<hov 1>(code_ids_to_remember@ %a)@]@ \
+      @[<hov 1>(code_ids_to_never_delete@ %a)@]@ \
       @[<hov 1>(slot_offsets@ %a)@]\
       )@]"
     DE.print denv
@@ -54,6 +56,7 @@ let [@ocamlformat "disable"] print ppf
     Flow.Acc.print flow_acc
     Continuation.Set.print demoted_exn_handlers
     Code_id.Set.print code_ids_to_remember
+    Code_id.Set.print code_ids_to_never_delete
     (Code_id.Map.print Slot_offsets.print) slot_offsets
 
 let create denv continuation_uses_env =
@@ -65,7 +68,8 @@ let create denv continuation_uses_env =
     lifted_constants = LCS.empty;
     flow_acc = Flow.Acc.empty ();
     demoted_exn_handlers = Continuation.Set.empty;
-    code_ids_to_remember = Code_id.Set.empty
+    code_ids_to_remember = Code_id.Set.empty;
+    code_ids_to_never_delete = Code_id.Set.empty
   }
 
 let denv t = t.denv
@@ -180,6 +184,17 @@ let code_ids_to_remember t = t.code_ids_to_remember
 
 let with_code_ids_to_remember t ~code_ids_to_remember =
   { t with code_ids_to_remember }
+
+let add_code_ids_to_never_delete t code_ids =
+  { t with
+    code_ids_to_never_delete =
+      Code_id.Set.union code_ids t.code_ids_to_never_delete
+  }
+
+let code_ids_to_never_delete t = t.code_ids_to_never_delete
+
+let with_code_ids_to_never_delete t ~code_ids_to_never_delete =
+  { t with code_ids_to_never_delete }
 
 let are_rebuilding_terms t = DE.are_rebuilding_terms t.denv
 
