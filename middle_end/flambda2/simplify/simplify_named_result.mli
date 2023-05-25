@@ -12,47 +12,24 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Flambda.Import
+
 type t
 
-val have_simplified_to_zero_terms : Downwards_acc.t -> t
+val create : Downwards_acc.t -> Expr_builder.binding_to_place list -> t
 
-(** Note that even though there is one term, the binding might contain multiple
-    bound variables, in the case of a set of closures. *)
-val have_simplified_to_single_term :
-  Downwards_acc.t ->
-  Bound_pattern.t ->
-  Simplified_named.t ->
-  original_defining_expr:Flambda.Named.t ->
-  t
-
-val have_lifted_set_of_closures :
+val create_have_lifted_set_of_closures :
   Downwards_acc.t ->
   (Bound_var.t * Symbol.t) list ->
-  original_defining_expr:Flambda.Named.t ->
+  original_defining_expr:Named.t ->
   t
-
-type descr = private
-  | Zero_terms
-  | Single_term of
-      { let_bound : Bound_pattern.t;
-        simplified_defining_expr : Simplified_named.t;
-        original_defining_expr : Flambda.Named.t
-      }
-  | Multiple_bindings_to_symbols of
-      { bound_vars_to_symbols : (Bound_var.t * Symbol.t) list;
-        original_defining_expr : Flambda.Named.t
-      }
-
-val descr : t -> descr
 
 val dacc : t -> Downwards_acc.t
 
-type binding_to_place =
-  { let_bound : Bound_pattern.t;
-    simplified_defining_expr : Simplified_named.t;
-    original_defining_expr : Flambda.Named.t
-  }
+val bindings_to_place : t -> Expr_builder.binding_to_place list
 
-val bindings_to_place_in_any_order : t -> binding_to_place list
+val no_bindings : t -> bool
+
+val was_lifted_set_of_closures : t -> bool
 
 val with_dacc : dacc:Downwards_acc.t -> t -> t

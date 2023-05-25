@@ -18,11 +18,17 @@
 
 type t = private
   { simplified_named : Simplified_named.t Or_invalid.t;
+    extra_bindings : Expr_builder.binding_to_place list;
     try_reify : bool;
     dacc : Downwards_acc.t
   }
 
-val create : Flambda.Named.t -> try_reify:bool -> Downwards_acc.t -> t
+val create :
+  ?extra_bindings:Expr_builder.binding_to_place list ->
+  Flambda.Named.t ->
+  try_reify:bool ->
+  Downwards_acc.t ->
+  t
 
 val create_simplified :
   Simplified_named.t -> try_reify:bool -> Downwards_acc.t -> t
