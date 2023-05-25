@@ -62,7 +62,7 @@ module Witness : sig
           handler_code_sym : string
         }
 
- type t =
+  type t =
     { dbg : Debuginfo.t;
       kind : kind
     }

@@ -299,7 +299,6 @@ module Value : sig
   val remove_witnesses : t -> t
 
   val get_witnesses : t -> Witnesses.components
-
 end = struct
   (** Lifts V to triples  *)
   type t =
