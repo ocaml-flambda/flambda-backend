@@ -186,22 +186,11 @@ module Split_mode = struct
   let to_string = function Off -> "off" | Naive -> "naive"
 
   let value =
-    let available_modes () =
+    let _available_modes () =
       String.concat ", "
         (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
     in
-    lazy
-      (match find_param_value "IRC_SPLIT" with
-      | None ->
-        fatal "the IRC_SPLIT parameter is not set (possible values: %s)"
-          (available_modes ())
-      | Some id -> (
-        match String.lowercase_ascii id with
-        | "off" -> Off
-        | "naive" -> Naive
-        | _ ->
-          fatal "unknown split mode %S (possible values: %s)" id
-            (available_modes ())))
+    lazy Off
 end
 
 module Spilling_heuristics = struct
@@ -218,25 +207,11 @@ module Spilling_heuristics = struct
     | Hierarchical_uses -> "hierarchical_uses"
 
   let value =
-    let available_heuristics () =
+    let _available_heuristics () =
       String.concat ", "
         (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
     in
-    lazy
-      (match find_param_value "IRC_SPILLING_HEURISTICS" with
-      | None ->
-        fatal
-          "the IRC_SPILLING_HEURISTICS parameter is not set (possible values: \
-           %s)"
-          (available_heuristics ())
-      | Some id -> (
-        match String.lowercase_ascii id with
-        | "set_choose" | "set-choose" -> Set_choose
-        | "flat_uses" | "flat-uses" -> Flat_uses
-        | "hierarchical_uses" | "hierarchical-uses" -> Hierarchical_uses
-        | _ ->
-          fatal "unknown heuristics %S (possible values: %s)" id
-            (available_heuristics ())))
+    lazy Flat_uses
 end
 
 module ArraySet = struct

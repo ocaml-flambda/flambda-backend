@@ -51,22 +51,11 @@ module Order = struct
   let to_string = function Layout -> "layout" | DFS -> "dfs"
 
   let value =
-    let available_orders () =
+    let _available_orders () =
       String.concat ", "
         (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
     in
-    lazy
-      (match find_param_value "LS_ORDER" with
-      | None ->
-        fatal "the LS_ORDER parameter is not set (possible values: %s)"
-          (available_orders ())
-      | Some id -> (
-        match String.lowercase_ascii id with
-        | "layout" -> Layout
-        | "dfs" -> DFS
-        | _ ->
-          fatal "unknown order %S (possible values: %s)" id
-            (available_orders ())))
+    lazy Layout
 end
 
 let iter_blocks_dfs : Cfg.t -> f:(Cfg.basic_block -> unit) -> unit =
