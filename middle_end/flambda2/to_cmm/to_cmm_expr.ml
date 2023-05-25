@@ -119,9 +119,17 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     if not (C.check_arity params_arity args)
     then Misc.fatal_errorf "Wrong arity for direct call";
     let args =
-      if Code_metadata.is_my_closure_used code_metadata
-      then args @ [callee]
-      else args
+      (* Note on call convention: in order to have a caml_apply/curry
+         that is generic wrt layouts, we need unary functions to take
+         their closures as first arguments. *)
+      match args with
+      | [_] ->
+        (* CR gbury: use a gap/dummy argument when the closure is unused *)
+        callee :: args
+      | _ ->
+        if Code_metadata.is_my_closure_used code_metadata
+        then args @ [callee]
+        else args
     in
     let code_sym = To_cmm_result.symbol_of_code_id res code_id in
     match Apply.probe apply with

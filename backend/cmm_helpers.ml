@@ -129,7 +129,13 @@ let pack_closure_info ~arity ~startenv ~is_last =
 let closure_info' ~arity ~startenv ~is_last =
   let arity =
     match arity with
-    | Lambda.Tupled, l -> -List.length l
+    | Lambda.Tupled, l ->
+      let n = List.length l in
+      (* Sanity check: tupled function should not have arity 1/-1,
+         especially considering that unary function have a slightly different
+         call convention. *)
+      assert (n <> 1);
+      - n
     | Lambda.Curried _, l -> List.length l
   in
   pack_closure_info ~arity ~startenv ~is_last
@@ -2506,8 +2512,9 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
         Cop
           ( Capply (result, Rc_normal),
             [ get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
+              Cvar clos;
               Cvar arg;
-              Cvar clos ],
+            ],
             dbg () )
       in
       match region with
@@ -2537,8 +2544,9 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
           Cop
             ( Capply (typ_val, Rc_normal),
               [ get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
+                Cvar clos;
                 Cvar arg;
-                Cvar clos ],
+              ],
               dbg () ),
           app_fun newclos args )
   in
@@ -4053,7 +4061,8 @@ let indirect_call ~dbg ty pos alloc_mode f args_type args =
       ~body:
         (Cop
            ( Capply (Extended_machtype.to_machtype ty, pos),
-             [load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v); arg; Cvar v],
+             (* Note: unary functions (and only them) take their closure as first argument *)
+             [load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v); Cvar v; arg],
              dbg ))
   | args ->
     call_caml_apply ty args_type Asttypes.Mutable f args pos alloc_mode dbg
