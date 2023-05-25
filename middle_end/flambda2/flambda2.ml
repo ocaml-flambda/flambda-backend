@@ -102,11 +102,6 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
   let compilation_unit = program.compilation_unit in
   let module_block_size_in_words = program.main_module_block_size in
   let module_initializer = program.code in
-  (* Make sure -linscan is enabled in classic mode. Doing this here to be sure
-     it happens exactly when -Oclassic is in effect, which we don't know at CLI
-     processing time because there may be an [@@@flambda_oclassic] or
-     [@@@flambda_o3] attribute. *)
-  if Flambda_features.classic_mode () then Clflags.use_linscan := true;
   Misc.Color.setup (Flambda_features.colour ());
   (* CR-someday mshinwell: Note for future WebAssembly work: this thing about
      the length of arrays will need fixing, I don't think it only applies to the
