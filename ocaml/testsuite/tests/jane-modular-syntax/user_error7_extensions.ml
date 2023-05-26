@@ -4,7 +4,8 @@
 
 (* If we use extension nodes outside of the context they are expected,
    they aren't interpreted by the modular syntax machinery and fail with
-   a normal OCaml error *)
+   a normal OCaml error
+*)
 
 (* Extension node in an interpreted context would be:
 
