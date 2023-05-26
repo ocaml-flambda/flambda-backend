@@ -12,8 +12,8 @@ open Jane_syntax_parsing
    that both [comprehensions] and [immutable_arrays] are enabled.  But our
    general mechanism for checking for enabled extensions (in [of_ast]) won't
    work well here: it triggers when converting from
-   e.g. [[%jane.comprehensions.array] ...]  to the comprehensions-specific
-   AST. But if we spot a [[%jane.comprehensions.immutable]], there is no
+   e.g. [[%jane.*.comprehensions.array] ...] to the comprehensions-specific AST.
+   But if we spot a [[%jane.*.comprehensions.immutable]], there is no
    expression to translate.  So we just check for the immutable arrays extension
    when processing a comprehension expression for an immutable array.
 
@@ -21,14 +21,14 @@ open Jane_syntax_parsing
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
    The topmost node in the encoded AST must always look like e.g.
-   [%jane.comprehensions]. This allows the decoding machinery to know what
+   [%jane.*.comprehensions]. This allows the decoding machinery to know what
    extension is being used and what function to call to do the decoding.
    Accordingly, during encoding, after doing the hard work of converting the
    extension syntax tree into e.g. Parsetree.expression, we need to make a final
-   step of wrapping the result in an [%jane.xyz] node. Ideally, this step would
-   be done by part of our general structure, like we separate [of_ast] and
-   [of_ast_internal] in the decode structure; this design would make it
-   structurally impossible/hard to forget taking this final step.
+   step of wrapping the result in an [%jane.*.xyz] node. Ideally, this
+   step would be done by part of our general structure, like we separate
+   [of_ast] and [of_ast_internal] in the decode structure; this design would
+   make it structurally impossible/hard to forget taking this final step.
 
    However, the final step is only one line of code (a call to
    [make_entire_jane_syntax]), but yet the name of the feature varies, as does
@@ -41,18 +41,22 @@ open Jane_syntax_parsing
 
 module With_attributes = With_attributes
 
-let namespace language_extension
-  : Jane_syntax_parsing.Embedded_name.Namespace.t
-  =
-  if Language_extension.is_erasable language_extension
-  then Erasable
-  else Non_erasable
+type language_extension =
+  { erasability : Jane_syntax_parsing.Embedded_name.Erasability.t
+  ; extension_string : string
+  }
+
+let make_language_extension language_extension =
+  { erasability =
+      if Language_extension.is_erasable language_extension
+      then Erasable
+      else Non_erasable
+  ; extension_string = Language_extension.to_string language_extension
+  }
 
 (** List and array comprehensions *)
 module Comprehensions = struct
-  let extension : Language_extension.t = Comprehensions
-  let extension_string = Language_extension.to_string extension
-  let namespace = namespace extension
+  let { erasability; extension_string } = make_language_extension Comprehensions
 
   type iterator =
     | Range of { start     : expression
@@ -104,7 +108,7 @@ module Comprehensions = struct
     AST.wrap_desc Expression ~attrs:[] ~loc:x.pexp_loc @@
     AST.make_jane_syntax
       Expression
-      { namespace; components = extension_string :: names }
+      { erasability; components = extension_string :: names }
       x
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
@@ -154,7 +158,7 @@ module Comprehensions = struct
 
   let expr_of ~loc cexpr =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
-    AST.make_entire_jane_syntax Expression ~loc namespace extension_string
+    AST.make_entire_jane_syntax Expression ~loc erasability extension_string
       (fun () ->
         match cexpr with
         | Cexp_list_comprehension comp ->
@@ -194,7 +198,7 @@ module Comprehensions = struct
             "Unknown, unexpected, or malformed@ comprehension embedded term %a"
             Embedded_name.pp_quoted_name
             Embedded_name.
-              { namespace; components = extension_string :: subparts }
+              { erasability; components = extension_string :: subparts }
       | No_clauses ->
           Location.errorf ~loc
             "Tried to desugar a comprehension with no clauses"
@@ -215,7 +219,7 @@ module Comprehensions = struct
   let expand_comprehension_extension_expr expr =
     match find_and_remove_jane_syntax_attribute expr.pexp_attributes with
     | Some
-        ({ namespace = _; components = comprehensions :: names }, attributes)
+        ({ erasability = _; components = comprehensions :: names }, attributes)
       when String.equal comprehensions extension_string ->
         names, { expr with pexp_attributes = attributes }
     | Some (ext_name, _) ->
@@ -293,14 +297,13 @@ module Immutable_arrays = struct
   type nonrec pattern =
     | Iapat_immutable_array of pattern list
 
-  let language_extension : Language_extension.t = Immutable_arrays
-  let extension_string = Language_extension.to_string language_extension
-  let namespace = namespace language_extension
+  let { erasability; extension_string } =
+    make_language_extension Immutable_arrays
 
   let expr_of ~loc = function
     | Iaexp_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
-      AST.make_entire_jane_syntax Expression ~loc namespace extension_string
+      AST.make_entire_jane_syntax Expression ~loc erasability extension_string
         (fun () -> Ast_helper.Exp.array elts)
 
   (* Returns remaining unconsumed attributes *)
@@ -311,7 +314,7 @@ module Immutable_arrays = struct
   let pat_of ~loc = function
     | Iapat_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
-      AST.make_entire_jane_syntax Pattern ~loc namespace extension_string
+      AST.make_entire_jane_syntax Pattern ~loc erasability extension_string
         (fun () -> Ast_helper.Pat.array elts)
 
   (* Returns remaining unconsumed attributes *)
@@ -328,15 +331,15 @@ module Include_functor = struct
   type structure_item =
     | Ifstr_include_functor of include_declaration
 
-  let extension : Language_extension.t = Include_functor
-  let extension_string = Language_extension.to_string extension
-  let namespace = namespace extension
+  let { erasability; extension_string } =
+    make_language_extension Include_functor
 
   let sig_item_of ~loc = function
     | Ifsig_include_functor incl ->
-      (* See Note [Wrapping with make_entire_jane_syntax] *)
-      AST.make_entire_jane_syntax Signature_item ~loc namespace extension_string
-        (fun () -> Ast_helper.Sig.include_ incl)
+        (* See Note [Wrapping with make_entire_jane_syntax] *)
+        AST.make_entire_jane_syntax
+          Signature_item ~loc erasability extension_string
+          (fun () -> Ast_helper.Sig.include_ incl)
 
   let of_sig_item sigi = match sigi.psig_desc with
     | Psig_include incl -> Ifsig_include_functor incl
@@ -345,7 +348,8 @@ module Include_functor = struct
   let str_item_of ~loc = function
     | Ifstr_include_functor incl ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
-      AST.make_entire_jane_syntax Structure_item ~loc namespace extension_string
+      AST.make_entire_jane_syntax
+        Structure_item ~loc erasability extension_string
         (fun () -> Ast_helper.Str.include_ incl)
 
   let of_str_item stri = match stri.pstr_desc with
@@ -358,9 +362,8 @@ module Strengthen = struct
   type nonrec module_type =
     { mty : Parsetree.module_type; mod_id : Longident.t Location.loc }
 
-  let extension : Language_extension.t = Module_strengthening
-  let extension_string = Language_extension.to_string extension
-  let namespace = namespace extension
+  let { erasability; extension_string } =
+    make_language_extension Module_strengthening
 
   (* Encoding: [S with M] becomes [functor (_ : S) -> (module M)], where
      the [(module M)] is a [Pmty_alias].  This isn't syntax we can write, but
@@ -368,7 +371,7 @@ module Strengthen = struct
 
   let mty_of ~loc { mty; mod_id } =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
-    AST.make_entire_jane_syntax Module_type ~loc namespace extension_string
+    AST.make_entire_jane_syntax Module_type ~loc erasability extension_string
       (fun () -> Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
         (Ast_helper.Mty.alias mod_id))
 

@@ -1,4 +1,4 @@
 File "user_error3_3.ml", line 9, characters 31-57:
 9 | let _misnamed_extension = () [@jane.non_namespace.feature];;
                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Cannot have an attribute named [@jane.non_namespace.feature]: Unrecognized namespace `non_namespace'
+Error: Cannot have an attribute named [@jane.non_namespace.feature]: Unrecognized component where erasability was expected: `non_namespace'

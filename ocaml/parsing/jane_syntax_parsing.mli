@@ -105,19 +105,26 @@ end
     also why we don't expose any functions for rendering or parsing these names;
     that's all handled internally. *)
 module Embedded_name : sig
-  module Namespace : sig
+  module Erasability : sig
     type t =
       | Erasable
       | Non_erasable
   end
 
-  (** A nonempty list of name components, without the leading root component
-      that identifies it as part of the modular syntax mechanism.  This is a
-      nonempty list corresponding to the different components of the name: first
-      the feature, and then any subparts. *)
+  (** A nonempty list of name components, without the first two components.
+      (That is, without the leading root component that identifies it as part of
+      the modular syntax mechanism, and without the next component that
+      identifies the erasability.)
+
+      This is a nonempty list corresponding to the different components of the
+      name: first the feature, and then any subparts.
+  *)
   type components = ( :: ) of string * string list
 
-  type t = { namespace : Namespace.t; components : components }
+  (** The trailing components together with the erasability. The erasability is
+      the second component of the literal name that appears in the parsetree.
+  *)
+  type t = { erasability : Erasability.t; components : components }
 
   (** Print out the embedded form of a Jane-syntax name, in quotes; for use in
       error messages. *)
@@ -188,7 +195,7 @@ module AST : sig
   val make_entire_jane_syntax
     :  ('ast, 'ast_desc) t
     -> loc:Location.t
-    -> Embedded_name.Namespace.t
+    -> Embedded_name.Erasability.t
     -> string
     -> (unit -> 'ast)
     -> 'ast_desc

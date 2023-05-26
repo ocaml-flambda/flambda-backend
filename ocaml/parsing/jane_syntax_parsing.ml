@@ -7,23 +7,29 @@
       of the syntax indicated by the attribute.
     2. As a pair of an extension node and an AST item that serves as the "body".
        Here, the "pair" is embedded as a pair-like construct in the relevant AST
-       category, e.g. [include sig [%%extension.EXTNAME];; BODY end] for
-       signature items.
+       category, e.g. [include sig [%jane.ERASABILITY.EXTNAME];; BODY end] for
+    signature items.
 
-    In particular, for an extension named [EXTNAME] (i.e., one
-    that is enabled by [-extension EXTNAME] on the command line), the attribute
-    (if used) must be [[@jane.EXTNAME]], and the extension (if used) must be
-    [[%jane.EXTNAME]]. For built-in syntax, we use [_builtin]
-    instead of an extension name.
+    In particular, for an language extension named [EXTNAME] (i.e., one that is
+    enabled by [-extension EXTNAME] on the command line), the attribute (if
+    used) must be [[@jane.ERASABILITY.EXTNAME]], and the extension node (if
+    used) must be [[%jane.ERASABILITY.EXTNAME]]. For built-in syntax, we use
+    [_builtin] instead of an language extension name.
+
+    The [ERASABILITY] component indicates to tools, like ppxlib, whether the
+    attribute is erasable or not. See the documentation of [Erasability] for
+    more information on how tools make use of this information.
 
     In the below example, we use attributes an examples, but it applies equally
     to extensions. We also provide utilities for further desugaring similar
     applications where the embeddings have the longer form
-    [[@jane.FEATNAME.ID1.ID2.….IDn]] (with the outermost one being the [n = 0]
-    case), as these might be used inside the [EXPR]. (For example, within the
-    outermost [[@jane.comprehensions]] term for list and array comprehensions,
-    we can also use [[@jane.comprehensions.list]],
-    [[@jane.comprehensions.array]], [[@jane.comprehensions.for.in]], etc.).
+    [[@jane.ERASABILITY.FEATNAME.ID1.ID2.….IDn]] (with the outermost one being the
+    [n = 0] case), as these might be used inside the [EXPR]. (For example,
+    within the outermost [[@jane.ERASABILITY.comprehensions]] term for list and
+    array comprehensions, we can also use
+    [[@jane.ERASABILITY.comprehensions.list]],
+    [[@jane.ERASABILITY.comprehensions.array]],
+    [[@jane.ERASABILITY.comprehensions.for.in]], etc.).
 
     As mentioned, we represent terms as a "pair" and don't use the extension
     node or attribute payload; this is so that ppxen can see inside these
@@ -42,8 +48,8 @@
 
     We provide one module per syntactic category (e.g., [Expression]), of module
     type [AST].  They also provide some simple machinery for working with the
-    general [@jane.FEATNAME.ID1.ID2.….IDn] wrapped forms.  To construct one, we
-    provide [make_jane_syntax]; to destructure one, we provide
+    general [@jane.ERASABILITY.FEATNAME.ID1.ID2.….IDn] wrapped forms. To
+    construct one, we provide [make_jane_syntax]; to destructure one, we provide
     [match_jane_syntax] (which we expose via [make_of_ast]). Users of this
     module still have to write the transformations in both directions for all
     new syntax, lowering it to extension nodes or attributes and then lifting it
@@ -156,32 +162,40 @@ end
 
 module Misnamed_embedding_error = struct
   type t =
-    | No_namespace
+    | No_erasability
     | No_feature
-    | Unknown_namespace of string
+    | Unknown_erasability of string
 
   let to_string = function
-    | No_namespace -> "Missing namespace and feature components"
+    | No_erasability -> "Missing erasability and feature components"
     | No_feature -> "Missing a feature component"
-    | Unknown_namespace str -> Printf.sprintf "Unrecognized namespace `%s'" str
+    | Unknown_erasability str ->
+        Printf.sprintf
+          "Unrecognized component where erasability was expected: `%s'"
+          str
 end
 
 (** An AST-style representation of the names used when generating extension
     nodes or attributes for modular syntax; see the .mli file for more
     details. *)
 module Embedded_name : sig
-  (** The namespace that identifies whether the embedding attribute is erasable
+
+  (** The component that identifies whether the embedding attribute is erasable
       -- i.e. the upstream OCaml compiler can safely interpret the AST ignoring
-      the attribute -- or not. Tools like ppxlib use this namespace to decide
+      the attribute -- or not. Tools like ppxlib use this component to decide
       whether it's ok to allow ppxes to construct syntax that uses this
-      emedding.
+      emedding. In particular, the upstream version of ppxlib allows ppxes to
+      produce [[@jane.erasable.*]] attributes, but indicates errors if a ppx
+      produces [[@jane.non_erasable.*]] attributes.
 
       Unlike for attributes, the distinction is not meaningful for an extension
       node. The upstream compiler will always error if it sees an uninterpreted
-      extension node. So embeddings that use extension nodes should be indicated
-      as non-erasable for clarity.
+      extension node. So, for purposes of tools in the OCaml ecosystem, it is
+      irrelevant whether embeddings that use extension nodes indicate [Erasable]
+      or [Non_erasable] for this component, but the convention we've settled on
+      is to use [Non_erasable].
   *)
-  module Namespace : sig
+  module Erasability : sig
     type t =
       | Erasable
       | Non_erasable
@@ -189,12 +203,12 @@ module Embedded_name : sig
 
   (** A nonempty list of name components, without the first two components.
       (That is, without the leading root component that identifies it as part of
-       the modular syntax mechanism, and without the next component that
-      identifies the namespace.) See the .mli file for more details. *)
+      the modular syntax mechanism, and without the next component that
+      identifies the erasability.) See the .mli file for more details. *)
   type components = ( :: ) of string * string list
 
   type t =
-    { namespace : Namespace.t
+    { erasability : Erasability.t
     ; components : components
     }
 
@@ -206,7 +220,8 @@ module Embedded_name : sig
   (** Parse a Jane syntax name from the OCaml AST, either as the name of an
       extension node or an attribute:
         - [Some (Ok _)] if it's a legal Jane-syntax name;
-        - [Some (Error ())] if it's the bare root name; and
+        - [Some (Error _)] if the root is present, but the name has fewer than 3
+          components or the erasability component is malformed; and
         - [None] if it doesn't start with the leading root name and isn't part
           of our Jane-syntax machinery.
       Not exposed. *)
@@ -228,7 +243,7 @@ end = struct
     (** The separator between name components *)
     let separator = '.'
 
-    (** The leading namespace that identifies this extension node or attribute
+    (** The leading erasability that identifies this extension node or attribute
         as reserved for a piece of modular syntax *)
     let root = "jane"
 
@@ -238,7 +253,7 @@ end = struct
 
   include Config
 
-  module Namespace = struct
+  module Erasability = struct
     type t =
       | Erasable
       | Non_erasable
@@ -258,26 +273,26 @@ end = struct
   type components = ( :: ) of string * string list
 
   type t =
-    { namespace : Namespace.t
+    { erasability : Erasability.t
     ; components : components
     }
 
-  let to_string { namespace; components = feat :: subparts } =
+  let to_string { erasability; components = feat :: subparts } =
     String.concat
       separator_str
-      (root :: Namespace.to_string namespace :: feat :: subparts)
+      (root :: Erasability.to_string erasability :: feat :: subparts)
 
   let of_string str : (t, Misnamed_embedding_error.t) result option =
     match String.split_on_char separator str with
     | root' :: parts when String.equal root root' -> begin
         match parts with
-        | [] -> Some (Error No_namespace)
+        | [] -> Some (Error No_erasability)
         | [_] -> Some (Error No_feature)
-        | namespace :: feat :: subparts -> begin
-            match Namespace.of_string namespace with
-            | Ok namespace ->
-                Some (Ok { namespace; components = feat :: subparts })
-            | Error () -> Some (Error (Unknown_namespace namespace))
+        | erasability :: feat :: subparts -> begin
+            match Erasability.of_string erasability with
+            | Ok erasability ->
+                Some (Ok { erasability; components = feat :: subparts })
+            | Error () -> Some (Error (Unknown_erasability erasability))
          end
       end
     | _ :: _ | [] -> None
@@ -290,7 +305,8 @@ end
 
 (******************************************************************************)
 module Error = struct
-  (** Someone used [[%jane.FEATNAME]]/[[@jane.FEATNAME]] wrong *)
+  (** Someone used [[%jane.ERASABILITY.FEATNAME]]/[[@jane.ERASABILITY.FEATNAME]]
+      wrong *)
   type malformed_embedding =
     | Has_payload of payload
 
@@ -299,7 +315,7 @@ module Error = struct
   type error =
     | Malformed_embedding of
         Embedding_syntax.t * Embedded_name.t * malformed_embedding
-    | Unknown_extension of Embedding_syntax.t * Embedded_name.Namespace.t * string
+    | Unknown_extension of Embedding_syntax.t * Embedded_name.Erasability.t * string
     | Disabled_extension of Language_extension.t
     | Wrong_syntactic_category of Feature.t * string
     | Misnamed_embedding of
@@ -329,8 +345,8 @@ let report_error ~loc = function
           (Embedding_syntax.name_plural what)
           Embedded_name.pp_quoted_name name
     end
-  | Unknown_extension (what, namespace, name) ->
-      let embedded_name = { Embedded_name.namespace; components = [name] } in
+  | Unknown_extension (what, erasability, name) ->
+      let embedded_name = { Embedded_name.erasability; components = [name] } in
       Location.errorf
         ~loc
         "@[Unknown extension \"%s\" referenced via@ %a %s@]"
@@ -376,9 +392,9 @@ let () =
     novel syntactic features.  One module per variety of AST (expressions,
     patterns, etc.). *)
 
-(** The parameters that define how to look for [[%jane.FEATNAME]] and
-    [[@jane.FEATNAME]] inside ASTs of a certain syntactic category. This module
-    type describes the input to the [Make_with_attribute] and
+(** The parameters that define how to look for [[%jane.ERASABILITY.FEATNAME]] and
+    [[@jane.ERASABILITY.FEATNAME]] inside ASTs of a certain syntactic category.
+    This module type describes the input to the [Make_with_attribute] and
     [Make_with_extension_node] functors (though they stipulate additional
     requirements for their inputs).
 *)
@@ -775,8 +791,8 @@ module AST = struct
     let (module AST) = to_module t in
     AST.make_jane_syntax
 
-  let make_entire_jane_syntax t ~loc namespace name ast =
-    make_jane_syntax t { namespace; components = [name] }
+  let make_entire_jane_syntax t ~loc erasability name ast =
+    make_jane_syntax t { erasability; components = [name] }
       (Ast_helper.with_default_loc (Location.ghostify loc) ast)
 
   (** Generically lift our custom ASTs for our novel syntax from OCaml ASTs. *)
@@ -786,7 +802,7 @@ module AST = struct
       let loc = AST.location ast in
       let raise_error err = raise (Error (loc, err)) in
       match AST.match_jane_syntax ast with
-      | Some ({ namespace; components = [name] }, ast) -> begin
+      | Some ({ erasability; components = [name] }, ast) -> begin
           match Feature.of_component name with
           | Ok feat -> begin
               match of_ast_internal feat ast with
@@ -797,7 +813,7 @@ module AST = struct
           | Error err -> raise_error begin match err with
             | Disabled_extension ext -> Disabled_extension ext
             | Unknown_extension name ->
-                Unknown_extension (AST.embedding_syntax, namespace, name)
+                Unknown_extension (AST.embedding_syntax, erasability, name)
           end
         end
       | Some ({ components = _ :: _ :: _; _ } as name, _) ->
