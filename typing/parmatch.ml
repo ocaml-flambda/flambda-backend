@@ -1861,7 +1861,7 @@ let rec initial_only_guarded = function
 (* conversion from Typedtree.pattern to Parsetree.pattern list *)
 module Conv = struct
   open Parsetree
-  let mkpat desc = Ast_helper.Pat.mk desc
+  let mkpat ?attrs desc = Ast_helper.Pat.mk ?attrs desc
 
   let name_counter = ref 0
   let fresh name =
@@ -1912,13 +1912,16 @@ module Conv = struct
           mkpat (Ppat_record (fields, Open))
       | Tpat_array (am, lst) ->
           let pats = (List.map loop lst) in
-          let ppat = match am with
-            | Mutable   -> Ppat_array pats
+          let ppat, attrs = match am with
+            | Mutable   -> Ppat_array pats, []
             | Immutable ->
-                Jane_syntax.Immutable_arrays.pat_of
-                  ~loc:pat.pat_loc (Iapat_immutable_array pats)
+                let ppat =
+                  Jane_syntax.Immutable_arrays.pat_of
+                    ~loc:pat.pat_loc (Iapat_immutable_array pats)
+                in
+                ppat.desc, ppat.jane_syntax_attributes
           in
-          mkpat ppat
+          mkpat ~attrs ppat
       | Tpat_lazy p ->
           mkpat (Ppat_lazy (loop p))
     in

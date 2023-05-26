@@ -97,7 +97,7 @@ let handle_extension ext =
 
 let rec add_type bv ty =
   match Jane_syntax.Core_type.of_ast ty with
-  | Some jty -> add_type_jst bv jty
+  | Some (jty, _attrs) -> add_type_jst bv jty
   | None ->
   match ty.ptyp_desc with
     Ptyp_any -> ()
@@ -173,7 +173,7 @@ let pattern_bv = ref String.Map.empty
 
 let rec add_pattern bv pat =
   match Jane_syntax.Pattern.of_ast pat with
-  | Some jpat -> add_pattern_jane_syntax bv jpat
+  | Some (jpat, _attrs) -> add_pattern_jane_syntax bv jpat
   | None      ->
   match pat.ppat_desc with
     Ppat_any -> ()
@@ -212,7 +212,7 @@ let add_pattern bv pat =
 
 let rec add_expr bv exp =
   match Jane_syntax.Expression.of_ast exp with
-  | Some jexp -> add_expr_jane_syntax bv jexp
+  | Some (jexp, _attrs) -> add_expr_jane_syntax bv jexp
   | None ->
   match exp.pexp_desc with
     Pexp_ident l -> add bv l
@@ -347,7 +347,7 @@ and add_binding_op bv bv' pbop =
 
 and add_modtype bv mty =
   match Jane_syntax.Module_type.of_ast mty with
-  | Some jmty -> add_modtype_jane_syntax bv jmty
+  | Some (jmty, _attrs) -> add_modtype_jane_syntax bv jmty
   | None ->
   match mty.pmty_desc with
     Pmty_ident l -> add bv l
@@ -397,7 +397,7 @@ and add_module_alias bv l =
 
 and add_modtype_binding bv mty =
   match Jane_syntax.Module_type.of_ast mty with
-  | Some jmty -> add_modtype_jane_syntax_binding bv jmty
+  | Some (jmty, _attrs) -> add_modtype_jane_syntax_binding bv jmty
   | None ->
   match mty.pmty_desc with
     Pmty_alias l ->

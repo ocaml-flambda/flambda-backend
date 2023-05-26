@@ -21,13 +21,7 @@ this_test_tests_that
   "we print list comprehensions correctly"
 ;;
 
-let test_printing () =
-  let parsed = (* The wonky formatting here is the best way to keep the line
-                   break visible in the string and also keep things within 80
-                   characters here *)
-"[(i, j)\n\
-\  for i = 0 to 9 when (i mod 2) = 0 for j = 0 to i when (i > 4) && (j > 4)]"
-  in
+let test_printing parsed =
   let expr = Parse.expression (Lexing.from_string parsed) in
   let printed = Pprintast.string_of_expression expr in
   if parsed = printed then
@@ -44,20 +38,31 @@ let test_printing () =
       parsed printed
 ;;
 
-let () = test_printing ();;
+let () =
+  (* The wonky formatting here is the best way to keep the line
+     break visible in the string and also keep things within 80
+     characters here *)
+ test_printing
+    "[(i, j)\n\
+    \  for i = 0 to 9 when (i mod 2) = 0 for j = 0 to i when (i > 4) && (j > 4)]";
+ (* Check that only user attributes survive pprintast *)
+ test_printing
+   "(([((x)[@attr1 ]) for ((x)[@attr2 ]) in (([])[@attr3 ])])[@attr4 ])";
+;;
 
 (******************************************************************************)
 
 this_test_tests_that
-  "compiler-generated extension nodes start with \"extension.\""
+  "compiler-generated attributes start with \"jane.\""
 ;;
 
 (* In particular: As long as we're in the Jane Street compiler, the compiler
-   translates list comprehensions to an AST in terms of %-annotated extension
-   nodes.  We want to confirm that we're only touching ones we intend to use,
-   which we mark by beginning them with the string "extension.".  We print out
-   the other ones we find, which should be the exact four that were present in
-   the source. *)
+   translates list comprehensions to an AST in terms of attributes and/or
+   extension nodes. We want to confirm that we're only touching ones we intend
+   to use, which we mark by beginning them with the string "jane.". We print out
+   the other ones we find, which should be the exact four of each that were
+   present in the source.
+*)
 
 let starts_with pfx str =
   String.length str >= String.length pfx
@@ -67,16 +72,19 @@ let starts_with pfx str =
 
 let test_iteration () =
   let example =
-    "[ [%expr payload] for i = [%low] to [%high] when [%cond] ]"
+    "[ [%e] [@expr] for i = [%l] [@low] to [%h] [@high] when [%c] [@cond] ]"
   in
   let expr = Parse.expression (Lexing.from_string example) in
+  let attribute it ({ attr_name; _ } : Parsetree.attribute) =
+      Printf.printf "  [@%s ...]\n" attr_name.txt
+  in
   let extension it ((name, _) : Parsetree.extension) =
-      Printf.printf "  [%%%s ...]\n" name.txt
+    Printf.printf "  [%%%s ...]\n" name.txt
   in
   let iterator =
-    { Ast_iterator.default_iterator with extension }
+    { Ast_iterator.default_iterator with attribute; extension }
   in
-  Printf.printf "User [%%extension] nodes found:\n";
+  Printf.printf "User attributes [@...] and extension nodes [%%...] found:\n";
   iterator.expr iterator expr
 ;;
 

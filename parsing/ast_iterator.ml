@@ -122,10 +122,12 @@ module T = struct
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                   as typ) =
     sub.location sub loc;
-    sub.attributes sub attrs;
     match Jane_syntax.Core_type.of_ast typ with
-    | Some jtyp -> sub.typ_jane_syntax sub jtyp
+    | Some (jtyp, attrs) ->
+        sub.attributes sub attrs;
+        sub.typ_jane_syntax sub jtyp
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Ptyp_any
     | Ptyp_var _ -> ()
@@ -260,10 +262,12 @@ module MT = struct
   let iter sub
         ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
     sub.location sub loc;
-    sub.attributes sub attrs;
     match Jane_syntax.Module_type.of_ast mty with
-    | Some jmty -> sub.module_type_jane_syntax sub jmty
+    | Some (jmty, attrs) ->
+        sub.attributes sub attrs;
+        sub.module_type_jane_syntax sub jmty
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Pmty_ident s -> iter_loc sub s
     | Pmty_alias s -> iter_loc sub s
@@ -429,10 +433,12 @@ module E = struct
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
     sub.location sub loc;
-    sub.attributes sub attrs;
     match Jane_syntax.Expression.of_ast expr with
-    | Some jexp -> sub.expr_jane_syntax sub jexp
+    | Some (jexp, attrs) ->
+        sub.attributes sub attrs;
+        sub.expr_jane_syntax sub jexp
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Pexp_ident x -> iter_loc sub x
     | Pexp_constant _ -> ()
@@ -529,10 +535,12 @@ module P = struct
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     sub.location sub loc;
-    sub.attributes sub attrs;
     match Jane_syntax.Pattern.of_ast pat with
-    | Some jpat -> sub.pat_jane_syntax sub jpat
+    | Some (jpat, attrs) ->
+        sub.attributes sub attrs;
+        sub.pat_jane_syntax sub jpat
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Ppat_any -> ()
     | Ppat_var s -> iter_loc sub s

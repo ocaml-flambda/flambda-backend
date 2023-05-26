@@ -305,37 +305,55 @@ let unclosed opening_name opening_loc closing_name closing_loc =
    and (2) a function for going from that type to an AST fragment representing
    an array. *)
 module Generic_array = struct
-  (** The three possible ways to parse an array (writing [[? ... ?]] for either
-      [[| ... |]] or [[: ... :]]): *)
-  type (_, _) t =
-    | Literal : 'ast list -> ('ast, 'ast_desc) t
-    (** A plain array literal/pattern, [[? x; y; z ?]] *)
-    | Opened_literal : open_declaration *
-                       Lexing.position *
-                       Lexing.position *
-                       expression list
-                     -> (expression, expression_desc) t
-    (** An array literal with a local open, [Module.[? x; y; z ?]] (only valid in
-        expressions) *)
-    | Unclosed : (Lexing.position * Lexing.position) *
-                 (Lexing.position * Lexing.position)
-               -> (_, _) t
-    (** Parse error: an unclosed array literal, [\[? x; y; z] with no closing
-        [?\]]. *)
+  (** The possible ways of parsing an array (writing [[? ... ?]] for either
+      [[| ... |]] or [[: ... :]]). The set of available constructs differs
+      between expressions and patterns.
+  *)
 
-  let to_ast (type ast ast_desc)
-             (open_ : string) (close : string)
-             (array : ast list -> ast_desc)
-        : (ast, ast_desc) t -> ast_desc = function
-    | Literal elts ->
-        array elts
-    | Opened_literal(od, startpos, endpos, elts) ->
-        (Pexp_open(od, mkexp ~loc:(startpos, endpos) (array elts)) : ast_desc)
-    | Unclosed(startpos, endpos) ->
-        unclosed open_ startpos close endpos
+  module Simple = struct
+    type 'a t =
+      | Literal of 'a list
+      (** A plain array literal/pattern, [[? x; y; z ?]] *)
+      | Unclosed of (Lexing.position * Lexing.position) *
+                    (Lexing.position * Lexing.position)
+      (** Parse error: an unclosed array literal, [\[? x; y; z] with no closing
+          [?\]]. *)
 
-  let expression : _ -> _ -> _ -> (expression, expression_desc) t -> _ = to_ast
-  let pattern    : _ -> _ -> _ -> (pattern,    pattern_desc)    t -> _ = to_ast
+    let to_ast (open_ : string) (close : string) array t =
+      match t with
+      | Literal elts -> array elts
+      | Unclosed (startpos, endpos) -> unclosed open_ startpos close endpos
+  end
+
+
+  module Expression = struct
+    type t =
+      | Simple of expression Simple.t
+      | Opened_literal of open_declaration *
+                        Lexing.position *
+                        Lexing.position *
+                        expression list
+      (** An array literal with a local open, [Module.[? x; y; z ?]] (only valid
+          in expressions) *)
+
+    let to_desc (open_ : string) (close : string) array t =
+        match t with
+        | Simple x -> Simple.to_ast open_ close array x
+        | Opened_literal (od, startpos, endpos, elts) ->
+          Pexp_open (od, mkexp ~loc:(startpos, endpos) (array elts))
+
+    let to_expression (open_ : string) (close : string) array ~loc t =
+      match t with
+      | Simple x -> Simple.to_ast open_ close (array ~loc) x
+      | Opened_literal (od, startpos, endpos, elts) ->
+        mkexp ~loc (Pexp_open (od, array ~loc:(startpos, endpos) elts))
+  end
+
+  module Pattern = struct
+    type t = pattern Simple.t
+    let to_ast open_ close array (t : t) =
+      Simple.to_ast open_ close array t
+  end
 end
 
 let ppat_iarray loc elts =
@@ -752,6 +770,18 @@ let check_layout loc id =
   end;
   let loc = make_loc loc in
   Attr.mk ~loc (mkloc id loc) (PStr [])
+
+let mkexp_jane_syntax
+      ~loc
+      { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
+  =
+  mkexp_attrs ~loc desc (None, jane_syntax_attributes)
+
+let mkpat_jane_syntax
+      ~loc
+      { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
+  =
+  mkpat_attrs ~loc desc (None, jane_syntax_attributes)
 
 %}
 
@@ -2550,6 +2580,21 @@ simple_expr:
       mkexp_attrs ~loc:$sloc desc attrs }
   | mkexp(simple_expr_)
       { $1 }
+  (* Jane Syntax. These rules create [expression] instead of [expression_desc]
+     because Jane Syntax can use attributes as part of their encoding.
+  *)
+  | array_exprs(LBRACKETCOLON, COLONRBRACKET)
+      { Generic_array.Expression.to_expression
+          "[:" ":]"
+          ~loc:$sloc
+          (fun ~loc elts ->
+             Jane_syntax.Immutable_arrays.expr_of
+               ~loc:(make_loc loc)
+               (Iaexp_immutable_array elts)
+            |> mkexp_jane_syntax ~loc)
+        $1
+      }
+  | comprehension_expr { $1 }
 ;
 %inline simple_expr_attrs:
   | BEGIN ext = ext attrs = attributes e = seq_expr END
@@ -2618,29 +2663,33 @@ comprehension_clause:
 
 %inline comprehension_expr:
   comprehension_ext_expr
-    { Jane_syntax.Comprehensions.expr_of ~loc:(make_loc $sloc) $1 }
+    { mkexp_jane_syntax ~loc:$sloc
+        (Jane_syntax.Comprehensions.expr_of ~loc:(make_loc $sloc) $1)
+    }
 ;
 
 %inline array_simple(ARR_OPEN, ARR_CLOSE, contents_semi_list):
   | ARR_OPEN contents_semi_list ARR_CLOSE
-      { Generic_array.Literal $2 }
+      { Generic_array.Simple.Literal $2 }
   | ARR_OPEN contents_semi_list error
-      { Generic_array.Unclosed($loc($1),$loc($3)) }
+      { Generic_array.Simple.Unclosed($loc($1),$loc($3)) }
   | ARR_OPEN ARR_CLOSE
-      { Generic_array.Literal [] }
+      { Generic_array.Simple.Literal [] }
 ;
 
 %inline array_exprs(ARR_OPEN, ARR_CLOSE):
   | array_simple(ARR_OPEN, ARR_CLOSE, expr_semi_list)
-      { $1 }
+      { Generic_array.Expression.Simple $1 }
   | od=open_dot_declaration DOT ARR_OPEN expr_semi_list ARR_CLOSE
-      { Generic_array.Opened_literal(od, $startpos($3), $endpos, $4) }
+      { Generic_array.Expression.Opened_literal(od, $startpos($3), $endpos, $4)
+      }
   | od=open_dot_declaration DOT ARR_OPEN ARR_CLOSE
       { (* TODO: review the location of Pexp_array *)
-        Generic_array.Opened_literal(od, $startpos($3), $endpos, []) }
+        Generic_array.Expression.Opened_literal(od, $startpos($3), $endpos, [])
+      }
   | mod_longident DOT
     ARR_OPEN expr_semi_list error
-      { Generic_array.Unclosed($loc($3), $loc($5)) }
+      { Generic_array.Expression.Simple (Unclosed($loc($3), $loc($5))) }
 ;
 
 %inline array_patterns(ARR_OPEN, ARR_CLOSE):
@@ -2698,25 +2747,17 @@ comprehension_clause:
   | mod_longident DOT LBRACE record_expr_content error
       { unclosed "{" $loc($3) "}" $loc($5) }
   | array_exprs(LBRACKETBAR, BARRBRACKET)
-      { Generic_array.expression
+      { Generic_array.Expression.to_desc
           "[|" "|]"
           (fun elts -> Pexp_array elts)
-          $1 }
-  | array_exprs(LBRACKETCOLON, COLONRBRACKET)
-      { Generic_array.expression
-          "[:" ":]"
-          (fun elts ->
-             Jane_syntax.Immutable_arrays.expr_of
-               ~loc:(make_loc $sloc)
-               (Iaexp_immutable_array elts))
-          $1 }
+          $1
+      }
   | LBRACKET expr_semi_list RBRACKET
       { fst (mktailexp $loc($3) $2) }
   | LBRACKET expr_semi_list error
       { unclosed "[" $loc($1) "]" $loc($3) }
-  | comprehension_expr { $1 }
   | od=open_dot_declaration DOT comprehension_expr
-      { Pexp_open(od, mkexp ~loc:($loc($3)) $3) }
+      { Pexp_open(od, $3) }
   | od=open_dot_declaration DOT LBRACKET expr_semi_list RBRACKET
       { let list_exp =
           (* TODO: review the location of list_exp *)
@@ -3124,16 +3165,19 @@ simple_delimited_pattern:
     | LBRACKET pattern_semi_list error
       { unclosed "[" $loc($1) "]" $loc($3) }
     | array_patterns(LBRACKETBAR, BARRBRACKET)
-        { Generic_array.pattern
+        { Generic_array.Pattern.to_ast
             "[|" "|]"
             (fun elts -> Ppat_array elts)
-            $1 }
-    | array_patterns(LBRACKETCOLON, COLONRBRACKET)
-        { Generic_array.pattern
+            $1
+        }
+  ) { $1 }
+  | array_patterns(LBRACKETCOLON, COLONRBRACKET)
+      { mkpat_jane_syntax ~loc:$sloc
+          (Generic_array.Pattern.to_ast
             "[:" ":]"
             (ppat_iarray $sloc)
-            $1 }
-  ) { $1 }
+            $1)
+      }
 
 pattern_comma_list(self):
     pattern_comma_list(self) COMMA pattern      { $3 :: $1 }
