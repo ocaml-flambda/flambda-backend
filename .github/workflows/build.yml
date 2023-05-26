@@ -10,7 +10,7 @@ jobs:
       matrix:
         include:
           - name: closure
-            config: --enable-middle-end=closure
+            config: --enable-middle-end=closure --enable-dev
             os: ubuntu-latest
             ocamlparam: ''
             check_arch: true
@@ -18,22 +18,22 @@ jobs:
             ocamlrunparam: "v=0,V=1"
 
           - name: closure_cfg
-            config: --enable-middle-end=closure --enable-poll-insertion
+            config: --enable-middle-end=closure --enable-poll-insertion --enable-dev
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
 
           - name: flambda1
-            config: --enable-middle-end=flambda
+            config: --enable-middle-end=flambda --enable-dev
             os: ubuntu-latest
             ocamlparam: ''
 
           - name: flambda1_frame_pointers
-            config: --enable-middle-end=flambda --enable-frame-pointers --enable-poll-insertion
+            config: --enable-middle-end=flambda --enable-frame-pointers --enable-poll-insertion --enable-dev
             os: ubuntu-latest
             ocamlparam: ''
 
           - name: flambda1_cfg
-            config: --enable-middle-end=flambda --enable-poll-insertion
+            config: --enable-middle-end=flambda --enable-poll-insertion --enable-dev
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
 
@@ -52,26 +52,26 @@ jobs:
             ocamlrunparam: "v=0,V=1"
 
           - name: flambda2_nnp
-            config: --enable-middle-end=flambda2 --disable-naked-pointers
+            config: --enable-middle-end=flambda2 --disable-naked-pointers --enable-dev
             os: ubuntu-latest
             ocamlparam: ''
 
           - name: flambda2_frame_pointers
-            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion
+            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion --enable-dev
             os: ubuntu-latest
             ocamlparam: ''
 
           - name: flambda2_cfg
-            config: --enable-middle-end=flambda2
+            config: --enable-middle-end=flambda2 --enable-dev
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
 
           - name: flambda2_macos
-            config: --enable-middle-end=flambda2
+            config: --enable-middle-end=flambda2 --enable-dev
             os: macos-latest
 
           - name: irc
-            config: --enable-middle-end=flambda2
+            config: --enable-middle-end=flambda2 --enable-dev
             os: ubuntu-latest
             ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=IRC_SPLIT:off,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true

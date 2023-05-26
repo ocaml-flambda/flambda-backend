@@ -703,6 +703,7 @@ CFLAGS
 LIBTOOL
 ac_ct_LD
 LD
+OCAML_DEVELOPMENT_VERSION
 DEFAULT_STRING
 WINDOWS_UNICODE_MODE
 DLLIBS
@@ -818,7 +819,6 @@ OCAML_VERSION_PATCHLEVEL
 OCAML_VERSION_MINOR
 OCAML_VERSION_MAJOR
 OCAML_RELEASE_EXTRA
-OCAML_DEVELOPMENT_VERSION
 VERSION
 native_compiler
 CONFIGURE_ARGS
@@ -902,6 +902,7 @@ enable_flat_float_array
 enable_function_sections
 with_afl
 enable_stack_allocation
+enable_dev
 enable_poll_insertion
 with_flexdll
 enable_shared
@@ -1603,6 +1604,8 @@ Optional Features:
                           do not emit each function in a separate section
   --enable-stack-allocation
                           enable stack allocation of local values
+  --enable-dev            enable development mode (build in -opaque, low
+                          optimization, warnings as errors)
   --enable-poll-insertion enable insertion of poll points
   --enable-shared[=PKGS]  build shared libraries [default=yes]
   --enable-static[=PKGS]  build static libraries [default=yes]
@@ -3181,8 +3184,6 @@ bootstrapping_flexdll=false
 
 VERSION=4.14.1+jst
 
-OCAML_DEVELOPMENT_VERSION=false
-
 OCAML_RELEASE_EXTRA='Some (Plus, "jst")'
 
 OCAML_VERSION_MAJOR=4
@@ -3842,6 +3843,22 @@ if test ${enable_stack_allocation+y}
 then :
   enableval=$enable_stack_allocation;
 fi
+
+
+# Check whether --enable-dev was given.
+if test ${enable_dev+y}
+then :
+  enableval=$enable_dev;
+fi
+
+
+if test x"$enable_dev" = "xyes"
+then :
+  enable_dev_subst=true
+else $as_nop
+  enable_dev_subst=false
+fi
+OCAML_DEVELOPMENT_VERSION=$enable_dev_subst
 
 
 # Check whether --enable-poll-insertion was given.
@@ -13564,7 +13581,7 @@ case $ocaml_cv_cc_vendor in #(
   cc_warnings='-Wall -Wdeclaration-after-statement' ;;
 esac
 
-case $enable_warn_error,false in #(
+case $enable_warn_error,$enable_dev in #(
   yes,*|,true) :
     cc_warnings="$cc_warnings $warn_error_flag" ;; #(
   *) :
@@ -18888,7 +18905,7 @@ fi
 
 
 
-case $enable_ocamltest,false in #(
+case $enable_ocamltest,$enable_dev in #(
   yes,*|,true) :
     ocamltest='ocamltest' ;; #(
   *) :

@@ -108,7 +108,7 @@ _build/_bootinstall: Makefile.config $(dune_config_targets)
 	echo -n '$(NATDYNLINKOPTS)' > $(ocamldir)/otherlibs/dynlink/natdynlinkops
 
 # flags.sexp
-	echo '(:standard $(if $(filter true,$(FUNCTION_SECTIONS)),-function-sections,))' > ocamlopt_flags.sexp
+	echo '(:standard $(if $(filter true,$(OCAML_DEVELOPMENT_VERSION)),-opaque -warn-error +a,-O3) $(if $(filter true,$(FUNCTION_SECTIONS)),-function-sections,))' > ocamlopt_flags.sexp
 	echo '( $(OC_CFLAGS) )' > oc_cflags.sexp
 	echo '( $(OC_CPPFLAGS) )' > oc_cppflags.sexp
 	echo '( $(SHAREDLIB_CFLAGS) )' > sharedlib_cflags.sexp
