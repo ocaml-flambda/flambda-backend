@@ -10,7 +10,7 @@ Parsing and printing round-tripped successfully!
 
 **** Test that compiler-generated attributes start with "jane." ****
 
-User attribute [@...] nodes found:
+User attributes [@...] and extension nodes [%...] found:
   [@expr ...]
   [@low ...]
   [@high ...]

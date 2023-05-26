@@ -57,11 +57,12 @@ this_test_tests_that
 ;;
 
 (* In particular: As long as we're in the Jane Street compiler, the compiler
-   translates list comprehensions to an AST in terms of attributes.  We want to
-   confirm that we're only touching ones we intend to use,
-   which we mark by beginning them with the string "jane.".  We print out
+   translates list comprehensions to an AST in terms of attributes and/or
+   extension nodes. We want to confirm that we're only touching ones we intend
+   to use, which we mark by beginning them with the string "jane.". We print out
    the other ones we find, which should be the exact four that were present in
-   the source. *)
+   the source.
+*)
 
 let starts_with pfx str =
   String.length str >= String.length pfx
@@ -77,10 +78,13 @@ let test_iteration () =
   let attribute it ({ attr_name; _ } : Parsetree.attribute) =
       Printf.printf "  [@%s ...]\n" attr_name.txt
   in
-  let iterator =
-    { Ast_iterator.default_iterator with attribute }
+  let extension it ((name, _) : Parsetree.extension) =
+    Printf.printf "  [%%%s ...]\n" name.txt
   in
-  Printf.printf "User attribute [@...] nodes found:\n";
+  let iterator =
+    { Ast_iterator.default_iterator with attribute; extension }
+  in
+  Printf.printf "User attributes [@...] and extension nodes [%%...] found:\n";
   iterator.expr iterator expr
 ;;
 
