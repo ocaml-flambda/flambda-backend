@@ -221,6 +221,16 @@ end
     [Immutable_arrays]). *)
 val assert_extension_enabled : loc:Location.t -> Language_extension.t -> unit
 
+(* CR-someday nroberts: An earlier version of this revealed less of its
+   implementation in its name: it was called [match_jane_syntax], and
+   was a function from ast to ast. This has some advantages (less revealing
+   of the Jane Syntax encoding) but I felt it important to document the caller's
+   responsibility to plumb through uninterpreted attributes.
+
+   Given that it only has one callsite currently, we decided to keep this
+   approach for now, but we could revisit this decision if we use it more
+   often.
+*)
 (** Extracts the first attribute (in list order) that was inserted by the
     Jane Syntax framework, and returns the rest of the attributes in the
     same relative order as was input.

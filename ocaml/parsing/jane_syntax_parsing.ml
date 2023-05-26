@@ -27,10 +27,10 @@
 
     As mentioned, we represent terms as a "pair" and don't use the extension
     node or attribute payload; this is so that ppxen can see inside these
-    extension nodes. If we put the subexpressions inside the payload, then we
-    couldn't write something like [[[%string "Hello, %{x}!"] for x in names]],
-    as [ppx_string] wouldn't traverse inside the payload to find the [[%string]]
-    extension node.
+    extension nodes or attributes. If we put the subexpressions inside the
+    payload, then we couldn't write something like [[[%string "Hello, %{x}!"]
+    for x in names]], as [ppx_string] wouldn't traverse inside the payload to
+    find the [[%string]] extension node.
 
     Our novel syntactic features are of course allowed to impose extra
     constraints on what legal bodies are; we're also happy for this translation
