@@ -1,5 +1,5 @@
-File "user_error3.ml", line 21, characters 25-64:
-21 | let _unknown_extension = [%jane.this_extension_doesn't_exist] ();;
-                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "user_error3.ml", line 21, characters 25-27:
+21 | let _unknown_extension = () [@jane.this_extension_doesn't_exist];;
+                              ^^
 Error: Unknown extension "this_extension_doesn't_exist" referenced via
-       a [%jane.this_extension_doesn't_exist] extension node
+       a [@jane.this_extension_doesn't_exist] attribute

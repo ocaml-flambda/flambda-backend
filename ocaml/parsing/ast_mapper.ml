@@ -146,14 +146,15 @@ module T = struct
                  as typ) =
     let open Typ in
     let loc = sub.location sub loc in
-    let attrs = sub.attributes sub attrs in
     match Jane_syntax.Core_type.of_ast typ with
-    | Some jtyp -> begin
-        Jane_syntax_parsing.Core_type.wrap_desc ~loc ~attrs @@
+    | Some (jtyp, attrs) -> begin
+        let attrs = sub.attributes sub attrs in
+        Jane_syntax_parsing.AST.wrap_desc Core_type ~loc ~attrs @@
         match sub.typ_jane_syntax sub jtyp with
         | _ -> .
     end
     | None ->
+    let attrs = sub.attributes sub attrs in
     match desc with
     | Ptyp_any -> any ~loc ~attrs ()
     | Ptyp_var s -> var ~loc ~attrs s
@@ -298,14 +299,15 @@ module MT = struct
         ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
     let open Mty in
     let loc = sub.location sub loc in
-    let attrs = sub.attributes sub attrs in
     match Jane_syntax.Module_type.of_ast mty with
-    | Some jmty -> begin
-        Jane_syntax_parsing.Module_type.wrap_desc ~loc ~attrs @@
+    | Some (jmty, attrs) -> begin
+        let attrs = sub.attributes sub attrs in
+        Jane_syntax_parsing.AST.wrap_desc Module_type ~loc ~attrs @@
         match sub.module_type_jane_syntax sub jmty with
         | Jmty_strengthen smty -> Jane_syntax.Strengthen.mty_of ~loc smty
       end
     | None ->
+    let attrs = sub.attributes sub attrs in
     match desc with
     | Pmty_ident s -> ident ~loc ~attrs (map_loc sub s)
     | Pmty_alias s -> alias ~loc ~attrs (map_loc sub s)
@@ -352,7 +354,7 @@ module MT = struct
     let loc = sub.location sub loc in
     match Jane_syntax.Signature_item.of_ast sigi with
     | Some jsigi -> begin
-        Jane_syntax_parsing.Signature_item.wrap_desc ~loc ~attrs:[] @@
+        Jane_syntax_parsing.AST.wrap_desc Signature_item ~loc ~attrs:[] @@
         match sub.signature_item_jane_syntax sub jsigi with
         | Jsig_include_functor incl ->
             Jane_syntax.Include_functor.sig_item_of ~loc incl
@@ -432,7 +434,7 @@ module M = struct
     let loc = sub.location sub loc in
     match Jane_syntax.Structure_item.of_ast stri with
     | Some jstri -> begin
-        Jane_syntax_parsing.Structure_item.wrap_desc ~loc ~attrs:[] @@
+        Jane_syntax_parsing.AST.wrap_desc Structure_item ~loc ~attrs:[] @@
         match sub.structure_item_jane_syntax sub jstri with
         | Jstr_include_functor incl ->
             Jane_syntax.Include_functor.str_item_of ~loc incl
@@ -507,15 +509,16 @@ module E = struct
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
     let open Exp in
     let loc = sub.location sub loc in
-    let attrs = sub.attributes sub attrs in
     match Jane_syntax.Expression.of_ast exp with
-    | Some jexp -> begin
-        Jane_syntax_parsing.Expression.wrap_desc ~loc ~attrs @@
+    | Some (jexp, attrs) -> begin
+        let attrs = sub.attributes sub attrs in
+        Jane_syntax_parsing.AST.wrap_desc Expression ~loc ~attrs @@
         match sub.expr_jane_syntax sub jexp with
         | Jexp_comprehension   c -> Jane_syntax.Comprehensions.expr_of   ~loc c
         | Jexp_immutable_array i -> Jane_syntax.Immutable_arrays.expr_of ~loc i
     end
     | None ->
+    let attrs = sub.attributes sub attrs in
     match desc with
     | Pexp_ident x -> ident ~loc ~attrs (map_loc sub x)
     | Pexp_constant x -> constant ~loc ~attrs (sub.constant sub x)
@@ -617,14 +620,15 @@ module P = struct
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     let open Pat in
     let loc = sub.location sub loc in
-    let attrs = sub.attributes sub attrs in
     match Jane_syntax.Pattern.of_ast pat with
-    | Some jpat -> begin
-        Jane_syntax_parsing.Pattern.wrap_desc ~loc ~attrs @@
+    | Some (jpat, attrs) -> begin
+        let attrs = sub.attributes sub attrs in
+        Jane_syntax_parsing.AST.wrap_desc Pattern ~loc ~attrs @@
         match sub.pat_jane_syntax sub jpat with
         | Jpat_immutable_array i -> Jane_syntax.Immutable_arrays.pat_of ~loc i
     end
     | None ->
+    let attrs = sub.attributes sub attrs in
     match desc with
     | Ppat_any -> any ~loc ~attrs ()
     | Ppat_var s -> var ~loc ~attrs (map_loc sub s)

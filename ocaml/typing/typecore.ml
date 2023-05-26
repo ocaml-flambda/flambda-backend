@@ -1858,7 +1858,7 @@ type 'case_pattern half_typed_case =
 
 let rec has_literal_pattern p =
   match Jane_syntax.Pattern.of_ast p with
-  | Some jpat -> has_literal_pattern_jane_syntax jpat
+  | Some (jpat, _attrs) -> has_literal_pattern_jane_syntax jpat
   | None      -> match p.ppat_desc with
   | Ppat_constant _
   | Ppat_interval _ ->
@@ -2179,7 +2179,7 @@ and type_pat_aux
     | Some Backtrack_or -> false
     | Some (Refine_or {inside_nonsplit_or}) -> inside_nonsplit_or
   in
-  let type_pat_array mutability spl =
+  let type_pat_array mutability spl pat_attributes =
     (* Sharing the code between the two array cases means we're guaranteed to
        keep them in sync, at the cost of a worse diff with upstream; it
        shouldn't be too bad.  We can inline this when we upstream this code and
@@ -2191,18 +2191,18 @@ and type_pat_aux
         pat_desc = Tpat_array (mutability, pl);
         pat_loc = loc; pat_extra=[];
         pat_type = instance expected_ty;
-        pat_attributes = sp.ppat_attributes;
+        pat_attributes;
         pat_env = !env })
   in
   match Jane_syntax.Pattern.of_ast sp with
-  | Some jpat -> begin
+  | Some (jpat, attrs) -> begin
       (* Normally this would go to an auxiliary function, but this function
          takes so many parameters, has such a complex type, and uses so many
          local definitions, it seems better to just put the pattern matching
          here.  This shouldn't mess up the diff *too* much. *)
       match jpat with
       | Jpat_immutable_array (Iapat_immutable_array spl) ->
-          type_pat_array Immutable spl
+          type_pat_array Immutable spl attrs
     end
   | None ->
   match sp.ppat_desc with
@@ -2509,7 +2509,7 @@ and type_pat_aux
             (fun lbl_pat_list -> k' (make_record_pat lbl_pat_list))
       end
   | Ppat_array spl ->
-      type_pat_array Mutable spl
+      type_pat_array Mutable spl sp.ppat_attributes
   | Ppat_or(sp1, sp2) ->
       begin match mode with
       | Normal ->
@@ -2836,7 +2836,7 @@ let combine_pat_tuple_arity a b =
 
 let rec pat_tuple_arity spat =
   match Jane_syntax.Pattern.of_ast spat with
-  | Some jpat -> pat_tuple_arity_jane_syntax jpat
+  | Some (jpat, _attrs) -> pat_tuple_arity_jane_syntax jpat
   | None      ->
   match spat.ppat_desc with
   | Ppat_tuple args -> Local_tuple (List.length args)
@@ -3378,7 +3378,7 @@ let is_local_returning_expr e =
   in
   let rec loop e =
     match Jane_syntax.Expression.of_ast e with
-    | Some jexp -> begin
+    | Some (jexp, _attrs) -> begin
         match jexp with
         | Jexp_comprehension   _ -> false, e.pexp_loc
         | Jexp_immutable_array _ -> false, e.pexp_loc
@@ -3461,7 +3461,7 @@ let is_local_returning_function cases =
 
 let rec approx_type env sty =
   match Jane_syntax.Core_type.of_ast sty with
-  | Some jty -> approx_type_jst env jty
+  | Some (jty, attrs) -> approx_type_jst env attrs jty
   | None ->
   match sty.ptyp_desc with
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
@@ -3505,7 +3505,7 @@ let rec approx_type env sty =
      (which mentions approx_type) for why it can't be value.  *)
   | _ -> newvar Layout.any
 
-and approx_type_jst _env : Jane_syntax.Core_type.t -> _ = function
+and approx_type_jst _env _attrs : Jane_syntax.Core_type.t -> _ = function
   | _ -> .
 
 let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function
@@ -3513,7 +3513,7 @@ let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function
 
 let type_pattern_approx env spat ty_expected =
   match Jane_syntax.Pattern.of_ast spat with
-  | Some jpat -> type_pattern_approx_jane_syntax jpat
+  | Some (jpat, _attrs) -> type_pattern_approx_jane_syntax jpat
   | None      ->
   match spat.ppat_desc with
   | Ppat_constraint(_, ({ptyp_desc=Ptyp_poly _} as sty)) ->
@@ -3575,7 +3575,7 @@ let rec type_function_approx env loc label spato sexp in_function ty_expected =
 
 and type_approx_aux env sexp in_function ty_expected =
   match Jane_syntax.Expression.of_ast sexp with
-  | Some jexp -> type_approx_aux_jane_syntax jexp
+  | Some (jexp, _attrs) -> type_approx_aux_jane_syntax jexp
   | None      -> match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
@@ -3842,7 +3842,7 @@ let shallow_iter_ppat_jane_syntax f : Jane_syntax.Pattern.t -> _ = function
 
 let shallow_iter_ppat f p =
   match Jane_syntax.Pattern.of_ast p with
-  | Some jpat -> shallow_iter_ppat_jane_syntax f jpat
+  | Some (jpat, _attrs) -> shallow_iter_ppat_jane_syntax f jpat
   | None      ->
   match p.ppat_desc with
   | Ppat_any | Ppat_var _ | Ppat_constant _ | Ppat_interval _
@@ -3979,7 +3979,7 @@ let unify_exp env exp expected_ty =
 
 let rec is_inferred sexp =
   match Jane_syntax.Expression.of_ast sexp with
-  | Some jexp -> is_inferred_jane_syntax jexp
+  | Some (jexp, _attrs) -> is_inferred_jane_syntax jexp
   | None      -> match sexp.pexp_desc with
   | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint _
   | Pexp_coerce _ | Pexp_send _ | Pexp_new _ -> true
@@ -4073,14 +4073,14 @@ and type_expect_
     exp
   in
   match Jane_syntax.Expression.of_ast sexp with
-  | Some jexp ->
+  | Some (jexp, attributes) ->
       type_expect_jane_syntax
         ~loc
         ~env
         ~expected_mode
         ~ty_expected
         ~explanation
-        ~attributes:sexp.pexp_attributes
+        ~attributes
         jexp
   | None      -> match sexp.pexp_desc with
   | Pexp_ident lid ->
@@ -6832,7 +6832,7 @@ and type_let
   in
   let rec sexp_is_fun sexp =
     match Jane_syntax.Expression.of_ast sexp with
-    | Some jexp -> jexp_is_fun jexp
+    | Some (jexp, _attrs) -> jexp_is_fun jexp
     | None      -> match sexp.pexp_desc with
     | Pexp_fun _ | Pexp_function _ -> true
     | Pexp_constraint (e, _)

@@ -437,7 +437,7 @@ and transl_type_aux env policy mode styp =
       ctyp_loc = loc; ctyp_attributes = styp.ptyp_attributes }
   in
   match Jane_syntax.Core_type.of_ast styp with
-  | Some etyp -> transl_type_aux_jst env policy mode etyp
+  | Some (etyp, attrs) -> transl_type_aux_jst env policy mode attrs etyp
   | None ->
   match styp.ptyp_desc with
     Ptyp_any ->
@@ -829,7 +829,7 @@ and transl_type_aux env policy mode styp =
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-and transl_type_aux_jst _env _policy _mode
+and transl_type_aux_jst _env _policy _mode _attrs
       : Jane_syntax.Core_type.t -> _ = function
   | _ -> .
 

@@ -2,21 +2,32 @@
    * expect
 *)
 
-(* If you don't use these as applications, they don't pass through the modular
-   extensions machinery and fail with a normal OCaml error *)
+(* If we use extension nodes outside of the context they are expected,
+   they aren't interpreted by the modular syntax machinery and fail with
+   a normal OCaml error *)
 
-let _ = [%jane];;
+(* Extension node in an interpreted context would be:
+
+include struct
+  [%%jane]
+  let f = ()
+end
+
+We don't include this test as it's a parsing error.
+*)
+
+[%%jane];;
 [%%expect{|
-Line 1, characters 10-14:
-1 | let _ = [%jane];;
-              ^^^^
+Line 1, characters 3-7:
+1 | [%%jane];;
+       ^^^^
 Error: Uninterpreted extension 'jane'.
 |}];;
 
-let _ = [%jane "payload"];;
+[%%jane "payload"];;
 [%%expect{|
-Line 1, characters 10-14:
-1 | let _ = [%jane "payload"];;
-              ^^^^
+Line 1, characters 3-7:
+1 | [%%jane "payload"];;
+       ^^^^
 Error: Uninterpreted extension 'jane'.
 |}];;
