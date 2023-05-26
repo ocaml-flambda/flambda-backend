@@ -791,8 +791,9 @@ module AST = struct
     let (module AST) = to_module t in
     AST.make_jane_syntax
 
-  let make_entire_jane_syntax t ~loc erasability name ast =
-    make_jane_syntax t { erasability; components = [name] }
+  let make_entire_jane_syntax t ~loc erasability feature ast =
+    let feature_component = Feature.extension_component feature in
+    make_jane_syntax t { erasability; components = [feature_component] }
       (Ast_helper.with_default_loc (Location.ghostify loc) ast)
 
   (** Generically lift our custom ASTs for our novel syntax from OCaml ASTs. *)

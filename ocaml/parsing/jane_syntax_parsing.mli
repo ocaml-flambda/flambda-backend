@@ -196,7 +196,7 @@ module AST : sig
     :  ('ast, 'ast_desc) t
     -> loc:Location.t
     -> Embedded_name.Erasability.t
-    -> string
+    -> Feature.t
     -> (unit -> 'ast)
     -> 'ast_desc
 
