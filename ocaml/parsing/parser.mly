@@ -336,7 +336,7 @@ module Generic_array = struct
       (** An array literal with a local open, [Module.[? x; y; z ?]] (only valid
           in expressions) *)
 
-    let to_expression_desc (open_ : string) (close : string) array t =
+    let to_desc (open_ : string) (close : string) array t =
         match t with
         | Simple x -> Simple.to_ast open_ close array x
         | Opened_literal (od, startpos, endpos, elts) ->
@@ -2747,7 +2747,7 @@ comprehension_clause:
   | mod_longident DOT LBRACE record_expr_content error
       { unclosed "{" $loc($3) "}" $loc($5) }
   | array_exprs(LBRACKETBAR, BARRBRACKET)
-      { Generic_array.Expression.to_expression_desc
+      { Generic_array.Expression.to_desc
           "[|" "|]"
           (fun elts -> Pexp_array elts)
           $1

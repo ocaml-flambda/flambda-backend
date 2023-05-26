@@ -12,6 +12,10 @@ Parsing and printing round-tripped successfully!
 
 User attributes [@...] and extension nodes [%...] found:
   [@expr ...]
+  [%e ...]
   [@low ...]
+  [%l ...]
   [@high ...]
+  [%h ...]
   [@cond ...]
+  [%c ...]

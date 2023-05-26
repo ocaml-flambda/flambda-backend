@@ -60,8 +60,8 @@ this_test_tests_that
    translates list comprehensions to an AST in terms of attributes and/or
    extension nodes. We want to confirm that we're only touching ones we intend
    to use, which we mark by beginning them with the string "jane.". We print out
-   the other ones we find, which should be the exact four that were present in
-   the source.
+   the other ones we find, which should be the exact four of each that were
+   present in the source.
 *)
 
 let starts_with pfx str =
@@ -72,7 +72,7 @@ let starts_with pfx str =
 
 let test_iteration () =
   let example =
-    "[ payload [@expr] for i = j [@low] to k [@high] when cond [@cond] ]"
+    "[ [%e] [@expr] for i = [%l] [@low] to [%h] [@high] when [%c] [@cond] ]"
   in
   let expr = Parse.expression (Lexing.from_string example) in
   let attribute it ({ attr_name; _ } : Parsetree.attribute) =
