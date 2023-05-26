@@ -311,6 +311,15 @@ let get_property_attribute l p ~fun_attr =
           through the [@@@zero_alloc all] top-level annotation rather than through the
           function annotation [@zero_alloc]. *)
        if assume then begin
+         (* [attr.inline] and [attr.specialise] must be set before the
+            check for [Warnings.Misplaced_assume_attribute].
+            For attributes from the same list, it's fine because
+            [add_check_attribute] is called before
+            [add_inline_attribute] and [add_specialise_attribute].
+            The warning will spuriously fire in the following case:
+            let[@inline never][@specialise never] f =
+              fun[@zero_alloc assume] x -> ..
+         *)
          let never_specialise =
            if Config.flambda then
               fun_attr.specialise = Never_specialise
