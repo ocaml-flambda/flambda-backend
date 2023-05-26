@@ -29,14 +29,17 @@ Line 1, characters 13-21:
 Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
-(*************************************************)
-(* Test 1: Reject non-value function arg/returns *)
+(************************************************************)
+(* Test 1: Disallow non-representable function args/returns *)
 
-(* CR layouts v2: moved to layouts alpha.  Bring here when we have a non-value
-   layout in beta. *)
+(* CR layouts v3: moved to layouts alpha.  Bring here when we have
+   non-representable layouts in beta. *)
 
-(*********************************************)
-(* Test 2: Permit value function arg/returns *)
+(*****************************************************)
+(* Test 2: Permit representable function arg/returns *)
+
+(* CR layouts v2: much of this test moved to basics_alpha.  Add #float versions
+   and bring them here. *)
 module type S = sig
   val f1 : t_value -> t_value
   val f2 : t_imm -> t_imm64
