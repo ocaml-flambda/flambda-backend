@@ -114,3 +114,7 @@ let () =
   (* flambda2 generates an indirect call but we don't yet have a way to exclude it
      without excluding closure. *)
   print_test ~flambda_only:true ~deps:"t1.ml";
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:false ~extra_dep:None ~exit_code:0
+    "test_warning198";
+  (* closure does not delete dead functions *)
+  print_test_expected_output ~cutoff:default_cutoff ~flambda_only:true ~extra_dep:(Some "test_warning199.mli") ~exit_code:0 "test_warning199";
