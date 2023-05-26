@@ -196,7 +196,7 @@ module AST : sig
   val make_of_ast :
     ('ast, _) t
     (** Which syntactic category is this for?  E.g., [module AST = Expression].
-        'ast is the type of novel syntactic terms for this syntactic category,
+        ['ast] is the type of novel syntactic terms for this syntactic category,
         across all syntax features. E.g., [Jane_syntax.Expression.t]
     *)
     -> of_ast_internal:(Feature.t -> 'ast -> 'a option)
