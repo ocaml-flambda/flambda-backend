@@ -48,20 +48,31 @@ module Sort = struct
 
   let new_var () = Var (ref None)
 
-  let rec repr ~default : t -> t = function
+  let rec get : t -> t = function
     | Const _ as t -> t
     | Var r as t -> begin match !r with
-      | None -> begin match default with
-        | None -> t
-        | Some const -> begin
-            let t = of_const const in
-            r := Some t;
-            t
-          end
-      end
+      | None -> t
       | Some s -> begin
-          let result = repr ~default s in
-          r := Some result; (* path compression *)
+          let result = get s in
+          if result != s then r := Some result; (* path compression *)
+          result
+        end
+    end
+
+  let default_value : t option = Some (Const Value)
+  let default_void : t option = Some (Const Void)
+
+  let[@inline] default = function
+    | Value -> default_value
+    | Void -> default_void
+
+  let rec get_default_value : t -> const = function
+    | Const c -> c
+    | Var r -> begin match !r with
+      | None -> r := default_value; Value
+      | Some s -> begin
+          let result = get_default_value s in
+          r := default result; (* path compression *)
           result
         end
     end
@@ -139,8 +150,6 @@ type sort = Sort.t
 module Layout = struct
   type fixed_layout_reason =
     | Let_binding
-    | Function_argument
-    | Function_result
     | Tuple_element
     | Probe
     | Package_hack
@@ -153,6 +162,8 @@ module Layout = struct
     | Match
     | Constructor_declaration of int
     | Label_declaration of Ident.t
+    | Function_argument
+    | Function_result
 
   type annotation_location =
     | Type_declaration of Path.t
@@ -251,17 +262,21 @@ module Layout = struct
     if all_void then immediate else value
 
   (******************************)
-  (* elimination *)
+  (* elimination and defaulting *)
 
   type desc =
     | Const of const
     | Var of Sort.var
 
-  let repr ~default (t : t) : desc = match t.layout with
+  let of_desc = function
+    | Const c -> of_const c
+    | Var v -> of_sort (Sort.of_var v)
+
+  let get (t : t) : desc = match t.layout with
     | Any _ -> Const Any
     | Immediate -> Const Immediate
     | Immediate64 -> Const Immediate64
-    | Sort s -> begin match Sort.repr ~default s with
+    | Sort s -> begin match Sort.get s with
       (* NB: this match isn't as silly as it looks: those are
          different constructors on the left than on the right *)
       | Const Void -> Const Void
@@ -269,11 +284,19 @@ module Layout = struct
       | Var v -> Var v
     end
 
-  let get = repr ~default:None
+  let get_default_value (t : t) : const = match t.layout with
+    | Any _ -> Any
+    | Immediate -> Immediate
+    | Immediate64 -> Immediate64
+    | Sort s -> begin match Sort.get_default_value s with
+      (* As above, this turns Sort.consts to Layout.consts *)
+      | Value -> Value
+      | Void -> Void
+    end
 
-  let of_desc = function
-    | Const c -> of_const c
-    | Var v -> of_sort (Sort.of_var v)
+  let default_to_value t = ignore (get_default_value t)
+
+  let is_void t = Void = get_default_value t
 
   (* CR layouts: this function is suspect; it seems likely to reisenberg
      that refactoring could get rid of it *)
@@ -304,8 +327,6 @@ module Layout = struct
 
     let fixed_layout_reason_layout = function
       | Let_binding
-      | Function_argument
-      | Function_result
       | Tuple_element
       | Probe
       | Package_hack
@@ -318,8 +339,6 @@ module Layout = struct
     let format_fixed_layout_reason ppf =
       function
       | Let_binding -> fprintf ppf "let-bound"
-      | Function_argument -> fprintf ppf "a function argument"
-      | Function_result -> fprintf ppf "a function result"
       | Tuple_element -> fprintf ppf "a tuple element"
       | Probe -> fprintf ppf "a probe"
       | Package_hack -> fprintf ppf "used as a value in a first-class module"
@@ -337,6 +356,8 @@ module Layout = struct
       | Label_declaration lbl ->
         fprintf ppf "used in the declaration of the record field \"%a\""
           Ident.print lbl
+      | Function_argument -> fprintf ppf "a function argument"
+      | Function_result -> fprintf ppf "a function result"
 
     let format_annotation_location ppf : annotation_location -> unit = function
       | Type_declaration p ->
@@ -590,19 +611,6 @@ end
     | _, _ -> equality_check (equate sub super)
 
   (*********************************)
-  (* defaulting *)
-
-  let get_defaulting ~default t =
-    match repr ~default:(Some default) t with
-    | Const result -> result
-    | Var _ -> assert false
-
-  let constrain_default_value = get_defaulting ~default:Sort.Value
-  let is_void l = Void = constrain_default_value l
-  let default_to_value t =
-    ignore (get_defaulting ~default:Value t)
-
-  (*********************************)
   (* debugging *)
 
   module Debug_printers = struct
@@ -618,8 +626,6 @@ end
 
     let fixed_layout_reason ppf : fixed_layout_reason -> unit = function
       | Let_binding -> fprintf ppf "Let_binding"
-      | Function_argument -> fprintf ppf "Function_argument"
-      | Function_result -> fprintf ppf "Function_result"
       | Tuple_element -> fprintf ppf "Tuple_element"
       | Probe -> fprintf ppf "Probe"
       | Package_hack -> fprintf ppf "Package_hack"
@@ -635,6 +641,8 @@ end
           fprintf ppf "Constructor_declaration %d" idx
       | Label_declaration lbl ->
           fprintf ppf "Label_declaration %a" Ident.print lbl
+      | Function_argument -> fprintf ppf "Function_argument"
+      | Function_result -> fprintf ppf "Function_result"
 
     let annotation_location ppf : annotation_location -> unit = function
       | Type_declaration p ->
