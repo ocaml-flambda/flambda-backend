@@ -316,6 +316,7 @@ let get_property_attribute l p ~fun_attr =
               fun_attr.specialise = Never_specialise
            else
               (* closure drops [@specialise never] and never specialises *)
+              (* flambda2 does not have specialisation support yet *)
               true
          in
          if not ((fun_attr.inline = Never_inline) && never_specialise) then
