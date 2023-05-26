@@ -321,7 +321,7 @@ module Generic_array = struct
 
     let to_ast (open_ : string) (close : string) array t =
       match t with
-      | Literal pats -> array pats
+      | Literal elts -> array elts
       | Unclosed (startpos, endpos) -> unclosed open_ startpos close endpos
   end
 
