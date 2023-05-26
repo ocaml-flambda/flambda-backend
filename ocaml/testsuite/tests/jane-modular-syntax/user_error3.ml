@@ -6,7 +6,7 @@
 *)
 
 (* What happens if the user tries to write one of the pieces of Jane Street
-   syntax in concrete syntax but messes up?  In practice we don't
+   syntax in terms of extension nodes but messes up?  In practice we don't
    expect to ever see these errors, but one never knows (and a bug in our
    desugaring could cause them).  The let-binding is named after the constructor
    in [jane_syntax_parsing.ml] representing this particular error. *)
@@ -18,4 +18,4 @@
    like it in separate files, because the "compile and test output"
    infrastructure reports only one error at a time. *)
 
-let _unknown_extension = () [@jane.this_extension_doesn't_exist];;
+let _misnamed_extension = () [@jane.erasable.this_extension_doesn't_exist];;

@@ -154,14 +154,49 @@ end
 
 (******************************************************************************)
 
+module Misnamed_embedding_error = struct
+  type t =
+    | No_namespace
+    | No_feature
+    | Unknown_namespace of string
+
+  let to_string = function
+    | No_namespace -> "Missing namespace and feature components"
+    | No_feature -> "Missing a feature component"
+    | Unknown_namespace str -> Printf.sprintf "Unrecognized namespace `%s'" str
+end
+
 (** An AST-style representation of the names used when generating extension
     nodes or attributes for modular syntax; see the .mli file for more
     details. *)
 module Embedded_name : sig
-  (** A nonempty list of name components, without the leading root component
-      that identifies it as part of the modular syntax mechanism; see the .mli
-      file for more details. *)
-  type t = ( :: ) of string * string list
+  (** The namespace that identifies whether the embedding attribute is erasable
+      -- i.e. the upstream OCaml compiler can safely interpret the AST ignoring
+      the attribute -- or not. Tools like ppxlib use this namespace to decide
+      whether it's ok to allow ppxes to construct syntax that uses this
+      emedding.
+
+      Unlike for attributes, the distinction is not meaningful for an extension
+      node. The upstream compiler will always error if it sees an uninterpreted
+      extension node. So embeddings that use extension nodes should be indicated
+      as non-erasable for clarity.
+  *)
+  module Namespace : sig
+    type t =
+      | Erasable
+      | Non_erasable
+  end
+
+  (** A nonempty list of name components, without the first two components.
+      (That is, without the leading root component that identifies it as part of
+       the modular syntax mechanism, and without the next component that
+      identifies the namespace.) See the .mli file for more details. *)
+  type components = ( :: ) of string * string list
+
+  type t =
+    { namespace : Namespace.t
+    ; components : components
+    }
 
   (** Convert one of these Jane syntax names to the embedded string form used in
       the OCaml AST as the name of an extension node or an attribute; not
@@ -175,7 +210,7 @@ module Embedded_name : sig
         - [None] if it doesn't start with the leading root name and isn't part
           of our Jane-syntax machinery.
       Not exposed. *)
-  val of_string : string -> (t, unit) result option
+  val of_string : string -> (t, Misnamed_embedding_error.t) result option
 
   (** Print out the embedded form of a Jane-syntax name, in quotes; for use in
       error messages. *)
@@ -185,11 +220,6 @@ module Embedded_name : sig
       accompanied by an indefinite article; for use in error messages.  Not
       exposed. *)
   val pp_a_term : Format.formatter -> Embedding_syntax.t * t -> unit
-
-  (** Print out the illegal empty quasi-Jane-syntax extension node or attribute
-      with no name beyond the leading root component; for use in error messages.
-      Not exposed. *)
-  val pp_bad_empty_term : Format.formatter -> Embedding_syntax.t -> unit
 end = struct
   (** The three parameters that control how we encode Jane-syntax extension node
       names.  When updating these, update comments that refer to them by their
@@ -207,18 +237,48 @@ end = struct
   end
 
   include Config
+
+  module Namespace = struct
+    type t =
+      | Erasable
+      | Non_erasable
+
+    let to_string = function
+      | Erasable -> "erasable"
+      | Non_erasable -> "non_erasable"
+
+    let of_string = function
+      | "erasable" -> Ok Erasable
+      | "non_erasable" -> Ok Non_erasable
+      | _ -> Error ()
+  end
+
   let separator_str = String.make 1 separator
 
-  type t = ( :: ) of string * string list
+  type components = ( :: ) of string * string list
 
-  let to_string (feat :: subparts) =
-    String.concat separator_str (root :: feat :: subparts)
+  type t =
+    { namespace : Namespace.t
+    ; components : components
+    }
 
-  let of_string str = match String.split_on_char separator str with
+  let to_string { namespace; components = feat :: subparts } =
+    String.concat
+      separator_str
+      (root :: Namespace.to_string namespace :: feat :: subparts)
+
+  let of_string str : (t, Misnamed_embedding_error.t) result option =
+    match String.split_on_char separator str with
     | root' :: parts when String.equal root root' -> begin
         match parts with
-        | feat :: subparts -> Some (Ok (feat :: subparts))
-        | []               -> Some (Error ())
+        | [] -> Some (Error No_namespace)
+        | [_] -> Some (Error No_feature)
+        | namespace :: feat :: subparts -> begin
+            match Namespace.of_string namespace with
+            | Ok namespace ->
+                Some (Ok { namespace; components = feat :: subparts })
+            | Error () -> Some (Error (Unknown_namespace namespace))
+         end
       end
     | _ :: _ | [] -> None
 
@@ -226,8 +286,6 @@ end = struct
 
   let pp_a_term ppf (esyn, t) =
     Format.fprintf ppf "%s %a" article Embedding_syntax.pp (esyn, to_string t)
-
-  let pp_bad_empty_term ppf esyn = Embedding_syntax.pp ppf (esyn, root)
 end
 
 (******************************************************************************)
@@ -241,10 +299,11 @@ module Error = struct
   type error =
     | Malformed_embedding of
         Embedding_syntax.t * Embedded_name.t * malformed_embedding
-    | Unknown_extension of Embedding_syntax.t * string
+    | Unknown_extension of Embedding_syntax.t * Embedded_name.Namespace.t * string
     | Disabled_extension of Language_extension.t
     | Wrong_syntactic_category of Feature.t * string
-    | Unnamed_embedding of Embedding_syntax.t
+    | Misnamed_embedding of
+        Misnamed_embedding_error.t * string * Embedding_syntax.t
     | Bad_introduction of Embedding_syntax.t * Embedded_name.t
 
   (** The exception type thrown when desugaring a piece of modular syntax from
@@ -270,12 +329,13 @@ let report_error ~loc = function
           (Embedding_syntax.name_plural what)
           Embedded_name.pp_quoted_name name
     end
-  | Unknown_extension (what, name) ->
+  | Unknown_extension (what, namespace, name) ->
+      let embedded_name = { Embedded_name.namespace; components = [name] } in
       Location.errorf
         ~loc
         "@[Unknown extension \"%s\" referenced via@ %a %s@]"
         name
-        Embedded_name.pp_a_term (what, Embedded_name.[name])
+        Embedded_name.pp_a_term (what, embedded_name)
         (Embedding_syntax.name what)
   | Disabled_extension ext ->
       Location.errorf
@@ -288,13 +348,14 @@ let report_error ~loc = function
         "%s cannot appear in %s"
         (Feature.describe_uppercase feat)
         cat
-  | Unnamed_embedding what ->
+  | Misnamed_embedding (err, name, what) ->
       Location.errorf
         ~loc
-        "Cannot have %s named %a"
+        "Cannot have %s named %a: %s"
         (Embedding_syntax.name_indefinite what)
-        Embedded_name.pp_bad_empty_term what
-  | Bad_introduction(what, (ext :: _ as name)) ->
+        Embedding_syntax.pp (what, name)
+        (Misnamed_embedding_error.to_string err)
+  | Bad_introduction(what, ({ components = ext :: _; _ } as name)) ->
       Location.errorf
         ~loc
         "@[The extension \"%s\" was referenced improperly; it started with@ \
@@ -302,7 +363,7 @@ let report_error ~loc = function
         ext
         Embedded_name.pp_a_term (what, name)
         (Embedding_syntax.name what)
-        Embedded_name.pp_a_term (what, Embedded_name.[ext])
+        Embedded_name.pp_a_term (what, { name with components = [ext] })
 
 let () =
   Location.register_error_of_exn
@@ -360,13 +421,6 @@ module type AST = sig
   val match_jane_syntax : ast -> (Embedded_name.t * ast) option
 end
 
-(* Some extensions written before this file existed are handled in their own
-   way; this function filters them out. *)
-let uniformly_handled_extension name =
-  match name with
-  | "local"|"global"|"nonlocal"|"escape"|"curry" -> false
-  | _ -> true
-
 (* Parses the embedded name from an embedding, raising if
     the embedding is malformed. Malformed means either:
 
@@ -378,8 +432,7 @@ let uniformly_handled_extension name =
 let parse_embedding_exn ~loc ~payload ~name ~embedding_syntax =
   let raise_error err = raise (Error (loc, err)) in
   match Embedded_name.of_string name with
-  | Some (Ok (feat :: _ as name))
-    when uniformly_handled_extension feat -> begin
+  | Some (Ok name) -> begin
       let raise_malformed err =
         raise_error (Malformed_embedding (embedding_syntax, name, err))
       in
@@ -387,8 +440,9 @@ let parse_embedding_exn ~loc ~payload ~name ~embedding_syntax =
       | PStr [] -> Some name
       | _ -> raise_malformed (Has_payload payload)
     end
-  | Some (Error ()) -> raise_error (Unnamed_embedding embedding_syntax)
-  | Some (Ok (_ :: _)) | None -> None
+  | Some (Error err) ->
+      raise_error (Misnamed_embedding (err, name, embedding_syntax))
+  | None -> None
 
 module With_attributes = struct
   type 'desc t =
@@ -721,8 +775,8 @@ module AST = struct
     let (module AST) = to_module t in
     AST.make_jane_syntax
 
-  let make_entire_jane_syntax t ~loc name ast =
-    make_jane_syntax t [name]
+  let make_entire_jane_syntax t ~loc namespace name ast =
+    make_jane_syntax t { namespace; components = [name] }
       (Ast_helper.with_default_loc (Location.ghostify loc) ast)
 
   (** Generically lift our custom ASTs for our novel syntax from OCaml ASTs. *)
@@ -732,7 +786,7 @@ module AST = struct
       let loc = AST.location ast in
       let raise_error err = raise (Error (loc, err)) in
       match AST.match_jane_syntax ast with
-      | Some ([name], ast) -> begin
+      | Some ({ namespace; components = [name] }, ast) -> begin
           match Feature.of_component name with
           | Ok feat -> begin
               match of_ast_internal feat ast with
@@ -743,10 +797,10 @@ module AST = struct
           | Error err -> raise_error begin match err with
             | Disabled_extension ext -> Disabled_extension ext
             | Unknown_extension name ->
-                Unknown_extension (AST.embedding_syntax, name)
+                Unknown_extension (AST.embedding_syntax, namespace, name)
           end
         end
-      | Some (_ :: _ :: _ as name, _) ->
+      | Some ({ components = _ :: _ :: _; _ } as name, _) ->
           raise_error (Bad_introduction(AST.embedding_syntax, name))
       | None -> None
     in

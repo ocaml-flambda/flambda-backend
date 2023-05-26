@@ -41,9 +41,18 @@ open Jane_syntax_parsing
 
 module With_attributes = With_attributes
 
+let namespace language_extension
+  : Jane_syntax_parsing.Embedded_name.Namespace.t
+  =
+  if Language_extension.is_erasable language_extension
+  then Erasable
+  else Non_erasable
+
 (** List and array comprehensions *)
 module Comprehensions = struct
-  let extension_string = Language_extension.to_string Comprehensions
+  let extension : Language_extension.t = Comprehensions
+  let extension_string = Language_extension.to_string extension
+  let namespace = namespace extension
 
   type iterator =
     | Range of { start     : expression
@@ -93,7 +102,10 @@ module Comprehensions = struct
 
   let comprehension_expr names x =
     AST.wrap_desc Expression ~attrs:[] ~loc:x.pexp_loc @@
-    AST.make_jane_syntax Expression (extension_string :: names) x
+    AST.make_jane_syntax
+      Expression
+      { namespace; components = extension_string :: names }
+      x
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
       the [expr_of_...] family of expressions, culminating in
@@ -142,18 +154,19 @@ module Comprehensions = struct
 
   let expr_of ~loc cexpr =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
-    AST.make_entire_jane_syntax Expression ~loc extension_string (fun () ->
-      match cexpr with
-      | Cexp_list_comprehension comp ->
-          expr_of_comprehension ~type_:["list"] comp
-      | Cexp_array_comprehension (amut, comp) ->
-          expr_of_comprehension
-            ~type_:[ "array"
-                   ; match amut with
-                     | Mutable   -> "mutable"
-                     | Immutable -> "immutable"
-                   ]
-            comp)
+    AST.make_entire_jane_syntax Expression ~loc namespace extension_string
+      (fun () ->
+        match cexpr with
+        | Cexp_list_comprehension comp ->
+            expr_of_comprehension ~type_:["list"] comp
+        | Cexp_array_comprehension (amut, comp) ->
+            expr_of_comprehension
+              ~type_:[ "array"
+                    ; match amut with
+                      | Mutable   -> "mutable"
+                      | Immutable -> "immutable"
+                    ]
+              comp)
 
   (** Then, we define how to go from the OCaml AST to the nice AST; this is
       the [..._of_expr] family of expressions, culminating in
@@ -180,7 +193,8 @@ module Comprehensions = struct
           Location.errorf ~loc
             "Unknown, unexpected, or malformed@ comprehension embedded term %a"
             Embedded_name.pp_quoted_name
-            Embedded_name.(extension_string :: subparts)
+            Embedded_name.
+              { namespace; components = extension_string :: subparts }
       | No_clauses ->
           Location.errorf ~loc
             "Tried to desugar a comprehension with no clauses"
@@ -200,7 +214,8 @@ module Comprehensions = struct
      attribute removed. *)
   let expand_comprehension_extension_expr expr =
     match find_and_remove_jane_syntax_attribute expr.pexp_attributes with
-    | Some (comprehensions :: names, attributes)
+    | Some
+        ({ namespace = _; components = comprehensions :: names }, attributes)
       when String.equal comprehensions extension_string ->
         names, { expr with pexp_attributes = attributes }
     | Some (ext_name, _) ->
@@ -278,13 +293,15 @@ module Immutable_arrays = struct
   type nonrec pattern =
     | Iapat_immutable_array of pattern list
 
-  let extension_string = Language_extension.to_string Immutable_arrays
+  let language_extension : Language_extension.t = Immutable_arrays
+  let extension_string = Language_extension.to_string language_extension
+  let namespace = namespace language_extension
 
   let expr_of ~loc = function
     | Iaexp_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
-      AST.make_entire_jane_syntax Expression ~loc extension_string (fun () ->
-        Ast_helper.Exp.array elts)
+      AST.make_entire_jane_syntax Expression ~loc namespace extension_string
+        (fun () -> Ast_helper.Exp.array elts)
 
   (* Returns remaining unconsumed attributes *)
   let of_expr expr = match expr.pexp_desc with
@@ -294,8 +311,8 @@ module Immutable_arrays = struct
   let pat_of ~loc = function
     | Iapat_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
-      AST.make_entire_jane_syntax Pattern ~loc extension_string (fun () ->
-        Ast_helper.Pat.array elts)
+      AST.make_entire_jane_syntax Pattern ~loc namespace extension_string
+        (fun () -> Ast_helper.Pat.array elts)
 
   (* Returns remaining unconsumed attributes *)
   let of_pat pat = match pat.ppat_desc with
@@ -311,13 +328,15 @@ module Include_functor = struct
   type structure_item =
     | Ifstr_include_functor of include_declaration
 
-  let extension_string = Language_extension.to_string Include_functor
+  let extension : Language_extension.t = Include_functor
+  let extension_string = Language_extension.to_string extension
+  let namespace = namespace extension
 
   let sig_item_of ~loc = function
     | Ifsig_include_functor incl ->
-        (* See Note [Wrapping with make_entire_jane_syntax] *)
-        AST.make_entire_jane_syntax Signature_item ~loc extension_string
-          (fun () -> Ast_helper.Sig.include_ incl)
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      AST.make_entire_jane_syntax Signature_item ~loc namespace extension_string
+        (fun () -> Ast_helper.Sig.include_ incl)
 
   let of_sig_item sigi = match sigi.psig_desc with
     | Psig_include incl -> Ifsig_include_functor incl
@@ -325,9 +344,9 @@ module Include_functor = struct
 
   let str_item_of ~loc = function
     | Ifstr_include_functor incl ->
-        (* See Note [Wrapping with make_entire_jane_syntax] *)
-        AST.make_entire_jane_syntax Structure_item ~loc extension_string
-          (fun () -> Ast_helper.Str.include_ incl)
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      AST.make_entire_jane_syntax Structure_item ~loc namespace extension_string
+        (fun () -> Ast_helper.Str.include_ incl)
 
   let of_str_item stri = match stri.pstr_desc with
     | Pstr_include incl -> Ifstr_include_functor incl
@@ -339,7 +358,9 @@ module Strengthen = struct
   type nonrec module_type =
     { mty : Parsetree.module_type; mod_id : Longident.t Location.loc }
 
-  let extension_string = Language_extension.to_string Module_strengthening
+  let extension : Language_extension.t = Module_strengthening
+  let extension_string = Language_extension.to_string extension
+  let namespace = namespace extension
 
   (* Encoding: [S with M] becomes [functor (_ : S) -> (module M)], where
      the [(module M)] is a [Pmty_alias].  This isn't syntax we can write, but
@@ -347,8 +368,8 @@ module Strengthen = struct
 
   let mty_of ~loc { mty; mod_id } =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
-    AST.make_entire_jane_syntax Module_type ~loc extension_string (fun () ->
-      Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
+    AST.make_entire_jane_syntax Module_type ~loc namespace extension_string
+      (fun () -> Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
         (Ast_helper.Mty.alias mod_id))
 
   (* Returns remaining unconsumed attributes *)
