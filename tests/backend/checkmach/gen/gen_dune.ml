@@ -22,7 +22,7 @@ let () =
  (alias   runtest)
  ${enabled_if}
  (deps ${deps})
- (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3 -w +199+198)))
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
 |};
     Buffer.output_buffer Out_channel.stdout buf
   in
@@ -56,7 +56,7 @@ let () =
     (pipe-outputs
     (with-accepted-exit-codes ${exit_code}
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
-          -zero-alloc-check -checkmach-details-cutoff ${cutoff} -O3 -w +199+198))
+          -zero-alloc-check -checkmach-details-cutoff ${cutoff} -O3))
     (run "./filter.sh")
    ))))
 
