@@ -94,6 +94,87 @@ module Array_kind = struct
     | Naked_floats -> Flambda_kind.With_subkind.naked_float
 end
 
+module Array_ref_kind = struct
+  type t =
+    | Immediates
+    | Values
+    | Naked_floats of Alloc_mode.For_allocations.t
+
+  let [@ocamlformat "disable"] print ppf t =
+    match t with
+    | Immediates -> Format.pp_print_string ppf "Immediates"
+    | Values -> Format.pp_print_string ppf "Values"
+    | Naked_floats mode ->
+      Format.fprintf ppf "@[<hov 1>(Naked_floats %a)@]"
+        Alloc_mode.For_allocations.print mode
+
+  let compare = Stdlib.compare
+
+  let element_kind_for_set t =
+    match t with
+    | Immediates | Values -> K.value
+    | Naked_floats _ -> K.naked_float
+
+  let element_kind_for_creation = element_kind_for_set
+
+  let element_kind_for_load = element_kind_for_set
+
+  let to_lambda t : Lambda.array_ref_kind =
+    match t with
+    | Immediates -> Pintarray_ref
+    | Values -> Paddrarray_ref
+    | Naked_floats mode ->
+      Pfloatarray_ref (match mode with
+        | Heap -> Lambda.alloc_heap
+        | Local _ -> Lambda.alloc_local)
+
+  let element_kind t =
+    match t with
+    | Immediates -> Flambda_kind.With_subkind.tagged_immediate
+    | Values -> Flambda_kind.With_subkind.any_value
+    | Naked_floats _ -> Flambda_kind.With_subkind.naked_float
+end
+
+module Array_set_kind = struct
+  type t =
+    | Immediates
+    | Values of Alloc_mode.For_assignments.t
+    | Naked_floats
+
+  let [@ocamlformat "disable"] print ppf t =
+    match t with
+    | Immediates -> Format.pp_print_string ppf "Immediates"
+    | Values mode ->
+      Format.fprintf ppf "@[<hov 1>(Values %a)@]"
+        Alloc_mode.For_assignments.print mode
+    | Naked_floats -> Format.fprintf ppf "Naked_floats"
+
+  let compare = Stdlib.compare
+
+  let element_kind_for_set t =
+    match t with
+    | Immediates | Values _ -> K.value
+    | Naked_floats -> K.naked_float
+
+  let element_kind_for_creation = element_kind_for_set
+
+  let element_kind_for_load = element_kind_for_set
+
+  let to_lambda t : Lambda.array_set_kind =
+    match t with
+    | Immediates -> Pintarray_set
+    | Values mode -> Paddrarray_set (match mode with
+        | Heap -> Lambda.modify_heap
+        | Local -> Lambda.modify_maybe_stack)
+    | Naked_floats -> Pfloatarray_set
+
+  let element_kind t =
+    match t with
+    | Immediates -> Flambda_kind.With_subkind.tagged_immediate
+    | Values _ -> Flambda_kind.With_subkind.any_value
+    | Naked_floats -> Flambda_kind.With_subkind.naked_float
+end
+
 module Duplicate_block_kind = struct
   type t =
     | Values of
@@ -1321,7 +1402,7 @@ let ids_for_export_binary_primitive p =
 
 type ternary_primitive =
   | Block_set of Block_access_kind.t * Init_or_assign.t
-  | Array_set of Array_kind.t * Init_or_assign.t
+  | Array_set of Array_set_kind.t * Init_or_assign.t
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
 
@@ -1372,8 +1453,8 @@ let print_ternary_primitive ppf p =
     fprintf ppf "(Block_set %a %a)" Block_access_kind.print kind
       Init_or_assign.print init
   | Array_set (kind, init) ->
-    fprintf ppf "(Array_set %a %a)" Array_kind.print kind Init_or_assign.print
-      init
+    fprintf ppf "(Array_set %a %a)"
+      Array_set_kind.print kind Init_or_assign.print init
   | Bytes_or_bigstring_set (kind, string_accessor_width) ->
     fprintf ppf "(Bytes_set %a %a)" print_bytes_like_value kind
       print_string_accessor_width string_accessor_width
@@ -1389,7 +1470,7 @@ let args_kind_of_ternary_primitive p =
       block_index_kind,
       Block_access_kind.element_kind_for_set access_kind )
   | Array_set (kind, _) ->
-    array_kind, array_index_kind, Array_kind.element_kind_for_set kind
+    array_kind, array_index_kind, Array_set_kind.element_kind_for_set kind
   | Bytes_or_bigstring_set (Bytes, (Eight | Sixteen)) ->
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_immediate
   | Bytes_or_bigstring_set (Bytes, Thirty_two) ->

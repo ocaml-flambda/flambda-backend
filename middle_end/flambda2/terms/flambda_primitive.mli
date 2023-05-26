@@ -53,6 +53,44 @@ module Array_kind : sig
   val element_kind : t -> Flambda_kind.With_subkind.t
 end
 
+module Array_ref_kind : sig
+  type t =
+    | Immediates  (** An array consisting only of immediate values. *)
+    | Values
+        (** An array consisting of elements of kind [value]. With the float
+            array optimisation enabled, such elements must never be [float]s. *)
+    | Naked_floats of Alloc_mode.For_allocations.t
+        (** An array consisting of naked floats, represented using
+            [Double_array_tag]. *)
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+
+  val to_lambda : t -> Lambda.array_ref_kind
+
+  val element_kind : t -> Flambda_kind.With_subkind.t
+end
+
+module Array_set_kind : sig
+  type t =
+    | Immediates  (** An array consisting only of immediate values. *)
+    | Values of Alloc_mode.For_assignments.t
+        (** An array consisting of elements of kind [value]. With the float
+            array optimisation enabled, such elements must never be [float]s. *)
+    | Naked_floats
+        (** An array consisting of naked floats, represented using
+            [Double_array_tag]. *)
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+
+  val to_lambda : t -> Lambda.array_set_kind
+
+  val element_kind : t -> Flambda_kind.With_subkind.t
+end
+
 module Duplicate_block_kind : sig
   type t =
     | Values of
@@ -338,6 +376,8 @@ type binary_float_arith_op =
 type binary_primitive =
   | Block_load of Block_access_kind.t * Mutability.t
   | Array_load of Array_kind.t * Mutability.t
+      (** Doesn't need [Array_ref_kind.t] because it doesn't box any returned
+          [float]s. *)
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of equality_comparison
@@ -352,7 +392,7 @@ type binary_primitive =
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
   | Block_set of Block_access_kind.t * Init_or_assign.t
-  | Array_set of Array_kind.t * Init_or_assign.t
+  | Array_set of Array_set_kind.t * Init_or_assign.t
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
 
