@@ -182,7 +182,7 @@ end;;
 Line 2, characters 2-31:
 2 |   type t = Bar3.t [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type Bar3/2.t has layout value, which is not a sublayout of immediate.
+Error: Type Bar3.t has layout value, which is not a sublayout of immediate.
 |}];;
 
 module rec Foo3 : sig
