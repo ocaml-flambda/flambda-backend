@@ -617,7 +617,8 @@ and transl_module ~scopes cc rootpath mexp =
   | Tmod_constraint(arg, _, _, ccarg) ->
       transl_module ~scopes (compose_coercions cc ccarg) rootpath arg
   | Tmod_unpack(arg, _) ->
-      apply_coercion loc Strict cc (Translcore.transl_exp ~scopes arg)
+      apply_coercion loc Strict cc
+        (Translcore.transl_exp ~scopes Sort.sort_module arg)
 
 and transl_struct ~scopes loc fields cc rootpath {str_final_env; str_items; _} =
   transl_structure ~scopes loc fields cc rootpath str_final_env str_items
@@ -684,7 +685,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
             transl_structure ~scopes loc fields cc rootpath final_env rem
           in
           sort_must_not_be_void expr.exp_loc expr.exp_type sort;
-          Lsequence(transl_exp ~scopes expr, body), size
+          Lsequence(transl_exp ~scopes sort expr, body), size
       | Tstr_value(rec_flag, pat_expr_list) ->
           (* Translate bindings first *)
           let mk_lam_let =
@@ -1119,7 +1120,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
         | Tstr_eval (expr, sort, _attrs) ->
             sort_must_not_be_void expr.exp_loc expr.exp_type sort;
             Lsequence(Lambda.subst no_env_update subst
-                        (transl_exp ~scopes expr),
+                        (transl_exp ~scopes sort expr),
                       transl_store ~scopes rootpath subst cont rem)
         | Tstr_value(rec_flag, pat_expr_list) ->
             let ids = let_bound_idents pat_expr_list in
@@ -1516,7 +1517,7 @@ let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
         assert (size = 0);
         sort_must_not_be_void expr.exp_loc expr.exp_type sort;
         Lambda.subst (fun _ _ env -> env) !transl_store_subst
-          (transl_exp ~scopes expr)
+          (transl_exp ~scopes sort expr)
       | str ->
         transl_store_structure ~scopes module_name map prims aliases str
     in
@@ -1617,10 +1618,11 @@ let transl_toplevel_item ~scopes item =
        unit. *)
     Tstr_eval (expr, sort, _) ->
       sort_must_not_be_void expr.exp_loc expr.exp_type sort;
-      transl_exp ~scopes expr
+      transl_exp ~scopes sort expr
   | Tstr_value(Nonrecursive,
-               [{vb_pat = {pat_desc=Tpat_any};vb_expr = expr}]) ->
-      transl_exp ~scopes expr
+               [{vb_pat = {pat_desc=Tpat_any}; vb_expr = expr;
+                 vb_sort = sort}]) ->
+      transl_exp ~scopes sort expr
   | Tstr_value(rec_flag, pat_expr_list) ->
       let idents = let_bound_idents pat_expr_list in
       transl_let ~scopes ~in_structure:true rec_flag pat_expr_list

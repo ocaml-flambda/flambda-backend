@@ -59,10 +59,54 @@ module Sort : sig
       variable is unfilled. *)
   val is_void_defaulting : t -> bool
 
+  (** [get_default_value] extracts the sort as a `const`.  If it's a variable,
+      it is set to [value] first. *)
+  val get_default_value : t -> const
+
   module Debug_printers : sig
     val t : Format.formatter -> t -> unit
     val var : Format.formatter -> var -> unit
   end
+
+  (* XXX layouts: These are temporary definitions.  They will be removed in
+      subsequent commits in this PR. *)
+  val sort_function_arg : t
+  val sort_function_return : t
+  val sort_pattern_var : t
+  val sort_let_bound : t
+  val sort_prim_arg : t
+  val sort_prim_return : t
+  val sort_statement : t
+
+  (* CR layouts: These are sorts for the types of ocaml expressions that are
+     currently required to be values, but for which we expect to relax that
+     restriction in versions 2 and beyond.  Naming them makes it easy to find
+     where in the translation to lambda they are assume to be value. *)
+  (* CR layouts: add similarly named layouts and use those names everywhere (not
+     just the translation to lambda) rather than writing specific layouts and
+     sorts in the code. *)
+  val sort_class_arg : t
+  val sort_instance_var : t
+  val sort_bop_exp : t
+  val sort_lazy_body : t
+  val sort_tuple_element : t
+  val sort_record : t
+  val sort_record_field : t
+  val sort_constructor_arg : t
+  val sort_block_element : t
+  val sort_predef_param : t
+
+  (** These are sorts for the types of ocaml expressions that we expect will
+      always be "value".  These names are used in the translation to lambda to
+      make the code clearer. *)
+  val sort_function : t
+  val sort_probe_body : t
+  val sort_poly_variant : t
+  val sort_object : t
+  val sort_initializer : t
+  val sort_method : t
+  val sort_module : t
+  val sort_predef_value : t
 end
 
 type sort = Sort.t

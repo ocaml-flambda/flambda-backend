@@ -164,7 +164,7 @@ let expand_record_head h =
   | _ -> h
 
 let bind_alias p id ~arg ~action =
-  let k = Typeopt.layout p.pat_env p.pat_loc p.pat_type in
+  let k = Typeopt.layout p.pat_env p.pat_loc Sort.sort_pattern_var p.pat_type in
   bind_with_layout Alias (id, k) arg action
 
 let head_loc ~scopes head =
@@ -1589,7 +1589,8 @@ and precompile_or ~arg (cls : Simple.clause list) ors args def k =
               Typedtree.pat_bound_idents_with_types orp
               |> List.filter (fun (id, _) -> Ident.Set.mem id pm_fv)
               |> List.map (fun (id, ty) ->
-                     (id, Typeopt.layout orp.pat_env orp.pat_loc ty))
+                     (id, Typeopt.layout orp.pat_env orp.pat_loc
+                            Sort.sort_pattern_var ty))
             in
             let or_num = next_raise_count () in
             let new_patl = Patterns.omega_list patl in
@@ -3634,7 +3635,8 @@ let for_trywith ~scopes value_kind loc param pat_act_list =
 
 let simple_for_let ~scopes value_kind loc param pat body =
   compile_matching ~scopes value_kind loc ~failer:Raise_match_failure
-    None (param, Typeopt.layout pat.pat_env pat.pat_loc pat.pat_type)
+    None (param, Typeopt.layout pat.pat_env pat.pat_loc Sort.sort_let_bound
+                   pat.pat_type)
     [ (pat, body) ] Partial
 
 (* Optimize binding of immediate tuples
@@ -3779,7 +3781,10 @@ let for_let ~scopes loc param pat body_kind body =
       Lsequence (param, body)
   | Tpat_var (id, _, _) ->
       (* fast path, and keep track of simple bindings to unboxable numbers *)
-      let k = Typeopt.layout pat.pat_env pat.pat_loc pat.pat_type in
+      let k =
+        Typeopt.layout pat.pat_env pat.pat_loc Sort.sort_pattern_var
+          pat.pat_type
+      in
       Llet (Strict, k, id, param, body)
   | _ ->
       let opt = ref false in
@@ -3787,7 +3792,9 @@ let for_let ~scopes loc param pat body_kind body =
       let catch_ids = pat_bound_idents_with_types pat in
       let ids_with_kinds =
         List.map
-          (fun (id, typ) -> (id, Typeopt.layout pat.pat_env pat.pat_loc typ))
+          (fun (id, typ) ->
+             (id, Typeopt.layout pat.pat_env pat.pat_loc
+                    Sort.sort_pattern_var typ))
           catch_ids
       in
       let ids = List.map (fun (id, _) -> id) catch_ids in

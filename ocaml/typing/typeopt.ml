@@ -27,6 +27,7 @@ open Lambda
    stuff. *)
 type error =
     Non_value_layout of type_expr * Layout.Violation.t
+  | Non_value_sort of type_expr
 
 exception Error of Location.t * error
 
@@ -484,13 +485,25 @@ let value_kind env loc ty =
   in
   value_kind
 
-(* CR layouts v2: We'll have other layouts. Think about what to do with the
-   sanity check in value_kind. *)
-let layout env loc ty = Lambda.Pvalue (value_kind env loc ty)
+(* CR layouts v2: We are planning to put a sanity check here that you don't get
+   passed #float as the sort unless layouts_alpha is on.  This violates our
+   previous rule that extensions only control syntax, but seems like a nice
+   implementation of a sanity check, since the availability of the Float_u
+   module will result in ways to get at unboxed floats that aren't just writing
+   #float in your program.
+
+   We also do the void sanity check here.  We do it in value_kind as well,
+   because trhe sort argument here is sometimes not computed from the type or
+   typed tree, but just one of the defaults from lambda.ml.
+*)
+let layout env loc sort ty =
+  match Layouts.Sort.get_default_value sort with
+  | Void -> raise (Error (loc, Non_value_sort ty))
+  | Value -> Lambda.Pvalue (value_kind env loc ty)
 
 let function_return_layout env loc ty =
   match is_function_type env ty with
-  | Some (_lhs, rhs) -> layout env loc rhs
+  | Some (_lhs, rhs) -> layout env loc Layouts.Sort.sort_function_return rhs
   | None -> Misc.fatal_errorf "function_return_layout called on non-function type"
 
 let function2_return_layout env loc ty =
@@ -559,6 +572,11 @@ let report_error ppf = function
          the Jane Street compilers team.@ %a"
         (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
+  | Non_value_sort ty ->
+      fprintf ppf
+        "Void provided to [layout] as sort for type %a.@ Please report this \
+         error to the Jane Street compilers team."
+        Printtyp.type_expr ty
 
 let () =
   Location.register_error_of_exn

@@ -34,7 +34,8 @@ val bigarray_type_kind_and_layout :
    [function2_return_layout] have had location arguments added just to support
    the void check error message.  These arguments can be removed when we're
    happy to take that check out. *)
-val layout : Env.t -> Location.t -> Types.type_expr -> Lambda.layout
+val layout :
+  Env.t -> Location.t -> Layouts.sort -> Types.type_expr -> Lambda.layout
 
 val function_return_layout :
   Env.t -> Location.t -> Types.type_expr -> Lambda.layout

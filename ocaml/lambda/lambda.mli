@@ -537,6 +537,8 @@ val layout_lazy_contents : layout
 val layout_any_value : layout
 (* A layout that is Pgenval because it is bound by a letrec *)
 val layout_letrec : layout
+(* The probe hack: Free vars in probes must have layout value. *)
+val layout_probe_arg : layout
 
 val layout_top : layout
 val layout_bottom : layout

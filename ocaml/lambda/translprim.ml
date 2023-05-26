@@ -18,6 +18,7 @@
 open Asttypes
 open Primitive
 open Types
+open Layouts
 open Typedtree
 open Typeopt
 open Lambda
@@ -572,7 +573,8 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
   | Primitive (Pmakeblock(tag, mut, None, mode), arity), fields -> begin
       let shape =
         List.map (fun typ ->
-          Lambda.must_be_value (Typeopt.layout env (to_location loc) typ))
+          Lambda.must_be_value (Typeopt.layout env (to_location loc)
+                                  Sort.sort_block_element typ))
           fields
       in
       let useful = List.exists (fun knd -> knd <> Pgenval) shape in
@@ -881,14 +883,17 @@ let transl_primitive loc p env ty ~poly_mode path =
     | Some prim -> prim
   in
   let rec make_params ty n =
-    if n <= 0 then [], Typeopt.layout env (to_location loc) ty
+    if n <= 0 then
+      [], Typeopt.layout env (to_location loc) Sort.sort_prim_return ty
     else
       match Typeopt.is_function_type env ty with
       | None ->
           Misc.fatal_errorf "Primitive %s type does not correspond to arity"
             (Primitive.byte_name p)
       | Some (arg_ty, ret_ty) ->
-          let arg_layout = Typeopt.layout env (to_location loc) arg_ty in
+          let arg_layout =
+            Typeopt.layout env (to_location loc) Sort.sort_prim_arg arg_ty
+          in
           let params, return = make_params ret_ty (n-1) in
           (Ident.create_local "prim", arg_layout) :: params, return
   in

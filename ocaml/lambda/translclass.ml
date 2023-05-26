@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open Asttypes
+open Layouts
 open Types
 open Typedtree
 open Lambda
@@ -98,7 +99,8 @@ let transl_meth_list lst =
 
 let set_inst_var ~scopes obj id expr =
   Lprim(Psetfield_computed (Typeopt.maybe_pointer expr, Assignment modify_heap),
-    [Lvar obj; Lvar id; transl_exp ~scopes expr], Loc_unknown)
+    [Lvar obj; Lvar id; transl_exp ~scopes Sort.sort_instance_var expr],
+        Loc_unknown)
 
 let transl_val tbl create name =
   mkappl (oo_prim (if create then "new_variable" else "get_variable"),
@@ -205,7 +207,8 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
        let build params rem =
          let param = name_pattern "param" pat in
          let param_layout =
-           Typeopt.layout pat.pat_env pat.pat_loc pat.pat_type
+           Typeopt.layout pat.pat_env pat.pat_loc Sort.sort_class_arg
+             pat.pat_type
          in
          Lambda.lfunction
                    ~kind:(Curried {nlocal=0}) ~params:((param, param_layout)::params)
@@ -350,7 +353,8 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
             | Tcf_method (name, _, Tcfk_concrete (_, exp)) ->
                 let scopes = enter_method_definition ~scopes name.txt in
                 let met_code =
-                  msubst true (transl_scoped_exp ~scopes exp) in
+                  msubst true (transl_scoped_exp ~scopes Sort.sort_method exp)
+                in
                 let met_code =
                   if !Clflags.native_code && List.length met_code = 1 then
                     (* Force correct naming of method for profiles *)
@@ -365,7 +369,9 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
                 (inh_init,
                  Lsequence(mkappl (oo_prim "add_initializer",
                                    Lvar cla :: msubst false
-                                                 (transl_exp ~scopes exp), layout_unit),
+                                                 (transl_exp ~scopes
+                                                    Sort.sort_initializer exp),
+                                   layout_unit),
                            cl_init),
                  methods, values)
             | Tcf_attribute _ ->
@@ -482,7 +488,8 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
       let build params rem =
         let param = name_pattern "param" pat in
         let param_layout =
-          Typeopt.layout pat.pat_env pat.pat_loc pat.pat_type
+          Typeopt.layout pat.pat_env pat.pat_loc Sort.sort_class_arg
+            pat.pat_type
         in
         let return_layout = layout_class in
         Lambda.lfunction
