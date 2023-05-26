@@ -38,7 +38,7 @@
     writing these forms directly.  They're just an implementation detail.
 
     See modules of type AST below to see how different syntactic categories
-    are represented. For example, expressions are rendered using an attribute.
+    are represented. For example, expressions are encoded using an attribute.
 
     We provide one module per syntactic category (e.g., [Expression]), of module
     type [AST].  They also provide some simple machinery for working with the
