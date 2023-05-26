@@ -1921,7 +1921,7 @@ module Conv = struct
                 in
                 ppat.desc, ppat.jane_syntax_attributes
           in
-          mkpat ppat ~attrs
+          mkpat ~attrs ppat
       | Tpat_lazy p ->
           mkpat (Ppat_lazy (loop p))
     in
