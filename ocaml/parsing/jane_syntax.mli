@@ -23,6 +23,16 @@
 (*********************************************)
 (* Individual features *)
 
+(** An AST desc together with its attributes, including the attributes that
+    signal that the AST should be interpreted as a Jane Syntax AST.
+*)
+module With_attributes : sig
+  type 'desc t = 'desc Jane_syntax_parsing.With_attributes.t = private
+    { jane_syntax_attributes : Parsetree.attributes
+    ; desc : 'desc
+    }
+end
+
 (** The ASTs for list and array comprehensions *)
 module Comprehensions : sig
   type iterator =
@@ -64,7 +74,7 @@ module Comprehensions : sig
   val expr_of :
     loc:Location.t
     -> expression
-    -> Parsetree.expression_desc Jane_syntax_parsing.With_attributes.t
+    -> Parsetree.expression_desc With_attributes.t
 end
 
 (** The ASTs for immutable arrays.  When we merge this upstream, we'll merge
@@ -82,12 +92,12 @@ module Immutable_arrays : sig
   val expr_of :
     loc:Location.t
     -> expression
-    -> Parsetree.expression_desc Jane_syntax_parsing.With_attributes.t
+    -> Parsetree.expression_desc With_attributes.t
 
   val pat_of :
     loc:Location.t
     -> pattern
-    -> Parsetree.pattern_desc Jane_syntax_parsing.With_attributes.t
+    -> Parsetree.pattern_desc With_attributes.t
 end
 
 (** The ASTs for [include functor].  When we merge this upstream, we'll merge
@@ -114,7 +124,7 @@ module Strengthen : sig
   val mty_of :
     loc:Location.t
     -> module_type
-    -> Parsetree.module_type_desc Jane_syntax_parsing.With_attributes.t
+    -> Parsetree.module_type_desc With_attributes.t
 end
 
 (******************************************)

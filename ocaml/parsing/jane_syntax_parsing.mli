@@ -186,7 +186,13 @@ module AST : sig
 
   (** Build an [of_ast] function. The return value of this function should be
       used to implement [of_ast] in modules satisfying the signature
-      [Jane_syntax.AST].  *)
+      [Jane_syntax.AST].
+
+      The returned function interprets an AST term in the specified syntactic
+      category as a term of the appropriate auxiliary extended AST if possible.
+      It raises an error if it finds a term from a disabled extension or if the
+      embedding is malformed.
+  *)
   val make_of_ast :
     ('ast, _) t
     (** Which syntactic category is this for?  E.g., [module AST = Expression].
@@ -205,10 +211,6 @@ module AST : sig
         embedding that claims to be from [Language_extension Comprehensions].)
     *)
     -> ('ast -> 'a option)
-      (** Interprets an AST term in the specified syntactic category as a term
-          of the appropriate auxiliary extended AST if possible. Raises an error
-          if it finds a term from a disabled extension or if the embedding is
-          malformed. *)
 end
 
 (** Require that an extension is enabled, or else throw an exception (of an

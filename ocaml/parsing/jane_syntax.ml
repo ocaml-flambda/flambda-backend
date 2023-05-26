@@ -39,6 +39,8 @@ open Jane_syntax_parsing
    future syntax features to remember to do this wrapping.
 *)
 
+module With_attributes = With_attributes
+
 (** List and array comprehensions *)
 module Comprehensions = struct
   let extension_string = Language_extension.to_string Comprehensions

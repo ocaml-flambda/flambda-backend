@@ -303,6 +303,10 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
   (* todo: fix attributes on extras *)
   let attrs = sub.attributes sub pat.pat_attributes in
   let attrs = ref attrs in
+  (* Hack so we can return an extra value out of the [match] expression for Jane
+     Street internal expressions without needing to modify every case, which
+     would open us up to more merge conflicts.
+  *)
   let add_jane_syntax_attributes
         { Jane_syntax_parsing.With_attributes.desc; jane_syntax_attributes }
     =
