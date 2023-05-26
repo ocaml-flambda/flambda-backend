@@ -198,8 +198,8 @@ end = struct
     (** The separator between name components *)
     let separator = '.'
 
-    (** The leading namespace that identifies this extension node as reserved
-        for a modular extension *)
+    (** The leading namespace that identifies this extension node or attribute
+        as reserved for a piece of modular syntax *)
     let root = "jane"
 
     (** For printing purposes, the appropriate indefinite article for [root] *)
