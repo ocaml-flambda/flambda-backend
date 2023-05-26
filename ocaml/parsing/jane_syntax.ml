@@ -166,17 +166,17 @@ module Comprehensions = struct
   let expr_of ~loc cexpr =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
     AST.make_entire_jane_syntax Expression ~loc erasability feature (fun () ->
-        match cexpr with
-        | Cexp_list_comprehension comp ->
-            expr_of_comprehension ~type_:["list"] comp
-        | Cexp_array_comprehension (amut, comp) ->
-            expr_of_comprehension
-              ~type_:[ "array"
-                    ; match amut with
-                      | Mutable   -> "mutable"
-                      | Immutable -> "immutable"
-                    ]
-              comp)
+      match cexpr with
+      | Cexp_list_comprehension comp ->
+          expr_of_comprehension ~type_:["list"] comp
+      | Cexp_array_comprehension (amut, comp) ->
+          expr_of_comprehension
+            ~type_:[ "array"
+                  ; match amut with
+                    | Mutable   -> "mutable"
+                    | Immutable -> "immutable"
+                  ]
+            comp)
 
   (** Then, we define how to go from the OCaml AST to the nice AST; this is
       the [..._of_expr] family of expressions, culminating in

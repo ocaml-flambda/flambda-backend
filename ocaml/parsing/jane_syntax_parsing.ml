@@ -8,7 +8,7 @@
     2. As a pair of an extension node and an AST item that serves as the "body".
        Here, the "pair" is embedded as a pair-like construct in the relevant AST
        category, e.g. [include sig [%jane.ERASABILITY.EXTNAME];; BODY end] for
-    signature items.
+       signature items.
 
     In particular, for an language extension named [EXTNAME] (i.e., one that is
     enabled by [-extension EXTNAME] on the command line), the attribute (if
@@ -243,7 +243,7 @@ end = struct
     (** The separator between name components *)
     let separator = '.'
 
-    (** The leading erasability that identifies this extension node or attribute
+    (** The leading namespace that identifies this extension node or attribute
         as reserved for a piece of modular syntax *)
     let root = "jane"
 
@@ -305,8 +305,7 @@ end
 
 (******************************************************************************)
 module Error = struct
-  (** Someone used [[%jane.ERASABILITY.FEATNAME]]/[[@jane.ERASABILITY.FEATNAME]]
-      wrong *)
+  (** Someone used [[%jane.*.FEATNAME]]/[[@jane.*.FEATNAME]] wrong *)
   type malformed_embedding =
     | Has_payload of payload
 
@@ -392,9 +391,9 @@ let () =
     novel syntactic features.  One module per variety of AST (expressions,
     patterns, etc.). *)
 
-(** The parameters that define how to look for [[%jane.ERASABILITY.FEATNAME]] and
-    [[@jane.ERASABILITY.FEATNAME]] inside ASTs of a certain syntactic category.
-    This module type describes the input to the [Make_with_attribute] and
+(** The parameters that define how to look for [[%jane.*.FEATNAME]] and
+    [[@jane.*.FEATNAME]] inside ASTs of a certain syntactic category. This
+    module type describes the input to the [Make_with_attribute] and
     [Make_with_extension_node] functors (though they stipulate additional
     requirements for their inputs).
 *)
