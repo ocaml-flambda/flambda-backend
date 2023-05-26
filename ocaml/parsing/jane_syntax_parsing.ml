@@ -506,7 +506,7 @@ module Make_with_extension_node
         ast
         ~extension_node:
           (make_extension_node
-            ({ txt = Embedded_name.to_string name
+             ({ txt = Embedded_name.to_string name
               ; loc = !Ast_helper.default_loc },
               PStr []))
 
