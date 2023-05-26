@@ -72,9 +72,7 @@ module Comprehensions : sig
           (only allowed with [-extension immutable_arrays]) *)
 
   val expr_of :
-    loc:Location.t
-    -> expression
-    -> Parsetree.expression_desc With_attributes.t
+    loc:Location.t -> expression -> Parsetree.expression_desc With_attributes.t
 end
 
 (** The ASTs for immutable arrays.  When we merge this upstream, we'll merge
@@ -90,14 +88,10 @@ module Immutable_arrays : sig
     (** [: P1; ...; Pn :] **)
 
   val expr_of :
-    loc:Location.t
-    -> expression
-    -> Parsetree.expression_desc With_attributes.t
+    loc:Location.t -> expression -> Parsetree.expression_desc With_attributes.t
 
   val pat_of :
-    loc:Location.t
-    -> pattern
-    -> Parsetree.pattern_desc With_attributes.t
+    loc:Location.t -> pattern -> Parsetree.pattern_desc With_attributes.t
 end
 
 (** The ASTs for [include functor].  When we merge this upstream, we'll merge
