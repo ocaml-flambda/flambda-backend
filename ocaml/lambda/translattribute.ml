@@ -314,7 +314,7 @@ let get_property_attribute l p ~fun_attr =
          (* [attr.inline] and [attr.specialise] must be set before the
             check for [Warnings.Misplaced_assume_attribute].
             For attributes from the same list, it's fine because
-            [add_check_attribute] is called before
+            [add_check_attribute] is called after
             [add_inline_attribute] and [add_specialise_attribute].
             The warning will spuriously fire in the following case:
             let[@inline never][@specialise never] f =
