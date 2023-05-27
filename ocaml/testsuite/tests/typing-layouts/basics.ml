@@ -251,3 +251,16 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 (* CR layouts v2: Once we allow non-value top-level module definitions, add
    tests showing that things get defaulted to value.
 *)
+
+(********************************************************************)
+(* Test 23: checking the error message from impossible GADT matches *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(*****************************************************)
+(* Test 24: Polymorphic parameter with exotic layout *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
