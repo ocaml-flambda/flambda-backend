@@ -1196,3 +1196,20 @@ Error: This pattern matches values of type (M.t_void, M.t_void) eq
 (* CR layouts v2: error message is OK, but it could probably be better.
    But a similar case without layouts is already pretty bad, so try
    that before spending too much time here. *)
+
+(*****************************************************)
+(* Test 24: Polymorphic parameter with exotic layout *)
+
+type 'a t2_void [@@void]
+
+let f (x : 'a. 'a t2_void) = x
+
+[%%expect{|
+type 'a t2_void [@@void]
+Line 3, characters 6-30:
+3 | let f (x : 'a. 'a t2_void) = x
+          ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       'a. 'a t2_void has layout void, which is not a sublayout of value.
+|}]

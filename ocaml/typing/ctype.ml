@@ -3755,7 +3755,7 @@ let filter_arrow env t l ~force_tpoly =
     let t1 =
       if not force_tpoly then begin
         assert (not (is_optional l));
-        newvar2 level Layout.value
+        newvar2 level l1
       end else begin
         let t1 =
           if is_optional l then
