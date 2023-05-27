@@ -3482,9 +3482,10 @@ let rec approx_type env sty =
       end
   | Ptyp_arrow (p, arg_sty, sty) ->
       let arg_mode = Typetexp.get_alloc_mode arg_sty in
-      let var = newvar Layout.value in
       let arg =
-        if is_optional p then type_option var else var
+        if is_optional p
+        then type_option (newvar Layout.value)
+        else newvar (Layout.of_new_sort_var ())
       in
       let ret = approx_type env sty in
       let marg = Alloc_mode.of_const arg_mode in

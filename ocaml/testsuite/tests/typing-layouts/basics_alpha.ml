@@ -1243,3 +1243,17 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        t_void has layout void, which is not a sublayout of value.
 |}]
+
+(******************************************)
+(* Test 27: Exotic layouts in approx_type *)
+
+let rec f : _ -> _ = fun (x : t_void) -> x
+
+[%%expect{|
+Line 1, characters 21-42:
+1 | let rec f : _ -> _ = fun (x : t_void) -> x
+                         ^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
