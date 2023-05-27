@@ -3760,7 +3760,10 @@ let filter_arrow env t l ~force_tpoly =
         let t1 =
           if is_optional l then
             newty2 ~level
-              (Tconstr(Predef.path_option,[newvar2 level l1], ref Mnil))
+              (* CR layouts v5: Change the Layout.value when option can
+                 hold non-values. *)
+              (Tconstr(Predef.path_option,[newvar2 level Layout.value],
+                       ref Mnil))
           else
             newvar2 level l1
         in

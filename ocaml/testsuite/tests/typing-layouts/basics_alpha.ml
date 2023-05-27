@@ -1213,3 +1213,19 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        'a. 'a t2_void has layout void, which is not a sublayout of value.
 |}]
+
+(**************************************************)
+(* Test 25: Optional parameter with exotic layout *)
+
+let f (x : t_void) =
+  let g ?(x2 = x) () = () in
+  ()
+
+[%%expect{|
+Line 2, characters 15-16:
+2 |   let g ?(x2 = x) () = () in
+                   ^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
