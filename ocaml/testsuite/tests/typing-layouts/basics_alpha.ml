@@ -727,12 +727,12 @@ module M11_3 = struct
   let foo o (A x) = o # usevoid x
 end;;
 [%%expect{|
-Line 4, characters 32-33:
+Line 4, characters 12-33:
 4 |   let foo o (A x) = o # usevoid x
-                                    ^
-Error: This expression has type ('a : void)
-       but an expression was expected of type ('b : value)
-       'a has layout value, which does not overlap with void.
+                ^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       'a has layout void, which is not a sublayout of value.
 |}];;
 
 module M11_4 = struct
@@ -1227,5 +1227,19 @@ Line 2, characters 15-16:
                    ^
 Error: This expression has type t_void but an expression was expected of type
          ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(*********************************************************)
+(* Test 26: Inferring an application to an exotic layout *)
+
+let g f (x : t_void) : t_void = f x
+
+[%%expect{|
+Line 1, characters 8-35:
+1 | let g f (x : t_void) : t_void = f x
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
        t_void has layout void, which is not a sublayout of value.
 |}]

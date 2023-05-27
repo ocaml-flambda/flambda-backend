@@ -3041,9 +3041,9 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
           match get_desc ty_fun with
           | Tvar _ ->
               (* CR layouts v2: value requirement to be relaxed *)
-              let ty_arg_mono = newvar Layout.value in
+              let ty_arg_mono = newvar (Layout.of_new_sort_var ()) in
               let ty_arg = newmono ty_arg_mono in
-              let ty_res = newvar Layout.value in
+              let ty_res = newvar (Layout.of_new_sort_var ()) in
               if ret_tvar &&
                  not (is_prim ~name:"%identity" funct) &&
                  not (is_prim ~name:"%obj_magic" funct)
