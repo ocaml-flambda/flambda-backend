@@ -1258,8 +1258,8 @@ Error: Non-value detected in [value_kind].
        t_void has layout void, which is not a sublayout of value.
 |}]
 
-(************************************)
-(* Test 28: Exotic layouts in letop *)
+(**********************************************)
+(* Test 28: Exotic layouts in letop and andop *)
 
 (* CR layouts: this must be [let rec] and [and] so that we can test the
    type-checker, as opposed to the value-kind check. After we have proper
@@ -1321,6 +1321,57 @@ and q () =
 Line 1, characters 19-44:
 1 | let rec ( let* ) x f : t_void = assert false
                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x f = ()
+and ( and* ) x1 (x2 : t_void) = ()
+and q () =
+    let* x = 5
+    and* y = assert false
+    in
+    ()
+
+[%%expect{|
+Line 2, characters 16-34:
+2 | and ( and* ) x1 (x2 : t_void) = ()
+                    ^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x f = ()
+and ( and* ) (x1 : t_void) x2 = ()
+and q () =
+    let* x = assert false
+    and* y = 5
+    in
+    ()
+
+[%%expect{|
+Line 2, characters 13-34:
+2 | and ( and* ) (x1 : t_void) x2 = ()
+                 ^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x f = ()
+and ( and* ) x1 x2 : t_void = assert false
+and q () =
+    let* x = 5
+    and* y = 5
+    in
+    ()
+
+[%%expect{|
+Line 1, characters 17-25:
+1 | let rec ( let* ) x f = ()
+                     ^^^^^^^^
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        t_void has layout void, which is not a sublayout of value.

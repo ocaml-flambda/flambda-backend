@@ -5425,13 +5425,11 @@ and type_expect_
            non-[value] types. *)
         loop slet.pbop_pat (newvar (Layout.of_new_sort_var ())) sands
       in
-      (* CR layouts v2: eliminate value requirement *)
       let ty_func_result = newvar (Layout.of_new_sort_var ()) in
       let arrow_desc = Nolabel, Alloc_mode.global, Alloc_mode.global in
       let ty_func =
         newty (Tarrow(arrow_desc, newmono ty_params, ty_func_result, commu_ok))
       in
-      (* CR layouts v2: eliminate value requirement *)
       let ty_result = newvar (Layout.of_new_sort_var ()) in
       let ty_andops = newvar (Layout.of_new_sort_var ()) in
       let ty_op =
@@ -7163,10 +7161,9 @@ and type_andops env sarg sands expected_ty =
         if !Clflags.principal then begin_def ();
         let op_path, op_desc = type_binding_op_ident env sop in
         let op_type = op_desc.val_type in
-        (* CR layouts v2: relax value requirements *)
-        let ty_arg = newvar Layout.value in
-        let ty_rest = newvar Layout.value in
-        let ty_result = newvar Layout.value in
+        let ty_arg = newvar (Layout.of_new_sort_var ()) in
+        let ty_rest = newvar (Layout.of_new_sort_var ()) in
+        let ty_result = newvar (Layout.of_new_sort_var ()) in
         let arrow_desc = (Nolabel,Alloc_mode.global,Alloc_mode.global) in
         let ty_rest_fun =
           newty (Tarrow(arrow_desc, newmono ty_arg, ty_result, commu_ok))
