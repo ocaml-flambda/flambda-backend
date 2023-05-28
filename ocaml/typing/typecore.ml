@@ -5415,18 +5415,25 @@ and type_expect_
       let op_path, op_desc = type_binding_op_ident env slet.pbop_op in
       let op_type = instance op_desc.val_type in
       let spat_params, ty_params =
-        (* CR layouts v5: eliminate value requirement *)
-        loop slet.pbop_pat (newvar Layout.value) sands
+        (* The use of a sort var here instead of a value is a little suspect,
+           because this can be the component of a tuple if there are several
+           [and] operators. In practice, all will be OK, though, because this
+           type will get unified with a tuple type and the sort var will get
+           set to [value]. However, we still use a sort var here to allow
+           for a non-[value] type when there are no [and]s. *)
+        (* CR layouts v5: Remove above comment when we support tuples of
+           non-[value] types. *)
+        loop slet.pbop_pat (newvar (Layout.of_new_sort_var ())) sands
       in
       (* CR layouts v2: eliminate value requirement *)
-      let ty_func_result = newvar Layout.value in
+      let ty_func_result = newvar (Layout.of_new_sort_var ()) in
       let arrow_desc = Nolabel, Alloc_mode.global, Alloc_mode.global in
       let ty_func =
         newty (Tarrow(arrow_desc, newmono ty_params, ty_func_result, commu_ok))
       in
       (* CR layouts v2: eliminate value requirement *)
-      let ty_result = newvar Layout.value in
-      let ty_andops = newvar Layout.value in
+      let ty_result = newvar (Layout.of_new_sort_var ()) in
+      let ty_andops = newvar (Layout.of_new_sort_var ()) in
       let ty_op =
         newty (Tarrow(arrow_desc, newmono ty_andops,
           newty (Tarrow(arrow_desc, newmono ty_func,

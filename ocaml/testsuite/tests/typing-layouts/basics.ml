@@ -281,3 +281,9 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 
 (* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one enabled by default. *)
+
+(************************************)
+(* Test 28: Exotic layouts in letop *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)

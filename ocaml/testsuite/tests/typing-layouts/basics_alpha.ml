@@ -1257,3 +1257,71 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        t_void has layout void, which is not a sublayout of value.
 |}]
+
+(************************************)
+(* Test 28: Exotic layouts in letop *)
+
+(* CR layouts: this must be [let rec] and [and] so that we can test the
+   type-checker, as opposed to the value-kind check. After we have proper
+   support for a non-value argument type, remove the [rec], throughout
+   this test.
+*)
+let rec ( let* ) (x : t_void) f = ()
+
+and q () =
+  let* x = assert false in
+  ()
+
+[%%expect{|
+Line 1, characters 17-36:
+1 | let rec ( let* ) (x : t_void) f = ()
+                     ^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x (f : t_void -> _) = ()
+
+and q () =
+  let* x = assert false in
+  ()
+
+[%%expect{|
+Lines 4-5, characters 2-4:
+4 | ..let* x = assert false in
+5 |   ()
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x (f : _ -> t_void) = ()
+
+and q () =
+  let* x = assert false in
+  assert false
+
+[%%expect{|
+Line 5, characters 2-14:
+5 |   assert false
+      ^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x f : t_void = assert false
+
+and q () =
+  let* x = 5 in
+  ()
+
+[%%expect{|
+Line 1, characters 19-44:
+1 | let rec ( let* ) x f : t_void = assert false
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
