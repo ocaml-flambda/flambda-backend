@@ -1068,8 +1068,8 @@ let default_decls_layout decls =
    should be replaced with checks at the places where values of those types are
    constructed.  We've been conservative here in the first version. This is the
    same issue as with arrows. *)
-let check_representable ~reason env loc lloc typ =
-  match Ctype.type_sort ~reason env typ with
+let check_representable ~why env loc lloc typ =
+  match Ctype.type_sort ~why env typ with
   (* CR layouts: This is not the right place to default to value.  Some callers
      of this do need defaulting, because they, for example, immediately check
      if the sort is immediate or void.  But we should do that in those places,
@@ -1095,7 +1095,7 @@ let update_label_layouts env loc lbls named =
   in
   let lbls =
     List.mapi (fun idx (Types.{ld_type; ld_id; ld_loc} as lbl) ->
-      check_representable ~reason:(Label_declaration ld_id)
+      check_representable ~why:(Label_declaration ld_id)
         env ld_loc Record ld_type;
       let ld_layout = Ctype.type_layout env ld_type in
       update idx ld_layout;
@@ -1114,7 +1114,7 @@ let update_constructor_arguments_layouts env loc cd_args layouts =
   match cd_args with
   | Types.Cstr_tuple tys ->
     List.iteri (fun idx (ty,_) ->
-      check_representable ~reason:(Constructor_declaration idx)
+      check_representable ~why:(Constructor_declaration idx)
         env loc Cstr_tuple ty;
       layouts.(idx) <- Ctype.type_layout env ty) tys;
     cd_args, Array.for_all Layout.is_void_defaulting layouts
@@ -1137,7 +1137,7 @@ let update_decl_layout env dpath decl =
   let update_record_kind loc lbls rep =
     match lbls, rep with
     | [Types.{ld_type; ld_id; ld_loc} as lbl], Record_unboxed ->
-      check_representable ~reason:(Label_declaration ld_id)
+      check_representable ~why:(Label_declaration ld_id)
         env ld_loc Record ld_type;
       let ld_layout = Ctype.type_layout env ld_type in
       [{lbl with ld_layout}], Record_unboxed, ld_layout
@@ -1166,13 +1166,13 @@ let update_decl_layout env dpath decl =
         match cd_args with
         | Cstr_tuple [ty,_] -> begin
             (* CR layouts: check_representable should return the sort *)
-            check_representable ~reason:(Constructor_declaration 0)
+            check_representable ~why:(Constructor_declaration 0)
               env cd_loc Cstr_tuple ty;
             let layout = Ctype.type_layout env ty in
             cstrs, Variant_unboxed, layout
           end
         | Cstr_record [{ld_type; ld_id; ld_loc} as lbl] -> begin
-            check_representable ~reason:(Label_declaration ld_id)
+            check_representable ~why:(Label_declaration ld_id)
               env ld_loc Record ld_type;
             let ld_layout = Ctype.type_layout env ld_type in
             [{ cstr with Types.cd_args =

@@ -84,6 +84,8 @@ module Sort = struct
         end
     end
 
+  let default_to_value t = ignore (get_default_value t)
+
   (***********************)
   (* equality *)
 
@@ -150,24 +152,11 @@ module Sort = struct
     | Value -> "value"
     | Void -> "void"
 
-  let to_string s = match repr ~default:None s with
+  let to_string s = match get s with
     | Var v -> var_name v
     | Const c -> string_of_const c
 
   let format ppf t = Format.fprintf ppf "%s" (to_string t)
-
-  (*** defaulting ***)
-
-  let get_defaulting ~default t =
-    match repr ~default:(Some default) t with
-    | Const result -> result
-    | Var _ -> assert false
-
-  let constrain_default_void = get_defaulting ~default:Void
-  let can_make_void t = Void = constrain_default_void t
-
-  let default_to_value t =
-    ignore (get_defaulting ~default:Value t)
 
   (*** debug printing **)
 
@@ -203,6 +192,8 @@ module Layout = struct
     | Let_binding
     | Function_argument
     | Function_result
+    | Structure_item_expression
+    | V1_safety_check
 
   type value_creation_reason =
     | Class_let_binding
@@ -261,6 +252,7 @@ module Layout = struct
     | Unification_var
     | Initial_typedecl_env
     | Dummy_layout
+    | Type_expression_call
 
   type annotation_context =
     | Type_declaration of Path.t
@@ -423,7 +415,7 @@ module Layout = struct
     | Var v1, Var v2 -> if v1 == v2 then Equal else Not_sub
     | Const _, Var _ | Var _, Const _ -> Not_sub
 
-  let get_internal ~default (lay : internal) : desc = match lay with
+  let get_internal (lay : internal) : desc = match lay with
     | Any -> Const Any
     | Immediate -> Const Immediate
     | Immediate64 -> Const Immediate64
@@ -436,7 +428,7 @@ module Layout = struct
     end
 
   let get_default_value (t : t) : const = match t.layout with
-    | Any _ -> Any
+    | Any -> Any
     | Immediate -> Immediate
     | Immediate64 -> Immediate64
     | Sort s -> begin match Sort.get_default_value s with
@@ -446,8 +438,6 @@ module Layout = struct
     end
 
   let default_to_value t = ignore (get_default_value t)
-
-  let is_void t = Void = get_default_value t
 
   let get t = get_internal t.layout
 
@@ -560,6 +550,10 @@ module Layout = struct
         fprintf ppf "used as a function argument"
       | Function_result ->
         fprintf ppf "used as a function result"
+      | Structure_item_expression ->
+        fprintf ppf "used in an expression in a structure"
+      | V1_safety_check ->
+        fprintf ppf "part of the v1 safety check"
 
     let format_annotation_context ppf : annotation_context -> unit = function
       | Type_declaration p ->
@@ -587,7 +581,9 @@ module Layout = struct
       | Dummy_layout ->
          fprintf ppf "@[a dummy layout that should have been overwritten;@ \
                       Please notify the Jane Street compilers group if you see this output."
-    (* CR layouts: Improve output or remove this constructor *)
+      (* CR layouts: Improve output or remove this constructor ^^ *)
+      | Type_expression_call ->
+         fprintf ppf "a call to [type_expression] via the ocaml API"
 
     let format_immediate_creation_reason ppf : immediate_creation_reason -> _ =
       function
@@ -615,8 +611,6 @@ module Layout = struct
 
     let format_value_creation_reason ppf : value_creation_reason -> _ = function
       | Class_let_binding -> fprintf ppf "let-bound in a class expression"
-      | Function_argument -> fprintf ppf "a function argument"
-      | Function_result -> fprintf ppf "a function result"
       | Tuple_element -> fprintf ppf "a tuple element"
       | Probe -> fprintf ppf "a probe"
       | Package_hack -> fprintf ppf "used as an element in a first-class module"
@@ -986,6 +980,10 @@ module Layout = struct
           fprintf ppf "Function_argument"
       | Function_result ->
           fprintf ppf "Function_result"
+      | Structure_item_expression ->
+          fprintf ppf "Structure_item_expression"
+      | V1_safety_check ->
+          fprintf ppf "V1_safety_check"
 
     let annotation_context ppf : annotation_context -> unit = function
       | Type_declaration p ->
@@ -1003,6 +1001,7 @@ module Layout = struct
       | Unification_var -> fprintf ppf "Unification_var"
       | Initial_typedecl_env -> fprintf ppf "Initial_typedecl_env"
       | Dummy_layout -> fprintf ppf "Dummy_layout"
+      | Type_expression_call -> fprintf ppf "Type_expression_call"
 
     let immediate_creation_reason ppf : immediate_creation_reason -> _ =
       function
@@ -1021,8 +1020,6 @@ module Layout = struct
 
     let value_creation_reason ppf : value_creation_reason -> _ = function
       | Class_let_binding -> fprintf ppf "Class_let_binding"
-      | Function_argument -> fprintf ppf "Function_argument"
-      | Function_result -> fprintf ppf "Function_result"
       | Tuple_element -> fprintf ppf "Tuple_element"
       | Probe -> fprintf ppf "Probe"
       | Package_hack -> fprintf ppf "Package_hack"

@@ -47,12 +47,12 @@ module Sort : sig
 
   val format : Format.formatter -> t -> unit
 
-  (** Defaults this sort to void if possible; returns true if this succeeded
-      (or if the sort was already void) *)
-  val can_make_void : t -> bool
-
   (** Defaults any variables to value; leaves other sorts alone *)
   val default_to_value : t -> unit
+
+  (** Checks whether this sort is [void], defaulting to [value] if a sort
+      variable is unfilled. *)
+  val is_void_defaulting : t -> bool
 
   module Debug_printers : sig
     val t : Format.formatter -> t -> unit
@@ -94,6 +94,8 @@ module Layout : sig
     | Let_binding
     | Function_argument
     | Function_result
+    | Structure_item_expression
+    | V1_safety_check
 
   type annotation_context =
     | Type_declaration of Path.t
@@ -161,6 +163,7 @@ module Layout : sig
       (* This is used when the layout is about to get overwritten;
          key example: when creating a fresh tyvar that is immediately
          unified to correct levels *)
+    | Type_expression_call
 
   type creation_reason =
     | Annotated of annotation_context * Location.t
@@ -304,7 +307,7 @@ module Layout : sig
 
   (** [is_void t] is [Void = get_default_value t].  In particular, it will
       default the layout to value if needed to make this false. *)
-  val is_void : t -> bool
+  val is_void_defaulting : t -> bool
   (* CR layouts v5: When we have proper support for void, we'll want to change
      these three functions to default to void - it's the most efficient thing
      when we have a choice. *)

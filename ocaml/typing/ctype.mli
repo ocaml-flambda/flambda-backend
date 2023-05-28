@@ -483,7 +483,7 @@ val type_layout : Env.t -> type_expr -> layout
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
 val type_sort :
-  reason:Layouts.Layout.concrete_layout_reason ->
+  why:Layouts.Layout.concrete_layout_reason ->
   Env.t -> type_expr -> (sort, Layout.Violation.t) result
 
 (* Layout checking. [constrain_type_layout] will update the layout of type

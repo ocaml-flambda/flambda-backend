@@ -1479,8 +1479,9 @@ let rec approx_declaration cl =
     Pcl_fun (l, _, _, cl) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Layout.value ~why:Function_argument)
-        (* CR layouts v2: use of value here may be relaxed *)
+        else Ctype.newvar (Layout.value ~why:Class_argument)
+        (* CR layouts: use of value here may be relaxed when we update
+           classes to work with layouts *)
       in
       let arg = Ctype.newmono arg in
       let arrow_desc = l, Alloc_mode.global, Alloc_mode.global in
@@ -1497,8 +1498,9 @@ let rec approx_description ct =
     Pcty_arrow (l, _, ct) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar (Layout.value ~why:Function_argument)
-        (* CR layouts v2: use of value here may be relaxed *)
+        else Ctype.newvar (Layout.value ~why:Class_argument)
+        (* CR layouts: use of value here may be relaxed when we
+           relax layouts in classes *)
       in
       let arg = Ctype.newmono arg in
       let arrow_desc = l, Alloc_mode.global, Alloc_mode.global in

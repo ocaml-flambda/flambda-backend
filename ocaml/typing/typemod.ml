@@ -2638,7 +2638,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
            near the top of [execute_phrase] in [opttoploop.ml]. *)
         let expr, sort =
           Builtin_attributes.warning_scope attrs
-            (fun () -> Typecore.type_representable_expression env sexpr)
+            (fun () -> Typecore.type_representable_expression
+                         ~why:Structure_item_expression env sexpr)
         in
         Tstr_eval (expr, sort, attrs), [], shape_map, env
     | Pstr_value(rec_flag, sdefs) ->

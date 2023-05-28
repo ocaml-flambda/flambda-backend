@@ -2050,11 +2050,10 @@ let estimate_type_layout env typ =
 let type_layout env ty =
   estimate_type_layout env (get_unboxed_type_approximation env ty)
 
-let type_sort ~reason env ty =
+let type_sort ~why env ty =
   let sort = Sort.new_var () in
   match
-    constrain_type_layout
-      env ty (Layout.of_sort sort ~why:reason)
+    constrain_type_layout env ty (Layout.of_sort sort ~why)
   with
   | Ok _ -> Ok sort
   | Error _ as e -> e
@@ -3761,7 +3760,7 @@ let filter_arrow env t l ~force_tpoly =
     let t1 =
       if not force_tpoly then begin
         assert (not (is_optional l));
-        newvar2 level (Layout.value ~why:Function_argument)
+        newvar2 level l1
       end else begin
         let t1 =
           if is_optional l then

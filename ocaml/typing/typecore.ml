@@ -3061,10 +3061,12 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
           | Tvar _ ->
               (* CR layouts v2: value requirement to be relaxed *)
               let ty_arg_mono =
-                newvar (Layout.value ~why:Function_argument)
+                newvar (Layout.of_new_sort_var ~why:Function_argument)
               in
               let ty_arg = newmono ty_arg_mono in
-              let ty_res = newvar (Layout.value ~why:Function_result) in
+              let ty_res =
+                newvar (Layout.of_new_sort_var ~why:Function_result)
+              in
               if ret_tvar &&
                  not (is_prim ~name:"%identity" funct) &&
                  not (is_prim ~name:"%obj_magic" funct)
@@ -3506,7 +3508,7 @@ let rec approx_type env sty =
       let arg =
         if is_optional p
         then type_option (newvar (Layout.value ~why:Type_argument))
-        else newvar (Layout.value ~why:Function_argument)
+        else newvar (Layout.of_new_sort_var ~why:Function_argument)
       in
       let ret = approx_type env sty in
       let marg = Alloc_mode.of_const arg_mode in
@@ -5446,18 +5448,22 @@ and type_expect_
       let op_path, op_desc = type_binding_op_ident env slet.pbop_op in
       let op_type = instance op_desc.val_type in
       let spat_params, ty_params =
-        (* CR layouts v5: eliminate value requirement *)
-        loop slet.pbop_pat (newvar (Layout.value ~why:Tuple_element)) sands
+        let initial_layout = match sands with
+          | [] -> Layout.of_new_sort_var ~why:Function_argument
+          (* CR layouts v5: eliminate value requirement *)
+          | _ -> Layout.value ~why:Tuple_element
+        in
+        loop slet.pbop_pat (newvar initial_layout) sands
       in
-      (* CR layouts v2: eliminate value requirement *)
-      let ty_func_result = newvar (Layout.value ~why:Function_result) in
+      let ty_func_result =
+        newvar (Layout.of_new_sort_var ~why:Function_result)
+      in
       let arrow_desc = Nolabel, Alloc_mode.global, Alloc_mode.global in
       let ty_func =
         newty (Tarrow(arrow_desc, newmono ty_params, ty_func_result, commu_ok))
       in
-      (* CR layouts v2: eliminate value requirement *)
-      let ty_result = newvar (Layout.value ~why:Function_result) in
-      let ty_andops = newvar (Layout.value ~why:Function_argument) in
+      let ty_result = newvar (Layout.of_new_sort_var ~why:Function_result) in
+      let ty_andops = newvar (Layout.of_new_sort_var ~why:Function_argument) in
       let ty_op =
         newty (Tarrow(arrow_desc, newmono ty_andops,
           newty (Tarrow(arrow_desc, newmono ty_func,
@@ -7193,10 +7199,9 @@ and type_andops env sarg sands expected_ty =
         if !Clflags.principal then begin_def ();
         let op_path, op_desc = type_binding_op_ident env sop in
         let op_type = op_desc.val_type in
-        (* CR layouts v2: relax value requirements *)
-        let ty_arg = newvar (Layout.value ~why:Function_argument) in
-        let ty_rest = newvar (Layout.value ~why:Function_argument) in
-        let ty_result = newvar (Layout.value ~why:Function_result) in
+        let ty_arg = newvar (Layout.of_new_sort_var ~why:Function_argument) in
+        let ty_rest = newvar (Layout.of_new_sort_var ~why:Function_argument) in
+        let ty_result = newvar (Layout.of_new_sort_var ~why:Function_result) in
         let arrow_desc = (Nolabel,Alloc_mode.global,Alloc_mode.global) in
         let ty_rest_fun =
           newty (Tarrow(arrow_desc, newmono ty_arg, ty_result, commu_ok))
@@ -7577,12 +7582,13 @@ let type_expression env layout sexp =
       {exp with exp_type = desc.val_type}
   | _ -> exp
 
-let type_representable_expression env sexp =
+let type_representable_expression ~why env sexp =
   let sort = Sort.new_var () in
-  let exp = type_expression env (Layout.of_sort sort) sexp in
+  let exp = type_expression env (Layout.of_sort ~why sort) sexp in
   exp, sort
 
-let type_expression env sexp = type_expression env Layout.any sexp
+let type_expression env sexp =
+  type_expression env (Layout.any ~why:Type_expression_call) sexp
 
 (* Error report *)
 
