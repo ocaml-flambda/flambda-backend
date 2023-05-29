@@ -2,7 +2,7 @@ File "main.ml", line 1, characters 8-11:
 1 | let _ = A.a = B.b
             ^^^
 Error: This expression has type M.a but an expression was expected of type
-         ('a : value)
-       M.a has an unknown layout, which might not be a sublayout of value.
+         ('a : '_representable_layout_1)
+       M.a has an unknown layout, which might not be representable.
        No .cmi file found containing M.a.
        Hint: Adding "m" to your dependencies might help.
