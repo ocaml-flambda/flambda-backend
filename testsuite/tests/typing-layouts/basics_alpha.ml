@@ -727,12 +727,12 @@ module M11_3 = struct
   let foo o (A x) = o # usevoid x
 end;;
 [%%expect{|
-Line 4, characters 32-33:
+Line 4, characters 12-33:
 4 |   let foo o (A x) = o # usevoid x
-                                    ^
-Error: This expression has type ('a : void)
-       but an expression was expected of type ('b : value)
-       'a has layout value, which does not overlap with void.
+                ^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       'a has layout void, which is not a sublayout of value.
 |}];;
 
 module M11_4 = struct
@@ -1196,3 +1196,202 @@ Error: This pattern matches values of type (M.t_void, M.t_void) eq
 (* CR layouts v2: error message is OK, but it could probably be better.
    But a similar case without layouts is already pretty bad, so try
    that before spending too much time here. *)
+
+(*****************************************************)
+(* Test 24: Polymorphic parameter with exotic layout *)
+
+type 'a t2_void [@@void]
+
+let f (x : 'a. 'a t2_void) = x
+
+[%%expect{|
+type 'a t2_void [@@void]
+Line 3, characters 6-30:
+3 | let f (x : 'a. 'a t2_void) = x
+          ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       'a. 'a t2_void has layout void, which is not a sublayout of value.
+|}]
+
+(**************************************************)
+(* Test 25: Optional parameter with exotic layout *)
+
+let f (x : t_void) =
+  let g ?(x2 = x) () = () in
+  ()
+
+[%%expect{|
+Line 2, characters 15-16:
+2 |   let g ?(x2 = x) () = () in
+                   ^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(*********************************************************)
+(* Test 26: Inferring an application to an exotic layout *)
+
+let g f (x : t_void) : t_void = f x
+
+[%%expect{|
+Line 1, characters 8-35:
+1 | let g f (x : t_void) : t_void = f x
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(******************************************)
+(* Test 27: Exotic layouts in approx_type *)
+
+let rec f : _ -> _ = fun (x : t_void) -> x
+
+[%%expect{|
+Line 1, characters 21-42:
+1 | let rec f : _ -> _ = fun (x : t_void) -> x
+                         ^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(**********************************************)
+(* Test 28: Exotic layouts in letop and andop *)
+
+(* CR layouts: this must be [let rec] and [and] so that we can test the
+   type-checker, as opposed to the value-kind check. After we have proper
+   support for a non-value argument type, remove the [rec], throughout
+   this test.
+*)
+let rec ( let* ) (x : t_void) f = ()
+
+and q () =
+  let* x = assert false in
+  ()
+
+[%%expect{|
+Line 1, characters 17-36:
+1 | let rec ( let* ) (x : t_void) f = ()
+                     ^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x (f : t_void -> _) = ()
+
+and q () =
+  let* x = assert false in
+  ()
+
+[%%expect{|
+Lines 4-5, characters 2-4:
+4 | ..let* x = assert false in
+5 |   ()
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x (f : _ -> t_void) = ()
+
+and q () =
+  let* x = assert false in
+  assert false
+
+[%%expect{|
+Line 5, characters 2-14:
+5 |   assert false
+      ^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x f : t_void = assert false
+
+and q () =
+  let* x = 5 in
+  ()
+
+[%%expect{|
+Line 1, characters 19-44:
+1 | let rec ( let* ) x f : t_void = assert false
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x f = ()
+and ( and* ) x1 (x2 : t_void) = ()
+and q () =
+    let* x = 5
+    and* y = assert false
+    in
+    ()
+
+[%%expect{|
+Line 2, characters 16-34:
+2 | and ( and* ) x1 (x2 : t_void) = ()
+                    ^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x f = ()
+and ( and* ) (x1 : t_void) x2 = ()
+and q () =
+    let* x = assert false
+    and* y = 5
+    in
+    ()
+
+[%%expect{|
+Line 2, characters 13-34:
+2 | and ( and* ) (x1 : t_void) x2 = ()
+                 ^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x f = ()
+and ( and* ) x1 x2 : t_void = assert false
+and q () =
+    let* x = 5
+    and* y = 5
+    in
+    ()
+
+[%%expect{|
+Line 1, characters 17-25:
+1 | let rec ( let* ) x f = ()
+                     ^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(* CR layouts v5: when we allow non-values in tuples, this next one should
+   type-check *)
+let rec ( let* ) x f = ()
+and ( and* ) x1 x2 = assert false
+and q () =
+    let* x : t_void = assert false
+    and* y = 5
+    in
+    ()
+
+[%%expect{|
+Line 4, characters 9-19:
+4 |     let* x : t_void = assert false
+             ^^^^^^^^^^
+Error: This pattern matches values of type t_void
+       but a pattern was expected which matches values of type ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
