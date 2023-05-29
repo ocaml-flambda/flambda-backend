@@ -1410,7 +1410,12 @@ module _ = struct
 end
 
 [%%expect{|
-type check failure
+Line 4, characters 16-28:
+4 |   let x () = eq (mk_void ()) (mk_void ())
+                    ^^^^^^^^^^^^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
 |}]
 
 (**************************************)
@@ -1431,5 +1436,10 @@ module _ = struct
 end
 
 [%%expect{|
-type check failure
+Line 8, characters 27-28:
+8 |   let g (x : t_void) = M.f x
+                               ^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
 |}]
