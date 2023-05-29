@@ -5417,9 +5417,10 @@ and type_expect_
         (* The use of a sort var here instead of a value is a little suspect,
            because this can be the component of a tuple if there are several
            [and] operators. In practice, all will be OK, though, because this
-           type will get unified with a tuple type and the sort var will get
-           set to [value]. However, we still use a sort var here to allow
-           for a non-[value] type when there are no [and]s. *)
+           type will get unified with a tuple type (in the [type_cases] below)
+           and the sort var will get set to [value]. However, we still use a
+           sort var here to allow for a non-[value] type when there are no
+           [and]s. *)
         (* CR layouts v5: Remove above comment when we support tuples of
            non-[value] types. *)
         loop slet.pbop_pat (newvar (Layout.of_new_sort_var ())) sands
