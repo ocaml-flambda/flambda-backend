@@ -1395,3 +1395,41 @@ Error: This pattern matches values of type t_void
        but a pattern was expected which matches values of type ('a : value)
        t_void has layout void, which is not a sublayout of value.
 |}]
+
+(*******************************************)
+(* Test 29: [external]s default to [value] *)
+
+(* CR layouts: this must be done in a module so that we can test the
+   type-checker, as opposed to the value-kind check. After we have proper
+   support for a non-value argument type, remove the module wrapper.
+*)
+module _ = struct
+  external eq : 'a -> 'a -> bool = "%equal"
+  let mk_void () : t_void = assert false
+  let x () = eq (mk_void ()) (mk_void ())
+end
+
+[%%expect{|
+type check failure
+|}]
+
+(**************************************)
+(* Test 30: [val]s default to [value] *)
+
+(* CR layouts: this must be done in a module so that we can test the
+   type-checker, as opposed to the value-kind check. After we have proper
+   support for a non-value argument type, remove the module wrapper.
+*)
+module _ = struct
+  module M : sig
+    val f : 'a -> 'a
+  end = struct
+    let f x = x
+  end
+
+  let g (x : t_void) = M.f x
+end
+
+[%%expect{|
+type check failure
+|}]
