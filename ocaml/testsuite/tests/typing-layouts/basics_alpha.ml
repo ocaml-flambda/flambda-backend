@@ -1376,3 +1376,22 @@ Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        t_void has layout void, which is not a sublayout of value.
 |}]
+
+(* CR layouts v5: when we allow non-values in tuples, this next one should
+   type-check *)
+let rec ( let* ) x f = ()
+and ( and* ) x1 x2 = assert false
+and q () =
+    let* x : t_void = assert false
+    and* y = 5
+    in
+    ()
+
+[%%expect{|
+Line 4, characters 9-19:
+4 |     let* x : t_void = assert false
+             ^^^^^^^^^^
+Error: This pattern matches values of type t_void
+       but a pattern was expected which matches values of type ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
