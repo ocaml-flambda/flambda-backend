@@ -251,3 +251,39 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 (* CR layouts v2: Once we allow non-value top-level module definitions, add
    tests showing that things get defaulted to value.
 *)
+
+(********************************************************************)
+(* Test 23: checking the error message from impossible GADT matches *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(*****************************************************)
+(* Test 24: Polymorphic parameter with exotic layout *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(**************************************************)
+(* Test 25: Optional parameter with exotic layout *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(*********************************************************)
+(* Test 26: Inferring an application to an exotic layout *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(******************************************)
+(* Test 27: Exotic layouts in approx_type *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
+
+(************************************)
+(* Test 28: Exotic layouts in letop *)
+
+(* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one enabled by default. *)
