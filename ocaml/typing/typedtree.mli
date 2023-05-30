@@ -542,9 +542,7 @@ and structure_item =
   }
 
 and structure_item_desc =
-    Tstr_eval of expression * Layouts.layout * attributes
-    (* CR layouts v5: The above layout is now only used to implement the void
-       sanity check.  Consider removing when void is handled properly. *)
+    Tstr_eval of expression * Layouts.sort * attributes
   | Tstr_value of rec_flag * value_binding list
   | Tstr_primitive of value_description
   | Tstr_type of rec_flag * type_declaration list

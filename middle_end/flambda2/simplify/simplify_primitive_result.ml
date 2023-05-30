@@ -18,18 +18,27 @@
 
 type t =
   { simplified_named : Simplified_named.t Or_invalid.t;
+    extra_bindings : Expr_builder.binding_to_place list;
     try_reify : bool;
     dacc : Downwards_acc.t
   }
 
-let create named ~try_reify dacc =
-  { simplified_named = Ok (Simplified_named.create named); try_reify; dacc }
+let create ?(extra_bindings = []) named ~try_reify dacc =
+  { simplified_named = Ok (Simplified_named.create named);
+    try_reify;
+    dacc;
+    extra_bindings
+  }
 
 let create_simplified simplified_named ~try_reify dacc =
-  { simplified_named = Ok simplified_named; try_reify; dacc }
+  { simplified_named = Ok simplified_named;
+    try_reify;
+    dacc;
+    extra_bindings = []
+  }
 
 let create_invalid dacc =
-  { simplified_named = Invalid; try_reify = false; dacc }
+  { simplified_named = Invalid; try_reify = false; dacc; extra_bindings = [] }
 
 let create_unit dacc ~result_var ~original_term =
   (* CR gbury: would it make sense to have a Flambda2_types.unit instead of this

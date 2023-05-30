@@ -71,9 +71,14 @@ type mapper = {
   payload: mapper -> payload -> payload;
   signature: mapper -> signature -> signature;
   signature_item: mapper -> signature_item -> signature_item;
+  signature_item_jane_syntax: mapper ->
+    Jane_syntax.Signature_item.t -> Jane_syntax.Signature_item.t;
   structure: mapper -> structure -> structure;
   structure_item: mapper -> structure_item -> structure_item;
+  structure_item_jane_syntax: mapper ->
+    Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t;
   typ: mapper -> core_type -> core_type;
+  typ_jane_syntax: mapper -> Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t;
   type_declaration: mapper -> type_declaration -> type_declaration;
   type_extension: mapper -> type_extension -> type_extension;
   type_exception: mapper -> type_exception -> type_exception;
@@ -133,9 +138,22 @@ module T = struct
     in
     Of.mk ~loc ~attrs desc
 
-  let map sub {ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs} =
+  let map_jst _sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
+    function
+    | _ -> .
+
+  let map sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
+                 as typ) =
     let open Typ in
     let loc = sub.location sub loc in
+    match Jane_syntax.Core_type.of_ast typ with
+    | Some (jtyp, attrs) -> begin
+        let attrs = sub.attributes sub attrs in
+        Jane_syntax_parsing.AST.wrap_desc Core_type ~loc ~attrs @@
+        match sub.typ_jane_syntax sub jtyp with
+        | _ -> .
+    end
+    | None ->
     let attrs = sub.attributes sub attrs in
     match desc with
     | Ptyp_any -> any ~loc ~attrs ()
@@ -281,14 +299,15 @@ module MT = struct
         ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
     let open Mty in
     let loc = sub.location sub loc in
-    let attrs = sub.attributes sub attrs in
     match Jane_syntax.Module_type.of_ast mty with
-    | Some jmty -> begin
-        Jane_syntax_parsing.Module_type.wrap_desc ~loc ~attrs @@
+    | Some (jmty, attrs) -> begin
+        let attrs = sub.attributes sub attrs in
+        Jane_syntax_parsing.AST.wrap_desc Module_type ~loc ~attrs @@
         match sub.module_type_jane_syntax sub jmty with
         | Jmty_strengthen smty -> Jane_syntax.Strengthen.mty_of ~loc smty
       end
     | None ->
+    let attrs = sub.attributes sub attrs in
     match desc with
     | Pmty_ident s -> ident ~loc ~attrs (map_loc sub s)
     | Pmty_alias s -> alias ~loc ~attrs (map_loc sub s)
@@ -317,9 +336,30 @@ module MT = struct
     | Pwith_modtypesubst (lid, mty) ->
         Pwith_modtypesubst (map_loc sub lid, sub.module_type sub mty)
 
-  let map_signature_item sub {psig_desc = desc; psig_loc = loc} =
+  module IF = Jane_syntax.Include_functor
+
+  let map_sig_include_functor sub : IF.signature_item -> IF.signature_item =
+    function
+    | Ifsig_include_functor incl ->
+        Ifsig_include_functor (sub.include_description sub incl)
+
+  let map_signature_item_jst sub :
+    Jane_syntax.Signature_item.t -> Jane_syntax.Signature_item.t =
+    function
+    | Jsig_include_functor ifincl ->
+        Jsig_include_functor (map_sig_include_functor sub ifincl)
+
+  let map_signature_item sub ({psig_desc = desc; psig_loc = loc} as sigi) =
     let open Sig in
     let loc = sub.location sub loc in
+    match Jane_syntax.Signature_item.of_ast sigi with
+    | Some jsigi -> begin
+        Jane_syntax_parsing.AST.wrap_desc Signature_item ~loc ~attrs:[] @@
+        match sub.signature_item_jane_syntax sub jsigi with
+        | Jsig_include_functor incl ->
+            Jane_syntax.Include_functor.sig_item_of ~loc incl
+    end
+    | None ->
     match desc with
     | Psig_value vd -> value ~loc (sub.value_description sub vd)
     | Psig_type (rf, l) ->
@@ -376,9 +416,30 @@ module M = struct
     | Pmod_unpack e -> unpack ~loc ~attrs (sub.expr sub e)
     | Pmod_extension x -> extension ~loc ~attrs (sub.extension sub x)
 
-  let map_structure_item sub {pstr_loc = loc; pstr_desc = desc} =
+  module IF = Jane_syntax.Include_functor
+
+  let map_str_include_functor sub : IF.structure_item -> IF.structure_item =
+    function
+    | Ifstr_include_functor incl ->
+        Ifstr_include_functor (sub.include_declaration sub incl)
+
+  let map_structure_item_jst sub :
+    Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t =
+    function
+    | Jstr_include_functor ifincl ->
+        Jstr_include_functor (map_str_include_functor sub ifincl)
+
+  let map_structure_item sub ({pstr_loc = loc; pstr_desc = desc} as stri) =
     let open Str in
     let loc = sub.location sub loc in
+    match Jane_syntax.Structure_item.of_ast stri with
+    | Some jstri -> begin
+        Jane_syntax_parsing.AST.wrap_desc Structure_item ~loc ~attrs:[] @@
+        match sub.structure_item_jane_syntax sub jstri with
+        | Jstr_include_functor incl ->
+            Jane_syntax.Include_functor.str_item_of ~loc incl
+    end
+    | None ->
     match desc with
     | Pstr_eval (x, attrs) ->
         let attrs = sub.attributes sub attrs in
@@ -448,15 +509,16 @@ module E = struct
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
     let open Exp in
     let loc = sub.location sub loc in
-    let attrs = sub.attributes sub attrs in
     match Jane_syntax.Expression.of_ast exp with
-    | Some jexp -> begin
-        Jane_syntax_parsing.Expression.wrap_desc ~loc ~attrs @@
+    | Some (jexp, attrs) -> begin
+        let attrs = sub.attributes sub attrs in
+        Jane_syntax_parsing.AST.wrap_desc Expression ~loc ~attrs @@
         match sub.expr_jane_syntax sub jexp with
         | Jexp_comprehension   c -> Jane_syntax.Comprehensions.expr_of   ~loc c
         | Jexp_immutable_array i -> Jane_syntax.Immutable_arrays.expr_of ~loc i
     end
     | None ->
+    let attrs = sub.attributes sub attrs in
     match desc with
     | Pexp_ident x -> ident ~loc ~attrs (map_loc sub x)
     | Pexp_constant x -> constant ~loc ~attrs (sub.constant sub x)
@@ -558,14 +620,15 @@ module P = struct
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     let open Pat in
     let loc = sub.location sub loc in
-    let attrs = sub.attributes sub attrs in
     match Jane_syntax.Pattern.of_ast pat with
-    | Some jpat -> begin
-        Jane_syntax_parsing.Pattern.wrap_desc ~loc ~attrs @@
+    | Some (jpat, attrs) -> begin
+        let attrs = sub.attributes sub attrs in
+        Jane_syntax_parsing.AST.wrap_desc Pattern ~loc ~attrs @@
         match sub.pat_jane_syntax sub jpat with
         | Jpat_immutable_array i -> Jane_syntax.Immutable_arrays.pat_of ~loc i
     end
     | None ->
+    let attrs = sub.attributes sub attrs in
     match desc with
     | Ppat_any -> any ~loc ~attrs ()
     | Ppat_var s -> var ~loc ~attrs (map_loc sub s)
@@ -671,9 +734,11 @@ let default_mapper =
     constant = C.map;
     structure = (fun this l -> List.map (this.structure_item this) l);
     structure_item = M.map_structure_item;
+    structure_item_jane_syntax = M.map_structure_item_jst;
     module_expr = M.map;
     signature = (fun this l -> List.map (this.signature_item this) l);
     signature_item = MT.map_signature_item;
+    signature_item_jane_syntax = MT.map_signature_item_jst;
     module_type = MT.map;
     module_type_jane_syntax = MT.map_jane_syntax;
     with_constraint = MT.map_with_constraint;
@@ -692,6 +757,7 @@ let default_mapper =
     type_declaration = T.map_type_declaration;
     type_kind = T.map_type_kind;
     typ = T.map;
+    typ_jane_syntax = T.map_jst;
     type_extension = T.map_type_extension;
     type_exception = T.map_type_exception;
     extension_constructor = T.map_extension_constructor;

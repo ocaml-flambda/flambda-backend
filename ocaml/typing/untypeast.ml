@@ -198,7 +198,15 @@ let structure_item sub item =
              (fun (_id, _name, ct) -> sub.class_type_declaration sub ct)
              list)
     | Tstr_include incl ->
-        Pstr_include (sub.include_declaration sub incl)
+        let pincl = sub.include_declaration sub incl in
+        begin match incl.incl_kind with
+        | Tincl_structure ->
+            Pstr_include pincl
+        | Tincl_functor _ | Tincl_gen_functor _ ->
+            Jane_syntax.Include_functor.str_item_of
+              ~loc
+              (Jane_syntax.Include_functor.Ifstr_include_functor pincl)
+        end
     | Tstr_attribute x ->
         Pstr_attribute x
   in
@@ -294,6 +302,17 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
   let loc = sub.location sub pat.pat_loc in
   (* todo: fix attributes on extras *)
   let attrs = sub.attributes sub pat.pat_attributes in
+  let attrs = ref attrs in
+  (* Hack so we can return an extra value out of the [match] expression for Jane
+     Street internal expressions without needing to modify every case, which
+     would open us up to more merge conflicts.
+  *)
+  let add_jane_syntax_attributes
+        { Jane_syntax_parsing.With_attributes.desc; jane_syntax_attributes }
+    =
+    attrs := jane_syntax_attributes @ !attrs;
+    desc
+  in
   let desc =
   match pat with
       { pat_extra=[Tpat_unpack, loc, _attrs]; pat_desc = Tpat_any; _ } ->
@@ -361,9 +380,11 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         let pats = List.map (sub.pat sub) list in
         match am with
         | Mutable   -> Ppat_array pats
-        | Immutable -> Jane_syntax.Immutable_arrays.pat_of
-                         ~loc
-                         (Iapat_immutable_array pats)
+        | Immutable ->
+          Jane_syntax.Immutable_arrays.pat_of
+            ~loc
+            (Iapat_immutable_array pats)
+          |> add_jane_syntax_attributes
       end
     | Tpat_lazy p -> Ppat_lazy (sub.pat sub p)
 
@@ -371,7 +392,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | Tpat_value p -> (sub.pat sub (p :> pattern)).ppat_desc
     | Tpat_or (p1, p2, _) -> Ppat_or (sub.pat sub p1, sub.pat sub p2)
   in
-  Pat.mk ~loc ~attrs desc
+  Pat.mk ~loc ~attrs:!attrs desc
 
 let exp_extra sub (extra, loc, attrs) sexp =
   let loc = sub.location sub loc in
@@ -434,6 +455,17 @@ let comprehension sub comp_type comp =
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
   let attrs = sub.attributes sub exp.exp_attributes in
+  let attrs = ref attrs in
+  (* Hack so we can return an extra value out of the [match] expression for Jane
+     Street internal expressions without needing to modify every case, which
+     would open us up to more merge conflicts.
+  *)
+  let add_jane_syntax_attributes
+        { Jane_syntax_parsing.With_attributes.desc; jane_syntax_attributes }
+    =
+    attrs := jane_syntax_attributes @ !attrs;
+    desc
+  in
   let desc =
     match exp.exp_desc with
       Texp_ident (_path, lid, _, _) -> Pexp_ident (map_loc sub lid)
@@ -503,13 +535,16 @@ let expression sub exp =
         | Immutable ->
             Jane_syntax.Immutable_arrays.expr_of
               ~loc (Iaexp_immutable_array plist)
+            |> add_jane_syntax_attributes
       end
     | Texp_list_comprehension comp ->
         comprehension
           ~loc sub (fun comp -> Cexp_list_comprehension comp) comp
+        |> add_jane_syntax_attributes
     | Texp_array_comprehension (amut, comp) ->
         comprehension
           ~loc sub (fun comp -> Cexp_array_comprehension (amut, comp)) comp
+        |> add_jane_syntax_attributes
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Pexp_ifthenelse (sub.expr sub exp1,
           sub.expr sub exp2,
@@ -613,7 +648,7 @@ let expression sub exp =
       }, [Nolabel, sub.expr sub exp])
   in
   List.fold_right (exp_extra sub) exp.exp_extra
-    (Exp.mk ~loc ~attrs desc)
+    (Exp.mk ~loc ~attrs:!attrs desc)
 
 let binding_op sub bop pat =
   let pbop_op = bop.bop_op_name in
@@ -664,7 +699,15 @@ let signature_item sub item =
     | Tsig_open od ->
         Psig_open (sub.open_description sub od)
     | Tsig_include incl ->
-        Psig_include (sub.include_description sub incl)
+        let pincl = sub.include_description sub incl in
+        begin match incl.incl_kind with
+        | Tincl_structure ->
+            Psig_include pincl
+        | Tincl_functor _ | Tincl_gen_functor _ ->
+            Jane_syntax.Include_functor.sig_item_of
+              ~loc
+              (Jane_syntax.Include_functor.Ifsig_include_functor pincl)
+        end
     | Tsig_class list ->
         Psig_class (List.map (sub.class_description sub) list)
     | Tsig_class_type list ->

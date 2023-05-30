@@ -12,71 +12,43 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type descr =
-  | Zero_terms
-  | Single_term of
-      { let_bound : Bound_pattern.t;
-        simplified_defining_expr : Simplified_named.t;
-        original_defining_expr : Flambda.Named.t
-      }
-  | Multiple_bindings_to_symbols of
-      { bound_vars_to_symbols : (Bound_var.t * Symbol.t) list;
-        original_defining_expr : Flambda.Named.t
-      }
+open! Flambda.Import
 
 type t =
   { dacc : Downwards_acc.t;
-    descr : descr
+    bindings_to_place : Expr_builder.binding_to_place list;
+    was_lifted_set_of_closures : bool
   }
 
 let with_dacc ~dacc t = { t with dacc }
 
-let have_simplified_to_zero_terms dacc = { dacc; descr = Zero_terms }
-
-let have_simplified_to_single_term dacc bound_pattern defining_expr
-    ~original_defining_expr =
+let create dacc bindings_to_place =
   (* If [original_defining_expr] was simplified to a new term then the benefit
      of doing so is counted in [simplify_named]. *)
-  { dacc;
-    descr =
-      Single_term
-        { let_bound = bound_pattern;
-          simplified_defining_expr = defining_expr;
-          original_defining_expr
-        }
-  }
+  { dacc; bindings_to_place; was_lifted_set_of_closures = false }
 
-let have_lifted_set_of_closures dacc bound_vars_to_symbols
+let create_have_lifted_set_of_closures dacc bound_vars_to_symbols
     ~original_defining_expr =
-  (* The benefit of lifting the set of closure is added in [simplify_named]. *)
+  (* The benefit of lifting the set of closures is added in [Simplify_named]. *)
   { dacc;
-    descr =
-      Multiple_bindings_to_symbols
-        { bound_vars_to_symbols; original_defining_expr }
+    bindings_to_place =
+      List.mapi
+        (fun i (var, sym) ->
+          { Expr_builder.let_bound = Bound_pattern.singleton var;
+            simplified_defining_expr =
+              Simplified_named.create (Named.create_simple (Simple.symbol sym));
+            original_defining_expr =
+              (if i = 0 then Some original_defining_expr else None)
+          })
+        bound_vars_to_symbols;
+    was_lifted_set_of_closures = true
   }
-
-let descr t = t.descr
 
 let dacc t = t.dacc
 
-type binding_to_place =
-  { let_bound : Bound_pattern.t;
-    simplified_defining_expr : Simplified_named.t;
-    original_defining_expr : Flambda.Named.t
-  }
+let no_bindings t =
+  match t.bindings_to_place with [] -> true | _ :: _ -> false
 
-let bindings_to_place_in_any_order t =
-  match t.descr with
-  | Zero_terms -> []
-  | Single_term { let_bound; simplified_defining_expr; original_defining_expr }
-    ->
-    [{ let_bound; simplified_defining_expr; original_defining_expr }]
-  | Multiple_bindings_to_symbols
-      { bound_vars_to_symbols; original_defining_expr } ->
-    ListLabels.map bound_vars_to_symbols ~f:(fun (bound_var, symbol) ->
-        let let_bound = Bound_pattern.singleton bound_var in
-        let simplified_defining_expr =
-          Simple.symbol symbol |> Flambda.Named.create_simple
-          |> Simplified_named.create
-        in
-        { let_bound; simplified_defining_expr; original_defining_expr })
+let bindings_to_place t = t.bindings_to_place
+
+let was_lifted_set_of_closures t = t.was_lifted_set_of_closures

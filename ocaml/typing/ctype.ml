@@ -3742,30 +3742,35 @@ exception Filter_arrow_failed of filter_arrow_failure
 
 let filter_arrow env t l ~force_tpoly =
   let function_type level =
-    (* CR layouts v2: This is one of two primary places where we are restricting
-       function arguments / returns to have layout value.  This one handles
+    (* CR layouts v3: This is one of two primary places where we are restricting
+       function arguments / returns to be representable.  This one handles
        function types that arise from inference, and the check in
        [Typetexp.transl_type_aux] handles function types explicitly written in
        the source program.  When we decide to drop that restriction, we can
-       allow both to be any, with relevant checks on function arguments
-       happening when functions are constructed, not their types. *)
+       allow both to be any.  Separately, the relevant checks on function
+       arguments should happen when functions are constructed, not their
+       types. *)
+    let l1 = Layout.of_new_sort_var () in
+    let l2 = Layout.of_new_sort_var () in
     let t1 =
       if not force_tpoly then begin
         assert (not (is_optional l));
-        newvar2 level Layout.value
+        newvar2 level l1
       end else begin
         let t1 =
           if is_optional l then
             newty2 ~level
+              (* CR layouts v5: Change the Layout.value when option can
+                 hold non-values. *)
               (Tconstr(Predef.path_option,[newvar2 level Layout.value],
                        ref Mnil))
           else
-            newvar2 level Layout.value
+            newvar2 level l1
         in
         newty2 ~level (Tpoly(t1, []))
       end
     in
-    let t2 = newvar2 level Layout.value in
+    let t2 = newvar2 level l2 in
     let marg = Alloc_mode.newvar () in
     let mret = Alloc_mode.newvar () in
     let t' = newty2 ~level (Tarrow ((l,marg,mret), t1, t2, commu_ok)) in

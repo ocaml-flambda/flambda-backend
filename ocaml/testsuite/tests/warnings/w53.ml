@@ -208,27 +208,6 @@ module TestCurryStruct = struct
   [@@@curry 42] (* rejected *)
 end
 
-(* No "accepted" test for include_functor because the user shouldn't write it *)
-module type TestIncludeFunctor = sig
-  type 'a t1 = 'a [@@include_functor 42] (* rejected *)
-
-  type s1 = Foo1 [@include_functor 42] (* rejected *)
-
-  val x : int [@include_functor 42] (* rejected *)
-
-  [@@@include_functor 42] (* rejected *)
-end
-
-module TestIncludeFunctorStruct = struct
-  type 'a t1 = 'a [@@include_functor 42] (* rejected *)
-
-  type s1 = Foo1 [@include_functor 42] (* rejected *)
-
-  let x = 5 [@include_functor 42] (* rejected *)
-
-  [@@@include_functor 42] (* rejected *)
-end
-
 module type TestLocalOptSig = sig
   type 'a t1 = 'a [@@local_opt] (* rejected *)
   type s1 = Foo1 [@local_opt] (* rejected *)

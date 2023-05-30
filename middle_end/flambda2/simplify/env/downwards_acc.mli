@@ -91,6 +91,13 @@ val code_ids_to_remember : t -> Code_id.Set.t
 
 val with_code_ids_to_remember : t -> code_ids_to_remember:Code_id.Set.t -> t
 
+val add_code_ids_to_never_delete : t -> Code_id.Set.t -> t
+
+val code_ids_to_never_delete : t -> Code_id.Set.t
+
+val with_code_ids_to_never_delete :
+  t -> code_ids_to_never_delete:Code_id.Set.t -> t
+
 val are_rebuilding_terms : t -> Are_rebuilding_terms.t
 
 val slot_offsets : t -> Slot_offsets.t Code_id.Map.t

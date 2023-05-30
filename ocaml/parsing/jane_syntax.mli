@@ -23,6 +23,16 @@
 (*********************************************)
 (* Individual features *)
 
+(** An AST desc together with its attributes, including the attributes that
+    signal that the AST should be interpreted as a Jane Syntax AST.
+*)
+module With_attributes : sig
+  type 'desc t = 'desc Jane_syntax_parsing.With_attributes.t = private
+    { jane_syntax_attributes : Parsetree.attributes
+    ; desc : 'desc
+    }
+end
+
 (** The ASTs for list and array comprehensions *)
 module Comprehensions : sig
   type iterator =
@@ -61,7 +71,8 @@ module Comprehensions : sig
         [:BODY ...CLAUSES...:] (flag = Immutable)
           (only allowed with [-extension immutable_arrays]) *)
 
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression_desc
+  val expr_of :
+    loc:Location.t -> expression -> Parsetree.expression_desc With_attributes.t
 end
 
 (** The ASTs for immutable arrays.  When we merge this upstream, we'll merge
@@ -76,8 +87,27 @@ module Immutable_arrays : sig
     | Iapat_immutable_array of Parsetree.pattern list
     (** [: P1; ...; Pn :] **)
 
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression_desc
-  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern_desc
+  val expr_of :
+    loc:Location.t -> expression -> Parsetree.expression_desc With_attributes.t
+
+  val pat_of :
+    loc:Location.t -> pattern -> Parsetree.pattern_desc With_attributes.t
+end
+
+(** The ASTs for [include functor].  When we merge this upstream, we'll merge
+    these into the existing [P{sig,str}_include] constructors (similar to what
+    we did with [T{sig,str}_include], but without depending on typechecking). *)
+module Include_functor : sig
+  type signature_item =
+    | Ifsig_include_functor of Parsetree.include_description
+
+  type structure_item =
+    | Ifstr_include_functor of Parsetree.include_declaration
+
+  val sig_item_of :
+    loc:Location.t -> signature_item -> Parsetree.signature_item_desc
+  val str_item_of :
+    loc:Location.t -> structure_item -> Parsetree.structure_item_desc
 end
 
 (** The ASTs for module type strengthening. *)
@@ -85,7 +115,10 @@ module Strengthen : sig
   type module_type =
     { mty : Parsetree.module_type; mod_id : Longident.t Location.loc }
 
-  val mty_of : loc:Location.t -> module_type -> Parsetree.module_type_desc
+  val mty_of :
+    loc:Location.t
+    -> module_type
+    -> Parsetree.module_type_desc With_attributes.t
 end
 
 (******************************************)
@@ -98,7 +131,14 @@ end
 module type AST = sig
   (** The AST for all our Jane Street syntax; one constructor per feature that
       extends the given syntactic category.  Some extensions are handled
-      separately and thus are not listed here. *)
+      separately and thus are not listed here.
+
+      This type will be something like [jane_syntax_ast * Parsetree.attributes]
+      in cases where the Jane Syntax encoding of the AST uses attributes. In
+      these cases, the [Parsetree.attributes] are the *rest* of the attributes
+      after removing Jane Syntax-related attributes. Callers of [of_ast] should
+      refer to these attributes rather than, for example, [pexp_attributes].
+  *)
   type t
 
   (** The corresponding OCaml AST *)
@@ -157,13 +197,34 @@ end
 (******************************************)
 (* Individual syntactic categories *)
 
+(** Novel syntax in types *)
+module Core_type : sig
+  type t = |
+
+  include AST
+    with type t := t * Parsetree.attributes
+     and type ast := Parsetree.core_type
+end
+
+(** Novel syntax in constructor arguments; this isn't a core AST type,
+    but captures where [global_] and [nonlocal_] live *)
+module Constructor_argument : sig
+  type t = |
+
+  include AST
+    with type t := t * Parsetree.attributes
+     and type ast := Parsetree.core_type
+end
+
 (** Novel syntax in expressions *)
 module Expression : sig
   type t =
     | Jexp_comprehension   of Comprehensions.expression
     | Jexp_immutable_array of Immutable_arrays.expression
 
-  include AST with type t := t and type ast := Parsetree.expression
+  include AST
+    with type t := t * Parsetree.attributes
+     and type ast := Parsetree.expression
 end
 
 (** Novel syntax in patterns *)
@@ -171,7 +232,9 @@ module Pattern : sig
   type t =
     | Jpat_immutable_array of Immutable_arrays.pattern
 
-  include AST with type t := t and type ast := Parsetree.pattern
+  include AST
+    with type t := t * Parsetree.attributes
+     and type ast := Parsetree.pattern
 end
 
 (** Novel syntax in module types *)
@@ -179,5 +242,23 @@ module Module_type : sig
   type t =
     | Jmty_strengthen of Strengthen.module_type
 
-  include AST with type t := t and type ast := Parsetree.module_type
+  include AST
+    with type t := t * Parsetree.attributes
+     and type ast := Parsetree.module_type
+end
+
+(** Novel syntax in signature items *)
+module Signature_item : sig
+  type t =
+    | Jsig_include_functor of Include_functor.signature_item
+
+  include AST with type t := t and type ast := Parsetree.signature_item
+end
+
+(** Novel syntax in structure items *)
+module Structure_item : sig
+  type t =
+    | Jstr_include_functor of Include_functor.structure_item
+
+  include AST with type t := t and type ast := Parsetree.structure_item
 end

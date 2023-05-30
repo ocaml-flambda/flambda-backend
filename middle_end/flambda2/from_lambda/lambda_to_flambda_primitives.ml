@@ -1226,10 +1226,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
 module Acc = Closure_conversion_aux.Acc
 module Expr_with_acc = Closure_conversion_aux.Expr_with_acc
 
-let convert_and_bind acc ~big_endian exn_cont ~register_const_string
+let convert_and_bind acc ~big_endian exn_cont ~register_const0
     (prim : L.primitive) ~(args : Simple.t list) (dbg : Debuginfo.t)
     ~current_region (cont : Acc.t -> Flambda.Named.t option -> Expr_with_acc.t)
     : Expr_with_acc.t =
   let expr = convert_lprim ~big_endian prim args dbg ~current_region in
-  H.bind_rec acc exn_cont ~register_const_string expr dbg (fun acc named ->
+  H.bind_rec acc exn_cont ~register_const0 expr dbg (fun acc named ->
       cont acc (Some named))

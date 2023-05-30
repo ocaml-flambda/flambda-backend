@@ -104,7 +104,7 @@ end
 and Bar3 : sig
   type t [@@void]
 end = struct
-  type t
+  type t [@@void]
 end;;
 [%%expect {|
 Line 8, characters 9-17:

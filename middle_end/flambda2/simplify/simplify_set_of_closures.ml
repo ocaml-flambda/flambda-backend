@@ -101,6 +101,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   in
   let dacc = DA.with_denv dacc denv in
   let code_ids_to_remember = DA.code_ids_to_remember outer_dacc in
+  let code_ids_to_never_delete = DA.code_ids_to_never_delete outer_dacc in
   let used_value_slots = DA.used_value_slots outer_dacc in
   let shareable_constants = DA.shareable_constants outer_dacc in
   let slot_offsets = DA.slot_offsets outer_dacc in
@@ -109,6 +110,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
      of these lines below... *)
   dacc
   |> DA.with_code_ids_to_remember ~code_ids_to_remember
+  |> DA.with_code_ids_to_never_delete ~code_ids_to_never_delete
   |> DA.with_used_value_slots ~used_value_slots
   |> DA.with_shareable_constants ~shareable_constants
   |> DA.with_slot_offsets ~slot_offsets
@@ -127,6 +129,7 @@ let extract_accumulators_from_function outer_dacc ~dacc_after_body
     UA.lifted_constants uacc_after_upwards_traversal
   in
   let code_ids_to_remember = DA.code_ids_to_remember dacc_after_body in
+  let code_ids_to_never_delete = DA.code_ids_to_never_delete dacc_after_body in
   let used_value_slots = UA.used_value_slots uacc_after_upwards_traversal in
   let shareable_constants =
     UA.shareable_constants uacc_after_upwards_traversal
@@ -139,6 +142,7 @@ let extract_accumulators_from_function outer_dacc ~dacc_after_body
     DA.add_to_lifted_constant_accumulator ~also_add_to_env:() outer_dacc
       lifted_consts_this_function
     |> DA.with_code_ids_to_remember ~code_ids_to_remember
+    |> DA.with_code_ids_to_never_delete ~code_ids_to_never_delete
     |> DA.with_used_value_slots ~used_value_slots
     |> DA.with_shareable_constants ~shareable_constants
     |> DA.with_slot_offsets ~slot_offsets
@@ -469,37 +473,50 @@ let introduce_code dacc code_id code_const =
 
 let simplify_function context ~outer_dacc function_slot code_id
     ~closure_bound_names_inside_function =
-  match
-    Code_or_metadata.view
-      (DE.find_code_exn (DA.denv (C.dacc_prior_to_sets context)) code_id)
-  with
-  | Code_present code when not (Code.stub code) ->
-    let rec run ~outer_dacc ~code count =
-      let { code_id; code = new_code; outer_dacc; should_resimplify } =
-        simplify_function0 context ~outer_dacc (Some function_slot) code_id code
-          ~closure_bound_names_inside_function
-      in
-      match new_code with
-      | None -> code_id, outer_dacc
-      | Some (Not_rebuilding, new_code_const) ->
-        (* Not rebuilding: there is no code to resimplify *)
-        let outer_dacc = introduce_code outer_dacc code_id new_code_const in
-        code_id, outer_dacc
-      | Some (Rebuilding new_code, new_code_const) ->
-        let max_function_simplify_run =
-          Flambda_features.Expert.max_function_simplify_run ()
+  let code_or_metadata =
+    DE.find_code_exn (DA.denv (C.dacc_prior_to_sets context)) code_id
+  in
+  let code_id, outer_dacc =
+    match Code_or_metadata.view code_or_metadata with
+    | Code_present code when not (Code.stub code) ->
+      let rec run ~outer_dacc ~code count =
+        let { code_id; code = new_code; outer_dacc; should_resimplify } =
+          simplify_function0 context ~outer_dacc (Some function_slot) code_id
+            code ~closure_bound_names_inside_function
         in
-        if should_resimplify && count < max_function_simplify_run
-        then run ~outer_dacc ~code:new_code (count + 1)
-        else
+        match new_code with
+        | None -> code_id, outer_dacc
+        | Some (Not_rebuilding, new_code_const) ->
+          (* Not rebuilding: there is no code to resimplify *)
           let outer_dacc = introduce_code outer_dacc code_id new_code_const in
           code_id, outer_dacc
+        | Some (Rebuilding new_code, new_code_const) ->
+          let max_function_simplify_run =
+            Flambda_features.Expert.max_function_simplify_run ()
+          in
+          if should_resimplify && count < max_function_simplify_run
+          then run ~outer_dacc ~code:new_code (count + 1)
+          else
+            let outer_dacc = introduce_code outer_dacc code_id new_code_const in
+            code_id, outer_dacc
+      in
+      run ~outer_dacc ~code 0
+    | Code_present _ | Metadata_only _ ->
+      (* No new code ID is created in this case: there is no function body to be
+         simplified and all other code metadata will remain the same. *)
+      code_id, outer_dacc
+  in
+  let code_ids_to_never_delete_this_set =
+    let code_metadata = Code_or_metadata.code_metadata code_or_metadata in
+    let never_delete =
+      match Code_metadata.check code_metadata with
+      | Default_check -> !Clflags.zero_alloc_check_assert_all
+      | Ignore_assert_all Zero_alloc -> false
+      | Check { property = Zero_alloc; _ } -> true
     in
-    run ~outer_dacc ~code 0
-  | Code_present _ | Metadata_only _ ->
-    (* No new code ID is created in this case: there is no function body to be
-       simplified and all other code metadata will remain the same. *)
-    code_id, outer_dacc
+    if never_delete then Code_id.Set.singleton code_id else Code_id.Set.empty
+  in
+  code_id, outer_dacc, code_ids_to_never_delete_this_set
 
 type simplify_set_of_closures0_result =
   { set_of_closures : Flambda.Set_of_closures.t;
@@ -518,10 +535,12 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
   then
     Misc.fatal_errorf "Did not expect lifted constants in [dacc]:@ %a" DA.print
       dacc;
-  let (fun_types, outer_dacc), all_function_decls_in_set =
+  let ( (code_ids_to_never_delete_this_set, fun_types, outer_dacc),
+        all_function_decls_in_set ) =
     Function_slot.Lmap.fold_left_map
-      (fun (fun_types, outer_dacc) function_slot old_code_id ->
-        let code_id, outer_dacc =
+      (fun (result_code_ids_to_never_delete_this_set, fun_types, outer_dacc)
+           function_slot old_code_id ->
+        let code_id, outer_dacc, code_ids_to_never_delete_this_set =
           simplify_function context ~outer_dacc function_slot old_code_id
             ~closure_bound_names_inside_function:closure_bound_names_inside
         in
@@ -536,8 +555,12 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
         let fun_types =
           Function_slot.Map.add function_slot function_type fun_types
         in
-        (fun_types, outer_dacc), code_id)
-      (Function_slot.Map.empty, outer_dacc)
+        let code_ids_to_never_delete_this_set =
+          Code_id.Set.union code_ids_to_never_delete_this_set
+            result_code_ids_to_never_delete_this_set
+        in
+        (code_ids_to_never_delete_this_set, fun_types, outer_dacc), code_id)
+      (Code_id.Set.empty, Function_slot.Map.empty, outer_dacc)
       all_function_decls_in_set
   in
   let code_ids_to_remember_this_set =
@@ -547,6 +570,9 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
   in
   let dacc =
     DA.add_code_ids_to_remember outer_dacc code_ids_to_remember_this_set
+  in
+  let dacc =
+    DA.add_code_ids_to_never_delete dacc code_ids_to_never_delete_this_set
   in
   let closure_types_by_bound_name =
     let closure_types_via_aliases =
@@ -691,8 +717,8 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
       (DA.denv dacc)
       (Function_slot.Lmap.bindings closure_symbols)
   in
-  Simplify_named_result.have_lifted_set_of_closures (DA.with_denv dacc denv)
-    bindings
+  Simplify_named_result.create_have_lifted_set_of_closures
+    (DA.with_denv dacc denv) bindings
     ~original_defining_expr:(Named.create_set_of_closures set_of_closures)
 
 let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
@@ -730,9 +756,12 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
       (Named.create_set_of_closures set_of_closures)
       ~free_names:(Named.free_names named)
   in
-  Simplify_named_result.have_simplified_to_single_term dacc bound_vars
-    defining_expr
-    ~original_defining_expr:(Named.create_set_of_closures set_of_closures)
+  Simplify_named_result.create dacc
+    [ { Expr_builder.let_bound = bound_vars;
+        simplified_defining_expr = defining_expr;
+        original_defining_expr =
+          Some (Named.create_set_of_closures set_of_closures)
+      } ]
 
 type lifting_decision_result =
   { can_lift : bool;

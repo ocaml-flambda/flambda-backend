@@ -131,14 +131,6 @@ let check_local_attr attrs =
   | [], _ -> attrs, false
   | _::_, rest -> rest, true
 
-let check_include_functor_attr attrs =
-  match
-    List.partition (fun attr ->
-        attr.attr_name.txt = "extension.include_functor") attrs
-  with
-  | [], _ -> attrs, false
-  | _::_, rest -> rest, true
-
 type space_formatter = (unit, Format.formatter, unit) format
 
 let override = function
@@ -313,10 +305,6 @@ let maybe_local_type pty ctxt f c =
     pp f "local_ %a" (pty ctxt) c
   else
     pty ctxt f c
-
-let maybe_functor f has_functor_attr =
-  if has_functor_attr then pp f "@ functor" else ()
-
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
   | [] -> ()
@@ -331,6 +319,9 @@ and type_with_label ctxt f (label, c) =
   | Optional s -> pp f "?%s:%a" s (maybe_local_type core_type1 ctxt) c
 
 and core_type ctxt f x =
+  match Jane_syntax.Core_type.of_ast x with
+  | Some (jtyp, attrs) -> core_type_jane_syntax ctxt attrs f jtyp
+  | None ->
   let filtered_attrs = filter_curry_attrs x.ptyp_attributes in
   if filtered_attrs <> [] then begin
     pp f "((%a)%a)" (core_type ctxt) {x with ptyp_attributes=[]}
@@ -355,8 +346,12 @@ and core_type ctxt f x =
     | _ -> pp f "@[<2>%a@]" (core_type1 ctxt) x
 
 and core_type1 ctxt f x =
+  match Jane_syntax.Core_type.of_ast x with
+  | Some (jtyp, attrs) -> core_type1_jane_syntax ctxt attrs f jtyp
+  | None ->
   if has_non_curry_attr x.ptyp_attributes then core_type ctxt f x
-  else match x.ptyp_desc with
+  else
+    match x.ptyp_desc with
     | Ptyp_any -> pp f "_";
     | Ptyp_var s -> tyvar f  s;
     | Ptyp_tuple l ->  pp f "(%a)" (list (core_type1 ctxt) ~sep:"@;*@;") l
@@ -432,6 +427,14 @@ and core_type1 ctxt f x =
     | Ptyp_extension e -> extension ctxt f e
     | _ -> paren true (core_type ctxt) f x
 
+and core_type1_jane_syntax _ctxt _attrs _f : Jane_syntax.Core_type.t -> _ =
+  function
+  | _ -> .
+
+and core_type_jane_syntax _ctxt _attrs _f : Jane_syntax.Core_type.t -> _ =
+  function
+  | _ -> .
+
 and return_type ctxt f x =
   if x.ptyp_attributes <> [] then maybe_local_type core_type1 ctxt f x
   else maybe_local_type core_type ctxt f x
@@ -439,6 +442,9 @@ and return_type ctxt f x =
 (********************pattern********************)
 (* be cautious when use [pattern], [pattern1] is preferred *)
 and pattern ctxt f x =
+  match Jane_syntax.Pattern.of_ast x with
+  | Some (jpat, attrs) -> pattern_jane_syntax ctxt attrs f jpat
+  | None ->
   if x.ppat_attributes <> [] then begin
     pp f "((%a)%a)" (pattern ctxt) {x with ppat_attributes=[]}
       (attributes ctxt) x.ppat_attributes
@@ -498,8 +504,9 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
 and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
   if x.ppat_attributes <> [] then pattern ctxt f x
   else match Jane_syntax.Pattern.of_ast x with
-    | Some jpat -> simple_pattern_jane_syntax ctxt f jpat
-    | None -> match x.ppat_desc with
+    | Some (jpat, attrs) -> pattern_jane_syntax ctxt attrs f jpat
+    | None ->
+    match x.ppat_desc with
     | Ppat_construct (({txt=Lident ("()"|"[]" as x);_}), None) ->
         pp f  "%s" x
     | Ppat_any -> pp f "_";
@@ -544,7 +551,7 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
     | Ppat_open (lid, p) ->
         let with_paren =
         match Jane_syntax.Pattern.of_ast p with
-        | Some jpat -> begin match jpat with
+        | Some (jpat, _attrs) -> begin match jpat with
         | Jpat_immutable_array (Iapat_immutable_array _) -> false
         end
         | None -> match p.ppat_desc with
@@ -555,9 +562,14 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
           (paren with_paren @@ pattern1 ctxt) p
     | _ -> paren true (pattern ctxt) f x
 
-and simple_pattern_jane_syntax ctxt f : Jane_syntax.Pattern.t -> unit = function
-  | Jpat_immutable_array (Iapat_immutable_array l) ->
-      pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
+and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
+  if attrs <> [] then
+    pp f "((%a)%a)" (pattern_jane_syntax ctxt []) pat
+      (attributes ctxt) attrs
+  else
+    match pat with
+    | Jpat_immutable_array (Iapat_immutable_array l) ->
+        pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
 
 and maybe_local_pat ctxt is_local f p =
   if is_local then
@@ -674,12 +686,13 @@ and sugar_expr ctxt f e =
   | _ -> false
 
 and expression ctxt f x =
+  match Jane_syntax.Expression.of_ast x with
+  | Some (jexpr, attrs) -> jane_syntax_expr ctxt attrs f jexpr
+  | None ->
   if x.pexp_attributes <> [] then
     pp f "((%a)@,%a)" (expression ctxt) {x with pexp_attributes=[]}
       (attributes ctxt) x.pexp_attributes
-  else match Jane_syntax.Expression.of_ast x with
-    | Some jexpr -> jane_syntax_expr ctxt f jexpr
-    | None -> match x.pexp_desc with
+  else match x.pexp_desc with
     | Pexp_function _ | Pexp_fun _ | Pexp_match _ | Pexp_try _ | Pexp_sequence _
     | Pexp_newtype _
       when ctxt.pipe || ctxt.semi ->
@@ -1113,13 +1126,24 @@ and class_expr ctxt f x =
           (override o.popen_override) longident_loc o.popen_expr
           (class_expr ctxt) e
 
+and include_ : 'a. ctxt -> formatter ->
+                   functor_:bool ->
+                   contents:(ctxt -> formatter -> 'a -> unit) ->
+                   'a include_infos ->
+                   unit =
+  fun ctxt f ~functor_ ~contents incl ->
+    pp f "@[<hov2>include%t@ %a@]%a"
+      (if functor_ then fun f -> pp f "@ functor" else fun _ -> ())
+      (contents ctxt) incl.pincl_mod
+      (item_attributes ctxt) incl.pincl_attributes
+
 and module_type ctxt f x =
   if x.pmty_attributes <> [] then begin
     pp f "((%a)%a)" (module_type ctxt) {x with pmty_attributes=[]}
       (attributes ctxt) x.pmty_attributes
   end else
     match Jane_syntax.Module_type.of_ast x with
-    | Some jmty -> module_type_jane_syntax ctxt f jmty
+    | Some (jmty, attrs) -> module_type_jane_syntax ctxt attrs f jmty
     | None ->
     match x.pmty_desc with
     | Pmty_functor (Unit, mt2) ->
@@ -1140,11 +1164,17 @@ and module_type ctxt f x =
           (list (with_constraint ctxt) ~sep:"@ and@ ") l
     | _ -> module_type1 ctxt f x
 
-and module_type_jane_syntax ctxt f : Jane_syntax.Module_type.t -> _ = function
-  | Jmty_strengthen { mty; mod_id } ->
-      pp f "@[<hov2>%a@ with@ %a@]"
-        (module_type1 ctxt) mty
-        longident_loc mod_id
+and module_type_jane_syntax ctxt attrs f (mty : Jane_syntax.Module_type.t) =
+  if attrs <> [] then
+    pp f "((%a)%a)"
+      (module_type_jane_syntax ctxt []) mty
+      (attributes ctxt) attrs
+  else
+    match mty with
+    | Jmty_strengthen { mty; mod_id } ->
+        pp f "@[<hov2>%a@ with@ %a@]"
+          (module_type1 ctxt) mty
+          longident_loc mod_id
 
 and with_constraint ctxt f = function
   | Pwith_type (li, ({ptype_params= ls ;_} as td)) ->
@@ -1169,11 +1199,11 @@ and with_constraint ctxt f = function
 
 
 and module_type1 ctxt f x =
+  match Jane_syntax.Module_type.of_ast x with
+  | Some (jmty, attrs) -> module_type_jane_syntax1 ctxt attrs f jmty
+  | None ->
   if x.pmty_attributes <> [] then module_type ctxt f x
-  else match Jane_syntax.Module_type.of_ast x with
-    | Some jmty -> module_type_jane_syntax1 ctxt f jmty
-    | None ->
-    match x.pmty_desc with
+  else match x.pmty_desc with
     | Pmty_ident li ->
         pp f "%a" longident_loc li;
     | Pmty_alias li ->
@@ -1186,13 +1216,26 @@ and module_type1 ctxt f x =
     | Pmty_extension e -> extension ctxt f e
     | _ -> paren true (module_type ctxt) f x
 
-and module_type_jane_syntax1 ctxt f : Jane_syntax.Module_type.t -> _ = function
+and module_type_jane_syntax1 ctxt attrs f : Jane_syntax.Module_type.t -> _ =
+  function
   | Jmty_strengthen _ as jmty ->
-      paren true (module_type_jane_syntax ctxt) f jmty
+      paren true (module_type_jane_syntax ctxt attrs) f jmty
 
 and signature ctxt f x =  list ~sep:"@\n" (signature_item ctxt) f x
 
+and sig_include_functor ctxt f
+  : Jane_syntax.Include_functor.signature_item -> _ = function
+  | Ifsig_include_functor incl ->
+      include_ ctxt f ~functor_:true ~contents:module_type incl
+
+and signature_item_jane_syntax ctxt f : Jane_syntax.Signature_item.t -> _ =
+  function
+  | Jsig_include_functor ifincl -> sig_include_functor ctxt f ifincl
+
 and signature_item ctxt f x : unit =
+  match Jane_syntax.Signature_item.of_ast x with
+  | Some jsigi -> signature_item_jane_syntax ctxt f jsigi
+  | None ->
   match x.psig_desc with
   | Psig_type (rf, l) ->
       type_def_list ctxt f (rf, true, l)
@@ -1248,12 +1291,7 @@ and signature_item ctxt f x : unit =
         longident_loc od.popen_expr
         (item_attributes ctxt) od.popen_attributes
   | Psig_include incl ->
-      (* Print "include functor" rather than attribute *)
-      let attrs, incl_fun = check_include_functor_attr incl.pincl_attributes in
-      pp f "@[<hov2>include%a@ %a@]%a"
-        maybe_functor incl_fun
-        (module_type ctxt) incl.pincl_mod
-        (item_attributes ctxt) attrs
+      include_ ctxt f ~functor_:false ~contents:module_type incl
   | Psig_modtype {pmtd_name=s; pmtd_type=md; pmtd_attributes=attrs} ->
       pp f "@[<hov2>module@ type@ %s%a@]%a"
         s.txt
@@ -1453,7 +1491,19 @@ and binding_op ctxt f x =
      pp f "@[<2>%s %a@;=@;%a@]"
        x.pbop_op.txt (pattern ctxt) pat (expression ctxt) exp
 
+and str_include_functor ctxt f
+  : Jane_syntax.Include_functor.structure_item -> _ = function
+  | Ifstr_include_functor incl ->
+      include_ ctxt f ~functor_:true ~contents:module_expr incl
+
+and structure_item_jane_syntax ctxt f : Jane_syntax.Structure_item.t -> _ =
+  function
+  | Jstr_include_functor ifincl -> str_include_functor ctxt f ifincl
+
 and structure_item ctxt f x =
+  match Jane_syntax.Structure_item.of_ast x with
+  | Some jstri -> structure_item_jane_syntax ctxt f jstri
+  | None ->
   match x.pstr_desc with
   | Pstr_eval (e, attrs) ->
       pp f "@[<hov2>;;%a@]%a"
@@ -1552,12 +1602,7 @@ and structure_item ctxt f x =
         (value_description ctxt) vd
         (item_attributes ctxt) vd.pval_attributes
   | Pstr_include incl ->
-      (* Print "include functor" rather than attribute *)
-      let attrs, incl_fun = check_include_functor_attr incl.pincl_attributes in
-      pp f "@[<hov2>include%a@ %a@]%a"
-        maybe_functor incl_fun
-        (module_expr ctxt) incl.pincl_mod
-        (item_attributes ctxt) attrs
+      include_ ctxt f ~functor_:false ~contents:module_expr incl
   | Pstr_recmodule decls -> (* 3.07 *)
       let aux f = function
         | ({pmb_expr={pmod_desc=Pmod_constraint (expr, typ)}} as pmb) ->
@@ -1789,8 +1834,11 @@ and directive_argument f x =
   | Pdir_ident (li) -> pp f "@ %a" longident li
   | Pdir_bool (b) -> pp f "@ %s" (string_of_bool b)
 
-and jane_syntax_expr ctxt f (jexp : Jane_syntax.Expression.t) =
-  match jexp with
+and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) =
+  if attrs <> [] then
+    pp f "((%a)@,%a)" (jane_syntax_expr ctxt []) jexp
+      (attributes ctxt) attrs
+  else match jexp with
   | Jexp_comprehension comp    -> comprehension_expr ctxt f comp
   | Jexp_immutable_array iaexp -> immutable_array_expr ctxt f iaexp
 

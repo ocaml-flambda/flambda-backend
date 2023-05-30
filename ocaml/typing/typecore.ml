@@ -1858,7 +1858,7 @@ type 'case_pattern half_typed_case =
 
 let rec has_literal_pattern p =
   match Jane_syntax.Pattern.of_ast p with
-  | Some jpat -> has_literal_pattern_jane_syntax jpat
+  | Some (jpat, _attrs) -> has_literal_pattern_jane_syntax jpat
   | None      -> match p.ppat_desc with
   | Ppat_constant _
   | Ppat_interval _ ->
@@ -2179,7 +2179,7 @@ and type_pat_aux
     | Some Backtrack_or -> false
     | Some (Refine_or {inside_nonsplit_or}) -> inside_nonsplit_or
   in
-  let type_pat_array mutability spl =
+  let type_pat_array mutability spl pat_attributes =
     (* Sharing the code between the two array cases means we're guaranteed to
        keep them in sync, at the cost of a worse diff with upstream; it
        shouldn't be too bad.  We can inline this when we upstream this code and
@@ -2191,18 +2191,18 @@ and type_pat_aux
         pat_desc = Tpat_array (mutability, pl);
         pat_loc = loc; pat_extra=[];
         pat_type = instance expected_ty;
-        pat_attributes = sp.ppat_attributes;
+        pat_attributes;
         pat_env = !env })
   in
   match Jane_syntax.Pattern.of_ast sp with
-  | Some jpat -> begin
+  | Some (jpat, attrs) -> begin
       (* Normally this would go to an auxiliary function, but this function
          takes so many parameters, has such a complex type, and uses so many
          local definitions, it seems better to just put the pattern matching
          here.  This shouldn't mess up the diff *too* much. *)
       match jpat with
       | Jpat_immutable_array (Iapat_immutable_array spl) ->
-          type_pat_array Immutable spl
+          type_pat_array Immutable spl attrs
     end
   | None ->
   match sp.ppat_desc with
@@ -2509,7 +2509,7 @@ and type_pat_aux
             (fun lbl_pat_list -> k' (make_record_pat lbl_pat_list))
       end
   | Ppat_array spl ->
-      type_pat_array Mutable spl
+      type_pat_array Mutable spl sp.ppat_attributes
   | Ppat_or(sp1, sp2) ->
       begin match mode with
       | Normal ->
@@ -2836,7 +2836,7 @@ let combine_pat_tuple_arity a b =
 
 let rec pat_tuple_arity spat =
   match Jane_syntax.Pattern.of_ast spat with
-  | Some jpat -> pat_tuple_arity_jane_syntax jpat
+  | Some (jpat, _attrs) -> pat_tuple_arity_jane_syntax jpat
   | None      ->
   match spat.ppat_desc with
   | Ppat_tuple args -> Local_tuple (List.length args)
@@ -3040,10 +3040,9 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
           let ty_fun = expand_head env ty_fun in
           match get_desc ty_fun with
           | Tvar _ ->
-              (* CR layouts v2: value requirement to be relaxed *)
-              let ty_arg_mono = newvar Layout.value in
+              let ty_arg_mono = newvar (Layout.of_new_sort_var ()) in
               let ty_arg = newmono ty_arg_mono in
-              let ty_res = newvar Layout.value in
+              let ty_res = newvar (Layout.of_new_sort_var ()) in
               if ret_tvar &&
                  not (is_prim ~name:"%identity" funct) &&
                  not (is_prim ~name:"%obj_magic" funct)
@@ -3378,7 +3377,7 @@ let is_local_returning_expr e =
   in
   let rec loop e =
     match Jane_syntax.Expression.of_ast e with
-    | Some jexp -> begin
+    | Some (jexp, _attrs) -> begin
         match jexp with
         | Jexp_comprehension   _ -> false, e.pexp_loc
         | Jexp_immutable_array _ -> false, e.pexp_loc
@@ -3460,6 +3459,9 @@ let is_local_returning_function cases =
 (* Approximate the type of an expression, for better recursion *)
 
 let rec approx_type env sty =
+  match Jane_syntax.Core_type.of_ast sty with
+  | Some (jty, attrs) -> approx_type_jst env attrs jty
+  | None ->
   match sty.ptyp_desc with
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
       (* CR layouts v5: value requirement here to be relaxed *)
@@ -3479,9 +3481,10 @@ let rec approx_type env sty =
       end
   | Ptyp_arrow (p, arg_sty, sty) ->
       let arg_mode = Typetexp.get_alloc_mode arg_sty in
-      let var = newvar Layout.value in
       let arg =
-        if is_optional p then type_option var else var
+        if is_optional p
+        then type_option (newvar Layout.value)
+        else newvar (Layout.of_new_sort_var ())
       in
       let ret = approx_type env sty in
       let marg = Alloc_mode.of_const arg_mode in
@@ -3502,12 +3505,15 @@ let rec approx_type env sty =
      (which mentions approx_type) for why it can't be value.  *)
   | _ -> newvar Layout.any
 
+and approx_type_jst _env _attrs : Jane_syntax.Core_type.t -> _ = function
+  | _ -> .
+
 let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array _ -> ()
 
 let type_pattern_approx env spat ty_expected =
   match Jane_syntax.Pattern.of_ast spat with
-  | Some jpat -> type_pattern_approx_jane_syntax jpat
+  | Some (jpat, _attrs) -> type_pattern_approx_jane_syntax jpat
   | None      ->
   match spat.ppat_desc with
   | Ppat_constraint(_, ({ptyp_desc=Ptyp_poly _} as sty)) ->
@@ -3569,7 +3575,7 @@ let rec type_function_approx env loc label spato sexp in_function ty_expected =
 
 and type_approx_aux env sexp in_function ty_expected =
   match Jane_syntax.Expression.of_ast sexp with
-  | Some jexp -> type_approx_aux_jane_syntax jexp
+  | Some (jexp, _attrs) -> type_approx_aux_jane_syntax jexp
   | None      -> match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
@@ -3836,7 +3842,7 @@ let shallow_iter_ppat_jane_syntax f : Jane_syntax.Pattern.t -> _ = function
 
 let shallow_iter_ppat f p =
   match Jane_syntax.Pattern.of_ast p with
-  | Some jpat -> shallow_iter_ppat_jane_syntax f jpat
+  | Some (jpat, _attrs) -> shallow_iter_ppat_jane_syntax f jpat
   | None      ->
   match p.ppat_desc with
   | Ppat_any | Ppat_var _ | Ppat_constant _ | Ppat_interval _
@@ -3973,7 +3979,7 @@ let unify_exp env exp expected_ty =
 
 let rec is_inferred sexp =
   match Jane_syntax.Expression.of_ast sexp with
-  | Some jexp -> is_inferred_jane_syntax jexp
+  | Some (jexp, _attrs) -> is_inferred_jane_syntax jexp
   | None      -> match sexp.pexp_desc with
   | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint _
   | Pexp_coerce _ | Pexp_send _ | Pexp_new _ -> true
@@ -4067,14 +4073,14 @@ and type_expect_
     exp
   in
   match Jane_syntax.Expression.of_ast sexp with
-  | Some jexp ->
+  | Some (jexp, attributes) ->
       type_expect_jane_syntax
         ~loc
         ~env
         ~expected_mode
         ~ty_expected
         ~explanation
-        ~attributes:sexp.pexp_attributes
+        ~attributes
         jexp
   | None      -> match sexp.pexp_desc with
   | Pexp_ident lid ->
@@ -5408,18 +5414,24 @@ and type_expect_
       let op_path, op_desc = type_binding_op_ident env slet.pbop_op in
       let op_type = instance op_desc.val_type in
       let spat_params, ty_params =
-        (* CR layouts v5: eliminate value requirement *)
-        loop slet.pbop_pat (newvar Layout.value) sands
+        (* The use of a sort var here instead of a value is a little suspect,
+           because this can be the component of a tuple if there are several
+           [and] operators. In practice, all will be OK, though, because this
+           type will get unified with a tuple type (in the [type_cases] below)
+           and the sort var will get set to [value]. However, we still use a
+           sort var here to allow for a non-[value] type when there are no
+           [and]s. *)
+        (* CR layouts v5: Remove above comment when we support tuples of
+           non-[value] types. *)
+        loop slet.pbop_pat (newvar (Layout.of_new_sort_var ())) sands
       in
-      (* CR layouts v2: eliminate value requirement *)
-      let ty_func_result = newvar Layout.value in
+      let ty_func_result = newvar (Layout.of_new_sort_var ()) in
       let arrow_desc = Nolabel, Alloc_mode.global, Alloc_mode.global in
       let ty_func =
         newty (Tarrow(arrow_desc, newmono ty_params, ty_func_result, commu_ok))
       in
-      (* CR layouts v2: eliminate value requirement *)
-      let ty_result = newvar Layout.value in
-      let ty_andops = newvar Layout.value in
+      let ty_result = newvar (Layout.of_new_sort_var ()) in
+      let ty_andops = newvar (Layout.of_new_sort_var ()) in
       let ty_op =
         newty (Tarrow(arrow_desc, newmono ty_andops,
           newty (Tarrow(arrow_desc, newmono ty_func,
@@ -6826,7 +6838,7 @@ and type_let
   in
   let rec sexp_is_fun sexp =
     match Jane_syntax.Expression.of_ast sexp with
-    | Some jexp -> jexp_is_fun jexp
+    | Some (jexp, _attrs) -> jexp_is_fun jexp
     | None      -> match sexp.pexp_desc with
     | Pexp_fun _ | Pexp_function _ -> true
     | Pexp_constraint (e, _)
@@ -7149,10 +7161,9 @@ and type_andops env sarg sands expected_ty =
         if !Clflags.principal then begin_def ();
         let op_path, op_desc = type_binding_op_ident env sop in
         let op_type = op_desc.val_type in
-        (* CR layouts v2: relax value requirements *)
-        let ty_arg = newvar Layout.value in
-        let ty_rest = newvar Layout.value in
-        let ty_result = newvar Layout.value in
+        let ty_arg = newvar (Layout.of_new_sort_var ()) in
+        let ty_rest = newvar (Layout.of_new_sort_var ()) in
+        let ty_result = newvar (Layout.of_new_sort_var ()) in
         let arrow_desc = (Nolabel,Alloc_mode.global,Alloc_mode.global) in
         let ty_rest_fun =
           newty (Tarrow(arrow_desc, newmono ty_arg, ty_result, commu_ok))
@@ -7512,15 +7523,11 @@ let type_let existential_ctx env rec_flag spat_sexp_list =
 
 (* Typing of toplevel expressions *)
 
-(* CR layouts: In many places, we call this (or various related functions like
-   type_expect) and then immediately call `type_layout` to find the layout of
-   the resulting type.  This feels like it could be improved - perhaps
-   type_expression could cheaply keep track of the layout of the type it's
-   computing and return it? *)
-let type_expression env sexp =
+let type_expression env layout sexp =
   Typetexp.TyVarEnv.reset ();
   begin_def();
-  let exp = type_exp env mode_global sexp in
+  let expected = mk_expected (newvar layout) in
+  let exp = type_expect env mode_global sexp expected in
   end_def();
   if maybe_expansive exp then lower_contravariant env exp.exp_type;
   generalize exp.exp_type;
@@ -7533,6 +7540,13 @@ let type_expression env sexp =
       in
       {exp with exp_type = desc.val_type}
   | _ -> exp
+
+let type_representable_expression env sexp =
+  let sort = Sort.new_var () in
+  let exp = type_expression env (Layout.of_sort sort) sexp in
+  exp, sort
+
+let type_expression env sexp = type_expression env Layout.any sexp
 
 (* Error report *)
 
