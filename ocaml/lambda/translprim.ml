@@ -936,9 +936,6 @@ let lambda_primitive_needs_event_after = function
   | Pbox_float _ | Pbox_int _
   | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
   | Parrayrefu (Pgenarray_ref _ | Pfloatarray_ref _)
-  | Parraysetu (Pgenarray_set _ | Pfloatarray_set)
-    (* CR aspectorzabusky for mshinwell: It seems to be that unsafe set should
-       never allocate or throw an exception; am I missing something? *)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
   | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
   | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _
