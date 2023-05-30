@@ -3603,15 +3603,26 @@ let entry_point namelist =
   in
   let table_symbol = global_symbol "caml_globals_entry_functions" in
   let call i =
-    let f = Cop (Cadda, [cconst_symbol table_symbol; Cop (Cmuli, [Cconst_int (Arch.size_addr, dbg ()); i], dbg ())], dbg ()) in
+    let f =
+      Cop
+        ( Cadda,
+          [ cconst_symbol table_symbol;
+            Cop (Cmuli, [Cconst_int (Arch.size_addr, dbg ()); i], dbg ()) ],
+          dbg () )
+    in
     Csequence
-      ( Cop (Capply (typ_void, Rc_normal), [Cop (Cload (Word_int, Immutable), [f], dbg ())], dbg ()),
-        incr_global_inited ())
+      ( Cop
+          ( Capply (typ_void, Rc_normal),
+            [Cop (Cload (Word_int, Immutable), [f], dbg ())],
+            dbg () ),
+        incr_global_inited () )
   in
   let data =
-    List.map (fun name ->
-      Csymbol_address (global_symbol (make_symbol ~compilation_unit:name "entry"))
-    ) namelist
+    List.map
+      (fun name ->
+        Csymbol_address
+          (global_symbol (make_symbol ~compilation_unit:name "entry")))
+      namelist
   in
   let data = Cdefine_symbol table_symbol :: data in
   let raise_num = Lambda.next_raise_count () in
@@ -3621,41 +3632,59 @@ let entry_point namelist =
   let body =
     let dbg = dbg () in
     Clet_mut
-       (id, typ_int, cconst_int 0,
-          ccatch
-            (raise_num, [],
-             Cifthenelse
-               (Cop(Ccmpi Cgt, [Cvar (VP.var id); high], dbg),
-                dbg, Cexit (Lbl raise_num, [], []), dbg,
+      ( id,
+        typ_int,
+        cconst_int 0,
+        ccatch
+          ( raise_num,
+            [],
+            Cifthenelse
+              ( Cop (Ccmpi Cgt, [Cvar (VP.var id); high], dbg),
+                dbg,
+                Cexit (Lbl raise_num, [], []),
+                dbg,
                 create_loop
-                  (Csequence (
-                    call (Cvar (VP.var id)),
-                     Clet(id_prev, Cvar (VP.var id),
-                      Csequence
-                        (Cassign(VP.var id,
-                           Cop(Caddi, [Cvar (VP.var id); Cconst_int (1, dbg)],
-                             dbg)),
-                         Cifthenelse
-                           (Cop(Ccmpi Ceq, [Cvar (VP.var id_prev); high],
-                              dbg),
-                            dbg, Cexit (Lbl raise_num,[],[]),
-                            dbg, Ctuple [],
-                            dbg, Any)))))
+                  (Csequence
+                     ( call (Cvar (VP.var id)),
+                       Clet
+                         ( id_prev,
+                           Cvar (VP.var id),
+                           Csequence
+                             ( Cassign
+                                 ( VP.var id,
+                                   Cop
+                                     ( Caddi,
+                                       [Cvar (VP.var id); Cconst_int (1, dbg)],
+                                       dbg ) ),
+                               Cifthenelse
+                                 ( Cop
+                                     ( Ccmpi Ceq,
+                                       [Cvar (VP.var id_prev); high],
+                                       dbg ),
+                                   dbg,
+                                   Cexit (Lbl raise_num, [], []),
+                                   dbg,
+                                   Ctuple [],
+                                   dbg,
+                                   Any ) ) ) ))
                   dbg,
-               dbg, Any),
-             Ctuple [],
-             dbg, Any))
+                dbg,
+                Any ),
+            Ctuple [],
+            dbg,
+            Any ) )
   in
   let fun_name = global_symbol "caml_program" in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
-  [ Cdata data; Cfunction
-    { fun_name;
-      fun_args = [];
-      fun_body = Csequence(body, cconst_int 1);
-      fun_codegen_options = [Reduce_code_size];
-      fun_dbg;
-      fun_poll = Default_poll
-    }]
+  [ Cdata data;
+    Cfunction
+      { fun_name;
+        fun_args = [];
+        fun_body = Csequence (body, cconst_int 1);
+        fun_codegen_options = [Reduce_code_size];
+        fun_dbg;
+        fun_poll = Default_poll
+      } ]
 
 (* Generate the table of globals *)
 
