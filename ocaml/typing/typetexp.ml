@@ -997,6 +997,11 @@ let transl_type_scheme env styp =
      begin_def();
      let typ = transl_simple_type env ~closed:false Alloc_mode.Global styp in
      end_def();
+     (* This next line is very important: it stops [val] and [external]
+        declarations from having undefaulted layout variables. Without
+        this line, we might accidentally export a layout-flexible definition
+        from a compilation unit, which would lead to miscompilation. *)
+     remove_mode_and_layout_variables typ.ctyp_type;
      generalize typ.ctyp_type;
      typ
 
