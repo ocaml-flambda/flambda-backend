@@ -129,7 +129,6 @@ let register : type a. a pass -> (a -> unit) -> unit =
   | Cmm -> hooks.cmm <- f :: hooks.cmm
   | Inlining_tree -> hooks.inlining_tree <- f :: hooks.inlining_tree
   | Check_allocations ->
-    Flambda_backend_flags.checkmach_details_cutoff := -1;
     hooks.check_allocations <- f :: hooks.check_allocations
 
 let execute : type a. a pass -> a -> unit =
@@ -159,7 +158,10 @@ let execute : type a. a pass -> a -> unit =
   | Cfg -> execute_hooks hooks.cfg arg
   | Cmm -> execute_hooks hooks.cmm arg
   | Inlining_tree -> execute_hooks hooks.inlining_tree arg
-  | Check_allocations -> execute_hooks hooks.check_allocations arg
+  | Check_allocations ->
+    Misc.protect_refs
+      [ Misc.R (Flambda_backend_flags.checkmach_details_cutoff, -1) ]
+      (fun () -> execute_hooks hooks.check_allocations arg)
 
 let execute_and_pipe r a = execute r a; a
 
