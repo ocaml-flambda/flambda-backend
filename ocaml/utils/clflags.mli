@@ -199,8 +199,6 @@ val afl_instrument : bool ref
 val afl_inst_ratio : int ref
 val function_sections : bool ref
 val probes : bool ref
-val use_cached_startup : string option ref
-val gen_cached_startup : string option ref
 
 val all_passes : string list ref
 val dumped_pass : string -> bool

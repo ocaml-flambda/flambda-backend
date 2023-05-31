@@ -623,16 +623,6 @@ let mk_use_runtime_2 f =
   "<file>  (deprecated) same as -use-runtime"
 ;;
 
-let mk_use_cached_startup f =
-  "-use-cached-startup", Arg.String f,
-  "<file>  Use the provided cached startup"
-;;
-
-let mk_gen_cached_startup f =
-  "-gen-cached-startup", Arg.String f,
-  "<file>  Generate a cached startup file"
-;;
-
 let mk_v f =
   "-v", Arg.Unit f,
   " Print compiler version and location of standard library and exit"
@@ -1216,8 +1206,6 @@ module type Optcomp_options = sig
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
-  val _use_cached_startup : string -> unit
-  val _gen_cached_startup : string -> unit
 end;;
 
 module type Opttop_options = sig
@@ -1544,8 +1532,6 @@ struct
     mk_no_unboxed_types F._no_unboxed_types;
     mk_unsafe F._unsafe;
     mk_unsafe_string F._unsafe_string;
-    mk_use_cached_startup F._use_cached_startup;
-    mk_gen_cached_startup F._gen_cached_startup;
     mk_v F._v;
     mk_verbose F._verbose;
     mk_version F._version;
@@ -2095,8 +2081,6 @@ module Default = struct
     let _v () = Compenv.print_version_and_library "native-code compiler"
     let _no_probes = clear probes
     let _probes = set probes
-    let _use_cached_startup s = use_cached_startup := Some s
-    let _gen_cached_startup s = gen_cached_startup := Some s
   end
 
   module Odoc_args = struct

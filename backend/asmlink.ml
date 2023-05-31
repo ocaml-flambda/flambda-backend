@@ -364,7 +364,7 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   let globals_map = make_globals_map units in
   compile_phrase (Cmm_helpers.globals_map globals_map);
   let name_list =
-    if Option.is_some !Clflags.use_cached_startup then
+    if Option.is_some !Flambda_backend_flags.use_cached_startup then
       CU.create CU.Prefix.empty (CU.Name.of_string "_cached_startup") :: name_list
     else name_list
   in
@@ -406,10 +406,6 @@ let make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   compile_phrase (Cmm_helpers.plugin_header dynunits);
   compile_phrase
     (Cmm_helpers.global_table (List.map (fun unit -> unit.name) units));
-  if !Clflags.output_complete_object then
-    force_linking_of_startup ~ppf_dump;
-  (* this is to force a reference to all units, otherwise the linker
-     might drop some of them (in case of libraries) *)
   Emit.end_assembly ()
 
 let call_linker_shared file_list output_name =
@@ -493,7 +489,7 @@ let call_linker file_list_rev startup_file output_name =
   in
   let files = startup_file :: (List.rev file_list_rev) in
   let files =
-    match !Clflags.use_cached_startup with
+    match !Flambda_backend_flags.use_cached_startup with
     | Some p -> p :: files
     | None -> files
   in

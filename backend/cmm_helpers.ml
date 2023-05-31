@@ -2963,11 +2963,6 @@ module Generic_fns_tbl = struct
     List.iter (fun f -> Hashtbl.replace t.apply f ()) apply_fun;
     List.iter (fun f -> Hashtbl.replace t.send f ()) send_fun
 
-  let of_fns fns =
-    let t = make () in
-    add_uncached t fns;
-    t
-
   let entries t : Cmx_format.generic_fns =
     let sorted_keys tbl =
       let keys = Hashtbl.fold (fun k () acc -> k :: acc) tbl [] in
@@ -2985,6 +2980,10 @@ module Generic_fns_tbl = struct
       List.fold_left
         (fun acc a -> match a with [| Val |] -> acc + 1 | _ -> acc)
         0 arity
+    let max_send = 20
+    let max_apply = 404
+    let max_tuplify = 100
+    let considered_as_small_threshold = 20
 
     let is_curry (kind, arity, result) =
       if not (check_result result)
@@ -2993,10 +2992,10 @@ module Generic_fns_tbl = struct
         match kind with
         | Lambda.Tupled ->
           let l = len_arity arity in
-          2 <= l && l <= 20
+          2 <= l && l <= considered_as_small_threshold
         | Lambda.Curried { nlocal } ->
           let l = len_arity arity in
-          let in_bounds = 2 <= l && l <= 126 in
+          let in_bounds = 2 <= l && l <= Lambda.max_arity () in
           if not in_bounds
           then false
           else if nlocal = 0
@@ -3005,7 +3004,7 @@ module Generic_fns_tbl = struct
           then true
           else if nlocal = l
           then true
-          else if l <= 20
+          else if l <= considered_as_small_threshold
           then true
           else false
 
@@ -3015,7 +3014,7 @@ module Generic_fns_tbl = struct
       else
         match alloc with
         | Lambda.Alloc_local -> len_arity arity = 0
-        | Lambda.Alloc_heap -> len_arity arity <= 10
+        | Lambda.Alloc_heap -> len_arity arity <= max_send
 
     let is_apply (arity, result, alloc) =
       if not (check_result result)
@@ -3024,29 +3023,43 @@ module Generic_fns_tbl = struct
         match alloc with
         | Lambda.Alloc_local ->
           let l = len_arity arity in
-          2 <= l && l <= 20
+          2 <= l && l <= considered_as_small_threshold
         | Lambda.Alloc_heap ->
           let l = len_arity arity in
-          2 <= l && l <= 403
+          2 <= l && l <= max_apply
 
     let gen () =
+      (* [is_curry], [is_send] and [is_apply] are also used to determine if a generate
+         function was cached. When we generate the cached startup, we explore the space
+        of all potential candidates and rely on these functions to filter out the one
+        that we'll actually generate.
+        It's okay to have a search space bigger than needed, however it's not okay
+        to have a search space that does not englobe all candidates as it will
+        result in weird errors at link-time.
+        We maybe could use Z3 to automatically derive a good search space in the future
+        as the filters might become more complexed with unboxed types.
+      *)
+      assert (considered_as_small_threshold <= max_tuplify);
+      assert (considered_as_small_threshold <= max_apply);
+      assert (considered_as_small_threshold <= max_send);
+      assert (considered_as_small_threshold <= Lambda.max_arity ());
       let arity n = List.init n (fun _ -> [| Val |]) in
       let result = [| Val |] in
-      let tuplify = List.init 100 (fun n -> Lambda.Tupled, arity n, result) in
+      let tuplify = List.init max_tuplify (fun n -> Lambda.Tupled, arity n, result) in
       let curry =
-        List.init 128 (fun n ->
-            List.init 128 (fun nlocal ->
+        List.init (Lambda.max_arity ()) (fun n ->
+            List.init (Lambda.max_arity ()) (fun nlocal ->
                 Lambda.Curried { nlocal }, arity n, result))
         |> List.concat
       in
       let send =
-        List.init 20 (fun n ->
+        List.init max_send (fun n ->
             [ arity n, result, Lambda.alloc_local;
               arity n, result, Lambda.alloc_heap ])
         |> List.concat
       in
       let apply =
-        List.init 404 (fun n ->
+        List.init max_apply (fun n ->
             [ arity n, result, Lambda.alloc_local;
               arity n, result, Lambda.alloc_heap ])
         |> List.concat
@@ -3054,15 +3067,15 @@ module Generic_fns_tbl = struct
       let t = make () in
       add_uncached t
         Cmx_format.
-          { curry_fun = List.filter (fun x -> is_curry x) (tuplify @ curry);
-            send_fun = List.filter (fun x -> is_send x) send;
-            apply_fun = List.filter (fun x -> is_apply x) apply
+          { curry_fun = List.filter is_curry (tuplify @ curry);
+            send_fun = List.filter is_send send;
+            apply_fun = List.filter is_apply apply
           };
       t
   end
 
   let add t (Cmx_format.{ curry_fun; apply_fun; send_fun } as f) =
-    match !Clflags.use_cached_startup with
+    match !Flambda_backend_flags.use_cached_startup with
     | None -> add_uncached t f
     | Some _ ->
       List.iter
@@ -3077,6 +3090,12 @@ module Generic_fns_tbl = struct
         (fun f ->
           if not (Precomputed.is_send f) then Hashtbl.replace t.send f ())
         send_fun
+
+  let of_fns fns =
+    let t = make () in
+    add t fns;
+    t
+
 end
 
 let generic_functions shared tbl =

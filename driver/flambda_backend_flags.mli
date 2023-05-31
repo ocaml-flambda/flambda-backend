@@ -51,6 +51,8 @@ val internal_assembler : bool ref
 
 val gc_timings : bool ref
 
+val use_cached_startup : string option ref
+
 module Flambda2 : sig
   val debug : bool ref
 

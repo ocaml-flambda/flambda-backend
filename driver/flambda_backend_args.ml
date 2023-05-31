@@ -495,6 +495,11 @@ let mk_no_dwarf_for_startup_file f =
   "-gno-startup", Arg.Unit f, " Emit the same DWARF information for the\n\
     \     startup file as the upstream compiler"
 
+let mk_use_cached_startup f =
+  "-use-cached-startup", Arg.String f,
+  "<file>  Use the provided cached startup"
+;;
+
 let set_long_frames_threshold n =
   if n < 0 then
     raise (Arg.Bad "Long frames threshold must be non-negative.");
@@ -596,6 +601,7 @@ module type Flambda_backend_options = sig
   val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
   val dflow : unit -> unit
+  val use_cached_startup : string -> unit
 end
 
 module Make_flambda_backend_options (F : Flambda_backend_options) =
@@ -716,6 +722,7 @@ struct
     mk_dslot_offsets F.dslot_offsets;
     mk_dfreshen F.dfreshen;
     mk_dflow F.dflow;
+    mk_use_cached_startup F.use_cached_startup;
   ]
 end
 
@@ -898,6 +905,7 @@ module Flambda_backend_options_impl = struct
   let dslot_offsets = set' Flambda2.Dump.slot_offsets
   let dfreshen = set' Flambda2.Dump.freshen
   let dflow = set' Flambda2.Dump.flow
+  let use_cached_startup file = Flambda_backend_flags.use_cached_startup := Some file
 end
 
 module type Debugging_options = sig
@@ -1093,6 +1101,8 @@ module Extra_params = struct
        set' Flambda2.Debug.concrete_types_only_on_canonicals
     | "flambda2-debug-keep-invalid-handlers" ->
        set' Flambda2.Debug.keep_invalid_handlers
+    | "use-cached-startup" ->
+      Flambda_backend_flags.use_cached_startup := Some v; true
     | _ -> false
 end
 
