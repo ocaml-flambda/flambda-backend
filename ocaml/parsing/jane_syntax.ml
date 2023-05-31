@@ -203,13 +203,14 @@ module Comprehensions = struct
      attribute removed. *)
   let expand_comprehension_extension_expr expr =
     match find_and_remove_jane_syntax_attribute expr.pexp_attributes with
-    | Some (ext_name, attributes) ->
-        let comprehensions :: names =
-          Jane_syntax_parsing.Embedded_name.components ext_name
-        in
-        if String.equal comprehensions extension_string
-        then names, { expr with pexp_attributes = attributes }
-        else Desugaring_error.raise expr (Non_comprehension_embedding ext_name)
+    | Some (ext_name, attributes) -> begin
+        match Jane_syntax_parsing.Embedded_name.components ext_name with
+        | comprehensions :: names
+          when String.equal comprehensions extension_string ->
+            names, { expr with pexp_attributes = attributes }
+        | _ :: _ ->
+            Desugaring_error.raise expr (Non_comprehension_embedding ext_name)
+      end
     | None ->
         Desugaring_error.raise expr Non_embedding
 
