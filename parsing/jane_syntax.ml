@@ -12,23 +12,25 @@ open Jane_syntax_parsing
    that both [comprehensions] and [immutable_arrays] are enabled.  But our
    general mechanism for checking for enabled extensions (in [of_ast]) won't
    work well here: it triggers when converting from
-   e.g. [[%jane.comprehensions.array] ...]  to the comprehensions-specific
-   AST. But if we spot a [[%jane.comprehensions.immutable]], there is no
-   expression to translate.  So we just check for the immutable arrays extension
-   when processing a comprehension expression for an immutable array.
+   e.g. [[%jane.non_erasable.comprehensions.array] ...] to the
+   comprehensions-specific AST. But if we spot a
+   [[%jane.non_erasable.comprehensions.immutable]], there is no expression to
+   translate. So we just check for the immutable arrays extension when
+   processing a comprehension expression for an immutable array.
 
    Note [Wrapping with make_entire_jane_syntax]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
    The topmost node in the encoded AST must always look like e.g.
-   [%jane.comprehensions]. This allows the decoding machinery to know what
-   extension is being used and what function to call to do the decoding.
-   Accordingly, during encoding, after doing the hard work of converting the
-   extension syntax tree into e.g. Parsetree.expression, we need to make a final
-   step of wrapping the result in an [%jane.xyz] node. Ideally, this step would
-   be done by part of our general structure, like we separate [of_ast] and
-   [of_ast_internal] in the decode structure; this design would make it
-   structurally impossible/hard to forget taking this final step.
+   [%jane.non_erasable.comprehensions]. (More generally,
+   [%jane.ERASABILITY.FEATURE] or [@jane.ERASABILITY.FEATURE].) This allows the
+   decoding machinery to know what extension is being used and what function to
+   call to do the decoding. Accordingly, during encoding, after doing the hard
+   work of converting the extension syntax tree into e.g. Parsetree.expression,
+   we need to make a final step of wrapping the result in a [%jane.*.xyz] node.
+   Ideally, this step would be done by part of our general structure, like we
+   separate [of_ast] and [of_ast_internal] in the decode structure; this design
+   would make it structurally impossible/hard to forget taking this final step.
 
    However, the final step is only one line of code (a call to
    [make_entire_jane_syntax]), but yet the name of the feature varies, as does
@@ -43,7 +45,8 @@ module With_attributes = With_attributes
 
 (** List and array comprehensions *)
 module Comprehensions = struct
-  let extension_string = Language_extension.to_string Comprehensions
+  let feature : Feature.t = Language_extension Comprehensions
+  let extension_string = Feature.extension_component feature
 
   type iterator =
     | Range of { start     : expression
@@ -93,7 +96,7 @@ module Comprehensions = struct
 
   let comprehension_expr names x =
     AST.wrap_desc Expression ~attrs:[] ~loc:x.pexp_loc @@
-    AST.make_jane_syntax Expression (extension_string :: names) x
+    AST.make_jane_syntax Expression feature names x
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
       the [expr_of_...] family of expressions, culminating in
@@ -142,7 +145,7 @@ module Comprehensions = struct
 
   let expr_of ~loc cexpr =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
-    AST.make_entire_jane_syntax Expression ~loc extension_string (fun () ->
+    AST.make_entire_jane_syntax Expression ~loc feature (fun () ->
       match cexpr with
       | Cexp_list_comprehension comp ->
           expr_of_comprehension ~type_:["list"] comp
@@ -180,7 +183,7 @@ module Comprehensions = struct
           Location.errorf ~loc
             "Unknown, unexpected, or malformed@ comprehension embedded term %a"
             Embedded_name.pp_quoted_name
-            Embedded_name.(extension_string :: subparts)
+            (Embedded_name.of_feature feature subparts)
       | No_clauses ->
           Location.errorf ~loc
             "Tried to desugar a comprehension with no clauses"
@@ -200,11 +203,14 @@ module Comprehensions = struct
      attribute removed. *)
   let expand_comprehension_extension_expr expr =
     match find_and_remove_jane_syntax_attribute expr.pexp_attributes with
-    | Some (comprehensions :: names, attributes)
-      when String.equal comprehensions extension_string ->
-        names, { expr with pexp_attributes = attributes }
-    | Some (ext_name, _) ->
-        Desugaring_error.raise expr (Non_comprehension_embedding ext_name)
+    | Some (ext_name, attributes) -> begin
+        match Jane_syntax_parsing.Embedded_name.components ext_name with
+        | comprehensions :: names
+          when String.equal comprehensions extension_string ->
+            names, { expr with pexp_attributes = attributes }
+        | _ :: _ ->
+            Desugaring_error.raise expr (Non_comprehension_embedding ext_name)
+      end
     | None ->
         Desugaring_error.raise expr Non_embedding
 
@@ -278,12 +284,12 @@ module Immutable_arrays = struct
   type nonrec pattern =
     | Iapat_immutable_array of pattern list
 
-  let extension_string = Language_extension.to_string Immutable_arrays
+  let feature : Feature.t = Language_extension Immutable_arrays
 
   let expr_of ~loc = function
     | Iaexp_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
-      AST.make_entire_jane_syntax Expression ~loc extension_string (fun () ->
+      AST.make_entire_jane_syntax Expression ~loc feature (fun () ->
         Ast_helper.Exp.array elts)
 
   (* Returns remaining unconsumed attributes *)
@@ -294,7 +300,7 @@ module Immutable_arrays = struct
   let pat_of ~loc = function
     | Iapat_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
-      AST.make_entire_jane_syntax Pattern ~loc extension_string (fun () ->
+      AST.make_entire_jane_syntax Pattern ~loc feature (fun () ->
         Ast_helper.Pat.array elts)
 
   (* Returns remaining unconsumed attributes *)
@@ -311,13 +317,13 @@ module Include_functor = struct
   type structure_item =
     | Ifstr_include_functor of include_declaration
 
-  let extension_string = Language_extension.to_string Include_functor
+  let feature : Feature.t = Language_extension Include_functor
 
   let sig_item_of ~loc = function
     | Ifsig_include_functor incl ->
         (* See Note [Wrapping with make_entire_jane_syntax] *)
-        AST.make_entire_jane_syntax Signature_item ~loc extension_string
-          (fun () -> Ast_helper.Sig.include_ incl)
+        AST.make_entire_jane_syntax Signature_item ~loc feature (fun () ->
+          Ast_helper.Sig.include_ incl)
 
   let of_sig_item sigi = match sigi.psig_desc with
     | Psig_include incl -> Ifsig_include_functor incl
@@ -326,8 +332,8 @@ module Include_functor = struct
   let str_item_of ~loc = function
     | Ifstr_include_functor incl ->
         (* See Note [Wrapping with make_entire_jane_syntax] *)
-        AST.make_entire_jane_syntax Structure_item ~loc extension_string
-          (fun () -> Ast_helper.Str.include_ incl)
+        AST.make_entire_jane_syntax Structure_item ~loc feature (fun () ->
+          Ast_helper.Str.include_ incl)
 
   let of_str_item stri = match stri.pstr_desc with
     | Pstr_include incl -> Ifstr_include_functor incl
@@ -339,7 +345,7 @@ module Strengthen = struct
   type nonrec module_type =
     { mty : Parsetree.module_type; mod_id : Longident.t Location.loc }
 
-  let extension_string = Language_extension.to_string Module_strengthening
+  let feature : Feature.t = Language_extension Module_strengthening
 
   (* Encoding: [S with M] becomes [functor (_ : S) -> (module M)], where
      the [(module M)] is a [Pmty_alias].  This isn't syntax we can write, but
@@ -347,7 +353,7 @@ module Strengthen = struct
 
   let mty_of ~loc { mty; mod_id } =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
-    AST.make_entire_jane_syntax Module_type ~loc extension_string (fun () ->
+    AST.make_entire_jane_syntax Module_type ~loc feature (fun () ->
       Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
         (Ast_helper.Mty.alias mod_id))
 

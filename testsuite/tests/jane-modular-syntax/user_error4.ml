@@ -18,4 +18,4 @@
    like it in separate files, because the "compile and test output"
    infrastructure reports only one error at a time. *)
 
-let _disabled_extension = () [@jane.comprehensions];;
+let _disabled_extension = () [@jane.non_erasable.comprehensions];;
