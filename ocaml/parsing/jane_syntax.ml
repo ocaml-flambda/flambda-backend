@@ -25,7 +25,7 @@ open Jane_syntax_parsing
    extension is being used and what function to call to do the decoding.
    Accordingly, during encoding, after doing the hard work of converting the
    extension syntax tree into e.g. Parsetree.expression, we need to make a final
-   step of wrapping the result in an [%jane.*.xyz] node. Ideally, this
+   step of wrapping the result in a [%jane.*.xyz] node. Ideally, this
    step would be done by part of our general structure, like we separate
    [of_ast] and [of_ast_internal] in the decode structure; this design would
    make it structurally impossible/hard to forget taking this final step.
