@@ -103,32 +103,6 @@ module Feature : sig
   val extension_component : t -> string
 end
 
-(** The component of an attribute or extension name that identifies whether or
-    not the embedded syntax is *erasable*; that is, whether or not the
-    upstream OCaml compiler can safely interpret the AST while ignoring the
-    attribute or extension.  (This means that syntax encoded as extension
-    nodes should always be non-erasable.)  Tools that consume the parse tree
-    we generate can make use of this information; for instance, ocamlformat
-    will use it to guide how we present code that can be run with both our
-    compiler and the upstream compiler, and ppxlib can use it to decide
-    whether it's ok to allow ppxes to construct syntax that uses this
-    emedding.  In particular, the upstream version of ppxlib will allow ppxes
-    to produce [[@jane.erasable.*]] attributes, but will report an error if a
-    ppx produces a [[@jane.non_erasable.*]] attribute.
-
-    As mentioned above, unlike for attributes, the erasable/non-erasable
-    distinction is not meaningful for extension nodes, as the compiler will
-    always error if it sees an uninterpreted extension node. So, for purposes
-    of tools in the wider OCaml ecosystem, it is irrelevant whether embeddings
-    that use extension nodes indicate [Erasable] or [Non_erasable] for this
-    component, but the semantically correct choice and the one we've settled
-    on is to use [Non_erasable]. *)
-module Erasability : sig
-  type t =
-    | Erasable
-    | Non_erasable
-end
-
 (** An AST-style representation of the names used when generating extension
     nodes or attributes for modular syntax.  We use this to abstract over the
     details of how they're encoded, so we have some flexibility in changing them
