@@ -374,7 +374,7 @@ module Strengthen = struct
   let mty_of ~loc { mty; mod_id } =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
     AST.make_entire_jane_syntax Module_type ~loc erasability feature (fun () ->
-        Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
+      Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
         (Ast_helper.Mty.alias mod_id))
 
   (* Returns remaining unconsumed attributes *)
