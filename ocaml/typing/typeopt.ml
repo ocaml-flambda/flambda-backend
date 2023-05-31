@@ -198,9 +198,10 @@ let value_kind_of_value_layout layout =
 
 module TTbl = struct
   module M = struct
-    type t = Types.type_expr
-    let hash t = Types.get_id t
-    let equal t1 t2 = Types.get_id t1 = Types.get_id t2
+    type t = ( Types.type_expr * Env.t )
+    let hash (ty, env) = Types.get_id ty lxor Hashtbl.hash env
+    let equal (ty1, env1) (ty2, env2) =
+      Types.get_id ty1 = Types.get_id ty2 && env1 == env2
   end
   module Tbl = Hashtbl.Make(M)
   include Tbl
@@ -503,10 +504,10 @@ and value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
     let num_nodes_visited, kind =
       value_kind' env ~loc ~visited ~depth ~num_nodes_visited ty
     in
-    TTbl.replace produced_types ty { depth; kind; num_nodes_visited };
+    TTbl.replace produced_types (ty, env) { depth; kind; num_nodes_visited };
     num_nodes_visited, kind
   in
-  match TTbl.find_opt produced_types ty with
+  match TTbl.find_opt produced_types (ty, env) with
   | Some { depth = prev_depth; num_nodes_visited = prev_num_nodes_visited; kind } ->
       if prev_depth <= depth && prev_num_nodes_visited <= num_nodes_visited then
         num_nodes_visited, kind
