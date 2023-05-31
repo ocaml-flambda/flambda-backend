@@ -3589,9 +3589,9 @@ let make_symbol ?compilation_unit name =
  *   while (true) {
  *     caml_globals_entry_functions[i]();
  *     caml_globals_inited += 1;
- *     int idprev = i;
+ *     int id_prev = i;
  *     id += 1;
- *     if (idprev == len_caml_globals_entry_functions) goto out;
+ *     if (id_prev == len_caml_globals_entry_functions) goto out;
  *   }
  *   out:
  *   return 1;
