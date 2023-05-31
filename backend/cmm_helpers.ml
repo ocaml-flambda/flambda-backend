@@ -3034,12 +3034,12 @@ module Generic_fns_tbl = struct
 
     let gen () =
       (* [is_curry], [is_send] and [is_apply] are also used to determine if a
-         generate function was cached. When we generate the cached generated functions,
-         we explore the space of all potential candidates and rely on these
-         functions to filter out the one that we'll actually generate. It's okay
-         to have a search space bigger than needed, however it's not okay to
-         have a search space that does not englobe all candidates as it will
-         result in weird errors at link-time. We maybe could use Z3 to
+         generate function was cached. When we generate the cached generated
+         functions, we explore the space of all potential candidates and rely on
+         these functions to filter out the one that we'll actually generate.
+         It's okay to have a search space bigger than needed, however it's not
+         okay to have a search space that does not englobe all candidates as it
+         will result in weird errors at link-time. We maybe could use Z3 to
          automatically derive a good search space in the future as the filters
          might become more complexed with unboxed types. *)
       assert (considered_as_small_threshold <= max_tuplify);
