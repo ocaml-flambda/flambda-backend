@@ -24,13 +24,13 @@
     In the below example, we use attributes an examples, but it applies equally
     to extensions. We also provide utilities for further desugaring similar
     applications where the embeddings have the longer form
-    [[@jane.ERASABILITY.FEATNAME.ID1.ID2.….IDn]] (with the outermost one being the
-    [n = 0] case), as these might be used inside the [EXPR]. (For example,
-    within the outermost [[@jane.ERASABILITY.comprehensions]] term for list and
+    [[@jane.ERASABILITY.FEATNAME.ID1.ID2.….IDn]] (with the outermost one being
+    the [n = 0] case), as these might be used inside the [EXPR]. (For example,
+    within the outermost [[@jane.non_erasable.comprehensions]] term for list and
     array comprehensions, we can also use
-    [[@jane.ERASABILITY.comprehensions.list]],
-    [[@jane.ERASABILITY.comprehensions.array]],
-    [[@jane.ERASABILITY.comprehensions.for.in]], etc.).
+    [[@jane.non_erasable.comprehensions.list]],
+    [[@jane.non_erasable.comprehensions.array]],
+    [[@jane.non_erasable.comprehensions.for.in]], etc.).
 
     As mentioned, we represent terms as a "pair" and don't use the extension
     node or attribute payload; this is so that ppxen can see inside these

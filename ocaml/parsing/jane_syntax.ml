@@ -12,23 +12,25 @@ open Jane_syntax_parsing
    that both [comprehensions] and [immutable_arrays] are enabled.  But our
    general mechanism for checking for enabled extensions (in [of_ast]) won't
    work well here: it triggers when converting from
-   e.g. [[%jane.*.comprehensions.array] ...] to the comprehensions-specific AST.
-   But if we spot a [[%jane.*.comprehensions.immutable]], there is no
-   expression to translate.  So we just check for the immutable arrays extension
-   when processing a comprehension expression for an immutable array.
+   e.g. [[%jane.non_erasable.comprehensions.array] ...] to the
+   comprehensions-specific AST. But if we spot a
+   [[%jane.non_erasable.comprehensions.immutable]], there is no expression to
+   translate. So we just check for the immutable arrays extension when
+   processing a comprehension expression for an immutable array.
 
    Note [Wrapping with make_entire_jane_syntax]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
    The topmost node in the encoded AST must always look like e.g.
-   [%jane.*.comprehensions]. This allows the decoding machinery to know what
-   extension is being used and what function to call to do the decoding.
-   Accordingly, during encoding, after doing the hard work of converting the
-   extension syntax tree into e.g. Parsetree.expression, we need to make a final
-   step of wrapping the result in a [%jane.*.xyz] node. Ideally, this
-   step would be done by part of our general structure, like we separate
-   [of_ast] and [of_ast_internal] in the decode structure; this design would
-   make it structurally impossible/hard to forget taking this final step.
+   [%jane.non_erasable.comprehensions]. (More generally,
+   [%jane.ERASABILITY.FEATURE] or [@jane.ERASABILITY.FEATURE].) This allows the
+   decoding machinery to know what extension is being used and what function to
+   call to do the decoding. Accordingly, during encoding, after doing the hard
+   work of converting the extension syntax tree into e.g. Parsetree.expression,
+   we need to make a final step of wrapping the result in a [%jane.*.xyz] node.
+   Ideally, this step would be done by part of our general structure, like we
+   separate [of_ast] and [of_ast_internal] in the decode structure; this design
+   would make it structurally impossible/hard to forget taking this final step.
 
    However, the final step is only one line of code (a call to
    [make_entire_jane_syntax]), but yet the name of the feature varies, as does
