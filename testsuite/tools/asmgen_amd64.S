@@ -31,10 +31,17 @@
 #define CAML_ABSF_MASK caml_absf_mask
 #endif
 
+#ifdef SYS_macosx
+        .globl _caml_call_gc
+        .weak_definition _caml_call_gc
+_caml_call_gc:
+        int3
+#else
         .globl caml_call_gc
         .weak caml_call_gc
 caml_call_gc:
         int3
+#endif
 
         .globl  CALL_GEN_CODE
         .align  ALIGN
