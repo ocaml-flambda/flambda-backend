@@ -496,11 +496,11 @@ let mk_no_dwarf_for_startup_file f =
     \     startup file as the upstream compiler"
 
 let mk_use_cached_generic_functions f =
-  "-use-cached-startup", Arg.Unit f, " Use the cached startup"
+  "-use-cached-generic-functions", Arg.Unit f, " Use the cached startup"
 ;;
 
 let mk_cached_generic_functions_path f =
-  "-cached-startup-path", Arg.String f,
+  "-cached-generic-functions-path", Arg.String f,
   "<file>  Set the path of the cached startup (default to cache-startup.o)"
 ;;
 
@@ -1108,9 +1108,9 @@ module Extra_params = struct
        set' Flambda2.Debug.concrete_types_only_on_canonicals
     | "flambda2-debug-keep-invalid-handlers" ->
        set' Flambda2.Debug.keep_invalid_handlers
-    | "use-cached-startup" ->
+    | "use-cached-generic-functions" ->
       set' Flambda_backend_flags.use_cached_generic_functions
-    | "cached-startup-path" ->
+    | "cached-generic-functions-path" ->
       Flambda_backend_flags.cached_generic_functions_path := v; true
     | _ -> false
 end
