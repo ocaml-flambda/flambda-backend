@@ -3080,7 +3080,7 @@ module Generic_fns_tbl = struct
   end
 
   let add t (Cmx_format.{ curry_fun; apply_fun; send_fun } as f) =
-    if !Flambda_backend_flags.use_cached_startup
+    if !Flambda_backend_flags.use_cached_generic_functions
     then (
       List.iter
         (fun f ->

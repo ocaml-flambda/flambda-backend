@@ -79,8 +79,8 @@ let main unix argv ppf ~flambda2 =
     Compmisc.read_clflags_from_env ();
     if !Flambda_backend_flags.gc_timings then Gc_timings.start_collection ();
     if !Clflags.plugin then
-      Compenv.fatal "-plugin is only supported up to OCaml 4.08.0"
-    else begin try
+      Compenv.fatal "-plugin is only supported up to OCaml 4.08.0";
+    begin try
       Compenv.process_deferred_actions
         (ppf,
          Optcompile.implementation unix ~backend ~flambda2,

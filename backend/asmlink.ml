@@ -364,8 +364,8 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   let globals_map = make_globals_map units in
   compile_phrase (Cmm_helpers.globals_map globals_map);
   let name_list =
-    if !Flambda_backend_flags.use_cached_startup then
-      CU.create CU.Prefix.empty (CU.Name.of_string "_cached_startup") :: name_list
+    if !Flambda_backend_flags.use_cached_generic_functions then
+      CU.create CU.Prefix.empty (CU.Name.of_string "_cached_generic_functions") :: name_list
     else name_list
   in
   compile_phrase
@@ -406,6 +406,10 @@ let make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   compile_phrase (Cmm_helpers.plugin_header dynunits);
   compile_phrase
     (Cmm_helpers.global_table (List.map (fun unit -> unit.name) units));
+  if !Clflags.output_complete_object then
+    force_linking_of_startup ~ppf_dump;
+  (* this is to force a reference to all units, otherwise the linker
+     might drop some of them (in case of libraries) *)
   Emit.end_assembly ()
 
 let call_linker_shared file_list output_name =
@@ -448,10 +452,10 @@ let link_shared unix ~ppf_dump objfiles output_name =
     remove_file startup_obj
   )
 
-let make_cached_startup_functions unix  ~ppf_dump ~sourcefile_for_dwarf =
-  Location.input_name := "caml_cached_startup"; (* set name of "current" input *)
+let make_cached_generic_functions_functions unix  ~ppf_dump ~sourcefile_for_dwarf =
+  Location.input_name := "caml_cached_generic_functions"; (* set name of "current" input *)
   let startup_comp_unit =
-    CU.create CU.Prefix.empty (CU.Name.of_string "_cached_startup")
+    CU.create CU.Prefix.empty (CU.Name.of_string "_cached_generic_functions")
   in
   Compilenv.reset startup_comp_unit;
   Emitaux.Dwarf_helpers.init ~disable_dwarf:(not !Dwarf_flags.dwarf_for_startup_file)
@@ -463,11 +467,9 @@ let make_cached_startup_functions unix  ~ppf_dump ~sourcefile_for_dwarf =
   List.iter compile_phrase
     (Cmm_helpers.emit_preallocated_blocks []
       (Cmm_helpers.generic_functions false genfns)));
-  if !Clflags.output_complete_object then
-    force_linking_of_startup ~ppf_dump;
   Emit.end_assembly ()
 
-let cached_startup unix ~ppf_dump output_name =
+let cached_generic_functions unix ~ppf_dump output_name =
   Profile.record_call output_name (fun () ->
     let startup = output_name ^ ext_asm in
     let sourcefile_for_dwarf = sourcefile_for_dwarf ~named_startup_file:true startup in
@@ -478,7 +480,7 @@ let cached_startup unix ~ppf_dump output_name =
         ~may_reduce_heap:true
         ~ppf_dump
         (fun () ->
-          make_cached_startup_functions unix ~ppf_dump ~sourcefile_for_dwarf)
+          make_cached_generic_functions_functions unix ~ppf_dump ~sourcefile_for_dwarf)
     );
   )
 
@@ -489,8 +491,8 @@ let call_linker file_list_rev startup_file output_name =
   in
   let files = startup_file :: (List.rev file_list_rev) in
   let files =
-    if !Flambda_backend_flags.use_cached_startup then
-      !Flambda_backend_flags.cached_startup_path :: files
+    if !Flambda_backend_flags.use_cached_generic_functions then
+      !Flambda_backend_flags.cached_generic_functions_path :: files
     else files
   in
   let files, c_lib =

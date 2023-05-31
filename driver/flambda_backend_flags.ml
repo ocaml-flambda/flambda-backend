@@ -354,8 +354,8 @@ let set_o3 () =
 let opt_flag_handler : Clflags.Opt_flag_handler.t =
   { set_oclassic; set_o2; set_o3 }
 
-let use_cached_startup = ref false
-let cached_startup_path = ref (Filename.concat Config.bindir ("cached-startup" ^ Config.ext_obj))
+let use_cached_generic_functions = ref false
+let cached_generic_functions_path = ref (Filename.concat Config.bindir ("cached-startup" ^ Config.ext_obj))
 
 let () =
   if Clflags.is_flambda2 () then set_o2 ()

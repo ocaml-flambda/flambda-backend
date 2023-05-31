@@ -109,8 +109,8 @@ module type Flambda_backend_options = sig
   val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
   val dflow : unit -> unit
-  val use_cached_startup : unit -> unit
-  val cached_startup_path : string -> unit
+  val use_cached_generic_functions : unit -> unit
+  val cached_generic_functions_path : string -> unit
 end
 
 (** Command line arguments required for ocamlopt.*)

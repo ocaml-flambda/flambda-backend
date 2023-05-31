@@ -32,7 +32,7 @@ let main filename =
   let unix = (module Unix : Compiler_owee.Unix_intf.S) in
   Compmisc.init_path ();
   Compmisc.with_ppf_dump ~file_prefix:filename (fun ppf_dump ->
-      Asmlink.cached_startup unix ~ppf_dump filename)
+      Asmlink.cached_generic_functions unix ~ppf_dump filename)
 
 let arg_usage =
   Printf.sprintf "%s FILE : Generate a cached startup file named FILE" Sys.argv.(0)

@@ -19,9 +19,9 @@
   (libraries ocamlcommon ocamlbytecomp ocamloptcomp))
 
 (executable
-  (name generate_cached_startup)
+  (name generate_cached_generic_functions)
   (modes byte native)
-  (modules generate_cached_startup)
+  (modules generate_cached_generic_functions)
  (flags
   (:standard -principal -w -9-69-70-33-27))
   (libraries ocamlcommon ocamloptcomp unix))
@@ -30,7 +30,7 @@
   (files
     (flambda_backend_objinfo.bc as ocamlobjinfo.byte)
     (flambda_backend_objinfo.exe as ocamlobjinfo.opt)
-    generate_cached_startup.exe
+    generate_cached_generic_functions.exe
   )
   (section bin)
   (package ocaml))
