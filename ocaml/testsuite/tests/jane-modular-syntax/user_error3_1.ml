@@ -6,4 +6,4 @@
 *)
 
 (* See the comment in user_error3.ml *)
-let _misnamed_extension = () [@jane.this_extension_doesn't_exist];;
+let _misnamed_extension = () [@jane.invalid_erasability];;

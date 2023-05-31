@@ -6,4 +6,4 @@
 *)
 
 (* See the comment in user_error3.ml *)
-let _misnamed_extension = () [@jane.non_namespace.feature];;
+let _misnamed_extension = () [@jane.invalid_erasability.feature];;
