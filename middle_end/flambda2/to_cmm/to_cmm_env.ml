@@ -417,6 +417,8 @@ let create_binding_aux (type a) effs var ~(inline : a inline)
   in
   let cmm_var = gen_variable var in
   let binding = Binding { order; inline; effs; cmm_var; bound_expr } in
+  if Flambda_features.debug_flambda2 ()
+  then Format.eprintf "NEW: %a@." _print_any_binding binding;
   binding
 
 let create_binding (type a) effs var ~(inline : a inline)
@@ -437,38 +439,6 @@ let create_binding (type a) effs var ~(inline : a inline)
     create_binding_aux effs var ~inline bound_expr
 
 (* Binding splitting *)
-(* CR gbury: we actually need to "lie" about the effects and coeffects of
-   allocations that we must inline, or else we end up with expressions with
-   effects that will not be inlined (see [to_cmm_primitive.ml] and in particular
-   ~consider_inlining_effectful_expressions). For instance, consider: *)
-(*
- * let x = box_number 1. in
- * let y = unbox_number x in
- * let z = y +. 1. in
- * ...
- *)
-(* because we only ever join effects when translating primitives, and that we
-   only use the effects and coeffects from the flambda code, we generate:
-
-   - a binding "x -> box_number 1." with generative effects (as expected)
-
-   - a binding "y -> 1." (because we inlined "x", and cmm_helper functions
-   eliminated the unbox-of-box), but this binding has generative effects,
-   because it effects are computed as : ece(prim:unbox_number) ∪ ece(x), and
-   since "x" has generative effects, we end up with a binding for "y" that has
-   generative effects.
-
-   - when we translate the addition, we explicitly do not consider inlining
-   effectful expressions, and thus we do not inline "y", since it has effects.
-
-   To counteract that, we instead consider that generative effects arising from
-   Delay/"must inline" primitives do not count, and that we consider the binding
-   to be pure.
-
-   CR gbury: this allows to move allocations marked as `Must_inline_once` past
-   function calls (and other effectful expressions), which can break some
-   allocation-counting tests (the same also applies to allocations marked as
-   `Must_inline_and_duplicate` but that is more expected). *)
 
 let remove_binding env var =
   { env with bindings = Variable.Map.remove var env.bindings }
@@ -576,10 +546,9 @@ let split_complex_binding ~env ~res (binding : complex binding) =
     let prim_effects =
       Flambda_primitive.Without_args.effects_and_coeffects prim
     in
-    (* See CR above about effects and coeffets of 'must_inline' primitives *)
     let effs =
       match To_cmm_effects.classify_by_effects_and_coeffects prim_effects with
-      | Pure | Generative_immutable -> Ece.pure_can_be_duplicated
+      | Pure | Generative_immutable -> prim_effects
       | Effect | Coeffect_only ->
         Misc.fatal_errorf
           "Primitive %a was marked as `must_inline`, but is has the following \
@@ -637,16 +606,12 @@ let rec add_binding_to_env ?extra env res var (Binding binding as b) =
       env, res)
   | May_inline_once | Must_inline_once | Do_not_inline -> (
     match classification with
-    | Pure -> env, res
-    | Generative_immutable -> (
-      match inline with
-      | Must_inline_once -> env, res
-      | May_inline_once | Do_not_inline ->
-        (* Generative expressions not marked as `must_inline` are treated as
-           having effects, since function from the `Gc` module can read counters
-           that are increased by allocations. *)
-        { env with stages = Effect var :: env.stages }, res
-      | Must_inline_and_duplicate -> assert false (* impossible to reach *))
+    (* CR gbury: Generative_immutable bindings are treated the same as pure
+       bindings. In particular this means that they can be moved across some
+       function calls, including GC ones, which may break some allocation tests.
+       However, that allows to sink down allocations that only occur in one
+       branch (when they are used linearly), which can help a lot. *)
+    | Pure | Generative_immutable -> env, res
     | Effect -> { env with stages = Effect var :: env.stages }, res
     | Coeffect_only ->
       let stages =
@@ -688,46 +653,6 @@ and split_in_env env res var binding =
 let bind_variable_with_decision (type a) ?extra env res var ~inline
     ~(defining_expr : a bound_expr) ~effects_and_coeffects_of_defining_expr:effs
     =
-  let effs =
-    let classification =
-      To_cmm_effects.classify_by_effects_and_coeffects effs
-    in
-    match[@ocaml.warning "-4"] (inline : a inline), classification with
-    | (Must_inline_once | Must_inline_and_duplicate), Generative_immutable -> (
-      (* Effects (including generative immutbale effects) can severly limit the
-         inlining of bindings (due to the
-         [~consider_inlining_effectful_expressions]). See CR above for a more
-         lengthy explanation.
-
-         Therefore, we try and "forget" generative effects here. This is
-         reasonable since the only reason that `Generative_immutable' effects
-         are considered effects is to prevent allocations from being moved
-         across a `Gc` function call (and the main point of that is to not
-         invalidate allocation tests). We consider that the Delay placement on a
-         allocating primitive explicitly allows re-ordering past `Gc` function
-         calls, and therefore it is correct to ignore the generative effects; we
-         also do that when computing the effects after splitting a binding (see
-         [split_complex_binding]).
-
-         Note that in some cases, there might be situations where an allocation
-         with Strict placement might be inlined inside a Delay allocation, and
-         end up moved across a `Gc` function call beause of this. Such cases are
-         currently impossible since only [Box_number] and [Project_value_slot]
-         have a Delay placement, but may appear in the future if/when some more
-         primitives are marked as `Delay`. But even then, the only issue would
-         be that some allocations would be accidentally re-ordered across `Gc`
-         function calls.
-
-         Lastly, even if the primitive/top of the cmm expr being bound, must be
-         duplicated (as specified by [inline]), that doesn't mean that its
-         arguments (some of which may have been inlined) are also duplicatable,
-         so we must take care of only downgrading the effects and coeffects to
-         pure, and not the placement, which must be kept. *)
-      match (effs : Ece.t) with
-      | _, _, Delay -> Ece.pure_can_be_duplicated
-      | _, _, Strict -> Ece.pure)
-    | _, _ -> effs
-  in
   let binding = create_binding ~inline effs var defining_expr in
   add_binding_to_env ?extra env res var binding
 
@@ -867,10 +792,10 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
         | Some env -> will_inline_complex env res binding))
     | May_inline_once -> (
       match To_cmm_effects.classify_by_effects_and_coeffects binding.effs with
-      | Pure ->
+      | Pure | Generative_immutable ->
         let env = remove_binding env var in
         will_inline_simple env res binding
-      | Generative_immutable | Effect | Coeffect_only -> (
+      | Effect | Coeffect_only -> (
         match
           pop_if_in_top_stage ?consider_inlining_effectful_expressions env var
         with
@@ -1058,17 +983,17 @@ let flush_delayed_lets ~mode env res =
             | Branching_point | Entering_loop -> Some split_binding))
         | May_inline_once -> (
           match To_cmm_effects.classify_by_effects_and_coeffects b.effs with
-          (* Unless entering a loop, we do not flush pure bindings that can be
-             inlined, ensuring that the corresponding expressions are sunk down
-             as far as possible, including past control flow branching
-             points. *)
-          | Pure -> (
+          (* Unless entering a loop, we do not flush pure/generative_immutable
+             bindings that can be inlined, ensuring that the corresponding
+             expressions are sunk down as far as possible, including past
+             control flow branching points. *)
+          | Pure | Generative_immutable -> (
             match mode with
             | Flush_everything | Entering_loop ->
               flush binding;
               None
             | Branching_point -> Some binding)
-          | Generative_immutable | Coeffect_only | Effect ->
+          | Coeffect_only | Effect ->
             flush binding;
             None))
       env.bindings
