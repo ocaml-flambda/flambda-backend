@@ -496,12 +496,12 @@ let mk_no_dwarf_for_startup_file f =
     \     startup file as the upstream compiler"
 
 let mk_use_cached_generic_functions f =
-  "-use-cached-generic-functions", Arg.Unit f, " Use the cached startup"
+  "-use-cached-generic-functions", Arg.Unit f, " Use the cached generated functions"
 ;;
 
 let mk_cached_generic_functions_path f =
   "-cached-generic-functions-path", Arg.String f,
-  "<file>  Set the path of the cached startup (default to cache-startup.o)"
+  "<file>  Set the path of the cached generic functions (default to cached-generic-functions.o)"
 ;;
 
 let set_long_frames_threshold n =

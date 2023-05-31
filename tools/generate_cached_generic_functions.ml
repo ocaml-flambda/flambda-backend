@@ -35,7 +35,7 @@ let main filename =
       Asmlink.cached_generic_functions unix ~ppf_dump filename)
 
 let arg_usage =
-  Printf.sprintf "%s FILE : Generate a cached startup file named FILE" Sys.argv.(0)
+  Printf.sprintf "%s FILE : Generate an obj file containing cached generatic functions named FILE" Sys.argv.(0)
 
 let main () =
   Arg.parse_expand [] main arg_usage;
