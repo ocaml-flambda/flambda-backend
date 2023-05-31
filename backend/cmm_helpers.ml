@@ -3582,7 +3582,21 @@ let make_symbol ?compilation_unit name =
   |> Symbol.linkage_name |> Linkage_name.to_string
 
 (* Generate the entry point *)
-
+(*
+ * CAMLprim value caml_program()
+ * {
+ *   int id = 0;
+ *   while (true) {
+ *     caml_globals_entry_functions[i]();
+ *     caml_globals_inited += 1;
+ *     int idprev = i;
+ *     id += 1;
+ *     if (idprev == len_caml_globals_entry_functions) goto out;
+ *   }
+ *   out:
+ *   return 1;
+ * }
+ *)
 let entry_point namelist =
   let dbg = placeholder_dbg in
   let cconst_int i = Cconst_int (i, dbg ()) in
@@ -3627,7 +3641,7 @@ let entry_point namelist =
   let data = Cdefine_symbol table_symbol :: data in
   let raise_num = Lambda.next_raise_count () in
   let id_prev = VP.create (V.create_local "*id_prev*") in
-  let id = VP.create (Ident.create_local "i") in
+  let id = VP.create (Ident.create_local "*id*") in
   let high = cconst_int (List.length namelist - 1) in
   let body =
     let dbg = dbg () in
@@ -3681,7 +3695,7 @@ let entry_point namelist =
       { fun_name;
         fun_args = [];
         fun_body = Csequence (body, cconst_int 1);
-        fun_codegen_options = [Reduce_code_size];
+        fun_codegen_options = [Reduce_code_size; Use_linscan_regalloc];
         fun_dbg;
         fun_poll = Default_poll
       } ]
