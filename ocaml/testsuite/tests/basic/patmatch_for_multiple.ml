@@ -337,7 +337,10 @@ let _ =fun a b -> match a, b with
                                                                     [int],
                                                                     [(consts (0))
                                                                     (non_consts (
-                                                                    [0: *]))]]))]
+                                                                    [0:
+                                                                    [(consts ())
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]
                                                                     (makeblock 0
                                                                     a/349
                                                                     b/350))
@@ -369,68 +372,48 @@ let _ = fun a b -> match a, b with
   b/354[(consts (0))
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))]]))]
   [(consts ())
-   (non_consts ([0: [int], [(consts (0)) (non_consts ([0: *]))]]))](catch
-                                                                    (catch
-                                                                    (if a/353
-                                                                    (if b/354
-                                                                    (let
-                                                                    (p/358 =a
-                                                                    (field 0
-                                                                    b/354))
-                                                                    (exit 13
-                                                                    p/358))
-                                                                    (exit 14))
-                                                                    (exit 14))
-                                                                    with (14)
-                                                                    (let
-                                                                    (p/357 =a
-                                                                    [(consts ())
-                                                                    (non_consts (
-                                                                    [0:
-                                                                    [int],
-                                                                    [(consts (0))
-                                                                    (non_consts (
-                                                                    [0: *]))]]))]
-                                                                    (makeblock 0
-                                                                    a/353
-                                                                    b/354))
-                                                                    (exit 13
-                                                                    p/357)))
-                                                                    with (13 p/355
-                                                                    [(consts ())
-                                                                    (non_consts (
-                                                                    [0:
-                                                                    [int],
-                                                                    [(consts (0))
-                                                                    (non_consts (
-                                                                    [0: *]))]]))])
-                                                                    p/355))
+   (non_consts ([0: [int],
+                 [(consts (0))
+                  (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))]]))]]))]
+  (catch
+    (catch
+      (if a/353
+        (if b/354 (let (p/358 =a (field 0 b/354)) (exit 13 p/358)) (exit 14))
+        (exit 14))
+     with (14)
+      (let
+        (p/357 =a[(consts ())
+                  (non_consts ([0: [int],
+                                [(consts (0))
+                                 (non_consts ([0:
+                                               [(consts ())
+                                                (non_consts ([0: *, *]))]]))]]))]
+           (makeblock 0 a/353 b/354))
+        (exit 13 p/357)))
+   with (13 p/355[(consts ())
+                  (non_consts ([0: [int],
+                                [(consts (0))
+                                 (non_consts ([0:
+                                               [(consts ())
+                                                (non_consts ([0: *, *]))]]))]]))])
+    p/355))
 (function {nlocal = 0} a/353[int]
   b/354[(consts (0))
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))]]))]
   [(consts ())
-   (non_consts ([0: [int], [(consts (0)) (non_consts ([0: *]))]]))](catch
-                                                                    (catch
-                                                                    (if a/353
-                                                                    (if b/354
-                                                                    (exit 13
-                                                                    (field 0
-                                                                    b/354))
-                                                                    (exit 14))
-                                                                    (exit 14))
-                                                                    with (14)
-                                                                    (exit 13
-                                                                    (makeblock 0
-                                                                    a/353
-                                                                    b/354)))
-                                                                    with (13 p/355
-                                                                    [(consts ())
-                                                                    (non_consts (
-                                                                    [0:
-                                                                    [int],
-                                                                    [(consts (0))
-                                                                    (non_consts (
-                                                                    [0: *]))]]))])
-                                                                    p/355))
+   (non_consts ([0: [int],
+                 [(consts (0))
+                  (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))]]))]]))]
+  (catch
+    (catch
+      (if a/353 (if b/354 (exit 13 (field 0 b/354)) (exit 14)) (exit 14))
+     with (14) (exit 13 (makeblock 0 a/353 b/354)))
+   with (13 p/355[(consts ())
+                  (non_consts ([0: [int],
+                                [(consts (0))
+                                 (non_consts ([0:
+                                               [(consts ())
+                                                (non_consts ([0: *, *]))]]))]]))])
+    p/355))
 - : bool -> bool tuplist -> bool * bool tuplist = <fun>
 |}]

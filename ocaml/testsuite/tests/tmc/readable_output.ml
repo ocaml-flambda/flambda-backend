@@ -12,7 +12,11 @@ let[@tail_mod_cons] rec map f = function
   (map
      (function {nlocal = 0} f
        param[(consts (0))
-             (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+             (non_consts ([0: *,
+                           [(consts (0))
+                            (non_consts ([0: *,
+                                          [(consts (0))
+                                           (non_consts ([0: *, *]))]]))]]))]
        tail_mod_cons
        [(consts (0))
         (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
@@ -22,14 +26,30 @@ let[@tail_mod_cons] rec map f = function
               (makemutable 0 (*,[(consts (0))
                                  (non_consts ([0: *,
                                                [(consts (0))
-                                                (non_consts ([0: *, *]))]]))])
+                                                (non_consts ([0: *,
+                                                              [(consts (0))
+                                                               (non_consts (
+                                                               [0: *,
+                                                                [(consts (0))
+                                                                 (non_consts (
+                                                                 [0: *,
+                                                                  [(consts (0))
+                                                                   (non_consts (
+                                                                   [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))])
                 (apply f (field 0 param)) 24029))
            (seq (apply map_dps block 1 f (field 1 param)) block))
          0))
     map_dps
       (function {nlocal = 0} dst offset[int] f
         param[(consts (0))
-              (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+              (non_consts ([0: *,
+                            [(consts (0))
+                             (non_consts ([0: *,
+                                           [(consts (0))
+                                            (non_consts ([0: *, *]))]]))]]))]
         tail_mod_cons
         [(consts (0))
          (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
@@ -40,7 +60,19 @@ let[@tail_mod_cons] rec map f = function
                (makemutable 0 (*,[(consts (0))
                                   (non_consts ([0: *,
                                                 [(consts (0))
-                                                 (non_consts ([0: *, *]))]]))])
+                                                 (non_consts ([0: *,
+                                                               [(consts (0))
+                                                                (non_consts (
+                                                                [0: *,
+                                                                 [(consts (0))
+                                                                  (non_consts (
+                                                                  [0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))])
                  block0_arg0 24029))
             (seq (setfield_ptr(heap-init)_computed dst offset block)
               (apply map_dps block 1 f (field 1 param) tailcall)))
@@ -135,10 +167,56 @@ let[@tail_mod_cons] rec trip = function
   (trip
      (function {nlocal = 0}
        param[(consts (0))
-             (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+             (non_consts ([0: *,
+                           [(consts (0))
+                            (non_consts ([0: *,
+                                          [(consts (0))
+                                           (non_consts ([0: *,
+                                                         [(consts (0))
+                                                          (non_consts (
+                                                          [0: *,
+                                                           [(consts (0))
+                                                            (non_consts (
+                                                            [0: *,
+                                                             [(consts (0))
+                                                              (non_consts (
+                                                              [0: *,
+                                                               [(consts (0))
+                                                                (non_consts (
+                                                                [0: *,
+                                                                 [(consts (0))
+                                                                  (non_consts (
+                                                                  [0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]
        tail_mod_cons
        [(consts (0))
-        (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+        (non_consts ([0: *,
+                      [(consts (0))
+                       (non_consts ([0: *,
+                                     [(consts (0))
+                                      (non_consts ([0: *,
+                                                    [(consts (0))
+                                                     (non_consts ([0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]
        (if param
          (let (x =a (field 0 param))
            (makeblock 0 ([(consts ()) (non_consts ([0: *, [int]]))],[(consts (0))
@@ -146,11 +224,81 @@ let[@tail_mod_cons] rec trip = function
                                                                     [0: *,
                                                                     [(consts (0))
                                                                     (non_consts (
-                                                                    [0: *, *]))]]))])
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
              (makeblock 0 (*,int) x 0)
              (makeblock 0 ([(consts ()) (non_consts ([0: *, [int]]))],
                [(consts (0))
-                (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))])
+                (non_consts ([0: *,
+                              [(consts (0))
+                               (non_consts ([0: *,
+                                             [(consts (0))
+                                              (non_consts ([0: *,
+                                                            [(consts (0))
+                                                             (non_consts (
+                                                             [0: *,
+                                                              [(consts (0))
+                                                               (non_consts (
+                                                               [0: *,
+                                                                [(consts (0))
+                                                                 (non_consts (
+                                                                 [0: *,
+                                                                  [(consts (0))
+                                                                   (non_consts (
+                                                                   [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                (makeblock 0 (*,int) x 1)
                (let
                  (block =
@@ -160,17 +308,102 @@ let[@tail_mod_cons] rec trip = function
                                                                     [0: *,
                                                                     [(consts (0))
                                                                     (non_consts (
-                                                                    [0: *, *]))]]))])
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                       (makeblock 0 (*,int) x 2) 24029))
                  (seq (apply trip_dps block 1 (field 1 param)) block)))))
          0))
     trip_dps
       (function {nlocal = 0} dst offset[int]
         param[(consts (0))
-              (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+              (non_consts ([0: *,
+                            [(consts (0))
+                             (non_consts ([0: *,
+                                           [(consts (0))
+                                            (non_consts ([0: *,
+                                                          [(consts (0))
+                                                           (non_consts (
+                                                           [0: *,
+                                                            [(consts (0))
+                                                             (non_consts (
+                                                             [0: *,
+                                                              [(consts (0))
+                                                               (non_consts (
+                                                               [0: *,
+                                                                [(consts (0))
+                                                                 (non_consts (
+                                                                 [0: *,
+                                                                  [(consts (0))
+                                                                   (non_consts (
+                                                                   [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]
         tail_mod_cons
         [(consts (0))
-         (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+         (non_consts ([0: *,
+                       [(consts (0))
+                        (non_consts ([0: *,
+                                      [(consts (0))
+                                       (non_consts ([0: *,
+                                                     [(consts (0))
+                                                      (non_consts ([0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]
         (if param
           (let
             (x =a (field 0 param)
@@ -181,19 +414,127 @@ let[@tail_mod_cons] rec trip = function
                (makemutable 0 ([(consts ()) (non_consts ([0: *, [int]]))],
                  [(consts (0))
                   (non_consts ([0: *,
-                                [(consts (0)) (non_consts ([0: *, *]))]]))])
+                                [(consts (0))
+                                 (non_consts ([0: *,
+                                               [(consts (0))
+                                                (non_consts ([0: *,
+                                                              [(consts (0))
+                                                               (non_consts (
+                                                               [0: *,
+                                                                [(consts (0))
+                                                                 (non_consts (
+                                                                 [0: *,
+                                                                  [(consts (0))
+                                                                   (non_consts (
+                                                                   [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                  block2_arg0 24029))
             (seq
               (setfield_ptr(heap-init)_computed dst offset
                 (makeblock 0 ([(consts ()) (non_consts ([0: *, [int]]))],
                   [(consts (0))
                    (non_consts ([0: *,
-                                 [(consts (0)) (non_consts ([0: *, *]))]]))])
+                                 [(consts (0))
+                                  (non_consts ([0: *,
+                                                [(consts (0))
+                                                 (non_consts ([0: *,
+                                                               [(consts (0))
+                                                                (non_consts (
+                                                                [0: *,
+                                                                 [(consts (0))
+                                                                  (non_consts (
+                                                                  [0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                   block0_arg0
                   (makeblock 0 ([(consts ()) (non_consts ([0: *, [int]]))],
                     [(consts (0))
                      (non_consts ([0: *,
-                                   [(consts (0)) (non_consts ([0: *, *]))]]))])
+                                   [(consts (0))
+                                    (non_consts ([0: *,
+                                                  [(consts (0))
+                                                   (non_consts ([0: *,
+                                                                 [(consts (0))
+                                                                  (non_consts (
+                                                                  [0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                     block1_arg0 block)))
               (apply trip_dps block 1 (field 1 param) tailcall)))
           (setfield_ptr(heap-init)_computed dst offset 0))))
@@ -213,33 +554,356 @@ let[@tail_mod_cons] rec effects f = function
   (effects
      (function {nlocal = 0} f
        param[(consts (0))
-             (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+             (non_consts ([0: *,
+                           [(consts (0))
+                            (non_consts ([0: *,
+                                          [(consts (0))
+                                           (non_consts ([0: *,
+                                                         [(consts (0))
+                                                          (non_consts (
+                                                          [0: *,
+                                                           [(consts (0))
+                                                            (non_consts (
+                                                            [0: *,
+                                                             [(consts (0))
+                                                              (non_consts (
+                                                              [0: *,
+                                                               [(consts (0))
+                                                                (non_consts (
+                                                                [0: *,
+                                                                 [(consts (0))
+                                                                  (non_consts (
+                                                                  [0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]
        tail_mod_cons
        [(consts (0))
-        (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+        (non_consts ([0: *,
+                      [(consts (0))
+                       (non_consts ([0: *,
+                                     [(consts (0))
+                                      (non_consts ([0: *,
+                                                    [(consts (0))
+                                                     (non_consts ([0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]
        (if param
          (let (*match* =a (field 0 param))
            (makeblock 0 (*,[(consts (0))
                             (non_consts ([0: *,
                                           [(consts (0))
-                                           (non_consts ([0: *, *]))]]))])
+                                           (non_consts ([0: *,
+                                                         [(consts (0))
+                                                          (non_consts (
+                                                          [0: *,
+                                                           [(consts (0))
+                                                            (non_consts (
+                                                            [0: *,
+                                                             [(consts (0))
+                                                              (non_consts (
+                                                              [0: *,
+                                                               [(consts (0))
+                                                                (non_consts (
+                                                                [0: *,
+                                                                 [(consts (0))
+                                                                  (non_consts (
+                                                                  [0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
              (apply f (field 0 *match*))
              (let
                (block =
                   (makemutable 0 (*,[(consts (0))
                                      (non_consts ([0: *,
                                                    [(consts (0))
-                                                    (non_consts ([0: *, *]))]]))])
+                                                    (non_consts ([0: *,
+                                                                  [(consts (0))
+                                                                   (non_consts (
+                                                                   [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                     (apply f (field 1 *match*)) 24029))
                (seq (apply effects_dps block 1 f (field 1 param)) block))))
          0))
     effects_dps
       (function {nlocal = 0} dst offset[int] f
         param[(consts (0))
-              (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+              (non_consts ([0: *,
+                            [(consts (0))
+                             (non_consts ([0: *,
+                                           [(consts (0))
+                                            (non_consts ([0: *,
+                                                          [(consts (0))
+                                                           (non_consts (
+                                                           [0: *,
+                                                            [(consts (0))
+                                                             (non_consts (
+                                                             [0: *,
+                                                              [(consts (0))
+                                                               (non_consts (
+                                                               [0: *,
+                                                                [(consts (0))
+                                                                 (non_consts (
+                                                                 [0: *,
+                                                                  [(consts (0))
+                                                                   (non_consts (
+                                                                   [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]
         tail_mod_cons
         [(consts (0))
-         (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+         (non_consts ([0: *,
+                       [(consts (0))
+                        (non_consts ([0: *,
+                                      [(consts (0))
+                                       (non_consts ([0: *,
+                                                     [(consts (0))
+                                                      (non_consts ([0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]
         (if param
           (let
             (*match* =a (field 0 param)
@@ -249,14 +913,137 @@ let[@tail_mod_cons] rec effects f = function
                (makemutable 0 (*,[(consts (0))
                                   (non_consts ([0: *,
                                                 [(consts (0))
-                                                 (non_consts ([0: *, *]))]]))])
+                                                 (non_consts ([0: *,
+                                                               [(consts (0))
+                                                                (non_consts (
+                                                                [0: *,
+                                                                 [(consts (0))
+                                                                  (non_consts (
+                                                                  [0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                  block1_arg0 24029))
             (seq
               (setfield_ptr(heap-init)_computed dst offset
                 (makeblock 0 (*,[(consts (0))
                                  (non_consts ([0: *,
                                                [(consts (0))
-                                                (non_consts ([0: *, *]))]]))])
+                                                (non_consts ([0: *,
+                                                              [(consts (0))
+                                                               (non_consts (
+                                                               [0: *,
+                                                                [(consts (0))
+                                                                 (non_consts (
+                                                                 [0: *,
+                                                                  [(consts (0))
+                                                                   (non_consts (
+                                                                   [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                   block0_arg0 block))
               (apply effects_dps block 1 f (field 1 param) tailcall)))
           (setfield_ptr(heap-init)_computed dst offset 0))))
@@ -279,13 +1066,241 @@ let[@tail_mod_cons] rec map_stutter f xs =
   (map_stutter
      (function {nlocal = 0} f
        xs[(consts (0))
-          (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+          (non_consts ([0: *,
+                        [(consts (0))
+                         (non_consts ([0: *,
+                                       [(consts (0))
+                                        (non_consts ([0: *,
+                                                      [(consts (0))
+                                                       (non_consts ([0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]
        tail_mod_cons
        [(consts (0))
-        (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+        (non_consts ([0: *,
+                      [(consts (0))
+                       (non_consts ([0: *,
+                                     [(consts (0))
+                                      (non_consts ([0: *,
+                                                    [(consts (0))
+                                                     (non_consts ([0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]
        (makeblock 0 (*,[(consts (0))
                         (non_consts ([0: *,
-                                      [(consts (0)) (non_consts ([0: *, *]))]]))])
+                                      [(consts (0))
+                                       (non_consts ([0: *,
+                                                     [(consts (0))
+                                                      (non_consts ([0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
          (apply f 0)
          (if xs
            (let
@@ -293,24 +1308,346 @@ let[@tail_mod_cons] rec map_stutter f xs =
                 (makemutable 0 (*,[(consts (0))
                                    (non_consts ([0: *,
                                                  [(consts (0))
-                                                  (non_consts ([0: *, *]))]]))])
+                                                  (non_consts ([0: *,
+                                                                [(consts (0))
+                                                                 (non_consts (
+                                                                 [0: *,
+                                                                  [(consts (0))
+                                                                   (non_consts (
+                                                                   [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                   (apply f (makeblock 0 (field 0 xs))) 24029))
              (seq (apply map_stutter_dps block 1 f (field 1 xs)) block))
            0)))
     map_stutter_dps
       (function {nlocal = 0} dst offset[int] f
         xs[(consts (0))
-           (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+           (non_consts ([0: *,
+                         [(consts (0))
+                          (non_consts ([0: *,
+                                        [(consts (0))
+                                         (non_consts ([0: *,
+                                                       [(consts (0))
+                                                        (non_consts (
+                                                        [0: *,
+                                                         [(consts (0))
+                                                          (non_consts (
+                                                          [0: *,
+                                                           [(consts (0))
+                                                            (non_consts (
+                                                            [0: *,
+                                                             [(consts (0))
+                                                              (non_consts (
+                                                              [0: *,
+                                                               [(consts (0))
+                                                                (non_consts (
+                                                                [0: *,
+                                                                 [(consts (0))
+                                                                  (non_consts (
+                                                                  [0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]
         tail_mod_cons
         [(consts (0))
-         (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+         (non_consts ([0: *,
+                       [(consts (0))
+                        (non_consts ([0: *,
+                                      [(consts (0))
+                                       (non_consts ([0: *,
+                                                     [(consts (0))
+                                                      (non_consts ([0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]
         (let
           (block0_arg0 = (apply f 0)
            block =
              (makemutable 0 (*,[(consts (0))
                                 (non_consts ([0: *,
                                               [(consts (0))
-                                               (non_consts ([0: *, *]))]]))])
+                                               (non_consts ([0: *,
+                                                             [(consts (0))
+                                                              (non_consts (
+                                                              [0: *,
+                                                               [(consts (0))
+                                                                (non_consts (
+                                                                [0: *,
+                                                                 [(consts (0))
+                                                                  (non_consts (
+                                                                  [0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                block0_arg0 24029))
           (seq (setfield_ptr(heap-init)_computed dst offset block)
             (if xs
@@ -320,7 +1657,100 @@ let[@tail_mod_cons] rec map_stutter f xs =
                    (makemutable 0 (*,[(consts (0))
                                       (non_consts ([0: *,
                                                     [(consts (0))
-                                                     (non_consts ([0: *, *]))]]))])
+                                                     (non_consts ([0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                      block0_arg0 24029))
                 (seq (setfield_ptr(heap-init)_computed block 1 block)
                   (apply map_stutter_dps block 1 f (field 1 xs) tailcall)))
@@ -350,12 +1780,231 @@ type 'a stream = { hd : 'a; tl : unit -> 'a stream; }
      (function {nlocal = 0} f xs[(consts ()) (non_consts ([0: *, *]))] n[int]
        tail_mod_cons
        [(consts (0))
-        (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+        (non_consts ([0: *,
+                      [(consts (0))
+                       (non_consts ([0: *,
+                                     [(consts (0))
+                                      (non_consts ([0: *,
+                                                    [(consts (0))
+                                                     (non_consts ([0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]
        (if (== n 0) 0
          (makeblock 0 (*,[(consts (0))
                           (non_consts ([0: *,
                                         [(consts (0))
-                                         (non_consts ([0: *, *]))]]))])
+                                         (non_consts ([0: *,
+                                                       [(consts (0))
+                                                        (non_consts (
+                                                        [0: *,
+                                                         [(consts (0))
+                                                          (non_consts (
+                                                          [0: *,
+                                                           [(consts (0))
+                                                            (non_consts (
+                                                            [0: *,
+                                                             [(consts (0))
+                                                              (non_consts (
+                                                              [0: *,
+                                                               [(consts (0))
+                                                                (non_consts (
+                                                                [0: *,
+                                                                 [(consts (0))
+                                                                  (non_consts (
+                                                                  [0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
            (apply f 0)
            (let
              (v = (apply f (makeblock 0 (field 0 xs)))
@@ -363,7 +2012,127 @@ type 'a stream = { hd : 'a; tl : unit -> 'a stream; }
                 (makemutable 0 (*,[(consts (0))
                                    (non_consts ([0: *,
                                                  [(consts (0))
-                                                  (non_consts ([0: *, *]))]]))])
+                                                  (non_consts ([0: *,
+                                                                [(consts (0))
+                                                                 (non_consts (
+                                                                 [0: *,
+                                                                  [(consts (0))
+                                                                   (non_consts (
+                                                                   [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                   v 24029))
              (seq
                (apply smap_stutter_dps block 1 f (apply (field 1 xs) 0)
@@ -373,7 +2142,112 @@ type 'a stream = { hd : 'a; tl : unit -> 'a stream; }
       (function {nlocal = 0} dst offset[int] f
         xs[(consts ()) (non_consts ([0: *, *]))] n[int] tail_mod_cons
         [(consts (0))
-         (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+         (non_consts ([0: *,
+                       [(consts (0))
+                        (non_consts ([0: *,
+                                      [(consts (0))
+                                       (non_consts ([0: *,
+                                                     [(consts (0))
+                                                      (non_consts ([0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]
         (if (== n 0) (setfield_ptr(heap-init)_computed dst offset 0)
           (let
             (block0_arg0 = (apply f 0)
@@ -382,14 +2256,248 @@ type 'a stream = { hd : 'a; tl : unit -> 'a stream; }
                (makemutable 0 (*,[(consts (0))
                                   (non_consts ([0: *,
                                                 [(consts (0))
-                                                 (non_consts ([0: *, *]))]]))])
+                                                 (non_consts ([0: *,
+                                                               [(consts (0))
+                                                                (non_consts (
+                                                                [0: *,
+                                                                 [(consts (0))
+                                                                  (non_consts (
+                                                                  [0: *,
+                                                                   [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                  v 24029))
             (seq
               (setfield_ptr(heap-init)_computed dst offset
                 (makeblock 0 (*,[(consts (0))
                                  (non_consts ([0: *,
                                                [(consts (0))
-                                                (non_consts ([0: *, *]))]]))])
+                                                (non_consts ([0: *,
+                                                              [(consts (0))
+                                                               (non_consts (
+                                                               [0: *,
+                                                                [(consts (0))
+                                                                 (non_consts (
+                                                                 [0: *,
+                                                                  [(consts (0))
+                                                                   (non_consts (
+                                                                   [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))]]))])
                   block0_arg0 block))
               (apply smap_stutter_dps block 1 f (apply (field 1 xs) 0)
                 (- n 1) tailcall))))))
