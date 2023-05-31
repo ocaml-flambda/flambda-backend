@@ -199,9 +199,17 @@ let value_kind_of_value_layout layout =
 module TTbl = struct
   module M = struct
     type t = ( Types.type_expr * Env.t )
-    let hash (ty, env) = Types.get_id ty lxor Hashtbl.hash env
+    let hash (ty, env) =
+      let h = Types.get_id ty in
+      if Env.has_local_constraints env then
+        h lxor Hashtbl.hash env
+      else h
     let equal (ty1, env1) (ty2, env2) =
-      Types.get_id ty1 = Types.get_id ty2 && env1 == env2
+      Types.get_id ty1 = Types.get_id ty2 &&
+      if Env.has_local_constraints env1 || Env.has_local_constraints env2 then
+        env1 == env2
+      else
+        true
   end
   module Tbl = Hashtbl.Make(M)
   include Tbl
