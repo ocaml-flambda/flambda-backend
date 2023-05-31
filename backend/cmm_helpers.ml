@@ -3587,11 +3587,10 @@ let make_symbol ?compilation_unit name =
  * {
  *   int id = 0;
  *   while (true) {
- *     caml_globals_entry_functions[i]();
+ *     caml_globals_entry_functions[id]();
  *     caml_globals_inited += 1;
- *     int id_prev = i;
  *     id += 1;
- *     if (id_prev == len_caml_globals_entry_functions) goto out;
+ *     if (id == len_caml_globals_entry_functions) goto out;
  *   }
  *   out:
  *   return 1;
@@ -3640,11 +3639,24 @@ let entry_point namelist =
   in
   let data = Cdefine_symbol table_symbol :: data in
   let raise_num = Lambda.next_raise_count () in
-  let id_prev = VP.create (V.create_local "*id_prev*") in
   let id = VP.create (Ident.create_local "*id*") in
-  let high = cconst_int (List.length namelist - 1) in
+  let high = cconst_int (List.length namelist) in
   let body =
     let dbg = dbg () in
+    let incr_i =
+      Cassign
+        (VP.var id, Cop (Caddi, [Cvar (VP.var id); Cconst_int (1, dbg)], dbg))
+    in
+    let exit_if_last_iteration =
+      Cifthenelse
+        ( Cop (Ccmpi Ceq, [Cvar (VP.var id); high], dbg),
+          dbg,
+          Cexit (Lbl raise_num, [], []),
+          dbg,
+          Ctuple [],
+          dbg,
+          Any )
+    in
     Clet_mut
       ( id,
         typ_int,
@@ -3652,38 +3664,11 @@ let entry_point namelist =
         ccatch
           ( raise_num,
             [],
-            Cifthenelse
-              ( Cop (Ccmpi Cgt, [Cvar (VP.var id); high], dbg),
-                dbg,
-                Cexit (Lbl raise_num, [], []),
-                dbg,
-                create_loop
-                  (Csequence
-                     ( call (Cvar (VP.var id)),
-                       Clet
-                         ( id_prev,
-                           Cvar (VP.var id),
-                           Csequence
-                             ( Cassign
-                                 ( VP.var id,
-                                   Cop
-                                     ( Caddi,
-                                       [Cvar (VP.var id); Cconst_int (1, dbg)],
-                                       dbg ) ),
-                               Cifthenelse
-                                 ( Cop
-                                     ( Ccmpi Ceq,
-                                       [Cvar (VP.var id_prev); high],
-                                       dbg ),
-                                   dbg,
-                                   Cexit (Lbl raise_num, [], []),
-                                   dbg,
-                                   Ctuple [],
-                                   dbg,
-                                   Any ) ) ) ))
-                  dbg,
-                dbg,
-                Any ),
+            create_loop
+              (Csequence
+                 ( call (Cvar (VP.var id)),
+                   Csequence (incr_i, exit_if_last_iteration) ))
+              dbg,
             Ctuple [],
             dbg,
             Any ) )
