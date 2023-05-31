@@ -427,7 +427,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                             List.mapi
                               (fun i ty_arg ->
                                  (ty_arg,
-                                  Layout.(equal void cstr_arg_layouts.(i)))
+                                  Layout.is_void_defaulting cstr_arg_layouts.(i))
                               ) ty_args
                           in
                           tree_of_constr_with_args (tree_of_constr env path)
@@ -511,7 +511,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               let name = Ident.name ld_id in
               (* PR#5722: print full module path only
                  for first record field *)
-              let is_void = Layout.(equal void ld_layout) in
+              let is_void = Layout.is_void_defaulting ld_layout in
               let lid =
                 if first then tree_of_label env path (Out_name.create name)
                 else Oide_ident (Out_name.create name)
@@ -616,7 +616,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         in
         let args = instantiate_types env type_params ty_list cstr.cstr_args in
         let args = List.mapi (fun i arg ->
-            (arg, Layout.(equal void cstr.cstr_arg_layouts.(i))))
+            (arg, Layout.is_void_defaulting cstr.cstr_arg_layouts.(i)))
             args
         in
         tree_of_constr_with_args

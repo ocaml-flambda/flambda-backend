@@ -50,7 +50,7 @@ type error =
     Free_super_var
   | Unreachable_reached
   | Bad_probe_layout of Ident.t
-  | Non_value_layout of Layouts.Layout.Violation.violation
+  | Non_value_layout of Layouts.Layout.Violation.t
 
 exception Error of Location.t * error
 
