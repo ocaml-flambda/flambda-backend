@@ -452,7 +452,7 @@ let link_shared unix ~ppf_dump objfiles output_name =
     remove_file startup_obj
   )
 
-let make_cached_generic_functions_functions unix  ~ppf_dump ~sourcefile_for_dwarf =
+let make_cached_generic_functions unix  ~ppf_dump ~sourcefile_for_dwarf =
   Location.input_name := "caml_cached_generic_functions"; (* set name of "current" input *)
   let startup_comp_unit =
     CU.create CU.Prefix.empty (CU.Name.of_string "_cached_generic_functions")
@@ -480,7 +480,7 @@ let cached_generic_functions unix ~ppf_dump output_name =
         ~may_reduce_heap:true
         ~ppf_dump
         (fun () ->
-          make_cached_generic_functions_functions unix ~ppf_dump ~sourcefile_for_dwarf)
+          make_cached_generic_functions unix ~ppf_dump ~sourcefile_for_dwarf)
     );
   )
 
