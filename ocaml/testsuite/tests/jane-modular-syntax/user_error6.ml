@@ -18,4 +18,4 @@
    like it in separate files, because the "compile and test output"
    infrastructure reports only one error at a time. *)
 
-let _bad_introduction = () [@jane.something.nested];;
+let _bad_introduction = () [@jane.erasable.something.nested];;

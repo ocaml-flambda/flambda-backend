@@ -1,0 +1,4 @@
+File "user_error3_1.ml", line 9, characters 31-55:
+9 | let _misnamed_extension = () [@jane.invalid_erasability];;
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Cannot have an attribute named [@jane.invalid_erasability]: Missing a feature component

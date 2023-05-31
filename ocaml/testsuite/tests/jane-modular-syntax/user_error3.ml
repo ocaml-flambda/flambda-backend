@@ -18,4 +18,4 @@
    like it in separate files, because the "compile and test output"
    infrastructure reports only one error at a time. *)
 
-let _unknown_extension = () [@jane.this_extension_doesn't_exist];;
+let _misnamed_extension = () [@jane.erasable.this_extension_doesn't_exist];;
