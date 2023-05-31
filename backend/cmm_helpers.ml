@@ -2980,9 +2980,13 @@ module Generic_fns_tbl = struct
       List.fold_left
         (fun acc a -> match a with [| Val |] -> acc + 1 | _ -> acc)
         0 arity
+
     let max_send = 20
+
     let max_apply = 404
+
     let max_tuplify = 100
+
     let considered_as_small_threshold = 20
 
     let is_curry (kind, arity, result) =
@@ -3029,23 +3033,24 @@ module Generic_fns_tbl = struct
           2 <= l && l <= max_apply
 
     let gen () =
-      (* [is_curry], [is_send] and [is_apply] are also used to determine if a generate
-         function was cached. When we generate the cached startup, we explore the space
-        of all potential candidates and rely on these functions to filter out the one
-        that we'll actually generate.
-        It's okay to have a search space bigger than needed, however it's not okay
-        to have a search space that does not englobe all candidates as it will
-        result in weird errors at link-time.
-        We maybe could use Z3 to automatically derive a good search space in the future
-        as the filters might become more complexed with unboxed types.
-      *)
+      (* [is_curry], [is_send] and [is_apply] are also used to determine if a
+         generate function was cached. When we generate the cached startup, we
+         explore the space of all potential candidates and rely on these
+         functions to filter out the one that we'll actually generate. It's okay
+         to have a search space bigger than needed, however it's not okay to
+         have a search space that does not englobe all candidates as it will
+         result in weird errors at link-time. We maybe could use Z3 to
+         automatically derive a good search space in the future as the filters
+         might become more complexed with unboxed types. *)
       assert (considered_as_small_threshold <= max_tuplify);
       assert (considered_as_small_threshold <= max_apply);
       assert (considered_as_small_threshold <= max_send);
       assert (considered_as_small_threshold <= Lambda.max_arity ());
       let arity n = List.init n (fun _ -> [| Val |]) in
       let result = [| Val |] in
-      let tuplify = List.init max_tuplify (fun n -> Lambda.Tupled, arity n, result) in
+      let tuplify =
+        List.init max_tuplify (fun n -> Lambda.Tupled, arity n, result)
+      in
       let curry =
         List.init (Lambda.max_arity ()) (fun n ->
             List.init (Lambda.max_arity ()) (fun nlocal ->
@@ -3075,9 +3080,8 @@ module Generic_fns_tbl = struct
   end
 
   let add t (Cmx_format.{ curry_fun; apply_fun; send_fun } as f) =
-    match !Flambda_backend_flags.use_cached_startup with
-    | None -> add_uncached t f
-    | Some _ ->
+    if !Flambda_backend_flags.use_cached_startup
+    then (
       List.iter
         (fun f ->
           if not (Precomputed.is_curry f) then Hashtbl.replace t.curry f ())
@@ -3089,13 +3093,13 @@ module Generic_fns_tbl = struct
       List.iter
         (fun f ->
           if not (Precomputed.is_send f) then Hashtbl.replace t.send f ())
-        send_fun
+        send_fun)
+    else add_uncached t f
 
   let of_fns fns =
     let t = make () in
     add t fns;
     t
-
 end
 
 let generic_functions shared tbl =

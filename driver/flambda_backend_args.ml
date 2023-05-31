@@ -496,8 +496,12 @@ let mk_no_dwarf_for_startup_file f =
     \     startup file as the upstream compiler"
 
 let mk_use_cached_startup f =
-  "-use-cached-startup", Arg.String f,
-  "<file>  Use the provided cached startup"
+  "-use-cached-startup", Arg.Unit f, " Use the cached startup"
+;;
+
+let mk_cached_startup_path f =
+  "-cached-startup-path", Arg.String f,
+  "<file>  Set the path of the cached startup (default to cache-startup.o)"
 ;;
 
 let set_long_frames_threshold n =
@@ -601,7 +605,8 @@ module type Flambda_backend_options = sig
   val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
   val dflow : unit -> unit
-  val use_cached_startup : string -> unit
+  val use_cached_startup : unit -> unit
+  val cached_startup_path : string -> unit
 end
 
 module Make_flambda_backend_options (F : Flambda_backend_options) =
@@ -723,6 +728,7 @@ struct
     mk_dfreshen F.dfreshen;
     mk_dflow F.dflow;
     mk_use_cached_startup F.use_cached_startup;
+    mk_cached_startup_path F.cached_startup_path;
   ]
 end
 
@@ -905,7 +911,8 @@ module Flambda_backend_options_impl = struct
   let dslot_offsets = set' Flambda2.Dump.slot_offsets
   let dfreshen = set' Flambda2.Dump.freshen
   let dflow = set' Flambda2.Dump.flow
-  let use_cached_startup file = Flambda_backend_flags.use_cached_startup := Some file
+  let use_cached_startup = set' Flambda_backend_flags.use_cached_startup
+  let cached_startup_path file = Flambda_backend_flags.cached_startup_path := file
 end
 
 module type Debugging_options = sig
@@ -1102,7 +1109,9 @@ module Extra_params = struct
     | "flambda2-debug-keep-invalid-handlers" ->
        set' Flambda2.Debug.keep_invalid_handlers
     | "use-cached-startup" ->
-      Flambda_backend_flags.use_cached_startup := Some v; true
+      set' Flambda_backend_flags.use_cached_startup
+    | "cached-startup-path" ->
+      Flambda_backend_flags.cached_startup_path := v; true
     | _ -> false
 end
 

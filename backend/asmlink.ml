@@ -364,7 +364,7 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   let globals_map = make_globals_map units in
   compile_phrase (Cmm_helpers.globals_map globals_map);
   let name_list =
-    if Option.is_some !Flambda_backend_flags.use_cached_startup then
+    if !Flambda_backend_flags.use_cached_startup then
       CU.create CU.Prefix.empty (CU.Name.of_string "_cached_startup") :: name_list
     else name_list
   in
@@ -489,9 +489,9 @@ let call_linker file_list_rev startup_file output_name =
   in
   let files = startup_file :: (List.rev file_list_rev) in
   let files =
-    match !Flambda_backend_flags.use_cached_startup with
-    | Some p -> p :: files
-    | None -> files
+    if !Flambda_backend_flags.use_cached_startup then
+      !Flambda_backend_flags.cached_startup_path :: files
+    else files
   in
   let files, c_lib =
     if (not !Clflags.output_c_object) || main_dll || main_obj_runtime then
