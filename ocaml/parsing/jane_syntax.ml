@@ -172,10 +172,10 @@ module Comprehensions = struct
       | Cexp_array_comprehension (amut, comp) ->
           expr_of_comprehension
             ~type_:[ "array"
-                  ; match amut with
-                    | Mutable   -> "mutable"
-                    | Immutable -> "immutable"
-                  ]
+                   ; match amut with
+                     | Mutable   -> "mutable"
+                     | Immutable -> "immutable"
+                   ]
             comp)
 
   (** Then, we define how to go from the OCaml AST to the nice AST; this is
