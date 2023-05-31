@@ -95,6 +95,8 @@ module Feature : sig
   val extension_component : t -> string
 
   val of_component : string -> (t, error) result
+
+  val is_erasable : t -> bool
 end = struct
   type t = Language_extension of Language_extension.t
          | Builtin
@@ -126,11 +128,14 @@ end = struct
           Error (Disabled_extension ext)
       | None ->
           Error (Unknown_extension str)
-end
 
-(* FUTURE-PROOFING: We're about to add builtin stuff; delete this ignore-only
-   binding when we do. *)
-let _ = Feature.extension_component
+  let is_erasable = function
+    | Language_extension ext -> Language_extension.is_erasable ext
+    (* Builtin syntax changes don't involve additions or changes to concrete
+       syntax and are always erasable.
+    *)
+    | Builtin -> true
+end
 
 (** Was this embedded as an [[%extension_node]] or an [[@attribute]]?  Not
     exported. *)
@@ -176,36 +181,25 @@ module Misnamed_embedding_error = struct
           str
 end
 
+module Erasability = struct
+  type t =
+    | Erasable
+    | Non_erasable
+
+  let to_string = function
+    | Erasable -> "erasable"
+    | Non_erasable -> "non_erasable"
+
+  let of_string = function
+    | "erasable" -> Ok Erasable
+    | "non_erasable" -> Ok Non_erasable
+    | _ -> Error ()
+end
+
 (** An AST-style representation of the names used when generating extension
     nodes or attributes for modular syntax; see the .mli file for more
     details. *)
 module Embedded_name : sig
-
-  (** The component of an attribute or extension name that identifies whether or
-      not the embedded syntax is *erasable*; that is, whether or not the
-      upstream OCaml compiler can safely interpret the AST while ignoring the
-      attribute or extension.  (This means that syntax encoded as extension
-      nodes should always be non-erasable.)  Tools that consume the parse tree
-      we generate can make use of this information; for instance, ocamlformat
-      will use it to guide how we present code that can be run with both our
-      compiler and the upstream compiler, and ppxlib can use it to decide
-      whether it's ok to allow ppxes to construct syntax that uses this
-      emedding.  In particular, the upstream version of ppxlib will allow ppxes
-      to produce [[@jane.erasable.*]] attributes, but will report an error if a
-      ppx produces a [[@jane.non_erasable.*]] attribute.
-
-      As mentioned above, unlike for attributes, the erasable/non-erasable
-      distinction is not meaningful for extension nodes, as the compiler will
-      always error if it sees an uninterpreted extension node. So, for purposes
-      of tools in the wider OCaml ecosystem, it is irrelevant whether embeddings
-      that use extension nodes indicate [Erasable] or [Non_erasable] for this
-      component, but the semantically correct choice and the one we've settled
-      on is to use [Non_erasable]. *)
-  module Erasability : sig
-    type t =
-      | Erasable
-      | Non_erasable
-  end
 
   (** A nonempty list of name components, without the first two components.
       (That is, without the leading root component that identifies it as part of
@@ -217,6 +211,11 @@ module Embedded_name : sig
     { erasability : Erasability.t
     ; components : components
     }
+
+  (** See the mli. *)
+  val of_feature : Feature.t -> string list -> t
+
+  val components : t -> components
 
   (** Convert one of these Jane syntax names to the embedded string form used in
       the OCaml AST as the name of an extension node or an attribute; not
@@ -259,21 +258,6 @@ end = struct
 
   include Config
 
-  module Erasability = struct
-    type t =
-      | Erasable
-      | Non_erasable
-
-    let to_string = function
-      | Erasable -> "erasable"
-      | Non_erasable -> "non_erasable"
-
-    let of_string = function
-      | "erasable" -> Ok Erasable
-      | "non_erasable" -> Ok Non_erasable
-      | _ -> Error ()
-  end
-
   let separator_str = String.make 1 separator
 
   type components = ( :: ) of string * string list
@@ -282,6 +266,15 @@ end = struct
     { erasability : Erasability.t
     ; components : components
     }
+
+  let of_feature feature trailing_components =
+    let feature_component = Feature.extension_component feature in
+    let erasability : Erasability.t =
+      if Feature.is_erasable feature then Erasable else Non_erasable
+    in
+    { erasability; components = feature_component :: trailing_components }
+
+  let components t = t.components
 
   let to_string { erasability; components = feat :: subparts } =
     String.concat
@@ -320,7 +313,7 @@ module Error = struct
   type error =
     | Malformed_embedding of
         Embedding_syntax.t * Embedded_name.t * malformed_embedding
-    | Unknown_extension of Embedding_syntax.t * Embedded_name.Erasability.t * string
+    | Unknown_extension of Embedding_syntax.t * Erasability.t * string
     | Disabled_extension of Language_extension.t
     | Wrong_syntactic_category of Feature.t * string
     | Misnamed_embedding of
@@ -792,13 +785,20 @@ module AST = struct
     let (module AST) = to_module t in
     AST.wrap_desc
 
-  let make_jane_syntax (type ast ast_desc) (t : (ast, ast_desc) t) =
+  let make_jane_syntax
+      (type ast ast_desc)
+      (t : (ast, ast_desc) t)
+      feature
+      trailing_components
+      ast
+    =
     let (module AST) = to_module t in
     AST.make_jane_syntax
+      (Embedded_name.of_feature feature trailing_components)
+      ast
 
-  let make_entire_jane_syntax t ~loc erasability feature ast =
-    let feature_component = Feature.extension_component feature in
-    make_jane_syntax t { erasability; components = [feature_component] }
+  let make_entire_jane_syntax t ~loc feature ast =
+    make_jane_syntax t feature []
       (Ast_helper.with_default_loc (Location.ghostify loc) ast)
 
   (** Generically lift our custom ASTs for our novel syntax from OCaml ASTs. *)

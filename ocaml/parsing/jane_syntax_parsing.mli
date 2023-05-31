@@ -96,6 +96,37 @@ module Feature : sig
   type t =
     | Language_extension of Language_extension.t
     | Builtin
+
+  (** The component of an attribute or extension name that identifies the
+      feature. This is third component.
+  *)
+  val extension_component : t -> string
+end
+
+(** The component of an attribute or extension name that identifies whether or
+    not the embedded syntax is *erasable*; that is, whether or not the
+    upstream OCaml compiler can safely interpret the AST while ignoring the
+    attribute or extension.  (This means that syntax encoded as extension
+    nodes should always be non-erasable.)  Tools that consume the parse tree
+    we generate can make use of this information; for instance, ocamlformat
+    will use it to guide how we present code that can be run with both our
+    compiler and the upstream compiler, and ppxlib can use it to decide
+    whether it's ok to allow ppxes to construct syntax that uses this
+    emedding.  In particular, the upstream version of ppxlib will allow ppxes
+    to produce [[@jane.erasable.*]] attributes, but will report an error if a
+    ppx produces a [[@jane.non_erasable.*]] attribute.
+
+    As mentioned above, unlike for attributes, the erasable/non-erasable
+    distinction is not meaningful for extension nodes, as the compiler will
+    always error if it sees an uninterpreted extension node. So, for purposes
+    of tools in the wider OCaml ecosystem, it is irrelevant whether embeddings
+    that use extension nodes indicate [Erasable] or [Non_erasable] for this
+    component, but the semantically correct choice and the one we've settled
+    on is to use [Non_erasable]. *)
+module Erasability : sig
+  type t =
+    | Erasable
+    | Non_erasable
 end
 
 (** An AST-style representation of the names used when generating extension
@@ -105,11 +136,6 @@ end
     also why we don't expose any functions for rendering or parsing these names;
     that's all handled internally. *)
 module Embedded_name : sig
-  module Erasability : sig
-    type t =
-      | Erasable
-      | Non_erasable
-  end
 
   (** A nonempty list of name components, without the first two components.
       (That is, without the leading root component that identifies it as part of
@@ -121,10 +147,16 @@ module Embedded_name : sig
   *)
   type components = ( :: ) of string * string list
 
-  (** The trailing components together with the erasability. The erasability is
-      the second component of the literal name that appears in the parsetree.
+  type t
+
+  (** Creates an embedded name whose erasability component is whether the
+      feature is erasable, and whose feature component is the feature's name.
+      The second argument is treated as the trailing components after the
+      feature name.
   *)
-  type t = { erasability : Erasability.t; components : components }
+  val of_feature : Feature.t -> string list -> t
+
+  val components : t -> components
 
   (** Print out the embedded form of a Jane-syntax name, in quotes; for use in
       error messages. *)
@@ -183,8 +215,12 @@ module AST : sig
       given name (the [Embedded_name.t]) and body (the [ast]).  Any locations in
       the generated AST will be set to [!Ast_helper.default_loc], which should
       be [ghost]. *)
-  val make_jane_syntax :
-    ('ast, 'ast_desc) t -> Embedded_name.t -> 'ast -> 'ast_desc
+  val make_jane_syntax
+    :  ('ast, 'ast_desc) t
+    -> Feature.t
+    -> string list
+    -> 'ast
+    -> 'ast_desc
 
   (** As [make_jane_syntax], but specifically for the AST node corresponding to
       the entire piece of novel syntax (e.g., for a list comprehension, the
@@ -195,7 +231,6 @@ module AST : sig
   val make_entire_jane_syntax
     :  ('ast, 'ast_desc) t
     -> loc:Location.t
-    -> Embedded_name.Erasability.t
     -> Feature.t
     -> (unit -> 'ast)
     -> 'ast_desc
@@ -255,8 +290,9 @@ val assert_extension_enabled : loc:Location.t -> Language_extension.t -> unit
     order to process a Jane Syntax element that consists of multiple
     nested ASTs.
 *)
-val find_and_remove_jane_syntax_attribute :
-  Parsetree.attributes -> (Embedded_name.t * Parsetree.attributes) option
+val find_and_remove_jane_syntax_attribute
+  :  Parsetree.attributes
+  -> (Embedded_name.t * Parsetree.attributes) option
 
 (** Errors around the representation of our extended ASTs.  These should mostly
     just be fatal, but they're needed for one test case

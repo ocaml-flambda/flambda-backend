@@ -41,29 +41,10 @@ open Jane_syntax_parsing
 
 module With_attributes = With_attributes
 
-(* So far, all pieces of Jane Syntax use the same erasability/feature for
-   all the sub-ASTs involved in that syntax. This type captures this
-   per-Jane-Syntax configuration.
-*)
-type jane_syntax_config =
-  { erasability : Jane_syntax_parsing.Embedded_name.Erasability.t
-  (** The erasability component of the embedded name. *)
-  ; feature : Jane_syntax_parsing.Feature.t
-  (** The feature component of the embedded name. *)
-  }
-
-let make_for_language_extension language_extension =
-  { erasability =
-      if Language_extension.is_erasable language_extension
-      then Erasable
-      else Non_erasable
-  ; feature = Language_extension language_extension
-  }
-
 (** List and array comprehensions *)
 module Comprehensions = struct
-  let { erasability; feature } = make_for_language_extension Comprehensions
-  let extension_string = Language_extension.to_string Comprehensions
+  let feature : Feature.t = Language_extension Comprehensions
+  let extension_string = Feature.extension_component feature
 
   type iterator =
     | Range of { start     : expression
@@ -113,10 +94,7 @@ module Comprehensions = struct
 
   let comprehension_expr names x =
     AST.wrap_desc Expression ~attrs:[] ~loc:x.pexp_loc @@
-    AST.make_jane_syntax
-      Expression
-      { erasability; components = extension_string :: names }
-      x
+    AST.make_jane_syntax Expression feature names x
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
       the [expr_of_...] family of expressions, culminating in
@@ -165,7 +143,7 @@ module Comprehensions = struct
 
   let expr_of ~loc cexpr =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
-    AST.make_entire_jane_syntax Expression ~loc erasability feature (fun () ->
+    AST.make_entire_jane_syntax Expression ~loc feature (fun () ->
       match cexpr with
       | Cexp_list_comprehension comp ->
           expr_of_comprehension ~type_:["list"] comp
@@ -203,8 +181,7 @@ module Comprehensions = struct
           Location.errorf ~loc
             "Unknown, unexpected, or malformed@ comprehension embedded term %a"
             Embedded_name.pp_quoted_name
-            Embedded_name.
-              { erasability; components = extension_string :: subparts }
+            (Embedded_name.of_feature feature subparts)
       | No_clauses ->
           Location.errorf ~loc
             "Tried to desugar a comprehension with no clauses"
@@ -224,12 +201,13 @@ module Comprehensions = struct
      attribute removed. *)
   let expand_comprehension_extension_expr expr =
     match find_and_remove_jane_syntax_attribute expr.pexp_attributes with
-    | Some
-        ({ erasability = _; components = comprehensions :: names }, attributes)
-      when String.equal comprehensions extension_string ->
-        names, { expr with pexp_attributes = attributes }
-    | Some (ext_name, _) ->
-        Desugaring_error.raise expr (Non_comprehension_embedding ext_name)
+    | Some (ext_name, attributes) ->
+        let comprehensions :: names =
+          Jane_syntax_parsing.Embedded_name.components ext_name
+        in
+        if String.equal comprehensions extension_string
+        then names, { expr with pexp_attributes = attributes }
+        else Desugaring_error.raise expr (Non_comprehension_embedding ext_name)
     | None ->
         Desugaring_error.raise expr Non_embedding
 
@@ -303,13 +281,13 @@ module Immutable_arrays = struct
   type nonrec pattern =
     | Iapat_immutable_array of pattern list
 
-  let { erasability; feature } = make_for_language_extension Immutable_arrays
+  let feature : Feature.t = Language_extension Immutable_arrays
 
   let expr_of ~loc = function
     | Iaexp_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
-      AST.make_entire_jane_syntax Expression ~loc erasability feature
-        (fun () -> Ast_helper.Exp.array elts)
+      AST.make_entire_jane_syntax Expression ~loc feature (fun () ->
+        Ast_helper.Exp.array elts)
 
   (* Returns remaining unconsumed attributes *)
   let of_expr expr = match expr.pexp_desc with
@@ -319,8 +297,8 @@ module Immutable_arrays = struct
   let pat_of ~loc = function
     | Iapat_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
-      AST.make_entire_jane_syntax Pattern ~loc erasability feature
-        (fun () -> Ast_helper.Pat.array elts)
+      AST.make_entire_jane_syntax Pattern ~loc feature (fun () ->
+        Ast_helper.Pat.array elts)
 
   (* Returns remaining unconsumed attributes *)
   let of_pat pat = match pat.ppat_desc with
@@ -336,13 +314,13 @@ module Include_functor = struct
   type structure_item =
     | Ifstr_include_functor of include_declaration
 
-  let { erasability; feature } = make_for_language_extension Include_functor
+  let feature : Feature.t = Language_extension Include_functor
 
   let sig_item_of ~loc = function
     | Ifsig_include_functor incl ->
         (* See Note [Wrapping with make_entire_jane_syntax] *)
-        AST.make_entire_jane_syntax Signature_item ~loc erasability feature
-          (fun () -> Ast_helper.Sig.include_ incl)
+        AST.make_entire_jane_syntax Signature_item ~loc feature (fun () ->
+          Ast_helper.Sig.include_ incl)
 
   let of_sig_item sigi = match sigi.psig_desc with
     | Psig_include incl -> Ifsig_include_functor incl
@@ -351,8 +329,8 @@ module Include_functor = struct
   let str_item_of ~loc = function
     | Ifstr_include_functor incl ->
         (* See Note [Wrapping with make_entire_jane_syntax] *)
-        AST.make_entire_jane_syntax Structure_item ~loc erasability feature
-          (fun () -> Ast_helper.Str.include_ incl)
+        AST.make_entire_jane_syntax Structure_item ~loc feature (fun () ->
+          Ast_helper.Str.include_ incl)
 
   let of_str_item stri = match stri.pstr_desc with
     | Pstr_include incl -> Ifstr_include_functor incl
@@ -364,8 +342,7 @@ module Strengthen = struct
   type nonrec module_type =
     { mty : Parsetree.module_type; mod_id : Longident.t Location.loc }
 
-  let { erasability; feature } =
-    make_for_language_extension Module_strengthening
+  let feature : Feature.t = Language_extension Module_strengthening
 
   (* Encoding: [S with M] becomes [functor (_ : S) -> (module M)], where
      the [(module M)] is a [Pmty_alias].  This isn't syntax we can write, but
@@ -373,7 +350,7 @@ module Strengthen = struct
 
   let mty_of ~loc { mty; mod_id } =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
-    AST.make_entire_jane_syntax Module_type ~loc erasability feature (fun () ->
+    AST.make_entire_jane_syntax Module_type ~loc feature (fun () ->
       Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
         (Ast_helper.Mty.alias mod_id))
 
