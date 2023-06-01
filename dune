@@ -249,7 +249,6 @@
   ;; backend/regalloc
   regalloc_invariants
   regalloc_irc
-  regalloc_irc_split
   regalloc_irc_state
   regalloc_irc_utils
   regalloc_ls
@@ -782,7 +781,6 @@
   (cfg_to_linear_desc.mli as compiler-libs/cfg_to_linear_desc.mli)
   (regalloc_invariants.mli as compiler-libs/regalloc_invariants.mli)
   (regalloc_irc.mli as compiler-libs/regalloc_irc.mli)
-  (regalloc_irc_split.mli as compiler-libs/regalloc_irc_split.mli)
   (regalloc_irc_state.mli as compiler-libs/regalloc_irc_state.mli)
   (regalloc_irc_utils.mli as compiler-libs/regalloc_irc_utils.mli)
   (regalloc_ls.mli as compiler-libs/regalloc_ls.mli)
@@ -1297,21 +1295,6 @@
   (.ocamloptcomp.objs/byte/regalloc_irc.cmt as compiler-libs/regalloc_irc.cmt)
   (.ocamloptcomp.objs/byte/regalloc_irc.cmti as compiler-libs/regalloc_irc.cmti)
   (.ocamloptcomp.objs/native/regalloc_irc.cmx as compiler-libs/regalloc_irc.cmx)
-  (.ocamloptcomp.objs/byte/regalloc_irc_split.cmi
-    as
-    compiler-libs/regalloc_irc_split.cmi)
-  (.ocamloptcomp.objs/byte/regalloc_irc_split.cmo
-    as
-    compiler-libs/regalloc_irc_split.cmo)
-  (.ocamloptcomp.objs/byte/regalloc_irc_split.cmt
-    as
-    compiler-libs/regalloc_irc_split.cmt)
-  (.ocamloptcomp.objs/byte/regalloc_irc_split.cmti
-    as
-    compiler-libs/regalloc_irc_split.cmti)
-  (.ocamloptcomp.objs/native/regalloc_irc_split.cmx
-    as
-    compiler-libs/regalloc_irc_split.cmx)
   (.ocamloptcomp.objs/byte/regalloc_irc_state.cmi
     as
     compiler-libs/regalloc_irc_state.cmi)
