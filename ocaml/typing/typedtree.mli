@@ -214,6 +214,7 @@ and expression_desc =
       region : bool; curry : fun_curry_state;
       warnings : Warnings.state;
       arg_mode : Types.alloc_mode;
+      arg_sort : Layouts.sort;
       alloc_mode : Types.alloc_mode}
         (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
             See {!Parsetree} for more details.
@@ -343,6 +344,7 @@ and expression_desc =
       let_ : binding_op;
       ands : binding_op list;
       param : Ident.t;
+      param_sort : Layouts.sort;
       body : value case;
       partial : partial;
       warnings : Warnings.state;
@@ -428,12 +430,9 @@ and omitted_parameter =
   { mode_closure : Types.alloc_mode;
     mode_arg : Types.alloc_mode;
     mode_ret : Types.alloc_mode;
-    (* CR ncourant: actually, we only need this to be able to compute the layout
-       in [Translcore], change this when merging with the front-end. *)
-    ty_arg : Types.type_expr;
-    ty_env : Env.t}
+    sort_arg : Layouts.sort }
 
-and apply_arg = (expression, omitted_parameter) arg_or_omitted
+and apply_arg = (expression * Layouts.sort, omitted_parameter) arg_or_omitted
 
 and apply_position =
   | Tail          (* must be tail-call optimised *)

@@ -30,18 +30,30 @@ val bigarray_type_kind_and_layout :
       Env.t -> Types.type_expr -> Lambda.bigarray_kind * Lambda.bigarray_layout
 
 (* CR layouts: `layout` should have a `sort` argument.  *)
-(* CR layouts v2: [layout], [function_return_layout] and
-   [function2_return_layout] have had location arguments added just to support
-   the void check error message.  These arguments can be removed when we're
-   happy to take that check out. *)
+(* CR layouts v2: [layout], [function_return_layout], [function2_return_layout],
+   and [layout_of_sort] have had location arguments added just to support the
+   void check error message.  These arguments can be removed when we're happy to
+   take that check out. *)
 val layout :
   Env.t -> Location.t -> Layouts.sort -> Types.type_expr -> Lambda.layout
+
+(* This translates a type system sort to a lambda layout.  Use the function
+   [layout] instead when the type is known: that function gives a more precise
+   result.  This should only be used when the precise layout isn't needed for
+   optimization. *)
+val layout_of_sort : Location.t -> Layouts.sort -> Lambda.layout
 
 val function_return_layout :
   Env.t -> Location.t -> Types.type_expr -> Lambda.layout
 (* Gives the return layout of a function with two arguments. *)
 val function2_return_layout :
   Env.t -> Location.t -> Types.type_expr -> Lambda.layout
+
+(* Given a function type and the sort of its argument, compute the layout
+   of its argument.  Fails loudly if the type isn't a function type. *)
+val function_arg_layout :
+  Env.t -> Location.t -> Layouts.sort -> Types.type_expr -> Lambda.layout
+
 
 val classify_lazy_argument : Typedtree.expression ->
                              [ `Constant_or_function

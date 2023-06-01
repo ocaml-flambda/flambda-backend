@@ -28,6 +28,7 @@ open Lambda
 type error =
     Non_value_layout of type_expr * Layout.Violation.t
   | Non_value_sort of type_expr
+  | Non_value_sort_unknown_ty
 
 exception Error of Location.t * error
 
@@ -501,6 +502,11 @@ let layout env loc sort ty =
   | Void -> raise (Error (loc, Non_value_sort ty))
   | Value -> Lambda.Pvalue (value_kind env loc ty)
 
+let layout_of_sort loc sort =
+  match Layouts.Sort.get_default_value sort with
+  | Void -> raise (Error (loc, Non_value_sort_unknown_ty))
+  | Value -> Lambda.Pvalue Pgenval
+
 let function_return_layout env loc ty =
   match is_function_type env ty with
   | Some (_lhs, rhs) -> layout env loc Layouts.Sort.sort_function_return rhs
@@ -511,6 +517,10 @@ let function2_return_layout env loc ty =
   | Some (_lhs, rhs) -> function_return_layout env loc rhs
   | None -> Misc.fatal_errorf "function_return_layout called on non-function type"
 
+let function_arg_layout env loc sort ty =
+  match is_function_type env ty with
+  | Some (arg_type, _) -> layout env loc sort arg_type
+  | None -> Misc.fatal_error "function_arg_layout called on non-function type"
 
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
     if the value can be represented as a float/forward/lazy *)
@@ -574,9 +584,13 @@ let report_error ppf = function
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
   | Non_value_sort ty ->
       fprintf ppf
-        "Void provided to [layout] as sort for type %a.@ Please report this \
-         error to the Jane Street compilers team."
+        "Non-value detected in [Typeopt.layout] as sort for type@ %a.@ \
+         Please report this error to the Jane Street compilers team."
         Printtyp.type_expr ty
+  | Non_value_sort_unknown_ty ->
+      fprintf ppf
+        "Non-value detected in [layout_of_sort]@ Please report this \
+         error to the Jane Street compilers team."
 
 let () =
   Location.register_error_of_exn

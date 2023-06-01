@@ -226,23 +226,30 @@ let rec trivial_pat pat =
       List.for_all trivial_pat patl
   | _ -> false
 
-let rec push_defaults loc bindings use_lhs arg_mode cases partial warnings =
+let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases partial
+          warnings =
   match cases with
     [{c_lhs=pat; c_guard=None;
       c_rhs={exp_desc = Texp_function { arg_label; param; cases; partial;
-                                        region; curry; warnings; arg_mode; alloc_mode } }
+                                        region; curry; warnings; arg_mode;
+                                        arg_sort; alloc_mode } }
         as exp}] when bindings = [] || trivial_pat pat ->
-      let cases = push_defaults exp.exp_loc bindings false arg_mode cases partial warnings in
+      let cases =
+        push_defaults exp.exp_loc bindings false arg_mode arg_sort cases partial
+          warnings
+      in
       [{c_lhs=pat; c_guard=None;
-        c_rhs={exp with exp_desc = Texp_function { arg_label; param; cases;
-          partial; region; curry; warnings; arg_mode; alloc_mode }}}]
+        c_rhs={exp with exp_desc =
+                          Texp_function { arg_label; param; cases; partial;
+                                          region; curry; warnings; arg_mode;
+                                          arg_sort; alloc_mode }}}]
   | [{c_lhs=pat; c_guard=None;
       c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#default"};_}];
              exp_desc = Texp_let
                (Nonrecursive, binds,
                 ({exp_desc = Texp_function _} as e2))}}] ->
       push_defaults loc (binds :: bindings) true
-                   arg_mode [{c_lhs=pat;c_guard=None;c_rhs=e2}]
+                   arg_mode arg_sort [{c_lhs=pat;c_guard=None;c_rhs=e2}]
                    partial warnings
   | [{c_lhs=pat; c_guard=None; c_rhs=exp} as case]
     when use_lhs || trivial_pat pat && exp.exp_desc <> Texp_unreachable ->
@@ -268,9 +275,7 @@ let rec push_defaults loc bindings use_lhs arg_mode cases partial warnings =
               Texp_ident
                 (Path.Pident param, mknoloc (Longident.Lident name),
                  desc, Id_value)},
-             Sort.value,
-             (* CR layouts v2: Value here will changes when functions take other
-                layouts.  Maybe we need a sort in [Typedtree.case]? *)
+             arg_sort,
              cases, partial) }
       in
       [{c_lhs = {pat with pat_desc = Tpat_var (param, mknoloc name, mode)};
@@ -393,26 +398,20 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_let ~scopes rec_flag pat_expr_list
         body_layout (event_before ~scopes body (transl_exp ~scopes sort body))
   | Texp_function { arg_label = _; param; cases; partial;
-                    region; curry; warnings; arg_mode; alloc_mode } ->
-      (* CR ncourant: it would be better if we had [arg_layout] here *)
-      let arg_layout =
-        match is_function_type e.exp_env e.exp_type with
-        | None -> Misc.fatal_error "Translcore.transl_exp0: Type of a function is not a function type"
-        | Some (arg_type, _) ->
-            Typeopt.layout e.exp_env e.exp_loc Sort.sort_function_arg arg_type
-      in
+                    region; curry; warnings; arg_mode; arg_sort; alloc_mode } ->
       let scopes =
         if in_new_scope then scopes
         else enter_anonymous_function ~scopes
       in
-      transl_function ~scopes e alloc_mode param arg_mode arg_layout cases partial warnings region curry
+      transl_function ~scopes e alloc_mode param arg_mode arg_sort cases partial
+        warnings region curry
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim pmode);
                 exp_type = prim_type; } as funct, oargs, pos, alloc_mode)
     when can_apply_primitive p pmode pos oargs ->
       let argl, extra_args = cut p.prim_arity oargs in
       let arg_exps =
-         List.map (function _, Arg x -> x | _ -> assert false) argl
+         List.map (function _, Arg (x,_) -> x | _ -> assert false) argl
       in
       let args =
         transl_list ~scopes
@@ -857,10 +856,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           cl_env = e.exp_env;
           cl_attributes = [];
          }
-  | Texp_letop{let_; ands; param; body; partial; warnings} ->
+  | Texp_letop{let_; ands; param; param_sort; body; partial; warnings} ->
       event_after ~scopes e
         (transl_letop ~scopes e.exp_loc e.exp_env let_ ands
-           param body partial warnings)
+           param param_sort body partial warnings)
   | Texp_unreachable ->
       raise (Error (e.exp_loc, Unreachable_reached))
   | Texp_open (od, e) ->
@@ -1109,7 +1108,7 @@ and transl_apply ~scopes
         }
   in
   let rec build_apply lam args loc pos ap_mode = function
-    | Omitted { mode_closure; mode_arg; mode_ret; ty_arg; ty_env } :: l ->
+    | Omitted { mode_closure; mode_arg; mode_ret; sort_arg } :: l ->
         assert (pos = Rc_normal);
         let defs = ref [] in
         let protect name (lam, layout) =
@@ -1152,10 +1151,7 @@ and transl_apply ~scopes
             | Alloc_local -> false
             | Alloc_heap -> true
           in
-          let layout_arg =
-            Typeopt.layout ty_env (to_location loc) Sort.sort_function_arg
-              ty_arg
-          in
+          let layout_arg = layout_of_sort (to_location loc) sort_arg in
           lfunction ~kind:(Curried {nlocal}) ~params:[id_arg, layout_arg]
                     ~return:result_layout ~body ~mode ~region
                     ~attr:default_stub_attribute ~loc
@@ -1171,8 +1167,8 @@ and transl_apply ~scopes
       (fun (_, arg) ->
          match arg with
          | Omitted _ as arg -> arg
-         | Arg exp -> Arg (transl_exp ~scopes Sort.sort_function_arg exp,
-                           layout_exp Sort.sort_function_arg exp))
+         | Arg (exp, sort_arg) ->
+           Arg (transl_exp ~scopes sort_arg exp, layout_exp sort_arg exp))
       sargs
   in
   build_apply lam [] loc position mode args
@@ -1191,7 +1187,7 @@ and transl_curried_function
                    { arg_label = _; param = param'; cases = cases';
                      partial = partial'; region = region';
                      curry = curry';
-                     warnings = warnings' };
+                     warnings = warnings'; arg_sort };
                exp_env; exp_type; exp_loc }}]
       when arity < max_arity ->
       (* Lfunctions must have local returns after the first local arg/ret *)
@@ -1200,11 +1196,7 @@ and transl_curried_function
         let partial_mode = transl_alloc_mode partial_mode in
         let return_layout = function_return_layout exp_env exp_loc exp_type in
         let arg_layout' =
-          match is_function_type exp_env exp_type with
-          | None ->
-              Misc.fatal_error "Translcore.transl_curried_function: \
-                                Type of Texp_function is not function"
-          | Some (lhs, _) -> layout exp_env exp_loc Sort.sort_function_arg lhs
+          function_arg_layout exp_env exp_loc arg_sort exp_type
         in
         let ((fnkind, params, return, region), body) =
           loop ~scopes exp_loc return_layout
@@ -1309,12 +1301,18 @@ and transl_function0
     in
     ((Curried {nlocal}, [param, arg_layout], return, region), body)
 
-and transl_function ~scopes e alloc_mode param arg_mode arg_layout cases partial warnings region curry =
+and transl_function ~scopes e alloc_mode param arg_mode arg_sort cases partial
+      warnings region curry =
   let mode = transl_alloc_mode alloc_mode in
+  let arg_layout =
+    function_arg_layout e.exp_env e.exp_loc arg_sort e.exp_type
+  in
   let ((kind, params, return, region), body) =
     event_function ~scopes e
       (function repr ->
-         let pl = push_defaults e.exp_loc arg_mode cases partial warnings in
+         let pl =
+           push_defaults e.exp_loc arg_mode arg_sort cases partial warnings
+         in
          let return_layout =
            function_return_layout e.exp_env e.exp_loc e.exp_type
          in
@@ -1667,7 +1665,8 @@ and transl_match ~scopes e arg ~arg_sort pat_expr_list ~result_sort partial =
     Lstaticcatch (body, (static_exception_id, val_ids), handler, layout)
   ) classic static_handlers
 
-and transl_letop ~scopes loc env let_ ands param case partial warnings =
+and transl_letop ~scopes loc env let_ ands param param_sort case partial
+      warnings =
   (* CR layouts: The typechecker is currently enforcing that everything here has
      layout value, but we might want to relax that when we allow non-value
      function args and returns, and then this code would need to be
@@ -1722,13 +1721,7 @@ and transl_letop ~scopes loc env let_ ands param case partial warnings =
           | None ->
               Misc.fatal_error
                 "Translcore.transl_letop: letop should have at least two arguments"
-          | Some (lhs, _) ->
-              match Typeopt.is_function_type env lhs with
-              | None ->
-                  Misc.fatal_error
-                    "Translcore.transl_letop: letop second argument should be a function"
-              | Some (arg_type, _) ->
-                  Typeopt.layout env loc Sort.sort_function_arg arg_type
+          | Some (lhs, _) -> Typeopt.function_arg_layout env loc param_sort lhs
     in
     let return_layout = layout_exp Sort.sort_function_return case.c_rhs in
     let curry = More_args { partial_mode = Alloc_mode.global } in

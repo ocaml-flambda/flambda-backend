@@ -113,6 +113,7 @@ and expression_desc =
       region : bool; curry : fun_curry_state;
       warnings : Warnings.state;
       arg_mode : Types.alloc_mode;
+      arg_sort : Layouts.sort;
       alloc_mode : Types.alloc_mode }
   | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Types.alloc_mode
   | Texp_match of expression * sort * computation case list * partial
@@ -167,6 +168,7 @@ and expression_desc =
       let_ : binding_op;
       ands : binding_op list;
       param : Ident.t;
+      param_sort : Layouts.sort;
       body : value case;
       partial : partial;
       warnings : Warnings.state;
@@ -241,10 +243,9 @@ and omitted_parameter =
   { mode_closure : alloc_mode;
     mode_arg : alloc_mode;
     mode_ret : alloc_mode;
-    ty_arg : Types.type_expr;
-    ty_env : Env.t }
+    sort_arg : Layouts.sort }
 
-and apply_arg = (expression, omitted_parameter) arg_or_omitted
+and apply_arg = (expression * Layouts.sort, omitted_parameter) arg_or_omitted
 
 and apply_position =
   | Tail
