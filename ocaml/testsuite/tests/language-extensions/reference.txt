@@ -53,8 +53,7 @@ Successfully typechecked "[x for x = 1 to 10]"
 Successfully typechecked "[x for x = 1 to 10]"
 
 # enable and disable the same layouts extension [comprehensions enabled]:
-FAILED at enabling and disabling the same layouts extension, with the following error
-:Cannot disable extension layouts_alpha because extension layouts_alpha is enabled. Please enable or disable at most one of the layouts extensions.
+Succeeded at enabling and disabling the same layouts extension
 
 # enable and disable two different layouts extensions [comprehensions enabled]:
 Failed as expected: Cannot disable extension layouts_beta because extension layouts_alpha is enabled. Please enable or disable at most one of the layouts extensions.

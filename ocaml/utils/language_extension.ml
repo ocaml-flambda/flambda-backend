@@ -1,5 +1,7 @@
 type maturity = Stable | Beta | Alpha
 
+let equal_maturity (a : maturity) (b : maturity) = (a = b)
+
 type t =
   | Comprehensions
   | Local
@@ -125,7 +127,7 @@ let check_conflicts t1 =
      'layouts_beta', and 'layouts_alpha'."
   in
   let c = List.find_map (fun t2 ->
-    if t1 = t2 then Some Duplicate else
+    if equal t1 t2 then Some Duplicate else
       match t1, t2 with
       | Layouts _, Layouts _ -> Some (Incompatible layouts_err)
       | _, _ -> None)
@@ -149,12 +151,13 @@ let set extn ~enabled =
     extensions :=
       List.filter (fun extn' ->
         match extn, extn' with
-        | Layouts _, Layouts _ ->
-          raise (Arg.Bad(Printf.sprintf
-             "Cannot disable extension %s because extension %s is enabled. \
-              Please enable or disable at most one of the layouts extensions."
-             (to_string extn) (to_string extn')))
-        | _, _ -> not (equal extn extn'))
+        | Layouts m1, Layouts m2 when not (equal_maturity m1 m2) ->
+            raise (Arg.Bad(Printf.sprintf
+              "Cannot disable extension %s because extension %s is enabled. \
+               Please enable or disable at most one of the layouts extensions."
+              (to_string extn) (to_string extn')))
+        | _, _ ->
+            not (equal extn extn'))
         !extensions
 
 let enable  = set ~enabled:true
