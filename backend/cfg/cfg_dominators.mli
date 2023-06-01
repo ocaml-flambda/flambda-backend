@@ -42,6 +42,7 @@ type dominator_tree =
 
 val iter_breadth_dominator_tree : dominator_tree -> f:(Label.t -> unit) -> unit
 (* [iter_breadth_dominator_tree tree ~f] iterates over [tree] in a breadth-first
+=======
    manner, applying [f] to visited nodes. *)
 
 val compute_dominator_tree : Cfg.t -> immediate_dominators -> dominator_tree
