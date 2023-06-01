@@ -52,11 +52,14 @@ Successfully typechecked "[x for x = 1 to 10]"
 # "comprehensions" extension disabled locally via [with_set] and also globally [comprehensions enabled]:
 Successfully typechecked "[x for x = 1 to 10]"
 
-# Enable two layouts [comprehensions enabled]:
-Failed as expected: Invalid extensions: Please enable at most one of 'layouts', 'layouts_beta', and 'layouts_alpha'.
+# enable and disable the same layouts extension [comprehensions enabled]:
+Succeeded at enabling and disabling the same layouts extension
 
-# Enable and disable layouts [comprehensions enabled]:
+# enable and disable two different layouts extensions [comprehensions enabled]:
 Failed as expected: Cannot disable extension layouts_beta because extension layouts_alpha is enabled. Please enable or disable at most one of the layouts extensions.
+
+# enable two different layouts extensions [comprehensions enabled]:
+Failed as expected: Invalid extensions: Please enable at most one of 'layouts', 'layouts_beta', and 'layouts_alpha'.
 
 # can disallow extensions while extensions are enabled [comprehensions disabled]:
 Succeeded at disallowing all extensions
