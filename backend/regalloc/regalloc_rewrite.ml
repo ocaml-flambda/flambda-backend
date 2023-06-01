@@ -176,10 +176,14 @@ let rewrite_gen :
            if not (DLL.is_empty new_instrs)
            then
              (* insert block *)
-             Regalloc_utils.insert_block
-               (Cfg_with_liveness.cfg_with_layout cfg_with_liveness)
-               new_instrs ~after:block ~next_instruction_id:(fun () ->
-                 State.get_and_incr_instruction_id state));
+             let (_ : Cfg.basic_block list) =
+               Regalloc_utils.insert_block
+                 (Cfg_with_liveness.cfg_with_layout cfg_with_liveness)
+                 new_instrs ~after:block ~before:None
+                 ~next_instruction_id:(fun () ->
+                   State.get_and_incr_instruction_id state)
+             in
+             ());
           if Utils.debug
           then (
             Utils.log ~indent:2 "and after:";
@@ -204,7 +208,7 @@ let prelude :
   if Utils.debug && Lazy.force Utils.invariants
   then (
     Utils.log ~indent:0 "precondition";
-    precondition cfg_with_layout);
+    Regalloc_invariants.precondition cfg_with_layout);
   collect_cfg_infos cfg_with_layout
 
 let postlude :
@@ -232,4 +236,4 @@ let postlude :
   if Utils.debug && Lazy.force Utils.invariants
   then (
     Utils.log ~indent:0 "postcondition";
-    postcondition cfg_with_layout ~allow_stack_operands:true)
+    Regalloc_invariants.postcondition_liveness cfg_with_liveness)

@@ -247,6 +247,7 @@
   trap_stack
   cfg_equivalence
   ;; backend/regalloc
+  regalloc_invariants
   regalloc_irc
   regalloc_irc_split
   regalloc_irc_state
@@ -775,18 +776,19 @@
   (cfg_liveness.mli as compiler-libs/cfg_liveness.mli)
   (cfg_dominators.mli as compiler-libs/cfg_dominators.mli)
   (cfg_loop_infos.mli as compiler-libs/cfg_loop_infos.mli)
-  (regalloc_utils.mli as compiler-libs/regalloc_utils.mli)
-  (regalloc_rewrite.mli as compiler-libs/regalloc_rewrite.mli)
-  (regalloc_validate.mli as compiler-libs/regalloc_validate.mli)
   (cfg_to_linear_desc.mli as compiler-libs/cfg_to_linear_desc.mli)
-  (regalloc_stack_operands.mli as compiler-libs/regalloc_stack_operands.mli)
+  (regalloc_invariants.mli as compiler-libs/regalloc_invariants.mli)
   (regalloc_irc.mli as compiler-libs/regalloc_irc.mli)
+  (regalloc_irc_split.mli as compiler-libs/regalloc_irc_split.mli)
   (regalloc_irc_state.mli as compiler-libs/regalloc_irc_state.mli)
   (regalloc_irc_utils.mli as compiler-libs/regalloc_irc_utils.mli)
-  (regalloc_irc_split.mli as compiler-libs/regalloc_irc_split.mli)
   (regalloc_ls.mli as compiler-libs/regalloc_ls.mli)
   (regalloc_ls_state.mli as compiler-libs/regalloc_ls_state.mli)
   (regalloc_ls_utils.mli as compiler-libs/regalloc_ls_utils.mli)
+  (regalloc_rewrite.mli as compiler-libs/regalloc_rewrite.mli)
+  (regalloc_stack_operands.mli as compiler-libs/regalloc_stack_operands.mli)
+  (regalloc_utils.mli as compiler-libs/regalloc_utils.mli)
+  (regalloc_validate.mli as compiler-libs/regalloc_validate.mli)
   (eliminate_dead_code.mli as compiler-libs/eliminate_dead_code.mli)
   (disconnect_block.mli as compiler-libs/disconnect_block.mli)
   (eliminate_dead_blocks.mli as compiler-libs/eliminate_dead_blocks.mli)
@@ -1279,18 +1281,76 @@
   (.ocamloptcomp.objs/byte/cfg_loop_infos.cmti
    as
    compiler-libs/cfg_loop_infos.cmti)
-  (.ocamloptcomp.objs/byte/regalloc_utils.cmi
-   as
-   compiler-libs/regalloc_utils.cmi)
-  (.ocamloptcomp.objs/byte/regalloc_utils.cmo
-   as
-   compiler-libs/regalloc_utils.cmo)
-  (.ocamloptcomp.objs/byte/regalloc_utils.cmt
-   as
-   compiler-libs/regalloc_utils.cmt)
-  (.ocamloptcomp.objs/byte/regalloc_utils.cmti
-   as
-   compiler-libs/regalloc_utils.cmti)
+  (.ocamloptcomp.objs/byte/regalloc_invariants.cmi as compiler-libs/regalloc_invariants.cmi)
+  (.ocamloptcomp.objs/byte/regalloc_invariants.cmo as compiler-libs/regalloc_invariants.cmo)
+  (.ocamloptcomp.objs/byte/regalloc_invariants.cmt as compiler-libs/regalloc_invariants.cmt)
+  (.ocamloptcomp.objs/byte/regalloc_invariants.cmti as compiler-libs/regalloc_invariants.cmti)
+  (.ocamloptcomp.objs/native/regalloc_invariants.cmx as compiler-libs/regalloc_invariants.cmx)
+  (.ocamloptcomp.objs/byte/regalloc_irc.cmi as compiler-libs/regalloc_irc.cmi)
+  (.ocamloptcomp.objs/byte/regalloc_irc.cmo as compiler-libs/regalloc_irc.cmo)
+  (.ocamloptcomp.objs/byte/regalloc_irc.cmt as compiler-libs/regalloc_irc.cmt)
+  (.ocamloptcomp.objs/byte/regalloc_irc.cmti as compiler-libs/regalloc_irc.cmti)
+  (.ocamloptcomp.objs/native/regalloc_irc.cmx as compiler-libs/regalloc_irc.cmx)
+  (.ocamloptcomp.objs/byte/regalloc_irc_split.cmi
+    as
+    compiler-libs/regalloc_irc_split.cmi)
+  (.ocamloptcomp.objs/byte/regalloc_irc_split.cmo
+    as
+    compiler-libs/regalloc_irc_split.cmo)
+  (.ocamloptcomp.objs/byte/regalloc_irc_split.cmt
+    as
+    compiler-libs/regalloc_irc_split.cmt)
+  (.ocamloptcomp.objs/byte/regalloc_irc_split.cmti
+    as
+    compiler-libs/regalloc_irc_split.cmti)
+  (.ocamloptcomp.objs/native/regalloc_irc_split.cmx
+    as
+    compiler-libs/regalloc_irc_split.cmx)
+  (.ocamloptcomp.objs/byte/regalloc_irc_state.cmi
+    as
+    compiler-libs/regalloc_irc_state.cmi)
+  (.ocamloptcomp.objs/byte/regalloc_irc_state.cmo
+    as
+    compiler-libs/regalloc_irc_state.cmo)
+  (.ocamloptcomp.objs/byte/regalloc_irc_state.cmt
+    as
+    compiler-libs/regalloc_irc_state.cmt)
+  (.ocamloptcomp.objs/byte/regalloc_irc_state.cmti
+    as
+    compiler-libs/regalloc_irc_state.cmti)
+  (.ocamloptcomp.objs/native/regalloc_irc_state.cmx
+    as
+    compiler-libs/regalloc_irc_state.cmx)
+  (.ocamloptcomp.objs/byte/regalloc_irc_utils.cmi
+    as
+    compiler-libs/regalloc_irc_utils.cmi)
+  (.ocamloptcomp.objs/byte/regalloc_irc_utils.cmo
+    as
+    compiler-libs/regalloc_irc_utils.cmo)
+  (.ocamloptcomp.objs/byte/regalloc_irc_utils.cmt
+    as
+    compiler-libs/regalloc_irc_utils.cmt)
+  (.ocamloptcomp.objs/byte/regalloc_irc_utils.cmti
+    as
+    compiler-libs/regalloc_irc_utils.cmti)
+  (.ocamloptcomp.objs/native/regalloc_irc_utils.cmx
+    as
+    compiler-libs/regalloc_irc_utils.cmx)
+  (.ocamloptcomp.objs/byte/regalloc_ls.cmi as compiler-libs/regalloc_ls.cmi)
+  (.ocamloptcomp.objs/byte/regalloc_ls.cmo as compiler-libs/regalloc_ls.cmo)
+  (.ocamloptcomp.objs/byte/regalloc_ls.cmt as compiler-libs/regalloc_ls.cmt)
+  (.ocamloptcomp.objs/byte/regalloc_ls.cmti as compiler-libs/regalloc_ls.cmti)
+  (.ocamloptcomp.objs/native/regalloc_ls.cmx as compiler-libs/regalloc_ls.cmx)
+  (.ocamloptcomp.objs/byte/regalloc_ls_state.cmi as compiler-libs/regalloc_ls_state.cmi)
+  (.ocamloptcomp.objs/byte/regalloc_ls_state.cmo as compiler-libs/regalloc_ls_state.cmo)
+  (.ocamloptcomp.objs/byte/regalloc_ls_state.cmt as compiler-libs/regalloc_ls_state.cmt)
+  (.ocamloptcomp.objs/byte/regalloc_ls_state.cmti as compiler-libs/regalloc_ls_state.cmti)
+  (.ocamloptcomp.objs/native/regalloc_ls_state.cmx as compiler-libs/regalloc_ls_state.cmx)
+  (.ocamloptcomp.objs/byte/regalloc_ls_utils.cmi as compiler-libs/regalloc_ls_utils.cmi)
+  (.ocamloptcomp.objs/byte/regalloc_ls_utils.cmo as compiler-libs/regalloc_ls_utils.cmo)
+  (.ocamloptcomp.objs/byte/regalloc_ls_utils.cmt as compiler-libs/regalloc_ls_utils.cmt)
+  (.ocamloptcomp.objs/byte/regalloc_ls_utils.cmti as compiler-libs/regalloc_ls_utils.cmti)
+  (.ocamloptcomp.objs/native/regalloc_ls_utils.cmx as compiler-libs/regalloc_ls_utils.cmx)
   (.ocamloptcomp.objs/byte/regalloc_rewrite.cmi
     as
     compiler-libs/regalloc_rewrite.cmi)
@@ -1303,30 +1363,54 @@
   (.ocamloptcomp.objs/byte/regalloc_rewrite.cmti
     as
     compiler-libs/regalloc_rewrite.cmti)
-  (.ocamloptcomp.objs/byte/regalloc_validate.cmi
-   as
-   compiler-libs/regalloc_validate.cmi)
-  (.ocamloptcomp.objs/byte/regalloc_validate.cmo
-   as
-   compiler-libs/regalloc_validate.cmo)
-  (.ocamloptcomp.objs/byte/regalloc_validate.cmt
-   as
-   compiler-libs/regalloc_validate.cmt)
-  (.ocamloptcomp.objs/byte/regalloc_validate.cmti
-   as
-   compiler-libs/regalloc_validate.cmti)
+  (.ocamloptcomp.objs/native/regalloc_rewrite.cmx
+    as
+    compiler-libs/regalloc_rewrite.cmx)
   (.ocamloptcomp.objs/byte/regalloc_stack_operands.cmi
-   as
-   compiler-libs/regalloc_stack_operands.cmi)
+    as
+    compiler-libs/regalloc_stack_operands.cmi)
   (.ocamloptcomp.objs/byte/regalloc_stack_operands.cmo
-   as
-   compiler-libs/regalloc_stack_operands.cmo)
+    as
+    compiler-libs/regalloc_stack_operands.cmo)
   (.ocamloptcomp.objs/byte/regalloc_stack_operands.cmt
-   as
-   compiler-libs/regalloc_stack_operands.cmt)
+    as
+    compiler-libs/regalloc_stack_operands.cmt)
   (.ocamloptcomp.objs/byte/regalloc_stack_operands.cmti
-   as
-   compiler-libs/regalloc_stack_operands.cmti)
+    as
+    compiler-libs/regalloc_stack_operands.cmti)
+  (.ocamloptcomp.objs/native/regalloc_stack_operands.cmx
+    as
+    compiler-libs/regalloc_stack_operands.cmx)
+  (.ocamloptcomp.objs/byte/regalloc_utils.cmi
+    as
+    compiler-libs/regalloc_utils.cmi)
+  (.ocamloptcomp.objs/byte/regalloc_utils.cmo
+    as
+    compiler-libs/regalloc_utils.cmo)
+  (.ocamloptcomp.objs/byte/regalloc_utils.cmt
+    as
+    compiler-libs/regalloc_utils.cmt)
+  (.ocamloptcomp.objs/byte/regalloc_utils.cmti
+    as
+    compiler-libs/regalloc_utils.cmti)
+  (.ocamloptcomp.objs/native/regalloc_utils.cmx
+    as
+    compiler-libs/regalloc_utils.cmx)
+  (.ocamloptcomp.objs/byte/regalloc_validate.cmi
+    as
+    compiler-libs/regalloc_validate.cmi)
+  (.ocamloptcomp.objs/byte/regalloc_validate.cmo
+    as
+    compiler-libs/regalloc_validate.cmo)
+  (.ocamloptcomp.objs/byte/regalloc_validate.cmt
+    as
+    compiler-libs/regalloc_validate.cmt)
+  (.ocamloptcomp.objs/byte/regalloc_validate.cmti
+    as
+    compiler-libs/regalloc_validate.cmti)
+  (.ocamloptcomp.objs/native/regalloc_validate.cmx
+    as
+    compiler-libs/regalloc_validate.cmx)
   (.ocamloptcomp.objs/byte/cfg_to_linear_desc.cmi
    as
    compiler-libs/cfg_to_linear_desc.cmi)
@@ -1339,58 +1423,6 @@
   (.ocamloptcomp.objs/byte/cfg_to_linear_desc.cmti
    as
    compiler-libs/cfg_to_linear_desc.cmti)
-  (.ocamloptcomp.objs/byte/regalloc_irc.cmi as compiler-libs/regalloc_irc.cmi)
-  (.ocamloptcomp.objs/byte/regalloc_irc.cmo as compiler-libs/regalloc_irc.cmo)
-  (.ocamloptcomp.objs/byte/regalloc_irc.cmt as compiler-libs/regalloc_irc.cmt)
-  (.ocamloptcomp.objs/byte/regalloc_irc.cmti as compiler-libs/regalloc_irc.cmti)
-  (.ocamloptcomp.objs/byte/regalloc_irc_utils.cmi
-   as
-   compiler-libs/regalloc_irc_utils.cmi)
-  (.ocamloptcomp.objs/byte/regalloc_irc_utils.cmo
-   as
-   compiler-libs/regalloc_irc_utils.cmo)
-  (.ocamloptcomp.objs/byte/regalloc_irc_utils.cmt
-   as
-   compiler-libs/regalloc_irc_utils.cmt)
-  (.ocamloptcomp.objs/byte/regalloc_irc_utils.cmti
-   as
-   compiler-libs/regalloc_irc_utils.cmti)
-  (.ocamloptcomp.objs/byte/regalloc_irc_split.cmi
-   as
-   compiler-libs/regalloc_irc_split.cmi)
-  (.ocamloptcomp.objs/byte/regalloc_irc_split.cmo
-   as
-   compiler-libs/regalloc_irc_split.cmo)
-  (.ocamloptcomp.objs/byte/regalloc_irc_split.cmt
-   as
-   compiler-libs/regalloc_irc_split.cmt)
-  (.ocamloptcomp.objs/byte/regalloc_irc_split.cmti
-   as
-   compiler-libs/regalloc_irc_split.cmti)
-  (.ocamloptcomp.objs/byte/regalloc_irc_state.cmi
-   as
-   compiler-libs/regalloc_irc_state.cmi)
-  (.ocamloptcomp.objs/byte/regalloc_irc_state.cmo
-   as
-   compiler-libs/regalloc_irc_state.cmo)
-  (.ocamloptcomp.objs/byte/regalloc_irc_state.cmt
-   as
-   compiler-libs/regalloc_irc_state.cmt)
-  (.ocamloptcomp.objs/byte/regalloc_irc_state.cmti
-   as
-   compiler-libs/regalloc_irc_state.cmti)
-  (.ocamloptcomp.objs/byte/regalloc_ls.cmi as compiler-libs/regalloc_ls.cmi)
-  (.ocamloptcomp.objs/byte/regalloc_ls.cmo as compiler-libs/regalloc_ls.cmo)
-  (.ocamloptcomp.objs/byte/regalloc_ls.cmt as compiler-libs/regalloc_ls.cmt)
-  (.ocamloptcomp.objs/byte/regalloc_ls.cmti as compiler-libs/regalloc_ls.cmti)
-  (.ocamloptcomp.objs/byte/regalloc_ls_state.cmi as compiler-libs/regalloc_ls_state.cmi)
-  (.ocamloptcomp.objs/byte/regalloc_ls_state.cmo as compiler-libs/regalloc_ls_state.cmo)
-  (.ocamloptcomp.objs/byte/regalloc_ls_state.cmt as compiler-libs/regalloc_ls_state.cmt)
-  (.ocamloptcomp.objs/byte/regalloc_ls_state.cmti as compiler-libs/regalloc_ls_state.cmti)
-  (.ocamloptcomp.objs/byte/regalloc_ls_utils.cmi as compiler-libs/regalloc_ls_utils.cmi)
-  (.ocamloptcomp.objs/byte/regalloc_ls_utils.cmo as compiler-libs/regalloc_ls_utils.cmo)
-  (.ocamloptcomp.objs/byte/regalloc_ls_utils.cmt as compiler-libs/regalloc_ls_utils.cmt)
-  (.ocamloptcomp.objs/byte/regalloc_ls_utils.cmti as compiler-libs/regalloc_ls_utils.cmti)
   (.ocamloptcomp.objs/byte/eliminate_dead_code.cmi
    as
    compiler-libs/eliminate_dead_code.cmi)
@@ -1627,36 +1659,11 @@
     as
     compiler-libs/cfg_dominators.cmx)
   (.ocamloptcomp.objs/native/cfg_loop_infos.cmx
-   as
-   compiler-libs/cfg_loop_infos.cmx)
-  (.ocamloptcomp.objs/native/regalloc_utils.cmx
     as
-    compiler-libs/regalloc_utils.cmx)
-  (.ocamloptcomp.objs/native/regalloc_rewrite.cmx
-    as
-    compiler-libs/regalloc_rewrite.cmx)
-  (.ocamloptcomp.objs/native/regalloc_validate.cmx
-   as
-   compiler-libs/regalloc_validate.cmx)
-  (.ocamloptcomp.objs/native/regalloc_stack_operands.cmx
-   as
-   compiler-libs/regalloc_stack_operands.cmx)
+    compiler-libs/cfg_loop_infos.cmx)
   (.ocamloptcomp.objs/native/cfg_to_linear_desc.cmx
    as
    compiler-libs/cfg_to_linear_desc.cmx)
-  (.ocamloptcomp.objs/native/regalloc_irc.cmx as compiler-libs/regalloc_irc.cmx)
-  (.ocamloptcomp.objs/native/regalloc_irc_utils.cmx
-   as
-   compiler-libs/regalloc_irc_utils.cmx)
-  (.ocamloptcomp.objs/native/regalloc_irc_split.cmx
-   as
-   compiler-libs/regalloc_irc_split.cmx)
-  (.ocamloptcomp.objs/native/regalloc_irc_state.cmx
-   as
-   compiler-libs/regalloc_irc_state.cmx)
-  (.ocamloptcomp.objs/native/regalloc_ls.cmx as compiler-libs/regalloc_ls.cmx)
-  (.ocamloptcomp.objs/native/regalloc_ls_state.cmx as compiler-libs/regalloc_ls_state.cmx)
-  (.ocamloptcomp.objs/native/regalloc_ls_utils.cmx as compiler-libs/regalloc_ls_utils.cmx)
   (.ocamloptcomp.objs/native/eliminate_dead_code.cmx
    as
    compiler-libs/eliminate_dead_code.cmx)

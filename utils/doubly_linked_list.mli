@@ -54,6 +54,10 @@ val find_cell_opt : 'a t -> f:('a -> bool) -> 'a cell option
 
 val find_opt : 'a t -> f:('a -> bool) -> 'a option
 
+val exists : 'a t -> f:('a -> bool) -> bool
+
+val for_all : 'a t -> f:('a -> bool) -> bool
+
 val to_list : 'a t -> 'a list
 
 (* Adds all of the elements of `from` to `to_`, and clears `from`. *)
