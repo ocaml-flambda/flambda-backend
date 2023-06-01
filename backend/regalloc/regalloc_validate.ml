@@ -499,9 +499,16 @@ end = struct
         "Register allocation changed existing instruction no. %d into a \
          register allocation specific instruction"
         id
-    | None, false ->
-      Regalloc_utils.fatal
-        "Register allocation added non-regalloc specific instruction no. %d" id
+    | None, false -> (
+      match instr.desc with
+      | Op Move ->
+        (* A move instruction, while no regalloc-specific, can be inserted
+           because of phi moves in split/rename. *)
+        successor_id
+      | _ ->
+        Regalloc_utils.fatal
+          "Register allocation added non-regalloc specific instruction no. %d"
+          id)
 
   let compare_terminators ~successor_ids ~id (old_instr : terminator)
       (instr : terminator) =
@@ -1152,7 +1159,9 @@ module Transfer (Desc_val : Description_value) :
   let basic t instr : (domain, error) result =
     match Description.find_basic description instr with
     | None ->
-      (match instr.desc with Op (Spill | Reload) -> () | _ -> assert false);
+      (match instr.desc with
+      | Op (Spill | Reload | Move) -> ()
+      | _ -> assert false);
       Result.ok @@ rename_location t ~loc_instr:instr
     | Some instr_before -> (
       match instr.desc with

@@ -256,6 +256,9 @@
   regalloc_ls_state
   regalloc_ls_utils
   regalloc_rewrite
+  regalloc_split
+  regalloc_split_state
+  regalloc_split_utils
   regalloc_stack_operands
   regalloc_utils
   regalloc_validate
@@ -786,6 +789,9 @@
   (regalloc_ls_state.mli as compiler-libs/regalloc_ls_state.mli)
   (regalloc_ls_utils.mli as compiler-libs/regalloc_ls_utils.mli)
   (regalloc_rewrite.mli as compiler-libs/regalloc_rewrite.mli)
+  (regalloc_split.mli as compiler-libs/regalloc_split.mli)
+  (regalloc_split_state.mli as compiler-libs/regalloc_split_state.mli)
+  (regalloc_split_utils.mli as compiler-libs/regalloc_split_utils.mli)
   (regalloc_stack_operands.mli as compiler-libs/regalloc_stack_operands.mli)
   (regalloc_utils.mli as compiler-libs/regalloc_utils.mli)
   (regalloc_validate.mli as compiler-libs/regalloc_validate.mli)
@@ -1366,6 +1372,51 @@
   (.ocamloptcomp.objs/native/regalloc_rewrite.cmx
     as
     compiler-libs/regalloc_rewrite.cmx)
+  (.ocamloptcomp.objs/byte/regalloc_split.cmi
+    as
+    compiler-libs/regalloc_split.cmi)
+  (.ocamloptcomp.objs/byte/regalloc_split.cmo
+    as
+    compiler-libs/regalloc_split.cmo)
+  (.ocamloptcomp.objs/byte/regalloc_split.cmt
+    as
+    compiler-libs/regalloc_split.cmt)
+  (.ocamloptcomp.objs/byte/regalloc_split.cmti
+    as
+    compiler-libs/regalloc_split.cmti)
+  (.ocamloptcomp.objs/native/regalloc_split.cmx
+    as
+    compiler-libs/regalloc_split.cmx)
+  (.ocamloptcomp.objs/byte/regalloc_split_state.cmi
+    as
+    compiler-libs/regalloc_split_state.cmi)
+  (.ocamloptcomp.objs/byte/regalloc_split_state.cmo
+    as
+    compiler-libs/regalloc_split_state.cmo)
+  (.ocamloptcomp.objs/byte/regalloc_split_state.cmt
+    as
+    compiler-libs/regalloc_split_state.cmt)
+  (.ocamloptcomp.objs/byte/regalloc_split_state.cmti
+    as
+    compiler-libs/regalloc_split_state.cmti)
+  (.ocamloptcomp.objs/native/regalloc_split_state.cmx
+    as
+    compiler-libs/regalloc_split_state.cmx)
+  (.ocamloptcomp.objs/byte/regalloc_split_utils.cmi
+    as
+    compiler-libs/regalloc_split_utils.cmi)
+  (.ocamloptcomp.objs/byte/regalloc_split_utils.cmo
+    as
+    compiler-libs/regalloc_split_utils.cmo)
+  (.ocamloptcomp.objs/byte/regalloc_split_utils.cmt
+    as
+    compiler-libs/regalloc_split_utils.cmt)
+  (.ocamloptcomp.objs/byte/regalloc_split_utils.cmti
+    as
+    compiler-libs/regalloc_split_utils.cmti)
+  (.ocamloptcomp.objs/native/regalloc_split_utils.cmx
+    as
+    compiler-libs/regalloc_split_utils.cmx)
   (.ocamloptcomp.objs/byte/regalloc_stack_operands.cmi
     as
     compiler-libs/regalloc_stack_operands.cmi)

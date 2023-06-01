@@ -50,7 +50,7 @@ val prelude :
   (module Utils) ->
   on_fatal_callback:(unit -> unit) ->
   Cfg_with_liveness.t ->
-  cfg_infos
+  cfg_infos * StackSlots.t
 
 (* Runs the last steps common to register allocators, updating the CFG (stack
    slots, live fields, and prologue), running [f], and checking

@@ -431,7 +431,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Poptrap | Prologue ->
     if fp then [| rbp |] else [||]
 
-(* note: keep this function in sync with `destroyed_at_oper`. above *)
+(* note: keep this function in sync with `destroyed_at_oper` above,
+   and `is_destruction_point` below. *)
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
@@ -458,6 +459,37 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
                               | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
   | Poll_and_jump _ -> destroyed_at_alloc_or_poll
+
+(* CR-soon xclerc for xclerc: consider having more destruction points.
+   We current return `true` when `destroyed_at_terminator` returns
+   `all_phys_regs`; we could also return `true` when `destroyed_at_terminator`
+   returns `destroyed_at_c_call` for instance. *)
+(* note: keep this function in sync with `destroyed_at_terminator` above. *)
+let is_destruction_point (terminator : Cfg_intf.S.terminator) =
+  match terminator with
+  | Never -> assert false
+  | Prim {op = Alloc _; _} ->
+    false
+  | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+  | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
+  | Prim {op = Checkbound _ | Probe _; _} ->
+    false
+  | Switch _ ->
+    false
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
+  | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
+    if alloc then true else false
+  | Call {op = Indirect | Direct _; _} ->
+    true
+  | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
+                       | Ifloatarithmem _ | Ifloatsqrtf _
+                       | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
+                       | Icrc32q | Irdtsc | Irdpmc | Ipause
+                       | Ilfence | Isfence | Imfence
+                       | Istore_int (_, _, _) | Ioffset_loc (_, _)
+                              | Iprefetch _); _ } ->
+    Misc.fatal_error "no instructions specific for this architecture can raise"
+  | Poll_and_jump _ -> false
 
 (* Maximal register pressure *)
 

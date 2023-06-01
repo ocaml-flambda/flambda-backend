@@ -192,11 +192,18 @@ let rewrite_gen :
             Utils.log ~indent:2 "end"));
   !new_temporaries
 
+(* CR-soon xclerc for xclerc: investigate exactly why this threshold is
+   necessary. *)
+(* If the number of temporaries is above this value, do not split/rename.
+   Experimentally, it seems to trigger a pathological behaviour of IRC when
+   above. *)
+let threshold_split_live_ranges = 1024
+
 let prelude :
     (module Utils) ->
     on_fatal_callback:(unit -> unit) ->
     Cfg_with_liveness.t ->
-    cfg_infos =
+    cfg_infos * StackSlots.t =
  fun (module Utils) ~on_fatal_callback cfg_with_liveness ->
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
   on_fatal ~f:on_fatal_callback;
@@ -209,7 +216,29 @@ let prelude :
   then (
     Utils.log ~indent:0 "precondition";
     Regalloc_invariants.precondition cfg_with_layout);
-  collect_cfg_infos cfg_with_layout
+  let cfg_infos = collect_cfg_infos cfg_with_layout in
+  let num_temporaries =
+    (* note: this should probably be `Reg.Set.cardinal (Reg.Set.union
+       cfg_infos.arg cfg_infos.res)` but the following experimentally produces
+       the same results without computing the union. *)
+    Reg.Set.cardinal cfg_infos.arg
+  in
+  if Utils.debug
+  then Utils.log ~indent:0 "#temporaries(before):%d" num_temporaries;
+  match
+    ( Lazy.force Regalloc_split_utils.split_live_ranges,
+      num_temporaries < threshold_split_live_ranges )
+  with
+  | true, true ->
+    let stack_slots =
+      Profile.record ~accumulate:true "split"
+        (fun () -> Regalloc_split.split_live_ranges cfg_with_liveness cfg_infos)
+        ()
+    in
+    let cfg_infos = collect_cfg_infos cfg_with_layout in
+    cfg_infos, stack_slots
+  | true, false -> cfg_infos, StackSlots.make ()
+  | false, _ -> cfg_infos, StackSlots.make ()
 
 let postlude :
     type s.

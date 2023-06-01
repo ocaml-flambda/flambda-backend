@@ -21,18 +21,7 @@ module InstructionWorkList = ArraySet.Make (struct
 
   let compare = Instruction.compare
 
-  let dummy =
-    { Cfg.desc = Cfg.Prologue;
-      arg = [||];
-      res = [||];
-      dbg = Debuginfo.none;
-      fdo = Fdo_info.none;
-      live = Reg.Set.empty;
-      stack_offset = -1;
-      id = -1;
-      irc_work_list = Unknown_list;
-      ls_order = -1
-    }
+  let dummy = Instruction.dummy
 end)
 
 let instruction_set_of_instruction_work_list (iwl : InstructionWorkList.t) :
@@ -63,7 +52,7 @@ type t =
 
 let max_capacity = 1024
 
-let[@inline] make ~initial ~next_instruction_id () =
+let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
   List.iter (Reg.all_registers ()) ~f:(fun reg ->
       reg.Reg.irc_work_list <- Unknown_list;
       reg.Reg.irc_color <- None;
@@ -99,7 +88,6 @@ let[@inline] make ~initial ~next_instruction_id () =
   let active_moves = InstructionWorkList.make ~original_capacity in
   let adj_set = RegisterStamp.PairSet.make ~num_registers in
   let move_list = Reg.Tbl.create 128 in
-  let stack_slots = StackSlots.make () in
   let introduced_temporaries = Reg.Set.empty in
   let initial = Doubly_linked_list.of_list initial in
   { initial;

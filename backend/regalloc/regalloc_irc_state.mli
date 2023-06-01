@@ -5,7 +5,12 @@ open Regalloc_irc_utils
 
 type t
 
-val make : initial:Reg.t list -> next_instruction_id:Instruction.id -> unit -> t
+val make :
+  initial:Reg.t list ->
+  stack_slots:StackSlots.t ->
+  next_instruction_id:Instruction.id ->
+  unit ->
+  t
 
 val add_initial_one : t -> Reg.t -> unit
 
