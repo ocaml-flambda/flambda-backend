@@ -131,34 +131,40 @@ let convert_array_kind (kind : L.array_kind) : converted_array_kind =
   | Pintarray -> Array_kind Immediates
   | Pfloatarray -> Array_kind Naked_floats
 
-type converted_array_ref_kind =
-  | Array_ref_kind of P.Array_ref_kind.t
-  | Float_array_opt_dynamic_ref of Alloc_mode.For_allocations.t
+module Array_ref_kind = struct
+  type t =
+    | Immediates
+    | Values
+    | Naked_floats of L.alloc_mode
+end
 
-let convert_array_ref_kind
-      ~current_region (kind : L.array_ref_kind) : converted_array_ref_kind =
+type converted_array_ref_kind =
+  | Array_ref_kind of Array_ref_kind.t
+  | Float_array_opt_dynamic_ref of L.alloc_mode
+
+let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
+    =
   match kind with
   | Pgenarray_ref mode ->
     check_float_array_optimisation_enabled ();
-    Float_array_opt_dynamic_ref
-      (Alloc_mode.For_allocations.from_lambda ~current_region mode)
+    Float_array_opt_dynamic_ref mode
   | Paddrarray_ref -> Array_ref_kind Values
   | Pintarray_ref -> Array_ref_kind Immediates
-  | Pfloatarray_ref mode ->
-    Array_ref_kind
-      (Naked_floats (Alloc_mode.For_allocations.from_lambda ~current_region mode))
+  | Pfloatarray_ref mode -> Array_ref_kind (Naked_floats mode)
 
 type converted_array_set_kind =
   | Array_set_kind of P.Array_set_kind.t
   | Float_array_opt_dynamic_set of Alloc_mode.For_assignments.t
 
-let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind =
+let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
+    =
   match kind with
   | Pgenarray_set mode ->
     check_float_array_optimisation_enabled ();
     Float_array_opt_dynamic_set (Alloc_mode.For_assignments.from_lambda mode)
   | Paddrarray_set mode ->
-    Array_set_kind (Values (Alloc_mode.For_assignments.from_lambda mode))
+    Array_set_kind
+      (Values (Assignment (Alloc_mode.For_assignments.from_lambda mode)))
   | Pintarray_set -> Array_set_kind Immediates
   | Pfloatarray_set -> Array_set_kind Naked_floats
 
@@ -522,53 +528,39 @@ let check_array_access ~dbg ~array ~index primitive : H.expr_primitive =
     ~conditions:(array_access_validity_condition array index)
     ~dbg
 
-let array_load_unsafe ~array ~index (array_ref_kind : P.Array_ref_kind.t)
-      ~current_region : H.expr_primitive =
+let array_load_unsafe ~array ~index (array_ref_kind : Array_ref_kind.t)
+    ~current_region : H.expr_primitive =
   match array_ref_kind with
-  | Immediates | Values ->
-    Binary (Array_load (array_ref_kind, Mutable), array, index)
+  | Immediates -> Binary (Array_load (Immediates, Mutable), array, index)
+  | Values -> Binary (Array_load (Values, Mutable), array, index)
   | Naked_floats mode ->
     box_float mode
       (Binary (Array_load (Naked_floats, Mutable), array, index))
       ~current_region
 
-let array_set_unsafe ~array ~index ~new_value (array_set_kind : P.Array_set_kind.t) :
-    H.expr_primitive =
-  match array_set_kind with
-  | Immediates
-    Ternary
-      ( Array_set (array_kind, Assignment Alloc_mode.For_assignments.heap),
-        array,
-        index,
-        new_value )
-  | Values ->
-    Ternary
-      ( Array_set (array_kind, Assignment Alloc_mode.For_assignments.heap),
-        array,
-        index,
-        new_value )
-  | Naked_floats ->
-    Ternary
-      ( Array_set
-          (Naked_floats, Assignment (Alloc_mode.For_assignments.local ())),
-        array,
-        index,
-        unbox_float new_value )
+let array_set_unsafe ~array ~index ~new_value
+    (array_set_kind : P.Array_set_kind.t) : H.expr_primitive =
+  let new_value =
+    match array_set_kind with
+    | Immediates | Values _ -> new_value
+    | Naked_floats -> unbox_float new_value
+  in
+  Ternary (Array_set array_set_kind, array, index, new_value)
 
-let[@inline always] match_on_array_ref_kind ~current_region ~array array_ref_kind f
-  : H.expr_primitive =
-  match convert_array_ref_kind ~current_region array_ref_kind with
+let[@inline always] match_on_array_ref_kind ~array array_ref_kind f :
+    H.expr_primitive =
+  match convert_array_ref_kind array_ref_kind with
   | Array_ref_kind array_ref_kind -> f array_ref_kind
   | Float_array_opt_dynamic_ref mode ->
     (* CR keryan: we should push the ITE as low as possible to avoid duplicating
        too much *)
     If_then_else
       ( Unary (Is_flat_float_array, array),
-        f (P.Array_ref_kind.Naked_floats mode),
-        f P.Array_ref_kind.Values )
+        f (Array_ref_kind.Naked_floats mode),
+        f Array_ref_kind.Values )
 
-let[@inline always] match_on_array_set_kind ~array array_ref_kind f
-  : H.expr_primitive =
+let[@inline always] match_on_array_set_kind ~array array_ref_kind f :
+    H.expr_primitive =
   match convert_array_set_kind array_ref_kind with
   | Array_set_kind array_set_kind -> f array_set_kind
   | Float_array_opt_dynamic_set mode ->
@@ -577,7 +569,7 @@ let[@inline always] match_on_array_set_kind ~array array_ref_kind f
     If_then_else
       ( Unary (Is_flat_float_array, array),
         f P.Array_set_kind.Naked_floats,
-        f (P.Array_set_kind.Values mode) )
+        f (P.Array_set_kind.Values (Assignment mode)) )
 
 (* Safe arith (div/mod by zero) *)
 let checked_arith_op ~dbg (bi : Lambda.boxed_integer option) op mode arg1 arg2
@@ -1022,11 +1014,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     (* For this and the following cases we will end up relying on the backend to
        CSE the two accesses to the array's header word in the [Pgenarray]
        case. *)
-    match_on_array_ref_kind ~current_region ~array array_ref_kind
+    match_on_array_ref_kind ~array array_ref_kind
       (array_load_unsafe ~array ~index ~current_region)
   | Parrayrefs array_ref_kind, [array; index] ->
     check_array_access ~dbg ~array ~index
-      (match_on_array_ref_kind ~current_region ~array array_ref_kind
+      (match_on_array_ref_kind ~array array_ref_kind
          (array_load_unsafe ~array ~index ~current_region))
   | Parraysetu array_set_kind, [array; index; new_value] ->
     match_on_array_set_kind ~array array_set_kind

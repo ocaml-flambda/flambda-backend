@@ -94,59 +94,38 @@ module Array_kind = struct
     | Naked_floats -> Flambda_kind.With_subkind.naked_float
 end
 
-module Array_ref_kind = struct
+module Init_or_assign = struct
   type t =
-    | Immediates
-    | Values
-    | Naked_floats of Alloc_mode.For_allocations.t
+    | Initialization
+    | Assignment of Alloc_mode.For_assignments.t
 
   let [@ocamlformat "disable"] print ppf t =
+    let fprintf = Format.fprintf in
     match t with
-    | Immediates -> Format.pp_print_string ppf "Immediates"
-    | Values -> Format.pp_print_string ppf "Values"
-    | Naked_floats mode ->
-      Format.fprintf ppf "@[<hov 1>(Naked_floats %a)@]"
-        Alloc_mode.For_allocations.print mode
+    | Initialization -> fprintf ppf "Init"
+    | Assignment Heap -> fprintf ppf "Assign Heap"
+    | Assignment Local -> fprintf ppf "Assign Local"
 
   let compare = Stdlib.compare
 
-  let element_kind_for_set t =
+  let to_lambda t : Lambda.initialization_or_assignment =
     match t with
-    | Immediates | Values -> K.value
-    | Naked_floats _ -> K.naked_float
-
-  let element_kind_for_creation = element_kind_for_set
-
-  let element_kind_for_load = element_kind_for_set
-
-  let to_lambda t : Lambda.array_ref_kind =
-    match t with
-    | Immediates -> Pintarray_ref
-    | Values -> Paddrarray_ref
-    | Naked_floats mode ->
-      Pfloatarray_ref (match mode with
-        | Heap -> Lambda.alloc_heap
-        | Local _ -> Lambda.alloc_local)
-
-  let element_kind t =
-    match t with
-    | Immediates -> Flambda_kind.With_subkind.tagged_immediate
-    | Values -> Flambda_kind.With_subkind.any_value
-    | Naked_floats _ -> Flambda_kind.With_subkind.naked_float
+    | Initialization -> Heap_initialization
+    | Assignment mode -> Assignment (Alloc_mode.For_assignments.to_lambda mode)
 end
 
 module Array_set_kind = struct
   type t =
     | Immediates
-    | Values of Alloc_mode.For_assignments.t
+    | Values of Init_or_assign.t
     | Naked_floats
 
-  let [@ocamlformat "disable"] print ppf t =
+  let print ppf t =
     match t with
     | Immediates -> Format.pp_print_string ppf "Immediates"
-    | Values mode ->
-      Format.fprintf ppf "@[<hov 1>(Values %a)@]"
-        Alloc_mode.For_assignments.print mode
+    | Values init_or_assign ->
+      Format.fprintf ppf "@[<hov 1>(Values %a)@]" Init_or_assign.print
+        init_or_assign
     | Naked_floats -> Format.fprintf ppf "Naked_floats"
 
   let compare = Stdlib.compare
@@ -156,14 +135,21 @@ module Array_set_kind = struct
     | Immediates | Values _ -> K.value
     | Naked_floats -> K.naked_float
 
-  let element_kind_for_creation = element_kind_for_set
-
-  let element_kind_for_load = element_kind_for_set
+  let array_kind t : Array_kind.t =
+    match t with
+    | Immediates -> Immediates
+    | Values _ -> Values
+    | Naked_floats -> Naked_floats
 
   let to_lambda t : Lambda.array_set_kind =
     match t with
     | Immediates -> Pintarray_set
-    | Values mode -> Paddrarray_set (match mode with
+    | Values Initialization ->
+      (* CR mshinwell: this loses the Initialization information *)
+      Paddrarray_set Lambda.modify_heap
+    | Values (Assignment mode) ->
+      Paddrarray_set
+        (match mode with
         | Heap -> Lambda.modify_heap
         | Local -> Lambda.modify_maybe_stack)
     | Naked_floats -> Pfloatarray_set
@@ -307,26 +293,6 @@ end
 type string_or_bytes =
   | String
   | Bytes
-
-module Init_or_assign = struct
-  type t =
-    | Initialization
-    | Assignment of Alloc_mode.For_assignments.t
-
-  let [@ocamlformat "disable"] print ppf t =
-    let fprintf = Format.fprintf in
-    match t with
-    | Initialization -> fprintf ppf "Init"
-    | Assignment Heap -> fprintf ppf "Assign Heap"
-    | Assignment Local -> fprintf ppf "Assign Local"
-
-  let compare = Stdlib.compare
-
-  let to_lambda t : Lambda.initialization_or_assignment =
-    match t with
-    | Initialization -> Heap_initialization
-    | Assignment mode -> Assignment (Alloc_mode.For_assignments.to_lambda mode)
-end
 
 type array_like_operation =
   | Reading
@@ -1402,7 +1368,7 @@ let ids_for_export_binary_primitive p =
 
 type ternary_primitive =
   | Block_set of Block_access_kind.t * Init_or_assign.t
-  | Array_set of Array_set_kind.t * Init_or_assign.t
+  | Array_set of Array_set_kind.t
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
 
@@ -1423,9 +1389,7 @@ let compare_ternary_primitive p1 p2 =
   | Block_set (kind1, init_or_assign1), Block_set (kind2, init_or_assign2) ->
     let c = Block_access_kind.compare kind1 kind2 in
     if c <> 0 then c else Init_or_assign.compare init_or_assign1 init_or_assign2
-  | Array_set (kind1, init_or_assign1), Array_set (kind2, init_or_assign2) ->
-    let c = Array_kind.compare kind1 kind2 in
-    if c <> 0 then c else Init_or_assign.compare init_or_assign1 init_or_assign2
+  | Array_set kind1, Array_set kind2 -> Array_kind.compare kind1 kind2
   | ( Bytes_or_bigstring_set (kind1, width1),
       Bytes_or_bigstring_set (kind2, width2) ) ->
     let c = Stdlib.compare kind1 kind2 in
@@ -1452,9 +1416,7 @@ let print_ternary_primitive ppf p =
   | Block_set (kind, init) ->
     fprintf ppf "(Block_set %a %a)" Block_access_kind.print kind
       Init_or_assign.print init
-  | Array_set (kind, init) ->
-    fprintf ppf "(Array_set %a %a)"
-      Array_set_kind.print kind Init_or_assign.print init
+  | Array_set kind -> fprintf ppf "(Array_set %a)" Array_set_kind.print kind
   | Bytes_or_bigstring_set (kind, string_accessor_width) ->
     fprintf ppf "(Bytes_set %a %a)" print_bytes_like_value kind
       print_string_accessor_width string_accessor_width
@@ -1469,7 +1431,7 @@ let args_kind_of_ternary_primitive p =
     ( block_kind,
       block_index_kind,
       Block_access_kind.element_kind_for_set access_kind )
-  | Array_set (kind, _) ->
+  | Array_set kind ->
     array_kind, array_index_kind, Array_set_kind.element_kind_for_set kind
   | Bytes_or_bigstring_set (Bytes, (Eight | Sixteen)) ->
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_immediate
