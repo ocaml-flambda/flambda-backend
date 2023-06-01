@@ -341,7 +341,11 @@ val addr_array_initialize :
   expression -> expression -> expression -> Debuginfo.t -> expression
 
 val addr_array_set :
-  Lambda.modify_mode -> expression -> expression -> expression -> Debuginfo.t ->
+  Lambda.modify_mode ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
   expression
 
 val int_array_set :
