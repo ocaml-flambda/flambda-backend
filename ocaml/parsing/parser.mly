@@ -923,6 +923,7 @@ conflicts.
 The precedences must be listed from low to high.
 */
 
+%nonassoc EXCEPTION
 %nonassoc IN
 %nonassoc below_SEMI
 %nonassoc SEMI                          /* below EQUAL ({lbl=...; lbl=...}) */
@@ -940,6 +941,7 @@ The precedences must be listed from low to high.
 %left     COMMA                         /* expr/expr_comma_list (e,e,e) */
 %nonassoc below_FUNCTOR                 /* include M */
 %nonassoc FUNCTOR                       /* include functor M */
+%left     MATCH                         /* expr match p match p */
 %right    MINUSGREATER                  /* function_type (t -> t -> t) */
 %right    OR BARBAR                     /* expr (e || e || e) */
 %right    AMPERSAND AMPERAMPER          /* expr (e && e && e) */
@@ -1236,7 +1238,7 @@ reversed_bar_llist(X):
       { [x] }
   | (* An [X] with a leading BAR. *)
     x = X(BAR)
-      { [x] }
+    { [x] }
   | (* An initial list, followed with a BAR and an [X]. *)
     xs = reversed_bar_llist(X)
     x = X(BAR)
@@ -2522,6 +2524,7 @@ expr:
       { Pexp_construct($1, Some $2) }
   | name_tag simple_expr %prec below_HASH
       { Pexp_variant($1, Some $2) }
+  | expr MATCH pattern { raise (Syntaxerr.Error (Not_expecting (make_loc $sloc, "infix match"))) }
   | e1 = expr op = op(infix_operator) e2 = expr
       { mkinfix e1 op e2 }
   | subtractive expr %prec prec_unary_minus
@@ -2908,6 +2911,9 @@ local_strict_binding:
 match_case:
     pattern MINUSGREATER seq_expr
       { Exp.case $1 $3 }
+  | pattern WHEN expr MATCH pattern MINUSGREATER seq_expr {
+    raise (Syntaxerr.Error (Not_expecting (make_loc $sloc, "when pattern guard")))
+  }
   | pattern WHEN seq_expr MINUSGREATER seq_expr
       { Exp.case $1 ~guard:$3 $5 }
   | pattern MINUSGREATER DOT
@@ -3014,7 +3020,7 @@ pattern_no_exn:
 ;
 
 %inline pattern_(self):
-  | self COLONCOLON pattern
+  | self COLONCOLON self
       { mkpat_cons ~loc:$sloc $loc($2) (ghpat ~loc:$sloc (Ppat_tuple[$1;$3])) }
   | self attribute
       { Pat.attr $1 $2 }
@@ -3027,9 +3033,13 @@ pattern_no_exn:
         { expecting $loc($3) "identifier" }
     | pattern_comma_list(self) %prec below_COMMA
         { Ppat_tuple(List.rev $1) }
+    | mkrhs(constr_longident) self %prec prec_constr_appl
+        { Ppat_construct($1, Some ([], $2)) }
+    | name_tag self %prec prec_constr_appl
+        { Ppat_variant($1, Some $2) }
     | self COLONCOLON error
         { expecting $loc($3) "pattern" }
-    | self BAR pattern
+    | self BAR self
         { Ppat_or($1, $3) }
     | self BAR error
         { expecting $loc($3) "pattern" }
@@ -3040,13 +3050,9 @@ pattern_gen:
     simple_pattern
       { $1 }
   | mkpat(
-      mkrhs(constr_longident) pattern %prec prec_constr_appl
-        { Ppat_construct($1, Some ([], $2)) }
-    | constr=mkrhs(constr_longident) LPAREN TYPE newtypes=lident_list RPAREN
+      constr=mkrhs(constr_longident) LPAREN TYPE newtypes=lident_list RPAREN
         pat=simple_pattern
         { Ppat_construct(constr, Some (newtypes, pat)) }
-    | name_tag pattern %prec prec_constr_appl
-        { Ppat_variant($1, Some $2) }
     ) { $1 }
   | LAZY ext_attributes simple_pattern
       { mkpat_attrs ~loc:$sloc (Ppat_lazy $3) $2}
@@ -3079,9 +3085,9 @@ simple_pattern_not_ident:
       { Ppat_constant $1 }
   | signed_constant DOTDOT signed_constant
       { Ppat_interval ($1, $3) }
-  | mkrhs(constr_longident)
+  | mkrhs(constr_longident) %prec prec_unary_plus
       { Ppat_construct($1, None) }
-  | name_tag
+  | name_tag %prec prec_unary_plus
       { Ppat_variant($1, None) }
   | HASH mkrhs(type_longident)
       { Ppat_type ($2) }
@@ -3136,8 +3142,8 @@ simple_delimited_pattern:
   ) { $1 }
 
 pattern_comma_list(self):
-    pattern_comma_list(self) COMMA pattern      { $3 :: $1 }
-  | self COMMA pattern                          { [$3; $1] }
+    pattern_comma_list(self) COMMA self      { $3 :: $1 }
+  | self COMMA self                          { [$3; $1] }
   | self COMMA error                            { expecting $loc($3) "pattern" }
 ;
 %inline pattern_semi_list:
