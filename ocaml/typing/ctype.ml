@@ -612,6 +612,7 @@ let closed_parameterized_type params ty =
 let closed_type_decl decl =
   try
     List.iter mark_type decl.type_params;
+    List.iter remove_mode_and_layout_variables decl.type_params;
     begin match decl.type_kind with
       Type_abstract ->
         ()
@@ -619,7 +620,17 @@ let closed_type_decl decl =
         List.iter
           (fun {cd_args; cd_res; _} ->
             match cd_res with
-            | Some _ -> ()
+            | Some res_ty ->
+                (* gadts cannot have free type variables, but they might
+                   have undefaulted layout variables; these lines default
+                   them. Test case: typing-layouts-gadt-sort-var/test.ml *)
+                begin match cd_args with
+                | Cstr_tuple l -> List.iter (fun (ty, _) ->
+                    remove_mode_and_layout_variables ty) l
+                | Cstr_record l -> List.iter (fun l ->
+                    remove_mode_and_layout_variables l.ld_type) l
+                end;
+                remove_mode_and_layout_variables res_ty
             | None ->
                 match cd_args with
                 | Cstr_tuple l ->  List.iter (fun (ty, _) -> closed_type ty) l

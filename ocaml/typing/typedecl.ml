@@ -1002,63 +1002,6 @@ let check_coherence env loc dpath decl =
 let check_abbrev env sdecl (id, decl) =
   (id, check_coherence env sdecl.ptype_loc (Path.Pident id) decl)
 
-(* This eliminates remaining sort variables, defaulting to value.
-
-   We create sort variables in several places:
-
-   - If the user hasn't explicitly annotated a type parameter with a layout, it
-     is given a sort variable.  We may discover this is something more specific
-     while checking the type and other types in the mutually defined group.  If
-     not, we default to value.
-
-     A consequence of this approach is that if you want "any", you have to ask
-     for it.  e.g., in [type 'a foo = Bar], ['a] will get layout [value], but it
-     could be given any.  For that, you need [type ('a : any) foo = Bar].
-
-   - In type kinds, we check that types are representable by unifying them with
-     a sort variable (e.g., arguments to constructors and types used in
-     records). This is enough to ensure we can compile these types.  (Though in
-     the future there will also be the mixed block restriction.)  We default
-     them to value if we don't learn anything by unifying with the type (as may
-     be the case in an existential like [type any = Any : 'a -> any].
-
-   It's important to do this defaulting before things like the separability
-   check or update_decl_layout, because those test whether certain types are
-   void or immediate, and if there were sort variables still around that would
-   have effects!
-*)
-let default_decl_layout decl =
-  (* CR layouts v2: At the moment, I believe this defaulting is sufficient
-     because of the limited number of places where sort variables are created.
-     But in the future it may be necessary to also do defaulting in the manifest
-     and recursively in the types in the kind, with [iter_type_expr]. *)
-  let default_typ typ =
-    match get_desc typ with
-    | Tvar { layout } -> Layout.default_to_value layout
-    | _ -> ()
-  in
-  let default_ldecl (ldecl : Types.label_declaration) =
-    default_typ ldecl.ld_type
-  in
-  let default_cdecl (cdecl : Types.constructor_declaration) =
-    match cdecl.cd_args with
-    | Cstr_tuple typs -> List.iter (fun (typ,_) -> default_typ typ) typs
-    | Cstr_record ldecls -> List.iter default_ldecl ldecls
-  in
-  let default_kind = function
-    (* Nothing to do in abstract case because we don't put new sort variables
-       there. *)
-    | Type_abstract | Type_open -> ()
-    | Type_record (ldecls, _) -> List.iter default_ldecl ldecls
-    | Type_variant (cdecls, _) -> List.iter default_cdecl cdecls
-  in
-  List.iter default_typ decl.type_params;
-  default_kind decl.type_kind
-
-let default_decls_layout decls =
-  List.iter (fun (_, decl) -> default_decl_layout decl) decls
-
-
 (* Makes sure a type is representable.  Will lower "any" to "value". *)
 (* CR layouts: In the places where this is used, we first call this to
    ensure a type is representable, and then call [Ctype.type_layout] to get the
@@ -1555,7 +1498,12 @@ let transl_type_decl env rec_flag sdecl_list =
         raise (Error (loc, Type_clash (new_env, err))))
       checks)
     delayed_layout_checks;
-  (* Check that all type variables are closed *)
+  (* Check that all type variables are closed; this also defaults any remaining
+     sort variables. Defaulting must happen before update_decls_layout,
+     Typedecl_seperability.update_decls, and add_types_to_env, all of which need
+     to check whether parts of the type are void (and currently use
+     Layout.equate to do this which would set any remaining sort variables
+     to void). *)
   List.iter2
     (fun sdecl tdecl ->
       let decl = tdecl.typ_type in
@@ -1565,12 +1513,6 @@ let transl_type_decl env rec_flag sdecl_list =
     sdecl_list tdecls;
   (* Check that constraints are enforced *)
   List.iter2 (check_constraints new_env) sdecl_list decls;
-  (* Default away sort variables.  Must happen before update_decls_layout,
-     Typedecl_seperability.update_decls, and add_types_to_env, all of which need
-     to check whether parts of the type are void (and currently use
-     Layout.equate to do this which would set any remaining sort variables
-     to void). *)
-  default_decls_layout decls;
   (* Add type properties to declarations *)
   let decls =
     try
