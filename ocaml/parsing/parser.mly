@@ -780,6 +780,36 @@ let check_layout loc id =
   let loc = make_loc loc in
   Attr.mk ~loc (mkloc id loc) (PStr [])
 
+(* Unboxed literals *)
+
+let unboxed_literals_extension : Language_extension.t = Layouts Alpha
+
+type sign = Positive | Negative
+
+let with_sign sign num =
+  match sign with
+  | Positive -> num
+  | Negative -> "-" ^ num
+
+let unboxed_int sloc sign (n, m) =
+  match m with
+  | Some _ ->
+      Jane_syntax_parsing.assert_extension_enabled
+        ~loc:(make_loc sloc) unboxed_literals_extension;
+      Pconst_integer (with_sign sign n, m)
+  | None ->
+      if Language_extension.is_enabled unboxed_literals_extension then
+        expecting sloc "literal modifier"
+      else
+        not_expecting sloc "line number directive"
+
+let unboxed_float sloc sign (f, m) =
+  Jane_syntax_parsing.assert_extension_enabled
+    ~loc:(make_loc sloc) unboxed_literals_extension;
+  Pconst_float (with_sign sign f, m)
+
+(* Jane syntax *)
+
 let mkexp_jane_syntax
       ~loc
       { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
@@ -3942,36 +3972,19 @@ constant:
   | FLOAT             { let (f, m) = $1 in Pconst_float (f, m) }
   (* The unboxed literals have to be composed of multiple lexemes so we can
      handle line number directives properly *)
-  | HASH INT
-      { Jane_syntax_parsing.assert_extension_enabled ~loc:(make_loc $sloc) (Layouts Alpha);
-        let (n, m) = $2 in Pconst_integer (n, m)
-      }
-  | HASH FLOAT
-      { Jane_syntax_parsing.assert_extension_enabled ~loc:(make_loc $sloc) (Layouts Alpha);
-        let (f, m) = $2 in Pconst_float (f, m)
-      }
+  | HASH INT          { unboxed_int $sloc Positive $2 }
+  | HASH FLOAT        { unboxed_float $sloc Positive $2 }
 ;
 signed_constant:
     constant          { $1 }
   | MINUS INT         { let (n, m) = $2 in Pconst_integer("-" ^ n, m) }
   | MINUS FLOAT       { let (f, m) = $2 in Pconst_float("-" ^ f, m) }
-  | MINUS HASH INT    {
-      Jane_syntax_parsing.assert_extension_enabled ~loc:(make_loc $sloc) (Layouts Alpha);
-      let (n, m) = $3 in Pconst_integer("-" ^ n, m) }
-  | MINUS HASH FLOAT  {
-      Jane_syntax_parsing.assert_extension_enabled ~loc:(make_loc $sloc) (Layouts Alpha);
-      let (f, m) = $3 in Pconst_float("-" ^ f, m)
-    }
+  | MINUS HASH INT    { unboxed_int $sloc Negative $3 }
+  | MINUS HASH FLOAT  { unboxed_float $sloc Negative $3 }
   | PLUS INT          { let (n, m) = $2 in Pconst_integer (n, m) }
   | PLUS FLOAT        { let (f, m) = $2 in Pconst_float(f, m) }
-  | PLUS HASH INT     {
-      Jane_syntax_parsing.assert_extension_enabled ~loc:(make_loc $sloc) (Layouts Alpha);
-      let (n, m) = $3 in Pconst_integer (n, m)
-    }
-  | PLUS HASH FLOAT   {
-      Jane_syntax_parsing.assert_extension_enabled ~loc:(make_loc $sloc) (Layouts Alpha);
-      let (f, m) = $3 in Pconst_float(f, m)
-    }
+  | PLUS HASH INT     { unboxed_int $sloc Positive $3 }
+  | PLUS HASH FLOAT   { unboxed_float $sloc Negative $3 }
 ;
 
 /* Identifiers and long identifiers */
