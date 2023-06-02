@@ -3617,9 +3617,12 @@ let compile_matching ~scopes value_kind loc ~failer repr (arg, arg_layout) pat_a
   toplevel_handler ~scopes value_kind loc ~failer partial args rows (fun partial pm ->
     compile_match_nonempty ~scopes value_kind repr partial (Context.start 1) pm)
 
-let for_function ~scopes kind loc repr param pat_act_list partial =
-  compile_matching ~scopes kind loc ~failer:Raise_match_failure
-    repr param pat_act_list partial
+let for_function ~scopes ~arg_layout ~return_layout loc repr param pat_act_list
+      partial =
+  compile_matching ~scopes return_layout loc ~failer:Raise_match_failure
+    repr (param, arg_layout) pat_act_list partial
+  (* Layouts XXX: change compile_matching to have labelled args like
+     [for_function] *)
 
 (* In the following two cases, exhaustiveness info is not available! *)
 let for_trywith ~scopes value_kind loc param pat_act_list =
@@ -3808,15 +3811,15 @@ let for_let ~scopes loc param pat body_kind body =
 (* Handling of tupled functions and matchings *)
 
 (* Easy case since variables are available *)
-let for_tupled_function ~scopes loc kind paraml pats_act_list partial =
+let for_tupled_function ~scopes ~return_layout loc paraml pats_act_list partial =
   let partial = check_partial_list pats_act_list partial in
   (* The arguments of a tupled function are always values since they must be fields *)
   let args = List.map (fun id -> (Lvar id, Strict, layout_field)) paraml in
   let handler =
-    toplevel_handler ~scopes kind loc ~failer:Raise_match_failure
+    toplevel_handler ~scopes return_layout loc ~failer:Raise_match_failure
       partial args pats_act_list in
   handler (fun partial pm ->
-    compile_match ~scopes kind None partial
+    compile_match ~scopes return_layout None partial
       (Context.start (List.length paraml)) pm
   )
 

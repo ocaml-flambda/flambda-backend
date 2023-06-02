@@ -250,7 +250,8 @@ type filtered_arrow =
     arg_mode : alloc_mode;
     arg_sort : sort;
     ty_ret : type_expr;
-    ret_mode : alloc_mode
+    ret_mode : alloc_mode;
+    ret_sort : sort
   }
 
 val filter_arrow: Env.t -> type_expr -> arg_label -> force_tpoly:bool ->

@@ -507,14 +507,14 @@ let layout_of_sort loc sort =
   | Void -> raise (Error (loc, Non_value_sort_unknown_ty))
   | Value -> Lambda.Pvalue Pgenval
 
-let function_return_layout env loc ty =
+let function_return_layout env loc sort ty =
   match is_function_type env ty with
-  | Some (_lhs, rhs) -> layout env loc Layouts.Sort.sort_function_return rhs
+  | Some (_lhs, rhs) -> layout env loc sort rhs
   | None -> Misc.fatal_errorf "function_return_layout called on non-function type"
 
-let function2_return_layout env loc ty =
+let function2_return_layout env loc sort ty =
   match is_function_type env ty with
-  | Some (_lhs, rhs) -> function_return_layout env loc rhs
+  | Some (_lhs, rhs) -> function_return_layout env loc sort rhs
   | None -> Misc.fatal_errorf "function_return_layout called on non-function type"
 
 let function_arg_layout env loc sort ty =

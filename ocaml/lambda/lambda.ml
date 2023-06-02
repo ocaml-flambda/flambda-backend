@@ -368,6 +368,15 @@ let must_be_value layout =
       Pgenval
   | _ -> Misc.fatal_error "Layout is not a value"
 
+(* [layout_top] is unused and will be removed.  [layout_bottom] is for things
+   that don't return - we can pick whatever sort. *)
+let sort_of_layout = function
+  | Ptop -> Misc.fatal_error "sort_of_layout: Ptop"
+  | Pvalue _ -> Layouts.Sort.value
+  | Punboxed_float ->  Misc.fatal_error "sort_of_layout: Punboxed_float"
+  | Punboxed_int _ ->  Misc.fatal_error "sort_of_layout: Punboxed_int"
+  | Pbottom -> Layouts.Sort.value
+
 type structured_constant =
     Const_base of constant
   | Const_block of int * structured_constant list

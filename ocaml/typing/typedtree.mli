@@ -215,6 +215,7 @@ and expression_desc =
       warnings : Warnings.state;
       arg_mode : Types.alloc_mode;
       arg_sort : Layouts.sort;
+      ret_sort : Layouts.sort;
       alloc_mode : Types.alloc_mode}
         (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
             See {!Parsetree} for more details.
@@ -346,6 +347,7 @@ and expression_desc =
       param : Ident.t;
       param_sort : Layouts.sort;
       body : value case;
+      body_sort : Layouts.sort;
       partial : partial;
       warnings : Warnings.state;
     }
@@ -418,6 +420,7 @@ and binding_op =
     bop_op_type : Types.type_expr;
     (* This is the type at which the operator was used.
        It is always an instance of [bop_op_val.val_type] *)
+    bop_op_return_sort : Layouts.sort;
     bop_exp : expression;
     bop_loc : Location.t;
   }

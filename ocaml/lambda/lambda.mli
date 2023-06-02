@@ -282,6 +282,8 @@ val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 
 val must_be_value : layout -> value_kind
 
+val sort_of_layout : layout -> Layouts.sort
+
 type structured_constant =
     Const_base of constant
   | Const_block of int * structured_constant list

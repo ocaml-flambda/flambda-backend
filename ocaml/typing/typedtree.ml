@@ -113,7 +113,8 @@ and expression_desc =
       region : bool; curry : fun_curry_state;
       warnings : Warnings.state;
       arg_mode : Types.alloc_mode;
-      arg_sort : Layouts.sort;
+      arg_sort : sort;
+      ret_sort : sort;
       alloc_mode : Types.alloc_mode }
   | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Types.alloc_mode
   | Texp_match of expression * sort * computation case list * partial
@@ -148,7 +149,7 @@ and expression_desc =
       for_to   : expression;
       for_dir  : direction_flag;
       for_body : expression;
-      for_body_layout : Layouts.layout;
+      for_body_layout : layout;
     }
   | Texp_send of expression * meth * apply_position * Types.alloc_mode
   | Texp_new of
@@ -168,8 +169,9 @@ and expression_desc =
       let_ : binding_op;
       ands : binding_op list;
       param : Ident.t;
-      param_sort : Layouts.sort;
+      param_sort : sort;
       body : value case;
+      body_sort : sort;
       partial : partial;
       warnings : Warnings.state;
     }
@@ -231,6 +233,7 @@ and binding_op =
     bop_op_name : string loc;
     bop_op_val : Types.value_description;
     bop_op_type : Types.type_expr;
+    bop_op_return_sort : sort;
     bop_exp : expression;
     bop_loc : Location.t;
   }
@@ -243,9 +246,9 @@ and omitted_parameter =
   { mode_closure : alloc_mode;
     mode_arg : alloc_mode;
     mode_ret : alloc_mode;
-    sort_arg : Layouts.sort }
+    sort_arg : sort }
 
-and apply_arg = (expression * Layouts.sort, omitted_parameter) arg_or_omitted
+and apply_arg = (expression * sort, omitted_parameter) arg_or_omitted
 
 and apply_position =
   | Tail

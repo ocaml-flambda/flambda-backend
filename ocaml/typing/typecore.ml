@@ -5496,14 +5496,18 @@ and type_expect_
         in
         loop slet.pbop_pat (newvar initial_layout) sands
       in
+      let body_sort = Sort.new_var () in
       let ty_func_result =
-        newvar (Layout.of_new_sort_var ~why:Function_result)
+        newvar (Layout.of_sort ~why:Function_result body_sort)
       in
       let arrow_desc = Nolabel, Alloc_mode.global, Alloc_mode.global in
       let ty_func =
         newty (Tarrow(arrow_desc, newmono ty_params, ty_func_result, commu_ok))
       in
-      let ty_result = newvar (Layout.of_new_sort_var ~why:Function_result) in
+      let op_result_sort = Sort.new_var () in
+      let ty_result =
+        newvar (Layout.of_sort ~why:Function_result op_result_sort)
+      in
       let ty_andops = newvar (Layout.of_new_sort_var ~why:Function_argument) in
       let ty_op =
         newty (Tarrow(arrow_desc, newmono ty_andops,
@@ -5547,12 +5551,14 @@ and type_expect_
           bop_op_path = op_path;
           bop_op_val = op_desc;
           bop_op_type = op_type;
+          bop_op_return_sort = op_result_sort;
           bop_exp = exp;
           bop_loc = slet.pbop_loc; }
       in
       let warnings = Warnings.backup () in
       let desc =
-        Texp_letop{let_; ands; param; param_sort; body; partial; warnings}
+        Texp_letop{let_; ands; param; param_sort; body; body_sort; partial;
+                   warnings}
       in
       rue { exp_desc = desc;
             exp_loc = sexp.pexp_loc;
@@ -5736,7 +5742,7 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
     | _ -> false
   in
   let ty_expected' = instance ty_expected in
-  let { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode } =
+  let { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort } =
     let force_tpoly =
       (* If [has_poly] is true then we rely on the later call to
          type_pat to enforce the invariant that the parameter type
@@ -5872,7 +5878,7 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
     exp_desc =
       Texp_function
         { arg_label; param; cases; partial; region; curry; warnings;
-          arg_mode; arg_sort; alloc_mode };
+          arg_mode; arg_sort; alloc_mode; ret_sort };
     exp_loc = loc; exp_extra = [];
     exp_type =
       instance (newgenty (Tarrow((arg_label,arg_mode,ret_mode),
@@ -6355,6 +6361,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       let eta_mode = Value_mode.local_to_regional (Value_mode.of_alloc marg) in
       let eta_pat, eta_var = var_pair ~mode:eta_mode "eta" ty_arg in
       let arg_sort = type_sort_exn env ~why:Function_argument ty_arg in
+      let ret_sort = type_sort_exn env ~why:Function_argument ty_res in
       let func texp =
         let ret_mode = Value_mode.of_alloc mret in
         let e =
@@ -6374,7 +6381,8 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
             exp_desc = Texp_function { arg_label = Nolabel; param; cases;
                                        partial = Total; region = false; curry;
                                        warnings = Warnings.backup ();
-                                       arg_mode = marg; arg_sort; alloc_mode } }
+                                       arg_mode = marg; arg_sort; ret_sort;
+                                       alloc_mode } }
       in
       Location.prerr_warning texp.exp_loc
         (Warnings.Eliminated_optional_arguments
@@ -7253,7 +7261,10 @@ and type_andops env sarg sands expected_ty =
         let op_type = op_desc.val_type in
         let ty_arg = newvar (Layout.of_new_sort_var ~why:Function_argument) in
         let ty_rest = newvar (Layout.of_new_sort_var ~why:Function_argument) in
-        let ty_result = newvar (Layout.of_new_sort_var ~why:Function_result) in
+        let op_result_sort = Sort.new_var () in
+        let ty_result =
+          newvar (Layout.of_sort ~why:Function_result op_result_sort)
+        in
         let arrow_desc = (Nolabel,Alloc_mode.global,Alloc_mode.global) in
         let ty_rest_fun =
           newty (Tarrow(arrow_desc, newmono ty_arg, ty_result, commu_ok))
@@ -7286,6 +7297,7 @@ and type_andops env sarg sands expected_ty =
             bop_op_path = op_path;
             bop_op_val = op_desc;
             bop_op_type = op_type;
+            bop_op_return_sort = op_result_sort;
             bop_exp = exp;
             bop_loc = loc }
         in

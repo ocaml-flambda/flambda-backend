@@ -1238,9 +1238,8 @@ let g f (x : t_void) : t_void = f x
 Line 1, characters 8-35:
 1 | let g f (x : t_void) : t_void = f x
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}]
 
 (******************************************)
@@ -1302,9 +1301,8 @@ and q () =
 Line 5, characters 2-14:
 5 |   assert false
       ^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}]
 
 let rec ( let* ) x f : t_void = assert false
@@ -1317,9 +1315,8 @@ and q () =
 Line 1, characters 19-44:
 1 | let rec ( let* ) x f : t_void = assert false
                        ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}]
 
 let rec ( let* ) x f = ()

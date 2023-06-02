@@ -206,17 +206,21 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       (inh_init,
        let build params rem =
          let param = name_pattern "param" pat in
-         let param_layout =
+         let arg_layout =
            Typeopt.layout pat.pat_env pat.pat_loc Sort.sort_class_arg
              pat.pat_type
          in
+         let body =
+           Matching.for_function ~scopes ~arg_layout ~return_layout:layout_obj
+             pat.pat_loc None (Lvar param) [pat, rem] partial
+         in
          Lambda.lfunction
-                   ~kind:(Curried {nlocal=0}) ~params:((param, param_layout)::params)
+                   ~kind:(Curried {nlocal=0})
+                   ~params:((param, arg_layout)::params)
                    ~return:layout_obj
                    ~attr:default_function_attribute
                    ~loc:(of_location ~scopes pat.pat_loc)
-                   ~body:(Matching.for_function ~scopes layout_obj pat.pat_loc
-                             None (Lvar param, param_layout) [pat, rem] partial)
+                   ~body
                    ~mode:alloc_heap
                    ~region:true
        in
@@ -487,18 +491,22 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
         transl_class_rebind ~scopes obj_init cl vf in
       let build params rem =
         let param = name_pattern "param" pat in
-        let param_layout =
+        let arg_layout =
           Typeopt.layout pat.pat_env pat.pat_loc Sort.sort_class_arg
             pat.pat_type
         in
         let return_layout = layout_class in
+        let body =
+          Matching.for_function ~scopes ~arg_layout ~return_layout pat.pat_loc
+            None (Lvar param) [pat, rem] partial
+        in
         Lambda.lfunction
-                  ~kind:(Curried {nlocal=0}) ~params:((param, param_layout)::params)
+                  ~kind:(Curried {nlocal=0})
+                  ~params:((param, arg_layout)::params)
                   ~return:return_layout
                   ~attr:default_function_attribute
                   ~loc:(of_location ~scopes pat.pat_loc)
-                  ~body:(Matching.for_function ~scopes return_layout pat.pat_loc
-                            None (Lvar param, param_layout) [pat, rem] partial)
+                  ~body
                   ~mode:alloc_heap
                   ~region:true
       in
