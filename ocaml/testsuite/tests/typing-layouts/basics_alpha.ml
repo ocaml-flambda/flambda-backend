@@ -1094,12 +1094,12 @@ let f19 () =
   let _y = (x :> t_void) in
   ();;
 [%%expect{|
-Line 3, characters 12-13:
+Line 3, characters 6-8:
 3 |   let _y = (x :> t_void) in
-                ^
-Error: Non-value detected in translation:
+          ^^
+Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       This expression has layout void, which is not a sublayout of value.
+       t_void has layout void, which is not a sublayout of value.
 |}];;
 
 (********************************************)
@@ -1112,12 +1112,12 @@ let f20 () =
   in
   ();;
 [%%expect{|
-Lines 4-5, characters 4-5:
-4 | ....let module M = struct end in
-5 |     x
-Error: Non-value detected in translation:
+Line 3, characters 6-8:
+3 |   let _y =
+          ^^
+Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       This expression has layout void, which is not a sublayout of value.
+       t_void has layout void, which is not a sublayout of value.
 |}];;
 
 (**********************************)
@@ -1133,12 +1133,11 @@ let f21 () =
   ();;
 [%%expect{|
 module type M21 = sig end
-Lines 6-7, characters 4-5:
-6 | ....let (module M) = (module struct end : M21) in
+Line 7, characters 4-5:
 7 |     x
-Error: Non-value detected in translation:
+        ^
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       This expression has layout void, which is not a sublayout of value.
 |}];;
 
 (***************************************************************)

@@ -35,8 +35,8 @@ val transl_apply: scopes:scopes
                   -> lambda
                   -> (arg_label * apply_arg) list
                   -> scoped_location -> lambda
-val transl_let: scopes:scopes -> ?in_structure:bool
-                  -> rec_flag -> value_binding list -> layout -> lambda -> lambda
+val transl_let: scopes:scopes -> return_layout:layout -> ?in_structure:bool
+                  -> rec_flag -> value_binding list -> lambda -> lambda
 
 val transl_extension_constructor: scopes:scopes ->
   Env.t -> Longident.t option ->

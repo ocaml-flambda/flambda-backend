@@ -71,7 +71,6 @@ module Sort : sig
   (* XXX layouts: These are temporary definitions.  They will be removed in
       subsequent commits in this PR. *)
   val sort_pattern_var : t
-  val sort_let_bound : t
   val sort_prim_arg : t
   val sort_prim_return : t
   val sort_statement : t

@@ -494,8 +494,8 @@ let value_kind env loc ty =
    #float in your program.
 
    We also do the void sanity check here.  We do it in value_kind as well,
-   because trhe sort argument here is sometimes not computed from the type or
-   typed tree, but just one of the defaults from lambda.ml.
+   because the sort argument here is sometimes not computed from the type or
+   typed tree, but just one of the defaults from layouts.ml.
 *)
 let layout env loc sort ty =
   match Layouts.Sort.get_default_value sort with

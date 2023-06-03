@@ -37,15 +37,6 @@ exception Error of Location.t * error
 
 let use_dup_for_constant_mutable_arrays_bigger_than = 4
 
-(* CR layouts v2: When we're ready to allow non-values, these can be deleted or
-   changed to check for void. *)
-let sort_must_be_value ~why loc sort =
-  if not Sort.(equate sort value) then
-    let violation = Layout.(Violation.of_ (Not_a_sublayout
-                                             (of_sort ~why sort,
-                                              value ~why:V1_safety_check))) in
-    raise (Error (loc, Non_value_layout violation))
-
 let layout_must_be_value loc layout =
   match Layout.(sub layout (value ~why:V1_safety_check)) with
   | Ok _ -> ()
@@ -394,9 +385,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_constant cst ->
       Lconst(Const_base cst)
   | Texp_let(rec_flag, pat_expr_list, body) ->
-      let body_layout = layout_exp sort body in
-      transl_let ~scopes rec_flag pat_expr_list
-        body_layout (event_before ~scopes body (transl_exp ~scopes sort body))
+      let return_layout = layout_exp sort body in
+      transl_let ~scopes ~return_layout rec_flag pat_expr_list
+        (event_before ~scopes body (transl_exp ~scopes sort body))
   | Texp_function { arg_label = _; param; cases; partial; region; curry;
                     warnings; arg_mode; arg_sort; ret_sort; alloc_mode } ->
       let scopes =
@@ -1363,8 +1354,8 @@ and transl_bound_exp ~scopes ~in_structure pat sort expr =
   This complication allows choosing any compilation order for the
   bindings and body of let constructs.
 *)
-and transl_let ~scopes ?(add_regions=false) ?(in_structure=false)
-               rec_flag pat_expr_list body_kind =
+and transl_let ~scopes ~return_layout ?(add_regions=false) ?(in_structure=false)
+               rec_flag pat_expr_list =
   match rec_flag with
     Nonrecursive ->
       let rec transl = function
@@ -1372,9 +1363,6 @@ and transl_let ~scopes ?(add_regions=false) ?(in_structure=false)
           fun body -> body
       | {vb_pat=pat; vb_expr=expr; vb_sort=sort; vb_attributes=attr; vb_loc}
         :: rem ->
-          (* CR layouts v2: allow non-values.  Either remove this or replace
-             with void-specific sanity check. *)
-          sort_must_be_value ~why:Let_binding expr.exp_loc sort;
           let lam = transl_bound_exp ~scopes ~in_structure pat sort expr in
           let lam = Translattribute.add_function_attributes lam vb_loc attr in
           let lam =
@@ -1382,7 +1370,8 @@ and transl_let ~scopes ?(add_regions=false) ?(in_structure=false)
           in
           let mk_body = transl rem in
           fun body ->
-            Matching.for_let ~scopes pat.pat_loc lam pat body_kind (mk_body body)
+            Matching.for_let ~scopes ~arg_sort:sort ~return_layout pat.pat_loc
+              lam pat (mk_body body)
       in
       transl pat_expr_list
   | Recursive ->
@@ -1394,9 +1383,6 @@ and transl_let ~scopes ?(add_regions=false) ?(in_structure=false)
         pat_expr_list in
       let transl_case
             {vb_expr=expr; vb_sort; vb_attributes; vb_loc; vb_pat} id =
-        (* CR layouts v2: allow non-values.  Either remove this or replace
-           with void-specific sanity check. *)
-        sort_must_be_value ~why:Let_binding expr.exp_loc vb_sort;
         let lam =
           transl_bound_exp ~scopes ~in_structure vb_pat vb_sort expr
         in
@@ -1761,8 +1747,9 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
 let transl_exp ~scopes sort exp =
   maybe_region_exp sort exp (transl_exp ~scopes sort exp)
 
-let transl_let ~scopes ?in_structure rec_flag pat_expr_list =
-  transl_let ~scopes ~add_regions:true ?in_structure rec_flag pat_expr_list
+let transl_let ~scopes ~return_layout ?in_structure rec_flag pat_expr_list =
+  transl_let ~scopes ~return_layout ~add_regions:true ?in_structure rec_flag
+    pat_expr_list
 
 let transl_scoped_exp ~scopes sort exp =
   maybe_region_exp sort exp (transl_scoped_exp ~scopes sort exp)

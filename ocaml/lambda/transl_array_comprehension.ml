@@ -495,13 +495,14 @@ let iterator ~transl_exp ~scopes ~loc
              ; for_body   =
                  Matching.for_let
                    ~scopes
+                   ~arg_sort:Sort.sort_predef_param
+                   ~return_layout:(Pvalue Pintval)
                    pattern.pat_loc
                    (Lprim(Parrayrefu
                             Lambda.(array_ref_kind alloc_heap iter_arr_kind),
                           [iter_arr.var; Lvar iter_ix],
                           loc))
                    pattern
-                   (Pvalue Pintval)
                    body
              }
       in

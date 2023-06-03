@@ -3636,10 +3636,9 @@ let for_trywith ~scopes value_kind loc param pat_act_list =
   compile_matching ~scopes value_kind loc ~failer:(Reraise_noloc param)
     None (param, layout_block) pat_act_list Partial
 
-let simple_for_let ~scopes value_kind loc param pat body =
-  compile_matching ~scopes value_kind loc ~failer:Raise_match_failure
-    None (param, Typeopt.layout pat.pat_env pat.pat_loc Sort.sort_let_bound
-                   pat.pat_type)
+let simple_for_let ~scopes body_layout loc param pat param_sort body =
+  compile_matching ~scopes body_layout loc ~failer:Raise_match_failure
+    None (param, Typeopt.layout pat.pat_env pat.pat_loc param_sort pat.pat_type)
     [ (pat, body) ] Partial
 
 (* Optimize binding of immediate tuples
@@ -3741,42 +3740,46 @@ let rec map_return f = function
    can be costly (one unnecessary tuple allocation).
 *)
 
-let assign_pat ~scopes value_kind opt nraise catch_ids loc pat lam =
-  let rec collect acc pat lam =
+let assign_pat ~scopes body_layout opt nraise catch_ids loc pat pat_sort lam =
+  let rec collect pat_sort acc pat lam =
+    (* CR layouts v5: In the first two cases here we're using the fixed value
+       layout for elements of tuples.  That will need to change. *)
     match (pat.pat_desc, lam) with
     | Tpat_tuple patl, Lprim (Pmakeblock _, lams, _) ->
         opt := true;
-        List.fold_left2 collect acc patl lams
+        List.fold_left2 (collect Sort.sort_tuple_element) acc patl lams
     | Tpat_tuple patl, Lconst (Const_block (_, scl)) ->
         opt := true;
-        let collect_const acc pat sc = collect acc pat (Lconst sc) in
+        let collect_const acc pat sc =
+          collect Sort.sort_tuple_element acc pat (Lconst sc)
+        in
         List.fold_left2 collect_const acc patl scl
     | _ ->
         (* pattern idents will be bound in staticcatch (let body), so we
            refresh them here to guarantee binders uniqueness *)
         let pat_ids = pat_bound_idents pat in
         let fresh_ids = List.map (fun id -> (id, Ident.rename id)) pat_ids in
-        (fresh_ids, alpha_pat fresh_ids pat, lam) :: acc
+        (fresh_ids, alpha_pat fresh_ids pat, lam, pat_sort) :: acc
   in
   (* sublets were accumulated by 'collect' with the leftmost tuple
      pattern at the bottom of the list; to respect right-to-left
      evaluation order for tuples, we must evaluate sublets
      top-to-bottom. To preserve tail-rec, we will fold_left the
      reversed list. *)
-  let rev_sublets = List.rev (collect [] pat lam) in
+  let rev_sublets = List.rev (collect pat_sort [] pat lam) in
   let exit =
     (* build an Ident.tbl to avoid quadratic refreshing costs *)
     let add t (id, fresh_id) = Ident.add id fresh_id t in
-    let add_ids acc (ids, _pat, _lam) = List.fold_left add acc ids in
+    let add_ids acc (ids, _pat, _lam, _sort) = List.fold_left add acc ids in
     let tbl = List.fold_left add_ids Ident.empty rev_sublets in
     let fresh_var id = Lvar (Ident.find_same id tbl) in
     Lstaticraise (nraise, List.map fresh_var catch_ids)
   in
-  let push_sublet code (_ids, pat, lam) =
-    simple_for_let ~scopes value_kind loc lam pat code in
+  let push_sublet code (_ids, pat, lam, pat_sort ) =
+    simple_for_let ~scopes body_layout loc lam pat pat_sort code in
   List.fold_left push_sublet exit rev_sublets
 
-let for_let ~scopes loc param pat body_kind body =
+let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
   match pat.pat_desc with
   | Tpat_any ->
       (* This eliminates a useless variable (and stack slot in bytecode)
@@ -3802,11 +3805,14 @@ let for_let ~scopes loc param pat body_kind body =
       in
       let ids = List.map (fun (id, _) -> id) catch_ids in
       let bind =
-        map_return (assign_pat ~scopes body_kind opt nraise ids loc pat) param in
+        map_return (assign_pat ~scopes return_layout opt nraise ids loc pat
+                      arg_sort)
+          param
+      in
       if !opt then
-        Lstaticcatch (bind, (nraise, ids_with_kinds), body, body_kind)
+        Lstaticcatch (bind, (nraise, ids_with_kinds), body, return_layout)
       else
-        simple_for_let ~scopes body_kind loc param pat body
+        simple_for_let ~scopes return_layout loc param pat arg_sort body
 
 (* Handling of tupled functions and matchings *)
 

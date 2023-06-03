@@ -192,7 +192,6 @@ module Sort = struct
 
   let sort_function = value
   let sort_pattern_var = value
-  let sort_let_bound = value
   let sort_prim_arg = value
   let sort_prim_return = value
   let sort_statement = value
