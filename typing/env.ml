@@ -3800,9 +3800,9 @@ let report_lookup_error _loc env ppf = function
       | _ -> ()
       end
   | Local_value_used_in_exclave lid ->
-    fprintf ppf "@[The value %a is local, so cannot be used \
-                 inside exclave @]"
-      !print_longident lid
+      fprintf ppf "@[The value %a is local, so it cannot be used \
+                  inside an exclave_@]"
+        !print_longident lid
 
 let report_error ppf = function
   | Missing_module(_, path1, path2) ->
