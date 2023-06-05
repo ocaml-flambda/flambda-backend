@@ -818,11 +818,7 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term _dbg
 let[@inline always] simplify_immutable_block_load0
     (access_kind : P.Block_access_kind.t) ~min_name_mode dacc ~original_term
     _dbg ~arg1:block ~arg1_ty:block_ty ~arg2:_ ~arg2_ty:index_ty ~result_var =
-  let result_kind =
-    match access_kind with
-    | Values _ -> K.value
-    | Naked_floats _ -> K.naked_float
-  in
+  let result_kind = P.Block_access_kind.element_kind_for_load access_kind in
   let result_var' = Bound_var.var result_var in
   let typing_env = DA.typing_env dacc in
   match T.meet_equals_single_tagged_immediate typing_env index_ty with
@@ -830,7 +826,8 @@ let[@inline always] simplify_immutable_block_load0
   | Need_meet -> SPR.create_unknown dacc ~result_var result_kind ~original_term
   | Known_result index -> (
     match
-      T.meet_block_field_simple typing_env ~min_name_mode block_ty index
+      T.meet_block_field_simple typing_env ~min_name_mode
+        ~field_kind:result_kind block_ty index
     with
     | Invalid -> SPR.create_invalid dacc
     | Known_result simple ->

@@ -718,7 +718,7 @@ let meet_boxed_nativeint_containing_simple =
       | Boxed_int64 _ | Closures _ | String _ | Array _ ->
         None)
 
-let meet_block_field_simple env ~min_name_mode t field_index :
+let meet_block_field_simple env ~min_name_mode ~field_kind t field_index :
     Simple.t meet_shortcut =
   match expand_head env t with
   | Value (Ok (Variant { immediates = _; blocks; is_unique = _ })) -> (
@@ -735,12 +735,15 @@ let meet_block_field_simple env ~min_name_mode t field_index :
         | Bottom -> Invalid
         | Unknown -> Need_meet
         | Ok ty -> (
-          match TG.get_alias_exn ty with
-          | simple -> (
-            match TE.get_canonical_simple_exn env ~min_name_mode simple with
-            | simple -> Known_result simple
-            | exception Not_found -> Need_meet)
-          | exception Not_found -> Need_meet)))
+          if not (Flambda_kind.equal (TG.kind ty) field_kind)
+          then Invalid
+          else
+            match TG.get_alias_exn ty with
+            | simple -> (
+              match TE.get_canonical_simple_exn env ~min_name_mode simple with
+              | simple -> Known_result simple
+              | exception Not_found -> Need_meet)
+            | exception Not_found -> Need_meet)))
   | Value (Ok (Mutable_block _)) -> Need_meet
   | Value (Ok _) -> Invalid
   | Value Unknown -> Need_meet

@@ -292,8 +292,8 @@ let apply_projection t proj =
     let meet_shortcut =
       match Symbol_projection.projection proj with
       | Block_load { index } ->
-        T.meet_block_field_simple typing_env ~min_name_mode:Name_mode.normal ty
-          index
+        T.meet_block_field_simple typing_env ~min_name_mode:Name_mode.normal
+          ~field_kind:Flambda_kind.value ty index
       | Project_value_slot { project_from = _; value_slot; kind = _ } ->
         (* CR mshinwell: could use [kind]? *)
         T.meet_project_value_slot_simple typing_env
