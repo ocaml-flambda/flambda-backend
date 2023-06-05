@@ -51,6 +51,7 @@ let keyword_table =
     "else", ELSE;
     "end", END;
     "exception", EXCEPTION;
+    "exclave_", EXCLAVE;
     "external", EXTERNAL;
     "false", FALSE;
     "for", FOR;
