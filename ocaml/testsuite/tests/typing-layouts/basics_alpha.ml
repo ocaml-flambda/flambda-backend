@@ -1097,9 +1097,8 @@ let f19 () =
 Line 3, characters 6-8:
 3 |   let _y = (x :> t_void) in
           ^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}];;
 
 (********************************************)
@@ -1115,9 +1114,8 @@ let f20 () =
 Line 3, characters 6-8:
 3 |   let _y =
           ^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}];;
 
 (**********************************)

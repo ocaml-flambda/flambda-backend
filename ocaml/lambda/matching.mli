@@ -34,7 +34,7 @@ val for_let:
         Location.t -> lambda -> pattern -> lambda ->
         lambda
 val for_multiple_match:
-        scopes:scopes -> layout -> Location.t ->
+        scopes:scopes -> return_layout:layout -> Location.t ->
         (lambda * layout) list -> alloc_mode -> (pattern * lambda) list -> partial ->
         lambda
 

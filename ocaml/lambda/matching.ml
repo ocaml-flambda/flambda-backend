@@ -163,8 +163,8 @@ let expand_record_head h =
       { h with pat_desc = Record (Array.to_list lbl_all) }
   | _ -> h
 
-let bind_alias p id ~arg ~action =
-  let k = Typeopt.layout p.pat_env p.pat_loc Sort.sort_pattern_var p.pat_type in
+let bind_alias p id ~arg ~arg_sort ~action =
+  let k = Typeopt.layout p.pat_env p.pat_loc arg_sort p.pat_type in
   bind_with_layout Alias (id, k) arg action
 
 let head_loc ~scopes head =
@@ -209,7 +209,8 @@ module Half_simple : sig
 
   type nonrec clause = pattern Non_empty_row.t clause
 
-  val of_clause : arg:lambda -> General.clause -> clause
+  val of_clause :
+    arg:lambda -> arg_sort:Layouts.sort -> General.clause -> clause
 end = struct
   include Patterns.Half_simple
 
@@ -234,7 +235,7 @@ end = struct
     | _ -> p
 
   (* Explode or-patterns and turn aliases into bindings in actions *)
-  let of_clause ~arg cl =
+  let of_clause ~arg ~arg_sort cl =
     let rec aux (((p, patl), action) : General.clause) : clause =
       let continue p (view : General.view) : clause =
         aux (({ p with pat_desc = view }, patl), action)
@@ -248,7 +249,7 @@ end = struct
       | `Alias (p, id, _, _) ->
           aux
             ( (General.view p, patl),
-              bind_alias p id ~arg ~action )
+              bind_alias p id ~arg ~arg_sort ~action )
       | `Record ([], _) as view -> stop p view
       | `Record (lbls, closed) ->
           let full_view = `Record (all_record_args lbls, closed) in
@@ -277,6 +278,7 @@ module Simple : sig
 
   val explode_or_pat :
     arg:lambda ->
+    arg_sort:Layouts.sort ->
     Half_simple.pattern ->
     mk_action:(vars:Ident.t list -> lambda) ->
     patbound_action_vars:Ident.t list ->
@@ -331,7 +333,7 @@ end = struct
      compiling in [do_for_multiple_match] where it is a tuple of
      variables.
   *)
-  let explode_or_pat ~arg (p : Half_simple.pattern)
+  let explode_or_pat ~arg ~arg_sort (p : Half_simple.pattern)
         ~mk_action ~patbound_action_vars
     : (pattern * lambda) list =
     let rec explode p aliases rem =
@@ -384,7 +386,7 @@ end = struct
                   let pat, action =
                     fresh_clause (Some id) action_vars renaming_env rem_vars
                   in
-                  pat, bind_alias pat id ~arg ~action
+                  pat, bind_alias pat id ~arg ~arg_sort ~action
               end
           in
           fresh_clause None [] [] patbound_action_vars :: rem
@@ -1113,16 +1115,16 @@ let safe_before ((p, ps), act_p) l =
       || not (may_compats (General.erase p :: ps) (General.erase q :: qs)))
     l
 
-let half_simplify_nonempty ~arg (cls : Typedtree.pattern Non_empty_row.t clause)
-  : Half_simple.clause =
+let half_simplify_nonempty ~arg ~arg_sort
+      (cls : Typedtree.pattern Non_empty_row.t clause) : Half_simple.clause =
   cls
   |> map_on_row (Non_empty_row.map_first General.view)
-  |> Half_simple.of_clause ~arg
+  |> Half_simple.of_clause ~arg ~arg_sort
 
-let half_simplify_clause ~arg (cls : Typedtree.pattern list clause) =
+let half_simplify_clause ~arg ~arg_sort (cls : Typedtree.pattern list clause) =
   cls
   |> map_on_row Non_empty_row.of_initial
-  |> half_simplify_nonempty ~arg
+  |> half_simplify_nonempty ~arg ~arg_sort
 
 (* Once matchings are *fully* simplified, one can easily find
    their nature. *)
@@ -1338,7 +1340,7 @@ let as_matrix cases =
 
 *)
 
-let rec split_or ~arg (cls : Half_simple.clause list) args def =
+let rec split_or ~arg ~arg_sort (cls : Half_simple.clause list) args def =
   let rec do_split (rev_before : Simple.clause list) rev_ors rev_no = function
     | [] ->
         cons_next (List.rev rev_before) (List.rev rev_ors) (List.rev rev_no)
@@ -1369,7 +1371,7 @@ let rec split_or ~arg (cls : Half_simple.clause list) args def =
     in
     match yesor with
     | [] -> split_no_or yes args def nexts
-    | _ -> precompile_or ~arg yes yesor args def nexts
+    | _ -> precompile_or ~arg ~arg_sort yes yesor args def nexts
   in
   do_split [] [] [] cls
 
@@ -1446,7 +1448,7 @@ and precompile_var args cls def k =
      If the rest doesn't generate any split, abort and do_not_precompile. *)
   match args with
   | [] -> assert false
-  | _ :: ((Lvar v, _, _) as arg) :: rargs -> (
+  | _ :: ((Lvar v, _, arg_layout) as arg) :: rargs -> (
       (* We will use the name of the head column of the submatrix
          we compile, and this is the *second* column of our argument. *)
       match cls with
@@ -1456,6 +1458,7 @@ and precompile_var args cls def k =
       | _ -> (
           (* Precompile *)
           let var_args = arg :: rargs in
+          let arg_sort = sort_of_layout arg_layout in
           let var_cls =
             List.map
               (fun ((p, ps), act) ->
@@ -1464,11 +1467,11 @@ and precompile_var args cls def k =
                 (* we learned by pattern-matching on [args]
                    that [p::ps] has at least two arguments,
                    so [ps] must be non-empty *)
-                half_simplify_clause ~arg:(Lvar v) (ps, act))
+                half_simplify_clause ~arg:(Lvar v) ~arg_sort (ps, act))
               cls
           and var_def = Default_environment.pop_column def in
           let { me = first; matrix }, nexts =
-            split_or ~arg:(Lvar v) var_cls var_args var_def
+            split_or ~arg:(Lvar v) ~arg_sort var_cls var_args var_def
           in
           (* Compute top information *)
           match nexts with
@@ -1519,7 +1522,7 @@ and do_not_precompile args cls def k =
     },
     k )
 
-and precompile_or ~arg (cls : Simple.clause list) ors args def k =
+and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
   (* Example: if [cls] is a single-row matrix
 
        s11        p12 .. p1n -> act1
@@ -1586,11 +1589,10 @@ and precompile_or ~arg (cls : Simple.clause list) ors args def k =
             let patbound_action_vars =
               (* variables bound in the or-pattern
                  that are used in the orpm actions *)
-              Typedtree.pat_bound_idents_with_types orp
-              |> List.filter (fun (id, _) -> Ident.Set.mem id pm_fv)
-              |> List.map (fun (id, ty) ->
-                     (id, Typeopt.layout orp.pat_env orp.pat_loc
-                            Sort.sort_pattern_var ty))
+              Typedtree.pat_bound_idents_full arg_sort orp
+              |> List.filter (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
+              |> List.map (fun (id, _, ty, id_sort) ->
+                     (id, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
             in
             let or_num = next_raise_count () in
             let new_patl = Patterns.omega_list patl in
@@ -1598,7 +1600,7 @@ and precompile_or ~arg (cls : Simple.clause list) ors args def k =
               Lstaticraise (or_num, List.map (fun v -> Lvar v) vars)
             in
             let new_cases =
-              Simple.explode_or_pat ~arg p
+              Simple.explode_or_pat ~arg ~arg_sort p
                 ~mk_action:mk_new_action
                 ~patbound_action_vars:(List.map fst patbound_action_vars)
               |> List.map (fun (p, act) -> ((p, new_patl), act)) in
@@ -1646,8 +1648,10 @@ let split_and_precompile_simplified pm =
   dbg_split_and_precompile pm next nexts;
   (next, nexts)
 
-let split_and_precompile_half_simplified ~arg pm =
-  let { me = next }, nexts = split_or ~arg pm.cases pm.args pm.default in
+let split_and_precompile_half_simplified ~arg ~arg_sort pm =
+  let { me = next }, nexts =
+    split_or ~arg ~arg_sort pm.cases pm.args pm.default
+  in
   dbg_split_and_precompile pm next nexts;
   (next, nexts)
 
@@ -3332,11 +3336,16 @@ and compile_match_nonempty ~scopes value_kind repr partial ctx
   | { cases = []; args = [] } -> comp_exit ctx m
   | { args = (arg, str, layout) :: argl } ->
       let v, newarg = arg_to_var arg m.cases in
+      let newarg_sort = sort_of_layout layout in
       let args = (newarg, Alias, layout) :: argl in
-      let cases = List.map (half_simplify_nonempty ~arg:newarg) m.cases in
+      let cases =
+        List.map (half_simplify_nonempty ~arg:newarg ~arg_sort:newarg_sort)
+          m.cases
+      in
       let m = { m with args; cases } in
       let first_match, rem =
-        split_and_precompile_half_simplified ~arg:newarg m in
+        split_and_precompile_half_simplified ~arg:newarg ~arg_sort:newarg_sort m
+      in
       combine_handlers ~scopes value_kind repr partial ctx (v, str, layout, arg) first_match rem
   | _ -> assert false
 
@@ -3787,10 +3796,7 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
       Lsequence (param, body)
   | Tpat_var (id, _, _) ->
       (* fast path, and keep track of simple bindings to unboxable numbers *)
-      let k =
-        Typeopt.layout pat.pat_env pat.pat_loc Sort.sort_pattern_var
-          pat.pat_type
-      in
+      let k = Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type in
       Llet (Strict, k, id, param, body)
   | _ ->
       let opt = ref false in
@@ -3799,8 +3805,7 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
       let ids_with_kinds =
         List.map
           (fun (id, typ) ->
-             (id, Typeopt.layout pat.pat_env pat.pat_loc
-                    Sort.sort_pattern_var typ))
+             (id, Typeopt.layout pat.pat_env pat.pat_loc arg_sort typ))
           catch_ids
       in
       let ids = List.map (fun (id, _) -> id) catch_ids in
@@ -3907,24 +3912,28 @@ let compile_flattened ~scopes value_kind repr partial ctx pmh =
         (compile_match ~scopes value_kind repr partial)
         lam total ctx hs
 
-let do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partial =
+let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list partial =
   let repr = None in
   let arg =
     let sloc = Scoped_location.of_location ~scopes loc in
-    (* CR ncourant: this can build a mixed block, but it should never actually be
-       created except if the pattern-matching binds it, in which case it should be
-       rejected by the typing. Do we really trust this case will not happen? *)
+    (* CR layouts v5: This function is called in cases where the scrutinee of a
+       match is a literal tuple (e.g., [match e1, e2, e3 with ...]).  The
+       typechecker treats the scrutinee here like any other tuple, so it's fine
+       to assume the whole thing and the elements have sort value.  That will
+       change when we allow non-values in structures. *)
     Lprim (Pmakeblock (0, Immutable, None, mode), List.map fst paraml, sloc) in
+  let arg_sort = Sort.sort_tuple in
   let handler =
     let partial = check_partial pat_act_list partial in
     let rows = map_on_rows (fun p -> (p, [])) pat_act_list in
-    toplevel_handler ~scopes value_kind loc ~failer:Raise_match_failure
+    toplevel_handler ~scopes return_layout loc ~failer:Raise_match_failure
       partial [ (arg, Strict, layout_block) ] rows in
   handler (fun partial pm1 ->
     let pm1_half =
-      { pm1 with cases = List.map (half_simplify_nonempty ~arg) pm1.cases }
+      { pm1 with
+        cases = List.map (half_simplify_nonempty ~arg ~arg_sort) pm1.cases }
     in
-    let next, nexts = split_and_precompile_half_simplified ~arg pm1_half in
+    let next, nexts = split_and_precompile_half_simplified ~arg ~arg_sort pm1_half in
     let size = List.length paraml
     and idl_with_layouts = List.map (function
       | Lvar id, layout -> id, layout
@@ -3935,7 +3944,8 @@ let do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partia
       List.map (fun (e, pm) -> (e, flatten_precompiled size args pm)) nexts
     in
     let lam, total =
-      comp_match_handlers value_kind (compile_flattened ~scopes value_kind repr) partial
+      comp_match_handlers return_layout
+        (compile_flattened ~scopes return_layout repr) partial
         (Context.start size) flat_next flat_nexts
     in
     List.fold_right2 (bind_with_layout Strict) idl_with_layouts (List.map fst paraml) lam, total
@@ -3954,11 +3964,12 @@ let bind_opt (v, layout, eo) k =
   | None -> k
   | Some e -> Lambda.bind_with_layout Strict (v, layout) e k
 
-let for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partial =
+let for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list partial =
   let v_paraml = List.map param_to_var paraml in
   let paraml = List.map (fun (v, layout, _) -> (Lvar v, layout)) v_paraml in
   List.fold_right bind_opt v_paraml
-    (do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partial)
+    (do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list
+       partial)
 
 (* Error report *)
 (* CR layouts v2: This file didn't use to have the report_error infrastructure -

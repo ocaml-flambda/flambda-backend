@@ -1626,7 +1626,7 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
       assert (static_handlers = []);
       let mode = transl_alloc_mode alloc_mode in
       let argl = List.map (fun a -> (a, Sort.sort_tuple_element)) argl in
-      Matching.for_multiple_match ~scopes return_layout e.exp_loc
+      Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
         (transl_list_with_layout ~scopes argl) mode val_cases partial
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, _ :: _ ->
         let argl = List.map (fun a -> (a, Sort.sort_tuple_element)) argl in
@@ -1638,7 +1638,7 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
         let lvars = List.map (fun (id, layout) -> Lvar id, layout) val_ids in
         let mode = transl_alloc_mode alloc_mode in
         static_catch (transl_list ~scopes argl) val_ids
-          (Matching.for_multiple_match ~scopes return_layout e.exp_loc
+          (Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
              lvars mode val_cases partial)
     | arg, [] ->
       assert (static_handlers = []);
