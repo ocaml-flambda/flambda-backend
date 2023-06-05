@@ -3961,9 +3961,9 @@ meth_list:
 
 /* Constants */
 
-(* CR-someday aspectorzabusky: The bodies of the HASH rules for unboxed literals
-   will all be improved and lose their explicit assert once we have real unboxed
-   literals in Jane syntax *)
+(* CR layouts ASZ: The bodies of the HASH rules for unboxed literals will all be
+   improved and lose their explicit assert once we have real unboxed literals in
+   Jane syntax *)
 
 constant:
   | INT               { let (n, m) = $1 in Pconst_integer (n, m) }
