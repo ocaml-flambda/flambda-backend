@@ -13,8 +13,8 @@ val is_dominating : dominators -> Label.t -> Label.t -> bool
 
 val is_strictly_dominating : dominators -> Label.t -> Label.t -> bool
 (* [is_strictly_dominating doms x y] is [true] iff [x] is strictly dominating
-   [y] according to [dominators]. All edges, regular and exceptional are treated
-   the same way.*)
+   [y] according to [dominators]. That is, [is_dominating x y = true] and [x] is not equal [y]. 
+   All edges, regular and exceptional are treated the same way.*)
 
 type immediate_dominators = Label.t Label.Map.t
 
