@@ -11,7 +11,7 @@ val escape : 'a -> unit = <fun>
 |}]
 
 (* Any function ending with exclave is always typed to return local value. This is to
-   accomadate some code in compiler that relies on the function's type to know if it
+   accommodate some code in compiler that relies on the function's type to know if it
    allocates in caller's region. *)
 let foo () =
   exclave_
