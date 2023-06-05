@@ -8,7 +8,8 @@ val compute_dominators : Cfg.t -> dominators
 
 val is_dominating : dominators -> Label.t -> Label.t -> bool
 (* [is_dominating doms x y] is [true] iff [x] is dominating [y] according to
-   [dominators]. All edges, regular and exceptional are treated the same way. *)
+   [dominators]. That is, all paths from the entry node to [y] go through [x]. 
+   All edges, regular and exceptional are treated the same way. *)
 
 val is_strictly_dominating : dominators -> Label.t -> Label.t -> bool
 (* [is_strictly_dominating doms x y] is [true] iff [x] is strictly dominating
