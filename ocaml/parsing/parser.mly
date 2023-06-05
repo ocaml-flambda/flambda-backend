@@ -791,6 +791,10 @@ let with_sign sign num =
   | Positive -> num
   | Negative -> "-" ^ num
 
+(* CR layouts ASZ: The [unboxed_*] functions will both be improved and lose
+   their explicit assert once we have real unboxed literals in Jane syntax; they
+   may also get re-inlined at that point *)
+
 let unboxed_int sloc sign (n, m) =
   match m with
   | Some _ ->
@@ -3960,10 +3964,6 @@ meth_list:
 ;
 
 /* Constants */
-
-(* CR layouts ASZ: The bodies of the HASH rules for unboxed literals will all be
-   improved and lose their explicit assert once we have real unboxed literals in
-   Jane syntax *)
 
 constant:
   | INT               { let (n, m) = $1 in Pconst_integer (n, m) }
