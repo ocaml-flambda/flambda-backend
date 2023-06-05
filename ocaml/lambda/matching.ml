@@ -3599,7 +3599,7 @@ let check_total ~scopes value_kind loc ~failer total lambda i =
     Lstaticcatch (lambda, (i, []),
                   failure_handler ~scopes loc ~failer (), value_kind)
 
-let toplevel_handler ~scopes value_kind loc ~failer partial args cases compile_fun =
+let toplevel_handler ~scopes ~return_layout loc ~failer partial args cases compile_fun =
   match partial with
   | Total ->
       let default = Default_environment.empty in
@@ -3616,25 +3616,25 @@ let toplevel_handler ~scopes value_kind loc ~failer partial args cases compile_f
       begin match compile_fun Partial pm with
       | exception Unused -> assert false
       | (lam, total) ->
-          check_total ~scopes value_kind loc ~failer total lam raise_num
+          check_total ~scopes return_layout loc ~failer total lam raise_num
       end
 
-let compile_matching ~scopes value_kind loc ~failer repr (arg, arg_layout) pat_act_list partial =
+let compile_matching ~scopes ~arg_layout ~return_layout loc ~failer repr arg
+      pat_act_list partial =
   let partial = check_partial pat_act_list partial in
   let args = [ (arg, Strict, arg_layout) ] in
   let rows = map_on_rows (fun pat -> (pat, [])) pat_act_list in
-  toplevel_handler ~scopes value_kind loc ~failer partial args rows (fun partial pm ->
-    compile_match_nonempty ~scopes value_kind repr partial (Context.start 1) pm)
+  toplevel_handler ~scopes ~return_layout loc ~failer partial args rows
+    (fun partial pm -> compile_match_nonempty ~scopes return_layout repr
+                         partial (Context.start 1) pm)
 
 let for_function ~scopes ~arg_layout ~return_layout loc repr param pat_act_list
       partial =
-  compile_matching ~scopes return_layout loc ~failer:Raise_match_failure
-    repr (param, arg_layout) pat_act_list partial
-  (* Layouts XXX: change compile_matching to have labelled args like
-     [for_function] *)
+  compile_matching ~scopes ~arg_layout ~return_layout loc
+    ~failer:Raise_match_failure repr param pat_act_list partial
 
 (* In the following two cases, exhaustiveness info is not available! *)
-let for_trywith ~scopes value_kind loc param pat_act_list =
+let for_trywith ~scopes ~return_layout loc param pat_act_list =
   (* Note: the failure action of [for_trywith] corresponds
      to an exception that is not matched by a try..with handler,
      and is thus reraised for the next handler in the stack.
@@ -3642,13 +3642,15 @@ let for_trywith ~scopes value_kind loc param pat_act_list =
      It is important to *not* include location information in
      the reraise (hence the [_noloc]) to avoid seeing this
      silent reraise in exception backtraces. *)
-  compile_matching ~scopes value_kind loc ~failer:(Reraise_noloc param)
-    None (param, layout_block) pat_act_list Partial
+  compile_matching ~scopes ~arg_layout:layout_block ~return_layout loc
+    ~failer:(Reraise_noloc param) None param pat_act_list Partial
 
-let simple_for_let ~scopes body_layout loc param pat param_sort body =
-  compile_matching ~scopes body_layout loc ~failer:Raise_match_failure
-    None (param, Typeopt.layout pat.pat_env pat.pat_loc param_sort pat.pat_type)
-    [ (pat, body) ] Partial
+let simple_for_let ~scopes ~arg_sort ~return_layout loc param pat body =
+  let arg_layout =
+    Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type
+  in
+  compile_matching ~scopes ~arg_layout ~return_layout loc
+    ~failer:Raise_match_failure None param [ (pat, body) ] Partial
 
 (* Optimize binding of immediate tuples
 
@@ -3785,7 +3787,9 @@ let assign_pat ~scopes body_layout opt nraise catch_ids loc pat pat_sort lam =
     Lstaticraise (nraise, List.map fresh_var catch_ids)
   in
   let push_sublet code (_ids, pat, lam, pat_sort ) =
-    simple_for_let ~scopes body_layout loc lam pat pat_sort code in
+    simple_for_let ~scopes ~arg_sort:pat_sort ~return_layout:body_layout loc lam
+      pat code
+  in
   List.fold_left push_sublet exit rev_sublets
 
 let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
@@ -3817,7 +3821,7 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
       if !opt then
         Lstaticcatch (bind, (nraise, ids_with_kinds), body, return_layout)
       else
-        simple_for_let ~scopes return_layout loc param pat arg_sort body
+        simple_for_let ~scopes ~arg_sort ~return_layout loc param pat body
 
 (* Handling of tupled functions and matchings *)
 
@@ -3827,7 +3831,7 @@ let for_tupled_function ~scopes ~return_layout loc paraml pats_act_list partial 
   (* The arguments of a tupled function are always values since they must be fields *)
   let args = List.map (fun id -> (Lvar id, Strict, layout_field)) paraml in
   let handler =
-    toplevel_handler ~scopes return_layout loc ~failer:Raise_match_failure
+    toplevel_handler ~scopes ~return_layout loc ~failer:Raise_match_failure
       partial args pats_act_list in
   handler (fun partial pm ->
     compile_match ~scopes return_layout None partial
@@ -3926,7 +3930,7 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
   let handler =
     let partial = check_partial pat_act_list partial in
     let rows = map_on_rows (fun p -> (p, [])) pat_act_list in
-    toplevel_handler ~scopes return_layout loc ~failer:Raise_match_failure
+    toplevel_handler ~scopes ~return_layout loc ~failer:Raise_match_failure
       partial [ (arg, Strict, layout_block) ] rows in
   handler (fun partial pm1 ->
     let pm1_half =

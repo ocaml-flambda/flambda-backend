@@ -26,7 +26,7 @@ val for_function:
         partial ->
         lambda
 val for_trywith:
-        scopes:scopes -> layout -> Location.t ->
+        scopes:scopes -> return_layout:layout -> Location.t ->
         lambda -> (pattern * lambda) list ->
         lambda
 val for_let:

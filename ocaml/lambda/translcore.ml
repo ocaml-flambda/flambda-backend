@@ -446,11 +446,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         partial
   | Texp_try(body, pat_expr_list) ->
       let id = Typecore.name_cases "exn" pat_expr_list in
-      let layout = layout_exp sort e in
+      let return_layout = layout_exp sort e in
       Ltrywith(transl_exp ~scopes sort body, id,
-               Matching.for_trywith ~scopes layout e.exp_loc (Lvar id)
+               Matching.for_trywith ~scopes ~return_layout e.exp_loc (Lvar id)
                  (transl_cases_try ~scopes sort pat_expr_list),
-               layout)
+               return_layout)
   | Texp_tuple (el, alloc_mode) ->
       let ll, shape =
         transl_list_with_shape ~scopes
@@ -1613,7 +1613,7 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
     let static_exception_id = next_raise_count () in
     Lstaticcatch
       (Ltrywith (Lstaticraise (static_exception_id, scrutinees), id,
-                 Matching.for_trywith ~scopes return_layout e.exp_loc (Lvar id)
+                 Matching.for_trywith ~scopes ~return_layout e.exp_loc (Lvar id)
                    exn_cases,
                  return_layout),
        (static_exception_id, val_ids),
