@@ -10,11 +10,9 @@ let escape x =
 val escape : 'a -> unit = <fun>
 |}]
 
-(* Any function ending with exclave is always typed to
-   return local value.
-  This is to accomadate some code in compiler that relies
-  on the function's type to know if it allocates in caller's
-  region. *)
+(* Any function ending with exclave is always typed to return local value. This is to
+   accomadate some code in compiler that relies on the function's type to know if it
+   allocates in caller's region. *)
 let foo () =
   exclave_
     let local_ y = Some 42 in
@@ -74,7 +72,7 @@ let foo x =
 Line 3, characters 16-17:
 3 |   exclave_ Some y
                     ^
-Error: The value y is local, so cannot be used inside exclave
+Error: The value y is local, so it cannot be used inside an exclave_
 |}]
 
 let foo x =
