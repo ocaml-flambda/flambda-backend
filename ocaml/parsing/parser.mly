@@ -795,7 +795,7 @@ let with_sign sign num =
    their explicit assert once we have real unboxed literals in Jane syntax; they
    may also get re-inlined at that point *)
 
-let unboxed_int sloc sign (n, m) =
+let unboxed_int sloc int_loc sign (n, m) =
   match m with
   | Some _ ->
       Jane_syntax_parsing.assert_extension_enabled
@@ -803,7 +803,7 @@ let unboxed_int sloc sign (n, m) =
       Pconst_integer (with_sign sign n, m)
   | None ->
       if Language_extension.is_enabled unboxed_literals_extension then
-        expecting sloc "literal modifier"
+        expecting int_loc "integer literal with type-specifying suffix"
       else
         not_expecting sloc "line number directive"
 
@@ -3972,18 +3972,18 @@ constant:
   | FLOAT             { let (f, m) = $1 in Pconst_float (f, m) }
   (* The unboxed literals have to be composed of multiple lexemes so we can
      handle line number directives properly *)
-  | HASH INT          { unboxed_int $sloc Positive $2 }
+  | HASH INT          { unboxed_int $sloc $loc($2) Positive $2 }
   | HASH FLOAT        { unboxed_float $sloc Positive $2 }
 ;
 signed_constant:
     constant          { $1 }
   | MINUS INT         { let (n, m) = $2 in Pconst_integer("-" ^ n, m) }
   | MINUS FLOAT       { let (f, m) = $2 in Pconst_float("-" ^ f, m) }
-  | MINUS HASH INT    { unboxed_int $sloc Negative $3 }
+  | MINUS HASH INT    { unboxed_int $sloc $loc($3) Negative $3 }
   | MINUS HASH FLOAT  { unboxed_float $sloc Negative $3 }
   | PLUS INT          { let (n, m) = $2 in Pconst_integer (n, m) }
   | PLUS FLOAT        { let (f, m) = $2 in Pconst_float(f, m) }
-  | PLUS HASH INT     { unboxed_int $sloc Positive $3 }
+  | PLUS HASH INT     { unboxed_int $sloc $loc($3) Positive $3 }
   | PLUS HASH FLOAT   { unboxed_float $sloc Negative $3 }
 ;
 
