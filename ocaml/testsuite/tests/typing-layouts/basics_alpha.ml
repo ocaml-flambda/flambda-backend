@@ -1445,6 +1445,7 @@ Line 1, characters 41-43:
 Error: This type ('a : value) should be an instance of type ('a0 : void)
        'a has layout void, which does not overlap with value.
 |}]
+
 (* CR layouts bug: this should be accepted (or maybe we should reject
    the type definition if we're not allowing `void` things in structures).
    This bug is a goof at the top of Typecore.build_or_pat;
@@ -1463,3 +1464,16 @@ Error: This expression has type t_void but an expression was expected of type
          ('a : value)
        t_void has layout void, which is not a sublayout of value.
 |}]
+
+(******************************************************)
+(* Test 33: Externals must have representable types *)
+external foo33 : t_any = "foo33";;
+
+[%%expect{|
+Line 1, characters 17-22:
+1 | external foo33 : t_any = "foo33";;
+                     ^^^^^
+Error: This type signature for foo33 is not a value type.
+       foo33 has layout any, which is not a sublayout of value.
+|}]
+

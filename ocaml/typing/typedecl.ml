@@ -27,7 +27,7 @@ module String = Misc.Stdlib.String
 
 type native_repr_kind = Unboxed | Untagged
 
-type layout_sort_loc = Cstr_tuple | Record
+type layout_sort_loc = Cstr_tuple | Record | External
 
 type error =
     Repeated_parameter
@@ -1105,7 +1105,6 @@ let update_decl_layout env dpath decl =
     | [{Types.cd_args;cd_loc} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [ty,_] -> begin
-            (* CR layouts: check_representable should return the sort *)
             check_representable ~why:(Constructor_declaration 0)
               env cd_loc Cstr_tuple ty;
             let layout = Ctype.type_layout env ty in
@@ -1903,6 +1902,19 @@ let prim_const_mode m =
   | Some Local -> Prim_local
   | None -> assert false
 
+(* Note that [ty] is guaranteed not to contain sort variables because it was
+   produced by [type_scheme], which defaults them.  Further, if ty is an arrow
+   we know its bits are representable, so [type_sort_external] can only fail
+   on externals with non-arrow types. *)
+(* CR layouts v3: When we allow non-representable function args/returns, the
+   representability argument above isn't quite right. Decide whether we want to
+   allow non-representable types in external args/returns then. *)
+let type_sort_external ~why env loc typ =
+  match Ctype.type_sort ~why env typ with
+  | Ok s -> s
+  | Error err ->
+    raise (Error (loc,Layout_sort {lloc = External; typ; err}))
+
 let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
   match core_type.ptyp_desc, get_desc ty,
     get_native_repr_attribute core_type.ptyp_attributes ~global_repr:None
@@ -1913,15 +1925,18 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
     when not (Builtin_attributes.has_curry core_type.ptyp_attributes) ->
     let t1, _ = Btype.tpoly_get_poly t1 in
     let repr_arg = make_native_repr env ct1 t1 ~global_repr in
+    let sort_arg =
+      type_sort_external ~why:External_argument env ct1.ptyp_loc t1
+    in
     let mode =
       if Builtin_attributes.has_local_opt ct1.ptyp_attributes
       then Prim_poly
       else prim_const_mode marg
     in
-    let repr_args, repr_res =
+    let repr_args, sort_res, repr_res =
       parse_native_repr_attributes env ct2 t2 (prim_const_mode mret) ~global_repr
     in
-    ((mode,repr_arg) :: repr_args, repr_res)
+    ((mode, sort_arg, repr_arg) :: repr_args, sort_res, repr_res)
   | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
      parse_native_repr_attributes env t ty rmode ~global_repr
   | _ ->
@@ -1930,8 +1945,11 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
        then Prim_poly
        else rmode
      in
-     ([], (rmode, make_native_repr env core_type ty ~global_repr))
-
+     let sort_res =
+       type_sort_external ~why:External_result env core_type.ptyp_loc ty
+     in
+     ([], sort_res,
+      (rmode, sort_res, make_native_repr env core_type ty ~global_repr))
 
 let check_unboxable env loc ty =
   let rec check_type acc ty : Path.Set.t =
@@ -1983,7 +2001,7 @@ let transl_value_decl env loc valdecl =
         | Native_repr_attr_present repr -> Some repr
         | Native_repr_attr_absent -> None
       in
-      let native_repr_args, native_repr_res =
+      let native_repr_args, _, native_repr_res =
         parse_native_repr_attributes env valdecl.pval_type ty Prim_global ~global_repr
       in
       let prim =
@@ -2508,6 +2526,7 @@ let report_error ppf = function
       match lloc with
       | Cstr_tuple -> "Constructor argument"
       | Record -> "Record element"
+      | External -> "External"
     in
     fprintf ppf "@[%s types must have a representable layout.@ \ %a@]" s
       (Layout.Violation.report_with_offender

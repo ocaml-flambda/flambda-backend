@@ -17,6 +17,7 @@
 
 open Misc
 open Parsetree
+open Layouts
 
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
@@ -42,8 +43,8 @@ type description =
     prim_effects: effects;
     prim_coeffects: coeffects;
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
-    prim_native_repr_args: (mode * native_repr) list;
-    prim_native_repr_res: mode * native_repr }
+    prim_native_repr_args: (mode * Layouts.sort * native_repr) list;
+    prim_native_repr_res: mode * Layouts.sort * native_repr }
 
 type error =
   | Old_style_float_with_native_repr_attribute
@@ -55,22 +56,22 @@ type error =
 exception Error of Location.t * error
 
 let is_ocaml_repr = function
-  | _, Same_as_ocaml_repr -> true
-  | _, Unboxed_float
-  | _, Unboxed_integer _
-  | _, Untagged_int -> false
+  | _, _, Same_as_ocaml_repr -> true
+  | _, _, Unboxed_float
+  | _, _, Unboxed_integer _
+  | _, _, Untagged_int -> false
 
 let is_unboxed = function
-  | _, Same_as_ocaml_repr
-  | _, Untagged_int -> false
-  | _, Unboxed_float
-  | _, Unboxed_integer _ -> true
+  | _, _, Same_as_ocaml_repr
+  | _, _, Untagged_int -> false
+  | _, _, Unboxed_float
+  | _, _, Unboxed_integer _ -> true
 
 let is_untagged = function
-  | _, Untagged_int -> true
-  | _, Same_as_ocaml_repr
-  | _, Unboxed_float
-  | _, Unboxed_integer _ -> false
+  | _, _, Untagged_int -> true
+  | _, _, Same_as_ocaml_repr
+  | _, _, Unboxed_float
+  | _, _, Unboxed_integer _ -> false
 
 let rec make_native_repr_args arity x =
   if arity = 0 then
@@ -78,7 +79,7 @@ let rec make_native_repr_args arity x =
   else
     x :: make_native_repr_args (arity - 1) x
 
-let simple ~name ~arity ~alloc =
+let simple_on_values ~name ~arity ~alloc =
   {prim_name = name;
    prim_arity = arity;
    prim_alloc = alloc;
@@ -87,8 +88,8 @@ let simple ~name ~arity ~alloc =
    prim_coeffects = Has_coeffects;
    prim_native_name = "";
    prim_native_repr_args =
-     make_native_repr_args arity (Prim_global, Same_as_ocaml_repr);
-   prim_native_repr_res = (Prim_global, Same_as_ocaml_repr) }
+     make_native_repr_args arity (Prim_global, Sort.value, Same_as_ocaml_repr);
+   prim_native_repr_res = (Prim_global, Sort.value, Same_as_ocaml_repr) }
 
 let make ~name ~alloc ~c_builtin ~effects ~coeffects
       ~native_name ~native_repr_args ~native_repr_res =
@@ -177,8 +178,8 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
                   Inconsistent_noalloc_attributes_for_effects));
   let native_repr_args, native_repr_res =
     if old_style_float then
-      (make_native_repr_args arity (Prim_global, Unboxed_float),
-       (Prim_global, Unboxed_float))
+      (make_native_repr_args arity (Prim_global, Sort.value, Unboxed_float),
+       (Prim_global, Sort.value, Unboxed_float))
     else
       (native_repr_args, native_repr_res)
   in
@@ -248,7 +249,7 @@ let print p osig_val_decl =
     else
       attrs
   in
-  let attrs_of_mode_and_repr (m, repr) =
+  let attrs_of_mode_and_repr (m, _, repr) =
     (match m with
      | Prim_local | Prim_global -> []
      | Prim_poly -> [oattr_local_opt])

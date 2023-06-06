@@ -49,7 +49,7 @@ let native_repr_args nra1 nra2 =
     | [], [] -> None
     | [], _ :: _ -> assert false
     | _ :: _, [] -> assert false
-    | (_, nr1) :: nra1, (_, nr2) :: nra2 ->
+    | (_, _, nr1) :: nra1, (_, _, nr2) :: nra2 ->
       if not (Primitive.equal_native_repr nr1 nr2) then Some (Argument_repr i)
       else loop (i+1) nra1 nra2
   in
@@ -76,8 +76,8 @@ let primitive_descriptions pd1 pd2 =
   else if not (String.equal pd1.prim_native_name pd2.prim_native_name) then
     Some Native_name
   else if not
-    (Primitive.equal_native_repr
-       (snd pd1.prim_native_repr_res) (snd pd2.prim_native_repr_res)) then
+    (match pd1.prim_native_repr_res, pd2.prim_native_repr_res with
+      | (_, _, nr1), (_, _, nr2) -> Primitive.equal_native_repr nr1 nr2) then
     Some Result_repr
   else
     native_repr_args pd1.prim_native_repr_args pd2.prim_native_repr_args

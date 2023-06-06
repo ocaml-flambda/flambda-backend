@@ -437,18 +437,21 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
              (fun var -> Named.create_simple (Simple.var var))
              let_bound_vars))
   in
+  (* CR layouts v2: I think this needs to change for primitives that return
+     #floats - presumably we should look at the second element of the 3-tuple
+     and do something different if it isn't value. *)
   let box_return_value =
     match prim_native_repr_res with
-    | _, Same_as_ocaml_repr -> None
-    | _, Unboxed_float ->
+    | _, _, Same_as_ocaml_repr -> None
+    | _, _, Unboxed_float ->
       Some (P.Box_number (Naked_float, Alloc_mode.For_allocations.heap))
-    | _, Unboxed_integer Pnativeint ->
+    | _, _, Unboxed_integer Pnativeint ->
       Some (P.Box_number (Naked_nativeint, Alloc_mode.For_allocations.heap))
-    | _, Unboxed_integer Pint32 ->
+    | _, _, Unboxed_integer Pint32 ->
       Some (P.Box_number (Naked_int32, Alloc_mode.For_allocations.heap))
-    | _, Unboxed_integer Pint64 ->
+    | _, _, Unboxed_integer Pint64 ->
       Some (P.Box_number (Naked_int64, Alloc_mode.For_allocations.heap))
-    | _, Untagged_int -> Some P.Tag_immediate
+    | _, _, Untagged_int -> Some P.Tag_immediate
   in
   let return_continuation, needs_wrapper =
     match Expr.descr body with
@@ -462,7 +465,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | _ -> Continuation.create (), true
   in
   let kind_of_primitive_native_repr
-      ((_, repr) : Primitive.mode * Primitive.native_repr) =
+      ((_, _, repr) : Primitive.mode * Layouts.sort * Primitive.native_repr) =
     match repr with
     | Same_as_ocaml_repr -> K.value
     | Unboxed_float -> K.naked_float
@@ -507,7 +510,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       then Misc.fatal_errorf "Expected arity one for %s" prim_native_name
       else
         match prim_native_repr_args, prim_native_repr_res with
-        | [(_, Unboxed_integer Pint64)], (_, Unboxed_float) -> (
+        | [(_, _, Unboxed_integer Pint64)], (_, _, Unboxed_float) -> (
           match args with
           | [arg] ->
             let result = Variable.create "reinterpreted_int64" in
@@ -543,19 +546,22 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       in
       Expr_with_acc.create_apply acc apply
   in
+  (* CR layouts v2: I think this needs to change for primitives that take
+     #floats as args - presumably we should look at the second element of the
+     3-tuple and do something different if it isn't value. *)
   let call : Acc.t -> Expr_with_acc.t =
     List.fold_left2
       (fun (call : Simple.t list -> Acc.t -> Expr_with_acc.t) arg
-           (arg_repr : Primitive.mode * Primitive.native_repr) ->
+           (arg_repr : Primitive.mode * Layouts.sort * Primitive.native_repr) ->
         let unbox_arg : P.unary_primitive option =
           match arg_repr with
-          | _, Same_as_ocaml_repr -> None
-          | _, Unboxed_float -> Some (P.Unbox_number Naked_float)
-          | _, Unboxed_integer Pnativeint ->
+          | _, _, Same_as_ocaml_repr -> None
+          | _, _, Unboxed_float -> Some (P.Unbox_number Naked_float)
+          | _, _, Unboxed_integer Pnativeint ->
             Some (P.Unbox_number Naked_nativeint)
-          | _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)
-          | _, Unboxed_integer Pint64 -> Some (P.Unbox_number Naked_int64)
-          | _, Untagged_int -> Some P.Untag_immediate
+          | _, _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)
+          | _, _, Unboxed_integer Pint64 -> Some (P.Unbox_number Naked_int64)
+          | _, _, Untagged_int -> Some P.Untag_immediate
         in
         match unbox_arg with
         | None -> fun args acc -> call (arg :: args) acc

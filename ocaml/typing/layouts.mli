@@ -69,9 +69,7 @@ module Sort : sig
   end
 
   (* XXX layouts: These are temporary definitions.  They will be removed in
-      subsequent commits in this PR. *)
-  val sort_prim_arg : t
-  val sort_prim_return : t
+     subsequent commits in this PR. *)
   val sort_statement : t
 
   (* CR layouts: These are sorts for the types of ocaml expressions that are
@@ -142,6 +140,8 @@ module Layout : sig
     | Function_result
     | Structure_item_expression
     | V1_safety_check
+    | External_argument
+    | External_result
 
   type annotation_context =
     | Type_declaration of Path.t

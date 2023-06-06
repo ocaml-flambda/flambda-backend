@@ -1352,8 +1352,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pccall p ->
      if not p.prim_alloc then None
      else begin match p.prim_native_repr_res with
-       | (Prim_local|Prim_poly), _ -> Some alloc_local
-       | Prim_global, _ -> Some alloc_heap
+       | (Prim_local|Prim_poly), _, _ -> Some alloc_local
+       | Prim_global, _, _ -> Some alloc_heap
      end
   | Praise _ -> None
   | Psequor | Psequand | Pnot
@@ -1450,11 +1450,11 @@ let primitive_result_layout (p : primitive) =
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
   | Pbox_float _ -> layout_float
   | Punbox_float -> Punboxed_float
-  | Pccall { prim_native_repr_res = _, Untagged_int; _} -> layout_int
-  | Pccall { prim_native_repr_res = _, Unboxed_float; _} -> layout_float
-  | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr; _} ->
+  | Pccall { prim_native_repr_res = _, _, Untagged_int; _} -> layout_int
+  | Pccall { prim_native_repr_res = _, _, Unboxed_float; _} -> layout_float
+  | Pccall { prim_native_repr_res = _, _, Same_as_ocaml_repr; _} ->
       layout_any_value
-  | Pccall { prim_native_repr_res = _, Unboxed_integer bi; _} ->
+  | Pccall { prim_native_repr_res = _, _, Unboxed_integer bi; _} ->
       layout_boxedint bi
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot

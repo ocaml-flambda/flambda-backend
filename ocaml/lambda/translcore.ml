@@ -86,7 +86,8 @@ let declare_probe_handlers lam =
 (* Compile an exception/extension definition *)
 
 let prim_fresh_oo_id =
-  Pccall (Primitive.simple ~name:"caml_fresh_oo_id" ~arity:1 ~alloc:false)
+  Pccall
+    (Primitive.simple_on_values ~name:"caml_fresh_oo_id" ~arity:1 ~alloc:false)
 
 let transl_extension_constructor ~scopes env path ext =
   let path =
@@ -317,11 +318,6 @@ let assert_failed ~scopes exp =
                Const_base(Const_int char)]))], loc))], loc)
 ;;
 
-let rec cut n l =
-  if n = 0 then ([],l) else
-  match l with [] -> failwith "Translcore.cut"
-  | a::l -> let (l1,l2) = cut (n-1) l in (a::l1,l2)
-
 (* Translation of expressions *)
 
 let rec iter_exn_names f pat =
@@ -400,14 +396,17 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                                        Id_prim pmode);
                 exp_type = prim_type; } as funct, oargs, pos, alloc_mode)
     when can_apply_primitive p pmode pos oargs ->
-      let argl, extra_args = cut p.prim_arity oargs in
-      let arg_exps =
-         List.map (function _, Arg (x,_) -> x | _ -> assert false) argl
+      let rec cut_args prim_repr oargs =
+        match prim_repr, oargs with
+        | [], _ -> [], oargs
+        | _, [] -> failwith "Translcore cut_args"
+        | ((_, sort, _) :: prim_repr), ((_, Arg (x, _)) :: oargs) ->
+          let arg_exps, extra_args = cut_args prim_repr oargs in
+          (x, sort) :: arg_exps, extra_args
+        | _, ((_, Omitted _) :: _) -> assert false
       in
-      let args =
-        transl_list ~scopes
-          (List.map (fun e -> (e, Sort.sort_prim_arg)) arg_exps)
-      in
+      let arg_exps, extra_args = cut_args p.prim_native_repr_args oargs in
+      let args = transl_list ~scopes arg_exps in
       let prim_exp = if extra_args = [] then Some e else None in
       let position =
         if extra_args = [] then transl_apply_position pos
@@ -416,7 +415,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let lam =
         Translprim.transl_primitive_application
           (of_location ~scopes e.exp_loc) p e.exp_env prim_type pmode
-          path prim_exp args arg_exps position
+          path prim_exp args (List.map fst arg_exps) position
       in
       if extra_args = [] then lam
       else begin
