@@ -776,16 +776,18 @@ let meet_project_function_slot_simple env ~min_name_mode t function_slot :
   | Naked_nativeint _ | Rec_info _ | Region _ ->
     wrong_kind "Value" t
 
-let meet_project_value_slot_simple env ~min_name_mode ~value_slot_kind t env_var
-    : Simple.t meet_shortcut =
+let meet_project_value_slot_simple env ~min_name_mode t value_slot :
+    Simple.t meet_shortcut =
   match expand_head env t with
   | Value (Ok (Closures { by_function_slot; alloc_mode = _ })) -> (
-    match TG.Row_like_for_closures.get_env_var by_function_slot env_var with
+    match TG.Row_like_for_closures.get_env_var by_function_slot value_slot with
     | Unknown -> Need_meet
     | Known ty -> (
       if (* It's more straightforward to check the kind of [ty] instead of
             examining the row-like structure directly. *)
-         not (Flambda_kind.equal (TG.kind ty) value_slot_kind)
+         not
+           (Flambda_kind.equal (TG.kind ty)
+              (Value_slot.kind value_slot |> Flambda_kind.With_subkind.kind))
       then Invalid
       else
         match TG.get_alias_exn ty with

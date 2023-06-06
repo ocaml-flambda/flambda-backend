@@ -290,16 +290,16 @@ let apply_projection t proj =
     in
     let typing_env = DE.typing_env denv in
     let meet_shortcut =
-      let kind =
-        Symbol_projection.kind proj |> Flambda_kind.With_subkind.kind
-      in
       match Symbol_projection.projection proj with
       | Block_load { index } ->
+        let field_kind =
+          Symbol_projection.kind proj |> Flambda_kind.With_subkind.kind
+        in
         T.meet_block_field_simple typing_env ~min_name_mode:Name_mode.normal
-          ~field_kind:kind ty index
+          ~field_kind ty index
       | Project_value_slot { project_from = _; value_slot } ->
         T.meet_project_value_slot_simple typing_env
-          ~min_name_mode:Name_mode.normal ~value_slot_kind:kind ty value_slot
+          ~min_name_mode:Name_mode.normal ty value_slot
     in
     match meet_shortcut with
     | Known_result simple -> Some simple

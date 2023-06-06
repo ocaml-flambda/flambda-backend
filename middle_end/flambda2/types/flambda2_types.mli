@@ -686,7 +686,6 @@ val meet_block_field_simple :
 val meet_project_value_slot_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
-  value_slot_kind:Flambda_kind.t ->
   t ->
   Value_slot.t ->
   Simple.t meet_shortcut
