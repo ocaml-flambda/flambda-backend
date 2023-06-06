@@ -199,3 +199,17 @@ val bar : 'a -> string = <fun>
 - : string = "Some of 5"
 |}]
 
+(* Ensure that Alias bindings are not substituted by Simplif (PR1448) *)
+type 'a glob = Glob of ('a[@global])
+
+let[@inline never] return_local a = [%local] (Glob a)
+
+let f () =
+  let (Glob x) = return_local 1 in
+  [%exclave]
+    (let (_ : _) = return_local 99 in
+     assert (x <> 99))
+
+f ();
+[%%expect{||}]
+
