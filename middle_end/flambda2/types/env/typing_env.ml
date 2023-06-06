@@ -228,11 +228,7 @@ end = struct
             now_meeting_or_joining_names t name1 name2))
 end
 
-type meet_type =
-  t ->
-  TG.t ->
-  TG.t ->
-  (TG.t * t) Or_bottom.t
+type meet_type = t -> TG.t -> TG.t -> (TG.t * t) Or_bottom.t
 
 module Join_env : sig
   type t
@@ -848,10 +844,10 @@ and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
         let existing_ty = find t eqn_name (Some (TG.kind ty)) in
         match meet_type t ty existing_ty with
         | Bottom ->
-          if raise_on_bottom then raise Bottom_equation
+          if raise_on_bottom
+          then raise Bottom_equation
           else MTC.bottom (TG.kind ty), t
-        | Ok (meet_ty, env) ->
-          meet_ty, env
+        | Ok (meet_ty, env) -> meet_ty, env
       in
       Simple.pattern_match bare_lhs ~name ~const:(fun _ -> ty, t)
     in
@@ -872,9 +868,11 @@ and[@inline always] add_equation ~raise_on_bottom t name ty ~meet_type =
     t
   | t -> t
 
-and add_env_extension ~raise_on_bottom t (env_extension : Typing_env_extension.t) ~meet_type =
+and add_env_extension ~raise_on_bottom t
+    (env_extension : Typing_env_extension.t) ~meet_type =
   Typing_env_extension.fold
-    ~equation:(fun name ty t -> add_equation ~raise_on_bottom t name ty ~meet_type)
+    ~equation:(fun name ty t ->
+      add_equation ~raise_on_bottom t name ty ~meet_type)
     env_extension t
 
 and add_env_extension_with_extra_variables t
@@ -882,7 +880,8 @@ and add_env_extension_with_extra_variables t
   Typing_env_extension.With_extra_variables.fold
     ~variable:(fun var kind t ->
       add_variable_definition t var kind Name_mode.in_types)
-    ~equation:(fun name ty t -> add_equation ~raise_on_bottom:false t name ty ~meet_type)
+    ~equation:(fun name ty t ->
+      add_equation ~raise_on_bottom:false t name ty ~meet_type)
     env_extension t
 
 let add_env_extension_from_level t level ~meet_type : t =
@@ -893,7 +892,8 @@ let add_env_extension_from_level t level ~meet_type : t =
   in
   let t =
     Name.Map.fold
-      (fun name ty t -> add_equation ~raise_on_bottom:false t name ty ~meet_type)
+      (fun name ty t ->
+        add_equation ~raise_on_bottom:false t name ty ~meet_type)
       (TEL.equations level) t
   in
   Variable.Map.fold
@@ -978,8 +978,7 @@ let cut t ~cut_after =
     loop (One_level.level t.current_level) t.prev_levels
 
 let cut_as_extension t ~cut_after =
-  Typing_env_level.as_extension_without_bindings
-    (cut t ~cut_after)
+  Typing_env_level.as_extension_without_bindings (cut t ~cut_after)
 
 let type_simple_in_term_exn t ?min_name_mode simple =
   (* If [simple] is a variable then it should not come from a missing .cmx file,

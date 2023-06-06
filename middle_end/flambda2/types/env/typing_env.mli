@@ -78,10 +78,7 @@ module Join_env : sig
 end
 
 type meet_type =
-  t ->
-  Type_grammar.t ->
-  Type_grammar.t ->
-  (Type_grammar.t * t) Or_bottom.t
+  t -> Type_grammar.t -> Type_grammar.t -> (Type_grammar.t * t) Or_bottom.t
 
 val print : Format.formatter -> t -> unit
 
@@ -107,7 +104,8 @@ val add_definition : t -> Bound_name.t -> Flambda_kind.t -> t
     for the given name. *)
 val add_equation : t -> Name.t -> Type_grammar.t -> meet_type:meet_type -> t
 
-val add_equation_strict : t -> Name.t -> Type_grammar.t -> meet_type:meet_type -> t Or_bottom.t
+val add_equation_strict :
+  t -> Name.t -> Type_grammar.t -> meet_type:meet_type -> t Or_bottom.t
 
 val add_definitions_of_params : t -> params:Bound_parameters.t -> t
 
@@ -147,7 +145,8 @@ val mem_simple : ?min_name_mode:Name_mode.t -> t -> Simple.t -> bool
    then adding equations in the wrong order can make equations disappear. *)
 val add_env_extension : t -> Typing_env_extension.t -> meet_type:meet_type -> t
 
-val add_env_extension_strict : t -> Typing_env_extension.t -> meet_type:meet_type -> t Or_bottom.t
+val add_env_extension_strict :
+  t -> Typing_env_extension.t -> meet_type:meet_type -> t Or_bottom.t
 
 val add_env_extension_with_extra_variables :
   t -> Typing_env_extension.With_extra_variables.t -> meet_type:meet_type -> t

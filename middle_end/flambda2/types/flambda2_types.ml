@@ -21,7 +21,8 @@ module Typing_env = struct
     add_equation t name ty ~meet_type:Meet_and_join.meet_type
 
   let add_equations_on_params t ~params ~param_types =
-    add_equations_on_params t ~params ~param_types ~meet_type:Meet_and_join.meet_type
+    add_equations_on_params t ~params ~param_types
+      ~meet_type:Meet_and_join.meet_type
 
   let add_env_extension t extension =
     add_env_extension t extension ~meet_type:Meet_and_join.meet_type
@@ -36,8 +37,7 @@ end
 module Typing_env_extension = struct
   include Typing_env_extension
 
-  let meet env t1 t2 =
-    Meet_and_join.meet_env_extension env t1 t2
+  let meet env t1 t2 = Meet_and_join.meet_env_extension env t1 t2
 end
 
 type typing_env = Typing_env.t
