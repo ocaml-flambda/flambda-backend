@@ -533,11 +533,7 @@ let create_let_symbols uacc lifted_constant ~body =
                     then Immediate
                     else Any_value
                   in
-                  Values
-                    { tag = Known Tag.Scannable.zero;
-                      size = Unknown;
-                      field_kind
-                    }
+                  Values { tag = Unknown; size = Unknown; field_kind }
                 | Naked_number Naked_float -> Naked_floats { size = Unknown }
                 | Naked_number
                     ( Naked_immediate | Naked_nativeint | Naked_int32
