@@ -305,7 +305,7 @@ let apply_projection t proj =
     | Known_result simple -> Some simple
     | Need_meet ->
       (* [Simplify_named], which calls this function, requires [Some] to be
-         returned iff the projection is from a symbol defined in the same
+         returned if the projection is from a symbol defined in the same
          recursive group (see the comment in that module). As such, if the
          projection via the types fails, we currently stop. It seems very
          unlikely that this will happen; we can reconsider in the future if
