@@ -292,10 +292,12 @@ let apply_projection t proj =
     let meet_shortcut =
       match Symbol_projection.projection proj with
       | Block_load { index } ->
-        T.meet_block_field_simple typing_env ~min_name_mode:Name_mode.normal ty
-          index
-      | Project_value_slot { project_from = _; value_slot; kind = _ } ->
-        (* CR mshinwell: could use [kind]? *)
+        let field_kind =
+          Symbol_projection.kind proj |> Flambda_kind.With_subkind.kind
+        in
+        T.meet_block_field_simple typing_env ~min_name_mode:Name_mode.normal
+          ~field_kind ty index
+      | Project_value_slot { project_from = _; value_slot } ->
         T.meet_project_value_slot_simple typing_env
           ~min_name_mode:Name_mode.normal ty value_slot
     in
@@ -303,7 +305,7 @@ let apply_projection t proj =
     | Known_result simple -> Some simple
     | Need_meet ->
       (* [Simplify_named], which calls this function, requires [Some] to be
-         returned iff the projection is from a symbol defined in the same
+         returned if the projection is from a symbol defined in the same
          recursive group (see the comment in that module). As such, if the
          projection via the types fails, we currently stop. It seems very
          unlikely that this will happen; we can reconsider in the future if
