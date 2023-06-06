@@ -208,8 +208,8 @@ let f () =
   let (Glob x) = return_local 1 in
   [%exclave]
     (let (_ : _) = return_local 99 in
-     assert (x <> 99))
-
-f ();
+     assert (x = 1))
+;;
+f ();;
 [%%expect{||}]
 
