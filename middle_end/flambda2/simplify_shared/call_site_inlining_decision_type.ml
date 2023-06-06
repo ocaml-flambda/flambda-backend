@@ -47,6 +47,7 @@ type t =
         evaluated_to : float;
         threshold : float
       }
+  | X_dir_inlining_forbidden
 
 let [@ocamlformat "disable"] print ppf t =
   match t with
@@ -101,6 +102,8 @@ let [@ocamlformat "disable"] print ppf t =
       Cost_metrics.print cost_metrics
       evaluated_to
       threshold
+  | X_dir_inlining_forbidden ->
+    Format.fprintf ppf "X_dir_inlining_forbidden"
 
 type can_inline =
   | Do_not_inline of { erase_attribute_if_ignored : bool }
@@ -139,6 +142,8 @@ let can_inline (t : t) : can_inline =
   | Speculatively_inline _ ->
     Inline { unroll_to = None; was_inline_always = false }
   | Attribute_always -> Inline { unroll_to = None; was_inline_always = true }
+  | X_dir_inlining_forbidden ->
+    Do_not_inline { erase_attribute_if_ignored = false }
 
 let report_reason fmt t =
   match (t : t) with
@@ -183,6 +188,10 @@ let report_reason fmt t =
       "the@ function@ was@ inlined@ after@ speculation@ as@ its@ cost@ metrics \
        were=%a,@ which@ was@ evaluated@ to@ %f <= threshold %f"
       Cost_metrics.print cost_metrics evaluated_to threshold
+  | X_dir_inlining_forbidden ->
+    Format.fprintf fmt
+      "this@ function@ is@ from@ a@ compilation@ unit@ that@ is@ restricted@ \
+       by -x-dir-inlining"
 
 let report fmt t =
   Format.fprintf fmt

@@ -28,6 +28,7 @@ type t =
     contains_no_escaping_local_allocs : bool;
     stub : bool;
     inline : Inline_attribute.t;
+    inline_only_with_attribute : bool;
     check : Check_attribute.t;
     poll_attribute : Poll_attribute.t;
     is_a_functor : bool;
@@ -71,6 +72,8 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
   let stub t = (metadata t).stub
 
   let inline t = (metadata t).inline
+
+  let inline_only_with_attribute t = (metadata t).inline_only_with_attribute
 
   let check t = (metadata t).check
 
@@ -186,6 +189,7 @@ let createk k code_id ~newer_version_of ~params_arity ~param_modes
       stub;
       inline;
       check;
+      inline_only_with_attribute = false;
       poll_attribute;
       is_a_functor;
       recursive;
@@ -228,6 +232,7 @@ let [@ocamlformat "disable"] print_inlining_paths ppf
 
 let [@ocamlformat "disable"] print ppf
        { code_id = _; newer_version_of; stub; inline; check; poll_attribute;
+         inline_only_with_attribute;
          is_a_functor; params_arity; param_modes;
          first_complex_local_param; result_arity;
          result_types; contains_no_escaping_local_allocs;
@@ -239,6 +244,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>%t(newer_version_of@ %a)%t@]@ \
       @[<hov 1>%t(stub@ %b)%t@]@ \
       @[<hov 1>%t(inline@ %a)%t@]@ \
+      @[<hov 1>(inline_only_with_attribute@ %b)@]@ \
       @[<hov 1>%t(%a)%t@]@ \
       @[<hov 1>%t(poll_attribute@ %a)%t@]@ \
       @[<hov 1>%t(is_a_functor@ %b)%t@]@ \
@@ -270,6 +276,7 @@ let [@ocamlformat "disable"] print ppf
     else C.none)
     Inline_attribute.print inline
     Flambda_colours.pop
+    inline_only_with_attribute
     (if Check_attribute.is_default check
      then Flambda_colours.elide else C.none)
     Check_attribute.print check
@@ -348,6 +355,7 @@ let free_names
       contains_no_escaping_local_allocs = _;
       stub = _;
       inline = _;
+      inline_only_with_attribute = _;
       check = _;
       poll_attribute = _;
       is_a_functor = _;
@@ -389,6 +397,7 @@ let apply_renaming
        contains_no_escaping_local_allocs = _;
        stub = _;
        inline = _;
+       inline_only_with_attribute = _;
        check = _;
        poll_attribute = _;
        is_a_functor = _;
@@ -441,6 +450,7 @@ let ids_for_export
       contains_no_escaping_local_allocs = _;
       stub = _;
       inline = _;
+      inline_only_with_attribute = _;
       check = _;
       poll_attribute = _;
       is_a_functor = _;
@@ -479,6 +489,7 @@ let approx_equal
       contains_no_escaping_local_allocs = contains_no_escaping_local_allocs1;
       stub = stub1;
       inline = inline1;
+      inline_only_with_attribute = inline_only_with_attribute1;
       check = check1;
       poll_attribute = poll_attribute1;
       is_a_functor = is_a_functor1;
@@ -503,6 +514,7 @@ let approx_equal
       contains_no_escaping_local_allocs = contains_no_escaping_local_allocs2;
       stub = stub2;
       inline = inline2;
+      inline_only_with_attribute = inline_only_with_attribute2;
       check = check2;
       poll_attribute = poll_attribute2;
       is_a_functor = is_a_functor2;
@@ -527,6 +539,7 @@ let approx_equal
        contains_no_escaping_local_allocs2
   && Bool.equal stub1 stub2
   && Inline_attribute.equal inline1 inline2
+  && Bool.equal inline_only_with_attribute1 inline_only_with_attribute2
   && Check_attribute.equal check1 check2
   && Poll_attribute.equal poll_attribute1 poll_attribute2
   && Bool.equal is_a_functor1 is_a_functor2
@@ -548,3 +561,11 @@ let map_result_types ({ result_types; _ } as t) ~f =
       Or_unknown_or_bottom.map result_types
         ~f:(Result_types.map_result_types ~f)
   }
+
+let adjust_for_current_dir t (in_current_dir : In_current_dir.t) =
+  match in_current_dir with
+  | In_current_dir | Unknown -> t
+  | Not_in_current_dir ->
+    if !Flambda_backend_flags.x_dir_inlining
+    then t
+    else { t with inline_only_with_attribute = true }

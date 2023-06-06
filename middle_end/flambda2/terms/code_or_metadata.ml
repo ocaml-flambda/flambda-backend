@@ -94,18 +94,21 @@ let code_status_metadata = function
 
 let create code = Code_present { code_status = Loaded code }
 
-let from_raw ~sections raw =
+let from_raw ~sections ~in_current_dir raw =
   match raw.code_present with
-  | Absent -> Metadata_only raw.metadata
+  | Absent ->
+    let metadata =
+      Code_metadata.adjust_for_current_dir raw.metadata in_current_dir
+    in
+    Metadata_only metadata
   | Present { index } ->
+    let metadata =
+      Code_metadata.adjust_for_current_dir raw.metadata in_current_dir
+    in
     Code_present
       { code_status =
           Not_loaded
-            { sections;
-              index;
-              metadata = raw.metadata;
-              delayed_renaming = Renaming.empty
-            }
+            { sections; index; metadata; delayed_renaming = Renaming.empty }
       }
 
 let to_raw ~add_section t : raw =

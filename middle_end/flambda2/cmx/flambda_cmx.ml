@@ -19,7 +19,8 @@ module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 
 type loader =
-  { get_module_info : Compilation_unit.t -> Flambda_cmx_format.t option;
+  { get_module_info :
+      Compilation_unit.t -> (Flambda_cmx_format.t * In_current_dir.t) option;
     mutable imported_names : Name.Set.t;
     mutable imported_code : Exported_code.t;
     mutable imported_units :
@@ -42,9 +43,9 @@ let load_cmx_file_contents loader comp_unit =
       loader.imported_units
         <- Compilation_unit.Name.Map.add cmx_file None loader.imported_units;
       None
-    | Some cmx ->
+    | Some (cmx, in_current_dir) ->
       let typing_env, all_code =
-        Flambda_cmx_format.import_typing_env_and_code cmx
+        Flambda_cmx_format.import_typing_env_and_code cmx ~in_current_dir
       in
       let newly_imported_names = TE.Serializable.name_domain typing_env in
       loader.imported_names

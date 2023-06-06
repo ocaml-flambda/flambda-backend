@@ -32,16 +32,23 @@ let get_module_info comp_unit =
   then None
   else
     match Compilenv.get_unit_export_info comp_unit with
-    | None | Some (Flambda2 None) -> None
-    | Some (Flambda2 (Some info)) -> Some info
-    | Some (Clambda _) ->
+    | None | Some (Flambda2 None, _) -> None
+    | Some (Flambda2 (Some info), in_current_dir) ->
+      let in_current_dir : Flambda2_term_basics.In_current_dir.t =
+        match in_current_dir with
+        | In_current_dir -> In_current_dir
+        | Not_in_current_dir -> Not_in_current_dir
+        | Unknown -> Unknown
+      in
+      Some (info, in_current_dir)
+    | Some (Clambda _, _) ->
       (* CR mshinwell: This should be a user error, not a fatal error. Same
          below. *)
       Misc.fatal_errorf
         "The .cmx file for unit %a was compiled with the Closure middle-end, \
          not Flambda 2, and cannot be loaded"
         Compilation_unit.Name.print cmx_name
-    | Some (Flambda1 _) ->
+    | Some (Flambda1 _, _) ->
       Misc.fatal_errorf
         "The .cmx file for unit %a was compiled with the Flambda 1 middle-end, \
          not Flambda 2, and cannot be loaded"

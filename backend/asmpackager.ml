@@ -249,6 +249,7 @@ let build_package_cmx members cmxfile =
           List.exists (fun info -> info.ui_force_link) units;
       ui_export_info;
       ui_checks;
+      ui_in_current_dir = None;
     } in
   Compilenv.write_unit_info pkg_infos cmxfile
 

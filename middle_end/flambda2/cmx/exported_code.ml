@@ -121,8 +121,8 @@ let iter_code t ~f =
       Code_or_metadata.iter_code code_or_metadata ~f)
     t
 
-let from_raw ~sections t =
-  Code_id.Map.map (Code_or_metadata.from_raw ~sections) t
+let from_raw ~sections ~in_current_dir t =
+  Code_id.Map.map (Code_or_metadata.from_raw ~sections ~in_current_dir) t
 
 let to_raw ~add_section t =
   Code_id.Map.map (Code_or_metadata.to_raw ~add_section) t

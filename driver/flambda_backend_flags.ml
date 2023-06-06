@@ -51,6 +51,8 @@ let long_frames_threshold = ref max_long_frames_threshold (* -debug-long-frames-
 
 let caml_apply_inline_fast_path = ref false  (* -caml-apply-inline-fast-path *)
 
+let x_dir_inlining = ref true  (* -[no-]x-dir-inlining *)
+
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
