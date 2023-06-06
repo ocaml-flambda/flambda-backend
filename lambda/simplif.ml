@@ -492,7 +492,10 @@ let simplify_lets lam =
   | Lregion (l, _) ->
       count bv l
   | Lexclave l ->
-      count bv l
+      (* Not safe in general to move code into an exclave, so block
+         single-use optimizations by treating them the same as lambdas
+         and loops *)
+      count Ident.Map.empty l
 
   and count_default bv sw = match sw.sw_failaction with
   | None -> ()
