@@ -49,6 +49,7 @@ let simplify_project_value_slot function_slot value_slot kind ~min_name_mode
     (* We try a faster method before falling back to [simplify_projection]. *)
     match
       T.meet_project_value_slot_simple (DA.typing_env dacc) ~min_name_mode
+        ~value_slot_kind:(Flambda_kind.With_subkind.kind kind)
         closure_ty value_slot
     with
     | Invalid -> SPR.create_invalid dacc
@@ -84,9 +85,8 @@ let simplify_project_value_slot function_slot value_slot kind ~min_name_mode
   in
   let dacc =
     Simplify_common.add_symbol_projection result.dacc ~projected_from:closure
-      (Symbol_projection.Projection.project_value_slot function_slot value_slot
-         kind)
-      ~projection_bound_to:result_var
+      (Symbol_projection.Projection.project_value_slot function_slot value_slot)
+      ~projection_bound_to:result_var ~kind
   in
   SPR.with_dacc result dacc
 

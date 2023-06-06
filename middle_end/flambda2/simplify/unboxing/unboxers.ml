@@ -153,6 +153,8 @@ module Closure_field = struct
         (fun closure -> unboxing_prim function_slot ~closure value_slot kind);
       prove_simple =
         (fun tenv ~min_name_mode t ->
-          T.meet_project_value_slot_simple tenv ~min_name_mode t value_slot)
+          T.meet_project_value_slot_simple tenv ~min_name_mode
+            ~value_slot_kind:(Flambda_kind.With_subkind.kind kind)
+            t value_slot)
     }
 end
