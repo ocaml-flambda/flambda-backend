@@ -4417,13 +4417,12 @@ and type_expect_
         | _ ->
             (rt, funct), sargs
       in
-      let (args, ty_res, mode_res, position) =
+      let (args, ty_res, ap_mode, position) =
         type_application env loc expected_mode position funct funct_mode sargs rt
       in
 
       rue {
-        exp_desc = Texp_apply(funct, args, position,
-          Value_mode.regional_to_global_alloc mode_res);
+        exp_desc = Texp_apply(funct, args, position, ap_mode);
         exp_loc = loc; exp_extra = [];
         exp_type = ty_res;
         exp_attributes = sexp.pexp_attributes;
@@ -6409,6 +6408,7 @@ and type_application env app_loc expected_mode position funct funct_mode sargs r
         end_def ();
         generalize_structure ty_res
       end;
+      let ap_mode = mres in
       let mode_res =
         mode_cross_to_global env ty_res (Value_mode.of_alloc mres)
       in
@@ -6419,7 +6419,7 @@ and type_application env app_loc expected_mode position funct funct_mode sargs r
       in
       let exp = type_expect env marg sarg (mk_expected ty_arg) in
       check_partial_application ~statement:false exp;
-      ([Nolabel, Arg exp], ty_res, mode_res, position)
+      ([Nolabel, Arg exp], ty_res, ap_mode, position)
   | _ ->
       let ty = funct.exp_type in
       let ignore_labels =
@@ -6460,12 +6460,13 @@ and type_application env app_loc expected_mode position funct funct_mode sargs r
         end_def () ;
         generalize_structure ty_ret
       end;
+      let ap_mode = mode_ret in
       let mode_ret =
         mode_cross_to_global env ty_ret (Value_mode.of_alloc mode_ret)
       in
       submode ~loc:app_loc ~env ~reason:(Application ty_ret)
         mode_ret expected_mode;
-      args, ty_ret, mode_ret, position
+      args, ty_ret, ap_mode, position
 
 and type_construct env (expected_mode : expected_mode) loc lid sarg
       ty_expected_explained attrs =
