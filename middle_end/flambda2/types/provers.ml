@@ -735,7 +735,9 @@ let meet_block_field_simple env ~min_name_mode ~field_kind t field_index :
         | Bottom -> Invalid
         | Unknown -> Need_meet
         | Ok ty -> (
-          if not (Flambda_kind.equal (TG.kind ty) field_kind)
+          if (* It's more straightforward to check the kind of [ty] instead of
+                examining the row-like structure directly. *)
+             not (Flambda_kind.equal (TG.kind ty) field_kind)
           then Invalid
           else
             match TG.get_alias_exn ty with
@@ -781,7 +783,9 @@ let meet_project_value_slot_simple env ~min_name_mode ~value_slot_kind t env_var
     match TG.Row_like_for_closures.get_env_var by_function_slot env_var with
     | Unknown -> Need_meet
     | Known ty -> (
-      if not (Flambda_kind.equal (TG.kind ty) value_slot_kind)
+      if (* It's more straightforward to check the kind of [ty] instead of
+            examining the row-like structure directly. *)
+         not (Flambda_kind.equal (TG.kind ty) value_slot_kind)
       then Invalid
       else
         match TG.get_alias_exn ty with
