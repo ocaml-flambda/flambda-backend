@@ -356,14 +356,6 @@ let mode_global =
 let mode_subcomponent expected_mode =
   mode_default (Value_mode.regional_to_global expected_mode.mode)
 
-let mode_nonlocal expected_mode =
-  let mode =
-    expected_mode.mode
-    |> Value_mode.regional_to_global
-    |> Value_mode.local_to_regional
-  in
-  mode_default mode
-
 let mode_tailcall_function mode =
   { (mode_default mode) with
     escaping_context = Some Tailcall_function }
@@ -2445,7 +2437,6 @@ and type_pat_aux
            let alloc_mode =
              match gf with
              | Global -> Value_mode.global
-             | Nonlocal -> Value_mode.local_to_regional alloc_mode.mode
              | Unrestricted -> alloc_mode.mode
            in
            let alloc_mode = simple_pat_mode alloc_mode in
@@ -2496,7 +2487,6 @@ and type_pat_aux
         let alloc_mode =
           match label.lbl_global with
           | Global -> Value_mode.global
-          | Nonlocal -> Value_mode.local_to_regional alloc_mode.mode
           | Unrestricted -> alloc_mode.mode
         in
         let alloc_mode = simple_pat_mode alloc_mode in
@@ -4594,7 +4584,6 @@ and type_expect_
           None -> None
         | Some sexp ->
             if !Clflags.principal then begin_def ();
-            (* TODO: mode can be more relaxed than this if fields are nonlocal *)
             let exp = type_exp ~recarg env (mode_subcomponent expected_mode) sexp in
             if !Clflags.principal then begin
               end_def ();
@@ -4755,7 +4744,6 @@ and type_expect_
       let mode =
         match label.lbl_global with
         | Global -> Value_mode.global
-        | Nonlocal -> Value_mode.local_to_regional rmode
         | Unrestricted -> rmode
       in
 
@@ -6146,8 +6134,6 @@ and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
       match label.lbl_global with
       | Global ->
          mode_global
-      | Nonlocal ->
-         mode_nonlocal rmode
       | Unrestricted ->
          rmode
     in
@@ -6594,8 +6580,6 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
            match gf with
            | Global ->
                mode_global
-           | Nonlocal ->
-               mode_nonlocal argument_mode
            | Unrestricted ->
                argument_mode
          in

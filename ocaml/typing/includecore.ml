@@ -492,16 +492,11 @@ let report_type_mismatch first second decl env ppf err =
 
 let compare_global_flags flag0 flag1 =
   match flag0, flag1 with
-  | Global, (Nonlocal | Unrestricted) ->
+  | Global, Unrestricted ->
     Some {order = First; nonlocal = false}
-  | (Nonlocal | Unrestricted), Global ->
+  | Unrestricted, Global ->
     Some {order = Second; nonlocal = false}
-  | Nonlocal, Unrestricted ->
-    Some {order = First; nonlocal = true}
-  | Unrestricted, Nonlocal ->
-    Some {order = Second; nonlocal = true}
   | Global, Global
-  | Nonlocal, Nonlocal
   | Unrestricted, Unrestricted ->
     None
 

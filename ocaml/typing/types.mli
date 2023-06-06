@@ -548,7 +548,6 @@ and variant_representation =
 
 and global_flag =
   | Global
-  | Nonlocal
   | Unrestricted
 
 and label_declaration =
@@ -772,7 +771,7 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
-    lbl_global: global_flag;        (* Is this a nonlocal field? *)
+    lbl_global: global_flag;            (* Is this a global field? *)
     lbl_layout : layout;                (* Layout of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)

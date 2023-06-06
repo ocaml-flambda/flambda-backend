@@ -131,26 +131,15 @@ Line 3, characters 4-17:
 Error: Exclave expression should only be in tail position of the current region
 |}]
 
-type t = { nonlocal_ x : int option }
-
-let foo (local_ x) =
-  let __ = { x } in
-  exclave_ x
-
-[%%expect{|
-type t = { nonlocal_ x : int option; }
-val foo : local_ int option -> local_ int option = <fun>
-|}]
+type t = { x : int option }
 
 let foo (local_ x) =
   let _ = { x } in
-  exclave_ { x }
+  exclave_ x
 
 [%%expect{|
-Line 3, characters 13-14:
-3 |   exclave_ { x }
-                 ^
-Error: This local value escapes its region
+type t = { x : int option; }
+val foo : local_ int option -> local_ int option = <fun>
 |}]
 
 (* semantics tests *)

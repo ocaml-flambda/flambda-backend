@@ -368,12 +368,9 @@ let transl_global_flags loc attrs =
     | Error () -> raise(Error(loc, Local_not_enabled))
   in
   let global = transl_global_flag loc (Builtin_attributes.has_global attrs) in
-  let nonlocal = transl_global_flag loc (Builtin_attributes.has_nonlocal attrs) in
-  match global, nonlocal with
-  | true, true -> raise(Error(loc, Global_and_nonlocal))
-  | true, false -> Types.Global
-  | false, true -> Types.Nonlocal
-  | false, false -> Types.Unrestricted
+  match global with
+  | true -> Types.Global
+  | false -> Types.Unrestricted
 
 let transl_labels env univars closed lbls =
   assert (lbls <> []);

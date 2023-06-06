@@ -46,7 +46,6 @@ type closed_flag = Closed | Open
 
 type global_flag =
   | Global
-  | Nonlocal
   | Nothing
 
 (* constant layouts are parsed as layout annotations, and also used
