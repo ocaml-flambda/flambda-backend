@@ -27,7 +27,7 @@ type error =
     Forward_reference of string * Ident.t
   | Multiple_definition of string * Ident.t
   | Not_an_object_file of string
-  | Illegal_renaming of Compilation_unit.Name.t * string * string
+  | Illegal_renaming of Import.t * string * string
   | File_not_found of string
 
 exception Error of error
@@ -58,13 +58,13 @@ type pack_member_kind = PM_intf | PM_impl of compilation_unit_descr
 
 type pack_member =
   { pm_file: string;
-    pm_name: Compilation_unit.Name.t;
+    pm_name: Import.t;
     pm_kind: pack_member_kind }
 
 let read_member_info file = (
   let name =
     String.capitalize_ascii(Filename.basename(chop_extensions file))
-    |> Compilation_unit.Name.of_string in
+    |> Import.of_string in
   let kind =
     (* PR#7479: make sure it is either a .cmi or a .cmo *)
     if Filename.check_suffix file ".cmi" then
@@ -80,7 +80,7 @@ let read_member_info file = (
         let compunit_pos = input_binary_int ic in
         seek_in ic compunit_pos;
         let compunit = (input_value ic : compilation_unit_descr) in
-        if not (CU.Name.equal (CU.name compunit.cu_name) name)
+        if not (Import.equal (CU.name_as_import compunit.cu_name) name)
         then raise(Error(Illegal_renaming(name, file,
           CU.name_as_string compunit.cu_name)));
         close_in ic;
@@ -135,10 +135,7 @@ let rec append_bytecode_list oc ofs prefix subst =
           let size =
             append_bytecode oc ofs subst m.pm_file compunit
           in
-          let id =
-            Ident.create_persistent
-              (m.pm_name |> Compilation_unit.Name.to_string)
-          in
+          let id = Ident.create_persistent (m.pm_name |> Import.to_string) in
           let root = Path.Pident (Ident.create_persistent prefix) in
           append_bytecode_list oc (ofs + size) prefix
             (Subst.add_module id (Path.Pdot (root, Ident.name id))
@@ -153,7 +150,9 @@ let build_global_target ~ppf_dump oc target_name members pos coercion =
     Compilation_unit.create for_pack_prefix
       (target_name |> Compilation_unit.Name.of_string)
   in
-  let unit_of_name name = Compilation_unit.create_child compilation_unit name in
+  let unit_of_name name =
+    let name = name |> Import.to_string |> Compilation_unit.Name.of_string in
+    Compilation_unit.create_child compilation_unit name in
   let components =
     List.map
       (fun m ->
@@ -224,15 +223,12 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let pos_final = pos_out oc in
     let imports =
       List.filter
-        (fun import -> not (List.mem (Import_info.name import) unit_names))
+        (fun import -> not (List.mem (Import_info.Intf.name import) unit_names))
         (Bytelink.extract_crc_interfaces()) in
     let for_pack_prefix = CU.Prefix.from_clflags () in
     let modname = targetname |> CU.Name.of_string in
+    let import = targetname |> Import.of_string in
     let cu_name = CU.create for_pack_prefix modname in
-    let instance_arguments =
-      (* Instances not supported with packs *)
-      []
-    in
     let compunit =
       { cu_name;
         cu_pos = pos_code;
@@ -240,8 +236,8 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
         cu_reloc = List.rev !relocs;
         cu_imports =
           Array.of_list
-            ((Import_info.create modname ~instance_arguments
-               ~crc_with_unit:(Some (cu_name, Env.crc_of_unit modname)))
+            ((Import_info.Intf.create import (Some cu_name)
+               ~crc:(Some (Env.crc_of_unit import)))
               :: imports);
         cu_runtime_params = [||]; (* Open modules not supported with packs *)
         cu_primitives = !primitives;
@@ -302,7 +298,7 @@ let report_error ppf = function
       fprintf ppf "Wrong file naming: %a@ contains the code for\
                    @ %a when %s was expected"
         Location.print_filename file
-        Compilation_unit.Name.print name
+        Import.print name
         id
   | File_not_found file ->
       fprintf ppf "File %s not found" file

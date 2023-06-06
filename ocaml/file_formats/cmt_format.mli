@@ -60,7 +60,7 @@ type cmt_infos = {
   cmt_loadpath : string list;
   cmt_source_digest : string option;
   cmt_initial_env : Env.t;
-  cmt_imports : Import_info.t array;
+  cmt_imports : Import_info.Intf.t array;
   cmt_interface_digest : Digest.t option;
   cmt_use_summaries : bool;
   cmt_uid_to_loc : Location.t Shape.Uid.Tbl.t;

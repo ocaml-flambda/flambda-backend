@@ -9,6 +9,8 @@ module Name : sig
   include Identifiable.S with type t := t
 
   val create : string -> (t * t) list -> t
+
+  val predef_exn : t
 end
 
 (** A name, with both the arguments it's being passed and the parameters it's
@@ -65,3 +67,17 @@ val subst_inside : t -> subst -> t
     a module with the given parameter list. Each name being substituted must
     appear in the list. *)
 val check : subst -> t list -> bool
+
+(** Returns [true] if [params] is empty and all argument values (if any) are
+    also complete. This is a stronger condition than full application, and
+    (unless the whole global is itself a parameter) it's equivalent to the
+    global being a static constant, since any parameters being used would have
+    to show up in a [params] somewhere. (Importantly, it's not possible that a
+    parameter is being used as an argument to a different parameter, since a
+    module can be declared to be an argument for up to one parameter.)
+
+    CR lmaurer: Make sure we're checking for the user redundantly passing an
+    parameter as an argument. This should be accepted and ignored, lest we
+    count the parameter as filled and consider something completely
+    instantiated. *)
+val is_complete : t -> bool

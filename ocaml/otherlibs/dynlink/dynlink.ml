@@ -24,8 +24,8 @@ module DC = Dynlink_common
 module DT = Dynlink_types
 
 let convert_cmi_import import =
-  let name = Import_info.name import |> Compilation_unit.Name.to_string in
-  let crc = Import_info.crc import in
+  let name = Import_info.Intf.name import |> Import.to_string in
+  let crc = Import_info.Intf.crc import in
   name, crc
 
 module Bytecode = struct
@@ -86,17 +86,11 @@ module Bytecode = struct
   let num_globals_inited () =
     Misc.fatal_error "Should never be called for bytecode dynlink"
 
-  let assume_no_prefix modname =
-    Compilation_unit.create Compilation_unit.Prefix.empty modname
-
   let fold_initial_units ~init ~f =
     Array.fold_left (fun acc import ->
-        let modname = Import_info.name import in
-        let crc = Import_info.crc import in
-        let id =
-          Compilation_unit.to_global_ident_for_bytecode
-            (assume_no_prefix modname)
-        in
+        let modname = Import_info.Intf.name import in
+        let crc = Import_info.Intf.crc import in
+        let id = Ident.create_persistent (modname |> Import.to_string) in
         let defined =
           Symtable.is_defined_in_global_map !default_global_map id
         in
@@ -108,7 +102,7 @@ module Bytecode = struct
           if defined then [Ident.name id]
           else []
         in
-        let comp_unit = modname |> Compilation_unit.Name.to_string in
+        let comp_unit = modname |> Import.to_string in
         f acc ~comp_unit ~interface:crc ~implementation ~defined_symbols)
       init
       !default_crcs
@@ -237,8 +231,8 @@ module Native = struct
     let crc (t : t) = Some t.dynu_crc
 
     let convert_cmx_import import =
-      let cu = Import_info.cu import |> Compilation_unit.name_as_string in
-      let crc = Import_info.crc import in
+      let cu = Import_info.Impl.cu import |> Compilation_unit.name_as_string in
+      let crc = Import_info.Impl.crc import in
       cu, crc
 
     let interface_imports (t : t) =

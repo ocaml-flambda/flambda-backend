@@ -26,7 +26,7 @@ type error =
   | Not_an_object_file of filepath
   | Wrong_object_name of filepath
   | Symbol_error of filepath * Symtable.error
-  | Inconsistent_import of Compilation_unit.Name.t * filepath * filepath
+  | Inconsistent_import of Import.t * filepath * filepath
   | Custom_runtime
   | File_exists of filepath
   | Cannot_open_dll of filepath
@@ -174,25 +174,29 @@ let scan_file obj_name tolink =
 
 (* Consistency check between interfaces *)
 
-module Consistbl = Consistbl.Make (CU.Name) (Compilation_unit)
+module Impl = struct
+  type t = CU.t option
+end
+module Consistbl = Consistbl.Make (Import) (Impl)
 
 let crc_interfaces = Consistbl.create ()
-let interfaces = ref ([] : CU.Name.t list)
-let implementations_defined = ref ([] : (CU.Name.t * string) list)
+let interfaces = ref ([] : Import.t list)
+let implementations_defined = ref ([] : (CU.t * string) list)
 
 let check_consistency file_name cu =
   begin try
     Array.iter
       (fun import ->
-        let name = Import_info.name import in
-        let crco = Import_info.crc_with_unit import in
+        let name = Import_info.Intf.name import in
+        let crco = Import_info.Intf.crc import in
+        let cuo = Import_info.Intf.impl import in
         interfaces := name :: !interfaces;
         match crco with
           None -> ()
-        | Some (full_name, crc) ->
-            if CU.Name.equal name (CU.name cu.cu_name)
-            then Consistbl.set crc_interfaces name full_name crc file_name
-            else Consistbl.check crc_interfaces name full_name crc file_name)
+        | Some crc ->
+            if Import.equal name (CU.name_as_import cu.cu_name)
+            then Consistbl.set crc_interfaces name cuo crc file_name
+            else Consistbl.check crc_interfaces name cuo crc file_name)
       cu.cu_imports
   with Consistbl.Inconsistency {
       unit_name = name;
@@ -202,7 +206,7 @@ let check_consistency file_name cu =
     raise(Error(Inconsistent_import(name, user, auth)))
   end;
   begin try
-    let source = List.assoc (CU.name cu.cu_name) !implementations_defined in
+    let source = List.assoc cu.cu_name !implementations_defined in
     Location.prerr_warning (Location.in_file file_name)
       (Warnings.Module_linked_twice(cu.cu_name |> CU.full_path_as_string,
                                     Location.show_filename file_name,
@@ -210,16 +214,17 @@ let check_consistency file_name cu =
   with Not_found -> ()
   end;
   implementations_defined :=
-    (CU.name cu.cu_name, file_name) :: !implementations_defined
+    (cu.cu_name, file_name) :: !implementations_defined
 
 let extract_crc_interfaces () =
   Consistbl.extract !interfaces crc_interfaces
   |> List.map (fun (name, crc_with_unit) ->
-       let instance_arguments =
-         (* Interfaces are always imported with no instance arguments *)
-         []
+       let cu, crc =
+         match crc_with_unit with
+         | None -> None, None
+         | Some (impl, crc) -> impl, Some crc
        in
-       Import_info.create name ~instance_arguments ~crc_with_unit)
+       Import_info.Intf.create name cu ~crc)
 
 let clear_crc_interfaces () =
   Consistbl.clear crc_interfaces;
@@ -774,7 +779,7 @@ let report_error ppf = function
                  make inconsistent assumptions over interface %a@]"
         Location.print_filename file1
         Location.print_filename file2
-        CU.Name.print intf
+        Import.print intf
   | Custom_runtime ->
       fprintf ppf "Error while building custom runtime system"
   | File_exists file ->

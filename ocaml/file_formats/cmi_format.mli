@@ -22,13 +22,17 @@ type pers_flags =
   | Unsafe_string
 
 type cmi_infos = {
-    cmi_name : Compilation_unit.t;
+    cmi_name : Import.t;
+    cmi_unit : Compilation_unit.t option; (* The unit, if this is a static
+                                             record constant at run time (is not
+                                             a parameter and takes none
+                                             itself) *)
     cmi_sign : Types.signature_item list;
     cmi_secondary_sign : Types.signature_item list option;
     cmi_is_param : bool;
-    cmi_params : Compilation_unit.t list;
-    cmi_arg_for : Compilation_unit.t option;
-    cmi_crcs : Import_info.t array;
+    cmi_params : Global.Name.t list;
+    cmi_arg_for : Global.Name.t option;
+    cmi_crcs : Import_info.Intf.t array;
     cmi_flags : pers_flags list;
 }
 

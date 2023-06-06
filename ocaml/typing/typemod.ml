@@ -87,10 +87,10 @@ type error =
   | Cannot_implement_parameter of filepath
   | Cannot_pack_parameter of filepath
   | Cannot_compile_implementation_as_parameter
-  | Argument_for_non_parameter of Compilation_unit.t * Misc.filepath
+  | Argument_for_non_parameter of Global.Name.t * Misc.filepath
   | Inconsistent_argument_types of {
-      new_arg_type : Compilation_unit.t option;
-      old_arg_type : Compilation_unit.t option;
+      new_arg_type : Global.Name.t option;
+      old_arg_type : Global.Name.t option;
       old_source_file : Misc.filepath;
     }
 
@@ -3170,8 +3170,14 @@ let () =
 let type_params params ~exported =
   List.iter
     (fun param_name ->
-       let param = param_name |> Compilation_unit.of_string in
-       Env.register_parameter param ~exported
+       if exported then begin
+         (* We don't (yet!) support parameterised parameters *)
+         let param = Global.Name.create param_name [] in
+         Env.register_parameter param
+       end else begin
+         let import = Import.of_string param_name in
+         Env.register_parameter_import import
+       end
     )
     params
 
@@ -3187,13 +3193,14 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt
   match arg_module_opt with
   | None -> None
   | Some arg_module ->
+      let arg_import = Import.of_head_of_global_name arg_module in
       (* Accessing the argument type's module (which is of course a parameter
          unit) has the side effect of importing it, so we need to be sure it's
-         understood to be _a_ parameter. However, it's not a parameter of
-         _this_ module, so we set [exported] to false. *)
-      Env.register_parameter arg_module ~exported:false;
-      let arg_sig, arg_filename = Env.find_compilation_unit arg_module in
-      if not (Env.is_parameter_unit (Compilation_unit.name arg_module)) then
+         understood to be a parameter. However, it's not a parameter of
+         _this_ module, so don't call [Env.register_parameter]. *)
+      Env.register_parameter_import arg_import;
+      let arg_sig, arg_filename = Env.find_global_name arg_module in
+      if not (Env.is_parameter_unit arg_import) then
         raise (Error (Location.none, env,
                       Argument_for_non_parameter (arg_module, arg_filename)));
       let coercion, _shape =
@@ -3203,6 +3210,16 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt
       Some { si_signature = arg_sig;
              si_coercion_from_primary = coercion;
            }
+
+let import_of_compilation_unit unit =
+  (* This isn't included in [Compilation_unit.t] because it's not generally
+     applicable: a [Compilation_unit.t] corresponds to a .cmx and an [Import.t]
+     corresponds to a .cmi, and there are cases where a module has one but not
+     the other. When we're compiling an implementation, however, we know that
+     we have both a .cmx and (even if we're generating it ourselves) a .cmi. *)
+  unit
+  |> Compilation_unit.to_global_name_without_prefix
+  |> Import.of_head_of_global_name
 
 let type_implementation sourcefile outputprefix modulename initial_env ast =
   let error e =
@@ -3244,7 +3261,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         if !Clflags.as_parameter then
           error Cannot_compile_implementation_as_parameter;
         let arg_type =
-          !Clflags.as_argument_for |> Option.map Compilation_unit.of_string
+          !Clflags.as_argument_for
+          |> Option.map (fun name -> Global.Name.create name [])
         in
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
@@ -3256,11 +3274,15 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             with Not_found ->
               raise(Error(Location.in_file sourcefile, Env.empty,
                           Interface_not_compiled sourceintf)) in
-          let dclsig = Env.read_signature modulename intf_file in
-          if Env.is_parameter_unit (Compilation_unit.name modulename) then
+          let import = Import.of_string basename in
+          let dclsig = Env.read_signature import intf_file in
+          if Env.is_parameter_unit import then
             error (Cannot_implement_parameter intf_file);
-          let arg_type_from_cmi = Env.implemented_parameter modulename in
-          if not (Option.equal Compilation_unit.equal
+          let global_name =
+            Compilation_unit.to_global_name_without_prefix modulename
+          in
+          let arg_type_from_cmi = Env.implemented_parameter global_name in
+          if not (Option.equal Global.Name.equal
                     arg_type arg_type_from_cmi) then
             error (Inconsistent_argument_types
                      { new_arg_type = arg_type; old_source_file = intf_file;
@@ -3324,9 +3346,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
               | None ->
                   None
             in
+            let import = import_of_compilation_unit modulename in
             let cmi =
               Env.save_signature ~alerts
-                simple_sg sg2 modulename (outputprefix ^ ".cmi")
+                simple_sg sg2 import (Some modulename) (outputprefix ^ ".cmi")
             in
             let annots = Cmt_format.Implementation str in
             Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
@@ -3406,20 +3429,21 @@ let package_units initial_env objfiles cmifile modulename =
     List.map
       (fun f ->
          let pref = chop_extensions f in
-         let unit =
+         let basename =
            pref
            |> Filename.basename
            |> String.capitalize_ascii
-           |> Compilation_unit.Name.of_string
          in
+         let unit = basename |> Compilation_unit.Name.of_string in
+         let import = basename |> Import.of_string in
          let modname = Compilation_unit.create_child modulename unit in
-         let sg = Env.read_signature modname (pref ^ ".cmi") in
+         let sg = Env.read_signature import (pref ^ ".cmi") in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
          Compilation_unit.name modname,
-         Env.read_signature modname (pref ^ ".cmi"))
+         Env.read_signature import (pref ^ ".cmi"))
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
@@ -3442,7 +3466,8 @@ let package_units initial_env objfiles cmifile modulename =
       raise(Error(Location.in_file mlifile, Env.empty,
                   Interface_not_compiled mlifile))
     end;
-    let dclsig = Env.read_signature modulename cmifile in
+    let import = import_of_compilation_unit modulename in
+    let dclsig = Env.read_signature import cmifile in
     let cc, _shape =
       Includemod.compunit initial_env ~mark:Mark_both
         "(obtained by packing)" sg mlifile dclsig shape
@@ -3457,7 +3482,10 @@ let package_units initial_env objfiles cmifile modulename =
     let unit_names = List.map fst units in
     let imports =
       List.filter (fun import ->
-          let name = Import_info.name import in
+          let name =
+            Import_info.Intf.name import
+            |> Import.to_string
+            |> Compilation_unit.Name.of_string in
           not (List.mem name unit_names))
         (Env.imports()) in
     (* Write packaged signature *)
@@ -3468,9 +3496,10 @@ let package_units initial_env objfiles cmifile modulename =
            signature *)
         None
       in
+      let import = import_of_compilation_unit modulename in
       let cmi =
         Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
-          sg sg2 modulename
+          sg sg2 import (Some modulename)
           (prefix ^ ".cmi") (Array.of_list imports)
       in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
@@ -3672,7 +3701,7 @@ let report_error ~loc _env = function
         "Interface %s@ found for module@ %a@ is not flagged as a parameter.@ \
          It cannot be the parameter type for this argument module."
         path
-        Compilation_unit.print param
+        Global.Name.print param
   | Inconsistent_argument_types
         { new_arg_type; old_source_file; old_arg_type } ->
       let pp_arg_type ppf arg_type =
@@ -3680,7 +3709,7 @@ let report_error ~loc _env = function
         | None -> Format.fprintf ppf "without -as-argument-for"
         | Some arg_type ->
             Format.fprintf ppf "with -as-argument-for %a"
-              Compilation_unit.print arg_type
+              Global.Name.print arg_type
       in
       Location.errorf ~loc
         "Inconsistent usage of -as-argument-for. Interface@ %s@ was compiled \

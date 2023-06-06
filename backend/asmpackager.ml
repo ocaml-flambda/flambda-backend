@@ -72,7 +72,7 @@ let check_units members =
       | PM_impl infos ->
           List.iter
             (fun import ->
-              let unit = Import_info.cu import in
+              let unit = Import_info.Impl.cu import in
               let name = CU.name unit in
               if List.mem name forbidden
               then raise(Error(Forward_reference(mb.pm_file, name))))
@@ -188,9 +188,18 @@ let get_approx ui : Clambda.value_approximation =
 let build_package_cmx members cmxfile =
   let unit_names =
     List.map (fun m -> m.pm_name) members in
-  let filter lst =
+  let unit_imports =
+    List.map (fun n -> Compilation_unit.Name.to_string n |> Import.of_string)
+      unit_names
+  in
+  let filter_cmi lst =
     List.filter (fun import ->
-      not (List.mem (Import_info.name import) unit_names)) lst in
+      not (List.mem (Import_info.Intf.name import) unit_imports)) lst
+  in
+  let filter_cmx lst =
+    List.filter (fun import ->
+      let name = Compilation_unit.name (Import_info.Impl.cu import) in
+      not (List.mem name unit_names)) lst in
   let union lst =
     List.fold_left
       (List.fold_left
@@ -226,7 +235,7 @@ let build_package_cmx members cmxfile =
   in
   let ui_checks = Compilenv.Checks.create () in
   List.iter (fun info -> Compilenv.Checks.merge info.ui_checks ~into:ui_checks) units;
-  let modname = Compilation_unit.name ui.ui_unit in
+  let modname = Compilation_unit.name_as_import ui.ui_unit in
   let pkg_infos =
     { ui_unit = ui.ui_unit;
       ui_defines =
@@ -234,12 +243,11 @@ let build_package_cmx members cmxfile =
           [ui.ui_unit];
       ui_implements_param = None;
       ui_imports_cmi =
-          (Import_info.create modname
-            ~instance_arguments:[]
-            ~crc_with_unit:(Some (ui.ui_unit, Env.crc_of_unit modname))) ::
-            filter (Asmlink.extract_crc_interfaces ());
+          (Import_info.Intf.create modname (Some ui.ui_unit)
+            ~crc:(Some (Env.crc_of_unit modname))) ::
+            filter_cmi (Asmlink.extract_crc_interfaces ());
       ui_imports_cmx =
-          filter(Asmlink.extract_crc_implementations());
+          filter_cmx (Asmlink.extract_crc_implementations());
       ui_runtime_params = []; (* open modules not supported with packs *)
       ui_generic_fns =
         { curry_fun =

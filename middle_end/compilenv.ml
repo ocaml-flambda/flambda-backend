@@ -35,42 +35,7 @@ type error =
 
 exception Error of error
 
-module Instance_name = struct
-  type t = CU.Name.t * (CU.t * CU.t) list
-  include Identifiable.Make (struct
-    type nonrec t = t
-
-    let compare_args (param1, value1) (param2, value2) =
-      match CU.compare param1 param2 with
-      | 0 -> CU.compare value1 value2
-      | c -> c
-
-    let compare (name1, args1) (name2, args2) =
-      match CU.Name.compare name1 name2 with
-      | 0 -> List.compare compare_args args1 args2
-      | c -> c
-
-    let equal t1 t2 = compare t1 t2 = 0
-
-    let hash_arg (name, value) =
-      Hashtbl.hash (CU.hash name, CU.hash value)
-
-    let hash (name, args) =
-      Hashtbl.hash (CU.Name.hash name, List.map hash_arg args)
-
-    (* [print] and [output] don't really need to be fast, so we're happy to go
-       through [CU.t] *)
-
-    let to_cu (name, args) =
-      CU.create_instance (CU.create CU.Prefix.empty name) args
-
-    let print ppf t = CU.print ppf (t |> to_cu)
-
-    let output ppf t = CU.output ppf (t |> to_cu)
-  end)
-end
-
-module Infos_table = Instance_name.Tbl
+module Infos_table = Global.Name.Tbl
 
 let global_infos_table =
   (Infos_table.create 17 : unit_infos option Infos_table.t)
@@ -261,18 +226,18 @@ let get_unit_info comp_unit =
   then
     Some current_unit
   else begin
-    let modname = CU.name comp_unit in
-    let instance_args = CU.instance_arguments comp_unit in
+    let name = CU.to_global_name_without_prefix comp_unit in
     try
-      Infos_table.find global_infos_table (modname, instance_args)
+      Infos_table.find global_infos_table name
     with Not_found ->
+      let intf = Import.of_head_of_global_name name in
       let (infos, crc) =
-        if Env.is_imported_opaque modname then (None, None)
+        if Env.is_imported_opaque intf then (None, None)
         else begin
           try
             let filename =
               Load_path.find_uncap (CU.base_filename comp_unit ^ ".cmx") in
-            let (ui, crc) = read_unit_info filename in
+           let (ui, crc) = read_unit_info filename in
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
             cache_checks ui.ui_checks;
@@ -281,14 +246,14 @@ let get_unit_info comp_unit =
             (* CR lmaurer: Change this to use the global once we have CUs
                storing globals, so that it includes the instance arguments but
                not the pack prefix. *)
-            let warn = Warnings.No_cmx_file (modname |> CU.Name.to_string) in
+            let warn = Warnings.No_cmx_file name.head in
               Location.prerr_warning Location.none warn;
               (None, None)
           end
       in
-      let import = Import_info.create_normal comp_unit ~crc in
+      let import = Import_info.Impl.create comp_unit ~crc in
       current_unit.ui_imports_cmx <- import :: current_unit.ui_imports_cmx;
-      Infos_table.add global_infos_table (modname, instance_args) infos;
+      Infos_table.add global_infos_table name infos;
       infos
   end
 
@@ -311,7 +276,7 @@ let get_global_export_info id =
 let cache_unit_info ui =
   cache_checks ui.ui_checks;
   Infos_table.add global_infos_table
-    (CU.name ui.ui_unit, CU.instance_arguments ui.ui_unit) (Some ui)
+    (ui.ui_unit |> CU.to_global_name_without_prefix) (Some ui)
 
 (* Return the approximation of a global identifier *)
 
@@ -362,16 +327,15 @@ let approx_for_global comp_unit =
   if CU.equal comp_unit CU.predef_exn
   then invalid_arg "approx_for_global with predef_exn compilation unit";
   let accessible_comp_unit = which_cmx_file comp_unit in
-  let cmx_name = CU.name accessible_comp_unit in
-  let instance_name = cmx_name, CU.instance_arguments accessible_comp_unit in
-  match Infos_table.find export_infos_table instance_name with
+  let name = accessible_comp_unit |> CU.to_global_name_without_prefix in
+  match Infos_table.find export_infos_table name with
   | otherwise -> Some otherwise
   | exception Not_found ->
     match get_unit_info accessible_comp_unit with
     | None -> None
     | Some ui ->
       let exported = get_flambda_export_info ui in
-      Infos_table.add export_infos_table instance_name exported;
+      Infos_table.add export_infos_table name exported;
       merged_environment := Export_info.merge !merged_environment exported;
       Some exported
 
@@ -459,7 +423,10 @@ let write_unit_info info filename =
 let save_unit_info filename =
   current_unit.ui_imports_cmi <- Env.imports();
   current_unit.ui_implements_param <-
-    !Clflags.as_argument_for |> Option.map Compilation_unit.of_string;
+    (* Currently, parameters don't have parameters, so we assume the argument
+       list is empty *)
+    !Clflags.as_argument_for
+    |> Option.map (fun head -> Global.Name.create head []);
   current_unit.ui_runtime_params <-
     Env.locally_bound_imports () |> List.map fst;
   write_unit_info current_unit filename

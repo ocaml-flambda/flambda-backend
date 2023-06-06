@@ -72,13 +72,13 @@ let create_archive file_list lib_name =
        *)
        let cmis = Array.of_list cmis in
        let cmxs = Array.of_list cmxs in
-       let cmi_index = Compilation_unit.Name.Tbl.create 42 in
+       let cmi_index = Import.Tbl.create 42 in
        Array.iteri (fun i import ->
-           Compilation_unit.Name.Tbl.add cmi_index (Import_info.name import) i)
+           Import.Tbl.add cmi_index (Import_info.Intf.name import) i)
          cmis;
        let cmx_index = Compilation_unit.Tbl.create 42 in
        Array.iteri (fun i import ->
-           Compilation_unit.Tbl.add cmx_index (Import_info.cu import) i)
+           Compilation_unit.Tbl.add cmx_index (Import_info.Impl.cu import) i)
          cmxs;
        let genfns = Cmm_helpers.Generic_fns_tbl.make () in
        let mk_bitmap arr ix entries ~find ~get_name =
@@ -96,12 +96,12 @@ let create_archive file_list lib_name =
              li_force_link = unit.ui_force_link;
              li_imports_cmi =
                mk_bitmap cmis cmi_index unit.ui_imports_cmi
-                 ~find:Compilation_unit.Name.Tbl.find
-                 ~get_name:Import_info.name;
+                 ~find:Import.Tbl.find
+                 ~get_name:Import_info.Intf.name;
              li_imports_cmx =
                mk_bitmap cmxs cmx_index unit.ui_imports_cmx
                  ~find:Compilation_unit.Tbl.find
-                 ~get_name:Import_info.cu })
+                 ~get_name:Import_info.Impl.cu })
          descr_list
        in
        let infos =

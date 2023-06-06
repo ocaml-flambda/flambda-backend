@@ -76,7 +76,7 @@ val iter_types:
     t -> iter_cont
 val run_iter_cont: iter_cont list -> (Path.t * iter_cont) list
 val same_types: t -> t -> bool
-val used_persistent: unit -> Compilation_unit.Name.Set.t
+val used_persistent: unit -> Import.Set.t
 val find_shadowed_types: Path.t -> t -> Path.t list
 val without_cmis: ('a -> 'b) -> 'a -> 'b
 (* [without_cmis f arg] applies [f] to [arg], but does not
@@ -113,7 +113,7 @@ val find_module_address: Path.t -> t -> address
 val find_class_address: Path.t -> t -> address
 val find_constructor_address: Path.t -> t -> address
 
-val find_compilation_unit: Compilation_unit.t -> signature * Misc.filepath
+val find_global_name: Global.Name.t -> signature * Misc.filepath
 
 val shape_of_path:
   namespace:Shape.Sig_component_kind.t -> t -> Path.t -> Shape.t
@@ -404,56 +404,63 @@ val set_unit_name: Compilation_unit.t option -> unit
 val get_unit_name: unit -> Compilation_unit.t option
 
 (* Read, save a signature to/from a file *)
-val read_signature: Compilation_unit.t -> filepath -> signature
+val read_signature: Import.t -> filepath -> signature
         (* Arguments: module name, file name. Results: signature. *)
 val save_signature:
-  alerts:alerts -> signature -> signature option -> Compilation_unit.t
+  alerts:alerts -> signature -> signature option -> Import.t
+  -> Compilation_unit.t option
   -> filepath
   -> Cmi_format.cmi_infos
-        (* Arguments: signature, secondary signature, module name, file name. *)
+        (* Arguments: signature, secondary signature, module name, compilation
+           unit (if it has a .cmx), file name. *)
 val save_signature_with_imports:
-  alerts:alerts -> signature -> signature option -> Compilation_unit.t
+  alerts:alerts -> signature -> signature option -> Import.t
+  -> Compilation_unit.t option
   -> filepath
-  -> Import_info.t array
+  -> Import_info.Intf.t array
   -> Cmi_format.cmi_infos
-        (* Arguments: signature, secondary signature, module name, file name,
-           imported units with their CRCs. *)
+        (* Arguments: signature, secondary signature, module name, compilation
+           unit (if it has a .cmx), file name, imported units with their
+           CRCs. *)
 
-(* Register a module as a parameter. If [exported] is true, it's a parameter to
-   _this_ unit. Otherwise, it's a parameter we're referring to for another
-   reason (such as -instantiate or -as-argument-for). *)
-val register_parameter: Compilation_unit.t -> exported:bool -> unit
+(* Register a module as a parameter to this unit. *)
+val register_parameter: Global.Name.t -> unit
+
+(* Register a module as a parameter unit, though not necessarily a parameter to
+   this unit. It is unnecessary (but harmless) to call both this and
+   [register_parameter]. *)
+val register_parameter_import: Import.t -> unit
 
 (* Return the CRC of the interface of the given compilation unit *)
-val crc_of_unit: Compilation_unit.Name.t -> Digest.t
+val crc_of_unit: Import.t -> Digest.t
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports: unit -> Import_info.t list
+val imports: unit -> Import_info.Intf.t list
 
 (* may raise Persistent_env.Consistbl.Inconsistency *)
-val import_crcs: source:string -> Import_info.t array -> unit
+val import_crcs: source:string -> Import_info.Intf.t array -> unit
 
 (* Return the set of imports represented as parameters, along with the
    local variable representing each *)
-val locally_bound_imports: unit -> (Compilation_unit.t * Ident.t) list
+val locally_bound_imports: unit -> (Global.Name.t * Ident.t) list
 
 (* Return the list of parameters registered to be exported from the current
    unit, in alphabetical order *)
-val exported_parameters: unit -> Compilation_unit.t list
+val exported_parameters: unit -> Global.Name.t list
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
-val is_imported_opaque: Compilation_unit.Name.t -> bool
+val is_imported_opaque: Import.t -> bool
 
 (* [register_import_as_opaque md] registers [md] as an opaque imported module *)
-val register_import_as_opaque: Compilation_unit.Name.t -> unit
+val register_import_as_opaque: Import.t -> unit
 
 (* [is_parameter_unit md] returns true if [md] was compiled with
    -as-parameter *)
-val is_parameter_unit: Compilation_unit.Name.t -> bool
+val is_parameter_unit: Import.t -> bool
 
 (* [implemented_parameter md] is the argument given to -as-argument-for when
    [md] was compiled *)
-val implemented_parameter: Compilation_unit.t -> Compilation_unit.t option
+val implemented_parameter: Global.Name.t -> Global.Name.t option
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)

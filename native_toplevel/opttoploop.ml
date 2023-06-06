@@ -468,7 +468,7 @@ let execute_phrase print_outcome ppf phr =
               if any_flambda then
                 (* CR-someday trefis: *)
                 Env.register_import_as_opaque
-                  (Compilation_unit.name compilation_unit)
+                  (Compilation_unit.name_as_import compilation_unit)
               else
                 Compilenv.record_global_approx_toplevel ();
               if print_outcome then

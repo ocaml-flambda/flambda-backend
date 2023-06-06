@@ -316,7 +316,7 @@ let init_toplevel () =
     (* Recover CRC infos for interfaces *)
     let crcintfs =
       try
-        (Obj.magic (sect.read_struct "CRCS") : Import_info.t array)
+        (Obj.magic (sect.read_struct "CRCS") : Import_info.Intf.t array)
       with Not_found -> [| |] in
     (* Done *)
     sect.close_reader();

@@ -42,6 +42,10 @@ module Name : sig
 
   val to_string : t -> string
 
+  (** The corresponding interface import, which is to say, the name of the .cmi
+      for a module with this name. *)
+  val to_import : t -> Import.t
+
   (** The name of the distinguished compilation unit for predefined exceptions. *)
   val predef_exn : t
 end
@@ -115,6 +119,10 @@ val to_global_name : t -> Global.Name.t option
 (** Like [to_global_name] but throw a fatal error if there is a non-empty
     prefix. *)
 val to_global_name_exn : t -> Global.Name.t
+
+(** Like [to_global_name] but succeed even when there is a pack prefix,
+    discarding the prefix in that case. *)
+val to_global_name_without_prefix : t -> Global.Name.t
 
 (** Create a compilation unit from the given [name]. No prefix is allowed;
     throws a fatal error if there is a "." in the name. (As a special case,
@@ -200,6 +208,9 @@ val is_plain_name : t -> bool
 (** Whether the compilation unit has the given name and neither a prefix nor any
     instance arguments. *)
 val equal_to_name : t -> Name.t -> bool
+
+(** The name by which this compilation unit's interface would be imported. *)
+val name_as_import : t -> Import.t
 
 (** The "-for-pack" prefix associated with the given compilation unit. *)
 val for_pack_prefix : t -> Prefix.t

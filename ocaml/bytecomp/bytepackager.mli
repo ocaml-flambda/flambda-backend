@@ -23,7 +23,7 @@ type error =
     Forward_reference of string * Ident.t
   | Multiple_definition of string * Ident.t
   | Not_an_object_file of string
-  | Illegal_renaming of Compilation_unit.Name.t * string * string
+  | Illegal_renaming of Import.t * string * string
   | File_not_found of string
 
 exception Error of error

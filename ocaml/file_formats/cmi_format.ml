@@ -33,24 +33,26 @@ exception Error of error
    input_value and output_value usage. *)
 type signature = Types.signature_item list
 
-type crcs = Import_info.t array  (* smaller on disk than using a list *)
+type crcs = Import_info.Intf.t array  (* smaller on disk than using a list *)
 type flags = pers_flags list
 type header = {
-    header_name : Compilation_unit.t;
+    header_name : Import.t;
+    header_unit : Compilation_unit.t option;
     header_sign : signature;
     header_secondary_sign : signature option;
     header_is_param : bool;
-    header_params : Compilation_unit.t list;
-    header_arg_for : Compilation_unit.t option;
+    header_params : Global.Name.t list;
+    header_arg_for : Global.Name.t option;
 }
 
 type cmi_infos = {
-    cmi_name : Compilation_unit.t;
+    cmi_name : Import.t;
+    cmi_unit : Compilation_unit.t option;
     cmi_sign : signature;
     cmi_secondary_sign : signature option;
     cmi_is_param : bool;
-    cmi_params : Compilation_unit.t list;
-    cmi_arg_for : Compilation_unit.t option;
+    cmi_params : Global.Name.t list;
+    cmi_arg_for : Global.Name.t option;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }
@@ -58,6 +60,7 @@ type cmi_infos = {
 let input_cmi ic =
   let {
       header_name = name;
+      header_unit = unit;
       header_sign = sign;
       header_secondary_sign = secondary_sign;
       header_is_param = is_param;
@@ -68,6 +71,7 @@ let input_cmi ic =
   let flags = (input_value ic : flags) in
   {
       cmi_name = name;
+      cmi_unit = unit;
       cmi_sign = sign;
       cmi_secondary_sign = secondary_sign;
       cmi_params = params;
@@ -112,6 +116,7 @@ let output_cmi filename oc cmi =
   output_value oc
     {
       header_name = cmi.cmi_name;
+      header_unit = cmi.cmi_unit;
       header_sign = cmi.cmi_sign;
       header_secondary_sign = cmi.cmi_secondary_sign;
       header_is_param = cmi.cmi_is_param;
@@ -120,10 +125,10 @@ let output_cmi filename oc cmi =
     };
   flush oc;
   let crc = Digest.file filename in
-  let crcs =
-    Array.append [| Import_info.create_normal cmi.cmi_name ~crc:(Some crc) |]
-      cmi.cmi_crcs
+  let my_info =
+    Import_info.Intf.create cmi.cmi_name cmi.cmi_unit ~crc:(Some crc)
   in
+  let crcs = Array.append [| my_info |] cmi.cmi_crcs in
   output_value oc (crcs : crcs);
   output_value oc (cmi.cmi_flags : flags);
   crc

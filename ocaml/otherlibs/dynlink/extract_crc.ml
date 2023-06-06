@@ -45,7 +45,7 @@ let digest_interface unit loadpath =
     let crc =
       match cmi.Cmi_format.cmi_crcs |> Array.to_list with
         import :: _ ->
-        (match Import_info.crc import with
+        (match Import_info.Intf.crc import with
         | Some crc -> crc
         | None -> raise Corrupted_interface)
       | _             -> raise Corrupted_interface

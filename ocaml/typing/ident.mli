@@ -64,6 +64,7 @@ val lowest_scope : int
 val highest_scope: int
 
 val to_global: t -> Global.Name.t option
+val to_global_exn: t -> Global.Name.t
 
 val reinit: unit -> unit
 

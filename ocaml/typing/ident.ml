@@ -186,6 +186,11 @@ let print_with_scope ppf id = print ~with_scope:true ppf id
 
 let print ppf id = print ~with_scope:false ppf id
 
+let to_global_exn id =
+  match to_global id with
+  | Some global -> global
+  | None -> Misc.fatal_errorf "Not global: %a" print id
+
 type 'a tbl =
     Empty
   | Node of 'a tbl * 'a data * 'a tbl * int

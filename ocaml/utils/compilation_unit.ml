@@ -46,6 +46,8 @@ module Name : sig
 
   val to_string : t -> string
 
+  val to_import : t -> Import.t
+
   val check_as_path_component : t -> unit
 end = struct
   (* Be VERY careful changing this. Anything not equivalent to [string] will
@@ -85,11 +87,13 @@ end = struct
        || String.contains t '.'
     then raise (Error (Bad_compilation_unit_name t))
 
-  let dummy = "*dummy*"
+  let dummy = Import.dummy |> Import.to_string
 
-  let predef_exn = "*predef*"
+  let predef_exn = Import.predef_exn |> Import.to_string
 
   let to_string t = t
+
+  let to_import = Import.of_string
 end
 
 module Prefix : sig
@@ -187,6 +191,8 @@ module T0 : sig
 
   val to_global_name_exn : t -> Global.Name.t
 
+  val to_global_name_without_prefix : t -> Global.Name.t
+
   val create_full : Prefix.t -> Name.t -> (t * t) list -> t
 
   val of_global_name : Global.Name.t -> t
@@ -235,8 +241,8 @@ end = struct
 
   let descr t =
     let tag = Obj.tag t in
-    assert (tag = 0 || tag = Obj.string_tag);
-    if tag <> 0
+    assert (tag < 2 || tag = Obj.string_tag);
+    if tag = Obj.string_tag
     then
       { name = Sys.opaque_identity (Obj.obj t : Name.t);
         for_pack_prefix = Prefix.empty;
@@ -254,8 +260,8 @@ end = struct
 
   let name t =
     let tag = Obj.tag t in
-    assert (tag = 0 || tag = Obj.string_tag);
-    if tag <> 0
+    assert (tag < 2 || tag = Obj.string_tag);
+    if tag = Obj.string_tag
     then Sys.opaque_identity (Obj.obj t : Name.t)
     else
       let full = Sys.opaque_identity (Obj.obj t : full) in
@@ -265,8 +271,8 @@ end = struct
 
   let for_pack_prefix t =
     let tag = Obj.tag t in
-    assert (tag = 0 || tag = Obj.string_tag);
-    if tag <> 0
+    assert (tag < 2 || tag = Obj.string_tag);
+    if tag = Obj.string_tag
     then Prefix.empty
     else
       let full = Sys.opaque_identity (Obj.obj t : full) in
@@ -276,8 +282,8 @@ end = struct
 
   let instance_arguments t =
     let tag = Obj.tag t in
-    assert (tag = 0 || tag = Obj.string_tag);
-    if tag <> 0
+    assert (tag < 2 || tag = Obj.string_tag);
+    if tag = Obj.string_tag
     then []
     else
       let full = Sys.opaque_identity (Obj.obj t : full) in
@@ -327,7 +333,21 @@ end = struct
   let to_global_name t =
     try Some (to_global_name_exn t) with Error (Packed_instance _) -> None
 
-  let of_global_name name = of_full (Global name)
+  let to_global_name_without_prefix t =
+    if is_plain_name t
+    then
+      let name = Sys.opaque_identity (Obj.obj t : Name.t) in
+      Global.Name.create (Name.to_string name) []
+    else
+      let full = Sys.opaque_identity (Obj.obj t : full) in
+      match full with
+      | With_prefix { name; _ } -> Global.Name.create (Name.to_string name) []
+      | Global glob -> glob
+
+  let of_global_name (name : Global.Name.t) =
+    match name with
+    | { head; args = [] } -> of_plain_name (head |> Name.of_string)
+    | _ -> of_full (Global name)
 
   let create_full for_pack_prefix name arguments =
     let empty_prefix = Prefix.is_empty for_pack_prefix in
@@ -397,6 +417,8 @@ let dummy = create Prefix.empty (Name.of_string "*none*")
 let predef_exn = create Prefix.empty Name.predef_exn
 
 let name_as_string t = name t |> Name.to_string
+
+let name_as_import t = name_as_string t |> Import.of_string
 
 let equal_to_name t other_name =
   is_plain_name t && Name.equal other_name (name t)

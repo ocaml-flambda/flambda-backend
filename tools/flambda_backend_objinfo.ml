@@ -60,25 +60,38 @@ let null_crc = String.make 32 '0'
 
 let string_of_crc crc = if !no_crc then null_crc else Digest.to_hex crc
 
+let string_of_crc_option crco =
+  match crco with
+  | None -> dummy_crc
+  | Some crc -> string_of_crc crc
+
 let print_name_crc name crco =
-  let crc =
-    match crco with None -> dummy_crc | Some crc -> string_of_crc crc
-  in
+  let crc = crco |> string_of_crc_option in
+  printf "\t%s\t%a\n" crc Import.output name
+
+let print_unit_name_crc name crco =
+  let crc = crco |> string_of_crc_option in
   printf "\t%s\t%a\n" crc Compilation_unit.Name.output name
 
 (* CR-someday mshinwell: consider moving to [Import_info.print] *)
 
 let print_intf_import import =
-  let name = Import_info.name import in
-  let crco = Import_info.crc import in
+  let name = Import_info.Intf.name import in
+  let crco = Import_info.Intf.crc import in
   print_name_crc name crco
 
 let print_impl_import import =
-  let unit = Import_info.cu import in
-  let crco = Import_info.crc import in
-  print_name_crc (Compilation_unit.name unit) crco
+  let name = Import_info.Impl.name import in
+  let crco = Import_info.Impl.crc import in
+  print_unit_name_crc name crco
 
 let print_line name = printf "\t%s\n" name
+
+let print_unit_line name =
+  printf "\t%a\n" Compilation_unit.output name
+
+let print_global_line glob =
+  printf "\t%a\n" Global.Name.output glob
 
 let print_name_line cu =
   (* Drop the pack prefix for backward compatibility, but keep the instance
@@ -87,6 +100,7 @@ let print_name_line cu =
     Compilation_unit.with_for_pack_prefix cu Compilation_unit.Prefix.empty
   in
   printf "\t%a\n" Compilation_unit.output cu_without_prefix
+
 
 let print_required_global id = printf "\t%a\n" Compilation_unit.output id
 
@@ -123,10 +137,10 @@ let print_cma_infos (lib : Cmo_format.library) =
   List.iter print_cmo_infos lib.lib_units
 
 let print_cmi_infos name crcs is_param params =
-  printf "Unit name: %a\n" Compilation_unit.output name;
+  printf "Unit name: %a\n" Import.output name;
   printf "Is parameter: %s\n" (if is_param then "YES" else "no");
   print_string "Parameters:\n";
-  List.iter print_name_line params;
+  List.iter print_global_line params;
   printf "Interfaces imported:\n";
   Array.iter print_intf_import crcs
 
@@ -163,14 +177,14 @@ let print_general_infos print_name name crc defines implements_param
     match implements_param with
     | None -> ()
     | Some arg_type ->
-      printf "Parameter implemented: %a\n" Compilation_unit.output arg_type
+      printf "Parameter implemented: %a\n" Global.Name.output arg_type
   in
   printf "Interfaces imported:\n";
   iter_cmi print_intf_import;
   printf "Implementations imported:\n";
   iter_cmx print_impl_import;
   printf "Runtime parameters:\n";
-  Array.iter print_name_line runtime_params
+  Array.iter print_global_line runtime_params
 
 let print_global_table table =
   printf "Globals defined:\n";
@@ -303,7 +317,7 @@ let dump_byte ic =
           match section with
           | "CRCS" ->
             p_list "Imported units" print_intf_import
-              ((input_value ic : Import_info.t array) |> Array.to_list)
+              ((input_value ic : Import_info.Intf.t array) |> Array.to_list)
           | "DLLS" -> p_list "Used DLLs" print_line (input_stringlist ic len)
           | "DLPT" ->
             p_list "Additional DLL paths" print_line (input_stringlist ic len)

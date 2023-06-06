@@ -82,21 +82,35 @@ let typecheck_against_secondary_intf info sg =
   match !Clflags.as_argument_for with
   | None -> None
   | Some arg_type ->
-      let arg_type = arg_type |> Compilation_unit.of_string in
+      let arg_type_import = arg_type |> Import.of_string in
       (* Accessing the argument type's module (which is of course a parameter
          unit) has the side effect of importing it, so we need to be sure it's
          understood to be _a_ parameter. However, it's not a parameter of
          _this_ module, so we set [exported] to false. *)
-      Env.register_parameter arg_type ~exported:false;
-      let arg_sg, _filepath = Env.find_compilation_unit arg_type in
+      Env.register_parameter_import arg_type_import;
+      let arg_type = Global.Name.create arg_type [] in
+      let arg_sg, _filepath = Env.find_global_name arg_type in
       ignore (Includemod.signatures info.env ~mark:Mark_both sg arg_sg);
       Some arg_sg
 
 let emit_signature info ast tsg sg2 =
   let sg =
+    let import =
+      Import.of_head_of_global_name
+        (Compilation_unit.to_global_name_without_prefix info.module_name)
+    in
+    let comp_unit =
+      if !Clflags.as_parameter then
+        (* If we're compiling a parameter, [info.module_name] is something of a
+           lie: a [Compilation_unit.t] is supposed to correspond to a .cmx, and
+           there is none. *)
+        None
+      else
+        Some info.module_name
+    in
     let alerts = Builtin_attributes.alerts_of_sig ast in
     Env.save_signature ~alerts tsg.Typedtree.sig_type sg2
-      info.module_name (info.output_prefix ^ ".cmi")
+      import comp_unit (info.output_prefix ^ ".cmi")
   in
   Typemod.save_signature info.module_name tsg
     info.output_prefix info.source_file info.env sg

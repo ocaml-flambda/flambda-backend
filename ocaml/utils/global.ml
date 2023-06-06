@@ -13,6 +13,8 @@ module Name : sig
 
   val unsafe_create_unchecked : string -> (t * t) list -> t
 
+  val predef_exn : t
+
   include Identifiable.S with type t := t
 end = struct
   type t = {
@@ -61,6 +63,8 @@ end = struct
     t
 
   let unsafe_create_unchecked head args = { head; args }
+
+  let predef_exn = { head = "*predef*"; args = [] }
 end
 
 let compare_arg_name (name1, _) (name2, _) = Name.compare name1 name2
@@ -187,3 +191,8 @@ let check s params =
       implemented elsewhere but could still be helpful. *)
   let param_set = List.map to_name params |> Name.Set.of_list in
   Name.Set.subset (Name.Map.keys s) param_set
+
+let rec is_complete t =
+  match t.params with
+  | [] -> List.for_all (fun (_, value) -> is_complete value) t.args
+  | _ -> false

@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module CU = Compilation_unit
+module CU := Compilation_unit
 
 (* CR mshinwell: maybe there should be a phantom type allowing to distinguish
    the .cmx case from the others. Unclear it's worth it.
@@ -29,28 +29,32 @@ module CU = Compilation_unit
    here, or somewhere alongside, rather than being duplicated around the
    tree. *)
 
-type t
+module Intf : sig
+  type t
 
-val create :
-  CU.Name.t ->
-  instance_arguments:(CU.t * CU.t) list ->
-  crc_with_unit:(CU.t * string) option ->
-  t
+  val create : Import.t -> CU.t option -> crc:Digest.t option -> t
 
-val create_normal : CU.t -> crc:string option -> t
+  val name : t -> Import.t
 
-val name : t -> CU.Name.t
+  val impl : t -> CU.t option
 
-val instance_arguments : t -> (CU.t * CU.t) list
+  val crc : t -> Digest.t option
 
-(** This function will cause a fatal error if a [CU.t] was not provided when the
-    supplied value of type [t] was created. *)
-val cu : t -> CU.t
+  val has_name : t -> name:Import.t -> bool
 
-val crc : t -> string option
+  val dummy : t
+end
 
-val crc_with_unit : t -> (CU.t * string) option
+module Impl : sig
+  type t
 
-val has_name : t -> name:CU.Name.t -> bool
+  val create : CU.t -> crc:Digest.t option -> t
 
-val dummy : t
+  val name : t -> CU.Name.t
+
+  val cu : t -> CU.t
+
+  val crc : t -> Digest.t option
+
+  val dummy : t
+end
