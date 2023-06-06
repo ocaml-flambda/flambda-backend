@@ -84,9 +84,8 @@ let simplify_project_value_slot function_slot value_slot kind ~min_name_mode
   in
   let dacc =
     Simplify_common.add_symbol_projection result.dacc ~projected_from:closure
-      (Symbol_projection.Projection.project_value_slot function_slot value_slot
-         kind)
-      ~projection_bound_to:result_var
+      (Symbol_projection.Projection.project_value_slot function_slot value_slot)
+      ~projection_bound_to:result_var ~kind
   in
   SPR.with_dacc result dacc
 
