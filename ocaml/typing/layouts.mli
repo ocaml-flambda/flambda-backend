@@ -68,10 +68,6 @@ module Sort : sig
     val var : Format.formatter -> var -> unit
   end
 
-  (* XXX layouts: These are temporary definitions.  They will be removed in
-     subsequent commits in this PR. *)
-  val sort_statement : t
-
   (* CR layouts: These are sorts for the types of ocaml expressions that are
      currently required to be values, but for which we expect to relax that
      restriction in versions 2 and beyond.  Naming them makes it easy to find
@@ -142,6 +138,7 @@ module Layout : sig
     | V1_safety_check
     | External_argument
     | External_result
+    | Statement
 
   type annotation_context =
     | Type_declaration of Path.t

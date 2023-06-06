@@ -32,6 +32,7 @@ type error =
   | Unreachable_reached
   | Bad_probe_layout of Ident.t
   | Non_value_layout of Layout.Violation.t
+  | Void_sort of type_expr
 
 exception Error of Location.t * error
 
@@ -42,24 +43,18 @@ let layout_must_be_value loc layout =
   | Ok _ -> ()
   | Error e -> raise (Error (loc, Non_value_layout e))
 
-(* CR layouts v2: In the places where this is used, we want to allow any (the
-   left of a semicolon and loop bodies).  So we want this instead of the usual
-   sanity check for value.  But we still default to value before checking for
-   void, to allow for sort variables arising in situations like
+(* CR layouts v2: In the places where this is used, we will want to allow
+   #float, but not void yet (e.g., the left of a semicolon and loop bodies).  we
+   still default to value before checking for void, to allow for sort variables
+   arising in situations like
 
      let foo () = raise Foo; ()
 
    When this sanity check is removed, consider whether we are still defaulting
    appropriately.
 *)
-let layout_must_not_be_void loc layout =
-  Layout.default_to_value layout;
-  match Layout.(sub layout (void ~why:V1_safety_check)) with
-  | Ok _ ->
-     let violation = Layout.(Violation.of_ (Not_a_sublayout
-                               (layout, value ~why:V1_safety_check))) in
-    raise (Error (loc, Non_value_layout violation))
-  | Error _ -> ()
+let sort_must_not_be_void loc ty sort =
+  if Sort.is_void_defaulting sort then raise (Error (loc, Void_sort ty))
 
 let layout_exp sort e = layout e.exp_env e.exp_loc sort e.exp_type
 
@@ -652,22 +647,22 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   event_before ~scopes ifso (transl_exp ~scopes sort ifso),
                   lambda_unit,
                   Lambda.layout_unit)
-  | Texp_sequence(expr1, layout, expr2) ->
-      layout_must_not_be_void expr1.exp_loc layout;
-      Lsequence(transl_exp ~scopes Sort.sort_statement expr1,
+  | Texp_sequence(expr1, sort, expr2) ->
+      sort_must_not_be_void expr1.exp_loc expr1.exp_type sort;
+      Lsequence(transl_exp ~scopes sort expr1,
                 event_before ~scopes expr2 (transl_exp ~scopes sort expr2))
-  | Texp_while {wh_body; wh_body_layout; wh_cond} ->
-      layout_must_not_be_void wh_body.exp_loc wh_body_layout;
+  | Texp_while {wh_body; wh_body_sort; wh_cond} ->
+      sort_must_not_be_void wh_body.exp_loc wh_body.exp_type wh_body_sort;
       let cond = transl_exp ~scopes Sort.sort_predef_value wh_cond in
-      let body = transl_exp ~scopes Sort.sort_statement wh_body in
+      let body = transl_exp ~scopes wh_body_sort wh_body in
       Lwhile {
         wh_cond = maybe_region_layout layout_int cond;
         wh_body = event_before ~scopes wh_body
                     (maybe_region_layout layout_unit body);
       }
-  | Texp_for {for_id; for_from; for_to; for_dir; for_body; for_body_layout} ->
-      layout_must_not_be_void for_body.exp_loc for_body_layout;
-      let body = transl_exp ~scopes Sort.sort_statement for_body in
+  | Texp_for {for_id; for_from; for_to; for_dir; for_body; for_body_sort} ->
+      sort_must_not_be_void for_body.exp_loc for_body.exp_type for_body_sort;
+      let body = transl_exp ~scopes for_body_sort for_body in
       Lfor {
         for_id;
         for_from = transl_exp ~scopes Sort.sort_predef_value for_from;
@@ -1776,6 +1771,11 @@ let report_error ppf = function
         "Non-value detected in translation:@ Please report this error to \
          the Jane Street compilers team.@ %a"
         (Layout.Violation.report_with_name ~name:"This expression") err
+  | Void_sort ty ->
+      fprintf ppf
+        "Void detected in translation for type %a:@ Please report this error \
+         to the Jane Street compilers team."
+        Printtyp.type_expr ty
 
 let () =
   Location.register_error_of_exn

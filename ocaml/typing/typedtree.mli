@@ -305,15 +305,11 @@ and expression_desc =
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
-  | Texp_sequence of expression * Layouts.layout * expression
-    (* CR layouts v5: The layout above is only used for the void sanity check now.
-       Remove it at an appropriate time. *)
+  | Texp_sequence of expression * Layouts.sort * expression
   | Texp_while of {
       wh_cond : expression;
       wh_body : expression;
-      wh_body_layout : Layouts.layout
-      (* CR layouts v5: The layout above is only used for the void sanity check
-         now.  Remove it at an appropriate time. *)
+      wh_body_sort : Layouts.sort
     }
   | Texp_for of {
       for_id  : Ident.t;
@@ -322,9 +318,7 @@ and expression_desc =
       for_to   : expression;
       for_dir  : direction_flag;
       for_body : expression;
-      for_body_layout : Layouts.layout;
-      (* CR layouts v5: The layout above is only used for the void sanity check
-         now.  Remove it at an appropriate time. *)
+      for_body_sort : Layouts.sort;
     }
   | Texp_send of expression * meth * apply_position * Types.alloc_mode
     (** [alloc_mode] is the allocation mode of the result *)

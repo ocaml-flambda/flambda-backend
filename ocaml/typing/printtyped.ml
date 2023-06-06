@@ -452,10 +452,10 @@ and expression i ppf x =
       expression i ppf e1;
       expression i ppf e2;
       option i expression ppf eo;
-  | Texp_sequence (e1, l, e2) ->
+  | Texp_sequence (e1, s, e2) ->
       line i ppf "Texp_sequence\n";
       expression i ppf e1;
-      line i ppf "%a\n" Layouts.Layout.format l;
+      line i ppf "%a\n" Layouts.Sort.format s;
       expression i ppf e2;
   | Texp_while {wh_cond; wh_body} ->
       line i ppf "Texp_while\n";

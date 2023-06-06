@@ -191,7 +191,6 @@ module Sort = struct
   end
 
   let sort_function = value
-  let sort_statement = value
   let sort_predef_param = value
   let sort_predef_value = value
   let sort_block_element = value
@@ -231,6 +230,7 @@ module Layout = struct
     | V1_safety_check
     | External_argument
     | External_result
+    | Statement
 
   type value_creation_reason =
     | Class_let_binding
@@ -595,6 +595,8 @@ module Layout = struct
         fprintf ppf "used as an argument in an external declaration"
       | External_result ->
         fprintf ppf "used as the result of an external declaration"
+      | Statement ->
+        fprintf ppf "used as a statement"
 
     let format_annotation_context ppf : annotation_context -> unit = function
       | Type_declaration p ->
@@ -1029,6 +1031,8 @@ module Layout = struct
           fprintf ppf "External_argument"
       | External_result ->
           fprintf ppf "External_result"
+      | Statement ->
+          fprintf ppf "Statement"
 
     let annotation_context ppf : annotation_context -> unit = function
       | Type_declaration p ->

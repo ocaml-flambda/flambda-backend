@@ -373,7 +373,7 @@ let expr sub x =
     | Texp_while wh ->
         Texp_while { wh_cond = sub.expr sub wh.wh_cond;
                      wh_body = sub.expr sub wh.wh_body;
-                     wh_body_layout = wh.wh_body_layout
+                     wh_body_sort = wh.wh_body_sort
                    }
     | Texp_for tf ->
         Texp_for {tf with for_from = sub.expr sub tf.for_from;

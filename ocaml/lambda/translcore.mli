@@ -49,6 +49,7 @@ type error =
   | Unreachable_reached
   | Bad_probe_layout of Ident.t
   | Non_value_layout of Layouts.Layout.Violation.t
+  | Void_sort of Types.type_expr
 
 exception Error of Location.t * error
 

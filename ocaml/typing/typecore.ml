@@ -4891,12 +4891,12 @@ and type_expect_
             exp_env = env }
       end
   | Pexp_sequence(sexp1, sexp2) ->
-      let exp1 = type_statement ~explanation:Sequence_left_hand_side
-          env sexp1 in
+      let exp1, sort1 =
+        type_statement ~explanation:Sequence_left_hand_side env sexp1
+      in
       let exp2 = type_expect env expected_mode sexp2 ty_expected_explained in
-      let layout = type_layout env exp1.exp_type in
       re {
-        exp_desc = Texp_sequence(exp1, layout, exp2);
+        exp_desc = Texp_sequence(exp1, sort1, exp2);
         exp_loc = loc; exp_extra = [];
         exp_type = exp2.exp_type;
         exp_attributes = sexp.pexp_attributes;
@@ -4910,14 +4910,13 @@ and type_expect_
       in
       let body_env = Env.add_region_lock env in
       let position = RTail (Value_mode.local, Nontail) in
-      let wh_body =
+      let wh_body, wh_body_sort =
         type_statement ~explanation:While_loop_body
           ~position body_env sbody
       in
-      let wh_body_layout = Ctype.type_layout env wh_body.exp_type in
       rue {
         exp_desc =
-          Texp_while {wh_cond; wh_body; wh_body_layout};
+          Texp_while {wh_cond; wh_body; wh_body_sort};
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
         exp_attributes = sexp.pexp_attributes;
@@ -4936,13 +4935,12 @@ and type_expect_
       in
       let new_env = Env.add_region_lock new_env in
       let position = RTail (Value_mode.local, Nontail) in
-      let for_body =
+      let for_body, for_body_sort =
         type_statement ~explanation:For_loop_body ~position new_env sbody
       in
-      let for_body_layout = Ctype.type_layout env for_body.exp_type in
       rue {
         exp_desc = Texp_for {for_id; for_pat = param; for_from; for_to;
-                             for_dir = dir; for_body; for_body_layout };
+                             for_dir = dir; for_body; for_body_sort };
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
         exp_attributes = sexp.pexp_attributes;
@@ -6670,9 +6668,12 @@ and type_statement ?explanation ?(position=RNontail) env sexp =
   begin_def();
   let exp = type_exp env (mode_local_with_position position) sexp in
   end_def();
-  let ty = expand_head env exp.exp_type
-  and tv = newvar (Layout.any ~why:Dummy_layout)
-  in
+  let ty = expand_head env exp.exp_type in
+  (* We're requiring the statement to have a representable layout.  But that
+     doesn't actually rule out things like "assert false"---we'll just end up
+     getting a sort variable for its layout. *)
+  let sort = Sort.new_var () in
+  let tv = newvar (Layout.of_sort ~why:Statement sort) in
   if is_Tvar ty && get_level ty > get_level tv then
     Location.prerr_warning
       (final_subexpression exp).exp_loc
@@ -6682,11 +6683,11 @@ and type_statement ?explanation ?(position=RNontail) env sexp =
     let expected_ty = instance Predef.type_unit in
     with_explanation explanation (fun () ->
       unify_exp env exp expected_ty);
-    exp
+    exp, Sort.value
   else begin
     check_partial_application ~statement:true exp;
     unify_var env tv ty;
-    exp
+    exp, sort
   end
 
 (* Typing of match cases *)
