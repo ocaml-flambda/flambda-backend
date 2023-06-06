@@ -234,5 +234,16 @@ let () =
   check (!obj#local_ret "!" 5);
   check_empty "method overapply"
 
+type t = { x : int } [@@unboxed]
+let[@inline never] create_local () =
+  let local_ _extra = opaque_identity (Some (opaque_identity ())) in
+  local_ { x = opaque_identity 0 }
+let create_and_ignore () =
+  let x = create_local () in
+  ignore (Sys.opaque_identity x : t)
+
+let () =
+  create_and_ignore ();
+  check_empty "mode-crossed region"
 
 let () = Gc.compact ()
