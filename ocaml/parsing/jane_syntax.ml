@@ -268,7 +268,7 @@ module Comprehensions = struct
       | ["array"; "immutable"], Pexp_lazy comp ->
           (* assert_extension_enabled:
             See Note [Check for immutable extension in comprehensions code] *)
-          assert_extension_enabled ~loc:expr.pexp_loc Immutable_arrays;
+          assert_extension_enabled ~loc:expr.pexp_loc Immutable_arrays ();
           Cexp_array_comprehension (Immutable, comprehension_of_expr comp)
       | bad, _ ->
           Desugaring_error.raise expr (Bad_comprehension_embedding bad)

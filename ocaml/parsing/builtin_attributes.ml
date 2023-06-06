@@ -478,10 +478,9 @@ let layout ~legacy_immediate attrs =
      | Value -> check true
      | Immediate | Immediate64 ->
         check  (legacy_immediate
-             || Language_extension.(   is_enabled (Layouts Beta)
-                                    || is_enabled (Layouts Alpha)))
+             || Language_extension.(is_at_least Layouts Beta))
      | Any | Void ->
-        check (Language_extension.is_enabled (Layouts Alpha))
+        check Language_extension.(is_at_least Layouts Alpha)
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
    attributes cannot be input by the user, they are added by the

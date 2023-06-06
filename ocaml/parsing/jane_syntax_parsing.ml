@@ -83,11 +83,11 @@ open Parsetree
 
 module Feature : sig
   type t =
-    | Language_extension of Language_extension.t
+    | Language_extension : 'a Language_extension.t -> t
     | Builtin
 
   type error =
-    | Disabled_extension of Language_extension.t
+    | Disabled_extension of Language_extension.Exist.t
     | Unknown_extension of string
 
   val describe_uppercase : t -> string
@@ -98,11 +98,11 @@ module Feature : sig
 
   val is_erasable : t -> bool
 end = struct
-  type t = Language_extension of Language_extension.t
+  type t = Language_extension : 'a Language_extension.t -> t
          | Builtin
 
   type error =
-    | Disabled_extension of Language_extension.t
+    | Disabled_extension of Language_extension.Exist.t
     | Unknown_extension of string
 
   let builtin_component = "_builtin"
@@ -122,7 +122,7 @@ end = struct
       Ok Builtin
     else
       match Language_extension.of_string str with
-      | Some ext when Language_extension.is_enabled ext ->
+      | Some (Pack ext) when Language_extension.is_enabled ext ->
           Ok (Language_extension ext)
       | Some ext ->
           Error (Disabled_extension ext)
@@ -334,7 +334,7 @@ module Error = struct
     | Malformed_embedding of
         Embedding_syntax.t * Embedded_name.t * malformed_embedding
     | Unknown_extension of Embedding_syntax.t * Erasability.t * string
-    | Disabled_extension of Language_extension.t
+    | Disabled_extension of Language_extension.Exist.t
     | Wrong_syntactic_category of Feature.t * string
     | Misnamed_embedding of
         Misnamed_embedding_error.t * string * Embedding_syntax.t
@@ -347,9 +347,9 @@ end
 
 open Error
 
-let assert_extension_enabled ~loc ext =
-  if not (Language_extension.is_enabled ext) then
-    raise (Error(loc, Disabled_extension ext))
+let assert_extension_enabled ~loc ext setting =
+  if not (Language_extension.is_at_least ext setting) then
+    raise (Error(loc, Disabled_extension (Pack ext)))
 ;;
 
 let report_error ~loc = function
@@ -375,7 +375,7 @@ let report_error ~loc = function
       Location.errorf
         ~loc
         "The extension \"%s\" is disabled and cannot be used"
-        (Language_extension.to_string ext)
+        (Language_extension.Exist.to_string ext)
   | Wrong_syntactic_category(feat, cat) ->
       Location.errorf
         ~loc

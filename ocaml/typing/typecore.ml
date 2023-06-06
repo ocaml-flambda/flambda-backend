@@ -166,7 +166,7 @@ type error =
   | Probe_name_format of string
   | Probe_name_undefined of string
   | Probe_is_enabled_format
-  | Extension_not_enabled of Language_extension.t
+  | Extension_not_enabled : 'a Language_extension.t -> error
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Illegal_letrec_pat

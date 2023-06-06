@@ -1,73 +1,96 @@
-type maturity = Stable | Beta | Alpha
+module type Extension_level = sig
+  type t
+  val compare : t -> t -> int
+  val max : t -> t -> t
+  val max_value : t
+  val all : t list
+  val to_command_line_suffix : t -> string
+end
 
-let equal_maturity (a : maturity) (b : maturity) = (a = b)
+module Unit = struct
+  type t = unit
+  let compare = Unit.compare
+  let max _ _ = ()
+  let max_value = ()
+  let all = [()]
+  let to_command_line_suffix () = ""
+end
 
-type t =
-  | Comprehensions
-  | Local
-  | Include_functor
-  | Polymorphic_parameters
-  | Immutable_arrays
-  | Module_strengthening
-  | Layouts of maturity
+module Maturity = struct
+  type t = Stable | Beta | Alpha
 
-let equal (a : t) (b : t) = (a = b)
+  let compare t1 t2 =
+    let rank = function
+      | Stable -> 1
+      | Beta -> 2
+      | Alpha -> 3
+    in
+    compare (rank t1) (rank t2)
 
-let all =
-  [ Comprehensions
-  ; Local
-  ; Include_functor
-  ; Polymorphic_parameters
-  ; Immutable_arrays
-  ; Module_strengthening
-  ; Layouts Alpha
-  ; Layouts Beta
-  ; Layouts Stable
-  ]
+  let max t1 t2 = if compare t1 t2 >= 0 then t1 else t2
+  let max_value = Alpha
 
-let max_compatible =
-  [ Comprehensions
-  ; Local
-  ; Include_functor
-  ; Polymorphic_parameters
-  ; Immutable_arrays
-  ; Module_strengthening
-  ; Layouts Alpha
-  ]
+  let all = [ Stable; Beta; Alpha ]
 
-let default_extensions =
-  [ Local
-  ; Include_functor
-  ; Polymorphic_parameters
-  ]
+  let to_command_line_suffix = function
+    | Stable -> ""
+    | Beta -> "_beta"
+    | Alpha -> "_alpha"
+end
+type maturity = Maturity.t = Stable | Beta | Alpha
 
-let to_string = function
+type _ t =
+  | Comprehensions : unit t
+  | Local : unit t
+  | Include_functor : unit t
+  | Polymorphic_parameters : unit t
+  | Immutable_arrays : unit t
+  | Module_strengthening : unit t
+  | Layouts : Maturity.t t
+
+type exist =
+  Pack : 'a t -> exist
+
+let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
+  function
+  | Comprehensions -> (module Unit)
+  | Local -> (module Unit)
+  | Include_functor -> (module Unit)
+  | Polymorphic_parameters -> (module Unit)
+  | Immutable_arrays -> (module Unit)
+  | Module_strengthening -> (module Unit)
+  | Layouts -> (module Maturity)
+
+let to_string : type a. a t -> string = function
   | Comprehensions -> "comprehensions"
   | Local -> "local"
   | Include_functor -> "include_functor"
   | Polymorphic_parameters -> "polymorphic_parameters"
   | Immutable_arrays -> "immutable_arrays"
   | Module_strengthening -> "module_strengthening"
-  | Layouts Alpha -> "layouts_alpha"
-  | Layouts Beta -> "layouts_beta"
-  | Layouts Stable -> "layouts"
+  | Layouts -> "layouts"
 
-let of_string extn = match String.lowercase_ascii extn with
-  | "comprehensions" -> Some Comprehensions
-  | "local" -> Some Local
-  | "include_functor" -> Some Include_functor
-  | "polymorphic_parameters" -> Some Polymorphic_parameters
-  | "immutable_arrays" -> Some Immutable_arrays
-  | "strengthening" -> Some Module_strengthening
-  | "layouts_alpha" -> Some (Layouts Alpha)
-  | "layouts_beta" -> Some (Layouts Beta)
-  | "layouts" -> Some (Layouts Stable)
-  | _ -> None
+let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option = match a, b with
+  | Comprehensions, Comprehensions -> Some Refl
+  | Local, Local -> Some Refl
+  | Include_functor, Include_functor -> Some Refl
+  | Polymorphic_parameters, Polymorphic_parameters -> Some Refl
+  | Immutable_arrays, Immutable_arrays -> Some Refl
+  | Module_strengthening, Module_strengthening -> Some Refl
+  | Layouts, Layouts -> Some Refl
+  | (Comprehensions | Local | Include_functor | Polymorphic_parameters |
+     Immutable_arrays | Module_strengthening | Layouts), _ -> None
 
-let of_string_exn extn =
-  match of_string extn with
-  | Some extn -> extn
-  | None -> raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
+let equal a b = Option.is_some (equal_t a b)
+
+type extn_pair =
+  | Pair : 'a t * 'a -> extn_pair
+
+let default_extensions : extn_pair list =
+  [ Pair (Local, ())
+  ; Pair (Include_functor, ())
+  ; Pair (Polymorphic_parameters, ())
+  ]
 
 (* We'll do this in a more principled way later. *)
 (* CR layouts: Note that layouts is only "mostly" erasable, because of annoying
@@ -77,11 +100,9 @@ let of_string_exn extn =
 
    But we've decided to punt on this issue in the short term.
 *)
-let is_erasable = function
+let is_erasable : type a. a t -> bool = function
   | Local
-  | Layouts Alpha
-  | Layouts Beta
-  | Layouts Stable ->
+  | Layouts ->
       true
   | Comprehensions
   | Include_functor
@@ -119,56 +140,57 @@ let extensions = ref default_extensions (* -extension *)
 let universe   = ref Universe.Any       (* -only-erasable-extensions,
                                            -disable-all-extensions *)
 
-type compatibility = Compatible | Duplicate | Incompatible of string
-
-let check_conflicts t1 =
-  let layouts_err =
-    "Invalid extensions: Please enable at most one of 'layouts', \
-     'layouts_beta', and 'layouts_alpha'."
-  in
-  let c = List.find_map (fun t2 ->
-    if equal t1 t2 then Some Duplicate else
-      match t1, t2 with
-      | Layouts _, Layouts _ -> Some (Incompatible layouts_err)
-      | _, _ -> None)
-    !extensions
-  in
-  Option.value c ~default:Compatible
-
-let set extn ~enabled =
-  if enabled then begin
+let set_worker (type a) (extn : a t) = function
+  | Some value ->
     if not (Universe.is_allowed !universe extn) then
       raise (Arg.Bad(Printf.sprintf
-        "Cannot %s extension %s: incompatible with %s"
-        (if enabled then "enable" else "disable")
+        "Cannot enable extension %s: incompatible with %s"
         (to_string extn)
         (Universe.compiler_options !universe)));
-    match check_conflicts extn with
-    | Duplicate -> ()
-    | Compatible -> extensions := extn :: !extensions
-    | Incompatible err -> raise (Arg.Bad err)
-  end else
+    let (module Ops) = get_level_ops extn in
+    let rec update_extensions already_seen : extn_pair list -> extn_pair list =
+      function
+      | [] -> Pair (extn, value) :: already_seen
+      | ((Pair (extn', v) as e) :: es) ->
+         match equal_t extn extn' with
+         | None -> update_extensions (e :: already_seen) es
+         | Some Refl ->
+            Pair (extn, Ops.max v value) :: List.rev_append already_seen es
+    in
+    extensions := update_extensions [] !extensions
+  | None ->
     extensions :=
-      List.filter (fun extn' ->
-        match extn, extn' with
-        | Layouts m1, Layouts m2 when not (equal_maturity m1 m2) ->
-            raise (Arg.Bad(Printf.sprintf
-              "Cannot disable extension %s because extension %s is enabled. \
-               Please enable or disable at most one of the layouts extensions."
-              (to_string extn) (to_string extn')))
-        | _, _ ->
-            not (equal extn extn'))
+      List.filter (fun (Pair (extn', _) : extn_pair) -> not (equal extn extn'))
         !extensions
 
-let enable  = set ~enabled:true
-let disable = set ~enabled:false
+let set extn ~enabled =
+  set_worker extn (if enabled then Some () else None)
+let enable extn value = set_worker extn (Some value)
+let disable extn = set_worker extn None
 
-let is_enabled extn = List.mem extn !extensions
+let is_at_least (type a) (extn : a t) (value : a) =
+  let rec check : extn_pair list -> bool = function
+    | [] -> false
+    | (Pair (e, v) :: es) ->
+      let (module Ops) = get_level_ops e in
+      match equal_t e extn with
+      | Some Refl -> Ops.compare v value >= 0
+      | None -> check es
+  in
+  check !extensions
+
+let is_enabled extn =
+  let rec check : extn_pair list -> bool = function
+    | [] -> false
+    | (Pair (e, _) :: _) when equal e extn -> true
+    | (_ :: es) -> check es
+  in
+  check !extensions
 
 (* It might make sense to ban [set], [enable], [disable],
    [only_erasable_extensions], and [disallow_extensions] inside [f], but it's
    not clear that it's worth the hassle *)
-let with_set extn ~enabled f =
+let with_set_worker extn value f =
   (* This is similar to [Misc.protect_refs], but we don't have values to set
      [extensions] and [universe] to. *)
   let current_extensions = !extensions in
@@ -178,16 +200,20 @@ let with_set extn ~enabled f =
       extensions := current_extensions;
       universe   := current_universe)
     (fun () ->
-       set extn ~enabled;
+       set_worker extn value;
        f ())
 
-let with_enabled  = with_set ~enabled:true
-let with_disabled = with_set ~enabled:false
+let with_set extn ~enabled =
+  with_set_worker extn (if enabled then Some () else None)
+let with_enabled extn value = with_set_worker extn (Some value)
+let with_disabled extn = with_set_worker extn None
 
 let restrict_to_erasable_extensions () =
   match !universe with
   | Any ->
-      extensions := List.filter is_erasable !extensions;
+     extensions :=
+       List.filter (fun (Pair (extn, _) : extn_pair) -> is_erasable extn)
+         !extensions;
       universe   := Universe.Only_erasable
   | Only_erasable ->
       () (* Idempotent *)
@@ -201,3 +227,75 @@ let disallow_extensions () =
   (* The strictest option, so no internal checks needed *)
   extensions := [];
   universe   := Universe.No_extensions
+
+(* converts full extension names, like "layouts_alpha" to a pair of
+   an extension and its setting *)
+let pair_of_string extn_name : extn_pair option =
+  match String.lowercase_ascii extn_name with
+  | "comprehensions" -> Some (Pair (Comprehensions, ()))
+  | "local" -> Some (Pair (Local, ()))
+  | "include_functor" -> Some (Pair (Include_functor, ()))
+  | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
+  | "immutable_arrays" -> Some (Pair (Immutable_arrays, ()))
+  | "strengthening" -> Some (Pair (Module_strengthening, ()))
+  | "layouts" -> Some (Pair (Layouts, (Stable : Maturity.t)))
+  | "layouts_beta" -> Some (Pair (Layouts, (Beta : Maturity.t)))
+  | "layouts_alpha" -> Some (Pair (Layouts, (Alpha : Maturity.t)))
+  | _ -> None
+
+let pair_of_string_exn extn_name = match pair_of_string extn_name with
+  | Some pair -> pair
+  | None ->
+    raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn_name))
+
+let of_string extn_name =
+  let pack (Pair (extn, _) : extn_pair) = Pack extn in
+  Option.map pack (pair_of_string extn_name)
+
+let enable_of_string_exn extn_name = match pair_of_string_exn extn_name with
+  | Pair (extn, setting) -> enable extn setting
+
+let disable_of_string_exn extn_name = match pair_of_string_exn extn_name with
+  | Pair (extn, _) -> disable extn
+
+module Exist = struct
+  type 'a extn = 'a t
+  type t = exist =
+    | Pack : 'a extn -> t
+
+  let to_command_line_strings (Pack extn) =
+    let (module Ops) = get_level_ops extn in
+    List.map
+      (fun level -> to_string extn ^ Ops.to_command_line_suffix level)
+      Ops.all
+
+  let to_string : t -> string = function
+    | Pack extn -> to_string extn
+
+  let is_enabled : t -> bool = function
+    | Pack extn -> is_enabled extn
+
+  let is_erasable : t -> bool = function
+    | Pack extn -> is_erasable extn
+
+  let all : t list =
+    [ Pack Comprehensions
+    ; Pack Local
+    ; Pack Include_functor
+    ; Pack Polymorphic_parameters
+    ; Pack Immutable_arrays
+    ; Pack Module_strengthening
+    ; Pack Layouts
+    ]
+end
+
+let disable_all () =
+  List.iter (fun (Pack extn) -> disable extn) Exist.all
+
+let enable_maximal () =
+  let enable (Pack extn) =
+    let (module Ops) = get_level_ops extn in
+    enable extn Ops.max_value
+  in
+  List.iter enable Exist.all
+
