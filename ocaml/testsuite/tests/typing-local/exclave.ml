@@ -211,5 +211,10 @@ let f () =
      assert (x = 1))
 ;;
 f ();;
-[%%expect{||}]
+[%%expect{|
+type 'a glob = Glob of global_ 'a
+val return_local : 'a -> local_ 'a glob = <fun>
+val f : unit -> local_ unit = <fun>
+- : unit = ()
+|}]
 
