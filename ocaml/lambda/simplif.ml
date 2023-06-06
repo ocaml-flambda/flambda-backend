@@ -187,7 +187,7 @@ let simplify_exits lam =
   | Levent(l, _) -> count ~try_depth l
   | Lifused(_v, l) -> count ~try_depth l
   | Lregion (l, _) -> count ~try_depth:(try_depth+1) l
-  | Lexclave l -> count ~try_depth:(try_depth+1) l
+  | Lexclave l -> count ~try_depth:(try_depth-1) l
 
   and count_default ~try_depth sw = match sw.sw_failaction with
   | None -> ()
