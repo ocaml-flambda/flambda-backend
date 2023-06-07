@@ -194,27 +194,32 @@ end = struct
     | Any -> true
     | No_extensions | Only_erasable -> false
 
-  (* Why the [()]? The value restriction. *)
-  let fail () = Format.ksprintf (fun str -> raise (Arg.Bad str))
+  (* The terminating [()] argument helps protect against ignored arguments. See
+     the documentation for [Base.failwithf]. *)
+  let fail fmt =
+    Format.ksprintf (fun str () -> raise (Arg.Bad str)) fmt
 
   let check extn =
     if not (is_allowed extn)
-    then fail () "Cannot enable extension %s: incompatible with %s"
+    then fail "Cannot enable extension %s: incompatible with %s"
            (to_string extn)
            (compiler_options !universe)
+           ()
 
   let check_maximal () =
     if not (all_allowed ())
-    then fail () "Cannot enable all extensions: incompatible with %s"
+    then fail "Cannot enable all extensions: incompatible with %s"
            (compiler_options !universe)
+           ()
 
   (* returns whether or not a change was actually made *)
   let set new_universe =
     let cmp = compare new_universe !universe in
     if cmp > 0
-    then fail () "Cannot specify %s: incompatible with %s"
+    then fail "Cannot specify %s: incompatible with %s"
            (compiler_options new_universe)
-           (compiler_options !universe);
+           (compiler_options !universe)
+           ();
    universe := new_universe;
     cmp <> 0
 end
