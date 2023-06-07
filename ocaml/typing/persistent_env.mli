@@ -81,19 +81,14 @@ val empty : unit -> 'a t
 val clear : 'a t -> unit
 val clear_missing : 'a t -> unit
 
-val fold : 'a t
-  -> (Global.Name.t -> 'a -> 'b -> 'b)
-  -> 'b -> 'b
+val fold : 'a t -> (Global.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
 type binding =
   | Local of Ident.t
   | Static of Compilation_unit.t
 
 type 'a sig_reader =
-  Persistent_signature.t
-  -> global:Global.t
-  -> binding:binding
-  -> 'a
+  Persistent_signature.t -> global:Global.t -> binding:binding -> 'a
 
 val read : 'a t -> 'a sig_reader -> Global.Name.t -> filepath -> 'a
 
@@ -158,8 +153,7 @@ val without_cmis : 'a t -> ('b -> 'c) -> 'b -> 'c
     allow [penv] to openi cmis during its execution *)
 
 (* may raise Consistbl.Inconsistency *)
-val import_crcs : 'a t -> source:filepath ->
-  Import_info.Intf.t array -> unit
+val import_crcs : 'a t -> source:filepath -> Import_info.Intf.t array -> unit
 
 (* Return the set of compilation units imported, with their CRC *)
 val imports : 'a t -> Import_info.Intf.t list
