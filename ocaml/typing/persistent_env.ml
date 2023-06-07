@@ -331,12 +331,22 @@ let need_local_ident penv (global : Global.t) =
        so it's not a compile-time constant *)
     true
 
-let make_binding penv (global : Global.t) : binding =
+let make_binding penv (global : Global.t) unit : binding =
   if need_local_ident penv global
   then Local (Ident.create_local global.head)
   else
-    let cu = Compilation_unit.of_global_name (Global.to_name global) in
-    Static cu
+    match unit with
+    | Some unit ->
+        (* We need to use the unit in case it's in a pack, but we expect the
+           unit to be consistent with the global in any case *)
+        assert (Global.Name.equal
+                  (unit |> CU.to_global_name_without_prefix)
+                  (global |> Global.to_name));
+        Static unit
+    | None ->
+        Misc.fatal_errorf
+          "No compilation unit for global we intend to bind statically:@ %a"
+          Global.print global
 
 let global_of_global_name penv name : Global.t =
   match find_info_in_cache penv name with
@@ -502,7 +512,7 @@ let acknowledge_pers_struct
   | false, false -> ()
   end;
   let global = compute_global penv global_name ~params ~check:true in
-  let binding = make_binding penv global in
+  let binding = make_binding penv global unit in
   let impl : Impl.t =
     match unit with
     | Some cu -> assert (not is_param); Known cu
