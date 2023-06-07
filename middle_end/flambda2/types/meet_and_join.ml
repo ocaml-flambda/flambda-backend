@@ -1186,17 +1186,20 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
         } ) ->
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
     let element_kind = join_array_element_kinds element_kind1 element_kind2 in
-    let contents = join_array_contents env array_contents1 array_contents2 in
+    let contents =
+      join_array_contents env array_contents1 array_contents2
+        ~joined_element_kind:element_kind
+    in
     let>+ length = join env length1 length2 in
-    TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
-      contents alloc_mode
+    TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length contents alloc_mode
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
       | Boxed_int64 _ | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
       _ ) ->
     Unknown
 
 and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
-    (array_contents2 : TG.array_contents Or_unknown.t) =
+    (array_contents2 : TG.array_contents Or_unknown.t)
+    ~(joined_element_kind : _ Or_unknown_or_bottom.t) =
   join_unknown
     (fun env (array_contents1 : TG.array_contents)
          (array_contents2 : TG.array_contents) : TG.array_contents Or_unknown.t ->
@@ -1211,7 +1214,11 @@ and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
             List.fold_left2
               (fun (fields_rev : _ Or_unknown.t) field1 field2 : _ Or_unknown.t ->
                 let>* fields_rev = fields_rev in
-                let>+ field = join env field1 field2 in
+                let>+ field =
+                  match joined_element_kind with
+                  | Bottom | Unknown -> Or_unknown.Unknown
+                  | Ok _ -> join env field1 field2
+                in
                 field :: fields_rev)
               (Or_unknown.Known []) fields1 fields2
           in
