@@ -92,14 +92,11 @@ type binding =
   | Static of Compilation_unit.t (* Bound to a static constant *)
 
 type  pers_struct = {
-  ps_name: Global.Name.t;
-  ps_impl: Impl.t;
   ps_global: Global.t;
   ps_arg_for: Global.Name.t option;
   ps_binding: binding;
   ps_crcs: Import_info.Intf.t array;
   ps_filename: string;
-  ps_flags: pers_flags list;
 }
 
 (* If a .cmi file is missing (or invalid), we
@@ -245,36 +242,6 @@ let remember_crc penv impl crc import filename =
   let {crc_units; _} = penv in
   Consistbl.set crc_units import impl crc filename;
   add_import penv import
-
-(* CR lmaurer: Remove if unused *)
-let _save_pers_struct penv crc ps pm =
-  let {persistent_structures; _} = penv in
-  let modname = ps.ps_name in
-  let import = CU.Name.of_head_of_global_name modname in
-  Hashtbl.add persistent_structures modname (Found (ps, pm));
-  List.iter
-    (function
-        | Rectypes -> ()
-        | Alerts _ -> ()
-        | Unsafe_string -> ()
-        | Opaque -> register_import_as_opaque penv import)
-    ps.ps_flags;
-  remember_crc penv ps.ps_impl crc import ps.ps_filename
-
-(* CR lmaurer: Remove if unused *)
-let rec subset_args ~superset ~subset =
-  match superset, subset with
-  | _, [] -> true
-  | [], _::_ -> false
-  | (param_sup, value_sup) :: superset', (param_sub, value_sub) :: subset' ->
-      match CU.compare param_sup param_sub with
-      | 0 ->
-          CU.equal value_sup value_sub
-          && subset_args ~superset:superset' ~subset:subset'
-      | c when c < 0 -> subset_args ~superset:superset' ~subset
-      | _ -> false
-
-let _ = subset_args
 
 let current_unit_is0 name ~allow_args =
   match CU.get_current () with
@@ -513,19 +480,11 @@ let acknowledge_pers_struct
   end;
   let global = compute_global penv global_name ~params ~check:true in
   let binding = make_binding penv global unit in
-  let impl : Impl.t =
-    match unit with
-    | Some cu -> assert (not is_param); Known cu
-    | None -> assert is_param; Unknown_argument
-  in
-  let ps = { ps_name = global_name;
-             ps_impl = impl;
-             ps_global = global;
+  let ps = { ps_global = global;
              ps_arg_for = arg_for;
              ps_binding = binding;
              ps_crcs = crcs;
              ps_filename = filename;
-             ps_flags = flags;
            } in
   if check then check_consistency penv ps;
   let {persistent_structures; _} = penv in
