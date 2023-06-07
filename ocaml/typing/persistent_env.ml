@@ -763,51 +763,14 @@ let save_cmi penv psig =
       let {
         cmi_name = modname;
         cmi_unit = unit;
-        cmi_sign = _;
         cmi_is_param = is_param;
-        cmi_params = params;
-        cmi_arg_for = arg_for;
-        cmi_crcs = imports;
-        cmi_flags = flags;
       } = cmi in
       let crc =
         output_to_file_via_temporary (* see MPR#7472, MPR#4991 *)
           ~mode: [Open_binary] filename
           (fun temp_filename oc -> output_cmi temp_filename oc cmi) in
-      (* CR lmaurer: Experimentally deleting all this code. If we _really_ just
-         need imports() to return the crc, just do that part rather than inventing
-         an entry in the persistent table! *)
-      (*
-      (* Enter signature in persistent table so that imports() and crc_of_unit()
-         will also return its crc *)
-      let local_ident =
-        (* CR lmaurer: I don't love this. We're counting on the fact that the
-           only module we're likely to save is the one we're compiling, which
-           of course can't be locally bound, but that's a hidden invariant. *)
-        None
-      in
-      let global_name =
-        Global.Name.create (modname |> CU.Name.to_string) params
-      in
-      let global : Global.t =
-        compute_global penv global_name ~params ~check:false
-      in
-      let ps =
-        { ps_name = modname;
-          ps_is_param = is_param;
-          ps_global = global;
-          ps_arg_for = arg_for;
-          ps_local_ident = local_ident;
-          ps_crcs =
-            Array.append
-              [| Import_info.create_normal cmi.cmi_name ~crc:(Some crc) |]
-              imports;
-          ps_filename = filename;
-          ps_flags = flags;
-        } in
-      save_pers_struct penv crc ps pm
-      *)
-      ignore (is_param, params, arg_for, imports, flags);
+      (* Enter signature in consistbl so that imports() and crc_of_unit() will
+         also return its crc *)
       let impl : Impl.t =
         match unit with
         | Some unit -> Known unit

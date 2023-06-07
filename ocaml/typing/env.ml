@@ -920,10 +920,24 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
     }
   }
 
+let subst_of_instance_args (global : Global.t) =
+  match global with
+  | { params = []; args = []; head = _ } -> Subst.identity
+  | _ ->
+      List.fold_left
+        (fun subst (param, value) ->
+           let param_id = Ident.create_global param in
+           let value_id = Ident.create_global (value |> Global.to_name) in
+           Subst.add_module param_id (Pident value_id) subst)
+        (* Go over both the parameters and the arguments, since the
+           parameters may have new types due to other parameters *)
+        Subst.identity
+        (global.params @ global.args)
+
 let persistent_env : module_data Persistent_env.t ref =
   s_table Persistent_env.empty ()
 
-let rec sign_of_cmi ~freshen
+let read_sign_of_cmi
       { Persistent_env.Persistent_signature.cmi; filename }
       ~global ~binding =
   let name = global |> Global.to_name in
@@ -975,10 +989,8 @@ let rec sign_of_cmi ~freshen
     let mty = Subst.Lazy.of_modtype (Mty_signature sign) in
     let mty = Subst.Lazy.modtype Keep instance_subst mty in
     let mty =
-      if freshen then
-        Subst.Lazy.modtype (Subst.Rescope (Path.scope path))
-          Subst.identity mty
-      else mty
+      Subst.Lazy.modtype (Subst.Rescope (Path.scope path))
+        Subst.identity mty
     in
     components_of_module ~alerts ~uid:md.md_uid
       empty Subst.identity
@@ -991,27 +1003,9 @@ let rec sign_of_cmi ~freshen
     mda_shape;
     mda_filename;
   }
-and find_pers_mod name =
-  Persistent_env.find !persistent_env read_sign_of_cmi name
-and read_sign_of_cmi pers_sig =
-  sign_of_cmi pers_sig ~freshen:true
-and subst_of_instance_args (global : Global.t) =
-  match global with
-  | { params = []; args = []; head = _ } -> Subst.identity
-  | _ ->
-      List.fold_left
-        (fun subst (param, value) ->
-            let param_id = Ident.create_global param in
-            let value_id = Ident.create_global (value |> Global.to_name) in
-            Subst.add_module param_id (Pident value_id) subst)
-        (* Go over both the parameters and the arguments, since the
-            parameters may have new types due to other parameters *)
-        Subst.identity
-        (global.params @ global.args)
 
-(* CR lmaurer: Delete *)
-let save_sign_of_cmi = sign_of_cmi ~freshen:false
-let _ = save_sign_of_cmi
+let find_pers_mod name =
+  Persistent_env.find !persistent_env read_sign_of_cmi name
 
 let without_cmis f x =
   Persistent_env.without_cmis !persistent_env f x
@@ -2695,41 +2689,6 @@ let save_signature_with_transform
   let cmi =
     Persistent_env.make_cmi !persistent_env import cu sg sg2 alerts
     |> cmi_transform in
-  (* CR lmaurer: Delete this if we can indeed delete the big blob from
-     [Persistent_env] *)
-  (* 
-  let local_ident =
-    (* CR lmaurer: Sure hope this isn't necessary *)
-    None
-  in
-  let global : Global.t =
-    let head = Compilation_unit.name_as_string modname in
-    (* CR lmaurer: Yuck. Duplicating some logic here. *)
-    if Compilation_unit.is_packed modname then
-      (* This won't matter anyway *)
-      Global.create head [] ~params:[]
-    else
-      let params =
-        List.map
-          (fun param ->
-             let glob =
-               param
-               |> Compilation_unit.to_global_name_exn
-               |> Persistent_env.global_of_global_name !persistent_env
-                    read_sign_of_cmi
-             in
-             (* Right now it looks a bit silly to be producing a bunch of
-                key-value pairs of the form (x, x), but once we have
-                parameterised parameters, this [Global.t] will express their
-                interdependencies. *)
-             (glob |> Global.to_name, glob))
-          cmi.cmi_params
-      in
-      Global.create head [] ~params
-  in
-  Persistent_env.save_cmi !persistent_env read_sign_of_cmi
-    { Persistent_env.Persistent_signature.filename; cmi };
-  *)
   Persistent_env.save_cmi !persistent_env
     { Persistent_env.Persistent_signature.filename; cmi };
   cmi
