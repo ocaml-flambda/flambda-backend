@@ -637,18 +637,21 @@ module Array = struct
 end
 
 let crc_of_unit penv f name =
-  let global_name = Global.Name.create (name |> CU.Name.to_string) [] in
-  let (ps, _pm) =
-    (* This is a bit wasteful for instances since we'll end up loading the file
-       twice, but probably not enough to be a problem. *)
-    find_pers_struct penv f ~check:true global_name
-  in
-  match Array.find_opt (Import_info.Intf.has_name ~name) ps.ps_crcs with
-  | None -> assert false
-  | Some import_info ->
-    match Import_info.Intf.crc import_info with
+  match Consistbl.find penv.crc_units name with
+  | Some (_impl, crc) -> crc
+  | None ->
+    let global_name = Global.Name.create (name |> CU.Name.to_string) [] in
+    let (ps, _pm) =
+      (* This is a bit wasteful for instances since we'll end up loading the file
+        twice, but probably not enough to be a problem. *)
+      find_pers_struct penv f ~check:true global_name
+    in
+    match Array.find_opt (Import_info.Intf.has_name ~name) ps.ps_crcs with
     | None -> assert false
-    | Some crc -> crc
+    | Some import_info ->
+      match Import_info.Intf.crc import_info with
+      | None -> assert false
+      | Some crc -> crc
 
 let imports {imported_units;  crc_units; _} =
   let imports =
@@ -755,7 +758,7 @@ let save_cmi penv psig =
          need imports() to return the crc, just do that part rather than inventing
          an entry in the persistent table! *)
       (*
-      (* Enter signature in persistent table so that imports()
+      (* Enter signature in persistent table so that imports() and crc_of_unit()
          will also return its crc *)
       let local_ident =
         (* CR lmaurer: I don't love this. We're counting on the fact that the
