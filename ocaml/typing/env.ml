@@ -1665,8 +1665,11 @@ let same_types env1 env2 =
 
 let used_persistent () =
   Persistent_env.fold !persistent_env
-    (fun s _m r -> Import.Set.add (s |> Import.of_head_of_global_name) r)
-    Import.Set.empty
+    (fun s _m r ->
+       Compilation_unit.Name.Set.add
+         (s |> Compilation_unit.Name.of_head_of_global_name)
+         r)
+    Compilation_unit.Name.Set.empty
 
 let find_all_comps wrap proj s (p, mda) =
   match get_components mda.mda_components with
@@ -2640,7 +2643,9 @@ let open_signature
 (* Read a signature from a file *)
 let read_signature modname filename =
   (* Read the plain .cmi, without substituting any arguments *)
-  let global_name = Global.Name.create (Import.to_string modname) [] in
+  let global_name =
+    Global.Name.create (Compilation_unit.Name.to_string modname) []
+  in
   let mda = read_pers_mod global_name filename in
   let md = Subst.Lazy.force_module_decl mda.mda_declaration in
   match md.md_type with

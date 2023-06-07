@@ -178,7 +178,7 @@ let save_cmt filename modname binary_annots sourcefile initial_env cmi shape =
          let compare_imports import1 import2 =
            let modname1 = Import_info.Intf.name import1 in
            let modname2 = Import_info.Intf.name import2 in
-           Import.compare modname1 modname2
+           Compilation_unit.Name.compare modname1 modname2
          in
          let get_imports () =
            let imports = Array.of_list (Env.imports ()) in

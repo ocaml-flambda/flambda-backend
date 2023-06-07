@@ -35,7 +35,7 @@ type error =
   | File_not_found of filepath
   | Not_an_object_file of filepath
   | Missing_implementations of (Compilation_unit.t * string list) list
-  | Inconsistent_interface of Import.t * filepath * filepath
+  | Inconsistent_interface of Compilation_unit.Name.t * filepath * filepath
   | Inconsistent_implementation of Compilation_unit.t * filepath * filepath
   | Assembler_error of filepath
   | Linking_error of int

@@ -39,7 +39,7 @@ let expunge_crcs tbl =
   Array.to_list tbl
   |> List.filter
     (fun import ->
-      keep (Import_info.Intf.name import |> Import.to_string))
+      keep (Import_info.Intf.name import |> Compilation_unit.Name.to_string))
   |> Array.of_list
 
 let main () =

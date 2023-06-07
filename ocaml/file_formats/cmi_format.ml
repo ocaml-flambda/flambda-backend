@@ -36,7 +36,7 @@ type signature = Types.signature_item list
 type crcs = Import_info.Intf.t array  (* smaller on disk than using a list *)
 type flags = pers_flags list
 type header = {
-    header_name : Import.t;
+    header_name : Compilation_unit.Name.t;
     header_unit : Compilation_unit.t option;
     header_sign : signature;
     header_secondary_sign : signature option;
@@ -46,7 +46,7 @@ type header = {
 }
 
 type cmi_infos = {
-    cmi_name : Import.t;
+    cmi_name : Compilation_unit.Name.t;
     cmi_unit : Compilation_unit.t option;
     cmi_sign : signature;
     cmi_secondary_sign : signature option;

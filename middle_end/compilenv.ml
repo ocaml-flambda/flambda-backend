@@ -230,14 +230,13 @@ let get_unit_info comp_unit =
     try
       Infos_table.find global_infos_table name
     with Not_found ->
-      let intf = Import.of_head_of_global_name name in
       let (infos, crc) =
-        if Env.is_imported_opaque intf then (None, None)
+        if Env.is_imported_opaque (CU.name comp_unit) then (None, None)
         else begin
           try
             let filename =
               Load_path.find_uncap (CU.base_filename comp_unit ^ ".cmx") in
-           let (ui, crc) = read_unit_info filename in
+            let (ui, crc) = read_unit_info filename in
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
             cache_checks ui.ui_checks;

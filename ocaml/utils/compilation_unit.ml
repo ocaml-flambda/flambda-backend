@@ -46,7 +46,7 @@ module Name : sig
 
   val to_string : t -> string
 
-  val to_import : t -> Import.t
+  val of_head_of_global_name : Global.Name.t -> t
 
   val check_as_path_component : t -> unit
 end = struct
@@ -78,6 +78,8 @@ end = struct
     then raise (Error (Bad_compilation_unit_name str))
     else str
 
+  let of_head_of_global_name (name : Global.Name.t) = of_string name.head
+
   (* This is so called (and separate from [of_string]) because we only want to
      check a name if it has a prefix. In particular, this allows single-module
      executables to have names like ".cinaps" that aren't valid module names. *)
@@ -87,13 +89,11 @@ end = struct
        || String.contains t '.'
     then raise (Error (Bad_compilation_unit_name t))
 
-  let dummy = Import.dummy |> Import.to_string
+  let dummy = "*dummy*"
 
-  let predef_exn = Import.predef_exn |> Import.to_string
+  let predef_exn = "*predef*"
 
   let to_string t = t
-
-  let to_import = Import.of_string
 end
 
 module Prefix : sig
@@ -417,8 +417,6 @@ let dummy = create Prefix.empty (Name.of_string "*none*")
 let predef_exn = create Prefix.empty Name.predef_exn
 
 let name_as_string t = name t |> Name.to_string
-
-let name_as_import t = name_as_string t |> Import.of_string
 
 let equal_to_name t other_name =
   is_plain_name t && Name.equal other_name (name t)

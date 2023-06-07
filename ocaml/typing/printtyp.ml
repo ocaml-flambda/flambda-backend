@@ -630,7 +630,7 @@ type best_path = Paths of Path.t list | Best of Path.t
     cache for short-paths
  *)
 let printing_old = ref Env.empty
-let printing_pers = ref Import.Set.empty
+let printing_pers = ref Compilation_unit.Name.Set.empty
 (** {!printing_old} and  {!printing_pers} are the keys of the one-slot cache *)
 
 let printing_depth = ref 0
@@ -695,7 +695,7 @@ let rec path_size = function
 let same_printing_env env =
   let used_pers = Env.used_persistent () in
   Env.same_types !printing_old env
-  && Import.Set.equal !printing_pers used_pers
+  && Compilation_unit.Name.Set.equal !printing_pers used_pers
 
 let set_printing_env env =
   printing_env := env;

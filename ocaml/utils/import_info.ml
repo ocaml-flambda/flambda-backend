@@ -16,42 +16,39 @@ module CU = Compilation_unit
 
 module Intf = struct
   type t =
-    | Normal of Import.t * Digest.t (* Unpacked, so compilation unit = import *)
-    | Name_only of Import.t
-    | Other of Import.t * CU.t option * Digest.t option
+    | Normal of CU.Name.t * Digest.t (* Unpacked, so compilation unit = name *)
+    | Name_only of CU.Name.t
+    | Other of CU.Name.t * CU.t option * Digest.t option
 
-  let create (import : Import.t) cu ~crc =
+  let create (name : CU.Name.t) cu ~crc =
     match cu, crc with
-    | None, None -> Name_only import
-    | None, Some crc -> (* Parameter *) Other (import, None, Some crc)
+    | None, None -> Name_only name
+    | None, Some crc -> (* Parameter *) Other (name, None, Some crc)
     | Some _, None ->
-      Misc.fatal_errorf "@[<hv>CU but no CRC for import:@ %a@]" Import.print
-        import
+      Misc.fatal_errorf "@[<hv>CU but no CRC for import:@ %a@]" CU.Name.print
+        name
     | Some cu, Some crc ->
       if CU.instance_arguments cu <> []
       then
         Misc.fatal_errorf "@[<hv>Interface import with arguments:@ %a@]"
           CU.print cu;
-      if not (String.equal (CU.name_as_string cu) (import |> Import.to_string))
+      if not (CU.Name.equal (CU.name cu) name)
       then
         Misc.fatal_errorf
           "@[<hv>Mismatched import name and compilation unit:@ %a@]"
-          Import.print import CU.print cu;
+          CU.Name.print name CU.print cu;
       if CU.is_packed cu
-      then Other (import, Some cu, Some crc)
-      else Normal (import, crc)
+      then Other (name, Some cu, Some crc)
+      else Normal (name, crc)
 
   let name t =
     match t with
-    | Normal (import, _) | Name_only import | Other (import, _, _) -> import
+    | Normal (name, _) | Name_only name | Other (name, _, _) -> name
 
   let impl t =
     match t with
-    | Normal (import, _) ->
-      let cu =
-        CU.create CU.Prefix.empty
-          (import |> Import.to_string |> CU.Name.of_string)
-      in
+    | Normal (name, _) ->
+      let cu = CU.create CU.Prefix.empty name in
       Some cu
     | Name_only _ -> None
     | Other (_, cu, _) -> cu
@@ -62,9 +59,9 @@ module Intf = struct
     | Name_only _ -> None
     | Other (_, _, crc) -> crc
 
-  let has_name t ~name:name' = Import.equal (name t) name'
+  let has_name t ~name:name' = CU.Name.equal (name t) name'
 
-  let dummy = Name_only Import.dummy
+  let dummy = Name_only CU.Name.dummy
 end
 
 module Impl = struct

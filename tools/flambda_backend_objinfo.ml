@@ -60,17 +60,10 @@ let null_crc = String.make 32 '0'
 
 let string_of_crc crc = if !no_crc then null_crc else Digest.to_hex crc
 
-let string_of_crc_option crco =
-  match crco with
-  | None -> dummy_crc
-  | Some crc -> string_of_crc crc
-
 let print_name_crc name crco =
-  let crc = crco |> string_of_crc_option in
-  printf "\t%s\t%a\n" crc Import.output name
-
-let print_unit_name_crc name crco =
-  let crc = crco |> string_of_crc_option in
+  let crc =
+    match crco with None -> dummy_crc | Some crc -> string_of_crc crc
+  in
   printf "\t%s\t%a\n" crc Compilation_unit.Name.output name
 
 (* CR-someday mshinwell: consider moving to [Import_info.print] *)
@@ -83,7 +76,7 @@ let print_intf_import import =
 let print_impl_import import =
   let name = Import_info.Impl.name import in
   let crco = Import_info.Impl.crc import in
-  print_unit_name_crc name crco
+  print_name_crc name crco
 
 let print_line name = printf "\t%s\n" name
 
@@ -100,7 +93,6 @@ let print_name_line cu =
     Compilation_unit.with_for_pack_prefix cu Compilation_unit.Prefix.empty
   in
   printf "\t%a\n" Compilation_unit.output cu_without_prefix
-
 
 let print_required_global id = printf "\t%a\n" Compilation_unit.output id
 
@@ -137,7 +129,7 @@ let print_cma_infos (lib : Cmo_format.library) =
   List.iter print_cmo_infos lib.lib_units
 
 let print_cmi_infos name crcs is_param params =
-  printf "Unit name: %a\n" Import.output name;
+  printf "Unit name: %a\n" Compilation_unit.Name.output name;
   printf "Is parameter: %s\n" (if is_param then "YES" else "no");
   print_string "Parameters:\n";
   List.iter print_global_line params;

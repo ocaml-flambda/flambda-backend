@@ -21,30 +21,31 @@ module Impl : sig
 end
 
 module Consistbl : module type of struct
-  include Consistbl.Make (Import) (Impl)
+  include Consistbl.Make (Compilation_unit.Name) (Impl)
 end
 
 type error =
-  | Illegal_renaming of Import.t * Import.t * filepath
-  | Inconsistent_import of Import.t * filepath * filepath
-  | Need_recursive_types of Import.t
-  | Depend_on_unsafe_string_unit of Import.t
+  | Illegal_renaming of
+      Compilation_unit.Name.t * Compilation_unit.Name.t * filepath
+  | Inconsistent_import of Compilation_unit.Name.t * filepath * filepath
+  | Need_recursive_types of Compilation_unit.Name.t
+  | Depend_on_unsafe_string_unit of Compilation_unit.Name.t
   | Inconsistent_package_declaration of Compilation_unit.t * filepath
   | Direct_reference_from_wrong_package of
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
-  | Illegal_import_of_parameter of Import.t * filepath
-  | Not_compiled_as_parameter of Import.t * filepath
+  | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
+  | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
   | Imported_module_has_unset_parameter of
-      { imported : Import.t;
+      { imported : Compilation_unit.Name.t;
         parameter : Global.Name.t;
   }
   | Imported_module_has_no_such_parameter of
-      { imported : Import.t;
+      { imported : Compilation_unit.Name.t;
         valid_parameters : Global.Name.t list;
         parameter : Global.Name.t;
         value : Global.Name.t;
   }
-  | Not_compiled_as_argument of Import.t * filepath
+  | Not_compiled_as_argument of Compilation_unit.Name.t * filepath
   | Argument_type_mismatch of
       { value : Global.Name.t;
         filename : filepath;
@@ -64,7 +65,7 @@ module Persistent_signature : sig
   (** Function used to load a persistent signature. The default is to look for
       the .cmi file in the load path. This function can be overridden to load
       it from memory, for instance to build a self-contained toplevel. *)
-  val load : (unit_name:Import.t -> t option) ref
+  val load : (unit_name:Compilation_unit.Name.t -> t option) ref
 end
 
 type can_load_cmis =
@@ -104,7 +105,7 @@ val check : 'a t -> 'a sig_reader -> loc:Location.t -> Global.Name.t -> unit
    to have been compiled as such. It may or may not be a parameter to _this_
    module (see [register_parameter]). Raises an exception if the module has
    already been imported as a non-parameter. *)
-val register_parameter_import : 'a t -> Import.t -> unit
+val register_parameter_import : 'a t -> Compilation_unit.Name.t -> unit
 
 (* Declare a parameter to this module. Calls [register_parameter_import]. *)
 val register_parameter : 'a t -> Global.Name.t -> unit
@@ -116,15 +117,15 @@ val looked_up : 'a t -> Global.Name.t -> bool
 
 (* [is_imported_opaque penv md] checks if [md] has been imported
    in [penv] as an opaque module *)
-val is_imported_opaque : 'a t -> Import.t -> bool
+val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
 
 (* [register_import_as_opaque penv md] registers [md] in [penv] as an
    opaque module *)
-val register_import_as_opaque : 'a t -> Import.t -> unit
+val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 
 (* [is_parameter_unit penv md] checks if [md] has been imported in [penv] and
    was compiled as a parameter *)
-val is_parameter_unit : 'a t -> Import.t -> bool
+val is_parameter_unit : 'a t -> Compilation_unit.Name.t -> bool
 
 (* [local_ident penv md] returns the local identifier generated for [md] if
    [md] is either a parameter or a dependency with a parameter. This is used
@@ -139,7 +140,7 @@ val implemented_parameter : 'a t -> Global.Name.t -> Global.Name.t option
 val global_of_global_name : 'a t -> Global.Name.t -> Global.t
 
 val make_cmi : 'a t
-  -> Import.t
+  -> Compilation_unit.Name.t
   -> Compilation_unit.t option
   -> Types.signature
   -> Types.signature option
@@ -170,7 +171,7 @@ val locally_bound_imports : 'a t -> (Global.Name.t * Ident.t) list
 val exported_parameters : 'a t -> Global.Name.t list
 
 (* Return the CRC of the interface of the given compilation unit *)
-val crc_of_unit: 'a t -> 'a sig_reader -> Import.t -> Digest.t
+val crc_of_unit: 'a t -> 'a sig_reader -> Compilation_unit.Name.t -> Digest.t
 
 (* Forward declaration to break mutual recursion with Typecore. *)
 val add_delayed_check_forward: ((unit -> unit) -> unit) ref

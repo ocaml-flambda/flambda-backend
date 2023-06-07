@@ -32,15 +32,15 @@ module CU := Compilation_unit
 module Intf : sig
   type t
 
-  val create : Import.t -> CU.t option -> crc:Digest.t option -> t
+  val create : CU.Name.t -> CU.t option -> crc:Digest.t option -> t
 
-  val name : t -> Import.t
+  val name : t -> CU.Name.t
 
   val impl : t -> CU.t option
 
   val crc : t -> Digest.t option
 
-  val has_name : t -> name:Import.t -> bool
+  val has_name : t -> name:CU.Name.t -> bool
 
   val dummy : t
 end

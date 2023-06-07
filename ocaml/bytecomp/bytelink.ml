@@ -26,7 +26,7 @@ type error =
   | Not_an_object_file of filepath
   | Wrong_object_name of filepath
   | Symbol_error of filepath * Symtable.error
-  | Inconsistent_import of Import.t * filepath * filepath
+  | Inconsistent_import of Compilation_unit.Name.t * filepath * filepath
   | Custom_runtime
   | File_exists of filepath
   | Cannot_open_dll of filepath
@@ -177,10 +177,10 @@ let scan_file obj_name tolink =
 module Impl = struct
   type t = CU.t option
 end
-module Consistbl = Consistbl.Make (Import) (Impl)
+module Consistbl = Consistbl.Make (CU.Name) (Impl)
 
 let crc_interfaces = Consistbl.create ()
-let interfaces = ref ([] : Import.t list)
+let interfaces = ref ([] : CU.Name.t list)
 let implementations_defined = ref ([] : (CU.t * string) list)
 
 let check_consistency file_name cu =
@@ -194,7 +194,7 @@ let check_consistency file_name cu =
         match crco with
           None -> ()
         | Some crc ->
-            if Import.equal name (CU.name_as_import cu.cu_name)
+            if CU.Name.equal name (CU.name cu.cu_name)
             then Consistbl.set crc_interfaces name cuo crc file_name
             else Consistbl.check crc_interfaces name cuo crc file_name)
       cu.cu_imports
@@ -779,7 +779,7 @@ let report_error ppf = function
                  make inconsistent assumptions over interface %a@]"
         Location.print_filename file1
         Location.print_filename file2
-        Import.print intf
+        CU.Name.print intf
   | Custom_runtime ->
       fprintf ppf "Error while building custom runtime system"
   | File_exists file ->

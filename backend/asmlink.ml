@@ -27,7 +27,7 @@ type error =
   | File_not_found of filepath
   | Not_an_object_file of filepath
   | Missing_implementations of (CU.t * string list) list
-  | Inconsistent_interface of Import.t * filepath * filepath
+  | Inconsistent_interface of CU.Name.t * filepath * filepath
   | Inconsistent_implementation of CU.t * filepath * filepath
   | Assembler_error of filepath
   | Linking_error of int
@@ -50,10 +50,9 @@ type unit_link_info = {
 module Impl = struct
   type t = CU.t option
 end
-module Cmi_consistbl = Consistbl.Make (Import) (Impl)
+module Cmi_consistbl = Consistbl.Make (CU.Name) (Impl)
 let crc_interfaces = Cmi_consistbl.create ()
-module Intf_tbl = Import.Tbl
-let interfaces = Intf_tbl.create 100
+let interfaces = CU.Name.Tbl.create 100
 
 module Cmx_consistbl = Consistbl.Make (CU) (Unit)
 let crc_implementations = Cmx_consistbl.create ()
@@ -67,7 +66,7 @@ let check_cmi_consistency file_name cmis =
       (fun import ->
         let name = Import_info.Intf.name import in
         let crco = Import_info.Intf.crc import in
-        Intf_tbl.replace interfaces name ();
+        CU.Name.Tbl.replace interfaces name ();
         match crco with
           None -> ()
         | Some crc ->
@@ -118,7 +117,7 @@ let check_consistency ~unit cmis cmxs =
     cmx_required := unit.name :: !cmx_required
 
 let extract_crc_interfaces () =
-  Intf_tbl.fold (fun name () crcs ->
+  CU.Name.Tbl.fold (fun name () crcs ->
       let cu, crc =
         match Cmi_consistbl.find crc_interfaces name with
         | None -> None, None
@@ -216,7 +215,7 @@ let read_file obj_name =
 let assume_no_prefix modname =
   (* We're the linker, so we assume that everything's already been packed, so
      no module needs its prefix considered. *)
-  CU.create CU.Prefix.empty (modname |> Import.to_string |> CU.Name.of_string)
+  CU.create CU.Prefix.empty modname
 
 let scan_file ~shared genfns file (objfiles, tolink) =
   match read_file file with
@@ -331,14 +330,14 @@ let make_globals_map units_list =
   in
   let defined =
     List.map (fun unit ->
-        let name = CU.name_as_import unit.name in
+        let name = CU.name unit.name in
         let intf_crc = find_crc name in
-        Intf_tbl.remove interfaces name;
+        CU.Name.Tbl.remove interfaces name;
         let syms = List.map Symbol.for_compilation_unit unit.defines in
         (unit.name, intf_crc, Some unit.crc, syms))
       units_list
   in
-  Intf_tbl.fold (fun name () globals_map ->
+  CU.Name.Tbl.fold (fun name () globals_map ->
       let intf_crc = find_crc name in
       (assume_no_prefix name, intf_crc, None, []) :: globals_map)
     interfaces
@@ -484,7 +483,7 @@ let reset () =
   Cmx_consistbl.clear crc_implementations;
   CU.Tbl.reset implementations_defined;
   cmx_required := [];
-  Intf_tbl.reset interfaces;
+  CU.Name.Tbl.reset interfaces;
   implementations := [];
   lib_ccobjs := [];
   lib_ccopts := []
@@ -572,7 +571,7 @@ let report_error ppf = function
               over interface %a@]"
        Location.print_filename file1
        Location.print_filename file2
-       Import.print intf
+       CU.Name.print intf
   | Inconsistent_implementation(intf, file1, file2) ->
       fprintf ppf
        "@[<hov>Files %a@ and %a@ make inconsistent assumptions \

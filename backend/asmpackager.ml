@@ -188,13 +188,9 @@ let get_approx ui : Clambda.value_approximation =
 let build_package_cmx members cmxfile =
   let unit_names =
     List.map (fun m -> m.pm_name) members in
-  let unit_imports =
-    List.map (fun n -> Compilation_unit.Name.to_string n |> Import.of_string)
-      unit_names
-  in
   let filter_cmi lst =
     List.filter (fun import ->
-      not (List.mem (Import_info.Intf.name import) unit_imports)) lst
+      not (List.mem (Import_info.Intf.name import) unit_names)) lst
   in
   let filter_cmx lst =
     List.filter (fun import ->
@@ -235,7 +231,7 @@ let build_package_cmx members cmxfile =
   in
   let ui_checks = Compilenv.Checks.create () in
   List.iter (fun info -> Compilenv.Checks.merge info.ui_checks ~into:ui_checks) units;
-  let modname = Compilation_unit.name_as_import ui.ui_unit in
+  let modname = Compilation_unit.name ui.ui_unit in
   let pkg_infos =
     { ui_unit = ui.ui_unit;
       ui_defines =

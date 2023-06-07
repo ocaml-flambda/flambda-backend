@@ -1814,7 +1814,7 @@ let intro ~backend ~size lam =
     !Clflags.opaque
     || Env.is_imported_opaque
          (Compilation_unit.get_current_exn ()
-          |> Compilation_unit.name_as_import)
+          |> Compilation_unit.name)
   in
   if opaque
   then Compilenv.set_global_approx(Value_unknown)
