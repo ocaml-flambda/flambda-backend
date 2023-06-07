@@ -31,6 +31,8 @@ type error =
   | Need_recursive_types of Compilation_unit.Name.t
   | Depend_on_unsafe_string_unit of Compilation_unit.Name.t
   | Inconsistent_package_declaration of Compilation_unit.t * filepath
+  | Inconsistent_package_declaration_between_imports of
+      filepath * Compilation_unit.t * Compilation_unit.t
   | Direct_reference_from_wrong_package of
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
   | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath

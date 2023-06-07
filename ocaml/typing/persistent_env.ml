@@ -44,6 +44,8 @@ type error =
   | Need_recursive_types of CU.Name.t
   | Depend_on_unsafe_string_unit of CU.Name.t
   | Inconsistent_package_declaration of CU.t * filepath
+  | Inconsistent_package_declaration_between_imports of
+      filepath * CU.t * CU.t
   | Direct_reference_from_wrong_package of
       CU.t * filepath * CU.Prefix.t
   | Illegal_import_of_parameter of CU.Name.t * filepath
@@ -195,9 +197,16 @@ let check_consistency penv ps =
       unit_name = name;
       inconsistent_source = source;
       original_source = auth;
-      _
+      inconsistent_data = source_impl;
+      original_data = auth_impl;
     } ->
-    error (Inconsistent_import(name, auth, source))
+    match source_impl, auth_impl with
+    | Known source_unit, Known auth_unit
+      when not (CU.equal source_unit auth_unit) ->
+        error (Inconsistent_package_declaration_between_imports(
+            ps.ps_filename, auth_unit, source_unit))
+    | (Known _ | Unknown_argument), _ ->
+      error (Inconsistent_import(name, auth, source))
 
 let is_registered_parameter {registered_params; _} name =
   Param_set.mem name !registered_params
@@ -585,6 +594,7 @@ let check_pers_struct penv f ~loc name =
             Format.asprintf "%a uses -unsafe-string"
               CU.Name.print name
         | Inconsistent_package_declaration _ -> assert false
+        | Inconsistent_package_declaration_between_imports _ -> assert false
         | Direct_reference_from_wrong_package (unit, _filename, prefix) ->
             Format.asprintf "%a is inaccessible from %a"
               CU.print unit
@@ -827,6 +837,12 @@ let report_error ppf =
         "@[<hov>The interface %a@ is compiled for package %s.@ %s@]"
         CU.print intf_package intf_filename
         "The compilation flag -for-pack with the same package is required"
+  | Inconsistent_package_declaration_between_imports (filename, unit1, unit2) ->
+      fprintf ppf
+        "@[<hov>The file %s@ is imported both as %a@ and as %a.@]"
+        filename
+        CU.print unit1
+        CU.print unit2
   | Direct_reference_from_wrong_package(unit, filename, prefix) ->
       fprintf ppf
         "@[<hov>Invalid reference to %a (in file %s) from %a.@ %s]"
