@@ -17,7 +17,8 @@ type _ t =
 
 (** Existentially packed language extension *)
 module Exist : sig
-  type 'a extn := 'a t
+  type 'a extn = 'a t (* this is removed from the sig by the [with] below;
+                         ocamldoc doesn't like [:=] in sigs *)
   type t =
     | Pack : 'a extn -> t
 
@@ -30,7 +31,7 @@ module Exist : sig
   val to_command_line_strings : t -> string list
 
   val all : t list
-end
+end with type 'a extn := 'a t
 
 (** Equality on language extensions *)
 val equal : 'a t -> 'b t -> bool
