@@ -435,13 +435,13 @@ and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
                   match meet_element_kind with
                   | Bottom -> Bottom
                   | Unknown ->
-                    (* If the meet of the kinds is Unknown, then both inputs had
-                       Unknown kinds. I don't see how we could end up with an
-                       array type where the contents are known but we don't know
-                       the kind, but in that case we wouldn't be able to call
-                       meet because the two sides may have differet kinds. So
-                       we'll just return the first input, which is guaranteed to
-                       be a correct approximation of the meet. *)
+                    (* vlaviron: If the meet of the kinds is Unknown, then both
+                       inputs had Unknown kinds. I don't see how we could end up
+                       with an array type where the contents are known but we
+                       don't know the kind, but in that case we wouldn't be able
+                       to call meet because the two sides may have different
+                       kinds. So we'll just return the first input, which is
+                       guaranteed to be a correct approximation of the meet. *)
                     Ok (field1, TEE.empty)
                   | Ok _ -> meet env field1 field2
                 in
