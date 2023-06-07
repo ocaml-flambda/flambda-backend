@@ -4,6 +4,8 @@
 module DLL = Flambda_backend_utils.Doubly_linked_list
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 
+let debug = false
+
 module State : sig
   type t
 
@@ -145,15 +147,13 @@ let basic_or_terminator_of_operation :
   | Icall_ind ->
     With_next_label (fun label_after -> Call { op = Indirect; label_after })
   | Icall_imm { func } ->
-    With_next_label
-      (fun label_after ->
-        Call { op = Direct { func_symbol = func }; label_after })
+    With_next_label (fun label_after -> Call { op = Direct func; label_after })
   | Itailcall_ind -> Terminator (Tailcall_func Indirect)
   | Itailcall_imm { func } ->
     Terminator
-      (if String.equal (State.get_fun_name state) func
+      (if String.equal (State.get_fun_name state) func.sym_name
       then Tailcall_self { destination = State.get_tailrec_label state }
-      else Tailcall_func (Direct { func_symbol = func }))
+      else Tailcall_func (Direct func))
   | Iextcall { func; ty_res; ty_args; alloc; returns } ->
     let external_call = { Cfg.func_symbol = func; alloc; ty_res; ty_args } in
     if returns
@@ -215,10 +215,13 @@ let basic_or_terminator_of_operation :
     Misc.fatal_error
       "Cfgize.basic_or_terminator_of_operation: \"the Iname_for_debugger\" \
        instruction is currently not supported "
-  | Iprobe { name; handler_code_sym } ->
+  | Iprobe { name; handler_code_sym; enabled_at_init } ->
     With_next_label
       (fun label_after ->
-        Prim { op = Probe { name; handler_code_sym }; label_after })
+        Prim
+          { op = Probe { name; handler_code_sym; enabled_at_init };
+            label_after
+          })
   | Iprobe_is_enabled { name } -> Basic (Op (Probe_is_enabled { name }))
   | Ibeginregion -> Basic (Op Begin_region)
   | Iendregion -> Basic (Op End_region)
@@ -306,7 +309,8 @@ let make_instruction : type a. State.t -> desc:a -> a Cfg.instruction =
     stack_offset;
     id;
     fdo;
-    irc_work_list = Unknown_list
+    irc_work_list = Unknown_list;
+    ls_order = -1
   }
 
 let copy_instruction :
@@ -334,7 +338,8 @@ let copy_instruction :
     stack_offset;
     id;
     fdo;
-    irc_work_list = Unknown_list
+    irc_work_list = Unknown_list;
+    ls_order = -1
   }
 
 let copy_instruction_no_reg :
@@ -364,7 +369,8 @@ let copy_instruction_no_reg :
     stack_offset;
     id;
     fdo;
-    irc_work_list = Unknown_list
+    irc_work_list = Unknown_list;
+    ls_order = -1
   }
 
 let rec get_end : Mach.instruction -> Mach.instruction =
@@ -682,7 +688,9 @@ module Stack_offset_and_exn = struct
       if block.stack_offset = invalid_stack_offset
       then true
       else (
-        assert (block.stack_offset = compute_stack_offset ~stack_offset ~traps);
+        if debug
+        then
+          assert (block.stack_offset = compute_stack_offset ~stack_offset ~traps);
         false)
     in
     if was_invalid

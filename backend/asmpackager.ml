@@ -224,8 +224,8 @@ let build_package_cmx members cmxfile =
     else
       Clambda (get_approx ui)
   in
-  let ui_checks = Compilenv.Checks.create () in
-  List.iter (fun info -> Compilenv.Checks.merge info.ui_checks ~into:ui_checks) units;
+  let ui_checks = Checks.create () in
+  List.iter (fun info -> Checks.merge info.ui_checks ~into:ui_checks) units;
   let modname = Compilation_unit.name ui.ui_unit in
   let pkg_infos =
     { ui_unit = ui.ui_unit;

@@ -122,7 +122,7 @@ and proceed as follows:
 make coldstart
 make coreall
 ```
-Then edit `runtime/exec.h` and `utils/config.mlp` to bump the numbers.  Then:
+Then edit `runtime/caml/exec.h` and `utils/config.mlp` to bump the numbers.  Then:
 ```
 make coreall
 make bootstrap
@@ -199,7 +199,7 @@ where `<DUNE>` is the path to the dune provided to `configure`.
 This can be done following the usual upstream procedures,
 working entirely within the `ocaml/` subdirectory.  Thoroughly clean the tree (e.g. `git clean -dfX`),
 go into `ocaml/`, then run the upstream configure script.  After that perform the bootstrap (e.g.
-`make world` followed by `make bootstrap`).  Before recompiling the Flambda backend as normal it would
+`make core` followed by `make bootstrap`).  Before recompiling the Flambda backend as normal it would
 be advisable to clean the whole tree again.
 
 ## Testing the compiler built locally with OPAM

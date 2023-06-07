@@ -27,7 +27,11 @@ module Function_decl = Closure_conversion_aux.Function_decls.Function_decl
 module Env : sig
   type t
 
-  type region_stack_element
+  type region_stack_element = private
+    | Regular of Ident.t
+    | Try_with of Ident.t
+
+  val same_region : region_stack_element -> region_stack_element -> bool
 
   val create :
     current_unit:Compilation_unit.t ->
@@ -133,6 +137,8 @@ module Env : sig
     continuation_after_closing_region:Continuation.t ->
     t
 
+  val leaving_region : t -> t
+
   val entering_try_region : t -> Ident.t -> t
 
   val leaving_try_region : t -> t
@@ -150,7 +156,8 @@ module Env : sig
   (** Hack for staticfail (which should eventually use
       [pop_regions_up_to_context]) *)
   val pop_region :
-    region_stack_element list -> (Ident.t * region_stack_element list) option
+    region_stack_element list ->
+    (region_stack_element * region_stack_element list) option
 
   val pop_regions_up_to_context : t -> Continuation.t -> Ident.t option
 
@@ -169,6 +176,12 @@ end = struct
   type region_stack_element =
     | Regular of Ident.t
     | Try_with of Ident.t
+
+  let same_region region1 region2 =
+    match region1, region2 with
+    | Regular _, Try_with _ | Try_with _, Regular _ -> false
+    | Regular id1, Regular id2 | Try_with id1, Try_with id2 ->
+      Ident.same id1 id2
 
   type t =
     { current_unit : Compilation_unit.t;
@@ -364,6 +377,14 @@ end = struct
           t.region_closure_continuations
     }
 
+  let leaving_region t =
+    match t.region_stack with
+    | [] -> Misc.fatal_error "Cannot pop region, region stack is empty"
+    | Regular _ :: region_stack -> { t with region_stack }
+    | Try_with region :: _ ->
+      Misc.fatal_errorf "Attempted to pop region but found try region %a"
+        Ident.print region
+
   let entering_try_region t region =
     { t with region_stack = Try_with region :: t.region_stack }
 
@@ -397,7 +418,7 @@ end = struct
 
   let pop_region = function
     | [] -> None
-    | (Try_with region | Regular region) :: rest -> Some (region, rest)
+    | ((Try_with _ | Regular _) as region) :: rest -> Some (region, rest)
 
   let pop_regions_up_to_context t continuation =
     let initial_stack_context = region_stack_in_cont_scope t continuation in
@@ -525,21 +546,25 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
        allocation region"
       Continuation.print continuation;
   let rec add_end_regions acc ~region_stack_now =
-    (* CR pchambart: this probably can't be exercised right now, no lambda
-       jumping through a region seems to be generated. *)
+    (* This can maybe only be exercised right now using "match with exception",
+       since that causes jumps out of try-regions (but not normal regions). *)
     (* CR pchambart: This closes all the regions between region_stack_now and
        region_stack_at_handler, but closing only the last one should be
        sufficient. *)
-    let add_end_region region ~region_stack_now after_everything =
+    let add_end_region (region : Env.region_stack_element) ~region_stack_now
+        after_everything =
       let add_remaining_end_regions acc =
         add_end_regions acc ~region_stack_now
       in
       let body = add_remaining_end_regions acc after_everything in
       fun acc ccenv ->
-        CC.close_let acc ccenv
-          (Ident.create_local "unit")
-          Not_user_visible Flambda_kind.With_subkind.tagged_immediate
-          (End_region region) ~body
+        match region with
+        | Try_with _ -> body acc ccenv
+        | Regular region_ident ->
+          CC.close_let acc ccenv
+            (Ident.create_local "unit")
+            Not_user_visible Flambda_kind.With_subkind.tagged_immediate
+            (End_region region_ident) ~body
     in
     let no_end_region after_everything = after_everything in
     match
@@ -547,10 +572,10 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
     with
     | None, None -> no_end_region
     | Some (region1, region_stack_now), Some (region2, _) ->
-      if Ident.same region1 region2
+      if Env.same_region region1 region2
       then no_end_region
       else add_end_region region1 ~region_stack_now
-    | Some (region, region_stack_now), None ->
+    | Some (((Regular _ | Try_with _) as region), region_stack_now), None ->
       add_end_region region ~region_stack_now
     | None, Some _ -> assert false
     (* see above *)
@@ -860,7 +885,7 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
           { apply with continuation = wrapper_cont; region }
       in
       let return_arity =
-        match Flambda_arity.With_subkinds.to_list apply.return_arity with
+        match Flambda_arity.to_list apply.return_arity with
         | [return_kind] -> return_kind
         | _ :: _ ->
           Misc.fatal_errorf
@@ -1217,7 +1242,13 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
    * in
    * cps_non_tail_simple acc env ccenv defining_expr k k_exn *)
   | Lletrec (bindings, body) -> (
-    match Dissect_letrec.dissect_letrec ~bindings ~body with
+    let free_vars_kind id =
+      let _, kind_with_subkind = CCenv.find_var ccenv id in
+      Some
+        (Flambda_kind.to_lambda
+           (Flambda_kind.With_subkind.kind kind_with_subkind))
+    in
+    match Dissect_letrec.dissect_letrec ~bindings ~body ~free_vars_kind with
     | Unchanged ->
       let function_declarations = cps_function_bindings env bindings in
       let body acc ccenv = cps acc env ccenv body k k_exn in
@@ -1323,7 +1354,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         mode;
                         region = Env.current_region env;
                         return_arity =
-                          Flambda_arity.With_subkinds.create
+                          Flambda_arity.create
                             [Flambda_kind.With_subkind.from_lambda layout]
                       }
                     in
@@ -1395,9 +1426,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
   | Lsequence (lam1, lam2) ->
     let k acc env ccenv _value = cps acc env ccenv lam2 k k_exn in
     cps_non_tail_simple acc env ccenv lam1 k k_exn
-  | Lwhile
-      { wh_cond = cond; wh_body = body; wh_cond_region = _; wh_body_region = _ }
-    ->
+  | Lwhile { wh_cond = cond; wh_body = body } ->
     (* CR-someday mshinwell: make use of wh_cond_region / wh_body_region? *)
     let env, loop = rec_catch_for_while_loop env cond body in
     cps acc env ccenv loop k k_exn
@@ -1406,8 +1435,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         for_from = start;
         for_to = stop;
         for_dir = dir;
-        for_body = body;
-        for_region = _
+        for_body = body
       } ->
     let env, loop = rec_catch_for_for_loop env ident start stop dir body in
     cps acc env ccenv loop k k_exn
@@ -1439,6 +1467,13 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
   | Lregion (body, _) when not (Flambda_features.stack_allocation_enabled ()) ->
     cps acc env ccenv body k k_exn
+  | Lexclave body ->
+    let region = Env.current_region env in
+    CC.close_let acc ccenv (Ident.create_local "unit")
+      Not_user_visible Flambda_kind.With_subkind.tagged_immediate
+      (End_region region) ~body:(fun acc ccenv ->
+        let env = Env.leaving_region env in
+        cps acc env ccenv body k k_exn)
   | Lregion (body, layout) ->
     (* Here we need to build the region closure continuation (see long comment
        above). Since we're not in tail position, we also need to have a new
@@ -1528,7 +1563,7 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               mode = ap_mode;
               region = Env.current_region env;
               return_arity =
-                Flambda_arity.With_subkinds.create
+                Flambda_arity.create
                   [Flambda_kind.With_subkind.from_lambda ap_return]
             }
           in
@@ -1666,8 +1701,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       params
   in
   let return =
-    Flambda_arity.With_subkinds.create
-      [Flambda_kind.With_subkind.from_lambda return]
+    Flambda_arity.create [Flambda_kind.With_subkind.from_lambda return]
   in
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
     ~return ~return_continuation:body_cont ~exn_continuation ~my_region ~body
@@ -1730,7 +1764,8 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
         | Lmutvar _ | Lapply _ | Lfunction _ | Llet _ | Lmutlet _ | Lletrec _
         | Lprim _ | Lswitch _ | Lstringswitch _ | Lstaticraise _
         | Lstaticcatch _ | Ltrywith _ | Lifthenelse _ | Lsequence _ | Lwhile _
-        | Lfor _ | Lassign _ | Lsend _ | Levent _ | Lifused _ | Lregion _ ->
+        | Lfor _ | Lassign _ | Lsend _ | Levent _ | Lifused _ | Lregion _
+        | Lexclave _ ->
           (* The continuations created here (and for failactions) are local. The
              bodies of the let_conts will not modify mutable variables. Hence,
              it is safe to exclude them from passing along the extra arguments

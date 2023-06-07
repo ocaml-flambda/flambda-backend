@@ -24,6 +24,9 @@
 (** Asttypes exposes basic definitions shared both by Parsetree and Types. *)
 open Asttypes
 
+(** Layouts contains support for type layouts *)
+open Layouts
+
 (** Type expressions for the core language.
 
     The [type_desc] variant defines all the possible type expressions one can
@@ -61,8 +64,8 @@ type row_field
 type field_kind
 type commutable
 
-type type_desc =
-  | Tvar of string option
+and type_desc =
+  | Tvar of { name : string option; layout : layout }
   (** [Tvar (Some "a")] ==> ['a] or ['_a]
       [Tvar None]       ==> [_] *)
 
@@ -121,7 +124,7 @@ type type_desc =
   | Tvariant of row_desc
   (** Representation of polymorphic variants, see [row_desc]. *)
 
-  | Tunivar of string option
+  | Tunivar of { name : string option; layout : layout }
   (** Occurrence of a type variable introduced by a
       forall quantifier / [Tpoly]. *)
 
@@ -384,15 +387,7 @@ module Vars  : Map.S with type key = string
 
 (* Value descriptions *)
 
-type value_description =
-  { val_type: type_expr;                (* Type of the value *)
-    val_kind: value_kind;
-    val_loc: Location.t;
-    val_attributes: Parsetree.attributes;
-    val_uid: Uid.t;
-  }
-
-and value_kind =
+type value_kind =
     Val_reg                             (* Regular value *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
@@ -483,6 +478,19 @@ type type_declaration =
   { type_params: type_expr list;
     type_arity: int;
     type_kind: type_decl_kind;
+
+    type_layout: layout;
+    (* for an abstract decl kind or for [@@unboxed] types: this is the stored
+       layout for the type; expansion might find a type with a more precise
+       layout. See PR#10017 for motivating examples where subsitution or
+       instantiation may refine the immediacy of a type.
+
+       for other decl kinds: this is a cached layout, computed from the
+       decl kind. EXCEPTION: if a type's layout is refined by a gadt equation,
+       the layout stored here might be a sublayout of the layout that would
+       be computed from the decl kind. This happens in
+       Ctype.add_layout_equation. *)
+
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -500,27 +508,43 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract of {immediate : Type_immediacy.t}
+    Type_abstract
   | Type_record of 'lbl list  * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
-(* In the case of abbreviations (declarations whose kind is [Type_abstract] and
-   which have a manifest), the [immediate] field of [Type_abstract] is a
-   conservative approximation (it may be [Unknown] when the type is actually
-   immediate).  It is therefore necessary to check the manifest.  See PR#10017
-   for motivating examples where subsitution or instantiation may refine the
-   immediacy of a type.  *)
+
+(* CR layouts: after removing the void translation from lambda, we could get rid of
+   this src_index / runtime_tag distinction.  But I am leaving it in because it
+   may not be long before we need it again.
+
+   In particular, lambda will need to do something about computing offsets for
+   block projections when not everything is one word wide, whether that's
+   because of void or because of other layouts.  One option is to change these
+   projections to be more abstract and pass the layout information to other
+   stages of the compiler, as is currently done for unboxed projection
+   operations, but at the moment our plan is to do this math in lambda in the
+   case of normal projections from boxes. *)
+and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
+                       runtime_tag: int}    (* The runtime tag *)
+        | Extension of Path.t * layout array
 
 and record_representation =
-    Record_regular                      (* All fields are boxed / tagged *)
-  | Record_float                        (* All fields are floats *)
-  | Record_unboxed of bool    (* Unboxed single-field record, inlined or not *)
-  | Record_inlined of int               (* Inlined record *)
-  | Record_extension of Path.t          (* Inlined record under extension *)
+  | Record_unboxed
+  | Record_inlined of tag * variant_representation
+  (* For an inlined record, we record the representation of the variant that
+     contains it and the tag of the relevant constructor of that variant. *)
+  | Record_boxed of layout array
+  | Record_float (* All fields are floats *)
 
+
+(* For unboxed variants, we record the layout of the mandatory single argument.
+   For boxed variants, we record the layouts for the arguments of each
+   constructor.  For boxed inlined records, this is just a length 1 array with
+   the layout of the record itself, not the layouts of each field.  *)
 and variant_representation =
-    Variant_regular          (* Constant or boxed constructors *)
-  | Variant_unboxed          (* One unboxed single-field constructor *)
+  | Variant_unboxed
+  | Variant_boxed of layout array array
+  | Variant_extensible
 
 and global_flag =
   | Global
@@ -533,6 +557,7 @@ and label_declaration =
     ld_mutable: mutable_flag;
     ld_global: global_flag;
     ld_type: type_expr;
+    ld_layout : layout;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -552,8 +577,6 @@ and constructor_arguments =
   | Cstr_tuple of (type_expr * global_flag) list
   | Cstr_record of label_declaration list
 
-(* The kind of an abstract type declaration with an unknown immediacy *)
-val kind_abstract : ('a,'b) type_kind
 val decl_is_abstract : type_declaration -> bool
 
 (* Returns the inner type, if unboxed. *)
@@ -564,6 +587,8 @@ type extension_constructor =
     ext_type_path: Path.t;
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
+    ext_arg_layouts: layout array;
+    ext_constant: bool;
     ext_ret_type: type_expr option;
     ext_private: private_flag;
     ext_loc: Location.t;
@@ -610,23 +635,49 @@ type visibility =
   | Exported
   | Hidden
 
-type module_type =
+type rec_status =
+    Trec_not                   (* first in a nonrecursive group *)
+  | Trec_first                 (* first in a recursive group *)
+  | Trec_next                  (* not first in a recursive/nonrecursive group *)
+
+type ext_status =
+    Text_first                     (* first constructor in an extension *)
+  | Text_next                      (* not first constructor in an extension *)
+  | Text_exception
+
+type module_presence =
+  | Mp_present
+  | Mp_absent
+
+(* Wrap.t encapsulates bits of module types which can be lazy *)
+module type Wrap = sig
+  type 'a t
+end
+
+module type Wrapped = sig
+  type 'a wrapped
+
+  type value_description =
+    { val_type: type_expr wrapped;                (* Type of the value *)
+      val_kind: value_kind;
+      val_loc: Location.t;
+      val_attributes: Parsetree.attributes;
+      val_uid: Uid.t;
+    }
+
+  type module_type =
     Mty_ident of Path.t
   | Mty_signature of signature
   | Mty_functor of functor_parameter * module_type
   | Mty_alias of Path.t
 
-and functor_parameter =
+  and functor_parameter =
   | Unit
   | Named of Ident.t option * module_type
 
-and module_presence =
-  | Mp_present
-  | Mp_absent
+  and signature = signature_item list wrapped
 
-and signature = signature_item list
-
-and signature_item =
+  and signature_item =
     Sig_value of Ident.t * value_description * visibility
   | Sig_type of Ident.t * type_declaration * rec_status * visibility
   | Sig_typext of Ident.t * extension_constructor * ext_status * visibility
@@ -636,7 +687,7 @@ and signature_item =
   | Sig_class of Ident.t * class_declaration * rec_status * visibility
   | Sig_class_type of Ident.t * class_type_declaration * rec_status * visibility
 
-and module_declaration =
+  and module_declaration =
   {
     md_type: module_type;
     md_attributes: Parsetree.attributes;
@@ -644,25 +695,38 @@ and module_declaration =
     md_uid: Uid.t;
   }
 
-and modtype_declaration =
+  and modtype_declaration =
   {
     mtd_type: module_type option;  (* None: abstract *)
     mtd_attributes: Parsetree.attributes;
     mtd_loc: Location.t;
     mtd_uid: Uid.t;
   }
+end
 
-and rec_status =
-    Trec_not                   (* first in a nonrecursive group *)
-  | Trec_first                 (* first in a recursive group *)
-  | Trec_next                  (* not first in a recursive/nonrecursive group *)
+module Make_wrapped(Wrap : Wrap) : Wrapped with type 'a wrapped = 'a Wrap.t
 
-and ext_status =
-    Text_first                     (* first constructor in an extension *)
-  | Text_next                      (* not first constructor in an extension *)
-  | Text_exception
+module Map_wrapped(From : Wrapped)(To : Wrapped) : sig
+  type mapper =
+    {
+      map_signature: mapper -> From.signature -> To.signature;
+      map_type_expr: mapper -> type_expr From.wrapped -> type_expr To.wrapped
+    }
 
-val item_visibility : signature_item -> visibility
+  val value_description :
+    mapper -> From.value_description -> To.value_description
+  val module_declaration :
+    mapper -> From.module_declaration -> To.module_declaration
+  val modtype_declaration :
+    mapper -> From.modtype_declaration -> To.modtype_declaration
+  val module_type : mapper -> From.module_type -> To.module_type
+  val signature : mapper -> From.signature -> To.signature
+  val signature_item : mapper -> From.signature_item -> To.signature_item
+  val functor_parameter :
+    mapper -> From.functor_parameter -> To.functor_parameter
+end
+
+include Wrapped with type 'a wrapped = 'a
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)
@@ -672,8 +736,11 @@ type constructor_description =
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
     cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
+    cstr_arg_layouts: layout array;     (* Layouts of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
-    cstr_tag: constructor_tag;          (* Tag for heap blocks *)
+    cstr_tag: tag;                      (* Tag for heap blocks *)
+    cstr_repr: variant_representation;  (* Repr of the outer variant *)
+    cstr_constant: bool;                (* True if all args are void *)
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)
     cstr_generalized: bool;             (* Constrained return type? *)
@@ -681,22 +748,24 @@ type constructor_description =
     cstr_loc: Location.t;
     cstr_attributes: Parsetree.attributes;
     cstr_inlined: type_declaration option;
+      (* [Some decl] here iff the cstr has an inline record (which is decl) *)
     cstr_uid: Uid.t;
    }
 
-and constructor_tag =
-    Cstr_constant of int                (* Constant constructor (an int) *)
-  | Cstr_block of int                   (* Regular constructor (a block) *)
-  | Cstr_unboxed                        (* Constructor of an unboxed type *)
-  | Cstr_extension of Path.t * bool     (* Extension constructor
-                                           true if a constant false if a block*)
-
 (* Constructors are the same *)
-val equal_tag :  constructor_tag -> constructor_tag -> bool
+val equal_tag :  tag -> tag -> bool
 
 (* Constructors may be the same, given potential rebinding *)
 val may_equal_constr :
     constructor_description ->  constructor_description -> bool
+
+(* Equality *)
+
+val equal_record_representation :
+  record_representation -> record_representation -> bool
+
+val equal_variant_representation :
+  variant_representation -> variant_representation -> bool
 
 type label_description =
   { lbl_name: string;                   (* Short name *)
@@ -704,14 +773,24 @@ type label_description =
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
     lbl_global: global_flag;        (* Is this a nonlocal field? *)
+    lbl_layout : layout;                (* Layout of the argument *)
     lbl_pos: int;                       (* Position in block *)
+    lbl_num: int;                       (* Position in the type *)
     lbl_all: label_description array;   (* All the labels in this type *)
-    lbl_repres: record_representation;  (* Representation for this record *)
+    lbl_repres: record_representation;  (* Representation for outer record *)
     lbl_private: private_flag;          (* Read-only field? *)
     lbl_loc: Location.t;
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;
   }
+
+(** The special value we assign to lbl_pos for label descriptions corresponding
+    to void types, because they can't sensibly be projected.
+
+    CR layouts v5: This should be removed once we have unarization, as it
+    will be up to a later stage of the compiler to erase void.
+*)
+val lbl_pos_void : int
 
 (** Extracts the list of "value" identifiers bound by a signature.
     "Value" identifiers are identifiers for signature components that
@@ -749,12 +828,16 @@ val undo_compress: snapshot -> unit
  *)
 
 val link_type: type_expr -> type_expr -> unit
-        (* Set the desc field of [t1] to [Tlink t2], logging the old
-           value if there is an active snapshot *)
+        (* Set the desc field of [t1] to [Tlink t2], logging the old value if
+           there is an active snapshot.  Any layout information in [t1]'s desc
+           is thrown away without checking - calls to this in unification should
+           first check that [t2]'s layout is a sublayout of [t1]. *)
 val set_type_desc: type_expr -> type_desc -> unit
         (* Set directly the desc field, without sharing *)
 val set_level: type_expr -> int -> unit
 val set_scope: type_expr -> int -> unit
+val set_var_layout: type_expr -> layout -> unit
+        (* May only be called on Tvars *)
 val set_name:
     (Path.t * type_expr list) option ref ->
     (Path.t * type_expr list) option -> unit

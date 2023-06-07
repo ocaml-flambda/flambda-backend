@@ -178,15 +178,11 @@ let print_bigarray name unsafe kind ppf layout =
      | Pbigarray_c_layout -> "C"
      | Pbigarray_fortran_layout -> "Fortran")
 
-let record_rep ppf r =
-  match r with
-  | Record_regular -> fprintf ppf "regular"
-  | Record_inlined i -> fprintf ppf "inlined(%i)" i
-  | Record_unboxed false -> fprintf ppf "unboxed"
-  | Record_unboxed true -> fprintf ppf "inlined(unboxed)"
+let record_rep ppf r = match r with
+  | Record_unboxed -> fprintf ppf "unboxed"
+  | Record_boxed _ -> fprintf ppf "boxed"
+  | Record_inlined _ -> fprintf ppf "inlined"
   | Record_float -> fprintf ppf "float"
-  | Record_extension path -> fprintf ppf "ext(%a)" Printtyp.path path
-;;
 
 let block_shape ppf shape = match shape with
   | None | Some [] -> ()
@@ -576,12 +572,17 @@ let name_of_primitive = function
 
 let check_attribute ppf check =
   let check_property = function
-    | Noalloc -> "noalloc"
+    | Zero_alloc -> "zero_alloc"
   in
   match check with
   | Default_check -> ()
-  | Assert p -> fprintf ppf "assert %s@ " (check_property p)
-  | Assume p -> fprintf ppf "assume %s@ " (check_property p)
+  | Ignore_assert_all p ->
+    fprintf ppf "ignore assert all %s@ " (check_property p)
+  | Check {property=p; assume; strict; loc = _} ->
+    fprintf ppf "%s %s%s@ "
+      (if assume then "assume" else "assert")
+      (check_property p)
+      (if strict then " strict" else "")
 
 let function_attribute ppf t =
   if t.is_a_functor then
@@ -783,17 +784,14 @@ let rec lam ppf = function
       fprintf ppf "@[<2>(if@ %a@ %a@ %a)@]" lam lcond lam lif lam lelse
   | Lsequence(l1, l2) ->
       fprintf ppf "@[<2>(seq@ %a@ %a)@]" lam l1 sequence l2
-  | Lwhile {wh_cond; wh_cond_region; wh_body; wh_body_region} ->
-      let cond_mode = if wh_cond_region then alloc_heap else alloc_local in
-      let body_mode = if wh_body_region then alloc_heap else alloc_local in
-      fprintf ppf "@[<2>(while@ %s %a@ %s %a)@]"
-        (alloc_mode cond_mode) lam wh_cond (alloc_mode body_mode) lam wh_body
-  | Lfor {for_id; for_from; for_to; for_dir; for_body; for_region} ->
-      let mode = if for_region then alloc_heap else alloc_local in
-      fprintf ppf "@[<2>(for %a@ %a@ %s@ %a@ %s %a)@]"
+  | Lwhile {wh_cond; wh_body} ->
+      fprintf ppf "@[<2>(while@ %a@ %a)@]"
+        lam wh_cond lam wh_body
+  | Lfor {for_id; for_from; for_to; for_dir; for_body} ->
+      fprintf ppf "@[<2>(for %a@ %a@ %s@ %a@ %a)@]"
        Ident.print for_id lam for_from
        (match for_dir with Upto -> "to" | Downto -> "downto")
-       lam for_to (alloc_mode mode) lam for_body
+       lam for_to lam for_body
   | Lassign(id, expr) ->
       fprintf ppf "@[<2>(assign@ %a@ %a)@]" Ident.print id lam expr
   | Lsend (k, met, obj, largs, pos, reg, _, _) ->
@@ -833,6 +831,8 @@ let rec lam ppf = function
       fprintf ppf "@[<2>(ifused@ %a@ %a)@]" Ident.print id lam expr
   | Lregion (expr, _) ->
       fprintf ppf "@[<2>(region@ %a)@]" lam expr
+  | Lexclave expr ->
+      fprintf ppf "@[<2>(exclave@ %a)@]" lam expr
 
 and sequence ppf = function
   | Lsequence(l1, l2) ->

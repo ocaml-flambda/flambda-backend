@@ -51,7 +51,8 @@ let print_graph ~print ~print_name ~lazy_ppf ~graph =
 (* analysis *)
 
 let analyze ?(speculative = false) ?print_name ~return_continuation
-    ~exn_continuation ~code_age_relation ~used_value_slots t : T.Flow_result.t =
+    ~exn_continuation ~code_age_relation ~used_value_slots
+    ~code_ids_to_never_delete t : T.Flow_result.t =
   Profile.record_call ~accumulate:true "data_flow" (fun () ->
       if Flambda_features.dump_flow ()
       then Format.eprintf "PRESOURCE:@\n%a@\n@." T.Acc.print t;
@@ -69,7 +70,7 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
       (* dependency graph *)
       let deps =
         Data_flow_graph.create map ~return_continuation ~exn_continuation
-          ~code_age_relation ~used_value_slots
+          ~code_age_relation ~used_value_slots ~code_ids_to_never_delete
       in
       if Flambda_features.dump_flow ()
       then Format.eprintf "/// graph@\n%a@\n@." Data_flow_graph.print deps;

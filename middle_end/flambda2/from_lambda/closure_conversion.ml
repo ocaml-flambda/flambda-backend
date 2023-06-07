@@ -35,7 +35,10 @@ module VB = Bound_var
 type 'a close_program_metadata =
   | Normal : [`Normal] close_program_metadata
   | Classic :
-      (Exported_code.t * Flambda_cmx_format.t option * Exported_offsets.t)
+      (Exported_code.t
+      * Name_occurrences.t
+      * Flambda_cmx_format.t option
+      * Exported_offsets.t)
       -> [`Classic] close_program_metadata
 
 type 'a close_program_result = Flambda_unit.t * 'a close_program_metadata
@@ -81,9 +84,6 @@ let register_const acc constant name : Acc.t * Field_of_static_block.t * string
     =
   let acc, symbol = register_const0 acc constant name in
   acc, Symbol symbol, name
-
-let register_const_string acc str =
-  register_const0 acc (Static_const.immutable_string str) "string"
 
 let rec declare_const acc (const : Lambda.structured_constant) :
     Acc.t * Field_of_static_block.t * string =
@@ -238,8 +238,7 @@ module Inlining = struct
     | Some (Closure_approximation { code; _ }) ->
       let metadata = Code_or_metadata.code_metadata code in
       let fun_params_length =
-        Code_metadata.params_arity metadata
-        |> Flambda_arity.With_subkinds.to_arity |> Flambda_arity.length
+        Code_metadata.params_arity metadata |> Flambda_arity.cardinal
       in
       if (not (Code_or_metadata.code_present code))
          || fun_params_length > List.length (Apply_expr.args apply)
@@ -257,7 +256,7 @@ module Inlining = struct
           | Never_inlined ->
             ( Call_site_inlining_decision_type.Never_inlined_attribute,
               Not_inlinable )
-          | Always_inlined | Hint_inlined ->
+          | Always_inlined _ | Hint_inlined ->
             Call_site_inlining_decision_type.Attribute_always, Inlinable code
           | Default_inlined | Unroll _ ->
             (* Closure ignores completely [@unrolled] attributes, so it seems
@@ -440,11 +439,12 @@ let close_c_call acc env ~loc ~let_bound_var
   in
   let param_arity =
     List.map kind_of_primitive_native_repr prim_native_repr_args
-    |> Flambda_arity.create |> Flambda_arity.With_subkinds.of_arity
+    |> List.map K.With_subkind.anything
+    |> Flambda_arity.create
   in
   let return_kind = kind_of_primitive_native_repr prim_native_repr_res in
   let return_arity =
-    Flambda_arity.create [return_kind] |> Flambda_arity.With_subkinds.of_arity
+    Flambda_arity.create [K.With_subkind.anything return_kind]
   in
   let call_kind =
     Call_kind.c_call ~alloc:prim_alloc ~is_c_builtin:prim_c_builtin
@@ -503,7 +503,7 @@ let close_c_call acc env ~loc ~let_bound_var
           exn_continuation ~args ~args_arity:param_arity ~return_arity
           ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Inlining_state.default ~round:0)
-          ~probe_name:None ~position:Normal
+          ~probe:None ~position:Normal
           ~relative_history:(Env.relative_history_from_scoped ~loc env)
           ~region:current_region
       in
@@ -711,9 +711,8 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     k acc (Some (Named.create_simple (Simple.symbol sym)))
   | prim, args ->
     Lambda_to_flambda_primitives.convert_and_bind acc exn_continuation
-      ~big_endian:(Env.big_endian env)
-      ~register_const_string:(fun acc -> register_const_string acc)
-      prim ~args dbg ~current_region k
+      ~big_endian:(Env.big_endian env) ~register_const0 prim ~args dbg
+      ~current_region k
 
 let close_trap_action_opt trap_action =
   Option.map
@@ -739,10 +738,8 @@ let close_named acc env ~let_bound_var (named : IR.named)
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Unary (Tag_immediate, Prim (Unary (Get_tag, Simple named)))
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
-      ~register_const_string:(fun acc -> register_const_string acc)
-      prim Debuginfo.none
-      (fun acc named -> k acc (Some named))
+    Lambda_to_flambda_primitives_helpers.bind_rec acc None ~register_const0 prim
+      Debuginfo.none (fun acc named -> k acc (Some named))
   | Begin_region { try_region_parent } ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       match try_region_parent with
@@ -751,19 +748,15 @@ let close_named acc env ~let_bound_var (named : IR.named)
         let try_region_parent = find_simple_from_id env try_region_parent in
         Unary (Begin_try_region, Simple try_region_parent)
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
-      ~register_const_string:(fun acc -> register_const_string acc)
-      prim Debuginfo.none
-      (fun acc named -> k acc (Some named))
+    Lambda_to_flambda_primitives_helpers.bind_rec acc None ~register_const0 prim
+      Debuginfo.none (fun acc named -> k acc (Some named))
   | End_region id ->
     let named = find_simple_from_id env id in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Unary (End_region, Simple named)
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
-      ~register_const_string:(fun acc -> register_const_string acc)
-      prim Debuginfo.none
-      (fun acc named -> k acc (Some named))
+    Lambda_to_flambda_primitives_helpers.bind_rec acc None ~register_const0 prim
+      Debuginfo.none (fun acc named -> k acc (Some named))
   | Prim { prim; args; loc; exn_continuation; region } ->
     close_primitive acc env ~let_bound_var named prim ~args loc exn_continuation
       ~current_region:(fst (Env.find_var env region))
@@ -1053,17 +1046,6 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
     Let_cont_with_acc.build_recursive acc
       ~invariant_params:Bound_parameters.empty ~handlers ~body
 
-let warn_not_inlined_if_needed (apply : IR.apply) reason =
-  let warn kind =
-    Location.prerr_warning
-      (Debuginfo.Scoped_location.to_location apply.loc)
-      (Warnings.Inlining_impossible (reason kind))
-  in
-  match apply.inlined with
-  | Hint_inlined | Never_inlined | Default_inlined -> ()
-  | Always_inlined -> warn Inlining_helpers.Inlined
-  | Unroll _ -> warn Inlining_helpers.Unrolled
-
 let close_exact_or_unknown_apply acc env
     ({ kind;
        func;
@@ -1077,7 +1059,7 @@ let close_exact_or_unknown_apply acc env
        region_close;
        region;
        return_arity
-     } as ir_apply :
+     } :
       IR.apply) callee_approx ~replace_region : Expr_with_acc.t =
   let callee = find_simple_from_id env func in
   let current_region =
@@ -1121,9 +1103,7 @@ let close_exact_or_unknown_apply acc env
   let acc, args_with_arity = find_simples_and_arity acc env args in
   let args, args_arity = List.split args_with_arity in
   let inlined_call = Inlined_attribute.from_lambda inlined in
-  let probe_name =
-    match probe with None -> None | Some { name } -> Some name
-  in
+  let probe = Probe.from_lambda probe in
   let position =
     match region_close with
     | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
@@ -1132,12 +1112,12 @@ let close_exact_or_unknown_apply acc env
   let apply =
     Apply.create ~callee ~continuation:(Return continuation)
       apply_exn_continuation ~args
-      ~args_arity:(Flambda_arity.With_subkinds.create args_arity)
+      ~args_arity:(Flambda_arity.create args_arity)
       ~return_arity ~call_kind
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
-      ~probe_name ~position
+      ~probe ~position
       ~relative_history:(Env.relative_history_from_scoped ~loc env)
       ~region:current_region
   in
@@ -1145,8 +1125,11 @@ let close_exact_or_unknown_apply acc env
   then
     match Inlining.inlinable env apply callee_approx with
     | Not_inlinable ->
-      warn_not_inlined_if_needed ir_apply (fun _ ->
-          "Function information unavailable");
+      let apply =
+        Apply.with_inlined_attribute apply
+          (Inlined_attribute.with_use_info (Apply.inlined apply)
+             Unused_because_function_unknown)
+      in
       Expr_with_acc.create_apply acc apply
     | Inlinable func_desc ->
       let acc = Acc.mark_continuation_as_untrackable continuation acc in
@@ -1536,7 +1519,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
          (Exn_continuation.exn_handler exn_continuation)
   in
   let closure_info, acc = Acc.pop_closure_info acc in
-  let params_arity = Bound_parameters.arity_with_subkinds params in
+  let params_arity = Bound_parameters.arity params in
   let is_tupled =
     match Function_decl.kind decl with Curried _ -> false | Tupled -> true
   in
@@ -1640,17 +1623,20 @@ let close_functions acc external_env ~current_region function_declarations =
         Ident.Map.add id function_slot map)
       Ident.Map.empty func_decl_list
   in
-  let function_code_ids =
-    List.fold_left
-      (fun map decl ->
+  let function_code_ids_in_order =
+    List.map
+      (fun decl ->
         let function_slot = Function_decl.function_slot decl in
         let code_id =
           Code_id.create
             ~name:(Function_slot.to_string function_slot)
             compilation_unit
         in
-        Function_slot.Map.add function_slot code_id map)
-      Function_slot.Map.empty func_decl_list
+        function_slot, code_id)
+      func_decl_list
+  in
+  let function_code_ids =
+    Function_slot.Map.of_list function_code_ids_in_order
   in
   let approx_map =
     List.fold_left
@@ -1665,8 +1651,7 @@ let close_functions acc external_env ~current_region function_declarations =
         let code_id = Function_slot.Map.find function_slot function_code_ids in
         let params = Function_decl.params decl in
         let params_arity =
-          List.map (fun (_, kind) -> kind) params
-          |> Flambda_arity.With_subkinds.create
+          List.map (fun (_, kind) -> kind) params |> Flambda_arity.create
         in
         let result_arity = Function_decl.return decl in
         let poll_attribute =
@@ -1776,16 +1761,7 @@ let close_functions acc external_env ~current_region function_declarations =
       func_decl_list
   in
   let acc = Acc.with_free_names Name_occurrences.empty acc in
-  (* CR lmaurer: funs has arbitrary order (ultimately coming from
-     function_declarations) *)
-  let funs =
-    let funs =
-      Function_slot.Map.fold
-        (fun cid code_id funs -> (cid, code_id) :: funs)
-        function_code_ids []
-    in
-    Function_slot.Lmap.of_list (List.rev funs)
-  in
+  let funs = function_code_ids_in_order |> Function_slot.Lmap.of_list in
   let function_decls = Function_declarations.create funs in
   let value_slots =
     Ident.Map.fold
@@ -1993,7 +1969,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       (fun n kind_with_subkind ->
         ( Ident.create_local ("param" ^ string_of_int (num_provided + n)),
           kind_with_subkind ))
-      (Flambda_arity.With_subkinds.to_list missing_arity)
+      (Flambda_arity.to_list missing_arity)
   in
   let return_continuation = Continuation.create ~sort:Return () in
   let exn_continuation =
@@ -2040,7 +2016,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   in
   let closure_alloc_mode, num_trailing_local_params =
     let num_leading_heap_params =
-      Flambda_arity.With_subkinds.cardinal arity - num_trailing_local_params
+      Flambda_arity.cardinal arity - num_trailing_local_params
     in
     if num_provided <= num_leading_heap_params
     then Lambda.alloc_heap, num_trailing_local_params
@@ -2103,9 +2079,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
     in
     let inlined = Inlined_attribute.from_lambda apply.inlined in
     (* Keeping the inlining attributes matches the behaviour of simplify *)
-    let probe_name =
-      match apply.probe with None -> None | Some { name } -> Some name
-    in
+    let probe = Probe.from_lambda apply.probe in
     let position =
       match apply.region_close with
       | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
@@ -2125,7 +2099,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         apply_exn_continuation ~args:remaining ~args_arity:remaining_arity
         ~return_arity:apply.return_arity ~call_kind apply_dbg ~inlined
         ~inlining_state:(Inlining_state.default ~round:0)
-        ~probe_name ~position
+        ~probe ~position
         ~relative_history:(Env.relative_history_from_scoped ~loc:apply.loc env)
         ~region:apply_region
     in
@@ -2136,7 +2110,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         List.mapi
           (fun i kind ->
             BP.create (Variable.create ("result" ^ string_of_int i)) kind)
-          (Flambda_arity.With_subkinds.to_list apply.return_arity)
+          (Flambda_arity.to_list apply.return_arity)
       in
       let handler acc =
         let acc, call_return_continuation =
@@ -2179,12 +2153,12 @@ type call_args_split =
   | Exact of IR.simple list
   | Partial_app of
       { provided : IR.simple list;
-        missing_arity : Flambda_arity.With_subkinds.t
+        missing_arity : Flambda_arity.t
       }
   | Over_app of
       { full : IR.simple list;
         remaining : IR.simple list;
-        remaining_arity : Flambda_arity.With_subkinds.t
+        remaining_arity : Flambda_arity.t
       }
 
 let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
@@ -2219,7 +2193,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
     let acc, args_with_arities = find_simples_and_arity acc env apply.args in
     let args_arity = List.map snd args_with_arities in
     let split_args =
-      let arity = Flambda_arity.With_subkinds.to_list arity in
+      let arity = Flambda_arity.to_list arity in
       let split args arity =
         let rec cut n l =
           if n <= 0
@@ -2240,7 +2214,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           let _provided_arity, missing_arity = cut args_l arity in
           Partial_app
             { provided = args;
-              missing_arity = Flambda_arity.With_subkinds.create missing_arity
+              missing_arity = Flambda_arity.create missing_arity
             }
         else
           let full, remaining = cut arity_l args in
@@ -2248,8 +2222,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           Over_app
             { full;
               remaining;
-              remaining_arity =
-                Flambda_arity.With_subkinds.create remaining_arity
+              remaining_arity = Flambda_arity.create remaining_arity
             }
       in
       let arity =
@@ -2265,8 +2238,14 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         { apply with args; continuation = apply.continuation }
         (Some approx) ~replace_region:None
     | Partial_app { provided; missing_arity } ->
-      warn_not_inlined_if_needed apply
-        Inlining_helpers.inlined_attribute_on_partial_application_msg;
+      (match apply.inlined with
+      | Always_inlined | Unroll _ ->
+        Location.prerr_warning
+          (Debuginfo.Scoped_location.to_location apply.loc)
+          (Warnings.Inlining_impossible
+             Inlining_helpers.(
+               inlined_attribute_on_partial_application_msg Inlined))
+      | Never_inlined | Hint_inlined | Default_inlined -> ());
       wrap_partial_application acc env apply.continuation apply approx ~provided
         ~missing_arity ~arity ~num_trailing_local_params
         ~contains_no_escaping_local_allocs
@@ -2283,8 +2262,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
             continuation = apply_continuation;
             mode;
             return_arity =
-              Flambda_arity.With_subkinds.create
-                [Flambda_kind.With_subkind.any_value]
+              Flambda_arity.create [Flambda_kind.With_subkind.any_value]
           }
           (Some approx) ~replace_region:(Some region)
       in
@@ -2304,7 +2282,7 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
       n
   in
   let group_to_bound_consts, symbol_to_groups =
-    Code_id.Map.fold
+    Code_id.Lmap.fold
       (fun code_id code (g2c, s2g) ->
         let id = fresh_group_id () in
         let bound = Bound_static.Pattern.code code_id in
@@ -2356,23 +2334,26 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
       group_to_bound_consts
   in
   let components = SCC.connected_components_sorted_from_roots_to_leaf graph in
+  (* Empirically, our SCC seems to perform a stable sort, so this assumes that
+     [components] preserves the original order as much as possible. *)
   Array.fold_left
     (fun (acc, body) (component : SCC.component) ->
       let group_ids =
         match component with
         | No_loop group_id -> [group_id]
-        | Has_loop group_ids -> group_ids
+        | Has_loop group_ids -> List.sort Int.compare group_ids
       in
       let bound_static, static_consts =
-        List.fold_left
-          (fun (bound_static, static_consts) group_id ->
+        List.map
+          (fun group_id ->
             let bound_symbol, static_const =
               try GroupMap.find group_id group_to_bound_consts
               with Not_found ->
                 Misc.fatal_errorf "Unbound static consts group ID %d" group_id
             in
-            bound_symbol :: bound_static, static_const :: static_consts)
-          ([], []) group_ids
+            bound_symbol, static_const)
+          group_ids
+        |> List.split
       in
       let defining_expr =
         Static_const_group.create static_consts |> Named.create_static_consts
@@ -2549,7 +2530,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
   then
     Misc.fatal_error "Information on nested closures should be empty at the end";
   let get_code_metadata code_id =
-    Code_id.Map.find code_id (Acc.code acc) |> Code.code_metadata
+    Code_id.Map.find code_id (Acc.code_map acc) |> Code.code_metadata
   in
   match mode with
   | Normal ->
@@ -2563,7 +2544,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
     unit, Normal
   | Classic ->
     let all_code =
-      Exported_code.add_code (Acc.code acc)
+      Exported_code.add_code (Acc.code_map acc)
         ~keep_code:(fun _ -> false)
         (Exported_code.mark_as_imported
            (Flambda_cmx.get_imported_code cmx_loader ()))
@@ -2583,7 +2564,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
       Slot_offsets.finalize_offsets (Acc.slot_offsets acc) ~get_code_metadata
         ~used_slots
     in
-    let cmx =
+    let reachable_names, cmx =
       Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations
         ~module_symbol ~exported_offsets ~used_value_slots all_code
     in
@@ -2592,4 +2573,4 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
         ~toplevel_my_region ~body ~module_symbol
         ~used_value_slots:(Known used_value_slots)
     in
-    unit, Classic (all_code, cmx, exported_offsets)
+    unit, Classic (all_code, reachable_names, cmx, exported_offsets)

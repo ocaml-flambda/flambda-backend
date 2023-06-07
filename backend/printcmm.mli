@@ -17,6 +17,7 @@
 
 open Format
 
+val symbol : formatter -> Cmm.symbol -> unit
 val rec_flag : formatter -> Cmm.rec_flag -> unit
 val machtype_component : formatter -> Cmm.machtype_component -> unit
 val machtype : formatter -> Cmm.machtype -> unit
@@ -34,4 +35,5 @@ val fundecl : formatter -> Cmm.fundecl -> unit
 val data : formatter -> Cmm.data_item list -> unit
 val phrase : formatter -> Cmm.phrase -> unit
 val temporal_locality : Cmm.prefetch_temporal_locality_hint -> string
+val property_to_string : Cmm.property -> string
 val print_codegen_options : formatter -> Cmm.codegen_option list -> unit

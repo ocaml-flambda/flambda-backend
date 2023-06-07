@@ -406,7 +406,7 @@ let free_names_head_of_kind_naked_immediate t =
   free_names_head_of_kind_naked_immediate0 ~follow_value_slots:true t
 
 let rec apply_renaming t renaming =
-  if Renaming.is_empty renaming
+  if Renaming.is_identity renaming
   then t
   else
     match t with

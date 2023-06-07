@@ -95,6 +95,7 @@ type token =
   | FLOAT of (string * char option)
   | FALSE
   | EXTERNAL
+  | EXCLAVE
   | EXCEPTION
   | EQUAL
   | EOL

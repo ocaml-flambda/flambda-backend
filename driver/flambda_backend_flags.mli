@@ -18,6 +18,9 @@ val use_ocamlcfg : bool ref
 val dump_cfg : bool ref
 val cfg_invariants : bool ref
 val cfg_equivalence_check : bool ref
+val regalloc : string ref
+val regalloc_params : string list ref
+val regalloc_validate : bool ref
 
 val reorder_blocks_random : int option ref
 val basic_block_sections : bool ref
@@ -26,8 +29,9 @@ val dasm_comments : bool ref
 
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
-val alloc_check : bool ref
 val dump_checkmach : bool ref
+val checkmach_details_cutoff : int ref
+val default_checkmach_details_cutoff : int
 
 val disable_poll_insertion : bool ref
 val allow_long_frames : bool ref

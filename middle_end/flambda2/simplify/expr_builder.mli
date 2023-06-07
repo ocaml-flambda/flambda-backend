@@ -34,6 +34,12 @@ val create_let_binding :
   cost_metrics_of_defining_expr:Cost_metrics.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
+type binding_to_place =
+  { let_bound : Bound_pattern.t;
+    simplified_defining_expr : Simplified_named.t;
+    original_defining_expr : Named.t option
+  }
+
 (** Create [Let] binding(s) around a given body. (The type of this function
     prevents it from being used to create "let symbol" bindings; use the other
     functions in this module instead.) Bindings will be elided if they are
@@ -43,7 +49,7 @@ val create_let_binding :
     names of the [body]. *)
 val make_new_let_bindings :
   Upwards_acc.t ->
-  bindings_outermost_first:Simplify_named_result.binding_to_place list ->
+  bindings_outermost_first:binding_to_place list ->
   body:Rebuilt_expr.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
@@ -127,13 +133,13 @@ val rewrite_switch_arm :
   Upwards_acc.t ->
   Apply_cont.t ->
   use_id:Apply_cont_rewrite_id.t ->
-  Flambda_arity.With_subkinds.t ->
+  Flambda_arity.t ->
   rewrite_switch_arm_result
 
 val rewrite_fixed_arity_apply :
   Upwards_acc.t ->
   use_id:Apply_cont_rewrite_id.t ->
-  Flambda_arity.With_subkinds.t ->
+  Flambda_arity.t ->
   Apply.t ->
   Upwards_acc.t * Rebuilt_expr.t
 

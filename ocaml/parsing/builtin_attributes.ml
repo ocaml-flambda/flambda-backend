@@ -36,16 +36,31 @@ let attr_order a1 a2 =
   | 0 -> Int.compare a1.loc.loc_start.pos_lnum a2.loc.loc_start.pos_lnum
   | n -> n
 
+let unchecked_properties = Attribute_table.create 1
+let mark_property_checked txt loc =
+  Attribute_table.remove unchecked_properties { txt; loc }
+let register_property attr =
+    Attribute_table.replace unchecked_properties attr ()
+let warn_unchecked_property () =
+  let keys = List.of_seq (Attribute_table.to_seq_keys unchecked_properties) in
+  let keys = List.sort attr_order keys in
+  List.iter (fun sloc ->
+    Location.prerr_warning sloc.loc (Warnings.Unchecked_property_attribute sloc.txt))
+    keys
+
 let warn_unused () =
   (* When using -i, attributes will not have been translated, so we can't
      warn about missing ones. *)
   if !Clflags.print_types then ()
   else
+  begin
+    warn_unchecked_property ();
     let keys = List.of_seq (Attribute_table.to_seq_keys unused_attrs) in
     let keys = List.sort attr_order keys in
     List.iter (fun sloc ->
       Location.prerr_warning sloc.loc (Warnings.Misplaced_attribute sloc.txt))
       keys
+  end
 
 (* These are the attributes that are tracked in the builtin_attrs table for
    misplaced attribute warnings.  Explicitly excluded is [deprecated_mutable],
@@ -67,6 +82,9 @@ let builtin_attrs =
   ; "warn_on_literal_pattern"; "ocaml.warn_on_literal_pattern"
   ; "immediate"; "ocaml.immediate"
   ; "immediate64"; "ocaml.immediate64"
+  ; "void"; "ocaml.void"
+  ; "value"; "ocaml.value"
+  ; "any"; "ocaml.any"
   ; "boxed"; "ocaml.boxed"
   ; "unboxed"; "ocaml.unboxed"
   ; "principal"; "ocaml.principal"
@@ -82,20 +100,50 @@ let builtin_attrs =
   ; "local"; "ocaml.local"; "extension.local"
   ; "nontail"; "ocaml.nontail"; "extension.nontail"
   ; "tail"; "ocaml.tail"; "extension.tail"
-  ; "include_functor"; "ocaml.include_functor"; "extension.include_functor"
   ; "noalloc"; "ocaml.noalloc"
+  ; "zero_alloc"; "ocaml.zero_alloc"
   ; "untagged"; "ocaml.untagged"
   ; "poll"; "ocaml.poll"
   ; "loop"; "ocaml.loop"
   ; "tail_mod_cons"; "ocaml.tail_mod_cons"
   ]
 
-let builtin_attrs =
-  let tbl = Hashtbl.create 128 in
-  List.iter (fun attr -> Hashtbl.add tbl attr ()) builtin_attrs;
-  tbl
+(* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't
+   upstream the "jane" prefix.
+     - Internally, we use "jane.*" to encode our changes to the parsetree,
+       and our compiler should not drop these attributes.
+     - Upstream, ppxes may produce attributes with the "jane.*" prefix.
+       The upstream compiler does not use these attributes. We want it to be
+       able to drop these attributes without a warning.
 
-let is_builtin_attr s = Hashtbl.mem builtin_attrs s
+   It's an error for an upstream ppx to create an attribute that corresponds to
+   a *non-erasable* Jane language extension, like list comprehensions, which
+   should never reach the upstream compiler. So, we distinguish that in the
+   attribute prefix: upstream ppxlib will error out if it sees a ppx creating a
+   "jane.non_erasable" attribute and be happy to accept a "jane.erasable"
+   attribute. Meanwhile, an internal patched version of ppxlib will be happy for
+   a ppx to produce either of these attributes.
+*)
+let builtin_attr_prefixes =
+  [ "jane"
+  ]
+
+let is_builtin_attr =
+  let builtin_attrs =
+    let tbl = Hashtbl.create 128 in
+    List.iter
+      (fun attr -> Hashtbl.add tbl attr ())
+      (builtin_attr_prefixes @ builtin_attrs);
+    tbl
+  in
+  let builtin_attr_prefixes_with_trailing_dot =
+    List.map (fun x -> x ^ ".") builtin_attr_prefixes
+  in
+  fun s ->
+    Hashtbl.mem builtin_attrs s
+    || List.exists
+        (fun prefix -> String.starts_with ~prefix s)
+        builtin_attr_prefixes_with_trailing_dot
 
 type attr_tracking_time = Parser | Invariant_check
 
@@ -403,9 +451,37 @@ let warn_on_literal_pattern attrs =
 let explicit_arity attrs =
   has_attribute ["ocaml.explicit_arity"; "explicit_arity"] attrs
 
-let immediate attrs = has_attribute ["ocaml.immediate"; "immediate"] attrs
-
-let immediate64 attrs = has_attribute ["ocaml.immediate64"; "immediate64"] attrs
+let layout ~legacy_immediate attrs =
+  let layout =
+    List.find_map
+      (fun a ->
+         match a.attr_name.txt with
+         | "ocaml.void"|"void" -> Some (a, Void)
+         | "ocaml.value"|"value" -> Some (a, Value)
+         | "ocaml.any"|"any" -> Some (a, Any)
+         | "ocaml.immediate"|"immediate" -> Some (a, Immediate)
+         | "ocaml.immediate64"|"immediate64" -> Some (a, Immediate64)
+         | _ -> None
+        ) attrs
+  in
+  match layout with
+  | None -> Ok None
+  | Some (a, l) ->
+     mark_used a.attr_name;
+     let l_loc = Location.mkloc l a.attr_loc in
+     let check b =
+       if b
+       then Ok (Some l_loc)
+       else Error l_loc
+     in
+     match l with
+     | Value -> check true
+     | Immediate | Immediate64 ->
+        check  (legacy_immediate
+             || Language_extension.(   is_enabled (Layouts Beta)
+                                    || is_enabled (Layouts Alpha)))
+     | Any | Void ->
+        check (Language_extension.is_enabled (Layouts Alpha))
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
    attributes cannot be input by the user, they are added by the
@@ -432,6 +508,14 @@ let parse_int_payload attr =
   | None ->
     warn_payload attr.attr_loc attr.attr_name.txt
       "A constant payload of type int was expected";
+    None
+
+let parse_ident_payload attr =
+  match ident_of_payload attr.attr_payload with
+  | Some i -> Some i
+  | None ->
+    warn_payload attr.attr_loc attr.attr_name.txt
+      "A constant payload of type ident was expected";
     None
 
 let clflags_attribute_without_payload attr ~name clflags_ref =
@@ -489,6 +573,22 @@ let inline_attribute attr =
         Clflags.Float_arg_helper.parse s err_msg Clflags.inline_threshold
       | None -> warn_payload attr.attr_loc attr.attr_name.txt err_msg)
 
+let parse_attribute_with_ident_payload attr ~name ~f =
+  when_attribute_is [name; "ocaml." ^ name] attr ~f:(fun () ->
+    match parse_ident_payload attr with
+    | Some i -> f i
+    | None -> ())
+
+let zero_alloc_attribute (attr : Parsetree.attribute)  =
+  parse_attribute_with_ident_payload attr
+    ~name:"zero_alloc" ~f:(function
+      | "check" -> Clflags.zero_alloc_check := true
+      | "all" ->
+        Clflags.zero_alloc_check_assert_all := true
+      | _ ->
+        warn_payload attr.attr_loc attr.attr_name.txt
+          "Only 'check' and 'all' are supported")
+
 let afl_inst_ratio_attribute attr =
   clflags_attribute_with_int_payload attr
     ~name:"afl_inst_ratio" Clflags.afl_inst_ratio
@@ -507,7 +607,8 @@ let parse_standard_implementation_attributes attr =
   inline_attribute attr;
   afl_inst_ratio_attribute attr;
   flambda_o3_attribute attr;
-  flambda_oclassic_attribute attr
+  flambda_oclassic_attribute attr;
+  zero_alloc_attribute attr
 
 let has_local_opt attrs =
   has_attribute ["ocaml.local_opt"; "local_opt"] attrs
@@ -554,12 +655,3 @@ let tailcall attr =
           (Warnings.Attribute_payload
              (t.attr_name.txt, "Only 'hint' is supported"));
         Ok (Some `Tail_if_possible)
-
-let has_include_functor attr =
-  if has_attribute ["extension.include_functor"] attr then
-    if not (Language_extension.is_enabled Include_functor) then
-      Error ()
-    else
-      Ok true
-  else
-    Ok false

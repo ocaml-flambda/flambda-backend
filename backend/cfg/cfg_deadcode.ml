@@ -1,6 +1,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Cfg_regalloc_utils
+open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let live_before : type a. a Cfg.instruction -> liveness -> Reg.Set.t =

@@ -1,5 +1,6 @@
                   startup: OK
             function call: OK
+     cleanup upon exclave: OK
         exn function call: OK
  during indirect tailcall: OK
   after indirect tailcall: OK
@@ -25,3 +26,4 @@
  static/partial overapply: OK
 dynamic/partial overapply: OK
          method overapply: OK
+      mode-crossed region: OK

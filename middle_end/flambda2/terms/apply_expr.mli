@@ -51,13 +51,13 @@ val create :
   continuation:Result_continuation.t ->
   Exn_continuation.t ->
   args:Simple.t list ->
-  args_arity:Flambda_arity.With_subkinds.t ->
-  return_arity:Flambda_arity.With_subkinds.t ->
+  args_arity:Flambda_arity.t ->
+  return_arity:Flambda_arity.t ->
   call_kind:Call_kind.t ->
   Debuginfo.t ->
   inlined:Inlined_attribute.t ->
   inlining_state:Inlining_state.t ->
-  probe_name:string option ->
+  probe:Probe.t ->
   position:Position.t ->
   relative_history:Inlining_history.Relative.t ->
   region:Variable.t ->
@@ -77,10 +77,10 @@ val callee : t -> Simple.t
 val args : t -> Simple.t list
 
 (** The arity of the arguments being applied. *)
-val args_arity : t -> Flambda_arity.With_subkinds.t
+val args_arity : t -> Flambda_arity.t
 
 (** The arity of the result(s) of the application. *)
-val return_arity : t -> Flambda_arity.With_subkinds.t
+val return_arity : t -> Flambda_arity.t
 
 (** Information about what kind of call is involved (direct function call,
     method call, etc). *)
@@ -110,8 +110,7 @@ val with_continuations : t -> Result_continuation.t -> Exn_continuation.t -> t
 val with_exn_continuation : t -> Exn_continuation.t -> t
 
 (** Change the arguments of an application *)
-val with_args :
-  t -> Simple.t list -> args_arity:Flambda_arity.With_subkinds.t -> t
+val with_args : t -> Simple.t list -> args_arity:Flambda_arity.t -> t
 
 (** Change the call kind of an application. *)
 val with_call_kind : t -> Call_kind.t -> t
@@ -120,7 +119,7 @@ val inlining_state : t -> Inlining_state.t
 
 val inlining_arguments : t -> Inlining_arguments.t
 
-val probe_name : t -> string option
+val probe : t -> Probe.t
 
 val relative_history : t -> Inlining_history.Relative.t
 
@@ -130,3 +129,5 @@ val returns : t -> bool
 
 (** The local allocation region for this application. *)
 val region : t -> Variable.t
+
+val with_inlined_attribute : t -> Inlined_attribute.t -> t

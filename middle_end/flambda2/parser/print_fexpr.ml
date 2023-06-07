@@ -163,12 +163,14 @@ and variant_subkind ppf consts non_consts =
       | _ :: _, _ :: _ -> Format.fprintf ppf "@ | "
     in
     let pp_pair ppf (tag, sk) =
-      Format.fprintf ppf "@[<hov 2>%d of %a@]" tag (pp_star_list subkind) sk
+      Format.fprintf ppf "@[<hov 2>%d of %a@]" tag
+        (pp_star_list kind_with_subkind)
+        sk
     in
     pp_pipe_list pp_pair ppf non_consts;
     Format.fprintf ppf "@ ]@]"
 
-let kind_with_subkind ppf (k : kind_with_subkind) =
+and kind_with_subkind ppf (k : kind_with_subkind) =
   let str s = Format.pp_print_string ppf s in
   match k with
   | Naked_number nnk -> naked_number_kind ppf nnk
@@ -264,10 +266,6 @@ let simple_args ~space ~omit_if_empty ppf = function
   | [] when omit_if_empty -> ()
   | args -> pp_spaced ~space ppf "(@[<hv>%a@])" (pp_comma_list simple) args
 
-let name ppf : name -> unit = function
-  | Symbol s -> symbol ppf s
-  | Var v -> variable ppf v
-
 let mutability ~space ppf mut =
   let str =
     match mut with
@@ -301,10 +299,8 @@ let alloc_mode_for_types_opt ppf (alloc : alloc_mode_for_types) ~space =
 let init_or_assign ppf ia =
   match ia with
   | Initialization -> Format.pp_print_string ppf "="
-  | Assignment alloc ->
-    Format.fprintf ppf "@[<h><-%a@]"
-      (alloc_mode_for_allocations_opt ~space:Before)
-      alloc
+  | Assignment Heap -> Format.pp_print_string ppf "<-"
+  | Assignment Local -> Format.pp_print_string ppf "<-&"
 
 let boxed_variable ppf var ~kind =
   Format.fprintf ppf "%a : %s boxed" variable var kind
@@ -486,6 +482,10 @@ let binop ppf binop a b =
       (standard_int ~space:After)
       i simple a int_shift_op s simple b
 
+let unary_int_arith_op ppf (o : unary_int_arith_op) =
+  Format.pp_print_string ppf
+  @@ match o with Neg -> "~-" | Swap_byte_endianness -> "bswap"
+
 let unop ppf u =
   let str s = Format.pp_print_string ppf s in
   let box_or_unbox verb_not_imm (bk : box_kind) =
@@ -496,14 +496,19 @@ let unop ppf u =
     | Naked_int64 -> print verb_not_imm "int64"
     | Naked_nativeint -> print verb_not_imm "nativeint"
   in
-  match u with
+  match (u : unop) with
   | Array_length -> str "%array_length"
   | Begin_try_region -> str "%begin_try_region"
+  | Boolean_not -> str "%not"
   | Box_number (bk, alloc) ->
     box_or_unbox "Box" bk;
     alloc_mode_for_allocations_opt ppf alloc ~space:Before
   | End_region -> str "%end_region"
   | Get_tag -> str "%get_tag"
+  | Int_arith (i, o) ->
+    Format.fprintf ppf "@[<2>%%int_arith %a%a@]"
+      (standard_int ~space:After)
+      i unary_int_arith_op o
   | Is_flat_float_array -> str "%is_flat_float_array"
   | Is_int -> str "%is_int"
   | Num_conv { src; dst } ->
@@ -531,6 +536,12 @@ let ternop ppf t a1 a2 a3 =
   | Block_set (bk, ia) ->
     Format.fprintf ppf "@[<2>%%block_set%a@ %a.(%a)@ %a %a@]" block_access_kind
       bk simple a1 simple a2 init_or_assign ia simple a3
+  | Bytes_or_bigstring_set (blv, saw) ->
+    let prim =
+      match blv with Bytes -> "%bytes_set" | Bigstring -> "%bigstring_set"
+    in
+    Format.fprintf ppf "@[<2>%s@ %a %a.(%a) %a@]" prim string_accessor_width saw
+      simple a1 simple a2 simple a3
 
 let prim ppf = function
   | Nullary n -> nullop ppf n
@@ -634,7 +645,7 @@ let inline_attribute ~space ppf (i : Inline_attribute.t) =
 let inline_attribute_opt ~space ppf i =
   pp_option ~space (inline_attribute ~space:Neither) ppf i
 
-let inlined_attribute ~space ppf (i : Inlined_attribute.t) =
+let inlined_attribute ~space ppf (i : Fexpr.inlined_attribute) =
   let str =
     match i with
     | Always_inlined -> Some "inlined(always)"
@@ -670,10 +681,10 @@ let or_blank f ppf ob =
 
 let func_name_with_optional_arities ppf (n, arities) =
   match arities with
-  | None -> name ppf n
+  | None -> simple ppf n
   | Some { params_arity; ret_arity } ->
-    Format.fprintf ppf "@[<2>(%a :@ %a ->@ %a@,)@]" name n (or_blank arity)
-      params_arity arity ret_arity
+    Format.fprintf ppf "@[<1>(%a@ : @[%a ->@ %a@]@,)@]" simple n
+      (or_blank arity) params_arity arity ret_arity
 
 type scope =
   | Outer

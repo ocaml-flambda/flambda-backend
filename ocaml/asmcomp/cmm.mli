@@ -171,11 +171,12 @@ and operation =
   | Copaque (* Sys.opaque_identity *)
   | Cbeginregion | Cendregion
 
-type value_kind =
-  | Vval of Lambda.value_kind (* Valid OCaml values *)
-  | Vint (* Untagged integers and off-heap pointers *)
-  | Vaddr (* Derived pointers *)
-  | Vfloat (* Unboxed floating-point numbers *)
+(* This is information used exclusively during construction of cmm terms by
+   cmmgen, and thus irrelevant for selectgen. *)
+type kind_for_unboxing =
+  | Any (* This may contain anything, including non-scannable things *)
+  | Boxed_integer of Lambda.boxed_integer
+  | Boxed_float
 
 (** Every basic block should have a corresponding [Debuginfo.t] for its
     beginning. *)
@@ -196,20 +197,20 @@ type expression =
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
   | Cifthenelse of expression * Debuginfo.t * expression
-      * Debuginfo.t * expression * Debuginfo.t * value_kind
+      * Debuginfo.t * expression * Debuginfo.t * kind_for_unboxing
   | Cswitch of expression * int array * (expression * Debuginfo.t) array
-      * Debuginfo.t * value_kind
+      * Debuginfo.t * kind_for_unboxing
   | Ccatch of
       rec_flag
         * (int * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t) list
         * expression
-        * value_kind
+        * kind_for_unboxing
   | Cexit of int * expression list
   | Ctrywith of expression * Backend_var.With_provenance.t * expression
-      * Debuginfo.t * value_kind
+      * Debuginfo.t * kind_for_unboxing
   | Cregion of expression
-  | Ctail of expression
+  | Cexclave of expression
 
 type codegen_option =
   | Reduce_code_size
@@ -244,7 +245,7 @@ type phrase =
 
 val ccatch :
      int * (Backend_var.With_provenance.t * machtype) list
-       * expression * expression * Debuginfo.t * value_kind
+       * expression * expression * Debuginfo.t * kind_for_unboxing
   -> expression
 
 val reset : unit -> unit
@@ -258,12 +259,12 @@ val iter_shallow_tail: (expression -> unit) -> expression -> bool
       considered to be in tail position (because their result become
       the final result for the expression).  *)
 
-val map_shallow_tail: ?kind:value_kind -> (expression -> expression) -> expression -> expression
+val map_shallow_tail: ?kind:kind_for_unboxing -> (expression -> expression) -> expression -> expression
   (** Apply the transformation to those immediate sub-expressions of an
       expression that are in tail position, using the same definition of "tail"
       as [iter_shallow_tail] *)
 
-val map_tail: ?kind:value_kind -> (expression -> expression) -> expression -> expression
+val map_tail: ?kind:kind_for_unboxing -> (expression -> expression) -> expression -> expression
   (** Apply the transformation to an expression, trying to push it
       to all inner sub-expressions that can produce the final result,
       by recursively applying map_shallow_tail *)

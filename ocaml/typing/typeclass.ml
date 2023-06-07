@@ -16,6 +16,7 @@
 open Parsetree
 open Asttypes
 open Path
+open Layouts
 open Types
 open Typecore
 open Typetexp
@@ -108,6 +109,7 @@ type error =
   | Duplicate of string * string
   | Closing_self_type of class_signature
   | Polymorphic_class_parameter
+  | Non_value_binding of string * Layout.Violation.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -303,6 +305,13 @@ let rec class_type_field env sign self_scope ctf =
         (fun () ->
           let cty = transl_simple_type env ~closed:false Global sty in
           let ty = cty.ctyp_type in
+          begin match
+            Ctype.constrain_type_layout
+              env ty (Layout.value ~why:Instance_variable)
+          with
+          | Ok _ -> ()
+          | Error err -> raise (Error(loc, env, Non_value_binding(lab, err)))
+          end;
           add_instance_variable ~strict:false loc env lab mut virt ty sign;
           Tctf_val (lab, mut, virt, cty))
 
@@ -312,7 +321,9 @@ let rec class_type_field env sign self_scope ctf =
            let sty = Ast_helper.Typ.force_poly sty in
            match sty.ptyp_desc, priv with
            | Ptyp_poly ([],sty'), Public ->
-               let expected_ty = Ctype.newvar () in
+               let expected_ty =
+                 Ctype.newvar (Layout.value ~why:Object_field)
+               in
                add_method loc env lab priv virt expected_ty sign;
                let returned_cty = ctyp Ttyp_any (Ctype.newty Tnil) env loc in
                delayed_meth_specs :=
@@ -657,6 +668,15 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
              Ctype.end_def ();
              Ctype.generalize_structure ty
            end;
+           begin
+             match
+               Ctype.constrain_type_layout
+                 val_env ty (Layout.value ~why:Class_field)
+             with
+             | Ok _ -> ()
+             | Error err -> raise (Error(label.loc, val_env,
+                                         Non_value_binding(label.txt, err)))
+           end;
            add_instance_variable ~strict:true loc val_env
              label.txt mut Virtual ty sign;
            let already_declared, val_env, par_env, id, vars =
@@ -696,6 +716,16 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
            if !Clflags.principal then begin
              Ctype.end_def ();
              Ctype.generalize_structure definition.exp_type
+           end;
+           begin
+             match
+               Ctype.constrain_type_layout
+                 val_env definition.exp_type
+                 (Layout.value ~why:Class_field)
+             with
+             | Ok _ -> ()
+             | Error err -> raise (Error(label.loc, val_env,
+                                         Non_value_binding(label.txt, err)))
            end;
            add_instance_variable ~strict:true loc val_env
              label.txt mut Concrete definition.exp_type sign;
@@ -761,7 +791,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
            in
            let ty =
              match sty with
-             | None -> Ctype.newvar ()
+             | None -> Ctype.newvar (Layout.value ~why:Object_field)
              | Some sty ->
                  let sty = Ast_helper.Typ.force_poly sty in
                  let cty' =
@@ -774,7 +804,9 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
              try
                match get_desc ty with
                | Tvar _ ->
-                   let ty' = Ctype.newvar () in
+                   let ty' =
+                     Ctype.newvar (Layout.value ~why:Object_field)
+                   in
                    Ctype.unify val_env (Ctype.newmono ty') ty;
                    type_approx val_env sbody ty'
                | Tpoly (ty1, tl) ->
@@ -972,7 +1004,7 @@ and class_structure cl_num virt self_scope final val_env met_env loc
   let par_env = met_env in
 
   (* Location of self. Used for locations of self arguments *)
-  let self_loc = {spat.ppat_loc with Location.loc_ghost = true} in
+  let self_loc = Location.ghostify spat.ppat_loc in
 
   let sign = Ctype.new_class_signature () in
 
@@ -1171,7 +1203,9 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
           begin fun (id, id', _ty) ->
             let path = Pident id' in
             (* do not mark the value as being used *)
-            let vd = Env.find_value path val_env' in
+            let vd = Env.find_value path val_env'
+              |> Subst.Lazy.force_value_description
+            in
             (id,
              {exp_desc =
               Texp_ident(path, mknoloc (Longident.Lident (Ident.name id)), vd,
@@ -1190,7 +1224,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       let partial =
         let dummy = type_exp val_env (Ast_helper.Exp.unreachable ()) in
-        Typecore.check_partial Modules_rejected val_env pat.pat_type pat.pat_loc
+        Typecore.check_partial val_env pat.pat_type pat.pat_loc
           [{c_lhs = pat; c_guard = None; c_rhs = dummy}]
       in
       let val_env' = Env.add_lock Alloc_mode.global val_env' in
@@ -1327,14 +1361,24 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
         Typecore.type_let In_class_def val_env rec_flag sdefs in
       let (vals, met_env) =
         List.fold_right
-          (fun (id, modes) (vals, met_env) ->
+          (fun (id, modes_and_sorts) (vals, met_env) ->
              List.iter
-               (fun (loc, mode) ->
-                  Typecore.escape ~loc ~env:val_env ~reason:Other mode)
-               modes;
+               (fun (loc, mode, sort) ->
+                  Typecore.escape ~loc ~env:val_env ~reason:Other mode;
+                  if not (Sort.equate sort Sort.value)
+                  then let viol = Layout.Violation.of_ (Not_a_sublayout(
+                    Layout.of_sort ~why:Let_binding sort,
+                    Layout.value ~why:Class_let_binding))
+                    in
+                    raise (Error(loc, met_env,
+                                 Non_value_binding (Ident.name id, viol)))
+               )
+               modes_and_sorts;
              let path = Pident id in
              (* do not mark the value as used *)
-             let vd = Env.find_value path val_env in
+             let vd = Env.find_value path val_env
+               |> Subst.Lazy.force_value_description
+             in
              Ctype.begin_def ();
              let expr =
                {exp_desc =
@@ -1352,7 +1396,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                {val_type = expr.exp_type; val_kind = Val_ivar (Immutable,
                                                                cl_num);
                 val_attributes = [];
-                Types.val_loc = vd.Types.val_loc;
+                Types.val_loc = vd.val_loc;
                 val_uid = vd.val_uid;
                }
              in
@@ -1360,7 +1404,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
              ((id', expr)
               :: vals,
               Env.add_value id' desc met_env))
-          (let_bound_idents_with_modes defs)
+          (let_bound_idents_with_modes_and_sorts defs)
           ([], met_env)
       in
       let cl = class_expr cl_num val_env met_env virt self_scope scl' in
@@ -1427,14 +1471,17 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
 (* Approximate the type of the constructor to allow recursive use *)
 (* of optional parameters                                         *)
 
-let var_option = Predef.type_option (Btype.newgenvar ())
+let var_option =
+  Predef.type_option (Btype.newgenvar (Layout.value ~why:Type_argument))
 
 let rec approx_declaration cl =
   match cl.pcl_desc with
     Pcl_fun (l, _, _, cl) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar ()
+        else Ctype.newvar (Layout.value ~why:Class_argument)
+        (* CR layouts: use of value here may be relaxed when we update
+           classes to work with layouts *)
       in
       let arg = Ctype.newmono arg in
       let arrow_desc = l, Alloc_mode.global, Alloc_mode.global in
@@ -1444,34 +1491,37 @@ let rec approx_declaration cl =
       approx_declaration cl
   | Pcl_constraint (cl, _) ->
       approx_declaration cl
-  | _ -> Ctype.newvar ()
+  | _ -> Ctype.newvar (Layout.value ~why:Object)
 
 let rec approx_description ct =
   match ct.pcty_desc with
     Pcty_arrow (l, _, ct) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar ()
+        else Ctype.newvar (Layout.value ~why:Class_argument)
+        (* CR layouts: use of value here may be relaxed when we
+           relax layouts in classes *)
       in
       let arg = Ctype.newmono arg in
       let arrow_desc = l, Alloc_mode.global, Alloc_mode.global in
       Ctype.newty
         (Tarrow (arrow_desc, arg, approx_description ct, commu_ok))
-  | _ -> Ctype.newvar ()
+  | _ -> Ctype.newvar (Layout.value ~why:Object)
 
 (*******************************)
 
 let temp_abbrev loc env id arity uid =
   let params = ref [] in
   for _i = 1 to arity do
-    params := Ctype.newvar () :: !params
+    params := Ctype.newvar (Layout.value ~why:Type_argument) :: !params
   done;
-  let ty = Ctype.newobj (Ctype.newvar ()) in
+  let ty = Ctype.newobj (Ctype.newvar (Layout.value ~why:Object)) in
   let env =
     Env.add_type ~check:true id
       {type_params = !params;
        type_arity = arity;
-       type_kind = Types.kind_abstract;
+       type_kind = Type_abstract;
+       type_layout = Layout.value ~why:Object;
        type_private = Public;
        type_manifest = Some ty;
        type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1554,7 +1604,7 @@ let class_infos define_class kind
   let ci_params =
     let make_param (sty, v) =
       try
-          (transl_type_param env sty, v)
+          (transl_type_param env sty (Layout.value ~why:Class_argument), v)
       with Already_bound ->
         raise(Error(sty.ptyp_loc, env, Repeated_parameter))
     in
@@ -1705,7 +1755,8 @@ let class_infos define_class kind
     {
      type_params = obj_params;
      type_arity = arity;
-     type_kind = Types.kind_abstract;
+     type_kind = Type_abstract;
+     type_layout = Layout.value ~why:Object;
      type_private = Public;
      type_manifest = Some obj_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1727,7 +1778,8 @@ let class_infos define_class kind
     {
      type_params = cl_params;
      type_arity = arity;
-     type_kind = Types.kind_abstract;
+     type_kind = Type_abstract;
+     type_layout = Layout.value ~why:Object;
      type_private = Public;
      type_manifest = Some cl_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -2155,6 +2207,10 @@ let report_error env ppf = function
   | Polymorphic_class_parameter ->
       fprintf ppf
         "Class parameters cannot be polymorphic"
+  | Non_value_binding (nm, err) ->
+    fprintf ppf
+      "@[Variables bound in a class must have layout value.@ %a@]"
+      (Layout.Violation.report_with_name ~name:nm) err
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true

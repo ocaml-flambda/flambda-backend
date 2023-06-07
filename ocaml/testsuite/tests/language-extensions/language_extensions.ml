@@ -22,9 +22,11 @@ let report ~name ~text =
 
 let typecheck_with_extension ?(full_name = false) name =
   let success =
-    match Typecore.type_expression Env.empty extension_parsed_expression with
+    match Typecore.type_expression Env.initial_safe_string
+            extension_parsed_expression
+    with
     | _ -> true
-    | exception (Extensions_parsing.Error.Error _) -> false
+    | exception (Jane_syntax_parsing.Error.Error _) -> false
   in
   report
     ~name:(if full_name
@@ -58,19 +60,37 @@ let try_disallowing_extensions name =
 
 type goal = Fail | Succeed
 
+let with_goal goal ~name ~what test = match goal with
+  | Fail    -> should_fail    name      test
+  | Succeed -> should_succeed name what test
+
+let with_two_layouts goal first second ~enabled =
+  let verb ending =
+    "enabl" ^ ending ^ (if enabled then "" else " and disabl" ^ ending)
+  in
+  let comparison, plural =
+    if first = second then "the same", "" else "two different", "s"
+  in
+  let description ending =
+    verb ending ^ " " ^ comparison ^ " layouts extension" ^ plural
+  in
+  Language_extension.with_enabled (Layouts first) (fun () ->
+    with_goal goal
+      ~name:(description "e")
+      ~what:(description "ing")
+      (fun () ->
+         Language_extension.with_set (Layouts second) ~enabled (fun () -> ())))
+
 let when_disallowed goal f_str f =
   let can_or_can't = match goal with
     | Fail    -> "can't"
     | Succeed -> "can"
   in
   let f_code = "[" ^ f_str ^ "]" in
-  let name =
-    can_or_can't ^ " call " ^ f_code ^ " when extensions are disallowed"
-  in
-  let action () = f extension in
-  match goal with
-  | Fail    -> should_fail    name                                   action
-  | Succeed -> should_succeed name ("redundantly calling " ^ f_code) action
+  with_goal goal
+    ~name:(can_or_can't ^ " call " ^ f_code ^ " when extensions are disallowed")
+    ~what:("redundantly calling " ^ f_code)
+    (fun () -> f extension)
 ;;
 
 let lift_with with_fn extension = with_fn extension Fun.id;;
@@ -144,6 +164,14 @@ Language_extension.with_set extension ~enabled:false (fun () ->
 
 Language_extension.with_set extension ~enabled:true (fun () ->
   typecheck_with_extension "disabled locally via [with_set] and also globally");
+
+(* Test that we only allow you to pass one distinct layouts extension flag*)
+
+with_two_layouts Succeed Alpha Alpha ~enabled:false;
+
+with_two_layouts Fail    Alpha Beta  ~enabled:false;
+
+with_two_layouts Fail    Alpha Beta  ~enabled:true;
 
 (* Test disallowing extensions *)
 

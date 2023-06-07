@@ -388,7 +388,7 @@ method is_simple_expr = function
       | Ccmpf _ -> List.for_all self#is_simple_expr args
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
-  | Ctrywith _ | Cregion _ | Ctail _ -> false
+  | Ctrywith _ | Cregion _ | Cexclave _ -> false
 
 (* Analyses the effects and coeffects of an expression.  This is used across
    a whole list of expressions with a view to determining which expressions
@@ -435,7 +435,7 @@ method effects_of exp =
     in
     EC.join from_op (EC.join_list_map args self#effects_of)
   | Cassign _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _
-  | Cregion _ | Ctail _ ->
+  | Cregion _ | Cexclave _ ->
     EC.arbitrary
 
 (* Says whether an integer constant is a suitable immediate argument for
@@ -651,10 +651,10 @@ method insert_move_args env arg loc stacksize =
   self#insert_moves env arg loc
 
 method insert_move_results env loc res stacksize =
+  self#insert_moves env loc res;
   if stacksize <> 0 then begin
     self#insert env (Iop(Istackoffset(-stacksize))) [||] [||]
-  end;
-  self#insert_moves env loc res
+  end
 
 (* Add an Iop opcode. Can be overridden by processor description
    to insert moves before and after the operation, i.e. for two-address
@@ -772,7 +772,7 @@ method emit_expr_aux (env:environment) exp :
         (Cifthenelse (exp,
           dbg, Cconst_int (1, dbg),
           dbg, Cconst_int (0, dbg),
-          dbg, Vint))
+          dbg, Any))
   | Cop(Copaque, args, dbg) ->
       begin match self#emit_parts_list env args with
         None -> None
@@ -797,8 +797,9 @@ method emit_expr_aux (env:environment) exp :
               let rarg = Array.sub r1 1 (Array.length r1 - 1) in
               let rd = self#regs_for ty in
               self#insert_endregions_until env ~suffix:unclosed_regions env.regions;
-              let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv rarg) in
-              let loc_res = Proc.loc_results (Reg.typv rd) in
+              let (loc_arg, stack_ofs_args) = Proc.loc_arguments (Reg.typv rarg) in
+              let (loc_res, stack_ofs_res) = Proc.loc_results_call (Reg.typv rd) in
+              let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
               self#insert_move_args env rarg loc_arg stack_ofs;
               self#insert_debug env (Iop new_op) dbg
                           (Array.append [|r1.(0)|] loc_arg) loc_res;
@@ -808,8 +809,9 @@ method emit_expr_aux (env:environment) exp :
               let r1 = self#emit_tuple env new_args in
               let rd = self#regs_for ty in
               self#insert_endregions_until env ~suffix:unclosed_regions env.regions;
-              let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv r1) in
-              let loc_res = Proc.loc_results (Reg.typv rd) in
+              let (loc_arg, stack_ofs_args) = Proc.loc_arguments (Reg.typv r1) in
+              let (loc_res, stack_ofs_res) = Proc.loc_results_call (Reg.typv rd) in
+              let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
               self#insert_move_args env r1 loc_arg stack_ofs;
               self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
@@ -972,9 +974,9 @@ method emit_expr_aux (env:environment) exp :
         assert (List.length unclosed <= List.length old_regions);
         Some (rd, unclosed)
      end
-  | Ctail e ->
+  | Cexclave e ->
      begin match env.regions with
-     | [] -> Misc.fatal_error "Selectgen.emit_expr: Ctail but not in tail of a region"
+     | [] -> Misc.fatal_error "Selectgen.emit_expr: Cexclave but not in tail of a region"
      | cl :: rest ->
        self#insert_endregions env [cl];
        self#emit_expr_aux { env with regions = rest } e
@@ -1158,7 +1160,7 @@ method private insert_return (env:environment) r =
     None -> ()
   | Some (r, unclosed_regions) ->
       self#insert_endregions env unclosed_regions;
-      let loc = Proc.loc_results (Reg.typv r) in
+      let loc = Proc.loc_results_return (Reg.typv r) in
       self#insert_moves env r loc;
       self#insert env Ireturn loc [||]
 
@@ -1200,17 +1202,18 @@ method emit_tail (env:environment) exp =
           match new_op with
             Icall_ind ->
               let r1 = self#emit_tuple env new_args in
+              let rd = self#regs_for ty in
               let rarg = Array.sub r1 1 (Array.length r1 - 1) in
               self#insert_endregions env env.regions;
-              let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv rarg) in
+              let (loc_arg, stack_ofs_args) = Proc.loc_arguments (Reg.typv rarg) in
+              let (loc_res, stack_ofs_res) = Proc.loc_results_call (Reg.typv rd) in
+              let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
               if stack_ofs = 0 then begin
                 let call = Iop (Itailcall_ind) in
                 self#insert_moves env rarg loc_arg;
                 self#insert_debug env call dbg
                             (Array.append [|r1.(0)|] loc_arg) [||];
               end else begin
-                let rd = self#regs_for ty in
-                let loc_res = Proc.loc_results (Reg.typv rd) in
                 self#insert_move_args env rarg loc_arg stack_ofs;
                 self#insert_debug env (Iop new_op) dbg
                             (Array.append [|r1.(0)|] loc_arg) loc_res;
@@ -1219,8 +1222,11 @@ method emit_tail (env:environment) exp =
               end
           | Icall_imm { func; } ->
               let r1 = self#emit_tuple env new_args in
+              let rd = self#regs_for ty in
               self#insert_endregions env env.regions;
-              let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv r1) in
+              let (loc_arg, stack_ofs_args) = Proc.loc_arguments (Reg.typv r1) in
+              let (loc_res, stack_ofs_res) = Proc.loc_results_call (Reg.typv rd) in
+              let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
               if stack_ofs = 0 then begin
                 let call = Iop (Itailcall_imm { func; }) in
                 self#insert_moves env r1 loc_arg;
@@ -1231,8 +1237,6 @@ method emit_tail (env:environment) exp =
                 self#insert_moves env r1 loc_arg';
                 self#insert_debug env call dbg loc_arg' [||];
               end else begin
-                let rd = self#regs_for ty in
-                let loc_res = Proc.loc_results (Reg.typv rd) in
                 self#insert_move_args env r1 loc_arg stack_ofs;
                 self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
                 self#insert env (Iop(Istackoffset(-stack_ofs))) [||] [||];
@@ -1316,9 +1320,9 @@ method emit_tail (env:environment) exp =
       let reg = self#regs_for typ_int in
       self#insert env (Iop Ibeginregion) [| |] reg;
       self#emit_tail {env with regions = reg::env.regions} e
-  | Ctail e ->
+  | Cexclave e ->
       begin match env.regions with
-      | [] -> Misc.fatal_error "Selectgen.emit_tail: Ctail not inside Cregion"
+      | [] -> Misc.fatal_error "Selectgen.emit_tail: Cexclave not inside Cregion"
       | reg :: regions ->
          self#insert_endregions env [reg];
          self#emit_tail { env with regions } e

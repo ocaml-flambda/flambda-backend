@@ -25,6 +25,16 @@ let () =
   uses_local 42;
   check_empty "function call"
 
+let[@inline never] uses_exclave x =
+  let local_ r = ref x in
+  let _ = opaque_identity r in
+  [%exclave] (
+    check_empty "cleanup upon exclave"
+  )
+let () =
+  uses_exclave 42
+
+
 let[@inline never] uses_local_try x =
   try
     let r = local_ ref x in
@@ -224,5 +234,16 @@ let () =
   check (!obj#local_ret "!" 5);
   check_empty "method overapply"
 
+type t = { x : int } [@@unboxed]
+let[@inline never] create_local () =
+  let local_ _extra = opaque_identity (Some (opaque_identity ())) in
+  local_ { x = opaque_identity 0 }
+let create_and_ignore () =
+  let x = create_local () in
+  ignore (Sys.opaque_identity x : t)
+
+let () =
+  create_and_ignore ();
+  check_empty "mode-crossed region"
 
 let () = Gc.compact ()

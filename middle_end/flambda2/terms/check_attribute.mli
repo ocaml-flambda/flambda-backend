@@ -11,13 +11,18 @@
 (**************************************************************************)
 (** Annotations on function declaration (not call sites) *)
 module Property : sig
-  type t = Noalloc
+  type t = Zero_alloc
 end
 
 type t =
   | Default_check
-  | Assert of Property.t
-  | Assume of Property.t
+  | Ignore_assert_all of Property.t
+  | Check of
+      { property : Property.t;
+        strict : bool;
+        assume : bool;
+        loc : Location.t
+      }
 
 val print : Format.formatter -> t -> unit
 

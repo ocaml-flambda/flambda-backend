@@ -1,0 +1,4 @@
+File "include_functor_disabled_1.ml", line 27, characters 2-20:
+27 |   include functor F1
+       ^^^^^^^^^^^^^^^^^^
+Error: The extension "include_functor" is disabled and cannot be used

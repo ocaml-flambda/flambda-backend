@@ -15,6 +15,7 @@
 
 (* Typing of type definitions and primitive definitions *)
 
+open Layouts
 open Types
 open Format
 
@@ -46,19 +47,26 @@ val transl_with_constraint:
     outer_env:Env.t -> Parsetree.type_declaration ->
     Typedtree.type_declaration
 
-val abstract_type_decl: injective:bool -> int -> type_declaration
+val abstract_type_decl:
+    injective:bool -> layout -> layout list -> type_declaration
 val approx_type_decl:
     Parsetree.type_declaration list ->
                                   (Ident.t * type_declaration) list
 val check_recmod_typedecl:
     Env.t -> Location.t -> Ident.t list -> Path.t -> type_declaration -> unit
+
+(* Returns an updated decl that may include improved layout estimates, but it's
+   sound to throw it away. *)
 val check_coherence:
-    Env.t -> Location.t -> Path.t -> type_declaration -> unit
+    Env.t -> Location.t -> Path.t -> type_declaration -> type_declaration
 
 (* for fixed types *)
 val is_fixed_type : Parsetree.type_declaration -> bool
 
 type native_repr_kind = Unboxed | Untagged
+
+(* Records reason for a layout representability requirement in errors. *)
+type layout_sort_loc = Cstr_tuple | Record
 
 type error =
     Repeated_parameter
@@ -94,7 +102,14 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
-  | Immediacy of Type_immediacy.Violation.t
+  | Layout_coherence_check of type_expr * Layout.Violation.t
+  | Layout_update_check of Path.t * Layout.Violation.t
+  | Layout_sort of
+      { lloc : layout_sort_loc
+      ; typ : type_expr
+      ; err : Layout.Violation.t
+      }
+  | Layout_empty_record
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
@@ -102,6 +117,7 @@ type error =
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
   | Global_and_nonlocal
+  | Layout_not_enabled of Layout.const
 
 exception Error of Location.t * error
 

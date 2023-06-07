@@ -72,7 +72,7 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
   in
   let uacc = UA.notify_removed ~operation:removed_operations uacc in
   let bindings =
-    Simplify_named_result.bindings_to_place_in_any_order simplify_named_result
+    Simplify_named_result.bindings_to_place simplify_named_result
   in
   let uacc, bindings =
     let Flow_types.Mutable_unboxing_result.{ let_rewrites; _ } =
@@ -86,7 +86,7 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
       | _ :: _ :: _ -> assert false
       | [binding] -> (
         match rewrite, binding.original_defining_expr with
-        | Prim_rewrite prim_rewrite, Prim (original_prim, dbg) ->
+        | Prim_rewrite prim_rewrite, Some (Prim (original_prim, dbg)) ->
           let uacc =
             UA.notify_removed
               ~operation:(Removed_operations.prim original_prim)
@@ -118,7 +118,9 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
           in
           uacc, new_bindings
         | ( Prim_rewrite _,
-            (Simple _ | Set_of_closures _ | Static_consts _ | Rec_info _) ) ->
+            ( None
+            | Some (Simple _ | Set_of_closures _ | Static_consts _ | Rec_info _)
+              ) ) ->
           Misc.fatal_errorf "Prim_rewrite applied to a non-prim Named.t"))
   in
   (* Return as quickly as possible if there is nothing to do. In this case, all
@@ -223,7 +225,7 @@ let record_lifted_constant_for_data_flow data_flow lifted_constant =
     ~f:(record_lifted_constant_definition_for_data_flow ~being_defined)
 
 let record_new_defining_expression_binding_for_data_flow dacc ~rewrite_id
-    data_flow (binding : Simplify_named_result.binding_to_place) : Flow.Acc.t =
+    data_flow (binding : Expr_builder.binding_to_place) : Flow.Acc.t =
   let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
   Flow.Acc.record_let_binding ~rewrite_id ~generate_phantom_lets
     ~let_bound:binding.let_bound
@@ -244,7 +246,7 @@ let update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
         ~f:record_lifted_constant_for_data_flow
   in
   ListLabels.fold_left
-    (Simplify_named_result.bindings_to_place_in_any_order simplify_named_result)
+    (Simplify_named_result.bindings_to_place simplify_named_result)
     ~init:data_flow
     ~f:(record_new_defining_expression_binding_for_data_flow dacc ~rewrite_id)
 

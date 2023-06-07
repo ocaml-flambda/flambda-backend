@@ -119,7 +119,8 @@ let structure_item sub {str_desc; str_loc; str_env} =
   let str_env = sub.env sub str_env in
   let str_desc =
     match str_desc with
-    | Tstr_eval (exp, attrs) -> Tstr_eval (sub.expr sub exp, attrs)
+    | Tstr_eval (exp, layout, attrs) ->
+        Tstr_eval (sub.expr sub exp, layout, attrs)
     | Tstr_value (rec_flag, list) ->
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Tstr_value (rec_flag, list)
@@ -313,9 +314,10 @@ let expr sub x =
             list,
           pos, am
         )
-    | Texp_match (exp, cases, p) ->
+    | Texp_match (exp, sort, cases, p) ->
         Texp_match (
           sub.expr sub exp,
+          sort,
           List.map (sub.case sub) cases,
           p
         )
@@ -364,14 +366,16 @@ let expr sub x =
           sub.expr sub exp2,
           Option.map (sub.expr sub) expo
         )
-    | Texp_sequence (exp1, exp2) ->
+    | Texp_sequence (exp1, layout, exp2) ->
         Texp_sequence (
           sub.expr sub exp1,
+          layout,
           sub.expr sub exp2
         )
     | Texp_while wh ->
-        Texp_while { wh with wh_cond = sub.expr sub wh.wh_cond;
-                             wh_body = sub.expr sub wh.wh_body
+        Texp_while { wh_cond = sub.expr sub wh.wh_cond;
+                     wh_body = sub.expr sub wh.wh_body;
+                     wh_body_layout = wh.wh_body_layout
                    }
     | Texp_for tf ->
         Texp_for {tf with for_from = sub.expr sub tf.for_from;
@@ -435,9 +439,11 @@ let expr sub x =
         e
     | Texp_open (od, e) ->
         Texp_open (sub.open_declaration sub od, sub.expr sub e)
-    | Texp_probe {name; handler} ->
-      Texp_probe {name; handler = sub.expr sub handler }
+    | Texp_probe {name; handler; enabled_at_init;} ->
+      Texp_probe {name; handler = sub.expr sub handler; enabled_at_init}
     | Texp_probe_is_enabled _ as e -> e
+    | Texp_exclave exp ->
+        Texp_exclave (sub.expr sub exp)
   in
   {x with exp_extra; exp_desc; exp_env}
 

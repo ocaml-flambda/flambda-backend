@@ -1038,7 +1038,7 @@ let apply_renaming
        code_ids;
        newer_version_of_code_ids
      } as t) renaming =
-  if Renaming.is_empty renaming
+  if Renaming.is_identity renaming
   then t
   else
     let names = For_names.apply_renaming names renaming in

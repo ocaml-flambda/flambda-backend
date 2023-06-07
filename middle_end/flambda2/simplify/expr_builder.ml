@@ -301,22 +301,25 @@ let create_coerced_singleton_let uacc var defining_expr
         generate_outer_binding Name_mode.phantom
       | Nothing_deleted_at_runtime -> generate_outer_binding Name_mode.normal)
 
-let make_new_let_bindings uacc
-    ~(bindings_outermost_first : Simplify_named_result.binding_to_place list)
-    ~body =
+type binding_to_place =
+  { let_bound : Bound_pattern.t;
+    simplified_defining_expr : Simplified_named.t;
+    original_defining_expr : Named.t option
+  }
+
+let make_new_let_bindings uacc ~bindings_outermost_first ~body =
   (* The name occurrences component of [uacc] is expected to be in the state
      described in the comment at the top of [Simplify_let.rebuild_let]. *)
   ListLabels.fold_left (List.rev bindings_outermost_first) ~init:(body, uacc)
     ~f:(fun
          (expr, uacc)
-         ({ let_bound; simplified_defining_expr; original_defining_expr } :
-           Simplify_named_result.binding_to_place)
+         { let_bound; simplified_defining_expr; original_defining_expr }
        ->
-      let ({ named = defining_expr;
-             free_names = free_names_of_defining_expr;
-             cost_metrics = cost_metrics_of_defining_expr
-           }) =
-        (simplified_defining_expr : Simplified_named.t)
+      let { Simplified_named.named = defining_expr;
+            free_names = free_names_of_defining_expr;
+            cost_metrics = cost_metrics_of_defining_expr
+          } =
+        simplified_defining_expr
       in
       let defining_expr = Simplified_named.to_named defining_expr in
       let expr, uacc, creation_result =
@@ -336,12 +339,12 @@ let make_new_let_bindings uacc
         | Nothing_deleted_at_runtime -> uacc
         | Defining_expr_deleted_at_compile_time
         | Defining_expr_deleted_at_runtime -> (
-          match (original_defining_expr : Named.t) with
-          | Prim (prim, _dbg) ->
+          match original_defining_expr with
+          | Some (Prim (prim, _dbg)) ->
             UA.notify_removed ~operation:(Removed_operations.prim prim) uacc
-          | Set_of_closures _ ->
+          | Some (Set_of_closures _) ->
             UA.notify_removed ~operation:Removed_operations.alloc uacc
-          | Simple _ | Static_consts _ | Rec_info _ -> uacc)
+          | Some (Simple _ | Static_consts _ | Rec_info _) | None -> uacc)
       in
       expr, uacc)
 
@@ -517,18 +520,32 @@ let create_let_symbols uacc lifted_constant ~body =
         | None ->
           let prim : P.t =
             let symbol = Simple.symbol (Symbol_projection.symbol proj) in
+            let kind = Symbol_projection.kind proj in
             match Symbol_projection.projection proj with
             | Block_load { index } ->
               let index = Simple.const_int index in
               let block_access_kind : P.Block_access_kind.t =
-                Values
-                  { tag = Known Tag.Scannable.zero;
-                    size = Unknown;
-                    field_kind = Any_value
-                  }
+                match Flambda_kind.With_subkind.kind kind with
+                | Value ->
+                  let field_kind : P.Block_access_field_kind.t =
+                    if Flambda_kind.With_subkind.equal kind
+                         Flambda_kind.With_subkind.tagged_immediate
+                    then Immediate
+                    else Any_value
+                  in
+                  Values { tag = Unknown; size = Unknown; field_kind }
+                | Naked_number Naked_float -> Naked_floats { size = Unknown }
+                | Naked_number
+                    ( Naked_immediate | Naked_nativeint | Naked_int32
+                    | Naked_int64 )
+                | Region | Rec_info ->
+                  Misc.fatal_errorf
+                    "Unexpected kind %a for symbol projection: %a"
+                    Flambda_kind.With_subkind.print kind Symbol_projection.print
+                    proj
               in
               Binary (Block_load (block_access_kind, Immutable), symbol, index)
-            | Project_value_slot { project_from; value_slot; kind } ->
+            | Project_value_slot { project_from; value_slot } ->
               Unary
                 (Project_value_slot { project_from; value_slot; kind }, symbol)
           in
@@ -705,12 +722,8 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
   match UE.find_apply_cont_rewrite uenv original_cont with
   | None -> This_continuation cont
   | Some rewrite when Apply_cont_rewrite.does_nothing rewrite ->
-    let arity = Flambda_arity.With_subkinds.to_arity arity in
-    let arity_in_rewrite =
-      Apply_cont_rewrite.original_params_arity rewrite
-      |> Flambda_arity.With_subkinds.to_arity
-    in
-    if not (Flambda_arity.equal arity arity_in_rewrite)
+    let arity_in_rewrite = Apply_cont_rewrite.original_params_arity rewrite in
+    if not (Flambda_arity.equal_ignoring_subkinds arity arity_in_rewrite)
     then
       Misc.fatal_errorf
         "Arity %a provided to fixed-arity-wrapper addition function does not \
@@ -744,11 +757,9 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
       let params =
         List.map
           (fun _kind -> Variable.create "param")
-          (Flambda_arity.With_subkinds.to_list arity)
+          (Flambda_arity.to_list arity)
       in
-      let params =
-        List.map2 BP.create params (Flambda_arity.With_subkinds.to_list arity)
-      in
+      let params = List.map2 BP.create params (Flambda_arity.to_list arity) in
       let args = List.map BP.simple params in
       let params = Bound_parameters.create params in
       let apply_cont = Apply_cont.create cont ~args ~dbg:Debuginfo.none in

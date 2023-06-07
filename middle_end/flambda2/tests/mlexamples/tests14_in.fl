@@ -1,4 +1,43 @@
-let $camlTests14__first_const57 = Block 0 () in
+let $camlTests14__first_const56 = Block 0 () in
+let code size(5)
+      set_0 (t) my_closure my_region my_depth -> k * k1 : imm tagged =
+  let Psetfield = %block_set imm t.(0) <- 42 in
+  cont k (Psetfield)
+in
+let code size(6)
+      nth_char_1 (s, n : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let prim = %string_load 8 (s, n) in
+  let Pstringrefu = %Tag_imm prim in
+  cont k (Pstringrefu)
+in
+let code size(30)
+      needs_try_region_2 (param : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  (let try_region = %begin_try_region my_region in
+   cont k4 push(k3)
+     where k4 =
+       let Popaque = %Opaque 42 in
+       (cont k4 pop(k3)
+          where k4 =
+            cont k2 (Popaque))
+     where k3 exn (`exn`) =
+       let `unit` = %end_region try_region in
+       let prim = %phys_eq (`exn`, $`*predef*`.caml_exn_Not_found) in
+       let Pintcomp = %Tag_imm prim in
+       ((let untagged = %untag_imm Pintcomp in
+         switch untagged
+           | 0 -> k3
+           | 1 -> k (0))
+          where k3 =
+            cont k1 pop(reraise k1) (`exn`)))
+    where k2 (n : imm tagged) =
+      cont k (1)
+in
 let code size(26)
       gadt_match_3 (x : [ 0 |1 | 0 of imm tagged ], n)
         my_closure my_region my_depth
@@ -19,46 +58,6 @@ let code size(26)
     where k2 =
       let Popaque = %Opaque n in
       cont k (Popaque)
-in
-let code size(6)
-      nth_char_1 (s, n : imm tagged)
-        my_closure my_region my_depth
-        -> k * k1
-        : imm tagged =
-  let prim = %string_load 8 (s, n) in
-  let Pstringrefu = %Tag_imm prim in
-  cont k (Pstringrefu)
-in
-let code size(5)
-      set_0 (t) my_closure my_region my_depth -> k * k1 : imm tagged =
-  let Psetfield = %block_set imm t.(0) <- 42 in
-  cont k (Psetfield)
-in
-let code size(31)
-      needs_try_region_2 (param : imm tagged)
-        my_closure my_region my_depth
-        -> k * k1
-        : imm tagged =
-  (let try_region = %begin_try_region my_region in
-   cont k4 push(k3)
-     where k4 =
-       let Popaque = %Opaque 42 in
-       (cont k4 pop(k3)
-          where k4 =
-            let `unit` = %end_region try_region in
-            cont k2 (Popaque))
-     where k3 exn (`exn`) =
-       let `unit` = %end_region try_region in
-       let prim = %phys_eq (`exn`, $`*predef*`.caml_exn_Not_found) in
-       let Pintcomp = %Tag_imm prim in
-       ((let untagged = %untag_imm Pintcomp in
-         switch untagged
-           | 0 -> k3
-           | 1 -> k (0))
-          where k3 =
-            cont k1 pop(reraise k1) (`exn`)))
-    where k2 (n : imm tagged) =
-      cont k (1)
 in
 (let set = closure set_0 @set in
  let nth_char = closure nth_char_1 @nth_char in

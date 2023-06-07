@@ -71,14 +71,14 @@ let iterator =
       List.iter (fun (id, _) -> simple_longident id) fields
     | _ -> ()
   in
-  let eexpr _self loc (eexp : Extensions.Expression.t) =
-    match eexp with
-    | Eexp_comprehension
+  let jexpr _self loc (jexp : Jane_syntax.Expression.t) =
+    match jexp with
+    | Jexp_comprehension
         ( Cexp_list_comprehension {clauses = []; body = _}
         | Cexp_array_comprehension (_, {clauses = []; body = _}) )
       ->
         empty_comprehension loc
-    | Eexp_comprehension _ | Eexp_immutable_array _ -> ()
+    | Jexp_comprehension _ | Jexp_immutable_array _ -> ()
   in
   let expr self exp =
     begin match exp.pexp_desc with
@@ -89,8 +89,8 @@ let iterator =
         super.expr self exp
     end;
     let loc = exp.pexp_loc in
-    match Extensions.Expression.of_ast exp with
-    | Some eexp -> eexpr self exp.pexp_loc eexp
+    match Jane_syntax.Expression.of_ast exp with
+    | Some (jexp, _attrs) -> jexpr self exp.pexp_loc jexp
     | None ->
     match exp.pexp_desc with
     | Pexp_tuple ([] | [_]) -> invalid_tuple loc

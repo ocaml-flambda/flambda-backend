@@ -32,7 +32,7 @@
 module S = struct
   type func_call_operation =
     | Indirect
-    | Direct of { func_symbol : string }
+    | Direct of Cmm.symbol
 
   type external_call_operation =
     { func_symbol : string;
@@ -51,7 +51,8 @@ module S = struct
     | Checkbound of { immediate : int option }
     | Probe of
         { name : string;
-          handler_code_sym : string
+          handler_code_sym : string;
+          enabled_at_init : bool
         }
 
   type operation =
@@ -60,7 +61,7 @@ module S = struct
     | Reload
     | Const_int of nativeint (* CR-someday xclerc: change to `Targetint.t` *)
     | Const_float of int64
-    | Const_symbol of string
+    | Const_symbol of Cmm.symbol
     | Stackoffset of int
     | Load of Cmm.memory_chunk * Arch.addressing_mode * Mach.mutable_flag
     | Store of Cmm.memory_chunk * Arch.addressing_mode * bool
@@ -141,7 +142,8 @@ module S = struct
       mutable live : Reg.Set.t;
       mutable stack_offset : int;
       id : int;
-      mutable irc_work_list : irc_work_list
+      mutable irc_work_list : irc_work_list;
+      mutable ls_order : int
     }
 
   (* [basic] instruction cannot raise *)

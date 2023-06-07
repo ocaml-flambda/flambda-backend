@@ -178,9 +178,12 @@ let loc_parameters arg =
   in
   loc
 
-let loc_results res =
+let loc_results_call res =
+  calling_conventions 0 15 110 125 outgoing (- size_domainstate_args) res
+
+let loc_results_return res =
   let (loc, _ofs) =
-    calling_conventions 0 15 110 125 not_supported 0 res
+    calling_conventions 0 15 110 125 incoming (- size_domainstate_args) res
   in
   loc
 

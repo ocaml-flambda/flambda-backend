@@ -24,14 +24,18 @@
     - ocaml.explicit_arity (for camlp4/camlp5)
     - ocaml.warn_on_literal_pattern
     - ocaml.deprecated_mutable
-    - ocaml.immediate
-    - ocaml.immediate64
     - ocaml.boxed / ocaml.unboxed
     - ocaml.nolabels
     - ocaml.inline
     - ocaml.afl_inst_ratio
     - ocaml.flambda_o3
     - ocaml.flambda_oclassic
+    - layout attributes:
+      - ocaml.any
+      - ocaml.value
+      - ocaml.void
+      - ocaml.immediate
+      - ocaml.immediate64
 
     {b Warning:} this module is unstable and part of
   {{!Compiler_libs}compiler-libs}.
@@ -65,6 +69,13 @@ val register_attr : attr_tracking_time -> string Location.loc -> unit
     environment. *)
 val mark_alert_used : Parsetree.attribute -> unit
 val mark_alerts_used : Parsetree.attributes -> unit
+
+(** Properties such as the zero_alloc attribute that are checked
+    in late stages of compilation in the backend.
+    Registering them helps detect code that is not checked,
+    because it is optimized away by the middle-end.  *)
+val register_property : string Location.loc -> unit
+val mark_property_checked : string -> Location.t -> unit
 
 (** Marks "warn_on_literal_pattern" attributes used for the purposes of
     misplaced attribute warnings.  Call this when moving things with alert
@@ -144,10 +155,6 @@ val filter_attributes :
 val warn_on_literal_pattern: Parsetree.attributes -> bool
 val explicit_arity: Parsetree.attributes -> bool
 
-
-val immediate: Parsetree.attributes -> bool
-val immediate64: Parsetree.attributes -> bool
-
 val has_unboxed: Parsetree.attributes -> bool
 val has_boxed: Parsetree.attributes -> bool
 
@@ -164,5 +171,33 @@ val has_global: Parsetree.attributes -> (bool,unit) result
 val has_nonlocal: Parsetree.attributes -> (bool,unit) result
 val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
-val has_include_functor : Parsetree.attributes -> (bool,unit) result
 
+(* [layout] gets the layout in the attributes if one is present.  It is the
+   central point at which the layout extension flags are checked.  We always
+   allow the [value] annotation, even if the layouts extensions are disabled.
+   If [~legacy_immediate] is true, we allow [immediate] and [immediate64]
+   attributes even if the layouts extensions are disabled - this is used to
+   support the original immediacy attributes, which are now implemented in terms
+   of layouts.
+
+   The return value is [Error <layout>] if a layout attribute is present but
+   not allowed by the current set of extensions.  Otherwise it is [Ok None] if
+   there is no layout annotation and [Ok (Some layout)] if there is one.
+
+   - If no layout extensions are on and [~legacy_immediate] is false, this will
+     always return [Ok None], [Ok (Some Value)], or [Error ...].
+   - If no layout extensions are on and [~legacy_immediate] is true, this will
+     error on [void] or [any], but allow [immediate], [immediate64], and [value].
+   - If the [Layouts_beta] extension is on, this behaves like the previous case
+     regardless of the value of [~legacy_immediate].
+   - If the [Layouts_alpha] extension is on, this can return any layout and
+     never errors.
+
+   Currently, the [Layouts] extension is ignored - it's no different than
+   turning on no layout extensions.
+*)
+(* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
+   turn on layouts by default). *)
+val layout : legacy_immediate:bool -> Parsetree.attributes ->
+  (Asttypes.const_layout Location.loc option,
+   Asttypes.const_layout Location.loc) result

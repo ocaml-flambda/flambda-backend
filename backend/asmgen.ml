@@ -35,7 +35,7 @@ exception Error of error
 let cmm_invariants ppf fd_cmm =
   let print_fundecl =
     if !Clflags.dump_cmm then Printcmm.fundecl
-    else fun ppf fdecl -> Format.fprintf ppf "%s" fdecl.fun_name
+    else fun ppf fdecl -> Format.fprintf ppf "%s" fdecl.fun_name.sym_name
   in
   if !Clflags.cmm_invariants && Cmm_invariants.run ppf fd_cmm then
     Misc.fatal_errorf "Cmm invariants failed on following fundecl:@.%a@."
@@ -250,15 +250,18 @@ let cfgize (f : Mach.fundecl) : Cfg_with_layout.t =
 type register_allocator =
   | Upstream
   | IRC
+  | LS
 
-let register_allocator : register_allocator =
-  match Sys.getenv_opt "REGISTER_ALLOCATOR" with
-  | None -> Upstream
-  | Some id ->
-    match String.lowercase_ascii id with
-    | "irc" -> IRC
-    | "" | "upstream" -> Upstream
-    | _ -> Misc.fatal_errorf "unknown register allocator %S" id
+let default_allocator = Upstream
+
+let register_allocator fd : register_allocator =
+  match String.lowercase_ascii !Flambda_backend_flags.regalloc with
+  | "cfg" -> if should_use_linscan fd then LS else IRC
+  | "irc" -> IRC
+  | "ls" -> LS
+  | "upstream" -> Upstream
+  | "" -> default_allocator
+  | other -> Misc.fatal_errorf "unknown register allocator (%S)" other
 
 let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   Proc.init ();
@@ -280,13 +283,13 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ Profile.record ~accumulate:true "cse" CSE.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_cse
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
-  ++ Profile.record ~accumulate:true "checkmach" (Checkmach.fundecl ppf_dump)
+  ++ Profile.record ~accumulate:true "checkmach"
+       (Checkmach.fundecl ~future_funcnames:funcnames ppf_dump)
   ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
-    let force_linscan = should_use_linscan fd in
-    match force_linscan, register_allocator with
-    | false, IRC ->
+    match register_allocator fd with
+    | ((IRC | LS) as regalloc) ->
       fd
-      ++ Profile.record ~accumulate:true "irc" (fun fd ->
+      ++ Profile.record ~accumulate:true "cfg" (fun fd ->
         let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
@@ -294,19 +297,22 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         in
         let cfg_description =
-          Profile.record ~accumulate:true "cfg_create_description"
-            Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
+            Regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
         in
         cfg
-        ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
+        ++ begin match regalloc with
+          | IRC -> Profile.record ~accumulate:true "cfg_irc" Regalloc_irc.run
+          | LS -> Profile.record ~accumulate:true "cfg_ls" Regalloc_ls.run
+          | Upstream -> assert false
+        end
         ++ Cfg_with_liveness.cfg_with_layout
-        ++ Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
-        ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
+        ++ Profile.record ~accumulate:true "cfg_validate_description" (Regalloc_validate.run cfg_description)
+        ++ Profile.record ~accumulate:true "cfg_simplify" Regalloc_utils.simplify_cfg
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
         ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
-    | true, _ | false, Upstream ->
+    | Upstream ->
       fd
       ++ Profile.record ~accumulate:true "default" (fun fd ->
         fd
@@ -358,7 +364,7 @@ let compile_phrases ~ppf_dump ps =
     let funcnames =
       List.fold_left (fun s p ->
           match p with
-          | Cfunction fd -> String.Set.add fd.fun_name s
+          | Cfunction fd -> String.Set.add fd.fun_name.sym_name s
           | Cdata _ -> s)
         String.Set.empty ps
     in
@@ -370,7 +376,7 @@ let compile_phrases ~ppf_dump ps =
           match p with
           | Cfunction fd ->
             compile_fundecl ~ppf_dump ~funcnames fd;
-            compile ~funcnames:(String.Set.remove fd.fun_name funcnames) ps
+            compile ~funcnames:(String.Set.remove fd.fun_name.sym_name funcnames) ps
           | Cdata dl ->
             compile_data dl;
             compile ~funcnames ps
@@ -385,7 +391,7 @@ let compile_phrase ~ppf_dump p =
 let compile_genfuns ~ppf_dump f =
   List.iter
     (function
-       | (Cfunction {fun_name = name}) as ph when f name ->
+       | (Cfunction {fun_name = name}) as ph when f name.sym_name ->
            compile_phrase ~ppf_dump ph
        | _ -> ())
     (Cmm_helpers.generic_functions true
@@ -448,7 +454,7 @@ let end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
     (Cmm_helpers.reference_symbols
        (List.filter_map (fun prim ->
            if not (Primitive.native_name_is_external prim) then None
-           else Some (Primitive.native_name prim))
+           else Some (Cmm.global_symbol (Primitive.native_name prim)))
           !Translmod.primitive_declarations));
   emit_end_assembly sourcefile ()
 
