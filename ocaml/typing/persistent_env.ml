@@ -78,7 +78,7 @@ module Persistent_signature = struct
       let unit_name = CU.Name.to_string unit_name in
       match Load_path.find_uncap (unit_name ^ ".cmi") with
       | filename -> Some { filename; cmi = read_cmi filename }
-      | exception Not_found -> begin if true then Format.eprintf "WHERE DID I PUT MY %s??@.%!" unit_name end; None)
+      | exception Not_found -> None)
 end
 
 type can_load_cmis =
