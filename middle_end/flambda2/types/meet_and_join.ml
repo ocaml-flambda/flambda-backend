@@ -393,6 +393,7 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     let element_kind = meet_array_element_kinds element_kind1 element_kind2 in
     let<* contents, env_extension =
       meet_array_contents env array_contents1 array_contents2
+        ~meet_element_kind:element_kind
     in
     let<* length, env_extension' = meet env length1 length2 in
     (* CR-someday vlaviron: If the element kind is Bottom, we could meet the
@@ -410,7 +411,8 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     Bottom
 
 and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
-    (array_contents2 : TG.array_contents Or_unknown.t) =
+    (array_contents2 : TG.array_contents Or_unknown.t)
+    ~(meet_element_kind : _ Or_unknown_or_bottom.t) =
   meet_unknown
     (fun env (array_contents1 : TG.array_contents)
          (array_contents2 : TG.array_contents) :
@@ -429,7 +431,12 @@ and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
                 let<* fields_rev, env_extension' =
                   fields_rev_and_env_extension
                 in
-                let<* field, env_extension = meet env field1 field2 in
+                let<* field, env_extension =
+                  match meet_element_kind with
+                  | Bottom -> Bottom
+                  | Unknown -> (* TBD *)
+                  | Ok _ -> meet env field1 field2
+                in
                 let<+ env_extension =
                   meet_env_extension env env_extension env_extension'
                 in
@@ -1191,7 +1198,8 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
         ~joined_element_kind:element_kind
     in
     let>+ length = join env length1 length2 in
-    TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length contents alloc_mode
+    TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
+      contents alloc_mode
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
       | Boxed_int64 _ | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
       _ ) ->
