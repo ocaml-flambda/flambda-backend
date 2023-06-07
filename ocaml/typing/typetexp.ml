@@ -54,7 +54,7 @@ type error =
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
   | Not_an_object of type_expr
-  | Unsupported_extension : 'a Language_extension.t -> error
+  | Unsupported_extension : _ Language_extension.t -> error
   | Polymorphic_optional_param
   | Non_value of
       {vloc : value_loc; typ : type_expr; err : Layout.Violation.t}
