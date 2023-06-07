@@ -3535,14 +3535,13 @@ sig_exception_declaration:
 generalized_constructor_arguments:
     /*empty*/                     { ([],Pcstr_tuple [],None) }
   | OF constructor_arguments      { ([],$2,None) }
-  | COLON constructor_arguments MINUSGREATER atomic_type %prec below_HASH
+  | COLON constructor_arguments MINUSGREATER atomic_type
                                   { ([],$2,Some $4) }
   | COLON typevar_list DOT constructor_arguments MINUSGREATER atomic_type
-     %prec below_HASH
                                   { ($2,$4,Some $6) }
-  | COLON atomic_type %prec below_HASH
+  | COLON atomic_type
                                   { ([],Pcstr_tuple [],Some $2) }
-  | COLON typevar_list DOT atomic_type %prec below_HASH
+  | COLON typevar_list DOT atomic_type
                                   { ($2,Pcstr_tuple [],Some $4) }
 ;
 
@@ -3554,7 +3553,6 @@ generalized_constructor_arguments:
 
 constructor_arguments:
   | tys = inline_separated_nonempty_llist(STAR, atomic_type_gbl)
-    %prec below_HASH
       { Pcstr_tuple tys }
   | LBRACE label_declarations RBRACE
       { Pcstr_record $2 }
@@ -3807,7 +3805,6 @@ strict_function_type:
  *)
 tuple_type:
   | ty = atomic_type
-    %prec below_HASH
       { ty }
   | mktyp(
       tys = separated_nontrivial_llist(STAR, atomic_type)
@@ -3841,10 +3838,6 @@ atomic_type:
         { let (f, c) = $2 in Ptyp_object (f, c) }
     | LESS GREATER
         { Ptyp_object ([], Closed) }
-    | tys = actual_type_parameters
-      HASH
-      cid = mkrhs(clty_longident)
-        { Ptyp_class(cid, tys) }
     | LBRACKET tag_field RBRACKET
         (* not row_field; see CONFLICTS *)
         { Ptyp_variant([$2], Closed, None) }
