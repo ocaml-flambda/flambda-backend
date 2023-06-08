@@ -2,6 +2,8 @@
    include dynlink
 *)
 
+[@@@ocaml.warning "-58"]
+
 (* Make sure dynlink state info is accurate before any load
    occurs #9338. *)
 
