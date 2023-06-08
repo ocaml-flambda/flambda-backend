@@ -176,7 +176,7 @@ let pat
   | Tpat_any  -> ()
   | Tpat_var _ -> ()
   | Tpat_constant _ -> ()
-  | Tpat_tuple l -> List.iter (sub.pat sub) l
+  | Tpat_tuple l -> List.iter (fun (_, p) -> sub.pat sub p) l
   | Tpat_construct (_, _, l, vto) ->
       List.iter (sub.pat sub) l;
       Option.iter (fun (_ids, ct) -> sub.typ sub ct) vto
@@ -222,7 +222,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
   | Texp_try (exp, cases) ->
       sub.expr sub exp;
       List.iter (sub.case sub) cases
-  | Texp_tuple (list, _) -> List.iter (sub.expr sub) list
+  | Texp_tuple (list, _) -> List.iter (fun (_,e) -> sub.expr sub e) list
   | Texp_construct (_, _, args, _) -> List.iter (sub.expr sub) args
   | Texp_variant (_, expo) -> Option.iter (fun (expr, _) -> sub.expr sub expr) expo
   | Texp_record { fields; extended_expression; _} ->
@@ -465,7 +465,7 @@ let typ sub {ctyp_desc; ctyp_env; _} =
   | Ttyp_arrow (_, ct1, ct2) ->
       sub.typ sub ct1;
       sub.typ sub ct2
-  | Ttyp_tuple list -> List.iter (sub.typ sub) list
+  | Ttyp_tuple list -> List.iter (fun (_, t) -> sub.typ sub t) list
   | Ttyp_constr (_, _, list) ->  List.iter (sub.typ sub) list
   | Ttyp_object (list, _) -> List.iter (sub.object_field sub) list
   | Ttyp_class (_, _, list) -> List.iter (sub.typ sub) list

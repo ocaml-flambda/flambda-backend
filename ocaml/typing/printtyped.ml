@@ -167,6 +167,11 @@ let typevar_jkind ~print_quote ppf (v, l) =
                     pptv v
                     Jane_syntax.Layouts.Pprint.const_jkind lay
 
+let tuple_component_label i ppf = function
+  | None -> line i ppf "Label: None\n"
+  | Some s -> line i ppf "Label: Some \"%s\"\n" s
+;;
+
 let typevars ppf vs =
   List.iter (typevar_jkind ~print_quote:true ppf) vs
 ;;
@@ -227,7 +232,7 @@ let rec core_type i ppf x =
       core_type i ppf ct2;
   | Ttyp_tuple l ->
       line i ppf "Ttyp_tuple\n";
-      list i core_type ppf l;
+      list i labeled_core_type ppf l;
   | Ttyp_constr (li, _, l) ->
       line i ppf "Ttyp_constr %a\n" fmt_path li;
       list i core_type ppf l;
@@ -263,6 +268,10 @@ let rec core_type i ppf x =
       line i ppf "Ttyp_package %a\n" fmt_path s;
       list i package_with ppf l;
 
+and labeled_core_type i ppf (l, t) =
+  tuple_component_label i ppf l;
+  core_type i ppf t
+
 and package_with i ppf (s, t) =
   line i ppf "with type %a\n" fmt_longident s;
   core_type i ppf t
@@ -289,7 +298,7 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
   | Tpat_constant (c) -> line i ppf "Tpat_constant %a\n" fmt_constant c;
   | Tpat_tuple (l) ->
       line i ppf "Tpat_tuple\n";
-      list i pattern ppf l;
+      list i labeled_pattern ppf l;
   | Tpat_construct (li, _, po, vto) ->
       line i ppf "Tpat_construct %a\n" fmt_longident li;
       list i pattern ppf po;
@@ -321,6 +330,11 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       line i ppf "Tpat_or\n";
       pattern i ppf p1;
       pattern i ppf p2;
+
+and labeled_pattern : type k . _ -> _ -> string option * k general_pattern -> unit =
+  fun i ppf (label, x) ->
+    tuple_component_label i ppf label;
+    pattern i ppf x
 
 and pattern_extra i ppf (extra_pat, _, attrs) =
   match extra_pat with
@@ -419,7 +433,7 @@ and expression i ppf x =
   | Texp_tuple (l, am) ->
       line i ppf "Texp_tuple\n";
       alloc_mode i ppf am;
-      list i expression ppf l;
+      list i labeled_expression ppf l;
   | Texp_construct (li, _, eo, am) ->
       line i ppf "Texp_construct %a\n" fmt_longident li;
       alloc_mode_option i ppf am;
@@ -1074,6 +1088,11 @@ and label_x_apply_arg i ppf (l, e) =
   line i ppf "<arg>\n";
   arg_label (i+1) ppf l;
   (match e with Omitted _ -> () | Arg (e, _) -> expression (i+1) ppf e)
+
+and labeled_expression i ppf (l, e) =
+  line i ppf "<tuple component>\n";
+  tuple_component_label i ppf l;
+  expression (i+1) ppf e;
 
 and ident_x_expression_def i ppf (l, e) =
   line i ppf "<def> \"%a\"\n" fmt_ident l;

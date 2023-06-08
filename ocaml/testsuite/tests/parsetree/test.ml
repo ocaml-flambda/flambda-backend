@@ -92,6 +92,7 @@ let test parse_fun pprint print map filename ~extra_checks =
   with exn -> report_err exn
 
 let rec process path ~extra_checks =
+  Language_extension.enable_maximal ();
   if Sys.is_directory path then
     let files = Sys.readdir path in
     Array.iter (fun s -> process (Filename.concat path s) ~extra_checks) files
