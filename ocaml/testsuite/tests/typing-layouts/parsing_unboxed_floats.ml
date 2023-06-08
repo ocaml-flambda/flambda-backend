@@ -3,8 +3,12 @@
    * expect
 *)
 
-(* Write tests that evidence how the difference between the
-   types #c and float# is navigated.
+(* These tests show how potential ambiguities are resolved
+   between the types #c and float#.
+*)
+
+(* CR layouts: These tests will change a lot when we add real float
+   to the type system, e.g. [C of float#] will be prohibited.
 *)
 
 (* Basic syntax: float# is an unboxed float. *)
@@ -17,6 +21,21 @@ type t = float#
 val f : float# -> unit = <fun>
 type t = C of float#
 type t = C : float# -> t
+|}];;
+
+(* float# works as an argument to normal type constructors, not just classes,
+   even though many of the rest of the tests in this file are concerned with
+   classes.
+*)
+type t = float# list;;
+let f (_ : float# list) = ();;
+type t = C of float# list;;
+type t = C : float# list -> t;;
+[%%expect {|
+type t = float# list
+val f : float# list -> unit = <fun>
+type t = C of float# list
+type t = C : float# list -> t
 |}];;
 
 class ['a] c = object(self)

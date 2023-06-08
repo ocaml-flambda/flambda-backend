@@ -134,25 +134,31 @@ type deferred_token =
   ; end_pos : Lexing.position
   }
 
+(* This queue will only ever have 0 or 1 elements in it. We use it
+   instead of an [option ref] for its convenient interface.
+*)
 let deferred_tokens : deferred_token Queue.t = Queue.create ()
 
-(* Effectively splits the current lexer production into two halves. The current
-   call to the lexer will return the first half of the text matched by the
-   production, and the next call to the lexer will return the second half (of
-   length [len]) of the text matched by the production.
+(* Effectively splits the text in the lexer's current "window" (defined below)
+   into two halves. The current call to the lexer will return the first half of
+   the text in the window, and the next call to the lexer will return the second
+   half (of length [len]) of the text in the window.
 
-   It accomplishes this by doing two things:
-    - It sets the current bounds of the lexbuf to only account for the
+   "window" refers to the text matched by a production of the lexer. It spans
+   from [lexer.lex_start_p] to [lexer.lex_curr_p].
+
+   The function accomplishes this splitting by doing two things:
+    - It sets the current window of the lexbuf to only account for the
       first half of the text. (The first half is of length: |text|-len.)
-    - It sets the [next_token] ref such that, the next time the lexer is
-      called, it will return the specified [token] *and* set the bounds of
-      the lexbuf to account for the second half of the text. (The second half
+    - It enqueues a token into [deferred_tokens] such that, the next time the
+      lexer is called, it will return the specified [token] *and* set the window
+      of the lexbuf to account for the second half of the text. (The second half
       is of length: |text|.)
 
-   This business with setting the bounds of the lexbuf is only so that error
+   This business with setting the window of the lexbuf is only so that error
    messages point at the right place in the program text.
 *)
-let enqueue_token_from_end_of_lexbuf (lexbuf : Lexing.lexbuf) token ~len =
+let enqueue_token_from_end_of_lexbuf_window (lexbuf : Lexing.lexbuf) token ~len =
   let suffix_end = lexbuf.lex_curr_p in
   let suffix_start =
     { suffix_end with pos_cnum = suffix_end.pos_cnum - len }
@@ -192,7 +198,7 @@ let enqueue_token_from_end_of_lexbuf (lexbuf : Lexing.lexbuf) token ~len =
    We accomplish this hack by setting some global mutable state upon seeing
    an identifier immediately followed by a hash. When that state is set, we
    will produce [HASH_SUFFIX] the next time the lexer is called. This is
-   done in [enqueue_hash_suffix_from_end_of_lexbuf].
+   done in [enqueue_hash_suffix_from_end_of_lexbuf_window].
 
    Note [Lexing hack for hash operators]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -209,14 +215,14 @@ let enqueue_token_from_end_of_lexbuf (lexbuf : Lexing.lexbuf) token ~len =
    the style of Note [Lexing hack for float#], where the lexer consumes [x#~#]
    all at once, but produces LIDENT(x) from the current call to the lexer and
    HASHOP(#~#) from the next call to the lexer. This is done in
-   [enqueue_hashop_from_end_of_lexbuf].
+   [enqueue_hashop_from_end_of_lexbuf_window].
  *)
 
-let enqueue_hash_suffix_from_end_of_lexbuf lexbuf =
-  enqueue_token_from_end_of_lexbuf lexbuf HASH_SUFFIX ~len:1
+let enqueue_hash_suffix_from_end_of_lexbuf_window lexbuf =
+  enqueue_token_from_end_of_lexbuf_window lexbuf HASH_SUFFIX ~len:1
 
-let enqueue_hashop_from_end_of_lexbuf lexbuf ~hashop =
-  enqueue_token_from_end_of_lexbuf lexbuf (HASHOP hashop)
+let enqueue_hashop_from_end_of_lexbuf_window lexbuf ~hashop =
+  enqueue_token_from_end_of_lexbuf_window lexbuf (HASHOP hashop)
     ~len:(String.length hashop)
 
 (* Escaped chars are interpreted in strings unless they are in comments. *)
@@ -515,11 +521,11 @@ rule token = parse
   *)
   | (lowercase identchar * as name) ('#' symbolchar_or_hash+ as hashop)
       (* See Note [Lexing hack for hash operators] *)
-      { enqueue_hashop_from_end_of_lexbuf lexbuf ~hashop;
+      { enqueue_hashop_from_end_of_lexbuf_window lexbuf ~hashop;
         lookup_keyword name }
   | (lowercase identchar * as name) '#'
       (* See Note [Lexing hack for float#] *)
-      { enqueue_hash_suffix_from_end_of_lexbuf lexbuf;
+      { enqueue_hash_suffix_from_end_of_lexbuf_window lexbuf;
         lookup_keyword name }
   | lowercase identchar * as name
       { lookup_keyword name }
@@ -530,12 +536,12 @@ rule token = parse
       ('#' symbolchar_or_hash+ as hashop)
       (* See Note [Lexing hack for hash operators] *)
       { warn_latin1 lexbuf;
-        enqueue_hashop_from_end_of_lexbuf lexbuf ~hashop;
+        enqueue_hashop_from_end_of_lexbuf_window lexbuf ~hashop;
         LIDENT name }
   | (lowercase_latin1 identchar_latin1 * as name) '#'
       (* See Note [Lexing hack for float#] *)
       { warn_latin1 lexbuf;
-        enqueue_hash_suffix_from_end_of_lexbuf lexbuf;
+        enqueue_hash_suffix_from_end_of_lexbuf_window lexbuf;
         LIDENT name }
   | lowercase_latin1 identchar_latin1 * as name
       { warn_latin1 lexbuf; LIDENT name }
