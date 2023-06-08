@@ -54,12 +54,12 @@ jobs:
           - name: flambda2_nnp_o3
             config: --enable-middle-end=flambda2 --disable-naked-pointers
             os: ubuntu-latest
-            ocamlparam: '_,o3=1'
+            ocamlparam: '_,O3=1'
 
           - name: flambda2_frame_pointers_oclassic
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
-            ocamlparam: '_,oclassic=1'
+            ocamlparam: '_,Oclassic=1'
 
           - name: flambda2_cfg
             config: --enable-middle-end=flambda2
