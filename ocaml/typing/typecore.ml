@@ -5471,28 +5471,30 @@ and type_expect_
         exp_env = env;
       }
   | Pexp_letop{ let_ = slet; ands = sands; body = sbody } ->
-      let rec loop spat_acc ty_acc sands =
+      let rec loop spat_acc ty_acc ty_acc_sort sands =
         match sands with
-        | [] -> spat_acc, ty_acc
+        | [] -> spat_acc, ty_acc, ty_acc_sort
         | { pbop_pat = spat; _} :: rest ->
             (* CR layouts v5: eliminate value requirement *)
             let ty = newvar (Layout.value ~why:Tuple_element) in
             let loc = Location.ghostify slet.pbop_op.loc in
             let spat_acc = Ast_helper.Pat.tuple ~loc [spat_acc; spat] in
             let ty_acc = newty (Ttuple [ty_acc; ty]) in
-            loop spat_acc ty_acc rest
+            loop spat_acc ty_acc Sort.value rest
       in
       if !Clflags.principal then begin_def ();
       let let_loc = slet.pbop_op.loc in
       let op_path, op_desc = type_binding_op_ident env slet.pbop_op in
       let op_type = instance op_desc.val_type in
-      let spat_params, ty_params =
-        let initial_layout = match sands with
-          | [] -> Layout.of_new_sort_var ~why:Function_argument
+      let spat_params, ty_params, param_sort =
+        let initial_layout, initial_sort = match sands with
+          | [] ->
+            let sort = Sort.new_var () in
+            Layout.of_sort ~why:Function_argument sort, sort
           (* CR layouts v5: eliminate value requirement for tuple elements *)
-          | _ -> Layout.value ~why:Tuple_element
+          | _ -> Layout.value ~why:Tuple_element, Sort.value
         in
-        loop slet.pbop_pat (newvar initial_layout) sands
+        loop slet.pbop_pat (newvar initial_layout) initial_sort sands
       in
       let body_sort = Sort.new_var () in
       let ty_func_result =
@@ -5541,9 +5543,6 @@ and type_expect_
         | _ -> assert false
       in
       let param = name_cases "param" cases in
-      let param_sort =
-        Ctype.type_sort_exn ~why:Function_argument env ty_params
-      in
       let let_ =
         { bop_op_name = slet.pbop_op;
           bop_op_path = op_path;
@@ -6358,6 +6357,9 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       in
       let eta_mode = Value_mode.local_to_regional (Value_mode.of_alloc marg) in
       let eta_pat, eta_var = var_pair ~mode:eta_mode "eta" ty_arg in
+      (* CR layouts v10: When we add abstract layouts, the eta expansion here
+         becomes impossible in some cases - we'll need good errors and test
+         cases instead of `type_sort_exn`. *)
       let arg_sort = type_sort_exn env ~why:Function_argument ty_arg in
       let ret_sort = type_sort_exn env ~why:Function_argument ty_res in
       let func texp =
@@ -6672,6 +6674,8 @@ and type_statement ?explanation ?(position=RNontail) env sexp =
   (* We're requiring the statement to have a representable layout.  But that
      doesn't actually rule out things like "assert false"---we'll just end up
      getting a sort variable for its layout. *)
+  (* CR layouts v10: Abstract layouts will introduce cases where we really
+     have [any] and can't get a sort here. *)
   let sort = Sort.new_var () in
   let tv = newvar (Layout.of_sort ~why:Statement sort) in
   if is_Tvar ty && get_level ty > get_level tv then

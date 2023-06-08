@@ -43,9 +43,13 @@ val layout :
    optimization. *)
 val layout_of_sort : Location.t -> Layouts.sort -> Lambda.layout
 
+(* Given a function type and the sort of its return type, compute the layout of
+   its return type. *)
 val function_return_layout :
   Env.t -> Location.t -> Layouts.sort -> Types.type_expr -> Lambda.layout
-(* Gives the return layout of a function with two arguments. *)
+
+(* Given a function type with two arguments and the sort of its return type,
+   compute the layout of its return type. *)
 val function2_return_layout :
   Env.t -> Location.t -> Layouts.sort -> Types.type_expr -> Lambda.layout
 

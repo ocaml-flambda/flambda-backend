@@ -487,7 +487,7 @@ let value_kind env loc ty =
   value_kind
 
 (* CR layouts v2: We are planning to put a sanity check here that you don't get
-   passed #float as the sort unless layouts_alpha is on.  This violates our
+   passed float# as the sort unless layouts_alpha is on.  This violates our
    previous rule that extensions only control syntax, but seems like a nice
    implementation of a sanity check, since the availability of the Float_u
    module will result in ways to get at unboxed floats that aren't just writing

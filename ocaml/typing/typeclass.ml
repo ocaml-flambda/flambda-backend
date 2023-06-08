@@ -1281,8 +1281,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
               Arg (
                 if not optional || Btype.is_optional l' then
                   let arg = type_argument val_env sarg ty ty0 in
-                  arg, Ctype.type_sort_exn ~why:Function_argument
-                         arg.exp_env arg.exp_type
+                  arg, Sort.value
                 else
                   let ty' = extract_option_type val_env ty
                   and ty0' = extract_option_type val_env ty0 in
@@ -1333,9 +1332,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                       let mode_closure = Alloc_mode.global in
                       let mode_arg = Alloc_mode.global in
                       let mode_ret = Alloc_mode.global in
-                      let sort_arg =
-                        Ctype.type_sort_exn ~why:Function_argument val_env ty
-                      in
+                      let sort_arg = Sort.value in
                       Omitted { mode_closure; mode_arg; mode_ret; sort_arg }
                     end
             in

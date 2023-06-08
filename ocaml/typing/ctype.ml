@@ -3836,11 +3836,12 @@ let filter_arrow env t l ~force_tpoly =
   | Tarrow((l', arg_mode, ret_mode), ty_arg, ty_ret, _) ->
       if l = l' || !Clflags.classic && l = Nolabel && not (is_optional l')
       then
-        (* CR layouts: When we move the restrictions on argument from arrows to
-           functions, this function doesn't need to return a sort and these calls
-           to [type_sort] can move.  We could eliminate them entirely by storing
-           sorts on [TArrow], but that seems incompatible with the future plan
-           to shift the layout requirements from the types to the terms. *)
+        (* CR layouts v2.5: When we move the restrictions on argument from
+           arrows to functions, this function doesn't need to return a sort and
+           these calls to [type_sort] can move.  We could eliminate them
+           entirely by storing sorts on [TArrow], but that seems incompatible
+           with the future plan to shift the layout requirements from the types
+           to the terms. *)
         let arg_sort = type_sort_exn ~why:Function_argument env ty_arg in
         let ret_sort = type_sort_exn ~why:Function_argument env ty_ret in
         { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort }

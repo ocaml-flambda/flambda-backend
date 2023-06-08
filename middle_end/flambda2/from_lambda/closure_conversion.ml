@@ -439,7 +439,11 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   in
   (* CR layouts v2: I think this needs to change for primitives that return
      #floats - presumably we should look at the second element of the 3-tuple
-     and do something different if it isn't value. *)
+     and do something different if it isn't value.
+
+     In the future, we may be able to get rid of the [prim_native_repr] bits from
+     lambda entirely by adding primitives like [Pbox_float] and [Punbox_float].
+  *)
   let box_return_value =
     match prim_native_repr_res with
     | _, _, Same_as_ocaml_repr -> None
