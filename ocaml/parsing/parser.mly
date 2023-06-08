@@ -814,11 +814,12 @@ let unboxed_float sloc sign (f, m) =
 
 (* Unboxed float type *)
 
-let unboxed_float_type_extension : Language_extension.t = Layouts Alpha
+let assert_unboxed_float_type ~loc =
+    Language_extension.(
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
 
 let unboxed_float_type sloc tys =
-  Jane_syntax_parsing.assert_extension_enabled
-    ~loc:(make_loc sloc) unboxed_float_type_extension;
+  assert_unboxed_float_type ~loc:(make_loc sloc);
   Ptyp_constr (mkloc (Lident "float#") (make_loc sloc), tys)
 
 (* Jane syntax *)
