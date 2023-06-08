@@ -349,7 +349,7 @@ and expression_desc =
       (** [match E0 with P1 -> E1 | ... | Pn -> En] *)
   | Pexp_try of expression * case list
       (** [try E0 with P1 -> E1 | ... | Pn -> En] *)
-  | Pexp_tuple of expression list
+  | Pexp_tuple of (string option * expression) list
       (** Expressions [(E1, ..., En)]
 
            Invariant: [n >= 2]

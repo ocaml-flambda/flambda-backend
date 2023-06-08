@@ -3619,7 +3619,7 @@ and type_approx_aux env sexp in_function ty_expected =
         raise(Error(sexp.pexp_loc, env, Expr_type_clash (err, None, None)))
       end;
       List.iter2
-        (fun e ty -> type_approx_aux env e None ty)
+        (fun (_, e) ty -> type_approx_aux env e None ty)
         l tys
   | Pexp_ifthenelse (_,e,_) -> type_approx_aux env e None ty_expected
   | Pexp_sequence (_,e) -> type_approx_aux env e None ty_expected
@@ -4522,7 +4522,7 @@ and type_expect_
       let types_and_modes = List.combine subtypes argument_modes in
       let expl =
         List.map2
-          (fun body (ty, argument_mode) ->
+          (fun (_, body) (ty, argument_mode) ->
             let argument_mode = mode_default argument_mode in
             let argument_mode = expect_mode_cross env ty argument_mode in
              type_expect env argument_mode
@@ -5880,7 +5880,7 @@ and type_format loc str env =
         let arg = match args with
           | []          -> None
           | [ e ]       -> Some e
-          | _ :: _ :: _ -> Some (mk_exp_loc (Pexp_tuple args)) in
+          | _ :: _ :: _ -> Some (mk_exp_loc (Pexp_tuple (List.map (fun x -> (None, x)) args))) in
         mk_exp_loc (Pexp_construct (mk_lid_loc lid, arg)) in
       let mk_cst cst = mk_exp_loc (Pexp_constant cst) in
       let mk_int n = mk_cst (Pconst_integer (Int.to_string n, None))
@@ -5946,7 +5946,7 @@ and type_format loc str env =
         | Float_H  -> mk_constr "Float_H"  []
         | Float_F  -> mk_constr "Float_F"  []
         | Float_CF -> mk_constr "Float_CF" [] in
-        mk_exp_loc (Pexp_tuple [flag; kind])
+        mk_exp_loc (Pexp_tuple [None, flag; None, kind])
       and mk_counter cnt = match cnt with
         | Line_counter  -> mk_constr "Line_counter"  []
         | Char_counter  -> mk_constr "Char_counter"  []
@@ -6534,7 +6534,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
       None -> []
     | Some {pexp_desc = Pexp_tuple sel} when
         constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs
-      -> sel
+      -> List.map snd sel
     | Some se -> [se] in
   if List.length sargs <> constr.cstr_arity then
     raise(Error(loc, env, Constructor_arity_mismatch

@@ -218,7 +218,7 @@ and rw_exp iflag sexp =
     rewrite_exp_list iflag (List.map snd sargs)
 
   | Pexp_tuple sexpl ->
-    rewrite_exp_list iflag sexpl
+    rewrite_exp_list iflag (List.map snd sexpl)
 
   | Pexp_construct(_, None) -> ()
   | Pexp_construct(_, Some sarg) ->
