@@ -117,12 +117,13 @@ let insert_spills :
             | Some stack_reg -> stack_reg
             | None ->
               let slots = State.stack_slots state in
-              let slot : int = StackSlots.get_or_fatal slots reg in
+              let slot : int = Regalloc_stack_slots.get_or_fatal slots reg in
               let stack : Reg.t =
                 make_temporary ~same_class_and_base_name_as:reg
                   ~name_prefix:"stack"
               in
-              StackSlots.use_same_slot_or_fatal slots stack ~existing:reg;
+              Regalloc_stack_slots.use_same_slot_or_fatal slots stack
+                ~existing:reg;
               stack.Reg.loc <- Reg.(Stack (Local slot));
               Reg.Tbl.replace res reg stack;
               stack
@@ -162,13 +163,15 @@ let insert_reloads :
             | Some stack_reg -> stack_reg
             | None ->
               let slots = State.stack_slots state in
-              let slot = StackSlots.get_or_create slots old_reg in
+              let slot = Regalloc_stack_slots.get_or_create slots old_reg in
               let stack =
                 make_temporary ~same_class_and_base_name_as:old_reg
                   ~name_prefix:"stack"
               in
-              StackSlots.use_same_slot_or_fatal slots stack ~existing:old_reg;
-              StackSlots.use_same_slot_or_fatal slots stack ~existing:new_reg;
+              Regalloc_stack_slots.use_same_slot_or_fatal slots stack
+                ~existing:old_reg;
+              Regalloc_stack_slots.use_same_slot_or_fatal slots stack
+                ~existing:new_reg;
               stack.Reg.loc <- Reg.(Stack (Local slot));
               stack
           in
@@ -287,7 +290,7 @@ let insert_phi_moves :
     (State.phi_at_beginning state)
 
 let split_at_destruction_points :
-    Cfg_with_liveness.t -> cfg_infos -> StackSlots.t option =
+    Cfg_with_liveness.t -> cfg_infos -> Regalloc_stack_slots.t option =
  fun cfg_with_liveness cfg_infos ->
   if split_debug
   then (
@@ -336,7 +339,8 @@ let split_at_destruction_points :
     then Regalloc_irc_utils.log_cfg_with_liveness ~indent:1 cfg_with_liveness;
     Some (State.stack_slots state)
 
-let split_live_ranges : Cfg_with_liveness.t -> cfg_infos -> StackSlots.t =
+let split_live_ranges :
+    Cfg_with_liveness.t -> cfg_infos -> Regalloc_stack_slots.t =
  fun cfg_with_liveness cfg_infos ->
   (* CR-soon xclerc for xclerc: support closure, flambda, and
      flambda2/classic *)
@@ -351,7 +355,7 @@ let split_live_ranges : Cfg_with_liveness.t -> cfg_infos -> StackSlots.t =
     ()
   | true, true -> assert false);
   match split_at_destruction_points cfg_with_liveness cfg_infos with
-  | None -> StackSlots.make ()
+  | None -> Regalloc_stack_slots.make ()
   | Some stack_slots ->
     Cfg_with_liveness.invalidate_liveness cfg_with_liveness;
     let (_ : Cfg_with_liveness.t) =

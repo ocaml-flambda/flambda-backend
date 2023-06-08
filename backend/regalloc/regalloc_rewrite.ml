@@ -6,7 +6,7 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 module type State = sig
   type t
 
-  val stack_slots : t -> StackSlots.t
+  val stack_slots : t -> Regalloc_stack_slots.t
 
   val get_and_incr_instruction_id : t -> Instruction.id
 end
@@ -56,7 +56,9 @@ let rewrite_gen :
         Utils.set_spilled spilled;
         (* for printing *)
         if not (Reg.anonymous reg) then spilled.Reg.raw_name <- reg.Reg.raw_name;
-        let slot = StackSlots.get_or_create (State.stack_slots state) reg in
+        let slot =
+          Regalloc_stack_slots.get_or_create (State.stack_slots state) reg
+        in
         spilled.Reg.loc <- Reg.(Stack (Local slot));
         if Utils.debug
         then
@@ -203,7 +205,7 @@ let prelude :
     (module Utils) ->
     on_fatal_callback:(unit -> unit) ->
     Cfg_with_liveness.t ->
-    cfg_infos * StackSlots.t =
+    cfg_infos * Regalloc_stack_slots.t =
  fun (module Utils) ~on_fatal_callback cfg_with_liveness ->
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
   on_fatal ~f:on_fatal_callback;
@@ -251,6 +253,8 @@ let postlude :
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
   (* note: slots need to be updated before prologue removal *)
   StackSlots.update_cfg_with_layout (State.stack_slots state) cfg_with_layout;
+  Regalloc_stack_slots.update_cfg_with_layout (State.stack_slots state)
+    cfg_with_layout;
   if Utils.debug
   then
     Array.iteri (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
