@@ -1275,3 +1275,9 @@ module Magic_number = struct
            | Error err -> Error (Unexpected_error err)
            | Ok () -> Ok info
 end
+
+(*********************************************)
+(* Fancy types *)
+
+type (_, _) eq = Refl : ('a, 'a) eq
+

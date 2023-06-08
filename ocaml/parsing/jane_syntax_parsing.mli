@@ -94,7 +94,7 @@
     built-in features. *)
 module Feature : sig
   type t =
-    | Language_extension of Language_extension.t
+    | Language_extension : _ Language_extension.t -> t
     | Builtin
 
   (** The component of an attribute or extension name that identifies the
@@ -238,13 +238,14 @@ module AST : sig
     -> ('ast -> 'a option)
 end
 
-(** Require that an extension is enabled, or else throw an exception (of an
-    abstract type) at the provided location saying otherwise.  This is intended
-    to be used in [jane_syntax.ml] when a certain piece of syntax requires two
-    extensions to be enabled at once (e.g., immutable array comprehensions such
-    as [[:x for x = 1 to 10:]], which require both [Comprehensions] and
-    [Immutable_arrays]). *)
-val assert_extension_enabled : loc:Location.t -> Language_extension.t -> unit
+(** Require that an extension is enabled for at least the provided level, or
+    else throw an exception (of an abstract type) at the provided location
+    saying otherwise.  This is intended to be used in [jane_syntax.ml] when a
+    certain piece of syntax requires two extensions to be enabled at once (e.g.,
+    immutable array comprehensions such as [[:x for x = 1 to 10:]], which
+    require both [Comprehensions] and [Immutable_arrays]). *)
+val assert_extension_enabled :
+  loc:Location.t -> 'a Language_extension.t -> 'a -> unit
 
 (* CR-someday nroberts: An earlier version of this revealed less of its
    implementation in its name: it was called [match_jane_syntax], and

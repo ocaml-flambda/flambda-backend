@@ -3,7 +3,7 @@
 
 let printf = Printf.printf;;
 
-let () = Language_extension.enable Immutable_arrays;;
+let () = Language_extension.enable Immutable_arrays ();;
 
 let test_printing parsed =
   let expr = Parse.expression (Lexing.from_string parsed) in
