@@ -91,7 +91,8 @@ let dummy_parameter_list typ =
         let open Asttypes in
         if label = Nolabel then
           Odoc_parameter.Tuple
-            (List.map (fun t2 -> iter (Nolabel, t2)) l, t)
+            (* CR labeled tuples: Show labels in odoc (note: "label" != tuple label) *)
+            (List.map (fun t2 -> iter (Nolabel, t2)) (List.map snd l), t)
         else
           (* if there is a label, then we don't want to decompose the tuple *)
           Odoc_parameter.Simple_name

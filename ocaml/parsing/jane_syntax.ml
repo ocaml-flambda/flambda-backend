@@ -1160,6 +1160,136 @@ module N_ary_functions = struct
             List.fold_right add_param init_params body_with_last_param)
 end
 
+(** Labeled tuples *)
+module Labeled_tuples = struct
+  module Ext = struct
+    let feature : Feature.t = Language_extension Labeled_tuples
+  end
+
+  module Of_ast = Of_ast (Ext)
+  include Ext
+
+  type nonrec core_type = Lttyp_tuple of (string option * core_type) list
+
+  type nonrec expression = Ltexp_tuple of (string option * expression) list
+
+  type nonrec pattern =
+    | Ltpat_tuple of (string option * pattern) list * closed_flag
+
+  let string_of_label = function None -> "" | Some lbl -> lbl
+
+  let label_of_string = function "" -> None | s -> Some s
+
+  let string_of_closed_flag = function Closed -> "closed" | Open -> "open"
+
+  let closed_flag_of_string = function
+    | "closed" -> Closed
+    | "open" -> Open
+    | _ -> failwith "bad closed flag"
+
+  module Desugaring_error = struct
+    type error =
+      | Malformed
+      | Has_payload of payload
+
+    let report_error ~loc = function
+      | Malformed ->
+        Location.errorf ~loc "Malformed embedded labeled tuple term"
+      | Has_payload payload ->
+        Location.errorf ~loc
+          "Labeled tuples attribute has an unexpected payload:@;%a"
+          (Printast.payload 0) payload
+
+    exception Error of Location.t * error
+
+    let () =
+      Location.register_error_of_exn (function
+        | Error (loc, err) -> Some (report_error ~loc err)
+        | _ -> None)
+
+    let raise loc err = raise (Error (loc, err))
+  end
+
+  let expand_labeled_tuple_extension loc attrs =
+    let names, payload, attrs =
+      Of_ast.unwrap_jane_syntax_attributes_exn ~loc attrs
+    in
+    match payload with
+    | PStr [] -> names, attrs
+    | _ -> Desugaring_error.raise loc (Has_payload payload)
+
+  let typ_of ~loc ~attrs = function
+    | Lttyp_tuple tl ->
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      Core_type.make_entire_jane_syntax ~loc feature (fun () ->
+          let names = List.map (fun (label, _) -> string_of_label label) tl in
+          Core_type.make_jane_syntax feature names
+          @@ Ast_helper.Typ.tuple ~attrs (List.map snd tl))
+
+  (* Returns remaining unconsumed attributes *)
+  let of_typ typ =
+    let labels, ptyp_attributes =
+      expand_labeled_tuple_extension typ.ptyp_loc typ.ptyp_attributes
+    in
+    match typ.ptyp_desc with
+    | Ptyp_tuple components ->
+      if List.length labels <> List.length components
+      then Desugaring_error.raise typ.ptyp_loc Malformed;
+      let labeled_components =
+        List.map2 (fun s t -> label_of_string s, t) labels components
+      in
+      Lttyp_tuple labeled_components, ptyp_attributes
+    | _ -> Desugaring_error.raise typ.ptyp_loc Malformed
+
+  let expr_of ~loc ~attrs = function
+    | Ltexp_tuple el ->
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      Expression.make_entire_jane_syntax ~loc feature (fun () ->
+          let names = List.map (fun (label, _) -> string_of_label label) el in
+          Expression.make_jane_syntax feature names
+          @@ Ast_helper.Exp.tuple ~attrs (List.map snd el))
+
+  (* Returns remaining unconsumed attributes *)
+  let of_expr expr =
+    let labels, pexp_attributes =
+      expand_labeled_tuple_extension expr.pexp_loc expr.pexp_attributes
+    in
+    match expr.pexp_desc with
+    | Pexp_tuple components ->
+      if List.length labels <> List.length components
+      then Desugaring_error.raise expr.pexp_loc Malformed;
+      let labeled_components =
+        List.map2 (fun s e -> label_of_string s, e) labels components
+      in
+      Ltexp_tuple labeled_components, pexp_attributes
+    | _ -> Desugaring_error.raise expr.pexp_loc Malformed
+
+  let pat_of ~loc ~attrs = function
+    | Ltpat_tuple (pl, closed) ->
+      (* See Note [Wrapping with make_entire_jane_syntax] *)
+      Pattern.make_entire_jane_syntax ~loc feature (fun () ->
+          let names = List.map (fun (label, _) -> string_of_label label) pl in
+          Pattern.make_jane_syntax feature
+            (string_of_closed_flag closed :: names)
+          @@ Ast_helper.Pat.tuple ~attrs (List.map snd pl))
+
+  (* Returns remaining unconsumed attributes *)
+  let of_pat pat =
+    let labels, ppat_attributes =
+      expand_labeled_tuple_extension pat.ppat_loc pat.ppat_attributes
+    in
+    match labels, pat.ppat_desc with
+    | closed :: labels, Ppat_tuple components ->
+      if List.length labels <> List.length components
+      then Desugaring_error.raise pat.ppat_loc Malformed;
+      let closed = closed_flag_of_string closed in
+      let labeled_components =
+        List.map2 (fun s e -> label_of_string s, e) labels components
+      in
+      Ltpat_tuple (labeled_components, closed), ppat_attributes
+    | _ -> Desugaring_error.raise pat.ppat_loc Malformed
+end
+
 (** [include functor] *)
 module Include_functor = struct
   type signature_item = Ifsig_include_functor of include_description
@@ -1624,19 +1754,28 @@ module type AST = sig
 end
 
 module Core_type = struct
-  type t = Jtyp_layout of Layouts.core_type
+  type t =
+    | Jtyp_layout of Layouts.core_type
+    | Jtyp_tuple of Labeled_tuples.core_type
 
   let of_ast_internal (feat : Feature.t) typ =
     match feat with
     | Language_extension Layouts ->
       let typ, attrs = Layouts.of_type typ in
       Some (Jtyp_layout typ, attrs)
+    | Language_extension Labeled_tuples ->
+      let typ, attrs = Labeled_tuples.of_typ typ in
+      Some (Jtyp_tuple typ, attrs)
     | _ -> None
 
   let of_ast = Core_type.make_of_ast ~of_ast_internal
 
   let core_type_of ~loc ~attrs t =
-    let core_type = match t with Jtyp_layout x -> Layouts.type_of ~loc x in
+    let core_type =
+      match t with
+      | Jtyp_layout x -> Layouts.type_of ~loc x
+      | Jtyp_tuple x -> Labeled_tuples.typ_of ~loc ~attrs x
+    in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with
     | [] -> core_type
@@ -1659,6 +1798,7 @@ module Expression = struct
     | Jexp_immutable_array of Immutable_arrays.expression
     | Jexp_layout of Layouts.expression
     | Jexp_n_ary_function of N_ary_functions.expression
+    | Jexp_tuple of Labeled_tuples.expression
 
   let of_ast_internal (feat : Feature.t) expr =
     match feat with
@@ -1675,6 +1815,9 @@ module Expression = struct
       match N_ary_functions.of_expr expr with
       | Some (expr, attrs) -> Some (Jexp_n_ary_function expr, attrs)
       | None -> None)
+    | Language_extension Labeled_tuples ->
+      let expr, attrs = Labeled_tuples.of_expr expr in
+      Some (Jexp_tuple expr, attrs)
     | _ -> None
 
   let of_ast = Expression.make_of_ast ~of_ast_internal
@@ -1686,6 +1829,7 @@ module Expression = struct
       | Jexp_immutable_array x -> Immutable_arrays.expr_of ~loc x
       | Jexp_layout x -> Layouts.expr_of ~loc x
       | Jexp_n_ary_function x -> N_ary_functions.expr_of ~loc x
+      | Jexp_tuple x -> Labeled_tuples.expr_of ~loc ~attrs x
     in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with
@@ -1699,6 +1843,7 @@ module Pattern = struct
   type t =
     | Jpat_immutable_array of Immutable_arrays.pattern
     | Jpat_layout of Layouts.pattern
+    | Jpat_tuple of Labeled_tuples.pattern
 
   let of_ast_internal (feat : Feature.t) pat =
     match feat with
@@ -1708,6 +1853,9 @@ module Pattern = struct
     | Language_extension Layouts ->
       let pat, attrs = Layouts.of_pat pat in
       Some (Jpat_layout pat, attrs)
+    | Language_extension Labeled_tuples ->
+      let expr, attrs = Labeled_tuples.of_pat pat in
+      Some (Jpat_tuple expr, attrs)
     | _ -> None
 
   let of_ast = Pattern.make_of_ast ~of_ast_internal
@@ -1717,6 +1865,7 @@ module Pattern = struct
       match t with
       | Jpat_immutable_array x -> Immutable_arrays.pat_of ~loc x
       | Jpat_layout x -> Layouts.pat_of ~loc x
+      | Jpat_tuple x -> Labeled_tuples.pat_of ~loc ~attrs x
     in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with

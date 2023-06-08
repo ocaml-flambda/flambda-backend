@@ -7460,3 +7460,46 @@ module type s = sig type ('a,'b) t end with type ('a,'b) t := 'b -> 'a list
 
 let x: [`A] :> [> `A | `B ] = `A
 let x :> [> `A | `B ] = `A
+
+
+(* Labeled tuples *)
+let x = (~x:1, ~y:2)
+let _ = ( ~x: 5, 2, ~z, ~(punned:int))
+let (x : (x:int * y:int)) = (~x:1, ~y:2)
+
+let (~x:x0, ~s, ~(y:int), ..) : (x:int * s:string * y:int * string) =
+   (~x: 1, ~s: "a", ~y: 2, "ignore me")
+
+module M : sig
+  val f : (x:int * string) -> (x:int * string)
+  val mk : unit -> (x:bool * y:string)
+end = struct
+  let f x = x
+  let mk () = (~x:false, ~y:"hi")
+end
+
+module X_int_int = struct
+   type t = (x:int * int)
+end
+
+let foo xy k_good k_bad =
+   match x_must_be_even xy with
+   | (~x, y) -> k_good ()
+   | exception Odd -> k_bad ()
+
+let (~(x:int), ~y, _) = (~x: 1, ~y: 2, "ignore me")
+let f = fun (~foo, ~bar:bar) -> foo * 10 + bar
+let f ((~(x:int),y) : (x:int * int)) : int = x + y
+
+type xy = (x:int * y:int)
+
+(* Reordering and partial matches *)
+let lt = (~x:1, ~y:2, ~x:3, 4)
+
+let matches =
+  let (~x, .. ) = lt in
+  x
+
+let matches =
+  let (~y, ~x, .. ) = lt in
+  (x, y)
