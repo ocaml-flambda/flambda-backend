@@ -812,6 +812,15 @@ let unboxed_float sloc sign (f, m) =
     ~loc:(make_loc sloc) unboxed_literals_extension;
   Pconst_float (with_sign sign f, m)
 
+(* Unboxed float type *)
+
+let unboxed_float_type_extension : Language_extension.t = Layouts Alpha
+
+let unboxed_float_type sloc tys =
+  Jane_syntax_parsing.assert_extension_enabled
+    ~loc:(make_loc sloc) unboxed_float_type_extension;
+  Ptyp_constr (mkloc (Lident "float#") (make_loc sloc), tys)
+
 (* Jane syntax *)
 
 let mkexp_jane_syntax
@@ -3847,8 +3856,7 @@ atomic_type:
           | Lident "float" ->
               let ident_start = fst $loc(tid) in
               let hash_end = snd $loc($3) in
-              let loc = make_loc (ident_start, hash_end) in
-              Ptyp_constr(mkloc (Lident "float#") loc, tys)
+              unboxed_float_type (ident_start, hash_end) tys
           | _ ->
               not_expecting $sloc "Unboxed type other than float#"
         }
