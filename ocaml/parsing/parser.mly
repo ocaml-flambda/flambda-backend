@@ -448,6 +448,21 @@ let expecting_loc (loc : Location.t) (nonterm : string) =
 let expecting (loc : Lexing.position * Lexing.position) nonterm =
      expecting_loc (make_loc loc) nonterm
 
+let ppat_lttuple loc elts closed =
+  Jane_syntax.Labeled_tuples.pat_of
+    ~loc:(make_loc loc) ~attrs:[]
+    (Ltpat_tuple (elts, closed))
+
+let ptyp_lttuple loc tl =
+  Jane_syntax.Labeled_tuples.typ_of
+    ~loc:(make_loc loc) ~attrs:[]
+    (Lttyp_tuple tl)
+
+let pexp_lttuple loc args =
+  Jane_syntax.Labeled_tuples.expr_of
+    ~loc:(make_loc loc) ~attrs:[]
+    (Ltexp_tuple args)
+
 (* Using the function [not_expecting] in a semantic action means that this
    syntactic form is recognized by the parser but is in fact incorrect. This
    idiom is used in a few places to produce ad hoc syntax error messages. *)
@@ -2774,6 +2789,8 @@ fun_expr:
       }
   | mkexp(expr_)
       { $1 }
+  | expr_comma_list %prec below_COMMA
+      { mkexp ~loc:$sloc (Pexp_tuple $1) }
   | let_bindings(ext) IN seq_expr
       { expr_of_let_bindings ~loc:$sloc $1 $3 }
   | pbop_op = mkrhs(LETOP) bindings = letop_bindings IN body = seq_expr
@@ -2844,8 +2861,6 @@ fun_expr:
 %inline expr_:
   | simple_expr nonempty_llist(labeled_simple_expr)
       { Pexp_apply($1, $2) }
-  | expr_comma_list %prec below_COMMA
-      { Pexp_tuple($1) }
   | mkrhs(constr_longident) simple_expr %prec below_HASH
       { Pexp_construct($1, Some $2) }
   | name_tag simple_expr %prec below_HASH
@@ -2857,6 +2872,8 @@ fun_expr:
 simple_expr:
   | LPAREN seq_expr RPAREN
       { reloc_exp ~loc:$sloc $2 }
+  | LPAREN args = ltuple_component_comma_list RPAREN
+      { pexp_lttuple $sloc args }
   | LPAREN seq_expr error
       { unclosed "(" $loc($1) ")" $loc($3) }
   | LPAREN seq_expr type_constraint RPAREN
@@ -3299,6 +3316,50 @@ fun_params:
   es = separated_nontrivial_llist(COMMA, expr)
     { es }
 ;
+
+(* We do not use [labeled_simple_expr] for labeled tuples because we do not
+   permit optional tuple fields, and because we want don't want to parse tuples
+   with no labels as labeled tuples. *)
+%inline strict_ltuple_component:
+  | LABEL simple_expr
+      { Some $1, $2 }
+  | TILDE label = LIDENT
+      { let loc = $loc(label) in
+        Some label, mkexpvar ~loc label }
+  | TILDE LPAREN label = LIDENT ty = type_constraint RPAREN
+      { Some label,
+        mkexp_constraint
+          ~loc:($startpos($2), $endpos) (mkexpvar ~loc:$loc(label) label) ty }
+;
+
+%inline ltuple_component:
+  | expr
+      { None, $1 }
+  | strict_ltuple_component
+      { $1 }
+;
+
+// Length >= 2, at least one label
+reversed_ltuple_component_comma_list:
+  // Base case: the next three rules are the ways to produce a list of length 2
+  | strict_ltuple_component COMMA strict_ltuple_component
+      { [$3; $1] }
+  | expr COMMA strict_ltuple_component
+      { [$3; None, $1]}
+  | strict_ltuple_component COMMA expr
+      { [None, $3; $1]}
+  // One label, length > 2
+  | separated_nontrivial_llist(COMMA, expr) COMMA strict_ltuple_component
+      { $3 :: List.map (fun x -> None, x) $1 }
+  // Recursive case
+  | reversed_ltuple_component_comma_list COMMA ltuple_component
+      { $3 :: $1 }
+;
+
+%inline ltuple_component_comma_list:
+  | rev(reversed_ltuple_component_comma_list) { $1 }
+;
+
 record_expr_content:
   eo = ioption(terminated(simple_expr, WITH))
   fields = separated_or_terminated_nonempty_list(SEMI, record_expr_field)
@@ -3439,6 +3500,10 @@ simple_pattern:
 simple_pattern_not_ident:
   | LPAREN pattern RPAREN
       { reloc_pat ~loc:$sloc $2 }
+  | LPAREN args = labeled_tuple_pattern RPAREN
+      { let l, closed = args in
+        ppat_lttuple $sloc l closed
+      }
   | simple_delimited_pattern
       { $1 }
   | LPAREN MODULE ext_attributes mkrhs(module_name) RPAREN
@@ -3519,6 +3584,55 @@ pattern_comma_list(self):
   | self COMMA pattern                          { [$3; $1] }
   | self COMMA error                            { expecting $loc($3) "pattern" }
 ;
+
+strict_ltuple_component_pat:
+  | LABEL pattern %prec below_HASH
+      { Some $1, $2 }
+  (* Punning *)
+  | TILDE label = LIDENT
+      { let loc = $loc(label) in
+        Some label, mkpatvar ~loc label }
+  (* Punning + type annotation *)
+  | TILDE LPAREN label = LIDENT COLON cty = core_type RPAREN
+      { let loc = $loc(label) in
+        let pat = mkpatvar ~loc label in
+        Some label, mkpat_opt_constraint ~loc pat (Some cty) }
+;
+
+%inline ltuple_component_pat:
+  | pattern
+      { None, $1 }
+  | strict_ltuple_component_pat
+      { $1 }
+;
+
+// Length >= 2, at least one label
+reversed_ltuple_component_pat_comma_list:
+  // Base case: the next three rules are the ways to produce a list of length 2
+  | strict_ltuple_component_pat COMMA strict_ltuple_component_pat
+      { [$3; $1] }
+  | pattern COMMA strict_ltuple_component_pat
+      { [$3; None, $1]}
+  | strict_ltuple_component_pat COMMA pattern %prec below_HASH
+      { [None, $3; $1]}
+  // One label, length > 2
+  | pattern_comma_list(pattern) COMMA strict_ltuple_component_pat
+      { $3 :: List.rev_map (fun x -> None, x) $1 }
+  // Recursive case
+  | reversed_ltuple_component_pat_comma_list COMMA ltuple_component_pat
+      %prec below_HASH
+      { $3 :: $1 }
+;
+
+labeled_tuple_pattern:
+  | rev(reversed_ltuple_component_pat_comma_list)
+      { $1, Closed }
+  | rev(reversed_ltuple_component_pat_comma_list) COMMA DOTDOT
+      { $1, Open }
+  // Partial patterns are allowed to be length-one
+  | ltuple_component_pat COMMA DOTDOT
+      { [$1], Open }
+
 %inline pattern_semi_list:
   ps = separated_or_terminated_nonempty_list(SEMI, pattern)
     { ps }
@@ -4121,11 +4235,17 @@ strict_function_type:
     )
     { $1 }
 ;
-%inline arg_label:
+
+%inline strict_arg_label:
   | label = optlabel
       { Optional label }
   | label = LIDENT COLON
       { Labelled label }
+;
+
+%inline arg_label:
+  | strict_arg_label
+      { $1 }
   | /* empty */
       { Nolabel }
 ;
@@ -4154,6 +4274,7 @@ strict_function_type:
    - atomic types (see below);
    - proper tuple types:                  int * int * int list
    A proper tuple type is a star-separated list of at least two atomic types.
+   Tuple components can also be labeled, as an [x:int * int list * y:bool].
  *)
 tuple_type:
   | ty = atomic_type
@@ -4163,8 +4284,42 @@ tuple_type:
       tys = separated_nontrivial_llist(STAR, atomic_type)
         { Ptyp_tuple tys }
     )
-    { $1 }
+      { $1 }
 ;
+
+%inline strict_labeled_atomic_type:
+  | label = LIDENT COLON ty = atomic_type
+      { Some label, ty }
+
+labeled_atomic_type:
+  atomic_type
+      { None, $1 }
+  | strict_labeled_atomic_type
+      { $1 }
+;
+
+(* Star-separated of >= 1 type(s) with at least one label total *)
+reversed_labeled_type_list:
+  (* 0 unlabeled types before the first label *)
+  | strict_labeled_atomic_type %prec below_HASH
+      { [$1] }
+  (* 1 unlabeled type before the first label *)
+  | atomic_type STAR strict_labeled_atomic_type
+      { [$3; None, $1]}
+  (* 2+ unlabeled types before the first label *)
+  | separated_nontrivial_llist(STAR, atomic_type)
+    STAR strict_labeled_atomic_type
+      { $3 :: List.map (fun x -> None, x) $1 }
+  (* Once we have a label, we can append either *)
+  | reversed_labeled_type_list STAR labeled_atomic_type
+      { $3 :: $1 }
+
+%inline nontrivial_labeled_type_list:
+  | rev(reversed_labeled_type_list)
+      { if List.length $1 == 1 then
+          raise
+            Syntaxerr.(Error(Singleton_labeled_tuple_type (make_loc $loc($1))));
+        $1 }
 
 (* Atomic types are the most basic level in the syntax of types.
    Atomic types include:
@@ -4179,6 +4334,15 @@ atomic_type:
       { $2 }
   | LPAREN MODULE ext_attributes package_type RPAREN
       { wrap_typ_attrs ~loc:$sloc (reloc_typ ~loc:$sloc $4) $3 }
+  | LPAREN
+      tys = nontrivial_labeled_type_list
+    RPAREN
+      {
+        if List.for_all (fun (lbl, _) -> Option.is_none lbl) tys then
+          mktyp ~loc:$sloc (Ptyp_tuple (List.map snd tys))
+        else
+          ptyp_lttuple $sloc tys
+      }
   | mktyp( /* begin mktyp group */
       QUOTE ident
         { Ptyp_var $2 }

@@ -231,7 +231,8 @@ let pat
     | Tpat_any
     | Tpat_var _
     | Tpat_constant _ -> x.pat_desc
-    | Tpat_tuple l -> Tpat_tuple (List.map (sub.pat sub) l)
+    | Tpat_tuple l ->
+        Tpat_tuple (List.map (fun (label, p) -> label, sub.pat sub p) l)
     | Tpat_construct (loc, cd, l, vto) ->
         let vto = Option.map (fun (vl,cty) -> vl, sub.typ sub cty) vto in
         Tpat_construct (loc, cd, List.map (sub.pat sub) l, vto)
@@ -330,7 +331,7 @@ let expr sub x =
           List.map (sub.case sub) cases
         )
     | Texp_tuple (list, am) ->
-        Texp_tuple (List.map (sub.expr sub) list, am)
+        Texp_tuple (List.map (fun (label, e) -> label, sub.expr sub e) list, am)
     | Texp_construct (lid, cd, args, am) ->
         Texp_construct (lid, cd, List.map (sub.expr sub) args, am)
     | Texp_variant (l, expo) ->
@@ -700,7 +701,8 @@ let typ sub x =
         Ttyp_var (s, Some (sub.jkind_annotation sub jkind))
     | Ttyp_arrow (label, ct1, ct2) ->
         Ttyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
-    | Ttyp_tuple list -> Ttyp_tuple (List.map (sub.typ sub) list)
+    | Ttyp_tuple list ->
+        Ttyp_tuple (List.map (fun (label, t) -> label, sub.typ sub t) list)
     | Ttyp_constr (path, lid, list) ->
         Ttyp_constr (path, lid, List.map (sub.typ sub) list)
     | Ttyp_object (list, closed) ->

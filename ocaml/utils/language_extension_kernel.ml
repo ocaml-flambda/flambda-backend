@@ -11,6 +11,7 @@ type _ t =
   | Module_strengthening : unit t
   | Layouts : maturity t
   | SIMD : unit t
+  | Labeled_tuples : unit t
 
 type 'a language_extension_kernel = 'a t
 
@@ -27,6 +28,7 @@ module Exist = struct
     ; Pack Module_strengthening
     ; Pack Layouts
     ; Pack SIMD
+    ; Pack Labeled_tuples
     ]
 end
 
@@ -45,6 +47,7 @@ let to_string : type a. a t -> string = function
   | Module_strengthening -> "module_strengthening"
   | Layouts -> "layouts"
   | SIMD -> "simd"
+  | Labeled_tuples -> "labeled_tuples"
 
 (* converts full extension names, like "layouts_alpha" to a pair of
    an extension and its maturity. For extensions that don't take an
@@ -63,6 +66,7 @@ let pair_of_string extn_name : Exist_pair.t option =
   | "layouts_alpha" -> Some (Pair (Layouts, Alpha))
   | "layouts_beta" -> Some (Pair (Layouts, Beta))
   | "simd" -> Some (Pair (SIMD, ()))
+  | "labeled_tuples" -> Some (Pair (Labeled_tuples, ()))
   | _ -> None
 
 let maturity_to_string = function
@@ -75,7 +79,7 @@ let of_string extn_name : Exist.t option =
   | Some (Pair (ext, _)) -> Some (Pack ext)
   | None -> None
 
-(* We'll do this in a more principled way later. *)
+(* We'll do this~/ocaml/ in a more principled way later. *)
 (* CR layouts: Note that layouts is only "mostly" erasable, because of annoying
    interactions with the pre-layouts [@@immediate] attribute like:
 
@@ -93,7 +97,8 @@ let is_erasable : type a. a t -> bool = function
   | Polymorphic_parameters
   | Immutable_arrays
   | Module_strengthening
-  | SIMD ->
+  | SIMD
+  | Labeled_tuples ->
       false
 
 (* See the mli. *)

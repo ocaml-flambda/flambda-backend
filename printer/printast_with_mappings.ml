@@ -147,6 +147,10 @@ let arg_label i ppf = function
   | Optional s -> line i ppf "Optional \"%s\"\n" s
   | Labelled s -> line i ppf "Labelled \"%s\"\n" s
 ;;
+let tuple_component_label i ppf = function
+  | None -> line i ppf "Label: None\n"
+  | Some s -> line i ppf "Label: Some \"%s\"\n" s
+;;
 
 let typevars ppf vs =
   List.iter (fun x -> fprintf ppf " %a" Printast.tyvar x.txt) vs
@@ -271,6 +275,10 @@ and pattern i ppf x =
       line i ppf "Ppat_extension \"%s\"\n" s.txt;
       payload i ppf arg
   )
+
+and labeled_pattern i ppf (label, x) =
+  tuple_component_label i ppf label;
+  pattern i ppf x;
 
 and expression i ppf x =
   with_location_mapping ~loc:x.pexp_loc ppf (fun () ->
@@ -982,6 +990,11 @@ and longident_x_expression i ppf (li, e) =
 and label_x_expression i ppf (l,e) =
   line i ppf "<arg>\n";
   arg_label i ppf l;
+  expression (i+1) ppf e;
+
+and tuple_component i ppf (l,e) =
+  line i ppf "<tuple component>\n";
+  tuple_component_label i ppf l;
   expression (i+1) ppf e;
 
 and label_x_bool_x_core_type_list i ppf x =

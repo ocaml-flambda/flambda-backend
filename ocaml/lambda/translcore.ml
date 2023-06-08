@@ -226,7 +226,7 @@ let rec trivial_pat pat =
   | Tpat_construct (_, cd, [], _) ->
       not cd.cstr_generalized && cd.cstr_consts = 1 && cd.cstr_nonconsts = 0
   | Tpat_tuple patl ->
-      List.for_all trivial_pat patl
+      List.for_all (fun (_, p) -> trivial_pat p) patl
   | _ -> false
 
 let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
@@ -463,7 +463,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_tuple (el, alloc_mode) ->
       let ll, shape =
         transl_list_with_shape ~scopes
-          (List.map (fun a -> (a, Jkind.Sort.for_tuple_element)) el)
+          (List.map (fun (_, a) -> (a, Jkind.Sort.for_tuple_element)) el)
       in
       begin try
         Lconst(Const_block(0, List.map extract_constant ll))
@@ -1701,11 +1701,15 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, [] ->
       assert (static_handlers = []);
       let mode = transl_alloc_mode alloc_mode in
-      let argl = List.map (fun a -> (a, Jkind.Sort.for_tuple_element)) argl in
+      let argl =
+        List.map (fun (_, a) -> (a, Jkind.Sort.for_tuple_element)) argl
+      in
       Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
         (transl_list_with_layout ~scopes argl) mode val_cases partial
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, _ :: _ ->
-        let argl = List.map (fun a -> (a, Jkind.Sort.for_tuple_element)) argl in
+        let argl =
+          List.map (fun (_, a) -> (a, Jkind.Sort.for_tuple_element)) argl
+        in
         let val_ids, lvars =
           List.map
             (fun (arg,s) ->
