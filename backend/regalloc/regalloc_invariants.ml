@@ -106,16 +106,10 @@ let precondition : Cfg_with_layout.t -> unit =
 
 let postcondition_layout : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
-  let max_stack_slots = Array.init Proc.num_register_classes ~f:(fun _ -> -1) in
   let register_must_not_be_unknown (id : Instruction.id) (reg : Reg.t) : unit =
     match reg.Reg.loc with
     | Reg _ -> ()
-    | Stack (Incoming _ | Outgoing _ | Domainstate _) -> ()
-    | Stack (Local slot) ->
-      if slot < 0
-      then fatal "instruction %d is using an invalid slot (%d)" id slot;
-      let reg_class = Proc.register_class reg in
-      max_stack_slots.(reg_class) <- max max_stack_slots.(reg_class) slot
+    | Stack (Local _ | Incoming _ | Outgoing _ | Domainstate _) -> ()
     | Unknown ->
       fatal "instruction %d has a register (%a) with an unknown location" id
         Printmach.reg reg
@@ -164,6 +158,30 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
       (regs : Reg.t array) : unit =
     ArrayLabels.iter regs ~f:(register_classes_must_be_consistent id)
   in
+  let module Int = Numbers.Int in
+  let used_stack_slots =
+    Array.init Proc.num_register_classes ~f:(fun _ -> Int.Set.empty)
+  in
+  let record_stack_slot_use (reg : Reg.t) : unit =
+    match reg.loc with
+    | Unknown -> ()
+    | Reg _ -> ()
+    | Stack stack_loc -> (
+      match stack_loc with
+      | Local index ->
+        let reg_class = Proc.register_class reg in
+        used_stack_slots.(reg_class)
+          <- Int.Set.add index used_stack_slots.(reg_class)
+      | Incoming _ -> ()
+      | Outgoing _ -> ()
+      | Domainstate _ -> ())
+  in
+  let record_stack_slot_uses (regs : Reg.t array) : unit =
+    Array.iter ~f:record_stack_slot_use regs
+  in
+  (* CR-someday xclerc for xclerc: for some properties, it may not be necessary
+     to iterate over the instructions, iterating over the registers could be
+     enough. *)
   Cfg_with_layout.iter_instructions cfg_with_layout
     ~instruction:(fun instr ->
       let id = instr.id in
@@ -171,29 +189,38 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
       registers_must_not_be_unknown id instr.res;
       arch_constraints id instr.desc instr.arg instr.res;
       register_classes_must_be_consistent id instr.arg;
-      register_classes_must_be_consistent id instr.res)
+      register_classes_must_be_consistent id instr.res;
+      record_stack_slot_uses instr.arg;
+      record_stack_slot_uses instr.res)
     ~terminator:(fun term ->
       let id = term.id in
       registers_must_not_be_unknown id term.arg;
       registers_must_not_be_unknown id term.res;
       register_classes_must_be_consistent id term.arg;
-      register_classes_must_be_consistent id term.res);
+      register_classes_must_be_consistent id term.res;
+      record_stack_slot_uses term.arg;
+      record_stack_slot_uses term.res);
   let fun_num_stack_slots =
     (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
   in
-  let reg_class = ref 0 in
-  Array.iter2 max_stack_slots fun_num_stack_slots ~f:(fun max_slot num_slots ->
-      (* CR-soon xclerc for xclerc: make the condition stricter. The present
-         condition ensure safety: no access out of bounds (i.e. to another
-         frame), but could be made stricter to ensure optimiality (i.e. we use
-         every element from the frame). *)
-      if max_slot >= num_slots
+  Array.iteri fun_num_stack_slots ~f:(fun reg_class num_slots ->
+      let available_slots =
+        Seq.ints 0 |> Seq.take num_slots |> Int.Set.of_seq
+      in
+      let string_of_set set =
+        set |> Int.Set.elements |> List.map ~f:string_of_int
+        |> String.concat ", "
+      in
+      let invalid = Int.Set.diff used_stack_slots.(reg_class) available_slots in
+      if not (Int.Set.is_empty invalid)
       then
-        fatal
-          "register class %d has a max slot of %d, but the number of slots is \
-           %d"
-          !reg_class max_slot num_slots;
-      incr reg_class)
+        fatal "register class %d uses the following invalid slots: %s" reg_class
+          (string_of_set invalid);
+      let unused = Int.Set.diff available_slots used_stack_slots.(reg_class) in
+      if not (Int.Set.is_empty unused)
+      then
+        fatal "register class %d has the following unused slots: %s" reg_class
+          (string_of_set unused))
 
 let postcondition_liveness : Cfg_with_liveness.t -> unit =
  fun cfg_with_liveness ->
