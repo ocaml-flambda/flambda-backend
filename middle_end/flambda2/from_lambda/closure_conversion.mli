@@ -74,7 +74,7 @@ val close_raise :
   Env.t ->
   raise_kind:Lambda.raise_kind ->
   arg:IR.simple ->
-  Lambda.scoped_location ->
+  dbg:Debuginfo.t ->
   IR.exn_continuation ->
   Expr_with_acc.t
 

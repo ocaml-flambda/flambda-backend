@@ -1185,7 +1185,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                 extra_args = extra_args_for_exn_continuation env k_exn
               }
             in
-            CC.close_raise acc ccenv ~raise_kind ~arg:(List.hd args) loc
+            let dbg = Debuginfo.from_location loc in
+            CC.close_raise acc ccenv ~raise_kind ~arg:(List.hd args) ~dbg
               exn_continuation)
           k_exn
       | [] | _ :: _ ->
