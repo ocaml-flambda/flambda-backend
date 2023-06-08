@@ -128,6 +128,10 @@ module Witnesses : sig
 
   val empty : t
 
+  val is_empty : t -> bool
+
+  val iter : t -> f:(Witness.t -> unit) -> unit
+
   val join : t -> t -> t
 
   val create : Witness.kind -> Debuginfo.t -> t
@@ -152,6 +156,8 @@ end = struct
   let join = union
 
   let create kind dbg = singleton (Witness.create dbg kind)
+
+  let iter t ~f = iter f t
 
   let print ppf t = Format.pp_print_seq Witness.print ppf (to_seq t)
 
@@ -187,6 +193,8 @@ module V : sig
   val replace_witnesses : Witnesses.t -> t -> t
 
   val diff_witnesses : expected:t -> actual:t -> Witnesses.t
+
+  val get_witnesses : t -> Witnesses.t
 
   val is_not_safe : t -> bool
 
@@ -228,6 +236,9 @@ end = struct
     | Top w' -> Top (Witnesses.join w w')
 
   let replace_witnesses w t = match t with Top _ -> Top w | Bot | Safe -> t
+
+  let get_witnesses t =
+    match t with Top w -> w | Bot | Safe -> Witnesses.empty
 
   let diff_witnesses ~expected ~actual =
     if lessequal actual expected
@@ -286,6 +297,8 @@ module Value : sig
   val diff_witnesses : expected:t -> actual:t -> Witnesses.components
 
   val remove_witnesses : t -> t
+
+  val get_witnesses : t -> Witnesses.components
 end = struct
   (** Lifts V to triples  *)
   type t =
@@ -325,6 +338,12 @@ end = struct
     }
 
   let remove_witnesses t = replace_witnesses Witnesses.empty t
+
+  let get_witnesses t =
+    { Witnesses.nor = V.get_witnesses t.nor;
+      Witnesses.exn = V.get_witnesses t.exn;
+      Witnesses.div = V.get_witnesses t.div
+    }
 
   let normal_return = { bot with nor = V.Safe }
 
@@ -1132,5 +1151,12 @@ let reset_unit_info () = Unit_info.reset unit_info
 let record_unit_info ppf_dump =
   Check_zero_alloc.record_unit unit_info ppf_dump;
   Compilenv.cache_checks (Compilenv.current_unit_infos ()).ui_checks
+
+type iter_witnesses = (string -> Witnesses.components -> unit) -> unit
+
+let iter_witnesses f =
+  Unit_info.iter unit_info ~f:(fun func_info ->
+      f func_info.name
+        (Value.get_witnesses func_info.value |> Witnesses.simplify))
 
 let () = Location.register_error_of_exn Annotation.report_error
