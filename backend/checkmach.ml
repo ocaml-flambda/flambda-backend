@@ -909,7 +909,7 @@ end = struct
     let callee_value = Value.replace_witnesses w callee_value in
     transform t ~next ~exn ~effect:callee_value desc dbg
 
-  let create_witnesses t kind dbg =
+  let[@inline always] create_witnesses t kind dbg =
     if t.keep_witnesses then Witnesses.create kind dbg else Witnesses.empty
 
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
