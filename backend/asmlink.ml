@@ -407,8 +407,10 @@ let make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
      might drop some of them (in case of libraries) *)
   Emit.end_assembly ()
 
-let call_linker_shared file_list output_name =
-  let exitcode = Ccomp.call_linker Ccomp.Dll output_name file_list "" in
+let call_linker_shared ?(native_toplevel = false) file_list output_name =
+  let exitcode =
+    Ccomp.call_linker ~native_toplevel Ccomp.Dll output_name file_list ""
+  in
   if not (exitcode = 0)
   then raise(Error(Linking_error exitcode))
 
