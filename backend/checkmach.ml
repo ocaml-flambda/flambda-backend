@@ -294,11 +294,9 @@ module Value : sig
 
   val replace_witnesses : Witnesses.t -> t -> t
 
-  val diff_witnesses : expected:t -> actual:t -> Witnesses.components
-
-  val remove_witnesses : t -> t
-
   val get_witnesses : t -> Witnesses.components
+
+  val diff_witnesses : expected:t -> actual:t -> Witnesses.components
 end = struct
   (** Lifts V to triples  *)
   type t =
@@ -336,8 +334,6 @@ end = struct
       Witnesses.exn = V.diff_witnesses ~expected:expected.exn ~actual:actual.exn;
       Witnesses.div = V.diff_witnesses ~expected:expected.div ~actual:actual.div
     }
-
-  let remove_witnesses t = replace_witnesses Witnesses.empty t
 
   let get_witnesses t =
     { Witnesses.nor = V.get_witnesses t.nor;
@@ -724,7 +720,8 @@ end = struct
           (** functions defined later in the same compilation unit  *)
       mutable unresolved_deps : Witnesses.t String.Map.t;
           (** must be the current compilation unit.  *)
-      unit_info : Unit_info.t
+      unit_info : Unit_info.t;
+      mutable keep_witnesses : bool
     }
 
   let create ppf current_fun_name future_funcnames unit_info =
@@ -732,7 +729,8 @@ end = struct
       current_fun_name;
       future_funcnames;
       unresolved_deps = String.Map.empty;
-      unit_info
+      unit_info;
+      keep_witnesses = false
     }
 
   let analysis_name = Printcmm.property_to_string S.property
@@ -911,6 +909,9 @@ end = struct
     let callee_value = Value.replace_witnesses w callee_value in
     transform t ~next ~exn ~effect:callee_value desc dbg
 
+  let create_witnesses t kind dbg =
+    if t.keep_witnesses then Witnesses.create kind dbg else Witnesses.empty
+
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
     | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _ | Iconst_symbol _
@@ -950,29 +951,29 @@ end = struct
       next
     | Ialloc { mode = Alloc_heap; bytes; dbginfo } ->
       assert (not (Mach.operation_can_raise op));
-      let w = Witnesses.create (Alloc { bytes; dbginfo }) dbg in
+      let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
       let r = Value.transform w next in
       check t r "heap allocation" dbg
     | Iprobe { name; handler_code_sym; enabled_at_init = __ } ->
       let desc = Printf.sprintf "probe %s handler %s" name handler_code_sym in
-      let w = Witnesses.create (Probe { name; handler_code_sym }) dbg in
+      let w = create_witnesses t (Probe { name; handler_code_sym }) dbg in
       transform_call t ~next ~exn handler_code_sym w ~desc dbg
     | Icall_ind ->
-      let w = Witnesses.create Indirect_call dbg in
+      let w = create_witnesses t Indirect_call dbg in
       let effect = Value.top w in
       transform t ~next ~exn ~effect "indirect call" dbg
     | Itailcall_ind ->
       (* Sound to ignore [next] and [exn] because the call never returns. *)
-      let w = Witnesses.create Indirect_tailcall dbg in
+      let w = create_witnesses t Indirect_tailcall dbg in
       let effect = Value.top w in
       transform t ~next:Value.normal_return ~exn:Value.exn_escape ~effect
         "indirect tailcall" dbg
     | Icall_imm { func = { sym_name = func; _ } } ->
-      let w = Witnesses.create (Direct_call { callee = func }) dbg in
+      let w = create_witnesses t (Direct_call { callee = func }) dbg in
       transform_call t ~next ~exn func w ~desc:("direct call to " ^ func) dbg
     | Itailcall_imm { func = { sym_name = func; _ } } ->
       (* Sound to ignore [next] and [exn] because the call never returns. *)
-      let w = Witnesses.create (Direct_tailcall { callee = func }) dbg in
+      let w = create_witnesses t (Direct_tailcall { callee = func }) dbg in
       transform_call t ~next:Value.normal_return ~exn:Value.exn_escape func w
         ~desc:("direct tailcall to " ^ func)
         dbg
@@ -985,11 +986,11 @@ end = struct
          raises. *)
       Value.bot
     | Iextcall { func; alloc = true; _ } ->
-      let w = Witnesses.create (Extcall { callee = func }) dbg in
+      let w = create_witnesses t (Extcall { callee = func }) dbg in
       let effect = Value.top w in
       transform t ~next ~exn ~effect ("external call to " ^ func) dbg
     | Ispecific s ->
-      let w = Witnesses.create Arch_specific dbg in
+      let w = create_witnesses t Arch_specific dbg in
       transform t ~next ~exn ~effect:(S.transform_specific w s)
         "Arch.specific_operation" dbg
 
@@ -1042,6 +1043,10 @@ end = struct
       in
       Unit_info.record_annotation unit_info fun_name f.fun_dbg a;
       let really_check ~keep_witnesses =
+        let keep_all_witnesses =
+          !Flambda_backend_flags.checkmach_details_cutoff < 0
+        in
+        t.keep_witnesses <- keep_witnesses || keep_all_witnesses;
         let res = check_instr t f.fun_body in
         let msg =
           if String.Map.is_empty t.unresolved_deps
@@ -1049,14 +1054,12 @@ end = struct
           else "unresolved deps"
         in
         report t res ~msg ~desc:"fundecl" f.fun_dbg;
-        let keep_all_witnesses =
-          !Flambda_backend_flags.checkmach_details_cutoff < 0
-        in
-        let res =
-          if keep_witnesses || keep_all_witnesses
-          then res
-          else Value.remove_witnesses res
-        in
+        if not t.keep_witnesses
+        then (
+          let { Witnesses.nor; exn; div } = Value.get_witnesses res in
+          assert (Witnesses.is_empty nor);
+          assert (Witnesses.is_empty exn);
+          assert (Witnesses.is_empty div));
         report_unit_info ppf unit_info ~msg:"before record deps";
         Unit_info.record_deps unit_info ~callees:t.unresolved_deps
           ~caller:fun_name;
