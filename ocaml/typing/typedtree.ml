@@ -251,61 +251,6 @@ and apply_position =
   | Nontail
   | Default
 
-(* Value expressions for the class language *)
-
-and class_expr =
-    {
-     cl_desc: class_expr_desc;
-     cl_loc: Location.t;
-     cl_type: Types.class_type;
-     cl_env: Env.t;
-     cl_attributes: attribute list;
-    }
-
-and class_expr_desc =
-    Tcl_ident of Path.t * Longident.t loc * core_type list
-  | Tcl_structure of class_structure
-  | Tcl_fun of
-      arg_label * pattern * (Ident.t * expression) list
-      * class_expr * partial
-  | Tcl_apply of class_expr * (arg_label * apply_arg) list
-  | Tcl_let of rec_flag * value_binding list *
-                  (Ident.t * expression) list * class_expr
-  | Tcl_constraint of
-      class_expr * class_type option * string list * string list * MethSet.t
-    (* Visible instance variables, methods and concrete methods *)
-  | Tcl_open of open_description * class_expr
-
-and class_structure =
-  {
-   cstr_self: pattern;
-   cstr_fields: class_field list;
-   cstr_type: Types.class_signature;
-   cstr_meths: Ident.t Meths.t;
-  }
-
-and class_field =
-   {
-    cf_desc: class_field_desc;
-    cf_loc: Location.t;
-    cf_attributes: attribute list;
-  }
-
-and class_field_kind =
-  | Tcfk_virtual of core_type
-  | Tcfk_concrete of override_flag * expression
-
-and class_field_desc =
-    Tcf_inherit of
-      override_flag * class_expr * string option * (string * Ident.t) list *
-        (string * Ident.t) list
-    (* Inherited instance variables and concrete methods *)
-  | Tcf_val of string loc * mutable_flag * Ident.t * class_field_kind * bool
-  | Tcf_method of string loc * private_flag * class_field_kind
-  | Tcf_constraint of core_type * core_type
-  | Tcf_initializer of expression
-  | Tcf_attribute of attribute
-
 (* Value expressions for the module language *)
 
 and module_expr =
