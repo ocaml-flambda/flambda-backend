@@ -33,7 +33,6 @@ let ident_int = ident_create "int"
 and ident_char = ident_create "char"
 and ident_bytes = ident_create "bytes"
 and ident_float = ident_create "float"
-and ident_float_unboxed = ident_create "float#"
 and ident_bool = ident_create "bool"
 and ident_unit = ident_create "unit"
 and ident_exn = ident_create "exn"
@@ -48,14 +47,12 @@ and ident_lazy_t = ident_create "lazy_t"
 and ident_string = ident_create "string"
 and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
+and ident_unboxed_float = ident_create "float#"
 
 let path_int = Pident ident_int
 and path_char = Pident ident_char
 and path_bytes = Pident ident_bytes
 and path_float = Pident ident_float
-(* CR layouts v2: we need to look through all the places where [path_float] is
-   checked and add a corresponding check for [path_float_unboxed]. *)
-and path_float_unboxed = Pident ident_float_unboxed
 and path_bool = Pident ident_bool
 and path_unit = Pident ident_unit
 and path_exn = Pident ident_exn
@@ -70,12 +67,12 @@ and path_lazy_t = Pident ident_lazy_t
 and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
+and path_unboxed_float = Pident ident_unboxed_float
 
 let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
 and type_bytes = newgenty (Tconstr(path_bytes, [], ref Mnil))
 and type_float = newgenty (Tconstr(path_float, [], ref Mnil))
-and type_float_unboxed = newgenty (Tconstr(path_float_unboxed, [], ref Mnil))
 and type_bool = newgenty (Tconstr(path_bool, [], ref Mnil))
 and type_unit = newgenty (Tconstr(path_unit, [], ref Mnil))
 and type_exn = newgenty (Tconstr(path_exn, [], ref Mnil))
@@ -91,6 +88,7 @@ and type_string = newgenty (Tconstr(path_string, [], ref Mnil))
 and type_extension_constructor =
       newgenty (Tconstr(path_extension_constructor, [], ref Mnil))
 and type_floatarray = newgenty (Tconstr(path_floatarray, [], ref Mnil))
+and type_unboxed_float = newgenty (Tconstr(path_unboxed_float, [], ref Mnil))
 
 let ident_match_failure = ident_create "Match_failure"
 and ident_out_of_memory = ident_create "Out_of_memory"
@@ -231,7 +229,6 @@ let common_initial_env add_type add_extension empty_env =
        ~layout:(Layout.value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
-  |> add_type ident_float_unboxed
   |> add_type ident_floatarray
   |> add_type ident_int ~layout:(Layout.immediate ~why:(Primitive ident_int))
   |> add_type ident_int32
@@ -258,6 +255,8 @@ let common_initial_env add_type add_extension empty_env =
            [| [| |]; [| Layout.value ~why:Type_argument |] |])
        ~layout:(Layout.value ~why:Boxed_variant)
   |> add_type ident_string
+  |> add_type ident_unboxed_float
+       ~layout:(Layout.float64 ~why:(Primitive ident_unboxed_float))
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
        ~layout:(Layout.immediate ~why:Enumeration)

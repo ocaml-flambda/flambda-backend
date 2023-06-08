@@ -22,7 +22,6 @@ val type_char: type_expr
 val type_string: type_expr
 val type_bytes: type_expr
 val type_float: type_expr
-val type_float_unboxed: type_expr
 val type_bool: type_expr
 val type_unit: type_expr
 val type_exn: type_expr
@@ -36,6 +35,7 @@ val type_int64: type_expr
 val type_lazy_t: type_expr -> type_expr
 val type_extension_constructor:type_expr
 val type_floatarray:type_expr
+val type_unboxed_float:type_expr
 
 val path_int: Path.t
 val path_char: Path.t
@@ -55,6 +55,7 @@ val path_int64: Path.t
 val path_lazy_t: Path.t
 val path_extension_constructor: Path.t
 val path_floatarray: Path.t
+val path_unboxed_float: Path.t
 
 val path_match_failure: Path.t
 val path_invalid_argument: Path.t

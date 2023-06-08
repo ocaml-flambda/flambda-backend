@@ -757,7 +757,7 @@ let mk_directive ~loc name arg =
 let check_layout loc id =
   begin
     match id with
-    | ("any" | "value" | "void" | "immediate64" | "immediate") -> ()
+    | ("any" | "value" | "void" | "immediate64" | "immediate" | "float64") -> ()
     | _ -> expecting loc "layout"
   end;
   let loc = make_loc loc in
