@@ -17,7 +17,6 @@
 open! Stdlib
 
 [@@@ocaml.flambda_o3]
-[@@@ocaml.zero_alloc check]
 
 (* Ensure that [at_exit] functions are called at the end of every program *)
 
