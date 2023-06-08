@@ -82,6 +82,7 @@ type token =
   | INCLUDE
   | IN
   | IF
+  | HASH_SUFFIX
   | HASHOP of (string)
   | HASH
   | GREATERRBRACKET
