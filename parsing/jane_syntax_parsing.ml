@@ -83,11 +83,11 @@ open Parsetree
 
 module Feature : sig
   type t =
-    | Language_extension of Language_extension.t
+    | Language_extension : _ Language_extension.t -> t
     | Builtin
 
   type error =
-    | Disabled_extension of Language_extension.t
+    | Disabled_extension : _ Language_extension.t -> error
     | Unknown_extension of string
 
   val describe_uppercase : t -> string
@@ -98,11 +98,11 @@ module Feature : sig
 
   val is_erasable : t -> bool
 end = struct
-  type t = Language_extension of Language_extension.t
+  type t = Language_extension : _ Language_extension.t -> t
          | Builtin
 
   type error =
-    | Disabled_extension of Language_extension.t
+    | Disabled_extension : _ Language_extension.t -> error
     | Unknown_extension of string
 
   let builtin_component = "_builtin"
@@ -122,10 +122,10 @@ end = struct
       Ok Builtin
     else
       match Language_extension.of_string str with
-      | Some ext when Language_extension.is_enabled ext ->
-          Ok (Language_extension ext)
-      | Some ext ->
-          Error (Disabled_extension ext)
+      | Some (Pack ext) ->
+          if Language_extension.is_enabled ext
+          then Ok (Language_extension ext)
+          else Error (Disabled_extension ext)
       | None ->
           Error (Unknown_extension str)
 
@@ -334,7 +334,7 @@ module Error = struct
     | Malformed_embedding of
         Embedding_syntax.t * Embedded_name.t * malformed_embedding
     | Unknown_extension of Embedding_syntax.t * Erasability.t * string
-    | Disabled_extension of Language_extension.t
+    | Disabled_extension : _ Language_extension.t -> error
     | Wrong_syntactic_category of Feature.t * string
     | Misnamed_embedding of
         Misnamed_embedding_error.t * string * Embedding_syntax.t
@@ -347,8 +347,8 @@ end
 
 open Error
 
-let assert_extension_enabled ~loc ext =
-  if not (Language_extension.is_enabled ext) then
+let assert_extension_enabled ~loc ext setting =
+  if not (Language_extension.is_at_least ext setting) then
     raise (Error(loc, Disabled_extension ext))
 ;;
 

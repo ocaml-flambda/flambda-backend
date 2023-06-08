@@ -707,3 +707,8 @@ module Magic_number : sig
 
   val all_kinds : kind list
 end
+
+(** Propositional equality *)
+type (_, _) eq = Refl : ('a, 'a) eq
+
+

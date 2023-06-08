@@ -64,23 +64,6 @@ let with_goal goal ~name ~what test = match goal with
   | Fail    -> should_fail    name      test
   | Succeed -> should_succeed name what test
 
-let with_two_layouts goal first second ~enabled =
-  let verb ending =
-    "enabl" ^ ending ^ (if enabled then "" else " and disabl" ^ ending)
-  in
-  let comparison, plural =
-    if first = second then "the same", "" else "two different", "s"
-  in
-  let description ending =
-    verb ending ^ " " ^ comparison ^ " layouts extension" ^ plural
-  in
-  Language_extension.with_enabled (Layouts first) (fun () ->
-    with_goal goal
-      ~name:(description "e")
-      ~what:(description "ing")
-      (fun () ->
-         Language_extension.with_set (Layouts second) ~enabled (fun () -> ())))
-
 let when_disallowed goal f_str f =
   let can_or_can't = match goal with
     | Fail    -> "can't"
@@ -101,15 +84,15 @@ typecheck_with_extension "in its default state";
 
 (* Disable all extensions for testing *)
 
-List.iter Language_extension.disable Language_extension.all;
+Language_extension.disable_all ();
 typecheck_with_extension ~full_name:true "no extensions enabled";
 
 (* Test globally toggling a language extension *)
 
-Language_extension.enable extension;
+Language_extension.enable extension ();
 typecheck_with_extension "enabled";
 
-Language_extension.enable extension;
+Language_extension.enable extension ();
 typecheck_with_extension "still enabled";
 
 Language_extension.disable extension;
@@ -121,7 +104,7 @@ typecheck_with_extension "still disabled";
 Language_extension.set extension ~enabled:true;
 typecheck_with_extension "enabled via [set]";
 
-Language_extension.enable extension;
+Language_extension.enable extension ();
 typecheck_with_extension "still enabled, via [set] and [enable]";
 
 Language_extension.set extension ~enabled:false;
@@ -136,7 +119,7 @@ typecheck_with_extension "still disabled, via [set] and [disable]";
    but it's more robust to do this explicitly) *)
 Language_extension.disable extension;
 
-Language_extension.with_enabled extension (fun () ->
+Language_extension.with_enabled extension () (fun () ->
   typecheck_with_extension "enabled locally and disabled globally");
 
 Language_extension.with_disabled extension (fun () ->
@@ -150,12 +133,12 @@ Language_extension.with_set extension ~enabled:false (fun () ->
   typecheck_with_extension "disabled locally via [with_set] and also globally");
 
 (* Globally enable the language extension *)
-Language_extension.enable extension;
+Language_extension.enable extension ();
 
 Language_extension.with_disabled extension (fun () ->
   typecheck_with_extension "disabled locally and enabled globally");
 
-Language_extension.with_enabled extension (fun () ->
+Language_extension.with_enabled extension () (fun () ->
   typecheck_with_extension "enabled locally and globally");
 
 Language_extension.with_set extension ~enabled:false (fun () ->
@@ -165,13 +148,32 @@ Language_extension.with_set extension ~enabled:false (fun () ->
 Language_extension.with_set extension ~enabled:true (fun () ->
   typecheck_with_extension "disabled locally via [with_set] and also globally");
 
-(* Test that we only allow you to pass one distinct layouts extension flag*)
+(* Test behavior of layouts extensions *)
+Language_extension.(enable Layouts Beta);;
+Language_extension.(enable Layouts Alpha);;
+report ~name:"Enable two layouts"
+  ~text:(if Language_extension.is_at_least Layouts Alpha
+              && Language_extension.is_at_least Layouts Beta
+              && Language_extension.is_at_least Layouts Stable
+         then "Succeeded"
+         else "Failed");;
 
-with_two_layouts Succeed Alpha Alpha ~enabled:false;
+Language_extension.disable Layouts;;
+report ~name:"Disable layouts"
+  ~text:(if Language_extension.is_at_least Layouts Alpha
+            || Language_extension.is_at_least Layouts Beta
+            || Language_extension.is_at_least Layouts Stable
+         then "Failed"
+         else "Succeeded");;
 
-with_two_layouts Fail    Alpha Beta  ~enabled:false;
-
-with_two_layouts Fail    Alpha Beta  ~enabled:true;
+Language_extension.(enable Layouts Alpha);;
+Language_extension.(enable Layouts Beta);;
+report ~name:"Enable two layouts, in reverse order"
+  ~text:(if Language_extension.is_at_least Layouts Alpha
+              && Language_extension.is_at_least Layouts Beta
+              && Language_extension.is_at_least Layouts Stable
+         then "Succeeded"
+         else "Failed");;
 
 (* Test disallowing extensions *)
 
@@ -190,7 +192,7 @@ when_disallowed Succeed "set ~enabled:false"
   (Language_extension.set ~enabled:false);
 
 when_disallowed Fail "enable"
-  Language_extension.enable;
+  (fun x -> Language_extension.enable x ());
 
 when_disallowed Succeed "disable"
   Language_extension.disable;
@@ -202,7 +204,7 @@ when_disallowed Succeed "with_set ~enabled:false"
   (Language_extension.with_set ~enabled:false |> lift_with);
 
 when_disallowed Fail "with_enabled"
-  (Language_extension.with_enabled |> lift_with);
+  ((fun x -> Language_extension.with_enabled x ()) |> lift_with);
 
 when_disallowed Succeed "with_disabled"
   (Language_extension.with_disabled |> lift_with);

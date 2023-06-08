@@ -995,7 +995,13 @@ let check_layout loc id =
 
 (* Unboxed literals *)
 
-let unboxed_literals_extension : Language_extension.t = Layouts Alpha
+(* CR layouts v2: The [unboxed_*] functions will both be improved and lose
+   their explicit assert once we have real unboxed literals in Jane syntax; they
+   may also get re-inlined at that point *)
+let unboxed_literals_extension = Language_extension.Layouts
+let assert_unboxed_literals ~loc =
+  Language_extension.(
+    Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
 
 type sign = Positive | Negative
 
@@ -1004,15 +1010,10 @@ let with_sign sign num =
   | Positive -> num
   | Negative -> "-" ^ num
 
-(* CR layouts ASZ: The [unboxed_*] functions will both be improved and lose
-   their explicit assert once we have real unboxed literals in Jane syntax; they
-   may also get re-inlined at that point *)
-
 let unboxed_int sloc int_loc sign (n, m) =
   match m with
   | Some _ ->
-      Jane_syntax_parsing.assert_extension_enabled
-        ~loc:(make_loc sloc) unboxed_literals_extension;
+      assert_unboxed_literals ~loc:(make_loc sloc);
       Pconst_integer (with_sign sign n, m)
   | None ->
       if Language_extension.is_enabled unboxed_literals_extension then
@@ -1021,8 +1022,7 @@ let unboxed_int sloc int_loc sign (n, m) =
         not_expecting sloc "line number directive"
 
 let unboxed_float sloc sign (f, m) =
-  Jane_syntax_parsing.assert_extension_enabled
-    ~loc:(make_loc sloc) unboxed_literals_extension;
+  assert_unboxed_literals ~loc:(make_loc sloc);
   Pconst_float (with_sign sign f, m)
 
 (* Jane syntax *)
