@@ -397,9 +397,6 @@ let close_c_call acc env ~loc ~ids_with_kinds
       Primitive.description) ~(args : Simple.t list) exn_continuation dbg
     ~current_region (k : Acc.t -> Named.t list -> Expr_with_acc.t) :
     Expr_with_acc.t =
-  (* We always replace the original let-binding with an Flambda expression, so
-     we call [k] with [None], to get just the closure-converted body of that
-     binding. *)
   let env, let_bound_vars =
     List.fold_left_map
       (fun env (id, kind) -> Env.add_var_like env id Not_user_visible kind)
