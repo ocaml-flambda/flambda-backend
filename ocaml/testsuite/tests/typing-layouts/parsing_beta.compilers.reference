@@ -11,7 +11,7 @@ Error: Syntax error: layout expected.
 Line 2, characters 9-15:
 2 | type t = float#;;
              ^^^^^^
-Error: The extension "layouts" is disabled and cannot be used
+Error: The extension "layouts" is disabled at maturity "alpha" and cannot be used
 Line 2, characters 9-13:
 2 | type t = int#;;
              ^^^^

@@ -334,7 +334,10 @@ module Error = struct
     | Malformed_embedding of
         Embedding_syntax.t * Embedded_name.t * malformed_embedding
     | Unknown_extension of Embedding_syntax.t * Erasability.t * string
-    | Disabled_extension : _ Language_extension.t -> error
+    | Disabled_extension :
+        { ext : _ Language_extension.t
+        ; maturity : Language_extension.maturity option
+        } -> error
     | Wrong_syntactic_category of Feature.t * string
     | Misnamed_embedding of
         Misnamed_embedding_error.t * string * Embedding_syntax.t
@@ -347,9 +350,16 @@ end
 
 open Error
 
-let assert_extension_enabled ~loc ext setting =
+let assert_extension_enabled
+    (type a) ~loc (ext : a Language_extension.t) (setting : a)
+  =
   if not (Language_extension.is_at_least ext setting) then
-    raise (Error(loc, Disabled_extension ext))
+    let maturity : Language_extension.maturity option =
+      match ext with
+      | Layouts -> Some (setting : Language_extension.maturity)
+      | _ -> None
+    in
+    raise (Error(loc, Disabled_extension { ext; maturity }))
 ;;
 
 let report_error ~loc = function
@@ -371,11 +381,17 @@ let report_error ~loc = function
         name
         Embedded_name.pp_a_term (what, embedded_name)
         (Embedding_syntax.name what)
-  | Disabled_extension ext ->
+  | Disabled_extension { ext; maturity } ->
       Location.errorf
         ~loc
-        "The extension \"%s\" is disabled and cannot be used"
+        "The extension \"%s\" is disabled%s and cannot be used"
         (Language_extension.to_string ext)
+        (match maturity with
+         | None -> ""
+         | Some maturity ->
+             Printf.sprintf
+               " at maturity \"%s\""
+               (Language_extension.maturity_to_string maturity))
   | Wrong_syntactic_category(feat, cat) ->
       Location.errorf
         ~loc
@@ -837,7 +853,8 @@ module AST = struct
                   raise_error (Wrong_syntactic_category(feat, AST.plural))
             end
           | Error err -> raise_error begin match err with
-            | Disabled_extension ext -> Disabled_extension ext
+            | Disabled_extension ext ->
+                Disabled_extension { ext; maturity = None }
             | Unknown_extension name ->
                 Unknown_extension (AST.embedding_syntax, erasability, name)
           end

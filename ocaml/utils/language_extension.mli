@@ -52,6 +52,8 @@ val is_erasable : 'a t -> bool
 val to_string : 'a t -> string
 val of_string : string -> Exist.t option
 
+val maturity_to_string : maturity -> string
+
 (** Enable and disable according to command-line strings; these raise
     an exception if the input string is invalid. *)
 val enable_of_string_exn : string -> unit
