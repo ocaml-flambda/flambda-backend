@@ -6,6 +6,8 @@ type t
 
 val make : unit -> t
 
+val size_for_all_reg_classes : t -> int
+
 val get_and_incr : t -> reg_class:int -> slot
 
 val get_or_create : t -> Reg.t -> slot
@@ -15,3 +17,9 @@ val get_or_fatal : t -> Reg.t -> slot
 val use_same_slot_or_fatal : t -> Reg.t -> existing:Reg.t -> unit
 
 val update_cfg_with_layout : t -> Cfg_with_layout.t -> unit
+
+(** Reduces the number of slots, by merging slots whose use
+    intervals do not overlap. If a reduction occurs, registers
+    are modified and liveness is invalidated, but the CFG is
+    left untouched. *)
+val optimize : t -> Cfg_with_liveness.t -> unit
