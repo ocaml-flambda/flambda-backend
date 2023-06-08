@@ -51,15 +51,15 @@ jobs:
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
-          - name: flambda2_nnp
+          - name: flambda2_nnp_o3
             config: --enable-middle-end=flambda2 --disable-naked-pointers
             os: ubuntu-latest
-            ocamlparam: ''
+            ocamlparam: '_,O3=1'
 
-          - name: flambda2_frame_pointers
+          - name: flambda2_frame_pointers_oclassic
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
-            ocamlparam: ''
+            ocamlparam: '_,Oclassic=1'
 
           - name: flambda2_cfg
             config: --enable-middle-end=flambda2

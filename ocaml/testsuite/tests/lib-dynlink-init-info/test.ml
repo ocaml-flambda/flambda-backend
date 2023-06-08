@@ -1,4 +1,5 @@
 (* TEST
+   flags += "-w -58"
    include dynlink
 *)
 
