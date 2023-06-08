@@ -62,3 +62,30 @@ let five_point_three_seven_five_in_floating_hexponent = #0xa.cp-1
 [%%expect{|
 val five_point_three_seven_five_in_floating_hexponent : float = 5.375
 |}]
+
+(* Unboxed literals at the beginning of the line aren't directives. *)
+let f _ _ = ();;
+let () = f
+#2.
+#2L
+;;
+
+let () = f
+#2. #2.
+;;
+
+[%%expect{|
+val f : 'a -> 'b -> unit = <fun>
+|}];;
+
+let () = f
+(* This lexes as a directive. #2 is not a valid unboxed int literal
+   anyway, as it lacks a suffix.
+*)
+#2 "literals.ml"
+()
+()
+;;
+
+[%%expect{|
+|}];;
