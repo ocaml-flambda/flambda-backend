@@ -99,7 +99,7 @@ let transl_meth_list lst =
 
 let set_inst_var ~scopes obj id expr =
   Lprim(Psetfield_computed (Typeopt.maybe_pointer expr, Assignment modify_heap),
-    [Lvar obj; Lvar id; transl_exp ~scopes Sort.sort_instance_var expr],
+    [Lvar obj; Lvar id; transl_exp ~scopes Sort.for_instance_var expr],
         Loc_unknown)
 
 let transl_val tbl create name =
@@ -207,7 +207,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
        let build params rem =
          let param = name_pattern "param" pat in
          let arg_layout =
-           Typeopt.layout pat.pat_env pat.pat_loc Sort.sort_class_arg
+           Typeopt.layout pat.pat_env pat.pat_loc Sort.for_class_arg
              pat.pat_type
          in
          let body =
@@ -358,7 +358,7 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
             | Tcf_method (name, _, Tcfk_concrete (_, exp)) ->
                 let scopes = enter_method_definition ~scopes name.txt in
                 let met_code =
-                  msubst true (transl_scoped_exp ~scopes Sort.sort_method exp)
+                  msubst true (transl_scoped_exp ~scopes Sort.for_method exp)
                 in
                 let met_code =
                   if !Clflags.native_code && List.length met_code = 1 then
@@ -375,7 +375,7 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
                  Lsequence(mkappl (oo_prim "add_initializer",
                                    Lvar cla :: msubst false
                                                  (transl_exp ~scopes
-                                                    Sort.sort_initializer exp),
+                                                    Sort.for_initializer exp),
                                    layout_unit),
                            cl_init),
                  methods, values)
@@ -494,7 +494,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
       let build params rem =
         let param = name_pattern "param" pat in
         let arg_layout =
-          Typeopt.layout pat.pat_env pat.pat_loc Sort.sort_class_arg
+          Typeopt.layout pat.pat_env pat.pat_loc Sort.for_class_arg
             pat.pat_type
         in
         let return_layout = layout_class in

@@ -75,29 +75,29 @@ module Sort : sig
   (* CR layouts: add similarly named layouts and use those names everywhere (not
      just the translation to lambda) rather than writing specific layouts and
      sorts in the code. *)
-  val sort_class_arg : t
-  val sort_instance_var : t
-  val sort_bop_exp : t
-  val sort_lazy_body : t
-  val sort_tuple_element : t
-  val sort_record : t
-  val sort_record_field : t
-  val sort_constructor_arg : t
-  val sort_block_element : t
-  val sort_predef_param : t
+  val for_class_arg : t
+  val for_instance_var : t
+  val for_bop_exp : t
+  val for_lazy_body : t
+  val for_tuple_element : t
+  val for_record : t
+  val for_record_field : t
+  val for_constructor_arg : t
+  val for_block_element : t
+  val for_predef_param : t
 
   (** These are sorts for the types of ocaml expressions that we expect will
       always be "value".  These names are used in the translation to lambda to
       make the code clearer. *)
-  val sort_function : t
-  val sort_probe_body : t
-  val sort_poly_variant : t
-  val sort_object : t
-  val sort_initializer : t
-  val sort_method : t
-  val sort_module : t
-  val sort_predef_value : t
-  val sort_tuple : t
+  val for_function : t
+  val for_probe_body : t
+  val for_poly_variant : t
+  val for_object : t
+  val for_initializer : t
+  val for_method : t
+  val for_module : t
+  val for_predef_value : t
+  val for_tuple : t
 end
 
 type sort = Sort.t

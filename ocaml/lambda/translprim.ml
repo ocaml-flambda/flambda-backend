@@ -574,7 +574,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       let shape =
         List.map (fun typ ->
           Lambda.must_be_value (Typeopt.layout env (to_location loc)
-                                  Sort.sort_block_element typ))
+                                  Sort.for_block_element typ))
           fields
       in
       let useful = List.exists (fun knd -> knd <> Pgenval) shape in

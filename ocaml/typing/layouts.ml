@@ -190,25 +190,25 @@ module Sort = struct
     and var ppf v = fprintf ppf "{ contents = %a }" opt_t (!v)
   end
 
-  let sort_function = value
-  let sort_predef_param = value
-  let sort_predef_value = value
-  let sort_block_element = value
-  let sort_probe_body = value
-  let sort_poly_variant = value
-  let sort_record = value
-  let sort_record_field = value
-  let sort_constructor_arg = value
-  let sort_object = value
-  let sort_lazy_body = value
-  let sort_tuple_element = value
-  let sort_instance_var = value
-  let sort_bop_exp = value
-  let sort_class_arg = value
-  let sort_method = value
-  let sort_initializer = value
-  let sort_module = value
-  let sort_tuple = value
+  let for_function = value
+  let for_predef_param = value
+  let for_predef_value = value
+  let for_block_element = value
+  let for_probe_body = value
+  let for_poly_variant = value
+  let for_record = value
+  let for_record_field = value
+  let for_constructor_arg = value
+  let for_object = value
+  let for_lazy_body = value
+  let for_tuple_element = value
+  let for_instance_var = value
+  let for_bop_exp = value
+  let for_class_arg = value
+  let for_method = value
+  let for_initializer = value
+  let for_module = value
+  let for_tuple = value
 end
 
 type sort = Sort.t

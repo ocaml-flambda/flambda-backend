@@ -619,7 +619,7 @@ and transl_module ~scopes cc rootpath mexp =
       transl_module ~scopes (compose_coercions cc ccarg) rootpath arg
   | Tmod_unpack(arg, _) ->
       apply_coercion loc Strict cc
-        (Translcore.transl_exp ~scopes Sort.sort_module arg)
+        (Translcore.transl_exp ~scopes Sort.for_module arg)
 
 and transl_struct ~scopes loc fields cc rootpath {str_final_env; str_items; _} =
   transl_structure ~scopes loc fields cc rootpath str_final_env str_items

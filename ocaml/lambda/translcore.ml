@@ -433,7 +433,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let mode = transl_alloc_mode alloc_mode in
       event_after ~scopes e
         (transl_apply ~scopes ~tailcall ~inlined ~specialised ~result_layout
-           ~position ~mode (transl_exp ~scopes Sort.sort_function funct)
+           ~position ~mode (transl_exp ~scopes Sort.for_function funct)
            oargs (of_location ~scopes e.exp_loc))
   | Texp_match(arg, arg_sort, pat_expr_list, partial) ->
       transl_match ~scopes ~arg_sort ~return_sort:sort e arg pat_expr_list
@@ -448,7 +448,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_tuple (el, alloc_mode) ->
       let ll, shape =
         transl_list_with_shape ~scopes
-          (List.map (fun a -> (a, Sort.sort_tuple_element)) el)
+          (List.map (fun a -> (a, Sort.for_tuple_element)) el)
       in
       begin try
         Lconst(Const_block(0, List.map extract_constant ll))
@@ -461,7 +461,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_construct(_, cstr, args, alloc_mode) ->
       let ll, shape =
         transl_list_with_shape ~scopes
-          (List.map (fun a -> (a, Sort.sort_constructor_arg)) args)
+          (List.map (fun a -> (a, Sort.for_constructor_arg)) args)
       in
       if cstr.cstr_inlined <> None then begin match ll with
         | [x] -> x
@@ -504,7 +504,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       begin match arg with
         None -> Lconst(const_int tag)
       | Some (arg, alloc_mode) ->
-          let lam = transl_exp ~scopes Sort.sort_poly_variant arg in
+          let lam = transl_exp ~scopes Sort.for_poly_variant arg in
           try
             Lconst(Const_block(0, [const_int tag;
                                    extract_constant lam]))
@@ -519,7 +519,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         (Option.map transl_alloc_mode alloc_mode)
         fields representation extended_expression
   | Texp_field(arg, _, lbl, alloc_mode) ->
-      let targ = transl_exp ~scopes Sort.sort_record arg in
+      let targ = transl_exp ~scopes Sort.for_record arg in
       let sem =
         match lbl.lbl_mut with
         | Immutable -> Reads_agree
@@ -554,15 +554,15 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | Record_inlined (_, Variant_extensible) ->
           Psetfield (lbl.lbl_pos + 1, maybe_pointer newval, mode)
       in
-      Lprim(access, [transl_exp ~scopes Sort.sort_record arg;
-                     transl_exp ~scopes Sort.sort_record_field newval],
+      Lprim(access, [transl_exp ~scopes Sort.for_record arg;
+                     transl_exp ~scopes Sort.for_record_field newval],
             of_location ~scopes e.exp_loc)
   | Texp_array (amut, expr_list, alloc_mode) ->
       let mode = transl_alloc_mode alloc_mode in
       let kind = array_kind e in
       let ll =
         transl_list ~scopes
-          (List.map (fun e -> (e, Sort.sort_predef_param)) expr_list)
+          (List.map (fun e -> (e, Sort.for_predef_param)) expr_list)
       in
       let loc = of_location ~scopes e.exp_loc in
       let makearray mutability =
@@ -638,12 +638,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       Transl_array_comprehension.comprehension
         ~transl_exp ~scopes ~loc ~array_kind comp
   | Texp_ifthenelse(cond, ifso, Some ifnot) ->
-      Lifthenelse(transl_exp ~scopes Sort.sort_predef_value cond,
+      Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
                   event_before ~scopes ifso (transl_exp ~scopes sort ifso),
                   event_before ~scopes ifnot (transl_exp ~scopes sort ifnot),
                   layout_exp sort e)
   | Texp_ifthenelse(cond, ifso, None) ->
-      Lifthenelse(transl_exp ~scopes Sort.sort_predef_value cond,
+      Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
                   event_before ~scopes ifso (transl_exp ~scopes sort ifso),
                   lambda_unit,
                   Lambda.layout_unit)
@@ -653,7 +653,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                 event_before ~scopes expr2 (transl_exp ~scopes sort expr2))
   | Texp_while {wh_body; wh_body_sort; wh_cond} ->
       sort_must_not_be_void wh_body.exp_loc wh_body.exp_type wh_body_sort;
-      let cond = transl_exp ~scopes Sort.sort_predef_value wh_cond in
+      let cond = transl_exp ~scopes Sort.for_predef_value wh_cond in
       let body = transl_exp ~scopes wh_body_sort wh_body in
       Lwhile {
         wh_cond = maybe_region_layout layout_int cond;
@@ -665,8 +665,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let body = transl_exp ~scopes for_body_sort for_body in
       Lfor {
         for_id;
-        for_from = transl_exp ~scopes Sort.sort_predef_value for_from;
-        for_to = transl_exp ~scopes Sort.sort_predef_value for_to;
+        for_from = transl_exp ~scopes Sort.for_predef_value for_from;
+        for_to = transl_exp ~scopes Sort.for_predef_value for_to;
         for_dir;
         for_body = event_before ~scopes for_body
                      (maybe_region_layout layout_unit body);
@@ -679,10 +679,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         let layout = layout_exp sort e in
         match met with
         | Tmeth_val id ->
-            let obj = transl_exp ~scopes Sort.sort_object expr in
+            let obj = transl_exp ~scopes Sort.for_object expr in
             Lsend (Self, Lvar id, obj, [], pos, mode, loc, layout)
         | Tmeth_name nm ->
-            let obj = transl_exp ~scopes Sort.sort_object expr in
+            let obj = transl_exp ~scopes Sort.for_object expr in
             let (tag, cache) = Translobj.meth obj nm in
             let kind = if cache = [] then Public else Cached in
             Lsend (kind, tag, obj, cache, pos, mode, loc, layout)
@@ -776,7 +776,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       then lambda_unit
       else begin
         Lifthenelse
-          (transl_exp ~scopes Sort.sort_predef_value cond,
+          (transl_exp ~scopes Sort.for_predef_value cond,
            lambda_unit,
            assert_failed ~scopes e,
            Lambda.layout_unit)
@@ -789,14 +789,14 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       | `Constant_or_function ->
         (* A constant expr (of type <> float if [Config.flat_float_array] is
            true) gets compiled as itself. *)
-         transl_exp ~scopes Sort.sort_lazy_body e
+         transl_exp ~scopes Sort.for_lazy_body e
       | `Float_that_cannot_be_shortcut ->
           (* We don't need to wrap with Popaque: this forward
              block will never be shortcutted since it points to a float
              and Config.flat_float_array is true. *)
          Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
                           alloc_heap),
-                [transl_exp ~scopes Sort.sort_lazy_body e],
+                [transl_exp ~scopes Sort.for_lazy_body e],
                of_location ~scopes e.exp_loc)
       | `Identifier `Forward_value ->
          (* CR-someday mshinwell: Consider adding a new primitive
@@ -808,11 +808,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
          Lprim (Popaque Lambda.layout_lazy,
                 [Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
                                   alloc_heap),
-                       [transl_exp ~scopes Sort.sort_lazy_body e],
+                       [transl_exp ~scopes Sort.for_lazy_body e],
                        of_location ~scopes e.exp_loc)],
                 of_location ~scopes e.exp_loc)
       | `Identifier `Other ->
-         transl_exp ~scopes Sort.sort_lazy_body e
+         transl_exp ~scopes Sort.for_lazy_body e
       | `Other ->
          (* other cases compile to a lazy block holding a function.  The
             typechecker enforces that e has layout value.  *)
@@ -826,7 +826,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                             ~region:true
                             ~body:(maybe_region_layout
                                      Lambda.layout_lazy_contents
-                                     (transl_exp ~scopes Sort.sort_lazy_body e))
+                                     (transl_exp ~scopes Sort.for_lazy_body e))
          in
           Lprim(Pmakeblock(Config.lazy_tag, Mutable, None, alloc_heap), [fn],
                 of_location ~scopes e.exp_loc)
@@ -875,7 +875,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       end
   | Texp_probe {name; handler=exp; enabled_at_init} ->
     if !Clflags.native_code && !Clflags.probes then begin
-      let lam = transl_exp ~scopes Sort.sort_probe_body exp in
+      let lam = transl_exp ~scopes Sort.for_probe_body exp in
       let map =
         Ident.Set.fold (fun v acc -> Ident.Map.add v (Ident.rename v) acc)
           (free_variables lam)
@@ -1014,7 +1014,7 @@ and transl_guard ~scopes guard rhs_sort rhs =
   | None -> expr
   | Some cond ->
       event_before ~scopes cond
-        (Lifthenelse(transl_exp ~scopes Sort.sort_predef_value cond,
+        (Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
                      expr, staticfail, layout))
 
 and transl_case ~scopes rhs_sort {c_lhs; c_guard; c_rhs} =
@@ -1392,7 +1392,7 @@ and transl_let ~scopes ~return_layout ?(add_regions=false) ?(in_structure=false)
 
 and transl_setinstvar ~scopes loc self var expr =
   Lprim(Psetfield_computed (maybe_pointer expr, Assignment modify_heap),
-    [self; var; transl_exp ~scopes Sort.sort_instance_var expr], loc)
+    [self; var; transl_exp ~scopes Sort.for_instance_var expr], loc)
 
 (* CR layouts v5: Invariant - this is only called on values.  Relax that. *)
 and transl_record ~scopes loc env mode fields repres opt_init_expr =
@@ -1417,7 +1417,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
            match definition with
            | Kept typ ->
                let field_kind =
-                 must_be_value (layout env lbl.lbl_loc Sort.sort_record_field typ)
+                 must_be_value (layout env lbl.lbl_loc Sort.for_record_field typ)
                in
                let sem =
                  match lbl.lbl_mut with
@@ -1440,9 +1440,9 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                field_kind
            | Overridden (_lid, expr) ->
                let field_kind =
-                 must_be_value (layout_exp Sort.sort_record_field expr)
+                 must_be_value (layout_exp Sort.for_record_field expr)
                in
-               transl_exp ~scopes Sort.sort_record_field expr, field_kind)
+               transl_exp ~scopes Sort.for_record_field expr, field_kind)
         fields
     in
     let ll, shape = List.split (Array.to_list lv) in
@@ -1488,7 +1488,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     begin match opt_init_expr with
       None -> lam
     | Some init_expr -> Llet(Strict, Lambda.layout_block, init_id,
-                             transl_exp ~scopes Sort.sort_record init_expr, lam)
+                             transl_exp ~scopes Sort.for_record init_expr, lam)
     end
   end else begin
     (* Take a shallow copy of the init record, then mutate the fields
@@ -1517,7 +1517,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                 Psetfield(pos, ptr, Assignment modify_heap)
           in
           Lsequence(Lprim(upd, [Lvar copy_id;
-                                transl_exp ~scopes Sort.sort_record_field expr],
+                                transl_exp ~scopes Sort.for_record_field expr],
                           of_location ~scopes loc),
                     cont)
     in
@@ -1527,7 +1527,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         assert (is_heap_mode (Option.get mode)); (* Pduprecord must be Alloc_heap and not unboxed *)
         Llet(Strict, Lambda.layout_block, copy_id,
              Lprim(Pduprecord (repres, size),
-                   [transl_exp ~scopes Sort.sort_record init_expr],
+                   [transl_exp ~scopes Sort.for_record init_expr],
                    of_location ~scopes loc),
              Array.fold_left update_field (Lvar copy_id) fields)
     end
@@ -1619,11 +1619,11 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, [] ->
       assert (static_handlers = []);
       let mode = transl_alloc_mode alloc_mode in
-      let argl = List.map (fun a -> (a, Sort.sort_tuple_element)) argl in
+      let argl = List.map (fun a -> (a, Sort.for_tuple_element)) argl in
       Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
         (transl_list_with_layout ~scopes argl) mode val_cases partial
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, _ :: _ ->
-        let argl = List.map (fun a -> (a, Sort.sort_tuple_element)) argl in
+        let argl = List.map (fun a -> (a, Sort.for_tuple_element)) argl in
         let val_ids =
           List.map
             (fun (arg,s) -> Typecore.name_pattern "val" [], layout_exp s arg)
@@ -1661,8 +1661,8 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
           transl_ident (of_location ~scopes and_.bop_op_name.loc) env
             and_.bop_op_type and_.bop_op_path and_.bop_op_val Id_value
         in
-        let exp = transl_exp ~scopes Sort.sort_bop_exp and_.bop_exp in
-        let right_layout = layout_exp Sort.sort_bop_exp and_.bop_exp in
+        let exp = transl_exp ~scopes Sort.for_bop_exp and_.bop_exp in
+        let right_layout = layout_exp Sort.for_bop_exp and_.bop_exp in
         let result_layout =
           function2_return_layout env and_.bop_loc and_.bop_op_return_sort
             and_.bop_op_type
@@ -1689,8 +1689,8 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
       let_.bop_op_type let_.bop_op_path let_.bop_op_val Id_value
   in
   let exp =
-    loop (layout_exp Sort.sort_bop_exp let_.bop_exp)
-      (transl_exp ~scopes Sort.sort_bop_exp let_.bop_exp) ands
+    loop (layout_exp Sort.for_bop_exp let_.bop_exp)
+      (transl_exp ~scopes Sort.for_bop_exp let_.bop_exp) ands
   in
   let func =
     let arg_layout =

@@ -3761,11 +3761,11 @@ let assign_pat ~scopes body_layout opt nraise catch_ids loc pat pat_sort lam =
     match (pat.pat_desc, lam) with
     | Tpat_tuple patl, Lprim (Pmakeblock _, lams, _) ->
         opt := true;
-        List.fold_left2 (collect Sort.sort_tuple_element) acc patl lams
+        List.fold_left2 (collect Sort.for_tuple_element) acc patl lams
     | Tpat_tuple patl, Lconst (Const_block (_, scl)) ->
         opt := true;
         let collect_const acc pat sc =
-          collect Sort.sort_tuple_element acc pat (Lconst sc)
+          collect Sort.for_tuple_element acc pat (Lconst sc)
         in
         List.fold_left2 collect_const acc patl scl
     | _ ->
@@ -3929,7 +3929,7 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
        to assume the whole thing and the elements have sort value.  That will
        change when we allow non-values in structures. *)
     Lprim (Pmakeblock (0, Immutable, None, mode), List.map fst paraml, sloc) in
-  let arg_sort = Sort.sort_tuple in
+  let arg_sort = Sort.for_tuple in
   let handler =
     let partial = check_partial pat_act_list partial in
     let rows = map_on_rows (fun p -> (p, [])) pat_act_list in
