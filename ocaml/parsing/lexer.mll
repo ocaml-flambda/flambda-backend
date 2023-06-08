@@ -128,6 +128,97 @@ let is_in_string = ref false
 let in_string () = !is_in_string
 let print_warnings = ref true
 
+type deferred_token =
+  { token : token
+  ; start_pos : Lexing.position
+  ; end_pos : Lexing.position
+  }
+
+let deferred_tokens : deferred_token Queue.t = Queue.create ()
+
+(* Effectively splits the current lexer production into two halves. The current
+   call to the lexer will return the first half of the text matched by the
+   production, and the next call to the lexer will return the second half (of
+   length [len]) of the text matched by the production.
+
+   It accomplishes this by doing two things:
+    - It sets the current bounds of the lexbuf to only account for the
+      first half of the text. (The first half is of length: |text|-len.)
+    - It sets the [next_token] ref such that, the next time the lexer is
+      called, it will return the specified [token] *and* set the bounds of
+      the lexbuf to account for the second half of the text. (The second half
+      is of length: |text|.)
+
+   This business with setting the bounds of the lexbuf is only so that error
+   messages point at the right place in the program text.
+*)
+let enqueue_token_from_end_of_lexbuf (lexbuf : Lexing.lexbuf) token ~len =
+  let suffix_end = lexbuf.lex_curr_p in
+  let suffix_start =
+    { suffix_end with pos_cnum = suffix_end.pos_cnum - len }
+  in
+  lexbuf.lex_curr_p <- suffix_start;
+  Queue.add
+    { token; start_pos = suffix_start; end_pos = suffix_end }
+    deferred_tokens
+
+(* Note [Lexing hack for float#]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   This note describes a non-backward-compatible Jane Street--internal change to
+   the lexer.
+
+   We want the lexer to lex [float#] differently than [float #]. [float#] is the
+   new syntax for the unboxed float type. It veers close to the syntax for the
+   type of all objects belonging to a class [c], which is [#c]. The way we
+   navigate this veering is by producing the following tokens for these source
+   program examples, where LIDENT(s) is an LIDENT with text [s].
+
+   float#c   ==> LIDENT(float) HASH_SUFFIX LIDENT(c)
+   float# c  ==> LIDENT(float) HASH_SUFFIX LIDENT(c)
+   float # c ==> LIDENT(float) HASH LIDENT(c)
+   float #c  ==> LIDENT(float) HASH LIDENT(c)
+
+   (A) The parser interprets [LIDENT(float) HASH_SUFFIX LIDENT(c)] as
+       "the type constructor [c] applied to the unboxed float type."
+   (B) The parser interprets [LIDENT(float) HASH LIDENT(c)] as
+       "the type constructor [#c] applied to the usual boxed float type."
+
+   This is not a backward-compatible change. In upstream ocaml, the lexer
+   produces [LIDENT(float) HASH LIDENT(c)] for all the above source programs.
+
+   But, this isn't problematic: everybody puts a space before '#c' to mean (B).
+   No existing code writes things like [float#c] or indeed [float# c].
+
+   We accomplish this hack by setting some global mutable state upon seeing
+   an identifier immediately followed by a hash. When that state is set, we
+   will produce [HASH_SUFFIX] the next time the lexer is called. This is
+   done in [enqueue_hash_suffix_from_end_of_lexbuf].
+
+   Note [Lexing hack for hash operators]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   To complicate the above story, we don't want to treat the # in the
+   below program as HASH_SUFFIX:
+
+   x#~#y
+
+   We instead want:
+
+   x#~#y ==> LIDENT(x) HASHOP(#~#) LIDENT(y)
+
+   This is to allow for infix hash operators. We add an additional hack, in
+   the style of Note [Lexing hack for float#], where the lexer consumes [x#~#]
+   all at once, but produces LIDENT(x) from the current call to the lexer and
+   HASHOP(#~#) from the next call to the lexer. This is done in
+   [enqueue_hashop_from_end_of_lexbuf].
+ *)
+
+let enqueue_hash_suffix_from_end_of_lexbuf lexbuf =
+  enqueue_token_from_end_of_lexbuf lexbuf HASH_SUFFIX ~len:1
+
+let enqueue_hashop_from_end_of_lexbuf lexbuf ~hashop =
+  enqueue_token_from_end_of_lexbuf lexbuf (HASHOP hashop)
+    ~len:(String.length hashop)
+
 (* Escaped chars are interpreted in strings unless they are in comments. *)
 let store_escaped_char lexbuf c =
   if in_comment () then store_lexeme lexbuf else store_string_char c
@@ -419,8 +510,33 @@ rule token = parse
   | "?" (lowercase_latin1 identchar_latin1 * as name) ':'
       { warn_latin1 lexbuf;
         OPTLABEL name }
+  (* Lowercase identifiers are split into 3 cases, and the order matters
+     (longest to shortest).
+  *)
+  | (lowercase identchar * as name) ('#' symbolchar_or_hash+ as hashop)
+      (* See Note [Lexing hack for hash operators] *)
+      { enqueue_hashop_from_end_of_lexbuf lexbuf ~hashop;
+        lookup_keyword name }
+  | (lowercase identchar * as name) '#'
+      (* See Note [Lexing hack for float#] *)
+      { enqueue_hash_suffix_from_end_of_lexbuf lexbuf;
+        lookup_keyword name }
   | lowercase identchar * as name
       { lookup_keyword name }
+  (* Lowercase latin1 identifiers are split into 3 cases, and the order matters
+     (longest to shortest).
+  *)
+  | (lowercase_latin1 identchar_latin1 * as name)
+      ('#' symbolchar_or_hash+ as hashop)
+      (* See Note [Lexing hack for hash operators] *)
+      { warn_latin1 lexbuf;
+        enqueue_hashop_from_end_of_lexbuf lexbuf ~hashop;
+        LIDENT name }
+  | (lowercase_latin1 identchar_latin1 * as name) '#'
+      (* See Note [Lexing hack for float#] *)
+      { warn_latin1 lexbuf;
+        enqueue_hash_suffix_from_end_of_lexbuf lexbuf;
+        LIDENT name }
   | lowercase_latin1 identchar_latin1 * as name
       { warn_latin1 lexbuf; LIDENT name }
   | uppercase identchar * as name
@@ -775,6 +891,13 @@ and skip_hash_bang = parse
   | "" { () }
 
 {
+  let token lexbuf =
+    match Queue.take_opt deferred_tokens with
+    | None -> token lexbuf
+    | Some { token; start_pos; end_pos } ->
+        lexbuf.lex_start_p <- start_pos;
+        lexbuf.lex_curr_p <- end_pos;
+        token
 
   let token_with_comments lexbuf =
     match !preprocessor with
