@@ -381,17 +381,25 @@ let report_error ~loc = function
         name
         Embedded_name.pp_a_term (what, embedded_name)
         (Embedding_syntax.name what)
-  | Disabled_extension { ext; maturity } ->
-      Location.errorf
-        ~loc
-        "The extension \"%s\" is disabled%s and cannot be used"
-        (Language_extension.to_string ext)
-        (match maturity with
-         | None -> ""
-         | Some maturity ->
-             Printf.sprintf
-               " at maturity \"%s\""
-               (Language_extension.maturity_to_string maturity))
+  | Disabled_extension { ext; maturity } -> begin
+      (* CR layouts: The [maturity] special case is a bit ad-hoc, but the
+         layouts error message would be much worse without it. It also
+         would be nice to mention the language construct in the error message.
+      *)
+      match maturity with
+      | None ->
+          Location.errorf
+            ~loc
+            "The extension \"%s\" is disabled and cannot be used"
+            (Language_extension.to_string ext)
+      | Some maturity ->
+          Location.errorf
+            ~loc
+            "This construct requires the %s version of the extension \"%s\", \
+             which is disabled and cannot be used"
+            (Language_extension.maturity_to_string maturity)
+            (Language_extension.to_string ext)
+    end
   | Wrong_syntactic_category(feat, cat) ->
       Location.errorf
         ~loc
