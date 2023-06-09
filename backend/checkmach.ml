@@ -587,6 +587,8 @@ module Unit_info : sig
   val resolve_all : t -> unit
 
   val iter : t -> f:(Func_info.t -> unit) -> unit
+
+  val should_keep_witnesses : bool -> bool
 end = struct
   (** map function name to the information about it *)
   type t = Func_info.t String.Tbl.t
@@ -607,6 +609,13 @@ end = struct
       func_info
     | Some func_info -> func_info
 
+  let should_keep_witnesses keep =
+    if !Flambda_backend_flags.checkmach_details_cutoff < 0 then
+      true
+    else if !Flambda_backend_flags.checkmach_details_cutoff = 0 then
+      false
+    else keep
+
   (* fixpoint backward propogation of function summaries along the recorded
      dependency edges. *)
   let rec propagate t (func_info : Func_info.t) =
@@ -615,9 +624,12 @@ end = struct
     let value =
       (* conservative use of summaries for unresolved dependencies *)
       let w =
-        Witnesses.create
-          (Forward_call { callee = func_info.name })
-          Debuginfo.none
+        if should_keep_witnesses true
+        then
+          Witnesses.create
+            (Forward_call { callee = func_info.name })
+            Debuginfo.none
+        else Witnesses.empty
       in
       let v = V.join value.nor value.exn |> V.replace_witnesses w in
       { Value.nor = v; exn = v; div = value.div }
@@ -824,6 +836,9 @@ end = struct
       report t v ~msg:"unresolved" ~desc dbg
     | None -> report t v ~msg:"resolved" ~desc dbg
 
+  let[@inline always] create_witnesses t kind dbg =
+    if t.keep_witnesses then Witnesses.create kind dbg else Witnesses.empty
+
   (* [find_callee] returns the value associated with the callee and a new
      dependency to record if there is one. *)
   let find_callee t callee dbg =
@@ -846,7 +861,7 @@ end = struct
         let v =
           match S.get_value_opt callee with
           | None ->
-            let w = Witnesses.create (Missing_summary { callee }) dbg in
+            let w = create_witnesses t (Missing_summary { callee }) dbg in
             let v = Value.top w in
             report t v ~msg:"callee compiled without checks" ~desc:callee
               Debuginfo.none;
@@ -908,9 +923,6 @@ end = struct
        Top by [find_callee]. *)
     let callee_value = Value.replace_witnesses w callee_value in
     transform t ~next ~exn ~effect:callee_value desc dbg
-
-  let[@inline always] create_witnesses t kind dbg =
-    if t.keep_witnesses then Witnesses.create kind dbg else Witnesses.empty
 
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
@@ -1043,10 +1055,7 @@ end = struct
       in
       Unit_info.record_annotation unit_info fun_name f.fun_dbg a;
       let really_check ~keep_witnesses =
-        let keep_all_witnesses =
-          !Flambda_backend_flags.checkmach_details_cutoff < 0
-        in
-        t.keep_witnesses <- keep_witnesses || keep_all_witnesses;
+        t.keep_witnesses <- Unit_info.should_keep_witnesses keep_witnesses;
         let res = check_instr t f.fun_body in
         let msg =
           if String.Map.is_empty t.unresolved_deps
