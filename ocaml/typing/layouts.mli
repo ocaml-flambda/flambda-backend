@@ -297,9 +297,6 @@ module Layout : sig
   type desc =
     | Const of const
     | Var of Sort.var
-      (** The [var] of [Var var] enjoys a constant-time
-          [Sort.var_is_unconstrained]
-      *)
 
   (** Extract the [desc] from a [Layout.t], looking through unified
       sort variables. Returns [Var] if the final, non-variable layout has not

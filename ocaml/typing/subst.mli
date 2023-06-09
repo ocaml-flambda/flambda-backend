@@ -43,11 +43,26 @@ val add_modtype: Ident.t -> module_type -> t -> t
 val add_modtype_path: Path.t -> module_type -> t -> t
 
 type additional_action_config =
+   | Copy_types
+   (* CR nroberts: I have low confidence in this comment. *)
+   (* [Copy_types] makes it so any substitution will replace all types
+      with copies unrelated to the original type. *)
    | Prepare_for_saving
-   | Copy_type_variables
+   (* [Prepare_for_saving] performs all actions associated with
+      [Copy_types] and additionally prepares layouts for saving by
+      commoning them up, truncating their histories, and performing
+      a check that all unconstrained layouts have been defaulted to value.
+   *)
 
-(* CR nroberts: comment *)
+(* Sets the additional action that runs along with any substitution.
+   See the documentation on [additional_action_config].
+*)
 val with_additional_action: additional_action_config -> t -> t
+
+(* Any of the additional actions involve copying type variables. Calling
+   [reset_additional_action_type_id] resets the id counter used when the copying
+   of type variables needs to mint new type variable ids.
+*)
 val reset_additional_action_type_id: unit -> unit
 
 val change_locs: t -> Location.t -> t

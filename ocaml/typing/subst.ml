@@ -35,8 +35,9 @@ type type_replacement =
 type additional_action =
   | Prepare_for_saving of (Location.t -> layout -> layout)
     (* The [Prepare_for_saving] function should be applied to all layouts when
-       saving; this commons them up and truncates their histories *)
-  | Copy_type_variables
+       saving; this commons them up, truncates their histories, and runs
+       a check that all unconstrained variables have been defaulted to value. *)
+  | Copy_types
 
 type t =
   { types: type_replacement Path.Map.t;
@@ -75,8 +76,8 @@ let add_modtype_path p ty s =
 let add_modtype id ty s = add_modtype_path (Pident id) ty s
 
 type additional_action_config =
+  | Copy_types
   | Prepare_for_saving
-  | Copy_type_variables
 
 let with_additional_action (config : additional_action_config) s =
   (* CR layouts: it would be better to put all this stuff outside this
@@ -91,7 +92,7 @@ let with_additional_action (config : additional_action_config) s =
   *)
   let additional_action : additional_action =
     match config with
-    | Copy_type_variables -> Copy_type_variables
+    | Copy_types -> Copy_types
     | Prepare_for_saving ->
         let reason = Layout.Imported in
         let any = Layout.of_const Any ~why:reason in
@@ -120,7 +121,7 @@ let with_additional_action (config : additional_action_config) s =
 let apply_prepare_layout s lay loc =
   match s.additional_action with
   | Some (Prepare_for_saving prepare_layout) -> prepare_layout loc lay
-  | Some Copy_type_variables | None -> lay
+  | Some Copy_types | None -> lay
 
 let change_locs s loc = { s with loc = Some loc; last_compose = None }
 
@@ -129,7 +130,7 @@ let loc s x =
   | Some l -> l
   | None -> begin
       match s.additional_action with
-      | Some (Prepare_for_saving _ | Copy_type_variables) ->
+      | Some (Prepare_for_saving _ | Copy_types) ->
           if not !Clflags.keep_locs then Location.none else x
       | None -> x
     end
@@ -146,21 +147,21 @@ let is_not_doc = function
   | _ -> true
 
 let attrs s x =
-  (* Now that we track [Copy_type_variables] and [Prepare_for_saving] as
-     separate states, we should reconsider whether the [Copy_type_variables]
+  (* Now that we track [Copy_types] and [Prepare_for_saving] as
+     separate states, we should reconsider whether the [Copy_types]
      callsites really need to scrub docs and locations. For now, we're keeping
      the scrubbing behavior for backward compatibility.
   *)
   let x =
     match s.additional_action with
-    | Some (Prepare_for_saving _ | Copy_type_variables) ->
+    | Some (Prepare_for_saving _ | Copy_types) ->
         if not !Clflags.keep_docs
         then List.filter is_not_doc x
         else x
     | None -> x
   in
   match s.additional_action with
-  | Some (Prepare_for_saving _ | Copy_type_variables) ->
+  | Some (Prepare_for_saving _ | Copy_types) ->
       if not !Clflags.keep_locs
       then remove_loc.Ast_mapper.attributes remove_loc x
       else x
@@ -238,7 +239,7 @@ let ctype_apply_env_empty = ref (fun _ -> assert false)
 let rec typexp copy_scope s loc ty =
   let should_copy_types =
     match s.additional_action with
-    | Some (Copy_type_variables | Prepare_for_saving _) -> true
+    | Some (Copy_types | Prepare_for_saving _) -> true
     | None -> false
   in
   let desc = get_desc ty in
@@ -247,7 +248,7 @@ let rec typexp copy_scope s loc ty =
       if should_copy_types || get_id ty < 0 then
         let ty' =
           match s.additional_action with
-          | Some Copy_type_variables -> newpersty desc
+          | Some Copy_types -> newpersty desc
           | Some (Prepare_for_saving prepare_layout) ->
               newpersty (norm desc loc ~prepare_layout)
           | None -> newty2 ~level:(get_level ty) desc
@@ -424,7 +425,11 @@ let type_declaration' copy_scope s decl =
       | Type_variant (cstrs, rep) ->
           let rep =
             match s.additional_action with
-            | None | Some Copy_type_variables -> rep (* CR nroberts: is this ok? *)
+           (* CR nroberts: is it ok to not call [variant_representation] in
+              the [Copy_types] case? We used to, but it doesn't do much: it
+              just copies the array.
+            *)
+            | None | Some Copy_types -> rep
             | Some (Prepare_for_saving prepare_layout) ->
                 variant_representation ~prepare_layout decl.type_loc rep
           in
@@ -433,7 +438,11 @@ let type_declaration' copy_scope s decl =
       | Type_record(lbls, rep) ->
           let rep =
             match s.additional_action with
-            | None | Some Copy_type_variables -> rep (* CR nroberts: is this ok? *)
+           (* CR nroberts: is it ok to not call [record_representation] in
+              the [Copy_types] case? We used to, but it doesn't do much: it
+              just copies the array.
+            *)
+            | None | Some Copy_types -> rep
             | Some (Prepare_for_saving prepare_layout) ->
                 record_representation ~prepare_layout decl.type_loc rep
           in
@@ -451,7 +460,7 @@ let type_declaration' copy_scope s decl =
         match s.additional_action with
         | Some (Prepare_for_saving prepare_layout) ->
             prepare_layout decl.type_loc decl.type_layout
-        | Some Copy_type_variables | None -> decl.type_layout
+        | Some Copy_types | None -> decl.type_layout
       end;
     type_private = decl.type_private;
     type_variance = decl.type_variance;
@@ -536,7 +545,7 @@ let extension_constructor' copy_scope s ext =
     ext_arg_layouts = begin match s.additional_action with
       | Some (Prepare_for_saving prepare_layout) ->
           Array.map (prepare_layout ext.ext_loc) ext.ext_arg_layouts
-      | Some Copy_type_variables | None -> ext.ext_arg_layouts
+      | Some Copy_types | None -> ext.ext_arg_layouts
     end;
     ext_constant = ext.ext_constant;
     ext_ret_type =
@@ -544,7 +553,7 @@ let extension_constructor' copy_scope s ext =
     ext_private = ext.ext_private;
     ext_attributes = attrs s ext.ext_attributes;
     ext_loc = begin match s.additional_action with
-      | Some (Prepare_for_saving _ | Copy_type_variables) -> Location.none
+      | Some (Prepare_for_saving _ | Copy_types) -> Location.none
       | None -> ext.ext_loc
     end;
     ext_uid = ext.ext_uid;
@@ -800,14 +809,14 @@ and compose s1 s2 =
             match s1.additional_action, s2.additional_action with
             | None, None -> None
             | (Some _ as action), None | None, (Some _ as action)
-            | (Some Copy_type_variables as action), Some Copy_type_variables
+            | (Some Copy_types as action), Some Copy_types
                 -> action
 
             (* Preparing for saving runs a superset of the things involved with
                copying variables, so we prefer that if composing substitutions.
             *)
-            | (Some (Prepare_for_saving _) as prepare), Some Copy_type_variables
-            | Some Copy_type_variables, (Some (Prepare_for_saving _) as prepare)
+            | (Some (Prepare_for_saving _) as prepare), Some Copy_types
+            | Some Copy_types, (Some (Prepare_for_saving _) as prepare)
                 -> prepare
 
             (* Note [Preparing_for_saving always the same]

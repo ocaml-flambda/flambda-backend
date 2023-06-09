@@ -167,7 +167,7 @@ module Sort = struct
     | Void -> "void"
 
   let to_string s = match get s with
-    | Var v -> var_name (v :> var)
+    | Var v -> var_name v
     | Const c -> string_of_const c
 
   let format ppf t = Format.fprintf ppf "%s" (to_string t)

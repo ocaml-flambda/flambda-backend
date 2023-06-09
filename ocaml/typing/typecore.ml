@@ -6846,8 +6846,15 @@ and type_cases
   let do_init = may_contain_gadts || needs_exhaust_check in
   let ty_arg_check =
     if do_init then
+      (* Hack: use the [Subst] machinery to copy types, even though
+         we don't intend on persisting the type to disk.
+
+         We added a new [Copy_types] variant specifically for this
+         callsite, but it's still a bit of a hack (e.g. the type
+         IDs are all negative, like they are in cmi files).
+      *)
       Subst.type_expr
-        (Subst.with_additional_action Copy_type_variables Subst.identity)
+        (Subst.with_additional_action Copy_types Subst.identity)
         ty_arg'
     else ty_arg'
   in
