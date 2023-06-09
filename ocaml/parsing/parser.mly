@@ -442,7 +442,7 @@ let bigarray_untuplify = function
     { pexp_desc = Pexp_tuple explist; pexp_loc = _ } ->
       List.map
         (fun (label, body) ->
-          assert Option.is_none label;
+          assert (Option.is_none label);
           body)
         explist
   | exp -> [exp]
