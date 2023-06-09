@@ -17,7 +17,7 @@ val id : float# -> float# = <fun>
 
 let add (x : float#) (y : float#) = x +. y;;
 
-add #4.0 (#5.0);;
+add #4.0 #5.0;;
 [%%expect {|
 val add : float# -> float# -> float = <fun>
 - : float = 9.
@@ -26,7 +26,7 @@ val add : float# -> float# -> float = <fun>
 let apply (f : float# -> float# -> float#) (x : float#) (y : float#) =
   f x y;;
 
-apply add (#4.0) (#5.0);;
+apply add #4.0 #5.0;;
 [%%expect {|
 val apply : (float# -> float# -> float#) -> float# -> float# -> float# =
   <fun>

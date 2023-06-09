@@ -804,7 +804,7 @@ let unboxed_int sloc int_loc sign (n, m) =
       Pconst_integer (with_sign sign n, m)
   | None ->
       if Language_extension.is_enabled unboxed_literals_extension then
-        expecting int_loc "integer literal with type-specifying suffix"
+        expecting int_loc "unboxed integer literal with type-specifying suffix"
       else
         not_expecting sloc "line number directive"
 
@@ -882,7 +882,8 @@ let mkpat_jane_syntax
 %token EXCLAVE                "exclave_"
 %token EXTERNAL               "external"
 %token FALSE                  "false"
-%token <string * char option> FLOAT "42.0" (* just an example *)
+%token <string * char option> FLOAT       "42.0" (* just an example *)
+%token <string * char option> HASH_FLOAT "#42.0" (* just an example *)
 %token FOR                    "for"
 %token FUN                    "fun"
 %token FUNCTION               "function"
@@ -904,7 +905,8 @@ let mkpat_jane_syntax
 %token <string> ANDOP         "and*" (* just an example *)
 %token INHERIT                "inherit"
 %token INITIALIZER            "initializer"
-%token <string * char option> INT "42"  (* just an example *)
+%token <string * char option> INT      "42"  (* just an example *)
+%token <string * char option> HASH_INT "#42l" (* just an example *)
 %token <string> LABEL         "~label:" (* just an example *)
 %token LAZY                   "lazy"
 %token LBRACE                 "{"
@@ -1046,7 +1048,7 @@ The precedences must be listed from low to high.
 %nonassoc below_DOT
 %nonassoc DOT DOTOP
 /* Finally, the first tokens of simple_expr are above everything else. */
-%nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT INT OBJECT
+%nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT HASH_FLOAT INT HASH_INT OBJECT
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
           LBRACKETPERCENT QUOTED_STRING_EXPR
@@ -2108,7 +2110,7 @@ formal_class_parameters:
 (* Class expressions. *)
 
 class_expr:
-    class_simple_expr %prec below_HASH
+    class_simple_expr
       { $1 }
   | FUN attributes class_fun_def
       { wrap_class_attrs ~loc:$sloc $3 $2 }
@@ -2121,7 +2123,7 @@ class_expr:
   | class_expr attribute
       { Cl.attr $1 $2 }
   | mkclass(
-      class_simple_expr nonempty_llist(labeled_simple_expr) %prec below_HASH
+      class_simple_expr nonempty_llist(labeled_simple_expr)
         { Pcl_apply($1, $2) }
     | extension
         { Pcl_extension $1 }
@@ -2601,7 +2603,7 @@ expr:
       { Pexp_lazy $3, $2 }
 ;
 %inline expr_:
-  | simple_expr nonempty_llist(labeled_simple_expr) %prec below_HASH
+  | simple_expr nonempty_llist(labeled_simple_expr)
       { Pexp_apply($1, $2) }
   | expr_comma_list %prec below_COMMA
       { Pexp_tuple($1) }
@@ -3997,21 +3999,19 @@ constant:
   | CHAR              { Pconst_char $1 }
   | STRING            { let (s, strloc, d) = $1 in Pconst_string (s, strloc, d) }
   | FLOAT             { let (f, m) = $1 in Pconst_float (f, m) }
-  (* The unboxed literals have to be composed of multiple lexemes so we can
-     handle line number directives properly *)
-  | hash INT          { unboxed_int $sloc $loc($2) Positive $2 }
-  | hash FLOAT        { unboxed_float $sloc Positive $2 }
+  | HASH_INT          { unboxed_int $sloc $sloc Positive $1 }
+  | HASH_FLOAT        { unboxed_float $sloc Positive $1 }
 ;
 signed_constant:
     constant          { $1 }
   | MINUS INT         { let (n, m) = $2 in Pconst_integer("-" ^ n, m) }
   | MINUS FLOAT       { let (f, m) = $2 in Pconst_float("-" ^ f, m) }
-  | MINUS hash INT    { unboxed_int $sloc $loc($3) Negative $3 }
-  | MINUS hash FLOAT  { unboxed_float $sloc Negative $3 }
+  | MINUS HASH_INT    { unboxed_int $sloc $loc($2) Negative $2 }
+  | MINUS HASH_FLOAT  { unboxed_float $sloc Negative $2 }
   | PLUS INT          { let (n, m) = $2 in Pconst_integer (n, m) }
   | PLUS FLOAT        { let (f, m) = $2 in Pconst_float(f, m) }
-  | PLUS hash INT     { unboxed_int $sloc $loc($3) Positive $3 }
-  | PLUS hash FLOAT   { unboxed_float $sloc Negative $3 }
+  | PLUS HASH_INT     { unboxed_int $sloc $loc($2) Positive $2 }
+  | PLUS HASH_FLOAT   { unboxed_float $sloc Negative $2 }
 ;
 
 /* Identifiers and long identifiers */
