@@ -113,6 +113,11 @@ let of_string extn_name =
   let pack (Pair (extn, _) : extn_pair) = Pack extn in
   Option.map pack (pair_of_string extn_name)
 
+let maturity_to_string = function
+  | Alpha -> "alpha"
+  | Beta -> "beta"
+  | Stable -> "stable"
+
 (************************************)
 (* equality *)
 

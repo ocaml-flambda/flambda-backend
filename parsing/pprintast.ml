@@ -413,7 +413,7 @@ and core_type1 ctxt f x =
           (list core_field_type ~sep:";") l
           field_var o (* Cf #7200 *)
     | Ptyp_class (li, l) ->   (*FIXME*)
-        pp f "@[<hov2>%a#%a@]"
+        pp f "@[<hov2>%a@;#%a@]"
           (list (core_type ctxt) ~sep:"," ~first:"(" ~last:")") l
           longident_loc li
     | Ptyp_package (lid, cstrs) ->
