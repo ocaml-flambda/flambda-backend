@@ -43,6 +43,7 @@
     longident
     docstrings
     syntaxerr
+    jane_language_extension_intf
     jane_syntax_parsing
     jane_syntax
     ast_iterator
@@ -87,6 +88,7 @@
     asttypes
     parsetree
     outcometree
+    jane_language_extension_intf
     cmo_format
     cmxs_format
     debug_event))
@@ -221,6 +223,7 @@
 (copy_files ../../typing/outcometree.mli)
 (copy_files ../../file_formats/cmo_format.mli)
 (copy_files ../../file_formats/cmxs_format.mli)
+(copy_files ../../parsing/jane_language_extension_intf.mli)
 
 ; We need support in dune for including all modules from another library
 ; (in this case Dynlink_compilerlibs) inside a library currently being

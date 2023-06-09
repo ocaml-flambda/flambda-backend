@@ -430,11 +430,12 @@ parsing/docstrings.cmx : \
 parsing/docstrings.cmi : \
     parsing/parsetree.cmi \
     parsing/location.cmi
+parsing/jane_language_extension_intf.cmi : \
+    utils/language_extension.cmi
 parsing/jane_syntax.cmo : \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
     parsing/jane_syntax_parsing.cmi \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmi \
@@ -443,7 +444,6 @@ parsing/jane_syntax.cmx : \
     parsing/parsetree.cmi \
     parsing/longident.cmx \
     parsing/location.cmx \
-    utils/language_extension.cmx \
     parsing/jane_syntax_parsing.cmx \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
@@ -459,6 +459,7 @@ parsing/jane_syntax_parsing.cmo : \
     utils/misc.cmi \
     parsing/location.cmi \
     utils/language_extension.cmi \
+    parsing/jane_language_extension_intf.cmi \
     parsing/ast_helper.cmi \
     parsing/jane_syntax_parsing.cmi
 parsing/jane_syntax_parsing.cmx : \
@@ -466,6 +467,7 @@ parsing/jane_syntax_parsing.cmx : \
     utils/misc.cmx \
     parsing/location.cmx \
     utils/language_extension.cmx \
+    parsing/jane_language_extension_intf.cmi \
     parsing/ast_helper.cmx \
     parsing/jane_syntax_parsing.cmi
 parsing/jane_syntax_parsing.cmi : \
@@ -536,6 +538,7 @@ parsing/parser.cmo : \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
+    utils/language_extension.cmi \
     parsing/jane_syntax_parsing.cmi \
     parsing/jane_syntax.cmi \
     parsing/docstrings.cmi \
@@ -550,6 +553,7 @@ parsing/parser.cmx : \
     parsing/parsetree.cmi \
     parsing/longident.cmx \
     parsing/location.cmx \
+    utils/language_extension.cmx \
     parsing/jane_syntax_parsing.cmx \
     parsing/jane_syntax.cmx \
     parsing/docstrings.cmx \
@@ -559,12 +563,7 @@ parsing/parser.cmx : \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
     parsing/parser.cmi
-parsing/parser.cmi : \
-    parsing/parsetree.cmi \
-    parsing/longident.cmi \
-    parsing/location.cmi \
-    parsing/docstrings.cmi \
-    parsing/camlinternalMenhirLib.cmi
+parsing/parser.cmi :
 parsing/parsetree.cmi : \
     parsing/longident.cmi \
     parsing/location.cmi \

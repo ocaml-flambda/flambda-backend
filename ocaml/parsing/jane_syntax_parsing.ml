@@ -79,6 +79,16 @@
 
 open Parsetree
 
+(** We carefully regulate which bindings we import from [Language_extension]
+    to ensure that we can import this file into the Jane Street internal
+    repo with no changes.
+*)
+module Language_extension : Jane_language_extension_intf.S
+  with type maturity = Language_extension.maturity
+  with type 'a t = 'a Language_extension.t
+  with type Exist.t = Language_extension.Exist.t
+  = Language_extension
+
 (******************************************************************************)
 
 module Feature : sig
