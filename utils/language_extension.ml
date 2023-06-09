@@ -98,7 +98,7 @@ let pair_of_string extn_name : extn_pair option =
   | "include_functor" -> Some (Pair (Include_functor, ()))
   | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
   | "immutable_arrays" -> Some (Pair (Immutable_arrays, ()))
-  | "strengthening" -> Some (Pair (Module_strengthening, ()))
+  | "module_strengthening" -> Some (Pair (Module_strengthening, ()))
   | "layouts" -> Some (Pair (Layouts, (Stable : Maturity.t)))
   | "layouts_beta" -> Some (Pair (Layouts, (Beta : Maturity.t)))
   | "layouts_alpha" -> Some (Pair (Layouts, (Alpha : Maturity.t)))
