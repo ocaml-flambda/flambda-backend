@@ -96,18 +96,15 @@ let typecheck_against_secondary_intf info sg =
 let emit_signature info ast tsg sg2 =
   let sg =
     let name = Compilation_unit.name info.module_name in
-    let comp_unit =
+    let kind : Cmi_format.kind =
       if !Clflags.as_parameter then
-        (* If we're compiling a parameter, [info.module_name] is something of a
-           lie: a [Compilation_unit.t] is supposed to correspond to a .cmx, and
-           there is none. *)
-        None
+        Parameter
       else
-        Some info.module_name
+        Normal { cmi_impl = info.module_name }
     in
     let alerts = Builtin_attributes.alerts_of_sig ast in
     Env.save_signature ~alerts tsg.Typedtree.sig_type sg2
-      name comp_unit (info.output_prefix ^ ".cmi")
+      name kind (info.output_prefix ^ ".cmi")
   in
   Typemod.save_signature info.module_name tsg
     info.output_prefix info.source_file info.env sg

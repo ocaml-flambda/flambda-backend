@@ -3339,9 +3339,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
                   None
             in
             let name = Compilation_unit.name modulename in
+            let kind = Cmi_format.Normal { cmi_impl = modulename } in
             let cmi =
               Env.save_signature ~alerts
-                simple_sg sg2 name (Some modulename) (outputprefix ^ ".cmi")
+                simple_sg sg2 name kind (outputprefix ^ ".cmi")
             in
             let annots = Cmt_format.Implementation str in
             Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
@@ -3484,10 +3485,10 @@ let package_units initial_env objfiles cmifile modulename =
         None
       in
       let name = Compilation_unit.name modulename in
+      let kind = Cmi_format.Normal { cmi_impl = modulename } in
       let cmi =
         Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
-          sg sg2 name (Some modulename)
-          (prefix ^ ".cmi") (Array.of_list imports)
+          sg sg2 name kind (prefix ^ ".cmi") (Array.of_list imports)
       in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
         (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) None initial_env

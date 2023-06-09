@@ -21,6 +21,10 @@ type pers_flags =
   | Opaque
   | Unsafe_string
 
+type kind =
+  | Normal of { cmi_impl : Compilation_unit.t }
+  | Parameter
+
 type error =
   | Not_an_interface of filepath
   | Wrong_version_interface of filepath * string
@@ -37,20 +41,18 @@ type crcs = Import_info.Intf.t array  (* smaller on disk than using a list *)
 type flags = pers_flags list
 type header = {
     header_name : Compilation_unit.Name.t;
-    header_unit : Compilation_unit.t option;
+    header_kind : kind;
     header_sign : signature;
     header_secondary_sign : signature option;
-    header_is_param : bool;
     header_params : Global.Name.t list;
     header_arg_for : Global.Name.t option;
 }
 
 type cmi_infos = {
     cmi_name : Compilation_unit.Name.t;
-    cmi_unit : Compilation_unit.t option;
+    cmi_kind : kind;
     cmi_sign : signature;
     cmi_secondary_sign : signature option;
-    cmi_is_param : bool;
     cmi_params : Global.Name.t list;
     cmi_arg_for : Global.Name.t option;
     cmi_crcs : crcs;
@@ -60,10 +62,9 @@ type cmi_infos = {
 let input_cmi ic =
   let {
       header_name = name;
-      header_unit = unit;
+      header_kind = kind;
       header_sign = sign;
       header_secondary_sign = secondary_sign;
-      header_is_param = is_param;
       header_params = params;
       header_arg_for = arg_for;
     } = (input_value ic : header) in
@@ -71,11 +72,10 @@ let input_cmi ic =
   let flags = (input_value ic : flags) in
   {
       cmi_name = name;
-      cmi_unit = unit;
+      cmi_kind = kind;
       cmi_sign = sign;
       cmi_secondary_sign = secondary_sign;
       cmi_params = params;
-      cmi_is_param = is_param;
       cmi_arg_for = arg_for;
       cmi_crcs = crcs;
       cmi_flags = flags;
@@ -116,17 +116,21 @@ let output_cmi filename oc cmi =
   output_value oc
     {
       header_name = cmi.cmi_name;
-      header_unit = cmi.cmi_unit;
+      header_kind = cmi.cmi_kind;
       header_sign = cmi.cmi_sign;
       header_secondary_sign = cmi.cmi_secondary_sign;
-      header_is_param = cmi.cmi_is_param;
       header_params = cmi.cmi_params;
       header_arg_for = cmi.cmi_arg_for;
     };
   flush oc;
   let crc = Digest.file filename in
+  let unit =
+    match cmi.cmi_kind with
+    | Normal { cmi_impl } -> Some cmi_impl
+    | Parameter -> None
+  in
   let my_info =
-    Import_info.Intf.create cmi.cmi_name cmi.cmi_unit ~crc:(Some crc)
+    Import_info.Intf.create cmi.cmi_name unit ~crc:(Some crc)
   in
   let crcs = Array.append [| my_info |] cmi.cmi_crcs in
   output_value oc (crcs : crcs);

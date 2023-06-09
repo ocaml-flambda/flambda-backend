@@ -138,7 +138,7 @@ val global_of_global_name : 'a t -> Global.Name.t -> Global.t
 
 val make_cmi : 'a t
   -> Compilation_unit.Name.t
-  -> Compilation_unit.t option
+  -> Cmi_format.kind
   -> Types.signature
   -> Types.signature option
   -> alerts

@@ -133,8 +133,14 @@ let print_cma_infos (lib : Cmo_format.library) =
   printf "\n";
   List.iter print_cmo_infos lib.lib_units
 
-let print_cmi_infos name crcs is_param params =
+let print_cmi_infos name crcs kind params =
+  let open Cmi_format in
   printf "Unit name: %a\n" Compilation_unit.Name.output name;
+  let is_param =
+    match kind with
+    | Normal _ -> false
+    | Parameter -> true
+  in
   printf "Is parameter: %s\n" (if is_param then "YES" else "no");
   print_string "Parameters:\n";
   List.iter print_global_line params;
@@ -382,7 +388,7 @@ let dump_obj_by_kind filename ic obj_kind =
       | None -> ()
       | Some cmi ->
         print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
-          cmi.Cmi_format.cmi_is_param cmi.Cmi_format.cmi_params
+          cmi.Cmi_format.cmi_kind cmi.Cmi_format.cmi_params
     end;
     begin
       match cmt with None -> () | Some cmt -> print_cmt_infos cmt

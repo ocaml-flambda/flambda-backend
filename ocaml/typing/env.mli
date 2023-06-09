@@ -408,20 +408,19 @@ val read_signature: Compilation_unit.Name.t -> filepath -> signature
         (* Arguments: module name, file name. Results: signature. *)
 val save_signature:
   alerts:alerts -> signature -> signature option -> Compilation_unit.Name.t
-  -> Compilation_unit.t option
+  -> Cmi_format.kind
   -> filepath
   -> Cmi_format.cmi_infos
-        (* Arguments: signature, secondary signature, module name, compilation
-           unit (if it has a .cmx), file name. *)
+        (* Arguments: signature, secondary signature, module name, module kind,
+           file name. *)
 val save_signature_with_imports:
   alerts:alerts -> signature -> signature option -> Compilation_unit.Name.t
-  -> Compilation_unit.t option
+  -> Cmi_format.kind
   -> filepath
   -> Import_info.Intf.t array
   -> Cmi_format.cmi_infos
-        (* Arguments: signature, secondary signature, module name, compilation
-           unit (if it has a .cmx), file name, imported units with their
-           CRCs. *)
+        (* Arguments: signature, secondary signature, module name, module kind,
+           file name, imported units with their CRCs. *)
 
 (* Register a module as a parameter to this unit. *)
 val register_parameter: Global.Name.t -> unit

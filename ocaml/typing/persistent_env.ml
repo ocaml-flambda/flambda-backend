@@ -298,24 +298,16 @@ let need_local_ident penv (global : Global.t) =
        so it's not a compile-time constant *)
     true
 
-let make_binding penv (global : Global.t) unit_from_cmi : binding =
+let make_binding penv (global : Global.t) kind : binding =
   if need_local_ident penv global
   then Local (Ident.create_local_binding_for_global (Global.to_name global))
   else
-    (* We need to mix information coming from [global] and [unit_from_cmi]: the
-       global may have instance arguments, and the unit from the .cmi may have a
-       pack prefix. In general, then, we need to check both, though it's an
-       error (which should have been caught already) to have both instance
-       arguments _and_ a pack prefix. *)
     let unit_from_cmi =
-      match unit_from_cmi with
-      | Some unit -> unit
-      | None ->
-          (* The only reason to be missing a compilation unit in the .cmi is if
-             this global is a parameter, and if it's a parameter we shouldn't be
-             trying to bind it statically. *)
+      match (kind : Cmi_format.kind) with
+      | Normal { cmi_impl } -> cmi_impl
+      | Parameter ->
           Misc.fatal_errorf
-            "No compilation unit for global we intend to bind statically:@ %a"
+            "Can't bind a parameter statically:@ %a"
             Global.print global
     in
     let unit =
@@ -455,8 +447,7 @@ let rec acknowledge_pers_struct
       penv ~check global_name pers_sig (val_of_pers_sig : _ sig_reader) =
   let { Persistent_signature.filename; cmi } = pers_sig in
   let found_name = cmi.cmi_name in
-  let unit_from_cmi = cmi.cmi_unit in
-  let is_param = cmi.cmi_is_param in
+  let kind = cmi.cmi_kind in
   let params = cmi.cmi_params in
   let arg_for = cmi.cmi_arg_for in
   let crcs = cmi.cmi_crcs in
@@ -475,8 +466,8 @@ let rec acknowledge_pers_struct
         | Alerts _ -> ()
         | Opaque -> register_import_as_opaque penv modname)
     flags;
-  begin match unit_from_cmi, CU.get_current () with
-  | Some imported_unit, Some current_unit ->
+  begin match kind, CU.get_current () with
+  | Normal { cmi_impl = imported_unit }, Some current_unit ->
       let access_allowed =
         CU.can_access_by_name imported_unit ~accessed_by:current_unit
       in
@@ -485,15 +476,13 @@ let rec acknowledge_pers_struct
         error (Direct_reference_from_wrong_package (imported_unit, filename, prefix));
   | _, _ -> ()
   end;
-  begin match is_param, is_registered_parameter_import penv modname with
-  | true, false ->
-      (* CR lmaurer: This could be confusing: It could be that we have the right
-         import but the wrong instance arguments *)
+  begin match kind, is_registered_parameter_import penv modname with
+  | Parameter, false ->
       error (Illegal_import_of_parameter(modname, filename))
-  | false, true ->
+  | Normal _, true ->
       error (Not_compiled_as_parameter(modname, filename))
-  | true, true
-  | false, false -> ()
+  | Parameter, true
+  | Normal _, false -> ()
   end;
   let ensure_loaded modname =
     ignore
@@ -519,7 +508,7 @@ let rec acknowledge_pers_struct
   in
   List.iter ensure_arg_loaded global_name.Global.Name.args;
   let global = compute_global penv global_name ~params ~check:true in
-  let binding = make_binding penv global unit_from_cmi in
+  let binding = make_binding penv global kind in
   let ps = { ps_global = global;
              ps_arg_for = arg_for;
              ps_binding = binding;
@@ -728,7 +717,7 @@ let implemented_parameter penv modname =
   | Some ({ ps_arg_for; _ }, _) -> ps_arg_for
   | None -> None
 
-let make_cmi penv modname cu sign secondary_sign alerts =
+let make_cmi penv modname kind sign secondary_sign alerts =
   let flags =
     List.concat [
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
@@ -737,7 +726,6 @@ let make_cmi penv modname cu sign secondary_sign alerts =
       [Alerts alerts];
     ]
   in
-  let is_param = !Clflags.as_parameter in
   let params =
     (* Needs to be consistent with [Translmod] *)
     exported_parameters penv
@@ -749,10 +737,9 @@ let make_cmi penv modname cu sign secondary_sign alerts =
   let crcs = imports penv in
   {
     cmi_name = modname;
-    cmi_unit = cu;
+    cmi_kind = kind;
     cmi_sign = sign;
     cmi_secondary_sign = secondary_sign;
-    cmi_is_param = is_param;
     cmi_params = params;
     cmi_arg_for = arg_for;
     cmi_crcs = Array.of_list crcs;
@@ -764,8 +751,7 @@ let save_cmi penv psig =
   Misc.try_finally (fun () ->
       let {
         cmi_name = modname;
-        cmi_unit = unit;
-        cmi_is_param = is_param;
+        cmi_kind = kind;
       } = cmi in
       let crc =
         output_to_file_via_temporary (* see MPR#7472, MPR#4991 *)
@@ -774,9 +760,9 @@ let save_cmi penv psig =
       (* Enter signature in consistbl so that imports() and crc_of_unit() will
          also return its crc *)
       let impl : Impl.t =
-        match unit with
-        | Some unit -> Known unit
-        | None -> assert is_param; Unknown_argument
+        match kind with
+        | Normal { cmi_impl } -> Known cmi_impl
+        | Parameter -> Unknown_argument
       in
       remember_crc penv impl crc modname filename
     )

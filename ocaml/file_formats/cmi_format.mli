@@ -21,15 +21,15 @@ type pers_flags =
   | Opaque
   | Unsafe_string
 
+type kind =
+  | Normal of { cmi_impl : Compilation_unit.t }
+  | Parameter
+
 type cmi_infos = {
     cmi_name : Compilation_unit.Name.t;
-    cmi_unit : Compilation_unit.t option; (* The unit, if this is a static
-                                             record constant at run time (is not
-                                             a parameter and takes none
-                                             itself) *)
+    cmi_kind : kind;
     cmi_sign : Types.signature_item list;
     cmi_secondary_sign : Types.signature_item list option;
-    cmi_is_param : bool;
     cmi_params : Global.Name.t list;
     cmi_arg_for : Global.Name.t option;
     cmi_crcs : Import_info.Intf.t array;
