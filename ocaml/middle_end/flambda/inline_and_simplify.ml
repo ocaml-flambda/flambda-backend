@@ -1453,6 +1453,8 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
         in
         let branch, r = simplify env r branch in
         branch, R.map_benefit r B.remove_branch)
+  | Region (Exclave body) ->
+     simplify env r body
   | Region body ->
      let use_outer_region = R.may_use_region r in
      let r = R.set_region_use r false in
