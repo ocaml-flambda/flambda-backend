@@ -439,7 +439,12 @@ type ('dot,'index) array_family = {
 }
 
 let bigarray_untuplify = function
-    { pexp_desc = Pexp_tuple explist; pexp_loc = _ } -> List.map snd explist
+    { pexp_desc = Pexp_tuple explist; pexp_loc = _ } ->
+      List.map
+        (fun (label, body) ->
+          assert Option.is_none label;
+          body)
+        explist
   | exp -> [exp]
 
 (* Immutable array indexing is a regular operator, so it doesn't need a special
@@ -839,7 +844,7 @@ let mkpat_jane_syntax
    string that will not trigger a syntax error; see how [not_expecting]
    is used in the definition of [type_variance]. */
 
-%token TILDETILDEPAREN        "~~(" (* TODO_LT: remove *)
+%token TILDETILDELPAREN       "~~(" (* TODO_LT: remove *)
 %token AMPERAMPER             "&&"
 %token AMPERSAND              "&"
 %token AND                    "and"
@@ -2594,7 +2599,7 @@ expr:
   | simple_expr nonempty_llist(labeled_simple_expr) %prec below_HASH
       { Pexp_apply($1, $2) }
   (* TODO_LT: Merge the below two cases *)
-  | TILDETILDEPAREN tuple_component_comma_list RPAREN
+  | TILDETILDELPAREN tuple_component_comma_list RPAREN
       { Pexp_tuple($2) }
   | expr_comma_list %prec below_COMMA
       { Pexp_tuple(List.map (fun x -> None, x) $1) }

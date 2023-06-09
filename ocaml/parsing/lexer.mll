@@ -390,7 +390,7 @@ let literal_modifier = ['G'-'Z' 'g'-'z']
 
 rule token = parse
   | "~~(" (* TODO_LT remove *)
-      { TILDETILDEPAREN }
+      { TILDETILDELPAREN }
   | ('\\' as bs) newline {
       if not !escaped_newlines then error lexbuf (Illegal_character bs);
       update_loc lexbuf None 1 false 0;
