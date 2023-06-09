@@ -3667,7 +3667,7 @@ let entry_point namelist =
             create_loop
               (Csequence
                  ( exit_if_last_iteration,
-                   Csequence (call (Cvar (VP.var id)), incr_i )))
+                   Csequence (call (Cvar (VP.var id)), incr_i) ))
               dbg,
             Ctuple [],
             dbg,
