@@ -610,10 +610,10 @@ end = struct
     | Some func_info -> func_info
 
   let should_keep_witnesses keep =
-    if !Flambda_backend_flags.checkmach_details_cutoff < 0 then
-      true
-    else if !Flambda_backend_flags.checkmach_details_cutoff = 0 then
-      false
+    if !Flambda_backend_flags.checkmach_details_cutoff < 0
+    then true
+    else if !Flambda_backend_flags.checkmach_details_cutoff = 0
+    then false
     else keep
 
   (* fixpoint backward propogation of function summaries along the recorded
