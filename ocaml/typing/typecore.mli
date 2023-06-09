@@ -177,6 +177,7 @@ val self_coercion : (Path.t * Location.t list ref) list ref
 
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
+  | Constructor_labeled_arg
   | Label_mismatch of Longident.t * Errortrace.unification_error
   | Pattern_type_clash :
       Errortrace.unification_error * _ Typedtree.pattern_desc option
@@ -266,6 +267,7 @@ type error =
   | Optional_poly_param
   | Exclave_in_nontail_position
   | Layout_not_enabled of Layout.const
+  | Unsupported_labeled_tuple
 
 
 exception Error of Location.t * Env.t * error

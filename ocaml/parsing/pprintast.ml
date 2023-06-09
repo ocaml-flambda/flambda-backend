@@ -880,7 +880,7 @@ and simple_expr ctxt f x =
     | Pexp_pack me ->
         pp f "(module@;%a)" (module_expr ctxt) me
     | Pexp_tuple l ->
-        pp f "@[<hov2>(%a)@]" (list (simple_expr ctxt) ~sep:",@;") (List.map snd l)
+        pp f "@[<hov2>(%a)@]" (list (tuple_component ctxt) ~sep:",@;") l
     | Pexp_constraint (e, ct) ->
         pp f "(%a : %a)" (expression ctxt) e (core_type ctxt) ct
     | Pexp_coerce (e, cto1, ct) ->
@@ -1821,6 +1821,19 @@ and label_x_expression_param ctxt f (l,e) =
       else
         pp f "?%s:%a" str (simple_expr ctxt) e
   | Labelled lbl ->
+      if Some lbl = simple_name then
+        pp f "~%s" lbl
+      else
+        pp f "~%s:%a" lbl (simple_expr ctxt) e
+
+and tuple_component ctxt f (l,e) =
+  let simple_name = match e with
+    | {pexp_desc=Pexp_ident {txt=Lident l;_};
+       pexp_attributes=[]} -> Some l
+    | _ -> None
+  in match l with
+  | None  -> expression2 ctxt f e (* level 2*)
+  | Some lbl ->
       if Some lbl = simple_name then
         pp f "~%s" lbl
       else
