@@ -64,7 +64,21 @@ module Sort = struct
           if result != s then r := Some result; (* path compression *)
           result
         end
-    end
+      end
+
+  (* This is constant-time if [var] was just returned from a previous call to
+     [get]. That's because [var] will always be [None] in that case.
+  *)
+  let var_constraint : var -> const option = fun r ->
+    match !r with
+    | None -> None
+    | Some t -> begin
+        match get t with
+        | Const const -> Some const
+        | Var { contents = None } -> None
+        | Var _ ->
+            Misc.fatal_error "[get] should return [Const _] or [Var None]"
+      end
 
   let default_value : t option = Some (Const Value)
   let default_void : t option = Some (Const Void)
@@ -153,7 +167,7 @@ module Sort = struct
     | Void -> "void"
 
   let to_string s = match get s with
-    | Var v -> var_name v
+    | Var v -> var_name (v :> var)
     | Const c -> string_of_const c
 
   let format ppf t = Format.fprintf ppf "%s" (to_string t)

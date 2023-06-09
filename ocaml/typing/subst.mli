@@ -42,8 +42,14 @@ val add_module_path: Path.t -> Path.t -> t -> t
 val add_modtype: Ident.t -> module_type -> t -> t
 val add_modtype_path: Path.t -> module_type -> t -> t
 
-val for_saving: t -> t
-val reset_for_saving: unit -> unit
+type additional_action_config =
+   | Prepare_for_saving
+   | Copy_type_variables
+
+(* CR nroberts: comment *)
+val with_additional_action: additional_action_config -> t -> t
+val reset_additional_action_type_id: unit -> unit
+
 val change_locs: t -> Location.t -> t
 
 val module_path: t -> Path.t -> Path.t

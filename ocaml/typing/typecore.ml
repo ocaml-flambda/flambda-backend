@@ -6846,8 +6846,9 @@ and type_cases
   let do_init = may_contain_gadts || needs_exhaust_check in
   let ty_arg_check =
     if do_init then
-      (* Hack: use for_saving to copy variables too *)
-      Subst.type_expr (Subst.for_saving Subst.identity) ty_arg'
+      Subst.type_expr
+        (Subst.with_additional_action Copy_type_variables Subst.identity)
+        ty_arg'
     else ty_arg'
   in
   let val_cases, exn_cases =
