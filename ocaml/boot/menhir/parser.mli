@@ -83,6 +83,8 @@ type token =
   | IN
   | IF
   | HASH_SUFFIX
+  | HASH_INT of (string * char option)
+  | HASH_FLOAT of (string * char option)
   | HASHOP of (string)
   | HASH
   | GREATERRBRACKET
