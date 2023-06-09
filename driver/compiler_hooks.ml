@@ -160,7 +160,8 @@ let execute : type a. a pass -> a -> unit =
   | Inlining_tree -> execute_hooks hooks.inlining_tree arg
   | Check_allocations ->
     Misc.protect_refs
-      [ Misc.R (Flambda_backend_flags.checkmach_details_cutoff, -1) ]
+      [ Misc.R (Flambda_backend_flags.checkmach_details_cutoff,
+                Flambda_backend_flags.Keep_all) ]
       (fun () -> execute_hooks hooks.check_allocations arg)
 
 let execute_and_pipe r a = execute r a; a
