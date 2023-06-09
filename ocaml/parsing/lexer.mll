@@ -413,12 +413,14 @@ let comments () = List.rev !comment_list
 let float ~maybe_hash lit modifier =
   match maybe_hash with
   | "#" -> HASH_FLOAT (lit, modifier)
-  | _ -> FLOAT (lit, modifier)
+  | "" -> FLOAT (lit, modifier)
+  | unexpected -> fatal_error ("expected # or empty string: " ^ unexpected)
 
 let int ~maybe_hash lit modifier =
   match maybe_hash with
   | "#" -> HASH_INT (lit, modifier)
-  | _ -> INT (lit, modifier)
+  | "" -> INT (lit, modifier)
+  | unexpected -> fatal_error ("expected # or empty string: " ^ unexpected)
 
 (* Error report *)
 
