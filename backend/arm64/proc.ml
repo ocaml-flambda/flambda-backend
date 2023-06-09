@@ -66,6 +66,8 @@ let register_class r =
   match r.typ with
   | Val | Int | Addr  -> 0
   | Float -> 1
+  (* CR mslater: arm64 *)
+  | Vec128 -> fatal_error "arm64: got vec128 register"
 
 let register_class_tag c =
   match c with
@@ -158,6 +160,8 @@ let calling_conventions
         loc.(i) <- loc_int last_int make_stack int ofs
     | Float ->
         loc.(i) <- loc_float last_float make_stack float ofs
+    (* CR mslater: arm64 *)
+    | Vec128 -> fatal_error "arm64: got vec128 register"
   done;
   (loc, Misc.align (max 0 !ofs) 16)  (* keep stack 16-aligned *)
 
@@ -220,6 +224,8 @@ let external_calling_conventions
         loc.(i) <- [| loc_int32 last_int make_stack int ofs |]
     | XFloat ->
         loc.(i) <- [| loc_float last_float make_stack float ofs |]
+    (* CR mslater: arm64 *)
+    | XVec128 -> fatal_error "arm64: got vec128 register"
     end)
     ty_args;
   (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)
