@@ -3587,10 +3587,10 @@ let make_symbol ?compilation_unit name =
  * {
  *   int id = 0;
  *   while (true) {
+ *     if (id == len_caml_globals_entry_functions) goto out;
  *     caml_globals_entry_functions[id]();
  *     caml_globals_inited += 1;
  *     id += 1;
- *     if (id == len_caml_globals_entry_functions) goto out;
  *   }
  *   out:
  *   return 1;
@@ -3666,8 +3666,8 @@ let entry_point namelist =
             [],
             create_loop
               (Csequence
-                 ( call (Cvar (VP.var id)),
-                   Csequence (incr_i, exit_if_last_iteration) ))
+                 ( exit_if_last_iteration,
+                   Csequence (call (Cvar (VP.var id)), incr_i )))
               dbg,
             Ctuple [],
             dbg,
