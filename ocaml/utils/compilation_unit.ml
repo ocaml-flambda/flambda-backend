@@ -421,7 +421,8 @@ let name_as_string t = name t |> Name.to_string
 let equal_to_name t other_name =
   is_plain_name t && Name.equal other_name (name t)
 
-let with_for_pack_prefix t for_pack_prefix = create for_pack_prefix (name t)
+let with_for_pack_prefix t for_pack_prefix =
+  create_full for_pack_prefix (name t) (instance_arguments t)
 
 let is_packed t = not (Prefix.is_empty (for_pack_prefix t))
 

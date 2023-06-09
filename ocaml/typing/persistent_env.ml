@@ -165,7 +165,8 @@ let register_parameter_import {registered_param_imports; _} import =
      been imported as a non-parameter. *)
   registered_param_imports := CU.Name.Set.add import !registered_param_imports
 
-let register_parameter {registered_params; _} modname =
+let register_parameter ({registered_params; _} as penv) modname =
+  register_parameter_import penv (CU.Name.of_head_of_global_name modname);
   registered_params := Param_set.add modname !registered_params
 
 let find_info_in_cache {persistent_structures; _} name =
@@ -271,49 +272,66 @@ let need_local_ident penv (global : Global.t) =
      must be either statically bound or toplevel parameters, since the actual
      functor calls that instantiate open modules happen elsewhere (so that they
      can happen exactly once). *)
-  let global_name = global |> Global.to_name in
-  let name = global_name |> CU.Name.of_head_of_global_name in
-  match global.params with
-  | _ when is_registered_parameter penv global_name ->
+  let name = global |> Global.to_name |> CU.Name.of_head_of_global_name in
+  if is_registered_parameter_import penv name
+  then
     (* Already a parameter *)
     true
-  | [] ->
-    (* Not a parameter and also not parameterised *)
-    false
-  | _ when current_unit_is name ->
+  else if current_unit_is name
+  then
     (* Not actually importing it in the sense of needing its value (we're
        building its value!) *)
     false
-  | _ when current_unit_is_instance_of name ->
+  else if current_unit_is_instance_of name
+  then
     (* We're instantiating the module, so (here and only here!) we're accessing
        its actual functor, which is a compile-time constant *)
     (* CR lmaurer: Relying on [current_unit_is_instance_of] here feels hacky
        when only a pretty specific call sequence gets here. *)
     false
-  | _ when Global.is_complete global ->
+  else if Global.is_complete global
+  then
     (* It's a compile-time constant *)
     false
-  | _ ->
+  else
     (* Some argument is missing, or some argument's argument is missing, etc.,
        so it's not a compile-time constant *)
     true
 
-let make_binding penv (global : Global.t) unit : binding =
+let make_binding penv (global : Global.t) unit_from_cmi : binding =
   if need_local_ident penv global
-  then Local (Ident.create_local global.head)
+  then Local (Ident.create_local_binding_for_global (Global.to_name global))
   else
-    match unit with
-    | Some unit ->
-        (* We need to use the unit in case it's in a pack, but we expect the
-           unit to be consistent with the global in any case *)
-        assert (Global.Name.equal
-                  (unit |> CU.to_global_name_without_prefix)
-                  (global |> Global.to_name));
-        Static unit
-    | None ->
-        Misc.fatal_errorf
-          "No compilation unit for global we intend to bind statically:@ %a"
-          Global.print global
+    (* We need to mix information coming from [global] and [unit_from_cmi]: the
+       global may have instance arguments, and the unit from the .cmi may have a
+       pack prefix. In general, then, we need to check both, though it's an
+       error (which should have been caught already) to have both instance
+       arguments _and_ a pack prefix. *)
+    let unit_from_cmi =
+      match unit_from_cmi with
+      | Some unit -> unit
+      | None ->
+          (* The only reason to be missing a compilation unit in the .cmi is if
+             this global is a parameter, and if it's a parameter we shouldn't be
+             trying to bind it statically. *)
+          Misc.fatal_errorf
+            "No compilation unit for global we intend to bind statically:@ %a"
+            Global.print global
+    in
+    let unit =
+      match global.args with
+      | [] ->
+          (* Make sure the names are consistent up to the pack prefix *)
+          assert (Global.Name.equal
+                    (unit_from_cmi |> CU.to_global_name_without_prefix)
+                    (global |> Global.to_name));
+          unit_from_cmi
+      | _ ->
+          (* Make sure the unit isn't supposed to be packed *)
+          assert (not (CU.is_packed unit_from_cmi));
+          CU.of_global_name (global |> Global.to_name)
+    in
+    Static unit
 
 let global_of_global_name penv name : Global.t =
   match find_info_in_cache penv name with
@@ -325,14 +343,12 @@ let global_of_global_name penv name : Global.t =
 
 let compute_global penv modname ~params ~check =
   (* Assume we've already seen, and hence computed, globals for all the
-     arguments' names and values. This should be ensured by calling [find] on
-     the argument names and values before the instance name that contains
-     them.
+     arguments' names and values.
 
-     Note that we currently do not have the same requirement for the parameters.
-     This will change once we implement parameterized parameters, since then
-     we'll have to compute each one's `Global.t` form, whereas for now we can
-     just assume that they don't have parameters. *)
+     Note that we currently do not have the same requirement here for the
+     parameters. This will change once we implement parameterized parameters,
+     since then we'll have to compute each one's `Global.t` form, whereas for
+     now we can just assume that they don't have parameters. *)
   let arg_globals =
     List.map
       (fun (name, value) -> name, global_of_global_name penv value)
@@ -346,7 +362,7 @@ let compute_global penv modname ~params ~check =
       params
   in
   let subst : Global.subst = Global.Name.Map.of_list arg_globals in
-  if check then begin
+  if check && arg_globals <> [] then begin
     (* Produce the expected type of each argument. This takes into account
        substitutions among the parameter types: if the parameters are T and
        To_string[T] and the arguments are [Int] and [Int_to_string], we want to
@@ -371,6 +387,7 @@ let compute_global penv modname ~params ~check =
       ~left_only:
         (fun _ ->
             (* Parameter with no argument: fine *)
+            (* CR lmaurer: Should check that it's expected to be a parameter *)
             ())
       ~right_only:
         (fun (param, value) ->
@@ -434,11 +451,11 @@ let compute_global penv modname ~params ~check =
 type 'a sig_reader =
   Persistent_signature.t -> global:Global.t -> binding:binding -> 'a
 
-let acknowledge_pers_struct
+let rec acknowledge_pers_struct
       penv ~check global_name pers_sig (val_of_pers_sig : _ sig_reader) =
   let { Persistent_signature.filename; cmi } = pers_sig in
   let found_name = cmi.cmi_name in
-  let unit = cmi.cmi_unit in
+  let unit_from_cmi = cmi.cmi_unit in
   let is_param = cmi.cmi_is_param in
   let params = cmi.cmi_params in
   let arg_for = cmi.cmi_arg_for in
@@ -458,7 +475,7 @@ let acknowledge_pers_struct
         | Alerts _ -> ()
         | Opaque -> register_import_as_opaque penv modname)
     flags;
-  begin match unit, CU.get_current () with
+  begin match unit_from_cmi, CU.get_current () with
   | Some imported_unit, Some current_unit ->
       let access_allowed =
         CU.can_access_by_name imported_unit ~accessed_by:current_unit
@@ -468,7 +485,7 @@ let acknowledge_pers_struct
         error (Direct_reference_from_wrong_package (imported_unit, filename, prefix));
   | _, _ -> ()
   end;
-  begin match is_param, is_registered_parameter penv global_name with
+  begin match is_param, is_registered_parameter_import penv modname with
   | true, false ->
       (* CR lmaurer: This could be confusing: It could be that we have the right
          import but the wrong instance arguments *)
@@ -478,8 +495,31 @@ let acknowledge_pers_struct
   | true, true
   | false, false -> ()
   end;
+  let ensure_loaded modname =
+    ignore
+      (find_pers_struct penv val_of_pers_sig ~check modname : pers_struct * 'a)
+  in
+  let ensure_param_loaded name =
+    register_parameter_import penv (CU.Name.of_head_of_global_name name);
+    ensure_loaded name
+  in
+  List.iter ensure_param_loaded params;
+  let ensure_arg_loaded (name, value) =
+    (* Load an argument's persistent structure to be sure we can use it in
+       [compute_global] below. We actually only need the argument's value for
+       the moment (see comment on [compute_global]), but separately,
+       typechecking will also need the argument's name to be loaded.
+
+       CR-someday lmaurer: The .cmi should include a cache of all the
+       global-name-to-global translations it knows about. This would let us
+       avoid the recursion here, though we would still want to check whenever
+       possible that all the caches in different .cmi files are consistent. *)
+    ensure_param_loaded name;
+    ensure_loaded value
+  in
+  List.iter ensure_arg_loaded global_name.Global.Name.args;
   let global = compute_global penv global_name ~params ~check:true in
-  let binding = make_binding penv global unit in
+  let binding = make_binding penv global unit_from_cmi in
   let ps = { ps_global = global;
              ps_arg_for = arg_for;
              ps_binding = binding;
@@ -492,13 +532,13 @@ let acknowledge_pers_struct
   Hashtbl.add persistent_structures global_name (Found (ps, pm));
   (ps, pm)
 
-let read_pers_struct penv val_of_pers_sig ~check modname filename =
+and read_pers_struct penv val_of_pers_sig ~check modname filename =
   add_import penv (CU.Name.of_head_of_global_name modname);
   let cmi = read_cmi filename in
   let pers_sig = { Persistent_signature.filename; cmi } in
   acknowledge_pers_struct penv ~check modname pers_sig val_of_pers_sig
 
-let find_pers_struct penv val_of_pers_sig ~check name =
+and find_pers_struct penv val_of_pers_sig ~check name =
   let {persistent_structures; _} = penv in
   if Global.Name.equal name Global.Name.predef_exn then raise Not_found;
   match Hashtbl.find persistent_structures name with
@@ -647,19 +687,28 @@ let imports {imported_units;  crc_units; _} =
       Import_info.Intf.create cu_name cu ~crc)
     imports
 
+let local_ident penv modname =
+  match find_info_in_cache penv modname with
+  | Some ({ ps_binding = Local local_ident; _ }, _) ->
+      if is_unexported_parameter penv modname
+      then
+        (* This isn't a great situation - the value of [ps_binding] is a lie
+           since the module is not in fact bound at all. Possibly we could add
+           [No_binding] as a constructor to [binding] and use that as the
+           binding for an unexported parameter, but only if we first verify that
+           a parameter never becomes exported after [acknowledge_pers_struct]
+           sees it. *)
+        None
+      else
+        Some local_ident
+  | Some ({ ps_binding = Static _; _ }, _)
+  | None -> None
+
 let locally_bound_imports ({persistent_structures; _} as penv) =
   persistent_structures
   |> Hashtbl.to_seq_keys
   |> Seq.filter_map
-       (fun name ->
-          (* CR lmaurer: This should probably take [Instance_name.t]? *)
-          if is_unexported_parameter penv name then None
-          else
-            match find_info_in_cache penv name with
-              | Some ({ ps_binding = Local local_ident; _ }, _) ->
-                  Some (name, local_ident)
-              | Some ({ ps_binding = Static _; _ }, _)
-              | None -> None)
+       (fun name -> local_ident penv name |> Option.map (fun id -> name, id))
   |> List.of_seq
 
 let exported_parameters {registered_params; _} =
@@ -673,12 +722,6 @@ let is_imported_opaque {imported_opaque_units; _} s =
 
 let is_parameter_unit penv s =
   is_registered_parameter_import penv s
-
-let local_ident penv modname =
-  match find_info_in_cache penv modname with
-  | Some ({ ps_binding = Local local_ident; _ }, _) -> Some local_ident
-  | Some ({ ps_binding = Static _; _ }, _)
-  | None -> None
 
 let implemented_parameter penv modname =
   match find_info_in_cache penv modname with
@@ -784,7 +827,7 @@ let report_error ppf =
         "Can only access members of this library's package or a containing package"
   | Illegal_import_of_parameter(modname, filename) ->
       fprintf ppf
-        "@[<hov>The file %a@ contains the an interface of a parameter.@ \
+        "@[<hov>The file %a@ contains the interface of a parameter.@ \
          %a is not declared as a parameter for the current unit (-parameter %a).@]"
         Location.print_filename filename
         CU.Name.print modname

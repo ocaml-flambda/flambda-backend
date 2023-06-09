@@ -10,6 +10,8 @@ module Name : sig
 
   val create : string -> (t * t) list -> t
 
+  val to_string : t -> string
+
   val predef_exn : t
 end
 
@@ -49,6 +51,8 @@ type t = private {
 include Identifiable.S with type t := t
 
 val create : string -> (Name.t * t) list -> params:(Name.t * t) list -> t
+
+val to_string : t -> string
 
 val to_name : t -> Name.t
 

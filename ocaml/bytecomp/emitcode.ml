@@ -410,7 +410,7 @@ let to_file outchan unit_name objfile ~required_globals code =
   let runtime_params =
     Env.locally_bound_imports ()
     |> Array.of_list
-    |> Array.map (fun (name, _) -> Compilation_unit.of_global_name name)
+    |> Array.map fst
   in
   let compunit =
     { cu_name = unit_name;

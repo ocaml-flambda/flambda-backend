@@ -13,6 +13,8 @@ module Name : sig
 
   val unsafe_create_unchecked : string -> (t * t) list -> t
 
+  val to_string : t -> string
+
   val predef_exn : t
 
   include Identifiable.S with type t := t
@@ -63,6 +65,8 @@ end = struct
     t
 
   let unsafe_create_unchecked head args = { head; args }
+
+  let to_string t = Format.asprintf "%a" print t
 
   let predef_exn = { head = "*predef*"; args = [] }
 end
@@ -149,6 +153,8 @@ end
 
 include T0
 
+let to_string t = Format.asprintf "%a" print t
+
 module Subst = Name.Map
 type subst = t Subst.t
 
@@ -179,7 +185,7 @@ let subst t s =
 
 let subst_inside t s =
   let changed = ref false in
-  let new_t = subst0 t s ~changed in
+  let new_t = subst0_inside t s ~changed in
   if !changed then new_t else t
 
 let check s params =

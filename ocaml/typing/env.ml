@@ -927,7 +927,7 @@ let subst_of_instance_args (global : Global.t) =
       List.fold_left
         (fun subst (param, value) ->
            let param_id = Ident.create_global param in
-           let value_id = Ident.create_global (value |> Global.to_name) in
+           let value_id = Ident.create_global (Global.to_name value) in
            Subst.add_module param_id (Pident value_id) subst)
         (* Go over both the parameters and the arguments, since the
            parameters may have new types due to other parameters *)

@@ -56,6 +56,9 @@ let create_global glob =
   | { head; args = [] } -> Global head
   | _ -> Instance glob
 
+let create_local_binding_for_global glob =
+  create_local (Global.Name.to_string glob)
+
 let create_instance head args =
   create_global (Global.Name.create head args)
 

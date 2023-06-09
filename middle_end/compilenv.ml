@@ -242,10 +242,7 @@ let get_unit_info comp_unit =
             cache_checks ui.ui_checks;
             (Some ui, Some crc)
           with Not_found ->
-            (* CR lmaurer: Change this to use the global once we have CUs
-               storing globals, so that it includes the instance arguments but
-               not the pack prefix. *)
-            let warn = Warnings.No_cmx_file name.head in
+            let warn = Warnings.No_cmx_file (Global.Name.to_string name) in
               Location.prerr_warning Location.none warn;
               (None, None)
           end
