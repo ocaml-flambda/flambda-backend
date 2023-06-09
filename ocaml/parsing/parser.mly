@@ -839,6 +839,7 @@ let mkpat_jane_syntax
    string that will not trigger a syntax error; see how [not_expecting]
    is used in the definition of [type_variance]. */
 
+%token LPARENTILDE            "(~" /* TODO_LT: remove */
 %token AMPERAMPER             "&&"
 %token AMPERSAND              "&"
 %token AND                    "and"
@@ -2592,9 +2593,11 @@ expr:
 %inline expr_:
   | simple_expr nonempty_llist(labeled_simple_expr) %prec below_HASH
       { Pexp_apply($1, $2) }
+  (* TODO_LT: Merge the below two cases *)
   | expr_comma_list %prec below_COMMA
       { Pexp_tuple(List.map (fun x -> (None, x)) $1) }
-  /*| TILDE LPAREN  RPAREN %prec below_COMMA */
+  | LPARENTILDE tuple_component_comma_list RPAREN
+      { Pexp_tuple($2) }
   | mkrhs(constr_longident) simple_expr %prec below_HASH
       { Pexp_construct($1, Some $2) }
   | name_tag simple_expr %prec below_HASH
@@ -3020,6 +3023,29 @@ fun_def:
   es = separated_nontrivial_llist(COMMA, expr)
     { es }
 ;
+%inline tuple_component_comma_list:
+  es = separated_nontrivial_llist(COMMA, tuple_component)
+    { es }
+;
+ (* TODO_LT: I avoided naming this labeled_expr or similar to avoid it getting confused
+   with labeled_simple_expr, which is used for function args and notably supports
+   optional args, whereas tuple components do not. Open to better names! *)
+
+tuple_component:
+    simple_expr
+      { None, $1 }
+       (* Not sure why this one is here? *)
+     | LABEL simple_expr
+      { (Some $1, $2) } 
+   (* TODO_LT: Punning - maybe the below works? Untested *)
+     (* | TILDE label = LIDENT
+      { let loc = $loc(label) in
+        (Some label, mkexpvar ~loc label) } *)
+  (* | TILDE LPAREN label = LIDENT ty = type_constraint RPAREN
+      { (Some label, mkexp_constraint ~loc:($startpos($2), $endpos)
+                           (mkexpvar ~loc:$loc(label) label) ty) } *)
+;
+
 record_expr_content:
   eo = ioption(terminated(simple_expr, WITH))
   fields = separated_or_terminated_nonempty_list(SEMI, record_expr_field)
