@@ -13,6 +13,7 @@ type token =
   | TRY
   | TRUE
   | TO
+  | TILDETILDELPAREN
   | TILDE
   | THEN
   | STRUCT
