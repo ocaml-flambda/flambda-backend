@@ -812,6 +812,16 @@ let unboxed_float sloc sign (f, m) =
   assert_unboxed_literals ~loc:(make_loc sloc);
   Pconst_float (with_sign sign f, m)
 
+(* Unboxed float type *)
+
+let assert_unboxed_float_type ~loc =
+    Language_extension.(
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
+
+let unboxed_float_type sloc tys =
+  assert_unboxed_float_type ~loc:(make_loc sloc);
+  Ptyp_constr (mkloc (Lident "float#") (make_loc sloc), tys)
+
 (* Jane syntax *)
 
 let mkexp_jane_syntax
@@ -946,6 +956,7 @@ let mkpat_jane_syntax
 %token SEMI                   ";"
 %token SEMISEMI               ";;"
 %token HASH                   "#"
+%token HASH_SUFFIX            "# "
 %token <string> HASHOP        "##" (* just an example *)
 %token SIG                    "sig"
 %token STAR                   "*"
@@ -1030,7 +1041,7 @@ The precedences must be listed from low to high.
 %nonassoc prec_constant_constructor     /* cf. simple_expr (C versus C x) */
 %nonassoc prec_constr_appl              /* above AS BAR COLONCOLON COMMA */
 %nonassoc below_HASH
-%nonassoc HASH                         /* simple_expr/toplevel_directive */
+%nonassoc HASH HASH_SUFFIX              /* simple_expr/toplevel_directive */
 %left     HASHOP
 %nonassoc below_DOT
 %nonassoc DOT DOTOP
@@ -2743,6 +2754,11 @@ comprehension_clause:
       { $1 }
 ;
 
+%inline hash:
+  | HASH { () }
+  | HASH_SUFFIX { () }
+;
+
 %inline simple_expr_:
   | mkrhs(val_longident)
       { Pexp_ident ($1) }
@@ -2771,7 +2787,7 @@ comprehension_clause:
         Pexp_open(od, mkexp ~loc:$sloc (Pexp_override $4)) }
   | mod_longident DOT LBRACELESS object_expr_content error
       { unclosed "{<" $loc($3) ">}" $loc($5) }
-  | simple_expr HASH mkrhs(label)
+  | simple_expr hash mkrhs(label)
       { Pexp_send($1, $3) }
   | simple_expr op(HASHOP) simple_expr
       { mkinfix $1 $2 $3 }
@@ -3170,7 +3186,7 @@ simple_pattern_not_ident:
       { Ppat_construct($1, None) }
   | name_tag
       { Ppat_variant($1, None) }
-  | HASH mkrhs(type_longident)
+  | hash mkrhs(type_longident)
       { Ppat_type ($2) }
   | mkrhs(mod_longident) DOT simple_delimited_pattern
       { Ppat_open($1, $3) }
@@ -3836,7 +3852,18 @@ atomic_type:
         { Ptyp_any }
     | tys = actual_type_parameters
       tid = mkrhs(type_longident)
-        { Ptyp_constr(tid, tys) }
+      HASH_SUFFIX
+        { match tid.txt with
+          | Lident "float" ->
+              let ident_start = fst $loc(tid) in
+              let hash_end = snd $loc($3) in
+              unboxed_float_type (ident_start, hash_end) tys
+          | _ ->
+              not_expecting $sloc "Unboxed type other than float#"
+        }
+    | tys = actual_type_parameters
+      tid = mkrhs(type_longident)
+        { Ptyp_constr(tid, tys) } %prec below_HASH
     | LESS meth_list GREATER
         { let (f, c) = $2 in Ptyp_object (f, c) }
     | LESS GREATER
@@ -3972,19 +3999,19 @@ constant:
   | FLOAT             { let (f, m) = $1 in Pconst_float (f, m) }
   (* The unboxed literals have to be composed of multiple lexemes so we can
      handle line number directives properly *)
-  | HASH INT          { unboxed_int $sloc $loc($2) Positive $2 }
-  | HASH FLOAT        { unboxed_float $sloc Positive $2 }
+  | hash INT          { unboxed_int $sloc $loc($2) Positive $2 }
+  | hash FLOAT        { unboxed_float $sloc Positive $2 }
 ;
 signed_constant:
     constant          { $1 }
   | MINUS INT         { let (n, m) = $2 in Pconst_integer("-" ^ n, m) }
   | MINUS FLOAT       { let (f, m) = $2 in Pconst_float("-" ^ f, m) }
-  | MINUS HASH INT    { unboxed_int $sloc $loc($3) Negative $3 }
-  | MINUS HASH FLOAT  { unboxed_float $sloc Negative $3 }
+  | MINUS hash INT    { unboxed_int $sloc $loc($3) Negative $3 }
+  | MINUS hash FLOAT  { unboxed_float $sloc Negative $3 }
   | PLUS INT          { let (n, m) = $2 in Pconst_integer (n, m) }
   | PLUS FLOAT        { let (f, m) = $2 in Pconst_float(f, m) }
-  | PLUS HASH INT     { unboxed_int $sloc $loc($3) Positive $3 }
-  | PLUS HASH FLOAT   { unboxed_float $sloc Negative $3 }
+  | PLUS hash INT     { unboxed_int $sloc $loc($3) Positive $3 }
+  | PLUS hash FLOAT   { unboxed_float $sloc Negative $3 }
 ;
 
 /* Identifiers and long identifiers */
@@ -4112,7 +4139,7 @@ any_longident:
 /* Toplevel directives */
 
 toplevel_directive:
-  HASH dir = mkrhs(ident)
+  hash dir = mkrhs(ident)
   arg = ioption(mk_directive_arg(toplevel_directive_argument))
     { mk_directive ~loc:$sloc dir arg }
 ;
