@@ -1019,6 +1019,7 @@ module Extended_machtype_component = struct
     | Tagged_int
     | Any_int
     | Float
+    | Vec128
 
   let of_machtype_component (component : machtype_component) =
     match component with
@@ -1026,6 +1027,7 @@ module Extended_machtype_component = struct
     | Addr -> Addr
     | Int -> Any_int
     | Float -> Float
+    | Vec128 -> Vec128
 
   let to_machtype_component t : machtype_component =
     match t with
@@ -1033,6 +1035,7 @@ module Extended_machtype_component = struct
     | Addr -> Addr
     | Tagged_int | Any_int -> Int
     | Float -> Float
+    | Vec128 -> Vec128
 
   let change_tagged_int_to_val t : machtype_component =
     match t with
@@ -1041,6 +1044,7 @@ module Extended_machtype_component = struct
     | Tagged_int -> Val
     | Any_int -> Int
     | Float -> Float
+    | Vec128 -> Vec128
 end
 
 module Extended_machtype = struct
@@ -1055,6 +1059,8 @@ module Extended_machtype = struct
   let typ_int64 = [| Extended_machtype_component.Any_int |]
 
   let typ_float = [| Extended_machtype_component.Float |]
+
+  let typ_vec128 = [| Extended_machtype_component.Vec128 |]
 
   let typ_void = [||]
 
@@ -1093,6 +1099,7 @@ let machtype_identifier t =
     | Val -> 'V'
     | Int -> 'I'
     | Float -> 'F'
+    | Vec128 -> 'X'
     | Addr ->
       Misc.fatal_error "[Addr] is forbidden inside arity for generic functions"
   in
@@ -2738,17 +2745,17 @@ let tuplify_function arity return =
 
 let max_arity_optimized = 15
 
+let ints_per_8b = if Arch.size_int = 4 then 2 else 1
+
 let machtype_stored_size t =
-  if Arch.size_int = 4
-  then
-    Array.fold_left
-      (fun cur c ->
-        match c with
-        | Addr -> Misc.fatal_error "[Addr] cannot be stored"
-        | Val | Int -> cur + 1
-        | Float -> cur + 2)
-      0 t
-  else Array.length t
+  Array.fold_left
+    (fun cur c ->
+      match c with
+      | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+      | Val | Int -> cur + 1
+      | Float -> cur + ints_per_8b
+      | Vec128 -> cur + (2 * ints_per_8b))
+    0 t
 
 let machtype_non_scanned_size t =
   Array.fold_left
@@ -2757,7 +2764,8 @@ let machtype_non_scanned_size t =
       | Addr -> Misc.fatal_error "[Addr] cannot be stored"
       | Val -> cur
       | Int -> cur + 1
-      | Float -> cur + if Arch.size_int = 4 then 2 else 1)
+      | Float -> cur + ints_per_8b
+      | Vec128 -> cur + (2 * ints_per_8b))
     0 t
 
 let make_tuple l = match l with [e] -> e | _ -> Ctuple l
@@ -2766,7 +2774,10 @@ let value_slot_given_machtype vs =
   let non_scanned, scanned =
     List.partition
       (fun (_, c) ->
-        match c with Int | Float -> true | Val -> false | Addr -> assert false)
+        match c with
+        | Int | Float | Vec128 -> true
+        | Val -> false
+        | Addr -> assert false)
       vs
   in
   List.map (fun (v, _) -> Cvar v) (non_scanned @ scanned)
@@ -2782,8 +2793,11 @@ let read_from_closure_given_machtype t clos base_offset dbg =
         | Int ->
           (non_scanned_pos + 1, scanned_pos), load Word_int non_scanned_pos
         | Float ->
-          ( ((non_scanned_pos + if Arch.size_int = 4 then 2 else 1), scanned_pos),
+          ( (non_scanned_pos + ints_per_8b, scanned_pos),
             load Double non_scanned_pos )
+        | Vec128 ->
+          ( (non_scanned_pos + (2 * ints_per_8b), scanned_pos),
+            load Onetwentyeight non_scanned_pos )
         | Val -> (non_scanned_pos, scanned_pos + 1), load Word_val scanned_pos
         | Addr -> Misc.fatal_error "[Addr] cannot be read")
       (base_offset, base_offset + machtype_non_scanned_size t)

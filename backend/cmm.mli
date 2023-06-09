@@ -20,6 +20,7 @@ type machtype_component = Cmx_format.machtype_component =
   | Addr
   | Int
   | Float
+  | Vec128
 
 (* - [Val] denotes a valid OCaml value: either a pointer to the beginning
      of a heap block, an infix pointer if it is preceded by the correct
@@ -73,6 +74,7 @@ type exttype =
   | XInt32                              (**r 32-bit integer *)
   | XInt64                              (**r 64-bit integer  *)
   | XFloat                              (**r double-precision FP number  *)
+  | XVec128                             (**r 128-bit vector *)
 (** A variant of [machtype] used to describe arguments
     to external C functions *)
 
@@ -178,6 +180,9 @@ type memory_chunk =
   | Single
   | Double                             (* word-aligned 64-bit float
                                           see PR#10433 *)
+  | Onetwentyeight                     (* word-aligned 128-bit vector
+                                          CR mslater: alignment *)
+
 and operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of

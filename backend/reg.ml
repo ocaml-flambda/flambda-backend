@@ -114,6 +114,7 @@ let clear_visited_marks () =
 
 
 let create ty =
+  (* CR mslater: should we start vector registers with a higher spill cost? *)
   let r = { raw_name = Raw_name.Anon; stamp = !currstamp; typ = ty;
             loc = Unknown;
             irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
@@ -195,6 +196,7 @@ let is_reg t =
 
 let size_of_contents_in_bytes t =
   match t.typ with
+  | Vec128 -> 16
   | Float -> Arch.size_float
   | Addr ->
     assert (Arch.size_addr = Arch.size_int);

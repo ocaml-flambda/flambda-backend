@@ -34,6 +34,7 @@ let machtype_component ppf = function
   | Addr -> fprintf ppf "addr"
   | Int -> fprintf ppf "int"
   | Float -> fprintf ppf "float"
+  | Vec128 -> fprintf ppf "vec128"
 
 let machtype ppf mty =
   match Array.length mty with
@@ -48,6 +49,7 @@ let exttype ppf = function
   | XInt32 -> fprintf ppf "int32"
   | XInt64 -> fprintf ppf "int64"
   | XFloat -> fprintf ppf "float"
+  | XVec128 -> fprintf ppf "vec128"
 
 let extcall_signature ppf (ty_res, ty_args) =
   begin match ty_args with
@@ -97,6 +99,7 @@ let chunk = function
   | Sixteen_signed -> "signed int16"
   | Thirtytwo_unsigned -> "unsigned int32"
   | Thirtytwo_signed -> "signed int32"
+  | Onetwentyeight -> "vec128"
   | Word_int -> "int"
   | Word_val -> "val"
   | Single -> "float32"

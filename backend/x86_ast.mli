@@ -57,7 +57,8 @@ type constant =
 type data_type =
   | NONE
   | REAL4 | REAL8 (* floating point values *)
-  | BYTE | WORD | DWORD | QWORD | OWORD (* integer values *)
+  | BYTE | WORD | DWORD | QWORD (* integer values *)
+  | VEC128 (* vector values (float & integer) *)
   | NEAR | PROC
 
 type reg64 =
@@ -179,6 +180,7 @@ type instruction =
   | MINSD of arg * arg
   | MOV of arg * arg
   | MOVAPD of arg * arg
+  | MOVUPD of arg * arg
   | MOVD of arg * arg
   | MOVQ of arg * arg
   | MOVLPD of arg * arg
@@ -268,3 +270,4 @@ type asm_line =
   | Direct_assignment of string * constant
 
 type asm_program = asm_line list
+

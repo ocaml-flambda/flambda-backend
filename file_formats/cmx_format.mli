@@ -42,7 +42,7 @@ type export_info_raw =
   | Flambda2_raw of Flambda2_cmx.Flambda_cmx_format.raw option
 
 (* Declare machtype here to avoid depending on [Cmm]. *)
-type machtype_component = Val | Addr | Int | Float
+type machtype_component = Val | Addr | Int | Float | Vec128
 type machtype = machtype_component array
 
 type apply_fn := machtype list * machtype * Lambda.alloc_mode

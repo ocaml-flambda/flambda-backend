@@ -236,6 +236,7 @@ let size_component = function
   | Val | Addr -> Arch.size_addr
   | Int -> Arch.size_int
   | Float -> Arch.size_float
+  | Vec128 -> 16
 
 let size_machtype mty =
   let size = ref 0 in

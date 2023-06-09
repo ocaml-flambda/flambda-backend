@@ -187,6 +187,7 @@ module I : sig
   val minsd: arg -> arg -> unit
   val mov: arg -> arg -> unit
   val movapd: arg -> arg -> unit
+  val movupd: arg -> arg -> unit
   val movd: arg -> arg -> unit
   val movq: arg -> arg -> unit
   val movsd: arg -> arg -> unit

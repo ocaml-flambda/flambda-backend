@@ -372,6 +372,7 @@ module Extended_machtype_component : sig
     | Tagged_int
     | Any_int
     | Float
+    | Vec128
 end
 
 module Extended_machtype : sig

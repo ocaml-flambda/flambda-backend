@@ -192,6 +192,7 @@ module I = struct
   let minsd x y = emit (MINSD (x,y))
   let mov x y = emit (MOV (x, y))
   let movapd x y = emit (MOVAPD (x, y))
+  let movupd x y = emit (MOVUPD (x, y))
   let movd x y = emit (MOVD (x, y))
   let movq x y = emit (MOVQ (x, y))
   let movsd x y = emit (MOVSD (x, y))

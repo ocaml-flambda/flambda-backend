@@ -18,6 +18,7 @@ type machtype_component = Cmx_format.machtype_component =
   | Addr
   | Int
   | Float
+  | Vec128
 
 type machtype = machtype_component array
 
@@ -26,13 +27,14 @@ let typ_val = [|Val|]
 let typ_addr = [|Addr|]
 let typ_int = [|Int|]
 let typ_float = [|Float|]
+let typ_vec128 = [|Vec128|]
 
 (** [machtype_component]s are partially ordered as follows:
 
-      Addr     Float
-       ^
-       |
-      Val
+      Addr     Vec128
+       ^         ^
+       |         |
+      Val      Float
        ^
        |
       Int
@@ -56,8 +58,11 @@ let lub_component comp1 comp2 =
   | Addr, Addr -> Addr
   | Addr, Val -> Addr
   | Float, Float -> Float
-  | (Int | Addr | Val), Float
-  | Float, (Int | Addr | Val) ->
+  | Float, Vec128 -> Vec128
+  | Vec128, Float -> Vec128
+  | Vec128, Vec128 -> Vec128
+  | (Int | Addr | Val), (Float | Vec128)
+  | (Float | Vec128), (Int | Addr | Val) ->
     (* Float unboxing code must be sure to avoid this case. *)
     assert false
 
@@ -73,8 +78,11 @@ let ge_component comp1 comp2 =
   | Addr, Addr -> true
   | Addr, Val -> true
   | Float, Float -> true
-  | (Int | Addr | Val), Float
-  | Float, (Int | Addr | Val) ->
+  | Float, Vec128 -> false 
+  | Vec128, Float -> true 
+  | Vec128, Vec128 -> true 
+  | (Int | Addr | Val), (Float | Vec128)
+  | (Float | Vec128), (Int | Addr | Val) ->
     assert false
 
 type exttype =
@@ -82,12 +90,14 @@ type exttype =
   | XInt32
   | XInt64
   | XFloat
+  | XVec128
 
 let machtype_of_exttype = function
   | XInt -> typ_int
   | XInt32 -> typ_int
   | XInt64 -> if Arch.size_int = 4 then [|Int;Int|] else typ_int
   | XFloat -> typ_float
+  | XVec128 -> typ_vec128
 
 let machtype_of_exttype_list xtl =
   Array.concat (List.map machtype_of_exttype xtl)
@@ -182,6 +192,7 @@ type memory_chunk =
   | Word_val
   | Single
   | Double
+  | Onetwentyeight
 
 and operation =
     Capply of machtype * Lambda.region_close
@@ -488,10 +499,12 @@ let equal_machtype_component left right =
   | Addr, Addr -> true
   | Int, Int -> true
   | Float, Float -> true
-  | Val, (Addr | Int | Float)
-  | Addr, (Val | Int | Float)
-  | Int, (Val | Addr | Float)
-  | Float, (Val | Addr | Int) ->
+  | Vec128, Vec128 -> true
+  | Val, (Addr | Int | Float | Vec128)
+  | Addr, (Val | Int | Float | Vec128)
+  | Int, (Val | Addr | Float | Vec128)
+  | Float, (Val | Addr | Int | Vec128)
+  | Vec128, (Val | Addr | Int | Float) ->
     false
 
 let equal_exttype left right =
@@ -500,10 +513,12 @@ let equal_exttype left right =
   | XInt32, XInt32 -> true
   | XInt64, XInt64 -> true
   | XFloat, XFloat -> true
-  | XInt, (XInt32 | XInt64 | XFloat)
-  | XInt32, (XInt | XInt64 | XFloat)
-  | XInt64, (XInt | XInt32 | XFloat)
-  | XFloat, (XInt | XInt32 | XInt64) ->
+  | XVec128, XVec128 -> true 
+  | XInt, (XInt32 | XInt64 | XFloat | XVec128)
+  | XInt32, (XInt | XInt64 | XFloat | XVec128)
+  | XInt64, (XInt | XInt32 | XFloat | XVec128)
+  | XFloat, (XInt | XInt32 | XInt64 | XVec128)
+  | XVec128, (XInt | XInt32 | XInt64 | XFloat) ->
     false
 
 let equal_float_comparison left right =
@@ -542,26 +557,40 @@ let equal_memory_chunk left right =
   | Word_val, Word_val -> true
   | Single, Single -> true
   | Double, Double -> true
+  | Onetwentyeight, Onetwentyeight -> true
   | Byte_unsigned, (Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                   | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+                   | Thirtytwo_signed | Word_int | Word_val | Single | Double 
+                   | Onetwentyeight)
   | Byte_signed, (Byte_unsigned | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                 | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+                 | Thirtytwo_signed | Word_int | Word_val | Single | Double 
+                 | Onetwentyeight)
   | Sixteen_unsigned, (Byte_unsigned | Byte_signed | Sixteen_signed | Thirtytwo_unsigned
-                      | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+                      | Thirtytwo_signed | Word_int | Word_val | Single | Double 
+                      | Onetwentyeight)
   | Sixteen_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Thirtytwo_unsigned
-                    | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+                    | Thirtytwo_signed | Word_int | Word_val | Single | Double 
+                    | Onetwentyeight)
   | Thirtytwo_unsigned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                        | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+                        | Thirtytwo_signed | Word_int | Word_val | Single | Double 
+                        | Onetwentyeight)
   | Thirtytwo_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                      | Thirtytwo_unsigned | Word_int | Word_val | Single | Double)
+                      | Thirtytwo_unsigned | Word_int | Word_val | Single | Double 
+                      | Onetwentyeight)
   | Word_int, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val | Single | Double)
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val | Single | Double 
+              | Onetwentyeight)
   | Word_val, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double)
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double 
+              | Onetwentyeight)
   | Single, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Double)
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Double 
+            | Onetwentyeight)
   | Double, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single) ->
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single 
+            | Onetwentyeight)
+  | Onetwentyeight, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single 
+            | Double) ->
     false
 
 let equal_integer_comparison left right =

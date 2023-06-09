@@ -102,7 +102,7 @@ let num_register_classes = 2
 let register_class r =
   match r.typ with
   | Val | Int | Addr -> 0
-  | Float -> 1
+  | Float | Vec128 -> 1
 
 let register_class_tag c =
   match c with
@@ -182,12 +182,12 @@ let calling_conventions first_int last_int first_float last_float
           ofs := !ofs + size_int
         end;
         assert (not (Reg.Set.mem loc.(i) destroyed_by_plt_stub_set))
-    | Float ->
+    | (Float | Vec128 as ty) ->
         if !float <= last_float then begin
           loc.(i) <- phys_reg !float;
           incr float
         end else begin
-          loc.(i) <- stack_slot (make_stack !ofs) Float;
+          loc.(i) <- stack_slot (make_stack !ofs) ty;
           ofs := !ofs + size_float
         end
   done;
@@ -258,12 +258,12 @@ let win64_loc_external_arguments arg =
           loc.(i) <- stack_slot (Outgoing !ofs) ty;
           ofs := !ofs + size_int
         end
-    | Float ->
+    | (Float | Vec128) as ty ->
         if !reg < 4 then begin
           loc.(i) <- phys_reg win64_float_external_arguments.(!reg);
           incr reg
         end else begin
-          loc.(i) <- stack_slot (Outgoing !ofs) Float;
+          loc.(i) <- stack_slot (Outgoing !ofs) ty;
           ofs := !ofs + size_float
         end
   done;
@@ -359,7 +359,7 @@ let destroyed_at_oper = function
   | Iop(Iintop_atomic _)
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-               | Double ), _, _))
+               | Double | Onetwentyeight ), _, _))
   | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
        | Icompf _
        | Icsel _
@@ -406,7 +406,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Load _ | Store ((Byte_unsigned | Byte_signed | Sixteen_unsigned
                          | Sixteen_signed | Thirtytwo_unsigned
                          | Thirtytwo_signed | Word_int | Word_val
-                         | Double ), _, _)
+                         | Double | Onetwentyeight ), _, _)
        | Intop (Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr
                | Iasr | Ipopcnt | Iclz _ | Ictz _)
        | Intop_imm ((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor
@@ -536,7 +536,7 @@ let max_register_pressure =
   | Iintop_atomic _
   | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-            | Double ),
+            | Double | Onetwentyeight ),
             _, _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icsel _

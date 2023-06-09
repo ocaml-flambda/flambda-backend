@@ -99,7 +99,7 @@ let suf arg =
   | QWORD -> "q"
   | REAL4 -> "s"
   | NONE -> ""
-  | OWORD | NEAR | PROC -> assert false
+  | VEC128 | NEAR | PROC -> assert false
 
 let i0 b s = bprintf b "\t%s" s
 let i1 b s x = bprintf b "\t%s\t%a" s arg x
@@ -204,6 +204,7 @@ let print_instr b = function
       i2 b "movabsq" arg1 arg2
   | MOV (arg1, arg2) -> i2_s b "mov" arg1 arg2
   | MOVAPD (arg1, arg2) -> i2 b "movapd" arg1 arg2
+  | MOVUPD (arg1, arg2) -> i2 b "movupd" arg1 arg2
   | MOVD (arg1, arg2) -> i2 b "movd" arg1 arg2
   | MOVQ (arg1, arg2) -> i2 b "movq" arg1 arg2
   | MOVLPD (arg1, arg2) -> i2 b "movlpd" arg1 arg2

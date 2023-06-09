@@ -19,8 +19,8 @@ open X86_proc
 let bprintf = Printf.bprintf
 
 let string_of_datatype = function
+  | VEC128 -> "VEC128"
   | QWORD -> "QWORD"
-  | OWORD -> "OWORD"
   | NONE -> assert false
   | REAL4 -> "REAL4"
   | REAL8 -> "REAL8"
@@ -32,8 +32,8 @@ let string_of_datatype = function
 
 
 let string_of_datatype_ptr = function
+  | VEC128 -> "VEC128 PTR "
   | QWORD -> "QWORD PTR "
-  | OWORD -> "OWORD PTR "
   | NONE -> ""
   | REAL4 -> "REAL4 PTR "
   | REAL8 -> "REAL8 PTR "
@@ -195,6 +195,7 @@ let print_instr b = function
       i2 b "mov" arg1 (Reg32 r)
   | MOV (arg1, arg2) -> i2 b "mov" arg1 arg2
   | MOVAPD (arg1, arg2) -> i2 b "movapd" arg1 arg2
+  | MOVUPD (arg1, arg2) -> i2 b "movupd" arg1 arg2
   | MOVD (arg1, arg2) -> i2 b "movd" arg1 arg2
   | MOVQ (arg1, arg2) -> i2 b "movq" arg1 arg2
   | MOVLPD (arg1, arg2) -> i2 b "movlpd" arg1 arg2

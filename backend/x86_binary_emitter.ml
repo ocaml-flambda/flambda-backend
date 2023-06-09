@@ -573,6 +573,16 @@ let emit_movapd b dst src =
       emit_mod_rm_reg b 0 [ 0x0f; 0x29 ] rm (rd_of_regf reg)
   | _ -> assert false
 
+let emit_movupd b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      buf_int8 b 0x66;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x10 ] rm (rd_of_regf reg)
+  | ((Mem _ | Mem64_RIP _) as rm), Regf reg ->
+      buf_int8 b 0x66;
+      emit_mod_rm_reg b 0 [ 0x0f; 0x11 ] rm (rd_of_regf reg)
+  | _ -> assert false
+  
 let emit_movd b ~dst ~src =
   match (dst, src) with
   | Regf reg, ((Reg32 _ | Mem _ | Mem64_RIP _) as rm) ->
@@ -1567,6 +1577,7 @@ let assemble_instr b loc = function
   | MINSD (src, dst) -> emit_minsd b ~dst ~src
   | MOV (src, dst) -> emit_MOV b dst src
   | MOVAPD (src, dst) -> emit_movapd b dst src
+  | MOVUPD (src, dst) -> emit_movupd b dst src
   | MOVD (src, dst) -> emit_movd b ~dst ~src
   | MOVQ (src, dst) -> emit_movq b ~dst ~src
   | MOVLPD (src, dst) -> emit_movlpd b dst src
