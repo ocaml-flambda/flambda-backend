@@ -21,7 +21,8 @@ open Debuginfo.Scoped_location
 
 (* Entry points to match compiler *)
 val for_function:
-        scopes:scopes -> arg_layout:layout -> return_layout:layout ->
+        scopes:scopes ->
+        arg_sort:Layouts.sort -> arg_layout:layout -> return_layout:layout ->
         Location.t -> int ref option -> lambda -> (pattern * lambda) list ->
         partial ->
         lambda
@@ -35,7 +36,8 @@ val for_let:
         lambda
 val for_multiple_match:
         scopes:scopes -> return_layout:layout -> Location.t ->
-        (lambda * layout) list -> alloc_mode -> (pattern * lambda) list -> partial ->
+        (lambda * Layouts.sort * layout) list -> alloc_mode ->
+        (pattern * lambda) list -> partial ->
         lambda
 
 val for_tupled_function:

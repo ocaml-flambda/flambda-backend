@@ -996,6 +996,7 @@ and transl_list ~scopes expr_list =
 
 and transl_list_with_layout ~scopes expr_list =
   List.map (fun (exp, sort) -> transl_exp ~scopes sort exp,
+                               sort,
                                layout_exp sort exp)
     expr_list
 
@@ -1160,11 +1161,11 @@ and transl_apply ~scopes
   build_apply lam [] loc position mode args
 
 and transl_curried_function
-      ~scopes ~arg_layout ~return_layout loc repr ~region ~curry partial
-      warnings (param:Ident.t) cases =
+      ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout loc repr ~region
+      ~curry partial warnings (param:Ident.t) cases =
   let max_arity = Lambda.max_arity () in
-  let rec loop ~scopes ~arg_layout ~return_layout loc ~arity ~region ~curry
-            partial warnings (param:Ident.t) cases =
+  let rec loop ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout loc
+            ~arity ~region ~curry partial warnings (param:Ident.t) cases =
     match curry, cases with
       More_args {partial_mode},
       [{c_lhs=pat; c_guard=None;
@@ -1187,8 +1188,9 @@ and transl_curried_function
           let arg_layout =
             function_arg_layout exp_env exp_loc arg_sort exp_type
           in
-          loop ~scopes ~arg_layout ~return_layout exp_loc ~arity:(arity + 1)
-            ~region:region' ~curry:curry' partial' warnings' param' cases'
+          loop ~scopes ~arg_sort ~arg_layout ~return_sort:ret_sort
+            ~return_layout exp_loc ~arity:(arity + 1) ~region:region'
+            ~curry:curry' partial' warnings' param' cases'
         in
         let fnkind =
           match partial_mode, fnkind with
@@ -1202,8 +1204,8 @@ and transl_curried_function
              Curried {nlocal = nlocal + 1}
         in
         ((fnkind, (param, arg_layout) :: params, return_layout, region),
-         Matching.for_function ~scopes ~arg_layout ~return_layout loc None
-           (Lvar param) [pat, body] partial)
+         Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout loc
+           None (Lvar param) [pat, body] partial)
       else begin
         begin match partial with
         | Total ->
@@ -1214,19 +1216,20 @@ and transl_curried_function
             Warnings.restore prev
         | Partial -> ()
         end;
-        transl_tupled_function ~scopes ~arg_layout ~return_layout ~arity ~region
-          ~curry loc repr partial param cases
+        transl_tupled_function ~scopes ~arg_sort ~arg_layout
+          ~return_sort:ret_sort ~return_layout ~arity ~region ~curry loc repr
+          partial param cases
       end
     | curry, cases ->
-      transl_tupled_function ~scopes ~arg_layout ~return_layout ~arity ~region
-        ~curry loc repr partial param cases
+      transl_tupled_function ~scopes ~arg_sort ~arg_layout ~return_sort
+        ~return_layout ~arity ~region ~curry loc repr partial param cases
   in
-  loop ~scopes ~arg_layout ~return_layout loc ~arity:1 ~region ~curry partial
-    warnings param cases
+  loop ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout loc ~arity:1
+    ~region ~curry partial warnings param cases
 
 and transl_tupled_function
-      ~scopes ~arg_layout ~return_layout ~arity ~region ~curry loc repr partial
-      (param:Ident.t) cases =
+      ~scopes ~arg_layout ~arg_sort ~return_sort ~return_layout ~arity ~region
+      ~curry loc repr partial (param:Ident.t) cases =
   let partial_mode =
     match curry with
     | More_args {partial_mode} | Final_arg {partial_mode} ->
@@ -1259,7 +1262,6 @@ and transl_tupled_function
           List.map (fun kind -> Ident.create_local "param", kind) kinds
         in
         let params = List.map fst tparams in
-        let return_sort = sort_of_layout return_layout in
         let body =
           Matching.for_tupled_function ~scopes ~return_layout loc params
             (transl_tupled_cases ~scopes return_sort pats_expr_list) partial
@@ -1267,19 +1269,18 @@ and transl_tupled_function
         let region = region || not (may_allocate_in_region body) in
         ((Tupled, tparams, return_layout, region), body)
     with Matching.Cannot_flatten ->
-      transl_function0 ~scopes ~arg_layout ~return_layout loc ~region
-        ~partial_mode repr partial param cases
+      transl_function0 ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout
+        loc ~region ~partial_mode repr partial param cases
       end
-  | _ -> transl_function0 ~scopes ~arg_layout ~return_layout loc ~region
-           ~partial_mode repr partial param cases
+  | _ -> transl_function0 ~scopes ~arg_sort ~arg_layout ~return_sort
+           ~return_layout loc ~region ~partial_mode repr partial param cases
 
 and transl_function0
-      ~scopes ~arg_layout ~return_layout loc ~region ~partial_mode
-      repr partial (param:Ident.t) cases =
-    let return_sort = sort_of_layout return_layout in
+      ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout loc ~region
+      ~partial_mode repr partial (param:Ident.t) cases =
     let body =
-      Matching.for_function ~scopes ~arg_layout ~return_layout loc repr
-        (Lvar param) (transl_cases ~scopes return_sort cases) partial
+      Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout loc
+        repr (Lvar param) (transl_cases ~scopes return_sort cases) partial
     in
     let region = region || not (may_allocate_in_region body) in
     let nlocal =
@@ -1305,8 +1306,9 @@ and transl_function ~scopes e alloc_mode param arg_mode arg_sort return_sort
          let return_layout =
            function_return_layout e.exp_env e.exp_loc return_sort e.exp_type
          in
-         transl_curried_function ~arg_layout ~return_layout ~scopes e.exp_loc
-           repr ~region ~curry partial warnings param pl)
+         transl_curried_function ~arg_sort ~arg_layout ~return_sort
+           ~return_layout ~scopes e.exp_loc repr ~region ~curry partial warnings
+           param pl)
   in
   let attr = default_function_attribute in
   let loc = of_location ~scopes e.exp_loc in
@@ -1624,12 +1626,15 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
         (transl_list_with_layout ~scopes argl) mode val_cases partial
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, _ :: _ ->
         let argl = List.map (fun a -> (a, Sort.for_tuple_element)) argl in
-        let val_ids =
+        let val_ids, lvars =
           List.map
-            (fun (arg,s) -> Typecore.name_pattern "val" [], layout_exp s arg)
+            (fun (arg,s) ->
+               let layout = layout_exp s arg in
+               let id = Typecore.name_pattern "val" [] in
+               (id, layout), (Lvar id, s, layout))
             argl
+          |> List.split
         in
-        let lvars = List.map (fun (id, layout) -> Lvar id, layout) val_ids in
         let mode = transl_alloc_mode alloc_mode in
         static_catch (transl_list ~scopes argl) val_ids
           (Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
@@ -1637,14 +1642,14 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
     | arg, [] ->
       assert (static_handlers = []);
       let arg_layout = layout_exp arg_sort arg in
-      Matching.for_function ~scopes ~arg_layout ~return_layout e.exp_loc
-        None (transl_exp ~scopes arg_sort arg) val_cases partial
+      Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout
+        e.exp_loc None (transl_exp ~scopes arg_sort arg) val_cases partial
     | arg, _ :: _ ->
         let val_id = Typecore.name_pattern "val" (List.map fst val_cases) in
         let arg_layout = layout_exp arg_sort arg in
         static_catch [transl_exp ~scopes arg_sort arg] [val_id, arg_layout]
-          (Matching.for_function ~scopes ~arg_layout ~return_layout e.exp_loc
-             None (Lvar val_id) val_cases partial)
+          (Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout
+             e.exp_loc None (Lvar val_id) val_cases partial)
   in
   List.fold_left (fun body (static_exception_id, val_ids, handler) ->
     Lstaticcatch (body, (static_exception_id, val_ids), handler, return_layout)
@@ -1710,9 +1715,9 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
     let (kind, params, return, _region), body =
       event_function ~scopes case.c_rhs
         (function repr ->
-           transl_curried_function ~scopes ~arg_layout ~return_layout
-             case.c_rhs.exp_loc repr ~region:true ~curry partial warnings param
-             [case])
+           transl_curried_function ~scopes ~arg_sort:param_sort ~arg_layout
+             ~return_sort:case_sort ~return_layout case.c_rhs.exp_loc repr
+             ~region:true ~curry partial warnings param [case])
     in
     let attr = default_function_attribute in
     let loc = of_location ~scopes case.c_rhs.exp_loc in

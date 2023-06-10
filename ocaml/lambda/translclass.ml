@@ -206,13 +206,14 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       (inh_init,
        let build params rem =
          let param = name_pattern "param" pat in
+         let arg_sort = Sort.for_class_arg in
          let arg_layout =
-           Typeopt.layout pat.pat_env pat.pat_loc Sort.for_class_arg
-             pat.pat_type
+           Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type
          in
          let body =
-           Matching.for_function ~scopes ~arg_layout ~return_layout:layout_obj
-             pat.pat_loc None (Lvar param) [pat, rem] partial
+           Matching.for_function ~scopes ~arg_sort ~arg_layout
+             ~return_layout:layout_obj pat.pat_loc None (Lvar param) [pat, rem]
+             partial
          in
          Lambda.lfunction
                    ~kind:(Curried {nlocal=0})
@@ -493,13 +494,13 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
         transl_class_rebind ~scopes obj_init cl vf in
       let build params rem =
         let param = name_pattern "param" pat in
+        let arg_sort = Sort.for_class_arg in
         let arg_layout =
-          Typeopt.layout pat.pat_env pat.pat_loc Sort.for_class_arg
-            pat.pat_type
+          Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type
         in
         let return_layout = layout_class in
         let body =
-          Matching.for_function ~scopes ~arg_layout ~return_layout pat.pat_loc
+          Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout pat.pat_loc
             None (Lvar param) [pat, rem] partial
         in
         Lambda.lfunction
