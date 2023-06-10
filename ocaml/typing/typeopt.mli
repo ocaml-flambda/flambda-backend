@@ -37,10 +37,9 @@ val bigarray_type_kind_and_layout :
 val layout :
   Env.t -> Location.t -> Layouts.sort -> Types.type_expr -> Lambda.layout
 
-(* This translates a type system sort to a lambda layout.  Use the function
-   [layout] instead when the type is known: that function gives a more precise
-   result.  This should only be used when the precise layout isn't needed for
-   optimization. *)
+(* This translates a type system sort to a lambda layout.  The function [layout]
+   gives a more precise result---this should only be used when the precise
+   Lambda.layout isn't needed for optimization. *)
 val layout_of_sort : Location.t -> Layouts.sort -> Lambda.layout
 
 (* Given a function type and the sort of its return type, compute the layout of
