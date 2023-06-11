@@ -148,53 +148,39 @@ module With_attributes : sig
     }
 end
 
-(** Values that lift and lower terms from our novel syntactic
-    features from and to an OCaml AST type ([ast]) *)
-module AST : sig
-  (** One [AST] value per syntactic category we currently care about; we're
-      adding these lazily as we need them. When you add another one, make
-      sure also to add special handling in [Ast_iterator] and [Ast_mapper].
+(** Each syntactic category that contains novel syntactic features has a
+    corresponding module of this module type.  We're adding these lazily as we
+    need them. When you add another one, make sure also to add special handling
+    in [Ast_iterator] and [Ast_mapper].
 
-      ['ast]: The AST type (e.g., [Parsetree.expression])
-      ['ast_desc]: The "AST description" type, without the location and
-      attributes (e.g., [Parsetree.expression_desc])
-  *)
-  type ('ast, 'ast_desc) t =
-    | Expression :
-        (Parsetree.expression, Parsetree.expression_desc With_attributes.t) t
-    | Pattern : (Parsetree.pattern, Parsetree.pattern_desc With_attributes.t) t
-    | Module_type :
-        (Parsetree.module_type, Parsetree.module_type_desc With_attributes.t) t
-    | Signature_item :
-        (Parsetree.signature_item, Parsetree.signature_item_desc) t
-    | Structure_item :
-        (Parsetree.structure_item, Parsetree.structure_item_desc) t
-    | Core_type :
-        (Parsetree.core_type, Parsetree.core_type_desc With_attributes.t) t
-    | Constructor_argument :
-        (Parsetree.core_type, Parsetree.core_type_desc With_attributes.t) t
+*)
+module type AST = sig
+  (** The AST type (e.g., [Parsetree.expression]) *)
+  type ast
+
+  (** The "AST description" type, without the location and
+      attributes (e.g., [Parsetree.expression_desc]) *)
+  type ast_desc
 
   (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata.  When
       creating [ast] nodes afresh to embed our novel syntax, the location should
       be omitted; in this case, it will default to [!Ast_helper.default_loc],
       which should be [ghost]. *)
   val wrap_desc
-    :  ('ast, 'ast_desc) t
-    -> ?loc:Location.t
+    :  ?loc:Location.t
     -> attrs:Parsetree.attributes
-    -> 'ast_desc
-    -> 'ast
+    -> ast_desc
+    -> ast
 
   (** Embed a term from one of our novel syntactic features in the AST using the
       given name (the [Embedded_name.t]) and body (the [ast]).  Any locations in
       the generated AST will be set to [!Ast_helper.default_loc], which should
       be [ghost]. *)
   val make_jane_syntax
-    :  ('ast, 'ast_desc) t
-    -> Feature.t
+    :  Feature.t
     -> string list
-    -> 'ast
-    -> 'ast_desc
+    -> ast
+    -> ast_desc
 
   (** As [make_jane_syntax], but specifically for the AST node corresponding to
       the entire piece of novel syntax (e.g., for a list comprehension, the
@@ -203,11 +189,10 @@ module AST : sig
       provided location, which is why the [ast] is generated from a function
       call; it is during this call that the location is so set. *)
   val make_entire_jane_syntax
-    :  ('ast, 'ast_desc) t
-    -> loc:Location.t
+    :  loc:Location.t
     -> Feature.t
-    -> (unit -> 'ast)
-    -> 'ast_desc
+    -> (unit -> ast)
+    -> ast_desc
 
   (** Build an [of_ast] function. The return value of this function should be
       used to implement [of_ast] in modules satisfying the signature
@@ -218,13 +203,8 @@ module AST : sig
       It raises an error if it finds a term from a disabled extension or if the
       embedding is malformed.
   *)
-  val make_of_ast :
-    ('ast, _) t
-    (** Which syntactic category is this for?  E.g., [module AST = Expression].
-        ['ast] is the type of novel syntactic terms for this syntactic category,
-        across all syntax features. E.g., [Jane_syntax.Expression.t]
-    *)
-    -> of_ast_internal:(Feature.t -> 'ast -> 'a option)
+  val make_of_ast
+    :  of_ast_internal:(Feature.t -> ast -> 'a option)
     (** A function to convert [Parsetree]'s AST to our novel extended one.  The
         choice of feature and the piece of syntax will both be extracted from
         the embedding by the first argument.
@@ -235,8 +215,36 @@ module AST : sig
         extended pattern AST, this function will return [None] if it spots an
         embedding that claims to be from [Language_extension Comprehensions].)
     *)
-    -> ('ast -> 'a option)
+    -> (ast -> 'a option)
 end
+
+module Expression :
+  AST with type ast = Parsetree.expression
+       and type ast_desc = Parsetree.expression_desc With_attributes.t
+
+module Pattern :
+  AST with type ast = Parsetree.pattern
+       and type ast_desc = Parsetree.pattern_desc With_attributes.t
+
+module Module_type :
+  AST with type ast = Parsetree.module_type
+       and type ast_desc = Parsetree.module_type_desc With_attributes.t
+
+module Signature_item :
+  AST with type ast = Parsetree.signature_item
+       and type ast_desc = Parsetree.signature_item_desc
+
+module Structure_item :
+  AST with type ast = Parsetree.structure_item
+       and type ast_desc = Parsetree.structure_item_desc
+
+module Core_type :
+  AST with type ast = Parsetree.core_type
+       and type ast_desc = Parsetree.core_type_desc With_attributes.t
+
+module Constructor_argument :
+  AST with type ast = Parsetree.core_type
+       and type ast_desc = Parsetree.core_type_desc With_attributes.t
 
 (** Require that an extension is enabled for at least the provided level, or
     else throw an exception (of an abstract type) at the provided location
