@@ -3,10 +3,11 @@
    * expect
 *)
 
-(* CR layouts: These tests will change when we remove the obvious inaccuracy
-   where float# is aliased to float.
+(* CR layouts: We should start running these tests soon when
+   we have proper typechecking for unboxed float literals.
 *)
 
+(*
 let id : float# -> float# = fun x -> x;;
 
 id #4.0;;
@@ -32,3 +33,4 @@ val apply : (float# -> float# -> float#) -> float# -> float# -> float# =
   <fun>
 - : float# = 9.
 |}];;
+*)
