@@ -4557,7 +4557,12 @@ and type_expect_
         let arg = match sarg with
         | None -> None
         | Some sarg ->
-            let arg = type_exp env argument_mode sarg in
+            let ty_expected =
+              newvar (Layout.value ~why:Polymorphic_variant_field)
+            in
+            let arg =
+              type_expect env argument_mode sarg (mk_expected ty_expected)
+            in
             let alloc_mode = register_allocation expected_mode in
             Some (arg, alloc_mode)
         in

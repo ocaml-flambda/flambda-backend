@@ -1462,3 +1462,9 @@ Error: This type ('a : value) should be an instance of type ('a0 : void)
    the type definition if we're not allowing `void` things in structures).
    This bug is a goof at the top of Typecore.build_or_pat;
    there is another CR layouts there. *)
+
+(*********************************************************)
+(* Test 32: Polymorphic variant constructors take values *)
+
+let f _ = (assert false : t_void), 5
+(* let f _ = `Mk (assert false : t_void) *)
