@@ -1422,7 +1422,7 @@ val f : local_ 'a -> local_ 'a unb1 unb2 unb3 = <fun>
 |}]
 
 
-(* Fields have the same mode unless they are nonlocal or mutable *)
+(* Fields have the same mode unless they are global or mutable *)
 
 type 'a imm = { imm : 'a }
 type 'a mut = { mutable mut : 'a }
@@ -2333,7 +2333,7 @@ module F :
 
 
 (*
- * constructor arguments global/nonlocal
+ * constructor arguments global
  *)
 
 (* Global argument are preserved in module inclusion *)

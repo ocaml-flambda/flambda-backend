@@ -168,10 +168,7 @@ type privacy_mismatch =
   | Private_extensible_variant
   | Private_row_type
 
-type locality_mismatch =
-  { order : position;
-    nonlocal : bool
-  }
+type locality_mismatch = { order : position }
 
 type label_mismatch =
   | Type of Errortrace.equality_error
@@ -233,11 +230,8 @@ type type_mismatch =
   | Layout of Layout.Violation.t
 
 let report_locality_mismatch first second ppf err =
-  let {order; nonlocal} = err in
-  let sort =
-    if nonlocal then "nonlocal"
-    else "global"
-  in
+  let {order} = err in
+  let sort = "global" in
   Format.fprintf ppf "%s is %s and %s is not."
     (String.capitalize_ascii  (choose order first second))
     sort
@@ -493,9 +487,9 @@ let report_type_mismatch first second decl env ppf err =
 let compare_global_flags flag0 flag1 =
   match flag0, flag1 with
   | Global, Unrestricted ->
-    Some {order = First; nonlocal = false}
+    Some {order = First}
   | Unrestricted, Global ->
-    Some {order = Second; nonlocal = false}
+    Some {order = Second}
   | Global, Global
   | Unrestricted, Unrestricted ->
     None
