@@ -227,15 +227,7 @@ let common_initial_env add_type add_extension empty_env =
        ~layout:(Layout.value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
-  (* CR layouts: Adding the alias float#=float is a convenient hack so
-     we can write tests for float#, but this is obviously something we'll
-     want to change.
-  *)
   |> add_type ident_float_unboxed
-       ?manifest:
-         (if Language_extension.is_at_least Layouts Language_extension.Alpha
-          then Some type_float
-          else None)
   |> add_type ident_floatarray
   |> add_type ident_int ~layout:(Layout.immediate ~why:(Primitive ident_int))
   |> add_type ident_int32
