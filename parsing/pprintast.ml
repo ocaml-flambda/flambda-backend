@@ -1673,14 +1673,13 @@ and record_declaration ctxt f lbls =
   in
   let field_flag f pld =
     pp f "%a" mutable_flag pld.pld_mutable;
-    if has_attr pld "extension.nonlocal" then pp f "nonlocal_ ";
     if has_attr pld "extension.global" then pp f "global_ "
   in
   let type_record_field f pld =
     let pld_attributes =
       List.filter (fun attr ->
         match attr.attr_name.txt with
-        | "extension.nonlocal" | "extension.global" -> false
+        | "extension.global" -> false
         | _ -> true) pld.pld_attributes
     in
     pp f "@[<2>%a%s:@;%a@;%a@]"
