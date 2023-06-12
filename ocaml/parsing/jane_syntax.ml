@@ -95,7 +95,7 @@ module Comprehensions = struct
   *)
 
   let comprehension_expr names x =
-    Expression.wrap_desc ~attrs:[] ~loc:x.pexp_loc @@
+    Expression.wrap_desc ~info:[] ~loc:x.pexp_loc @@
     Expression.make_jane_syntax feature names x
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
@@ -459,4 +459,13 @@ module Structure_item = struct
     | _ -> None
 
   let of_ast = Structure_item.make_of_ast ~of_ast_internal
+end
+
+module Extension_constructor = struct
+  type t = |
+
+  let of_ast_internal (feat : Feature.t) _ext = match feat with
+    | _ -> None
+
+  let of_ast = Extension_constructor.make_of_ast ~of_ast_internal
 end

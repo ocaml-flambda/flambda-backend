@@ -204,14 +204,23 @@ module T = struct
     | Pext_rebind li ->
         iter_loc sub li
 
+  let iter_extension_constructor_jst _sub :
+    Jane_syntax.Extension_constructor.t -> _ = function
+    | _ -> .
+
   let iter_extension_constructor sub
-      {pext_name;
+     ({pext_name;
        pext_kind;
        pext_loc;
-       pext_attributes} =
+       pext_attributes} as ext) =
     iter_loc sub pext_name;
-    iter_extension_constructor_kind sub pext_kind;
     sub.location sub pext_loc;
+    match Jane_syntax.Extension_constructor.of_ast ext with
+    | Some (jext, attrs) ->
+      sub.attributes sub attrs;
+      iter_extension_constructor_jst sub jext
+    | None ->
+    iter_extension_constructor_kind sub pext_kind;
     sub.attributes sub pext_attributes
 
 end

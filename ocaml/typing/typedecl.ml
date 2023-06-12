@@ -1538,11 +1538,20 @@ let transl_type_decl env rec_flag sdecl_list =
   (final_decls, final_env)
 
 (* Translating type extensions *)
+let transl_extension_constructor_jst ~scope:_ _env _type_path _type_params
+      _typext_params _priv _id _attrs : Jane_syntax.Extension_constructor.t -> _ =
+  function
+  | _ -> .
 
 let transl_extension_constructor ~scope env type_path type_params
                                  typext_params priv sext =
   let id = Ident.create_scoped ~scope sext.pext_name.txt in
   let args, arg_layouts, constant, ret_type, kind =
+    match Jane_syntax.Extension_constructor.of_ast sext with
+    | Some (jext, attrs) ->
+      transl_extension_constructor_jst
+        ~scope env type_path type_params typext_params priv id attrs jext
+    | None ->
     match sext.pext_kind with
       Pext_decl(svars, sargs, sret_type) ->
         let targs, tret_type, args, ret_type =
