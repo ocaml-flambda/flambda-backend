@@ -95,8 +95,8 @@ module Comprehensions = struct
   *)
 
   let comprehension_expr names x =
-    AST.wrap_desc Expression ~attrs:[] ~loc:x.pexp_loc @@
-    AST.make_jane_syntax Expression feature names x
+    Expression.wrap_desc ~attrs:[] ~loc:x.pexp_loc @@
+    Expression.make_jane_syntax feature names x
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
       the [expr_of_...] family of expressions, culminating in
@@ -145,7 +145,7 @@ module Comprehensions = struct
 
   let expr_of ~loc cexpr =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
-    AST.make_entire_jane_syntax Expression ~loc feature (fun () ->
+    Expression.make_entire_jane_syntax ~loc feature (fun () ->
       match cexpr with
       | Cexp_list_comprehension comp ->
           expr_of_comprehension ~type_:["list"] comp
@@ -289,7 +289,7 @@ module Immutable_arrays = struct
   let expr_of ~loc = function
     | Iaexp_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
-      AST.make_entire_jane_syntax Expression ~loc feature (fun () ->
+      Expression.make_entire_jane_syntax ~loc feature (fun () ->
         Ast_helper.Exp.array elts)
 
   (* Returns remaining unconsumed attributes *)
@@ -300,7 +300,7 @@ module Immutable_arrays = struct
   let pat_of ~loc = function
     | Iapat_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
-      AST.make_entire_jane_syntax Pattern ~loc feature (fun () ->
+      Pattern.make_entire_jane_syntax ~loc feature (fun () ->
         Ast_helper.Pat.array elts)
 
   (* Returns remaining unconsumed attributes *)
@@ -322,7 +322,7 @@ module Include_functor = struct
   let sig_item_of ~loc = function
     | Ifsig_include_functor incl ->
         (* See Note [Wrapping with make_entire_jane_syntax] *)
-        AST.make_entire_jane_syntax Signature_item ~loc feature (fun () ->
+        Signature_item.make_entire_jane_syntax ~loc feature (fun () ->
           Ast_helper.Sig.include_ incl)
 
   let of_sig_item sigi = match sigi.psig_desc with
@@ -332,7 +332,7 @@ module Include_functor = struct
   let str_item_of ~loc = function
     | Ifstr_include_functor incl ->
         (* See Note [Wrapping with make_entire_jane_syntax] *)
-        AST.make_entire_jane_syntax Structure_item ~loc feature (fun () ->
+        Structure_item.make_entire_jane_syntax ~loc feature (fun () ->
           Ast_helper.Str.include_ incl)
 
   let of_str_item stri = match stri.pstr_desc with
@@ -353,7 +353,7 @@ module Strengthen = struct
 
   let mty_of ~loc { mty; mod_id } =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
-    AST.make_entire_jane_syntax Module_type ~loc feature (fun () ->
+    Module_type.make_entire_jane_syntax ~loc feature (fun () ->
       Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
         (Ast_helper.Mty.alias mod_id))
 
@@ -380,7 +380,7 @@ module Core_type = struct
   let of_ast_internal (feat : Feature.t) _typ = match feat with
     | _ -> None
 
-  let of_ast = AST.make_of_ast Core_type ~of_ast_internal
+  let of_ast = Core_type.make_of_ast ~of_ast_internal
 end
 
 module Constructor_argument = struct
@@ -389,7 +389,7 @@ module Constructor_argument = struct
   let of_ast_internal (feat : Feature.t) _carg = match feat with
     | _ -> None
 
-  let of_ast = AST.make_of_ast Constructor_argument ~of_ast_internal
+  let of_ast = Constructor_argument.make_of_ast ~of_ast_internal
 end
 
 module Expression = struct
@@ -406,7 +406,7 @@ module Expression = struct
       Some (Jexp_immutable_array expr, attrs)
     | _ -> None
 
-  let of_ast = AST.make_of_ast Expression ~of_ast_internal
+  let of_ast = Expression.make_of_ast ~of_ast_internal
 end
 
 module Pattern = struct
@@ -419,7 +419,7 @@ module Pattern = struct
       Some (Jpat_immutable_array expr, attrs)
     | _ -> None
 
-  let of_ast = AST.make_of_ast Pattern ~of_ast_internal
+  let of_ast = Pattern.make_of_ast ~of_ast_internal
 end
 
 module Module_type = struct
@@ -432,7 +432,7 @@ module Module_type = struct
       Some (Jmty_strengthen mty, attrs)
     | _ -> None
 
-  let of_ast = AST.make_of_ast Module_type ~of_ast_internal
+  let of_ast = Module_type.make_of_ast ~of_ast_internal
 end
 
 module Signature_item = struct
@@ -445,7 +445,7 @@ module Signature_item = struct
       Some (Jsig_include_functor (Include_functor.of_sig_item sigi))
     | _ -> None
 
-  let of_ast = AST.make_of_ast Signature_item ~of_ast_internal
+  let of_ast = Signature_item.make_of_ast ~of_ast_internal
 end
 
 module Structure_item = struct
@@ -458,5 +458,5 @@ module Structure_item = struct
       Some (Jstr_include_functor (Include_functor.of_str_item stri))
     | _ -> None
 
-  let of_ast = AST.make_of_ast Structure_item ~of_ast_internal
+  let of_ast = Structure_item.make_of_ast ~of_ast_internal
 end

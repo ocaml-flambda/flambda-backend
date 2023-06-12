@@ -464,7 +464,7 @@ module type AST_syntactic_category = sig
     ?loc:Location.t -> attrs:attributes -> ast_desc -> ast
 end
 
-module type AST = sig
+module type AST_internal = sig
   include AST_syntactic_category
 
   val embedding_syntax : Embedding_syntax.t
@@ -543,9 +543,9 @@ module Make_with_attribute
        val attributes : ast -> attributes
        val with_attributes : ast -> attributes -> ast
      end) :
-    AST with type ast      = AST_syntactic_category.ast
-         and type ast_desc =
-               AST_syntactic_category.ast_desc With_attributes.t
+    AST_internal with type ast      = AST_syntactic_category.ast
+                  and type ast_desc =
+                        AST_syntactic_category.ast_desc With_attributes.t
 = struct
     include AST_syntactic_category
 
@@ -606,8 +606,8 @@ module Make_with_extension_node
           [AST.match_extension]). Partial inverse of [make_extension_use]. *)
       val match_extension_use : ast -> (extension * ast) option
      end) :
-    AST with type ast      = AST_syntactic_category.ast
-         and type ast_desc = AST_syntactic_category.ast_desc =
+    AST_internal with type ast      = AST_syntactic_category.ast
+                  and type ast_desc = AST_syntactic_category.ast_desc =
   struct
     include AST_syntactic_category
 
@@ -655,21 +655,21 @@ module Type_AST_syntactic_category = struct
 end
 
 (** Types; embedded as [[[%jane.FEATNAME] * BODY]]. *)
-module Core_type = Make_with_attribute (struct
+module Core_type0 = Make_with_attribute (struct
     include Type_AST_syntactic_category
 
     let plural = "types"
 end)
 
 (** Constructor arguments; the same as types, but used in fewer places *)
-module Constructor_argument = Make_with_attribute (struct
+module Constructor_argument0 = Make_with_attribute (struct
   include Type_AST_syntactic_category
 
   let plural = "constructor arguments"
 end)
 
 (** Expressions; embedded using an attribute on the expression. *)
-module Expression = Make_with_attribute (struct
+module Expression0 = Make_with_attribute (struct
   type ast = expression
   type ast_desc = expression_desc
 
@@ -685,7 +685,7 @@ module Expression = Make_with_attribute (struct
 end)
 
 (** Patterns; embedded using an attribute on the pattern. *)
-module Pattern = Make_with_attribute (struct
+module Pattern0 = Make_with_attribute (struct
   type ast = pattern
   type ast_desc = pattern_desc
 
@@ -701,7 +701,7 @@ module Pattern = Make_with_attribute (struct
 end)
 
 (** Module types; embedded using an attribute on the module type. *)
-module Module_type = Make_with_attribute (struct
+module Module_type0 = Make_with_attribute (struct
     type ast = module_type
     type ast_desc = module_type_desc
 
@@ -720,7 +720,7 @@ end)
     [include sig [%%extension.EXTNAME];; BODY end]. Signature items don't have
     attributes or we'd use them instead.
 *)
-module Signature_item = Make_with_extension_node (struct
+module Signature_item0 = Make_with_extension_node (struct
     type ast = signature_item
     type ast_desc = signature_item_desc
 
@@ -763,7 +763,7 @@ end)
     [include struct [%%extension.EXTNAME];; BODY end]. Structure items don't
     have attributes or we'd use them instead.
 *)
-module Structure_item = Make_with_extension_node (struct
+module Structure_item0 = Make_with_extension_node (struct
     type ast = structure_item
     type ast_desc = structure_item_desc
 
@@ -803,51 +803,37 @@ module Structure_item = Make_with_extension_node (struct
 end)
 
 (******************************************************************************)
+(* Main exports *)
 
-module AST = struct
-  type (_, _) t =
-    | Expression : (expression, expression_desc With_attributes.t) t
-    | Pattern : (pattern, pattern_desc With_attributes.t) t
-    | Module_type : (module_type, module_type_desc With_attributes.t) t
-    | Signature_item : (signature_item, signature_item_desc) t
-    | Structure_item : (structure_item, structure_item_desc) t
-    | Core_type : (core_type, core_type_desc With_attributes.t) t
-    | Constructor_argument : (core_type, core_type_desc With_attributes.t) t
+module type AST = sig
+  type ast
+  type ast_desc
 
-  let to_module (type ast ast_desc) (t : (ast, ast_desc) t) :
-    (module AST with type ast = ast and type ast_desc = ast_desc) =
-    match t with
-    | Expression -> (module Expression)
-    | Pattern -> (module Pattern)
-    | Module_type -> (module Module_type)
-    | Signature_item -> (module Signature_item)
-    | Structure_item -> (module Structure_item)
-    | Core_type -> (module Core_type)
-    | Constructor_argument -> (module Constructor_argument)
+  val wrap_desc :
+    ?loc:Location.t -> attrs:Parsetree.attributes -> ast_desc -> ast
+  val make_jane_syntax : Feature.t -> string list -> ast -> ast_desc
+  val make_entire_jane_syntax :
+    loc:Location.t -> Feature.t -> (unit -> ast) -> ast_desc
+  val make_of_ast :
+    of_ast_internal:(Feature.t -> ast -> 'a option) -> (ast -> 'a option)
+end
 
-  let wrap_desc (type ast ast_desc) (t : (ast, ast_desc) t) =
-    let (module AST) = to_module t in
-    AST.wrap_desc
+module Make_ast (AST : AST_internal) : AST with type ast = AST.ast
+                                            and type ast_desc = AST.ast_desc
+  = struct
+  include AST
 
-  let make_jane_syntax
-      (type ast ast_desc)
-      (t : (ast, ast_desc) t)
-      feature
-      trailing_components
-      ast
-    =
-    let (module AST) = to_module t in
+  let make_jane_syntax feature trailing_components ast =
     AST.make_jane_syntax
       (Embedded_name.of_feature feature trailing_components)
       ast
 
-  let make_entire_jane_syntax t ~loc feature ast =
-    make_jane_syntax t feature []
+  let make_entire_jane_syntax ~loc feature ast =
+    make_jane_syntax feature []
       (Ast_helper.with_default_loc (Location.ghostify loc) ast)
 
   (** Generically lift our custom ASTs for our novel syntax from OCaml ASTs. *)
-  let make_of_ast (type ast ast_desc) (t : (ast, ast_desc) t) ~of_ast_internal =
-    let (module AST) = to_module t in
+  let make_of_ast ~of_ast_internal =
     let of_ast ast =
       let loc = AST.location ast in
       let raise_error err = raise (Error (loc, err)) in
@@ -873,3 +859,11 @@ module AST = struct
     in
     of_ast
 end
+
+module Expression = Make_ast(Expression0)
+module Pattern = Make_ast(Pattern0)
+module Module_type = Make_ast(Module_type0)
+module Signature_item = Make_ast(Signature_item0)
+module Structure_item = Make_ast(Structure_item0)
+module Core_type = Make_ast(Core_type0)
+module Constructor_argument = Make_ast(Constructor_argument0)
