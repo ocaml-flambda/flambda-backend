@@ -162,13 +162,17 @@ module type AST = sig
       attributes (e.g., [Parsetree.expression_desc]) *)
   type ast_desc
 
+  (** Information which is part of the [ast] but missing from [ast_desc], other
+      than location. We need this to get from an [ast_desc] to an [ast]. *)
+  type ast_info
+
   (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata.  When
       creating [ast] nodes afresh to embed our novel syntax, the location should
       be omitted; in this case, it will default to [!Ast_helper.default_loc],
       which should be [ghost]. *)
   val wrap_desc
     :  ?loc:Location.t
-    -> attrs:Parsetree.attributes
+    -> info:ast_info
     -> ast_desc
     -> ast
 
@@ -221,30 +225,37 @@ end
 module Expression :
   AST with type ast = Parsetree.expression
        and type ast_desc = Parsetree.expression_desc With_attributes.t
+       and type ast_info = Parsetree.attributes
 
 module Pattern :
   AST with type ast = Parsetree.pattern
        and type ast_desc = Parsetree.pattern_desc With_attributes.t
+       and type ast_info = Parsetree.attributes
 
 module Module_type :
   AST with type ast = Parsetree.module_type
        and type ast_desc = Parsetree.module_type_desc With_attributes.t
+       and type ast_info = Parsetree.attributes
 
 module Signature_item :
   AST with type ast = Parsetree.signature_item
        and type ast_desc = Parsetree.signature_item_desc
+       and type ast_info = unit
 
 module Structure_item :
   AST with type ast = Parsetree.structure_item
        and type ast_desc = Parsetree.structure_item_desc
+       and type ast_info = unit
 
 module Core_type :
   AST with type ast = Parsetree.core_type
        and type ast_desc = Parsetree.core_type_desc With_attributes.t
+       and type ast_info = Parsetree.attributes
 
 module Constructor_argument :
   AST with type ast = Parsetree.core_type
        and type ast_desc = Parsetree.core_type_desc With_attributes.t
+       and type ast_info = Parsetree.attributes
 
 (** Require that an extension is enabled for at least the provided level, or
     else throw an exception (of an abstract type) at the provided location
