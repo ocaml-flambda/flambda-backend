@@ -262,6 +262,7 @@ module Extension_constructor :
        and type ast_desc =
              Parsetree.extension_constructor_kind With_attributes.t
        and type ast_info = Parsetree.attributes * string Location.loc
+       (* the [string Location.loc] is the name of the constructor *)
 
 (** Require that an extension is enabled for at least the provided level, or
     else throw an exception (of an abstract type) at the provided location
