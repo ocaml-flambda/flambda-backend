@@ -271,7 +271,7 @@ let rec mktailexp nilloc = let open Location in function
   | e1 :: el ->
       let exp_el, el_loc = mktailexp nilloc el in
       let loc = (e1.pexp_loc.loc_start, snd el_loc) in
-      let arg = ghexp ~loc (Pexp_tuple (List.map (fun x -> None, x) [e1; ghexp ~loc:el_loc exp_el])) in
+      let arg = ghexp ~loc (Pexp_tuple (List.map (fun e -> None, e) [e1; ghexp ~loc:el_loc exp_el])) in
       ghexp_cons_desc loc arg, loc
 
 let rec mktailpat nilloc = let open Location in function
@@ -2602,7 +2602,7 @@ expr:
   | TILDETILDELPAREN tuple_component_comma_list RPAREN
       { Pexp_tuple($2) }
   | expr_comma_list %prec below_COMMA
-      { Pexp_tuple(List.map (fun x -> None, x) $1) }
+      { Pexp_tuple(List.map (fun e -> None, e) $1) }
   | mkrhs(constr_longident) simple_expr %prec below_HASH
       { Pexp_construct($1, Some $2) }
   | name_tag simple_expr %prec below_HASH

@@ -485,7 +485,7 @@ let rec mktailexp nilloc = let open Location in function
   | e1 :: el ->
       let exp_el, el_loc = mktailexp nilloc el in
       let loc = (e1.pexp_loc.loc_start, snd el_loc) in
-      let arg = ghexp ~loc (Pexp_tuple (List.map (fun x -> None, x) [e1; ghexp ~loc:el_loc exp_el])) in
+      let arg = ghexp ~loc (Pexp_tuple (List.map (fun e -> None, e) [e1; ghexp ~loc:el_loc exp_el])) in
       ghexp_cons_desc loc arg, loc
 
 let rec mktailpat nilloc = let open Location in function
@@ -10202,7 +10202,7 @@ module Tables = struct
             in
             
 # 2605 "parsing/parser.mly"
-      ( Pexp_tuple(List.map (fun x -> None, x) _1) )
+      ( Pexp_tuple(List.map (fun e -> None, e) _1) )
 # 10207 "parsing/parser.ml"
             
           in

@@ -5886,7 +5886,7 @@ and type_format loc str env =
         let arg = match args with
           | []          -> None
           | [ e ]       -> Some e
-          | _ :: _ :: _ -> Some (mk_exp_loc (Pexp_tuple (List.map (fun x -> None, x) args))) in
+          | _ :: _ :: _ -> Some (mk_exp_loc (Pexp_tuple (List.map (fun e -> None, e) args))) in
         mk_exp_loc (Pexp_construct (mk_lid_loc lid, arg)) in
       let mk_cst cst = mk_exp_loc (Pexp_constant cst) in
       let mk_int n = mk_cst (Pconst_integer (Int.to_string n, None))
