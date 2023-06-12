@@ -216,33 +216,20 @@ let global_loc loc = mkloc "extension.global" loc
 let global_attr loc =
   mk_attr ~loc:loc (global_loc loc) (PStr [])
 
-let nonlocal_loc loc = mkloc "extension.nonlocal" loc
-
-let nonlocal_attr loc =
-  mk_attr ~loc:Location.none (nonlocal_loc loc) (PStr [])
-
 let mkld_global ld loc =
   { ld with pld_attributes = global_attr loc :: ld.pld_attributes }
-
-let mkld_nonlocal ld loc =
-  { ld with pld_attributes = nonlocal_attr loc :: ld.pld_attributes }
 
 let mkld_global_maybe gbl ld loc =
   match gbl with
   | Global -> mkld_global ld loc
-  | Nonlocal -> mkld_nonlocal ld loc
   | Nothing -> ld
 
 let mkcty_global cty loc =
   { cty with ptyp_attributes = global_attr loc :: cty.ptyp_attributes }
 
-let mkcty_nonlocal cty loc =
-  { cty with ptyp_attributes = nonlocal_attr loc :: cty.ptyp_attributes }
-
 let mkcty_global_maybe gbl cty loc =
   match gbl with
   | Global -> mkcty_global cty loc
-  | Nonlocal -> mkcty_nonlocal cty loc
   | Nothing -> cty
 
 (* TODO define an abstraction boundary between locations-as-pairs
@@ -935,7 +922,6 @@ let mkpat_jane_syntax
 %token MODULE                 "module"
 %token MUTABLE                "mutable"
 %token NEW                    "new"
-%token NONLOCAL               "nonlocal_"
 %token NONREC                 "nonrec"
 %token OBJECT                 "object"
 %token OF                     "of"
@@ -4203,12 +4189,10 @@ mutable_or_global_flag:
     /* empty */                                 { Immutable, Nothing }
   | MUTABLE                                     { Mutable, Nothing }
   | GLOBAL                                      { Immutable, Global }
-  | NONLOCAL                                    { Immutable, Nonlocal }
 ;
 %inline global_flag:
           { Nothing }
   | GLOBAL { Global }
-  | NONLOCAL { Nonlocal }
 ;
 virtual_flag:
     /* empty */                                 { Concrete }
@@ -4289,7 +4273,6 @@ single_attr_id:
   | FUN { "fun" }
   | FUNCTION { "function" }
   | FUNCTOR { "functor" }
-  | NONLOCAL { "nonlocal_" }
   | IF { "if" }
   | IN { "in" }
   | INCLUDE { "include" }

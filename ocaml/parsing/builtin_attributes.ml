@@ -96,7 +96,6 @@ let builtin_attrs =
   ; "local_opt"; "ocaml.local_opt"
   ; "curry"; "ocaml.curry"; "extension.curry"
   ; "global"; "ocaml.global"; "extension.global"
-  ; "nonlocal"; "ocaml.nonlocal"; "extension.nonlocal"
   ; "local"; "ocaml.local"; "extension.local"
   ; "nontail"; "ocaml.nontail"; "extension.nontail"
   ; "tail"; "ocaml.tail"; "extension.tail"
@@ -633,9 +632,6 @@ let has_local attr =
 
 let has_global attrs =
   check_local ["extension.global"] ["ocaml.global"; "global"] attrs
-
-let has_nonlocal attrs =
-  check_local ["extension.nonlocal"] ["ocaml.nonlocal"; "nonlocal"] attrs
 
 let tailcall attr =
   let has_nontail = has_attribute ["ocaml.nontail"; "nontail"] attr in

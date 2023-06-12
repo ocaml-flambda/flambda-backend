@@ -77,7 +77,6 @@ type error =
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Global_and_nonlocal
   | Layout_not_enabled of Layout.const
 
 open Typedtree
@@ -368,12 +367,9 @@ let transl_global_flags loc attrs =
     | Error () -> raise(Error(loc, Local_not_enabled))
   in
   let global = transl_global_flag loc (Builtin_attributes.has_global attrs) in
-  let nonlocal = transl_global_flag loc (Builtin_attributes.has_nonlocal attrs) in
-  match global, nonlocal with
-  | true, true -> raise(Error(loc, Global_and_nonlocal))
-  | true, false -> Types.Global
-  | false, true -> Types.Nonlocal
-  | false, false -> Types.Unrestricted
+  match global with
+  | true -> Types.Global
+  | false -> Types.Unrestricted
 
 let transl_labels env univars closed lbls =
   assert (lbls <> []);
@@ -2531,8 +2527,6 @@ let report_error ppf = function
   | Local_not_enabled ->
       fprintf ppf "@[The local extension is disabled@ \
                    To enable it, pass the '-extension local' flag@]"
-  | Global_and_nonlocal ->
-      fprintf ppf "@[A type cannot be both global and nonlocal@]"
   | Layout_not_enabled c ->
       fprintf ppf
         "@[Layout %s is used here, but the appropriate layouts extension is \

@@ -207,7 +207,7 @@ module Core_type : sig
 end
 
 (** Novel syntax in constructor arguments; this isn't a core AST type,
-    but captures where [global_] and [nonlocal_] live *)
+    but captures where [global_] lives *)
 module Constructor_argument : sig
   type t = |
 

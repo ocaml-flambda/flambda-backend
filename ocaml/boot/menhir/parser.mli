@@ -41,7 +41,6 @@ type token =
   | OF
   | OBJECT
   | NONREC
-  | NONLOCAL
   | NEW
   | MUTABLE
   | MODULE
