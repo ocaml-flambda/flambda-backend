@@ -155,7 +155,14 @@ let add_type_declaration bv td =
   | Ptype_open -> () in
   add_tkind td.ptype_kind
 
+let add_extension_constructor_jst _bv _attrs :
+  Jane_syntax.Extension_constructor.t -> _ = function
+  | _ -> .
+
 let add_extension_constructor bv ext =
+  match Jane_syntax.Extension_constructor.of_ast ext with
+  | Some (jext, attrs) -> add_extension_constructor_jst bv attrs jext
+  | None ->
   match ext.pext_kind with
     Pext_decl(_, args, rty) ->
       add_constructor_arguments bv args;
