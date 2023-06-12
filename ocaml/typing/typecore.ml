@@ -971,7 +971,8 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
     Tpat_alias(p1,_, _, _) -> build_as_type_and_mode ~refine ~mode env p1
   | Tpat_tuple pl ->
       let tyl = List.map (build_as_type env) pl in
-      newty (Ttuple tyl), mode
+      (* CR labeled tuple: handle labeled tuple patterns appropriately *)
+      newty (Ttuple (List.map (fun e -> None, e) tyl)), mode
   | Tpat_construct(_, cstr, pl, vto) ->
       let priv = (cstr.cstr_private = Private) in
       let mode =
@@ -1093,7 +1094,8 @@ let solve_Ppat_tuple (type a) ~refine ~alloc_mode loc env (args : a list) expect
                       simple_pat_mode mode))
       args arg_modes
   in
-  let ty = newgenty (Ttuple (List.map snd3 ann)) in
+    (* CR labeled tuple: handle labeled tuple patterns appropriately *)
+  let ty = newgenty (Ttuple (List.map (fun t -> None, t) (List.map snd3 ann))) in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine loc env ty expected_ty;
   ann
@@ -1127,9 +1129,10 @@ let solve_constructor_annotation tps env name_list sty ty_args ty_ex =
         unify_pat_types cty.ctyp_loc env ty1 ty_arg;
         [ty2]
     | _ ->
-        unify_pat_types cty.ctyp_loc env ty1 (newty (Ttuple ty_args));
+        (* CR labeled tuple: handle labeled tuple patterns appropriately *)
+        unify_pat_types cty.ctyp_loc env ty1 (newty (Ttuple (List.map (fun t -> None, t) ty_args)));
         match get_desc (expand_head !env ty2) with
-          Ttuple tyl -> tyl
+          Ttuple tyl -> (List.map snd tyl)
         | _ -> assert false
   in
   if ids <> [] then ignore begin
@@ -2346,7 +2349,8 @@ and type_pat_aux
         rvp k {
         pat_desc = Tpat_tuple pl;
         pat_loc = loc; pat_extra=[];
-        pat_type = newty (Ttuple(List.map (fun p -> p.pat_type) pl));
+        (* CR labeled tuple: handle labeled tuple patterns appropriately *)
+        pat_type = newty (Ttuple(List.map (fun p -> None, p.pat_type) pl));
         pat_attributes = sp.ppat_attributes;
         pat_env = !env })
   | Ppat_construct(lid, sarg) ->
@@ -3256,7 +3260,7 @@ let rec is_nonexpansive exp =
         ) cases
   | Texp_probe {handler} -> is_nonexpansive handler
   | Texp_tuple (el, _) ->
-      List.for_all is_nonexpansive el
+      List.for_all is_nonexpansive (List.map snd el)
   | Texp_construct(_, _, el, _) ->
       List.for_all is_nonexpansive el
   | Texp_variant(_, arg) -> is_nonexpansive_opt (Option.map fst arg)
@@ -3516,7 +3520,8 @@ let rec approx_type env sty =
       let mret = Alloc_mode.newvar () in
       newty (Tarrow ((p,marg,mret), newmono arg, ret, commu_ok))
   | Ptyp_tuple args ->
-      newty (Ttuple (List.map (approx_type env) args))
+      (* CR labeled tuple: handle labeled tuple type expressions appropriately *)
+      newty (Ttuple (List.map (fun t -> None, approx_type env t) args))
   | Ptyp_constr (lid, ctl) ->
       let path, decl = Env.lookup_type ~use:false ~loc:lid.loc lid.txt env in
       if List.length ctl <> decl.type_arity
@@ -3613,19 +3618,16 @@ and type_approx_aux env sexp in_function ty_expected =
   | Pexp_match (_, {pc_rhs=e}::_) -> type_approx_aux env e None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
   | Pexp_tuple l ->
-      let tys = List.map
-                  (fun _ -> newvar (Layout.value ~why:Tuple_element)) l
+      let labeled_tys = List.map
+                  (fun (label, _) -> label, newvar (Layout.value ~why:Tuple_element)) l
       in
-      let ty = newty (Ttuple tys) in
+      let ty = newty (Ttuple labeled_tys) in
       begin try unify env ty ty_expected with Unify err ->
         raise(Error(sexp.pexp_loc, env, Expr_type_clash (err, None, None)))
       end;
       List.iter2
-        (function (None, e) -> type_approx_aux env e None
-                | (Some _, _) -> raise(Error(sexp.pexp_loc,
-                                             env,
-                                             Unsupported_labeled_tuple)))
-        l tys
+        (fun (_, e) (_, ty) -> type_approx_aux env e None ty)
+        l labeled_tys
   | Pexp_ifthenelse (_,e,_) -> type_approx_aux env e None ty_expected
   | Pexp_sequence (_,e) -> type_approx_aux env e None ty_expected
   | Pexp_constraint (e, sty) ->
@@ -4509,11 +4511,12 @@ and type_expect_
       assert (arity >= 2);
       let alloc_mode = register_allocation expected_mode in
       (* CR layouts v5: non-values in tuples *)
-      let subtypes =
-        List.map (fun _ -> newgenvar (Layout.value ~why:Tuple_element))
-          sexpl
+      let labeled_subtypes =
+        List.map (fun (label, _) -> label, newgenvar (Layout.value ~why:Tuple_element))
+        sexpl
       in
-      let to_unify = newgenty (Ttuple subtypes) in
+      let subtypes = List.map snd labeled_subtypes in
+      let to_unify = newgenty (Ttuple labeled_subtypes) in
       with_explanation (fun () ->
         unify_exp_types loc env to_unify (generic_instance ty_expected));
       let argument_modes =
@@ -4528,18 +4531,16 @@ and type_expect_
       let expl =
         List.map2
           (fun (label, body) (ty, argument_mode) ->
-            if Option.is_some label then raise(Error(loc, env, Unsupported_labeled_tuple));
             let argument_mode = mode_default argument_mode in
             let argument_mode = expect_mode_cross env ty argument_mode in
-             type_expect env argument_mode
-               body (mk_expected ty))
+             (label, type_expect env argument_mode body (mk_expected ty)))
           sexpl types_and_modes
       in
       re {
         exp_desc = Texp_tuple (expl, alloc_mode);
         exp_loc = loc; exp_extra = [];
         (* Keep sharing *)
-        exp_type = newty (Ttuple (List.map (fun e -> e.exp_type) expl));
+        exp_type = newty (Ttuple (List.map (fun (label, e) -> label, e.exp_type) expl));
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_construct(lid, sarg) ->
@@ -5444,7 +5445,7 @@ and type_expect_
             let ty = newvar (Layout.value ~why:Tuple_element) in
             let loc = Location.ghostify slet.pbop_op.loc in
             let spat_acc = Ast_helper.Pat.tuple ~loc [spat_acc; spat] in
-            let ty_acc = newty (Ttuple [ty_acc; ty]) in
+            let ty_acc = newty (Ttuple [None, ty_acc; None, ty]) in
             loop spat_acc ty_acc rest
       in
       if !Clflags.principal then begin_def ();

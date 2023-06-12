@@ -307,10 +307,11 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
     with Not_found -> num_nodes_visited, Pgenval
     (* CR layouts v1.5: stop allowing missing cmis. *)
     end
-  | Ttuple fields ->
+  | Ttuple labeled_fields ->
     if cannot_proceed () then
       num_nodes_visited, Pgenval
     else begin
+      let fields = List.map snd labeled_fields in
       let visited = Numbers.Int.Set.add (get_id ty) visited in
       let depth = depth + 1 in
       let num_nodes_visited, fields =

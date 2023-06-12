@@ -460,7 +460,8 @@ and transl_exp0 ~in_new_scope ~scopes e =
                  (transl_cases_try ~scopes pat_expr_list),
                layout)
   | Texp_tuple (el, alloc_mode) ->
-      let ll, shape = transl_list_with_shape ~scopes el in
+      (* CR labeled tuples: check that it's ok to erase when translating to lambda *)
+      let ll, shape = transl_list_with_shape ~scopes (List.map snd el) in
       begin try
         Lconst(Const_block(0, List.map extract_constant ll))
       with Not_constant ->
@@ -1609,16 +1610,18 @@ and transl_match ~scopes e arg sort pat_expr_list partial =
       assert (static_handlers = []);
       let mode = transl_alloc_mode alloc_mode in
       Matching.for_multiple_match ~scopes layout e.exp_loc
-        (transl_list_with_layout ~scopes argl) mode val_cases partial
+        (* CR labeled tuples: check that it's ok to erase when translating to lambda *)
+        (transl_list_with_layout ~scopes (List.map snd argl)) mode val_cases partial
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, _ :: _ ->
         let val_ids =
           List.map
             (fun arg -> Typecore.name_pattern "val" [], layout_exp arg)
-            argl
+            (* CR labeled tuples: check that it's ok to erase when translating to lambda *)
+            (List.map snd argl)
         in
         let lvars = List.map (fun (id, layout) -> Lvar id, layout) val_ids in
         let mode = transl_alloc_mode alloc_mode in
-        static_catch (transl_list ~scopes argl) val_ids
+        static_catch (transl_list ~scopes (List.map snd argl)) val_ids
           (Matching.for_multiple_match ~scopes layout e.exp_loc
              lvars mode val_cases partial)
     | arg, [] ->

@@ -220,7 +220,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
   | Texp_try (exp, cases) ->
       sub.expr sub exp;
       List.iter (sub.case sub) cases
-  | Texp_tuple (list, _) -> List.iter (sub.expr sub) list
+  | Texp_tuple (list, _) -> List.iter (sub.expr sub) (List.map snd list)
   | Texp_construct (_, _, args, _) -> List.iter (sub.expr sub) args
   | Texp_variant (_, expo) -> Option.iter (fun (expr, _) -> sub.expr sub expr) expo
   | Texp_record { fields; extended_expression; _} ->
