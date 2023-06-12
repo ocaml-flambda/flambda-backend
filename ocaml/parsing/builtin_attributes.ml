@@ -108,12 +108,42 @@ let builtin_attrs =
   ; "tail_mod_cons"; "ocaml.tail_mod_cons"
   ]
 
-let builtin_attrs =
-  let tbl = Hashtbl.create 128 in
-  List.iter (fun attr -> Hashtbl.add tbl attr ()) builtin_attrs;
-  tbl
+(* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't
+   upstream the "jane" prefix.
+     - Internally, we use "jane.*" to encode our changes to the parsetree,
+       and our compiler should not drop these attributes.
+     - Upstream, ppxes may produce attributes with the "jane.*" prefix.
+       The upstream compiler does not use these attributes. We want it to be
+       able to drop these attributes without a warning.
 
-let is_builtin_attr s = Hashtbl.mem builtin_attrs s
+   It's an error for an upstream ppx to create an attribute that corresponds to
+   a *non-erasable* Jane language extension, like list comprehensions, which
+   should never reach the upstream compiler. So, we distinguish that in the
+   attribute prefix: upstream ppxlib will error out if it sees a ppx creating a
+   "jane.non_erasable" attribute and be happy to accept a "jane.erasable"
+   attribute. Meanwhile, an internal patched version of ppxlib will be happy for
+   a ppx to produce either of these attributes.
+*)
+let builtin_attr_prefixes =
+  [ "jane"
+  ]
+
+let is_builtin_attr =
+  let builtin_attrs =
+    let tbl = Hashtbl.create 128 in
+    List.iter
+      (fun attr -> Hashtbl.add tbl attr ())
+      (builtin_attr_prefixes @ builtin_attrs);
+    tbl
+  in
+  let builtin_attr_prefixes_with_trailing_dot =
+    List.map (fun x -> x ^ ".") builtin_attr_prefixes
+  in
+  fun s ->
+    Hashtbl.mem builtin_attrs s
+    || List.exists
+        (fun prefix -> String.starts_with ~prefix s)
+        builtin_attr_prefixes_with_trailing_dot
 
 type attr_tracking_time = Parser | Invariant_check
 
@@ -424,7 +454,8 @@ let explicit_arity attrs =
 let layout ~legacy_immediate attrs =
   let layout =
     List.find_map
-      (fun a -> match a.attr_name.txt with
+      (fun a ->
+         match a.attr_name.txt with
          | "ocaml.void"|"void" -> Some (a, Void)
          | "ocaml.value"|"value" -> Some (a, Value)
          | "ocaml.any"|"any" -> Some (a, Any)
@@ -435,21 +466,21 @@ let layout ~legacy_immediate attrs =
   in
   match layout with
   | None -> Ok None
-  | Some (a, Value) ->
-    mark_used a.attr_name;
-    Ok (Some Value)
-  | Some (a, (Immediate | Immediate64 as l)) ->
-    mark_used a.attr_name;
-    if   legacy_immediate
-      || Language_extension.(   is_enabled (Layouts Beta)
-                             || is_enabled (Layouts Alpha))
-    then Ok (Some l)
-    else Error (a.attr_loc, l)
-  | Some (a, (Any | Void as l)) ->
-    mark_used a.attr_name;
-    if Language_extension.is_enabled (Layouts Alpha)
-    then Ok (Some l)
-    else Error (a.attr_loc, l)
+  | Some (a, l) ->
+     mark_used a.attr_name;
+     let l_loc = Location.mkloc l a.attr_loc in
+     let check b =
+       if b
+       then Ok (Some l_loc)
+       else Error l_loc
+     in
+     match l with
+     | Value -> check true
+     | Immediate | Immediate64 ->
+        check  (legacy_immediate
+             || Language_extension.(is_at_least Layouts Beta))
+     | Any | Void ->
+        check Language_extension.(is_at_least Layouts Alpha)
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
    attributes cannot be input by the user, they are added by the

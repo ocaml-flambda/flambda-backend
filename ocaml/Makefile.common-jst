@@ -357,3 +357,10 @@ hacking-emacs-poller: _build/_bootinstall
 hacking-emacs-builder: _build/_bootinstall
 	$(dune) rpc build $(ws_boot) -w $(boot_targets)
 	$(dune) diagnostics
+
+.PHONY: debug-printers
+debug-printers: runtime-stdlib # required for $(ws_main) to work
+	$(dune) build $(ws_main) $(ocamldir)/tools/debug_printers
+	@echo
+	@echo To load into ocamldebug, use:
+	@echo source \"$$(realpath _build/main/$(ocamldir)/tools/debug_printers)\"

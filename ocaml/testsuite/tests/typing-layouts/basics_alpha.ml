@@ -1395,3 +1395,70 @@ Error: This pattern matches values of type t_void
        but a pattern was expected which matches values of type ('a : value)
        t_void has layout void, which is not a sublayout of value.
 |}]
+
+(*******************************************)
+(* Test 29: [external]s default to [value] *)
+
+(* CR layouts: this must be done in a module so that we can test the
+   type-checker, as opposed to the value-kind check. After we have proper
+   support for a non-value argument type, remove the module wrapper.
+*)
+module _ = struct
+  external eq : 'a -> 'a -> bool = "%equal"
+  let mk_void () : t_void = assert false
+  let x () = eq (mk_void ()) (mk_void ())
+end
+
+[%%expect{|
+Line 4, characters 16-28:
+4 |   let x () = eq (mk_void ()) (mk_void ())
+                    ^^^^^^^^^^^^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(**************************************)
+(* Test 30: [val]s default to [value] *)
+
+(* CR layouts: this must be done in a module so that we can test the
+   type-checker, as opposed to the value-kind check. After we have proper
+   support for a non-value argument type, remove the module wrapper.
+*)
+module _ = struct
+  module M : sig
+    val f : 'a -> 'a
+  end = struct
+    let f x = x
+  end
+
+  let g (x : t_void) = M.f x
+end
+
+[%%expect{|
+Line 8, characters 27-28:
+8 |   let g (x : t_void) = M.f x
+                               ^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(**************************************************)
+(* Test 31: checking that #poly_var patterns work *)
+
+type ('a : void) poly_var = [`A of int * 'a | `B]
+
+let f #poly_var = "hello"
+
+[%%expect{|
+Line 1, characters 41-43:
+1 | type ('a : void) poly_var = [`A of int * 'a | `B]
+                                             ^^
+Error: This type ('a : value) should be an instance of type ('a0 : void)
+       'a has layout void, which does not overlap with value.
+|}]
+(* CR layouts bug: this should be accepted (or maybe we should reject
+   the type definition if we're not allowing `void` things in structures).
+   This bug is a goof at the top of Typecore.build_or_pat;
+   there is another CR layouts there. *)

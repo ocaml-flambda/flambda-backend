@@ -94,8 +94,13 @@
     built-in features. *)
 module Feature : sig
   type t =
-    | Language_extension of Language_extension.t
+    | Language_extension : _ Language_extension.t -> t
     | Builtin
+
+  (** The component of an attribute or extension name that identifies the
+      feature. This is third component.
+  *)
+  val extension_component : t -> string
 end
 
 (** An AST-style representation of the names used when generating extension
@@ -105,11 +110,27 @@ end
     also why we don't expose any functions for rendering or parsing these names;
     that's all handled internally. *)
 module Embedded_name : sig
-  (** A nonempty list of name components, without the leading root component
-      that identifies it as part of the modular syntax mechanism.  This is a
-      nonempty list corresponding to the different components of the name: first
-      the feature, and then any subparts. *)
-  type t = ( :: ) of string * string list
+
+  (** A nonempty list of name components, without the first two components.
+      (That is, without the leading root component that identifies it as part of
+      the modular syntax mechanism, and without the next component that
+      identifies the erasability.)
+
+      This is a nonempty list corresponding to the different components of the
+      name: first the feature, and then any subparts.
+  *)
+  type components = ( :: ) of string * string list
+
+  type t
+
+  (** Creates an embedded name whose erasability component is whether the
+      feature is erasable, and whose feature component is the feature's name.
+      The second argument is treated as the trailing components after the
+      feature name.
+  *)
+  val of_feature : Feature.t -> string list -> t
+
+  val components : t -> components
 
   (** Print out the embedded form of a Jane-syntax name, in quotes; for use in
       error messages. *)
@@ -168,8 +189,12 @@ module AST : sig
       given name (the [Embedded_name.t]) and body (the [ast]).  Any locations in
       the generated AST will be set to [!Ast_helper.default_loc], which should
       be [ghost]. *)
-  val make_jane_syntax :
-    ('ast, 'ast_desc) t -> Embedded_name.t -> 'ast -> 'ast_desc
+  val make_jane_syntax
+    :  ('ast, 'ast_desc) t
+    -> Feature.t
+    -> string list
+    -> 'ast
+    -> 'ast_desc
 
   (** As [make_jane_syntax], but specifically for the AST node corresponding to
       the entire piece of novel syntax (e.g., for a list comprehension, the
@@ -180,7 +205,7 @@ module AST : sig
   val make_entire_jane_syntax
     :  ('ast, 'ast_desc) t
     -> loc:Location.t
-    -> string
+    -> Feature.t
     -> (unit -> 'ast)
     -> 'ast_desc
 
@@ -213,13 +238,14 @@ module AST : sig
     -> ('ast -> 'a option)
 end
 
-(** Require that an extension is enabled, or else throw an exception (of an
-    abstract type) at the provided location saying otherwise.  This is intended
-    to be used in [jane_syntax.ml] when a certain piece of syntax requires two
-    extensions to be enabled at once (e.g., immutable array comprehensions such
-    as [[:x for x = 1 to 10:]], which require both [Comprehensions] and
-    [Immutable_arrays]). *)
-val assert_extension_enabled : loc:Location.t -> Language_extension.t -> unit
+(** Require that an extension is enabled for at least the provided level, or
+    else throw an exception (of an abstract type) at the provided location
+    saying otherwise.  This is intended to be used in [jane_syntax.ml] when a
+    certain piece of syntax requires two extensions to be enabled at once (e.g.,
+    immutable array comprehensions such as [[:x for x = 1 to 10:]], which
+    require both [Comprehensions] and [Immutable_arrays]). *)
+val assert_extension_enabled :
+  loc:Location.t -> 'a Language_extension.t -> 'a -> unit
 
 (* CR-someday nroberts: An earlier version of this revealed less of its
    implementation in its name: it was called [match_jane_syntax], and
@@ -239,8 +265,9 @@ val assert_extension_enabled : loc:Location.t -> Language_extension.t -> unit
     order to process a Jane Syntax element that consists of multiple
     nested ASTs.
 *)
-val find_and_remove_jane_syntax_attribute :
-  Parsetree.attributes -> (Embedded_name.t * Parsetree.attributes) option
+val find_and_remove_jane_syntax_attribute
+  :  Parsetree.attributes
+  -> (Embedded_name.t * Parsetree.attributes) option
 
 (** Errors around the representation of our extended ASTs.  These should mostly
     just be fatal, but they're needed for one test case

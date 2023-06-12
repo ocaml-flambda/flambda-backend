@@ -787,7 +787,7 @@ type label_description =
 (** The special value we assign to lbl_pos for label descriptions corresponding
     to void types, because they can't sensibly be projected.
 
-    CR-someday layouts: This should be removed once we have unarization, as it
+    CR layouts v5: This should be removed once we have unarization, as it
     will be up to a later stage of the compiler to erase void.
 *)
 val lbl_pos_void : int

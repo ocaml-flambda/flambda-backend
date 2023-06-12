@@ -45,7 +45,10 @@ Line 1, characters 12-19:
                 ^^^^^^^
 Error: This type B.b_value = A.a_value should be an instance of type
          ('a : immediate)
-       B.b_value has layout value, which is not a sublayout of immediate.
+       B.b_value has an unknown layout,
+         which might not be a sublayout of immediate.
+       No .cmi file found containing A.a_value.
+       Hint: Adding "a" to your dependencies might help.
 |}];;
 
 (* type err2 = b_void value_arg;;

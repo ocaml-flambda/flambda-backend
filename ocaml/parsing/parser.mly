@@ -186,6 +186,15 @@ let mktyp_local_if p typ loc =
 let wrap_exp_local_if p exp loc =
   if p then wrap_exp_stack exp (make_loc loc) else exp
 
+let exclave_ext_loc loc = mkloc "extension.exclave" loc
+
+let exclave_extension loc =
+  Exp.mk ~loc:Location.none
+    (Pexp_extension(exclave_ext_loc loc, PStr []))
+
+let mkexp_exclave ~loc ~kwd_loc exp =
+  ghexp ~loc (Pexp_apply(exclave_extension (make_loc kwd_loc), [Nolabel, exp]))
+
 let curry_attr loc =
   mk_attr ~loc:Location.none (mkloc "extension.curry" loc) (PStr [])
 
@@ -771,6 +780,50 @@ let check_layout loc id =
   let loc = make_loc loc in
   Attr.mk ~loc (mkloc id loc) (PStr [])
 
+(* Unboxed literals *)
+
+(* CR layouts v2: The [unboxed_*] functions will both be improved and lose
+   their explicit assert once we have real unboxed literals in Jane syntax; they
+   may also get re-inlined at that point *)
+let unboxed_literals_extension = Language_extension.Layouts
+let assert_unboxed_literals ~loc =
+  Language_extension.(
+    Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
+
+type sign = Positive | Negative
+
+let with_sign sign num =
+  match sign with
+  | Positive -> num
+  | Negative -> "-" ^ num
+
+let unboxed_int sloc int_loc sign (n, m) =
+  match m with
+  | Some _ ->
+      assert_unboxed_literals ~loc:(make_loc sloc);
+      Pconst_integer (with_sign sign n, m)
+  | None ->
+      if Language_extension.is_enabled unboxed_literals_extension then
+        expecting int_loc "unboxed integer literal with type-specifying suffix"
+      else
+        not_expecting sloc "line number directive"
+
+let unboxed_float sloc sign (f, m) =
+  assert_unboxed_literals ~loc:(make_loc sloc);
+  Pconst_float (with_sign sign f, m)
+
+(* Unboxed float type *)
+
+let assert_unboxed_float_type ~loc =
+    Language_extension.(
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
+
+let unboxed_float_type sloc tys =
+  assert_unboxed_float_type ~loc:(make_loc sloc);
+  Ptyp_constr (mkloc (Lident "float#") (make_loc sloc), tys)
+
+(* Jane syntax *)
+
 let mkexp_jane_syntax
       ~loc
       { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
@@ -826,9 +879,11 @@ let mkpat_jane_syntax
 %token EOF                    ""
 %token EQUAL                  "="
 %token EXCEPTION              "exception"
+%token EXCLAVE                "exclave_"
 %token EXTERNAL               "external"
 %token FALSE                  "false"
-%token <string * char option> FLOAT "42.0" (* just an example *)
+%token <string * char option> FLOAT       "42.0" (* just an example *)
+%token <string * char option> HASH_FLOAT "#42.0" (* just an example *)
 %token FOR                    "for"
 %token FUN                    "fun"
 %token FUNCTION               "function"
@@ -850,7 +905,8 @@ let mkpat_jane_syntax
 %token <string> ANDOP         "and*" (* just an example *)
 %token INHERIT                "inherit"
 %token INITIALIZER            "initializer"
-%token <string * char option> INT "42"  (* just an example *)
+%token <string * char option> INT      "42"  (* just an example *)
+%token <string * char option> HASH_INT "#42l" (* just an example *)
 %token <string> LABEL         "~label:" (* just an example *)
 %token LAZY                   "lazy"
 %token LBRACE                 "{"
@@ -902,6 +958,7 @@ let mkpat_jane_syntax
 %token SEMI                   ";"
 %token SEMISEMI               ";;"
 %token HASH                   "#"
+%token HASH_SUFFIX            "# "
 %token <string> HASHOP        "##" (* just an example *)
 %token SIG                    "sig"
 %token STAR                   "*"
@@ -986,12 +1043,12 @@ The precedences must be listed from low to high.
 %nonassoc prec_constant_constructor     /* cf. simple_expr (C versus C x) */
 %nonassoc prec_constr_appl              /* above AS BAR COLONCOLON COMMA */
 %nonassoc below_HASH
-%nonassoc HASH                         /* simple_expr/toplevel_directive */
+%nonassoc HASH HASH_SUFFIX              /* simple_expr/toplevel_directive */
 %left     HASHOP
 %nonassoc below_DOT
 %nonassoc DOT DOTOP
 /* Finally, the first tokens of simple_expr are above everything else. */
-%nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT INT OBJECT
+%nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT HASH_FLOAT INT HASH_INT OBJECT
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
           LBRACKETPERCENT QUOTED_STRING_EXPR
@@ -2506,6 +2563,8 @@ expr:
 /* END AVOID */
   | LOCAL seq_expr
      { mkexp_stack ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
+  | EXCLAVE seq_expr
+     { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
 ;
 %inline expr_attrs:
   | LET MODULE ext_attributes mkrhs(module_name) module_binding_body IN seq_expr
@@ -2697,6 +2756,11 @@ comprehension_clause:
       { $1 }
 ;
 
+%inline hash:
+  | HASH { () }
+  | HASH_SUFFIX { () }
+;
+
 %inline simple_expr_:
   | mkrhs(val_longident)
       { Pexp_ident ($1) }
@@ -2725,7 +2789,7 @@ comprehension_clause:
         Pexp_open(od, mkexp ~loc:$sloc (Pexp_override $4)) }
   | mod_longident DOT LBRACELESS object_expr_content error
       { unclosed "{<" $loc($3) ">}" $loc($5) }
-  | simple_expr HASH mkrhs(label)
+  | simple_expr hash mkrhs(label)
       { Pexp_send($1, $3) }
   | simple_expr op(HASHOP) simple_expr
       { mkinfix $1 $2 $3 }
@@ -3124,7 +3188,7 @@ simple_pattern_not_ident:
       { Ppat_construct($1, None) }
   | name_tag
       { Ppat_variant($1, None) }
-  | HASH mkrhs(type_longident)
+  | hash mkrhs(type_longident)
       { Ppat_type ($2) }
   | mkrhs(mod_longident) DOT simple_delimited_pattern
       { Ppat_open($1, $3) }
@@ -3790,7 +3854,18 @@ atomic_type:
         { Ptyp_any }
     | tys = actual_type_parameters
       tid = mkrhs(type_longident)
-        { Ptyp_constr(tid, tys) }
+      HASH_SUFFIX
+        { match tid.txt with
+          | Lident "float" ->
+              let ident_start = fst $loc(tid) in
+              let hash_end = snd $loc($3) in
+              unboxed_float_type (ident_start, hash_end) tys
+          | _ ->
+              not_expecting $sloc "Unboxed type other than float#"
+        }
+    | tys = actual_type_parameters
+      tid = mkrhs(type_longident)
+        { Ptyp_constr(tid, tys) } %prec below_HASH
     | LESS meth_list GREATER
         { let (f, c) = $2 in Ptyp_object (f, c) }
     | LESS GREATER
@@ -3920,17 +3995,23 @@ meth_list:
 /* Constants */
 
 constant:
-  | INT          { let (n, m) = $1 in Pconst_integer (n, m) }
-  | CHAR         { Pconst_char $1 }
-  | STRING       { let (s, strloc, d) = $1 in Pconst_string (s, strloc, d) }
-  | FLOAT        { let (f, m) = $1 in Pconst_float (f, m) }
+  | INT               { let (n, m) = $1 in Pconst_integer (n, m) }
+  | CHAR              { Pconst_char $1 }
+  | STRING            { let (s, strloc, d) = $1 in Pconst_string (s, strloc, d) }
+  | FLOAT             { let (f, m) = $1 in Pconst_float (f, m) }
+  | HASH_INT          { unboxed_int $sloc $sloc Positive $1 }
+  | HASH_FLOAT        { unboxed_float $sloc Positive $1 }
 ;
 signed_constant:
-    constant     { $1 }
-  | MINUS INT    { let (n, m) = $2 in Pconst_integer("-" ^ n, m) }
-  | MINUS FLOAT  { let (f, m) = $2 in Pconst_float("-" ^ f, m) }
-  | PLUS INT     { let (n, m) = $2 in Pconst_integer (n, m) }
-  | PLUS FLOAT   { let (f, m) = $2 in Pconst_float(f, m) }
+    constant          { $1 }
+  | MINUS INT         { let (n, m) = $2 in Pconst_integer("-" ^ n, m) }
+  | MINUS FLOAT       { let (f, m) = $2 in Pconst_float("-" ^ f, m) }
+  | MINUS HASH_INT    { unboxed_int $sloc $loc($2) Negative $2 }
+  | MINUS HASH_FLOAT  { unboxed_float $sloc Negative $2 }
+  | PLUS INT          { let (n, m) = $2 in Pconst_integer (n, m) }
+  | PLUS FLOAT        { let (f, m) = $2 in Pconst_float(f, m) }
+  | PLUS HASH_INT     { unboxed_int $sloc $loc($2) Positive $2 }
+  | PLUS HASH_FLOAT   { unboxed_float $sloc Negative $2 }
 ;
 
 /* Identifiers and long identifiers */
@@ -4058,7 +4139,7 @@ any_longident:
 /* Toplevel directives */
 
 toplevel_directive:
-  HASH dir = mkrhs(ident)
+  hash dir = mkrhs(ident)
   arg = ioption(mk_directive_arg(toplevel_directive_argument))
     { mk_directive ~loc:$sloc dir arg }
 ;

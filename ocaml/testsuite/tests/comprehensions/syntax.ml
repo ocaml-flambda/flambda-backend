@@ -1,7 +1,7 @@
 (* TEST
    include ocamlcommon *)
 
-let () = Language_extension.enable Comprehensions;;
+let () = Language_extension.enable Comprehensions ();;
 
 let printf = Printf.printf;;
 

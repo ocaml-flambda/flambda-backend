@@ -33,6 +33,7 @@ let ident_int = ident_create "int"
 and ident_char = ident_create "char"
 and ident_bytes = ident_create "bytes"
 and ident_float = ident_create "float"
+and ident_float_unboxed = ident_create "float#"
 and ident_bool = ident_create "bool"
 and ident_unit = ident_create "unit"
 and ident_exn = ident_create "exn"
@@ -142,7 +143,7 @@ and ident_some = ident_create "Some"
 let mk_add_type add_type
       ?manifest type_ident
       ?(kind=Type_abstract)
-      ?(layout=Layout.value)
+      ?(layout=Layout.value ~why:(Primitive type_ident))
       env =
   let decl =
     {type_params = [];
@@ -169,9 +170,9 @@ let common_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
   and add_type1 type_ident
         ?(kind=fun _ -> Type_abstract)
-        ?(layout=Layout.value)
+        ?(layout=Layout.value ~why:(Primitive type_ident))
       ~variance ~separability env =
-    let param = newgenvar Layout.value in
+    let param = newgenvar (Layout.value ~why:Type_argument) in
     let decl =
       {type_params = [param];
        type_arity = 1;
@@ -219,15 +220,16 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_bool
        ~kind:(variant [cstr ident_false []; cstr ident_true []]
                 [| [| |]; [| |] |])
-       ~layout:Layout.immediate
-  |> add_type ident_char ~layout:Layout.immediate
+       ~layout:(Layout.immediate ~why:Enumeration)
+  |> add_type ident_char ~layout:(Layout.immediate ~why:(Primitive ident_char))
   |> add_type ident_exn
        ~kind:Type_open
-       ~layout:Layout.value
+       ~layout:(Layout.value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
+  |> add_type ident_float_unboxed
   |> add_type ident_floatarray
-  |> add_type ident_int ~layout:Layout.immediate
+  |> add_type ident_int ~layout:(Layout.immediate ~why:(Primitive ident_int))
   |> add_type ident_int32
   |> add_type ident_int64
   |> add_type1 ident_lazy_t
@@ -240,40 +242,43 @@ let common_initial_env add_type add_extension empty_env =
          variant [cstr ident_nil [];
                   cstr ident_cons [tvar, Unrestricted;
                                    type_list tvar, Unrestricted]]
-           [| [| |]; [| Layout.value;
-                        Layout.value |] |] )
-       ~layout:Layout.value
+           [| [| |]; [| Layout.value ~why:Type_argument;
+                        Layout.value ~why:Boxed_variant |] |] )
+       ~layout:(Layout.value ~why:Boxed_variant)
   |> add_type ident_nativeint
   |> add_type1 ident_option
        ~variance:Variance.covariant
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]]
-           [| [| |]; [| Layout.value |] |])
-       ~layout:Layout.value
+           [| [| |]; [| Layout.value ~why:Type_argument |] |])
+       ~layout:(Layout.value ~why:Boxed_variant)
   |> add_type ident_string
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
-       ~layout:Layout.immediate
+       ~layout:(Layout.immediate ~why:Enumeration)
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[type_string; type_int; type_int])]
-       [| Layout.value |]
+       [| Layout.value ~why:Tuple |]
   |> add_extension ident_division_by_zero [] [||]
   |> add_extension ident_end_of_file [] [||]
-  |> add_extension ident_failure [type_string] [| Layout.value |]
-  |> add_extension ident_invalid_argument [type_string] [| Layout.value |]
+  |> add_extension ident_failure [type_string]
+       [| Layout.value ~why:(Primitive ident_string) |]
+  |> add_extension ident_invalid_argument [type_string]
+       [| Layout.value ~why:(Primitive ident_string) |]
   |> add_extension ident_match_failure
        [newgenty (Ttuple[type_string; type_int; type_int])]
-       [| Layout.value |]
+       [| Layout.value ~why:Tuple |]
   |> add_extension ident_not_found [] [||]
   |> add_extension ident_out_of_memory [] [||]
   |> add_extension ident_stack_overflow [] [||]
   |> add_extension ident_sys_blocked_io [] [||]
-  |> add_extension ident_sys_error [type_string] [| Layout.value |]
+  |> add_extension ident_sys_error [type_string]
+       [| Layout.value ~why:(Primitive ident_string) |]
   |> add_extension ident_undefined_recursive_module
        [newgenty (Ttuple[type_string; type_int; type_int])]
-       [| Layout.value |]
+       [| Layout.value ~why:Tuple |]
 
 let build_initial_env add_type add_exception empty_env =
   let common = common_initial_env add_type add_exception empty_env in

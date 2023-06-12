@@ -230,7 +230,7 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
   | Extensible_representation of position
-  | Layout of Layout.Violation.violation
+  | Layout of Layout.Violation.t
 
 let report_locality_mismatch first second ppf err =
   let {order; nonlocal} = err in
@@ -1006,10 +1006,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
           have a manifest, which we're already checking for equality
           above. Similarly, [decl1]'s kind may conservatively approximate its
           layout, but [check_decl_layout] will expand its manifest.  *)
-        (match
-           Ctype.check_decl_layout ~reason:Dummy_reason_result_ignored
-             env decl1 decl2.type_layout
-         with
+        (match Ctype.check_decl_layout env decl1 decl2.type_layout with
          | Ok _ -> None
          | Error v -> Some (Layout v))
     | (Type_variant (cstrs1, rep1), Type_variant (cstrs2, rep2)) ->
