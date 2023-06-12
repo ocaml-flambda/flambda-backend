@@ -1,4 +1,3 @@
-
 (* TEST
    * expect
    flags = "-dsource"
