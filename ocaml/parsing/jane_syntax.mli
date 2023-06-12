@@ -121,6 +121,19 @@ module Strengthen : sig
     -> Parsetree.module_type_desc With_attributes.t
 end
 
+(** The ASTs for unboxed literals, like #4.0 *)
+module Unboxed_constants : sig
+  type t =
+    | Float of string * char option
+    | Integer of string * char
+
+  (* CR nroberts:  comment *)
+  type expression = t
+
+  val expr_of :
+    loc:Location.t -> expression -> Parsetree.expression_desc With_attributes.t
+end
+
 (******************************************)
 (* General facility, which we export *)
 
@@ -219,12 +232,16 @@ end
 (** Novel syntax in expressions *)
 module Expression : sig
   type t =
-    | Jexp_comprehension   of Comprehensions.expression
-    | Jexp_immutable_array of Immutable_arrays.expression
+    | Jexp_comprehension    of Comprehensions.expression
+    | Jexp_immutable_array  of Immutable_arrays.expression
+    | Jexp_unboxed_constant of Unboxed_constants.expression
 
   include AST
     with type t := t * Parsetree.attributes
      and type ast := Parsetree.expression
+
+  val expr_of :
+    loc:Location.t -> t -> Parsetree.expression_desc With_attributes.t
 end
 
 (** Novel syntax in patterns *)

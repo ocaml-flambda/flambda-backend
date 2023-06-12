@@ -217,13 +217,17 @@ let add_pattern bv pat =
   add_pattern bv pat;
   !pattern_bv
 
+(* A no-op, but makes it clearer which jane syntax cases should have the same
+   handling as core-language cases. *)
+let add_constant = ()
+
 let rec add_expr bv exp =
   match Jane_syntax.Expression.of_ast exp with
   | Some (jexp, _attrs) -> add_expr_jane_syntax bv jexp
   | None ->
   match exp.pexp_desc with
     Pexp_ident l -> add bv l
-  | Pexp_constant _ -> ()
+  | Pexp_constant _ -> add_constant
   | Pexp_let(rf, pel, e) ->
       let bv = add_bindings rf bv pel in add_expr bv e
   | Pexp_fun (_, opte, p, e) ->
@@ -294,8 +298,9 @@ let rec add_expr bv exp =
   | Pexp_unreachable -> ()
 
 and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
-  | Jexp_comprehension cexp -> add_comprehension_expr bv cexp
-  | Jexp_immutable_array iaexp -> add_immutable_array_expr bv iaexp
+  | Jexp_comprehension x -> add_comprehension_expr bv x
+  | Jexp_immutable_array x -> add_immutable_array_expr bv x
+  | Jexp_unboxed_constant _ -> add_constant
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function

@@ -364,6 +364,35 @@ module Strengthen = struct
     | _ -> failwith "Malformed strengthened module type"
 end
 
+module Unboxed_constants = struct
+  type t =
+    | Float of string * char option
+    | Integer of string * char
+
+  type expression = t
+
+  let feature : Feature.t = Language_extension Layouts
+
+  (* Returns remaining unconsumed attributes *)
+  let of_expr expr = match expr.pexp_desc with
+    | Pexp_constant (Pconst_float (x, suffix)) ->
+        Float (x, suffix), expr.pexp_attributes
+    | Pexp_constant (Pconst_integer (x, Some suffix)) ->
+        Integer (x, suffix), expr.pexp_attributes
+    | Pexp_constant (Pconst_integer (_, None)) ->
+        failwith "Malformed unboxed int: suffix required"
+    | _ -> failwith "Malformed unboxed numeric literal"
+
+  let expr_of ~loc t =
+    let constant =
+      match t with
+      | Float (x, suffix) -> Pconst_float (x, suffix)
+      | Integer (x, suffix) -> Pconst_integer (x, Some suffix)
+    in
+    Expression.make_entire_jane_syntax ~loc feature (fun () ->
+      Ast_helper.Exp.constant constant)
+end
+
 (******************************************************************************)
 (** The interface to our novel syntax, which we export *)
 
@@ -396,6 +425,7 @@ module Expression = struct
   type t =
     | Jexp_comprehension   of Comprehensions.expression
     | Jexp_immutable_array of Immutable_arrays.expression
+    | Jexp_unboxed_constant of Unboxed_constants.expression
 
   let of_ast_internal (feat : Feature.t) expr = match feat with
     | Language_extension Comprehensions ->
@@ -404,9 +434,17 @@ module Expression = struct
     | Language_extension Immutable_arrays ->
       let expr, attrs = Immutable_arrays.of_expr expr in
       Some (Jexp_immutable_array expr, attrs)
+    | Language_extension Layouts ->
+      let expr, attrs = Unboxed_constants.of_expr expr in
+      Some (Jexp_unboxed_constant expr, attrs)
     | _ -> None
 
   let of_ast = Expression.make_of_ast ~of_ast_internal
+
+  let expr_of ~loc = function
+    | Jexp_comprehension    x -> Comprehensions.expr_of    ~loc x
+    | Jexp_immutable_array  x -> Immutable_arrays.expr_of  ~loc x
+    | Jexp_unboxed_constant x -> Unboxed_constants.expr_of ~loc x
 end
 
 module Pattern = struct

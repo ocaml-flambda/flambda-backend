@@ -1845,8 +1845,9 @@ and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) =
     pp f "((%a)@,%a)" (jane_syntax_expr ctxt []) jexp
       (attributes ctxt) attrs
   else match jexp with
-  | Jexp_comprehension comp    -> comprehension_expr ctxt f comp
-  | Jexp_immutable_array iaexp -> immutable_array_expr ctxt f iaexp
+  | Jexp_comprehension x    -> comprehension_expr ctxt f x
+  | Jexp_immutable_array x  -> immutable_array_expr ctxt f x
+  | Jexp_unboxed_constant x -> unboxed_constant_expr ctxt f x
 
 and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
   let punct, comp = match cexp with
@@ -1898,6 +1899,12 @@ and immutable_array_expr ctxt f (x : Jane_syntax.Immutable_arrays.expression) =
   | Iaexp_immutable_array elts ->
       pp f "@[<0>@[<2>[:%a:]@]@]"
          (list (simple_expr (under_semi ctxt)) ~sep:";") elts
+
+and unboxed_constant_expr _ctxt f (x : Jane_syntax.Unboxed_constants.expression)
+  =
+  match x with
+  | Float (x, suffix) -> pp f "#%a" constant (Pconst_float (x, suffix))
+  | Integer (x, suffix) -> pp f "#%a" constant (Pconst_integer (x, Some suffix))
 
 let toplevel_phrase f x =
   match x with
