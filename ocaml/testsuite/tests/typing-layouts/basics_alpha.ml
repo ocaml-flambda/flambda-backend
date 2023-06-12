@@ -170,12 +170,11 @@ module F2 (X : sig val x : t_void end) = struct
   let f () = X.x
 end;;
 [%%expect{|
-Line 2, characters 8-16:
-2 |   let f () = X.x
-            ^^^^^^^^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+Line 1, characters 27-33:
+1 | module F2 (X : sig val x : t_void end) = struct
+                               ^^^^^^
+Error: This type signature for x is not a value type.
+       x has layout void, which is not a sublayout of value.
 |}];;
 
 module F2 (X : sig val f : void_record -> unit end) = struct
