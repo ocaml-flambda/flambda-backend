@@ -234,6 +234,8 @@ module Exp = struct
       pbop_exp = exp;
       pbop_loc = loc;
     }
+  
+  let unlabeled_tuple el = Pexp_tuple (List.map (fun e -> None, e) el)
 end
 
 module Mty = struct

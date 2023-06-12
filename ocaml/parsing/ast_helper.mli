@@ -192,6 +192,8 @@ module Exp:
 
     val case: pattern -> ?guard:expression -> expression -> case
     val binding_op: str -> pattern -> expression -> loc -> binding_op
+
+    val unlabeled_tuple: expression list -> expression_desc
   end
 
 (** Value declarations *)
