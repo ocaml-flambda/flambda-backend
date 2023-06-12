@@ -735,6 +735,24 @@ module Module_type0 = Make_with_attribute (struct
     let with_attributes mty pmty_attributes = { mty with pmty_attributes }
 end)
 
+(** Extension constructors; embedded using an attribute. *)
+module Extension_constructor0 = Make_with_attribute (struct
+    type ast = extension_constructor
+    type ast_desc = extension_constructor_kind
+    type ast_info = attributes * string Location.loc
+
+    let plural = "extension constructors"
+    let prepend_attributes attrs1 (attrs2, name) = (attrs1 @ attrs2, name)
+    let location ext = ext.pext_loc
+
+    let wrap_desc ?loc ~info:(attrs, name) =
+      Ast_helper.Te.constructor ?loc ~attrs name
+
+    let desc ext = ext.pext_kind
+    let attributes ext = ext.pext_attributes
+    let with_attributes ext pext_attributes = { ext with pext_attributes }
+end)
+
 (** Signature items; embedded as
     [include sig [%%extension.EXTNAME];; BODY end]. Signature items don't have
     attributes or we'd use them instead.
@@ -876,3 +894,4 @@ module Signature_item = Make_ast(Signature_item0)
 module Structure_item = Make_ast(Structure_item0)
 module Core_type = Make_ast(Core_type0)
 module Constructor_argument = Make_ast(Constructor_argument0)
+module Extension_constructor = Make_ast(Extension_constructor0)

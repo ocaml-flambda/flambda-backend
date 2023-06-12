@@ -1790,6 +1790,9 @@ and constructor_declaration ctxt f (name, vars, args, res, attrs) =
 
 and extension_constructor ctxt f x =
   (* Cf: #7200 *)
+  match Jane_syntax.Extension_constructor.of_ast x with
+  | Some (jext, attrs) -> extension_constructor_jst ctxt f attrs jext
+  | None ->
   match x.pext_kind with
   | Pext_decl(v, l, r) ->
       constructor_declaration ctxt f
@@ -1798,6 +1801,10 @@ and extension_constructor ctxt f x =
       pp f "%s@;=@;%a%a" x.pext_name.txt
         longident_loc li
         (attributes ctxt) x.pext_attributes
+
+and extension_constructor_jst _ctxt _f _attrs :
+  Jane_syntax.Extension_constructor.t -> _ = function
+  | _ -> .
 
 and case_list ctxt f l : unit =
   let aux f {pc_lhs; pc_guard; pc_rhs} =

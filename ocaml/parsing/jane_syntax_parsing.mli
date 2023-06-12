@@ -257,6 +257,12 @@ module Constructor_argument :
        and type ast_desc = Parsetree.core_type_desc With_attributes.t
        and type ast_info = Parsetree.attributes
 
+module Extension_constructor :
+  AST with type ast = Parsetree.extension_constructor
+       and type ast_desc =
+             Parsetree.extension_constructor_kind With_attributes.t
+       and type ast_info = Parsetree.attributes * string Location.loc
+
 (** Require that an extension is enabled for at least the provided level, or
     else throw an exception (of an abstract type) at the provided location
     saying otherwise.  This is intended to be used in [jane_syntax.ml] when a

@@ -262,3 +262,10 @@ module Structure_item : sig
 
   include AST with type t := t and type ast := Parsetree.structure_item
 end
+
+module Extension_constructor : sig
+  type t = |
+
+  include AST with type t := t * Parsetree.attributes
+               and type ast := Parsetree.extension_constructor
+end
