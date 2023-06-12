@@ -37,7 +37,7 @@ let simplify_field_of_block dacc (field : Field_of_static_block.t) =
         match Reg_width_const.descr const with
         | Tagged_immediate imm -> Field_of_static_block.Tagged_immediate imm, ty
         | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-        | Naked_nativeint _ ->
+        | Naked_nativeint _ | Naked_vec128 _ ->
           (* CR mshinwell: This should be "invalid" and propagate up *)
           field, ty)
 

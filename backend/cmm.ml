@@ -309,6 +309,7 @@ type data_item =
   | Cint of nativeint
   | Csingle of float
   | Cdouble of float
+  | Cvec128 of int64 * int64
   | Csymbol_address of symbol
   | Cstring of string
   | Cskip of int

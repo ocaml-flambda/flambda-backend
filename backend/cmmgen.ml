@@ -162,6 +162,7 @@ let get_field env layout ptr n dbg =
     | Pvalue Pintval | Punboxed_int _ -> Word_int
     | Pvalue _ -> Word_val
     | Punboxed_float -> Double
+    | Punboxed_vector Pvec128 -> Onetwentyeight
     | Ptop ->
         Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
     | Pbottom ->
@@ -911,6 +912,12 @@ and transl_ccall env prim args dbg =
           | Pint32 -> XInt32
           | Pint64 -> XInt64 in
         (xty, transl_unbox_int dbg env bi arg)
+        | Unboxed_vector bi ->
+          let xty =
+            match bi with
+            | Pvec128 -> XVec128
+          in 
+          (xty, transl_unbox_vector dbg env bi arg)
     | Untagged_int ->
         (XInt, untag_int (transl env arg) dbg)
   in
@@ -939,6 +946,7 @@ and transl_ccall env prim args dbg =
     | _, Unboxed_integer Pint64 when size_int = 4 ->
         ([|Int; Int|], box_int dbg Pint64 alloc_heap)
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
+    | _, Unboxed_vector vi -> (typ_int, box_vector dbg vi alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
@@ -1282,6 +1290,9 @@ and transl_unbox_float dbg env exp =
 
 and transl_unbox_int dbg env bi exp =
   unbox_int dbg bi (transl env exp)
+
+  and transl_unbox_vector dbg env bi exp =
+  unbox_vector dbg bi (transl env exp)
 
 (* transl_unbox_int, but may return garbage in upper bits *)
 and transl_unbox_int_low dbg env bi e =

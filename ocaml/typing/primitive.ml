@@ -21,9 +21,12 @@ open Layouts
 
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
+type boxed_vector = Pvec128 
+
 type native_repr =
   | Same_as_ocaml_repr of Layouts.Sort.const
   | Unboxed_float
+  | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
   | Untagged_int
 
@@ -58,6 +61,7 @@ exception Error of Location.t * error
 let is_ocaml_repr = function
   | _, Same_as_ocaml_repr _ -> true
   | _, Unboxed_float
+  | _, Unboxed_vector _
   | _, Unboxed_integer _
   | _, Untagged_int -> false
 
@@ -65,12 +69,14 @@ let is_unboxed = function
   | _, Same_as_ocaml_repr _
   | _, Untagged_int -> false
   | _, Unboxed_float
+  | _, Unboxed_vector _
   | _, Unboxed_integer _ -> true
 
 let is_untagged = function
   | _, Untagged_int -> true
   | _, Same_as_ocaml_repr _
   | _, Unboxed_float
+  | _, Unboxed_vector _
   | _, Unboxed_integer _ -> false
 
 let rec make_native_repr_args arity x =
@@ -257,6 +263,7 @@ let print p osig_val_decl =
     (match repr with
      | Same_as_ocaml_repr _ -> []
      | Unboxed_float
+     | Unboxed_vector _
      | Unboxed_integer _ -> if all_unboxed then [] else [oattr_unboxed]
      | Untagged_int -> if all_untagged then [] else [oattr_untagged])
   in
@@ -285,6 +292,10 @@ let equal_boxed_integer bi1 bi2 =
     true
   | (Pnativeint | Pint32 | Pint64), _ ->
     false
+
+let equal_boxed_vector bi1 bi2 = 
+  match bi1, bi2 with 
+  | Pvec128, Pvec128 -> true 
 
 let equal_native_repr nr1 nr2 =
   match nr1, nr2 with

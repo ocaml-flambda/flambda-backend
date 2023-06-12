@@ -17,11 +17,14 @@
 
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
+type boxed_vector = Pvec128
+
 (* Representation of arguments/result for the native code version
    of a primitive *)
 type native_repr =
   | Same_as_ocaml_repr of Layouts.Sort.const
   | Unboxed_float
+  | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
   | Untagged_int
 
@@ -88,6 +91,7 @@ val native_name: description -> string
 val byte_name: description -> string
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
+val equal_boxed_vector : boxed_vector -> boxed_vector -> bool
 val equal_native_repr : native_repr -> native_repr -> bool
 val equal_effects : effects -> effects -> bool
 val equal_coeffects : coeffects -> coeffects -> bool

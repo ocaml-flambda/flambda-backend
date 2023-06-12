@@ -178,6 +178,7 @@ type box_kind = Flambda_kind.Boxable_number.t =
   | Naked_int32
   | Naked_int64
   | Naked_nativeint
+  | Naked_vec128
 
 type generic_array_specialisation =
   | No_specialisation

@@ -699,6 +699,11 @@ let rec unbox_float dbg =
     | Ctail e -> Ctail (unbox_float dbg e)
     | cmm -> Cop (Cload (Double, Immutable), [cmm], dbg))
 
+(* Vectors *)
+
+let box_vector dbg vi m c =
+  Cop (Calloc m, [alloc_vector_header vi m dbg; c], dbg)
+
 (* Complex *)
 
 let box_complex dbg c_re c_im =
@@ -1079,6 +1084,7 @@ module Extended_machtype = struct
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
     | Punboxed_float -> typ_float
+    | Punboxed_vector Pvec128 -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int
@@ -4210,6 +4216,8 @@ let cint i = Cmm.Cint i
 
 let cfloat f = Cmm.Cdouble f
 
+let cvec128 (a, b) = Cmm.Cvec128 (a, b)
+
 let symbol_address s = Cmm.Csymbol_address s
 
 let define_symbol symbol = [Cdefine_symbol symbol]
@@ -4267,5 +4275,5 @@ let kind_of_layout (layout : Lambda.layout) =
   | Pvalue Pfloatval -> Boxed_float
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ ->
+  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_vector _ ->
     Any

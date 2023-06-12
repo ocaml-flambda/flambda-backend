@@ -55,6 +55,7 @@ val typ_val: machtype
 val typ_addr: machtype
 val typ_int: machtype
 val typ_float: machtype
+val typ_vec128: machtype
 
 (** Least upper bound of two [machtype_component]s. *)
 val lub_component
@@ -181,7 +182,7 @@ type memory_chunk =
   | Double                             (* word-aligned 64-bit float
                                           see PR#10433 *)
   | Onetwentyeight                     (* word-aligned 128-bit vector
-                                          CR mslater: alignment *)
+                                          CR mslater: (SIMD) alignment *)
 
 and operation =
     Capply of machtype * Lambda.region_close
@@ -320,6 +321,8 @@ type data_item =
   | Cint of nativeint
   | Csingle of float
   | Cdouble of float
+  (* CR mslater: (SIMD) switch to nativeint? *)
+  | Cvec128 of int64 * int64
   | Csymbol_address of symbol
   | Cstring of string
   | Cskip of int

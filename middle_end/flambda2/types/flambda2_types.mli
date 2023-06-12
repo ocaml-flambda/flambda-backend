@@ -420,6 +420,8 @@ val box_int64 : t -> Alloc_mode.For_types.t -> t
 
 val box_nativeint : t -> Alloc_mode.For_types.t -> t
 
+val box_vec128 : t -> Alloc_mode.For_types.t -> t
+
 val tagged_immediate_alias_to : naked_immediate:Variable.t -> t
 
 val tag_immediate : t -> t

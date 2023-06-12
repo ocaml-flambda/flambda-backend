@@ -712,6 +712,7 @@ and to_clambda_set_of_closures t env
              and not stored in a closure."
         | Punboxed_float -> true
         | Punboxed_int _ -> true
+        | Punboxed_vector _ -> true 
         | Pvalue Pintval -> true
         | Pvalue _ -> false)
       free_vars

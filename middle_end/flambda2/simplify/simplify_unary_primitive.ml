@@ -569,6 +569,7 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
       | Naked_int32 -> T.box_int32
       | Naked_int64 -> T.box_int64
       | Naked_nativeint -> T.box_nativeint
+      | Naked_vec128 -> T.box_vec128
     in
     let ty = boxer contents_ty Alloc_mode.For_types.heap in
     let dacc = DA.add_variable dacc result_var ty in

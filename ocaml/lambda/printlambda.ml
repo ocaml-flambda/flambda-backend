@@ -85,6 +85,9 @@ let boxed_integer_name = function
   | Pint32 -> "int32"
   | Pint64 -> "int64"
 
+let boxed_vector_name = function
+  | Pvec128 -> "vec128"
+
 let variant_kind print_contents ppf ~consts ~non_consts =
   fprintf ppf "@[<hov 1>[(consts (%a))@ (non_consts (%a))]@]"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
@@ -124,6 +127,7 @@ let layout ppf layout =
   | Pbottom -> fprintf ppf "[bottom]"
   | Punboxed_float -> fprintf ppf "[unboxed_float]"
   | Punboxed_int bi -> fprintf ppf "[unboxed_%s]" (boxed_integer_name bi)
+  | Punboxed_vector bi -> fprintf ppf "[unboxed_%s]" (boxed_vector_name bi)
 
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode mode in
@@ -139,6 +143,7 @@ let return_kind ppf (mode, kind) =
     variant_kind value_kind' ppf ~consts ~non_consts
   | Punboxed_float -> fprintf ppf ": unboxed_float@ "
   | Punboxed_int bi -> fprintf ppf ": unboxed_%s@ " (boxed_integer_name bi)
+  | Punboxed_vector bi -> fprintf ppf ": unboxed_%s@ " (boxed_vector_name bi)
   | Ptop -> fprintf ppf ": top@ "
   | Pbottom -> fprintf ppf ": bottom@ "
 

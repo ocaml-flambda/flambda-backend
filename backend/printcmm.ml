@@ -414,6 +414,7 @@ let data_item ppf = function
   | Cint n -> fprintf ppf "int %s" (Nativeint.to_string n)
   | Csingle f -> fprintf ppf "single %F" f
   | Cdouble f -> fprintf ppf "double %F" f
+  | Cvec128 (v0, v1) -> fprintf ppf "vec128 %s:%s" (Int64.to_string v0) (Int64.to_string v1)
   | Csymbol_address s -> fprintf ppf "addr %a:\"%s\"" is_global s.sym_global s.sym_name
   | Cstring s -> fprintf ppf "string \"%s\"" s
   | Cskip n -> fprintf ppf "skip %i" n

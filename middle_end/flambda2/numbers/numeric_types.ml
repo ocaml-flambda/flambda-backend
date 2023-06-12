@@ -250,3 +250,48 @@ module Int64 = struct
 
   let cross_product = Pair.create_from_cross_product
 end
+
+module type Vector_width = sig
+  val size_in_int64s : int
+end
+
+module Vector_by_bit_pattern (Width : Vector_width) = struct
+  module T0 = struct
+    type t = Int64.t Array.t
+
+    let rec compare l r i =
+      if i = Width.size_in_int64s
+      then 0
+      else
+        let cmp = Int64.compare l.(i) r.(i) in
+        if cmp = 0 then compare l r (i + 1) else cmp
+
+    let compare l r = compare l r 0
+
+    let equal = Array.for_all2 Int64.equal
+
+    let hash v = Hashtbl.hash v
+
+    let print ppf t =
+      Format.pp_print_list
+        ~pp_sep:(fun ppf () -> Format.pp_print_char ppf ':')
+        Int64.print ppf (Array.to_list t)
+  end
+
+  include T0
+  module Self = Container_types.Make (T0)
+  include Self
+
+  let to_int64_array t = t
+end
+
+module Vec128_by_bit_pattern = struct
+  include Vector_by_bit_pattern (struct
+    let size_in_int64s = 2
+  end)
+
+  let to_int64s t =
+    match to_int64_array t with
+    | [| a; b |] -> a, b
+    | _ -> Misc.fatal_error "Vec128.to_int64s: wrong size vector"
+end

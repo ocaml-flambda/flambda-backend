@@ -210,6 +210,16 @@ val box_float : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
 
 val unbox_float : Debuginfo.t -> expression -> expression
 
+(** Vector boxing and unboxing *)
+val box_vector :
+  Debuginfo.t ->
+  Primitive.boxed_vector ->
+  Lambda.alloc_mode ->
+  expression ->
+  expression
+
+(* CR mslater: (SIMD) unbox vector *)
+
 (** Complex number creation and access *)
 val box_complex : Debuginfo.t -> expression -> expression -> expression
 
@@ -389,6 +399,8 @@ module Extended_machtype : sig
   val typ_float : t
 
   val typ_void : t
+
+  val typ_vec128 : t
 
   (** Conversion from a normal Cmm machtype. *)
   val of_machtype : machtype -> t
@@ -1229,6 +1241,9 @@ val cint : nativeint -> data_item
 
 (** Static float. *)
 val cfloat : float -> data_item
+
+(** Static 128-bit vector. *)
+val cvec128 : int64 * int64 -> data_item
 
 (** Static symbol. *)
 val symbol_address : symbol -> data_item

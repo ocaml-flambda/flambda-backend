@@ -818,7 +818,7 @@ let emit_instr i =
             `	fcvt	{emit_reg dst}, s7\n`
         | Word_int | Word_val | Double ->
             `	ldr	{emit_reg dst}, {emit_addressing addr base}\n`
-        (* CR mslater: arm64 *)
+        (* CR mslater: (SIMD) arm64 *)
         | Onetwentyeight -> fatal_error "arm64: got 128 bit memory chunk"
         end
     | Lop(Istore(size, addr, _)) ->
@@ -842,7 +842,7 @@ let emit_instr i =
             `	str	s7, {emit_addressing addr base}\n`;
         | Word_int | Word_val | Double ->
             `	str	{emit_reg src}, {emit_addressing addr base}\n`
-        (* CR mslater: arm64 *)
+        (* CR mslater: (SIMD) arm64 *)
         | Onetwentyeight -> fatal_error "arm64: got 128 bit memory chunk"
         end
     | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->

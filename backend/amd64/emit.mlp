@@ -675,7 +675,7 @@ let move (src : Reg.t) (dst : Reg.t) =
     begin match src.typ, src.loc, dst.typ, dst.loc with
     | Float, Reg.Reg _, Float, Reg.Reg _
     | Vec128, Reg.Reg _, Vec128, Reg.Reg _ -> I.movapd (reg src) (reg dst)
-    (* CR mslater: alignment *)
+    (* CR mslater: (SIMD) alignment *)
     | Vec128, _, Vec128, _ -> I.movupd (reg src) (reg dst)
     | Float, _, Float, _ -> I.movsd (reg src) (reg dst)
     | Float, _, Int, _
@@ -969,7 +969,7 @@ let emit_instr fallthrough i =
       | Thirtytwo_signed ->
           I.movsxd (addressing addr DWORD i 0) dest
       | Onetwentyeight -> 
-          (* CR mslater: alignment *)
+          (* CR mslater: (SIMD) alignment *)
           I.movupd (addressing addr VEC128 i 0) dest
       | Single ->
           I.cvtss2sd (addressing addr REAL4 i 0) dest
@@ -987,7 +987,7 @@ let emit_instr fallthrough i =
       | Thirtytwo_signed | Thirtytwo_unsigned ->
           I.mov (arg32 i 0) (addressing addr DWORD i 1)
       | Onetwentyeight -> 
-          (* CR mslater: alignment *)
+          (* CR mslater: (SIMD) alignment *)
           I.movupd (arg i 0) (addressing addr VEC128 i 1)
       | Single ->
           I.cvtsd2ss (arg i 0) xmm15;
@@ -1474,6 +1474,8 @@ let emit_item = function
   | Cint n -> D.qword (const_nat n)
   | Csingle f -> D.long  (Const (Int64.of_int32 (Int32.bits_of_float f)))
   | Cdouble f -> D.qword (Const (Int64.bits_of_float f))
+  (* SIMD vectors respect little-endian byte order *)
+  | Cvec128 (v0, v1) -> D.qword (Const v1); D.qword (Const v0)
   | Csymbol_address s ->
     add_used_symbol s.sym_name;
     D.qword (ConstLabel (emit_cmm_symbol s))
