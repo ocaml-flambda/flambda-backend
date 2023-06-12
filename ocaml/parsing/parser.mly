@@ -439,10 +439,11 @@ type ('dot,'index) array_family = {
 }
 
 let bigarray_untuplify = function
-    { pexp_desc = Pexp_tuple explist; pexp_loc = _ } ->
+    { pexp_desc = Pexp_tuple explist; pexp_loc = loc } ->
       List.map
         (fun (label, body) ->
-          assert (Option.is_none label);
+          if Option.is_some label then
+            raise Syntaxerr.(Error(Labeled_bigarray_index loc));
           body)
         explist
   | exp -> [exp]
@@ -844,7 +845,7 @@ let mkpat_jane_syntax
    string that will not trigger a syntax error; see how [not_expecting]
    is used in the definition of [type_variance]. */
 
-%token TILDETILDELPAREN       "~~(" (* TODO_LT: remove *)
+%token TILDETILDELPAREN       "~~(" (* CR labeled tuples: remove *)
 %token AMPERAMPER             "&&"
 %token AMPERSAND              "&"
 %token AND                    "and"
@@ -2598,9 +2599,24 @@ expr:
 %inline expr_:
   | simple_expr nonempty_llist(labeled_simple_expr) %prec below_HASH
       { Pexp_apply($1, $2) }
-  (* TODO_LT: Merge the below two cases *)
-  | TILDETILDELPAREN tuple_component_comma_list RPAREN
-      { Pexp_tuple($2) }
+  (* CR labeled tuples: Merge the below two cases *)
+  | TILDETILDELPAREN args = labeled_simple_expr_comma_list RPAREN
+      { 
+        let el =
+          List.map
+          (fun (arg_label, body) ->
+            let label =
+              match arg_label with
+              | Nolabel -> None
+              | Optional _ ->
+                  raise Syntaxerr.(Error(Optional_tuple_component(make_loc $loc(args))))
+              | Labelled s -> Some s
+            in
+            label, body)
+          args
+        in
+        Pexp_tuple(el)
+      }
   | expr_comma_list %prec below_COMMA
       { Pexp_tuple(List.map (fun e -> None, e) $1) }
   | mkrhs(constr_longident) simple_expr %prec below_HASH
@@ -3028,25 +3044,9 @@ fun_def:
   es = separated_nontrivial_llist(COMMA, expr)
     { es }
 ;
-%inline tuple_component_comma_list:
-  es = separated_nontrivial_llist(COMMA, tuple_component)
+%inline labeled_simple_expr_comma_list:
+  es = separated_nontrivial_llist(COMMA, labeled_simple_expr)
     { es }
-;
-
-(* TODO_LT: I avoided naming this labeled_expr or similar to avoid it getting confused
-   with labeled_simple_expr, which is used for function args and notably supports
-   optional args, whereas tuple components do not. Open to better names! *)
-tuple_component:
-    simple_expr
-      { (None, $1) }
-     | LABEL simple_expr
-      { (Some $1, $2) } 
-     | TILDE label = LIDENT
-      { let loc = $loc(label) in
-        (Some label, mkexpvar ~loc label) }
-    | TILDE LPAREN label = LIDENT ty = type_constraint RPAREN
-      { (Some label, mkexp_constraint ~loc:($startpos($2), $endpos)
-                       (mkexpvar ~loc:$loc(label) label) ty) }
 ;
 
 record_expr_content:

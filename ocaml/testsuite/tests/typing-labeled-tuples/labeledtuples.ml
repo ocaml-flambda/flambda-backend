@@ -31,5 +31,5 @@ type ('a, 'b) pair = Pair of 'a * 'b
 Line 2, characters 8-27:
 2 | let x = Pair (~~(~x: 5, 2))
             ^^^^^^^^^^^^^^^^^^^
-Error: Constructors cannot receive labeled arguments
+Error: Constructors cannot receive labeled arguments. Consider using an inline record instead.
 |}]

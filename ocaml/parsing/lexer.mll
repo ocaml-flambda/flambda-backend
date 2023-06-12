@@ -389,7 +389,7 @@ let hex_float_literal =
 let literal_modifier = ['G'-'Z' 'g'-'z']
 
 rule token = parse
-  | "~~(" (* TODO_LT remove *)
+  | "~~(" (* CR labeled tuples: remove *)
       { TILDETILDELPAREN }
   | ('\\' as bs) newline {
       if not !escaped_newlines then error lexbuf (Illegal_character bs);

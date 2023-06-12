@@ -190,7 +190,7 @@ type error =
   | Optional_poly_param
   | Exclave_in_nontail_position
   | Layout_not_enabled of Layout.const
-  | Unsupported_labeled_tuple (* TODO_LT *)
+  | Unsupported_labeled_tuple (* CR labeled tuples: *)
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -7792,7 +7792,8 @@ let report_error ~loc env = function
        longident lid expected provided
   | Constructor_labeled_arg ->
       Location.errorf ~loc
-       "Constructors cannot receive labeled arguments"
+       "Constructors cannot receive labeled arguments. \
+        Consider using an inline record instead."
   | Label_mismatch(lid, err) ->
       report_unification_error ~loc env err
         (function ppf ->

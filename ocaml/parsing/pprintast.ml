@@ -1831,13 +1831,13 @@ and tuple_component ctxt f (l,e) =
     | {pexp_desc=Pexp_ident {txt=Lident l;_};
        pexp_attributes=[]} -> Some l
     | _ -> None
-  in match l with
-  | None  -> expression2 ctxt f e (* level 2*)
-  | Some lbl ->
-      if Some lbl = simple_name then
-        pp f "~%s" lbl
-      else
-        pp f "~%s:%a" lbl (simple_expr ctxt) e
+  in match (simple_name, l) with
+  (* Labeled component can be represented with pun *)
+  | Some simple_name, Some lbl when String.equal simple_name lbl -> pp f "~%s" lbl
+  (* Labeled component general case *)
+  | _, Some lbl -> pp f "~%s:%a" lbl (simple_expr ctxt) e
+  (* Unlabeled component *)
+  | _, None  -> expression2 ctxt f e (* level 2*)
 
 and directive_argument f x =
   match x.pdira_desc with
