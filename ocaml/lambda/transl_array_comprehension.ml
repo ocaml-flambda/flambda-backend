@@ -495,7 +495,7 @@ let iterator ~transl_exp ~scopes ~loc
              ; for_body   =
                  Matching.for_let
                    ~scopes
-                   ~arg_sort:Sort.for_predef_param
+                   ~arg_sort:Sort.for_array_element
                    ~return_layout:(Pvalue Pintval)
                    pattern.pat_loc
                    (Lprim(Parrayrefu
@@ -832,7 +832,7 @@ let comprehension
               ~array_sizing
               ~array
               ~index
-              ~body:(transl_exp ~scopes Sort.for_predef_param comp_body)),
+              ~body:(transl_exp ~scopes Sort.for_array_element comp_body)),
          (* If it was dynamically grown, cut it down to size *)
          match array_sizing with
          | Fixed_size -> array.var

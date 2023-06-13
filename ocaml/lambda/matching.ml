@@ -2194,7 +2194,7 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
         (match am with
         | Mutable   -> StrictOpt
         | Immutable -> Alias),
-        Sort.for_predef_param,
+        Sort.for_array_get_result,
         layout_field)
       :: make_args (pos + 1)
   in

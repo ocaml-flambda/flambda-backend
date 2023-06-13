@@ -562,7 +562,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let kind = array_kind e in
       let ll =
         transl_list ~scopes
-          (List.map (fun e -> (e, Sort.for_predef_param)) expr_list)
+          (List.map (fun e -> (e, Sort.for_array_element)) expr_list)
       in
       let loc = of_location ~scopes e.exp_loc in
       let makearray mutability =

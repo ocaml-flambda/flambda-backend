@@ -197,11 +197,11 @@ let iterator ~transl_exp ~scopes = function
       ; element
       ; element_kind =
           Typeopt.layout pattern.pat_env pattern.pat_loc
-            Layouts.Sort.for_predef_param pattern.pat_type
+            Layouts.Sort.for_list_element pattern.pat_type
       ; add_bindings =
           (* CR layouts: to change when we allow non-values in sequences *)
           Matching.for_let
-            ~scopes ~arg_sort:Sort.for_predef_param
+            ~scopes ~arg_sort:Sort.for_list_element
             ~return_layout:(Pvalue Pgenval) pattern.pat_loc (Lvar element)
             pattern
       }
@@ -303,7 +303,7 @@ let comprehension ~transl_exp ~scopes ~loc { comp_body; comp_clauses } =
         rev_list_snoc_local
           ~loc
           ~init:accumulator
-          ~last:(transl_exp ~scopes Sort.for_predef_param comp_body))
+          ~last:(transl_exp ~scopes Sort.for_list_element comp_body))
       ~accumulator:rev_list_nil
       comp_clauses
   in

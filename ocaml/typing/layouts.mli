@@ -84,7 +84,9 @@ module Sort : sig
   val for_record_field : t
   val for_constructor_arg : t
   val for_block_element : t
-  val for_predef_param : t
+  val for_array_get_result : t
+  val for_array_element : t
+  val for_list_element : t
 
   (** These are sorts for the types of ocaml expressions that we expect will
       always be "value".  These names are used in the translation to lambda to
@@ -96,7 +98,7 @@ module Sort : sig
   val for_initializer : t
   val for_method : t
   val for_module : t
-  val for_predef_value : t
+  val for_predef_value : t (* Predefined value types, e.g. int and string *)
   val for_tuple : t
 end
 

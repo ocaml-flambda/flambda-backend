@@ -191,7 +191,6 @@ module Sort = struct
   end
 
   let for_function = value
-  let for_predef_param = value
   let for_predef_value = value
   let for_block_element = value
   let for_probe_body = value
@@ -209,6 +208,9 @@ module Sort = struct
   let for_initializer = value
   let for_module = value
   let for_tuple = value
+  let for_array_get_result = value
+  let for_array_element = value
+  let for_list_element = value
 end
 
 type sort = Sort.t
