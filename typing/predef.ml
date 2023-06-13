@@ -53,6 +53,9 @@ let path_int = Pident ident_int
 and path_char = Pident ident_char
 and path_bytes = Pident ident_bytes
 and path_float = Pident ident_float
+(* CR layouts v2: we need to look through all the places where [path_float] is
+   checked and add a corresponding check for [path_float_unboxed]. *)
+and path_float_unboxed = Pident ident_float_unboxed
 and path_bool = Pident ident_bool
 and path_unit = Pident ident_unit
 and path_exn = Pident ident_exn
@@ -72,6 +75,7 @@ let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
 and type_bytes = newgenty (Tconstr(path_bytes, [], ref Mnil))
 and type_float = newgenty (Tconstr(path_float, [], ref Mnil))
+and type_float_unboxed = newgenty (Tconstr(path_float_unboxed, [], ref Mnil))
 and type_bool = newgenty (Tconstr(path_bool, [], ref Mnil))
 and type_unit = newgenty (Tconstr(path_unit, [], ref Mnil))
 and type_exn = newgenty (Tconstr(path_exn, [], ref Mnil))

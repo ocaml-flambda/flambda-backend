@@ -189,6 +189,8 @@ type error =
   | Optional_poly_param
   | Exclave_in_nontail_position
   | Layout_not_enabled of Layout.const
+  | Unboxed_int_literals_not_supported
+  | Unboxed_float_literals_not_supported
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -471,29 +473,38 @@ let type_constant = function
   | Const_int64 _ -> instance Predef.type_int64
   | Const_nativeint _ -> instance Predef.type_nativeint
 
+let type_constant_unboxed env loc
+    : Jane_syntax.Unboxed_constants.expression -> _ = function
+  | Float _ -> instance Predef.type_float_unboxed
+  | Integer _ -> raise (Error (loc, env, Unboxed_int_literals_not_supported))
+
+let constant_integer i ~suffix : (Asttypes.constant, error) result =
+  match suffix with
+  | 'l' ->
+    begin
+      try Ok (Const_int32 (Misc.Int_literal_converter.int32 i))
+      with Failure _ -> Error (Literal_overflow "int32")
+    end
+  | 'L' ->
+    begin
+      try Ok (Const_int64 (Misc.Int_literal_converter.int64 i))
+      with Failure _ -> Error (Literal_overflow "int64")
+    end
+  | 'n' ->
+    begin
+      try Ok (Const_nativeint (Misc.Int_literal_converter.nativeint i))
+      with Failure _ -> Error (Literal_overflow "nativeint")
+    end
+  | c -> Error (Unknown_literal (i, c))
+
 let constant : Parsetree.constant -> (Asttypes.constant, error) result =
   function
+  | Pconst_integer (i, Some suffix) -> constant_integer i ~suffix
   | Pconst_integer (i,None) ->
      begin
        try Ok (Const_int (Misc.Int_literal_converter.int i))
        with Failure _ -> Error (Literal_overflow "int")
      end
-  | Pconst_integer (i,Some 'l') ->
-     begin
-       try Ok (Const_int32 (Misc.Int_literal_converter.int32 i))
-       with Failure _ -> Error (Literal_overflow "int32")
-     end
-  | Pconst_integer (i,Some 'L') ->
-     begin
-       try Ok (Const_int64 (Misc.Int_literal_converter.int64 i))
-       with Failure _ -> Error (Literal_overflow "int64")
-     end
-  | Pconst_integer (i,Some 'n') ->
-     begin
-       try Ok (Const_nativeint (Misc.Int_literal_converter.nativeint i))
-       with Failure _ -> Error (Literal_overflow "nativeint")
-     end
-  | Pconst_integer (i,Some c) -> Error (Unknown_literal (i, c))
   | Pconst_char c -> Ok (Const_char c)
   | Pconst_string (s,loc,d) -> Ok (Const_string (s,loc,d))
   | Pconst_float (f,None)-> Ok (Const_float f)
@@ -502,6 +513,24 @@ let constant : Parsetree.constant -> (Asttypes.constant, error) result =
 let constant_or_raise env loc cst =
   match constant cst with
   | Ok c -> c
+  | Error err -> raise (Error (loc, env, err))
+
+let unboxed_constant :
+    type a. Jane_syntax.Unboxed_constants.expression -> (a, error) result
+  = function
+  | Float (_, None) -> Error Unboxed_float_literals_not_supported
+  | Float (x, Some c) -> Error (Unknown_literal ("#" ^ x, c))
+  | Integer (_, _) -> Error Unboxed_int_literals_not_supported
+
+(* CR layouts v2: this is missing the part where we actually typecheck
+   unboxed literals.
+*)
+let unboxed_constant_or_raise env loc cst =
+  let open struct
+    type nothing = |
+  end in
+  match unboxed_constant cst with
+  | Ok (_ : nothing) -> .
   | Error err -> raise (Error (loc, env, err))
 
 (* Specific version of type_option, using newty rather than newgenty *)
@@ -1898,6 +1927,7 @@ let rec has_literal_pattern p =
 and has_literal_pattern_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array ps) ->
      List.exists has_literal_pattern ps
+  | Jpat_unboxed_constant _ -> true
 
 let check_scope_escape loc env level ty =
   try Ctype.check_scope_escape env level ty
@@ -2212,6 +2242,14 @@ and type_pat_aux
       match jpat with
       | Jpat_immutable_array (Iapat_immutable_array spl) ->
           type_pat_array Immutable spl attrs
+      | Jpat_unboxed_constant cst ->
+          let desc = unboxed_constant_or_raise !env loc cst in
+          rvp k @@ solve_expected {
+            pat_desc = desc;
+            pat_loc = loc; pat_extra=[];
+            pat_type = type_constant_unboxed !env loc cst;
+            pat_attributes = attrs;
+            pat_env = !env }
     end
   | None ->
   match sp.ppat_desc with
@@ -2859,6 +2897,7 @@ let rec pat_tuple_arity spat =
   | Ppat_constraint(p, _) | Ppat_open(_, p) | Ppat_alias(p, _) -> pat_tuple_arity p
 and pat_tuple_arity_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array _) -> Not_local_tuple
+  | Jpat_unboxed_constant _ -> Not_local_tuple
 
 let rec cases_tuple_arity cases =
   match cases with
@@ -3394,6 +3433,7 @@ let is_local_returning_expr e =
         match jexp with
         | Jexp_comprehension   _ -> false, e.pexp_loc
         | Jexp_immutable_array _ -> false, e.pexp_loc
+        | Jexp_unboxed_constant _ -> false, e.pexp_loc
       end
     | None      ->
     match e.pexp_desc with
@@ -3523,7 +3563,8 @@ and approx_type_jst _env _attrs : Jane_syntax.Core_type.t -> _ = function
   | _ -> .
 
 let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function
-  | Jpat_immutable_array _ -> ()
+  | Jpat_immutable_array _
+  | Jpat_unboxed_constant _ -> ()
 
 let type_pattern_approx env spat ty_expected =
   match Jane_syntax.Pattern.of_ast spat with
@@ -3637,7 +3678,8 @@ and type_approx_aux env sexp in_function ty_expected =
 
 and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension _
-  | Jexp_immutable_array _ -> ()
+  | Jexp_immutable_array _
+  | Jexp_unboxed_constant _ -> ()
 
 let type_approx env sexp ty =
   type_approx_aux env sexp None ty
@@ -3852,6 +3894,7 @@ let contains_variant_either ty =
 
 let shallow_iter_ppat_jane_syntax f : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pats) -> List.iter f pats
+  | Jpat_unboxed_constant _ -> ()
 
 let shallow_iter_ppat f p =
   match Jane_syntax.Pattern.of_ast p with
@@ -4002,7 +4045,8 @@ let rec is_inferred sexp =
   | _ -> false
 and is_inferred_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension _
-  | Jexp_immutable_array _ -> false
+  | Jexp_immutable_array _
+  | Jexp_unboxed_constant _ -> false
 
 (* check if the type of %apply or %revapply matches the type expected by
    the specialized typing rule for those primitives.
@@ -6876,7 +6920,8 @@ and type_let
     | _ -> false
   and jexp_is_fun : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension _
-    | Jexp_immutable_array _ -> false
+    | Jexp_immutable_array _
+    | Jexp_unboxed_constant _ -> false
   in
   let vb_is_fun { pvb_expr = sexp; _ } = sexp_is_fun sexp in
   let entirely_functions = List.for_all vb_is_fun spat_sexp_list in
@@ -7267,12 +7312,15 @@ and type_generic_array
 and type_expect_jane_syntax
       ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes
   : Jane_syntax.Expression.t -> _ = function
-  | Jexp_comprehension cexpr ->
+  | Jexp_comprehension x ->
       type_comprehension_expr
-        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes cexpr
-  | Jexp_immutable_array iaexpr ->
+        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
+  | Jexp_immutable_array x ->
       type_immutable_array
-        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes iaexpr
+        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
+  | Jexp_unboxed_constant x ->
+      type_unboxed_constant
+        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
 
 (* What modes should comprehensions use?  Let us be generic over the sequence
    type we use for comprehensions, calling it [sequence] (standing for either
@@ -7531,6 +7579,23 @@ and type_immutable_array
         ~mutability:Immutable
         ~attributes
         elts
+
+and type_unboxed_constant
+      ~loc ~env ~expected_mode:_ ~ty_expected ~explanation ~attributes cst
+  =
+  let rue exp =
+    with_explanation explanation (fun () ->
+      unify_exp env (re exp) (instance ty_expected));
+    exp
+  in
+  rue {
+    exp_desc = unboxed_constant_or_raise env loc cst;
+    exp_loc = loc;
+    exp_extra = [];
+    exp_type = type_constant_unboxed env loc cst;
+    exp_attributes = attributes;
+    exp_env = env }
+
 
 (* Typing of toplevel bindings *)
 
@@ -8245,6 +8310,12 @@ let report_error ~loc env = function
         "@[Layout %s is used here, but the appropriate layouts extension is \
          not enabled@]"
         (Layout.string_of_const c)
+  | Unboxed_int_literals_not_supported ->
+      Location.errorf ~loc
+        "@[Unboxed int literals aren't supported yet.@]"
+  | Unboxed_float_literals_not_supported ->
+      Location.errorf ~loc
+        "@[Unboxed float literals aren't supported yet.@]"
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env
