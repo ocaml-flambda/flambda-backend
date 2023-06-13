@@ -1462,3 +1462,17 @@ Error: This type ('a : value) should be an instance of type ('a0 : void)
    the type definition if we're not allowing `void` things in structures).
    This bug is a goof at the top of Typecore.build_or_pat;
    there is another CR layouts there. *)
+
+(*********************************************************)
+(* Test 32: Polymorphic variant constructors take values *)
+
+let f _ = `Mk (assert false : t_void)
+
+[%%expect{|
+Line 1, characters 14-37:
+1 | let f _ = `Mk (assert false : t_void)
+                  ^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
