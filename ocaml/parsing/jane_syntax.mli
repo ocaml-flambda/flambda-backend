@@ -62,7 +62,7 @@ module Comprehensions : sig
           (only allowed with [-extension immutable_arrays]) *)
 
   val expr_of :
-    loc:Location.t -> ?attrs:Parsetree.attributes ->
+    loc:Location.t -> attrs:Parsetree.attributes ->
     expression -> Parsetree.expression
 end
 
@@ -79,10 +79,10 @@ module Immutable_arrays : sig
     (** [: P1; ...; Pn :] **)
 
   val expr_of :
-    loc:Location.t -> ?attrs:Parsetree.attributes ->
+    loc:Location.t -> attrs:Parsetree.attributes ->
     expression -> Parsetree.expression
   val pat_of :
-    loc:Location.t -> ?attrs:Parsetree.attributes ->
+    loc:Location.t -> attrs:Parsetree.attributes ->
     pattern -> Parsetree.pattern
 end
 
@@ -106,7 +106,7 @@ module Strengthen : sig
     { mty : Parsetree.module_type; mod_id : Longident.t Location.loc }
 
   val mty_of :
-    loc:Location.t -> ?attrs:Parsetree.attributes ->
+    loc:Location.t -> attrs:Parsetree.attributes ->
     module_type -> Parsetree.module_type
 end
 
@@ -120,11 +120,11 @@ module Unboxed_constants : sig
   type pattern = t
 
   val expr_of :
-    loc:Location.t -> ?attrs:Parsetree.attributes ->
+    loc:Location.t -> attrs:Parsetree.attributes ->
     expression -> Parsetree.expression
 
   val pat_of :
-    loc:Location.t -> ?attrs:Parsetree.attributes ->
+    loc:Location.t -> attrs:Parsetree.attributes ->
     pattern -> Parsetree.pattern
 end
 
@@ -235,7 +235,7 @@ module Expression : sig
      and type ast := Parsetree.expression
 
   val expr_of :
-    loc:Location.t -> ?attrs:Parsetree.attributes -> t -> Parsetree.expression
+    loc:Location.t -> attrs:Parsetree.attributes -> t -> Parsetree.expression
 end
 
 (** Novel syntax in patterns *)
@@ -249,7 +249,7 @@ module Pattern : sig
      and type ast := Parsetree.pattern
 
   val pat_of :
-    loc:Location.t -> ?attrs:Parsetree.attributes -> t -> Parsetree.pattern
+    loc:Location.t -> attrs:Parsetree.attributes -> t -> Parsetree.pattern
 end
 
 (** Novel syntax in module types *)

@@ -382,7 +382,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         | Mutable   -> Ppat_array pats
         | Immutable ->
           Jane_syntax.Immutable_arrays.pat_of
-            ~loc
+            ~loc ~attrs:[]
             (Iapat_immutable_array pats)
           |> add_jane_syntax_attributes
       end
@@ -450,7 +450,7 @@ let comprehension sub comp_type comp =
     { body    = sub.expr sub comp_body
     ; clauses = List.map clause comp_clauses }
   in
-  Jane_syntax.Comprehensions.expr_of (comp_type (comprehension comp))
+  Jane_syntax.Comprehensions.expr_of ~attrs:[] (comp_type (comprehension comp))
 
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
@@ -532,7 +532,7 @@ let expression sub exp =
             Pexp_array plist
         | Immutable ->
             Jane_syntax.Immutable_arrays.expr_of
-              ~loc (Iaexp_immutable_array plist)
+              ~loc ~attrs:[] (Iaexp_immutable_array plist)
             |> add_jane_syntax_attributes
       end
     | Texp_list_comprehension comp ->

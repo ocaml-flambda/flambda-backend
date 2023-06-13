@@ -1919,7 +1919,7 @@ module Conv = struct
             | Immutable ->
                 let ppat =
                   Jane_syntax.Immutable_arrays.pat_of
-                    ~loc:pat.pat_loc (Iapat_immutable_array pats)
+                    ~loc:pat.pat_loc ~attrs:[] (Iapat_immutable_array pats)
                 in
                 ppat.ppat_desc, ppat.ppat_attributes
           in
