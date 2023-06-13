@@ -409,7 +409,7 @@ module E = struct
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
 
-  let iter_iterator sub : Jane_syntax.Comprehensions.iterator -> _ = function
+  let iter_iterator sub : C.iterator -> _ = function
     | Range { start; stop; direction = _ } ->
       sub.expr sub start;
       sub.expr sub stop
@@ -440,8 +440,8 @@ module E = struct
       List.iter (sub.expr sub) elts
 
   let iter_jst sub : Jane_syntax.Expression.t -> _ = function
-    | Jexp_comprehension x -> iter_comp_exp sub x
-    | Jexp_immutable_array x -> iter_iarr_exp sub x
+    | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
+    | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
     | Jexp_unboxed_constant _ -> iter_constant
 
   let iter sub
@@ -544,7 +544,7 @@ module P = struct
       List.iter (sub.pat sub) elts
 
   let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
-    | Jpat_immutable_array x -> iter_iapat sub x
+    | Jpat_immutable_array iapat -> iter_iapat sub iapat
     | Jpat_unboxed_constant _ -> iter_constant
 
   let iter sub

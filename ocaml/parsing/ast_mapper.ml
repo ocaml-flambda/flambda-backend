@@ -510,13 +510,13 @@ module E = struct
     | { body; clauses } -> { body = sub.expr sub body;
                             clauses = List.map (map_clause sub) clauses }
 
-  let map_comprehension_exp sub : C.expression -> C.expression = function
+  let map_cexp sub : C.expression -> C.expression = function
     | Cexp_list_comprehension comp ->
       Cexp_list_comprehension (map_comp sub comp)
     | Cexp_array_comprehension (mut, comp) ->
       Cexp_array_comprehension (mut, map_comp sub comp)
 
-  let map_immutable_array_exp sub : IA.expression -> IA.expression = function
+  let map_iaexp sub : IA.expression -> IA.expression = function
     | Iaexp_immutable_array elts ->
       Iaexp_immutable_array (List.map (sub.expr sub) elts)
 
@@ -528,9 +528,8 @@ module E = struct
 
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
-    | Jexp_comprehension x -> Jexp_comprehension (map_comprehension_exp sub x)
-    | Jexp_immutable_array x ->
-        Jexp_immutable_array (map_immutable_array_exp sub x)
+    | Jexp_comprehension x -> Jexp_comprehension (map_cexp sub x)
+    | Jexp_immutable_array x -> Jexp_immutable_array (map_iaexp sub x)
     | Jexp_unboxed_constant x ->
         Jexp_unboxed_constant (map_unboxed_constant_exp sub x)
 
