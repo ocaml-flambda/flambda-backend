@@ -2117,13 +2117,13 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
         | Mutable -> Reads_vary
       in
       let access, sort, layout =
-        (* CR layouts v2: Here we'll need to get the layout from the
+        (* CR layouts v5: Here we'll need to get the layout from the
            record_representation and translate it to `Lambda.layout`, rather
            than just using layout_field everywhere.  (Though layout_field is
            safe for now, particularly after checking for void above.)  I think
            only the sort information matters here, so when we make that change
-           we'll probably want a cheaper version of the `Typeopt.layout`
-           function that avoids calling `value_kind` in the value case. *)
+           we may want to use `Typeopt.layout_of_sort` rather than
+           `Typeopt.layout`.  *)
         match lbl.lbl_repres with
         | Record_boxed _
         | Record_inlined (_, Variant_boxed _) ->
@@ -2135,7 +2135,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
            (* TODO: could optimise to Alloc_local sometimes *)
            Lprim (Pfloatfield (lbl.lbl_pos, sem, alloc_heap), [ arg ], loc),
            (* Here we are projecting a boxed float from a float record. *)
-           Sort.for_record_field, layout_boxed_float
+           Sort.for_predef_value, layout_boxed_float
         | Record_inlined (_, Variant_extensible) ->
             Lprim (Pfield (lbl.lbl_pos + 1, sem), [ arg ], loc),
             Sort.for_record_field, layout_field
