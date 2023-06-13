@@ -511,3 +511,9 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 
 (* CR layouts: This test moves to [basics_alpha.ml] as it needs a non-value
    sort.  Bring back here when we have one. *)
+
+(*********************************************************)
+(* Test 32: Polymorphic variant constructors take values *)
+
+(* CR layouts: This test moves to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)
