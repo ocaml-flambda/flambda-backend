@@ -1682,14 +1682,15 @@ let assemble_line b loc ins =
         for _ = 1 to n do
           buf_int8 b 0
         done
-    | Hidden _ | Weak _ | NewLine | Sleb128 _ | Uleb128 _ | Direct_assignment _ -> ()
+    | Hidden _ | Weak _ | NewLine -> ()
     | Reloc { name = R_X86_64_PLT32;
               expr = ConstSub (ConstLabel wrap_label, Const 4L);
               offset = ConstSub (ConstThis, Const 4L);
             }  when String.Tbl.mem local_labels wrap_label ->
       record_local_reloc b ~offset:(-4) (RelocCall wrap_label)
-    | Reloc { name = R_X86_64_PLT32; expr=_; offset=_ }  ->
-      failwith "Unsupported: Reloc R_X86_64_PLT32"
+    | Reloc _ | Sleb128 _ | Uleb128 _ | Direct_assignment _ ->
+      X86_gas.generate_asm Out_channel.stderr [ins];
+      Misc.fatal_errorf "x86_binary_emitter: unsupported instruction"
   with e ->
     Printf.eprintf "Exception %s:\n%!" (Printexc.to_string e);
     (*
