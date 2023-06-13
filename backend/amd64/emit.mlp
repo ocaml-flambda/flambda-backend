@@ -660,6 +660,24 @@ let emit_float_constant f lbl =
   _label (emit_label lbl);
   D.qword (Const f)
 
+(* Vector constants *)
+
+let vec128_constants = ref ([] : ((int64 * int64) * int) list)
+
+let add_vec128_constant (v0, v1) =
+  try
+    List.assoc (v0, v1) !vec128_constants
+  with Not_found ->
+    let lbl = new_label() in
+    vec128_constants := ((v0, v1), lbl) :: !vec128_constants;
+    lbl
+
+let emit_vec128_constant (v0, v1) lbl =
+  _label (emit_label lbl);
+  (* SIMD vectors respect little-endian byte order *)
+  D.qword (Const v1);
+  D.qword (Const v0)
+
 let emit_global_label_for_symbol lbl =
   add_def_symbol lbl;
   let lbl = emit_symbol lbl in
@@ -904,6 +922,14 @@ let emit_instr fallthrough i =
       | _ ->
           let lbl = add_float_constant f in
           I.movsd (mem64_rip NONE (emit_label lbl)) (res i 0)
+      end
+  | Lop(Iconst_vec128 (v0, v1)) ->
+      begin match (v0, v1) with
+      | 0x0000_0000_0000_0000L, 0x0000_0000_0000_0000L -> (* +0.0 *)
+          I.xorpd (res i 0) (res i 0)
+      | _ ->
+          let lbl = add_vec128_constant (v0, v1) in
+          I.movupd (mem64_rip NONE (emit_label lbl)) (res i 0)
       end
   | Lop(Iconst_symbol s) ->
       add_used_symbol s.sym_name;
@@ -1867,7 +1893,8 @@ let end_assembly () =
     | _ -> D.section [".rodata.cst8"] (Some "aM") ["@progbits";"8"]
     end;
     D.align ~data:true 8;
-    List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants
+    List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants;
+    List.iter (fun ((v0,v1),lbl) -> emit_vec128_constant (v0, v1) lbl) !vec128_constants;
   end;
 
   (* Emit probe handler wrappers *)

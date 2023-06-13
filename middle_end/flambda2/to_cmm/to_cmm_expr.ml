@@ -186,7 +186,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         match Flambda_kind.With_subkind.kind kind with
         | Naked_number Naked_int32 -> C.sign_extend_32
         | Naked_number
-            (Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint)
+            ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
+            | Naked_vec128 )
         | Value | Rec_info | Region ->
           fun _dbg cmm -> cmm)
       | _ ->
@@ -629,6 +630,7 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
           | Naked_number
               (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
             C.int ~dbg 0
+          | Naked_number Naked_vec128 -> C.vec128 ~dbg (0L, 0L)
           | Region | Rec_info ->
             Misc.fatal_errorf "No dummy value available for kind %a"
               K.With_subkind.print kind

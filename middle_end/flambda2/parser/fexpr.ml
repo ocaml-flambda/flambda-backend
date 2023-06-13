@@ -57,6 +57,7 @@ type const =
   | Naked_float of float
   | Naked_int32 of int32
   | Naked_int64 of int64
+  | Naked_vec128 of int64 * int64
   | Naked_nativeint of targetint
 
 type field_of_block =
@@ -89,6 +90,7 @@ type static_data =
   | Boxed_int32 of int32 or_variable
   | Boxed_int64 of int64 or_variable
   | Boxed_nativeint of targetint or_variable
+  | Boxed_vec128 of (int64 * int64) or_variable
   | Immutable_float_block of float or_variable list
   | Immutable_float_array of float or_variable list
   | Immutable_value_array of field_of_block list
@@ -104,6 +106,7 @@ type subkind =
   | Boxed_int32
   | Boxed_int64
   | Boxed_nativeint
+  | Boxed_vec128
   | Tagged_immediate
   | Variant of
       { consts : targetint list;

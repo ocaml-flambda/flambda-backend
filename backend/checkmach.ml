@@ -927,8 +927,8 @@ end = struct
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
     | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _ | Iconst_symbol _
-    | Iload _ | Icompf _ | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-    | Ifloatofint | Iintoffloat
+    | Iconst_vec128 _ | Iload _ | Icompf _ | Inegf | Iabsf | Iaddf | Isubf
+    | Imulf | Idivf | Ifloatofint | Iintoffloat
     | Iintop_imm
         ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),

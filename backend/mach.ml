@@ -52,6 +52,7 @@ type operation =
   | Ireload
   | Iconst_int of nativeint
   | Iconst_float of int64
+  | Iconst_vec128 of int64 * int64
   | Iconst_symbol of Cmm.symbol
   | Icall_ind
   | Icall_imm of { func : Cmm.symbol; }
@@ -175,7 +176,7 @@ let rec instr_iter f i =
           instr_iter f body; instr_iter f handler; instr_iter f i.next
       | Iraise _ -> ()
       | Iop (Imove | Ispill | Ireload
-            | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+            | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
             | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
             | Iload _ | Istore _ | Ialloc _
             | Iintop _ | Iintop_imm _ | Iintop_atomic _
@@ -205,8 +206,8 @@ let operation_is_pure = function
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
   | Icsel _
-  | Ifloatofint | Iintoffloat
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Ifloatofint | Iintoffloat 
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Iload (_, _, _) | Iname_for_debugger _
     -> true
 
@@ -226,7 +227,7 @@ let operation_can_raise op =
   | Icompf _
   | Icsel _
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Istackoffset _ | Istore _  | Iload (_, _, _) | Iname_for_debugger _
   | Itailcall_imm _ | Itailcall_ind
   | Iopaque | Ibeginregion | Iendregion

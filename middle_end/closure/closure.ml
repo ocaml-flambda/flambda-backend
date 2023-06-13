@@ -1758,7 +1758,7 @@ let collect_exported_structured_constants a =
   and structured_constant = function
     | Uconst_block (_, ul) -> List.iter const ul
     | Uconst_float _ | Uconst_int32 _
-    | Uconst_int64 _ | Uconst_nativeint _
+    | Uconst_int64 _ | Uconst_nativeint _ | Uconst_vec128 _
     | Uconst_float_array _ | Uconst_string _ -> ()
     | Uconst_closure _ -> assert false (* Cannot be generated *)
   and ulam = function

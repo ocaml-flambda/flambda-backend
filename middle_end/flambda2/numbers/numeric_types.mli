@@ -141,5 +141,9 @@ module Vec128_by_bit_pattern : sig
 
   include Container_types.S
 
+  val zero : t
+
   val to_int64s : t -> int64 * int64
+
+  val of_int64s : int64 * int64 -> t
 end

@@ -282,7 +282,11 @@ module Vector_by_bit_pattern (Width : Vector_width) = struct
   module Self = Container_types.Make (T0)
   include Self
 
+  let zero = Array.init Width.size_in_int64s (fun _ -> 0L)
+
   let to_int64_array t = t
+
+  let of_int64_array t = t
 end
 
 module Vec128_by_bit_pattern = struct
@@ -294,4 +298,6 @@ module Vec128_by_bit_pattern = struct
     match to_int64_array t with
     | [| a; b |] -> a, b
     | _ -> Misc.fatal_error "Vec128.to_int64s: wrong size vector"
+
+  let of_int64s (v0, v1) = of_int64_array [| v0; v1 |]
 end

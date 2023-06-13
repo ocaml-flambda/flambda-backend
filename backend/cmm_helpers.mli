@@ -218,6 +218,9 @@ val box_vector :
   expression ->
   expression
 
+val unbox_vector :
+  Debuginfo.t -> Primitive.boxed_vector -> expression -> expression
+
 (* CR mslater: (SIMD) unbox vector *)
 
 (** Complex number creation and access *)
@@ -951,6 +954,9 @@ val emit_int64_constant : symbol -> int64 -> data_item list -> data_item list
 val emit_nativeint_constant :
   symbol -> nativeint -> data_item list -> data_item list
 
+val emit_vec128_constant :
+  symbol -> int64 * int64 -> data_item list -> data_item list
+
 val emit_float_array_constant :
   symbol -> float list -> data_item list -> data_item list
 
@@ -996,6 +1002,9 @@ val int32 : dbg:Debuginfo.t -> int32 -> expression
 
 (** Create a constant int expression from an int64. *)
 val int64 : dbg:Debuginfo.t -> int64 -> expression
+
+(** Create a constant vec128 expression from two int64s. *)
+val vec128 : dbg:Debuginfo.t -> int64 * int64 -> expression
 
 (** Create a constant int expression from a nativeint. *)
 val nativeint : dbg:Debuginfo.t -> Nativeint.t -> expression

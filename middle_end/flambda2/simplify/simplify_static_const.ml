@@ -125,6 +125,17 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
         (DA.are_rebuilding_terms dacc)
         or_var,
       dacc )
+  | Boxed_vec128 or_var ->
+    let or_var, ty =
+      simplify_or_variable dacc
+        (fun f -> T.this_boxed_vec128 f Alloc_mode.For_types.heap)
+        or_var K.value
+    in
+    let dacc = bind_result_sym ty in
+    ( Rebuilt_static_const.create_boxed_vec128
+        (DA.are_rebuilding_terms dacc)
+        or_var,
+      dacc )
   | Immutable_float_block fields ->
     let fields_with_tys =
       List.map

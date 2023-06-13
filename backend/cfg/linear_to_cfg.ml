@@ -616,6 +616,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     | Iconst_int n -> basic (Const_int n)
     | Iconst_float n -> basic (Const_float n)
     | Iconst_symbol n -> basic (Const_symbol n)
+    | Iconst_vec128 (v0, v1) -> basic (Const_vec128 (v0, v1))
     | Inegf -> basic Negf
     | Iabsf -> basic Absf
     | Iaddf -> basic Addf

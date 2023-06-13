@@ -55,6 +55,7 @@ type operation =
   | Ireload
   | Iconst_int of nativeint
   | Iconst_float of int64
+  | Iconst_vec128 of int64 * int64
   | Iconst_symbol of Cmm.symbol
   | Icall_ind
   | Icall_imm of { func : Cmm.symbol; }

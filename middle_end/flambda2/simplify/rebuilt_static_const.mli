@@ -59,6 +59,11 @@ val create_boxed_int64 : Are_rebuilding_terms.t -> Int64.t Or_variable.t -> t
 val create_boxed_nativeint :
   Are_rebuilding_terms.t -> Targetint_32_64.t Or_variable.t -> t
 
+val create_boxed_vec128 :
+  Are_rebuilding_terms.t ->
+  Numeric_types.Vec128_by_bit_pattern.t Or_variable.t ->
+  t
+
 val create_immutable_float_block :
   Are_rebuilding_terms.t ->
   Numeric_types.Float_by_bit_pattern.t Or_variable.t list ->

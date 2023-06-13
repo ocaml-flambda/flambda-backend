@@ -62,6 +62,11 @@ val meet_naked_int64s :
 val meet_naked_nativeints :
   Typing_env.t -> Type_grammar.t -> Targetint_32_64.Set.t meet_shortcut
 
+val meet_naked_vec128s :
+  Typing_env.t ->
+  Type_grammar.t ->
+  Numeric_types.Vec128_by_bit_pattern.Set.t meet_shortcut
+
 type variant_like_proof = private
   { const_ctors : Targetint_31_63.Set.t Or_unknown.t;
     non_const_ctors_with_sizes : Targetint_31_63.t Tag.Scannable.Map.t
@@ -94,6 +99,9 @@ val prove_is_a_boxed_int64 :
   Typing_env.t -> Type_grammar.t -> unit proof_of_property
 
 val prove_is_a_boxed_nativeint :
+  Typing_env.t -> Type_grammar.t -> unit proof_of_property
+
+val prove_is_a_boxed_vec128 :
   Typing_env.t -> Type_grammar.t -> unit proof_of_property
 
 val prove_is_or_is_not_a_boxed_float :
@@ -185,6 +193,12 @@ val meet_boxed_int64_containing_simple :
   Simple.t meet_shortcut
 
 val meet_boxed_nativeint_containing_simple :
+  Typing_env.t ->
+  min_name_mode:Name_mode.t ->
+  Type_grammar.t ->
+  Simple.t meet_shortcut
+
+val meet_boxed_vec128_containing_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   Type_grammar.t ->

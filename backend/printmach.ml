@@ -164,6 +164,7 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iconst_int n -> fprintf ppf "%s" (Nativeint.to_string n)
   | Iconst_float f -> fprintf ppf "%F" (Int64.float_of_bits f)
   | Iconst_symbol s -> fprintf ppf "\"%s\"" s.sym_name
+  | Iconst_vec128 (v0, v1) -> fprintf ppf "%Ld:%Ld" v0 v1
   | Icall_ind -> fprintf ppf "call %a" regs arg
   | Icall_imm { func; } -> fprintf ppf "call \"%s\" %a" func.sym_name regs arg
   | Itailcall_ind -> fprintf ppf "tailcall %a" regs arg

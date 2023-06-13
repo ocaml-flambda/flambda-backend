@@ -50,6 +50,7 @@ let value_slot_offset env value_slot =
 let unbox_number ~dbg kind arg =
   match (kind : K.Boxable_number.t) with
   | Naked_float -> C.unbox_float dbg arg
+  | Naked_vec128 -> C.unbox_vector dbg Pvec128 arg
   | Naked_int32 | Naked_int64 | Naked_nativeint ->
     let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.unbox_int dbg primitive_kind arg
@@ -58,6 +59,7 @@ let box_number ~dbg kind alloc_mode arg =
   let alloc_mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
   match (kind : K.Boxable_number.t) with
   | Naked_float -> C.box_float dbg alloc_mode arg
+  | Naked_vec128 -> C.box_vector dbg Pvec128 alloc_mode arg
   | Naked_int32 | Naked_int64 | Naked_nativeint ->
     let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.box_int_gen dbg primitive_kind alloc_mode arg

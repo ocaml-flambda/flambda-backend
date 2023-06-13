@@ -81,6 +81,11 @@ let float_header = block_header Obj.double_tag (size_float / size_addr)
 let float_local_header =
   local_block_header Obj.double_tag (size_float / size_addr)
 
+let boxedvec128_header = block_header Obj.custom_tag (1 + (16 / size_addr))
+
+let boxedvec128_local_header =
+  local_block_header Obj.custom_tag (1 + (16 / size_addr))
+
 let floatarray_header len =
   (* Zero-sized float arrays have tag zero for consistency with
      [caml_alloc_float_array]. *)
@@ -143,6 +148,15 @@ let alloc_float_header mode dbg =
   match mode with
   | Lambda.Alloc_heap -> Cconst_natint (float_header, dbg)
   | Lambda.Alloc_local -> Cconst_natint (float_local_header, dbg)
+
+let alloc_boxedvector_header vi mode dbg =
+  let header, local_header =
+    match vi with
+    | Primitive.Pvec128 -> boxedvec128_header, boxedvec128_local_header
+  in
+  match mode with
+  | Lambda.Alloc_heap -> Cconst_natint (header, dbg)
+  | Lambda.Alloc_local -> Cconst_natint (local_header, dbg)
 
 let alloc_floatarray_header len dbg = Cconst_natint (floatarray_header len, dbg)
 
@@ -702,7 +716,36 @@ let rec unbox_float dbg =
 (* Vectors *)
 
 let box_vector dbg vi m c =
-  Cop (Calloc m, [alloc_vector_header vi m dbg; c], dbg)
+  Cop (Calloc m, [alloc_boxedvector_header vi m dbg; c], dbg)
+
+let rec unbox_vector dbg vi =
+  let load = match vi with Primitive.Pvec128 -> Onetwentyeight in
+  map_tail ~kind:Any (function
+    | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
+      when Nativeint.equal hdr float_header
+           || Nativeint.equal hdr float_local_header ->
+      c
+    | Cconst_symbol (s, _dbg) as cmm -> (
+      match Cmmgen_state.structured_constant_of_sym s.sym_name with
+      | Some (Uconst_vec128 (v0, v1)) ->
+        assert (vi = Primitive.Pvec128);
+        Cconst_vec128 (v0, v1, dbg) (* or keep _dbg? *)
+      | _ -> Cop (Cload (load, Immutable), [cmm], dbg))
+    | Cregion e as cmm -> (
+      (* It is valid to push unboxing inside a Cregion except when the extra
+         unboxing logic pushes a tail call out of tail position *)
+      match
+        map_tail ~kind:Any
+          (function
+            | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
+            | Ctail e -> Ctail (unbox_vector dbg vi e)
+            | e -> unbox_vector dbg vi e)
+          e
+      with
+      | e -> Cregion e
+      | exception Exit -> Cop (Cload (load, Immutable), [cmm], dbg))
+    | Ctail e -> Ctail (unbox_vector dbg vi e)
+    | cmm -> Cop (Cload (load, Immutable), [cmm], dbg))
 
 (* Complex *)
 
@@ -3595,6 +3638,9 @@ let emit_nativeint_constant symb n cont =
   emit_block symb boxedintnat_header
     (emit_boxed_nativeint_constant_fields n cont)
 
+let emit_vec128_constant symb (v0, v1) cont =
+  emit_block symb boxedvec128_header (Cvec128 (v0, v1) :: cont)
+
 let emit_float_array_constant symb fields cont =
   emit_block symb
     (floatarray_header (List.length fields))
@@ -3953,6 +3999,8 @@ let int32 ~dbg i = natint_const_untagged dbg (Nativeint.of_int32 i)
    cross-compiling for 64-bit on a 32-bit host *)
 let int64 ~dbg i = natint_const_untagged dbg (Int64.to_nativeint i)
 
+let vec128 ~dbg (v0, v1) = Cconst_vec128 (v0, v1, dbg)
+
 let nativeint ~dbg i = natint_const_untagged dbg i
 
 let letin v ~defining_expr ~body =
@@ -3960,9 +4008,9 @@ let letin v ~defining_expr ~body =
   | Cvar v' when Backend_var.same (Backend_var.With_provenance.var v) v' ->
     defining_expr
   | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
-  | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
-  | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _
-  | Cregion _ | Ctail _ ->
+  | Cconst_vec128 _ | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _
+  | Ctuple _ | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _
+  | Cexit _ | Ctrywith _ | Cregion _ | Ctail _ ->
     Clet (v, defining_expr, body)
 
 let letin_mut v ty e body = Clet_mut (v, ty, e, body)
@@ -4253,7 +4301,7 @@ let cmm_arith_size (e : Cmm.expression) =
   in
   match e with
   | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cvar _
-    ->
+  | Cconst_vec128 _ ->
     Some 0
   | Cop _ -> Some (cmm_arith_size0 e)
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _

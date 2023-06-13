@@ -62,6 +62,7 @@ module S = struct
     | Const_int of nativeint (* CR-someday xclerc: change to `Targetint.t` *)
     | Const_float of int64
     | Const_symbol of Cmm.symbol
+    | Const_vec128 of int64 * int64
     | Stackoffset of int
     | Load of Cmm.memory_chunk * Arch.addressing_mode * Mach.mutable_flag
     | Store of Cmm.memory_chunk * Arch.addressing_mode * bool

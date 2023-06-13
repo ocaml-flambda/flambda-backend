@@ -3021,6 +3021,8 @@ let create_from_head_naked_int64 head = Naked_int64 (TD.create head)
 
 let create_from_head_naked_nativeint head = Naked_nativeint (TD.create head)
 
+let create_from_head_naked_vec128 head = Naked_vec128 (TD.create head)
+
 let create_from_head_rec_info head = Rec_info (TD.create head)
 
 let create_from_head_region head = Region (TD.create head)
@@ -3040,6 +3042,8 @@ module Head_of_kind_value = struct
   let create_boxed_int64 ty alloc_mode = Boxed_int64 (ty, alloc_mode)
 
   let create_boxed_nativeint ty alloc_mode = Boxed_nativeint (ty, alloc_mode)
+
+  let create_boxed_vec128 ty alloc_mode = Boxed_vec128 (ty, alloc_mode)
 
   let create_tagged_immediate imm : t =
     Variant
@@ -3113,6 +3117,8 @@ module Head_of_kind_naked_int32 = Make_head_of_kind_naked_number (Int32)
 module Head_of_kind_naked_int64 = Make_head_of_kind_naked_number (Int64)
 module Head_of_kind_naked_nativeint =
   Make_head_of_kind_naked_number (Targetint_32_64)
+module Head_of_kind_naked_vec128 =
+  Make_head_of_kind_naked_number (Numeric_types.Vec128_by_bit_pattern)
 
 let rec recover_some_aliases t =
   match t with

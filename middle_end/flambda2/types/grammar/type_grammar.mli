@@ -535,6 +535,8 @@ val create_from_head_naked_int64 : head_of_kind_naked_int64 -> t
 
 val create_from_head_naked_nativeint : head_of_kind_naked_nativeint -> t
 
+val create_from_head_naked_vec128 : head_of_kind_naked_vec128 -> t
+
 val create_from_head_rec_info : head_of_kind_rec_info -> t
 
 val create_from_head_region : head_of_kind_region -> t
@@ -560,6 +562,11 @@ val apply_coercion_head_of_kind_naked_nativeint :
   head_of_kind_naked_nativeint ->
   Coercion.t ->
   head_of_kind_naked_nativeint Or_bottom.t
+
+val apply_coercion_head_of_kind_naked_vec128 :
+  head_of_kind_naked_vec128 ->
+  Coercion.t ->
+  head_of_kind_naked_vec128 Or_bottom.t
 
 val apply_coercion_head_of_kind_rec_info :
   head_of_kind_rec_info -> Coercion.t -> head_of_kind_rec_info Or_bottom.t
@@ -587,6 +594,8 @@ module Head_of_kind_value : sig
   val create_boxed_int64 : flambda_type -> Alloc_mode.For_types.t -> t
 
   val create_boxed_nativeint : flambda_type -> Alloc_mode.For_types.t -> t
+
+  val create_boxed_vec128 : flambda_type -> Alloc_mode.For_types.t -> t
 
   val create_tagged_immediate : Targetint_31_63.t -> t
 
@@ -653,5 +662,11 @@ module Head_of_kind_naked_nativeint :
     with type t = head_of_kind_naked_nativeint
     with type n = Targetint_32_64.t
     with type n_set = Targetint_32_64.Set.t
+
+module Head_of_kind_naked_vec128 :
+  Head_of_kind_naked_number_intf
+    with type t = head_of_kind_naked_vec128
+    with type n = Numeric_types.Vec128_by_bit_pattern.t
+    with type n_set = Numeric_types.Vec128_by_bit_pattern.Set.t
 
 val recover_some_aliases : t -> t

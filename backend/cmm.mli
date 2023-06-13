@@ -264,6 +264,7 @@ type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
+  | Cconst_vec128 of int64 * int64 * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
   | Cvar of Backend_var.t
   | Clet of Backend_var.With_provenance.t * expression * expression
@@ -321,7 +322,6 @@ type data_item =
   | Cint of nativeint
   | Csingle of float
   | Cdouble of float
-  (* CR mslater: (SIMD) switch to nativeint? *)
   | Cvec128 of int64 * int64
   | Csymbol_address of symbol
   | Cstring of string

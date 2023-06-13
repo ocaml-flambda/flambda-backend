@@ -238,6 +238,9 @@ let targetint (i : Fexpr.targetint) : Targetint_32_64.t =
 let targetint_31_63 (i : Fexpr.targetint) : Targetint_31_63.t =
   Targetint_31_63.of_int64 i
 
+let vec128 (v0, v1) : Numeric_types.Vec128_by_bit_pattern.t =
+  Numeric_types.Vec128_by_bit_pattern.of_int64s (v0, v1)
+
 let tag_scannable (tag : Fexpr.tag_scannable) : Tag.Scannable.t =
   Tag.Scannable.create_exn tag
 
@@ -252,6 +255,7 @@ let rec subkind : Fexpr.subkind -> Flambda_kind.With_subkind.Subkind.t =
   | Boxed_int32 -> Boxed_int32
   | Boxed_int64 -> Boxed_int64
   | Boxed_nativeint -> Boxed_nativeint
+  | Boxed_vec128 -> Boxed_vec128
   | Tagged_immediate -> Tagged_immediate
   | Variant { consts; non_consts } ->
     let consts =
@@ -293,6 +297,7 @@ let const (c : Fexpr.const) : Reg_width_const.t =
   | Naked_int32 i -> Reg_width_const.naked_int32 i
   | Naked_int64 i -> Reg_width_const.naked_int64 i
   | Naked_nativeint i -> Reg_width_const.naked_nativeint (i |> targetint)
+  | Naked_vec128 (v0, v1) -> Reg_width_const.naked_vec128 ((v0, v1) |> vec128)
 
 let rec rec_info env (ri : Fexpr.rec_info) : Rec_info_expr.t =
   let module US = Rec_info_expr.Unrolling_state in
@@ -758,6 +763,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           static_const (SC.boxed_int64 (or_variable Fun.id env i))
         | Boxed_nativeint i ->
           static_const (SC.boxed_nativeint (or_variable targetint env i))
+        | Boxed_vec128 i ->
+          static_const (SC.boxed_vec128 (or_variable vec128 env i))
         | Immutable_float_block elements ->
           static_const
             (SC.immutable_float_block

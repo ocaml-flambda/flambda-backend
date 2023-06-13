@@ -111,6 +111,7 @@ let is_move_basic : Cfg.basic -> bool =
     | Const_int _ -> false
     | Const_float _ -> false
     | Const_symbol _ -> false
+    | Const_vec128 _ -> false
     | Stackoffset _ -> false
     | Load _ -> false
     | Store _ -> false

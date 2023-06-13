@@ -89,6 +89,9 @@ let this_boxed_int64 i alloc_mode =
 let this_boxed_nativeint i alloc_mode =
   TG.box_nativeint (TG.this_naked_nativeint i) alloc_mode
 
+let this_boxed_vec128 i alloc_mode =
+  TG.box_vec128 (TG.this_naked_vec128 i) alloc_mode
+
 let these_boxed_floats fs alloc_mode =
   TG.box_float (these_naked_floats fs) alloc_mode
 

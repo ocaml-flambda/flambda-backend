@@ -365,7 +365,7 @@ let destroyed_at_oper = function
        | Icsel _
        | Ifloatofint | Iintoffloat
        | Ivalueofint | Iintofvalue
-       | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+       | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
        | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload (_, _, _)
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque)
   | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
@@ -401,7 +401,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op (Intop Icheckbound | Intop_imm (Icheckbound, _)) ->
     assert false
   | Op (Move | Spill | Reload
-       | Const_int _ | Const_float _ | Const_symbol _
+       | Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
        | Stackoffset _
        | Load _ | Store ((Byte_unsigned | Byte_signed | Sixteen_unsigned
                          | Sixteen_signed | Thirtytwo_unsigned
@@ -502,7 +502,7 @@ let safe_register_pressure = function
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
   | Icompf _
   | Icsel _
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _, _) | Istore (_, _, _)
   | Iintop _ | Iintop_imm (_, _) | Iintop_atomic _
@@ -541,7 +541,7 @@ let max_register_pressure =
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icsel _
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
-  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _, _)
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause

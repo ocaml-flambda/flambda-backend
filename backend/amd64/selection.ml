@@ -170,7 +170,7 @@ let pseudoregs_for_operation op arg res =
               |Ipause|Ilfence|Isfence|Imfence
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Ivalueofint|Iintofvalue
-  | Iconst_int _|Iconst_float _
+  | Iconst_int _|Iconst_float _|Iconst_vec128 _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload (_, _, _) | Istore (_, _, _)|Ialloc _
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _ | Iopaque
@@ -263,7 +263,7 @@ method! select_store is_assign addr exp =
       (Ispecific(Istore_int(Nativeint.of_int n, addr, is_assign)), Ctuple [])
   | (Cconst_natint (n, _dbg)) when is_immediate_natint n ->
       (Ispecific(Istore_int(n, addr, is_assign)), Ctuple [])
-  | Cconst_int _
+  | Cconst_int _ | Cconst_vec128 _
   | Cconst_natint (_, _) | Cconst_float (_, _) | Cconst_symbol (_, _)
   | Cvar _ | Clet (_, _, _) | Clet_mut (_, _, _, _) | Cphantom_let (_, _, _)
   | Cassign (_, _) | Ctuple _ | Cop (_, _, _) | Csequence (_, _)

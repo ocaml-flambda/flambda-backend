@@ -144,6 +144,7 @@ let basic_or_terminator_of_operation :
   | Iconst_int i -> Basic (Op (Const_int i))
   | Iconst_float f -> Basic (Op (Const_float f))
   | Iconst_symbol s -> Basic (Op (Const_symbol s))
+  | Iconst_vec128 (v0, v1) -> Basic (Op (Const_vec128 (v0, v1)))
   | Icall_ind ->
     With_next_label (fun label_after -> Call { op = Indirect; label_after })
   | Icall_imm { func } ->
@@ -670,10 +671,11 @@ module Stack_offset_and_exn = struct
     | Op (Stackoffset n) -> stack_offset + n, traps
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
-        | Load _ | Store _ | Intop _ | Intop_imm _ | Intop_atomic _ | Negf
-        | Absf | Addf | Subf | Mulf | Divf | Compf _ | Floatofint | Intoffloat
-        | Valueofint | Csel _ | Intofvalue | Probe_is_enabled _ | Opaque
-        | Begin_region | End_region | Specific _ | Name_for_debugger _ )
+        | Const_vec128 _ | Load _ | Store _ | Intop _ | Intop_imm _
+        | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
+        | Floatofint | Intoffloat | Valueofint | Csel _ | Intofvalue
+        | Probe_is_enabled _ | Opaque | Begin_region | End_region | Specific _
+        | Name_for_debugger _ )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
 

@@ -93,7 +93,7 @@ and instrument = function
   | Ctail e -> Ctail (instrument e)
 
   (* these are base cases and have no logging *)
-  | Cconst_int _ | Cconst_natint _ | Cconst_float _
+  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_vec128 _
   | Cconst_symbol _
   | Cvar _ as c -> c
 

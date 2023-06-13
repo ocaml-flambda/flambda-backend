@@ -206,7 +206,7 @@ let find_value_approximation env simple =
       match Reg_width_const.descr const with
       | Tagged_immediate i -> Value_approximation.Value_int i
       | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-      | Naked_nativeint _ ->
+      | Naked_vec128 _ | Naked_nativeint _ ->
         Value_approximation.Value_unknown)
 
 let find_value_approximation_through_symbol acc env simple =
@@ -562,6 +562,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           | _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)
           | _, Unboxed_integer Pint64 -> Some (P.Unbox_number Naked_int64)
           | _, Untagged_int -> Some P.Untag_immediate
+          | _, Unboxed_vector Pvec128 -> Some (P.Unbox_number Naked_vec128)
         in
         match unbox_arg with
         | None -> fun args acc -> call (arg :: args) acc
