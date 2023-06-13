@@ -143,7 +143,7 @@ module Exp:
     val match_: ?loc:loc -> ?attrs:attrs -> expression -> case list
                 -> expression
     val try_: ?loc:loc -> ?attrs:attrs -> expression -> case list -> expression
-    val tuple: ?loc:loc -> ?attrs:attrs -> expression list -> expression
+    val tuple: ?loc:loc -> ?attrs:attrs -> (string option * expression) list -> expression
     val construct: ?loc:loc -> ?attrs:attrs -> lid -> expression option
                    -> expression
     val variant: ?loc:loc -> ?attrs:attrs -> label -> expression option
@@ -192,6 +192,8 @@ module Exp:
 
     val case: pattern -> ?guard:expression -> expression -> case
     val binding_op: str -> pattern -> expression -> loc -> binding_op
+
+    val unlabeled_tuple: expression list -> expression_desc
   end
 
 (** Value declarations *)

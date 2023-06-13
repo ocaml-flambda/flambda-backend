@@ -28,6 +28,8 @@ type error =
   | Variable_in_scope of Location.t * string
   | Other of Location.t
   | Ill_formed_ast of Location.t * string
+  | Labeled_bigarray_index of Location.t
+  | Optional_tuple_component of Location.t
   | Invalid_package_type of Location.t * string
 
 exception Error of error

@@ -166,7 +166,7 @@ let view_expr x =
               (List.rev acc,true)
           | {pexp_desc=
              Pexp_construct ({txt=Lident "::";_},
-                             Some ({pexp_desc= Pexp_tuple([e1;e2]);
+                             Some ({pexp_desc= Pexp_tuple([None,e1;None,e2]);
                                     pexp_attributes = []}));
              pexp_attributes = []}
             ->
@@ -880,7 +880,7 @@ and simple_expr ctxt f x =
     | Pexp_pack me ->
         pp f "(module@;%a)" (module_expr ctxt) me
     | Pexp_tuple l ->
-        pp f "@[<hov2>(%a)@]" (list (simple_expr ctxt) ~sep:",@;") l
+        pp f "@[<hov2>(%a)@]" (list (tuple_component ctxt) ~sep:",@;") l
     | Pexp_constraint (e, ct) ->
         pp f "(%a : %a)" (expression ctxt) e (core_type ctxt) ct
     | Pexp_coerce (e, cto1, ct) ->
@@ -1825,6 +1825,19 @@ and label_x_expression_param ctxt f (l,e) =
         pp f "~%s" lbl
       else
         pp f "~%s:%a" lbl (simple_expr ctxt) e
+
+and tuple_component ctxt f (l,e) =
+  let simple_name = match e with
+    | {pexp_desc=Pexp_ident {txt=Lident l;_};
+       pexp_attributes=[]} -> Some l
+    | _ -> None
+  in match (simple_name, l) with
+  (* Labeled component can be represented with pun *)
+  | Some simple_name, Some lbl when String.equal simple_name lbl -> pp f "~%s" lbl
+  (* Labeled component general case *)
+  | _, Some lbl -> pp f "~%s:%a" lbl (simple_expr ctxt) e
+  (* Unlabeled component *)
+  | _, None  -> expression2 ctxt f e (* level 2*)
 
 and directive_argument f x =
   match x.pdira_desc with
