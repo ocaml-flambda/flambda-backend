@@ -102,6 +102,7 @@ type submode_reason =
 
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
+  | Constructor_labeled_arg
   | Label_mismatch of Longident.t * Errortrace.unification_error
   | Pattern_type_clash :
       Errortrace.unification_error * _ pattern_desc option -> error
@@ -193,6 +194,7 @@ type error =
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Layout.Violation.t
+  | Unsupported_labeled_tuple (* CR labeled tuples: *)
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3711,7 +3713,10 @@ and type_approx_aux env sexp in_function ty_expected =
         raise(Error(sexp.pexp_loc, env, Expr_type_clash (err, None, None)))
       end;
       List.iter2
-        (fun e ty -> type_approx_aux env e None ty)
+        (function (None, e) -> type_approx_aux env e None
+                | (Some _, _) -> raise(Error(sexp.pexp_loc,
+                                             env,
+                                             Unsupported_labeled_tuple)))
         l tys
   | Pexp_ifthenelse (_,e,_) -> type_approx_aux env e None ty_expected
   | Pexp_sequence (_,e) -> type_approx_aux env e None ty_expected
@@ -4617,7 +4622,8 @@ and type_expect_
       let types_and_modes = List.combine subtypes argument_modes in
       let expl =
         List.map2
-          (fun body (ty, argument_mode) ->
+          (fun (label, body) (ty, argument_mode) ->
+            if Option.is_some label then raise(Error(loc, env, Unsupported_labeled_tuple));
             let argument_mode = mode_default argument_mode in
             let argument_mode = expect_mode_cross env ty argument_mode in
              type_expect env argument_mode
@@ -5977,7 +5983,7 @@ and type_format loc str env =
         let arg = match args with
           | []          -> None
           | [ e ]       -> Some e
-          | _ :: _ :: _ -> Some (mk_exp_loc (Pexp_tuple args)) in
+          | _ :: _ :: _ -> Some (mk_exp_loc (Ast_helper.Exp.unlabeled_tuple args)) in
         mk_exp_loc (Pexp_construct (mk_lid_loc lid, arg)) in
       let mk_cst cst = mk_exp_loc (Pexp_constant cst) in
       let mk_int n = mk_cst (Pconst_integer (Int.to_string n, None))
@@ -6043,7 +6049,7 @@ and type_format loc str env =
         | Float_H  -> mk_constr "Float_H"  []
         | Float_F  -> mk_constr "Float_F"  []
         | Float_CF -> mk_constr "Float_CF" [] in
-        mk_exp_loc (Pexp_tuple [flag; kind])
+        mk_exp_loc (Pexp_tuple [None, flag; None, kind])
       and mk_counter cnt = match cnt with
         | Line_counter  -> mk_constr "Line_counter"  []
         | Char_counter  -> mk_constr "Char_counter"  []
@@ -6646,7 +6652,11 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
       None -> []
     | Some {pexp_desc = Pexp_tuple sel} when
         constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs
-      -> sel
+      -> List.map (fun (label, body) ->
+                     if Option.is_some label then raise(Error(loc, env, Constructor_labeled_arg));
+                     body
+                  )
+                  sel
     | Some se -> [se] in
   if List.length sargs <> constr.cstr_arity then
     raise(Error(loc, env, Constructor_arity_mismatch
@@ -7929,6 +7939,10 @@ let report_error ~loc env = function
        "@[The constructor %a@ expects %i argument(s),@ \
         but is applied here to %i argument(s)@]"
        longident lid expected provided
+  | Constructor_labeled_arg ->
+      Location.errorf ~loc
+       "Constructors cannot receive labeled arguments. \
+        Consider using an inline record instead."
   | Label_mismatch(lid, err) ->
       report_unification_error ~loc env err
         (function ppf ->
@@ -8419,6 +8433,9 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Unsupported_labeled_tuple ->
+      Location.errorf ~loc
+        "Labeled tuples are not yet supported"
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

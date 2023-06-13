@@ -138,6 +138,12 @@ let prepare_error err =
   | Ill_formed_ast (loc, s) ->
       Location.errorf ~loc
         "broken invariant in parsetree: %s" s
+  | Labeled_bigarray_index loc ->
+      Location.errorf ~loc
+        "Bigarray indices cannot be labeled"
+  | Optional_tuple_component loc ->
+      Location.errorf ~loc
+        "Tuple components cannot be optional"
   | Invalid_package_type (loc, s) ->
       Location.errorf ~loc "invalid package type: %s" s
 

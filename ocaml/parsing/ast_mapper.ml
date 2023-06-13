@@ -556,7 +556,8 @@ module E = struct
     | Pexp_match (e, pel) ->
         match_ ~loc ~attrs (sub.expr sub e) (sub.cases sub pel)
     | Pexp_try (e, pel) -> try_ ~loc ~attrs (sub.expr sub e) (sub.cases sub pel)
-    | Pexp_tuple el -> tuple ~loc ~attrs (List.map (sub.expr sub) el)
+    (* CR labeled tuples: Eventually we'll want mappers to be able to see the labels. *)
+    | Pexp_tuple el -> tuple ~loc ~attrs (List.map (map_snd (sub.expr sub)) el)
     | Pexp_construct (lid, arg) ->
         construct ~loc ~attrs (map_loc sub lid) (map_opt (sub.expr sub) arg)
     | Pexp_variant (lab, eo) ->
@@ -990,12 +991,12 @@ module PpxContext = struct
   let rec make_list f lst =
     match lst with
     | x :: rest ->
-      Exp.construct (lid "::") (Some (Exp.tuple [f x; make_list f rest]))
+      Exp.construct (lid "::") (Some (Exp.tuple [None, f x; None, make_list f rest]))
     | [] ->
       Exp.construct (lid "[]") None
 
   let make_pair f1 f2 (x1, x2) =
-    Exp.tuple [f1 x1; f2 x2]
+    Exp.tuple [None, f1 x1; None, f2 x2]
 
   let make_option f opt =
     match opt with
@@ -1061,7 +1062,7 @@ module PpxContext = struct
       and get_list elem = function
         | {pexp_desc =
              Pexp_construct ({txt = Longident.Lident "::"},
-                             Some {pexp_desc = Pexp_tuple [exp; rest]}) } ->
+                             Some {pexp_desc = Pexp_tuple [None, exp; None, rest]}) } ->
             elem exp :: get_list elem rest
         | {pexp_desc =
              Pexp_construct ({txt = Longident.Lident "[]"}, None)} ->
@@ -1069,7 +1070,7 @@ module PpxContext = struct
         | _ -> raise_errorf "Internal error: invalid [@@@ocaml.ppx.context \
                              { %s }] list syntax" name
       and get_pair f1 f2 = function
-        | {pexp_desc = Pexp_tuple [e1; e2]} ->
+        | {pexp_desc = Pexp_tuple [None, e1; None, e2]} ->
             (f1 e1, f2 e2)
         | _ -> raise_errorf "Internal error: invalid [@@@ocaml.ppx.context \
                              { %s }] pair syntax" name

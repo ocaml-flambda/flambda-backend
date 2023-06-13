@@ -349,8 +349,11 @@ and expression_desc =
       (** [match E0 with P1 -> E1 | ... | Pn -> En] *)
   | Pexp_try of expression * case list
       (** [try E0 with P1 -> E1 | ... | Pn -> En] *)
-  | Pexp_tuple of expression list
-      (** Expressions [(E1, ..., En)]
+  | Pexp_tuple of (string option * expression) list
+      (** [Pexp_tuple(el)] represents
+           - [(E1, ..., En)]       when [el] is [(None, E1);...;(None, En)],
+           - [(L1:E1, ..., Ln:En)] when [el] is [(Some L1, E1);...;(Some Ln, En)],
+           - Any mix, e.g. [(L1: E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
 
            Invariant: [n >= 2]
         *)

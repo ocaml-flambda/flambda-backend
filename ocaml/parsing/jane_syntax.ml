@@ -106,7 +106,7 @@ module Comprehensions = struct
           ; match direction with
             | Upto   -> "upto"
             | Downto -> "downto" ]
-          (Ast_helper.Exp.tuple [start; stop])
+          (Ast_helper.Exp.tuple [(None, start); (None, stop)])
     | In seq ->
         comprehension_expr ["for"; "in"] seq
 
@@ -215,10 +215,10 @@ module Comprehensions = struct
   let iterator_of_expr expr =
     match expand_comprehension_extension_expr expr with
     | ["for"; "range"; "upto"],
-      { pexp_desc = Pexp_tuple [start; stop]; _ } ->
+      { pexp_desc = Pexp_tuple [None, start; None, stop]; _ } ->
         Range { start; stop; direction = Upto }
     | ["for"; "range"; "downto"],
-      { pexp_desc = Pexp_tuple [start; stop]; _ } ->
+      { pexp_desc = Pexp_tuple [None, start; None, stop]; _ } ->
         Range { start; stop; direction = Downto }
     | ["for"; "in"], seq ->
         In seq
