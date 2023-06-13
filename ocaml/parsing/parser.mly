@@ -798,6 +798,7 @@ module Constant : sig
   val value : Parsetree.constant -> t
   val unboxed : loc:loc -> Jane_syntax.Unboxed_constants.t -> t
   val to_expression : loc:loc -> t -> expression
+  val to_pattern : loc:loc -> t -> pattern
   val assert_is_value : loc:loc -> where:string -> t -> constant
 end = struct
   type t =
@@ -820,6 +821,15 @@ end = struct
     | Unboxed const_unboxed ->
         mkexp_jane_syntax ~loc
           (Jane_syntax.Unboxed_constants.expr_of
+             ~loc:(make_loc loc)
+             const_unboxed)
+
+  let to_pattern ~loc : t -> pattern = function
+    | Value const_value ->
+        mkpat ~loc (Ppat_constant const_value)
+    | Unboxed const_unboxed ->
+        mkpat_jane_syntax ~loc
+          (Jane_syntax.Unboxed_constants.pat_of
              ~loc:(make_loc loc)
              const_unboxed)
 
@@ -3196,16 +3206,16 @@ simple_pattern_not_ident:
           $3 }
   | mkpat(simple_pattern_not_ident_)
       { $1 }
+  | signed_constant { Constant.to_pattern $1 ~loc:$sloc }
 ;
 %inline simple_pattern_not_ident_:
   | UNDERSCORE
       { Ppat_any }
-  | signed_constant
-      { Ppat_constant (Constant.assert_is_value $1 ~loc:$sloc ~where:"in a pattern") }
   | signed_constant DOTDOT signed_constant
-      { Ppat_interval
-          (Constant.assert_is_value $1 ~loc:$loc($1) ~where:"in a pattern interval",
-           Constant.assert_is_value $3 ~loc:$loc($3) ~where:"in a pattern interval") }
+      { let where = "in a pattern interval" in
+        Ppat_interval
+          (Constant.assert_is_value $1 ~loc:$loc($1) ~where,
+           Constant.assert_is_value $3 ~loc:$loc($3) ~where) }
   | mkrhs(constr_longident)
       { Ppat_construct($1, None) }
   | name_tag

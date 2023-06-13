@@ -129,9 +129,13 @@ module Unboxed_constants : sig
 
   (* CR nroberts:  comment *)
   type expression = t
+  type pattern = t
 
   val expr_of :
     loc:Location.t -> expression -> Parsetree.expression_desc With_attributes.t
+
+  val pat_of :
+    loc:Location.t -> pattern -> Parsetree.pattern_desc With_attributes.t
 end
 
 (******************************************)
@@ -248,10 +252,14 @@ end
 module Pattern : sig
   type t =
     | Jpat_immutable_array of Immutable_arrays.pattern
+    | Jpat_unboxed_constant of Unboxed_constants.pattern
 
   include AST
     with type t := t * Parsetree.attributes
      and type ast := Parsetree.pattern
+
+  val pat_of :
+    loc:Location.t -> t -> Parsetree.pattern_desc With_attributes.t
 end
 
 (** Novel syntax in module types *)

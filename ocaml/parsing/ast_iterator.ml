@@ -399,12 +399,12 @@ module M = struct
     | Pstr_attribute x -> sub.attribute sub x
 end
 
+(* A no-op, but makes it clearer which jane syntax cases should have the same
+   handling as core-language cases. *)
+let iter_constant = ()
+
 module E = struct
   (* Value expressions for the core language *)
-
-  (* A no-op, but makes it clearer which jane syntax cases should have the same
-     handling as core-language cases. *)
-  let iter_constant = ()
 
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
@@ -544,7 +544,8 @@ module P = struct
       List.iter (sub.pat sub) elts
 
   let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
-    | Jpat_immutable_array iapat -> iter_iapat sub iapat
+    | Jpat_immutable_array x -> iter_iapat sub x
+    | Jpat_unboxed_constant _ -> iter_constant
 
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
@@ -559,7 +560,7 @@ module P = struct
     | Ppat_any -> ()
     | Ppat_var s -> iter_loc sub s
     | Ppat_alias (p, s) -> sub.pat sub p; iter_loc sub s
-    | Ppat_constant _ -> ()
+    | Ppat_constant _ -> iter_constant
     | Ppat_interval _ -> ()
     | Ppat_tuple pl -> List.iter (sub.pat sub) pl
     | Ppat_construct (l, p) ->

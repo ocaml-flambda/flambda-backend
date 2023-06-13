@@ -3,33 +3,33 @@
    * expect
 *)
 
-(* CR layouts v2: This is just a hack that works whilst [float#]s get compiled
-   to [float]s. We should change this soon.
-*)
-let box : float# -> float = fun x -> Sys.opaque_identity (Obj.magic x)
-let unbox : float -> float# = fun x -> Sys.opaque_identity (Obj.magic x);;
-[%%expect {|
-val box : float# -> float = <fun>
-val unbox : float -> float# = <fun>
-|}];;
+(* CR layouts v2: These tests will change when we actually typecheck
+   unboxed literals.
+ *)
 
 let id : float# -> float# = fun x -> x;;
 
 box (id #4.0);;
 [%%expect {|
 val id : float# -> float# = <fun>
-- : float = 4.
+Line 3, characters 0-3:
+3 | box (id #4.0);;
+    ^^^
+Error: Unbound value box
 |}];;
 
 (* CR layouts: We should actually add the numbers here when
    we support that.
 *)
-let add (x : float#) (y : float#) = unbox (box x +. box y);;
+let add (x : float#) (y : float#) = x +. y;;
 
 box (add #4.0 #5.0);;
 [%%expect {|
-val add : float# -> float# -> float# = <fun>
-- : float = 9.
+Line 1, characters 36-37:
+1 | let add (x : float#) (y : float#) = x +. y;;
+                                        ^
+Error: This expression has type float# but an expression was expected of type
+         float
 |}];;
 
 let apply (f : float# -> float# -> float#) (x : float#) (y : float#) =
@@ -39,5 +39,8 @@ box (apply add #4.0 #5.0);;
 [%%expect {|
 val apply : (float# -> float# -> float#) -> float# -> float# -> float# =
   <fun>
-- : float = 9.
+Line 4, characters 0-3:
+4 | box (apply add #4.0 #5.0);;
+    ^^^
+Error: Unbound value box
 |}];;

@@ -178,6 +178,10 @@ let add_type_exception bv te =
 
 let pattern_bv = ref String.Map.empty
 
+(* A no-op, but makes it clearer which jane syntax cases should have the same
+   handling as core-language cases. *)
+let add_constant = ()
+
 let rec add_pattern bv pat =
   match Jane_syntax.Pattern.of_ast pat with
   | Some (jpat, _attrs) -> add_pattern_jane_syntax bv jpat
@@ -211,15 +215,12 @@ let rec add_pattern bv pat =
 and add_pattern_jane_syntax bv : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pl) ->
       List.iter (add_pattern bv) pl
+  | Jpat_unboxed_constant _ -> add_constant
 
 let add_pattern bv pat =
   pattern_bv := bv;
   add_pattern bv pat;
   !pattern_bv
-
-(* A no-op, but makes it clearer which jane syntax cases should have the same
-   handling as core-language cases. *)
-let add_constant = ()
 
 let rec add_expr bv exp =
   match Jane_syntax.Expression.of_ast exp with

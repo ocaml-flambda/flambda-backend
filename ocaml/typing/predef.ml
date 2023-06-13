@@ -53,6 +53,8 @@ let path_int = Pident ident_int
 and path_char = Pident ident_char
 and path_bytes = Pident ident_bytes
 and path_float = Pident ident_float
+(* CR layouts v2: we need to look through all the places where [path_float] is
+   checked and add a corresponding check for [path_float_unboxed]. *)
 and path_float_unboxed = Pident ident_float_unboxed
 and path_bool = Pident ident_bool
 and path_unit = Pident ident_unit

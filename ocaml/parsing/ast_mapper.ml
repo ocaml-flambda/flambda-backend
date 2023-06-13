@@ -635,13 +635,22 @@ module P = struct
   (* Patterns *)
 
   module IA = Jane_syntax.Immutable_arrays
+  module UC = Jane_syntax.Unboxed_constants
 
   let map_iapat sub : IA.pattern -> IA.pattern = function
     | Iapat_immutable_array elts ->
       Iapat_immutable_array (List.map (sub.pat sub) elts)
 
+  let map_unboxed_constant_pat _sub : UC.pattern -> UC.pattern = function
+    (* We can't reasonably call [sub.constant] because it might return a kind
+       of constant we don't know how to unbox.
+    *)
+    | Float _ | Integer _ as x -> x
+
   let map_jst sub : Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t = function
-    | Jpat_immutable_array iapat -> Jpat_immutable_array (map_iapat sub iapat)
+    | Jpat_immutable_array x -> Jpat_immutable_array (map_iapat sub x)
+    | Jpat_unboxed_constant x ->
+        Jpat_unboxed_constant (map_unboxed_constant_pat sub x)
 
   let map sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
@@ -651,8 +660,7 @@ module P = struct
     | Some (jpat, attrs) -> begin
         let attrs = sub.attributes sub attrs in
         Jane_syntax_parsing.Pattern.wrap_desc ~loc ~info:attrs @@
-        match sub.pat_jane_syntax sub jpat with
-        | Jpat_immutable_array i -> Jane_syntax.Immutable_arrays.pat_of ~loc i
+        Jane_syntax.Pattern.pat_of ~loc (sub.pat_jane_syntax sub jpat)
     end
     | None ->
     let attrs = sub.attributes sub attrs in

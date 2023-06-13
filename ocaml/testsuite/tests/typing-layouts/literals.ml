@@ -3,9 +3,15 @@
    * expect
 *)
 
+(*****************************************)
+(* Expressions *)
+
 let e = #2.718281828459045
 [%%expect{|
-val e : float# = <abstr>
+Line 1, characters 8-26:
+1 | let e = #2.718281828459045
+            ^^^^^^^^^^^^^^^^^^
+Error: Unboxed float literals aren't supported yet.
 |}]
 
 let negative_one_half = -#0.5
@@ -20,7 +26,10 @@ val positive_one_dot : float = 1.
 
 let one_billion = #1e9
 [%%expect{|
-val one_billion : float# = <abstr>
+Line 1, characters 18-22:
+1 | let one_billion = #1e9
+                      ^^^^
+Error: Unboxed float literals aren't supported yet.
 |}]
 
 let zero = #0n
@@ -67,13 +76,63 @@ Error: Unboxed int literals aren't supported yet.
 
 let one_twenty_seven_point_two_five_in_floating_hex = #0x7f.4
 [%%expect{|
-val one_twenty_seven_point_two_five_in_floating_hex : float# = <abstr>
+Line 1, characters 54-61:
+1 | let one_twenty_seven_point_two_five_in_floating_hex = #0x7f.4
+                                                          ^^^^^^^
+Error: Unboxed float literals aren't supported yet.
 |}]
 
 let five_point_three_seven_five_in_floating_hexponent = #0xa.cp-1
 [%%expect{|
-val five_point_three_seven_five_in_floating_hexponent : float# = <abstr>
+Line 1, characters 56-65:
+1 | let five_point_three_seven_five_in_floating_hexponent = #0xa.cp-1
+                                                            ^^^^^^^^^
+Error: Unboxed float literals aren't supported yet.
 |}]
+
+let unknown_floating_point_suffix = #0.P
+[%%expect{|
+Line 1, characters 36-40:
+1 | let unknown_floating_point_suffix = #0.P
+                                        ^^^^
+Error: Unknown modifier 'P' for literal #0.P
+|}]
+
+(*****************************************)
+(* Patterns *)
+
+let f x =
+  match x with
+  | #4L -> `Four
+  | #5L -> `Five
+  | _ -> `Other
+;;
+
+f #4L;;
+[%%expect {|
+Line 3, characters 4-7:
+3 |   | #4L -> `Four
+        ^^^
+Error: Unboxed int literals aren't supported yet.
+|}];;
+
+let f x =
+  match x with
+  | #4. -> `Four
+  | #5. -> `Five
+  | _ -> `Other
+;;
+
+f #5.;;
+[%%expect {|
+Line 3, characters 4-7:
+3 |   | #4. -> `Four
+        ^^^
+Error: Unboxed float literals aren't supported yet.
+|}];;
+
+(*****************************************)
+(* Lexing edge cases *)
 
 (* Unboxed literals at the beginning of the line aren't directives. *)
 let f _ _ = ();;
@@ -88,10 +147,10 @@ let () = f
 
 [%%expect{|
 val f : 'a -> 'b -> unit = <fun>
-Line 4, characters 0-3:
-4 | #2L
+Line 3, characters 0-3:
+3 | #2.
     ^^^
-Error: Unboxed int literals aren't supported yet.
+Error: Unboxed float literals aren't supported yet.
 |}];;
 
 let () = f

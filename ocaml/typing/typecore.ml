@@ -190,6 +190,7 @@ type error =
   | Exclave_in_nontail_position
   | Layout_not_enabled of Layout.const
   | Unboxed_int_literals_not_supported
+  | Unboxed_float_literals_not_supported
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -515,15 +516,21 @@ let constant_or_raise env loc cst =
   | Error err -> raise (Error (loc, env, err))
 
 let unboxed_constant :
-    Jane_syntax.Unboxed_constants.expression -> (_, error) result
+    type a. Jane_syntax.Unboxed_constants.expression -> (a, error) result
   = function
-  | Float (x, None) -> Ok (Const_float x)
-  | Float (x, Some c) -> Error (Unknown_literal (x, c))
-  | Integer (x, suffix) -> constant_integer x ~suffix
+  | Float (_, None) -> Error Unboxed_float_literals_not_supported
+  | Float (x, Some c) -> Error (Unknown_literal ("#" ^ x, c))
+  | Integer (_, _) -> Error Unboxed_int_literals_not_supported
 
+(* CR layouts v2: this is missing the part where we actually typecheck
+   unboxed literals.
+*)
 let unboxed_constant_or_raise env loc cst =
+  let open struct
+    type nothing = |
+  end in
   match unboxed_constant cst with
-  | Ok c -> c
+  | Ok (_ : nothing) -> .
   | Error err -> raise (Error (loc, env, err))
 
 (* Specific version of type_option, using newty rather than newgenty *)
@@ -1920,6 +1927,7 @@ let rec has_literal_pattern p =
 and has_literal_pattern_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array ps) ->
      List.exists has_literal_pattern ps
+  | Jpat_unboxed_constant _ -> true
 
 let check_scope_escape loc env level ty =
   try Ctype.check_scope_escape env level ty
@@ -2234,6 +2242,14 @@ and type_pat_aux
       match jpat with
       | Jpat_immutable_array (Iapat_immutable_array spl) ->
           type_pat_array Immutable spl attrs
+      | Jpat_unboxed_constant cst ->
+          let desc = unboxed_constant_or_raise !env loc cst in
+          rvp k @@ solve_expected {
+            pat_desc = desc;
+            pat_loc = loc; pat_extra=[];
+            pat_type = type_constant_unboxed !env loc cst;
+            pat_attributes = attrs;
+            pat_env = !env }
     end
   | None ->
   match sp.ppat_desc with
@@ -2881,6 +2897,7 @@ let rec pat_tuple_arity spat =
   | Ppat_constraint(p, _) | Ppat_open(_, p) | Ppat_alias(p, _) -> pat_tuple_arity p
 and pat_tuple_arity_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array _) -> Not_local_tuple
+  | Jpat_unboxed_constant _ -> Not_local_tuple
 
 let rec cases_tuple_arity cases =
   match cases with
@@ -3546,7 +3563,8 @@ and approx_type_jst _env _attrs : Jane_syntax.Core_type.t -> _ = function
   | _ -> .
 
 let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function
-  | Jpat_immutable_array _ -> ()
+  | Jpat_immutable_array _
+  | Jpat_unboxed_constant _ -> ()
 
 let type_pattern_approx env spat ty_expected =
   match Jane_syntax.Pattern.of_ast spat with
@@ -3876,6 +3894,7 @@ let contains_variant_either ty =
 
 let shallow_iter_ppat_jane_syntax f : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pats) -> List.iter f pats
+  | Jpat_unboxed_constant _ -> ()
 
 let shallow_iter_ppat f p =
   match Jane_syntax.Pattern.of_ast p with
@@ -7569,11 +7588,8 @@ and type_unboxed_constant
       unify_exp env (re exp) (instance ty_expected));
     exp
   in
-  (* CR layouts v2: [unboxed_constant_or_raise] currently returns
-     a boxed constant, which is wrong.
-  *)
   rue {
-    exp_desc = Texp_constant (unboxed_constant_or_raise env loc cst);
+    exp_desc = unboxed_constant_or_raise env loc cst;
     exp_loc = loc;
     exp_extra = [];
     exp_type = type_constant_unboxed env loc cst;
@@ -8297,6 +8313,9 @@ let report_error ~loc env = function
   | Unboxed_int_literals_not_supported ->
       Location.errorf ~loc
         "@[Unboxed int literals aren't supported yet.@]"
+  | Unboxed_float_literals_not_supported ->
+      Location.errorf ~loc
+        "@[Unboxed float literals aren't supported yet.@]"
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env
