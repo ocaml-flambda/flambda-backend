@@ -1921,7 +1921,7 @@ module Conv = struct
                   Jane_syntax.Immutable_arrays.pat_of
                     ~loc:pat.pat_loc (Iapat_immutable_array pats)
                 in
-                ppat.desc, ppat.jane_syntax_attributes
+                ppat.ppat_desc, ppat.ppat_attributes
           in
           mkpat ~attrs ppat
       | Tpat_lazy p ->

@@ -23,16 +23,6 @@
 (*********************************************)
 (* Individual features *)
 
-(** An AST desc together with its attributes, including the attributes that
-    signal that the AST should be interpreted as a Jane Syntax AST.
-*)
-module With_attributes : sig
-  type 'desc t = 'desc Jane_syntax_parsing.With_attributes.t = private
-    { jane_syntax_attributes : Parsetree.attributes
-    ; desc : 'desc
-    }
-end
-
 (** The ASTs for list and array comprehensions *)
 module Comprehensions : sig
   type iterator =
@@ -72,7 +62,8 @@ module Comprehensions : sig
           (only allowed with [-extension immutable_arrays]) *)
 
   val expr_of :
-    loc:Location.t -> expression -> Parsetree.expression_desc With_attributes.t
+    loc:Location.t -> ?attrs:Parsetree.attributes ->
+    expression -> Parsetree.expression
 end
 
 (** The ASTs for immutable arrays.  When we merge this upstream, we'll merge
@@ -88,10 +79,11 @@ module Immutable_arrays : sig
     (** [: P1; ...; Pn :] **)
 
   val expr_of :
-    loc:Location.t -> expression -> Parsetree.expression_desc With_attributes.t
-
+    loc:Location.t -> ?attrs:Parsetree.attributes ->
+    expression -> Parsetree.expression
   val pat_of :
-    loc:Location.t -> pattern -> Parsetree.pattern_desc With_attributes.t
+    loc:Location.t -> ?attrs:Parsetree.attributes ->
+    pattern -> Parsetree.pattern
 end
 
 (** The ASTs for [include functor].  When we merge this upstream, we'll merge
@@ -104,10 +96,8 @@ module Include_functor : sig
   type structure_item =
     | Ifstr_include_functor of Parsetree.include_declaration
 
-  val sig_item_of :
-    loc:Location.t -> signature_item -> Parsetree.signature_item_desc
-  val str_item_of :
-    loc:Location.t -> structure_item -> Parsetree.structure_item_desc
+  val sig_item_of : loc:Location.t -> signature_item -> Parsetree.signature_item
+  val str_item_of : loc:Location.t -> structure_item -> Parsetree.structure_item
 end
 
 (** The ASTs for module type strengthening. *)
@@ -116,9 +106,8 @@ module Strengthen : sig
     { mty : Parsetree.module_type; mod_id : Longident.t Location.loc }
 
   val mty_of :
-    loc:Location.t
-    -> module_type
-    -> Parsetree.module_type_desc With_attributes.t
+    loc:Location.t -> ?attrs:Parsetree.attributes ->
+    module_type -> Parsetree.module_type
 end
 
 (** The ASTs for unboxed literals, like #4.0 *)
@@ -131,10 +120,12 @@ module Unboxed_constants : sig
   type pattern = t
 
   val expr_of :
-    loc:Location.t -> expression -> Parsetree.expression_desc With_attributes.t
+    loc:Location.t -> ?attrs:Parsetree.attributes ->
+    expression -> Parsetree.expression
 
   val pat_of :
-    loc:Location.t -> pattern -> Parsetree.pattern_desc With_attributes.t
+    loc:Location.t -> ?attrs:Parsetree.attributes ->
+    pattern -> Parsetree.pattern
 end
 
 (******************************************)
@@ -244,7 +235,7 @@ module Expression : sig
      and type ast := Parsetree.expression
 
   val expr_of :
-    loc:Location.t -> t -> Parsetree.expression_desc With_attributes.t
+    loc:Location.t -> ?attrs:Parsetree.attributes -> t -> Parsetree.expression
 end
 
 (** Novel syntax in patterns *)
@@ -258,7 +249,7 @@ module Pattern : sig
      and type ast := Parsetree.pattern
 
   val pat_of :
-    loc:Location.t -> t -> Parsetree.pattern_desc With_attributes.t
+    loc:Location.t -> ?attrs:Parsetree.attributes -> t -> Parsetree.pattern
 end
 
 (** Novel syntax in module types *)
@@ -287,6 +278,7 @@ module Structure_item : sig
   include AST with type t := t and type ast := Parsetree.structure_item
 end
 
+(** Novel syntax in extension constructors *)
 module Extension_constructor : sig
   type t = |
 

@@ -203,9 +203,11 @@ let structure_item sub item =
         | Tincl_structure ->
             Pstr_include pincl
         | Tincl_functor _ | Tincl_gen_functor _ ->
-            Jane_syntax.Include_functor.str_item_of
-              ~loc
+          let stri =
+            Jane_syntax.Include_functor.str_item_of ~loc
               (Jane_syntax.Include_functor.Ifstr_include_functor pincl)
+          in
+          stri.pstr_desc
         end
     | Tstr_attribute x ->
         Pstr_attribute x
@@ -307,11 +309,9 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
      Street internal expressions without needing to modify every case, which
      would open us up to more merge conflicts.
   *)
-  let add_jane_syntax_attributes
-        { Jane_syntax_parsing.With_attributes.desc; jane_syntax_attributes }
-    =
-    attrs := jane_syntax_attributes @ !attrs;
-    desc
+  let add_jane_syntax_attributes { ppat_attributes; ppat_desc; _ } =
+    attrs := ppat_attributes @ !attrs;
+    ppat_desc
   in
   let desc =
   match pat with
@@ -460,11 +460,9 @@ let expression sub exp =
      Street internal expressions without needing to modify every case, which
      would open us up to more merge conflicts.
   *)
-  let add_jane_syntax_attributes
-        { Jane_syntax_parsing.With_attributes.desc; jane_syntax_attributes }
-    =
-    attrs := jane_syntax_attributes @ !attrs;
-    desc
+  let add_jane_syntax_attributes { pexp_attributes; pexp_desc; _ } =
+    attrs := pexp_attributes @ !attrs;
+    pexp_desc
   in
   let desc =
     match exp.exp_desc with
@@ -704,9 +702,11 @@ let signature_item sub item =
         | Tincl_structure ->
             Psig_include pincl
         | Tincl_functor _ | Tincl_gen_functor _ ->
-            Jane_syntax.Include_functor.sig_item_of
-              ~loc
+          let sigi =
+            Jane_syntax.Include_functor.sig_item_of ~loc
               (Jane_syntax.Include_functor.Ifsig_include_functor pincl)
+          in
+          sigi.psig_desc
         end
     | Tsig_class list ->
         Psig_class (List.map (sub.class_description sub) list)

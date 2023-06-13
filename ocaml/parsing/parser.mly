@@ -64,8 +64,6 @@ let pstr_type ((nr, ext), tys) =
   (Pstr_type (nr, tys), ext)
 let pstr_exception (te, ext) =
   (Pstr_exception te, ext)
-let pstr_include (body, ext) =
-  (Pstr_include body, ext)
 let pstr_recmodule (ext, bindings) =
   (Pstr_recmodule bindings, ext)
 
@@ -80,8 +78,6 @@ let psig_typesubst ((nr, ext), tys) =
   (Psig_typesubst tys, ext)
 let psig_exception (te, ext) =
   (Psig_exception te, ext)
-let psig_include (body, ext) =
-  (Psig_include body, ext)
 
 let mkctf ~loc ?attrs ?docs d =
   Ctf.mk ~loc:(make_loc loc) ?attrs ?docs d
@@ -767,20 +763,6 @@ let check_layout loc id =
   let loc = make_loc loc in
   Attr.mk ~loc (mkloc id loc) (PStr [])
 
-(* Jane syntax *)
-
-let mkexp_jane_syntax
-    ~loc
-    { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
-  =
-  mkexp_attrs ~loc desc (None, jane_syntax_attributes)
-
-let mkpat_jane_syntax
-    ~loc
-    { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
-  =
-  mkpat_attrs ~loc desc (None, jane_syntax_attributes)
-
 (* Unboxed literals *)
 
 (* CR layouts v2: The [unboxed_*] functions will both be improved and lose
@@ -819,19 +801,13 @@ end = struct
     | Value const_value ->
         mkexp ~loc (Pexp_constant const_value)
     | Unboxed const_unboxed ->
-        mkexp_jane_syntax ~loc
-          (Jane_syntax.Unboxed_constants.expr_of
-             ~loc:(make_loc loc)
-             const_unboxed)
+      Jane_syntax.Unboxed_constants.expr_of ~loc:(make_loc loc) const_unboxed
 
   let to_pattern ~loc : t -> pattern = function
     | Value const_value ->
         mkpat ~loc (Ppat_constant const_value)
     | Unboxed const_unboxed ->
-        mkpat_jane_syntax ~loc
-          (Jane_syntax.Unboxed_constants.pat_of
-             ~loc:(make_loc loc)
-             const_unboxed)
+      Jane_syntax.Unboxed_constants.pat_of ~loc:(make_loc loc) const_unboxed
 
   let assert_is_value ~loc ~where : t -> Parsetree.constant = function
     | Value x -> x
@@ -1691,13 +1667,19 @@ structure_item:
         { let (ext, l) = $1 in (Pstr_class l, ext) }
     | class_type_declarations
         { let (ext, l) = $1 in (Pstr_class_type l, ext) }
-    | include_statement(module_expr)
-        { $1 pstr_include
-             (fun ~loc incl ->
-                Jane_syntax.Include_functor.str_item_of ~loc
-                  (Ifstr_include_functor incl)) }
     )
     { $1 }
+  | include_statement(module_expr)
+      { let is_functor, incl, ext = $1 in
+        let item =
+          if is_functor
+          then Jane_syntax.Include_functor.str_item_of ~loc:(make_loc $sloc)
+                (Ifstr_include_functor incl)
+          else mkstr ~loc:$sloc (Pstr_include incl)
+        in
+        wrap_str_ext ~loc:$sloc item ext
+      }
+
 ;
 
 (* A single module binding. *)
@@ -1791,11 +1773,7 @@ include_maybe_functor:
     let loc = make_loc $sloc in
     let docs = symbol_docs $sloc in
     let incl = Incl.mk thing ~attrs ~loc ~docs in
-    fun wrap jane_syntax_of ->
-      if is_functor then
-        jane_syntax_of ~loc:(make_loc $sloc) incl, ext
-      else
-        wrap (incl, ext)
+    is_functor, incl, ext
   }
 ;
 
@@ -1948,17 +1926,22 @@ signature_item:
         { let (body, ext) = $1 in (Psig_modtypesubst body, ext) }
     | open_description
         { let (body, ext) = $1 in (Psig_open body, ext) }
-    | include_statement(module_type)
-        { $1 psig_include
-             (fun ~loc incl ->
-                Jane_syntax.Include_functor.sig_item_of ~loc
-                  (Ifsig_include_functor incl)) }
     | class_descriptions
         { let (ext, l) = $1 in (Psig_class l, ext) }
     | class_type_declarations
         { let (ext, l) = $1 in (Psig_class_type l, ext) }
     )
     { $1 }
+  | include_statement(module_type)
+      { let is_functor, incl, ext = $1 in
+        let item =
+          if is_functor
+          then Jane_syntax.Include_functor.sig_item_of ~loc:(make_loc $sloc)
+                 (Ifsig_include_functor incl)
+          else mksig ~loc:$sloc (Psig_include incl)
+        in
+        wrap_sig_ext ~loc:$sloc item ext
+      }
 
 (* A module declaration. *)
 %inline module_declaration:
@@ -2680,8 +2663,7 @@ simple_expr:
           (fun ~loc elts ->
              Jane_syntax.Immutable_arrays.expr_of
                ~loc:(make_loc loc)
-               (Iaexp_immutable_array elts)
-            |> mkexp_jane_syntax ~loc)
+               (Iaexp_immutable_array elts))
         $1
       }
   | constant { Constant.to_expression ~loc:$sloc $1 }
@@ -2754,9 +2736,7 @@ comprehension_clause:
 
 %inline comprehension_expr:
   comprehension_ext_expr
-    { mkexp_jane_syntax ~loc:$sloc
-        (Jane_syntax.Comprehensions.expr_of ~loc:(make_loc $sloc) $1)
-    }
+    { Jane_syntax.Comprehensions.expr_of ~loc:(make_loc $sloc) $1 }
 ;
 
 %inline array_simple(ARR_OPEN, ARR_CLOSE, contents_semi_list):
@@ -3268,11 +3248,10 @@ simple_delimited_pattern:
         }
   ) { $1 }
   | array_patterns(LBRACKETCOLON, COLONRBRACKET)
-      { mkpat_jane_syntax ~loc:$sloc
-          (Generic_array.Pattern.to_ast
-            "[:" ":]"
-            (ppat_iarray $sloc)
-            $1)
+      { Generic_array.Pattern.to_ast
+          "[:" ":]"
+          (ppat_iarray $sloc)
+          $1
       }
 
 pattern_comma_list(self):
