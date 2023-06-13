@@ -3763,8 +3763,6 @@ let rec map_return f = function
 
 let assign_pat ~scopes body_layout opt nraise catch_ids loc pat pat_sort lam =
   let rec collect pat_sort acc pat lam =
-    (* CR layouts v5: In the first two cases here we're using the fixed value
-       layout for elements of tuples.  That will need to change. *)
     match (pat.pat_desc, lam) with
     | Tpat_tuple patl, Lprim (Pmakeblock _, lams, _) ->
         opt := true;
