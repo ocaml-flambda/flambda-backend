@@ -767,18 +767,17 @@ let emit_call_probe_handler_wrapper i ~enabled_at_init ~probe_label =
      The operand of the call is a displacement relative to
      the next instruction. Hence, the immediate operand
      of cmp is set up to have that value. *)
+  if enabled_at_init then begin
+      I.call (sym wrap_label)
+  end else
   if !Clflags.pic_code then begin
     (* Manually emit encoding of cmp and an explicit relocation on it
        as needed for a call instruction, to ensure a correct
        result, instead of relying on an assembler that might choose a different
        encoding which produces an incorrect relocation and changes the meaning
        of the program. *)
-    (* Emit the required encoding of "cmp $0, %eax" or "call" directly,
-       using .byte *)
-    if enabled_at_init then
-      D.byte (Const 0xe8L)
-    else
-      D.byte (Const 0x3dL);
+    (* Emit the required encoding of "cmp $0, %eax" directly using .byte *)
+    D.byte (Const 0x3dL);
     D.byte (Const 0L);
     D.byte (Const 0L);
     D.byte (Const 0L);
@@ -803,10 +802,7 @@ let emit_call_probe_handler_wrapper i ~enabled_at_init ~probe_label =
        from the current instruction's address "."
        minus the length of the current instruction, which is 5,
        and the wrapper is emitted at the end of the compilation unit. *)
-    if enabled_at_init then
-      I.call (sym wrap_label)
-    else
-      I.cmp (sym (Printf.sprintf "%s - . - 5" wrap_label)) eax
+    I.cmp (sym (Printf.sprintf "%s - . - 5" wrap_label)) eax
   end;
   (* Live registers are saved by the probe wrapper,
      so they are not recorded as gc roots at the probe site. *)
