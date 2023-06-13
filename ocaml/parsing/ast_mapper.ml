@@ -487,6 +487,7 @@ module E = struct
 
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
+  module UC = Jane_syntax.Unboxed_constants
 
   let map_iterator sub : C.iterator -> C.iterator = function
     | Range { start; stop; direction } ->
@@ -519,10 +520,18 @@ module E = struct
     | Iaexp_immutable_array elts ->
       Iaexp_immutable_array (List.map (sub.expr sub) elts)
 
+  let map_unboxed_constant_exp _sub : UC.expression -> UC.expression = function
+    (* We can't reasonably call [sub.constant] because it might return a kind
+       of constant we don't know how to unbox.
+    *)
+    | Float _ | Integer _ as x -> x
+
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
-    | Jexp_comprehension cexp -> Jexp_comprehension (map_cexp sub cexp)
-    | Jexp_immutable_array iaexp -> Jexp_immutable_array (map_iaexp sub iaexp)
+    | Jexp_comprehension x -> Jexp_comprehension (map_cexp sub x)
+    | Jexp_immutable_array x -> Jexp_immutable_array (map_iaexp sub x)
+    | Jexp_unboxed_constant x ->
+        Jexp_unboxed_constant (map_unboxed_constant_exp sub x)
 
   let map sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
@@ -531,10 +540,8 @@ module E = struct
     match Jane_syntax.Expression.of_ast exp with
     | Some (jexp, attrs) -> begin
         let attrs = sub.attributes sub attrs in
-        Jane_syntax_parsing.Expression.wrap_desc ~loc ~info:attrs @@
-        match sub.expr_jane_syntax sub jexp with
-        | Jexp_comprehension   c -> Jane_syntax.Comprehensions.expr_of   ~loc c
-        | Jexp_immutable_array i -> Jane_syntax.Immutable_arrays.expr_of ~loc i
+        Jane_syntax_parsing.Expression.wrap_desc ~loc ~info:attrs
+          (Jane_syntax.Expression.expr_of ~loc (sub.expr_jane_syntax sub jexp))
     end
     | None ->
     let attrs = sub.attributes sub attrs in
@@ -627,13 +634,22 @@ module P = struct
   (* Patterns *)
 
   module IA = Jane_syntax.Immutable_arrays
+  module UC = Jane_syntax.Unboxed_constants
 
   let map_iapat sub : IA.pattern -> IA.pattern = function
     | Iapat_immutable_array elts ->
       Iapat_immutable_array (List.map (sub.pat sub) elts)
 
+  let map_unboxed_constant_pat _sub : UC.pattern -> UC.pattern = function
+    (* We can't reasonably call [sub.constant] because it might return a kind
+       of constant we don't know how to unbox.
+    *)
+    | Float _ | Integer _ as x -> x
+
   let map_jst sub : Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t = function
-    | Jpat_immutable_array iapat -> Jpat_immutable_array (map_iapat sub iapat)
+    | Jpat_immutable_array x -> Jpat_immutable_array (map_iapat sub x)
+    | Jpat_unboxed_constant x ->
+        Jpat_unboxed_constant (map_unboxed_constant_pat sub x)
 
   let map sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
@@ -643,8 +659,7 @@ module P = struct
     | Some (jpat, attrs) -> begin
         let attrs = sub.attributes sub attrs in
         Jane_syntax_parsing.Pattern.wrap_desc ~loc ~info:attrs @@
-        match sub.pat_jane_syntax sub jpat with
-        | Jpat_immutable_array i -> Jane_syntax.Immutable_arrays.pat_of ~loc i
+        Jane_syntax.Pattern.pat_of ~loc (sub.pat_jane_syntax sub jpat)
     end
     | None ->
     let attrs = sub.attributes sub attrs in

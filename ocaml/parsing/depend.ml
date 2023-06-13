@@ -178,6 +178,10 @@ let add_type_exception bv te =
 
 let pattern_bv = ref String.Map.empty
 
+(* A no-op, but makes it clearer which jane syntax cases should have the same
+   handling as core-language cases. *)
+let add_constant = ()
+
 let rec add_pattern bv pat =
   match Jane_syntax.Pattern.of_ast pat with
   | Some (jpat, _attrs) -> add_pattern_jane_syntax bv jpat
@@ -211,6 +215,7 @@ let rec add_pattern bv pat =
 and add_pattern_jane_syntax bv : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pl) ->
       List.iter (add_pattern bv) pl
+  | Jpat_unboxed_constant _ -> add_constant
 
 let add_pattern bv pat =
   pattern_bv := bv;
@@ -223,7 +228,7 @@ let rec add_expr bv exp =
   | None ->
   match exp.pexp_desc with
     Pexp_ident l -> add bv l
-  | Pexp_constant _ -> ()
+  | Pexp_constant _ -> add_constant
   | Pexp_let(rf, pel, e) ->
       let bv = add_bindings rf bv pel in add_expr bv e
   | Pexp_fun (_, opte, p, e) ->
@@ -294,8 +299,9 @@ let rec add_expr bv exp =
   | Pexp_unreachable -> ()
 
 and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
-  | Jexp_comprehension cexp -> add_comprehension_expr bv cexp
-  | Jexp_immutable_array iaexp -> add_immutable_array_expr bv iaexp
+  | Jexp_comprehension x -> add_comprehension_expr bv x
+  | Jexp_immutable_array x -> add_immutable_array_expr bv x
+  | Jexp_unboxed_constant _ -> add_constant
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function

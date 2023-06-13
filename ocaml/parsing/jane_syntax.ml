@@ -364,6 +364,57 @@ module Strengthen = struct
     | _ -> failwith "Malformed strengthened module type"
 end
 
+module Unboxed_constants = struct
+  type t =
+    | Float of string * char option
+    | Integer of string * char
+
+  type expression = t
+  type pattern = t
+
+  let feature : Feature.t = Language_extension Layouts
+
+  let fail_malformed ~loc =
+    Location.raise_errorf ~loc "Malformed unboxed numeric literal"
+
+  let of_constant ~loc = function
+    | Pconst_float (x, suffix) -> Float (x, suffix)
+    | Pconst_integer (x, Some suffix) -> Integer (x, suffix)
+    | Pconst_integer (_, None) ->
+        Location.raise_errorf ~loc
+          "Malformed unboxed int literal: suffix required"
+    | _ -> fail_malformed ~loc
+
+
+  (* Returns remaining unconsumed attributes *)
+  let of_expr expr =
+    let loc = expr.pexp_loc in
+    match expr.pexp_desc with
+    | Pexp_constant const -> of_constant ~loc const, expr.pexp_attributes
+    | _ -> fail_malformed ~loc
+
+  (* Returns remaining unconsumed attributes *)
+  let of_pat pat =
+    let loc = pat.ppat_loc in
+    match pat.ppat_desc with
+    | Ppat_constant const -> of_constant ~loc const, pat.ppat_attributes
+    | _ -> fail_malformed ~loc
+
+  let constant_of = function
+    | Float (x, suffix) -> Pconst_float (x, suffix)
+    | Integer (x, suffix) -> Pconst_integer (x, Some suffix)
+
+  let expr_of ~loc t =
+    let constant = constant_of t in
+    Expression.make_entire_jane_syntax ~loc feature (fun () ->
+      Ast_helper.Exp.constant constant)
+
+  let pat_of ~loc t =
+    let constant = constant_of t in
+    Pattern.make_entire_jane_syntax ~loc feature (fun () ->
+      Ast_helper.Pat.constant constant)
+end
+
 (******************************************************************************)
 (** The interface to our novel syntax, which we export *)
 
@@ -396,6 +447,7 @@ module Expression = struct
   type t =
     | Jexp_comprehension   of Comprehensions.expression
     | Jexp_immutable_array of Immutable_arrays.expression
+    | Jexp_unboxed_constant of Unboxed_constants.expression
 
   let of_ast_internal (feat : Feature.t) expr = match feat with
     | Language_extension Comprehensions ->
@@ -404,22 +456,38 @@ module Expression = struct
     | Language_extension Immutable_arrays ->
       let expr, attrs = Immutable_arrays.of_expr expr in
       Some (Jexp_immutable_array expr, attrs)
+    | Language_extension Layouts ->
+      let expr, attrs = Unboxed_constants.of_expr expr in
+      Some (Jexp_unboxed_constant expr, attrs)
     | _ -> None
 
   let of_ast = Expression.make_of_ast ~of_ast_internal
+
+  let expr_of ~loc = function
+    | Jexp_comprehension    x -> Comprehensions.expr_of    ~loc x
+    | Jexp_immutable_array  x -> Immutable_arrays.expr_of  ~loc x
+    | Jexp_unboxed_constant x -> Unboxed_constants.expr_of ~loc x
 end
 
 module Pattern = struct
   type t =
     | Jpat_immutable_array of Immutable_arrays.pattern
+    | Jpat_unboxed_constant of Unboxed_constants.pattern
 
   let of_ast_internal (feat : Feature.t) pat = match feat with
     | Language_extension Immutable_arrays ->
       let expr, attrs = Immutable_arrays.of_pat pat in
       Some (Jpat_immutable_array expr, attrs)
+    | Language_extension Layouts ->
+      let pat, attrs = Unboxed_constants.of_pat pat in
+      Some (Jpat_unboxed_constant pat, attrs)
     | _ -> None
 
   let of_ast = Pattern.make_of_ast ~of_ast_internal
+
+  let pat_of ~loc = function
+    | Jpat_immutable_array x -> Immutable_arrays.pat_of ~loc x
+    | Jpat_unboxed_constant x -> Unboxed_constants.pat_of ~loc x
 end
 
 module Module_type = struct

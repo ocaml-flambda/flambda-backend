@@ -767,15 +767,77 @@ let check_layout loc id =
   let loc = make_loc loc in
   Attr.mk ~loc (mkloc id loc) (PStr [])
 
+(* Jane syntax *)
+
+let mkexp_jane_syntax
+    ~loc
+    { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
+  =
+  mkexp_attrs ~loc desc (None, jane_syntax_attributes)
+
+let mkpat_jane_syntax
+    ~loc
+    { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
+  =
+  mkpat_attrs ~loc desc (None, jane_syntax_attributes)
+
 (* Unboxed literals *)
 
 (* CR layouts v2: The [unboxed_*] functions will both be improved and lose
    their explicit assert once we have real unboxed literals in Jane syntax; they
    may also get re-inlined at that point *)
 let unboxed_literals_extension = Language_extension.Layouts
-let assert_unboxed_literals ~loc =
-  Language_extension.(
-    Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
+
+module Constant : sig
+  type t = private
+    | Value of constant
+    | Unboxed of Jane_syntax.Unboxed_constants.t
+
+  type loc := Lexing.position * Lexing.position
+
+  val value : Parsetree.constant -> t
+  val unboxed : loc:loc -> Jane_syntax.Unboxed_constants.t -> t
+  val to_expression : loc:loc -> t -> expression
+  val to_pattern : loc:loc -> t -> pattern
+  val assert_is_value : loc:loc -> where:string -> t -> constant
+end = struct
+  type t =
+    | Value of constant
+    | Unboxed of Jane_syntax.Unboxed_constants.t
+
+  let value x = Value x
+
+  let assert_unboxed_literals ~loc =
+    Language_extension.(
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
+
+  let unboxed ~loc x =
+    assert_unboxed_literals ~loc:(make_loc loc);
+    Unboxed x
+
+  let to_expression ~loc : t -> expression = function
+    | Value const_value ->
+        mkexp ~loc (Pexp_constant const_value)
+    | Unboxed const_unboxed ->
+        mkexp_jane_syntax ~loc
+          (Jane_syntax.Unboxed_constants.expr_of
+             ~loc:(make_loc loc)
+             const_unboxed)
+
+  let to_pattern ~loc : t -> pattern = function
+    | Value const_value ->
+        mkpat ~loc (Ppat_constant const_value)
+    | Unboxed const_unboxed ->
+        mkpat_jane_syntax ~loc
+          (Jane_syntax.Unboxed_constants.pat_of
+             ~loc:(make_loc loc)
+             const_unboxed)
+
+  let assert_is_value ~loc ~where : t -> Parsetree.constant = function
+    | Value x -> x
+    | Unboxed _ ->
+        not_expecting loc (Printf.sprintf "unboxed literal %s" where)
+end
 
 type sign = Positive | Negative
 
@@ -786,9 +848,8 @@ let with_sign sign num =
 
 let unboxed_int sloc int_loc sign (n, m) =
   match m with
-  | Some _ ->
-      assert_unboxed_literals ~loc:(make_loc sloc);
-      Pconst_integer (with_sign sign n, m)
+  | Some m ->
+      Constant.unboxed ~loc:int_loc (Integer (with_sign sign n, m))
   | None ->
       if Language_extension.is_enabled unboxed_literals_extension then
         expecting int_loc "unboxed integer literal with type-specifying suffix"
@@ -796,8 +857,7 @@ let unboxed_int sloc int_loc sign (n, m) =
         not_expecting sloc "line number directive"
 
 let unboxed_float sloc sign (f, m) =
-  assert_unboxed_literals ~loc:(make_loc sloc);
-  Pconst_float (with_sign sign f, m)
+  Constant.unboxed ~loc:sloc (Float (with_sign sign f, m))
 
 (* Unboxed float type *)
 
@@ -808,21 +868,6 @@ let assert_unboxed_float_type ~loc =
 let unboxed_float_type sloc tys =
   assert_unboxed_float_type ~loc:(make_loc sloc);
   Ptyp_constr (mkloc (Lident "float#") (make_loc sloc), tys)
-
-(* Jane syntax *)
-
-let mkexp_jane_syntax
-      ~loc
-      { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
-  =
-  mkexp_attrs ~loc desc (None, jane_syntax_attributes)
-
-let mkpat_jane_syntax
-      ~loc
-      { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
-  =
-  mkpat_attrs ~loc desc (None, jane_syntax_attributes)
-
 %}
 
 /* Tokens */
@@ -2639,6 +2684,7 @@ simple_expr:
             |> mkexp_jane_syntax ~loc)
         $1
       }
+  | constant { Constant.to_expression ~loc:$sloc $1 }
   | comprehension_expr { $1 }
 ;
 %inline simple_expr_attrs:
@@ -2750,8 +2796,6 @@ comprehension_clause:
 %inline simple_expr_:
   | mkrhs(val_longident)
       { Pexp_ident ($1) }
-  | constant
-      { Pexp_constant $1 }
   | mkrhs(constr_longident) %prec prec_constant_constructor
       { Pexp_construct($1, None) }
   | name_tag %prec prec_constant_constructor
@@ -3162,14 +3206,16 @@ simple_pattern_not_ident:
           $3 }
   | mkpat(simple_pattern_not_ident_)
       { $1 }
+  | signed_constant { Constant.to_pattern $1 ~loc:$sloc }
 ;
 %inline simple_pattern_not_ident_:
   | UNDERSCORE
       { Ppat_any }
-  | signed_constant
-      { Ppat_constant $1 }
   | signed_constant DOTDOT signed_constant
-      { Ppat_interval ($1, $3) }
+      { let where = "in a pattern interval" in
+        Ppat_interval
+          (Constant.assert_is_value $1 ~loc:$loc($1) ~where,
+           Constant.assert_is_value $3 ~loc:$loc($3) ~where) }
   | mkrhs(constr_longident)
       { Ppat_construct($1, None) }
   | name_tag
@@ -3981,21 +4027,28 @@ meth_list:
 /* Constants */
 
 constant:
-  | INT               { let (n, m) = $1 in Pconst_integer (n, m) }
-  | CHAR              { Pconst_char $1 }
-  | STRING            { let (s, strloc, d) = $1 in Pconst_string (s, strloc, d) }
-  | FLOAT             { let (f, m) = $1 in Pconst_float (f, m) }
+  | INT               { let (n, m) = $1 in
+                        Constant.value (Pconst_integer (n, m)) }
+  | CHAR              { Constant.value (Pconst_char $1) }
+  | STRING            { let (s, strloc, d) = $1 in
+                        Constant.value (Pconst_string (s, strloc, d)) }
+  | FLOAT             { let (f, m) = $1 in
+                        Constant.value (Pconst_float (f, m)) }
   | HASH_INT          { unboxed_int $sloc $sloc Positive $1 }
   | HASH_FLOAT        { unboxed_float $sloc Positive $1 }
 ;
 signed_constant:
     constant          { $1 }
-  | MINUS INT         { let (n, m) = $2 in Pconst_integer("-" ^ n, m) }
-  | MINUS FLOAT       { let (f, m) = $2 in Pconst_float("-" ^ f, m) }
+  | MINUS INT         { let (n, m) = $2 in
+                        Constant.value (Pconst_integer("-" ^ n, m)) }
+  | MINUS FLOAT       { let (f, m) = $2 in
+                        Constant.value (Pconst_float("-" ^ f, m)) }
   | MINUS HASH_INT    { unboxed_int $sloc $loc($2) Negative $2 }
   | MINUS HASH_FLOAT  { unboxed_float $sloc Negative $2 }
-  | PLUS INT          { let (n, m) = $2 in Pconst_integer (n, m) }
-  | PLUS FLOAT        { let (f, m) = $2 in Pconst_float(f, m) }
+  | PLUS INT          { let (n, m) = $2 in
+                        Constant.value (Pconst_integer (n, m)) }
+  | PLUS FLOAT        { let (f, m) = $2 in
+                        Constant.value (Pconst_float(f, m)) }
   | PLUS HASH_INT     { unboxed_int $sloc $loc($2) Positive $2 }
   | PLUS HASH_FLOAT   { unboxed_float $sloc Negative $2 }
 ;
