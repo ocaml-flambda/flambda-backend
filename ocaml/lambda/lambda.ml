@@ -637,7 +637,7 @@ let layout_class = Pvalue Pgenval
 let layout_module = Pvalue Pgenval
 let layout_module_field = Pvalue Pgenval
 let layout_functor = Pvalue Pgenval
-let layout_float = Pvalue Pfloatval
+let layout_boxed_float = Pvalue Pfloatval
 let layout_string = Pvalue Pgenval
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
 let layout_lazy = Pvalue Pgenval
@@ -1439,10 +1439,11 @@ let primitive_result_layout (p : primitive) =
   | Pfield _ | Pfield_computed _ -> layout_field
   | Pfloatfield _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
-  | Pbox_float _ -> layout_float
+  | Pbox_float _ -> layout_boxed_float
   | Punbox_float -> Punboxed_float
   | Pccall { prim_native_repr_res = _, _, Untagged_int; _} -> layout_int
-  | Pccall { prim_native_repr_res = _, _, Unboxed_float; _} -> layout_float
+  | Pccall { prim_native_repr_res = _, _, Unboxed_float; _} ->
+      layout_boxed_float
   | Pccall { prim_native_repr_res = _, _, Same_as_ocaml_repr; _} ->
       layout_any_value
   | Pccall { prim_native_repr_res = _, _, Unboxed_integer bi; _} ->
@@ -1466,7 +1467,7 @@ let primitive_result_layout (p : primitive) =
   | Parrayrefu array_ref_kind | Parrayrefs array_ref_kind ->
       (match array_ref_kind with
        | Pintarray_ref -> layout_int
-       | Pfloatarray_ref _ -> layout_float
+       | Pfloatarray_ref _ -> layout_boxed_float
        | Pgenarray_ref _ | Paddrarray_ref -> layout_field)
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
   | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
@@ -1483,7 +1484,7 @@ let primitive_result_layout (p : primitive) =
   | Pbigarrayref (_, _, kind, _) ->
       begin match kind with
       | Pbigarray_unknown -> layout_any_value
-      | Pbigarray_float32 | Pbigarray_float64 -> layout_float
+      | Pbigarray_float32 | Pbigarray_float64 -> layout_boxed_float
       | Pbigarray_sint8 | Pbigarray_uint8
       | Pbigarray_sint16 | Pbigarray_uint16
       | Pbigarray_caml_int -> layout_int

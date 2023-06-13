@@ -2134,8 +2134,8 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
         | Record_float ->
            (* TODO: could optimise to Alloc_local sometimes *)
            Lprim (Pfloatfield (lbl.lbl_pos, sem, alloc_heap), [ arg ], loc),
-           (* CR layouts v2: is this really unboxed float? *)
-           Sort.for_record_field, layout_float
+           (* Here we are projecting a boxed float from a float record. *)
+           Sort.for_record_field, layout_boxed_float
         | Record_inlined (_, Variant_extensible) ->
             Lprim (Pfield (lbl.lbl_pos + 1, sem), [ arg ], loc),
             Sort.for_record_field, layout_field
