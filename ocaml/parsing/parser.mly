@@ -389,6 +389,19 @@ let expecting loc nonterm =
 let not_expecting loc nonterm =
     raise Syntaxerr.(Error(Not_expecting(make_loc loc, nonterm)))
 
+let arg_to_tuple_component loc (arg_label, body) =
+  let label =
+    match arg_label with
+    | Nolabel -> None
+    | Optional _ ->
+        raise Syntaxerr.(Error(Optional_tuple_component(make_loc $loc(args))))
+    | Labelled s -> Some s
+  in
+  label, body
+
+let args_to_tuple_components loc args =
+  List.map (arg_to_tuple_component loc) args
+
 (* Helper functions for desugaring array indexing operators *)
 type paren_kind = Paren | Brace | Bracket
 
@@ -2602,20 +2615,7 @@ expr:
   (* CR labeled tuples: Merge the below two cases *)
   | TILDETILDELPAREN args = labeled_simple_expr_comma_list RPAREN
       { 
-        let el =
-          List.map
-          (fun (arg_label, body) ->
-            let label =
-              match arg_label with
-              | Nolabel -> None
-              | Optional _ ->
-                  raise Syntaxerr.(Error(Optional_tuple_component(make_loc $loc(args))))
-              | Labelled s -> Some s
-            in
-            label, body)
-          args
-        in
-        Pexp_tuple(el)
+        Pexp_tuple(args_to_tuple_components args $loc(args))
       }
   | expr_comma_list %prec below_COMMA
       { Exp.unlabeled_tuple $1 }
