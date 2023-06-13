@@ -71,6 +71,7 @@ type error =
       ; err : Layout.Violation.t
       }
   | Layout_empty_record
+  | Non_value_in_sig of Layout.Violation.t * string
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
@@ -1957,6 +1958,13 @@ let check_unboxable env loc ty =
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
+  (* CR layouts v5: relax this to check for representability. *)
+  begin match Ctype.constrain_type_layout env cty.ctyp_type
+                (Layout.value ~why:Structure_element) with
+  | Ok () -> ()
+  | Error err ->
+    raise(Error(cty.ctyp_loc, Non_value_in_sig(err, valdecl.pval_name.txt)))
+  end;
   let ty = cty.ctyp_type in
   let v =
   match valdecl.pval_prim with
@@ -2506,6 +2514,9 @@ let report_error ppf = function
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Layout_empty_record ->
     fprintf ppf "@[Records must contain at least one runtime value.@]"
+  | Non_value_in_sig (err, val_name) ->
+    fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
+      val_name (Layout.Violation.report_with_name ~name:val_name) err
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->

@@ -405,3 +405,8 @@ end;;
 [%%expect {|
 module F : sig end -> sig end
 |}];;
+
+(****************************************)
+(* Test 8: [val]s must be representable *)
+
+(* CR layouts: Bring this test back from modules_alpha *)

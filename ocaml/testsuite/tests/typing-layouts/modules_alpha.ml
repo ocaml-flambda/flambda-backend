@@ -470,3 +470,20 @@ end;;
 [%%expect {|
 module F : sig end -> sig end
 |}];;
+
+(****************************************)
+(* Test 8: [val]s must be representable *)
+
+module type S = sig val x : t_any end
+
+module M = struct
+  let x : t_void = assert false
+end
+
+[%%expect{|
+Line 1, characters 28-33:
+1 | module type S = sig val x : t_any end
+                                ^^^^^
+Error: This type signature for x is not a value type.
+       x has layout any, which is not a sublayout of value.
+|}]
