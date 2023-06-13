@@ -495,6 +495,9 @@ module BR = Branch_relaxation.Make (struct
       num_instructions_for_intconst n
     | Lop (Iconst_float _) -> 2
     | Lop (Iconst_symbol _) -> 2
+    | Lop (Iconst_vec128 _) -> 
+      (* CR mslater: (SIMD) arm64 *)
+      Misc.fatal_error "128-bit vectors are not supported on this architecture"
     | Lop (Iintop_atomic _) ->
       (* Never generated; builtins are not yet translated to atomics *)
       assert false
@@ -764,6 +767,9 @@ let emit_instr i =
           let lbl = float_literal f in
           emit_load_literal i.res.(0) lbl
         end
+    | Lop(Iconst_vec128 _) ->
+      (* CR mslater: (SIMD) arm64 *)
+      Misc.fatal_error "128-bit vectors are not supported on this architecture"
     | Lop(Iconst_symbol s) ->
         emit_load_symbol_addr i.res.(0) s.sym_name
     | Lop(Icall_ind) ->
@@ -1184,6 +1190,9 @@ let emit_item = function
   | Cint n -> `	.quad	{emit_nativeint n}\n`
   | Csingle f -> emit_float32_directive ".long" (Int32.bits_of_float f)
   | Cdouble f -> emit_float64_directive ".quad" (Int64.bits_of_float f)
+  | Cvec128 _ -> 
+    (* CR mslater: (SIMD) arm64 *)
+    Misc.fatal_error "128-bit vectors not supported on this architecture"
   | Csymbol_address s -> `	.quad	{emit_symbol s.sym_name}\n`
   | Cstring s -> emit_string_directive "	.ascii  " s
   | Cskip n -> if n > 0 then `	.space	{emit_int n}\n`
