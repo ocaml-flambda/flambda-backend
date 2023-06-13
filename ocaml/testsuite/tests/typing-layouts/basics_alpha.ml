@@ -176,6 +176,7 @@ Line 1, characters 27-33:
 Error: This type signature for x is not a value type.
        x has layout void, which is not a sublayout of value.
 |}];;
+(* CR layouts v5: the test above should be made to work *)
 
 module F2 (X : sig val f : void_record -> unit end) = struct
   let g z = X.f { vr_void = z; vr_int = 42 }
