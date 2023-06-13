@@ -803,7 +803,10 @@ let emit_call_probe_handler_wrapper i ~enabled_at_init ~probe_label =
        from the current instruction's address "."
        minus the length of the current instruction, which is 5,
        and the wrapper is emitted at the end of the compilation unit. *)
-    I.cmp (sym (Printf.sprintf "%s - . - 5" wrap_label)) eax
+    if enabled_at_init then
+      I.call (sym wrap_label)
+    else
+      I.cmp (sym (Printf.sprintf "%s - . - 5" wrap_label)) eax
   end;
   (* Live registers are saved by the probe wrapper,
      so they are not recorded as gc roots at the probe site. *)
