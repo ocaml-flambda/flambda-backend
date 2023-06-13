@@ -2556,7 +2556,6 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
     | Some reg ->
       Clet (VP.create reg, Cop (Cbeginregion, [], dbg ()), app_fun clos args)
   in
-  let all_args = args @ [clos] in
   ( args,
     clos,
     if List.compare_length_with arity 1 = 0
@@ -2576,7 +2575,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
           Cop
             ( Capply (result, Rc_normal),
               get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
-              :: List.map (fun s -> Cvar s) all_args,
+              :: List.map (fun s -> Cvar s) (args @ [clos]),
               dbg () ),
           dbg (),
           code,
@@ -2651,7 +2650,12 @@ let send_function (arity, result, mode) =
 
 let apply_function (arity, result, mode) =
   let args, clos, body = apply_function_body arity result mode in
-  let all_args = List.combine args arity @ [clos, typ_val] in
+  let args = List.combine args arity in
+  let all_args =
+    if List.compare_length_with args 1 = 0
+    then (clos, typ_val) :: args
+    else args @ [clos, typ_val]
+  in
   let fun_name = global_symbol (apply_function_name arity result mode) in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
@@ -2664,7 +2668,7 @@ let apply_function (arity, result, mode) =
     }
 
 (* Generate tuplifying functions:
- *    (defun caml_tuplifyN (arg clos)
+ *    (defun caml_tuplifyN (clos arg)
  *      (app clos.direct #0(arg) ... #N-1(arg) clos))
  *)
 
@@ -2695,7 +2699,10 @@ let tuplify_function arity return =
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
     { fun_name;
-      fun_args = [VP.create arg, typ_val; VP.create clos, typ_val];
+      fun_args = [
+        VP.create clos, typ_val;
+        VP.create arg, typ_val;
+      ];
       fun_body =
         Cop
           ( Capply (return, Rc_normal),
@@ -2831,7 +2838,10 @@ let final_curry_function nlocal arity result =
   Cfunction
     { fun_name;
       fun_args =
-        [VP.create last_arg, List.hd args_type; VP.create last_clos, typ_val];
+        [
+          VP.create last_clos, typ_val;
+          VP.create last_arg, List.hd args_type;
+        ];
       fun_body =
         make_curry_apply result narity (List.tl args_type) [Cvar last_arg]
           last_clos (narity - 1);
