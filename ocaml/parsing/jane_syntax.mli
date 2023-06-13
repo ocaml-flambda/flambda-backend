@@ -127,7 +127,6 @@ module Unboxed_constants : sig
     | Float of string * char option
     | Integer of string * char
 
-  (* CR nroberts:  comment *)
   type expression = t
   type pattern = t
 
