@@ -1466,5 +1466,13 @@ Error: This type ('a : value) should be an instance of type ('a0 : void)
 (*********************************************************)
 (* Test 32: Polymorphic variant constructors take values *)
 
-let f _ = (assert false : t_void), 5
-(* let f _ = `Mk (assert false : t_void) *)
+let f _ = `Mk (assert false : t_void)
+
+[%%expect{|
+Line 1, characters 14-37:
+1 | let f _ = `Mk (assert false : t_void)
+                  ^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
