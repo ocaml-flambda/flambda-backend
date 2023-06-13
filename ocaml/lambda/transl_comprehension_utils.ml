@@ -112,7 +112,7 @@ module Lambda_utils = struct
 
   module Primitive = struct
     (** The Lambda primitive for calling a simple C primitive *)
-    (* CR layouts v5: To change when non-values are allowed in structures. *)
+    (* CR layouts v4: To change when non-values are allowed in arrays. *)
     let c_prim name arity =
       Pccall (Primitive.simple_on_values ~name ~arity ~alloc:true)
 

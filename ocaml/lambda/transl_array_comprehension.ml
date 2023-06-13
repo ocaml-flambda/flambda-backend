@@ -487,7 +487,7 @@ let iterator ~transl_exp ~scopes ~loc
       let mk_iterator body =
         let open (val Lambda_utils.int_ops ~loc) in
         (* for iter_ix = 0 to Array.length iter_arr - 1 ... *)
-        (* CR layouts: will need updating when we allow non-values in arrays. *)
+        (* CR layouts v4: will need updating when we allow non-values in arrays. *)
         Lfor { for_id     = iter_ix
              ; for_from   = l0
              ; for_to     = iter_len.var - l1
