@@ -15,9 +15,9 @@
 (**************************************************************************)
 
 module H = Lambda_to_flambda_primitives_helpers
-module I = Flambda_kind.Standard_int
-module I_or_f = Flambda_kind.Standard_int_or_float
 module K = Flambda_kind
+module I = K.Standard_int
+module I_or_f = K.Standard_int_or_float
 module L = Lambda
 module P = Flambda_primitive
 
@@ -67,21 +67,20 @@ let convert_float_comparison (comp : L.float_comparison) : unit P.comparison =
        [Lambda_to_flambda]"
 
 let boxable_number_of_boxed_integer (bint : L.boxed_integer) :
-    Flambda_kind.Boxable_number.t =
+    K.Boxable_number.t =
   match bint with
   | Pnativeint -> Naked_nativeint
   | Pint32 -> Naked_int32
   | Pint64 -> Naked_int64
 
-let standard_int_of_boxed_integer (bint : L.boxed_integer) :
-    Flambda_kind.Standard_int.t =
+let standard_int_of_boxed_integer (bint : L.boxed_integer) : K.Standard_int.t =
   match bint with
   | Pnativeint -> Naked_nativeint
   | Pint32 -> Naked_int32
   | Pint64 -> Naked_int64
 
 let standard_int_or_float_of_boxed_integer (bint : L.boxed_integer) :
-    Flambda_kind.Standard_int_or_float.t =
+    K.Standard_int_or_float.t =
   match bint with
   | Pnativeint -> Naked_nativeint
   | Pint32 -> Naked_int32
@@ -198,12 +197,12 @@ let box_float (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region :
     H.expr_primitive =
   Unary
     ( Box_number
-        ( Flambda_kind.Boxable_number.Naked_float,
+        ( K.Boxable_number.Naked_float,
           Alloc_mode.For_allocations.from_lambda mode ~current_region ),
       Prim arg )
 
 let unbox_float (arg : H.simple_or_prim) : H.simple_or_prim =
-  Prim (Unary (Unbox_number Flambda_kind.Boxable_number.Naked_float, arg))
+  Prim (Unary (Unbox_number K.Boxable_number.Naked_float, arg))
 
 let box_bint bi mode (arg : H.expr_primitive) ~current_region : H.expr_primitive
     =
@@ -675,16 +674,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
                   List.map unbox_float args ),
               Variadic (Make_array (Values, mutability, mode), args) ) ]))
   | Popaque layout, [[arg]] ->
-    let kind =
-      Flambda_kind.With_subkind.kind
-        (Flambda_kind.With_subkind.from_lambda layout)
-    in
+    let kind = K.With_subkind.kind (K.With_subkind.from_lambda layout) in
     [Unary (Opaque_identity { middle_end_only = false; kind }, arg)]
   | Pobj_magic layout, [[arg]] ->
-    let kind =
-      Flambda_kind.With_subkind.kind
-        (Flambda_kind.With_subkind.from_lambda layout)
-    in
+    let kind = K.With_subkind.kind (K.With_subkind.from_lambda layout) in
     [Unary (Opaque_identity { middle_end_only = true; kind }, arg)]
   | Pduprecord (repr, num_fields), [[arg]] ->
     let kind : P.Duplicate_block_kind.t =
