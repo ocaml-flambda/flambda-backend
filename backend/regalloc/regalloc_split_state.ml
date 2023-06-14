@@ -175,6 +175,8 @@ let add_phis :
            destruction_frontier_label)
           .is_trap_handler
       in
+      (* If the block is a trap handler, it has definitions at beginning since
+         we are introducing new names - hence no phi. *)
       if is_trap_handler
       then phi_at_beginning
       else
@@ -210,9 +212,8 @@ let rec fix_point_phi :
             (Cfg_with_liveness.get_block_exn cfg_with_liveness flab)
               .is_trap_handler
           in
-          if is_trap_handler
-          then ()
-          else
+          if not is_trap_handler
+          then
             res
               := Label.Map.update flab
                    (function
