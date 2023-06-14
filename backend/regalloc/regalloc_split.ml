@@ -244,9 +244,10 @@ let insert_phi_moves :
             Cfg_with_liveness.get_block_exn cfg_with_liveness predecessor_label
           in
           match predecessor_block.terminator.desc with
-          | Tailcall_self _ | Return | Raise _ | Tailcall_func _
+          | Return | Raise _ | Tailcall_func _
           | Call_no_return _ | Never ->
-            ()
+            assert false
+          | Tailcall_self _ -> ()
           | Always _ ->
             add_phi_moves_to_instr_list state ~before:predecessor_block
               ~phi:block substs to_unify predecessor_block.body
