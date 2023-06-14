@@ -39,7 +39,7 @@ module IR = struct
     | End_region of Ident.t
     | Prim of
         { prim : Lambda.primitive;
-          args : simple list;
+          args : simple list list;
           loc : Lambda.scoped_location;
           exn_continuation : exn_continuation option;
           region : Ident.t
@@ -92,7 +92,10 @@ module IR = struct
     | End_region id -> fprintf ppf "@[<2>(End_region@ %a)@]" Ident.print id
     | Prim { prim; args; _ } ->
       fprintf ppf "@[<2>(%a %a)@]" Printlambda.primitive prim
-        (Format.pp_print_list ~pp_sep:Format.pp_print_space print_simple)
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf arg ->
+             fprintf ppf "@[<2>(%a)@]"
+               (Format.pp_print_list ~pp_sep:Format.pp_print_space print_simple)
+               arg))
         args
 end
 
