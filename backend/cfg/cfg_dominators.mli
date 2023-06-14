@@ -33,7 +33,7 @@ val compute_dominance_frontiers :
 (* [compute_dominance_frontiers cfg doms idoms] returns a map from labels to
    their frontiers as sets of labels. The definition we use is the following:
    "the dominance frontier of a node n is the set of all nodes m such that n
-   dominates a predecessor of m, but does not dominate m itself". *)
+   dominates a predecessor of m, but does not strictly dominate m itself". *)
 
 type dominator_tree =
   { label : Label.t;
