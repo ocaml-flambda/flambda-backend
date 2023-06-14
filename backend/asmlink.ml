@@ -485,6 +485,8 @@ let reset () =
 (* Main entry point *)
 
 let link unix ~ppf_dump objfiles output_name =
+  if !Flambda_backend_flags.internal_assembler then
+      Emitaux.binary_backend_available := true;
   Profile.record_call output_name (fun () ->
     let stdlib = "stdlib.cmxa" in
     let stdexit = "std_exit.cmx" in
