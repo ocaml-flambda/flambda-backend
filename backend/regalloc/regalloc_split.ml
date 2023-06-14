@@ -82,7 +82,7 @@ let compute_substitutions : State.t -> Cfg_with_liveness.t -> Substitution.map =
           renames
           (Reg.Tbl.create (Reg.Set.cardinal renames))
       in
-      let block = get_block_exn cfg_with_liveness label in
+      let block = Cfg_with_liveness.get_block_exn cfg_with_liveness label in
       propagate_substitution state cfg substs block subst
   in
   Cfg_dominators.iter_breadth_dominator_tree
@@ -103,7 +103,7 @@ let insert_spills :
   Label.Map.fold
     (fun label (_, live_at_destruction_point) acc ->
       if split_debug then log ~indent:1 "block %d" label;
-      let block = get_block_exn cfg_with_liveness label in
+      let block = Cfg_with_liveness.get_block_exn cfg_with_liveness label in
       let subst = Substitution.for_label substs label in
       Reg.Set.iter
         (fun reg ->
@@ -148,7 +148,7 @@ let insert_reloads :
   Label.Map.iter
     (fun label live_at_definition_point ->
       if split_debug then log ~indent:1 "block %d" label;
-      let block = get_block_exn cfg_with_liveness label in
+      let block = Cfg_with_liveness.get_block_exn cfg_with_liveness label in
       let subst = Substitution.for_label substs label in
       Reg.Set.iter
         (fun old_reg ->
@@ -232,7 +232,7 @@ let insert_phi_moves :
  fun state cfg_with_liveness substs ->
   Label.Map.iter
     (fun label to_unify ->
-      let block = get_block_exn cfg_with_liveness label in
+      let block = Cfg_with_liveness.get_block_exn cfg_with_liveness label in
       if split_debug
       then
         log ~indent:1 "insert_phi_moves for block %d: %a" label Printmach.regset
@@ -241,7 +241,7 @@ let insert_phi_moves :
       Label.Set.iter
         (fun predecessor_label ->
           let predecessor_block =
-            get_block_exn cfg_with_liveness predecessor_label
+            Cfg_with_liveness.get_block_exn cfg_with_liveness predecessor_label
           in
           match predecessor_block.terminator.desc with
           | Tailcall_self _ | Return | Raise _ | Tailcall_func _

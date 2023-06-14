@@ -24,14 +24,6 @@ val log_substitutions : indent:int -> Substitution.map -> unit
 
 val log_stack_subst : indent:int -> Substitution.t -> unit
 
-val fold_blocks :
-  Cfg_with_liveness.t ->
-  f:(Label.t -> Cfg.basic_block -> 'a -> 'a) ->
-  init:'a ->
-  'a
-
-val get_block_exn : Cfg_with_liveness.t -> Label.t -> Cfg.basic_block
-
 val live_at_block_beginning : Cfg_with_liveness.t -> Label.t -> Reg.Set.t
 
 type destruction_kind =

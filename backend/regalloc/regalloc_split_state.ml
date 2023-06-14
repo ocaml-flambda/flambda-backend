@@ -76,7 +76,7 @@ let add_destruction_point_at_end :
 
 let compute_destructions : Cfg_with_liveness.t -> destructions_at_end =
  fun cfg_with_liveness ->
-  fold_blocks cfg_with_liveness ~init:Label.Map.empty
+  Cfg_with_liveness.fold_blocks cfg_with_liveness ~init:Label.Map.empty
     ~f:(fun _label block destructions_at_end ->
       match destruction_point_at_end block with
       | None -> destructions_at_end
@@ -93,7 +93,8 @@ let compute_definitions :
  fun cfg_with_liveness ~destructions_at_end ->
   let definitions_at_beginning = Label.Map.empty in
   let definitions_at_beginning =
-    fold_blocks cfg_with_liveness ~init:definitions_at_beginning
+    Cfg_with_liveness.fold_blocks cfg_with_liveness
+      ~init:definitions_at_beginning
       ~f:(fun label block definitions_at_beginning ->
         if block.is_trap_handler
         then
@@ -109,7 +110,7 @@ let compute_definitions :
         | Destruction_only_on_exceptional_path -> definitions_at_beginning
         | Destruction_on_all_paths ->
           let destruction_block =
-            get_block_exn cfg_with_liveness destruction_label
+            Cfg_with_liveness.get_block_exn cfg_with_liveness destruction_label
           in
           let normal_successor_labels =
             Cfg.successor_labels destruction_block ~normal:true ~exn:false
@@ -120,14 +121,16 @@ let compute_definitions :
                 (if split_debug && Lazy.force split_invariants
                 then
                   let successor_block =
-                    get_block_exn cfg_with_liveness successor_label
+                    Cfg_with_liveness.get_block_exn cfg_with_liveness
+                      successor_label
                   in
                   let predecessor_labels = successor_block.predecessors in
                   let all_predecessors_end_with_destruction_point : bool =
                     Label.Set.for_all
                       (fun predecessor_label ->
                         let predecessor_block =
-                          get_block_exn cfg_with_liveness predecessor_label
+                          Cfg_with_liveness.get_block_exn cfg_with_liveness
+                            predecessor_label
                         in
                         destruction_point_at_end predecessor_block
                         = Some Destruction_on_all_paths)
@@ -168,7 +171,8 @@ let add_phis :
   Label.Set.fold
     (fun destruction_frontier_label phi_at_beginning ->
       let is_trap_handler =
-        (get_block_exn cfg_with_liveness destruction_frontier_label)
+        (Cfg_with_liveness.get_block_exn cfg_with_liveness
+           destruction_frontier_label)
           .is_trap_handler
       in
       if is_trap_handler
@@ -203,7 +207,8 @@ let rec fix_point_phi :
       Label.Set.iter
         (fun flab ->
           let is_trap_handler =
-            (get_block_exn cfg_with_liveness flab).is_trap_handler
+            (Cfg_with_liveness.get_block_exn cfg_with_liveness flab)
+              .is_trap_handler
           in
           if is_trap_handler
           then ()

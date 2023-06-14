@@ -63,24 +63,12 @@ let log_stack_subst : indent:int -> Substitution.t -> unit =
   log ~indent "stack substitution:";
   log_substitution ~indent:(indent + 1) stack_subst
 
-let fold_blocks :
-    Cfg_with_liveness.t ->
-    f:(Label.t -> Cfg.basic_block -> 'a -> 'a) ->
-    init:'a ->
-    'a =
- fun cfg_with_liveness ~f ~init ->
-  Cfg.fold_blocks (Cfg_with_liveness.cfg cfg_with_liveness) ~f ~init
-
-let get_block_exn : Cfg_with_liveness.t -> Label.t -> Cfg.basic_block =
- fun cfg_with_liveness label ->
-  Cfg.get_block_exn (Cfg_with_liveness.cfg cfg_with_liveness) label
-
 let filter_unknown : Reg.Set.t -> Reg.Set.t =
  fun regset -> Reg.Set.filter Reg.is_unknown regset
 
 let live_at_block_beginning : Cfg_with_liveness.t -> Label.t -> Reg.Set.t =
  fun cfg_with_liveness label ->
-  let block = get_block_exn cfg_with_liveness label in
+  let block = Cfg_with_liveness.get_block_exn cfg_with_liveness label in
   let first_id = Cfg.first_instruction_id block in
   match Cfg_with_liveness.liveness_find_opt cfg_with_liveness first_id with
   | None -> fatal "liveness information missing for instruction %d" first_id
