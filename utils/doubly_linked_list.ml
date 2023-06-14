@@ -266,6 +266,22 @@ let find_opt t ~f =
     assert false
   | Some { node = Node { value; prev = _; next = _ }; t = _ } -> Some value
 
+let exists t ~f =
+  let rec aux t f curr =
+    match curr with
+    | Empty -> false
+    | Node node -> if f node.value then true else aux t f node.next
+  in
+  aux t f t.first
+
+let for_all t ~f =
+  let rec aux t f curr =
+    match curr with
+    | Empty -> true
+    | Node node -> if f node.value then aux t f node.next else false
+  in
+  aux t f t.first
+
 let to_list t = fold_right t ~f:(fun hd tl -> hd :: tl) ~init:[]
 
 let transfer ~to_ ~from () =

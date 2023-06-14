@@ -14,6 +14,8 @@ val bool_of_param : ?guard:bool * string -> string -> bool Lazy.t
 
 val validator_debug : bool Lazy.t
 
+type liveness = Cfg_with_liveness.liveness
+
 type log_function =
   { log :
       'a.
@@ -28,6 +30,8 @@ module Instruction : sig
 
   type t = Cfg.basic Cfg.instruction
 
+  val dummy : t
+
   val compare : t -> t -> int
 
   module Set : Set.S with type elt = t
@@ -37,7 +41,7 @@ module Instruction : sig
   module IdMap : MoreLabels.Map.S with type key = id
 end
 
-val first_instruction_id : Cfg.basic_block -> int
+val first_instruction_id : Cfg.basic_block -> Instruction.id
 
 type cfg_infos =
   { arg : Reg.Set.t;
@@ -51,10 +55,6 @@ type cfg_infos =
    instructions, to break sharing. *)
 val collect_cfg_infos : Cfg_with_layout.t -> cfg_infos
 
-type liveness = Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t
-
-val liveness_analysis : Cfg_with_layout.t -> liveness
-
 val make_log_body_and_terminator :
   log_function ->
   instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
@@ -63,6 +63,14 @@ val make_log_body_and_terminator :
   Cfg.basic_instruction_list ->
   Cfg.terminator Cfg.instruction ->
   liveness ->
+  unit
+
+val make_log_cfg_with_liveness :
+  log_function ->
+  instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
+  term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
+  indent:int ->
+  Cfg_with_liveness.t ->
   unit
 
 module Move : sig
@@ -89,11 +97,6 @@ val make_temporary :
 
 val simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t
 
-val precondition : Cfg_with_layout.t -> unit
-
-(* CR-soon xclerc for xclerc: remove the `allow_stack_operands` parameter. *)
-val postcondition : Cfg_with_layout.t -> allow_stack_operands:bool -> unit
-
 val save_cfg : string -> Cfg_with_layout.t -> unit
 
 module StackSlots : sig
@@ -107,7 +110,33 @@ module StackSlots : sig
 
   val get_or_create : t -> Reg.t -> slot
 
+  val get_or_fatal : t -> Reg.t -> slot
+
+  val use_same_slot_or_fatal : t -> Reg.t -> existing:Reg.t -> unit
+
   val update_cfg_with_layout : t -> Cfg_with_layout.t -> unit
+end
+
+module Substitution : sig
+  type t = Reg.t Reg.Tbl.t
+
+  val apply_reg : t -> Reg.t -> Reg.t
+
+  val apply_array_in_place : t -> Reg.t array -> unit
+
+  val apply_array : t -> Reg.t array -> Reg.t array
+
+  val apply_set : t -> Reg.Set.t -> Reg.Set.t
+
+  val apply_instruction_in_place : t -> _ Cfg.instruction -> unit
+
+  val apply_block_in_place : t -> Cfg.basic_block -> unit
+
+  type map = t Label.Tbl.t
+
+  val for_label : map -> Label.t -> t
+
+  val apply_cfg_in_place : map -> Cfg.t -> unit
 end
 
 val remove_prologue_if_not_required : Cfg_with_layout.t -> unit
@@ -132,7 +161,7 @@ type stack_operands_rewrite =
   | May_still_have_spilled_registers
 
 (* Substitution/map from registers to their spilled counterparts. *)
-type spilled_map = Reg.t Reg.Tbl.t
+type spilled_map = Substitution.t
 
 val is_spilled : spilled_map -> Reg.t -> bool
 
@@ -144,10 +173,20 @@ val may_use_stack_operands_everywhere :
   spilled_map -> 'a Cfg.instruction -> stack_operands_rewrite
 
 (* Insert specified instructions along all outgoing edges from the block
-   [after]. *)
+   [after]; if [before] it not [None], the insertion is restricted to edges
+   having [before] as their destination. *)
 val insert_block :
   Cfg_with_layout.t ->
   Cfg.basic_instruction_list ->
   after:Cfg.basic_block ->
+  before:Cfg.basic_block option ->
   next_instruction_id:(unit -> Instruction.id) ->
-  unit
+  Cfg.basic_block list
+
+val occurs_array : Reg.t array -> Reg.t -> bool
+
+val occurs_instruction : _ Cfg.instruction -> Reg.t -> bool
+
+val occurs_block_body : Cfg.basic_block -> Reg.t -> bool
+
+val occurs_block : Cfg.basic_block -> Reg.t -> bool

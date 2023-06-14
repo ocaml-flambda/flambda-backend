@@ -515,6 +515,7 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
     | false -> ()
     | true -> Cfg_with_liveness.invalidate_liveness cfg_with_liveness));
   main ~round:1 state cfg_with_liveness;
+  if irc_debug then log_cfg_with_liveness ~indent:1 cfg_with_liveness;
   Regalloc_rewrite.postlude
     (module State)
     (module Utils)

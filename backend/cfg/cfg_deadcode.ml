@@ -3,7 +3,8 @@
 open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-let live_before : type a. a Cfg.instruction -> liveness -> Reg.Set.t =
+let live_before :
+    type a. a Cfg.instruction -> Cfg_with_liveness.liveness -> Reg.Set.t =
  fun instr liveness ->
   match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
   | None -> fatal "no liveness information for instruction %d" instr.id

@@ -1,6 +1,6 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-open! Regalloc_utils
+type liveness = Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t
 
 type t
 (* Holds a Cfg_with_layout.t value, and a "cache" of the liveness information
