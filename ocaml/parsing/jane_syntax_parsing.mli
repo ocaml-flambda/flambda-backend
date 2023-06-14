@@ -137,17 +137,6 @@ module Embedded_name : sig
   val pp_quoted_name : Format.formatter -> t -> unit
 end
 
-(** An AST desc together with its attributes, including the attributes that
-    signal that the AST should be interpreted as a Jane Syntax AST. These are
-    produced only by [make_jane_syntax] and [make_entire_jane_syntax].
-*)
-module With_attributes : sig
-  type 'desc t = private
-    { jane_syntax_attributes : Parsetree.attributes
-    ; desc : 'desc
-    }
-end
-
 (** Each syntactic category that contains novel syntactic features has a
     corresponding module of this module type.  We're adding these lazily as we
     need them. When you add another one, make sure also to add special handling
@@ -158,33 +147,15 @@ module type AST = sig
   (** The AST type (e.g., [Parsetree.expression]) *)
   type ast
 
-  (** The "AST description" type, without the location and
-      attributes (e.g., [Parsetree.expression_desc]) *)
-  type ast_desc
-
-  (** Information which is part of the [ast] but missing from [ast_desc], other
-      than location. We need this to get from an [ast_desc] to an [ast]. *)
-  type ast_info
-
-  (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata.  When
-      creating [ast] nodes afresh to embed our novel syntax, the location should
-      be omitted; in this case, it will default to [!Ast_helper.default_loc],
-      which should be [ghost]. *)
-  val wrap_desc
-    :  ?loc:Location.t
-    -> info:ast_info
-    -> ast_desc
-    -> ast
-
   (** Embed a term from one of our novel syntactic features in the AST using the
-      given name (the [Embedded_name.t]) and body (the [ast]).  Any locations in
+      given name (in the [Feature.t]) and body (the [ast]).  Any locations in
       the generated AST will be set to [!Ast_helper.default_loc], which should
       be [ghost]. *)
   val make_jane_syntax
     :  Feature.t
     -> string list
     -> ast
-    -> ast_desc
+    -> ast
 
   (** As [make_jane_syntax], but specifically for the AST node corresponding to
       the entire piece of novel syntax (e.g., for a list comprehension, the
@@ -196,7 +167,7 @@ module type AST = sig
     :  loc:Location.t
     -> Feature.t
     -> (unit -> ast)
-    -> ast_desc
+    -> ast
 
   (** Build an [of_ast] function. The return value of this function should be
       used to implement [of_ast] in modules satisfying the signature
@@ -224,45 +195,27 @@ end
 
 module Expression :
   AST with type ast = Parsetree.expression
-       and type ast_desc = Parsetree.expression_desc With_attributes.t
-       and type ast_info = Parsetree.attributes
 
 module Pattern :
   AST with type ast = Parsetree.pattern
-       and type ast_desc = Parsetree.pattern_desc With_attributes.t
-       and type ast_info = Parsetree.attributes
 
 module Module_type :
   AST with type ast = Parsetree.module_type
-       and type ast_desc = Parsetree.module_type_desc With_attributes.t
-       and type ast_info = Parsetree.attributes
 
 module Signature_item :
   AST with type ast = Parsetree.signature_item
-       and type ast_desc = Parsetree.signature_item_desc
-       and type ast_info = unit
 
 module Structure_item :
   AST with type ast = Parsetree.structure_item
-       and type ast_desc = Parsetree.structure_item_desc
-       and type ast_info = unit
 
 module Core_type :
   AST with type ast = Parsetree.core_type
-       and type ast_desc = Parsetree.core_type_desc With_attributes.t
-       and type ast_info = Parsetree.attributes
 
 module Constructor_argument :
   AST with type ast = Parsetree.core_type
-       and type ast_desc = Parsetree.core_type_desc With_attributes.t
-       and type ast_info = Parsetree.attributes
 
 module Extension_constructor :
   AST with type ast = Parsetree.extension_constructor
-       and type ast_desc =
-             Parsetree.extension_constructor_kind With_attributes.t
-       and type ast_info = Parsetree.attributes * string Location.loc
-       (* the [string Location.loc] is the name of the constructor *)
 
 (** Require that an extension is enabled for at least the provided level, or
     else throw an exception (of an abstract type) at the provided location

@@ -41,8 +41,6 @@ open Jane_syntax_parsing
    future syntax features to remember to do this wrapping.
 *)
 
-module With_attributes = With_attributes
-
 (** List and array comprehensions *)
 module Comprehensions = struct
   let feature : Feature.t = Language_extension Comprehensions
@@ -94,9 +92,7 @@ module Comprehensions = struct
      v}
   *)
 
-  let comprehension_expr names x =
-    Expression.wrap_desc ~info:[] ~loc:x.pexp_loc @@
-    Expression.make_jane_syntax feature names x
+  let comprehension_expr names x = Expression.make_jane_syntax feature names x
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
       the [expr_of_...] family of expressions, culminating in
@@ -143,9 +139,9 @@ module Comprehensions = struct
           clauses
           (comprehension_expr ["body"] body)))
 
-  let expr_of ~loc cexpr =
+  let expr_of ~loc ~attrs cexpr =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
-    Expression.make_entire_jane_syntax ~loc feature (fun () ->
+    let expr = Expression.make_entire_jane_syntax ~loc feature (fun () ->
       match cexpr with
       | Cexp_list_comprehension comp ->
           expr_of_comprehension ~type_:["list"] comp
@@ -157,6 +153,8 @@ module Comprehensions = struct
                      | Immutable -> "immutable"
                    ]
             comp)
+    in
+    { expr with pexp_attributes = expr.pexp_attributes @ attrs }
 
   (** Then, we define how to go from the OCaml AST to the nice AST; this is
       the [..._of_expr] family of expressions, culminating in
@@ -286,22 +284,22 @@ module Immutable_arrays = struct
 
   let feature : Feature.t = Language_extension Immutable_arrays
 
-  let expr_of ~loc = function
+  let expr_of ~loc ~attrs = function
     | Iaexp_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Expression.make_entire_jane_syntax ~loc feature (fun () ->
-        Ast_helper.Exp.array elts)
+        Ast_helper.Exp.array ~attrs elts)
 
   (* Returns remaining unconsumed attributes *)
   let of_expr expr = match expr.pexp_desc with
     | Pexp_array elts -> Iaexp_immutable_array elts, expr.pexp_attributes
     | _ -> failwith "Malformed immutable array expression"
 
-  let pat_of ~loc = function
+  let pat_of ~loc ~attrs = function
     | Iapat_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Pattern.make_entire_jane_syntax ~loc feature (fun () ->
-        Ast_helper.Pat.array elts)
+        Ast_helper.Pat.array ~attrs elts)
 
   (* Returns remaining unconsumed attributes *)
   let of_pat pat = match pat.ppat_desc with
@@ -351,10 +349,10 @@ module Strengthen = struct
      the [(module M)] is a [Pmty_alias].  This isn't syntax we can write, but
      [(module M)] can be the inferred type for [M], so this should be fine. *)
 
-  let mty_of ~loc { mty; mod_id } =
+  let mty_of ~loc ~attrs { mty; mod_id } =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
     Module_type.make_entire_jane_syntax ~loc feature (fun () ->
-      Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
+      Ast_helper.Mty.functor_ ~attrs (Named (Location.mknoloc None, mty))
         (Ast_helper.Mty.alias mod_id))
 
   (* Returns remaining unconsumed attributes *)
@@ -404,15 +402,15 @@ module Unboxed_constants = struct
     | Float (x, suffix) -> Pconst_float (x, suffix)
     | Integer (x, suffix) -> Pconst_integer (x, Some suffix)
 
-  let expr_of ~loc t =
+  let expr_of ~loc ~attrs t =
     let constant = constant_of t in
     Expression.make_entire_jane_syntax ~loc feature (fun () ->
-      Ast_helper.Exp.constant constant)
+      Ast_helper.Exp.constant ~attrs constant)
 
-  let pat_of ~loc t =
+  let pat_of ~loc ~attrs t =
     let constant = constant_of t in
     Pattern.make_entire_jane_syntax ~loc feature (fun () ->
-      Ast_helper.Pat.constant constant)
+      Ast_helper.Pat.constant ~attrs constant)
 end
 
 (******************************************************************************)
@@ -463,10 +461,10 @@ module Expression = struct
 
   let of_ast = Expression.make_of_ast ~of_ast_internal
 
-  let expr_of ~loc = function
-    | Jexp_comprehension    x -> Comprehensions.expr_of    ~loc x
-    | Jexp_immutable_array  x -> Immutable_arrays.expr_of  ~loc x
-    | Jexp_unboxed_constant x -> Unboxed_constants.expr_of ~loc x
+  let expr_of ~loc ~attrs = function
+    | Jexp_comprehension    x -> Comprehensions.expr_of    ~loc ~attrs x
+    | Jexp_immutable_array  x -> Immutable_arrays.expr_of  ~loc ~attrs x
+    | Jexp_unboxed_constant x -> Unboxed_constants.expr_of ~loc ~attrs x
 end
 
 module Pattern = struct
@@ -485,9 +483,9 @@ module Pattern = struct
 
   let of_ast = Pattern.make_of_ast ~of_ast_internal
 
-  let pat_of ~loc = function
-    | Jpat_immutable_array x -> Immutable_arrays.pat_of ~loc x
-    | Jpat_unboxed_constant x -> Unboxed_constants.pat_of ~loc x
+  let pat_of ~loc ~attrs = function
+    | Jpat_immutable_array x -> Immutable_arrays.pat_of ~loc ~attrs x
+    | Jpat_unboxed_constant x -> Unboxed_constants.pat_of ~loc ~attrs x
 end
 
 module Module_type = struct

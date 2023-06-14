@@ -154,9 +154,10 @@ module T = struct
     match Jane_syntax.Core_type.of_ast typ with
     | Some (jtyp, attrs) -> begin
         let attrs = sub.attributes sub attrs in
-        Jane_syntax_parsing.Core_type.wrap_desc ~loc ~info:attrs @@
-        match sub.typ_jane_syntax sub jtyp with
-        | _ -> .
+        let typ = match sub.typ_jane_syntax sub jtyp with
+          | _ -> .
+        in
+        { typ with ptyp_attributes = attrs @ typ.ptyp_attributes }
     end
     | None ->
     let attrs = sub.attributes sub attrs in
@@ -254,16 +255,14 @@ module T = struct
     let name = map_loc sub pext_name in
     match Jane_syntax.Extension_constructor.of_ast ext with
     | Some (jext, attrs) -> begin
-      let attrs = sub.attributes sub attrs in
-      Jane_syntax_parsing.Extension_constructor.wrap_desc
-        ~loc ~info:(attrs, name) @@
+      let _attrs = sub.attributes sub attrs in
       match sub.extension_constructor_jane_syntax sub jext with
       | _ -> .
     end
     | None ->
     let attrs = sub.attributes sub pext_attributes in
     Te.constructor ~loc ~attrs
-      (map_loc sub pext_name)
+      name
       (map_extension_constructor_kind sub pext_kind)
 
 end
@@ -321,9 +320,8 @@ module MT = struct
     match Jane_syntax.Module_type.of_ast mty with
     | Some (jmty, attrs) -> begin
         let attrs = sub.attributes sub attrs in
-        Jane_syntax_parsing.Module_type.wrap_desc ~loc ~info:attrs @@
         match sub.module_type_jane_syntax sub jmty with
-        | Jmty_strengthen smty -> Jane_syntax.Strengthen.mty_of ~loc smty
+        | Jmty_strengthen smty -> Jane_syntax.Strengthen.mty_of ~loc ~attrs smty
       end
     | None ->
     let attrs = sub.attributes sub attrs in
@@ -373,7 +371,6 @@ module MT = struct
     let loc = sub.location sub loc in
     match Jane_syntax.Signature_item.of_ast sigi with
     | Some jsigi -> begin
-        Jane_syntax_parsing.Signature_item.wrap_desc ~loc ~info:() @@
         match sub.signature_item_jane_syntax sub jsigi with
         | Jsig_include_functor incl ->
             Jane_syntax.Include_functor.sig_item_of ~loc incl
@@ -453,7 +450,6 @@ module M = struct
     let loc = sub.location sub loc in
     match Jane_syntax.Structure_item.of_ast stri with
     | Some jstri -> begin
-        Jane_syntax_parsing.Structure_item.wrap_desc ~loc ~info:() @@
         match sub.structure_item_jane_syntax sub jstri with
         | Jstr_include_functor incl ->
             Jane_syntax.Include_functor.str_item_of ~loc incl
@@ -540,8 +536,8 @@ module E = struct
     match Jane_syntax.Expression.of_ast exp with
     | Some (jexp, attrs) -> begin
         let attrs = sub.attributes sub attrs in
-        Jane_syntax_parsing.Expression.wrap_desc ~loc ~info:attrs
-          (Jane_syntax.Expression.expr_of ~loc (sub.expr_jane_syntax sub jexp))
+        Jane_syntax.Expression.expr_of ~loc ~attrs
+          (sub.expr_jane_syntax sub jexp)
     end
     | None ->
     let attrs = sub.attributes sub attrs in
@@ -658,8 +654,7 @@ module P = struct
     match Jane_syntax.Pattern.of_ast pat with
     | Some (jpat, attrs) -> begin
         let attrs = sub.attributes sub attrs in
-        Jane_syntax_parsing.Pattern.wrap_desc ~loc ~info:attrs @@
-        Jane_syntax.Pattern.pat_of ~loc (sub.pat_jane_syntax sub jpat)
+        Jane_syntax.Pattern.pat_of ~loc ~attrs (sub.pat_jane_syntax sub jpat)
     end
     | None ->
     let attrs = sub.attributes sub attrs in
