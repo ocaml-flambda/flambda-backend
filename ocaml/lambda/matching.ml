@@ -1955,7 +1955,7 @@ let inline_lazy_force_cond arg pos loc =
                       ap_result_layout = Lambda.layout_lazy_contents;
                       ap_region_close = pos;
                       ap_mode = alloc_heap;
-                      ap_inlined = Default_inlined;
+                      ap_inlined = Never_inlined;
                       ap_specialised = Default_specialise;
                       ap_probe=None
                     },
