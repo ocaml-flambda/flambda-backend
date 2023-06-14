@@ -1106,8 +1106,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           | [arg] -> arg
           | [] | _ :: _ :: _ ->
             Misc.fatal_errorf "Non-singleton arguments for Pbigarrayref: %a %a"
-              Printlambda.primitive prim H.print_list_of_simple_or_prim
-              (List.flatten args))
+              Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim
+              args)
         args
     in
     match
@@ -1142,8 +1142,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           | [arg] -> arg
           | [] | _ :: _ :: _ ->
             Misc.fatal_errorf "Non-singleton arguments for Pbigarrayset: %a %a"
-              Printlambda.primitive prim H.print_list_of_simple_or_prim
-              (List.flatten args))
+              Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim
+              args)
         args
     in
     match
