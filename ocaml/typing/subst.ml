@@ -37,7 +37,7 @@ type additional_action =
     (* The [Prepare_for_saving] function should be applied to all layouts when
        saving; this commons them up, truncates their histories, and runs
        a check that all unconstrained variables have been defaulted to value. *)
-  | Copy_types
+  | Duplicate_variables
   | No_action
 
 type t =
@@ -77,7 +77,7 @@ let add_modtype_path p ty s =
 let add_modtype id ty s = add_modtype_path (Pident id) ty s
 
 type additional_action_config =
-  | Copy_types
+  | Duplicate_variables
   | Prepare_for_saving
 
 let with_additional_action (config : additional_action_config) s =
@@ -93,7 +93,7 @@ let with_additional_action (config : additional_action_config) s =
   *)
   let additional_action : additional_action =
     match config with
-    | Copy_types -> Copy_types
+    | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
         let reason = Layout.Imported in
         let any = Layout.of_const Any ~why:reason in
@@ -122,7 +122,7 @@ let with_additional_action (config : additional_action_config) s =
 let apply_prepare_layout s lay loc =
   match s.additional_action with
   | Prepare_for_saving prepare_layout -> prepare_layout loc lay
-  | Copy_types | No_action -> lay
+  | Duplicate_variables | No_action -> lay
 
 let change_locs s loc = { s with loc = Some loc; last_compose = None }
 
@@ -131,7 +131,7 @@ let loc s x =
   | Some l -> l
   | None -> begin
       match s.additional_action with
-      | Prepare_for_saving _ | Copy_types ->
+      | Prepare_for_saving _ | Duplicate_variables ->
           if not !Clflags.keep_locs then Location.none else x
       | No_action -> x
     end
@@ -148,21 +148,21 @@ let is_not_doc = function
   | _ -> true
 
 let attrs s x =
-  (* Now that we track [Copy_types] and [Prepare_for_saving] as
-     separate states, we should reconsider whether the [Copy_types]
+  (* Now that we track [Duplicate_variables] and [Prepare_for_saving] as
+     separate states, we should reconsider whether the [Duplicate_variables]
      callsites really need to scrub docs and locations. For now, we're keeping
      the scrubbing behavior for backward compatibility.
   *)
   let x =
     match s.additional_action with
-    | Prepare_for_saving _ | Copy_types ->
+    | Prepare_for_saving _ | Duplicate_variables ->
         if not !Clflags.keep_docs
         then List.filter is_not_doc x
         else x
     | No_action -> x
   in
   match s.additional_action with
-  | Prepare_for_saving _ | Copy_types ->
+  | Prepare_for_saving _ | Duplicate_variables ->
       if not !Clflags.keep_locs
       then remove_loc.Ast_mapper.attributes remove_loc x
       else x
@@ -248,18 +248,18 @@ let ctype_apply_env_empty = ref (fun _ -> assert false)
 
 (* Similar to [Ctype.nondep_type_rec]. *)
 let rec typexp copy_scope s ty =
-  let should_copy_types =
+  let should_duplicate_vars =
     match s.additional_action with
-    | Copy_types | Prepare_for_saving _ -> true
+    | Duplicate_variables | Prepare_for_saving _ -> true
     | No_action -> false
   in
   let desc = get_desc ty in
   match desc with
     Tvar _ | Tunivar _ ->
-      if should_copy_types || get_id ty < 0 then
+      if should_duplicate_vars || get_id ty < 0 then
         let ty' =
           match s.additional_action with
-          | Copy_types -> newpersty desc
+          | Duplicate_variables -> newpersty desc
           | Prepare_for_saving prepare_layout ->
               newpersty (norm desc ~prepare_layout)
           | No_action -> newty2 ~level:(get_level ty) desc
@@ -269,7 +269,7 @@ let rec typexp copy_scope s ty =
       else ty
   | Tsubst (ty, _) ->
       ty
-  | Tfield (m, k, _t1, _t2) when not should_copy_types && m = dummy_method
+  | Tfield (m, k, _t1, _t2) when not should_duplicate_vars && m = dummy_method
       && field_kind_repr k <> Fabsent && get_level ty < generic_level ->
       (* do not copy the type of self when it is not generalized *)
       ty
@@ -284,7 +284,7 @@ let rec typexp copy_scope s ty =
     (* Make a stub *)
     let layout = Layout.any ~why:Dummy_layout in
     let ty' =
-      if should_copy_types then newpersty (Tvar {name = None; layout})
+      if should_duplicate_vars then newpersty (Tvar {name = None; layout})
       else newgenstub ~scope:(get_scope ty) layout
     in
     For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
@@ -331,7 +331,7 @@ let rec typexp copy_scope s ty =
               Tlink ty2
           | _ ->
               let dup =
-                should_copy_types || get_level more = generic_level ||
+                should_duplicate_vars || get_level more = generic_level ||
                 static_row row || is_Tconstr more in
               (* Various cases for the row variable *)
               let more' =
@@ -339,7 +339,7 @@ let rec typexp copy_scope s ty =
                   Tsubst (ty, None) -> ty
                 | Tconstr _ | Tnil -> typexp copy_scope s more
                 | Tunivar _ | Tvar _ ->
-                    if should_copy_types then newpersty mored
+                    if should_duplicate_vars then newpersty mored
                     else if dup && is_Tvar more then newgenty mored
                     else more
                 | _ -> assert false
@@ -446,7 +446,7 @@ let type_declaration' copy_scope s decl =
       | Type_variant (cstrs, rep) ->
           let rep =
             match s.additional_action with
-            | No_action | Copy_types -> rep
+            | No_action | Duplicate_variables -> rep
             | Prepare_for_saving prepare_layout ->
                 variant_representation ~prepare_layout decl.type_loc rep
           in
@@ -455,7 +455,7 @@ let type_declaration' copy_scope s decl =
       | Type_record(lbls, rep) ->
           let rep =
             match s.additional_action with
-            | No_action | Copy_types -> rep
+            | No_action | Duplicate_variables -> rep
             | Prepare_for_saving prepare_layout ->
                 record_representation ~prepare_layout decl.type_loc rep
           in
@@ -473,7 +473,7 @@ let type_declaration' copy_scope s decl =
         match s.additional_action with
         | Prepare_for_saving prepare_layout ->
             prepare_layout decl.type_loc decl.type_layout
-        | Copy_types | No_action -> decl.type_layout
+        | Duplicate_variables | No_action -> decl.type_layout
       end;
     type_private = decl.type_private;
     type_variance = decl.type_variance;
@@ -558,7 +558,7 @@ let extension_constructor' copy_scope s ext =
     ext_arg_layouts = begin match s.additional_action with
       | Prepare_for_saving prepare_layout ->
           Array.map (prepare_layout ext.ext_loc) ext.ext_arg_layouts
-      | Copy_types | No_action -> ext.ext_arg_layouts
+      | Duplicate_variables | No_action -> ext.ext_arg_layouts
     end;
     ext_constant = ext.ext_constant;
     ext_ret_type =
@@ -566,7 +566,7 @@ let extension_constructor' copy_scope s ext =
     ext_private = ext.ext_private;
     ext_attributes = attrs s ext.ext_attributes;
     ext_loc = begin match s.additional_action with
-      | Prepare_for_saving _ | Copy_types -> Location.none
+      | Prepare_for_saving _ | Duplicate_variables -> Location.none
       | No_action -> ext.ext_loc
     end;
     ext_uid = ext.ext_uid;
@@ -821,13 +821,13 @@ and compose s1 s2 =
           additional_action = begin
             match s1.additional_action, s2.additional_action with
             | action, No_action | No_action, action -> action
-            | Copy_types, Copy_types -> Copy_types
+            | Duplicate_variables, Duplicate_variables -> Duplicate_variables
 
             (* Preparing for saving runs a superset of the things involved with
                copying variables, so we prefer that if composing substitutions.
             *)
-            | (Prepare_for_saving _ as prepare), Copy_types
-            | Copy_types, (Prepare_for_saving _ as prepare)
+            | (Prepare_for_saving _ as prepare), Duplicate_variables
+            | Duplicate_variables, (Prepare_for_saving _ as prepare)
                 -> prepare
 
             (* Note [Preparing_for_saving always the same]

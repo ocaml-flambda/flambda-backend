@@ -43,13 +43,14 @@ val add_modtype: Ident.t -> module_type -> t -> t
 val add_modtype_path: Path.t -> module_type -> t -> t
 
 type additional_action_config =
-   | Copy_types
-   (* CR nroberts: I have low confidence in this comment. *)
-   (* [Copy_types] makes it so any substitution will replace all types
-      with copies unrelated to the original type. *)
+   | Duplicate_variables
+   (* [Duplicate_variables] makes it so that any substitution will duplicate
+      variable nodes. Substitution already duplicates non-variable nodes;
+      refer to the comment at the top of [subst.mli].
+   *)
    | Prepare_for_saving
    (* [Prepare_for_saving] performs all actions associated with
-      [Copy_types] and additionally prepares layouts for saving by
+      [Duplicate_variables] and additionally prepares layouts for saving by
       commoning them up, truncating their histories, and performing
       a check that all unconstrained layouts have been defaulted to value.
    *)

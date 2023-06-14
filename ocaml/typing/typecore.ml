@@ -6849,12 +6849,12 @@ and type_cases
       (* Hack: use the [Subst] machinery to copy types, even though
          we don't intend on persisting the type to disk.
 
-         We added a new [Copy_types] variant specifically for this
-         callsite, but it's still a bit of a hack (e.g. the type
-         IDs are all negative, like they are in cmi files).
+         We added a new [Duplicate_variables] variant specifically for this
+         callsite, but it's still a bit of a hack (e.g. the type IDs produced
+         for duplicated nodes are all negative, like they are in cmi files).
       *)
       Subst.type_expr
-        (Subst.with_additional_action Copy_types Subst.identity)
+        (Subst.with_additional_action Duplicate_variables Subst.identity)
         ty_arg'
     else ty_arg'
   in
