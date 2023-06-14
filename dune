@@ -231,6 +231,7 @@
   cfg_dataflow
   cfg_deadcode
   cfg_liveness
+  cfg_dominators
   cfg_loop_infos
   cfg_to_linear_desc
   eliminate_dead_code
@@ -772,6 +773,7 @@
   (cfg_dataflow.mli as compiler-libs/cfg_dataflow.mli)
   (cfg_deadcode.mli as compiler-libs/cfg_deadcode.mli)
   (cfg_liveness.mli as compiler-libs/cfg_liveness.mli)
+  (cfg_dominators.mli as compiler-libs/cfg_dominators.mli)
   (cfg_loop_infos.mli as compiler-libs/cfg_loop_infos.mli)
   (regalloc_utils.mli as compiler-libs/regalloc_utils.mli)
   (regalloc_rewrite.mli as compiler-libs/regalloc_rewrite.mli)
@@ -1253,6 +1255,18 @@
   (.ocamloptcomp.objs/byte/cfg_liveness.cmti
    as
    compiler-libs/cfg_liveness.cmti)
+  (.ocamloptcomp.objs/byte/cfg_dominators.cmi
+    as
+    compiler-libs/cfg_dominators.cmi)
+  (.ocamloptcomp.objs/byte/cfg_dominators.cmo
+    as
+    compiler-libs/cfg_dominators.cmo)
+  (.ocamloptcomp.objs/byte/cfg_dominators.cmt
+    as
+    compiler-libs/cfg_dominators.cmt)
+  (.ocamloptcomp.objs/byte/cfg_dominators.cmti
+    as
+    compiler-libs/cfg_dominators.cmti)
   (.ocamloptcomp.objs/byte/cfg_loop_infos.cmi
    as
    compiler-libs/cfg_loop_infos.cmi)
@@ -1609,6 +1623,9 @@
   (.ocamloptcomp.objs/native/cfg_liveness.cmx
    as
    compiler-libs/cfg_liveness.cmx)
+  (.ocamloptcomp.objs/native/cfg_dominators.cmx
+    as
+    compiler-libs/cfg_dominators.cmx)
   (.ocamloptcomp.objs/native/cfg_loop_infos.cmx
    as
    compiler-libs/cfg_loop_infos.cmx)

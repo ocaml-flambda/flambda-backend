@@ -535,7 +535,13 @@ let update_spill_cost : Cfg_with_layout.t -> flat:bool -> unit -> unit =
   in
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let loops_depths : Cfg_loop_infos.loop_depths =
-    if flat then Label.Map.empty else (Cfg_loop_infos.build cfg).loop_depths
+    if flat
+    then Label.Map.empty
+    else
+      (* CR-soon xclerc for xclerc: avoid recomputing the dominators if they
+         have already been computed for split/rename. *)
+      let doms = Cfg_dominators.build cfg in
+      (Cfg_loop_infos.build cfg doms).loop_depths
   in
   Cfg.iter_blocks cfg ~f:(fun label block ->
       let cost =

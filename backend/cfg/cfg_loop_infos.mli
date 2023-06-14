@@ -1,18 +1,5 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type dominators = Label.Set.t Label.Map.t
-
-val compute_dominators : Cfg.t -> dominators
-
-val is_dominating : dominators -> Label.t -> Label.t -> bool
-(* [is_dominating doms x y] is [true] iff [x] is dominating [y] according to
-   [dominators]. All edges, regular and exceptional are treated the same way. *)
-
-val is_strictly_dominating : dominators -> Label.t -> Label.t -> bool
-(* [is_strictly_dominating doms x y] is [true] iff [x] is strictly dominating
-   [y] according to [dominators]. All edges, regular and exceptional are treated
-   the same way.*)
-
 module Edge : sig
   type t =
     { src : Label.t;
@@ -24,7 +11,7 @@ end
 
 module EdgeMap : Map.S with type key = Edge.t
 
-val compute_back_edges : Cfg.t -> dominators -> Edge.t list
+val compute_back_edges : Cfg.t -> Cfg_dominators.dominators -> Edge.t list
 
 type loop = Label.Set.t
 (* Blocks in a loop; if a node is part of several/nested loops, it will appear
@@ -50,11 +37,10 @@ type loop_depths = int Label.Map.t
 val compute_loop_depths : Cfg.t -> header_map -> loop_depths
 
 type t =
-  { dominators : dominators;
-    back_edges : Edge.t list;
+  { back_edges : Edge.t list;
     loops : loops;
     header_map : header_map;
     loop_depths : loop_depths
   }
 
-val build : Cfg.t -> t
+val build : Cfg.t -> Cfg_dominators.t -> t
