@@ -217,8 +217,8 @@ module Buckets : sig
 end
 with type slots := t = struct
   type t = Interval.t Int.Tbl.t array array
-  (* first index is register class, second index is bucket index,
-     table key is slot index *)
+  (* first index is register class, second index is bucket index, table key is
+     slot index *)
 
   let does_not_fit (bucket : Interval.t Int.Tbl.t) (interval : Interval.t) :
       bool =
@@ -321,11 +321,10 @@ let optimize (t : t) (cfg_with_liveness : Cfg_with_liveness.t) : unit =
       for reg_class = 0 to pred Proc.num_register_classes do
         let old_value = t.num_stack_slots.(reg_class) in
         let new_value = succ max_bucket_indices.(reg_class) in
-        if new_value > old_value then
+        if new_value > old_value
+        then
           fatal "more slots are now used for class %d (before: %d, after: %d)"
-            reg_class
-            old_value
-            new_value;
+            reg_class old_value new_value;
         if debug
         then
           Format.eprintf "reg_class %d has %d fewer slots (%d ~> %d)\n%!"
