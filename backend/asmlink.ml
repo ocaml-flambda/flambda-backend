@@ -353,7 +353,7 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   let name_list =
     List.flatten (List.map (fun u -> u.defines) units) in
-  compile_phrase (Cmm_helpers.entry_point name_list);
+  List.iter compile_phrase (Cmm_helpers.entry_point name_list);
   List.iter compile_phrase
     (Cmm_helpers.emit_preallocated_blocks []
       (Cmm_helpers.generic_functions false genfns));
