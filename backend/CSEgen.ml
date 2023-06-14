@@ -58,9 +58,9 @@ module Equations = struct
   let find op_class op m =
     match op_class with
     | Op_load Mutable ->
-      Rhs_map.find op m.mutable_load_equations
+      Rhs_map.find_opt op m.mutable_load_equations
     | _ ->
-      Rhs_map.find op m.other_equations
+      Rhs_map.find_opt op m.other_equations
 
   let remove_mutable_loads m =
     { mutable_load_equations = Rhs_map.empty;
@@ -106,10 +106,9 @@ let fresh_valnum_regs n rs =
   registers. *)
 
 let valnum_reg n r =
-  try
-    (n, Reg.Map.find r n.num_reg)
-  with Not_found ->
-    fresh_valnum_reg n r
+  match Reg.Map.find_opt r n.num_reg with
+  | Some s -> n, s
+  | None -> fresh_valnum_reg n r
 
 let valnum_regs n rs =
   array_fold_transf valnum_reg n rs
@@ -118,10 +117,7 @@ let valnum_regs n rs =
    Return [Some res] if there is one, where [res] is the lhs. *)
 
 let find_equation op_class n rhs =
-  try
-    Some(Equations.find op_class rhs n.num_eqs)
-  with Not_found ->
-    None
+  Equations.find op_class rhs n.num_eqs
 
 (* Find a register containing the given value number. *)
 

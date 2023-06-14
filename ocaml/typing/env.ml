@@ -1205,14 +1205,14 @@ let type_of_cstr path = function
 let find_type_data path env =
   match Path.constructor_typath path with
   | Regular p -> begin
-      match Path.Map.find p env.local_constraints with
-      | decl ->
+      match Path.Map.find_opt p env.local_constraints with
+      | Some decl ->
           {
             tda_declaration = decl;
             tda_descriptions = Type_abstract;
             tda_shape = Shape.leaf decl.type_uid;
           }
-      | exception Not_found -> find_type_full p env
+      | None -> find_type_full p env
     end
   | Cstr (ty_path, s) ->
       (* This case corresponds to an inlined record *)
@@ -1243,8 +1243,9 @@ let find_type_data path env =
         with Not_found -> assert false
       in
       let cstrs =
-        try NameMap.find s comps.comp_constrs
-        with Not_found -> assert false
+        match NameMap.find_opt s comps.comp_constrs with
+        | Some s -> s
+        | None -> assert false
       in
       let exts = List.filter is_ext cstrs in
       match exts with
@@ -1471,7 +1472,7 @@ let find_type_expansion path env =
      private row are still considered unknown to the type system.
      Hence, this case is caught by the following clause that also handles
      purely abstract data types without manifest type definition. *)
-  | _ -> raise Not_found
+  | _ -> raise_notrace Not_found
 
 (* Find the manifest type information associated to a type, i.e.
    the necessary information for the compiler's type-based optimisations.

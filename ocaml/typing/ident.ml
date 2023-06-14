@@ -239,7 +239,7 @@ let rec add id data = function
         balance l k (add id data r)
 
 let rec min_binding = function
-    Empty -> raise Not_found
+    Empty -> raise_notrace Not_found
   | Node (Empty, d, _, _) -> d
   | Node (l, _, _, _) -> min_binding l
 
@@ -272,13 +272,13 @@ let rec remove id = function
 
 let rec find_previous id = function
     None ->
-      raise Not_found
+      raise_notrace Not_found
   | Some k ->
       if same id k.ident then k.data else find_previous id k.previous
 
 let rec find_same id = function
     Empty ->
-      raise Not_found
+      raise_notrace Not_found
   | Node(l, k, r, _) ->
       let c = String.compare (name id) (name k.ident) in
       if c = 0 then
@@ -288,9 +288,12 @@ let rec find_same id = function
       else
         find_same id (if c < 0 then l else r)
 
+let find_same_opt id ids =
+  try Some (find_same id ids) with Not_found -> None
+
 let rec find_name n = function
     Empty ->
-      raise Not_found
+      raise_notrace Not_found
   | Node(l, k, r, _) ->
       let c = String.compare n (name k.ident) in
       if c = 0 then

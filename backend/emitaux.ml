@@ -179,18 +179,18 @@ type emit_frame_actions =
 let emit_frames a =
   let filenames = Hashtbl.create 7 in
   let label_filename name =
-    try
-      Hashtbl.find filenames name
-    with Not_found ->
+    match Hashtbl.find_opt filenames name with
+    | Some s -> s
+    | None ->
       let lbl = Cmm.new_label () in
       Hashtbl.add filenames name lbl;
       lbl
   in
   let defnames = Hashtbl.create 7 in
   let label_defname filename defname =
-    try
-      snd (Hashtbl.find defnames (filename, defname))
-    with Not_found ->
+    match Hashtbl.find_opt defnames (filename, defname) with
+    | Some x -> snd x
+    | None ->
       let file_lbl = label_filename filename in
       let def_lbl = Cmm.new_label () in
       Hashtbl.add defnames (filename, defname) (file_lbl, def_lbl);
