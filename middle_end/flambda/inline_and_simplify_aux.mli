@@ -296,11 +296,29 @@ module Result : sig
   (** Mark that the given static exception has been used. *)
   val use_static_exception : t -> Static_exception.t -> t
 
-  (** Mark/clear whether local allocations may be made in
-      the nearest enclosing region *)
-  val set_region_use : t -> bool -> t
+  (** Enter the scope of a region.  A subsequent call to [set_region_used] will
+      affect this region. *)
+  val enter_region : t -> t
 
-  (** Whether [set_region_use _ true] has been called *)
+  (** Leave the scope of a region, restoring the previous one as the new
+      innermost region. *)
+  val leave_region : t -> t
+
+  type exclave
+
+  (** Enter an exclave.  A subsequent call to [set_region_used] will now affect
+      the outer region.  Returns a value that must be passed to the
+      corresponding [leave_exclave]. *)
+  val enter_exclave : t -> exclave * t
+
+  (** Leave an exclave, effectively re-entering the outer region. *)
+  val leave_exclave : t -> exclave -> t
+
+  (** Mark that local allocations may be made in
+      the nearest enclosing region *)
+  val set_region_used : t -> t
+
+  (** Whether [set_region_used _] has been called *)
   val may_use_region : t -> bool
 
   (** Mark that we are moving up out of the scope of a static-catch block
