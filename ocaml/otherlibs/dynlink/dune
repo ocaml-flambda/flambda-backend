@@ -32,6 +32,8 @@
     arg_helper
     clflags
     debug
+    language_extension_kernel_intf
+    language_extension_kernel
     language_extension
     profile
     consistbl
@@ -43,7 +45,6 @@
     longident
     docstrings
     syntaxerr
-    jane_language_extension_intf
     jane_syntax_parsing
     jane_syntax
     ast_iterator
@@ -88,7 +89,7 @@
     asttypes
     parsetree
     outcometree
-    jane_language_extension_intf
+    language_extension_kernel_intf
     cmo_format
     cmxs_format
     debug_event))
@@ -113,6 +114,7 @@
 (copy_files ../../utils/arg_helper.ml)
 (copy_files ../../utils/clflags.ml)
 (copy_files ../../utils/debug.ml)
+(copy_files ../../utils/language_extension_kernel.ml)
 (copy_files ../../utils/language_extension.ml)
 (copy_files ../../utils/profile.ml)
 (copy_files ../../utils/consistbl.ml)
@@ -170,6 +172,7 @@
 (copy_files ../../utils/arg_helper.mli)
 (copy_files ../../utils/clflags.mli)
 (copy_files ../../utils/debug.mli)
+(copy_files ../../utils/language_extension_kernel.mli)
 (copy_files ../../utils/language_extension.mli)
 (copy_files ../../utils/profile.mli)
 (copy_files ../../utils/consistbl.mli)
@@ -223,7 +226,7 @@
 (copy_files ../../typing/outcometree.mli)
 (copy_files ../../file_formats/cmo_format.mli)
 (copy_files ../../file_formats/cmxs_format.mli)
-(copy_files ../../parsing/jane_language_extension_intf.mli)
+(copy_files ../../utils/language_extension_kernel_intf.mli)
 
 ; We need support in dune for including all modules from another library
 ; (in this case Dynlink_compilerlibs) inside a library currently being
@@ -270,6 +273,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Profile.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Clflags.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debug.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension_kernel.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Terminfo.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Location.cmo
@@ -342,6 +346,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Profile.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Clflags.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debug.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension_kernel.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Terminfo.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Location.cmx

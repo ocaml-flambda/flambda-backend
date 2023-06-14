@@ -35,6 +35,8 @@ UTILS = \
   utils/load_path.cmo \
   utils/clflags.cmo \
   utils/debug.cmo \
+  utils/language_extension_kernel_intf.cmo \
+  utils/language_extension_kernel.cmo \
   utils/language_extension.cmo \
   utils/profile.cmo \
   utils/terminfo.cmo \

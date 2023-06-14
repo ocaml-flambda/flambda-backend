@@ -52,20 +52,20 @@
  (library_flags -linkall)
  (modules_without_implementation
    annot asttypes cmo_format outcometree parsetree debug_event
-   jane_language_extension_intf)
+   language_extension_kernel_intf)
  (modules
    ;; UTILS
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
    debug profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
    local_store target_system compilation_unit import_info linkage_name symbol
-   lazy_backtrack diffing diffing_with_keys language_extension
+   lazy_backtrack diffing diffing_with_keys
+   language_extension_kernel language_extension_kernel_intf language_extension
 
    ;; PARSING
    location longident docstrings syntaxerr ast_helper camlinternalMenhirLib
    ast_iterator parser lexer parse printast pprintast ast_mapper attr_helper
-   builtin_attributes ast_invariants depend
-   jane_language_extension_intf jane_syntax_parsing jane_syntax
+   builtin_attributes ast_invariants depend jane_syntax_parsing jane_syntax
    ; manual update: mli only files
    asttypes parsetree
 
