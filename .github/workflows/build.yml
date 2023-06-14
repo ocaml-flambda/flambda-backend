@@ -154,10 +154,10 @@ jobs:
     - name: Disable any testcases
       working-directory: flambda_backend
       run: |
-        disable_testcases=${{matrix.disable_testcases}}
+        disable_testcases="${{matrix.disable_testcases}}"
         if [ -n "$disable_testcases" ]; then
           for testcase in "$disable_testcases"; do
-            rm -fv flambda_backend/testsuite/tests/$testcase
+            rm -fv ocaml/testsuite/tests/$testcase
           done
         fi
 
