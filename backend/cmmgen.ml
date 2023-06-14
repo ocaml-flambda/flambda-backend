@@ -108,9 +108,8 @@ let enter_catch_body env nfail =
 let mk_traps env nfail =
   let catch_trywith_depths_inverse =
     env.catch_trywith_depths
-    |> IntMap.bindings
-    |> List.map (fun (nfail, depth) -> depth, nfail)
-    |> List.to_seq
+    |> IntMap.to_seq
+    |> Seq.map (fun (nfail, depth) -> depth, nfail)
     |> IntMap.of_seq
   in
   let handler_depth =
