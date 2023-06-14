@@ -119,7 +119,9 @@ let remove_unused_closure_variables ~remove_direct_call_surrogates program =
         (* All of the closure ids are dead. The whole set _should_ be dead, but
            sometimes in odd cases we don't manage to kill it (for example, if
            it's the value of an [initialize_symbol]). In any event, no one is
-           projecting anything out so we can just swap in the unit value. *)
+           projecting anything out so we can just swap in the unit value. Note
+           that there can't even be any values being projected out, because that
+           would require using a closure id first. *)
         Const (Int 0)
       else
         let set_of_closures =
