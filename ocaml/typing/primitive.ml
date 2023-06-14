@@ -22,7 +22,7 @@ open Layouts
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
 type native_repr =
-  | Same_as_ocaml_repr
+  | Same_as_ocaml_repr of Layouts.Sort.const
   | Unboxed_float
   | Unboxed_integer of boxed_integer
   | Untagged_int
@@ -43,8 +43,8 @@ type description =
     prim_effects: effects;
     prim_coeffects: coeffects;
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
-    prim_native_repr_args: (mode * Layouts.sort * native_repr) list;
-    prim_native_repr_res: mode * Layouts.sort * native_repr }
+    prim_native_repr_args: (mode * native_repr) list;
+    prim_native_repr_res: mode * native_repr }
 
 type error =
   | Old_style_float_with_native_repr_attribute
@@ -56,22 +56,22 @@ type error =
 exception Error of Location.t * error
 
 let is_ocaml_repr = function
-  | _, _, Same_as_ocaml_repr -> true
-  | _, _, Unboxed_float
-  | _, _, Unboxed_integer _
-  | _, _, Untagged_int -> false
+  | _, Same_as_ocaml_repr _ -> true
+  | _, Unboxed_float
+  | _, Unboxed_integer _
+  | _, Untagged_int -> false
 
 let is_unboxed = function
-  | _, _, Same_as_ocaml_repr
-  | _, _, Untagged_int -> false
-  | _, _, Unboxed_float
-  | _, _, Unboxed_integer _ -> true
+  | _, Same_as_ocaml_repr _
+  | _, Untagged_int -> false
+  | _, Unboxed_float
+  | _, Unboxed_integer _ -> true
 
 let is_untagged = function
-  | _, _, Untagged_int -> true
-  | _, _, Same_as_ocaml_repr
-  | _, _, Unboxed_float
-  | _, _, Unboxed_integer _ -> false
+  | _, Untagged_int -> true
+  | _, Same_as_ocaml_repr _
+  | _, Unboxed_float
+  | _, Unboxed_integer _ -> false
 
 let rec make_native_repr_args arity x =
   if arity = 0 then
@@ -88,8 +88,8 @@ let simple_on_values ~name ~arity ~alloc =
    prim_coeffects = Has_coeffects;
    prim_native_name = "";
    prim_native_repr_args =
-     make_native_repr_args arity (Prim_global, Sort.value, Same_as_ocaml_repr);
-   prim_native_repr_res = (Prim_global, Sort.value, Same_as_ocaml_repr) }
+     make_native_repr_args arity (Prim_global, Same_as_ocaml_repr Sort.Value);
+   prim_native_repr_res = (Prim_global, Same_as_ocaml_repr Sort.Value) }
 
 let make ~name ~alloc ~c_builtin ~effects ~coeffects
       ~native_name ~native_repr_args ~native_repr_res =
@@ -178,8 +178,8 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
                   Inconsistent_noalloc_attributes_for_effects));
   let native_repr_args, native_repr_res =
     if old_style_float then
-      (make_native_repr_args arity (Prim_global, Sort.value, Unboxed_float),
-       (Prim_global, Sort.value, Unboxed_float))
+      (make_native_repr_args arity (Prim_global, Unboxed_float),
+       (Prim_global, Unboxed_float))
     else
       (native_repr_args, native_repr_res)
   in
@@ -249,13 +249,13 @@ let print p osig_val_decl =
     else
       attrs
   in
-  let attrs_of_mode_and_repr (m, _, repr) =
+  let attrs_of_mode_and_repr (m, repr) =
     (match m with
      | Prim_local | Prim_global -> []
      | Prim_poly -> [oattr_local_opt])
     @
     (match repr with
-     | Same_as_ocaml_repr -> []
+     | Same_as_ocaml_repr _ -> []
      | Unboxed_float
      | Unboxed_integer _ -> if all_unboxed then [] else [oattr_unboxed]
      | Untagged_int -> if all_untagged then [] else [oattr_untagged])
@@ -288,18 +288,18 @@ let equal_boxed_integer bi1 bi2 =
 
 let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
-  | Same_as_ocaml_repr, Same_as_ocaml_repr -> true
-  | Same_as_ocaml_repr,
+  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Sort.equal_const s1 s2
+  | Same_as_ocaml_repr _,
     (Unboxed_float | Unboxed_integer _ | Untagged_int) -> false
   | Unboxed_float, Unboxed_float -> true
   | Unboxed_float,
-    (Same_as_ocaml_repr | Unboxed_integer _ | Untagged_int) -> false
+    (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_int) -> false
   | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_boxed_integer bi1 bi2
   | Unboxed_integer _,
-    (Same_as_ocaml_repr | Unboxed_float | Untagged_int) -> false
+    (Same_as_ocaml_repr _ | Unboxed_float | Untagged_int) -> false
   | Untagged_int, Untagged_int -> true
   | Untagged_int,
-    (Same_as_ocaml_repr | Unboxed_float | Unboxed_integer _) -> false
+    (Same_as_ocaml_repr _ | Unboxed_float | Unboxed_integer _) -> false
 
 let equal_effects ef1 ef2 =
   match ef1, ef2 with
@@ -320,6 +320,10 @@ let equal_coeffects cf1 cf2 =
 let native_name_is_external p =
   let nat_name = native_name p in
   nat_name <> "" && nat_name.[0] <> '%'
+
+let sort_of_native_repr = function
+  | Same_as_ocaml_repr s -> s
+  | (Unboxed_float | Unboxed_integer _ | Untagged_int) -> Sort.Value
 
 let report_error ppf err =
   match err with

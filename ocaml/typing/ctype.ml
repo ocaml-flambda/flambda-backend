@@ -1549,9 +1549,9 @@ let instance_label fixed lbl =
   )
 
 let prim_mode mvar = function
-  | Primitive.Prim_global, _, _ -> Alloc_mode.global
-  | Primitive.Prim_local, _, _ -> Alloc_mode.local
-  | Primitive.Prim_poly, _, _ ->
+  | Primitive.Prim_global, _ -> Alloc_mode.global
+  | Primitive.Prim_local, _ -> Alloc_mode.local
+  | Primitive.Prim_poly, _ ->
     match mvar with
     | Some mvar -> mvar
     | None -> assert false
@@ -1573,7 +1573,7 @@ let rec instance_prim_locals locals mvar macc finalret ty =
      ty
 
 let instance_prim_mode (desc : Primitive.description) ty =
-  let is_poly = function Primitive.Prim_poly, _, _ -> true | _ -> false in
+  let is_poly = function Primitive.Prim_poly, _ -> true | _ -> false in
   if is_poly desc.prim_native_repr_res ||
        List.exists is_poly desc.prim_native_repr_args then
     let mode = Alloc_mode.newvar () in

@@ -1884,11 +1884,11 @@ let error_if_has_deep_native_repr_attributes core_type =
   in
   default_iterator.typ this_iterator core_type
 
-let make_native_repr env core_type ty ~global_repr =
+let make_native_repr env core_type sort ty ~global_repr =
   error_if_has_deep_native_repr_attributes core_type;
   match get_native_repr_attribute core_type.ptyp_attributes ~global_repr with
   | Native_repr_attr_absent ->
-    Same_as_ocaml_repr
+    Same_as_ocaml_repr sort
   | Native_repr_attr_present kind ->
     begin match native_repr_of_type env kind ty with
     | None ->
@@ -1911,7 +1911,7 @@ let prim_const_mode m =
    allow non-representable types in external args/returns then. *)
 let type_sort_external ~why env loc typ =
   match Ctype.type_sort ~why env typ with
-  | Ok s -> s
+  | Ok s -> Sort.get_default_value s
   | Error err ->
     raise (Error (loc,Layout_sort {lloc = External; typ; err}))
 
@@ -1924,19 +1924,19 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
   | Ptyp_arrow (_, ct1, ct2), Tarrow ((_,marg,mret), t1, t2, _), _
     when not (Builtin_attributes.has_curry core_type.ptyp_attributes) ->
     let t1, _ = Btype.tpoly_get_poly t1 in
-    let repr_arg = make_native_repr env ct1 t1 ~global_repr in
     let sort_arg =
       type_sort_external ~why:External_argument env ct1.ptyp_loc t1
     in
+    let repr_arg = make_native_repr env ct1 sort_arg t1 ~global_repr in
     let mode =
       if Builtin_attributes.has_local_opt ct1.ptyp_attributes
       then Prim_poly
       else prim_const_mode marg
     in
-    let repr_args, sort_res, repr_res =
+    let repr_args, repr_res =
       parse_native_repr_attributes env ct2 t2 (prim_const_mode mret) ~global_repr
     in
-    ((mode, sort_arg, repr_arg) :: repr_args, sort_res, repr_res)
+    ((mode, repr_arg) :: repr_args, repr_res)
   | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
      parse_native_repr_attributes env t ty rmode ~global_repr
   | _ ->
@@ -1948,8 +1948,7 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
      let sort_res =
        type_sort_external ~why:External_result env core_type.ptyp_loc ty
      in
-     ([], sort_res,
-      (rmode, sort_res, make_native_repr env core_type ty ~global_repr))
+     ([], (rmode, make_native_repr env core_type sort_res ty ~global_repr))
 
 let check_unboxable env loc ty =
   let rec check_type acc ty : Path.Set.t =
@@ -2001,7 +2000,7 @@ let transl_value_decl env loc valdecl =
         | Native_repr_attr_present repr -> Some repr
         | Native_repr_attr_absent -> None
       in
-      let native_repr_args, _, native_repr_res =
+      let native_repr_args, native_repr_res =
         parse_native_repr_attributes env valdecl.pval_type ty Prim_global ~global_repr
       in
       let prim =

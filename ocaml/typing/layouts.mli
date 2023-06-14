@@ -50,6 +50,8 @@ module Sort : sig
       equal, if possible *)
   val equate : t -> t -> bool
 
+  val equal_const : const -> const -> bool
+
   val format : Format.formatter -> t -> unit
 
   (** Defaults any variables to value; leaves other sorts alone *)

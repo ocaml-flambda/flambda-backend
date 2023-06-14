@@ -895,9 +895,13 @@ and transl_make_array dbg env kind mode args =
 
 and transl_ccall env prim args dbg =
   let transl_arg native_repr arg =
+    (* CR layouts v2: This match to be extended with
+         | Same_as_ocaml_repr Float64 -> (XFloat, transl env arg)
+       in the PR that adds Float64 *)
     match native_repr with
-    | Same_as_ocaml_repr ->
+    | Same_as_ocaml_repr Value ->
         (XInt, transl env arg)
+    | Same_as_ocaml_repr Void -> assert false
     | Unboxed_float ->
         (XFloat, transl_unbox_float dbg env arg)
     | Unboxed_integer bi ->
@@ -910,9 +914,6 @@ and transl_ccall env prim args dbg =
     | Untagged_int ->
         (XInt, untag_int (transl env arg) dbg)
   in
-  (* CR layouts v2: Probably [transl_args] and the definition of
-     [typ_res]/[wrap_result] need updating to consider the sort (which is the
-     second member of the 3-tuple) when we add float primitives. *)
   let rec transl_args native_repr_args args =
     match native_repr_args, args with
     | [], args ->
@@ -921,20 +922,24 @@ and transl_ccall env prim args dbg =
         (List.map (fun _ -> XInt) args, List.map (transl env) args)
     | _, [] ->
         assert false
-    | (_, _, native_repr) :: native_repr_args, arg :: args ->
+    | (_, native_repr) :: native_repr_args, arg :: args ->
         let (ty1, arg') = transl_arg native_repr arg in
         let (tys, args') = transl_args native_repr_args args in
         (ty1 :: tys, arg' :: args')
   in
   let typ_res, wrap_result =
+    (* CR layouts v2: This match to be extended with
+         | Same_as_ocaml_repr Float64 -> (typ_float, fun x -> x)
+       in the PR that adds Float64 *)
     match prim.prim_native_repr_res with
-    | _, _, Same_as_ocaml_repr -> (typ_val, fun x -> x)
+    | _, Same_as_ocaml_repr Value -> (typ_val, fun x -> x)
+    | _, Same_as_ocaml_repr Void -> assert false
     (* TODO: Allow Alloc_local on suitably typed C stubs *)
-    | _, _, Unboxed_float -> (typ_float, box_float dbg alloc_heap)
-    | _, _, Unboxed_integer Pint64 when size_int = 4 ->
+    | _, Unboxed_float -> (typ_float, box_float dbg alloc_heap)
+    | _, Unboxed_integer Pint64 when size_int = 4 ->
         ([|Int; Int|], box_int dbg Pint64 alloc_heap)
-    | _, _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
-    | _, _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
+    | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
+    | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
   let op = cextcall prim args dbg typ_res typ_args true in

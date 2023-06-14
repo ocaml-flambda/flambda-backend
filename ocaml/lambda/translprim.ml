@@ -125,17 +125,17 @@ let prim_sys_argv =
   Primitive.simple_on_values ~name:"caml_sys_argv" ~arity:1 ~alloc:true
 
 let to_alloc_mode ~poly = function
-  | Prim_global, _, _ -> alloc_heap
-  | Prim_local, _, _ -> alloc_local
-  | Prim_poly, _, _ ->
+  | Prim_global, _ -> alloc_heap
+  | Prim_local, _ -> alloc_local
+  | Prim_poly, _ ->
     match poly with
     | None -> assert false
     | Some mode -> transl_alloc_mode mode
 
 let to_modify_mode ~poly = function
-  | Prim_global, _, _ -> modify_heap
-  | Prim_local, _, _ -> modify_maybe_stack
-  | Prim_poly, _, _ ->
+  | Prim_global, _ -> modify_heap
+  | Prim_local, _ -> modify_maybe_stack
+  | Prim_poly, _ ->
     match poly with
     | None -> assert false
     | Some mode -> transl_modify_mode mode
@@ -852,8 +852,8 @@ let lambda_of_prim prim_name prim loc args arg_exps =
 let check_primitive_arity loc p =
   let mode =
     match p.prim_native_repr_res with
-    | Prim_global, _, _ | Prim_poly, _, _ -> Some Alloc_mode.global
-    | Prim_local, _, _ -> Some Alloc_mode.local
+    | Prim_global, _ | Prim_poly, _ -> Some Alloc_mode.global
+    | Prim_local, _ -> Some Alloc_mode.local
   in
   let prim = lookup_primitive loc mode Rc_normal p in
   let ok =
@@ -889,15 +889,18 @@ let transl_primitive loc p env ty ~poly_mode path =
   in
   let rec make_params ty repr_args repr_res =
     match repr_args, repr_res with
-    | [], (_, res_sort, _) -> [], Typeopt.layout env (to_location loc) res_sort ty
-    | ((_, arg_sort, _) :: repr_args), _ ->
+    | [], (_, res_repr) ->
+      let res_sort = sort_of_native_repr res_repr in
+      [], Typeopt.layout env (to_location loc) (Sort.of_const res_sort) ty
+    | ((_, arg_repr) :: repr_args), _ ->
       match Typeopt.is_function_type env ty with
       | None ->
           Misc.fatal_errorf "Primitive %s type does not correspond to arity"
             (Primitive.byte_name p)
       | Some (arg_ty, ret_ty) ->
+          let arg_sort = sort_of_native_repr arg_repr in
           let arg_layout =
-            Typeopt.layout env (to_location loc) arg_sort arg_ty
+            Typeopt.layout env (to_location loc) (Sort.of_const arg_sort) arg_ty
           in
           let params, return = make_params ret_ty repr_args repr_res in
           (Ident.create_local "prim", arg_layout) :: params, return

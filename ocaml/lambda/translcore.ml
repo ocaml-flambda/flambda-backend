@@ -395,9 +395,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         match prim_repr, oargs with
         | [], _ -> [], oargs
         | _, [] -> failwith "Translcore cut_args"
-        | ((_, sort, _) :: prim_repr), ((_, Arg (x, _)) :: oargs) ->
+        | ((_, arg_repr) :: prim_repr), ((_, Arg (x, _)) :: oargs) ->
           let arg_exps, extra_args = cut_args prim_repr oargs in
-          (x, sort) :: arg_exps, extra_args
+          let arg_sort = Sort.of_const (sort_of_native_repr arg_repr) in
+          (x, arg_sort) :: arg_exps, extra_args
         | _, ((_, Omitted _) :: _) -> assert false
       in
       let arg_exps, extra_args = cut_args p.prim_native_repr_args oargs in

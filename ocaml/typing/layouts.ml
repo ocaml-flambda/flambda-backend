@@ -151,6 +151,13 @@ module Sort = struct
     | Unequal -> false
     | Equal_mutated_first | Equal_mutated_second | Equal_no_mutation -> true
 
+  let equal_const c1 c2 =
+    match c1, c2 with
+    | Void, Void
+    | Value, Value -> true
+    | Void, Value
+    | Value, Void -> false
+
   let rec is_void_defaulting = function
     | Const Void -> true
     | Var v -> begin match !v with

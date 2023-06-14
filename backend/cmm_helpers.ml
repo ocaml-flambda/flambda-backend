@@ -1934,9 +1934,7 @@ let default_prim name =
   Primitive.simple_on_values ~name ~arity:0 (*ignored*) ~alloc:true
 
 let int64_native_prim name arity ~alloc =
-  let u64 =
-    Primitive.(Prim_global, Layouts.Sort.value, Unboxed_integer Pint64)
-  in
+  let u64 = Primitive.(Prim_global, Unboxed_integer Pint64) in
   let rec make_args = function 0 -> [] | n -> u64 :: make_args (n - 1) in
   let effects, coeffects =
     if alloc
