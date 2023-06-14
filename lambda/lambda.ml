@@ -1440,9 +1440,12 @@ let primitive_result_layout (p : primitive) =
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
   | Pbox_float _ -> layout_float
   | Punbox_float -> Punboxed_float
-  | Pccall _p ->
-      (* CR ncourant: use native_repr *)
+  | Pccall { prim_native_repr_res = _, Untagged_int; _} -> layout_int
+  | Pccall { prim_native_repr_res = _, Unboxed_float; _} -> layout_float
+  | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr; _} ->
       layout_any_value
+  | Pccall { prim_native_repr_res = _, Unboxed_integer bi; _} ->
+      layout_boxedint bi
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
