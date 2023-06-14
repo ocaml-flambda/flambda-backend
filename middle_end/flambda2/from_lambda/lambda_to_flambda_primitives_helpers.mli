@@ -52,13 +52,16 @@ val print_simple_or_prim : Format.formatter -> simple_or_prim -> unit
 val print_list_of_simple_or_prim :
   Format.formatter -> simple_or_prim list -> unit
 
+val print_list_of_lists_of_simple_or_prim :
+  Format.formatter -> simple_or_prim list list -> unit
+
 open Closure_conversion_aux
 
-val bind_rec :
+val bind_recs :
   Acc.t ->
   Exn_continuation.t option ->
   register_const0:(Acc.t -> Static_const.t -> string -> Acc.t * Symbol.t) ->
-  expr_primitive ->
+  expr_primitive list ->
   Debuginfo.t ->
-  (Acc.t -> Flambda.Named.t -> Expr_with_acc.t) ->
+  (Acc.t -> Flambda.Named.t list -> Expr_with_acc.t) ->
   Expr_with_acc.t

@@ -149,6 +149,9 @@ module Stdlib : sig
   module Option : sig
     type 'a t = 'a option
 
+    (* short circuits if the first argument really is a [Some] *)
+    val first_some : 'a option -> (unit -> 'a option) -> 'a option
+
     val print
        : (Format.formatter -> 'a -> unit)
       -> Format.formatter
@@ -704,3 +707,8 @@ module Magic_number : sig
 
   val all_kinds : kind list
 end
+
+(** Propositional equality *)
+type (_, _) eq = Refl : ('a, 'a) eq
+
+

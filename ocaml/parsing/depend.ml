@@ -97,7 +97,7 @@ let handle_extension ext =
 
 let rec add_type bv ty =
   match Jane_syntax.Core_type.of_ast ty with
-  | Some jty -> add_type_jst bv jty
+  | Some (jty, _attrs) -> add_type_jst bv jty
   | None ->
   match ty.ptyp_desc with
     Ptyp_any -> ()
@@ -155,7 +155,14 @@ let add_type_declaration bv td =
   | Ptype_open -> () in
   add_tkind td.ptype_kind
 
+let add_extension_constructor_jst _bv _attrs :
+  Jane_syntax.Extension_constructor.t -> _ = function
+  | _ -> .
+
 let add_extension_constructor bv ext =
+  match Jane_syntax.Extension_constructor.of_ast ext with
+  | Some (jext, attrs) -> add_extension_constructor_jst bv attrs jext
+  | None ->
   match ext.pext_kind with
     Pext_decl(_, args, rty) ->
       add_constructor_arguments bv args;
@@ -171,9 +178,13 @@ let add_type_exception bv te =
 
 let pattern_bv = ref String.Map.empty
 
+(* A no-op, but makes it clearer which jane syntax cases should have the same
+   handling as core-language cases. *)
+let add_constant = ()
+
 let rec add_pattern bv pat =
   match Jane_syntax.Pattern.of_ast pat with
-  | Some jpat -> add_pattern_jane_syntax bv jpat
+  | Some (jpat, _attrs) -> add_pattern_jane_syntax bv jpat
   | None      ->
   match pat.ppat_desc with
     Ppat_any -> ()
@@ -204,6 +215,7 @@ let rec add_pattern bv pat =
 and add_pattern_jane_syntax bv : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pl) ->
       List.iter (add_pattern bv) pl
+  | Jpat_unboxed_constant _ -> add_constant
 
 let add_pattern bv pat =
   pattern_bv := bv;
@@ -212,11 +224,11 @@ let add_pattern bv pat =
 
 let rec add_expr bv exp =
   match Jane_syntax.Expression.of_ast exp with
-  | Some jexp -> add_expr_jane_syntax bv jexp
+  | Some (jexp, _attrs) -> add_expr_jane_syntax bv jexp
   | None ->
   match exp.pexp_desc with
     Pexp_ident l -> add bv l
-  | Pexp_constant _ -> ()
+  | Pexp_constant _ -> add_constant
   | Pexp_let(rf, pel, e) ->
       let bv = add_bindings rf bv pel in add_expr bv e
   | Pexp_fun (_, opte, p, e) ->
@@ -287,8 +299,9 @@ let rec add_expr bv exp =
   | Pexp_unreachable -> ()
 
 and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
-  | Jexp_comprehension cexp -> add_comprehension_expr bv cexp
-  | Jexp_immutable_array iaexp -> add_immutable_array_expr bv iaexp
+  | Jexp_comprehension x -> add_comprehension_expr bv x
+  | Jexp_immutable_array x -> add_immutable_array_expr bv x
+  | Jexp_unboxed_constant _ -> add_constant
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function
@@ -347,7 +360,7 @@ and add_binding_op bv bv' pbop =
 
 and add_modtype bv mty =
   match Jane_syntax.Module_type.of_ast mty with
-  | Some jmty -> add_modtype_jane_syntax bv jmty
+  | Some (jmty, _attrs) -> add_modtype_jane_syntax bv jmty
   | None ->
   match mty.pmty_desc with
     Pmty_ident l -> add bv l
@@ -397,7 +410,7 @@ and add_module_alias bv l =
 
 and add_modtype_binding bv mty =
   match Jane_syntax.Module_type.of_ast mty with
-  | Some jmty -> add_modtype_jane_syntax_binding bv jmty
+  | Some (jmty, _attrs) -> add_modtype_jane_syntax_binding bv jmty
   | None ->
   match mty.pmty_desc with
     Pmty_alias l ->

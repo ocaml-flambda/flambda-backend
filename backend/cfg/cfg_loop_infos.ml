@@ -6,63 +6,6 @@ let fatal = Misc.fatal_errorf
 
 let debug = false
 
-type dominators = Label.Set.t Label.Map.t
-
-let compute_dominators (cfg : Cfg.t) =
-  (* CR-soon xclerc for xclerc: this is a naive implementation, that could
-     clearly be optimized and/or rely on the dataflow framework. *)
-  let all_labels =
-    Cfg.fold_blocks cfg ~init:Label.Set.empty ~f:(fun label _block acc ->
-        Label.Set.add label acc)
-  in
-  let init =
-    Cfg.fold_blocks cfg ~init:Label.Map.empty ~f:(fun label _block acc ->
-        Label.Map.add label
-          (if Label.equal label cfg.entry_label
-          then Label.Set.singleton cfg.entry_label
-          else all_labels)
-          acc)
-  in
-  let rec loop curr =
-    let get_curr label =
-      match Label.Map.find_opt label curr with
-      | None ->
-        fatal "Cfg_loop_infos.compute_dominators: unknown label %d" label
-      | Some set -> set
-    in
-    let dominators, changed =
-      Label.Set.fold
-        (fun label (dominators, changed) ->
-          let new_value =
-            if Label.equal label cfg.entry_label
-            then Label.Set.singleton cfg.entry_label
-            else
-              let predecessor_labels =
-                Cfg.predecessor_labels (Cfg.get_block_exn cfg label)
-              in
-              match predecessor_labels with
-              | [] -> Label.Set.singleton label
-              | hd :: tl ->
-                Label.Set.add label
-                  (List.fold_left tl ~init:(get_curr hd) ~f:(fun acc label ->
-                       Label.Set.inter acc (get_curr label)))
-          in
-          ( Label.Map.add label new_value dominators,
-            changed || not (Label.Set.equal new_value (get_curr label)) ))
-        all_labels (Label.Map.empty, false)
-    in
-    if changed then loop dominators else dominators
-  in
-  loop init
-
-let is_dominating dominators left right =
-  match Label.Map.find_opt right dominators with
-  | None -> fatal "Cfg_loop_infos.is_dominating: unknown label %d" right
-  | Some set -> Label.Set.mem left set
-
-let is_strictly_dominating dominators left right =
-  (not (Label.equal left right)) && is_dominating dominators left right
-
 module Edge = struct
   type t =
     { src : Label.t;
@@ -87,7 +30,9 @@ let compute_back_edges cfg dominators =
       in
       Label.Set.fold
         (fun dst_label acc ->
-          let is_back_edge = is_dominating dominators dst_label src_label in
+          let is_back_edge =
+            Cfg_dominators.is_dominating dominators dst_label src_label
+          in
           if is_back_edge
           then { Edge.src = src_label; dst = dst_label } :: acc
           else acc)
@@ -171,27 +116,21 @@ let compute_loop_depths cfg header_map =
     init
 
 type t =
-  { dominators : dominators;
-    back_edges : Edge.t list;
+  { back_edges : Edge.t list;
     loops : loops;
     header_map : header_map;
     loop_depths : loop_depths
   }
 
-let build cfg =
-  let dominators = compute_dominators cfg in
-  let back_edges = compute_back_edges cfg dominators in
+let build : Cfg.t -> Cfg_dominators.t -> t =
+ fun cfg doms ->
+  let back_edges = compute_back_edges cfg doms.dominators in
   let loops = compute_loops_of_back_edges cfg back_edges in
   let header_map = compute_header_map loops in
   let loop_depths = compute_loop_depths cfg header_map in
   if debug
   then (
     Format.eprintf "*** Cfg_loop_infos.build for %S\n" cfg.Cfg.fun_name;
-    Label.Map.iter
-      (fun label dominators ->
-        Format.eprintf "dominators for %d:\n" label;
-        Label.Set.iter (Format.eprintf "- %d\n") dominators)
-      dominators;
     Format.eprintf "back edges:\n";
     List.iter back_edges ~f:(fun { Edge.src; dst } ->
         Format.eprintf "- %d -> %d\n" src dst);
@@ -201,4 +140,4 @@ let build cfg =
         Label.Set.iter (Format.eprintf "- %d:\n") labels)
       loops;
     Label.Map.iter (Format.eprintf "loop depth for %d is %d\n") loop_depths);
-  { dominators; back_edges; loops; header_map; loop_depths }
+  { back_edges; loops; header_map; loop_depths }

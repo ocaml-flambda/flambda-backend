@@ -417,7 +417,7 @@ module Analyser =
           { Typedtree.ld_id; ld_mutable; ld_type; ld_loc; ld_attributes } =
         get_field env comments @@
         {Types.ld_id; ld_mutable; ld_global = Unrestricted;
-         ld_layout=Layout.any (* ignored *);
+         ld_layout=Layout.any ~why:Dummy_layout (* ignored *);
          ld_type=ld_type.Typedtree.ctyp_type;
          ld_loc; ld_attributes; ld_uid=Types.Uid.internal_not_actually_unique} in
       let open Typedtree in
@@ -1556,7 +1556,8 @@ module Analyser =
     and analyse_module_type_kind
       ?(erased = Name.Map.empty) env current_module_name module_type sig_module_type =
       match Jane_syntax.Module_type.of_ast module_type with
-      | Some (Jmty_strengthen _) -> failwith "strengthen not implemented yet"
+      | Some (Jmty_strengthen _, _attrs) ->
+          failwith "strengthen not implemented yet"
       | None ->
       match module_type.Parsetree.pmty_desc with
         Parsetree.Pmty_ident longident ->
@@ -1657,7 +1658,8 @@ module Analyser =
     and analyse_module_kind
         ?(erased = Name.Map.empty) env current_module_name module_type sig_module_type =
       match Jane_syntax.Module_type.of_ast module_type with
-      | Some (Jmty_strengthen _) -> failwith "strengthen not implemented yet"
+      | Some (Jmty_strengthen _, _attrs) ->
+          failwith "strengthen not implemented yet"
       | None ->
       match module_type.Parsetree.pmty_desc with
       | Parsetree.Pmty_ident _longident ->

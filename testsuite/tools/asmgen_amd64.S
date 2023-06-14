@@ -15,8 +15,10 @@
 
 #ifdef SYS_macosx
 #define ALIGN 4
+#define WEAK .weak_definition
 #else
 #define ALIGN 16
+#define WEAK .weak
 #endif
 
 #ifdef SYS_macosx
@@ -24,16 +26,18 @@
 #define CAML_C_CALL _caml_c_call
 #define CAML_NEGF_MASK _caml_negf_mask
 #define CAML_ABSF_MASK _caml_absf_mask
+#define CAML_CALL_GC _caml_call_gc
 #else
 #define CALL_GEN_CODE call_gen_code
 #define CAML_C_CALL caml_c_call
 #define CAML_NEGF_MASK caml_negf_mask
 #define CAML_ABSF_MASK caml_absf_mask
+#define CAML_CALL_GC caml_call_gc
 #endif
 
-        .globl caml_call_gc
-        .weak caml_call_gc
-caml_call_gc:
+        .globl CAML_CALL_GC
+        WEAK CAML_CALL_GC
+CAML_CALL_GC:
         int3
 
         .globl  CALL_GEN_CODE

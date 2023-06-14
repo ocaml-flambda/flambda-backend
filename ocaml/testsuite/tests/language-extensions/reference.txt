@@ -53,10 +53,13 @@ Successfully typechecked "[x for x = 1 to 10]"
 Successfully typechecked "[x for x = 1 to 10]"
 
 # Enable two layouts [comprehensions enabled]:
-Failed as expected: Invalid extensions: Please enable at most one of 'layouts', 'layouts_beta', and 'layouts_alpha'.
+Succeeded
 
-# Enable and disable layouts [comprehensions enabled]:
-Failed as expected: Cannot disable extension layouts_beta because extension layouts_alpha is enabled. Please enable or disable at most one of the layouts extensions.
+# Disable layouts [comprehensions enabled]:
+Succeeded
+
+# Enable two layouts, in reverse order [comprehensions enabled]:
+Succeeded
 
 # can disallow extensions while extensions are enabled [comprehensions disabled]:
 Succeeded at disallowing all extensions

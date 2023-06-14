@@ -576,10 +576,12 @@ let merge_constraint initial_env loc sg lid constr =
           { type_params =
               (* layout any is fine on the params because they get thrown away
                  below *)
-              List.map (fun _ -> Btype.newgenvar Layout.any) sdecl.ptype_params;
+              List.map
+                (fun _ -> Btype.newgenvar (Layout.any ~why:Dummy_layout))
+                sdecl.ptype_params;
             type_arity = arity;
             type_kind = Type_abstract;
-            type_layout = Layout.value;
+            type_layout = Layout.value ~why:(Unknown "merge_constraint");
             type_private = Private;
             type_manifest = None;
             type_variance =
@@ -831,7 +833,7 @@ let map_ext fn exts =
 
 let rec approx_modtype env smty =
   match Jane_syntax.Module_type.of_ast smty with
-  | Some jmty -> approx_modtype_jane_syntax env jmty
+  | Some (jmty, attrs) -> approx_modtype_jane_syntax env attrs jmty
   | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
@@ -890,7 +892,8 @@ let rec approx_modtype env smty =
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-and approx_modtype_jane_syntax _env : Jane_syntax.Module_type.t -> _ = function
+and approx_modtype_jane_syntax _env _attrs : Jane_syntax.Module_type.t -> _ =
+  function
   | Jmty_strengthen { mty=_; mod_id=_ } -> failwith "strengthen not yet implemented"
 
 and approx_module_declaration env pmd =
@@ -1382,7 +1385,7 @@ and transl_modtype_functor_arg env sarg =
 and transl_modtype_aux env smty =
   let loc = smty.pmty_loc in
   match Jane_syntax.Module_type.of_ast smty with
-  | Some jmty -> transl_modtype_jane_syntax_aux env jmty
+  | Some (jmty, attrs) -> transl_modtype_jane_syntax_aux env attrs jmty
   | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
@@ -1445,7 +1448,9 @@ and transl_modtype_aux env smty =
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-and transl_modtype_jane_syntax_aux _env : Jane_syntax.Module_type.t -> _ = function
+and transl_modtype_jane_syntax_aux _env _attrs
+    : Jane_syntax.Module_type.t -> _ =
+  function
   | Jmty_strengthen { mty=_ ; mod_id=_ } -> failwith "Strengthen not yet implemented"
 
 and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
@@ -2633,7 +2638,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
            near the top of [execute_phrase] in [opttoploop.ml]. *)
         let expr, sort =
           Builtin_attributes.warning_scope attrs
-            (fun () -> Typecore.type_representable_expression env sexpr)
+            (fun () -> Typecore.type_representable_expression
+                         ~why:Structure_item_expression env sexpr)
         in
         Tstr_eval (expr, sort, attrs), [], shape_map, env
     | Pstr_value(rec_flag, sdefs) ->
@@ -2658,9 +2664,9 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    (* CR layouts v5: this layout check has the effect of
                       defaulting the sort of top-level bindings to value, which
                       will change. *)
-                   if not (Layout.(equate (of_sort sort) value)) then
-                     raise (Error (loc, env,
-                                   Toplevel_nonvalue (Ident.name id,sort)))
+                   if not Sort.(equate sort value)
+                   then raise (Error (loc, env,
+                                      Toplevel_nonvalue (Ident.name id,sort)))
                 )
                 modes;
               let (first_loc, _, _) = List.hd modes in
@@ -3164,7 +3170,8 @@ let type_package env m p fl =
   List.iter
     (fun (n, ty) ->
        (* CR layouts v5: relax value requirement. *)
-      try Ctype.unify env ty (Ctype.newvar Layout.value)
+      try Ctype.unify env ty
+            (Ctype.newvar (Layout.value ~why:Structure_element))
       with Ctype.Unify _ ->
         raise (Error(modl.mod_loc, env, Scoping_pack (n,ty))))
     fl';
@@ -3612,7 +3619,7 @@ let report_error ~loc _env = function
   | Toplevel_nonvalue (id, sort) ->
       Location.errorf ~loc
         "@[Top-level module bindings must have layout value, but@ \
-         %s has layout@ %a.@]" id Layout.format (Layout.of_sort sort)
+         %s has layout@ %a.@]" id Sort.format sort
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env

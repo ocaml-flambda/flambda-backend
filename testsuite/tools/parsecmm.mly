@@ -210,7 +210,7 @@ componentlist:
   | componentlist STAR component { $3 :: $1 }
 ;
 traps:
-    LPAREN INTCONST RPAREN       { List.init $2 (fun _ -> Pop) }
+    LPAREN INTCONST RPAREN       { List.init $2 (fun _ -> Pop Pop_generic) }
   | /**/                         { [] }
 expr:
     INTCONST    { Cconst_int ($1, debuginfo ()) }

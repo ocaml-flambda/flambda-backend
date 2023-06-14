@@ -78,7 +78,10 @@ let iterator =
         | Cexp_array_comprehension (_, {clauses = []; body = _}) )
       ->
         empty_comprehension loc
-    | Jexp_comprehension _ | Jexp_immutable_array _ -> ()
+    | Jexp_comprehension _
+    | Jexp_immutable_array _
+    | Jexp_unboxed_constant _
+      -> ()
   in
   let expr self exp =
     begin match exp.pexp_desc with
@@ -90,7 +93,7 @@ let iterator =
     end;
     let loc = exp.pexp_loc in
     match Jane_syntax.Expression.of_ast exp with
-    | Some jexp -> jexpr self exp.pexp_loc jexp
+    | Some (jexp, _attrs) -> jexpr self exp.pexp_loc jexp
     | None ->
     match exp.pexp_desc with
     | Pexp_tuple ([] | [_]) -> invalid_tuple loc

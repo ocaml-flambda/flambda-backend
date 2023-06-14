@@ -18,4 +18,4 @@
    like it in separate files, because the "compile and test output"
    infrastructure reports only one error at a time. *)
 
-let _malformed_extensions_wrong_arguments = [%jane.something] "two" "arguments";;
+let _malformed_extensions_wrong_arguments = [%jane.erasable.something] "two" "arguments";;

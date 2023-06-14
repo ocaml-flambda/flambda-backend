@@ -90,7 +90,7 @@ type 'a loc = {
 
 val mknoloc : 'a -> 'a loc
 val mkloc : 'a -> t -> 'a loc
-
+val get_txt : 'a loc -> 'a
 
 (** {1 Input info} *)
 

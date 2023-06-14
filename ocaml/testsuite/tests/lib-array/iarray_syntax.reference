@@ -1,0 +1,6 @@
+Parsing and printing round-tripped successfully!
+
+match x with
+| [::] -> [::]
+| (([:x:])[@attr1 ]) -> (([:x:])[@attr1 ])
+| (([:x;y:])[@attr2 ][@attr3 ]) -> (([:x;y:])[@attr2 ][@attr3 ])

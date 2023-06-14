@@ -145,7 +145,7 @@ let is_next_catch env n = match env.exit_label with
 let rec add_traps env i traps =
   match traps with
   | [] -> i
-  | Cmm.Pop :: traps ->
+  | Cmm.Pop _ :: traps ->
     add_traps env (cons_instr Lpoptrap i) traps
   | Cmm.Push handler :: traps ->
     let lbl_handler = find_exit_label env handler in
@@ -156,7 +156,7 @@ let delta_traps_diff traps =
     List.fold_left
       (fun delta trap ->
          match trap with
-         | Cmm.Pop -> delta - 1
+         | Cmm.Pop _ -> delta - 1
          | Cmm.Push _ -> delta + 1)
       0 traps in
   -delta

@@ -2,6 +2,6 @@ File "client.ml", line 2, characters 0-19:
 2 | and alias = missing
     ^^^^^^^^^^^^^^^^^^^
 Error: 
-       alias has layout any, which is not a sublayout of value.
+       alias has an unknown layout, which might not be a sublayout of value.
        No .cmi file found containing Missing.t.
        Hint: Adding "missing" to your dependencies might help.

@@ -26,3 +26,4 @@
  static/partial overapply: OK
 dynamic/partial overapply: OK
          method overapply: OK
+      mode-crossed region: OK
