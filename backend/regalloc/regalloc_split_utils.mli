@@ -24,10 +24,6 @@ val log_substitutions : indent:int -> Substitution.map -> unit
 
 val log_stack_subst : indent:int -> Substitution.t -> unit
 
-val is_unknown : Reg.t -> bool
-
-val filter_unknown : Reg.Set.t -> Reg.Set.t
-
 val fold_blocks :
   Cfg_with_liveness.t ->
   f:(Label.t -> Cfg.basic_block -> 'a -> 'a) ->

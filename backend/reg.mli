@@ -93,6 +93,7 @@ val at_location: Cmm.machtype_component -> location -> t
 val typv: t array -> Cmm.machtype
 val anonymous : t -> bool
 val is_preassigned : t -> bool
+val is_unknown : t -> bool
 
 (* Name for printing *)
 val name : t -> string

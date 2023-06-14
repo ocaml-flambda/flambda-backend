@@ -63,15 +63,6 @@ let log_stack_subst : indent:int -> Substitution.t -> unit =
   log ~indent "stack substitution:";
   log_substitution ~indent:(indent + 1) stack_subst
 
-let is_unknown : Reg.t -> bool =
- fun reg ->
-  match reg.Reg.loc with
-  | Unknown -> true
-  | Reg _ | Stack (Local _ | Incoming _ | Outgoing _ | Domainstate _) -> false
-
-let filter_unknown : Reg.Set.t -> Reg.Set.t =
- fun regset -> Reg.Set.filter is_unknown regset
-
 let fold_blocks :
     Cfg_with_liveness.t ->
     f:(Label.t -> Cfg.basic_block -> 'a -> 'a) ->
@@ -83,6 +74,9 @@ let fold_blocks :
 let get_block_exn : Cfg_with_liveness.t -> Label.t -> Cfg.basic_block =
  fun cfg_with_liveness label ->
   Cfg.get_block_exn (Cfg_with_liveness.cfg cfg_with_liveness) label
+
+let filter_unknown : Reg.Set.t -> Reg.Set.t =
+ fun regset -> Reg.Set.filter Reg.is_unknown regset
 
 let live_at_block_beginning : Cfg_with_liveness.t -> Label.t -> Reg.Set.t =
  fun cfg_with_liveness label ->

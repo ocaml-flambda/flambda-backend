@@ -162,6 +162,11 @@ let is_preassigned t =
   | R -> true
   | Anon | Var _ -> false
 
+let is_unknown t =
+  match t.loc with
+  | Unknown -> true
+  | Reg _ | Stack (Local _ | Incoming _ | Outgoing _ | Domainstate _) -> false
+
 let name t =
   match Raw_name.to_string t.raw_name with
   | None -> ""
