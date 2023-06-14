@@ -225,11 +225,10 @@ let prelude :
   in
   if Utils.debug
   then Utils.log ~indent:0 "#temporaries(before):%d" num_temporaries;
-  match
-    ( Lazy.force Regalloc_split_utils.split_live_ranges,
-      num_temporaries < threshold_split_live_ranges )
-  with
-  | true, true ->
+  if num_temporaries >= threshold_split_live_ranges
+  then cfg_infos, StackSlots.make ()
+  else if Lazy.force Regalloc_split_utils.split_live_ranges
+  then
     let stack_slots =
       Profile.record ~accumulate:true "split"
         (fun () -> Regalloc_split.split_live_ranges cfg_with_liveness cfg_infos)
@@ -237,8 +236,7 @@ let prelude :
     in
     let cfg_infos = collect_cfg_infos cfg_with_layout in
     cfg_infos, stack_slots
-  | true, false -> cfg_infos, StackSlots.make ()
-  | false, _ -> cfg_infos, StackSlots.make ()
+  else cfg_infos, StackSlots.make ()
 
 let postlude :
     type s.
