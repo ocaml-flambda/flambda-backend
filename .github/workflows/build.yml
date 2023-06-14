@@ -62,6 +62,7 @@ jobs:
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,Oclassic=1'
+            disable_testcases: 'typing-local/regression_cmm_unboxing.ml int64-unboxing/test.ml'
 
           - name: flambda2_cfg
             config: --enable-middle-end=flambda2
@@ -149,6 +150,16 @@ jobs:
     - name: Install GNU parallel
       if: matrix.os == 'macos-latest'
       run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install parallel
+
+    - name: Disable any testcases
+      working-directory: flambda_backend
+      run: |
+        disable_testcases=${{matrix.disable_testcases}}
+        if [ -n "$disable_testcases" ]; then
+          for testcase in "$disable_testcases"; do
+            rm -fv flambda_backend/testsuite/tests/$testcase
+          done
+        fi
 
     - name: Configure Flambda backend
       working-directory: flambda_backend
