@@ -226,18 +226,28 @@ let newpersty desc =
   create_expr
     desc ~level:generic_level ~scope:Btype.lowest_level ~id:!new_id
 
-let norm desc loc ~prepare_layout =
+(* We use a ref instead of passing [loc] as an argument to [typexp]
+   because the ref requires no modifications to the body of [typexp],
+   reducing the chance of merge conflicts. This location is not critical --
+   it just makes an error message more useful in case of a compiler bug.
+   We may decide to get rid of this check someday, too.
+*)
+let location_for_layout_check_errors = ref Location.none
+
+let norm desc ~prepare_layout =
   match desc with
   | Tvar { name; layout } ->
+      let loc = !location_for_layout_check_errors in
       Tvar { name; layout = prepare_layout loc layout }
   | Tunivar { name; layout } ->
+      let loc = !location_for_layout_check_errors in
       Tunivar { name; layout = prepare_layout loc layout }
   | desc -> desc
 
 let ctype_apply_env_empty = ref (fun _ -> assert false)
 
 (* Similar to [Ctype.nondep_type_rec]. *)
-let rec typexp copy_scope s loc ty =
+let rec typexp copy_scope s ty =
   let should_copy_types =
     match s.additional_action with
     | Copy_types | Prepare_for_saving _ -> true
@@ -251,7 +261,7 @@ let rec typexp copy_scope s loc ty =
           match s.additional_action with
           | Copy_types -> newpersty desc
           | Prepare_for_saving prepare_layout ->
-              newpersty (norm desc loc ~prepare_layout)
+              newpersty (norm desc ~prepare_layout)
           | No_action -> newty2 ~level:(get_level ty) desc
         in
         For_copy.redirect_desc copy_scope ty (Tsubst (ty', None));
@@ -287,7 +297,7 @@ let rec typexp copy_scope s loc ty =
         | _ -> assert false
       else match desc with
       | Tconstr (p, args, _abbrev) ->
-         let args = List.map (typexp copy_scope s loc) args in
+         let args = List.map (typexp copy_scope s) args in
          begin match Path.Map.find p s.types with
          | exception Not_found -> Tconstr(type_path s p, args, ref Mnil)
          | Path _ -> Tconstr(type_path s p, args, ref Mnil)
@@ -296,16 +306,16 @@ let rec typexp copy_scope s loc ty =
          end
       | Tpackage(p, fl) ->
           Tpackage(modtype_path s p,
-                   List.map (fun (n, ty) -> (n, typexp copy_scope s loc ty)) fl)
+                   List.map (fun (n, ty) -> (n, typexp copy_scope s ty)) fl)
       | Tobject (t1, name) ->
-          let t1' = typexp copy_scope s loc t1 in
+          let t1' = typexp copy_scope s t1 in
           let name' =
             match !name with
             | None -> None
             | Some (p, tl) ->
                 if to_subst_by_type_function s p
                 then None
-                else Some (type_path s p, List.map (typexp copy_scope s loc) tl)
+                else Some (type_path s p, List.map (typexp copy_scope s) tl)
           in
           Tobject (t1', ref name')
       | Tvariant row ->
@@ -327,7 +337,7 @@ let rec typexp copy_scope s loc ty =
               let more' =
                 match mored with
                   Tsubst (ty, None) -> ty
-                | Tconstr _ | Tnil -> typexp copy_scope s loc more
+                | Tconstr _ | Tnil -> typexp copy_scope s more
                 | Tunivar _ | Tvar _ ->
                     if should_copy_types then newpersty mored
                     else if dup && is_Tvar more then newgenty mored
@@ -340,7 +350,7 @@ let rec typexp copy_scope s loc ty =
               (* TODO: check if more' can be eliminated *)
               (* Return a new copy *)
               let row =
-                copy_row (typexp copy_scope s loc) true row (not dup) more' in
+                copy_row (typexp copy_scope s) true row (not dup) more' in
               match row_name row with
               | Some (p, tl) ->
                   let name =
@@ -352,11 +362,21 @@ let rec typexp copy_scope s loc ty =
                   Tvariant row
           end
       | Tfield(_label, kind, _t1, t2) when field_kind_repr kind = Fabsent ->
-          Tlink (typexp copy_scope s loc t2)
-      | _ -> copy_type_desc (typexp copy_scope s loc) desc
+          Tlink (typexp copy_scope s t2)
+      | _ -> copy_type_desc (typexp copy_scope s) desc
     in
     Transient_expr.set_stub_desc ty' desc;
     ty'
+
+(* [loc] is different than [s.loc]:
+     - [s.loc] is a way for the external client of the module to indicate the
+       location of the copy.
+     - [loc] is internally-populated and is the location of the AST construct
+       that encloses the type (and is used only in errors in the layout check).
+*)
+let typexp copy_scope s loc ty =
+  location_for_layout_check_errors := loc;
+  typexp copy_scope s ty
 
 (*
    Always make a copy of the type. If this is not done, type levels
