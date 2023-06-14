@@ -63,6 +63,7 @@ let is_gc_ignorable kind =
   | Pbottom -> Misc.fatal_error "[Pbottom] should not be stored in a closure."
   | Punboxed_float -> true
   | Punboxed_int _ -> true
+  | Punboxed_vector _ -> true
   | Pvalue Pintval -> true
   | Pvalue (Pgenval | Pfloatval | Pboxedintval _ | Pvariant _ | Parrayval _) -> false
 
@@ -1747,7 +1748,7 @@ let collect_exported_structured_constants a =
   and structured_constant = function
     | Uconst_block (_, ul) -> List.iter const ul
     | Uconst_float _ | Uconst_int32 _
-    | Uconst_int64 _ | Uconst_nativeint _
+    | Uconst_int64 _ | Uconst_nativeint _ | Uconst_vec128 _ 
     | Uconst_float_array _ | Uconst_string _ -> ()
     | Uconst_closure _ -> assert false (* Cannot be generated *)
   and ulam = function

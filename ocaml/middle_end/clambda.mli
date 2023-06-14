@@ -32,6 +32,7 @@ type ustructured_constant =
   | Uconst_int32 of int32
   | Uconst_int64 of int64
   | Uconst_nativeint of nativeint
+  | Uconst_vec128 of int64 * int64
   | Uconst_block of int * uconstant list
   | Uconst_float_array of float list
   | Uconst_string of string

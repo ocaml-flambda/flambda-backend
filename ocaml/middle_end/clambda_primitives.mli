@@ -167,11 +167,15 @@ and layout = Lambda.layout =
   | Pvalue of value_kind
   | Punboxed_float
   | Punboxed_int of boxed_integer
+  | Punboxed_vector of boxed_vector
   | Pbottom
 
 and block_shape = Lambda.block_shape
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
+
+and boxed_vector = Primitive.boxed_vector = 
+  | Pvec128
 
 and bigarray_kind = Lambda.bigarray_kind =
     Pbigarray_unknown
