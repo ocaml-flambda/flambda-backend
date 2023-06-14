@@ -199,6 +199,7 @@ let oper_result_type = function
       begin match c with
       | Word_val -> typ_val
       | Single | Double -> typ_float
+      | Onetwentyeight -> typ_vec128
       | _ -> typ_int
       end
   | Calloc _ -> typ_val
@@ -236,7 +237,7 @@ let size_component = function
   | Val | Addr -> Arch.size_addr
   | Int -> Arch.size_int
   | Float -> Arch.size_float
-  | Vec128 -> 16
+  | Vec128 -> Arch.size_vec128
 
 let size_machtype mty =
   let size = ref 0 in
@@ -251,6 +252,7 @@ let size_expr (env:environment) exp =
     | Cconst_symbol _ ->
         Arch.size_addr
     | Cconst_float _ -> Arch.size_float
+    | Cconst_vec128 _ -> Arch.size_vec128
     | Cvar id ->
         begin try
           V.Map.find id localenv
@@ -1377,7 +1379,11 @@ method emit_stores env data regs_addr =
             Istore(_, _, _) ->
               for i = 0 to Array.length regs - 1 do
                 let r = regs.(i) in
-                let kind = if r.typ = Float then Double else Word_val in
+                let kind = match r.typ with 
+                  | Float -> Double 
+                  | Vec128 -> Onetwentyeight
+                  | _ ->  Word_val 
+                in
                 self#insert env
                             (Iop(Istore(kind, !a, false)))
                             (Array.append [|r|] regs_addr) [||];

@@ -196,7 +196,7 @@ let is_reg t =
 
 let size_of_contents_in_bytes t =
   match t.typ with
-  | Vec128 -> 16
+  | Vec128 -> Arch.size_vec128
   | Float -> Arch.size_float
   | Addr ->
     assert (Arch.size_addr = Arch.size_int);

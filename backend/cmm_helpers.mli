@@ -221,8 +221,6 @@ val box_vector :
 val unbox_vector :
   Debuginfo.t -> Primitive.boxed_vector -> expression -> expression
 
-(* CR mslater: (SIMD) unbox vector *)
-
 (** Complex number creation and access *)
 val box_complex : Debuginfo.t -> expression -> expression -> expression
 

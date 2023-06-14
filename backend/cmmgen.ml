@@ -956,7 +956,7 @@ and transl_ccall env prim args dbg =
     | _, Unboxed_integer Pint64 when size_int = 4 ->
         ([|Int; Int|], box_int dbg Pint64 alloc_heap)
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
-    | _, Unboxed_vector vi -> (typ_int, box_vector dbg vi alloc_heap)
+    | _, Unboxed_vector Pvec128 -> (typ_vec128, box_vector dbg Pvec128 alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in

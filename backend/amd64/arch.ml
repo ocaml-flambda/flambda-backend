@@ -130,6 +130,8 @@ let size_addr = 8
 let size_int = 8
 let size_float = 8
 
+let size_vec128 = 16
+
 let allow_unaligned_access = true
 
 (* Behavior of division *)

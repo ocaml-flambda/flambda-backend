@@ -81,10 +81,10 @@ let float_header = block_header Obj.double_tag (size_float / size_addr)
 let float_local_header =
   local_block_header Obj.double_tag (size_float / size_addr)
 
-let boxedvec128_header = block_header Obj.custom_tag (1 + (16 / size_addr))
+let boxedvec128_header = block_header Obj.abstract_tag (16 / size_addr)
 
 let boxedvec128_local_header =
-  local_block_header Obj.custom_tag (1 + (16 / size_addr))
+  local_block_header Obj.abstract_tag (16 / size_addr)
 
 let floatarray_header len =
   (* Zero-sized float arrays have tag zero for consistency with

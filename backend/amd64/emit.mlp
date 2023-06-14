@@ -274,6 +274,7 @@ let emit_Llabel fallthrough lbl section_name =
 
 let x86_data_type_for_stack_slot = function
   | Float -> REAL8
+  | Vec128 -> VEC128
   | _ -> QWORD
 
 let reg = function
@@ -473,7 +474,7 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
         include X86_dsl.D
 
         type data_type =
-          | NONE | DWORD | QWORD
+          | NONE | DWORD | QWORD | VEC128
 
         type nonrec constant = constant
         let const_int64 num = Const num
@@ -487,7 +488,8 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
               (function
                 | NONE -> X86_ast.NONE
                 | DWORD -> X86_ast.DWORD
-                | QWORD -> X86_ast.QWORD)
+                | QWORD -> X86_ast.QWORD
+                | VEC128 -> X86_ast.VEC128)
               data_type
           in
           label ?typ str
@@ -694,7 +696,8 @@ let move (src : Reg.t) (dst : Reg.t) =
     | Float, Reg.Reg _, Float, Reg.Reg _
     | Vec128, Reg.Reg _, Vec128, Reg.Reg _ -> I.movapd (reg src) (reg dst)
     (* CR mslater: (SIMD) alignment *)
-    | Vec128, _, Vec128, _ -> I.movupd (reg src) (reg dst)
+    | Vec128, _, Vec128, _ -> 
+      I.movupd (reg src) (reg dst)
     | Float, _, Float, _ -> I.movsd (reg src) (reg dst)
     | Float, _, Int, _
     | Int, _, Float, _ -> I.movq (reg src) (reg dst)

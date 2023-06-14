@@ -239,7 +239,6 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_int ~layout:(Layout.immediate ~why:(Primitive ident_int))
   |> add_type ident_int32
   |> add_type ident_int64
-  |> add_type ident_vec128
   |> add_type1 ident_lazy_t
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -265,6 +264,7 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
        ~layout:(Layout.immediate ~why:Enumeration)
+  |> add_type ident_vec128
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[type_string; type_int; type_int])]
