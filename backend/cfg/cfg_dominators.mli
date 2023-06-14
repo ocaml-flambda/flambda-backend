@@ -21,9 +21,9 @@ type immediate_dominators = Label.t Label.Map.t
 val compute_immediate_dominators : Cfg.t -> dominators -> immediate_dominators
 (* [compute_immediate_dominators cfg doms] returns a map from labels to their
    immediate dominator, using the following definition: "the immediate dominator
-   of a node n is the unique node that strictly dominates n but does not strictly
-   dominate any other node that strictly dominates n". By definition, the
-   returned map has a binding for each node of [cfg], except the entry
+   of a node n is the unique node that strictly dominates n but does not
+   strictly dominate any other node that strictly dominates n". By definition,
+   the returned map has a binding for each node of [cfg], except the entry
    point, assuming that all nodes are reachable from entry. *)
 
 type dominance_frontiers = Label.Set.t Label.Map.t
