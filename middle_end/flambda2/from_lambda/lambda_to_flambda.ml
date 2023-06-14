@@ -993,8 +993,8 @@ let primitive_result_kind (prim : Lambda.primitive) :
   | Pccall { prim_native_repr_res = _, Unboxed_float; _ }
   | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
   | Pmulfloat _ | Pdivfloat _ | Pfloatfield _
-  | Parrayrefs Pfloatarray
-  | Parrayrefu Pfloatarray
+  | Parrayrefs (Pfloatarray_ref _)
+  | Parrayrefu (Pfloatarray_ref _)
   | Pbigarrayref (_, _, (Pbigarray_float32 | Pbigarray_float64), _) ->
     Flambda_kind.With_subkind.boxed_float
   | Pccall { prim_native_repr_res = _, Unboxed_integer Pnativeint; _ }
@@ -1019,8 +1019,8 @@ let primitive_result_kind (prim : Lambda.primitive) :
   | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu
   | Parraylength _ | Parraysetu _ | Pisint _ | Pbintcomp _ | Pintofbint _
   | Pisout
-  | Parrayrefs Pintarray
-  | Parrayrefu Pintarray
+  | Parrayrefs Pintarray_ref
+  | Parrayrefu Pintarray_ref
   | Pprobe_is_enabled _ | Pctconst _ | Pbswap16
   | Pbigarrayref
       ( _,
@@ -1055,8 +1055,8 @@ let primitive_result_kind (prim : Lambda.primitive) :
     (* CR ncourant: this should be bottom, but we don't have it *)
     Flambda_kind.With_subkind.any_value
   | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr; _ }
-  | Parrayrefs (Pgenarray | Paddrarray)
-  | Parrayrefu (Pgenarray | Paddrarray)
+  | Parrayrefs (Pgenarray_ref _ | Paddrarray_ref)
+  | Parrayrefu (Pgenarray_ref _ | Paddrarray_ref)
   | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
   | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Pduprecord _

@@ -148,12 +148,11 @@ let block_set (kind : Flambda_primitive.Block_access_kind.t)
   | Values _, (Assignment Local | Initialization) -> 1 (* cadda + store *)
   | Naked_floats _, (Assignment _ | Initialization) -> 1
 
-let array_set (kind : Flambda_primitive.Array_kind.t)
-    (init : Flambda_primitive.Init_or_assign.t) =
-  match kind, init with
-  | Values, Assignment Heap -> nonalloc_extcall_size
-  | Values, (Assignment Local | Initialization) -> 1
-  | (Immediates | Naked_floats), (Assignment _ | Initialization) -> 1
+let array_set (kind : Flambda_primitive.Array_set_kind.t) =
+  match kind with
+  | Values (Assignment Heap) -> nonalloc_extcall_size
+  | Values (Assignment Local | Initialization) -> 1
+  | Immediates | Naked_floats -> 1
 
 let string_or_bigstring_load kind width =
   let start_address_load =
@@ -360,7 +359,7 @@ let binary_prim_size prim =
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with
   | Block_set (block_access, init) -> block_set block_access init
-  | Array_set (kind, init) -> array_set kind init
+  | Array_set kind -> array_set kind
   | Bytes_or_bigstring_set (kind, width) -> bytes_like_set kind width
   | Bigarray_set (_dims, (Complex32 | Complex64), _layout) ->
     5 (* ~ 3 block_load + 2 block_set *)
