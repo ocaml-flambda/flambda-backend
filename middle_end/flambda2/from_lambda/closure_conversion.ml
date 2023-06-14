@@ -383,7 +383,7 @@ module Inlining = struct
             ~result_arity:(Code.result_arity code) ~make_inlined_body)
 end
 
-let close_c_call acc env ~loc ~ids_with_kinds
+let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     ({ prim_name;
        prim_arity;
        prim_alloc;
@@ -394,13 +394,41 @@ let close_c_call acc env ~loc ~ids_with_kinds
        prim_native_repr_args;
        prim_native_repr_res
      } :
-      Primitive.description) ~(args : Simple.t list) exn_continuation dbg
+      Primitive.description) ~(args : Simple.t list list) exn_continuation dbg
     ~current_region (k : Acc.t -> Named.t list -> Expr_with_acc.t) :
     Expr_with_acc.t =
+  let args =
+    List.map
+      (function
+        | [arg] -> arg
+        | [] | _ :: _ :: _ ->
+          Misc.fatal_errorf
+            "close_c_call: expected only singleton arguments for primitive %s, \
+             but got: [%a]"
+            prim_name
+            (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf args ->
+                 Format.fprintf ppf "[%a]"
+                   (Format.pp_print_list ~pp_sep:Format.pp_print_space
+                      Simple.print)
+                   args))
+            args)
+      args
+  in
   let env, let_bound_vars =
     List.fold_left_map
       (fun env (id, kind) -> Env.add_var_like env id Not_user_visible kind)
-      env ids_with_kinds
+      env let_bound_ids_with_kinds
+  in
+  let let_bound_var =
+    match let_bound_vars with
+    | [let_bound_var] -> let_bound_var
+    | [] | _ :: _ :: _ ->
+      Misc.fatal_errorf
+        "close_c_call: expected singleton return for primitive %s, but got: \
+         [%a]"
+        prim_name
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print)
+        let_bound_vars
   in
   let cost_metrics_of_body, free_names_of_body, acc, body =
     Acc.measure_cost_metrics acc ~f:(fun acc ->
@@ -408,13 +436,6 @@ let close_c_call acc env ~loc ~ids_with_kinds
           (List.map
              (fun var -> Named.create_simple (Simple.var var))
              let_bound_vars))
-  in
-  let let_bound_var =
-    match let_bound_vars with
-    | [let_bound_var] -> let_bound_var
-    | [] | _ :: _ :: _ ->
-      Misc.fatal_error
-        "close_c_call: unboxed products are currently unsupported"
   in
   let box_return_value =
     match prim_native_repr_res with
@@ -635,8 +656,9 @@ let close_raise acc env ~raise_kind ~arg ~dbg exn_continuation =
   let acc, arg = find_simple acc env arg in
   close_raise0 acc env ~raise_kind ~arg ~dbg exn_continuation
 
-let close_primitive acc env ~ids_with_kinds named (prim : Lambda.primitive)
-    ~args loc (exn_continuation : IR.exn_continuation option) ~current_region
+let close_primitive acc env ~let_bound_ids_with_kinds named
+    (prim : Lambda.primitive) ~args loc
+    (exn_continuation : IR.exn_continuation option) ~current_region
     (k : Acc.t -> Named.t list -> Expr_with_acc.t) : Expr_with_acc.t =
   let orig_exn_continuation = exn_continuation in
   let acc, exn_continuation =
@@ -659,9 +681,8 @@ let close_primitive acc env ~ids_with_kinds named (prim : Lambda.primitive)
           IR.print_named named
       | Some exn_continuation -> exn_continuation
     in
-    let args = List.flatten args in
-    close_c_call acc env ~loc ~ids_with_kinds prim ~args exn_continuation dbg
-      ~current_region k
+    close_c_call acc env ~loc ~let_bound_ids_with_kinds prim ~args
+      exn_continuation dbg ~current_region k
   | Pgetglobal cu, [] ->
     if Compilation_unit.equal cu (Env.current_unit env)
     then
@@ -747,7 +768,7 @@ let close_trap_action_opt trap_action =
       | Pop { exn_handler } -> Pop { exn_handler; raise_kind = None })
     trap_action
 
-let close_named acc env ~ids_with_kinds (named : IR.named)
+let close_named acc env ~let_bound_ids_with_kinds (named : IR.named)
     (k : Acc.t -> Named.t list -> Expr_with_acc.t) : Expr_with_acc.t =
   match named with
   | Simple (Var id) ->
@@ -783,7 +804,7 @@ let close_named acc env ~ids_with_kinds (named : IR.named)
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
       [prim] Debuginfo.none k
   | Prim { prim; args; loc; exn_continuation; region } ->
-    close_primitive acc env ~ids_with_kinds named prim ~args loc
+    close_primitive acc env ~let_bound_ids_with_kinds named prim ~args loc
       exn_continuation
       ~current_region:(fst (Env.find_var env region))
       k
@@ -863,14 +884,14 @@ let classify_fields_of_block env fields alloc_mode =
     then Computed_static fields
     else Constant fields
 
-let close_let acc env ids user_visible defining_expr
+let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
-  let rec cont ids env acc (defining_exprs : Named.t list) =
-    match ids, defining_exprs with
+  let rec cont ids_with_kinds env acc (defining_exprs : Named.t list) =
+    match ids_with_kinds, defining_exprs with
     | [], [] -> body acc env
-    | (id, kind) :: ids, defining_expr :: defining_exprs -> (
+    | (id, kind) :: ids_with_kinds, defining_expr :: defining_exprs -> (
       let body_env, var = Env.add_var_like env id user_visible kind in
-      let body acc env = cont ids env acc defining_exprs in
+      let body acc env = cont ids_with_kinds env acc defining_exprs in
       match defining_expr with
       | Simple simple ->
         let body_env = Env.add_simple_to_substitute env id simple kind in
@@ -1030,7 +1051,8 @@ let close_let acc env ids user_visible defining_expr
         "CC.close_let: defining_exprs should have the same length as number of \
          variables"
   in
-  close_named acc env ~ids_with_kinds:ids defining_expr (cont ids env)
+  close_named acc env ~let_bound_ids_with_kinds defining_expr
+    (cont let_bound_ids_with_kinds env)
 
 let close_let_cont acc env ~name ~is_exn_handler ~params
     ~(recursive : Asttypes.rec_flag)
