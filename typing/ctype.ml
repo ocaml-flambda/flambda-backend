@@ -655,8 +655,14 @@ let closed_extension_constructor ext =
   try
     List.iter mark_type ext.ext_type_params;
     begin match ext.ext_ret_type with
-    | Some _ -> ()
-    | None -> iter_type_expr_cstr_args closed_type ext.ext_args
+    | Some res_ty ->
+        (* gadts cannot have free type variables, but they might
+           have undefaulted layout variables; these lines default
+           them. Test case: typing-layouts-gadt-sort-var/test_extensible.ml *)
+        iter_type_expr_cstr_args remove_mode_and_layout_variables ext.ext_args;
+        remove_mode_and_layout_variables res_ty
+    | None ->
+        iter_type_expr_cstr_args closed_type ext.ext_args
     end;
     unmark_extension_constructor ext;
     None
