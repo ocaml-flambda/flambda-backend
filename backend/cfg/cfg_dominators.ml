@@ -187,10 +187,10 @@ let compute_dominance_frontiers :
       let num_predecessors = Label.Set.cardinal block.predecessors in
       if num_predecessors >= 2
       then
+        let idom_predecessor = idom label in
         Label.Set.iter
           (fun predecessor ->
             let curr = ref predecessor in
-            let idom_predecessor = idom label in
             while not (Label.equal !curr idom_predecessor) do
               dominance_frontiers
                 := Label.Map.update !curr
