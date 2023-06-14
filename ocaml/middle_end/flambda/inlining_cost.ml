@@ -44,13 +44,13 @@ let prim_size (prim : Clambda_primitives.primitive) args =
   | Pmakearray _ -> 5 + List.length args
   | Parraylength Pgenarray -> 6
   | Parraylength _ -> 2
-  | Parrayrefu Pgenarray -> 12
+  | Parrayrefu (Pgenarray_ref _) -> 12
   | Parrayrefu _ -> 2
-  | Parraysetu Pgenarray -> 16
+  | Parraysetu (Pgenarray_set _) -> 16
   | Parraysetu _ -> 4
-  | Parrayrefs Pgenarray -> 18
+  | Parrayrefs (Pgenarray_ref _) -> 18
   | Parrayrefs _ -> 8
-  | Parraysets Pgenarray -> 22
+  | Parraysets (Pgenarray_set _) -> 22
   | Parraysets _ -> 10
   | Pbigarrayref (_, ndims, _, _) -> 4 + ndims * 6
   | Pbigarrayset (_, ndims, _, _) -> 4 + ndims * 6

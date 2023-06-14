@@ -122,10 +122,8 @@ let compute_immediate_dominators : Cfg.t -> dominators -> immediate_dominators =
           let immediate_dominator =
             Label.Set.fold
               (fun other_dominator immediate_dominator ->
-                if Label.equal other_dominator immediate_dominator
-                then immediate_dominator
-                else if is_dominating dominator_map immediate_dominator
-                          other_dominator
+                if is_strictly_dominating dominator_map immediate_dominator
+                     other_dominator
                 then other_dominator
                 else immediate_dominator)
               strict_dominators strict_dominator
@@ -189,10 +187,10 @@ let compute_dominance_frontiers :
       let num_predecessors = Label.Set.cardinal block.predecessors in
       if num_predecessors >= 2
       then
+        let idom_predecessor = idom label in
         Label.Set.iter
           (fun predecessor ->
             let curr = ref predecessor in
-            let idom_predecessor = idom label in
             while not (Label.equal !curr idom_predecessor) do
               dominance_frontiers
                 := Label.Map.update !curr

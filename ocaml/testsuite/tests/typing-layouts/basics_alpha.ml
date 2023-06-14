@@ -170,13 +170,13 @@ module F2 (X : sig val x : t_void end) = struct
   let f () = X.x
 end;;
 [%%expect{|
-Line 2, characters 8-16:
-2 |   let f () = X.x
-            ^^^^^^^^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+Line 1, characters 27-33:
+1 | module F2 (X : sig val x : t_void end) = struct
+                               ^^^^^^
+Error: This type signature for x is not a value type.
+       x has layout void, which is not a sublayout of value.
 |}];;
+(* CR layouts v5: the test above should be made to work *)
 
 module F2 (X : sig val f : void_record -> unit end) = struct
   let g z = X.f { vr_void = z; vr_int = 42 }
@@ -1439,6 +1439,39 @@ end
 Line 8, characters 27-28:
 8 |   let g (x : t_void) = M.f x
                                ^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(**************************************************)
+(* Test 31: checking that #poly_var patterns work *)
+
+type ('a : void) poly_var = [`A of int * 'a | `B]
+
+let f #poly_var = "hello"
+
+[%%expect{|
+Line 1, characters 41-43:
+1 | type ('a : void) poly_var = [`A of int * 'a | `B]
+                                             ^^
+Error: This type ('a : value) should be an instance of type ('a0 : void)
+       'a has layout void, which does not overlap with value.
+|}]
+(* CR layouts bug: this should be accepted (or maybe we should reject
+   the type definition if we're not allowing `void` things in structures).
+   This bug is a goof at the top of Typecore.build_or_pat;
+   there is another CR layouts there. *)
+
+(*********************************************************)
+(* Test 32: Polymorphic variant constructors take values *)
+
+let f _ = `Mk (assert false : t_void)
+
+[%%expect{|
+Line 1, characters 14-37:
+1 | let f _ = `Mk (assert false : t_void)
+                  ^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type t_void but an expression was expected of type
          ('a : value)
        t_void has layout void, which is not a sublayout of value.

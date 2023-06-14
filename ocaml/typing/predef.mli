@@ -22,6 +22,7 @@ val type_char: type_expr
 val type_string: type_expr
 val type_bytes: type_expr
 val type_float: type_expr
+val type_float_unboxed: type_expr
 val type_bool: type_expr
 val type_unit: type_expr
 val type_exn: type_expr

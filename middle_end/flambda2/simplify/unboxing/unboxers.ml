@@ -134,7 +134,9 @@ module Field = struct
       unboxing_prim = (fun block -> unboxing_prim bak ~block ~index);
       prove_simple =
         (fun tenv ~min_name_mode t ->
-          T.meet_block_field_simple tenv ~min_name_mode t index)
+          T.meet_block_field_simple tenv ~min_name_mode
+            ~field_kind:(P.Block_access_kind.element_kind_for_load bak)
+            t index)
     }
 end
 

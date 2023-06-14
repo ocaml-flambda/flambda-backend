@@ -70,7 +70,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       let arg_vars_set = free_vars ~param:true (newgenty (Ttuple tyl)) in
       let type_params = TypeSet.elements arg_vars_set in
       let arity = List.length type_params in
-      let is_void_label lbl = Layout.is_void lbl.ld_layout in
+      let is_void_label lbl = Layout.is_void_defaulting lbl.ld_layout in
       let layout =
         Layout.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
       in
@@ -104,7 +104,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
     | Variant_boxed layouts -> layouts
     | Variant_unboxed -> [| [| decl.type_layout |] |]
   in
-  let all_void layouts = Array.for_all Layout.is_void layouts in
+  let all_void layouts = Array.for_all Layout.is_void_defaulting layouts in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
   let cstr_constant =
     Array.map
@@ -197,7 +197,7 @@ let none =
 let dummy_label =
   { lbl_name = ""; lbl_res = none; lbl_arg = none;
     lbl_mut = Immutable; lbl_global = Unrestricted;
-    lbl_layout = Layout.any;
+    lbl_layout = Layout.any ~why:Dummy_layout;
     lbl_num = -1; lbl_pos = -1; lbl_all = [||];
     lbl_repres = Record_unboxed;
     lbl_private = Public;
@@ -211,7 +211,7 @@ let label_descrs ty_res lbls repres priv =
   let rec describe_labels num pos = function
       [] -> []
     | l :: rest ->
-        let is_void = Layout.is_void l.ld_layout  in
+        let is_void = Layout.is_void_defaulting l.ld_layout  in
         let lbl =
           { lbl_name = Ident.name l.ld_id;
             lbl_res = ty_res;

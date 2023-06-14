@@ -40,6 +40,7 @@ type _ pass =
   | Cmm : Cmm.phrase list pass
 
   | Inlining_tree : Flambda2_simplify_shared.Inlining_report.Inlining_tree.t pass
+  | Check_allocations : Checkmach.iter_witnesses pass
 
 type t = {
   mutable parse_tree_intf : (Parsetree.signature -> unit) list;
@@ -65,7 +66,8 @@ type t = {
   mutable linear : (Linear.fundecl -> unit) list;
   mutable cfg : (Cfg_with_layout.t -> unit) list;
   mutable cmm : (Cmm.phrase list -> unit) list;
-  mutable inlining_tree : (Flambda2_simplify_shared.Inlining_report.Inlining_tree.t -> unit) list
+  mutable inlining_tree : (Flambda2_simplify_shared.Inlining_report.Inlining_tree.t -> unit) list;
+  mutable check_allocations : (Checkmach.iter_witnesses -> unit) list
 }
 let hooks : t = {
   parse_tree_intf = [];
@@ -92,6 +94,7 @@ let hooks : t = {
   cfg = [];
   cmm = [];
   inlining_tree = [];
+  check_allocations = [];
 }
 
 let execute_hooks : type a. (a -> unit) list -> a -> unit = fun hooks arg ->
@@ -125,6 +128,8 @@ let register : type a. a pass -> (a -> unit) -> unit =
   | Cfg -> hooks.cfg <- f :: hooks.cfg
   | Cmm -> hooks.cmm <- f :: hooks.cmm
   | Inlining_tree -> hooks.inlining_tree <- f :: hooks.inlining_tree
+  | Check_allocations ->
+    hooks.check_allocations <- f :: hooks.check_allocations
 
 let execute : type a. a pass -> a -> unit =
   fun representation arg ->
@@ -153,6 +158,10 @@ let execute : type a. a pass -> a -> unit =
   | Cfg -> execute_hooks hooks.cfg arg
   | Cmm -> execute_hooks hooks.cmm arg
   | Inlining_tree -> execute_hooks hooks.inlining_tree arg
+  | Check_allocations ->
+    Misc.protect_refs
+      [ Misc.R (Flambda_backend_flags.checkmach_details_cutoff, -1) ]
+      (fun () -> execute_hooks hooks.check_allocations arg)
 
 let execute_and_pipe r a = execute r a; a
 
@@ -182,3 +191,4 @@ let clear : type a. a pass -> unit =
   | Cfg -> hooks.cfg <- []
   | Cmm -> hooks.cmm <- []
   | Inlining_tree -> hooks.inlining_tree <- []
+  | Check_allocations -> hooks.check_allocations <- []

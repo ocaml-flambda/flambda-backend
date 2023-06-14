@@ -32,6 +32,8 @@ type memory_access_size =
 
 type alloc_mode = Lambda.alloc_mode
 
+type modify_mode = Lambda.modify_mode
+
 type primitive =
   | Pread_symbol of string
   (* Operations on heap blocks *)
@@ -77,10 +79,10 @@ type primitive =
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
   | Parraylength of array_kind
-  | Parrayrefu of array_kind
-  | Parraysetu of array_kind
-  | Parrayrefs of array_kind
-  | Parraysets of array_kind
+  | Parrayrefu of array_ref_kind
+  | Parraysetu of array_set_kind
+  | Parrayrefs of array_ref_kind
+  | Parraysets of array_set_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint
   (* Test if the (integer) argument is outside an interval *)
@@ -138,6 +140,18 @@ and float_comparison = Lambda.float_comparison =
 
 and array_kind = Lambda.array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
+
+and array_ref_kind = Lambda.array_ref_kind =
+  | Pgenarray_ref of alloc_mode
+  | Paddrarray_ref
+  | Pintarray_ref
+  | Pfloatarray_ref of alloc_mode
+
+and array_set_kind = Lambda.array_set_kind =
+  | Pgenarray_set of modify_mode
+  | Paddrarray_set of modify_mode
+  | Pintarray_set
+  | Pfloatarray_set
 
 and value_kind = Lambda.value_kind =
   (* CR mshinwell: Pfloatval should be renamed to Pboxedfloatval *)

@@ -734,7 +734,9 @@ let close_variant env row =
       (orig_name, true) fields in
   if not closed || name != orig_name then begin
     let more' =
-      if static then Btype.newgenty Tnil else Btype.newgenvar Layout.value
+      if static
+      then Btype.newgenty Tnil
+      else Btype.newgenvar (Layout.value ~why:Row_variable)
     in
     (* this unification cannot fail *)
     Ctype.unify env more
@@ -1917,9 +1919,9 @@ module Conv = struct
             | Immutable ->
                 let ppat =
                   Jane_syntax.Immutable_arrays.pat_of
-                    ~loc:pat.pat_loc (Iapat_immutable_array pats)
+                    ~loc:pat.pat_loc ~attrs:[] (Iapat_immutable_array pats)
                 in
-                ppat.desc, ppat.jane_syntax_attributes
+                ppat.ppat_desc, ppat.ppat_attributes
           in
           mkpat ~attrs ppat
       | Tpat_lazy p ->

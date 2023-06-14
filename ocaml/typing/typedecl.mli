@@ -102,21 +102,21 @@ type error =
   | Multiple_native_repr_attributes
   | Cannot_unbox_or_untag_type of native_repr_kind
   | Deep_unbox_or_untag_attribute of native_repr_kind
-  | Layout_coherence_check of type_expr * Layout.Violation.violation
-  | Layout_update_check of Path.t * Layout.Violation.violation
+  | Layout_coherence_check of type_expr * Layout.Violation.t
+  | Layout_update_check of Path.t * Layout.Violation.t
   | Layout_sort of
       { lloc : layout_sort_loc
       ; typ : type_expr
-      ; err : Layout.Violation.violation
+      ; err : Layout.Violation.t
       }
   | Layout_empty_record
+  | Non_value_in_sig of Layout.Violation.t * string
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Global_and_nonlocal
   | Layout_not_enabled of Layout.const
 
 exception Error of Location.t * error

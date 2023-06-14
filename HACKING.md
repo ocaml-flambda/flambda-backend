@@ -143,6 +143,23 @@ There is also a `make ci` target which does a full build and test run.
 Some of our tests are expect tests run using a custom tool called `flexpect`.
 Corrected outputs can be promoted using `make promote`.
 
+See `ocaml/HACKING.jst.adoc` for documentation on additional test-related
+targets. When that documentation says to run (say) `make -f Makefile.jst test-one`
+from the `ocaml` subdirectory, you should instead run `make test-one` from the
+root of the repo. Here are some examples of commands you can run:
+
+```
+$ make test-one TEST=typing-local/local.ml
+$ make test-one-no-rebuild TEST=typing-local/local.ml
+$ make promote-one TEST=typing-local/local.ml
+$ make promote-one-no-rebuild TEST=typing-local/local.ml
+# Promote failures from the last run
+$ make promote-failed
+# You can also use the full path from the root of the repo.
+# This interacts better with tab completion.
+$ make test-one TEST=ocaml/testsuite/tests/typing-local/local.ml
+```
+
 ## Running only part of the upstream testsuite
 
 This can be done from the `_runtest` directory after it has been initialised by a previous `make runtest-upstream`.
