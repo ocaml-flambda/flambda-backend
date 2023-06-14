@@ -123,7 +123,7 @@ let compute_immediate_dominators : Cfg.t -> dominators -> immediate_dominators =
             Label.Set.fold
               (fun other_dominator immediate_dominator ->
                 if is_strictly_dominating dominator_map immediate_dominator
-                          other_dominator
+                     other_dominator
                 then other_dominator
                 else immediate_dominator)
               strict_dominators strict_dominator
