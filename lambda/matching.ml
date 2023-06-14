@@ -2174,7 +2174,11 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _layout) rem =
     else
       (* CR ncourant: could do better than layout_field using kind *)
       ( Lprim
-          (Parrayrefu kind, [ arg; Lconst (Const_base (Const_int pos)) ], loc),
+          (* TODO: The resulting float should be allocated to at the mode of the
+             array pattern, once that's available *)
+          (Parrayrefu Lambda.(array_ref_kind alloc_heap kind),
+           [ arg; Lconst (Const_base (Const_int pos)) ],
+           loc),
         (match am with
         | Mutable   -> StrictOpt
         | Immutable -> Alias),
