@@ -156,9 +156,7 @@ jobs:
       run: |
         disable_testcases="${{matrix.disable_testcases}}"
         if [ -n "$disable_testcases" ]; then
-          for testcase in "$disable_testcases"; do
-            rm -fv ocaml/testsuite/tests/$testcase
-          done
+          rm -fv $disable_testcases
         fi
 
     - name: Configure Flambda backend
