@@ -6,9 +6,18 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 module State = Regalloc_split_state
 
 (* [propagate_substitution state cfg substs start subst] propagates the
-   substitution [subst], from block [start] until new ones are defined. The
-   effect of the propagation is the addition of [subst] to the relevant blocks
-   in [substs]. *)
+   substitution [subst], from block [start] until new ones are defined.
+
+   In practice, it means that we stop propagating when we encounter a node with
+   either "definitions at beginning" or a "phi" because: - when there are new
+   definitions, they follow a destruction point, which means that every live
+   register will get a new name (thus replacing the binding in the current
+   substitution); - when there is a phi, it means that every register in the
+   substitution we are currently propagating is either no longer live, or needs
+   a phi move (thus replacing the binding in the current substitution).
+
+   The effect of the propagation is the addition of [subst] to the relevant
+   blocks in [substs]. *)
 let propagate_substitution :
     State.t ->
     Cfg.t ->
@@ -100,8 +109,9 @@ let insert_spills :
  fun state cfg_with_liveness substs ->
   if split_debug then log ~indent:0 "insert_spills";
   let destructions_at_end = State.destructions_at_end state in
-  Label.Map.fold
-    (fun label (_, live_at_destruction_point) acc ->
+  let res = Reg.Tbl.create (Label.Map.cardinal destructions_at_end) in
+  Label.Map.iter
+    (fun label (_, live_at_destruction_point) ->
       if split_debug then log ~indent:1 "block %d" label;
       let block = Cfg_with_liveness.get_block_exn cfg_with_liveness label in
       let subst = Substitution.for_label substs label in
@@ -109,7 +119,7 @@ let insert_spills :
         (fun reg ->
           if split_debug then log ~indent:2 "register %a" Printmach.reg reg;
           let stack_reg =
-            match Reg.Tbl.find_opt acc reg with
+            match Reg.Tbl.find_opt res reg with
             | Some stack_reg -> stack_reg
             | None ->
               let slots = State.stack_slots state in
@@ -120,7 +130,7 @@ let insert_spills :
               in
               StackSlots.use_same_slot_or_fatal slots stack ~existing:reg;
               stack.Reg.loc <- Reg.(Stack (Local slot));
-              Reg.Tbl.replace acc reg stack;
+              Reg.Tbl.replace res reg stack;
               stack
           in
           let reg = Substitution.apply_reg subst reg in
@@ -134,10 +144,9 @@ let insert_spills :
               ~copy:block.terminator ~from:reg ~to_:stack_reg
           in
           DLL.add_end block.body spill)
-        live_at_destruction_point;
-      acc)
-    destructions_at_end
-    (Reg.Tbl.create (Label.Map.cardinal destructions_at_end))
+        live_at_destruction_point)
+    destructions_at_end;
+  res
 
 (* Inserts reloads at the start of blocks, after destruction points. *)
 let insert_reloads :
@@ -244,8 +253,7 @@ let insert_phi_moves :
             Cfg_with_liveness.get_block_exn cfg_with_liveness predecessor_label
           in
           match predecessor_block.terminator.desc with
-          | Return | Raise _ | Tailcall_func _
-          | Call_no_return _ | Never ->
+          | Return | Raise _ | Tailcall_func _ | Call_no_return _ | Never ->
             assert false
           | Tailcall_self _ -> ()
           | Always _ ->
