@@ -582,7 +582,19 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
 
 let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
-  | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
+  | Array_set ak ->
+    let ia : Flambda_primitive.Init_or_assign.t =
+      match ak with
+      | Values ia -> ia
+      | Immediates | Naked_floats -> Assignment Alloc_mode.For_assignments.heap
+    in
+    let ak : Flambda_primitive.Array_kind.t =
+      match ak with
+      | Immediates -> Immediates
+      | Values _ -> Values
+      | Naked_floats -> Naked_floats
+    in
+    Array_set (ak, init_or_assign env ia)
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
   | Bigarray_set _ ->
@@ -1022,10 +1034,16 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
     | Method _ ->
       None
   in
-  let inlined =
+  let inlined : Fexpr.inlined_attribute option =
     if Flambda2_terms.Inlined_attribute.is_default (Apply_expr.inlined app)
     then None
-    else Some (Apply_expr.inlined app)
+    else
+      match Apply_expr.inlined app with
+      | Default_inlined -> Some Default_inlined
+      | Hint_inlined -> Some Hint_inlined
+      | Always_inlined _ -> Some Always_inlined
+      | Unroll (n, _) -> Some (Unroll n)
+      | Never_inlined -> Some Never_inlined
   in
   let inlining_state = inlining_state (Apply_expr.inlining_state app) in
   let region = Env.find_region_exn env (Apply_expr.region app) in

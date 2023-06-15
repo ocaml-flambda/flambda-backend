@@ -85,9 +85,6 @@ let register_const acc constant name : Acc.t * Field_of_static_block.t * string
   let acc, symbol = register_const0 acc constant name in
   acc, Symbol symbol, name
 
-let register_const_string acc str =
-  register_const0 acc (Static_const.immutable_string str) "string"
-
 let rec declare_const acc (const : Lambda.structured_constant) :
     Acc.t * Field_of_static_block.t * string =
   let module SC = Static_const in
@@ -259,7 +256,7 @@ module Inlining = struct
           | Never_inlined ->
             ( Call_site_inlining_decision_type.Never_inlined_attribute,
               Not_inlinable )
-          | Always_inlined | Hint_inlined ->
+          | Always_inlined _ | Hint_inlined ->
             Call_site_inlining_decision_type.Attribute_always, Inlinable code
           | Default_inlined | Unroll _ ->
             (* Closure ignores completely [@unrolled] attributes, so it seems
@@ -386,7 +383,7 @@ module Inlining = struct
             ~result_arity:(Code.result_arity code) ~make_inlined_body)
 end
 
-let close_c_call acc env ~loc ~let_bound_var
+let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     ({ prim_name;
        prim_arity;
        prim_alloc;
@@ -397,14 +394,48 @@ let close_c_call acc env ~loc ~let_bound_var
        prim_native_repr_args;
        prim_native_repr_res
      } :
-      Primitive.description) ~(args : Simple.t list) exn_continuation dbg
-    ~current_region (k : Acc.t -> Named.t option -> Expr_with_acc.t) :
+      Primitive.description) ~(args : Simple.t list list) exn_continuation dbg
+    ~current_region (k : Acc.t -> Named.t list -> Expr_with_acc.t) :
     Expr_with_acc.t =
-  (* We always replace the original let-binding with an Flambda expression, so
-     we call [k] with [None], to get just the closure-converted body of that
-     binding. *)
+  let args =
+    List.map
+      (function
+        | [arg] -> arg
+        | [] | _ :: _ :: _ ->
+          Misc.fatal_errorf
+            "close_c_call: expected only singleton arguments for primitive %s, \
+             but got: [%a]"
+            prim_name
+            (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf args ->
+                 Format.fprintf ppf "[%a]"
+                   (Format.pp_print_list ~pp_sep:Format.pp_print_space
+                      Simple.print)
+                   args))
+            args)
+      args
+  in
+  let env, let_bound_vars =
+    List.fold_left_map
+      (fun env (id, kind) -> Env.add_var_like env id Not_user_visible kind)
+      env let_bound_ids_with_kinds
+  in
+  let let_bound_var =
+    match let_bound_vars with
+    | [let_bound_var] -> let_bound_var
+    | [] | _ :: _ :: _ ->
+      Misc.fatal_errorf
+        "close_c_call: expected singleton return for primitive %s, but got: \
+         [%a]"
+        prim_name
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print)
+        let_bound_vars
+  in
   let cost_metrics_of_body, free_names_of_body, acc, body =
-    Acc.measure_cost_metrics acc ~f:(fun acc -> k acc None)
+    Acc.measure_cost_metrics acc ~f:(fun acc ->
+        k acc
+          (List.map
+             (fun var -> Named.create_simple (Simple.var var))
+             let_bound_vars))
   in
   let box_return_value =
     match prim_native_repr_res with
@@ -424,7 +455,7 @@ let close_c_call acc env ~loc ~let_bound_var
     | Apply_cont apply_cont
       when Simple.List.equal
              (Apply_cont_expr.args apply_cont)
-             [Simple.var let_bound_var]
+             (Simple.vars let_bound_vars)
            && Option.is_none (Apply_cont_expr.trap_action apply_cont)
            && Option.is_none box_return_value ->
       Apply_cont_expr.continuation apply_cont, false
@@ -506,7 +537,7 @@ let close_c_call acc env ~loc ~let_bound_var
           exn_continuation ~args ~args_arity:param_arity ~return_arity
           ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Inlining_state.default ~round:0)
-          ~probe_name:None ~position:Normal
+          ~probe:None ~position:Normal
           ~relative_history:(Env.relative_history_from_scoped ~loc env)
           ~region:current_region
       in
@@ -601,9 +632,35 @@ let close_exn_continuation acc env (exn_continuation : IR.exn_continuation) =
     Exn_continuation.create ~exn_handler:exn_continuation.exn_handler
       ~extra_args )
 
-let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
-    loc (exn_continuation : IR.exn_continuation option) ~current_region
-    (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
+let close_raise0 acc env ~raise_kind ~arg ~dbg exn_continuation =
+  let acc, exn_cont = close_exn_continuation acc env exn_continuation in
+  let exn_handler = Exn_continuation.exn_handler exn_cont in
+  let args =
+    (* CR mshinwell: Share with [Lambda_to_flambda_primitives_helpers] *)
+    let extra_args =
+      List.map
+        (fun (simple, _kind) -> simple)
+        (Exn_continuation.extra_args exn_cont)
+    in
+    arg :: extra_args
+  in
+  let raise_kind = Some (Trap_action.Raise_kind.from_lambda raise_kind) in
+  let trap_action = Trap_action.Pop { exn_handler; raise_kind } in
+  let acc, apply_cont =
+    Apply_cont_with_acc.create acc ~trap_action exn_handler ~args ~dbg
+  in
+  (* Since raising of an exception doesn't terminate, we don't call [k]. *)
+  Expr_with_acc.create_apply_cont acc apply_cont
+
+let close_raise acc env ~raise_kind ~arg ~dbg exn_continuation =
+  let acc, arg = find_simple acc env arg in
+  close_raise0 acc env ~raise_kind ~arg ~dbg exn_continuation
+
+let close_primitive acc env ~let_bound_ids_with_kinds named
+    (prim : Lambda.primitive) ~args loc
+    (exn_continuation : IR.exn_continuation option) ~current_region
+    (k : Acc.t -> Named.t list -> Expr_with_acc.t) : Expr_with_acc.t =
+  let orig_exn_continuation = exn_continuation in
   let acc, exn_continuation =
     match exn_continuation with
     | None -> acc, None
@@ -611,7 +668,9 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       let acc, cont = close_exn_continuation acc env exn_continuation in
       acc, Some cont
   in
-  let acc, args = find_simples acc env args in
+  let acc, args =
+    List.fold_left_map (fun acc arg -> find_simples acc env arg) acc args
+  in
   let dbg = Debuginfo.from_location loc in
   match prim, args with
   | Pccall prim, args ->
@@ -622,8 +681,8 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
           IR.print_named named
       | Some exn_continuation -> exn_continuation
     in
-    close_c_call acc env ~loc ~let_bound_var prim ~args exn_continuation dbg
-      ~current_region k
+    close_c_call acc env ~loc ~let_bound_ids_with_kinds prim ~args
+      exn_continuation dbg ~current_region k
   | Pgetglobal cu, [] ->
     if Compilation_unit.equal cu (Env.current_unit env)
     then
@@ -633,38 +692,22 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       Flambda2_import.Symbol.for_compilation_unit cu |> Symbol.create_wrapped
     in
     let named = Named.create_simple (Simple.symbol symbol) in
-    k acc (Some named)
+    k acc [named]
   | Pgetpredef id, [] ->
     let symbol =
       Flambda2_import.Symbol.for_predef_ident id |> Symbol.create_wrapped
     in
     let named = Named.create_simple (Simple.symbol symbol) in
-    k acc (Some named)
-  | Praise raise_kind, [_] ->
+    k acc [named]
+  | Praise raise_kind, [[arg]] ->
     let exn_continuation =
-      match exn_continuation with
+      match orig_exn_continuation with
       | None ->
         Misc.fatal_errorf "Praise is missing exception continuation: %a"
           IR.print_named named
       | Some exn_continuation -> exn_continuation
     in
-    let exn_handler = Exn_continuation.exn_handler exn_continuation in
-    let args =
-      (* CR mshinwell: Share with [Lambda_to_flambda_primitives_helpers] *)
-      let extra_args =
-        List.map
-          (fun (simple, _kind) -> simple)
-          (Exn_continuation.extra_args exn_continuation)
-      in
-      args @ extra_args
-    in
-    let raise_kind = Some (Trap_action.Raise_kind.from_lambda raise_kind) in
-    let trap_action = Trap_action.Pop { exn_handler; raise_kind } in
-    let acc, apply_cont =
-      Apply_cont_with_acc.create acc ~trap_action exn_handler ~args ~dbg
-    in
-    (* Since raising of an exception doesn't terminate, we don't call [k]. *)
-    Expr_with_acc.create_apply_cont acc apply_cont
+    close_raise0 acc env ~raise_kind ~arg ~dbg exn_continuation
   | (Pmakeblock _ | Pmakefloatblock _ | Pmakearray _), [] ->
     (* Special case for liftable empty block or array *)
     let acc, sym =
@@ -711,12 +754,11 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
         (* Inconsistent with outer match *)
         assert false
     in
-    k acc (Some (Named.create_simple (Simple.symbol sym)))
+    k acc [Named.create_simple (Simple.symbol sym)]
   | prim, args ->
     Lambda_to_flambda_primitives.convert_and_bind acc exn_continuation
-      ~big_endian:(Env.big_endian env)
-      ~register_const_string:(fun acc -> register_const_string acc)
-      prim ~args dbg ~current_region k
+      ~big_endian:(Env.big_endian env) ~register_const0 prim ~args dbg
+      ~current_region k
 
 let close_trap_action_opt trap_action =
   Option.map
@@ -726,26 +768,24 @@ let close_trap_action_opt trap_action =
       | Pop { exn_handler } -> Pop { exn_handler; raise_kind = None })
     trap_action
 
-let close_named acc env ~let_bound_var (named : IR.named)
-    (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
+let close_named acc env ~let_bound_ids_with_kinds (named : IR.named)
+    (k : Acc.t -> Named.t list -> Expr_with_acc.t) : Expr_with_acc.t =
   match named with
   | Simple (Var id) ->
     assert (not (Ident.is_global_or_predef id));
     let acc, simple = find_simple acc env (Var id) in
     let named = Named.create_simple simple in
-    k acc (Some named)
+    k acc [named]
   | Simple (Const cst) ->
     let acc, named, _name = close_const acc cst in
-    k acc (Some named)
+    k acc [named]
   | Get_tag var ->
     let named = find_simple_from_id env var in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Unary (Tag_immediate, Prim (Unary (Get_tag, Simple named)))
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
-      ~register_const_string:(fun acc -> register_const_string acc)
-      prim Debuginfo.none
-      (fun acc named -> k acc (Some named))
+    Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
+      [prim] Debuginfo.none k
   | Begin_region { try_region_parent } ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       match try_region_parent with
@@ -754,21 +794,18 @@ let close_named acc env ~let_bound_var (named : IR.named)
         let try_region_parent = find_simple_from_id env try_region_parent in
         Unary (Begin_try_region, Simple try_region_parent)
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
-      ~register_const_string:(fun acc -> register_const_string acc)
-      prim Debuginfo.none
-      (fun acc named -> k acc (Some named))
+    Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
+      [prim] Debuginfo.none k
   | End_region id ->
     let named = find_simple_from_id env id in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Unary (End_region, Simple named)
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
-      ~register_const_string:(fun acc -> register_const_string acc)
-      prim Debuginfo.none
-      (fun acc named -> k acc (Some named))
+    Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
+      [prim] Debuginfo.none k
   | Prim { prim; args; loc; exn_continuation; region } ->
-    close_primitive acc env ~let_bound_var named prim ~args loc exn_continuation
+    close_primitive acc env ~let_bound_ids_with_kinds named prim ~args loc
+      exn_continuation
       ~current_region:(fst (Env.find_var env region))
       k
 
@@ -847,65 +884,125 @@ let classify_fields_of_block env fields alloc_mode =
     then Computed_static fields
     else Constant fields
 
-let close_let acc env id user_visible kind defining_expr
+let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
-  let body_env, var = Env.add_var_like env id user_visible kind in
-  let cont acc (defining_expr : Named.t option) =
-    match defining_expr with
-    | Some (Simple simple) ->
-      let body_env = Env.add_simple_to_substitute env id simple kind in
-      body acc body_env
-    | None -> body acc body_env
-    | Some (Prim ((Nullary Begin_region | Unary (End_region, _)), _))
-      when not (Flambda_features.stack_allocation_enabled ()) ->
-      (* We use [body_env] to ensure the region variables are still in the
-         environment, to avoid lookup errors, even though the [Let] won't be
-         generated. *)
-      body acc body_env
-    | Some defining_expr -> (
-      let bound_pattern =
-        Bound_pattern.singleton (VB.create var Name_mode.normal)
-      in
-      let bind acc env =
-        (* CR pchambart: Not tail ! The body function is the recursion *)
-        let acc, body = body acc env in
-        Let_with_acc.create acc bound_pattern defining_expr ~body
-      in
+  let rec cont ids_with_kinds env acc (defining_exprs : Named.t list) =
+    match ids_with_kinds, defining_exprs with
+    | [], [] -> body acc env
+    | (id, kind) :: ids_with_kinds, defining_expr :: defining_exprs -> (
+      let body_env, var = Env.add_var_like env id user_visible kind in
+      let body acc env = cont ids_with_kinds env acc defining_exprs in
       match defining_expr with
-      | Prim
-          ( Variadic
-              (Make_block (Values (tag, _), Immutable, alloc_mode), fields),
-            _ ) -> (
-        let approxs =
-          List.map (find_value_approximation body_env) fields |> Array.of_list
+      | Simple simple ->
+        let body_env = Env.add_simple_to_substitute env id simple kind in
+        body acc body_env
+      | Prim ((Nullary Begin_region | Unary (End_region, _)), _)
+        when not (Flambda_features.stack_allocation_enabled ()) ->
+        (* We use [body_env] to ensure the region variables are still in the
+           environment, to avoid lookup errors, even though the [Let] won't be
+           generated. *)
+        body acc body_env
+      | _ -> (
+        let bound_pattern =
+          Bound_pattern.singleton (VB.create var Name_mode.normal)
         in
-        let fields_kind = classify_fields_of_block env fields alloc_mode in
-        match fields_kind with
-        | Constant static_fields ->
-          let acc, sym =
-            register_const0 acc
-              (Static_const.block tag Immutable static_fields)
-              (Ident.name id)
+        let bind acc env =
+          (* CR pchambart: Not tail ! The body function is the recursion *)
+          let acc, body = body acc env in
+          Let_with_acc.create acc bound_pattern defining_expr ~body
+        in
+        match defining_expr with
+        | Prim
+            ( Variadic
+                (Make_block (Values (tag, _), Immutable, alloc_mode), fields),
+              _ ) -> (
+          let approxs =
+            List.map (find_value_approximation body_env) fields |> Array.of_list
           in
-          let body_env =
-            Env.add_simple_to_substitute body_env id (Simple.symbol sym) kind
-          in
-          let acc =
-            Acc.add_symbol_approximation acc sym
-              (Value_approximation.Block_approximation
-                 (approxs, Alloc_mode.For_allocations.as_type alloc_mode))
-          in
-          body acc body_env
-        | Computed_static static_fields ->
-          (* This is a inconstant statically-allocated value, so cannot go
-             through [register_const0]. The definition must be placed right
-             away. *)
+          let fields_kind = classify_fields_of_block env fields alloc_mode in
+          match fields_kind with
+          | Constant static_fields ->
+            let acc, sym =
+              register_const0 acc
+                (Static_const.block tag Immutable static_fields)
+                (Ident.name id)
+            in
+            let body_env =
+              Env.add_simple_to_substitute body_env id (Simple.symbol sym) kind
+            in
+            let acc =
+              Acc.add_symbol_approximation acc sym
+                (Value_approximation.Block_approximation
+                   (approxs, Alloc_mode.For_allocations.as_type alloc_mode))
+            in
+            body acc body_env
+          | Computed_static static_fields ->
+            (* This is a inconstant statically-allocated value, so cannot go
+               through [register_const0]. The definition must be placed right
+               away. *)
+            let symbol =
+              Symbol.create
+                (Compilation_unit.get_current_exn ())
+                (Linkage_name.of_string (Variable.unique_name var))
+            in
+            let static_const = Static_const.block tag Immutable static_fields in
+            let static_consts =
+              [Static_const_or_code.create_static_const static_const]
+            in
+            let defining_expr =
+              Static_const_group.create static_consts
+              |> Named.create_static_consts
+            in
+            let body_env =
+              Env.add_simple_to_substitute body_env id (Simple.symbol symbol)
+                kind
+            in
+            let approx =
+              Value_approximation.Block_approximation
+                (approxs, Alloc_mode.For_allocations.as_type alloc_mode)
+            in
+            let acc = Acc.add_symbol_approximation acc symbol approx in
+            let acc, body = body acc body_env in
+            Let_with_acc.create acc
+              (Bound_pattern.static
+                 (Bound_static.create [Bound_static.Pattern.block_like symbol]))
+              defining_expr ~body
+          | Dynamic_block ->
+            let body_env =
+              Env.add_block_approximation body_env var approxs
+                (Alloc_mode.For_allocations.as_type alloc_mode)
+            in
+            bind acc body_env)
+        | Prim
+            ( Variadic
+                ( Make_block (Values (tag, _), Immutable_unique, _alloc_mode),
+                  [exn_name; exn_id] ),
+              _ )
+          when Tag.Scannable.equal tag Tag.Scannable.object_tag
+               && Env.at_toplevel env
+               && Flambda_features.classic_mode () ->
+          (* Special case to lift toplevel exception declarations *)
           let symbol =
             Symbol.create
               (Compilation_unit.get_current_exn ())
               (Linkage_name.of_string (Variable.unique_name var))
           in
-          let static_const = Static_const.block tag Immutable static_fields in
+          let transform_arg arg =
+            Simple.pattern_match' arg
+              ~var:(fun var ~coercion:_ ->
+                Field_of_static_block.Dynamically_computed (var, Debuginfo.none))
+              ~symbol:(fun sym ~coercion:_ -> Field_of_static_block.Symbol sym)
+              ~const:(fun const ->
+                Misc.fatal_errorf "Constant %a not expected as argument in %a"
+                  Reg_width_const.print const Named.print defining_expr)
+          in
+          (* This is an inconstant statically-allocated value, so cannot go
+             through [register_const0]. The definition must be placed right
+             away. *)
+          let static_const =
+            Static_const.block Tag.Scannable.object_tag Immutable_unique
+              [transform_arg exn_name; transform_arg exn_id]
+          in
           let static_consts =
             [Static_const_or_code.create_static_const static_const]
           in
@@ -916,96 +1013,46 @@ let close_let acc env id user_visible kind defining_expr
           let body_env =
             Env.add_simple_to_substitute body_env id (Simple.symbol symbol) kind
           in
-          let approx =
-            Value_approximation.Block_approximation
-              (approxs, Alloc_mode.For_allocations.as_type alloc_mode)
+          let acc =
+            Acc.add_symbol_approximation acc symbol
+              Value_approximation.Value_unknown
           in
-          let acc = Acc.add_symbol_approximation acc symbol approx in
           let acc, body = body acc body_env in
           Let_with_acc.create acc
             (Bound_pattern.static
                (Bound_static.create [Bound_static.Pattern.block_like symbol]))
             defining_expr ~body
-        | Dynamic_block ->
-          let body_env =
-            Env.add_block_approximation body_env var approxs
-              (Alloc_mode.For_allocations.as_type alloc_mode)
-          in
-          bind acc body_env)
-      | Prim
-          ( Variadic
-              ( Make_block (Values (tag, _), Immutable_unique, _alloc_mode),
-                [exn_name; exn_id] ),
-            _ )
-        when Tag.Scannable.equal tag Tag.Scannable.object_tag
-             && Env.at_toplevel env
-             && Flambda_features.classic_mode () ->
-        (* Special case to lift toplevel exception declarations *)
-        let symbol =
-          Symbol.create
-            (Compilation_unit.get_current_exn ())
-            (Linkage_name.of_string (Variable.unique_name var))
-        in
-        let transform_arg arg =
-          Simple.pattern_match' arg
-            ~var:(fun var ~coercion:_ ->
-              Field_of_static_block.Dynamically_computed (var, Debuginfo.none))
-            ~symbol:(fun sym ~coercion:_ -> Field_of_static_block.Symbol sym)
-            ~const:(fun const ->
-              Misc.fatal_errorf "Constant %a not expected as argument in %a"
-                Reg_width_const.print const Named.print defining_expr)
-        in
-        (* This is an inconstant statically-allocated value, so cannot go
-           through [register_const0]. The definition must be placed right
-           away. *)
-        let static_const =
-          Static_const.block Tag.Scannable.object_tag Immutable_unique
-            [transform_arg exn_name; transform_arg exn_id]
-        in
-        let static_consts =
-          [Static_const_or_code.create_static_const static_const]
-        in
-        let defining_expr =
-          Static_const_group.create static_consts |> Named.create_static_consts
-        in
-        let body_env =
-          Env.add_simple_to_substitute body_env id (Simple.symbol symbol) kind
-        in
-        let acc =
-          Acc.add_symbol_approximation acc symbol
-            Value_approximation.Value_unknown
-        in
-        let acc, body = body acc body_env in
-        Let_with_acc.create acc
-          (Bound_pattern.static
-             (Bound_static.create [Bound_static.Pattern.block_like symbol]))
-          defining_expr ~body
-      | Prim (Binary (Block_load _, block, field), _) -> (
-        match simplify_block_load acc body_env ~block ~field with
-        | Unknown -> bind acc body_env
-        | Not_a_block ->
-          if Flambda_features.check_invariants ()
-          then
-            (* CR keryan: This is hidden behind invariants check because it can
-               appear on correct code using Lazy or GADT. It might warrant a
-               proper warning at some point. *)
-            Misc.fatal_errorf
-              "Unexpected approximation found when block approximation was \
-               expected in [Closure_conversion]: %a"
-              Named.print defining_expr
-          else
-            ( acc,
-              Expr.create_invalid
-                (Defining_expr_of_let (bound_pattern, defining_expr)) )
-        | Field_contents sim ->
-          let body_env = Env.add_simple_to_substitute env id sim kind in
-          body acc body_env
-        | Block_but_cannot_simplify approx ->
-          let body_env = Env.add_var_approximation body_env var approx in
-          bind acc body_env)
-      | _ -> bind acc body_env)
+        | Prim (Binary (Block_load _, block, field), _) -> (
+          match simplify_block_load acc body_env ~block ~field with
+          | Unknown -> bind acc body_env
+          | Not_a_block ->
+            if Flambda_features.check_invariants ()
+            then
+              (* CR keryan: This is hidden behind invariants check because it
+                 can appear on correct code using Lazy or GADT. It might warrant
+                 a proper warning at some point. *)
+              Misc.fatal_errorf
+                "Unexpected approximation found when block approximation was \
+                 expected in [Closure_conversion]: %a"
+                Named.print defining_expr
+            else
+              ( acc,
+                Expr.create_invalid
+                  (Defining_expr_of_let (bound_pattern, defining_expr)) )
+          | Field_contents sim ->
+            let body_env = Env.add_simple_to_substitute env id sim kind in
+            body acc body_env
+          | Block_but_cannot_simplify approx ->
+            let body_env = Env.add_var_approximation body_env var approx in
+            bind acc body_env)
+        | _ -> bind acc body_env))
+    | _, _ ->
+      Misc.fatal_errorf
+        "CC.close_let: defining_exprs should have the same length as number of \
+         variables"
   in
-  close_named acc env ~let_bound_var:var defining_expr cont
+  close_named acc env ~let_bound_ids_with_kinds defining_expr
+    (cont let_bound_ids_with_kinds env)
 
 let close_let_cont acc env ~name ~is_exn_handler ~params
     ~(recursive : Asttypes.rec_flag)
@@ -1056,17 +1103,6 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
     Let_cont_with_acc.build_recursive acc
       ~invariant_params:Bound_parameters.empty ~handlers ~body
 
-let warn_not_inlined_if_needed (apply : IR.apply) reason =
-  let warn kind =
-    Location.prerr_warning
-      (Debuginfo.Scoped_location.to_location apply.loc)
-      (Warnings.Inlining_impossible (reason kind))
-  in
-  match apply.inlined with
-  | Hint_inlined | Never_inlined | Default_inlined -> ()
-  | Always_inlined -> warn Inlining_helpers.Inlined
-  | Unroll _ -> warn Inlining_helpers.Unrolled
-
 let close_exact_or_unknown_apply acc env
     ({ kind;
        func;
@@ -1080,7 +1116,7 @@ let close_exact_or_unknown_apply acc env
        region_close;
        region;
        return_arity
-     } as ir_apply :
+     } :
       IR.apply) callee_approx ~replace_region : Expr_with_acc.t =
   let callee = find_simple_from_id env func in
   let current_region =
@@ -1124,9 +1160,7 @@ let close_exact_or_unknown_apply acc env
   let acc, args_with_arity = find_simples_and_arity acc env args in
   let args, args_arity = List.split args_with_arity in
   let inlined_call = Inlined_attribute.from_lambda inlined in
-  let probe_name =
-    match probe with None -> None | Some { name } -> Some name
-  in
+  let probe = Probe.from_lambda probe in
   let position =
     match region_close with
     | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
@@ -1140,7 +1174,7 @@ let close_exact_or_unknown_apply acc env
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
-      ~probe_name ~position
+      ~probe ~position
       ~relative_history:(Env.relative_history_from_scoped ~loc env)
       ~region:current_region
   in
@@ -1148,8 +1182,11 @@ let close_exact_or_unknown_apply acc env
   then
     match Inlining.inlinable env apply callee_approx with
     | Not_inlinable ->
-      warn_not_inlined_if_needed ir_apply (fun _ ->
-          "Function information unavailable");
+      let apply =
+        Apply.with_inlined_attribute apply
+          (Inlined_attribute.with_use_info (Apply.inlined apply)
+             Unused_because_function_unknown)
+      in
       Expr_with_acc.create_apply acc apply
     | Inlinable func_desc ->
       let acc = Acc.mark_continuation_as_untrackable continuation acc in
@@ -1643,17 +1680,20 @@ let close_functions acc external_env ~current_region function_declarations =
         Ident.Map.add id function_slot map)
       Ident.Map.empty func_decl_list
   in
-  let function_code_ids =
-    List.fold_left
-      (fun map decl ->
+  let function_code_ids_in_order =
+    List.map
+      (fun decl ->
         let function_slot = Function_decl.function_slot decl in
         let code_id =
           Code_id.create
             ~name:(Function_slot.to_string function_slot)
             compilation_unit
         in
-        Function_slot.Map.add function_slot code_id map)
-      Function_slot.Map.empty func_decl_list
+        function_slot, code_id)
+      func_decl_list
+  in
+  let function_code_ids =
+    Function_slot.Map.of_list function_code_ids_in_order
   in
   let approx_map =
     List.fold_left
@@ -1778,16 +1818,7 @@ let close_functions acc external_env ~current_region function_declarations =
       func_decl_list
   in
   let acc = Acc.with_free_names Name_occurrences.empty acc in
-  (* CR lmaurer: funs has arbitrary order (ultimately coming from
-     function_declarations) *)
-  let funs =
-    let funs =
-      Function_slot.Map.fold
-        (fun cid code_id funs -> (cid, code_id) :: funs)
-        function_code_ids []
-    in
-    Function_slot.Lmap.of_list (List.rev funs)
-  in
+  let funs = function_code_ids_in_order |> Function_slot.Lmap.of_list in
   let function_decls = Function_declarations.create funs in
   let value_slots =
     Ident.Map.fold
@@ -2105,9 +2136,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
     in
     let inlined = Inlined_attribute.from_lambda apply.inlined in
     (* Keeping the inlining attributes matches the behaviour of simplify *)
-    let probe_name =
-      match apply.probe with None -> None | Some { name } -> Some name
-    in
+    let probe = Probe.from_lambda apply.probe in
     let position =
       match apply.region_close with
       | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
@@ -2127,7 +2156,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         apply_exn_continuation ~args:remaining ~args_arity:remaining_arity
         ~return_arity:apply.return_arity ~call_kind apply_dbg ~inlined
         ~inlining_state:(Inlining_state.default ~round:0)
-        ~probe_name ~position
+        ~probe ~position
         ~relative_history:(Env.relative_history_from_scoped ~loc:apply.loc env)
         ~region:apply_region
     in
@@ -2266,8 +2295,14 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         { apply with args; continuation = apply.continuation }
         (Some approx) ~replace_region:None
     | Partial_app { provided; missing_arity } ->
-      warn_not_inlined_if_needed apply
-        Inlining_helpers.inlined_attribute_on_partial_application_msg;
+      (match apply.inlined with
+      | Always_inlined | Unroll _ ->
+        Location.prerr_warning
+          (Debuginfo.Scoped_location.to_location apply.loc)
+          (Warnings.Inlining_impossible
+             Inlining_helpers.(
+               inlined_attribute_on_partial_application_msg Inlined))
+      | Never_inlined | Hint_inlined | Default_inlined -> ());
       wrap_partial_application acc env apply.continuation apply approx ~provided
         ~missing_arity ~arity ~num_trailing_local_params
         ~contains_no_escaping_local_allocs
@@ -2304,7 +2339,7 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
       n
   in
   let group_to_bound_consts, symbol_to_groups =
-    Code_id.Map.fold
+    Code_id.Lmap.fold
       (fun code_id code (g2c, s2g) ->
         let id = fresh_group_id () in
         let bound = Bound_static.Pattern.code code_id in
@@ -2356,23 +2391,26 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
       group_to_bound_consts
   in
   let components = SCC.connected_components_sorted_from_roots_to_leaf graph in
+  (* Empirically, our SCC seems to perform a stable sort, so this assumes that
+     [components] preserves the original order as much as possible. *)
   Array.fold_left
     (fun (acc, body) (component : SCC.component) ->
       let group_ids =
         match component with
         | No_loop group_id -> [group_id]
-        | Has_loop group_ids -> group_ids
+        | Has_loop group_ids -> List.sort Int.compare group_ids
       in
       let bound_static, static_consts =
-        List.fold_left
-          (fun (bound_static, static_consts) group_id ->
+        List.map
+          (fun group_id ->
             let bound_symbol, static_const =
               try GroupMap.find group_id group_to_bound_consts
               with Not_found ->
                 Misc.fatal_errorf "Unbound static consts group ID %d" group_id
             in
-            bound_symbol :: bound_static, static_const :: static_consts)
-          ([], []) group_ids
+            bound_symbol, static_const)
+          group_ids
+        |> List.split
       in
       let defining_expr =
         Static_const_group.create static_consts |> Named.create_static_consts
@@ -2549,7 +2587,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
   then
     Misc.fatal_error "Information on nested closures should be empty at the end";
   let get_code_metadata code_id =
-    Code_id.Map.find code_id (Acc.code acc) |> Code.code_metadata
+    Code_id.Map.find code_id (Acc.code_map acc) |> Code.code_metadata
   in
   match mode with
   | Normal ->
@@ -2563,7 +2601,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
     unit, Normal
   | Classic ->
     let all_code =
-      Exported_code.add_code (Acc.code acc)
+      Exported_code.add_code (Acc.code_map acc)
         ~keep_code:(fun _ -> false)
         (Exported_code.mark_as_imported
            (Flambda_cmx.get_imported_code cmx_loader ()))

@@ -26,7 +26,7 @@ open Lambda
    the void sanity check.  When we're ready to take that out, remove the errors
    stuff. *)
 type error =
-    Non_value_layout of type_expr * Layout.Violation.violation
+    Non_value_layout of type_expr * Layout.Violation.t
 
 exception Error of Location.t * error
 
@@ -80,11 +80,10 @@ let is_always_gc_ignorable env ty =
        immediate64 types as gc_ignorable, because bytecode is intended to be
        platform independent. *)
     if !Clflags.native_code && Sys.word_size = 64
-    then Layout.immediate64
-    else Layout.immediate
+    then Layout.immediate64 ~why:Gc_ignorable_check
+    else Layout.immediate ~why:Gc_ignorable_check
   in
-  Result.is_ok
-    (Ctype.check_type_layout ~reason:V1_safety_check env ty layout)
+  Result.is_ok (Ctype.check_type_layout env ty layout)
 
 let maybe_pointer_type env ty =
   let ty = scrape_ty env ty in
@@ -119,7 +118,7 @@ let classify env ty : classification =
       else begin
         try
           match (Env.find_type p env).type_kind with
-          | Type_abstract _ ->
+          | Type_abstract ->
               Any
           | Type_record _ | Type_variant _ | Type_open ->
               Addr
@@ -190,7 +189,7 @@ let bigarray_type_kind_and_layout env typ =
       (Pbigarray_unknown, Pbigarray_unknown_layout)
 
 let value_kind_of_value_layout layout =
-  match Layout.constrain_default_value layout with
+  match Layout.get_default_value layout with
   | Value -> Pgenval
   | Immediate -> Pintval
   | Immediate64 ->
@@ -255,20 +254,20 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
        This should be understood, but for now I'm doing the simple fall back
        thing so I can test the performance difference.
     *)
-    match Ctype.check_type_layout ~reason:V1_safety_check env scty Layout.value
+    match Ctype.check_type_layout env scty (Layout.value ~why:V1_safety_check)
     with
     | Ok _ -> ()
     | Error _ ->
       match
-        Ctype.(check_type_layout ~reason:V1_safety_check env
-                 (correct_levels ty) Layout.value)
+        Ctype.(check_type_layout env
+                 (correct_levels ty) (Layout.value ~why:V1_safety_check))
       with
       | Ok _ -> ()
-      | Error e ->
-        if e.missing_cmi then
-          () (* CR layouts v1.5: stop allowing missing cmis *)
-        else
-          raise (Error (loc, Non_value_layout (ty, e)))
+      | Error violation ->
+        if not (Layout.Violation.is_missing_cmi violation)
+        then raise (Error (loc, Non_value_layout (ty, violation)))
+        (* CR layouts v1.5: stop allowing missing cmis *)
+
   end;
   match get_desc scty with
   | Tconstr(p, _, _) when Path.same p Predef.path_int ->
@@ -289,21 +288,21 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
     num_nodes_visited, Parrayval (array_type_kind env ty)
   | Tconstr(p, _, _) -> begin
     try
-      let kind = (Env.find_type p env).type_kind in
+      let decl = Env.find_type p env in
       if cannot_proceed () then
         num_nodes_visited,
-        value_kind_of_value_layout (layout_bound_of_kind kind)
+        value_kind_of_value_layout decl.type_layout
       else
         let visited = Numbers.Int.Set.add (get_id ty) visited in
-        match kind with
+        match decl.type_kind with
         | Type_variant (cstrs, rep) ->
           value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited cstrs rep
         | Type_record (labels, rep) ->
           let depth = depth + 1 in
           value_kind_record env ~loc ~visited ~depth ~num_nodes_visited labels rep
-        | Type_abstract {layout} ->
+        | Type_abstract ->
           num_nodes_visited,
-          value_kind_of_value_layout layout
+          value_kind_of_value_layout decl.type_layout
         | Type_open -> num_nodes_visited, Pgenval
     with Not_found -> num_nodes_visited, Pgenval
     (* CR layouts v1.5: stop allowing missing cmis. *)
@@ -337,7 +336,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
       (cstrs : Types.constructor_declaration list) rep =
   match rep with
   | Variant_extensible -> assert false
-  | Variant_unboxed _ -> begin
+  | Variant_unboxed -> begin
       (* CR layouts v1.5: This should only be reachable in the case of a missing
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
          needed when we deal with missing cmis. *)
@@ -427,7 +426,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
 and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
       (labels : Types.label_declaration list) rep =
   match rep with
-  | (Record_unboxed _ | (Record_inlined (_,Variant_unboxed _))) -> begin
+  | (Record_unboxed | (Record_inlined (_,Variant_unboxed))) -> begin
       (* CR layouts v1.5: This should only be reachable in the case of a missing
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
          needed when we deal with missing cmis. *)
@@ -473,7 +472,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
             [0, fields]
           | Record_inlined (Extension _, _) ->
             [0, fields]
-          | Record_unboxed _ -> assert false
+          | Record_unboxed -> assert false
         in
         (num_nodes_visited, Pvariant { consts = []; non_consts })
     end

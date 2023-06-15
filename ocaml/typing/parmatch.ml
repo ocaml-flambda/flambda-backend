@@ -734,7 +734,9 @@ let close_variant env row =
       (orig_name, true) fields in
   if not closed || name != orig_name then begin
     let more' =
-      if static then Btype.newgenty Tnil else Btype.newgenvar Layout.value
+      if static
+      then Btype.newgenty Tnil
+      else Btype.newgenvar (Layout.value ~why:Row_variable)
     in
     (* this unification cannot fail *)
     Ctype.unify env more
@@ -847,7 +849,7 @@ let pats_of_type ?(always=false) env ty =
               labels
           in
           [make_pat (Tpat_record (fields, Closed)) ty env]
-      | Type_variant _ | Type_abstract _ | Type_open -> [omega]
+      | Type_variant _ | Type_abstract | Type_open -> [omega]
       end
   | Ttuple tl ->
       [make_pat (Tpat_tuple (omegas (List.length tl))) ty env]
@@ -1861,7 +1863,7 @@ let rec initial_only_guarded = function
 (* conversion from Typedtree.pattern to Parsetree.pattern list *)
 module Conv = struct
   open Parsetree
-  let mkpat desc = Ast_helper.Pat.mk desc
+  let mkpat ?attrs desc = Ast_helper.Pat.mk ?attrs desc
 
   let name_counter = ref 0
   let fresh name =
@@ -1912,13 +1914,16 @@ module Conv = struct
           mkpat (Ppat_record (fields, Open))
       | Tpat_array (am, lst) ->
           let pats = (List.map loop lst) in
-          let ppat = match am with
-            | Mutable   -> Ppat_array pats
+          let ppat, attrs = match am with
+            | Mutable   -> Ppat_array pats, []
             | Immutable ->
-                Extensions.Immutable_arrays.pat_of
-                  ~loc:pat.pat_loc (Iapat_immutable_array pats)
+                let ppat =
+                  Jane_syntax.Immutable_arrays.pat_of
+                    ~loc:pat.pat_loc ~attrs:[] (Iapat_immutable_array pats)
+                in
+                ppat.ppat_desc, ppat.ppat_attributes
           in
-          mkpat ppat
+          mkpat ~attrs ppat
       | Tpat_lazy p ->
           mkpat (Ppat_lazy (loop p))
     in

@@ -20,12 +20,7 @@
 
  (main
   (flags
-   (:standard -warn-error +A))
-  (ocamlopt_flags
-   ;; CR gyorsh: it is not clear what the ":standard" flags are, and they
-   ;; may change depending on the version of dune.
-   ;; Consider hard-coded flags, such as -O3.
-   (:standard -zero-alloc-check)))
+   (:standard -warn-error +A)))
  (boot
   (flags
    (:standard -warn-error +A))))
@@ -68,7 +63,7 @@
    ;; PARSING
    location longident docstrings syntaxerr ast_helper camlinternalMenhirLib
    ast_iterator parser lexer parse printast pprintast ast_mapper attr_helper
-   builtin_attributes ast_invariants depend extensions_parsing extensions
+   builtin_attributes ast_invariants depend jane_syntax_parsing jane_syntax
    ; manual update: mli only files
    asttypes parsetree
 

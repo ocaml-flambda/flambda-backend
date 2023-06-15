@@ -368,9 +368,9 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               try
                 let decl = Env.find_type path env in
                 match decl with
-                | {type_kind = Type_abstract _; type_manifest = None} ->
+                | {type_kind = Type_abstract; type_manifest = None} ->
                     Oval_stuff "<abstr>"
-                | {type_kind = Type_abstract _; type_manifest = Some body} ->
+                | {type_kind = Type_abstract; type_manifest = Some body} ->
                     tree_of_val depth obj
                       (instantiate_type env decl.type_params ty_list body)
                 | {type_kind = Type_variant (constr_list,rep)} ->
@@ -415,7 +415,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                     in
                     let unbx =
                       match rep with
-                      | Variant_unboxed _ -> true
+                      | Variant_unboxed -> true
                       | Variant_boxed _ | Variant_extensible -> false
                     in
                     begin
@@ -427,7 +427,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                             List.mapi
                               (fun i ty_arg ->
                                  (ty_arg,
-                                  Layout.(equal void cstr_arg_layouts.(i)))
+                                  Layout.is_void_defaulting cstr_arg_layouts.(i))
                               ) ty_args
                           in
                           tree_of_constr_with_args (tree_of_constr env path)
@@ -453,7 +453,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           | _ -> 0
                         in
                         let unbx =
-                          match rep with Record_unboxed _ -> true | _ -> false
+                          match rep with Record_unboxed -> true | _ -> false
                         in
                         tree_of_record_fields depth
                           env path decl.type_params ty_list
@@ -511,7 +511,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               let name = Ident.name ld_id in
               (* PR#5722: print full module path only
                  for first record field *)
-              let is_void = Layout.(equal void ld_layout) in
+              let is_void = Layout.is_void_defaulting ld_layout in
               let lid =
                 if first then tree_of_label env path (Out_name.create name)
                 else Oide_ident (Out_name.create name)
@@ -616,7 +616,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         in
         let args = instantiate_types env type_params ty_list cstr.cstr_args in
         let args = List.mapi (fun i arg ->
-            (arg, Layout.(equal void cstr.cstr_arg_layouts.(i))))
+            (arg, Layout.is_void_defaulting cstr.cstr_arg_layouts.(i)))
             args
         in
         tree_of_constr_with_args

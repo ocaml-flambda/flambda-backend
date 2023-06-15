@@ -663,7 +663,6 @@ odoc_sig.cmo : \
     ../parsing/location.cmi \
     ../typing/layouts.cmi \
     ../typing/ident.cmi \
-    ../parsing/extensions.cmi \
     ../typing/ctype.cmi \
     ../typing/btype.cmi \
     ../parsing/asttypes.cmi \
@@ -689,7 +688,6 @@ odoc_sig.cmx : \
     ../parsing/location.cmx \
     ../typing/layouts.cmx \
     ../typing/ident.cmx \
-    ../parsing/extensions.cmx \
     ../typing/ctype.cmx \
     ../typing/btype.cmx \
     ../parsing/asttypes.cmi \

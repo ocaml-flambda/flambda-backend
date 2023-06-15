@@ -391,21 +391,53 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
   let add_terminator (desc : C.terminator) ~(next : Linear.instruction) =
     (* All terminators are followed by a label, except branches we created for
        fallthroughs in Linear. *)
-    (match desc with
-    | Never -> Misc.fatal_error "Cannot add terminator: Never"
-    | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-    | Poll_and_jump _ | Call _ | Prim _ | Specific_can_raise _ | Switch _ ->
-      ()
-    | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Call_no_return _ ->
-      if not (Linear_utils.defines_label i.next)
-      then
-        Misc.fatal_errorf "Linear instruction not followed by label:@ %a"
-          Printlinear.instr
-          { i with Linear.next = L.end_instr });
+    let new_traps =
+      match desc with
+      | Never -> Misc.fatal_error "Cannot add terminator: Never"
+      | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+      | Poll_and_jump _ | Call _ | Prim _ | Specific_can_raise _ | Switch _ ->
+        traps
+      | Always successor_label -> (
+        (* If it is not fallthrough, do not propagate traps, only
+           stack_offsets. *)
+        let next_label =
+          match i.next.desc with
+          | Llabel { label; _ } -> Some label
+          | Ladjust_stack_offset _ ->
+            (* No need for special case: traps will be set to T.unknown in
+               [adjust_traps i.next]. *)
+            None
+          | Lend | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Lbranch _
+          | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap
+          | Lpushtrap _ | Lpoptrap | Lraise _ ->
+            None
+        in
+        match next_label with
+        | None -> traps
+        | Some next_label ->
+          if not (Label.equal successor_label next_label)
+          then (
+            if !C.verbose
+            then
+              Printf.printf
+                "No fallthrough detected: block.start=%d, successor_label=%d \
+                 next_label=%d\n"
+                block.start successor_label next_label;
+            T.unknown ())
+          else traps)
+      | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Call_no_return _
+        ->
+        if not (Linear_utils.defines_label i.next)
+        then
+          Misc.fatal_errorf "Linear instruction not followed by label:@ %a"
+            Printlinear.instr
+            { i with Linear.next = L.end_instr };
+        traps
+    in
     block.terminator <- create_instruction t desc ~stack_offset i;
     if Cfg.can_raise_terminator desc then record_exn t block traps;
     register_block t block traps;
-    create_blocks t next block ~stack_offset ~traps
+    create_blocks t next block ~stack_offset ~traps:new_traps
   in
   let terminator desc = add_terminator desc ~next:i.next in
   let terminator_fallthrough (mk_desc : Label.t -> C.terminator) =
@@ -550,8 +582,8 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       terminator_prim (Checkbound { immediate = Some i })
     | Ialloc { bytes; dbginfo; mode } ->
       terminator_prim (Alloc { bytes; dbginfo; mode })
-    | Iprobe { name; handler_code_sym } ->
-      terminator_prim (Probe { name; handler_code_sym })
+    | Iprobe { name; handler_code_sym; enabled_at_init } ->
+      terminator_prim (Probe { name; handler_code_sym; enabled_at_init })
     | Istackoffset bytes ->
       let desc = C.Op (C.Stackoffset bytes) in
       DLL.add_end block.body (create_instruction t desc i ~stack_offset);

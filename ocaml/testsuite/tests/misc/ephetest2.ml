@@ -70,7 +70,8 @@ type env = {
   varephe_false : varephe Stack.t;
 }
 
-let new_env () = {
+(* Uses opaque_identity to inhibit static allocation under flambda2 *)
+let new_env () = Sys.opaque_identity {
   vars = Hashtbl.create 100;
   ephes = Stack.create ();
   varephe_true = Stack.create ();

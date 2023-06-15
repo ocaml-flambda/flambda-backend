@@ -140,10 +140,14 @@ type phantom_defining_expr =
 
 type trywith_shared_label = Lambda.static_label (* Same as Ccatch handlers *)
 
+type pop_action =
+  | Pop_generic
+  | Pop_specific of trywith_shared_label
+
 type trap_action =
   | Push of trywith_shared_label
   (** Add the corresponding handler to the trap stack. *)
-  | Pop
+  | Pop of pop_action
   (** Remove the last handler from the trap stack. *)
 
 type trywith_kind =
@@ -215,7 +219,7 @@ and operation =
                    then the index.
                    It results in a bounds error if the index is greater than
                    or equal to the bound. *)
-  | Cprobe of { name: string; handler_code_sym: string; }
+  | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
   | Cprobe_is_enabled of { name: string }
   | Copaque (* Sys.opaque_identity *)
   | Cbeginregion | Cendregion

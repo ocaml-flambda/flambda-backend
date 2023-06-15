@@ -284,3 +284,20 @@ Error: This expression has type float but an expression was expected of type
          ('a : immediate)
        float has layout value, which is not a sublayout of immediate.
 |}];;
+
+(*****************************************************)
+(* Test 7: Recursive propagation of immediacy checks *)
+
+(* See Note [Default layouts in transl_declaration] in Typedecl. *)
+type t7 = A | B | C | D of t7_void
+and t7_2 = { x : t7 } [@@unboxed]
+and t7_void [@@void]
+
+type t7_3 = t7_2 [@@immediate]
+
+[%%expect{|
+type t7 = A | B | C | D of t7_void
+and t7_2 = { x : t7; } [@@unboxed]
+and t7_void [@@void]
+type t7_3 = t7_2 [@@immediate]
+|}]

@@ -183,10 +183,10 @@ let prim_size prim args =
   | Pbytesrefs | Pbytessets -> 6
   | Pmakearray _ -> 5 + List.length args
   | Parraylength kind -> if kind = Pgenarray then 6 else 2
-  | Parrayrefu kind -> if kind = Pgenarray then 12 else 2
-  | Parraysetu kind -> if kind = Pgenarray then 16 else 4
-  | Parrayrefs kind -> if kind = Pgenarray then 18 else 8
-  | Parraysets kind -> if kind = Pgenarray then 22 else 10
+  | Parrayrefu kind -> (match kind with Pgenarray_ref _ -> 12 | _ -> 2)
+  | Parraysetu kind -> (match kind with Pgenarray_set _ -> 16 | _ -> 4)
+  | Parrayrefs kind -> (match kind with Pgenarray_ref _ -> 18 | _ -> 8)
+  | Parraysets kind -> (match kind with Pgenarray_set _ -> 22 | _ -> 10)
   | Pbigarrayref(_, ndims, _, _) -> 4 + ndims * 6
   | Pbigarrayset(_, ndims, _, _) -> 4 + ndims * 6
   | Pprobe_is_enabled _ -> 4 (* Pgetglobal and a comparison *)
@@ -987,6 +987,10 @@ let close_approx_var { fenv; cenv } id =
 let close_var env id =
   let (ulam, _app) = close_approx_var env id in ulam
 
+let compute_expr_layout kinds lambda =
+  let find_kind id = Ident.Map.find_opt id kinds in
+  compute_expr_layout find_kind lambda
+
 let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) lam =
   let module B = (val backend : Backend_intf.S) in
   match lam with
@@ -1147,7 +1151,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
                                 _approx_res)), uargs)
         when nargs > List.length params_layout ->
           let nparams = List.length params_layout in
-          let args_kinds = List.map (Lambda.compute_expr_layout kinds) args in
+          let args_kinds = List.map (compute_expr_layout kinds) args in
           let args = List.map (fun arg -> V.create_local "arg", arg) uargs in
           (* CR mshinwell: Edit when Lapply has kinds *)
           let kinds =
@@ -1194,14 +1198,14 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           warning_if_forced_inlined ~loc ~attribute "Unknown function";
           fail_if_probe ~probe "Unknown function";
           (Ugeneric_apply(ufunct, uargs,
-                          List.map (Lambda.compute_expr_layout kinds) args,
+                          List.map (compute_expr_layout kinds) args,
                           ap_result_layout, (pos, mode), dbg), Value_unknown)
       end
   | Lsend(kind, met, obj, args, pos, mode, loc, result_layout) ->
       let (umet, _) = close env met in
       let (uobj, _) = close env obj in
       let dbg = Debuginfo.from_location loc in
-      let args_layout = List.map (Lambda.compute_expr_layout kinds) args in
+      let args_layout = List.map (compute_expr_layout kinds) args in
       (Usend(kind, umet, uobj, close_list env args, args_layout, result_layout, (pos,mode), dbg),
        Value_unknown)
   | Llet(str, kind, id, lam, body) ->

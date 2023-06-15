@@ -492,7 +492,10 @@ let simplify_lets lam =
   | Lregion (l, _) ->
       count bv l
   | Lexclave l ->
-      count bv l
+      (* Not safe in general to move code into an exclave, so block
+         single-use optimizations by treating them the same as lambdas
+         and loops *)
+      count Ident.Map.empty l
 
   and count_default bv sw = match sw.sw_failaction with
   | None -> ()
@@ -836,7 +839,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
     | _ -> assert orig_region
     end;
     let body, inner = aux [] false body in
-    let attr = default_stub_attribute in
+    let attr = { default_stub_attribute with check = attr.check } in
     [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:true); inner]
   with Exit ->
     [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:orig_region)]

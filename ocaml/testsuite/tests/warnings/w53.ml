@@ -208,27 +208,6 @@ module TestCurryStruct = struct
   [@@@curry 42] (* rejected *)
 end
 
-(* No "accepted" test for include_functor because the user shouldn't write it *)
-module type TestIncludeFunctor = sig
-  type 'a t1 = 'a [@@include_functor 42] (* rejected *)
-
-  type s1 = Foo1 [@include_functor 42] (* rejected *)
-
-  val x : int [@include_functor 42] (* rejected *)
-
-  [@@@include_functor 42] (* rejected *)
-end
-
-module TestIncludeFunctorStruct = struct
-  type 'a t1 = 'a [@@include_functor 42] (* rejected *)
-
-  type s1 = Foo1 [@include_functor 42] (* rejected *)
-
-  let x = 5 [@include_functor 42] (* rejected *)
-
-  [@@@include_functor 42] (* rejected *)
-end
-
 module type TestLocalOptSig = sig
   type 'a t1 = 'a [@@local_opt] (* rejected *)
   type s1 = Foo1 [@local_opt] (* rejected *)
@@ -250,41 +229,32 @@ end
 module type TestLocalGlobalSig = sig
   type 'a t1 = 'a [@local] (* rejected *)
   type 'a t1' = 'a [@global] (* rejected *)
-  type 'a t1'' = 'a [@nonlocal] (* rejected *)
 
   type t2 = { x : int [@local] } (* rejected *)
   type t2' = { x : int [@global] } (* accepted *)
-  type t2'' = { x : int [@nonlocal] } (* accepted *)
 
   val x : 'a list -> ('a [@local]) list (* rejected *)
   val x' : 'a list -> ('a [@global]) list (* rejected *)
-  val x'' : 'a list -> ('a [@nonlocal]) list (* rejected *)
 
   val y : 'a -> f:(('a -> 'b) [@local]) -> 'b (* accepted *)
   val y' : 'a -> f:(('a -> 'b) [@global]) -> 'b (* rejected *)
-  val y'' : 'a -> f:(('a -> 'b) [@nonlocal]) -> 'b (* rejected *)
 
   val z : 'a [@@local] (* rejected *)
   val z' : 'a [@@global] (* rejected *)
-  val z'' : 'a [@@nonlocal] (* rejected *)
 
   val w : 'a [@@@local] (* rejected *)
   val w' : 'a [@@@global] (* rejected *)
-  val w'' : 'a [@@@nonlocal] (* rejected *)
 end
 
 module TestLocalGlobalStruct = struct
   type 'a t1 = 'a [@local] (* rejected *)
   type 'a t1' = 'a [@global] (* rejected *)
-  type 'a t1'' = 'a [@nonlocal] (* rejected *)
 
   type t2 = { x : int [@local] } (* rejected *)
   type t2' = { x : int [@global] } (* accepted *)
-  type t2'' = { x : int [@nonlocal] } (* accepted *)
 
   let f (a [@local]) = a (* accepted *)
   let g (a [@global]) = a (* rejected *)
-  let h (a [@nonlocal]) = a (* rejected *)
 end
 
 

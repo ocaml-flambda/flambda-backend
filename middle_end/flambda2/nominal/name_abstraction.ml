@@ -55,7 +55,7 @@ let[@inline always] pattern_match_pair (type bindable)
 let apply_renaming (type bindable)
     (module Bindable : Bindable.S with type t = bindable)
     ((bindable, term) as t) renaming ~apply_renaming_to_term =
-  if Renaming.is_empty renaming
+  if Renaming.is_identity renaming
   then t
   else
     let bindable' = Bindable.apply_renaming bindable renaming in

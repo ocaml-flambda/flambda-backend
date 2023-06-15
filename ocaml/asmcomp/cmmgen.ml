@@ -171,8 +171,8 @@ let rec expr_size env = function
   | Uprim (Pduprecord ((Record_boxed _ | Record_inlined (_, Variant_boxed _)),
                        sz), _, _) ->
       RHS_block (Lambda.alloc_heap, sz)
-  | Uprim (Pduprecord ((Record_unboxed _
-                       | Record_inlined (_, Variant_unboxed _)),
+  | Uprim (Pduprecord ((Record_unboxed
+                       | Record_inlined (_, Variant_unboxed)),
                        _), _, _) ->
       assert false
   | Uprim (Pduprecord (Record_inlined (_, Variant_extensible), sz), _, _) ->
@@ -1067,10 +1067,10 @@ and transl_prim_2 env p arg1 arg2 dbg =
       bigstring_load size unsafe mode (transl env arg1) (transl env arg2) dbg
 
   (* Array operations *)
-  | Parrayrefu kind ->
-      arrayref_unsafe kind (transl env arg1) (transl env arg2) dbg
-  | Parrayrefs kind ->
-      arrayref_safe kind (transl env arg1) (transl env arg2) dbg
+  | Parrayrefu rkind ->
+      arrayref_unsafe rkind (transl env arg1) (transl env arg2) dbg
+  | Parrayrefs rkind ->
+      arrayref_safe rkind (transl env arg1) (transl env arg2) dbg
 
   (* Boxed integers *)
   | Paddbint (bi, mode) ->
@@ -1155,20 +1155,20 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
         (transl env arg1) (transl env arg2) (transl env arg3) dbg
 
   (* Array operations *)
-  | Parraysetu kind ->
+  | Parraysetu skind ->
       let newval =
-        match kind with
-        | Pfloatarray -> transl_unbox_float dbg env arg3
+        match skind with
+        | Pfloatarray_set -> transl_unbox_float dbg env arg3
         | _ -> transl env arg3
       in
-      arrayset_unsafe kind (transl env arg1) (transl env arg2) newval dbg
-  | Parraysets kind ->
+      arrayset_unsafe skind (transl env arg1) (transl env arg2) newval dbg
+  | Parraysets skind ->
       let newval =
-        match kind with
-        | Pfloatarray -> transl_unbox_float dbg env arg3
+        match skind with
+        | Pfloatarray_set -> transl_unbox_float dbg env arg3
         | _ -> transl env arg3
       in
-      arrayset_safe kind (transl env arg1) (transl env arg2) newval dbg
+      arrayset_safe skind (transl env arg1) (transl env arg2) newval dbg
 
   | Pbytes_set(size, unsafe) ->
       bytes_set size unsafe (transl env arg1) (transl env arg2)

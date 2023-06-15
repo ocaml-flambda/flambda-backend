@@ -151,7 +151,8 @@ let exit_label ppf = function
 let trap_action ppf ta =
   match ta with
   | Push i -> fprintf ppf "push(%d)" i
-  | Pop -> fprintf ppf "pop"
+  | Pop Pop_generic -> fprintf ppf "pop"
+  | Pop (Pop_specific i) -> fprintf ppf "pop(%d)" i
 
 let trap_action_list ppf traps =
   match traps with
@@ -226,8 +227,9 @@ let operation d = function
   | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
   | Ccheckbound -> "checkbound" ^ location d
-  | Cprobe { name; handler_code_sym } ->
-    Printf.sprintf "probe[%s %s]" name handler_code_sym
+  | Cprobe { name; handler_code_sym; enabled_at_init; } ->
+    Printf.sprintf "probe[%s %s%s]" name handler_code_sym
+      (if enabled_at_init then " enabled_at_init" else "")
   | Cprobe_is_enabled {name} -> Printf.sprintf "probe_is_enabled[%s]" name
   | Cprefetch { is_write; locality; } ->
     Printf.sprintf "prefetch is_write=%b prefetch_temporal_locality_hint=%s"

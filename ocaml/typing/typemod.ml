@@ -178,14 +178,6 @@ let extract_sig_functor_open funct_body env loc mty sig_acc =
   | Mty_alias path -> raise(Error(loc, env, Cannot_scrape_alias path))
   | mty -> raise(Error(loc, env, Functor_expected mty))
 
-(* Check for include functor, and error if it's not enabled *)
-let has_include_functor env loc attrs =
-  match Builtin_attributes.has_include_functor attrs with
-  | Error () ->
-      raise(Typetexp.Error (loc, env,
-        Unsupported_extension Include_functor))
-  | Ok b -> b
-
 (* Compute the environment after opening a module *)
 
 let type_open_ ?used_slot ?toplevel ovf env loc lid =
@@ -584,9 +576,12 @@ let merge_constraint initial_env loc sg lid constr =
           { type_params =
               (* layout any is fine on the params because they get thrown away
                  below *)
-              List.map (fun _ -> Btype.newgenvar Layout.any) sdecl.ptype_params;
+              List.map
+                (fun _ -> Btype.newgenvar (Layout.any ~why:Dummy_layout))
+                sdecl.ptype_params;
             type_arity = arity;
-            type_kind = Types.kind_abstract ~layout:Layout.value;
+            type_kind = Type_abstract;
+            type_layout = Layout.value ~why:(Unknown "merge_constraint");
             type_private = Private;
             type_manifest = None;
             type_variance =
@@ -837,8 +832,8 @@ let map_ext fn exts =
    making them abstract otherwise. *)
 
 let rec approx_modtype env smty =
-  match Extensions.Module_type.of_ast smty with
-  | Some emty -> approx_modtype_extension env emty
+  match Jane_syntax.Module_type.of_ast smty with
+  | Some (jmty, attrs) -> approx_modtype_jane_syntax env attrs jmty
   | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
@@ -897,8 +892,9 @@ let rec approx_modtype env smty =
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-and approx_modtype_extension _env : Extensions.Module_type.t -> _ = function
-  | Emty_strengthen { mty=_; mod_id=_ } -> failwith "strengthen not yet implemented"
+and approx_modtype_jane_syntax _env _attrs : Jane_syntax.Module_type.t -> _ =
+  function
+  | Jmty_strengthen { mty=_; mod_id=_ } -> failwith "strengthen not yet implemented"
 
 and approx_module_declaration env pmd =
   {
@@ -908,10 +904,23 @@ and approx_module_declaration env pmd =
     md_uid = Uid.internal_not_actually_unique;
   }
 
+and approx_include_functor
+      env (ifincl : Jane_syntax.Include_functor.signature_item) _srem =
+  match ifincl with
+  | Ifsig_include_functor sincl ->
+      raise (Error(sincl.pincl_loc, env, Recursive_include_functor))
+
+and approx_sig_jst' env (jitem : Jane_syntax.Signature_item.t) srem =
+  match jitem with
+  | Jsig_include_functor ifincl -> approx_include_functor env ifincl srem
+
 and approx_sig env ssg =
   match ssg with
     [] -> []
   | item :: srem ->
+      match Jane_syntax.Signature_item.of_ast item with
+      | Some jitem -> approx_sig_jst' env jitem srem
+      | None ->
       match item.psig_desc with
       | Psig_type (rec_flag, sdecls) ->
           let decls = Typedecl.approx_type_decl sdecls in
@@ -989,9 +998,6 @@ and approx_sig env ssg =
           let _, env = type_open_descr env sod in
           approx_sig env srem
       | Psig_include sincl ->
-          let sloc = sincl.pincl_loc in
-          if has_include_functor env sloc sincl.pincl_attributes then
-            raise (Error(sloc, env, Recursive_include_functor));
           let smty = sincl.pincl_mod in
           let mty = approx_modtype env smty in
           let scope = Ctype.create_scope () in
@@ -1378,8 +1384,8 @@ and transl_modtype_functor_arg env sarg =
 
 and transl_modtype_aux env smty =
   let loc = smty.pmty_loc in
-  match Extensions.Module_type.of_ast smty with
-  | Some emty -> transl_modtype_extension_aux env emty
+  match Jane_syntax.Module_type.of_ast smty with
+  | Some (jmty, attrs) -> transl_modtype_jane_syntax_aux env attrs jmty
   | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
@@ -1442,8 +1448,10 @@ and transl_modtype_aux env smty =
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-and transl_modtype_extension_aux _env : Extensions.Module_type.t -> _ = function
-  | Emty_strengthen { mty=_ ; mod_id=_ } -> failwith "Strengthen not yet implemented"
+and transl_modtype_jane_syntax_aux _env _attrs
+    : Jane_syntax.Module_type.t -> _ =
+  function
+  | Jmty_strengthen { mty=_ ; mod_id=_ } -> failwith "Strengthen not yet implemented"
 
 and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
   let lid, with_info = match constr with
@@ -1469,8 +1477,56 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
 
 and transl_signature env (sg : Parsetree.signature) =
   let names = Signature_names.create () in
+
+  let transl_include ~functor_ ~loc env sig_acc sincl =
+    let smty = sincl.pincl_mod in
+    let tmty =
+      Builtin_attributes.warning_scope sincl.pincl_attributes
+        (fun () -> transl_modtype env smty)
+    in
+    let mty = tmty.mty_type in
+    let scope = Ctype.create_scope () in
+    let incl_kind, sg =
+      if functor_ then
+        let sg, incl_kind =
+          extract_sig_functor_open false env smty.pmty_loc mty sig_acc
+        in
+        incl_kind, sg
+      else
+        Tincl_structure, extract_sig env smty.pmty_loc mty
+    in
+    let sg, newenv = Env.enter_signature ~scope sg env in
+    Signature_group.iter
+      (Signature_names.check_sig_item names loc)
+      sg;
+    let incl =
+      { incl_mod = tmty;
+        incl_type = sg;
+        incl_kind;
+        incl_attributes = sincl.pincl_attributes;
+        incl_loc = sincl.pincl_loc;
+      }
+    in
+    mksig (Tsig_include incl) env loc, sg, newenv
+  in
+
+  let transl_include_functor ~loc env sig_acc
+    : Jane_syntax.Include_functor.signature_item -> _ = function
+    | Ifsig_include_functor sincl ->
+        transl_include ~functor_:true ~loc env sig_acc sincl
+  in
+
+  let transl_sig_item_jst ~loc env sig_acc : Jane_syntax.Signature_item.t -> _ =
+    function
+    | Jsig_include_functor ifincl ->
+        transl_include_functor ~loc env sig_acc ifincl
+  in
+
   let transl_sig_item env sig_acc item =
     let loc = item.psig_loc in
+    match Jane_syntax.Signature_item.of_ast item with
+    | Some jitem -> transl_sig_item_jst ~loc env sig_acc jitem
+    | None ->
     match item.psig_desc with
     | Psig_value sdesc ->
         let (tdesc, newenv) =
@@ -1688,36 +1744,7 @@ and transl_signature env (sg : Parsetree.signature) =
         let (od, newenv) = type_open_descr env sod in
         mksig (Tsig_open od) env loc, [], newenv
     | Psig_include sincl ->
-        let smty = sincl.pincl_mod in
-        let sloc = sincl.pincl_loc in
-        let tmty =
-          Builtin_attributes.warning_scope sincl.pincl_attributes
-            (fun () -> transl_modtype env smty)
-        in
-        let mty = tmty.mty_type in
-        let scope = Ctype.create_scope () in
-        let incl_kind, sg =
-          if has_include_functor env sloc sincl.pincl_attributes then
-            let (sg, incl_kind) =
-              extract_sig_functor_open false env smty.pmty_loc mty sig_acc
-            in
-            incl_kind, sg
-          else
-            Tincl_structure, extract_sig env smty.pmty_loc mty
-        in
-        let sg, newenv = Env.enter_signature ~scope sg env in
-        Signature_group.iter
-          (Signature_names.check_sig_item names item.psig_loc)
-          sg;
-        let incl =
-          { incl_mod = tmty;
-            incl_type = sg;
-            incl_kind;
-            incl_attributes = sincl.pincl_attributes;
-            incl_loc = sloc;
-          }
-        in
-        mksig (Tsig_include incl) env loc, sg, newenv
+        transl_include ~functor_:false ~loc env sig_acc sincl
     | Psig_class cl ->
         let (classes, newenv) = Typeclass.class_descriptions env cl in
         List.iter (fun cls ->
@@ -2553,15 +2580,68 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
 and type_structure ?(toplevel = None) funct_body anchor env sstr =
   let names = Signature_names.create () in
 
-  let type_str_item env shape_map {pstr_loc = loc; pstr_desc = desc} sig_acc =
+  let type_str_include ~functor_ ~loc env shape_map sincl sig_acc =
+    let smodl = sincl.pincl_mod in
+    let modl, modl_shape =
+      Builtin_attributes.warning_scope sincl.pincl_attributes
+        (fun () -> type_module true funct_body None env smodl)
+    in
+    let scope = Ctype.create_scope () in
+    let incl_kind, sg =
+      if functor_ then
+        let sg, incl_kind =
+          extract_sig_functor_open funct_body env smodl.pmod_loc
+            modl.mod_type sig_acc
+        in
+        incl_kind, sg
+      else
+        Tincl_structure, extract_sig_open env smodl.pmod_loc modl.mod_type
+    in
+    (* Rename all identifiers bound by this signature to avoid clashes *)
+    let sg, shape, new_env =
+      Env.enter_signature_and_shape ~scope ~parent_shape:shape_map
+        modl_shape sg env
+    in
+    Signature_group.iter (Signature_names.check_sig_item names loc) sg;
+    let incl =
+      { incl_mod = modl;
+        incl_type = sg;
+        incl_kind;
+        incl_attributes = sincl.pincl_attributes;
+        incl_loc = sincl.pincl_loc;
+      }
+    in
+    Tstr_include incl, sg, shape, new_env
+  in
+
+  let type_str_include_functor ~loc env shape_map ifincl sig_acc =
+    match (ifincl : Jane_syntax.Include_functor.structure_item) with
+    | Ifstr_include_functor incl ->
+        type_str_include ~functor_:true ~loc env shape_map incl sig_acc
+  in
+
+  let type_str_item_jst ~loc env shape_map jitem sig_acc =
+    match (jitem : Jane_syntax.Structure_item.t) with
+    | Jstr_include_functor ifincl ->
+        type_str_include_functor ~loc env shape_map ifincl sig_acc
+  in
+
+  let type_str_item
+        env shape_map ({pstr_loc = loc; pstr_desc = desc} as item) sig_acc =
+    match Jane_syntax.Structure_item.of_ast item with
+    | Some jitem -> type_str_item_jst ~loc env shape_map jitem sig_acc
+    | None ->
     match desc with
     | Pstr_eval (sexpr, attrs) ->
-        let expr =
+        (* We restrict [Tstr_eval] expressions to representable layouts to
+           support the native toplevel.  See the special handling of [Tstr_eval]
+           near the top of [execute_phrase] in [opttoploop.ml]. *)
+        let expr, sort =
           Builtin_attributes.warning_scope attrs
-            (fun () -> Typecore.type_expression env sexpr)
+            (fun () -> Typecore.type_representable_expression
+                         ~why:Structure_item_expression env sexpr)
         in
-        let layout = Ctype.type_layout expr.exp_env expr.exp_type in
-        Tstr_eval (expr, layout, attrs), [], shape_map, env
+        Tstr_eval (expr, sort, attrs), [], shape_map, env
     | Pstr_value(rec_flag, sdefs) ->
         let force_global =
           (* Values bound by '_' still escape in the toplevel, because
@@ -2584,9 +2664,9 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    (* CR layouts v5: this layout check has the effect of
                       defaulting the sort of top-level bindings to value, which
                       will change. *)
-                   if not (Layout.(equate (of_sort sort) value)) then
-                     raise (Error (loc, env,
-                                   Toplevel_nonvalue (Ident.name id,sort)))
+                   if not Sort.(equate sort value)
+                   then raise (Error (loc, env,
+                                      Toplevel_nonvalue (Ident.name id,sort)))
                 )
                 modes;
               let (first_loc, _, _) = List.hd modes in
@@ -2893,38 +2973,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         shape_map,
         new_env
     | Pstr_include sincl ->
-        let smodl = sincl.pincl_mod in
-        let sloc = sincl.pincl_loc in
-        let modl, modl_shape =
-          Builtin_attributes.warning_scope sincl.pincl_attributes
-            (fun () -> type_module true funct_body None env smodl)
-        in
-        let incl_kind, sg =
-          if has_include_functor env sloc sincl.pincl_attributes then
-            let (sg, incl_kind) =
-              extract_sig_functor_open funct_body env smodl.pmod_loc
-                modl.mod_type sig_acc
-            in
-            incl_kind, sg
-          else
-            Tincl_structure, extract_sig_open env smodl.pmod_loc modl.mod_type
-        in
-        let scope = Ctype.create_scope () in
-        (* Rename all identifiers bound by this signature to avoid clashes *)
-        let sg, shape, new_env =
-          Env.enter_signature_and_shape ~scope ~parent_shape:shape_map
-            modl_shape sg env
-        in
-        Signature_group.iter (Signature_names.check_sig_item names loc) sg;
-        let incl =
-          { incl_mod = modl;
-            incl_type = sg;
-            incl_kind;
-            incl_attributes = sincl.pincl_attributes;
-            incl_loc = sloc;
-          }
-        in
-        Tstr_include incl, sg, shape, new_env
+        type_str_include ~functor_:false ~loc env shape_map sincl sig_acc
     | Pstr_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
     | Pstr_attribute attr ->
@@ -3121,7 +3170,8 @@ let type_package env m p fl =
   List.iter
     (fun (n, ty) ->
        (* CR layouts v5: relax value requirement. *)
-      try Ctype.unify env ty (Ctype.newvar Layout.value)
+      try Ctype.unify env ty
+            (Ctype.newvar (Layout.value ~why:Structure_element))
       with Ctype.Unify _ ->
         raise (Error(modl.mod_loc, env, Scoping_pack (n,ty))))
     fl';
@@ -3569,7 +3619,7 @@ let report_error ~loc _env = function
   | Toplevel_nonvalue (id, sort) ->
       Location.errorf ~loc
         "@[Top-level module bindings must have layout value, but@ \
-         %s has layout@ %a.@]" id Layout.format (Layout.of_sort sort)
+         %s has layout@ %a.@]" id Sort.format sort
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env

@@ -69,7 +69,10 @@ val get_alloc_mode : Parsetree.core_type -> alloc_mode_const
 exception Already_bound
 
 type value_loc =
-    Fun_arg | Fun_ret | Tuple | Poly_variant | Package_constraint | Object_field
+    Tuple | Poly_variant | Package_constraint | Object_field
+
+type sort_loc =
+    Fun_arg | Fun_ret
 
 type error =
   | Unbound_type_variable of string * string list
@@ -92,10 +95,12 @@ type error =
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
   | Not_an_object of type_expr
-  | Unsupported_extension of Language_extension.t
+  | Unsupported_extension : _ Language_extension.t -> error
   | Polymorphic_optional_param
   | Non_value of
-      {vloc : value_loc; typ : type_expr; err : Layout.Violation.violation}
+      {vloc : value_loc; typ : type_expr; err : Layout.Violation.t}
+  | Non_sort of
+      {vloc : sort_loc; typ : type_expr; err : Layout.Violation.t}
 
 exception Error of Location.t * Env.t * error
 

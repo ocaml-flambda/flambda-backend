@@ -39,19 +39,30 @@ type unsafe_info =
 type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
-| Non_value_layout of type_expr * Layout.Violation.violation
+| Non_value_layout of type_expr * Layout.Violation.t
 
 exception Error of Location.t * error
 
 (* CR layouts v2: This is used as part of the "void safety check" in the case of
-   `Tstr_eval`, where we want to allow `any` in particular.  Remove when we
-   remove the safety check. *)
-let layout_must_not_be_void loc ty layout =
-  match Layout.(sub layout void) with
-  | Ok () ->
-    let violation = Layout.(Violation.not_a_sublayout layout value) in
+   [Tstr_eval], where we want to allow any sort (see comment on that case of
+   typemod).  Remove when we remove the safety check.
+
+   We still default to value before checking for void, to allow for sort
+   variables arising in situations like a module that is just:
+
+     exit 1;;
+
+   When this sanity check is removed, consider whether it must be replaced with
+   some defaulting. *)
+let sort_must_not_be_void loc ty sort =
+  if Sort.is_void_defaulting sort then
+    let violation =
+      Layout.(Violation.of_
+                (Not_a_sublayout
+                   (Layout.of_sort ~why:V1_safety_check sort,
+                    value ~why:V1_safety_check)))
+    in
     raise (Error (loc, Non_value_layout (ty, violation)))
-  | Error _ -> ()
 
 let cons_opt x_opt xs =
   match x_opt with
@@ -147,6 +158,7 @@ and apply_coercion_result loc strict funct params args cc_res =
              ~return:Lambda.layout_module
              ~attr:{ default_function_attribute with
                         is_a_functor = true;
+                        check = Ignore_assert_all Zero_alloc;
                         stub = true; }
              ~loc
              ~mode:alloc_heap
@@ -560,10 +572,10 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       inline = inline_attribute;
       specialise = Default_specialise;
       local = Default_local;
-      check = Default_check;
       poll = Default_poll;
       loop = Never_loop;
       is_a_functor = true;
+      check = Ignore_assert_all Zero_alloc;
       stub = false;
       tmc_candidate = false;
     }
@@ -667,11 +679,11 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
       size
   | item :: rem ->
       match item.str_desc with
-      | Tstr_eval (expr, layout, _) ->
+      | Tstr_eval (expr, sort, _) ->
           let body, size =
             transl_structure ~scopes loc fields cc rootpath final_env rem
           in
-          layout_must_not_be_void expr.exp_loc expr.exp_type layout;
+          sort_must_not_be_void expr.exp_loc expr.exp_type sort;
           Lsequence(transl_exp ~scopes expr, body), size
       | Tstr_value(rec_flag, pat_expr_list) ->
           (* Translate bindings first *)
@@ -1104,8 +1116,8 @@ let transl_store_structure ~scopes glob map prims aliases str =
       Lambda.subst no_env_update subst cont
     | item :: rem ->
         match item.str_desc with
-        | Tstr_eval (expr, layout, _attrs) ->
-            layout_must_not_be_void expr.exp_loc expr.exp_type layout;
+        | Tstr_eval (expr, sort, _attrs) ->
+            sort_must_not_be_void expr.exp_loc expr.exp_type sort;
             Lsequence(Lambda.subst no_env_update subst
                         (transl_exp ~scopes expr),
                       transl_store ~scopes rootpath subst cont rem)
@@ -1500,9 +1512,9 @@ let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
   let f str =
     let expr =
       match str with
-      | [ { str_desc = Tstr_eval (expr, layout, _attrs) } ] when topl ->
+      | [ { str_desc = Tstr_eval (expr, sort, _attrs) } ] when topl ->
         assert (size = 0);
-        layout_must_not_be_void expr.exp_loc expr.exp_type layout;
+        sort_must_not_be_void expr.exp_loc expr.exp_type sort;
         Lambda.subst (fun _ _ env -> env) !transl_store_subst
           (transl_exp ~scopes expr)
       | str ->
@@ -1603,8 +1615,8 @@ let transl_toplevel_item ~scopes item =
        expr", so that Toploop can display the result of the expression.
        Otherwise, the normal compilation would result in a Lsequence returning
        unit. *)
-    Tstr_eval (expr, layout, _) ->
-      layout_must_not_be_void expr.exp_loc expr.exp_type layout;
+    Tstr_eval (expr, sort, _) ->
+      sort_must_not_be_void expr.exp_loc expr.exp_type sort;
       transl_exp ~scopes expr
   | Tstr_value(Nonrecursive,
                [{vb_pat = {pat_desc=Tpat_any};vb_expr = expr}]) ->

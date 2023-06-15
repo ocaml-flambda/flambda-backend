@@ -71,7 +71,13 @@ let print_list_of_simple_or_prim ppf simple_or_prim_list =
     (Format.pp_print_list ~pp_sep:Format.pp_print_space print_simple_or_prim)
     simple_or_prim_list
 
-let raise_exn_for_failure acc ~dbg exn_cont exn_bucket extra_let_binding =
+let print_list_of_lists_of_simple_or_prim ppf simple_or_prim_list_list =
+  Format.fprintf ppf "@[(%a)@]"
+    (Format.pp_print_list ~pp_sep:Format.pp_print_space
+       print_list_of_simple_or_prim)
+    simple_or_prim_list_list
+
+let raise_exn_for_failure acc ~dbg exn_cont exn_bucket =
   let exn_handler = Exn_continuation.exn_handler exn_cont in
   let trap_action =
     Trap_action.Pop { exn_handler; raise_kind = Some Regular }
@@ -87,18 +93,12 @@ let raise_exn_for_failure acc ~dbg exn_cont exn_bucket extra_let_binding =
   let acc, apply_cont =
     Apply_cont_with_acc.create acc ~trap_action exn_handler ~args ~dbg
   in
-  let acc, apply_cont = Expr_with_acc.create_apply_cont acc apply_cont in
-  match extra_let_binding with
-  | None -> acc, apply_cont
-  | Some (bound_var, defining_expr) ->
-    Let_with_acc.create acc
-      (Bound_pattern.singleton bound_var)
-      defining_expr ~body:apply_cont
+  Expr_with_acc.create_apply_cont acc apply_cont
 
 let symbol_for_prim id =
   Flambda2_import.Symbol.for_predef_ident id |> Symbol.create_wrapped
 
-let expression_for_failure acc exn_cont ~register_const_string primitive dbg
+let expression_for_failure acc exn_cont ~register_const0 primitive dbg
     (failure : failure) =
   let exn_cont =
     match exn_cont with
@@ -112,13 +112,14 @@ let expression_for_failure acc exn_cont ~register_const_string primitive dbg
   match failure with
   | Division_by_zero ->
     let division_by_zero = symbol_for_prim Predef.ident_division_by_zero in
-    raise_exn_for_failure acc ~dbg exn_cont
-      (Simple.symbol division_by_zero)
-      None
+    raise_exn_for_failure acc ~dbg exn_cont (Simple.symbol division_by_zero)
   | Index_out_of_bounds ->
-    let exn_bucket = Variable.create "exn_bucket" in
     (* CR mshinwell: Share this text with elsewhere. *)
-    let acc, error_text = register_const_string acc "index out of bounds" in
+    let acc, error_text =
+      register_const0 acc
+        (Static_const.immutable_string "index out of bounds")
+        "string"
+    in
     let invalid_argument =
       (* [Predef.invalid_argument] is not exposed; the following avoids a change
          to the frontend. *)
@@ -131,29 +132,15 @@ let expression_for_failure acc exn_cont ~register_const_string primitive dbg
       in
       symbol_for_prim invalid_argument
     in
-    let contents_of_exn_bucket =
-      [Simple.symbol invalid_argument; Simple.symbol error_text]
+    let acc, exn_bucket =
+      register_const0 acc
+        (Static_const.block Tag.Scannable.zero Immutable
+           [Symbol invalid_argument; Symbol error_text])
+        "block"
     in
-    let named =
-      Named.create_prim
-        (Variadic
-           ( Make_block
-               ( Values
-                   ( Tag.Scannable.zero,
-                     [ Flambda_kind.With_subkind.any_value;
-                       Flambda_kind.With_subkind.any_value ] ),
-                 Immutable,
-                 Alloc_mode.For_allocations.heap ),
-             contents_of_exn_bucket ))
-        dbg
-    in
-    let extra_let_binding =
-      Bound_var.create exn_bucket Name_mode.normal, named
-    in
-    raise_exn_for_failure acc ~dbg exn_cont (Simple.var exn_bucket)
-      (Some extra_let_binding)
+    raise_exn_for_failure acc ~dbg exn_cont (Simple.symbol exn_bucket)
 
-let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
+let rec bind_rec acc exn_cont ~register_const0 (prim : expr_primitive)
     (dbg : Debuginfo.t) (cont : Acc.t -> Named.t -> Expr_with_acc.t) :
     Expr_with_acc.t =
   match prim with
@@ -168,16 +155,16 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
       let named = Named.create_prim (Unary (prim, arg)) dbg in
       cont acc named
     in
-    bind_rec_primitive acc exn_cont ~register_const_string arg dbg cont
+    bind_rec_primitive acc exn_cont ~register_const0 arg dbg cont
   | Binary (prim, arg1, arg2) ->
     let cont acc (arg2 : Simple.t) =
       let cont acc (arg1 : Simple.t) =
         let named = Named.create_prim (Binary (prim, arg1, arg2)) dbg in
         cont acc named
       in
-      bind_rec_primitive acc exn_cont ~register_const_string arg1 dbg cont
+      bind_rec_primitive acc exn_cont ~register_const0 arg1 dbg cont
     in
-    bind_rec_primitive acc exn_cont ~register_const_string arg2 dbg cont
+    bind_rec_primitive acc exn_cont ~register_const0 arg2 dbg cont
   | Ternary (prim, arg1, arg2, arg3) ->
     let cont acc (arg3 : Simple.t) =
       let cont acc (arg2 : Simple.t) =
@@ -187,11 +174,11 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
           in
           cont acc named
         in
-        bind_rec_primitive acc exn_cont ~register_const_string arg1 dbg cont
+        bind_rec_primitive acc exn_cont ~register_const0 arg1 dbg cont
       in
-      bind_rec_primitive acc exn_cont ~register_const_string arg2 dbg cont
+      bind_rec_primitive acc exn_cont ~register_const0 arg2 dbg cont
     in
-    bind_rec_primitive acc exn_cont ~register_const_string arg3 dbg cont
+    bind_rec_primitive acc exn_cont ~register_const0 arg3 dbg cont
   | Variadic (prim, args) ->
     let cont acc args =
       let named = Named.create_prim (Variadic (prim, args)) dbg in
@@ -204,18 +191,17 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
         let cont acc arg =
           build_cont acc args_to_convert (arg :: converted_args)
         in
-        bind_rec_primitive acc exn_cont ~register_const_string arg dbg cont
+        bind_rec_primitive acc exn_cont ~register_const0 arg dbg cont
     in
     build_cont acc (List.rev args) []
   | Checked { validity_conditions; primitive; failure; dbg } ->
     let primitive_cont = Continuation.create () in
     let primitive_handler_expr acc =
-      bind_rec acc exn_cont ~register_const_string primitive dbg cont
+      bind_rec acc exn_cont ~register_const0 primitive dbg cont
     in
     let failure_cont = Continuation.create () in
     let failure_handler_expr acc =
-      expression_for_failure acc exn_cont ~register_const_string primitive dbg
-        failure
+      expression_for_failure acc exn_cont ~register_const0 primitive dbg failure
     in
     let check_validity_conditions =
       let prim_apply_cont acc =
@@ -226,7 +212,7 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
         (fun condition_passed_expr expr_primitive acc ->
           let condition_passed_cont = Continuation.create () in
           let body acc =
-            bind_rec_primitive acc exn_cont ~register_const_string
+            bind_rec_primitive acc exn_cont ~register_const0
               (Prim expr_primitive) dbg (fun acc prim_result ->
                 let acc, condition_passed =
                   Apply_cont_with_acc.goto acc condition_passed_cont
@@ -266,7 +252,7 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
     let result_param =
       Bound_parameter.create result_var Flambda_kind.With_subkind.any_value
     in
-    bind_rec acc exn_cont ~register_const_string cond dbg @@ fun acc cond ->
+    bind_rec acc exn_cont ~register_const0 cond dbg @@ fun acc cond ->
     let compute_cond_and_switch acc =
       let acc, ifso_cont = Apply_cont_with_acc.goto acc ifso_cont in
       let acc, ifnot_cont = Apply_cont_with_acc.goto acc ifnot_cont in
@@ -286,7 +272,7 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
       cont acc (Named.create_simple (Simple.var result_var))
     in
     let ifso_handler_expr acc =
-      bind_rec acc exn_cont ~register_const_string ifso dbg @@ fun acc ifso ->
+      bind_rec acc exn_cont ~register_const0 ifso dbg @@ fun acc ifso ->
       let acc, apply_cont =
         Apply_cont_with_acc.create acc join_point_cont
           ~args:[Simple.var ifso_result]
@@ -298,7 +284,7 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
         ifso ~body
     in
     let ifnot_handler_expr acc =
-      bind_rec acc exn_cont ~register_const_string ifnot dbg @@ fun acc ifnot ->
+      bind_rec acc exn_cont ~register_const0 ifnot dbg @@ fun acc ifnot ->
       let acc, apply_cont =
         Apply_cont_with_acc.create acc join_point_cont
           ~args:[Simple.var ifnot_result]
@@ -323,9 +309,9 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
       ~handler_params:(Bound_parameters.create [result_param])
       ~handler:join_handler_expr ~body ~is_exn_handler:false
 
-and bind_rec_primitive acc exn_cont ~register_const_string
-    (prim : simple_or_prim) (dbg : Debuginfo.t)
-    (cont : Acc.t -> Simple.t -> Expr_with_acc.t) : Expr_with_acc.t =
+and bind_rec_primitive acc exn_cont ~register_const0 (prim : simple_or_prim)
+    (dbg : Debuginfo.t) (cont : Acc.t -> Simple.t -> Expr_with_acc.t) :
+    Expr_with_acc.t =
   match prim with
   | Simple s -> cont acc s
   | Prim p ->
@@ -335,4 +321,14 @@ and bind_rec_primitive acc exn_cont ~register_const_string
       let acc, body = cont acc (Simple.var var) in
       Let_with_acc.create acc (Bound_pattern.singleton var') named ~body
     in
-    bind_rec acc exn_cont ~register_const_string p dbg cont
+    bind_rec acc exn_cont ~register_const0 p dbg cont
+
+let rec bind_recs acc exn_cont ~register_const0 (prims : expr_primitive list)
+    (dbg : Debuginfo.t) (cont : Acc.t -> Named.t list -> Expr_with_acc.t) :
+    Expr_with_acc.t =
+  match prims with
+  | [] -> cont acc []
+  | prim :: prims ->
+    bind_rec acc exn_cont ~register_const0 prim dbg (fun acc named ->
+        bind_recs acc exn_cont ~register_const0 prims dbg (fun acc nameds ->
+            cont acc (named :: nameds)))

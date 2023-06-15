@@ -54,6 +54,28 @@ let array_kind = function
   | Pintarray -> "int"
   | Pfloatarray -> "float"
 
+let array_ref_kind ppf k =
+  let pp_mode ppf = function
+    | Alloc_heap -> ()
+    | Alloc_local -> fprintf ppf "(local)"
+  in
+  match k with
+  | Pgenarray_ref mode -> fprintf ppf "gen%a" pp_mode mode
+  | Paddrarray_ref -> fprintf ppf "addr"
+  | Pintarray_ref -> fprintf ppf "int"
+  | Pfloatarray_ref mode -> fprintf ppf "float%a" pp_mode mode
+
+let array_set_kind ppf k =
+  let pp_mode ppf = function
+    | Modify_heap -> ()
+    | Modify_maybe_stack -> fprintf ppf "(local)"
+  in
+  match k with
+  | Pgenarray_set mode -> fprintf ppf "gen%a" pp_mode mode
+  | Paddrarray_set mode -> fprintf ppf "addr%a" pp_mode mode
+  | Pintarray_set -> fprintf ppf "int"
+  | Pfloatarray_set -> fprintf ppf "float"
+
 let alloc_mode = function
   | Alloc_heap -> ""
   | Alloc_local -> "local"
@@ -179,7 +201,7 @@ let print_bigarray name unsafe kind ppf layout =
      | Pbigarray_fortran_layout -> "Fortran")
 
 let record_rep ppf r = match r with
-  | Record_unboxed _ -> fprintf ppf "unboxed"
+  | Record_unboxed -> fprintf ppf "unboxed"
   | Record_boxed _ -> fprintf ppf "boxed"
   | Record_inlined _ -> fprintf ppf "inlined"
   | Record_float -> fprintf ppf "float"
@@ -345,10 +367,10 @@ let primitive ppf = function
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
       fprintf ppf "duparray_unique[%s]" (array_kind k)
-  | Parrayrefu k -> fprintf ppf "array.unsafe_get[%s]" (array_kind k)
-  | Parraysetu k -> fprintf ppf "array.unsafe_set[%s]" (array_kind k)
-  | Parrayrefs k -> fprintf ppf "array.get[%s]" (array_kind k)
-  | Parraysets k -> fprintf ppf "array.set[%s]" (array_kind k)
+  | Parrayrefu rk -> fprintf ppf "array.unsafe_get[%a]" array_ref_kind rk
+  | Parraysetu sk -> fprintf ppf "array.unsafe_set[%a]" array_set_kind sk
+  | Parrayrefs rk -> fprintf ppf "array.get[%a]" array_ref_kind rk
+  | Parraysets sk -> fprintf ppf "array.set[%a]" array_set_kind sk
   | Pctconst c ->
      let const_name = match c with
        | Big_endian -> "big_endian"

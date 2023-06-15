@@ -153,9 +153,13 @@ type phantom_defining_expr =
 
 type trywith_shared_label = int
 
+type pop_action =
+  | Pop_generic
+  | Pop_specific of trywith_shared_label
+
 type trap_action =
   | Push of trywith_shared_label
-  | Pop
+  | Pop of pop_action
 
 type trywith_kind =
   | Regular
@@ -213,7 +217,7 @@ and operation =
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound
-  | Cprobe of { name: string; handler_code_sym: string; }
+  | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
   | Cprobe_is_enabled of { name: string }
   | Copaque
   | Cbeginregion | Cendregion

@@ -31,7 +31,7 @@ type error =
     Free_super_var
   | Unreachable_reached
   | Bad_probe_layout of Ident.t
-  | Non_value_layout of Layout.Violation.violation
+  | Non_value_layout of Layout.Violation.t
 
 exception Error of Location.t * error
 
@@ -39,23 +39,34 @@ let use_dup_for_constant_mutable_arrays_bigger_than = 4
 
 (* CR layouts v2: When we're ready to allow non-values, these can be deleted or
    changed to check for void. *)
-let sort_must_be_value loc sort =
+let sort_must_be_value ~why loc sort =
   if not Sort.(equate sort value) then
-    let violation = Layout.(Violation.not_a_sublayout (of_sort sort) value) in
+    let violation = Layout.(Violation.of_ (Not_a_sublayout
+                                             (of_sort ~why sort,
+                                              value ~why:V1_safety_check))) in
     raise (Error (loc, Non_value_layout violation))
 
 let layout_must_be_value loc layout =
-  match Layout.(sub layout value) with
-  | Ok () -> ()
+  match Layout.(sub layout (value ~why:V1_safety_check)) with
+  | Ok _ -> ()
   | Error e -> raise (Error (loc, Non_value_layout e))
 
 (* CR layouts v2: In the places where this is used, we want to allow any (the
    left of a semicolon and loop bodies).  So we want this instead of the usual
-   sanity check for value.  *)
+   sanity check for value.  But we still default to value before checking for
+   void, to allow for sort variables arising in situations like
+
+     let foo () = raise Foo; ()
+
+   When this sanity check is removed, consider whether we are still defaulting
+   appropriately.
+*)
 let layout_must_not_be_void loc layout =
-  match Layout.(sub layout void) with
-  | Ok () ->
-    let violation = Layout.(Violation.not_a_sublayout layout value) in
+  Layout.default_to_value layout;
+  match Layout.(sub layout (void ~why:V1_safety_check)) with
+  | Ok _ ->
+     let violation = Layout.(Violation.of_ (Not_a_sublayout
+                               (layout, value ~why:V1_safety_check))) in
     raise (Error (loc, Non_value_layout violation))
   | Error _ -> ()
 
@@ -468,7 +479,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           (* CR layouts v5: This could have void args, but for now we've ruled
              that out with the layout check in transl_list_with_shape *)
           Lconst(const_int runtime_tag)
-      | Ordinary _, Variant_unboxed _ ->
+      | Ordinary _, Variant_unboxed ->
           (match ll with [v] -> v | _ -> assert false)
       | Ordinary {runtime_tag}, Variant_boxed _ ->
           begin try
@@ -491,7 +502,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
             Lprim(Pmakeblock(0, Immutable, Some (Pgenval :: shape),
                              transl_alloc_mode (Option.get alloc_mode)),
                   lam :: ll, of_location ~scopes e.exp_loc)
-      | Extension _, (Variant_boxed _ | Variant_unboxed _)
+      | Extension _, (Variant_boxed _ | Variant_unboxed)
       | Ordinary _, Variant_extensible -> assert false
       end
   | Texp_extension_constructor (_, path) ->
@@ -526,7 +537,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
           Lprim (Pfield (lbl.lbl_pos, sem), [targ],
                  of_location ~scopes e.exp_loc)
-        | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) -> targ
+        | Record_unboxed | Record_inlined (_, Variant_unboxed) -> targ
         | Record_float ->
           let mode = transl_alloc_mode (Option.get alloc_mode) in
           Lprim (Pfloatfield (lbl.lbl_pos, sem, mode), [targ],
@@ -545,7 +556,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           Record_boxed _
         | Record_inlined (_, Variant_boxed _) ->
           Psetfield(lbl.lbl_pos, maybe_pointer newval, mode)
-        | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->
+        | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
           assert false
         | Record_float -> Psetfloatfield (lbl.lbl_pos, mode)
         | Record_inlined (_, Variant_extensible) ->
@@ -863,7 +874,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           Llet(pure, Lambda.layout_module, oid,
                !transl_module ~scopes Tcoerce_none None od.open_expr, body)
       end
-  | Texp_probe {name; handler=exp} ->
+  | Texp_probe {name; handler=exp; enabled_at_init} ->
     if !Clflags.native_code && !Clflags.probes then begin
       let lam = transl_exp ~scopes exp in
       let map =
@@ -899,8 +910,9 @@ and transl_exp0 ~in_new_scope ~scopes e =
         with
         | {val_type; _} -> begin
             match
-              Ctype.check_type_layout ~reason:(Fixed_layout Probe)
-                e.exp_env (Ctype.correct_levels val_type) Layout.value
+              Ctype.check_type_layout
+                e.exp_env (Ctype.correct_levels val_type)
+                (Layout.value ~why:Probe)
             with
             | Ok _ -> ()
             | Error _ -> raise (Error (e.exp_loc, Bad_probe_layout id))
@@ -946,7 +958,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           ap_tailcall = Default_tailcall;
           ap_inlined = Never_inlined;
           ap_specialised = Always_specialise;
-          ap_probe = Some {name};
+          ap_probe = Some {name; enabled_at_init};
         }
       in
       begin match Config.flambda || Config.flambda2 with
@@ -1346,7 +1358,7 @@ and transl_let ~scopes ?(add_regions=false) ?(in_structure=false)
         :: rem ->
           (* CR layouts v2: allow non-values.  Either remove this or replace
              with void-specific sanity check. *)
-          sort_must_be_value expr.exp_loc sort;
+          sort_must_be_value ~why:Let_binding expr.exp_loc sort;
           let lam = transl_bound_exp ~scopes ~in_structure pat expr in
           let lam = Translattribute.add_function_attributes lam vb_loc attr in
           let lam = if add_regions then maybe_region_exp expr lam else lam in
@@ -1366,7 +1378,7 @@ and transl_let ~scopes ?(add_regions=false) ?(in_structure=false)
             {vb_expr=expr; vb_sort; vb_attributes; vb_loc; vb_pat} id =
         (* CR layouts v2: allow non-values.  Either remove this or replace
            with void-specific sanity check. *)
-        sort_must_be_value expr.exp_loc vb_sort;
+        sort_must_be_value ~why:Let_binding expr.exp_loc vb_sort;
         let lam = transl_bound_exp ~scopes ~in_structure vb_pat expr in
         let lam =
           Translattribute.add_function_attributes lam vb_loc vb_attributes
@@ -1412,7 +1424,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                  match repres with
                    Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
                    Pfield (i, sem)
-                 | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->
+                 | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
                    assert false
                  | Record_inlined (_, Variant_extensible) -> Pfield (i + 1, sem)
                  | Record_float ->
@@ -1440,7 +1452,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_boxed _ -> Lconst(Const_block(0, cl))
         | Record_inlined (Ordinary {runtime_tag}, Variant_boxed _) ->
             Lconst(Const_block(runtime_tag, cl))
-        | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->
+        | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
             Lconst(match cl with [v] -> v | _ -> assert false)
         | Record_float ->
             Lconst(Const_float_block(List.map extract_float cl))
@@ -1455,7 +1467,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         | Record_inlined (Ordinary {runtime_tag}, Variant_boxed _) ->
             Lprim(Pmakeblock(runtime_tag, mut, Some shape, Option.get mode),
                   ll, loc)
-        | Record_unboxed _ | Record_inlined (Ordinary _, Variant_unboxed _) ->
+        | Record_unboxed | Record_inlined (Ordinary _, Variant_unboxed) ->
             (match ll with [v] -> v | _ -> assert false)
         | Record_float ->
             Lprim(Pmakefloatblock (mut, Option.get mode), ll, loc)
@@ -1463,7 +1475,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             let slot = transl_extension_path loc env path in
             Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape), Option.get mode),
                   slot :: ll, loc)
-        | Record_inlined (Extension _, (Variant_unboxed _ | Variant_boxed _))
+        | Record_inlined (Extension _, (Variant_unboxed | Variant_boxed _))
         | Record_inlined (Ordinary _, Variant_extensible) ->
             assert false
     in
@@ -1489,7 +1501,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
               Record_boxed _ | Record_inlined (_, Variant_boxed _) ->
                 let ptr = maybe_pointer expr in
                 Psetfield(lbl.lbl_pos, ptr, Assignment modify_heap)
-            | Record_unboxed _ | Record_inlined (_, Variant_unboxed _) ->
+            | Record_unboxed | Record_inlined (_, Variant_unboxed) ->
                 assert false
             | Record_float ->
                 Psetfloatfield (lbl.lbl_pos, Assignment modify_heap)

@@ -17,7 +17,7 @@
   (wrapped true)
   (modes byte native)
   (flags (
-    -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48
+    -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66-70
     -warn-error A -bin-annot -safe-string -strict-formats
   ))
   (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
@@ -43,8 +43,8 @@
     longident
     docstrings
     syntaxerr
-    extensions_parsing
-    extensions
+    jane_syntax_parsing
+    jane_syntax
     ast_iterator
     ast_helper
     ast_mapper
@@ -127,8 +127,8 @@
 (copy_files ../../parsing/longident.ml)
 (copy_files ../../parsing/docstrings.ml)
 (copy_files ../../parsing/syntaxerr.ml)
-(copy_files ../../parsing/extensions_parsing.ml)
-(copy_files ../../parsing/extensions.ml)
+(copy_files ../../parsing/jane_syntax_parsing.ml)
+(copy_files ../../parsing/jane_syntax.ml)
 (copy_files ../../parsing/ast_iterator.ml)
 (copy_files ../../parsing/ast_helper.ml)
 (copy_files ../../parsing/ast_mapper.ml)
@@ -184,8 +184,8 @@
 (copy_files ../../parsing/longident.mli)
 (copy_files ../../parsing/docstrings.mli)
 (copy_files ../../parsing/syntaxerr.mli)
-(copy_files ../../parsing/extensions_parsing.mli)
-(copy_files ../../parsing/extensions.mli)
+(copy_files ../../parsing/jane_syntax_parsing.mli)
+(copy_files ../../parsing/jane_syntax.mli)
 (copy_files ../../parsing/ast_iterator.mli)
 (copy_files ../../parsing/ast_helper.mli)
 (copy_files ../../parsing/ast_mapper.mli)
@@ -281,8 +281,8 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Syntaxerr.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lazy_backtrack.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_helper.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Extensions_parsing.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Extensions.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_syntax_parsing.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_syntax.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_iterator.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Builtin_attributes.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Load_path.cmo
@@ -353,8 +353,8 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Extensions_parsing.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Extensions.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_syntax_parsing.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_syntax.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Load_path.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_iterator.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx

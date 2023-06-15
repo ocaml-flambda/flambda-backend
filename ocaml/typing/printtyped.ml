@@ -169,16 +169,16 @@ let tag ppf = let open Types in function
   | Extension (p,_) -> fprintf ppf "Extension %a" fmt_path p
 
 let variant_representation i ppf = let open Types in function
-  | Variant_unboxed l ->
-    line i ppf "Variant_unboxed %a\n" Layouts.Layout.format l
+  | Variant_unboxed ->
+    line i ppf "Variant_unboxed\n"
   | Variant_boxed layouts ->
     line i ppf "Variant_boxed %a\n"
       (array (i+1) (fun _ ppf -> layout_array (i+1) ppf)) layouts
   | Variant_extensible -> line i ppf "Variant_inlined\n"
 
 let record_representation i ppf = let open Types in function
-  | Record_unboxed l ->
-    line i ppf "Record_unboxed %a\n" Layouts.Layout.format l
+  | Record_unboxed ->
+    line i ppf "Record_unboxed\n"
   | Record_boxed layouts ->
     line i ppf "Record_boxed %a\n" (layout_array i) layouts
   | Record_inlined (t,v) ->
@@ -399,7 +399,7 @@ and expression i ppf x =
   | Texp_match (e, sort, l, _partial) ->
       line i ppf "Texp_match\n";
       expression i ppf e;
-      line i ppf "%a\n" Layouts.Layout.format (Layouts.Layout.of_sort sort);
+      line i ppf "%a\n" Layouts.Sort.format sort;
       list i case ppf l;
   | Texp_try (e, l) ->
       line i ppf "Texp_try\n";
@@ -917,7 +917,7 @@ and structure_item i ppf x =
   | Tstr_eval (e, l, attrs) ->
       line i ppf "Tstr_eval\n";
       attributes i ppf attrs;
-      line i ppf "%a\n" Layouts.Layout.format l;
+      line i ppf "%a\n" Layouts.Sort.format l;
       expression i ppf e;
   | Tstr_value (rf, l) ->
       line i ppf "Tstr_value %a\n" fmt_rec_flag rf;

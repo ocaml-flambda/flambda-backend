@@ -645,7 +645,7 @@ let inline_attribute ~space ppf (i : Inline_attribute.t) =
 let inline_attribute_opt ~space ppf i =
   pp_option ~space (inline_attribute ~space:Neither) ppf i
 
-let inlined_attribute ~space ppf (i : Inlined_attribute.t) =
+let inlined_attribute ~space ppf (i : Fexpr.inlined_attribute) =
   let str =
     match i with
     | Always_inlined -> Some "inlined(always)"

@@ -28,7 +28,10 @@ open Ctype
 exception Already_bound
 
 type value_loc =
-    Fun_arg | Fun_ret | Tuple | Poly_variant | Package_constraint | Object_field
+    Tuple | Poly_variant | Package_constraint | Object_field
+
+type sort_loc =
+    Fun_arg | Fun_ret
 
 type error =
   | Unbound_type_variable of string * string list
@@ -51,10 +54,12 @@ type error =
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
   | Not_an_object of type_expr
-  | Unsupported_extension of Language_extension.t
+  | Unsupported_extension : _ Language_extension.t -> error
   | Polymorphic_optional_param
   | Non_value of
-      {vloc : value_loc; typ : type_expr; err : Layout.Violation.violation}
+      {vloc : value_loc; typ : type_expr; err : Layout.Violation.t}
+  | Non_sort of
+      {vloc : sort_loc; typ : type_expr; err : Layout.Violation.t}
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -203,7 +208,7 @@ end = struct
       ~finally:(fun () -> univars := old_univars)
 
   let make_poly_univars vars =
-    List.map (fun name -> name, newvar ~name Layout.value) vars
+    List.map (fun name -> name, newvar ~name (Layout.value ~why:Univar)) vars
 
   let check_poly_univars env loc vars =
     vars |> List.iter (fun (_, v) -> generalize v);
@@ -289,7 +294,7 @@ end = struct
     TyVarMap.iter
       (fun name (ty, loc) ->
         if flavor = Unification || is_in_scope name then
-          let v = new_global_var Layout.any in
+          let v = new_global_var (Layout.any ~why:Dummy_layout) in
           let snap = Btype.snapshot () in
           if try unify env v ty; true with _ -> Btype.backtrack snap; false
           then try
@@ -299,7 +304,7 @@ end = struct
               raise(Error(loc, env,
                           Unbound_type_variable ("'"^name,
                                                  get_in_scope_names ())));
-            let v2 = new_global_var Layout.any in
+            let v2 = new_global_var (Layout.any ~why:Dummy_layout) in
             r := (loc, v, v2) :: !r;
             add name v2)
       !used_variables;
@@ -431,10 +436,15 @@ and transl_type_aux env policy mode styp =
     { ctyp_desc; ctyp_type; ctyp_env = env;
       ctyp_loc = loc; ctyp_attributes = styp.ptyp_attributes }
   in
+  match Jane_syntax.Core_type.of_ast styp with
+  | Some (etyp, attrs) -> transl_type_aux_jst env policy mode attrs etyp
+  | None ->
   match styp.ptyp_desc with
     Ptyp_any ->
-      let ty = TyVarEnv.new_anon_var styp.ptyp_loc env Layout.any policy in
-      ctyp Ttyp_any ty
+     let ty =
+       TyVarEnv.new_anon_var styp.ptyp_loc env (Layout.any ~why:Wildcard) policy
+     in
+     ctyp Ttyp_any ty
   | Ptyp_var name ->
     let ty =
       if not (valid_tyvar_name name) then
@@ -442,7 +452,8 @@ and transl_type_aux env policy mode styp =
       begin try
         TyVarEnv.lookup_local name
       with Not_found ->
-        let v = TyVarEnv.new_var ~name Layout.any policy in
+        let v = TyVarEnv.new_var ~name
+                  (Layout.any ~why:Unification_var) policy in
         TyVarEnv.remember_used name v styp.ptyp_loc;
         v
       end
@@ -478,21 +489,20 @@ and transl_type_aux env policy mode styp =
           let arg_mode = Alloc_mode.of_const arg_mode in
           let ret_mode = Alloc_mode.of_const ret_mode in
           let arrow_desc = (l, arg_mode, ret_mode) in
-          (* CR layouts v2: For now, we require function arguments and returns
-             to have layout value.  See comment in [Ctype.filter_arrow].  *)
+          (* CR layouts v3: For now, we require function arguments and returns
+             to have a representable layout.  See comment in
+             [Ctype.filter_arrow].  *)
           begin match
-            constrain_type_layout ~reason:(Fixed_layout Function_argument)
-              env arg_ty Layout.value,
-            constrain_type_layout ~reason:(Fixed_layout Function_result)
-              env ret_cty.ctyp_type Layout.value
+            Ctype.type_sort ~why:Function_argument env arg_ty,
+            Ctype.type_sort ~why:Function_result env ret_cty.ctyp_type
           with
           | Ok _, Ok _ -> ()
           | Error e, _ ->
             raise (Error(arg.ptyp_loc, env,
-                         Non_value {vloc = Fun_arg; err = e; typ = arg_ty}))
+                         Non_sort {vloc = Fun_arg; err = e; typ = arg_ty}))
           | _, Error e ->
             raise (Error(ret.ptyp_loc, env,
-                         Non_value
+                         Non_sort
                            {vloc = Fun_ret; err = e; typ = ret_cty.ctyp_type}))
           end;
           let ty =
@@ -508,8 +518,8 @@ and transl_type_aux env policy mode styp =
     List.iter (fun {ctyp_type; ctyp_loc} ->
       (* CR layouts v5: remove value requirement *)
       match
-        constrain_type_layout ~reason:(Fixed_layout Tuple_element)
-          env ctyp_type Layout.value
+        constrain_type_layout
+          env ctyp_type (Layout.value ~why:Tuple_element)
       with
       | Ok _ -> ()
       | Error e ->
@@ -608,10 +618,13 @@ and transl_type_aux env policy mode styp =
               (row_fields row)
           in
           (* NB: row is always non-static here; more is thus never Tnil *)
-          let more = TyVarEnv.new_var Layout.value policy in
+          let more =
+            TyVarEnv.new_var (Layout.value ~why:Row_variable) policy
+          in
           let row =
             create_row ~fields ~more
-              ~closed:true ~fixed:None ~name:(Some (path, ty_args)) in
+              ~closed:true ~fixed:None ~name:(Some (path, ty_args))
+          in
           newty (Tvariant row)
       | Tobject (fi, _) ->
           let _, tv = flatten_fields fi in
@@ -633,7 +646,7 @@ and transl_type_aux env policy mode styp =
           ty
         with Not_found ->
           if !Clflags.principal then begin_def ();
-          let t = newvar Layout.any in
+          let t = newvar (Layout.any ~why:Dummy_layout) in
           TyVarEnv.remember_used alias t styp.ptyp_loc;
           let ty = transl_type env policy mode st in
           begin try unify_var env t ty.ctyp_type with Unify err ->
@@ -660,7 +673,7 @@ and transl_type_aux env policy mode styp =
       let name = ref None in
       let mkfield l f =
         newty (Tvariant (create_row ~fields:[l,f]
-                           ~more:(newvar Layout.value)
+                           ~more:(newvar (Layout.value ~why:Row_variable))
                            ~closed:true ~fixed:None ~name:None)) in
       let hfields = Hashtbl.create 17 in
       let add_typed_field loc l f =
@@ -692,8 +705,8 @@ and transl_type_aux env policy mode styp =
               (* CR layouts: at some point we'll allow different layouts in
                  polymorphic variants. *)
               match
-                constrain_type_layout ~reason:Dummy_reason_result_ignored
-                  env ctyp_type Layout.value
+                constrain_type_layout env ctyp_type
+                  (Layout.value ~why:Polymorphic_variant_field)
               with
               | Ok _ -> ()
               | Error e ->
@@ -761,8 +774,10 @@ and transl_type_aux env policy mode styp =
         create_row ~fields ~more ~closed:(closed = Closed) ~fixed:None ~name
       in
       let more =
-        if Btype.static_row (make_row (newvar Layout.value)) then newty Tnil
-        else TyVarEnv.new_var Layout.value policy
+        if Btype.static_row
+             (make_row (newvar (Layout.value ~why:Row_variable)))
+        then newty Tnil
+        else TyVarEnv.new_var (Layout.value ~why:Row_variable) policy
       in
       let ty = newty (Tvariant (make_row more)) in
       ctyp (Ttyp_variant (tfields, closed, present)) ty
@@ -781,7 +796,7 @@ and transl_type_aux env policy mode styp =
       let ty_list = TyVarEnv.check_poly_univars env styp.ptyp_loc new_univars in
       let ty_list = List.filter (fun v -> deep_occur v ty) ty_list in
       let ty' = Btype.newgenty (Tpoly(ty, ty_list)) in
-      unify_var env (newvar Layout.any) ty';
+      unify_var env (newvar (Layout.any ~why:Dummy_layout)) ty';
       ctyp (Ttyp_poly (vars, cty)) ty'
   | Ptyp_package (p, l) ->
     (* CR layouts: right now we're doing a real gross hack where we demand
@@ -801,8 +816,7 @@ and transl_type_aux env policy mode styp =
                           ) l in
       List.iter (fun (s,{ctyp_type=ty}) ->
         match
-          Ctype.constrain_type_layout ~reason:(Fixed_layout Package_hack)
-            env ty Layout.value
+          Ctype.constrain_type_layout env ty (Layout.value ~why:Package_hack)
         with
         | Ok _ -> ()
         | Error e ->
@@ -821,6 +835,10 @@ and transl_type_aux env policy mode styp =
            }) ty
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
+
+and transl_type_aux_jst _env _policy _mode _attrs
+      : Jane_syntax.Core_type.t -> _ = function
+  | _ -> .
 
 and transl_fields env policy o fields =
   let hfields = Hashtbl.create 17 in
@@ -844,8 +862,8 @@ and transl_fields env policy o fields =
         in
         begin
           match
-            constrain_type_layout ~reason:(Fixed_layout Object_field)
-              env ty1.ctyp_type Layout.value
+            constrain_type_layout
+              env ty1.ctyp_type (Layout.value ~why:Object_field)
           with
           | Ok _ -> ()
           | Error e ->
@@ -892,7 +910,7 @@ and transl_fields env policy o fields =
   let ty_init =
      match o with
      | Closed -> newty Tnil
-     | Open -> TyVarEnv.new_var Layout.value policy
+     | Open -> TyVarEnv.new_var (Layout.value ~why:Row_variable) policy
   in
   let ty = List.fold_left (fun ty (s, ty') ->
       newty (Tfield (s, field_public, ty', ty))) ty_init fields in
@@ -986,6 +1004,11 @@ let transl_type_scheme env styp =
      begin_def();
      let typ = transl_simple_type env ~closed:false Alloc_mode.Global styp in
      end_def();
+     (* This next line is very important: it stops [val] and [external]
+        declarations from having undefaulted layout variables. Without
+        this line, we might accidentally export a layout-flexible definition
+        from a compilation unit, which would lead to miscompilation. *)
+     remove_mode_and_layout_variables typ.ctyp_type;
      generalize typ.ctyp_type;
      typ
 
@@ -1099,14 +1122,21 @@ let report_error env ppf = function
   | Non_value {vloc; typ; err} ->
     let s =
       match vloc with
-      | Fun_arg -> "Function argument"
-      | Fun_ret -> "Function return"
       | Tuple -> "Tuple element"
       | Poly_variant -> "Polymorpic variant constructor argument"
       | Package_constraint -> "Signature package constraint"
       | Object_field -> "Object field"
     in
     fprintf ppf "@[%s types must have layout value.@ \ %a@]"
+      s (Layout.Violation.report_with_offender
+           ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
+  | Non_sort {vloc; typ; err} ->
+    let s =
+      match vloc with
+      | Fun_arg -> "Function argument"
+      | Fun_ret -> "Function return"
+    in
+    fprintf ppf "@[%s types must have a representable layout.@ \ %a@]"
       s (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
 

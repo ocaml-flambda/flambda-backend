@@ -473,6 +473,6 @@ let () =
   run "optionalarg" optionalarg (fun_with_optional_arg, 10);
   run "optionaleta" optionaleta ()
 
-
-(* In debug mode, Gc.minor () checks for minor heap->local pointers *)
+(* In debug mode, Gc.minor () checks for minor heap->local pointers (and
+   backwards local pointers, which can't occur here) *)
 let () = Gc.minor ()

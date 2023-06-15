@@ -25,7 +25,8 @@
    (with-outputs-to fail1.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -43,7 +44,8 @@
    (with-outputs-to fail2.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -61,7 +63,8 @@
    (with-outputs-to fail3.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -79,7 +82,8 @@
    (with-outputs-to fail4.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -97,7 +101,8 @@
    (with-outputs-to fail5.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -115,7 +120,8 @@
    (with-outputs-to fail6.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -133,7 +139,8 @@
    (with-outputs-to fail7.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -151,7 +158,8 @@
    (with-outputs-to fail8.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -169,7 +177,8 @@
    (with-outputs-to fail9.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -187,7 +196,8 @@
    (with-outputs-to fail10.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -205,7 +215,8 @@
    (with-outputs-to fail11.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -223,7 +234,8 @@
    (with-outputs-to fail12.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
    ))))
 
@@ -241,7 +253,8 @@
    (with-outputs-to fail13.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -259,7 +272,8 @@
    (with-outputs-to fail14.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -277,7 +291,8 @@
    (with-outputs-to fail15.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -289,13 +304,109 @@
 
 (rule
  (enabled_if (= %{context_name} "main"))
+ (targets fail16.output.corrected)
+ (deps (:ml fail16.ml) filter.sh)
+ (action
+   (with-outputs-to fail16.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail16.output fail16.output.corrected)
+ (action (diff fail16.output fail16.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail17.output.corrected)
+ (deps (:ml fail17.ml) filter.sh)
+ (action
+   (with-outputs-to fail17.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail17.output fail17.output.corrected)
+ (action (diff fail17.output fail17.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail18.output.corrected)
+ (deps (:ml fail18.ml) filter.sh)
+ (action
+   (with-outputs-to fail18.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail18.output fail18.output.corrected)
+ (action (diff fail18.output fail18.output.corrected)))
+
+(rule
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (targets fail19.output.corrected)
+ (deps (:ml dep19.ml fail19.ml) filter.sh)
+ (action
+   (with-outputs-to fail19.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (deps fail19.output fail19.output.corrected)
+ (action (diff fail19.output fail19.output.corrected)))
+
+(rule
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (targets fail20.output.corrected)
+ (deps (:ml fail20.ml) filter.sh)
+ (action
+   (with-outputs-to fail20.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (deps fail20.output fail20.output.corrected)
+ (action (diff fail20.output fail20.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
  (targets test_attribute_error_duplicate.output.corrected)
  (deps (:ml test_attribute_error_duplicate.ml) filter.sh)
  (action
    (with-outputs-to test_attribute_error_duplicate.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 0 -O3))
     (run "./filter.sh")
    ))))
 
@@ -313,7 +424,8 @@
    (with-outputs-to test_attr_unused.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 0
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
    ))))
 
@@ -331,7 +443,8 @@
    (with-outputs-to t6.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 0
-     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c -zero-alloc-check -O3))
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
    ))))
 
@@ -340,3 +453,59 @@
  (enabled_if (= %{context_name} "main"))
  (deps t6.output t6.output.corrected)
  (action (diff t6.output t6.output.corrected)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps t7.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_stub_dep.ml test_stub.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (deps t1.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_warning198.output.corrected)
+ (deps (:ml test_warning198.ml) filter.sh)
+ (action
+   (with-outputs-to test_warning198.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 0
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_warning198.output test_warning198.output.corrected)
+ (action (diff test_warning198.output test_warning198.output.corrected)))
+
+(rule
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (targets test_warning199.output.corrected)
+ (deps (:ml test_warning199.mli test_warning199.ml) filter.sh)
+ (action
+   (with-outputs-to test_warning199.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 0
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (deps test_warning199.output test_warning199.output.corrected)
+ (action (diff test_warning199.output test_warning199.output.corrected)))

@@ -210,6 +210,7 @@ type type_declaration =
   { type_params: type_expr list;
     type_arity: int;
     type_kind: type_decl_kind;
+    type_layout: layout;
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -225,7 +226,7 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract of {layout : layout}
+    Type_abstract
   | Type_record of 'lbl list * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
@@ -235,19 +236,18 @@ and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
         | Extension of Path.t * layout array
 
 and record_representation =
-  | Record_unboxed of layout
+  | Record_unboxed
   | Record_inlined of tag * variant_representation
   | Record_boxed of layout array
   | Record_float
 
 and variant_representation =
-  | Variant_unboxed of layout
+  | Variant_unboxed
   | Variant_boxed of layout array array
   | Variant_extensible
 
 and global_flag =
   | Global
-  | Nonlocal
   | Unrestricted
 
 and label_declaration =
@@ -498,25 +498,25 @@ let equal_tag t1 t2 =
   | (Ordinary _ | Extension _), _ -> false
 
 let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
-  | Variant_unboxed lay1, Variant_unboxed lay2 ->
-      Layout.equal lay1 lay2
+  | Variant_unboxed, Variant_unboxed ->
+      true
   | Variant_boxed lays1, Variant_boxed lays2 ->
       Misc.Stdlib.Array.equal (Misc.Stdlib.Array.equal Layout.equal) lays1 lays2
   | Variant_extensible, Variant_extensible ->
       true
-  | (Variant_unboxed _ | Variant_boxed _ | Variant_extensible), _ ->
+  | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
       false
 
 let equal_record_representation r1 r2 = match r1, r2 with
-  | Record_unboxed lay1, Record_unboxed lay2 ->
-      Layout.equal lay1 lay2
+  | Record_unboxed, Record_unboxed ->
+      true
   | Record_inlined (tag1, vr1), Record_inlined (tag2, vr2) ->
       equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
   | Record_boxed lays1, Record_boxed lays2 ->
       Misc.Stdlib.Array.equal Layout.equal lays1 lays2
   | Record_float, Record_float ->
       true
-  | (Record_unboxed _ | Record_inlined _ | Record_boxed _ | Record_float), _ ->
+  | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float), _ ->
       false
 
 let may_equal_constr c1 c2 =
@@ -528,74 +528,24 @@ let may_equal_constr c1 c2 =
      | tag1, tag2 ->
          equal_tag tag1 tag2)
 
-
-let kind_abstract ~layout = Type_abstract { layout }
-(* CR-someday layouts: We could match on the layout and return one of the below
-   to share more - test whether the memory savings is worth the runtime cost of
-   the match.  I implemented a similar optimization in Subst.norm, but was
-   surprised to find basically no impact on artifact sizes. *)
-
-let kind_abstract_value = kind_abstract ~layout:Layout.value
-let kind_abstract_immediate = kind_abstract ~layout:Layout.immediate
-let kind_abstract_any = kind_abstract ~layout:Layout.any
-
 let decl_is_abstract decl =
   match decl.type_kind with
-  | Type_abstract _ -> true
+  | Type_abstract -> true
   | Type_record _ | Type_variant _ | Type_open -> false
-
-let all_void layouts =
-  Array.for_all (fun l ->
-    match Layout.get l with
-    | Const Void -> true
-    | Const (Any | Immediate | Immediate64 | Value) | Var _ -> false)
-    layouts
-
-let layout_bound_of_record_representation : record_representation -> _ =
-  let open Layout in function
-  | Record_unboxed l -> l
-  | Record_float -> value
-  | Record_inlined (tag,rep) -> begin
-      match (tag,rep) with
-      | Extension _, _ -> value
-      | _, Variant_extensible -> value
-      | Ordinary _, Variant_unboxed l -> l (* n must be 0 here *)
-      | Ordinary {src_index}, Variant_boxed layouts ->
-        if all_void layouts.(src_index)
-        then immediate
-        else value
-    end
-  | Record_boxed layouts when all_void layouts -> immediate
-  | Record_boxed _ -> value
-
-let layout_bound_of_variant_representation : variant_representation -> _ =
-  let open Layout in function
-  | Variant_unboxed l -> l
-  | Variant_boxed layouts ->
-    if Array.for_all all_void layouts then immediate else value
-  | Variant_extensible -> value
-
-(* should not mutate sorts *)
-let layout_bound_of_kind : _ type_kind -> _ =
-  let open Layout in function
-  | Type_abstract { layout } -> layout
-  | Type_open -> value
-  | Type_record (_,rep) -> layout_bound_of_record_representation rep
-  | Type_variant (_, rep) -> layout_bound_of_variant_representation rep
 
 let find_unboxed_type decl =
   match decl.type_kind with
-    Type_record ([{ld_type = arg; _}], Record_unboxed _)
-  | Type_record ([{ld_type = arg; _}], Record_inlined (_, Variant_unboxed _))
-  | Type_variant ([{cd_args = Cstr_tuple [arg,_]; _}], Variant_unboxed _)
+    Type_record ([{ld_type = arg; _}], Record_unboxed)
+  | Type_record ([{ld_type = arg; _}], Record_inlined (_, Variant_unboxed))
+  | Type_variant ([{cd_args = Cstr_tuple [arg,_]; _}], Variant_unboxed)
   | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
-                  Variant_unboxed _) ->
+                  Variant_unboxed) ->
     Some arg
-  | Type_record (_, ( Record_inlined _ | Record_unboxed _
+  | Type_record (_, ( Record_inlined _ | Record_unboxed
                     | Record_boxed _ | Record_float ))
-  | Type_variant (_, ( Variant_boxed _ | Variant_unboxed _
+  | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
                      | Variant_extensible ))
-  | Type_abstract _ | Type_open ->
+  | Type_abstract | Type_open ->
     None
 
 type label_description =

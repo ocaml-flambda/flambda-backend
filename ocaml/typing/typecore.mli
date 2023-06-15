@@ -121,6 +121,9 @@ val type_let:
           Typedtree.value_binding list * Env.t
 val type_expression:
         Env.t -> Parsetree.expression -> Typedtree.expression
+val type_representable_expression:
+        why:Layouts.Layout.concrete_layout_reason ->
+        Env.t -> Parsetree.expression -> Typedtree.expression * sort
 val type_class_arg_pattern:
         string -> Env.t -> Env.t -> arg_label -> Parsetree.pattern ->
         Typedtree.pattern *
@@ -194,7 +197,7 @@ type error =
       Datatype_kind.t * Longident.t * (Path.t * Path.t) * (Path.t * Path.t) list
   | Invalid_format of string
   | Not_an_object of type_expr * type_forcing_context option
-  | Not_a_value of Layout.Violation.violation * type_forcing_context option
+  | Not_a_value of Layout.Violation.t * type_forcing_context option
   | Undefined_method of type_expr * string * string list option
   | Undefined_self_method of string * string list
   | Virtual_class of Longident.t
@@ -240,7 +243,7 @@ type error =
   | Probe_name_undefined of string
   (* CR-soon mshinwell: Use an inlined record *)
   | Probe_is_enabled_format
-  | Extension_not_enabled of Language_extension.t
+  | Extension_not_enabled : _ Language_extension.t -> error
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Illegal_letrec_pat
@@ -263,6 +266,8 @@ type error =
   | Optional_poly_param
   | Exclave_in_nontail_position
   | Layout_not_enabled of Layout.const
+  | Unboxed_int_literals_not_supported
+  | Unboxed_float_literals_not_supported
 
 
 exception Error of Location.t * Env.t * error

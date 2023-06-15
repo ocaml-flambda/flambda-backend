@@ -1,4 +1,6 @@
 (* TEST
+   * skip
+   reason = "Backtraces are broken by the use of reraise"
    flags = "-g"
    ocamlrunparam += ",b=1"
 *)

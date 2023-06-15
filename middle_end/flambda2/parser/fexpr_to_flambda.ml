@@ -441,7 +441,14 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
 
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with
-  | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
+  | Array_set (ak, ia) ->
+    let ask : Flambda_primitive.Array_set_kind.t =
+      match ak, ia with
+      | Immediates, _ -> Immediates
+      | Naked_floats, _ -> Naked_floats
+      | Values, ia -> Values (init_or_assign env ia)
+    in
+    Array_set ask
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
 
@@ -964,8 +971,13 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         | None | Some { params_arity = None; ret_arity = _ } ->
           Misc.fatal_errorf "Must specify arities for C call")
     in
-    let inlined =
-      inlined |> Option.value ~default:Inlined_attribute.Default_inlined
+    let inlined : Inlined_attribute.t =
+      match inlined with
+      | None | Some Default_inlined -> Default_inlined
+      | Some Hint_inlined -> Hint_inlined
+      | Some Always_inlined -> Always_inlined Expected_to_be_used
+      | Some (Unroll n) -> Unroll (n, Expected_to_be_used)
+      | Some Never_inlined -> Never_inlined
     in
     let inlining_state =
       match inlining_state with
@@ -983,7 +995,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         exn_continuation
         ~args:((List.map (simple env)) args)
         ~args_arity ~return_arity ~call_kind Debuginfo.none ~inlined
-        ~inlining_state ~probe_name:None ~position:Normal
+        ~inlining_state ~probe:None ~position:Normal
         ~relative_history:Inlining_history.Relative.empty ~region
     in
     Flambda.Expr.create_apply apply

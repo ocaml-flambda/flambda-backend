@@ -29,14 +29,17 @@ Line 1, characters 13-21:
 Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
 
-(*************************************************)
-(* Test 1: Reject non-value function arg/returns *)
+(************************************************************)
+(* Test 1: Disallow non-representable function args/returns *)
 
-(* CR layouts v2: moved to layouts alpha.  Bring here when we have a non-value
-   layout in beta. *)
+(* CR layouts v3: moved to layouts alpha.  Bring here when we have
+   non-representable layouts in beta. *)
 
-(*********************************************)
-(* Test 2: Permit value function arg/returns *)
+(*****************************************************)
+(* Test 2: Permit representable function arg/returns *)
+
+(* CR layouts v2: much of this test moved to basics_alpha.  Add #float versions
+   and bring them here. *)
 module type S = sig
   val f1 : t_value -> t_value
   val f2 : t_imm -> t_imm64
@@ -445,7 +448,7 @@ val f18 : 'a -> 'a = <fun>
 (* Test 22: approx_type catch-all can't be restricted to value *)
 
 (* CR layouts: This test moved to [basics_alpha.ml] as it needs a non-value
-   sort.  Bring back here when we have one enabled by default. *)
+   sort.  Bring back here when we have one. *)
 
 type t_void [@@void];;
 [%%expect{|
@@ -454,3 +457,63 @@ Line 1, characters 12-20:
                 ^^^^^^^^
 Error: Layout void is used here, but the appropriate layouts extension is not enabled
 |}];;
+
+(********************************************************************)
+(* Test 23: checking the error message from impossible GADT matches *)
+
+(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)
+
+(*****************************************************)
+(* Test 24: Polymorphic parameter with exotic layout *)
+
+(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)
+
+(**************************************************)
+(* Test 25: Optional parameter with exotic layout *)
+
+(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)
+
+(*********************************************************)
+(* Test 26: Inferring an application to an exotic layout *)
+
+(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)
+
+(******************************************)
+(* Test 27: Exotic layouts in approx_type *)
+
+(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)
+
+(************************************)
+(* Test 28: Exotic layouts in letop *)
+
+(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)
+
+(*******************************************)
+(* Test 29: [external]s default to [value] *)
+
+(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)
+
+(**************************************)
+(* Test 30: [val]s default to [value] *)
+
+(* CR layouts v2: This test moved to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)
+
+(**************************************************)
+(* Test 31: checking that #poly_var patterns work *)
+
+(* CR layouts: This test moves to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)
+
+(*********************************************************)
+(* Test 32: Polymorphic variant constructors take values *)
+
+(* CR layouts: This test moves to [basics_alpha.ml] as it needs a non-value
+   sort.  Bring back here when we have one. *)

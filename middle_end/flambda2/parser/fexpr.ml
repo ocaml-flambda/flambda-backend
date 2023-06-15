@@ -391,7 +391,7 @@ type inline_attribute = Inline_attribute.t =
   | Unroll of int
   | Default_inline
 
-type inlined_attribute = Inlined_attribute.t =
+type inlined_attribute =
   | Always_inlined
   | Hint_inlined
   | Never_inlined

@@ -168,10 +168,7 @@ type privacy_mismatch =
   | Private_extensible_variant
   | Private_row_type
 
-type locality_mismatch =
-  { order : position;
-    nonlocal : bool
-  }
+type locality_mismatch = { order : position }
 
 type label_mismatch =
   | Type of Errortrace.equality_error
@@ -230,14 +227,11 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
   | Extensible_representation of position
-  | Layout of Layout.Violation.violation
+  | Layout of Layout.Violation.t
 
 let report_locality_mismatch first second ppf err =
-  let {order; nonlocal} = err in
-  let sort =
-    if nonlocal then "nonlocal"
-    else "global"
-  in
+  let {order} = err in
+  let sort = "global" in
   Format.fprintf ppf "%s is %s and %s is not."
     (String.capitalize_ascii  (choose order first second))
     sort
@@ -492,16 +486,11 @@ let report_type_mismatch first second decl env ppf err =
 
 let compare_global_flags flag0 flag1 =
   match flag0, flag1 with
-  | Global, (Nonlocal | Unrestricted) ->
-    Some {order = First; nonlocal = false}
-  | (Nonlocal | Unrestricted), Global ->
-    Some {order = Second; nonlocal = false}
-  | Nonlocal, Unrestricted ->
-    Some {order = First; nonlocal = true}
-  | Unrestricted, Nonlocal ->
-    Some {order = Second; nonlocal = true}
+  | Global, Unrestricted ->
+    Some {order = First}
+  | Unrestricted, Global ->
+    Some {order = Second}
   | Global, Global
-  | Nonlocal, Nonlocal
   | Unrestricted, Unrestricted ->
     None
 
@@ -625,9 +614,9 @@ module Record_diffing = struct
       Some (Record_mismatch (Label_mismatch patch))
     else
      match rep1, rep2 with
-     | Record_unboxed _, Record_unboxed _ -> None
-     | Record_unboxed _, _ -> Some (Unboxed_representation (First, []))
-     | _, Record_unboxed _ -> Some (Unboxed_representation (Second, []))
+     | Record_unboxed, Record_unboxed -> None
+     | Record_unboxed, _ -> Some (Unboxed_representation (First, []))
+     | _, Record_unboxed -> Some (Unboxed_representation (Second, []))
 
      | Record_inlined _, Record_inlined _ -> None
      | Record_inlined _, _ ->
@@ -781,14 +770,14 @@ module Variant_diffing = struct
       | _ -> []
     in
     match err, rep1, rep2 with
-    | None, Variant_unboxed _, Variant_unboxed _
+    | None, Variant_unboxed, Variant_unboxed
     | None, Variant_boxed _, Variant_boxed _
     | None, Variant_extensible, Variant_extensible -> None
     | Some err, _, _ ->
         Some (Variant_mismatch err)
-    | None, Variant_unboxed _, Variant_boxed _ ->
+    | None, Variant_unboxed, Variant_boxed _ ->
         Some (Unboxed_representation (First, attrs_of_only cstrs2))
-    | None, Variant_boxed _, Variant_unboxed _ ->
+    | None, Variant_boxed _, Variant_unboxed ->
         Some (Unboxed_representation (Second, attrs_of_only cstrs1))
     | None, Variant_extensible, _ ->
       Some (Extensible_representation First)
@@ -804,7 +793,7 @@ let privacy_mismatch env decl1 decl2 =
       | Type_record  _, Type_record  _ -> Some Private_record_type
       | Type_variant _, Type_variant _ -> Some Private_variant_type
       | Type_open,      Type_open      -> Some Private_extensible_variant
-      | Type_abstract _, Type_abstract _
+      | Type_abstract, Type_abstract
         when Option.is_some decl2.type_manifest -> begin
           match decl1.type_manifest with
           | Some ty1 -> begin
@@ -941,7 +930,7 @@ let type_manifest env ty1 params1 ty2 params2 priv2 kind2 =
   | _ -> begin
       let is_private_abbrev_2 =
         match priv2, kind2 with
-        | Private, Type_abstract _ -> begin
+        | Private, Type_abstract -> begin
             (* Same checks as the [when] guards from above, inverted *)
             match get_desc ty2' with
             | Tvariant row ->
@@ -1000,15 +989,13 @@ let type_declarations ?(equality = false) ~loc env ~mark name
   in
   if err <> None then err else
   let err = match (decl1.type_kind, decl2.type_kind) with
-      (_, Type_abstract { layout }) ->
-       (* Note that [layout] is an upper bound.  If it isn't tight, [decl2] must
+      (_, Type_abstract) ->
+       (* Note that [decl2.type_layout] is an upper bound.
+          If it isn't tight, [decl2] must
           have a manifest, which we're already checking for equality
           above. Similarly, [decl1]'s kind may conservatively approximate its
           layout, but [check_decl_layout] will expand its manifest.  *)
-        (match
-           Ctype.check_decl_layout ~reason:Dummy_reason_result_ignored
-             env decl1 layout
-         with
+        (match Ctype.check_decl_layout env decl1 decl2.type_layout with
          | Ok _ -> None
          | Error v -> Some (Layout v))
     | (Type_variant (cstrs1, rep1), Type_variant (cstrs2, rep2)) ->

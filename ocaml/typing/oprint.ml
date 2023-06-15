@@ -284,9 +284,7 @@ let join_modes rm1 am2 =
 
 let print_out_layout ppf = function
   | Olay_const lay -> fprintf ppf "%s" (Layouts.Layout.string_of_const lay)
-  | Olay_var   v   -> fprintf ppf "%s" v
-      (* CR layouts: We need to either give these names somehow or not print
-         them at all *)
+  | Olay_var v     -> fprintf ppf "%s" v
 
 let print_out_layout_option ppf = function
   | None -> ()
@@ -460,7 +458,6 @@ and print_out_label ppf (name, mut_or_gbl, arg) =
       match mut_or_gbl with
       | Ogom_mutable -> "mutable "
       | Ogom_global -> "global_ "
-      | Ogom_nonlocal -> "nonlocal_ "
       | Ogom_immutable -> ""
     in
     fprintf ppf "@[<2>%s%s :@ %a@];" flag name print_out_type arg
@@ -470,8 +467,6 @@ and print_out_label ppf (name, mut_or_gbl, arg) =
     | Ogom_immutable -> fprintf ppf "@[%s :@ %a@];" name print_out_type arg
     | Ogom_global -> fprintf ppf "@[%s :@ %a@];" name print_out_type
                        (Otyp_attribute (arg, {oattr_name="global"}))
-    | Ogom_nonlocal -> fprintf ppf "@[%s :@ %a@];" name print_out_type
-                       (Otyp_attribute (arg, {oattr_name="nonlocal"}))
 
 let out_label = ref print_out_label
 
@@ -813,14 +808,6 @@ and print_simple_out_gf_type ppf (ty, gf) =
       print_simple_out_type ppf ty
     end else begin
       print_out_type ppf (Otyp_attribute (ty, {oattr_name="global"}))
-    end
-  | Ogf_nonlocal ->
-    if locals_enabled then begin
-      pp_print_string ppf "nonlocal_";
-      pp_print_space ppf ();
-      print_simple_out_type ppf ty
-    end else begin
-      print_out_type ppf (Otyp_attribute (ty, {oattr_name="nonlocal"}))
     end
   | Ogf_unrestricted ->
     print_simple_out_type ppf ty

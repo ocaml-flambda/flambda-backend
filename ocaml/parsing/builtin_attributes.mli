@@ -168,10 +168,8 @@ val has_curry: Parsetree.attributes -> bool
    are present despite the extension being disabled *)
 val has_local: Parsetree.attributes -> (bool,unit) result
 val has_global: Parsetree.attributes -> (bool,unit) result
-val has_nonlocal: Parsetree.attributes -> (bool,unit) result
 val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
-val has_include_functor : Parsetree.attributes -> (bool,unit) result
 
 (* [layout] gets the layout in the attributes if one is present.  It is the
    central point at which the layout extension flags are checked.  We always
@@ -200,4 +198,5 @@ val has_include_functor : Parsetree.attributes -> (bool,unit) result
 (* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
    turn on layouts by default). *)
 val layout : legacy_immediate:bool -> Parsetree.attributes ->
-  (Asttypes.const_layout option, Location.t * Asttypes.const_layout) result
+  (Asttypes.const_layout Location.loc option,
+   Asttypes.const_layout Location.loc) result
