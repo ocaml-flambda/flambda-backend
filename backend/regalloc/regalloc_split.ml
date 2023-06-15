@@ -73,22 +73,19 @@ let compute_substitutions : State.t -> Cfg_with_liveness.t -> Substitution.map =
     match Label.Map.find_opt label (State.definitions_at_beginning state) with
     | None -> ()
     | Some renames ->
-      let subst =
-        Reg.Set.fold
-          (fun old_reg acc ->
-            let slots = State.stack_slots state in
-            let (_ : int) = StackSlots.get_or_create slots old_reg in
-            let new_reg = Reg.clone old_reg in
-            StackSlots.use_same_slot_or_fatal slots new_reg ~existing:old_reg;
-            if split_debug
-            then
-              log ~indent:2 "renaming %a to %a" Printmach.reg old_reg
-                Printmach.reg new_reg;
-            Reg.Tbl.replace acc old_reg new_reg;
-            acc)
-          renames
-          (Reg.Tbl.create (Reg.Set.cardinal renames))
-      in
+      let subst = Reg.Tbl.create (Reg.Set.cardinal renames) in
+      Reg.Set.iter
+        (fun old_reg ->
+          let slots = State.stack_slots state in
+          let (_ : int) = StackSlots.get_or_create slots old_reg in
+          let new_reg = Reg.clone old_reg in
+          StackSlots.use_same_slot_or_fatal slots new_reg ~existing:old_reg;
+          if split_debug
+          then
+            log ~indent:2 "renaming %a to %a" Printmach.reg old_reg
+              Printmach.reg new_reg;
+          Reg.Tbl.replace subst old_reg new_reg)
+        renames;
       let block = Cfg_with_liveness.get_block_exn cfg_with_liveness label in
       propagate_substitution state cfg substs block subst
   in
