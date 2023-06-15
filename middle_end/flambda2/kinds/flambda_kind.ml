@@ -528,6 +528,7 @@ module With_subkind = struct
     | Pboxedintval Pint32 -> boxed_int32
     | Pboxedintval Pint64 -> boxed_int64
     | Pboxedintval Pnativeint -> boxed_nativeint
+    | Pboxedvectorval Pvec128 -> boxed_vec128
     | Pintval -> tagged_immediate
     | Pvariant { consts; non_consts } -> (
       match consts, non_consts with

@@ -64,8 +64,9 @@ let is_gc_ignorable kind =
   | Punboxed_float -> true
   | Punboxed_int _ -> true
   | Pvalue Pintval -> true
-  | Punboxed_vector _ -> true 
-  | Pvalue (Pgenval | Pfloatval | Pboxedintval _ | Pvariant _ | Parrayval _) -> false
+  | Punboxed_vector _ -> true
+  | Pvalue (Pgenval | Pfloatval | Pboxedintval _ | Pboxedvectorval _
+      | Pvariant _ | Parrayval _) -> false
 
 let split_closure_fv kinds fv =
   List.fold_right (fun id (not_scanned, scanned) ->

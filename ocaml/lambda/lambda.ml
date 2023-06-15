@@ -260,13 +260,14 @@ and value_kind =
       non_consts : (int * value_kind list) list;
     }
   | Parrayval of array_kind
+  | Pboxedvectorval of boxed_vector
 
 and layout =
   | Ptop
   | Pvalue of value_kind
   | Punboxed_float
   | Punboxed_int of boxed_integer
-  | Punboxed_vector of boxed_vector 
+  | Punboxed_vector of boxed_vector
   | Pbottom
 
 and block_shape =
@@ -290,7 +291,7 @@ and array_set_kind =
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
-and boxed_vector = Primitive.boxed_vector = 
+and boxed_vector = Primitive.boxed_vector =
   | Pvec128
 
 and bigarray_kind =
@@ -327,6 +328,8 @@ let rec equal_value_kind x y =
   | Pgenval, Pgenval -> true
   | Pfloatval, Pfloatval -> true
   | Pboxedintval bi1, Pboxedintval bi2 -> equal_boxed_integer bi1 bi2
+  | Pboxedvectorval bi1, Pboxedvectorval bi2 ->
+    equal_boxed_vector bi1 bi2
   | Pintval, Pintval -> true
   | Parrayval elt_kind1, Parrayval elt_kind2 -> elt_kind1 = elt_kind2
   | Pvariant { consts = consts1; non_consts = non_consts1; },
@@ -343,7 +346,7 @@ let rec equal_value_kind x y =
              && List.for_all2 equal_value_kind fields1 fields2)
            non_consts1 non_consts2
   | (Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
-      | Parrayval _), _ -> false
+      | Parrayval _ | Pboxedvectorval _), _ -> false
 
 let equal_layout x y =
   match x, y with
@@ -360,7 +363,7 @@ let compatible_layout x y =
   | Punboxed_float, Punboxed_float -> true
   | Punboxed_int bi1, Punboxed_int bi2 ->
       equal_boxed_integer bi1 bi2
-  | Punboxed_vector bi1, Punboxed_vector bi2 -> equal_boxed_vector bi1 bi2 
+  | Punboxed_vector bi1, Punboxed_vector bi2 -> equal_boxed_vector bi1 bi2
   | Ptop, Ptop -> true
   | Ptop, _ | _, Ptop -> false
   | (Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _), _ -> false

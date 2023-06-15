@@ -696,12 +696,16 @@ let move (src : Reg.t) (dst : Reg.t) =
     | Float, Reg.Reg _, Float, Reg.Reg _
     | Vec128, Reg.Reg _, Vec128, Reg.Reg _ -> I.movapd (reg src) (reg dst)
     (* CR mslater: (SIMD) alignment *)
-    | Vec128, _, Vec128, _ -> 
+    | Vec128, _, Vec128, _ ->
+      I.movupd (reg src) (reg dst)
+    (* mshinwell: XXX *)
+    | Vec128, _, Float, _
+    | Float, _, Vec128, _ ->
       I.movupd (reg src) (reg dst)
     | Float, _, Float, _ -> I.movsd (reg src) (reg dst)
     | Float, _, Int, _
     | Int, _, Float, _ -> I.movq (reg src) (reg dst)
-    | Vec128, _, _, _ | _, _, Vec128, _ -> 
+    | Vec128, _, _, _ | _, _, Vec128, _ ->
       Misc.fatal_errorf
         "Illegal move between a vector and non-vector register (%s to %s)\n"
         (Reg.name src) (Reg.name dst)
@@ -997,7 +1001,7 @@ let emit_instr fallthrough i =
           I.mov (addressing addr DWORD i 0) (res32 i 0)
       | Thirtytwo_signed ->
           I.movsxd (addressing addr DWORD i 0) dest
-      | Onetwentyeight -> 
+      | Onetwentyeight ->
           (* CR mslater: (SIMD) alignment *)
           I.movupd (addressing addr VEC128 i 0) dest
       | Single ->
@@ -1015,7 +1019,7 @@ let emit_instr fallthrough i =
           I.mov (arg16 i 0) (addressing addr WORD i 1)
       | Thirtytwo_signed | Thirtytwo_unsigned ->
           I.mov (arg32 i 0) (addressing addr DWORD i 1)
-      | Onetwentyeight -> 
+      | Onetwentyeight ->
           (* CR mslater: (SIMD) alignment *)
           I.movupd (arg i 0) (addressing addr VEC128 i 1)
       | Single ->
