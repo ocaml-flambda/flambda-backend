@@ -32,7 +32,7 @@
 #endif
 
         .globl caml_call_gc
-        .weak caml_call_gc
+        // .weak caml_call_gc
 caml_call_gc:
         int3
 

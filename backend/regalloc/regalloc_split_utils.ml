@@ -80,13 +80,12 @@ type destruction_kind =
 
 let destruction_point_at_end : Cfg.basic_block -> destruction_kind option =
  fun block ->
-  match block.terminator.desc, block.exn with
-  | Raise _, Some _ -> Some Destruction_on_all_paths
-  | _, None ->
-    if Proc.is_destruction_point block.terminator.desc
+  if Proc.is_destruction_point block.terminator.desc
+  then Some Destruction_on_all_paths
+  else if Option.is_none block.exn
+  then None
+  else (
+    assert (Cfg.can_raise_terminator block.terminator.desc);
+    if Label.Set.is_empty (Cfg.successor_labels block ~normal:true ~exn:false)
     then Some Destruction_on_all_paths
-    else None
-  | _, Some _ ->
-    if Proc.is_destruction_point block.terminator.desc
-    then Some Destruction_on_all_paths
-    else Some Destruction_only_on_exceptional_path
+    else Some Destruction_only_on_exceptional_path)
