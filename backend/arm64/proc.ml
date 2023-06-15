@@ -307,7 +307,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op _ | Poptrap | Prologue ->
     [||]
 
-(* note: keep this function in sync with `destroyed_at_oper` above. *)
+(* note: keep this function in sync with `destroyed_at_oper` above,
+   and `is_destruction_point` below. *)
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
@@ -324,6 +325,28 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
     if alloc then all_phys_regs else destroyed_at_c_call
   | Poll_and_jump _ -> destroyed_at_alloc_or_poll
+
+(* CR-soon xclerc for xclerc: consider having more destruction points.
+   We current return `true` when `destroyed_at_terminator` returns
+   `all_phys_regs`; we could also return `true` when `destroyed_at_terminator`
+   returns `destroyed_at_c_call` for instance. *)
+(* note: keep this function in sync with `destroyed_at_terminator` above. *)
+let is_destruction_point (terminator : Cfg_intf.S.terminator) =
+  match terminator with
+  | Never -> assert false
+  | Call {op = Indirect | Direct _; _} ->
+    true
+  | Prim {op = Alloc _; _} ->
+    false
+  | Always _ | Parity_test _ | Truth_test _ | Float_test _
+  | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
+  | Tailcall_func _ | Prim {op = Checkbound _ | Probe _; _}
+  | Specific_can_raise _ ->
+    false
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
+  | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
+    if alloc then true else false
+  | Poll_and_jump _ -> false
 
 (* Maximal register pressure *)
 

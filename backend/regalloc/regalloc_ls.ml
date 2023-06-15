@@ -239,7 +239,7 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
 let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
  fun cfg_with_liveness ->
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
-  let cfg_infos =
+  let cfg_infos, stack_slots =
     Regalloc_rewrite.prelude
       (module Utils)
       ~on_fatal_callback:(fun () ->
@@ -259,7 +259,8 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
   in
   let spilling_because_unused = Reg.Set.diff cfg_infos.res cfg_infos.arg in
   let state =
-    State.make ~next_instruction_id:(succ cfg_infos.max_instruction_id)
+    State.make ~stack_slots
+      ~next_instruction_id:(succ cfg_infos.max_instruction_id)
   in
   (match Reg.Set.elements spilling_because_unused with
   | [] -> ()

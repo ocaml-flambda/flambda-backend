@@ -7,7 +7,7 @@ type t
 
 val for_fatal : t -> Interval.t list * ClassIntervals.t array
 
-val make : next_instruction_id:Instruction.id -> t
+val make : stack_slots:StackSlots.t -> next_instruction_id:Instruction.id -> t
 
 val update_intervals : t -> Interval.t Reg.Tbl.t -> unit
 

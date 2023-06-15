@@ -14,12 +14,11 @@ let for_fatal t =
   ( List.map t.intervals ~f:Interval.copy,
     Array.map t.active ~f:ClassIntervals.copy )
 
-let[@inline] make ~next_instruction_id =
+let[@inline] make ~stack_slots ~next_instruction_id =
   let intervals = [] in
   let active =
     Array.init Proc.num_register_classes ~f:(fun _ -> ClassIntervals.make ())
   in
-  let stack_slots = StackSlots.make () in
   { intervals; active; stack_slots; next_instruction_id }
 
 let[@inline] update_intervals state map =

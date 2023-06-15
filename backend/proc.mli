@@ -60,6 +60,7 @@ val destroyed_at_reloadretaddr : Reg.t array
 val destroyed_at_pushtrap : Reg.t array
 val destroyed_at_basic : Cfg_intf.S.basic -> Reg.t array
 val destroyed_at_terminator : Cfg_intf.S.terminator -> Reg.t array
+val is_destruction_point : Cfg_intf.S.terminator -> bool
 
 (* Volatile registers: those that change value when read *)
 val regs_are_volatile: Reg.t array -> bool

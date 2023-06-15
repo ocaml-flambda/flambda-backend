@@ -487,7 +487,7 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
 let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
  fun cfg_with_liveness ->
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
-  let cfg_infos =
+  let cfg_infos, stack_slots =
     Regalloc_rewrite.prelude
       (module Utils)
       ~on_fatal_callback:(fun () -> save_cfg "irc" cfg_with_layout)
@@ -501,6 +501,7 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
   let state =
     State.make
       ~initial:(Reg.Set.elements all_temporaries)
+      ~stack_slots
       ~next_instruction_id:(succ cfg_infos.max_instruction_id)
       ()
   in
