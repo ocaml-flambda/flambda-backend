@@ -298,19 +298,17 @@ let expr sub x =
     | Texp_let (rec_flag, list, exp) ->
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
-    | Texp_function { arg_label; param; cases;
-                      partial; region; curry; warnings; arg_mode; alloc_mode } ->
+    | Texp_function { arg_label; param; cases; partial; region; curry;
+                      warnings; arg_mode; arg_sort; ret_sort; alloc_mode } ->
         let cases = List.map (sub.case sub) cases in
-        Texp_function { arg_label; param; cases;
-                        partial; region; curry; warnings; arg_mode; alloc_mode }
+        Texp_function { arg_label; param; cases; partial; region; curry;
+                        warnings; arg_mode; arg_sort; ret_sort; alloc_mode }
     | Texp_apply (exp, list, pos, am) ->
         Texp_apply (
           sub.expr sub exp,
           List.map (function
-            | (lbl, Arg exp) -> (lbl, Arg (sub.expr sub exp))
-            | (lbl, Omitted o) ->
-                let o' = { o with ty_env = sub.env sub o.ty_env } in
-                (lbl, Omitted o'))
+            | (lbl, Arg (exp, sort)) -> (lbl, Arg (sub.expr sub exp, sort))
+            | (lbl, Omitted o) -> (lbl, Omitted o))
             list,
           pos, am
         )
@@ -375,7 +373,7 @@ let expr sub x =
     | Texp_while wh ->
         Texp_while { wh_cond = sub.expr sub wh.wh_cond;
                      wh_body = sub.expr sub wh.wh_body;
-                     wh_body_layout = wh.wh_body_layout
+                     wh_body_sort = wh.wh_body_sort
                    }
     | Texp_for tf ->
         Texp_for {tf with for_from = sub.expr sub tf.for_from;
@@ -424,12 +422,15 @@ let expr sub x =
         Texp_object (sub.class_structure sub cl, sl)
     | Texp_pack mexpr ->
         Texp_pack (sub.module_expr sub mexpr)
-    | Texp_letop {let_; ands; param; body; partial; warnings} ->
+    | Texp_letop {let_; ands; param; param_sort; body; body_sort; partial;
+                  warnings} ->
         Texp_letop{
           let_ = sub.binding_op sub let_;
           ands = List.map (sub.binding_op sub) ands;
           param;
+          param_sort;
           body = sub.case sub body;
+          body_sort;
           partial;
           warnings
         }
@@ -621,7 +622,7 @@ let class_expr sub x =
         Tcl_apply (
           sub.class_expr sub cl,
           List.map (function
-            | (lbl, Arg exp) -> (lbl, Arg (sub.expr sub exp))
+            | (lbl, Arg (exp, sort)) -> (lbl, Arg (sub.expr sub exp, sort))
             | (lbl, Omitted o) -> (lbl, Omitted o))
             args
         )
