@@ -2521,23 +2521,30 @@ let unexpanded_diff ~got ~expected =
 
 (**** Unification ****)
 
+let rec deep_occur_rec t0 ty =
+  if get_level ty >= get_level t0 && try_mark_node ty then begin
+    if eq_type ty t0 then raise Occur;
+    iter_type_expr (deep_occur_rec t0) ty
+  end
+
 (* Return whether [t0] occurs in any type in [tyl]. Objects are also traversed. *)
 let deep_occur_list t0 tyl =
-  let rec occur_rec ty =
-    if get_level ty >= get_level t0 && try_mark_node ty then begin
-      if eq_type ty t0 then raise Occur;
-      iter_type_expr occur_rec ty
-    end
-  in
   try
-    List.iter occur_rec tyl;
+    List.iter (deep_occur_rec t0) tyl;
     List.iter unmark_type tyl;
     false
   with Occur ->
     List.iter unmark_type tyl;
     true
 
-let deep_occur t0 ty = deep_occur_list t0 [ty]
+let deep_occur t0 ty =
+  try
+    deep_occur_rec t0 ty;
+    unmark_type ty;
+    false
+  with Occur ->
+    unmark_type ty;
+    true
 
 let gadt_equations_level = ref None
 
