@@ -11,7 +11,9 @@ want to modify the Flambda backend.  Jump to:
 - [Running tests](#running-tests)
 - [Running only part of the upstream testsuite](#running-only-part-of-the-upstream-testsuite)
 - [Running tests with coverage analysis](#running-tests-with-coverage-analysis)
-- [Running the compiler produced by "make hacking" on an example without the stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
+- [Running the compiler produced by "make hacking" on an example without the
+  stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
+- [Using the ocaml debugger to debug the compiler](#using-the-ocaml-debugger-to-debug-the-compiler)
 - [Getting the compilation command for a stdlib file](#getting-the-compilation-command-for-a-stdlib-file)
 - [Bootstrapping the ocaml subtree](#bootstrapping-the-ocaml-subtree)
 - [Testing the compiler built locally with OPAM](#testing-the-compiler-built-locally-with-opam)
@@ -202,6 +204,34 @@ something like:
 ./_build/_bootinstall/bin/ocamlopt.opt -nostdlib -nopervasives -c test.ml
 ```
 
+## Using the OCaml debugger to debug the compiler
+
+Run `make debug`. This completes three steps:
+
+1. `make install`
+2. Sets up the `ocaml/tools/debug_printers` script so that you can `source
+   ocaml/tools/debug_printers` during a debugging session to see
+   otherwise-abstract variable values.
+3. Symlinks `./ocamlc` to point to the bytecode compiler. This is convenient for
+   emacs integration, because emacs looks for sources starting in the directory
+   containing the executable.
+   
+To actually run the debugger from emacs (other workflows are possible; just
+tweak these instructions):
+
+1. Run `M-x camldebug RET`
+2. Choose the `ocamlc` symlink in the root of the repo.
+3. Choose the arguments to pass to `ocamlc`, likely a full path to a test `.ml`
+   file.
+4. Choose the built `ocamldebug`, in your install directory.
+5. Set any breakpoints you want. The easiest way is to navigate to the line
+   where you want the breakpoint and use `C-x C-a C-b` in emacs.
+6. Install the debug printers, with `source ocaml/tools/debug_printers`.
+7. `run` to your breakpoint.
+
+See [the manual section](https://v2.ocaml.org/manual/debugger.html) for more
+information about the debugger.
+
 ## Getting the compilation command for a stdlib file
 
 For example because you need to get the `-dflambda` output because of a bug.
@@ -387,4 +417,4 @@ only runs on Linux, although it shouldn't be hard to port to macOS, especially
 if using GNU binutils.  It is recommended to install the Jane Street `patdiff` executable
 before running `make compare`.  The comparison script has not been maintained since the
 early releases of the Flambda backend; it was written as part of the acceptance process
-for the initial release.
+    for the initial release.
