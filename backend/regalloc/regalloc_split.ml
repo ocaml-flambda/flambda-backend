@@ -33,10 +33,8 @@ let propagate_substitution :
     then (
       if split_debug then log ~indent:2 "iter %d" block.start;
       visited := Label.Set.add block.start !visited;
-      if split_debug && Lazy.force split_invariants
-      then
-        if Label.Tbl.mem substs block.start
-        then fatal "block %d already has a substitution" block.start;
+      if Label.Tbl.mem substs block.start
+      then fatal "block %d already has a substitution" block.start;
       Label.Tbl.replace substs block.start subst;
       match destruction_point_at_end block with
       | Some Destruction_on_all_paths -> ()
