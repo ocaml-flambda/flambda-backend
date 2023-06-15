@@ -24,5 +24,6 @@
          unroll2
          unroll3
          unroll4
+         unroll5
    ))
    (diff generated-rules.inc generated-rules.inc.new))))
