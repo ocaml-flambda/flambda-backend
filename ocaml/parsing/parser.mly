@@ -394,7 +394,7 @@ let arg_to_tuple_component loc (arg_label, body) =
     match arg_label with
     | Nolabel -> None
     | Optional _ ->
-        raise Syntaxerr.(Error(Optional_tuple_component(make_loc $loc(args))))
+        raise Syntaxerr.(Error(Optional_tuple_component(make_loc loc)))
     | Labelled s -> Some s
   in
   label, body
@@ -2615,7 +2615,7 @@ expr:
   (* CR labeled tuples: Merge the below two cases *)
   | TILDETILDELPAREN args = labeled_simple_expr_comma_list RPAREN
       { 
-        Pexp_tuple(args_to_tuple_components args $loc(args))
+        Pexp_tuple(args_to_tuple_components $loc(args) args)
       }
   | expr_comma_list %prec below_COMMA
       { Exp.unlabeled_tuple $1 }
