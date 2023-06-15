@@ -22,7 +22,10 @@ val log_renaming_info : indent:int -> t -> unit
      successors of destruction point) to sets of registers that need to
      be reloaded;
    - phi_at_beginning, a map from labels (of blocks starting with
-     phi functions) to sets of registers that need to be unified. *)
+     phi functions) to sets of registers that need to be unified
+     (this set contains the original name of the registers which need
+      a phi, i.e. if we need to insert `x = phi(x', x'')` then the set
+      contains `x`). *)
 val make : Cfg_with_liveness.t -> next_instruction_id:Instruction.id -> t
 
 val dominators : t -> Cfg_dominators.t
