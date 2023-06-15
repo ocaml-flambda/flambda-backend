@@ -367,6 +367,8 @@ type gc_call =
   { gc_lbl: label;                      (* Entry label *)
     gc_return_lbl: label;               (* Where to branch after GC *)
     gc_frame: label;                    (* Label of frame descriptor *)
+    gc_dbg : Debuginfo.t;               (* Location of the original instruction *)
+    gc_fdo : Fdo_info.t                 (* FDO descriptor of the instruction *)
   }
 
 let call_gc_sites = ref ([] : gc_call list)
@@ -376,6 +378,7 @@ let call_gc_local_sym : Cmm.symbol =
 
 let emit_call_gc gc =
   def_label gc.gc_lbl;
+  emit_debug_info_instr gc.gc_fdo gc.gc_dbg;
   emit_call call_gc_local_sym;
   def_label gc.gc_frame;
   I.jmp (label gc.gc_return_lbl)
@@ -384,12 +387,16 @@ let emit_call_gc gc =
 
 type local_realloc_call =
   { lr_lbl: label;
-    lr_return_lbl: label; }
+    lr_return_lbl: label;
+    lr_fdo: Fdo_info.t;
+    lr_dbg: Debuginfo.t;
+  }
 
 let local_realloc_sites = ref ([] : local_realloc_call list)
 
 let emit_local_realloc lr =
   def_label lr.lr_lbl;
+  emit_debug_info_instr lr.lr_fdo lr.lr_dbg;
   emit_call (Cmm.global_symbol "caml_call_local_realloc");
   I.jmp (label lr.lr_return_lbl)
 
@@ -401,18 +408,24 @@ let emit_local_realloc lr =
 type bound_error_call =
   { bd_lbl: label;                      (* Entry label *)
     bd_frame: label;                    (* Label of frame descriptor *)
+    bd_fdo: Fdo_info.t;
+    bd_dbg: Debuginfo.t;
     (* As for [gc_call]. *)
   }
 
 let bound_error_sites = ref ([] : bound_error_call list)
 let bound_error_call = ref 0
 
-let bound_error_label dbg =
+let bound_error_label fdo dbg =
   if !Clflags.debug then begin
     let lbl_bound_error = new_label() in
     let lbl_frame = record_frame_label Reg.Set.empty (Dbg_other dbg) in
     bound_error_sites :=
-      { bd_lbl = lbl_bound_error; bd_frame = lbl_frame; } :: !bound_error_sites;
+      { bd_lbl = lbl_bound_error;
+        bd_frame = lbl_frame;
+        bd_fdo = fdo;
+        bd_dbg = dbg;
+      } :: !bound_error_sites;
     lbl_bound_error
   end else begin
     if !bound_error_call = 0 then bound_error_call := new_label();
@@ -421,6 +434,7 @@ let bound_error_label dbg =
 
 let emit_call_bound_error bd =
   def_label bd.bd_lbl;
+  emit_debug_info_instr bd.bd_fdo bd.bd_dbg;
   emit_call (Cmm.global_symbol "caml_ml_array_bound_error");
   def_label bd.bd_frame
 
@@ -999,6 +1013,8 @@ let emit_instr fallthrough i =
         call_gc_sites :=
           { gc_lbl = lbl_call_gc;
             gc_return_lbl = lbl_after_alloc;
+            gc_fdo = i.fdo;
+            gc_dbg = i.dbg;
             gc_frame = lbl_frame; } :: !call_gc_sites
       end else begin
         begin match n with
@@ -1027,6 +1043,8 @@ let emit_instr fallthrough i =
       I.add (int 8) r;
       local_realloc_sites :=
         { lr_lbl = lbl_call;
+          lr_fdo = i.fdo;
+          lr_dbg = i.dbg;
           lr_return_lbl = lbl_after_alloc } :: !local_realloc_sites
   | Lop(Ipoll { return_label }) ->
       I.cmp (domain_field Domainstate.Domain_young_limit) r15;
@@ -1044,6 +1062,8 @@ let emit_instr fallthrough i =
       call_gc_sites :=
         { gc_lbl = gc_call_label;
           gc_return_lbl = lbl_after_poll;
+          gc_fdo = i.fdo;
+          gc_dbg = i.dbg;
           gc_frame = lbl_frame; } :: !call_gc_sites;
       begin match return_label with
       | None -> def_label lbl_after_poll
@@ -1058,11 +1078,11 @@ let emit_instr fallthrough i =
       I.set (cond cmp) al;
       I.movzx al (res i 0)
   | Lop(Iintop (Icheckbound)) ->
-      let lbl = bound_error_label i.dbg in
+      let lbl = bound_error_label i.fdo i.dbg in
       I.cmp (arg i 1) (arg i 0);
       I.jbe (label lbl)
   | Lop(Iintop_imm(Icheckbound, n)) ->
-      let lbl = bound_error_label i.dbg in
+      let lbl = bound_error_label i.fdo i.dbg in
       I.cmp (int n) (arg i 0);
       I.jbe (label lbl)
   | Lop(Iintop_imm (Iand, n)) when n >= 0 && n <= 0xFFFF_FFFF && Reg.is_reg i.res.(0) ->
