@@ -65,9 +65,9 @@ let cfi_adjust_cfa_offset n =
 let emit_debug_info ?discriminator dbg =
   emit_debug_info_gen ?discriminator dbg D.file D.loc
 
-let emit_debug_info_linear i =
-  match i.fdo with
-  | None -> emit_debug_info i.dbg
+let emit_debug_info_instr fdo dbg =
+  match (fdo : Fdo_info.t) with
+  | None -> emit_debug_info dbg
   | Some { discriminator; dbg } ->
     emit_debug_info ~discriminator dbg
 
@@ -852,7 +852,7 @@ let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
 
 (* Emit an instruction *)
 let emit_instr fallthrough i =
-  emit_debug_info_linear i;
+  emit_debug_info_instr i.fdo i.dbg;
   match i.desc with
   | Lend -> ()
   | Lprologue ->
