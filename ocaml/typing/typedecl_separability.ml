@@ -479,10 +479,11 @@ let worst_msig decl = List.map (fun _ -> Deepsep) decl.type_params
    array optimization and this entire file at that point. *)
 let msig_of_external_type env decl =
   let check_layout =
-    Ctype.check_decl_layout ~reason:Dummy_reason_result_ignored env decl
+    Ctype.check_decl_layout env decl
   in
-  if Result.is_error (check_layout Layout.value)
-     || Result.is_ok (check_layout Layout.immediate64)
+  if Result.is_error (check_layout (Layout.value ~why:Separability_check))
+     || Result.is_ok
+          (check_layout (Layout.immediate64 ~why:Separability_check))
   then best_msig decl
   else worst_msig decl
 

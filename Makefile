@@ -160,3 +160,17 @@ coverage: boot-runtest
 		--source-path=. \
 	  --source-path=_build/default
 	@echo Coverage report generated in _coverage/index.html
+
+.PHONY: debug
+.NOTPARALLEL: debug
+debug: install ocaml/tools/debug_printers ocamlc
+
+ocamlc:
+	ln -s $(prefix)/bin/ocamlc.byte ocamlc
+
+ocaml/tools/debug_printers: ocaml/tools/debug_printers.ml ocaml/tools/debug_printers.cmo
+	echo 'load_printer "ocaml/tools/debug_printers.cmo"' > $@
+	awk '{ print "install_printer Debug_printers." $$2 }' < $< >> $@
+
+ocaml/tools/debug_printers.cmo: ocaml/tools/debug_printers.ml _build/install/main/bin/ocamlc.byte
+	_build/install/main/bin/ocamlc.byte -c -I _build/main/ocaml/.ocamlcommon.objs/byte ocaml/tools/debug_printers.ml

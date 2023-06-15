@@ -204,14 +204,23 @@ module T = struct
     | Pext_rebind li ->
         iter_loc sub li
 
+  let iter_extension_constructor_jst _sub :
+    Jane_syntax.Extension_constructor.t -> _ = function
+    | _ -> .
+
   let iter_extension_constructor sub
-      {pext_name;
+     ({pext_name;
        pext_kind;
        pext_loc;
-       pext_attributes} =
+       pext_attributes} as ext) =
     iter_loc sub pext_name;
-    iter_extension_constructor_kind sub pext_kind;
     sub.location sub pext_loc;
+    match Jane_syntax.Extension_constructor.of_ast ext with
+    | Some (jext, attrs) ->
+      sub.attributes sub attrs;
+      iter_extension_constructor_jst sub jext
+    | None ->
+    iter_extension_constructor_kind sub pext_kind;
     sub.attributes sub pext_attributes
 
 end
@@ -390,6 +399,10 @@ module M = struct
     | Pstr_attribute x -> sub.attribute sub x
 end
 
+(* A no-op, but makes it clearer which jane syntax cases should have the same
+   handling as core-language cases. *)
+let iter_constant = ()
+
 module E = struct
   (* Value expressions for the core language *)
 
@@ -429,6 +442,7 @@ module E = struct
   let iter_jst sub : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
     | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
+    | Jexp_unboxed_constant _ -> iter_constant
 
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
@@ -441,7 +455,7 @@ module E = struct
     sub.attributes sub attrs;
     match desc with
     | Pexp_ident x -> iter_loc sub x
-    | Pexp_constant _ -> ()
+    | Pexp_constant _ -> iter_constant
     | Pexp_let (_r, vbs, e) ->
         List.iter (sub.value_binding sub) vbs;
         sub.expr sub e
@@ -531,6 +545,7 @@ module P = struct
 
   let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
     | Jpat_immutable_array iapat -> iter_iapat sub iapat
+    | Jpat_unboxed_constant _ -> iter_constant
 
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
@@ -545,7 +560,7 @@ module P = struct
     | Ppat_any -> ()
     | Ppat_var s -> iter_loc sub s
     | Ppat_alias (p, s) -> sub.pat sub p; iter_loc sub s
-    | Ppat_constant _ -> ()
+    | Ppat_constant _ -> iter_constant
     | Ppat_interval _ -> ()
     | Ppat_tuple pl -> List.iter (sub.pat sub) pl
     | Ppat_construct (l, p) ->

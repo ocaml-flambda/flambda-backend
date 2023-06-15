@@ -100,7 +100,7 @@ open Printpat
 module Scoped_location = Debuginfo.Scoped_location
 
 type error =
-    Non_value_layout of Layout.Violation.violation
+    Non_value_layout of Layout.Violation.t
 
 exception Error of Location.t * error
 
@@ -109,8 +109,8 @@ let dbg = false
 (* CR layouts v2: When we're ready to allow non-values, these can be deleted or
    changed to check for void. *)
 let layout_must_be_value loc layout =
-  match Layout.(sub layout value) with
-  | Ok () -> ()
+  match Layout.(sub layout (value ~why:V1_safety_check)) with
+  | Ok _ -> ()
   | Error e -> raise (Error (loc, Non_value_layout e))
 
 (*
@@ -1955,7 +1955,7 @@ let inline_lazy_force_cond arg pos loc =
                       ap_result_layout = Lambda.layout_lazy_contents;
                       ap_region_close = pos;
                       ap_mode = alloc_heap;
-                      ap_inlined = Default_inlined;
+                      ap_inlined = Never_inlined;
                       ap_specialised = Default_specialise;
                       ap_probe=None
                     },
@@ -2174,7 +2174,11 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _layout) rem =
     else
       (* CR ncourant: could do better than layout_field using kind *)
       ( Lprim
-          (Parrayrefu kind, [ arg; Lconst (Const_base (Const_int pos)) ], loc),
+          (* TODO: The resulting float should be allocated to at the mode of the
+             array pattern, once that's available *)
+          (Parrayrefu Lambda.(array_ref_kind alloc_heap kind),
+           [ arg; Lconst (Const_base (Const_int pos)) ],
+           loc),
         (match am with
         | Mutable   -> StrictOpt
         | Immutable -> Alias),

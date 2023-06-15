@@ -548,7 +548,6 @@ and variant_representation =
 
 and global_flag =
   | Global
-  | Nonlocal
   | Unrestricted
 
 and label_declaration =
@@ -772,7 +771,7 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
-    lbl_global: global_flag;        (* Is this a nonlocal field? *)
+    lbl_global: global_flag;            (* Is this a global field? *)
     lbl_layout : layout;                (* Layout of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)
@@ -787,7 +786,7 @@ type label_description =
 (** The special value we assign to lbl_pos for label descriptions corresponding
     to void types, because they can't sensibly be projected.
 
-    CR-someday layouts: This should be removed once we have unarization, as it
+    CR layouts v5: This should be removed once we have unarization, as it
     will be up to a later stage of the compiler to erase void.
 *)
 val lbl_pos_void : int

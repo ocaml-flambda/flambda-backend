@@ -81,10 +81,10 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pmakearray (kind, mutability, mode) -> Pmakearray (kind, mutability, mode)
   | Pduparray (kind, mutability) -> Pduparray (kind, mutability)
   | Parraylength kind -> Parraylength kind
-  | Parrayrefu kind -> Parrayrefu kind
-  | Parraysetu kind -> Parraysetu kind
-  | Parrayrefs kind -> Parrayrefs kind
-  | Parraysets kind -> Parraysets kind
+  | Parrayrefu rkind -> Parrayrefu rkind
+  | Parraysetu skind -> Parraysetu skind
+  | Parrayrefs rkind -> Parrayrefs rkind
+  | Parraysets skind -> Parraysets skind
   | Pisint _ -> Pisint
   | Pisout -> Pisout
   | Pcvtbint (src, dest, m) -> Pcvtbint (src, dest, m)

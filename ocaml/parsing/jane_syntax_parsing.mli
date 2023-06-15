@@ -94,8 +94,13 @@
     built-in features. *)
 module Feature : sig
   type t =
-    | Language_extension of Language_extension.t
+    | Language_extension : _ Language_extension.t -> t
     | Builtin
+
+  (** The component of an attribute or extension name that identifies the
+      feature. This is third component.
+  *)
+  val extension_component : t -> string
 end
 
 (** An AST-style representation of the names used when generating extension
@@ -105,71 +110,52 @@ end
     also why we don't expose any functions for rendering or parsing these names;
     that's all handled internally. *)
 module Embedded_name : sig
-  (** A nonempty list of name components, without the leading root component
-      that identifies it as part of the modular syntax mechanism.  This is a
-      nonempty list corresponding to the different components of the name: first
-      the feature, and then any subparts. *)
-  type t = ( :: ) of string * string list
+
+  (** A nonempty list of name components, without the first two components.
+      (That is, without the leading root component that identifies it as part of
+      the modular syntax mechanism, and without the next component that
+      identifies the erasability.)
+
+      This is a nonempty list corresponding to the different components of the
+      name: first the feature, and then any subparts.
+  *)
+  type components = ( :: ) of string * string list
+
+  type t
+
+  (** Creates an embedded name whose erasability component is whether the
+      feature is erasable, and whose feature component is the feature's name.
+      The second argument is treated as the trailing components after the
+      feature name.
+  *)
+  val of_feature : Feature.t -> string list -> t
+
+  val components : t -> components
 
   (** Print out the embedded form of a Jane-syntax name, in quotes; for use in
       error messages. *)
   val pp_quoted_name : Format.formatter -> t -> unit
 end
 
-(** An AST desc together with its attributes, including the attributes that
-    signal that the AST should be interpreted as a Jane Syntax AST. These are
-    produced only by [make_jane_syntax] and [make_entire_jane_syntax].
+(** Each syntactic category that contains novel syntactic features has a
+    corresponding module of this module type.  We're adding these lazily as we
+    need them. When you add another one, make sure also to add special handling
+    in [Ast_iterator] and [Ast_mapper].
+
 *)
-module With_attributes : sig
-  type 'desc t = private
-    { jane_syntax_attributes : Parsetree.attributes
-    ; desc : 'desc
-    }
-end
-
-(** Values that lift and lower terms from our novel syntactic
-    features from and to an OCaml AST type ([ast]) *)
-module AST : sig
-  (** One [AST] value per syntactic category we currently care about; we're
-      adding these lazily as we need them. When you add another one, make
-      sure also to add special handling in [Ast_iterator] and [Ast_mapper].
-
-      ['ast]: The AST type (e.g., [Parsetree.expression])
-      ['ast_desc]: The "AST description" type, without the location and
-      attributes (e.g., [Parsetree.expression_desc])
-  *)
-  type ('ast, 'ast_desc) t =
-    | Expression :
-        (Parsetree.expression, Parsetree.expression_desc With_attributes.t) t
-    | Pattern : (Parsetree.pattern, Parsetree.pattern_desc With_attributes.t) t
-    | Module_type :
-        (Parsetree.module_type, Parsetree.module_type_desc With_attributes.t) t
-    | Signature_item :
-        (Parsetree.signature_item, Parsetree.signature_item_desc) t
-    | Structure_item :
-        (Parsetree.structure_item, Parsetree.structure_item_desc) t
-    | Core_type :
-        (Parsetree.core_type, Parsetree.core_type_desc With_attributes.t) t
-    | Constructor_argument :
-        (Parsetree.core_type, Parsetree.core_type_desc With_attributes.t) t
-
-  (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata.  When
-      creating [ast] nodes afresh to embed our novel syntax, the location should
-      be omitted; in this case, it will default to [!Ast_helper.default_loc],
-      which should be [ghost]. *)
-  val wrap_desc
-    :  ('ast, 'ast_desc) t
-    -> ?loc:Location.t
-    -> attrs:Parsetree.attributes
-    -> 'ast_desc
-    -> 'ast
+module type AST = sig
+  (** The AST type (e.g., [Parsetree.expression]) *)
+  type ast
 
   (** Embed a term from one of our novel syntactic features in the AST using the
-      given name (the [Embedded_name.t]) and body (the [ast]).  Any locations in
+      given name (in the [Feature.t]) and body (the [ast]).  Any locations in
       the generated AST will be set to [!Ast_helper.default_loc], which should
       be [ghost]. *)
-  val make_jane_syntax :
-    ('ast, 'ast_desc) t -> Embedded_name.t -> 'ast -> 'ast_desc
+  val make_jane_syntax
+    :  Feature.t
+    -> string list
+    -> ast
+    -> ast
 
   (** As [make_jane_syntax], but specifically for the AST node corresponding to
       the entire piece of novel syntax (e.g., for a list comprehension, the
@@ -178,11 +164,10 @@ module AST : sig
       provided location, which is why the [ast] is generated from a function
       call; it is during this call that the location is so set. *)
   val make_entire_jane_syntax
-    :  ('ast, 'ast_desc) t
-    -> loc:Location.t
-    -> string
-    -> (unit -> 'ast)
-    -> 'ast_desc
+    :  loc:Location.t
+    -> Feature.t
+    -> (unit -> ast)
+    -> ast
 
   (** Build an [of_ast] function. The return value of this function should be
       used to implement [of_ast] in modules satisfying the signature
@@ -193,13 +178,8 @@ module AST : sig
       It raises an error if it finds a term from a disabled extension or if the
       embedding is malformed.
   *)
-  val make_of_ast :
-    ('ast, _) t
-    (** Which syntactic category is this for?  E.g., [module AST = Expression].
-        ['ast] is the type of novel syntactic terms for this syntactic category,
-        across all syntax features. E.g., [Jane_syntax.Expression.t]
-    *)
-    -> of_ast_internal:(Feature.t -> 'ast -> 'a option)
+  val make_of_ast
+    :  of_ast_internal:(Feature.t -> ast -> 'a option)
     (** A function to convert [Parsetree]'s AST to our novel extended one.  The
         choice of feature and the piece of syntax will both be extracted from
         the embedding by the first argument.
@@ -210,16 +190,41 @@ module AST : sig
         extended pattern AST, this function will return [None] if it spots an
         embedding that claims to be from [Language_extension Comprehensions].)
     *)
-    -> ('ast -> 'a option)
+    -> (ast -> 'a option)
 end
 
-(** Require that an extension is enabled, or else throw an exception (of an
-    abstract type) at the provided location saying otherwise.  This is intended
-    to be used in [jane_syntax.ml] when a certain piece of syntax requires two
-    extensions to be enabled at once (e.g., immutable array comprehensions such
-    as [[:x for x = 1 to 10:]], which require both [Comprehensions] and
-    [Immutable_arrays]). *)
-val assert_extension_enabled : loc:Location.t -> Language_extension.t -> unit
+module Expression :
+  AST with type ast = Parsetree.expression
+
+module Pattern :
+  AST with type ast = Parsetree.pattern
+
+module Module_type :
+  AST with type ast = Parsetree.module_type
+
+module Signature_item :
+  AST with type ast = Parsetree.signature_item
+
+module Structure_item :
+  AST with type ast = Parsetree.structure_item
+
+module Core_type :
+  AST with type ast = Parsetree.core_type
+
+module Constructor_argument :
+  AST with type ast = Parsetree.core_type
+
+module Extension_constructor :
+  AST with type ast = Parsetree.extension_constructor
+
+(** Require that an extension is enabled for at least the provided level, or
+    else throw an exception (of an abstract type) at the provided location
+    saying otherwise.  This is intended to be used in [jane_syntax.ml] when a
+    certain piece of syntax requires two extensions to be enabled at once (e.g.,
+    immutable array comprehensions such as [[:x for x = 1 to 10:]], which
+    require both [Comprehensions] and [Immutable_arrays]). *)
+val assert_extension_enabled :
+  loc:Location.t -> 'a Language_extension.t -> 'a -> unit
 
 (* CR-someday nroberts: An earlier version of this revealed less of its
    implementation in its name: it was called [match_jane_syntax], and
@@ -239,8 +244,9 @@ val assert_extension_enabled : loc:Location.t -> Language_extension.t -> unit
     order to process a Jane Syntax element that consists of multiple
     nested ASTs.
 *)
-val find_and_remove_jane_syntax_attribute :
-  Parsetree.attributes -> (Embedded_name.t * Parsetree.attributes) option
+val find_and_remove_jane_syntax_attribute
+  :  Parsetree.attributes
+  -> (Embedded_name.t * Parsetree.attributes) option
 
 (** Errors around the representation of our extended ASTs.  These should mostly
     just be fatal, but they're needed for one test case

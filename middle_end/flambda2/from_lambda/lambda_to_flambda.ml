@@ -562,9 +562,9 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
         | Try_with _ -> body acc ccenv
         | Regular region_ident ->
           CC.close_let acc ccenv
-            (Ident.create_local "unit")
-            Not_user_visible Flambda_kind.With_subkind.tagged_immediate
-            (End_region region_ident) ~body
+            [ ( Ident.create_local "unit",
+                Flambda_kind.With_subkind.tagged_immediate ) ]
+            Not_user_visible (End_region region_ident) ~body
     in
     let no_end_region after_everything = after_everything in
     match
@@ -699,7 +699,7 @@ let transform_primitive env (prim : L.primitive) args loc =
         Primitive (L.Pccall desc, args, loc)
       else
         Misc.fatal_errorf
-          "Lambda_to_flambda.transform_primimive: Pbigarrayset with unknown \
+          "Lambda_to_flambda.transform_primitive: Pbigarrayset with unknown \
            layout and elements should only have dimensions between 1 and 3 \
            (see translprim).")
   | _, _ -> Primitive (prim, args, loc)
@@ -816,9 +816,10 @@ let restore_continuation_context acc env ccenv cont ~close_early body =
        comment in [cps] on the [Lregion] case. *)
     if close_early
     then
-      CC.close_let acc ccenv (Ident.create_local "unit")
-        Not_user_visible Flambda_kind.With_subkind.tagged_immediate
-        (End_region region) ~body:(fun acc ccenv -> body acc ccenv cont)
+      CC.close_let acc ccenv
+        [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
+        Not_user_visible (End_region region)
+        ~body:(fun acc ccenv -> body acc ccenv cont)
     else
       let ({ continuation_closing_region; continuation_after_closing_region }
             : Env.region_closure_continuation) =
@@ -985,94 +986,6 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Punbox_int _ | Pbox_int _ ->
     false
 
-let primitive_result_kind (prim : Lambda.primitive) :
-    Flambda_kind.With_subkind.t =
-  match prim with
-  | Pccall { prim_native_repr_res = _, Untagged_int; _ } ->
-    Flambda_kind.With_subkind.tagged_immediate
-  | Pccall { prim_native_repr_res = _, Unboxed_float; _ }
-  | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
-  | Pmulfloat _ | Pdivfloat _ | Pfloatfield _
-  | Parrayrefs Pfloatarray
-  | Parrayrefu Pfloatarray
-  | Pbigarrayref (_, _, (Pbigarray_float32 | Pbigarray_float64), _) ->
-    Flambda_kind.With_subkind.boxed_float
-  | Pccall { prim_native_repr_res = _, Unboxed_integer Pnativeint; _ }
-  | Pbigarrayref (_, _, Pbigarray_native_int, _) ->
-    Flambda_kind.With_subkind.boxed_nativeint
-  | Pccall { prim_native_repr_res = _, Unboxed_integer Pint32; _ }
-  | Pstring_load_32 _ | Pbytes_load_32 _ | Pbigstring_load_32 _
-  | Pbigarrayref (_, _, Pbigarray_int32, _) ->
-    Flambda_kind.With_subkind.boxed_int32
-  | Pccall { prim_native_repr_res = _, Unboxed_integer Pint64; _ }
-  | Pstring_load_64 _ | Pbytes_load_64 _ | Pbigstring_load_64 _
-  | Pbigarrayref (_, _, Pbigarray_int64, _) ->
-    Flambda_kind.With_subkind.boxed_int64
-  | Pnegint | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint
-  | Plsrint | Pasrint | Pmodint _ | Pdivint _ | Pignore | Psequand | Psequor
-  | Pnot | Pbytesrefs | Pstringrefs | Pbytessets | Pstring_load_16 _
-  | Pbytes_load_16 _ | Pbigstring_load_16 _ | Pbytes_set_16 _ | Pbytes_set_32 _
-  | Pbytes_set_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
-  | Pbigstring_set_64 _ | Pintcomp _ | Pcompare_ints | Pcompare_floats
-  | Pcompare_bints _ | Pintoffloat | Pfloatcomp _ | Parraysets _
-  | Pbigarrayset _ | Psetfield _ | Psetfield_computed _ | Psetfloatfield _
-  | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu
-  | Parraylength _ | Parraysetu _ | Pisint _ | Pbintcomp _ | Pintofbint _
-  | Pisout
-  | Parrayrefs Pintarray
-  | Parrayrefu Pintarray
-  | Pprobe_is_enabled _ | Pctconst _ | Pbswap16
-  | Pbigarrayref
-      ( _,
-        _,
-        ( Pbigarray_sint8 | Pbigarray_uint8 | Pbigarray_sint16
-        | Pbigarray_uint16 | Pbigarray_caml_int ),
-        _ ) ->
-    Flambda_kind.With_subkind.tagged_immediate
-  | Pdivbint { size = bi; _ }
-  | Pmodbint { size = bi; _ }
-  | Pandbint (bi, _)
-  | Porbint (bi, _)
-  | Pxorbint (bi, _)
-  | Plslbint (bi, _)
-  | Plsrbint (bi, _)
-  | Pasrbint (bi, _)
-  | Pnegbint (bi, _)
-  | Paddbint (bi, _)
-  | Psubbint (bi, _)
-  | Pmulbint (bi, _)
-  | Pbintofint (bi, _)
-  | Pcvtbint (_, bi, _)
-  | Pbbswap (bi, _)
-  | Pbox_int (bi, _) -> (
-    match bi with
-    | Pint32 -> Flambda_kind.With_subkind.boxed_int32
-    | Pint64 -> Flambda_kind.With_subkind.boxed_int64
-    | Pnativeint -> Flambda_kind.With_subkind.boxed_nativeint)
-  | Popaque layout | Pobj_magic layout ->
-    Flambda_kind.With_subkind.from_lambda layout
-  | Praise _ ->
-    (* CR ncourant: this should be bottom, but we don't have it *)
-    Flambda_kind.With_subkind.any_value
-  | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr; _ }
-  | Parrayrefs (Pgenarray | Paddrarray)
-  | Parrayrefu (Pgenarray | Paddrarray)
-  | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray
-  | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
-  | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Pduprecord _
-  | Poffsetint _ | Poffsetref _ | Pmakearray _ | Pduparray _ | Pbigarraydim _
-  | Pbigarrayref
-      (_, _, (Pbigarray_complex32 | Pbigarray_complex64 | Pbigarray_unknown), _)
-  | Pint_as_pointer | Pobj_dup ->
-    Flambda_kind.With_subkind.any_value
-  | Pbox_float _ -> Flambda_kind.With_subkind.boxed_float
-  | Punbox_float -> Flambda_kind.With_subkind.naked_float
-  | Punbox_int bi -> (
-    match bi with
-    | Pint32 -> Flambda_kind.With_subkind.naked_int32
-    | Pint64 -> Flambda_kind.With_subkind.naked_int64
-    | Pnativeint -> Flambda_kind.With_subkind.naked_nativeint)
-
 type cps_continuation =
   | Tail of Continuation.t
   | Non_tail of (Acc.t -> Env.t -> CCenv.t -> IR.simple -> Expr_with_acc.t)
@@ -1100,8 +1013,9 @@ let name_if_not_var acc ccenv name simple kind body =
   | IR.Var id -> body id acc ccenv
   | IR.Const _ ->
     let id = Ident.create_local name in
-    CC.close_let acc ccenv id Not_user_visible kind (IR.Simple simple)
-      ~body:(body id)
+    CC.close_let acc ccenv
+      [id, kind]
+      Not_user_visible (IR.Simple simple) ~body:(body id)
 
 let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     (k_exn : Continuation.t) : Expr_with_acc.t =
@@ -1148,10 +1062,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         cps_tail acc env ccenv defining_expr after_defining_expr k_exn)
       ~handler:(fun acc env ccenv ->
         let env, new_id = Env.register_mutable_variable env id value_kind in
+        let kind = Flambda_kind.With_subkind.from_lambda value_kind in
         let body acc ccenv = cps acc env ccenv body k k_exn in
-        CC.close_let acc ccenv new_id User_visible
-          (Flambda_kind.With_subkind.from_lambda value_kind)
-          (Simple (Var temp_id)) ~body)
+        CC.close_let acc ccenv
+          [new_id, kind]
+          User_visible (Simple (Var temp_id)) ~body)
   | Llet ((Strict | Alias | StrictOpt), _, fun_id, Lfunction func, body) ->
     (* This case is here to get function names right. *)
     let bindings = cps_function_bindings env [fun_id, L.Lfunction func] in
@@ -1167,9 +1082,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
   | Llet ((Strict | Alias | StrictOpt), layout, id, Lconst const, body) ->
     (* This case avoids extraneous continuations. *)
     let body acc ccenv = cps acc env ccenv body k k_exn in
-    CC.close_let acc ccenv id User_visible
-      (Flambda_kind.With_subkind.from_lambda layout)
-      (Simple (Const const)) ~body
+    CC.close_let acc ccenv
+      [id, Flambda_kind.With_subkind.from_lambda layout]
+      User_visible (Simple (Const const)) ~body
   | Llet
       ( ((Strict | Alias | StrictOpt) as let_kind),
         layout,
@@ -1190,10 +1105,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       in
       cps_non_tail_list acc env ccenv args
         (fun acc env ccenv args ->
+          let args = List.map (fun arg -> [arg]) args in
           let body acc ccenv = cps acc env ccenv body k k_exn in
           let region = Env.current_region env in
-          CC.close_let acc ccenv id User_visible
-            (Flambda_kind.With_subkind.from_lambda layout)
+          CC.close_let acc ccenv
+            [id, Flambda_kind.With_subkind.from_lambda layout]
+            User_visible
             (Prim { prim; args; loc; exn_continuation; region })
             ~body)
         k_exn
@@ -1216,16 +1133,17 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         let env, new_id = Env.update_mutable_variable env being_assigned in
         let body acc ccenv =
           let body acc ccenv = cps acc env ccenv body k k_exn in
-          CC.close_let acc ccenv id Not_user_visible
-            Flambda_kind.With_subkind.tagged_immediate
-            (Simple (Const L.const_unit)) ~body
+          CC.close_let acc ccenv
+            [id, Flambda_kind.With_subkind.tagged_immediate]
+            Not_user_visible (Simple (Const L.const_unit)) ~body
         in
         let value_kind =
           snd (Env.get_mutable_variable_with_kind env being_assigned)
         in
-        CC.close_let acc ccenv new_id User_visible
-          (Flambda_kind.With_subkind.from_lambda value_kind)
-          (Simple new_value) ~body)
+        let value_kind = Flambda_kind.With_subkind.from_lambda value_kind in
+        CC.close_let acc ccenv
+          [new_id, value_kind]
+          User_visible (Simple new_value) ~body)
       k_exn
   | Llet ((Strict | Alias | StrictOpt), layout, id, defining_expr, body) ->
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
@@ -1256,30 +1174,37 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         ~current_region:(Env.current_region env)
     | Dissected lam -> cps acc env ccenv lam k k_exn)
   | Lprim (prim, args, loc) -> (
-    match transform_primitive env prim args loc with
-    | Primitive (prim, args, loc) ->
+    match[@ocaml.warning "-fragile-match"] prim with
+    | Praise raise_kind -> (
+      match args with
+      | [_] ->
+        cps_non_tail_list acc env ccenv args
+          (fun acc _env ccenv args ->
+            let exn_continuation : IR.exn_continuation =
+              { exn_handler = k_exn;
+                extra_args = extra_args_for_exn_continuation env k_exn
+              }
+            in
+            let dbg = Debuginfo.from_location loc in
+            CC.close_raise acc ccenv ~raise_kind ~arg:(List.hd args) ~dbg
+              exn_continuation)
+          k_exn
+      | [] | _ :: _ ->
+        Misc.fatal_errorf "Wrong number of arguments for Lraise: %a"
+          Printlambda.primitive prim)
+    | _ ->
       let name = Printlambda.name_of_primitive prim in
-      let result_var = Ident.create_local name in
-      let exn_continuation : IR.exn_continuation option =
-        if primitive_can_raise prim
-        then
-          Some
-            { exn_handler = k_exn;
-              extra_args = extra_args_for_exn_continuation env k_exn
-            }
-        else None
-      in
-      let current_region = Env.current_region env in
-      let dbg = Debuginfo.from_location loc in
-      cps_non_tail_list acc env ccenv args
-        (fun acc env ccenv args ->
-          let body acc ccenv = apply_cps_cont ~dbg k acc env ccenv result_var in
-          CC.close_let acc ccenv result_var Not_user_visible
-            (primitive_result_kind prim)
-            (Prim { prim; args; loc; exn_continuation; region = current_region })
-            ~body)
-        k_exn
-    | Transformed lam -> cps acc env ccenv lam k k_exn)
+      let id = Ident.create_local name in
+      let result_layout = L.primitive_result_layout prim in
+      (match result_layout with
+      | Pvalue _ | Punboxed_float | Punboxed_int _ -> ()
+      | Ptop | Pbottom ->
+        Misc.fatal_errorf "Invalid result layout %a for primitive %a"
+          Printlambda.layout result_layout Printlambda.primitive prim);
+      (* CR mshinwell: find a way of making these lets non-user-visible *)
+      cps acc env ccenv
+        (L.Llet (Strict, result_layout, id, lam, L.Lvar id))
+        k k_exn)
   | Lswitch (scrutinee, switch, loc, kind) ->
     maybe_insert_let_cont "switch_result" kind k acc env ccenv
       (fun acc env ccenv k ->
@@ -1384,8 +1309,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        same toplevel context, here we need to assume that all of the body could
        be behind a branch. *)
     let ccenv = CCenv.set_not_at_toplevel ccenv in
-    CC.close_let acc ccenv region Not_user_visible
-      Flambda_kind.With_subkind.region
+    CC.close_let acc ccenv
+      [region, Flambda_kind.With_subkind.region]
+      Not_user_visible
       (Begin_region { try_region_parent = Some (Env.current_region env) })
       ~body:(fun acc ccenv ->
         maybe_insert_let_cont "try_with_result" kind k acc env ccenv
@@ -1415,9 +1341,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                       (Some (IR.Pop { exn_handler = handler_continuation }))
                       [IR.Var body_result]))
               ~handler:(fun acc env ccenv ->
-                CC.close_let acc ccenv (Ident.create_local "unit")
-                  Not_user_visible Flambda_kind.With_subkind.tagged_immediate
-                  (End_region region) ~body:(fun acc ccenv ->
+                CC.close_let acc ccenv
+                  [ ( Ident.create_local "unit",
+                      Flambda_kind.With_subkind.tagged_immediate ) ]
+                  Not_user_visible (End_region region)
+                  ~body:(fun acc ccenv ->
                     let env = Env.leaving_try_region env in
                     cps_tail acc env ccenv handler k k_exn))))
   | Lifthenelse (cond, ifso, ifnot, kind) ->
@@ -1453,9 +1381,10 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         let _, value_kind =
           Env.get_mutable_variable_with_kind env being_assigned
         in
-        CC.close_let acc ccenv new_id User_visible
-          (Flambda_kind.With_subkind.from_lambda value_kind)
-          (Simple new_value) ~body)
+        let value_kind = Flambda_kind.With_subkind.from_lambda value_kind in
+        CC.close_let acc ccenv
+          [new_id, value_kind]
+          User_visible (Simple new_value) ~body)
       k_exn
   | Levent (body, _event) -> cps acc env ccenv body k k_exn
   | Lifused _ ->
@@ -1469,9 +1398,10 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     cps acc env ccenv body k k_exn
   | Lexclave body ->
     let region = Env.current_region env in
-    CC.close_let acc ccenv (Ident.create_local "unit")
-      Not_user_visible Flambda_kind.With_subkind.tagged_immediate
-      (End_region region) ~body:(fun acc ccenv ->
+    CC.close_let acc ccenv
+      [Ident.create_local "unit", Flambda_kind.With_subkind.tagged_immediate]
+      Not_user_visible (End_region region)
+      ~body:(fun acc ccenv ->
         let env = Env.leaving_region env in
         cps acc env ccenv body k k_exn)
   | Lregion (body, layout) ->
@@ -1480,8 +1410,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        continuation for the code after the body. *)
     let region = Ident.create_local "region" in
     let dbg = Debuginfo.none in
-    CC.close_let acc ccenv region Not_user_visible
-      Flambda_kind.With_subkind.region
+    CC.close_let acc ccenv
+      [region, Flambda_kind.With_subkind.region]
+      Not_user_visible
       (Begin_region { try_region_parent = None })
       ~body:(fun acc ccenv ->
         maybe_insert_let_cont "body_return" layout k acc env ccenv
@@ -1517,9 +1448,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                 in
                 cps_tail acc env ccenv body k k_exn)
               ~handler:(fun acc env ccenv ->
-                CC.close_let acc ccenv (Ident.create_local "unit")
-                  Not_user_visible Flambda_kind.With_subkind.tagged_immediate
-                  (End_region region) ~body:(fun acc ccenv ->
+                CC.close_let acc ccenv
+                  [ ( Ident.create_local "unit",
+                      Flambda_kind.With_subkind.tagged_immediate ) ]
+                  Not_user_visible (End_region region)
+                  ~body:(fun acc ccenv ->
                     (* Both body and handler will continue at
                        [return_continuation] by default.
                        [restore_region_context] will intercept the
@@ -1811,8 +1744,9 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
           let body acc ccenv =
             CC.close_switch acc ccenv ~condition_dbg scrutinee_tag block_switch
           in
-          CC.close_let acc ccenv scrutinee_tag Not_user_visible
-            Flambda_kind.With_subkind.naked_immediate (Get_tag scrutinee) ~body
+          CC.close_let acc ccenv
+            [scrutinee_tag, Flambda_kind.With_subkind.naked_immediate]
+            Not_user_visible (Get_tag scrutinee) ~body
         in
         if switch.sw_numblocks = 0
         then const_switch, wrappers
@@ -1834,11 +1768,12 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
                 isint_switch
             in
             let region = Env.current_region env in
-            CC.close_let acc ccenv is_scrutinee_int Not_user_visible
-              Flambda_kind.With_subkind.naked_immediate
+            CC.close_let acc ccenv
+              [is_scrutinee_int, Flambda_kind.With_subkind.naked_immediate]
+              Not_user_visible
               (Prim
                  { prim = Pisint { variant_only = true };
-                   args = [Var scrutinee];
+                   args = [[Var scrutinee]];
                    loc = Loc_unknown;
                    exn_continuation = None;
                    region

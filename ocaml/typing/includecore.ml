@@ -168,10 +168,7 @@ type privacy_mismatch =
   | Private_extensible_variant
   | Private_row_type
 
-type locality_mismatch =
-  { order : position;
-    nonlocal : bool
-  }
+type locality_mismatch = { order : position }
 
 type label_mismatch =
   | Type of Errortrace.equality_error
@@ -230,14 +227,11 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
   | Extensible_representation of position
-  | Layout of Layout.Violation.violation
+  | Layout of Layout.Violation.t
 
 let report_locality_mismatch first second ppf err =
-  let {order; nonlocal} = err in
-  let sort =
-    if nonlocal then "nonlocal"
-    else "global"
-  in
+  let {order} = err in
+  let sort = "global" in
   Format.fprintf ppf "%s is %s and %s is not."
     (String.capitalize_ascii  (choose order first second))
     sort
@@ -492,16 +486,11 @@ let report_type_mismatch first second decl env ppf err =
 
 let compare_global_flags flag0 flag1 =
   match flag0, flag1 with
-  | Global, (Nonlocal | Unrestricted) ->
-    Some {order = First; nonlocal = false}
-  | (Nonlocal | Unrestricted), Global ->
-    Some {order = Second; nonlocal = false}
-  | Nonlocal, Unrestricted ->
-    Some {order = First; nonlocal = true}
-  | Unrestricted, Nonlocal ->
-    Some {order = Second; nonlocal = true}
+  | Global, Unrestricted ->
+    Some {order = First}
+  | Unrestricted, Global ->
+    Some {order = Second}
   | Global, Global
-  | Nonlocal, Nonlocal
   | Unrestricted, Unrestricted ->
     None
 
@@ -1006,10 +995,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
           have a manifest, which we're already checking for equality
           above. Similarly, [decl1]'s kind may conservatively approximate its
           layout, but [check_decl_layout] will expand its manifest.  *)
-        (match
-           Ctype.check_decl_layout ~reason:Dummy_reason_result_ignored
-             env decl1 decl2.type_layout
-         with
+        (match Ctype.check_decl_layout env decl1 decl2.type_layout with
          | Ok _ -> None
          | Error v -> Some (Layout v))
     | (Type_variant (cstrs1, rep1), Type_variant (cstrs2, rep2)) ->

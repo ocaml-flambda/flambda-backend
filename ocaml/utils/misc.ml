@@ -192,6 +192,10 @@ module Stdlib = struct
   module Option = struct
     type 'a t = 'a option
 
+    let first_some a b = match a with
+      | Some _ -> a
+      | None -> b ()
+
     let print print_contents ppf t =
       match t with
       | None -> Format.pp_print_string ppf "None"
@@ -1271,3 +1275,9 @@ module Magic_number = struct
            | Error err -> Error (Unexpected_error err)
            | Ok () -> Ok info
 end
+
+(*********************************************)
+(* Fancy types *)
+
+type (_, _) eq = Refl : ('a, 'a) eq
+

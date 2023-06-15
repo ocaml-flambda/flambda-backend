@@ -69,12 +69,10 @@ type out_type_param =
 type out_mutable_or_global =
   | Ogom_mutable
   | Ogom_global
-  | Ogom_nonlocal
   | Ogom_immutable
 
 type out_global =
   | Ogf_global
-  | Ogf_nonlocal
   | Ogf_unrestricted
 
 type out_type =

@@ -140,10 +140,14 @@ type phantom_defining_expr =
 
 type trywith_shared_label = Lambda.static_label (* Same as Ccatch handlers *)
 
+type pop_action =
+  | Pop_generic
+  | Pop_specific of trywith_shared_label
+
 type trap_action =
   | Push of trywith_shared_label
   (** Add the corresponding handler to the trap stack. *)
-  | Pop
+  | Pop of pop_action
   (** Remove the last handler from the trap stack. *)
 
 type trywith_kind =

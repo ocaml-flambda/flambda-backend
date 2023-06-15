@@ -54,6 +54,25 @@ where the test file or test dir are specified with respect to the
     $ make -f Makefile.jst test-one TEST=typing-local/local.ml
     $ make -f Makefile.jst test-one DIR=typing-local
 
+Likewise, you can use `promote-one` to accept the diff from a failed
+test:
+
+    $ make -f Makefile.jst promote-one TEST=typing-local/local.ml
+    $ make -f Makefile.jst promote-one DIR=typing-local
+
+If you've run some series of tests and would like to accept the diff
+from all failed tests in that run, use `promote-failed`:
+
+    $ make -f Makefile.jst promote-failed
+
+To run just one test without running a full dune build, you can use
+`*-no-rebuild` versions of `test-one` and `promote-one`. Note that these
+targets won't pick up changes you've made to compiler code, though they will
+faithfully pick up changes you've made to test files.
+
+    $ make -f Makefile.jst test-one-no-rebuild TEST=typing-local/local.ml
+    $ make -f Makefile.jst promote-one-no-rebuild DIR=typing-local
+
 ## Debugging
 
 We make several custom printers available so that we can print more values in
@@ -97,7 +116,7 @@ Remember to check that the newly installed switch is being used:
         4.14.1     ocaml-base-compiler.4.14.1                       4.14.1
     ->  4.14.1-fp  ocaml-option-fp.1,ocaml-variants.4.14.1+options  4.14.1-fp
 
-Then build the compiler - the following command will build the compiler using the opam switch, then use the newly-built compiler to build itself.
+Then build the compiler &mdash; the following command will build the compiler using the opam switch, then use the newly-built compiler to build itself.
 
     $ make -f Makefile.jst compiler
     
