@@ -462,8 +462,9 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
 
 (* CR-soon xclerc for xclerc: consider having more destruction points.
    We current return `true` when `destroyed_at_terminator` returns
-   `all_phys_regs`; we could also return `true` when `destroyed_at_terminator`
-   returns `destroyed_at_c_call` for instance. *)
+   `all_phys_regs` (which means we are conservative in the sense we will
+   spill registers that would spill anyway); we could also return `true`
+   when `destroyed_at_terminator` returns `destroyed_at_c_call` for instance. *)
 (* note: keep this function in sync with `destroyed_at_terminator` above. *)
 let is_destruction_point (terminator : Cfg_intf.S.terminator) =
   match terminator with
