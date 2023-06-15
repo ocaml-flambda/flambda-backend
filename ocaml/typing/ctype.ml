@@ -2521,8 +2521,8 @@ let unexpanded_diff ~got ~expected =
 
 (**** Unification ****)
 
-(* Return whether [t0] occurs in [ty]. Objects are also traversed. *)
-let deep_occur t0 ty =
+(* Return whether [t0] occurs in any type in [tyl]. Objects are also traversed. *)
+let deep_occur_list t0 tyl =
   let rec occur_rec ty =
     if get_level ty >= get_level t0 && try_mark_node ty then begin
       if eq_type ty t0 then raise Occur;
@@ -2530,9 +2530,14 @@ let deep_occur t0 ty =
     end
   in
   try
-    occur_rec ty; unmark_type ty; false
+    List.iter occur_rec tyl;
+    List.iter unmark_type tyl;
+    false
   with Occur ->
-    unmark_type ty; true
+    List.iter unmark_type tyl;
+    true
+
+let deep_occur t0 ty = deep_occur_list t0 [ty]
 
 let gadt_equations_level = ref None
 
@@ -5280,7 +5285,7 @@ let rec build_subtype env (visited : transient_expr list)
           (* Fix PR#4505: do not set ty to Tvar when it appears in tl1,
              as this occurrence might break the occur check.
              XXX not clear whether this correct anyway... *)
-          if List.exists (deep_occur ty) tl1 then raise Not_found;
+          if deep_occur_list ty tl1 then raise Not_found;
           set_type_desc ty
             (Tvar { name = None;
                     layout = Layout.value
@@ -5838,7 +5843,7 @@ let rec normalize_type_rec visited ty =
         begin match !nm with
         | None -> ()
         | Some (n, v :: l) ->
-            if deep_occur ty (newgenty (Ttuple l)) then
+            if deep_occur_list ty l then
               (* The abbreviation may be hiding something, so remove it *)
               set_name nm None
             else
