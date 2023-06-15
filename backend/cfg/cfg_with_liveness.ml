@@ -26,6 +26,10 @@ let cfg_with_layout t = t.cfg_with_layout
 
 let cfg t = Cfg_with_layout.cfg t.cfg_with_layout
 
+let fold_blocks t ~f ~init = Cfg.fold_blocks (cfg t) ~f ~init
+
+let get_block_exn t label = Cfg.get_block_exn (cfg t) label
+
 let[@inline] compute_liveness_if_necessary t =
   match t.liveness with
   | Some liveness -> liveness

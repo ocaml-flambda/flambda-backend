@@ -12,6 +12,11 @@ val cfg_with_layout : t -> Cfg_with_layout.t
 
 val cfg : t -> Cfg.t
 
+val fold_blocks :
+  t -> f:(Label.t -> Cfg.basic_block -> 'a -> 'a) -> init:'a -> 'a
+
+val get_block_exn : t -> Label.t -> Cfg.basic_block
+
 val liveness : t -> liveness
 
 val liveness_find : t -> int -> Cfg_liveness.Liveness.domain
