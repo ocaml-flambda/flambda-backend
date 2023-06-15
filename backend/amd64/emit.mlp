@@ -695,12 +695,8 @@ let move (src : Reg.t) (dst : Reg.t) =
     begin match src.typ, src.loc, dst.typ, dst.loc with
     | Float, Reg.Reg _, Float, Reg.Reg _
     | Vec128, Reg.Reg _, Vec128, Reg.Reg _ -> I.movapd (reg src) (reg dst)
-    (* CR mslater: (SIMD) alignment *)
     | Vec128, _, Vec128, _ ->
-      I.movupd (reg src) (reg dst)
-    (* mshinwell: XXX *)
-    | Vec128, _, Float, _
-    | Float, _, Vec128, _ ->
+      (* CR mslater: (SIMD) alignment *)
       I.movupd (reg src) (reg dst)
     | Float, _, Float, _ -> I.movsd (reg src) (reg dst)
     | Float, _, Int, _

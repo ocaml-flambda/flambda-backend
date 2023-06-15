@@ -4322,6 +4322,7 @@ let kind_of_layout (layout : Lambda.layout) =
   match layout with
   | Pvalue Pfloatval -> Boxed_float
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
+  | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
   | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_vector _ ->
     Any

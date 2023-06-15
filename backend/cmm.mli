@@ -235,6 +235,7 @@ and operation =
 type kind_for_unboxing =
   | Any (* This may contain anything, including non-scannable things *)
   | Boxed_integer of Lambda.boxed_integer
+  | Boxed_vector of Lambda.boxed_vector
   | Boxed_float
 
 type is_global = Global | Local

@@ -388,7 +388,7 @@ let join_unboxed_number_kind ~strict k1 k2 =
   | _, _ -> No_unboxing
 
 let is_strict : kind_for_unboxing -> bool = function
-  | Boxed_integer _ | Boxed_float -> false
+  | Boxed_integer _ | Boxed_float | Boxed_vector _ -> false
   | Any -> true
 
 let rec is_unboxed_number_cmm = function
