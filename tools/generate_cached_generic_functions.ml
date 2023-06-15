@@ -31,8 +31,9 @@ open Misc
 let main filename =
   let unix = (module Unix : Compiler_owee.Unix_intf.S) in
   Compmisc.init_path ();
-  Compmisc.with_ppf_dump ~file_prefix:filename (fun ppf_dump ->
-      Asmlink.cached_generic_functions unix ~ppf_dump filename)
+  let file_prefix = Filename.remove_extension filename in
+  Compmisc.with_ppf_dump ~file_prefix (fun ppf_dump ->
+      Asmlink.cached_generic_functions unix ~ppf_dump file_prefix)
 
 let arg_usage =
   Printf.sprintf "%s FILE : Generate an obj file containing cached generatic functions named FILE" Sys.argv.(0)
