@@ -1193,7 +1193,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         Misc.fatal_errorf "Wrong number of arguments for Lraise: %a"
           Printlambda.primitive prim)
     | _ ->
-      let id = Ident.create_local "prim" in
+      let name = Printlambda.name_of_primitive prim in
+      let id = Ident.create_local name in
       let result_layout = L.primitive_result_layout prim in
       (match result_layout with
       | Pvalue _ | Punboxed_float | Punboxed_int _ -> ()
