@@ -17,6 +17,7 @@ let precondition : Cfg_with_layout.t -> unit =
       | Const_int _ -> ()
       | Const_float _ -> ()
       | Const_symbol _ -> ()
+      | Const_vec128 _ -> ()
       | Stackoffset _ -> ()
       | Load _ -> ()
       | Store _ -> ()

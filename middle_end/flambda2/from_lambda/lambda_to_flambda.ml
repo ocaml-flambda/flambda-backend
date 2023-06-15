@@ -1197,7 +1197,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       let id = Ident.create_local name in
       let result_layout = L.primitive_result_layout prim in
       (match result_layout with
-      | Pvalue _ | Punboxed_float | Punboxed_int _ -> ()
+      | Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _ -> ()
       | Ptop | Pbottom ->
         Misc.fatal_errorf "Invalid result layout %a for primitive %a"
           Printlambda.layout result_layout Printlambda.primitive prim);

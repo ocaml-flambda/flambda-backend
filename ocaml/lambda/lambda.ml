@@ -650,6 +650,8 @@ let layout_functor = Pvalue Pgenval
 let layout_boxed_float = Pvalue Pfloatval
 let layout_string = Pvalue Pgenval
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
+
+let layout_boxed_vector vi = Pvalue (Pboxedvectorval vi)
 let layout_lazy = Pvalue Pgenval
 let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
@@ -1453,6 +1455,7 @@ let primitive_result_layout (p : primitive) =
   | Punbox_float -> Punboxed_float
   | Pccall { prim_native_repr_res = _, Untagged_int; _} -> layout_int
   | Pccall { prim_native_repr_res = _, Unboxed_float; _} -> layout_boxed_float
+  | Pccall { prim_native_repr_res = _, Unboxed_vector v; _} -> layout_boxed_vector v
   | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr s; _} ->
       begin match s with
       | Value -> layout_any_value

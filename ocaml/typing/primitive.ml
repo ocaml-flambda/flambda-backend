@@ -301,16 +301,19 @@ let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
   | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Sort.equal_const s1 s2
   | Same_as_ocaml_repr _,
-    (Unboxed_float | Unboxed_integer _ | Untagged_int) -> false
+    (Unboxed_float | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> false
   | Unboxed_float, Unboxed_float -> true
   | Unboxed_float,
-    (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_int) -> false
+    (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> false
   | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_boxed_integer bi1 bi2
   | Unboxed_integer _,
-    (Same_as_ocaml_repr _ | Unboxed_float | Untagged_int) -> false
+    (Same_as_ocaml_repr _ | Unboxed_float | Untagged_int | Unboxed_vector _) -> false
   | Untagged_int, Untagged_int -> true
   | Untagged_int,
-    (Same_as_ocaml_repr _ | Unboxed_float | Unboxed_integer _) -> false
+    (Same_as_ocaml_repr _ | Unboxed_float | Unboxed_integer _ | Unboxed_vector _) -> false
+  | Unboxed_vector v1, Unboxed_vector v2 -> equal_boxed_vector v1 v2 
+  | Unboxed_vector _,
+    (Same_as_ocaml_repr _ | Unboxed_float | Unboxed_integer _ | Untagged_int ) -> false
 
 let equal_effects ef1 ef2 =
   match ef1, ef2 with
@@ -334,7 +337,7 @@ let native_name_is_external p =
 
 let sort_of_native_repr = function
   | Same_as_ocaml_repr s -> s
-  | (Unboxed_float | Unboxed_integer _ | Untagged_int) -> Sort.Value
+  | (Unboxed_float | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> Sort.Value
 
 let report_error ppf err =
   match err with
