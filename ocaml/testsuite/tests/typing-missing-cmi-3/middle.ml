@@ -12,4 +12,4 @@ type r = Original.r = { x:unit }
 let r = Original.r
 
 type s = Original.s = S
-let s = Original.s
+let s : s = Original.s

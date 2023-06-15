@@ -122,7 +122,7 @@ and proceed as follows:
 make coldstart
 make coreall
 ```
-Then edit `runtime/exec.h` and `utils/config.mlp` to bump the numbers.  Then:
+Then edit `runtime/caml/exec.h` and `utils/config.mlp` to bump the numbers.  Then:
 ```
 make coreall
 make bootstrap
@@ -142,6 +142,23 @@ There is also a `make ci` target which does a full build and test run.
 
 Some of our tests are expect tests run using a custom tool called `flexpect`.
 Corrected outputs can be promoted using `make promote`.
+
+See `ocaml/HACKING.jst.adoc` for documentation on additional test-related
+targets. When that documentation says to run (say) `make -f Makefile.jst test-one`
+from the `ocaml` subdirectory, you should instead run `make test-one` from the
+root of the repo. Here are some examples of commands you can run:
+
+```
+$ make test-one TEST=typing-local/local.ml
+$ make test-one-no-rebuild TEST=typing-local/local.ml
+$ make promote-one TEST=typing-local/local.ml
+$ make promote-one-no-rebuild TEST=typing-local/local.ml
+# Promote failures from the last run
+$ make promote-failed
+# You can also use the full path from the root of the repo.
+# This interacts better with tab completion.
+$ make test-one TEST=ocaml/testsuite/tests/typing-local/local.ml
+```
 
 ## Running only part of the upstream testsuite
 
@@ -199,7 +216,7 @@ where `<DUNE>` is the path to the dune provided to `configure`.
 This can be done following the usual upstream procedures,
 working entirely within the `ocaml/` subdirectory.  Thoroughly clean the tree (e.g. `git clean -dfX`),
 go into `ocaml/`, then run the upstream configure script.  After that perform the bootstrap (e.g.
-`make world` followed by `make bootstrap`).  Before recompiling the Flambda backend as normal it would
+`make core` followed by `make bootstrap`).  Before recompiling the Flambda backend as normal it would
 be advisable to clean the whole tree again.
 
 ## Testing the compiler built locally with OPAM

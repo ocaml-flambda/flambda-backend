@@ -204,8 +204,8 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     ()
   | Const_float expected, Const_float result when Int64.equal expected result ->
     ()
-  | Const_symbol expected, Const_symbol result when String.equal expected result
-    ->
+  | Const_symbol expected, Const_symbol result
+    when String.equal expected.sym_name result.sym_name ->
     ()
   | Stackoffset expected, Stackoffset result when Int.equal expected result ->
     ()
@@ -294,10 +294,18 @@ let check_prim_call_operation :
     when Option.equal Int.equal expected_immediate result_immediate ->
     ()
   | ( Probe
-        { name = expected_name; handler_code_sym = expected_handler_code_sym },
-      Probe { name = result_name; handler_code_sym = result_handler_code_sym } )
+        { name = expected_name;
+          handler_code_sym = expected_handler_code_sym;
+          enabled_at_init = expected_enabled_at_init
+        },
+      Probe
+        { name = result_name;
+          handler_code_sym = result_handler_code_sym;
+          enabled_at_init = result_enabled_at_init
+        } )
     when String.equal expected_name result_name
-         && String.equal expected_handler_code_sym result_handler_code_sym ->
+         && String.equal expected_handler_code_sym result_handler_code_sym
+         && Bool.equal expected_enabled_at_init result_enabled_at_init ->
     ()
   | _ -> different location "primitive call operation"
  [@@ocaml.warning "-4"]
@@ -307,9 +315,9 @@ let check_func_call_operation :
  fun location expected result ->
   match expected, result with
   | Indirect, Indirect -> ()
-  | ( Direct { func_symbol = expected_func_symbol },
-      Direct { func_symbol = result_func_symbol } )
-    when String.equal expected_func_symbol result_func_symbol ->
+  | Direct expected_func_symbol, Direct result_func_symbol
+    when String.equal expected_func_symbol.sym_name result_func_symbol.sym_name
+    ->
     ()
   | _ -> different location "function call operation"
  [@@ocaml.warning "-4"]

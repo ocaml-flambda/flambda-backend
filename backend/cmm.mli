@@ -140,10 +140,14 @@ type phantom_defining_expr =
 
 type trywith_shared_label = Lambda.static_label (* Same as Ccatch handlers *)
 
+type pop_action =
+  | Pop_generic
+  | Pop_specific of trywith_shared_label
+
 type trap_action =
   | Push of trywith_shared_label
   (** Add the corresponding handler to the trap stack. *)
-  | Pop
+  | Pop of pop_action
   (** Remove the last handler from the trap stack. *)
 
 type trywith_kind =
@@ -215,7 +219,7 @@ and operation =
                    then the index.
                    It results in a bounds error if the index is greater than
                    or equal to the bound. *)
-  | Cprobe of { name: string; handler_code_sym: string; }
+  | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
   | Cprobe_is_enabled of { name: string }
   | Copaque (* Sys.opaque_identity *)
   | Cbeginregion | Cendregion
@@ -227,13 +231,34 @@ type kind_for_unboxing =
   | Boxed_integer of Lambda.boxed_integer
   | Boxed_float
 
+type is_global = Global | Local
+val equal_is_global : is_global -> is_global -> bool
+
+(* Symbols are marked with whether they are local or global,
+   at both definition and use sites.
+
+   Symbols defined as [Local] may only be referenced within the same file,
+   and all such references must also be [Local].
+
+   Symbols defined as [Global] may be referenced from other files.
+   References from other files must be [Global], but references from the
+   same file may be [Local].
+
+   (Marking symbols in this way speeds up linking, as many references can
+   then be resolved early) *)
+type symbol =
+  { sym_name : string;
+    sym_global : is_global }
+
+val global_symbol : string -> symbol
+
 (** Every basic block should have a corresponding [Debuginfo.t] for its
     beginning. *)
 type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
-  | Cconst_symbol of string * Debuginfo.t
+  | Cconst_symbol of symbol * Debuginfo.t
   | Cvar of Backend_var.t
   | Clet of Backend_var.With_provenance.t * expression * expression
   | Clet_mut of Backend_var.With_provenance.t * machtype
@@ -270,10 +295,11 @@ type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
+  | Ignore_assert_all of property
   | Check of { property: property; strict: bool; assume: bool; loc: Location.t }
 
 type fundecl =
-  { fun_name: string;
+  { fun_name: symbol;
     fun_args: (Backend_var.With_provenance.t * machtype) list;
     fun_body: expression;
     fun_codegen_options : codegen_option list;
@@ -282,15 +308,14 @@ type fundecl =
   }
 
 type data_item =
-    Cdefine_symbol of string
-  | Cglobal_symbol of string
+    Cdefine_symbol of symbol
   | Cint8 of int
   | Cint16 of int
   | Cint32 of nativeint
   | Cint of nativeint
   | Csingle of float
   | Cdouble of float
-  | Csymbol_address of string
+  | Csymbol_address of symbol
   | Cstring of string
   | Cskip of int
   | Calign of int

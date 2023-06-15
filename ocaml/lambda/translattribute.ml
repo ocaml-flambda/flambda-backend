@@ -144,7 +144,7 @@ let parse_ids_payload txt loc ~default ~empty cases payload =
   | Error () -> warn ()
   | Ok None -> empty
   | Ok (Some ids) ->
-      match List.assoc_opt ids cases with
+      match List.assoc_opt (List.sort String.compare ids) cases with
       | Some r -> r
       | None -> warn ()
 
@@ -256,7 +256,7 @@ let parse_property_attribute attr property =
           ["assume"], Check { property; strict = false; assume = true; loc; };
           ["strict"], Check { property; strict = true; assume = false; loc; };
           ["assume"; "strict"], Check { property; strict = true; assume = true; loc; };
-          ["strict"; "assume"], Check { property; strict = true; assume = true; loc; };
+          ["ignore"], Ignore_assert_all property
         ]
         payload
 
@@ -297,18 +297,44 @@ let get_local_attribute l =
   let attr = find_attribute is_local_attribute l in
   parse_local_attribute attr
 
-let get_property_attribute l p =
+let get_property_attribute l p ~fun_attr =
   let attr = find_attribute (is_property_attribute p) l in
   let res = parse_property_attribute attr p in
   (match attr, res with
-   | None, _ -> ()
+   | None, Default_check -> ()
    | _, Default_check -> ()
-   | Some attr, Check _ ->
+   | None, (Check _ | Ignore_assert_all _ ) -> assert false
+   | Some _, Ignore_assert_all _ -> ()
+   | Some attr, Check { assume; _ } ->
      if !Clflags.zero_alloc_check && !Clflags.native_code then
-       Builtin_attributes.register_property attr.attr_name);
+       (* The warning for unchecked functions will not trigger if the check is requested
+          through the [@@@zero_alloc all] top-level annotation rather than through the
+          function annotation [@zero_alloc]. *)
+       if assume then begin
+         (* [attr.inline] and [attr.specialise] must be set before the
+            check for [Warnings.Misplaced_assume_attribute].
+            For attributes from the same list, it's fine because
+            [add_check_attribute] is called after
+            [add_inline_attribute] and [add_specialise_attribute].
+            The warning will spuriously fire in the following case:
+            let[@inline never][@specialise never] f =
+              fun[@zero_alloc assume] x -> ..
+         *)
+         let never_specialise =
+           if Config.flambda then
+              fun_attr.specialise = Never_specialise
+           else
+              (* closure drops [@specialise never] and never specialises *)
+              (* flambda2 does not have specialisation support yet *)
+              true
+         in
+         if not ((fun_attr.inline = Never_inline) && never_specialise) then
+          Location.prerr_warning attr.attr_name.loc
+            (Warnings.Misplaced_assume_attribute attr.attr_name.txt)
+       end
+       else
+         Builtin_attributes.register_property attr.attr_name);
    res
-
-let get_check_attribute l = get_property_attribute l Zero_alloc
 
 let get_poll_attribute l =
   let attr = find_attribute is_poll_attribute l in
@@ -414,15 +440,18 @@ let add_check_attribute expr loc attributes =
         (if assume then "assume" else "assert")
         (to_string property)
         (if strict then " strict" else "")
+    | Ignore_assert_all property ->
+      Printf.sprintf "ignore %s" (to_string property)
     | Default_check -> assert false
   in
   match expr with
-  | Lfunction({ attr = { stub = false } as attr } as funct) ->
-    begin match get_check_attribute attributes with
+  | Lfunction({ attr = { stub = false } as attr; } as funct) ->
+    begin match get_property_attribute attributes Zero_alloc ~fun_attr:attr with
     | Default_check -> expr
-    | (Check { property = p; _ }) as check ->
+    | (Ignore_assert_all p | Check { property = p; _ }) as check ->
       begin match attr.check with
       | Default_check -> ()
+      | Ignore_assert_all p'
       | Check { property = p'; strict = _; assume = _; loc = _; } ->
         if p = p' then
           Location.prerr_warning loc

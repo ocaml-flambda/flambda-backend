@@ -678,6 +678,7 @@ val meet_boxed_nativeint_containing_simple :
 val meet_block_field_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
+  field_kind:Flambda_kind.t ->
   t ->
   Targetint_31_63.t ->
   Simple.t meet_shortcut

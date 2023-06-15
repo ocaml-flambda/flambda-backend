@@ -84,9 +84,8 @@ let simplify_project_value_slot function_slot value_slot kind ~min_name_mode
   in
   let dacc =
     Simplify_common.add_symbol_projection result.dacc ~projected_from:closure
-      (Symbol_projection.Projection.project_value_slot function_slot value_slot
-         kind)
-      ~projection_bound_to:result_var
+      (Symbol_projection.Projection.project_value_slot function_slot value_slot)
+      ~projection_bound_to:result_var ~kind
   in
   SPR.with_dacc result dacc
 
@@ -524,9 +523,46 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
     let dacc = DA.add_variable dacc result_var arg_ty in
     SPR.create (Named.create_simple arg) ~try_reify:true dacc
   in
+  (* CR mshinwell: We could consider extending this to handle normal blocks in
+     addition to boxed numbers. *)
   match T.prove_is_a_boxed_or_tagged_number typing_env arg_ty with
   | Proved (Tagged_immediate | Boxed (Heap, _, _)) -> elide_primitive ()
-  | Proved (Boxed ((Heap_or_local | Local), boxable_number, contents_ty)) -> (
+  | Proved (Boxed ((Heap_or_local | Local), boxable_number, contents_ty)) ->
+    let extra_bindings, contents, contents_ty, dacc =
+      match
+        TE.get_alias_then_canonical_simple_exn ~min_name_mode:NM.normal
+          typing_env contents_ty
+      with
+      | exception Not_found ->
+        (* Add a projection so we have a variable bound to the contents of the
+           boxed value. This means that when the contents are used directly,
+           e.g. after unboxing of the boxed value, the duplicated block itself
+           can become unused. This might have the effect of moving a projection
+           earlier in the event that it already exists later, but this is
+           probably fine: this operation isn't that common. *)
+        let contents_var = Variable.create "obj_dup_contents" in
+        let contents_expr =
+          Named.create_prim (Unary (Unbox_number boxable_number, arg)) dbg
+        in
+        let bind_contents =
+          { Expr_builder.let_bound =
+              Bound_pattern.singleton (Bound_var.create contents_var NM.normal);
+            simplified_defining_expr = Simplified_named.create contents_expr;
+            original_defining_expr = None
+          }
+        in
+        let contents_simple = Simple.var contents_var in
+        let dacc =
+          DA.add_variable dacc
+            (Bound_var.create contents_var NM.normal)
+            contents_ty
+        in
+        ( [bind_contents],
+          contents_simple,
+          T.alias_type_of (T.kind contents_ty) contents_simple,
+          dacc )
+      | contents -> [], contents, contents_ty, dacc
+    in
     let boxer =
       match boxable_number with
       | Naked_float -> T.box_float
@@ -536,16 +572,13 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
     in
     let ty = boxer contents_ty Alloc_mode.For_types.heap in
     let dacc = DA.add_variable dacc result_var ty in
-    match T.get_alias_exn contents_ty with
-    | exception Not_found -> SPR.create original_term ~try_reify:true dacc
-    | contents ->
-      SPR.create
-        (Named.create_prim
-           (Unary
-              ( Box_number (boxable_number, Alloc_mode.For_allocations.heap),
-                contents ))
-           dbg)
-        ~try_reify:true dacc)
+    SPR.create ~extra_bindings
+      (Named.create_prim
+         (Unary
+            ( Box_number (boxable_number, Alloc_mode.For_allocations.heap),
+              contents ))
+         dbg)
+      ~try_reify:true dacc
   | Unknown -> (
     match T.prove_strings typing_env arg_ty with
     | Proved (Heap, _) -> elide_primitive ()

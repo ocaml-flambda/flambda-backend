@@ -57,6 +57,19 @@ let region = Region
 
 let rec_info = Rec_info
 
+let to_lambda (t : t) : Lambda.layout =
+  match t with
+  | Value -> Pvalue Pgenval
+  | Naked_number Naked_immediate ->
+    Misc.fatal_error "Can't convert kind [Naked_immediate] to lambda layout"
+  | Naked_number Naked_float -> Punboxed_float
+  | Naked_number Naked_int32 -> Punboxed_int Pint32
+  | Naked_number Naked_int64 -> Punboxed_int Pint64
+  | Naked_number Naked_nativeint -> Punboxed_int Pnativeint
+  | Region -> Misc.fatal_error "Can't convert kind [Region] to lambda layout"
+  | Rec_info ->
+    Misc.fatal_error "Can't convert kind [Rec_info] to lambda layout"
+
 include Container_types.Make (struct
   type nonrec t = t
 

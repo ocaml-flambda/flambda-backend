@@ -483,6 +483,10 @@ let alloc_mode_for_allocations env (alloc : Alloc_mode.For_allocations.t) :
     let r = Env.find_region_exn env r in
     Local { region = r }
 
+let alloc_mode_for_assignments _env (alloc : Alloc_mode.For_assignments.t) :
+    Fexpr.alloc_mode_for_assignments =
+  match alloc with Heap -> Heap | Local -> Local
+
 let alloc_mode_for_types (alloc : Alloc_mode.For_types.t) :
     Fexpr.alloc_mode_for_types =
   match alloc with
@@ -494,7 +498,7 @@ let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
     Fexpr.init_or_assign =
   match ia with
   | Initialization -> Initialization
-  | Assignment alloc -> Assignment (alloc_mode_for_allocations env alloc)
+  | Assignment alloc -> Assignment (alloc_mode_for_assignments env alloc)
 
 let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
   match op with
@@ -512,6 +516,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Get_tag -> Get_tag
   | Begin_try_region -> Begin_try_region
   | End_region -> End_region
+  | Int_arith (i, o) -> Int_arith (i, o)
   | Is_flat_float_array -> Is_flat_float_array
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)
   | Num_conv { src; dst } -> Num_conv { src; dst }
@@ -527,9 +532,9 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
     let move_to = Env.translate_function_slot env move_to in
     Project_function_slot { move_from; move_to }
   | String_length string_or_bytes -> String_length string_or_bytes
-  | Int_as_pointer | Boolean_not | Duplicate_block _ | Duplicate_array _
-  | Bigarray_length _ | Int_arith _ | Float_arith _ | Reinterpret_int64_as_float
-  | Is_boxed_float | Obj_dup ->
+  | Boolean_not -> Boolean_not
+  | Int_as_pointer | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
+  | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
@@ -577,9 +582,22 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
 
 let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
-  | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
+  | Array_set ak ->
+    let ia : Flambda_primitive.Init_or_assign.t =
+      match ak with
+      | Values ia -> ia
+      | Immediates | Naked_floats -> Assignment Alloc_mode.For_assignments.heap
+    in
+    let ak : Flambda_primitive.Array_kind.t =
+      match ak with
+      | Immediates -> Immediates
+      | Values _ -> Values
+      | Naked_floats -> Naked_floats
+    in
+    Array_set (ak, init_or_assign env ia)
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
-  | Bytes_or_bigstring_set _ | Bigarray_set _ ->
+  | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
+  | Bigarray_set _ ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Ternary op)
@@ -957,13 +975,7 @@ and cont_handler env cont_id (sort : Continuation.Sort.t) h =
       { name = cont_id; params; sort; handler })
 
 and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
-  let func =
-    Simple.pattern_match (Apply_expr.callee app)
-      ~name:(fun n ~coercion:_ -> (* CR lmaurer: Add coercions *) name env n)
-      ~const:(fun c ->
-        Misc.fatal_errorf "Unexpected const as callee: %a" Reg_width_const.print
-          c)
-  in
+  let func = simple env (Apply_expr.callee app) in
   let continuation : Fexpr.result_continuation =
     match Apply_expr.continuation app with
     | Return c -> Return (Env.find_continuation_exn env c)
@@ -1022,10 +1034,16 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
     | Method _ ->
       None
   in
-  let inlined =
+  let inlined : Fexpr.inlined_attribute option =
     if Flambda2_terms.Inlined_attribute.is_default (Apply_expr.inlined app)
     then None
-    else Some (Apply_expr.inlined app)
+    else
+      match Apply_expr.inlined app with
+      | Default_inlined -> Some Default_inlined
+      | Hint_inlined -> Some Hint_inlined
+      | Always_inlined _ -> Some Always_inlined
+      | Unroll (n, _) -> Some (Unroll n)
+      | Never_inlined -> Some Never_inlined
   in
   let inlining_state = inlining_state (Apply_expr.inlining_state app) in
   let region = Env.find_region_exn env (Apply_expr.region app) in

@@ -45,10 +45,7 @@ val print : Format.formatter -> t -> unit
 val report : Format.formatter -> t -> unit
 
 type can_inline = private
-  | Do_not_inline of
-      { warn_if_attribute_ignored : bool;
-        because_of_definition : bool
-      }
+  | Do_not_inline of { erase_attribute_if_ignored : bool }
   | Inline of
       { unroll_to : int option;
         was_inline_always : bool

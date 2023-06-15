@@ -20,8 +20,9 @@ open Cmm
 module V = Backend_var
 module VP = Backend_var.With_provenance
 
-let afl_area_ptr dbg = Cconst_symbol ("caml_afl_area_ptr", dbg)
-let afl_prev_loc dbg = Cconst_symbol ("caml_afl_prev_loc", dbg)
+let sym s = { sym_name = s; sym_global = Global }
+let afl_area_ptr dbg = Cconst_symbol (sym "caml_afl_area_ptr", dbg)
+let afl_prev_loc dbg = Cconst_symbol (sym "caml_afl_prev_loc", dbg)
 let afl_map_size = 1 lsl 16
 
 let rec with_afl_logging b dbg =

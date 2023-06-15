@@ -231,6 +231,7 @@
   cfg_dataflow
   cfg_deadcode
   cfg_liveness
+  cfg_dominators
   cfg_loop_infos
   cfg_to_linear_desc
   eliminate_dead_code
@@ -246,6 +247,7 @@
   trap_stack
   cfg_equivalence
   ;; backend/regalloc
+  regalloc_invariants
   regalloc_irc
   regalloc_irc_split
   regalloc_irc_state
@@ -528,7 +530,7 @@
   ; Note that Dune doesn't allow globbing in the path part of the filename,
   ; so this is a bit more repetitive than it could be. Also, as far as I can
   ; tell, (glob_files_rec) simply doesn't work.
-  ocaml/extensions.mli
+  ocaml/jane_syntax.mli
   (glob_files *.mli)
   (glob_files .ocamloptcomp.objs/byte/*.{cmi,cmo,cmt,cmti})
   (glob_files .ocamloptcomp.objs/native/*.cmx)

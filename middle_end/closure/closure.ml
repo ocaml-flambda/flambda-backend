@@ -98,14 +98,14 @@ let region ulam =
   if is_trivial then ulam
   else Uregion ulam
 
-let tail ulam =
+let exclave ulam =
   let is_trivial =
     match ulam with
     | Uvar _ | Uconst _ -> true
     | _ -> false
   in
   if is_trivial then ulam
-  else Utail ulam
+  else Uexclave ulam
 
 (* Check if a variable occurs in a [clambda] term. *)
 
@@ -144,7 +144,7 @@ let occurs_var var u =
         occurs met || occurs obj || List.exists occurs args
     | Uunreachable -> false
     | Uregion e -> occurs e
-    | Utail e -> occurs e
+    | Uexclave e -> occurs e
   and occurs_array a =
     try
       for i = 0 to Array.length a - 1 do
@@ -183,10 +183,10 @@ let prim_size prim args =
   | Pbytesrefs | Pbytessets -> 6
   | Pmakearray _ -> 5 + List.length args
   | Parraylength kind -> if kind = Pgenarray then 6 else 2
-  | Parrayrefu kind -> if kind = Pgenarray then 12 else 2
-  | Parraysetu kind -> if kind = Pgenarray then 16 else 4
-  | Parrayrefs kind -> if kind = Pgenarray then 18 else 8
-  | Parraysets kind -> if kind = Pgenarray then 22 else 10
+  | Parrayrefu kind -> (match kind with Pgenarray_ref _ -> 12 | _ -> 2)
+  | Parraysetu kind -> (match kind with Pgenarray_set _ -> 16 | _ -> 4)
+  | Parrayrefs kind -> (match kind with Pgenarray_ref _ -> 18 | _ -> 8)
+  | Parraysets kind -> (match kind with Pgenarray_set _ -> 22 | _ -> 10)
   | Pbigarrayref(_, ndims, _, _) -> 4 + ndims * 6
   | Pbigarrayset(_, ndims, _, _) -> 4 + ndims * 6
   | Pprobe_is_enabled _ -> 4 (* Pgetglobal and a comparison *)
@@ -259,7 +259,7 @@ let lambda_smaller lam threshold =
     | Uregion e ->
         size := !size + 2;
         lambda_size e
-    | Utail e ->
+    | Uexclave e ->
         lambda_size e
   and lambda_list_size l = List.iter lambda_size l
   and lambda_array_size a = Array.iter lambda_size a in
@@ -286,7 +286,7 @@ let rec is_pure = function
   | Ulet(Immutable, _, _var, def, body) ->
       is_pure def && is_pure body
   | Uregion body -> is_pure body
-  | Utail body -> is_pure body
+  | Uexclave body -> is_pure body
   | _ -> false
 
 (* Simplify primitive operations on known arguments *)
@@ -770,8 +770,8 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
       Uunreachable
   | Uregion e ->
       region (substitute loc st sb rn e)
-  | Utail e ->
-      tail (substitute loc st sb rn e)
+  | Uexclave e ->
+      exclave (substitute loc st sb rn e)
 
 type env = {
   backend : (module Backend_intf.S);
@@ -923,7 +923,7 @@ let direct_apply env fundesc ufunct uargs pos result_layout mode ~probe ~loc ~at
      let body =
        match pos with
        | Rc_normal | Rc_nontail -> body
-       | Rc_close_at_apply -> tail body
+       | Rc_close_at_apply -> exclave body
      in
      bind_params env loc fundesc params uargs ufunct body
 
@@ -986,6 +986,10 @@ let close_approx_var { fenv; cenv } id =
 
 let close_var env id =
   let (ulam, _app) = close_approx_var env id in ulam
+
+let compute_expr_layout kinds lambda =
+  let find_kind id = Ident.Map.find_opt id kinds in
+  compute_expr_layout find_kind lambda
 
 let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) lam =
   let module B = (val backend : Backend_intf.S) in
@@ -1142,7 +1146,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
                                 _approx_res)), uargs)
         when nargs > List.length params_layout ->
           let nparams = List.length params_layout in
-          let args_kinds = List.map (Lambda.compute_expr_layout kinds) args in
+          let args_kinds = List.map (compute_expr_layout kinds) args in
           let args = List.map (fun arg -> V.create_local "arg", arg) uargs in
           (* CR mshinwell: Edit when Lapply has kinds *)
           let kinds =
@@ -1175,7 +1179,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           let body =
             match pos with
             | Rc_normal | Rc_nontail -> body
-            | Rc_close_at_apply -> tail body
+            | Rc_close_at_apply -> exclave body
           in
           let result =
             List.fold_left2 (fun body (id, defining_expr) kind ->
@@ -1189,14 +1193,14 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           warning_if_forced_inlined ~loc ~attribute "Unknown function";
           fail_if_probe ~probe "Unknown function";
           (Ugeneric_apply(ufunct, uargs,
-                          List.map (Lambda.compute_expr_layout kinds) args,
+                          List.map (compute_expr_layout kinds) args,
                           ap_result_layout, (pos, mode), dbg), Value_unknown)
       end
   | Lsend(kind, met, obj, args, pos, mode, loc, result_layout) ->
       let (umet, _) = close env met in
       let (uobj, _) = close env obj in
       let dbg = Debuginfo.from_location loc in
-      let args_layout = List.map (Lambda.compute_expr_layout kinds) args in
+      let args_layout = List.map (compute_expr_layout kinds) args in
       (Usend(kind, umet, uobj, close_list env args, args_layout, result_layout, (pos,mode), dbg),
        Value_unknown)
   | Llet(str, kind, id, lam, body) ->
@@ -1450,6 +1454,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
   | Lregion (lam, _) ->
       let ulam, approx = close env lam in
       region ulam, approx
+  | Lexclave lam ->
+      let ulam, approx = close env lam in
+      exclave ulam, approx
 
 and close_list env = function
     [] -> []
@@ -1786,7 +1793,7 @@ let collect_exported_structured_constants a =
     | Usend (_, u1, u2, ul, _, _, _, _) -> ulam u1; ulam u2; List.iter ulam ul
     | Uunreachable -> ()
     | Uregion u -> ulam u
-    | Utail u -> ulam u
+    | Uexclave u -> ulam u
   in
   approx a
 

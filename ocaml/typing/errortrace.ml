@@ -15,6 +15,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Layouts
 open Types
 open Format
 
@@ -108,6 +109,10 @@ type ('a, 'variety) elt =
       (* Could move [Incompatible_fields] into [obj] *)
   (* Unification & Moregen; included in Equality for simplicity *)
   | Rec_occur : type_expr * type_expr -> ('a, _) elt
+  | Bad_layout : type_expr * Layout.Violation.t -> ('a, _) elt
+  | Bad_layout_sort : type_expr * Layout.Violation.t -> ('a, _) elt
+  | Unequal_var_layouts :
+      type_expr * layout * type_expr * layout -> ('a, _) elt
 
 type ('a, 'variety) t = ('a, 'variety) elt list
 
@@ -121,6 +126,9 @@ let map_elt (type variety) f : ('a, variety) elt -> ('b, variety) elt = function
   | Escape {kind = (Univ _ | Self | Constructor _ | Module_type _ | Constraint);
             _}
   | Variant _ | Obj _ | Incompatible_fields _ | Rec_occur (_, _) as x -> x
+  | Bad_layout _ as x -> x
+  | Bad_layout_sort _ as x -> x
+  | Unequal_var_layouts _ as x -> x
 
 let map f t = List.map (map_elt f) t
 

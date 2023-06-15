@@ -327,15 +327,6 @@ let rec simple env (s : Fexpr.simple) : Simple.t =
   | Symbol sym -> Simple.symbol (get_symbol env sym)
   | Coerce (s, co) -> Simple.apply_coercion_exn (simple env s) (coercion env co)
 
-let name env (s : Fexpr.name) : Name.t =
-  match s with
-  | Var { txt = v; loc } -> (
-    match VM.find_opt v env.variables with
-    | None ->
-      Misc.fatal_errorf "Unbound variable %s : %a" v print_scoped_location loc
-    | Some var -> Name.var var)
-  | Symbol sym -> Name.symbol (get_symbol env sym)
-
 let field_of_block env (v : Fexpr.field_of_block) : Field_of_static_block.t =
   match v with
   | Symbol s -> Symbol (get_symbol env s)
@@ -364,11 +355,16 @@ let alloc_mode_for_types (alloc : Fexpr.alloc_mode_for_types) =
   | Heap_or_local -> Alloc_mode.For_types.unknown ()
   | Local -> Alloc_mode.For_types.local ()
 
-let init_or_assign env (ia : Fexpr.init_or_assign) :
+let alloc_mode_for_assignments (alloc : Fexpr.alloc_mode_for_assignments) =
+  match alloc with
+  | Heap -> Alloc_mode.For_assignments.heap
+  | Local -> Alloc_mode.For_assignments.local ()
+
+let init_or_assign _env (ia : Fexpr.init_or_assign) :
     Flambda_primitive.Init_or_assign.t =
   match ia with
   | Initialization -> Initialization
-  | Assignment alloc -> Assignment (alloc_mode_for_allocations env alloc)
+  | Assignment alloc -> Assignment (alloc_mode_for_assignments alloc)
 
 let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
   match nullop with Begin_region -> Begin_region
@@ -377,6 +373,7 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
   | Array_length -> Array_length
   | Begin_try_region -> Begin_try_region
+  | Boolean_not -> Boolean_not
   | Box_number (bk, alloc) ->
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Unbox_number bk -> Unbox_number bk
@@ -384,6 +381,7 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   | Untag_immediate -> Untag_immediate
   | End_region -> End_region
   | Get_tag -> Get_tag
+  | Int_arith (i, o) -> Int_arith (i, o)
   | Is_flat_float_array -> Is_flat_float_array
   | Is_int -> Is_int { variant_only = true } (* CR vlaviron: discuss *)
   | Num_conv { src; dst } -> Num_conv { src; dst }
@@ -443,8 +441,16 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
 
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with
-  | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
+  | Array_set (ak, ia) ->
+    let ask : Flambda_primitive.Array_set_kind.t =
+      match ak, ia with
+      | Immediates, _ -> Immediates
+      | Naked_floats, _ -> Naked_floats
+      | Values, ia -> Values (init_or_assign env ia)
+    in
+    Array_set ask
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
+  | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
 
 let convert_block_shape ~num_fields =
   List.init num_fields (fun _field -> Flambda_kind.With_subkind.any_value)
@@ -965,8 +971,13 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         | None | Some { params_arity = None; ret_arity = _ } ->
           Misc.fatal_errorf "Must specify arities for C call")
     in
-    let inlined =
-      inlined |> Option.value ~default:Inlined_attribute.Default_inlined
+    let inlined : Inlined_attribute.t =
+      match inlined with
+      | None | Some Default_inlined -> Default_inlined
+      | Some Hint_inlined -> Hint_inlined
+      | Some Always_inlined -> Always_inlined Expected_to_be_used
+      | Some (Unroll n) -> Unroll (n, Expected_to_be_used)
+      | Some Never_inlined -> Never_inlined
     in
     let inlining_state =
       match inlining_state with
@@ -980,12 +991,11 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let exn_continuation = find_exn_cont env exn_continuation in
     let region = find_region env region in
     let apply =
-      Flambda.Apply.create
-        ~callee:(Simple.name (name env func))
-        ~continuation exn_continuation
+      Flambda.Apply.create ~callee:(simple env func) ~continuation
+        exn_continuation
         ~args:((List.map (simple env)) args)
         ~args_arity ~return_arity ~call_kind Debuginfo.none ~inlined
-        ~inlining_state ~probe_name:None ~position:Normal
+        ~inlining_state ~probe:None ~position:Normal
         ~relative_history:Inlining_history.Relative.empty ~region
     in
     Flambda.Expr.create_apply apply

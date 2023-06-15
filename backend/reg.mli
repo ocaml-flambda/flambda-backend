@@ -41,7 +41,7 @@ type t =
     typ: Cmm.machtype_component;          (* Type of contents *)
     mutable loc: location;                (* Actual location *)
     mutable irc_work_list: irc_work_list; (* Current work list (IRC only) *)
-    mutable irc_color : int option;       (* Current color (IRC conly) *)
+    mutable irc_color : int option;       (* Current color (IRC only) *)
     mutable irc_alias : t option;         (* Current alias (IRC only) *)
     mutable spill: bool;                  (* "true" to force stack allocation  *)
     mutable part: int option;             (* Zero-based index of part of value *)

@@ -225,9 +225,13 @@ type alloc_mode_for_types =
   | Heap_or_local
   | Local
 
+type alloc_mode_for_assignments =
+  | Heap
+  | Local
+
 type init_or_assign =
   | Initialization
-  | Assignment of alloc_mode_for_allocations
+  | Assignment of alloc_mode_for_assignments
 
 type 'signed_or_unsigned comparison =
       'signed_or_unsigned Flambda_primitive.comparison =
@@ -248,12 +252,18 @@ type signed_or_unsigned = Flambda_primitive.signed_or_unsigned =
 
 type nullop = Begin_region
 
+type unary_int_arith_op = Flambda_primitive.unary_int_arith_op =
+  | Neg
+  | Swap_byte_endianness
+
 type unop =
   | Array_length
   | Begin_try_region
+  | Boolean_not
   | Box_number of box_kind * alloc_mode_for_allocations
   | End_region
   | Get_tag
+  | Int_arith of standard_int * unary_int_arith_op
   | Is_flat_float_array
   | Is_int
   | Num_conv of
@@ -311,6 +321,10 @@ type string_like_value = Flambda_primitive.string_like_value =
   | Bytes
   | Bigstring
 
+type bytes_like_value = Flambda_primitive.bytes_like_value =
+  | Bytes
+  | Bigstring
+
 type infix_binop =
   | Int_arith of binary_int_arith_op (* on tagged immediates *)
   | Int_shift of int_shift_op (* on tagged immediates *)
@@ -331,6 +345,7 @@ type binop =
 type ternop =
   | Array_set of array_kind * init_or_assign
   | Block_set of block_access_kind * init_or_assign
+  | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
 
 type varop =
   | Make_block of tag_scannable * mutability * alloc_mode_for_allocations
@@ -376,7 +391,7 @@ type inline_attribute = Inline_attribute.t =
   | Unroll of int
   | Default_inline
 
-type inlined_attribute = Inlined_attribute.t =
+type inlined_attribute =
   | Always_inlined
   | Hint_inlined
   | Never_inlined
@@ -393,7 +408,7 @@ type loopify_attribute = Loopify_attribute.t =
   | Default_loopify_and_not_tailrec
 
 type apply =
-  { func : name;
+  { func : simple;
     continuation : result_continuation;
     exn_continuation : continuation;
     args : simple list;

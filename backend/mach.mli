@@ -55,11 +55,11 @@ type operation =
   | Ireload
   | Iconst_int of nativeint
   | Iconst_float of int64
-  | Iconst_symbol of string
+  | Iconst_symbol of Cmm.symbol
   | Icall_ind
-  | Icall_imm of { func : string; }
+  | Icall_imm of { func : Cmm.symbol; }
   | Itailcall_ind
-  | Itailcall_imm of { func : string; }
+  | Itailcall_imm of { func : Cmm.symbol; }
   | Iextcall of { func : string;
                   ty_res : Cmm.machtype; ty_args : Cmm.exttype list;
                   alloc : bool; returns : bool; }
@@ -89,7 +89,7 @@ type operation =
         (b) If [is_assignment] is [true], any information about other [Reg.t]s
             that have been previously deemed to hold the value of that
             identifier is forgotten. *)
-  | Iprobe of { name: string; handler_code_sym: string; }
+  | Iprobe of { name: string; handler_code_sym: string; enabled_at_init: bool; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
 

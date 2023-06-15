@@ -168,11 +168,14 @@ let rec expr_size env = function
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
      RHS_nonrec
-  | Uprim (Pduprecord ((Record_regular | Record_inlined _), sz), _, _) ->
+  | Uprim (Pduprecord ((Record_boxed _ | Record_inlined (_, Variant_boxed _)),
+                       sz), _, _) ->
       RHS_block (Lambda.alloc_heap, sz)
-  | Uprim (Pduprecord (Record_unboxed _, _), _, _) ->
+  | Uprim (Pduprecord ((Record_unboxed
+                       | Record_inlined (_, Variant_unboxed)),
+                       _), _, _) ->
       assert false
-  | Uprim (Pduprecord (Record_extension _, sz), _, _) ->
+  | Uprim (Pduprecord (Record_inlined (_, Variant_extensible), sz), _, _) ->
       RHS_block (Lambda.alloc_heap, sz + 1)
   | Uprim (Pduprecord (Record_float, sz), _, _) ->
       RHS_floatblock (Lambda.alloc_heap, sz)
@@ -190,7 +193,7 @@ let rec expr_size env = function
       | _ -> assert false)
   | Uregion exp ->
       expr_size env exp
-  | Utail exp ->
+  | Uexclave exp ->
       expr_size env exp
   | _ -> RHS_nonrec
 
@@ -368,7 +371,7 @@ let is_unboxed_number_cmm ~strict cmm =
         | _ ->
             notify No_unboxing
         end
-    | Cregion e | Ctail e ->
+    | Cregion e ->
         aux e
     | l ->
         if not (Cmm.iter_shallow_tail aux l) then
@@ -748,8 +751,8 @@ let rec transl env e =
       Cop(Cload (Word_int, Mutable), [Cconst_int (0, dbg)], dbg)
   | Uregion e ->
       region (transl env e)
-  | Utail e ->
-      Ctail (transl env e)
+  | Uexclave e ->
+      Cexclave (transl env e)
 
 and transl_catch (kind : Cmm.kind_for_unboxing) env nfail ids body handler dbg =
   let ids = List.map (fun (id, kind) -> (id, kind, ref No_result)) ids in
@@ -1064,10 +1067,10 @@ and transl_prim_2 env p arg1 arg2 dbg =
       bigstring_load size unsafe mode (transl env arg1) (transl env arg2) dbg
 
   (* Array operations *)
-  | Parrayrefu kind ->
-      arrayref_unsafe kind (transl env arg1) (transl env arg2) dbg
-  | Parrayrefs kind ->
-      arrayref_safe kind (transl env arg1) (transl env arg2) dbg
+  | Parrayrefu rkind ->
+      arrayref_unsafe rkind (transl env arg1) (transl env arg2) dbg
+  | Parrayrefs rkind ->
+      arrayref_safe rkind (transl env arg1) (transl env arg2) dbg
 
   (* Boxed integers *)
   | Paddbint (bi, mode) ->
@@ -1152,20 +1155,20 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
         (transl env arg1) (transl env arg2) (transl env arg3) dbg
 
   (* Array operations *)
-  | Parraysetu kind ->
+  | Parraysetu skind ->
       let newval =
-        match kind with
-        | Pfloatarray -> transl_unbox_float dbg env arg3
+        match skind with
+        | Pfloatarray_set -> transl_unbox_float dbg env arg3
         | _ -> transl env arg3
       in
-      arrayset_unsafe kind (transl env arg1) (transl env arg2) newval dbg
-  | Parraysets kind ->
+      arrayset_unsafe skind (transl env arg1) (transl env arg2) newval dbg
+  | Parraysets skind ->
       let newval =
-        match kind with
-        | Pfloatarray -> transl_unbox_float dbg env arg3
+        match skind with
+        | Pfloatarray_set -> transl_unbox_float dbg env arg3
         | _ -> transl env arg3
       in
-      arrayset_safe kind (transl env arg1) (transl env arg2) newval dbg
+      arrayset_safe skind (transl env arg1) (transl env arg2) newval dbg
 
   | Pbytes_set(size, unsafe) ->
       bytes_set size unsafe (transl env arg1) (transl env arg2)

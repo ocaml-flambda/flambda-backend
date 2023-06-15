@@ -1,0 +1,6 @@
+
+Line 6, characters 44-47:
+6 | let unboxed_integers_must_have_a_modifier = #42
+                                                ^^^
+Error: Syntax error: unboxed integer literal with type-specifying suffix expected.
+

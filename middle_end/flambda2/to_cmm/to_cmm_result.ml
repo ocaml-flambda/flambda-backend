@@ -20,20 +20,66 @@ type t =
     data_list : Cmm.phrase list;
     functions : Cmm.fundecl list;
     current_data : Cmm.data_item list;
+    reachable_names : Name_occurrences.t;
+    symbols : Cmm.symbol String.Map.t;
+    (* This map is only used for symbols not directly translated from
+       [Symbol.t], e.g. module entry point names. *)
     module_symbol : Symbol.t;
     module_symbol_defined : bool;
     invalid_message_symbols : Symbol.t String.Map.t
   }
 
-let create ~module_symbol =
+let create ~module_symbol ~reachable_names =
   { gc_roots = [];
     data_list = [];
     functions = [];
     current_data = [];
+    reachable_names;
+    symbols = String.Map.empty;
     module_symbol;
     module_symbol_defined = false;
     invalid_message_symbols = String.Map.empty
   }
+
+(* Symbol handling
+
+   These functions are there to ensure that a given symbol is: 1) given an
+   appropriate locality, and 2) **always** given the same locality *)
+let raw_symbol res ~global:sym_global sym_name : t * Cmm.symbol =
+  match String.Map.find_opt sym_name res.symbols with
+  | None ->
+    let sym : Cmm.symbol = { sym_name; sym_global } in
+    let symbols = String.Map.add sym_name sym res.symbols in
+    { res with symbols }, sym
+  | Some sym ->
+    if Cmm.equal_is_global sym_global sym.sym_global
+    then res, sym
+    else
+      Misc.fatal_errorf "The symbol %s is declared as both local and global"
+        sym_name
+
+let symbol res sym =
+  let sym_name = Linkage_name.to_string (Symbol.linkage_name sym) in
+  let sym_global =
+    if Compilation_unit.is_current (Symbol.compilation_unit sym)
+       && not (Name_occurrences.mem_symbol res.reachable_names sym)
+    then Cmm.Local
+    else Cmm.Global
+  in
+  let s : Cmm.symbol = { sym_name; sym_global } in
+  s
+
+let symbol_of_code_id res code_id : Cmm.symbol =
+  let sym_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
+  let sym_global =
+    if Compilation_unit.is_current (Code_id.get_compilation_unit code_id)
+       && not (Name_occurrences.mem_code_id res.reachable_names code_id)
+    then Cmm.Local
+    else Cmm.Global
+  in
+  { sym_name; sym_global }
+
+(* *)
 
 let check_for_module_symbol t symbol =
   if Symbol.equal symbol t.module_symbol
@@ -49,8 +95,8 @@ let check_for_module_symbol t symbol =
 let defines_a_symbol data =
   match (data : Cmm.data_item) with
   | Cdefine_symbol _ -> true
-  | Cglobal_symbol _ | Cint8 _ | Cint16 _ | Cint32 _ | Cint _ | Csingle _
-  | Cdouble _ | Csymbol_address _ | Cstring _ | Cskip _ | Calign _ ->
+  | Cint8 _ | Cint16 _ | Cint32 _ | Cint _ | Csingle _ | Cdouble _
+  | Csymbol_address _ | Cstring _ | Cskip _ | Calign _ ->
     false
 
 let add_to_data_list x l =
@@ -89,7 +135,7 @@ let add_function r f = { r with functions = f :: r.functions }
 
 type result =
   { data_items : Cmm.phrase list;
-    gc_roots : Symbol.t list;
+    gc_roots : Cmm.symbol list;
     functions : Cmm.phrase list
   }
 
@@ -100,7 +146,8 @@ let define_module_symbol_if_missing r =
     let linkage_name =
       Linkage_name.to_string (Symbol.linkage_name r.module_symbol)
     in
-    let l = C.emit_block (linkage_name, Global) (C.black_block_header 0 0) [] in
+    let sym : Cmm.symbol = { sym_name = linkage_name; sym_global = Global } in
+    let l = C.emit_block sym (C.black_block_header 0 0) [] in
     set_data r l
 
 let add_invalid_message_symbol t symbol ~message =
@@ -125,8 +172,7 @@ let to_cmm r =
       r.functions
   in
   let function_phrases = List.map (fun f -> C.cfunction f) sorted_functions in
+  (* Translate roots to Cmm symbols *)
+  let roots = List.map (symbol r) r.gc_roots in
   (* Return the data list, gc roots and function declarations *)
-  { data_items = r.data_list;
-    gc_roots = r.gc_roots;
-    functions = function_phrases
-  }
+  { data_items = r.data_list; gc_roots = roots; functions = function_phrases }

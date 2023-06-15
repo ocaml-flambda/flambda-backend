@@ -36,9 +36,12 @@ let rec env_from_summary sum subst =
       match sum with
         Env_empty ->
           Env.empty
-      | Env_value(s, id, desc) ->
-          Env.add_value id (Subst.value_description subst desc)
-                        (env_from_summary s subst)
+      | Env_value(s, id, desc, mode) ->
+          let desc =
+            Subst.Lazy.of_value_description desc
+            |> Subst.Lazy.value_description subst
+          in
+          Env.add_value_lazy ~mode id desc (env_from_summary s subst)
       | Env_type(s, id, desc) ->
           Env.add_type ~check:false id
             (Subst.type_declaration subst desc)
@@ -54,7 +57,7 @@ let rec env_from_summary sum subst =
           Env.add_module_declaration_lazy ~update_summary:true id pres desc
             (env_from_summary s subst)
       | Env_modtype(s, id, desc) ->
-          let desc = 
+          let desc =
             Subst.Lazy.modtype_decl Keep subst (Subst.Lazy.of_modtype_decl desc)
           in
           Env.add_modtype_lazy ~update_summary:true id desc

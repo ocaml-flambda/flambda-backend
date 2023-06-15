@@ -4,60 +4,39 @@ let $camlTests4__int64100 = 3L in
 let $camlTests4__int32106 = 4l in
 let $camlTests4__int64115 = 0L in
 let $camlTests4__int32121 = 2l in
-let code size(122)
-      pr2162_3_as_int64_3
-        (z : imm tagged, x : imm tagged, y : int64 boxed, y' : int32 boxed)
+let code size(51)
+      pr2162_2_first_0 (z : imm tagged, x : imm tagged, y : float boxed)
         my_closure my_region my_depth
         -> k * k1
-        : [ 0 of int64 boxed * int32 boxed ] =
+        : float boxed =
   (let untagged = %untag_imm z in
    switch untagged
      | 0 -> k3
      | 1 -> k4)
     where k4 =
-      let prim = %unbox_int64 $camlTests4__int64100 in
-      let prim_1 = %unbox_int64 y in
-      let prim_2 = %int_arith int64 prim_1 * prim in
-      let Pmulbint = %Box_int64 prim_2 in
-      let prim_3 = %unbox_int32 $camlTests4__int32106 in
-      let prim_4 = %unbox_int32 y' in
-      let prim_5 = %int_arith int32 prim_4 * prim_3 in
-      let Pmulbint_1 = %Box_int32 prim_5 in
-      let Pmakeblock = %Block 0 (Pmulbint_1, Pmulbint) in
-      let Pmulint = x * 2 in
-      let Pmakeblock_1 = %Block 0 (Pmulint, Pmakeblock) in
-      cont k2 (Pmakeblock_1)
+      let prim = %unbox_float $camlTests4__float15 in
+      let prim_1 = %unbox_float y in
+      let prim_2 = prim_1 *. prim in
+      let b = %Box_float prim_2 in
+      let a = x * 2 in
+      cont k2 (a, b)
     where k3 =
-      let prim = %unbox_int64 $camlTests4__int64115 in
-      let prim_1 = %unbox_int64 y in
-      let prim_2 = %int_arith int64 prim_1 + prim in
-      let Paddbint = %Box_int64 prim_2 in
-      let Pmakeblock = %Block 0 ($camlTests4__int32121, Paddbint) in
-      let Pmakeblock_1 = %Block 0 (x, Pmakeblock) in
-      cont k2 (Pmakeblock_1)
-    where k2
-            (pair : [ 0 of imm tagged * [ 0 of int32 boxed * int64 boxed ] ]) =
-      let b = %block_load (pair, 1) in
-      let a = %block_load (pair, 0) in
-      let Pfield = %block_load (b, 0) in
-      let prim = %num_conv (imm tagged -> int32) a in
-      let Pbintofint = %Box_int32 prim in
-      let prim_1 = %unbox_int32 Pfield in
-      let prim_2 = %unbox_int32 Pbintofint in
-      let prim_3 = %int_arith int32 prim_2 - prim_1 in
-      let Psubbint = %Box_int32 prim_3 in
-      let Pfield_1 = %block_load (b, 1) in
-      let prim_4 = %num_conv (imm tagged -> int64) a in
-      let Pbintofint_1 = %Box_int64 prim_4 in
-      let prim_5 = %unbox_int64 Pfield_1 in
-      let prim_6 = %unbox_int64 Pbintofint_1 in
-      let prim_7 = %int_arith int64 prim_6 - prim_5 in
-      let Psubbint_1 = %Box_int64 prim_7 in
-      let Pmakeblock = %Block 0 (Psubbint_1, Psubbint) in
-      cont k (Pmakeblock)
+      let prim = %unbox_float $camlTests4__float22 in
+      let prim_1 = %unbox_float y in
+      let prim_2 = prim_1 +. prim in
+      let b = %Box_float prim_2 in
+      cont k2 (x, b)
+    where k2 (a : imm tagged, b : float boxed) =
+      let prim = %num_conv (imm tagged -> float) a in
+      let Pfloatofint = %Box_float prim in
+      let prim_1 = %unbox_float b in
+      let prim_2 = %unbox_float Pfloatofint in
+      let prim_3 = prim_2 -. prim_1 in
+      let Psubfloat = %Box_float prim_3 in
+      cont k (Psubfloat)
 in
 let code size(51)
-      pr2162_2_first_0 (z : imm tagged, x : imm tagged, y : float boxed)
+      pr2162_2_1 (z : imm tagged, x : imm tagged, y : float boxed)
         my_closure my_region my_depth
         -> k * k1
         : float boxed =
@@ -122,36 +101,57 @@ let code size(67)
       let Psubfloat = %Box_float prim_3 in
       cont k (Psubfloat)
 in
-let code size(51)
-      pr2162_2_1 (z : imm tagged, x : imm tagged, y : float boxed)
+let code size(122)
+      pr2162_3_as_int64_3
+        (z : imm tagged, x : imm tagged, y : int64 boxed, y' : int32 boxed)
         my_closure my_region my_depth
         -> k * k1
-        : float boxed =
+        : [ 0 of int64 boxed * int32 boxed ] =
   (let untagged = %untag_imm z in
    switch untagged
      | 0 -> k3
      | 1 -> k4)
     where k4 =
-      let prim = %unbox_float $camlTests4__float15 in
-      let prim_1 = %unbox_float y in
-      let prim_2 = prim_1 *. prim in
-      let b = %Box_float prim_2 in
-      let a = x * 2 in
-      cont k2 (a, b)
+      let prim = %unbox_int64 $camlTests4__int64100 in
+      let prim_1 = %unbox_int64 y in
+      let prim_2 = %int_arith int64 prim_1 * prim in
+      let Pmulbint = %Box_int64 prim_2 in
+      let prim_3 = %unbox_int32 $camlTests4__int32106 in
+      let prim_4 = %unbox_int32 y' in
+      let prim_5 = %int_arith int32 prim_4 * prim_3 in
+      let Pmulbint_1 = %Box_int32 prim_5 in
+      let Pmakeblock = %Block 0 (Pmulbint_1, Pmulbint) in
+      let Pmulint = x * 2 in
+      let Pmakeblock_1 = %Block 0 (Pmulint, Pmakeblock) in
+      cont k2 (Pmakeblock_1)
     where k3 =
-      let prim = %unbox_float $camlTests4__float22 in
-      let prim_1 = %unbox_float y in
-      let prim_2 = prim_1 +. prim in
-      let b = %Box_float prim_2 in
-      cont k2 (x, b)
-    where k2 (a : imm tagged, b : float boxed) =
-      let prim = %num_conv (imm tagged -> float) a in
-      let Pfloatofint = %Box_float prim in
-      let prim_1 = %unbox_float b in
-      let prim_2 = %unbox_float Pfloatofint in
-      let prim_3 = prim_2 -. prim_1 in
-      let Psubfloat = %Box_float prim_3 in
-      cont k (Psubfloat)
+      let prim = %unbox_int64 $camlTests4__int64115 in
+      let prim_1 = %unbox_int64 y in
+      let prim_2 = %int_arith int64 prim_1 + prim in
+      let Paddbint = %Box_int64 prim_2 in
+      let Pmakeblock = %Block 0 ($camlTests4__int32121, Paddbint) in
+      let Pmakeblock_1 = %Block 0 (x, Pmakeblock) in
+      cont k2 (Pmakeblock_1)
+    where k2
+            (pair : [ 0 of imm tagged * [ 0 of int32 boxed * int64 boxed ] ]) =
+      let b = %block_load (pair, 1) in
+      let a = %block_load (pair, 0) in
+      let Pfield = %block_load (b, 0) in
+      let prim = %num_conv (imm tagged -> int32) a in
+      let Pbintofint = %Box_int32 prim in
+      let prim_1 = %unbox_int32 Pfield in
+      let prim_2 = %unbox_int32 Pbintofint in
+      let prim_3 = %int_arith int32 prim_2 - prim_1 in
+      let Psubbint = %Box_int32 prim_3 in
+      let Pfield_1 = %block_load (b, 1) in
+      let prim_4 = %num_conv (imm tagged -> int64) a in
+      let Pbintofint_1 = %Box_int64 prim_4 in
+      let prim_5 = %unbox_int64 Pfield_1 in
+      let prim_6 = %unbox_int64 Pbintofint_1 in
+      let prim_7 = %int_arith int64 prim_6 - prim_5 in
+      let Psubbint_1 = %Box_int64 prim_7 in
+      let Pmakeblock = %Block 0 (Psubbint_1, Psubbint) in
+      cont k (Pmakeblock)
 in
 (let pr2162_2_first = closure pr2162_2_first_0 @pr2162_2_first in
  let pr2162_2 = closure pr2162_2_1 @pr2162_2 in

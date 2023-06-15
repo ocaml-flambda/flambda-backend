@@ -34,6 +34,7 @@ UTILS = \
   utils/local_store.cmo \
   utils/load_path.cmo \
   utils/clflags.cmo \
+  utils/debug.cmo \
   utils/language_extension.cmo \
   utils/profile.cmo \
   utils/terminfo.cmo \
@@ -60,7 +61,7 @@ PARSING = \
   parsing/docstrings.cmo \
   parsing/syntaxerr.cmo \
   parsing/ast_helper.cmo \
-  parsing/extensions_parsing.cmo parsing/extensions.cmo \
+  parsing/jane_syntax_parsing.cmo parsing/jane_syntax.cmo \
   parsing/pprintast.cmo \
   parsing/ast_iterator.cmo \
   parsing/builtin_attributes.cmo \
@@ -80,8 +81,8 @@ PARSING_CMI = \
 TYPING = \
   typing/path.cmo \
   typing/primitive.cmo \
-  typing/type_immediacy.cmo \
   typing/shape.cmo \
+  typing/layouts.cmo \
   typing/types.cmo \
   typing/btype.cmo \
   typing/oprint.cmo \

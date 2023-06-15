@@ -138,6 +138,7 @@ val dump_reload : bool ref
 val dump_scheduling : bool ref
 val dump_linear : bool ref
 val dump_interval : bool ref
+val debug_ocaml : bool ref
 val keep_startup_file : bool ref
 val dump_combine : bool ref
 val native_code : bool ref
@@ -285,3 +286,5 @@ val print_arguments : string -> unit
 val reset_arguments : unit -> unit
 
 val zero_alloc_check : bool ref
+val zero_alloc_check_assert_all : bool ref
+

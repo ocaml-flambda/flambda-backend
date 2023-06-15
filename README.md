@@ -2,21 +2,20 @@
 
 This repository is for more experimental work, of production quality, on the middle end
 and backend of the OCaml compiler.
-This is also the home of the Flambda 2 optimiser.
+This is also the home of the Flambda 2 optimiser and the Cfg backend.
 
-The Flambda backend is currently based on OCaml 4.14.0.
+The Flambda backend is currently based on OCaml 4.14.1.
 
 The following gives basic instructions for getting set up.  Please see
 [`HACKING.md`](HACKING.md) for more detailed instructions if you want to develop in this repo.
 That file also contains instructions for installing the Flambda backend compiler in a way
-that it can be used to build OPAM packages.  (The Flambda backend is expected to appear in the
-main OPAM repository by the end of 2021.)
+that it can be used to build OPAM packages.
 
 ## One-time setup for dev work or installation
 
 Only currently tested on Linux/x86-64 and macOS/x86-64.
 
-One-time setup:
+One-time setup (you can also use 4.14.1):
 ```
 $ opam switch 4.14.0  # or "opam switch create 4.14.0" if you haven't got that switch already
 $ eval $(opam env)

@@ -211,7 +211,7 @@ install_for_test: _install
 	 done; \
 	 ln -s _install/lib/ocaml stdlib; \
 	 mkdir runtime; \
-	 for f in ocamlrun* stdlib/caml stdlib/stublibs/*; do \
+	 for f in ocamlrun* stdlib/caml stdlib/stublibs/* runtime/caml/threads.h; do \
 	   ln -s ../$$f runtime/`basename $$f`; \
 	 done; \
 	 ln -s . lex; ln -s . yacc; \
@@ -308,22 +308,59 @@ promote-failed:
 runtest-upstream: test
 
 test-one: install_for_test
+	$(MAKE) test-one-no-rebuild
+
+# If the TEST argument is passed as `ocaml/testsuite/tests/foo` (as is invited by
+# tab completion) then look for it in `tests/foo`. Otherwise, if it's passed as
+# just `foo`, then look for it in `tests/foo` for backward compatibility.
+locate_test = \
+  $(shell \
+    test=$(shell echo "$1" | sed 's|^ocaml/testsuite/tests/||g'); \
+    echo "tests/$${test}"; \
+  )
+
+test-one-no-rebuild:
 	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
 	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
 	 if $$(which gfortran > /dev/null 2>&1); then \
 	   export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
 	 fi; \
-	 cd _runtest/testsuite && make one $(if $(TEST),TEST="tests/$(TEST)") $(if $(DIR),DIR="tests/$(DIR)"))
+	 cd _runtest/testsuite && make one $(if $(TEST),TEST=$(call locate_test,$(TEST))) $(if $(DIR),DIR=$(call locate_test,$(DIR))))
 
 promote-one: install_for_test
+	$(MAKE) promote-one-no-rebuild
+
+promote-one-no-rebuild:
 	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
 	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
 	 if $$(which gfortran > /dev/null 2>&1); then \
 	   export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
 	 fi; \
-	 cd _runtest/testsuite && make promote $(if $(TEST),TEST="tests/$(TEST)") $(if $(DIR),DIR="tests/$(DIR)"))
+	 cd _runtest/testsuite && make promote $(if $(TEST),TEST=$(call locate_test,$(TEST))) $(if $(DIR),DIR=$(call locate_test,$(DIR))))
 
 # This target is like a polling version of upstream "make ocamlopt"
 .PHONY: hacking
 hacking: _build/_bootinstall
 	$(dune) build $(ws_boot) -w $(boot_targets)
+
+# The `hacking-emacs-poller` and `hacking-emacs-builder` targets make it
+# possible to run the polling build with Emacs's `M-x compile`.  You should run
+# `make hacking-emacs-poller` in your terminal from the root directory of the
+# repo, and set Emacs's `compile-command` to `make hacking-emacs-builder` (from
+# the appropriate directory).
+
+.PHONY: hacking-emacs-poller
+hacking-emacs-poller: _build/_bootinstall
+	$(dune) build $(ws_boot) --passive-watch-mode
+
+.PHONY: hacking-emacs-builder
+hacking-emacs-builder: _build/_bootinstall
+	$(dune) rpc build $(ws_boot) -w $(boot_targets)
+	$(dune) diagnostics
+
+.PHONY: debug-printers
+debug-printers: runtime-stdlib # required for $(ws_main) to work
+	$(dune) build $(ws_main) $(ocamldir)/tools/debug_printers
+	@echo
+	@echo To load into ocamldebug, use:
+	@echo source \"$$(realpath _build/main/$(ocamldir)/tools/debug_printers)\"

@@ -147,15 +147,13 @@ let basic_or_terminator_of_operation :
   | Icall_ind ->
     With_next_label (fun label_after -> Call { op = Indirect; label_after })
   | Icall_imm { func } ->
-    With_next_label
-      (fun label_after ->
-        Call { op = Direct { func_symbol = func }; label_after })
+    With_next_label (fun label_after -> Call { op = Direct func; label_after })
   | Itailcall_ind -> Terminator (Tailcall_func Indirect)
   | Itailcall_imm { func } ->
     Terminator
-      (if String.equal (State.get_fun_name state) func
+      (if String.equal (State.get_fun_name state) func.sym_name
       then Tailcall_self { destination = State.get_tailrec_label state }
-      else Tailcall_func (Direct { func_symbol = func }))
+      else Tailcall_func (Direct func))
   | Iextcall { func; ty_res; ty_args; alloc; returns } ->
     let external_call = { Cfg.func_symbol = func; alloc; ty_res; ty_args } in
     if returns
@@ -217,10 +215,13 @@ let basic_or_terminator_of_operation :
     Misc.fatal_error
       "Cfgize.basic_or_terminator_of_operation: \"the Iname_for_debugger\" \
        instruction is currently not supported "
-  | Iprobe { name; handler_code_sym } ->
+  | Iprobe { name; handler_code_sym; enabled_at_init } ->
     With_next_label
       (fun label_after ->
-        Prim { op = Probe { name; handler_code_sym }; label_after })
+        Prim
+          { op = Probe { name; handler_code_sym; enabled_at_init };
+            label_after
+          })
   | Iprobe_is_enabled { name } -> Basic (Op (Probe_is_enabled { name }))
   | Ibeginregion -> Basic (Op Begin_region)
   | Iendregion -> Basic (Op End_region)
@@ -457,7 +458,7 @@ let rec add_blocks :
           | Cmm.Push handler_id ->
             let lbl_handler = State.get_catch_handler state ~handler_id in
             make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })
-          | Cmm.Pop -> make_instruction state ~desc:Cfg.Poptrap
+          | Cmm.Pop _ -> make_instruction state ~desc:Cfg.Poptrap
         in
         DLL.add_end body instr)
       trap_actions;
@@ -523,7 +524,9 @@ let rec add_blocks :
       else
         terminate_block
           ~trap_actions:
-            (if State.is_iend_with_poptrap state last then [Cmm.Pop] else [])
+            (if State.is_iend_with_poptrap state last
+            then [Cmm.Pop Pop_generic]
+            else [])
           (copy_instruction_no_reg state last ~desc:(Cfg.Always next))
     | Ireturn trap_actions ->
       terminate_block ~trap_actions

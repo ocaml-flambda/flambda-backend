@@ -118,7 +118,7 @@ type t =
   | While of t * t
   | For of for_loop
   | Region of t
-  | Tail of t
+  | Exclave of t
   | Proved_unreachable
 
 (** Values of type [named] will always be [let]-bound to a [Variable.t]. *)

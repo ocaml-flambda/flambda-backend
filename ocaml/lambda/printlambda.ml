@@ -54,6 +54,28 @@ let array_kind = function
   | Pintarray -> "int"
   | Pfloatarray -> "float"
 
+let array_ref_kind ppf k =
+  let pp_mode ppf = function
+    | Alloc_heap -> ()
+    | Alloc_local -> fprintf ppf "(local)"
+  in
+  match k with
+  | Pgenarray_ref mode -> fprintf ppf "gen%a" pp_mode mode
+  | Paddrarray_ref -> fprintf ppf "addr"
+  | Pintarray_ref -> fprintf ppf "int"
+  | Pfloatarray_ref mode -> fprintf ppf "float%a" pp_mode mode
+
+let array_set_kind ppf k =
+  let pp_mode ppf = function
+    | Modify_heap -> ()
+    | Modify_maybe_stack -> fprintf ppf "(local)"
+  in
+  match k with
+  | Pgenarray_set mode -> fprintf ppf "gen%a" pp_mode mode
+  | Paddrarray_set mode -> fprintf ppf "addr%a" pp_mode mode
+  | Pintarray_set -> fprintf ppf "int"
+  | Pfloatarray_set -> fprintf ppf "float"
+
 let alloc_mode = function
   | Alloc_heap -> ""
   | Alloc_local -> "local"
@@ -178,15 +200,11 @@ let print_bigarray name unsafe kind ppf layout =
      | Pbigarray_c_layout -> "C"
      | Pbigarray_fortran_layout -> "Fortran")
 
-let record_rep ppf r =
-  match r with
-  | Record_regular -> fprintf ppf "regular"
-  | Record_inlined i -> fprintf ppf "inlined(%i)" i
-  | Record_unboxed false -> fprintf ppf "unboxed"
-  | Record_unboxed true -> fprintf ppf "inlined(unboxed)"
+let record_rep ppf r = match r with
+  | Record_unboxed -> fprintf ppf "unboxed"
+  | Record_boxed _ -> fprintf ppf "boxed"
+  | Record_inlined _ -> fprintf ppf "inlined"
   | Record_float -> fprintf ppf "float"
-  | Record_extension path -> fprintf ppf "ext(%a)" Printtyp.path path
-;;
 
 let block_shape ppf shape = match shape with
   | None | Some [] -> ()
@@ -349,10 +367,10 @@ let primitive ppf = function
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
       fprintf ppf "duparray_unique[%s]" (array_kind k)
-  | Parrayrefu k -> fprintf ppf "array.unsafe_get[%s]" (array_kind k)
-  | Parraysetu k -> fprintf ppf "array.unsafe_set[%s]" (array_kind k)
-  | Parrayrefs k -> fprintf ppf "array.get[%s]" (array_kind k)
-  | Parraysets k -> fprintf ppf "array.set[%s]" (array_kind k)
+  | Parrayrefu rk -> fprintf ppf "array.unsafe_get[%a]" array_ref_kind rk
+  | Parraysetu sk -> fprintf ppf "array.unsafe_set[%a]" array_set_kind sk
+  | Parrayrefs rk -> fprintf ppf "array.get[%a]" array_ref_kind rk
+  | Parraysets sk -> fprintf ppf "array.set[%a]" array_set_kind sk
   | Pctconst c ->
      let const_name = match c with
        | Big_endian -> "big_endian"
@@ -580,6 +598,8 @@ let check_attribute ppf check =
   in
   match check with
   | Default_check -> ()
+  | Ignore_assert_all p ->
+    fprintf ppf "ignore assert all %s@ " (check_property p)
   | Check {property=p; assume; strict; loc = _} ->
     fprintf ppf "%s %s%s@ "
       (if assume then "assume" else "assert")
@@ -786,17 +806,14 @@ let rec lam ppf = function
       fprintf ppf "@[<2>(if@ %a@ %a@ %a)@]" lam lcond lam lif lam lelse
   | Lsequence(l1, l2) ->
       fprintf ppf "@[<2>(seq@ %a@ %a)@]" lam l1 sequence l2
-  | Lwhile {wh_cond; wh_cond_region; wh_body; wh_body_region} ->
-      let cond_mode = if wh_cond_region then alloc_heap else alloc_local in
-      let body_mode = if wh_body_region then alloc_heap else alloc_local in
-      fprintf ppf "@[<2>(while@ %s %a@ %s %a)@]"
-        (alloc_mode cond_mode) lam wh_cond (alloc_mode body_mode) lam wh_body
-  | Lfor {for_id; for_from; for_to; for_dir; for_body; for_region} ->
-      let mode = if for_region then alloc_heap else alloc_local in
-      fprintf ppf "@[<2>(for %a@ %a@ %s@ %a@ %s %a)@]"
+  | Lwhile {wh_cond; wh_body} ->
+      fprintf ppf "@[<2>(while@ %a@ %a)@]"
+        lam wh_cond lam wh_body
+  | Lfor {for_id; for_from; for_to; for_dir; for_body} ->
+      fprintf ppf "@[<2>(for %a@ %a@ %s@ %a@ %a)@]"
        Ident.print for_id lam for_from
        (match for_dir with Upto -> "to" | Downto -> "downto")
-       lam for_to (alloc_mode mode) lam for_body
+       lam for_to lam for_body
   | Lassign(id, expr) ->
       fprintf ppf "@[<2>(assign@ %a@ %a)@]" Ident.print id lam expr
   | Lsend (k, met, obj, largs, pos, reg, _, _) ->
@@ -836,6 +853,8 @@ let rec lam ppf = function
       fprintf ppf "@[<2>(ifused@ %a@ %a)@]" Ident.print id lam expr
   | Lregion (expr, _) ->
       fprintf ppf "@[<2>(region@ %a)@]" lam expr
+  | Lexclave expr ->
+      fprintf ppf "@[<2>(exclave@ %a)@]" lam expr
 
 and sequence ppf = function
   | Lsequence(l1, l2) ->

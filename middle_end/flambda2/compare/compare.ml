@@ -231,9 +231,8 @@ let subst_name env n =
 let subst_simple env s =
   Simple.pattern_match s
     ~const:(fun _ -> s)
-    ~name:(fun n ~coercion:_ ->
-      (* CR lmaurer: Coercion dropped! *)
-      Simple.name (subst_name env n))
+    ~name:(fun n ~coercion ->
+      Simple.with_coercion (Simple.name (subst_name env n)) coercion)
 
 let subst_unary_primitive env (p : Flambda_primitive.unary_primitive) :
     Flambda_primitive.unary_primitive =
@@ -439,8 +438,8 @@ and subst_apply env apply =
   let args_arity = Apply_expr.args_arity apply in
   let return_arity = Apply_expr.return_arity apply in
   Apply_expr.create ~callee ~continuation exn_continuation ~args ~call_kind dbg
-    ~inlined ~inlining_state ~probe_name:None ~position ~relative_history
-    ~region ~args_arity ~return_arity
+    ~inlined ~inlining_state ~probe:None ~position ~relative_history ~region
+    ~args_arity ~return_arity
   |> Expr.create_apply
 
 and subst_apply_cont env apply_cont =
@@ -576,6 +575,12 @@ let value_slots env value_slot1 value_slot2 : Value_slot.t Comparison.t =
       Env.add_value_slot env value_slot1 value_slot2;
       Equivalent)
 
+let coercions _env coercion1 coercion2 : Coercion.t Comparison.t =
+  (* Coercions only contain variables, not symbols, so we can just compare *)
+  if Coercion.equal coercion1 coercion2
+  then Equivalent
+  else Different { approximant = coercion1 }
+
 let names env name1 name2 : Name.t Comparison.t =
   log Name.print name1 name2 (fun () ->
       Name.pattern_match name1
@@ -597,12 +602,12 @@ let names env name1 name2 : Name.t Comparison.t =
 
 let simple_exprs env simple1 simple2 : Simple.t Comparison.t =
   Simple.pattern_match simple1
-    ~name:(fun name1 ~coercion:_ ->
-      (* CR lmaurer: Coercion dropped! *)
+    ~name:(fun name1 ~coercion:coercion1 ->
       Simple.pattern_match simple2
-        ~name:(fun name2 ~coercion:_ ->
-          (* CR lmaurer: Coercion dropped! *)
-          names env name1 name2 |> Comparison.map ~f:Simple.name)
+        ~name:(fun name2 ~coercion:coercion2 ->
+          pairs ~f1:names ~f2:coercions env (name1, coercion1) (name2, coercion2)
+          |> Comparison.map ~f:(fun (name, coercion) ->
+                 Simple.with_coercion (Simple.name name) coercion))
         ~const:(fun _ ->
           Comparison.Different { approximant = subst_simple env simple1 }))
     ~const:(fun const1 ->
@@ -997,7 +1002,7 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
             ~args:args1' ~call_kind:call_kind1' (Apply.dbg apply1)
             ~inlined:(Apply.inlined apply1)
             ~inlining_state:(Apply.inlining_state apply1)
-            ~probe_name:None ~position:(Apply.position apply1)
+            ~probe:None ~position:(Apply.position apply1)
             ~relative_history:(Apply_expr.relative_history apply1)
             ~region:(Apply_expr.region apply1)
             ~args_arity:(Apply_expr.args_arity apply1)

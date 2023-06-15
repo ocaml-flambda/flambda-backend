@@ -33,7 +33,8 @@ let code size(23)
       &my_region
       -> k * k1
 in
-let code size(32) bar_0 (map_foo) my_closure my_region my_depth -> k * k1 =
+let code inline(always) size(32)
+      bar_0 (map_foo) my_closure my_region my_depth -> k * k1 =
   let `anon-fn[tests11.ml:15,2--70]` =
     closure `anon-fn[tests11.ml:15,2--70]_1` @`anon-fn[tests11.ml:15,2--70]`
   with { map_foo = map_foo }

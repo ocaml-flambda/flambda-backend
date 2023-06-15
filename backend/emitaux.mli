@@ -106,6 +106,7 @@ val reduce_heap_size : reset:(unit -> unit) -> unit
 type error =
   | Stack_frame_too_large of int
   | Stack_frame_way_too_large of int
+  | Inconsistent_probe_init of string * Debuginfo.t
 
 module Dwarf_helpers : sig
   val init: disable_dwarf:bool -> string -> unit

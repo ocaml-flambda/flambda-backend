@@ -15,6 +15,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Layouts
 open Types
 
 type position = First | Second
@@ -93,6 +94,10 @@ type ('a, 'variety) elt =
   | Incompatible_fields : { name:string; diff: type_expr diff } -> ('a, _) elt
   (* Unification & Moregen; included in Equality for simplicity *)
   | Rec_occur : type_expr * type_expr -> ('a, _) elt
+  | Bad_layout : type_expr * Layout.Violation.t -> ('a, _) elt
+  | Bad_layout_sort : type_expr * Layout.Violation.t -> ('a, _) elt
+  | Unequal_var_layouts :
+      type_expr * layout * type_expr * layout -> ('a, _) elt
 
 type ('a, 'variety) t = ('a, 'variety) elt list
 

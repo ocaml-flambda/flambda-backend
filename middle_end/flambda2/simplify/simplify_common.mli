@@ -164,4 +164,5 @@ val add_symbol_projection :
   projected_from:Simple.t ->
   Symbol_projection.Projection.t ->
   projection_bound_to:Bound_var.t ->
+  kind:Flambda_kind.With_subkind.t ->
   Downwards_acc.t

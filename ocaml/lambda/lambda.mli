@@ -127,10 +127,10 @@ type primitive =
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
   | Parraylength of array_kind
-  | Parrayrefu of array_kind
-  | Parraysetu of array_kind
-  | Parrayrefs of array_kind
-  | Parraysets of array_kind
+  | Parrayrefu of array_ref_kind
+  | Parraysetu of array_set_kind
+  | Parrayrefs of array_ref_kind
+  | Parraysets of array_set_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the (integer) argument is outside an interval *)
@@ -209,6 +209,22 @@ and float_comparison =
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
 
+(** When accessing a flat float array, we need to know the mode which we should
+    box the resulting float at. *)
+and array_ref_kind =
+  | Pgenarray_ref of alloc_mode (* This might be a flat float array *)
+  | Paddrarray_ref
+  | Pintarray_ref
+  | Pfloatarray_ref of alloc_mode
+
+(** When updating an array that might contain pointers, we need to know what
+    mode they're at; otherwise, access is uniform. *)
+and array_set_kind =
+  | Pgenarray_set of modify_mode (* This might be an array of pointers *)
+  | Paddrarray_set of modify_mode
+  | Pintarray_set
+  | Pfloatarray_set
+
 and value_kind =
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
   | Pvariant of {
@@ -220,6 +236,8 @@ and value_kind =
     }
   | Parrayval of array_kind
 
+(* Because we check for and error on void in the translation to lambda, we don't
+   need a constructor for it here. *)
 and layout =
   | Ptop
   | Pvalue of value_kind
@@ -296,7 +314,7 @@ type inlined_attribute =
 val equal_inline_attribute : inline_attribute -> inline_attribute -> bool
 val equal_inlined_attribute : inlined_attribute -> inlined_attribute -> bool
 
-type probe_desc = { name: string }
+type probe_desc = { name: string; enabled_at_init: bool; }
 type probe = probe_desc option
 
 type specialise_attribute =
@@ -323,6 +341,7 @@ type poll_attribute =
 
 type check_attribute =
   | Default_check
+  | Ignore_assert_all of property
   | Check of { property: property;
                strict: bool;
                (* [strict=true] property holds on all paths.
@@ -331,7 +350,7 @@ type check_attribute =
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
                assume: bool;
-               (* [assume=false] assume without checking that the
+               (* [assume=true] assume without checking that the
                   property holds *)
                loc: Location.t;
              }
@@ -410,6 +429,7 @@ type lambda =
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda * layout
+  | Lexclave of lambda
 
 and lfunction = private
   { kind: function_kind;
@@ -425,11 +445,7 @@ and lfunction = private
 
 and lambda_while =
   { wh_cond : lambda;
-    wh_cond_region : bool; (* false if the condition may locally allocate in
-                              the region containing the loop *)
     wh_body : lambda;
-    wh_body_region : bool  (* false if the body may locally allocate in
-                              the region containing the loop *)
   }
 
 and lambda_for =
@@ -438,8 +454,6 @@ and lambda_for =
     for_to : lambda;
     for_dir : direction_flag;
     for_body : lambda;
-    for_region : bool;     (* false if the body may locally allocate in the
-                              region containing the loop *)
   }
 
 and lambda_apply =
@@ -573,7 +587,7 @@ val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 
 val subst:
-  (Ident.t -> Types.value_description -> Env.t -> Env.t) ->
+  (Ident.t -> Subst.Lazy.value_description -> Env.t -> Env.t) ->
   ?freshen_bound_variables:bool ->
   lambda Ident.Map.t -> lambda -> lambda
 (** [subst update_env ?freshen_bound_variables s lt]
@@ -671,4 +685,10 @@ val structured_constant_layout : structured_constant -> layout
 
 val primitive_result_layout : primitive -> layout
 
-val compute_expr_layout : layout Ident.Map.t -> lambda -> layout
+val compute_expr_layout : (Ident.t -> layout option) -> lambda -> layout
+
+(** The mode will be discarded if unnecessary for the given [array_kind] *)
+val array_ref_kind : alloc_mode -> array_kind -> array_ref_kind
+
+(** The mode will be discarded if unnecessary for the given [array_kind] *)
+val array_set_kind : modify_mode -> array_kind -> array_set_kind

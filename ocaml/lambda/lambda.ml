@@ -176,10 +176,10 @@ type primitive =
   | Pmakearray of array_kind * mutable_flag * alloc_mode
   | Pduparray of array_kind * mutable_flag
   | Parraylength of array_kind
-  | Parrayrefu of array_kind
-  | Parraysetu of array_kind
-  | Parrayrefs of array_kind
-  | Parraysets of array_kind
+  | Parrayrefu of array_ref_kind
+  | Parraysetu of array_set_kind
+  | Parrayrefs of array_ref_kind
+  | Parraysets of array_set_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the (integer) argument is outside an interval *)
@@ -273,6 +273,18 @@ and block_shape =
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
+
+and array_ref_kind =
+  | Pgenarray_ref of alloc_mode
+  | Paddrarray_ref
+  | Pintarray_ref
+  | Pfloatarray_ref of alloc_mode
+
+and array_set_kind =
+  | Pgenarray_set of modify_mode
+  | Paddrarray_set of modify_mode
+  | Pintarray_set
+  | Pfloatarray_set
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
@@ -411,7 +423,7 @@ let equal_inlined_attribute (x : inlined_attribute) (y : inlined_attribute) =
     | Hint_inlined | Unroll _ | Default_inlined), _ ->
     false
 
-type probe_desc = { name: string }
+type probe_desc = { name: string; enabled_at_init: bool; }
 type probe = probe_desc option
 
 type specialise_attribute =
@@ -442,6 +454,7 @@ type poll_attribute =
 
 type check_attribute =
   | Default_check
+  | Ignore_assert_all of property
   | Check of { property: property;
                strict: bool;
                assume: bool;
@@ -511,6 +524,7 @@ type lambda =
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda * layout
+  | Lexclave of lambda
 
 and lfunction =
   { kind: function_kind;
@@ -524,9 +538,7 @@ and lfunction =
 
 and lambda_while =
   { wh_cond : lambda;
-    wh_cond_region : bool;
     wh_body : lambda;
-    wh_body_region : bool
   }
 
 and lambda_for =
@@ -535,7 +547,6 @@ and lambda_for =
     for_to : lambda;
     for_dir : direction_flag;
     for_body : lambda;
-    for_region : bool;
   }
 
 and lambda_apply =
@@ -651,7 +662,7 @@ let default_function_attribute = {
 }
 
 let default_stub_attribute =
-  { default_function_attribute with stub = true }
+  { default_function_attribute with stub = true; check = Ignore_assert_all Zero_alloc }
 
 (* Build sharing keys *)
 (*
@@ -724,6 +735,7 @@ let make_key e =
         Lsend (m,tr_rec env e1,tr_rec env e2,tr_recs env es,pos,mo,Loc_unknown,layout)
     | Lifused (id,e) -> Lifused (id,tr_rec env e)
     | Lregion (e,layout) -> Lregion (tr_rec env e,layout)
+    | Lexclave e -> Lexclave (tr_rec env e)
     | Lletrec _|Lfunction _
     | Lfor _ | Lwhile _
 (* Beware: (PR#6412) the event argument to Levent
@@ -824,6 +836,8 @@ let shallow_iter ~tail ~non_tail:f = function
       tail e
   | Lregion (e, _) ->
       f e
+  | Lexclave e ->
+      tail e
 
 let iter_head_constructor f l =
   shallow_iter ~tail:f ~non_tail:f l
@@ -905,6 +919,8 @@ let rec free_variables = function
       (* Shouldn't v be considered a free variable ? *)
       free_variables e
   | Lregion (e, _) ->
+      free_variables e
+  | Lexclave e ->
       free_variables e
 
 and free_variables_list set exprs =
@@ -1065,8 +1081,8 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
     | Lifthenelse(e1, e2, e3,kind) ->
         Lifthenelse(subst s l e1, subst s l e2, subst s l e3,kind)
     | Lsequence(e1, e2) -> Lsequence(subst s l e1, subst s l e2)
-    | Lwhile lw -> Lwhile {lw with wh_cond = subst s l lw.wh_cond;
-                                   wh_body = subst s l lw.wh_body}
+    | Lwhile lw -> Lwhile { wh_cond = subst s l lw.wh_cond;
+                            wh_body = subst s l lw.wh_body}
     | Lfor lf ->
         let for_id, l' = bind lf.for_id l in
         Lfor {lf with for_id;
@@ -1087,7 +1103,7 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
           let rebind id id' new_env =
             match find_in_old id with
             | exception Not_found -> new_env
-            | vd -> Env.add_value id' vd new_env
+            | vd -> Env.add_value_lazy id' vd new_env
           in
           let update_free id new_env =
             match find_in_old id with
@@ -1111,6 +1127,8 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         Lifused (id, subst s l e)
     | Lregion (e, layout) ->
         Lregion (subst s l e, layout)
+    | Lexclave e ->
+        Lexclave (subst s l e)
   and subst_list s l li = List.map (subst s l) li
   and subst_decl s l (id, exp) = (id, subst s l exp)
   and subst_case s l (key, case) = (key, subst s l case)
@@ -1124,7 +1142,7 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
 let rename idmap lam =
   let update_env oldid vd env =
     let newid = Ident.Map.find oldid idmap in
-    Env.add_value newid vd env
+    Env.add_value_lazy newid vd env
   in
   let s = Ident.Map.map (fun new_id -> Lvar new_id) idmap in
   subst update_env s lam
@@ -1194,8 +1212,8 @@ let shallow_map ~tail ~non_tail:f = function
   | Lsequence (e1, e2) ->
       Lsequence (f e1, tail e2)
   | Lwhile lw ->
-      Lwhile { lw with wh_cond = f lw.wh_cond;
-                       wh_body = f lw.wh_body }
+      Lwhile { wh_cond = f lw.wh_cond;
+               wh_body = f lw.wh_body }
   | Lfor lf ->
       Lfor { lf with for_from = f lf.for_from;
                      for_to = f lf.for_to;
@@ -1210,6 +1228,8 @@ let shallow_map ~tail ~non_tail:f = function
       Lifused (v, tail e)
   | Lregion (e, layout) ->
       Lregion (f e, layout)
+  | Lexclave e ->
+      Lexclave (tail e)
 
 let map f =
   let rec g lam = f (shallow_map ~tail:g ~non_tail:g lam) in
@@ -1347,12 +1367,10 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
-  | Parrayrefu (Paddrarray|Pintarray)
-  | Parrayrefs (Paddrarray|Pintarray) -> None
-  | Parrayrefu (Pgenarray|Pfloatarray)
-  | Parrayrefs (Pgenarray|Pfloatarray) ->
-     (* The float box from flat floatarray access is always Alloc_heap *)
-     Some alloc_heap
+  | Parrayrefu (Paddrarray_ref | Pintarray_ref)
+  | Parrayrefs (Paddrarray_ref | Pintarray_ref) -> None
+  | Parrayrefu (Pgenarray_ref m | Pfloatarray_ref m)
+  | Parrayrefs (Pgenarray_ref m | Pfloatarray_ref m) -> Some m
   | Pisint _ | Pisout -> None
   | Pintofbint _ -> None
   | Pbintofint (_,m)
@@ -1422,9 +1440,12 @@ let primitive_result_layout (p : primitive) =
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
   | Pbox_float _ -> layout_float
   | Punbox_float -> Punboxed_float
-  | Pccall _p ->
-      (* CR ncourant: use native_repr *)
+  | Pccall { prim_native_repr_res = _, Untagged_int; _} -> layout_int
+  | Pccall { prim_native_repr_res = _, Unboxed_float; _} -> layout_float
+  | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr; _} ->
       layout_any_value
+  | Pccall { prim_native_repr_res = _, Unboxed_integer bi; _} ->
+      layout_boxedint bi
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
@@ -1441,11 +1462,11 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
-  | Parrayrefu array_kind | Parrayrefs array_kind ->
-      (match array_kind with
-       | Pintarray -> layout_int
-       | Pfloatarray -> layout_float
-       | Pgenarray | Paddrarray -> layout_field)
+  | Parrayrefu array_ref_kind | Parrayrefs array_ref_kind ->
+      (match array_ref_kind with
+       | Pintarray_ref -> layout_int
+       | Pfloatarray_ref _ -> layout_float
+       | Pgenarray_ref _ | Paddrarray_ref -> layout_field)
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
   | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
   | Pmulbint (bi, _) | Pdivbint {size = bi} | Pmodbint {size = bi}
@@ -1483,36 +1504,52 @@ let primitive_result_layout (p : primitive) =
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
 
-let rec compute_expr_layout kinds lam =
-  match lam with
-  | Lvar id | Lmutvar id ->
-    begin
-      try Ident.Map.find id kinds
-      with Not_found ->
-        Misc.fatal_errorf "Unbound layout for variable %a" Ident.print id
-    end
-  | Lconst cst -> structured_constant_layout cst
-  | Lfunction _ -> layout_function
-  | Lapply { ap_result_layout; _ } -> ap_result_layout
-  | Lsend (_, _, _, _, _, _, _, layout) -> layout
-  | Llet(_, kind, id, _, body) | Lmutlet(kind, id, _, body) ->
-    compute_expr_layout (Ident.Map.add id kind kinds) body
-  | Lletrec(defs, body) ->
-    let kinds =
-      List.fold_left (fun kinds (id, _) -> Ident.Map.add id layout_letrec kinds)
-        kinds defs
-    in
-    compute_expr_layout kinds body
-  | Lprim(p, _, _) ->
-    primitive_result_layout p
-  | Lswitch(_, _, _, kind) | Lstringswitch(_, _, _, _, kind)
-  | Lstaticcatch(_, _, _, kind) | Ltrywith(_, _, _, kind)
-  | Lifthenelse(_, _, _, kind) | Lregion (_, kind) ->
-    kind
-  | Lstaticraise (_, _) ->
-    layout_bottom
-  | Lsequence(_, body) | Levent(body, _) -> compute_expr_layout kinds body
-  | Lwhile _ | Lfor _ | Lassign _ -> layout_unit
-  | Lifused _ ->
-      assert false
+let compute_expr_layout free_vars_kind lam =
+  let rec compute_expr_layout kinds = function
+    | Lvar id | Lmutvar id -> begin
+        try Ident.Map.find id kinds
+        with Not_found ->
+        match free_vars_kind id with
+        | Some kind -> kind
+        | None ->
+            Misc.fatal_errorf "Unbound layout for variable %a" Ident.print id
+      end
+    | Lconst cst -> structured_constant_layout cst
+    | Lfunction _ -> layout_function
+    | Lapply { ap_result_layout; _ } -> ap_result_layout
+    | Lsend (_, _, _, _, _, _, _, layout) -> layout
+    | Llet(_, kind, id, _, body) | Lmutlet(kind, id, _, body) ->
+      compute_expr_layout (Ident.Map.add id kind kinds) body
+    | Lletrec(defs, body) ->
+      let kinds =
+        List.fold_left (fun kinds (id, _) -> Ident.Map.add id layout_letrec kinds)
+          kinds defs
+      in
+      compute_expr_layout kinds body
+    | Lprim(p, _, _) ->
+      primitive_result_layout p
+    | Lswitch(_, _, _, kind) | Lstringswitch(_, _, _, _, kind)
+    | Lstaticcatch(_, _, _, kind) | Ltrywith(_, _, _, kind)
+    | Lifthenelse(_, _, _, kind) | Lregion (_, kind) ->
+      kind
+    | Lstaticraise (_, _) ->
+      layout_bottom
+    | Lsequence(_, body) | Levent(body, _) -> compute_expr_layout kinds body
+    | Lwhile _ | Lfor _ | Lassign _ -> layout_unit
+    | Lifused _ ->
+        assert false
+    | Lexclave e -> compute_expr_layout kinds e
+  in
+  compute_expr_layout Ident.Map.empty lam
 
+let array_ref_kind mode = function
+  | Pgenarray -> Pgenarray_ref mode
+  | Paddrarray -> Paddrarray_ref
+  | Pintarray -> Pintarray_ref
+  | Pfloatarray -> Pfloatarray_ref mode
+
+let array_set_kind mode = function
+  | Pgenarray -> Pgenarray_set mode
+  | Paddrarray -> Paddrarray_set mode
+  | Pintarray -> Pintarray_set
+  | Pfloatarray -> Pfloatarray_set

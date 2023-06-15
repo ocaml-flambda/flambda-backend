@@ -29,6 +29,9 @@ let dasm_comments = ref false (* -dasm-comments *)
 let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
 let dump_checkmach = ref false          (* -dcheckmach *)
+let default_checkmach_details_cutoff = 20
+let checkmach_details_cutoff = ref default_checkmach_details_cutoff
+                                       (* -checkmach-details-cutoff n *)
 
 let disable_poll_insertion = ref (not Config.poll_insertion)
                                         (* -disable-poll-insertion *)
@@ -350,3 +353,6 @@ let set_o3 () =
 
 let opt_flag_handler : Clflags.Opt_flag_handler.t =
   { set_oclassic; set_o2; set_o3 }
+
+let () =
+  if Clflags.is_flambda2 () then set_o2 ()
