@@ -44,16 +44,15 @@ let propagate_substitution :
         in
         Label.Set.iter
           (fun successor_label ->
-            let continue =
-              if Label.Map.mem successor_label
-                   (State.definitions_at_beginning state)
-              then false
-              else if Label.Map.mem successor_label
-                        (State.phi_at_beginning state)
-              then false
-              else true
+            let definitions =
+              Label.Map.mem successor_label
+                (State.definitions_at_beginning state)
             in
-            if continue then iter (Cfg.get_block_exn cfg successor_label))
+            let phi =
+              Label.Map.mem successor_label (State.phi_at_beginning state)
+            in
+            if not (definitions || phi)
+            then iter (Cfg.get_block_exn cfg successor_label))
           successor_labels)
     else if split_debug
     then log ~indent:2 "block %d already visited" block.start
