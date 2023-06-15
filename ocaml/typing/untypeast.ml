@@ -493,7 +493,7 @@ let expression sub exp =
           List.fold_right (fun (label, arg) list ->
               match arg with
               | Omitted _ -> list
-              | Arg exp -> (label, sub.expr sub exp) :: list
+              | Arg (exp, _) -> (label, sub.expr sub exp) :: list
           ) list [])
     | Texp_match (exp, _, cases, _) ->
       Pexp_match (sub.expr sub exp, List.map (sub.case sub) cases)
@@ -835,7 +835,7 @@ let class_expr sub cexpr =
           List.fold_right (fun (label, expo) list ->
               match expo with
               | Omitted _ -> list
-              | Arg exp -> (label, sub.expr sub exp) :: list
+              | Arg (exp, _) -> (label, sub.expr sub exp) :: list
           ) args [])
 
     | Tcl_let (rec_flat, bindings, _ivars, cl) ->
