@@ -151,6 +151,13 @@ module Sort = struct
     | Unequal -> false
     | Equal_mutated_first | Equal_mutated_second | Equal_no_mutation -> true
 
+  let equal_const c1 c2 =
+    match c1, c2 with
+    | Void, Void
+    | Value, Value -> true
+    | Void, Value
+    | Value, Void -> false
+
   let rec is_void_defaulting = function
     | Const Void -> true
     | Var v -> begin match !v with
@@ -189,6 +196,28 @@ module Sort = struct
 
     and var ppf v = fprintf ppf "{ contents = %a }" opt_t (!v)
   end
+
+  let for_function = value
+  let for_predef_value = value
+  let for_block_element = value
+  let for_probe_body = value
+  let for_poly_variant = value
+  let for_record = value
+  let for_record_field = value
+  let for_constructor_arg = value
+  let for_object = value
+  let for_lazy_body = value
+  let for_tuple_element = value
+  let for_instance_var = value
+  let for_bop_exp = value
+  let for_class_arg = value
+  let for_method = value
+  let for_initializer = value
+  let for_module = value
+  let for_tuple = value
+  let for_array_get_result = value
+  let for_array_element = value
+  let for_list_element = value
 end
 
 type sort = Sort.t
@@ -208,6 +237,9 @@ module Layout = struct
     | Function_result
     | Structure_item_expression
     | V1_safety_check
+    | External_argument
+    | External_result
+    | Statement
 
   type value_creation_reason =
     | Class_let_binding
@@ -568,6 +600,12 @@ module Layout = struct
         fprintf ppf "used in an expression in a structure"
       | V1_safety_check ->
         fprintf ppf "part of the v1 safety check"
+      | External_argument ->
+        fprintf ppf "used as an argument in an external declaration"
+      | External_result ->
+        fprintf ppf "used as the result of an external declaration"
+      | Statement ->
+        fprintf ppf "used as a statement"
 
     let format_annotation_context ppf : annotation_context -> unit = function
       | Type_declaration p ->
@@ -998,6 +1036,12 @@ module Layout = struct
           fprintf ppf "Structure_item_expression"
       | V1_safety_check ->
           fprintf ppf "V1_safety_check"
+      | External_argument ->
+          fprintf ppf "External_argument"
+      | External_result ->
+          fprintf ppf "External_result"
+      | Statement ->
+          fprintf ppf "Statement"
 
     let annotation_context ppf : annotation_context -> unit = function
       | Type_declaration p ->

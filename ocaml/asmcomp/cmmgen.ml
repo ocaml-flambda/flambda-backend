@@ -541,7 +541,7 @@ let rec transl env e =
           transl_make_array dbg env kind alloc_heap args
       | (Pduparray _, [arg]) ->
           let prim_obj_dup =
-            Primitive.simple ~name:"caml_obj_dup" ~arity:1 ~alloc:true
+            Primitive.simple_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
           in
           transl_ccall env prim_obj_dup [arg] dbg
       | (Pmakearray _, []) ->
@@ -826,9 +826,13 @@ and transl_make_array dbg env kind mode args =
 
 and transl_ccall env prim args dbg =
   let transl_arg native_repr arg =
+    (* CR layouts v2: This match to be extended with
+         | Same_as_ocaml_repr Float64 -> (XFloat, transl env arg)
+       in the PR that adds Float64 *)
     match native_repr with
-    | Same_as_ocaml_repr ->
+    | Same_as_ocaml_repr Value ->
         (XInt, transl env arg)
+    | Same_as_ocaml_repr Void -> assert false
     | Unboxed_float ->
         (XFloat, transl_unbox_float dbg env arg)
     | Unboxed_integer bi ->
@@ -856,7 +860,11 @@ and transl_ccall env prim args dbg =
   in
   let typ_res, wrap_result =
     match prim.prim_native_repr_res with
-    | _, Same_as_ocaml_repr -> (typ_val, fun x -> x)
+    (* CR layouts v2: This match to be extended with
+         | Same_as_ocaml_repr Float64 -> (typ_float, fun x -> x)
+       in the PR that adds Float64 *)
+    | _, Same_as_ocaml_repr Value -> (typ_val, fun x -> x)
+    | _, Same_as_ocaml_repr Void -> assert false
     (* TODO: Allow Alloc_local on suitably typed C stubs *)
     | _, Unboxed_float -> (typ_float, box_float dbg alloc_heap)
     | _, Unboxed_integer Pint64 when size_int = 4 ->

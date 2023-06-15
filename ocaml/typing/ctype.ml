@@ -2075,6 +2075,11 @@ let type_sort ~why env ty =
   | Ok _ -> Ok sort
   | Error _ as e -> e
 
+let type_sort_exn ~why env ty =
+  match type_sort ~why env ty with
+  | Ok s -> s
+  | Error _ -> Misc.fatal_error "Ctype.type_sort_exn on non-sort"
+
 (* Note: Because [estimate_type_layout] actually returns an upper bound, this
    function computes an inaccurate intersection in some cases.
 
@@ -3774,6 +3779,15 @@ type filter_arrow_failure =
 
 exception Filter_arrow_failed of filter_arrow_failure
 
+type filtered_arrow =
+  { ty_arg : type_expr;
+    arg_mode : alloc_mode;
+    arg_sort : sort;
+    ty_ret : type_expr;
+    ret_mode : alloc_mode;
+    ret_sort : sort
+  }
+
 let filter_arrow env t l ~force_tpoly =
   let function_type level =
     (* CR layouts v3: This is one of two primary places where we are restricting
@@ -3784,12 +3798,14 @@ let filter_arrow env t l ~force_tpoly =
        allow both to be any.  Separately, the relevant checks on function
        arguments should happen when functions are constructed, not their
        types. *)
-    let l1 = Layout.of_new_sort_var ~why:Function_argument in
-    let l2 = Layout.of_new_sort_var ~why:Function_result in
-    let t1 =
+    let arg_sort = Sort.new_var () in
+    let l_arg = Layout.of_sort ~why:Function_argument arg_sort in
+    let ret_sort = Sort.new_var () in
+    let l_res = Layout.of_sort ~why:Function_result ret_sort in
+    let ty_arg =
       if not force_tpoly then begin
         assert (not (is_optional l));
-        newvar2 level l1
+        newvar2 level l_arg
       end else begin
         let t1 =
           if is_optional l then
@@ -3800,21 +3816,23 @@ let filter_arrow env t l ~force_tpoly =
                        [newvar2 level (Layout.value ~why:Type_argument)],
                        ref Mnil))
           else
-            newvar2 level l1
+            newvar2 level l_arg
         in
         newty2 ~level (Tpoly(t1, []))
       end
     in
-    let t2 = newvar2 level l2 in
-    let marg = Alloc_mode.newvar () in
-    let mret = Alloc_mode.newvar () in
-    let t' = newty2 ~level (Tarrow ((l,marg,mret), t1, t2, commu_ok)) in
-    t', marg, t1, mret, t2
+    let ty_ret = newvar2 level l_res in
+    let arg_mode = Alloc_mode.newvar () in
+    let ret_mode = Alloc_mode.newvar () in
+    let t' =
+      newty2 ~level (Tarrow ((l, arg_mode, ret_mode), ty_arg, ty_ret, commu_ok))
+    in
+    t', { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort }
   in
   let t =
     try expand_head_trace env t
     with Unify_trace trace ->
-      let t', _, _, _, _ = function_type (get_level t) in
+      let t', _ = function_type (get_level t) in
       raise (Filter_arrow_failed
                (Unification_error
                   (expand_to_unification_error
@@ -3823,13 +3841,22 @@ let filter_arrow env t l ~force_tpoly =
   in
   match get_desc t with
     Tvar { layout } ->
-      let t', marg, t1, mret, t2 = function_type (get_level t) in
+      let t', arrow_desc = function_type (get_level t) in
       link_type t t';
       constrain_type_layout_exn env Unify t' layout;
-      (marg, t1, mret, t2)
-  | Tarrow((l', marg, mret), t1, t2, _) ->
+      arrow_desc
+  | Tarrow((l', arg_mode, ret_mode), ty_arg, ty_ret, _) ->
       if l = l' || !Clflags.classic && l = Nolabel && not (is_optional l')
-      then (marg, t1, mret, t2)
+      then
+        (* CR layouts v2.5: When we move the restrictions on argument from
+           arrows to functions, this function doesn't need to return a sort and
+           these calls to [type_sort] can move.  We could eliminate them
+           entirely by storing sorts on [TArrow], but that seems incompatible
+           with the future plan to shift the layout requirements from the types
+           to the terms. *)
+        let arg_sort = type_sort_exn ~why:Function_argument env ty_arg in
+        let ret_sort = type_sort_exn ~why:Function_argument env ty_ret in
+        { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort }
       else raise (Filter_arrow_failed
                     (Label_mismatch
                        { got = l; expected = l'; expected_type = t }))
@@ -3849,10 +3876,10 @@ exception Filter_arrow_mono_failed
 let filter_arrow_mono env t l =
   match filter_arrow env t l ~force_tpoly:true with
   | exception Filter_arrow_failed _ -> raise Filter_arrow_mono_failed
-  | (marg, t1, mret, t2) ->
-      match filter_mono t1 with
+  | {ty_arg; _} as farr ->
+      match filter_mono ty_arg with
       | exception Filter_mono_failed -> raise Filter_arrow_mono_failed
-      | t1 -> (marg, t1, mret, t2)
+      | ty_arg -> { farr with ty_arg }
 
 type filter_method_failure =
   | Unification_error of unification_error
