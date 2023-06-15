@@ -417,8 +417,6 @@ let create_binding_aux (type a) effs var ~(inline : a inline)
   in
   let cmm_var = gen_variable var in
   let binding = Binding { order; inline; effs; cmm_var; bound_expr } in
-  if Flambda_features.debug_flambda2 ()
-  then Format.eprintf "NEW: %a@." _print_any_binding binding;
   binding
 
 let create_binding (type a) effs var ~(inline : a inline)
@@ -546,9 +544,9 @@ let split_complex_binding ~env ~res (binding : complex binding) =
     let prim_effects =
       Flambda_primitive.Without_args.effects_and_coeffects prim
     in
-    let effs =
+    let () =
       match To_cmm_effects.classify_by_effects_and_coeffects prim_effects with
-      | Pure | Generative_immutable -> prim_effects
+      | Pure | Generative_immutable -> ()
       | Effect | Coeffect_only ->
         Misc.fatal_errorf
           "Primitive %a was marked as `must_inline`, but is has the following \
@@ -558,7 +556,7 @@ let split_complex_binding ~env ~res (binding : complex binding) =
     in
     let split_binding =
       { order = binding.order;
-        effs;
+        effs = prim_effects;
         inline = binding.inline;
         bound_expr =
           Split
