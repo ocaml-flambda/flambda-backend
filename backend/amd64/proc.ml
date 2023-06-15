@@ -204,7 +204,8 @@ let calling_conventions first_int last_int first_float last_float first_vec128 l
     | Float ->
         if !float <= last_float then begin
           loc.(i) <- phys_reg !float;
-          incr float
+          incr float;
+          incr vec128
         end else begin
           loc.(i) <- stack_slot (make_stack !ofs) Float;
           ofs := !ofs + size_float
@@ -212,7 +213,8 @@ let calling_conventions first_int last_int first_float last_float first_vec128 l
     | Vec128 ->
       if !vec128 <= last_vec128 then begin
         loc.(i) <- phys_reg !vec128;
-        incr vec128
+        incr vec128;
+        incr float
       end else begin
         (* CR mslater: (SIMD) fix extcall stack alignment *)
         loc.(i) <- stack_slot (make_stack !ofs) Vec128;
