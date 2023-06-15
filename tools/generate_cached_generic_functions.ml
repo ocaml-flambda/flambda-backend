@@ -30,6 +30,7 @@ open Misc
 
 let main filename =
   let unix = (module Unix : Compiler_owee.Unix_intf.S) in
+  Clflags.native_code := true;
   Compmisc.init_path ();
   let file_prefix = Filename.remove_extension filename in
   Compmisc.with_ppf_dump ~file_prefix (fun ppf_dump ->
