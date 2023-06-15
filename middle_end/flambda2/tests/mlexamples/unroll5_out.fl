@@ -4,65 +4,65 @@ let code test2_2 deleted in
 let code test3_3 deleted in
 let code rec loopify(never) size(80) newer_version_of(foo_0)
       foo_0_1 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
-  let prim = %Opaque 1 in
-  (let untagged = %untag_imm prim in
+  let Popaque = %Opaque 1 in
+  (let untagged = %untag_imm Popaque in
    switch untagged
      | 0 -> k2
      | 1 -> k3)
     where k3 =
-      let prim_1 = x + 1 in
-      let prim_2 = %Opaque 1 in
-      ((let untagged = %untag_imm prim_2 in
+      let Paddint = x + 1 in
+      let Popaque_1 = %Opaque 1 in
+      ((let untagged = %untag_imm Popaque_1 in
         switch untagged
           | 0 -> k3
           | 1 -> k4)
          where k4 =
-           let prim_3 = prim_1 + 1 in
-           let prim_4 = %Opaque 1 in
-           ((let untagged = %untag_imm prim_4 in
+           let Paddint_1 = Paddint + 1 in
+           let Popaque_2 = %Opaque 1 in
+           ((let untagged = %untag_imm Popaque_2 in
              switch untagged
                | 0 -> k4
                | 1 -> k5)
               where k5 =
-                let prim_5 = prim_3 + 1 in
+                let Paddint_2 = Paddint_1 + 1 in
                 apply direct(foo_0_1) inlining_state(depth(20))
                   $camlUnroll5__foo_4 ~ depth my_depth -> succ (succ (unroll 2 (succ my_depth)))
-                    (prim_5)
+                    (Paddint_2)
                     &my_region
                     -> k * k1
               where k4 =
-                let prim_5 = prim_3 - 1 in
+                let Psubint = Paddint_1 - 1 in
                 apply direct(foo_0_1) inlining_state(depth(20))
                   $camlUnroll5__foo_4 ~ depth my_depth -> succ (succ (unroll 2 (succ my_depth)))
-                    (prim_5)
+                    (Psubint)
                     &my_region
                     -> k * k1)
          where k3 =
-           let prim_3 = prim_1 - 1 in
-           let prim_4 = %Opaque 1 in
-           ((let untagged = %untag_imm prim_4 in
+           let Psubint = Paddint - 1 in
+           let Popaque_2 = %Opaque 1 in
+           ((let untagged = %untag_imm Popaque_2 in
              switch untagged
                | 0 -> k3
                | 1 -> k4)
               where k4 =
-                let prim_5 = prim_3 + 1 in
+                let Paddint_1 = Psubint + 1 in
                 apply direct(foo_0_1) inlining_state(depth(20))
                   $camlUnroll5__foo_4 ~ depth my_depth -> succ (succ (unroll 2 (succ my_depth)))
-                    (prim_5)
+                    (Paddint_1)
                     &my_region
                     -> k * k1
               where k3 =
-                let prim_5 = prim_3 - 1 in
+                let Psubint_1 = Psubint - 1 in
                 apply direct(foo_0_1) inlining_state(depth(20))
                   $camlUnroll5__foo_4 ~ depth my_depth -> succ (succ (unroll 2 (succ my_depth)))
-                    (prim_5)
+                    (Psubint_1)
                     &my_region
                     -> k * k1))
     where k2 =
-      let prim_1 = x - 1 in
+      let Psubint = x - 1 in
       apply direct(foo_0_1)
         $camlUnroll5__foo_4 ~ depth my_depth -> succ my_depth
-          (prim_1)
+          (Psubint)
           &my_region
           -> k * k1
 and $camlUnroll5__foo_4 =
@@ -75,242 +75,242 @@ in
 let $camlUnroll5__test1_5 = closure test1_1_1 @test1 in
 let code loopify(never) size(80) newer_version_of(test2_2)
       test2_2_1 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
-  let prim = %Opaque 1 in
-  (let untagged = %untag_imm prim in
+  let Popaque = %Opaque 1 in
+  (let untagged = %untag_imm Popaque in
    switch untagged
      | 0 -> k2
      | 1 -> k3)
     where k3 =
-      let prim_1 = x + 1 in
-      let prim_2 = %Opaque 1 in
-      ((let untagged = %untag_imm prim_2 in
+      let Paddint = x + 1 in
+      let Popaque_1 = %Opaque 1 in
+      ((let untagged = %untag_imm Popaque_1 in
         switch untagged
           | 0 -> k3
           | 1 -> k4)
          where k4 =
-           let prim_3 = prim_1 + 1 in
-           let prim_4 = %Opaque 1 in
-           ((let untagged = %untag_imm prim_4 in
+           let Paddint_1 = Paddint + 1 in
+           let Popaque_2 = %Opaque 1 in
+           ((let untagged = %untag_imm Popaque_2 in
              switch untagged
                | 0 -> k4
                | 1 -> k5)
               where k5 =
-                let prim_5 = prim_3 + 1 in
+                let Paddint_2 = Paddint_1 + 1 in
                 apply direct(foo_0_1) inlining_state(depth(30))
                   $camlUnroll5__foo_4 ~ depth unroll 1 0 -> unroll 0 3
-                    (prim_5)
+                    (Paddint_2)
                     &my_region
                     -> k * k1
               where k4 =
-                let prim_5 = prim_3 - 1 in
+                let Psubint = Paddint_1 - 1 in
                 apply direct(foo_0_1) inlining_state(depth(30))
                   $camlUnroll5__foo_4 ~ depth unroll 1 0 -> unroll 0 3
-                    (prim_5)
+                    (Psubint)
                     &my_region
                     -> k * k1)
          where k3 =
-           let prim_3 = prim_1 - 1 in
-           let prim_4 = %Opaque 1 in
-           ((let untagged = %untag_imm prim_4 in
+           let Psubint = Paddint - 1 in
+           let Popaque_2 = %Opaque 1 in
+           ((let untagged = %untag_imm Popaque_2 in
              switch untagged
                | 0 -> k3
                | 1 -> k4)
               where k4 =
-                let prim_5 = prim_3 + 1 in
+                let Paddint_1 = Psubint + 1 in
                 apply direct(foo_0_1) inlining_state(depth(30))
                   $camlUnroll5__foo_4 ~ depth unroll 1 0 -> unroll 0 3
-                    (prim_5)
+                    (Paddint_1)
                     &my_region
                     -> k * k1
               where k3 =
-                let prim_5 = prim_3 - 1 in
+                let Psubint_1 = Psubint - 1 in
                 apply direct(foo_0_1) inlining_state(depth(30))
                   $camlUnroll5__foo_4 ~ depth unroll 1 0 -> unroll 0 3
-                    (prim_5)
+                    (Psubint_1)
                     &my_region
                     -> k * k1))
     where k2 =
-      let prim_1 = x - 1 in
+      let Psubint = x - 1 in
       apply direct(foo_0_1) inlining_state(depth(10))
         $camlUnroll5__foo_4 ~ depth unroll 1 0 -> unroll 0 1
-          (prim_1)
+          (Psubint)
           &my_region
           -> k * k1
 in
 let $camlUnroll5__test2_6 = closure test2_2_1 @test2 in
 let code loopify(never) size(232) newer_version_of(test3_3)
       test3_3_1 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
-  let prim = %Opaque 1 in
-  (let untagged = %untag_imm prim in
+  let Popaque = %Opaque 1 in
+  (let untagged = %untag_imm Popaque in
    switch untagged
      | 0 -> k2
      | 1 -> k3)
     where k3 =
-      let prim_1 = x + 1 in
-      let prim_2 = %Opaque 1 in
-      ((let untagged = %untag_imm prim_2 in
+      let Paddint = x + 1 in
+      let Popaque_1 = %Opaque 1 in
+      ((let untagged = %untag_imm Popaque_1 in
         switch untagged
           | 0 -> k3
           | 1 -> k4)
          where k4 =
-           let prim_3 = prim_1 + 1 in
-           let prim_4 = %Opaque 1 in
-           ((let untagged = %untag_imm prim_4 in
+           let Paddint_1 = Paddint + 1 in
+           let Popaque_2 = %Opaque 1 in
+           ((let untagged = %untag_imm Popaque_2 in
              switch untagged
                | 0 -> k4
                | 1 -> k5)
               where k5 =
-                let prim_5 = prim_3 + 1 in
+                let Paddint_2 = Paddint_1 + 1 in
                 apply direct(foo_0_1) inlining_state(depth(30))
                   $camlUnroll5__foo_4 ~ depth unroll 3 0 -> unroll 0 3
-                    (prim_5)
+                    (Paddint_2)
                     &my_region
                     -> k * k1
               where k4 =
-                let prim_5 = prim_3 - 1 in
+                let Psubint = Paddint_1 - 1 in
                 apply direct(foo_0_1) inlining_state(depth(30))
                   $camlUnroll5__foo_4 ~ depth unroll 3 0 -> unroll 0 3
-                    (prim_5)
+                    (Psubint)
                     &my_region
                     -> k * k1)
          where k3 =
-           let prim_3 = prim_1 - 1 in
-           let prim_4 = %Opaque 1 in
-           ((let untagged = %untag_imm prim_4 in
+           let Psubint = Paddint - 1 in
+           let Popaque_2 = %Opaque 1 in
+           ((let untagged = %untag_imm Popaque_2 in
              switch untagged
                | 0 -> k3
                | 1 -> k4)
               where k4 =
-                let prim_5 = prim_3 + 1 in
+                let Paddint_1 = Psubint + 1 in
                 apply direct(foo_0_1) inlining_state(depth(30))
                   $camlUnroll5__foo_4 ~ depth unroll 3 0 -> unroll 0 3
-                    (prim_5)
+                    (Paddint_1)
                     &my_region
                     -> k * k1
               where k3 =
-                let prim_5 = prim_3 - 1 in
+                let Psubint_1 = Psubint - 1 in
                 apply direct(foo_0_1) inlining_state(depth(30))
                   $camlUnroll5__foo_4 ~ depth unroll 3 0 -> unroll 0 3
-                    (prim_5)
+                    (Psubint_1)
                     &my_region
                     -> k * k1))
     where k2 =
-      let prim_1 = x - 1 in
-      let prim_2 = %Opaque 1 in
-      ((let untagged = %untag_imm prim_2 in
+      let Psubint = x - 1 in
+      let Popaque_1 = %Opaque 1 in
+      ((let untagged = %untag_imm Popaque_1 in
         switch untagged
           | 0 -> k2
           | 1 -> k3)
          where k3 =
-           let prim_3 = prim_1 + 1 in
-           let prim_4 = %Opaque 1 in
-           ((let untagged = %untag_imm prim_4 in
+           let Paddint = Psubint + 1 in
+           let Popaque_2 = %Opaque 1 in
+           ((let untagged = %untag_imm Popaque_2 in
              switch untagged
                | 0 -> k3
                | 1 -> k4)
               where k4 =
-                let prim_5 = prim_3 + 1 in
-                let prim_6 = %Opaque 1 in
-                ((let untagged = %untag_imm prim_6 in
+                let Paddint_1 = Paddint + 1 in
+                let Popaque_3 = %Opaque 1 in
+                ((let untagged = %untag_imm Popaque_3 in
                   switch untagged
                     | 0 -> k4
                     | 1 -> k5)
                    where k5 =
-                     let prim_7 = prim_5 + 1 in
+                     let Paddint_2 = Paddint_1 + 1 in
                      apply direct(foo_0_1) inlining_state(depth(40))
                        $camlUnroll5__foo_4 ~ depth unroll 2 1 -> unroll 0 4
-                         (prim_7)
+                         (Paddint_2)
                          &my_region
                          -> k * k1
                    where k4 =
-                     let prim_7 = prim_5 - 1 in
+                     let Psubint_1 = Paddint_1 - 1 in
                      apply direct(foo_0_1) inlining_state(depth(40))
                        $camlUnroll5__foo_4 ~ depth unroll 2 1 -> unroll 0 4
-                         (prim_7)
+                         (Psubint_1)
                          &my_region
                          -> k * k1)
               where k3 =
-                let prim_5 = prim_3 - 1 in
-                let prim_6 = %Opaque 1 in
-                ((let untagged = %untag_imm prim_6 in
+                let Psubint_1 = Paddint - 1 in
+                let Popaque_3 = %Opaque 1 in
+                ((let untagged = %untag_imm Popaque_3 in
                   switch untagged
                     | 0 -> k3
                     | 1 -> k4)
                    where k4 =
-                     let prim_7 = prim_5 + 1 in
+                     let Paddint_1 = Psubint_1 + 1 in
                      apply direct(foo_0_1) inlining_state(depth(40))
                        $camlUnroll5__foo_4 ~ depth unroll 2 1 -> unroll 0 4
-                         (prim_7)
+                         (Paddint_1)
                          &my_region
                          -> k * k1
                    where k3 =
-                     let prim_7 = prim_5 - 1 in
+                     let Psubint_2 = Psubint_1 - 1 in
                      apply direct(foo_0_1) inlining_state(depth(40))
                        $camlUnroll5__foo_4 ~ depth unroll 2 1 -> unroll 0 4
-                         (prim_7)
+                         (Psubint_2)
                          &my_region
                          -> k * k1))
          where k2 =
-           let prim_3 = prim_1 - 1 in
-           let prim_4 = %Opaque 1 in
-           ((let untagged = %untag_imm prim_4 in
+           let Psubint_1 = Psubint - 1 in
+           let Popaque_2 = %Opaque 1 in
+           ((let untagged = %untag_imm Popaque_2 in
              switch untagged
                | 0 -> k2
                | 1 -> k3)
               where k3 =
-                let prim_5 = prim_3 + 1 in
-                let prim_6 = %Opaque 1 in
-                ((let untagged = %untag_imm prim_6 in
+                let Paddint = Psubint_1 + 1 in
+                let Popaque_3 = %Opaque 1 in
+                ((let untagged = %untag_imm Popaque_3 in
                   switch untagged
                     | 0 -> k3
                     | 1 -> k4)
                    where k4 =
-                     let prim_7 = prim_5 + 1 in
-                     let prim_8 = %Opaque 1 in
-                     ((let untagged = %untag_imm prim_8 in
+                     let Paddint_1 = Paddint + 1 in
+                     let Popaque_4 = %Opaque 1 in
+                     ((let untagged = %untag_imm Popaque_4 in
                        switch untagged
                          | 0 -> k4
                          | 1 -> k5)
                         where k5 =
-                          let prim_9 = prim_7 + 1 in
+                          let Paddint_2 = Paddint_1 + 1 in
                           apply direct(foo_0_1) inlining_state(depth(50))
                             $camlUnroll5__foo_4 ~ depth unroll 1 2 -> unroll 0 5
-                              (prim_9)
+                              (Paddint_2)
                               &my_region
                               -> k * k1
                         where k4 =
-                          let prim_9 = prim_7 - 1 in
+                          let Psubint_2 = Paddint_1 - 1 in
                           apply direct(foo_0_1) inlining_state(depth(50))
                             $camlUnroll5__foo_4 ~ depth unroll 1 2 -> unroll 0 5
-                              (prim_9)
+                              (Psubint_2)
                               &my_region
                               -> k * k1)
                    where k3 =
-                     let prim_7 = prim_5 - 1 in
-                     let prim_8 = %Opaque 1 in
-                     ((let untagged = %untag_imm prim_8 in
+                     let Psubint_2 = Paddint - 1 in
+                     let Popaque_4 = %Opaque 1 in
+                     ((let untagged = %untag_imm Popaque_4 in
                        switch untagged
                          | 0 -> k3
                          | 1 -> k4)
                         where k4 =
-                          let prim_9 = prim_7 + 1 in
+                          let Paddint_1 = Psubint_2 + 1 in
                           apply direct(foo_0_1) inlining_state(depth(50))
                             $camlUnroll5__foo_4 ~ depth unroll 1 2 -> unroll 0 5
-                              (prim_9)
+                              (Paddint_1)
                               &my_region
                               -> k * k1
                         where k3 =
-                          let prim_9 = prim_7 - 1 in
+                          let Psubint_3 = Psubint_2 - 1 in
                           apply direct(foo_0_1) inlining_state(depth(50))
                             $camlUnroll5__foo_4 ~ depth unroll 1 2 -> unroll 0 5
-                              (prim_9)
+                              (Psubint_3)
                               &my_region
                               -> k * k1))
               where k2 =
-                let prim_5 = prim_3 - 1 in
+                let Psubint_2 = Psubint_1 - 1 in
                 apply direct(foo_0_1) inlining_state(depth(30))
                   $camlUnroll5__foo_4 ~ depth unroll 1 2 -> unroll 0 3
-                    (prim_5)
+                    (Psubint_2)
                     &my_region
                     -> k * k1))
 in

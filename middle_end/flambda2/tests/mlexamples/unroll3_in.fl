@@ -1,25 +1,5 @@
 let $camlUnroll3__first_const32 = Block 0 () in
 let code rec size(22)
-      odd_1 (n : imm tagged)
-        my_closure my_region my_depth
-        -> k * k1
-        : imm tagged =
-  let next_depth = rec_info (succ my_depth) in
-  let even = %project_function_slot (odd -> even) my_closure in
-  let prim = %phys_eq (n, 0) in
-  let Pintcomp = %Tag_imm prim in
-  (let untagged = %untag_imm Pintcomp in
-   switch untagged
-     | 0 -> k2
-     | 1 -> k (0))
-    where k2 =
-      let Psubint = n - 1 in
-      apply direct(even_0)
-        (even ~ depth my_depth -> next_depth : _ -> imm tagged)
-          (Psubint)
-          &my_region
-          -> k * k1
-and code rec size(22)
       even_0 (n : imm tagged)
         my_closure my_region my_depth
         -> k * k1
@@ -36,6 +16,26 @@ and code rec size(22)
       let Psubint = n - 1 in
       apply direct(odd_1)
         (odd ~ depth my_depth -> next_depth : _ -> imm tagged)
+          (Psubint)
+          &my_region
+          -> k * k1
+and code rec size(22)
+      odd_1 (n : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let even = %project_function_slot (odd -> even) my_closure in
+  let prim = %phys_eq (n, 0) in
+  let Pintcomp = %Tag_imm prim in
+  (let untagged = %untag_imm Pintcomp in
+   switch untagged
+     | 0 -> k2
+     | 1 -> k (0))
+    where k2 =
+      let Psubint = n - 1 in
+      apply direct(even_0)
+        (even ~ depth my_depth -> next_depth : _ -> imm tagged)
           (Psubint)
           &my_region
           -> k * k1
