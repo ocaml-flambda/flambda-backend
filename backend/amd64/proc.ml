@@ -124,14 +124,6 @@ let register_name r =
   else if r < 200 then float_reg_name.(r - 100)
   else vec128_reg_name.(r - 200)
 
-let maps_to_in_class r to_class = 
-  let from_class = if r < 100 then 0 else if r < 200 then 1 else 2 in 
-  match from_class, to_class with 
-  | 1, 2 -> Some (r + 100)
-  | 2, 1 -> Some (r - 100)
-  | x, y when x = y -> Some (r)
-  | _ -> None
-
 (* Pack registers starting at %rax so as to reduce the number of REX
    prefixes and thus improve code density *)
 let rotate_registers = false
