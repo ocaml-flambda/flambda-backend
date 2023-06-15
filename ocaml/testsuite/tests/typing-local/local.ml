@@ -636,6 +636,16 @@ Error: This value escapes its region
         Adding 1 more argument will make the value non-local
 |}]
 
+(* The fixed version. Note that in the printed type, local returning is implicit
+    *)
+let bug4_fixed : local_ (string -> foo:string -> unit) -> local_ (string -> unit) =
+  fun f -> local_ f ~foo:"hello"
+[%%expect{|
+val bug4_fixed : local_ (string -> foo:string -> unit) -> string -> unit =
+  <fun>
+|}]
+
+
 let bug4' () =
   let local_ f arg ~foo = () in
   let local_ perm ~foo = f ~foo in
@@ -1381,6 +1391,35 @@ let foo () =
   x
 [%%expect{|
 val foo : unit -> int = <fun>
+|}]
+
+(* tail-calling local-returning functions make the current function
+   local-returning as well; mode-crossing is irrelavent here. *)
+let foo () = local_ 42
+[%%expect{|
+val foo : unit -> local_ int = <fun>
+|}]
+
+let bar () =
+  let _x = 52 in
+  foo ()
+[%%expect{|
+val bar : unit -> local_ int = <fun>
+|}]
+
+(* if not at tail, then not affected *)
+let bar' () =
+  let _x = foo () in
+  52
+[%%expect{|
+val bar' : unit -> int = <fun>
+|}]
+
+(* nontail attribute works as well *)
+let bar' () =
+  foo () [@nontail]
+[%%expect{|
+val bar' : unit -> int = <fun>
 |}]
 
 (* Parameter modes must be matched by the type *)
