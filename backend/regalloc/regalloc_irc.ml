@@ -313,6 +313,7 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
       in
       let ok_colors = Array.make reg_num_avail true in
       let counter = ref reg_num_avail in
+      (* CR mslater: (SIMD) allocate float+simd together *)
       let rec mark_adjacent_colors_and_get_first_available (adj : Reg.t list) :
           int =
         match adj with

@@ -64,6 +64,7 @@ let arg b = function
   | Reg16 x -> print_reg b string_of_reg16 x
   | Reg32 x -> print_reg b string_of_reg32 x
   | Reg64 x -> print_reg b string_of_reg64 x
+  | Reg128 x -> print_reg b string_of_regSIMD x
   | Regf x  -> print_reg b string_of_registerf x
   | Mem addr -> arg_mem b addr
   | Mem64_RIP (_, s, displ) -> bprintf b "%s%a(%%rip)" s opt_displ displ
@@ -88,6 +89,7 @@ let typeof = function
   | Reg16 _ -> WORD
   | Reg32 _ -> DWORD
   | Reg64 _ -> QWORD
+  | Reg128 _ -> VEC128
   | Imm _ | Sym _ -> NONE
   | Regf _ -> assert false
 
@@ -98,8 +100,8 @@ let suf arg =
   | DWORD | REAL8 -> "l"
   | QWORD -> "q"
   | REAL4 -> "s"
-  | NONE -> ""
-  | VEC128 | NEAR | PROC -> assert false
+  | VEC128 | NONE -> ""
+  | NEAR | PROC -> assert false
 
 let i0 b s = bprintf b "\t%s" s
 let i1 b s x = bprintf b "\t%s\t%a" s arg x

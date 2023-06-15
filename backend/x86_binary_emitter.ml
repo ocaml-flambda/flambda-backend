@@ -36,6 +36,7 @@ let print_old_arg ppf = function
   | Reg16 _ -> Format.fprintf ppf "Reg16"
   | Reg32 _ -> Format.fprintf ppf "Reg32"
   | Reg64 _ -> Format.fprintf ppf "Reg64"
+  | Reg128 _ -> Format.fprintf ppf "Reg128"
   | Regf _ -> Format.fprintf ppf "Regf"
   | Mem _ -> Format.fprintf ppf "Mem"
   | Mem64_RIP _ -> Format.fprintf ppf "Mem64_RIP"
@@ -276,9 +277,13 @@ let is_imm8L x = x < 128L && x >= -128L
 
 let rd_of_regf regf =
   match regf with
-  | XMM n -> n
+  | XMMf n -> n
   | TOS -> assert false (* TODO *)
   | ST _st -> assert false
+
+let rd_of_regSIMD (regSIMD : regSIMD) =
+  match regSIMD with
+  | XMM n -> n
 
 (* TODO *)
 
@@ -440,6 +445,11 @@ let emit_mod_rm_reg b rex opcodes rm reg =
       buf_int8 b (mod_rm_reg 0b11 rm reg)
   | Regf rm ->
       let rm = rd_of_regf rm in
+      emit_rex b (rex lor rexr_reg reg lor rexb_rm rm);
+      buf_opcodes b opcodes;
+      buf_int8 b (mod_rm_reg 0b11 rm reg)
+  | Reg128 rm ->
+      let rm = rd_of_regSIMD rm in
       emit_rex b (rex lor rexr_reg reg lor rexb_rm rm);
       buf_opcodes b opcodes;
       buf_int8 b (mod_rm_reg 0b11 rm reg)

@@ -82,6 +82,7 @@ let arg b = function
   | Reg32 x -> Buffer.add_string b (string_of_reg32 x)
   | Reg64 x -> Buffer.add_string b (string_of_reg64 x)
   | Regf x -> Buffer.add_string b (string_of_registerf x)
+  | Reg128 x -> Buffer.add_string b (string_of_regSIMD x)
 
   (* We don't need to specify RIP on Win64, since EXTERN will provide
      the list of external symbols that need this addressing mode, and
