@@ -463,9 +463,8 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   in
   let kind_of_primitive_native_repr
       ((_, repr) : Primitive.mode * Primitive.native_repr) =
-    (* CR layouts v2: This match will be extended with
-            | Same_as_ocaml_repr Float64 -> K.naked_float
-       in the PR that adds Float64. *)
+    (* CR layouts v2: This match will be extended with [| Same_as_ocaml_repr
+       Float64 -> K.naked_float] in the PR that adds Float64. *)
     match repr with
     | Same_as_ocaml_repr Value -> K.value
     | Same_as_ocaml_repr Void -> assert false
