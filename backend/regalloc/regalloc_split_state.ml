@@ -134,13 +134,12 @@ end = struct
 
   let rec remove_dominated_spills :
       Cfg_dominators.t ->
-      Cfg_loop_infos.t ->
       Cfg_dominators.dominator_tree ->
       num_sets:set Reg.Tbl.t ->
       already_spilled:Label.t Reg.Map.t ->
       destructions_at_end:destructions_at_end ->
       destructions_at_end =
-   fun doms loops tree ~num_sets ~already_spilled ~destructions_at_end ->
+   fun doms tree ~num_sets ~already_spilled ~destructions_at_end ->
     if split_debug then log ~indent:1 "remove_dominated_spills %d" tree.label;
     let already_spilled = ref already_spilled in
     let destructions_at_end : (destruction_kind * Reg.Set.t) Label.Map.t =
@@ -198,7 +197,7 @@ end = struct
     List.fold_left tree.children ~init:destructions_at_end
       ~f:(fun destructions_at_end (child : Cfg_dominators.dominator_tree) ->
         if split_debug then log ~indent:2 "child %d" child.label;
-        remove_dominated_spills doms loops child ~num_sets
+        remove_dominated_spills doms child ~num_sets
           ~already_spilled:!already_spilled ~destructions_at_end)
 
   let optimize cfg_with_liveness doms ~destructions_at_end =
@@ -236,8 +235,8 @@ end = struct
         (fun reg num_set ->
           log ~indent:2 "%a ~> %s" Printmach.reg reg (string_of_set num_set))
         num_sets);
-    remove_dominated_spills doms loops doms.Cfg_dominators.dominator_tree
-      ~num_sets ~already_spilled:Reg.Map.empty ~destructions_at_end
+    remove_dominated_spills doms doms.Cfg_dominators.dominator_tree ~num_sets
+      ~already_spilled:Reg.Map.empty ~destructions_at_end
 end
 
 let add_destruction_point_at_end :
