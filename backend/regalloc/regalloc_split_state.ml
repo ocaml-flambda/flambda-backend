@@ -125,12 +125,12 @@ end = struct
       loops.loops
 
   type set =
-    | Exactly_once
-    | At_least_twice
+    | At_most_once
+    | Maybe_more_than_once
 
   let string_of_set = function
-    | Exactly_once -> "exactly once"
-    | At_least_twice -> "at least twice"
+    | At_most_once -> "at most once"
+    | Maybe_more_than_once -> "maybe more than once"
 
   let rec remove_dominated_spills :
       Cfg_dominators.t ->
@@ -154,8 +154,8 @@ end = struct
                   then log ~indent:2 "register %a" Printmach.reg reg;
                   let keep =
                     match Reg.Tbl.find_opt num_sets reg with
-                    | None | Some At_least_twice -> true
-                    | Some Exactly_once -> (
+                    | None | Some Maybe_more_than_once -> true
+                    | Some At_most_once -> (
                       match Reg.Map.find_opt reg !already_spilled with
                       | None ->
                         if split_debug then log ~indent:3 "case/2";
@@ -215,9 +215,9 @@ end = struct
           match Reg.Tbl.find_opt tbl reg with
           | None ->
             Reg.Tbl.replace tbl reg
-              (if in_loop then At_least_twice else Exactly_once)
-          | Some Exactly_once -> Reg.Tbl.replace tbl reg At_least_twice
-          | Some At_least_twice -> ())
+              (if in_loop then Maybe_more_than_once else At_most_once)
+          | Some At_most_once -> Reg.Tbl.replace tbl reg Maybe_more_than_once
+          | Some Maybe_more_than_once -> ())
     in
     let num_sets =
       Cfg_with_liveness.fold_blocks cfg_with_liveness ~init:(Reg.Tbl.create 123)
