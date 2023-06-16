@@ -162,8 +162,9 @@ end;;
 Line 4, characters 13-19:
 4 |   let create _ = ()
                  ^^^^^^
-Error: Non-value detected in [Typeopt.layout] as sort for type 'a.
+Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
+       'a has layout void, which is not a sublayout of value.
 |}];;
 
 module rec Foo3 : sig
