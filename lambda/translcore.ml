@@ -145,8 +145,8 @@ let may_allocate_in_region lam =
   let rec loop_region lam =
     shallow_iter ~tail:(function
       | Lexclave body -> loop body
-      | _ -> ()
-    ) ~non_tail:(fun _ -> ()) lam
+      | lam -> loop_region lam
+    ) ~non_tail:(fun lam -> loop_region lam) lam
   and loop = function
     | Lvar _ | Lmutvar _ | Lconst _ -> ()
 
