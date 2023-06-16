@@ -192,6 +192,7 @@ type error =
   | Layout_not_enabled of Layout.const
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
+  | Function_arg_not_rep of type_expr * Layout.Violation.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3000,6 +3001,7 @@ type untyped_apply_arg =
       { sarg : Parsetree.expression;
         ty_arg : type_expr;
         ty_arg0 : type_expr;
+        sort_arg : sort;
         commuted : bool;
         mode_fun : Alloc_mode.t;
         mode_arg : Alloc_mode.t;
@@ -3007,11 +3009,13 @@ type untyped_apply_arg =
   | Unknown_arg of
       { sarg : Parsetree.expression;
         ty_arg_mono : type_expr;
+        sort_arg : sort;
         mode_fun : Alloc_mode.t;
         mode_arg : Alloc_mode.t; }
   | Eliminated_optional_arg of
       { mode_fun: Alloc_mode.t;
         ty_arg : type_expr;
+        sort_arg : sort;
         mode_arg : Alloc_mode.t;
         level: int; }
 
@@ -3019,7 +3023,8 @@ type untyped_omitted_param =
   { mode_fun: Alloc_mode.t;
     ty_arg : type_expr;
     mode_arg : Alloc_mode.t;
-    level: int; }
+    level: int;
+    sort_arg : sort }
 
 let is_partial_apply args =
   List.exists
@@ -3121,12 +3126,13 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
     match sargs with
     | [] -> ty_fun, mode_fun, List.rev rev_args
     | (lbl, sarg) :: rest ->
-        let (mode_arg, ty_arg_mono, mode_ret, ty_res) =
+        let (sort_arg, mode_arg, ty_arg_mono, mode_ret, ty_res) =
           let ty_fun = expand_head env ty_fun in
           match get_desc ty_fun with
           | Tvar _ ->
+              let sort_arg = Sort.new_var () in
               let ty_arg_mono =
-                newvar (Layout.of_new_sort_var ~why:Function_argument)
+                newvar (Layout.of_sort ~why:Function_argument sort_arg)
               in
               let ty_arg = newmono ty_arg_mono in
               let ty_res =
@@ -3143,10 +3149,16 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
               let kind = (lbl, mode_arg, mode_ret) in
               unify env ty_fun
                 (newty (Tarrow(kind,ty_arg,ty_res,commu_var ())));
-              (mode_arg, ty_arg_mono, mode_ret, ty_res)
+              (sort_arg, mode_arg, ty_arg_mono, mode_ret, ty_res)
         | Tarrow ((l, mode_arg, mode_ret), ty_arg, ty_res, _)
           when labels_match ~param:l ~arg:lbl ->
-            (mode_arg, tpoly_get_mono ty_arg, mode_ret, ty_res)
+            let sort_arg =
+              match type_sort ~why:Function_argument env ty_arg with
+              | Ok sort -> sort
+              | Error err -> raise(Error(funct.exp_loc, env,
+                                         Function_arg_not_rep (ty_arg,err)))
+            in
+            (sort_arg, mode_arg, tpoly_get_mono ty_arg, mode_ret, ty_res)
         | td ->
             let ty_fun = match td with Tarrow _ -> newty td | _ -> ty_fun in
             let ty_res = remaining_function_type ty_fun mode_fun rev_args in
@@ -3160,9 +3172,11 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
             | _ ->
                 raise(Error(funct.exp_loc, env, Apply_non_function
                               (expand_head env funct.exp_type)))
-    in
-    let arg = Unknown_arg { sarg; ty_arg_mono; mode_fun; mode_arg } in
-    loop ty_res mode_ret ((lbl, Arg arg) :: rev_args) rest
+        in
+        let arg =
+          Unknown_arg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg }
+        in
+        loop ty_res mode_ret ((lbl, Arg arg) :: rev_args) rest
   in
   loop ty_fun mode_fun rev_args sargs
 
@@ -3170,10 +3184,11 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
   let warned = ref false in
   let rec loop ty_fun ty_fun0 mode_fun rev_args sargs =
     let ty_fun' = expand_head env ty_fun in
-    match get_desc ty_fun', get_desc (expand_head env ty_fun0) with
+    match get_desc ty_fun', get_desc (expand_head env ty_fun0), sargs with
     | Tarrow (ad, ty_arg, ty_ret, com),
-      Tarrow (_, ty_arg0, ty_ret0, _)
-      when sargs <> [] && is_commu_ok com ->
+      Tarrow (_, ty_arg0, ty_ret0, _),
+      (_, sarg1) :: _
+      when is_commu_ok com ->
         let lv = get_level ty_fun' in
         let (l, mode_arg, mode_ret) = ad in
         let may_warn loc w =
@@ -3183,6 +3198,11 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             Location.prerr_warning loc w
           end
         in
+        let sort_arg = match type_sort ~why:Function_argument env ty_arg with
+          | Ok sort -> sort
+          | Error err -> raise(Error(sarg1.pexp_loc, env,
+                                     Function_arg_not_rep(ty_arg, err)))
+        in
         let name = label_name l
         and optional = is_optional l in
         let use_arg ~commuted sarg l' =
@@ -3191,7 +3211,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             may_warn sarg.pexp_loc
               (Warnings.Not_principal "using an optional argument here");
           Arg (Known_arg
-            { sarg; ty_arg; ty_arg0; commuted;
+            { sarg; ty_arg; ty_arg0; commuted; sort_arg;
               mode_fun; mode_arg; wrapped_in_some })
         in
         let eliminate_optional_arg () =
@@ -3199,7 +3219,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             (Warnings.Non_principal_labels "eliminated optional argument");
           Arg
             (Eliminated_optional_arg
-               { mode_fun; ty_arg; mode_arg; level = lv })
+               { mode_fun; ty_arg; mode_arg; sort_arg; level = lv })
         in
         let remaining_sargs, arg =
           if ignore_labels then begin
@@ -3242,7 +3262,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                      it. *)
                   may_warn funct.exp_loc
                     (Warnings.Non_principal_labels "commuted an argument");
-                  Omitted { mode_fun; ty_arg; mode_arg; level = lv }
+                  Omitted { mode_fun; ty_arg; mode_arg; level = lv; sort_arg }
                 end
         in
         loop ty_ret ty_ret0 mode_ret ((l, arg) :: rev_args) remaining_sargs
@@ -3258,14 +3278,11 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
     List.fold_left
       (fun (ty_ret, mode_ret, open_args, closed_args, args) (lbl, arg) ->
          match arg with
-         | Arg (exp, exp_mode) ->
+         | Arg (exp, exp_mode, sort) ->
              let open_args = (exp_mode, exp) :: open_args in
-             let sort =
-               type_sort_exn ~why:Function_argument exp.exp_env exp.exp_type
-             in
              let args = (lbl, Arg (exp, sort)) :: args in
              (ty_ret, mode_ret, open_args, closed_args, args)
-         | Omitted { mode_fun; ty_arg; mode_arg; level } ->
+         | Omitted { mode_fun; ty_arg; mode_arg; level; sort_arg } ->
              let arrow_desc = (lbl, mode_arg, mode_ret) in
              let ty_ret =
                newty2 ~level
@@ -3283,9 +3300,6 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
              let open_args = [] in
              let mode_closure = Alloc_mode.join (mode_fun :: closed_args) in
              register_allocation_mode mode_closure;
-             let sort_arg =
-               type_sort_exn ~why:Function_argument env ty_arg
-             in
              let arg = Omitted { mode_closure; mode_arg; mode_ret; sort_arg } in
              let args = (lbl, arg) :: args in
              (ty_ret, mode_closure, open_args, closed_args, args))
@@ -6446,7 +6460,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
 
 and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) =
   match arg with
-  | Arg (Unknown_arg { sarg; ty_arg_mono; mode_arg }) ->
+  | Arg (Unknown_arg { sarg; ty_arg_mono; mode_arg; sort_arg }) ->
       let mode, _ = Alloc_mode.newvar_below mode_arg in
       let expected_mode =
         mode_argument ~funct ~index ~position ~partial_app mode in
@@ -6457,9 +6471,9 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
         (* CR layouts v5: relax value requirement *)
         unify_exp env arg
           (type_option(newvar (Layout.value ~why:Type_argument)));
-      (lbl, Arg (arg, expected_mode.mode))
+      (lbl, Arg (arg, expected_mode.mode, sort_arg))
   | Arg (Known_arg { sarg; ty_arg; ty_arg0;
-                     mode_arg; wrapped_in_some }) ->
+                     mode_arg; wrapped_in_some; sort_arg }) ->
       let mode, _ = Alloc_mode.newvar_below mode_arg in
       let expected_mode =
         mode_argument ~funct ~index ~position ~partial_app mode in
@@ -6515,10 +6529,10 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
           {arg with exp_type = instance arg.exp_type}
         end
       in
-      (lbl, Arg (arg, expected_mode.mode))
-  | Arg (Eliminated_optional_arg { ty_arg; _ }) ->
+      (lbl, Arg (arg, expected_mode.mode, sort_arg))
+  | Arg (Eliminated_optional_arg { ty_arg; sort_arg; _ }) ->
       let arg = option_none env (instance ty_arg) Location.none in
-      (lbl, Arg (arg, Value_mode.global))
+      (lbl, Arg (arg, Value_mode.global, sort_arg))
   | Omitted _ as arg -> (lbl, arg)
 
 and type_application env app_loc expected_mode pm
@@ -8397,6 +8411,12 @@ let report_error ~loc env = function
   | Unboxed_float_literals_not_supported ->
       Location.errorf ~loc
         "@[Unboxed float literals aren't supported yet.@]"
+  | Function_arg_not_rep (ty_arg,violation) ->
+      Location.errorf ~loc
+        "@[Function argument of type %a@ is not representable.@]@ %a"
+        Printtyp.type_expr ty_arg
+        (Layout.Violation.report_with_offender
+           ~offender:(fun ppf -> Printtyp.type_expr ppf ty_arg)) violation
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env
