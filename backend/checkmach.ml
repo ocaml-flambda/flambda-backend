@@ -481,7 +481,7 @@ end = struct
         let dots = Location.mknoloc (fun ppf -> Format.fprintf ppf "...") in
         l @ [dots]
       in
-      if len < cutoff
+      if len <= cutoff
       then l
       else
         let details, _ = Misc.Stdlib.List.split_at cutoff l in
