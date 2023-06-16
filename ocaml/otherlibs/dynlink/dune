@@ -52,9 +52,9 @@
     builtin_attributes
     ident
     path
+    primitive
     shape
     layouts
-    primitive
     types
     btype
     lazy_backtrack
@@ -136,9 +136,9 @@
 (copy_files ../../parsing/builtin_attributes.ml)
 (copy_files ../../typing/ident.ml)
 (copy_files ../../typing/path.ml)
-(copy_files ../../typing/layouts.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
+(copy_files ../../typing/layouts.ml)
 (copy_files ../../typing/types.ml)
 (copy_files ../../typing/btype.ml)
 (copy_files ../../typing/subst.ml)
@@ -193,9 +193,9 @@
 (copy_files ../../parsing/builtin_attributes.mli)
 (copy_files ../../typing/ident.mli)
 (copy_files ../../typing/path.mli)
-(copy_files ../../typing/layouts.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
+(copy_files ../../typing/layouts.mli)
 (copy_files ../../typing/types.mli)
 (copy_files ../../typing/btype.mli)
 (copy_files ../../typing/subst.mli)
