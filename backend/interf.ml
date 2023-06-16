@@ -38,9 +38,13 @@ let build_graph fundecl =
 
   IntPairSet.clear mat;
 
+  let classes_intefere ri rj =
+    let ci, cj = Proc.register_class ri, Proc.register_class rj in 
+    Array.mem ci (Proc.sibling_classes cj) in 
+
   (* Record an interference between two registers *)
   let add_interf ri rj =
-    if Proc.register_class ri = Proc.register_class rj then begin
+    if classes_intefere ri rj then begin
       let i = ri.stamp and j = rj.stamp in
       if i <> j then begin
         let p = if i < j then (i, j) else (j, i) in
