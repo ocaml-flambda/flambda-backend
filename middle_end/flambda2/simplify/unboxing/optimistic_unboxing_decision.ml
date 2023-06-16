@@ -98,7 +98,7 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
         | Proved _ | Unknown -> (
           match T.prove_variant_like tenv param_type with
           | Proved { const_ctors; non_const_ctors_with_sizes }
-            when unbox_variants && not recursive ->
+            when unbox_variants && not recursive -> (
             let tag = Extra_param_and_args.create ~name:"tag" in
             let const_ctors : U.const_ctors_decision =
               match const_ctors with
@@ -115,7 +115,15 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
             in
             if Tag.Scannable.Map.is_empty fields_by_tag
             then Do_not_unbox Not_beneficial
-            else Unbox (Variant { tag; const_ctors; fields_by_tag })
+            else
+              match
+                const_ctors, Tag.Scannable.Map.get_singleton fields_by_tag
+              with
+              | Zero, Some (scannable_tag, fields) ->
+                let tag = Tag.Scannable.to_tag scannable_tag in
+                Unbox (Unique_tag_and_size { tag; fields })
+              | (Zero | At_least_one _), _ ->
+                Unbox (Variant { tag; const_ctors; fields_by_tag }))
           | Proved _ | Unknown -> (
             match T.prove_single_closures_entry tenv param_type with
             | Proved (function_slot, _, closures_entry, _fun_decl)
