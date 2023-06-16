@@ -305,6 +305,7 @@ type filter_arrow_failure =
       ; expected_type : type_expr
       }
   | Not_a_function
+  | Layout_error of type_expr * Layout.Violation.t
 
 exception Filter_arrow_failed of filter_arrow_failure
 
@@ -497,12 +498,6 @@ val type_layout : Env.t -> type_expr -> layout
 val type_sort :
   why:Layouts.Layout.concrete_layout_reason ->
   Env.t -> type_expr -> (sort, Layout.Violation.t) result
-
-(* Same as [type_sort], but only safe to call on types known to be a sort.
-   For example, if the type is used as an argument in a function type that
-   has already been translated. *)
-val type_sort_exn :
-  why:Layouts.Layout.concrete_layout_reason -> Env.t -> type_expr -> sort
 
 (* Layout checking. [constrain_type_layout] will update the layout of type
    variables to make the check true, if possible.  [check_decl_layout] and

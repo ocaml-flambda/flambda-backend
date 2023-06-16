@@ -2075,11 +2075,6 @@ let type_sort ~why env ty =
   | Ok _ -> Ok sort
   | Error _ as e -> e
 
-let type_sort_exn ~why env ty =
-  match type_sort ~why env ty with
-  | Ok s -> s
-  | Error _ -> Misc.fatal_error "Ctype.type_sort_exn on non-sort"
-
 (* Note: Because [estimate_type_layout] actually returns an upper bound, this
    function computes an inaccurate intersection in some cases.
 
@@ -3776,6 +3771,7 @@ type filter_arrow_failure =
       ; expected_type : type_expr
       }
   | Not_a_function
+  | Layout_error of type_expr * Layout.Violation.t
 
 exception Filter_arrow_failed of filter_arrow_failure
 
@@ -3854,8 +3850,13 @@ let filter_arrow env t l ~force_tpoly =
            entirely by storing sorts on [TArrow], but that seems incompatible
            with the future plan to shift the layout requirements from the types
            to the terms. *)
-        let arg_sort = type_sort_exn ~why:Function_argument env ty_arg in
-        let ret_sort = type_sort_exn ~why:Function_argument env ty_ret in
+        let type_sort ~why ty =
+          match type_sort ~why env ty with
+          | Ok sort -> sort
+          | Error err -> raise (Filter_arrow_failed (Layout_error (ty, err)))
+        in
+        let arg_sort = type_sort ~why:Function_argument ty_arg in
+        let ret_sort = type_sort ~why:Function_result ty_ret in
         { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort }
       else raise (Filter_arrow_failed
                     (Label_mismatch

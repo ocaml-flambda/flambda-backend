@@ -192,10 +192,23 @@ type error =
   | Layout_not_enabled of Layout.const
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
-  | Function_arg_not_rep of type_expr * Layout.Violation.t
+  | Function_type_not_rep of type_expr * Layout.Violation.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
+
+let error_of_filter_arrow_failure ~explanation in_function ty_fun
+  : filter_arrow_failure -> _ = function
+  | Unification_error unif_err ->
+      Expr_type_clash(unif_err, explanation, None)
+  | Label_mismatch { got; expected; expected_type} ->
+      Abstract_wrong_label { got; expected; expected_type; explanation }
+  | Not_a_function -> begin
+      match in_function with
+      | Some _ -> Too_many_arguments(ty_fun, explanation)
+      | None   -> Not_a_function(ty_fun, explanation)
+    end
+  | Layout_error (ty, err) -> Function_type_not_rep (ty, err)
 
 (* Forward declaration, to be filled in by Typemod.type_module *)
 
@@ -3156,7 +3169,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
               match type_sort ~why:Function_argument env ty_arg with
               | Ok sort -> sort
               | Error err -> raise(Error(funct.exp_loc, env,
-                                         Function_arg_not_rep (ty_arg,err)))
+                                         Function_type_not_rep (ty_arg,err)))
             in
             (sort_arg, mode_arg, tpoly_get_mono ty_arg, mode_ret, ty_res)
         | td ->
@@ -3201,7 +3214,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
         let sort_arg = match type_sort ~why:Function_argument env ty_arg with
           | Ok sort -> sort
           | Error err -> raise(Error(sarg1.pexp_loc, env,
-                                     Function_arg_not_rep(ty_arg, err)))
+                                     Function_type_not_rep(ty_arg, err)))
         in
         let name = label_name l
         and optional = is_optional l in
@@ -3660,17 +3673,8 @@ let rec type_function_approx env loc label spato sexp in_function ty_expected =
   let { ty_arg; arg_mode; ty_ret; _ } =
     try filter_arrow env ty_expected label ~force_tpoly:(not has_poly)
     with Filter_arrow_failed err ->
-      let explanation = None in
-      let err = match err with
-        | Unification_error unif_err ->
-            Expr_type_clash(unif_err, explanation, None)
-        | Label_mismatch { got; expected; expected_type} ->
-            Abstract_wrong_label { got; expected; expected_type; explanation }
-        | Not_a_function -> begin
-            match in_function with
-            | Some _ -> Too_many_arguments(ty_fun, explanation)
-            | None   -> Not_a_function(ty_fun, explanation)
-          end
+      let err =
+        error_of_filter_arrow_failure ~explanation:None in_function ty_fun err
       in
       raise (Error(loc_fun, env, err))
   in
@@ -5799,16 +5803,8 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
     in
     try filter_arrow env ty_expected' arg_label ~force_tpoly
     with Filter_arrow_failed err ->
-      let err = match err with
-        | Unification_error unif_err ->
-            Expr_type_clash(unif_err, explanation, None)
-        | Label_mismatch { got; expected; expected_type} ->
-            Abstract_wrong_label { got; expected; expected_type; explanation }
-        | Not_a_function -> begin
-            match in_function with
-            | Some _ -> Too_many_arguments(ty_fun, explanation)
-            | None   -> Not_a_function(ty_fun, explanation)
-          end
+      let err =
+        error_of_filter_arrow_failure ~explanation in_function ty_fun err
       in
       raise (Error(loc_fun, env, err))
   in
@@ -6409,10 +6405,17 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       let eta_mode = Value_mode.local_to_regional (Value_mode.of_alloc marg) in
       let eta_pat, eta_var = var_pair ~mode:eta_mode "eta" ty_arg in
       (* CR layouts v10: When we add abstract layouts, the eta expansion here
-         becomes impossible in some cases - we'll need good errors and test
-         cases instead of `type_sort_exn`. *)
-      let arg_sort = type_sort_exn env ~why:Function_argument ty_arg in
-      let ret_sort = type_sort_exn env ~why:Function_argument ty_res in
+         becomes impossible in some cases - we'll need better errors.  For test
+         cases, look toward the end of
+         typing-layouts-missing-cmi/function_arg.ml *)
+      let type_sort ~why ty =
+        match type_sort ~why env ty with
+        | Ok sort -> sort
+        | Error err ->
+          raise(Error(sarg.pexp_loc, env, Function_type_not_rep (ty, err)))
+      in
+      let arg_sort = type_sort ~why:Function_argument ty_arg in
+      let ret_sort = type_sort ~why:Function_result ty_res in
       let func texp =
         let ret_mode = Value_mode.of_alloc mret in
         let e =
@@ -8411,12 +8414,11 @@ let report_error ~loc env = function
   | Unboxed_float_literals_not_supported ->
       Location.errorf ~loc
         "@[Unboxed float literals aren't supported yet.@]"
-  | Function_arg_not_rep (ty_arg,violation) ->
+  | Function_type_not_rep (ty,violation) ->
       Location.errorf ~loc
-        "@[Function argument of type %a@ is not representable.@]@ %a"
-        Printtyp.type_expr ty_arg
+        "@[Function arguments and returns must be representable.@]@ %a"
         (Layout.Violation.report_with_offender
-           ~offender:(fun ppf -> Printtyp.type_expr ppf ty_arg)) violation
+           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env
