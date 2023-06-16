@@ -393,6 +393,7 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     let element_kind = meet_array_element_kinds element_kind1 element_kind2 in
     let<* contents, env_extension =
       meet_array_contents env array_contents1 array_contents2
+        ~meet_element_kind:element_kind
     in
     let<* length, env_extension' = meet env length1 length2 in
     (* CR-someday vlaviron: If the element kind is Bottom, we could meet the
@@ -410,7 +411,8 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     Bottom
 
 and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
-    (array_contents2 : TG.array_contents Or_unknown.t) =
+    (array_contents2 : TG.array_contents Or_unknown.t)
+    ~(meet_element_kind : _ Or_unknown_or_bottom.t) =
   meet_unknown
     (fun env (array_contents1 : TG.array_contents)
          (array_contents2 : TG.array_contents) :
@@ -429,7 +431,20 @@ and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
                 let<* fields_rev, env_extension' =
                   fields_rev_and_env_extension
                 in
-                let<* field, env_extension = meet env field1 field2 in
+                let<* field, env_extension =
+                  match meet_element_kind with
+                  | Bottom -> Bottom
+                  | Unknown ->
+                    (* vlaviron: If the meet of the kinds is Unknown, then both
+                       inputs had Unknown kinds. I don't see how we could end up
+                       with an array type where the contents are known but we
+                       don't know the kind, but in that case we wouldn't be able
+                       to call meet because the two sides may have different
+                       kinds. So we'll just return the first input, which is
+                       guaranteed to be a correct approximation of the meet. *)
+                    Ok (field1, TEE.empty)
+                  | Ok _ -> meet env field1 field2
+                in
                 let<+ env_extension =
                   meet_env_extension env env_extension env_extension'
                 in
@@ -1186,7 +1201,10 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
         } ) ->
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
     let element_kind = join_array_element_kinds element_kind1 element_kind2 in
-    let contents = join_array_contents env array_contents1 array_contents2 in
+    let contents =
+      join_array_contents env array_contents1 array_contents2
+        ~joined_element_kind:element_kind
+    in
     let>+ length = join env length1 length2 in
     TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
       contents alloc_mode
@@ -1196,7 +1214,8 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     Unknown
 
 and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
-    (array_contents2 : TG.array_contents Or_unknown.t) =
+    (array_contents2 : TG.array_contents Or_unknown.t)
+    ~(joined_element_kind : _ Or_unknown_or_bottom.t) =
   join_unknown
     (fun env (array_contents1 : TG.array_contents)
          (array_contents2 : TG.array_contents) : TG.array_contents Or_unknown.t ->
@@ -1211,7 +1230,11 @@ and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
             List.fold_left2
               (fun (fields_rev : _ Or_unknown.t) field1 field2 : _ Or_unknown.t ->
                 let>* fields_rev = fields_rev in
-                let>+ field = join env field1 field2 in
+                let>+ field =
+                  match joined_element_kind with
+                  | Bottom | Unknown -> Or_unknown.Unknown
+                  | Ok _ -> join env field1 field2
+                in
                 field :: fields_rev)
               (Or_unknown.Known []) fields1 fields2
           in

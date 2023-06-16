@@ -294,7 +294,7 @@ let default_load ppf (program : Lambda.program) =
     ~filename ~prefixname:filename
     ~pipeline ~ppf_dump:ppf
     program;
-  Asmlink.call_linker_shared [filename ^ ext_obj] dll;
+  Asmlink.call_linker_shared ~native_toplevel:true [filename ^ ext_obj] dll;
   Sys.remove (filename ^ ext_obj);
   let dll =
     if Filename.is_implicit dll

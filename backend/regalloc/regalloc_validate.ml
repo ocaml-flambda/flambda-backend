@@ -9,7 +9,7 @@
     function call are specified as preassigned registers instead of
     reconstructing the argument locations from the function type. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42-69"]
+[@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module DLL = Flambda_backend_utils.Doubly_linked_list
 include Cfg_intf.S
@@ -218,8 +218,7 @@ end = struct
     type t =
       { raw_name : Reg.Raw_name.t;
         stamp : int;
-        typ : Cmm.machtype_component;
-        spill : bool
+        typ : Cmm.machtype_component
       }
   end
 
@@ -230,12 +229,7 @@ end = struct
 
   let create (reg : Reg.t) : t =
     { reg_id = Reg_id.of_reg reg;
-      for_print =
-        { raw_name = reg.raw_name;
-          stamp = reg.stamp;
-          typ = reg.typ;
-          spill = reg.spill
-        }
+      for_print = { raw_name = reg.raw_name; stamp = reg.stamp; typ = reg.typ }
     }
 
   let to_dummy_reg (t : t) : Reg.t =
@@ -384,7 +378,7 @@ end = struct
       }
 
   let do_create cfg =
-    Regalloc_utils.precondition cfg;
+    Regalloc_invariants.precondition cfg;
     if Lazy.force Regalloc_utils.validator_debug
     then
       (* CR-someday: We don't save the file with [fun_name] in the filename
@@ -505,9 +499,16 @@ end = struct
         "Register allocation changed existing instruction no. %d into a \
          register allocation specific instruction"
         id
-    | None, false ->
-      Regalloc_utils.fatal
-        "Register allocation added non-regalloc specific instruction no. %d" id
+    | None, false -> (
+      match instr.desc with
+      | Op Move ->
+        (* A move instruction, while no regalloc-specific, can be inserted
+           because of phi moves in split/rename. *)
+        successor_id
+      | _ ->
+        Regalloc_utils.fatal
+          "Register allocation added non-regalloc specific instruction no. %d"
+          id)
 
   let compare_terminators ~successor_ids ~id (old_instr : terminator)
       (instr : terminator) =
@@ -662,7 +663,7 @@ end = struct
     successor_ids
 
   let verify t cfg =
-    Regalloc_utils.postcondition cfg ~allow_stack_operands:true;
+    Regalloc_invariants.postcondition_layout cfg;
     verify_reg_array ~reg_arr:t.reg_fun_args ~context:"In function arguments"
       ~loc_arr:(Cfg_with_layout.cfg cfg).fun_args;
     let seen_ids =
@@ -1158,7 +1159,9 @@ module Transfer (Desc_val : Description_value) :
   let basic t instr : (domain, error) result =
     match Description.find_basic description instr with
     | None ->
-      (match instr.desc with Op (Spill | Reload) -> () | _ -> assert false);
+      (match instr.desc with
+      | Op (Spill | Reload | Move) -> ()
+      | _ -> assert false);
       Result.ok @@ rename_location t ~loc_instr:instr
     | Some instr_before -> (
       match instr.desc with

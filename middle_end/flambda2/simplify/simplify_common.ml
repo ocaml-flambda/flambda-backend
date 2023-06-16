@@ -364,7 +364,8 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
       | Known_result false | Need_meet -> Ok array_kind
       | Known_result true | Invalid -> Bottom))
 
-let add_symbol_projection dacc ~projected_from projection ~projection_bound_to =
+let add_symbol_projection dacc ~projected_from projection ~projection_bound_to
+    ~kind =
   if DE.at_unit_toplevel (DA.denv dacc)
   then dacc
   else
@@ -372,7 +373,7 @@ let add_symbol_projection dacc ~projected_from projection ~projection_bound_to =
     Simple.pattern_match' projected_from
       ~const:(fun _ -> dacc)
       ~symbol:(fun symbol_projected_from ~coercion:_ ->
-        let proj = SP.create symbol_projected_from projection in
+        let proj = SP.create symbol_projected_from projection kind in
         let var = Bound_var.var projection_bound_to in
         DA.map_denv dacc ~f:(fun denv -> DE.add_symbol_projection denv var proj))
       ~var:(fun _ ~coercion:_ -> dacc)

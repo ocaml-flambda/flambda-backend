@@ -471,3 +471,41 @@
  (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
  (deps t1.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check -dcse -dcheckmach -dump-into-file -O3)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_warning198.output.corrected)
+ (deps (:ml test_warning198.ml) filter.sh)
+ (action
+   (with-outputs-to test_warning198.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 0
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_warning198.output test_warning198.output.corrected)
+ (action (diff test_warning198.output test_warning198.output.corrected)))
+
+(rule
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (targets test_warning199.output.corrected)
+ (deps (:ml test_warning199.mli test_warning199.ml) filter.sh)
+ (action
+   (with-outputs-to test_warning199.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 0
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check -checkmach-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") %{ocaml-config:flambda}))
+ (deps test_warning199.output test_warning199.output.corrected)
+ (action (diff test_warning199.output test_warning199.output.corrected)))

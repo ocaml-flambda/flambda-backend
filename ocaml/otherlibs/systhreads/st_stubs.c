@@ -880,6 +880,8 @@ CAMLprim value caml_thread_yield(value unit)        /* ML */
   caml_raise_async_if_exception(caml_process_pending_signals_exn(),
                                 "signal handler");
   caml_thread_save_runtime_state();
+  /* caml_locking_scheme may have changed in caml_process_pending_signals_exn */
+  s = atomic_load(&caml_locking_scheme);
   s->yield(s->context);
   if (atomic_load(&caml_locking_scheme) != s) {
     /* The lock we have is no longer the runtime lock */

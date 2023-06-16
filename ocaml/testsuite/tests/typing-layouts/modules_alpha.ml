@@ -156,14 +156,15 @@ end
 and Bar3 : sig
   type t [@@void]
 end = struct
-  type t
+  type t [@@void]
 end;;
 [%%expect {|
-Line 2, characters 15-21:
-2 |   val create : Bar3.t -> unit
-                   ^^^^^^
-Error: Function argument types must have layout value.
-        Bar3.t has layout void, which is not a sublayout of value.
+Line 4, characters 13-19:
+4 |   let create _ = ()
+                 ^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       'a has layout void, which is not a sublayout of value.
 |}];;
 
 module rec Foo3 : sig
@@ -181,7 +182,7 @@ end;;
 Line 2, characters 2-31:
 2 |   type t = Bar3.t [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type Bar3/2.t has layout value, which is not a sublayout of immediate.
+Error: Type Bar3.t has layout value, which is not a sublayout of immediate.
 |}];;
 
 module rec Foo3 : sig
@@ -469,3 +470,20 @@ end;;
 [%%expect {|
 module F : sig end -> sig end
 |}];;
+
+(****************************************)
+(* Test 8: [val]s must be representable *)
+
+module type S = sig val x : t_any end
+
+module M = struct
+  let x : t_void = assert false
+end
+
+[%%expect{|
+Line 1, characters 28-33:
+1 | module type S = sig val x : t_any end
+                                ^^^^^
+Error: This type signature for x is not a value type.
+       x has layout any, which is not a sublayout of value.
+|}]

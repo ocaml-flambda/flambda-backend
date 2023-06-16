@@ -602,7 +602,10 @@ let () =
       ">> Fatal error: Register allocation changed existing instruction no. 23 \
        into a register allocation specific instruction"
 
-let () =
+
+(* CR xclerc for xclerc: same as above (polymorphic commpare on values
+   with cycles).
+   let () =
   check "Regalloc added non-regalloc specific instr"
     (fun () ->
       let templ, make_id = base_templ () in
@@ -617,6 +620,8 @@ let () =
     ~exp_err:
       ">> Fatal error: Register allocation added non-regalloc specific \
        instruction no. 26"
+*)
+
   (* CR xclerc for xclerc: same as above (polymorphic commpare on values
      with cycles).
      let () =

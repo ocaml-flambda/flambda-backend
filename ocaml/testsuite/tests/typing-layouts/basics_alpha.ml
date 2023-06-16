@@ -24,98 +24,32 @@ type void_record = { vr_void : t_void; vr_int : int; }
 type void_unboxed_record = { vur_void : t_void; } [@@unboxed]
 |}];;
 
-(*************************************************)
-(* Test 1: Reject non-value function arg/returns *)
-
-(* CR layouts v2: the F1 and F1' errors should ideally mention that the layout
-   restriction is coming from the function type. This may be easier when we
-   switch to introducing restrictions on [fun] *)
-module F1 (X : sig val x : t_void end) = struct
-  let f () = X.x
+(************************************************************)
+(* Test 1: Disallow non-representable function args/returns *)
+module type S1 = sig
+  val f : int -> t_any
 end;;
-[%%expect{|
-Line 2, characters 13-16:
-2 |   let f () = X.x
-                 ^^^
-Error: This expression has type t_void but an expression was expected of type
-         ('a : value)
-       t_void has layout void, which is not a sublayout of value.
+[%%expect {|
+Line 2, characters 17-22:
+2 |   val f : int -> t_any
+                     ^^^^^
+Error: Function return types must have a representable layout.
+        t_any has layout any, which is not representable.
 |}];;
 
-module F1 (X : sig val f : void_record -> unit end) = struct
-  let g z = X.f { vr_void = z; vr_int = 42 }
-end;;
-[%%expect{|
-Line 2, characters 28-29:
-2 |   let g z = X.f { vr_void = z; vr_int = 42 }
-                                ^
-Error: This expression has type ('a : value)
-       but an expression was expected of type t_void
-       t_void has layout void, which is not a sublayout of value.
-|}];;
-
-module type S = sig
+module type S1 = sig
   val f : t_any -> int
 end;;
 [%%expect {|
 Line 2, characters 10-15:
 2 |   val f : t_any -> int
               ^^^^^
-Error: Function argument types must have layout value.
-        t_any has layout any, which is not a sublayout of value.
-|}]
-
-module type S = sig
-  val f : int -> t_void
-end;;
-[%%expect {|
-Line 2, characters 17-23:
-2 |   val f : int -> t_void
-                     ^^^^^^
-Error: Function return types must have layout value.
-        t_void has layout void, which is not a sublayout of value.
+Error: Function argument types must have a representable layout.
+        t_any has layout any, which is not representable.
 |}];;
 
-module type S = sig
-  val f : void_unboxed_record -> int
-end
-[%%expect {|
-Line 2, characters 10-29:
-2 |   val f : void_unboxed_record -> int
-              ^^^^^^^^^^^^^^^^^^^
-Error: Function argument types must have layout value.
-        void_unboxed_record has layout void,
-          which is not a sublayout of value.
-|}];;
-
-module type S = sig
-  val f : int -> void_unboxed_record
-end
-[%%expect {|
-Line 2, characters 17-36:
-2 |   val f : int -> void_unboxed_record
-                     ^^^^^^^^^^^^^^^^^^^
-Error: Function return types must have layout value.
-        void_unboxed_record has layout void,
-          which is not a sublayout of value.
-|}];;
-
-module type S = sig
-  type t [@@void]
-
-  type s = r -> int
-  and r = t
-end;;
-[%%expect{|
-Line 5, characters 2-11:
-5 |   and r = t
-      ^^^^^^^^^
-Error:
-       r has layout void, which is not a sublayout of value.
-|}]
-
-module type S = sig
-  type t [@@void]
+module type S1 = sig
+  type t [@@any]
 
   type 'a s = 'a -> int constraint 'a = t
 end;;
@@ -124,12 +58,64 @@ Line 4, characters 35-41:
 4 |   type 'a s = 'a -> int constraint 'a = t
                                        ^^^^^^
 Error: The type constraints are not consistent.
-       Type ('a : value) is not compatible with type t
-       t has layout void, which is not a sublayout of value.
+       Type ('a : '_representable_layout_1) is not compatible with type t
+       t has layout any, which is not representable.
 |}]
 
-(*********************************************)
-(* Test 2: Permit value function arg/returns *)
+module type S1 = sig
+  type t [@@any]
+
+  type 'a s = int -> 'a constraint 'a = t
+end;;
+[%%expect{|
+Line 4, characters 35-41:
+4 |   type 'a s = int -> 'a constraint 'a = t
+                                       ^^^^^^
+Error: The type constraints are not consistent.
+       Type ('a : '_representable_layout_2) is not compatible with type t
+       t has layout any, which is not representable.
+|}]
+
+let f1 () : t_any = assert false;;
+[%%expect{|
+Line 1, characters 10-32:
+1 | let f1 () : t_any = assert false;;
+              ^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type t_any but an expression was expected of type
+         ('a : '_representable_layout_3)
+       t_any has layout any, which is not representable.
+|}];;
+
+let f1 (x : t_any) = ();;
+[%%expect{|
+Line 1, characters 7-18:
+1 | let f1 (x : t_any) = ();;
+           ^^^^^^^^^^^
+Error: This pattern matches values of type t_any
+       but a pattern was expected which matches values of type
+         ('a : '_representable_layout_4)
+       t_any has layout any, which is not representable.
+|}];;
+
+(*****************************************************)
+(* Test 2: Permit representable function arg/returns *)
+
+(* Presently, the typechecker will allow any representable layout as a function
+   arg or return type.  The translation to lambda rejects functions with
+   void args / returns. *)
+(* CR layouts v2: The translation to lambda should reject void but not #float *)
+(* CR layouts v2: Once we have another sort that can make it through lambda
+   (#float), add tests showing the way sort variables will be instantiated.
+
+   1) [let f x = x] roughly has type [('a : '_sort) -> ('a : '_sort)].
+      Test that you can apply it to a value or to a #float, but once you've
+      done that you can't apply it to the other.
+
+   2) If [f] has a type in the mli (and isn't used in the ml) we get the sort
+      from there.
+
+   I think that all already works, but for the lack of #float *)
+
 module type S = sig
   val f1 : t_value -> t_value
   val f2 : t_imm -> t_imm64
@@ -137,6 +123,71 @@ end;;
 
 [%%expect{|
 module type S = sig val f1 : t_value -> t_value val f2 : t_imm -> t_imm64 end
+|}];;
+
+module type S2 = sig
+  val f : void_unboxed_record -> int
+end
+[%%expect {|
+module type S2 = sig val f : void_unboxed_record -> int end
+|}];;
+
+module type S2 = sig
+  val f : int -> void_unboxed_record
+end
+[%%expect {|
+module type S2 = sig val f : int -> void_unboxed_record end
+|}];;
+
+module type S2 = sig
+  type t [@@void]
+
+  type s = r -> int
+  and r = t
+end;;
+[%%expect{|
+module type S2 = sig type t [@@void] type s = r -> int and r = t end
+|}]
+
+module type S2 = sig
+  val f : int -> t_void
+end;;
+[%%expect {|
+module type S2 = sig val f : int -> t_void end
+|}];;
+
+module type S = sig
+  type t [@@void]
+
+  type 'a s = 'a -> int constraint 'a = t
+end;;
+[%%expect{|
+module type S =
+  sig type t [@@void] type 'a s = 'a -> int constraint 'a = t end
+|}]
+
+module F2 (X : sig val x : t_void end) = struct
+  let f () = X.x
+end;;
+[%%expect{|
+Line 1, characters 27-33:
+1 | module F2 (X : sig val x : t_void end) = struct
+                               ^^^^^^
+Error: This type signature for x is not a value type.
+       x has layout void, which is not a sublayout of value.
+|}];;
+(* CR layouts v5: the test above should be made to work *)
+
+module F2 (X : sig val f : void_record -> unit end) = struct
+  let g z = X.f { vr_void = z; vr_int = 42 }
+end;;
+[%%expect{|
+Line 2, characters 8-44:
+2 |   let g z = X.f { vr_void = z; vr_int = 42 }
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
 |}];;
 
 (**************************************)
@@ -318,19 +369,13 @@ let g (x : 'a void5) =
   match x with
   | Void5 x -> x;;
 [%%expect{|
-Line 3, characters 15-16:
-3 |   | Void5 x -> x;;
-                   ^
-Error: This expression has type ('a : void)
-       but an expression was expected of type ('b : value)
-       'a has layout value, which does not overlap with void.
-|}, Principal{|
-Lines 2-3, characters 2-16:
-2 | ..match x with
+Lines 1-3, characters 6-16:
+1 | ......(x : 'a void5) =
+2 |   match x with
 3 |   | Void5 x -> x..
-Error: This expression has type ('a : void)
-       but an expression was expected of type ('b : value)
-       'a has layout value, which does not overlap with void.
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       'a has layout void, which is not a sublayout of value.
 |}]
 
 (****************************************)
@@ -682,12 +727,12 @@ module M11_3 = struct
   let foo o (A x) = o # usevoid x
 end;;
 [%%expect{|
-Line 4, characters 32-33:
+Line 4, characters 12-33:
 4 |   let foo o (A x) = o # usevoid x
-                                    ^
-Error: This expression has type ('a : void)
-       but an expression was expected of type ('b : value)
-       'a has layout value, which does not overlap with void.
+                ^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       'a has layout void, which is not a sublayout of value.
 |}];;
 
 module M11_4 = struct
@@ -1151,3 +1196,283 @@ Error: This pattern matches values of type (M.t_void, M.t_void) eq
 (* CR layouts v2: error message is OK, but it could probably be better.
    But a similar case without layouts is already pretty bad, so try
    that before spending too much time here. *)
+
+(*****************************************************)
+(* Test 24: Polymorphic parameter with exotic layout *)
+
+type 'a t2_void [@@void]
+
+let f (x : 'a. 'a t2_void) = x
+
+[%%expect{|
+type 'a t2_void [@@void]
+Line 3, characters 6-30:
+3 | let f (x : 'a. 'a t2_void) = x
+          ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       'a. 'a t2_void has layout void, which is not a sublayout of value.
+|}]
+
+(**************************************************)
+(* Test 25: Optional parameter with exotic layout *)
+
+let f (x : t_void) =
+  let g ?(x2 = x) () = () in
+  ()
+
+[%%expect{|
+Line 2, characters 15-16:
+2 |   let g ?(x2 = x) () = () in
+                   ^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(*********************************************************)
+(* Test 26: Inferring an application to an exotic layout *)
+
+let g f (x : t_void) : t_void = f x
+
+[%%expect{|
+Line 1, characters 8-35:
+1 | let g f (x : t_void) : t_void = f x
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(******************************************)
+(* Test 27: Exotic layouts in approx_type *)
+
+let rec f : _ -> _ = fun (x : t_void) -> x
+
+[%%expect{|
+Line 1, characters 21-42:
+1 | let rec f : _ -> _ = fun (x : t_void) -> x
+                         ^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(**********************************************)
+(* Test 28: Exotic layouts in letop and andop *)
+
+(* CR layouts: this must be [let rec] and [and] so that we can test the
+   type-checker, as opposed to the value-kind check. After we have proper
+   support for a non-value argument type, remove the [rec], throughout
+   this test.
+*)
+let rec ( let* ) (x : t_void) f = ()
+
+and q () =
+  let* x = assert false in
+  ()
+
+[%%expect{|
+Line 1, characters 17-36:
+1 | let rec ( let* ) (x : t_void) f = ()
+                     ^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x (f : t_void -> _) = ()
+
+and q () =
+  let* x = assert false in
+  ()
+
+[%%expect{|
+Lines 4-5, characters 2-4:
+4 | ..let* x = assert false in
+5 |   ()
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x (f : _ -> t_void) = ()
+
+and q () =
+  let* x = assert false in
+  assert false
+
+[%%expect{|
+Line 5, characters 2-14:
+5 |   assert false
+      ^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x f : t_void = assert false
+
+and q () =
+  let* x = 5 in
+  ()
+
+[%%expect{|
+Line 1, characters 19-44:
+1 | let rec ( let* ) x f : t_void = assert false
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x f = ()
+and ( and* ) x1 (x2 : t_void) = ()
+and q () =
+    let* x = 5
+    and* y = assert false
+    in
+    ()
+
+[%%expect{|
+Line 2, characters 16-34:
+2 | and ( and* ) x1 (x2 : t_void) = ()
+                    ^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x f = ()
+and ( and* ) (x1 : t_void) x2 = ()
+and q () =
+    let* x = assert false
+    and* y = 5
+    in
+    ()
+
+[%%expect{|
+Line 2, characters 13-34:
+2 | and ( and* ) (x1 : t_void) x2 = ()
+                 ^^^^^^^^^^^^^^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+let rec ( let* ) x f = ()
+and ( and* ) x1 x2 : t_void = assert false
+and q () =
+    let* x = 5
+    and* y = 5
+    in
+    ()
+
+[%%expect{|
+Line 1, characters 17-25:
+1 | let rec ( let* ) x f = ()
+                     ^^^^^^^^
+Error: Non-value detected in [value_kind].
+       Please report this error to the Jane Street compilers team.
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(* CR layouts v5: when we allow non-values in tuples, this next one should
+   type-check *)
+let rec ( let* ) x f = ()
+and ( and* ) x1 x2 = assert false
+and q () =
+    let* x : t_void = assert false
+    and* y = 5
+    in
+    ()
+
+[%%expect{|
+Line 4, characters 9-19:
+4 |     let* x : t_void = assert false
+             ^^^^^^^^^^
+Error: This pattern matches values of type t_void
+       but a pattern was expected which matches values of type ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(*******************************************)
+(* Test 29: [external]s default to [value] *)
+
+(* CR layouts: this must be done in a module so that we can test the
+   type-checker, as opposed to the value-kind check. After we have proper
+   support for a non-value argument type, remove the module wrapper.
+*)
+module _ = struct
+  external eq : 'a -> 'a -> bool = "%equal"
+  let mk_void () : t_void = assert false
+  let x () = eq (mk_void ()) (mk_void ())
+end
+
+[%%expect{|
+Line 4, characters 16-28:
+4 |   let x () = eq (mk_void ()) (mk_void ())
+                    ^^^^^^^^^^^^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(**************************************)
+(* Test 30: [val]s default to [value] *)
+
+(* CR layouts: this must be done in a module so that we can test the
+   type-checker, as opposed to the value-kind check. After we have proper
+   support for a non-value argument type, remove the module wrapper.
+*)
+module _ = struct
+  module M : sig
+    val f : 'a -> 'a
+  end = struct
+    let f x = x
+  end
+
+  let g (x : t_void) = M.f x
+end
+
+[%%expect{|
+Line 8, characters 27-28:
+8 |   let g (x : t_void) = M.f x
+                               ^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(**************************************************)
+(* Test 31: checking that #poly_var patterns work *)
+
+type ('a : void) poly_var = [`A of int * 'a | `B]
+
+let f #poly_var = "hello"
+
+[%%expect{|
+Line 1, characters 41-43:
+1 | type ('a : void) poly_var = [`A of int * 'a | `B]
+                                             ^^
+Error: This type ('a : value) should be an instance of type ('a0 : void)
+       'a has layout void, which does not overlap with value.
+|}]
+(* CR layouts bug: this should be accepted (or maybe we should reject
+   the type definition if we're not allowing `void` things in structures).
+   This bug is a goof at the top of Typecore.build_or_pat;
+   there is another CR layouts there. *)
+
+(*********************************************************)
+(* Test 32: Polymorphic variant constructors take values *)
+
+let f _ = `Mk (assert false : t_void)
+
+[%%expect{|
+Line 1, characters 14-37:
+1 | let f _ = `Mk (assert false : t_void)
+                  ^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]

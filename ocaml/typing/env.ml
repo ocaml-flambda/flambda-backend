@@ -2654,9 +2654,10 @@ let persistent_structures_of_dir dir =
 (* Save a signature to a file *)
 let save_signature_with_transform cmi_transform ~alerts sg modname filename =
   Btype.cleanup_abbrev ();
-  Subst.reset_for_saving ();
+  Subst.reset_additional_action_type_id ();
   let sg = Subst.Lazy.of_signature sg
-    |> Subst.Lazy.signature Make_local (Subst.for_saving Subst.identity)
+    |> Subst.Lazy.signature Make_local
+        (Subst.with_additional_action Prepare_for_saving Subst.identity)
   in
   let cmi =
     Persistent_env.make_cmi !persistent_env modname sg alerts
@@ -3800,9 +3801,9 @@ let report_lookup_error _loc env ppf = function
       | _ -> ()
       end
   | Local_value_used_in_exclave lid ->
-    fprintf ppf "@[The value %a is local, so cannot be used \
-                 inside exclave @]"
-      !print_longident lid
+      fprintf ppf "@[The value %a is local, so it cannot be used \
+                  inside an exclave_@]"
+        !print_longident lid
 
 let report_error ppf = function
   | Missing_module(_, path1, path2) ->

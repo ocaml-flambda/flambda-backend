@@ -43,7 +43,7 @@ module IR : sig
             don't exist in Lambda *)
     | Prim of
         { prim : Lambda.primitive;
-          args : simple list;
+          args : simple list list;
           loc : Lambda.scoped_location;
           exn_continuation : exn_continuation option;
           region : Ident.t

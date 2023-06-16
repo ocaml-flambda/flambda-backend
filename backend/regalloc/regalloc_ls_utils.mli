@@ -18,6 +18,8 @@ val log_body_and_terminator :
   liveness ->
   unit
 
+val log_cfg_with_liveness : indent:int -> Cfg_with_liveness.t -> unit
+
 module Order : sig
   type t =
     | Layout (* Order given by iterating over the CFG layout. *)

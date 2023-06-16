@@ -122,10 +122,12 @@ module T = struct
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                   as typ) =
     sub.location sub loc;
-    sub.attributes sub attrs;
     match Jane_syntax.Core_type.of_ast typ with
-    | Some jtyp -> sub.typ_jane_syntax sub jtyp
+    | Some (jtyp, attrs) ->
+        sub.attributes sub attrs;
+        sub.typ_jane_syntax sub jtyp
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Ptyp_any
     | Ptyp_var _ -> ()
@@ -202,14 +204,23 @@ module T = struct
     | Pext_rebind li ->
         iter_loc sub li
 
+  let iter_extension_constructor_jst _sub :
+    Jane_syntax.Extension_constructor.t -> _ = function
+    | _ -> .
+
   let iter_extension_constructor sub
-      {pext_name;
+     ({pext_name;
        pext_kind;
        pext_loc;
-       pext_attributes} =
+       pext_attributes} as ext) =
     iter_loc sub pext_name;
-    iter_extension_constructor_kind sub pext_kind;
     sub.location sub pext_loc;
+    match Jane_syntax.Extension_constructor.of_ast ext with
+    | Some (jext, attrs) ->
+      sub.attributes sub attrs;
+      iter_extension_constructor_jst sub jext
+    | None ->
+    iter_extension_constructor_kind sub pext_kind;
     sub.attributes sub pext_attributes
 
 end
@@ -260,10 +271,12 @@ module MT = struct
   let iter sub
         ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
     sub.location sub loc;
-    sub.attributes sub attrs;
     match Jane_syntax.Module_type.of_ast mty with
-    | Some jmty -> sub.module_type_jane_syntax sub jmty
+    | Some (jmty, attrs) ->
+        sub.attributes sub attrs;
+        sub.module_type_jane_syntax sub jmty
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Pmty_ident s -> iter_loc sub s
     | Pmty_alias s -> iter_loc sub s
@@ -386,6 +399,10 @@ module M = struct
     | Pstr_attribute x -> sub.attribute sub x
 end
 
+(* A no-op, but makes it clearer which jane syntax cases should have the same
+   handling as core-language cases. *)
+let iter_constant = ()
+
 module E = struct
   (* Value expressions for the core language *)
 
@@ -425,17 +442,20 @@ module E = struct
   let iter_jst sub : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
     | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
+    | Jexp_unboxed_constant _ -> iter_constant
 
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
     sub.location sub loc;
-    sub.attributes sub attrs;
     match Jane_syntax.Expression.of_ast expr with
-    | Some jexp -> sub.expr_jane_syntax sub jexp
+    | Some (jexp, attrs) ->
+        sub.attributes sub attrs;
+        sub.expr_jane_syntax sub jexp
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Pexp_ident x -> iter_loc sub x
-    | Pexp_constant _ -> ()
+    | Pexp_constant _ -> iter_constant
     | Pexp_let (_r, vbs, e) ->
         List.iter (sub.value_binding sub) vbs;
         sub.expr sub e
@@ -525,19 +545,22 @@ module P = struct
 
   let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
     | Jpat_immutable_array iapat -> iter_iapat sub iapat
+    | Jpat_unboxed_constant _ -> iter_constant
 
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     sub.location sub loc;
-    sub.attributes sub attrs;
     match Jane_syntax.Pattern.of_ast pat with
-    | Some jpat -> sub.pat_jane_syntax sub jpat
+    | Some (jpat, attrs) ->
+        sub.attributes sub attrs;
+        sub.pat_jane_syntax sub jpat
     | None ->
+    sub.attributes sub attrs;
     match desc with
     | Ppat_any -> ()
     | Ppat_var s -> iter_loc sub s
     | Ppat_alias (p, s) -> sub.pat sub p; iter_loc sub s
-    | Ppat_constant _ -> ()
+    | Ppat_constant _ -> iter_constant
     | Ppat_interval _ -> ()
     | Ppat_tuple pl -> List.iter (sub.pat sub) pl
     | Ppat_construct (l, p) ->

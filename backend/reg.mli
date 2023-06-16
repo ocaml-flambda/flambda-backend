@@ -41,7 +41,7 @@ type t =
     typ: Cmm.machtype_component;          (* Type of contents *)
     mutable loc: location;                (* Actual location *)
     mutable irc_work_list: irc_work_list; (* Current work list (IRC only) *)
-    mutable irc_color : int option;       (* Current color (IRC conly) *)
+    mutable irc_color : int option;       (* Current color (IRC only) *)
     mutable irc_alias : t option;         (* Current alias (IRC only) *)
     mutable spill: bool;                  (* "true" to force stack allocation  *)
     mutable part: int option;             (* Zero-based index of part of value *)
@@ -93,6 +93,7 @@ val at_location: Cmm.machtype_component -> location -> t
 val typv: t array -> Cmm.machtype
 val anonymous : t -> bool
 val is_preassigned : t -> bool
+val is_unknown : t -> bool
 
 (* Name for printing *)
 val name : t -> string

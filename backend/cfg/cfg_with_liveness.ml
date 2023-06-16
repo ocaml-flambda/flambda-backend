@@ -1,6 +1,19 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-open! Regalloc_utils
+type liveness = Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t
+
+let liveness_analysis : Cfg_with_layout.t -> liveness =
+ fun cfg_with_layout ->
+  let cfg = Cfg_with_layout.cfg cfg_with_layout in
+  let init = { Cfg_liveness.before = Reg.Set.empty; across = Reg.Set.empty } in
+  match
+    Cfg_liveness.Liveness.run cfg ~init ~map:Cfg_liveness.Liveness.Instr ()
+  with
+  | Ok liveness -> liveness
+  | Aborted _ -> .
+  | Max_iterations_reached ->
+    Misc.fatal_errorf "Unable to compute liveness from CFG for function %s@."
+      cfg.Cfg.fun_name
 
 type t =
   { cfg_with_layout : Cfg_with_layout.t;
@@ -12,6 +25,10 @@ let make cfg_with_layout = { cfg_with_layout; liveness = None }
 let cfg_with_layout t = t.cfg_with_layout
 
 let cfg t = Cfg_with_layout.cfg t.cfg_with_layout
+
+let fold_blocks t ~f ~init = Cfg.fold_blocks (cfg t) ~f ~init
+
+let get_block_exn t label = Cfg.get_block_exn (cfg t) label
 
 let[@inline] compute_liveness_if_necessary t =
   match t.liveness with

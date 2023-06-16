@@ -1,0 +1,6 @@
+File "insert.ml", line 5, characters 47-48:
+5 | and packed = Gadt.Mk ((fun _ -> assert false), g)
+                                                   ^
+Error: This expression has type t_void -> unit
+       but an expression was expected of type 'a -> unit
+       t_void has layout void, which is not a sublayout of value.

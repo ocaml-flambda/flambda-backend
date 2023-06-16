@@ -176,11 +176,11 @@ and rewrite_exp iflag sexp =
 
 and rw_exp iflag sexp =
   match Jane_syntax.Expression.of_ast sexp with
-  | Some jexp -> rewrite_exp_jane_syntax iflag jexp
+  | Some (jexp, _attrs) -> rewrite_exp_jane_syntax iflag jexp
   | None ->
   match sexp.pexp_desc with
     Pexp_ident _lid -> ()
-  | Pexp_constant _cst -> ()
+  | Pexp_constant _cst -> rewrite_constant
 
   | Pexp_let(_, spat_sexp_list, sbody) ->
     rewrite_patexp_list iflag spat_sexp_list;
@@ -310,8 +310,9 @@ and rw_exp iflag sexp =
   | Pexp_unreachable -> ()
 
 and rewrite_exp_jane_syntax iflag : Jane_syntax.Expression.t -> _ = function
-  | Jexp_comprehension cexp -> rewrite_comprehension_exp iflag cexp
-  | Jexp_immutable_array iaexp -> rewrite_immutable_array_exp iflag iaexp
+  | Jexp_comprehension x -> rewrite_comprehension_exp iflag x
+  | Jexp_immutable_array x -> rewrite_immutable_array_exp iflag x
+  | Jexp_unboxed_constant _ -> rewrite_constant
 
 and rewrite_comprehension_exp iflag :
   Jane_syntax.Comprehensions.expression -> _ = function
@@ -322,6 +323,10 @@ and rewrite_comprehension iflag
       ({ body; clauses } : Jane_syntax.Comprehensions.comprehension) =
   List.iter (rewrite_comprehension_clause iflag) clauses;
   rewrite_exp iflag body
+
+(* A no-op, but makes it clearer which jane syntax cases should have the same
+   handling as core-language cases. *)
+and rewrite_constant = ()
 
 and rewrite_comprehension_clause iflag : Jane_syntax.Comprehensions.clause -> _ =
   function

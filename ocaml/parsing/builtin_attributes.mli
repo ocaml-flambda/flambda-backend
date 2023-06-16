@@ -168,7 +168,6 @@ val has_curry: Parsetree.attributes -> bool
    are present despite the extension being disabled *)
 val has_local: Parsetree.attributes -> (bool,unit) result
 val has_global: Parsetree.attributes -> (bool,unit) result
-val has_nonlocal: Parsetree.attributes -> (bool,unit) result
 val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
 
@@ -199,4 +198,5 @@ val tailcall : Parsetree.attributes ->
 (* CR layouts: we should eventually be able to delete ~legacy_immediate (after we
    turn on layouts by default). *)
 val layout : legacy_immediate:bool -> Parsetree.attributes ->
-  (Asttypes.const_layout option, Location.t * Asttypes.const_layout) result
+  (Asttypes.const_layout Location.loc option,
+   Asttypes.const_layout Location.loc) result

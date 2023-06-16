@@ -40,3 +40,8 @@
   (modes native)
   (modules merge_archives)
   (libraries ocamlcommon ocamlbytecomp ocamloptcomp))
+
+(executable
+  (name gen_compiler_libs_installation)
+  (modes native)
+  (modules gen_compiler_libs_installation))

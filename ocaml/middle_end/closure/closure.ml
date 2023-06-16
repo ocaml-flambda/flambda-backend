@@ -183,10 +183,10 @@ let prim_size prim args =
   | Pbytesrefs | Pbytessets -> 6
   | Pmakearray _ -> 5 + List.length args
   | Parraylength kind -> if kind = Pgenarray then 6 else 2
-  | Parrayrefu kind -> if kind = Pgenarray then 12 else 2
-  | Parraysetu kind -> if kind = Pgenarray then 16 else 4
-  | Parrayrefs kind -> if kind = Pgenarray then 18 else 8
-  | Parraysets kind -> if kind = Pgenarray then 22 else 10
+  | Parrayrefu kind -> (match kind with Pgenarray_ref _ -> 12 | _ -> 2)
+  | Parraysetu kind -> (match kind with Pgenarray_set _ -> 16 | _ -> 4)
+  | Parrayrefs kind -> (match kind with Pgenarray_ref _ -> 18 | _ -> 8)
+  | Parraysets kind -> (match kind with Pgenarray_set _ -> 22 | _ -> 10)
   | Pbigarrayref(_, ndims, _, _) -> 4 + ndims * 6
   | Pbigarrayset(_, ndims, _, _) -> 4 + ndims * 6
   | Pprobe_is_enabled _ -> 4 (* Pgetglobal and a comparison *)

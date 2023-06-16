@@ -16,6 +16,7 @@ value blocking_section(value unused)
 {
   caml_enter_blocking_section();
   caml_leave_blocking_section();
+  return Val_unit;
 }
 
 
@@ -115,6 +116,7 @@ value swap_gil_setup(value unused)
   caml_default_locking_scheme.thread_start = runtime_thread_start;
   caml_default_locking_scheme.thread_stop = runtime_thread_stop;
   started = 1;
+  return Val_unit;
 }
 
 value swap_gil(value unused)

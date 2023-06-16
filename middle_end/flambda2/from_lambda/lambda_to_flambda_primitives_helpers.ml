@@ -71,6 +71,12 @@ let print_list_of_simple_or_prim ppf simple_or_prim_list =
     (Format.pp_print_list ~pp_sep:Format.pp_print_space print_simple_or_prim)
     simple_or_prim_list
 
+let print_list_of_lists_of_simple_or_prim ppf simple_or_prim_list_list =
+  Format.fprintf ppf "@[(%a)@]"
+    (Format.pp_print_list ~pp_sep:Format.pp_print_space
+       print_list_of_simple_or_prim)
+    simple_or_prim_list_list
+
 let raise_exn_for_failure acc ~dbg exn_cont exn_bucket =
   let exn_handler = Exn_continuation.exn_handler exn_cont in
   let trap_action =
@@ -316,3 +322,13 @@ and bind_rec_primitive acc exn_cont ~register_const0 (prim : simple_or_prim)
       Let_with_acc.create acc (Bound_pattern.singleton var') named ~body
     in
     bind_rec acc exn_cont ~register_const0 p dbg cont
+
+let rec bind_recs acc exn_cont ~register_const0 (prims : expr_primitive list)
+    (dbg : Debuginfo.t) (cont : Acc.t -> Named.t list -> Expr_with_acc.t) :
+    Expr_with_acc.t =
+  match prims with
+  | [] -> cont acc []
+  | prim :: prims ->
+    bind_rec acc exn_cont ~register_const0 prim dbg (fun acc named ->
+        bind_recs acc exn_cont ~register_const0 prims dbg (fun acc nameds ->
+            cont acc (named :: nameds)))

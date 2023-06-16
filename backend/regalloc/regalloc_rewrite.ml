@@ -6,7 +6,7 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 module type State = sig
   type t
 
-  val stack_slots : t -> StackSlots.t
+  val stack_slots : t -> Regalloc_stack_slots.t
 
   val get_and_incr_instruction_id : t -> Instruction.id
 end
@@ -56,7 +56,9 @@ let rewrite_gen :
         Utils.set_spilled spilled;
         (* for printing *)
         if not (Reg.anonymous reg) then spilled.Reg.raw_name <- reg.Reg.raw_name;
-        let slot = StackSlots.get_or_create (State.stack_slots state) reg in
+        let slot =
+          Regalloc_stack_slots.get_or_create (State.stack_slots state) reg
+        in
         spilled.Reg.loc <- Reg.(Stack (Local slot));
         if Utils.debug
         then
@@ -176,10 +178,14 @@ let rewrite_gen :
            if not (DLL.is_empty new_instrs)
            then
              (* insert block *)
-             Regalloc_utils.insert_block
-               (Cfg_with_liveness.cfg_with_layout cfg_with_liveness)
-               new_instrs ~after:block ~next_instruction_id:(fun () ->
-                 State.get_and_incr_instruction_id state));
+             let (_ : Cfg.basic_block list) =
+               Regalloc_utils.insert_block
+                 (Cfg_with_liveness.cfg_with_layout cfg_with_liveness)
+                 new_instrs ~after:block ~before:None
+                 ~next_instruction_id:(fun () ->
+                   State.get_and_incr_instruction_id state)
+             in
+             ());
           if Utils.debug
           then (
             Utils.log ~indent:2 "and after:";
@@ -188,11 +194,18 @@ let rewrite_gen :
             Utils.log ~indent:2 "end"));
   !new_temporaries
 
+(* CR-soon xclerc for xclerc: investigate exactly why this threshold is
+   necessary. *)
+(* If the number of temporaries is above this value, do not split/rename.
+   Experimentally, it seems to trigger a pathological behaviour of IRC when
+   above. *)
+let threshold_split_live_ranges = 1024
+
 let prelude :
     (module Utils) ->
     on_fatal_callback:(unit -> unit) ->
     Cfg_with_liveness.t ->
-    cfg_infos =
+    cfg_infos * Regalloc_stack_slots.t =
  fun (module Utils) ~on_fatal_callback cfg_with_liveness ->
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
   on_fatal ~f:on_fatal_callback;
@@ -204,8 +217,28 @@ let prelude :
   if Utils.debug && Lazy.force Utils.invariants
   then (
     Utils.log ~indent:0 "precondition";
-    precondition cfg_with_layout);
-  collect_cfg_infos cfg_with_layout
+    Regalloc_invariants.precondition cfg_with_layout);
+  let cfg_infos = collect_cfg_infos cfg_with_layout in
+  let num_temporaries =
+    (* note: this should probably be `Reg.Set.cardinal (Reg.Set.union
+       cfg_infos.arg cfg_infos.res)` but the following experimentally produces
+       the same results without computing the union. *)
+    Reg.Set.cardinal cfg_infos.arg
+  in
+  if Utils.debug
+  then Utils.log ~indent:0 "#temporaries(before):%d" num_temporaries;
+  if num_temporaries >= threshold_split_live_ranges
+  then cfg_infos, Regalloc_stack_slots.make ()
+  else if Lazy.force Regalloc_split_utils.split_live_ranges
+  then
+    let stack_slots =
+      Profile.record ~accumulate:true "split"
+        (fun () -> Regalloc_split.split_live_ranges cfg_with_liveness cfg_infos)
+        ()
+    in
+    let cfg_infos = collect_cfg_infos cfg_with_layout in
+    cfg_infos, stack_slots
+  else cfg_infos, Regalloc_stack_slots.make ()
 
 let postlude :
     type s.
@@ -219,7 +252,10 @@ let postlude :
      cfg_with_liveness ->
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
   (* note: slots need to be updated before prologue removal *)
-  StackSlots.update_cfg_with_layout (State.stack_slots state) cfg_with_layout;
+  if Lazy.force stack_slots_optim
+  then Regalloc_stack_slots.optimize (State.stack_slots state) cfg_with_liveness;
+  Regalloc_stack_slots.update_cfg_with_layout (State.stack_slots state)
+    cfg_with_layout;
   if Utils.debug
   then
     Array.iteri (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
@@ -232,4 +268,4 @@ let postlude :
   if Utils.debug && Lazy.force Utils.invariants
   then (
     Utils.log ~indent:0 "postcondition";
-    postcondition cfg_with_layout ~allow_stack_operands:true)
+    Regalloc_invariants.postcondition_liveness cfg_with_liveness)

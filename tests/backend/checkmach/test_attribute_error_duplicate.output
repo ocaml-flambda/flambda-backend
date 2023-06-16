@@ -1,6 +1,6 @@
 File "test_attribute_error_duplicate.ml", line 1, characters 25-35:
 Warning 54 [duplicated-attribute]: the "zero_alloc" attribute is used more than once on this expression
-File "test_attribute_error_duplicate.ml", line 2, characters 32-42:
+File "test_attribute_error_duplicate.ml", line 2, characters 66-76:
 Warning 54 [duplicated-attribute]: the "zero_alloc" attribute is used more than once on this expression
 File "test_attribute_error_duplicate.ml", line 3, characters 5-15:
 Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.

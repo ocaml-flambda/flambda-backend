@@ -1,0 +1,4 @@
+File "user_error7_attributes.ml", line 21, characters 5-9:
+21 | let[@jane] f () = ();;
+          ^^^^
+Warning 53 [misplaced-attribute]: the "jane" attribute cannot appear in this context

@@ -353,7 +353,7 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   let name_list =
     List.flatten (List.map (fun u -> u.defines) units) in
-  compile_phrase (Cmm_helpers.entry_point name_list);
+  List.iter compile_phrase (Cmm_helpers.entry_point name_list);
   List.iter compile_phrase
     (Cmm_helpers.emit_preallocated_blocks []
       (Cmm_helpers.generic_functions false genfns));
@@ -412,8 +412,10 @@ let make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
      might drop some of them (in case of libraries) *)
   Emit.end_assembly ()
 
-let call_linker_shared file_list output_name =
-  let exitcode = Ccomp.call_linker Ccomp.Dll output_name file_list "" in
+let call_linker_shared ?(native_toplevel = false) file_list output_name =
+  let exitcode =
+    Ccomp.call_linker ~native_toplevel Ccomp.Dll output_name file_list ""
+  in
   if not (exitcode = 0)
   then raise(Error(Linking_error exitcode))
 
@@ -525,6 +527,8 @@ let reset () =
 (* Main entry point *)
 
 let link unix ~ppf_dump objfiles output_name =
+  if !Flambda_backend_flags.internal_assembler then
+      Emitaux.binary_backend_available := true;
   Profile.record_call output_name (fun () ->
     let stdlib = "stdlib.cmxa" in
     let stdexit = "std_exit.cmx" in

@@ -12,7 +12,7 @@ jobs:
           - name: closure
             config: --enable-middle-end=closure
             os: ubuntu-latest
-            ocamlparam: ''
+            build_ocamlparam: ''
             check_arch: true
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
@@ -20,51 +20,54 @@ jobs:
           - name: closure_cfg
             config: --enable-middle-end=closure --enable-poll-insertion
             os: ubuntu-latest
-            ocamlparam: _,ocamlcfg=1
+            build_ocamlparam: _,ocamlcfg=1
 
           - name: flambda1
             config: --enable-middle-end=flambda
             os: ubuntu-latest
-            ocamlparam: ''
+            build_ocamlparam: ''
 
           - name: flambda1_frame_pointers
             config: --enable-middle-end=flambda --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
-            ocamlparam: ''
+            build_ocamlparam: ''
 
           - name: flambda1_cfg
             config: --enable-middle-end=flambda --enable-poll-insertion
             os: ubuntu-latest
-            ocamlparam: _,ocamlcfg=1
+            build_ocamlparam: _,ocamlcfg=1
 
           - name: flambda2_debug_runtime
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            ocamlparam: ''
+            build_ocamlparam: ''
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
           - name: flambda2_debug_runtime_nnp
             config: --enable-middle-end=flambda2 --disable-naked-pointers
             os: ubuntu-latest
-            ocamlparam: ''
+            build_ocamlparam: ''
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
-          - name: flambda2_nnp
+          - name: flambda2_nnp_o3
             config: --enable-middle-end=flambda2 --disable-naked-pointers
             os: ubuntu-latest
-            ocamlparam: ''
+            build_ocamlparam: ''
+            ocamlparam: '_,O3=1'
 
-          - name: flambda2_frame_pointers
+          - name: flambda2_frame_pointers_oclassic
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
-            ocamlparam: ''
+            build_ocamlparam: ''
+            ocamlparam: '_,Oclassic=1'
+            disable_testcases: 'ocaml/testsuite/tests/typing-local/regression_cmm_unboxing.ml ocaml/testsuite/tests/int64-unboxing/test.ml'
 
           - name: flambda2_cfg
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            ocamlparam: _,ocamlcfg=1
+            build_ocamlparam: _,ocamlcfg=1
 
           - name: flambda2_macos
             config: --enable-middle-end=flambda2
@@ -73,19 +76,19 @@ jobs:
           - name: irc
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=IRC_SPLIT:off,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
+            build_ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=STACK_SLOTS_OPTIM:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true
 
           - name: irc_frame_pointers
             config: --enable-middle-end=flambda2 --enable-frame-pointers
             os: ubuntu-latest
-            ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=IRC_SPLIT:off,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
+            build_ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=STACK_SLOTS_OPTIM:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true
 
           - name: ls
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
+            build_ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=STACK_SLOTS_OPTIM:on,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
             check_arch: true
 
           - name: build_upstream_closure
@@ -148,6 +151,14 @@ jobs:
       if: matrix.os == 'macos-latest'
       run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install parallel
 
+    - name: Disable any testcases
+      working-directory: flambda_backend
+      run: |
+        disable_testcases="${{matrix.disable_testcases}}"
+        if [ -n "$disable_testcases" ]; then
+          rm -fv $disable_testcases
+        fi
+
     - name: Configure Flambda backend
       working-directory: flambda_backend
       run: |
@@ -164,7 +175,8 @@ jobs:
         export PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH
         if [ $build_upstream = true ]; then make -j$J build_and_test_upstream; else make $target; fi
       env:
-        BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
+        BUILD_OCAMLPARAM: ${{ matrix.build_ocamlparam }}
+        OCAMLPARAM: ${{ matrix.ocamlparam }}
         OCAMLRUNPARAM: ${{ matrix.ocamlrunparam }}
         USE_RUNTIME: ${{ matrix.use_runtime }}
 

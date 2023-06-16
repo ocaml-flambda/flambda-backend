@@ -39,17 +39,29 @@ type unsafe_info =
 type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
-| Non_value_layout of type_expr * Layout.Violation.violation
+| Non_value_layout of type_expr * Layout.Violation.t
 
 exception Error of Location.t * error
 
 (* CR layouts v2: This is used as part of the "void safety check" in the case of
    [Tstr_eval], where we want to allow any sort (see comment on that case of
-   typemod).  Remove when we remove the safety check. *)
+   typemod).  Remove when we remove the safety check.
+
+   We still default to value before checking for void, to allow for sort
+   variables arising in situations like a module that is just:
+
+     exit 1;;
+
+   When this sanity check is removed, consider whether it must be replaced with
+   some defaulting. *)
 let sort_must_not_be_void loc ty sort =
-  let layout = Layout.of_sort sort in
-  if Layout.is_void layout then
-    let violation = Layout.(Violation.not_a_sublayout layout value) in
+  if Sort.is_void_defaulting sort then
+    let violation =
+      Layout.(Violation.of_
+                (Not_a_sublayout
+                   (Layout.of_sort ~why:V1_safety_check sort,
+                    value ~why:V1_safety_check)))
+    in
     raise (Error (loc, Non_value_layout (ty, violation)))
 
 let cons_opt x_opt xs =

@@ -26,22 +26,9 @@ let simplify_field_of_block dacc (field : Field_of_static_block.t) =
     let ty = S.simplify_simple dacc (Simple.var var) ~min_name_mode in
     let simple = T.get_alias_exn ty in
     Simple.pattern_match simple
-      ~name:(fun name ~coercion ->
-        (* CR lmaurer for lmaurer: This will break if you try and put a coerced
-           thing in a block
-
-           mshinwell: is that guaranteed not to occur? It isn't obvious to me
-           why this would be the case. (Update: this won't happen at the moment,
-           since [Lambda_to_flambda] doesn't generate these and let-symbol
-           bindings cannot occur under lambdas, so we may be able to wait until
-           attempting to convert coercions to use some kind of primitive
-           mechanism instead of being attached to [Simple]s.) *)
-        if not (Coercion.is_id coercion)
-        then
-          Misc.fatal_errorf
-            "Coercion in field of static block is not the identity: %a, \
-             field:@ %a"
-            Coercion.print coercion Field_of_static_block.print field;
+      ~name:(fun name ~coercion:_ ->
+        (* CR mshinwell: It's safe to drop the coercion, but perhaps not
+           ideal. *)
         Name.pattern_match name
           ~var:(fun var ->
             Field_of_static_block.Dynamically_computed (var, dbg), ty)

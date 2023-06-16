@@ -495,7 +495,8 @@ let iterator ~transl_exp ~scopes ~loc
                  Matching.for_let
                    ~scopes
                    pattern.pat_loc
-                   (Lprim(Parrayrefu iter_arr_kind,
+                   (Lprim(Parrayrefu
+                            Lambda.(array_ref_kind alloc_heap iter_arr_kind),
                           [iter_arr.var; Lvar iter_ix],
                           loc))
                    pattern
@@ -756,7 +757,9 @@ let body
   let open Let_binding in
   let set_element_raw elt =
     (* array.(index) <- elt *)
-    Lprim(Parraysetu array_kind, [array.var; index.var; elt], loc)
+    Lprim(Parraysetu Lambda.(array_set_kind modify_heap array_kind),
+          [array.var; index.var; elt],
+          loc)
   in
   let set_element_in_bounds elt = match array_sizing with
     | Fixed_size ->

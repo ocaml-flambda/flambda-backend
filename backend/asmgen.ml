@@ -412,6 +412,8 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
          (fun () ->
             gen ();
             Checkmach.record_unit_info ppf_dump;
+            Compiler_hooks.execute Compiler_hooks.Check_allocations
+              Checkmach.iter_witnesses;
             write_ir output_prefix)
          ~always:(fun () ->
              if create_asm then close_out !Emitaux.output_channel)

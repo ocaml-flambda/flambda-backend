@@ -433,7 +433,7 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
     log ~indent:1 "(%d pairs in adj_set)"
       (RegisterStamp.PairSet.cardinal adj_set);
     (* CR-someday xclerc for xclerc: remove (kept for the moment for debugging,
-       but does not deserve to be controlled by a vaiable) *)
+       but does not deserve to be controlled by a variable) *)
     if false
     then
       (* may produce a *lot* of lines... *)
@@ -478,7 +478,7 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
       List.iter spilled_nodes ~f:(fun reg ->
           log ~indent:1 "/!\\ register %a needs to be spilled" Printmach.reg reg);
     match rewrite state cfg_with_liveness ~spilled_nodes ~reset:true with
-    | false -> ()
+    | false -> if irc_debug then log ~indent:1 "(end of main)"
     | true ->
       State.invariant state;
       Cfg_with_liveness.invalidate_liveness cfg_with_liveness;
@@ -487,7 +487,7 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
 let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
  fun cfg_with_liveness ->
   let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
-  let cfg_infos =
+  let cfg_infos, stack_slots =
     Regalloc_rewrite.prelude
       (module Utils)
       ~on_fatal_callback:(fun () -> save_cfg "irc" cfg_with_layout)
@@ -501,6 +501,7 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
   let state =
     State.make
       ~initial:(Reg.Set.elements all_temporaries)
+      ~stack_slots
       ~next_instruction_id:(succ cfg_infos.max_instruction_id)
       ()
   in
@@ -515,6 +516,7 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
     | false -> ()
     | true -> Cfg_with_liveness.invalidate_liveness cfg_with_liveness));
   main ~round:1 state cfg_with_liveness;
+  if irc_debug then log_cfg_with_liveness ~indent:1 cfg_with_liveness;
   Regalloc_rewrite.postlude
     (module State)
     (module Utils)
