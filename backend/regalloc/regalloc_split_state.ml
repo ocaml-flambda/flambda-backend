@@ -15,7 +15,7 @@ type t =
     destructions_at_end : destructions_at_end;
     definitions_at_beginning : definitions_at_beginning;
     phi_at_beginning : phi_at_beginning;
-    stack_slots : StackSlots.t;
+    stack_slots : Regalloc_stack_slots.t;
     mutable next_instruction_id : Instruction.id
   }
 
@@ -481,7 +481,7 @@ let make cfg_with_liveness ~next_instruction_id =
     RemoveDominatedSpillsForConstants.optimize cfg_with_liveness dominators
       ~destructions_at_end
   in
-  let stack_slots = StackSlots.make () in
+  let stack_slots = Regalloc_stack_slots.make () in
   { dominators;
     destructions_at_end;
     definitions_at_beginning;

@@ -6,7 +6,7 @@ open! Regalloc_ls_utils
 type t =
   { mutable intervals : Interval.t list;
     active : ClassIntervals.t array;
-    stack_slots : StackSlots.t;
+    stack_slots : Regalloc_stack_slots.t;
     mutable next_instruction_id : Instruction.id
   }
 
