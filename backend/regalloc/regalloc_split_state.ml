@@ -43,6 +43,69 @@ let log_renaming_info : indent:int -> t -> unit =
         Printmach.regset regset)
     state.phi_at_beginning
 
+(* Optimizes `destructions_at_end` and `definitions_at_beginning`, by deleting
+   registers that appear in both for a given block if the registers are not used
+   in said block. *)
+module RemoveReloadSpillInSameBlock : sig
+  val optimize :
+    Cfg_with_liveness.t ->
+    destructions_at_end:destructions_at_end ->
+    definitions_at_beginning:definitions_at_beginning ->
+    destructions_at_end * definitions_at_beginning
+end = struct
+  let optimize cfg_with_liveness ~destructions_at_end ~definitions_at_beginning
+      =
+    if split_debug then log ~indent:0 "RemoveReloadSpillInSameBlock.optimize";
+    let destructions_at_end = ref destructions_at_end in
+    let definitions_at_beginning =
+      Label.Map.mapi
+        (fun (label : Label.t) (definitions : Reg.Set.t) ->
+          if split_debug then log ~indent:1 "block %d" label;
+          match Label.Map.find_opt label !destructions_at_end with
+          | None -> definitions
+          | Some (Destruction_only_on_exceptional_path, _) -> definitions
+          | Some (Destruction_on_all_paths, destructions) -> (
+            if split_debug
+            then (
+              log ~indent:2 "definitions: %a" Printmach.regset definitions;
+              log ~indent:2 "destructions: %a" Printmach.regset destructions);
+            let can_be_removed : Reg.Set.t =
+              Reg.Set.filter
+                (fun (reg : Reg.t) ->
+                  if split_debug
+                  then log ~indent:3 "register %a" Printmach.reg reg;
+                  match Reg.Set.mem reg destructions with
+                  | false ->
+                    if split_debug then log ~indent:3 "(not among destructions)";
+                    false
+                  | true ->
+                    let block =
+                      Cfg_with_liveness.get_block_exn cfg_with_liveness label
+                    in
+                    let occurs = occurs_block block reg in
+                    if split_debug then log ~indent:3 "occurs? %B" occurs;
+                    not occurs)
+                definitions
+            in
+            if split_debug
+            then
+              log ~indent:2 "can be removed: %a" Printmach.regset can_be_removed;
+            match Reg.Set.is_empty can_be_removed with
+            | true -> definitions
+            | false ->
+              destructions_at_end
+                := Label.Map.update label
+                     (function
+                       | None -> assert false
+                       | Some (kind, set) ->
+                         Some (kind, Reg.Set.diff set can_be_removed))
+                     !destructions_at_end;
+              Reg.Set.diff definitions can_be_removed))
+        definitions_at_beginning
+    in
+    !destructions_at_end, definitions_at_beginning
+end
+
 let add_destruction_point_at_end :
     Cfg_with_liveness.t ->
     Cfg.basic_block ->
@@ -276,6 +339,10 @@ let make cfg_with_liveness ~next_instruction_id =
   let phi_at_beginning =
     compute_phis cfg_with_liveness ~destructions_at_end
       ~definitions_at_beginning dominators
+  in
+  let destructions_at_end, definitions_at_beginning =
+    RemoveReloadSpillInSameBlock.optimize cfg_with_liveness ~destructions_at_end
+      ~definitions_at_beginning
   in
   let stack_slots = StackSlots.make () in
   { dominators;
