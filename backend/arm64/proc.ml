@@ -86,6 +86,23 @@ let register_name r =
 
 let rotate_registers = true
 
+let class_of reg = 
+  if reg < 100 then 0 
+  else if reg < 200 then 1 
+  else Misc.fatal_errorf "Register of unknown class (%d)" reg 
+
+let sibling_classes reg_class = 
+  match reg_class with 
+  | 0 -> [| 0 |]
+  | 1 -> [| 1 |]
+  | c -> Misc.fatal_errorf "Unspecified register class %d" reg_class
+
+let reg_id_in_class ~reg ~in_class = 
+  let reg_class = class_of reg in 
+  match reg_class, in_class with 
+  | x, y when x = y -> Some reg 
+  | _ -> None
+
 (* Representation of hard registers by pseudo-registers *)
 
 let hard_int_reg =
