@@ -70,7 +70,7 @@ let emit_debug_info_helper ~out_of_line fdo dbg =
   | None -> emit_debug_info dbg
   | Some { discriminator; dbg } ->
     let discriminator =
-      if out_of_line then (-discriminator) else  discriminator
+      if out_of_line then (-discriminator) else discriminator
     in
     emit_debug_info ~discriminator dbg
 
