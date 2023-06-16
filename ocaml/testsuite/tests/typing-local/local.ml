@@ -1394,8 +1394,12 @@ val foo : unit -> int = <fun>
 |}]
 
 (* tail-calling local-returning functions make the current function
-   local-returning as well; mode-crossing is irrelavent here. *)
-let foo () = local_ 42
+   local-returning as well; mode-crossing is irrelavent here. Whether or not the
+   function actually allocates in parent-region is also irrelavent here, but we
+   allocate just to demonstrate the potential leaking. *)
+let foo () = local_
+  let _ = local_ (52, 24) in
+  42
 [%%expect{|
 val foo : unit -> local_ int = <fun>
 |}]
