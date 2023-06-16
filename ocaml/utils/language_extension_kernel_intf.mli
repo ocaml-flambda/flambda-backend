@@ -1,14 +1,22 @@
+(** These module types make it easier to import more source files directly
+    from the compiler into the [ppxlib_jane] open-source library. We copy source
+    files because the [ppxlib_jane] library can't rely on Jane Street's OCaml
+    compiler libraries -- it must remain compatible with the upstream OCaml
+    compiler.
+
+    The [Parsing.Jane_syntax_*] modules are implicitly functorized over which
+    module [Language_extension : Language_extension_kernel_for_jane_syntax] is
+    available. In the compiler, [Language_extension] refers to the module
+    defined in [utils/language_extension.ml], but in [ppxlib_jane],
+    [Language_extension] refers to a module that [ppxlib_jane] defines.
+*)
+
 module type Language_extension_kernel = sig
   (** Language extensions provided by the Jane Street version of the OCaml
       compiler.
 
-      In contrast to the {!Language_extension} module, which defines both
-      these types and the state that tracks which extensions are enabled, this
-      module just defines the language extension types and stateless functions
-      over them, such as the string component of OCaml attributes corresponding
-      to that language extension.
-
-    Comments are kept in-sync with {!Language_extension} on a best-effort basis.
+      This is the signature of the {!Language_extension_kernel} module that is
+      directly imported into [ppxlib_jane].
   *)
 
   type maturity = Stable | Beta | Alpha
@@ -43,20 +51,16 @@ module type Language_extension_kernel = sig
   val is_erasable : _ t -> bool
 end
 
-
 module type Language_extension_kernel_for_jane_syntax = sig
-  (** This is a winnowed-down version of the [Language_extension] module used
-      in the Jane Street OCaml compiler.
-
-      It exports the pieces of functionality used by {!Jane_syntax_parsing} and
-      {!Jane_syntax} so that we can more easily put these modules into public
-      release (without also including all of the [Language_extension]
-      machinery.)
+  (** This module type defines the pieces of functionality used by
+      {!Jane_syntax_parsing} and {!Jane_syntax} so that we can more easily
+      import these modules into [ppxlib_jane], without also including all of the
+      [Language_extension] machinery.
 
       In addition to the bindings from {!Language_extension_kernel}, it includes
-      the stateful operations that {!Jane_syntax_parsing} relies on. This
-      limits the number of bindings we have to write mock implementations
-      for.
+      the stateful operations that {!Jane_syntax_parsing} relies on. This limits
+      the number of bindings that [ppxlib_jane] needs to have mock
+      implementations for.
   *)
 
   include Language_extension_kernel
