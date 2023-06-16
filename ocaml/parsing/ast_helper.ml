@@ -98,7 +98,7 @@ module Typ = struct
             Ptyp_var x
         | Ptyp_arrow (label,core_type,core_type') ->
             Ptyp_arrow(label, loop core_type, loop core_type')
-        | Ptyp_tuple lst -> Ptyp_tuple (List.map loop lst)
+        | Ptyp_tuple lst -> Ptyp_tuple (List.map (fun (label,typ) -> label, loop typ) lst)
         | Ptyp_constr( { txt = Longident.Lident s }, [])
           when List.mem s var_names ->
             Ptyp_var s

@@ -354,7 +354,7 @@ and core_type1 ctxt f x =
     match x.ptyp_desc with
     | Ptyp_any -> pp f "_";
     | Ptyp_var s -> tyvar f  s;
-    | Ptyp_tuple l ->  pp f "(%a)" (list (core_type1 ctxt) ~sep:"@;*@;") l
+    | Ptyp_tuple l ->  pp f "(%a)" (list (labeled_core_type1 ctxt) ~sep:"@;*@;") l
     | Ptyp_constr (li, l) ->
         pp f (* "%a%a@;" *) "%a%a"
           (fun f l -> match l with
@@ -427,6 +427,13 @@ and core_type1 ctxt f x =
     | Ptyp_extension e -> extension ctxt f e
     | _ -> paren true (core_type ctxt) f x
 
+and labeled_core_type1 ctxt f (label, ty) =
+  begin match label with
+  | None   -> ()
+  | Some s -> pp f "%s:" s
+  end;
+  core_type1 ctxt f ty
+
 and core_type1_jane_syntax _ctxt _attrs _f : Jane_syntax.Core_type.t -> _ =
   function
   | _ -> .
@@ -474,7 +481,7 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
             Some ([], inner_pat));
        ppat_attributes = []} ->
       begin match Jane_syntax.Pattern.of_ast inner_pat, inner_pat.ppat_desc with
-      | None, Ppat_tuple([pat1; pat2]) ->
+      | None, Ppat_tuple([None, pat1; None, pat2]) ->
         pp f "%a::%a" (simple_pattern ctxt) pat1 pattern_list_helper pat2 (*RA*)
       | _ -> pattern1 ctxt f p
       end
@@ -500,6 +507,13 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
                  (simple_pattern ctxt) x
            | None -> pp f "%a" longident_loc li)
     | _ -> simple_pattern ctxt f x
+
+and labeled_pattern1 ctxt (f:Format.formatter) (label, x) : unit =
+  begin match label with
+  | None -> ()
+  | Some s -> pp f "~%s:" s
+  end;
+  pattern1 ctxt f x
 
 and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
   if x.ppat_attributes <> [] then pattern ctxt f x
@@ -537,7 +551,8 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
             pp f "@[<2>{@;%a;_}@]" (list longident_x_pattern ~sep:";@;") l
         end
     | Ppat_tuple l ->
-        pp f "@[<1>(%a)@]" (list  ~sep:",@;" (pattern1 ctxt))  l (* level1*)
+        pp f "@[<1>(%a)@]"
+          (list ~sep:",@;" (labeled_pattern1 ctxt)) l (* level1 *)
     | Ppat_constant (c) -> pp f "%a" constant c
     | Ppat_interval (c1, c2) -> pp f "%a..%a" constant c1 constant c2
     | Ppat_variant (l,None) ->  pp f "`%s" l

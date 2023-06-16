@@ -7448,3 +7448,5 @@ let g y =
   f ~(y:int)
 
 let goober a = match a with C (type a b) y -> y
+
+(* CR labeled tuples: Test once syntax is finalized *)

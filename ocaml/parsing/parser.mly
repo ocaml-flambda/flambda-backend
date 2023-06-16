@@ -281,7 +281,7 @@ let rec mktailpat nilloc = let open Location in function
   | p1 :: pl ->
       let pat_pl, el_loc = mktailpat nilloc pl in
       let loc = (p1.ppat_loc.loc_start, snd el_loc) in
-      let arg = ghpat ~loc (Ppat_tuple [p1; ghpat ~loc:el_loc pat_pl]) in
+      let arg = ghpat ~loc (Ppat_tuple [None, p1; None, ghpat ~loc:el_loc pat_pl]) in
       ghpat_cons_desc loc arg, loc
 
 let mkstrexp e attrs =
@@ -3132,7 +3132,7 @@ pattern_no_exn:
 
 %inline pattern_(self):
   | self COLONCOLON pattern
-      { mkpat_cons ~loc:$sloc $loc($2) (ghpat ~loc:$sloc (Ppat_tuple[$1;$3])) }
+      { mkpat_cons ~loc:$sloc $loc($2) (ghpat ~loc:$sloc (Ppat_tuple[None,$1;None,$3])) }
   | self attribute
       { Pat.attr $1 $2 }
   | pattern_gen
@@ -3142,8 +3142,11 @@ pattern_no_exn:
         { Ppat_alias($1, $3) }
     | self AS error
         { expecting $loc($3) "identifier" }
+    (* CR labeled tuples: merge the below two cases *)
     | pattern_comma_list(self) %prec below_COMMA
-        { Ppat_tuple(List.rev $1) }
+        { Ppat_tuple(List.rev_map (fun p -> None, p) $1) }
+    | TILDETILDELPAREN labeled_pattern_comma_list(self) RPAREN // %prec below_COMMA
+        { Ppat_tuple(List.rev $2) }
     | self COLONCOLON error
         { expecting $loc($3) "pattern" }
     | self BAR pattern
@@ -3259,6 +3262,25 @@ pattern_comma_list(self):
     pattern_comma_list(self) COMMA pattern      { $3 :: $1 }
   | self COMMA pattern                          { [$3; $1] }
   | self COMMA error                            { expecting $loc($3) "pattern" }
+;
+%inline labeled_pattern:
+    pattern { None, $1 }
+  | TILDE label = LIDENT EQUAL pat = pattern
+      { Some label, pat }
+  (* Punning *)
+  | TILDE label = LIDENT
+      { let loc = $loc(label) in
+        Some label, mkpatvar ~loc label }
+  (* Punning + type annotation *)
+  | TILDE LPAREN label = LIDENT COLON cty = core_type RPAREN
+      { let loc = $loc(label) in
+        let pat = mkpatvar ~loc label in
+        Some label, mkpat_opt_constraint ~loc pat (Some cty) }
+;
+
+labeled_pattern_comma_list(self):
+    labeled_pattern_comma_list(self) SEMI labeled_pattern      { $3 :: $1 }
+  | labeled_pattern SEMI labeled_pattern                       { [$3; $1] }
 ;
 %inline pattern_semi_list:
   ps = separated_or_terminated_nonempty_list(SEMI, pattern)
@@ -3841,9 +3863,21 @@ tuple_type:
       { ty }
   | mktyp(
       tys = separated_nontrivial_llist(STAR, atomic_type)
-        { Ptyp_tuple tys }
+        { Ptyp_tuple (List.map (fun ty -> None, ty) tys) }
     )
-    { $1 }
+      { $1 }
+  | TILDETILDELPAREN mktyp(
+      labeled_tys = separated_nontrivial_llist(STAR, labeled_atomic_type)
+        { Ptyp_tuple labeled_tys }
+  ) RPAREN
+      { $2 }
+;
+
+labeled_atomic_type:
+  atomic_type
+      { None, $1 }
+  | label = LIDENT COLON ty = atomic_type
+      { Some label, ty }
 ;
 
 (* Atomic types are the most basic level in the syntax of types.

@@ -25,7 +25,7 @@ type ('a, 'b) pair = Pair of 'a * 'b
 Line 2, characters 8-27:
 2 | let x = Pair (~~(~x: 5, 2))
             ^^^^^^^^^^^^^^^^^^^
-Error: Constructors cannot receive labeled arguments. Consider using an inline record instead.
+Error: Constructors cannot have labeled arguments. Consider using an inline record instead.
 |}]
 
 (* Happy case *)
@@ -186,3 +186,74 @@ type t = { x : unit; y : unit }
 let t1 = { x = Printf.printf "x\n"; y = Printf.printf "y\n" }
 let t2 = { y = Printf.printf "y\n"; x = Printf.printf "x\n" }
 *)
+
+(* Labeled tuple pattern *)
+let ~~(~x=x0; ~y=y0; _) = ~~(~x: 1, ~y: 2, "ignore me")
+[%%expect{|
+Line 1, characters 4-23:
+1 | let ~~(~x=x0; ~y=y0; _) = ~~(~x: 1, ~y: 2, "ignore me")
+        ^^^^^^^^^^^^^^^^^^^
+Error: Labeled tuple patterns are not yet supported
+|}]
+
+(* Pattern with punning and type annotation *)
+let ~~(~(x:int); ~y; _) = ~~(~x: 1, ~y: 2, "ignore me")
+[%%expect{|
+Line 1, characters 4-23:
+1 | let ~~(~(x:int); ~y; _) = ~~(~x: 1, ~y: 2, "ignore me")
+        ^^^^^^^^^^^^^^^^^^^
+Error: Labeled tuple patterns are not yet supported
+|}]
+
+(* Labeled tuple pattern in constructor pattern *)
+let f = function
+| Pair (~~(~x=5; 2)) -> true
+| _ -> false
+[%%expect{|
+Line 2, characters 2-20:
+2 | | Pair (~~(~x=5; 2)) -> true
+      ^^^^^^^^^^^^^^^^^^
+Error: Constructors cannot have labeled arguments. Consider using an inline record instead.
+|}]
+
+(* Labeled tuple pattern in constructor pattern *)
+let f = function
+| Some (~~(~x=5; 2)) -> true
+| _ -> false
+[%%expect{|
+Line 2, characters 7-20:
+2 | | Some (~~(~x=5; 2)) -> true
+           ^^^^^^^^^^^^^
+Error: Labeled tuple patterns are not yet supported
+|}]
+
+(* CR labeled tuples: test constructor special cases thoroughly once patterns
+   are typed. *)
+
+(* Labeled tuple type annotations *)
+(* Bad type *)
+let x: ~~(string * a:int * int) = ~~(~lbl:5, "hi")
+[%%expect{|
+Line 1, characters 34-50:
+1 | let x: ~~(string * a:int * int) = ~~(~lbl:5, "hi")
+                                      ^^^^^^^^^^^^^^^^
+Error: This expression has type lbl:'a * 'b
+       but an expression was expected of type string * a:int * int
+|}]
+
+(* Well-typed *)
+let x: ~~(string * a:int * int) = ~~("hi", ~a:1, 2)
+[%%expect{|
+val x : string * a:int * int = ("hi", ~a:1, 2)
+|}]
+
+(* Function type *)
+let mk_x : ~~(foo:unit * bar:unit) -> ~~(string * a:int * int) = fun _ -> x
+[%%expect{|
+val mk_x : foo:unit * bar:unit -> string * a:int * int = <fun>
+|}]
+
+let x = mk_x (~~(~foo:(), ~bar:()))
+[%%expect{|
+val x : string * a:int * int = ("hi", ~a:1, 2)
+|}]

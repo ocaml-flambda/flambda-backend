@@ -170,7 +170,7 @@ let rec core_type i ppf x =
       core_type i ppf ct2;
   | Ptyp_tuple l ->
       line i ppf "Ptyp_tuple\n";
-      list i core_type ppf l;
+      list i labeled_core_type ppf l;
   | Ptyp_constr (li, l) ->
       line i ppf "Ptyp_constr %a\n" fmt_longident_loc li;
       list i core_type ppf l;
@@ -212,6 +212,13 @@ let rec core_type i ppf x =
       payload i ppf arg
   )
 
+and labeled_core_type i ppf (label, t) =
+  begin match label with
+  | Some s -> line i ppf "Label: \"%s\"\n" s;
+  | None -> ()
+  end;
+  core_type i ppf t
+
 and package_with i ppf (s, t) =
   line i ppf "with type %a\n" fmt_longident_loc s;
   core_type i ppf t
@@ -232,7 +239,7 @@ and pattern i ppf x =
       line i ppf "Ppat_interval %a..%a\n" fmt_constant c1 fmt_constant c2;
   | Ppat_tuple (l) ->
       line i ppf "Ppat_tuple\n";
-      list i pattern ppf l;
+      list i labeled_pattern ppf l;
   | Ppat_construct (li, po) ->
       line i ppf "Ppat_construct %a\n" fmt_longident_loc li;
       option i
@@ -275,6 +282,10 @@ and pattern i ppf x =
       line i ppf "Ppat_extension \"%s\"\n" s.txt;
       payload i ppf arg
   )
+
+and labeled_pattern i ppf (label, x) =
+  tuple_component_label i ppf label;
+  pattern i ppf x;
 
 and expression i ppf x =
   with_location_mapping ~loc:x.pexp_loc ppf (fun () ->
