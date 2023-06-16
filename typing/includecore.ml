@@ -76,8 +76,8 @@ let primitive_descriptions pd1 pd2 =
   else if not (String.equal pd1.prim_native_name pd2.prim_native_name) then
     Some Native_name
   else if not
-    (match pd1.prim_native_repr_res, pd2.prim_native_repr_res with
-      | (_, nr1), (_, nr2) -> Primitive.equal_native_repr nr1 nr2) then
+    (Primitive.equal_native_repr
+       (snd pd1.prim_native_repr_res) (snd pd2.prim_native_repr_res)) then
     Some Result_repr
   else
     native_repr_args pd1.prim_native_repr_args pd2.prim_native_repr_args

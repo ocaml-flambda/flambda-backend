@@ -20,7 +20,7 @@ type boxed_integer = Pnativeint | Pint32 | Pint64
 (* Representation of arguments/result for the native code version
    of a primitive *)
 type native_repr =
-  | Same_as_ocaml_repr of Layouts.Sort.const
+  | Same_as_ocaml_repr
   | Unboxed_float
   | Unboxed_integer of boxed_integer
   | Untagged_int
@@ -56,7 +56,7 @@ type description = private
 
 (* Invariant [List.length d.prim_native_repr_args = d.prim_arity] *)
 
-val simple_on_values
+val simple
   :  name:string
   -> arity:int
   -> alloc:bool
@@ -69,14 +69,14 @@ val make
   -> effects:effects
   -> coeffects:coeffects
   -> native_name:string
-  -> native_repr_args: (mode * native_repr) list
-  -> native_repr_res: mode * native_repr
+  -> native_repr_args: (mode*native_repr) list
+  -> native_repr_res: mode*native_repr
   -> description
 
 val parse_declaration
   :  Parsetree.value_description
-  -> native_repr_args:(mode * native_repr) list
-  -> native_repr_res:(mode * native_repr)
+  -> native_repr_args:(mode*native_repr) list
+  -> native_repr_res:(mode*native_repr)
   -> description
 
 val print
@@ -96,10 +96,6 @@ val equal_coeffects : coeffects -> coeffects -> bool
     given primitive identifies that the primitive is not implemented in the
     compiler itself. *)
 val native_name_is_external : description -> bool
-
-(** [sort_of_native_repr] returns the sort expected during typechecking (which
-    may be different than the sort used in the external interface). *)
-val sort_of_native_repr : native_repr -> Layouts.Sort.const
 
 type error =
   | Old_style_float_with_native_repr_attribute

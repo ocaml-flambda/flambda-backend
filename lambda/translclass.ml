@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open Asttypes
-open Layouts
 open Types
 open Typedtree
 open Lambda
@@ -99,8 +98,7 @@ let transl_meth_list lst =
 
 let set_inst_var ~scopes obj id expr =
   Lprim(Psetfield_computed (Typeopt.maybe_pointer expr, Assignment modify_heap),
-    [Lvar obj; Lvar id; transl_exp ~scopes Sort.for_instance_var expr],
-        Loc_unknown)
+    [Lvar obj; Lvar id; transl_exp ~scopes expr], Loc_unknown)
 
 let transl_val tbl create name =
   mkappl (oo_prim (if create then "new_variable" else "get_variable"),
@@ -206,22 +204,16 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       (inh_init,
        let build params rem =
          let param = name_pattern "param" pat in
-         let arg_sort = Sort.for_class_arg in
-         let arg_layout =
-           Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type
-         in
-         let body =
-           Matching.for_function ~scopes ~arg_sort ~arg_layout
-             ~return_layout:layout_obj pat.pat_loc None (Lvar param) [pat, rem]
-             partial
+         let param_layout =
+           Typeopt.layout pat.pat_env pat.pat_loc pat.pat_type
          in
          Lambda.lfunction
-                   ~kind:(Curried {nlocal=0})
-                   ~params:((param, arg_layout)::params)
+                   ~kind:(Curried {nlocal=0}) ~params:((param, param_layout)::params)
                    ~return:layout_obj
                    ~attr:default_function_attribute
                    ~loc:(of_location ~scopes pat.pat_loc)
-                   ~body
+                   ~body:(Matching.for_function ~scopes layout_obj pat.pat_loc
+                             None (Lvar param, param_layout) [pat, rem] partial)
                    ~mode:alloc_heap
                    ~region:true
        in
@@ -241,8 +233,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
         build_object_init ~scopes cl_table obj (vals @ params)
           inh_init obj_init cl
       in
-      (inh_init, Translcore.transl_let ~return_layout:layout_obj ~scopes
-                   rec_flag defs obj_init)
+      (inh_init, Translcore.transl_let ~scopes rec_flag defs layout_obj obj_init)
   | Tcl_open (_, cl)
   | Tcl_constraint (cl, _, _, _, _) ->
       build_object_init ~scopes cl_table obj params inh_init obj_init cl
@@ -359,8 +350,7 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
             | Tcf_method (name, _, Tcfk_concrete (_, exp)) ->
                 let scopes = enter_method_definition ~scopes name.txt in
                 let met_code =
-                  msubst true (transl_scoped_exp ~scopes Sort.for_method exp)
-                in
+                  msubst true (transl_scoped_exp ~scopes exp) in
                 let met_code =
                   if !Clflags.native_code && List.length met_code = 1 then
                     (* Force correct naming of method for profiles *)
@@ -375,9 +365,7 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
                 (inh_init,
                  Lsequence(mkappl (oo_prim "add_initializer",
                                    Lvar cla :: msubst false
-                                                 (transl_exp ~scopes
-                                                    Sort.for_initializer exp),
-                                   layout_unit),
+                                                 (transl_exp ~scopes exp), layout_unit),
                            cl_init),
                  methods, values)
             | Tcf_attribute _ ->
@@ -457,9 +445,8 @@ let rec build_class_lets ~scopes cl =
   match cl.cl_desc with
     Tcl_let (rec_flag, defs, _vals, cl') ->
       let env, wrap = build_class_lets ~scopes cl' in
-      (env, fun return_layout x ->
-          Translcore.transl_let ~scopes ~return_layout rec_flag defs
-            (wrap return_layout x))
+      (env, fun x_layout x ->
+          Translcore.transl_let ~scopes rec_flag defs x_layout (wrap x_layout x))
   | _ ->
       (cl.cl_env, fun _ x -> x)
 
@@ -494,22 +481,17 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
         transl_class_rebind ~scopes obj_init cl vf in
       let build params rem =
         let param = name_pattern "param" pat in
-        let arg_sort = Sort.for_class_arg in
-        let arg_layout =
-          Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type
+        let param_layout =
+          Typeopt.layout pat.pat_env pat.pat_loc pat.pat_type
         in
         let return_layout = layout_class in
-        let body =
-          Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout pat.pat_loc
-            None (Lvar param) [pat, rem] partial
-        in
         Lambda.lfunction
-                  ~kind:(Curried {nlocal=0})
-                  ~params:((param, arg_layout)::params)
+                  ~kind:(Curried {nlocal=0}) ~params:((param, param_layout)::params)
                   ~return:return_layout
                   ~attr:default_function_attribute
                   ~loc:(of_location ~scopes pat.pat_loc)
-                  ~body
+                  ~body:(Matching.for_function ~scopes return_layout pat.pat_loc
+                            None (Lvar param, param_layout) [pat, rem] partial)
                   ~mode:alloc_heap
                   ~region:true
       in
@@ -527,8 +509,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
       (path, path_lam,
-       Translcore.transl_let ~scopes ~return_layout:layout_obj rec_flag defs
-         obj_init)
+       Translcore.transl_let ~scopes rec_flag defs layout_obj obj_init)
   | Tcl_structure _ -> raise Exit
   | Tcl_constraint (cl', _, _, _, _) ->
       let path, path_lam, obj_init =
@@ -550,8 +531,7 @@ let rec transl_class_rebind_0 ~scopes (self:Ident.t) obj_init cl vf =
         transl_class_rebind_0 ~scopes self obj_init cl vf
       in
       (path, path_lam,
-       Translcore.transl_let ~scopes ~return_layout:layout_obj rec_flag defs
-         obj_init)
+       Translcore.transl_let ~scopes rec_flag defs layout_obj obj_init)
   | _ ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in

@@ -1,4 +1,3 @@
-open Layouts
 open Lambda
 open Typedtree
 open Asttypes
@@ -166,6 +165,11 @@ type translated_iterator =
     desugars into a higher-order function which is applied to another function
     containing the body of the iteration; that body function can't be filled in
     until the rest of the translations have been done. *)
+(* CR layouts v2: the value that is passed to this function for [transl_exp]
+   (and all the other [~transl_exp] parameters in this file) must only be called
+   on expressions whose types have sort value.  Probably [transl_exp] will have
+   been updated to allow other sorts by the time we allow array elements other
+   than value, but check that.  *)
 let iterator ~transl_exp ~scopes = function
   | Texp_comp_range { ident; pattern = _; start; stop; direction } ->
       (* We have to let-bind [start] and [stop] so that they're evaluated in the
@@ -173,7 +177,7 @@ let iterator ~transl_exp ~scopes = function
       let transl_bound var bound =
         Let_binding.make
           (Immutable Strict) (Pvalue Pintval)
-          var (transl_exp ~scopes Sort.for_predef_value bound)
+          var (transl_exp ~scopes bound)
       in
       let start = transl_bound "start" start in
       let stop  = transl_bound "stop"  stop  in
@@ -188,7 +192,7 @@ let iterator ~transl_exp ~scopes = function
   | Texp_comp_in { pattern; sequence } ->
       let iter_list =
         Let_binding.make (Immutable Strict) (Pvalue Pgenval)
-          "iter_list" (transl_exp ~scopes Sort.for_predef_value sequence)
+          "iter_list" (transl_exp ~scopes sequence)
       in
       (* Create a fresh variable to use as the function argument *)
       let element = Ident.create_local "element" in
@@ -196,14 +200,11 @@ let iterator ~transl_exp ~scopes = function
       ; arg_lets     = [iter_list]
       ; element
       ; element_kind =
-          Typeopt.layout pattern.pat_env pattern.pat_loc
-            Layouts.Sort.for_list_element pattern.pat_type
+          Typeopt.layout pattern.pat_env pattern.pat_loc pattern.pat_type
       ; add_bindings =
           (* CR layouts: to change when we allow non-values in sequences *)
           Matching.for_let
-            ~scopes ~arg_sort:Sort.for_list_element
-            ~return_layout:(Pvalue Pgenval) pattern.pat_loc (Lvar element)
-            pattern
+            ~scopes pattern.pat_loc (Lvar element) pattern (Pvalue Pgenval)
       }
 
 (** Translates a list comprehension binding
@@ -288,7 +289,7 @@ let rec translate_clauses
             in
             Let_binding.let_all arg_lets bindings
         | Texp_comp_when cond ->
-            Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
+            Lifthenelse(transl_exp ~scopes cond,
                         body ~accumulator,
                         accumulator,
                         (Pvalue Pgenval) (* [list]s have the standard representation *))
@@ -303,7 +304,7 @@ let comprehension ~transl_exp ~scopes ~loc { comp_body; comp_clauses } =
         rev_list_snoc_local
           ~loc
           ~init:accumulator
-          ~last:(transl_exp ~scopes Sort.for_list_element comp_body))
+          ~last:(transl_exp ~scopes comp_body))
       ~accumulator:rev_list_nil
       comp_clauses
   in

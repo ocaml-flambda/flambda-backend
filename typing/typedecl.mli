@@ -66,7 +66,7 @@ val is_fixed_type : Parsetree.type_declaration -> bool
 type native_repr_kind = Unboxed | Untagged
 
 (* Records reason for a layout representability requirement in errors. *)
-type layout_sort_loc = Cstr_tuple | Record | External
+type layout_sort_loc = Cstr_tuple | Record
 
 type error =
     Repeated_parameter

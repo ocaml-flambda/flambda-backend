@@ -1280,24 +1280,16 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
             let use_arg sarg l' =
               Arg (
                 if not optional || Btype.is_optional l' then
-                  let arg = type_argument val_env sarg ty ty0 in
-                  arg, Sort.value
+                  type_argument val_env sarg ty ty0
                 else
                   let ty' = extract_option_type val_env ty
                   and ty0' = extract_option_type val_env ty0 in
                   let arg = type_argument val_env sarg ty' ty0' in
-                  option_some val_env arg Value_mode.global,
-                  (* CR layouts v5: Change the sort when options can hold
-                     non-values. *)
-                  Sort.value
+                  option_some val_env arg Value_mode.global
               )
             in
             let eliminate_optional_arg () =
-              Arg (option_none val_env ty0 Location.none,
-                   (* CR layouts v5: Change the sort when options can hold
-                      non-values. *)
-                   Sort.value
-                  )
+              Arg (option_none val_env ty0 Location.none)
             in
             let remaining_sargs, arg =
               if ignore_labels then begin
@@ -1332,8 +1324,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                       let mode_closure = Alloc_mode.global in
                       let mode_arg = Alloc_mode.global in
                       let mode_ret = Alloc_mode.global in
-                      let sort_arg = Sort.value in
-                      Omitted { mode_closure; mode_arg; mode_ret; sort_arg }
+                      Omitted { mode_closure; mode_arg; mode_ret; ty_arg = ty; ty_env = val_env }
                     end
             in
             let omitted =
