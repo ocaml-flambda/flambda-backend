@@ -1,4 +1,5 @@
 (* TEST
+   include ocamlcommon
    * native *)
 
 external local_stack_offset : unit -> int = "caml_local_stack_offset"
@@ -245,5 +246,31 @@ let create_and_ignore () =
 let () =
   create_and_ignore ();
   check_empty "mode-crossed region"
+
+let[@inline never] allocate_in_exclave a =
+  (* This needs to be a [while] so that we're allowed to have an [exclave_] *)
+  while
+    let pair = local_ opaque_identity (a, a) in
+    let b, _ = pair in
+    let b : int = b in
+    exclave_ (
+      (* This should allocate in the function's region - in particular, the
+         function needs to have one *)
+      let pair = local_ opaque_identity (b, b) in
+      let c, _ = pair in
+      c = 42)
+  do
+    ()
+  done
+
+let () =
+  let () =
+    (* Temporarily disable this test for flambda1 until it's fixed there *)
+    if not Config.flambda then
+      allocate_in_exclave 1
+  in
+  (* If [allocate_in_exclave] had its region elided, the allocation will have
+     happened in our region instead *)
+  check_empty "allocation from exclave"
 
 let () = Gc.compact ()
