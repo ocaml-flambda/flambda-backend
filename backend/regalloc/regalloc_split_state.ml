@@ -2,6 +2,7 @@
 
 open! Regalloc_utils
 open! Regalloc_split_utils
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
 type destructions_at_end = (destruction_kind * Reg.Set.t) Label.Map.t
 
@@ -14,7 +15,7 @@ type t =
     destructions_at_end : destructions_at_end;
     definitions_at_beginning : definitions_at_beginning;
     phi_at_beginning : phi_at_beginning;
-    stack_slots : StackSlots.t;
+    stack_slots : Regalloc_stack_slots.t;
     mutable next_instruction_id : Instruction.id
   }
 
@@ -42,6 +43,201 @@ let log_renaming_info : indent:int -> t -> unit =
       log ~indent:(indent + 2) " - beginning of block %d (%a)" label
         Printmach.regset regset)
     state.phi_at_beginning
+
+(* Optimizes `destructions_at_end` and `definitions_at_beginning`, by deleting
+   registers that appear in both for a given block if the registers are not used
+   in said block. *)
+module RemoveReloadSpillInSameBlock : sig
+  val optimize :
+    Cfg_with_liveness.t ->
+    destructions_at_end:destructions_at_end ->
+    definitions_at_beginning:definitions_at_beginning ->
+    destructions_at_end * definitions_at_beginning
+end = struct
+  let optimize cfg_with_liveness ~destructions_at_end ~definitions_at_beginning
+      =
+    if split_debug then log ~indent:0 "RemoveReloadSpillInSameBlock.optimize";
+    let destructions_at_end = ref destructions_at_end in
+    let definitions_at_beginning =
+      Label.Map.mapi
+        (fun (label : Label.t) (definitions : Reg.Set.t) ->
+          if split_debug then log ~indent:1 "block %d" label;
+          match Label.Map.find_opt label !destructions_at_end with
+          | None -> definitions
+          | Some (Destruction_only_on_exceptional_path, _) -> definitions
+          | Some (Destruction_on_all_paths, destructions) -> (
+            if split_debug
+            then (
+              log ~indent:2 "definitions: %a" Printmach.regset definitions;
+              log ~indent:2 "destructions: %a" Printmach.regset destructions);
+            let can_be_removed : Reg.Set.t =
+              Reg.Set.filter
+                (fun (reg : Reg.t) ->
+                  if split_debug
+                  then log ~indent:3 "register %a" Printmach.reg reg;
+                  match Reg.Set.mem reg destructions with
+                  | false ->
+                    if split_debug then log ~indent:3 "(not among destructions)";
+                    false
+                  | true ->
+                    let block =
+                      Cfg_with_liveness.get_block_exn cfg_with_liveness label
+                    in
+                    let occurs = occurs_block block reg in
+                    if split_debug then log ~indent:3 "occurs? %B" occurs;
+                    not occurs)
+                definitions
+            in
+            if split_debug
+            then
+              log ~indent:2 "can be removed: %a" Printmach.regset can_be_removed;
+            match Reg.Set.is_empty can_be_removed with
+            | true -> definitions
+            | false ->
+              destructions_at_end
+                := Label.Map.update label
+                     (function
+                       | None -> assert false
+                       | Some (kind, set) ->
+                         Some (kind, Reg.Set.diff set can_be_removed))
+                     !destructions_at_end;
+              Reg.Set.diff definitions can_be_removed))
+        definitions_at_beginning
+    in
+    !destructions_at_end, definitions_at_beginning
+end
+
+(* Optimizes `destructions_at_end` by avoiding the repeated spill of a constant.
+   If a register is set only once, then all spills of that register dominated by
+   a spill of the same register can be deleted. *)
+module RemoveDominatedSpillsForConstants : sig
+  val optimize :
+    Cfg_with_liveness.t ->
+    Cfg_dominators.t ->
+    destructions_at_end:destructions_at_end ->
+    destructions_at_end
+end = struct
+  (* CR-someday xclerc for xclerc: move to Cfg_loop_infos? *)
+  let is_in_loop : Cfg_loop_infos.t -> Label.t -> bool =
+   fun loops label ->
+    Cfg_loop_infos.EdgeMap.exists
+      (fun _ (loop : Cfg_loop_infos.loop) -> Label.Set.mem label loop)
+      loops.loops
+
+  type set =
+    | At_most_once
+    | Maybe_more_than_once
+
+  let string_of_set = function
+    | At_most_once -> "at most once"
+    | Maybe_more_than_once -> "maybe more than once"
+
+  let rec remove_dominated_spills :
+      Cfg_dominators.t ->
+      Cfg_dominators.dominator_tree ->
+      num_sets:set Reg.Tbl.t ->
+      already_spilled:Label.t Reg.Map.t ->
+      destructions_at_end:destructions_at_end ->
+      destructions_at_end =
+   fun doms tree ~num_sets ~already_spilled ~destructions_at_end ->
+    if split_debug then log ~indent:1 "remove_dominated_spills %d" tree.label;
+    let already_spilled = ref already_spilled in
+    let destructions_at_end : (destruction_kind * Reg.Set.t) Label.Map.t =
+      Label.Map.update tree.label
+        (function
+          | Some (Destruction_on_all_paths, destroyed) ->
+            let destroyed : Reg.Set.t =
+              Reg.Set.filter
+                (fun (reg : Reg.t) ->
+                  if split_debug
+                  then log ~indent:2 "register %a" Printmach.reg reg;
+                  let keep =
+                    match Reg.Tbl.find_opt num_sets reg with
+                    | None | Some Maybe_more_than_once -> true
+                    | Some At_most_once -> (
+                      match Reg.Map.find_opt reg !already_spilled with
+                      | None ->
+                        if split_debug then log ~indent:3 "case/2";
+                        true
+                      | Some spilled_at ->
+                        if split_debug && Lazy.force split_invariants
+                        then
+                          if not
+                               (Cfg_dominators.is_strictly_dominating
+                                  doms.dominators spilled_at tree.label)
+                          then fatal "inconsistent dominator tree";
+                        if split_debug
+                        then
+                          log ~indent:3 "case/3 (already spilled at %d)"
+                            spilled_at;
+                        false)
+                  in
+                  if keep
+                  then
+                    already_spilled
+                      := Reg.Map.add reg tree.label !already_spilled;
+                  if split_debug then log ~indent:3 "keep? %B" keep;
+                  keep)
+                destroyed
+            in
+            if Reg.Set.is_empty destroyed
+            then (
+              if split_debug then log ~indent:3 "(the destroyed set is empty)";
+              None)
+            else Some (Destruction_on_all_paths, destroyed)
+          | Some (Destruction_only_on_exceptional_path, _) as existing ->
+            if split_debug
+            then log ~indent:2 "(ignored as a half-destruction point)";
+            existing
+          | None ->
+            if split_debug then log ~indent:2 "(not a destruction point)";
+            None)
+        destructions_at_end
+    in
+    List.fold_left tree.children ~init:destructions_at_end
+      ~f:(fun destructions_at_end (child : Cfg_dominators.dominator_tree) ->
+        if split_debug then log ~indent:2 "child %d" child.label;
+        remove_dominated_spills doms child ~num_sets
+          ~already_spilled:!already_spilled ~destructions_at_end)
+
+  let optimize cfg_with_liveness doms ~destructions_at_end =
+    if split_debug
+    then log ~indent:0 "RemoveDominatedSpillsForConstants.optimize";
+    let loops =
+      (* CR-soon xclerc for xclerc: be sure to not duplicate this computation if
+         for instance used to compute spilling costs. *)
+      Cfg_loop_infos.build (Cfg_with_liveness.cfg cfg_with_liveness) doms
+    in
+    let incr_set (tbl : set Reg.Tbl.t) (arr : Reg.t array) ~(in_loop : bool) :
+        unit =
+      Array.iter arr ~f:(fun (reg : Reg.t) ->
+          match Reg.Tbl.find_opt tbl reg with
+          | None ->
+            Reg.Tbl.replace tbl reg
+              (if in_loop then Maybe_more_than_once else At_most_once)
+          | Some At_most_once -> Reg.Tbl.replace tbl reg Maybe_more_than_once
+          | Some Maybe_more_than_once -> ())
+    in
+    let num_sets =
+      Cfg_with_liveness.fold_blocks cfg_with_liveness ~init:(Reg.Tbl.create 123)
+        ~f:(fun label block acc ->
+          let in_loop : bool = is_in_loop loops label in
+          if split_debug then log ~indent:1 "block %d in_loop? %B" label in_loop;
+          incr_set acc block.terminator.res ~in_loop;
+          DLL.iter block.body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
+              incr_set acc instr.res ~in_loop);
+          acc)
+    in
+    if split_debug
+    then (
+      log ~indent:1 "num_sets:";
+      Reg.Tbl.iter
+        (fun reg num_set ->
+          log ~indent:2 "%a ~> %s" Printmach.reg reg (string_of_set num_set))
+        num_sets);
+    remove_dominated_spills doms doms.Cfg_dominators.dominator_tree ~num_sets
+      ~already_spilled:Reg.Map.empty ~destructions_at_end
+end
 
 let add_destruction_point_at_end :
     Cfg_with_liveness.t ->
@@ -277,7 +473,15 @@ let make cfg_with_liveness ~next_instruction_id =
     compute_phis cfg_with_liveness ~destructions_at_end
       ~definitions_at_beginning dominators
   in
-  let stack_slots = StackSlots.make () in
+  let destructions_at_end, definitions_at_beginning =
+    RemoveReloadSpillInSameBlock.optimize cfg_with_liveness ~destructions_at_end
+      ~definitions_at_beginning
+  in
+  let destructions_at_end =
+    RemoveDominatedSpillsForConstants.optimize cfg_with_liveness dominators
+      ~destructions_at_end
+  in
+  let stack_slots = Regalloc_stack_slots.make () in
   { dominators;
     destructions_at_end;
     definitions_at_beginning;

@@ -249,13 +249,13 @@
   ;; backend/regalloc
   regalloc_invariants
   regalloc_irc
-  regalloc_irc_split
   regalloc_irc_state
   regalloc_irc_utils
   regalloc_ls
   regalloc_ls_state
   regalloc_ls_utils
   regalloc_rewrite
+  regalloc_stack_slots
   regalloc_split
   regalloc_split_state
   regalloc_split_utils

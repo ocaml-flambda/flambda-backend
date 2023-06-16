@@ -45,7 +45,7 @@ type t =
     active_moves : InstructionWorkList.t;
     adj_set : RegisterStamp.PairSet.t;
     move_list : Instruction.Set.t Reg.Tbl.t;
-    stack_slots : StackSlots.t;
+    stack_slots : Regalloc_stack_slots.t;
     mutable next_instruction_id : Instruction.id;
     mutable introduced_temporaries : Reg.Set.t
   }

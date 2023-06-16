@@ -12,6 +12,8 @@ val find_param_value : string -> string option
 
 val bool_of_param : ?guard:bool * string -> string -> bool Lazy.t
 
+val stack_slots_optim : bool Lazy.t
+
 val validator_debug : bool Lazy.t
 
 type liveness = Cfg_with_liveness.liveness
@@ -98,24 +100,6 @@ val make_temporary :
 val simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t
 
 val save_cfg : string -> Cfg_with_layout.t -> unit
-
-module StackSlots : sig
-  type slot = int
-
-  type t
-
-  val make : unit -> t
-
-  val get_and_incr : t -> reg_class:int -> slot
-
-  val get_or_create : t -> Reg.t -> slot
-
-  val get_or_fatal : t -> Reg.t -> slot
-
-  val use_same_slot_or_fatal : t -> Reg.t -> existing:Reg.t -> unit
-
-  val update_cfg_with_layout : t -> Cfg_with_layout.t -> unit
-end
 
 module Substitution : sig
   type t = Reg.t Reg.Tbl.t

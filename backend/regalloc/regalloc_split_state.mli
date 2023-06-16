@@ -36,6 +36,6 @@ val definitions_at_beginning : t -> definitions_at_beginning
 
 val phi_at_beginning : t -> phi_at_beginning
 
-val stack_slots : t -> StackSlots.t
+val stack_slots : t -> Regalloc_stack_slots.t
 
 val get_and_incr_instruction_id : t -> Instruction.id
