@@ -65,14 +65,17 @@ let cfi_adjust_cfa_offset n =
 let emit_debug_info ?discriminator dbg =
   emit_debug_info_gen ?discriminator dbg D.file D.loc
 
-let emit_debug_info_instr ~pad fdo dbg =
+let emit_debug_info_helper ~out_of_line fdo dbg =
   match (fdo : Fdo_info.t) with
   | None -> emit_debug_info dbg
   | Some { discriminator; dbg } ->
     let discriminator =
-      if pad then (-discriminator) else  discriminator
+      if out_of_line then (-discriminator) else  discriminator
     in
     emit_debug_info ~discriminator dbg
+
+let emit_debug_info_linear i =
+  emit_debug_info_helper ~out_of_line:false i.fdo i.dbg
 
 let fp = Config.with_frame_pointers
 
@@ -381,7 +384,7 @@ let call_gc_local_sym : Cmm.symbol =
 
 let emit_call_gc gc =
   def_label gc.gc_lbl;
-  emit_debug_info_instr ~pad:true gc.gc_fdo gc.gc_dbg;
+  emit_debug_info_helper ~out_of_line:true gc.gc_fdo gc.gc_dbg;
   emit_call call_gc_local_sym;
   def_label gc.gc_frame;
   I.jmp (label gc.gc_return_lbl)
@@ -399,7 +402,7 @@ let local_realloc_sites = ref ([] : local_realloc_call list)
 
 let emit_local_realloc lr =
   def_label lr.lr_lbl;
-  emit_debug_info_instr ~pad:true lr.lr_fdo lr.lr_dbg;
+  emit_debug_info_helper ~out_of_line:true lr.lr_fdo lr.lr_dbg;
   emit_call (Cmm.global_symbol "caml_call_local_realloc");
   I.jmp (label lr.lr_return_lbl)
 
@@ -437,7 +440,7 @@ let bound_error_label fdo dbg =
 
 let emit_call_bound_error bd =
   def_label bd.bd_lbl;
-  emit_debug_info_instr ~pad:true bd.bd_fdo bd.bd_dbg;
+  emit_debug_info_helper ~out_of_line:true bd.bd_fdo bd.bd_dbg;
   emit_call (Cmm.global_symbol "caml_ml_array_bound_error");
   def_label bd.bd_frame
 
@@ -869,7 +872,7 @@ let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
 
 (* Emit an instruction *)
 let emit_instr fallthrough i =
-  emit_debug_info_instr ~pad:false i.fdo i.dbg;
+  emit_debug_info_linear i;
   match i.desc with
   | Lend -> ()
   | Lprologue ->
