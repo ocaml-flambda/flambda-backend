@@ -313,7 +313,6 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
       in
       let ok_colors = Array.make reg_num_avail true in
       let counter = ref reg_num_avail in
-      (* CR mslater: (SIMD) allocate float+simd together *)
       let rec mark_adjacent_colors_and_get_first_available (adj : Reg.t list) :
           int =
         match adj with
@@ -329,19 +328,22 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
         | hd :: tl ->
           let alias = State.find_alias state hd in
           if State.is_precolored_or_colored state alias
-          then (
+          then
             match alias.Reg.irc_color with
             | None -> assert false
-            | Some color ->
+            | Some color -> (
               if irc_debug then log ~indent:3 "color %d is not available" color;
-              if Array.unsafe_get ok_colors (color - reg_first_avail)
-              then (
-                Array.unsafe_set ok_colors (color - reg_first_avail) false;
-                decr counter;
-                if !counter > 0
-                then mark_adjacent_colors_and_get_first_available tl
-                else reg_num_avail)
-              else mark_adjacent_colors_and_get_first_available tl)
+              match Proc.reg_id_in_class ~reg:color ~in_class:reg_class with
+              | None -> mark_adjacent_colors_and_get_first_available tl
+              | Some color ->
+                if Array.unsafe_get ok_colors (color - reg_first_avail)
+                then (
+                  Array.unsafe_set ok_colors (color - reg_first_avail) false;
+                  decr counter;
+                  if !counter > 0
+                  then mark_adjacent_colors_and_get_first_available tl
+                  else reg_num_avail)
+                else mark_adjacent_colors_and_get_first_available tl)
           else mark_adjacent_colors_and_get_first_available tl
       in
       let first_avail =

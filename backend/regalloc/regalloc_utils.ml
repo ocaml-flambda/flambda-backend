@@ -250,6 +250,11 @@ let same_reg_class : Reg.t -> Reg.t -> bool =
  fun reg1 reg2 ->
   Int.equal (Proc.register_class reg1) (Proc.register_class reg2)
 
+let interfering_reg_class : Reg.t -> Reg.t -> bool =
+ fun reg1 reg2 ->
+  let c1, c2 = Proc.register_class reg1, Proc.register_class reg2 in
+  Array.mem c1 ~set:(Proc.sibling_classes c2)
+
 let make_temporary :
     same_class_and_base_name_as:Reg.t -> name_prefix:string -> Reg.t =
  fun ~same_class_and_base_name_as:reg ~name_prefix ->

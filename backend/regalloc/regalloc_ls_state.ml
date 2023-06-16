@@ -56,6 +56,8 @@ let[@inline] release_expired_intervals state ~pos =
 
 let[@inline] active state ~reg_class = state.active.(reg_class)
 
+let[@inline] active_classes state = state.active
+
 let[@inline] stack_slots state = state.stack_slots
 
 let[@inline] get_and_incr_instruction_id state =

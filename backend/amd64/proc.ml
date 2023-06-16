@@ -124,6 +124,26 @@ let register_name r =
   else if r < 200 then float_reg_name.(r - 100)
   else vec128_reg_name.(r - 200)
 
+let class_of reg = 
+  if reg < 100 then 0 
+  else if reg < 200 then 1 
+  else if reg < 300 then 2 
+  else Misc.fatal_errorf "Register of unknown class (%d)" reg 
+
+let sibling_classes reg_class = 
+  match reg_class with 
+  | 0 -> [| 0 |]
+  | 1 | 2 -> [| 1; 2 |]
+  | c -> Misc.fatal_errorf "Unspecified register class %d" reg_class
+
+let reg_id_in_class ~reg ~in_class = 
+  let reg_class = class_of reg in 
+  match reg_class, in_class with 
+  | 1, 2 -> Some (reg + 100)
+  | 2, 1 -> Some (reg - 100)
+  | x, y when x = y -> Some reg 
+  | _ -> None
+
 (* Pack registers starting at %rax so as to reduce the number of REX
    prefixes and thus improve code density *)
 let rotate_registers = false
