@@ -3,9 +3,10 @@
 * hassysthreads
 include systhreads
 
-** libunix (* Broken on Windows (missing join?), needs to be fixed *)
-*** bytecode
-*** native
+** not-macos
+*** libunix (* Broken on Windows (missing join?), needs to be fixed *)
+**** bytecode
+**** native
 
 *)
 

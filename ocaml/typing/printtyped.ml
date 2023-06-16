@@ -452,10 +452,10 @@ and expression i ppf x =
       expression i ppf e1;
       expression i ppf e2;
       option i expression ppf eo;
-  | Texp_sequence (e1, s, e2) ->
+  | Texp_sequence (e1, l, e2) ->
       line i ppf "Texp_sequence\n";
       expression i ppf e1;
-      line i ppf "%a\n" Layouts.Sort.format s;
+      line i ppf "%a\n" Layouts.Layout.format l;
       expression i ppf e2;
   | Texp_while {wh_cond; wh_body} ->
       line i ppf "Texp_while\n";
@@ -1061,7 +1061,7 @@ and record_field i ppf = function
 and label_x_apply_arg i ppf (l, e) =
   line i ppf "<arg>\n";
   arg_label (i+1) ppf l;
-  (match e with Omitted _ -> () | Arg (e, _) -> expression (i+1) ppf e)
+  (match e with Omitted _ -> () | Arg e -> expression (i+1) ppf e)
 
 and ident_x_expression_def i ppf (l, e) =
   line i ppf "<def> \"%a\"\n" fmt_ident l;

@@ -7,7 +7,7 @@ type t
 
 val make :
   initial:Reg.t list ->
-  stack_slots:StackSlots.t ->
+  stack_slots:Regalloc_stack_slots.t ->
   next_instruction_id:Instruction.id ->
   unit ->
   t
@@ -124,7 +124,7 @@ val find_alias : t -> Reg.t -> Reg.t
 
 val add_alias : t -> Reg.t -> Reg.t -> unit
 
-val stack_slots : t -> StackSlots.t
+val stack_slots : t -> Regalloc_stack_slots.t
 
 val get_and_incr_instruction_id : t -> Instruction.id
 

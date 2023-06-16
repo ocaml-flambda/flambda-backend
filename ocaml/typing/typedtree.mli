@@ -214,8 +214,6 @@ and expression_desc =
       region : bool; curry : fun_curry_state;
       warnings : Warnings.state;
       arg_mode : Types.alloc_mode;
-      arg_sort : Layouts.sort;
-      ret_sort : Layouts.sort;
       alloc_mode : Types.alloc_mode}
         (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
             See {!Parsetree} for more details.
@@ -305,11 +303,15 @@ and expression_desc =
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
-  | Texp_sequence of expression * Layouts.sort * expression
+  | Texp_sequence of expression * Layouts.layout * expression
+    (* CR layouts v5: The layout above is only used for the void sanity check now.
+       Remove it at an appropriate time. *)
   | Texp_while of {
       wh_cond : expression;
       wh_body : expression;
-      wh_body_sort : Layouts.sort
+      wh_body_layout : Layouts.layout
+      (* CR layouts v5: The layout above is only used for the void sanity check
+         now.  Remove it at an appropriate time. *)
     }
   | Texp_for of {
       for_id  : Ident.t;
@@ -318,7 +320,9 @@ and expression_desc =
       for_to   : expression;
       for_dir  : direction_flag;
       for_body : expression;
-      for_body_sort : Layouts.sort;
+      for_body_layout : Layouts.layout;
+      (* CR layouts v5: The layout above is only used for the void sanity check
+         now.  Remove it at an appropriate time. *)
     }
   | Texp_send of expression * meth * apply_position * Types.alloc_mode
     (** [alloc_mode] is the allocation mode of the result *)
@@ -339,9 +343,7 @@ and expression_desc =
       let_ : binding_op;
       ands : binding_op list;
       param : Ident.t;
-      param_sort : Layouts.sort;
       body : value case;
-      body_sort : Layouts.sort;
       partial : partial;
       warnings : Warnings.state;
     }
@@ -414,7 +416,6 @@ and binding_op =
     bop_op_type : Types.type_expr;
     (* This is the type at which the operator was used.
        It is always an instance of [bop_op_val.val_type] *)
-    bop_op_return_sort : Layouts.sort;
     bop_exp : expression;
     bop_loc : Location.t;
   }
@@ -427,9 +428,12 @@ and omitted_parameter =
   { mode_closure : Types.alloc_mode;
     mode_arg : Types.alloc_mode;
     mode_ret : Types.alloc_mode;
-    sort_arg : Layouts.sort }
+    (* CR ncourant: actually, we only need this to be able to compute the layout
+       in [Translcore], change this when merging with the front-end. *)
+    ty_arg : Types.type_expr;
+    ty_env : Env.t}
 
-and apply_arg = (expression * Layouts.sort, omitted_parameter) arg_or_omitted
+and apply_arg = (expression, omitted_parameter) arg_or_omitted
 
 and apply_position =
   | Tail          (* must be tail-call optimised *)

@@ -261,7 +261,7 @@ let record_primitive = function
 let preallocate_letrec ~bindings ~body =
   assert (Clflags.is_flambda2 ());
   let caml_update_dummy_prim =
-    Primitive.simple_on_values ~name:"caml_update_dummy" ~arity:2 ~alloc:true
+    Primitive.simple ~name:"caml_update_dummy" ~arity:2 ~alloc:true
   in
   let update_dummy var expr =
     Lprim (Pccall caml_update_dummy_prim, [Lvar var; expr], Loc_unknown)
@@ -275,8 +275,7 @@ let preallocate_letrec ~bindings ~body =
   List.fold_left
     (fun body (id, _def, size) ->
        let desc =
-         Primitive.simple_on_values ~name:"caml_alloc_dummy" ~arity:1
-           ~alloc:true
+         Primitive.simple ~name:"caml_alloc_dummy" ~arity:1 ~alloc:true
        in
        let size : lambda = Lconst (Const_base (Const_int size)) in
        Llet (Strict, Lambda.layout_block, id,
@@ -618,8 +617,7 @@ and transl_module ~scopes cc rootpath mexp =
   | Tmod_constraint(arg, _, _, ccarg) ->
       transl_module ~scopes (compose_coercions cc ccarg) rootpath arg
   | Tmod_unpack(arg, _) ->
-      apply_coercion loc Strict cc
-        (Translcore.transl_exp ~scopes Sort.for_module arg)
+      apply_coercion loc Strict cc (Translcore.transl_exp ~scopes arg)
 
 and transl_struct ~scopes loc fields cc rootpath {str_final_env; str_items; _} =
   transl_structure ~scopes loc fields cc rootpath str_final_env str_items
@@ -686,12 +684,12 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
             transl_structure ~scopes loc fields cc rootpath final_env rem
           in
           sort_must_not_be_void expr.exp_loc expr.exp_type sort;
-          Lsequence(transl_exp ~scopes sort expr, body), size
+          Lsequence(transl_exp ~scopes expr, body), size
       | Tstr_value(rec_flag, pat_expr_list) ->
           (* Translate bindings first *)
           let mk_lam_let =
-            transl_let ~scopes ~return_layout:Lambda.layout_module_field
-              ~in_structure:true rec_flag pat_expr_list
+            transl_let ~scopes ~in_structure:true rec_flag pat_expr_list
+              Lambda.layout_module_field
           in
           let ext_fields =
             List.rev_append (let_bound_idents pat_expr_list) fields in
@@ -1121,14 +1119,14 @@ let transl_store_structure ~scopes glob map prims aliases str =
         | Tstr_eval (expr, sort, _attrs) ->
             sort_must_not_be_void expr.exp_loc expr.exp_type sort;
             Lsequence(Lambda.subst no_env_update subst
-                        (transl_exp ~scopes sort expr),
+                        (transl_exp ~scopes expr),
                       transl_store ~scopes rootpath subst cont rem)
         | Tstr_value(rec_flag, pat_expr_list) ->
             let ids = let_bound_idents pat_expr_list in
             let lam =
-              transl_let ~scopes ~return_layout:Lambda.layout_unit
-                ~in_structure:true rec_flag pat_expr_list
-                (store_idents Loc_unknown ids)
+              transl_let ~scopes ~in_structure:true rec_flag pat_expr_list
+                 Lambda.layout_unit
+                 (store_idents Loc_unknown ids)
             in
             Lsequence(Lambda.subst no_env_update subst lam,
                       transl_store ~scopes rootpath
@@ -1518,7 +1516,7 @@ let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
         assert (size = 0);
         sort_must_not_be_void expr.exp_loc expr.exp_type sort;
         Lambda.subst (fun _ _ env -> env) !transl_store_subst
-          (transl_exp ~scopes sort expr)
+          (transl_exp ~scopes expr)
       | str ->
         transl_store_structure ~scopes module_name map prims aliases str
     in
@@ -1619,15 +1617,15 @@ let transl_toplevel_item ~scopes item =
        unit. *)
     Tstr_eval (expr, sort, _) ->
       sort_must_not_be_void expr.exp_loc expr.exp_type sort;
-      transl_exp ~scopes sort expr
+      transl_exp ~scopes expr
   | Tstr_value(Nonrecursive,
-               [{vb_pat = {pat_desc=Tpat_any}; vb_expr = expr;
-                 vb_sort = sort}]) ->
-      transl_exp ~scopes sort expr
+               [{vb_pat = {pat_desc=Tpat_any};vb_expr = expr}]) ->
+      transl_exp ~scopes expr
   | Tstr_value(rec_flag, pat_expr_list) ->
       let idents = let_bound_idents pat_expr_list in
-      transl_let ~scopes ~return_layout:Lambda.layout_unit ~in_structure:true
-        rec_flag pat_expr_list (make_sequence toploop_setvalue_id idents)
+      transl_let ~scopes ~in_structure:true rec_flag pat_expr_list
+        Lambda.layout_unit
+        (make_sequence toploop_setvalue_id idents)
   | Tstr_typext(tyext) ->
       let idents =
         List.map (fun ext -> ext.ext_id) tyext.tyext_constructors

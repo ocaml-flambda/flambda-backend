@@ -434,6 +434,7 @@ parsing/jane_syntax.cmo : \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
+    utils/language_extension.cmi \
     parsing/jane_syntax_parsing.cmi \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmi \
@@ -442,6 +443,7 @@ parsing/jane_syntax.cmx : \
     parsing/parsetree.cmi \
     parsing/longident.cmx \
     parsing/location.cmx \
+    utils/language_extension.cmx \
     parsing/jane_syntax_parsing.cmx \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
@@ -1234,7 +1236,6 @@ typing/primitive.cmo : \
     typing/outcometree.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     parsing/attr_helper.cmi \
     typing/primitive.cmi
 typing/primitive.cmx : \
@@ -1242,14 +1243,12 @@ typing/primitive.cmx : \
     typing/outcometree.cmi \
     utils/misc.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
     parsing/attr_helper.cmx \
     typing/primitive.cmi
 typing/primitive.cmi : \
     parsing/parsetree.cmi \
     typing/outcometree.cmi \
-    parsing/location.cmi \
-    typing/layouts.cmi
+    parsing/location.cmi
 typing/printpat.cmo : \
     typing/types.cmi \
     typing/typedtree.cmi \
@@ -1981,7 +1980,6 @@ typing/typeopt.cmi : \
     typing/typedtree.cmi \
     typing/path.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
     typing/env.cmi
 typing/types.cmo : \
@@ -3712,7 +3710,6 @@ lambda/lambda.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
@@ -3728,7 +3725,6 @@ lambda/lambda.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
     typing/ident.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
@@ -3743,7 +3739,6 @@ lambda/lambda.cmi : \
     typing/primitive.cmi \
     typing/path.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
@@ -3798,7 +3793,6 @@ lambda/matching.cmx : \
 lambda/matching.cmi : \
     typing/typedtree.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
     typing/ident.cmi \
     lambda/debuginfo.cmi
@@ -3887,7 +3881,6 @@ lambda/transl_array_comprehension.cmo : \
     typing/predef.cmi \
     utils/misc.cmi \
     lambda/matching.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
     typing/ident.cmi \
     typing/env.cmi \
@@ -3901,7 +3894,6 @@ lambda/transl_array_comprehension.cmx : \
     typing/predef.cmx \
     utils/misc.cmx \
     lambda/matching.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
     typing/ident.cmx \
     typing/env.cmx \
@@ -3910,7 +3902,6 @@ lambda/transl_array_comprehension.cmx : \
     lambda/transl_array_comprehension.cmi
 lambda/transl_array_comprehension.cmi : \
     typing/typedtree.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
     lambda/debuginfo.cmi
 lambda/transl_comprehension_utils.cmo : \
@@ -3932,7 +3923,6 @@ lambda/transl_list_comprehension.cmo : \
     typing/typedtree.cmi \
     lambda/transl_comprehension_utils.cmi \
     lambda/matching.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
     typing/ident.cmi \
     parsing/asttypes.cmi \
@@ -3942,14 +3932,12 @@ lambda/transl_list_comprehension.cmx : \
     typing/typedtree.cmx \
     lambda/transl_comprehension_utils.cmx \
     lambda/matching.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
     typing/ident.cmx \
     parsing/asttypes.cmi \
     lambda/transl_list_comprehension.cmi
 lambda/transl_list_comprehension.cmi : \
     typing/typedtree.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
     lambda/debuginfo.cmi
 lambda/translattribute.cmo : \
@@ -3992,7 +3980,6 @@ lambda/translclass.cmo : \
     typing/path.cmi \
     lambda/matching.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
     typing/ident.cmi \
     typing/env.cmi \
@@ -4010,7 +3997,6 @@ lambda/translclass.cmx : \
     typing/path.cmx \
     lambda/matching.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
     typing/ident.cmx \
     typing/env.cmx \
@@ -4097,7 +4083,6 @@ lambda/translcore.cmx : \
     parsing/asttypes.cmi \
     lambda/translcore.cmi
 lambda/translcore.cmi : \
-    typing/types.cmi \
     typing/typedtree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
@@ -4219,7 +4204,6 @@ lambda/translprim.cmo : \
     utils/misc.cmi \
     lambda/matching.cmi \
     parsing/location.cmi \
-    typing/layouts.cmi \
     lambda/lambda.cmi \
     typing/ident.cmi \
     typing/env.cmi \
@@ -4240,7 +4224,6 @@ lambda/translprim.cmx : \
     utils/misc.cmx \
     lambda/matching.cmx \
     parsing/location.cmx \
-    typing/layouts.cmx \
     lambda/lambda.cmx \
     typing/ident.cmx \
     typing/env.cmx \

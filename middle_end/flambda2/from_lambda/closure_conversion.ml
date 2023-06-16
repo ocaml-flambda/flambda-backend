@@ -439,7 +439,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   in
   let box_return_value =
     match prim_native_repr_res with
-    | _, Same_as_ocaml_repr _ -> None
+    | _, Same_as_ocaml_repr -> None
     | _, Unboxed_float ->
       Some (P.Box_number (Naked_float, Alloc_mode.For_allocations.heap))
     | _, Unboxed_integer Pnativeint ->
@@ -465,11 +465,8 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   in
   let kind_of_primitive_native_repr
       ((_, repr) : Primitive.mode * Primitive.native_repr) =
-    (* CR layouts v2: This match will be extended with [| Same_as_ocaml_repr
-       Float64 -> K.naked_float] in the PR that adds Float64. *)
     match repr with
-    | Same_as_ocaml_repr Value -> K.value
-    | Same_as_ocaml_repr Void -> assert false
+    | Same_as_ocaml_repr -> K.value
     | Unboxed_float -> K.naked_float
     | Unboxed_integer Pnativeint -> K.naked_nativeint
     | Unboxed_integer Pint32 -> K.naked_int32
@@ -555,7 +552,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
            (arg_repr : Primitive.mode * Primitive.native_repr) ->
         let unbox_arg : P.unary_primitive option =
           match arg_repr with
-          | _, Same_as_ocaml_repr _ -> None
+          | _, Same_as_ocaml_repr -> None
           | _, Unboxed_float -> Some (P.Unbox_number Naked_float)
           | _, Unboxed_integer Pnativeint ->
             Some (P.Unbox_number Naked_nativeint)

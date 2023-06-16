@@ -245,17 +245,8 @@ val unify_delaying_layout_checks :
            typedecl before well-foundedness checks have made layout checking
            safe. *)
 
-type filtered_arrow =
-  { ty_arg : type_expr;
-    arg_mode : alloc_mode;
-    arg_sort : sort;
-    ty_ret : type_expr;
-    ret_mode : alloc_mode;
-    ret_sort : sort
-  }
-
 val filter_arrow: Env.t -> type_expr -> arg_label -> force_tpoly:bool ->
-                  filtered_arrow
+                  alloc_mode * type_expr * alloc_mode * type_expr
         (* A special case of unification (with l:'a -> 'b). If
            [force_poly] is false then the usual invariant that the
            argument type be a [Tpoly] node is not enforced. Raises
@@ -264,7 +255,8 @@ val filter_mono: type_expr -> type_expr
         (* A special case of unification (with Tpoly('a, [])). Can
            only be called on [Tpoly] nodes. Raises [Filter_mono_failed]
            instead of [Unify] *)
-val filter_arrow_mono: Env.t -> type_expr -> arg_label -> filtered_arrow
+val filter_arrow_mono: Env.t -> type_expr -> arg_label ->
+                  alloc_mode * type_expr * alloc_mode * type_expr
         (* A special case of unification. Composition of [filter_arrow]
            with [filter_mono] on the argument type. Raises
            [Filter_arrow_mono_failed] instead of [Unify] *)
@@ -493,12 +485,6 @@ val type_layout : Env.t -> type_expr -> layout
 val type_sort :
   why:Layouts.Layout.concrete_layout_reason ->
   Env.t -> type_expr -> (sort, Layout.Violation.t) result
-
-(* Same as [type_sort], but only safe to call on types known to be a sort.
-   For example, if the type is used as an argument in a function type that
-   has already been translated. *)
-val type_sort_exn :
-  why:Layouts.Layout.concrete_layout_reason -> Env.t -> type_expr -> sort
 
 (* Layout checking. [constrain_type_layout] will update the layout of type
    variables to make the check true, if possible.  [check_decl_layout] and
