@@ -76,9 +76,9 @@ let compute_substitutions : State.t -> Cfg_with_liveness.t -> Substitution.map =
       Reg.Set.iter
         (fun old_reg ->
           let slots = State.stack_slots state in
-          let (_ : int) = StackSlots.get_or_create slots old_reg in
+          let (_ : int) = Regalloc_stack_slots.get_or_create slots old_reg in
           let new_reg = Reg.clone old_reg in
-          StackSlots.use_same_slot_or_fatal slots new_reg ~existing:old_reg;
+          Regalloc_stack_slots.use_same_slot_or_fatal slots new_reg ~existing:old_reg;
           if split_debug
           then
             log ~indent:2 "renaming %a to %a" Printmach.reg old_reg
