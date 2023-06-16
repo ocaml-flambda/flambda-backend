@@ -14,4 +14,23 @@ script = "rm -f function_a.cmi"
 #directory "ocamlc.byte";;
 #load "function_b.cmo";;
 
-let f : Function_b.fun_t = fun ~arg1:_ ~arg2 -> arg2
+(* This tests that sorts are correctly extracted from function types,
+   even in the presence of a missing cmi file. *)
+
+let f0 (g : Function_b.fun_t) = g ~arg1:(assert false)
+
+[%%expect{|
+blah
+|}]
+
+let f1 (g : Function_b.fun_t) = g ()
+
+[%%expect{|
+blah
+|}]
+
+let f2 : Function_b.fun_t = fun ~arg1:_ ~arg2 () -> arg2
+
+[%%expect{|
+blah
+|}]
