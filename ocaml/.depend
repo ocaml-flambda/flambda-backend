@@ -129,22 +129,21 @@ utils/int_replace_polymorphic_compare.cmx : \
 utils/int_replace_polymorphic_compare.cmi :
 utils/language_extension.cmo : \
     utils/misc.cmi \
-    utils/language_extension0.cmi \
+    utils/language_extension_kernel.cmi \
     utils/language_extension.cmi
 utils/language_extension.cmx : \
     utils/misc.cmx \
-    utils/language_extension0.cmx \
+    utils/language_extension_kernel.cmx \
     utils/language_extension.cmi
 utils/language_extension.cmi : \
-    utils/language_extension0.cmi
-utils/language_extension0.cmo : \
-    utils/language_extension0.cmi
-utils/language_extension0.cmx : \
-    utils/language_extension0.cmi
-utils/language_extension0.cmi : \
-    utils/language_extension0_intf.cmo
-utils/language_extension0_intf.cmo :
-utils/language_extension0_intf.cmx :
+    utils/language_extension_kernel.cmi
+utils/language_extension_kernel.cmo : \
+    utils/language_extension_kernel.cmi
+utils/language_extension_kernel.cmx : \
+    utils/language_extension_kernel.cmi
+utils/language_extension_kernel.cmi : \
+    utils/language_extension_kernel_intf.cmi
+utils/language_extension_kernel_intf.cmi :
 utils/lazy_backtrack.cmo : \
     utils/lazy_backtrack.cmi
 utils/lazy_backtrack.cmx : \
@@ -439,8 +438,6 @@ parsing/docstrings.cmx : \
 parsing/docstrings.cmi : \
     parsing/parsetree.cmi \
     parsing/location.cmi
-parsing/jane_language_extension_intf.cmi : \
-    utils/language_extension0_intf.cmo
 parsing/jane_syntax.cmo : \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
@@ -465,15 +462,15 @@ parsing/jane_syntax.cmi : \
 parsing/jane_syntax_parsing.cmo : \
     parsing/parsetree.cmi \
     parsing/location.cmi \
+    utils/language_extension_kernel_intf.cmi \
     utils/language_extension.cmi \
-    parsing/jane_language_extension_intf.cmi \
     parsing/ast_helper.cmi \
     parsing/jane_syntax_parsing.cmi
 parsing/jane_syntax_parsing.cmx : \
     parsing/parsetree.cmi \
     parsing/location.cmx \
+    utils/language_extension_kernel_intf.cmi \
     utils/language_extension.cmx \
-    parsing/jane_language_extension_intf.cmi \
     parsing/ast_helper.cmx \
     parsing/jane_syntax_parsing.cmi
 parsing/jane_syntax_parsing.cmi : \

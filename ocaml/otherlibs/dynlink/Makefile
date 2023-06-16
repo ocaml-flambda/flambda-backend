@@ -65,6 +65,7 @@ COMPILERLIBS_INTFS=\
   parsing/asttypes.mli \
   parsing/parsetree.mli \
   typing/outcometree.mli \
+  utils/language_extension_kernel_intf.mli \
   file_formats/cmo_format.mli \
   file_formats/cmxs_format.mli \
   bytecomp/debug_event.mli
@@ -82,6 +83,7 @@ COMPILERLIBS_SOURCES=\
   utils/load_path.ml \
   utils/clflags.ml \
   utils/debug.ml \
+  utils/language_extension_kernel.ml \
   utils/language_extension.ml \
   utils/profile.ml \
   utils/consistbl.ml \
