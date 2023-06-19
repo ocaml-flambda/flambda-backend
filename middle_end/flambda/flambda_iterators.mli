@@ -35,6 +35,8 @@ val map_subexpressions
   -> Flambda.t
   -> Flambda.t
 
+val map_tail_subexpressions : (Flambda.t -> Flambda.t) -> Flambda.t -> Flambda.t
+
 (* CR-soon lwhite: add comment to clarify that these recurse unlike the
    ones above *)
 val iter
