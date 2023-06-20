@@ -1599,7 +1599,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   let code =
     Code.create code_id ~params_and_body
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
-      ~num_trailing_local_params:(Function_decl.num_trailing_local_params decl)
+      ~first_complex_local_param:(Function_decl.first_complex_local_param decl)
       ~result_arity:return ~result_types:Unknown
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
@@ -1699,7 +1699,7 @@ let close_functions acc external_env ~current_region function_declarations =
     List.fold_left
       (fun approx_map decl ->
         (* The only fields of metadata which are used for this pass are
-           params_arity, is_tupled, num_trailing_local_params,
+           params_arity, is_tupled, first_complex_local_param,
            contains_no_escaping_local_allocs, and result_arity. We try to
            populate the different fields as much as possible, but put dummy
            values when they are not yet computed or simply too expensive to
@@ -1726,8 +1726,8 @@ let close_functions acc external_env ~current_region function_declarations =
         in
         let metadata =
           Code_metadata.create code_id ~params_arity
-            ~num_trailing_local_params:
-              (Function_decl.num_trailing_local_params decl)
+            ~first_complex_local_param:
+              (Function_decl.first_complex_local_param decl)
             ~result_arity ~result_types:Unknown
             ~contains_no_escaping_local_allocs:
               (Function_decl.contains_no_escaping_local_allocs decl)
@@ -2010,7 +2010,7 @@ let close_let_rec acc env ~function_declarations
       named ~body
 
 let wrap_partial_application acc env apply_continuation (apply : IR.apply)
-    approx ~provided ~missing_arity ~arity ~num_trailing_local_params
+    approx ~provided ~missing_arity ~first_complex_local_param
     ~contains_no_escaping_local_allocs =
   (* In case of partial application, creates a wrapping function from scratch to
      allow inlining and lifting *)
@@ -2071,15 +2071,10 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       (Ident.Set.singleton apply.func)
       all_args
   in
-  let closure_alloc_mode, num_trailing_local_params =
-    let num_leading_heap_params =
-      Flambda_arity.cardinal arity - num_trailing_local_params
-    in
-    if num_provided <= num_leading_heap_params
-    then Lambda.alloc_heap, num_trailing_local_params
-    else
-      let num_supplied_local_args = num_provided - num_leading_heap_params in
-      Lambda.alloc_local, num_trailing_local_params - num_supplied_local_args
+  let closure_alloc_mode, first_complex_local_param =
+    if num_provided <= first_complex_local_param
+    then Lambda.alloc_heap, first_complex_local_param - num_provided
+    else Lambda.alloc_local, 0
   in
   if not (Lambda.sub_mode closure_alloc_mode apply.IR.mode)
   then
@@ -2088,11 +2083,16 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       (Debuginfo.Scoped_location.string_of_scoped_location apply.IR.loc);
   let function_declarations =
     [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
-        ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
+        ~kind:
+          (Lambda.Curried
+             { nlocal =
+                 Flambda_arity.cardinal missing_arity
+                 - first_complex_local_param
+             })
         ~params ~return:apply.return_arity ~return_continuation
         ~exn_continuation ~my_region:apply.region ~body:fbody ~attr
         ~loc:apply.loc ~free_idents_of_body ~closure_alloc_mode
-        ~num_trailing_local_params ~contains_no_escaping_local_allocs
+        ~first_complex_local_param ~contains_no_escaping_local_allocs
         Recursive.Non_recursive ]
   in
   let body acc env =
@@ -2228,7 +2228,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
       Some
         ( Code_metadata.params_arity metadata,
           Code_metadata.is_tupled metadata,
-          Code_metadata.num_trailing_local_params metadata,
+          Code_metadata.first_complex_local_param metadata,
           Code_metadata.contains_no_escaping_local_allocs metadata )
     | Value_unknown -> None
     | Value_symbol _ | Value_int _ | Block_approximation _ ->
@@ -2245,7 +2245,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   | Some
       ( arity,
         is_tupled,
-        num_trailing_local_params,
+        first_complex_local_param,
         contains_no_escaping_local_allocs ) -> (
     let acc, args_with_arities = find_simples_and_arity acc env apply.args in
     let args_arity = List.map snd args_with_arities in
@@ -2304,7 +2304,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
                inlined_attribute_on_partial_application_msg Inlined))
       | Never_inlined | Hint_inlined | Default_inlined -> ());
       wrap_partial_application acc env apply.continuation apply approx ~provided
-        ~missing_arity ~arity ~num_trailing_local_params
+        ~missing_arity ~first_complex_local_param
         ~contains_no_escaping_local_allocs
     | Over_app { full; remaining; remaining_arity } ->
       let full_args_call apply_continuation ~region acc =
