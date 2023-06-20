@@ -4,11 +4,14 @@ open StdLabels
 
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
+type boxed_vector = Pvec128
+
 type native_repr =
   | Same_as_ocaml_repr
   | Unboxed_float
   | Unboxed_integer of boxed_integer
   | Untagged_int
+  | Unboxed_vector of boxed_vector
 
 (* Generate primitives with up to this number of arguments *)
 let test_all_combination_up_to_n_args = 6
@@ -27,6 +30,7 @@ let test_all_args_combination_of =
   [ Unboxed_float
   ; Unboxed_integer Pint32
   ; Unboxed_integer Pint64
+  ; Unboxed_vector Pvec128
   ]
 
 let code_of_repr = function
@@ -36,6 +40,7 @@ let code_of_repr = function
   | Unboxed_integer Pint64     -> "L"
   | Unboxed_integer Pnativeint -> "n"
   | Untagged_int               -> "i"
+  | Unboxed_vector Pvec128     -> "x" (* for "xmm" *)
 
 let repr_of_code = function
   | 'v' -> Same_as_ocaml_repr
@@ -44,6 +49,7 @@ let repr_of_code = function
   | 'L' -> Unboxed_integer Pint64
   | 'n' -> Unboxed_integer Pnativeint
   | 'i' -> Untagged_int
+  | 'x' -> Unboxed_vector Pvec128
   | _   -> assert false
 
 let manual_tests =
@@ -53,10 +59,15 @@ let manual_tests =
   ; "L_L"
   ; "n_n"
   ; "i_i"
+  ; "x_x"
   ; "f_fffff"
   ; "f_ffffff"
   ; "f_fffffff"
   ; "f_fffffffffffffffff"
+  ; "x_xxxxx"
+  ; "x_xxxxxx"
+  ; "x_xxxxxxx"
+  ; "x_xxxxxxxxxxxxxxxxx"
   ; "v_iiiiiiiiiiiiiiiii"
   ; "v_lllllllllllllllll"
   ; "v_LLLLLLLLLLLLLLLLL"
@@ -64,6 +75,11 @@ let manual_tests =
   ; "v_LiLiLiLiLiLiLiLiL"
   ; "v_flflflflflflflflflflflflflflflflflfl"
   ; "v_fLfLfLfLfLfLfLfLfLfLfLfLfLfLfLfLfLfL"
+  ; "v_xfxfxfxfxfxfxfxfx"
+  ; "v_fxfxfxfxfxfxfxfxf"
+  ; "v_lfxlfxlfxlfxlfxlfx"
+  ; "v_lflxlxlflflxlxlflx"
+  ; "v_llllllfffffflxxllxx"
   ]
 
 let ocaml_type_of_repr = function
@@ -74,6 +90,7 @@ let ocaml_type_of_repr = function
   | Unboxed_integer Pint64     -> "(int64 [@unboxed])"
   | Unboxed_integer Pnativeint -> "(nativeint [@unboxed])"
   | Untagged_int               -> "(int [@untagged])"
+  | Unboxed_vector Pvec128     -> "(vec128 [@unboxed])"
 
 let ocaml_type_gadt_of_repr = function
   (* Doesn't really matters what we choose for this case *)
@@ -83,6 +100,7 @@ let ocaml_type_gadt_of_repr = function
   | Unboxed_integer Pint64     -> "Int64"
   | Unboxed_integer Pnativeint -> "Nativeint"
   | Untagged_int               -> "Int"
+  | Unboxed_vector Pvec128     -> "Vec128"
 
 let c_type_of_repr = function
   | Same_as_ocaml_repr         -> "value"
@@ -91,6 +109,7 @@ let c_type_of_repr = function
   | Unboxed_integer Pint64     -> "int64_t"
   | Unboxed_integer Pnativeint -> "intnat"
   | Untagged_int               -> "intnat"
+  | Unboxed_vector Pvec128     -> "__m128i"
 
 type proto =
   { params : native_repr list
@@ -205,7 +224,8 @@ let generate_stubs () =
            | Unboxed_integer Pint32     -> "set_int32(%d, x%d)"
            | Unboxed_integer Pint64     -> "set_int64(%d, x%d)"
            | Unboxed_integer Pnativeint -> "set_intnat(%d, x%d)"
-           | Untagged_int               -> "set_intnat(%d, x%d)")
+           | Untagged_int               -> "set_intnat(%d, x%d)"
+           | Unboxed_vector Pvec128     -> "set_vec128(%d, x%d)")
           i i);
       pr "  return %(%d%);"
         (match proto.return with
@@ -214,7 +234,8 @@ let generate_stubs () =
          | Unboxed_integer Pint32     -> "get_int32(%d)"
          | Unboxed_integer Pint64     -> "get_int64(%d)"
          | Unboxed_integer Pnativeint -> "get_intnat(%d)"
-         | Untagged_int               -> "get_intnat(%d)")
+         | Untagged_int               -> "get_intnat(%d)"
+         | Unboxed_vector Pvec128     -> "get_vec128(%d)")
         (List.length proto.params);
       pr "}"
   )

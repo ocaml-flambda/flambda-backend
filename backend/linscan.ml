@@ -149,7 +149,6 @@ let allocate_free_register num_stack_slots i =
   | _ -> ()
   end
 
-(* CR mslater: (SIMD): update this? *)
 let allocate_blocked_register num_stack_slots i =
   let cl = Proc.register_class i.reg in
   let ci = active.(cl) in

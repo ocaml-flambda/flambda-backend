@@ -5,6 +5,7 @@ type 'a typ =
   | Int64     : int64     typ
   | Nativeint : nativeint typ
   | Float     : float     typ
+  | Vec128    : vec128    typ
 
 type 'a proto =
   | Ret : 'a typ -> 'a proto

@@ -236,11 +236,12 @@ let calling_conventions first_int last_int first_float last_float first_vec128 l
         incr vec128;
         incr float
       end else begin
-        (* CR mslater: (SIMD) fix extcall stack alignment *)
+        ofs := Misc.align !ofs 16;
         loc.(i) <- stack_slot (make_stack !ofs) Vec128;
         ofs := !ofs + size_vec128
       end
   done;
+  (* CR mslater: (SIMD) will need to be 32/64 if vec256/512 are used. *)
   (loc, Misc.align (max 0 !ofs) 16)  (* keep stack 16-aligned *)
 
 let incoming ofs =
@@ -324,11 +325,12 @@ let win64_loc_external_arguments arg =
         loc.(i) <- phys_reg win64_vec128_external_arguments.(!reg);
         incr reg
       end else begin
-        (* CR mslater: (SIMD) fix extcall stack alignment *)
+        ofs := Misc.align !ofs 16;
         loc.(i) <- stack_slot (Outgoing !ofs) Vec128;
         ofs := !ofs + size_vec128
       end
   done;
+  (* CR mslater: (SIMD) will need to be 32/64 if vec256/512 are used. *)
   (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)
 
 let loc_external_arguments ty_args =
@@ -627,7 +629,9 @@ let max_register_pressure =
 
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   fp || fun_contains_calls ||
-  fun_num_stack_slots.(0) > 0 || fun_num_stack_slots.(1) > 0
+  fun_num_stack_slots.(0) > 0 || 
+  fun_num_stack_slots.(1) > 0 || 
+  fun_num_stack_slots.(2) > 0
 
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots

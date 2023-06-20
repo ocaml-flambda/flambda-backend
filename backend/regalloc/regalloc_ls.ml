@@ -181,7 +181,6 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
       assign 0)
   | (Reg _ | Stack _), _ -> Not_spilling
 
-(* CR mslater: (SIMD): update this? *)
 let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
  fun state interval ->
   let reg = interval.reg in

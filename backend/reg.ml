@@ -114,7 +114,6 @@ let clear_visited_marks () =
 
 
 let create ty =
-  (* CR mslater: (SIMD) should we start vector registers with a higher spill cost? *)
   let r = { raw_name = Raw_name.Anon; stamp = !currstamp; typ = ty;
             loc = Unknown;
             irc_work_list = Unknown_list; irc_color = None; irc_alias = None;

@@ -11,9 +11,13 @@ compiler_output = "stubs.c"
 *** ocaml
 arguments = "ml"
 compiler_output = "main.ml"
-**** ocamlopt.opt
-all_modules = "test_common.c stubs.c common.mli common.ml main.ml"
-***** run
-****** check-program-output
+**** script
+script = "${cc} -msse4.2 -c test_common.c -I ../../../../../../../../runtime"
+***** script
+script = "${cc} -msse4.2 -c stubs.c -I ../../../../../../../../runtime"
+****** ocamlopt.opt
+all_modules = "test_common.o stubs.o common.mli common.ml main.ml"
+******* run
+******** check-program-output
 
 *)
