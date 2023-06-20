@@ -148,11 +148,17 @@ let rec print_typlist print_elem sep ppf =
       pp_print_space ppf ();
       print_typlist print_elem sep ppf tyl
 
+(* CR labeled tuples: check for code duplication between expressions, patterns,
+   and types, and with labels in functions and records. *)
+
+(* CR labeled tuples: check that pretty printing boxes are correctly placed
+   such that long (and other edgecase) labeled tuples and their types look
+   good. *)
 let print_label_type ppf =
   function
   | Some s ->
     pp_print_string ppf s;
-    pp_print_string ppf ": ";
+    pp_print_string ppf ":";
   | None -> ()
     
 let print_label ppf =
@@ -160,18 +166,22 @@ let print_label ppf =
   | Some s ->
     pp_print_string ppf "~";
     pp_print_string ppf s;
-    pp_print_string ppf ": ";
+    pp_print_string ppf ":";
   | None -> ()
 
 let rec print_labeled_typlist print_elem sep ppf =
   function
     [] -> ()
   | [label, ty] ->
-      print_label_type ppf label;
-      print_elem ppf ty
-  | (label, ty) :: tyl ->
+      pp_open_box ppf 0;
       print_label_type ppf label;
       print_elem ppf ty;
+      pp_close_box ppf ()
+  | (label, ty) :: tyl ->
+      pp_open_box ppf 0;
+      print_label_type ppf label;
+      print_elem ppf ty;
+      pp_close_box ppf ();
       pp_print_string ppf sep;
       pp_print_space ppf ();
       print_labeled_typlist print_elem sep ppf tyl

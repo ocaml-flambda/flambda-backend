@@ -5,7 +5,7 @@
 let x = ~~(~x:1, ~y:2)
 
 [%%expect{|
-val x : x: int * y: int = (~x: 1, ~y: 2)
+val x : x:int * y:int = (~x:1, ~y:2)
 |}];;
 
 let z = 5
@@ -14,7 +14,7 @@ let _ = ~~( ~x: 5, 2, ~z, ~(punned:int))
 [%%expect{|
 val z : int = 5
 val punned : int = 2
-- : x: int * int * z: int * punned: int = (~x: 5, 2, ~z: 5, ~punned: 2)
+- : x:int * int * z:int * punned:int = (~x:5, 2, ~z:5, ~punned:2)
 |}]
 
 type ('a, 'b) pair = Pair of 'a * 'b
@@ -34,7 +34,7 @@ let foo b = if b then
 else
    ~~(~a: "5", 10, ~c: "hi")
 [%%expect{|
-val foo : bool -> a: string * int * c: string = <fun>
+val foo : bool -> a:string * int * c:string = <fun>
 |}]
 
 (* Missing label (the type vars in the error aren't ideal, but the same thing
@@ -47,8 +47,8 @@ else
 Line 4, characters 3-28:
 4 |    ~~(~a: "5", 10, ~c: "hi")
        ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type a: 'a * 'b * c: 'c
-       but an expression was expected of type a: string * int * string
+Error: This expression has type a:string * int * c:'a
+       but an expression was expected of type a:string * int * string
 |}]
 
 (* Missing labeled component *)
@@ -60,8 +60,8 @@ else
 Line 4, characters 3-28:
 4 |    ~~(~a: "5", 10, ~c: "hi")
        ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type a: 'a * 'b * c: 'c
-       but an expression was expected of type a: string * int
+Error: This expression has type a:'a * 'b * c:'c
+       but an expression was expected of type a:string * int
 |}]
 
 (* Wrong label *)
@@ -73,8 +73,8 @@ else
 Line 4, characters 3-28:
 4 |    ~~(~a: "5", 10, ~c: "hi")
        ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type a: 'a * 'b * c: 'c
-       but an expression was expected of type a: string * int * a: string
+Error: This expression has type a:string * int * c:'a
+       but an expression was expected of type a:string * int * a:string
 |}]
 
 (* Types in function argument/return *)
@@ -85,14 +85,14 @@ let choose_pt replace_with_default pt =
    else
       pt
 [%%expect{|
-val default : x: int * y: int = (~x: 1, ~y: 2)
-val choose_pt : bool -> x: int * y: int -> x: int * y: int = <fun>
+val default : x:int * y:int = (~x:1, ~y:2)
+val choose_pt : bool -> x:int * y:int -> x:int * y:int = <fun>
 |}]
 
 (* Application happy case *)
 let a = choose_pt true (~~(~x: 5, ~y: 6))
 [%%expect{|
-val a : x: int * y: int = (~x: 1, ~y: 2)
+val a : x:int * y:int = (~x:1, ~y:2)
 |}]
 
 (* CR labeled tuples: reordering should eventually work *)
@@ -101,8 +101,8 @@ let a = choose_pt true (~~(~y: 6, ~x: 5))
 Line 1, characters 23-41:
 1 | let a = choose_pt true (~~(~y: 6, ~x: 5))
                            ^^^^^^^^^^^^^^^^^^
-Error: This expression has type y: 'a * x: 'b
-       but an expression was expected of type x: int * y: int
+Error: This expression has type y:'a * x:'b
+       but an expression was expected of type x:int * y:int
 |}]
 
 (* Mutually-recursive definitions *)
@@ -112,39 +112,39 @@ and b = ~~(2, ~lbl:a)
 Line 2, characters 19-20:
 2 | and b = ~~(2, ~lbl:a)
                        ^
-Error: This expression has type int * lbl: (int * lbl: 'a)
+Error: This expression has type int * lbl:(int * lbl:'a)
        but an expression was expected of type 'a
-       The type variable 'a occurs inside int * lbl: (int * lbl: 'a)
+       The type variable 'a occurs inside int * lbl:(int * lbl:'a)
 |}]
 
 let rec l = ~~(~lbl: 5, ~lbl2: 10) :: l
 [%%expect{|
-val l : (lbl: int * lbl2: int) list = [(~lbl: 5, ~lbl2: 10); <cycle>]
+val l : (lbl:int * lbl2:int) list = [(~lbl:5, ~lbl2:10); <cycle>]
 |}]
 
 (* Tuple containing labeled tuples *)
 let tup = (~~(~a:1, ~b:2), ~~(~b:3, ~a:4), 5)
 [%%expect{|
-val tup : (a: int * b: int) * (b: int * a: int) * int =
-  ((~a: 1, ~b: 2), (~b: 3, ~a: 4), 5)
+val tup : (a:int * b:int) * (b:int * a:int) * int =
+  ((~a:1, ~b:2), (~b:3, ~a:4), 5)
 |}]
 
 (* Polymorphic variant containing labeled tuple *)
 let a = `Some (~~(~a: 1, ~b:2, 3))
 [%%expect{|
-val a : [> `Some of a: int * b: int * int ] = `Some (~a: 1, ~b: 2, 3)
+val a : [> `Some of a:int * b:int * int ] = `Some (~a:1, ~b:2, 3)
 |}]
 
 (* List of labeled tuples *)
 let lst = (~~(~a: 1, ~b: 2)) :: []
 [%%expect{|
-val lst : (a: int * b: int) list = [(~a: 1, ~b: 2)]
+val lst : (a:int * b:int) list = [(~a:1, ~b:2)]
 |}]
 
 (* Ref of labeled tuple *)
 let x = ref (~~(~x:"hello", 5))
 [%%expect{|
-val x : (x: string * int) ref = {contents = (~x: "hello", 5)}
+val x : (x:string * int) ref = {contents = (~x:"hello", 5)}
 |}]
 
 (* Polymorphic record containing a labeled tuple *)
@@ -152,7 +152,7 @@ type 'a box = {thing: 'a}
 let boxed = {thing = ~~("hello", ~x:5)}
 [%%expect{|
 type 'a box = { thing : 'a; }
-val boxed : (string * x: int) box = {thing = ("hello", ~x: 5)}
+val boxed : (string * x:int) box = {thing = ("hello", ~x:5)}
 |}]
 
 (* CR labeled tuples: Add tests with labeled tuples in:
@@ -162,9 +162,8 @@ val boxed : (string * x: int) box = {thing = ("hello", ~x: 5)}
    - recursive modules
 *)
 
-(*
-CR labeled-tuples: test a mutually recursive function with labeled tuple params,
-such as the following:
+(* CR labeled-tuples: test a mutually recursive function with labeled tuple
+   params, such as the following:
 
 (* Take a [a:'a * b:'a] and an int, and returns a
    [swapped:[a:'a * b:'a] * same:bool].
@@ -179,4 +178,11 @@ and swap' ~~(~a, ~b) =
    function
    | 0 -> ~~(~swapped:~~(~a, ~b), ~same:false)
    | n -> swap ~~(~a:b, ~b:a) (n-1)
+*)
+
+(* CR labeled-tuples: test evaluation order w.r.t. reordering, such as in:
+
+type t = { x : unit; y : unit }
+let t1 = { x = Printf.printf "x\n"; y = Printf.printf "y\n" }
+let t2 = { y = Printf.printf "y\n"; x = Printf.printf "x\n" }
 *)

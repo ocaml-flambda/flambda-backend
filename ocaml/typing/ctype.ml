@@ -766,7 +766,7 @@ let rec generalize_spine ty =
       generalize_spine ty'
   | Ttuple tyl ->
       set_level ty generic_level;
-      List.iter generalize_spine (List.map snd tyl)
+      List.iter (fun (_,t) -> generalize_spine t) tyl
   | Tpackage (_, fl) ->
       set_level ty generic_level;
       List.iter (fun (_n, ty) -> generalize_spine ty) fl
@@ -2744,11 +2744,14 @@ and mcomp_list type_pairs env tl1 tl2 =
   List.iter2 (mcomp type_pairs env) tl1 tl2
 
 and mcomp_labeled_list type_pairs env labeled_tl1 labeled_tl2 =
-  let labels1, tl1 = List.split labeled_tl1 in
-  let labels2, tl2 = List.split labeled_tl2 in
-  if not (List.equal (Option.equal String.equal) labels1 labels2) then
+  if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
     raise Incompatible;
-  List.iter2 (mcomp type_pairs env) tl1 tl2
+  List.iter2
+    (fun (label1, ty1) (label2, ty2) ->
+      if not (Option.equal String.equal label1 label2) then
+        raise Incompatible;
+      mcomp type_pairs env ty1 ty2)
+    labeled_tl1 labeled_tl2
 
 and mcomp_fields type_pairs env ty1 ty2 =
   if not (concrete_object ty1 && concrete_object ty2) then assert false;
@@ -3414,11 +3417,14 @@ and unify_list env tl1 tl2 =
   List.iter2 (unify env) tl1 tl2
 
 and unify_labeled_list env labeled_tl1 labeled_tl2 =
-  let labels1, tl1 = List.split labeled_tl1 in
-  let labels2, tl2 = List.split labeled_tl2 in
-  if not (List.equal (Option.equal String.equal) labels1 labels2) then
+  if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
     raise_unexplained_for Unify;
-  List.iter2 (unify env) tl1 tl2
+  List.iter2
+    (fun (label1, ty1) (label2, ty2) ->
+      if not (Option.equal String.equal label1 label2) then
+        raise_unexplained_for Unify;
+      unify env ty1 ty2)
+    labeled_tl1 labeled_tl2
 
 (* Build a fresh row variable for unification *)
 and make_rowvar level use1 rest1 use2 rest2  =
@@ -4339,7 +4345,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
               moregen_alloc_mode (neg_variance variance) a1 a2;
               moregen_alloc_mode variance r1 r2
           | (Ttuple labeled_tl1, Ttuple labeled_tl2) ->
-              moregen_labeled_list inst_nongen variance type_pairs env labeled_tl1 labeled_tl2
+              moregen_labeled_list inst_nongen variance type_pairs env
+                labeled_tl1 labeled_tl2
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
                 when Path.same p1 p2 -> begin
               match variance with
@@ -4389,12 +4396,16 @@ and moregen_list inst_nongen variance type_pairs env tl1 tl2 =
     raise_unexplained_for Moregen;
   List.iter2 (moregen inst_nongen variance type_pairs env) tl1 tl2
 
-and moregen_labeled_list inst_nongen variance type_pairs env labeled_tl1 labeled_tl2 =
-  let labels1, tl1 = List.split labeled_tl1 in
-  let labels2, tl2 = List.split labeled_tl2 in
-  if not (List.equal (Option.equal String.equal) labels1 labels2) then
+and moregen_labeled_list inst_nongen variance type_pairs env labeled_tl1
+    labeled_tl2 =
+  if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
     raise_unexplained_for Moregen;
-  List.iter2 (moregen inst_nongen variance type_pairs env) tl1 tl2
+  List.iter2
+    (fun (label1, ty1) (label2, ty2) ->
+      if not (Option.equal String.equal label1 label2) then
+        raise_unexplained_for Moregen;
+      moregen inst_nongen variance type_pairs env ty1 ty2)
+    labeled_tl1 labeled_tl2
 
 and moregen_param_list inst_nongen variance type_pairs env vl tl1 tl2 =
   match vl, tl1, tl2 with
@@ -4717,7 +4728,8 @@ let rec eqtype rename type_pairs subst env t1 t2 =
               eqtype_alloc_mode a1 a2;
               eqtype_alloc_mode r1 r2
           | (Ttuple labeled_tl1, Ttuple labeled_tl2) ->
-              eqtype_labeled_list rename type_pairs subst env labeled_tl1 labeled_tl2
+              eqtype_labeled_list rename type_pairs subst env labeled_tl1
+                labeled_tl2
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
                 when Path.same p1 p2 ->
               eqtype_list rename type_pairs subst env tl1 tl2
@@ -4759,11 +4771,14 @@ and eqtype_list rename type_pairs subst env tl1 tl2 =
   List.iter2 (eqtype rename type_pairs subst env) tl1 tl2
 
 and eqtype_labeled_list rename type_pairs subst env labeled_tl1 labeled_tl2 =
-  let labels1, tl1 = List.split labeled_tl1 in
-  let labels2, tl2 = List.split labeled_tl2 in
-  if not (List.equal (Option.equal String.equal) labels1 labels2) then
+  if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
     raise_unexplained_for Equality;
-  List.iter2 (eqtype rename type_pairs subst env) tl1 tl2
+  List.iter2
+    (fun (label1, ty1) (label2, ty2) ->
+      if not (Option.equal String.equal label1 label2) then
+        raise_unexplained_for Equality;
+      eqtype rename type_pairs subst env ty1 ty2)
+    labeled_tl1 labeled_tl2
 
 and eqtype_fields rename type_pairs subst env ty1 ty2 =
   let (fields1, rest1) = flatten_fields ty1 in
@@ -5285,7 +5300,8 @@ let rec build_subtype env (visited : transient_expr list)
         List.map (build_subtype env visited loops posi level) tlist
       in
       let c = collect tlist' in
-      if c > Unchanged then (newty (Ttuple (List.combine labels (List.map fst tlist'))), c)
+      if c > Unchanged then
+        (newty (Ttuple (List.combine labels (List.map fst tlist'))), c)
       else (t, Unchanged)
   | Tconstr(p, tl, abbrev)
     when level > 0 && generic_abbrev env p && safe_abbrev env t
@@ -5590,18 +5606,18 @@ let rec subtype_rec env trace t1 t2 cstrs =
   end
 
 and subtype_labeled_list env trace labeled_tl1 labeled_tl2 cstrs =
-  let labels1, tl1 = List.split labeled_tl1 in
-  let labels2, tl2 = List.split labeled_tl2 in
-  if not (List.equal (Option.equal String.equal) labels1 labels2) then
+  if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
     subtype_error ~env ~trace ~unification_trace:[];
   List.fold_left2
-    (fun cstrs t1 t2 ->
-       subtype_rec
-         env
-         (Subtype.Diff { got = t1; expected = t2 } :: trace)
-         t1 t2
-         cstrs)
-    cstrs tl1 tl2
+    (fun cstrs (label1, ty1) (label2, ty2) ->
+      if not (Option.equal String.equal label1 label2) then
+        subtype_error ~env ~trace ~unification_trace:[];
+      subtype_rec
+        env
+        (Subtype.Diff { got = ty1; expected = ty2 } :: trace)
+        ty1 ty2
+        cstrs)
+    cstrs labeled_tl1 labeled_tl2
 
 and subtype_fields env trace ty1 ty2 cstrs =
   (* Assume that either rest1 or rest2 is not Tvar *)

@@ -59,7 +59,7 @@ let compute_variance env visited vari ty =
         compute_variance_rec v1 ty1;
         compute_same ty2
     | Ttuple tl ->
-        List.iter compute_same (List.map snd tl)
+        List.iter (fun (_,t) -> compute_same t) tl
     | Tconstr (path, tl, _) ->
         let open Variance in
         if tl = [] then () else begin
@@ -192,6 +192,7 @@ let compute_variance_type env ~check (required, loc) decl tyl =
                                                         (c,n,i)))))
       params required;
     (* Check propagation from constrained parameters *)
+    (* CR labeled tuples: consider adding a [free_variables_list] *)
     let args = Btype.newgenty (Ttuple (List.map (fun t -> None, t) params)) in
     let fvl = Ctype.free_variables args in
     let fvl =

@@ -3260,7 +3260,7 @@ let rec is_nonexpansive exp =
         ) cases
   | Texp_probe {handler} -> is_nonexpansive handler
   | Texp_tuple (el, _) ->
-      List.for_all is_nonexpansive (List.map snd el)
+      List.for_all (fun (_,e) -> is_nonexpansive e) el
   | Texp_construct(_, _, el, _) ->
       List.for_all is_nonexpansive el
   | Texp_variant(_, arg) -> is_nonexpansive_opt (Option.map fst arg)
@@ -3618,6 +3618,7 @@ and type_approx_aux env sexp in_function ty_expected =
   | Pexp_match (_, {pc_rhs=e}::_) -> type_approx_aux env e None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
   | Pexp_tuple l ->
+      (* CR labeled tuples: consider behavior with reordering *)
       let labeled_tys = List.map
                   (fun (label, _) -> label, newvar (Layout.value ~why:Tuple_element)) l
       in
@@ -4507,15 +4508,18 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_tuple sexpl ->
+      (* CR labeled tuples: reorder labeled Texp_tuple arguments if the type
+         is already fully inferred to make sure evaluation order matches the
+         type *)
       let arity = List.length sexpl in
       assert (arity >= 2);
       let alloc_mode = register_allocation expected_mode in
       (* CR layouts v5: non-values in tuples *)
       let labeled_subtypes =
-        List.map (fun (label, _) -> label, newgenvar (Layout.value ~why:Tuple_element))
+        List.map (fun (label, _) -> label,
+                                    newgenvar (Layout.value ~why:Tuple_element))
         sexpl
       in
-      let subtypes = List.map snd labeled_subtypes in
       let to_unify = newgenty (Ttuple labeled_subtypes) in
       with_explanation (fun () ->
         unify_exp_types loc env to_unify (generic_instance ty_expected));
@@ -4527,10 +4531,10 @@ and type_expect_
           List.init arity (fun _ -> arg_mode)
         end
       in
-      let types_and_modes = List.combine subtypes argument_modes in
+      let types_and_modes = List.combine labeled_subtypes argument_modes in
       let expl =
         List.map2
-          (fun (label, body) (ty, argument_mode) ->
+          (fun (label, body) ((_, ty), argument_mode) ->
             let argument_mode = mode_default argument_mode in
             let argument_mode = expect_mode_cross env ty argument_mode in
              (label, type_expect env argument_mode body (mk_expected ty)))
