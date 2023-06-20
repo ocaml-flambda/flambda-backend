@@ -2876,8 +2876,11 @@ let intermediate_curry_functions ~nlocal ~arity result =
       Cfunction
         { fun_name = global_symbol name2;
           fun_args =
+            (* These are actually 1-argument functions that directly
+               deconstruct their only argument *)
+            (VP.create clos, typ_val) ::
             List.map (fun (arg, t) -> VP.create arg, [| t |]) args
-            @ [VP.create clos, typ_val];
+        ;
           fun_body =
             Cop
               ( Calloc mode,
@@ -2918,6 +2921,7 @@ let intermediate_curry_functions ~nlocal ~arity result =
               V.create_local (Printf.sprintf "arg%d" (i + num + 2)), ty)
             remaining_args
         in
+        (* CR gbury: put closure first if there is 1 remaining_arg ? *)
         let fun_args =
           List.map
             (fun (arg, ty) -> VP.create arg, ty)
