@@ -37,8 +37,8 @@ else
 val foo : bool -> a: string * int * c: string = <fun>
 |}]
 
-(* Missing label (the type vars in the error aren't ideal, but the same thing happens when
-   unifying normal tuples of different lengths) *)
+(* Missing label (the type vars in the error aren't ideal, but the same thing
+   happens when unifying normal tuples of different lengths) *)
 let foo b = if b then
    ~~(~a: "s", 10, "hi")
 else
@@ -104,3 +104,79 @@ Line 1, characters 23-41:
 Error: This expression has type y: 'a * x: 'b
        but an expression was expected of type x: int * y: int
 |}]
+
+(* Mutually-recursive definitions *)
+let rec a = ~~(1, ~lbl:b)
+and b = ~~(2, ~lbl:a)
+[%%expect{|
+Line 2, characters 19-20:
+2 | and b = ~~(2, ~lbl:a)
+                       ^
+Error: This expression has type int * lbl: (int * lbl: 'a)
+       but an expression was expected of type 'a
+       The type variable 'a occurs inside int * lbl: (int * lbl: 'a)
+|}]
+
+let rec l = ~~(~lbl: 5, ~lbl2: 10) :: l
+[%%expect{|
+val l : (lbl: int * lbl2: int) list = [(~lbl: 5, ~lbl2: 10); <cycle>]
+|}]
+
+(* Tuple containing labeled tuples *)
+let tup = (~~(~a:1, ~b:2), ~~(~b:3, ~a:4), 5)
+[%%expect{|
+val tup : (a: int * b: int) * (b: int * a: int) * int =
+  ((~a: 1, ~b: 2), (~b: 3, ~a: 4), 5)
+|}]
+
+(* Polymorphic variant containing labeled tuple *)
+let a = `Some (~~(~a: 1, ~b:2, 3))
+[%%expect{|
+val a : [> `Some of a: int * b: int * int ] = `Some (~a: 1, ~b: 2, 3)
+|}]
+
+(* List of labeled tuples *)
+let lst = (~~(~a: 1, ~b: 2)) :: []
+[%%expect{|
+val lst : (a: int * b: int) list = [(~a: 1, ~b: 2)]
+|}]
+
+(* Ref of labeled tuple *)
+let x = ref (~~(~x:"hello", 5))
+[%%expect{|
+val x : (x: string * int) ref = {contents = (~x: "hello", 5)}
+|}]
+
+(* Polymorphic record containing a labeled tuple *)
+type 'a box = {thing: 'a}
+let boxed = {thing = ~~("hello", ~x:5)}
+[%%expect{|
+type 'a box = { thing : 'a; }
+val boxed : (string * x: int) box = {thing = ("hello", ~x: 5)}
+|}]
+
+(* CR labeled tuples: Add tests with labeled tuples in:
+   - non-polymorphic records (where the labeled type must be written out)
+   - functors
+   - module inclusion
+   - recursive modules
+*)
+
+(*
+CR labeled-tuples: test a mutually recursive function with labeled tuple params,
+such as the following:
+
+(* Take a [a:'a * b:'a] and an int, and returns a
+   [swapped:[a:'a * b:'a] * same:bool].
+   The swapped component is the input with the [a] and [b] components swapped
+   as many times as the input int. The second component is whether the first
+   equals the input. *)
+let rec swap ~~(~a, ~b) =
+   function
+   | 0 -> ~~(~swapped:~~(~a, ~b), ~same:true)
+   | n -> swap' ~~(~a:b, ~b:a) (n-1)
+and swap' ~~(~a, ~b) =
+   function
+   | 0 -> ~~(~swapped:~~(~a, ~b), ~same:false)
+   | n -> swap ~~(~a:b, ~b:a) (n-1)
+*)
