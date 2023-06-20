@@ -2274,6 +2274,7 @@ let direct_apply lbl ty args (pos, _mode) dbg =
   Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
 let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
+  assert (List.length args <> 1);
   (* Treat tagged int arguments and results as [typ_val], to avoid generating
      excessive numbers of caml_apply functions. *)
   let ty = Extended_machtype.to_machtype extended_ty in
@@ -2323,7 +2324,7 @@ let generic_apply mut clos args args_type result (pos, mode) dbg =
     bind "fun" clos (fun clos ->
         Cop
           ( Capply (Extended_machtype.to_machtype result, pos),
-            [get_field_gen mut clos 0 dbg; arg; clos],
+            [get_field_gen mut clos 0 dbg; clos; arg],
             dbg ))
   | _ -> call_caml_apply result args_type mut clos args pos mode dbg
 
@@ -2921,7 +2922,7 @@ let intermediate_curry_functions ~nlocal ~arity result =
               V.create_local (Printf.sprintf "arg%d" (i + num + 2)), ty)
             remaining_args
         in
-        (* CR gbury: put closure first if there is 1 remaining_arg ? *)
+        assert (List.length remaining_args > 1);
         let fun_args =
           List.map
             (fun (arg, ty) -> VP.create arg, ty)
