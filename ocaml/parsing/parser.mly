@@ -781,7 +781,6 @@ module Constant : sig
   val unboxed : loc:loc -> Jane_syntax.Unboxed_constants.t -> t
   val to_expression : loc:loc -> t -> expression
   val to_pattern : loc:loc -> t -> pattern
-  val assert_is_value : loc:loc -> where:string -> t -> constant
 end = struct
   type t =
     | Value of constant
@@ -810,11 +809,6 @@ end = struct
     | Unboxed const_unboxed ->
       Jane_syntax.Unboxed_constants.pat_of
         ~loc:(make_loc loc) ~attrs:[] const_unboxed
-
-  let assert_is_value ~loc ~where : t -> Parsetree.constant = function
-    | Value x -> x
-    | Unboxed _ ->
-        not_expecting loc (Printf.sprintf "unboxed literal %s" where)
 end
 
 type sign = Positive | Negative
@@ -3195,11 +3189,8 @@ simple_pattern_not_ident:
 %inline simple_pattern_not_ident_:
   | UNDERSCORE
       { Ppat_any }
-  | signed_constant DOTDOT signed_constant
-      { let where = "in a pattern interval" in
-        Ppat_interval
-          (Constant.assert_is_value $1 ~loc:$loc($1) ~where,
-           Constant.assert_is_value $3 ~loc:$loc($3) ~where) }
+  | signed_value_constant DOTDOT signed_value_constant
+      { Ppat_interval ($1, $3) }
   | mkrhs(constr_longident)
       { Ppat_construct($1, None) }
   | name_tag
@@ -3876,6 +3867,10 @@ atomic_type:
               let hash_end = snd $loc($3) in
               unboxed_float_type (ident_start, hash_end) tys
           | _ ->
+            (* CR layouts v2.1: We should avoid [not_expecting] in long-lived
+               code. When we support unboxed types other than float, we should
+               consider moving this check into the typechecker.
+            *)
               not_expecting $sloc "Unboxed type other than float#"
         }
     | tys = actual_type_parameters
@@ -4009,31 +4004,35 @@ meth_list:
 
 /* Constants */
 
-constant:
-  | INT               { let (n, m) = $1 in
-                        Constant.value (Pconst_integer (n, m)) }
-  | CHAR              { Constant.value (Pconst_char $1) }
+value_constant:
+  | INT               { let (n, m) = $1 in Pconst_integer (n, m) }
+  | CHAR              { Pconst_char $1 }
   | STRING            { let (s, strloc, d) = $1 in
-                        Constant.value (Pconst_string (s, strloc, d)) }
-  | FLOAT             { let (f, m) = $1 in
-                        Constant.value (Pconst_float (f, m)) }
+                        Pconst_string (s, strloc, d) }
+  | FLOAT             { let (f, m) = $1 in Pconst_float (f, m) }
+;
+unboxed_constant:
   | HASH_INT          { unboxed_int $sloc $sloc Positive $1 }
   | HASH_FLOAT        { unboxed_float $sloc Positive $1 }
 ;
+constant:
+    value_constant    { Constant.value $1 }
+  | unboxed_constant  { $1 }
+;
+signed_value_constant:
+    value_constant    { $1 }
+  | MINUS INT         { let (n, m) = $2 in Pconst_integer("-" ^ n, m) }
+  | MINUS FLOAT       { let (f, m) = $2 in Pconst_float("-" ^ f, m) }
+  | PLUS INT          { let (n, m) = $2 in Pconst_integer (n, m) }
+  | PLUS FLOAT        { let (f, m) = $2 in Pconst_float(f, m) }
+;
 signed_constant:
-    constant          { $1 }
-  | MINUS INT         { let (n, m) = $2 in
-                        Constant.value (Pconst_integer("-" ^ n, m)) }
-  | MINUS FLOAT       { let (f, m) = $2 in
-                        Constant.value (Pconst_float("-" ^ f, m)) }
-  | MINUS HASH_INT    { unboxed_int $sloc $loc($2) Negative $2 }
-  | MINUS HASH_FLOAT  { unboxed_float $sloc Negative $2 }
-  | PLUS INT          { let (n, m) = $2 in
-                        Constant.value (Pconst_integer (n, m)) }
-  | PLUS FLOAT        { let (f, m) = $2 in
-                        Constant.value (Pconst_float(f, m)) }
-  | PLUS HASH_INT     { unboxed_int $sloc $loc($2) Positive $2 }
-  | PLUS HASH_FLOAT   { unboxed_float $sloc Positive $2 }
+    signed_value_constant { Constant.value $1 }
+  | unboxed_constant      { $1 }
+  | MINUS HASH_INT        { unboxed_int $sloc $loc($2) Negative $2 }
+  | MINUS HASH_FLOAT      { unboxed_float $sloc Negative $2 }
+  | PLUS HASH_INT         { unboxed_int $sloc $loc($2) Positive $2 }
+  | PLUS HASH_FLOAT       { unboxed_float $sloc Positive $2 }
 ;
 
 /* Identifiers and long identifiers */
