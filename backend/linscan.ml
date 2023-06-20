@@ -110,7 +110,8 @@ let allocate_free_register num_stack_slots i =
                 {reg = {loc = Reg r}} ->
                   (match Proc.reg_id_in_class ~reg:r ~in_class:cl with
                    | None -> ()
-                   | Some r -> regmask.(r - r0) <- false)
+                   | Some r -> 
+                     if r - r0 < rn then regmask.(r - r0) <- false)
               | _ -> ())
               active.(sibling_class).ci_active) sibling_classes;
           (* Remove all overlapping registers from the register mask *)
@@ -118,7 +119,8 @@ let allocate_free_register num_stack_slots i =
               {reg = {loc = Reg r}} as j ->
                 (match Proc.reg_id_in_class ~reg:r ~in_class:cl with
                  | None -> ()
-                 | Some r -> if regmask.(r - r0) && Interval.overlap j i then
+                 | Some r -> 
+                   if r - r0 < rn && regmask.(r - r0) && Interval.overlap j i then
                    regmask.(r - r0) <- false)
             | _ -> () in
           Array.iter (fun sibling_class ->

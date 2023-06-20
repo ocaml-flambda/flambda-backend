@@ -140,7 +140,9 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
               | Reg r -> (
                 match Proc.reg_id_in_class ~reg:r ~in_class:reg_class with
                 | None -> ()
-                | Some id -> available.(id - first_available) <- false)
+                | Some id -> 
+                  if id - first_available < num_available_registers then 
+                  available.(id - first_available) <- false)
               | Stack _ | Unknown -> ()));
       let remove_bound_overlapping (itv : Interval.t) : unit =
         match itv.reg.loc with
@@ -148,7 +150,9 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
           match Proc.reg_id_in_class ~reg:r ~in_class:reg_class with
           | None -> ()
           | Some id ->
-            if available.(id - first_available) && Interval.overlap itv interval
+            if id - first_available < num_available_registers && 
+               available.(id - first_available) && 
+               Interval.overlap itv interval
             then available.(id - first_available) <- false)
         | Stack _ | Unknown -> ()
       in
