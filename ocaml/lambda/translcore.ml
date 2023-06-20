@@ -1614,11 +1614,12 @@ and transl_match ~scopes e arg sort pat_expr_list partial =
         let val_ids =
           List.map
             (fun arg -> Typecore.name_pattern "val" [], layout_exp arg)
-            (* CR labeled tuples: test this case (a match with normal and exception cases)
-               such as:
-               match ~~(~x:3, 42) with
-               | ~~(~x, y) -> ...
-               | exception Foo -> ... *)
+            (* CR labeled tuples: test this case (a match with normal and
+               exception cases) such as with:
+                 match ~~(~x:3, 42) with
+                 | ~~(~x, y) -> ...
+                 | exception Foo -> ...
+            *)
             (List.map snd argl)
         in
         let lvars = List.map (fun (id, layout) -> Lvar id, layout) val_ids in
