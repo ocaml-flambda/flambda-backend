@@ -1580,12 +1580,10 @@ let get_check_attribute_state fun_attr : Warnings.Checks.State.t =
   let { annotated; active; active_opt } = fun_attr.check in
   match annotated.state with
   | (Off | Assume _) as s -> s
-  | (On { opt; _ }) as s ->
-    if opt then begin
-      if active_opt then s
-      else Off
-    end else begin
-      if active then s
-      else Off
-    end
+  | (On { opt=true; _ }) as s ->
+    if active_opt && active then s
+    else Off
+  | (On { opt=false; _ }) as s ->
+    if active then s
+    else Off
 
