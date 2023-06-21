@@ -267,19 +267,20 @@ let mk_expected ?explanation ty = { ty; explanation; }
 let case lhs rhs =
   {c_lhs = lhs; c_guard = None; c_rhs = rhs}
 
-type function_position = FTail | FNontail
+type position_in_function = FTail | FNontail
 
-type region_position =
+
+type position_in_region =
   (* not the tail of a region*)
   | RNontail
   (* tail of a region,
      together with the mode of that region,
      and whether it is also the tail of a function
      (for tail call escape detection) *)
-  | RTail of Value_mode.t * function_position
+  | RTail of Value_mode.t * position_in_function
 
 type expected_mode =
-  { position : region_position;
+  { position : position_in_region;
     escaping_context : Env.escaping_context option;
     (* the upper bound of mode*)
     mode : Value_mode.t;
@@ -304,26 +305,54 @@ type expected_mode =
     (* for t in tuple_modes, t <= regional_to_global mode *)
   }
 
-let tail_call_escape = function
-  | RTail (m, FTail) -> Some m
-  | _ -> None
+type position_and_mode = {
+  (* apply_position of the current application  *)
+  apply_position : apply_position;
+  (* [Some m] if [position] is [Tail], where m is the mode of the surrounding
+     function's return mode *)
+  region_mode : Value_mode.t option;
+}
 
-(** If returns Tail (must close region and tail call),
-    will also return the mode of the region *)
-let apply_position env (expected_mode : expected_mode) sexp
-  : apply_position * _ =
+(** The function produces two values, apply_position and region_mode.
+    Invariant: if apply_position = Tail, then region_mode = Some ... *)
+let position_and_mode env (expected_mode : expected_mode) sexp
+  : position_and_mode =
   let fail err =
     raise (Error (sexp.pexp_loc, env, Bad_tail_annotation err))
   in
-  match
-    Builtin_attributes.tailcall sexp.pexp_attributes,
-    tail_call_escape expected_mode.position
-  with
-  | Ok (None | Some `Tail_if_possible), None  -> Default, None
-  | Ok (None | Some `Tail | Some `Tail_if_possible), Some m -> Tail, Some m
-  | Ok (Some `Nontail), _ -> Nontail, None
-  | Ok (Some `Tail), None -> fail `Not_a_tailcall
-  | Error `Conflict, _ -> fail `Conflict
+  let requested =
+    match Builtin_attributes.tailcall sexp.pexp_attributes with
+    | Ok r -> r
+    | Error `Conflict -> fail `Conflict
+  in
+  match expected_mode.position with
+  | RTail (m ,FTail) -> begin
+      match requested with
+      | Some `Tail | Some `Tail_if_possible | None ->
+          {apply_position = Tail; region_mode = Some m}
+      | Some `Nontail -> {apply_position = Nontail; region_mode = None}
+    end
+  | RNontail | RTail(_, FNontail) -> begin
+      match requested with
+      | None | Some `Tail_if_possible ->
+          {apply_position = Default; region_mode = None}
+      | Some `Nontail -> {apply_position = Nontail; region_mode = None}
+      | Some `Tail -> fail `Not_a_tailcall
+  end
+
+(* ap_mode is the return mode of the current application *)
+let check_tail_call_local_returning ap_mode region_mode error =
+  match region_mode with
+  | Some region_mode -> begin
+    (* This application is at the tail of a function with a region;
+        if ap_mode is local, funct_ret_mode needs to be local as well. *)
+      match
+        Value_mode.submode (Value_mode.of_alloc ap_mode) region_mode
+      with
+      | Ok () -> ()
+      | Error _ -> raise error
+    end
+  | None -> ()
 
 let mode_default mode =
   { position = RNontail;
@@ -4381,11 +4410,9 @@ and type_expect_
       end
   | Pexp_apply(sfunct, sargs) ->
       assert (sargs <> []);
-      let position, maybe_outer_ret_mode =
-        apply_position env expected_mode sexp
-      in
+      let pm = position_and_mode env expected_mode sexp in
       let funct_mode, funct_expected_mode =
-        match position with
+        match pm.apply_position with
         | Tail ->
           let mode = Value_mode.local_to_regional (Value_mode.newvar ()) in
           mode, mode_tailcall_function mode
@@ -4451,8 +4478,7 @@ and type_expect_
             (rt, funct), sargs
       in
       let (args, ty_res, ap_mode, position) =
-        type_application env loc expected_mode (position, maybe_outer_ret_mode)
-          funct funct_mode sargs rt
+        type_application env loc expected_mode pm funct funct_mode sargs rt
       in
 
       rue {
@@ -5019,7 +5045,7 @@ and type_expect_
   | Pexp_send (e, {txt=met}) ->
       if !Clflags.principal then begin_def ();
       let obj = type_exp env mode_global e in
-      let ap_pos, _ = apply_position env expected_mode sexp in
+      let pm = position_and_mode env expected_mode sexp in
       let (meth, typ) =
         match obj.exp_desc with
         | Texp_ident(_, _, {val_kind = Val_self(sign, meths, _, _)}, _) ->
@@ -5123,7 +5149,7 @@ and type_expect_
             assert false
       in
       rue {
-        exp_desc = Texp_send(obj, meth, ap_pos,
+        exp_desc = Texp_send(obj, meth, pm.apply_position,
           register_allocation expected_mode
         );
         exp_loc = loc; exp_extra = [];
@@ -5132,14 +5158,14 @@ and type_expect_
         exp_env = env }
   | Pexp_new cl ->
       let (cl_path, cl_decl) = Env.lookup_class ~loc:cl.loc cl.txt env in
-      let ap_pos, _ = apply_position env expected_mode sexp in
+      let pm = position_and_mode env expected_mode sexp in
       begin match cl_decl.cty_new with
           None ->
             raise(Error(loc, env, Virtual_class cl.txt))
         | Some ty ->
             rue {
               exp_desc =
-                Texp_new (cl_path, cl, cl_decl, ap_pos);
+                Texp_new (cl_path, cl, cl_decl, pm.apply_position);
               exp_loc = loc; exp_extra = [];
               exp_type = instance ty;
               exp_attributes = sexp.pexp_attributes;
@@ -6436,7 +6462,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
       (lbl, Arg (arg, Value_mode.global))
   | Omitted _ as arg -> (lbl, arg)
 
-and type_application env app_loc expected_mode (position, maybe_outer_ret_mode)
+and type_application env app_loc expected_mode pm
       funct funct_mode sargs ret_tvar =
   let is_ignore funct =
     is_prim ~name:"%ignore" funct &&
@@ -6461,11 +6487,12 @@ and type_application env app_loc expected_mode (position, maybe_outer_ret_mode)
       submode ~loc:app_loc ~env ~reason:Other
         mode_res expected_mode;
       let marg =
-        mode_argument ~funct ~index:0 ~position ~partial_app:false marg
+        mode_argument ~funct ~index:0 ~position:(pm.apply_position)
+          ~partial_app:false marg
       in
       let exp = type_expect env marg sarg (mk_expected ty_arg) in
       check_partial_application ~statement:false exp;
-      ([Nolabel, Arg exp], ty_res, ap_mode, position)
+      ([Nolabel, Arg exp], ty_res, ap_mode, pm.apply_position)
   | _ ->
       let ty = funct.exp_type in
       let ignore_labels =
@@ -6491,7 +6518,7 @@ and type_application env app_loc expected_mode (position, maybe_outer_ret_mode)
           (Value_mode.regional_to_local_alloc funct_mode) sargs ret_tvar
       in
       let partial_app = is_partial_apply untyped_args in
-      let position = if partial_app then Default else position in
+      let position = if partial_app then Default else pm.apply_position in
       let args =
         List.mapi (fun index arg ->
             type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app arg)
@@ -6512,18 +6539,10 @@ and type_application env app_loc expected_mode (position, maybe_outer_ret_mode)
       in
       submode ~loc:app_loc ~env ~reason:(Application ty_ret)
         mode_ret expected_mode;
-      (match maybe_outer_ret_mode with
-      | Some outer_ret_mode -> begin
-        (* This application is at the tail of a function with a region;
-            if ap_mode is local, funct_ret_mode needs to be local as well. *)
-          match
-            Value_mode.submode (Value_mode.of_alloc ap_mode) outer_ret_mode
-          with
-          | Ok () -> ()
-          | Error _ -> raise (Error (app_loc, env, Tail_call_local_returning))
-        end
-      | _ -> ()
-      );
+
+      if not partial_app then
+        check_tail_call_local_returning ap_mode pm.region_mode
+          (Error (app_loc, env, Tail_call_local_returning));
       args, ty_ret, ap_mode, position
 
 and type_construct env (expected_mode : expected_mode) loc lid sarg
@@ -8268,10 +8287,10 @@ let report_error ~loc env = function
         "Optional parameters cannot be polymorphic"
   | Function_returns_local ->
       Location.errorf ~loc
-        "This function is local returning, but was expected otherwise"
+        "This function is local-returning, but was expected otherwise"
   | Tail_call_local_returning ->
       Location.errorf ~loc
-        "@[This call is local-returning, but is at the tail @ \
+        "@[This application is local-returning, but is at the tail @ \
           position of a function that is not local-returning@]"
   | Layout_not_enabled c ->
       Location.errorf ~loc

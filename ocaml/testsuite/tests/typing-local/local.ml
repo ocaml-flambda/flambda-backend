@@ -773,7 +773,7 @@ val baduse : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c lazy_t = <fun>
 Line 2, characters 20-45:
 2 | let result = baduse (fun a b -> local_ (a,b)) 1 2
                         ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function is local returning, but was expected otherwise
+Error: This function is local-returning, but was expected otherwise
 |}]
 
 
@@ -1449,7 +1449,7 @@ let foo : unit -> string = fun () -> local_ "hello"
 Line 1, characters 27-51:
 1 | let foo : unit -> string = fun () -> local_ "hello"
                                ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function is local returning, but was expected otherwise
+Error: This function is local-returning, but was expected otherwise
 |}]
 
 (* Unboxed type constructors do not affect regionality *)
