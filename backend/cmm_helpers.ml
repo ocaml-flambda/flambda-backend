@@ -131,11 +131,11 @@ let closure_info' ~arity ~startenv ~is_last =
     match arity with
     | Lambda.Tupled, l ->
       let n = List.length l in
-      (* Sanity check: tupled function should not have arity 1/-1,
-         especially considering that unary function have a slightly different
-         call convention. *)
+      (* Sanity check: tupled function should not have arity 1/-1, especially
+         considering that unary function have a slightly different call
+         convention. *)
       assert (n <> 1);
-      - n
+      -n
     | Lambda.Curried _, l -> List.length l
   in
   pack_closure_info ~arity ~startenv ~is_last
@@ -2514,8 +2514,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
           ( Capply (result, Rc_normal),
             [ get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
               Cvar clos;
-              Cvar arg;
-            ],
+              Cvar arg ],
             dbg () )
       in
       match region with
@@ -2546,8 +2545,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
             ( Capply (typ_val, Rc_normal),
               [ get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
                 Cvar clos;
-                Cvar arg;
-              ],
+                Cvar arg ],
               dbg () ),
           app_fun newclos args )
   in
@@ -2700,10 +2698,7 @@ let tuplify_function arity return =
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
     { fun_name;
-      fun_args = [
-        VP.create clos, typ_val;
-        VP.create arg, typ_val;
-      ];
+      fun_args = [VP.create clos, typ_val; VP.create arg, typ_val];
       fun_body =
         Cop
           ( Capply (return, Rc_normal),
@@ -2839,10 +2834,7 @@ let final_curry_function nlocal arity result =
   Cfunction
     { fun_name;
       fun_args =
-        [
-          VP.create last_clos, typ_val;
-          VP.create last_arg, List.hd args_type;
-        ];
+        [VP.create last_clos, typ_val; VP.create last_arg, List.hd args_type];
       fun_body =
         make_curry_apply result narity (List.tl args_type) [Cvar last_arg]
           last_clos (narity - 1);
@@ -2877,11 +2869,10 @@ let intermediate_curry_functions ~nlocal ~arity result =
       Cfunction
         { fun_name = global_symbol name2;
           fun_args =
-            (* These are actually 1-argument functions that directly
-               deconstruct their only argument *)
-            (VP.create clos, typ_val) ::
-            List.map (fun (arg, t) -> VP.create arg, [| t |]) args
-        ;
+            (* These are actually 1-argument functions that directly deconstruct
+               their only argument *)
+            (VP.create clos, typ_val)
+            :: List.map (fun (arg, t) -> VP.create arg, [| t |]) args;
           fun_body =
             Cop
               ( Calloc mode,
@@ -2915,7 +2906,7 @@ let intermediate_curry_functions ~nlocal ~arity result =
         }
       ::
       (if has_nary
-      then
+      then (
         let direct_args =
           List.mapi
             (fun i ty ->
@@ -2946,7 +2937,7 @@ let intermediate_curry_functions ~nlocal ~arity result =
               fun_poll = Default_poll
             }
         in
-        [cf]
+        [cf])
       else [])
       @ loop (arg_type :: accumulated_args) remaining_args (num + 1)
   in
@@ -4076,7 +4067,8 @@ let indirect_call ~dbg ty pos alloc_mode f args_type args =
       ~body:
         (Cop
            ( Capply (Extended_machtype.to_machtype ty, pos),
-             (* Note: unary functions (and only them) take their closure as first argument *)
+             (* Note: unary functions (and only them) take their closure as
+                first argument *)
              [load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v); Cvar v; arg],
              dbg ))
   | args ->

@@ -512,6 +512,8 @@ let rec transl env e =
       let dbg = Debuginfo.none in
       ptr_offset ptr offset dbg
   | Udirect_apply(handler_code_sym, args, Some { name; enabled_at_init }, _, _, dbg) ->
+      (* CR gbury: is the call convention for probes compatible with the one for
+         unary caml function where we put the closure first ? *)
       let args = List.map (transl env) args in
       return_unit dbg
         (Cop(Cprobe { name; handler_code_sym; enabled_at_init }, args, dbg))

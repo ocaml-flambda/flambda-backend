@@ -119,9 +119,9 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     if not (C.check_arity params_arity args)
     then Misc.fatal_errorf "Wrong arity for direct call";
     let args =
-      (* Note on call convention: in order to have a caml_apply/curry
-         that is generic wrt layouts, we need unary functions to take
-         their closures as first arguments. *)
+      (* Note on call convention: in order to have a caml_apply/curry that is
+         generic wrt layouts, we need unary functions to take their closures as
+         first arguments. *)
       match args with
       | [_] ->
         (* CR gbury: use a gap/dummy argument when the closure is unused *)

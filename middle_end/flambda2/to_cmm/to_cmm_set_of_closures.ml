@@ -334,20 +334,22 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
       | Unknown -> true
       | Known is_my_closure_used -> is_my_closure_used
     in
-    (* Note: unary functions (and only them) take their closure as first argument *)
-    if Bound_parameters.cardinal params = 1 then
+    (* Note: unary functions (and only them) take their closure as first
+       argument *)
+    if Bound_parameters.cardinal params = 1
+    then
       let my_closure_param =
         Bound_parameter.create my_closure Flambda_kind.With_subkind.any_value
       in
       Bound_parameters.cons my_closure_param params
-    else if is_my_closure_used then
+    else if is_my_closure_used
+    then
       let my_closure_param =
         Bound_parameter.create my_closure Flambda_kind.With_subkind.any_value
       in
       Bound_parameters.append params
         (Bound_parameters.create [my_closure_param])
-    else
-      params
+    else params
   in
   (* Init the env and create a jump id for the return continuation in case a
      trap action is attached to one of its calls *)
