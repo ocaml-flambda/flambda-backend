@@ -399,40 +399,45 @@ let process_check_attribute ~direct attr =
       else
         Direct, ids
     in
-    let is_current_scope_direct = (scope = Direct) in
-    if not (is_current_scope_direct = direct) then begin
-      (* this attribute is consumed in a different pass *)
-      None
-    end else begin
-      mark_used attr.attr_name;
-      let state, ids =
-        if String.Set.mem "off" ids then
-          State.Off, String.Set.remove "off" ids
-        else if String.Set.mem "assume" ids then begin
-          let ids = String.Set.remove "assume" ids in
-          let strict, ids = find_bool "strict" ids in
-          let never_returns_normally, ids = find_bool "never_returns_normally" ids in
-          State.Assume { loc; strict; never_returns_normally }, ids
-        end else begin
-          (* "on" is the default, but if it is present in ids explicitly, remove it. *)
-          let ids = String.Set.remove "on" ids in
-          let strict, ids = find_bool "strict" ids in
-          let opt, ids = find_bool "opt" ids in
-          State.On { loc; strict; opt; }, ids
-        end
-      in
-      if String.Set.is_empty ids then
-        Some { scope; state; }
-      else begin
+    let state, ids =
+      if String.Set.mem "off" ids then
+        State.Off, String.Set.remove "off" ids
+      else if String.Set.mem "assume" ids then begin
+        let ids = String.Set.remove "assume" ids in
+        let strict, ids = find_bool "strict" ids in
+        let never_returns_normally, ids = find_bool "never_returns_normally" ids in
+        State.Assume { loc; strict; never_returns_normally }, ids
+      end else begin
+        (* "on" is the default, but if it is present in ids explicitly, remove it. *)
+        let ids = String.Set.remove "on" ids in
+        let strict, ids = find_bool "strict" ids in
+        let opt, ids = find_bool "opt" ids in
+        State.On { loc; strict; opt; }, ids
+      end
+    in
+    if not direct then begin
+      (* all bad payloads are reported once,
+         upon the first scan of zero_alloc attributes. *)
+      if not (String.Set.is_empty ids) then begin
         let s = ids
                 |> String.Set.to_seq
                 |> List.of_seq
                 |> List.cons "Unsupported in the current context:"
                 |> String.concat " " in
         warn_payload attr.attr_loc attr.attr_name.txt s;
+        mark_used attr.attr_name;
+        None;
+      end else if not (scope = Direct) then begin
+        mark_used attr.attr_name;
+        Some { scope; state; }
+      end else begin
+        (* this attibute is consumed in a different pass.  *)
         None
       end
-    end
+    end else if (String.Set.is_empty ids) && (scope = Direct) then begin
+      mark_used attr.attr_name;
+      Some { scope; state; }
+    end else None
 
 let warning_attribute ?(structure_item = false) ?(ppwarning = true) =
   let process loc name errflag payload =
