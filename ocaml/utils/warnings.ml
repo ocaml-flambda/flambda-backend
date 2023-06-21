@@ -543,6 +543,8 @@ module Checks = struct
         Format.fprintf ppf "assume%a%a" print_strict strict
           (print_bool "never_returns_normally") n
 
+    let print ppf t =
+      Format.fprintf ppf "zero_alloc %a" print t
     let equal x y = x = y
 
     let default = Off
@@ -580,8 +582,8 @@ module Checks = struct
     | Direct -> ""
 
   let print ppf { state; scope; } =
-    Format.fprintf ppf "zero_alloc %s %a@ "
-      (scope_to_string scope) State.print state
+    Format.fprintf ppf "%a@ %s"
+      State.print state (scope_to_string scope)
 end
 
 type state =
