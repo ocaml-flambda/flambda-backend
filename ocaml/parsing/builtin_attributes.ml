@@ -415,29 +415,30 @@ let process_check_attribute ~direct attr =
         State.On { loc; strict; opt; }, ids
       end
     in
-    if not direct then begin
-      (* all bad payloads are reported once,
-         upon the first scan of zero_alloc attributes. *)
-      if not (String.Set.is_empty ids) then begin
-        let s = ids
-                |> String.Set.to_seq
-                |> List.of_seq
-                |> List.cons "Unsupported in the current context:"
-                |> String.concat " " in
-        warn_payload attr.attr_loc attr.attr_name.txt s;
-        mark_used attr.attr_name;
-        None;
-      end else if not (scope = Direct) then begin
+    if not (String.Set.is_empty ids) then begin
+      let s = ids
+              |> String.Set.to_seq
+              |> List.of_seq
+              |> List.cons "Unsupported in the current context:"
+              |> String.concat " "
+      in
+      mark_used attr.attr_name;
+      warn_payload attr.attr_loc attr.attr_name.txt s;
+      None;
+    end else begin
+      match direct, scope = Direct with
+      | true, true
+      | false, false ->
         mark_used attr.attr_name;
         Some { scope; state; }
-      end else begin
+      | true, false ->
+        mark_used attr.attr_name;
+        warn_payload attr.attr_loc attr.attr_name.txt "Not supported in this context";
+        None
+      | false, true ->
         (* this attibute is consumed in a different pass.  *)
         None
-      end
-    end else if (String.Set.is_empty ids) && (scope = Direct) then begin
-      mark_used attr.attr_name;
-      Some { scope; state; }
-    end else None
+    end
 
 let warning_attribute ?(structure_item = false) ?(ppwarning = true) =
   let process loc name errflag payload =
