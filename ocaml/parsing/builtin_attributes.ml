@@ -384,65 +384,53 @@ let process_check_attribute ~direct attr =
     warn_payload attr.attr_loc attr.attr_name.txt "Invalid payload";
     None
   | Some ids ->
+    let find_bool expected_id ids =
+      if String.Set.mem expected_id ids then
+        true, String.Set.remove expected_id ids
+      else
+        false, ids
+    in
     let open Warnings.Checks in
-    if String.Set.is_empty ids then
-      Some {
-        scope = Direct;
-        state = On { loc; strict = false; opt = false };
-      }
-    else begin
-      let find_bool expected_id ids =
-        if String.Set.mem expected_id ids then
-          true, String.Set.remove expected_id ids
-        else
-          false, ids
-      in
-      let scope, ids =
-        if String.Set.mem "all" ids then
-          All, String.Set.remove "all" ids
-        else if String.Set.mem "toplevel" ids then
-          Toplevel, String.Set.remove "toplevel" ids
-        else
-          Direct, ids
-      in
-      let is_current_scope_direct =
-        match scope with
-        | Direct -> true
-        | All -> false
-        | Toplevel -> false
-      in
-      if not (is_current_scope_direct = direct) then begin
-        (* this attribute is consumed in a different pass *)
-        None
-      end else begin
-        mark_used attr.attr_name;
-        let state, ids =
-          if String.Set.mem "off" ids then
-            State.Off, String.Set.remove "off" ids
-          else if String.Set.mem "assume" ids then begin
-            let ids = String.Set.remove "assume" ids in
-            let strict, ids = find_bool "strict" ids in
-            let never_returns_normally, ids = find_bool "never_returns_normally" ids in
-            State.Assume { loc; strict; never_returns_normally }, ids
-          end else begin
-            (* "on" is the default, but if it is present in ids explicitly, remove it. *)
-            let ids = String.Set.remove "on" ids in
-            let strict, ids = find_bool "strict" ids in
-            let opt, ids = find_bool "opt" ids in
-            State.On { loc; strict; opt; }, ids
-          end
-        in
-        if String.Set.is_empty ids then
-          Some { scope; state; }
-        else begin
-          let s = ids
-                  |> String.Set.to_seq
-                  |> List.of_seq
-                  |> List.cons "Unsupported in the current context:"
-                  |> String.concat " " in
-          warn_payload attr.attr_loc attr.attr_name.txt s;
-          None
+    let scope, ids =
+      if String.Set.mem "all" ids then
+        All, String.Set.remove "all" ids
+      else if String.Set.mem "toplevel" ids then
+        Toplevel, String.Set.remove "toplevel" ids
+      else
+        Direct, ids
+    in
+    let is_current_scope_direct = (scope = Direct) in
+    if not (is_current_scope_direct = direct) then begin
+      (* this attribute is consumed in a different pass *)
+      None
+    end else begin
+      mark_used attr.attr_name;
+      let state, ids =
+        if String.Set.mem "off" ids then
+          State.Off, String.Set.remove "off" ids
+        else if String.Set.mem "assume" ids then begin
+          let ids = String.Set.remove "assume" ids in
+          let strict, ids = find_bool "strict" ids in
+          let never_returns_normally, ids = find_bool "never_returns_normally" ids in
+          State.Assume { loc; strict; never_returns_normally }, ids
+        end else begin
+          (* "on" is the default, but if it is present in ids explicitly, remove it. *)
+          let ids = String.Set.remove "on" ids in
+          let strict, ids = find_bool "strict" ids in
+          let opt, ids = find_bool "opt" ids in
+          State.On { loc; strict; opt; }, ids
         end
+      in
+      if String.Set.is_empty ids then
+        Some { scope; state; }
+      else begin
+        let s = ids
+                |> String.Set.to_seq
+                |> List.of_seq
+                |> List.cons "Unsupported in the current context:"
+                |> String.concat " " in
+        warn_payload attr.attr_loc attr.attr_name.txt s;
+        None
       end
     end
 

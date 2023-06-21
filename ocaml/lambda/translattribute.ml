@@ -47,9 +47,6 @@ let is_poll_attribute =
 let is_loop_attribute =
   [ ["loop"; "ocaml.loop"], true ]
 
-let is_zero_alloc_attribute =
-  [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
-
 let find_attribute p attributes =
   let inline_attribute = Builtin_attributes.filter_attributes p attributes in
   let attr =
@@ -398,9 +395,13 @@ let add_check_attribute expr _floc attributes ~in_structure warnings =
       | None -> None
       | Some c -> Some (a,c)
     in
+    let is_zero_alloc : Parsetree.attribute -> bool = function
+      | {attr_name = {txt = ("ocaml.zero_alloc"|"zero_alloc"); _ }; _ } -> true
+      | _ -> false
+    in
     let check =
       attributes
-      |> Builtin_attributes.filter_attributes is_zero_alloc_attribute
+      |> List.filter is_zero_alloc
       |> List.filter_map f
       |> (function
         | [] -> check
