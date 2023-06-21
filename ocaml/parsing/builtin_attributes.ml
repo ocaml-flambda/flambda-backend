@@ -438,7 +438,7 @@ let process_check_attribute ~direct attr =
           let s = ids
                   |> String.Set.to_seq
                   |> List.of_seq
-                  |> List.cons "Invalid payload:"
+                  |> List.cons "Unsupported in the current context:"
                   |> String.concat " " in
           warn_payload attr.attr_loc attr.attr_name.txt s;
           None
