@@ -419,7 +419,7 @@ let process_check_attribute ~direct attr =
       let s = ids
               |> String.Set.to_seq
               |> List.of_seq
-              |> List.cons "Unsupported in the current context:"
+              |> List.cons "Uknown or unsupported in the current context:"
               |> String.concat " "
       in
       mark_used attr.attr_name;
@@ -433,10 +433,14 @@ let process_check_attribute ~direct attr =
         Some { scope; state; }
       | true, false ->
         mark_used attr.attr_name;
-        warn_payload attr.attr_loc attr.attr_name.txt "Not supported in this context";
+        warn_payload attr.attr_loc attr.attr_name.txt
+          "Current context does not support \"all\" and \"toplevel\" payload";
         None
       | false, true ->
         (* this attibute is consumed in a different pass.  *)
+        mark_used attr.attr_name;
+        warn_payload attr.attr_loc attr.attr_name.txt
+          "Current context requires \"all\" or \"toplevel\" payload";
         None
     end
 
