@@ -435,6 +435,9 @@ val nongen_class_declaration: class_declaration -> bool
 
 val free_variables: ?env:Env.t -> type_expr -> type_expr list
         (* If env present, then check for incomplete definitions too *)
+val free_variables_list: ?env:Env.t -> type_expr list -> type_expr list
+        (* Union of all free variables in a list of types.
+           If env present, then check for incomplete definitions too *)
 val closed_type_decl: type_declaration -> type_expr option
 val closed_extension_constructor: extension_constructor -> type_expr option
 val closed_class:

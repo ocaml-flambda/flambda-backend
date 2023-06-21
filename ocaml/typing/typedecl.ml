@@ -1592,9 +1592,7 @@ let transl_extension_constructor ~scope env type_path type_params
         end;
         (* Remove "_" names from parameters used in the constructor *)
         if not cdescr.cstr_generalized then begin
-          let vars =
-            Ctype.free_variables (Btype.newgenty (Ttuple (List.map fst args)))
-          in
+          let vars = Ctype.free_variables_list (List.map fst args) in
           List.iter
             (fun ty ->
               match get_desc ty with

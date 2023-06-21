@@ -589,10 +589,24 @@ let free_vars ?env ty =
   free_variables := [];
   really_closed := None;
   res
+  
+let free_vars_list ?env tyl =
+  free_variables := [];
+  really_closed := env;
+  List.iter (free_vars_rec true) tyl;
+  let res = !free_variables in
+  free_variables := [];
+  really_closed := None;
+  res
 
 let free_variables ?env ty =
   let tl = List.map fst (free_vars ?env ty) in
   unmark_type ty;
+  tl
+
+let free_variables_list ?env tyl =
+  let tl = List.map fst (free_vars_list ?env tyl) in
+  List.iter unmark_type tyl;
   tl
 
 let closed_type ty =
