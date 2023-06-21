@@ -570,10 +570,12 @@ let rec free_vars_iter f really_closed real ty =
     | Tobject (ty, _), _ ->
         free_vars_iter f really_closed false ty
     | Tfield (_, _, ty1, ty2), _ ->
-        free_vars_iter f really_closed true ty1; free_vars_iter f really_closed false ty2
+        free_vars_iter f really_closed true ty1;
+        free_vars_iter f really_closed false ty2
     | Tvariant row, _ ->
         iter_row (free_vars_iter f really_closed true) row;
-        if not (static_row row) then free_vars_iter f really_closed false (row_more row)
+        if not (static_row row) then
+          free_vars_iter f really_closed false (row_more row)
     | _    ->
         iter_type_expr (free_vars_iter f really_closed true) ty
 
