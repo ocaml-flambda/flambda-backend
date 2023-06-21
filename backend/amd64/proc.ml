@@ -130,6 +130,19 @@ let class_of reg =
   else if reg < 300 then 2 
   else Misc.fatal_errorf "Register of unknown class (%d)" reg 
 
+(* 
+  Sibling classes refer to the same set of physical registers.
+  The number of available registers must be the same in all sibling classes,
+  and their ID ranges must not overlap.
+  
+  Here, both class 1 and class 2 refer to the set of `xmm` registers,
+  but are represented by different ID ranges. Class 1 is reserved for 
+  floating point values and class 2 is reserved for 128-bit SIMD vectors.
+  This allows us to preserve sizing information based on the register IDs.
+
+  The register allocators use the following two functions to check whether
+  allocating a register in one range must also consume an ID in another class.
+*)
 let sibling_classes reg_class = 
   match reg_class with 
   | 0 -> [| 0 |]

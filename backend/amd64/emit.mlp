@@ -943,15 +943,15 @@ let emit_instr fallthrough i =
           I.xorpd (res i 0) (res i 0)
       | _ ->
           let lbl = add_float_constant f in
-          I.movsd (mem64_rip NONE (emit_label lbl)) (res i 0)
+          I.movsd (mem64_rip REAL8 (emit_label lbl)) (res i 0)
       end
   | Lop(Iconst_vec128 (v0, v1)) ->
       begin match (v0, v1) with
-      | 0x0000_0000_0000_0000L, 0x0000_0000_0000_0000L -> (* +0.0 *)
+      | 0x0000_0000_0000_0000L, 0x0000_0000_0000_0000L ->
           I.xorpd (res i 0) (res i 0)
       | _ ->
           let lbl = add_vec128_constant (v0, v1) in
-          I.movupd (mem64_rip NONE (emit_label lbl)) (res i 0)
+          I.movupd (mem64_rip VEC128 (emit_label lbl)) (res i 0)
       end
   | Lop(Iconst_symbol s) ->
       add_used_symbol s.sym_name;

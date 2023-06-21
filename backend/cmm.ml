@@ -31,10 +31,10 @@ let typ_vec128 = [|Vec128|]
 
 (** [machtype_component]s are partially ordered as follows:
 
-      Addr     Vec128
-       ^         ^
-       |         |
-      Val      Float
+      Addr     Float     Vec128  
+       ^         
+       |         
+      Val      
        ^
        |
       Int
@@ -58,11 +58,11 @@ let lub_component comp1 comp2 =
   | Addr, Addr -> Addr
   | Addr, Val -> Addr
   | Float, Float -> Float
-  | Float, Vec128 -> Vec128
-  | Vec128, Float -> Vec128
   | Vec128, Vec128 -> Vec128
   | (Int | Addr | Val), (Float | Vec128)
-  | (Float | Vec128), (Int | Addr | Val) ->
+  | (Float | Vec128), (Int | Addr | Val)
+  | Float, Vec128
+  | Vec128, Float ->
     (* Float unboxing code must be sure to avoid this case. *)
     assert false
 
@@ -78,11 +78,11 @@ let ge_component comp1 comp2 =
   | Addr, Addr -> true
   | Addr, Val -> true
   | Float, Float -> true
-  | Float, Vec128 -> false 
-  | Vec128, Float -> true 
   | Vec128, Vec128 -> true 
   | (Int | Addr | Val), (Float | Vec128)
-  | (Float | Vec128), (Int | Addr | Val) ->
+  | (Float | Vec128), (Int | Addr | Val)
+  | Float, Vec128 
+  | Vec128, Float ->
     assert false
 
 type exttype =
