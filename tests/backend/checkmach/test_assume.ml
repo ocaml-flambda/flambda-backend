@@ -1,4 +1,4 @@
-let[@zero_alloc strict assume][@inline never][@specialise never] test1 n = (n,n)
+let[@zero_alloc strict assume][@inline never][@specialise never][@local never] test1 n = (n,n)
 let[@zero_alloc strict] test2 n = test1 (n+1)
 let[@zero_alloc strict] test3 n = T5.test n
 let no_annotations x y = x * y

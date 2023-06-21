@@ -1,9 +1,9 @@
-let[@zero_alloc strict assume][@inline never][@specialise never] test x = [x;x+1]
+let[@zero_alloc strict assume][@local never][@inline never][@specialise never] test x = [x;x+1]
 (* The test below to make sure "noalloc" on external is still handled correctly. *)
 external external_test_noalloc : unit -> unit = "test" [@@noalloc]
 external external_test : unit -> unit = "test"
 
-let[@zero_alloc assume][@inline never][@specialise never] test4 x =
+let[@zero_alloc assume][@local never][@inline never][@specialise never] test4 x =
   if x > (-100)
   then x
   else raise (Failure ("don't be so negative, "^(string_of_int x)))

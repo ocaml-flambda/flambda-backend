@@ -179,11 +179,11 @@ let[@zero_alloc] test35 cond x =
     if Sys.opaque_identity cond then raise Exn
   done
 
-[@@@zero_alloc off]
+[@@@zero_alloc all off]
 
 let foo x y = (x,y)
 
-[@@@zero_alloc on]
+[@@@zero_alloc all on]
 
 let[@zero_alloc] test36 a i : int = a.(i)
 
