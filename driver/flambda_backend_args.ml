@@ -83,10 +83,6 @@ let mk_heap_reduction_threshold f =
     Flambda_backend_flags.default_heap_reduction_threshold
 ;;
 
-let mk_zero_alloc_check f =
-  "-zero-alloc-check", Arg.Unit f, " Check that annoted functions do not allocate \
-                                    and do not have indirect calls"
-
 let mk_dcheckmach f =
   "-dcheckmach", Arg.Unit f, " (undocumented)"
 
@@ -534,7 +530,6 @@ module type Flambda_backend_options = sig
   val dno_asm_comments : unit -> unit
 
   val heap_reduction_threshold : int -> unit
-  val zero_alloc_check : unit -> unit
   val dcheckmach : unit -> unit
   val checkmach_details_cutoff : int -> unit
 
@@ -630,7 +625,6 @@ struct
     mk_dno_asm_comments F.dno_asm_comments;
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
-    mk_zero_alloc_check F.zero_alloc_check;
     mk_dcheckmach F.dcheckmach;
     mk_checkmach_details_cutoff F.checkmach_details_cutoff;
 
@@ -765,7 +759,6 @@ module Flambda_backend_options_impl = struct
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
 
-  let zero_alloc_check = set' Clflags.zero_alloc_check
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
   let checkmach_details_cutoff n =
     Flambda_backend_flags.checkmach_details_cutoff := n
@@ -999,7 +992,6 @@ module Extra_params = struct
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
-    | "zero-alloc-check" -> set' Clflags.zero_alloc_check
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
     | "checkmach-details-cutoff" ->
       set_int' Flambda_backend_flags.checkmach_details_cutoff

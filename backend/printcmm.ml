@@ -378,13 +378,9 @@ let codegen_option = function
   | Reduce_code_size -> "reduce_code_size"
   | No_CSE -> "no_cse"
   | Use_linscan_regalloc -> "linscan"
-  | Ignore_assert_all property ->
-    Printf.sprintf "ignore %s" (property_to_string property)
-  | Check { property; strict; assume; loc = _ } ->
-    Printf.sprintf "%s %s%s"
-      (if assume then "assume" else "assert")
-      (property_to_string property)
-      (if strict then " strict" else "")
+  | Check Off -> ""
+  | Check s ->
+    Format.asprintf "%a" Warnings.Checks.State.print s
 
 let print_codegen_options ppf l =
   List.iter (fun c -> fprintf ppf " %s" (codegen_option c)) l

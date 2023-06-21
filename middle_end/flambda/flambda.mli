@@ -340,7 +340,7 @@ and function_declaration = private {
   (** Inlining requirements from the source code. *)
   specialise : Lambda.specialise_attribute;
   (** Specialising requirements from the source code. *)
-  check : Lambda.check_attribute;
+  check : Lambda.check_attribute_state;
   (** Check function properties requirements from the source code  *)
   is_a_functor : bool;
   (** Whether the function is known definitively to be a functor. *)
@@ -576,7 +576,7 @@ val create_function_declaration
   -> return_layout:Lambda.layout
   -> inline:Lambda.inline_attribute
   -> specialise:Lambda.specialise_attribute
-  -> check:Lambda.check_attribute
+  -> check:Lambda.check_attribute_state
   -> is_a_functor:bool
   -> closure_origin:Closure_origin.t
   -> poll:Lambda.poll_attribute

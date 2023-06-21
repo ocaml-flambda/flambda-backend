@@ -332,28 +332,17 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-type property =
-  | Zero_alloc
-
 type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type check_attribute =
-  | Default_check
-  | Ignore_assert_all of property
-  | Check of { property: property;
-               strict: bool;
-               (* [strict=true] property holds on all paths.
-                  [strict=false] if the function returns normally,
-                  then the property holds (but property violations on
-                  exceptional returns or divering loops are ignored).
-                  This definition may not be applicable to new properties. *)
-               assume: bool;
-               (* [assume=true] assume without checking that the
-                  property holds *)
-               loc: Location.t;
-             }
+type check_attribute_state = Warnings.Checks.State.t
+
+type check_attribute = {
+    annotated : Warnings.Checks.t;
+    active : bool;
+    active_opt : bool;
+  }
 
 type loop_attribute =
   | Always_loop (* [@loop] or [@loop always] *)
@@ -631,6 +620,8 @@ val swap_float_comparison : float_comparison -> float_comparison
 
 val default_function_attribute : function_attribute
 val default_stub_attribute : function_attribute
+val default_check_attribute : check_attribute
+val get_check_attribute_state : function_attribute -> check_attribute_state
 
 val find_exact_application :
   function_kind -> arity:int -> lambda list -> lambda list option

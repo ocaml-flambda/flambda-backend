@@ -1,9 +1,9 @@
 (* Check that entry function and functors are ignored with  [@@@zero_alloc all] *)
 [@@@zero_alloc all]
 
-let[@zero_alloc ignore] foo x = (x,x)
+let[@zero_alloc off] foo x = (x,x)
 
-let[@inline never][@zero_alloc ignore] print x =
+let[@inline never][@zero_alloc off] print x =
   print_int (fst x)
 
 let () =

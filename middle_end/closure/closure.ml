@@ -1486,8 +1486,8 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
          (function
            | (id, Lfunction{kind; params; return; body; attr;
                             loc; mode; region}) ->
-               Simplif.split_default_wrapper ~id ~kind ~params ~mode ~region
-                 ~body ~attr ~loc ~return
+             Simplif.split_default_wrapper ~id ~kind ~params ~mode ~region
+               ~body ~attr ~loc ~return
            | _ -> assert false
          )
          fun_defs)
@@ -1513,7 +1513,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
       (function
           (id, Lfunction(
               {kind; params; return; body; attr; loc; mode; region})) ->
-            let attrib = attr.check in
+            let attrib = Lambda.get_check_attribute_state attr in
             let label =
               Symbol_utils.for_fun_ident ~compilation_unit:None loc id
               |> Symbol.linkage_name

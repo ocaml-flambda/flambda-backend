@@ -80,7 +80,7 @@ and function_body = {
   dbg : Debuginfo.t;
   inline : Lambda.inline_attribute;
   specialise : Lambda.specialise_attribute;
-  check : Lambda.check_attribute;
+  check : Lambda.check_attribute_state;
   is_a_functor : bool;
   body : Flambda.t;
   poll: Lambda.poll_attribute;

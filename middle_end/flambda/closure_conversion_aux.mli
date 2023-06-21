@@ -77,7 +77,7 @@ module Function_decls : sig
     val body : t -> Lambda.lambda
     val inline : t -> Lambda.inline_attribute
     val specialise : t -> Lambda.specialise_attribute
-    val check : t -> Lambda.check_attribute
+    val check : t -> Lambda.check_attribute_state
     val is_a_functor : t -> bool
     val stub : t -> bool
     val loc : t -> Lambda.scoped_location

@@ -592,19 +592,12 @@ let name_of_primitive = function
   | Parray_of_iarray -> "Parray_of_iarray"
   | Parray_to_iarray -> "Parray_to_iarray"
 
-let check_attribute ppf check =
-  let check_property = function
-    | Zero_alloc -> "zero_alloc"
-  in
-  match check with
-  | Default_check -> ()
-  | Ignore_assert_all p ->
-    fprintf ppf "ignore assert all %s@ " (check_property p)
-  | Check {property=p; assume; strict; loc = _} ->
-    fprintf ppf "%s %s%s@ "
-      (if assume then "assume" else "assert")
-      (check_property p)
-      (if strict then " strict" else "")
+let check_attribute ppf c =
+  Warnings.Checks.print ppf c.annotated;
+  if c.active then
+    Format.fprintf ppf "active";
+  if c.active_opt then
+    Format.fprintf ppf "active_opt"
 
 let function_attribute ppf t =
   if t.is_a_functor then

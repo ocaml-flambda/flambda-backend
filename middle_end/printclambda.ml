@@ -101,7 +101,8 @@ and one_fun ppf f =
     iter f.params f.arity.params_layout
   in
   fprintf ppf "(fun@ %s%s%a@ %d@ @[<2>%t@]@ @[<2>%a@])"
-    f.label (layout f.arity.return_layout) Printlambda.check_attribute f.check
+    f.label (layout f.arity.return_layout)
+    Warnings.Checks.State.print f.check
     (List.length f.arity.params_layout) idents lam f.body
 
 and phantom_defining_expr ppf = function

@@ -10,23 +10,13 @@
 (*                                                                        *)
 (**************************************************************************)
 (** Annotations on function declaration (not call sites) *)
-module Property : sig
-  type t = Zero_alloc
-end
-
-type t =
-  | Default_check
-  | Ignore_assert_all of Property.t
-  | Check of
-      { property : Property.t;
-        strict : bool;
-        assume : bool;
-        loc : Location.t
-      }
+type t = Warnings.Checks.State.t
 
 val print : Format.formatter -> t -> unit
 
 val equal : t -> t -> bool
+
+val default : t
 
 val is_default : t -> bool
 

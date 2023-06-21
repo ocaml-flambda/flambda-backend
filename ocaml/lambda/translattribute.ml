@@ -38,9 +38,6 @@ let is_local_attribute =
 let is_tailcall_attribute =
   [ ["tailcall"; "ocaml.tailcall"], true ]
 
-let is_property_attribute = function
-  | Zero_alloc -> [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
-
 let is_tmc_attribute =
   [ ["tail_mod_cons"; "ocaml.tail_mod_cons"], true ]
 
@@ -49,6 +46,9 @@ let is_poll_attribute =
 
 let is_loop_attribute =
   [ ["loop"; "ocaml.loop"], true ]
+
+let is_zero_alloc_attribute =
+  [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
 
 let find_attribute p attributes =
   let inline_attribute = Builtin_attributes.filter_attributes p attributes in
@@ -109,44 +109,6 @@ let get_bool_from_exp exp =
       | "true" -> Result.Ok true
       | "false" -> Result.Ok false
       | _ -> Result.Error ())
-
-let get_ids_from_exp exp =
-  let open Parsetree in
-  (match exp with
-   | { pexp_desc = Pexp_apply (exp, args) } ->
-     get_id_from_exp exp ::
-     List.map (function
-       | (Asttypes.Nolabel, arg) -> get_id_from_exp arg
-       | (_, _) -> Result.Error ())
-       args
-   | _ -> [get_id_from_exp exp])
-  |> List.fold_left (fun acc r ->
-    match acc, r with
-    | Result.Ok ids, Ok id -> Result.Ok (id::ids)
-    | (Result.Error _ | Ok _), _ -> Result.Error ())
-    (Ok [])
-  |> Result.map List.rev
-
-
-let parse_ids_payload txt loc ~default ~empty cases payload =
-  let[@local] warn () =
-    let ( %> ) f g x = g (f x) in
-    let msg =
-      cases
-      |> List.map (fst %> String.concat " " %> Printf.sprintf "'%s'")
-      |> String.concat ", "
-      |> Printf.sprintf "It must be either %s or empty"
-    in
-    Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
-    default
-  in
-  match get_optional_payload get_ids_from_exp payload with
-  | Error () -> warn ()
-  | Ok None -> empty
-  | Ok (Some ids) ->
-      match List.assoc_opt (List.sort String.compare ids) cases with
-      | Some r -> r
-      | None -> warn ()
 
 let parse_id_payload txt loc ~default ~empty cases payload =
   let[@local] warn () =
@@ -245,21 +207,6 @@ let parse_local_attribute attr =
         ]
         payload
 
-let parse_property_attribute attr property =
-  match attr with
-  | None -> Default_check
-  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload}->
-      parse_ids_payload txt loc
-        ~default:Default_check
-        ~empty:(Check { property; strict = false; assume = false; loc; } )
-        [
-          ["assume"], Check { property; strict = false; assume = true; loc; };
-          ["strict"], Check { property; strict = true; assume = false; loc; };
-          ["assume"; "strict"], Check { property; strict = true; assume = true; loc; };
-          ["ignore"], Ignore_assert_all property
-        ]
-        payload
-
 let parse_poll_attribute attr =
   match attr with
   | None -> Default_poll
@@ -296,45 +243,6 @@ let get_specialise_attribute l =
 let get_local_attribute l =
   let attr = find_attribute is_local_attribute l in
   parse_local_attribute attr
-
-let get_property_attribute l p ~fun_attr =
-  let attr = find_attribute (is_property_attribute p) l in
-  let res = parse_property_attribute attr p in
-  (match attr, res with
-   | None, Default_check -> ()
-   | _, Default_check -> ()
-   | None, (Check _ | Ignore_assert_all _ ) -> assert false
-   | Some _, Ignore_assert_all _ -> ()
-   | Some attr, Check { assume; _ } ->
-     if !Clflags.zero_alloc_check && !Clflags.native_code then
-       (* The warning for unchecked functions will not trigger if the check is requested
-          through the [@@@zero_alloc all] top-level annotation rather than through the
-          function annotation [@zero_alloc]. *)
-       if assume then begin
-         (* [attr.inline] and [attr.specialise] must be set before the
-            check for [Warnings.Misplaced_assume_attribute].
-            For attributes from the same list, it's fine because
-            [add_check_attribute] is called after
-            [add_inline_attribute] and [add_specialise_attribute].
-            The warning will spuriously fire in the following case:
-            let[@inline never][@specialise never] f =
-              fun[@zero_alloc assume] x -> ..
-         *)
-         let never_specialise =
-           if Config.flambda then
-              fun_attr.specialise = Never_specialise
-           else
-              (* closure drops [@specialise never] and never specialises *)
-              (* flambda2 does not have specialisation support yet *)
-              true
-         in
-         if not ((fun_attr.inline = Never_inline) && never_specialise) then
-          Location.prerr_warning attr.attr_name.loc
-            (Warnings.Misplaced_assume_attribute attr.attr_name.txt)
-       end
-       else
-         Builtin_attributes.register_property attr.attr_name);
-   res
 
 let get_poll_attribute l =
   let attr = find_attribute is_poll_attribute l in
@@ -430,36 +338,79 @@ let add_local_attribute expr loc attributes =
     end
   | _ -> expr
 
-let add_check_attribute expr loc attributes =
-  let to_string = function
-    | Zero_alloc -> "zero_alloc"
-  in
-  let to_string = function
-    | Check { property; strict; assume; loc = _} ->
-      Printf.sprintf "%s %s%s"
-        (if assume then "assume" else "assert")
-        (to_string property)
-        (if strict then " strict" else "")
-    | Ignore_assert_all property ->
-      Printf.sprintf "ignore %s" (to_string property)
-    | Default_check -> assert false
+let add_check_attribute expr _floc attributes ~in_structure warnings =
+  (* Expected transitions are: (All).(All|Toplevel).(Direct)?
+     where Direct is optional. *)
+  (* For each function, this is expected to be first called once with
+     [warnings=(Some warnings), in_structure=None]
+     and then at least once with
+     [warnings=None, in_structure=Some b].
+     If called more than once with [in_structure=Some b] for a given function,
+     then [b] must be the same on all calls and [attributes] may include
+     at most "direct" annotation. *)
+  let update check (new_check : Warnings.Checks.t)
+        (attr : Parsetree.attribute) =
+    assert (Warnings.Checks.Direct = new_check.scope);
+    if not (Warnings.Checks.Direct = check.annotated.scope) then
+      { check with annotated = new_check }
+    else (
+      (* This case is possible when both the function and the [let]
+         are annotated, for example:
+         let[@zero_alloc] f x = fun[@zero_alloc] y -> (x,y) *)
+      let warn =
+        match check.annotated.state, new_check.state with
+        | Off, Off -> false
+        | On { strict=s; opt=o; },
+          On { strict=s'; opt=o'; }
+        | Assume { strict=s; never_returns_normally=o },
+          Assume { strict=s'; never_returns_normally=o'; } ->
+          not (s = s' && o = o')
+        | (Off | On _ | Assume _), _ -> true
+      in
+      if warn then (
+        let { txt; loc } = attr.attr_name in
+        Location.prerr_warning loc (Warnings.Duplicated_attribute txt));
+      check)
   in
   match expr with
-  | Lfunction({ attr = { stub = false } as attr; } as funct) ->
-    begin match get_property_attribute attributes Zero_alloc ~fun_attr:attr with
-    | Default_check -> expr
-    | (Ignore_assert_all p | Check { property = p; _ }) as check ->
-      begin match attr.check with
-      | Default_check -> ()
-      | Ignore_assert_all p'
-      | Check { property = p'; strict = _; assume = _; loc = _; } ->
-        if p = p' then
-          Location.prerr_warning loc
-            (Warnings.Duplicated_attribute (to_string check));
-      end;
-      let attr = { attr with check } in
-      lfunction_with_attr ~attr funct
-    end
+  | Lfunction({ attr = { stub = false; check; } as attr; _ } as funct) ->
+    let check =
+      match warnings, in_structure with
+      | Some warnings, None ->
+        let new_check = Warnings.get_checks warnings in
+        assert (Warnings.Checks.All =  check.annotated.scope);
+        assert (not (Warnings.Checks.Direct = new_check.scope));
+        { annotated = new_check;
+          active =
+            Warnings.is_active_in_state (Warnings.Check_failed ("",[])) warnings;
+          active_opt =
+            Warnings.is_active_in_state (Warnings.Check_failed_opt ("",[])) warnings;
+        }
+      | None, Some in_structure ->
+        if (not in_structure) && Warnings.Checks.Toplevel = check.annotated.scope then
+          { check with annotated = Warnings.Checks.default }
+        else
+          check
+      | None, None | Some _, Some _ -> assert false
+    in
+    let f a =
+      match Builtin_attributes.process_check_attribute ~direct:true a with
+      | None -> None
+      | Some c -> Some (a,c)
+    in
+    let check =
+      attributes
+      |> Builtin_attributes.filter_attributes is_zero_alloc_attribute
+      |> List.filter_map f
+      |> (function
+        | [] -> check
+        | [attr, c] -> update check c attr
+        | (attr, c) :: ({Parsetree.attr_name = {txt;loc}; _}, _) :: _ ->
+          Location.prerr_warning loc (Warnings.Duplicated_attribute txt);
+          update check c attr)
+    in
+    let attr = { attr with check } in
+    lfunction_with_attr ~attr funct
   | expr -> expr
 
 let add_loop_attribute expr loc attributes =
@@ -554,7 +505,7 @@ let get_tailcall_attribute e =
         Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
         Default_tailcall
 
-let add_function_attributes lam loc attr =
+let add_function_attributes lam loc attr ~in_structure warnings =
   let lam =
     add_inline_attribute lam loc attr
   in
@@ -565,7 +516,7 @@ let add_function_attributes lam loc attr =
     add_local_attribute lam loc attr
   in
   let lam =
-    add_check_attribute lam loc attr
+    add_check_attribute lam loc attr ~in_structure warnings
   in
   let lam =
     add_loop_attribute lam loc attr

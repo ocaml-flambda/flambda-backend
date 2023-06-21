@@ -63,4 +63,7 @@ val add_function_attributes
   : Lambda.lambda
   -> Location.t
   -> Parsetree.attributes
+  -> in_structure:bool option
+  -> Warnings.state option
   -> Lambda.lambda
+

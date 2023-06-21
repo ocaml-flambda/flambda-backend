@@ -552,7 +552,7 @@ module Make (T : S) = struct
         ~stub:true
         ~inline:Default_inline
         ~specialise:Default_specialise
-        ~check:Default_check
+        ~check:Warnings.Checks.State.default
         ~is_a_functor:false
         ~closure_origin:function_decl.closure_origin
         ~poll:Default_poll (* don't propagate attribute to wrappers *)

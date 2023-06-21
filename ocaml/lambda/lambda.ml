@@ -445,21 +445,17 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-type property =
-  | Zero_alloc
-
 type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type check_attribute =
-  | Default_check
-  | Ignore_assert_all of property
-  | Check of { property: property;
-               strict: bool;
-               assume: bool;
-               loc: Location.t;
-             }
+type check_attribute_state = Warnings.Checks.State.t
+
+type check_attribute = {
+  annotated : Warnings.Checks.t;
+  active : bool;
+  active_opt : bool;
+}
 
 type loop_attribute =
   | Always_loop (* [@loop] or [@loop always] *)
@@ -649,11 +645,17 @@ let layout_letrec = layout_any_value
 let layout_top = layout_any_value
 let layout_bottom = Pbottom
 
+let default_check_attribute = {
+  annotated = Warnings.Checks.default;
+  active = false;
+  active_opt = false;
+}
+
 let default_function_attribute = {
   inline = Default_inline;
   specialise = Default_specialise;
   local = Default_local;
-  check = Default_check ;
+  check = default_check_attribute;
   poll = Default_poll;
   loop = Default_loop;
   is_a_functor = false;
@@ -662,7 +664,7 @@ let default_function_attribute = {
 }
 
 let default_stub_attribute =
-  { default_function_attribute with stub = true; check = Ignore_assert_all Zero_alloc }
+  { default_function_attribute with stub = true; }
 
 (* Build sharing keys *)
 (*
@@ -1553,3 +1555,37 @@ let array_set_kind mode = function
   | Paddrarray -> Paddrarray_set mode
   | Pintarray -> Pintarray_set
   | Pfloatarray -> Pfloatarray_set
+
+let misplaced_assume_warning fun_attr =
+  match fun_attr.check.annotated.state with
+  | On _ | Off -> ()
+  | Assume { loc; _ } ->
+    let never_specialise =
+      if Config.flambda then
+        fun_attr.specialise = Never_specialise
+      else
+        (* closure drops [@specialise never] and never specialises *)
+        (* flambda2 does not have specialisation support yet *)
+        true
+    in
+    if not ((fun_attr.inline = Never_inline) &&
+            never_specialise &&
+            (fun_attr.local = Never_local))
+    then
+      Location.prerr_warning loc
+        (Warnings.Misplaced_assume_attribute "zero_alloc")
+
+let get_check_attribute_state fun_attr : Warnings.Checks.State.t =
+  misplaced_assume_warning fun_attr;
+  let { annotated; active; active_opt } = fun_attr.check in
+  match annotated.state with
+  | (Off | Assume _) as s -> s
+  | (On { opt; _ }) as s ->
+    if opt then begin
+      if active_opt then s
+      else Off
+    end else begin
+      if active then s
+      else Off
+    end
+

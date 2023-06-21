@@ -179,6 +179,12 @@ let[@zero_alloc] test35 cond x =
     if Sys.opaque_identity cond then raise Exn
   done
 
+[@@@zero_alloc off]
+
+let foo x y = (x,y)
+
+[@@@zero_alloc on]
+
 let[@zero_alloc] test36 a i : int = a.(i)
 
 
@@ -234,3 +240,5 @@ module Params = struct
   let[@zero_alloc] test13 () =
     test12 ~d:42 ()
 end
+
+let[@ocaml.warning "-197"][@zero_alloc] bar x = [x;x+1]

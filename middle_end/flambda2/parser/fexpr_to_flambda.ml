@@ -884,7 +884,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~newer_version_of ~params_arity ~num_trailing_local_params:0
             ~result_arity ~result_types:Unknown
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
-            ~check:Default_check
+            ~check:Check_attribute.default
               (* CR gyorsh: should [check] be set properly? *)
             ~is_a_functor:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)

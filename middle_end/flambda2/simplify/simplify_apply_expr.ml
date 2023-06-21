@@ -572,7 +572,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           ~params_arity:(Bound_parameters.arity remaining_params)
           ~num_trailing_local_params ~result_arity ~result_types:Unknown
           ~contains_no_escaping_local_allocs ~stub:true ~inline:Default_inline
-          ~poll_attribute:Default ~check:Check_attribute.Default_check
+          ~poll_attribute:Default ~check:Check_attribute.default
           ~is_a_functor:false ~recursive ~cost_metrics:cost_metrics_of_body
           ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
           ~dbg ~is_tupled:false

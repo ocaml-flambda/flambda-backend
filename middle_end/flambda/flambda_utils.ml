@@ -367,7 +367,8 @@ let make_closure_declaration
       ~params:(List.map subst_param params) ~alloc_mode  ~region
       ~return_layout
       ~body ~stub:true ~inline:Default_inline
-      ~specialise:Default_specialise ~check:Default_check ~is_a_functor:false
+      ~specialise:Default_specialise ~check:Warnings.Checks.State.default
+      ~is_a_functor:false
       ~closure_origin:(Closure_origin.create (Closure_id.wrap id))
       ~poll:Default_poll
   in

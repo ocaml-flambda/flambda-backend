@@ -108,7 +108,7 @@ and ufunction = {
   env    : Backend_var.t option;
   poll   : poll_attribute;
   mode   : Lambda.alloc_mode;
-  check  : Lambda.check_attribute;
+  check  : Lambda.check_attribute_state;
 }
 
 and ulambda_switch =

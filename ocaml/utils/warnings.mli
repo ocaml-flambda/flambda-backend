@@ -26,6 +26,8 @@ type loc = {
   loc_ghost: bool;
 }
 
+type sub_locs = (loc * string) list
+
 type field_usage_warning =
   | Unused
   | Not_read
@@ -111,6 +113,8 @@ type t =
   | Tmc_breaks_tailcall                     (* 72 *)
 (* Flambda_backend specific warnings: numbers should go down from 199 *)
   | Probe_name_too_long of string           (* 190 *)
+  | Check_failed_opt of string * sub_locs   (* 196 *)
+  | Check_failed of string * sub_locs       (* 197 *)
   | Misplaced_assume_attribute of string    (* 198 *)
   | Unchecked_property_attribute of string  (* 199 *)
 ;;
@@ -138,7 +142,7 @@ type reporting_information =
   { id : string
   ; message : string
   ; is_error : bool
-  ; sub_locs : (loc * string) list;
+  ; sub_locs : sub_locs;
   }
 
 val report : t -> [ `Active of reporting_information | `Inactive ]
@@ -159,9 +163,55 @@ val mk_lazy: (unit -> 'a) -> 'a Lazy.t
     (** Like [Lazy.of_fun], but the function is applied with
         the warning/alert settings at the time [mk_lazy] is called. *)
 
+val is_active_in_state : t -> state -> bool
+
+module Checks : sig
+
+  type scope =
+    | All  (** all functions *)
+    | Toplevel  (** all top-level functions of each module *)
+    | Direct (** current function only *)
+
+  (** [strict=true] property holds on all paths.
+
+      [strict=false] if the function returns normally,
+      then the property holds (but property violations on
+      exceptional returns or divering loops are ignored).
+      This definition may not be applicable to new properties.
+
+      [opt=false] the property will be checked when either
+      Check_fail or Check_fail_opt warning is enabled.
+
+      [opt=true] the property will be checked only when
+      Check_fail_opt warning are enabled.
+
+      [never_returns_normally=true] assume that the function
+      never returns normally at all, instead of assuming that it
+      is safe on all paths to normal return.
+  *)
+  module State : sig
+    type t =
+      | On of { loc:loc; strict:bool; opt:bool }
+      | Assume of { loc:loc; strict:bool; never_returns_normally:bool }
+      | Off
+    val print : Format.formatter -> t -> unit
+    val equal : t -> t -> bool
+    val default : t
+  end
+
+  type t = { state:State.t; scope:scope; }
+
+  val default : t
+  val print : Format.formatter -> t -> unit
+end
+val set_checks : Checks.t -> unit
+val get_checks : state -> Checks.t
+
 type description =
   { number : int;
     names : string list;
     description : string; }
 
 val descriptions : description list
+
+val print : state -> unit

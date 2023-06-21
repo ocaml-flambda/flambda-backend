@@ -349,7 +349,104 @@ let alerts_of_str str = alerts_of_attrs (attrs_of_str str)
 let warn_payload loc txt msg =
   Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg))
 
-let warning_attribute ?(ppwarning = true) =
+let process_check_attribute ~direct attr =
+  let loc = attr.attr_name.loc in
+  let open Parsetree in
+  let module String = Misc.Stdlib.String in
+  let get_id_from_exp =
+    function
+    | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Some id
+    | _ -> None
+  in
+  let get_ids_from_exp exp =
+    (match exp with
+     | { pexp_desc = Pexp_apply (exp, args) } ->
+       get_id_from_exp exp ::
+       List.map (function
+         | (Asttypes.Nolabel, arg) -> get_id_from_exp arg
+         | (_, _) -> None)
+         args
+     | _ -> [get_id_from_exp exp])
+    |> List.fold_left (fun acc r ->
+      match acc, r with
+      | Some ids, Some id -> Some (String.Set.add id ids)
+      | None, _ | _, None -> None)
+      (Some String.Set.empty)
+  in
+  let get_ids_from_payload =
+    function
+    | PStr [] -> Some String.Set.empty
+    | PStr [{pstr_desc = Pstr_eval (exp, [])}] -> get_ids_from_exp exp
+    | _ -> None
+  in
+  match get_ids_from_payload attr.attr_payload with
+  | None ->
+    warn_payload attr.attr_loc attr.attr_name.txt "Invalid payload";
+    None
+  | Some ids ->
+    let open Warnings.Checks in
+    if String.Set.is_empty ids then
+      Some {
+        scope = Direct;
+        state = On { loc; strict = false; opt = false };
+      }
+    else begin
+      let find_bool expected_id ids =
+        if String.Set.mem expected_id ids then
+          true, String.Set.remove expected_id ids
+        else
+          false, ids
+      in
+      let scope, ids =
+        if String.Set.mem "all" ids then
+          All, String.Set.remove "all" ids
+        else if String.Set.mem "toplevel" ids then
+          Toplevel, String.Set.remove "toplevel" ids
+        else
+          Direct, ids
+      in
+      let is_current_scope_direct =
+        match scope with
+        | Direct -> true
+        | All -> false
+        | Toplevel -> false
+      in
+      if not (is_current_scope_direct = direct) then begin
+        (* this attribute is consumed in a different pass *)
+        None
+      end else begin
+        mark_used attr.attr_name;
+        let state, ids =
+          if String.Set.mem "off" ids then
+            State.Off, String.Set.remove "off" ids
+          else if String.Set.mem "assume" ids then begin
+            let ids = String.Set.remove "assume" ids in
+            let strict, ids = find_bool "strict" ids in
+            let never_returns_normally, ids = find_bool "never_returns_normally" ids in
+            State.Assume { loc; strict; never_returns_normally }, ids
+          end else begin
+            (* "on" is the default, but if it is present in ids explicitly, remove it. *)
+            let ids = String.Set.remove "on" ids in
+            let strict, ids = find_bool "strict" ids in
+            let opt, ids = find_bool "opt" ids in
+            State.On { loc; strict; opt; }, ids
+          end
+        in
+        if String.Set.is_empty ids then
+          Some { scope; state; }
+        else begin
+          let s = ids
+                  |> String.Set.to_seq
+                  |> List.of_seq
+                  |> List.cons "Invalid payload:"
+                  |> String.concat " " in
+          warn_payload attr.attr_loc attr.attr_name.txt s;
+          None
+        end
+      end
+    end
+
+let warning_attribute ?(structure_item = false) ?(ppwarning = true) =
   let process loc name errflag payload =
     mark_used name;
     match string_of_payload payload with
@@ -406,6 +503,16 @@ let warning_attribute ?(ppwarning = true) =
      } ->
       (mark_used name;
        process_alert attr_loc name.txt attr_payload)
+  | {attr_name = {txt = ("ocaml.zero_alloc"|"zero_alloc"); _ }; _ } as attr ->
+    if structure_item then (
+      (* Currently, only [@@@zero_alloc all ..] or [@@@zero_alloc toplevel ..]
+         are supported. Other uses of "all" and "toplevel" payload
+         will result in an unused attribute warning.
+         It may be useful to have [@zero_alloc all assume] at function scope or
+         or for subexpressions when "assume" works with inlining. *)
+      match process_check_attribute ~direct:false attr with
+      | None -> ()
+      | Some c -> Warnings.set_checks c)
   | _ ->
      ()
 
@@ -508,14 +615,6 @@ let parse_int_payload attr =
       "A constant payload of type int was expected";
     None
 
-let parse_ident_payload attr =
-  match ident_of_payload attr.attr_payload with
-  | Some i -> Some i
-  | None ->
-    warn_payload attr.attr_loc attr.attr_name.txt
-      "A constant payload of type ident was expected";
-    None
-
 let clflags_attribute_without_payload attr ~name clflags_ref =
   when_attribute_is [name; "ocaml." ^ name] attr ~f:(fun () ->
     match parse_empty_payload attr with
@@ -571,22 +670,6 @@ let inline_attribute attr =
         Clflags.Float_arg_helper.parse s err_msg Clflags.inline_threshold
       | None -> warn_payload attr.attr_loc attr.attr_name.txt err_msg)
 
-let parse_attribute_with_ident_payload attr ~name ~f =
-  when_attribute_is [name; "ocaml." ^ name] attr ~f:(fun () ->
-    match parse_ident_payload attr with
-    | Some i -> f i
-    | None -> ())
-
-let zero_alloc_attribute (attr : Parsetree.attribute)  =
-  parse_attribute_with_ident_payload attr
-    ~name:"zero_alloc" ~f:(function
-      | "check" -> Clflags.zero_alloc_check := true
-      | "all" ->
-        Clflags.zero_alloc_check_assert_all := true
-      | _ ->
-        warn_payload attr.attr_loc attr.attr_name.txt
-          "Only 'check' and 'all' are supported")
-
 let afl_inst_ratio_attribute attr =
   clflags_attribute_with_int_payload attr
     ~name:"afl_inst_ratio" Clflags.afl_inst_ratio
@@ -598,15 +681,14 @@ let parse_standard_interface_attributes attr =
   nolabels_attribute attr
 
 let parse_standard_implementation_attributes attr =
-  warning_attribute attr;
+  warning_attribute ~structure_item:true attr;
   principal_attribute attr;
   noprincipal_attribute attr;
   nolabels_attribute attr;
   inline_attribute attr;
   afl_inst_ratio_attribute attr;
   flambda_o3_attribute attr;
-  flambda_oclassic_attribute attr;
-  zero_alloc_attribute attr
+  flambda_oclassic_attribute attr
 
 let has_local_opt attrs =
   has_attribute ["ocaml.local_opt"; "local_opt"] attrs

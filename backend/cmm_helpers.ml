@@ -4361,14 +4361,8 @@ let cmm_arith_size (e : Cmm.expression) =
   | Ctail _ ->
     None
 
-let transl_property : Lambda.property -> Cmm.property = function
-  | Zero_alloc -> Zero_alloc
-
-let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
-  | Default_check -> []
-  | Ignore_assert_all p -> [Ignore_assert_all (transl_property p)]
-  | Check { property; strict; assume; loc } ->
-    [Check { property = transl_property property; strict; assume; loc }]
+let transl_attrib (a : Lambda.check_attribute_state) : Cmm.codegen_option list =
+  [Check a]
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with

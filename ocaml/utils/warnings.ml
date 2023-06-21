@@ -24,6 +24,8 @@ type loc = {
   loc_ghost: bool;
 }
 
+type sub_locs = (loc * string) list
+
 type field_usage_warning =
   | Unused
   | Not_read
@@ -108,6 +110,8 @@ type t =
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
   | Probe_name_too_long of string           (* 190 *)
+  | Check_failed_opt of string * sub_locs   (* 196 *)
+  | Check_failed of string * sub_locs       (* 197 *)
   | Misplaced_assume_attribute of string    (* 198 *)
   | Unchecked_property_attribute of string  (* 199 *)
 ;;
@@ -193,6 +197,8 @@ let number = function
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
   | Probe_name_too_long _ -> 190
+  | Check_failed_opt _ -> 196
+  | Check_failed _ -> 197
   | Misplaced_assume_attribute _  -> 198
   | Unchecked_property_attribute _ -> 199
 ;;
@@ -455,6 +461,13 @@ let descriptions = [
   { number = 190;
     names = ["probe-name-too-long"];
     description = "Probe name must be at most 100 characters long." };
+  { number = 196;
+    names = ["check-failed-opt"];
+    description = "Static check cannot show that the property holds on this function \
+                   in optimized builds." };
+  { number = 197;
+    names = ["check-failed"];
+    description = "Static check cannot show that the property holds on this function." };
   { number = 198;
     names = ["misplaced-assume-attribute"];
     description = "Assume of a property is ignored \
@@ -508,12 +521,76 @@ let letter = function
   | _ -> assert false
 ;;
 
+module Checks = struct
+
+  module State = struct
+    type t =
+      | On of { loc:loc; strict:bool; opt:bool }
+      | Assume of { loc:loc; strict:bool; never_returns_normally:bool }
+      | Off
+
+    let print_bool name ppf b =
+      if b then Format.fprintf ppf " %s" name
+
+    let print_strict ppf b = print_bool "strict" ppf b
+
+    let print ppf = function
+      | Off ->
+        Format.fprintf ppf "off"
+      | On { strict; opt; loc = _; } ->
+        Format.fprintf ppf "on%a%a" print_strict strict (print_bool "opt") opt
+      | Assume { strict; never_returns_normally=n; loc = _;  } ->
+        Format.fprintf ppf "assume%a%a" print_strict strict
+          (print_bool "never_returns_normally") n
+
+    let equal x y = x = y
+
+    let default = Off
+  end
+
+  type scope =
+    | All  (** all functions *)
+    | Toplevel  (** all top-level functions of each module *)
+    | Direct (** current function only *)
+
+  (** [strict=true] property holds on all paths.
+
+      [strict=false] if the function returns normally,
+      then the property holds (but property violations on
+      exceptional returns or divering loops are ignored).
+      This definition may not be applicable to new properties.
+
+      [opt=false] the property will be checked when either
+      Check_fail or Check_fail_opt warning is enabled.
+
+      [opt=true] the property will be checked only when
+      Check_fail_opt warning are enabled.
+
+      [never_returns_normally=true] assume that the function
+      never returns normally at all, instead of assuming that it
+      is safe on all paths to normal return.
+  *)
+  type t = { state:State.t; scope:scope; }
+
+  let default = { state = State.default; scope = All; }
+
+  let scope_to_string = function
+    | All -> "all"
+    | Toplevel -> "toplevel"
+    | Direct -> ""
+
+  let print ppf { state; scope; } =
+    Format.fprintf ppf "zero_alloc %s %a@ "
+      (scope_to_string scope) State.print state
+end
+
 type state =
   {
     active: bool array;
     error: bool array;
     alerts: (Misc.Stdlib.String.Set.t * bool); (* false:set complement *)
     alert_errors: (Misc.Stdlib.String.Set.t * bool); (* false:set complement *)
+    checks : Checks.t
   }
 
 let current =
@@ -523,7 +600,15 @@ let current =
       error = Array.make (last_warning_number + 1) false;
       alerts = (Misc.Stdlib.String.Set.empty, false); (* all enabled *)
       alert_errors = (Misc.Stdlib.String.Set.empty, true); (* all soft *)
+      checks = Checks.default;
     }
+
+let print state =
+  let pp ppf a =
+    Array.iteri (fun i enabled -> if enabled then Format.fprintf ppf "+%d" i) a
+  in
+  Format.printf "active=%a\nerror=%a\nchecks=%a\n" pp state.active pp state.error
+    Checks.print state.checks
 
 let disabled = ref false
 
@@ -536,6 +621,9 @@ let restore x = current := x
 
 let is_active x =
   not !disabled && (!current).active.(number x)
+
+let is_active_in_state x state =
+  state.active.(number x)
 
 let is_error x =
   not !disabled && (!current).error.(number x)
@@ -564,6 +652,11 @@ let with_state state f =
 let mk_lazy f =
   let state = backup () in
   lazy (with_state state f)
+
+let set_checks checks =
+  current := { !current with checks }
+
+let get_checks state = state.checks
 
 let set_alert ~error ~enable s =
   let upd =
@@ -794,7 +887,7 @@ let parse_options errflag s =
 
 (* If you change these, don't forget to change them in man/ocamlc.m *)
 let defaults_w = "+a-4-7-9-27-29-30-32..42-44-45-48-50-60-66..70";;
-let defaults_warn_error = "-a+31";;
+let defaults_warn_error = "-a+31+197";;
 
 let () = ignore @@ parse_options false defaults_w;;
 let () = ignore @@ parse_options true defaults_warn_error;;
@@ -1066,11 +1159,13 @@ let message = function
       Printf.sprintf
         "This probe name is too long: `%s'. \
          Probe names must be at most 100 characters long." name
+  | Check_failed (info, _) -> info
+  | Check_failed_opt (info, _) -> info
   | Misplaced_assume_attribute property ->
       Printf.sprintf
         "the \"%s assume\" attribute will be ignored by the check \
          when the function is inlined or specialised.\n\
-         Mark this function as [@inline never][@specialise never]."
+         Mark this function as [@inline never][@specialise never][@local never]."
       property
   | Unchecked_property_attribute property ->
       Printf.sprintf "the %S attribute cannot be checked.\n\
@@ -1079,6 +1174,11 @@ let message = function
       or move the attribute to the relevant callers of this function."
       property
 ;;
+
+let sub_locs = function
+  | Check_failed_opt (_, sub_locs)
+  | Check_failed (_, sub_locs) -> sub_locs
+  | _ -> []
 
 let nerrors = ref 0;;
 
@@ -1106,7 +1206,7 @@ let report w =
        { id = id_name w;
          message = message w;
          is_error = is_error w;
-         sub_locs = [];
+         sub_locs = sub_locs w;
        }
 
 let report_alert (alert : alert) =

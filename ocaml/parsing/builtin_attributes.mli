@@ -111,14 +111,20 @@ val check_deprecated_mutable_inclusion:
 
 val error_of_extension: Parsetree.extension -> Location.error
 
-val warning_attribute: ?ppwarning:bool -> Parsetree.attribute -> unit
+val warning_attribute: ?structure_item:bool -> ?ppwarning:bool ->
+  Parsetree.attribute -> unit
   (** Apply warning settings from the specified attribute.
       "ocaml.warning"/"ocaml.warnerror" (and variants without the prefix) are
       processed and marked used for warning 53.  Other attributes are ignored.
 
       Also implement ocaml.ppwarning (unless ~ppwarning:false is
       passed).
+
+      [structure_item] indicates whether the attribute is a top-level item.
   *)
+
+val process_check_attribute: direct:bool -> Parsetree.attribute ->
+  Warnings.Checks.t option
 
 val warning_scope:
   ?ppwarning:bool ->

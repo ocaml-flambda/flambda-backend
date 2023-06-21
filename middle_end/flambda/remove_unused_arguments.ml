@@ -112,7 +112,7 @@ let make_stub unused var (fun_decl : Flambda.function_declaration)
       ~body ~return_layout:fun_decl.return_layout
       ~stub:true ~inline:Default_inline
       ~specialise:Default_specialise
-      ~check:Default_check
+      ~check:Warnings.Checks.State.default
       ~is_a_functor:fun_decl.is_a_functor
       ~closure_origin:fun_decl.closure_origin
       ~poll:Default_poll (* don't propagate attribute to wrappers *)

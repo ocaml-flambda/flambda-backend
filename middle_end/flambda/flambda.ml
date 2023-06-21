@@ -141,7 +141,7 @@ and function_declaration = {
   dbg : Debuginfo.t;
   inline : Lambda.inline_attribute;
   specialise : Lambda.specialise_attribute;
-  check : Lambda.check_attribute;
+  check : Lambda.check_attribute_state;
   is_a_functor : bool;
   poll: Lambda.poll_attribute;
 }
@@ -419,7 +419,7 @@ and print_function_declaration ppf var (f : function_declaration) =
   in
   fprintf ppf "@[<2>(%a%s%s%s%s%a@ =@ fun@[<2>%a@] ->@ @[<2>%a@])@]@ "
     Variable.print var stub is_a_functor inline specialise
-    Printlambda.check_attribute f.check
+    Warnings.Checks.State.print f.check
     params f.params lam f.body
 
 and print_set_of_closures ppf (set_of_closures : set_of_closures) =
@@ -1073,7 +1073,7 @@ let create_function_declaration ~params ~alloc_mode ~region ~body ~stub
       ~(return_layout : Lambda.layout)
       ~(inline : Lambda.inline_attribute)
       ~(specialise : Lambda.specialise_attribute)
-      ~(check : Lambda.check_attribute)
+      ~(check : Lambda.check_attribute_state)
       ~is_a_functor
       ~closure_origin ~poll
       : function_declaration =
