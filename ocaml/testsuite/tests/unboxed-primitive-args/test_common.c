@@ -28,6 +28,14 @@ value test_set_buffers(value v_ocaml_buffer, value v_c_buffer)
   return Val_unit;
 }
 
+value test_compare_buffers(value v_ocaml_buffer, value v_c_buffer, value bytes)
+{
+  intnat sz = Int_val(bytes);
+  char* ocaml_buffer = Caml_ba_data_val(v_ocaml_buffer);
+  char* c_buffer = Caml_ba_data_val(v_c_buffer);
+  return Val_bool(memcmp(ocaml_buffer, c_buffer, bytes));
+}
+
 value test_cleanup_normal(void)
 {
   return Val_int(0);
