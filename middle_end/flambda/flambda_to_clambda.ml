@@ -593,10 +593,22 @@ and to_clambda_direct_apply t func args direct_func probe dbg pos mode result_la
     (* Remove the closure argument if the closure is closed.  (Note that the
        closure argument is always a variable, so we can be sure we are not
        dropping any side effects.) *)
-    if closed then uargs else
-      let func, func_layout = subst_var env func in
-      assert(Lambda.compatible_layout func_layout Lambda.layout_function);
-      uargs @ [func]
+    match uargs with
+    | [arg] ->
+      (* Unary functions have a different call convention, where the closure is
+         the first parameter/argument. *)
+      (* CR gbury: replace the constant by the *gap* operation *)
+      if closed then
+        [Clambda.Uconst (Uconst_int 1); arg]
+      else
+        let func, func_layout = subst_var env func in
+        assert(Lambda.compatible_layout func_layout Lambda.layout_function);
+        [func; arg]
+    | _ ->
+      if closed then uargs else
+        let func, func_layout = subst_var env func in
+        assert(Lambda.compatible_layout func_layout Lambda.layout_function);
+        uargs @ [func]
   in
   Udirect_apply (label, uargs, probe, result_layout, (pos, mode), dbg)
 

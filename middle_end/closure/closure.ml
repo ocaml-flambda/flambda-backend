@@ -891,11 +891,21 @@ let direct_apply env fundesc ufunct uargs pos result_layout mode ~probe ~loc ~at
      | Some _, _ ->
        fail_if_probe ~probe "Erroneously marked to be inlined"
      end;
+     let full_args clos clos_used = function
+       | [arg] ->
+         (* unary function have a different call convention where the closure is
+            the first parameter/argument *)
+         (* CR gbury: replace ufunct by the cmm Gap operation (when `not ufunct_used`) *)
+         [clos; arg]
+       | l -> if clos_used then l @ [clos] else l
+     in
      if fundesc.fun_closed && is_pure ufunct then
-       Udirect_apply(fundesc.fun_label, List.map snd uargs, probe, result_layout, kind, dbg)
+       Udirect_apply(fundesc.fun_label, full_args ufunct false (List.map snd uargs),
+                     probe, result_layout, kind, dbg)
      else if not fundesc.fun_closed &&
                is_substituable ~mutable_vars:env.mutable_vars ufunct then
-       Udirect_apply(fundesc.fun_label, List.map snd uargs @ [ufunct], probe, result_layout, kind, dbg)
+       Udirect_apply(fundesc.fun_label, full_args ufunct true (List.map snd uargs),
+                     probe, result_layout, kind, dbg)
      else begin
        let args = List.map (fun (layout, arg) ->
          if is_substituable ~mutable_vars:env.mutable_vars arg then
@@ -909,13 +919,16 @@ let direct_apply env fundesc ufunct uargs pos result_layout mode ~probe ~loc ~at
            | None -> app
            | Some (v, e) -> Ulet(Immutable, layout, v, e, app))
          (if fundesc.fun_closed then
+            (* CR gbury: replace this Uconst by a *Gap* operation (in clambda) *)
             Usequence (ufunct,
-                       Udirect_apply (fundesc.fun_label, app_args,
+                       Udirect_apply (fundesc.fun_label,
+                                      full_args (Uconst (Uconst_int 1)) false app_args,
                                       probe, result_layout, kind, dbg))
           else
             let clos = V.create_local "clos" in
             Ulet(Immutable, Lambda.layout_function, VP.create clos, ufunct,
-                 Udirect_apply(fundesc.fun_label, app_args @ [Uvar clos],
+                 Udirect_apply(fundesc.fun_label,
+                               full_args (Uvar clos) true app_args,
                                probe, result_layout, kind, dbg)))
          args
        end
