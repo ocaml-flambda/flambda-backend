@@ -173,11 +173,11 @@ val boxed : (string * x:int) box = {thing = ("hello", ~x:5)}
 let rec swap ~~(~a, ~b) =
    function
    | 0 -> ~~(~swapped:~~(~a, ~b), ~same:true)
-   | n -> swap' ~~(~a:b, ~b:a) (n-1)
+   | n -> swap' (~~(~a:b, ~b:a)) (n-1)
 and swap' ~~(~a, ~b) =
    function
    | 0 -> ~~(~swapped:~~(~a, ~b), ~same:false)
-   | n -> swap ~~(~a:b, ~b:a) (n-1)
+   | n -> swap (~~(~a:b, ~b:a)) (n-1)
 *)
 
 (* CR labeled-tuples: test evaluation order w.r.t. reordering, such as in:
