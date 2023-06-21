@@ -497,18 +497,16 @@ let warning_attribute ?(structure_item = false) ?(ppwarning = true) =
       (mark_used name;
        process_alert attr_loc name.txt attr_payload)
   | {attr_name = {txt = ("ocaml.zero_alloc"|"zero_alloc"); _ }; _ } as attr ->
+     (if structure_item then
       (* Currently, only [@@@zero_alloc all ..] or [@@@zero_alloc toplevel ..]
          are supported. Other uses of "all" and "toplevel" payload
          will result in an unused attribute warning.
          It may be useful to have [@zero_alloc all assume] at function scope or
          or for subexpressions when "assume" works with inlining. *)
-    (match process_check_attribute ~direct:false attr with
-     | None -> ()
-     | Some c ->
-       if structure_item then
-         Warnings.set_checks c
-       else
-         warn_payload attr.attr_loc attr.attr_name.txt "")
+        match process_check_attribute ~direct:false attr with
+        | None -> ()
+        | Some c ->
+          Warnings.set_checks c)
   | _ ->
      ()
 
