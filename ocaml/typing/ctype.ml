@@ -545,9 +545,7 @@ exception Non_closed of type_expr * bool
 
    The functions [free_variables] and [free_variables_list] below receive
    a typing environment as an optional [?env] parameter and set [really_closed]
-   accordingly.
-
-   Both functions also drop the type/row information returns a [variable list].
+   accordingly. Both drop the type/row information, returning a [variable list].
  *)
 let rec free_vars_iter f really_closed real ty =
   if try_mark_node ty then
