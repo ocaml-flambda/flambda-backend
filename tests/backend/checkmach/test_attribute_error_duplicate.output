@@ -2,15 +2,19 @@ File "test_attribute_error_duplicate.ml", line 1, characters 25-35:
 Error (warning 54 [duplicated-attribute]): the "zero_alloc" attribute is used more than once on this expression
 File "test_attribute_error_duplicate.ml", line 2, characters 80-90:
 Error (warning 54 [duplicated-attribute]): the "zero_alloc" attribute is used more than once on this expression
+File "test_attribute_error_duplicate.ml", line 3, characters 3-27:
+Error (warning 47 [attribute-payload]): illegal payload for attribute 'zero_alloc'.
+Current context does not support "all" and "toplevel" payload
+File "test_attribute_error_duplicate.ml", line 4, characters 3-25:
+Error (warning 47 [attribute-payload]): illegal payload for attribute 'zero_alloc'.
+Current context does not support "all" and "toplevel" payload
+File "test_attribute_error_duplicate.ml", line 6, characters 3-20:
+Error (warning 47 [attribute-payload]): illegal payload for attribute 'zero_alloc'.
+Current context does not support "all" and "toplevel" payload
+File "test_attribute_error_duplicate.ml", line 7, characters 3-22:
+Error (warning 47 [attribute-payload]): illegal payload for attribute 'zero_alloc'.
+Uknown or unsupported in the current context: check
 File "test_attribute_error_duplicate.ml", line 5, characters 5-15:
 Error (warning 197 [check-failed]): Annotation check for zero_alloc failed on function Test_attribute_error_duplicate.test5 (camlTest_attribute_error_duplicate__test5_HIDE_STAMP)
 File "test_attribute_error_duplicate.ml", line 1, characters 5-15:
 Error (warning 197 [check-failed]): Annotation check for zero_alloc strict failed on function Test_attribute_error_duplicate.test1 (camlTest_attribute_error_duplicate__test1_HIDE_STAMP)
-File "test_attribute_error_duplicate.ml", line 3, characters 5-15:
-Error (warning 53 [misplaced-attribute]): the "zero_alloc" attribute cannot appear in this context
-File "test_attribute_error_duplicate.ml", line 4, characters 5-15:
-Error (warning 53 [misplaced-attribute]): the "zero_alloc" attribute cannot appear in this context
-File "test_attribute_error_duplicate.ml", line 6, characters 5-15:
-Error (warning 53 [misplaced-attribute]): the "zero_alloc" attribute cannot appear in this context
-File "test_attribute_error_duplicate.ml", line 7, characters 5-15:
-Error (warning 53 [misplaced-attribute]): the "zero_alloc" attribute cannot appear in this context
