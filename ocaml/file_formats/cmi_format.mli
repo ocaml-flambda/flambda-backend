@@ -28,6 +28,7 @@ type kind =
 type cmi_infos = {
     cmi_name : Compilation_unit.Name.t;
     cmi_kind : kind;
+    cmi_globals : (Global.Name.t * Global.t) array;
     cmi_sign : Types.signature_item list;
     cmi_secondary_sign : Types.signature_item list option;
     cmi_params : Global.Name.t list;

@@ -54,6 +54,13 @@ type error =
         expected : Global.Name.t;
         actual : Global.Name.t;
   }
+  | Inconsistent_global_name_resolution of
+      { name : Global.Name.t;
+        old_global : Global.t;
+        new_global : Global.t;
+        first_mentioned_by : Global.Name.t;
+        now_mentioned_by : Global.Name.t;
+  }
 
 exception Error of error
 
@@ -88,7 +95,11 @@ type binding =
   | Static of Compilation_unit.t
 
 type 'a sig_reader =
-  Persistent_signature.t -> global:Global.t -> binding:binding -> 'a
+  Persistent_signature.t
+  -> global:Global.t
+  -> bound_global_names:(Global.Name.t * Global.t) array
+  -> binding:binding
+  -> 'a * (Global.Name.t * Global.t) array
 
 val read : 'a t -> 'a sig_reader -> Global.Name.t -> filepath -> 'a
 
@@ -105,7 +116,7 @@ val check : 'a t -> 'a sig_reader -> loc:Location.t -> Global.Name.t -> unit
 val register_parameter_import : 'a t -> Compilation_unit.Name.t -> unit
 
 (* Declare a parameter to this module. Calls [register_parameter_import]. *)
-val register_parameter : 'a t -> Global.Name.t -> unit
+val register_exported_parameter : 'a t -> Global.Name.t -> unit
 
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
@@ -134,7 +145,12 @@ val local_ident : 'a t -> Global.Name.t -> Ident.t option
    that [md] was compiled with. *)
 val implemented_parameter : 'a t -> Global.Name.t -> Global.Name.t option
 
-val global_of_global_name : 'a t -> Global.Name.t -> Global.t
+val global_of_global_name : 'a t
+  -> 'a sig_reader
+  -> check:bool
+  -> param:bool
+  -> Global.Name.t
+  -> Global.t
 
 val make_cmi : 'a t
   -> Compilation_unit.Name.t

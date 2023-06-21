@@ -968,6 +968,9 @@ let print_if ppf flag printer arg =
 let output_of_print print =
   let output out_channel t =
     let ppf = Format.formatter_of_out_channel out_channel in
+    (* Effectively disable automatic wrapping because [Printf]-based code
+       doesn't expect it *)
+    Format.pp_set_margin ppf Int.max_int;
     print ppf t;
     (* Must flush the formatter immediately because it has a buffer separate
        from the output channel's buffer *)
@@ -975,6 +978,17 @@ let output_of_print print =
   in
   output
 
+let to_string_of_print print =
+  let to_string t =
+    (* Implemented similarly to [Format.asprintf] *)
+    let buf = Buffer.create 32 in
+    let ppf = Format.formatter_of_buffer buf in
+    Format.pp_set_margin ppf Int.max_int;
+    print ppf t;
+    Format.pp_print_flush ppf ();
+    Buffer.contents buf
+  in
+  to_string
 
 type filepath = string
 

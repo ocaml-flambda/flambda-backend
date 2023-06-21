@@ -42,6 +42,7 @@ type flags = pers_flags list
 type header = {
     header_name : Compilation_unit.Name.t;
     header_kind : kind;
+    header_globals : (Global.Name.t * Global.t) array;
     header_sign : signature;
     header_secondary_sign : signature option;
     header_params : Global.Name.t list;
@@ -51,6 +52,7 @@ type header = {
 type cmi_infos = {
     cmi_name : Compilation_unit.Name.t;
     cmi_kind : kind;
+    cmi_globals : (Global.Name.t * Global.t) array;
     cmi_sign : signature;
     cmi_secondary_sign : signature option;
     cmi_params : Global.Name.t list;
@@ -63,6 +65,7 @@ let input_cmi ic =
   let {
       header_name = name;
       header_kind = kind;
+      header_globals = globals;
       header_sign = sign;
       header_secondary_sign = secondary_sign;
       header_params = params;
@@ -73,6 +76,7 @@ let input_cmi ic =
   {
       cmi_name = name;
       cmi_kind = kind;
+      cmi_globals = globals;
       cmi_sign = sign;
       cmi_secondary_sign = secondary_sign;
       cmi_params = params;
@@ -117,6 +121,7 @@ let output_cmi filename oc cmi =
     {
       header_name = cmi.cmi_name;
       header_kind = cmi.cmi_kind;
+      header_globals = cmi.cmi_globals;
       header_sign = cmi.cmi_sign;
       header_secondary_sign = cmi.cmi_secondary_sign;
       header_params = cmi.cmi_params;

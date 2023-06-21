@@ -78,6 +78,9 @@ let print_impl_import import =
   let crco = Import_info.Impl.crc import in
   print_name_crc name crco
 
+let print_global_name_binding (_name, global) =
+  printf "\t%a\n" Global.output global
+
 let print_line name = printf "\t%s\n" name
 
 let print_unit_line name =
@@ -133,7 +136,7 @@ let print_cma_infos (lib : Cmo_format.library) =
   printf "\n";
   List.iter print_cmo_infos lib.lib_units
 
-let print_cmi_infos name crcs kind params =
+let print_cmi_infos name crcs kind params global_name_bindings =
   let open Cmi_format in
   printf "Unit name: %a\n" Compilation_unit.Name.output name;
   let is_param =
@@ -145,7 +148,9 @@ let print_cmi_infos name crcs kind params =
   print_string "Parameters:\n";
   List.iter print_global_line params;
   printf "Interfaces imported:\n";
-  Array.iter print_intf_import crcs
+  Array.iter print_intf_import crcs;
+  printf "Globals in scope:\n";
+  Array.iter print_global_name_binding global_name_bindings
 
 let print_cmt_infos cmt =
   let open Cmt_format in
@@ -389,6 +394,7 @@ let dump_obj_by_kind filename ic obj_kind =
       | Some cmi ->
         print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
           cmi.Cmi_format.cmi_kind cmi.Cmi_format.cmi_params
+          cmi.Cmi_format.cmi_globals
     end;
     begin
       match cmt with None -> () | Some cmt -> print_cmt_infos cmt

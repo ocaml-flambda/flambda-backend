@@ -920,26 +920,109 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
     }
   }
 
-let subst_of_instance_args (global : Global.t) =
-  match global with
-  | { params = []; args = []; head = _ } -> Subst.identity
+let subst_of_instance_args (global : Global.t) ~bound_global_names =
+  (* A fictional but more-obviously-correct story for how imports and parameters
+     work: The .cmi says something like
+       {v let X = X in
+          let Y = Y in
+          let M = M{X}{Y} in
+          ... X ... Y ... M ... v}
+     Now suppose we import this module and pass [A] as the value of [X].
+
+     1. We substitute [A] for [X] in the bound global names:
+        {v let X = A in
+           let Y = Y in
+           let M = M[X:A]{Y} in
+           ... X ... Y ... M ... v}
+     2. We substitute the resulting bindings into the body:
+        {v ... A ... Y ... M[X:A]{Y} v}
+     3. We renormalize by pulling out the bindings again:
+        {v let A = A in
+           let Y = Y in
+           let M[X:A] = M[X:A]{Y}
+           ... A ... Y ... M[X:A] ... v}
+     4. Finally, we add these new bindings to the persistent environment and
+        retain this signature as the type of the module.
+
+     Note that we can combine steps 2 and 3 into a single alpha-renaming step.
+     This can be motivated by the fact that we keep a table of global name
+     bindings that's consistent across modules, and it would clearly not do to
+     bind [X] to [A] globally, so we alpha-rename to a canonical form.
+
+     So a _more_ accurate summary of this function would be:
+
+     1. Form a substitution [S] mapping each argument's name to its value
+     2. Apply [S] to the RHSes of the global name bindings
+     3. For each new binding [L = R'], let [L'] be the [Global.to_name] of [R'],
+        substitute [L'] for [L] in the body, and update the binding to
+        [L' = R']
+
+     There are two remaining simplifications in this story. Firstly, this
+     function doesn't itself perform the substitution in the body, instead
+     returning the substitution along with the new global name bindings. (This
+     is because [read_sign_of_cmi], as currently written, actually performs the
+     substitution twice.)
+
+     Secondly, we don't actually include bindings like [X = X] in
+     [bound_global_names] and this is how most parameters are bound (all of them
+     as of this writing, actually), so we have to run steps 2 and 3 over the
+     argument list as well as the global name bindings. *)
+  match global.visible_args with
+  | [] -> Subst.identity, bound_global_names
   | _ ->
-      List.fold_left
-        (fun subst (param, value) ->
-           let param_id = Ident.create_global param in
-           let value_id = Ident.create_global (Global.to_name value) in
-           Subst.add_module param_id (Pident value_id) subst)
-        (* Go over both the parameters and the arguments, since the
-           parameters may have new types due to other parameters *)
-        Subst.identity
-        (global.params @ global.args)
+      let arg_subst = Global.Name.Map.of_list global.visible_args in
+      let add_to_subst_and_bind_global_name subst name value =
+        let name_id = Ident.create_global name in
+        let value_as_name = Global.to_name value in
+        let value_id = Ident.create_global value_as_name in
+        let subst =
+          if Global.Name.equal name value_as_name then subst else
+            Subst.add_module name_id (Pident value_id) subst
+        in
+        let new_bound_global =
+          if Global.has_arguments value then
+            Some (value_as_name, value)
+          else None
+        in
+        subst, new_bound_global
+      in
+      (* Add a binding from the bound global names to the substitution, and return
+         an updated global name binding. *)
+      let add_and_update_binding subst (name, value) =
+        if Global.Name.Map.mem name arg_subst then
+          (* This will be handled by [add_arg_and_create_binding] below *)
+          subst, None
+        else
+        let value = Global.subst value arg_subst in
+        add_to_subst_and_bind_global_name subst name value
+      in
+      let subst = Subst.identity in
+      let subst, bound_global_names =
+        Array.fold_left_map add_and_update_binding subst bound_global_names
+      in
+      (* Add an argument to the substitution, and return a new global name
+         binding. *)
+      let add_arg_and_create_binding subst (name, value) =
+        add_to_subst_and_bind_global_name subst name value
+      in
+      let subst, bound_global_names_from_args =
+        List.fold_left_map add_arg_and_create_binding subst
+          global.visible_args
+      in
+      let bound_global_names =
+        List.append bound_global_names_from_args
+          (Array.to_list bound_global_names)
+        |> List.filter_map (fun a -> a)
+        |> Array.of_list
+      in
+      subst, bound_global_names
 
 let persistent_env : module_data Persistent_env.t ref =
   s_table Persistent_env.empty ()
 
 let read_sign_of_cmi
       { Persistent_env.Persistent_signature.cmi; filename }
-      ~global ~binding =
+      ~global ~bound_global_names ~binding =
   let name = global |> Global.to_name in
   let sign = cmi.cmi_sign in
   let secondary_sign = cmi.cmi_secondary_sign in
@@ -975,7 +1058,7 @@ let read_sign_of_cmi
         end
   in
   let mda_address = Lazy_backtrack.create_forced addr in
-  let instance_subst = subst_of_instance_args global in
+  let instance_subst, bound_global_names = subst_of_instance_args global ~bound_global_names in
   let mda_declaration =
     Subst.(Lazy.module_decl Make_local identity (Lazy.of_module_decl md))
     |> Subst.Lazy.module_decl Keep instance_subst
@@ -1002,7 +1085,8 @@ let read_sign_of_cmi
     mda_address;
     mda_shape;
     mda_filename;
-  }
+  },
+  bound_global_names
 
 let find_pers_mod name =
   Persistent_env.find !persistent_env read_sign_of_cmi name
@@ -2650,7 +2734,7 @@ let register_parameter_import import =
   Persistent_env.register_parameter_import !persistent_env import
 
 let register_parameter modname =
-  Persistent_env.register_parameter !persistent_env modname
+  Persistent_env.register_exported_parameter !persistent_env modname
 
 let is_identchar_latin1 = function
   | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'
