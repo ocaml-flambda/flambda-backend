@@ -33,8 +33,9 @@ module type Code_metadata_accessors_result_type = sig
 
   val params_arity : 'a t -> Flambda_arity.t
 
-  (* val num_leading_heap_params : 'a t -> int *)
-
+  (* Zero-indexed position of the first local param, to be able to determine the
+     allocation modes of partial applications. If there is no local parameter,
+     equal to the number of (complex) parameters. *)
   val first_complex_local_param : 'a t -> int
 
   val result_arity : 'a t -> Flambda_arity.t
