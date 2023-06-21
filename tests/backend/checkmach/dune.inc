@@ -442,7 +442,7 @@
  (action
    (with-outputs-to t6.output.corrected
     (pipe-outputs
-    (with-accepted-exit-codes 0
+    (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -warn-error +a -g -color never -error-style short -c
           -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
@@ -479,7 +479,7 @@
  (action
    (with-outputs-to test_warning198.output.corrected
     (pipe-outputs
-    (with-accepted-exit-codes 0
+    (with-accepted-exit-codes 2
      (run %{bin:ocamlopt.opt} %{ml} -warn-error +a -g -color never -error-style short -c
           -checkmach-details-cutoff 20 -O3))
     (run "./filter.sh")
