@@ -315,7 +315,7 @@ type position_and_mode = {
 
 let position_and_mode_default = {
   apply_position = Default;
-  region = None;
+  region_mode = None;
 }
 
 (** The function produces two values, apply_position and region_mode.
