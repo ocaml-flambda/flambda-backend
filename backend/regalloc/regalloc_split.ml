@@ -95,8 +95,7 @@ let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
 
 let apply_substitutions : Cfg_with_infos.t -> Substitution.map -> unit =
  fun cfg_with_infos substs ->
-  Substitution.apply_cfg_in_place substs
-    (Cfg_with_infos.cfg cfg_with_infos)
+  Substitution.apply_cfg_in_place substs (Cfg_with_infos.cfg cfg_with_infos)
 
 (* Inserts spills at the end of blocks, before destruction points. *)
 let insert_spills :
@@ -146,8 +145,7 @@ let insert_spills :
 
 (* Inserts reloads at the start of blocks, after destruction points. *)
 let insert_reloads :
-    State.t -> Cfg_with_infos.t -> Substitution.map -> Substitution.t -> unit
-    =
+    State.t -> Cfg_with_infos.t -> Substitution.map -> Substitution.t -> unit =
  fun state cfg_with_infos substs stack_subst ->
   if split_debug then log ~indent:0 "insert_reloads";
   Label.Map.iter
@@ -234,8 +232,7 @@ let add_phi_moves_to_instr_list :
 
 (* Insert phi moves: - to the predecessor block if the edge is an "always" one;
    - to a newly-inserted block otherwise. *)
-let insert_phi_moves :
-    State.t -> Cfg_with_infos.t -> Substitution.map -> unit =
+let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> unit =
  fun state cfg_with_infos substs ->
   Label.Map.iter
     (fun label to_unify ->
@@ -340,8 +337,8 @@ let split_at_destruction_points :
     then Regalloc_irc_utils.log_cfg_with_infos ~indent:1 cfg_with_infos;
     Some (State.stack_slots state)
 
-let split_live_ranges :
-    Cfg_with_infos.t -> cfg_infos -> Regalloc_stack_slots.t =
+let split_live_ranges : Cfg_with_infos.t -> cfg_infos -> Regalloc_stack_slots.t
+    =
  fun cfg_with_infos cfg_infos ->
   (* CR-soon xclerc for xclerc: support closure, flambda, and
      flambda2/classic *)

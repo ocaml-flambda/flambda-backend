@@ -54,8 +54,7 @@ module RemoveReloadSpillInSameBlock : sig
     definitions_at_beginning:definitions_at_beginning ->
     destructions_at_end * definitions_at_beginning
 end = struct
-  let optimize cfg_with_infos ~destructions_at_end ~definitions_at_beginning
-      =
+  let optimize cfg_with_infos ~destructions_at_end ~definitions_at_beginning =
     if split_debug then log ~indent:0 "RemoveReloadSpillInSameBlock.optimize";
     let destructions_at_end = ref destructions_at_end in
     let definitions_at_beginning =
@@ -250,8 +249,7 @@ let add_destruction_point_at_end :
     match kind with
     | Destruction_on_all_paths -> (
       match
-        Cfg_with_infos.liveness_find_opt cfg_with_infos
-          block.terminator.id
+        Cfg_with_infos.liveness_find_opt cfg_with_infos block.terminator.id
       with
       | None ->
         fatal
@@ -289,8 +287,7 @@ let compute_definitions :
  fun cfg_with_infos ~destructions_at_end ->
   let definitions_at_beginning = Label.Map.empty in
   let definitions_at_beginning =
-    Cfg_with_infos.fold_blocks cfg_with_infos
-      ~init:definitions_at_beginning
+    Cfg_with_infos.fold_blocks cfg_with_infos ~init:definitions_at_beginning
       ~f:(fun label block definitions_at_beginning ->
         if block.is_trap_handler
         then
@@ -317,8 +314,7 @@ let compute_definitions :
                 (if split_debug && Lazy.force split_invariants
                 then
                   let successor_block =
-                    Cfg_with_infos.get_block_exn cfg_with_infos
-                      successor_label
+                    Cfg_with_infos.get_block_exn cfg_with_infos successor_label
                   in
                   let predecessor_labels = successor_block.predecessors in
                   let all_predecessors_end_with_destruction_point : bool =
@@ -367,8 +363,7 @@ let add_phis :
   Label.Set.fold
     (fun destruction_frontier_label phi_at_beginning ->
       let is_trap_handler =
-        (Cfg_with_infos.get_block_exn cfg_with_infos
-           destruction_frontier_label)
+        (Cfg_with_infos.get_block_exn cfg_with_infos destruction_frontier_label)
           .is_trap_handler
       in
       (* If the block is a trap handler, it has definitions at beginning since
@@ -384,10 +379,8 @@ let add_phis :
     destruction_frontier phi_at_beginning
 
 let rec fix_point_phi :
-    Cfg_with_infos.t ->
-    Cfg_dominators.t ->
-    phi_at_beginning ->
-    phi_at_beginning =
+    Cfg_with_infos.t -> Cfg_dominators.t -> phi_at_beginning -> phi_at_beginning
+    =
  fun cfg_with_infos doms phi_at_beginning ->
   let changed = ref false in
   let res = ref phi_at_beginning in
@@ -405,8 +398,7 @@ let rec fix_point_phi :
       Label.Set.iter
         (fun flab ->
           let is_trap_handler =
-            (Cfg_with_infos.get_block_exn cfg_with_infos flab)
-              .is_trap_handler
+            (Cfg_with_infos.get_block_exn cfg_with_infos flab).is_trap_handler
           in
           if not is_trap_handler
           then
@@ -424,9 +416,7 @@ let rec fix_point_phi :
                    !res)
         frontier)
     phi_at_beginning;
-  if !changed
-  then fix_point_phi cfg_with_infos doms !res
-  else phi_at_beginning
+  if !changed then fix_point_phi cfg_with_infos doms !res else phi_at_beginning
 
 (* Phis are first added at the dominance frontier of blocks appearing in either
    `destructions_at_end` or `definitions_at_beginning`. And then also at the
@@ -456,22 +446,18 @@ let compute_phis :
           phi_at_beginning doms)
       definitions_at_beginning phi_at_beginning
   in
-  let phi_at_beginning =
-    fix_point_phi cfg_with_infos doms phi_at_beginning
-  in
+  let phi_at_beginning = fix_point_phi cfg_with_infos doms phi_at_beginning in
   phi_at_beginning
 
 let make cfg_with_infos ~next_instruction_id =
-  let dominators =
-    Cfg_dominators.build (Cfg_with_infos.cfg cfg_with_infos)
-  in
+  let dominators = Cfg_dominators.build (Cfg_with_infos.cfg cfg_with_infos) in
   let destructions_at_end = compute_destructions cfg_with_infos in
   let definitions_at_beginning =
     compute_definitions cfg_with_infos ~destructions_at_end
   in
   let phi_at_beginning =
-    compute_phis cfg_with_infos ~destructions_at_end
-      ~definitions_at_beginning dominators
+    compute_phis cfg_with_infos ~destructions_at_end ~definitions_at_beginning
+      dominators
   in
   let destructions_at_end, definitions_at_beginning =
     RemoveReloadSpillInSameBlock.optimize cfg_with_infos ~destructions_at_end

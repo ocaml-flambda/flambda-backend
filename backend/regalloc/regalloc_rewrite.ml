@@ -45,8 +45,8 @@ let rewrite_gen :
     Cfg_with_infos.t ->
     spilled_nodes:Reg.t list ->
     Reg.t list =
- fun (module State : State with type t = s) (module Utils) state
-     cfg_with_infos ~spilled_nodes ->
+ fun (module State : State with type t = s) (module Utils) state cfg_with_infos
+     ~spilled_nodes ->
   if Utils.debug then Utils.log ~indent:1 "rewrite";
   let spilled_map : Reg.t Reg.Tbl.t =
     List.fold_left spilled_nodes ~init:(Reg.Tbl.create 17)
@@ -143,8 +143,7 @@ let rewrite_gen :
       then instr.res <- Array.map instr.res ~f
   in
   let liveness = Cfg_with_infos.liveness cfg_with_infos in
-  Cfg.iter_blocks (Cfg_with_infos.cfg cfg_with_infos)
-    ~f:(fun label block ->
+  Cfg.iter_blocks (Cfg_with_infos.cfg cfg_with_infos) ~f:(fun label block ->
       if Utils.debug
       then (
         Utils.log ~indent:2 "body of #%d, before:" label;
@@ -262,8 +261,7 @@ let postlude :
       ~f:(fun reg_class num_stack_slots ->
         Utils.log ~indent:1 "stack_slots[%d]=%d" reg_class num_stack_slots);
   remove_prologue_if_not_required cfg_with_layout;
-  update_live_fields cfg_with_layout
-    (Cfg_with_infos.liveness cfg_with_infos);
+  update_live_fields cfg_with_layout (Cfg_with_infos.liveness cfg_with_infos);
   f ();
   if Utils.debug && Lazy.force Utils.invariants
   then (

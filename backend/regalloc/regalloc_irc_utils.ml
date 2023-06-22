@@ -37,8 +37,8 @@ let log_body_and_terminator :
 
 let log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit =
  fun ~indent cfg_with_infos ->
-  make_log_cfg_with_infos (Lazy.force log_function) ~instr_prefix
-    ~term_prefix ~indent cfg_with_infos
+  make_log_cfg_with_infos (Lazy.force log_function) ~instr_prefix ~term_prefix
+    ~indent cfg_with_infos
 
 module Color = struct
   type t = int

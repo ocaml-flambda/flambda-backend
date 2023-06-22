@@ -31,8 +31,7 @@ let remove_deadcode (body : Cfg.basic_instruction_list) changed liveness
 let run cfg_with_infos =
   let liveness = Cfg_with_infos.liveness cfg_with_infos in
   let changed = ref false in
-  Cfg.iter_blocks (Cfg_with_infos.cfg cfg_with_infos)
-    ~f:(fun _label block ->
+  Cfg.iter_blocks (Cfg_with_infos.cfg cfg_with_infos) ~f:(fun _label block ->
       remove_deadcode block.body changed liveness
         (live_before block.terminator liveness));
   if !changed then Cfg_with_infos.invalidate_liveness cfg_with_infos;

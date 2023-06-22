@@ -22,8 +22,7 @@ module Utils = struct
   let set_spilled _reg = ()
 end
 
-let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> unit
-    =
+let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> unit =
  fun state cfg_with_infos ~spilled_nodes ->
   Regalloc_rewrite.rewrite_gen
     (module State)
