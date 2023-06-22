@@ -58,7 +58,7 @@ and 'k pattern_desc =
   | Tpat_alias :
       value general_pattern * Ident.t * string loc * value_mode -> value pattern_desc
   | Tpat_constant : constant -> value pattern_desc
-  | Tpat_tuple : value general_pattern list -> value pattern_desc
+  | Tpat_tuple : (string option * value general_pattern) list -> value pattern_desc
   | Tpat_construct :
       Longident.t loc * constructor_description * value general_pattern list
       * (Ident.t loc list * core_type) option ->
@@ -760,7 +760,7 @@ let shallow_iter_pattern_desc
   : type k . pattern_action -> k pattern_desc -> unit
   = fun f -> function
   | Tpat_alias(p, _, _, _) -> f.f p
-  | Tpat_tuple patl -> List.iter f.f patl
+  | Tpat_tuple patl -> List.iter (fun (_, p) -> f.f p) patl
   | Tpat_construct(_, _, patl, _) -> List.iter f.f patl
   | Tpat_variant(_, pat, _) -> Option.iter f.f pat
   | Tpat_record (lbl_pat_list, _) ->
@@ -782,7 +782,7 @@ let shallow_map_pattern_desc
   | Tpat_alias (p1, id, s, m) ->
       Tpat_alias (f.f p1, id, s, m)
   | Tpat_tuple pats ->
-      Tpat_tuple (List.map f.f pats)
+      Tpat_tuple (List.map (fun (label, pat) -> label, f.f pat) pats)
   | Tpat_record (lpats, closed) ->
       Tpat_record (List.map (fun (lid, l,p) -> lid, l, f.f p) lpats, closed)
   | Tpat_construct (lid, c, pats, ty) ->
@@ -894,7 +894,7 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
             lbl_pat_list
       (* Cases where the inner things must be value: *)
       | Tpat_variant (_, pat, _) -> Option.iter (loop f Sort.value) pat
-      | Tpat_tuple patl -> List.iter (loop f Sort.value) patl
+      | Tpat_tuple patl -> List.iter (fun (_, pat) -> loop f Sort.value pat) patl
         (* CR layouts v5: tuple case to change when we allow non-values in
            tuples *)
       | Tpat_array (_, patl) -> List.iter (loop f Sort.value) patl

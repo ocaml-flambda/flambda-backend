@@ -117,7 +117,9 @@ let rec extract_letop_patterns n pat =
   if n = 0 then pat, []
   else begin
     match pat.pat_desc with
-    | Tpat_tuple([first; rest]) ->
+    | Tpat_tuple([None, first; None, rest]) ->
+        (* Labels should always be None, from when [Texp_letop] are created in
+           [Typecore.type_expect] *)
         let next, others = extract_letop_patterns (n-1) rest in
         first, next :: others
     | _ ->
@@ -348,8 +350,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         Ppat_alias (sub.pat sub pat, name)
     | Tpat_constant cst -> Ppat_constant (constant cst)
     | Tpat_tuple list ->
-        (* CR labeled tuples: update once Tpat_tuple has labels *)
-        Ppat_tuple (List.map (fun p -> None, (sub.pat sub p)) list)
+        Ppat_tuple (List.map (fun (label, p) -> label, (sub.pat sub p)) list)
     | Tpat_construct (lid, _, args, vto) ->
         let tyo =
           match vto with

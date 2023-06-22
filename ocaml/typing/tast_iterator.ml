@@ -174,7 +174,7 @@ let pat
   | Tpat_any  -> ()
   | Tpat_var _ -> ()
   | Tpat_constant _ -> ()
-  | Tpat_tuple l -> List.iter (sub.pat sub) l
+  | Tpat_tuple l -> List.iter (fun (_, p) -> sub.pat sub p) l
   | Tpat_construct (_, _, l, vto) ->
       List.iter (sub.pat sub) l;
       Option.iter (fun (_ids, ct) -> sub.typ sub ct) vto

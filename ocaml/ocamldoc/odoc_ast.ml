@@ -252,8 +252,10 @@ module Analyser =
             iter_pattern pat
 
         | Typedtree.Tpat_tuple patlist ->
+            (* CR labeled tuples: Check odoc handling of labeled tuple
+               patterns. *)
             Tuple
-              (List.map iter_pattern patlist,
+              (List.map (fun (_, p) -> iter_pattern p) patlist,
                Odoc_env.subst_type env pat.pat_type)
 
         | Typedtree.Tpat_construct (_, cons_desc, _, _) when

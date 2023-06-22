@@ -2,6 +2,7 @@
    * expect
 *)
 
+(* Basic expressions *)
 let x = ~~(~x:1, ~y:2)
 
 [%%expect{|
@@ -16,6 +17,47 @@ val z : int = 5
 val punned : int = 2
 - : x:int * int * z:int * punned:int = (~x:5, 2, ~z:5, ~punned:2)
 |}]
+
+(* Basic annotations *)
+let (x : ~~(x:int * y:int)) = ~~(~x:1, ~y:2)
+[%%expect{|
+val x : x:int * y:int = (~x:1, ~y:2)
+|}]
+
+let (x : ~~(x:int * int)) = ~~(~x:1, 2)
+[%%expect{|
+val x : x:int * int = (~x:1, 2)
+|}]
+
+(* Incorrect annotations *)
+let (x : ~~(int * int)) = ~~(~x:1, 2)
+[%%expect{|
+Line 1, characters 26-37:
+1 | let (x : ~~(int * int)) = ~~(~x:1, 2)
+                              ^^^^^^^^^^^
+Error: This expression has type x:'a * 'b
+       but an expression was expected of type int * int
+|}]
+
+let (x : ~~(x:string * int)) = ~~(~x:1, 2)
+[%%expect{|
+Line 1, characters 37-38:
+1 | let (x : ~~(x:string * int)) = ~~(~x:1, 2)
+                                         ^
+Error: This expression has type int but an expression was expected of type
+         string
+|}]
+
+let (x : ~~(int * y:int)) = ~~(~x:1, 2)
+[%%expect{|
+Line 1, characters 28-39:
+1 | let (x : ~~(int * y:int)) = ~~(~x:1, 2)
+                                ^^^^^^^^^^^
+Error: This expression has type x:'a * 'b
+       but an expression was expected of type int * y:int
+|}]
+
+(* Constructor with labeled arguments (disallowed) *)
 
 type ('a, 'b) pair = Pair of 'a * 'b
 let x = Pair (~~(~x: 5, 2))
@@ -155,30 +197,33 @@ type 'a box = { thing : 'a; }
 val boxed : (string * x:int) box = {thing = ("hello", ~x:5)}
 |}]
 
-(* CR labeled tuples: Add tests with labeled tuples in:
-   - non-polymorphic records (where the labeled type must be written out)
-   - functors
-   - module inclusion
-   - recursive modules
-*)
-
-(* CR labeled-tuples: test a mutually recursive function with labeled tuple
-   params, such as the following:
 
 (* Take a [a:'a * b:'a] and an int, and returns a
    [swapped:[a:'a * b:'a] * same:bool].
    The swapped component is the input with the [a] and [b] components swapped
    as many times as the input int. The second component is whether the first
    equals the input. *)
-let rec swap ~~(~a, ~b) =
+let rec swap (~~(~a; ~b)) =
    function
-   | 0 -> ~~(~swapped:~~(~a, ~b), ~same:true)
+   | 0 -> ~~(~swapped:(~~(~a, ~b)), ~same:true)
    | n -> swap' (~~(~a:b, ~b:a)) (n-1)
-and swap' ~~(~a, ~b) =
+and swap' (~~(~a; ~b)) =
    function
-   | 0 -> ~~(~swapped:~~(~a, ~b), ~same:false)
+   | 0 -> ~~(~swapped:(~~(~a, ~b)), ~same:false)
    | n -> swap (~~(~a:b, ~b:a)) (n-1)
-*)
+[%%expect{|
+val swap : a:'a * b:'a -> int -> swapped:(a:'a * b:'a) * same:bool = <fun>
+val swap' : a:'a * b:'a -> int -> swapped:(a:'a * b:'a) * same:bool = <fun>
+|}]
+
+let foobar = swap (~~(~a:"foo", ~b:"bar")) 86
+let barfoo = swap (~~(~a:"foo", ~b:"bar")) 87
+[%%expect{|
+val foobar : swapped:(a:string * b:string) * same:bool =
+  (~swapped:(~a:"foo", ~b:"bar"), ~same:true)
+val barfoo : swapped:(a:string * b:string) * same:bool =
+  (~swapped:(~a:"bar", ~b:"foo"), ~same:false)
+|}]
 
 (* CR labeled-tuples: test evaluation order w.r.t. reordering, such as in:
 
@@ -187,22 +232,60 @@ let t1 = { x = Printf.printf "x\n"; y = Printf.printf "y\n" }
 let t2 = { y = Printf.printf "y\n"; x = Printf.printf "x\n" }
 *)
 
+(* Test match statements with exception patterns *)
+
+exception Odd
+
+let x_must_be_even (~~(~x; y)) =
+   if x mod 2 = 1 then
+      raise Odd
+   else
+      (~~(~x, y))
+
+let foo xy k_good k_bad = 
+   match x_must_be_even xy with
+   | ~~(~x; y) -> k_good ()
+   | exception Odd -> k_bad ()
+[%%expect{|
+exception Odd
+val x_must_be_even : x:int * 'a -> x:int * 'a = <fun>
+val foo : x:int * 'a -> (unit -> 'b) -> (unit -> 'b) -> 'b = <fun>
+|}]
+
+(* Test correctness *)
+let _ = foo (~~(~x:2, 5)) (fun () -> true) (fun () -> false)
+let _ = foo (~~(~x:3, 5)) (fun () -> false) (fun () -> true)
+[%%expect{|
+- : bool = true
+- : bool = true
+|}]
+
+(* Test that the actions occur outside of the exception handler *)
+let _ =
+   try
+      foo (~~(~x:2, 5)) (fun () -> raise Odd) (fun () -> false)
+   with Odd -> true
+let _ =
+   try
+      foo (~~(~x:3, 5)) (fun () -> false) (fun () -> raise Odd)
+   with Odd -> true
+[%%expect{|
+- : bool = true
+- : bool = true
+|}]
+
 (* Labeled tuple pattern *)
 let ~~(~x=x0; ~y=y0; _) = ~~(~x: 1, ~y: 2, "ignore me")
 [%%expect{|
-Line 1, characters 4-23:
-1 | let ~~(~x=x0; ~y=y0; _) = ~~(~x: 1, ~y: 2, "ignore me")
-        ^^^^^^^^^^^^^^^^^^^
-Error: Labeled tuple patterns are not yet supported
+val x0 : int = 1
+val y0 : int = 2
 |}]
 
 (* Pattern with punning and type annotation *)
 let ~~(~(x:int); ~y; _) = ~~(~x: 1, ~y: 2, "ignore me")
 [%%expect{|
-Line 1, characters 4-23:
-1 | let ~~(~(x:int); ~y; _) = ~~(~x: 1, ~y: 2, "ignore me")
-        ^^^^^^^^^^^^^^^^^^^
-Error: Labeled tuple patterns are not yet supported
+val x : int = 1
+val y : int = 2
 |}]
 
 (* Labeled tuple pattern in constructor pattern, with the same arity as the
@@ -218,17 +301,12 @@ Error: Constructors cannot have labeled arguments. Consider using an inline reco
 |}]
 
 (* Labeled tuple patterns in constructor patterns with that can union with the
-   constructor pattern type.
-   
-   CR labeled tuples: these should eventually work. *)
+   constructor pattern type. *)
 let f = function
 | Some (~~(~x=5; 2)) -> true
 | _ -> false
 [%%expect{|
-Line 2, characters 7-20:
-2 | | Some (~~(~x=5; 2)) -> true
-           ^^^^^^^^^^^^^
-Error: Labeled tuple patterns are not yet supported
+val f : (x:int * int) option -> bool = <fun>
 |}]
 
 
@@ -238,14 +316,44 @@ let f = function
 | _ -> false
 [%%expect{|
 type t = Foo of (x:int * int)
-Line 3, characters 6-19:
-3 | | Foo (~~(~x=5; 2)) -> true
-          ^^^^^^^^^^^^^
-Error: Labeled tuple patterns are not yet supported
+val f : t -> bool = <fun>
 |}]
 
-(* CR labeled tuples: test constructor special cases thoroughly once patterns
-   are typed. *)
+let _ = f (Foo (~~(~x:5,2)))
+let _ = f (Foo (~~(~x:4,2)))
+let _ = f (Foo (~~(~x:5,1)))
+[%%expect{|
+- : bool = true
+- : bool = false
+- : bool = false
+|}]
+
+let _ = f (Foo (~~(5,1)))
+[%%expect{|
+Line 1, characters 15-24:
+1 | let _ = f (Foo (~~(5,1)))
+                   ^^^^^^^^^
+Error: This expression has type 'a * 'b
+       but an expression was expected of type x:int * int
+|}]
+
+let _ = f (Foo (~~(5,~x:1)))
+[%%expect{|
+Line 1, characters 15-27:
+1 | let _ = f (Foo (~~(5,~x:1)))
+                   ^^^^^^^^^^^^
+Error: This expression has type 'a * x:'b
+       but an expression was expected of type x:int * int
+|}]
+
+let _ = f (Foo (~~(5,~y:1)))
+[%%expect{|
+Line 1, characters 15-27:
+1 | let _ = f (Foo (~~(5,~y:1)))
+                   ^^^^^^^^^^^^
+Error: This expression has type 'a * y:'b
+       but an expression was expected of type x:int * int
+|}]
 
 (* Labeled tuple type annotations *)
 (* Bad type *)
@@ -274,3 +382,317 @@ let x = mk_x (~~(~foo:(), ~bar:()))
 [%%expect{|
 val x : string * a:int * int = ("hi", ~a:1, 2)
 |}]
+
+(* Labeled tuples in records *)
+
+type bad_t = {x : ~~(lbl:bad_type * int)}
+[%%expect{|
+Line 1, characters 25-33:
+1 | type bad_t = {x : ~~(lbl:bad_type * int)}
+                             ^^^^^^^^
+Error: Unbound type constructor bad_type
+Hint: Did you mean bad_t?
+|}]
+
+type tx = { x : ~~(foo:int * bar:int) }
+type tx_unlabeled = { x : ~~(int * int) }
+[%%expect{|
+type tx = { x : foo:int * bar:int; }
+type tx_unlabeled = { x : int * int; }
+|}]
+
+
+let _ = { x = (~~(~foo:1, ~bar:2))}
+[%%expect{|
+Line 1, characters 14-34:
+1 | let _ = { x = (~~(~foo:1, ~bar:2))}
+                  ^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type foo:'a * bar:'b
+       but an expression was expected of type int * int
+|}]
+
+let (_ : tx) = { x = (~~(~foo:1, ~bar:2))}
+[%%expect{|
+- : tx = {x = (~foo:1, ~bar:2)}
+|}]
+
+let (_ : tx) = { x = (~~(1, ~bar:2))}
+[%%expect{|
+Line 1, characters 21-36:
+1 | let (_ : tx) = { x = (~~(1, ~bar:2))}
+                         ^^^^^^^^^^^^^^^
+Error: This expression has type 'a * bar:'b
+       but an expression was expected of type foo:int * bar:int
+|}]
+
+       let (_ : tx) = { x = (~~(~foo:1, 2))}
+[%%expect{|
+Line 1, characters 28-43:
+1 |        let (_ : tx) = { x = (~~(~foo:1, 2))}
+                                ^^^^^^^^^^^^^^^
+Error: This expression has type foo:int * 'a
+       but an expression was expected of type foo:int * bar:int
+|}]
+
+let (_ : tx) = { x = (~~(1, 2))}
+[%%expect{|
+Line 1, characters 21-31:
+1 | let (_ : tx) = { x = (~~(1, 2))}
+                         ^^^^^^^^^^
+Error: This expression has type 'a * 'b
+       but an expression was expected of type foo:int * bar:int
+|}]
+
+let _ = { x = (~~(1, 2))}
+[%%expect{|
+- : tx_unlabeled = {x = (1, 2)}
+|}]
+
+let f = fun (~~(~foo; ~bar=bar)) -> foo * 10 + bar
+let bar = 5
+let _ = f (~~(~foo:1, ~bar))
+[%%expect{|
+val f : foo:int * bar:int -> int = <fun>
+val bar : int = 5
+- : int = 15
+|}]
+
+(* Correct annotation *)
+let f : ~~(foo:int * bar:int) -> int =
+   fun (~~(~foo; ~bar=bar)) -> foo * 10 + bar
+[%%expect{|
+val f : foo:int * bar:int -> int = <fun>
+|}]
+
+let f = fun (~~(~foo; ~bar=bar) : ~~(foo:int * bar:int)) -> foo * 10 + bar
+[%%expect{|
+val f : foo:int * bar:int -> int = <fun>
+|}]
+
+(* Missing label *)
+let f : ~~(int * bar:int) -> int = fun (~~(~foo; ~bar=bar)) -> foo * 10 + bar
+[%%expect{|
+Line 1, characters 39-59:
+1 | let f : ~~(int * bar:int) -> int = fun (~~(~foo; ~bar=bar)) -> foo * 10 + bar
+                                           ^^^^^^^^^^^^^^^^^^^^
+Error: This pattern matches values of type foo:'a * bar:'b
+       but a pattern was expected which matches values of type int * bar:int
+|}]
+
+let f = fun (~~(~foo; ~bar=bar) : ~~(foo:int * int)) -> foo * 10 + bar
+[%%expect{|
+Line 1, characters 13-31:
+1 | let f = fun (~~(~foo; ~bar=bar) : ~~(foo:int * int)) -> foo * 10 + bar
+                 ^^^^^^^^^^^^^^^^^^
+Error: This pattern matches values of type foo:int * bar:'a
+       but a pattern was expected which matches values of type foo:int * int
+|}]
+
+(* Wrong label *)
+let f : ~~(foo:int * foo:int) -> int =
+   fun (~~(~foo; ~bar=bar)) -> foo * 10 + bar
+[%%expect{|
+Line 2, characters 7-27:
+2 |    fun (~~(~foo; ~bar=bar)) -> foo * 10 + bar
+           ^^^^^^^^^^^^^^^^^^^^
+Error: This pattern matches values of type foo:int * bar:'a
+       but a pattern was expected which matches values of type
+         foo:int * foo:int
+|}]
+
+(* Wrong type *)
+let f : ~~(foo:float * foo:int) -> int =
+   fun (~~(~foo; ~bar=bar)) -> foo * 10 + bar
+[%%expect{|
+Line 2, characters 7-27:
+2 |    fun (~~(~foo; ~bar=bar)) -> foo * 10 + bar
+           ^^^^^^^^^^^^^^^^^^^^
+Error: This pattern matches values of type foo:float * bar:'a
+       but a pattern was expected which matches values of type
+         foo:float * foo:int
+|}]
+
+(* Annotated pattern *)
+let f ((~~(~x;y)) : ~~(x:int * int)) : int = x + y
+[%%expect{|
+val f : x:int * int -> int = <fun>
+|}]
+
+(* Misannotated pattern *)
+let f ((~~(~x;y)) : ~~(int * int)) : int = x + y
+[%%expect{|
+Line 1, characters 7-17:
+1 | let f ((~~(~x;y)) : ~~(int * int)) : int = x + y
+           ^^^^^^^^^^
+Error: This pattern matches values of type x:'a * 'b
+       but a pattern was expected which matches values of type int * int
+|}]
+
+(* CR labeled tuples: this should work once reordering is supported *)
+let f ((~~(~x;y)) : ~~(int * x:int)) : int = x + y
+[%%expect{|
+Line 1, characters 7-17:
+1 | let f ((~~(~x;y)) : ~~(int * x:int)) : int = x + y
+           ^^^^^^^^^^
+Error: This pattern matches values of type x:'a * 'b
+       but a pattern was expected which matches values of type int * x:int
+|}]
+
+(* Annotation within pattern *)
+let f ((~~(~(x:int);y)) : ~~(x:int * int)) : int = x + y
+[%%expect{|
+val f : x:int * int -> int = <fun>
+|}]
+
+let f (~~(~(x:int);y)) = x + y
+[%%expect{|
+val f : x:int * int -> int = <fun>
+|}]
+
+let f (~~(~x=(x0:int);y)) = x0 + y
+[%%expect{|
+val f : x:int * int -> int = <fun>
+|}]
+
+(* Misannotation within pattern *)
+let f (~~(~(x:float);y)) = x + y
+[%%expect{|
+Line 1, characters 27-28:
+1 | let f (~~(~(x:float);y)) = x + y
+                               ^
+Error: This expression has type float but an expression was expected of type
+         int
+|}]
+
+(* Module inclusion *)
+
+module IntString : sig
+   type t
+   val mk : ~~(x: int * string) -> t
+   val unwrap : t -> ~~(x:int * string)
+end = struct
+  type t = ~~(string * x:int)
+  (* CR labeled tuples: Make these use reordering, once supported *)
+  let mk (~~(~x; s)) = (~~(s, ~x))
+  let unwrap (~~(s; ~x)) = (~~(~x, s))
+end
+[%%expect{|
+module IntString :
+  sig
+    type t
+    val mk : x:int * string -> t
+    val unwrap : t -> x:int * string
+  end
+|}]
+
+module Stringable = struct
+   module type Has_unwrap = sig
+      type t
+      val unwrap : t -> ~~(x: int * string)
+   end
+
+   module type Has_to_string = sig
+      include Has_unwrap
+      val to_string : t -> string
+   end
+
+   module Make (M : Has_unwrap) : Has_to_string with type t := M.t = struct
+      include M
+      let to_string int_string =
+         let (~~(~x; s)) = unwrap int_string in
+         (Int.to_string x) ^ " " ^ s
+   end
+end
+[%%expect{|
+module Stringable :
+  sig
+    module type Has_unwrap = sig type t val unwrap : t -> x:int * string end
+    module type Has_to_string =
+      sig
+        type t
+        val unwrap : t -> x:int * string
+        val to_string : t -> string
+      end
+    module Make :
+      functor (M : Has_unwrap) ->
+        sig
+          val unwrap : M.t -> x:int * string
+          val to_string : M.t -> string
+        end
+  end
+|}]
+
+module StringableIntString = struct
+   include IntString
+   include functor Stringable.Make
+end
+[%%expect{|
+module StringableIntString :
+  sig
+    type t = IntString.t
+    val mk : x:int * string -> t
+    val unwrap : IntString.t -> x:int * string
+    val to_string : IntString.t -> string
+  end
+|}]
+
+let _ = StringableIntString.to_string (StringableIntString.mk (~~(~x:1, "hi")))
+[%%expect{|
+- : string = "1 hi"
+|}]
+
+(* Recursive modules *)
+module rec Tree : sig
+   type t = Leaf of string | Branch of string * TwoTrees.t
+   val in_order : t -> string list
+end = struct
+   type t = Leaf of string | Branch of string * TwoTrees.t
+   let rec in_order = function
+   | Leaf s -> [s]
+   | Branch (s, (~~(~left; ~right))) -> (in_order left) @ [s] @ (in_order right)
+end
+and TwoTrees : sig
+   type t = ~~(left:Tree.t * right:Tree.t)
+end = struct
+   type t = ~~(left:Tree.t * right:Tree.t)
+end
+[%%expect{|
+module rec Tree :
+  sig
+    type t = Leaf of string | Branch of string * TwoTrees.t
+    val in_order : t -> string list
+  end
+and TwoTrees : sig type t = left:Tree.t * right:Tree.t end
+|}]
+
+let leaf s = Tree.Leaf s
+let tree_abc = Tree.Branch ("b", ~~(~left:(leaf "a"), ~right:(leaf "c")))
+let tree_abcde = Tree.Branch ("d", ~~(~left:tree_abc, ~right:(leaf "e")))
+let _ = Tree.in_order tree_abcde
+[%%expect{|
+val leaf : string -> Tree.t = <fun>
+val tree_abc : Tree.t =
+  Tree.Branch ("b", (~left:Tree.Leaf "a", ~right:Tree.Leaf "c"))
+val tree_abcde : Tree.t =
+  Tree.Branch ("d",
+   (~left:Tree.Branch ("b", (~left:Tree.Leaf "a", ~right:Tree.Leaf "c")),
+    ~right:Tree.Leaf "e"))
+- : string list = ["a"; "b"; "c"; "d"; "e"]
+|}]
+
+(* CR labeled tuples: Upon supporting reordering, consider & test the following.
+   Given:
+      type xy = x:int * y:int
+      type yx = y:int * x:int
+      let xy_id (pt : xy) = pt
+      let yx_id (pt : yx) = pt
+
+   Which of the following implementations of [swap] are allowed?
+      let swap (~x, ~y) = (~y, ~x)
+      let swap ((~y, ~x) : xy) = (~y, ~x)
+      let swap (~x, ~y) = ((~x, ~y) : yx)
+      let swap (pt : xy) : yx = pt
+      let swap : xy -> yx = Fun.id  
+      let swap : xy -> yx = xy_id  
+      let swap : xy -> yx = yx_id  
+*)

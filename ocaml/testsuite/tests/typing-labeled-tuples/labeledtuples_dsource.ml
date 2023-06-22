@@ -27,8 +27,7 @@ let (~~(~x=x0; ~s; ~(y:int); _)) : ~~(x:int * s:string * y:int * string) =
 
 let ((~x:x0, ~s:s, ~y:(y : int), _) : (x:int * s:string * y:int * string)) =
   (~x:1, ~s:"a", ~y:2, "ignore me");;
-Line 1, characters 4-32:
-1 | let (~~(~x=x0; ~s; ~(y:int); _)) : ~~(x:int * s:string * y:int * string) =
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Labeled tuple patterns are not yet supported
+val x0 : int = 1
+val s : string = "a"
+val y : int = 2
 |}]
