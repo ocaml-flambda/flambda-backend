@@ -1339,7 +1339,7 @@ and module_expr ctxt f x =
   if x.pmod_attributes <> [] then
     pp f "((%a)%a)" (module_expr ctxt) {x with pmod_attributes=[]}
       (attributes ctxt) x.pmod_attributes
-  else match Extensions.Module_expr.of_ast x with
+  else match Jane_syntax.Module_expr.of_ast x with
     | Some ext -> extension_module_expr ctxt f ext
     | None -> match x.pmod_desc with
     | Pmod_structure (s) ->
@@ -1910,15 +1910,15 @@ and unboxed_constant _ctxt f (x : Jane_syntax.Unboxed_constants.t)
   | Float (x, suffix) -> pp f "#%a" constant (Pconst_float (x, suffix))
   | Integer (x, suffix) -> pp f "#%a" constant (Pconst_integer (x, Some suffix))
 
-and extension_module_expr ctxt f (x : Extensions.Module_expr.t) =
+and extension_module_expr ctxt f (x : Jane_syntax.Module_expr.t) =
   match x with
   | Emod_instance i -> instance_module_expr ctxt f i
 
-and instance_module_expr ctxt f (x : Extensions.Instances.module_expr) =
+and instance_module_expr ctxt f (x : Jane_syntax.Instances.module_expr) =
   match x with
   | Imod_instance i -> instance ctxt f i
 
-and instance ctxt f (x : Extensions.Instances.instance) =
+and instance ctxt f (x : Jane_syntax.Instances.instance) =
   match x with
   | { head; args = [] } -> pp f "%s" head
   | { head; args } ->

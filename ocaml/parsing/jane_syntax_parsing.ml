@@ -671,6 +671,18 @@ module Module_type0 = Make_with_attribute (struct
     let with_attributes mty pmty_attributes = { mty with pmty_attributes }
 end)
 
+(** Module expressions; embedded using an attribute on the module expression. *)
+module Module_expr0 = Make_with_attribute(struct
+    type ast = module_expr
+
+    let plural = "module expressions"
+    let location mexpr = mexpr.pmod_loc
+    let with_location mexpr l = { mexpr with pmod_loc = l }
+
+    let attributes mexpr = mexpr.pmod_attributes
+    let with_attributes mexpr pmod_attributes = { mexpr with pmod_attributes }
+  end)
+
 (** Extension constructors; embedded using an attribute. *)
 module Extension_constructor0 = Make_with_attribute (struct
     type ast = extension_constructor
@@ -811,6 +823,7 @@ end
 module Expression = Make_ast(Expression0)
 module Pattern = Make_ast(Pattern0)
 module Module_type = Make_ast(Module_type0)
+module Module_expr = Make_ast(Module_expr0)
 module Signature_item = Make_ast(Signature_item0)
 module Structure_item = Make_ast(Structure_item0)
 module Core_type = Make_ast(Core_type0)

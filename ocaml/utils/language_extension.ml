@@ -134,8 +134,9 @@ let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option = match a, b 
   | Immutable_arrays, Immutable_arrays -> Some Refl
   | Module_strengthening, Module_strengthening -> Some Refl
   | Layouts, Layouts -> Some Refl
+  | Instances, Instances -> Some Refl
   | (Comprehensions | Local | Include_functor | Polymorphic_parameters |
-     Immutable_arrays | Module_strengthening | Layouts), _ -> None
+     Immutable_arrays | Module_strengthening | Layouts | Instances), _ -> None
 
 let equal a b = Option.is_some (equal_t a b)
 

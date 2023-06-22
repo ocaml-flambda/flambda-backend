@@ -95,8 +95,6 @@ type mapper = {
   module_declaration: mapper -> module_declaration -> module_declaration;
   module_substitution: mapper -> module_substitution -> module_substitution;
   module_expr: mapper -> module_expr -> module_expr;
-  module_expr_extension: mapper ->
-    Extensions.Module_expr.t -> Extensions.Module_expr.t;
   module_type: mapper -> module_type -> module_type;
   module_type_declaration: mapper -> module_type_declaration
                            -> module_type_declaration;
@@ -124,6 +122,8 @@ type mapper = {
     Jane_syntax.Extension_constructor.t -> Jane_syntax.Extension_constructor.t;
   module_type_jane_syntax: mapper ->
     Jane_syntax.Module_type.t -> Jane_syntax.Module_type.t;
+  module_expr_jane_syntax: mapper ->
+    Jane_syntax.Module_expr.t -> Jane_syntax.Module_expr.t;
   pat_jane_syntax: mapper -> Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t;
   signature_item_jane_syntax: mapper ->
     Jane_syntax.Signature_item.t -> Jane_syntax.Signature_item.t;

@@ -2272,7 +2272,7 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
     (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
 
 and type_module_aux ~alias sttn funct_body anchor env smod =
-  match Extensions.Module_expr.of_ast smod with
+  match Jane_syntax.Module_expr.of_ast smod with
     Some ext ->
       type_module_extension_aux ~alias sttn env smod ext
   | None ->
@@ -2385,7 +2385,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
 and type_module_extension_aux ~alias sttn env smod
-      : Extensions.Module_expr.t -> _ =
+      : Jane_syntax.Module_expr.t -> _ =
   function
   | Emod_instance (Imod_instance glob) ->
       (* Assume the name we have is truly a global. Someday we'll allow
