@@ -46,10 +46,10 @@ module = "category_of_monoid.mli"
 ************** ocamlc.byte
 module = "category_of_monoid.ml"
 *************** ocamlc.byte
-flags = "-parameter Semigroup"
+flags = "-parameter Semigroup -w -misplaced-attribute"
 module = "import.ml"
 **************** ocamlc.byte
-flags = "-parameter Semigroup"
+flags = "-parameter Semigroup -w -misplaced-attribute"
 module = "main.mli"
 ***************** ocamlc.byte
 module = "main.ml"
