@@ -449,7 +449,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_tuple (el, alloc_mode) ->
       let ll, shape =
         transl_list_with_shape ~scopes
-          (List.map (fun a -> (a, Sort.for_tuple_element)) el)
+          (List.map (fun a -> (snd a, Sort.for_tuple_element)) el)
       in
       begin try
         Lconst(Const_block(0, List.map extract_constant ll))
@@ -1622,11 +1622,11 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, [] ->
       assert (static_handlers = []);
       let mode = transl_alloc_mode alloc_mode in
-      let argl = List.map (fun a -> (a, Sort.for_tuple_element)) argl in
+      let argl = List.map (fun a -> (snd a, Sort.for_tuple_element)) argl in
       Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
         (transl_list_with_layout ~scopes argl) mode val_cases partial
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, _ :: _ ->
-        let argl = List.map (fun a -> (a, Sort.for_tuple_element)) argl in
+        let argl = List.map (fun (_,a) -> (a, Sort.for_tuple_element)) argl in
         let val_ids, lvars =
           List.map
             (fun (arg,s) ->

@@ -263,7 +263,7 @@ let common_initial_env add_type add_extension empty_env =
        ~layout:(Layout.immediate ~why:Enumeration)
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
-       [newgenty (Ttuple[type_string; type_int; type_int])]
+       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
        [| Layout.value ~why:Tuple |]
   |> add_extension ident_division_by_zero [] [||]
   |> add_extension ident_end_of_file [] [||]
@@ -272,7 +272,7 @@ let common_initial_env add_type add_extension empty_env =
   |> add_extension ident_invalid_argument [type_string]
        [| Layout.value ~why:(Primitive ident_string) |]
   |> add_extension ident_match_failure
-       [newgenty (Ttuple[type_string; type_int; type_int])]
+       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
        [| Layout.value ~why:Tuple |]
   |> add_extension ident_not_found [] [||]
   |> add_extension ident_out_of_memory [] [||]
@@ -281,7 +281,7 @@ let common_initial_env add_type add_extension empty_env =
   |> add_extension ident_sys_error [type_string]
        [| Layout.value ~why:(Primitive ident_string) |]
   |> add_extension ident_undefined_recursive_module
-       [newgenty (Ttuple[type_string; type_int; type_int])]
+       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
        [| Layout.value ~why:Tuple |]
 
 let build_initial_env add_type add_exception empty_env =

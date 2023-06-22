@@ -257,8 +257,12 @@ and expression_desc =
          *)
   | Texp_try of expression * value case list
         (** try E with P1 -> E1 | ... | PN -> EN *)
-  | Texp_tuple of expression list * Types.alloc_mode
-        (** (E1, ..., EN) *)
+  | Texp_tuple of (string option * expression) list * Types.alloc_mode
+        (** [Texp_tuple(el)] represents
+            - [(E1, ..., En)]       when [el] is [(None, E1);...;(None, En)],
+            - [(L1:E1, ..., Ln:En)] when [el] is [(Some L1, E1);...;(Some Ln, En)],
+            - Any mix, e.g. [(L1: E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
+          *)
   | Texp_construct of
       Longident.t loc * Types.constructor_description * expression list * Types.alloc_mode option
         (** C                []

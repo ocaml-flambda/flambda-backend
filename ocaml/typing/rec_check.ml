@@ -606,7 +606,7 @@ let rec expression : Typedtree.expression -> term_judg =
         in
         join [expression e; list arg args] << app_mode
     | Texp_tuple (exprs, _) ->
-      list expression exprs << Guard
+      list expression (List.map snd exprs) << Guard
     | Texp_array (_, exprs, _) ->
       list expression exprs << array_mode exp
     | Texp_list_comprehension { comp_body; comp_clauses } ->

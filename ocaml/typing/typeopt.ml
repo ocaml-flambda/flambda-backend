@@ -309,21 +309,21 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
     with Not_found -> num_nodes_visited, Pgenval
     (* CR layouts v1.5: stop allowing missing cmis. *)
     end
-  | Ttuple fields ->
+  | Ttuple labeled_fields ->
     if cannot_proceed () then
       num_nodes_visited, Pgenval
     else begin
       let visited = Numbers.Int.Set.add (get_id ty) visited in
       let depth = depth + 1 in
       let num_nodes_visited, fields =
-        List.fold_left_map (fun num_nodes_visited field ->
+        List.fold_left_map (fun num_nodes_visited (_,field) ->
           let num_nodes_visited = num_nodes_visited + 1 in
           (* CR layouts v5 - this is fine because voids are not allowed in
              tuples.  When they are, we probably need to add a list of layouts
              to Ttuple, as in variant_representation and record_representation
              *)
           value_kind env ~loc ~visited ~depth ~num_nodes_visited field)
-          num_nodes_visited fields
+          num_nodes_visited labeled_fields
       in
       num_nodes_visited,
       Pvariant { consts = []; non_consts = [0, fields] }
