@@ -11,8 +11,7 @@ type definitions_at_beginning = Reg.Set.t Label.Map.t
 type phi_at_beginning = Reg.Set.t Label.Map.t
 
 type t =
-  { dominators : Cfg_dominators.t;
-    destructions_at_end : destructions_at_end;
+  { destructions_at_end : destructions_at_end;
     definitions_at_beginning : definitions_at_beginning;
     phi_at_beginning : phi_at_beginning;
     stack_slots : Regalloc_stack_slots.t;
@@ -112,7 +111,6 @@ end
 module RemoveDominatedSpillsForConstants : sig
   val optimize :
     Cfg_with_infos.t ->
-    Cfg_dominators.t ->
     destructions_at_end:destructions_at_end ->
     destructions_at_end
 end = struct
@@ -199,7 +197,7 @@ end = struct
         remove_dominated_spills doms child ~num_sets
           ~already_spilled:!already_spilled ~destructions_at_end)
 
-  let optimize cfg_with_infos doms ~destructions_at_end =
+  let optimize cfg_with_infos ~destructions_at_end =
     if split_debug
     then log ~indent:0 "RemoveDominatedSpillsForConstants.optimize";
     let loops = Cfg_with_infos.loop_infos cfg_with_infos in
@@ -230,6 +228,7 @@ end = struct
         (fun reg num_set ->
           log ~indent:2 "%a ~> %s" Printmach.reg reg (string_of_set num_set))
         num_sets);
+    let doms = Cfg_with_infos.dominators cfg_with_infos in
     remove_dominated_spills doms doms.Cfg_dominators.dominator_tree ~num_sets
       ~already_spilled:Reg.Map.empty ~destructions_at_end
 end
@@ -343,9 +342,9 @@ let add_phis :
     Label.t ->
     Reg.Set.t ->
     phi_at_beginning ->
-    Cfg_dominators.t ->
     phi_at_beginning =
- fun cfg_with_infos destruction_label destroyed_regs phi_at_beginning doms ->
+ fun cfg_with_infos destruction_label destroyed_regs phi_at_beginning ->
+  let doms = Cfg_with_infos.dominators cfg_with_infos in
   let destruction_frontier =
     match
       Label.Map.find_opt destruction_label
@@ -374,10 +373,10 @@ let add_phis :
           phi_at_beginning)
     destruction_frontier phi_at_beginning
 
-let rec fix_point_phi :
-    Cfg_with_infos.t -> Cfg_dominators.t -> phi_at_beginning -> phi_at_beginning
+let rec fix_point_phi : Cfg_with_infos.t -> phi_at_beginning -> phi_at_beginning
     =
- fun cfg_with_infos doms phi_at_beginning ->
+ fun cfg_with_infos phi_at_beginning ->
+  let doms = Cfg_with_infos.dominators cfg_with_infos in
   let changed = ref false in
   let res = ref phi_at_beginning in
   Label.Map.iter
@@ -412,7 +411,7 @@ let rec fix_point_phi :
                    !res)
         frontier)
     phi_at_beginning;
-  if !changed then fix_point_phi cfg_with_infos doms !res else phi_at_beginning
+  if !changed then fix_point_phi cfg_with_infos !res else phi_at_beginning
 
 (* Phis are first added at the dominance frontier of blocks appearing in either
    `destructions_at_end` or `definitions_at_beginning`. And then also at the
@@ -421,9 +420,8 @@ let compute_phis :
     Cfg_with_infos.t ->
     destructions_at_end:destructions_at_end ->
     definitions_at_beginning:definitions_at_beginning ->
-    Cfg_dominators.t ->
     phi_at_beginning =
- fun cfg_with_infos ~destructions_at_end ~definitions_at_beginning doms ->
+ fun cfg_with_infos ~destructions_at_end ~definitions_at_beginning ->
   let phi_at_beginning = Label.Map.empty in
   let phi_at_beginning =
     Label.Map.fold
@@ -432,47 +430,42 @@ let compute_phis :
         | Destruction_only_on_exceptional_path -> phi_at_beginning
         | Destruction_on_all_paths ->
           add_phis cfg_with_infos destruction_label destroyed_regs
-            phi_at_beginning doms)
+            phi_at_beginning)
       destructions_at_end phi_at_beginning
   in
   let phi_at_beginning =
     Label.Map.fold
       (fun destruction_label destroyed_regs phi_at_beginning ->
         add_phis cfg_with_infos destruction_label destroyed_regs
-          phi_at_beginning doms)
+          phi_at_beginning)
       definitions_at_beginning phi_at_beginning
   in
-  let phi_at_beginning = fix_point_phi cfg_with_infos doms phi_at_beginning in
+  let phi_at_beginning = fix_point_phi cfg_with_infos phi_at_beginning in
   phi_at_beginning
 
 let make cfg_with_infos ~next_instruction_id =
-  let dominators = Cfg_with_infos.dominators cfg_with_infos in
   let destructions_at_end = compute_destructions cfg_with_infos in
   let definitions_at_beginning =
     compute_definitions cfg_with_infos ~destructions_at_end
   in
   let phi_at_beginning =
     compute_phis cfg_with_infos ~destructions_at_end ~definitions_at_beginning
-      dominators
   in
   let destructions_at_end, definitions_at_beginning =
     RemoveReloadSpillInSameBlock.optimize cfg_with_infos ~destructions_at_end
       ~definitions_at_beginning
   in
   let destructions_at_end =
-    RemoveDominatedSpillsForConstants.optimize cfg_with_infos dominators
+    RemoveDominatedSpillsForConstants.optimize cfg_with_infos
       ~destructions_at_end
   in
   let stack_slots = Regalloc_stack_slots.make () in
-  { dominators;
-    destructions_at_end;
+  { destructions_at_end;
     definitions_at_beginning;
     phi_at_beginning;
     stack_slots;
     next_instruction_id
   }
-
-let dominators state = state.dominators
 
 let destructions_at_end state = state.destructions_at_end
 

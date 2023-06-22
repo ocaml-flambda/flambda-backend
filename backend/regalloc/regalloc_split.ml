@@ -90,7 +90,8 @@ let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
       propagate_substitution state cfg substs block subst
   in
   Cfg_dominators.iter_breadth_dominator_tree
-    (State.dominators state).dominator_tree ~f:compute_substitution_for_block;
+    (Cfg_with_infos.dominators cfg_with_infos).dominator_tree
+    ~f:compute_substitution_for_block;
   substs
 
 let apply_substitutions : Cfg_with_infos.t -> Substitution.map -> unit =
@@ -307,7 +308,7 @@ let split_at_destruction_points :
   in
   if split_debug
   then (
-    let doms = State.dominators state in
+    let doms = Cfg_with_infos.dominators cfg_with_infos in
     log_dominance_frontier ~indent:1 doms.dominance_frontiers;
     log_dominator_tree ~indent:1 doms.dominator_tree);
   match Label.Map.is_empty (State.definitions_at_beginning state) with

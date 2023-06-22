@@ -28,8 +28,6 @@ val log_renaming_info : indent:int -> t -> unit
       contains `x`). *)
 val make : Cfg_with_infos.t -> next_instruction_id:Instruction.id -> t
 
-val dominators : t -> Cfg_dominators.t
-
 val destructions_at_end : t -> destructions_at_end
 
 val definitions_at_beginning : t -> definitions_at_beginning
