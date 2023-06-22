@@ -235,7 +235,9 @@ method class_of_operation op =
   | Imove | Ispill | Ireload -> assert false   (* treated specially *)
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ -> Op_pure
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-  | Iextcall _ | Iprobe _ | Iopaque -> assert false  (* treated specially *)
+  | Iextcall _ | Iprobe _ | Iopaque
+  | Ibegin_uninterruptible | Iend_uninterruptible ->
+      assert false  (* treated specially *)
   | Istackoffset _ -> Op_other
   | Iload(_,_,mut) -> Op_load mut
   | Istore(_,_,asg) -> Op_store asg
@@ -280,7 +282,8 @@ method private cse n i k =
          as to the argument reg. *)
       let n1 = set_move n i.arg.(0) i.res.(0) in
       self#cse n1 i.next (fun next -> k { i with next; })
-  | Iop (Icall_ind | Icall_imm _ | Iextcall _ | Iprobe _) ->
+  | Iop (Icall_ind | Icall_imm _ | Iextcall _ | Iprobe _)
+  | Iop (Ibegin_uninterruptible | Iend_uninterruptible) ->
       (* For function calls and probes, we should at least forget:
          - equations involving memory loads, since the callee can
            perform arbitrary memory stores;
@@ -292,7 +295,8 @@ method private cse n i k =
          That doesn't leave much usable information: checkbounds
          could be kept, but won't be usable for CSE as one of their
          arguments is always a memory load.  For simplicity, we
-         just forget everything. *)
+         just forget everything.
+         Likewise for non-interruptible regions. *)
       self#cse empty_numbering i.next (fun next -> k { i with next; })
   | Iop Iopaque ->
       (* Assume arbitrary side effects from Iopaque *)

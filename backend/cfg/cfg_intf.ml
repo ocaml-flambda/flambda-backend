@@ -95,6 +95,8 @@ module S = struct
           provenance : unit option;
           is_assignment : bool
         }
+    | Begin_uninterruptible
+    | End_uninterruptible
 
   type bool_test =
     { ifso : Label.t;  (** if test is true goto [ifso] label *)

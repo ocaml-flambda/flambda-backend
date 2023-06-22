@@ -1282,3 +1282,7 @@ val machtype_of_layout : Lambda.layout -> machtype
 val machtype_of_layout_changing_tagged_int_to_val : Lambda.layout -> machtype
 
 val make_tuple : expression list -> expression
+
+val begin_uninterruptible : dbg:Debuginfo.t -> expression
+
+val end_uninterruptible : dbg:Debuginfo.t -> expression -> expression

@@ -232,6 +232,7 @@ type nullary_primitive =
   | Enter_inlined_apply of { dbg : Debuginfo.t }
       (** Used in classic mode to denote the start of an inlined function body.
           This is then used in to_cmm to correctly add inlined debuginfo. *)
+  | Begin_uninterruptible
 
 (** Untagged binary integer arithmetic operations.
 
@@ -323,6 +324,7 @@ type unary_primitive =
   | End_region
       (** Ending delimiter of local allocation region, accepting a region name. *)
   | Obj_dup  (** Corresponds to [Obj.dup]; see the documentation in obj.mli. *)
+  | End_uninterruptible
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"

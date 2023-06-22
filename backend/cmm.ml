@@ -221,6 +221,7 @@ and operation =
   | Cprobe_is_enabled of { name: string }
   | Copaque
   | Cbeginregion | Cendregion
+  | Cbegin_uninterruptible | Cend_uninterruptible
 
 type kind_for_unboxing =
   | Any

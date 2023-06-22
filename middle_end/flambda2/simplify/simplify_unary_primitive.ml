@@ -480,6 +480,12 @@ let simplify_end_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:false dacc
 
+let simplify_end_uninterruptible dacc ~original_term ~arg:_ ~arg_ty:_
+    ~result_var =
+  let ty = T.this_tagged_immediate Targetint_31_63.zero in
+  let dacc = DA.add_variable dacc result_var ty in
+  SPR.create original_term ~try_reify:false dacc
+
 let simplify_int_as_pointer dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   SPR.create_unknown dacc ~result_var K.value ~original_term
 
@@ -635,5 +641,6 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Begin_try_region -> simplify_begin_try_region
     | End_region -> simplify_end_region
     | Obj_dup -> simplify_obj_dup dbg
+    | End_uninterruptible -> simplify_end_uninterruptible
   in
   simplifier dacc ~original_term ~arg ~arg_ty ~result_var

@@ -184,6 +184,7 @@ method! reload_operation op arg res =
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
   | Ivalueofint | Iintofvalue | Iopaque
   | Ibeginregion | Iendregion | Ipoll _
+  | Ibegin_uninterruptible | Iend_uninterruptible
     -> (* Other operations: all args and results in registers,
           except moves and probes. *)
       super#reload_operation op arg res

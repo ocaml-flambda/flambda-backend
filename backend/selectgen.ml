@@ -228,6 +228,8 @@ let oper_result_type = function
        naked pointer into the local allocation stack. *)
     typ_int
   | Cendregion -> typ_void
+  | Cbegin_uninterruptible -> typ_addr
+  | Cend_uninterruptible -> typ_void
 
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
@@ -490,7 +492,9 @@ method is_simple_expr = function
       | Capply _ | Cextcall _ | Calloc _ | Cstore _
       | Craise _ | Ccheckbound | Catomic _
       | Cprobe _ | Cprobe_is_enabled _ | Copaque -> false
-      | Cprefetch _ | Cbeginregion | Cendregion -> false (* avoid reordering *)
+      | Cprefetch _ | Cbeginregion | Cendregion
+      | Cbegin_uninterruptible | Cend_uninterruptible ->
+        false (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor
       | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
@@ -540,6 +544,7 @@ method effects_of exp =
       | Calloc Alloc_local -> EC.coeffect_only Coeffect.Arbitrary
       | Cstore _ -> EC.effect_only Effect.Arbitrary
       | Cbeginregion | Cendregion -> EC.arbitrary
+      | Cbegin_uninterruptible | Cend_uninterruptible -> EC.arbitrary
       | Cprefetch _ -> EC.arbitrary
       | Catomic _ -> EC.arbitrary
       | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
@@ -695,6 +700,8 @@ method select_operation op args _dbg =
   | (Cprobe_is_enabled {name}, _) -> Iprobe_is_enabled {name}, []
   | (Cbeginregion, _) -> Ibeginregion, []
   | (Cendregion, _) -> Iendregion, args
+  | (Cbegin_uninterruptible, _) -> Ibegin_uninterruptible, []
+  | (Cend_uninterruptible, _) -> Iend_uninterruptible, args
   | _ -> Misc.fatal_error "Selection.select_oper"
 
 method private select_arith_comm op = function

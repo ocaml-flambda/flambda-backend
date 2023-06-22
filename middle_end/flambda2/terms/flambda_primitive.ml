@@ -603,10 +603,11 @@ type nullary_primitive =
   | Probe_is_enabled of { name : string }
   | Begin_region
   | Enter_inlined_apply of { dbg : Debuginfo.t }
+  | Begin_uninterruptible
 
 let nullary_primitive_eligible_for_cse = function
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
-  | Enter_inlined_apply _ ->
+  | Enter_inlined_apply _ | Begin_uninterruptible ->
     false
 
 let compare_nullary_primitive p1 p2 =
@@ -618,20 +619,29 @@ let compare_nullary_primitive p1 p2 =
   | Begin_region, Begin_region -> 0
   | Enter_inlined_apply { dbg = dbg1 }, Enter_inlined_apply { dbg = dbg2 } ->
     Debuginfo.compare dbg1 dbg2
+  | Begin_uninterruptible, Begin_uninterruptible -> 0
   | ( Invalid _,
       ( Optimised_out _ | Probe_is_enabled _ | Begin_region
-      | Enter_inlined_apply _ ) ) ->
+      | Enter_inlined_apply _ | Begin_uninterruptible ) ) ->
     -1
-  | Optimised_out _, (Probe_is_enabled _ | Begin_region | Enter_inlined_apply _)
-    ->
+  | ( Optimised_out _,
+      ( Probe_is_enabled _ | Begin_region | Enter_inlined_apply _
+      | Begin_uninterruptible ) ) ->
     -1
   | Optimised_out _, Invalid _ -> 1
-  | Probe_is_enabled _, (Begin_region | Enter_inlined_apply _) -> -1
+  | ( Probe_is_enabled _,
+      (Begin_region | Enter_inlined_apply _ | Begin_uninterruptible) ) ->
+    -1
   | Probe_is_enabled _, (Invalid _ | Optimised_out _) -> 1
-  | Begin_region, Enter_inlined_apply _ -> -1
+  | Begin_region, (Enter_inlined_apply _ | Begin_uninterruptible) -> -1
   | Begin_region, (Invalid _ | Optimised_out _ | Probe_is_enabled _) -> 1
   | ( Enter_inlined_apply _,
       (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ) ->
+    1
+  | Enter_inlined_apply _, Begin_uninterruptible -> -1
+  | ( Begin_uninterruptible,
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
+      | Enter_inlined_apply _ ) ) ->
     1
 
 let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
@@ -650,6 +660,7 @@ let print_nullary_primitive ppf p =
   | Enter_inlined_apply { dbg } ->
     Format.fprintf ppf "@[<hov 1>(Enter_inlined_apply@ %a)@]"
       Debuginfo.print_compact dbg
+  | Begin_uninterruptible -> Format.pp_print_string ppf "Begin_uninterruptible"
 
 let result_kind_of_nullary_primitive p : result_kind =
   match p with
@@ -658,6 +669,7 @@ let result_kind_of_nullary_primitive p : result_kind =
   | Probe_is_enabled _ -> Singleton K.naked_immediate
   | Begin_region -> Singleton K.region
   | Enter_inlined_apply _ -> Unit
+  | Begin_uninterruptible -> Singleton K.value
 
 let effects_and_coeffects_of_begin_region : Effects_and_coeffects.t =
   (* Ensure these don't get moved, but allow them to be deleted. *)
@@ -676,11 +688,12 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
     (* This doesn't really have effects, but without effects, these primitives
        get deleted during lambda_to_flambda. *)
     Arbitrary_effects, Has_coeffects, Strict
+  | Begin_uninterruptible -> Arbitrary_effects, Has_coeffects, Strict
 
 let nullary_classify_for_printing p =
   match p with
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
-  | Enter_inlined_apply _ ->
+  | Enter_inlined_apply _ | Begin_uninterruptible ->
     Neither
 
 type unary_primitive =
@@ -726,6 +739,7 @@ type unary_primitive =
   | Begin_try_region
   | End_region
   | Obj_dup
+  | End_uninterruptible
 
 (* Here and below, operations that are genuine projections shouldn't be eligible
    for CSE, since we deal with projections through types. *)
@@ -756,7 +770,7 @@ let unary_primitive_eligible_for_cse p ~arg =
     Simple.is_var arg
   | Project_function_slot _ | Project_value_slot _ -> false
   | Is_boxed_float | Is_flat_float_array -> true
-  | Begin_try_region | End_region | Obj_dup -> false
+  | Begin_try_region | End_region | Obj_dup | End_uninterruptible -> false
 
 let compare_unary_primitive p1 p2 =
   let unary_primitive_numbering p =
@@ -786,6 +800,7 @@ let compare_unary_primitive p1 p2 =
     | Begin_try_region -> 22
     | End_region -> 23
     | Obj_dup -> 24
+    | End_uninterruptible -> 25
   in
   match p1, p2 with
   | ( Duplicate_array
@@ -863,7 +878,7 @@ let compare_unary_primitive p1 p2 =
       | Array_length | Bigarray_length _ | Unbox_number _ | Box_number _
       | Untag_immediate | Tag_immediate | Project_function_slot _
       | Project_value_slot _ | Is_boxed_float | Is_flat_float_array
-      | Begin_try_region | End_region | Obj_dup ),
+      | Begin_try_region | End_region | Obj_dup | End_uninterruptible ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -917,6 +932,7 @@ let print_unary_primitive ppf p =
   | Begin_try_region -> Format.pp_print_string ppf "Begin_try_region"
   | End_region -> Format.pp_print_string ppf "End_region"
   | Obj_dup -> Format.pp_print_string ppf "Obj_dup"
+  | End_uninterruptible -> Format.pp_print_string ppf "End_uninterruptible"
 
 let arg_kind_of_unary_primitive p =
   match p with
@@ -941,6 +957,7 @@ let arg_kind_of_unary_primitive p =
   | Begin_try_region -> K.region
   | End_region -> K.region
   | Obj_dup -> K.value
+  | End_uninterruptible -> K.value
 
 let result_kind_of_unary_primitive p : result_kind =
   match p with
@@ -967,6 +984,7 @@ let result_kind_of_unary_primitive p : result_kind =
   | Begin_try_region -> Singleton K.region
   | End_region -> Singleton K.value
   | Obj_dup -> Singleton K.value
+  | End_uninterruptible -> Singleton K.value
 
 let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1056,6 +1074,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
     ( Only_generative_effects Mutable (* Mutable is conservative *),
       Has_coeffects,
       Strict )
+  | End_uninterruptible -> Arbitrary_effects, Has_coeffects, Strict
 
 let unary_classify_for_printing p =
   match p with
@@ -1069,7 +1088,7 @@ let unary_classify_for_printing p =
   | Box_number _ | Tag_immediate -> Constructive
   | Project_function_slot _ | Project_value_slot _ -> Destructive
   | Is_boxed_float | Is_flat_float_array -> Neither
-  | Begin_try_region | End_region -> Neither
+  | Begin_try_region | End_region | End_uninterruptible -> Neither
 
 let free_names_unary_primitive p =
   match p with
@@ -1090,7 +1109,7 @@ let free_names_unary_primitive p =
   | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
-  | Obj_dup ->
+  | Obj_dup | End_uninterruptible ->
     Name_occurrences.empty
 
 let apply_renaming_unary_primitive p renaming =
@@ -1105,7 +1124,8 @@ let apply_renaming_unary_primitive p renaming =
   | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
-  | Project_function_slot _ | Project_value_slot _ | Obj_dup ->
+  | Project_function_slot _ | Project_value_slot _ | Obj_dup
+  | End_uninterruptible ->
     p
 
 let ids_for_export_unary_primitive p =
@@ -1117,7 +1137,8 @@ let ids_for_export_unary_primitive p =
   | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
-  | Project_function_slot _ | Project_value_slot _ | Obj_dup ->
+  | Project_function_slot _ | Project_value_slot _ | Obj_dup
+  | End_uninterruptible ->
     Ids_for_export.empty
 
 type binary_int_arith_op =
@@ -1694,7 +1715,7 @@ let free_names t =
   match t with
   | Nullary
       ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
-      | Enter_inlined_apply _ ) ->
+      | Enter_inlined_apply _ | Begin_uninterruptible ) ->
     Name_occurrences.empty
   | Unary (prim, x0) ->
     Name_occurrences.union
@@ -1721,7 +1742,7 @@ let apply_renaming t renaming =
   match t with
   | Nullary
       ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
-      | Enter_inlined_apply _ ) ->
+      | Enter_inlined_apply _ | Begin_uninterruptible ) ->
     t
   | Unary (prim, x0) ->
     let prim' = apply_renaming_unary_primitive prim renaming in
@@ -1751,7 +1772,7 @@ let ids_for_export t =
   match t with
   | Nullary
       ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region
-      | Enter_inlined_apply _ ) ->
+      | Enter_inlined_apply _ | Begin_uninterruptible ) ->
     Ids_for_export.empty
   | Unary (prim, x0) ->
     Ids_for_export.union

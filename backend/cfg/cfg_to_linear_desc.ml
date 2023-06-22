@@ -38,6 +38,8 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Specific op -> Ispecific op
       | Begin_region -> Ibeginregion
       | End_region -> Iendregion
+      | Begin_uninterruptible -> Ibegin_uninterruptible
+      | End_uninterruptible -> Iend_uninterruptible
       | Name_for_debugger { ident; which_parameter; provenance; is_assignment }
         ->
         Iname_for_debugger { ident; which_parameter; provenance; is_assignment }

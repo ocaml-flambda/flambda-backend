@@ -415,6 +415,8 @@ let lookup_primitive loc poly pos p =
     | "%obj_magic" -> Primitive(Pobj_magic Lambda.layout_any_value, 1)
     | "%array_to_iarray" -> Primitive (Parray_to_iarray, 1)
     | "%array_of_iarray" -> Primitive (Parray_of_iarray, 1)
+    | "%begin_uninterruptible" -> Primitive (Pbegin_uninterruptible, 1)
+    | "%end_uninterruptible" -> Primitive (Pend_uninterruptible, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -962,7 +964,8 @@ let lambda_primitive_needs_event_after = function
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque _
-  | Pobj_magic _ | Punbox_float | Punbox_int _  -> false
+  | Pobj_magic _ | Punbox_float | Punbox_int _
+  | Pbegin_uninterruptible | Pend_uninterruptible -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)
 let primitive_needs_event_after = function

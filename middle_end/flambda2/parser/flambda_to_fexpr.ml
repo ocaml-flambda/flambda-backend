@@ -503,7 +503,8 @@ let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
 let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
   match op with
   | Begin_region -> Begin_region
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _ ->
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+  | Begin_uninterruptible ->
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
       (Flambda_primitive.Nullary op)
 
@@ -534,7 +535,8 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | String_length string_or_bytes -> String_length string_or_bytes
   | Boolean_not -> Boolean_not
   | Int_as_pointer | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
-  | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup ->
+  | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup
+  | End_uninterruptible ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)

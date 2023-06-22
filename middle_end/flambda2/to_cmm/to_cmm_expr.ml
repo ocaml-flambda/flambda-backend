@@ -442,7 +442,8 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
   | Singleton _, Prim (Nullary (Enter_inlined_apply { dbg }), _) ->
     let env = Env.enter_inlined_apply env dbg in
     expr env res body
-  | Singleton v, Prim ((Unary (End_region, _) as p), dbg) ->
+  | Singleton v, Prim ((Unary (End_region, _) as p), dbg)
+  | Singleton v, Prim ((Nullary Begin_uninterruptible as p), dbg) ->
     (* CR gbury: this is a hack to prevent moving of expressions past an
        End_region. We have to do this manually because we currently have effects
        and coeffects that are not precise enough. Particularly, an immutable
@@ -451,6 +452,7 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
        including must_inline bindings, particularly projections that may project
        from locally allocated closures (and that must not be moved past an
        end_region). *)
+    (* The hack now applies for [Begin_uninterruptible] too. *)
     let wrap, env, res =
       Env.flush_delayed_lets ~mode:Flush_everything env res
     in
