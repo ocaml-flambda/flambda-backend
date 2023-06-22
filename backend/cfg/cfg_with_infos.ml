@@ -58,10 +58,10 @@ let invalidate_liveness t = t.liveness := None
 let dominators t =
   compute_if_necessary t.dominators ~f:(fun () -> Cfg_dominators.build (cfg t))
 
-let invalidate_dominators t = t.dominators := None
-
 let loop_infos t =
   compute_if_necessary t.loop_infos ~f:(fun () ->
       Cfg_loop_infos.build (cfg t) (dominators t))
 
-let invalidate_loop_infos t = t.loop_infos := None
+let invalidate_dominators_and_loop_infos t =
+  t.dominators := None;
+  t.loop_infos := None

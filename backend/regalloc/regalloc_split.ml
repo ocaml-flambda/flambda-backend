@@ -231,9 +231,11 @@ let add_phi_moves_to_instr_list :
     to_unify
 
 (* Insert phi moves: - to the predecessor block if the edge is an "always" one;
-   - to a newly-inserted block otherwise. *)
-let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> unit =
+   - to a newly-inserted block otherwise. Returns `true` iff at least one block
+   was inserted. *)
+let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> bool =
  fun state cfg_with_infos substs ->
+  let block_inserted = ref false in
   Label.Map.iter
     (fun label to_unify ->
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
@@ -265,6 +267,7 @@ let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> unit =
                 ~next_instruction_id:(fun () ->
                   State.get_and_incr_instruction_id state)
             in
+            block_inserted := true;
             if split_debug && Lazy.force split_invariants
             then (
               (match inserted_blocks with
@@ -285,10 +288,11 @@ let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> unit =
               | _ :: _ :: _ -> fatal "several blocks were inserted");
               ()))
         block.predecessors)
-    (State.phi_at_beginning state)
+    (State.phi_at_beginning state);
+  !block_inserted
 
 let split_at_destruction_points :
-    Cfg_with_infos.t -> cfg_infos -> Regalloc_stack_slots.t option =
+    Cfg_with_infos.t -> cfg_infos -> (Regalloc_stack_slots.t * bool) option =
  fun cfg_with_infos cfg_infos ->
   if split_debug
   then (
@@ -330,12 +334,14 @@ let split_at_destruction_points :
     Profile.record ~accumulate:true "insert_reloads"
       (fun () -> insert_reloads state cfg_with_infos substs stack_subst)
       ();
-    Profile.record ~accumulate:true "insert_phi_moves"
-      (fun () -> insert_phi_moves state cfg_with_infos substs)
-      ();
+    let block_inserted =
+      Profile.record ~accumulate:true "insert_phi_moves"
+        (fun () -> insert_phi_moves state cfg_with_infos substs)
+        ()
+    in
     if split_debug
     then Regalloc_irc_utils.log_cfg_with_infos ~indent:1 cfg_with_infos;
-    Some (State.stack_slots state)
+    Some (State.stack_slots state, block_inserted)
 
 let split_live_ranges : Cfg_with_infos.t -> cfg_infos -> Regalloc_stack_slots.t
     =
@@ -354,8 +360,10 @@ let split_live_ranges : Cfg_with_infos.t -> cfg_infos -> Regalloc_stack_slots.t
   | true, true -> assert false);
   match split_at_destruction_points cfg_with_infos cfg_infos with
   | None -> Regalloc_stack_slots.make ()
-  | Some stack_slots ->
+  | Some (stack_slots, block_inserted) ->
     Cfg_with_infos.invalidate_liveness cfg_with_infos;
+    if block_inserted
+    then Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos;
     let (_ : Cfg_with_infos.t) =
       Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         cfg_with_infos

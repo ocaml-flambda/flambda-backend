@@ -202,11 +202,7 @@ end = struct
   let optimize cfg_with_infos doms ~destructions_at_end =
     if split_debug
     then log ~indent:0 "RemoveDominatedSpillsForConstants.optimize";
-    let loops =
-      (* CR-soon xclerc for xclerc: be sure to not duplicate this computation if
-         for instance used to compute spilling costs. *)
-      Cfg_loop_infos.build (Cfg_with_infos.cfg cfg_with_infos) doms
-    in
+    let loops = Cfg_with_infos.loop_infos cfg_with_infos in
     let incr_set (tbl : set Reg.Tbl.t) (arr : Reg.t array) ~(in_loop : bool) :
         unit =
       Array.iter arr ~f:(fun (reg : Reg.t) ->
@@ -450,7 +446,7 @@ let compute_phis :
   phi_at_beginning
 
 let make cfg_with_infos ~next_instruction_id =
-  let dominators = Cfg_dominators.build (Cfg_with_infos.cfg cfg_with_infos) in
+  let dominators = Cfg_with_infos.dominators cfg_with_infos in
   let destructions_at_end = compute_destructions cfg_with_infos in
   let definitions_at_beginning =
     compute_definitions cfg_with_infos ~destructions_at_end

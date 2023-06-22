@@ -35,14 +35,16 @@ end
 (* This is the `rewrite` function from IRC, parametrized by state, functions for
    debugging, and function to test/set the "spilled" state of a register. It
    inserts spills and reloads for registers in the [spilled_nodes] parameter
-   (thus basically corresponding to Upstream's [Reload] pass). *)
+   (thus basically corresponding to Upstream's [Reload] pass). The returned
+   couple contains the list of introduced temporaries, and a boolean which is
+   `true` iff at least one block was inserted. *)
 val rewrite_gen :
   (module State with type t = 's) ->
   (module Utils) ->
   's ->
   Cfg_with_infos.t ->
   spilled_nodes:Reg.t list ->
-  Reg.t list
+  Reg.t list * bool
 
 (* Runs the first steps common to register allocators, reinitializing registers,
    checking preconditions, and collecting information from the CFG. *)

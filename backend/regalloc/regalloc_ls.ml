@@ -24,11 +24,15 @@ end
 
 let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> unit =
  fun state cfg_with_infos ~spilled_nodes ->
-  Regalloc_rewrite.rewrite_gen
-    (module State)
-    (module Utils)
-    state cfg_with_infos ~spilled_nodes
-  |> ignore
+  let _new_temporaries, block_inserted =
+    Regalloc_rewrite.rewrite_gen
+      (module State)
+      (module Utils)
+      state cfg_with_infos ~spilled_nodes
+  in
+  Cfg_with_infos.invalidate_liveness cfg_with_infos;
+  if block_inserted
+  then Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos
 
 (* Equivalent to [build_intervals] in "backend/interval.ml". *)
 let build_intervals : State.t -> Cfg_with_infos.t -> unit =
@@ -232,7 +236,6 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
   if not (Reg.Set.is_empty spilled)
   then (
     rewrite state cfg_with_infos ~spilled_nodes:(Reg.Set.elements spilled);
-    Cfg_with_infos.invalidate_liveness cfg_with_infos;
     main ~round:(succ round) state cfg_with_infos)
 
 let run : Cfg_with_infos.t -> Cfg_with_infos.t =

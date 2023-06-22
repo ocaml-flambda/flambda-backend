@@ -383,12 +383,16 @@ let rewrite :
     reset:bool ->
     bool =
  fun state cfg_with_infos ~spilled_nodes ~reset ->
-  let new_temporaries =
+  let new_temporaries, block_inserted =
     Regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)
       state cfg_with_infos ~spilled_nodes
   in
+  if new_temporaries <> []
+  then Cfg_with_infos.invalidate_liveness cfg_with_infos;
+  if block_inserted
+  then Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos;
   match new_temporaries, reset with
   | [], _ -> false
   | _ :: _, true ->
@@ -459,8 +463,8 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
         (match Lazy.force Spilling_heuristics.value with
         | Set_choose ->
           (* note: `spill_cost` will not be used by the heuristics *) ()
-        | Flat_uses -> update_spill_cost cfg_with_layout ~flat:true ()
-        | Hierarchical_uses -> update_spill_cost cfg_with_layout ~flat:false ());
+        | Flat_uses -> update_spill_cost cfg_with_infos ~flat:true ()
+        | Hierarchical_uses -> update_spill_cost cfg_with_infos ~flat:false ());
         spill_cost_is_up_to_date := true);
       select_spill state)
     else continue := false;
@@ -481,7 +485,6 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
     | false -> if irc_debug then log ~indent:1 "(end of main)"
     | true ->
       State.invariant state;
-      Cfg_with_infos.invalidate_liveness cfg_with_infos;
       main ~round:(succ round) state cfg_with_infos)
 
 let run : Cfg_with_infos.t -> Cfg_with_infos.t =
@@ -508,13 +511,12 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   let spilling_because_unused = Reg.Set.diff cfg_infos.res cfg_infos.arg in
   (match Reg.Set.elements spilling_because_unused with
   | [] -> ()
-  | _ :: _ as spilled_nodes -> (
+  | _ :: _ as spilled_nodes ->
     List.iter spilled_nodes ~f:(fun reg -> State.add_spilled_nodes state reg);
     (* note: rewrite will remove the `spilling` registers from the "spilled"
        work list and set the field to unknown. *)
-    match rewrite state cfg_with_infos ~spilled_nodes ~reset:false with
-    | false -> ()
-    | true -> Cfg_with_infos.invalidate_liveness cfg_with_infos));
+    let (_ : bool) = rewrite state cfg_with_infos ~spilled_nodes ~reset:false in
+    ());
   main ~round:1 state cfg_with_infos;
   if irc_debug then log_cfg_with_infos ~indent:1 cfg_with_infos;
   Regalloc_rewrite.postlude

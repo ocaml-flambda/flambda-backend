@@ -44,10 +44,11 @@ let rewrite_gen :
     s ->
     Cfg_with_infos.t ->
     spilled_nodes:Reg.t list ->
-    Reg.t list =
+    Reg.t list * bool =
  fun (module State : State with type t = s) (module Utils) state cfg_with_infos
      ~spilled_nodes ->
   if Utils.debug then Utils.log ~indent:1 "rewrite";
+  let block_insertion = ref false in
   let spilled_map : Reg.t Reg.Tbl.t =
     List.fold_left spilled_nodes ~init:(Reg.Tbl.create 17)
       ~f:(fun spilled_map reg ->
@@ -184,14 +185,14 @@ let rewrite_gen :
                  ~next_instruction_id:(fun () ->
                    State.get_and_incr_instruction_id state)
              in
-             ());
+             block_insertion := true);
           if Utils.debug
           then (
             Utils.log ~indent:2 "and after:";
             Utils.log_body_and_terminator ~indent:3 block.body block.terminator
               liveness;
             Utils.log ~indent:2 "end"));
-  !new_temporaries
+  !new_temporaries, !block_insertion
 
 (* CR-soon xclerc for xclerc: investigate exactly why this threshold is
    necessary. *)
