@@ -17,10 +17,17 @@ let liveness_analysis : Cfg_with_layout.t -> liveness =
 
 type t =
   { cfg_with_layout : Cfg_with_layout.t;
-    mutable liveness : liveness option
+    liveness : liveness option ref;
+    dominators : Cfg_dominators.t option ref;
+    loop_infos : Cfg_loop_infos.t option ref
   }
 
-let make cfg_with_layout = { cfg_with_layout; liveness = None }
+let make cfg_with_layout =
+  { cfg_with_layout;
+    liveness = ref None;
+    dominators = ref None;
+    loop_infos = ref None
+  }
 
 let cfg_with_layout t = t.cfg_with_layout
 
@@ -30,20 +37,31 @@ let fold_blocks t ~f ~init = Cfg.fold_blocks (cfg t) ~f ~init
 
 let get_block_exn t label = Cfg.get_block_exn (cfg t) label
 
-let[@inline] compute_liveness_if_necessary t =
-  match t.liveness with
-  | Some liveness -> liveness
+let[@inline] compute_if_necessary r ~f =
+  match !r with
+  | Some value -> value
   | None ->
-    let liveness = liveness_analysis t.cfg_with_layout in
-    t.liveness <- Some liveness;
-    liveness
+    let value = f () in
+    r := Some value;
+    value
 
-let liveness t = compute_liveness_if_necessary t
+let liveness t =
+  compute_if_necessary t.liveness ~f:(fun () ->
+      liveness_analysis t.cfg_with_layout)
 
-let liveness_find t id =
-  Cfg_dataflow.Instr.Tbl.find (compute_liveness_if_necessary t) id
+let liveness_find t id = Cfg_dataflow.Instr.Tbl.find (liveness t) id
 
-let liveness_find_opt t id =
-  Cfg_dataflow.Instr.Tbl.find_opt (compute_liveness_if_necessary t) id
+let liveness_find_opt t id = Cfg_dataflow.Instr.Tbl.find_opt (liveness t) id
 
-let invalidate_liveness t = t.liveness <- None
+let invalidate_liveness t = t.liveness := None
+
+let dominators t =
+  compute_if_necessary t.dominators ~f:(fun () -> Cfg_dominators.build (cfg t))
+
+let invalidate_dominators t = t.dominators := None
+
+let loop_infos t =
+  compute_if_necessary t.loop_infos ~f:(fun () ->
+      Cfg_loop_infos.build (cfg t) (dominators t))
+
+let invalidate_loop_infos t = t.loop_infos := None
