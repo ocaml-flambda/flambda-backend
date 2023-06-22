@@ -27,11 +27,16 @@ type info = {
 }
 (** Information needed to compile a file. *)
 
+type compilation_unit_or_inferred =
+  | Exactly of Compilation_unit.t
+  | Inferred_from_output_prefix
+
 val with_info :
   native:bool ->
   tool_name:string ->
   source_file:string ->
   output_prefix:string ->
+  compilation_unit:compilation_unit_or_inferred ->
   dump_ext:string ->
   (info -> 'a) -> 'a
 (** [with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k]

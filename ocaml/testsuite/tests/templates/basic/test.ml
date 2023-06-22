@@ -23,6 +23,7 @@ readonly_files = "\
   monoid_utils.ml monoid_utils.mli \
   semigroup.mli \
   string_monoid.ml string_monoid.mli \
+  string_semigroup.ml string_semigroup.mli \
   test_direct_access.ml test_direct_access.reference \
 "
 
@@ -143,16 +144,27 @@ compiler_reference = "bad_instance_arg_value_wrong_type.reference"
 flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
 module = "import.ml"
 ************** ocamlc.byte
+flags = "-as-argument-for Semigroup"
+module = "string_semigroup.mli"
+*************** ocamlc.byte
+module = "string_semigroup.ml"
+**************** ocamlc.byte
+module = ""
+flags = "-instantiate"
+program = "monoid_of_semigroup-String_semigroup.cmo"
+all_modules = "monoid_of_semigroup.cmo string_semigroup.cmo"
+***************** ocamlc.byte
 flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute"
 module = "main.mli"
-*************** ocamlc.byte
+****************** ocamlc.byte
 flags += " -i"
 module = "main.ml"
-**************** check-ocamlc.byte-output
+compiler_output = "main.reference"
+******************* check-ocamlc.byte-output
 compiler_reference = "main.reference"
-*************** ocamlc.byte
+****************** ocamlc.byte
 module = "main.ml"
-**************** ocamlobjinfo
+******************* ocamlobjinfo
 program = "main.cmo main.cmi"
-***************** check-program-output
+******************** check-program-output
 *)

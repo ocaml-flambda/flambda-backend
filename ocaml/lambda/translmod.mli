@@ -35,6 +35,10 @@ val transl_package:
       Compilation_unit.t option list -> Compilation_unit.t -> module_coercion
         -> style:compilation_unit_style -> int * lambda
 
+val transl_instance:
+  Compilation_unit.t -> runtime_params:Compilation_unit.t list
+        -> style:compilation_unit_style -> Lambda.program
+
 val toplevel_name: Ident.t -> string
 val nat_toplevel_name: Ident.t -> Compilation_unit.t * int
 
@@ -54,6 +58,7 @@ type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
 | Non_value_layout of Types.type_expr * Layouts.Layout.Violation.t
+| Instantiating_packed of Compilation_unit.t
 
 exception Error of Location.t * error
 

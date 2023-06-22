@@ -40,6 +40,7 @@ type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
 | Non_value_layout of type_expr * Layout.Violation.t
+| Instantiating_packed of Compilation_unit.t
 
 exception Error of Location.t * error
 
@@ -239,11 +240,19 @@ let rec compose_coercions c1 c2 =
   | (_, _) ->
       fatal_error "Translmod.compose_coercions"
 
-(*
-let apply_coercion a b c =
-  Format.eprintf "@[<2>apply_coercion@ %a@]@." Includemod.print_coercion b;
-  apply_coercion a b c
+let dump_coercions = Option.is_some (Sys.getenv_opt "DUMP_COERCIONS")
 
+let apply_coercion a b c d =
+  if dump_coercions then
+    Format.eprintf "@[<2>apply_coercion@ %a@]@." Includemod.print_coercion c;
+  let ans = apply_coercion a b c d in
+  if dump_coercions then
+    Format.eprintf "@[<2>apply_coercion@ %a@ = %a@]@."
+      Includemod.print_coercion c
+      Printlambda.lambda ans;
+  ans
+
+(*
 let compose_coercions c1 c2 =
   let c3 = compose_coercions c1 c2 in
   let open Includemod in
@@ -1993,6 +2002,123 @@ let transl_package component_names target_name coercion ~style =
       transl_package_set_global component_names target_name coercion
   | Set_individual_fields ->
       transl_package_set_fields component_names target_name coercion
+    (*
+
+let subst_in_args compilation_unit ~bindings =
+  let subst_in_arg (param, arg) =
+    assert (Compilation_unit.is_plain_name arg);
+    let arg_name = Compilation_unit.name arg in
+    match
+      List.find_map
+        (fun (name, rhs) ->
+          if Compilation_unit.Name.equal name arg_name then Some rhs else None)
+        bindings
+    with
+    | Some rhs -> param, rhs
+    | None -> param, arg
+  in
+  let unit_without_args, args =
+    Compilation_unit.split_instance_exn compilation_unit
+  in
+  let args = List.map subst_in_arg args in
+  Compilation_unit.create_instance unit_without_args args
+
+let transl_instance_plain_block
+    compilation_unit ~open_imports : Lambda.program =
+  let src, instance_args =
+    Compilation_unit.split_instance_exn compilation_unit
+  in
+  let instance_arg_values =
+    List.map (fun (_param, value) -> value) instance_args
+  in
+  List.iter
+    (fun comp_unit ->
+       if Compilation_unit.is_packed comp_unit
+       then raise (Error (Location.none, Instantiating_packed comp_unit)))
+    (src :: instance_arg_values);
+  let open_imports =
+    (* Take care of any dependencies of [Foo[A]] on [Bar[Baz][A]], for example *)
+    List.map (subst_in_args ~bindings:instance_args) open_imports
+  in
+  let all_args = instance_arg_values @ open_imports in
+  let lam_of cu =
+    Lambda.transl_compilation_unit Loc_unknown cu
+  in
+  let src_lam = lam_of src in
+  let args_lam = List.map lam_of all_args in
+  let code =
+    Lapply {
+      ap_func = src_lam;
+      ap_args = args_lam;
+      ap_result_layout = Pvalue Pgenval;
+      ap_loc = Loc_unknown;
+      ap_inlined = Always_inlined; (* Definitely inline!! *)
+      ap_tailcall = Default_tailcall;
+      ap_specialised = Default_specialise;
+      ap_mode = alloc_heap;
+      ap_region_close = Rc_normal;
+      ap_probe = None;
+    }
+  in
+  (* CR lmaurer: This seems a bit pat. Is the situation with [required_globals]
+     really this simple? *)
+  let required_globals = (src :: all_args) |> Compilation_unit.Set.of_list in
+  let main_module_block_size =
+    let module_decl = Env.find_compilation_unit src in
+    let sig_ =
+      match module_decl.md_type with
+      | Mty_signature sig_ -> sig_
+      | Mty_ident _ | Mty_functor (_, _) | Mty_alias _ -> assert false
+    in
+    List.length (Types.bound_value_identifiers sig_)
+  in
+  {
+    compilation_unit;
+    code;
+    required_globals;
+    main_module_block_size;
+  }
+
+let transl_instance_set_global compilation_unit ~open_imports =
+  transl_instance_plain_block compilation_unit ~open_imports
+  |> wrap_in_setglobal
+
+let transl_instance_set_fields compilation_unit ~open_imports =
+  let block_id = Ident.create_local "instance" in
+  let block_impl =
+    transl_instance_plain_block compilation_unit ~open_imports
+  in
+  let field_positions =
+    List.init block_impl.main_module_block_size (fun i -> i)
+  in
+  let set_fields =
+    make_sequence
+      (fun pos ->
+        Lprim(mod_setfield pos,
+              [Lprim(Pgetglobal compilation_unit, [], Loc_unknown);
+                Lprim(mod_field pos, [Lvar block_id], Loc_unknown)],
+              Loc_unknown))
+      field_positions
+  in
+  let code =
+    Llet (Strict, Pvalue Pgenval, block_id, block_impl.code, set_fields)
+  in
+  { block_impl with code; }
+
+let transl_instance instance_unit ~open_imports ~style =
+  assert (Compilation_unit.is_instance instance_unit);
+  match style with
+  | Plain_block ->
+      transl_instance_plain_block instance_unit ~open_imports
+  | Set_global_to_block ->
+      transl_instance_set_global instance_unit ~open_imports
+  | Set_individual_fields ->
+      transl_instance_set_fields instance_unit ~open_imports
+*)
+
+let transl_instance instance_unit ~runtime_params ~style =
+  ignore (instance_unit, runtime_params, style);
+  assert false
 
 (* Error report *)
 
@@ -2038,6 +2164,11 @@ let report_error loc = function
          the Jane Street compilers team.@ %a"
         (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
+  | Instantiating_packed comp_unit ->
+      Location.errorf ~loc
+        "Cannot instantiate using the packed module %a@ \
+         as either the instantiated module or an argument"
+      Compilation_unit.print comp_unit
 
 let () =
   Location.register_error_of_exn

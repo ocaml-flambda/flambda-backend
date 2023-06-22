@@ -97,7 +97,7 @@ let main unix argv ppf ~flambda2 =
     Compenv.readenv ppf Before_link;
     if
       List.length (List.filter (fun x -> !x)
-                     [make_package; make_archive; shared;
+                     [make_package; make_archive; shared; instantiate;
                       Compenv.stop_early; output_c_object]) > 1
     then
     begin
@@ -105,13 +105,13 @@ let main unix argv ppf ~flambda2 =
       match !stop_after with
       | None ->
           Compenv.fatal "Please specify at most one of -pack, -a, -shared, -c, \
-                         -output-obj";
+                         -output-obj, -instantiate";
       | Some ((P.Parsing | P.Typing | P.Scheduling
               | P.Simplify_cfg | P.Emit | P.Selection) as p) ->
         assert (P.is_compilation_pass p);
         Printf.ksprintf Compenv.fatal
           "Options -i and -stop-after (%s) \
-           are  incompatible with -pack, -a, -shared, -output-obj"
+           are  incompatible with -pack, -a, -shared, -output-obj, -instantiate"
           (String.concat "|"
              (P.available_pass_names ~filter:(fun _ -> true) ~native:true))
     end;
@@ -130,6 +130,59 @@ let main unix argv ppf ~flambda2 =
           ~ppf_dump (Compmisc.initial_env ())
           (Compenv.get_objfiles ~with_ocamlparam:false) target ~backend
           ~flambda2);
+      Warnings.check_fatal ();
+    end
+    else if !instantiate then begin
+      Compmisc.init_path ();
+      let objfiles = Compenv.get_objfiles ~with_ocamlparam:false in
+      let to_instantiate, args =
+        match objfiles with
+        | [] | [_] ->
+          Printf.ksprintf Compenv.fatal
+            "Must specify at least two .cmx files with -instantiate"
+        | to_instantiate :: args ->
+          to_instantiate, args
+      in
+      (* CR lmaurer: Not sure how I feel about reading files here, but I need
+         to do it here to calculate the compilation unit *)
+      let base_compilation_unit =
+        let unit_infos, _ = Compilenv.read_unit_info to_instantiate in
+        unit_infos.ui_unit
+      in
+      let param_and_comp_unit_of_cmx_path cmx_path =
+        let unit_infos, _ = Compilenv.read_unit_info cmx_path in
+        (* TODO ui_implements_param *)
+        match Sys.opaque_identity (fun () -> assert false) () (* unit_infos.ui_implements_param *) with
+        | None ->
+          Printf.ksprintf Compenv.fatal
+            "Argument .cmx must compiled with -as-parameter-for: %s"
+            cmx_path
+        | Some param ->
+          param, unit_infos.ui_unit
+      in
+      let compilation_unit =
+        Compilation_unit.create_instance
+          base_compilation_unit
+          (args |> List.map param_and_comp_unit_of_cmx_path)
+      in
+      let default_output_prefix =
+        Compilation_unit.base_filename compilation_unit
+      in
+      let output_prefix = Compenv.output_prefix default_output_prefix in
+      if not (String.equal
+                (Filename.basename output_prefix)
+                default_output_prefix)
+      then begin
+        (* The module will only work if given the correct filename *)
+        Printf.ksprintf Compenv.fatal
+          "Filename given by -o must have basename %s\n\
+           to produce the desired instance %s"
+          default_output_prefix
+          (Compilation_unit.full_path_as_string compilation_unit)
+      end;
+      Optcompile.instance unix ~backend ~flambda2
+        ~source_file:to_instantiate ~output_prefix ~compilation_unit
+        ~keep_symbol_tables:false;
       Warnings.check_fatal ();
     end
     else if !shared then begin

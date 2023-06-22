@@ -24,7 +24,9 @@ let with_info =
   Compile_common.with_info ~native:true ~tool_name
 
 let interface ~source_file ~output_prefix =
-  with_info ~source_file ~output_prefix ~dump_ext:"cmi" @@ fun info ->
+  with_info ~source_file ~output_prefix ~dump_ext:"cmi"
+    ~compilation_unit:Inferred_from_output_prefix
+  @@ fun info ->
   Compile_common.interface
     ~hook_parse_tree:(fun _ -> ())
     ~hook_typed_tree:(fun _ -> ())

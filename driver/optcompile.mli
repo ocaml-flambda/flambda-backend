@@ -30,3 +30,18 @@ val implementation
   -> start_from:Clflags.Compiler_pass.t
   -> source_file:string -> output_prefix:string -> keep_symbol_tables:bool
   -> unit
+
+val instance
+   : (module Compiler_owee.Unix_intf.S)
+  -> backend:(module Backend_intf.S)
+  -> flambda2:(
+    ppf_dump:Format.formatter ->
+    prefixname:string ->
+    filename:string ->
+    keep_symbol_tables:bool ->
+    Lambda.program ->
+    Cmm.phrase list)
+  -> source_file:string -> output_prefix:string
+  -> compilation_unit:Compilation_unit.t
+  -> keep_symbol_tables:bool
+  -> unit

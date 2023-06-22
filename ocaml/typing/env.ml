@@ -1317,6 +1317,9 @@ let find_hash_type path env =
   | Papply _ ->
       raise Not_found
 
+let find_compilation_unit_address cu =
+  get_address (find_compilation_unit_data cu).mda_address
+
 let probes = ref String.Set.empty
 let reset_probes () = probes := String.Set.empty
 let add_probe name = probes := String.Set.add name !probes

@@ -746,6 +746,15 @@ let mk_as_argument_for f =
   "<module name> Compiles the module as an argument for the named parameter."
 ;;
 
+let mk_instantiate0 f ~ext =
+  "-instantiate", Arg.Unit f,
+  "Instantiates the first ." ^ ext ^ " file with the remaining ones as its \n\
+                 parameters."
+
+let mk_instantiate_byt = mk_instantiate0 ~ext:"cmo"
+
+let mk_instantiate_opt = mk_instantiate0 ~ext:"cmx"
+
 let mk_use_prims f =
   "-use-prims", Arg.String f, "<file>  (undocumented)"
 ;;
@@ -1083,6 +1092,7 @@ module type Compiler_options = sig
   val _stop_after : string -> unit
   val _i : unit -> unit
   val _impl : string -> unit
+  val _instantiate : unit -> unit
   val _intf : string -> unit
   val _intf_suffix : string -> unit
   val _keep_docs : unit -> unit
@@ -1297,6 +1307,7 @@ struct
     mk_i F._i;
     mk_I F._I;
     mk_impl F._impl;
+    mk_instantiate_byt F._instantiate;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
     mk_intf_suffix_2 F._intf_suffix;
@@ -1512,6 +1523,7 @@ struct
     mk_inline_lifting_benefit F._inline_lifting_benefit;
     mk_inlining_report F._inlining_report;
     mk_insn_sched F._insn_sched;
+    mk_instantiate_opt F._instantiate;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
     mk_keep_docs F._keep_docs;
@@ -2034,6 +2046,7 @@ module Default = struct
     let _g = set debug
     let _i = set print_types
     let _impl = Compenv.impl
+    let _instantiate = set instantiate
     let _intf = Compenv.intf
     let _intf_suffix s = Config.interface_suffix := s
     let _keep_docs = set keep_docs

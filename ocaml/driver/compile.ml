@@ -22,7 +22,9 @@ let with_info =
   Compile_common.with_info ~native:false ~tool_name
 
 let interface ~source_file ~output_prefix =
-  with_info ~source_file ~output_prefix ~dump_ext:"cmi" @@ fun info ->
+  with_info ~source_file ~output_prefix ~dump_ext:"cmi"
+    ~compilation_unit:Inferred_from_output_prefix
+  @@ fun info ->
   Compile_common.interface
     ~hook_parse_tree:(fun _ -> ())
     ~hook_typed_tree:(fun _ -> ())
@@ -70,7 +72,9 @@ let implementation ~start_from ~source_file ~output_prefix
     let bytecode = to_bytecode info typed in
     emit_bytecode info bytecode
   in
-  with_info ~source_file ~output_prefix ~dump_ext:"cmo" @@ fun info ->
+  with_info ~source_file ~output_prefix ~dump_ext:"cmo"
+    ~compilation_unit:Inferred_from_output_prefix
+  @@ fun info ->
   match (start_from : Clflags.Compiler_pass.t) with
   | Parsing ->
     Compile_common.implementation
