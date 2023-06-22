@@ -502,8 +502,7 @@ let expression sub exp =
     | Texp_try (exp, cases) ->
         Pexp_try (sub.expr sub exp, List.map (sub.case sub) cases)
     | Texp_tuple (list, _) ->
-        Pexp_tuple (List.map (fun e -> None, sub.expr sub e) list)
-        (* CR labeled tuples: patterns should include labels once they're in Texp *)
+        Pexp_tuple (List.map (fun (label, e) -> label, sub.expr sub e) list)
     | Texp_construct (lid, _, args, _) ->
         Pexp_construct (map_loc sub lid,
           (match args with

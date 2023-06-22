@@ -117,7 +117,7 @@ and expression_desc =
   | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Types.alloc_mode
   | Texp_match of expression * sort * computation case list * partial
   | Texp_try of expression * value case list
-  | Texp_tuple of expression list * Types.alloc_mode
+  | Texp_tuple of (string option * expression) list * Types.alloc_mode
   | Texp_construct of
       Longident.t loc * constructor_description * expression list * Types.alloc_mode option
   | Texp_variant of label * (expression * Types.alloc_mode) option

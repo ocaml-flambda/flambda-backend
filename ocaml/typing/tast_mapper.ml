@@ -327,7 +327,7 @@ let expr sub x =
           List.map (sub.case sub) cases
         )
     | Texp_tuple (list, am) ->
-        Texp_tuple (List.map (sub.expr sub) list, am)
+        Texp_tuple (List.map (fun (label, e) -> label, sub.expr sub e) list, am)
     | Texp_construct (lid, cd, args, am) ->
         Texp_construct (lid, cd, List.map (sub.expr sub) args, am)
     | Texp_variant (l, expo) ->
