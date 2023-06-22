@@ -341,7 +341,7 @@ let position_and_mode env (expected_mode : expected_mode) sexp
   end
 
 (* ap_mode is the return mode of the current application *)
-let check_tail_call_local_returning ap_mode region_mode error =
+let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
   match region_mode with
   | Some region_mode -> begin
     (* This application is at the tail of a function with a region;
@@ -350,7 +350,7 @@ let check_tail_call_local_returning ap_mode region_mode error =
         Value_mode.submode (Value_mode.of_alloc ap_mode) region_mode
       with
       | Ok () -> ()
-      | Error _ -> raise error
+      | Error _ -> raise (Error (loc, env, Tail_call_local_returning))
     end
   | None -> ()
 
@@ -4477,12 +4477,12 @@ and type_expect_
         | _ ->
             (rt, funct), sargs
       in
-      let (args, ty_res, ap_mode, position) =
+      let (args, ty_res, ap_mode, pm) =
         type_application env loc expected_mode pm funct funct_mode sargs rt
       in
 
       rue {
-        exp_desc = Texp_apply(funct, args, position, ap_mode);
+        exp_desc = Texp_apply(funct, args, pm.apply_position, ap_mode);
         exp_loc = loc; exp_extra = [];
         exp_type = ty_res;
         exp_attributes = sexp.pexp_attributes;
@@ -6492,7 +6492,7 @@ and type_application env app_loc expected_mode pm
       in
       let exp = type_expect env marg sarg (mk_expected ty_arg) in
       check_partial_application ~statement:false exp;
-      ([Nolabel, Arg exp], ty_res, ap_mode, pm.apply_position)
+      ([Nolabel, Arg exp], ty_res, ap_mode, pm)
   | _ ->
       let ty = funct.exp_type in
       let ignore_labels =
@@ -6518,10 +6518,15 @@ and type_application env app_loc expected_mode pm
           (Value_mode.regional_to_local_alloc funct_mode) sargs ret_tvar
       in
       let partial_app = is_partial_apply untyped_args in
-      let position = if partial_app then Default else pm.apply_position in
+      let pm =
+        if partial_app
+          then {apply_position = Default; region_mode = None}
+        else pm
+      in
       let args =
         List.mapi (fun index arg ->
-            type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app arg)
+            type_apply_arg env ~app_loc ~funct ~index
+              ~position:(pm.apply_position) ~partial_app arg)
           untyped_args
       in
       let ty_ret, mode_ret, args =
@@ -6540,10 +6545,8 @@ and type_application env app_loc expected_mode pm
       submode ~loc:app_loc ~env ~reason:(Application ty_ret)
         mode_ret expected_mode;
 
-      if not partial_app then
-        check_tail_call_local_returning ap_mode pm.region_mode
-          (Error (app_loc, env, Tail_call_local_returning));
-      args, ty_ret, ap_mode, position
+      check_tail_call_local_returning app_loc env ap_mode pm;
+      args, ty_ret, ap_mode, pm
 
 and type_construct env (expected_mode : expected_mode) loc lid sarg
       ty_expected_explained attrs =
