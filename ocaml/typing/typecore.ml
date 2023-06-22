@@ -313,6 +313,11 @@ type position_and_mode = {
   region_mode : Value_mode.t option;
 }
 
+let position_and_mode_default = {
+  apply_position = Default;
+  region = None;
+}
+
 (** The function produces two values, apply_position and region_mode.
     Invariant: if apply_position = Tail, then region_mode = Some ... *)
 let position_and_mode env (expected_mode : expected_mode) sexp
@@ -6518,11 +6523,7 @@ and type_application env app_loc expected_mode pm
           (Value_mode.regional_to_local_alloc funct_mode) sargs ret_tvar
       in
       let partial_app = is_partial_apply untyped_args in
-      let pm =
-        if partial_app
-          then {apply_position = Default; region_mode = None}
-        else pm
-      in
+      let pm = if partial_app then position_and_mode_default else pm in
       let args =
         List.mapi (fun index arg ->
             type_apply_arg env ~app_loc ~funct ~index
