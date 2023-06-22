@@ -256,8 +256,7 @@ let postlude :
   then
     Profile.record ~accumulate:true "stack_slots_optimize"
       (fun () ->
-        Regalloc_stack_slots.optimize (State.stack_slots state)
-          cfg_with_liveness)
+        Regalloc_stack_slots.optimize (State.stack_slots state) cfg_with_infos)
       ();
   Regalloc_stack_slots.update_cfg_with_layout (State.stack_slots state)
     cfg_with_layout;
