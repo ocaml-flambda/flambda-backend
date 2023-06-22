@@ -76,15 +76,7 @@ module Buffer = struct
   let length : t -> int = Array1.dim
 
   external init_c_side : ocaml_buffer:t -> c_buffer:t -> unit
-  = "test_set_buffers"
-  
-  external compare_buffers : ocaml_buffer:t -> c_buffer:t -> bytes:int -> bool 
-  = "test_compare_buffers"
-
-  let byte_equal ~ocaml_buffer ~c_buffer = 
-    let bytes = Array1.size_in_bytes ocaml_buffer in 
-    assert (bytes = Array1.size_in_bytes c_buffer);
-    compare_buffers ~ocaml_buffer ~c_buffer ~bytes  
+    = "test_set_buffers"
 
   external get_int32 : t -> int -> int32 = "%caml_bigstring_get32"
   external get_int64 : t -> int -> int64 = "%caml_bigstring_get64"
@@ -280,7 +272,7 @@ let run_test ~random_data ~ocaml_buffer ~c_buffer (Test (name, f, proto)) =
   Buffer.copy_args ~src:random_data ~dst:ocaml_buffer proto;
   cleanup_args_and_stack ();
   exec proto f ~ocaml_buffer ~c_buffer;
-  let success = Buffer.byte_equal ~ocaml_buffer ~c_buffer in
+  let success = ocaml_buffer = c_buffer in
   if not success then print_mismatch name proto ~ocaml_buffer ~c_buffer;
   success
 
