@@ -140,7 +140,7 @@ module Intervals : sig
   type t = Interval.t array array
   (* first index is register class, second index is slot index *)
 
-  val build_from_cfg : slots -> Cfg_with_liveness.t -> t
+  val build_from_cfg : slots -> Cfg_with_infos.t -> t
 
   val print : Format.formatter -> t -> unit
 end
@@ -168,14 +168,14 @@ with type slots := t = struct
   (* CR-someday xclerc for xclerc: since we are only interested in the very
      first and the very last occurrences and are working on a doubly-linked
      list, the computation could start from both ends. *)
-  let build_from_cfg slots cfg_with_liveness =
+  let build_from_cfg slots cfg_with_infos =
     let intervals = make slots in
     let live_across (id : Instruction.id) : Reg.Set.t =
-      match Cfg_with_liveness.liveness_find_opt cfg_with_liveness id with
+      match Cfg_with_infos.liveness_find_opt cfg_with_infos id with
       | None -> fatal "missing liveness information for instruction %d" id
       | Some { before = _; across } -> across
     in
-    let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
+    let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
     let cfg = Cfg_with_layout.cfg cfg_with_layout in
     let visit_instr (type a) (point : Point.t) (instr : a Cfg.instruction) :
         unit =
@@ -283,11 +283,11 @@ with type slots := t = struct
               bucket))
 end
 
-let optimize (t : t) (cfg_with_liveness : Cfg_with_liveness.t) : unit =
+let optimize (t : t) (cfg_with_infos : Cfg_with_infos.t) : unit =
   if size_for_all_reg_classes t > 0
   then (
     (* First, compute the intervals for all stack slots *)
-    let intervals = Intervals.build_from_cfg t cfg_with_liveness in
+    let intervals = Intervals.build_from_cfg t cfg_with_infos in
     if debug then Format.eprintf "intervals:\n%a%!" Intervals.print intervals;
     (* Second, put the intervals into buckets *)
     let buckets = Buckets.build_from_intervals t intervals in
@@ -331,4 +331,4 @@ let optimize (t : t) (cfg_with_liveness : Cfg_with_liveness.t) : unit =
             reg_class (old_value - new_value) old_value new_value;
         t.num_stack_slots.(reg_class) <- new_value
       done;
-      Cfg_with_liveness.invalidate_liveness cfg_with_liveness))
+      Cfg_with_infos.invalidate_liveness cfg_with_infos))

@@ -16,7 +16,7 @@ val stack_slots_optim : bool Lazy.t
 
 val validator_debug : bool Lazy.t
 
-type liveness = Cfg_with_liveness.liveness
+type liveness = Cfg_with_infos.liveness
 
 type log_function =
   { log :
@@ -67,12 +67,12 @@ val make_log_body_and_terminator :
   liveness ->
   unit
 
-val make_log_cfg_with_liveness :
+val make_log_cfg_with_infos :
   log_function ->
   instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
   term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
   indent:int ->
-  Cfg_with_liveness.t ->
+  Cfg_with_infos.t ->
   unit
 
 module Move : sig

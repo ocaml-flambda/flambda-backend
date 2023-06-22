@@ -22,4 +22,4 @@ val update_cfg_with_layout : t -> Cfg_with_layout.t -> unit
     intervals do not overlap. If a reduction occurs, registers
     are modified and liveness is invalidated, but the CFG is
     left untouched. *)
-val optimize : t -> Cfg_with_liveness.t -> unit
+val optimize : t -> Cfg_with_infos.t -> unit

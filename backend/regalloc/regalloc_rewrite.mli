@@ -40,7 +40,7 @@ val rewrite_gen :
   (module State with type t = 's) ->
   (module Utils) ->
   's ->
-  Cfg_with_liveness.t ->
+  Cfg_with_infos.t ->
   spilled_nodes:Reg.t list ->
   Reg.t list
 
@@ -49,7 +49,7 @@ val rewrite_gen :
 val prelude :
   (module Utils) ->
   on_fatal_callback:(unit -> unit) ->
-  Cfg_with_liveness.t ->
+  Cfg_with_infos.t ->
   cfg_infos * Regalloc_stack_slots.t
 
 (* Runs the last steps common to register allocators, updating the CFG (stack
@@ -60,5 +60,5 @@ val postlude :
   (module Utils) ->
   's ->
   f:(unit -> unit) ->
-  Cfg_with_liveness.t ->
+  Cfg_with_infos.t ->
   unit

@@ -49,12 +49,12 @@ let log_renaming_info : indent:int -> t -> unit =
    in said block. *)
 module RemoveReloadSpillInSameBlock : sig
   val optimize :
-    Cfg_with_liveness.t ->
+    Cfg_with_infos.t ->
     destructions_at_end:destructions_at_end ->
     definitions_at_beginning:definitions_at_beginning ->
     destructions_at_end * definitions_at_beginning
 end = struct
-  let optimize cfg_with_liveness ~destructions_at_end ~definitions_at_beginning
+  let optimize cfg_with_infos ~destructions_at_end ~definitions_at_beginning
       =
     if split_debug then log ~indent:0 "RemoveReloadSpillInSameBlock.optimize";
     let destructions_at_end = ref destructions_at_end in
@@ -81,7 +81,7 @@ end = struct
                     false
                   | true ->
                     let block =
-                      Cfg_with_liveness.get_block_exn cfg_with_liveness label
+                      Cfg_with_infos.get_block_exn cfg_with_infos label
                     in
                     let occurs = occurs_block block reg in
                     if split_debug then log ~indent:3 "occurs? %B" occurs;
@@ -112,7 +112,7 @@ end
    a spill of the same register can be deleted. *)
 module RemoveDominatedSpillsForConstants : sig
   val optimize :
-    Cfg_with_liveness.t ->
+    Cfg_with_infos.t ->
     Cfg_dominators.t ->
     destructions_at_end:destructions_at_end ->
     destructions_at_end
@@ -200,13 +200,13 @@ end = struct
         remove_dominated_spills doms child ~num_sets
           ~already_spilled:!already_spilled ~destructions_at_end)
 
-  let optimize cfg_with_liveness doms ~destructions_at_end =
+  let optimize cfg_with_infos doms ~destructions_at_end =
     if split_debug
     then log ~indent:0 "RemoveDominatedSpillsForConstants.optimize";
     let loops =
       (* CR-soon xclerc for xclerc: be sure to not duplicate this computation if
          for instance used to compute spilling costs. *)
-      Cfg_loop_infos.build (Cfg_with_liveness.cfg cfg_with_liveness) doms
+      Cfg_loop_infos.build (Cfg_with_infos.cfg cfg_with_infos) doms
     in
     let incr_set (tbl : set Reg.Tbl.t) (arr : Reg.t array) ~(in_loop : bool) :
         unit =
@@ -219,7 +219,7 @@ end = struct
           | Some Maybe_more_than_once -> ())
     in
     let num_sets =
-      Cfg_with_liveness.fold_blocks cfg_with_liveness ~init:(Reg.Tbl.create 123)
+      Cfg_with_infos.fold_blocks cfg_with_infos ~init:(Reg.Tbl.create 123)
         ~f:(fun label block acc ->
           let in_loop : bool = is_in_loop loops label in
           if split_debug then log ~indent:1 "block %d in_loop? %B" label in_loop;
@@ -240,17 +240,17 @@ end = struct
 end
 
 let add_destruction_point_at_end :
-    Cfg_with_liveness.t ->
+    Cfg_with_infos.t ->
     Cfg.basic_block ->
     destruction_kind ->
     destructions_at_end ->
     destructions_at_end =
- fun cfg_with_liveness block kind destructions_at_end ->
+ fun cfg_with_infos block kind destructions_at_end ->
   let destroyed_regs : Reg.Set.t =
     match kind with
     | Destruction_on_all_paths -> (
       match
-        Cfg_with_liveness.liveness_find_opt cfg_with_liveness
+        Cfg_with_infos.liveness_find_opt cfg_with_infos
           block.terminator.id
       with
       | None ->
@@ -266,36 +266,36 @@ let add_destruction_point_at_end :
           "Regalloc_split_state.add_destruction_point_at_end: no exceptional \
            successor for block %d"
           block.start
-      | Some exn_succ -> live_at_block_beginning cfg_with_liveness exn_succ)
+      | Some exn_succ -> live_at_block_beginning cfg_with_infos exn_succ)
   in
   Label.Map.add block.start (kind, destroyed_regs) destructions_at_end
 
-let compute_destructions : Cfg_with_liveness.t -> destructions_at_end =
- fun cfg_with_liveness ->
-  Cfg_with_liveness.fold_blocks cfg_with_liveness ~init:Label.Map.empty
+let compute_destructions : Cfg_with_infos.t -> destructions_at_end =
+ fun cfg_with_infos ->
+  Cfg_with_infos.fold_blocks cfg_with_infos ~init:Label.Map.empty
     ~f:(fun _label block destructions_at_end ->
       match destruction_point_at_end block with
       | None -> destructions_at_end
       | Some kind ->
-        add_destruction_point_at_end cfg_with_liveness block kind
+        add_destruction_point_at_end cfg_with_infos block kind
           destructions_at_end)
 
 (* Definitions are added at the beginning of exception handlers, and at the
    beginning of successors of destruction points. *)
 let compute_definitions :
-    Cfg_with_liveness.t ->
+    Cfg_with_infos.t ->
     destructions_at_end:destructions_at_end ->
     definitions_at_beginning =
- fun cfg_with_liveness ~destructions_at_end ->
+ fun cfg_with_infos ~destructions_at_end ->
   let definitions_at_beginning = Label.Map.empty in
   let definitions_at_beginning =
-    Cfg_with_liveness.fold_blocks cfg_with_liveness
+    Cfg_with_infos.fold_blocks cfg_with_infos
       ~init:definitions_at_beginning
       ~f:(fun label block definitions_at_beginning ->
         if block.is_trap_handler
         then
           Label.Map.add label
-            (live_at_block_beginning cfg_with_liveness label)
+            (live_at_block_beginning cfg_with_infos label)
             definitions_at_beginning
         else definitions_at_beginning)
   in
@@ -306,7 +306,7 @@ let compute_definitions :
         | Destruction_only_on_exceptional_path -> definitions_at_beginning
         | Destruction_on_all_paths ->
           let destruction_block =
-            Cfg_with_liveness.get_block_exn cfg_with_liveness destruction_label
+            Cfg_with_infos.get_block_exn cfg_with_infos destruction_label
           in
           let normal_successor_labels =
             Cfg.successor_labels destruction_block ~normal:true ~exn:false
@@ -317,7 +317,7 @@ let compute_definitions :
                 (if split_debug && Lazy.force split_invariants
                 then
                   let successor_block =
-                    Cfg_with_liveness.get_block_exn cfg_with_liveness
+                    Cfg_with_infos.get_block_exn cfg_with_infos
                       successor_label
                   in
                   let predecessor_labels = successor_block.predecessors in
@@ -325,7 +325,7 @@ let compute_definitions :
                     Label.Set.for_all
                       (fun predecessor_label ->
                         let predecessor_block =
-                          Cfg_with_liveness.get_block_exn cfg_with_liveness
+                          Cfg_with_infos.get_block_exn cfg_with_infos
                             predecessor_label
                         in
                         destruction_point_at_end predecessor_block
@@ -337,7 +337,7 @@ let compute_definitions :
                   if not all_predecessors_end_with_destruction_point
                   then fatal "not all predecessors end with a destruction point");
                 Label.Map.add successor_label
-                  (live_at_block_beginning cfg_with_liveness successor_label)
+                  (live_at_block_beginning cfg_with_infos successor_label)
                   definitions_at_beginning)
               normal_successor_labels definitions_at_beginning
           in
@@ -347,13 +347,13 @@ let compute_definitions :
   definitions_at_beginning
 
 let add_phis :
-    Cfg_with_liveness.t ->
+    Cfg_with_infos.t ->
     Label.t ->
     Reg.Set.t ->
     phi_at_beginning ->
     Cfg_dominators.t ->
     phi_at_beginning =
- fun cfg_with_liveness destruction_label destroyed_regs phi_at_beginning doms ->
+ fun cfg_with_infos destruction_label destroyed_regs phi_at_beginning doms ->
   let destruction_frontier =
     match
       Label.Map.find_opt destruction_label
@@ -367,7 +367,7 @@ let add_phis :
   Label.Set.fold
     (fun destruction_frontier_label phi_at_beginning ->
       let is_trap_handler =
-        (Cfg_with_liveness.get_block_exn cfg_with_liveness
+        (Cfg_with_infos.get_block_exn cfg_with_infos
            destruction_frontier_label)
           .is_trap_handler
       in
@@ -384,11 +384,11 @@ let add_phis :
     destruction_frontier phi_at_beginning
 
 let rec fix_point_phi :
-    Cfg_with_liveness.t ->
+    Cfg_with_infos.t ->
     Cfg_dominators.t ->
     phi_at_beginning ->
     phi_at_beginning =
- fun cfg_with_liveness doms phi_at_beginning ->
+ fun cfg_with_infos doms phi_at_beginning ->
   let changed = ref false in
   let res = ref phi_at_beginning in
   Label.Map.iter
@@ -405,7 +405,7 @@ let rec fix_point_phi :
       Label.Set.iter
         (fun flab ->
           let is_trap_handler =
-            (Cfg_with_liveness.get_block_exn cfg_with_liveness flab)
+            (Cfg_with_infos.get_block_exn cfg_with_infos flab)
               .is_trap_handler
           in
           if not is_trap_handler
@@ -425,19 +425,19 @@ let rec fix_point_phi :
         frontier)
     phi_at_beginning;
   if !changed
-  then fix_point_phi cfg_with_liveness doms !res
+  then fix_point_phi cfg_with_infos doms !res
   else phi_at_beginning
 
 (* Phis are first added at the dominance frontier of blocks appearing in either
    `destructions_at_end` or `definitions_at_beginning`. And then also at the
    dominance frontier of blocks having phis, until a fix point is reached. *)
 let compute_phis :
-    Cfg_with_liveness.t ->
+    Cfg_with_infos.t ->
     destructions_at_end:destructions_at_end ->
     definitions_at_beginning:definitions_at_beginning ->
     Cfg_dominators.t ->
     phi_at_beginning =
- fun cfg_with_liveness ~destructions_at_end ~definitions_at_beginning doms ->
+ fun cfg_with_infos ~destructions_at_end ~definitions_at_beginning doms ->
   let phi_at_beginning = Label.Map.empty in
   let phi_at_beginning =
     Label.Map.fold
@@ -445,40 +445,40 @@ let compute_phis :
         match kind with
         | Destruction_only_on_exceptional_path -> phi_at_beginning
         | Destruction_on_all_paths ->
-          add_phis cfg_with_liveness destruction_label destroyed_regs
+          add_phis cfg_with_infos destruction_label destroyed_regs
             phi_at_beginning doms)
       destructions_at_end phi_at_beginning
   in
   let phi_at_beginning =
     Label.Map.fold
       (fun destruction_label destroyed_regs phi_at_beginning ->
-        add_phis cfg_with_liveness destruction_label destroyed_regs
+        add_phis cfg_with_infos destruction_label destroyed_regs
           phi_at_beginning doms)
       definitions_at_beginning phi_at_beginning
   in
   let phi_at_beginning =
-    fix_point_phi cfg_with_liveness doms phi_at_beginning
+    fix_point_phi cfg_with_infos doms phi_at_beginning
   in
   phi_at_beginning
 
-let make cfg_with_liveness ~next_instruction_id =
+let make cfg_with_infos ~next_instruction_id =
   let dominators =
-    Cfg_dominators.build (Cfg_with_liveness.cfg cfg_with_liveness)
+    Cfg_dominators.build (Cfg_with_infos.cfg cfg_with_infos)
   in
-  let destructions_at_end = compute_destructions cfg_with_liveness in
+  let destructions_at_end = compute_destructions cfg_with_infos in
   let definitions_at_beginning =
-    compute_definitions cfg_with_liveness ~destructions_at_end
+    compute_definitions cfg_with_infos ~destructions_at_end
   in
   let phi_at_beginning =
-    compute_phis cfg_with_liveness ~destructions_at_end
+    compute_phis cfg_with_infos ~destructions_at_end
       ~definitions_at_beginning dominators
   in
   let destructions_at_end, definitions_at_beginning =
-    RemoveReloadSpillInSameBlock.optimize cfg_with_liveness ~destructions_at_end
+    RemoveReloadSpillInSameBlock.optimize cfg_with_infos ~destructions_at_end
       ~definitions_at_beginning
   in
   let destructions_at_end =
-    RemoveDominatedSpillsForConstants.optimize cfg_with_liveness dominators
+    RemoveDominatedSpillsForConstants.optimize cfg_with_infos dominators
       ~destructions_at_end
   in
   let stack_slots = Regalloc_stack_slots.make () in

@@ -4,4 +4,4 @@ val precondition : Cfg_with_layout.t -> unit
 
 val postcondition_layout : Cfg_with_layout.t -> unit
 
-val postcondition_liveness : Cfg_with_liveness.t -> unit
+val postcondition_liveness : Cfg_with_infos.t -> unit

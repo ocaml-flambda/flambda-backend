@@ -16,4 +16,4 @@ open Regalloc_utils
     SSA form: we simply consider that new names are introduced at destruction
     points. *)
 val split_live_ranges :
-  Cfg_with_liveness.t -> cfg_infos -> Regalloc_stack_slots.t
+  Cfg_with_infos.t -> cfg_infos -> Regalloc_stack_slots.t

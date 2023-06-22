@@ -50,7 +50,7 @@ let stack_slots_optim = bool_of_param "STACK_SLOTS_OPTIM"
 
 let validator_debug = bool_of_param "VALIDATOR_DEBUG"
 
-type liveness = Cfg_with_liveness.liveness
+type liveness = Cfg_with_infos.liveness
 
 let make_indent n = String.make (2 * n) ' '
 
@@ -181,20 +181,20 @@ let make_log_body_and_terminator :
   then Cfg.dump_terminator ~sep:", " Format.err_formatter term.Cfg.desc;
   if enabled then log_instruction_suffix term liveness
 
-let make_log_cfg_with_liveness :
+let make_log_cfg_with_infos :
     log_function ->
     instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
     term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
     indent:int ->
-    Cfg_with_liveness.t ->
+    Cfg_with_infos.t ->
     unit =
  fun ({ log; enabled } as log_function) ~instr_prefix ~term_prefix ~indent
-     cfg_with_liveness ->
+     cfg_with_infos ->
   if enabled
   then
-    let liveness = Cfg_with_liveness.liveness cfg_with_liveness in
-    let cfg = Cfg_with_liveness.cfg cfg_with_liveness in
-    let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
+    let liveness = Cfg_with_infos.liveness cfg_with_infos in
+    let cfg = Cfg_with_infos.cfg cfg_with_infos in
+    let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
     let layout = Cfg_with_layout.layout cfg_with_layout in
     let log_body_and_terminator =
       make_log_body_and_terminator log_function ~instr_prefix ~term_prefix

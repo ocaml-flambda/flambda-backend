@@ -35,10 +35,10 @@ let log_body_and_terminator :
   make_log_body_and_terminator (Lazy.force log_function) ~instr_prefix
     ~term_prefix ~indent body terminator liveness
 
-let log_cfg_with_liveness : indent:int -> Cfg_with_liveness.t -> unit =
- fun ~indent cfg_with_liveness ->
-  make_log_cfg_with_liveness (Lazy.force log_function) ~instr_prefix
-    ~term_prefix ~indent cfg_with_liveness
+let log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit =
+ fun ~indent cfg_with_infos ->
+  make_log_cfg_with_infos (Lazy.force log_function) ~instr_prefix
+    ~term_prefix ~indent cfg_with_infos
 
 module Color = struct
   type t = int
