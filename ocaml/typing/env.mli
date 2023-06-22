@@ -34,7 +34,7 @@ type module_unbound_reason =
 
 type summary =
     Env_empty
-  | Env_value of summary * Ident.t * value_description
+  | Env_value of summary * Ident.t * value_description * Types.value_mode
   | Env_type of summary * Ident.t * type_declaration
   | Env_extension of summary * Ident.t * extension_constructor
   | Env_module of summary * Ident.t * module_presence * module_declaration
@@ -84,11 +84,12 @@ val without_cmis: ('a -> 'b) -> 'a -> 'b
 
 (* Lookup by paths *)
 
-val find_value: Path.t -> t -> value_description
+val find_value: Path.t -> t -> Subst.Lazy.value_description
 val find_type: Path.t -> t -> type_declaration
 val find_type_descrs: Path.t -> t -> type_descriptions
-val find_module_lazy: Path.t -> t -> Subst.Lazy.module_decl
+val find_module_lazy: Path.t -> t -> Subst.Lazy.module_declaration
 val find_module: Path.t -> t -> module_declaration
+val find_modtype_lazy: Path.t -> t -> Subst.Lazy.modtype_declaration
 val find_modtype: Path.t -> t -> modtype_declaration
 val find_class: Path.t -> t -> class_declaration
 val find_cltype: Path.t -> t -> class_type_declaration
@@ -103,7 +104,7 @@ val find_type_expansion_opt:
 (* Find the manifest type information associated to a type for the sake
    of the compiler's type-based optimisations. *)
 val find_modtype_expansion: Path.t -> t -> module_type
-val find_modtype_expansion_lazy: Path.t -> t -> Subst.Lazy.modtype
+val find_modtype_expansion_lazy: Path.t -> t -> Subst.Lazy.module_type
 
 val find_hash_type: Path.t -> t -> type_declaration
 (* Find the "#t" type given the path for "t" *)
@@ -199,6 +200,7 @@ type lookup_error =
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
   | Local_value_used_in_closure of Longident.t * escaping_context option
+  | Local_value_used_in_exclave of Longident.t
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
 
@@ -295,20 +297,23 @@ val make_copy_of_types: t -> (t -> t)
 
 (* Insertion by identifier *)
 
+val add_value_lazy:
+    ?check:(string -> Warnings.t) -> ?mode:(Types.value_mode) ->
+    Ident.t -> Subst.Lazy.value_description -> t -> t
 val add_value:
     ?check:(string -> Warnings.t) -> ?mode:(Types.value_mode) ->
-    Ident.t -> value_description -> t -> t
+    Ident.t -> Types.value_description -> t -> t
 val add_type: check:bool -> Ident.t -> type_declaration -> t -> t
 val add_extension:
   check:bool -> rebind:bool -> Ident.t -> extension_constructor -> t -> t
 val add_module: ?arg:bool -> ?shape:Shape.t ->
   Ident.t -> module_presence -> module_type -> t -> t
 val add_module_lazy: update_summary:bool ->
-  Ident.t -> module_presence -> Subst.Lazy.modtype -> t -> t
+  Ident.t -> module_presence -> Subst.Lazy.module_type -> t -> t
 val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool ->
   Ident.t -> module_presence -> module_declaration -> t -> t
-val add_module_declaration_lazy: update_summary:bool ->
-  Ident.t -> module_presence -> Subst.Lazy.module_decl -> t -> t
+val add_module_declaration_lazy: ?arg:bool -> update_summary:bool ->
+  Ident.t -> module_presence -> Subst.Lazy.module_declaration -> t -> t
 val add_modtype: Ident.t -> modtype_declaration -> t -> t
 val add_modtype_lazy: update_summary:bool ->
    Ident.t -> Subst.Lazy.modtype_declaration -> t -> t
@@ -338,6 +343,7 @@ val filter_non_loaded_persistent : (Ident.t -> bool) -> t -> t
 (* Insertion of all fields of a signature. *)
 
 val add_signature: signature -> t -> t
+val add_signature_lazy: Subst.Lazy.signature_item list -> t -> t
 
 (* Insertion of all fields of a signature, relative to the given path.
    Used to implement open. Returns None if the path refers to a functor,
@@ -392,6 +398,7 @@ val enter_unbound_module : string -> module_unbound_reason -> t -> t
 
 val add_lock : ?escaping_context:escaping_context -> Types.alloc_mode -> t -> t
 val add_region_lock : t -> t
+val add_exclave_lock : t -> t
 
 (* Initialize the cache of in-core module interfaces. *)
 val reset_cache: preserve_persistent_env:bool -> unit
@@ -410,7 +417,7 @@ val save_signature:
   alerts:alerts -> signature -> signature option -> Compilation_unit.Name.t
   -> Cmi_format.kind
   -> filepath
-  -> Cmi_format.cmi_infos
+  -> Cmi_format.cmi_infos_lazy
         (* Arguments: signature, secondary signature, module name, module kind,
            file name. *)
 val save_signature_with_imports:
@@ -418,7 +425,7 @@ val save_signature_with_imports:
   -> Cmi_format.kind
   -> filepath
   -> Import_info.Intf.t array
-  -> Cmi_format.cmi_infos
+  -> Cmi_format.cmi_infos_lazy
         (* Arguments: signature, secondary signature, module name, module kind,
            file name, imported units with their CRCs. *)
 
@@ -493,7 +500,7 @@ val in_signature: bool -> t -> t
 val is_in_signature: t -> bool
 
 val set_value_used_callback:
-    value_description -> (unit -> unit) -> unit
+    Subst.Lazy.value_description -> (unit -> unit) -> unit
 val set_type_used_callback:
     type_declaration -> ((unit -> unit) -> unit) -> unit
 
@@ -512,7 +519,7 @@ val check_well_formed_module:
 val add_delayed_check_forward: ((unit -> unit) -> unit) ref
 (* Forward declaration to break mutual recursion with Mtype. *)
 val scrape_alias:
-    (t -> Subst.Lazy.modtype -> Subst.Lazy.modtype) ref
+    (t -> Subst.Lazy.module_type -> Subst.Lazy.module_type) ref
 (* Forward declaration to break mutual recursion with Ctype. *)
 val same_constr: (t -> type_expr -> type_expr -> bool) ref
 (* Forward declaration to break mutual recursion with Printtyp. *)
@@ -524,7 +531,7 @@ val print_path: (Format.formatter -> Path.t -> unit) ref
 (** Folds *)
 
 val fold_values:
-  (string -> Path.t -> value_description -> 'a -> 'a) ->
+  (string -> Path.t -> Subst.Lazy.value_description -> 'a -> 'a) ->
   Longident.t option -> t -> 'a -> 'a
 val fold_types:
   (string -> Path.t -> type_declaration -> 'a -> 'a) ->

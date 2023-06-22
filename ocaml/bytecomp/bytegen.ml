@@ -188,10 +188,10 @@ let rec size_of_lambda env = function
   | Llet (Strict, _k, id, Lprim (Pduprecord (kind, size), _, _), body)
     when check_recordwith_updates id body ->
       begin match kind with
-      | Record_regular | Record_inlined _ -> RHS_block size
-      | Record_unboxed _ -> assert false
+      | Record_boxed _ | Record_inlined (_, Variant_boxed _) -> RHS_block size
+      | Record_unboxed | Record_inlined (_, Variant_unboxed) -> assert false
       | Record_float -> RHS_floatblock size
-      | Record_extension _ -> RHS_block (size + 1)
+      | Record_inlined (_, Variant_extensible) -> RHS_block (size + 1)
       end
   | Llet(_str, _k, id, arg, body) ->
       size_of_lambda (Ident.add id (size_of_lambda env arg) env) body
@@ -223,11 +223,14 @@ let rec size_of_lambda env = function
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
       RHS_nonrec
-  | Lprim (Pduprecord ((Record_regular | Record_inlined _), size), _, _) ->
+  | Lprim (Pduprecord ((Record_boxed _ | Record_inlined (_, Variant_boxed _)),
+                       size), _, _) ->
       RHS_block size
-  | Lprim (Pduprecord (Record_unboxed _, _), _, _) ->
+  | Lprim (Pduprecord ((Record_unboxed
+                       | Record_inlined (_, Variant_unboxed)),
+           _), _, _) ->
       assert false
-  | Lprim (Pduprecord (Record_extension _, size), _, _) ->
+  | Lprim (Pduprecord (Record_inlined (_, Variant_extensible), size), _, _) ->
       RHS_block (size + 1)
   | Lprim (Pduprecord (Record_float, size), _, _) -> RHS_floatblock size
   | Levent (lam, _) -> size_of_lambda env lam
@@ -451,18 +454,23 @@ let comp_primitive p args =
   | Pbytes_load_32(_) -> Kccall("caml_bytes_get32", 2)
   | Pbytes_load_64(_) -> Kccall("caml_bytes_get64", 2)
   | Parraylength _ -> Kvectlength
-  | Parrayrefs Pgenarray -> Kccall("caml_array_get", 2)
-  | Parrayrefs Pfloatarray -> Kccall("caml_floatarray_get", 2)
-  | Parrayrefs _ -> Kccall("caml_array_get_addr", 2)
-  | Parraysets Pgenarray -> Kccall("caml_array_set", 3)
-  | Parraysets Pfloatarray -> Kccall("caml_floatarray_set", 3)
-  | Parraysets _ -> Kccall("caml_array_set_addr", 3)
-  | Parrayrefu Pgenarray -> Kccall("caml_array_unsafe_get", 2)
-  | Parrayrefu Pfloatarray -> Kccall("caml_floatarray_unsafe_get", 2)
-  | Parrayrefu _ -> Kgetvectitem
-  | Parraysetu Pgenarray -> Kccall("caml_array_unsafe_set", 3)
-  | Parraysetu Pfloatarray -> Kccall("caml_floatarray_unsafe_set", 3)
-  | Parraysetu _ -> Ksetvectitem
+  (* In bytecode, nothing is ever actually stack-allocated, so we ignore the
+     array modes (allocation for [Parrayref{s,u}], modification for
+     [Parrayset{s,u}]). *)
+  | Parrayrefs (Pgenarray_ref _) -> Kccall("caml_array_get", 2)
+  | Parrayrefs (Pfloatarray_ref _) -> Kccall("caml_floatarray_get", 2)
+  | Parrayrefs (Paddrarray_ref | Pintarray_ref) ->
+      Kccall("caml_array_get_addr", 2)
+  | Parraysets (Pgenarray_set _) -> Kccall("caml_array_set", 3)
+  | Parraysets Pfloatarray_set -> Kccall("caml_floatarray_set", 3)
+  | Parraysets (Paddrarray_set _ | Pintarray_set) ->
+      Kccall("caml_array_set_addr", 3)
+  | Parrayrefu (Pgenarray_ref _) -> Kccall("caml_array_unsafe_get", 2)
+  | Parrayrefu (Pfloatarray_ref _) -> Kccall("caml_floatarray_unsafe_get", 2)
+  | Parrayrefu (Paddrarray_ref | Pintarray_ref) -> Kgetvectitem
+  | Parraysetu (Pgenarray_set _) -> Kccall("caml_array_unsafe_set", 3)
+  | Parraysetu Pfloatarray_set -> Kccall("caml_floatarray_unsafe_set", 3)
+  | Parraysetu (Paddrarray_set _ | Pintarray_set) -> Ksetvectitem
   | Pctconst c ->
      let const_name = match c with
        | Big_endian -> "big_endian"
@@ -1028,6 +1036,8 @@ let rec comp_expr env exp sz cont =
   | Lifused (_, exp) ->
       comp_expr env exp sz cont
   | Lregion (exp, _) ->
+      comp_expr env exp sz cont
+  | Lexclave exp ->
       comp_expr env exp sz cont
 
 (* Compile a list of arguments [e1; ...; eN] to a primitive operation.

@@ -69,7 +69,7 @@ val report_error: Format.formatter -> error -> unit
 module Persistent_signature : sig
   type t =
     { filename : string; (** Name of the file containing the signature. *)
-      cmi : Cmi_format.cmi_infos }
+      cmi : Cmi_format.cmi_infos_lazy }
 
   (** Function used to load a persistent signature. The default is to look for
       the .cmi file in the load path. This function can be overridden to load
@@ -155,10 +155,10 @@ val global_of_global_name : 'a t
 val make_cmi : 'a t
   -> Compilation_unit.Name.t
   -> Cmi_format.kind
-  -> Types.signature
+  -> Subst.Lazy.signature
   -> Types.signature option
   -> alerts
-  -> Cmi_format.cmi_infos
+  -> Cmi_format.cmi_infos_lazy
 
 val save_cmi : 'a t -> Persistent_signature.t -> unit
 

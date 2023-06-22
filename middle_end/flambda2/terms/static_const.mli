@@ -17,6 +17,9 @@
 (** Language terms that represent statically-allocated values, bound to
     symbols. *)
 
+(* CR mshinwell: Store coercions so the CR in Simplify_static_const can be
+   removed. *)
+
 (** The static structure of a symbol, possibly with holes, ready to be filled
     with values computed at runtime. *)
 type t = private

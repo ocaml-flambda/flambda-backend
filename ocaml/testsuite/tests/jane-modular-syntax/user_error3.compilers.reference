@@ -1,0 +1,5 @@
+File "user_error3.ml", line 21, characters 26-28:
+21 | let _misnamed_extension = () [@jane.erasable.this_extension_doesn't_exist];;
+                               ^^
+Error: Unknown extension "this_extension_doesn't_exist" referenced via
+       a [@jane.erasable.this_extension_doesn't_exist] attribute

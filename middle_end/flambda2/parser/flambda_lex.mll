@@ -39,6 +39,7 @@ let keyword_table =
     "asr", KWD_ASR;
     "available", KWD_AVAILABLE;
     "boxed", KWD_BOXED;
+    "bswap", KWD_BSWAP;
     "ccall", KWD_CCALL;
     "closure", KWD_CLOSURE;
     "code", KWD_CODE;
@@ -48,6 +49,7 @@ let keyword_table =
     "deleted", KWD_DELETED;
     "depth", KWD_DEPTH;
     "direct", KWD_DIRECT;
+    "do_not_inline", KWD_DO_NOT_INLINE;
     "done", KWD_DONE;
     "end", KWD_END;
     "error", KWD_ERROR;
@@ -71,6 +73,7 @@ let keyword_table =
     "let", KWD_LET;
     "local", KWD_LOCAL;
     "loopify", KWD_LOOPIFY;
+    "lor", KWD_LOR;
     "lsl", KWD_LSL;
     "lsr", KWD_LSR;
     "mutable", KWD_MUTABLE;
@@ -108,6 +111,7 @@ let keyword_table =
     "Block", STATIC_CONST_BLOCK;
     "Float_array", STATIC_CONST_FLOAT_ARRAY;
     "Float_block", STATIC_CONST_FLOAT_BLOCK;
+    "Empty_array", STATIC_CONST_EMPTY_ARRAY;
 ]
 
 let ident_or_keyword str =
@@ -125,15 +129,18 @@ let prim_table =
     "begin_region", PRIM_BEGIN_REGION;
     "begin_try_region", PRIM_BEGIN_TRY_REGION;
     "bigstring_load", PRIM_BIGSTRING_LOAD;
+    "bigstring_set", PRIM_BIGSTRING_SET;
     "Block", PRIM_BLOCK;
     "block_load", PRIM_BLOCK_LOAD;
     "block_set", PRIM_BLOCK_SET;
+    "not", PRIM_BOOLEAN_NOT;
     "Box_float", PRIM_BOX_FLOAT;
     "Box_int32", PRIM_BOX_INT32;
     "Box_int64", PRIM_BOX_INT64;
     "Box_nativeint", PRIM_BOX_NATIVEINT;
     "bytes_length", PRIM_BYTES_LENGTH;
     "bytes_load", PRIM_BYTES_LOAD;
+    "bytes_set", PRIM_BYTES_SET;
     "end_region", PRIM_END_REGION;
     "get_tag", PRIM_GET_TAG;
     "int_arith", PRIM_INT_ARITH;
@@ -273,6 +280,7 @@ rule token = parse
   | "@" { AT }
   | "|"  { PIPE }
   | "~"  { TILDE }
+  | "~-"  { TILDEMINUS }
   | "&"  { AMP }
   | "^"  { CARET }
   | "===>" { BIGARROW }
@@ -296,7 +304,7 @@ rule token = parse
          { error ~lexbuf (Invalid_literal lit) }
   | '"' (([^ '"'] | '\\' '"')* as s) '"'
          (* CR-someday lmaurer: Escape sequences, multiline strings *)
-         { STRING s }
+         { STRING (Scanf.unescaped s) }
   | eof  { EOF }
   | _ as ch
          { error ~lexbuf (Illegal_character ch) }

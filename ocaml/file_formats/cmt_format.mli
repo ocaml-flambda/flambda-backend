@@ -80,10 +80,10 @@ exception Error of error
     only contain a cmi_infos at the beginning if there is no associated
     .cmti file.
 *)
-val read : string -> Cmi_format.cmi_infos option * cmt_infos option
+val read : string -> Cmi_format.cmi_infos_lazy option * cmt_infos option
 
 val read_cmt : string -> cmt_infos
-val read_cmi : string -> Cmi_format.cmi_infos
+val read_cmi : string -> Cmi_format.cmi_infos_lazy
 
 (** [save_cmt filename modname binary_annots sourcefile initial_env cmi]
     writes a cmt(i) file.  *)
@@ -93,7 +93,7 @@ val save_cmt :
   binary_annots ->
   string option ->  (* source file *)
   Env.t -> (* initial env *)
-  Cmi_format.cmi_infos option -> (* if a .cmi was generated *)
+  Cmi_format.cmi_infos_lazy option -> (* if a .cmi was generated *)
   Shape.t option ->
   unit
 

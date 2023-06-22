@@ -61,11 +61,27 @@ module For_allocations : sig
 
   val to_lambda : t -> Lambda.alloc_mode
 
-  val from_lambda_modify : Lambda.modify_mode -> current_region:Variable.t -> t
-
-  val to_lambda_modify : t -> Lambda.modify_mode
-
   include Contains_names.S with type t := t
 
   include Contains_ids.S with type t := t
+end
+
+module For_assignments : sig
+  (** Decisions on assignment locations *)
+  type t = private
+    | Heap
+    | Local
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+
+  val heap : t
+
+  (* Returns [Heap] if stack allocation is disabled! *)
+  val local : unit -> t
+
+  val from_lambda : Lambda.modify_mode -> t
+
+  val to_lambda : t -> Lambda.modify_mode
 end

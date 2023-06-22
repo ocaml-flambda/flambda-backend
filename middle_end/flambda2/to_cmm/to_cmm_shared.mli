@@ -26,11 +26,12 @@ val remove_vars_with_machtype :
 
 val exttype_of_kind : Flambda_kind.t -> Cmm.exttype
 
-val machtype_of_kind :
-  Flambda_kind.With_subkind.t -> Cmm.machtype_component array
+val machtype_of_kind : Flambda_kind.With_subkind.t -> Cmm.machtype
 
-val machtype_of_kinded_parameter :
-  Bound_parameter.t -> Cmm.machtype_component array
+val extended_machtype_of_kind :
+  Flambda_kind.With_subkind.t -> Cmm_helpers.Extended_machtype.t
+
+val machtype_of_kinded_parameter : Bound_parameter.t -> Cmm.machtype
 
 val memory_chunk_of_kind : Flambda_kind.With_subkind.t -> Cmm.memory_chunk
 
@@ -40,11 +41,6 @@ val targetint : dbg:Debuginfo.t -> Targetint_32_64.t -> Cmm.expression
 val tag_targetint : Targetint_32_64.t -> Targetint_32_64.t
 
 val nativeint_of_targetint : Targetint_32_64.t -> Nativeint.t
-
-val symbol_from_linkage_name :
-  dbg:Debuginfo.t -> Linkage_name.t -> Cmm.expression
-
-val symbol : dbg:Debuginfo.t -> Symbol.t -> Cmm.expression
 
 (** This does not inline effectful expressions. *)
 val name :
@@ -64,7 +60,9 @@ val simple :
   To_cmm_env.translation_result
 
 val simple_static :
-  Simple.t -> [`Data of Cmm.data_item list | `Var of Variable.t]
+  To_cmm_result.t ->
+  Simple.t ->
+  [`Data of Cmm.data_item list | `Var of Variable.t]
 
 (** This function translates the [Simple] at the head of the list first.
     Regarding [consider_inlining_effectful_expressions], see [simple] above. *)
@@ -100,6 +98,7 @@ val make_update :
   prev_updates:To_cmm_env.expr_with_info option ->
   To_cmm_env.t * To_cmm_result.t * To_cmm_env.expr_with_info option
 
-val check_arity : Flambda_arity.With_subkinds.t -> _ list -> bool
+val check_arity : Flambda_arity.t -> _ list -> bool
 
-val machtype_of_return_arity : Flambda_arity.With_subkinds.t -> Cmm.machtype
+val extended_machtype_of_return_arity :
+  Flambda_arity.t -> Cmm_helpers.Extended_machtype.t

@@ -109,7 +109,7 @@ end = struct
           Flambda_colours.pop Simple.print simple
 
     let[@inline always] apply_renaming ~apply_renaming_head t renaming =
-      if Renaming.is_empty renaming
+      if Renaming.is_identity renaming
       then t
       else
         match t with

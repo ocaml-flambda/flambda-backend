@@ -29,5 +29,3 @@ type error =
 exception Error of error
 
 val report_error: error -> unit
-
-val value_kind : unit -> Cmm.value_kind

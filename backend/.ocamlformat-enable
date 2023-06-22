@@ -2,6 +2,8 @@ cmm_helpers.ml
 cmm_helpers.mli
 cmm_builtins.ml
 cmm_builtins.mli
+checks.ml
+checks.mli
 checkmach.ml
 checkmach.mli
 cfg/**/*.ml
@@ -10,3 +12,5 @@ asm_targets/**/*.ml
 asm_targets/**/*.mli
 debug/**/*.ml
 debug/**/*.mli
+regalloc/**/*.ml
+regalloc/**/*.mli

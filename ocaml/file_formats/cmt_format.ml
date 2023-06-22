@@ -122,7 +122,7 @@ let read filename =
          if magic_number = Config.cmt_magic_number then
            None, Some (input_cmt ic)
          else if magic_number = Config.cmi_magic_number then
-           let cmi = Cmi_format.input_cmi ic in
+           let cmi = Cmi_format.input_cmi_lazy ic in
            let cmt = try
                let magic_number = read_magic_number ic in
                if magic_number = Config.cmt_magic_number then

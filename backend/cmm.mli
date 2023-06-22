@@ -140,10 +140,14 @@ type phantom_defining_expr =
 
 type trywith_shared_label = Lambda.static_label (* Same as Ccatch handlers *)
 
+type pop_action =
+  | Pop_generic
+  | Pop_specific of trywith_shared_label
+
 type trap_action =
   | Push of trywith_shared_label
   (** Add the corresponding handler to the trap stack. *)
-  | Pop
+  | Pop of pop_action
   (** Remove the last handler from the trap stack. *)
 
 type trywith_kind =
@@ -215,16 +219,38 @@ and operation =
                    then the index.
                    It results in a bounds error if the index is greater than
                    or equal to the bound. *)
-  | Cprobe of { name: string; handler_code_sym: string; }
+  | Cprobe of { name: string; handler_code_sym: string; enabled_at_init: bool }
   | Cprobe_is_enabled of { name: string }
   | Copaque (* Sys.opaque_identity *)
   | Cbeginregion | Cendregion
 
-type value_kind =
-  | Vval of Lambda.value_kind (* Valid OCaml values *)
-  | Vint (* Untagged integers and off-heap pointers *)
-  | Vaddr (* Derived pointers *)
-  | Vfloat (* Unboxed floating-point numbers *)
+(* This is information used exclusively during construction of cmm terms by
+   cmmgen, and thus irrelevant for selectgen and flambda2. *)
+type kind_for_unboxing =
+  | Any (* This may contain anything, including non-scannable things *)
+  | Boxed_integer of Lambda.boxed_integer
+  | Boxed_float
+
+type is_global = Global | Local
+val equal_is_global : is_global -> is_global -> bool
+
+(* Symbols are marked with whether they are local or global,
+   at both definition and use sites.
+
+   Symbols defined as [Local] may only be referenced within the same file,
+   and all such references must also be [Local].
+
+   Symbols defined as [Global] may be referenced from other files.
+   References from other files must be [Global], but references from the
+   same file may be [Local].
+
+   (Marking symbols in this way speeds up linking, as many references can
+   then be resolved early) *)
+type symbol =
+  { sym_name : string;
+    sym_global : is_global }
+
+val global_symbol : string -> symbol
 
 (** Every basic block should have a corresponding [Debuginfo.t] for its
     beginning. *)
@@ -232,7 +258,7 @@ type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
-  | Cconst_symbol of string * Debuginfo.t
+  | Cconst_symbol of symbol * Debuginfo.t
   | Cvar of Backend_var.t
   | Clet of Backend_var.With_provenance.t * expression * expression
   | Clet_mut of Backend_var.With_provenance.t * machtype
@@ -245,35 +271,35 @@ type expression =
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
   | Cifthenelse of expression * Debuginfo.t * expression
-      * Debuginfo.t * expression * Debuginfo.t * value_kind
+      * Debuginfo.t * expression * Debuginfo.t * kind_for_unboxing
   | Cswitch of expression * int array * (expression * Debuginfo.t) array
-      * Debuginfo.t * value_kind
+      * Debuginfo.t * kind_for_unboxing
   | Ccatch of
       rec_flag
         * (Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t) list
         * expression
-        * value_kind
+        * kind_for_unboxing
   | Cexit of exit_label * expression list * trap_action list
   | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
-      * expression * Debuginfo.t * value_kind
+      * expression * Debuginfo.t * kind_for_unboxing
   (** Only if the [trywith_kind] is [Regular] will a region be inserted for
       the "try" block. *)
   | Cregion of expression
   | Ctail of expression
 
 type property =
-  | Noalloc
+  | Zero_alloc
 
 type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
-  | Assert of property
-  | Assume of property
+  | Ignore_assert_all of property
+  | Check of { property: property; strict: bool; assume: bool; loc: Location.t }
 
 type fundecl =
-  { fun_name: string;
+  { fun_name: symbol;
     fun_args: (Backend_var.With_provenance.t * machtype) list;
     fun_body: expression;
     fun_codegen_options : codegen_option list;
@@ -282,15 +308,14 @@ type fundecl =
   }
 
 type data_item =
-    Cdefine_symbol of string
-  | Cglobal_symbol of string
+    Cdefine_symbol of symbol
   | Cint8 of int
   | Cint16 of int
   | Cint32 of nativeint
   | Cint of nativeint
   | Csingle of float
   | Cdouble of float
-  | Csymbol_address of string
+  | Csymbol_address of symbol
   | Cstring of string
   | Cskip of int
   | Calign of int
@@ -301,7 +326,7 @@ type phrase =
 
 val ccatch :
      label * (Backend_var.With_provenance.t * machtype) list
-       * expression * expression * Debuginfo.t * value_kind
+       * expression * expression * Debuginfo.t * kind_for_unboxing
   -> expression
 
 val reset : unit -> unit
@@ -315,12 +340,12 @@ val iter_shallow_tail: (expression -> unit) -> expression -> bool
       considered to be in tail position (because their result become
       the final result for the expression).  *)
 
-val map_shallow_tail: ?kind:value_kind -> (expression -> expression) -> expression -> expression
+val map_shallow_tail: ?kind:kind_for_unboxing -> (expression -> expression) -> expression -> expression
   (** Apply the transformation to those immediate sub-expressions of an
       expression that are in tail position, using the same definition of "tail"
       as [iter_shallow_tail] *)
 
-val map_tail: ?kind:value_kind -> (expression -> expression) -> expression -> expression
+val map_tail: ?kind:kind_for_unboxing -> (expression -> expression) -> expression -> expression
   (** Apply the transformation to an expression, trying to push it
       to all inner sub-expressions that can produce the final result,
       by recursively applying map_shallow_tail *)

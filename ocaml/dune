@@ -20,12 +20,7 @@
 
  (main
   (flags
-   (:standard -warn-error +A))
-  (ocamlopt_flags
-   ;; CR gyorsh: it is not clear what the ":standard" flags are, and they
-   ;; may change depending on the version of dune.
-   ;; Consider hard-coded flags, such as -O3.
-   (:standard -alloc-check -caml-apply-inline-fast-path)))
+   (:standard -warn-error +A)))
  (boot
   (flags
    (:standard -warn-error +A))))
@@ -60,7 +55,7 @@
  (modules
    ;; UTILS
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
-   profile terminfo ccomp warnings consistbl strongly_connected_components
+   debug profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
    local_store target_system compilation_unit import_info linkage_name symbol
    lazy_backtrack diffing diffing_with_keys language_extension global
@@ -68,13 +63,13 @@
    ;; PARSING
    location longident docstrings syntaxerr ast_helper camlinternalMenhirLib
    ast_iterator parser lexer parse printast pprintast ast_mapper attr_helper
-   builtin_attributes ast_invariants depend extensions_parsing extensions
+   builtin_attributes ast_invariants depend jane_syntax_parsing jane_syntax
    ; manual update: mli only files
    asttypes parsetree
 
    ;; TYPING
-   ident path primitive shape types btype oprint subst predef datarepr
-   cmi_format persistent_env env type_immediacy errortrace
+   ident path primitive shape layouts types btype oprint subst predef datarepr
+   cmi_format persistent_env env errortrace
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter
@@ -269,6 +264,7 @@
     (ident.mli as compiler-libs/ident.mli)
     (path.mli as compiler-libs/path.mli)
     (primitive.mli as compiler-libs/primitive.mli)
+    (layouts.mli as compiler-libs/layouts.mli)
     (types.mli as compiler-libs/types.mli)
     (btype.mli as compiler-libs/btype.mli)
     (binutils.mli as compiler-libs/binutils.mli)
@@ -281,7 +277,6 @@
     (cmi_format.mli as compiler-libs/cmi_format.mli)
     (persistent_env.mli as compiler-libs/persistent_env.mli)
     (env.mli as compiler-libs/env.mli)
-    (type_immediacy.mli as compiler-libs/type_immediacy.mli)
     (typedtree.mli as compiler-libs/typedtree.mli)
     (printtyped.mli as compiler-libs/printtyped.mli)
     (ctype.mli as compiler-libs/ctype.mli)

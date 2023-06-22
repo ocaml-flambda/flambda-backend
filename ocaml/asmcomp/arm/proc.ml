@@ -192,8 +192,13 @@ let loc_parameters arg =
     calling_conventions 0 7 100 115 incoming (- size_domainstate_args) arg
   in loc
 
-let loc_results res =
-  let (loc, _) = calling_conventions 0 7 100 115 not_supported 0 res in loc
+let loc_results_call res =
+  calling_conventions 0 7 100 115 outgoing (- size_domainstate_args) res
+
+let loc_results_return res =
+  let (loc, _) =
+    calling_conventions 0 7 100 115 incoming (- size_domainstate_args) res
+  in loc
 
 (* C calling convention:
      first integer args in r0...r3

@@ -673,18 +673,19 @@ and simplify_set_of_closures original_env r
   let r = ret r (A.value_set_of_closures value_set_of_closures) in
   set_of_closures, r, value_set_of_closures.freshening
 
+and mark_region_used_for_apply ~(reg_close : Lambda.region_close) ~(mode : Lambda.alloc_mode) r =
+  match reg_close, mode with
+  | (Rc_normal | Rc_nontail), Alloc_heap -> r
+  | Rc_close_at_apply, _
+  | _, Alloc_local -> R.set_region_use r true
+
 and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
   let {
     Flambda. func = lhs_of_application; args; kind = _; dbg; reg_close; mode;
     inlined = inlined_requested; specialise = specialise_requested;
     probe = probe_requested; result_layout
   } = apply in
-  let r =
-    match reg_close, mode with
-    | (Rc_normal | Rc_nontail), Alloc_heap -> r
-    | Rc_close_at_apply, _
-    | _, Alloc_local -> R.set_region_use r true
-  in
+  let r = mark_region_used_for_apply ~reg_close ~mode r in
   let dbg = E.add_inlined_debuginfo env ~dbg in
   simplify_free_variable env lhs_of_application
     ~f:(fun env lhs_of_application lhs_of_application_approx ->
@@ -937,7 +938,7 @@ and simplify_over_application env r ~args ~args_approxs ~function_decls
   in
   let expr =
     match reg_close with
-    | Lambda.Rc_close_at_apply -> Flambda.Tail expr
+    | Lambda.Rc_close_at_apply -> Flambda.Exclave expr
     | Lambda.Rc_normal | Lambda.Rc_nontail -> expr
   in
   simplify (E.set_never_inline env) r expr
@@ -1101,34 +1102,34 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
           end
         end
       | Pfield _, _, _ -> Misc.fatal_error "Pfield arity error"
-      | (Parraysetu kind | Parraysets kind),
+      | (Parraysetu skind | Parraysets skind),
         [_block; _field; _value],
         [block_approx; _field_approx; value_approx] ->
         if A.warn_on_mutation block_approx then begin
           Location.prerr_warning (Debuginfo.to_location dbg)
             Warnings.Flambda_assignment_to_non_mutable_value
         end;
-        let kind =
+        let skind =
           let check () =
-            match kind with
-            | Pfloatarray | Pgenarray -> ()
-            | Paddrarray | Pintarray ->
+            match skind with
+            | Pfloatarray_set | Pgenarray_set _ -> ()
+            | Paddrarray_set _ | Pintarray_set ->
               (* CR pchambart: Do a proper warning here *)
               Misc.fatal_errorf "Assignment of a float to a specialised \
                                  non-float array: %a"
                 Flambda.print_named tree
           in
           match A.descr block_approx, A.descr value_approx with
-          | (Value_float_array _, _) -> check (); Lambda.Pfloatarray
+          | (Value_float_array _, _) -> check (); Lambda.Pfloatarray_set
           | (_, Value_float _) when Config.flat_float_array ->
-            check (); Lambda.Pfloatarray
+            check (); Lambda.Pfloatarray_set
             (* CR pchambart: This should be accounted by the benefit *)
           | _ ->
-            kind
+            skind
         in
         let prim : Clambda_primitives.primitive = match prim with
-          | Parraysetu _ -> Parraysetu kind
-          | Parraysets _ -> Parraysets kind
+          | Parraysetu _ -> Parraysetu skind
+          | Parraysets _ -> Parraysets skind
           | _ -> assert false
         in
         Prim (prim, args, dbg), ret r (A.value_unknown Other)
@@ -1312,6 +1313,7 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
     let body, r = simplify env r body in
     While (cond, body), ret r (A.value_unknown Other)
   | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
+    let r = mark_region_used_for_apply ~reg_close ~mode r in
     let dbg = E.add_inlined_debuginfo env ~dbg in
     simplify_free_variable env meth ~f:(fun env meth _meth_approx ->
       simplify_free_variable env obj ~f:(fun env obj _obj_approx ->
@@ -1451,6 +1453,8 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
         in
         let branch, r = simplify env r branch in
         branch, R.map_benefit r B.remove_branch)
+  | Region (Exclave body) ->
+     simplify env r body
   | Region body ->
      let use_outer_region = R.may_use_region r in
      let r = R.set_region_use r false in
@@ -1459,10 +1463,10 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
      let r = R.set_region_use r use_outer_region in
      if use_inner_region then Region body, r
      else body, r
-  | Tail body ->
+  | Exclave body ->
      let r = R.set_region_use r true in
      let body, r = simplify env r body in
-     Tail body, r
+     Exclave body, r
   | Proved_unreachable -> tree, ret r A.value_bottom
 
 and simplify_list env r l =

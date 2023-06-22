@@ -71,10 +71,7 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
     Simplify_common.clear_demoted_trap_action_and_patch_unused_exn_bucket uacc
       action
   in
-  match
-    EB.rewrite_switch_arm uacc action ~use_id
-      (Flambda_arity.With_subkinds.of_arity arity)
-  with
+  match EB.rewrite_switch_arm uacc action ~use_id arity with
   | Apply_cont action -> (
     let action =
       let cont = Apply_cont.continuation action in
@@ -377,7 +374,11 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
       DA.record_continuation_use dacc (AC.continuation action) use_kind
         ~env_at_use:denv_at_use ~arg_types
     in
-    let arity = List.map T.kind arg_types |> Flambda_arity.create in
+    let arity =
+      arg_types
+      |> List.map (fun ty -> K.With_subkind.anything (T.kind ty))
+      |> Flambda_arity.create
+    in
     let action = Apply_cont.update_args action ~args in
     let dacc =
       DA.map_flow_acc dacc

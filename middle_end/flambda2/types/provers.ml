@@ -718,7 +718,7 @@ let meet_boxed_nativeint_containing_simple =
       | Boxed_int64 _ | Closures _ | String _ | Array _ ->
         None)
 
-let meet_block_field_simple env ~min_name_mode t field_index :
+let meet_block_field_simple env ~min_name_mode ~field_kind t field_index :
     Simple.t meet_shortcut =
   match expand_head env t with
   | Value (Ok (Variant { immediates = _; blocks; is_unique = _ })) -> (
@@ -735,12 +735,17 @@ let meet_block_field_simple env ~min_name_mode t field_index :
         | Bottom -> Invalid
         | Unknown -> Need_meet
         | Ok ty -> (
-          match TG.get_alias_exn ty with
-          | simple -> (
-            match TE.get_canonical_simple_exn env ~min_name_mode simple with
-            | simple -> Known_result simple
-            | exception Not_found -> Need_meet)
-          | exception Not_found -> Need_meet)))
+          if (* It's more straightforward to check the kind of [ty] instead of
+                examining the row-like structure directly. *)
+             not (Flambda_kind.equal (TG.kind ty) field_kind)
+          then Invalid
+          else
+            match TG.get_alias_exn ty with
+            | simple -> (
+              match TE.get_canonical_simple_exn env ~min_name_mode simple with
+              | simple -> Known_result simple
+              | exception Not_found -> Need_meet)
+            | exception Not_found -> Need_meet)))
   | Value (Ok (Mutable_block _)) -> Need_meet
   | Value (Ok _) -> Invalid
   | Value Unknown -> Need_meet
@@ -771,19 +776,26 @@ let meet_project_function_slot_simple env ~min_name_mode t function_slot :
   | Naked_nativeint _ | Rec_info _ | Region _ ->
     wrong_kind "Value" t
 
-let meet_project_value_slot_simple env ~min_name_mode t env_var :
+let meet_project_value_slot_simple env ~min_name_mode t value_slot :
     Simple.t meet_shortcut =
   match expand_head env t with
   | Value (Ok (Closures { by_function_slot; alloc_mode = _ })) -> (
-    match TG.Row_like_for_closures.get_env_var by_function_slot env_var with
+    match TG.Row_like_for_closures.get_env_var by_function_slot value_slot with
     | Unknown -> Need_meet
     | Known ty -> (
-      match TG.get_alias_exn ty with
-      | simple -> (
-        match TE.get_canonical_simple_exn env ~min_name_mode simple with
-        | simple -> Known_result simple
-        | exception Not_found -> Need_meet)
-      | exception Not_found -> Need_meet))
+      if (* It's more straightforward to check the kind of [ty] instead of
+            examining the row-like structure directly. *)
+         not
+           (Flambda_kind.equal (TG.kind ty)
+              (Value_slot.kind value_slot |> Flambda_kind.With_subkind.kind))
+      then Invalid
+      else
+        match TG.get_alias_exn ty with
+        | simple -> (
+          match TE.get_canonical_simple_exn env ~min_name_mode simple with
+          | simple -> Known_result simple
+          | exception Not_found -> Need_meet)
+        | exception Not_found -> Need_meet))
   | Value (Ok _) -> Invalid
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid

@@ -25,9 +25,8 @@ module Expr_with_acc = Closure_conversion_aux.Expr_with_acc
 val close_let :
   Acc.t ->
   Env.t ->
-  Ident.t ->
+  (Ident.t * Flambda_kind.With_subkind.t) list ->
   IR.user_visible ->
-  Flambda_kind.With_subkind.t ->
   IR.named ->
   body:(Acc.t -> Env.t -> Expr_with_acc.t) ->
   Expr_with_acc.t
@@ -70,10 +69,22 @@ val close_switch :
   IR.switch ->
   Expr_with_acc.t
 
+val close_raise :
+  Acc.t ->
+  Env.t ->
+  raise_kind:Lambda.raise_kind ->
+  arg:IR.simple ->
+  dbg:Debuginfo.t ->
+  IR.exn_continuation ->
+  Expr_with_acc.t
+
 type 'a close_program_metadata =
   | Normal : [`Normal] close_program_metadata
   | Classic :
-      (Exported_code.t * Flambda_cmx_format.t option * Exported_offsets.t)
+      (Exported_code.t
+      * Name_occurrences.t
+      * Flambda_cmx_format.t option
+      * Exported_offsets.t)
       -> [`Classic] close_program_metadata
 
 type 'a close_program_result = Flambda_unit.t * 'a close_program_metadata

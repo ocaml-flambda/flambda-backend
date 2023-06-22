@@ -31,8 +31,9 @@ val all_phys_regs : Reg.t array
 
 (* Calling conventions *)
 val loc_arguments: Cmm.machtype -> Reg.t array * int
-val loc_results: Cmm.machtype -> Reg.t array
+val loc_results_call: Cmm.machtype -> Reg.t array * int
 val loc_parameters: Cmm.machtype -> Reg.t array
+val loc_results_return: Cmm.machtype -> Reg.t array
 (* For argument number [n] split across multiple registers, the target-specific
    implementation of [loc_external_arguments] must return [regs] such that
    [regs.(n).(0)] is to hold the part of the value at the lowest address. *)
@@ -59,6 +60,7 @@ val destroyed_at_reloadretaddr : Reg.t array
 val destroyed_at_pushtrap : Reg.t array
 val destroyed_at_basic : Cfg_intf.S.basic -> Reg.t array
 val destroyed_at_terminator : Cfg_intf.S.terminator -> Reg.t array
+val is_destruction_point : Cfg_intf.S.terminator -> bool
 
 (* Volatile registers: those that change value when read *)
 val regs_are_volatile: Reg.t array -> bool

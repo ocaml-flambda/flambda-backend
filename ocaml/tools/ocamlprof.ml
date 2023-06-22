@@ -175,12 +175,12 @@ and rewrite_exp iflag sexp =
            else rw_exp false sexp
 
 and rw_exp iflag sexp =
-  match Extensions.Expression.of_ast sexp with
-  | Some eexp -> rewrite_exp_extension iflag eexp
+  match Jane_syntax.Expression.of_ast sexp with
+  | Some (jexp, _attrs) -> rewrite_exp_jane_syntax iflag jexp
   | None ->
   match sexp.pexp_desc with
     Pexp_ident _lid -> ()
-  | Pexp_constant _cst -> ()
+  | Pexp_constant _cst -> rewrite_constant
 
   | Pexp_let(_, spat_sexp_list, sbody) ->
     rewrite_patexp_list iflag spat_sexp_list;
@@ -309,28 +309,33 @@ and rw_exp iflag sexp =
   | Pexp_extension _ -> ()
   | Pexp_unreachable -> ()
 
-and rewrite_exp_extension iflag : Extensions.Expression.t -> _ = function
-  | Eexp_comprehension cexp -> rewrite_comprehension_exp iflag cexp
-  | Eexp_immutable_array iaexp -> rewrite_immutable_array_exp iflag iaexp
+and rewrite_exp_jane_syntax iflag : Jane_syntax.Expression.t -> _ = function
+  | Jexp_comprehension x -> rewrite_comprehension_exp iflag x
+  | Jexp_immutable_array x -> rewrite_immutable_array_exp iflag x
+  | Jexp_unboxed_constant _ -> rewrite_constant
 
 and rewrite_comprehension_exp iflag :
-  Extensions.Comprehensions.expression -> _ = function
+  Jane_syntax.Comprehensions.expression -> _ = function
   | Cexp_list_comprehension comp -> rewrite_comprehension iflag comp
   | Cexp_array_comprehension (_, comp) -> rewrite_comprehension iflag comp
 
 and rewrite_comprehension iflag
-      ({ body; clauses } : Extensions.Comprehensions.comprehension) =
+      ({ body; clauses } : Jane_syntax.Comprehensions.comprehension) =
   List.iter (rewrite_comprehension_clause iflag) clauses;
   rewrite_exp iflag body
 
-and rewrite_comprehension_clause iflag : Extensions.Comprehensions.clause -> _ =
+(* A no-op, but makes it clearer which jane syntax cases should have the same
+   handling as core-language cases. *)
+and rewrite_constant = ()
+
+and rewrite_comprehension_clause iflag : Jane_syntax.Comprehensions.clause -> _ =
   function
   | For cbs -> List.iter (rewrite_clause_binding iflag) cbs
   | When expr -> rewrite_exp iflag expr
 
 and rewrite_clause_binding iflag
       ({ pattern = _; iterator; attributes = _ } :
-         Extensions.Comprehensions.clause_binding) =
+         Jane_syntax.Comprehensions.clause_binding) =
   match iterator with
   | Range { start; stop; direction = _ } ->
     rewrite_exp iflag start;
@@ -338,7 +343,7 @@ and rewrite_clause_binding iflag
   | In expr -> rewrite_exp iflag expr
 
 and rewrite_immutable_array_exp iflag :
-  Extensions.Immutable_arrays.expression -> _ =
+  Jane_syntax.Immutable_arrays.expression -> _ =
   function
   | Iaexp_immutable_array exprs ->
     rewrite_exp_list iflag exprs

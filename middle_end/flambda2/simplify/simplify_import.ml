@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+let debug = Flambda_features.debug_flambda2
+
 module Apply = Flambda.Apply
 module Apply_cont = Flambda.Apply_cont
 module Code = Code

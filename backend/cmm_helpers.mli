@@ -172,7 +172,7 @@ val safe_mod_bi :
     [ifso], and [ifnot_dbg] to the else branch [ifnot] *)
 val mk_if_then_else :
   Debuginfo.t ->
-  Cmm.value_kind ->
+  Cmm.kind_for_unboxing ->
   expression ->
   Debuginfo.t ->
   expression ->
@@ -328,9 +328,10 @@ val int_array_ref : expression -> expression -> Debuginfo.t -> expression
 val unboxed_float_array_ref :
   expression -> expression -> Debuginfo.t -> expression
 
-val float_array_ref : expression -> expression -> Debuginfo.t -> expression
+val float_array_ref :
+  Lambda.alloc_mode -> expression -> expression -> Debuginfo.t -> expression
 
-val addr_array_set :
+val addr_array_set_heap :
   expression -> expression -> expression -> Debuginfo.t -> expression
 
 val addr_array_set_local :
@@ -338,6 +339,14 @@ val addr_array_set_local :
 
 val addr_array_initialize :
   expression -> expression -> expression -> Debuginfo.t -> expression
+
+val addr_array_set :
+  Lambda.modify_mode ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
 val int_array_set :
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -350,6 +359,50 @@ val float_array_set :
 val string_length : expression -> Debuginfo.t -> expression
 
 val bigstring_length : expression -> Debuginfo.t -> expression
+
+module Extended_machtype_component : sig
+  (** Like [Cmm.machtype_component] but has a case explicitly for tagged
+      integers.  This enables caml_apply functions to be insensitive to whether
+      a particular argument or return value is a tagged integer or a normal
+      value.  In turn this significantly reduces the number of caml_apply
+      functions that are generated. *)
+  type t =
+    | Val
+    | Addr
+    | Tagged_int
+    | Any_int
+    | Float
+end
+
+module Extended_machtype : sig
+  type t = Extended_machtype_component.t array
+
+  val typ_val : t
+
+  val typ_tagged_int : t
+
+  val typ_any_int : t
+
+  val typ_int64 : t
+
+  val typ_float : t
+
+  val typ_void : t
+
+  (** Conversion from a normal Cmm machtype. *)
+  val of_machtype : machtype -> t
+
+  (** Conversion from a Lambda layout. *)
+  val of_layout : Lambda.layout -> t
+
+  (** Conversion to a normal Cmm machtype. *)
+  val to_machtype : t -> machtype
+
+  (** Like [to_machtype] but tagged integer extended machtypes are mapped to
+      value machtypes.  This is used to avoid excessive numbers of generic
+      functions being generated (see comments in cmm_helpers.ml). *)
+  val change_tagged_int_to_val : t -> machtype
+end
 
 (** Objects *)
 
@@ -385,8 +438,8 @@ val call_cached_method :
   expression ->
   expression ->
   expression list ->
-  machtype list ->
-  machtype ->
+  Extended_machtype.t list ->
+  Extended_machtype.t ->
   Clambda.apply_kind ->
   Debuginfo.t ->
   expression
@@ -424,19 +477,14 @@ val opaque : expression -> Debuginfo.t -> expression
 
 (** Generic application functions *)
 
-(** Get an identifier for a given machtype, used in the name of the generic
-    functions. *)
+(** Get an identifier for a given machtype, used in the name of the
+    generic functions. *)
 val machtype_identifier : machtype -> string
-
-(** Get the symbol for the generic application with [n] arguments, and ensure
-    its presence in the set of defined symbols *)
-val apply_function_sym :
-  machtype list -> machtype -> Lambda.alloc_mode -> string
 
 (** Get the symbol for the generic currying or tuplifying wrapper with [n]
     arguments, and ensure its presence in the set of defined symbols. *)
 val curry_function_sym :
-  Lambda.function_kind -> machtype list -> machtype -> string
+  Lambda.function_kind -> machtype list -> machtype -> Cmm.symbol
 
 (** Bigarrays *)
 
@@ -672,9 +720,10 @@ val bigstring_load :
 (** Arrays *)
 
 (** Array access. Args: array, index *)
-val arrayref_unsafe : Lambda.array_kind -> binary_primitive
+val arrayref_unsafe : Lambda.array_ref_kind -> binary_primitive
 
-val arrayref_safe : Lambda.array_kind -> binary_primitive
+(** Array access. Args: array, index *)
+val arrayref_safe : Lambda.array_ref_kind -> binary_primitive
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -699,9 +748,10 @@ val bytesset_safe : ternary_primitive
     including in the case where the array contains floats.
 
     Args: array, index, value *)
-val arrayset_unsafe : Lambda.array_kind -> ternary_primitive
+val arrayset_unsafe : Lambda.array_set_kind -> ternary_primitive
 
-val arrayset_safe : Lambda.array_kind -> ternary_primitive
+(** As [arrayset_unsafe], but performs bounds-checking. *)
+val arrayset_safe : Lambda.array_set_kind -> ternary_primitive
 
 (** Set a chunk of data in the given bytes or bigstring structure. See also
     [string_load] and [bigstring_load].
@@ -729,13 +779,13 @@ val make_switch :
   int array ->
   (expression * Debuginfo.t) array ->
   Debuginfo.t ->
-  Cmm.value_kind ->
+  Cmm.kind_for_unboxing ->
   expression
 
 (** [transl_int_switch loc kind arg low high cases default] *)
 val transl_int_switch :
   Debuginfo.t ->
-  Cmm.value_kind ->
+  Cmm.kind_for_unboxing ->
   expression ->
   int ->
   int ->
@@ -746,7 +796,7 @@ val transl_int_switch :
 (** [transl_switch_clambda loc kind arg index cases] *)
 val transl_switch_clambda :
   Debuginfo.t ->
-  Cmm.value_kind ->
+  Cmm.kind_for_unboxing ->
   expression ->
   int array ->
   expression array ->
@@ -755,7 +805,7 @@ val transl_switch_clambda :
 (** [strmatch_compile dbg arg default cases] *)
 val strmatch_compile :
   Debuginfo.t ->
-  Cmm.value_kind ->
+  Cmm.kind_for_unboxing ->
   expression ->
   expression option ->
   (string * expression) list ->
@@ -768,7 +818,7 @@ val ptr_offset : expression -> int -> Debuginfo.t -> expression
 
 (** Direct application of a function via a symbol *)
 val direct_apply :
-  string ->
+  symbol ->
   machtype ->
   expression list ->
   Clambda.apply_kind ->
@@ -784,8 +834,8 @@ val generic_apply :
   Asttypes.mutable_flag ->
   expression ->
   expression list ->
-  machtype list ->
-  machtype ->
+  Extended_machtype.t list ->
+  Extended_machtype.t ->
   Clambda.apply_kind ->
   Debuginfo.t ->
   expression
@@ -805,8 +855,8 @@ val send :
   expression ->
   expression ->
   expression list ->
-  machtype list ->
-  machtype ->
+  Extended_machtype.t list ->
+  Extended_machtype.t ->
   Clambda.apply_kind ->
   Debuginfo.t ->
   expression
@@ -827,6 +877,10 @@ module Generic_fns_tbl : sig
   val of_fns : Cmx_format.generic_fns -> t
 
   val entries : t -> Cmx_format.generic_fns
+
+  module Precomputed : sig
+    val gen : unit -> t
+  end
 end
 
 val generic_functions : bool -> Generic_fns_tbl.t -> Cmm.phrase list
@@ -836,13 +890,13 @@ val placeholder_dbg : unit -> Debuginfo.t
 val placeholder_fun_dbg : human_name:string -> Debuginfo.t
 
 (** Entry point *)
-val entry_point : Compilation_unit.t list -> phrase
+val entry_point : Compilation_unit.t list -> phrase list
 
 (** Generate the caml_globals table *)
 val global_table : Compilation_unit.t list -> phrase
 
 (** Add references to the given symbols *)
-val reference_symbols : string list -> phrase
+val reference_symbols : symbol list -> phrase
 
 (** Generate the caml_globals_map structure, as a marshalled string constant.
     The runtime representation of the type here must match that of [type
@@ -869,46 +923,32 @@ val plugin_header : Cmxs_format.dynunit list -> phrase
 (** Emit constant symbols *)
 
 (** Produce the data_item list corresponding to a symbol definition *)
-val cdefine_symbol : string * Cmmgen_state.is_global -> data_item list
+val cdefine_symbol : symbol -> data_item list
 
 (** [emit_block symb white_header cont] prepends to [cont] the header and symbol
     for the block. [cont] must already contain the fields of the block (and may
     contain additional data items afterwards). *)
-val emit_block :
-  string * Cmmgen_state.is_global ->
-  nativeint ->
-  data_item list ->
-  data_item list
+val emit_block : symbol -> nativeint -> data_item list -> data_item list
 
 (** Emit specific kinds of constant blocks as data items *)
-val emit_float_constant :
-  string * Cmmgen_state.is_global -> float -> data_item list -> data_item list
+val emit_float_constant : symbol -> float -> data_item list -> data_item list
 
-val emit_string_constant :
-  string * Cmmgen_state.is_global -> string -> data_item list -> data_item list
+val emit_string_constant : symbol -> string -> data_item list -> data_item list
 
-val emit_int32_constant :
-  string * Cmmgen_state.is_global -> int32 -> data_item list -> data_item list
+val emit_int32_constant : symbol -> int32 -> data_item list -> data_item list
 
-val emit_int64_constant :
-  string * Cmmgen_state.is_global -> int64 -> data_item list -> data_item list
+val emit_int64_constant : symbol -> int64 -> data_item list -> data_item list
 
 val emit_nativeint_constant :
-  string * Cmmgen_state.is_global ->
-  nativeint ->
-  data_item list ->
-  data_item list
+  symbol -> nativeint -> data_item list -> data_item list
 
 val emit_float_array_constant :
-  string * Cmmgen_state.is_global ->
-  float list ->
-  data_item list ->
-  data_item list
+  symbol -> float list -> data_item list -> data_item list
 
 val fundecls_size : Clambda.ufunction list -> int
 
 val emit_constant_closure :
-  string * Cmmgen_state.is_global ->
+  symbol ->
   Clambda.ufunction list ->
   data_item list ->
   data_item list ->
@@ -933,9 +973,8 @@ val unit : dbg:Debuginfo.t -> Cmm.expression
 (** Create an expression from a variable. *)
 val var : Backend_var.t -> Cmm.expression
 
-(** Create an expression that gives the value of an object file symbol, such
-    symbol's name being given by a string. *)
-val symbol_from_string : dbg:Debuginfo.t -> string -> Cmm.expression
+(** Create an expression that gives the value of an object file symbol. *)
+val symbol : dbg:Debuginfo.t -> Cmm.symbol -> Cmm.expression
 
 (** Create a constant float expression. *)
 val float : dbg:Debuginfo.t -> float -> expression
@@ -1107,6 +1146,7 @@ val probe :
   dbg:Debuginfo.t ->
   name:string ->
   handler_code_linkage_name:string ->
+  enabled_at_init:bool ->
   args:expression list ->
   expression
 
@@ -1140,11 +1180,11 @@ val direct_call :
 (** Same as {!direct_call} but for an indirect call. *)
 val indirect_call :
   dbg:Debuginfo.t ->
-  machtype ->
+  Extended_machtype.t ->
   Lambda.region_close ->
   Lambda.alloc_mode ->
   expression ->
-  machtype list ->
+  Extended_machtype.t list ->
   expression list ->
   expression
 
@@ -1152,11 +1192,11 @@ val indirect_call :
     application (since this enables a few optimisations). *)
 val indirect_full_call :
   dbg:Debuginfo.t ->
-  machtype ->
+  Extended_machtype.t ->
   Lambda.region_close ->
   Lambda.alloc_mode ->
   expression ->
-  machtype list ->
+  Extended_machtype.t list ->
   expression list ->
   expression
 
@@ -1194,17 +1234,17 @@ val cint : nativeint -> data_item
 val cfloat : float -> data_item
 
 (** Static symbol. *)
-val symbol_address : string -> data_item
+val symbol_address : symbol -> data_item
 
 (** Definition for a static symbol. *)
-val define_symbol : global:bool -> string -> data_item list
+val define_symbol : symbol -> data_item list
 
 (** {2 Static structure helpers} *)
 
 (** [fundecl name args body codegen_options dbg] creates a cmm function
     declaration for a function [name] with binding [args] over [body]. *)
 val fundecl :
-  string ->
+  symbol ->
   (Backend_var.With_provenance.t * machtype) list ->
   expression ->
   codegen_option list ->
@@ -1219,7 +1259,7 @@ val cfunction : fundecl -> phrase
 val cdata : data_item list -> phrase
 
 (** Create the gc root table from a list of root symbols. *)
-val gc_root_table : string list -> phrase
+val gc_root_table : Cmm.symbol list -> phrase
 
 (* An estimate of the number of arithmetic instructions in a Cmm expression.
    This is currently used in Flambda 2 to determine whether untagging an
@@ -1235,6 +1275,10 @@ val transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list
 (* CR lmaurer: Return [Linkage_name.t] instead *)
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
 
-val kind_of_layout : Lambda.layout -> value_kind
+val kind_of_layout : Lambda.layout -> kind_for_unboxing
 
 val machtype_of_layout : Lambda.layout -> machtype
+
+val machtype_of_layout_changing_tagged_int_to_val : Lambda.layout -> machtype
+
+val make_tuple : expression list -> expression

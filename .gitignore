@@ -55,3 +55,10 @@ _coverage/
 /oc_cflags.sexp
 /oc_cppflags.sexp
 /sharedlib_cflags.sexp
+
+# Jane Street Merlin support
+/.local-merlin-binaries
+/.local-ocaml-lib
+
+# Debugger support
+ocamlc

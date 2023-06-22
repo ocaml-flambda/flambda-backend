@@ -16,6 +16,7 @@
 (* Abstract syntax tree after typing *)
 
 open Asttypes
+open Layouts
 open Types
 
 (* Value expressions for the core language *)
@@ -114,7 +115,7 @@ and expression_desc =
       arg_mode : Types.alloc_mode;
       alloc_mode : Types.alloc_mode }
   | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Types.alloc_mode
-  | Texp_match of expression * computation case list * partial
+  | Texp_match of expression * sort * computation case list * partial
   | Texp_try of expression * value case list
   | Texp_tuple of expression list * Types.alloc_mode
   | Texp_construct of
@@ -133,12 +134,11 @@ and expression_desc =
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
-  | Texp_sequence of expression * expression
+  | Texp_sequence of expression * layout * expression
   | Texp_while of {
       wh_cond : expression;
-      wh_cond_region : bool;
       wh_body : expression;
-      wh_body_region : bool
+      wh_body_layout : layout
     }
   | Texp_for of {
       for_id  : Ident.t;
@@ -147,7 +147,7 @@ and expression_desc =
       for_to   : expression;
       for_dir  : direction_flag;
       for_body : expression;
-      for_region : bool;
+      for_body_layout : Layouts.layout;
     }
   | Texp_send of expression * meth * apply_position * Types.alloc_mode
   | Texp_new of
@@ -174,8 +174,9 @@ and expression_desc =
   | Texp_unreachable
   | Texp_extension_constructor of Longident.t loc * Path.t
   | Texp_open of open_declaration * expression
-  | Texp_probe of { name:string; handler:expression; }
+  | Texp_probe of { name:string; handler:expression; enabled_at_init:bool; }
   | Texp_probe_is_enabled of { name:string }
+  | Texp_exclave of expression
 
 and ident_kind = Id_value | Id_prim of Types.alloc_mode option
 
@@ -345,7 +346,7 @@ and structure_item =
   }
 
 and structure_item_desc =
-    Tstr_eval of expression * attributes
+    Tstr_eval of expression * sort * attributes
   | Tstr_value of rec_flag * value_binding list
   | Tstr_primitive of value_description
   | Tstr_type of rec_flag * type_declaration list
@@ -374,6 +375,7 @@ and value_binding =
   {
     vb_pat: pattern;
     vb_expr: expression;
+    vb_sort: sort;
     vb_attributes: attributes;
     vb_loc: Location.t;
   }
@@ -580,6 +582,7 @@ and type_declaration =
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attribute list;
+    typ_layout_annotation: layout option;
    }
 
 and type_kind =
@@ -857,19 +860,79 @@ let rec iter_bound_idents
        { f = fun p -> iter_bound_idents f p }
        d
 
-let rev_pat_bound_idents_full pat =
+type full_bound_ident_action =
+  Ident.t -> string loc -> type_expr -> value_mode -> sort -> unit
+
+(* The intent is that the sort should be the sort of the type of the pattern.
+   It's used to avoid computing layouts from types.  `f` then gets passed
+   the sorts of the variables.
+
+   This is occasionally used in places where we don't actually know
+   about the sort of the pattern but `f` doesn't care about the sorts. *)
+let iter_pattern_full ~both_sides_of_or f sort pat =
+  let rec loop :
+    type k . full_bound_ident_action -> sort -> k general_pattern -> _ =
+    fun f sort pat ->
+      match pat.pat_desc with
+      (* Cases where we push the sort inwards: *)
+      | Tpat_var (id, s, mode) ->
+          f id s pat.pat_type mode sort
+      | Tpat_alias(p, id, s, mode) ->
+          loop f sort p;
+          f id s pat.pat_type mode sort
+      | Tpat_or (p1, p2, _) ->
+        if both_sides_of_or then (loop f sort p1; loop f sort p2)
+        else loop f sort p1
+      | Tpat_value p -> loop f sort p
+      (* Cases where we compute the sort of the inner thing from the pattern *)
+      | Tpat_construct(_, cstr, patl, _) ->
+          let sorts =
+            match cstr.cstr_repr with
+            | Variant_unboxed -> [ sort ]
+            | Variant_boxed _ | Variant_extensible ->
+              Array.to_list (Array.map Layout.sort_of_layout
+                                          cstr.cstr_arg_layouts)
+          in
+          List.iter2 (loop f) sorts patl
+      | Tpat_record (lbl_pat_list, _) ->
+          List.iter (fun (_, lbl, pat) ->
+            (loop f) (Layout.sort_of_layout lbl.lbl_layout) pat)
+            lbl_pat_list
+      (* Cases where the inner things must be value: *)
+      | Tpat_variant (_, pat, _) -> Option.iter (loop f Sort.value) pat
+      | Tpat_tuple patl -> List.iter (loop f Sort.value) patl
+        (* CR layouts v5: tuple case to change when we allow non-values in
+           tuples *)
+      | Tpat_array (_, patl) -> List.iter (loop f Sort.value) patl
+      | Tpat_lazy p | Tpat_exception p -> loop f Sort.value p
+      (* Cases without variables: *)
+      | Tpat_any | Tpat_constant _ -> ()
+  in
+  loop f sort pat
+
+let rev_pat_bound_idents_full sort pat =
   let idents_full = ref [] in
-  let add id_full = idents_full := id_full :: !idents_full in
-  iter_bound_idents add pat;
+  let add id sloc typ _ sort =
+    idents_full := (id, sloc, typ, sort) :: !idents_full
+  in
+  iter_pattern_full ~both_sides_of_or:false add sort pat;
   !idents_full
 
 let rev_only_idents idents_full =
-  List.rev_map (fun (id,_,_) -> id) idents_full
+  List.rev_map (fun (id,_,_,_) -> id) idents_full
 
-let pat_bound_idents_full pat =
-  List.rev (rev_pat_bound_idents_full pat)
+let rev_only_idents_and_types idents_full =
+  List.rev_map (fun (id,_,ty,_) -> (id,ty)) idents_full
+
+let pat_bound_idents_full sort pat =
+  List.rev (rev_pat_bound_idents_full sort pat)
+
+(* In these two, we don't know the sort, but the sort information isn't used so
+   it's fine to lie. *)
+let pat_bound_idents_with_types pat =
+  rev_only_idents_and_types (rev_pat_bound_idents_full Sort.value pat)
 let pat_bound_idents pat =
-  rev_only_idents (rev_pat_bound_idents_full pat)
+  rev_only_idents (rev_pat_bound_idents_full Sort.value pat)
 
 let rev_let_bound_idents_full bindings =
   let idents_full = ref [] in
@@ -877,27 +940,22 @@ let rev_let_bound_idents_full bindings =
   List.iter (fun vb -> iter_bound_idents add vb.vb_pat) bindings;
   !idents_full
 
-let let_bound_idents_with_modes bindings =
-  let modes = Ident.Tbl.create 3 in
-  let rec loop : type k . k general_pattern -> _ =
-    fun pat ->
-      match pat.pat_desc with
-      | Tpat_var (id, { loc }, mode) ->
-          Ident.Tbl.add modes id (loc, mode)
-      | Tpat_alias(p, id, { loc }, mode) ->
-          loop p;
-          Ident.Tbl.add modes id (loc, mode)
-      | d -> shallow_iter_pattern_desc { f = loop } d
+let let_bound_idents_with_modes_and_sorts bindings =
+  let modes_and_sorts = Ident.Tbl.create 3 in
+  let f id sloc _ mode sort =
+    Ident.Tbl.add modes_and_sorts id (sloc.loc, mode, sort)
   in
-  List.iter (fun vb -> loop vb.vb_pat) bindings;
+  List.iter (fun vb ->
+    iter_pattern_full ~both_sides_of_or:true f vb.vb_sort vb.vb_pat)
+    bindings;
   List.rev_map
-    (fun (id, _, _) -> id, List.rev (Ident.Tbl.find_all modes id))
+    (fun (id, _, _) -> id, List.rev (Ident.Tbl.find_all modes_and_sorts id))
     (rev_let_bound_idents_full bindings)
 
 let let_bound_idents_full bindings =
   List.rev (rev_let_bound_idents_full bindings)
 let let_bound_idents pat =
-  rev_only_idents (rev_let_bound_idents_full pat)
+  List.rev_map (fun (id,_,_) -> id) (rev_let_bound_idents_full pat)
 
 let alpha_var env id = List.assoc id env
 

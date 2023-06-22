@@ -73,13 +73,13 @@ type t =
     continuation : Result_continuation.t;
     exn_continuation : Exn_continuation.t;
     args : Simple.t list;
-    args_arity : Flambda_arity.With_subkinds.t;
-    return_arity : Flambda_arity.With_subkinds.t;
+    args_arity : Flambda_arity.t;
+    return_arity : Flambda_arity.t;
     call_kind : Call_kind.t;
     dbg : Debuginfo.t;
     inlined : Inlined_attribute.t;
     inlining_state : Inlining_state.t;
-    probe_name : string option;
+    probe : Probe.t;
     position : Position.t;
     relative_history : Inlining_history.Relative.t;
     region : Variable.t
@@ -92,7 +92,7 @@ let [@ocamlformat "disable"] print_inlining_paths ppf relative_history =
 
 let [@ocamlformat "disable"] print ppf
     { callee; continuation; exn_continuation; args; args_arity;
-      return_arity; call_kind; dbg; inlined; inlining_state; probe_name;
+      return_arity; call_kind; dbg; inlined; inlining_state; probe;
       position; relative_history; region } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(%a\u{3008}%a\u{3009}\u{300a}%a\u{300b}\
@@ -105,7 +105,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(inline@ %a)@]@ \
       @[<hov 1>(inlining_state@ %a)@]@ \
       %a\
-      @[<hov 1>(probe_name@ %a)@]@ \
+      @[<hov 1>(probe@ %a)@]@ \
       @[<hov 1>(position@ %a)@]\
       )@]"
     Simple.print callee
@@ -115,8 +115,8 @@ let [@ocamlformat "disable"] print ppf
     Variable.print region
     Flambda_colours.pop
     Simple.List.print args
-    Flambda_arity.With_subkinds.print args_arity
-    Flambda_arity.With_subkinds.print return_arity
+    Flambda_arity.print args_arity
+    Flambda_arity.print return_arity
     Call_kind.print call_kind
     Flambda_colours.debuginfo
     Debuginfo.print_compact dbg
@@ -124,11 +124,7 @@ let [@ocamlformat "disable"] print ppf
     Inlined_attribute.print inlined
     Inlining_state.print inlining_state
     print_inlining_paths relative_history
-    (fun ppf probe_name ->
-      match probe_name with
-      | None -> Format.pp_print_string ppf "()"
-      | Some probe_name -> Format.pp_print_string ppf probe_name)
-    probe_name
+    Probe.print probe
     (fun ppf position ->
        match position with
        | Position.Normal -> Format.pp_print_string ppf "Normal"
@@ -146,7 +142,7 @@ let invariant
        dbg = _;
        inlined = _;
        inlining_state = _;
-       probe_name = _;
+       probe = _;
        position = _;
        relative_history = _;
        region = _
@@ -162,20 +158,19 @@ let invariant
         "For [C_call] applications the callee must be directly specified as a \
          [Symbol]:@ %a"
         print t;
-    match Flambda_arity.With_subkinds.to_list return_arity with
+    match Flambda_arity.to_list return_arity with
     | [] | [_] -> ()
     | _ :: _ :: _ ->
       Misc.fatal_errorf "Illegal return arity for C call:@ %a"
-        Flambda_arity.With_subkinds.print return_arity));
-  if List.compare_lengths args (Flambda_arity.With_subkinds.to_list args_arity)
-     <> 0
+        Flambda_arity.print return_arity));
+  if List.compare_lengths args (Flambda_arity.to_list args_arity) <> 0
   then
     Misc.fatal_errorf
       "Length of argument and arity lists disagree in [Apply]:@ %a" print t
 
 let create ~callee ~continuation exn_continuation ~args ~args_arity
-    ~return_arity ~(call_kind : Call_kind.t) dbg ~inlined ~inlining_state
-    ~probe_name ~position ~relative_history ~region =
+    ~return_arity ~(call_kind : Call_kind.t) dbg ~inlined ~inlining_state ~probe
+    ~position ~relative_history ~region =
   let t =
     { callee;
       continuation;
@@ -187,7 +182,7 @@ let create ~callee ~continuation exn_continuation ~args ~args_arity
       dbg;
       inlined;
       inlining_state;
-      probe_name;
+      probe;
       position;
       relative_history;
       region
@@ -227,7 +222,7 @@ let free_names_without_exn_continuation
       dbg = _;
       inlined = _;
       inlining_state = _;
-      probe_name = _;
+      probe = _;
       position = _;
       relative_history = _;
       region
@@ -250,7 +245,7 @@ let free_names_except_callee
       dbg = _;
       inlined = _;
       inlining_state = _;
-      probe_name = _;
+      probe = _;
       position = _;
       relative_history = _;
       region
@@ -278,7 +273,7 @@ let apply_renaming
        dbg;
        inlined;
        inlining_state;
-       probe_name;
+       probe;
        position;
        relative_history;
        region
@@ -309,7 +304,7 @@ let apply_renaming
       dbg;
       inlined;
       inlining_state;
-      probe_name;
+      probe;
       position;
       relative_history;
       region = region'
@@ -326,7 +321,7 @@ let ids_for_export
       dbg = _;
       inlined = _;
       inlining_state = _;
-      probe_name = _;
+      probe = _;
       position = _;
       relative_history = _;
       region
@@ -364,7 +359,7 @@ let with_args t args ~args_arity = { t with args; args_arity }
 
 let inlining_arguments t = inlining_state t |> Inlining_state.arguments
 
-let probe_name t = t.probe_name
+let probe t = t.probe
 
 let returns t =
   match continuation t with Return _ -> true | Never_returns -> false
@@ -374,3 +369,5 @@ let region t = t.region
 let args_arity t = t.args_arity
 
 let return_arity t = t.return_arity
+
+let with_inlined_attribute t inlined = { t with inlined }

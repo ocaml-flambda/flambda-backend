@@ -47,9 +47,9 @@ let inline_linearly_used_continuation uacc ~create_apply_cont ~params:params'
             |> Bound_pattern.singleton
           in
           let named = Named.create_simple arg in
-          { Simplify_named_result.let_bound;
+          { Expr_builder.let_bound;
             simplified_defining_expr = Simplified_named.create named;
-            original_defining_expr = named
+            original_defining_expr = Some named
           })
     in
     let expr, uacc =

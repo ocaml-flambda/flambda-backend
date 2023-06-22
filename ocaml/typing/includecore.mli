@@ -16,6 +16,7 @@
 (* Inclusion checks for the core language *)
 
 open Typedtree
+open Layouts
 open Types
 
 type position = Errortrace.position = First | Second
@@ -46,11 +47,7 @@ type privacy_mismatch =
   | Private_extensible_variant
   | Private_row_type
 
-type locality_mismatch =
-  { order : position
-  ; nonlocal : bool
-  (* whether expected mode is nonlocal or global *)
-  }
+type locality_mismatch = { order : position }
 
 type label_mismatch =
   | Type of Errortrace.equality_error
@@ -62,7 +59,8 @@ type record_change =
 
 type record_mismatch =
   | Label_mismatch of record_change list
-  | Unboxed_float_representation of position
+  | Inlined_representation of position
+  | Float_representation of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error
@@ -105,7 +103,8 @@ type type_mismatch =
   | Record_mismatch of record_mismatch
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
-  | Immediate of Type_immediacy.Violation.t
+  | Extensible_representation of position
+  | Layout of Layout.Violation.t
 
 val value_descriptions:
   loc:Location.t -> Env.t -> string ->

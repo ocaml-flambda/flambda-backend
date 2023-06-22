@@ -68,6 +68,9 @@ val init : Lexing.lexbuf -> string -> unit
 val curr : Lexing.lexbuf -> t
 (** Get the location of the current token from the [lexbuf]. *)
 
+val ghostify : t -> t
+(** Return a version of the location with [loc_ghost = true] *)
+
 val symbol_rloc: unit -> t
 val symbol_gloc: unit -> t
 
@@ -87,7 +90,7 @@ type 'a loc = {
 
 val mknoloc : 'a -> 'a loc
 val mkloc : 'a -> t -> 'a loc
-
+val get_txt : 'a loc -> 'a
 
 (** {1 Input info} *)
 

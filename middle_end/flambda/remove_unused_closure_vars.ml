@@ -115,11 +115,20 @@ let remove_unused_closure_variables ~remove_direct_call_surrogates program =
           set_of_closures.direct_call_surrogates
           Variable.Map.empty
       in
-      let set_of_closures =
-        Flambda.create_set_of_closures ~function_decls
-          ~free_vars ~specialised_args ~direct_call_surrogates
-      in
-      Set_of_closures set_of_closures
+      if Variable.Map.is_empty function_decls.funs then
+        (* All of the closure ids are dead. The whole set _should_ be dead, but
+           sometimes in odd cases we don't manage to kill it (for example, if
+           it's the value of an [initialize_symbol]). In any event, no one is
+           projecting anything out so we can just swap in the unit value. Note
+           that there can't even be any values being projected out, because that
+           would require using a closure id first. *)
+        Const (Int 0)
+      else
+        let set_of_closures =
+          Flambda.create_set_of_closures ~function_decls
+            ~free_vars ~specialised_args ~direct_call_surrogates
+        in
+        Set_of_closures set_of_closures
     | e -> e
   in
   Flambda_iterators.map_named_of_program ~f:aux_named program

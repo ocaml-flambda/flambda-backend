@@ -82,6 +82,7 @@ module Acc : sig
   val add_apply_conts :
     result_cont:(Apply_cont_rewrite_id.t * Continuation.t) option ->
     exn_cont:Apply_cont_rewrite_id.t * Exn_continuation.t ->
+    result_arity:Flambda_arity.t ->
     t ->
     t
 
@@ -108,6 +109,7 @@ module Analysis : sig
     exn_continuation:Continuation.t ->
     code_age_relation:Code_age_relation.t ->
     used_value_slots:Name_occurrences.t Or_unknown.t ->
+    code_ids_to_never_delete:Code_id.Set.t ->
     Acc.t ->
     Flow_types.Flow_result.t
 

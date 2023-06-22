@@ -26,9 +26,21 @@ let () =
   Persistent_signature.load := (fun ~unit_name ->
     match unit_name |> Compilation_unit.Name.to_string with
     | "Foo" ->
+      let {Cmi_format.cmi_name; cmi_sign; cmi_crcs; cmi_flags} =
+        Marshal.from_string Cached_cmi.foo 0
+      in
+      let cmi =
+        { Cmi_format.cmi_name;
+          cmi_is_param = false;
+          cmi_params = [];
+          cmi_sign = Subst.Lazy.of_signature cmi_sign;
+          cmi_crcs;
+          cmi_flags
+        }
+      in
       Some { Persistent_signature.
              filename = Sys.executable_name
-           ; cmi      = Marshal.from_string Cached_cmi.foo 0
+           ; cmi      = cmi
            }
     | _ -> old_loader unit_name);
   Toploop.add_hook (function

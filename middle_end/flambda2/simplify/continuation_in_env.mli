@@ -30,13 +30,13 @@ type t =
             (** The handler, if available, is stored for
                 [Simplify_switch_expr]. *)
       }
-  | Non_inlinable_non_zero_arity of { arity : Flambda_arity.With_subkinds.t }
+  | Non_inlinable_non_zero_arity of { arity : Flambda_arity.t }
   | Toplevel_or_function_return_or_exn_continuation of
-      { arity : Flambda_arity.With_subkinds.t }
-  | Invalid of { arity : Flambda_arity.With_subkinds.t }
+      { arity : Flambda_arity.t }
+  | Invalid of { arity : Flambda_arity.t }
       (** [Invalid] means that the code of the continuation handler is invalid,
           not that the continuation has zero uses. *)
 
 val print : Are_rebuilding_terms.t -> Format.formatter -> t -> unit
 
-val arity : t -> Flambda_arity.With_subkinds.t
+val arity : t -> Flambda_arity.t

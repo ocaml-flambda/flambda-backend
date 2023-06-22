@@ -81,34 +81,7 @@ let exported_constants = Hashtbl.create 17
 
 let merged_environment = ref Export_info.empty
 
-module Checks : sig
-  (* mutable state *)
-  type t = Cmx_format.checks
-
-  val create : unit -> t
-
-  val reset : t -> unit
-
-  val merge : t -> into:t -> unit
-end = struct
-  type t = Cmx_format.checks
-
-  let create () =
-    {
-      ui_noalloc_functions = String.Set.empty;
-    }
-
-  let reset t =
-    t.ui_noalloc_functions <- String.Set.empty
-
-  let merge src ~into:dst =
-    if !Flambda_backend_flags.alloc_check
-    then (
-      dst.ui_noalloc_functions
-        <- String.Set.union dst.ui_noalloc_functions src.ui_noalloc_functions)
-end
-
-let cached_checks : Cmx_format.checks = Checks.create ()
+let cached_checks = Checks.create ()
 
 let cache_checks c = Checks.merge c ~into:cached_checks
 
@@ -187,7 +160,7 @@ let read_unit_info filename =
       ui_runtime_params = uir.uir_runtime_params |> Array.to_list;
       ui_generic_fns = uir.uir_generic_fns;
       ui_export_info = export_info;
-      ui_checks = uir.uir_checks;
+      ui_checks = Checks.of_raw uir.uir_checks;
       ui_force_link = uir.uir_force_link
     }
     in
@@ -402,7 +375,7 @@ let write_unit_info info filename =
     uir_runtime_params = Array.of_list info.ui_runtime_params;
     uir_generic_fns = info.ui_generic_fns;
     uir_export_info = raw_export_info;
-    uir_checks = info.ui_checks;
+    uir_checks = Checks.to_raw info.ui_checks;
     uir_force_link = info.ui_force_link;
     uir_section_toc = toc;
     uir_sections_length = total_length;

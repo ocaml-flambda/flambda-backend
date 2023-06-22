@@ -14,6 +14,8 @@
 
 let flambda2_is_enabled () = Clflags.is_flambda2 ()
 
+let debug_flambda2 () = !Flambda_backend_flags.Flambda2.debug
+
 let with_default (r : 'a Flambda_backend_flags.or_default)
     ~(f : Flambda_backend_flags.Flambda2.flags -> 'a) =
   match r with

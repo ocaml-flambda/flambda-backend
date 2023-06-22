@@ -53,14 +53,6 @@ type generic_fns =
     apply_fun: apply_fn list;
     send_fun: apply_fn list }
 
-(* Symbols of function that pass certain checks for special properties. *)
-type checks =
-  {
-    (* CR gyorsh: refactor to use lists. *)
-    mutable ui_noalloc_functions: Misc.Stdlib.String.Set.t;
-    (* Functions without allocations and indirect calls *)
-  }
-
 type unit_infos =
   { mutable ui_unit: Compilation_unit.t;  (* Compilation unit implemented *)
     mutable ui_defines: Compilation_unit.t list;
@@ -82,7 +74,7 @@ type unit_infos =
                                              with unbound parameters *)
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: export_info;
-    mutable ui_checks: checks;
+    mutable ui_checks: Checks.t;
     mutable ui_force_link: bool }         (* Always linked *)
 
 type unit_infos_raw =
@@ -94,7 +86,7 @@ type unit_infos_raw =
     uir_runtime_params: Global.Name.t array;
     uir_generic_fns: generic_fns;
     uir_export_info: export_info_raw;
-    uir_checks: checks;
+    uir_checks: Checks.Raw.t;
     uir_force_link: bool;
     uir_section_toc: int array;    (* Byte offsets of sections in .cmx
                                       relative to byte immediately after

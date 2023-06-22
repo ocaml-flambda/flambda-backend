@@ -41,6 +41,30 @@ let array_kind array_kind =
   | Pintarray -> "int"
   | Pfloatarray -> "float"
 
+let pp_array_ref_kind ppf k =
+  let open Lambda in
+  let pp_mode ppf = function
+    | Alloc_heap -> ()
+    | Alloc_local -> fprintf ppf "(local)"
+  in
+  match k with
+  | Pgenarray_ref mode -> fprintf ppf "gen%a" pp_mode mode
+  | Paddrarray_ref -> fprintf ppf "addr"
+  | Pintarray_ref -> fprintf ppf "int"
+  | Pfloatarray_ref mode -> fprintf ppf "float%a" pp_mode mode
+
+let pp_array_set_kind ppf k =
+  let open Lambda in
+  let pp_mode ppf = function
+    | Modify_heap -> ()
+    | Modify_maybe_stack -> fprintf ppf "(local)"
+  in
+  match k with
+  | Pgenarray_set mode -> fprintf ppf "gen%a" pp_mode mode
+  | Paddrarray_set mode -> fprintf ppf "addr%a" pp_mode mode
+  | Pintarray_set -> fprintf ppf "int"
+  | Pfloatarray_set -> fprintf ppf "float"
+
 let access_size size =
   let open Clambda_primitives in
   match size with
@@ -171,10 +195,10 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
     fprintf ppf "duparray_unique[%s]" (array_kind k)
-  | Parrayrefu k -> fprintf ppf "array.unsafe_get[%s]" (array_kind k)
-  | Parraysetu k -> fprintf ppf "array.unsafe_set[%s]" (array_kind k)
-  | Parrayrefs k -> fprintf ppf "array.get[%s]" (array_kind k)
-  | Parraysets k -> fprintf ppf "array.set[%s]" (array_kind k)
+  | Parrayrefu rk -> fprintf ppf "array.unsafe_get[%a]" pp_array_ref_kind rk
+  | Parraysetu sk -> fprintf ppf "array.unsafe_set[%a]" pp_array_set_kind sk
+  | Parrayrefs rk -> fprintf ppf "array.get[%a]" pp_array_ref_kind rk
+  | Parraysets sk -> fprintf ppf "array.set[%a]" pp_array_set_kind sk
   | Pisint -> fprintf ppf "isint"
   | Pisout -> fprintf ppf "isout"
   | Pbintofint (bi,m) -> print_boxed_integer "of_int" ppf bi m

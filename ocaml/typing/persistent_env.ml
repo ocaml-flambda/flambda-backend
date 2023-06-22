@@ -81,12 +81,12 @@ let error err = raise (Error err)
 module Persistent_signature = struct
   type t =
     { filename : string;
-      cmi : Cmi_format.cmi_infos }
+      cmi : Cmi_format.cmi_infos_lazy }
 
   let load = ref (fun ~unit_name ->
       let unit_name = CU.Name.to_string unit_name in
       match Load_path.find_uncap (unit_name ^ ".cmi") with
-      | filename -> Some { filename; cmi = read_cmi filename }
+      | filename -> Some { filename; cmi = read_cmi_lazy filename }
       | exception Not_found -> None)
 end
 
@@ -586,7 +586,7 @@ and acknowledge_pers_struct
 (* CR lmaurer: This doesn't need to be in the recursive group *)
 and read_pers_struct penv val_of_pers_sig ~check modname filename =
   add_import penv (CU.Name.of_head_of_global_name modname);
-  let cmi = read_cmi filename in
+  let cmi = read_cmi_lazy filename in
   let pers_sig = { Persistent_signature.filename; cmi } in
   acknowledge_pers_struct penv ~check modname pers_sig val_of_pers_sig
 

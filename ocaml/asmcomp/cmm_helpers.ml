@@ -359,7 +359,7 @@ let create_loop body dbg =
   let cont = Lambda.next_raise_count () in
   let call_cont = Cexit (cont, []) in
   let body = Csequence (body, call_cont) in
-  Ccatch (Recursive, [cont, [], body, dbg], call_cont, Vval Pgenval)
+  Ccatch (Recursive, [cont, [], body, dbg], call_cont, Any)
 
 (* Turning integer divisions into multiply-high then shift.
    The [division_parameters] function is used in module Emit for
@@ -508,7 +508,7 @@ let rec div_int c1 c2 is_safe dbg =
                       Cop(Cdivi, [c1; c2], dbg),
                       dbg,
                       raise_symbol dbg "caml_exn_Division_by_zero",
-                      dbg, Vint)))
+                      dbg, Any)))
 
 let mod_int c1 c2 is_safe dbg =
   match (c1, c2) with
@@ -549,7 +549,7 @@ let mod_int c1 c2 is_safe dbg =
                       Cop(Cmodi, [c1; c2], dbg),
                       dbg,
                       raise_symbol dbg "caml_exn_Division_by_zero",
-                      dbg, Vint)))
+                      dbg, Any)))
 
 (* Division or modulo on boxed integers.  The overflow case min_int / -1
    can occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513). *)
@@ -575,11 +575,11 @@ let safe_divmod_bi mkop kind is_safe mkm1 c1 c2 bi dbg =
       c))
 
 let safe_div_bi is_safe =
-  safe_divmod_bi div_int Vint is_safe
+  safe_divmod_bi div_int Any is_safe
     (fun c1 dbg -> Cop(Csubi, [Cconst_int (0, dbg); c1], dbg))
 
 let safe_mod_bi is_safe =
-  safe_divmod_bi mod_int Vint is_safe (fun _ dbg -> Cconst_int (0, dbg))
+  safe_divmod_bi mod_int Any is_safe (fun _ dbg -> Cconst_int (0, dbg))
 
 (* Bool *)
 
@@ -598,9 +598,9 @@ let test_bool dbg cmm =
 
 let box_float dbg m c = Cop(Calloc m, [alloc_float_header m dbg; c], dbg)
 
-let unbox_float dbg =
+let rec unbox_float dbg =
   map_tail
-    ~kind:Vfloat
+    ~kind:Any
     (function
       | Cop(Calloc _, [Cconst_natint (hdr, _); c], _)
         when Nativeint.equal hdr float_header ->
@@ -612,6 +612,18 @@ let unbox_float dbg =
           | _ ->
               Cop(Cload (Double, Immutable), [cmm], dbg)
           end
+      | Cregion e as cmm -> (
+        (* It is valid to push unboxing inside a Cregion except when the extra
+           unboxing logic pushes a tail call out of tail position *)
+        match
+          map_tail ~kind:Any
+            (function
+              | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
+              | e -> unbox_float dbg e)
+            e
+        with
+        | e -> Cregion e
+        | exception Exit -> Cop (Cload (Double, Immutable), [cmm], dbg))
       | cmm -> Cop(Cload (Double, Immutable), [cmm], dbg)
     )
 
@@ -778,22 +790,28 @@ let int_array_ref arr ofs dbg =
 let unboxed_float_array_ref arr ofs dbg =
   Cop(Cload (Double, Mutable),
     [array_indexing log2_size_float arr ofs dbg], dbg)
-let float_array_ref arr ofs dbg =
-  box_float dbg Lambda.alloc_heap (unboxed_float_array_ref arr ofs dbg)
+let float_array_ref mode arr ofs dbg =
+  box_float dbg mode (unboxed_float_array_ref arr ofs dbg)
 
-let addr_array_set arr ofs newval dbg =
+let addr_array_set_heap arr ofs newval dbg =
   Cop(Cextcall("caml_modify", typ_void, [], false),
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
+
+let addr_array_set_local arr ofs newval dbg =
+  Cop(Cextcall("caml_modify_local", typ_void, [], false),
+      [arr; untag_int ofs dbg; newval], dbg)
+
+let addr_array_set (mode : Lambda.modify_mode) arr ofs newval dbg =
+  match mode with
+  | Modify_heap -> addr_array_set_heap arr ofs newval dbg
+  | Modify_maybe_stack -> addr_array_set_local arr ofs newval dbg
+(* int and float arrays can be written to uniformly regardless of their mode *)
 let int_array_set arr ofs newval dbg =
   Cop(Cstore (Word_int, Assignment),
     [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let float_array_set arr ofs newval dbg =
   Cop(Cstore (Double, Assignment),
     [array_indexing log2_size_float arr ofs dbg; newval], dbg)
-
-let addr_array_set_local arr ofs newval dbg =
-  Cop(Cextcall("caml_modify_local", typ_void, [], false),
-      [arr; untag_int ofs dbg; newval], dbg)
 
 let addr_array_initialize arr ofs newval dbg =
   Cop(Cextcall("caml_initialize", typ_void, [], false),
@@ -836,8 +854,84 @@ let lookup_label obj lab dbg =
     let table = Cop (Cload (Word_val, Mutable), [obj], dbg) in
     addr_array_ref table lab dbg)
 
+module Extended_machtype_component = struct
+  type t =
+    | Val
+    | Addr
+    | Tagged_int
+    | Any_int
+    | Float
+
+  let of_machtype_component (component : machtype_component) =
+    match component with
+    | Val -> Val
+    | Addr -> Addr
+    | Int -> Any_int
+    | Float -> Float
+
+  let to_machtype_component t : machtype_component =
+    match t with
+    | Val -> Val
+    | Addr -> Addr
+    | Tagged_int | Any_int -> Int
+    | Float -> Float
+
+  let change_tagged_int_to_val t : machtype_component =
+    match t with
+    | Val -> Val
+    | Addr -> Addr
+    | Tagged_int -> Val
+    | Any_int -> Int
+    | Float -> Float
+end
+
+module Extended_machtype = struct
+  type t = Extended_machtype_component.t array
+
+  let typ_val = [| Extended_machtype_component.Val |]
+
+  let typ_tagged_int = [| Extended_machtype_component.Tagged_int |]
+
+  let typ_any_int = [| Extended_machtype_component.Any_int |]
+
+  let typ_int64 = [| Extended_machtype_component.Any_int |]
+
+  let typ_float = [| Extended_machtype_component.Float |]
+
+  let typ_void = [||]
+
+  let of_machtype machtype =
+    Array.map Extended_machtype_component.of_machtype_component machtype
+
+  let to_machtype t =
+    Array.map Extended_machtype_component.to_machtype_component t
+
+  let change_tagged_int_to_val t =
+    Array.map Extended_machtype_component.change_tagged_int_to_val t
+
+  let of_layout (layout : Lambda.layout) =
+    match layout with
+    | Ptop -> Misc.fatal_error "No Extended_machtype for layout [Ptop]"
+    | Pbottom ->
+      Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
+    | Punboxed_float -> typ_float
+    | Punboxed_int _ ->
+      (* Only 64-bit architectures, so this is always [typ_int] *)
+      typ_any_int
+    | Pvalue Pintval -> typ_tagged_int
+    | Pvalue _ -> typ_val
+end
+
+let machtype_of_layout layout =
+  layout |> Extended_machtype.of_layout |> Extended_machtype.to_machtype
+
+let machtype_of_layout_changing_tagged_int_to_val layout =
+  layout |> Extended_machtype.of_layout
+  |> Extended_machtype.change_tagged_int_to_val
+
 let machtype_identifier t =
-  let char_of_component = function
+  let char_of_component (component : machtype_component) =
+    match component with
     | Val -> 'V'
     | Int -> 'I'
     | Float -> 'F'
@@ -846,7 +940,7 @@ let machtype_identifier t =
   in
   String.of_seq (Seq.map char_of_component (Array.to_seq t))
 
-let unique_arity_identifier arity =
+let unique_arity_identifier (arity : Cmm.machtype list) =
   if List.for_all (function [| Val |] -> true | _ -> false) arity
   then Int.to_string (List.length arity)
   else String.concat "_" (List.map machtype_identifier arity)
@@ -858,13 +952,24 @@ let send_function_name arity result (mode : Lambda.alloc_mode) =
   let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
   "caml_send" ^ unique_arity_identifier arity ^ res ^ suff
 
-let call_cached_method obj tag cache pos args args_type result (apos,mode) dbg =
+let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
+    =
   let cache = array_indexing log2_size_addr cache pos dbg in
-  Compilenv.need_send_fun args_type result mode;
-  Cop(Capply(result, apos),
-      Cconst_symbol(send_function_name args_type result mode, dbg) ::
-        obj :: tag :: cache :: args,
-      dbg)
+  Compilenv.need_send_fun
+    (List.map Extended_machtype.change_tagged_int_to_val args_type)
+    (Extended_machtype.change_tagged_int_to_val result)
+    mode;
+  Cop
+    ( Capply (Extended_machtype.to_machtype result, apos),
+      (* See the cases for caml_apply regarding [change_tagged_int_to_val]. *)
+      Cconst_symbol
+        ( send_function_name
+            (List.map Extended_machtype.change_tagged_int_to_val args_type)
+            (Extended_machtype.change_tagged_int_to_val result)
+            mode,
+          dbg )
+      :: obj :: tag :: cache :: args,
+      dbg )
 
 (* Allocation *)
 
@@ -909,6 +1014,7 @@ let make_checkbound dbg = function
       Cop(Ccheckbound, args, dbg)
 
 (* Record application and currying functions *)
+
 let apply_function_name arity result (mode : Lambda.alloc_mode) =
   let res =
     match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
@@ -917,6 +1023,8 @@ let apply_function_name arity result (mode : Lambda.alloc_mode) =
   "caml_apply" ^ unique_arity_identifier arity ^ res ^ suff
 
 let apply_function_sym arity result mode =
+  let arity = List.map Extended_machtype.change_tagged_int_to_val arity in
+  let result = Extended_machtype.change_tagged_int_to_val result in
   assert (List.length arity > 0);
   Compilenv.need_apply_fun arity result mode;
   apply_function_name arity result mode
@@ -1146,7 +1254,7 @@ let alloc_matches_boxed_int bi ~hdr ~ops =
         && String.equal sym caml_int64_ops
   | (Pnativeint | Pint32 | Pint64), _, _ -> false
 
-let unbox_int dbg bi =
+let rec unbox_int dbg bi =
   let default arg =
     if size_int = 4 && bi = Primitive.Pint64 then
       split_int64_for_32bit_target arg dbg
@@ -1157,7 +1265,7 @@ let unbox_int dbg bi =
         [Cop(Cadda, [arg; Cconst_int (size_addr, dbg)], dbg)], dbg)
   in
   map_tail
-    ~kind:Vint
+    ~kind:Any
     (function
       | Cop(Calloc _,
             [hdr; ops;
@@ -1198,6 +1306,18 @@ let unbox_int dbg bi =
           | _ ->
               default cmm
           end
+      | Cregion e as cmm -> (
+        (* It is valid to push unboxing inside a Cregion except when the extra
+           unboxing logic pushes a tail call out of tail position *)
+        match
+          map_tail ~kind:Any
+            (function
+              | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
+              | e -> unbox_int dbg bi e)
+            e
+        with
+        | e -> Cregion e
+        | exception Exit -> default cmm)
       | cmm ->
           default cmm
     )
@@ -1621,7 +1741,7 @@ struct
   type test = expression
   type act = expression
 
-  type layout = value_kind
+  type layout = kind_for_unboxing
 
   (* CR mshinwell: GPR#2294 will fix the Debuginfo here *)
 
@@ -1800,7 +1920,11 @@ let ptr_offset ptr offset dbg =
 let direct_apply lbl ty args (pos, _mode) dbg =
   Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
-let generic_apply mut clos args args_type result (pos, mode) dbg =
+let generic_apply mut clos args extended_args_type extended_result (pos, mode)
+      dbg =
+  (* Treat tagged int arguments and results as [typ_val], to avoid generating
+     excessive numbers of caml_apply functions. *)
+  let result = Extended_machtype.to_machtype extended_result in
   match args with
   | [arg] ->
       bind "fun" clos (fun clos ->
@@ -1808,7 +1932,9 @@ let generic_apply mut clos args args_type result (pos, mode) dbg =
           dbg))
   | _ ->
       let cargs =
-        Cconst_symbol(apply_function_sym args_type result mode, dbg) :: args
+        Cconst_symbol(
+          apply_function_sym extended_args_type extended_result mode, dbg)
+        :: args
         @ [clos]
       in
       Cop(Capply(result, pos), cargs, dbg)
@@ -1817,7 +1943,8 @@ let send kind met obj args args_type result akind dbg =
   let call_met obj args args_type clos =
     (* met is never a simple expression, so it never gets turned into an
        Immutable load *)
-    generic_apply Asttypes.Mutable clos (obj :: args) (typ_val :: args_type)
+    generic_apply Asttypes.Mutable clos (obj :: args)
+      (Extended_machtype.typ_val :: args_type)
       result akind dbg
   in
   bind "obj" obj (fun obj ->
@@ -1873,15 +2000,15 @@ let cache_public_method meths tag cache dbg =
                      dbg)], dbg),
            dbg, Cassign(hi, Cop(Csubi, [Cvar mi; cconst_int 2], dbg)),
            dbg, Cassign(li, Cvar mi),
-           dbg, Vint (* unit *)),
+           dbg, Any),
         Cifthenelse
           (Cop(Ccmpi Cge, [Cvar li; Cvar hi], dbg),
            dbg, Cexit (raise_num, []),
            dbg, Ctuple [],
-           dbg, Vint (* unit *)))))
+           dbg, Any))))
        dbg,
      Ctuple [],
-     dbg, Vint (* unit *)),
+     dbg, Any),
   Clet (
     VP.create tagged,
       Cop(Caddi, [lsl_const (Cvar li) log2_size_addr dbg;
@@ -1893,7 +2020,7 @@ let has_local_allocs e =
   let rec loop = function
     | Cregion e ->
         (* Local allocations within a nested region do not affect this region,
-           except inside a Ctail block *)
+           except inside a Cexclave block *)
         loop_until_tail e
     | Cop (Calloc Alloc_local, _, _)
     | Cop ((Cextcall _ | Capply _), _, _) ->
@@ -1901,7 +2028,7 @@ let has_local_allocs e =
     | e ->
         iter_shallow loop e
   and loop_until_tail = function
-    | Ctail e -> loop e
+    | Cexclave e -> loop e
     | Cregion _ -> ()
     | e -> ignore (iter_shallow_tail loop_until_tail e)
   in
@@ -1911,13 +2038,13 @@ let has_local_allocs e =
 
 let remove_region_tail e =
   let rec has_tail = function
-    | Ctail _
+    | Cexclave _
     | Cop(Capply(_, Rc_close_at_apply), _, _) -> raise Exit
     | Cregion _ -> ()
     | e -> ignore (iter_shallow_tail has_tail e)
   in
   let rec remove_tail = function
-    | Ctail e -> e
+    | Cexclave e -> e
     | Cop(Capply(mach, Rc_close_at_apply), args, dbg) ->
        Cop(Capply(mach, Rc_normal), args, dbg)
     | Cregion _ as e -> e
@@ -1995,7 +2122,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
                  Csequence (Cop (Cendregion, [Cvar region], dbg ()), Cvar res)
                )),
             dbg (),
-            Vval Pgenval (* Incorrect but only used for unboxing *) ))
+            Any ))
     | arg :: args ->
       let newclos = V.create_local "clos" in
       Clet
@@ -2039,7 +2166,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
           dbg (),
           code,
           dbg (),
-          Vval Pgenval (* incorrect but only used for unboxing *) ) )
+          Any ) )
 
 let send_function (arity, result, mode) =
   let dbg = placeholder_dbg in
@@ -2070,7 +2197,7 @@ let send_function (arity, result, mode) =
                 cache_public_method (Cvar meths) tag cache (dbg ()),
                 dbg (),
                 cached_pos,
-                dbg (), Vval Pgenval),
+                dbg (), Any),
     Cop(Cload (Word_val, Mutable),
       [Cop(Cadda, [Cop (Cadda, [Cvar real; Cvar meths], dbg ());
        cconst_int(2*size_addr-1)], dbg ())], dbg ()))))
@@ -2241,16 +2368,6 @@ let rec make_curry_apply result narity args_type args clos n =
           (read_from_closure_given_machtype arg_type (Cvar clos) arg_pos (dbg ())
           :: args)
           newclos (n - 1) )
-
-let machtype_of_layout (layout : Lambda.layout) =
-  match layout with
-  | Ptop -> Misc.fatal_error "No machtype for layout [Ptop]"
-  | Pbottom -> Misc.fatal_error "No unique machtype for layout [Pbottom]"
-  | Punboxed_float -> typ_float
-  | Punboxed_int _ ->
-    (* Only 64-bit architectures, so this is always [typ_int] *)
-    typ_int
-  | Pvalue _ -> typ_val
 
 let final_curry_function nlocal arity result =
   let last_arg = V.create_local "arg" in
@@ -2460,7 +2577,7 @@ let arraylength kind arg dbg =
                           dbg,
                           Cop(Clsr,
                             [hdr; Cconst_int (numfloat_shift, dbg)], dbg),
-                          dbg, Vint))
+                          dbg, Any))
       in
       Cop(Cor, [len; Cconst_int (1, dbg)], dbg)
   | Paddrarray | Pintarray ->
@@ -2637,28 +2754,28 @@ let bigstring_load size unsafe mode arg1 arg2 dbg =
           idx
           (unaligned_load size ba_data idx dbg)))))
 
-let arrayref_unsafe kind arg1 arg2 dbg =
-  match (kind : Lambda.array_kind) with
-  | Pgenarray ->
+let arrayref_unsafe rkind arg1 arg2 dbg =
+  match (rkind : Lambda.array_ref_kind) with
+  | Pgenarray_ref mode ->
       bind "index" arg2 (fun idx ->
         bind "arr" arg1 (fun arr ->
           Cifthenelse(is_addr_array_ptr arr dbg,
                       dbg,
                       addr_array_ref arr idx dbg,
                       dbg,
-                      float_array_ref arr idx dbg,
-                      dbg, Vval Pgenval)))
-  | Paddrarray ->
+                      float_array_ref mode arr idx dbg,
+                      dbg, Any)))
+  | Paddrarray_ref ->
       addr_array_ref arg1 arg2 dbg
-  | Pintarray ->
+  | Pintarray_ref ->
       (* CR mshinwell: for int/addr_array_ref move "dbg" to first arg *)
       int_array_ref arg1 arg2 dbg
-  | Pfloatarray ->
-      float_array_ref arg1 arg2 dbg
+  | Pfloatarray_ref mode ->
+      float_array_ref mode arg1 arg2 dbg
 
-let arrayref_safe kind arg1 arg2 dbg =
-  match (kind : Lambda.array_kind) with
-  | Pgenarray ->
+let arrayref_safe rkind arg1 arg2 dbg =
+  match (rkind : Lambda.array_ref_kind) with
+  | Pgenarray_ref mode ->
       bind "index" arg2 (fun idx ->
       bind "arr" arg1 (fun arr ->
       bind "header" (get_header_without_profinfo arr dbg) (fun hdr ->
@@ -2669,8 +2786,8 @@ let arrayref_safe kind arg1 arg2 dbg =
                         dbg,
                         addr_array_ref arr idx dbg,
                         dbg,
-                        float_array_ref arr idx dbg,
-                        dbg, Vval Pgenval))
+                        float_array_ref mode arr idx dbg,
+                        dbg, Any))
         else
           Cifthenelse(is_addr_array_hdr hdr dbg,
             dbg,
@@ -2680,34 +2797,34 @@ let arrayref_safe kind arg1 arg2 dbg =
             dbg,
             Csequence(
               make_checkbound dbg [float_array_length_shifted hdr dbg; idx],
-              float_array_ref arr idx dbg),
-            dbg, Vval Pgenval))))
-      | Paddrarray ->
-          bind "index" arg2 (fun idx ->
-          bind "arr" arg1 (fun arr ->
-            Csequence(
-              make_checkbound dbg [
-                addr_array_length_shifted
-                  (get_header_without_profinfo arr dbg) dbg; idx],
-              addr_array_ref arr idx dbg)))
-      | Pintarray ->
-          bind "index" arg2 (fun idx ->
-          bind "arr" arg1 (fun arr ->
-            Csequence(
-              make_checkbound dbg [
-                addr_array_length_shifted
-                  (get_header_without_profinfo arr dbg) dbg; idx],
-              int_array_ref arr idx dbg)))
-      | Pfloatarray ->
-          box_float dbg Lambda.alloc_heap (
-            bind "index" arg2 (fun idx ->
-            bind "arr" arg1 (fun arr ->
-              Csequence(
-                make_checkbound dbg [
-                  float_array_length_shifted
-                    (get_header_without_profinfo arr dbg) dbg;
-                  idx],
-                unboxed_float_array_ref arr idx dbg))))
+              float_array_ref mode arr idx dbg),
+            dbg, Any))))
+  | Paddrarray_ref ->
+      bind "index" arg2 (fun idx ->
+      bind "arr" arg1 (fun arr ->
+        Csequence(
+          make_checkbound dbg [
+            addr_array_length_shifted
+              (get_header_without_profinfo arr dbg) dbg; idx],
+          addr_array_ref arr idx dbg)))
+  | Pintarray_ref ->
+      bind "index" arg2 (fun idx ->
+      bind "arr" arg1 (fun arr ->
+        Csequence(
+          make_checkbound dbg [
+            addr_array_length_shifted
+              (get_header_without_profinfo arr dbg) dbg; idx],
+          int_array_ref arr idx dbg)))
+  | Pfloatarray_ref mode ->
+      box_float dbg mode (
+        bind "index" arg2 (fun idx ->
+        bind "arr" arg1 (fun arr ->
+          Csequence(
+            make_checkbound dbg [
+              float_array_length_shifted
+                (get_header_without_profinfo arr dbg) dbg;
+              idx],
+            unboxed_float_array_ref arr idx dbg))))
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -2715,7 +2832,7 @@ type ternary_primitive =
 let setfield_computed ptr init arg1 arg2 arg3 dbg =
   match assignment_kind ptr init with
   | Caml_modify ->
-      return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
+      return_unit dbg (addr_array_set_heap arg1 arg2 arg3 dbg)
   | Caml_modify_local ->
       return_unit dbg (addr_array_set_local arg1 arg2 arg3 dbg)
   | Caml_initialize ->
@@ -2739,30 +2856,30 @@ let bytesset_safe arg1 arg2 arg3 dbg =
               [add_int str idx dbg; newval],
               dbg))))))
 
-let arrayset_unsafe kind arg1 arg2 arg3 dbg =
-  return_unit dbg (match (kind: Lambda.array_kind) with
-  | Pgenarray ->
+let arrayset_unsafe skind arg1 arg2 arg3 dbg =
+  return_unit dbg (match (skind: Lambda.array_set_kind) with
+  | Pgenarray_set mode ->
       bind "newval" arg3 (fun newval ->
         bind "index" arg2 (fun index ->
           bind "arr" arg1 (fun arr ->
             Cifthenelse(is_addr_array_ptr arr dbg,
                         dbg,
-                        addr_array_set arr index newval dbg,
+                        addr_array_set mode arr index newval dbg,
                         dbg,
                         float_array_set arr index (unbox_float dbg newval)
                           dbg,
-                        dbg, Vint (* unit *)))))
-  | Paddrarray ->
-      addr_array_set arg1 arg2 arg3 dbg
-  | Pintarray ->
+                        dbg, Any))))
+  | Paddrarray_set mode ->
+      addr_array_set mode arg1 arg2 arg3 dbg
+  | Pintarray_set ->
       int_array_set arg1 arg2 arg3 dbg
-  | Pfloatarray ->
+  | Pfloatarray_set ->
       float_array_set arg1 arg2 arg3 dbg
   )
 
-let arrayset_safe kind arg1 arg2 arg3 dbg =
-  return_unit dbg (match (kind: Lambda.array_kind) with
-  | Pgenarray ->
+let arrayset_safe skind arg1 arg2 arg3 dbg =
+  return_unit dbg (match (skind: Lambda.array_set_kind) with
+  | Pgenarray_set mode ->
       bind "newval" arg3 (fun newval ->
       bind "index" arg2 (fun idx ->
       bind "arr" arg1 (fun arr ->
@@ -2772,26 +2889,26 @@ let arrayset_safe kind arg1 arg2 arg3 dbg =
             make_checkbound dbg [addr_array_length_shifted hdr dbg; idx],
             Cifthenelse(is_addr_array_hdr hdr dbg,
                         dbg,
-                        addr_array_set arr idx newval dbg,
+                        addr_array_set mode arr idx newval dbg,
                         dbg,
                         float_array_set arr idx
                           (unbox_float dbg newval)
                           dbg,
-                        dbg, Vint (* unit *)))
+                        dbg, Any))
         else
           Cifthenelse(
             is_addr_array_hdr hdr dbg,
             dbg,
             Csequence(
               make_checkbound dbg [addr_array_length_shifted hdr dbg; idx],
-              addr_array_set arr idx newval dbg),
+              addr_array_set mode arr idx newval dbg),
             dbg,
             Csequence(
               make_checkbound dbg [float_array_length_shifted hdr dbg; idx],
               float_array_set arr idx
                 (unbox_float dbg newval) dbg),
-            dbg, Vint (* unit*))))))
-  | Paddrarray ->
+            dbg, Any)))))
+  | Paddrarray_set mode ->
       bind "newval" arg3 (fun newval ->
       bind "index" arg2 (fun idx ->
       bind "arr" arg1 (fun arr ->
@@ -2800,8 +2917,8 @@ let arrayset_safe kind arg1 arg2 arg3 dbg =
             addr_array_length_shifted
               (get_header_without_profinfo arr dbg) dbg;
             idx],
-          addr_array_set arr idx newval dbg))))
-  | Pintarray ->
+          addr_array_set mode arr idx newval dbg))))
+  | Pintarray_set ->
       bind "newval" arg3 (fun newval ->
       bind "index" arg2 (fun idx ->
       bind "arr" arg1 (fun arr ->
@@ -2811,7 +2928,7 @@ let arrayset_safe kind arg1 arg2 arg3 dbg =
               (get_header_without_profinfo arr dbg) dbg;
             idx],
           int_array_set arr idx newval dbg))))
-  | Pfloatarray ->
+  | Pfloatarray_set ->
       bind_load "newval" arg3 (fun newval ->
       bind "index" arg2 (fun idx ->
       bind "arr" arg1 (fun arr ->
@@ -3080,11 +3197,19 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
             :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: emit_others (pos + 3) rem
         | arity ->
+          (* See note in the apply function code about the conversion from
+             tagged integer to value machtypes. *)
+          let params_machtypes =
+            List.map machtype_of_layout_changing_tagged_int_to_val
+              arity.params_layout
+          in
+          let return_machtype =
+            machtype_of_layout_changing_tagged_int_to_val arity.return_layout
+          in
           (Cint (infix_header pos) :: closure_symbol f2)
           @ Csymbol_address
-              (curry_function_sym arity.function_kind
-                 (List.map machtype_of_layout arity.params_layout)
-                 (machtype_of_layout arity.return_layout))
+              (curry_function_sym arity.function_kind params_machtypes
+                 return_machtype)
             :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: Csymbol_address f2.label
             :: emit_others (pos + 4) rem)
@@ -3102,8 +3227,9 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
     | arity ->
       Csymbol_address
         (curry_function_sym arity.function_kind
-           (List.map machtype_of_layout arity.params_layout)
-           (machtype_of_layout arity.return_layout))
+           (List.map machtype_of_layout_changing_tagged_int_to_val
+              arity.params_layout)
+           (machtype_of_layout_changing_tagged_int_to_val arity.return_layout))
       :: Cint (closure_info ~arity ~startenv ~is_last)
       :: Csymbol_address f1.label :: emit_others 4 remainder)
 
@@ -3153,9 +3279,9 @@ let emit_preallocated_blocks preallocated_blocks cont =
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
-  | Ptop | Pbottom ->
-    (* This is incorrect but only used for unboxing *)
-    Vval Pgenval
-  | Punboxed_float -> Vfloat
-  | Punboxed_int _ -> Vint
-  | Pvalue kind -> Vval kind
+  | Pvalue Pfloatval -> Boxed_float
+  | Pvalue (Pboxedintval bi) -> Boxed_integer bi
+  | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
+  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ -> Any
+
+let make_tuple l = match l with [e] -> e | _ -> Ctuple l

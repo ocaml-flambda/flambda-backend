@@ -1,4 +1,5 @@
 (* TEST
+   include ocamlcommon
    * native *)
 
 external local_stack_offset : unit -> int = "caml_local_stack_offset"
@@ -24,6 +25,16 @@ let[@inline never] uses_local x =
 let () =
   uses_local 42;
   check_empty "function call"
+
+let[@inline never] uses_exclave x =
+  let local_ r = ref x in
+  let _ = opaque_identity r in
+  [%exclave] (
+    check_empty "cleanup upon exclave"
+  )
+let () =
+  uses_exclave 42
+
 
 let[@inline never] uses_local_try x =
   try
@@ -81,6 +92,16 @@ let () =
   do_direct_overtailcall ();
   check_empty "after direct overtail"
 
+
+let[@inline always] do_inlined_tailcall g =
+  let local_ r = ref 42 in
+  let _ = opaque_identity r in
+  g ()
+
+let () =
+  do_inlined_tailcall (fun () ->
+    check_empty "during inlined tailcall");
+  check_empty "after inlined tailcall"
 
 
 let[@inline never] local_ret a b = local_ ref (a + b)
@@ -214,5 +235,42 @@ let () =
   check (!obj#local_ret "!" 5);
   check_empty "method overapply"
 
+type t = { x : int } [@@unboxed]
+let[@inline never] create_local () =
+  let local_ _extra = opaque_identity (Some (opaque_identity ())) in
+  local_ { x = opaque_identity 0 }
+let create_and_ignore () =
+  let x = create_local () in
+  ignore (Sys.opaque_identity x : t)
+
+let () =
+  create_and_ignore ();
+  check_empty "mode-crossed region"
+
+let[@inline never] allocate_in_exclave a =
+  (* This needs to be a [while] so that we're allowed to have an [exclave_] *)
+  while
+    let pair = local_ opaque_identity (a, a) in
+    let b, _ = pair in
+    let b : int = b in
+    exclave_ (
+      (* This should allocate in the function's region - in particular, the
+         function needs to have one *)
+      let pair = local_ opaque_identity (b, b) in
+      let c, _ = pair in
+      c = 42)
+  do
+    ()
+  done
+
+let () =
+  let () =
+    (* Temporarily disable this test for flambda1 until it's fixed there *)
+    if not Config.flambda then
+      allocate_in_exclave 1
+  in
+  (* If [allocate_in_exclave] had its region elided, the allocation will have
+     happened in our region instead *)
+  check_empty "allocation from exclave"
 
 let () = Gc.compact ()

@@ -1,0 +1,5 @@
+File "user_error1.ml", line 21, characters 44-67:
+21 | let _malformed_extension_has_payload = () [@jane.erasable.something "no payloads"];;
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Modular syntax attributes are not allowed to have a payload,
+       but "jane.erasable.something" does

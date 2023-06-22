@@ -43,7 +43,7 @@ module IR : sig
             don't exist in Lambda *)
     | Prim of
         { prim : Lambda.primitive;
-          args : simple list;
+          args : simple list list;
           loc : Lambda.scoped_location;
           exn_continuation : exn_continuation option;
           region : Ident.t
@@ -68,7 +68,7 @@ module IR : sig
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
       region : Ident.t;
-      return_arity : Flambda_arity.With_subkinds.t
+      return_arity : Flambda_arity.t
     }
 
   type switch =
@@ -208,7 +208,9 @@ module Acc : sig
 
   val shareable_constants : t -> Symbol.t Static_const.Map.t
 
-  val code : t -> Code.t Code_id.Map.t
+  val code : t -> Code.t Code_id.Lmap.t
+
+  val code_map : t -> Code.t Code_id.Map.t
 
   val free_names : t -> Name_occurrences.t
 
@@ -296,7 +298,7 @@ module Function_decls : sig
       function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
       params:(Ident.t * Flambda_kind.With_subkind.t) list ->
-      return:Flambda_arity.With_subkinds.t ->
+      return:Flambda_arity.t ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
       my_region:Ident.t ->
@@ -318,7 +320,7 @@ module Function_decls : sig
 
     val params : t -> (Ident.t * Flambda_kind.With_subkind.t) list
 
-    val return : t -> Flambda_arity.With_subkinds.t
+    val return : t -> Flambda_arity.t
 
     val return_continuation : t -> Continuation.t
 

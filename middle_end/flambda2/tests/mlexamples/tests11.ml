@@ -10,7 +10,7 @@ and 'a t = unit -> 'a node
    satisfy the check on the shape of the code age relation (see
    [Simplify_common]). *)
 
-let[@inlined always] bar map_foo =
+let[@inline always] bar map_foo =
   ();
   fun () -> (map_foo [@inlined never]) (fun x -> x) (fun () -> Nil) ()
 
