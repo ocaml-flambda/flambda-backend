@@ -151,6 +151,7 @@ let allocate_free_register num_stack_slots i =
 
 let allocate_blocked_register num_stack_slots i =
   let cl = Proc.register_class i.reg in
+  let sibling_classes = Proc.sibling_classes cl in 
   let ci = active.(cl) in
   match ci.ci_active with
   | ilast :: il when
@@ -165,7 +166,13 @@ let allocate_blocked_register num_stack_slots i =
       (* Use register from last interval for current interval *)
       i.reg.loc <- ilast.reg.loc;
       (* Remove the last interval from active and insert the current *)
-      ci.ci_active <- insert_interval_sorted i il;
+      Array.iter (fun sibling_class ->
+        let sib = active.(sibling_class) in 
+        match sib.ci_active with 
+        | silast :: sil -> 
+          assert (silast = ilast);
+          sib.ci_active <- insert_interval_sorted i sil
+        | _ -> assert false) sibling_classes;
       (* Now get a new stack slot for the spilled register *)
       allocate_stack_slot num_stack_slots ilast
   | _ ->

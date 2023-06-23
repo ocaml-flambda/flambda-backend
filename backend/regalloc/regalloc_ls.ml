@@ -185,21 +185,31 @@ let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
  fun state interval ->
   let reg = interval.reg in
   let reg_class = Proc.register_class reg in
-  let intervals = State.active state ~reg_class in
+  let sibling_classes = Proc.sibling_classes reg_class in
+  let cl_intervals = State.active_classes state in
+  let intervals = cl_intervals.(reg_class) in
   match intervals.active with
-  | hd :: tl ->
+  | hd :: _ ->
     let chk r =
-      assert (same_reg_class r.Interval.reg hd.Interval.reg);
+      assert (interfering_reg_class r.Interval.reg hd.Interval.reg);
       Reg.same_loc r.Interval.reg hd.Interval.reg && Interval.overlap r interval
     in
     if hd.end_ > interval.end_
        && not
-            (List.exists ~f:chk intervals.fixed
-            || List.exists ~f:chk intervals.inactive)
+            (Array.exists sibling_classes ~f:(fun sibling_class ->
+                 let intervals = cl_intervals.(sibling_class) in
+                 List.exists ~f:chk intervals.fixed
+                 || List.exists ~f:chk intervals.inactive))
     then (
       (match hd.reg.loc with Reg _ -> () | Stack _ | Unknown -> assert false);
       interval.reg.loc <- hd.reg.loc;
-      intervals.active <- Interval.List.insert_sorted tl interval;
+      Array.iter sibling_classes ~f:(fun sibling_class ->
+          let intervals = cl_intervals.(sibling_class) in
+          match intervals.active with
+          | sib_hd :: sib_tl ->
+            assert (sib_hd = hd);
+            intervals.active <- Interval.List.insert_sorted sib_tl interval
+          | _ -> assert false);
       allocate_stack_slot hd.reg)
     else allocate_stack_slot reg
   | [] -> allocate_stack_slot reg
