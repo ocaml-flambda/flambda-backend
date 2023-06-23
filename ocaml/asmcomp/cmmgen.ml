@@ -124,6 +124,8 @@ let get_field env layout ptr n dbg =
     | Pvalue Pintval | Punboxed_int _ -> Word_int
     | Pvalue _ -> Word_val
     | Punboxed_float -> Double
+    | Punboxed_vector _ -> 
+      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
     | Ptop ->
         Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
     | Pbottom ->
@@ -228,6 +230,8 @@ let emit_structured_constant ((_sym, is_global) as symb) cst cont =
       emit_int64_constant symb n cont
   | Uconst_nativeint n ->
       emit_nativeint_constant symb n cont
+  | Uconst_vec128 _ -> 
+    Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
   | Uconst_block (tag, csts) ->
       let cont = List.fold_right emit_constant csts cont in
       emit_block symb (block_header tag (List.length csts)) cont
@@ -838,6 +842,8 @@ and transl_ccall env prim args dbg =
           | Pint32 -> XInt32
           | Pint64 -> XInt64 in
         (xty, transl_unbox_int dbg env bi arg)
+    | Unboxed_vector _ -> 
+      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
     | Untagged_int ->
         (XInt, untag_int (transl env arg) dbg)
   in
@@ -863,6 +869,8 @@ and transl_ccall env prim args dbg =
         ([|Int; Int|], box_int dbg Pint64 alloc_heap)
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
+    | _, Unboxed_vector _ -> 
+      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
   wrap_result
@@ -1236,7 +1244,9 @@ and transl_let_value env str (kind : Lambda.value_kind) id exp transl_body =
         Boxed (Boxed_float (alloc_heap, dbg), false)
     | Mutable, Pboxedintval bi ->
         Boxed (Boxed_integer (bi, alloc_heap, dbg), false)
-    | _, (Pfloatval | Pboxedintval _) ->
+    | Mutable, Pboxedvectorval _ -> 
+      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+    | _, (Pfloatval | Pboxedintval _ | Pboxedvectorval _) ->
         (* It would be safe to always unbox in this case, but
            we do it only if this indeed allows us to get rid of
            some allocations in the bound expression. *)
@@ -1282,7 +1292,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
          there may be constant closures inside that need lifting out. *)
       let _cbody : expression = transl_body env in
       cexp
-  | Punboxed_float | Punboxed_int _ -> begin
+  | Punboxed_float | Punboxed_int _ | Punboxed_vector _ -> begin
       let cexp = transl env exp in
       let cbody = transl_body env in
       match str with

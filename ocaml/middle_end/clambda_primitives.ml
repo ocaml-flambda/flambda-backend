@@ -158,6 +158,7 @@ and value_kind = Lambda.value_kind =
       non_consts : (int * value_kind list) list;
     }
   | Parrayval of array_kind
+  | Pboxedvectorval of boxed_vector 
 
 and layout = Lambda.layout =
   | Ptop
