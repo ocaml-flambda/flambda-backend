@@ -636,6 +636,16 @@ Error: This value escapes its region
         Adding 1 more argument will make the value non-local
 |}]
 
+(* The fixed version. Note that in the printed type, local returning is implicit
+    *)
+let bug4_fixed : local_ (string -> foo:string -> unit) -> local_ (string -> unit) =
+  fun f -> local_ f ~foo:"hello"
+[%%expect{|
+val bug4_fixed : local_ (string -> foo:string -> unit) -> string -> unit =
+  <fun>
+|}]
+
+
 let bug4' () =
   let local_ f arg ~foo = () in
   let local_ perm ~foo = f ~foo in
@@ -763,7 +773,7 @@ val baduse : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c lazy_t = <fun>
 Line 2, characters 20-45:
 2 | let result = baduse (fun a b -> local_ (a,b)) 1 2
                         ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function is local returning, but was expected otherwise
+Error: This function is local-returning, but was expected otherwise
 |}]
 
 
@@ -1383,6 +1393,39 @@ let foo () =
 val foo : unit -> int = <fun>
 |}]
 
+(* tail-calling local-returning functions make the current function
+   local-returning as well; mode-crossing is irrelavent here. Whether or not the
+   function actually allocates in parent-region is also irrelavent here, but we
+   allocate just to demonstrate the potential leaking. *)
+let foo () = local_
+  let _ = local_ (52, 24) in
+  42
+[%%expect{|
+val foo : unit -> local_ int = <fun>
+|}]
+
+let bar () =
+  let _x = 52 in
+  foo ()
+[%%expect{|
+val bar : unit -> local_ int = <fun>
+|}]
+
+(* if not at tail, then not affected *)
+let bar' () =
+  let _x = foo () in
+  52
+[%%expect{|
+val bar' : unit -> int = <fun>
+|}]
+
+(* nontail attribute works as well *)
+let bar' () =
+  foo () [@nontail]
+[%%expect{|
+val bar' : unit -> int = <fun>
+|}]
+
 (* Parameter modes must be matched by the type *)
 
 let foo : 'a -> unit = fun (local_ x) -> ()
@@ -1406,7 +1449,7 @@ let foo : unit -> string = fun () -> local_ "hello"
 Line 1, characters 27-51:
 1 | let foo : unit -> string = fun () -> local_ "hello"
                                ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function is local returning, but was expected otherwise
+Error: This function is local-returning, but was expected otherwise
 |}]
 
 (* Unboxed type constructors do not affect regionality *)
