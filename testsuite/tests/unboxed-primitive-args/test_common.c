@@ -13,32 +13,42 @@
 /*                                                                        */
 /**************************************************************************/
 
-#ifndef __TEST_COMMON_H
-#define __TEST_COMMON_H
+#include <caml/mlvalues.h>
+#include <caml/bigarray.h>
+#include <smmintrin.h>
+#include <emmintrin.h>
 
-/* Where the OCaml side stores the arguments and result for a test
-   case. The C function will read the result it is supposed to return
-   from this buffer.
+char *ocaml_buffer;
+char *c_buffer;
 
-   Argument [n] is stored at [n * 8] and the result is stored at
-   [arity * 8].
-*/
-extern char *ocaml_buffer;
+value test_set_buffers(value v_ocaml_buffer, value v_c_buffer)
+{
+  ocaml_buffer = Caml_ba_data_val(v_ocaml_buffer);
+  c_buffer = Caml_ba_data_val(v_c_buffer);
+  return Val_unit;
+}
 
-/* Where the C function stores the arguments it receive for a test
-   case. The OCaml side will store the result from the C function in
-   this buffer. At the of a test case, both these buffers must be
-   equal. */
-extern char *c_buffer;
+value test_cleanup_normal(void)
+{
+  return Val_int(0);
+}
 
-#define get_intnat(n) *(intnat*)(ocaml_buffer+((n)*8))
-#define get_int32(n) *(int32_t*)(ocaml_buffer+((n)*8))
-#define get_int64(n) *(int64_t*)(ocaml_buffer+((n)*8))
-#define get_double(n) *(double*)(ocaml_buffer+((n)*8))
+double test_cleanup_float(void)
+{
+  return 0.;
+}
 
-#define set_intnat(n, x) *(intnat*)(c_buffer+((n)*8)) = (x)
-#define set_int32(n, x) *(int32_t*)(c_buffer+((n)*8)) = (x)
-#define set_int64(n, x) *(int64_t*)(c_buffer+((n)*8)) = (x)
-#define set_double(n, x) *(double*)(c_buffer+((n)*8)) = (x)
+int64_t vec128_low_int64(__m128i v) 
+{
+  return _mm_extract_epi64(v, 0);
+}
 
-#endif /* __TEST_COMMON_H */
+int64_t vec128_high_int64(__m128i v) 
+{
+  return _mm_extract_epi64(v, 1);
+}
+
+__m128i vec128_of_int64s(int64_t low, int64_t high) 
+{
+  return _mm_set_epi64x(high, low); 
+}

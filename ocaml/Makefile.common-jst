@@ -198,6 +198,9 @@ install_for_test: _install
 	 # replace backend-specific testsuite/tests/asmgen with their new versions
 	rm _runtest/testsuite/tests/asmgen/*
 	cp -a testsuite/tests/asmgen/* _runtest/testsuite/tests/asmgen/
+	 # replace backend-specific testsuite/tests/unboxed-primitive-args with their new versions
+	rm _runtest/testsuite/tests/unboxed-primitive-args/*
+	cp -a testsuite/tests/unboxed-primitive-args/* _runtest/testsuite/tests/unboxed-primitive-args/
 
 	cp $(ocamldir)/Makefile.* _runtest/
 
