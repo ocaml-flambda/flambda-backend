@@ -18,6 +18,15 @@ let[@inline never] combine v0 v1 =
   vec128_of_int64s (Int64.add l0 l1) (Int64.add h0 h1)
 ;;
 
+let[@inline never] combine_with_floats v0 f0 v1 f1 = 
+  let l0, h0 = vec128_low_int64 v0, vec128_high_int64 v0 in 
+  let l1, h1 = vec128_low_int64 v1, vec128_high_int64 v1 in 
+  let l, h = Int64.add l0 l1, Int64.add h0 h1 in 
+  let l = Int64.add (Int64.of_float f0) l in
+  let h = Int64.add (Int64.of_float f1) h in
+  vec128_of_int64s l h
+;;
+
 (* Identity *)
 let () = 
   let v = vec128_of_int64s 1L 2L in 
@@ -41,6 +50,31 @@ let () =
   check v 4L 6L
 ;;
 
+(* Pass to function (inlined) *)
+let () = 
+  let v0 = vec128_of_int64s 1L 2L in 
+  let v1 = vec128_of_int64s 3L 4L in 
+  let v = (combine[@inlined]) v0 v1 in 
+  check v 4L 6L
+;;
+
+(* Pass to function with floats *)
+let () = 
+  let v0 = vec128_of_int64s 1L 2L in 
+  let v1 = vec128_of_int64s 3L 4L in 
+  let f0 = Sys.opaque_identity 5. in 
+  let v = combine_with_floats v0 f0 v1 6. in 
+  check v 9L 12L
+;;
+
+(* Pass to function with floats (inlined) *)
+let () = 
+  let v0 = vec128_of_int64s 1L 2L in 
+  let v1 = vec128_of_int64s 3L 4L in 
+  let v = (combine_with_floats[@inlined]) v0 5. v1 6. in 
+  check v 9L 12L
+;;
+
 (* Capture in closure *)
 let () = 
   let v0 = vec128_of_int64s 1L 2L in 
@@ -51,39 +85,56 @@ let () =
   check v 4L 6L 
 ;;
 
-(* More vectors in closure *)
+(* Capture vectors and floats in a closure *)
 let () = 
-  let[@inline never] f v0 v1 v2 v3 = 
-    combine (combine v0 v1) (combine v2 v3) 
+  let[@inline never] f v0 v1 f0 v2 f1 v3 = 
+    combine (combine_with_floats v0 f0 v1 f1) (combine v2 v3) 
   in 
   let v0 = vec128_of_int64s 1L 2L in 
   let v1 = vec128_of_int64s 3L 4L in 
   let v2 = vec128_of_int64s 4L 5L in 
   let v3 = vec128_of_int64s 6L 7L in 
-  let f = f v0 v1 v2 in 
+  let f = f v0 v1 7. v2  in 
   let f = Sys.opaque_identity f in 
-  let v = f v3 in 
-  check v 14L 18L 
+  let v = f 8. v3 in 
+  check v 21L 26L 
+;;
+
+(* Capture vectors and floats in a closure (inlined) *)
+let () = 
+  let[@inline always] f v0 v1 f0 v2 f1 v3 = 
+    (combine[@inlined]) 
+      ((combine_with_floats[@inlined]) v0 f0 v1 f1) 
+      ((combine[@inlined]) v2 v3) 
+  in 
+  let v0 = vec128_of_int64s 1L 2L in 
+  let v1 = vec128_of_int64s 3L 4L in 
+  let v2 = vec128_of_int64s 4L 5L in 
+  let v3 = vec128_of_int64s 6L 7L in 
+  let f = f v0 v1 7. v2 in 
+  let v = f 8. v3 in 
+  check v 21L 26L 
 ;;
 
 (* Store in record *)
 type record = { a : vec128 
-              ; mutable b : vec128 }
+              ; mutable b : vec128
+              ; c : float }
 
 let () = 
-  let record = { a = vec128_of_int64s 1L 2L; b = vec128_of_int64s 3L 4L } in 
+  let record = { a = vec128_of_int64s 1L 2L; b = vec128_of_int64s 3L 4L; c = 5. } in 
   check record.a 1L 2L;
   check record.b 3L 4L;
   let record = Sys.opaque_identity record in 
   record.b <- vec128_of_int64s 5L 6L;
   check record.a 1L 2L;
   check record.b 5L 6L;
-  let v = combine record.a record.b in 
-  check v 6L 8L
+  let v = combine_with_floats record.a record.c record.b 6. in 
+  check v 11L 14L
 ;;
 
 (* Store in variant *)
-type variant = A of vec128 | B of vec128 | C
+type variant = A of vec128 | B of vec128 | C of float
 
 let () = 
   let variant = A (vec128_of_int64s 1L 2L) in 
@@ -91,7 +142,7 @@ let () =
   match variant with 
   | A v -> check v 1L 2L
   | _ -> print_endline "fail";
-  let variant = ref C in 
+  let variant = ref (C 5.) in 
   let variant = Sys.opaque_identity variant in 
   variant := B (vec128_of_int64s 3L 4L);
   match !variant with 
