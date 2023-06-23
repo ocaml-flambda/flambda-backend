@@ -2553,7 +2553,9 @@ expr:
         let let_ = {pbop_op; pbop_pat; pbop_exp; pbop_loc} in
         mkexp ~loc:$sloc (Pexp_letop{ let_; ands; body}) }
   | expr COLONCOLON expr
-      { mkexp_cons ~loc:$sloc $loc($2) (ghexp ~loc:$sloc (Pexp_tuple([None,$1;None,$3]))) }
+      { mkexp_cons
+          ~loc:$sloc $loc($2)
+          (ghexp ~loc:$sloc (Pexp_tuple([None, $1; None, $3]))) }
   | mkrhs(label) LESSMINUS expr
       { mkexp ~loc:$sloc (Pexp_setinstvar($1, $3)) }
   | simple_expr DOT mkrhs(label_longident) LESSMINUS expr
@@ -3132,7 +3134,8 @@ pattern_no_exn:
 
 %inline pattern_(self):
   | self COLONCOLON pattern
-      { mkpat_cons ~loc:$sloc $loc($2) (ghpat ~loc:$sloc (Ppat_tuple[None,$1;None,$3])) }
+      { mkpat_cons ~loc:$sloc $loc($2)
+          (ghpat ~loc:$sloc (Ppat_tuple[None,$1;None,$3])) }
   | self attribute
       { Pat.attr $1 $2 }
   | pattern_gen
@@ -3145,7 +3148,7 @@ pattern_no_exn:
     (* CR labeled tuples: merge the below two cases *)
     | pattern_comma_list(self) %prec below_COMMA
         { Ppat_tuple(List.rev_map (fun p -> None, p) $1) }
-    | TILDETILDELPAREN labeled_pattern_comma_list(self) RPAREN // %prec below_COMMA
+    | TILDETILDELPAREN labeled_pattern_comma_list(self) RPAREN
         { Ppat_tuple(List.rev $2) }
     | self COLONCOLON error
         { expecting $loc($3) "pattern" }
@@ -3869,7 +3872,7 @@ tuple_type:
   | TILDETILDELPAREN mktyp(
       labeled_tys = separated_nontrivial_llist(STAR, labeled_atomic_type)
         { Ptyp_tuple labeled_tys }
-  ) RPAREN
+    ) RPAREN
       { $2 }
 ;
 

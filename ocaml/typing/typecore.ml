@@ -2415,6 +2415,9 @@ and type_pat_aux
             List.map
             (fun (label, p) ->
               if Option.is_some label then
+                (* CR labeled tuples: is this the best error to give?
+                   It's a bit unexpected because a constructor can take a
+                   labeled tuple for a single arg. *)
                 raise(Error(loc, !env, Constructor_labeled_arg));
               p)
             spl

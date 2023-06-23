@@ -514,7 +514,11 @@ and transl_type_aux env policy mode styp =
       loop mode args
   | Ptyp_tuple stl ->
     assert (List.length stl >= 2);
-    let labeled_ctys = List.map (fun (label, t) -> label, transl_type env policy Alloc_mode.Global t) stl in
+    let labeled_ctys =
+      List.map
+        (fun (label, t) -> label, transl_type env policy Alloc_mode.Global t)
+        stl
+    in
     List.iter (fun (_, {ctyp_type; ctyp_loc}) ->
       (* CR layouts v5: remove value requirement *)
       match
@@ -527,8 +531,12 @@ and transl_type_aux env policy mode styp =
                      Non_value {vloc = Tuple; err = e; typ = ctyp_type})))
       labeled_ctys;
     (* CR labeled tuples: handle labeled tuple type expressions *)
-    let ty = newty (Ttuple (List.map (fun (label, ctyp) -> label, ctyp.ctyp_type) labeled_ctys)) in
-    ctyp (Ttyp_tuple (List.map snd labeled_ctys)) ty
+    let ty =
+      newty 
+        (Ttuple
+          (List.map (fun (label, ctyp) -> label, ctyp.ctyp_type) labeled_ctys))
+    in
+    ctyp (Ttyp_tuple labeled_ctys) ty
   | Ptyp_constr(lid, stl) ->
       let (path, decl) = Env.lookup_type ~loc:lid.loc lid.txt env in
       let stl =

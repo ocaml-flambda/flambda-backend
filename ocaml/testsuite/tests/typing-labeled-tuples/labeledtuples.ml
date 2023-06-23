@@ -205,7 +205,8 @@ Line 1, characters 4-23:
 Error: Labeled tuple patterns are not yet supported
 |}]
 
-(* Labeled tuple pattern in constructor pattern *)
+(* Labeled tuple pattern in constructor pattern, with the same arity as the
+   constructor. This is intentionally disallowed. *)
 let f = function
 | Pair (~~(~x=5; 2)) -> true
 | _ -> false
@@ -216,7 +217,10 @@ Line 2, characters 2-20:
 Error: Constructors cannot have labeled arguments. Consider using an inline record instead.
 |}]
 
-(* Labeled tuple pattern in constructor pattern *)
+(* Labeled tuple patterns in constructor patterns with that can union with the
+   constructor pattern type.
+   
+   CR labeled tuples: these should eventually work. *)
 let f = function
 | Some (~~(~x=5; 2)) -> true
 | _ -> false
@@ -224,6 +228,19 @@ let f = function
 Line 2, characters 7-20:
 2 | | Some (~~(~x=5; 2)) -> true
            ^^^^^^^^^^^^^
+Error: Labeled tuple patterns are not yet supported
+|}]
+
+
+type t = Foo of (~~(x:int * int))
+let f = function
+| Foo (~~(~x=5; 2)) -> true
+| _ -> false
+[%%expect{|
+type t = Foo of (x:int * int)
+Line 3, characters 6-19:
+3 | | Foo (~~(~x=5; 2)) -> true
+          ^^^^^^^^^^^^^
 Error: Labeled tuple patterns are not yet supported
 |}]
 

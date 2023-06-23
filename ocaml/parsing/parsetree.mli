@@ -240,8 +240,9 @@ and pattern_desc =
   | Ppat_tuple of (string option * pattern) list
       (** [Ppat_tuple(pl)] represents
            - [(P1, ..., Pn)]       when [pl] is [(None, P1);...;(None, Pn)]
-           - [(L1:P1, ..., Ln:Pn)] when [pl] is [(Some L1,P1);...;(Some Ln,Pn)]
-           - Any mix, e.g. [(L1: P1, P2)] when [pl] is [(Some L1,P1);(None,P2)]
+           - [(L1:P1, ..., Ln:Pn)] when [pl] is
+                                               [(Some L1, P1);...;(Some Ln, Pn)]
+           - Any mix, e.g. [(L1:P1, P2)] when [pl] is [(Some L1, P1);(None, P2)]
 
            Invariant: [n >= 2]
         *)
@@ -356,9 +357,12 @@ and expression_desc =
       (** [try E0 with P1 -> E1 | ... | Pn -> En] *)
   | Pexp_tuple of (string option * expression) list
       (** [Pexp_tuple(el)] represents
-           - [(E1, ..., En)]       when [el] is [(None, E1);...;(None, En)],
-           - [(L1:E1, ..., Ln:En)] when [el] is [(Some L1, E1);...;(Some Ln, En)],
-           - Any mix, e.g. [(L1: E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
+           - [(E1, ..., En)]
+               when [el] is [(None, E1);...;(None, En)]
+           - [(~L1:E1, ..., ~Ln:En)]
+               when [el] is [(Some L1, E1);...;(Some Ln, En)]
+           - Any mix, e.g.:
+               [(~L1:E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
 
            Invariant: [n >= 2]
         *)
