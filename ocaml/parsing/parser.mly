@@ -281,7 +281,8 @@ let rec mktailpat nilloc = let open Location in function
   | p1 :: pl ->
       let pat_pl, el_loc = mktailpat nilloc pl in
       let loc = (p1.ppat_loc.loc_start, snd el_loc) in
-      let arg = ghpat ~loc (Ppat_tuple [None, p1; None, ghpat ~loc:el_loc pat_pl]) in
+      let arg =
+        ghpat ~loc (Ppat_tuple [None, p1; None, ghpat ~loc:el_loc pat_pl]) in
       ghpat_cons_desc loc arg, loc
 
 let mkstrexp e attrs =
