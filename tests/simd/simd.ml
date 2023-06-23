@@ -1,0 +1,186 @@
+open Stdlib
+
+external vec128_of_int64s : int64 -> int64 -> vec128 = "" "vec128_of_int64s" [@@noalloc] [@@unboxed] 
+external vec128_low_int64 : vec128 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
+external vec128_high_int64 : vec128 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
+
+let eq l r = if l <> r then Printf.printf "%Ld <> %Ld\n" l r 
+
+let[@inline never] check v l h = 
+  let vl, vh = vec128_low_int64 v, vec128_high_int64 v in 
+  eq vl l; 
+  eq vh h
+;;
+
+let[@inline never] combine v0 v1 = 
+  let l0, h0 = vec128_low_int64 v0, vec128_high_int64 v0 in 
+  let l1, h1 = vec128_low_int64 v1, vec128_high_int64 v1 in 
+  vec128_of_int64s (Int64.add l0 l1) (Int64.add h0 h1)
+;;
+
+(* Identity *)
+let () = 
+  let v = vec128_of_int64s 1L 2L in 
+  let v = Sys.opaque_identity v in 
+  check v 1L 2L 
+;;
+
+(* Identity fn *)
+let () = 
+  let v = vec128_of_int64s 1L 2L in 
+  let[@inline never] id v = v in 
+  let v = id v in 
+  check v 1L 2L 
+;;
+
+(* Pass to function *)
+let () = 
+  let v0 = vec128_of_int64s 1L 2L in 
+  let v1 = vec128_of_int64s 3L 4L in 
+  let v = combine v0 v1 in 
+  check v 4L 6L
+;;
+
+(* Capture in closure *)
+let () = 
+  let v0 = vec128_of_int64s 1L 2L in 
+  let v1 = vec128_of_int64s 3L 4L in 
+  let f = combine v0 in 
+  let f = Sys.opaque_identity f in 
+  let v = f v1 in 
+  check v 4L 6L 
+;;
+
+(* More vectors in closure *)
+let () = 
+  let[@inline never] f v0 v1 v2 v3 = 
+    combine (combine v0 v1) (combine v2 v3) 
+  in 
+  let v0 = vec128_of_int64s 1L 2L in 
+  let v1 = vec128_of_int64s 3L 4L in 
+  let v2 = vec128_of_int64s 4L 5L in 
+  let v3 = vec128_of_int64s 6L 7L in 
+  let f = f v0 v1 v2 in 
+  let f = Sys.opaque_identity f in 
+  let v = f v3 in 
+  check v 14L 18L 
+;;
+
+(* Store in record *)
+type record = { a : vec128 
+              ; mutable b : vec128 }
+
+let () = 
+  let record = { a = vec128_of_int64s 1L 2L; b = vec128_of_int64s 3L 4L } in 
+  check record.a 1L 2L;
+  check record.b 3L 4L;
+  let record = Sys.opaque_identity record in 
+  record.b <- vec128_of_int64s 5L 6L;
+  check record.a 1L 2L;
+  check record.b 5L 6L;
+  let v = combine record.a record.b in 
+  check v 6L 8L
+;;
+
+(* Store in variant *)
+type variant = A of vec128 | B of vec128 | C
+
+let () = 
+  let variant = A (vec128_of_int64s 1L 2L) in 
+  let variant = Sys.opaque_identity variant in 
+  match variant with 
+  | A v -> check v 1L 2L
+  | _ -> print_endline "fail";
+  let variant = ref C in 
+  let variant = Sys.opaque_identity variant in 
+  variant := B (vec128_of_int64s 3L 4L);
+  match !variant with 
+  | B v -> check v 3L 4L
+  | _ -> print_endline "fail"
+;;
+
+(* Pass boxed vectors to an external *)
+external boxed_combine : vec128 -> vec128 -> vec128 = "" "boxed_combine" [@@noalloc]
+
+let () = 
+  let v0 = vec128_of_int64s 1L 2L in 
+  let v1 = vec128_of_int64s 3L 4L in 
+  let v = boxed_combine v0 v1 in 
+  check v 4L 6L
+;;
+
+(* Pass lots of vectors to an external *)
+external lots_of_vectors : 
+  vec128 -> vec128 -> vec128 -> vec128 -> vec128 -> vec128 -> vec128 -> vec128 ->
+  vec128 -> vec128 -> vec128 -> vec128 -> vec128 -> vec128 -> vec128 -> vec128 -> 
+  vec128 
+  = "" "lots_of_vectors" [@@noalloc] [@@unboxed]
+
+let () = 
+    let v0 = vec128_of_int64s 1L 2L in 
+    let v1 = vec128_of_int64s 3L 4L in 
+    let v2 = vec128_of_int64s 5L 6L in 
+    let v3 = vec128_of_int64s 7L 8L in 
+    let v4 = vec128_of_int64s 9L 10L in 
+    let v5 = vec128_of_int64s 11L 12L in 
+    let v6 = vec128_of_int64s 13L 14L in 
+    let v7 = vec128_of_int64s 15L 16L in 
+    let v8 = vec128_of_int64s 17L 18L in 
+    let v9 = vec128_of_int64s 19L 20L in 
+    let v10 = vec128_of_int64s 21L 22L in 
+    let v11 = vec128_of_int64s 23L 24L in 
+    let v12 = vec128_of_int64s 25L 26L in 
+    let v13 = vec128_of_int64s 27L 28L in 
+    let v14 = vec128_of_int64s 29L 30L in 
+    let v15 = vec128_of_int64s 31L 32L in 
+    let v = lots_of_vectors v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15 in 
+    check v 256L 272L
+;;
+
+(* Pass mixed floats/vectors to an external *)
+external vectors_and_floats : 
+  vec128 -> float -> vec128 -> float -> vec128 -> float -> vec128 -> float ->
+  float -> vec128 -> vec128 -> float -> float -> vec128 -> vec128 -> float ->
+  float -> float -> vec128 -> vec128 -> vec128 -> float -> float -> float ->
+  vec128 
+  = "" "vectors_and_floats" [@@noalloc] [@@unboxed]
+
+let () = 
+  let v0 = vec128_of_int64s 1L 2L in 
+  let v1 = vec128_of_int64s 3L 4L in 
+  let v2 = vec128_of_int64s 5L 6L in 
+  let v3 = vec128_of_int64s 7L 8L in 
+  let v4 = vec128_of_int64s 9L 10L in 
+  let v5 = vec128_of_int64s 11L 12L in 
+  let v6 = vec128_of_int64s 13L 14L in 
+  let v7 = vec128_of_int64s 15L 16L in 
+  let v8 = vec128_of_int64s 17L 18L in 
+  let v9 = vec128_of_int64s 19L 20L in 
+  let v10 = vec128_of_int64s 21L 22L in 
+  let v = vectors_and_floats v0 23. v1 24. v2 25. v3 26. 27. v4 v5 28. 29. v6 v7 30. 31. 32. v8 v9 v10 33. 34. 35. in 
+  check v 377L 253L
+;;
+
+(* Pass mixed ints/floats/vectors to an external *)
+external vectors_and_floats_and_ints : 
+  vec128 -> float -> vec128 -> int64 -> vec128 -> float -> vec128 -> int64 ->
+  int64 -> vec128 -> vec128 -> float -> float -> vec128 -> vec128 -> int64 ->
+  int64 -> float -> vec128 -> vec128 -> vec128 -> int64 -> int64 -> float ->
+  vec128 
+  = "" "vectors_and_floats_and_ints" [@@noalloc] [@@unboxed]
+
+let () = 
+  let v0 = vec128_of_int64s 1L 2L in 
+  let v1 = vec128_of_int64s 3L 4L in 
+  let v2 = vec128_of_int64s 5L 6L in 
+  let v3 = vec128_of_int64s 7L 8L in 
+  let v4 = vec128_of_int64s 9L 10L in 
+  let v5 = vec128_of_int64s 11L 12L in 
+  let v6 = vec128_of_int64s 13L 14L in 
+  let v7 = vec128_of_int64s 15L 16L in 
+  let v8 = vec128_of_int64s 17L 18L in 
+  let v9 = vec128_of_int64s 19L 20L in 
+  let v10 = vec128_of_int64s 21L 22L in 
+  let v = vectors_and_floats_and_ints v0 23. v1 24L v2 25. v3 26L 27L v4 v5 28. 29. v6 v7 30L 31L 32. v8 v9 v10 33L 34L 35. in 
+  check v 377L 253L
+;;
