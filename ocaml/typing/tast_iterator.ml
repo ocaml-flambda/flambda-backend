@@ -462,7 +462,7 @@ let typ sub {ctyp_desc; ctyp_env; _} =
   | Ttyp_arrow (_, ct1, ct2) ->
       sub.typ sub ct1;
       sub.typ sub ct2
-  | Ttyp_tuple list -> List.iter (sub.typ sub) list
+  | Ttyp_tuple list -> List.iter (fun (_, t) -> sub.typ sub t) list
   | Ttyp_constr (_, _, list) ->  List.iter (sub.typ sub) list
   | Ttyp_object (list, _) -> List.iter (sub.object_field sub) list
   | Ttyp_class (_, _, list) -> List.iter (sub.typ sub) list
