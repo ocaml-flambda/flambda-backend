@@ -394,6 +394,106 @@ let simplify_move_within_set_of_closures env r
                 let approx = A.value_closure value_set_of_closures move_to in
                 Move_within_set_of_closures move_within, ret r approx)
 
+let map_body_of_let f lam (let_expr : Flambda.let_expr) =
+  let new_body = f let_expr.body in
+  if new_body == let_expr.body then lam else
+    let named = Flambda.With_free_variables.of_defining_expr_of_let let_expr in
+    Flambda.With_free_variables.create_let_reusing_defining_expr
+      let_expr.var named new_body
+
+let option_map_sharing f opt =
+  match opt with
+  | None -> None
+  | Some a ->
+    let new_a = f a in
+    if new_a == a then opt else Some new_a
+
+let remove_exclaves (lam : Flambda.t) =
+  let rec remove lam ~depth : Flambda.t =
+    match (lam : Flambda.t) with
+    | Region body ->
+      let new_body = remove ~depth:(depth + 1) body in
+      if new_body == body then lam else Region new_body
+    | Exclave body ->
+      if depth = 0 then body
+      else
+        let new_body = remove ~depth:(depth - 1) body in
+        if new_body == body then lam else Exclave new_body
+    | Let let_expr -> map_body_of_let (remove ~depth) lam let_expr
+    | Let_mutable let_mut ->
+      let new_body = remove ~depth let_mut.body in
+      if new_body == let_mut.body then lam else
+        Let_mutable { let_mut with body = new_body }
+    | Let_rec (bindings, body) ->
+      let new_body = remove ~depth body in
+      if new_body == body then lam else Let_rec (bindings, new_body)
+    | If_then_else (cond, ifso, ifnot, layout) ->
+      let new_ifso = remove ~depth ifso in
+      let new_ifnot = remove ~depth ifnot in
+      if new_ifso == ifso && new_ifnot == ifnot then lam else
+        If_then_else (cond, new_ifso, new_ifnot, layout)
+    | Switch (var, switch) ->
+      let new_switch = remove_from_switch ~depth switch in
+      if new_switch == switch then lam else Switch (var, new_switch)
+    | String_switch (var, branches, failaction, layout) ->
+      let new_branches = remove_from_branches ~depth branches in
+      let new_failaction = option_map_sharing (remove ~depth) failaction in
+      if new_branches == branches && new_failaction == failaction then lam
+      else String_switch (var, new_branches, new_failaction, layout)
+    | Static_catch (var, params, body, handler, layout) ->
+      let new_body = remove ~depth body in
+      let new_handler = remove ~depth handler in
+      if new_body == body && new_handler == handler then lam
+      else Static_catch (var, params, new_body, new_handler, layout)
+    | Try_with (body, var, handler, layout) ->
+      let new_body = remove ~depth body in
+      let new_handler = remove ~depth handler in
+      if new_body == body && new_handler == handler then lam
+      else Try_with (new_body, var, new_handler, layout)
+    | Apply apply ->
+      begin match apply.reg_close, depth with
+        | Rc_close_at_apply, 0 ->
+          Apply { apply with reg_close = Rc_normal }
+        | (Rc_normal | Rc_nontail | Rc_close_at_apply), _ ->
+          lam
+      end
+    | Send send ->
+      begin match send.reg_close, depth with
+        | Rc_close_at_apply, 0 ->
+          Send { send with reg_close = Rc_normal }
+        | (Rc_normal | Rc_nontail | Rc_close_at_apply), _ ->
+          lam
+      end
+    | Var _
+    | Assign _
+    | Static_raise (_, _)
+    | While (_, _)
+    | For _
+    | Proved_unreachable -> lam
+  and remove_from_switch (switch : Flambda.switch) ~depth =
+    let new_blocks = remove_from_branches ~depth switch.blocks in
+    let new_consts = remove_from_branches ~depth switch.consts in
+    let new_failaction = option_map_sharing (remove ~depth) switch.failaction in
+    if
+      new_blocks == switch.blocks
+      && new_consts == switch.consts
+      && new_failaction == switch.failaction
+    then switch
+    else { switch with
+           blocks = new_blocks;
+           consts = new_consts;
+           failaction = new_failaction }
+  and remove_from_branches
+      : 'key. ('key * Flambda.t) list -> depth:int -> ('key * Flambda.t) list =
+    fun branches ~depth ->
+      Misc.Stdlib.List.map_sharing
+        (fun ((key, lam) as pair) ->
+           let new_lam = remove lam ~depth in
+           if new_lam == lam then pair else (key, new_lam))
+        branches
+  in
+  remove lam ~depth:0
+
 (* Transform an expression denoting an access to a variable bound in
    a closure.  Variables in the closure ([project_var.closure]) may
    have been freshened since [expr] was constructed; as such, we
@@ -674,11 +774,10 @@ and simplify_set_of_closures original_env r
   let r = ret r (A.value_set_of_closures value_set_of_closures) in
   set_of_closures, r, value_set_of_closures.freshening
 
-and mark_region_used_for_apply ~(reg_close : Lambda.region_close) ~(mode : Lambda.alloc_mode) r =
-  match reg_close, mode with
-  | (Rc_normal | Rc_nontail), Alloc_heap -> r
-  | Rc_close_at_apply, _
-  | _, Alloc_local -> R.set_region_used r
+and mark_region_used_for_apply ~(mode : Lambda.alloc_mode) r =
+  match mode with
+  | Alloc_heap -> r
+  | Alloc_local -> R.set_region_used r
 
 and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
   let {
@@ -686,7 +785,7 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
     inlined = inlined_requested; specialise = specialise_requested;
     probe = probe_requested; result_layout
   } = apply in
-  let r = mark_region_used_for_apply ~reg_close ~mode r in
+  let r = mark_region_used_for_apply ~mode r in
   let dbg = E.add_inlined_debuginfo env ~dbg in
   simplify_free_variable env lhs_of_application
     ~f:(fun env lhs_of_application lhs_of_application_approx ->
@@ -1314,7 +1413,7 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
     let body, r = simplify env r body in
     While (cond, body), ret r (A.value_unknown Other)
   | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
-    let r = mark_region_used_for_apply ~reg_close ~mode r in
+    let r = mark_region_used_for_apply ~mode r in
     let dbg = E.add_inlined_debuginfo env ~dbg in
     simplify_free_variable env meth ~f:(fun env meth _meth_approx ->
       simplify_free_variable env obj ~f:(fun env obj _obj_approx ->
@@ -1460,11 +1559,11 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
      let r = R.enter_region r in
      let body, r = simplify env r body in
      let use_inner_region = R.may_use_region r in
+     let has_exclave = R.has_exclave r in
      let r = R.leave_region r in
      if use_inner_region then Region body, r
-     else body, r
+     else if has_exclave then remove_exclaves body, r else body, r
   | Exclave body ->
-     let r = R.set_region_used r in
      let exclave, r = R.enter_exclave r in
      let body, r = simplify env r body in
      let r = R.leave_exclave r exclave in

@@ -321,6 +321,9 @@ module Result : sig
   (** Whether [set_region_used _] has been called *)
   val may_use_region : t -> bool
 
+  (** Whether [enter_exclave _] has been called *)
+  val has_exclave : t -> bool
+
   (** Mark that we are moving up out of the scope of a static-catch block
       that catches the given static exception identifier.  This has the effect
       of removing the identifier from the [used_staticfail] set. *)

@@ -437,7 +437,7 @@ let initial_inlining_toplevel_threshold ~round : Inlining_cost.Threshold.t =
     (unscaled * Inlining_cost.scale_inline_threshold_by)
 
 module Result = struct
-  type region = { may_be_used : bool; }
+  type region = { may_be_used : bool; has_exclave : bool }
 
   type t =
     { approx : Simple_value_approx.t;
@@ -448,7 +448,7 @@ module Result = struct
       regions : region list;
     }
 
-  let create_region () = { may_be_used = false; }
+  let create_region () = { may_be_used = false; has_exclave = false }
 
   let create () =
     { approx = Simple_value_approx.value_unknown Other;
@@ -490,8 +490,8 @@ module Result = struct
 
   let set_region_used t =
     match t.regions with
-    | _ :: regions ->
-        { t with regions = { may_be_used = true } :: regions }
+    | region :: regions ->
+        { t with regions = { region with may_be_used = true } :: regions }
     | [] -> t
 
   type exclave = { from_region : region }
@@ -499,6 +499,7 @@ module Result = struct
   let enter_exclave t =
     match t.regions with
     | region :: regions ->
+        let region = { region with has_exclave = true } in
         let exclave = { from_region = region } in
         exclave, { t with regions = regions }
     | [] -> no_current_region ()
@@ -511,7 +512,11 @@ module Result = struct
     | region :: _ -> region
     | [] -> no_current_region ()
 
-  let may_use_region t = (current_region t).may_be_used
+  let may_use_region t =
+    (current_region t).may_be_used
+
+  let has_exclave t =
+    (current_region t).has_exclave
 
   let exit_scope_catch t i =
     { t with
