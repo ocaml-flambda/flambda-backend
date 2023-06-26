@@ -19,7 +19,7 @@ keyword, and no local allocations will be performed.
 
 These values live on a separate stack, and are popped off at the end
 of the _region_. Generally, the region ends when the surrounding
-function returns, although read [the reference](local-reference.md) for more
+function returns, although read [the reference](reference.md) for more
 details.
 
 This helps performance in a couple of ways: first, the same few hot
@@ -125,31 +125,31 @@ There are a number of other features that allow more precise control
 over which values are locally allocated, including:
 
   - **Local closures**:
-  
+
     ```
     let local_ f a b c = ...
     ```
-    
+
     defines a function `f` whose closure is itself locally allocated.
-    
+
   - **Local-returning functions**
-  
+
     ```
     let f a b c = local_
       ...
     ```
-    
+
     defines a function `f` which returns local allocations into its
     caller's region.
-    
+
   - **Global fields**
-  
+
     ```
     type 'a t = { global_ g : 'a }
     ```
-    
+
     defines a record type `t` whose `g` field is always known to be on
     the GC heap (and may therfore freely escape regions), even though
     the record itself may be locally allocated.
 
-For more details, read [the reference](./local-reference.md).
+For more details, read [the reference](./reference.md).

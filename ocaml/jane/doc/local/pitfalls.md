@@ -13,7 +13,7 @@ Many OCaml functions just happen to end in a tail call, even those
 that are not intentionally tail-recursive. To preserve the
 constant-space property of tail calls, the compiler applies special
 rules around local allocations in tail calls (see [the
-reference](./local-reference.md)).
+reference](./reference.md)).
 
 If this causes a problem for calls that just happen to be in tail
 position, the easiest workaround is to prevent them from being

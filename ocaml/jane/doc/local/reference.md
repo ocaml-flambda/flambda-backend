@@ -2,7 +2,7 @@
 
 The goal of this document is to be a reasonably complete reference to local
 allocations in OCaml. For a gentler introduction, see [the
-introduction](local-intro.md).
+introduction](intro.md).
 
 When local allocations are enabled with the `-extension local` flag, the
 compiler may locally allocate some values, placing them on a stack rather than
