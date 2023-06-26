@@ -1973,7 +1973,8 @@ let rec has_literal_pattern p =
   | Ppat_lazy p
   | Ppat_open (_, p) ->
      has_literal_pattern p
-  | Ppat_tuple ps
+  | Ppat_tuple labeled_ps ->
+     List.exists (fun (_, p) -> has_literal_pattern p) labeled_ps
   | Ppat_array ps ->
      List.exists has_literal_pattern ps
   | Ppat_record (ps, _) ->
@@ -2422,6 +2423,13 @@ and type_pat_aux
   | Ppat_interval _ ->
       raise (Error (loc, !env, Invalid_interval))
   | Ppat_tuple spl ->
+      (* CR labeled tuple: handle labeled tuple patterns appropriately *)
+      List.iter
+        (function
+        | (None, _) -> ()
+        | (Some _, _) -> raise(Error(loc, !env, Unsupported_labeled_tuple)))
+        spl;
+      let spl = List.map snd spl in 
       let spl_ann = solve_Ppat_tuple ~refine ~alloc_mode loc env spl expected_ty in
       map_fold_cont
         (fun (p,t,alloc_mode) -> type_pat tps Value ~alloc_mode p t)
@@ -2430,7 +2438,6 @@ and type_pat_aux
         rvp k {
         pat_desc = Tpat_tuple pl;
         pat_loc = loc; pat_extra=[];
-        (* CR labeled tuple: handle labeled tuple patterns appropriately *)
         pat_type = newty (Ttuple(List.map (fun p -> None, p.pat_type) pl));
         pat_attributes = sp.ppat_attributes;
         pat_env = !env })
@@ -2485,7 +2492,16 @@ and type_pat_aux
         | Some {ppat_desc = Ppat_tuple spl} when
             constr.cstr_arity > 1 ||
             Builtin_attributes.explicit_arity sp.ppat_attributes
-          -> spl
+          ->
+            List.map
+            (fun (label, p) ->
+              if Option.is_some label then
+                (* CR labeled tuples: is this the best error to give?
+                   It's a bit unexpected because a constructor can take a
+                   labeled tuple for a single arg. *)
+                raise(Error(loc, !env, Constructor_labeled_arg));
+              p)
+            spl
         | Some({ppat_desc = Ppat_any} as sp) when
             constr.cstr_arity = 0 && existential_styp = None
           ->
@@ -3620,8 +3636,7 @@ let rec approx_type env sty =
       let mret = Alloc_mode.newvar () in
       newty (Tarrow ((p,marg,mret), newmono arg, ret, commu_ok))
   | Ptyp_tuple args ->
-      (* CR labeled tuple: handle labeled tuple type expressions appropriately *)
-      newty (Ttuple (List.map (fun t -> None, approx_type env t) args))
+      newty (Ttuple (List.map (fun (label, t) -> label, approx_type env t) args))
   | Ptyp_constr (lid, ctl) ->
       let path, decl = Env.lookup_type ~use:false ~loc:lid.loc lid.txt env in
       if List.length ctl <> decl.type_arity
@@ -3977,7 +3992,7 @@ let shallow_iter_ppat f p =
   | Ppat_array pats -> List.iter f pats
   | Ppat_or (p1,p2) -> f p1; f p2
   | Ppat_variant (_, arg) -> Option.iter f arg
-  | Ppat_tuple lst ->  List.iter f lst
+  | Ppat_tuple lst ->  List.iter (fun (_,p) -> f p) lst
   | Ppat_construct (_, Some (_, p))
   | Ppat_exception p | Ppat_alias (p,_)
   | Ppat_open (_,p)
@@ -5544,7 +5559,7 @@ and type_expect_
             (* CR layouts v5: eliminate value requirement *)
             let ty = newvar (Layout.value ~why:Tuple_element) in
             let loc = Location.ghostify slet.pbop_op.loc in
-            let spat_acc = Ast_helper.Pat.tuple ~loc [spat_acc; spat] in
+            let spat_acc = Ast_helper.Pat.tuple ~loc [None, spat_acc; None, spat] in
             let ty_acc = newty (Ttuple [None, ty_acc; None, ty]) in
             loop spat_acc ty_acc Sort.value rest
       in
@@ -7946,7 +7961,7 @@ let report_error ~loc env = function
        longident lid expected provided
   | Constructor_labeled_arg ->
       Location.errorf ~loc
-       "Constructors cannot receive labeled arguments. \
+       "Constructors cannot have labeled arguments. \
         Consider using an inline record instead."
   | Label_mismatch(lid, err) ->
       report_unification_error ~loc env err
@@ -8440,7 +8455,7 @@ let report_error ~loc env = function
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Unsupported_labeled_tuple ->
       Location.errorf ~loc
-        "Labeled tuples are not yet supported"
+        "Labeled tuple patterns are not yet supported"
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

@@ -79,10 +79,10 @@ and type_desc =
 
   | Ttuple of (string option * type_expr) list
   (** [Ttuple [None, t1; ...; None, tn]] ==> [t1 * ... * tn]
-      [Ttuple [Some "l1", t1; ...; Some "ln", tn]] ==> [l1: t1 * ... * ln: tn]
+      [Ttuple [Some "l1", t1; ...; Some "ln", tn]] ==> [l1:t1 * ... * ln:tn]
       
       Any mix of labeled and unlabeled components also works:
-      [Ttuple [Some "l1", t1; None, t2; Some "l3", t3]] ==> [l1: t1 * t2 * l3: t3]    
+      [Ttuple [Some "l1", t1; None, t2; Some "l3", t3]] ==> [l1:t1 * t2 * l3:t3]
   *)
 
   | Tconstr of Path.t * type_expr list * abbrev_memo ref

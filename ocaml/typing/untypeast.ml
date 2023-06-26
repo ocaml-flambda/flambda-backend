@@ -348,7 +348,8 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         Ppat_alias (sub.pat sub pat, name)
     | Tpat_constant cst -> Ppat_constant (constant cst)
     | Tpat_tuple list ->
-        Ppat_tuple (List.map (sub.pat sub) list)
+        (* CR labeled tuples: update once Tpat_tuple has labels *)
+        Ppat_tuple (List.map (fun p -> None, (sub.pat sub p)) list)
     | Tpat_construct (lid, _, args, vto) ->
         let tyo =
           match vto with
@@ -363,7 +364,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
           match args with
             []    -> None
           | [arg] -> Some (sub.pat sub arg)
-          | args  -> Some (Pat.tuple ~loc (List.map (sub.pat sub) args))
+          | args  -> Some (Pat.tuple ~loc (List.map (fun arg -> None, sub.pat sub arg) args))
         in
         Ppat_construct (map_loc sub lid,
           match tyo, arg with
@@ -897,7 +898,10 @@ let core_type sub ct =
     | Ttyp_var s -> Ptyp_var s
     | Ttyp_arrow (label, ct1, ct2) ->
         Ptyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
-    | Ttyp_tuple list -> Ptyp_tuple (List.map (sub.typ sub) list)
+    (* CR labeled tuples: update when Ttyp_tuple has labels *)
+    | Ttyp_tuple list ->
+        Ptyp_tuple
+          (List.map (fun (label, typ) -> label, sub.typ sub typ) list)
     | Ttyp_constr (_path, lid, list) ->
         Ptyp_constr (map_loc sub lid,
           List.map (sub.typ sub) list)
