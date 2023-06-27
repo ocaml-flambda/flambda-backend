@@ -914,6 +914,9 @@ let prove_physical_equality env t1 t2 =
     | Naked_nativeint (Ok s1), Naked_nativeint (Ok s2) ->
       let module IS = Targetint_32_64.Set in
       IS.is_empty (IS.inter (s1 :> IS.t) (s2 :> IS.t))
+    | Naked_vec128 (Ok s1), Naked_vec128 (Ok s2) ->
+      let module IS = Numeric_types.Vec128_by_bit_pattern.Set in
+      IS.is_empty (IS.inter (s1 :> IS.t) (s2 :> IS.t))
     | _, _ -> false
   in
   let check_heads () : _ proof_of_property =
