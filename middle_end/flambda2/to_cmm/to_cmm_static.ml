@@ -163,7 +163,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let transl = Numeric_types.Vec128_by_bit_pattern.to_int64s in
     let structured (v0, v1) = Clambda.Uconst_vec128 (v0, v1) in
     let res, env, updates =
-      static_boxed_number ~kind:Word_int ~env ~symbol ~default
+      static_boxed_number ~kind:Onetwentyeight ~env ~symbol ~default
         ~emit:C.emit_vec128_constant ~transl ~structured v res updates
     in
     env, res, updates
