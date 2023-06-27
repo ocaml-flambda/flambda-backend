@@ -4,13 +4,14 @@ The goal of this document is to be a reasonably complete reference to local
 allocations in OCaml. For a gentler introduction, see [the
 introduction](intro.md).
 
-When local allocations are enabled with the `-extension local` flag, the
-compiler may locally allocate some values, placing them on a stack rather than
-the garbage collected heap. Instead of waiting for the next GC, the memory used
-by locally allocated values is reclaimed when their _region_ (see below) ends, and
-can be immediately reused. Whether the compiler locally allocates certain values
-is controlled using a new keyword currently spelled `local_`, whose effects in
-expressions, patterns and types are explained below.
+The local allocations language extension allows the compiler to
+locally allocate some values, placing them on a stack rather than the
+garbage collected heap. Instead of waiting for the next GC, the memory
+used by locally allocated values is reclaimed when their _region_ (see
+below) ends, and can be immediately reused. Whether the compiler
+locally allocates certain values is controlled using a new keyword
+currently spelled `local_`, whose effects in expressions, patterns and
+types are explained below.
 
 
 ## Local expressions and allocation
@@ -18,16 +19,20 @@ expressions, patterns and types are explained below.
 The `local_` keyword may be placed on an expression to indicate that
 allocations in that expression should be locally allocated:
 
-    let abc = local_ [a; b; c] in
-    ...
+```ocaml
+let abc = local_ [a; b; c] in
+...
+```
 
 Here, the three cons cells of the list `[a; b; c]` will all be locally
 allocated.
 
 Equivalently, the keyword `local_` may precede the pattern in a `let`:
 
-    let local_ abc = [a; b; c] in
-    ...
+```ocaml
+let local_ abc = [a; b; c] in
+...
+```
 
 Locally allocated values may reference global (that is, GC-allocated or
 constant) values, but global values may not reference local ones. In the
@@ -38,8 +43,10 @@ It is valid for an expression annotated `local_` to still yield a global value.
 For instance, if there is a global `x : int list` in scope, then this is
 allowed:
 
-    let l = local_ if n > 0 then n :: x else x in
-    ...
+```ocaml
+let l = local_ if n > 0 then n :: x else x in
+...
+```
 
 Here, if `n > 0`, then `l` will be a locally-allocated cons cell. However, if
 `n <= 0`, then `l` will be `x`, which is global. In other words, the `local_`
@@ -60,18 +67,18 @@ including:
 
 In addition, any value that is to be put into a mutable field (for example
 inside a `ref`, an `array` or a mutable record) cannot be locally allocated.
-
+Should you need to put a locally allocated value into one of these places,
+you may want to check out [`ppx_globalize`](%{root}/ppx/ppx_globalize/README.md).
 
 ## Inference
 
 In fact, the allocations of the examples above will be locally
-allocated even without the `local_` keyword, if it is safe to do so
-(and the `-extension local` flag is enabled). The presence of the
-keyword on an expression only affects what happens if the value
-escapes (e.g. is stored into a global hashtable) and therefore cannot
-be locally allocated. With the keyword, an error will be reported,
-while without the keyword the allocations will occur on the GC heap as
-usual.
+allocated even without the `local_` keyword, if it is safe to do
+so. The presence of the keyword on an expression only affects what
+happens if the value escapes (e.g. is stored into a global hash table)
+and therefore cannot be locally allocated. With the keyword, an error
+will be reported, while without the keyword the allocations will occur
+on the GC heap as usual.
 
 Inference does not cross file boundaries. If local annotations subject to
 inference appear in the type of a module (e.g. since they can appear in
@@ -89,31 +96,33 @@ Regions may nest, for instance when one function calls another. Local
 allocations always occur in the innermost (most recent) region.
 
 We say that a value _escapes_ a region if it is still referenced beyond the end
-of that region. The job of the typechecker is to ensure that locally allocated
+of that region. The job of the type-checker is to ensure that locally allocated
 values do not escape the region they were allocated in.
 
 "Region" is a wider concept than "scope", and locally-allocated variables can
 outlive their scope. For example:
 
-    let f () =
-      let local_ counter =
-        let local_ r = ref 42 in
-        incr r;
-        r
-      in
-      ...
+```ocaml
+let f () =
+  let local_ counter =
+    let local_ r = ref 42 in
+    incr r;
+    r
+  in
+  ...
+```
 
 The locally-allocated reference `r` is allocated inside the definition of
 `counter`. This value outlives the scope of `r` (it is bound to the variable
 `counter` and may later be used in the code marked `...`). However, the
-typechecker ensures that it does not outlive the region in which it is
+type-checker ensures that it does not outlive the region in which it is
 allocated, which is the entire body of `f`.
 
 As well as function bodies, a region is also placed around:
 
   - Loop bodies (`while` and `for`)
   - Lazy expressions (`lazy ...`)
-  - Module bindings (`let x = ...` at module level, including in submodules)
+  - Module bindings (`let x = ...` at module level, including in sub-modules)
 
 Module bindings are wrapped in regions to enforce the rule (as mentioned above)
 that modules never contain locally-allocated values.
@@ -122,7 +131,7 @@ Additionally, it is possible to write functions that do *not* have
 a region around their body, which is useful to write functions that
 return locally-allocated values. See "Local-returning functions" below.
 
-### Runtime behaviour
+### Runtime behavior
 
 At runtime, local allocations do not allocate on the C stack, but on a
 separately-allocated stack that follows the same layout as the OCaml
@@ -133,6 +142,9 @@ The beginning of a region records the stack pointer of this local
 stack, and the end of the region resets the stack pointer to this
 value.
 
+Note that this behavior is currently enabled by setting the
+`WITH_STACK_ALLOCATION` build variable to `true`. Otherwise local
+allocations are allocated on the heap just like ordinary OCaml values.
 
 ### Variables and regions
 
@@ -146,7 +158,7 @@ each variable is:
     from crossing region boundaries.
 
 As described above, whether a given variable is global or local is inferred by
-the typechecker, although the `local_` keyword may be used to specify it.
+the type-checker, although the `local_` keyword may be used to specify it.
 
 Additionally, local variables are further subdivided into two cases:
 
@@ -158,13 +170,15 @@ Additionally, local variables are further subdivided into two cases:
 
 For instance:
 
-    let f () =
-      let local_ outer = ref 42 in
-      let g () =
-        let local_ inner = ref 42 in
-        ??
-      in
-      ...
+```ocaml
+let f () =
+  let local_ outer = ref 42 in
+  let g () =
+    let local_ inner = ref 42 in
+    ??
+  in
+  ...
+```
 
 At the point marked `??` inside `g`, both `outer` and `inner` are
 locally-allocated values. However, only `inner` is any-region local, having been
@@ -209,21 +223,25 @@ value.
 A function with a local argument can be defined by annotating the argument as
 `local_`:
 
-    let f (local_ x) = ...
+```ocaml
+let f (local_ x) = ...
+```
 
 Inside the definition of `f`, the argument `x` is outer-region local: that is,
 while it may be locally allocated, it is known not to have been allocated during
 `f` itself, and thus may safely be returned from `f`. For example:
 
-    # let f1 (local_ x : int list) = [1; 2; 3]
-    val f1 : local_ int list -> int list
+```ocaml
+# let f1 (local_ x : int list) = [1; 2; 3]
+val f1 : local_ int list -> int list
 
-    # let f2 (local_ x : int list) = x
-    val f2 : local_ int list -> local_ int list
+# let f2 (local_ x : int list) = x
+val f2 : local_ int list -> local_ int list
 
-    # let f3 (local_ x : int list) = (42 :: x)
-                                            ^
-    Error: This value escapes its region
+# let f3 (local_ x : int list) = (42 :: x)
+                                        ^
+Error: This value escapes its region
+```
 
 In the above, `f1` returns a global `int list`, while `f2` returns a local one.
 `f2` is allowed to return the local value `x` despite the ending of the
@@ -255,13 +273,15 @@ allocated.
 
 Consider again the example from "Variables and regions" above:
 
-    let f () =
-      let local_ outer = ref 42 in
-      let g () =
-        let local_ inner = ref 42 in
-        outer
-      in
-      ...
+```ocaml
+let f () =
+  let local_ outer = ref 42 in
+  let g () =
+    let local_ inner = ref 42 in
+    outer
+  in
+  ...
+```
 
 Here, since `g` refers to the local value `outer`, the closure `g` must itself
 be locally allocated. (As always, this is deduced by inference, and an explicit
@@ -276,20 +296,26 @@ Higher-order functions should usually mark their function arguments as
 `local_`, to allow local closures to be passed in. For instance, consider the
 following function for computing the length of a list:
 
-    let length xs =
-      let local_ count = ref 0 in
-      List.iter xs ~f:(fun () -> incr count);
-      !count
+```ocaml
+let length xs =
+  let local_ count = ref 0 in
+  List.iter xs ~f:(fun () -> incr count);
+  !count
+```
 
 With the standard type of `List.iter`, this results in a type error:
 
-      List.iter xs ~f:(fun () -> incr count);
-                                      ^^^^^
-    Error: The value count is local, so cannot be used inside a closure that might escape
+```ocaml
+  List.iter xs ~f:(fun () -> incr count);
+                                  ^^^^^
+Error: The value count is local, so cannot be used inside a closure that might escape
+```
 
 The standard type of `List.iter` is as follows:
 
-    val iter : 'a list -> f:('a -> unit) -> unit
+```ocaml
+val iter : 'a list -> f:('a -> unit) -> unit
+```
 
 This type places no restrictions on the use of `f`, allowing `iter` to capture
 or otherwise leak its argument `f`. It is therefore not safe to pass a local
@@ -297,7 +323,9 @@ closure to such a function, hence the error.
 
 Instead, `List.iter` and similar functions should be given the following type:
 
-    val iter : 'a list -> f:local_ ('a -> unit) -> unit
+```ocaml
+val iter : 'a list -> f:local_ ('a -> unit) -> unit
+```
 
 This type carries the additional promise that `iter` does not capture its `f`
 argument, allowing local closures to be passed. With this type, the above
@@ -308,7 +336,9 @@ and there are no restrictions on what may be done with the list
 elements themselves. To specify that `f` may _not_ capture its
 argument, the type of iter would have to be:
 
-    val iter : 'a list -> f:local_ (local_ 'a -> unit) -> unit
+```ocaml
+val iter : 'a list -> f:local_ (local_ 'a -> unit) -> unit
+```
 
 The two occurrences of `local_` are independent: the first is a promise
 by `iter` not to capture `f`, while the second is a requirement by
@@ -334,34 +364,53 @@ This early ending of the region introduces some restrictions, as values used in
 tail calls then count as escaping the region. In particular, any-region local values
 may not be passed to tail calls:
 
-    let f1 () =
-      let local_ r = ref 42 in
-      some_func r
-                ^
-    Error: This local value escapes its region
-      Hint: This argument cannot be local, because this is a tail call
+```ocaml
+let f1 () =
+  let local_ r = ref 42 in
+  some_func r
+            ^
+Error: This local value escapes its region
+  Hint: This argument cannot be local, because this is a tail call
+```
 
 and any-region local closures may not be tail-called:
 
-    let f2 () =
-      let local_ g () = 42 in
-      g ()
-      ^
-    Error: This local value escapes its region
-      Hint: This function cannot be local, because this is a tail call
+```ocaml
+let f2 () =
+  let local_ g () = 42 in
+  g ()
+  ^
+Error: This local value escapes its region
+  Hint: This function cannot be local, because this is a tail call
+```
 
 In both cases, if tail recursion is not necessary, then the issue can be
 resolved by moving the call so that it is not syntactically a tail call:
 
-    let f1 () =
-      let local_ r = ref 42 in
-      let res = some_func r in
-      res
+```ocaml
+let f1 () =
+  let local_ r = ref 42 in
+  let res = some_func r in
+  res
 
-    let f2 () =
-      let local_ g () = 42 in
-      let res = g () in
-      res
+let f2 () =
+  let local_ g () = 42 in
+  let res = g () in
+  res
+```
+
+or by annotating the call with the `[@nontail]` attribute, that
+prevents it from being a tail call:
+
+```ocaml
+let f1 () =
+  let local_ r = ref 42 in
+  some_func r [@nontail]
+
+let f2 () =
+  let local_ g () = 42 in
+  g () [@nontail]
+```
 
 This change means that the locally allocated values (`r` and `g`)
 will not be freed until after the call has returned.
@@ -370,8 +419,10 @@ Note that values which are outer-region local rather than any-region local (that
 is, local values that were passed into this region from outside) may be used in
 tail calls, as the early closing of the region does not affect them:
 
-    let f3 (local_ x) =
-      some_func x
+```ocaml
+let f3 (local_ x) =
+  some_func x
+```
 
 Here, even though the region of `f3` ends before the call to `some_func`, the
 value `x` remains available.
@@ -388,34 +439,38 @@ such functions.
 This is useful particularly for constructor functions of abstract types. For
 instance, consider this code that uses an `int ref` as a counter:
 
-    let f () =
-      let counter = ref 0 in
-      ...
-      let n = !counter in
-      incr counter;
-      ...
+```ocaml
+let f () =
+  let counter = ref 0 in
+  ...
+  let n = !counter in
+  incr counter;
+  ...
+```
 
 Here, inference will detect that `counter` does not escape and will allocate
 the reference locally. However, this changes if we try to abstract out
 `counter` to its own module:
 
-    module Counter = struct
-      type t = int ref
+```ocaml
+module Counter = struct
+  type t = int ref
 
-      let make () =
-        ref 0
+  let make () =
+    ref 0
 
-      let next c =
-        let x = !c in
-        incr c;
-        x
-    end
+  let next c =
+    let x = !c in
+    incr c;
+    x
+end
 
-    let f () =
-      let counter = Counter.make () in
-      ...
-      let n = Counter.next counter in
-      ...
+let f () =
+  let counter = Counter.make () in
+  ...
+  let n = Counter.next counter in
+  ...
+```
 
 In this code, the counter will *not* be allocated locally. The reason is the
 `Counter.make` function: the allocation of `ref 0` escapes the region of
@@ -427,8 +482,10 @@ To allow the counter to be locally allocated, we need to specify that
 `Counter.make` may return local allocations. This can be done by wrapping the
 entire body of `make` with the `local_` keyword:
 
-    let make () = local_
-      ref 0
+```ocaml
+let make () = local_
+  ref 0
+```
 
 The `local_` keyword around a function body like this specifies not only that
 the allocation of the `ref` should be local, but more importantly that the
@@ -538,19 +595,22 @@ reason:
   );
   local_ (x ^ "world")
 ```
+
 ## Records and mutability
 
-For any given variable, the typechecker checks only whether that variable is
+For any given variable, the type-checker checks only whether that variable is
 local or global, and generally does not separately track parts of the variable.
 For instance, the following code yields an error, even though `x` and `y` are
 both global:
 
-    let f () =
-      let local_ packed = (x, y) in
-      let x', y' = packed in
-      x'
+```ocaml
+let f () =
+  let local_ packed = (x, y) in
+  let x', y' = packed in
+  x'
+```
 
-Here, the `packed` values is treated as local, and the typechecker then
+Here, the `packed` values is treated as local, and the type-checker then
 conservatively assumes that `x'` and `y'` may also be local (since they are
 extracted from `packed`), and so cannot safely be returned.
 
@@ -558,15 +618,17 @@ Similarly, a variable `local_ x` of type `string list` means a local
 list of local strings, and none of these strings can be safely
 returned from a function like `f`.
 
-This can be overriden for record types, by annotating some fields with
+This can be overridden for record types, by annotating some fields with
 `global_`:
 
-    type ('a, 'b) t = { global_ foo : 'a; bar: 'b }
+```ocaml
+type ('a, 'b) t = { global_ foo : 'a; bar: 'b }
 
-    let f () =
-      let local_ packed = {foo=x; bar=y} in
-      let {foo; bar} = packed in
-      foo
+let f () =
+  let local_ packed = {foo=x; bar=y} in
+  let {foo; bar} = packed in
+  foo
+```
 
 Here, the `foo` field of any value of type `_ t` is always known to be global,
 and so can be returned from a function. When constructing such a record, the
@@ -576,7 +638,9 @@ itself local.
 
 In particular, by defining:
 
-    type 'a glob = { global_ contents: 'a } [@@unboxed]
+```ocaml
+type 'a glob = { global_ contents: 'a } [@@unboxed]
+```
 
 then a variable `local_ x` of type `string glob list` is a local list
 of global strings, and while the list itself cannot be returned out of
@@ -608,8 +672,10 @@ value when the younger one's region ends.
 The function type constructor in OCaml is right-associative, so that these are
 equal types:
 
-    string -> string -> string
-    string -> (string -> string)
+```ocaml
+string -> string -> string
+string -> (string -> string)
+```
 
 These both describe a two-argument function which is curried, and therefore may
 be partially applied to the first argument, yielding a closure that accepts the
@@ -618,8 +684,10 @@ second.
 The situation is more complicated when `local_` is involved. The following two
 types are *not* equivalent:
 
-    local_ string -> string -> string
-    local_ string -> (string -> string)
+```ocaml
+local_ string -> string -> string
+local_ string -> (string -> string)
+```
 
 The former is a two-argument function which accepts as its first argument
 a local string. Like all two-argument functions, it may be partially applied to
@@ -628,9 +696,11 @@ this closure closes over the first local argument, it must necessarily be local
 itself. Thus, if applied to a single argument, this function in fact returns
 a _local_ closure, making its type equal to the following:
 
-    local_ string -> local_ (string -> string)
+```ocaml
+local_ string -> local_ (string -> string)
+```
 
-By constrast, the type `local_ string -> (string -> string)` means a function
+By contrast, the type `local_ string -> (string -> string)` means a function
 that accepts a local string but returns a global function. Necessarily, this
 global function cannot refer to the local string that was passed, so this
 cannot be an ordinary two-argument function. (It could be something like `fun
@@ -638,21 +708,29 @@ s -> print s; fun x -> x`, however)
 
 In general, in a curried function type `... -> ... -> ...` (without
 parentheses), then after the first use of `local_`, all arrow types except the
-last will implictly be given `local_` return types, enabling the expected
-partial application behaviour.
+last will implicitly be given `local_` return types, enabling the expected
+partial application behavior.
 
 Finally, this transformation applies also to types marked with the `local_`
 keyword. For instance, the following type:
 
-    local_ (a -> b -> c -> d) -> e -> f -> g
+```ocaml
+local_ (a -> b -> c -> d) -> e -> f -> g
+```
 
 is read as:
 
-    local_ (a -> local_ (b -> local_ (c -> d))) -> local_ (e -> local_ (f -> g))
+```ocaml
+local_ (a -> local_ (b -> local_ (c -> d))) -> local_ (e -> local_ (f -> g))
+```
 
 Note the implicit `local_` both in the returned `e -> f` closure (as described
-above), and also in the type of the `b -> c` argument.
-
+above), and also in the type of the `b -> c` argument. The propagation of
+`local_` into the function argument is necessary to allow a locally-allocated
+function (which would have type `a -> local_ (b -> local_ (c -> d))`) to be
+passed as an argument. Functions are different than other types in that, because
+of currying, a locally-allocated function has a different type than a
+globally-allocated one.
 
 ### Currying of local closures
 
@@ -661,19 +739,22 @@ a local value `counter` of type `int ref`. Then of the following two
 seemingly-identical definitions, the first is accepted and the second is
 rejected:
 
+```ocaml
+let local_ f : int -> int -> int = fun a b -> a + b + !counter in
+...
 
-    let local_ f : int -> int -> int = fun a b -> a + b + !counter in
-    ...
-
-    let f : int -> int -> int = local_ fun a b -> a + b + !counter in
-    ...
+let f : int -> int -> int = local_ fun a b -> a + b + !counter in
+...
+```
 
 Both define a closure which accepts two integers and returns an integer. The
 closure must be local, since it refers to the local value `counter`. In the
 former definition, the type of the function appears under the `local_` keyword,
 as as described above is interpreted as:
 
-    int -> local_ (int -> int)
+```ocaml
+int -> local_ (int -> int)
+```
 
 This is the correct type for this function: if we partially apply it to
 a single argument, the resulting closure will still be local, as it refers to
@@ -681,29 +762,32 @@ the original function which refers to `counter`. By contrast, in the latter
 definition the type of the function is outside the `local_` keyword as is
 interpreted as normal as:
 
-    int -> (int -> int)
+```ocaml
+int -> (int -> int)
+```
 
 This is not the correct type for this function: it states that partially
 applying it to a single argument will yield a global closure, which is not the
 case here. For this reason, this version is rejected. It would be accepted if
 written as follows:
 
-    let f : int -> local_ (int -> int) = local_ fun a b -> a + b + !counter in
-    ...
-
+```ocaml
+let f : int -> local_ (int -> int) = local_ fun a b -> a + b + !counter in
+...
+```
 
 ## Special case typing of tuple matching
 
-As mentioned above, the typechecker generally does not separately track
+As mentioned above, the type-checker generally does not separately track
 the local or global status of parts of a value, but rather tracks this
 only once per variable or expression. There is one exception to this
 rule, as follows.
 
 In OCaml, it is possible to simultaneously match on multiple values:
 
-```
-  match x, y, z with
-  | p, q, r -> ...
+```ocaml
+match x, y, z with
+| p, q, r -> ...
 ```
 
 There is in fact no special syntax for this: as parentheses are
@@ -714,23 +798,23 @@ r)`.
 Applying the usual rule that an expression is either treated as
 entirely local or entirely global would mean that `p`, `q` and `r`
 would all be local if any of `x`, `y` and `z` are. This is
-counterintuitive, as the syntax above is usually thought of as a
+counter-intuitive, as the syntax above is usually thought of as a
 multiple-value match, rather than a match on a single tuple value. For
-this reason, the typechecker indendently tracks whether the parts of
+this reason, the type-checker independently tracks whether the parts of
 this tuple are local or global.
 
 The same logic applies to simultaneous binding of multiple values:
 
-```
-  let a, b, c =
-    ...
-    x, y, z
+```ocaml
+let a, b, c =
+  ...
+  x, y, z
 ```
 
 Again, there is no actual syntax for this in OCaml: that's a binding
 of the single value `(x, y, z)` against the single pattern `(a, b,
 c)`. Since it's usually thought of as the simultaneous binding of
-several variables, the typechecker treats it as such rather than
+several variables, the type-checker treats it as such rather than
 making all of `a`,`b` and `c` local if any of `x`, `y` and `z` are.
 
 
@@ -744,4 +828,24 @@ local and global allocations, which is why `ref` worked for both local and
 global in various examples above.
 
 In the interface for the stdlib (and as re-exported by Base), this feature is
-enabled by use of the `[@local_opt]` annotation on `external` declarations.
+enabled by use of the `[@local_opt]` annotation on `external` declarations. For
+example, we have the following:
+
+```ocaml
+external id : ('a[@local_opt]) -> ('a[@local_opt]) = "%identity"
+```
+
+This declaration means that `id` can have either of the following types:
+
+```ocaml
+id : local_ 'a -> local_ a
+id : 'a -> 'a
+```
+
+Notice that the two `[@local_opt]`s act in unison: either both `local_`s are
+present or neither is. This allows for a limited form of mode-polymorphism for
+`external`s (only). Nothing checks that the locality ascriptions are sound,
+though, so use this feature with much caution. In the case of `id`, all is well,
+but if the two `[@local_opt]`s did not act in unison (that is, they varied
+independently), it would not be: `id : local_ 'a -> 'a` allows a local value to
+escape.
