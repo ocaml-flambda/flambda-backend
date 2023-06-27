@@ -156,7 +156,6 @@ val make_cmi : 'a t
   -> Compilation_unit.Name.t
   -> Cmi_format.kind
   -> Subst.Lazy.signature
-  -> Types.signature option
   -> alerts
   -> Cmi_format.cmi_infos_lazy
 

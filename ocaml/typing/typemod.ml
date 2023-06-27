@@ -3261,10 +3261,6 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt
       let arg_import =
         Compilation_unit.Name.of_head_of_global_name arg_module
       in
-      (* Accessing the argument type's module (which is of course a parameter
-         unit) has the side effect of importing it, so we need to be sure it's
-         understood to be a parameter. However, it's not a parameter of
-         _this_ module, so don't call [Env.register_parameter]. *)
       Env.register_parameter_import arg_import;
       let arg_sig, arg_filename = Env.find_global_name arg_module in
       if not (Env.is_parameter_unit arg_import) then
@@ -3400,19 +3396,14 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           let shape = Shape.local_reduce shape in
           if not !Clflags.dont_write_files then begin
             let alerts = Builtin_attributes.alerts_of_str ast in
-            let sg2 =
-              match secondary_iface with
-              | Some { si_signature; si_coercion_from_primary = _ } ->
-                  Some si_signature
-              | None ->
-                  None
-            in
             let name = Compilation_unit.name modulename in
-            let kind = Cmi_format.Normal { cmi_impl = modulename } in
+            let kind =
+              Cmi_format.Normal { cmi_impl = modulename; cmi_arg_for = arg_type }
+            in
             let cmi =
               Profile.record_call "save_cmi" (fun () ->
                 Env.save_signature ~alerts
-                  simple_sg sg2 name kind (outputprefix ^ ".cmi"))
+                  simple_sg name kind (outputprefix ^ ".cmi"))
             in
             Profile.record_call "save_cmt" (fun () ->
               let annots = Cmt_format.Implementation str in
@@ -3550,17 +3541,15 @@ let package_units initial_env objfiles cmifile modulename =
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin
-      let sg2 =
-        (* For the moment, secondary signatures are only used for argument
-           units, which don't support packs. So there can be no secondary
-           signature *)
+      let cmi_arg_for =
+        (* Packs aren't supported as arguments *)
         None
       in
       let name = Compilation_unit.name modulename in
-      let kind = Cmi_format.Normal { cmi_impl = modulename } in
+      let kind = Cmi_format.Normal { cmi_impl = modulename; cmi_arg_for } in
       let cmi =
         Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
-          sg sg2 name kind (prefix ^ ".cmi") (Array.of_list imports)
+          sg name kind (prefix ^ ".cmi") (Array.of_list imports)
       in
       let sign = Subst.Lazy.force_signature cmi.Cmi_format.cmi_sign in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename

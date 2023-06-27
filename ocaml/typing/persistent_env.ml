@@ -505,7 +505,6 @@ and acknowledge_pers_struct
   let kind = cmi.cmi_kind in
   let bound_global_names = cmi.cmi_globals in
   let params = cmi.cmi_params in
-  let arg_for = cmi.cmi_arg_for in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
   let modname = CU.Name.of_head_of_global_name global_name in
@@ -562,6 +561,11 @@ and acknowledge_pers_struct
         assert (Bool.equal imp_is_param is_param);
         assert (String.equal imp_filename filename);
         import
+  in
+  let arg_for =
+    match kind with
+    | Normal { cmi_arg_for; _ } -> cmi_arg_for
+    | Parameter -> None
   in
   let ps = { ps_global = global;
              ps_arg_for = arg_for;
@@ -781,7 +785,7 @@ let implemented_parameter penv modname =
   | Some ({ ps_arg_for; _ }, _) -> ps_arg_for
   | None -> None
 
-let make_cmi penv modname kind sign secondary_sign alerts =
+let make_cmi penv modname kind sign alerts =
   let flags =
     List.concat [
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
@@ -794,10 +798,6 @@ let make_cmi penv modname kind sign secondary_sign alerts =
     (* Needs to be consistent with [Translmod] *)
     exported_parameters penv
   in
-  let arg_for =
-    !Clflags.as_argument_for
-    |> Option.map (fun name -> Global.Name.create name [])
-  in
   let crcs = imports penv in
   let globals =
     Hashtbl.to_seq penv.globals
@@ -809,9 +809,7 @@ let make_cmi penv modname kind sign secondary_sign alerts =
     cmi_kind = kind;
     cmi_globals = globals;
     cmi_sign = sign;
-    cmi_secondary_sign = secondary_sign;
     cmi_params = params;
-    cmi_arg_for = arg_for;
     cmi_crcs = Array.of_list crcs;
     cmi_flags = flags
   }

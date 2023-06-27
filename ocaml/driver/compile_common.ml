@@ -93,17 +93,24 @@ let typecheck_against_secondary_intf info sg =
       ignore (Includemod.signatures info.env ~mark:Mark_both sg arg_sg);
       Some arg_sg
 
-let emit_signature info ast tsg sg2 =
+let emit_signature info ast tsg =
   let sg =
     let name = Compilation_unit.name info.module_name in
     let kind : Cmi_format.kind =
       if !Clflags.as_parameter then
         Parameter
       else
-        Normal { cmi_impl = info.module_name }
+        let cmi_arg_for =
+          (* Don't like that this is accessed separately from
+             [typecheck_against_secondary_intf] above *)
+          match !Clflags.as_argument_for with
+          | Some arg_type -> Some (Global.Name.create arg_type [])
+          | None -> None
+        in
+        Normal { cmi_impl = info.module_name; cmi_arg_for }
     in
     let alerts = Builtin_attributes.alerts_of_sig ast in
-    Env.save_signature ~alerts tsg.Typedtree.sig_type sg2
+    Env.save_signature ~alerts tsg.Typedtree.sig_type
       name kind (info.output_prefix ^ ".cmi")
   in
   Typemod.save_signature info.module_name tsg
@@ -115,10 +122,12 @@ let interface ~hook_parse_tree ~hook_typed_tree info =
   hook_parse_tree ast;
   if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
     let tsg = typecheck_intf info ast in
-    let sg2 = typecheck_against_secondary_intf info tsg.sig_type in
+    let _ : Types.signature option =
+      typecheck_against_secondary_intf info tsg.sig_type
+    in
     hook_typed_tree tsg;
     if not !Clflags.print_types then begin
-      emit_signature info ast tsg sg2
+      emit_signature info ast tsg
     end
   end
 

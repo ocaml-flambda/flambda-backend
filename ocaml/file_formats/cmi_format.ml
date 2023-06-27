@@ -22,7 +22,10 @@ type pers_flags =
   | Unsafe_string
 
 type kind =
-  | Normal of { cmi_impl : Compilation_unit.t }
+  | Normal of {
+      cmi_impl : Compilation_unit.t;
+      cmi_arg_for : Global.Name.t option;
+    }
   | Parameter
 
 type error =
@@ -56,8 +59,6 @@ module Serialized = Types.Make_wrapped(struct type 'a t = int end)
 (* these type abbreviations are not exported;
    they are used to provide consistency across
    input_value and output_value usage. *)
-type signature = Types.signature_item list
-
 type crcs = Import_info.Intf.t array  (* smaller on disk than using a list *)
 type flags = pers_flags list
 type header = {
@@ -65,9 +66,7 @@ type header = {
     header_kind : kind;
     header_globals : (Global.Name.t * Global.t) array;
     header_sign : Serialized.signature;
-    header_secondary_sign : signature option;
     header_params : Global.Name.t list;
-    header_arg_for : Global.Name.t option;
 }
 
 type 'sg cmi_infos_generic = {
@@ -75,9 +74,7 @@ type 'sg cmi_infos_generic = {
     cmi_kind : kind;
     cmi_globals : (Global.Name.t * Global.t) array;
     cmi_sign : 'sg;
-    cmi_secondary_sign : signature option;
     cmi_params : Global.Name.t list;
-    cmi_arg_for : Global.Name.t option;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }
@@ -133,9 +130,7 @@ let input_cmi_lazy ic =
       header_kind = kind;
       header_globals = globals;
       header_sign = sign;
-      header_secondary_sign = secondary_sign;
       header_params = params;
-      header_arg_for = arg_for;
     } = (input_value ic : header) in
   let crcs = (input_value ic : crcs) in
   let flags = (input_value ic : flags) in
@@ -144,9 +139,7 @@ let input_cmi_lazy ic =
       cmi_kind = kind;
       cmi_globals = globals;
       cmi_sign = deserialize data sign;
-      cmi_secondary_sign = secondary_sign;
       cmi_params = params;
-      cmi_arg_for = arg_for;
       cmi_crcs = crcs;
       cmi_flags = flags;
     }
@@ -205,9 +198,7 @@ let output_cmi filename oc cmi =
       header_kind = cmi.cmi_kind;
       header_globals = cmi.cmi_globals;
       header_sign = sign;
-      header_secondary_sign = cmi.cmi_secondary_sign;
       header_params = cmi.cmi_params;
-      header_arg_for = cmi.cmi_arg_for;
     };
   flush oc;
   let crc = Digest.file filename in
@@ -227,6 +218,15 @@ let output_cmi filename oc cmi =
 
 let input_cmi ic = input_cmi_lazy ic |> force_cmi_infos
 let read_cmi filename = read_cmi_lazy filename |> force_cmi_infos
+
+type module_block_layout =
+  | Single_block
+  | Full_module_and_argument_form
+
+let module_block_layout cmi =
+  match cmi.cmi_kind with
+  | Parameter | Normal { cmi_arg_for = None; _ } -> Single_block
+  | Normal { cmi_arg_for = Some _; _ } -> Full_module_and_argument_form
 
 (* Error report *)
 

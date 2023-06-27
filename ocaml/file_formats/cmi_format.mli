@@ -22,7 +22,10 @@ type pers_flags =
   | Unsafe_string
 
 type kind =
-  | Normal of { cmi_impl : Compilation_unit.t }
+  | Normal of {
+      cmi_impl : Compilation_unit.t;
+      cmi_arg_for : Global.Name.t option;
+    }
   | Parameter
 
 type 'sg cmi_infos_generic = {
@@ -30,11 +33,7 @@ type 'sg cmi_infos_generic = {
     cmi_kind : kind;
     cmi_globals : (Global.Name.t * Global.t) array;
     cmi_sign : 'sg;
-    (* CR-soon lmaurer: Integrate [cmi_secondary_sign] into lazy loading
-       mechonism or find an alternative *)
-    cmi_secondary_sign : Types.signature_item list option;
     cmi_params : Global.Name.t list;
-    cmi_arg_for : Global.Name.t option;
     cmi_crcs : Import_info.Intf.t array;
     cmi_flags : pers_flags list;
 }
@@ -52,6 +51,18 @@ val input_cmi_lazy : in_channel -> cmi_infos_lazy
 (* read a cmi from a filename, checking the magic *)
 val read_cmi : string -> cmi_infos
 val read_cmi_lazy : string -> cmi_infos_lazy
+
+(* The contents of the module block *)
+type module_block_layout =
+  | Single_block
+      (* One block whose contents are described by [cmi_sign] *)
+  | Full_module_and_argument_form
+      (* An outer block containing two blocks: the usual module block, and a
+         block used as the value of the module when it's passed as an argument.
+         The first block's signature is [cmi_sign] and the second block's
+         signature is described by the .cmi file for [cmi_arg_for] ([cmi_kind]
+         must be [Normal]). *)
+val module_block_layout : _ cmi_infos_generic -> module_block_layout
 
 (* Error report *)
 

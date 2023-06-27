@@ -1027,8 +1027,8 @@ let read_sign_of_cmi
       ~global ~bound_global_names ~binding =
   let name = global |> Global.to_name in
   let sign = cmi.cmi_sign in
-  let secondary_sign = cmi.cmi_secondary_sign in
   let flags = cmi.cmi_flags in
+  let module_block_layout = Cmi_format.module_block_layout cmi in
   let id = Ident.create_global name in
   let path = Pident id in
   let alerts =
@@ -1048,14 +1048,10 @@ let read_sign_of_cmi
     | Local id -> Alocal id
     | Static unit ->
         begin
-          match secondary_sign with
-          | None -> Aunit unit
-          | Some _ ->
-              (* This module has two module blocks, one for each signature,
-                 stored in one outer block. Normal field accesses go through
-                 the primary (first) module block. (The secondary one is only
-                 needed when using the whole secondary block as a functor
-                 argument, as happens during -instantiate.) *)
+          match module_block_layout with
+          | Single_block -> Aunit unit
+          | Full_module_and_argument_form ->
+              (* We're accessing the full module *)
               Adot (Aunit unit, 0)
         end
   in
@@ -2807,34 +2803,26 @@ let persistent_structures_of_dir dir =
 
 (* Save a signature to a file *)
 let save_signature_with_transform
-    cmi_transform ~alerts sg sg2 import cu filename =
+    cmi_transform ~alerts sg import cu filename =
   Btype.cleanup_abbrev ();
   Subst.reset_additional_action_type_id ();
-  let prep_sig_for_saving sg =
-    Subst.Lazy.of_signature sg
+  let sg = Subst.Lazy.of_signature sg
     |> Subst.Lazy.signature Make_local
-        (Subst.with_additional_action Prepare_for_saving Subst.identity)
-  in
-  let sg = sg |> prep_sig_for_saving in
-  let sg2 =
-    sg2 |> Option.map (fun sg2 ->
-      prep_sig_for_saving sg2 |> Subst.Lazy.force_signature)
+      (Subst.with_additional_action Prepare_for_saving Subst.identity)
   in
   let cmi =
-    Persistent_env.make_cmi !persistent_env import cu sg sg2 alerts
+    Persistent_env.make_cmi !persistent_env import cu sg alerts
     |> cmi_transform in
   Persistent_env.save_cmi !persistent_env
     { Persistent_env.Persistent_signature.filename; cmi };
   cmi
 
-let save_signature ~alerts sg sg2 modname cu filename =
-  save_signature_with_transform (fun cmi -> cmi)
-    ~alerts sg sg2 modname cu filename
+let save_signature ~alerts sg modname cu filename =
+  save_signature_with_transform (fun cmi -> cmi) ~alerts sg modname cu filename
 
-let save_signature_with_imports ~alerts sg sg2 modname cu filename imports =
+let save_signature_with_imports ~alerts sg modname cu filename imports =
   let with_imports cmi = { cmi with cmi_crcs = imports } in
-  save_signature_with_transform with_imports
-    ~alerts sg sg2 modname cu filename
+  save_signature_with_transform with_imports ~alerts sg modname cu filename
 
 (* Make the initial environment *)
 let (initial_safe_string, initial_unsafe_string) =
