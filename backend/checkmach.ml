@@ -147,19 +147,56 @@ module Witnesses : sig
     }
 
   val simplify : components -> components
+
+  val is_cutoff : components -> bool
 end = struct
   include Set.Make (Witness)
 
-  (* CR gyorsh: consider using Flambda_backend_flags.checkmach_details_cutoff to
-     limit the size of this set. The downside is that it won't get tested as
-     much. Only keep witnesses for functions that need checking. *)
-  let join = union
+  type nonrec t =
+    { t : t;
+      cutoff : bool
+    }
 
-  let create kind dbg = singleton (Witness.create dbg kind)
+  let print ppf t =
+    let { t; cutoff } = t in
+    Format.pp_print_seq Witness.print ppf (to_seq t);
+    if cutoff then Format.fprintf ppf "..."
 
-  let iter t ~f = iter f t
+  let join { t = t1; cutoff = c1 } { t = t2; cutoff = c2 } =
+    let t = union t1 t2 in
+    let res = { t; cutoff = c1 || c2 } in
+    match !Flambda_backend_flags.checkmach_details_cutoff with
+    | Keep_all -> res
+    | No_details ->
+      if not (is_empty t)
+      then Misc.fatal_errorf "expected no witnesses got %a" print res;
+      res
+    | At_most n ->
+      let len = cardinal t in
+      if len <= n
+      then res
+      else
+        (* [0 < n < len <= n+n] so removing instead of constructing a new set is
+           faster and would prefer witnesses at the function start. *)
+        { t =
+            fst
+              (fold
+                 (fun w (acc, c) ->
+                   if c > 0 then acc, c - 1 else remove w acc, c)
+                 t (t, n));
+          cutoff = true
+        }
 
-  let print ppf t = Format.pp_print_seq Witness.print ppf (to_seq t)
+  let empty = { t = empty; cutoff = false }
+
+  let iter t ~f = iter f t.t
+
+  let elements t = elements t.t
+
+  let create kind dbg =
+    { t = singleton (Witness.create dbg kind); cutoff = false }
+
+  let is_empty t = is_empty t.t
 
   type components =
     { nor : t;
@@ -173,8 +210,10 @@ end = struct
         (if is_empty nor && is_empty exn then div else empty);
       nor;
       (* only print the exn witnesses that are not also nor witnesses. *)
-      exn = diff exn nor
+      exn = { t = diff exn.t nor.t; cutoff = exn.cutoff || nor.cutoff }
     }
+
+  let is_cutoff { nor; exn; div } = nor.cutoff || exn.cutoff || div.cutoff
 end
 
 (** Abstract value for each component of the domain. *)
@@ -460,7 +499,7 @@ end = struct
       fun_name
 
   let print_witnesses w : Location.msg list =
-    let { Witnesses.nor; exn; div } = Witnesses.simplify w in
+    let ({ Witnesses.nor; exn; div } as w') = Witnesses.simplify w in
     let f t component =
       t |> Witnesses.elements
       |> List.map (Witness.print_error component)
@@ -469,17 +508,25 @@ end = struct
     let l =
       List.concat [f div "diverge"; f nor ""; f exn "exceptional return"]
     in
-    let cutoff = !Flambda_backend_flags.checkmach_details_cutoff in
     let len = List.length l in
-    if cutoff < 0 || len < cutoff
-    then l
-    else if cutoff = 0
-    then (* don't even print the dots *)
+    match !Flambda_backend_flags.checkmach_details_cutoff with
+    | Keep_all -> l
+    | No_details ->
+      (* don't even print the dots *)
+      assert (len = 0);
       []
-    else
-      let print_dots = Location.mknoloc (fun ppf -> Format.fprintf ppf "...") in
-      let details, _ = Misc.Stdlib.List.split_at cutoff l in
-      details @ [print_dots]
+    | At_most cutoff ->
+      (* Each component can have at most [cutoff] witnesses, but [len] can be
+         bigger because it concatenates witnesses of different components. *)
+      let print_with_dots l =
+        let dots = Location.mknoloc (fun ppf -> Format.fprintf ppf "...") in
+        l @ [dots]
+      in
+      if len < cutoff
+      then if Witnesses.is_cutoff w' then print_with_dots l else l
+      else
+        let details, _ = Misc.Stdlib.List.split_at cutoff l in
+        print_with_dots details
 
   let report_error = function
     | Invalid { a; fun_name; fun_dbg; property; witnesses } ->
@@ -610,11 +657,10 @@ end = struct
     | Some func_info -> func_info
 
   let should_keep_witnesses keep =
-    if !Flambda_backend_flags.checkmach_details_cutoff < 0
-    then true
-    else if !Flambda_backend_flags.checkmach_details_cutoff = 0
-    then false
-    else keep
+    match !Flambda_backend_flags.checkmach_details_cutoff with
+    | Keep_all -> true
+    | No_details -> false
+    | At_most _ -> keep
 
   (* fixpoint backward propogation of function summaries along the recorded
      dependency edges. *)
