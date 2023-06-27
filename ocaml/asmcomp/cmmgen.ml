@@ -230,8 +230,6 @@ let emit_structured_constant ((_sym, is_global) as symb) cst cont =
       emit_int64_constant symb n cont
   | Uconst_nativeint n ->
       emit_nativeint_constant symb n cont
-  | Uconst_vec128 _ -> 
-    Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
   | Uconst_block (tag, csts) ->
       let cont = List.fold_right emit_constant csts cont in
       emit_block symb (block_header tag (List.length csts)) cont
