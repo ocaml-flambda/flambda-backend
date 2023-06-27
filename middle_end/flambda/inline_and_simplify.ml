@@ -405,11 +405,11 @@ let remove_exclaves (lam : Flambda.t) =
       else
         let new_body = remove ~depth:(depth - 1) body in
         if new_body == body then lam else Exclave new_body
-    | Apply ({ reg_close = Rc_close_at_apply; _ } as apply) ->
+    | Apply ({ reg_close = Rc_close_at_apply; _ } as apply) when depth = 0 ->
       (* Can still be compiled as a tail call, so use [Rc_normal] rather than
          [Rc_nontail] *)
       Apply { apply with reg_close = Rc_normal }
-    | Send ({ reg_close = Rc_close_at_apply; _ } as send) ->
+    | Send ({ reg_close = Rc_close_at_apply; _ } as send) when depth = 0 ->
       (* Similar to [Apply] *)
       Send { send with reg_close = Rc_normal }
     | _ ->
