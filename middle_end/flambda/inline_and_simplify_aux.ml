@@ -437,14 +437,18 @@ let initial_inlining_toplevel_threshold ~round : Inlining_cost.Threshold.t =
     (unscaled * Inlining_cost.scale_inline_threshold_by)
 
 module Result = struct
+  type region = { may_be_used : bool; }
+
   type t =
     { approx : Simple_value_approx.t;
       used_static_exceptions : Static_exception.Set.t;
       inlining_threshold : Inlining_cost.Threshold.t option;
       benefit : Inlining_cost.Benefit.t;
       num_direct_applications : int;
-      may_use_region : bool;
+      regions : region list;
     }
+
+  let create_region () = { may_be_used = false; }
 
   let create () =
     { approx = Simple_value_approx.value_unknown Other;
@@ -452,7 +456,7 @@ module Result = struct
       inlining_threshold = None;
       benefit = Inlining_cost.Benefit.zero;
       num_direct_applications = 0;
-      may_use_region = false;
+      regions = [ ];
     }
 
   let approx t = t.approx
@@ -473,10 +477,41 @@ module Result = struct
 
   let used_static_exceptions t = t.used_static_exceptions
 
-  let set_region_use t b =
-    { t with may_use_region = b }
+  let no_current_region () =
+    Misc.fatal_error "No current region"
 
-  let may_use_region t = t.may_use_region
+  let enter_region t =
+    { t with regions = create_region () :: t.regions }
+
+  let leave_region t =
+    match t.regions with
+    | _region :: regions -> { t with regions }
+    | [] -> no_current_region ()
+
+  let set_region_used t =
+    match t.regions with
+    | _ :: regions ->
+        { t with regions = { may_be_used = true } :: regions }
+    | [] -> t
+
+  type exclave = { from_region : region }
+
+  let enter_exclave t =
+    match t.regions with
+    | region :: regions ->
+        let exclave = { from_region = region } in
+        exclave, { t with regions = regions }
+    | [] -> no_current_region ()
+
+  let leave_exclave t { from_region } =
+    { t with regions = from_region :: t.regions }
+
+  let current_region t =
+    match t.regions with
+    | region :: _ -> region
+    | [] -> no_current_region ()
+
+  let may_use_region t = (current_region t).may_be_used
 
   let exit_scope_catch t i =
     { t with

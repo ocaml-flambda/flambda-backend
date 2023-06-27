@@ -678,7 +678,7 @@ and mark_region_used_for_apply ~(reg_close : Lambda.region_close) ~(mode : Lambd
   match reg_close, mode with
   | (Rc_normal | Rc_nontail), Alloc_heap -> r
   | Rc_close_at_apply, _
-  | _, Alloc_local -> R.set_region_use r true
+  | _, Alloc_local -> R.set_region_used r
 
 and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
   let {
@@ -972,7 +972,7 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
   | Set_of_closures set_of_closures -> begin
     let r =
       match set_of_closures.alloc_mode with
-      | Alloc_local -> R.set_region_use r true
+      | Alloc_local -> R.set_region_used r
       | Alloc_heap -> r
     in
     let set_of_closures, r, first_freshening =
@@ -1068,7 +1068,7 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
       let tree = Flambda.Prim (prim, args, dbg) in
       let r =
         if Semantics_of_primitives.may_locally_allocate prim then
-          R.set_region_use r true
+          R.set_region_used r
         else r
       in
       begin match prim, args, args_approxs with
@@ -1457,16 +1457,17 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
   | Region (Exclave body) ->
      simplify env r body
   | Region body ->
-     let use_outer_region = R.may_use_region r in
-     let r = R.set_region_use r false in
+     let r = R.enter_region r in
      let body, r = simplify env r body in
      let use_inner_region = R.may_use_region r in
-     let r = R.set_region_use r use_outer_region in
+     let r = R.leave_region r in
      if use_inner_region then Region body, r
      else body, r
   | Exclave body ->
-     let r = R.set_region_use r true in
+     let r = R.set_region_used r in
+     let exclave, r = R.enter_exclave r in
      let body, r = simplify env r body in
+     let r = R.leave_exclave r exclave in
      Exclave body, r
   | Proved_unreachable -> tree, ret r A.value_bottom
 
