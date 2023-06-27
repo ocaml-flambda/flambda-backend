@@ -118,6 +118,8 @@ module Alias_set : sig
 
   val choose_opt : t -> Simple.t option
 
+  val mem : Simple.t -> t -> bool
+
   (* CR lmaurer: Could conceivably also do a join on the coercions. *)
 
   (** Find the aliases that occur in both sets. If a name occurs on both sides

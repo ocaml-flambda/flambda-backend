@@ -339,6 +339,20 @@ module Alias_set = struct
         | Some (var, coercion) ->
           Some (Simple.with_coercion (Simple.name var) coercion)
         | None -> None))
+
+  let mem simple { const; names } =
+    Simple.pattern_match simple
+      ~const:(fun cst ->
+        match const with
+        | None -> false
+        | Some cst2 -> Reg_width_const.equal cst cst2)
+      ~name:(fun name ~coercion:_ ->
+        match Name.Map.find_opt name names with
+        | None -> false
+        | Some _coercion2 ->
+          (* CR vlaviron: I don't know what it would mean if the coercions
+             differ *)
+          true)
 end
 
 type t =

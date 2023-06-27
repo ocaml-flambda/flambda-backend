@@ -814,12 +814,39 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     map_result
       ~f:TG.Head_of_kind_naked_immediate.create_naked_immediates_non_empty
       (set_meet (module I.Set) env is1 is2 ~of_set:Fun.id)
-  | Is_int ty1, Is_int ty2 ->
-    map_result ~f:TG.Head_of_kind_naked_immediate.create_is_int
-      (meet env ty1 ty2)
-  | Get_tag ty1, Get_tag ty2 ->
-    map_result ~f:TG.Head_of_kind_naked_immediate.create_get_tag
-      (meet env ty1 ty2)
+  | Is_int ty1, Is_int ty2 -> (
+    let default () =
+      (* See the comment in the [Get_tag] case below *)
+      Ok (Left_input, env)
+    in
+    match TG.get_alias_opt ty1, TG.get_alias_opt ty2 with
+    | Some simple1, Some simple2 ->
+      if Simple.equal simple1 simple2
+         || Aliases.Alias_set.mem simple2
+              (TE.aliases_of_simple_allowable_in_types env simple1)
+      then Ok (Both_inputs, env)
+      else default ()
+    | None, _ | _, None -> default ())
+  | Get_tag ty1, Get_tag ty2 -> (
+    let default () =
+      (* CR vlaviron: There are a number of things we could do in this case. We
+         cannot just meet [ty1] with [ty2], but we know that they must both be
+         blocks and that we could remove all tags that are not shared. We could
+         probably implement this by recovering the tags from each side and
+         calling [get_tag_immediate] twice, but given that we don't expect this
+         case to happen in practice we choose a simple, less precise solution
+         instead. *)
+      Ok (Left_input, env)
+      (* Drops the right-hand constraint *)
+    in
+    match TG.get_alias_opt ty1, TG.get_alias_opt ty2 with
+    | Some simple1, Some simple2 ->
+      if Simple.equal simple1 simple2
+         || Aliases.Alias_set.mem simple2
+              (TE.aliases_of_simple_allowable_in_types env simple1)
+      then Ok (Both_inputs, env)
+      else default ()
+    | None, _ | _, None -> default ())
   | Is_int is_int_ty, Naked_immediates immediates ->
     is_int_immediate ~is_int_ty ~immediates ~is_int_side:Left
   | Naked_immediates immediates, Is_int is_int_ty ->
