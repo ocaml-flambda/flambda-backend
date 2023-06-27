@@ -491,17 +491,27 @@ module Result = struct
   let set_region_used t =
     match t.regions with
     | region :: regions ->
-        { t with regions = { region with may_be_used = true } :: regions }
-    | [] -> t
+      { t with regions = { region with may_be_used = true } :: regions }
+    | [] ->
+      (* By rights this should be a fatal error, but currently
+         [Semantics_of_primitives.may_locally_allocate] has too many false
+         positives (including ccalls). *)
+      t
+
+  let set_region_has_exclave t =
+    match t.regions with
+    | region :: regions ->
+      { t with regions = { region with has_exclave = true } :: regions }
+    | [] -> no_current_region ()
 
   type exclave = { from_region : region }
 
   let enter_exclave t =
     match t.regions with
     | region :: regions ->
-        let region = { region with has_exclave = true } in
-        let exclave = { from_region = region } in
-        exclave, { t with regions = regions }
+      let region = { region with has_exclave = true } in
+      let exclave = { from_region = region } in
+      exclave, { t with regions = regions }
     | [] -> no_current_region ()
 
   let leave_exclave t { from_region } =
@@ -515,7 +525,7 @@ module Result = struct
   let may_use_region t =
     (current_region t).may_be_used
 
-  let has_exclave t =
+  let region_has_exclave t =
     (current_region t).has_exclave
 
   let exit_scope_catch t i =

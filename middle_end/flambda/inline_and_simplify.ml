@@ -405,6 +405,13 @@ let remove_exclaves (lam : Flambda.t) =
       else
         let new_body = remove ~depth:(depth - 1) body in
         if new_body == body then lam else Exclave new_body
+    | Apply ({ reg_close = Rc_close_at_apply; _ } as apply) ->
+      (* Can still be compiled as a tail call, so use [Rc_normal] rather than
+         [Rc_nontail] *)
+      Apply { apply with reg_close = Rc_normal }
+    | Send ({ reg_close = Rc_close_at_apply; _ } as send) ->
+      (* Similar to [Apply] *)
+      Send { send with reg_close = Rc_normal }
     | _ ->
       Flambda_iterators.map_tail_subexpressions (remove ~depth) lam
   in
@@ -690,10 +697,19 @@ and simplify_set_of_closures original_env r
   let r = ret r (A.value_set_of_closures value_set_of_closures) in
   set_of_closures, r, value_set_of_closures.freshening
 
-and mark_region_used_for_apply ~(mode : Lambda.alloc_mode) r =
-  match mode with
-  | Alloc_heap -> r
-  | Alloc_local -> R.set_region_used r
+and mark_region_used_for_apply ~(reg_close : Lambda.region_close) ~(mode : Lambda.alloc_mode) r =
+  let r =
+    (* A close-at-apply tail call is effectively a small exclave *)
+    match reg_close with
+    | Rc_close_at_apply -> R.set_region_has_exclave r
+    | Rc_normal | Rc_nontail -> r
+  in
+  let r =
+    match mode with
+    | Alloc_local -> R.set_region_used r
+    | Alloc_heap -> r
+  in
+  r
 
 and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
   let {
@@ -701,7 +717,7 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
     inlined = inlined_requested; specialise = specialise_requested;
     probe = probe_requested; result_layout
   } = apply in
-  let r = mark_region_used_for_apply ~mode r in
+  let r = mark_region_used_for_apply ~reg_close ~mode r in
   let dbg = E.add_inlined_debuginfo env ~dbg in
   simplify_free_variable env lhs_of_application
     ~f:(fun env lhs_of_application lhs_of_application_approx ->
@@ -1329,7 +1345,7 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
     let body, r = simplify env r body in
     While (cond, body), ret r (A.value_unknown Other)
   | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
-    let r = mark_region_used_for_apply ~mode r in
+    let r = mark_region_used_for_apply ~reg_close ~mode r in
     let dbg = E.add_inlined_debuginfo env ~dbg in
     simplify_free_variable env meth ~f:(fun env meth _meth_approx ->
       simplify_free_variable env obj ~f:(fun env obj _obj_approx ->
@@ -1475,7 +1491,7 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
      let r = R.enter_region r in
      let body, r = simplify env r body in
      let use_inner_region = R.may_use_region r in
-     let has_exclave = R.has_exclave r in
+     let has_exclave = R.region_has_exclave r in
      let r = R.leave_region r in
      if use_inner_region then Region body, r
      else if has_exclave then remove_exclaves body, r else body, r
