@@ -232,7 +232,11 @@ let value_kind_of_value_layout layout =
 let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
   : int * value_kind =
   let[@inline] cannot_proceed () =
-    Numbers.Int.Set.mem (get_id ty) visited
+    let simple_value_kind_mode =
+      not Config.flambda2 || !Clflags.classic_inlining
+    in
+    simple_value_kind_mode
+    || Numbers.Int.Set.mem (get_id ty) visited
     || depth >= 2
     || num_nodes_visited >= 30
   in
