@@ -2449,24 +2449,34 @@ let has_local_allocs e =
     | Cop (Calloc Alloc_local, _, _) | Cop ((Cextcall _ | Capply _), _, _) ->
       raise Exit
     | e -> iter_shallow loop e
-  and loop_until_tail = function
-    | Ctail e -> loop e
-    | Cregion _ -> ()
-    | e -> ignore (iter_shallow_tail loop_until_tail e)
+  and loop_until_tail e = loop_until_tail0 e ~depth:0
+  and loop_until_tail0 ~depth = function
+    | Ctail e ->
+      if depth = 0 then loop e else loop_until_tail0 ~depth:(depth - 1) e
+    | Cregion e -> loop_until_tail0 ~depth:(depth + 1) e
+    | e -> ignore (iter_shallow_tail (loop_until_tail0 ~depth) e)
   in
   match loop e with () -> false | exception Exit -> true
 
+let rec map_region_tail f = function
+  | Ctail e -> Ctail (f e)
+  | Cregion e -> Cregion (map_region_tail (map_region_tail f) e)
+  | e -> map_shallow_tail (map_region_tail f) e
+
 let remove_region_tail e =
-  let rec has_tail = function
-    | Ctail _ | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
-    | Cregion _ -> ()
-    | e -> ignore (iter_shallow_tail has_tail e)
+  let rec has_tail0 ~depth = function
+    | (Ctail _ | Cop (Capply (_, Rc_close_at_apply), _, _)) when depth = 0 ->
+      raise Exit
+    | Ctail e -> has_tail0 ~depth:(depth - 1) e
+    | Cregion e -> has_tail0 ~depth:(depth + 1) e
+    | e -> ignore (iter_shallow_tail (has_tail0 ~depth) e : bool)
   in
+  let has_tail e = has_tail0 e ~depth:0 in
   let rec remove_tail = function
     | Ctail e -> e
     | Cop (Capply (mach, Rc_close_at_apply), args, dbg) ->
       Cop (Capply (mach, Rc_normal), args, dbg)
-    | Cregion _ as e -> e
+    | Cregion e -> Cregion (map_region_tail remove_tail e)
     | e -> map_shallow_tail remove_tail e
   in
   match has_tail e with () -> e | exception Exit -> remove_tail e
