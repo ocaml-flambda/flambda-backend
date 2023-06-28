@@ -137,7 +137,7 @@ let a = choose_pt true (~~(~x: 5, ~y: 6))
 val a : x:int * y:int = (~x:1, ~y:2)
 |}]
 
-(* CR labeled tuples: reordering should eventually work *)
+(* Wrong order *)
 let a = choose_pt true (~~(~y: 6, ~x: 5))
 [%%expect{|
 Line 1, characters 23-41:
@@ -572,7 +572,6 @@ module IntString : sig
    val unwrap : t -> ~~(x:int * string)
 end = struct
   type t = ~~(string * x:int)
-  (* CR labeled tuples: Make these use reordering, once supported *)
   let mk (~~(~x; s)) = (~~(s, ~x))
   let unwrap (~~(s; ~x)) = (~~(~x, s))
 end
@@ -639,6 +638,68 @@ module StringableIntString :
 let _ = StringableIntString.to_string (StringableIntString.mk (~~(~x:1, "hi")))
 [%%expect{|
 - : string = "1 hi"
+|}]
+
+module M : sig
+  val f : ~~(x:int * string) -> ~~(x:int * string)
+  val mk : unit -> ~~(x:bool * y:string)
+end = struct
+  let f x = x
+  let mk () = ~~(~x:false, ~y:"hi")
+end
+
+(* Module inclusion failure *)
+module X_int_int = struct
+   type t = ~~(x:int * int)
+end
+[%%expect{|
+module M :
+  sig
+    val f : x:int * string -> x:int * string
+    val mk : unit -> x:bool * y:string
+  end
+module X_int_int : sig type t = x:int * int end
+|}]
+
+module Y_int_int : sig
+   type t = ~~(y:int * int)
+end = struct
+   include X_int_int
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |    include X_int_int
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = x:int * int end
+       is not included in
+         sig type t = y:int * int end
+       Type declarations do not match:
+         type t = x:int * int
+       is not included in
+         type t = y:int * int
+       The type x:int * int is not equal to the type y:int * int
+|}]
+
+module Int_int : sig
+   type t = ~~(int * int)
+end = X_int_int
+[%%expect{|
+Line 3, characters 6-15:
+3 | end = X_int_int
+          ^^^^^^^^^
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = x:int * int end
+       is not included in
+         sig type t = int * int end
+       Type declarations do not match:
+         type t = x:int * int
+       is not included in
+         type t = int * int
+       The type x:int * int is not equal to the type int * int
 |}]
 
 (* Recursive modules *)

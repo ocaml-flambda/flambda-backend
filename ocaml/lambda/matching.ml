@@ -3818,10 +3818,7 @@ let for_tupled_function ~scopes loc kind paraml pats_act_list partial =
 
 let flatten_pattern size p =
   match p.pat_desc with
-  | Tpat_tuple args ->
-    List.map
-      (fun (lbl, p) -> if Option.is_some lbl then raise Cannot_flatten else p)
-      args
+  | Tpat_tuple args -> List.map snd args
   | Tpat_any -> Patterns.omegas size
   | _ -> raise Cannot_flatten
 
