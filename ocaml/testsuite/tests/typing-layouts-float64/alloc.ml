@@ -6,6 +6,8 @@
 (* A test comparing allocations with unboxed floats to allocations with boxed
    floats. *)
 
+(* CR layouts v2: Delete this `Float_u` module and use the one we add to the
+   standard library instead. *)
 module type Float_u = sig
   external to_float : float# -> (float[@local_opt]) = "%box_float"
   external of_float : (float[@local_opt]) -> float# = "%unbox_float"

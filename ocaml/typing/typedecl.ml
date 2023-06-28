@@ -282,7 +282,13 @@ let update_type temp_env env id loc =
 
 (* Determine if a type's values are represented by floats at run-time. *)
 (* CR layouts v2.5: Should we check for unboxed float here? Is a record with all
-   unboxed floats the same as a float record? *)
+   unboxed floats the same as a float record?
+
+   reisenberg: Yes. And actually a record mixing floats and unboxed floats is
+   also a float-record, and should be made to work. We'll have to make sure to
+   add the boxing operations in the right spot at projections, but that should
+   be possible.
+*)
 let is_float env ty =
   match get_desc (Ctype.get_unboxed_type_approximation env ty) with
     Tconstr(p, _, _) -> Path.same p Predef.path_float
@@ -1020,8 +1026,8 @@ let check_representable ~why env loc lloc typ =
      structures for now, as it is called on all the types in declared blocks in
      kinds, and only them.  But when we have a real mixed block restriction, it
      can't be done here because we're just looking at one type.  *)
-  (* CR layouts v2: This rules out float# in [@@unboxed] types.  No real need to
-     rule that out - I just haven't had time to write tests for it yet. *)
+  (* CR layouts v2.5: This rules out float# in [@@unboxed] types.  No real need
+     to rule that out - I just haven't had time to write tests for it yet. *)
   | Ok s -> begin
       match Sort.get_default_value s with
       | Void | Value -> ()

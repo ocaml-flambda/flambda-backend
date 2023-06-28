@@ -32,9 +32,14 @@ type error =
 
 exception Error of Location.t * error
 
-(* Expand a type, looking through ordinary synonyms, private synonyms,
-   links, and [@@unboxed] types. The returned type will be therefore be none
-   of these cases (except in case of missing cmis). *)
+(* Expand a type, looking through ordinary synonyms, private synonyms, links,
+   and [@@unboxed] types. The returned type will be therefore be none of these
+   cases (except in case of missing cmis).
+
+   If we fail to fully scrape the type due to missing a missing cmi file, we
+   return the original, rather than a partially expanded one.  The original may
+   have cached layout information that is more accurate than can be computed
+   from its expanded form. *)
 let scrape_ty env ty =
   let ty =
     match get_desc ty with
