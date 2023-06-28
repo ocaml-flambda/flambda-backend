@@ -1739,9 +1739,9 @@ and le_pats ps qs =
 
 and le_tuple_pats labeled_ps labeled_qs =
   match labeled_ps, labeled_qs with
-    (p_label, p)::labeled_ps, (q_label, q)::labeled_qs 
-        when Option.equal String.equal p_label q_label ->
-      le_pat p q && le_tuple_pats labeled_ps labeled_qs
+    (p_label, p)::labeled_ps, (q_label, q)::labeled_qs ->
+      Option.equal String.equal p_label q_label
+      && le_pat p q && le_tuple_pats labeled_ps labeled_qs
   | _, _ -> true
 
 let get_mins le ps =
