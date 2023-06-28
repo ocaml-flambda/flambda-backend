@@ -109,7 +109,7 @@ type import_info = {
   imp_filename : string;
 }
 
-type  pers_struct = {
+type pers_struct = {
   ps_global: Global.t;
   ps_arg_for: Global.Name.t option;
   ps_binding: binding;
