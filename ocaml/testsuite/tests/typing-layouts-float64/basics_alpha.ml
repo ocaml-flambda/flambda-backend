@@ -123,6 +123,7 @@ Error: Type t_float64 has layout float64.
        Types of this layout are not yet allowed in blocks (like records or variants).
 |}];;
 
+(* CR layouts v5: this should work *)
 type t5_2 = { y : int; x : t_float64 };;
 [%%expect{|
 Line 1, characters 23-36:
@@ -132,6 +133,18 @@ Error: Type t_float64 has layout float64.
        Types of this layout are not yet allowed in blocks (like records or variants).
 |}];;
 
+(* CR layouts: this runs afoul of the mixed block restriction, but should work
+   once we relax that. *)
+type t5_2' = { y : string; x : t_float64 };;
+[%%expect{|
+Line 1, characters 27-40:
+1 | type t5_2' = { y : string; x : t_float64 };;
+                               ^^^^^^^^^^^^^
+Error: Type t_float64 has layout float64.
+       Types of this layout are not yet allowed in blocks (like records or variants).
+|}];;
+
+(* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_float64 } [@@unboxed];;
 [%%expect{|
 Line 1, characters 14-27:
