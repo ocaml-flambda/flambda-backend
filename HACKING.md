@@ -226,8 +226,11 @@ tweak these instructions):
 4. Choose the built `ocamldebug`, in your install directory.
 5. Set any breakpoints you want. The easiest way is to navigate to the line
    where you want the breakpoint and use `C-x C-a C-b` in emacs.
-6. Install the debug printers, with `source ocaml/tools/debug_printers`.
-7. `run` to your breakpoint.
+6. Run `directory _build/main/ocaml/.ocamlcommon.objs/byte` to add the right
+   directory to `ocamldebug`'s search path. (If you skip this, printing any
+   value produces `Cannot find module Misc.`.)
+7. Install the debug printers, with `source ocaml/tools/debug_printers`.
+8. `run` to your breakpoint.
 
 See [the manual section](https://v2.ocaml.org/manual/debugger.html) for more
 information about the debugger.
