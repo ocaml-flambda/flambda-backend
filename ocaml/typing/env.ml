@@ -936,20 +936,15 @@ let subst_of_instance_args (global : Global.t) ~bound_global_names =
            let Y = Y in
            let M = M[X:A]{Y} in
            ... X ... Y ... M ... v}
-     2. We substitute the resulting bindings into the body:
-        {v ... A ... Y ... M[X:A]{Y} v}
-     3. We renormalize by pulling out the bindings again:
+     2. Now we alpha-rename to normalize the bound global names, so that when we
+        lift them into the environment, they'll be consistent with the bound
+        global names from other modules (we can't bind [X] to [A] everywhere!):
         {v let A = A in
            let Y = Y in
            let M[X:A] = M[X:A]{Y}
            ... A ... Y ... M[X:A] ... v}
-     4. Finally, we add these new bindings to the persistent environment and
+     3. Finally, we add these new bindings to the persistent environment and
         retain this signature as the type of the module.
-
-     Note that we can combine steps 2 and 3 into a single alpha-renaming step.
-     This can be motivated by the fact that we keep a table of global name
-     bindings that's consistent across modules, and it would clearly not do to
-     bind [X] to [A] globally, so we alpha-rename to a canonical form.
 
      So a _more_ accurate summary of this function would be:
 
