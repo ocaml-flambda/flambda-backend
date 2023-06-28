@@ -229,7 +229,8 @@ let value_kind_of_value_layout layout =
    When we eliminate the safety check here, we should think again about where
    and how sort variables are defaulted.
 *)
-let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
+let rec value_kind env ?(must_visit_head_tuple=false) ~loc ~visited
+    ~depth ~num_nodes_visited ty
   : int * value_kind =
   let[@inline] cannot_proceed () =
     let simple_value_kind_mode =
@@ -314,7 +315,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
     (* CR layouts v1.5: stop allowing missing cmis. *)
     end
   | Ttuple fields ->
-    if cannot_proceed () then
+    if (not must_visit_head_tuple) && cannot_proceed () then
       num_nodes_visited, Pgenval
     else begin
       let visited = Numbers.Int.Set.add (get_id ty) visited in
@@ -483,10 +484,10 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
         (num_nodes_visited, Pvariant { consts = []; non_consts })
     end
 
-let value_kind env loc ty =
+let value_kind env ~must_visit_head_tuple loc ty =
   let (_num_nodes_visited, value_kind) =
-    value_kind env ~loc ~visited:Numbers.Int.Set.empty ~depth:0
-      ~num_nodes_visited:0 ty
+    value_kind env ~must_visit_head_tuple ~loc
+      ~visited:Numbers.Int.Set.empty ~depth:0 ~num_nodes_visited:0 ty
   in
   value_kind
 
@@ -501,10 +502,13 @@ let value_kind env loc ty =
    because the sort argument here is sometimes not computed from the type or
    typed tree, but just one of the defaults from layouts.ml.
 *)
-let layout env loc sort ty =
+let layout' env loc sort ty ~must_visit_head_tuple =
   match Layouts.Sort.get_default_value sort with
   | Void -> raise (Error (loc, Non_value_sort ty))
-  | Value -> Lambda.Pvalue (value_kind env loc ty)
+  | Value -> Lambda.Pvalue (value_kind env loc ty ~must_visit_head_tuple)
+
+let layout env loc sort ty =
+  layout' env loc sort ty ~must_visit_head_tuple:false
 
 let layout_of_sort loc sort =
   match Layouts.Sort.get_default_value sort with
@@ -523,7 +527,7 @@ let function2_return_layout env loc sort ty =
 
 let function_arg_layout env loc sort ty =
   match is_function_type env ty with
-  | Some (arg_type, _) -> layout env loc sort arg_type
+  | Some (arg_type, _) -> layout' env loc sort arg_type ~must_visit_head_tuple:true
   | None -> Misc.fatal_error "function_arg_layout called on non-function type"
 
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
