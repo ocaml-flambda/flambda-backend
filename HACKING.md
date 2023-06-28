@@ -241,6 +241,7 @@ target `.ml` file), set a breakpoint, and then `run`.
 
 ```
 ;; directly inspired by the ocamldebug implementation in ocamldebug.el
+(require 'ocamldebug)
 (defun ocamldebug-ocaml ()
   (interactive)
   "Runs ocamldebug on the ocaml built from the source file in the active buffer"
