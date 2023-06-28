@@ -922,9 +922,27 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
     }
   }
 
-let subst_of_instance_args (global : Global.t) ~bound_global_names =
-  (* A fictional but more-obviously-correct story for how imports and parameters
-     work: The .cmi says something like
+module Signature_with_global_bindings : sig
+  (* The [cmi_sign] and [cmi_globals] fields from a .cmi file, seen as a single
+     term of the form:
+
+     {v let <global name 1> = <global 1> in
+        ...
+        let <global name n> = <global n> in
+        sig
+          ...
+        end v}
+
+     Note that globals without parameters are understood to be bound but aren't
+     represented explicitly. *)
+  type t = {
+    sign : Subst.Lazy.signature;
+    bound_global_names : (Global.Name.t * Global.t) array;
+  }
+
+  val read_from_cmi : Cmi_format.cmi_infos_lazy -> t
+
+  (* To see how substitution will work on [t], suppose we have something like
        {v let X = X in
           let Y = Y in
           let M = M{X}{Y} in
@@ -936,92 +954,100 @@ let subst_of_instance_args (global : Global.t) ~bound_global_names =
            let Y = Y in
            let M = M[X:A]{Y} in
            ... X ... Y ... M ... v}
-     2. Now we alpha-rename to normalize the bound global names, so that when we
-        lift them into the environment, they'll be consistent with the bound
-        global names from other modules (we can't bind [X] to [A] everywhere!):
+     2. Now, as usual, to work with the signature, we need to add these bindings
+        to the environment. However, we can't lift them in this form, as [X] and
+        [M] may have different bindings in different modules. To achieve
+        consistency, we alpha-rename to a canonical form:
         {v let A = A in
            let Y = Y in
            let M[X:A] = M[X:A]{Y}
            ... A ... Y ... M[X:A] ... v}
-     3. Finally, we add these new bindings to the persistent environment and
-        retain this signature as the type of the module.
 
-     So a _more_ accurate summary of this function would be:
+     In general, the plan of action is:
 
      1. Form a substitution [S] mapping each argument's name to its value
      2. Apply [S] to the RHSes of the global name bindings
      3. For each new binding [L = R'], let [L'] be the [Global.to_name] of [R'],
         substitute [L'] for [L] in the body, and update the binding to
-        [L' = R']
+        [L' = R'] *)
+  val subst : t -> (Global.Name.t * Global.t) list -> t
+end = struct
+  type t = {
+    sign : Subst.Lazy.signature;
+    bound_global_names : (Global.Name.t * Global.t) array;
+  }
 
-     There are two remaining simplifications in this story. Firstly, this
-     function doesn't itself perform the substitution in the body, instead
-     returning the substitution along with the new global name bindings. (This
-     is because [read_sign_of_cmi], as currently written, actually performs the
-     substitution twice.)
+  let read_from_cmi cmi =
+    let sign = cmi.cmi_sign in
+    let bound_global_names = cmi.cmi_globals in
+    { sign; bound_global_names }
 
-     Secondly, we don't actually include bindings like [X = X] in
-     [bound_global_names] and this is how most parameters are bound (all of them
-     as of this writing, actually), so we have to run steps 2 and 3 over the
-     argument list as well as the global name bindings. *)
-  match global.visible_args with
-  | [] -> Subst.identity, bound_global_names
-  | _ ->
-      let arg_subst = Global.Name.Map.of_list global.visible_args in
-      let add_to_subst_and_bind_global_name subst name value =
-        let name_id = Ident.create_global name in
-        let value_as_name = Global.to_name value in
-        let value_id = Ident.create_global value_as_name in
-        let subst =
-          if Global.Name.equal name value_as_name then subst else
-            Subst.add_module name_id (Pident value_id) subst
+  let subst t (args : (Global.Name.t * Global.t) list) =
+    let { sign; bound_global_names } = t in
+    match args with
+    | [] -> t
+    | _ ->
+        (* The global-level substitution *)
+        let arg_subst = Global.Name.Map.of_list args in
+        (* Add a binding to a term-level substitution, and also return the new
+           form of the global (or [None] to drop it). *)
+        let add_to_subst_and_bind_global_name subst name value =
+          let name_id = Ident.create_global name in
+          let value_as_name = Global.to_name value in
+          let value_id = Ident.create_global value_as_name in
+          let subst =
+            if Global.Name.equal name value_as_name then subst else
+              Subst.add_module name_id (Pident value_id) subst
+          in
+          let new_bound_global =
+            if Global.has_arguments value then
+              Some (value_as_name, value)
+            else
+              (* No explicit binding for unparameterised global *)
+              None
+          in
+          subst, new_bound_global
         in
-        let new_bound_global =
-          if Global.has_arguments value then
-            Some (value_as_name, value)
-          else None
+        (* Add a binding from the bound global names to the substitution, and return
+           an updated global name binding. *)
+        let add_and_update_binding subst (name, value) =
+          if Global.Name.Map.mem name arg_subst then
+            (* This will be handled by [add_arg_and_create_binding] below *)
+            subst, None
+          else
+          let value = Global.subst value arg_subst in
+          add_to_subst_and_bind_global_name subst name value
         in
-        subst, new_bound_global
-      in
-      (* Add a binding from the bound global names to the substitution, and return
-         an updated global name binding. *)
-      let add_and_update_binding subst (name, value) =
-        if Global.Name.Map.mem name arg_subst then
-          (* This will be handled by [add_arg_and_create_binding] below *)
-          subst, None
-        else
-        let value = Global.subst value arg_subst in
-        add_to_subst_and_bind_global_name subst name value
-      in
-      let subst = Subst.identity in
-      let subst, bound_global_names =
-        Array.fold_left_map add_and_update_binding subst bound_global_names
-      in
-      (* Add an argument to the substitution, and return a new global name
-         binding. *)
-      let add_arg_and_create_binding subst (name, value) =
-        add_to_subst_and_bind_global_name subst name value
-      in
-      let subst, bound_global_names_from_args =
-        List.fold_left_map add_arg_and_create_binding subst
-          global.visible_args
-      in
-      let bound_global_names =
-        List.append bound_global_names_from_args
-          (Array.to_list bound_global_names)
-        |> List.filter_map (fun a -> a)
-        |> Array.of_list
-      in
-      subst, bound_global_names
+        let subst = Subst.identity in
+        let subst, bound_global_names =
+          Array.fold_left_map add_and_update_binding subst bound_global_names
+        in
+        (* Add an argument to the substitution, and return a new global name
+           binding. *)
+        let add_arg_and_create_binding subst (name, value) =
+          add_to_subst_and_bind_global_name subst name value
+        in
+        let subst, bound_global_names_from_args =
+          List.fold_left_map add_arg_and_create_binding subst args
+        in
+        let bound_global_names =
+          List.append bound_global_names_from_args
+            (Array.to_list bound_global_names)
+          |> List.filter_map (fun a -> a)
+          |> Array.of_list
+        in
+        let sign = Subst.Lazy.signature Keep subst sign in
+        { sign; bound_global_names }
+end
 
 let persistent_env : module_data Persistent_env.t ref =
   s_table Persistent_env.empty ()
 
 let read_sign_of_cmi
       { Persistent_env.Persistent_signature.cmi; filename }
-      ~global ~bound_global_names ~binding =
+      ~global ~binding =
   let name = global |> Global.to_name in
-  let sign = cmi.cmi_sign in
+  let sign = Signature_with_global_bindings.read_from_cmi cmi in
   let flags = cmi.cmi_flags in
   let module_block_layout = Cmi_format.module_block_layout cmi in
   let id = Ident.create_global name in
@@ -1030,6 +1056,12 @@ let read_sign_of_cmi
     List.fold_left (fun acc -> function Alerts s -> s | _ -> acc)
       Misc.Stdlib.String.Map.empty
       flags
+  in
+  let { Signature_with_global_bindings.sign; bound_global_names } =
+    (* Note that we only need to substitute the visible arguments: the
+       substitutions that the hidden arguments _would_ perform are always just
+       the subsitutions that the visible arguments are already performing *)
+    Signature_with_global_bindings.subst sign global.Global.visible_args
   in
   let md =
     { Subst.Lazy.md_type = Mty_signature sign;
@@ -1051,10 +1083,8 @@ let read_sign_of_cmi
         end
   in
   let mda_address = Lazy_backtrack.create_forced addr in
-  let instance_subst, bound_global_names = subst_of_instance_args global ~bound_global_names in
   let mda_declaration =
     Subst.(Lazy.module_decl Make_local identity md)
-    |> Subst.Lazy.module_decl Keep instance_subst
   in
   let mda_shape =
     (* CR lmaurer: Probably should do something more sophisticated *)
@@ -1063,7 +1093,6 @@ let read_sign_of_cmi
   let mda_filename = Some filename in
   let mda_components =
     let mty = Subst.Lazy.Mty_signature sign in
-    let mty = Subst.Lazy.modtype Keep instance_subst mty in
     let mty =
       Subst.Lazy.modtype (Subst.Rescope (Path.scope path))
         Subst.identity mty

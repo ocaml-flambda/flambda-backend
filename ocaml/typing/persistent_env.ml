@@ -386,7 +386,6 @@ let make_binding penv (global : Global.t) kind : binding =
 type 'a sig_reader =
   Persistent_signature.t
   -> global:Global.t
-  -> bound_global_names:(Global.Name.t * Global.t) array
   -> binding:binding
   -> 'a * (Global.Name.t * Global.t) array
 
@@ -503,7 +502,6 @@ and acknowledge_pers_struct
   let { Persistent_signature.filename; cmi } = pers_sig in
   let found_name = cmi.cmi_name in
   let kind = cmi.cmi_kind in
-  let bound_global_names = cmi.cmi_globals in
   let params = cmi.cmi_params in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
@@ -575,9 +573,7 @@ and acknowledge_pers_struct
              ps_filename = filename;
            } in
   if check then check_consistency penv ps;
-  let pm, bound_global_names =
-    val_of_pers_sig pers_sig ~global ~binding ~bound_global_names
-  in
+  let pm, bound_global_names = val_of_pers_sig pers_sig ~global ~binding in
   Hashtbl.add imports modname import;
   Hashtbl.add persistent_structures global_name (Found (ps, pm));
   remember_global penv global_name global ~mentioned_by:global_name;

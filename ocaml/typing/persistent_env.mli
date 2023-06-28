@@ -97,7 +97,6 @@ type binding =
 type 'a sig_reader =
   Persistent_signature.t
   -> global:Global.t
-  -> bound_global_names:(Global.Name.t * Global.t) array
   -> binding:binding
   -> 'a * (Global.Name.t * Global.t) array
 
