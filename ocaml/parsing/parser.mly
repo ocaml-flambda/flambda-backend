@@ -281,8 +281,9 @@ let rec mktailpat nilloc = let open Location in function
   | p1 :: pl ->
       let pat_pl, el_loc = mktailpat nilloc pl in
       let loc = (p1.ppat_loc.loc_start, snd el_loc) in
-      let arg =
-        ghpat ~loc (Ppat_tuple [None, p1; None, ghpat ~loc:el_loc pat_pl]) in
+      let cons =
+        Ppat_tuple ([None, p1; None, ghpat ~loc:el_loc pat_pl], Closed) in
+      let arg = ghpat ~loc cons in
       ghpat_cons_desc loc arg, loc
 
 let mkstrexp e attrs =
@@ -3136,7 +3137,7 @@ pattern_no_exn:
 %inline pattern_(self):
   | self COLONCOLON pattern
       { mkpat_cons ~loc:$sloc $loc($2)
-          (ghpat ~loc:$sloc (Ppat_tuple[None,$1;None,$3])) }
+          (ghpat ~loc:$sloc (Ppat_tuple([None,$1;None,$3], Closed))) }
   | self attribute
       { Pat.attr $1 $2 }
   | pattern_gen
@@ -3148,9 +3149,10 @@ pattern_no_exn:
         { expecting $loc($3) "identifier" }
     (* CR labeled tuples: merge the below two cases *)
     | pattern_comma_list(self) %prec below_COMMA
-        { Ppat_tuple(List.rev_map (fun p -> None, p) $1) }
-    | TILDETILDELPAREN labeled_pattern_comma_list(self) RPAREN
-        { Ppat_tuple(List.rev $2) }
+        { Ppat_tuple(List.rev_map (fun p -> None, p) $1, Closed) }
+    | TILDETILDELPAREN labeled_pattern_comma_list RPAREN
+        { let components, closed = $2 in
+          Ppat_tuple(components, closed) }
     | self COLONCOLON error
         { expecting $loc($3) "pattern" }
     | self BAR pattern
@@ -3282,9 +3284,14 @@ pattern_comma_list(self):
         Some label, mkpat_opt_constraint ~loc pat (Some cty) }
 ;
 
-labeled_pattern_comma_list(self):
-    labeled_pattern_comma_list(self) SEMI labeled_pattern      { $3 :: $1 }
-  | labeled_pattern SEMI labeled_pattern                       { [$3; $1] }
+labeled_pattern_comma_list:
+    DOTDOT
+      { [], Open }
+  | labeled_pattern SEMI labeled_pattern
+      { [$1; $3], Closed }
+  | labeled_pattern SEMI labeled_pattern_comma_list
+      { let l, closed = $3 in
+        $1 :: l, closed }
 ;
 %inline pattern_semi_list:
   ps = separated_or_terminated_nonempty_list(SEMI, pattern)

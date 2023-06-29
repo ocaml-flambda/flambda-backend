@@ -628,8 +628,6 @@ end
 let rec flatten_pat_line size p k =
   match p.pat_desc with
   | Tpat_any | Tpat_var _ -> Patterns.omegas size :: k
-  (* CR labeled tuples: this assumes that the orders of [Tpat_tuple]s match
-     their type. Double-check this upon adding reordering *)
   | Tpat_tuple args -> (List.map snd args) :: k
   | Tpat_or (p1, p2, _) ->
       flatten_pat_line size p1 (flatten_pat_line size p2 k)
@@ -2047,8 +2045,6 @@ let divide_lazy ~scopes head ctx pm =
 let get_pat_args_tuple arity p rem =
   match p with
   | { pat_desc = Tpat_any } -> Patterns.omegas arity @ rem
-    (* CR labeled tuples: this assumes that the orders of [Tpat_tuple]s match
-       their type. Double-check this upon adding reordering *)
   | { pat_desc = Tpat_tuple args } -> (List.map snd args) @ rem
   | _ -> assert false
 
@@ -3740,8 +3736,6 @@ let rec map_return f = function
 let assign_pat ~scopes value_kind opt nraise catch_ids loc pat lam =
   let rec collect acc pat lam =
     match (pat.pat_desc, lam) with
-    (* CR labeled tuples: these assume that the orders of [Tpat_tuple]s match
-       their type. Double-check this upon adding reordering *)
     | Tpat_tuple patl, Lprim (Pmakeblock _, lams, _) ->
         opt := true;
         List.fold_left2 collect acc (List.map snd patl) lams

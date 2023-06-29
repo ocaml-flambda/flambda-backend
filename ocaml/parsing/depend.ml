@@ -181,7 +181,7 @@ let rec add_pattern bv pat =
   | Ppat_alias(p, _) -> add_pattern bv p
   | Ppat_interval _
   | Ppat_constant _ -> ()
-  | Ppat_tuple labeled_pl ->
+  | Ppat_tuple (labeled_pl, _) ->
       List.iter (fun (_, p) -> add_pattern bv p) labeled_pl
   | Ppat_construct(c, opt) ->
       add bv c;

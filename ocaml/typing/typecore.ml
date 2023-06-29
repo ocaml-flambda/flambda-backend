@@ -103,6 +103,7 @@ type submode_reason =
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
   | Constructor_labeled_arg
+  | Partial_tuple_pattern_bad_type
   | Label_mismatch of Longident.t * Errortrace.unification_error
   | Pattern_type_clash :
       Errortrace.unification_error * _ pattern_desc option -> error
@@ -1075,11 +1076,54 @@ let solve_Ppat_alias ~refine ~mode env pat =
   let ty_var, mode = build_as_type_and_mode ~refine ~mode env pat in
   end_def ();
   generalize ty_var;
-  ty_var, mode
+  ty_var, mode 
 
-let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
+(* Extracts the first element from a list matching a label. Roughly:
+     pat <- List.assoc_opt label patl;
+     return (pat, List.remove_assoc label patl)
+  *)
+let extract_pat label patl =
+  let rec extract_pat_aux acc = function
+  | [] -> None
+  | ((label', t) as pat) :: rest ->
+      if Option.equal String.equal label label' then
+        Some (t, List.rev_append acc rest)
+      else
+        extract_pat_aux (pat::acc) rest
+  in
+  extract_pat_aux [] patl
+
+let extract_or_mk_pat label rem closed =
+  match (extract_pat label rem), closed with
+  (* Take the first match from patl *)
+  | (Some _ as pat_and_rem), _ -> pat_and_rem
+  (* No match, but the partial pattern allows us to generate a _ *)
+  | _, Open -> Some ((Ast_helper.Pat.mk Ppat_any), rem)
+  | _ -> None
+
+let reorder_pat patl closed labeled_tl =
+  let take_next taken_and_rem (label, _) =
+    Option.bind taken_and_rem
+    (fun (taken, rem) ->
+      Option.bind (extract_or_mk_pat label rem closed)
+      (fun (pat, rem) ->
+        Some ((label, pat) :: taken, rem)))
+  in
+  match (List.fold_left take_next (Some ([], patl)) labeled_tl) with
+  | Some (taken, []) -> Some (List.rev taken)
+  | _ -> None
+
+let solve_Ppat_tuple ~refine ~alloc_mode loc env args closed expected_ty =
+  let args =
+    match (get_desc expected_ty), (is_principal expected_ty), closed with
+    (* If it's a principally-known tuple pattern, try to reorder *)
+    | (Ttuple labeled_tl), true, _ ->
+      Option.value ~default:args (reorder_pat args closed labeled_tl)
+    (* If not, it's not allowed to be open (partial) *)
+    | _, _, Open -> raise (Error (loc, !env, Partial_tuple_pattern_bad_type))
+    | _ -> args
+  in
   let arity = List.length args in
-  assert (arity >= 2);
   let arg_modes =
     if List.compare_length_with alloc_mode.tuple_modes arity = 0 then
       alloc_mode.tuple_modes
@@ -1902,7 +1946,7 @@ let rec has_literal_pattern p =
   | Ppat_lazy p
   | Ppat_open (_, p) ->
      has_literal_pattern p
-  | Ppat_tuple labeled_ps ->
+  | Ppat_tuple (labeled_ps, _) ->
      List.exists (fun (_, p) -> has_literal_pattern p) labeled_ps
   | Ppat_array ps ->
      List.exists has_literal_pattern ps
@@ -2342,9 +2386,9 @@ and type_pat_aux
         (* TODO: record 'extra' to remember about interval *)
   | Ppat_interval _ ->
       raise (Error (loc, !env, Invalid_interval))
-  | Ppat_tuple spl ->
+  | Ppat_tuple (spl, closed) ->
       let spl_ann =
-        solve_Ppat_tuple ~refine ~alloc_mode loc env spl expected_ty
+        solve_Ppat_tuple ~refine ~alloc_mode loc env spl closed expected_ty
       in
       map_fold_cont
         (fun (lbl, p, t, alloc_mode) k ->
@@ -2407,7 +2451,7 @@ and type_pat_aux
       let sargs =
         match sarg' with
           None -> []
-        | Some {ppat_desc = Ppat_tuple spl} when
+        | Some {ppat_desc = Ppat_tuple (spl, _)} when
             constr.cstr_arity > 1 ||
             Builtin_attributes.explicit_arity sp.ppat_attributes
           ->
@@ -2879,7 +2923,7 @@ let rec pat_tuple_arity spat =
   | Some (jpat, _attrs) -> pat_tuple_arity_jane_syntax jpat
   | None      ->
   match spat.ppat_desc with
-  | Ppat_tuple args -> Local_tuple (List.length args)
+  | Ppat_tuple (args, _) -> Local_tuple (List.length args)
   | Ppat_any | Ppat_exception _ | Ppat_var _ -> Maybe_local_tuple
   | Ppat_constant _
   | Ppat_interval _ | Ppat_construct _ | Ppat_variant _
@@ -3632,9 +3676,8 @@ and type_approx_aux env sexp in_function ty_expected =
   | Pexp_match (_, {pc_rhs=e}::_) -> type_approx_aux env e None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
   | Pexp_tuple l ->
-      (* CR labeled tuples: consider behavior with reordering *)
       let labeled_tys = List.map
-                  (fun (label, _) -> label, newvar (Layout.value ~why:Tuple_element)) l
+        (fun (label, _) -> label, newvar (Layout.value ~why:Tuple_element)) l
       in
       let ty = newty (Ttuple labeled_tys) in
       begin try unify env ty ty_expected with Unify err ->
@@ -3897,7 +3940,7 @@ let shallow_iter_ppat f p =
   | Ppat_array pats -> List.iter f pats
   | Ppat_or (p1,p2) -> f p1; f p2
   | Ppat_variant (_, arg) -> Option.iter f arg
-  | Ppat_tuple lst ->  List.iter (fun (_,p) -> f p) lst
+  | Ppat_tuple (lst, _) ->  List.iter (fun (_,p) -> f p) lst
   | Ppat_construct (_, Some (_, p))
   | Ppat_exception p | Ppat_alias (p,_)
   | Ppat_open (_,p)
@@ -3917,6 +3960,17 @@ let contains_polymorphic_variant p =
   exists_ppat
     (function
      | {ppat_desc = (Ppat_variant _ | Ppat_type _)} -> true
+     | _ -> false)
+    p
+
+let contains_labeled_or_partial_tuple p =
+  exists_ppat
+    (function
+     | {ppat_desc = (Ppat_tuple (pl, closed))} ->
+        begin match closed with
+        | Open -> true
+        | Closed -> List.exists (fun (label, _) -> Option.is_some label) pl
+        end
      | _ -> false)
     p
 
@@ -4195,7 +4249,7 @@ and type_expect_
         exp_env = env }
   | Pexp_let(Nonrecursive,
              [{pvb_pat=spat; pvb_expr=sval; pvb_attributes=[]}], sbody)
-    when may_contain_gadts spat ->
+    when may_contain_gadts spat || contains_labeled_or_partial_tuple spat->
     (* TODO: allow non-empty attributes? *)
       type_expect ?in_function env expected_mode
         {sexp with
@@ -4522,9 +4576,6 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_tuple sexpl ->
-      (* CR labeled tuples: reorder labeled Texp_tuple arguments if the type
-         is already fully inferred to make sure evaluation order matches the
-         type *)
       let arity = List.length sexpl in
       assert (arity >= 2);
       let alloc_mode = register_allocation expected_mode in
@@ -5462,7 +5513,8 @@ and type_expect_
             (* CR layouts v5: eliminate value requirement *)
             let ty = newvar (Layout.value ~why:Tuple_element) in
             let loc = Location.ghostify slet.pbop_op.loc in
-            let spat_acc = Ast_helper.Pat.tuple ~loc [None, spat_acc; None, spat] in
+            let spat_acc =
+              Ast_helper.Pat.tuple ~loc [None, spat_acc; None, spat] Closed in
             let ty_acc = newty (Ttuple [None, ty_acc; None, ty]) in
             loop spat_acc ty_acc rest
       in
@@ -7813,6 +7865,9 @@ let report_error ~loc env = function
       Location.errorf ~loc
        "Constructors cannot have labeled arguments. \
         Consider using an inline record instead."
+  | Partial_tuple_pattern_bad_type ->
+      Location.errorf ~loc
+        "The type of a partial tuple pattern must be principally known."
   | Label_mismatch(lid, err) ->
       report_unification_error ~loc env err
         (function ppf ->

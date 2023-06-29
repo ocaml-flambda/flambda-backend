@@ -178,6 +178,7 @@ val self_coercion : (Path.t * Location.t list ref) list ref
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
   | Constructor_labeled_arg
+  | Partial_tuple_pattern_bad_type
   | Label_mismatch of Longident.t * Errortrace.unification_error
   | Pattern_type_clash :
       Errortrace.unification_error * _ Typedtree.pattern_desc option
