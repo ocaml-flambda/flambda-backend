@@ -44,3 +44,19 @@ Line 4, characters 6-9:
           ^^^
 Error: Unbound value add
 |}];;
+
+let x = #3.0
+let x = +#3.0
+let x = -#3.0
+
+let x = #3L
+let x = +#3L
+let x = -#3L
+
+[%%expect{|
+Line 1, characters 8-12:
+1 | let x = #3.0
+            ^^^^
+Error: Unboxed float literals aren't supported yet.
+|}]
+
