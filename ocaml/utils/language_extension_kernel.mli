@@ -26,9 +26,15 @@ module Exist : sig
   val all : t list
 end with type 'a extn := 'a t
 
+module Exist_pair : sig
+  type 'a extn = 'a t
+  type t = Pair : 'a extn * 'a -> t
+end with type 'a extn := 'a t
+
 (** Print and parse language extensions; parsing is case-insensitive *)
 val to_string : _ t -> string
 val of_string : string -> Exist.t option
+val pair_of_string : string -> Exist_pair.t option
 val maturity_to_string : maturity -> string
 
 (** Check if a language extension is "erasable", i.e. whether it can be

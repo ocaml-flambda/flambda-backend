@@ -51,32 +51,11 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   | Module_strengthening -> (module Unit)
   | Layouts -> (module Maturity)
 
-type extn_pair = Pair : 'a t * 'a -> extn_pair
+type extn_pair = Exist_pair.t = Pair : 'a t * 'a -> extn_pair
 type exist = Exist.t = Pack : _ t -> exist
 
 (**********************************)
 (* string conversions *)
-
-(* converts full extension names, like "layouts_alpha" to a pair of
-   an extension and its setting. For extensions that don't take an
-   argument, the conversion is just [Language_extension_kernel.of_string].
-*)
-let pair_of_string extn_name =
-  match of_string extn_name with
-  | Some
-      (Pack
-         ( Comprehensions
-         | Local
-         | Include_functor
-         | Polymorphic_parameters
-         | Immutable_arrays
-         | Module_strengthening as x)) -> Some (Pair (x, ()))
-  | Some (Pack Layouts) -> Some (Pair (Layouts, Stable))
-  | None ->
-      match String.lowercase_ascii extn_name with
-      | "layouts_alpha" -> Some (Pair (Layouts, (Alpha : maturity)))
-      | "layouts_beta" -> Some (Pair (Layouts, (Beta : maturity)))
-      | _ -> None
 
 let pair_of_string_exn extn_name = match pair_of_string extn_name with
   | Some pair -> pair
