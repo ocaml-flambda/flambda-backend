@@ -65,7 +65,6 @@ COMPILERLIBS_INTFS=\
   parsing/asttypes.mli \
   parsing/parsetree.mli \
   typing/outcometree.mli \
-  utils/language_extension_kernel_intf.mli \
   file_formats/cmo_format.mli \
   file_formats/cmxs_format.mli \
   bytecomp/debug_event.mli

@@ -83,12 +83,12 @@ open Parsetree
     to ensure that we can import this file into the Jane Street internal
     repo with no changes.
 *)
-module Language_extension :
-  Language_extension_kernel_intf.Language_extension_kernel_for_jane_syntax
-  with type maturity = Language_extension.maturity
-  with type 'a t = 'a Language_extension.t
-  with type Exist.t = Language_extension.Exist.t =
-  Language_extension
+module Language_extension = struct
+  include Language_extension_kernel
+  include (
+    Language_extension
+      : Language_extension_kernel.Language_extension_for_jane_syntax)
+end
 
 (******************************************************************************)
 

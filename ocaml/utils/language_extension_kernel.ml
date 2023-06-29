@@ -70,3 +70,11 @@ let is_erasable : type a. a t -> bool = function
   | Immutable_arrays
   | Module_strengthening ->
       false
+
+(* See the mli. *)
+module type Language_extension_for_jane_syntax = sig
+  type nonrec 'a t = 'a t
+
+  val is_enabled : _ t -> bool
+  val is_at_least : 'a t -> 'a -> bool
+end

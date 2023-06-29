@@ -32,7 +32,6 @@
     arg_helper
     clflags
     debug
-    language_extension_kernel_intf
     language_extension_kernel
     language_extension
     profile
@@ -89,7 +88,6 @@
     asttypes
     parsetree
     outcometree
-    language_extension_kernel_intf
     cmo_format
     cmxs_format
     debug_event))
@@ -226,7 +224,6 @@
 (copy_files ../../typing/outcometree.mli)
 (copy_files ../../file_formats/cmo_format.mli)
 (copy_files ../../file_formats/cmxs_format.mli)
-(copy_files ../../utils/language_extension_kernel_intf.mli)
 
 ; We need support in dune for including all modules from another library
 ; (in this case Dynlink_compilerlibs) inside a library currently being

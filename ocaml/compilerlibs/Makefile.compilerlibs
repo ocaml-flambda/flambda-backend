@@ -55,7 +55,6 @@ UTILS = \
   utils/diffing.cmo \
   utils/diffing_with_keys.cmo
 UTILS_CMI = \
-  utils/language_extension_kernel_intf.cmi
 
 PARSING = \
   parsing/location.cmo \

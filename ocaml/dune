@@ -51,8 +51,7 @@
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags -linkall)
  (modules_without_implementation
-   annot asttypes cmo_format outcometree parsetree debug_event
-   language_extension_kernel_intf)
+   annot asttypes cmo_format outcometree parsetree debug_event)
  (modules
    ;; UTILS
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
@@ -60,7 +59,7 @@
    targetint load_path int_replace_polymorphic_compare domainstate binutils
    local_store target_system compilation_unit import_info linkage_name symbol
    lazy_backtrack diffing diffing_with_keys
-   language_extension_kernel language_extension_kernel_intf language_extension
+   language_extension_kernel language_extension
 
    ;; PARSING
    location longident docstrings syntaxerr ast_helper camlinternalMenhirLib
