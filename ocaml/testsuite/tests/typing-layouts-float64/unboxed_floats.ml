@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-extension layouts_beta"
+   flags = "-extension layouts"
 
    ocamlc_byte_exit_status = "2"
    * setup-ocamlc.byte-build-env
@@ -36,12 +36,12 @@ module Float_u : Float_u = struct
   (* We may in the future add primitives for these, but for now this has proven
      to be good enough - the boxing/unboxing is eliminated on all
      middle-ends. *)
-  let ( + ) x y = of_float ((to_float x) +. (to_float y))
-  let ( - ) x y = of_float ((to_float x) -. (to_float y))
-  let ( * ) x y = of_float ((to_float x) *. (to_float y))
-  let ( / ) x y = of_float ((to_float x) /. (to_float y))
-  let ( ** ) x y = of_float ((to_float x) ** (to_float y))
-  let ( > ) x y = (to_float x) > (to_float y)
+  let[@inline always] ( + ) x y = of_float ((to_float x) +. (to_float y))
+  let[@inline always] ( - ) x y = of_float ((to_float x) -. (to_float y))
+  let[@inline always] ( * ) x y = of_float ((to_float x) *. (to_float y))
+  let[@inline always] ( / ) x y = of_float ((to_float x) /. (to_float y))
+  let[@inline always] ( ** ) x y = of_float ((to_float x) ** (to_float y))
+  let[@inline always] ( > ) x y = (to_float x) > (to_float y)
 end
 
 (* CR layouts v2: move this into a stand-alone [Float_u] module *)
