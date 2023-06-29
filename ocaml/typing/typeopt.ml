@@ -48,13 +48,14 @@ let scrape_ty env ty =
   in
   match get_desc ty with
   | Tconstr _ ->
-      let ty' = Ctype.expand_head_opt env (Ctype.correct_levels ty) in
+      let ty = Ctype.correct_levels ty in
+      let ty' = Ctype.expand_head_opt env ty in
       begin match get_desc ty' with
       | Tconstr (p, _, _) ->
           begin match find_unboxed_type (Env.find_type p env) with
           | Some _ -> Ctype.get_unboxed_type_approximation env ty'
           | None -> ty'
-          | exception Not_found -> ty
+          | exception Not_found -> ty (* missing cmi file *)
           end
       | _ ->
           ty'
