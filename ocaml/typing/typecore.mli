@@ -271,7 +271,6 @@ type error =
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Layout.Violation.t
-  | Unsupported_labeled_tuple
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

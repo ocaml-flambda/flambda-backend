@@ -280,7 +280,7 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
   | Tpat_constant (c) -> line i ppf "Tpat_constant %a\n" fmt_constant c;
   | Tpat_tuple (l) ->
       line i ppf "Tpat_tuple\n";
-      list i pattern ppf l;
+      list i labeled_pattern ppf l;
   | Tpat_construct (li, _, po, vto) ->
       line i ppf "Tpat_construct %a\n" fmt_longident li;
       list i pattern ppf po;
@@ -312,6 +312,11 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       line i ppf "Tpat_or\n";
       pattern i ppf p1;
       pattern i ppf p2;
+
+and labeled_pattern : type k . _ -> _ -> string option * k general_pattern -> unit =
+  fun i ppf (label, x) ->
+    tuple_component_label i ppf label;
+    pattern i ppf x
 
 and pattern_extra i ppf (extra_pat, _, attrs) =
   match extra_pat with

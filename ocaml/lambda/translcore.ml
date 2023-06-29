@@ -210,7 +210,7 @@ let rec trivial_pat pat =
   | Tpat_construct (_, cd, [], _) ->
       not cd.cstr_generalized && cd.cstr_consts = 1 && cd.cstr_nonconsts = 0
   | Tpat_tuple patl ->
-      List.for_all trivial_pat patl
+      List.for_all (fun (_, p) -> trivial_pat p) patl
   | _ -> false
 
 let rec push_defaults loc bindings use_lhs arg_mode arg_sort cases
@@ -447,9 +447,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                  (transl_cases_try ~scopes sort pat_expr_list),
                return_layout)
   | Texp_tuple (el, alloc_mode) ->
+      (* CR labeled tuples: this assumes that the orders of [Tpat_tuple]s match
+         their type. Double-check this upon adding reordering *)
       let ll, shape =
         transl_list_with_shape ~scopes
-          (List.map (fun a -> (snd a, Sort.for_tuple_element)) el)
+          (List.map (fun (_,a) -> (a, Sort.for_tuple_element)) el)
       in
       begin try
         Lconst(Const_block(0, List.map extract_constant ll))
@@ -1619,6 +1621,8 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
   in
   let classic =
     match arg, exn_cases with
+    (* CR labeled tuples: these cases assume that the orders of [Tpat_tuple]s
+       match their type. Double-check this upon adding reordering *)
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, [] ->
       assert (static_handlers = []);
       let mode = transl_alloc_mode alloc_mode in
@@ -1635,6 +1639,12 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
                (id, layout), (Lvar id, s, layout))
             argl
           |> List.split
+            (* CR labeled tuples: test this case (a match with normal and
+               exception cases) such as with:
+                 match ~~(~x:3, 42) with
+                 | ~~(~x, y) -> ...
+                 | exception Foo -> ...
+            *)
         in
         let mode = transl_alloc_mode alloc_mode in
         static_catch (transl_list ~scopes argl) val_ids

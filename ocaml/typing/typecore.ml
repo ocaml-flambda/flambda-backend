@@ -194,7 +194,6 @@ type error =
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Layout.Violation.t
-  | Unsupported_labeled_tuple (* CR labeled tuples: *)
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -1042,9 +1041,9 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
   match p.pat_desc with
     Tpat_alias(p1,_, _, _) -> build_as_type_and_mode ~refine ~mode env p1
   | Tpat_tuple pl ->
-      let tyl = List.map (build_as_type env) pl in
-      (* CR labeled tuple: handle labeled tuple patterns appropriately *)
-      newty (Ttuple (List.map (fun e -> None, e) tyl)), mode
+      let labeled_tyl =
+        List.map (fun (label, p) -> label, build_as_type env p) pl in
+      newty (Ttuple labeled_tyl), mode
   | Tpat_construct(_, cstr, pl, vto) ->
       let priv = (cstr.cstr_private = Private) in
       let mode =
@@ -1150,7 +1149,7 @@ let solve_Ppat_alias ~refine ~mode env pat =
   generalize ty_var;
   ty_var, mode
 
-let solve_Ppat_tuple (type a) ~refine ~alloc_mode loc env (args : a list) expected_ty =
+let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
   let arity = List.length args in
   assert (arity >= 2);
   let arg_modes =
@@ -1162,12 +1161,14 @@ let solve_Ppat_tuple (type a) ~refine ~alloc_mode loc env (args : a list) expect
   let ann =
     (* CR layouts v5: restriction to value here to be relaxed. *)
     List.map2
-      (fun p mode -> (p, newgenvar (Layout.value ~why:Tuple_element),
-                      simple_pat_mode mode))
+      (fun (label, p) mode ->
+        ( label,
+          p,
+          newgenvar (Layout.value ~why:Tuple_element),
+          simple_pat_mode mode ))
       args arg_modes
   in
-    (* CR labeled tuple: handle labeled tuple patterns appropriately *)
-  let ty = newgenty (Ttuple (List.map (fun t -> None, t) (List.map snd3 ann))) in
+  let ty = newgenty (Ttuple (List.map (fun (lbl, _, t, _) -> lbl, t) ann)) in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine loc env ty expected_ty;
   ann
@@ -1201,8 +1202,8 @@ let solve_constructor_annotation tps env name_list sty ty_args ty_ex =
         unify_pat_types cty.ctyp_loc env ty1 ty_arg;
         [ty2]
     | _ ->
-        (* CR labeled tuple: handle labeled tuple patterns appropriately *)
-        unify_pat_types cty.ctyp_loc env ty1 (newty (Ttuple (List.map (fun t -> None, t) ty_args)));
+        unify_pat_types cty.ctyp_loc env ty1
+          (newty (Ttuple (List.map (fun t -> None, t) ty_args)));
         match get_desc (expand_head !env ty2) with
           Ttuple tyl -> (List.map snd tyl)
         | _ -> assert false
@@ -2423,22 +2424,20 @@ and type_pat_aux
   | Ppat_interval _ ->
       raise (Error (loc, !env, Invalid_interval))
   | Ppat_tuple spl ->
-      (* CR labeled tuple: handle labeled tuple patterns appropriately *)
-      List.iter
-        (function
-        | (None, _) -> ()
-        | (Some _, _) -> raise(Error(loc, !env, Unsupported_labeled_tuple)))
-        spl;
-      let spl = List.map snd spl in 
-      let spl_ann = solve_Ppat_tuple ~refine ~alloc_mode loc env spl expected_ty in
+      let spl_ann =
+        solve_Ppat_tuple ~refine ~alloc_mode loc env spl expected_ty
+      in
       map_fold_cont
-        (fun (p,t,alloc_mode) -> type_pat tps Value ~alloc_mode p t)
+        (fun (lbl, p, t, alloc_mode) k ->
+          type_pat tps Value ~alloc_mode p t (fun gp -> k (lbl, gp)))
         spl_ann
         (fun pl ->
         rvp k {
         pat_desc = Tpat_tuple pl;
         pat_loc = loc; pat_extra=[];
-        pat_type = newty (Ttuple(List.map (fun p -> None, p.pat_type) pl));
+        pat_type =
+          newty
+            (Ttuple(List.map (fun (label, p) -> label, p.pat_type) pl));
         pat_attributes = sp.ppat_attributes;
         pat_env = !env })
   | Ppat_construct(lid, sarg) ->
@@ -8453,9 +8452,6 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
-  | Unsupported_labeled_tuple ->
-      Location.errorf ~loc
-        "Labeled tuple patterns are not yet supported"
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

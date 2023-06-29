@@ -296,7 +296,8 @@ end = struct
       match p.pat_desc with
       | `Any -> `Any
       | `Constant cst -> `Constant cst
-      | `Tuple ps -> `Tuple (List.map (alpha_pat env) ps)
+      | `Tuple ps ->
+          `Tuple (List.map (fun (label, p) -> label, alpha_pat env p) ps)
       | `Construct (cstr, cst_descr, args) ->
           `Construct (cstr, cst_descr, List.map (alpha_pat env) args)
       | `Variant (cstr, argo, row_desc) ->
@@ -629,7 +630,9 @@ end
 let rec flatten_pat_line size p k =
   match p.pat_desc with
   | Tpat_any | Tpat_var _ -> Patterns.omegas size :: k
-  | Tpat_tuple args -> args :: k
+  (* CR labeled tuples: this assumes that the orders of [Tpat_tuple]s match
+     their type. Double-check this upon adding reordering *)
+  | Tpat_tuple args -> (List.map snd args) :: k
   | Tpat_or (p1, p2, _) ->
       flatten_pat_line size p1 (flatten_pat_line size p2 k)
   | Tpat_alias (p, _, _, _) ->
@@ -2053,7 +2056,9 @@ let divide_lazy ~scopes head ctx pm =
 let get_pat_args_tuple arity p rem =
   match p with
   | { pat_desc = Tpat_any } -> Patterns.omegas arity @ rem
-  | { pat_desc = Tpat_tuple args } -> args @ rem
+    (* CR labeled tuples: this assumes that the orders of [Tpat_tuple]s match
+       their type. Double-check this upon adding reordering *)
+  | { pat_desc = Tpat_tuple args } -> (List.map snd args) @ rem
   | _ -> assert false
 
 let get_expr_args_tuple ~scopes head (arg, _mut, _sort, _layout) rem =
@@ -3764,15 +3769,18 @@ let rec map_return f = function
 let assign_pat ~scopes body_layout opt nraise catch_ids loc pat pat_sort lam =
   let rec collect pat_sort acc pat lam =
     match (pat.pat_desc, lam) with
+    (* CR labeled tuples: these assume that the orders of [Tpat_tuple]s match
+       their type. Double-check this upon adding reordering *)
     | Tpat_tuple patl, Lprim (Pmakeblock _, lams, _) ->
         opt := true;
-        List.fold_left2 (collect Sort.for_tuple_element) acc patl lams
+        List.fold_left2 (collect Sort.for_tuple_element) acc (List.map snd patl)
+          lams
     | Tpat_tuple patl, Lconst (Const_block (_, scl)) ->
         opt := true;
         let collect_const acc pat sc =
           collect Sort.for_tuple_element acc pat (Lconst sc)
         in
-        List.fold_left2 collect_const acc patl scl
+        List.fold_left2 collect_const acc (List.map snd patl) scl
     | _ ->
         (* pattern idents will be bound in staticcatch (let body), so we
            refresh them here to guarantee binders uniqueness *)
@@ -3851,13 +3859,13 @@ let for_tupled_function ~scopes ~return_layout loc paraml pats_act_list partial 
 
 let flatten_pattern size p =
   match p.pat_desc with
-  | Tpat_tuple args -> args
+  | Tpat_tuple args -> List.map snd args
   | Tpat_any -> Patterns.omegas size
   | _ -> raise Cannot_flatten
 
 let flatten_simple_pattern size (p : Simple.pattern) =
   match p.pat_desc with
-  | `Tuple args -> args
+  | `Tuple args -> (List.map snd args)
   | `Any -> Patterns.omegas size
   | `Array _
   | `Variant _

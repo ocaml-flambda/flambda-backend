@@ -133,7 +133,7 @@ module T = struct
     | Ptyp_var _ -> ()
     | Ptyp_arrow (_lab, t1, t2) ->
         sub.typ sub t1; sub.typ sub t2
-    | Ptyp_tuple tyl -> List.iter (fun (_,typ) -> sub.typ sub typ) tyl
+    | Ptyp_tuple tyl -> List.iter (fun (_, typ) -> sub.typ sub typ) tyl
     | Ptyp_constr (lid, tl) ->
         iter_loc sub lid; List.iter (sub.typ sub) tl
     | Ptyp_object (ol, _o) ->
@@ -562,7 +562,7 @@ module P = struct
     | Ppat_alias (p, s) -> sub.pat sub p; iter_loc sub s
     | Ppat_constant _ -> iter_constant
     | Ppat_interval _ -> ()
-    | Ppat_tuple pl -> List.iter (fun (_,p) -> sub.pat sub p) pl
+    | Ppat_tuple pl -> List.iter (fun (_, p) -> sub.pat sub p) pl
     | Ppat_construct (l, p) ->
         iter_loc sub l;
         iter_opt
