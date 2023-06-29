@@ -335,8 +335,9 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
           || Path.same p Predef.path_floatarray) ->
     num_nodes_visited, Parrayval (array_type_kind env ty)
   | Tconstr(p, _, _) -> begin
-    try
-      let decl = Env.find_type p env in
+      let decl =
+        try Env.find_type p env with Not_found -> raise Missing_cmi_fallback
+      in
       if cannot_proceed () then
         num_nodes_visited,
         value_kind_of_value_layout decl.type_layout
@@ -356,8 +357,6 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
           num_nodes_visited,
           value_kind_of_value_layout decl.type_layout
         | Type_open -> num_nodes_visited, Pgenval
-    with Not_found -> raise Missing_cmi_fallback
-    (* CR layouts v1.5: stop allowing missing cmis. *)
     end
   | Ttuple fields ->
     if cannot_proceed () then
