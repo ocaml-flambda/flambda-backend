@@ -345,6 +345,9 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
         value_kind_of_value_layout decl.type_layout
       else
         let visited = Numbers.Int.Set.add (get_id ty) visited in
+        (* Default of [Pgenval] is currently safe for the missing cmi fallback
+           in the case of @@unboxed variant and records, due to the precondition
+           of [value_kind]. *)
         match decl.type_kind with
         | Type_variant (cstrs, rep) ->
           fallback_if_missing_cmi ~default:(num_nodes_visited, Pgenval)
