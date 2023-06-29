@@ -1019,9 +1019,6 @@ let check_abbrev env sdecl (id, decl) =
    same issue as with arrows. *)
 let check_representable ~why env loc lloc typ =
   match Ctype.type_sort ~why env typ with
-  (* All calls to this are part of [update_decl_layout], which happens after all
-     the defaulting.  The call to [type_sort] might create a new sort variable,
-     though, so we default that now. *)
   (* CR layouts v3: This is a convenient place to rule out [float#] in
      structures for now, as it is called on all the types in declared blocks in
      kinds, and only them.  But when we have a real mixed block restriction, it
@@ -1030,6 +1027,9 @@ let check_representable ~why env loc lloc typ =
      to rule that out - I just haven't had time to write tests for it yet. *)
   | Ok s -> begin
       match Sort.get_default_value s with
+      (* All calls to this are part of [update_decl_layout], which happens after
+         all the defaulting, so we don't expect this actually defaults the
+         sort - we just want the [const]. *)
       | Void | Value -> ()
       | Float64 -> raise (Error (loc, Float64_in_block typ))
     end
