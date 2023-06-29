@@ -541,22 +541,26 @@ let value_kind env loc ty =
 let layout env loc sort ty =
   match Layouts.Sort.get_default_value sort with
   | Value -> Lambda.Pvalue (value_kind env loc ty)
-  | Void -> raise (Error (loc, Non_value_sort (Sort.void,ty)))
   | Float64 when Language_extension.(is_at_least Layouts Alpha) ->
     Lambda.Punboxed_float
   | Float64 -> raise (Error (loc, Non_value_sort (Sort.float64,ty)))
+  | Void -> raise (Error (loc, Non_value_sort (Sort.void,ty)))
 
 let layout_of_sort loc sort =
   match Layouts.Sort.get_default_value sort with
   | Value -> Lambda.Pvalue Pgenval
+  | Float64 when Language_extension.(is_at_least Layouts Alpha) ->
+    Lambda.Punboxed_float
+  | Float64 -> raise (Error (loc, Non_value_sort_unknown_ty Sort.float64))
   | Void -> raise (Error (loc, Non_value_sort_unknown_ty Sort.void))
-  | Float64 -> Lambda.Punboxed_float
 
 let layout_of_const_sort (s : Layouts.Sort.const) =
   match s with
-  | Void -> assert false
-  | Float64 -> Lambda.Punboxed_float
   | Value -> Lambda.Pvalue Pgenval
+  | Float64 when Language_extension.(is_at_least Layouts Alpha) ->
+    Lambda.Punboxed_float
+  | Float64 -> Misc.fatal_error "layout_of_const_sort: float64 encountered"
+  | Void -> Misc.fatal_error "layout_of_const_sort: void encountered"
 
 let function_return_layout env loc sort ty =
   match is_function_type env ty with
