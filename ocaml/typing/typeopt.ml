@@ -22,9 +22,6 @@ open Asttypes
 open Typedtree
 open Lambda
 
-(* CR layout v2: Error infrastructure was added to this module just to support
-   the void sanity check.  When we're ready to take that out, remove the errors
-   stuff. *)
 type error =
     Non_value_layout of type_expr * Layout.Violation.t option
   | Non_value_sort of Sort.t * type_expr
