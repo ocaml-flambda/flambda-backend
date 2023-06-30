@@ -82,6 +82,7 @@ type operation =
   | Iprobe of { name: string; handler_code_sym: string; enabled_at_init: bool; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
+  | Ibegin_uninterruptible | Iend_uninterruptible
 
 type instruction =
   { desc: instruction_desc;
@@ -185,7 +186,8 @@ let rec instr_iter f i =
             | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
             | Iopaque
-            | Ibeginregion | Iendregion | Ipoll _) ->
+            | Ibeginregion | Iendregion | Ipoll _
+            | Ibegin_uninterruptible | Iend_uninterruptible) ->
         instr_iter f i.next
 
 let operation_is_pure = function
@@ -195,6 +197,7 @@ let operation_is_pure = function
   (* Conservative to ensure valueofint/intofvalue are not eliminated before emit. *)
   | Ivalueofint | Iintofvalue | Iintop_atomic _ -> false
   | Ibeginregion | Iendregion -> false
+  | Ibegin_uninterruptible | Iend_uninterruptible -> false
   | Iprobe _ -> false
   | Iprobe_is_enabled _-> true
   | Ispecific sop -> Arch.operation_is_pure sop
@@ -230,6 +233,7 @@ let operation_can_raise op =
   | Istackoffset _ | Istore _  | Iload (_, _, _) | Iname_for_debugger _
   | Itailcall_imm _ | Itailcall_ind
   | Iopaque | Ibeginregion | Iendregion
+  | Ibegin_uninterruptible | Iend_uninterruptible
   | Iprobe_is_enabled _ | Ialloc _ | Ipoll _
     -> false
 

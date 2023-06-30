@@ -637,7 +637,9 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       then
         terminator_fallthrough (fun label_after ->
             Specific_can_raise { op; label_after })
-      else basic (Specific op))
+      else basic (Specific op)
+    | Ibegin_uninterruptible -> basic Begin_uninterruptible
+    | Iend_uninterruptible -> basic End_uninterruptible)
 
 let run (f : Linear.fundecl) ~preserve_orig_labels =
   let t =

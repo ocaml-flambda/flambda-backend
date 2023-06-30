@@ -246,6 +246,8 @@ type primitive =
   (* Jane Street extensions *)
   | Parray_to_iarray
   | Parray_of_iarray
+  | Pbegin_uninterruptible
+  | Pend_uninterruptible
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -1410,6 +1412,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pobj_magic _ -> None
   | Punbox_float | Punbox_int _ -> None
   | Pbox_float m | Pbox_int (_, m) -> Some m
+  | Pbegin_uninterruptible | Pend_uninterruptible -> None
 
 let constant_layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
@@ -1507,6 +1510,7 @@ let primitive_result_layout (p : primitive) =
       (* CR ncourant: use an unboxed int64 here when it exists *)
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
+  | Pbegin_uninterruptible | Pend_uninterruptible -> layout_any_value
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function

@@ -39,6 +39,8 @@ let precondition : Cfg_with_layout.t -> unit =
       | Opaque -> ()
       | Begin_region -> ()
       | End_region -> ()
+      | Begin_uninterruptible -> ()
+      | End_uninterruptible -> ()
       | Specific op ->
         if Arch.operation_can_raise op
         then

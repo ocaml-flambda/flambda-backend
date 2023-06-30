@@ -240,6 +240,8 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iprobe {name;handler_code_sym} ->
     fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
   | Iprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled \"%s\"" name
+  | Ibegin_uninterruptible -> fprintf ppf "begin_uninterruptible"
+  | Iend_uninterruptible -> fprintf ppf "end_uninterruptible"
 
 let operation op arg ppf res = operation' op arg ppf res
 

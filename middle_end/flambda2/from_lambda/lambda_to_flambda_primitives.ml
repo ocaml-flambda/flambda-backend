@@ -1232,6 +1232,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pprobe_is_enabled { name }, [] ->
     [tag_int (Nullary (Probe_is_enabled { name }))]
   | Pobj_dup, [[v]] -> [Unary (Obj_dup, v)]
+  | Pbegin_uninterruptible, [[_unit]] -> [Nullary Begin_uninterruptible]
+  | Pend_uninterruptible, [[v]] -> [Unary (End_uninterruptible, v)]
   | ( ( Pmodint Unsafe
       | Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
@@ -1248,13 +1250,19 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
        %a (%a)"
       Printlambda.primitive prim H.print_list_of_simple_or_prim
       (List.flatten args)
+  | Pbegin_uninterruptible, ([] | [[]] | [_ :: _] | _ :: _) ->
+    Misc.fatal_errorf
+      "Closure_conversion.convert_primitive: Wrong arity for nullary primitive \
+       %a (%a)"
+      Printlambda.primitive prim H.print_list_of_simple_or_prim
+      (List.flatten args)
   | ( ( Pfield _ | Pnegint | Pnot | Poffsetint _ | Pintoffloat | Pfloatofint _
       | Pnegfloat _ | Pabsfloat _ | Pstringlength | Pbyteslength | Pbintofint _
       | Pintofbint _ | Pnegbint _ | Popaque _ | Pduprecord _ | Parraylength _
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
       | Pbbswap _ | Pisint _ | Pint_as_pointer | Pbigarraydim _ | Pobj_dup
       | Pobj_magic _ | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
-        ),
+      | Pend_uninterruptible ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \

@@ -175,6 +175,7 @@ let pseudoregs_for_operation op arg res =
   | Iextcall _|Istackoffset _|Iload (_, _, _) | Istore (_, _, _)|Ialloc _
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion | Ipoll _
+  | Ibegin_uninterruptible | Iend_uninterruptible
     -> raise Use_default
 
 let select_locality (l : Cmm.prefetch_temporal_locality_hint)

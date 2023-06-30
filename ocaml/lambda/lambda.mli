@@ -199,6 +199,8 @@ type primitive =
                         one; O(1) *)
   | Parray_of_iarray (* Unsafely reinterpret an immutable array as a mutable
                         one; O(1) *)
+  | Pbegin_uninterruptible
+  | Pend_uninterruptible
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge

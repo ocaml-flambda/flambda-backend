@@ -370,7 +370,8 @@ let destroyed_at_oper = function
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque)
   | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
   | Iexit _ | Iraise _
-  | Iop(Ibeginregion | Iendregion)
+  | Iop(Ibeginregion | Iendregion | Ibegin_uninterruptible
+      | Iend_uninterruptible)
     ->
     if fp then
 (* prevent any use of the frame pointer ! *)
@@ -421,6 +422,8 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Opaque
        | Begin_region
        | End_region
+       | Begin_uninterruptible
+       | End_uninterruptible
        | Specific (Ilea _ | Istore_int _ | Ioffset_loc _
                   | Ifloatarithmem _ | Ibswap _ | Isqrtf
                   | Ifloatsqrtf _ | Ifloat_iround
@@ -508,7 +511,7 @@ let safe_register_pressure = function
   | Iintop _ | Iintop_imm (_, _) | Iintop_atomic _
   | Ispecific _ | Iname_for_debugger _
   | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion
+  | Ibeginregion | Iendregion | Ibegin_uninterruptible | Iend_uninterruptible
     -> if fp then 10 else 11
 
 let max_register_pressure =
@@ -552,7 +555,8 @@ let max_register_pressure =
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
              | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion
+  | Ibeginregion | Iendregion | Ibegin_uninterruptible
+  | Iend_uninterruptible
     -> consumes ~int:0 ~float:0
 
 (* Layout of the stack frame *)
@@ -592,6 +596,7 @@ let operation_supported = function
   | Craise _
   | Ccheckbound
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion
+  | Cbegin_uninterruptible | Cend_uninterruptible
     -> true
 
 let trap_size_in_bytes = 16

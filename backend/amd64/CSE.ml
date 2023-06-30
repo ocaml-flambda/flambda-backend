@@ -51,6 +51,7 @@ method! class_of_operation op =
   | Iintop _ | Iintop_imm _ | Iintop_atomic _
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion | Ipoll _
+  | Ibegin_uninterruptible | Iend_uninterruptible
     -> super#class_of_operation op
 
 end

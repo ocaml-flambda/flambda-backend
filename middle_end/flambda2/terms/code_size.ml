@@ -309,6 +309,7 @@ let nullary_prim_size prim =
   | Probe_is_enabled { name = _ } -> 4
   | Begin_region -> 1
   | Enter_inlined_apply _ -> 0
+  | Begin_uninterruptible -> 0
 
 let unary_prim_size prim =
   match (prim : Flambda_primitive.unary_primitive) with
@@ -336,6 +337,7 @@ let unary_prim_size prim =
   | Begin_try_region -> 1
   | End_region -> 1
   | Obj_dup -> alloc_extcall_size + 1
+  | End_uninterruptible -> 0
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with

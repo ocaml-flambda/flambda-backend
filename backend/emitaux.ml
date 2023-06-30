@@ -117,6 +117,12 @@ type frame_debuginfo =
   | Dbg_raise of Debuginfo.t
   | Dbg_other of Debuginfo.t
 
+let debuginfo_of_frame_debuginfo frame_dbg =
+  match frame_dbg with
+  | Dbg_alloc [] -> Debuginfo.none
+  | Dbg_alloc ({ alloc_dbg; _} :: _) -> alloc_dbg
+  | Dbg_raise dbg | Dbg_other dbg -> dbg
+
 type frame_descr =
   { fd_lbl: int;                        (* Return address *)
     fd_frame_size: int;                 (* Size of stack frame *)

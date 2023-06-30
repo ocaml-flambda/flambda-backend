@@ -314,6 +314,10 @@ let punbox_int = "Punbox_int"
 let pbox_int = "Pbox_int"
 let punbox_int_arg = "Punbox_int_arg"
 let pbox_int_arg = "Pbox_int_arg"
+let pbegin_uninterruptible = "Pbegin_uninterruptible"
+let pend_uninterruptible = "Pend_uninterruptible"
+let pbegin_uninterruptible_arg = "Pbegin_uninterruptible_arg"
+let pend_uninterruptible_arg = "Pend_uninterruptible_arg"
 
 let anon_fn_with_loc (sloc: Lambda.scoped_location) =
   let loc = Debuginfo.Scoped_location.to_location sloc in
@@ -439,6 +443,8 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbox_int _ -> pbox_int
   | Parray_of_iarray -> parray_of_iarray
   | Parray_to_iarray -> parray_to_iarray
+  | Pbegin_uninterruptible -> pbegin_uninterruptible
+  | Pend_uninterruptible -> pend_uninterruptible
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string_arg
@@ -553,3 +559,5 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbox_int _ -> pbox_int_arg
   | Parray_of_iarray -> parray_of_iarray_arg
   | Parray_to_iarray -> parray_to_iarray_arg
+| Pbegin_uninterruptible -> pbegin_uninterruptible_arg
+| Pend_uninterruptible -> pend_uninterruptible_arg

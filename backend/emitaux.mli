@@ -51,6 +51,8 @@ type frame_debuginfo =
   | Dbg_raise of Debuginfo.t
   | Dbg_other of Debuginfo.t
 
+val debuginfo_of_frame_debuginfo : frame_debuginfo -> Debuginfo.t
+
 val record_frame_descr :
   label:int ->              (* Return address *)
   frame_size:int ->         (* Size of stack frame *)

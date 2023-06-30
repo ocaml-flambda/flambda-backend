@@ -137,7 +137,8 @@ let preserve_tailcall_for_prim = function
   | Pbytes_set_64 _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
   | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
   | Pprobe_is_enabled _ | Pobj_dup
-  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer ->
+  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer
+  | Pbegin_uninterruptible | Pend_uninterruptible ->
       false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -544,6 +545,7 @@ let comp_primitive p args =
   | Pmakefloatblock _
   | Pprobe_is_enabled _
   | Punbox_float | Pbox_float _ | Punbox_int _ | Pbox_int _
+  | Pbegin_uninterruptible | Pend_uninterruptible
     ->
       fatal_error "Bytegen.comp_primitive"
 
@@ -718,6 +720,8 @@ let rec comp_expr env exp sz cont =
         comp_init env sz decl_size
       end
   | Lprim((Popaque _ | Pobj_magic _), [arg], _) ->
+      comp_expr env arg sz cont
+  | Lprim((Pbegin_uninterruptible | Pend_uninterruptible), [arg], _) ->
       comp_expr env arg sz cont
   | Lprim((Pbox_float _ | Punbox_float), [arg], _) ->
       comp_expr env arg sz cont

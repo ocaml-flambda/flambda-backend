@@ -520,6 +520,7 @@ let nullary_primitive _env res dbg prim =
     let expr = Cmm.Cop (Cprobe_is_enabled { name }, [], dbg) in
     None, res, expr
   | Begin_region -> None, res, C.beginregion ~dbg
+  | Begin_uninterruptible -> None, res, C.begin_uninterruptible ~dbg
   | Enter_inlined_apply _ ->
     Misc.fatal_errorf
       "The primitive [Enter_inlined_apply] should not be translated by \
@@ -630,6 +631,8 @@ let unary_primitive env res dbg f arg =
     None, res, C.eq ~dbg (C.get_tag arg dbg) (C.floatarray_tag dbg)
   | Begin_try_region -> None, res, C.beginregion ~dbg
   | End_region -> None, res, C.return_unit dbg (C.endregion ~dbg arg)
+  | End_uninterruptible ->
+    None, res, C.return_unit dbg (C.end_uninterruptible ~dbg arg)
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with

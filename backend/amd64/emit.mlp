@@ -349,7 +349,9 @@ let record_frame_label live dbg =
       | {typ = Val; loc = Stack s} as reg ->
           live_offset := slot_offset s (register_class reg) :: !live_offset
       | {typ = Addr} as r ->
-          Misc.fatal_error ("bad GC root " ^ Reg.name r)
+          Misc.fatal_errorf "bad GC root %s at %a" (Reg.name r)
+            Debuginfo.print_compact
+            (Emitaux.debuginfo_of_frame_debuginfo dbg)
       | _ -> ()
     )
     live;
@@ -1254,6 +1256,7 @@ let emit_instr fallthrough i =
       I.mov (domain_field Domainstate.Domain_local_sp) (res i 0)
   | Lop(Iendregion) ->
       I.mov (arg i 0) (domain_field Domainstate.Domain_local_sp)
+  | Lop (Ibegin_uninterruptible | Iend_uninterruptible) -> ()
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe { enabled_at_init; _ }) ->
     let probe_label = new_label () in
