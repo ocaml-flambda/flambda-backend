@@ -208,6 +208,11 @@ val map_project_var_to_named_opt
   -> f:(Flambda.project_var -> Flambda.named option)
   -> Flambda.t
 
+val map_exprs_at_toplevel_of_program_with_under_lambda
+  : Flambda.program
+  -> f:(Flambda.t -> under_lambda:bool -> Flambda.t)
+  -> Flambda.program
+
 val map_exprs_at_toplevel_of_program
    : Flambda.program
   -> f:(Flambda.t -> Flambda.t)

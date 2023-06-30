@@ -964,7 +964,9 @@ and simplify_over_application env r ~args ~args_approxs ~function_decls
                inlined = inlined_requested; specialise = specialise_requested;
                probe = None})
   in
-  let expr = Lift_code.lift_lets_expr expr ~toplevel:true in
+  let expr =
+    Lift_code.lift_lets_expr expr ~toplevel:true ~in_closure:Maybe
+  in
   let expr =
     match mode, function_decl.A.region with
     | Lambda.Alloc_heap, false -> Flambda.Region expr

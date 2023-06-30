@@ -28,7 +28,12 @@ type lifter = Flambda.program -> Flambda.program
 *)
 val lift_lets : lifter
 
-val lift_lets_expr : Flambda.t -> toplevel:bool -> Flambda.t
+type yes_no_or_maybe = Yes | No | Maybe
+
+(** Lift lets in an expression. Note that [toplevel] here means either truly
+    toplevel _or_ inside a toplevel function body. *)
+val lift_lets_expr
+   : Flambda.t -> toplevel:bool -> in_closure:yes_no_or_maybe -> Flambda.t
 
 (* CR-someday mshinwell: Rename to [bind]?  Also see Flambda_utils.bind. *)
 (* [create_body] always receives the variables corresponding to [evaluate]

@@ -60,6 +60,7 @@ val const_int32 : t
 val const_int64 : t
 val ignore : t
 val is_zero : t
+val lifted_let : t
 val lifted_let_rec_block : t
 val meth : t
 val module_as_block : t
