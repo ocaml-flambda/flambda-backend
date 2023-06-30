@@ -46,7 +46,11 @@ let bool_of_param ?guard param_name =
          then fatal "%s is set but %s is not" param_name guard_name);
      res)
 
-let validator_debug = bool_of_param "CFG_REGALLOC_VALIDATOR_DEBUG"
+let stack_slots_optim = bool_of_param "STACK_SLOTS_OPTIM"
+
+let validator_debug = bool_of_param "VALIDATOR_DEBUG"
+
+type liveness = Cfg_with_infos.liveness
 
 let make_indent n = String.make (2 * n) ' '
 
@@ -74,6 +78,19 @@ module Instruction = struct
   type id = int
 
   type t = Cfg.basic Cfg.instruction
+
+  let dummy =
+    { Cfg.desc = Cfg.Prologue;
+      arg = [||];
+      res = [||];
+      dbg = Debuginfo.none;
+      fdo = Fdo_info.none;
+      live = Reg.Set.empty;
+      stack_offset = -1;
+      id = -1;
+      irc_work_list = Unknown_list;
+      ls_order = -1
+    }
 
   let compare (left : t) (right : t) : int = Int.compare left.id right.id
 
@@ -130,21 +147,6 @@ let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
       update_max_id term);
   { arg = !arg; res = !res; max_instruction_id = !max_id }
 
-type liveness = Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t
-
-let liveness_analysis : Cfg_with_layout.t -> liveness =
- fun cfg_with_layout ->
-  let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  let init = { Cfg_liveness.before = Reg.Set.empty; across = Reg.Set.empty } in
-  match
-    Cfg_liveness.Liveness.run cfg ~init ~map:Cfg_liveness.Liveness.Instr ()
-  with
-  | Ok liveness -> liveness
-  | Aborted _ -> .
-  | Max_iterations_reached ->
-    fatal "Unable to compute liveness from CFG for function %s@."
-      cfg.Cfg.fun_name
-
 let log_instruction_suffix (instr : _ Cfg.instruction) (liveness : liveness) :
     unit =
   let live =
@@ -178,6 +180,38 @@ let make_log_body_and_terminator :
   if enabled
   then Cfg.dump_terminator ~sep:", " Format.err_formatter term.Cfg.desc;
   if enabled then log_instruction_suffix term liveness
+
+let make_log_cfg_with_infos :
+    log_function ->
+    instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
+    term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
+    indent:int ->
+    Cfg_with_infos.t ->
+    unit =
+ fun ({ log; enabled } as log_function) ~instr_prefix ~term_prefix ~indent
+     cfg_with_infos ->
+  if enabled
+  then
+    let liveness = Cfg_with_infos.liveness cfg_with_infos in
+    let cfg = Cfg_with_infos.cfg cfg_with_infos in
+    let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
+    let layout = Cfg_with_layout.layout cfg_with_layout in
+    let log_body_and_terminator =
+      make_log_body_and_terminator log_function ~instr_prefix ~term_prefix
+    in
+    DLL.iter layout ~f:(fun label ->
+        let block = Cfg.get_block_exn cfg label in
+        let exn =
+          match block.exn with
+          | None -> " [no exn]"
+          | Some exn_label -> Printf.sprintf " [exn: %d]" exn_label
+        in
+        let handler =
+          match block.is_trap_handler with false -> "" | true -> " [handler]"
+        in
+        log ~indent "(block %d)%s%s" block.start exn handler;
+        log_body_and_terminator ~indent:(succ indent) block.body
+          block.terminator liveness)
 
 module Move = struct
   type t =
@@ -243,202 +277,6 @@ let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
   Simplify_terminator.run cfg;
   cfg_with_layout
 
-let precondition : Cfg_with_layout.t -> unit =
- fun cfg_with_layout ->
-  (* note: the `live` field is set, because we want to call the `Deadcode` pass
-     before `Cfgize`. *)
-  let desc_is_neither_spill_or_reload (id : Instruction.id) (desc : Cfg.basic) :
-      unit =
-    match desc with
-    | Op op -> (
-      match op with
-      | Move -> ()
-      | Spill -> fatal "instruction %d is a spill" id
-      | Reload -> fatal "instruction %d is a reload" id
-      | Const_int _ -> ()
-      | Const_float _ -> ()
-      | Const_symbol _ -> ()
-      | Stackoffset _ -> ()
-      | Load _ -> ()
-      | Store _ -> ()
-      | Intop _ -> ()
-      | Intop_imm _ -> ()
-      | Intop_atomic _ -> ()
-      | Negf -> ()
-      | Absf -> ()
-      | Addf -> ()
-      | Subf -> ()
-      | Mulf -> ()
-      | Divf -> ()
-      | Compf _ -> ()
-      | Csel _ -> ()
-      | Floatofint -> ()
-      | Intoffloat -> ()
-      | Valueofint -> ()
-      | Intofvalue -> ()
-      | Probe_is_enabled _ -> ()
-      | Opaque -> ()
-      | Begin_region -> ()
-      | End_region -> ()
-      | Specific op ->
-        if Arch.operation_can_raise op
-        then
-          fatal
-            "architecture specific instruction %d that can raise but isn't a \
-             terminator"
-            id
-      | Name_for_debugger _ -> ())
-    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
-  in
-  let register_must_not_be_on_stack (id : Instruction.id) (reg : Reg.t) : unit =
-    match reg.Reg.loc with
-    | Unknown -> () (* most registers are not precolored *)
-    | Reg _ ->
-      () (* some register are precolored, e.g. to enforce constraints *)
-    | Stack (Incoming _ | Outgoing _ | Domainstate _) ->
-      (* incoming/outgoing/domainstate locations are for function parameters *)
-      ()
-    | Stack (Local _) ->
-      (* local stack locations are for spilling, and will be introduced by the
-         register allocator *)
-      fatal "instruction %d has a register with a stack location" id
-  in
-  let registers_must_not_be_on_stack (id : Instruction.id) (regs : Reg.t array)
-      : unit =
-    ArrayLabels.iter regs ~f:(register_must_not_be_on_stack id)
-  in
-  (* CR xclerc for xclerc: the check below should not be in this function, since
-     it is IRC-specific *)
-  let register_must_be_on_unknown_list (id : Instruction.id) (reg : Reg.t) :
-      unit =
-    match reg.Reg.irc_work_list with
-    | Unknown_list -> ()
-    | Precolored -> ()
-    | Initial | Simplify | Freeze | Spill | Spilled | Coalesced | Colored
-    | Select_stack ->
-      fatal "instruction %d has a register (%a) already in a work list (%S)" id
-        Printmach.reg reg
-        (Reg.string_of_irc_work_list reg.Reg.irc_work_list)
-  in
-  let register_must_be_on_unknown_list (id : Instruction.id)
-      (regs : Reg.t array) : unit =
-    ArrayLabels.iter regs ~f:(register_must_be_on_unknown_list id)
-  in
-  Cfg_with_layout.iter_instructions cfg_with_layout
-    ~instruction:(fun instr ->
-      let id = instr.id in
-      desc_is_neither_spill_or_reload id instr.desc;
-      registers_must_not_be_on_stack id instr.arg;
-      registers_must_not_be_on_stack id instr.res;
-      register_must_be_on_unknown_list id instr.arg;
-      register_must_be_on_unknown_list id instr.res)
-    ~terminator:(fun term ->
-      let id = term.id in
-      registers_must_not_be_on_stack id term.arg;
-      registers_must_not_be_on_stack id term.res;
-      register_must_be_on_unknown_list id term.arg;
-      register_must_be_on_unknown_list id term.res);
-  let fun_num_stack_slots =
-    (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
-  in
-  Array.iteri fun_num_stack_slots ~f:(fun reg_class num_slots ->
-      if num_slots <> 0
-      then fatal "register class %d has %d slots(s)" reg_class num_slots)
-
-let postcondition : Cfg_with_layout.t -> allow_stack_operands:bool -> unit =
- fun cfg_with_layout ~allow_stack_operands ->
-  let max_stack_slots = Array.init Proc.num_register_classes ~f:(fun _ -> -1) in
-  let register_must_not_be_unknown (id : Instruction.id) (reg : Reg.t) : unit =
-    match reg.Reg.loc with
-    | Reg _ -> ()
-    | Stack (Incoming _ | Outgoing _ | Domainstate _) -> ()
-    | Stack (Local slot) ->
-      if slot < 0
-      then fatal "instruction %d is using an invalid slot (%d)" id slot;
-      let reg_class = Proc.register_class reg in
-      max_stack_slots.(reg_class) <- max max_stack_slots.(reg_class) slot
-    | Unknown ->
-      fatal "instruction %d has a register (%a) with an unknown location" id
-        Printmach.reg reg
-  in
-  let registers_must_not_be_unknown (id : Instruction.id) (regs : Reg.t array) :
-      unit =
-    ArrayLabels.iter regs ~f:(register_must_not_be_unknown id)
-  in
-  let num_stack_locals (regs : Reg.t array) : int =
-    Array.fold_left regs ~init:0 ~f:(fun acc reg ->
-        match reg.Reg.loc with
-        | Unknown | Reg _ | Stack (Incoming _ | Outgoing _ | Domainstate _) ->
-          acc
-        | Stack (Local _) -> succ acc)
-  in
-  let arch_constraints (id : Instruction.id) (desc : Cfg.basic)
-      (arg : Reg.t array) (res : Reg.t array) : unit =
-    match Config.architecture with
-    (* CR xclerc for xclerc: what about cross-compilation? *)
-    | "amd64" | "arm64" -> (
-      let num_locals = num_stack_locals arg + num_stack_locals res in
-      match desc with
-      | Op (Spill | Reload) ->
-        (* CR xclerc for xclerc: should check arg/res according to spill/reload,
-           rather than the total number. *)
-        if num_locals > 1
-        then
-          fatal "instruction %d is a move and refers to %d spilling slots" id
-            num_locals
-      | _ ->
-        if (not allow_stack_operands) && num_locals > 0
-        then
-          fatal "instruction %d is not a move but refers to a spilling slot" id)
-    | arch -> fatal "unsupported architecture %S" arch
-  in
-  let register_classes_must_be_consistent (id : Instruction.id) (reg : Reg.t) :
-      unit =
-    match reg.Reg.loc with
-    | Reg phys_reg ->
-      let phys_reg = Proc.phys_reg phys_reg in
-      if not (same_reg_class reg phys_reg)
-      then
-        fatal
-          "instruction %d assigned %a to %a but they are in different classes"
-          id Printmach.reg reg Printmach.reg phys_reg
-    | Stack _ | Unknown -> ()
-  in
-  let register_classes_must_be_consistent (id : Instruction.id)
-      (regs : Reg.t array) : unit =
-    ArrayLabels.iter regs ~f:(register_classes_must_be_consistent id)
-  in
-  Cfg_with_layout.iter_instructions cfg_with_layout
-    ~instruction:(fun instr ->
-      let id = instr.id in
-      registers_must_not_be_unknown id instr.arg;
-      registers_must_not_be_unknown id instr.res;
-      arch_constraints id instr.desc instr.arg instr.res;
-      register_classes_must_be_consistent id instr.arg;
-      register_classes_must_be_consistent id instr.res)
-    ~terminator:(fun term ->
-      let id = term.id in
-      registers_must_not_be_unknown id term.arg;
-      registers_must_not_be_unknown id term.res;
-      register_classes_must_be_consistent id term.arg;
-      register_classes_must_be_consistent id term.res);
-  let fun_num_stack_slots =
-    (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
-  in
-  let reg_class = ref 0 in
-  Array.iter2 max_stack_slots fun_num_stack_slots ~f:(fun max_slot num_slots ->
-      (* CR-soon xclerc for xclerc: make the condition stricter. The present
-         condition ensure safety: no access out of bounds (i.e. to another
-         frame), but could be made stricter to ensure optimiality (i.e. we use
-         every element from the frame). *)
-      if max_slot >= num_slots
-      then
-        fatal
-          "register class %d has a max slot of %d, but the number of slots is \
-           %d"
-          !reg_class max_slot num_slots;
-      incr reg_class)
-
 let save_cfg : string -> Cfg_with_layout.t -> unit =
  fun str cfg_with_layout ->
   Cfg_with_layout.save_as_dot cfg_with_layout ~show_instr:true ~show_exn:true
@@ -449,39 +287,57 @@ let save_cfg : string -> Cfg_with_layout.t -> unit =
       Printf.sprintf "label:%d stack_offset:%d" label block.stack_offset)
     ~annotate_succ:(Printf.sprintf "%d->%d") str
 
-module StackSlots = struct
-  type slot = int
+module Substitution = struct
+  type t = Reg.t Reg.Tbl.t
 
-  type t =
-    { stack_slots : int Reg.Tbl.t;
-      num_stack_slots : int array
-    }
+  let apply_reg : t -> Reg.t -> Reg.t =
+   fun subst old_reg ->
+    match Reg.Tbl.find_opt subst old_reg with
+    | None -> old_reg
+    | Some new_reg -> new_reg
 
-  let[@inline] make () =
-    let stack_slots = Reg.Tbl.create 128 in
-    let num_stack_slots = Array.make Proc.num_register_classes 0 in
-    { stack_slots; num_stack_slots }
+  let apply_array_in_place : t -> Reg.t array -> unit =
+   fun subst arr ->
+    for i = 0 to pred (Array.length arr) do
+      let old_reg = Array.unsafe_get arr i in
+      match Reg.Tbl.find_opt subst old_reg with
+      | None -> ()
+      | Some new_reg -> Array.unsafe_set arr i new_reg
+    done
 
-  let[@inline] get_and_incr t ~reg_class =
-    let res = t.num_stack_slots.(reg_class) in
-    t.num_stack_slots.(reg_class) <- succ res;
+  let apply_array : t -> Reg.t array -> Reg.t array =
+   fun subst arr ->
+    let res = Array.copy arr in
+    apply_array_in_place subst res;
     res
 
-  let[@inline] get_or_create t reg =
-    match Reg.Tbl.find_opt t.stack_slots reg with
-    | Some slot -> slot
-    | None ->
-      let res = get_and_incr t ~reg_class:(Proc.register_class reg) in
-      Reg.Tbl.replace t.stack_slots reg res;
-      res
+  let apply_set : t -> Reg.Set.t -> Reg.Set.t =
+   fun subst set -> Reg.Set.map (fun reg -> apply_reg subst reg) set
 
-  let[@inline] update_cfg_with_layout t cfg_with_layout =
-    let fun_num_stack_slots =
-      (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
-    in
-    for reg_class = 0 to pred Proc.num_register_classes do
-      fun_num_stack_slots.(reg_class) <- t.num_stack_slots.(reg_class)
-    done
+  let apply_instruction_in_place : t -> _ Cfg.instruction -> unit =
+   fun subst instr ->
+    apply_array_in_place subst instr.arg;
+    apply_array_in_place subst instr.res
+
+  let apply_block_in_place : t -> Cfg.basic_block -> unit =
+   fun subst block ->
+    DLL.iter block.body ~f:(fun instr -> apply_instruction_in_place subst instr);
+    apply_instruction_in_place subst block.terminator
+
+  type map = t Label.Tbl.t
+
+  let for_label : map -> Label.t -> t =
+   fun map label ->
+    match Label.Tbl.find_opt map label with
+    | None -> Reg.Tbl.create 0
+    | Some subst -> subst
+
+  let apply_cfg_in_place : map -> Cfg.t -> unit =
+   fun map cfg ->
+    Cfg.iter_blocks cfg ~f:(fun label block ->
+        match Label.Tbl.find_opt map label with
+        | None -> ()
+        | Some subst -> apply_block_in_place subst block)
 end
 
 let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
@@ -519,8 +375,8 @@ let pow10 n =
   done;
   !res
 
-let update_spill_cost : Cfg_with_layout.t -> flat:bool -> unit -> unit =
- fun cfg_with_layout ~flat () ->
+let update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit =
+ fun cfg_with_infos ~flat () ->
   List.iter (Reg.all_registers ()) ~f:(fun reg -> reg.Reg.spill_cost <- 0);
   let update_reg (cost : int) (reg : Reg.t) : unit =
     (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
@@ -533,9 +389,11 @@ let update_spill_cost : Cfg_with_layout.t -> flat:bool -> unit -> unit =
     update_array cost instr.arg;
     update_array cost instr.res
   in
-  let cfg = Cfg_with_layout.cfg cfg_with_layout in
+  let cfg = Cfg_with_infos.cfg cfg_with_infos in
   let loops_depths : Cfg_loop_infos.loop_depths =
-    if flat then Label.Map.empty else (Cfg_loop_infos.build cfg).loop_depths
+    if flat
+    then Label.Map.empty
+    else (Cfg_with_infos.loop_infos cfg_with_infos).loop_depths
   in
   Cfg.iter_blocks cfg ~f:(fun label block ->
       let cost =
@@ -578,7 +436,7 @@ type stack_operands_rewrite =
   | All_spilled_registers_rewritten
   | May_still_have_spilled_registers
 
-type spilled_map = Reg.t Reg.Tbl.t
+type spilled_map = Substitution.t
 
 let is_spilled (map : spilled_map) (reg : Reg.t) : bool = Reg.Tbl.mem map reg
 
@@ -605,22 +463,30 @@ let insert_block :
     Cfg_with_layout.t ->
     Cfg.basic_instruction_list ->
     after:Cfg.basic_block ->
+    before:Cfg.basic_block option ->
     next_instruction_id:(unit -> Instruction.id) ->
-    unit =
- fun cfg_with_layout body ~after:predecessor_block ~next_instruction_id ->
+    Cfg.basic_block list =
+ fun cfg_with_layout body ~after:predecessor_block ~before:only_successor
+     ~next_instruction_id ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let successors =
-    Cfg.successor_labels ~normal:true ~exn:false predecessor_block
+    match only_successor with
+    | None -> Cfg.successor_labels ~normal:true ~exn:false predecessor_block
+    | Some only_successor -> Label.Set.singleton only_successor.start
   in
   if Label.Set.cardinal successors = 0
   then
     Misc.fatal_errorf
       "Cannot insert a block after block %a: it has no successors" Label.print
       predecessor_block.start;
-  let last_insn =
+  let dbg, fdo, live, stack_offset =
     match DLL.last body with
-    | None -> Misc.fatal_error "Inserting an empty block"
-    | Some i -> i
+    | None ->
+      ( Debuginfo.none,
+        Fdo_info.none,
+        Reg.Set.empty,
+        predecessor_block.stack_offset )
+    | Some { dbg; fdo; live; stack_offset; _ } -> dbg, fdo, live, stack_offset
   in
   let copy (i : Cfg.basic Cfg.instruction) : Cfg.basic Cfg.instruction =
     { i with id = next_instruction_id () }
@@ -637,8 +503,8 @@ let insert_block :
       DLL.iter body ~f:(fun instr -> DLL.add_end new_body (copy instr));
       new_body
   in
-  Label.Set.iter
-    (fun successor_label ->
+  Label.Set.fold
+    (fun successor_label new_labels ->
       let successor_block = Cfg.get_block_exn cfg successor_label in
       let start = Cmm.new_label () in
       let block : Cfg.basic_block =
@@ -649,10 +515,10 @@ let insert_block :
               desc = Cfg.Always successor_label;
               arg = [||];
               res = [||];
-              dbg = last_insn.dbg;
-              fdo = last_insn.fdo;
-              live = last_insn.live;
-              stack_offset = last_insn.stack_offset;
+              dbg;
+              fdo;
+              live;
+              stack_offset;
               id = next_instruction_id ();
               irc_work_list = Unknown_list;
               ls_order = -1
@@ -676,5 +542,27 @@ let insert_block :
       successor_block.predecessors
         <- successor_block.predecessors
            |> Label.Set.remove predecessor_block.start
-           |> Label.Set.add start)
-    successors
+           |> Label.Set.add start;
+      block :: new_labels)
+    successors []
+
+let occurs_array : Reg.t array -> Reg.t -> bool =
+ fun regs reg ->
+  let i = ref 0 in
+  let len = Array.length regs in
+  while !i < len && not (Reg.same (Array.unsafe_get regs !i) reg) do
+    incr i
+  done;
+  !i < len
+
+let occurs_instruction : _ Cfg.instruction -> Reg.t -> bool =
+ fun instr reg -> occurs_array instr.arg reg || occurs_array instr.res reg
+
+let occurs_block_body : Cfg.basic_block -> Reg.t -> bool =
+ fun block reg ->
+  DLL.exists block.body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
+      occurs_instruction instr reg)
+
+let occurs_block : Cfg.basic_block -> Reg.t -> bool =
+ fun block reg ->
+  occurs_block_body block reg || occurs_instruction block.terminator reg

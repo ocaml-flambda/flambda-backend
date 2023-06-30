@@ -64,8 +64,6 @@ let pstr_type ((nr, ext), tys) =
   (Pstr_type (nr, tys), ext)
 let pstr_exception (te, ext) =
   (Pstr_exception te, ext)
-let pstr_include (body, ext) =
-  (Pstr_include body, ext)
 let pstr_recmodule (ext, bindings) =
   (Pstr_recmodule bindings, ext)
 
@@ -80,8 +78,6 @@ let psig_typesubst ((nr, ext), tys) =
   (Psig_typesubst tys, ext)
 let psig_exception (te, ext) =
   (Psig_exception te, ext)
-let psig_include (body, ext) =
-  (Psig_include body, ext)
 
 let mkctf ~loc ?attrs ?docs d =
   Ctf.mk ~loc:(make_loc loc) ?attrs ?docs d
@@ -216,33 +212,20 @@ let global_loc loc = mkloc "extension.global" loc
 let global_attr loc =
   mk_attr ~loc:loc (global_loc loc) (PStr [])
 
-let nonlocal_loc loc = mkloc "extension.nonlocal" loc
-
-let nonlocal_attr loc =
-  mk_attr ~loc:Location.none (nonlocal_loc loc) (PStr [])
-
 let mkld_global ld loc =
   { ld with pld_attributes = global_attr loc :: ld.pld_attributes }
-
-let mkld_nonlocal ld loc =
-  { ld with pld_attributes = nonlocal_attr loc :: ld.pld_attributes }
 
 let mkld_global_maybe gbl ld loc =
   match gbl with
   | Global -> mkld_global ld loc
-  | Nonlocal -> mkld_nonlocal ld loc
   | Nothing -> ld
 
 let mkcty_global cty loc =
   { cty with ptyp_attributes = global_attr loc :: cty.ptyp_attributes }
 
-let mkcty_nonlocal cty loc =
-  { cty with ptyp_attributes = nonlocal_attr loc :: cty.ptyp_attributes }
-
 let mkcty_global_maybe gbl cty loc =
   match gbl with
   | Global -> mkcty_global cty loc
-  | Nonlocal -> mkcty_nonlocal cty loc
   | Nothing -> cty
 
 (* TODO define an abstraction boundary between locations-as-pairs
@@ -367,7 +350,7 @@ end
 
 let ppat_iarray loc elts =
   Jane_syntax.Immutable_arrays.pat_of
-    ~loc:(make_loc loc)
+    ~loc:(make_loc loc) ~attrs:[]
     (Iapat_immutable_array elts)
 
 let expecting loc nonterm =
@@ -786,9 +769,53 @@ let check_layout loc id =
    their explicit assert once we have real unboxed literals in Jane syntax; they
    may also get re-inlined at that point *)
 let unboxed_literals_extension = Language_extension.Layouts
-let assert_unboxed_literals ~loc =
-  Language_extension.(
-    Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
+
+module Constant : sig
+  type t = private
+    | Value of constant
+    | Unboxed of Jane_syntax.Unboxed_constants.t
+
+  type loc := Lexing.position * Lexing.position
+
+  val value : Parsetree.constant -> t
+  val unboxed : loc:loc -> Jane_syntax.Unboxed_constants.t -> t
+  val to_expression : loc:loc -> t -> expression
+  val to_pattern : loc:loc -> t -> pattern
+  val assert_is_value : loc:loc -> where:string -> t -> constant
+end = struct
+  type t =
+    | Value of constant
+    | Unboxed of Jane_syntax.Unboxed_constants.t
+
+  let value x = Value x
+
+  let assert_unboxed_literals ~loc =
+    Language_extension.(
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
+
+  let unboxed ~loc x =
+    assert_unboxed_literals ~loc:(make_loc loc);
+    Unboxed x
+
+  let to_expression ~loc : t -> expression = function
+    | Value const_value ->
+        mkexp ~loc (Pexp_constant const_value)
+    | Unboxed const_unboxed ->
+      Jane_syntax.Unboxed_constants.expr_of
+        ~loc:(make_loc loc) ~attrs:[] const_unboxed
+
+  let to_pattern ~loc : t -> pattern = function
+    | Value const_value ->
+        mkpat ~loc (Ppat_constant const_value)
+    | Unboxed const_unboxed ->
+      Jane_syntax.Unboxed_constants.pat_of
+        ~loc:(make_loc loc) ~attrs:[] const_unboxed
+
+  let assert_is_value ~loc ~where : t -> Parsetree.constant = function
+    | Value x -> x
+    | Unboxed _ ->
+        not_expecting loc (Printf.sprintf "unboxed literal %s" where)
+end
 
 type sign = Positive | Negative
 
@@ -799,33 +826,26 @@ let with_sign sign num =
 
 let unboxed_int sloc int_loc sign (n, m) =
   match m with
-  | Some _ ->
-      assert_unboxed_literals ~loc:(make_loc sloc);
-      Pconst_integer (with_sign sign n, m)
+  | Some m ->
+      Constant.unboxed ~loc:int_loc (Integer (with_sign sign n, m))
   | None ->
       if Language_extension.is_enabled unboxed_literals_extension then
-        expecting int_loc "integer literal with type-specifying suffix"
+        expecting int_loc "unboxed integer literal with type-specifying suffix"
       else
         not_expecting sloc "line number directive"
 
 let unboxed_float sloc sign (f, m) =
-  assert_unboxed_literals ~loc:(make_loc sloc);
-  Pconst_float (with_sign sign f, m)
+  Constant.unboxed ~loc:sloc (Float (with_sign sign f, m))
 
-(* Jane syntax *)
+(* Unboxed float type *)
 
-let mkexp_jane_syntax
-      ~loc
-      { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
-  =
-  mkexp_attrs ~loc desc (None, jane_syntax_attributes)
+let assert_unboxed_float_type ~loc =
+    Language_extension.(
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts Alpha)
 
-let mkpat_jane_syntax
-      ~loc
-      { Jane_syntax_parsing.With_attributes.jane_syntax_attributes; desc }
-  =
-  mkpat_attrs ~loc desc (None, jane_syntax_attributes)
-
+let unboxed_float_type sloc tys =
+  assert_unboxed_float_type ~loc:(make_loc sloc);
+  Ptyp_constr (mkloc (Lident "float#") (make_loc sloc), tys)
 %}
 
 /* Tokens */
@@ -872,7 +892,8 @@ let mkpat_jane_syntax
 %token EXCLAVE                "exclave_"
 %token EXTERNAL               "external"
 %token FALSE                  "false"
-%token <string * char option> FLOAT "42.0" (* just an example *)
+%token <string * char option> FLOAT       "42.0" (* just an example *)
+%token <string * char option> HASH_FLOAT "#42.0" (* just an example *)
 %token FOR                    "for"
 %token FUN                    "fun"
 %token FUNCTION               "function"
@@ -894,7 +915,8 @@ let mkpat_jane_syntax
 %token <string> ANDOP         "and*" (* just an example *)
 %token INHERIT                "inherit"
 %token INITIALIZER            "initializer"
-%token <string * char option> INT "42"  (* just an example *)
+%token <string * char option> INT      "42"  (* just an example *)
+%token <string * char option> HASH_INT "#42l" (* just an example *)
 %token <string> LABEL         "~label:" (* just an example *)
 %token LAZY                   "lazy"
 %token LBRACE                 "{"
@@ -923,7 +945,6 @@ let mkpat_jane_syntax
 %token MODULE                 "module"
 %token MUTABLE                "mutable"
 %token NEW                    "new"
-%token NONLOCAL               "nonlocal_"
 %token NONREC                 "nonrec"
 %token OBJECT                 "object"
 %token OF                     "of"
@@ -946,6 +967,7 @@ let mkpat_jane_syntax
 %token SEMI                   ";"
 %token SEMISEMI               ";;"
 %token HASH                   "#"
+%token HASH_SUFFIX            "# "
 %token <string> HASHOP        "##" (* just an example *)
 %token SIG                    "sig"
 %token STAR                   "*"
@@ -1030,12 +1052,12 @@ The precedences must be listed from low to high.
 %nonassoc prec_constant_constructor     /* cf. simple_expr (C versus C x) */
 %nonassoc prec_constr_appl              /* above AS BAR COLONCOLON COMMA */
 %nonassoc below_HASH
-%nonassoc HASH                         /* simple_expr/toplevel_directive */
+%nonassoc HASH HASH_SUFFIX              /* simple_expr/toplevel_directive */
 %left     HASHOP
 %nonassoc below_DOT
 %nonassoc DOT DOTOP
 /* Finally, the first tokens of simple_expr are above everything else. */
-%nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT INT OBJECT
+%nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT HASH_FLOAT INT HASH_INT OBJECT
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
           LBRACKETPERCENT QUOTED_STRING_EXPR
@@ -1647,13 +1669,19 @@ structure_item:
         { let (ext, l) = $1 in (Pstr_class l, ext) }
     | class_type_declarations
         { let (ext, l) = $1 in (Pstr_class_type l, ext) }
-    | include_statement(module_expr)
-        { $1 pstr_include
-             (fun ~loc incl ->
-                Jane_syntax.Include_functor.str_item_of ~loc
-                  (Ifstr_include_functor incl)) }
     )
     { $1 }
+  | include_statement(module_expr)
+      { let is_functor, incl, ext = $1 in
+        let item =
+          if is_functor
+          then Jane_syntax.Include_functor.str_item_of ~loc:(make_loc $sloc)
+                (Ifstr_include_functor incl)
+          else mkstr ~loc:$sloc (Pstr_include incl)
+        in
+        wrap_str_ext ~loc:$sloc item ext
+      }
+
 ;
 
 (* A single module binding. *)
@@ -1747,11 +1775,7 @@ include_maybe_functor:
     let loc = make_loc $sloc in
     let docs = symbol_docs $sloc in
     let incl = Incl.mk thing ~attrs ~loc ~docs in
-    fun wrap jane_syntax_of ->
-      if is_functor then
-        jane_syntax_of ~loc:(make_loc $sloc) incl, ext
-      else
-        wrap (incl, ext)
+    is_functor, incl, ext
   }
 ;
 
@@ -1904,17 +1928,22 @@ signature_item:
         { let (body, ext) = $1 in (Psig_modtypesubst body, ext) }
     | open_description
         { let (body, ext) = $1 in (Psig_open body, ext) }
-    | include_statement(module_type)
-        { $1 psig_include
-             (fun ~loc incl ->
-                Jane_syntax.Include_functor.sig_item_of ~loc
-                  (Ifsig_include_functor incl)) }
     | class_descriptions
         { let (ext, l) = $1 in (Psig_class l, ext) }
     | class_type_declarations
         { let (ext, l) = $1 in (Psig_class_type l, ext) }
     )
     { $1 }
+  | include_statement(module_type)
+      { let is_functor, incl, ext = $1 in
+        let item =
+          if is_functor
+          then Jane_syntax.Include_functor.sig_item_of ~loc:(make_loc $sloc)
+                 (Ifsig_include_functor incl)
+          else mksig ~loc:$sloc (Psig_include incl)
+        in
+        wrap_sig_ext ~loc:$sloc item ext
+      }
 
 (* A module declaration. *)
 %inline module_declaration:
@@ -2097,7 +2126,7 @@ formal_class_parameters:
 (* Class expressions. *)
 
 class_expr:
-    class_simple_expr %prec below_HASH
+    class_simple_expr
       { $1 }
   | FUN attributes class_fun_def
       { wrap_class_attrs ~loc:$sloc $3 $2 }
@@ -2110,7 +2139,7 @@ class_expr:
   | class_expr attribute
       { Cl.attr $1 $2 }
   | mkclass(
-      class_simple_expr nonempty_llist(labeled_simple_expr) %prec below_HASH
+      class_simple_expr nonempty_llist(labeled_simple_expr)
         { Pcl_apply($1, $2) }
     | extension
         { Pcl_extension $1 }
@@ -2590,7 +2619,7 @@ expr:
       { Pexp_lazy $3, $2 }
 ;
 %inline expr_:
-  | simple_expr nonempty_llist(labeled_simple_expr) %prec below_HASH
+  | simple_expr nonempty_llist(labeled_simple_expr)
       { Pexp_apply($1, $2) }
   | expr_comma_list %prec below_COMMA
       { Pexp_tuple($1) }
@@ -2635,11 +2664,11 @@ simple_expr:
           ~loc:$sloc
           (fun ~loc elts ->
              Jane_syntax.Immutable_arrays.expr_of
-               ~loc:(make_loc loc)
-               (Iaexp_immutable_array elts)
-            |> mkexp_jane_syntax ~loc)
+               ~loc:(make_loc loc) ~attrs:[]
+               (Iaexp_immutable_array elts))
         $1
       }
+  | constant { Constant.to_expression ~loc:$sloc $1 }
   | comprehension_expr { $1 }
 ;
 %inline simple_expr_attrs:
@@ -2709,9 +2738,7 @@ comprehension_clause:
 
 %inline comprehension_expr:
   comprehension_ext_expr
-    { mkexp_jane_syntax ~loc:$sloc
-        (Jane_syntax.Comprehensions.expr_of ~loc:(make_loc $sloc) $1)
-    }
+    { Jane_syntax.Comprehensions.expr_of ~loc:(make_loc $sloc) ~attrs:[] $1 }
 ;
 
 %inline array_simple(ARR_OPEN, ARR_CLOSE, contents_semi_list):
@@ -2743,11 +2770,14 @@ comprehension_clause:
       { $1 }
 ;
 
+%inline hash:
+  | HASH { () }
+  | HASH_SUFFIX { () }
+;
+
 %inline simple_expr_:
   | mkrhs(val_longident)
       { Pexp_ident ($1) }
-  | constant
-      { Pexp_constant $1 }
   | mkrhs(constr_longident) %prec prec_constant_constructor
       { Pexp_construct($1, None) }
   | name_tag %prec prec_constant_constructor
@@ -2771,7 +2801,7 @@ comprehension_clause:
         Pexp_open(od, mkexp ~loc:$sloc (Pexp_override $4)) }
   | mod_longident DOT LBRACELESS object_expr_content error
       { unclosed "{<" $loc($3) ">}" $loc($5) }
-  | simple_expr HASH mkrhs(label)
+  | simple_expr hash mkrhs(label)
       { Pexp_send($1, $3) }
   | simple_expr op(HASHOP) simple_expr
       { mkinfix $1 $2 $3 }
@@ -3158,19 +3188,21 @@ simple_pattern_not_ident:
           $3 }
   | mkpat(simple_pattern_not_ident_)
       { $1 }
+  | signed_constant { Constant.to_pattern $1 ~loc:$sloc }
 ;
 %inline simple_pattern_not_ident_:
   | UNDERSCORE
       { Ppat_any }
-  | signed_constant
-      { Ppat_constant $1 }
   | signed_constant DOTDOT signed_constant
-      { Ppat_interval ($1, $3) }
+      { let where = "in a pattern interval" in
+        Ppat_interval
+          (Constant.assert_is_value $1 ~loc:$loc($1) ~where,
+           Constant.assert_is_value $3 ~loc:$loc($3) ~where) }
   | mkrhs(constr_longident)
       { Ppat_construct($1, None) }
   | name_tag
       { Ppat_variant($1, None) }
-  | HASH mkrhs(type_longident)
+  | hash mkrhs(type_longident)
       { Ppat_type ($2) }
   | mkrhs(mod_longident) DOT simple_delimited_pattern
       { Ppat_open($1, $3) }
@@ -3218,11 +3250,10 @@ simple_delimited_pattern:
         }
   ) { $1 }
   | array_patterns(LBRACKETCOLON, COLONRBRACKET)
-      { mkpat_jane_syntax ~loc:$sloc
-          (Generic_array.Pattern.to_ast
-            "[:" ":]"
-            (ppat_iarray $sloc)
-            $1)
+      { Generic_array.Pattern.to_ast
+          "[:" ":]"
+          (ppat_iarray $sloc)
+          $1
       }
 
 pattern_comma_list(self):
@@ -3836,7 +3867,18 @@ atomic_type:
         { Ptyp_any }
     | tys = actual_type_parameters
       tid = mkrhs(type_longident)
-        { Ptyp_constr(tid, tys) }
+      HASH_SUFFIX
+        { match tid.txt with
+          | Lident "float" ->
+              let ident_start = fst $loc(tid) in
+              let hash_end = snd $loc($3) in
+              unboxed_float_type (ident_start, hash_end) tys
+          | _ ->
+              not_expecting $sloc "Unboxed type other than float#"
+        }
+    | tys = actual_type_parameters
+      tid = mkrhs(type_longident)
+        { Ptyp_constr(tid, tys) } %prec below_HASH
     | LESS meth_list GREATER
         { let (f, c) = $2 in Ptyp_object (f, c) }
     | LESS GREATER
@@ -3966,25 +4008,30 @@ meth_list:
 /* Constants */
 
 constant:
-  | INT               { let (n, m) = $1 in Pconst_integer (n, m) }
-  | CHAR              { Pconst_char $1 }
-  | STRING            { let (s, strloc, d) = $1 in Pconst_string (s, strloc, d) }
-  | FLOAT             { let (f, m) = $1 in Pconst_float (f, m) }
-  (* The unboxed literals have to be composed of multiple lexemes so we can
-     handle line number directives properly *)
-  | HASH INT          { unboxed_int $sloc $loc($2) Positive $2 }
-  | HASH FLOAT        { unboxed_float $sloc Positive $2 }
+  | INT               { let (n, m) = $1 in
+                        Constant.value (Pconst_integer (n, m)) }
+  | CHAR              { Constant.value (Pconst_char $1) }
+  | STRING            { let (s, strloc, d) = $1 in
+                        Constant.value (Pconst_string (s, strloc, d)) }
+  | FLOAT             { let (f, m) = $1 in
+                        Constant.value (Pconst_float (f, m)) }
+  | HASH_INT          { unboxed_int $sloc $sloc Positive $1 }
+  | HASH_FLOAT        { unboxed_float $sloc Positive $1 }
 ;
 signed_constant:
     constant          { $1 }
-  | MINUS INT         { let (n, m) = $2 in Pconst_integer("-" ^ n, m) }
-  | MINUS FLOAT       { let (f, m) = $2 in Pconst_float("-" ^ f, m) }
-  | MINUS HASH INT    { unboxed_int $sloc $loc($3) Negative $3 }
-  | MINUS HASH FLOAT  { unboxed_float $sloc Negative $3 }
-  | PLUS INT          { let (n, m) = $2 in Pconst_integer (n, m) }
-  | PLUS FLOAT        { let (f, m) = $2 in Pconst_float(f, m) }
-  | PLUS HASH INT     { unboxed_int $sloc $loc($3) Positive $3 }
-  | PLUS HASH FLOAT   { unboxed_float $sloc Negative $3 }
+  | MINUS INT         { let (n, m) = $2 in
+                        Constant.value (Pconst_integer("-" ^ n, m)) }
+  | MINUS FLOAT       { let (f, m) = $2 in
+                        Constant.value (Pconst_float("-" ^ f, m)) }
+  | MINUS HASH_INT    { unboxed_int $sloc $loc($2) Negative $2 }
+  | MINUS HASH_FLOAT  { unboxed_float $sloc Negative $2 }
+  | PLUS INT          { let (n, m) = $2 in
+                        Constant.value (Pconst_integer (n, m)) }
+  | PLUS FLOAT        { let (f, m) = $2 in
+                        Constant.value (Pconst_float(f, m)) }
+  | PLUS HASH_INT     { unboxed_int $sloc $loc($2) Positive $2 }
+  | PLUS HASH_FLOAT   { unboxed_float $sloc Positive $2 }
 ;
 
 /* Identifiers and long identifiers */
@@ -4112,7 +4159,7 @@ any_longident:
 /* Toplevel directives */
 
 toplevel_directive:
-  HASH dir = mkrhs(ident)
+  hash dir = mkrhs(ident)
   arg = ioption(mk_directive_arg(toplevel_directive_argument))
     { mk_directive ~loc:$sloc dir arg }
 ;
@@ -4176,12 +4223,10 @@ mutable_or_global_flag:
     /* empty */                                 { Immutable, Nothing }
   | MUTABLE                                     { Mutable, Nothing }
   | GLOBAL                                      { Immutable, Global }
-  | NONLOCAL                                    { Immutable, Nonlocal }
 ;
 %inline global_flag:
           { Nothing }
   | GLOBAL { Global }
-  | NONLOCAL { Nonlocal }
 ;
 virtual_flag:
     /* empty */                                 { Concrete }
@@ -4262,7 +4307,6 @@ single_attr_id:
   | FUN { "fun" }
   | FUNCTION { "function" }
   | FUNCTOR { "functor" }
-  | NONLOCAL { "nonlocal_" }
   | IF { "if" }
   | IN { "in" }
   | INCLUDE { "include" }

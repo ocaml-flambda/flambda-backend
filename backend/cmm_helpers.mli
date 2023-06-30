@@ -328,9 +328,10 @@ val int_array_ref : expression -> expression -> Debuginfo.t -> expression
 val unboxed_float_array_ref :
   expression -> expression -> Debuginfo.t -> expression
 
-val float_array_ref : expression -> expression -> Debuginfo.t -> expression
+val float_array_ref :
+  Lambda.alloc_mode -> expression -> expression -> Debuginfo.t -> expression
 
-val addr_array_set :
+val addr_array_set_heap :
   expression -> expression -> expression -> Debuginfo.t -> expression
 
 val addr_array_set_local :
@@ -338,6 +339,14 @@ val addr_array_set_local :
 
 val addr_array_initialize :
   expression -> expression -> expression -> Debuginfo.t -> expression
+
+val addr_array_set :
+  Lambda.modify_mode ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
 val int_array_set :
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -711,9 +720,10 @@ val bigstring_load :
 (** Arrays *)
 
 (** Array access. Args: array, index *)
-val arrayref_unsafe : Lambda.array_kind -> binary_primitive
+val arrayref_unsafe : Lambda.array_ref_kind -> binary_primitive
 
-val arrayref_safe : Lambda.array_kind -> binary_primitive
+(** Array access. Args: array, index *)
+val arrayref_safe : Lambda.array_ref_kind -> binary_primitive
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -738,9 +748,10 @@ val bytesset_safe : ternary_primitive
     including in the case where the array contains floats.
 
     Args: array, index, value *)
-val arrayset_unsafe : Lambda.array_kind -> ternary_primitive
+val arrayset_unsafe : Lambda.array_set_kind -> ternary_primitive
 
-val arrayset_safe : Lambda.array_kind -> ternary_primitive
+(** As [arrayset_unsafe], but performs bounds-checking. *)
+val arrayset_safe : Lambda.array_set_kind -> ternary_primitive
 
 (** Set a chunk of data in the given bytes or bigstring structure. See also
     [string_load] and [bigstring_load].
@@ -866,6 +877,10 @@ module Generic_fns_tbl : sig
   val of_fns : Cmx_format.generic_fns -> t
 
   val entries : t -> Cmx_format.generic_fns
+
+  module Precomputed : sig
+    val gen : unit -> t
+  end
 end
 
 val generic_functions : bool -> Generic_fns_tbl.t -> Cmm.phrase list
@@ -875,7 +890,7 @@ val placeholder_dbg : unit -> Debuginfo.t
 val placeholder_fun_dbg : human_name:string -> Debuginfo.t
 
 (** Entry point *)
-val entry_point : Compilation_unit.t list -> phrase
+val entry_point : Compilation_unit.t list -> phrase list
 
 (** Generate the caml_globals table *)
 val global_table : Compilation_unit.t list -> phrase

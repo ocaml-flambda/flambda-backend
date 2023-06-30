@@ -293,11 +293,11 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
-          ++ Cfg_with_liveness.make
+          ++ Cfg_with_infos.make
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         in
         let cfg_description =
-            Regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
+            Regalloc_validate.Description.create (Cfg_with_infos.cfg_with_layout cfg)
         in
         cfg
         ++ begin match regalloc with
@@ -305,7 +305,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
           | LS -> Profile.record ~accumulate:true "cfg_ls" Regalloc_ls.run
           | Upstream -> assert false
         end
-        ++ Cfg_with_liveness.cfg_with_layout
+        ++ Cfg_with_infos.cfg_with_layout
         ++ Profile.record ~accumulate:true "cfg_validate_description" (Regalloc_validate.run cfg_description)
         ++ Profile.record ~accumulate:true "cfg_simplify" Regalloc_utils.simplify_cfg
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg

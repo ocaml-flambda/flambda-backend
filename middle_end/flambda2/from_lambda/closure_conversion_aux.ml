@@ -39,7 +39,7 @@ module IR = struct
     | End_region of Ident.t
     | Prim of
         { prim : Lambda.primitive;
-          args : simple list;
+          args : simple list list;
           loc : Lambda.scoped_location;
           exn_continuation : exn_continuation option;
           region : Ident.t
@@ -92,7 +92,10 @@ module IR = struct
     | End_region id -> fprintf ppf "@[<2>(End_region@ %a)@]" Ident.print id
     | Prim { prim; args; _ } ->
       fprintf ppf "@[<2>(%a %a)@]" Printlambda.primitive prim
-        (Format.pp_print_list ~pp_sep:Format.pp_print_space print_simple)
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf arg ->
+             fprintf ppf "@[<2>(%a)@]"
+               (Format.pp_print_list ~pp_sep:Format.pp_print_space print_simple)
+               arg))
         args
 end
 
@@ -684,14 +687,14 @@ module Function_decls = struct
         loc : Lambda.scoped_location;
         recursive : Recursive.t;
         closure_alloc_mode : Lambda.alloc_mode;
-        num_trailing_local_params : int;
+        first_complex_local_param : int;
         contains_no_escaping_local_allocs : bool
       }
 
     let create ~let_rec_ident ~function_slot ~kind ~params ~return
         ~return_continuation ~exn_continuation ~my_region ~body
         ~(attr : Lambda.function_attribute) ~loc ~free_idents_of_body recursive
-        ~closure_alloc_mode ~num_trailing_local_params
+        ~closure_alloc_mode ~first_complex_local_param
         ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
@@ -712,7 +715,7 @@ module Function_decls = struct
         loc;
         recursive;
         closure_alloc_mode;
-        num_trailing_local_params;
+        first_complex_local_param;
         contains_no_escaping_local_allocs
       }
 
@@ -756,7 +759,7 @@ module Function_decls = struct
 
     let closure_alloc_mode t = t.closure_alloc_mode
 
-    let num_trailing_local_params t = t.num_trailing_local_params
+    let first_complex_local_param t = t.first_complex_local_param
 
     let contains_no_escaping_local_allocs t =
       t.contains_no_escaping_local_allocs

@@ -15,7 +15,7 @@ let[@inline never] check_backtrace n =
     let slot = Printexc.get_raw_backtrace_slot raw_backtrace 0
                |> Printexc.convert_raw_backtrace_slot  in
     let name = Printexc.Slot.format 0 slot |> Option.get in
-    Printf.printf "i=%d len=%d name=%s\n" i len name;
+    Printf.printf "i=%d name=%s\n" i name;
     ()
 
 let test n =

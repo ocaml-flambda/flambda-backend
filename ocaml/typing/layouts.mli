@@ -28,6 +28,11 @@ module Sort : sig
   (** A sort variable that can be unified during type-checking. *)
   type var
 
+  (** Return the concrete constraint placed on the variable. This check is
+      constant-time if [var] was just returned from [Layout.get].
+  *)
+  val var_constraint : var -> const option
+
   (** Create a new sort variable that can be unified. *)
   val new_var : unit -> t
 
@@ -45,6 +50,8 @@ module Sort : sig
       equal, if possible *)
   val equate : t -> t -> bool
 
+  val equal_const : const -> const -> bool
+
   val format : Format.formatter -> t -> unit
 
   (** Defaults any variables to value; leaves other sorts alone *)
@@ -54,10 +61,47 @@ module Sort : sig
       variable is unfilled. *)
   val is_void_defaulting : t -> bool
 
+  (** [get_default_value] extracts the sort as a `const`.  If it's a variable,
+      it is set to [value] first. *)
+  val get_default_value : t -> const
+
   module Debug_printers : sig
     val t : Format.formatter -> t -> unit
     val var : Format.formatter -> var -> unit
   end
+
+  (* CR layouts: These are sorts for the types of ocaml expressions that are
+     currently required to be values, but for which we expect to relax that
+     restriction in versions 2 and beyond.  Naming them makes it easy to find
+     where in the translation to lambda they are assume to be value. *)
+  (* CR layouts: add similarly named layouts and use those names everywhere (not
+     just the translation to lambda) rather than writing specific layouts and
+     sorts in the code. *)
+  val for_class_arg : t
+  val for_instance_var : t
+  val for_bop_exp : t
+  val for_lazy_body : t
+  val for_tuple_element : t
+  val for_record : t
+  val for_record_field : t
+  val for_constructor_arg : t
+  val for_block_element : t
+  val for_array_get_result : t
+  val for_array_element : t
+  val for_list_element : t
+
+  (** These are sorts for the types of ocaml expressions that we expect will
+      always be "value".  These names are used in the translation to lambda to
+      make the code clearer. *)
+  val for_function : t
+  val for_probe_body : t
+  val for_poly_variant : t
+  val for_object : t
+  val for_initializer : t
+  val for_method : t
+  val for_module : t
+  val for_predef_value : t (* Predefined value types, e.g. int and string *)
+  val for_tuple : t
 end
 
 type sort = Sort.t
@@ -96,6 +140,9 @@ module Layout : sig
     | Function_result
     | Structure_item_expression
     | V1_safety_check
+    | External_argument
+    | External_result
+    | Statement
 
   type annotation_context =
     | Type_declaration of Path.t

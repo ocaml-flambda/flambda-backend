@@ -1250,7 +1250,6 @@ and tree_of_typ_gf (ty, gf) =
   let gf =
     match gf with
     | Global -> Ogf_global
-    | Nonlocal -> Ogf_nonlocal
     | Unrestricted -> Ogf_unrestricted
   in
   (tree_of_typexp Type ty, gf)
@@ -1551,7 +1550,6 @@ and tree_of_label l =
     match l.ld_mutable, l.ld_global with
     | Mutable, _ -> Ogom_mutable
     | Immutable, Global -> Ogom_global
-    | Immutable, Nonlocal -> Ogom_nonlocal
     | Immutable, Unrestricted -> Ogom_immutable
   in
   (Ident.name l.ld_id, gom, tree_of_typexp Type l.ld_type)
@@ -1693,7 +1691,7 @@ let rec prepare_class_type params = function
       let row = Btype.self_type_row cty in
       if List.memq (proxy row) !visited_objects
       || not (List.for_all is_Tvar params)
-      || List.exists (deep_occur row) tyl
+      || deep_occur_list row tyl
       then prepare_class_type params cty
       else List.iter prepare_type tyl
   | Cty_signature sign ->

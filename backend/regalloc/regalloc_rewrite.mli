@@ -5,7 +5,7 @@ open Regalloc_utils
 module type State = sig
   type t
 
-  val stack_slots : t -> StackSlots.t
+  val stack_slots : t -> Regalloc_stack_slots.t
 
   val get_and_incr_instruction_id : t -> Instruction.id
 end
@@ -35,22 +35,24 @@ end
 (* This is the `rewrite` function from IRC, parametrized by state, functions for
    debugging, and function to test/set the "spilled" state of a register. It
    inserts spills and reloads for registers in the [spilled_nodes] parameter
-   (thus basically corresponding to Upstream's [Reload] pass). *)
+   (thus basically corresponding to Upstream's [Reload] pass). The returned
+   couple contains the list of introduced temporaries, and a boolean which is
+   `true` iff at least one block was inserted. *)
 val rewrite_gen :
   (module State with type t = 's) ->
   (module Utils) ->
   's ->
-  Cfg_with_liveness.t ->
+  Cfg_with_infos.t ->
   spilled_nodes:Reg.t list ->
-  Reg.t list
+  Reg.t list * bool
 
 (* Runs the first steps common to register allocators, reinitializing registers,
    checking preconditions, and collecting information from the CFG. *)
 val prelude :
   (module Utils) ->
   on_fatal_callback:(unit -> unit) ->
-  Cfg_with_liveness.t ->
-  cfg_infos
+  Cfg_with_infos.t ->
+  cfg_infos * Regalloc_stack_slots.t
 
 (* Runs the last steps common to register allocators, updating the CFG (stack
    slots, live fields, and prologue), running [f], and checking
@@ -60,5 +62,5 @@ val postlude :
   (module Utils) ->
   's ->
   f:(unit -> unit) ->
-  Cfg_with_liveness.t ->
+  Cfg_with_infos.t ->
   unit

@@ -636,6 +636,16 @@ Error: This value escapes its region
         Adding 1 more argument will make the value non-local
 |}]
 
+(* The fixed version. Note that in the printed type, local returning is implicit
+    *)
+let bug4_fixed : local_ (string -> foo:string -> unit) -> local_ (string -> unit) =
+  fun f -> local_ f ~foo:"hello"
+[%%expect{|
+val bug4_fixed : local_ (string -> foo:string -> unit) -> string -> unit =
+  <fun>
+|}]
+
+
 let bug4' () =
   let local_ f arg ~foo = () in
   let local_ perm ~foo = f ~foo in
@@ -763,7 +773,7 @@ val baduse : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c lazy_t = <fun>
 Line 2, characters 20-45:
 2 | let result = baduse (fun a b -> local_ (a,b)) 1 2
                         ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function is local returning, but was expected otherwise
+Error: This function is local-returning, but was expected otherwise
 |}]
 
 
@@ -1383,6 +1393,39 @@ let foo () =
 val foo : unit -> int = <fun>
 |}]
 
+(* tail-calling local-returning functions make the current function
+   local-returning as well; mode-crossing is irrelavent here. Whether or not the
+   function actually allocates in parent-region is also irrelavent here, but we
+   allocate just to demonstrate the potential leaking. *)
+let foo () = local_
+  let _ = local_ (52, 24) in
+  42
+[%%expect{|
+val foo : unit -> local_ int = <fun>
+|}]
+
+let bar () =
+  let _x = 52 in
+  foo ()
+[%%expect{|
+val bar : unit -> local_ int = <fun>
+|}]
+
+(* if not at tail, then not affected *)
+let bar' () =
+  let _x = foo () in
+  52
+[%%expect{|
+val bar' : unit -> int = <fun>
+|}]
+
+(* nontail attribute works as well *)
+let bar' () =
+  foo () [@nontail]
+[%%expect{|
+val bar' : unit -> int = <fun>
+|}]
+
 (* Parameter modes must be matched by the type *)
 
 let foo : 'a -> unit = fun (local_ x) -> ()
@@ -1406,7 +1449,7 @@ let foo : unit -> string = fun () -> local_ "hello"
 Line 1, characters 27-51:
 1 | let foo : unit -> string = fun () -> local_ "hello"
                                ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function is local returning, but was expected otherwise
+Error: This function is local-returning, but was expected otherwise
 |}]
 
 (* Unboxed type constructors do not affect regionality *)
@@ -1422,17 +1465,15 @@ val f : local_ 'a -> local_ 'a unb1 unb2 unb3 = <fun>
 |}]
 
 
-(* Fields have the same mode unless they are nonlocal or mutable *)
+(* Fields have the same mode unless they are global or mutable *)
 
 type 'a imm = { imm : 'a }
 type 'a mut = { mutable mut : 'a }
 type 'a gbl = { global_ gbl : 'a }
-type 'a nlcl = { nonlocal_ nlcl : 'a }
 [%%expect{|
 type 'a imm = { imm : 'a; }
 type 'a mut = { mutable mut : 'a; }
 type 'a gbl = { global_ gbl : 'a; }
-type 'a nlcl = { nonlocal_ nlcl : 'a; }
 |}]
 
 let foo (local_ x) = x.imm
@@ -1469,16 +1510,6 @@ let foo y =
 [%%expect{|
 val foo : 'a -> 'a = <fun>
 |}]
-let foo (local_ x) = x.nlcl
-[%%expect{|
-val foo : local_ 'a nlcl -> local_ 'a = <fun>
-|}]
-let foo (local_ y) =
-  let x = local_ { nlcl = y } in
-  x.nlcl
-[%%expect{|
-val foo : local_ 'a -> local_ 'a = <fun>
-|}]
 
 let foo (local_ { imm }) = imm
 [%%expect{|
@@ -1513,16 +1544,6 @@ let foo y =
   gbl
 [%%expect{|
 val foo : 'a -> 'a = <fun>
-|}]
-let foo (local_ { nlcl }) = nlcl
-[%%expect{|
-val foo : local_ 'a nlcl -> local_ 'a = <fun>
-|}]
-let foo (local_ y) =
-  let { nlcl } = local_ { nlcl = y } in
-  nlcl
-[%%expect{|
-val foo : local_ 'a -> local_ 'a = <fun>
 |}]
 
 let foo (local_ imm) =
@@ -1576,76 +1597,8 @@ Line 3, characters 12-15:
                 ^^^
 Error: This value escapes its region
 |}]
-let foo (local_ nlcl) =
-  let _ = { nlcl } in
-  ()
-[%%expect{|
-val foo : local_ 'a -> unit = <fun>
-|}]
-let foo () =
-  let nlcl = local_ ref 5 in
-  let _ = { nlcl } in
-  ()
-[%%expect{|
-Line 3, characters 12-16:
-3 |   let _ = { nlcl } in
-                ^^^^
-Error: This local value escapes its region
-|}]
 
-(* Global and nonlocal fields are preserved in module inclusion *)
-module M : sig
-  type t = { nonlocal_ foo : string }
-end = struct
-  type t = { foo : string }
-end
-[%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type t = { foo : string }
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = { foo : string; } end
-       is not included in
-         sig type t = { nonlocal_ foo : string; } end
-       Type declarations do not match:
-         type t = { foo : string; }
-       is not included in
-         type t = { nonlocal_ foo : string; }
-       Fields do not match:
-         foo : string;
-       is not the same as:
-         nonlocal_ foo : string;
-       The second is nonlocal and the first is not.
-|}]
-
-module M : sig
-  type t = { foo : string }
-end = struct
-  type t = { nonlocal_ foo : string }
-end
-[%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type t = { nonlocal_ foo : string }
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = { nonlocal_ foo : string; } end
-       is not included in
-         sig type t = { foo : string; } end
-       Type declarations do not match:
-         type t = { nonlocal_ foo : string; }
-       is not included in
-         type t = { foo : string; }
-       Fields do not match:
-         nonlocal_ foo : string;
-       is not the same as:
-         foo : string;
-       The first is nonlocal and the second is not.
-|}]
-
+(* Global fields are preserved in module inclusion *)
 module M : sig
   type t = { global_ foo : string }
 end = struct
@@ -2423,7 +2376,7 @@ module F :
 
 
 (*
- * constructor arguments global/nonlocal
+ * constructor arguments global
  *)
 
 (* Global argument are preserved in module inclusion *)
@@ -2480,66 +2433,10 @@ Error: Signature mismatch:
        Locality mismatch at argument position 2 : The first is global and the second is not.
 |}]
 
-(* Nonlocal argument are preserved in module inclusion *)
-module M : sig
-  type t = Bar of int * nonlocal_ string
-end = struct
-  type t = Bar of int * string
-end
-[%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type t = Bar of int * string
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = Bar of int * string end
-       is not included in
-         sig type t = Bar of int * nonlocal_ string end
-       Type declarations do not match:
-         type t = Bar of int * string
-       is not included in
-         type t = Bar of int * nonlocal_ string
-       Constructors do not match:
-         Bar of int * string
-       is not the same as:
-         Bar of int * nonlocal_ string
-       Locality mismatch at argument position 2 : The second is nonlocal and the first is not.
-|}]
-
-
-module M : sig
-  type t = Bar of int * string
-end = struct
-  type t = Bar of int * nonlocal_ string
-end
-[%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type t = Bar of int * nonlocal_ string
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = Bar of int * nonlocal_ string end
-       is not included in
-         sig type t = Bar of int * string end
-       Type declarations do not match:
-         type t = Bar of int * nonlocal_ string
-       is not included in
-         type t = Bar of int * string
-       Constructors do not match:
-         Bar of int * nonlocal_ string
-       is not the same as:
-         Bar of int * string
-       Locality mismatch at argument position 2 : The first is nonlocal and the second is not.
-|}]
-
-(* global_ and nonlocal_ bind closer than star *)
+(* global_ binds closer than star *)
 type gfoo = GFoo of global_ string * string
-type rfoo = RFoo of nonlocal_ string * string
 [%%expect{|
 type gfoo = GFoo of global_ string * string
-type rfoo = RFoo of nonlocal_ string * string
 |}]
 
 (* TESTING OF GLOBAL_ *)
@@ -2609,103 +2506,6 @@ let f (local_ x : gfoo) =
 Line 3, characters 24-26:
 3 |   | GFoo (_, s') -> ref s'
                             ^^
-Error: This value escapes its region
-|}]
-
-(* TESTING NONLOCAL_ *)
-(* nonlocal argument must be outer than the construction*)
-(* below, local is not outer than local*)
-let f (local_ s : string) =
-  let local_ s' = "foo" in
-  let local_ x = RFoo(s', "bar") in
-  "bar"
-[%%expect{|
-Line 3, characters 22-24:
-3 |   let local_ x = RFoo(s', "bar") in
-                          ^^
-Error: This local value escapes its region
-|}]
-
-(* local is not outer than global either *)
-let f =
-  let local_ s = "foo" in
-  let x = RFoo(s, "bar") in
-  "bar"
-[%%expect{|
-Line 3, characters 15-16:
-3 |   let x = RFoo(s, "bar") in
-                   ^
-Error: This local value escapes its region
-|}]
-
-
-(* but global is outer than local *)
-let f (s : string) =  (* s is global *)
-  let local_ _x = RFoo (s, "bar") in  (* x is local *)
-  "foo"
-[%%expect{|
-val f : string -> string = <fun>
-|}]
-
-(* and regional is outer than local *)
-let f (local_ s : string) =  (* s is regional *)
-  let local_ _x = RFoo (s, "bar") in  (* x is local *)
-  "foo"
-[%%expect{|
-val f : local_ string -> string = <fun>
-|}]
-
-(* s' extracted from x is not local  *)
-(* even though x is local *)
-let f (local_ s : string) =
-  let local_ x = RFoo (s, "bar") in
-  match x with
-  | RFoo (s', _) -> s'
-
-[%%expect{|
-val f : local_ string -> local_ string = <fun>
-|}]
-
-(* Moreover, it is not global *)
-let f (local_ s : string) =
-  let local_ x = RFoo(s, "bar") in
-  match x with
-  | RFoo (s', _) -> GFoo (s', "bar")
-[%%expect{|
-Line 4, characters 26-28:
-4 |   | RFoo (s', _) -> GFoo (s', "bar")
-                              ^^
-Error: This value escapes its region
-|}]
-
-(* x is already global *)
-(* regional s' extracted from x is still global *)
-let f (s : string) =
-  let x = RFoo (s, "bar") in
-  match x with
-  | RFoo (s', _) -> GFoo(s', "bar")
-[%%expect{|
-val f : string -> gfoo = <fun>
-|}]
-
-(* regional s extracted from regional x *)
-(* still regional *)
-(* first it is not local *)
-let f (local_ x : rfoo) =
-  match x with
-  | RFoo (s, _) -> s
-[%%expect{|
-val f : local_ rfoo -> local_ string = <fun>
-|}]
-
-(* second, it is not global *)
-let f (local_ x : rfoo) =
-  match x with
-  | RFoo (s, _) -> ref s
-[%%expect{|
-Line 3, characters 23-24:
-3 |   | RFoo (s, _) -> ref s
-                           ^
 Error: This value escapes its region
 |}]
 

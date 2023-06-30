@@ -66,7 +66,7 @@ val is_fixed_type : Parsetree.type_declaration -> bool
 type native_repr_kind = Unboxed | Untagged
 
 (* Records reason for a layout representability requirement in errors. *)
-type layout_sort_loc = Cstr_tuple | Record
+type layout_sort_loc = Cstr_tuple | Record | External
 
 type error =
     Repeated_parameter
@@ -110,13 +110,13 @@ type error =
       ; err : Layout.Violation.t
       }
   | Layout_empty_record
+  | Non_value_in_sig of Layout.Violation.t * string
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Global_and_nonlocal
   | Layout_not_enabled of Layout.const
 
 exception Error of Location.t * error

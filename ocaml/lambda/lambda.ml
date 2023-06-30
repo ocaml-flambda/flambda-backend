@@ -176,10 +176,10 @@ type primitive =
   | Pmakearray of array_kind * mutable_flag * alloc_mode
   | Pduparray of array_kind * mutable_flag
   | Parraylength of array_kind
-  | Parrayrefu of array_kind
-  | Parraysetu of array_kind
-  | Parrayrefs of array_kind
-  | Parraysets of array_kind
+  | Parrayrefu of array_ref_kind
+  | Parraysetu of array_set_kind
+  | Parrayrefs of array_ref_kind
+  | Parraysets of array_set_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the (integer) argument is outside an interval *)
@@ -273,6 +273,18 @@ and block_shape =
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
+
+and array_ref_kind =
+  | Pgenarray_ref of alloc_mode
+  | Paddrarray_ref
+  | Pintarray_ref
+  | Pfloatarray_ref of alloc_mode
+
+and array_set_kind =
+  | Pgenarray_set of modify_mode
+  | Paddrarray_set of modify_mode
+  | Pintarray_set
+  | Pfloatarray_set
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
@@ -625,13 +637,14 @@ let layout_class = Pvalue Pgenval
 let layout_module = Pvalue Pgenval
 let layout_module_field = Pvalue Pgenval
 let layout_functor = Pvalue Pgenval
-let layout_float = Pvalue Pfloatval
+let layout_boxed_float = Pvalue Pfloatval
 let layout_string = Pvalue Pgenval
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
 let layout_lazy = Pvalue Pgenval
 let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
 let layout_letrec = layout_any_value
+let layout_probe_arg = Pvalue Pgenval
 
 (* CR ncourant: use [Ptop] or remove this as soon as possible. *)
 let layout_top = layout_any_value
@@ -1355,12 +1368,10 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
-  | Parrayrefu (Paddrarray|Pintarray)
-  | Parrayrefs (Paddrarray|Pintarray) -> None
-  | Parrayrefu (Pgenarray|Pfloatarray)
-  | Parrayrefs (Pgenarray|Pfloatarray) ->
-     (* The float box from flat floatarray access is always Alloc_heap *)
-     Some alloc_heap
+  | Parrayrefu (Paddrarray_ref | Pintarray_ref)
+  | Parrayrefs (Paddrarray_ref | Pintarray_ref) -> None
+  | Parrayrefu (Pgenarray_ref m | Pfloatarray_ref m)
+  | Parrayrefs (Pgenarray_ref m | Pfloatarray_ref m) -> Some m
   | Pisint _ | Pisout -> None
   | Pintofbint _ -> None
   | Pbintofint (_,m)
@@ -1428,11 +1439,17 @@ let primitive_result_layout (p : primitive) =
   | Pfield _ | Pfield_computed _ -> layout_field
   | Pfloatfield _ | Pfloatofint _ | Pnegfloat _ | Pabsfloat _
   | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
-  | Pbox_float _ -> layout_float
+  | Pbox_float _ -> layout_boxed_float
   | Punbox_float -> Punboxed_float
-  | Pccall _p ->
-      (* CR ncourant: use native_repr *)
-      layout_any_value
+  | Pccall { prim_native_repr_res = _, Untagged_int; _} -> layout_int
+  | Pccall { prim_native_repr_res = _, Unboxed_float; _} -> layout_boxed_float
+  | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr s; _} ->
+      begin match s with
+      | Value -> layout_any_value
+      | Void -> assert false
+      end
+  | Pccall { prim_native_repr_res = _, Unboxed_integer bi; _} ->
+      layout_boxedint bi
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
   | Pnegint | Paddint | Psubint | Pmulint
@@ -1449,11 +1466,11 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
-  | Parrayrefu array_kind | Parrayrefs array_kind ->
-      (match array_kind with
-       | Pintarray -> layout_int
-       | Pfloatarray -> layout_float
-       | Pgenarray | Paddrarray -> layout_field)
+  | Parrayrefu array_ref_kind | Parrayrefs array_ref_kind ->
+      (match array_ref_kind with
+       | Pintarray_ref -> layout_int
+       | Pfloatarray_ref _ -> layout_boxed_float
+       | Pgenarray_ref _ | Paddrarray_ref -> layout_field)
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
   | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
   | Pmulbint (bi, _) | Pdivbint {size = bi} | Pmodbint {size = bi}
@@ -1469,7 +1486,7 @@ let primitive_result_layout (p : primitive) =
   | Pbigarrayref (_, _, kind, _) ->
       begin match kind with
       | Pbigarray_unknown -> layout_any_value
-      | Pbigarray_float32 | Pbigarray_float64 -> layout_float
+      | Pbigarray_float32 | Pbigarray_float64 -> layout_boxed_float
       | Pbigarray_sint8 | Pbigarray_uint8
       | Pbigarray_sint16 | Pbigarray_uint16
       | Pbigarray_caml_int -> layout_int
@@ -1528,3 +1545,15 @@ let compute_expr_layout free_vars_kind lam =
     | Lexclave e -> compute_expr_layout kinds e
   in
   compute_expr_layout Ident.Map.empty lam
+
+let array_ref_kind mode = function
+  | Pgenarray -> Pgenarray_ref mode
+  | Paddrarray -> Paddrarray_ref
+  | Pintarray -> Pintarray_ref
+  | Pfloatarray -> Pfloatarray_ref mode
+
+let array_set_kind mode = function
+  | Pgenarray -> Pgenarray_set mode
+  | Paddrarray -> Paddrarray_set mode
+  | Pintarray -> Pintarray_set
+  | Pfloatarray -> Pfloatarray_set

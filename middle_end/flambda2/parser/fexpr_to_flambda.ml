@@ -441,7 +441,14 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
 
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with
-  | Array_set (ak, ia) -> Array_set (ak, init_or_assign env ia)
+  | Array_set (ak, ia) ->
+    let ask : Flambda_primitive.Array_set_kind.t =
+      match ak, ia with
+      | Immediates, _ -> Immediates
+      | Naked_floats, _ -> Naked_floats
+      | Values, ia -> Values (init_or_assign env ia)
+    in
+    Array_set ask
   | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
 
@@ -874,7 +881,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
-            ~newer_version_of ~params_arity ~num_trailing_local_params:0
+            ~newer_version_of ~params_arity
+            ~first_complex_local_param:(Flambda_arity.cardinal params_arity)
             ~result_arity ~result_types:Unknown
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
             ~check:Default_check

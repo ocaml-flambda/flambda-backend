@@ -18,6 +18,8 @@ val log_body_and_terminator :
   liveness ->
   unit
 
+val log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit
+
 module Color : sig
   type t = int
 end

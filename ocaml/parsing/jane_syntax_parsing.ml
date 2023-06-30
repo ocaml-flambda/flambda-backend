@@ -334,7 +334,10 @@ module Error = struct
     | Malformed_embedding of
         Embedding_syntax.t * Embedded_name.t * malformed_embedding
     | Unknown_extension of Embedding_syntax.t * Erasability.t * string
-    | Disabled_extension : _ Language_extension.t -> error
+    | Disabled_extension :
+        { ext : _ Language_extension.t
+        ; maturity : Language_extension.maturity option
+        } -> error
     | Wrong_syntactic_category of Feature.t * string
     | Misnamed_embedding of
         Misnamed_embedding_error.t * string * Embedding_syntax.t
@@ -347,9 +350,16 @@ end
 
 open Error
 
-let assert_extension_enabled ~loc ext setting =
+let assert_extension_enabled
+    (type a) ~loc (ext : a Language_extension.t) (setting : a)
+  =
   if not (Language_extension.is_at_least ext setting) then
-    raise (Error(loc, Disabled_extension ext))
+    let maturity : Language_extension.maturity option =
+      match ext with
+      | Layouts -> Some (setting : Language_extension.maturity)
+      | _ -> None
+    in
+    raise (Error(loc, Disabled_extension { ext; maturity }))
 ;;
 
 let report_error ~loc = function
@@ -371,11 +381,25 @@ let report_error ~loc = function
         name
         Embedded_name.pp_a_term (what, embedded_name)
         (Embedding_syntax.name what)
-  | Disabled_extension ext ->
-      Location.errorf
-        ~loc
-        "The extension \"%s\" is disabled and cannot be used"
-        (Language_extension.to_string ext)
+  | Disabled_extension { ext; maturity } -> begin
+      (* CR layouts: The [maturity] special case is a bit ad-hoc, but the
+         layouts error message would be much worse without it. It also
+         would be nice to mention the language construct in the error message.
+      *)
+      match maturity with
+      | None ->
+          Location.errorf
+            ~loc
+            "The extension \"%s\" is disabled and cannot be used"
+            (Language_extension.to_string ext)
+      | Some maturity ->
+          Location.errorf
+            ~loc
+            "This construct requires the %s version of the extension \"%s\", \
+             which is disabled and cannot be used"
+            (Language_extension.maturity_to_string maturity)
+            (Language_extension.to_string ext)
+    end
   | Wrong_syntactic_category(feat, cat) ->
       Location.errorf
         ~loc
@@ -420,10 +444,6 @@ module type AST_syntactic_category = sig
   (** The AST type (e.g., [Parsetree.expression]) *)
   type ast
 
-  (** The "AST description" type, without the location and attributes (e.g.,
-      [Parsetree.expression_desc]) *)
-  type ast_desc
-
   (** The name for this syntactic category in the plural form; used for error
       messages (e.g., "expressions") *)
   val plural : string
@@ -432,20 +452,16 @@ module type AST_syntactic_category = sig
       [fun tm -> tm.pCAT_loc] for the appropriate syntactic category [CAT]. *)
   val location : ast -> Location.t
 
-  (** Turn an [ast_desc] into an [ast] by adding the appropriate metadata.  When
-      creating [ast] nodes afresh to embed our novel syntax, the location should
-      be omitted; in this case, it will default to [!Ast_helper.default_loc],
-      which should be [ghost]. *)
-  val wrap_desc :
-    ?loc:Location.t -> attrs:attributes -> ast_desc -> ast
+  (** Set the location of an AST node. *)
+  val with_location : ast -> Location.t -> ast
 end
 
-module type AST = sig
+module type AST_internal = sig
   include AST_syntactic_category
 
   val embedding_syntax : Embedding_syntax.t
 
-  val make_jane_syntax : Embedded_name.t -> ast -> ast_desc
+  val make_jane_syntax : Embedded_name.t -> ast -> ast
 
   (** Given an AST node, check if it's a representation of a term from one of
       our novel syntactic features; if it is, split it back up into its name and
@@ -478,13 +494,6 @@ let parse_embedding_exn ~loc ~payload ~name ~embedding_syntax =
       raise_error (Misnamed_embedding (err, name, embedding_syntax))
   | None -> None
 
-module With_attributes = struct
-  type 'desc t =
-    { jane_syntax_attributes : attributes
-    ; desc : 'desc
-    }
-end
-
 let find_and_remove_jane_syntax_attribute =
   let rec loop rest ~rev_prefix =
     match rest with
@@ -515,28 +524,15 @@ module Make_with_attribute
     (AST_syntactic_category : sig
        include AST_syntactic_category
 
-       val desc : ast -> ast_desc
        val attributes : ast -> attributes
        val with_attributes : ast -> attributes -> ast
-     end) :
-    AST with type ast      = AST_syntactic_category.ast
-         and type ast_desc =
-               AST_syntactic_category.ast_desc With_attributes.t
+     end) : AST_internal with type ast = AST_syntactic_category.ast
 = struct
     include AST_syntactic_category
 
     let embedding_syntax = Embedding_syntax.Attribute
 
-    type nonrec ast_desc = ast_desc With_attributes.t
-
-    let wrap_desc ?loc ~attrs:extra_attrs with_attributes =
-      let { desc; jane_syntax_attributes } : _ With_attributes.t =
-        with_attributes
-      in
-      wrap_desc ?loc ~attrs:(jane_syntax_attributes @ extra_attrs) desc
-
-    let make_jane_syntax name ast : _ With_attributes.t =
-      let original_attributes = attributes ast in
+    let make_jane_syntax name ast =
       let attr =
         { attr_name =
             { txt = Embedded_name.to_string name
@@ -546,7 +542,7 @@ module Make_with_attribute
         ; attr_payload = PStr []
         }
       in
-      { desc = desc ast; jane_syntax_attributes = attr :: original_attributes }
+      with_attributes ast (attr :: attributes ast)
 
     let match_jane_syntax ast =
       match find_and_remove_jane_syntax_attribute (attributes ast) with
@@ -561,7 +557,7 @@ module Make_with_extension_node
     (AST_syntactic_category : sig
        include AST_syntactic_category
 
-      (** How to construct an extension node for this AST (something of the
+       (** How to construct an extension node for this AST (something of the
           shape [[%name]]). Should just be [Ast_helper.CAT.extension] for the
           appropriate syntactic category [CAT]. (This means that [?loc] should
           default to [!Ast_helper.default_loc.].) *)
@@ -572,7 +568,7 @@ module Make_with_extension_node
           appropriately-formed name and a body, combine them into the special
           syntactic form we use for novel syntactic features in this syntactic
           category. Partial inverse of [match_extension_use]. *)
-      val make_extension_use  : extension_node:ast -> ast -> ast_desc
+      val make_extension_use  : extension_node:ast -> ast -> ast
 
       (** Given an AST node, check if it's of the special syntactic form
           indicating that this is one of our novel syntactic features (as
@@ -581,9 +577,7 @@ module Make_with_extension_node
           name/format of the extension or the possible body terms (for which see
           [AST.match_extension]). Partial inverse of [make_extension_use]. *)
       val match_extension_use : ast -> (extension * ast) option
-     end) :
-    AST with type ast      = AST_syntactic_category.ast
-         and type ast_desc = AST_syntactic_category.ast_desc =
+     end) : AST_internal with type ast = AST_syntactic_category.ast =
   struct
     include AST_syntactic_category
 
@@ -617,108 +611,97 @@ end
     [[[%jane.FEATNAME] * BODY]]. *)
 module Type_AST_syntactic_category = struct
   type ast = core_type
-  type ast_desc = core_type_desc
 
   (* Missing [plural] *)
 
   let location typ = typ.ptyp_loc
-
-  let wrap_desc ?loc ~attrs = Ast_helper.Typ.mk ?loc ~attrs
+  let with_location typ l = { typ with ptyp_loc = l }
 
   let attributes typ = typ.ptyp_attributes
   let with_attributes typ ptyp_attributes = { typ with ptyp_attributes }
-  let desc typ = typ.ptyp_desc
 end
 
 (** Types; embedded as [[[%jane.FEATNAME] * BODY]]. *)
-module Core_type = Make_with_attribute (struct
+module Core_type0 = Make_with_attribute (struct
     include Type_AST_syntactic_category
 
     let plural = "types"
 end)
 
 (** Constructor arguments; the same as types, but used in fewer places *)
-module Constructor_argument = Make_with_attribute (struct
+module Constructor_argument0 = Make_with_attribute (struct
   include Type_AST_syntactic_category
 
   let plural = "constructor arguments"
 end)
 
 (** Expressions; embedded using an attribute on the expression. *)
-module Expression = Make_with_attribute (struct
+module Expression0 = Make_with_attribute (struct
   type ast = expression
-  type ast_desc = expression_desc
 
   let plural = "expressions"
-
   let location expr = expr.pexp_loc
+  let with_location expr l = { expr with pexp_loc = l }
 
-  let wrap_desc ?loc ~attrs = Ast_helper.Exp.mk ?loc ~attrs
-
-  let desc expr = expr.pexp_desc
   let attributes expr = expr.pexp_attributes
   let with_attributes expr pexp_attributes = { expr with pexp_attributes }
 end)
 
 (** Patterns; embedded using an attribute on the pattern. *)
-module Pattern = Make_with_attribute (struct
+module Pattern0 = Make_with_attribute (struct
   type ast = pattern
-  type ast_desc = pattern_desc
 
   let plural = "patterns"
-
   let location pat = pat.ppat_loc
+  let with_location pat l = { pat with ppat_loc = l }
 
-  let wrap_desc ?loc ~attrs = Ast_helper.Pat.mk ?loc ~attrs
-
-  let desc pat = pat.ppat_desc
   let attributes pat = pat.ppat_attributes
   let with_attributes pat ppat_attributes = { pat with ppat_attributes }
 end)
 
 (** Module types; embedded using an attribute on the module type. *)
-module Module_type = Make_with_attribute (struct
+module Module_type0 = Make_with_attribute (struct
     type ast = module_type
-    type ast_desc = module_type_desc
 
     let plural = "module types"
-
     let location mty = mty.pmty_loc
+    let with_location mty l = { mty with pmty_loc = l }
 
-    let wrap_desc ?loc ~attrs = Ast_helper.Mty.mk ?loc ~attrs
-
-    let desc mty = mty.pmty_desc
     let attributes mty = mty.pmty_attributes
     let with_attributes mty pmty_attributes = { mty with pmty_attributes }
+end)
+
+(** Extension constructors; embedded using an attribute. *)
+module Extension_constructor0 = Make_with_attribute (struct
+    type ast = extension_constructor
+
+    let plural = "extension constructors"
+    let location ext = ext.pext_loc
+    let with_location ext l = { ext with pext_loc = l }
+
+    let attributes ext = ext.pext_attributes
+    let with_attributes ext pext_attributes = { ext with pext_attributes }
 end)
 
 (** Signature items; embedded as
     [include sig [%%extension.EXTNAME];; BODY end]. Signature items don't have
     attributes or we'd use them instead.
 *)
-module Signature_item = Make_with_extension_node (struct
+module Signature_item0 = Make_with_extension_node (struct
     type ast = signature_item
-    type ast_desc = signature_item_desc
 
     let plural = "signature items"
 
     let location sigi = sigi.psig_loc
-
-    (* The attributes are only set in [ast_mapper], so requiring them to be
-       empty here is fine, as there won't be any to set in that case. *)
-    let wrap_desc ?loc ~attrs =
-      match attrs with
-      | [] -> Ast_helper.Sig.mk ?loc
-      | _ :: _ ->
-          Misc.fatal_errorf
-            "Jane syntax: Cannot put attributes on a signature item"
+    let with_location sigi l = { sigi with psig_loc = l }
 
     let make_extension_node = Ast_helper.Sig.extension
 
     let make_extension_use ~extension_node sigi =
-      Psig_include { pincl_mod = Ast_helper.Mty.signature [extension_node; sigi]
-                   ; pincl_loc = !Ast_helper.default_loc
-                   ; pincl_attributes = [] }
+      Ast_helper.Sig.include_
+        { pincl_mod = Ast_helper.Mty.signature [extension_node; sigi]
+        ; pincl_loc = !Ast_helper.default_loc
+        ; pincl_attributes = [] }
 
     let match_extension_use sigi =
       match sigi.psig_desc with
@@ -739,29 +722,21 @@ end)
     [include struct [%%extension.EXTNAME];; BODY end]. Structure items don't
     have attributes or we'd use them instead.
 *)
-module Structure_item = Make_with_extension_node (struct
+module Structure_item0 = Make_with_extension_node (struct
     type ast = structure_item
-    type ast_desc = structure_item_desc
 
     let plural = "structure items"
 
     let location stri = stri.pstr_loc
-
-    (* The attributes are only set in [ast_mapper], so requiring them to be
-       empty here is fine, as there won't be any to set in that case. *)
-    let wrap_desc ?loc ~attrs =
-      match attrs with
-      | [] -> Ast_helper.Str.mk ?loc
-      | _ :: _ ->
-          Misc.fatal_errorf
-            "Jane syntax: Cannot put attributes on a structure item"
+    let with_location stri l = { stri with pstr_loc = l }
 
     let make_extension_node = Ast_helper.Str.extension
 
     let make_extension_use ~extension_node stri =
-      Pstr_include { pincl_mod = Ast_helper.Mod.structure [extension_node; stri]
-                   ; pincl_loc = !Ast_helper.default_loc
-                   ; pincl_attributes = [] }
+      Ast_helper.Str.include_
+        { pincl_mod = Ast_helper.Mod.structure [extension_node; stri]
+        ; pincl_loc = !Ast_helper.default_loc
+        ; pincl_attributes = [] }
 
     let match_extension_use stri =
       match stri.pstr_desc with
@@ -779,51 +754,34 @@ module Structure_item = Make_with_extension_node (struct
 end)
 
 (******************************************************************************)
+(* Main exports *)
 
-module AST = struct
-  type (_, _) t =
-    | Expression : (expression, expression_desc With_attributes.t) t
-    | Pattern : (pattern, pattern_desc With_attributes.t) t
-    | Module_type : (module_type, module_type_desc With_attributes.t) t
-    | Signature_item : (signature_item, signature_item_desc) t
-    | Structure_item : (structure_item, structure_item_desc) t
-    | Core_type : (core_type, core_type_desc With_attributes.t) t
-    | Constructor_argument : (core_type, core_type_desc With_attributes.t) t
+module type AST = sig
+  type ast
 
-  let to_module (type ast ast_desc) (t : (ast, ast_desc) t) :
-    (module AST with type ast = ast and type ast_desc = ast_desc) =
-    match t with
-    | Expression -> (module Expression)
-    | Pattern -> (module Pattern)
-    | Module_type -> (module Module_type)
-    | Signature_item -> (module Signature_item)
-    | Structure_item -> (module Structure_item)
-    | Core_type -> (module Core_type)
-    | Constructor_argument -> (module Constructor_argument)
+  val make_jane_syntax : Feature.t -> string list -> ast -> ast
+  val make_entire_jane_syntax :
+    loc:Location.t -> Feature.t -> (unit -> ast) -> ast
+  val make_of_ast :
+    of_ast_internal:(Feature.t -> ast -> 'a option) -> (ast -> 'a option)
+end
 
-  let wrap_desc (type ast ast_desc) (t : (ast, ast_desc) t) =
-    let (module AST) = to_module t in
-    AST.wrap_desc
+module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
+  include AST
 
-  let make_jane_syntax
-      (type ast ast_desc)
-      (t : (ast, ast_desc) t)
-      feature
-      trailing_components
-      ast
-    =
-    let (module AST) = to_module t in
+  let make_jane_syntax feature trailing_components ast =
     AST.make_jane_syntax
       (Embedded_name.of_feature feature trailing_components)
       ast
 
-  let make_entire_jane_syntax t ~loc feature ast =
-    make_jane_syntax t feature []
-      (Ast_helper.with_default_loc (Location.ghostify loc) ast)
+  let make_entire_jane_syntax ~loc feature ast =
+    AST.with_location
+      (make_jane_syntax feature []
+         (Ast_helper.with_default_loc (Location.ghostify loc) ast))
+      loc
 
   (** Generically lift our custom ASTs for our novel syntax from OCaml ASTs. *)
-  let make_of_ast (type ast ast_desc) (t : (ast, ast_desc) t) ~of_ast_internal =
-    let (module AST) = to_module t in
+  let make_of_ast ~of_ast_internal =
     let of_ast ast =
       let loc = AST.location ast in
       let raise_error err = raise (Error (loc, err)) in
@@ -837,7 +795,8 @@ module AST = struct
                   raise_error (Wrong_syntactic_category(feat, AST.plural))
             end
           | Error err -> raise_error begin match err with
-            | Disabled_extension ext -> Disabled_extension ext
+            | Disabled_extension ext ->
+                Disabled_extension { ext; maturity = None }
             | Unknown_extension name ->
                 Unknown_extension (AST.embedding_syntax, erasability, name)
           end
@@ -848,3 +807,12 @@ module AST = struct
     in
     of_ast
 end
+
+module Expression = Make_ast(Expression0)
+module Pattern = Make_ast(Pattern0)
+module Module_type = Make_ast(Module_type0)
+module Signature_item = Make_ast(Signature_item0)
+module Structure_item = Make_ast(Structure_item0)
+module Core_type = Make_ast(Core_type0)
+module Constructor_argument = Make_ast(Constructor_argument0)
+module Extension_constructor = Make_ast(Extension_constructor0)

@@ -76,8 +76,8 @@ let primitive_descriptions pd1 pd2 =
   else if not (String.equal pd1.prim_native_name pd2.prim_native_name) then
     Some Native_name
   else if not
-    (Primitive.equal_native_repr
-       (snd pd1.prim_native_repr_res) (snd pd2.prim_native_repr_res)) then
+    (match pd1.prim_native_repr_res, pd2.prim_native_repr_res with
+      | (_, nr1), (_, nr2) -> Primitive.equal_native_repr nr1 nr2) then
     Some Result_repr
   else
     native_repr_args pd1.prim_native_repr_args pd2.prim_native_repr_args
@@ -168,10 +168,7 @@ type privacy_mismatch =
   | Private_extensible_variant
   | Private_row_type
 
-type locality_mismatch =
-  { order : position;
-    nonlocal : bool
-  }
+type locality_mismatch = { order : position }
 
 type label_mismatch =
   | Type of Errortrace.equality_error
@@ -233,11 +230,8 @@ type type_mismatch =
   | Layout of Layout.Violation.t
 
 let report_locality_mismatch first second ppf err =
-  let {order; nonlocal} = err in
-  let sort =
-    if nonlocal then "nonlocal"
-    else "global"
-  in
+  let {order} = err in
+  let sort = "global" in
   Format.fprintf ppf "%s is %s and %s is not."
     (String.capitalize_ascii  (choose order first second))
     sort
@@ -492,16 +486,11 @@ let report_type_mismatch first second decl env ppf err =
 
 let compare_global_flags flag0 flag1 =
   match flag0, flag1 with
-  | Global, (Nonlocal | Unrestricted) ->
-    Some {order = First; nonlocal = false}
-  | (Nonlocal | Unrestricted), Global ->
-    Some {order = Second; nonlocal = false}
-  | Nonlocal, Unrestricted ->
-    Some {order = First; nonlocal = true}
-  | Unrestricted, Nonlocal ->
-    Some {order = Second; nonlocal = true}
+  | Global, Unrestricted ->
+    Some {order = First}
+  | Unrestricted, Global ->
+    Some {order = Second}
   | Global, Global
-  | Nonlocal, Nonlocal
   | Unrestricted, Unrestricted ->
     None
 

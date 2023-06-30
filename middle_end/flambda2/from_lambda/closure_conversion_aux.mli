@@ -43,7 +43,7 @@ module IR : sig
             don't exist in Lambda *)
     | Prim of
         { prim : Lambda.primitive;
-          args : simple list;
+          args : simple list list;
           loc : Lambda.scoped_location;
           exn_continuation : exn_continuation option;
           region : Ident.t
@@ -308,7 +308,7 @@ module Function_decls : sig
       free_idents_of_body:Ident.Set.t ->
       Recursive.t ->
       closure_alloc_mode:Lambda.alloc_mode ->
-      num_trailing_local_params:int ->
+      first_complex_local_param:int ->
       contains_no_escaping_local_allocs:bool ->
       t
 
@@ -350,7 +350,7 @@ module Function_decls : sig
 
     val closure_alloc_mode : t -> Lambda.alloc_mode
 
-    val num_trailing_local_params : t -> int
+    val first_complex_local_param : t -> int
 
     val contains_no_escaping_local_allocs : t -> bool
 

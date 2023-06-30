@@ -430,7 +430,7 @@ Iarray.combine [::] [::];;
 
 Iarray.combine iarray [: "wrong length" :];;
 [%%expect{|
-Exception: Invalid_argument "Array.combine".
+Exception: Invalid_argument "Iarray.combine".
 |}];;
 
 Iarray.sort (Fun.flip Int.compare) iarray,

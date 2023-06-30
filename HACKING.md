@@ -11,7 +11,9 @@ want to modify the Flambda backend.  Jump to:
 - [Running tests](#running-tests)
 - [Running only part of the upstream testsuite](#running-only-part-of-the-upstream-testsuite)
 - [Running tests with coverage analysis](#running-tests-with-coverage-analysis)
-- [Running the compiler produced by "make hacking" on an example without the stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
+- [Running the compiler produced by "make hacking" on an example without the
+  stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
+- [Using the ocaml debugger to debug the compiler](#using-the-ocaml-debugger-to-debug-the-compiler)
 - [Getting the compilation command for a stdlib file](#getting-the-compilation-command-for-a-stdlib-file)
 - [Bootstrapping the ocaml subtree](#bootstrapping-the-ocaml-subtree)
 - [Testing the compiler built locally with OPAM](#testing-the-compiler-built-locally-with-opam)
@@ -202,6 +204,82 @@ something like:
 ./_build/_bootinstall/bin/ocamlopt.opt -nostdlib -nopervasives -c test.ml
 ```
 
+## Using the OCaml debugger to debug the compiler
+
+Run `make debug`. This completes three steps:
+
+1. `make install`
+2. Sets up the `ocaml/tools/debug_printers` script so that you can `source
+   ocaml/tools/debug_printers` during a debugging session to see
+   otherwise-abstract variable values.
+3. Symlinks `./ocamlc` to point to the bytecode compiler. This is convenient for
+   emacs integration, because emacs looks for sources starting in the directory
+   containing the executable.
+   
+To actually run the debugger from emacs (other workflows are possible; just
+tweak these instructions):
+
+1. Run `M-x camldebug RET`
+2. Choose the `ocamlc` symlink in the root of the repo.
+3. Choose the arguments to pass to `ocamlc`, likely a full path to a test `.ml`
+   file.
+4. Choose the built `ocamldebug`, in your install directory.
+5. Set any breakpoints you want. The easiest way is to navigate to the line
+   where you want the breakpoint and use `C-x C-a C-b` in emacs.
+6. Run `directory _build/main/ocaml/.ocamlcommon.objs/byte` to add the right
+   directory to `ocamldebug`'s search path. (If you skip this, printing any
+   value produces `Cannot find module Misc.`.)
+7. `run` to your breakpoint.
+
+There is already a `.ocamldebug` file that automatically loads the
+`debug_printers` built by `make debug`; no need to load those printers.
+
+In order to make doing this even easier, you may want the following emacs-lisp
+function, which automates steps 1, 2, 4, 6, and 7, above. That is, with
+`ocamldebug-ocaml`, you choose the arguments to the debugger (usually, some
+target `.ml` file), set a breakpoint, and then `run`.
+
+```
+;; directly inspired by the ocamldebug implementation in ocamldebug.el
+(require 'ocamldebug)
+(defun ocamldebug-ocaml ()
+  (interactive)
+  "Runs ocamldebug on the ocaml built from the source file in the active buffer"
+  (let* ((ocaml-dir (expand-file-name
+                     (locate-dominating-file (buffer-file-name) ".git")))
+         (pgm-path (file-name-concat ocaml-dir "ocamlc"))
+         (comint-name "ocamldebug-ocamlc")
+         (buffer-name (concat "*" comint-name "*"))
+         (ocamldebug-command-name
+          (file-name-concat ocaml-dir "_build/install/main/bin/ocamldebug")))
+    (unless (file-exists-p ocamldebug-command-name)
+      (error "No debugger found; run `make debug` first."))
+    (pop-to-buffer buffer-name)
+    (unless (comint-check-proc buffer-name)
+      (setq default-directory ocaml-dir)
+      (setq ocamldebug-debuggee-args
+            (read-from-minibuffer (format "Args for ocamlc: ")
+                                  ocamldebug-debuggee-args))
+      (let* ((args (split-string-shell-command ocamldebug-debuggee-args)))
+        (apply #'make-comint comint-name
+               ocamldebug-command-name
+               nil
+               "-emacs"
+               "-cd" default-directory
+               "-I" "_build/main/ocaml/.ocamlcommon.objs/byte"
+               pgm-path
+               args)
+        (set-process-filter (get-buffer-process (current-buffer))
+                            #'ocamldebug-filter)
+        (set-process-sentinel (get-buffer-process (current-buffer))
+                              #'ocamldebug-sentinel)
+        (ocamldebug-mode)))
+    (ocamldebug-set-buffer)))
+```
+
+See [the manual section](https://v2.ocaml.org/manual/debugger.html) for more
+information about the debugger.
+
 ## Getting the compilation command for a stdlib file
 
 For example because you need to get the `-dflambda` output because of a bug.
@@ -387,4 +465,4 @@ only runs on Linux, although it shouldn't be hard to port to macOS, especially
 if using GNU binutils.  It is recommended to install the Jane Street `patdiff` executable
 before running `make compare`.  The comparison script has not been maintained since the
 early releases of the Flambda backend; it was written as part of the acceptance process
-for the initial release.
+    for the initial release.

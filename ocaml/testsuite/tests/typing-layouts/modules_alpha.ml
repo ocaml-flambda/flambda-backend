@@ -162,9 +162,8 @@ end;;
 Line 4, characters 13-19:
 4 |   let create _ = ()
                  ^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type 'a.
        Please report this error to the Jane Street compilers team.
-       'a has layout void, which is not a sublayout of value.
 |}];;
 
 module rec Foo3 : sig
@@ -470,3 +469,20 @@ end;;
 [%%expect {|
 module F : sig end -> sig end
 |}];;
+
+(****************************************)
+(* Test 8: [val]s must be representable *)
+
+module type S = sig val x : t_any end
+
+module M = struct
+  let x : t_void = assert false
+end
+
+[%%expect{|
+Line 1, characters 28-33:
+1 | module type S = sig val x : t_any end
+                                ^^^^^
+Error: This type signature for x is not a value type.
+       x has layout any, which is not a sublayout of value.
+|}]

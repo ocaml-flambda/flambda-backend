@@ -1,3 +1,4 @@
+open Layouts
 open Lambda
 open Typedtree
 open Asttypes
@@ -455,7 +456,7 @@ let iterator ~transl_exp ~scopes ~loc
   | Texp_comp_range { ident; pattern = _; start; stop; direction } ->
       let bound name value =
         Let_binding.make (Immutable Strict) (Pvalue Pintval)
-          name (transl_exp ~scopes value)
+          name (transl_exp ~scopes Sort.for_predef_value value)
       in
       let start = bound "start" start in
       let stop  = bound "stop"  stop  in
@@ -472,7 +473,7 @@ let iterator ~transl_exp ~scopes ~loc
   | Texp_comp_in { pattern; sequence = iter_arr_exp } ->
       let iter_arr =
         Let_binding.make (Immutable Strict) (Pvalue Pgenval)
-          "iter_arr" (transl_exp ~scopes iter_arr_exp)
+          "iter_arr" (transl_exp ~scopes Sort.for_predef_value iter_arr_exp)
       in
       let iter_arr_kind = Typeopt.array_kind iter_arr_exp in
       let iter_len =
@@ -486,7 +487,7 @@ let iterator ~transl_exp ~scopes ~loc
       let mk_iterator body =
         let open (val Lambda_utils.int_ops ~loc) in
         (* for iter_ix = 0 to Array.length iter_arr - 1 ... *)
-        (* CR layouts: will need updating when we allow non-values in arrays. *)
+        (* CR layouts v4: will need updating when we allow non-values in arrays. *)
         Lfor { for_id     = iter_ix
              ; for_from   = l0
              ; for_to     = iter_len.var - l1
@@ -494,12 +495,14 @@ let iterator ~transl_exp ~scopes ~loc
              ; for_body   =
                  Matching.for_let
                    ~scopes
+                   ~arg_sort:Sort.for_array_element
+                   ~return_layout:(Pvalue Pintval)
                    pattern.pat_loc
-                   (Lprim(Parrayrefu iter_arr_kind,
+                   (Lprim(Parrayrefu
+                            Lambda.(array_ref_kind alloc_heap iter_arr_kind),
                           [iter_arr.var; Lvar iter_ix],
                           loc))
                    pattern
-                   (Pvalue Pintval)
                    body
              }
       in
@@ -548,7 +551,7 @@ let clause ~transl_exp ~scopes ~loc = function
                     (Iterator_bindings.all_let_bindings var_bindings)
                     (make_clause body)
   | Texp_comp_when cond ->
-      fun body -> Lifthenelse(transl_exp ~scopes cond,
+      fun body -> Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
                     body,
                     lambda_unit,
                     (Pvalue Pintval) (* [unit] is immediate *))
@@ -756,7 +759,9 @@ let body
   let open Let_binding in
   let set_element_raw elt =
     (* array.(index) <- elt *)
-    Lprim(Parraysetu array_kind, [array.var; index.var; elt], loc)
+    Lprim(Parraysetu Lambda.(array_set_kind modify_heap array_kind),
+          [array.var; index.var; elt],
+          loc)
   in
   let set_element_in_bounds elt = match array_sizing with
     | Fixed_size ->
@@ -827,7 +832,7 @@ let comprehension
               ~array_sizing
               ~array
               ~index
-              ~body:(transl_exp ~scopes comp_body)),
+              ~body:(transl_exp ~scopes Sort.for_array_element comp_body)),
          (* If it was dynamically grown, cut it down to size *)
          match array_sizing with
          | Fixed_size -> array.var

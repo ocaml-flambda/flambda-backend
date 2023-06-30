@@ -33,6 +33,7 @@ let ident_int = ident_create "int"
 and ident_char = ident_create "char"
 and ident_bytes = ident_create "bytes"
 and ident_float = ident_create "float"
+and ident_float_unboxed = ident_create "float#"
 and ident_bool = ident_create "bool"
 and ident_unit = ident_create "unit"
 and ident_exn = ident_create "exn"
@@ -52,6 +53,9 @@ let path_int = Pident ident_int
 and path_char = Pident ident_char
 and path_bytes = Pident ident_bytes
 and path_float = Pident ident_float
+(* CR layouts v2: we need to look through all the places where [path_float] is
+   checked and add a corresponding check for [path_float_unboxed]. *)
+and path_float_unboxed = Pident ident_float_unboxed
 and path_bool = Pident ident_bool
 and path_unit = Pident ident_unit
 and path_exn = Pident ident_exn
@@ -71,6 +75,7 @@ let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
 and type_bytes = newgenty (Tconstr(path_bytes, [], ref Mnil))
 and type_float = newgenty (Tconstr(path_float, [], ref Mnil))
+and type_float_unboxed = newgenty (Tconstr(path_float_unboxed, [], ref Mnil))
 and type_bool = newgenty (Tconstr(path_bool, [], ref Mnil))
 and type_unit = newgenty (Tconstr(path_unit, [], ref Mnil))
 and type_exn = newgenty (Tconstr(path_exn, [], ref Mnil))
@@ -226,6 +231,7 @@ let common_initial_env add_type add_extension empty_env =
        ~layout:(Layout.value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
+  |> add_type ident_float_unboxed
   |> add_type ident_floatarray
   |> add_type ident_int ~layout:(Layout.immediate ~why:(Primitive ident_int))
   |> add_type ident_int32

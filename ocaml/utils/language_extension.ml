@@ -98,7 +98,7 @@ let pair_of_string extn_name : extn_pair option =
   | "include_functor" -> Some (Pair (Include_functor, ()))
   | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
   | "immutable_arrays" -> Some (Pair (Immutable_arrays, ()))
-  | "strengthening" -> Some (Pair (Module_strengthening, ()))
+  | "module_strengthening" -> Some (Pair (Module_strengthening, ()))
   | "layouts" -> Some (Pair (Layouts, (Stable : Maturity.t)))
   | "layouts_beta" -> Some (Pair (Layouts, (Beta : Maturity.t)))
   | "layouts_alpha" -> Some (Pair (Layouts, (Alpha : Maturity.t)))
@@ -112,6 +112,11 @@ let pair_of_string_exn extn_name = match pair_of_string extn_name with
 let of_string extn_name =
   let pack (Pair (extn, _) : extn_pair) = Pack extn in
   Option.map pack (pair_of_string extn_name)
+
+let maturity_to_string = function
+  | Alpha -> "alpha"
+  | Beta -> "beta"
+  | Stable -> "stable"
 
 (************************************)
 (* equality *)

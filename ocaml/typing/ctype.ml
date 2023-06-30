@@ -655,8 +655,14 @@ let closed_extension_constructor ext =
   try
     List.iter mark_type ext.ext_type_params;
     begin match ext.ext_ret_type with
-    | Some _ -> ()
-    | None -> iter_type_expr_cstr_args closed_type ext.ext_args
+    | Some res_ty ->
+        (* gadts cannot have free type variables, but they might
+           have undefaulted layout variables; these lines default
+           them. Test case: typing-layouts-gadt-sort-var/test_extensible.ml *)
+        iter_type_expr_cstr_args remove_mode_and_layout_variables ext.ext_args;
+        remove_mode_and_layout_variables res_ty
+    | None ->
+        iter_type_expr_cstr_args closed_type ext.ext_args
     end;
     unmark_extension_constructor ext;
     None
@@ -2521,18 +2527,30 @@ let unexpanded_diff ~got ~expected =
 
 (**** Unification ****)
 
-(* Return whether [t0] occurs in [ty]. Objects are also traversed. *)
-let deep_occur t0 ty =
-  let rec occur_rec ty =
-    if get_level ty >= get_level t0 && try_mark_node ty then begin
-      if eq_type ty t0 then raise Occur;
-      iter_type_expr occur_rec ty
-    end
-  in
+let rec deep_occur_rec t0 ty =
+  if get_level ty >= get_level t0 && try_mark_node ty then begin
+    if eq_type ty t0 then raise Occur;
+    iter_type_expr (deep_occur_rec t0) ty
+  end
+
+(* Return whether [t0] occurs in any type in [tyl]. Objects are also traversed. *)
+let deep_occur_list t0 tyl =
   try
-    occur_rec ty; unmark_type ty; false
+    List.iter (deep_occur_rec t0) tyl;
+    List.iter unmark_type tyl;
+    false
   with Occur ->
-    unmark_type ty; true
+    List.iter unmark_type tyl;
+    true
+
+let deep_occur t0 ty =
+  try
+    deep_occur_rec t0 ty;
+    unmark_type ty;
+    false
+  with Occur ->
+    unmark_type ty;
+    true
 
 let gadt_equations_level = ref None
 
@@ -3753,8 +3771,18 @@ type filter_arrow_failure =
       ; expected_type : type_expr
       }
   | Not_a_function
+  | Layout_error of type_expr * Layout.Violation.t
 
 exception Filter_arrow_failed of filter_arrow_failure
+
+type filtered_arrow =
+  { ty_arg : type_expr;
+    arg_mode : alloc_mode;
+    arg_sort : sort;
+    ty_ret : type_expr;
+    ret_mode : alloc_mode;
+    ret_sort : sort
+  }
 
 let filter_arrow env t l ~force_tpoly =
   let function_type level =
@@ -3766,12 +3794,14 @@ let filter_arrow env t l ~force_tpoly =
        allow both to be any.  Separately, the relevant checks on function
        arguments should happen when functions are constructed, not their
        types. *)
-    let l1 = Layout.of_new_sort_var ~why:Function_argument in
-    let l2 = Layout.of_new_sort_var ~why:Function_result in
-    let t1 =
+    let arg_sort = Sort.new_var () in
+    let l_arg = Layout.of_sort ~why:Function_argument arg_sort in
+    let ret_sort = Sort.new_var () in
+    let l_res = Layout.of_sort ~why:Function_result ret_sort in
+    let ty_arg =
       if not force_tpoly then begin
         assert (not (is_optional l));
-        newvar2 level l1
+        newvar2 level l_arg
       end else begin
         let t1 =
           if is_optional l then
@@ -3782,21 +3812,23 @@ let filter_arrow env t l ~force_tpoly =
                        [newvar2 level (Layout.value ~why:Type_argument)],
                        ref Mnil))
           else
-            newvar2 level l1
+            newvar2 level l_arg
         in
         newty2 ~level (Tpoly(t1, []))
       end
     in
-    let t2 = newvar2 level l2 in
-    let marg = Alloc_mode.newvar () in
-    let mret = Alloc_mode.newvar () in
-    let t' = newty2 ~level (Tarrow ((l,marg,mret), t1, t2, commu_ok)) in
-    t', marg, t1, mret, t2
+    let ty_ret = newvar2 level l_res in
+    let arg_mode = Alloc_mode.newvar () in
+    let ret_mode = Alloc_mode.newvar () in
+    let t' =
+      newty2 ~level (Tarrow ((l, arg_mode, ret_mode), ty_arg, ty_ret, commu_ok))
+    in
+    t', { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort }
   in
   let t =
     try expand_head_trace env t
     with Unify_trace trace ->
-      let t', _, _, _, _ = function_type (get_level t) in
+      let t', _ = function_type (get_level t) in
       raise (Filter_arrow_failed
                (Unification_error
                   (expand_to_unification_error
@@ -3805,13 +3837,27 @@ let filter_arrow env t l ~force_tpoly =
   in
   match get_desc t with
     Tvar { layout } ->
-      let t', marg, t1, mret, t2 = function_type (get_level t) in
+      let t', arrow_desc = function_type (get_level t) in
       link_type t t';
       constrain_type_layout_exn env Unify t' layout;
-      (marg, t1, mret, t2)
-  | Tarrow((l', marg, mret), t1, t2, _) ->
+      arrow_desc
+  | Tarrow((l', arg_mode, ret_mode), ty_arg, ty_ret, _) ->
       if l = l' || !Clflags.classic && l = Nolabel && not (is_optional l')
-      then (marg, t1, mret, t2)
+      then
+        (* CR layouts v2.5: When we move the restrictions on argument from
+           arrows to functions, this function doesn't need to return a sort and
+           these calls to [type_sort] can move.  We could eliminate them
+           entirely by storing sorts on [TArrow], but that seems incompatible
+           with the future plan to shift the layout requirements from the types
+           to the terms. *)
+        let type_sort ~why ty =
+          match type_sort ~why env ty with
+          | Ok sort -> sort
+          | Error err -> raise (Filter_arrow_failed (Layout_error (ty, err)))
+        in
+        let arg_sort = type_sort ~why:Function_argument ty_arg in
+        let ret_sort = type_sort ~why:Function_result ty_ret in
+        { ty_arg; arg_mode; arg_sort; ty_ret; ret_mode; ret_sort }
       else raise (Filter_arrow_failed
                     (Label_mismatch
                        { got = l; expected = l'; expected_type = t }))
@@ -3831,10 +3877,10 @@ exception Filter_arrow_mono_failed
 let filter_arrow_mono env t l =
   match filter_arrow env t l ~force_tpoly:true with
   | exception Filter_arrow_failed _ -> raise Filter_arrow_mono_failed
-  | (marg, t1, mret, t2) ->
-      match filter_mono t1 with
+  | {ty_arg; _} as farr ->
+      match filter_mono ty_arg with
       | exception Filter_mono_failed -> raise Filter_arrow_mono_failed
-      | t1 -> (marg, t1, mret, t2)
+      | ty_arg -> { farr with ty_arg }
 
 type filter_method_failure =
   | Unification_error of unification_error
@@ -5280,7 +5326,7 @@ let rec build_subtype env (visited : transient_expr list)
           (* Fix PR#4505: do not set ty to Tvar when it appears in tl1,
              as this occurrence might break the occur check.
              XXX not clear whether this correct anyway... *)
-          if List.exists (deep_occur ty) tl1 then raise Not_found;
+          if deep_occur_list ty tl1 then raise Not_found;
           set_type_desc ty
             (Tvar { name = None;
                     layout = Layout.value
@@ -5838,7 +5884,7 @@ let rec normalize_type_rec visited ty =
         begin match !nm with
         | None -> ()
         | Some (n, v :: l) ->
-            if deep_occur ty (newgenty (Ttuple l)) then
+            if deep_occur_list ty l then
               (* The abbreviation may be hiding something, so remove it *)
               set_name nm None
             else

@@ -78,7 +78,10 @@ let iterator =
         | Cexp_array_comprehension (_, {clauses = []; body = _}) )
       ->
         empty_comprehension loc
-    | Jexp_comprehension _ | Jexp_immutable_array _ -> ()
+    | Jexp_comprehension _
+    | Jexp_immutable_array _
+    | Jexp_unboxed_constant _
+      -> ()
   in
   let expr self exp =
     begin match exp.pexp_desc with

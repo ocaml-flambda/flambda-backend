@@ -125,7 +125,7 @@ let env_set_trap_stack env trap_stack =
 let rec combine_traps trap_stack = function
   | [] -> trap_stack
   | (Push t) :: l -> combine_traps (Specific_trap (t, trap_stack)) l
-  | Pop :: l ->
+  | Pop _ :: l ->
       begin match trap_stack with
       | Uncaught -> Misc.fatal_error "Trying to pop a trap from an empty stack"
       | Generic_trap ts | Specific_trap (_, ts) -> combine_traps ts l
@@ -162,7 +162,7 @@ let set_traps_for_raise env =
   | Generic_trap _ -> ()
   | Specific_trap (lbl, _) ->
     begin match env_find_static_exception lbl env with
-    | s -> set_traps lbl s.traps_ref ts [Pop]
+    | s -> set_traps lbl s.traps_ref ts [Pop (Pop_specific lbl)]
     | exception Not_found -> Misc.fatal_errorf "Trap %d not registered in env" lbl
     end
 
@@ -174,8 +174,8 @@ let trap_stack_is_empty env =
 let pop_all_traps env =
   let rec pop_all acc = function
     | Uncaught -> acc
-    | Generic_trap t
-    | Specific_trap (_, t) -> pop_all (Cmm.Pop :: acc) t
+    | Generic_trap t -> pop_all (Cmm.Pop Pop_generic :: acc) t
+    | Specific_trap (lbl, t) -> pop_all (Cmm.Pop (Pop_specific lbl) :: acc) t
   in
   pop_all [] env.trap_stack
 

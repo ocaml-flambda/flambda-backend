@@ -324,7 +324,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
     ~param_arity ~result_arity ~recursive ~down_to_up ~coming_from_indirect
     ~(closure_alloc_mode_from_type : Alloc_mode.For_types.t) ~current_region
-    ~num_trailing_local_params =
+    ~first_complex_local_param =
   (* Partial-applications are converted in full applications. Let's assume that
      [foo] takes 6 arguments. Then [foo a b c] gets transformed into:
 
@@ -377,17 +377,13 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     Function_slot.create compilation_unit ~name:"partial_app_closure"
       K.With_subkind.any_value
   in
-  let new_closure_alloc_mode, num_trailing_local_params =
+  let new_closure_alloc_mode, first_complex_local_param =
     (* If the closure has a local suffix, and we've supplied enough args to hit
        it, then the closure must be local (because the args or closure might
        be). *)
-    let num_leading_heap_params = arity - num_trailing_local_params in
-    if args_arity <= num_leading_heap_params
-    then Alloc_mode.For_allocations.heap, num_trailing_local_params
-    else
-      let num_supplied_local_args = args_arity - num_leading_heap_params in
-      ( Alloc_mode.For_allocations.local ~region:current_region,
-        num_trailing_local_params - num_supplied_local_args )
+    if args_arity <= first_complex_local_param
+    then Alloc_mode.For_allocations.heap, first_complex_local_param - args_arity
+    else Alloc_mode.For_allocations.local ~region:current_region, 0
   in
   (match closure_alloc_mode_from_type with
   | Heap_or_local -> ()
@@ -570,7 +566,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         Code.create code_id ~params_and_body
           ~free_names_of_params_and_body:free_names ~newer_version_of:None
           ~params_arity:(Bound_parameters.arity remaining_params)
-          ~num_trailing_local_params ~result_arity ~result_types:Unknown
+          ~first_complex_local_param ~result_arity ~result_types:Unknown
           ~contains_no_escaping_local_allocs ~stub:true ~inline:Default_inline
           ~poll_attribute:Default ~check:Check_attribute.Default_check
           ~is_a_functor:false ~recursive ~cost_metrics:cost_metrics_of_body
@@ -777,8 +773,8 @@ let simplify_direct_function_call ~simplify_expr dacc apply
           ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
           ~param_arity:params_arity ~result_arity ~recursive ~down_to_up
           ~coming_from_indirect ~closure_alloc_mode_from_type ~current_region
-          ~num_trailing_local_params:
-            (Code_metadata.num_trailing_local_params callee's_code_metadata))
+          ~first_complex_local_param:
+            (Code_metadata.first_complex_local_param callee's_code_metadata))
       else
         Misc.fatal_errorf
           "Function with %d params when simplifying direct OCaml function call \

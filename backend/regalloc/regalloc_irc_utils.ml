@@ -19,6 +19,12 @@ let log :
     indent:int -> ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
  fun ~indent ?no_eol fmt -> (Lazy.force log_function).log ~indent ?no_eol fmt
 
+let instr_prefix (instr : Cfg.basic Cfg.instruction) =
+  Printf.sprintf "#%04d" instr.id
+
+let term_prefix (term : Cfg.terminator Cfg.instruction) =
+  Printf.sprintf "#%04d" term.id
+
 let log_body_and_terminator :
     indent:int ->
     Cfg.basic_instruction_list ->
@@ -26,10 +32,13 @@ let log_body_and_terminator :
     liveness ->
     unit =
  fun ~indent body terminator liveness ->
-  make_log_body_and_terminator (Lazy.force log_function)
-    ~instr_prefix:(fun instr -> Printf.sprintf "#%04d" instr.id)
-    ~term_prefix:(fun term -> Printf.sprintf "#%04d" term.id)
-    ~indent body terminator liveness
+  make_log_body_and_terminator (Lazy.force log_function) ~instr_prefix
+    ~term_prefix ~indent body terminator liveness
+
+let log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit =
+ fun ~indent cfg_with_infos ->
+  make_log_cfg_with_infos (Lazy.force log_function) ~instr_prefix ~term_prefix
+    ~indent cfg_with_infos
 
 module Color = struct
   type t = int

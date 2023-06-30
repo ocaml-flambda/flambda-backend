@@ -498,6 +498,15 @@ let mk_no_dwarf_for_startup_file f =
   "-gno-startup", Arg.Unit f, " Emit the same DWARF information for the\n\
     \     startup file as the upstream compiler"
 
+let mk_use_cached_generic_functions f =
+  "-use-cached-generic-functions", Arg.Unit f, " Use the cached generated functions"
+;;
+
+let mk_cached_generic_functions_path f =
+  "-cached-generic-functions-path", Arg.String f,
+  "<file>  Set the path of the cached generic functions (default to cached-generic-functions.o)"
+;;
+
 let set_long_frames_threshold n =
   if n < 0 then
     raise (Arg.Bad "Long frames threshold must be non-negative.");
@@ -599,6 +608,8 @@ module type Flambda_backend_options = sig
   val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
   val dflow : unit -> unit
+  val use_cached_generic_functions : unit -> unit
+  val cached_generic_functions_path : string -> unit
 end
 
 module Make_flambda_backend_options (F : Flambda_backend_options) =
@@ -719,6 +730,8 @@ struct
     mk_dslot_offsets F.dslot_offsets;
     mk_dfreshen F.dfreshen;
     mk_dflow F.dflow;
+    mk_use_cached_generic_functions F.use_cached_generic_functions;
+    mk_cached_generic_functions_path F.cached_generic_functions_path;
   ]
 end
 
@@ -906,6 +919,8 @@ module Flambda_backend_options_impl = struct
   let dslot_offsets = set' Flambda2.Dump.slot_offsets
   let dfreshen = set' Flambda2.Dump.freshen
   let dflow = set' Flambda2.Dump.flow
+  let use_cached_generic_functions = set' Flambda_backend_flags.use_cached_generic_functions
+  let cached_generic_functions_path file = Flambda_backend_flags.cached_generic_functions_path := file
 end
 
 module type Debugging_options = sig
@@ -1106,6 +1121,10 @@ module Extra_params = struct
        set' Flambda2.Debug.concrete_types_only_on_canonicals
     | "flambda2-debug-keep-invalid-handlers" ->
        set' Flambda2.Debug.keep_invalid_handlers
+    | "use-cached-generic-functions" ->
+      set' Flambda_backend_flags.use_cached_generic_functions
+    | "cached-generic-functions-path" ->
+      Flambda_backend_flags.cached_generic_functions_path := v; true
     | _ -> false
 end
 

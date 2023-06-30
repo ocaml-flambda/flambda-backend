@@ -170,13 +170,13 @@ module F2 (X : sig val x : t_void end) = struct
   let f () = X.x
 end;;
 [%%expect{|
-Line 2, characters 8-16:
-2 |   let f () = X.x
-            ^^^^^^^^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+Line 1, characters 27-33:
+1 | module F2 (X : sig val x : t_void end) = struct
+                               ^^^^^^
+Error: This type signature for x is not a value type.
+       x has layout void, which is not a sublayout of value.
 |}];;
+(* CR layouts v5: the test above should be made to work *)
 
 module F2 (X : sig val f : void_record -> unit end) = struct
   let g z = X.f { vr_void = z; vr_int = 42 }
@@ -185,9 +185,8 @@ end;;
 Line 2, characters 8-44:
 2 |   let g z = X.f { vr_void = z; vr_int = 42 }
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}];;
 
 (**************************************)
@@ -1095,12 +1094,11 @@ let f19 () =
   let _y = (x :> t_void) in
   ();;
 [%%expect{|
-Line 3, characters 12-13:
+Line 3, characters 6-8:
 3 |   let _y = (x :> t_void) in
-                ^
-Error: Non-value detected in translation:
+          ^^
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       This expression has layout void, which is not a sublayout of value.
 |}];;
 
 (********************************************)
@@ -1113,12 +1111,11 @@ let f20 () =
   in
   ();;
 [%%expect{|
-Lines 4-5, characters 4-5:
-4 | ....let module M = struct end in
-5 |     x
-Error: Non-value detected in translation:
+Line 3, characters 6-8:
+3 |   let _y =
+          ^^
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       This expression has layout void, which is not a sublayout of value.
 |}];;
 
 (**********************************)
@@ -1134,12 +1131,11 @@ let f21 () =
   ();;
 [%%expect{|
 module type M21 = sig end
-Lines 6-7, characters 4-5:
-6 | ....let (module M) = (module struct end : M21) in
+Line 7, characters 4-5:
 7 |     x
-Error: Non-value detected in translation:
+        ^
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       This expression has layout void, which is not a sublayout of value.
 |}];;
 
 (***************************************************************)
@@ -1209,9 +1205,9 @@ type 'a t2_void [@@void]
 Line 3, characters 6-30:
 3 | let f (x : 'a. 'a t2_void) = x
           ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type
+       'a. 'a t2_void.
        Please report this error to the Jane Street compilers team.
-       'a. 'a t2_void has layout void, which is not a sublayout of value.
 |}]
 
 (**************************************************)
@@ -1239,9 +1235,8 @@ let g f (x : t_void) : t_void = f x
 Line 1, characters 8-35:
 1 | let g f (x : t_void) : t_void = f x
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}]
 
 (******************************************)
@@ -1253,9 +1248,8 @@ let rec f : _ -> _ = fun (x : t_void) -> x
 Line 1, characters 21-42:
 1 | let rec f : _ -> _ = fun (x : t_void) -> x
                          ^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}]
 
 (**********************************************)
@@ -1276,9 +1270,8 @@ and q () =
 Line 1, characters 17-36:
 1 | let rec ( let* ) (x : t_void) f = ()
                      ^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}]
 
 let rec ( let* ) x (f : t_void -> _) = ()
@@ -1291,9 +1284,8 @@ and q () =
 Lines 4-5, characters 2-4:
 4 | ..let* x = assert false in
 5 |   ()
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}]
 
 let rec ( let* ) x (f : _ -> t_void) = ()
@@ -1306,9 +1298,8 @@ and q () =
 Line 5, characters 2-14:
 5 |   assert false
       ^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}]
 
 let rec ( let* ) x f : t_void = assert false
@@ -1321,9 +1312,8 @@ and q () =
 Line 1, characters 19-44:
 1 | let rec ( let* ) x f : t_void = assert false
                        ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}]
 
 let rec ( let* ) x f = ()
@@ -1338,9 +1328,8 @@ and q () =
 Line 2, characters 16-34:
 2 | and ( and* ) x1 (x2 : t_void) = ()
                     ^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}]
 
 let rec ( let* ) x f = ()
@@ -1355,9 +1344,8 @@ and q () =
 Line 2, characters 13-34:
 2 | and ( and* ) (x1 : t_void) x2 = ()
                  ^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}]
 
 let rec ( let* ) x f = ()
@@ -1372,9 +1360,8 @@ and q () =
 Line 1, characters 17-25:
 1 | let rec ( let* ) x f = ()
                      ^^^^^^^^
-Error: Non-value detected in [value_kind].
+Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
 |}]
 
 (* CR layouts v5: when we allow non-values in tuples, this next one should
@@ -1458,7 +1445,35 @@ Line 1, characters 41-43:
 Error: This type ('a : value) should be an instance of type ('a0 : void)
        'a has layout void, which does not overlap with value.
 |}]
+
 (* CR layouts bug: this should be accepted (or maybe we should reject
    the type definition if we're not allowing `void` things in structures).
    This bug is a goof at the top of Typecore.build_or_pat;
    there is another CR layouts there. *)
+
+(*********************************************************)
+(* Test 32: Polymorphic variant constructors take values *)
+
+let f _ = `Mk (assert false : t_void)
+
+[%%expect{|
+Line 1, characters 14-37:
+1 | let f _ = `Mk (assert false : t_void)
+                  ^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
+       t_void has layout void, which is not a sublayout of value.
+|}]
+
+(******************************************************)
+(* Test 33: Externals must have representable types *)
+external foo33 : t_any = "foo33";;
+
+[%%expect{|
+Line 1, characters 17-22:
+1 | external foo33 : t_any = "foo33";;
+                     ^^^^^
+Error: This type signature for foo33 is not a value type.
+       foo33 has layout any, which is not a sublayout of value.
+|}]
+

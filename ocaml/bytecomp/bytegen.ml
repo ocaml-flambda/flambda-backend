@@ -454,18 +454,23 @@ let comp_primitive p args =
   | Pbytes_load_32(_) -> Kccall("caml_bytes_get32", 2)
   | Pbytes_load_64(_) -> Kccall("caml_bytes_get64", 2)
   | Parraylength _ -> Kvectlength
-  | Parrayrefs Pgenarray -> Kccall("caml_array_get", 2)
-  | Parrayrefs Pfloatarray -> Kccall("caml_floatarray_get", 2)
-  | Parrayrefs _ -> Kccall("caml_array_get_addr", 2)
-  | Parraysets Pgenarray -> Kccall("caml_array_set", 3)
-  | Parraysets Pfloatarray -> Kccall("caml_floatarray_set", 3)
-  | Parraysets _ -> Kccall("caml_array_set_addr", 3)
-  | Parrayrefu Pgenarray -> Kccall("caml_array_unsafe_get", 2)
-  | Parrayrefu Pfloatarray -> Kccall("caml_floatarray_unsafe_get", 2)
-  | Parrayrefu _ -> Kgetvectitem
-  | Parraysetu Pgenarray -> Kccall("caml_array_unsafe_set", 3)
-  | Parraysetu Pfloatarray -> Kccall("caml_floatarray_unsafe_set", 3)
-  | Parraysetu _ -> Ksetvectitem
+  (* In bytecode, nothing is ever actually stack-allocated, so we ignore the
+     array modes (allocation for [Parrayref{s,u}], modification for
+     [Parrayset{s,u}]). *)
+  | Parrayrefs (Pgenarray_ref _) -> Kccall("caml_array_get", 2)
+  | Parrayrefs (Pfloatarray_ref _) -> Kccall("caml_floatarray_get", 2)
+  | Parrayrefs (Paddrarray_ref | Pintarray_ref) ->
+      Kccall("caml_array_get_addr", 2)
+  | Parraysets (Pgenarray_set _) -> Kccall("caml_array_set", 3)
+  | Parraysets Pfloatarray_set -> Kccall("caml_floatarray_set", 3)
+  | Parraysets (Paddrarray_set _ | Pintarray_set) ->
+      Kccall("caml_array_set_addr", 3)
+  | Parrayrefu (Pgenarray_ref _) -> Kccall("caml_array_unsafe_get", 2)
+  | Parrayrefu (Pfloatarray_ref _) -> Kccall("caml_floatarray_unsafe_get", 2)
+  | Parrayrefu (Paddrarray_ref | Pintarray_ref) -> Kgetvectitem
+  | Parraysetu (Pgenarray_set _) -> Kccall("caml_array_unsafe_set", 3)
+  | Parraysetu Pfloatarray_set -> Kccall("caml_floatarray_unsafe_set", 3)
+  | Parraysetu (Paddrarray_set _ | Pintarray_set) -> Ksetvectitem
   | Pctconst c ->
      let const_name = match c with
        | Big_endian -> "big_endian"
@@ -792,7 +797,7 @@ let rec comp_expr env exp sz cont =
       comp_expr env (Lprim (Pmakearray (kind, mutability, m), args, loc)) sz cont
   | Lprim (Pduparray _, [arg], loc) ->
       let prim_obj_dup =
-        Primitive.simple ~name:"caml_obj_dup" ~arity:1 ~alloc:true
+        Primitive.simple_on_values ~name:"caml_obj_dup" ~arity:1 ~alloc:true
       in
       comp_expr env (Lprim (Pccall prim_obj_dup, [arg], loc)) sz cont
   | Lprim (Pduparray _, _, _) ->

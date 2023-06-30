@@ -6,7 +6,7 @@ open! Regalloc_ls_utils
 type t =
   { mutable intervals : Interval.t list;
     active : ClassIntervals.t array;
-    stack_slots : StackSlots.t;
+    stack_slots : Regalloc_stack_slots.t;
     mutable next_instruction_id : Instruction.id
   }
 
@@ -14,12 +14,11 @@ let for_fatal t =
   ( List.map t.intervals ~f:Interval.copy,
     Array.map t.active ~f:ClassIntervals.copy )
 
-let[@inline] make ~next_instruction_id =
+let[@inline] make ~stack_slots ~next_instruction_id =
   let intervals = [] in
   let active =
     Array.init Proc.num_register_classes ~f:(fun _ -> ClassIntervals.make ())
   in
-  let stack_slots = StackSlots.make () in
   { intervals; active; stack_slots; next_instruction_id }
 
 let[@inline] update_intervals state map =
@@ -98,7 +97,7 @@ let rec is_in_a_range ls_order (l : Range.t list) : bool =
   | hd :: tl ->
     (ls_order >= hd.begin_ && ls_order <= hd.end_) || is_in_a_range ls_order tl
 
-let[@inline] invariant_intervals state cfg_with_liveness =
+let[@inline] invariant_intervals state cfg_with_infos =
   if ls_debug && Lazy.force ls_invariants
   then (
     (match state.intervals with [] -> () | hd :: tl -> check_intervals hd tl);
@@ -143,7 +142,7 @@ let[@inline] invariant_intervals state cfg_with_liveness =
         instr.live
     in
     Cfg_with_layout.iter_instructions
-      (Cfg_with_liveness.cfg_with_layout cfg_with_liveness)
+      (Cfg_with_infos.cfg_with_layout cfg_with_infos)
       ~instruction:check_instr ~terminator:check_instr)
 
 let invariant_active_field (reg_class : int) (field_name : string)

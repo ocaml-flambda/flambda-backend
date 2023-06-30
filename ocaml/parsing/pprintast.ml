@@ -413,7 +413,7 @@ and core_type1 ctxt f x =
           (list core_field_type ~sep:";") l
           field_var o (* Cf #7200 *)
     | Ptyp_class (li, l) ->   (*FIXME*)
-        pp f "@[<hov2>%a#%a@]"
+        pp f "@[<hov2>%a@;#%a@]"
           (list (core_type ctxt) ~sep:"," ~first:"(" ~last:")") l
           longident_loc li
     | Ptyp_package (lid, cstrs) ->
@@ -553,6 +553,7 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
         match Jane_syntax.Pattern.of_ast p with
         | Some (jpat, _attrs) -> begin match jpat with
         | Jpat_immutable_array (Iapat_immutable_array _) -> false
+        | Jpat_unboxed_constant _ -> false
         end
         | None -> match p.ppat_desc with
         | Ppat_array _ | Ppat_record _
@@ -570,6 +571,7 @@ and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
     match pat with
     | Jpat_immutable_array (Iapat_immutable_array l) ->
         pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
+    | Jpat_unboxed_constant c -> unboxed_constant ctxt f c
 
 and maybe_local_pat ctxt is_local f p =
   if is_local then
@@ -1673,14 +1675,13 @@ and record_declaration ctxt f lbls =
   in
   let field_flag f pld =
     pp f "%a" mutable_flag pld.pld_mutable;
-    if has_attr pld "extension.nonlocal" then pp f "nonlocal_ ";
     if has_attr pld "extension.global" then pp f "global_ "
   in
   let type_record_field f pld =
     let pld_attributes =
       List.filter (fun attr ->
         match attr.attr_name.txt with
-        | "extension.nonlocal" | "extension.global" -> false
+        | "extension.global" -> false
         | _ -> true) pld.pld_attributes
     in
     pp f "@[<2>%a%s:@;%a@;%a@]"
@@ -1791,6 +1792,9 @@ and constructor_declaration ctxt f (name, vars, args, res, attrs) =
 
 and extension_constructor ctxt f x =
   (* Cf: #7200 *)
+  match Jane_syntax.Extension_constructor.of_ast x with
+  | Some (jext, attrs) -> extension_constructor_jst ctxt f attrs jext
+  | None ->
   match x.pext_kind with
   | Pext_decl(v, l, r) ->
       constructor_declaration ctxt f
@@ -1799,6 +1803,10 @@ and extension_constructor ctxt f x =
       pp f "%s@;=@;%a%a" x.pext_name.txt
         longident_loc li
         (attributes ctxt) x.pext_attributes
+
+and extension_constructor_jst _ctxt _f _attrs :
+  Jane_syntax.Extension_constructor.t -> _ = function
+  | _ -> .
 
 and case_list ctxt f l : unit =
   let aux f {pc_lhs; pc_guard; pc_rhs} =
@@ -1839,8 +1847,9 @@ and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) =
     pp f "((%a)@,%a)" (jane_syntax_expr ctxt []) jexp
       (attributes ctxt) attrs
   else match jexp with
-  | Jexp_comprehension comp    -> comprehension_expr ctxt f comp
-  | Jexp_immutable_array iaexp -> immutable_array_expr ctxt f iaexp
+  | Jexp_comprehension x    -> comprehension_expr ctxt f x
+  | Jexp_immutable_array x  -> immutable_array_expr ctxt f x
+  | Jexp_unboxed_constant x -> unboxed_constant ctxt f x
 
 and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
   let punct, comp = match cexp with
@@ -1892,6 +1901,12 @@ and immutable_array_expr ctxt f (x : Jane_syntax.Immutable_arrays.expression) =
   | Iaexp_immutable_array elts ->
       pp f "@[<0>@[<2>[:%a:]@]@]"
          (list (simple_expr (under_semi ctxt)) ~sep:";") elts
+
+and unboxed_constant _ctxt f (x : Jane_syntax.Unboxed_constants.t)
+  =
+  match x with
+  | Float (x, suffix) -> pp f "#%a" constant (Pconst_float (x, suffix))
+  | Integer (x, suffix) -> pp f "#%a" constant (Pconst_integer (x, Some suffix))
 
 let toplevel_phrase f x =
   match x with

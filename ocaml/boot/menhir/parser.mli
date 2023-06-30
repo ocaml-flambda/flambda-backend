@@ -41,7 +41,6 @@ type token =
   | OF
   | OBJECT
   | NONREC
-  | NONLOCAL
   | NEW
   | MUTABLE
   | MODULE
@@ -82,6 +81,9 @@ type token =
   | INCLUDE
   | IN
   | IF
+  | HASH_SUFFIX
+  | HASH_INT of (string * char option)
+  | HASH_FLOAT of (string * char option)
   | HASHOP of (string)
   | HASH
   | GREATERRBRACKET

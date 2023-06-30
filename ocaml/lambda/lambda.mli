@@ -127,10 +127,10 @@ type primitive =
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
   | Parraylength of array_kind
-  | Parrayrefu of array_kind
-  | Parraysetu of array_kind
-  | Parrayrefs of array_kind
-  | Parraysets of array_kind
+  | Parrayrefu of array_ref_kind
+  | Parraysetu of array_set_kind
+  | Parrayrefs of array_ref_kind
+  | Parraysets of array_set_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the (integer) argument is outside an interval *)
@@ -208,6 +208,22 @@ and float_comparison =
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
+
+(** When accessing a flat float array, we need to know the mode which we should
+    box the resulting float at. *)
+and array_ref_kind =
+  | Pgenarray_ref of alloc_mode (* This might be a flat float array *)
+  | Paddrarray_ref
+  | Pintarray_ref
+  | Pfloatarray_ref of alloc_mode
+
+(** When updating an array that might contain pointers, we need to know what
+    mode they're at; otherwise, access is uniform. *)
+and array_set_kind =
+  | Pgenarray_set of modify_mode (* This might be an array of pointers *)
+  | Paddrarray_set of modify_mode
+  | Pintarray_set
+  | Pfloatarray_set
 
 and value_kind =
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
@@ -511,7 +527,7 @@ val layout_module : layout
 val layout_functor : layout
 val layout_module_field : layout
 val layout_string : layout
-val layout_float : layout
+val layout_boxed_float : layout
 val layout_boxedint : boxed_integer -> layout
 (* A layout that is Pgenval because it is the field of a block *)
 val layout_field : layout
@@ -521,6 +537,8 @@ val layout_lazy_contents : layout
 val layout_any_value : layout
 (* A layout that is Pgenval because it is bound by a letrec *)
 val layout_letrec : layout
+(* The probe hack: Free vars in probes must have layout value. *)
+val layout_probe_arg : layout
 
 val layout_top : layout
 val layout_bottom : layout
@@ -670,3 +688,9 @@ val structured_constant_layout : structured_constant -> layout
 val primitive_result_layout : primitive -> layout
 
 val compute_expr_layout : (Ident.t -> layout option) -> lambda -> layout
+
+(** The mode will be discarded if unnecessary for the given [array_kind] *)
+val array_ref_kind : alloc_mode -> array_kind -> array_ref_kind
+
+(** The mode will be discarded if unnecessary for the given [array_kind] *)
+val array_set_kind : modify_mode -> array_kind -> array_set_kind

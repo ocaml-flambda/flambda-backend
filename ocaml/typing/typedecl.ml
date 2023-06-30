@@ -27,7 +27,7 @@ module String = Misc.Stdlib.String
 
 type native_repr_kind = Unboxed | Untagged
 
-type layout_sort_loc = Cstr_tuple | Record
+type layout_sort_loc = Cstr_tuple | Record | External
 
 type error =
     Repeated_parameter
@@ -71,13 +71,13 @@ type error =
       ; err : Layout.Violation.t
       }
   | Layout_empty_record
+  | Non_value_in_sig of Layout.Violation.t * string
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
   | Local_not_enabled
-  | Global_and_nonlocal
   | Layout_not_enabled of Layout.const
 
 open Typedtree
@@ -368,12 +368,9 @@ let transl_global_flags loc attrs =
     | Error () -> raise(Error(loc, Local_not_enabled))
   in
   let global = transl_global_flag loc (Builtin_attributes.has_global attrs) in
-  let nonlocal = transl_global_flag loc (Builtin_attributes.has_nonlocal attrs) in
-  match global, nonlocal with
-  | true, true -> raise(Error(loc, Global_and_nonlocal))
-  | true, false -> Types.Global
-  | false, true -> Types.Nonlocal
-  | false, false -> Types.Unrestricted
+  match global with
+  | true -> Types.Global
+  | false -> Types.Unrestricted
 
 let transl_labels env univars closed lbls =
   assert (lbls <> []);
@@ -1108,7 +1105,6 @@ let update_decl_layout env dpath decl =
     | [{Types.cd_args;cd_loc} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [ty,_] -> begin
-            (* CR layouts: check_representable should return the sort *)
             check_representable ~why:(Constructor_declaration 0)
               env cd_loc Cstr_tuple ty;
             let layout = Ctype.type_layout env ty in
@@ -1542,11 +1538,20 @@ let transl_type_decl env rec_flag sdecl_list =
   (final_decls, final_env)
 
 (* Translating type extensions *)
+let transl_extension_constructor_jst ~scope:_ _env _type_path _type_params
+      _typext_params _priv _id _attrs : Jane_syntax.Extension_constructor.t -> _ =
+  function
+  | _ -> .
 
 let transl_extension_constructor ~scope env type_path type_params
                                  typext_params priv sext =
   let id = Ident.create_scoped ~scope sext.pext_name.txt in
   let args, arg_layouts, constant, ret_type, kind =
+    match Jane_syntax.Extension_constructor.of_ast sext with
+    | Some (jext, attrs) ->
+      transl_extension_constructor_jst
+        ~scope env type_path type_params typext_params priv id attrs jext
+    | None ->
     match sext.pext_kind with
       Pext_decl(svars, sargs, sret_type) ->
         let targs, tret_type, args, ret_type =
@@ -1879,11 +1884,11 @@ let error_if_has_deep_native_repr_attributes core_type =
   in
   default_iterator.typ this_iterator core_type
 
-let make_native_repr env core_type ty ~global_repr =
+let make_native_repr env core_type sort ty ~global_repr =
   error_if_has_deep_native_repr_attributes core_type;
   match get_native_repr_attribute core_type.ptyp_attributes ~global_repr with
   | Native_repr_attr_absent ->
-    Same_as_ocaml_repr
+    Same_as_ocaml_repr sort
   | Native_repr_attr_present kind ->
     begin match native_repr_of_type env kind ty with
     | None ->
@@ -1897,6 +1902,19 @@ let prim_const_mode m =
   | Some Local -> Prim_local
   | None -> assert false
 
+(* Note that [ty] is guaranteed not to contain sort variables because it was
+   produced by [type_scheme], which defaults them.  Further, if ty is an arrow
+   we know its bits are representable, so [type_sort_external] can only fail
+   on externals with non-arrow types. *)
+(* CR layouts v3: When we allow non-representable function args/returns, the
+   representability argument above isn't quite right. Decide whether we want to
+   allow non-representable types in external args/returns then. *)
+let type_sort_external ~why env loc typ =
+  match Ctype.type_sort ~why env typ with
+  | Ok s -> Sort.get_default_value s
+  | Error err ->
+    raise (Error (loc,Layout_sort {lloc = External; typ; err}))
+
 let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
   match core_type.ptyp_desc, get_desc ty,
     get_native_repr_attribute core_type.ptyp_attributes ~global_repr:None
@@ -1906,7 +1924,10 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
   | Ptyp_arrow (_, ct1, ct2), Tarrow ((_,marg,mret), t1, t2, _), _
     when not (Builtin_attributes.has_curry core_type.ptyp_attributes) ->
     let t1, _ = Btype.tpoly_get_poly t1 in
-    let repr_arg = make_native_repr env ct1 t1 ~global_repr in
+    let sort_arg =
+      type_sort_external ~why:External_argument env ct1.ptyp_loc t1
+    in
+    let repr_arg = make_native_repr env ct1 sort_arg t1 ~global_repr in
     let mode =
       if Builtin_attributes.has_local_opt ct1.ptyp_attributes
       then Prim_poly
@@ -1915,7 +1936,7 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
     let repr_args, repr_res =
       parse_native_repr_attributes env ct2 t2 (prim_const_mode mret) ~global_repr
     in
-    ((mode,repr_arg) :: repr_args, repr_res)
+    ((mode, repr_arg) :: repr_args, repr_res)
   | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
      parse_native_repr_attributes env t ty rmode ~global_repr
   | _ ->
@@ -1924,8 +1945,10 @@ let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
        then Prim_poly
        else rmode
      in
-     ([], (rmode, make_native_repr env core_type ty ~global_repr))
-
+     let sort_res =
+       type_sort_external ~why:External_result env core_type.ptyp_loc ty
+     in
+     ([], (rmode, make_native_repr env core_type sort_res ty ~global_repr))
 
 let check_unboxable env loc ty =
   let rec check_type acc ty : Path.Set.t =
@@ -1952,6 +1975,13 @@ let check_unboxable env loc ty =
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
+  (* CR layouts v5: relax this to check for representability. *)
+  begin match Ctype.constrain_type_layout env cty.ctyp_type
+                (Layout.value ~why:Structure_element) with
+  | Ok () -> ()
+  | Error err ->
+    raise(Error(cty.ctyp_loc, Non_value_in_sig(err, valdecl.pval_name.txt)))
+  end;
   let ty = cty.ctyp_type in
   let v =
   match valdecl.pval_prim with
@@ -2495,12 +2525,16 @@ let report_error ppf = function
       match lloc with
       | Cstr_tuple -> "Constructor argument"
       | Record -> "Record element"
+      | External -> "External"
     in
     fprintf ppf "@[%s types must have a representable layout.@ \ %a@]" s
       (Layout.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Layout_empty_record ->
     fprintf ppf "@[Records must contain at least one runtime value.@]"
+  | Non_value_in_sig (err, val_name) ->
+    fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
+      val_name (Layout.Violation.report_with_name ~name:val_name) err
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->
@@ -2531,8 +2565,6 @@ let report_error ppf = function
   | Local_not_enabled ->
       fprintf ppf "@[The local extension is disabled@ \
                    To enable it, pass the '-extension local' flag@]"
-  | Global_and_nonlocal ->
-      fprintf ppf "@[A type cannot be both global and nonlocal@]"
   | Layout_not_enabled c ->
       fprintf ppf
         "@[Layout %s is used here, but the appropriate layouts extension is \
