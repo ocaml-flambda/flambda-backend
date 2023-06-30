@@ -29,7 +29,13 @@ let dasm_comments = ref false (* -dasm-comments *)
 let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
 let dump_checkmach = ref false          (* -dcheckmach *)
-let default_checkmach_details_cutoff = 20
+
+type checkmach_details_cutoff =
+  | Keep_all
+  | At_most of int
+  | No_details
+
+let default_checkmach_details_cutoff = At_most 20
 let checkmach_details_cutoff = ref default_checkmach_details_cutoff
                                        (* -checkmach-details-cutoff n *)
 

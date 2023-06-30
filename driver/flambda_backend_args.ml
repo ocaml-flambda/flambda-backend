@@ -95,7 +95,10 @@ let mk_checkmach_details_cutoff f =
   Printf.sprintf " Do not show more than this number of error locations \
                   in each function that fails the check \
                   (default %d, negative to show all)"
-  Flambda_backend_flags.default_checkmach_details_cutoff
+    (match Flambda_backend_flags.default_checkmach_details_cutoff with
+     | Keep_all -> (-1)
+     | No_details -> 0
+     | At_most n -> n)
 
 let mk_disable_poll_insertion f =
   "-disable-poll-insertion", Arg.Unit f, " Do not insert poll points"
@@ -768,7 +771,12 @@ module Flambda_backend_options_impl = struct
   let zero_alloc_check = set' Clflags.zero_alloc_check
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
   let checkmach_details_cutoff n =
-    Flambda_backend_flags.checkmach_details_cutoff := n
+    let c : Flambda_backend_flags.checkmach_details_cutoff =
+      if n < 0 then Keep_all
+      else if n = 0 then No_details
+      else At_most n
+    in
+    Flambda_backend_flags.checkmach_details_cutoff := c
 
   let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
   let enable_poll_insertion = clear' Flambda_backend_flags.disable_poll_insertion
@@ -1002,7 +1010,12 @@ module Extra_params = struct
     | "zero-alloc-check" -> set' Clflags.zero_alloc_check
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
     | "checkmach-details-cutoff" ->
-      set_int' Flambda_backend_flags.checkmach_details_cutoff
+      begin match Compenv.check_int ppf name v with
+      | Some i ->
+        Flambda_backend_options_impl.checkmach_details_cutoff i
+      | None -> ()
+      end;
+      true
     | "poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
     | "long-frames" -> set' Flambda_backend_flags.allow_long_frames
     | "debug-long-frames-threshold" ->
