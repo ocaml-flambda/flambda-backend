@@ -54,6 +54,16 @@ let iterator =
       List.iter (fun (id, _) -> simple_longident id) cstrs
     | _ -> ()
   in
+  let jpat_tuple loc = function 
+    | Jane_syntax.Labeled_tuples.Ltpat_tuple ([], _)
+    | Jane_syntax.Labeled_tuples.Ltpat_tuple ([_], Closed) -> invalid_tuple loc
+    | _ -> ()
+  in
+  let jpat _self loc (jpat : Jane_syntax.Pattern.t) =
+    match jpat with
+    | Jpat_immutable_array _ | Jpat_unboxed_constant _ -> ()
+    | Jpat_tuple p -> jpat_tuple loc p
+  in
   let pat self pat =
     begin match pat.ppat_desc with
     | Ppat_construct (_, Some (_, ({ppat_desc = Ppat_tuple _} as p)))
@@ -63,8 +73,11 @@ let iterator =
         super.pat self pat
     end;
     let loc = pat.ppat_loc in
+    match Jane_syntax.Pattern.of_ast pat with
+    | Some (jpat_, _attrs) -> jpat self pat.ppat_loc jpat_
+    | None ->
     match pat.ppat_desc with
-    | Ppat_tuple ([], _) | Ppat_tuple ([_], Closed) -> invalid_tuple loc
+    | Ppat_tuple ([] | [_]) -> invalid_tuple loc
     | Ppat_record ([], _) -> empty_record loc
     | Ppat_construct (id, _) -> simple_longident id
     | Ppat_record (fields, _) ->
@@ -78,8 +91,9 @@ let iterator =
         | Cexp_array_comprehension (_, {clauses = []; body = _}) )
       ->
         empty_comprehension loc
+    | Jexp_tuple ( Ltexp_tuple ([] | [_]) ) -> invalid_tuple loc
     | Jexp_comprehension _
-    | Jexp_immutable_array _
+    | Jexp_immutable_array _ | Jexp_tuple _
     | Jexp_unboxed_constant _
       -> ()
   in

@@ -192,7 +192,6 @@ let compute_variance_type env ~check (required, loc) decl tyl =
                                                         (c,n,i)))))
       params required;
     (* Check propagation from constrained parameters *)
-    (* CR labeled tuples: consider adding a [free_variables_list] *)
     let args = Btype.newgenty (Ttuple (List.map (fun t -> None, t) params)) in
     let fvl = Ctype.free_variables args in
     let fvl =

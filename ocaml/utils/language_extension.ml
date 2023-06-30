@@ -49,6 +49,7 @@ type _ t =
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t
   | Module_strengthening : unit t
+  | Labeled_tuples : unit t
   | Layouts : Maturity.t t
 
 type exist =
@@ -61,6 +62,7 @@ let all : exist list =
   ; Pack Polymorphic_parameters
   ; Pack Immutable_arrays
   ; Pack Module_strengthening
+  ; Pack Labeled_tuples
   ; Pack Layouts
   ]
 
@@ -75,6 +77,7 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   | Polymorphic_parameters -> (module Unit)
   | Immutable_arrays -> (module Unit)
   | Module_strengthening -> (module Unit)
+  | Labeled_tuples -> (module Unit)
   | Layouts -> (module Maturity)
 
 (**********************************)
@@ -87,6 +90,7 @@ let to_string : type a. a t -> string = function
   | Polymorphic_parameters -> "polymorphic_parameters"
   | Immutable_arrays -> "immutable_arrays"
   | Module_strengthening -> "module_strengthening"
+  | Labeled_tuples -> "labeled_tuples"
   | Layouts -> "layouts"
 
 (* converts full extension names, like "layouts_alpha" to a pair of
@@ -99,6 +103,7 @@ let pair_of_string extn_name : extn_pair option =
   | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
   | "immutable_arrays" -> Some (Pair (Immutable_arrays, ()))
   | "module_strengthening" -> Some (Pair (Module_strengthening, ()))
+  | "labeled_tuples" -> Some (Pair (Labeled_tuples, ()))
   | "layouts" -> Some (Pair (Layouts, (Stable : Maturity.t)))
   | "layouts_beta" -> Some (Pair (Layouts, (Beta : Maturity.t)))
   | "layouts_alpha" -> Some (Pair (Layouts, (Alpha : Maturity.t)))
@@ -128,9 +133,11 @@ let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option = match a, b 
   | Polymorphic_parameters, Polymorphic_parameters -> Some Refl
   | Immutable_arrays, Immutable_arrays -> Some Refl
   | Module_strengthening, Module_strengthening -> Some Refl
+  | Labeled_tuples, Labeled_tuples -> Some Refl
   | Layouts, Layouts -> Some Refl
   | (Comprehensions | Local | Include_functor | Polymorphic_parameters |
-     Immutable_arrays | Module_strengthening | Layouts), _ -> None
+     Immutable_arrays | Module_strengthening | Labeled_tuples | Layouts), _ ->
+    None
 
 let equal a b = Option.is_some (equal_t a b)
 
@@ -153,7 +160,8 @@ let is_erasable : type a. a t -> bool = function
   | Include_functor
   | Polymorphic_parameters
   | Immutable_arrays
-  | Module_strengthening ->
+  | Module_strengthening
+  | Labeled_tuples ->
       false
 
 module Universe : sig

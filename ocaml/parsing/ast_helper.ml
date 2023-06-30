@@ -98,8 +98,7 @@ module Typ = struct
             Ptyp_var x
         | Ptyp_arrow (label,core_type,core_type') ->
             Ptyp_arrow(label, loop core_type, loop core_type')
-        | Ptyp_tuple lst ->
-            Ptyp_tuple (List.map (fun (label, typ) -> label, loop typ) lst)
+        | Ptyp_tuple lst -> Ptyp_tuple (List.map loop lst)
         | Ptyp_constr( { txt = Longident.Lident s }, [])
           when List.mem s var_names ->
             Ptyp_var s
@@ -159,7 +158,7 @@ module Pat = struct
   let alias ?loc ?attrs a b = mk ?loc ?attrs (Ppat_alias (a, b))
   let constant ?loc ?attrs a = mk ?loc ?attrs (Ppat_constant a)
   let interval ?loc ?attrs a b = mk ?loc ?attrs (Ppat_interval (a, b))
-  let tuple ?loc ?attrs a b = mk ?loc ?attrs (Ppat_tuple (a, b))
+  let tuple ?loc ?attrs a = mk ?loc ?attrs (Ppat_tuple a)
   let construct ?loc ?attrs a b = mk ?loc ?attrs (Ppat_construct (a, b))
   let variant ?loc ?attrs a b = mk ?loc ?attrs (Ppat_variant (a, b))
   let record ?loc ?attrs a b = mk ?loc ?attrs (Ppat_record (a, b))
@@ -235,8 +234,6 @@ module Exp = struct
       pbop_exp = exp;
       pbop_loc = loc;
     }
-  
-  let unlabeled_tuple el = Pexp_tuple (List.map (fun e -> None, e) el)
 end
 
 module Mty = struct

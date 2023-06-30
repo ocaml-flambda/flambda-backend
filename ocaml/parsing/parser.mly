@@ -254,7 +254,7 @@ let rec mktailexp nilloc = let open Location in function
   | e1 :: el ->
       let exp_el, el_loc = mktailexp nilloc el in
       let loc = (e1.pexp_loc.loc_start, snd el_loc) in
-      let arg = ghexp ~loc (Exp.unlabeled_tuple [e1; ghexp ~loc:el_loc exp_el]) in
+      let arg = ghexp ~loc (Pexp_tuple [e1; ghexp ~loc:el_loc exp_el]) in
       ghexp_cons_desc loc arg, loc
 
 let rec mktailpat nilloc = let open Location in function
@@ -264,8 +264,7 @@ let rec mktailpat nilloc = let open Location in function
   | p1 :: pl ->
       let pat_pl, el_loc = mktailpat nilloc pl in
       let loc = (p1.ppat_loc.loc_start, snd el_loc) in
-      let cons =
-        Ppat_tuple ([None, p1; None, ghpat ~loc:el_loc pat_pl], Closed) in
+      let cons = Ppat_tuple [p1; ghpat ~loc:el_loc pat_pl] in
       let arg = ghpat ~loc cons in
       ghpat_cons_desc loc arg, loc
 
@@ -355,6 +354,16 @@ let ppat_iarray loc elts =
     ~loc:(make_loc loc) ~attrs:[]
     (Iapat_immutable_array elts)
 
+let ppat_lttuple loc elts closed =
+  Jane_syntax.Labeled_tuples.pat_of
+    ~loc:(make_loc loc) ~attrs:[]
+    (Ltpat_tuple (elts, closed))
+
+let ptyp_lttuple loc tl =
+  Jane_syntax.Labeled_tuples.typ_of
+    ~loc:(make_loc loc) ~attrs:[]
+    (Lttyp_tuple tl)
+
 let expecting loc nonterm =
     raise Syntaxerr.(Error(Expecting(make_loc loc, nonterm)))
 
@@ -436,15 +445,24 @@ type ('dot,'index) array_family = {
 
 }
 
-let bigarray_untuplify = function
-    { pexp_desc = Pexp_tuple explist; pexp_loc = loc } ->
-      List.map
-        (fun (label, body) ->
-          if Option.is_some label then
-            raise Syntaxerr.(Error(Labeled_bigarray_index loc));
-          body)
-        explist
-  | exp -> [exp]
+let bigarray_untuplify e =
+  match Jane_syntax.Expression.of_ast e with
+  | Some (Jexp_tuple (Ltexp_tuple explist), _) ->
+    List.map
+      (fun (label, body) ->
+        if Option.is_some label then
+          raise Syntaxerr.(Error(Labeled_bigarray_index e.pexp_loc));
+        body)
+      explist
+  | Some ((
+      Jexp_comprehension _
+      | Jexp_immutable_array _
+      | Jexp_unboxed_constant _
+    ), _) ->
+      [e]
+  | None -> match e with
+  | { pexp_desc = Pexp_tuple explist } -> explist
+  | _ -> [e]
 
 (* Immutable array indexing is a regular operator, so it doesn't need a special
    case here *)
@@ -2575,6 +2593,20 @@ expr:
         mkexp_attrs ~loc:$sloc desc attrs }
   | mkexp(expr_)
       { $1 }
+  (* CR labeled tuples: Merge the below two cases *)
+  | TILDETILDELPAREN args = labeled_simple_expr_comma_list RPAREN
+      { 
+        let labels, components = List.split args in
+        if (List.for_all (fun lbl -> lbl = Nolabel) labels) then
+          mkexp ~loc:$sloc
+            (Pexp_tuple(components))
+        else
+          Jane_syntax.Labeled_tuples.expr_of
+            ~loc:(make_loc $sloc) ~attrs:[]
+            (Ltexp_tuple(args_to_tuple_components $loc(args) args))
+      }
+  | expr_comma_list %prec below_COMMA
+      { mkexp ~loc:$sloc (Pexp_tuple $1) }
   | let_bindings(ext) IN seq_expr
       { expr_of_let_bindings ~loc:$sloc $1 $3 }
   | pbop_op = mkrhs(LETOP) bindings = letop_bindings IN body = seq_expr
@@ -2586,7 +2618,7 @@ expr:
   | expr COLONCOLON expr
       { mkexp_cons
           ~loc:$sloc $loc($2)
-          (ghexp ~loc:$sloc (Pexp_tuple([None, $1; None, $3]))) }
+          (ghexp ~loc:$sloc (Pexp_tuple([$1; $3]))) }
   | mkrhs(label) LESSMINUS expr
       { mkexp ~loc:$sloc (Pexp_setinstvar($1, $3)) }
   | simple_expr DOT mkrhs(label_longident) LESSMINUS expr
@@ -2645,13 +2677,6 @@ expr:
 %inline expr_:
   | simple_expr nonempty_llist(labeled_simple_expr)
       { Pexp_apply($1, $2) }
-  (* CR labeled tuples: Merge the below two cases *)
-  | TILDETILDELPAREN args = labeled_simple_expr_comma_list RPAREN
-      { 
-        Pexp_tuple(args_to_tuple_components $loc(args) args)
-      }
-  | expr_comma_list %prec below_COMMA
-      { Exp.unlabeled_tuple $1 }
   | mkrhs(constr_longident) simple_expr %prec below_HASH
       { Pexp_construct($1, Some $2) }
   | name_tag simple_expr %prec below_HASH
@@ -3167,22 +3192,27 @@ pattern_no_exn:
 %inline pattern_(self):
   | self COLONCOLON pattern
       { mkpat_cons ~loc:$sloc $loc($2)
-          (ghpat ~loc:$sloc (Ppat_tuple([None,$1;None,$3], Closed))) }
+          (ghpat ~loc:$sloc (Ppat_tuple([$1;$3]))) }
   | self attribute
       { Pat.attr $1 $2 }
   | pattern_gen
       { $1 }
+  | TILDETILDELPAREN args = labeled_pattern_comma_list RPAREN
+      { let l, closed = args in
+        if (closed = Closed)
+            && (List.for_all Option.is_none (List.map fst l)) then
+          mkpat ~loc:$sloc (Ppat_tuple(List.map snd l))
+        else
+          ppat_lttuple $sloc l closed
+        }
   | mkpat(
       self AS mkrhs(val_ident)
         { Ppat_alias($1, $3) }
     | self AS error
         { expecting $loc($3) "identifier" }
-    (* CR labeled tuples: merge the below two cases *)
+    (* CR labeled tuples: delete once labeled case has normal syntax *)
     | pattern_comma_list(self) %prec below_COMMA
-        { Ppat_tuple(List.rev_map (fun p -> None, p) $1, Closed) }
-    | TILDETILDELPAREN labeled_pattern_comma_list RPAREN
-        { let components, closed = $2 in
-          Ppat_tuple(components, closed) }
+        { Ppat_tuple(List.rev $1) }
     | self COLONCOLON error
         { expecting $loc($3) "pattern" }
     | self BAR pattern
@@ -3898,6 +3928,7 @@ strict_function_type:
    - atomic types (see below);
    - proper tuple types:                  int * int * int list
    A proper tuple type is a star-separated list of at least two atomic types.
+   Tuple components can also be labeled, as an [x:int * int list * y:bool].
  *)
 tuple_type:
   | ty = atomic_type
@@ -3905,14 +3936,18 @@ tuple_type:
       { ty }
   | mktyp(
       tys = separated_nontrivial_llist(STAR, atomic_type)
-        { Ptyp_tuple (List.map (fun ty -> None, ty) tys) }
+        { Ptyp_tuple tys }
     )
       { $1 }
-  | TILDETILDELPAREN mktyp(
-      labeled_tys = separated_nontrivial_llist(STAR, labeled_atomic_type)
-        { Ptyp_tuple labeled_tys }
-    ) RPAREN
-      { $2 }
+  | TILDETILDELPAREN
+      tys = separated_nontrivial_llist(STAR, labeled_atomic_type)
+    RPAREN
+      { 
+        if List.for_all (fun (lbl, _) -> Option.is_none lbl) tys then
+          mktyp ~loc:$sloc (Ptyp_tuple (List.map snd tys))
+        else 
+          ptyp_lttuple $sloc tys
+      }
 ;
 
 labeled_atomic_type:

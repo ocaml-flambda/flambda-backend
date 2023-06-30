@@ -1,4 +1,4 @@
-File "bigarray_index_labels.ml", line 13, characters 14-25:
-13 | my_big_array.{~~(1, ~y:2)} <- 1.5;;
+File "bigarray_index_labels.ml", line 14, characters 14-25:
+14 | my_big_array.{~~(1, ~y:2)} <- 1.5;;
                    ^^^^^^^^^^^
 Error: Bigarray indices cannot be labeled
