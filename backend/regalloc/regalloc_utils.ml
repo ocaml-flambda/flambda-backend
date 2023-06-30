@@ -50,7 +50,7 @@ let stack_slots_optim = bool_of_param "STACK_SLOTS_OPTIM"
 
 let validator_debug = bool_of_param "VALIDATOR_DEBUG"
 
-type liveness = Cfg_with_liveness.liveness
+type liveness = Cfg_with_infos.liveness
 
 let make_indent n = String.make (2 * n) ' '
 
@@ -181,20 +181,20 @@ let make_log_body_and_terminator :
   then Cfg.dump_terminator ~sep:", " Format.err_formatter term.Cfg.desc;
   if enabled then log_instruction_suffix term liveness
 
-let make_log_cfg_with_liveness :
+let make_log_cfg_with_infos :
     log_function ->
     instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
     term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
     indent:int ->
-    Cfg_with_liveness.t ->
+    Cfg_with_infos.t ->
     unit =
  fun ({ log; enabled } as log_function) ~instr_prefix ~term_prefix ~indent
-     cfg_with_liveness ->
+     cfg_with_infos ->
   if enabled
   then
-    let liveness = Cfg_with_liveness.liveness cfg_with_liveness in
-    let cfg = Cfg_with_liveness.cfg cfg_with_liveness in
-    let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
+    let liveness = Cfg_with_infos.liveness cfg_with_infos in
+    let cfg = Cfg_with_infos.cfg cfg_with_infos in
+    let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
     let layout = Cfg_with_layout.layout cfg_with_layout in
     let log_body_and_terminator =
       make_log_body_and_terminator log_function ~instr_prefix ~term_prefix
@@ -375,8 +375,8 @@ let pow10 n =
   done;
   !res
 
-let update_spill_cost : Cfg_with_layout.t -> flat:bool -> unit -> unit =
- fun cfg_with_layout ~flat () ->
+let update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit =
+ fun cfg_with_infos ~flat () ->
   List.iter (Reg.all_registers ()) ~f:(fun reg -> reg.Reg.spill_cost <- 0);
   let update_reg (cost : int) (reg : Reg.t) : unit =
     (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
@@ -389,15 +389,11 @@ let update_spill_cost : Cfg_with_layout.t -> flat:bool -> unit -> unit =
     update_array cost instr.arg;
     update_array cost instr.res
   in
-  let cfg = Cfg_with_layout.cfg cfg_with_layout in
+  let cfg = Cfg_with_infos.cfg cfg_with_infos in
   let loops_depths : Cfg_loop_infos.loop_depths =
     if flat
     then Label.Map.empty
-    else
-      (* CR-soon xclerc for xclerc: avoid recomputing the dominators if they
-         have already been computed for split/rename. *)
-      let doms = Cfg_dominators.build cfg in
-      (Cfg_loop_infos.build cfg doms).loop_depths
+    else (Cfg_with_infos.loop_infos cfg_with_infos).loop_depths
   in
   Cfg.iter_blocks cfg ~f:(fun label block ->
       let cost =

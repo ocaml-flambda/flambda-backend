@@ -35,10 +35,10 @@ let filter_fp : Reg.t array -> Reg.t array =
 
 let filter_fp regs = if Config.with_frame_pointers then filter_fp regs else regs
 
-let build : State.t -> Cfg_with_liveness.t -> unit =
- fun state cfg_with_liveness ->
+let build : State.t -> Cfg_with_infos.t -> unit =
+ fun state cfg_with_infos ->
   if irc_debug then log ~indent:1 "build";
-  let liveness = Cfg_with_liveness.liveness cfg_with_liveness in
+  let liveness = Cfg_with_infos.liveness cfg_with_infos in
   let add_edges_live (id : Instruction.id) ~(def : Reg.t array)
       ~(move_src : Reg.t) ~(destroyed : Reg.t array) : unit =
     let destroyed = filter_fp destroyed in
@@ -57,7 +57,7 @@ let build : State.t -> Cfg_with_liveness.t -> unit =
           Array.iter destroyed ~f:(fun reg2 -> State.add_edge state reg1 reg2))
         live.across
   in
-  let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
+  let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
   Cfg_with_layout.iter_instructions cfg_with_layout
     ~instruction:(fun (instr : Instruction.t) ->
       if is_move_instruction instr
@@ -378,17 +378,21 @@ end
 (* Returns `true` if new temporaries have been introduced. *)
 let rewrite :
     State.t ->
-    Cfg_with_liveness.t ->
+    Cfg_with_infos.t ->
     spilled_nodes:Reg.t list ->
     reset:bool ->
     bool =
- fun state cfg_with_liveness ~spilled_nodes ~reset ->
-  let new_temporaries =
+ fun state cfg_with_infos ~spilled_nodes ~reset ->
+  let new_temporaries, block_inserted =
     Regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)
-      state cfg_with_liveness ~spilled_nodes
+      state cfg_with_infos ~spilled_nodes
   in
+  if new_temporaries <> []
+  then Cfg_with_infos.invalidate_liveness cfg_with_infos;
+  if block_inserted
+  then Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos;
   match new_temporaries, reset with
   | [], _ -> false
   | _ :: _, true ->
@@ -404,12 +408,12 @@ let rewrite :
    seems to be fine with 4 *)
 let max_rounds = 50
 
-let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
- fun ~round state cfg_with_liveness ->
+let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
+ fun ~round state cfg_with_infos ->
   if round > max_rounds
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
-      max_rounds (Cfg_with_liveness.cfg cfg_with_liveness).fun_name;
+      max_rounds (Cfg_with_infos.cfg cfg_with_infos).fun_name;
   if irc_debug then log ~indent:0 "main, round #%d" round;
   let work_lists_desc state (name, f) =
     Printf.sprintf "%s:%s" name (if f state then "{}" else "...")
@@ -425,8 +429,8 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
   let log_work_list_desc prefix =
     if irc_debug then log ~indent:1 "%s -- %s" prefix (work_lists_desc state)
   in
-  build state cfg_with_liveness;
-  let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
+  build state cfg_with_infos;
+  let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
   if irc_debug
   then (
     let adj_set = State.adj_set state in
@@ -459,8 +463,8 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
         (match Lazy.force Spilling_heuristics.value with
         | Set_choose ->
           (* note: `spill_cost` will not be used by the heuristics *) ()
-        | Flat_uses -> update_spill_cost cfg_with_layout ~flat:true ()
-        | Hierarchical_uses -> update_spill_cost cfg_with_layout ~flat:false ());
+        | Flat_uses -> update_spill_cost cfg_with_infos ~flat:true ()
+        | Hierarchical_uses -> update_spill_cost cfg_with_infos ~flat:false ());
         spill_cost_is_up_to_date := true);
       select_spill state)
     else continue := false;
@@ -477,21 +481,20 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
     then
       List.iter spilled_nodes ~f:(fun reg ->
           log ~indent:1 "/!\\ register %a needs to be spilled" Printmach.reg reg);
-    match rewrite state cfg_with_liveness ~spilled_nodes ~reset:true with
+    match rewrite state cfg_with_infos ~spilled_nodes ~reset:true with
     | false -> if irc_debug then log ~indent:1 "(end of main)"
     | true ->
       State.invariant state;
-      Cfg_with_liveness.invalidate_liveness cfg_with_liveness;
-      main ~round:(succ round) state cfg_with_liveness)
+      main ~round:(succ round) state cfg_with_infos)
 
-let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
- fun cfg_with_liveness ->
-  let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
+let run : Cfg_with_infos.t -> Cfg_with_infos.t =
+ fun cfg_with_infos ->
+  let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
   let cfg_infos, stack_slots =
     Regalloc_rewrite.prelude
       (module Utils)
       ~on_fatal_callback:(fun () -> save_cfg "irc" cfg_with_layout)
-      cfg_with_liveness
+      cfg_with_infos
   in
   (* CR xclerc for xclerc: consider moving the computation of temporaries and
      the creation of the state to `prelude`. *)
@@ -508,15 +511,14 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
   let spilling_because_unused = Reg.Set.diff cfg_infos.res cfg_infos.arg in
   (match Reg.Set.elements spilling_because_unused with
   | [] -> ()
-  | _ :: _ as spilled_nodes -> (
+  | _ :: _ as spilled_nodes ->
     List.iter spilled_nodes ~f:(fun reg -> State.add_spilled_nodes state reg);
     (* note: rewrite will remove the `spilling` registers from the "spilled"
        work list and set the field to unknown. *)
-    match rewrite state cfg_with_liveness ~spilled_nodes ~reset:false with
-    | false -> ()
-    | true -> Cfg_with_liveness.invalidate_liveness cfg_with_liveness));
-  main ~round:1 state cfg_with_liveness;
-  if irc_debug then log_cfg_with_liveness ~indent:1 cfg_with_liveness;
+    let (_ : bool) = rewrite state cfg_with_infos ~spilled_nodes ~reset:false in
+    ());
+  main ~round:1 state cfg_with_infos;
+  if irc_debug then log_cfg_with_infos ~indent:1 cfg_with_infos;
   Regalloc_rewrite.postlude
     (module State)
     (module Utils)
@@ -524,5 +526,5 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
     ~f:(fun () ->
       update_register_locations ();
       Array.iter all_precolored_regs ~f:(fun reg -> reg.Reg.degree <- 0))
-    cfg_with_liveness;
-  cfg_with_liveness
+    cfg_with_infos;
+  cfg_with_infos

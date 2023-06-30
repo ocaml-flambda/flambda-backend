@@ -222,13 +222,13 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
         fatal "register class %d has the following unused slots: %s" reg_class
           (string_of_set unused))
 
-let postcondition_liveness : Cfg_with_liveness.t -> unit =
- fun cfg_with_liveness ->
-  postcondition_layout (Cfg_with_liveness.cfg_with_layout cfg_with_liveness);
-  let cfg = Cfg_with_liveness.cfg cfg_with_liveness in
+let postcondition_liveness : Cfg_with_infos.t -> unit =
+ fun cfg_with_infos ->
+  postcondition_layout (Cfg_with_infos.cfg_with_layout cfg_with_infos);
+  let cfg = Cfg_with_infos.cfg cfg_with_infos in
   let entry_block = Cfg.get_block_exn cfg cfg.entry_label in
   let live_at_entry_point =
-    Cfg_with_liveness.liveness_find cfg_with_liveness
+    Cfg_with_infos.liveness_find cfg_with_infos
       (Cfg.first_instruction_id entry_block)
   in
   Reg.Set.iter

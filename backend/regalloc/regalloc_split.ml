@@ -62,10 +62,10 @@ let propagate_substitution :
 (* Computes the substitutions for all blocks, by introducing new registers at
    reload points and then propagating the substitution until a new one takes
    over. *)
-let compute_substitutions : State.t -> Cfg_with_liveness.t -> Substitution.map =
- fun state cfg_with_liveness ->
+let compute_substitutions : State.t -> Cfg_with_infos.t -> Substitution.map =
+ fun state cfg_with_infos ->
   if split_debug then log ~indent:0 "compute_substitutions";
-  let cfg = Cfg_with_liveness.cfg cfg_with_liveness in
+  let cfg = Cfg_with_infos.cfg cfg_with_infos in
   let substs = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
   let compute_substitution_for_block label =
     if split_debug then log ~indent:1 "visiting block %d" label;
@@ -86,29 +86,29 @@ let compute_substitutions : State.t -> Cfg_with_liveness.t -> Substitution.map =
               Printmach.reg new_reg;
           Reg.Tbl.replace subst old_reg new_reg)
         renames;
-      let block = Cfg_with_liveness.get_block_exn cfg_with_liveness label in
+      let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
       propagate_substitution state cfg substs block subst
   in
   Cfg_dominators.iter_breadth_dominator_tree
-    (State.dominators state).dominator_tree ~f:compute_substitution_for_block;
+    (Cfg_with_infos.dominators cfg_with_infos).dominator_tree
+    ~f:compute_substitution_for_block;
   substs
 
-let apply_substitutions : Cfg_with_liveness.t -> Substitution.map -> unit =
- fun cfg_with_liveness substs ->
-  Substitution.apply_cfg_in_place substs
-    (Cfg_with_liveness.cfg cfg_with_liveness)
+let apply_substitutions : Cfg_with_infos.t -> Substitution.map -> unit =
+ fun cfg_with_infos substs ->
+  Substitution.apply_cfg_in_place substs (Cfg_with_infos.cfg cfg_with_infos)
 
 (* Inserts spills at the end of blocks, before destruction points. *)
 let insert_spills :
-    State.t -> Cfg_with_liveness.t -> Substitution.map -> Substitution.t =
- fun state cfg_with_liveness substs ->
+    State.t -> Cfg_with_infos.t -> Substitution.map -> Substitution.t =
+ fun state cfg_with_infos substs ->
   if split_debug then log ~indent:0 "insert_spills";
   let destructions_at_end = State.destructions_at_end state in
   let res = Reg.Tbl.create (Label.Map.cardinal destructions_at_end) in
   Label.Map.iter
     (fun label (_, live_at_destruction_point) ->
       if split_debug then log ~indent:1 "block %d" label;
-      let block = Cfg_with_liveness.get_block_exn cfg_with_liveness label in
+      let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
       let subst = Substitution.for_label substs label in
       Reg.Set.iter
         (fun reg ->
@@ -146,14 +146,13 @@ let insert_spills :
 
 (* Inserts reloads at the start of blocks, after destruction points. *)
 let insert_reloads :
-    State.t -> Cfg_with_liveness.t -> Substitution.map -> Substitution.t -> unit
-    =
- fun state cfg_with_liveness substs stack_subst ->
+    State.t -> Cfg_with_infos.t -> Substitution.map -> Substitution.t -> unit =
+ fun state cfg_with_infos substs stack_subst ->
   if split_debug then log ~indent:0 "insert_reloads";
   Label.Map.iter
     (fun label live_at_definition_point ->
       if split_debug then log ~indent:1 "block %d" label;
-      let block = Cfg_with_liveness.get_block_exn cfg_with_liveness label in
+      let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
       let subst = Substitution.for_label substs label in
       Reg.Set.iter
         (fun old_reg ->
@@ -233,13 +232,14 @@ let add_phi_moves_to_instr_list :
     to_unify
 
 (* Insert phi moves: - to the predecessor block if the edge is an "always" one;
-   - to a newly-inserted block otherwise. *)
-let insert_phi_moves :
-    State.t -> Cfg_with_liveness.t -> Substitution.map -> unit =
- fun state cfg_with_liveness substs ->
+   - to a newly-inserted block otherwise. Returns `true` iff at least one block
+   was inserted. *)
+let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> bool =
+ fun state cfg_with_infos substs ->
+  let block_inserted = ref false in
   Label.Map.iter
     (fun label to_unify ->
-      let block = Cfg_with_liveness.get_block_exn cfg_with_liveness label in
+      let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
       if split_debug
       then
         log ~indent:1 "insert_phi_moves for block %d: %a" label Printmach.regset
@@ -248,7 +248,7 @@ let insert_phi_moves :
       Label.Set.iter
         (fun predecessor_label ->
           let predecessor_block =
-            Cfg_with_liveness.get_block_exn cfg_with_liveness predecessor_label
+            Cfg_with_infos.get_block_exn cfg_with_infos predecessor_label
           in
           match predecessor_block.terminator.desc with
           | Return | Raise _ | Tailcall_func _ | Call_no_return _ | Never ->
@@ -263,11 +263,12 @@ let insert_phi_moves :
             add_phi_moves_to_instr_list state ~before:predecessor_block
               ~phi:block substs to_unify instrs;
             let inserted_blocks =
-              insert_block (Cfg_with_liveness.cfg_with_layout cfg_with_liveness)
+              insert_block (Cfg_with_infos.cfg_with_layout cfg_with_infos)
                 instrs ~after:predecessor_block ~before:(Some block)
                 ~next_instruction_id:(fun () ->
                   State.get_and_incr_instruction_id state)
             in
+            block_inserted := true;
             if split_debug && Lazy.force split_invariants
             then (
               (match inserted_blocks with
@@ -288,25 +289,26 @@ let insert_phi_moves :
               | _ :: _ :: _ -> fatal "several blocks were inserted");
               ()))
         block.predecessors)
-    (State.phi_at_beginning state)
+    (State.phi_at_beginning state);
+  !block_inserted
 
 let split_at_destruction_points :
-    Cfg_with_liveness.t -> cfg_infos -> Regalloc_stack_slots.t option =
- fun cfg_with_liveness cfg_infos ->
+    Cfg_with_infos.t -> cfg_infos -> (Regalloc_stack_slots.t * bool) option =
+ fun cfg_with_infos cfg_infos ->
   if split_debug
   then (
     log ~indent:0 "split_at_destruction_points";
-    Regalloc_irc_utils.log_cfg_with_liveness ~indent:1 cfg_with_liveness);
+    Regalloc_irc_utils.log_cfg_with_infos ~indent:1 cfg_with_infos);
   let state =
     Profile.record ~accumulate:true "state"
       (fun () ->
-        State.make cfg_with_liveness
+        State.make cfg_with_infos
           ~next_instruction_id:(succ cfg_infos.max_instruction_id))
       ()
   in
   if split_debug
   then (
-    let doms = State.dominators state in
+    let doms = Cfg_with_infos.dominators cfg_with_infos in
     log_dominance_frontier ~indent:1 doms.dominance_frontiers;
     log_dominator_tree ~indent:1 doms.dominator_tree);
   match Label.Map.is_empty (State.definitions_at_beginning state) with
@@ -317,32 +319,34 @@ let split_at_destruction_points :
     if split_debug then State.log_renaming_info ~indent:1 state;
     let substs =
       Profile.record ~accumulate:true "compute_substitutions"
-        (fun () -> compute_substitutions state cfg_with_liveness)
+        (fun () -> compute_substitutions state cfg_with_infos)
         ()
     in
     if split_debug then log_substitutions ~indent:1 substs;
     Profile.record ~accumulate:true "apply_substitutions"
-      (fun () -> apply_substitutions cfg_with_liveness substs)
+      (fun () -> apply_substitutions cfg_with_infos substs)
       ();
     let stack_subst =
       Profile.record ~accumulate:true "insert_spills"
-        (fun () -> insert_spills state cfg_with_liveness substs)
+        (fun () -> insert_spills state cfg_with_infos substs)
         ()
     in
     if split_debug then log_stack_subst ~indent:1 stack_subst;
     Profile.record ~accumulate:true "insert_reloads"
-      (fun () -> insert_reloads state cfg_with_liveness substs stack_subst)
+      (fun () -> insert_reloads state cfg_with_infos substs stack_subst)
       ();
-    Profile.record ~accumulate:true "insert_phi_moves"
-      (fun () -> insert_phi_moves state cfg_with_liveness substs)
-      ();
+    let block_inserted =
+      Profile.record ~accumulate:true "insert_phi_moves"
+        (fun () -> insert_phi_moves state cfg_with_infos substs)
+        ()
+    in
     if split_debug
-    then Regalloc_irc_utils.log_cfg_with_liveness ~indent:1 cfg_with_liveness;
-    Some (State.stack_slots state)
+    then Regalloc_irc_utils.log_cfg_with_infos ~indent:1 cfg_with_infos;
+    Some (State.stack_slots state, block_inserted)
 
-let split_live_ranges :
-    Cfg_with_liveness.t -> cfg_infos -> Regalloc_stack_slots.t =
- fun cfg_with_liveness cfg_infos ->
+let split_live_ranges : Cfg_with_infos.t -> cfg_infos -> Regalloc_stack_slots.t
+    =
+ fun cfg_with_infos cfg_infos ->
   (* CR-soon xclerc for xclerc: support closure, flambda, and
      flambda2/classic *)
   (match Config.flambda, Config.flambda2 with
@@ -355,12 +359,14 @@ let split_live_ranges :
        "Regalloc_split: classic mode is currently not supported" *)
     ()
   | true, true -> assert false);
-  match split_at_destruction_points cfg_with_liveness cfg_infos with
+  match split_at_destruction_points cfg_with_infos cfg_infos with
   | None -> Regalloc_stack_slots.make ()
-  | Some stack_slots ->
-    Cfg_with_liveness.invalidate_liveness cfg_with_liveness;
-    let (_ : Cfg_with_liveness.t) =
+  | Some (stack_slots, block_inserted) ->
+    Cfg_with_infos.invalidate_liveness cfg_with_infos;
+    if block_inserted
+    then Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos;
+    let (_ : Cfg_with_infos.t) =
       Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
-        cfg_with_liveness
+        cfg_with_infos
     in
     stack_slots
