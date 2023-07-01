@@ -975,7 +975,7 @@ let result_kind_of_unary_primitive p : result_kind =
   | Begin_try_region -> Singleton K.region
   | End_region -> Singleton K.value
   | Obj_dup -> Singleton K.value
-  | Get_header -> Singleton K.naked_immediate
+  | Get_header -> Singleton K.naked_nativeint
 
 let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   match p with
