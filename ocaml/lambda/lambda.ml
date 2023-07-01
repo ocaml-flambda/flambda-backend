@@ -246,6 +246,7 @@ type primitive =
   (* Jane Street extensions *)
   | Parray_to_iarray
   | Parray_of_iarray
+  | Pget_header of alloc_mode
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -1462,7 +1463,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
      Some alloc_heap
   | Pstring_load_16 _ | Pbytes_load_16 _ -> None
   | Pstring_load_32 (_, m) | Pbytes_load_32 (_, m)
-  | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m) -> Some m
+  | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m) | Pget_header m -> Some m
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ -> None
   | Pbigstring_load_16 _ -> None
   | Pbigstring_load_32 (_,m) | Pbigstring_load_64 (_,m) -> Some m
@@ -1576,6 +1577,7 @@ let primitive_result_layout (p : primitive) =
       (* CR ncourant: use an unboxed int64 here when it exists *)
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
+  | Pget_header _ -> layout_boxedint Pnativeint
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function
