@@ -8,12 +8,9 @@ module List = ListLabels
 
 let fatal = Misc.fatal_errorf
 
-(* CR-soon xclerc for xclerc: switch back to `false`. *)
-let debug = true
+let debug = false
 
 type doms = Label.t Label.Tbl.t
-
-type dominators = Label.Set.t Label.Map.t
 
 type dominance_frontiers = Label.Set.t Label.Tbl.t
 
@@ -24,7 +21,6 @@ type dominator_tree =
 
 type t =
   { doms : doms;
-    dominators : dominators;
     dominance_frontiers : dominance_frontiers;
     dominator_tree : dominator_tree
   }
@@ -304,234 +300,17 @@ let compute_dominator_tree : Cfg.t -> doms -> dominator_tree =
   if debug then invariant_dominator_tree cfg doms res;
   res
 
-let compute_dominators_reference (cfg : Cfg.t) =
-  let all_labels =
-    Cfg.fold_blocks cfg ~init:Label.Set.empty ~f:(fun label _block acc ->
-        Label.Set.add label acc)
-  in
-  let init =
-    Cfg.fold_blocks cfg ~init:Label.Map.empty ~f:(fun label _block acc ->
-        Label.Map.add label
-          (if Label.equal label cfg.entry_label
-          then Label.Set.singleton cfg.entry_label
-          else all_labels)
-          acc)
-  in
-  let rec loop curr =
-    let get_curr label =
-      match Label.Map.find_opt label curr with
-      | None ->
-        fatal "Cfg_dominators.compute_dominators: unknown label %d" label
-      | Some set -> set
-    in
-    let dominators, changed =
-      Label.Set.fold
-        (fun label (dominators, changed) ->
-          let new_value =
-            if Label.equal label cfg.entry_label
-            then Label.Set.singleton cfg.entry_label
-            else
-              let predecessor_labels =
-                Cfg.predecessor_labels (Cfg.get_block_exn cfg label)
-              in
-              match predecessor_labels with
-              | [] -> Label.Set.singleton label
-              | hd :: tl ->
-                Label.Set.add label
-                  (List.fold_left tl ~init:(get_curr hd) ~f:(fun acc label ->
-                       Label.Set.inter acc (get_curr label)))
-          in
-          ( Label.Map.add label new_value dominators,
-            changed || not (Label.Set.equal new_value (get_curr label)) ))
-        all_labels (Label.Map.empty, false)
-    in
-    if changed then loop dominators else dominators
-  in
-  loop init
-
-let is_dominating_reference dominators left right =
-  match Label.Map.find_opt right dominators with
-  | None -> fatal "Cfg_dominators.is_dominating: unknown label %d" right
-  | Some set -> Label.Set.mem left set
-
-let is_strictly_dominating_reference dominators left right =
-  (not (Label.equal left right))
-  && is_dominating_reference dominators left right
-
-type immediate_dominators = Label.t Label.Map.t
-
-let compute_immediate_dominators_reference :
-    Cfg.t -> dominators -> immediate_dominators =
- fun cfg dominator_map ->
-  let immediate_dominators =
-    Label.Map.filter_map
-      (fun label dominators ->
-        let strict_dominators = Label.Set.remove label dominators in
-        match Label.Set.choose_opt strict_dominators with
-        | None ->
-          if not (Label.equal label cfg.entry_label)
-          then
-            fatal
-              "Cfg_dominators.compute_immediate_dominators: label %d has no \
-               immediate dominator but is not the entry point (%d)"
-              label cfg.entry_label
-          else None
-        | Some strict_dominator ->
-          let immediate_dominator =
-            Label.Set.fold
-              (fun other_dominator immediate_dominator ->
-                if is_strictly_dominating_reference dominator_map
-                     immediate_dominator other_dominator
-                then other_dominator
-                else immediate_dominator)
-              strict_dominators strict_dominator
-          in
-          Some immediate_dominator)
-      dominator_map
-  in
-  immediate_dominators
-
-let compute_dominance_frontiers_reference :
-    Cfg.t -> immediate_dominators -> Label.Set.t Label.Map.t =
- fun cfg immediate_dominators ->
-  let idom l =
-    match Label.Map.find_opt l immediate_dominators with
-    | None ->
-      fatal
-        "Cfg_dominators.compute_dominance_frontiers: no immediate dominator \
-         for %d"
-        l
-    | Some idom -> idom
-  in
-  let dominance_frontiers =
-    ref
-      (Cfg.fold_blocks cfg ~init:Label.Map.empty ~f:(fun label _block acc ->
-           Label.Map.add label Label.Set.empty acc))
-  in
-  Cfg.iter_blocks cfg ~f:(fun label block ->
-      let num_predecessors = Label.Set.cardinal block.predecessors in
-      if num_predecessors >= 2
-      then
-        let idom_predecessor = idom label in
-        Label.Set.iter
-          (fun predecessor ->
-            let curr = ref predecessor in
-            while not (Label.equal !curr idom_predecessor) do
-              dominance_frontiers
-                := Label.Map.update !curr
-                     (function
-                       | None ->
-                         fatal
-                           "Cfg_dominators.compute_dominance_frontiers: \
-                            frontier for %d has not been initialized"
-                           !curr
-                       | Some df -> Some (Label.Set.add label df))
-                     !dominance_frontiers;
-              curr := idom !curr
-            done)
-          block.predecessors);
-  !dominance_frontiers
-
-let compute_dominator_tree_reference :
-    Cfg.t -> immediate_dominators -> dominator_tree =
- fun cfg immediate_dominators ->
-  let rec children_of parent =
-    Label.Map.fold
-      (fun label (immediate_dominator : Label.t) acc ->
-        if Label.equal parent immediate_dominator
-        then { label; children = children_of label } :: acc
-        else acc)
-      immediate_dominators []
-  in
-  let res =
-    { label = cfg.entry_label; children = children_of cfg.entry_label }
-  in
-  res
-
-let check_dominance_frontiers (reference : Label.Set.t Label.Map.t)
-    (result : dominance_frontiers) : unit =
-  if Label.Map.cardinal reference <> Label.Tbl.length result
-  then
-    fatal
-      "Cfg_dominators.check_dominance_frontiers: different number of frontiers";
-  Label.Map.iter
-    (fun ref_label ref_frontier ->
-      match Label.Tbl.find_opt result ref_label with
-      | None ->
-        fatal
-          "Cfg_dominators.check_dominance_frontiers: no frontier for label %d"
-          ref_label
-      | Some res_frontier ->
-        if not (Label.Set.equal ref_frontier res_frontier)
-        then
-          fatal
-            "Cfg_dominators.check_dominance_frontiers: frontiers differ for \
-             label %d"
-            ref_label)
-    reference
-
-let rec check_dominator_tree (reference : dominator_tree)
-    (result : dominator_tree) : unit =
-  let cmp (left : dominator_tree) (right : dominator_tree) : int =
-    Label.compare left.label right.label
-  in
-  if not (Label.equal reference.label result.label)
-  then
-    fatal "Cfg_dominators.check_dominator_tree: different label %d vs %d"
-      reference.label result.label;
-  if List.length reference.children <> List.length result.children
-  then
-    fatal
-      "Cfg_dominators.check_dominator_tree: different number of children for \
-       label %d"
-      reference.label;
-  List.iter2 (List.sort ~cmp reference.children)
-    (List.sort ~cmp result.children) ~f:(fun ref_child res_child ->
-      check_dominator_tree ref_child res_child)
-
 let build : Cfg.t -> t =
  fun cfg ->
   let doms = compute_doms cfg in
   let dominance_frontiers = compute_dominance_frontiers cfg doms in
   let dominator_tree = compute_dominator_tree cfg doms in
-  let dominators_reference = compute_dominators_reference cfg in
-  let immediate_dominators_reference =
-    compute_immediate_dominators_reference cfg dominators_reference
-  in
-  let dominance_frontiers_reference =
-    compute_dominance_frontiers_reference cfg immediate_dominators_reference
-  in
-  check_dominance_frontiers dominance_frontiers_reference dominance_frontiers;
-  let dominator_tree_reference =
-    compute_dominator_tree_reference cfg immediate_dominators_reference
-  in
-  check_dominator_tree dominator_tree_reference dominator_tree;
-  { doms;
-    dominators = dominators_reference;
-    dominance_frontiers;
-    dominator_tree
-  }
+  { doms; dominance_frontiers; dominator_tree }
 
-let is_dominating t left right =
-  let reference = is_dominating_reference t.dominators left right in
-  let result = is_dominating t.doms left right in
-  if reference <> result
-  then
-    fatal
-      "Cfg_dominators.is_dominating: result and reference disagree for %d/%d"
-      left right;
-  result
+let is_dominating t left right = is_dominating t.doms left right
 
 let is_strictly_dominating t left right =
-  let reference = is_strictly_dominating_reference t.dominators left right in
-  let result = is_strictly_dominating t.doms left right in
-  if reference <> result
-  then
-    fatal
-      "Cfg_dominators.is_strictly_dominating: result and reference disagree \
-       for %d/%d"
-      left right;
-  result
+  is_strictly_dominating t.doms left right
 
 let find_dominance_frontier t label =
   match Label.Tbl.find_opt t.dominance_frontiers label with
