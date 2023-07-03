@@ -11,7 +11,7 @@ end
 
 module EdgeMap : Map.S with type key = Edge.t
 
-val compute_back_edges : Cfg.t -> Cfg_dominators.dominators -> Edge.t list
+val compute_back_edges : Cfg.t -> Cfg_dominators.t -> Edge.t list
 
 type loop = Label.Set.t
 (* Blocks in a loop; if a node is part of several/nested loops, it will appear

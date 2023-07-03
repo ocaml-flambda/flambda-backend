@@ -7,7 +7,8 @@ module List = ListLabels
 
 let fatal = Misc.fatal_errorf
 
-let debug = false
+(* CR-soon xclerc for xclerc: switch back to `false`. *)
+let debug = true
 
 type dominators = Label.Set.t Label.Map.t
 
@@ -273,7 +274,6 @@ let compute_dominator_tree : Cfg.t -> immediate_dominators -> dominator_tree =
 
 type t =
   { dominators : dominators;
-    immediate_dominators : immediate_dominators;
     dominance_frontiers : dominance_frontiers;
     dominator_tree : dominator_tree
   }
@@ -286,4 +286,21 @@ let build : Cfg.t -> t =
     compute_dominance_frontiers cfg dominators immediate_dominators
   in
   let dominator_tree = compute_dominator_tree cfg immediate_dominators in
-  { dominators; immediate_dominators; dominance_frontiers; dominator_tree }
+  { dominators; dominance_frontiers; dominator_tree }
+
+let is_dominating t left right = is_dominating t.dominators left right
+
+let is_strictly_dominating t left right =
+  is_strictly_dominating t.dominators left right
+
+let find_dominance_frontier t label =
+  match Label.Map.find_opt label t.dominance_frontiers with
+  | Some frontier -> frontier
+  | None ->
+    Misc.fatal_errorf
+      "Cfg_dominators.find_dominance_frontier: no frontier for label %d" label
+
+let dominator_tree t = t.dominator_tree
+
+let iter_breadth_dominator_tree t ~f =
+  iter_breadth_dominator_tree t.dominator_tree ~f
