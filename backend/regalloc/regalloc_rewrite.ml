@@ -143,10 +143,8 @@ let rewrite_gen :
       done
     in
     match direction with
-    | Load_before_cell _ | Load_after_list _ ->
-      rewrite_array instr.arg
-    | Store_after_cell _ | Store_before_list _ ->
-      rewrite_array instr.res
+    | Load_before_cell _ | Load_after_list _ -> rewrite_array instr.arg
+    | Store_after_cell _ | Store_before_list _ -> rewrite_array instr.res
   in
   let liveness = Cfg_with_infos.liveness cfg_with_infos in
   Cfg.iter_blocks (Cfg_with_infos.cfg cfg_with_infos) ~f:(fun label block ->
