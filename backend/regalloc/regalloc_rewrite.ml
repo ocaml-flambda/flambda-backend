@@ -94,7 +94,7 @@ let rewrite_gen :
   let rewrite_instruction ~(direction : direction)
       ~(sharing : (Reg.t * [`load | `store]) Reg.Tbl.t)
       (instr : _ Cfg.instruction) : unit =
-    let f (reg : Reg.t) : Reg.t =
+    let[@inline] rewrite_reg (reg : Reg.t) : Reg.t =
       if Utils.is_spilled reg
       then (
         let spilled =
@@ -135,13 +135,18 @@ let rewrite_gen :
         temp)
       else reg
     in
+    let rewrite_array (arr : Reg.t array) : unit =
+      let len = Array.length arr in
+      for i = 0 to pred len do
+        let reg = Array.unsafe_get arr i in
+        Array.unsafe_set arr i (rewrite_reg reg)
+      done
+    in
     match direction with
     | Load_before_cell _ | Load_after_list _ ->
-      if array_contains_spilled instr.arg
-      then instr.arg <- Array.map instr.arg ~f
+      rewrite_array instr.arg
     | Store_after_cell _ | Store_before_list _ ->
-      if array_contains_spilled instr.res
-      then instr.res <- Array.map instr.res ~f
+      rewrite_array instr.res
   in
   let liveness = Cfg_with_infos.liveness cfg_with_infos in
   Cfg.iter_blocks (Cfg_with_infos.cfg cfg_with_infos) ~f:(fun label block ->
