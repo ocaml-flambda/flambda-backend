@@ -1912,8 +1912,12 @@ let meet env ty1 ty2 : _ Or_bottom.t =
   match meet scoped_env ty1 ty2 with
   | Bottom -> Bottom
   | Ok (r, scoped_env) ->
-    let env_extension = TE.cut_as_extension scoped_env ~cut_after:scope in
-    Ok (extract_value r ty1 ty2, env_extension)
+    let res_ty = extract_value r ty1 ty2 in
+    if TG.is_obviously_bottom res_ty
+    then Bottom
+    else
+      let env_extension = TE.cut_as_extension scoped_env ~cut_after:scope in
+      Ok (res_ty, env_extension)
 
 let meet_shape env t ~shape ~result_var ~result_kind : _ Or_bottom.t =
   let result = Bound_name.create_var result_var in
