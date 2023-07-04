@@ -1144,7 +1144,13 @@ and transl_apply ~scopes
             | Alloc_heap -> true
           in
           let layout_arg = layout_of_sort (to_location loc) sort_arg in
-          lfunction ~kind:(Curried {nlocal}) ~params:[{ name = id_arg; layout = layout_arg; attributes = Lambda.default_param_attribute; mode = arg_mode}]
+          let params = [{
+              name = id_arg;
+              layout = layout_arg;
+              attributes = Lambda.default_param_attribute;
+              mode = arg_mode
+            }] in
+          lfunction ~kind:(Curried {nlocal}) ~params
                     ~return:result_layout ~body ~mode ~region
                     ~attr:default_stub_attribute ~loc
         in
@@ -1209,7 +1215,14 @@ and transl_curried_function
              Curried {nlocal = nlocal + 1}
         in
         let arg_mode = transl_alloc_mode arg_mode in
-        ((fnkind, { name = param; layout = arg_layout; attributes = Lambda.default_param_attribute; mode = arg_mode } :: params, return_layout, region),
+        let params = {
+          name = param ;
+          layout = arg_layout ;
+          attributes = Lambda.default_param_attribute ;
+          mode = arg_mode
+        } :: params
+        in
+        ((fnkind, params, return_layout, region),
          Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout loc
            None (Lvar param) [pat, body] partial)
       else begin
@@ -1265,7 +1278,12 @@ and transl_tupled_function
                  Argument should be a tuple, but couldn't get the kinds"
         in
         let tparams =
-          List.map (fun kind -> { name = Ident.create_local "param"; layout = kind; attributes = Lambda.default_param_attribute; mode = alloc_heap }) kinds
+          List.map (fun kind -> {
+                name = Ident.create_local "param";
+                layout = kind;
+                attributes = Lambda.default_param_attribute;
+                mode = alloc_heap
+              }) kinds
         in
         let params = List.map (fun p -> p.name) tparams in
         let body =
@@ -1296,7 +1314,12 @@ and transl_function0
         | Alloc_heap -> 0
     in
     let arg_mode = transl_alloc_mode arg_mode in
-    ((Curried {nlocal}, [{ name = param; layout = arg_layout; attributes = Lambda.default_param_attribute; mode = arg_mode}], return_layout, region), body)
+    ((Curried {nlocal},
+      [{ name = param;
+         layout = arg_layout;
+         attributes = Lambda.default_param_attribute;
+         mode = arg_mode}],
+      return_layout, region), body)
 
 and transl_function ~scopes e alloc_mode param arg_mode arg_sort return_sort
       cases partial warnings region curry =

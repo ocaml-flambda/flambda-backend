@@ -708,7 +708,8 @@ let rec lam ppf = function
             List.iter (fun (p : Lambda.lparam) ->
                 (* Make sure we change this once there are attributes *)
                 let No_attributes = p.attributes in
-                fprintf ppf "@ %a%s%a" Ident.print p.name (alloc_kind p.mode) layout p.layout) params
+                fprintf ppf "@ %a%s%a"
+                  Ident.print p.name (alloc_kind p.mode) layout p.layout) params
         | Tupled ->
             fprintf ppf " (";
             let first = ref true in

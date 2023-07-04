@@ -62,8 +62,11 @@ and offset = Offset of lambda
 let offset_code (Offset t) = t
 
 let add_dst_params ({var; offset} : Ident.t destination) params =
-  { name = var ; layout = Lambda.layout_block ; attributes = Lambda.default_param_attribute; mode = alloc_heap } ::
-  { name = offset ; layout = Lambda.layout_int ; attributes = Lambda.default_param_attribute; mode = alloc_heap } ::
+  (* CR ncourant: are these modes necessarily heap? *)
+  { name = var ; layout = Lambda.layout_block ;
+    attributes = Lambda.default_param_attribute ; mode = alloc_heap } ::
+  { name = offset ; layout = Lambda.layout_int ;
+    attributes = Lambda.default_param_attribute ; mode = alloc_heap } ::
   params
 
 let add_dst_args ({var; offset} : offset destination) args =
