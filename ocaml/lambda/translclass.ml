@@ -68,8 +68,6 @@ let lapply ap =
       Lapply ap
 
 let lparam name layout : Lambda.lparam =
-  (* CR ncourant: we assume all parameters defined with this function
-     are alloc_heap. Are we sure this is true? *)
   { name; layout;
     attributes = Lambda.default_param_attribute; mode = alloc_heap }
 

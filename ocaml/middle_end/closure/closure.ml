@@ -1096,8 +1096,15 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
             alloc_local, Curried {nlocal = nlocal - supplied_local_args}
         in
         if is_local_mode clos_mode then assert (is_local_mode new_clos_mode);
+        (* CR ncourant: mode = new_clos_mode is incorrect; but the modes will
+           not be used for anything, so it is fine here. *)
         let final_args =
-          List.map (fun kind -> { name = V.create_local "arg"; layout = kind; attributes = Lambda.default_param_attribute; mode = new_clos_mode}) rem_layouts
+          List.map (fun kind -> {
+                name = V.create_local "arg";
+                layout = kind;
+                attributes = Lambda.default_param_attribute;
+                mode = new_clos_mode
+              }) rem_layouts
         in
         let rec iter args body =
           match args with

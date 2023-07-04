@@ -885,6 +885,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let cost_metrics =
           Cost_metrics.from_size (Code_size.of_int code_size)
         in
+        (* CR ncourant: allow fexpr to specify param modes? *)
         let param_modes =
           List.map
             (fun _ -> Alloc_mode.For_types.heap)
