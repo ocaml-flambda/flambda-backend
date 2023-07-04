@@ -112,7 +112,8 @@ and continuation_handler_t0 =
 and continuation_handler =
   { cont_handler_abst :
       (Bound_parameters.t, continuation_handler_t0) Name_abstraction.t;
-    is_exn_handler : bool
+    is_exn_handler : bool;
+    is_cold : bool
   }
 
 and continuation_handlers_t0 =
@@ -264,7 +265,7 @@ and apply_renaming_continuation_handler_t0
     }
 
 and apply_renaming_continuation_handler
-    ({ cont_handler_abst; is_exn_handler } as t) renaming =
+    ({ cont_handler_abst; is_exn_handler; is_cold } as t) renaming =
   let cont_handler_abst' =
     Name_abstraction.apply_renaming
       (module Bound_parameters)
@@ -273,7 +274,7 @@ and apply_renaming_continuation_handler
   in
   if cont_handler_abst == cont_handler_abst'
   then t
-  else { cont_handler_abst = cont_handler_abst'; is_exn_handler }
+  else { cont_handler_abst = cont_handler_abst'; is_exn_handler; is_cold }
 
 and apply_renaming_continuation_handlers t renaming =
   Name_abstraction.apply_renaming
@@ -335,7 +336,7 @@ let rec ids_for_export_continuation_handler_t0
   ids_for_export handler
 
 and ids_for_export_continuation_handler
-    { cont_handler_abst; is_exn_handler = _ } =
+    { cont_handler_abst; is_exn_handler = _; is_cold = _ } =
   Name_abstraction.ids_for_export
     (module Bound_parameters)
     cont_handler_abst
@@ -535,19 +536,20 @@ and print ppf (t : expr) =
       Flambda_colours.invalid_keyword Flambda_colours.pop message
 
 and print_continuation_handler (recursive : Recursive.t) invariant_params ppf k
-    ({ cont_handler_abst = _; is_exn_handler } as t) occurrences ~first =
+    ({ cont_handler_abst = _; is_exn_handler; is_cold } as t) occurrences ~first =
   let fprintf = Format.fprintf in
   if not first then fprintf ppf "@ ";
   let print params ~handler =
     (match descr handler with
     | Apply_cont _ | Invalid _ -> fprintf ppf "@[<hov 0>"
     | Let _ | Let_cont _ | Apply _ | Switch _ -> fprintf ppf "@[<v 0>");
-    fprintf ppf "@[<hov 1>%t%a%t%t%s%t%t%s%t"
+    fprintf ppf "@[<hov 1>%t%a%t%t%s%t%t%s%s%t"
       Flambda_colours.continuation_definition Continuation.print k
       Flambda_colours.pop Flambda_colours.expr_keyword
       (match recursive with Non_recursive -> "" | Recursive -> " (rec)")
       Flambda_colours.pop Flambda_colours.continuation_annotation
       (if is_exn_handler then "[eh]" else "")
+      (if is_cold then "[cold]" else "")
       Flambda_colours.pop;
     if not (Bound_parameters.is_empty invariant_params)
     then fprintf ppf "(invariant %a)" Bound_parameters.print invariant_params;
@@ -887,7 +889,7 @@ module Continuation_handler = struct
   module A = Name_abstraction.Make (Bound_parameters) (T0)
 
   let create params ~handler ~(free_names_of_handler : _ Or_unknown.t)
-      ~is_exn_handler =
+      ~is_exn_handler ~is_cold =
     Bound_parameters.check_no_duplicates params;
     let num_normal_occurrences_of_params =
       match free_names_of_handler with
@@ -904,7 +906,7 @@ module Continuation_handler = struct
     in
     let t0 : T0.t = { num_normal_occurrences_of_params; handler } in
     let cont_handler_abst = A.create params t0 in
-    { cont_handler_abst; is_exn_handler }
+    { cont_handler_abst; is_exn_handler; is_cold }
 
   let pattern_match t ~f =
     let open A in
@@ -944,6 +946,8 @@ module Continuation_handler = struct
       cont ch Or_unknown.Unknown
 
   let is_exn_handler t = t.is_exn_handler
+
+  let is_cold t = t.is_cold
 
   let apply_renaming = apply_renaming_continuation_handler
 end

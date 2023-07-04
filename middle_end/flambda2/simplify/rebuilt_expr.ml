@@ -92,22 +92,22 @@ module Continuation_handler = struct
 
   let dummy =
     Continuation_handler.create Bound_parameters.empty ~handler:term_not_rebuilt
-      ~free_names_of_handler:Unknown ~is_exn_handler:false
+      ~free_names_of_handler:Unknown ~is_exn_handler:false ~is_cold:false
 
   let create are_rebuilding params ~handler ~free_names_of_handler
-      ~is_exn_handler =
+      ~is_exn_handler ~is_cold =
     if ART.do_not_rebuild_terms are_rebuilding
     then dummy
     else
       Continuation_handler.create params ~handler
-        ~free_names_of_handler:(Known free_names_of_handler) ~is_exn_handler
+        ~free_names_of_handler:(Known free_names_of_handler) ~is_exn_handler ~is_cold
 
-  let create' are_rebuilding params ~handler ~is_exn_handler =
+  let create' are_rebuilding params ~handler ~is_exn_handler ~is_cold =
     if ART.do_not_rebuild_terms are_rebuilding
     then dummy
     else
       Continuation_handler.create params ~handler ~free_names_of_handler:Unknown
-        ~is_exn_handler
+        ~is_exn_handler ~is_cold
 end
 
 let create_non_recursive_let_cont are_rebuilding cont handler ~body

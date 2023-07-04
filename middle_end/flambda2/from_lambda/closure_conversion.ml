@@ -326,10 +326,10 @@ module Inlining = struct
       in
       Expr_with_acc.create_apply_cont acc apply_cont
     in
-    let let_cont_create acc cont ~handler_params ~handler ~body ~is_exn_handler
+    let let_cont_create acc cont ~handler_params ~handler ~body ~is_exn_handler ~is_cold
         =
       Let_cont_with_acc.build_non_recursive acc cont ~handler_params ~handler
-        ~body ~is_exn_handler
+        ~body ~is_exn_handler ~is_cold
     in
     Inlining_helpers.wrap_inlined_body_for_exn_extra_args acc ~extra_args
       ~apply_exn_continuation ~apply_return_continuation ~result_arity
@@ -582,7 +582,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     in
     Let_cont_with_acc.build_non_recursive acc return_continuation
       ~handler_params:params ~handler:code_after_call ~body:c_call
-      ~is_exn_handler:false
+      ~is_exn_handler:false ~is_cold:false
   in
   let keep_body acc =
     ( Acc.with_cost_metrics
@@ -1097,10 +1097,11 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
   match recursive with
   | Nonrecursive ->
     Let_cont_with_acc.build_non_recursive acc name ~handler_params ~handler
-      ~body ~is_exn_handler
+      ~body ~is_exn_handler ~is_cold:false (* CR ncourant: from lambda *)
   | Recursive ->
+    (* CR ncourant: from lambda *)
     let handlers =
-      Continuation.Map.singleton name (handler, handler_params, is_exn_handler)
+      Continuation.Map.singleton name (handler, handler_params, is_exn_handler, false)
     in
     (* CR ncourant: If we could somehow detect the syntactically invariant
        parameters here, we could be able to improve the results of [Simplify] in
@@ -2213,6 +2214,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         ~handler
         ~body:(fun acc -> Expr_with_acc.create_apply acc over_application)
         ~is_exn_handler:false
+        ~is_cold:false
   in
   let body = full_call wrapper_cont ~region:apply_region in
   let acc, both_applications =
@@ -2220,7 +2222,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
       ~handler_params:
         ([BP.create returned_func K.With_subkind.any_value]
         |> Bound_parameters.create)
-      ~handler:perform_over_application ~body ~is_exn_handler:false
+      ~handler:perform_over_application ~body ~is_exn_handler:false ~is_cold:false
   in
   match needs_region with
   | None -> acc, both_applications
@@ -2546,6 +2548,7 @@ let wrap_final_module_block acc env ~program ~prog_return_cont
   Let_cont_with_acc.build_non_recursive acc prog_return_cont
     ~handler_params:load_fields_handler_param ~handler:load_fields_body ~body
     ~is_exn_handler:false
+    ~is_cold:false
 
 let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
     ~cmx_loader ~compilation_unit ~module_block_size_in_words ~program

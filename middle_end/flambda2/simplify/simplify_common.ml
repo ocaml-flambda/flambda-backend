@@ -207,6 +207,7 @@ let split_direct_over_application apply
           ~handler:handler_expr
           ~free_names_of_handler:(Known handler_expr_free_names)
           ~is_exn_handler:false
+          ~is_cold:false (* CR ncourant: check *)
       in
       Let_cont.create_non_recursive after_over_application handler
         ~body:(Expr.create_apply perform_over_application)
@@ -220,6 +221,7 @@ let split_direct_over_application apply
       ~handler:perform_over_application
       ~free_names_of_handler:(Known perform_over_application_free_names)
       ~is_exn_handler:false
+      ~is_cold:false (* CR ncourant: check *)
   in
   let full_apply =
     let alloc_mode =
