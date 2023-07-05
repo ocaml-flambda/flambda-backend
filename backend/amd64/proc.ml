@@ -120,41 +120,41 @@ let num_available_registers = [| 13; 16; 16 |]
 let first_available_register = [| 0; 100; 200 |]
 
 let register_name r =
-  if r < 100 then int_reg_name.(r) 
+  if r < 100 then int_reg_name.(r)
   else if r < 200 then float_reg_name.(r - 100)
   else vec128_reg_name.(r - 200)
 
-let class_of reg = 
-  if reg < 100 then 0 
-  else if reg < 200 then 1 
-  else if reg < 300 then 2 
-  else Misc.fatal_errorf "Register of unknown class (%d)" reg 
+let class_of reg =
+  if reg < 100 then 0
+  else if reg < 200 then 1
+  else if reg < 300 then 2
+  else Misc.fatal_errorf "Register of unknown class (%d)" reg
 
-(* 
+(*
   Sibling classes refer to the same set of physical registers.
   The number of available registers must be the same in all sibling classes,
   and their ID ranges must not overlap.
-  
+
   Here, both class 1 and class 2 refer to the set of `xmm` registers,
-  but are represented by different ID ranges. Class 1 is reserved for 
+  but are represented by different ID ranges. Class 1 is reserved for
   floating point values and class 2 is reserved for 128-bit SIMD vectors.
   This allows us to preserve sizing information based on the register IDs.
 
   The register allocators use the following two functions to check whether
   allocating a register in one range must also consume an ID in another class.
 *)
-let sibling_classes reg_class = 
-  match reg_class with 
+let sibling_classes reg_class =
+  match reg_class with
   | 0 -> [| 0 |]
   | 1 | 2 -> [| 1; 2 |]
   | c -> Misc.fatal_errorf "Unspecified register class %d" reg_class
 
-let reg_id_in_class ~reg ~in_class = 
-  let reg_class = class_of reg in 
-  match reg_class, in_class with 
+let reg_id_in_class ~reg ~in_class =
+  let reg_class = class_of reg in
+  match reg_class, in_class with
   | 1, 2 -> Some (reg + 100)
   | 2, 1 -> Some (reg - 100)
-  | x, y when x = y -> Some reg 
+  | x, y when x = y -> Some reg
   | _ -> None
 
 (* Pack registers starting at %rax so as to reduce the number of REX
@@ -180,11 +180,11 @@ let hard_vec128_reg =
 
 let all_phys_regs =
   Array.append
-    (Array.append hard_int_reg hard_float_reg) 
+    (Array.append hard_int_reg hard_float_reg)
     hard_vec128_reg
 
 let phys_reg n =
-  if n < 100 then hard_int_reg.(n) else 
+  if n < 100 then hard_int_reg.(n) else
   if n < 200 then hard_float_reg.(n - 100)
   else hard_vec128_reg.(n - 200)
 
@@ -310,7 +310,7 @@ let win64_float_external_arguments =
 
 let win64_vec128_external_arguments =
   [| 200 (*xmm0*); 201 (*xmm1*); 202 (*xmm2*); 203 (*xmm3*) |]
-  
+
 let win64_loc_external_arguments arg =
   let loc = Array.make (Array.length arg) Reg.dummy in
   let reg = ref 0
@@ -642,8 +642,8 @@ let max_register_pressure =
 
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   fp || fun_contains_calls ||
-  fun_num_stack_slots.(0) > 0 || 
-  fun_num_stack_slots.(1) > 0 || 
+  fun_num_stack_slots.(0) > 0 ||
+  fun_num_stack_slots.(1) > 0 ||
   fun_num_stack_slots.(2) > 0
 
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
