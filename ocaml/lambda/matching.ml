@@ -3738,11 +3738,12 @@ let assign_pat ~scopes value_kind opt nraise catch_ids loc pat lam =
     match (pat.pat_desc, lam) with
     | Tpat_tuple patl, Lprim (Pmakeblock _, lams, _) ->
         opt := true;
-        List.fold_left2 collect acc (List.map snd patl) lams
+        List.fold_left2
+          (fun acc (_, pat) lam -> collect acc pat lam) acc patl lams
     | Tpat_tuple patl, Lconst (Const_block (_, scl)) ->
         opt := true;
         let collect_const acc pat sc = collect acc pat (Lconst sc) in
-        List.fold_left2 collect_const acc (List.map snd patl) scl
+        List.fold_left2 (fun acc (_, sc) -> collect_const acc sc) acc patl scl
     | _ ->
         (* pattern idents will be bound in staticcatch (let body), so we
            refresh them here to guarantee binders uniqueness *)

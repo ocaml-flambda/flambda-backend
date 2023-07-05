@@ -64,7 +64,7 @@ let iterator =
     end;
     let loc = pat.ppat_loc in
     match pat.ppat_desc with
-    | Ppat_tuple (([] | [_]), Closed) -> invalid_tuple loc
+    | Ppat_tuple ([], _) | Ppat_tuple ([_], Closed) -> invalid_tuple loc
     | Ppat_record ([], _) -> empty_record loc
     | Ppat_construct (id, _) -> simple_longident id
     | Ppat_record (fields, _) ->

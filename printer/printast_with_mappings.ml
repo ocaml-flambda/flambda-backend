@@ -239,7 +239,6 @@ and pattern i ppf x =
       line i ppf "Ppat_interval %a..%a\n" fmt_constant c1 fmt_constant c2;
   | Ppat_tuple (l, closed) ->
       line i ppf "Ppat_tuple closed=%a\n" fmt_closed_flag closed;
-      line i ppf "Ppat_tuple\n";
       list i labeled_pattern ppf l;
   | Ppat_construct (li, po) ->
       line i ppf "Ppat_construct %a\n" fmt_longident_loc li;

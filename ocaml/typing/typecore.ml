@@ -104,6 +104,9 @@ type error =
   | Constructor_arity_mismatch of Longident.t * int * int
   | Constructor_labeled_arg
   | Partial_tuple_pattern_bad_type
+  | Extra_tuple_label of string option * type_expr
+  | Missing_tuple_label of string option * type_expr
+  | Fully_matched_partial_tuple_pattern
   | Label_mismatch of Longident.t * Errortrace.unification_error
   | Pattern_type_clash :
       Errortrace.unification_error * _ pattern_desc option -> error
@@ -1076,7 +1079,7 @@ let solve_Ppat_alias ~refine ~mode env pat =
   let ty_var, mode = build_as_type_and_mode ~refine ~mode env pat in
   end_def ();
   generalize ty_var;
-  ty_var, mode 
+  ty_var, mode
 
 (* Extracts the first element from a list matching a label. Roughly:
      pat <- List.assoc_opt label patl;
@@ -1094,34 +1097,53 @@ let extract_pat label patl =
   extract_pat_aux [] patl
 
 let extract_or_mk_pat label rem closed =
-  match (extract_pat label rem), closed with
+  match extract_pat label rem, closed with
   (* Take the first match from patl *)
   | (Some _ as pat_and_rem), _ -> pat_and_rem
   (* No match, but the partial pattern allows us to generate a _ *)
-  | _, Open -> Some ((Ast_helper.Pat.mk Ppat_any), rem)
-  | _ -> None
+  | None, Open -> Some (Ast_helper.Pat.mk Ppat_any, rem)
+  | None, Closed -> None
 
-let reorder_pat patl closed labeled_tl =
-  let take_next taken_and_rem (label, _) =
-    Option.bind taken_and_rem
-    (fun (taken, rem) ->
-      Option.bind (extract_or_mk_pat label rem closed)
-      (fun (pat, rem) ->
-        Some ((label, pat) :: taken, rem)))
+(* Reorders [patl] to match the label order in [labeled_tl], erroring if [patl]
+   is missing a label or has an a extra label (unlabeled components morally
+   share the same special label).
+   
+   If [closed] is [Open], then no "missing label" errors are possible;
+   instead, [_] patterns will be generated for those labels. However, an
+   unnecessarily [Open] pattern is an error.
+
+   (Note: an alternative approach to creating [_] patterns is could be to add a
+    [closed] flag to the typedtree)
+   *)
+let reorder_pat loc env patl closed labeled_tl expected_ty =
+  let take_next (taken, rem) (label, _) =
+    match extract_or_mk_pat label rem closed with
+    | Some (pat, rem) -> (label, pat) :: taken, rem
+    | None ->
+      raise (Error (loc, !env, Missing_tuple_label(label, expected_ty)))
   in
-  match (List.fold_left take_next (Some ([], patl)) labeled_tl) with
-  | Some (taken, []) -> Some (List.rev taken)
-  | _ -> None
+  match List.fold_left take_next ([], patl) labeled_tl with
+  | taken, [] ->
+    if closed = Open
+        && Int.equal (List.length labeled_tl) (List.length patl) then
+      raise (Error (loc, !env, Fully_matched_partial_tuple_pattern));
+    List.rev taken
+  | _, (extra_label, _) :: _ ->
+    raise
+      (Error (loc, !env, Extra_tuple_label(extra_label, expected_ty)))
+
 
 let solve_Ppat_tuple ~refine ~alloc_mode loc env args closed expected_ty =
   let args =
-    match (get_desc expected_ty), (is_principal expected_ty), closed with
+    match get_desc expected_ty with
     (* If it's a principally-known tuple pattern, try to reorder *)
-    | (Ttuple labeled_tl), true, _ ->
-      Option.value ~default:args (reorder_pat args closed labeled_tl)
+    | Ttuple labeled_tl when is_principal expected_ty ->
+      reorder_pat loc env args closed labeled_tl expected_ty
     (* If not, it's not allowed to be open (partial) *)
-    | _, _, Open -> raise (Error (loc, !env, Partial_tuple_pattern_bad_type))
-    | _ -> args
+    | _ ->
+      match closed with
+      | Open -> raise (Error (loc, !env, Partial_tuple_pattern_bad_type))
+      | Closed -> args
   in
   let arity = List.length args in
   let arg_modes =
@@ -7685,6 +7707,10 @@ open Format
 
 let longident = Printtyp.longident
 
+let tuple_component ppf = function
+| Some s -> fprintf ppf "component with label %s" s
+| None -> fprintf ppf "unlabeled component"
+
 (* Returns the first diff of the trace *)
 let type_clash_of_trace trace =
   Errortrace.(explain trace (fun ~prev:_ -> function
@@ -7867,7 +7893,22 @@ let report_error ~loc env = function
         Consider using an inline record instead."
   | Partial_tuple_pattern_bad_type ->
       Location.errorf ~loc
-        "The type of a partial tuple pattern must be principally known."
+        "Could not determine the type of this partial tuple pattern."
+  | Extra_tuple_label (lbl, typ) ->
+      Location.errorf ~loc
+        "This pattern was expected to match values of type@ %a,@ but it \
+         contains an extra %a."
+         Printtyp.type_expr typ
+         tuple_component lbl;
+  | Missing_tuple_label (lbl, typ) ->
+      Location.errorf ~loc
+        "This pattern was expected to match values of type@ %a,@ but it is \
+         missing a %a.@ Hint: use .. to ignore some components."
+        Printtyp.type_expr typ
+         tuple_component lbl;
+  | Fully_matched_partial_tuple_pattern ->
+      Location.errorf ~loc
+        "Unnecessary .., this tuple pattern is fully matched."
   | Label_mismatch(lid, err) ->
       report_unification_error ~loc env err
         (function ppf ->

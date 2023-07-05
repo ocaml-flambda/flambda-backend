@@ -25,7 +25,7 @@ let (~~(~x=x0; ~s; ~(y:int); ..)) : ~~(x:int * s:string * y:int * string) =
    ~~(~x: 1, ~s: "a", ~y: 2, "ignore me")
 [%%expect{|
 
-let ((~x:x0, ~s:s, ~y:(y : int), ..) : (x:int * s:string * y:int * string)) =
+let ((~x:x0, ~s, ~y:(y : int), ..) : (x:int * s:string * y:int * string)) =
   (~x:1, ~s:"a", ~y:2, "ignore me");;
 val x0 : int = 1
 val s : string = "a"

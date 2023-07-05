@@ -86,8 +86,9 @@ let f : ~~(int * bar:int) -> int = fun (~~(~foo; ~bar=bar)) -> foo * 10 + bar
 Line 1, characters 39-59:
 1 | let f : ~~(int * bar:int) -> int = fun (~~(~foo; ~bar=bar)) -> foo * 10 + bar
                                            ^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type foo:'a * bar:'b
-       but a pattern was expected which matches values of type int * bar:int
+Error: This pattern was expected to match values of type int * bar:int,
+       but it is missing a unlabeled component.
+       Hint: use .. to ignore some components.
 |}]
 
 let f = fun (~~(~foo; ~bar=bar) : ~~(foo:int * int)) -> foo * 10 + bar
@@ -95,8 +96,9 @@ let f = fun (~~(~foo; ~bar=bar) : ~~(foo:int * int)) -> foo * 10 + bar
 Line 1, characters 13-31:
 1 | let f = fun (~~(~foo; ~bar=bar) : ~~(foo:int * int)) -> foo * 10 + bar
                  ^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type foo:int * bar:'a
-       but a pattern was expected which matches values of type foo:int * int
+Error: This pattern was expected to match values of type foo:int * int,
+       but it is missing a unlabeled component.
+       Hint: use .. to ignore some components.
 |}]
 
 (* Wrong label *)
@@ -106,9 +108,9 @@ let f : ~~(foo:int * foo:int) -> int =
 Line 2, characters 7-27:
 2 |    fun (~~(~foo; ~bar=bar)) -> foo * 10 + bar
            ^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type foo:int * bar:'a
-       but a pattern was expected which matches values of type
-         foo:int * foo:int
+Error: This pattern was expected to match values of type foo:int * foo:int,
+       but it is missing a component with label foo.
+       Hint: use .. to ignore some components.
 |}]
 
 (* Wrong type *)
@@ -118,9 +120,9 @@ let f : ~~(foo:float * foo:int) -> int =
 Line 2, characters 7-27:
 2 |    fun (~~(~foo; ~bar=bar)) -> foo * 10 + bar
            ^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type foo:float * bar:'a
-       but a pattern was expected which matches values of type
-         foo:float * foo:int
+Error: This pattern was expected to match values of type foo:float * foo:int,
+       but it is missing a component with label foo.
+       Hint: use .. to ignore some components.
 |}]
 
 (* Annotated pattern *)
@@ -135,8 +137,9 @@ let f ((~~(~x;y)) : ~~(int * int)) : int = x + y
 Line 1, characters 7-17:
 1 | let f ((~~(~x;y)) : ~~(int * int)) : int = x + y
            ^^^^^^^^^^
-Error: This pattern matches values of type x:'a * 'b
-       but a pattern was expected which matches values of type int * int
+Error: This pattern was expected to match values of type int * int,
+       but it is missing a unlabeled component.
+       Hint: use .. to ignore some components.
 |}]
 
 let f ((~~(~x;y)) : ~~(int * x:int)) : int = x + y
@@ -274,9 +277,10 @@ let matches =
 Line 2, characters 6-21:
 2 |   let (~~(~x; ~y; z)) = lt in
           ^^^^^^^^^^^^^^^
-Error: This pattern matches values of type x:'a * y:'b * 'c
-       but a pattern was expected which matches values of type
-         x:int * y:int * x:int * int
+Error: This pattern was expected to match values of type
+       x:int * y:int * x:int * int,
+       but it is missing a component with label x.
+       Hint: use .. to ignore some components.
 |}]
 
 (* Full match, wrong label *)
@@ -287,9 +291,10 @@ let matches =
 Line 2, characters 6-25:
 2 |   let (~~(~x; ~y; ~w; z)) = lt in
           ^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type x:int * y:int * w:'a * 'b
-       but a pattern was expected which matches values of type
-         x:int * y:int * x:int * int
+Error: This pattern was expected to match values of type
+       x:int * y:int * x:int * int,
+       but it is missing a component with label x.
+       Hint: use .. to ignore some components.
 |}]
 
 (* Full match, extra label *)
@@ -300,9 +305,9 @@ let matches =
 Line 2, characters 6-29:
 2 |   let (~~(~x; ~y; ~x; ~y; z)) = lt in
           ^^^^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type x:'a * y:'b * x:'c * y:'d * 'e
-       but a pattern was expected which matches values of type
-         x:int * y:int * x:int * int
+Error: This pattern was expected to match values of type
+       x:int * y:int * x:int * int,
+       but it contains an extra component with label y.
 |}]
 
 (* Full match, extra unlabeled label *)
@@ -313,9 +318,9 @@ let matches =
 Line 2, characters 6-28:
 2 |   let (~~(~x; ~y; ~x; z; w)) = lt in
           ^^^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type x:'a * y:'b * x:'c * 'd * 'e
-       but a pattern was expected which matches values of type
-         x:int * y:int * x:int * int
+Error: This pattern was expected to match values of type
+       x:int * y:int * x:int * int,
+       but it contains an extra unlabeled component.
 |}]
 
 
@@ -353,21 +358,16 @@ let matches =
 [%%expect{|
 val matches : int = 1
 |}]
-
-(* Partial match none *)
-let matches =
-  let (~~( .. )) = lt in
-  ()
-[%%expect{|
-val matches : unit = ()
-|}]
  
 (* Partial match all *)
 let matches =
    let (~~( ~x; ~y; ~x=x2; z; .. )) = lt in
    (x, y, x2, z)
 [%%expect{|
-val matches : int * int * int * int = (1, 2, 3, 4)
+Line 2, characters 7-35:
+2 |    let (~~( ~x; ~y; ~x=x2; z; .. )) = lt in
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Unnecessary .., this tuple pattern is fully matched.
 |}]
  
 (* Partial match too many of a name *)
@@ -378,9 +378,9 @@ let matches =
 Line 2, characters 7-32:
 2 |    let (~~( ~y; ~y=y2; ~x; .. )) = lt in
            ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type y:'a * y:'b * x:'c
-       but a pattern was expected which matches values of type
-         x:int * y:int * x:int * int
+Error: This pattern was expected to match values of type
+       x:int * y:int * x:int * int,
+       but it contains an extra component with label y.
 |}]
 
 (* Partial match bad name *)
@@ -391,9 +391,9 @@ let matches =
 Line 2, characters 7-29:
 2 |    let (~~( ~w; ~y; ~x; .. )) = lt in
            ^^^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type w:'a * y:'b * x:'c
-       but a pattern was expected which matches values of type
-         x:int * y:int * x:int * int
+Error: This pattern was expected to match values of type
+       x:int * y:int * x:int * int,
+       but it contains an extra component with label w.
 |}]
 
 (* Nested pattern *)
@@ -409,7 +409,7 @@ let f (z, (~~(~y; ~x; ..))) = x, y, z
 Line 1, characters 10-26:
 1 | let f (z, (~~(~y; ~x; ..))) = x, y, z
               ^^^^^^^^^^^^^^^^
-Error: The type of a partial tuple pattern must be principally known.
+Error: Could not determine the type of this partial tuple pattern.
 |}]
 
 let f (~~(~x; ~y; ..)) = x, y
@@ -417,7 +417,7 @@ let f (~~(~x; ~y; ..)) = x, y
 Line 1, characters 6-22:
 1 | let f (~~(~x; ~y; ..)) = x, y
           ^^^^^^^^^^^^^^^^
-Error: The type of a partial tuple pattern must be principally known.
+Error: Could not determine the type of this partial tuple pattern.
 |}]
 
 (* CR labeled tuples: test all of the above with top-level lets *)
@@ -442,12 +442,6 @@ let _1  = match x with
 val _1 : int = 1
 |}]
 
-(* Empty match *)
-let () = match x with
-| { contents = ~~(..) } -> () 
-[%%expect{|
-|}]
-
 (* Wrong label *)
 let () = match x with
 | { contents = ~~(~w ; ..) } -> w 
@@ -455,9 +449,9 @@ let () = match x with
 Line 2, characters 15-26:
 2 | | { contents = ~~(~w ; ..) } -> w
                    ^^^^^^^^^^^
-Error: This pattern matches values of type w:'a
-       but a pattern was expected which matches values of type
-         x:int * y:int * x:int * int
+Error: This pattern was expected to match values of type
+       x:int * y:int * x:int * int,
+       but it contains an extra component with label w.
 |}]
 
 (* Missing unordered label *)
@@ -467,9 +461,9 @@ let () = match x with
 Line 2, characters 15-33:
 2 | | { contents = ~~(~x=x0; ~y ; ~x) } -> y
                    ^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type x:'a * y:'b * x:'c
-       but a pattern was expected which matches values of type
-         x:int * y:int * x:int * int
+Error: This pattern was expected to match values of type
+       x:int * y:int * x:int * int, but it is missing a unlabeled component.
+       Hint: use .. to ignore some components.
 |}]
 
 (* Extra unordered label *)
@@ -479,9 +473,9 @@ let () = match x with
 Line 2, characters 15-40:
 2 | | { contents = ~~(~x=x0; ~y; ~x; w1; w2) } -> y
                    ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type x:'a * y:'b * x:'c * 'd * 'e
-       but a pattern was expected which matches values of type
-         x:int * y:int * x:int * int
+Error: This pattern was expected to match values of type
+       x:int * y:int * x:int * int,
+       but it contains an extra unlabeled component.
 |}]
 
 (* Extra unordered label, open *)
@@ -491,9 +485,9 @@ let () = match x with
 Line 2, characters 15-44:
 2 | | { contents = ~~(~x=x0; ~y; ~x; w1; w2; ..) } -> y
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type x:'a * y:'b * x:'c * 'd * 'e
-       but a pattern was expected which matches values of type
-         x:int * y:int * x:int * int
+Error: This pattern was expected to match values of type
+       x:int * y:int * x:int * int,
+       but it contains an extra unlabeled component.
 |}]
 
 (* Missing label *)
@@ -503,9 +497,10 @@ let () = match x with
 Line 2, characters 15-31:
 2 | | { contents = ~~(~x=x0; ~y; x) } -> y
                    ^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type x:'a * y:'b * 'c
-       but a pattern was expected which matches values of type
-         x:int * y:int * x:int * int
+Error: This pattern was expected to match values of type
+       x:int * y:int * x:int * int,
+       but it is missing a component with label x.
+       Hint: use .. to ignore some components.
 |}]
 
 (* Extra label *)
@@ -515,7 +510,46 @@ let () = match x with
 Line 2, characters 15-32:
 2 | | { contents = ~~(~y=y0; ~y; ~x) } -> y
                    ^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type y:'a * y:'b * x:'c
-       but a pattern was expected which matches values of type
-         x:int * y:int * x:int * int
+Error: This pattern was expected to match values of type
+       x:int * y:int * x:int * int,
+       but it is missing a component with label x.
+       Hint: use .. to ignore some components.
+|}]
+
+(* Behavior w.r.t whether types are principally known *)
+
+let f (z : ~~(x:_ * y:_)) =
+  match z with
+  | (~~(~y; ~x)) -> x + y
+[%%expect{|
+val f : x:int * y:int -> int = <fun>
+|}]
+
+let f = function (~~(~x; ~y)) -> x + y
+
+let g z =
+  (f z, match z with (~~(~y; ~x)) -> x + y)
+[%%expect{|
+val f : x:int * y:int -> int = <fun>
+val g : x:int * y:int -> int * int = <fun>
+|}, Principal{|
+val f : x:int * y:int -> int = <fun>
+Line 4, characters 21-33:
+4 |   (f z, match z with (~~(~y; ~x)) -> x + y)
+                         ^^^^^^^^^^^^
+Error: This pattern matches values of type y:'a * x:'b
+       but a pattern was expected which matches values of type x:int * y:int
+|}]
+
+let f = function (~~(~x; ~y)) -> x + y
+
+let g z =
+  (match z with (~~(~y; ~x)) -> x + y, f z)
+[%%expect{|
+val f : x:int * y:int -> int = <fun>
+Line 4, characters 41-42:
+4 |   (match z with (~~(~y; ~x)) -> x + y, f z)
+                                             ^
+Error: This expression has type y:int * x:int
+       but an expression was expected of type x:int * y:int
 |}]

@@ -509,11 +509,18 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
     | _ -> simple_pattern ctxt f x
 
 and labeled_pattern1 ctxt (f:Format.formatter) (label, x) : unit =
-  begin match label with
-  | None -> ()
-  | Some s -> pp f "~%s:" s
-  end;
-  pattern1 ctxt f x
+  let simple_name = match x with
+    | {ppat_desc = Ppat_var { txt=s; _ }; ppat_attributes = []; _} -> Some s
+    | _ -> None
+  in
+  match label, simple_name with
+  | None, _ ->
+    pattern1 ctxt f x
+  | Some lbl, Some simple_name when String.equal simple_name lbl ->
+    pp f "~%s" lbl
+  | Some lbl, _ ->
+    pp f "~%s:" lbl;
+    pattern1 ctxt f x
 
 and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
   if x.ppat_attributes <> [] then pattern ctxt f x

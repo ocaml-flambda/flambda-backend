@@ -3285,8 +3285,8 @@ pattern_comma_list(self):
 ;
 
 labeled_pattern_comma_list:
-    DOTDOT
-      { [], Open }
+    labeled_pattern SEMI DOTDOT
+      { [$1], Open }
   | labeled_pattern SEMI labeled_pattern
       { [$1; $3], Closed }
   | labeled_pattern SEMI labeled_pattern_comma_list
