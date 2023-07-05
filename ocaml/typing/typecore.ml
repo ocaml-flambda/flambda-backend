@@ -106,7 +106,6 @@ type error =
   | Partial_tuple_pattern_bad_type
   | Extra_tuple_label of string option * type_expr
   | Missing_tuple_label of string option * type_expr
-  | Fully_matched_partial_tuple_pattern
   | Label_mismatch of Longident.t * Errortrace.unification_error
   | Pattern_type_clash :
       Errortrace.unification_error * _ pattern_desc option -> error
@@ -1112,7 +1111,7 @@ let extract_or_mk_pat label rem closed =
    instead, [_] patterns will be generated for those labels. However, an
    unnecessarily [Open] pattern is an error.
 
-   (Note: an alternative approach to creating [_] patterns is could be to add a
+   (Note: an alternative approach to creating [_] patterns could be to add a
     [closed] flag to the typedtree)
    *)
 let reorder_pat loc env patl closed labeled_tl expected_ty =
@@ -1126,7 +1125,7 @@ let reorder_pat loc env patl closed labeled_tl expected_ty =
   | taken, [] ->
     if closed = Open
         && Int.equal (List.length labeled_tl) (List.length patl) then
-      raise (Error (loc, !env, Fully_matched_partial_tuple_pattern));
+      Location.prerr_warning loc Warnings.Unnecessarily_partial_tuple_pattern;
     List.rev taken
   | _, (extra_label, _) :: _ ->
     raise
@@ -1135,7 +1134,7 @@ let reorder_pat loc env patl closed labeled_tl expected_ty =
 
 let solve_Ppat_tuple ~refine ~alloc_mode loc env args closed expected_ty =
   let args =
-    match get_desc expected_ty with
+    match get_desc (expand_head !env expected_ty) with
     (* If it's a principally-known tuple pattern, try to reorder *)
     | Ttuple labeled_tl when is_principal expected_ty ->
       reorder_pat loc env args closed labeled_tl expected_ty
@@ -7906,9 +7905,6 @@ let report_error ~loc env = function
          missing a %a.@ Hint: use .. to ignore some components."
         Printtyp.type_expr typ
          tuple_component lbl;
-  | Fully_matched_partial_tuple_pattern ->
-      Location.errorf ~loc
-        "Unnecessary .., this tuple pattern is fully matched."
   | Label_mismatch(lid, err) ->
       report_unification_error ~loc env err
         (function ppf ->

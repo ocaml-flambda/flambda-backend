@@ -177,25 +177,27 @@ type xy = ~~(x:int * y:int)
 type yx = ~~(y:int * x:int)
 let xy_id (pt : xy) = pt
 let yx_id (pt : yx) = pt
-
-
-let swap (~~(~x; ~y)) = ~~(~y, ~x)
 [%%expect{|
 type xy = x:int * y:int
 type yx = y:int * x:int
 val xy_id : xy -> xy = <fun>
 val yx_id : yx -> yx = <fun>
+|}]
+
+let xy_id (~~(~y; ~x) : xy) = ~~(~x, ~y)
+[%%expect{|
+val xy_id : xy -> x:int * y:int = <fun>
+|}]
+
+
+let swap (~~(~x; ~y)) = ~~(~y, ~x)
+[%%expect{|
 val swap : x:'a * y:'b -> y:'b * x:'a = <fun>
 |}]
 
 let swap (~~(~y; ~x) : xy) = ~~(~y, ~x)
 [%%expect{|
-Line 1, characters 10-20:
-1 | let swap (~~(~y; ~x) : xy) = ~~(~y, ~x)
-              ^^^^^^^^^^
-Error: This pattern matches values of type y:'a * x:'b
-       but a pattern was expected which matches values of type
-         xy = x:int * y:int
+val swap : xy -> y:int * x:int = <fun>
 |}]
 
 let swap (~~(~x; ~y)) = (~~(~x, ~y) : yx)
@@ -231,9 +233,9 @@ let swap : xy -> yx = xy_id
 Line 1, characters 22-27:
 1 | let swap : xy -> yx = xy_id
                           ^^^^^
-Error: This expression has type xy -> xy
+Error: This expression has type xy -> x:int * y:int
        but an expression was expected of type xy -> yx
-       Type xy = x:int * y:int is not compatible with type yx = y:int * x:int
+       Type x:int * y:int is not compatible with type yx = y:int * x:int
 |}]
 
 let swap : xy -> yx = yx_id  
@@ -367,7 +369,9 @@ let matches =
 Line 2, characters 7-35:
 2 |    let (~~( ~x; ~y; ~x=x2; z; .. )) = lt in
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Unnecessary .., this tuple pattern is fully matched.
+Warning 189 [unnecessarily-partial-tuple-pattern]: This tuple pattern unnecessarily ends in '..',
+as it explicitly matches all components of its expected type.
+val matches : int * int * int * int = (1, 2, 3, 4)
 |}]
  
 (* Partial match too many of a name *)

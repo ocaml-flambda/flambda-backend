@@ -2649,6 +2649,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           Option.is_some toplevel
         in
         let (defs, newenv) =
+          (* CR labeled tuples: if non recursive, then type the expression
+             before the pattern *)
           Typecore.type_binding env rec_flag ~force_global sdefs in
         let () = if rec_flag = Recursive then
           Typecore.check_recursive_bindings env defs
