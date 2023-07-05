@@ -354,7 +354,7 @@ let name env n =
 
 let float f = f |> Numeric_types.Float_by_bit_pattern.to_float
 
-let vec128 v = v |> Numeric_types.Vec128_by_bit_pattern.to_int64s
+let vec128 v = v |> Numeric_types.Vec128_by_bit_pattern.to_bits
 
 let targetint i = i |> Targetint_32_64.to_int64
 
@@ -370,8 +370,7 @@ let const c : Fexpr.const =
   | Naked_int32 i -> Naked_int32 i
   | Naked_int64 i -> Naked_int64 i
   | Naked_vec128 i ->
-    let v0, v1 = Numeric_types.Vec128_by_bit_pattern.to_int64s i in
-    Naked_vec128 (v0, v1)
+    Naked_vec128 (Numeric_types.Vec128_by_bit_pattern.to_bits i)
   | Naked_nativeint i -> Naked_nativeint (i |> targetint)
 
 let depth_or_infinity (d : int Or_infinity.t) : Fexpr.rec_info =

@@ -684,21 +684,21 @@ let emit_float_constant f lbl =
 
 (* Vector constants *)
 
-let vec128_constants = ref ([] : ((int64 * int64) * int) list)
+let vec128_constants = ref ([] : (Cmm.vec128_bits * int) list)
 
-let add_vec128_constant (v0, v1) =
+let add_vec128_constant bits =
   try
-    List.assoc (v0, v1) !vec128_constants
+    List.assoc bits !vec128_constants
   with Not_found ->
     let lbl = new_label() in
-    vec128_constants := ((v0, v1), lbl) :: !vec128_constants;
+    vec128_constants := (bits, lbl) :: !vec128_constants;
     lbl
 
-let emit_vec128_constant (v0, v1) lbl =
+let emit_vec128_constant {high; low} lbl =
   _label (emit_label lbl);
   (* SIMD vectors respect little-endian byte order *)
-  D.qword (Const v1);
-  D.qword (Const v0)
+  D.qword (Const low);
+  D.qword (Const high)
 
 let emit_global_label_for_symbol lbl =
   add_def_symbol lbl;
@@ -945,12 +945,12 @@ let emit_instr fallthrough i =
           let lbl = add_float_constant f in
           I.movsd (mem64_rip REAL8 (emit_label lbl)) (res i 0)
       end
-  | Lop(Iconst_vec128 (v0, v1)) ->
-      begin match (v0, v1) with
+  | Lop(Iconst_vec128 {high; low}) ->
+      begin match (high, low) with
       | 0x0000_0000_0000_0000L, 0x0000_0000_0000_0000L ->
           I.xorpd (res i 0) (res i 0)
       | _ ->
-          let lbl = add_vec128_constant (v0, v1) in
+          let lbl = add_vec128_constant {high; low} in
           I.movupd (mem64_rip VEC128 (emit_label lbl)) (res i 0)
       end
   | Lop(Iconst_symbol s) ->
@@ -1524,7 +1524,7 @@ let emit_item = function
   | Csingle f -> D.long  (Const (Int64.of_int32 (Int32.bits_of_float f)))
   | Cdouble f -> D.qword (Const (Int64.bits_of_float f))
   (* SIMD vectors respect little-endian byte order *)
-  | Cvec128 (v0, v1) -> D.qword (Const v1); D.qword (Const v0)
+  | Cvec128 {high; low} -> D.qword (Const low); D.qword (Const high)
   | Csymbol_address s ->
     add_used_symbol s.sym_name;
     D.qword (ConstLabel (emit_cmm_symbol s))
@@ -1917,7 +1917,7 @@ let end_assembly () =
     end;
     D.align ~data:true 8;
     List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants;
-    List.iter (fun ((v0,v1),lbl) -> emit_vec128_constant (v0, v1) lbl) !vec128_constants;
+    List.iter (fun (cst,lbl) -> emit_vec128_constant cst lbl) !vec128_constants;
   end;
 
   (* Emit probe handler wrappers *)

@@ -143,7 +143,12 @@ module Vec128_by_bit_pattern : sig
 
   val zero : t
 
-  val to_int64s : t -> int64 * int64
+  type bits =
+    { high : int64;
+      low : int64
+    }
 
-  val of_int64s : int64 * int64 -> t
+  val to_bits : t -> bits
+
+  val of_bits : bits -> t
 end

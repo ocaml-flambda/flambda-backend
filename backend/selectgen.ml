@@ -857,9 +857,9 @@ method emit_expr_aux (env:environment) exp :
   | Cconst_float (n, _dbg) ->
       let r = self#regs_for typ_float in
       ret (self#insert_op env (Iconst_float (Int64.bits_of_float n)) [||] r)
-  | Cconst_vec128 (v0, v1, _dbg) ->
+  | Cconst_vec128 (bits, _dbg) ->
     let r = self#regs_for typ_vec128 in
-    ret (self#insert_op env (Iconst_vec128 (v0, v1)) [||] r)
+    ret (self#insert_op env (Iconst_vec128 bits) [||] r)
   | Cconst_symbol (n, _dbg) ->
       (* Cconst_symbol _ evaluates to a statically-allocated address, so its
          value fits in a typ_int register and is never changed by the GC.

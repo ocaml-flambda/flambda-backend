@@ -247,7 +247,8 @@ let dump_op ppf = function
   | Const_int n -> Format.fprintf ppf "const_int %nd" n
   | Const_float f -> Format.fprintf ppf "const_float %F" (Int64.float_of_bits f)
   | Const_symbol s -> Format.fprintf ppf "const_symbol %s" s.sym_name
-  | Const_vec128 (v0, v1) -> Format.fprintf ppf "const vec128 %Ld:%Ld" v0 v1
+  | Const_vec128 { high; low } ->
+    Format.fprintf ppf "const vec128 %Ld:%Ld" high low
   | Stackoffset n -> Format.fprintf ppf "stackoffset %d" n
   | Load _ -> Format.fprintf ppf "load"
   | Store _ -> Format.fprintf ppf "store"

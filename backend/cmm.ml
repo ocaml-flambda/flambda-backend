@@ -250,13 +250,15 @@ type symbol =
   { sym_name : string;
     sym_global : is_global }
 
+type vec128_bits = { low : int64; high: int64 }
+
 let global_symbol sym_name = { sym_name; sym_global = Global }
 
 type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
-  | Cconst_vec128 of int64 * int64 * Debuginfo.t
+  | Cconst_vec128 of vec128_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
   | Cvar of Backend_var.t
   | Clet of Backend_var.With_provenance.t * expression * expression
@@ -311,7 +313,7 @@ type data_item =
   | Cint of nativeint
   | Csingle of float
   | Cdouble of float
-  | Cvec128 of int64 * int64
+  | Cvec128 of vec128_bits
   | Csymbol_address of symbol
   | Cstring of string
   | Cskip of int

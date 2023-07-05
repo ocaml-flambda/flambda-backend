@@ -727,9 +727,9 @@ let rec unbox_vector dbg vi =
       c
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
-      | Some (Uconst_vec128 (v0, v1)) ->
+      | Some (Uconst_vec128 { low; high }) ->
         assert (vi = Primitive.Pvec128);
-        Cconst_vec128 (v0, v1, dbg) (* or keep _dbg? *)
+        Cconst_vec128 ({ low; high }, dbg) (* or keep _dbg? *)
       | _ -> Cop (Cload (load, Immutable), [cmm], dbg))
     | Cregion e as cmm -> (
       (* It is valid to push unboxing inside a Cregion except when the extra
@@ -3760,8 +3760,8 @@ let emit_nativeint_constant symb n cont =
   emit_block symb boxedintnat_header
     (emit_boxed_nativeint_constant_fields n cont)
 
-let emit_vec128_constant symb (v0, v1) cont =
-  emit_block symb boxedvec128_header (Cvec128 (v0, v1) :: cont)
+let emit_vec128_constant symb bits cont =
+  emit_block symb boxedvec128_header (Cvec128 bits :: cont)
 
 let emit_float_array_constant symb fields cont =
   emit_block symb
@@ -4121,7 +4121,7 @@ let int32 ~dbg i = natint_const_untagged dbg (Nativeint.of_int32 i)
    cross-compiling for 64-bit on a 32-bit host *)
 let int64 ~dbg i = natint_const_untagged dbg (Int64.to_nativeint i)
 
-let vec128 ~dbg (v0, v1) = Cconst_vec128 (v0, v1, dbg)
+let vec128 ~dbg bits = Cconst_vec128 (bits, dbg)
 
 let nativeint ~dbg i = natint_const_untagged dbg i
 
@@ -4386,7 +4386,7 @@ let cint i = Cmm.Cint i
 
 let cfloat f = Cmm.Cdouble f
 
-let cvec128 (a, b) = Cmm.Cvec128 (a, b)
+let cvec128 bits = Cmm.Cvec128 bits
 
 let symbol_address s = Cmm.Csymbol_address s
 

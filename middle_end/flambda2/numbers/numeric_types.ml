@@ -294,10 +294,15 @@ module Vec128_by_bit_pattern = struct
     let size_in_int64s = 2
   end)
 
-  let to_int64s t =
-    match to_int64_array t with
-    | [| a; b |] -> a, b
-    | _ -> Misc.fatal_error "Vec128.to_int64s: wrong size vector"
+  type bits =
+    { high : int64;
+      low : int64
+    }
 
-  let of_int64s (v0, v1) = of_int64_array [| v0; v1 |]
+  let to_bits t =
+    match to_int64_array t with
+    | [| high; low |] -> { high; low }
+    | _ -> Misc.fatal_error "Vec128.to_bits: wrong size vector"
+
+  let of_bits { high; low } = of_int64_array [| high; low |]
 end

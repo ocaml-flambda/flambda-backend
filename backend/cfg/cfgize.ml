@@ -144,7 +144,7 @@ let basic_or_terminator_of_operation :
   | Iconst_int i -> Basic (Op (Const_int i))
   | Iconst_float f -> Basic (Op (Const_float f))
   | Iconst_symbol s -> Basic (Op (Const_symbol s))
-  | Iconst_vec128 (v0, v1) -> Basic (Op (Const_vec128 (v0, v1)))
+  | Iconst_vec128 bits -> Basic (Op (Const_vec128 bits))
   | Icall_ind ->
     With_next_label (fun label_after -> Call { op = Indirect; label_after })
   | Icall_imm { func } ->

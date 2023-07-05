@@ -257,6 +257,10 @@ type symbol =
   { sym_name : string;
     sym_global : is_global }
 
+(* SIMD vectors are untyped in the backend. 
+   This record holds the bitwise representation of a 128-bit value. *)
+type vec128_bits = { low : int64; high: int64 }
+
 val global_symbol : string -> symbol
 
 (** Every basic block should have a corresponding [Debuginfo.t] for its
@@ -265,7 +269,7 @@ type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
   | Cconst_float of float * Debuginfo.t
-  | Cconst_vec128 of int64 * int64 * Debuginfo.t
+  | Cconst_vec128 of vec128_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
   | Cvar of Backend_var.t
   | Clet of Backend_var.With_provenance.t * expression * expression
@@ -323,7 +327,7 @@ type data_item =
   | Cint of nativeint
   | Csingle of float
   | Cdouble of float
-  | Cvec128 of int64 * int64
+  | Cvec128 of vec128_bits
   | Csymbol_address of symbol
   | Cstring of string
   | Cskip of int

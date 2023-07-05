@@ -276,8 +276,8 @@ let emit_structured_constant symb cst cont =
       emit_int64_constant symb n cont
   | Uconst_nativeint n ->
       emit_nativeint_constant symb n cont
-  | Uconst_vec128 (v0, v1) -> 
-      emit_vec128_constant symb (v0, v1) cont 
+  | Uconst_vec128 {high; low} -> 
+      emit_vec128_constant symb {high; low} cont 
   | Uconst_block (tag, csts) ->
       let cont = List.fold_right emit_constant csts cont in
       emit_block symb (block_header tag (List.length csts)) cont

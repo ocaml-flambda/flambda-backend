@@ -957,7 +957,7 @@ val emit_nativeint_constant :
   symbol -> nativeint -> data_item list -> data_item list
 
 val emit_vec128_constant :
-  symbol -> int64 * int64 -> data_item list -> data_item list
+  symbol -> Cmm.vec128_bits -> data_item list -> data_item list
 
 val emit_float_array_constant :
   symbol -> float list -> data_item list -> data_item list
@@ -1006,7 +1006,7 @@ val int32 : dbg:Debuginfo.t -> int32 -> expression
 val int64 : dbg:Debuginfo.t -> int64 -> expression
 
 (** Create a constant vec128 expression from two int64s. *)
-val vec128 : dbg:Debuginfo.t -> int64 * int64 -> expression
+val vec128 : dbg:Debuginfo.t -> Cmm.vec128_bits -> expression
 
 (** Create a constant int expression from a nativeint. *)
 val nativeint : dbg:Debuginfo.t -> Nativeint.t -> expression
@@ -1254,7 +1254,7 @@ val cint : nativeint -> data_item
 val cfloat : float -> data_item
 
 (** Static 128-bit vector. *)
-val cvec128 : int64 * int64 -> data_item
+val cvec128 : Cmm.vec128_bits -> data_item
 
 (** Static symbol. *)
 val symbol_address : symbol -> data_item
