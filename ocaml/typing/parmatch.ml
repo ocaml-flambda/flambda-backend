@@ -1914,7 +1914,9 @@ module Conv = struct
           mkpat (Ppat_constant (Untypeast.constant c))
       | Tpat_alias (p,_,_,_) -> loop p
       | Tpat_tuple lst ->
-          mkpat (Ppat_tuple (List.map (fun (label, p) -> label, loop p) lst))
+          mkpat
+            (Ppat_tuple
+              (List.map (fun (label, p) -> label, loop p) lst, Closed))
       | Tpat_construct (cstr_lid, cstr, lst, _) ->
           let id = fresh cstr.cstr_name in
           let lid = { cstr_lid with txt = Longident.Lident id } in
@@ -1923,7 +1925,10 @@ module Conv = struct
             match List.map loop lst with
             | []  -> None
             | [p] -> Some ([], p)
-            | lst -> Some ([], mkpat (Ppat_tuple (List.map (fun p -> None, p) lst)))
+            | lst ->
+              Some
+                ([],
+                mkpat (Ppat_tuple (List.map (fun p -> None, p) lst, Closed)))
           in
           mkpat (Ppat_construct(lid, arg))
       | Tpat_variant(label,p_opt,_row_desc) ->

@@ -460,8 +460,6 @@ and transl_exp0 ~in_new_scope ~scopes e =
                  (transl_cases_try ~scopes pat_expr_list),
                layout)
   | Texp_tuple (el, alloc_mode) -> 
-      (* CR labeled tuples: this assumes that the orders of [Tpat_tuple]s match
-         their type. Double-check this upon adding reordering *)
       let ll, shape = transl_list_with_shape ~scopes (List.map snd el) in
       begin try
         Lconst(Const_block(0, List.map extract_constant ll))
@@ -1607,8 +1605,6 @@ and transl_match ~scopes e arg sort pat_expr_list partial =
   in
   let classic =
     match arg, exn_cases with
-    (* CR labeled tuples: these cases assume that the orders of [Tpat_tuple]s
-       match their type. Double-check this upon adding reordering *)
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, [] ->
       assert (static_handlers = []);
       let mode = transl_alloc_mode alloc_mode in
