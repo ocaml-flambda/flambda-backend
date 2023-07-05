@@ -943,7 +943,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           ~kind:(Curried {nlocal=0})
           (* CR layouts: Adjust param layouts when we allow other things in
              probes. *)
-          (* CR ncourant: can we assume the mode is always heap? *)
           ~params:(List.map (fun name -> { name; layout = layout_probe_arg; attributes = Lambda.default_param_attribute; mode = alloc_heap }) param_idents)
           ~return:return_layout
           ~body

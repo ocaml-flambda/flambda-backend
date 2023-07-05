@@ -795,15 +795,14 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         List.iter (fun (id, _) -> if Ident.Set.mem id fv then raise Exit) map;
 
         let inner_id = Ident.create_local (Ident.name fun_id ^ "_inner") in
-        let map_param p =
+        let map_param (p : Lambda.lparam) =
           try
             (* If the param is optional, then it must be a value *)
-            (* CR ncourant: is the mode necessarily heap? *)
             {
               name = List.assoc p.name map;
               layout = Lambda.layout_field;
               attributes = Lambda.default_param_attribute;
-              mode = alloc_heap
+              mode = p.mode
             }
           with
             Not_found -> p
