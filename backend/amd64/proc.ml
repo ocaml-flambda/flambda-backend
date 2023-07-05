@@ -48,8 +48,7 @@ let win64 = Arch.win64
     r14         domain state pointer
     r15         allocation pointer
 
-  xmm0 - xmm15  100 - 115  (for floats)
-  xmm0 - xmm15  200 - 215  (for 128-bit SIMD vectors) *)
+  xmm0 - xmm15  100 - 115  (for floats and SIMD vectors) *)
 
 (* Conventions:
      rax - r13: OCaml function arguments
