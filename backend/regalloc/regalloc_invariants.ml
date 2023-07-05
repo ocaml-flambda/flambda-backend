@@ -170,9 +170,9 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
     | Stack stack_loc -> (
       match stack_loc with
       | Local index ->
-        let reg_class = Proc.register_class reg in
-        used_stack_slots.(reg_class)
-          <- Int.Set.add index used_stack_slots.(reg_class)
+        let ss_class = Proc.stack_slot_class_for reg in
+        used_stack_slots.(ss_class)
+          <- Int.Set.add index used_stack_slots.(ss_class)
       | Incoming _ -> ()
       | Outgoing _ -> ()
       | Domainstate _ -> ())
