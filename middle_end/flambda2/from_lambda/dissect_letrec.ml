@@ -172,7 +172,7 @@ let lsequence (lam1, lam2) =
   [@@ocaml.warning "-fragile-match"]
 
 let caml_update_dummy_prim =
-  Primitive.simple ~name:"caml_update_dummy" ~arity:2 ~alloc:true
+  Primitive.simple_on_values ~name:"caml_update_dummy" ~arity:2 ~alloc:true
 
 let update_dummy var expr =
   Lprim (Pccall caml_update_dummy_prim, [Lvar var; expr], Loc_unknown)
@@ -570,7 +570,7 @@ let dissect_letrec ~bindings ~body ~free_vars_kind =
           | Normal _tag -> "caml_alloc_dummy"
           | Boxed_float -> "caml_alloc_dummy_float"
         in
-        let desc = Primitive.simple ~name:fn ~arity:1 ~alloc:true in
+        let desc = Primitive.simple_on_values ~name:fn ~arity:1 ~alloc:true in
         let size : lambda = Lconst (Const_base (Const_int size)) in
         id, Lprim (Pccall desc, [size], Loc_unknown))
       letrec.blocks

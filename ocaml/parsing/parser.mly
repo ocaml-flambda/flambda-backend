@@ -4031,7 +4031,7 @@ signed_constant:
   | PLUS FLOAT        { let (f, m) = $2 in
                         Constant.value (Pconst_float(f, m)) }
   | PLUS HASH_INT     { unboxed_int $sloc $loc($2) Positive $2 }
-  | PLUS HASH_FLOAT   { unboxed_float $sloc Negative $2 }
+  | PLUS HASH_FLOAT   { unboxed_float $sloc Positive $2 }
 ;
 
 /* Identifiers and long identifiers */

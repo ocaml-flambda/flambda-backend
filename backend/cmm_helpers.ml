@@ -1987,7 +1987,8 @@ let box_sized size mode dbg exp =
 
 (* Simplification of some primitives into C calls *)
 
-let default_prim name = Primitive.simple ~name ~arity:0 (*ignored*) ~alloc:true
+let default_prim name =
+  Primitive.simple_on_values ~name ~arity:0 (*ignored*) ~alloc:true
 
 let int64_native_prim name arity ~alloc =
   let u64 = Primitive.(Prim_global, Unboxed_integer Pint64) in

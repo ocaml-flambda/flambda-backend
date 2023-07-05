@@ -66,11 +66,11 @@ let log_stack_subst : indent:int -> Substitution.t -> unit =
 let filter_unknown : Reg.Set.t -> Reg.Set.t =
  fun regset -> Reg.Set.filter Reg.is_unknown regset
 
-let live_at_block_beginning : Cfg_with_liveness.t -> Label.t -> Reg.Set.t =
- fun cfg_with_liveness label ->
-  let block = Cfg_with_liveness.get_block_exn cfg_with_liveness label in
+let live_at_block_beginning : Cfg_with_infos.t -> Label.t -> Reg.Set.t =
+ fun cfg_with_infos label ->
+  let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
   let first_id = Cfg.first_instruction_id block in
-  match Cfg_with_liveness.liveness_find_opt cfg_with_liveness first_id with
+  match Cfg_with_infos.liveness_find_opt cfg_with_infos first_id with
   | None -> fatal "liveness information missing for instruction %d" first_id
   | Some { Cfg_liveness.before; across = _ } -> filter_unknown before
 

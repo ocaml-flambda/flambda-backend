@@ -226,8 +226,56 @@ tweak these instructions):
 4. Choose the built `ocamldebug`, in your install directory.
 5. Set any breakpoints you want. The easiest way is to navigate to the line
    where you want the breakpoint and use `C-x C-a C-b` in emacs.
-6. Install the debug printers, with `source ocaml/tools/debug_printers`.
+6. Run `directory _build/main/ocaml/.ocamlcommon.objs/byte` to add the right
+   directory to `ocamldebug`'s search path. (If you skip this, printing any
+   value produces `Cannot find module Misc.`.)
 7. `run` to your breakpoint.
+
+There is already a `.ocamldebug` file that automatically loads the
+`debug_printers` built by `make debug`; no need to load those printers.
+
+In order to make doing this even easier, you may want the following emacs-lisp
+function, which automates steps 1, 2, 4, 6, and 7, above. That is, with
+`ocamldebug-ocaml`, you choose the arguments to the debugger (usually, some
+target `.ml` file), set a breakpoint, and then `run`.
+
+```
+;; directly inspired by the ocamldebug implementation in ocamldebug.el
+(require 'ocamldebug)
+(defun ocamldebug-ocaml ()
+  (interactive)
+  "Runs ocamldebug on the ocaml built from the source file in the active buffer"
+  (let* ((ocaml-dir (expand-file-name
+                     (locate-dominating-file (buffer-file-name) ".git")))
+         (pgm-path (file-name-concat ocaml-dir "ocamlc"))
+         (comint-name "ocamldebug-ocamlc")
+         (buffer-name (concat "*" comint-name "*"))
+         (ocamldebug-command-name
+          (file-name-concat ocaml-dir "_build/install/main/bin/ocamldebug")))
+    (unless (file-exists-p ocamldebug-command-name)
+      (error "No debugger found; run `make debug` first."))
+    (pop-to-buffer buffer-name)
+    (unless (comint-check-proc buffer-name)
+      (setq default-directory ocaml-dir)
+      (setq ocamldebug-debuggee-args
+            (read-from-minibuffer (format "Args for ocamlc: ")
+                                  ocamldebug-debuggee-args))
+      (let* ((args (split-string-shell-command ocamldebug-debuggee-args)))
+        (apply #'make-comint comint-name
+               ocamldebug-command-name
+               nil
+               "-emacs"
+               "-cd" default-directory
+               "-I" "_build/main/ocaml/.ocamlcommon.objs/byte"
+               pgm-path
+               args)
+        (set-process-filter (get-buffer-process (current-buffer))
+                            #'ocamldebug-filter)
+        (set-process-sentinel (get-buffer-process (current-buffer))
+                              #'ocamldebug-sentinel)
+        (ocamldebug-mode)))
+    (ocamldebug-set-buffer)))
+```
 
 See [the manual section](https://v2.ocaml.org/manual/debugger.html) for more
 information about the debugger.
