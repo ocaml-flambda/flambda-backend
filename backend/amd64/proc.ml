@@ -127,11 +127,6 @@ let register_name r =
   else if r < 200 then float_reg_name.(r - 100)
   else Misc.fatal_errorf "Register of unknown class (%d)" r
 
-let class_of reg =
-  if reg < 100 then 0
-  else if reg < 200 then 1
-  else Misc.fatal_errorf "Register of unknown class (%d)" reg
-
 (* Pack registers starting at %rax so as to reduce the number of REX
    prefixes and thus improve code density *)
 let rotate_registers = false
