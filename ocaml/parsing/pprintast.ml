@@ -481,7 +481,7 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
             Some ([], inner_pat));
        ppat_attributes = []} ->
       begin match Jane_syntax.Pattern.of_ast inner_pat, inner_pat.ppat_desc with
-      | None, Ppat_tuple([None, pat1; None, pat2]) ->
+      | None, Ppat_tuple([None, pat1; None, pat2], Closed) ->
         pp f "%a::%a" (simple_pattern ctxt) pat1 pattern_list_helper pat2 (*RA*)
       | _ -> pattern1 ctxt f p
       end
@@ -509,11 +509,18 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
     | _ -> simple_pattern ctxt f x
 
 and labeled_pattern1 ctxt (f:Format.formatter) (label, x) : unit =
-  begin match label with
-  | None -> ()
-  | Some s -> pp f "~%s:" s
-  end;
-  pattern1 ctxt f x
+  let simple_name = match x with
+    | {ppat_desc = Ppat_var { txt=s; _ }; ppat_attributes = []; _} -> Some s
+    | _ -> None
+  in
+  match label, simple_name with
+  | None, _ ->
+    pattern1 ctxt f x
+  | Some lbl, Some simple_name when String.equal simple_name lbl ->
+    pp f "~%s" lbl
+  | Some lbl, _ ->
+    pp f "~%s:" lbl;
+    pattern1 ctxt f x
 
 and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
   if x.ppat_attributes <> [] then pattern ctxt f x
@@ -550,9 +557,15 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
         | _ ->
             pp f "@[<2>{@;%a;_}@]" (list longident_x_pattern ~sep:";@;") l
         end
-    | Ppat_tuple l ->
-        pp f "@[<1>(%a)@]"
-          (list ~sep:",@;" (labeled_pattern1 ctxt)) l (* level1 *)
+    | Ppat_tuple (l, closed) ->
+        begin match closed with
+        | Closed ->
+          pp f "@[<1>(%a)@]"
+            (list ~sep:",@;" (labeled_pattern1 ctxt)) l (* level1 *)
+        | Open ->
+          pp f "@[<1>(%a,@;..)@]"
+            (list ~sep:",@;" (labeled_pattern1 ctxt)) l (* level1 *)
+        end
     | Ppat_constant (c) -> pp f "%a" constant c
     | Ppat_interval (c1, c2) -> pp f "%a..%a" constant c1 constant c2
     | Ppat_variant (l,None) ->  pp f "`%s" l

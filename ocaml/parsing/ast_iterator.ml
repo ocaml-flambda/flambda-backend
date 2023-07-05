@@ -562,7 +562,7 @@ module P = struct
     | Ppat_alias (p, s) -> sub.pat sub p; iter_loc sub s
     | Ppat_constant _ -> iter_constant
     | Ppat_interval _ -> ()
-    | Ppat_tuple pl -> List.iter (fun (_, p) -> sub.pat sub p) pl
+    | Ppat_tuple (pl, _) -> List.iter (fun (_, p) -> sub.pat sub p) pl
     | Ppat_construct (l, p) ->
         iter_loc sub l;
         iter_opt
