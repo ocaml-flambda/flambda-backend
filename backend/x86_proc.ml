@@ -243,7 +243,7 @@ let string_of_registerf : registerf -> string = function
   | TOS -> Printf.sprintf "tos"
   | ST n -> Printf.sprintf "st(%d)" n
 
-let string_of_regSIMD = function
+let string_of_reg128 = function
   | XMM n -> Printf.sprintf "xmm%d" n
 
 let string_of_condition = function

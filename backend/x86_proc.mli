@@ -25,7 +25,7 @@ val string_of_reg8h: reg8h -> string
 val string_of_reg16: reg64 -> string
 val string_of_reg32: reg64 -> string
 val string_of_reg64: reg64 -> string
-val string_of_regSIMD: regSIMD -> string
+val string_of_reg128: reg128 -> string
 val string_of_registerf: registerf -> string
 val string_of_substring_literal: int -> int -> string -> string
 val string_of_string_literal: string -> string

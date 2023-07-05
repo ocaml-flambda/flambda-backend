@@ -83,7 +83,7 @@ let fastcode_flag = ref true
 (* Layout of the stack frame *)
 let stack_offset = ref 0
 
-let num_stack_slots = Array.make Proc.num_register_classes 0
+let num_stack_slots = Array.make Proc.num_stack_slot_classes 0
 
 let prologue_required = ref false
 
@@ -1464,7 +1464,7 @@ let fundecl fundecl =
   local_realloc_sites := [];
   bound_error_sites := [];
   bound_error_call := 0;
-  for i = 0 to Proc.num_register_classes - 1 do
+  for i = 0 to Proc.num_stack_slot_classes - 1 do
     num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
   done;
   prologue_required := fundecl.fun_prologue_required;
@@ -1677,7 +1677,7 @@ let emit_probe_handler_wrapper p =
      recall that the wrapper does however have its own frame.) *)
   frame_required := true;
   stack_offset := p.stack_offset;
-  for i = 0 to Proc.num_register_classes - 1 do
+  for i = 0 to Proc.num_stack_slot_classes - 1 do
     num_stack_slots.(i) <- p.num_stack_slots.(i);
   done;
   (* Account for the return address that is now pushed on the stack. *)

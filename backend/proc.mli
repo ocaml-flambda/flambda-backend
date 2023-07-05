@@ -28,8 +28,9 @@ val register_name: int -> string
 val phys_reg: int -> Reg.t
 val rotate_registers: bool
 val all_phys_regs : Reg.t array
-val sibling_classes: int -> int array 
-val reg_id_in_class: reg:int -> in_class:int -> int option
+
+val num_stack_slot_classes: int
+val stack_slot_class_for: Reg.t -> int
 
 (* Calling conventions *)
 val loc_arguments: Cmm.machtype -> Reg.t array * int

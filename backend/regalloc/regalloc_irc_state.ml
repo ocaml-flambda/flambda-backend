@@ -341,8 +341,7 @@ let[@inline] add_edge state u v =
   in
   let pair = RegisterStamp.pair u.Reg.stamp v.Reg.stamp in
   if (not (Reg.same u v))
-     && is_interesting_reg u && is_interesting_reg v
-     && interfering_reg_class u v
+     && is_interesting_reg u && is_interesting_reg v && same_reg_class u v
      && not (RegisterStamp.PairSet.mem state.adj_set pair)
   then (
     RegisterStamp.PairSet.add state.adj_set pair;

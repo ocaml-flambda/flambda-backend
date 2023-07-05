@@ -70,7 +70,7 @@ type reg8h =
 
 type registerf = XMMf of int | TOS | ST of int
 
-type regSIMD = XMM of int
+type reg128 = XMM of int
 
 type arch = X64 | X86
 
@@ -104,7 +104,7 @@ type arg =
   | Reg16 of reg64
   | Reg32 of reg64
   | Reg64 of reg64
-  | Reg128 of regSIMD
+  | Reg128 of reg128
   | Regf of registerf
 
   | Mem of addr

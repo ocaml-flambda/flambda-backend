@@ -72,7 +72,7 @@ let rec release_expired_inactive ci pos = function
 (* Allocate a new stack slot to the interval. *)
 
 let allocate_stack_slot num_stack_slots i =
-  let cl = Proc.register_class i.reg in
+  let cl = Proc.stack_slot_class_for i.reg in
   let ss = num_stack_slots.(cl) in
   num_stack_slots.(cl) <- succ ss;
   i.reg.loc <- Stack(Local ss);
@@ -90,12 +90,12 @@ let allocate_free_register num_stack_slots i =
   | Unknown, _ ->
       (* We need to allocate a register to this interval somehow *)
       let cl = Proc.register_class i.reg in
-      let sibling_classes = Proc.sibling_classes cl in 
       begin match Proc.num_available_registers.(cl) with
         0 ->
           (* There are no registers available for this class *)
           raise Not_found
       | rn ->
+          let ci = active.(cl) in
           let r0 = Proc.first_available_register.(cl) in
           (* Create register mask for this class
              note: if frame pointers are enabled then some registers may have
@@ -104,31 +104,21 @@ let allocate_free_register num_stack_slots i =
                    registers) *)
           let regmask = Array.make rn true in
           (* Remove all assigned registers from the register mask *)
-          Array.iter (fun sibling_class ->
-            List.iter
-              (function
-                {reg = {loc = Reg r}} ->
-                  (match Proc.reg_id_in_class ~reg:r ~in_class:cl with
-                   | None -> ()
-                   | Some r -> 
-                     if r - r0 < rn then regmask.(r - r0) <- false)
-              | _ -> ())
-              active.(sibling_class).ci_active) sibling_classes;
+          List.iter
+            (function
+              {reg = {loc = Reg r}} ->
+                if r - r0 < rn then regmask.(r - r0) <- false
+            | _ -> ())
+            ci.ci_active;
           (* Remove all overlapping registers from the register mask *)
           let remove_bound_overlapping = function
               {reg = {loc = Reg r}} as j ->
-                (match Proc.reg_id_in_class ~reg:r ~in_class:cl with
-                 | None -> ()
-                 | Some r -> 
-                   if r - r0 < rn && regmask.(r - r0) && Interval.overlap j i then
-                   regmask.(r - r0) <- false)
+                if (r - r0 < rn) && regmask.(r - r0)
+                   && Interval.overlap j i then
+                regmask.(r - r0) <- false
             | _ -> () in
-          Array.iter (fun sibling_class ->
-            List.iter remove_bound_overlapping active.(sibling_class).ci_inactive) 
-            sibling_classes;
-          Array.iter (fun sibling_class -> 
-            List.iter remove_bound_overlapping active.(sibling_class).ci_fixed) 
-            sibling_classes;
+          List.iter remove_bound_overlapping ci.ci_inactive;
+          List.iter remove_bound_overlapping ci.ci_fixed;
           (* Assign the first free register (if any) *)
           let rec assign r =
             if r = rn then
@@ -138,10 +128,7 @@ let allocate_free_register num_stack_slots i =
                  current interval into the active list *)
               i.reg.loc <- Reg (r0 + r);
               i.reg.spill <- false;
-              Array.iter (fun sibling_class ->
-                active.(sibling_class).ci_active <- 
-                  insert_interval_sorted i active.(sibling_class).ci_active)
-                sibling_classes
+              ci.ci_active <- insert_interval_sorted i ci.ci_active
             end else
               assign (succ r) in
           assign 0
@@ -151,7 +138,6 @@ let allocate_free_register num_stack_slots i =
 
 let allocate_blocked_register num_stack_slots i =
   let cl = Proc.register_class i.reg in
-  let sibling_classes = Proc.sibling_classes cl in 
   let ci = active.(cl) in
   match ci.ci_active with
   | ilast :: il when
@@ -166,13 +152,7 @@ let allocate_blocked_register num_stack_slots i =
       (* Use register from last interval for current interval *)
       i.reg.loc <- ilast.reg.loc;
       (* Remove the last interval from active and insert the current *)
-      Array.iter (fun sibling_class ->
-        let sib = active.(sibling_class) in 
-        match sib.ci_active with 
-        | silast :: sil -> 
-          assert (silast = ilast);
-          sib.ci_active <- insert_interval_sorted i sil
-        | _ -> assert false) sibling_classes;
+      ci.ci_active <- insert_interval_sorted i il;
       (* Now get a new stack slot for the spilled register *)
       allocate_stack_slot num_stack_slots ilast
   | _ ->
@@ -209,7 +189,7 @@ let allocate_registers() =
     };
   done;
   (* Reset the stack slot counts *)
-  let num_stack_slots = Array.make Proc.num_register_classes 0 in
+  let num_stack_slots = Array.make Proc.num_stack_slot_classes 0 in
   (* Add all fixed intervals (sorted by end position) *)
   List.iter
     (fun i ->

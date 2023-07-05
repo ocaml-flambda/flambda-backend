@@ -103,7 +103,7 @@ let precondition : Cfg_with_layout.t -> unit =
   in
   Array.iteri fun_num_stack_slots ~f:(fun reg_class num_slots ->
       if num_slots <> 0
-      then fatal "register class %d has %d slots(s)" reg_class num_slots)
+      then fatal "stack slot class %d has %d slots(s)" reg_class num_slots)
 
 let postcondition_layout : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
@@ -215,12 +215,12 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
       let invalid = Int.Set.diff used_stack_slots.(reg_class) available_slots in
       if not (Int.Set.is_empty invalid)
       then
-        fatal "register class %d uses the following invalid slots: %s" reg_class
+        fatal "stack slot class %d uses the following invalid slots: %s" reg_class
           (string_of_set invalid);
       let unused = Int.Set.diff available_slots used_stack_slots.(reg_class) in
       if not (Int.Set.is_empty unused)
       then
-        fatal "register class %d has the following unused slots: %s" reg_class
+        fatal "stack slot class %d has the following unused slots: %s" reg_class
           (string_of_set unused))
 
 let postcondition_liveness : Cfg_with_infos.t -> unit =

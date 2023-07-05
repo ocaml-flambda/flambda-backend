@@ -64,7 +64,7 @@ let arg b = function
   | Reg16 x -> print_reg b string_of_reg16 x
   | Reg32 x -> print_reg b string_of_reg32 x
   | Reg64 x -> print_reg b string_of_reg64 x
-  | Reg128 x -> print_reg b string_of_regSIMD x
+  | Reg128 x -> print_reg b string_of_reg128 x
   | Regf x  -> print_reg b string_of_registerf x
   | Mem addr -> arg_mem b addr
   | Mem64_RIP (_, s, displ) -> bprintf b "%s%a(%%rip)" s opt_displ displ

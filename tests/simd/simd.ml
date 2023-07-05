@@ -54,7 +54,7 @@ let () =
 let () = 
   let v0 = vec128_of_int64s 1L 2L in 
   let v1 = vec128_of_int64s 3L 4L in 
-  let v = (combine[@inlined]) v0 v1 in 
+  let v = (combine[@inlined hint]) v0 v1 in 
   check v 4L 6L
 ;;
 
@@ -71,7 +71,7 @@ let () =
 let () = 
   let v0 = vec128_of_int64s 1L 2L in 
   let v1 = vec128_of_int64s 3L 4L in 
-  let v = (combine_with_floats[@inlined]) v0 5. v1 6. in 
+  let v = (combine_with_floats[@inlined hint]) v0 5. v1 6. in 
   check v 9L 12L
 ;;
 
@@ -103,9 +103,9 @@ let () =
 (* Capture vectors and floats in a closure (inlined) *)
 let () = 
   let[@inline always] f v0 v1 f0 v2 f1 v3 = 
-    (combine[@inlined]) 
-      ((combine_with_floats[@inlined]) v0 f0 v1 f1) 
-      ((combine[@inlined]) v2 v3) 
+    (combine[@inlined hint]) 
+      ((combine_with_floats[@inlined hint]) v0 f0 v1 f1) 
+      ((combine[@inlined hint]) v2 v3) 
   in 
   let v0 = vec128_of_int64s 1L 2L in 
   let v1 = vec128_of_int64s 3L 4L in 

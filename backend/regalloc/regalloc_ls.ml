@@ -129,42 +129,29 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
   | Unknown, true -> allocate_stack_slot reg
   | Unknown, _ -> (
     let reg_class = Proc.register_class reg in
-    let intervals_per_class = State.active_classes state in
-    let sibling_classes = Proc.sibling_classes reg_class in
+    let intervals = State.active state ~reg_class in
     let first_available = Proc.first_available_register.(reg_class) in
     match Proc.num_available_registers.(reg_class) with
     | 0 -> fatal "register class %d has no available registers" reg_class
     | num_available_registers ->
       let available = Array.make num_available_registers true in
-      Array.iter sibling_classes ~f:(fun sibling_class ->
-          let intervals = intervals_per_class.(sibling_class) in
-          List.iter intervals.active ~f:(fun (interval : Interval.t) ->
-              match interval.reg.loc with
-              | Reg r -> (
-                match Proc.reg_id_in_class ~reg:r ~in_class:reg_class with
-                | None -> ()
-                | Some id ->
-                  if id - first_available < num_available_registers
-                  then available.(id - first_available) <- false)
-              | Stack _ | Unknown -> ()));
+      List.iter intervals.active ~f:(fun (interval : Interval.t) ->
+          match interval.reg.loc with
+          | Reg r ->
+            if r - first_available < num_available_registers
+            then available.(r - first_available) <- false
+          | Stack _ | Unknown -> ());
       let remove_bound_overlapping (itv : Interval.t) : unit =
         match itv.reg.loc with
-        | Reg r -> (
-          match Proc.reg_id_in_class ~reg:r ~in_class:reg_class with
-          | None -> ()
-          | Some id ->
-            if id - first_available < num_available_registers
-               && available.(id - first_available)
-               && Interval.overlap itv interval
-            then available.(id - first_available) <- false)
+        | Reg r ->
+          if r - first_available < num_available_registers
+             && available.(r - first_available)
+             && Interval.overlap itv interval
+          then available.(r - first_available) <- false
         | Stack _ | Unknown -> ()
       in
-      Array.iter sibling_classes ~f:(fun sibling_class ->
-          List.iter intervals_per_class.(sibling_class).inactive
-            ~f:remove_bound_overlapping);
-      Array.iter sibling_classes ~f:(fun sibling_class ->
-          List.iter intervals_per_class.(sibling_class).fixed
-            ~f:remove_bound_overlapping);
+      List.iter intervals.inactive ~f:remove_bound_overlapping;
+      List.iter intervals.fixed ~f:remove_bound_overlapping;
       let rec assign idx =
         if idx >= num_available_registers
         then raise No_free_register
@@ -172,10 +159,8 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
         then (
           reg.loc <- Reg (first_available + idx);
           reg.spill <- false;
-          Array.iter sibling_classes ~f:(fun sibling_class ->
-              intervals_per_class.(sibling_class).active
-                <- Interval.List.insert_sorted
-                     intervals_per_class.(sibling_class).active interval);
+          intervals.active
+            <- Interval.List.insert_sorted intervals.active interval;
           if ls_debug
           then log ~indent:3 "assigning %d to register %a" idx Printmach.reg reg;
           Not_spilling)
@@ -188,31 +173,21 @@ let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
  fun state interval ->
   let reg = interval.reg in
   let reg_class = Proc.register_class reg in
-  let sibling_classes = Proc.sibling_classes reg_class in
-  let cl_intervals = State.active_classes state in
-  let intervals = cl_intervals.(reg_class) in
+  let intervals = State.active state ~reg_class in
   match intervals.active with
-  | hd :: _ ->
+  | hd :: tl ->
     let chk r =
-      assert (interfering_reg_class r.Interval.reg hd.Interval.reg);
+      assert (same_reg_class r.Interval.reg hd.Interval.reg);
       Reg.same_loc r.Interval.reg hd.Interval.reg && Interval.overlap r interval
     in
     if hd.end_ > interval.end_
        && not
-            (Array.exists sibling_classes ~f:(fun sibling_class ->
-                 let intervals = cl_intervals.(sibling_class) in
-                 List.exists ~f:chk intervals.fixed
-                 || List.exists ~f:chk intervals.inactive))
+            (List.exists ~f:chk intervals.fixed
+            || List.exists ~f:chk intervals.inactive)
     then (
       (match hd.reg.loc with Reg _ -> () | Stack _ | Unknown -> assert false);
       interval.reg.loc <- hd.reg.loc;
-      Array.iter sibling_classes ~f:(fun sibling_class ->
-          let intervals = cl_intervals.(sibling_class) in
-          match intervals.active with
-          | sib_hd :: sib_tl ->
-            assert (sib_hd = hd);
-            intervals.active <- Interval.List.insert_sorted sib_tl interval
-          | _ -> assert false);
+      intervals.active <- Interval.List.insert_sorted tl interval;
       allocate_stack_slot hd.reg)
     else allocate_stack_slot reg
   | [] -> allocate_stack_slot reg

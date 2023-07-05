@@ -1671,7 +1671,7 @@ method emit_fundecl ~future_funcnames f =
     fun_codegen_options = f.Cmm.fun_codegen_options;
     fun_dbg  = f.Cmm.fun_dbg;
     fun_poll = f.Cmm.fun_poll;
-    fun_num_stack_slots = Array.make Proc.num_register_classes 0;
+    fun_num_stack_slots = Array.make Proc.num_stack_slot_classes 0;
     fun_contains_calls = !contains_calls;
   }
 
