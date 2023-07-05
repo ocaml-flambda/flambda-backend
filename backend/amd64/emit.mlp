@@ -92,11 +92,11 @@ let frame_required = ref false
 let frame_size () =                     (* includes return address *)
   if !frame_required then begin
     let sz =
-      (!stack_offset 
+      (!stack_offset
        + 8
-       + 8 * num_stack_slots.(0) 
+       + 8 * num_stack_slots.(0)
        + 8 * num_stack_slots.(1)
-       + 16 * num_stack_slots.(2) 
+       + 16 * num_stack_slots.(2)
        + (if fp then 8 else 0))
     in Misc.align sz 16
   end else
@@ -107,7 +107,7 @@ let slot_offset loc cl =
   | Incoming n -> frame_size() + n
   | Local n ->
       (!stack_offset +
-       match cl with 
+       match cl with
        | 2 -> n * 16
        | 1 -> n * 8 + num_stack_slots.(2) * 16
        | 0 -> n * 8 + num_stack_slots.(2) * 16 + num_stack_slots.(1) * 8

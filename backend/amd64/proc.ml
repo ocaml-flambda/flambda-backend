@@ -179,9 +179,9 @@ let hard_vec128_reg =
   v
 
 let all_phys_regs =
-  hard_int_reg
-  |> Array.append hard_float_reg
-  |> Array.append hard_vec128_reg
+  Array.append
+    (Array.append hard_int_reg hard_float_reg) 
+    hard_vec128_reg
 
 let phys_reg n =
   if n < 100 then hard_int_reg.(n) else 

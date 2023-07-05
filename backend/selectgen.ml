@@ -477,7 +477,7 @@ method is_simple_expr = function
   | Cconst_natint _ -> true
   | Cconst_float _ -> true
   | Cconst_symbol _ -> true
-  | Cconst_vec128 _ -> true 
+  | Cconst_vec128 _ -> true
   | Cvar _ -> true
   | Ctuple el -> List.for_all self#is_simple_expr el
   | Clet(_id, arg, body) | Clet_mut(_id, _, arg, body) ->
@@ -1379,10 +1379,10 @@ method emit_stores env data regs_addr =
             Istore(_, _, _) ->
               for i = 0 to Array.length regs - 1 do
                 let r = regs.(i) in
-                let kind = match r.typ with 
-                  | Float -> Double 
+                let kind = match r.typ with
+                  | Float -> Double
                   | Vec128 -> Onetwentyeight
-                  | _ ->  Word_val 
+                  | Val | Addr | Int ->  Word_val
                 in
                 self#insert env
                             (Iop(Istore(kind, !a, false)))

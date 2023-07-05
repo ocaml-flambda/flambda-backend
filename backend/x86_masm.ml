@@ -19,7 +19,7 @@ open X86_proc
 let bprintf = Printf.bprintf
 
 let string_of_datatype = function
-  | VEC128 -> "VEC128"
+  | VEC128 -> "XMMWORD"
   | QWORD -> "QWORD"
   | NONE -> assert false
   | REAL4 -> "REAL4"
@@ -32,7 +32,7 @@ let string_of_datatype = function
 
 
 let string_of_datatype_ptr = function
-  | VEC128 -> "VEC128 PTR "
+  | VEC128 -> "XMMWORD PTR "
   | QWORD -> "QWORD PTR "
   | NONE -> ""
   | REAL4 -> "REAL4 PTR "
