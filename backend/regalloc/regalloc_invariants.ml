@@ -147,7 +147,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
       unit =
     match reg.Reg.loc with
     | Reg phys_reg ->
-      let phys_reg = Proc.phys_reg phys_reg in
+      let phys_reg = Proc.phys_reg reg.typ phys_reg in
       if not (same_reg_class reg phys_reg)
       then
         fatal
@@ -161,7 +161,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
   in
   let module Int = Numbers.Int in
   let used_stack_slots =
-    Array.init Proc.num_register_classes ~f:(fun _ -> Int.Set.empty)
+    Array.init Proc.num_stack_slot_classes ~f:(fun _ -> Int.Set.empty)
   in
   let record_stack_slot_use (reg : Reg.t) : unit =
     match reg.loc with
@@ -204,7 +204,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
   let fun_num_stack_slots =
     (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
   in
-  Array.iteri fun_num_stack_slots ~f:(fun reg_class num_slots ->
+  Array.iteri fun_num_stack_slots ~f:(fun ss_class num_slots ->
       let available_slots =
         Seq.ints 0 |> Seq.take num_slots |> Int.Set.of_seq
       in
@@ -212,15 +212,15 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
         set |> Int.Set.elements |> List.map ~f:string_of_int
         |> String.concat ", "
       in
-      let invalid = Int.Set.diff used_stack_slots.(reg_class) available_slots in
+      let invalid = Int.Set.diff used_stack_slots.(ss_class) available_slots in
       if not (Int.Set.is_empty invalid)
       then
-        fatal "stack slot class %d uses the following invalid slots: %s" reg_class
+        fatal "stack slot class %d uses the following invalid slots: %s" ss_class
           (string_of_set invalid);
-      let unused = Int.Set.diff available_slots used_stack_slots.(reg_class) in
+      let unused = Int.Set.diff available_slots used_stack_slots.(ss_class) in
       if not (Int.Set.is_empty unused)
       then
-        fatal "stack slot class %d has the following unused slots: %s" reg_class
+        fatal "stack slot class %d has the following unused slots: %s" ss_class
           (string_of_set unused))
 
 let postcondition_liveness : Cfg_with_infos.t -> unit =

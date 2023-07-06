@@ -87,9 +87,9 @@ let rec select_addr exp =
 
 exception Use_default
 
-let rax = phys_reg 0
-let rcx = phys_reg 5
-let rdx = phys_reg 4
+let rax = phys_reg Int 0
+let rcx = phys_reg Int 5
+let rdx = phys_reg Int 4
 
 let pseudoregs_for_operation op arg res =
   match op with

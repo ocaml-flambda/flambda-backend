@@ -112,8 +112,8 @@ let register_class_tag c =
 
 let num_stack_slot_classes = 3
 
-let stack_slot_class_for reg = 
-  match reg.typ with 
+let stack_slot_class_for reg =
+  match reg.typ with
   | Val | Addr | Int -> 0
   | Float -> 1
   | Vec128 -> 2
@@ -146,17 +146,15 @@ let hard_float_reg =
 let all_phys_regs =
   Array.append hard_int_reg hard_float_reg
 
-let phys_reg n =
-  if n < 100 then hard_int_reg.(n) else
-  if n < 200 then hard_float_reg.(n - 100)
-  else Misc.fatal_errorf "Register of unknown class (%d)" n
+let phys_reg ty n =
+  Reg.at_location ty (Reg n)
 
-let rax = phys_reg 0
-let rdx = phys_reg 4
-let r10 = phys_reg 10
-let r11 = phys_reg 11
-let rbp = phys_reg 12
-let rxmm15 = phys_reg 115
+let rax = phys_reg Int 0
+let rdx = phys_reg Int 4
+let r10 = phys_reg Int 10
+let r11 = phys_reg Int 11
+let rbp = phys_reg Int 12
+let rxmm15 = phys_reg Float 115
 
 let destroyed_by_plt_stub =
   if not X86_proc.use_plt then [| |] else [| r10; r11 |]
@@ -186,7 +184,7 @@ let calling_conventions first_int last_int first_float last_float make_stack fir
     match arg.(i) with
     | Val | Int | Addr as ty ->
         if !int <= last_int then begin
-          loc.(i) <- phys_reg !int;
+          loc.(i) <- phys_reg ty !int;
           incr int
         end else begin
           loc.(i) <- stack_slot (make_stack !ofs) ty;
@@ -195,7 +193,7 @@ let calling_conventions first_int last_int first_float last_float make_stack fir
         assert (not (Reg.Set.mem loc.(i) destroyed_by_plt_stub_set))
     | Float ->
         if !float <= last_float then begin
-          loc.(i) <- phys_reg !float;
+          loc.(i) <- phys_reg Float !float;
           incr float
         end else begin
           loc.(i) <- stack_slot (make_stack !ofs) Float;
@@ -203,7 +201,7 @@ let calling_conventions first_int last_int first_float last_float make_stack fir
         end
     | Vec128 ->
       if !float <= last_float then begin
-        loc.(i) <- phys_reg !float;
+        loc.(i) <- phys_reg Vec128 !float;
         incr float
       end else begin
         ofs := Misc.align !ofs 16;
@@ -273,7 +271,7 @@ let win64_loc_external_arguments arg =
     match arg.(i) with
     | Val | Int | Addr as ty ->
         if !reg < 4 then begin
-          loc.(i) <- phys_reg win64_int_external_arguments.(!reg);
+          loc.(i) <- phys_reg ty win64_int_external_arguments.(!reg);
           incr reg
         end else begin
           loc.(i) <- stack_slot (Outgoing !ofs) ty;
@@ -281,7 +279,7 @@ let win64_loc_external_arguments arg =
         end
     | Float ->
         if !reg < 4 then begin
-          loc.(i) <- phys_reg win64_float_external_arguments.(!reg);
+          loc.(i) <- phys_reg Float win64_float_external_arguments.(!reg);
           incr reg
         end else begin
           loc.(i) <- stack_slot (Outgoing !ofs) Float;
@@ -289,7 +287,7 @@ let win64_loc_external_arguments arg =
         end
     | Vec128 ->
       if !reg < 4 then begin
-        loc.(i) <- phys_reg win64_float_external_arguments.(!reg);
+        loc.(i) <- phys_reg Vec128 win64_float_external_arguments.(!reg);
         incr reg
       end else begin
         ofs := Misc.align !ofs 16;
@@ -339,15 +337,19 @@ let regs_are_volatile _rs = false
 let destroyed_at_c_call =
   if win64 then
     (* Win64: rbx, rbp, rsi, rdi, r12-r15, xmm6-xmm15 preserved *)
-    Array.of_list(List.map phys_reg
-      [0;4;5;6;7;10;11;
-       100;101;102;103;104;105])
+    Array.append
+    (Array.of_list(List.map (phys_reg Int)
+      [0;4;5;6;7;10;11]))
+    (Array.of_list(List.map (phys_reg Float)
+      [100;101;102;103;104;105]))
   else
     (* Unix: rbp, rbx, r12-r15 preserved *)
-    Array.of_list(List.map phys_reg
-      [0;2;3;4;5;6;7;10;11;
-       100;101;102;103;104;105;106;107;
-       108;109;110;111;112;113;114;115])
+    Array.append
+    (Array.of_list(List.map (phys_reg Int)
+      [0;2;3;4;5;6;7;10;11]))
+    (Array.of_list(List.map (phys_reg Float)
+      [100;101;102;103;104;105;106;107;
+       108;109;110;111;112;113;114;115]))
 
 let destroyed_at_alloc_or_poll =
   if X86_proc.use_plt then

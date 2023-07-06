@@ -183,7 +183,9 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
           then RD.Set.empty
           else
             RD.Set.made_unavailable_by_clobber avail_before
-              ~regs_clobbered:instr.res ~register_class:Proc.register_class
+              ~regs_clobbered:instr.res
+              ~register_class:Proc.register_class
+              ~stack_class:Proc.stack_slot_class_for
         in
         let results =
           Array.map2
@@ -208,8 +210,10 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
           let regs_clobbered =
             Array.append (Proc.destroyed_at_oper instr.desc) instr.res
           in
-          RD.Set.made_unavailable_by_clobber avail_before ~regs_clobbered
+          RD.Set.made_unavailable_by_clobber avail_before 
+            ~regs_clobbered
             ~register_class:Proc.register_class
+            ~stack_class:Proc.stack_slot_class_for
         in
         (* Second: the cases of (a) allocations and (b) OCaml to OCaml function
            calls. In these cases, since the GC may run, registers always become

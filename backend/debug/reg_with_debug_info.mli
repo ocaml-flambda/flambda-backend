@@ -63,7 +63,12 @@ val debug_info : t -> Debug_info.t option
     (physical or pseudoregister) location as the register [reg], which is not
     equipped with debugging information. [register_class] should be
     [Proc.register_class]. *)
-val at_same_location : t -> Reg.t -> register_class:(Reg.t -> int) -> bool
+val at_same_location :
+  t ->
+  Reg.t ->
+  register_class:(Reg.t -> int) ->
+  stack_class:(Reg.t -> int) ->
+  bool
 
 val holds_pointer : t -> bool
 
@@ -98,7 +103,11 @@ module Set : sig
       registers in [regs_clobbered]. (Think of [t] as a set of available
       registers.) [register_class] should always be [Proc.register_class]. *)
   val made_unavailable_by_clobber :
-    t -> regs_clobbered:Reg.t array -> register_class:(Reg.t -> int) -> t
+    t ->
+    regs_clobbered:Reg.t array ->
+    register_class:(Reg.t -> int) ->
+    stack_class:(Reg.t -> int) ->
+    t
 end
 
 val print :

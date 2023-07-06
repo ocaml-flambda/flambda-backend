@@ -1373,8 +1373,8 @@ let emit_instr fallthrough i =
          we must be careful not to clobber it before use. *)
       let (tmp1, tmp2) =
         if i.arg.(0).loc = Reg 0 (* rax *)
-        then (phys_reg 4 (*rdx*), phys_reg 0 (*rax*))
-        else (phys_reg 0 (*rax*), phys_reg 4 (*rdx*)) in
+        then (phys_reg Int 4 (*rdx*), phys_reg Int 0 (*rax*))
+        else (phys_reg Int 0 (*rax*), phys_reg Int 4 (*rdx*)) in
 
       I.lea (mem64_rip NONE lbl) (reg tmp1);
       I.movsxd (mem64 DWORD 0 (arg64 i 0) ~scale:4 ~base:(reg64 tmp1))
@@ -1605,6 +1605,7 @@ let begin_assembly unix =
 
   ()
 
+(* CR mslater: (SIMD) fix this *)
 let make_stack_loc ~offset i (r : Reg.t) =
   (* Use "Outgoing" stack locations, instead of "Local",
      because [slot_offset] emits (Outgoing n) directly
