@@ -71,7 +71,8 @@ let wrap_inlined_body_for_exn_extra_args ~extra_args ~apply_exn_continuation
   let apply_cont_create () ~trap_action cont ~args ~dbg =
     Apply_cont.create ~trap_action cont ~args ~dbg |> Expr.create_apply_cont
   in
-  let let_cont_create () cont ~handler_params ~handler ~body ~is_exn_handler ~is_cold =
+  let let_cont_create () cont ~handler_params ~handler ~body ~is_exn_handler
+      ~is_cold =
     let handler =
       Continuation_handler.create handler_params ~handler:(handler ())
         ~free_names_of_handler:Unknown ~is_exn_handler ~is_cold

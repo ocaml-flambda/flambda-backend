@@ -46,14 +46,15 @@ open! Simplify_import
 type original_handlers =
   | Recursive of
       { invariant_params : Bound_parameters.t;
-        continuation_handlers : (Bound_parameters.t * Expr.t * bool) Continuation.Map.t
+        continuation_handlers :
+          (Bound_parameters.t * Expr.t * bool) Continuation.Map.t
       }
   | Non_recursive of
       { cont : Continuation.t;
         params : Bound_parameters.t;
         handler : Expr.t;
         is_exn_handler : bool;
-        is_cold : bool;
+        is_cold : bool
       }
 
 type simplify_let_cont_data =
@@ -581,7 +582,8 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
       let cont_handler =
         RE.Continuation_handler.create
           (UA.are_rebuilding_terms uacc)
-          params ~handler ~free_names_of_handler:free_names ~is_exn_handler ~is_cold
+          params ~handler ~free_names_of_handler:free_names ~is_exn_handler
+          ~is_cold
       in
       let uacc =
         UA.map_uenv uacc ~f:(fun uenv ->
@@ -1312,7 +1314,8 @@ let simplify_let_cont ~simplify_expr dacc (let_cont : Let_cont.t) ~down_to_up =
             params, handler)
       in
       { body;
-        handlers = Non_recursive { cont; params; handler; is_exn_handler; is_cold }
+        handlers =
+          Non_recursive { cont; params; handler; is_exn_handler; is_cold }
       }
     | Recursive handlers ->
       let invariant_params, body, rec_handlers =
@@ -1325,8 +1328,9 @@ let simplify_let_cont ~simplify_expr dacc (let_cont : Let_cont.t) ~down_to_up =
       let continuation_handlers =
         Continuation.Map.map
           (fun handler ->
-             let is_cold = CH.is_cold handler in
-             CH.pattern_match handler ~f:(fun params ~handler -> params, handler, is_cold))
+            let is_cold = CH.is_cold handler in
+            CH.pattern_match handler ~f:(fun params ~handler ->
+                params, handler, is_cold))
           handlers
       in
       { body; handlers = Recursive { invariant_params; continuation_handlers } }
@@ -1342,8 +1346,9 @@ let simplify_as_recursive_let_cont ~simplify_expr dacc (body, handlers)
   let continuation_handlers =
     Continuation.Map.map
       (fun handler ->
-         let is_cold = CH.is_cold handler in
-         CH.pattern_match handler ~f:(fun params ~handler -> params, handler, is_cold))
+        let is_cold = CH.is_cold handler in
+        CH.pattern_match handler ~f:(fun params ~handler ->
+            params, handler, is_cold))
       handlers
   in
   let data : simplify_let_cont_data =

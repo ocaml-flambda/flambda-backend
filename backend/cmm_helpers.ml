@@ -774,7 +774,8 @@ let rec remove_unit = function
         kind )
   | Ccatch (rec_flag, handlers, body, kind) ->
     let map_h (n, ids, handler, dbg, is_cold) =
-      n, ids, remove_unit handler, dbg, is_cold in
+      n, ids, remove_unit handler, dbg, is_cold
+    in
     Ccatch (rec_flag, List.map map_h handlers, remove_unit body, kind)
   | Ctrywith (body, kind, exn, handler, dbg, value_kind) ->
     Ctrywith (remove_unit body, kind, exn, remove_unit handler, dbg, value_kind)

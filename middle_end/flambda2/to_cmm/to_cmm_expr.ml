@@ -791,7 +791,8 @@ and apply_expr env res apply =
           Env.set_inlined_debuginfo env handler_body_inlined_debuginfo
         in
         let expr, free_vars_of_handler, res = expr env res body in
-        (* we know the handler can't be cold, or it wouldn't have been inlined. *)
+        (* we know the handler can't be cold, or it wouldn't have been
+           inlined. *)
         let handler =
           C.handler ~dbg:(Apply.dbg apply) label params_with_machtype expr false
         in

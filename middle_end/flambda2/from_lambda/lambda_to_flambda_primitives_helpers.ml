@@ -227,7 +227,8 @@ let rec bind_rec acc exn_cont ~register_const0 (prim : expr_primitive)
           in
           Let_cont_with_acc.build_non_recursive acc condition_passed_cont
             ~handler_params:Bound_parameters.empty
-            ~handler:condition_passed_expr ~body ~is_exn_handler:false ~is_cold:false)
+            ~handler:condition_passed_expr ~body ~is_exn_handler:false
+            ~is_cold:false)
         prim_apply_cont validity_conditions
     in
     let body acc =

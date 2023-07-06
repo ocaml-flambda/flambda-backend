@@ -1287,7 +1287,7 @@ and cont_handlers env handler1 handler2 =
                 (Continuation_handler.is_cold handler1)
                 (Continuation_handler.is_cold handler2))
            ~approximant:(fun () -> subst_cont_handler env handler1))
-|> function
+  |> function
   | Ok comp -> comp
   | Error _ ->
     Comparison.Different { approximant = subst_cont_handler env handler1 }

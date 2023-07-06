@@ -100,7 +100,8 @@ module Continuation_handler = struct
     then dummy
     else
       Continuation_handler.create params ~handler
-        ~free_names_of_handler:(Known free_names_of_handler) ~is_exn_handler ~is_cold
+        ~free_names_of_handler:(Known free_names_of_handler) ~is_exn_handler
+        ~is_cold
 
   let create' are_rebuilding params ~handler ~is_exn_handler ~is_cold =
     if ART.do_not_rebuild_terms are_rebuilding

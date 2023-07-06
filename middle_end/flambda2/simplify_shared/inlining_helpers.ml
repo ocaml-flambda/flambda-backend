@@ -114,7 +114,8 @@ let wrap_inlined_body_for_exn_extra_args acc ~extra_args ~apply_exn_continuation
       ~handler:push_wrapper_handler ~body ~is_exn_handler:false ~is_cold:false
   in
   let_cont_create acc wrapper ~handler_params:wrapper_handler_params
-    ~handler:wrapper_handler ~body:body_with_push ~is_exn_handler:true ~is_cold:false
+    ~handler:wrapper_handler ~body:body_with_push ~is_exn_handler:true
+    ~is_cold:false
 
 type attribute_kind =
   | Inlined

@@ -326,8 +326,8 @@ module Inlining = struct
       in
       Expr_with_acc.create_apply_cont acc apply_cont
     in
-    let let_cont_create acc cont ~handler_params ~handler ~body ~is_exn_handler ~is_cold
-        =
+    let let_cont_create acc cont ~handler_params ~handler ~body ~is_exn_handler
+        ~is_cold =
       Let_cont_with_acc.build_non_recursive acc cont ~handler_params ~handler
         ~body ~is_exn_handler ~is_cold
     in
@@ -1101,7 +1101,8 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
   | Recursive ->
     (* CR ncourant: from lambda *)
     let handlers =
-      Continuation.Map.singleton name (handler, handler_params, is_exn_handler, false)
+      Continuation.Map.singleton name
+        (handler, handler_params, is_exn_handler, false)
     in
     (* CR ncourant: If we could somehow detect the syntactically invariant
        parameters here, we could be able to improve the results of [Simplify] in
@@ -2213,8 +2214,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         ~handler_params:(Bound_parameters.create over_application_results)
         ~handler
         ~body:(fun acc -> Expr_with_acc.create_apply acc over_application)
-        ~is_exn_handler:false
-        ~is_cold:false
+        ~is_exn_handler:false ~is_cold:false
   in
   let body = full_call wrapper_cont ~region:apply_region in
   let acc, both_applications =
@@ -2222,7 +2222,8 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
       ~handler_params:
         ([BP.create returned_func K.With_subkind.any_value]
         |> Bound_parameters.create)
-      ~handler:perform_over_application ~body ~is_exn_handler:false ~is_cold:false
+      ~handler:perform_over_application ~body ~is_exn_handler:false
+      ~is_cold:false
   in
   match needs_region with
   | None -> acc, both_applications
@@ -2547,8 +2548,7 @@ let wrap_final_module_block acc env ~program ~prog_return_cont
   let body acc = program acc env in
   Let_cont_with_acc.build_non_recursive acc prog_return_cont
     ~handler_params:load_fields_handler_param ~handler:load_fields_body ~body
-    ~is_exn_handler:false
-    ~is_cold:false
+    ~is_exn_handler:false ~is_cold:false
 
 let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
     ~cmx_loader ~compilation_unit ~module_block_size_in_words ~program

@@ -536,7 +536,8 @@ and print ppf (t : expr) =
       Flambda_colours.invalid_keyword Flambda_colours.pop message
 
 and print_continuation_handler (recursive : Recursive.t) invariant_params ppf k
-    ({ cont_handler_abst = _; is_exn_handler; is_cold } as t) occurrences ~first =
+    ({ cont_handler_abst = _; is_exn_handler; is_cold } as t) occurrences ~first
+    =
   let fprintf = Format.fprintf in
   if not first then fprintf ppf "@ ";
   let print params ~handler =
