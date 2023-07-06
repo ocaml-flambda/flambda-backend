@@ -69,12 +69,6 @@ let register_class r =
   (* CR mslater: (SIMD) arm64 *)
   | Vec128 -> fatal_error "arm64: got vec128 register"
 
-let register_class_tag c =
-  match c with
-  | 0 -> "i"
-  | 1 -> "f"
-  | c -> Misc.fatal_errorf "Unspecified register class %d" c
-
 let num_stack_slot_classes = 2
 
 let stack_slot_class_for r =
@@ -83,6 +77,12 @@ let stack_slot_class_for r =
   | Float -> 1
   (* CR mslater: (SIMD) arm64 *)
   | Vec128 -> fatal_error "arm64: got vec128 register"
+
+let stack_class_tag c =
+  match c with
+  | 0 -> "i"
+  | 1 -> "f"
+  | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
 
 let num_available_registers =
   [| 23; 32 |] (* first 23 int regs allocatable; all float regs allocatable *)
@@ -118,6 +118,8 @@ let hard_float_reg =
 
 let all_phys_regs =
   Array.append hard_int_reg hard_float_reg
+
+let precolored_regs () = all_phys_regs
 
 let phys_reg ty n =
   match ty with

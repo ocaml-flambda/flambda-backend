@@ -136,7 +136,7 @@ end = struct
     match t with Reg _ -> -1 | Stack stack -> Stack.ss_class_lossy stack
 
   let print ppf t =
-    Printmach.loc ~reg_class:(ss_class_lossy t)
+    Printmach.loc ~ss_class:(ss_class_lossy t)
       ~unknown:(fun _ -> assert false)
       ppf (to_loc_lossy t)
 
@@ -966,7 +966,7 @@ end
 
 let print_reg_as_loc ppf reg =
   Printmach.loc
-    ~reg_class:(Proc.stack_slot_class_for reg)
+    ~ss_class:(Proc.stack_slot_class_for reg)
     ~unknown:(fun ppf -> Format.fprintf ppf "<Unknown>")
     ppf reg.Reg.loc
 

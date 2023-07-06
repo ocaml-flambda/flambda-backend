@@ -104,12 +104,6 @@ let register_class r =
   | Val | Int | Addr -> 0
   | Float | Vec128 -> 1
 
-let register_class_tag c =
-  match c with
-  | 0 -> "i"
-  | 1 -> "f"
-  | c -> Misc.fatal_errorf "Unspecified register class %d" c
-
 let num_stack_slot_classes = 3
 
 let stack_slot_class_for reg =
@@ -117,6 +111,13 @@ let stack_slot_class_for reg =
   | Val | Addr | Int -> 0
   | Float -> 1
   | Vec128 -> 2
+
+let stack_class_tag c =
+  match c with
+  | 0 -> "i"
+  | 1 -> "f"
+  | 2 -> "x"
+  | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
 
 let num_available_registers = [| 13; 16 |]
 
@@ -148,9 +149,8 @@ let hard_vec128_reg =
   for i = 0 to 15 do v.(i) <- Reg.at_location Vec128 (Reg (100 + i)) done;
   v
 
-(* We don't need to include vec128 regs here, as they use the same IDs as floats. *)
 let all_phys_regs =
-  Array.append hard_int_reg hard_float_reg
+  Array.concat [hard_int_reg; hard_float_reg; hard_vec128_reg]
 
 let phys_reg ty n =
   match ty with
@@ -163,7 +163,9 @@ let rdx = phys_reg Int 4
 let r10 = phys_reg Int 10
 let r11 = phys_reg Int 11
 let rbp = phys_reg Int 12
-let rxmm15 = phys_reg Float 115
+
+(* CSE needs to know that all versions of xmm15 are destroyed. *)
+let destroy_xmm15 = [| phys_reg Float 115; phys_reg Vec128 115 |]
 
 let destroyed_by_plt_stub =
   if not X86_proc.use_plt then [| |] else [| r10; r11 |]
@@ -326,13 +328,10 @@ let int_dwarf_reg_numbers =
 let float_dwarf_reg_numbers =
   [| 17; 18; 19; 20; 21; 22; 23; 24; 25; 26; 27; 28; 29; 30; 31; 32 |]
 
-let vec128_dwarf_reg_numbers = float_dwarf_reg_numbers
-
 let dwarf_register_numbers ~reg_class =
   match reg_class with
   | 0 -> int_dwarf_reg_numbers
   | 1 -> float_dwarf_reg_numbers
-  | 2 -> vec128_dwarf_reg_numbers
   | _ -> Misc.fatal_errorf "Bad register class %d" reg_class
 
 let stack_ptr_dwarf_register_number = 7
@@ -346,19 +345,24 @@ let regs_are_volatile _rs = false
 let destroyed_at_c_call =
   if win64 then
     (* Win64: rbx, rbp, rsi, rdi, r12-r15, xmm6-xmm15 preserved *)
-    Array.append
-    (Array.of_list(List.map (phys_reg Int)
-      [0;4;5;6;7;10;11]))
-    (Array.of_list(List.map (phys_reg Float)
-      [100;101;102;103;104;105]))
+    Array.concat
+    [Array.of_list(List.map (phys_reg Int)
+      [0;4;5;6;7;10;11]);
+     Array.of_list(List.map (phys_reg Float)
+      [100;101;102;103;104;105]);
+     Array.of_list(List.map (phys_reg Vec128)
+      [100;101;102;103;104;105])]
   else
     (* Unix: rbp, rbx, r12-r15 preserved *)
-    Array.append
-    (Array.of_list(List.map (phys_reg Int)
-      [0;2;3;4;5;6;7;10;11]))
-    (Array.of_list(List.map (phys_reg Float)
+    Array.concat
+    [Array.of_list(List.map (phys_reg Int)
+      [0;2;3;4;5;6;7;10;11]);
+     Array.of_list(List.map (phys_reg Float)
       [100;101;102;103;104;105;106;107;
-       108;109;110;111;112;113;114;115]))
+       108;109;110;111;112;113;114;115]);
+     Array.of_list(List.map (phys_reg Vec128)
+       [100;101;102;103;104;105;106;107;
+        108;109;110;111;112;113;114;115])]
 
 let destroyed_at_alloc_or_poll =
   if X86_proc.use_plt then
@@ -379,7 +383,8 @@ let destroyed_at_oper = function
   | Iop(Iextcall { alloc = false; }) -> destroyed_at_c_call
   | Iop(Iintop(Idiv | Imod)) | Iop(Iintop_imm((Idiv | Imod), _))
         -> [| rax; rdx |]
-  | Iop(Istore(Single, _, _)) -> [| rxmm15 |]
+  | Iop(Istore(Single, _, _)) ->
+    destroy_xmm15
   | Iop(Ialloc _ | Ipoll _) -> destroyed_at_alloc_or_poll
   | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
         -> [| rax |]
@@ -438,7 +443,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op (Intop (Idiv | Imod)) | Op (Intop_imm ((Idiv | Imod), _)) ->
     [| rax; rdx |]
   | Op(Store(Single, _, _)) ->
-    [| rxmm15 |]
+    destroy_xmm15
   | Op(Intop(Imulh _ | Icomp _) | Intop_imm((Icomp _), _)) ->
     [| rax |]
   | Op (Specific (Irdtsc | Irdpmc)) ->
@@ -621,6 +626,15 @@ let init () =
     num_available_registers.(0) <- 12
   end else
     num_available_registers.(0) <- 13
+
+(* CR mslater for xclerc: is this ok? *)
+(* This is not always the same as [all_phys_regs], as some physical registers
+   may not be allocatable (e.g. rbp when frame pointers are enabled). *)
+let precolored_regs () =
+  let ints = Array.sub hard_int_reg 0 num_available_registers.(0) in
+  let floats = Array.sub hard_float_reg 0 num_available_registers.(1) in
+  let vec128s = Array.sub hard_vec128_reg 0 num_available_registers.(1) in
+  Array.append (Array.append ints floats) vec128s
 
 let operation_supported = function
   | Cpopcnt -> !popcnt_support
