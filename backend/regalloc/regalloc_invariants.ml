@@ -101,9 +101,9 @@ let precondition : Cfg_with_layout.t -> unit =
   let fun_num_stack_slots =
     (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
   in
-  Array.iteri fun_num_stack_slots ~f:(fun reg_class num_slots ->
+  Array.iteri fun_num_stack_slots ~f:(fun ss_class num_slots ->
       if num_slots <> 0
-      then fatal "stack slot class %d has %d slots(s)" reg_class num_slots)
+      then fatal "stack slot class %d has %d slots(s)" ss_class num_slots)
 
 let postcondition_layout : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
