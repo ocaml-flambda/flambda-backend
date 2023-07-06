@@ -91,7 +91,7 @@ val windows:bool
 val use_plt : bool
 
 module Section_name : sig
-  type t 
+  type t
   val equal : t -> t -> bool
   val hash : t -> int
   val compare : t -> t -> int

@@ -206,7 +206,7 @@ let operation_is_pure = function
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
   | Icsel _
-  | Ifloatofint | Iintoffloat 
+  | Ifloatofint | Iintoffloat
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Iload (_, _, _) | Iname_for_debugger _
     -> true

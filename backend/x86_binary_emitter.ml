@@ -598,7 +598,7 @@ let emit_movupd b dst src =
       buf_int8 b 0x66;
       emit_mod_rm_reg b 0 [ 0x0f; 0x11 ] rm (rd_of_reg128 reg)
   | _ -> assert false
-  
+
 let emit_movd b ~dst ~src =
   match (dst, src) with
   | Regf reg, ((Reg32 _ | Mem _ | Mem64_RIP _) as rm) ->

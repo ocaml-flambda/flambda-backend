@@ -276,8 +276,8 @@ let emit_structured_constant symb cst cont =
       emit_int64_constant symb n cont
   | Uconst_nativeint n ->
       emit_nativeint_constant symb n cont
-  | Uconst_vec128 {high; low} -> 
-      emit_vec128_constant symb {high; low} cont 
+  | Uconst_vec128 {high; low} ->
+      emit_vec128_constant symb {high; low} cont
   | Uconst_block (tag, csts) ->
       let cont = List.fold_right emit_constant csts cont in
       emit_block symb (block_header tag (List.length csts)) cont
@@ -355,7 +355,7 @@ let unbox_number dbg bn arg =
     low_32 dbg (unbox_int dbg Pint32 arg)
   | Boxed_integer (bi, _, _) ->
     unbox_int dbg bi arg
-  | Boxed_vector (vi, _, _) -> 
+  | Boxed_vector (vi, _, _) ->
     unbox_vector dbg vi arg
 
 (* Auxiliary functions for optimizing "let" of boxed numbers (floats and
@@ -926,7 +926,7 @@ and transl_ccall env prim args dbg =
           let xty =
             match bi with
             | Pvec128 -> XVec128
-          in 
+          in
           (xty, transl_unbox_vector dbg env bi arg)
     | Untagged_int ->
         (XInt, untag_int (transl env arg) dbg)

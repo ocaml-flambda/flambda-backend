@@ -210,7 +210,7 @@ let rec available_regs (instr : M.instruction) ~(avail_before : RAS.t) : RAS.t =
           let regs_clobbered =
             Array.append (Proc.destroyed_at_oper instr.desc) instr.res
           in
-          RD.Set.made_unavailable_by_clobber avail_before 
+          RD.Set.made_unavailable_by_clobber avail_before
             ~regs_clobbered
             ~register_class:Proc.register_class
             ~stack_class:Proc.stack_slot_class_for

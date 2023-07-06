@@ -75,9 +75,9 @@ let register_class_tag c =
   | 1 -> "f"
   | c -> Misc.fatal_errorf "Unspecified register class %d" c
 
-let num_stack_slot_classes = 2 
+let num_stack_slot_classes = 2
 
-let stack_slot_class_for r = 
+let stack_slot_class_for r =
   match r.typ with
   | Val | Int | Addr  -> 0
   | Float -> 1
@@ -95,10 +95,10 @@ let register_name r =
 
 let rotate_registers = true
 
-let class_of reg = 
-  if reg < 100 then 0 
-  else if reg < 200 then 1 
-  else Misc.fatal_errorf "Register of unknown class (%d)" reg 
+let class_of reg =
+  if reg < 100 then 0
+  else if reg < 200 then 1
+  else Misc.fatal_errorf "Register of unknown class (%d)" reg
 
 (* Representation of hard registers by pseudo-registers *)
 
@@ -119,11 +119,11 @@ let hard_float_reg =
 let all_phys_regs =
   Array.append hard_int_reg hard_float_reg
 
-let phys_reg n =
-  if n < 100 then hard_int_reg.(n) else hard_float_reg.(n - 100)
+let phys_reg ty n =
+  Reg.at_location ty (Reg n)
 
-let reg_x8 = phys_reg 8
-let reg_d7 = phys_reg 107
+let reg_x8 = phys_reg Int 8
+let reg_d7 = phys_reg Float 107
 
 let stack_slot slot ty =
   Reg.at_location ty (Stack slot)
@@ -134,7 +134,7 @@ let size_domainstate_args = 64 * size_int
 
 let loc_int last_int make_stack int ofs =
   if !int <= last_int then begin
-    let l = phys_reg !int in
+    let l = phys_reg Int !int in
     incr int; l
   end else begin
     ofs := Misc.align !ofs size_int;
@@ -144,7 +144,7 @@ let loc_int last_int make_stack int ofs =
 
 let loc_float last_float make_stack float ofs =
   if !float <= last_float then begin
-    let l = phys_reg !float in
+    let l = phys_reg Float !float in
     incr float; l
   end else begin
     ofs := Misc.align !ofs size_float;
@@ -154,7 +154,7 @@ let loc_float last_float make_stack float ofs =
 
 let loc_int32 last_int make_stack int ofs =
   if !int <= last_int then begin
-    let l = phys_reg !int in
+    let l = phys_reg Int !int in
     incr int; l
   end else begin
     let l = stack_slot (make_stack !ofs) Int in
@@ -250,7 +250,7 @@ let loc_external_arguments ty_args =
 let loc_external_results res =
   let (loc, _) = calling_conventions 0 1 100 100 not_supported 0 res in loc
 
-let loc_exn_bucket = phys_reg 0
+let loc_exn_bucket = phys_reg Int 0
 
 (* See "DWARF for the ARM 64-bit architecture (AArch64)" available from
    developer.arm.com. *)
@@ -285,11 +285,13 @@ let regs_are_volatile _rs = false
 
 let destroyed_at_c_call =
   (* x19-x28, d8-d15 preserved *)
-  Array.of_list (List.map phys_reg
-    [0;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;
-     100;101;102;103;104;105;106;107;
+  Array.append
+  (Array.of_list (List.map (phys_reg Int)
+    [0;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15]))
+  (Array.of_list (List.map (phys_reg Float)
+    [100;101;102;103;104;105;106;107;
      116;117;118;119;120;121;122;123;
-     124;125;126;127;128;129;130;131])
+     124;125;126;127;128;129;130;131]))
 
 (* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function

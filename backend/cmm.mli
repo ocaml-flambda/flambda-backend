@@ -257,7 +257,7 @@ type symbol =
   { sym_name : string;
     sym_global : is_global }
 
-(* SIMD vectors are untyped in the backend. 
+(* SIMD vectors are untyped in the backend.
    This record holds the bitwise representation of a 128-bit value. *)
 type vec128_bits = { low : int64; high: int64 }
 

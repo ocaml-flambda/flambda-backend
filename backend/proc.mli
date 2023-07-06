@@ -30,7 +30,7 @@ val rotate_registers: bool
 val all_phys_regs : Reg.t array
 
 (* The number of stack slot classes may differ from the number of register classes.
-   On x86, we use the same class for floating point and SIMD vector registers, 
+   On x86, we use the same class for floating point and SIMD vector registers,
    but they take up different amounts of space on the stack. *)
 val num_stack_slot_classes: int
 val stack_slot_class_for: Reg.t -> int

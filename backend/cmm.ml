@@ -78,10 +78,10 @@ let ge_component comp1 comp2 =
   | Addr, Addr -> true
   | Addr, Val -> true
   | Float, Float -> true
-  | Vec128, Vec128 -> true 
+  | Vec128, Vec128 -> true
   | (Int | Addr | Val), (Float | Vec128)
   | (Float | Vec128), (Int | Addr | Val)
-  | Float, Vec128 
+  | Float, Vec128
   | Vec128, Float ->
     assert false
 
@@ -522,7 +522,7 @@ let equal_exttype left right =
   | XInt32, XInt32 -> true
   | XInt64, XInt64 -> true
   | XFloat, XFloat -> true
-  | XVec128, XVec128 -> true 
+  | XVec128, XVec128 -> true
   | XInt, (XInt32 | XInt64 | XFloat | XVec128)
   | XInt32, (XInt | XInt64 | XFloat | XVec128)
   | XInt64, (XInt | XInt32 | XFloat | XVec128)
@@ -568,37 +568,37 @@ let equal_memory_chunk left right =
   | Double, Double -> true
   | Onetwentyeight, Onetwentyeight -> true
   | Byte_unsigned, (Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                   | Thirtytwo_signed | Word_int | Word_val | Single | Double 
+                   | Thirtytwo_signed | Word_int | Word_val | Single | Double
                    | Onetwentyeight)
   | Byte_signed, (Byte_unsigned | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
-                 | Thirtytwo_signed | Word_int | Word_val | Single | Double 
+                 | Thirtytwo_signed | Word_int | Word_val | Single | Double
                  | Onetwentyeight)
   | Sixteen_unsigned, (Byte_unsigned | Byte_signed | Sixteen_signed | Thirtytwo_unsigned
-                      | Thirtytwo_signed | Word_int | Word_val | Single | Double 
+                      | Thirtytwo_signed | Word_int | Word_val | Single | Double
                       | Onetwentyeight)
   | Sixteen_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Thirtytwo_unsigned
-                    | Thirtytwo_signed | Word_int | Word_val | Single | Double 
+                    | Thirtytwo_signed | Word_int | Word_val | Single | Double
                     | Onetwentyeight)
   | Thirtytwo_unsigned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                        | Thirtytwo_signed | Word_int | Word_val | Single | Double 
+                        | Thirtytwo_signed | Word_int | Word_val | Single | Double
                         | Onetwentyeight)
   | Thirtytwo_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-                      | Thirtytwo_unsigned | Word_int | Word_val | Single | Double 
+                      | Thirtytwo_unsigned | Word_int | Word_val | Single | Double
                       | Onetwentyeight)
   | Word_int, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val | Single | Double 
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val | Single | Double
               | Onetwentyeight)
   | Word_val, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double 
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double
               | Onetwentyeight)
   | Single, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Double 
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Double
             | Onetwentyeight)
   | Double, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single 
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
             | Onetwentyeight)
   | Onetwentyeight, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single 
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single
             | Double) ->
     false
 

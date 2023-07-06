@@ -247,7 +247,7 @@ let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n
   | Cconst_natint (n, _dbg) ->
     fprintf ppf "%s" (Nativeint.to_string n)
-  | Cconst_vec128 ({low; high}, _dbg) -> fprintf ppf "%Ld:%Ld" high low  
+  | Cconst_vec128 ({low; high}, _dbg) -> fprintf ppf "%Ld:%Ld" high low
   | Cconst_float (n, _dbg) -> fprintf ppf "%F" n
   | Cconst_symbol (s, _dbg) -> fprintf ppf "%a:\"%s\"" is_global s.sym_global s.sym_name
   | Cvar id -> V.print ppf id
@@ -415,7 +415,7 @@ let data_item ppf = function
   | Cint n -> fprintf ppf "int %s" (Nativeint.to_string n)
   | Csingle f -> fprintf ppf "single %F" f
   | Cdouble f -> fprintf ppf "double %F" f
-  | Cvec128 {high; low} -> 
+  | Cvec128 {high; low} ->
     fprintf ppf "vec128 %s:%s" (Int64.to_string high) (Int64.to_string low)
   | Csymbol_address s -> fprintf ppf "addr %a:\"%s\"" is_global s.sym_global s.sym_name
   | Cstring s -> fprintf ppf "string \"%s\"" s

@@ -112,10 +112,10 @@ let regs_at_same_location (reg1 : Reg.t) (reg2 : Reg.t) ~register_class ~stack_c
      one is of class "Int" and another "Float" on amd64. [register_class] will
      be [Proc.register_class], but cannot be here, due to a circular
      dependency. *)
-  reg1.loc = reg2.loc && 
-  match reg1.loc with 
+  reg1.loc = reg2.loc &&
+  match reg1.loc with
   | Reg _ -> register_class reg1 = register_class reg2
-  | Stack _ -> stack_class reg1 = stack_class reg2 
+  | Stack _ -> stack_class reg1 = stack_class reg2
   | Unknown -> false
 
 let at_same_location t (reg : Reg.t) ~register_class ~stack_class =
