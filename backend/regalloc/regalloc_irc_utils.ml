@@ -153,7 +153,9 @@ let all_precolored_regs : Reg.t array =
     let num_available_registers = Proc.num_available_registers.(reg_class) in
     for reg_idx = 0 to pred num_available_registers do
       (* The machtype does not matter here, only the IDs *)
-      res.(!i) <- Proc.phys_reg Int (first_available_register + reg_idx);
+      res.(!i) <- Proc.phys_reg
+        (if first_available_register < 100 then Int else Float)
+        (first_available_register + reg_idx);
       incr i
     done
   done;

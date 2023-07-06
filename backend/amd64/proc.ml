@@ -143,11 +143,20 @@ let hard_float_reg =
   for i = 0 to 15 do v.(i) <- Reg.at_location Float (Reg (100 + i)) done;
   v
 
+let hard_vec128_reg =
+  let v = Array.make 16 Reg.dummy in
+  for i = 0 to 15 do v.(i) <- Reg.at_location Vec128 (Reg (100 + i)) done;
+  v
+
+(* We don't need to include vec128 regs here, as they use the same IDs as floats. *)
 let all_phys_regs =
   Array.append hard_int_reg hard_float_reg
 
 let phys_reg ty n =
-  Reg.at_location ty (Reg n)
+  match ty with
+  | Int | Addr | Val -> hard_int_reg.(n)
+  | Float -> hard_float_reg.(n - 100)
+  | Vec128 -> hard_vec128_reg.(n - 100)
 
 let rax = phys_reg Int 0
 let rdx = phys_reg Int 4

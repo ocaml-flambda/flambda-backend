@@ -120,6 +120,13 @@ let all_phys_regs =
   Array.append hard_int_reg hard_float_reg
 
 let phys_reg ty n =
+  match ty with
+  | Int | Addr | Val -> hard_int_reg.(n)
+  | Float -> hard_float_reg.(n - 100)
+  (* CR mslater: (SIMD) arm64 *)
+  | Vec128 -> fatal_error "arm64: got vec128 register"
+
+let phys_reg ty n =
   Reg.at_location ty (Reg n)
 
 let reg_x8 = phys_reg Int 8
