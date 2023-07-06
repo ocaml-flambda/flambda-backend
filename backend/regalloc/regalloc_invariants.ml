@@ -215,8 +215,8 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
       let invalid = Int.Set.diff used_stack_slots.(ss_class) available_slots in
       if not (Int.Set.is_empty invalid)
       then
-        fatal "stack slot class %d uses the following invalid slots: %s" ss_class
-          (string_of_set invalid);
+        fatal "stack slot class %d uses the following invalid slots: %s"
+          ss_class (string_of_set invalid);
       let unused = Int.Set.diff available_slots used_stack_slots.(ss_class) in
       if not (Int.Set.is_empty unused)
       then

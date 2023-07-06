@@ -106,13 +106,15 @@ let holds_non_pointer t = not (holds_pointer t)
 let assigned_to_stack t =
   match t.reg.loc with Stack _ -> true | Reg _ | Unknown -> false
 
-let regs_at_same_location (reg1 : Reg.t) (reg2 : Reg.t) ~register_class ~stack_class =
+let regs_at_same_location (reg1 : Reg.t) (reg2 : Reg.t) ~register_class
+    ~stack_class =
   (* We need to check the register classes too: two locations both saying "stack
      offset N" might actually be different physical locations, for example if
      one is of class "Int" and another "Float" on amd64. [register_class] will
      be [Proc.register_class], but cannot be here, due to a circular
      dependency. *)
-  reg1.loc = reg2.loc &&
+  reg1.loc = reg2.loc
+  &&
   match reg1.loc with
   | Reg _ -> register_class reg1 = register_class reg2
   | Stack _ -> stack_class reg1 = stack_class reg2
@@ -156,12 +158,14 @@ module Set = struct
       (fun reg acc -> add (create_without_debug_info ~reg) acc)
       regs empty
 
-  let made_unavailable_by_clobber t ~regs_clobbered ~register_class ~stack_class =
+  let made_unavailable_by_clobber t ~regs_clobbered ~register_class ~stack_class
+      =
     Reg.Set.fold
       (fun reg acc ->
         let made_unavailable =
           filter
-            (fun reg' -> regs_at_same_location reg'.reg reg ~register_class ~stack_class)
+            (fun reg' ->
+              regs_at_same_location reg'.reg reg ~register_class ~stack_class)
             t
         in
         union made_unavailable acc)

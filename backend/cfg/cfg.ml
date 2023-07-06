@@ -501,13 +501,16 @@ let is_pure_basic : basic -> bool = function
 
 let is_noop_move instr =
   match instr.desc with
-  | Op (Move | Spill | Reload) ->
-    (match instr.arg.(0).loc with
+  | Op (Move | Spill | Reload) -> (
+    match instr.arg.(0).loc with
     | Unknown -> false
-    | Reg _ -> Reg.same_loc instr.arg.(0) instr.res.(0) &&
-      Proc.register_class instr.arg.(0) = Proc.register_class instr.res.(0)
-    | Stack _ -> Reg.same_loc instr.arg.(0) instr.res.(0) &&
-      Proc.stack_slot_class_for instr.arg.(0) = Proc.stack_slot_class_for instr.res.(0))
+    | Reg _ ->
+      Reg.same_loc instr.arg.(0) instr.res.(0)
+      && Proc.register_class instr.arg.(0) = Proc.register_class instr.res.(0)
+    | Stack _ ->
+      Reg.same_loc instr.arg.(0) instr.res.(0)
+      && Proc.stack_slot_class_for instr.arg.(0)
+         = Proc.stack_slot_class_for instr.res.(0))
   | Op (Csel _) -> (
     match instr.res.(0).loc with
     | Unknown -> false

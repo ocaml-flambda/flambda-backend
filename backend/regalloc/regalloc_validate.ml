@@ -120,7 +120,8 @@ end = struct
     | Reg.Reg idx -> Some (Reg idx)
     | Reg.Stack stack ->
       Some
-        (Stack (Stack.of_stack_loc ~ss_class:(Proc.stack_slot_class_for reg) stack))
+        (Stack
+           (Stack.of_stack_loc ~ss_class:(Proc.stack_slot_class_for reg) stack))
 
   let of_reg_exn reg = of_reg reg |> Option.get
 
@@ -964,7 +965,8 @@ module type Description_value = sig
 end
 
 let print_reg_as_loc ppf reg =
-  Printmach.loc ~reg_class:(Proc.stack_slot_class_for reg)
+  Printmach.loc
+    ~reg_class:(Proc.stack_slot_class_for reg)
     ~unknown:(fun ppf -> Format.fprintf ppf "<Unknown>")
     ppf reg.Reg.loc
 
