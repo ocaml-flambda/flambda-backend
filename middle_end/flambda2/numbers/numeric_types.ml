@@ -275,7 +275,7 @@ module Vector_by_bit_pattern (Width : Vector_width) = struct
     let print ppf t =
       Format.pp_print_list
         ~pp_sep:(fun ppf () -> Format.pp_print_char ppf ':')
-        (fun ppf i64 -> Format.pp_print_string ppf (Format.sprintf "%016Lx" i64))
+        (fun ppf i64 -> Format.fprintf ppf "%016Lx" i64)
         ppf (Array.to_list t)
   end
 
