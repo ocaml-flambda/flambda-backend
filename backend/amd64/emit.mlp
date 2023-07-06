@@ -45,14 +45,12 @@ let int_reg_name =
   [| RAX; RBX; RDI; RSI; RDX; RCX; R8; R9;
      R12; R13; R10; R11; RBP; |]
 
-let float_reg_name = Array.init 16 (fun i -> XMMf i)
-
-let vec128_reg_name = Array.init 16 (fun i -> XMM i)
+let float_reg_name = Array.init 16 (fun i -> XMM i)
 
 let register_name r =
   if r < 100 then Reg64 (int_reg_name.(r))
   else if r < 200 then Regf (float_reg_name.(r - 100))
-  else Reg128 (vec128_reg_name.(r - 200))
+  else Misc.fatal_errorf "Bad register id %d" r
 
 (* CFI directives *)
 

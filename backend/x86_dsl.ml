@@ -55,15 +55,13 @@ let r14 = Reg64 R14
 let r15 = Reg64 R15
 let rsp = Reg64 RSP
 let rbp = Reg64 RBP
-let xmm15 = Regf (XMMf 15)
+let xmm15 = Regf (XMM 15)
 let eax = Reg32 RAX
 let ebx = Reg32 RBX
 let ecx = Reg32 RCX
 let edx = Reg32 RDX
 let ebp = Reg32 RBP
 let esp = Reg32 RSP
-let st0 = Regf (ST 0)
-let st1 = Regf (ST 1)
 
 let mem32 typ ?(scale = 1) ?base ?sym displ idx =
   assert(scale >= 0);

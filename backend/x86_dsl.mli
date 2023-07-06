@@ -51,8 +51,6 @@ val ecx: arg
 val edx: arg
 val ebp: arg
 val esp: arg
-val st0: arg
-val st1: arg
 
 val mem32:
   data_type -> ?scale:int -> ?base:reg64 -> ?sym:string ->

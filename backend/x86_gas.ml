@@ -64,8 +64,7 @@ let arg b = function
   | Reg16 x -> print_reg b string_of_reg16 x
   | Reg32 x -> print_reg b string_of_reg32 x
   | Reg64 x -> print_reg b string_of_reg64 x
-  | Reg128 x -> print_reg b string_of_reg128 x
-  | Regf x  -> print_reg b string_of_registerf x
+  | Regf x  -> print_reg b string_of_regf x
   | Mem addr -> arg_mem b addr
   | Mem64_RIP (_, s, displ) -> bprintf b "%s%a(%%rip)" s opt_displ displ
 
@@ -89,7 +88,6 @@ let typeof = function
   | Reg16 _ -> WORD
   | Reg32 _ -> DWORD
   | Reg64 _ -> QWORD
-  | Reg128 _ -> VEC128
   | Imm _ | Sym _ -> NONE
   | Regf _ -> assert false
 
@@ -100,8 +98,8 @@ let suf arg =
   | DWORD | REAL8 -> "l"
   | QWORD -> "q"
   | REAL4 -> "s"
-  | VEC128 | NONE -> ""
-  | NEAR | PROC -> assert false
+  | NONE -> ""
+  | VEC128 | NEAR | PROC -> assert false
 
 let i0 b s = bprintf b "\t%s" s
 let i1 b s x = bprintf b "\t%s\t%a" s arg x
@@ -153,10 +151,8 @@ let print_instr b = function
   | FCOMPP -> i0 b "fcompp"
   | FCOS -> i0 b "fcos"
   | FDIV arg -> i1_s b "fdiv" arg
-  | FDIVP (Regf (ST 0), arg2)  -> i2 b "fdivrp" (Regf (ST 0)) arg2 (* bug *)
   | FDIVP (arg1, arg2)  -> i2 b "fdivp" arg1 arg2
   | FDIVR arg -> i1_s b "fdivr" arg
-  | FDIVRP (Regf (ST 0), arg2)  -> i2 b "fdivp" (Regf (ST 0)) arg2 (* bug *)
   | FDIVRP (arg1, arg2)  -> i2 b "fdivrp" arg1 arg2
   | FILD arg -> i1_s b "fild" arg
   | FISTP arg -> i1_s b "fistp" arg
@@ -178,10 +174,8 @@ let print_instr b = function
   | FSTP (Mem {typ=REAL4; _} as arg) -> i1 b "fstps" arg
   | FSTP arg -> i1 b "fstpl" arg
   | FSUB arg -> i1_s b "fsub" arg
-  | FSUBP (Regf (ST 0), arg2)  -> i2 b "fsubrp" (Regf (ST 0)) arg2 (* bug *)
   | FSUBP (arg1, arg2)  -> i2 b "fsubp" arg1 arg2
   | FSUBR arg -> i1_s b "fsubr" arg
-  | FSUBRP (Regf (ST 0), arg2) -> i2 b "fsubp" (Regf (ST 0)) arg2 (* bug *)
   | FSUBRP (arg1, arg2)  -> i2 b "fsubrp" arg1 arg2
   | FXCH arg -> i1 b "fxch" arg
   | FYL2X -> i0 b "fyl2x"

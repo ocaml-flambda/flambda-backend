@@ -36,7 +36,6 @@ let print_old_arg ppf = function
   | Reg16 _ -> Format.fprintf ppf "Reg16"
   | Reg32 _ -> Format.fprintf ppf "Reg32"
   | Reg64 _ -> Format.fprintf ppf "Reg64"
-  | Reg128 _ -> Format.fprintf ppf "Reg128"
   | Regf _ -> Format.fprintf ppf "Regf"
   | Mem _ -> Format.fprintf ppf "Mem"
   | Mem64_RIP _ -> Format.fprintf ppf "Mem64_RIP"
@@ -277,12 +276,6 @@ let is_imm8L x = x < 128L && x >= -128L
 
 let rd_of_regf regf =
   match regf with
-  | XMMf n -> n
-  | TOS -> assert false (* TODO *)
-  | ST _st -> assert false
-
-let rd_of_reg128 (reg128 : reg128) =
-  match reg128 with
   | XMM n -> n
 
 (* TODO *)
@@ -443,13 +436,8 @@ let emit_mod_rm_reg b rex opcodes rm reg =
       emit_rex b (rex lor rex_of_reg16 reg16 lor rexr_reg reg lor rexb_rm rm);
       buf_opcodes b opcodes;
       buf_int8 b (mod_rm_reg 0b11 rm reg)
-  | Regf rm ->
+  | Regf (XMM _ as rm) ->
       let rm = rd_of_regf rm in
-      emit_rex b (rex lor rexr_reg reg lor rexb_rm rm);
-      buf_opcodes b opcodes;
-      buf_int8 b (mod_rm_reg 0b11 rm reg)
-  | Reg128 rm ->
-      let rm = rd_of_reg128 rm in
       emit_rex b (rex lor rexr_reg reg lor rexb_rm rm);
       buf_opcodes b opcodes;
       buf_int8 b (mod_rm_reg 0b11 rm reg)
@@ -581,22 +569,16 @@ let emit_movapd b dst src =
   | ((Mem _ | Mem64_RIP _) as rm), Regf reg ->
       buf_int8 b 0x66;
       emit_mod_rm_reg b 0 [ 0x0f; 0x29 ] rm (rd_of_regf reg)
-  | Reg128 reg, ((Reg128 _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0x66;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x28 ] rm (rd_of_reg128 reg)
-  | ((Mem _ | Mem64_RIP _) as rm), Reg128 reg ->
-      buf_int8 b 0x66;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x29 ] rm (rd_of_reg128 reg)
   | _ -> assert false
 
 let emit_movupd b dst src =
   match (dst, src) with
-  | Reg128 reg, ((Reg128 _ | Mem _ | Mem64_RIP _) as rm) ->
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
       buf_int8 b 0x66;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x10 ] rm (rd_of_reg128 reg)
-  | ((Mem _ | Mem64_RIP _) as rm), Reg128 reg ->
+      emit_mod_rm_reg b 0 [ 0x0f; 0x10 ] rm (rd_of_regf reg)
+  | ((Mem _ | Mem64_RIP _) as rm), Regf reg ->
       buf_int8 b 0x66;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x11 ] rm (rd_of_reg128 reg)
+      emit_mod_rm_reg b 0 [ 0x0f; 0x11 ] rm (rd_of_regf reg)
   | _ -> assert false
 
 let emit_movd b ~dst ~src =
@@ -1218,9 +1200,6 @@ let emit_FSTP b dst =
   match dst with
   | Mem { typ = REAL8 | QWORD } as rm -> emit_mod_rm_reg b 0 [ 0xDD ] rm 3
   | Mem { typ = REAL4 } as rm -> emit_mod_rm_reg b 0 [ 0xD9 ] rm 3
-  | Regf (ST i) ->
-      (*      assert (i >= 0 && i < float_stack_size); *)
-      buf_opcodes b [ 0xDD; 0xD8 + i ]
   | _ -> assert false
 
 let emit_neg b dst =
@@ -1424,20 +1403,17 @@ let emit_FLDCW b = function
   | (Mem _ | Mem64_RIP _) as rm -> emit_mod_rm_reg b no_rex [ 0xD9 ] rm 5
   | _ -> assert false
 
-let emit_FXCH b = function
-  | Regf (ST i) -> buf_opcodes b [ 0xD9; 0xC8 + i ]
+let emit_FXCH _b = function
   | _ -> assert false
 
 let emit_FLD b = function
   | Mem { typ = REAL4 | DWORD } as rm -> emit_mod_rm_reg b 0 [ 0xD9 ] rm 0
   | Mem { typ = REAL8 | QWORD } as rm -> emit_mod_rm_reg b 0 [ 0xDD ] rm 0
-  | Regf (ST i) -> buf_opcodes b [ 0xD9; 0xC0 + i ]
   | _ -> assert false
 
 let emit_FCOMP b = function
   | Mem { typ = REAL4 | DWORD } as rm -> emit_mod_rm_reg b no_rex [ 0xD8 ] rm 3
   | Mem { typ = REAL8 | QWORD } as rm -> emit_mod_rm_reg b no_rex [ 0xDC ] rm 3
-  | Regf (ST i) -> buf_opcodes b [ 0xD8; 0xD8 + i ]
   | _ -> assert false
 
 let emit_FXXX reg b rm =
@@ -1482,9 +1458,8 @@ let emit_FNSTSW b = function
   | Mem { typ = NONE | WORD } as rm -> emit_mod_rm_reg b no_rex [ 0xDD ] rm 7
   | _ -> assert false
 
-let emit_FXXXP opcode b a1 a2 =
+let emit_FXXXP _opcode _b a1 a2 =
   match (a1, a2) with
-  | Regf (ST i), Regf (ST 0) -> buf_opcodes b [ 0xDE; opcode + i ]
   | _ -> assert false
 
 let emit_FADDP b = emit_FXXXP 0xC0 b
