@@ -78,8 +78,8 @@ let test1 () =
 
 let _ = test1 ()
 
-(*******************************************)
-(* Test 2: higher-order functions, capture *)
+(**********************************)
+(* Test 2: higher-order functions *)
 
 (* CR layouts v1.5: This type definition can be eliminated once we have
    annotations. *)
@@ -116,3 +116,48 @@ let _ =
      let add_two_after = compose add_two in
      let minus_four = add_two_after (twice (fun x -> x - (of_float 3.0))) in
      minus_four (of_float 3.14))
+
+(******************************)
+(* Test 3: float# in closures *)
+
+(* [go]'s closure should haave an [int] (immediate), a [float#] (float64) and a
+   [float array] (value). *)
+let[@inline never] f3 n m steps () =
+  let[@inline never] rec go k =
+    if k = n
+    then Float_u.of_float 0.
+    else begin
+      let acc = go (k + 1) in
+      steps.(k) <- Float_u.to_float acc;
+      Float_u.(+) m acc
+    end
+  in
+  go 0
+
+let test3 () =
+  let steps = Array.init 10 (fun _ -> 0.0) in
+  let five_pi = f3 5 (Float_u.of_float 3.14) steps in
+  print_floatu "Test 3, 5 * pi: " (five_pi ());
+  Array.iteri (Printf.printf "  Test 3, step %d: %.2f\n") steps
+
+let _ = test3 ()
+
+(******************************************)
+(* Test 4: Partial, indirect applications *)
+
+let[@inline never] test4 () =
+  (* partial application to float# *)
+  let steps = Array.init 10 (fun _ -> 0.0) in
+  let f = Sys.opaque_identity (f3 5 (Float_u.of_float 3.14)) in
+  let five_pi = f steps in
+  print_floatu "Test 4, 5 * pi: " (five_pi ());
+  Array.iteri (Printf.printf "  Test 4, step %d: %.2f\n") steps;
+
+  (* partial application with float# remaining *)
+  let steps = Array.init 10 (fun _ -> 0.0) in
+  let f = Sys.opaque_identity (f3 6) in
+  let five_pi = f (Float_u.of_float 3.14) steps in
+  print_floatu "Test 4, 6 * pi: " (five_pi ());
+  Array.iteri (Printf.printf "  Test 4, step %d: %.2f\n") steps
+
+let _ = test4 ()
