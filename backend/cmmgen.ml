@@ -471,7 +471,7 @@ let rec is_unboxed_number_cmm = function
       List.fold_left
         (join_unboxed_number_kind ~strict)
         (is_unboxed_number_cmm body)
-        (List.map (fun (_, _, e, _) -> is_unboxed_number_cmm e) handlers)
+        (List.map (fun (_, _, e, _, _) -> is_unboxed_number_cmm e) handlers)
 
 (* Translate an expression *)
 
@@ -796,7 +796,7 @@ let rec transl env e =
                     )
               dbg,
             Ctuple [],
-            dbg, Any))
+            dbg, Any, false))
   | Ufor(id, low, high, dir, body) ->
       let dbg = Debuginfo.none in
       let tst = match dir with Upto -> Cgt   | Downto -> Clt in
@@ -831,7 +831,7 @@ let rec transl env e =
                       dbg,
                    dbg, Any),
                  Ctuple [],
-                 dbg, Any))))
+                 dbg, Any, false))))
   | Uassign(id, exp) ->
       let dbg = Debuginfo.none in
       let cexp = transl env exp in
@@ -882,7 +882,7 @@ and transl_catch (kind : Cmm.kind_for_unboxing) env nfail ids body handler dbg =
   in
   if env == new_env then
     (* No unboxing *)
-    ccatch (nfail, ids, body, transl env handler, dbg, kind)
+    ccatch (nfail, ids, body, transl env handler, dbg, kind, false)
   else
     (* allocate new "nfail" to catch errors more easily *)
     let new_nfail = next_raise_count () in
@@ -896,7 +896,7 @@ and transl_catch (kind : Cmm.kind_for_unboxing) env nfail ids body handler dbg =
       in
       aux body
     in
-    ccatch (new_nfail, ids, body, transl new_env handler, dbg, kind)
+    ccatch (new_nfail, ids, body, transl new_env handler, dbg, kind, false)
 
 and transl_make_array dbg env kind mode args =
   match kind with
@@ -1385,7 +1385,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
 and make_catch (kind : Cmm.kind_for_unboxing) ncatch body handler dbg =
   match body with
   | Cexit (Lbl nexit,[],[]) when nexit=ncatch -> handler
-  | _ ->  ccatch (ncatch, [], body, handler, dbg, kind)
+  | _ ->  ccatch (ncatch, [], body, handler, dbg, kind, false)
 
 and is_shareable_cont exp =
   match exp with

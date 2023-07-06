@@ -1053,13 +1053,14 @@ val trywith :
 (** Opaque type for static handlers. *)
 type static_handler
 
-(** [handler id vars body] creates a static handler for exit number [id],
+(** [handler id vars body is_cold] creates a static handler for exit number [id],
     binding variables [vars] in [body]. *)
 val handler :
   dbg:Debuginfo.t ->
   Lambda.static_label ->
   (Backend_var.With_provenance.t * Cmm.machtype) list ->
   Cmm.expression ->
+  bool ->
   static_handler
 
 (** [cexit id args] creates the cmm expression for static to a static handler

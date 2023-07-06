@@ -291,8 +291,8 @@ let rec instr ppf i =
   | Icatch(flag, ts, handlers, body) ->
       fprintf ppf "@[<v 2>catch%a%a@,%a@;<0 -2>with"
         Printcmm.rec_flag flag trap_stack ts instr body;
-      let h (nfail, ts, handler) =
-        fprintf ppf "(%d)%a@,%a@;" nfail trap_stack ts instr handler in
+      let h (nfail, ts, handler, is_cold) =
+        fprintf ppf "(%d)%s%a@,%a@;" nfail (if is_cold then "(cold)" else "") trap_stack ts instr handler in
       let rec aux = function
         | [] -> ()
         | [v] -> h v

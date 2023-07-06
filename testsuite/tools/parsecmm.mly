@@ -252,15 +252,15 @@ expr:
           | _ -> Cifthenelse($3, debuginfo (), $4, debuginfo (),
                              (Cexit(Cmm.Lbl lbl0,[],[])),
                              debuginfo (), Any) in
-        Ccatch(Nonrecursive, [lbl0, [], Ctuple [], debuginfo ()],
+        Ccatch(Nonrecursive, [lbl0, [], Ctuple [], debuginfo (), false],
           Ccatch(Recursive,
-            [lbl1, [], Csequence(body, Cexit(Cmm.Lbl lbl1, [], [])), debuginfo ()],
+            [lbl1, [], Csequence(body, Cexit(Cmm.Lbl lbl1, [], [])), debuginfo (), false],
             Cexit(Cmm.Lbl lbl1, [], []), Any), Any) }
   | LPAREN EXIT traps IDENT exprlist RPAREN
     { Cexit(Cmm.Lbl (find_label $4), List.rev $5, $3) }
   | LPAREN CATCH sequence WITH catch_handlers RPAREN
     { let handlers = $5 in
-      List.iter (fun (_, l, _, _) ->
+      List.iter (fun (_, l, _, _, _) ->
         List.iter (fun (x, _) -> unbind_ident x) l) handlers;
       Ccatch(Recursive, handlers, $3, Any) }
   | EXIT        { Cexit(Cmm.Lbl 0,[],[]) }
@@ -432,9 +432,9 @@ catch_handlers:
 
 catch_handler:
   | sequence
-    { 0, [], $1, debuginfo () }
+    { 0, [], $1, debuginfo (), false }
   | LPAREN IDENT params RPAREN sequence
-    { find_label $2, $3, $5, debuginfo () }
+    { find_label $2, $3, $5, debuginfo (), false }
 
 location:
     /**/                        { None }

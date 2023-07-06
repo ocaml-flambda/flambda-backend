@@ -275,17 +275,17 @@ let linear i n contains_calls =
         (* CR mshinwell for pchambart:
            1. rename "io"
            2. Make sure the test cases cover the "Iend" cases too *)
-        let labels_at_entry_to_handlers = List.map (fun (_n, _ts, handler) ->
+        let labels_at_entry_to_handlers = List.map (fun (_n, _ts, handler, _) ->
             match handler.Mach.desc with
             | Iend -> lbl_end
             | _ -> Cmm.new_label ())
             handlers in
         let exit_label_add = List.map2
-            (fun (nfail, _ts, _) lbl -> (nfail, lbl))
+            (fun (nfail, _ts, _, _) lbl -> (nfail, lbl))
             handlers labels_at_entry_to_handlers in
         let env = { env with exit_label = exit_label_add @ env.exit_label; } in
         let (n2, ts_n2) =
-          List.fold_left2 (fun (n, ts_next) (_nfail, ts, handler) lbl_handler ->
+          List.fold_left2 (fun (n, ts_next) (_nfail, ts, handler, _) lbl_handler ->
             match handler.Mach.desc with
             | Iend -> n, ts_next
             | _ ->

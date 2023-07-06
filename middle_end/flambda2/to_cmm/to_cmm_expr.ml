@@ -542,6 +542,7 @@ and let_cont_not_inlined env res k handler body =
      expression. *)
   let wrap, env, res = Env.flush_delayed_lets ~mode:Branching_point env res in
   let is_exn_handler = Continuation_handler.is_exn_handler handler in
+  let is_cold = Continuation_handler.is_cold handler in
   let vars, arity, handler, free_vars_of_handler, res =
     continuation_handler env res handler
   in
@@ -567,7 +568,7 @@ and let_cont_not_inlined env res k handler body =
           (C.remove_vars_with_machtype free_vars_of_handler vars)
       in
       ( C.create_ccatch ~rec_flag:false ~body
-          ~handlers:[C.handler ~dbg catch_id vars handler],
+          ~handlers:[C.handler ~dbg catch_id vars handler is_cold],
         free_vars,
         res )
   in
@@ -693,7 +694,7 @@ and let_cont_rec env res invariant_params conts body =
             (C.remove_vars_with_machtype free_vars_of_handler vars)
         in
         let id = Env.get_cmm_continuation env k in
-        C.handler ~dbg id vars handler :: handlers, free_vars)
+        C.handler ~dbg id vars handler false :: handlers, free_vars)
       conts_to_handlers ([], free_vars_of_body)
   in
   let cmm = C.create_ccatch ~rec_flag:true ~body ~handlers in
@@ -790,8 +791,9 @@ and apply_expr env res apply =
           Env.set_inlined_debuginfo env handler_body_inlined_debuginfo
         in
         let expr, free_vars_of_handler, res = expr env res body in
+        (* we know the handler can't be cold, or it wouldn't have been inlined. *)
         let handler =
-          C.handler ~dbg:(Apply.dbg apply) label params_with_machtype expr
+          C.handler ~dbg:(Apply.dbg apply) label params_with_machtype expr false
         in
         let expr =
           C.create_ccatch ~rec_flag:false ~handlers:[handler]

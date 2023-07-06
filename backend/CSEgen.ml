@@ -214,16 +214,16 @@ let insert_move srcs dsts i =
          let i1 = array_fold2 insert_single_move i tmps dsts in
          array_fold2 insert_single_move i1 srcs tmps
 
-let rec split3 = function
-    [] -> ([], [], [])
-  | (x,y,z)::l ->
-    let (rx, ry, rz) = split3 l in (x::rx, y::ry, z::rz)
+let rec split4 = function
+    [] -> ([], [], [], [])
+  | (x,y,z,w)::l ->
+    let (rx, ry, rz, rw) = split4 l in (x::rx, y::ry, z::rz, w::rw)
 
-let rec combine3 l1 l2 l3 =
-  match (l1, l2, l3) with
-    ([], [], []) -> []
-  | (a1::l1, a2::l2, a3::l3) -> (a1, a2, a3) :: combine3 l1 l2 l3
-  | (_, _, _) -> invalid_arg "combine3"
+let rec combine4 l1 l2 l3 l4 =
+  match (l1, l2, l3, l4) with
+    ([], [], [], []) -> []
+  | (a1::l1, a2::l2, a3::l3, a4::l4) -> (a1, a2, a3, a4) :: combine4 l1 l2 l3 l4
+  | (_, _, _, _) -> invalid_arg "combine4"
 
 class cse_generic = object (self)
 
@@ -372,9 +372,9 @@ method private cse n i k =
         self#cse empty_numbering i.next (fun next ->
           k { i with desc = Iswitch(index, cases); next; }))
   | Icatch(rec_flag, ts, handlers, body) ->
-      let nfail, t, handler_code = split3 handlers in
+      let nfail, t, handler_code, is_cold = split4 handlers in
       self#cse_list empty_numbering handler_code (fun handler_code ->
-        let handlers = combine3 nfail t handler_code in
+        let handlers = combine4 nfail t handler_code is_cold in
         self#cse n body (fun body ->
           self#cse empty_numbering i.next (fun next ->
             k { i with desc = Icatch(rec_flag, ts, handlers, body); next; })))
