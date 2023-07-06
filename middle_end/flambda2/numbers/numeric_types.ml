@@ -286,7 +286,10 @@ module Vector_by_bit_pattern (Width : Vector_width) = struct
 
   let to_int64_array t = t
 
-  let of_int64_array t = t
+  let of_int64_array t =
+    if not (Array.length t = Width.size_in_int64s) then
+    Misc.fatal_error "Vector_by_bit_pattern.of_int64_array: wrong length array";
+    t
 end
 
 module Vec128_by_bit_pattern = struct

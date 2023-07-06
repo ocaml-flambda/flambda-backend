@@ -247,7 +247,7 @@ let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n
   | Cconst_natint (n, _dbg) ->
     fprintf ppf "%s" (Nativeint.to_string n)
-  | Cconst_vec128 ({low; high}, _dbg) -> fprintf ppf "%Ld:%Ld" high low
+  | Cconst_vec128 ({low; high}, _dbg) -> fprintf ppf "%016Lx:%016Lx" high low
   | Cconst_float (n, _dbg) -> fprintf ppf "%F" n
   | Cconst_symbol (s, _dbg) -> fprintf ppf "%a:\"%s\"" is_global s.sym_global s.sym_name
   | Cvar id -> V.print ppf id
