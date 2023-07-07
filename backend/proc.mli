@@ -61,9 +61,9 @@ val max_register_pressure: Mach.operation -> int array
 
 (* Registers destroyed by operations *)
 val destroyed_at_oper: Mach.instruction_desc -> Reg.t array
-val destroyed_at_raise: Reg.t array
-val destroyed_at_reloadretaddr : Reg.t array
-val destroyed_at_pushtrap : Reg.t array
+val destroyed_at_raise: unit -> Reg.t array
+val destroyed_at_reloadretaddr : unit -> Reg.t array
+val destroyed_at_pushtrap : unit -> Reg.t array
 val destroyed_at_basic : Cfg_intf.S.basic -> Reg.t array
 val destroyed_at_terminator : Cfg_intf.S.terminator -> Reg.t array
 val is_destruction_point : Cfg_intf.S.terminator -> bool

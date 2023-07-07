@@ -315,21 +315,21 @@ let destroyed_at_oper = function
       [| reg_d7 |]            (* d7 / s7 destroyed *)
   | _ -> [||]
 
-let destroyed_at_raise = all_phys_regs
+let destroyed_at_raise () = all_phys_regs
 
-let destroyed_at_reloadretaddr = [| |]
+let destroyed_at_reloadretaddr () = [| |]
 
-let destroyed_at_pushtrap = [| |]
+let destroyed_at_pushtrap () = [| |]
 
-let destroyed_at_alloc_or_poll = [| reg_x8 |]
+let destroyed_at_alloc_or_poll () = [| reg_x8 |]
 
 (* note: keep this function in sync with `destroyed_at_oper` above. *)
 let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   match basic with
   | Reloadretaddr ->
-    destroyed_at_reloadretaddr
+    destroyed_at_reloadretaddr ()
   | Pushtrap _ ->
-    destroyed_at_pushtrap
+    destroyed_at_pushtrap ()
   | Op (Intop Icheckbound | Intop_imm (Icheckbound, _)) ->
     assert false
   | Op( Intoffloat | Floatofint
@@ -355,7 +355,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
     if alloc then all_phys_regs else destroyed_at_c_call
-  | Poll_and_jump _ -> destroyed_at_alloc_or_poll
+  | Poll_and_jump _ -> destroyed_at_alloc_or_poll ()
 
 (* CR-soon xclerc for xclerc: consider having more destruction points.
    We current return `true` when `destroyed_at_terminator` returns

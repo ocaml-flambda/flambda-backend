@@ -89,6 +89,7 @@ let frame_required = ref false
 
 let frame_size () =                     (* includes return address *)
   if !frame_required then begin
+    if not !simd_regalloc_support then assert (num_stack_slots.(2) = 0);
     let sz =
       (!stack_offset
        + 8
@@ -104,11 +105,12 @@ let slot_offset loc cl =
   match loc with
   | Incoming n -> frame_size() + n
   | Local n ->
+      if not !simd_regalloc_support then assert (num_stack_slots.(2) = 0 && cl < 2);
       (!stack_offset +
        match cl with
        | 2 -> n * 16
-       | 1 -> n * 8 + num_stack_slots.(2) * 16
-       | 0 -> n * 8 + num_stack_slots.(2) * 16 + num_stack_slots.(1) * 8
+       | 1 -> num_stack_slots.(2) * 16 + n * 8
+       | 0 -> num_stack_slots.(2) * 16 + num_stack_slots.(1) * 8 + n * 8
        | _ -> Misc.fatal_error "Unknown register class")
   | Outgoing n -> n
   | Domainstate _ -> assert false (* not a stack slot *)

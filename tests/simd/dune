@@ -2,7 +2,7 @@
  (name simd)
  (modules simd)
  (foreign_stubs (language c) (names stubs) (flags -msse4.2))
- (ocamlopt_flags (:standard)))
+ (ocamlopt_flags (:standard -fsimd)))
 
 (rule
  (enabled_if

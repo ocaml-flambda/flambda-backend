@@ -1138,7 +1138,7 @@ let fundecl fundecl =
   stack_offset := 0;
   call_gc_sites := [];
   bound_error_sites := [];
-    for i = 0 to Proc.num_stack_slot_classes - 1 do
+  for i = 0 to Proc.num_stack_slot_classes - 1 do
     num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
   done;
   prologue_required := fundecl.fun_prologue_required;
