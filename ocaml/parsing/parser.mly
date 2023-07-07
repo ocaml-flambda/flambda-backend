@@ -363,23 +363,10 @@ let ptyp_lttuple loc tl =
     ~loc:(make_loc loc) ~attrs:[]
     (Lttyp_tuple tl)
 
-let arg_to_tuple_component (arg_label, body) =
-  let label =
-    match arg_label with
-    | Nolabel -> None
-    | Optional _ ->
-        raise Syntaxerr.(Error(Optional_tuple_component(body.pexp_loc)))
-    | Labelled s -> Some s
-  in
-  label, body
-
-let args_to_tuple_components args =
-  List.map arg_to_tuple_component args
-
 let pexp_lttuple loc args =
   Jane_syntax.Labeled_tuples.expr_of
     ~loc:(make_loc loc) ~attrs:[]
-    (Ltexp_tuple(args_to_tuple_components args))
+    (Ltexp_tuple args)
 
 let expecting loc nonterm =
     raise Syntaxerr.(Error(Expecting(make_loc loc, nonterm)))
@@ -2585,16 +2572,6 @@ expr:
         mkexp_attrs ~loc:$sloc desc attrs }
   | mkexp(expr_)
       { $1 }
-  (* CR labeled tuples: Merge the below two cases *)
-  | TILDETILDELPAREN args = labeled_simple_expr_comma_list RPAREN
-      {
-        let labels, components = List.split args in
-        if (List.for_all (fun lbl -> lbl = Nolabel) labels) then
-          mkexp ~loc:$sloc
-            (Pexp_tuple(components))
-        else
-          pexp_lttuple $sloc args
-      }
   | expr_comma_list %prec below_COMMA
       { mkexp ~loc:$sloc (Pexp_tuple $1) }
   | let_bindings(ext) IN seq_expr
@@ -2680,6 +2657,15 @@ expr:
 simple_expr:
   | LPAREN seq_expr RPAREN
       { reloc_exp ~loc:$sloc $2 }
+  | LPAREN args = labeled_expression_comma_list RPAREN
+      {
+        let labels, components = List.split args in
+        if (List.for_all Option.is_none labels) then
+          mkexp ~loc:$sloc
+            (Pexp_tuple(components))
+        else
+          pexp_lttuple $sloc args
+      }
   | LPAREN seq_expr error
       { unclosed "(" $loc($1) ")" $loc($3) }
   | LPAREN seq_expr type_constraint RPAREN
@@ -3091,10 +3077,47 @@ fun_def:
   es = separated_nontrivial_llist(COMMA, expr)
     { es }
 ;
-%inline labeled_simple_expr_comma_list:
-  es = separated_nontrivial_llist(COMMA, labeled_simple_expr)
-    { es }
+
+%inline strict_labeled_expr:
+  | LABEL simple_expr
+      { Some $1, $2 }
+  | TILDE label = LIDENT
+      { let loc = $loc(label) in
+        Some label, mkexpvar ~loc label }
+  | TILDE LPAREN label = LIDENT ty = type_constraint RPAREN
+      { Some label,
+        mkexp_constraint
+          ~loc:($startpos($2), $endpos) (mkexpvar ~loc:$loc(label) label) ty }
 ;
+
+%inline labeled_expr:
+  | expr
+      { None, $1 }
+  | strict_labeled_expr
+      { $1 }
+;
+
+// Length >= 2, at least one label
+reversed_labeled_expression_comma_list:
+  // Base case: the next three rules are the ways to produce a list of length 2
+  | strict_labeled_expr COMMA strict_labeled_expr
+      { [$3; $1] }
+  | expr COMMA strict_labeled_expr
+      { [$3; None, $1]}
+  | strict_labeled_expr COMMA expr
+      { [None, $3; $1]}
+  // One label, length > 2
+  | separated_nontrivial_llist(COMMA, expr) COMMA strict_labeled_expr
+      { $3 :: List.map (fun x -> None, x) $1 }
+  // Recursive case
+  | reversed_labeled_expression_comma_list COMMA labeled_expr
+      { $3 :: $1 }
+;
+
+%inline labeled_expression_comma_list:
+  | rev(reversed_labeled_expression_comma_list) { $1 }
+;
+
 
 record_expr_content:
   eo = ioption(terminated(simple_expr, WITH))
@@ -3184,20 +3207,11 @@ pattern_no_exn:
       { Pat.attr $1 $2 }
   | pattern_gen
       { $1 }
-  | TILDETILDELPAREN args = labeled_pattern_comma_list RPAREN
-      { let l, closed = args in
-        if (closed = Closed)
-            && (List.for_all Option.is_none (List.map fst l)) then
-          mkpat ~loc:$sloc (Ppat_tuple(List.map snd l))
-        else
-          ppat_lttuple $sloc l closed
-        }
   | mkpat(
       self AS mkrhs(val_ident)
         { Ppat_alias($1, $3) }
     | self AS error
         { expecting $loc($3) "identifier" }
-    (* CR labeled tuples: delete once labeled case has normal syntax *)
     | pattern_comma_list(self) %prec below_COMMA
         { Ppat_tuple(List.rev $1) }
     | self COLONCOLON error
@@ -3234,6 +3248,14 @@ simple_pattern:
 simple_pattern_not_ident:
   | LPAREN pattern RPAREN
       { reloc_pat ~loc:$sloc $2 }
+  | LPAREN args = labeled_tuple_pattern RPAREN
+      { let l, closed = args in
+        if (closed = Closed)
+            && (List.for_all Option.is_none (List.map fst l)) then
+          mkpat ~loc:$sloc (Ppat_tuple(List.map snd l))
+        else
+          ppat_lttuple $sloc l closed
+        }
   | simple_delimited_pattern
       { $1 }
   | LPAREN MODULE ext_attributes mkrhs(module_name) RPAREN
@@ -3317,10 +3339,10 @@ pattern_comma_list(self):
   | self COMMA pattern                          { [$3; $1] }
   | self COMMA error                            { expecting $loc($3) "pattern" }
 ;
-%inline labeled_pattern:
-    pattern { None, $1 }
-  | TILDE label = LIDENT EQUAL pat = pattern
-      { Some label, pat }
+
+strict_labeled_pattern:
+  | LABEL pattern %prec below_HASH
+      { Some $1, $2 }
   (* Punning *)
   | TILDE label = LIDENT
       { let loc = $loc(label) in
@@ -3332,15 +3354,39 @@ pattern_comma_list(self):
         Some label, mkpat_opt_constraint ~loc pat (Some cty) }
 ;
 
-labeled_pattern_comma_list:
-    labeled_pattern SEMI DOTDOT
-      { [$1], Open }
-  | labeled_pattern SEMI labeled_pattern
-      { [$1; $3], Closed }
-  | labeled_pattern SEMI labeled_pattern_comma_list
-      { let l, closed = $3 in
-        $1 :: l, closed }
+%inline labeled_pattern:
+  | pattern
+      { None, $1 }
+  | strict_labeled_pattern
+      { $1 }
 ;
+
+// Length >= 2, at least one label
+reversed_labeled_pattern_comma_list:
+  // Base case: the next three rules are the ways to produce a list of length 2
+  | strict_labeled_pattern COMMA strict_labeled_pattern
+      { [$3; $1] }
+  | pattern COMMA strict_labeled_pattern
+      { [$3; None, $1]}
+  | strict_labeled_pattern COMMA pattern %prec below_HASH
+      { [None, $3; $1]}
+  // One label, length > 2
+  | pattern_comma_list(pattern) COMMA strict_labeled_pattern
+      { $3 :: List.rev_map (fun x -> None, x) $1 }
+  // Recursive case
+  | reversed_labeled_pattern_comma_list COMMA labeled_pattern %prec below_HASH
+      { $3 :: $1 }
+;
+
+labeled_tuple_pattern:
+  | rev(reversed_labeled_pattern_comma_list)
+      { $1, Closed }
+  | rev(reversed_labeled_pattern_comma_list) COMMA DOTDOT
+      { $1, Open }
+  // Partial patterns are allowed to be length-one
+  | labeled_pattern COMMA DOTDOT
+      { [$1], Open }
+
 %inline pattern_semi_list:
   ps = separated_or_terminated_nonempty_list(SEMI, pattern)
     { ps }

@@ -4,7 +4,7 @@
 *)
 
 (* Basic expressions *)
-let x = ~~(~x:1, ~y:2)
+let x = (~x:1, ~y:2)
 
 [%%expect{|
 val x : x:int * y:int = (~x:1, ~y:2)
@@ -12,7 +12,7 @@ val x : x:int * y:int = (~x:1, ~y:2)
 
 let z = 5
 let punned = 2
-let _ = ~~( ~x: 5, 2, ~z, ~(punned:int))
+let _ = ( ~x: 5, 2, ~z, ~(punned:int))
 [%%expect{|
 val z : int = 5
 val punned : int = 2
@@ -20,49 +20,49 @@ val punned : int = 2
 |}]
 
 (* Basic annotations *)
-let (x : ~~(x:int * y:int)) = ~~(~x:1, ~y:2)
+let (x : ~~(x:int * y:int)) = (~x:1, ~y:2)
 [%%expect{|
 val x : x:int * y:int = (~x:1, ~y:2)
 |}]
 
-let (x : ~~(x:int * int)) = ~~(~x:1, 2)
+let (x : ~~(x:int * int)) = (~x:1, 2)
 [%%expect{|
 val x : x:int * int = (~x:1, 2)
 |}]
 
 (* Incorrect annotations *)
-let (x : ~~(int * int)) = ~~(~x:1, 2)
+let (x : ~~(int * int)) = (~x:1, 2)
 [%%expect{|
-Line 1, characters 26-37:
-1 | let (x : ~~(int * int)) = ~~(~x:1, 2)
-                              ^^^^^^^^^^^
+Line 1, characters 26-35:
+1 | let (x : ~~(int * int)) = (~x:1, 2)
+                              ^^^^^^^^^
 Error: This expression has type x:'a * 'b
        but an expression was expected of type int * int
 |}]
 
-let (x : ~~(x:string * int)) = ~~(~x:1, 2)
+let (x : ~~(x:string * int)) = (~x:1, 2)
 [%%expect{|
-Line 1, characters 37-38:
-1 | let (x : ~~(x:string * int)) = ~~(~x:1, 2)
-                                         ^
+Line 1, characters 35-36:
+1 | let (x : ~~(x:string * int)) = (~x:1, 2)
+                                       ^
 Error: This expression has type int but an expression was expected of type
          string
 |}]
 
-let (x : ~~(int * y:int)) = ~~(~x:1, 2)
+let (x : ~~(int * y:int)) = (~x:1, 2)
 [%%expect{|
-Line 1, characters 28-39:
-1 | let (x : ~~(int * y:int)) = ~~(~x:1, 2)
-                                ^^^^^^^^^^^
+Line 1, characters 28-37:
+1 | let (x : ~~(int * y:int)) = (~x:1, 2)
+                                ^^^^^^^^^
 Error: This expression has type x:'a * 'b
        but an expression was expected of type int * y:int
 |}]
 
 (* Happy case *)
 let foo b = if b then
-   ~~(~a: "s", 10, ~c: "hi")
+   (~a: "s", 10, ~c: "hi")
 else
-   ~~(~a: "5", 10, ~c: "hi")
+   (~a: "5", 10, ~c: "hi")
 [%%expect{|
 val foo : bool -> a:string * int * c:string = <fun>
 |}]
@@ -70,45 +70,45 @@ val foo : bool -> a:string * int * c:string = <fun>
 (* Missing label (the type vars in the error aren't ideal, but the same thing
    happens when unifying normal tuples of different lengths) *)
 let foo b = if b then
-   ~~(~a: "s", 10, "hi")
+   (~a: "s", 10, "hi")
 else
-   ~~(~a: "5", 10, ~c: "hi")
+   (~a: "5", 10, ~c: "hi")
 [%%expect{|
-Line 4, characters 3-28:
-4 |    ~~(~a: "5", 10, ~c: "hi")
-       ^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 4, characters 3-26:
+4 |    (~a: "5", 10, ~c: "hi")
+       ^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type a:string * int * c:'a
        but an expression was expected of type a:string * int * string
 |}]
 
 (* Missing labeled component *)
 let foo b = if b then
-   ~~(~a: "s", 10)
+   (~a: "s", 10)
 else
-   ~~(~a: "5", 10, ~c: "hi")
+   (~a: "5", 10, ~c: "hi")
 [%%expect{|
-Line 4, characters 3-28:
-4 |    ~~(~a: "5", 10, ~c: "hi")
-       ^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 4, characters 3-26:
+4 |    (~a: "5", 10, ~c: "hi")
+       ^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type a:'a * 'b * c:'c
        but an expression was expected of type a:string * int
 |}]
 
 (* Wrong label *)
 let foo b = if b then
-   ~~(~a: "s", 10, ~a: "hi")
+   (~a: "s", 10, ~a: "hi")
 else
-   ~~(~a: "5", 10, ~c: "hi")
+   (~a: "5", 10, ~c: "hi")
 [%%expect{|
-Line 4, characters 3-28:
-4 |    ~~(~a: "5", 10, ~c: "hi")
-       ^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 4, characters 3-26:
+4 |    (~a: "5", 10, ~c: "hi")
+       ^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type a:string * int * c:'a
        but an expression was expected of type a:string * int * a:string
 |}]
 
 (* Types in function argument/return *)
-let default = ~~(~x: 1, ~y: 2)
+let default = (~x: 1, ~y: 2)
 let choose_pt replace_with_default pt =
    if replace_with_default then
       default
@@ -120,66 +120,66 @@ val choose_pt : bool -> x:int * y:int -> x:int * y:int = <fun>
 |}]
 
 (* Application happy case *)
-let a = choose_pt true (~~(~x: 5, ~y: 6))
+let a = choose_pt true ((~x: 5, ~y: 6))
 [%%expect{|
 val a : x:int * y:int = (~x:1, ~y:2)
 |}]
 
 (* Wrong order *)
-let a = choose_pt true (~~(~y: 6, ~x: 5))
+let a = choose_pt true (~y: 6, ~x: 5)
 [%%expect{|
-Line 1, characters 23-41:
-1 | let a = choose_pt true (~~(~y: 6, ~x: 5))
-                           ^^^^^^^^^^^^^^^^^^
+Line 1, characters 23-37:
+1 | let a = choose_pt true (~y: 6, ~x: 5)
+                           ^^^^^^^^^^^^^^
 Error: This expression has type y:'a * x:'b
        but an expression was expected of type x:int * y:int
 |}]
 
 (* Mutually-recursive definitions *)
-let rec a = ~~(1, ~lbl:b)
-and b = ~~(2, ~lbl:a)
+let rec a = (1, ~lbl:b)
+and b = (2, ~lbl:a)
 [%%expect{|
-Line 2, characters 19-20:
-2 | and b = ~~(2, ~lbl:a)
-                       ^
+Line 2, characters 17-18:
+2 | and b = (2, ~lbl:a)
+                     ^
 Error: This expression has type int * lbl:(int * lbl:'a)
        but an expression was expected of type 'a
        The type variable 'a occurs inside int * lbl:(int * lbl:'a)
 |}]
 
-let rec l = ~~(~lbl: 5, ~lbl2: 10) :: l
+let rec l = (~lbl: 5, ~lbl2: 10) :: l
 [%%expect{|
 val l : (lbl:int * lbl2:int) list = [(~lbl:5, ~lbl2:10); <cycle>]
 |}]
 
 (* Tuple containing labeled tuples *)
-let tup = (~~(~a:1, ~b:2), ~~(~b:3, ~a:4), 5)
+let tup = (~a:1, ~b:2), (~b:3, ~a:4), 5
 [%%expect{|
 val tup : (a:int * b:int) * (b:int * a:int) * int =
   ((~a:1, ~b:2), (~b:3, ~a:4), 5)
 |}]
 
 (* Polymorphic variant containing labeled tuple *)
-let a = `Some (~~(~a: 1, ~b:2, 3))
+let a = `Some (~a: 1, ~b:2, 3)
 [%%expect{|
 val a : [> `Some of a:int * b:int * int ] = `Some (~a:1, ~b:2, 3)
 |}]
 
 (* List of labeled tuples *)
-let lst = (~~(~a: 1, ~b: 2)) :: []
+let lst = (~a: 1, ~b: 2) :: []
 [%%expect{|
 val lst : (a:int * b:int) list = [(~a:1, ~b:2)]
 |}]
 
 (* Ref of labeled tuple *)
-let x = ref (~~(~x:"hello", 5))
+let x = ref (~x:"hello", 5)
 [%%expect{|
 val x : (x:string * int) ref = {contents = (~x:"hello", 5)}
 |}]
 
 (* Polymorphic record containing a labeled tuple *)
 type 'a box = {thing: 'a}
-let boxed = {thing = ~~("hello", ~x:5)}
+let boxed = {thing = ("hello", ~x:5)}
 [%%expect{|
 type 'a box = { thing : 'a; }
 val boxed : (string * x:int) box = {thing = ("hello", ~x:5)}
@@ -191,21 +191,21 @@ val boxed : (string * x:int) box = {thing = ("hello", ~x:5)}
    The swapped component is the input with the [a] and [b] components swapped
    as many times as the input int. The second component is whether the first
    equals the input. *)
-let rec swap (~~(~a; ~b)) =
+let rec swap (~a, ~b) =
    function
-   | 0 -> ~~(~swapped:(~~(~a, ~b)), ~same:true)
-   | n -> swap' (~~(~a:b, ~b:a)) (n-1)
-and swap' (~~(~a; ~b)) =
+   | 0 -> (~swapped:(~a, ~b), ~same:true)
+   | n -> swap' (~a:b, ~b:a) (n-1)
+and swap' (~a, ~b) =
    function
-   | 0 -> ~~(~swapped:(~~(~a, ~b)), ~same:false)
-   | n -> swap (~~(~a:b, ~b:a)) (n-1)
+   | 0 -> (~swapped:(~a, ~b), ~same:false)
+   | n -> swap (~a:b, ~b:a) (n-1)
 [%%expect{|
 val swap : a:'a * b:'a -> int -> swapped:(a:'a * b:'a) * same:bool = <fun>
 val swap' : a:'a * b:'a -> int -> swapped:(a:'a * b:'a) * same:bool = <fun>
 |}]
 
-let foobar = swap (~~(~a:"foo", ~b:"bar")) 86
-let barfoo = swap (~~(~a:"foo", ~b:"bar")) 87
+let foobar = swap (~a:"foo", ~b:"bar") 86
+let barfoo = swap (~a:"foo", ~b:"bar") 87
 [%%expect{|
 val foobar : swapped:(a:string * b:string) * same:bool =
   (~swapped:(~a:"foo", ~b:"bar"), ~same:true)
@@ -215,17 +215,17 @@ val barfoo : swapped:(a:string * b:string) * same:bool =
 
 (* Labeled tuple type annotations *)
 (* Bad type *)
-let x: ~~(string * a:int * int) = ~~(~lbl:5, "hi")
+let x: ~~(string * a:int * int) = (~lbl:5, "hi")
 [%%expect{|
-Line 1, characters 34-50:
-1 | let x: ~~(string * a:int * int) = ~~(~lbl:5, "hi")
-                                      ^^^^^^^^^^^^^^^^
+Line 1, characters 34-48:
+1 | let x: ~~(string * a:int * int) = (~lbl:5, "hi")
+                                      ^^^^^^^^^^^^^^
 Error: This expression has type lbl:'a * 'b
        but an expression was expected of type string * a:int * int
 |}]
 
 (* Well-typed *)
-let x: ~~(string * a:int * int) = ~~("hi", ~a:1, 2)
+let x: ~~(string * a:int * int) = ("hi", ~a:1, 2)
 [%%expect{|
 val x : string * a:int * int = ("hi", ~a:1, 2)
 |}]
@@ -236,7 +236,7 @@ let mk_x : ~~(foo:unit * bar:unit) -> ~~(string * a:int * int) = fun _ -> x
 val mk_x : foo:unit * bar:unit -> string * a:int * int = <fun>
 |}]
 
-let x = mk_x (~~(~foo:(), ~bar:()))
+let x = mk_x (~foo:(), ~bar:())
 [%%expect{|
 val x : string * a:int * int = ("hi", ~a:1, 2)
 |}]
@@ -260,48 +260,48 @@ type tx_unlabeled = { x : int * int; }
 |}]
 
 
-let _ = { x = (~~(~foo:1, ~bar:2))}
+let _ = { x = (~foo:1, ~bar:2)}
 [%%expect{|
-Line 1, characters 14-34:
-1 | let _ = { x = (~~(~foo:1, ~bar:2))}
-                  ^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 14-30:
+1 | let _ = { x = (~foo:1, ~bar:2)}
+                  ^^^^^^^^^^^^^^^^
 Error: This expression has type foo:'a * bar:'b
        but an expression was expected of type int * int
 |}]
 
-let (_ : tx) = { x = (~~(~foo:1, ~bar:2))}
+let (_ : tx) = { x = (~foo:1, ~bar:2)}
 [%%expect{|
 - : tx = {x = (~foo:1, ~bar:2)}
 |}]
 
-let (_ : tx) = { x = (~~(1, ~bar:2))}
+let (_ : tx) = { x = (1, ~bar:2)}
 [%%expect{|
-Line 1, characters 21-36:
-1 | let (_ : tx) = { x = (~~(1, ~bar:2))}
-                         ^^^^^^^^^^^^^^^
+Line 1, characters 21-32:
+1 | let (_ : tx) = { x = (1, ~bar:2)}
+                         ^^^^^^^^^^^
 Error: This expression has type 'a * bar:'b
        but an expression was expected of type foo:int * bar:int
 |}]
 
-let (_ : tx) = { x = (~~(~foo:1, 2))}
+let (_ : tx) = { x = (~foo:1, 2)}
 [%%expect{|
-Line 1, characters 21-36:
-1 | let (_ : tx) = { x = (~~(~foo:1, 2))}
-                         ^^^^^^^^^^^^^^^
+Line 1, characters 21-32:
+1 | let (_ : tx) = { x = (~foo:1, 2)}
+                         ^^^^^^^^^^^
 Error: This expression has type foo:int * 'a
        but an expression was expected of type foo:int * bar:int
 |}]
 
-let (_ : tx) = { x = (~~(1, 2))}
+let (_ : tx) = { x = (1, 2)}
 [%%expect{|
-Line 1, characters 21-31:
-1 | let (_ : tx) = { x = (~~(1, 2))}
-                         ^^^^^^^^^^
+Line 1, characters 21-27:
+1 | let (_ : tx) = { x = (1, 2)}
+                         ^^^^^^
 Error: This expression has type 'a * 'b
        but an expression was expected of type foo:int * bar:int
 |}]
 
-let _ = { x = (~~(1, 2))}
+let _ = { x = (1, 2)}
 [%%expect{|
 - : tx_unlabeled = {x = (1, 2)}
 |}]
@@ -314,8 +314,8 @@ module IntString : sig
    val unwrap : t -> ~~(x:int * string)
 end = struct
   type t = ~~(string * x:int)
-  let mk (~~(~x; s)) = (~~(s, ~x))
-  let unwrap (~~(s; ~x)) = (~~(~x, s))
+  let mk (~x, s) = (s, ~x)
+  let unwrap (s, ~x) = (~x, s)
 end
 [%%expect{|
 module IntString :
@@ -340,7 +340,7 @@ module Stringable = struct
    module Make (M : Has_unwrap) : Has_to_string with type t := M.t = struct
       include M
       let to_string int_string =
-         let (~~(~x; s)) = unwrap int_string in
+         let (~x, s) = unwrap int_string in
          (Int.to_string x) ^ " " ^ s
    end
 end
@@ -377,7 +377,7 @@ module StringableIntString :
   end
 |}]
 
-let _ = StringableIntString.to_string (StringableIntString.mk (~~(~x:1, "hi")))
+let _ = StringableIntString.to_string (StringableIntString.mk (~x:1, "hi"))
 [%%expect{|
 - : string = "1 hi"
 |}]
@@ -387,7 +387,7 @@ module M : sig
   val mk : unit -> ~~(x:bool * y:string)
 end = struct
   let f x = x
-  let mk () = ~~(~x:false, ~y:"hi")
+  let mk () = (~x:false, ~y:"hi")
 end
 
 (* Module inclusion failure *)
@@ -452,7 +452,7 @@ end = struct
    type t = Leaf of string | Branch of string * TwoTrees.t
    let rec in_order = function
    | Leaf s -> [s]
-   | Branch (s, (~~(~left; ~right))) -> (in_order left) @ [s] @ (in_order right)
+   | Branch (s, (~left, ~right)) -> (in_order left) @ [s] @ (in_order right)
 end
 and TwoTrees : sig
    type t = ~~(left:Tree.t * right:Tree.t)
@@ -469,8 +469,8 @@ and TwoTrees : sig type t = left:Tree.t * right:Tree.t end
 |}]
 
 let leaf s = Tree.Leaf s
-let tree_abc = Tree.Branch ("b", ~~(~left:(leaf "a"), ~right:(leaf "c")))
-let tree_abcde = Tree.Branch ("d", ~~(~left:tree_abc, ~right:(leaf "e")))
+let tree_abc = Tree.Branch ("b", (~left:(leaf "a"), ~right:(leaf "c")))
+let tree_abcde = Tree.Branch ("d", (~left:tree_abc, ~right:(leaf "e")))
 let _ = Tree.in_order tree_abcde
 [%%expect{|
 val leaf : string -> Tree.t = <fun>

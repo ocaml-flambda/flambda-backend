@@ -5,4 +5,4 @@ ocamlc_byte_exit_status = "2"
 *** check-ocamlc.byte-output
 *)
 
-~~(y, ?x:2)
+(y, ?x:2)
