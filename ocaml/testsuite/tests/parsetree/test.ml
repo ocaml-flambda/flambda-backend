@@ -84,6 +84,7 @@ let test parse_fun pprint print map filename =
   with exn -> report_err exn
 
 let rec process path =
+  Language_extension.enable Language_extension.Labeled_tuples ();
   if Sys.is_directory path then
     let files = Sys.readdir path in
     Array.iter (fun s -> process (Filename.concat path s)) files

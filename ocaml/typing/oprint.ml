@@ -396,8 +396,12 @@ and print_out_type_local m ppf ty =
 
 and print_out_type_2 mode ppf =
   function
-    Otyp_tuple tyl ->
-      fprintf ppf "@[<0>%a@]" (print_labeled_typlist print_simple_out_type " *") tyl
+  | Otyp_tuple tyl
+      (* Only fully unlabeled tuples can be printed w/o parens *)
+      when List.for_all (fun (label, _) -> Option.is_none label) tyl
+    ->
+      fprintf
+        ppf "@[<0>%a@]" (print_labeled_typlist print_simple_out_type " *") tyl
   | ty -> print_out_type_3 mode ppf ty
 and print_out_type_3 mode ppf =
   function
@@ -433,6 +437,16 @@ and print_out_type_3 mode ppf =
          else if tags = None then "> " else "? ")
         print_fields row_fields
         print_present tags
+  | Otyp_tuple tyl
+      (* Labeled tuples must be printed w/ parens *)
+      when List.exists (fun (label, _) -> Option.is_some label) tyl
+    ->
+      pp_open_box ppf 1;
+      pp_print_char ppf '(';
+      fprintf
+        ppf "@[<0>%a@]" (print_labeled_typlist print_simple_out_type " *") tyl;
+      pp_print_char ppf ')';
+      pp_close_box ppf ()
   | Otyp_alias _ | Otyp_poly _ | Otyp_arrow _ | Otyp_tuple _ as ty ->
       pp_open_box ppf 1;
       pp_print_char ppf '(';

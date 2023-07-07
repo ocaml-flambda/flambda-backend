@@ -877,7 +877,6 @@ let unboxed_float_type sloc tys =
    string that will not trigger a syntax error; see how [not_expecting]
    is used in the definition of [type_variance]. */
 
-%token TILDETILDELPAREN       "~~(" (* CR labeled tuples: remove *)
 %token AMPERAMPER             "&&"
 %token AMPERSAND              "&"
 %token AND                    "and"
@@ -3901,6 +3900,7 @@ function_type:
       { ty }
 ;
 
+
 strict_function_type:
   | mktyp(
       label = arg_label
@@ -3926,14 +3926,21 @@ strict_function_type:
     )
     { $1 }
 ;
-%inline arg_label:
+
+%inline strict_arg_label:
   | label = optlabel
-      { Optional label }
+    { Optional label }
   | label = LIDENT COLON
-      { Labelled label }
-  | /* empty */
-      { Nolabel }
+    { Labelled label }
 ;
+
+%inline arg_label:
+  | strict_arg_label
+    { $1 }
+  | /* empty */
+    { Nolabel }
+;
+
 %inline optional_local:
   | /* empty */
     { false }
@@ -3964,23 +3971,41 @@ tuple_type:
         { Ptyp_tuple tys }
     )
       { $1 }
-  | TILDETILDELPAREN
-      tys = separated_nontrivial_llist(STAR, labeled_atomic_type)
-    RPAREN
-      {
-        if List.for_all (fun (lbl, _) -> Option.is_none lbl) tys then
-          mktyp ~loc:$sloc (Ptyp_tuple (List.map snd tys))
-        else
-          ptyp_lttuple $sloc tys
-      }
 ;
+
+%inline strict_labeled_atomic_type:
+  | label = LIDENT COLON ty = atomic_type
+      { Some label, ty }
 
 labeled_atomic_type:
   atomic_type
       { None, $1 }
-  | label = LIDENT COLON ty = atomic_type
-      { Some label, ty }
+  | strict_labeled_atomic_type
+      { $1 }
 ;
+
+(* Star-separated of >= 1 type(s) with at least one label total*)
+reversed_labeled_type_list:
+  (* 0 unlabeled types before the first label *)
+  | strict_labeled_atomic_type %prec below_HASH
+      { [$1] }
+  (* 1 unlabeled type before the first label *)
+  | atomic_type STAR strict_labeled_atomic_type
+      { [$3; None, $1]}
+  (* 2+ unlabeled types before the first label *)
+  | separated_nontrivial_llist(STAR, atomic_type)
+    STAR strict_labeled_atomic_type
+      { $3 :: List.map (fun x -> None, x) $1 }
+  (* Once we have a label, we can append either *)
+  | reversed_labeled_type_list STAR labeled_atomic_type
+      { $3 :: $1 }
+
+%inline nontrivial_labeled_type_list:
+  | rev(reversed_labeled_type_list)
+      { if List.length $1 == 1 then
+          raise
+            Syntaxerr.(Error(Singleton_labeled_tuple_type (make_loc $loc($1))));
+        $1 }
 
 (* Atomic types are the most basic level in the syntax of types.
    Atomic types include:
@@ -3995,6 +4020,15 @@ atomic_type:
       { $2 }
   | LPAREN MODULE ext_attributes package_type RPAREN
       { wrap_typ_attrs ~loc:$sloc (reloc_typ ~loc:$sloc $4) $3 }
+  | LPAREN
+      tys = nontrivial_labeled_type_list
+    RPAREN
+      {
+        if List.for_all (fun (lbl, _) -> Option.is_none lbl) tys then
+          mktyp ~loc:$sloc (Ptyp_tuple (List.map snd tys))
+        else
+          ptyp_lttuple $sloc tys
+      }
   | mktyp( /* begin mktyp group */
       QUOTE ident
         { Ptyp_var $2 }

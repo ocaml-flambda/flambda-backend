@@ -138,6 +138,9 @@ let prepare_error err =
   | Ill_formed_ast (loc, s) ->
       Location.errorf ~loc
         "broken invariant in parsetree: %s" s
+  | Singleton_labeled_tuple_type loc ->
+      Location.errorf ~loc
+        "Labeled tuple types must have length 2 or greater"
   | Invalid_package_type (loc, s) ->
       Location.errorf ~loc "invalid package type: %s" s
 
