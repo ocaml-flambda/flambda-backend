@@ -148,10 +148,10 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
     match reg.Reg.loc with
     | Reg phys_reg ->
       let phys_reg = Proc.phys_reg reg.typ phys_reg in
-      if not (same_reg_class reg phys_reg)
+      if not (same_stack_class reg phys_reg)
       then
         fatal
-          "instruction %d assigned %a to %a but they are in different classes"
+          "instruction %d assigned %a to %a but they are in different stack slot classes"
           id Printmach.reg reg Printmach.reg phys_reg
     | Stack _ | Unknown -> ()
   in

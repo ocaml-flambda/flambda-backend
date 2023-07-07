@@ -118,7 +118,7 @@ let regs_at_same_location (reg1 : Reg.t) (reg2 : Reg.t) ~register_class
   match reg1.loc with
   | Reg _ -> register_class reg1 = register_class reg2
   | Stack _ -> stack_class reg1 = stack_class reg2
-  | Unknown -> false
+  | Unknown -> Misc.fatal_errorf "regs_at_same_location got Unknown locations"
 
 let at_same_location t (reg : Reg.t) ~register_class ~stack_class =
   regs_at_same_location t.reg reg ~register_class ~stack_class
