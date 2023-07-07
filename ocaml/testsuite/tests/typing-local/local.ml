@@ -2676,7 +2676,7 @@ Line 1, characters 12-30:
 1 | let f () = ((fun x y -> x + y) : (local_ int -> (int -> int)));;
                 ^^^^^^^^^^^^^^^^^^
 Error: This function or one of its parameters escape their region
-       when it is partially applied
+       when it is partially applied.
 |}];;
 
 (* ok if curried *)
@@ -2693,7 +2693,7 @@ Line 1, characters 19-37:
 1 | let f () = local_ ((fun x y -> x + y) : (_ -> _));;
                        ^^^^^^^^^^^^^^^^^^
 Error: This function or one of its parameters escape their region
-       when it is partially applied
+       when it is partially applied.
 |}];;
 
 (* ok if curried *)

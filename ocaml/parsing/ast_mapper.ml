@@ -181,8 +181,8 @@ module T = struct
     match Jane_syntax.Core_type.of_ast typ with
     | Some (jtyp, attrs) -> begin
         let attrs = sub.attributes sub attrs in
-        match sub.typ_jane_syntax sub jtyp with
-          | Jtyp_layout l -> Jane_syntax.Layouts.type_of ~loc ~attrs l
+        let jtyp = sub.typ_jane_syntax sub jtyp in
+        Jane_syntax.Core_type.core_type_of jtyp ~loc ~attrs
     end
     | None ->
     let attrs = sub.attributes sub attrs in
@@ -350,8 +350,8 @@ module MT = struct
     match Jane_syntax.Module_type.of_ast mty with
     | Some (jmty, attrs) -> begin
         let attrs = sub.attributes sub attrs in
-        match sub.module_type_jane_syntax sub jmty with
-        | Jmty_strengthen smty -> Jane_syntax.Strengthen.mty_of ~loc ~attrs smty
+        Jane_syntax.Module_type.mty_of ~loc ~attrs
+          (sub.module_type_jane_syntax sub jmty)
       end
     | None ->
     let attrs = sub.attributes sub attrs in

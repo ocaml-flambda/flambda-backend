@@ -111,6 +111,26 @@ end
    the first place. And so instead we just manually call
    [make_entire_jane_syntax] and refer to this Note as a reminder to authors of
    future syntax features to remember to do this wrapping.
+
+   Note [Outer attributes at end]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   The order of attributes matters for several reasons:
+   - If the user writes attributes on a Jane Street OCaml construct, where
+     should those appear with respect to the Jane Syntax attribute that
+     introduces the construct?
+   - Some Jane Syntax embeddings use attributes, and sometimes an AST node will
+     have multiple Jane Syntax-related attributes on it. Which attribute should
+     Jane Syntax interpret first?
+
+   Both of these questions are settled by a convention where attributes
+   appearing later in an attribute list are considered to be "outer" to
+   attributes appearing earlier. (ppxlib adopted this convention, and thus we
+   need to as well for compatibility.)
+
+   - User-written attributes appear later in the attribute list than
+     a Jane Syntax attribute that introduces a syntactic construct.
+   - If multiple Jane Syntax attributes appear on an AST node, the ones
+     appearing later in the attribute list should be interpreted first.
 *)
 
 (** List and array comprehensions *)
@@ -216,9 +236,9 @@ module Comprehensions = struct
           clauses
           (Ast_of.wrap_jane_syntax ["body"] body)))
 
-  let expr_of ~loc ~attrs cexpr =
+  let expr_of ~loc cexpr =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
-    let expr = Expression.make_entire_jane_syntax ~loc feature (fun () ->
+    Expression.make_entire_jane_syntax ~loc feature (fun () ->
       match cexpr with
       | Cexp_list_comprehension comp ->
           expr_of_comprehension ~type_:["list"] comp
@@ -230,8 +250,6 @@ module Comprehensions = struct
                      | Immutable -> "immutable"
                    ]
             comp)
-    in
-    { expr with pexp_attributes = expr.pexp_attributes @ attrs }
 
   (** Then, we define how to go from the OCaml AST to the nice AST; this is
       the [..._of_expr] family of expressions, culminating in
@@ -350,22 +368,22 @@ module Immutable_arrays = struct
 
   let feature : Feature.t = Language_extension Immutable_arrays
 
-  let expr_of ~loc ~attrs = function
+  let expr_of ~loc = function
     | Iaexp_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Expression.make_entire_jane_syntax ~loc feature (fun () ->
-        Ast_helper.Exp.array ~attrs elts)
+        Ast_helper.Exp.array elts)
 
   (* Returns remaining unconsumed attributes *)
   let of_expr expr = match expr.pexp_desc with
     | Pexp_array elts -> Iaexp_immutable_array elts, expr.pexp_attributes
     | _ -> failwith "Malformed immutable array expression"
 
-  let pat_of ~loc ~attrs = function
+  let pat_of ~loc = function
     | Iapat_immutable_array elts ->
       (* See Note [Wrapping with make_entire_jane_syntax] *)
       Pattern.make_entire_jane_syntax ~loc feature (fun () ->
-        Ast_helper.Pat.array ~attrs elts)
+        Ast_helper.Pat.array elts)
 
   (* Returns remaining unconsumed attributes *)
   let of_pat pat = match pat.ppat_desc with
@@ -415,10 +433,10 @@ module Strengthen = struct
      the [(module M)] is a [Pmty_alias].  This isn't syntax we can write, but
      [(module M)] can be the inferred type for [M], so this should be fine. *)
 
-  let mty_of ~loc ~attrs { mty; mod_id } =
+  let mty_of ~loc { mty; mod_id } =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
     Module_type.make_entire_jane_syntax ~loc feature (fun () ->
-      Ast_helper.Mty.functor_ ~attrs (Named (Location.mknoloc None, mty))
+      Ast_helper.Mty.functor_ (Named (Location.mknoloc None, mty))
         (Ast_helper.Mty.alias mod_id))
 
   (* Returns remaining unconsumed attributes *)
@@ -659,7 +677,7 @@ module Layouts = struct
   (*******************************************************)
   (* Encoding expressions *)
 
-  let expr_of ~loc ~attrs expr =
+  let expr_of ~loc expr =
     let module Ast_of = Ast_of (Expression) (Ext) in
     (* See Note [Wrapping with make_entire_jane_syntax] *)
     Expression.make_entire_jane_syntax ~loc feature begin fun () ->
@@ -667,11 +685,11 @@ module Layouts = struct
       | Lexp_constant c ->
         let constant = constant_of c in
         Ast_of.wrap_jane_syntax ["unboxed"] @@
-        Ast_helper.Exp.constant ~attrs constant
+        Ast_helper.Exp.constant constant
       | Lexp_newtype (name, layout, inner_expr) ->
         let payload = Encode.as_payload layout in
         Ast_of.wrap_jane_syntax ["newtype"] ~payload @@
-        Ast_helper.Exp.newtype ~attrs name inner_expr
+        Ast_helper.Exp.newtype name inner_expr
     end
 
   (*******************************************************)
@@ -702,12 +720,12 @@ module Layouts = struct
   (*******************************************************)
   (* Encoding patterns *)
 
-  let pat_of ~loc ~attrs t =
+  let pat_of ~loc t =
     Pattern.make_entire_jane_syntax ~loc feature begin fun () ->
       match t with
       | Lpat_constant c ->
         let constant = constant_of c in
-        Ast_helper.Pat.constant ~attrs constant
+        Ast_helper.Pat.constant constant
     end
 
   (*******************************************************)
@@ -726,7 +744,7 @@ module Layouts = struct
 
   module Type_of = Ast_of (Core_type) (Ext)
 
-  let type_of ~loc ~attrs typ =
+  let type_of ~loc typ =
     let exception No_wrap_necessary of Parsetree.core_type in
     try
       (* See Note [Wrapping with make_entire_jane_syntax] *)
@@ -736,13 +754,13 @@ module Layouts = struct
           let payload = Encode.as_payload layout in
           Type_of.wrap_jane_syntax ["var"] ~payload @@
           begin match name with
-          | None -> Ast_helper.Typ.any ~loc ~attrs ()
-          | Some name -> Ast_helper.Typ.var ~loc ~attrs name
+          | None -> Ast_helper.Typ.any ~loc ()
+          | Some name -> Ast_helper.Typ.var ~loc name
           end
         | Ltyp_poly { bound_vars; inner_type } ->
           let var_names, layouts = List.split bound_vars in
           (* Pass the loc because we don't want a ghost location here *)
-          let tpoly = Ast_helper.Typ.poly ~loc ~attrs var_names inner_type in
+          let tpoly = Ast_helper.Typ.poly ~loc var_names inner_type in
           if List.for_all Option.is_none layouts
           then raise (No_wrap_necessary tpoly)
           else
@@ -752,9 +770,7 @@ module Layouts = struct
         | Ltyp_alias { aliased_type; name; layout } ->
           let payload = Encode.as_payload layout in
           let has_name, inner_typ = match name with
-            | None -> "anon", { aliased_type with
-                                ptyp_attributes =
-                                  aliased_type.ptyp_attributes @ attrs }
+            | None -> "anon", aliased_type
             | Some name -> "named", Ast_helper.Typ.alias aliased_type name
           in
           Type_of.wrap_jane_syntax ["alias"; has_name] ~payload inner_typ
@@ -818,7 +834,7 @@ module Layouts = struct
 
   module Ext_ctor_of = Ast_of (Extension_constructor) (Ext)
 
-  let extension_constructor_of ~loc ~name ~attrs ?info ?docs ext =
+  let extension_constructor_of ~loc ~name ?info ?docs ext =
     (* using optional parameters to hook into existing defaulting
        in [Ast_helper.Te.decl], which seems unwise to duplicate *)
     let exception No_wrap_necessary of Parsetree.extension_constructor in
@@ -832,7 +848,7 @@ module Layouts = struct
               let ext_ctor =
                 (* Pass ~loc here, because the constructor declaration is
                    not a ghost *)
-                Ast_helper.Te.decl ~loc ~attrs ~vars ~args ?info ?docs ?res name
+                Ast_helper.Te.decl ~loc ~vars ~args ?info ?docs ?res name
               in
               if List.for_all Option.is_none layouts
               then raise (No_wrap_necessary ext_ctor)
@@ -872,20 +888,24 @@ module Layouts = struct
 
   module Ctor_decl_of = Ast_of (Constructor_declaration) (Ext)
 
-  let constructor_declaration_of ~loc ~attrs ~info ~vars_layouts ~args
+  let constructor_declaration_of ~loc ~info ~attrs ~vars_layouts ~args
         ~res name =
     let vars, layouts = List.split vars_layouts in
     let ctor_decl =
-      Ast_helper.Type.constructor ~loc ~attrs ~info ~vars ~args ?res name
+      Ast_helper.Type.constructor ~loc ~info ~vars ~args ?res name
     in
-    if List.for_all Option.is_none layouts
-    then ctor_decl
-    else
-      let payload = Encode.option_list_as_payload layouts in
-      Constructor_declaration.make_entire_jane_syntax ~loc feature
-        begin fun () ->
-          Ctor_decl_of.wrap_jane_syntax ["vars"] ~payload ctor_decl
-        end
+    let ctor_decl =
+      if List.for_all Option.is_none layouts
+      then ctor_decl
+      else
+        let payload = Encode.option_list_as_payload layouts in
+        Constructor_declaration.make_entire_jane_syntax ~loc feature
+          begin fun () ->
+            Ctor_decl_of.wrap_jane_syntax ["vars"] ~payload ctor_decl
+          end
+    in
+    (* See Note [Outer attributes at end] *)
+    { ctor_decl with pcd_attributes = ctor_decl.pcd_attributes @ attrs }
 
   let of_constructor_declaration_internal (feat : Feature.t) ctor_decl =
     match feat with
@@ -929,6 +949,14 @@ module Core_type = struct
     | _ -> None
 
   let of_ast = Core_type.make_of_ast ~of_ast_internal
+
+  let core_type_of ~loc ~attrs t =
+    let core_type =
+      match t with
+      | Jtyp_layout x -> Layouts.type_of ~loc x
+    in
+    (* See Note [Outer attributes at end] *)
+    { core_type with ptyp_attributes = core_type.ptyp_attributes @ attrs }
 end
 
 module Constructor_argument = struct
@@ -960,10 +988,15 @@ module Expression = struct
 
   let of_ast = Expression.make_of_ast ~of_ast_internal
 
-  let expr_of ~loc ~attrs = function
-    | Jexp_comprehension x -> Comprehensions.expr_of ~loc ~attrs x
-    | Jexp_immutable_array x -> Immutable_arrays.expr_of ~loc ~attrs x
-    | Jexp_layout x -> Layouts.expr_of ~loc ~attrs x
+  let expr_of ~loc ~attrs t =
+    let expr =
+      match t with
+      | Jexp_comprehension x   -> Comprehensions.expr_of   ~loc x
+      | Jexp_immutable_array x -> Immutable_arrays.expr_of ~loc x
+      | Jexp_layout x          -> Layouts.expr_of          ~loc x
+    in
+    (* See Note [Outer attributes at end] *)
+    { expr with pexp_attributes = expr.pexp_attributes @ attrs }
 end
 
 module Pattern = struct
@@ -982,9 +1015,14 @@ module Pattern = struct
 
   let of_ast = Pattern.make_of_ast ~of_ast_internal
 
-  let pat_of ~loc ~attrs = function
-    | Jpat_immutable_array x -> Immutable_arrays.pat_of ~loc ~attrs x
-    | Jpat_layout x -> Layouts.pat_of ~loc ~attrs x
+  let pat_of ~loc ~attrs t =
+    let pat =
+      match t with
+      | Jpat_immutable_array x -> Immutable_arrays.pat_of ~loc x
+      | Jpat_layout x -> Layouts.pat_of ~loc x
+    in
+    (* See Note [Outer attributes at end] *)
+    { pat with ppat_attributes = pat.ppat_attributes @ attrs }
 end
 
 module Module_type = struct
@@ -998,6 +1036,14 @@ module Module_type = struct
     | _ -> None
 
   let of_ast = Module_type.make_of_ast ~of_ast_internal
+
+  let mty_of ~loc ~attrs t =
+    let mty =
+      match t with
+      | Jmty_strengthen x -> Strengthen.mty_of ~loc x
+    in
+    (* See Note [Outer attributes at end] *)
+    { mty with pmty_attributes = mty.pmty_attributes @ attrs }
 end
 
 module Signature_item = struct
@@ -1038,8 +1084,12 @@ module Extension_constructor = struct
 
   let of_ast = Extension_constructor.make_of_ast ~of_ast_internal
 
-  let extension_constructor_of ~loc ~name ~attrs ?info ?docs = function
-    | Jext_layout lext ->
-      Layouts.extension_constructor_of ~loc ~name ~attrs ?info ?docs lext
+  let extension_constructor_of ~loc ~name ~attrs ?info ?docs t =
+    let ext_ctor =
+      match t with
+      | Jext_layout lext ->
+          Layouts.extension_constructor_of ~loc ~name ?info ?docs lext
+    in
+    (* See Note [Outer attributes at end] *)
+    { ext_ctor with pext_attributes = ext_ctor.pext_attributes @ attrs }
 end
-

@@ -490,26 +490,25 @@ let parse_embedding_exn ~loc ~name ~embedding_syntax =
   | None -> None
 
 let find_and_remove_jane_syntax_attribute =
-  let rec loop rest ~rev_prefix =
-    match rest with
+  (* Recurs on [rev_prefix] *)
+  let rec loop ~rev_prefix ~suffix =
+    match rev_prefix with
     | [] -> None
-    | attr :: rest ->
-      let { attr_name = { txt = name; loc = attr_loc }; attr_payload } =
-        attr
-      in
-      begin
-        match
-         parse_embedding_exn
-           ~loc:attr_loc
-           ~name
-           ~embedding_syntax:Attribute
-        with
-        | None -> loop rest ~rev_prefix:(attr :: rev_prefix)
-        | Some name -> Some (name, attr_loc, attr_payload,
-                             List.rev_append rev_prefix rest)
-      end
+    | attr :: rev_prefix ->
+        let { attr_name = { txt = name; loc = attr_loc }; attr_payload } =
+          attr
+        in
+        begin
+          match
+            parse_embedding_exn ~loc:attr_loc ~name ~embedding_syntax:Attribute
+          with
+          | None -> loop ~rev_prefix ~suffix:(attr :: suffix)
+          | Some name ->
+              let unconsumed_attributes = List.rev_append rev_prefix suffix in
+              Some (name, attr_loc, attr_payload, unconsumed_attributes)
+        end
   in
-  fun attributes -> loop attributes ~rev_prefix:[]
+  fun attributes -> loop ~rev_prefix:(List.rev attributes) ~suffix:[]
 ;;
 
 let make_jane_syntax_attribute name payload =
@@ -537,8 +536,17 @@ module Make_with_attribute
     let embedding_syntax = Embedding_syntax.Attribute
 
     let make_jane_syntax name ?(payload = PStr []) ast =
-      let attr = make_jane_syntax_attribute name payload in
-      with_attributes ast (attr :: attributes ast)
+      let attr =
+        { attr_name =
+            { txt = Embedded_name.to_string name
+            ; loc = !Ast_helper.default_loc
+            }
+        ; attr_loc = !Ast_helper.default_loc
+        ; attr_payload = payload
+        }
+      in
+      (* See Note [Outer attributes at end] *)
+      with_attributes ast (attributes ast @ [ attr ])
 
     let match_jane_syntax ast =
       match find_and_remove_jane_syntax_attribute (attributes ast) with

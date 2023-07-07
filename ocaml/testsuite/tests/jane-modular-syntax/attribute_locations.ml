@@ -30,7 +30,7 @@ let gather_attributes_by_location program_text =
       the expression iterator to look at attributes literally.
    *)
    let expr iterator (x : Parsetree.expression) =
-     List.iter record_attribute x.pexp_attributes;
+     List.iter record_attribute (List.rev x.pexp_attributes);
      Ast_iterator.default_iterator.expr iterator { x with pexp_attributes = [] }
    in
    let iterator = { Ast_iterator.default_iterator with expr } in
