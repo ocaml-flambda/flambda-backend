@@ -624,7 +624,7 @@ let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   fp || fun_contains_calls ||
   fun_num_stack_slots.(0) > 0 ||
   fun_num_stack_slots.(1) > 0 ||
-  (!simd_regalloc_support && fun_num_stack_slots.(2) > 0)
+  fun_num_stack_slots.(2) > 0
 
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
