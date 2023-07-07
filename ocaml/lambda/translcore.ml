@@ -648,9 +648,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   event_before ~scopes ifso (transl_exp ~scopes sort ifso),
                   lambda_unit,
                   Lambda.layout_unit)
-  | Texp_sequence(expr1, sort, expr2) ->
-      sort_must_not_be_void expr1.exp_loc expr1.exp_type sort;
-      Lsequence(transl_exp ~scopes sort expr1,
+  | Texp_sequence(expr1, sort', expr2) ->
+      sort_must_not_be_void expr1.exp_loc expr1.exp_type sort';
+      Lsequence(transl_exp ~scopes sort' expr1,
                 event_before ~scopes expr2 (transl_exp ~scopes sort expr2))
   | Texp_while {wh_body; wh_body_sort; wh_cond} ->
       sort_must_not_be_void wh_body.exp_loc wh_body.exp_type wh_body_sort;
