@@ -780,7 +780,7 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
             else if nargs > 0 && nargs < arity then
               simplify_partial_application env r ~lhs_of_application
                 ~closure_id_being_applied ~function_decl ~args ~mode ~dbg
-                ~inlined_requested ~specialise_requested ~result_layout
+                ~inlined_requested ~specialise_requested
             else
               Misc.fatal_errorf "Function with arity %d when simplifying \
                   application expression: %a"
@@ -809,7 +809,7 @@ and simplify_full_application env r ~function_decls ~lhs_of_application
 
 and simplify_partial_application env r ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~args ~mode ~dbg
-      ~inlined_requested ~specialise_requested ~result_layout
+      ~inlined_requested ~specialise_requested
   =
   let arity = A.function_arity function_decl in
   assert (arity > List.length args);
@@ -867,10 +867,9 @@ and simplify_partial_application env r ~lhs_of_application
         inlined = Default_inlined;
         specialise = Default_specialise;
         probe = None;
-        result_layout;
+        result_layout = function_decl.A.return_layout;
       }
     in
-    assert(Lambda.compatible_layout function_decl.A.return_layout result_layout);
     let closure_variable =
       Variable.rename ~debug_info:(Closure_id.debug_info closure_id_being_applied)
         (Closure_id.unwrap closure_id_being_applied)
