@@ -107,11 +107,12 @@ let slot_offset loc cl =
   | Local n ->
       if not !simd_regalloc_support then assert (num_stack_slots.(2) = 0 && cl < 2);
       (!stack_offset +
-       match cl with
-       | 2 -> n * 16
-       | 1 -> num_stack_slots.(2) * 16 + n * 8
-       | 0 -> num_stack_slots.(2) * 16 + num_stack_slots.(1) * 8 + n * 8
-       | _ -> Misc.fatal_error "Unknown register class")
+        (* Preserves original ordering (int -> float) *)
+        match cl with
+        | 2 -> n * 16
+        | 0 -> num_stack_slots.(2) * 16 + n * 8
+        | 1 -> num_stack_slots.(2) * 16 + num_stack_slots.(0) * 8 + n * 8
+        | _ -> Misc.fatal_error "Unknown register class")
   | Outgoing n -> n
   | Domainstate _ -> assert false (* not a stack slot *)
 
