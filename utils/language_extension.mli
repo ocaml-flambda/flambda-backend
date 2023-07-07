@@ -1,12 +1,14 @@
-(** Language extensions provided by ocaml-jst *)
+(** Language extensions provided by the Jane Street version of the OCaml
+    compiler.
+*)
 
 (** A setting for extensions that track multiple maturity levels *)
-type maturity = Stable | Beta | Alpha
+type maturity = Language_extension_kernel.maturity = Stable | Beta | Alpha
 
 (** The type of language extensions. An ['a t] is an extension that can either
     be off or be set to have any value in ['a], so a [unit t] can be either on
     or off, while a [maturity t] can have different maturity settings. *)
-type _ t =
+type 'a t = 'a Language_extension_kernel.t =
   | Comprehensions : unit t
   | Local : unit t
   | Include_functor : unit t
@@ -19,7 +21,7 @@ type _ t =
 module Exist : sig
   type 'a extn = 'a t (* this is removed from the sig by the [with] below;
                          ocamldoc doesn't like [:=] in sigs *)
-  type t =
+  type t = Language_extension_kernel.Exist.t =
     | Pack : 'a extn -> t
 
   val to_string : t -> string

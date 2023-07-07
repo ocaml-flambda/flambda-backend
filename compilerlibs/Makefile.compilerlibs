@@ -35,6 +35,7 @@ UTILS = \
   utils/load_path.cmo \
   utils/clflags.cmo \
   utils/debug.cmo \
+  utils/language_extension_kernel.cmo \
   utils/language_extension.cmo \
   utils/profile.cmo \
   utils/terminfo.cmo \
@@ -53,7 +54,7 @@ UTILS = \
   utils/lazy_backtrack.cmo \
   utils/diffing.cmo \
   utils/diffing_with_keys.cmo
-UTILS_CMI =
+UTILS_CMI = \
 
 PARSING = \
   parsing/location.cmo \
