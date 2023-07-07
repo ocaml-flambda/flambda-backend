@@ -253,8 +253,8 @@ let same_reg_class : Reg.t -> Reg.t -> bool =
   Int.equal (Proc.register_class reg1) (Proc.register_class reg2)
 
 let same_stack_class : Reg.t -> Reg.t -> bool =
-  fun reg1 reg2 ->
-    Int.equal (Proc.stack_slot_class_for reg1) (Proc.stack_slot_class_for reg2)
+ fun reg1 reg2 ->
+  Int.equal (Proc.stack_slot_class_for reg1) (Proc.stack_slot_class_for reg2)
 
 let make_temporary :
     same_class_and_base_name_as:Reg.t -> name_prefix:string -> Reg.t =
