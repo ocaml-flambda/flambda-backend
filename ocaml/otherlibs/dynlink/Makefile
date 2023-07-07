@@ -82,6 +82,7 @@ COMPILERLIBS_SOURCES=\
   utils/load_path.ml \
   utils/clflags.ml \
   utils/debug.ml \
+  utils/language_extension_kernel.ml \
   utils/language_extension.ml \
   utils/profile.ml \
   utils/consistbl.ml \
