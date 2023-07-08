@@ -2050,7 +2050,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         exn_continuation;
         inlined = Lambda.Default_inlined;
         mode = result_mode;
-        return_arity = result_arity;
+        return_arity = result_arity
       }
       (Some approx) ~replace_region:None
   in
@@ -2093,11 +2093,10 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
                  Flambda_arity.cardinal missing_arity
                  - first_complex_local_param
              })
-        ~params ~return:result_arity ~return_continuation
-        ~exn_continuation ~my_region:apply.region ~body:fbody ~attr
-        ~loc:apply.loc ~free_idents_of_body ~closure_alloc_mode
-        ~first_complex_local_param ~contains_no_escaping_local_allocs
-        Recursive.Non_recursive ]
+        ~params ~return:result_arity ~return_continuation ~exn_continuation
+        ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
+        ~free_idents_of_body ~closure_alloc_mode ~first_complex_local_param
+        ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
   in
   let body acc env =
     let arg = find_simple_from_id env wrapper_id in
