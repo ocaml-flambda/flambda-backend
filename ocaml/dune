@@ -74,7 +74,7 @@
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter
    typetexp patterns printpat parmatch stypes typedecl typeopt rec_check
-   typecore
+   typecore mode uniqueness_analysis
    typeclass typemod typedecl_variance typedecl_properties
    typedecl_separability cmt2annot
    ; manual update: mli only files
@@ -299,6 +299,8 @@
     (typeopt.mli as compiler-libs/typeopt.mli)
     (rec_check.mli as compiler-libs/rec_check.mli)
     (typecore.mli as compiler-libs/typecore.mli)
+    (mode.mli as compiler-libs/mode.mli)
+    (uniqueness_analysis.mli as compiler-libs/uniqueness_analysis.mli)
     (typeclass.mli as compiler-libs/typeclass.mli)
     (typemod.mli as compiler-libs/typemod.mli)
     (typedecl_variance.mli as compiler-libs/typedecl_variance.mli)

@@ -124,13 +124,13 @@ let gen_array_set_kind mode =
 let prim_sys_argv =
   Primitive.simple_on_values ~name:"caml_sys_argv" ~arity:1 ~alloc:true
 
-let to_alloc_mode ~poly = function
+let to_locality ~poly = function
   | Prim_global, _ -> alloc_heap
   | Prim_local, _ -> alloc_local
   | Prim_poly, _ ->
     match poly with
     | None -> assert false
-    | Some mode -> transl_alloc_mode mode
+    | Some locality -> transl_locality_mode locality
 
 let to_modify_mode ~poly = function
   | Prim_global, _ -> modify_heap
@@ -141,7 +141,7 @@ let to_modify_mode ~poly = function
     | Some mode -> transl_modify_mode mode
 
 let lookup_primitive loc poly pos p =
-  let mode = to_alloc_mode ~poly p.prim_native_repr_res in
+  let mode = to_locality ~poly p.prim_native_repr_res in
   let arg_modes = List.map (to_modify_mode ~poly) p.prim_native_repr_args in
   let get_first_arg_mode () =
     match arg_modes with
@@ -854,8 +854,8 @@ let lambda_of_prim prim_name prim loc args arg_exps =
 let check_primitive_arity loc p =
   let mode =
     match p.prim_native_repr_res with
-    | Prim_global, _ | Prim_poly, _ -> Some Alloc_mode.global
-    | Prim_local, _ -> Some Alloc_mode.local
+    | Prim_global, _ | Prim_poly, _ -> Some Mode.Locality.global
+    | Prim_local, _ -> Some Mode.Locality.local
   in
   let prim = lookup_primitive loc mode Rc_normal p in
   let ok =
@@ -889,7 +889,7 @@ let transl_primitive loc p env ty ~poly_mode path =
     | None -> prim
     | Some prim -> prim
   in
-  let to_alloc_mode = to_alloc_mode ~poly:poly_mode in
+  let to_locality = to_locality ~poly:poly_mode in
   let rec make_params ty repr_args repr_res =
     match repr_args, repr_res with
     | [], (_, res_repr) ->
@@ -905,7 +905,7 @@ let transl_primitive loc p env ty ~poly_mode path =
           let arg_layout =
             Typeopt.layout env (to_location loc) (Sort.of_const arg_sort) arg_ty
           in
-          let arg_mode = to_alloc_mode arg in
+          let arg_mode = to_locality arg in
           let params, return = make_params ret_ty repr_args repr_res in
           { name = Ident.create_local "prim";
             layout = arg_layout;
@@ -927,7 +927,7 @@ let transl_primitive loc p env ty ~poly_mode path =
      in
      let body = lambda_of_prim p.prim_name prim loc args None in
      let region =
-       match to_alloc_mode p.prim_native_repr_res with
+       match to_locality p.prim_native_repr_res with
        | Alloc_heap -> true
        | Alloc_local -> false
      in
@@ -937,7 +937,7 @@ let transl_primitive loc p env ty ~poly_mode path =
        | Alloc_heap :: args -> count_nlocal args
        | (Alloc_local :: _) as args -> List.length args
      in
-     let nlocal = count_nlocal (List.map to_alloc_mode p.prim_native_repr_args) in
+     let nlocal = count_nlocal (List.map to_locality p.prim_native_repr_args) in
      lfunction
        ~kind:(Curried {nlocal})
        ~params

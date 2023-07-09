@@ -576,7 +576,7 @@ let bug3 () =
 Line 3, characters 63-64:
 3 |     fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> print_string a
                                                                    ^
-Error: The value a is local, so cannot be used inside a closure that might escape
+Error: The value a is local, so cannot be used inside a closure that might escape.
 |}]
 let overapp ~(local_ a) ~b = (); fun ~c ~d -> ()
 
@@ -878,7 +878,7 @@ let obj () =
 Line 3, characters 33-38:
 3 |   let _obj = object method foo = thing end in
                                      ^^^^^
-Error: The value thing is local, so cannot be used inside a closure that might escape
+Error: The value thing is local, so cannot be used inside a class.
 |}]
 
 
@@ -930,7 +930,7 @@ let leak_ref_2 =
 Line 3, characters 39-40:
 3 |   use_locally (fun x -> let _ = local_ r in r.contents <- Some x; x) 42
                                            ^
-Error: The value r is local, so cannot be used inside a closure that might escape
+Error: The value r is local, so cannot be used inside a closure that might escape.
 |}]
 
 let leak_ref_3 =
@@ -1036,7 +1036,7 @@ let foo (local_ x) =
 Line 2, characters 30-31:
 2 |   let _ = lazy (print_string !x) in
                                   ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a lazy expression.
 |}]
 
 (* Don't escape through a functor *)
@@ -1051,7 +1051,7 @@ let foo (local_ x) =
 Line 3, characters 27-28:
 3 |     let () = print_string !x
                                ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a module.
 |}]
 
 (* Don't escape through a class method *)
@@ -1066,7 +1066,7 @@ let foo (local_ x) =
 Line 4, characters 18-19:
 4 |       method m = !x
                       ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape through an object method *)
@@ -1081,7 +1081,7 @@ let foo (local_ x) =
 Line 3, characters 16-17:
 3 |     method m = !x
                     ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape through a class instance variable *)
@@ -1096,7 +1096,7 @@ let foo (local_ x) =
 Line 4, characters 15-16:
 4 |       val m = !x
                    ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape through a class instance variable *)
@@ -1109,7 +1109,7 @@ let foo (local_ x) =
 Line 3, characters 13-14:
 3 |     val m = !x
                  ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape through a class local variable *)
@@ -1161,7 +1161,7 @@ let foo (local_ x : string ref) =
 Line 5, characters 15-16:
 5 |       let y = !x in
                    ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 let foo (local_ x : string ref) =
@@ -1191,7 +1191,7 @@ class d : string -> object method m : string end
 Line 6, characters 17-18:
 6 |       inherit d !x
                      ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape in initializers *)
@@ -1206,7 +1206,7 @@ let foo (local_ x) =
 Line 3, characters 31-32:
 3 |     initializer (print_string !x)
                                    ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape in non-function 'let rec' bindings *)
@@ -1260,7 +1260,7 @@ val local_cb : local_ (unit -> 'a) -> 'a = <fun>
 Line 2, characters 41-42:
 2 | let foo (local_ x) = local_cb (fun () -> x := 17; 42)
                                              ^
-Error: The value x is local, so cannot be used inside a closure that might escape
+Error: The value x is local, so cannot be used inside a closure that might escape.
 Hint: The closure might escape because it is an argument to a tail call
 |}]
 
@@ -2648,7 +2648,7 @@ Lines 3-6, characters 6-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val g : 'a -> 'b -> local_ string
+           val g : 'a -> ('b -> local_ string)
            val f : 'a -> local_ ('b -> local_ string)
          end
        is not included in
