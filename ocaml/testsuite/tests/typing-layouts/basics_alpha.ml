@@ -103,9 +103,8 @@ Error: This pattern matches values of type t_any
 (* Presently, the typechecker will allow any representable layout as a function
    arg or return type.  The translation to lambda rejects functions with
    void args / returns. *)
-(* CR layouts v2: The translation to lambda should reject void but not #float *)
 (* CR layouts v2: Once we have another sort that can make it through lambda
-   (#float), add tests showing the way sort variables will be instantiated.
+   (float#), add tests showing the way sort variables will be instantiated.
 
    1) [let f x = x] roughly has type [('a : '_sort) -> ('a : '_sort)].
       Test that you can apply it to a value or to a #float, but once you've
@@ -114,7 +113,7 @@ Error: This pattern matches values of type t_any
    2) If [f] has a type in the mli (and isn't used in the ml) we get the sort
       from there.
 
-   I think that all already works, but for the lack of #float *)
+   I think that all already works, but for the lack of float# *)
 
 module type S = sig
   val f1 : t_value -> t_value
@@ -289,7 +288,7 @@ Line 3, characters 0-15:
 Error:
        s5 has layout value, which is not a sublayout of immediate.
 |}]
-(* CR layouts v2: improve error, which will require layout histories *)
+(* CR layouts v2.9: improve error, which will require layout histories *)
 
 type 'a [@any] t4 = 'a
 and s4 = string t4;;
@@ -317,7 +316,7 @@ type 'a [@any] any5 = Any5 of 'a
 let id5 : 'a void5 -> 'a void5 = function
   | Void5 x -> Void5 x
 
-(* CR layouts v2: At the moment, the code in the comment below does not work.
+(* CR layouts v2.8: At the moment, the code in the comment below does not work.
    Because we demand that constructor arguments have layout (Sort 'l), the type
    [any5] actually only works on values.
 
@@ -1189,7 +1188,7 @@ Error: This pattern matches values of type (M.t_void, M.t_void) eq
          (M.t_void, M.t_imm) eq
        M.t_void has layout void, which does not overlap with immediate.
 |}]
-(* CR layouts v2: error message is OK, but it could probably be better.
+(* CR layouts v2.9: error message is OK, but it could probably be better.
    But a similar case without layouts is already pretty bad, so try
    that before spending too much time here. *)
 

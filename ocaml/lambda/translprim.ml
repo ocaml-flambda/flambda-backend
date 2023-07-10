@@ -515,7 +515,7 @@ let glb_array_set_type t1 t2 =
   | Pfloatarray_set, Pfloatarray -> Pfloatarray_set
 
 (* Specialize a primitive from available type information. *)
-(* CR layouts v2: This function had a loc argument added just to support the void
+(* CR layouts v7: This function had a loc argument added just to support the void
    check error message.  Take it out when we remove that. *)
 let specialize_primitive env loc ty ~has_constant_constructor prim =
   let param_tys =

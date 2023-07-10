@@ -765,7 +765,7 @@ let check_layout loc id =
 
 (* Unboxed literals *)
 
-(* CR layouts v2: The [unboxed_*] functions will both be improved and lose
+(* CR layouts v2.5: The [unboxed_*] functions will both be improved and lose
    their explicit assert once we have real unboxed literals in Jane syntax; they
    may also get re-inlined at that point *)
 let unboxed_literals_extension = Language_extension.Layouts

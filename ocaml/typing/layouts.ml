@@ -963,7 +963,7 @@ module Layout = struct
       end
     | (Any | Immediate64 | Immediate | Sort _), _ -> false
 
-  (* CR layouts v2: Switch this back to ~allow_mutation:false *)
+  (* CR layouts v2.8: Switch this back to ~allow_mutation:false *)
   let equal = equate_or_equal ~allow_mutation:true
 
   let equate = equate_or_equal ~allow_mutation:true

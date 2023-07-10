@@ -220,7 +220,7 @@ let enter_type rec_flag env sdecl (id, uid) =
            Case 1 is accepted and case 2 is rejected, which isn't the end of the
            world, but could perhaps be improved.
         *)
-        (* CR layouts v2: Actually, RAE thinks this is just wrong now, because
+        (* CR layouts v1.5: Actually, RAE thinks this is just wrong now, because
            make_params defaults to a sort variable and this defaults to value.
            I'm worried that the value here will propagate somewhere and then
            conflict with an inferred e.g. float64 somewhere. *)
@@ -1104,7 +1104,7 @@ let update_decl_layout env dpath decl =
       let layout = Layout.for_boxed_record ~all_void in
       lbls, rep, layout
     | _, Record_float ->
-      (* CR layouts v2: When we have an unboxed float layout, does it make
+      (* CR layouts v2.5: When we have an unboxed float layout, does it make
          sense to use that here?  The use of value feels inaccurate, but I think
          the code that would look at first looks at the rep. *)
       let lbls =
@@ -2139,7 +2139,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     if arity_ok && man <> None then
       sig_decl.type_kind, sig_decl.type_unboxed_default, sig_decl.type_layout
     else
-      (* CR layouts v2: this is a gross hack.  See the comments in the
+      (* CR layouts: this is a gross hack.  See the comments in the
          [Ptyp_package] case of [Typetexp.transl_type_aux]. *)
       let layout = Layout.value ~why:Package_hack in
         (* Layout.(of_attributes ~default:value sdecl.ptype_attributes) *)
