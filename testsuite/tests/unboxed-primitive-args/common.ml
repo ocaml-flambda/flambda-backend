@@ -57,7 +57,7 @@ let string_of : type a. a typ -> a -> string = function
   | Float     ->
       fun f -> Printf.sprintf "float_of_bits 0x%LxL" (Int64.bits_of_float f)
   | Vec128    ->
-      fun v -> Printf.sprintf "vec128 %Ld:%Ld" (vec128_high_int64 v) (vec128_low_int64 v)
+      fun v -> Printf.sprintf "vec128 %016Lx:%016Lx" (vec128_high_int64 v) (vec128_low_int64 v)
 
 let rec arity : type a. a proto -> int = function
   | Ret _ -> 0
