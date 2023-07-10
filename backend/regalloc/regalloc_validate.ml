@@ -34,10 +34,8 @@ module Location : sig
   module Map : Map.S with type key = t
 end = struct
   module Stack = struct
-    (** This type is based on [Reg.stack_location]. The first difference is that
-        for [Stack (Local index)] this types additionally stores [stack_class]
-        because local stacks are separate for different stack slot classes.
-        Secondly for all stacks it stores index in words and not byte offset.
+    (** This type is based on [Reg.stack_location].
+        For all stacks it stores index in words and not byte offset.
         That gives the guarantee that if indices are different then the
         locations do not overlap. *)
     type t =
@@ -93,7 +91,7 @@ end = struct
 
     let to_stack_loc_lossy t =
       match t with
-      | Local { index; _ } -> Reg.Local index
+      | Local { index } -> Reg.Local index
       | Incoming { index } -> Reg.Incoming (word_index_to_byte_offset index)
       | Outgoing { index } -> Reg.Outgoing (word_index_to_byte_offset index)
       | Domainstate { index } ->
@@ -129,8 +127,22 @@ end = struct
     Printmach.loc ~unknown:(fun _ -> assert false) ppf (to_loc_lossy t) t.typ
 
   let compare (t1 : t) (t2 : t) : int =
-    (* CR-someday azewierzejew: Implement proper comparison. *)
-    Stdlib.compare t1 t2
+    match t1.loc, t2.loc with
+    (* Reg < Stack *)
+    | Reg _, Stack _ -> -1
+    | Stack _, Reg _ -> 1
+    | Reg r1, Reg r2 ->
+      (* Compare register index only. Indices never overlap between classes *)
+      Int.compare r1 r2
+    | Stack s1, Stack s2 ->
+      (* Compare stack slot class and then slot index. Indices do overlap
+         between classes. *)
+      let stack_class_cmp =
+        Int.compare
+          (Proc.stack_slot_class t1.typ)
+          (Proc.stack_slot_class t2.typ)
+      in
+      if stack_class_cmp = 0 then Stdlib.compare s1 s2 else stack_class_cmp
 
   let equal (t1 : t) (t2 : t) : bool = compare t1 t2 = 0
 
@@ -861,11 +873,14 @@ end = struct
       then (
         Format.fprintf Format.str_formatter
           "Unsatisfiable equations when removing result equations.\n\
-           Existing equation has to agree one 0 or 2 sides (cannot on exactly \
+           Existing equation has to agree on 0 or 2 sides (cannot be exactly \
            1) with the removed equation.\n\
+           (%s, %s)\n\
            Existing equation %a.\n\
-           Removed equation: %a." Equation.print (eq_reg, eq_loc) Equation.print
-          (reg, loc);
+           Removed equation: %a."
+          (if reg_eq then "matches" else "differs")
+          (if loc_eq then "matches" else "differs")
+          Equation.print (eq_reg, eq_loc) Equation.print (reg, loc);
         let message = Format.flush_str_formatter () in
         raise (Verification_failed message))
     in

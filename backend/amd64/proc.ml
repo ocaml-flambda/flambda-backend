@@ -200,6 +200,10 @@ let num_destroyed_by_plt_stub = Array.length destroyed_by_plt_stub
 let destroyed_by_plt_stub_set = Reg.set_of_array destroyed_by_plt_stub
 
 let stack_slot slot ty =
+  (match ty with
+   | Float | Int | Addr | Val -> ()
+   | Vec128 -> if not !simd_regalloc_support then
+     Misc.fatal_error "SIMD register allocation is not enabled.");
   Reg.at_location ty (Stack slot)
 
 (* Instruction selection *)
