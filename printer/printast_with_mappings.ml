@@ -957,6 +957,7 @@ and case i ppf {pc_lhs; pc_guard; pc_rhs} =
   end;
   expression (i+1) ppf pc_rhs;
 
+<<<<<<< HEAD
 and guard i ppf = function
   | Guard_predicate e -> expression i ppf e
   | Guard_pattern (e, pat) ->
@@ -964,6 +965,17 @@ and guard i ppf = function
       line i ppf "<match>\n";
       pattern (i + 1) ppf pat
 
+||||||| parent of c8a7a11c (Adds guard type to Parsetree)
+=======
+and guard i ppf = function
+  | Guard_predicate e -> expression i ppf e
+  | Guard_pattern (e, pat) -> (
+      expression i ppf e;
+      line i ppf "<match with>\n";
+      pattern (i + 1) ppf pat
+  )
+
+>>>>>>> c8a7a11c (Adds guard type to Parsetree)
 and value_binding i ppf x =
   line i ppf "<def>\n";
   attributes (i+1) ppf x.pvb_attributes;

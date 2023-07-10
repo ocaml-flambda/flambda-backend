@@ -21631,8 +21631,16 @@ module Tables = struct
         let _startpos = _startpos__1_ in
         let _endpos = _endpos__5_ in
         let _v : (Parsetree.case) = 
+<<<<<<< HEAD
 # 3030 "parsing/parser.mly"
       ( Exp.case _1 ~guard:(Guard_predicate _3) _5 )
+||||||| parent of c8a7a11c (Adds guard type to Parsetree)
+# 3029 "parsing/parser.mly"
+      ( Exp.case _1 ~guard:_3 _5 )
+=======
+# 3029 "parsing/parser.mly"
+      ( Exp.case _1 ~guard:(Guard_predicate _3) _5 )
+>>>>>>> c8a7a11c (Adds guard type to Parsetree)
 # 21637 "parsing/parser.ml"
          in
         {
@@ -37575,9 +37583,19 @@ module Tables = struct
         let _symbolstartpos = _startpos__1_ in
         let _sloc = (_symbolstartpos, _endpos) in
         
+<<<<<<< HEAD
 # 4043 "parsing/parser.mly"
                       ( unboxed_float _sloc Positive _2 )
 # 37581 "parsing/parser.ml"
+||||||| parent of c8a7a11c (Adds guard type to Parsetree)
+# 4034 "parsing/parser.mly"
+                      ( unboxed_float _sloc Negative _2 )
+# 37514 "parsing/parser.ml"
+=======
+# 4034 "parsing/parser.mly"
+                      ( unboxed_float _sloc Positive _2 )
+# 37514 "parsing/parser.ml"
+>>>>>>> c8a7a11c (Adds guard type to Parsetree)
          in
         {
           MenhirLib.EngineTypes.state = _menhir_s;
