@@ -1024,7 +1024,7 @@ let test_loop ~loop_loc_first n =
     ~exp_std:
       "Validation failed: Bad equations at entry point, reason: Unsatisfiable \
        equations when removing result equations.\n\
-       Existing equation has to agree one 0 or 2 sides (cannot on exactly 1) \
+       Existing equation has to agree on 0 or 2 sides (cannot be exactly 1) \
        with the removed equation.\n\
        Existing equation R[%rdi]=%rbx.\n\
        Removed equation: R[%rbx]=%rbx.\n\

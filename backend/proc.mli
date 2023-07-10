@@ -24,6 +24,7 @@ val register_class: Reg.t -> int
 val num_available_registers: int array
 val first_available_register: int array
 val register_name: Cmm.machtype_component -> int -> string
+val register_name_lossy: int -> string
 val phys_reg: Cmm.machtype_component -> int -> Reg.t
 val rotate_registers: bool
 val precolored_regs : unit -> Reg.t array

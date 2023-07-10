@@ -145,6 +145,11 @@ let register_name ty r =
     Misc.fatal_error "SIMD register allocation is not enabled.";
     float_reg_name.(r - first_available_register.(1))
 
+let register_name_lossy idx =
+  if idx < 100 then int_reg_name.(idx)
+  else if idx < 200 then float_reg_name.(idx - 100)
+  else Misc.fatal_errorf "Unknown register ID %d" idx
+
 (* Pack registers starting at %rax so as to reduce the number of REX
    prefixes and thus improve code density *)
 let rotate_registers = false

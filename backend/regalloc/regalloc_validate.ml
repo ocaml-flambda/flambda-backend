@@ -34,12 +34,17 @@ module Location : sig
   module Map : Map.S with type key = t
 end = struct
   module Stack = struct
-    (** This type is based on [Reg.stack_location].
-        For all stacks it stores index in words and not byte offset.
+    (** This type is based on [Reg.stack_location]. The first difference is that
+        for [Stack (Local index)] this types additionally stores [stack_class]
+        because local stacks are separate for different stack slot classes.
+        Secondly for all stacks it stores index in words and not byte offset.
         That gives the guarantee that if indices are different then the
         locations do not overlap. *)
     type t =
-      | Local of { index : int }
+      | Local of
+          { index : int;
+            stack_class : int
+          }
       | Incoming of { index : int }
       | Outgoing of { index : int }
       | Domainstate of { index : int }
@@ -79,9 +84,9 @@ end = struct
 
     let word_index_to_byte_offset index = index * word_size
 
-    let of_stack_loc loc =
+    let of_stack_loc ~stack_class loc =
       match loc with
-      | Reg.Local index -> Local { index }
+      | Reg.Local index -> Local { index; stack_class }
       | Reg.Incoming offset ->
         Incoming { index = byte_offset_to_word_index offset }
       | Reg.Outgoing offset ->
@@ -91,58 +96,51 @@ end = struct
 
     let to_stack_loc_lossy t =
       match t with
-      | Local { index } -> Reg.Local index
+      | Local { index; _ } -> Reg.Local index
       | Incoming { index } -> Reg.Incoming (word_index_to_byte_offset index)
       | Outgoing { index } -> Reg.Outgoing (word_index_to_byte_offset index)
       | Domainstate { index } ->
         Reg.Domainstate (word_index_to_byte_offset index)
+
+    let print ppf = function
+      | Local { index; stack_class } ->
+        Format.fprintf ppf "s[%s:%i]" (Proc.stack_class_tag stack_class) index
+      | Incoming { index } -> Format.fprintf ppf "par[%i]" index
+      | Outgoing { index } -> Format.fprintf ppf "arg[%i]" index
+      | Domainstate { index } -> Format.fprintf ppf "ds[%i]" index
   end
 
-  type location =
+  type t =
     | Reg of int
     | Stack of Stack.t
 
-  type t =
-    { typ : Cmm.machtype_component;
-      loc : location
-    }
-
-  let of_reg reg : t option =
+  let of_reg reg =
     match reg.Reg.loc with
     | Reg.Unknown -> None
-    | Reg.Reg idx -> Some { typ = reg.Reg.typ; loc = Reg idx }
+    | Reg.Reg idx -> Some (Reg idx)
     | Reg.Stack stack ->
-      Some { typ = reg.Reg.typ; loc = Stack (Stack.of_stack_loc stack) }
+      Some
+        (Stack
+           (Stack.of_stack_loc
+              ~stack_class:(Proc.stack_slot_class reg.Reg.typ)
+              stack))
 
   let of_reg_exn reg = of_reg reg |> Option.get
 
   let of_regs_exn loc_arr = Array.map of_reg_exn loc_arr
 
-  let to_loc_lossy { loc; _ } =
-    match loc with
+  let to_loc_lossy t =
+    match t with
     | Reg idx -> Reg.Reg idx
     | Stack stack -> Reg.Stack (Stack.to_stack_loc_lossy stack)
 
-  let print ppf t =
-    Printmach.loc ~unknown:(fun _ -> assert false) ppf (to_loc_lossy t) t.typ
+  let print ppf = function
+    | Reg r -> Format.pp_print_string ppf (Proc.register_name_lossy r)
+    | Stack s -> Stack.print ppf s
 
   let compare (t1 : t) (t2 : t) : int =
-    match t1.loc, t2.loc with
-    (* Reg < Stack *)
-    | Reg _, Stack _ -> -1
-    | Stack _, Reg _ -> 1
-    | Reg r1, Reg r2 ->
-      (* Compare register index only. Indices never overlap between classes *)
-      Int.compare r1 r2
-    | Stack s1, Stack s2 ->
-      (* Compare stack slot class and then slot index. Indices do overlap
-         between classes. *)
-      let stack_class_cmp =
-        Int.compare
-          (Proc.stack_slot_class t1.typ)
-          (Proc.stack_slot_class t2.typ)
-      in
-      if stack_class_cmp = 0 then Stdlib.compare s1 s2 else stack_class_cmp
+    (* CR-someday azewierzejew: Implement proper comparison. *)
+    Stdlib.compare t1 t2
 
   let equal (t1 : t) (t2 : t) : bool = compare t1 t2 = 0
 
@@ -875,12 +873,9 @@ end = struct
           "Unsatisfiable equations when removing result equations.\n\
            Existing equation has to agree on 0 or 2 sides (cannot be exactly \
            1) with the removed equation.\n\
-           (%s, %s)\n\
            Existing equation %a.\n\
-           Removed equation: %a."
-          (if reg_eq then "matches" else "differs")
-          (if loc_eq then "matches" else "differs")
-          Equation.print (eq_reg, eq_loc) Equation.print (reg, loc);
+           Removed equation: %a." Equation.print (eq_reg, eq_loc) Equation.print
+          (reg, loc);
         let message = Format.flush_str_formatter () in
         raise (Verification_failed message))
     in
