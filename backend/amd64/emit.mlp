@@ -286,7 +286,7 @@ let emit_Llabel fallthrough lbl section_name =
 let x86_data_type_for_stack_slot = function
   | Float -> REAL8
   | Vec128 -> VEC128
-  | _ -> QWORD
+  | Int | Addr | Val -> QWORD
 
 let reg = function
   | { loc = Reg.Reg r } -> register_name r
@@ -294,7 +294,7 @@ let reg = function
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
       mem64 (x86_data_type_for_stack_slot ty) ofs R14
   | { loc = Stack s; typ = ty } as r ->
-      let ofs = slot_offset s (stack_slot_class_for r) in
+      let ofs = slot_offset s (stack_slot_class r.typ) in
       mem64 (x86_data_type_for_stack_slot ty) ofs RSP
   | { loc = Unknown } ->
       assert false
@@ -317,7 +317,7 @@ let reg_low_32_name = Array.map (fun r -> Reg32 r) int_reg_name
 let emit_subreg tbl typ r =
   match r.loc with
   | Reg.Reg r when r < 13 -> tbl.(r)
-  | Stack s -> mem64 typ (slot_offset s (stack_slot_class_for r)) RSP
+  | Stack s -> mem64 typ (slot_offset s (stack_slot_class r.Reg.typ)) RSP
   | _ -> assert false
 
 let arg8 i n = emit_subreg reg_low_8_name BYTE i.arg.(n)
@@ -359,7 +359,7 @@ let record_frame_label live dbg =
       | {typ = Val; loc = Reg r} ->
           live_offset := ((r lsl 1) + 1) :: !live_offset
       | {typ = Val; loc = Stack s} as reg ->
-          live_offset := slot_offset s (stack_slot_class_for reg) :: !live_offset
+          live_offset := slot_offset s (stack_slot_class reg.typ) :: !live_offset
       | {typ = Addr} as r ->
           Misc.fatal_error ("bad GC root " ^ Reg.name r)
       | _ -> ()
@@ -1832,8 +1832,8 @@ let emit_probe_notes0 () =
     let arg_name =
       match arg.loc with
       | Stack s ->
-        Printf.sprintf "%d(%%rsp)" (slot_offset s (stack_slot_class_for arg))
-      | Reg reg -> Proc.register_name reg
+        Printf.sprintf "%d(%%rsp)" (slot_offset s (stack_slot_class arg.Reg.typ))
+      | Reg reg -> Proc.register_name arg.Reg.typ reg
       | Unknown ->
         Misc.fatal_errorf "Cannot create probe: illegal argument: %a"
           Printmach.reg arg

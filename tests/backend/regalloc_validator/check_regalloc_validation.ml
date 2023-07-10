@@ -120,10 +120,10 @@ module Cfg_desc = struct
          count. *)
       let update_stack_slots i =
         let update_slot (r : Reg.t) =
-          match r.loc, Proc.stack_slot_class_for r with
-          | Stack (Local idx), ss_class ->
-            cfg.fun_num_stack_slots.(ss_class)
-              <- max cfg.fun_num_stack_slots.(ss_class) (idx + 1)
+          match r.loc, Proc.stack_slot_class r.typ with
+          | Stack (Local idx), stack_class ->
+            cfg.fun_num_stack_slots.(stack_class)
+              <- max cfg.fun_num_stack_slots.(stack_class) (idx + 1)
           | _ -> ()
         in
         Array.iter update_slot i.arg;

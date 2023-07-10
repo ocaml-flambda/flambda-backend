@@ -6,7 +6,7 @@ type t
 
 val make : unit -> t
 
-val size_for_all_ss_classes : t -> int
+val size_for_all_stack_classes : t -> int
 
 val get_and_incr : t -> stack_class:int -> slot
 

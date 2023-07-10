@@ -71,8 +71,8 @@ let register_class r =
 
 let num_stack_slot_classes = 2
 
-let stack_slot_class_for r =
-  match r.typ with
+let stack_slot_class typ =
+  match typ with
   | Val | Int | Addr  -> 0
   | Float -> 1
   (* CR mslater: (SIMD) arm64 *)
@@ -90,8 +90,14 @@ let num_available_registers =
 let first_available_register =
   [| 0; 100 |]
 
-let register_name r =
-  if r < 100 then int_reg_name.(r) else float_reg_name.(r - 100)
+let register_name ty r =
+  match ty with
+  | Val | Int | Addr ->
+    int_reg_name.(r - first_available_register.(0))
+  | Float ->
+    float_reg_name.(r - first_available_register.(1))
+  (* CR mslater: (SIMD) arm64 *)
+  | Vec128 -> fatal_error "arm64: got vec128 register"
 
 let rotate_registers = true
 
@@ -317,19 +323,19 @@ let destroyed_at_oper = function
 
 let destroyed_at_raise () = all_phys_regs
 
-let destroyed_at_reloadretaddr () = [| |]
+let destroyed_at_reloadretaddr = [| |]
 
-let destroyed_at_pushtrap () = [| |]
+let destroyed_at_pushtrap = [| |]
 
-let destroyed_at_alloc_or_poll () = [| reg_x8 |]
+let destroyed_at_alloc_or_poll = [| reg_x8 |]
 
 (* note: keep this function in sync with `destroyed_at_oper` above. *)
 let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   match basic with
   | Reloadretaddr ->
-    destroyed_at_reloadretaddr ()
+    destroyed_at_reloadretaddr
   | Pushtrap _ ->
-    destroyed_at_pushtrap ()
+    destroyed_at_pushtrap
   | Op (Intop Icheckbound | Intop_imm (Icheckbound, _)) ->
     assert false
   | Op( Intoffloat | Floatofint
@@ -355,7 +361,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
     if alloc then all_phys_regs else destroyed_at_c_call
-  | Poll_and_jump _ -> destroyed_at_alloc_or_poll ()
+  | Poll_and_jump _ -> destroyed_at_alloc_or_poll
 
 (* CR-soon xclerc for xclerc: consider having more destruction points.
    We current return `true` when `destroyed_at_terminator` returns

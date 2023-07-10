@@ -71,7 +71,7 @@ let emit_symbol_size sym =
 (* Output a pseudo-register *)
 
 let emit_reg = function
-    {loc = Reg r} -> emit_string (register_name r)
+    {loc = Reg r; typ} -> emit_string (register_name typ r)
   | _ -> fatal_error "Emit.emit_reg"
 
 (* Likewise, but with the 32-bit name of the register *)
@@ -130,7 +130,7 @@ let emit_stack r =
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
       `[{emit_reg reg_domain_state_ptr}, #{emit_int ofs}]`
   | Stack s ->
-      let ofs = slot_offset s (stack_slot_class_for r) in
+      let ofs = slot_offset s (stack_slot_class r.typ) in
       `[sp, #{emit_int ofs}]`
   | _ -> fatal_error "Emit.emit_stack"
 
@@ -160,7 +160,7 @@ let record_frame_label live dbg =
       | {typ = Val; loc = Reg r} ->
           live_offset := ((r lsl 1) + 1) :: !live_offset
       | {typ = Val; loc = Stack s} as reg ->
-          live_offset := slot_offset s (stack_slot_class_for reg) :: !live_offset
+          live_offset := slot_offset s (stack_slot_class reg.typ) :: !live_offset
       | {typ = Addr} as r ->
           Misc.fatal_error ("bad GC root " ^ Reg.name r)
       | _ -> ())

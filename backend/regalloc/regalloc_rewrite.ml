@@ -263,8 +263,8 @@ let postlude :
   if Utils.debug
   then
     Array.iteri (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
-      ~f:(fun ss_class num_stack_slots ->
-        Utils.log ~indent:1 "stack_slots[%d]=%d" ss_class num_stack_slots);
+      ~f:(fun stack_class num_stack_slots ->
+        Utils.log ~indent:1 "stack_slots[%d]=%d" stack_class num_stack_slots);
   remove_prologue_if_not_required cfg_with_layout;
   update_live_fields cfg_with_layout (Cfg_with_infos.liveness cfg_with_infos);
   f ();

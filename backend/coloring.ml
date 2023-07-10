@@ -50,7 +50,7 @@ let allocate_registers() =
      Split the remaining registers into constrained and unconstrained. *)
   let remove_reg reg =
     let cl = Proc.register_class reg in
-    let stack_cl = Proc.stack_slot_class_for reg in
+    let stack_cl = Proc.stack_slot_class reg.typ in
     if reg.spill then begin
       (* Preallocate the registers in the stack *)
       let nslots = num_stack_slots.(stack_cl) in
@@ -59,7 +59,7 @@ let allocate_registers() =
         (fun r ->
           match r.loc with
             Stack(Local n) ->
-              if Proc.stack_slot_class_for r = stack_cl then conflict.(n) <- true
+              if Proc.stack_slot_class r.typ = stack_cl then conflict.(n) <- true
           | _ -> ())
         reg.interf;
       let slot = ref 0 in
@@ -91,7 +91,7 @@ let allocate_registers() =
   (* Assign a location to a register, the best we can. *)
   let assign_location reg =
     let cl = Proc.register_class reg in
-    let stack_cl = Proc.stack_slot_class_for reg in
+    let stack_cl = Proc.stack_slot_class reg.typ in
     let first_reg = Proc.first_available_register.(cl) in
     let num_regs = Proc.num_available_registers.(cl) in
     let score = Array.make num_regs 0 in

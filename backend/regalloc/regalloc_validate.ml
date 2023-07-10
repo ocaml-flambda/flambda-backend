@@ -35,16 +35,13 @@ module Location : sig
 end = struct
   module Stack = struct
     (** This type is based on [Reg.stack_location]. The first difference is that
-        for [Stack (Local index)] this types additionally stores [ss_class]
+        for [Stack (Local index)] this types additionally stores [stack_class]
         because local stacks are separate for different stack slot classes.
         Secondly for all stacks it stores index in words and not byte offset.
         That gives the guarantee that if indices are different then the
         locations do not overlap. *)
     type t =
-      | Local of
-          { index : int;
-            ss_class : int
-          }
+      | Local of { index : int }
       | Incoming of { index : int }
       | Outgoing of { index : int }
       | Domainstate of { index : int }
@@ -84,9 +81,9 @@ end = struct
 
     let word_index_to_byte_offset index = index * word_size
 
-    let of_stack_loc ~ss_class loc =
+    let of_stack_loc loc =
       match loc with
-      | Reg.Local index -> Local { index; ss_class }
+      | Reg.Local index -> Local { index }
       | Reg.Incoming offset ->
         Incoming { index = byte_offset_to_word_index offset }
       | Reg.Outgoing offset ->
@@ -101,44 +98,35 @@ end = struct
       | Outgoing { index } -> Reg.Outgoing (word_index_to_byte_offset index)
       | Domainstate { index } ->
         Reg.Domainstate (word_index_to_byte_offset index)
-
-    let unknown_ss_class = -1
-
-    let ss_class_lossy t =
-      match t with
-      | Local { ss_class; _ } -> ss_class
-      | Incoming _ | Outgoing _ | Domainstate _ -> unknown_ss_class
   end
 
-  type t =
+  type location =
     | Reg of int
     | Stack of Stack.t
 
-  let of_reg reg =
+  type t =
+    { typ : Cmm.machtype_component;
+      loc : location
+    }
+
+  let of_reg reg : t option =
     match reg.Reg.loc with
     | Reg.Unknown -> None
-    | Reg.Reg idx -> Some (Reg idx)
+    | Reg.Reg idx -> Some { typ = reg.Reg.typ; loc = Reg idx }
     | Reg.Stack stack ->
-      Some
-        (Stack
-           (Stack.of_stack_loc ~ss_class:(Proc.stack_slot_class_for reg) stack))
+      Some { typ = reg.Reg.typ; loc = Stack (Stack.of_stack_loc stack) }
 
   let of_reg_exn reg = of_reg reg |> Option.get
 
   let of_regs_exn loc_arr = Array.map of_reg_exn loc_arr
 
-  let to_loc_lossy t =
-    match t with
+  let to_loc_lossy { loc; _ } =
+    match loc with
     | Reg idx -> Reg.Reg idx
     | Stack stack -> Reg.Stack (Stack.to_stack_loc_lossy stack)
 
-  let ss_class_lossy t =
-    match t with Reg _ -> -1 | Stack stack -> Stack.ss_class_lossy stack
-
   let print ppf t =
-    Printmach.loc ~ss_class:(ss_class_lossy t)
-      ~unknown:(fun _ -> assert false)
-      ppf (to_loc_lossy t)
+    Printmach.loc ~unknown:(fun _ -> assert false) ppf (to_loc_lossy t) t.typ
 
   let compare (t1 : t) (t2 : t) : int =
     (* CR-someday azewierzejew: Implement proper comparison. *)
@@ -966,9 +954,8 @@ end
 
 let print_reg_as_loc ppf reg =
   Printmach.loc
-    ~ss_class:(Proc.stack_slot_class_for reg)
     ~unknown:(fun ppf -> Format.fprintf ppf "<Unknown>")
-    ppf reg.Reg.loc
+    ppf reg.Reg.loc reg.Reg.typ
 
 module Domain : Cfg_dataflow.Domain_S with type t = Equation_set.t = struct
   (** This type corresponds to the set of equations in the dataflow from the

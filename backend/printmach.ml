@@ -23,14 +23,14 @@ open Interval
 
 module V = Backend_var
 
-let loc ?(wrap_out = fun ppf f -> f ppf) ~ss_class ~unknown ppf l =
-  match l with
+let loc ?(wrap_out = fun ppf f -> f ppf) ~unknown ppf loc typ =
+  match loc with
   | Unknown -> unknown ppf
   | Reg r ->
-      wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name r))
+      wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name typ r))
   | Stack(Local s) ->
       wrap_out ppf (fun ppf ->
-        fprintf ppf "s[%s:%i]" (Proc.stack_class_tag ss_class) s)
+        fprintf ppf "s[%s:%i]" (Proc.stack_class_tag (Proc.stack_slot_class typ)) s)
   | Stack(Incoming s) ->
       wrap_out ppf (fun ppf -> fprintf ppf "par[%i]" s)
   | Stack(Outgoing s) ->
@@ -52,7 +52,7 @@ let reg ppf r =
   fprintf ppf "/%i" r.stamp;
   loc
     ~wrap_out:(fun ppf f -> fprintf ppf "[%t]" f)
-    ~ss_class:(Proc.stack_slot_class_for r) ~unknown:(fun _ -> ()) ppf r.loc
+    ~unknown:(fun _ -> ()) ppf r.loc r.typ
 
 let regs' ?(print_reg = reg) ppf v =
   let reg = print_reg in

@@ -17,7 +17,7 @@
 
 open Format
 
-val loc: ?wrap_out:(formatter -> (formatter -> unit) -> unit) -> ss_class:int -> unknown:(formatter -> unit) -> formatter -> Reg.location -> unit
+val loc: ?wrap_out:(formatter -> (formatter -> unit) -> unit) -> unknown:(formatter -> unit) -> formatter -> Reg.location -> Cmm.machtype_component -> unit
 val reg: formatter -> Reg.t -> unit
 val regs': ?print_reg:(formatter -> Reg.t -> unit) -> formatter -> Reg.t array -> unit
 val regs: formatter -> Reg.t array -> unit

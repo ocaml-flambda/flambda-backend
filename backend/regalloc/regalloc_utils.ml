@@ -254,7 +254,7 @@ let same_reg_class : Reg.t -> Reg.t -> bool =
 
 let same_stack_class : Reg.t -> Reg.t -> bool =
  fun reg1 reg2 ->
-  Int.equal (Proc.stack_slot_class_for reg1) (Proc.stack_slot_class_for reg2)
+  Int.equal (Proc.stack_slot_class reg1.typ) (Proc.stack_slot_class reg2.typ)
 
 let make_temporary :
     same_class_and_base_name_as:Reg.t -> name_prefix:string -> Reg.t =
