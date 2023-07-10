@@ -190,7 +190,7 @@ module Exp:
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> expression
     val unreachable: ?loc:loc -> ?attrs:attrs -> unit -> expression
 
-    val case: pattern -> ?guard:expression -> expression -> case
+    val case: pattern -> ?guard:guard -> expression -> case
     val binding_op: str -> pattern -> expression -> loc -> binding_op
   end
 

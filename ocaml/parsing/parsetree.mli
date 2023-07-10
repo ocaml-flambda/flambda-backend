@@ -434,10 +434,14 @@ and expression_desc =
 and case =
     {
      pc_lhs: pattern;
-     pc_guard: expression option;
+     pc_guard: guard option;
      pc_rhs: expression;
    }
 (** Values of type {!case} represents [(P -> E)] or [(P when E0 -> E)] *)
+
+and guard =
+| Guard_predicate of expression
+| Guard_pattern of expression * pattern
 
 and letop =
   {

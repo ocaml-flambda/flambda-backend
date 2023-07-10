@@ -1811,10 +1811,14 @@ and extension_constructor_jst _ctxt _f _attrs :
 and case_list ctxt f l : unit =
   let aux f {pc_lhs; pc_guard; pc_rhs} =
     pp f "@;| @[<2>%a%a@;->@;%a@]"
-      (pattern ctxt) pc_lhs (option (expression ctxt) ~first:"@;when@;")
+      (pattern ctxt) pc_lhs (option (guard ctxt) ~first:"@;when@;")
       pc_guard (expression (under_pipe ctxt)) pc_rhs
   in
   list aux f l ~sep:""
+
+and guard ctxt f = function
+| Guard_predicate e -> expression ctxt f e
+| Guard_pattern (e, pat) -> pp f "%a@ @[match@ with@ %a@]" (expression ctxt) e (pattern ctxt) pat
 
 and label_x_expression_param ctxt f (l,e) =
   let simple_name = match e with

@@ -21632,7 +21632,7 @@ module Tables = struct
         let _endpos = _endpos__5_ in
         let _v : (Parsetree.case) = 
 # 3029 "parsing/parser.mly"
-      ( Exp.case _1 ~guard:_3 _5 )
+      ( Exp.case _1 ~guard:(Guard_predicate _3) _5 )
 # 21637 "parsing/parser.ml"
          in
         {
@@ -37509,7 +37509,7 @@ module Tables = struct
         let _sloc = (_symbolstartpos, _endpos) in
         
 # 4034 "parsing/parser.mly"
-                      ( unboxed_float _sloc Negative _2 )
+                      ( unboxed_float _sloc Positive _2 )
 # 37514 "parsing/parser.ml"
          in
         {

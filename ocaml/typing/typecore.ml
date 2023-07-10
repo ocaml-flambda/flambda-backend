@@ -6903,10 +6903,14 @@ and type_cases
         let guard =
           match pc_guard with
           | None -> None
-          | Some scond ->
-              Some
-                (type_expect ext_env mode_local scond
-                   (mk_expected ~explanation:When_guard Predef.type_bool))
+          | Some scond -> (
+              match scond with
+              | Guard_predicate pred ->
+                Some
+                  (type_expect ext_env mode_local pred
+                    (mk_expected ~explanation:When_guard Predef.type_bool))
+              | _ -> failwith "Pattern guard typechecking not yet implemented!"
+          )
         in
         let exp =
           type_expect ?in_function ext_env emode

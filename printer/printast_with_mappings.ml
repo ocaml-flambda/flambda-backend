@@ -953,9 +953,17 @@ and case i ppf {pc_lhs; pc_guard; pc_rhs} =
   pattern (i+1) ppf pc_lhs;
   begin match pc_guard with
   | None -> ()
-  | Some g -> line (i+1) ppf "<when>\n"; expression (i + 2) ppf g
+  | Some g -> line (i+1) ppf "<when>\n"; guard (i + 2) ppf g
   end;
   expression (i+1) ppf pc_rhs;
+
+and guard i ppf = function
+  | Guard_predicate e -> expression i ppf e
+  | Guard_pattern (e, pat) -> (
+      expression i ppf e;
+      line i ppf "<match with>\n";
+      pattern (i + 1) ppf pat
+  )
 
 and value_binding i ppf x =
   line i ppf "<def>\n";
