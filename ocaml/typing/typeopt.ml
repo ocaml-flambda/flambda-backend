@@ -411,7 +411,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
           List.fold_left_map
             (fun num_nodes_visited (ty, _) ->
                let num_nodes_visited = num_nodes_visited + 1 in
-               (* CR layouts v2: when we add other layouts, we'll need to check
+               (* CR layouts v5: when we add other layouts, we'll need to check
                   here that we aren't about to call value_kind on a different
                   sort (we can get this info from the variant representation).
                   For now we rely on the layout check at the top of value_kind
@@ -501,7 +501,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
             in
             let num_nodes_visited = num_nodes_visited + 1 in
             let num_nodes_visited, field =
-              (* CR layouts v2: when we add other layouts, we'll need to check
+              (* CR layouts v5: when we add other layouts, we'll need to check
                  here that we aren't about to call value_kind on a different
                  sort (we can get this info from the label.ld_layout).  For now
                  we rely on the layout check at the top of value_kind to rule

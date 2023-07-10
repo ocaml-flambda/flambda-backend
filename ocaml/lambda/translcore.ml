@@ -43,8 +43,8 @@ let layout_must_be_value loc layout =
   | Ok _ -> ()
   | Error e -> raise (Error (loc, Non_value_layout e))
 
-(* CR layouts v2: In the places where this is used, we will want to allow
-   #float, but not void yet (e.g., the left of a semicolon and loop bodies).  we
+(* CR layouts v7: In the places where this is used, we will want to allow
+   float#, but not void yet (e.g., the left of a semicolon and loop bodies).  we
    still default to value before checking for void, to allow for sort variables
    arising in situations like
 
@@ -860,7 +860,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       | _ ->
           let oid = Ident.create_local "open" in
           let body, _ =
-            (* CR layouts v2: Currently we only allow values at the top of a
+            (* CR layouts v5: Currently we only allow values at the top of a
                module.  When that changes, some adjustments may be needed
                here. *)
             List.fold_left (fun (body, pos) id ->
@@ -900,7 +900,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
            (We could probably calculate the layouts of these variables here
            rather than requiring them all to be value, but that would be even
            more hacky.) *)
-        (* CR layouts v2: if we get close to releasing other layout somebody
+        (* CR layouts v2.5: if we get close to releasing other layout somebody
            actually might put in a probe, check with the middle-end team about
            the status of fixing this. *)
         let path = Path.Pident id in
@@ -1411,7 +1411,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
   then begin
     (* Allocate new record with given fields (and remaining fields
        taken from init_expr if any *)
-    (* CR layouts v2: currently we raise if a non-value field is detected.
+    (* CR layouts v5: currently we raise if a non-value field is detected.
        relax that. *)
     let init_id = Ident.create_local "init" in
     let lv =
@@ -1498,7 +1498,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
        of the copy *)
     let copy_id = Ident.create_local "newrecord" in
     let update_field cont (lbl, definition) =
-      (* CR layouts v2: remove this check to allow non-value fields.  Even
+      (* CR layouts v5: remove this check to allow non-value fields.  Even
          in the current version we can reasonably skip it because if we built
          the init record, we must have already checked for void. *)
       layout_must_be_value lbl.lbl_loc lbl.lbl_layout;

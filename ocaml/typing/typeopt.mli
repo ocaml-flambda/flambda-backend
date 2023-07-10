@@ -29,11 +29,11 @@ val array_pattern_kind : Typedtree.pattern -> Lambda.array_kind
 val bigarray_type_kind_and_layout :
       Env.t -> Types.type_expr -> Lambda.bigarray_kind * Lambda.bigarray_layout
 
-(* CR layouts: `layout` should have a `sort` argument.  *)
-(* CR layouts v2: [layout], [function_return_layout], [function2_return_layout],
+(* CR layouts v7: [layout], [function_return_layout], [function2_return_layout],
    and [layout_of_sort] have had location arguments added just to support the
    void check error message.  These arguments can be removed when we're happy to
-   take that check out. *)
+   take that check out.
+*)
 val layout :
   Env.t -> Location.t -> Layouts.sort -> Types.type_expr -> Lambda.layout
 

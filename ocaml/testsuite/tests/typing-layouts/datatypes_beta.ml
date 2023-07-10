@@ -5,7 +5,7 @@
 
 (* Tests for layouts in algebraic datatypes *)
 
-(* CR layouts v2: add mixed block restriction tests. *)
+(* CR layouts v5: add mixed block restriction tests. *)
 
 type t_value [@@value]
 type t_immediate [@@immediate];;
@@ -33,7 +33,7 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 (***************************************************)
 (* Test 1: constructor arguments may have any sort *)
 
-(* CR layouts v2: Needs non-value layout - moved to [datatypes_alpha.ml] *)
+(* CR layouts v2.5: Needs non-value layout - moved to [datatypes_alpha.ml] *)
 
 (************************************)
 (* Test 2: but not the "any" layout *)

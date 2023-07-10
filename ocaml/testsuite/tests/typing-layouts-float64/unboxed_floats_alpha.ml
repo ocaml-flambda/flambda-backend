@@ -5,7 +5,7 @@
 (* This file contains various tests for float#.  It's not an expect test to make
    sure it gets tested for native code. *)
 
-(* CR layouts v2: When unboxed literals work, change this file to use them
+(* CR layouts v2.5: When unboxed literals work, change this file to use them
    instead of [of_float] on boxed literals everywhere. *)
 
 (*****************************************)
