@@ -306,3 +306,84 @@ val f9_1 : unit -> t_float64 t_float64_id = <fun>
 val f9_2 : unit -> 'a t_float64_id = <fun>
 val f9_3 : unit -> float# t_float64_id = <fun>
 |}];;
+
+(**************************************************)
+(* Test 10: Invalid uses of float64 and externals *)
+
+(* Valid uses of float64 in externals are tested elsewhere - this is just a test
+   for uses the typechecker should reject.  In particular
+   - if using a non-value layout in an external, you must supply separate
+     bytecode and native code implementations,
+   - if using a non-value layout in an external, you may not use the old-style
+     unboxed float directive, and
+   - unboxed types can't be unboxed more.
+*)
+
+external f10_1 : int -> bool -> float# = "foo";;
+[%%expect{|
+Line 1, characters 0-46:
+1 | external f10_1 : int -> bool -> float# = "foo";;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The native code version of the primitive is mandatory
+       for types with non-value layouts.
+|}];;
+
+external f10_2 : t_float64 -> int = "foo";;
+[%%expect{|
+Line 1, characters 0-41:
+1 | external f10_2 : t_float64 -> int = "foo";;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The native code version of the primitive is mandatory
+       for types with non-value layouts.
+|}];;
+
+external f10_3 : float -> t_float64  = "foo" "bar" "float";;
+[%%expect{|
+Line 1, characters 0-58:
+1 | external f10_3 : float -> t_float64  = "foo" "bar" "float";;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Cannot use "float" in conjunction with types of non-value layouts.
+|}];;
+
+external f10_4 : int -> float# -> float  = "foo" "bar" "float";;
+[%%expect{|
+Line 1, characters 0-62:
+1 | external f10_4 : int -> float# -> float  = "foo" "bar" "float";;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Cannot use "float" in conjunction with types of non-value layouts.
+|}];;
+
+external f10_5 : float# -> bool -> string  = "foo" "bar" "float";;
+[%%expect{|
+Line 1, characters 0-64:
+1 | external f10_5 : float# -> bool -> string  = "foo" "bar" "float";;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Cannot use "float" in conjunction with types of non-value layouts.
+|}];;
+
+external f10_6 : (float#[@unboxed]) -> bool -> string  = "foo" "bar";;
+[%%expect{|
+Line 1, characters 18-24:
+1 | external f10_6 : (float#[@unboxed]) -> bool -> string  = "foo" "bar";;
+                      ^^^^^^
+Error: Don't know how to unbox this type.
+       Only float, int32, int64 and nativeint can be unboxed.
+|}];;
+
+external f10_7 : string -> (float#[@unboxed])  = "foo" "bar";;
+[%%expect{|
+Line 1, characters 28-34:
+1 | external f10_7 : string -> (float#[@unboxed])  = "foo" "bar";;
+                                ^^^^^^
+Error: Don't know how to unbox this type.
+       Only float, int32, int64 and nativeint can be unboxed.
+|}];;
+
+external f10_8 : float -> float#  = "foo" "bar" [@@unboxed];;
+[%%expect{|
+Line 1, characters 26-32:
+1 | external f10_8 : float -> float#  = "foo" "bar" [@@unboxed];;
+                              ^^^^^^
+Error: Don't know how to unbox this type.
+       Only float, int32, int64 and nativeint can be unboxed.
+|}];;
