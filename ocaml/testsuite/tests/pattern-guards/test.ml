@@ -9,7 +9,7 @@ let basic_usage ~f ~default x =
   | Some x when f x match Some y -> y
   | _ -> default
 [%%expect{|
-Uncaught exception: Failure("Typechecking for pattern guard unimplemented!\nAst:\n match x with | Some x when f x match Some y -> y | _ -> default")
+Uncaught exception: Failure("pattern guard typechecking unimplemented")
 
 |}]
 ;;
@@ -28,6 +28,6 @@ let seq_pattern x ~f ~g ~default =
   | Some x when (f x; g x) match Some y -> y
   | _ -> default
 [%%expect{|
-Uncaught exception: Failure("Typechecking for pattern guard unimplemented!\nAst:\n match x with | Some x when f x; g x match Some y -> y | _ -> default")
+Uncaught exception: Failure("pattern guard typechecking unimplemented")
 
 |}]
