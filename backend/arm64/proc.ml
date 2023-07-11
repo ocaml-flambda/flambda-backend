@@ -129,9 +129,6 @@ let phys_reg ty n =
   (* CR mslater: (SIMD) arm64 *)
   | Vec128 -> fatal_error "arm64: got vec128 register"
 
-let phys_reg ty n =
-  Reg.at_location ty (Reg n)
-
 let reg_x8 = phys_reg Int 8
 let reg_d7 = phys_reg Float 107
 
