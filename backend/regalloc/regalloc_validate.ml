@@ -101,13 +101,6 @@ end = struct
       | Outgoing { index } -> Reg.Outgoing (word_index_to_byte_offset index)
       | Domainstate { index } ->
         Reg.Domainstate (word_index_to_byte_offset index)
-
-    let print ppf = function
-      | Local { index; stack_class } ->
-        Format.fprintf ppf "s[%s:%i]" (Proc.stack_class_tag stack_class) index
-      | Incoming { index } -> Format.fprintf ppf "par[%i]" index
-      | Outgoing { index } -> Format.fprintf ppf "arg[%i]" index
-      | Domainstate { index } -> Format.fprintf ppf "ds[%i]" index
   end
 
   type t =
@@ -134,9 +127,8 @@ end = struct
     | Reg idx -> Reg.Reg idx
     | Stack stack -> Reg.Stack (Stack.to_stack_loc_lossy stack)
 
-  let print typ ppf = function
-    | Reg r -> Format.pp_print_string ppf (Proc.register_name typ r)
-    | Stack s -> Stack.print ppf s
+  let print typ ppf t =
+    Printmach.loc ~unknown:(fun _ -> assert false) ppf (to_loc_lossy t) typ
 
   let compare (t1 : t) (t2 : t) : int =
     (* CR-someday azewierzejew: Implement proper comparison. *)
