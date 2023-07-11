@@ -285,7 +285,6 @@ let case lhs rhs =
 
 type position_in_function = FTail | FNontail
 
-
 type position_in_region =
   (* not the tail of a region*)
   | RNontail
@@ -332,6 +331,13 @@ type position_and_mode = {
 let position_and_mode_default = {
   apply_position = Default;
   region_mode = None;
+}
+
+type match_info = {
+  arg : expression;
+  sort : sort;
+  cases : computation case list;
+  partial : Parmatch.partial
 }
 
 (** The function produces two values, apply_position and region_mode.
@@ -792,6 +798,11 @@ type module_variable =
     mv_loc: Location.t;
     mv_uid: Uid.t
   }
+
+type exhaustivity_constraint =
+  | Any
+  | Exhaustive
+  | Non_exhaustive
 
 (* Whether or not patterns of the form (module M) are accepted. (If they are,
    the idents will be created at the provided scope.) When module patterns are
@@ -4558,36 +4569,15 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_match(sarg, caselist) ->
-      let arg_pat_mode, arg_expected_mode =
-        match cases_tuple_arity caselist with
-        | Not_local_tuple | Maybe_local_tuple ->
-          let mode = Value_mode.newvar () in
-          simple_pat_mode mode, mode_default mode
-        | Local_tuple arity ->
-          let modes = List.init arity (fun _ -> Value_mode.newvar ()) in
-          let mode = Value_mode.regional_to_local (Value_mode.join modes) in
-          tuple_pat_mode mode modes, mode_tuple mode modes
-      in
-      begin_def ();
-      let sort = Sort.new_var () in
-      let arg =
-        type_expect env arg_expected_mode sarg
-          (mk_expected (newvar (Layout.of_sort ~why:Match sort)))
-      in
-      end_def ();
-      if maybe_expansive arg then lower_contravariant env arg.exp_type;
-      generalize arg.exp_type;
-      let cases, partial =
-      try
-        type_cases Computation env arg_pat_mode expected_mode
-          arg.exp_type ty_expected_explained true loc caselist
-      with Unimplemented feature -> fail_unimplemented feature in
-      re {
-        exp_desc = Texp_match(arg, sort, cases, partial);
-        exp_loc = loc; exp_extra = [];
-        exp_type = instance ty_expected;
-        exp_attributes = sexp.pexp_attributes;
-        exp_env = env }
+    let { arg; sort; cases; partial } =
+      type_match sarg caselist env loc ty_expected_explained in
+    re {
+      exp_desc = Texp_match(arg, sort, cases, partial);
+      exp_loc = loc; exp_extra = [];
+      exp_type = instance ty_expected;
+      exp_attributes = sexp.pexp_attributes;
+      exp_env = env
+    }
   | Pexp_try(sbody, caselist) ->
       let body =
         type_expect env (mode_trywith expected_mode)
@@ -4596,7 +4586,7 @@ and type_expect_
       let arg_mode = simple_pat_mode Value_mode.global in
       let cases, _ =
         type_cases Value env arg_mode expected_mode
-          Predef.type_exn ty_expected_explained false loc caselist in
+          Predef.type_exn ty_expected_explained Any loc caselist in
       re {
         exp_desc = Texp_try(body, cases);
         exp_loc = loc; exp_extra = [];
@@ -5599,7 +5589,7 @@ and type_expect_
         type_cases Value body_env
           (simple_pat_mode Value_mode.global)
           (mode_return Value_mode.global)
-          ty_params (mk_expected ty_func_result) true loc [scase]
+          ty_params (mk_expected ty_func_result) Exhaustive loc [scase]
       in
       let body =
         match cases with
@@ -5726,6 +5716,35 @@ and type_expect_
            exp_type = instance ty_expected;
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
+
+and type_match sarg caselist env loc ty_expected_explained =
+  let arg_pat_mode, arg_expected_mode =
+    match cases_tuple_arity caselist with
+      | Not_local_tuple | Maybe_local_tuple ->
+        let mode = Value_mode.newvar () in
+        simple_pat_mode mode, mode_default mode
+      | Local_tuple arity ->
+        let modes = List.init arity (fun _ -> Value_mode.newvar ()) in
+        let mode = Value_mode.regional_to_local (Value_mode.join modes) in
+        tuple_pat_mode mode modes, mode_tuple mode modes
+  in
+  begin_def ();
+  let sort = Sort.new_var () in
+  let arg =
+    type_expect env arg_expected_mode sarg
+      (mk_expected (newvar (Layout.of_sort ~why:Match sort)))
+  in
+  end_def ();
+  if maybe_expansive arg then lower_contravariant env arg.exp_type;
+  generalize arg.exp_type;
+  let cases, partial =
+    type_cases Computation env arg_pat_mode expected_mode
+      arg.exp_type ty_expected_explained Exhaustive loc caselist in
+  { arg;
+    sort;
+    cases;
+    partial
+  }
 
 and type_ident env ?(recarg=Rejected) lid =
   let (path, desc, mode) = Env.lookup_value ~loc:lid.loc lid.txt env in
@@ -5916,7 +5935,7 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
   in
   let cases, partial =
     type_cases Value ?in_function env (simple_pat_mode arg_value_mode)
-      cases_expected_mode ty_arg_mono (mk_expected ty_ret) true loc caselist in
+      cases_expected_mode ty_arg_mono (mk_expected ty_ret) Exhaustive loc caselist in
   let not_nolabel_function ty =
     let ls, tvar = list_labels env ty in
     List.for_all ((<>) Nolabel) ls && not tvar
@@ -6768,7 +6787,7 @@ and type_cases
            ?in_function:_ -> _ -> _ -> _ -> _ -> _ -> _ -> _ -> Parsetree.case list ->
            k case list * partial
   = fun category ?in_function env pmode emode
-        ty_arg ty_res_explained partial_flag loc caselist ->
+        ty_arg ty_res_explained exhaustivity loc caselist ->
   (* ty_arg is _fully_ generalized *)
   let { ty = ty_res; explanation } = ty_res_explained in
   let patterns = List.map (fun {pc_lhs=p} -> p) caselist in
@@ -6909,9 +6928,13 @@ and type_cases
             (* allow propagation from preceding branches *)
             correct_levels ty_res
           else ty_res in
+        let exp () =
+          type_expect ?in_function ext_env emode
+            pc_rhs (mk_expected ?explanation ty_res')
+        in
         let guard =
-          match pc_guard with
-          | None -> None
+          match pc_guard, exp with
+          | None -> None, exp ()
           | Some scond -> (
               match scond with
               | Guard_predicate pred ->
@@ -6920,10 +6943,6 @@ and type_cases
                     (mk_expected ~explanation:When_guard Predef.type_bool))
               | Guard_pattern _ -> (failwith "pattern guard typechecking unimplemented")
           )
-        in
-        let exp =
-          type_expect ?in_function ext_env emode
-            pc_rhs (mk_expected ?explanation ty_res')
         in
         {
          c_lhs = pat;
@@ -6958,11 +6977,9 @@ and type_cases
       | Computation -> split_cases env cases in
   if val_cases = [] && exn_cases <> [] then
     raise (Error (loc, env, No_value_clauses));
-  let partial =
-    if partial_flag then
-      check_partial ~lev env ty_arg_check loc val_cases
-    else
-      Partial
+  let partial = match exhaustivity with
+    | Any | Partial -> Partial
+    | Exhaustive -> check_partial ~lev env ty_arg_check loc val_cases
   in
   let unused_check delayed =
     List.iter (fun { typed_pat; branch_env; _ } ->
