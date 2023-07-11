@@ -526,7 +526,8 @@ let type_constant = function
 
 let type_constant_unboxed env loc
     : Jane_syntax.Unboxed_constants.expression -> _ = function
-  | Float _ -> instance Predef.type_unboxed_float
+  | Float _ -> raise (Error (loc, env, Unboxed_float_literals_not_supported))
+    (* CR layouts v2.5: This should be [instance Predef.type_unboxed_float] *)
   | Integer _ -> raise (Error (loc, env, Unboxed_int_literals_not_supported))
 
 let constant_integer i ~suffix : (Asttypes.constant, error) result =
