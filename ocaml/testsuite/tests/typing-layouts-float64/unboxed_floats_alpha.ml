@@ -161,3 +161,25 @@ let[@inline never] test4 () =
   Array.iteri (Printf.printf "  Test 4, step %d: %.2f\n") steps
 
 let _ = test4 ()
+
+(****************************)
+(* Test 5: Over application *)
+
+let[@inline never] f5 n m =
+  let open Float_u in
+  (* Also testing a closure with only float# values *)
+  let[@inline never] go f =
+    f (n + m)
+  in
+  go
+
+let test5 () =
+  let open Float_u in
+  let _ : unit =
+    f5 (of_float 3.14) (of_float 2.72)
+      (fun n s m -> print_floatu s (n + m)) "Test 5, pi+e+1"
+      (of_float 1.0)
+  in
+  ()
+
+let _ = test5 ()
