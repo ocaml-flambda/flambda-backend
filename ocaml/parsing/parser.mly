@@ -1061,6 +1061,8 @@ The precedences must be listed from low to high.
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
           LBRACKETPERCENT QUOTED_STRING_EXPR
+/* CR-soon rgodse: Investigate and document the reasons for this token precedence working.
+ */
 %nonassoc MATCH
 
 
