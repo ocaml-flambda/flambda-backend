@@ -101,11 +101,6 @@ let register_name ty r =
 
 let rotate_registers = true
 
-let class_of reg =
-  if reg < 100 then 0
-  else if reg < 200 then 1
-  else Misc.fatal_errorf "Register of unknown class (%d)" reg
-
 (* Representation of hard registers by pseudo-registers *)
 
 let hard_int_reg =
