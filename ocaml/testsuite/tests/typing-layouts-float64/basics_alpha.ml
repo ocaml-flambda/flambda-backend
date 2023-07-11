@@ -46,8 +46,8 @@ val f2_2 : 'a t_float64_id -> 'a t_float64_id = <fun>
 val f2_3 : float# -> float# = <fun>
 |}];;
 
-(**************************************)
-(* Test 3: No top-level bindings yet. *)
+(*****************************************)
+(* Test 3: No module-level bindings yet. *)
 
 let x3_1 : t_float64 = assert false;;
 [%%expect{|
@@ -76,6 +76,29 @@ Error: Top-level module bindings must have layout value, but x3_3 has layout
        float64.
 |}];;
 
+module M3_4 = struct
+  let x : t_float64 = assert false
+end
+[%%expect{|
+Line 2, characters 6-7:
+2 |   let x : t_float64 = assert false
+          ^
+Error: Top-level module bindings must have layout value, but x has layout
+       float64.
+|}];;
+
+module M3_5 = struct
+  let f (x : float#) = x
+
+  let y = f (assert false)
+end
+[%%expect{|
+Line 4, characters 6-7:
+4 |   let y = f (assert false)
+          ^
+Error: Top-level module bindings must have layout value, but y has layout
+       float64.
+|}];;
 
 (*************************************)
 (* Test 4: No putting them in tuples *)
@@ -110,6 +133,42 @@ Error: This expression has type float# but an expression was expected of type
        float# has layout float64, which is not a sublayout of value.
 |}];;
 
+type t4_4 = t_float64 * string;;
+[%%expect{|
+Line 1, characters 12-21:
+1 | type t4_4 = t_float64 * string;;
+                ^^^^^^^^^
+Error: Tuple element types must have layout value.
+        t_float64 has layout float64, which is not a sublayout of value.
+|}];;
+
+type t4_5 = int * float#;;
+[%%expect{|
+Line 1, characters 18-24:
+1 | type t4_5 = int * float#;;
+                      ^^^^^^
+Error: Tuple element types must have layout value.
+        float# has layout float64, which is not a sublayout of value.
+|}];;
+
+type ('a : float64) t4_6 = 'a * 'a
+[%%expect{|
+Line 1, characters 27-29:
+1 | type ('a : float64) t4_6 = 'a * 'a
+                               ^^
+Error: This type ('a : value) should be an instance of type ('a0 : float64)
+       'a has layout float64, which does not overlap with value.
+|}];;
+
+(* check for layout propagation *)
+type ('a : float64, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
+[%%expect{|
+Line 1, characters 32-34:
+1 | type ('a : float64, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
+                                    ^^
+Error: This type ('b : value) should be an instance of type ('a : float64)
+       'a has layout float64, which does not overlap with value.
+|}]
 
 (****************************************************)
 (* Test 5: Can't be put in structures in typedecls. *)
@@ -181,6 +240,17 @@ Error: Type t_float64 has layout float64.
        Types of this layout are not yet allowed in blocks (like records or variants).
 |}];;
 
+type ('a : float64) t5_7 = A of int
+type ('a : float64) t5_8 = A of 'a;;
+[%%expect{|
+type ('a : float64) t5_7 = A of int
+Line 2, characters 27-34:
+2 | type ('a : float64) t5_8 = A of 'a;;
+                               ^^^^^^^
+Error: Type 'a has layout float64.
+       Types of this layout are not yet allowed in blocks (like records or variants).
+|}]
+
 (****************************************************)
 (* Test 6: Can't be put at top level of signatures. *)
 module type S6_1 = sig val x : t_float64 end
@@ -244,6 +314,25 @@ Error: This expression has type float# but an expression was expected of type
          ('a : value)
        float# has layout float64, which is not a sublayout of value.
 |}];;
+
+type f7_4 = [ `A of t_float64 ];;
+[%%expect{|
+Line 1, characters 20-29:
+1 | type f7_4 = [ `A of t_float64 ];;
+                        ^^^^^^^^^
+Error: Polymorpic variant constructor argument types must have layout value.
+        t_float64 has layout float64, which is not a sublayout of value.
+|}];;
+
+type ('a : float64) f7_5 = [ `A of 'a ];;
+[%%expect{|
+Line 1, characters 35-37:
+1 | type ('a : float64) f7_5 = [ `A of 'a ];;
+                                       ^^
+Error: This type ('a : value) should be an instance of type ('a0 : float64)
+       'a has layout float64, which does not overlap with value.
+|}];;
+(* CR layouts v2.9: This error could be improved *)
 
 (************************************************************)
 (* Test 8: Normal polymorphic functions don't work on them. *)
@@ -386,4 +475,126 @@ Line 1, characters 26-32:
                               ^^^^^^
 Error: Don't know how to unbox this type.
        Only float, int32, int64 and nativeint can be unboxed.
+|}];;
+
+(*******************************************************)
+(* Test 11: Don't allow float64 in extensible variants *)
+
+type t11_1 = ..
+
+type t11_1 += A of t_float64;;
+[%%expect{|
+type t11_1 = ..
+Line 3, characters 14-28:
+3 | type t11_1 += A of t_float64;;
+                  ^^^^^^^^^^^^^^
+Error: Type t_float64 has layout float64.
+       Types of this layout are not yet allowed in blocks (like records or variants).
+|}]
+
+type t11_1 += B of float#;;
+[%%expect{|
+Line 1, characters 14-25:
+1 | type t11_1 += B of float#;;
+                  ^^^^^^^^^^^
+Error: Type float# has layout float64.
+       Types of this layout are not yet allowed in blocks (like records or variants).
+|}]
+
+type ('a : float64) t11_2 = ..
+
+type 'a t11_2 += A of int
+
+type 'a t11_2 += B of 'a;;
+
+[%%expect{|
+type ('a : float64) t11_2 = ..
+type 'a t11_2 += A of int
+Line 5, characters 17-24:
+5 | type 'a t11_2 += B of 'a;;
+                     ^^^^^^^
+Error: Type 'a has layout float64.
+       Types of this layout are not yet allowed in blocks (like records or variants).
+|}]
+
+(******************************************)
+(* Test 12: No float64 in objects/classes *)
+
+type t12_1 = < x : t_float64 >;;
+[%%expect{|
+Line 1, characters 15-28:
+1 | type t12_1 = < x : t_float64 >;;
+                   ^^^^^^^^^^^^^
+Error: Object field types must have layout value.
+        t_float64 has layout float64, which is not a sublayout of value.
+|}];;
+
+type ('a : float64) t12_2 = < x : 'a >;;
+[%%expect{|
+Line 1, characters 34-36:
+1 | type ('a : float64) t12_2 = < x : 'a >;;
+                                      ^^
+Error: This type ('a : value) should be an instance of type ('a0 : float64)
+       'a has layout float64, which does not overlap with value.
+|}]
+
+class c12_3 = object method x : t_float64 = assert false end;;
+[%%expect{|
+Line 1, characters 21-56:
+1 | class c12_3 = object method x : t_float64 = assert false end;;
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The method x has type t_float64 but is expected to have type
+         ('a : value)
+       t_float64 has layout float64, which is not a sublayout of value.
+|}];;
+
+class ['a] c12_4 = object
+  method x : 'a t_float64_id -> 'a t_float64_id = assert false
+end;;
+[%%expect{|
+Line 2, characters 13-15:
+2 |   method x : 'a t_float64_id -> 'a t_float64_id = assert false
+                 ^^
+Error: This type ('a : float64) should be an instance of type ('a0 : value)
+       'a has layout value, which does not overlap with float64.
+|}];;
+(* CR layouts v2.9: Error could be improved *)
+
+class c12_5 = object val x : t_float64 = assert false end;;
+[%%expect{|
+Line 1, characters 25-26:
+1 | class c12_5 = object val x : t_float64 = assert false end;;
+                             ^
+Error: Variables bound in a class must have layout value.
+       x has layout float64, which is not a sublayout of value.
+|}];;
+
+class type c12_6 = object method x : float# end;;
+[%%expect{|
+Line 1, characters 26-43:
+1 | class type c12_6 = object method x : float# end;;
+                              ^^^^^^^^^^^^^^^^^
+Error: The method x has type float# but is expected to have type ('a : value)
+       float# has layout float64, which is not a sublayout of value.
+|}];;
+(* CR layouts v2.9: Error could be improved *)
+
+class type c12_7 = object val x : float# end
+[%%expect{|
+Line 1, characters 26-40:
+1 | class type c12_7 = object val x : float# end
+                              ^^^^^^^^^^^^^^
+Error: Variables bound in a class must have layout value.
+       x has layout float64, which is not a sublayout of value.
+|}];;
+
+class type ['a] c12_8 = object
+  val x : 'a t_float64_id -> 'a t_float64_id
+end
+[%%expect{|
+Line 2, characters 10-12:
+2 |   val x : 'a t_float64_id -> 'a t_float64_id
+              ^^
+Error: This type ('a : float64) should be an instance of type ('a0 : value)
+       'a has layout value, which does not overlap with float64.
 |}];;
