@@ -1194,15 +1194,6 @@ let emit_MOVZX b dst src =
       emit_mod_rm_reg b 0 [ 0x0F; 0xB7 ] rm reg
   | _ -> assert false
 
-<<<<<<< HEAD
-let emit_FSTP b dst =
-  match dst with
-  | Mem { typ = REAL8 | QWORD } as rm -> emit_mod_rm_reg b 0 [ 0xDD ] rm 3
-  | Mem { typ = REAL4 } as rm -> emit_mod_rm_reg b 0 [ 0xD9 ] rm 3
-  | _ -> assert false
-
-=======
->>>>>>> upstream/remove-x87
 let emit_neg b dst =
   match dst with
   | (Reg64 _ | Reg32 _ | Mem _ | Mem64_RIP _) as rm ->
@@ -1400,84 +1391,6 @@ let emit_BSWAP b = function
       buf_opcodes b [ 0x0F; 0xC8 + reg7 reg ]
   | _ -> assert false
 
-<<<<<<< HEAD
-let emit_FLDCW b = function
-  | (Mem _ | Mem64_RIP _) as rm -> emit_mod_rm_reg b no_rex [ 0xD9 ] rm 5
-  | _ -> assert false
-
-let emit_FXCH _b = function
-  | _ -> assert false
-
-let emit_FLD b = function
-  | Mem { typ = REAL4 | DWORD } as rm -> emit_mod_rm_reg b 0 [ 0xD9 ] rm 0
-  | Mem { typ = REAL8 | QWORD } as rm -> emit_mod_rm_reg b 0 [ 0xDD ] rm 0
-  | _ -> assert false
-
-let emit_FCOMP b = function
-  | Mem { typ = REAL4 | DWORD } as rm -> emit_mod_rm_reg b no_rex [ 0xD8 ] rm 3
-  | Mem { typ = REAL8 | QWORD } as rm -> emit_mod_rm_reg b no_rex [ 0xDC ] rm 3
-  | _ -> assert false
-
-let emit_FXXX reg b rm =
-  match rm with
-  | Mem { typ = REAL4 | DWORD } -> emit_mod_rm_reg b no_rex [ 0xD8 ] rm reg
-  | Mem { typ = REAL8 | QWORD } -> emit_mod_rm_reg b no_rex [ 0xDC ] rm reg
-  | _ -> assert false
-
-let emit_FADD = emit_FXXX 0
-
-let emit_FMUL = emit_FXXX 1
-
-(* let emit_FCOM = emit_FXXX 2 *)
-(* let emit_FCOMP = emit_FXXX 3 *)
-let emit_FSUB = emit_FXXX 4
-
-let emit_FSUBR = emit_FXXX 5
-
-let emit_FDIV = emit_FXXX 6
-
-let emit_FDIVR = emit_FXXX 7
-
-let emit_FILD b = function
-  | Mem { typ = QWORD } as rm -> emit_mod_rm_reg b no_rex [ 0xDF ] rm 5
-  | Mem { typ = DWORD } as rm -> emit_mod_rm_reg b no_rex [ 0xDB ] rm 0
-  | Mem { typ = WORD } as rm -> emit_mod_rm_reg b no_rex [ 0xDF ] rm 0
-  | _ -> assert false
-
-let emit_FISTP b = function
-  | Mem { typ = WORD } as rm -> emit_mod_rm_reg b no_rex [ 0xDF ] rm 3
-  | Mem { typ = DWORD } as rm -> emit_mod_rm_reg b no_rex [ 0xDB ] rm 3
-  | Mem { typ = QWORD } as rm -> emit_mod_rm_reg b no_rex [ 0xDF ] rm 7
-  | _ -> assert false
-
-let emit_FNSTCW b = function
-  | Mem { typ = NONE | WORD } as rm ->
-      emit_mod_rm_reg b no_rex [ 0x9B; 0xD9 ] rm 7
-  | _ -> assert false
-
-let emit_FNSTSW b = function
-  | Reg16 RAX -> buf_opcodes b [ 0xDF; 0xE0 ]
-  | Mem { typ = NONE | WORD } as rm -> emit_mod_rm_reg b no_rex [ 0xDD ] rm 7
-  | _ -> assert false
-
-let emit_FXXXP _opcode _b a1 a2 =
-  match (a1, a2) with
-  | _ -> assert false
-
-let emit_FADDP b = emit_FXXXP 0xC0 b
-
-let emit_FMULP b = emit_FXXXP 0xC8 b
-
-let emit_FSUBRP b = emit_FXXXP 0xE0 b
-
-let emit_FSUBP b = emit_FXXXP 0xE8 b
-
-let emit_FDIVRP b = emit_FXXXP 0xF0 b
-
-let emit_FDIVP b = emit_FXXXP 0xF8 b
-
-=======
->>>>>>> upstream/remove-x87
 let emit_XCHG b src dst =
   (* TODO: test ! *)
   match (dst, src) with
