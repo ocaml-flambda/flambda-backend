@@ -7773,6 +7773,7 @@ let type_clash_of_trace trace =
 (* Hint on type error on integer literals
    To avoid confusion, it is disabled on float literals
    and when the expected type is `int` *)
+(* CR layouts v2.5: Should we add a case here for float#?  Test it, if so. *)
 let report_literal_type_constraint expected_type const =
   let const_str = match const with
     | Const_int n -> Some (Int.to_string n)
