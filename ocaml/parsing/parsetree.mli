@@ -440,8 +440,8 @@ and case =
 (** Values of type {!case} represents [(P -> E)] or [(P when E0 -> E)] *)
 
 and guard =
-| Guard_predicate of expression
-| Guard_pattern of expression * pattern
+  | Guard_predicate of expression
+  | Guard_pattern of expression * pattern
 
 and letop =
   {

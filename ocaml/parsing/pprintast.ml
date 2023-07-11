@@ -1817,8 +1817,8 @@ and case_list ctxt f l : unit =
   list aux f l ~sep:""
 
 and guard ctxt f = function
-| Guard_predicate e -> expression ctxt f e
-| Guard_pattern (e, pat) ->
+  | Guard_predicate e -> expression ctxt f e
+  | Guard_pattern (e, pat) ->
     pp f "@[%a@ match@ %a@]"
       (expression ctxt) e (pattern ctxt) pat
 

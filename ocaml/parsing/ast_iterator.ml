@@ -794,9 +794,9 @@ let default_iterator =
          iter_opt (this.guard this) pc_guard;
          this.expr this pc_rhs
       );
-    guard = (fun this -> (function
-    | Guard_predicate e -> this.expr this e
-    | Guard_pattern (e, pat) -> this.expr this e; this.pat this pat));
+    guard = (fun this -> function
+      | Guard_predicate e -> this.expr this e
+      | Guard_pattern (e, pat) -> this.expr this e; this.pat this pat);
 
     location = (fun _this _l -> ());
 
