@@ -278,8 +278,6 @@ let rd_of_regf regf =
   match regf with
   | XMM n -> n
 
-(* TODO *)
-
 let rd_of_reg64 = function
   | RAX -> 0
   | RCX -> 1
@@ -1196,12 +1194,15 @@ let emit_MOVZX b dst src =
       emit_mod_rm_reg b 0 [ 0x0F; 0xB7 ] rm reg
   | _ -> assert false
 
+<<<<<<< HEAD
 let emit_FSTP b dst =
   match dst with
   | Mem { typ = REAL8 | QWORD } as rm -> emit_mod_rm_reg b 0 [ 0xDD ] rm 3
   | Mem { typ = REAL4 } as rm -> emit_mod_rm_reg b 0 [ 0xD9 ] rm 3
   | _ -> assert false
 
+=======
+>>>>>>> upstream/remove-x87
 let emit_neg b dst =
   match dst with
   | (Reg64 _ | Reg32 _ | Mem _ | Mem64_RIP _) as rm ->
@@ -1399,6 +1400,7 @@ let emit_BSWAP b = function
       buf_opcodes b [ 0x0F; 0xC8 + reg7 reg ]
   | _ -> assert false
 
+<<<<<<< HEAD
 let emit_FLDCW b = function
   | (Mem _ | Mem64_RIP _) as rm -> emit_mod_rm_reg b no_rex [ 0xD9 ] rm 5
   | _ -> assert false
@@ -1474,6 +1476,8 @@ let emit_FDIVRP b = emit_FXXXP 0xF0 b
 
 let emit_FDIVP b = emit_FXXXP 0xF8 b
 
+=======
+>>>>>>> upstream/remove-x87
 let emit_XCHG b src dst =
   (* TODO: test ! *)
   match (dst, src) with
@@ -1519,40 +1523,6 @@ let assemble_instr b loc = function
   | CDQ -> buf_int8 b 0x99
   | DIVSD (src, dst) -> emit_divsd b dst src
   | DEC dst -> emit_DEC b [ dst ]
-  | FCOMPP -> buf_opcodes b [ 0xDE; 0xD9 ]
-  | FLD1 -> buf_opcodes b [ 0xD9; 0xE8 ]
-  | FLDLG2 -> buf_opcodes b [ 0xD9; 0xEC ]
-  | FLDLN2 -> buf_opcodes b [ 0xD9; 0xED ]
-  | FLDZ -> buf_opcodes b [ 0xD9; 0xEE ]
-  | FPATAN -> buf_opcodes b [ 0xD9; 0xF3 ]
-  | FCOS -> buf_opcodes b [ 0xD9; 0xFF ]
-  | FYL2X -> buf_opcodes b [ 0xD9; 0xF1 ]
-  | FSIN -> buf_opcodes b [ 0xD9; 0xFE ]
-  | FSQRT -> buf_opcodes b [ 0xD9; 0xFA ]
-  | FPTAN -> buf_opcodes b [ 0xD9; 0xF2 ]
-  | FSTP dst -> emit_FSTP b dst
-  | FXCH arg -> emit_FXCH b arg
-  | FCOMP arg -> emit_FCOMP b arg
-  | FNSTSW arg -> emit_FNSTSW b arg
-  | FNSTCW arg -> emit_FNSTCW b arg
-  | FCHS -> buf_opcodes b [ 0xD9; 0xE0 ]
-  | FABS -> buf_opcodes b [ 0xD9; 0xE1 ]
-  | FADD arg -> emit_FADD b arg
-  | FSUB arg -> emit_FSUB b arg
-  | FMUL arg -> emit_FMUL b arg
-  | FDIV arg -> emit_FDIV b arg
-  | FDIVR arg -> emit_FDIVR b arg
-  | FSUBR arg -> emit_FSUBR b arg
-  | FILD arg -> emit_FILD b arg
-  | FISTP arg -> emit_FISTP b arg
-  | FLD arg -> emit_FLD b arg
-  | FLDCW arg -> emit_FLDCW b arg
-  | FADDP (src, dst) -> emit_FADDP b dst src
-  | FSUBP (src, dst) -> emit_FSUBP b dst src
-  | FMULP (src, dst) -> emit_FMULP b dst src
-  | FDIVP (src, dst) -> emit_FDIVP b dst src
-  | FSUBRP (src, dst) -> emit_FSUBRP b dst src
-  | FDIVRP (src, dst) -> emit_FDIVRP b dst src
   | HLT -> buf_int8 b 0xF4
   | INC dst -> emit_inc b dst
   | IMUL (src, dst) -> emit_imul b dst src
