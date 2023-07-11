@@ -99,11 +99,6 @@ let register_name ty r =
   (* CR mslater: (SIMD) arm64 *)
   | Vec128 -> fatal_error "arm64: got vec128 register"
 
-let register_name_lossy idx =
-  if idx < 100 then int_reg_name.(idx)
-  else if idx < 200 then float_reg_name.(idx - 100)
-  else Misc.fatal_errorf "Unknown register ID %d" idx
-
 let rotate_registers = true
 
 let class_of reg =
