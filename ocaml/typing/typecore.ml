@@ -4192,6 +4192,13 @@ and type_expect_
     submode ~env ~loc:exp.exp_loc ~reason:Other mode expected_mode;
     exp
   in
+  let fail_unimplemented feature =
+    Printf.sprintf "Typechecking for %s unimplemented!\nAst:\n %a"
+      feature
+      (fun () -> Pprintast.string_of_expression)
+      sexp
+    |> failwith
+  in
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, attributes) ->
       type_expect_jane_syntax
@@ -4571,8 +4578,10 @@ and type_expect_
       if maybe_expansive arg then lower_contravariant env arg.exp_type;
       generalize arg.exp_type;
       let cases, partial =
+      try
         type_cases Computation env arg_pat_mode expected_mode
-          arg.exp_type ty_expected_explained true loc caselist in
+          arg.exp_type ty_expected_explained true loc caselist
+      with Unimplemented feature -> fail_unimplemented feature in
       re {
         exp_desc = Texp_match(arg, sort, cases, partial);
         exp_loc = loc; exp_extra = [];

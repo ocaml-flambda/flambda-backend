@@ -971,7 +971,7 @@ and guard i ppf = function
   | Guard_predicate e -> expression i ppf e
   | Guard_pattern (e, pat) -> (
       expression i ppf e;
-      line i ppf "<match with>\n";
+      line i ppf "<match>\n";
       pattern (i + 1) ppf pat
   )
 
