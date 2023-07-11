@@ -95,7 +95,7 @@ let unknown_floating_point_suffix = #0.P
 Line 1, characters 36-40:
 1 | let unknown_floating_point_suffix = #0.P
                                         ^^^^
-Error: Unknown modifier 'P' for literal #0.P
+Error: Unboxed float literals aren't supported yet.
 |}]
 
 (*****************************************)
