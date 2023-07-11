@@ -24,10 +24,9 @@ val register_class: Reg.t -> int
 val num_available_registers: int array
 val first_available_register: int array
 val register_name: Cmm.machtype_component -> int -> string
-val register_name_lossy: int -> string
 val phys_reg: Cmm.machtype_component -> int -> Reg.t
 val rotate_registers: bool
-val precolored_regs : unit -> Reg.t array
+val precolored_regs : Reg.t array
 
 (* The number of stack slot classes may differ from the number of register classes.
    On x86, we use the same class for floating point and SIMD vector registers,
@@ -62,7 +61,7 @@ val max_register_pressure: Mach.operation -> int array
 
 (* Registers destroyed by operations *)
 val destroyed_at_oper: Mach.instruction_desc -> Reg.t array
-val destroyed_at_raise: unit -> Reg.t array
+val destroyed_at_raise: Reg.t array
 val destroyed_at_reloadretaddr : Reg.t array
 val destroyed_at_pushtrap : Reg.t array
 val destroyed_at_basic : Cfg_intf.S.basic -> Reg.t array

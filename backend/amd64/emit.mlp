@@ -47,10 +47,14 @@ let int_reg_name =
 
 let float_reg_name = Array.init 16 (fun i -> XMM i)
 
-let register_name r =
-  if r < 100 then Reg64 (int_reg_name.(r))
-  else if r < 200 then Regf (float_reg_name.(r - 100))
-  else Misc.fatal_errorf "Bad register id %d" r
+let register_name typ r =
+  match typ with
+  | Int | Val | Addr -> Reg64 (int_reg_name.(r))
+  | Float -> Regf (float_reg_name.(r - 100))
+  | Vec128 ->
+    if not !simd_regalloc_support then
+    Misc.fatal_error "SIMD register allocation is not enabled.";
+    Regf (float_reg_name.(r - 100))
 
 (* CFI directives *)
 
@@ -289,7 +293,7 @@ let x86_data_type_for_stack_slot = function
   | Int | Addr | Val -> QWORD
 
 let reg = function
-  | { loc = Reg.Reg r } -> register_name r
+  | { loc = Reg.Reg r; typ = ty } -> register_name ty r
   | { loc = Stack (Domainstate n); typ = ty } ->
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
       mem64 (x86_data_type_for_stack_slot ty) ofs R14
@@ -1615,6 +1619,11 @@ let make_stack_loc ~offset n (r : Reg.t) =
      probe arguments) in the wrapper's frame. *)
   let loc = Stack (Outgoing (offset + n)) in
   (* Manufacture stack entry with this register's type *)
+  (match r.typ with
+   | Int | Val | Addr | Float -> ()
+   | Vec128 ->
+    if not !simd_regalloc_support then
+    Misc.fatal_error "SIMD register allocation is not enabled.");
   Reg.at_location r.typ loc
 
 (* CR mshinwell: Not now, but after code review, it would be better to

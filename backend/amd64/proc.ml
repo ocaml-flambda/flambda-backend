@@ -145,11 +145,6 @@ let register_name ty r =
     Misc.fatal_error "SIMD register allocation is not enabled.";
     float_reg_name.(r - first_available_register.(1))
 
-let register_name_lossy idx =
-  if idx < 100 then int_reg_name.(idx)
-  else if idx < 200 then float_reg_name.(idx - 100)
-  else Misc.fatal_errorf "Unknown register ID %d" idx
-
 (* Pack registers starting at %rax so as to reduce the number of REX
    prefixes and thus improve code density *)
 let rotate_registers = false
@@ -167,14 +162,13 @@ let hard_float_reg =
   v
 
 let hard_vec128_reg =
-  let v = Array.make 16 Reg.dummy in
-  for i = 0 to 15 do v.(i) <- Reg.at_location Vec128 (Reg (100 + i)) done;
-  v
+  if !simd_regalloc_support then
+    let v = Array.make 16 Reg.dummy in
+    for i = 0 to 15 do v.(i) <- Reg.at_location Vec128 (Reg (100 + i)) done;
+    v
+  else [||]
 
-let all_phys_regs =
-  let hard_basic_regs = Array.append hard_int_reg hard_float_reg in
-  let hard_basic_and_simd_regs = Array.append hard_basic_regs hard_vec128_reg in
-  fun () -> if !simd_regalloc_support then hard_basic_and_simd_regs else hard_basic_regs
+let all_phys_regs = Array.concat [hard_int_reg; hard_float_reg; hard_vec128_reg]
 
 let phys_reg ty n =
   match ty with
@@ -192,7 +186,7 @@ let r11 = phys_reg Int 11
 let rbp = phys_reg Int 12
 
 (* CSE needs to know that all versions of xmm15 are destroyed. *)
-let destroy_xmm15 () =
+let destroy_xmm15 =
   if !simd_regalloc_support
   then [| phys_reg Float 115; phys_reg Vec128 115 |]
   else [| phys_reg Float 115 |]
@@ -376,23 +370,21 @@ let regs_are_volatile _rs = false
 
 (* Registers destroyed by operations *)
 
+let destroyed_at_c_call_win64 =
+  Array.concat
+    [Array.map (phys_reg Int) [|0;4;5;6;7;10;11|];
+     Array.sub hard_float_reg 0 6;
+     Array.sub hard_vec128_reg 0 (if !simd_regalloc_support then 6 else 0)]
+
+let destroyed_at_c_call_unix =
+  (* Unix: rbp, rbx, r12-r15 preserved *)
+  Array.concat
+    [Array.map (phys_reg Int) [|0;2;3;4;5;6;7;10;11|];
+     hard_float_reg;
+     hard_vec128_reg]
+
 let destroyed_at_c_call =
-  let basic_regs, simd_regs =
-  match win64 with
-  | true ->
-    Array.append
-      (Array.map (phys_reg Int) [|0;4;5;6;7;10;11|])
-      (Array.sub hard_float_reg 0 6),
-    Array.sub hard_vec128_reg 0 6
-  | false ->
-    (* Unix: rbp, rbx, r12-r15 preserved *)
-    Array.append
-      (Array.map (phys_reg Int) [|0;2;3;4;5;6;7;10;11|])
-      hard_float_reg,
-    hard_vec128_reg
-  in
-  let basic_and_simd_regs = Array.append basic_regs simd_regs in
-  fun () -> if !simd_regalloc_support then basic_and_simd_regs else basic_regs
+  if win64 then destroyed_at_c_call_win64 else destroyed_at_c_call_unix
 
 let destroyed_at_alloc_or_poll =
   if X86_proc.use_plt then
@@ -409,12 +401,12 @@ let has_pushtrap traps =
 (* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function
     Iop(Icall_ind | Icall_imm _ | Iextcall { alloc = true; })
-        -> all_phys_regs ()
-  | Iop(Iextcall { alloc = false; }) -> destroyed_at_c_call ()
+        -> all_phys_regs
+  | Iop(Iextcall { alloc = false; }) -> destroyed_at_c_call
   | Iop(Iintop(Idiv | Imod)) | Iop(Iintop_imm((Idiv | Imod), _))
         -> [| rax; rdx |]
   | Iop(Istore(Single, _, _))
-        -> destroy_xmm15 ()
+        -> destroy_xmm15
   | Iop(Ialloc _ | Ipoll _) -> destroyed_at_alloc_or_poll
   | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
         -> [| rax |]
@@ -458,8 +450,7 @@ let destroyed_at_oper = function
     else
       [||]
 
-
-let destroyed_at_raise () = all_phys_regs ()
+let destroyed_at_raise = all_phys_regs
 
 let destroyed_at_reloadretaddr = [| |]
 
@@ -473,7 +464,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op (Intop (Idiv | Imod)) | Op (Intop_imm ((Idiv | Imod), _)) ->
     [| rax; rdx |]
   | Op(Store(Single, _, _)) ->
-    destroy_xmm15 ()
+    destroy_xmm15
   | Op(Intop(Imulh _ | Icomp _) | Intop_imm((Icomp _), _)) ->
     [| rax |]
   | Op (Specific (Irdtsc | Irdpmc)) ->
@@ -527,9 +518,9 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     [| rax; rdx |]
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
   | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
-    if alloc then all_phys_regs () else destroyed_at_c_call ()
+    if alloc then all_phys_regs else destroyed_at_c_call
   | Call {op = Indirect | Direct _; _} ->
-    all_phys_regs ()
+    all_phys_regs
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
                        | Ifloatarithmem _ | Ifloatsqrtf _
                        | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
@@ -657,20 +648,14 @@ let init () =
   end else
     num_available_registers.(0) <- 13
 
-(* This is not always the same as [all_phys_regs], as some physical registers
+(* Precolored_regs is always the same as [all_phys_regs], as some physical registers
    may not be allocatable (e.g. rbp when frame pointers are enabled). *)
+let all_phys_regs_minus_fp =
+  let hard_int_reg = Array.sub hard_int_reg 0 12 in
+  Array.concat [hard_int_reg; hard_float_reg; hard_vec128_reg]
+
 let precolored_regs =
-  let ints_no_fp = Array.sub hard_int_reg 0 12 in
-  let basic_regs = Array.append hard_int_reg hard_float_reg in
-  let basic_regs_no_fp = Array.append ints_no_fp hard_float_reg in
-  let basic_and_simd_regs = Array.append basic_regs hard_vec128_reg in
-  let basic_and_simd_regs_no_fp = Array.append basic_regs_no_fp hard_vec128_reg in
-  fun () ->
-    match fp, !simd_regalloc_support with
-    | false, false -> basic_regs
-    | true, false -> basic_regs_no_fp
-    | false, true -> basic_and_simd_regs
-    | true, true -> basic_and_simd_regs_no_fp
+  if fp then all_phys_regs_minus_fp else all_phys_regs
 
 let operation_supported = function
   | Cpopcnt -> !popcnt_support

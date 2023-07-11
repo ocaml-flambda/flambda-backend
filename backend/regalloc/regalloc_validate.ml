@@ -25,7 +25,7 @@ module Location : sig
 
   val to_loc_lossy : t -> Reg.location
 
-  val print : Format.formatter -> t -> unit
+  val print : Cmm.machtype_component -> Format.formatter -> t -> unit
 
   val equal : t -> t -> bool
 
@@ -134,8 +134,8 @@ end = struct
     | Reg idx -> Reg.Reg idx
     | Stack stack -> Reg.Stack (Stack.to_stack_loc_lossy stack)
 
-  let print ppf = function
-    | Reg r -> Format.pp_print_string ppf (Proc.register_name_lossy r)
+  let print typ ppf = function
+    | Reg r -> Format.pp_print_string ppf (Proc.register_name typ r)
     | Stack s -> Stack.print ppf s
 
   let compare (t1 : t) (t2 : t) : int =
@@ -209,6 +209,8 @@ module Register : sig
 
   val print : Format.formatter -> t -> unit
 
+  val typ : t -> Cmm.machtype_component
+
   module Set : Set.S with type elt = t
 
   module Map : Map.S with type key = t
@@ -239,10 +241,12 @@ end = struct
       loc = Reg_id.to_loc_lossy t.reg_id
     }
 
+  let typ (t : t) = t.for_print.typ
+
   let print (ppf : Format.formatter) (t : t) : unit =
     match t.reg_id with
     | Preassigned { location } ->
-      Format.fprintf ppf "R[%a]" Location.print location
+      Format.fprintf ppf "R[%a]" (Location.print t.for_print.typ) location
     | Named _ -> Printmach.reg ppf (to_dummy_reg t)
 
   let compare (t1 : t) (t2 : t) : int = Reg_id.compare t1.reg_id t2.reg_id
@@ -453,7 +457,10 @@ end = struct
         | Preassigned { location = prev_loc }, Some new_loc ->
           Regalloc_utils.fatal
             "%s: changed preassigned register's location from %a to %a" context
-            Location.print prev_loc Location.print new_loc)
+            (Location.print (Register.typ reg_desc))
+            prev_loc
+            (Location.print loc_reg.Reg.typ)
+            new_loc)
       reg_arr loc_arr;
     ()
 
@@ -772,7 +779,9 @@ end = struct
     type t = Register.t * Location.t
 
     let print ppf (r, l) =
-      Format.fprintf ppf "%a=%a" Register.print r Location.print l
+      Format.fprintf ppf "%a=%a" Register.print r
+        (Location.print (Register.typ r))
+        l
   end
 
   exception Verification_failed of string
@@ -912,9 +921,10 @@ end = struct
           | None -> ()
           | Some regs ->
             assert (not (Register.Set.is_empty regs));
+            let typ = Register.Set.choose regs |> Register.typ in
             Format.fprintf Format.str_formatter
-              "Destroying a location %a in which a live registers %a is stored"
-              Location.print destroyed_loc
+              "Destroying a location %a in which live registers %a are stored"
+              (Location.print typ) destroyed_loc
               (Format.pp_print_seq
                  ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
                  Register.print)
@@ -1124,7 +1134,7 @@ module Transfer (Desc_val : Description_value) :
                     equations
                     |> Equation_set.verify_destroyed_locations
                          ~destroyed:
-                           (Location.of_regs_exn (Proc.destroyed_at_raise ()))
+                           (Location.of_regs_exn Proc.destroyed_at_raise)
                     |> Result.map_error (fun message ->
                            Printf.sprintf
                              "While verifying locations destroyed at raise: %s"
@@ -1305,8 +1315,8 @@ end = struct
         Format.fprintf ppf "Function argument locations: %a\n"
           (Format.pp_print_seq
              ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ", ")
-             Location.print)
-          (Array.to_seq loc_fun_args);
+             (fun ppf (reg, loc) -> Location.print (Register.typ reg) ppf loc))
+          (Array.to_seq (Array.combine reg_fun_args loc_fun_args));
         ()
   end
 

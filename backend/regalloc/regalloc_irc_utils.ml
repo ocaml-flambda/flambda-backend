@@ -141,7 +141,7 @@ let is_move_basic : Cfg.basic -> bool =
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
  fun instr -> is_move_basic instr.desc
 
-let all_precolored_regs : unit -> Reg.t array =
+let all_precolored_regs =
   Proc.init ();
   Proc.precolored_regs
 

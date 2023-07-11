@@ -60,7 +60,7 @@ let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
       reg.Reg.interf <- [];
       reg.Reg.degree <- 0);
   List.iter initial ~f:(fun reg -> reg.Reg.irc_work_list <- Initial);
-  Array.iter (all_precolored_regs ()) ~f:(fun reg ->
+  Array.iter all_precolored_regs ~f:(fun reg ->
       reg.Reg.irc_work_list <- Reg.Precolored;
       reg.Reg.irc_color
         <- (match reg.Reg.loc with
@@ -140,7 +140,7 @@ let[@inline] reset state ~new_temporaries =
       reg.Reg.irc_alias <- None;
       reg.Reg.interf <- [];
       reg.Reg.degree <- 0);
-  Array.iter (all_precolored_regs ()) ~f:(fun reg ->
+  Array.iter all_precolored_regs ~f:(fun reg ->
       assert (reg.Reg.irc_work_list = Reg.Precolored);
       (match reg.Reg.loc, reg.Reg.irc_color with
       | Reg color, Some color' -> assert (color = color')
@@ -534,10 +534,10 @@ let[@inline] invariant state =
   then (
     (* interf (list) is morally a set *)
     List.iter (Reg.all_registers ()) ~f:check_inter_has_no_duplicates;
-    Array.iter (all_precolored_regs ()) ~f:check_inter_has_no_duplicates;
+    Array.iter all_precolored_regs ~f:check_inter_has_no_duplicates;
     (* register sets are disjoint *)
     check_disjoint ~is_disjoint:Reg.Set.disjoint
-      [ "precolored", Reg.set_of_array (all_precolored_regs ());
+      [ "precolored", Reg.set_of_array all_precolored_regs;
         "initial", reg_set_of_doubly_linked_list state.initial;
         "simplify_work_list", reg_set_of_reg_work_list state.simplify_work_list;
         "freeze_work_list", reg_set_of_reg_work_list state.freeze_work_list;
@@ -547,7 +547,7 @@ let[@inline] invariant state =
         "colored_nodes", reg_set_of_doubly_linked_list state.colored_nodes;
         "select_stack", Reg.Set.of_list state.select_stack ];
     List.iter ~f:check_set_and_field_consistency_reg
-      [ "precolored", Reg.set_of_array (all_precolored_regs ()), Reg.Precolored;
+      [ "precolored", Reg.set_of_array all_precolored_regs, Reg.Precolored;
         "initial", reg_set_of_doubly_linked_list state.initial, Reg.Initial;
         ( "simplify_work_list",
           reg_set_of_reg_work_list state.simplify_work_list,
@@ -605,7 +605,7 @@ let[@inline] invariant state =
            (reg_set_of_reg_work_list state.spill_work_list))
     in
     let work_lists_or_precolored =
-      Reg.Set.union (Reg.set_of_array (all_precolored_regs ())) work_lists
+      Reg.Set.union (Reg.set_of_array all_precolored_regs) work_lists
     in
     Reg.Set.iter
       (fun u ->

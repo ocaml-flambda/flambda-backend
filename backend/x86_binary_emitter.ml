@@ -436,8 +436,8 @@ let emit_mod_rm_reg b rex opcodes rm reg =
       emit_rex b (rex lor rex_of_reg16 reg16 lor rexr_reg reg lor rexb_rm rm);
       buf_opcodes b opcodes;
       buf_int8 b (mod_rm_reg 0b11 rm reg)
-  | Regf (XMM _ as rm) ->
-      let rm = rd_of_regf rm in
+  | Regf regf ->
+      let rm = rd_of_regf regf in
       emit_rex b (rex lor rexr_reg reg lor rexb_rm rm);
       buf_opcodes b opcodes;
       buf_int8 b (mod_rm_reg 0b11 rm reg)

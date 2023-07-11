@@ -146,14 +146,13 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
   let register_classes_must_be_consistent (id : Instruction.id) (reg : Reg.t) :
       unit =
     match reg.Reg.loc with
-    | Reg phys_reg ->
-      let phys_reg = Proc.phys_reg reg.typ phys_reg in
-      if not (same_stack_class reg phys_reg && same_reg_class reg phys_reg)
-      then
+    | Reg phys_reg -> (
+      try Proc.phys_reg reg.typ phys_reg |> ignore
+      with Invalid_argument _ ->
         fatal
-          "instruction %d assigned %a to %a but they are in different register \
-           or stack slot classes"
-          id Printmach.reg reg Printmach.reg phys_reg
+          "instruction %d assigned %a to register %i, which has an \
+           incompatible class"
+          id Printmach.reg reg phys_reg)
     | Stack _ | Unknown -> ()
   in
   let register_classes_must_be_consistent (id : Instruction.id)

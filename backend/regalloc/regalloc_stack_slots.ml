@@ -52,7 +52,7 @@ let[@inline] update_cfg_with_layout t cfg_with_layout =
   done
 
 (** The optimization below is conceptually fairly close to what linscan does:
-   - for each register class / stack slot couple, we compute the interval of
+   - for each stack slot class / stack slot couple, we compute the interval of
      uses;
    - we re-assign slots by putting in the same "bucket" slots whose
      intervals do not overlap.
@@ -138,7 +138,7 @@ module Intervals : sig
   type slots = t
 
   type t = Interval.t array array
-  (* first index is register class, second index is slot index *)
+  (* first index is stack slot class, second index is slot index *)
 
   val build_from_cfg : slots -> Cfg_with_infos.t -> t
 
@@ -217,7 +217,7 @@ module Buckets : sig
 end
 with type slots := t = struct
   type t = Interval.t Int.Tbl.t array array
-  (* first index is register class, second index is bucket index, table key is
+  (* first index is stack slot class, second index is bucket index, table key is
      slot index *)
 
   let does_not_fit (bucket : Interval.t Int.Tbl.t) (interval : Interval.t) :
