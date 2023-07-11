@@ -1,6 +1,9 @@
 (* TEST
    * expect *)
 
+(* CR-soon rgodse: We expect this output to change soon, but for now it shows that parsing
+   works (as the compiler fails at typechecking). *)
+
 let basic_usage ~f ~default x =
   match x with 
   | Some x when f x match Some y -> y
