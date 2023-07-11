@@ -598,3 +598,46 @@ Line 2, characters 10-12:
 Error: This type ('a : float64) should be an instance of type ('a0 : value)
        'a has layout value, which does not overlap with float64.
 |}];;
+
+(*********************************************************************)
+(* Test 13: Ad-hoc polymorphic operations don't work on float64 yet. *)
+
+let f13_1 (x : t_float64) = x = x;;
+[%%expect{|
+Line 1, characters 28-29:
+1 | let f13_1 (x : t_float64) = x = x;;
+                                ^
+Error: This expression has type t_float64
+       but an expression was expected of type ('a : value)
+       t_float64 has layout float64, which is not a sublayout of value.
+|}];;
+
+let f13_2 (x : t_float64) = compare x x;;
+[%%expect{|
+Line 1, characters 36-37:
+1 | let f13_2 (x : t_float64) = compare x x;;
+                                        ^
+Error: This expression has type t_float64
+       but an expression was expected of type ('a : value)
+       t_float64 has layout float64, which is not a sublayout of value.
+|}];;
+
+let f13_3 (x : t_float64) = Marshal.to_bytes x;;
+[%%expect{|
+Line 1, characters 45-46:
+1 | let f13_3 (x : t_float64) = Marshal.to_bytes x;;
+                                                 ^
+Error: This expression has type t_float64
+       but an expression was expected of type ('a : value)
+       t_float64 has layout float64, which is not a sublayout of value.
+|}];;
+
+let f13_4 (x : t_float64) = Hashtbl.hash x;;
+[%%expect{|
+Line 1, characters 41-42:
+1 | let f13_4 (x : t_float64) = Hashtbl.hash x;;
+                                             ^
+Error: This expression has type t_float64
+       but an expression was expected of type ('a : value)
+       t_float64 has layout float64, which is not a sublayout of value.
+|}];;
