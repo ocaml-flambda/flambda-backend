@@ -1,0 +1,4 @@
+File "seq_bad.ml", line 5, characters 25-30:
+5 |   | Some x when f x; g x match Some y -> y 
+                             ^^^^^
+Error: Syntax error
