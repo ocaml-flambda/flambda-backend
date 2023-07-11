@@ -84,6 +84,7 @@ val switch : t
 val symbol : t
 val symbol_field : t
 val symbol_field_block : t
+val symbol_field_closure : t
 val the_dead_constant : t
 val toplevel_substitution_named : t
 val unbox_free_vars_of_closures : t

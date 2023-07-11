@@ -26,9 +26,14 @@ let should_copy (named:Flambda.named) =
   | Symbol _ | Read_symbol_field _ | Const _ -> true
   | _ -> false
 
+type access =
+  | Field of int
+
+type projection = access list
+
 type extracted =
-  | Expr of Variable.t * Flambda.t
-  | Exprs of Variable.t list * Flambda.t
+  | Expr of Variable.t * projection * Flambda.t
+  | Exprs of (Variable.t * projection) list * Flambda.t
   | Block of Variable.t * Tag.t * Variable.t list
 
 type accumulated = {
@@ -97,7 +102,7 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
           Flambda_utils.toplevel_substitution substitution
             (Flambda.create_let renamed named (Var renamed))
         in
-        Expr (var, expr)
+        Expr (var, [Field 0], expr)
     in
     accumulate body
       ~substitution
@@ -110,7 +115,7 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
       Flambda_utils.toplevel_substitution def_substitution
         (Let_rec ([renamed, named], Var renamed))
     in
-    let extracted = Expr (var, expr) in
+    let extracted = Expr (var, [Field 0], expr) in
     accumulate body
       ~substitution
       ~copied_lets
@@ -133,7 +138,12 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
                              List.map fst renamed_defs,
                              Debuginfo.none))))
       in
-      Exprs (List.map fst defs, expr)
+      let vars =
+        List.mapi (fun i (field, _) ->
+            field, [Field i; Field 0])
+          defs
+      in
+      Exprs (vars, expr)
     in
     accumulate body
       ~substitution
@@ -145,14 +155,29 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
     terminator = Flambda_utils.toplevel_substitution substitution expr;
   }
 
+let rec make_named (symbol, (path:access list)) : Flambda.named =
+  match path with
+  | [] -> Symbol symbol
+  | [Field i] -> Read_symbol_field (symbol, i)
+  | Field h :: t ->
+    let block_name = Internal_variable_names.symbol_field_block in
+    let block = Variable.create block_name in
+    let field_name = Internal_variable_names.get_symbol_field in
+    let field = Variable.create field_name in
+    Expr (
+      Flambda.create_let block (make_named (symbol, t))
+        (Flambda.create_let field
+           (Prim (Pfield (h, Pvalue Pgenval), [block], Debuginfo.none))
+           (Var field)))
 let rebuild_expr
-      ~(extracted_definitions : (Symbol.t * int list) Variable.Map.t)
+      ~(extracted_definitions : (Symbol.t * projection) Variable.Map.t)
       ~(copied_definitions : Flambda.named Variable.Map.t)
       ~(substitute : bool)
       (expr : Flambda.t) =
   let expr_with_read_symbols =
-    Flambda_utils.substitute_read_symbol_field_for_variables
-      extracted_definitions expr
+    let named = Variable.Map.map make_named extracted_definitions in
+    Flambda_utils.substitute_named_for_variables
+      named expr
   in
   let free_variables = Flambda.free_variables expr_with_read_symbols in
   let substitution =
@@ -175,7 +200,7 @@ let rebuild (used_variables:Variable.Set.t) (accumulated:accumulated) =
   let accumulated_extracted_lets =
     List.map (fun decl ->
         match decl with
-        | Block (var, _, _) | Expr (var, _) ->
+        | Block (var, _, _) | Expr (var, _, _) ->
           Symbol_utils.Flambda.for_variable (Variable.rename var), decl
         | Exprs _ ->
           let name = Internal_variable_names.lifted_let_rec_block in
@@ -199,14 +224,13 @@ let rebuild (used_variables:Variable.Set.t) (accumulated:accumulated) =
         match decl with
         | Block (var, _tag, _fields) ->
           Variable.Map.add var (symbol, []) map
-        | Expr (var, _expr) ->
-          Variable.Map.add var (symbol, [0]) map
+        | Expr (var, projection, _expr) ->
+          Variable.Map.add var (symbol, projection) map
         | Exprs (vars, _expr) ->
-          let map, _ =
-            List.fold_left (fun (map, field) var ->
-                Variable.Map.add var (symbol, [field; 0]) map,
-                field + 1)
-              (map, 0) vars
+          let map =
+            List.fold_left (fun map (var, projection) ->
+                Variable.Map.add var (symbol, projection) map)
+              map vars
           in
           map)
       Variable.Map.empty accumulated_extracted_lets
@@ -214,7 +238,7 @@ let rebuild (used_variables:Variable.Set.t) (accumulated:accumulated) =
   let extracted =
     List.map (fun (symbol, decl) ->
         match decl with
-        | Expr (var, decl) ->
+        | Expr (var, _, decl) ->
           let expr =
             rebuild_expr ~extracted_definitions ~copied_definitions
               ~substitute:true decl
