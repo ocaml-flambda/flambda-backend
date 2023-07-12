@@ -5758,7 +5758,8 @@ and type_match sarg caselist env loc exhaustiveness_constraint
   generalize arg.exp_type;
   let cases, partial =
     type_cases Computation env arg_pat_mode expected_mode
-      arg.exp_type ty_expected_explained exhaustivity loc caselist in
+      arg.exp_type ty_expected_explained exhaustiveness_constraint loc caselist
+  in
   { arg;
     sort;
     cases;
@@ -6950,26 +6951,24 @@ and type_cases
           else ty_res in
         let guard, exp =
           match pc_guard with
-            | None ->
+            | None | Some (Guard_predicate _) ->
+                let guard = match pc_guard with
+                  | None -> None
+                  | Some (Guard_predicate pred) ->
+                      let expected_bool =
+                        mk_expected ~explanation:When_guard Predef.type_bool
+                      in
+                      Some
+                        (Predicate
+                          (type_expect ext_env mode_local pred expected_bool))
+                  | Some (Guard_pattern _) -> assert false
+                in
                 let exp =
                   type_expect
                     ?in_function ext_env emode pc_rhs
                     (mk_expected ?explanation ty_res')
                 in
-                None, exp
-            | Some (Guard_predicate pred) ->
-                let exp =
-                  type_expect
-                    ?in_function ext_env emode pc_rhs
-                    (mk_expected ?explanation ty_res')
-                in
-                let guard =
-                  Predicate
-                    (type_expect
-                      ext_env mode_local pred
-                      (mk_expected ~explanation:When_guard Predef.type_bool))
-                in
-                Some guard, exp
+                guard, exp
             | Some
                 (Guard_pattern 
                   { pgp_scrutinee = e; pgp_pattern = pat; pgp_loc = loc }) ->
@@ -6979,12 +6978,11 @@ and type_cases
                     Check_and_warn_if_total (mk_expected ?explanation ty_res')
                     emode
                 in
-                match cases with
-                  | [ { c_lhs = pat ; c_guard = _ ; c_rhs = exp } ] ->
+                (match cases with
+                  | [ { c_lhs = pat ; c_guard = None ; c_rhs = exp } ] ->
                     Some (Typedtree.Pattern (arg, sort, pat)), exp
                   | _ ->
-                      Misc.fatal_error
-                        "One case transformed into 0 or multiple cases."
+                      Misc.fatal_error "type_cases invariant violated")
         in
         {
          c_lhs = pat;
