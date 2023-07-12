@@ -197,7 +197,6 @@ type instruction =
   | MOVLHPS of arg * arg
   | UNPCKHPS of arg * arg
   | UNPCKLPS of arg * arg
-  | XORPS of arg * arg
 
 (* ELF specific *)
 type reloc_type =

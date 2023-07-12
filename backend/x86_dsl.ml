@@ -208,5 +208,4 @@ module I = struct
   let movlhps x y = emit (MOVLHPS (x, y))
   let unpckhps x y = emit (UNPCKHPS (x, y))
   let unpcklps x y = emit (UNPCKLPS (x, y))
-  let xorps x y = emit (XORPS (x, y))
 end

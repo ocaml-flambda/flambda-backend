@@ -1502,9 +1502,8 @@ let assemble_instr b loc = function
   | MOVHLPS _
   | MOVLHPS _
   | UNPCKHPS _
-  | UNPCKLPS _ 
-  | XORPS _ -> 
-    Misc.fatal_error "The x86 binary emitter does not support SIMD instructions."
+  | UNPCKLPS _ ->
+    Misc.fatal_error "The x86 binary emitter does not yet support SIMD instructions."
 
 let assemble_line b loc ins =
   try

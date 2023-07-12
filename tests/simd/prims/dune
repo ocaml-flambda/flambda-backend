@@ -6,7 +6,7 @@
 
 (rule
  (enabled_if
-  (= %{context_name} "main"))
+  (= %{context_name} "disabled"))
  (target simd.output)
  (deps simd.exe)
  (action
@@ -17,6 +17,6 @@
 (rule
  (alias runtest)
  (enabled_if
-  (= %{context_name} "main"))
+  (= %{context_name} "disabled"))
  (action
   (diff simd.expected simd.output)))

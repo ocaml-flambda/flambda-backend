@@ -328,14 +328,13 @@ module With_subkind = struct
       | Boxed_int32, Boxed_int32
       | Boxed_int64, Boxed_int64
       | Boxed_nativeint, Boxed_nativeint
-      | Boxed_vec128, Boxed_vec128
+      | Boxed_vector (Vec128 _), Boxed_vector (Vec128 _)
       | Tagged_immediate, Tagged_immediate
       | Float_array, Float_array
       | Immediate_array, Immediate_array
       | Value_array, Value_array
       | Generic_array, Generic_array ->
         true
-      | Boxed_vector l, Boxed_vector r when Vector_types.equal l r -> true
       | ( Variant { consts = consts1; non_consts = non_consts1 },
           Variant { consts = consts2; non_consts = non_consts2 } ) ->
         if not (Targetint_31_63.Set.equal consts1 consts2)
@@ -377,8 +376,9 @@ module With_subkind = struct
         true
       (* All other combinations are incompatible: *)
       | ( ( Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-          | Boxed_vector _ | Tagged_immediate | Variant _ | Float_block _
-          | Float_array | Immediate_array | Value_array | Generic_array ),
+          | Boxed_vector (Vec128 _)
+          | Tagged_immediate | Variant _ | Float_block _ | Float_array
+          | Immediate_array | Value_array | Generic_array ),
           _ ) ->
         false
 

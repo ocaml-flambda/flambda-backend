@@ -194,8 +194,8 @@ type memory_chunk =
   | Double
   | Onetwentyeight
 
-type vector_cast = 
-  | Bits128 of { from : Primitive.vec128_type ; to_ : Primitive.vec128_type }
+type vector_cast =
+  | Bits128 of { from : Lambda.vec128_type ; to_ : Lambda.vec128_type }
 
 type scalar_cast =
   | Float_to_v128

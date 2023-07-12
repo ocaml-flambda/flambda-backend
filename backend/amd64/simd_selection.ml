@@ -41,11 +41,13 @@ let extract_constant args name =
 let shuffle_mask x y z w = (x lsl 6) lor (y lsl 4) lor (z lsl 2) lor w
 
 (* TODO: *)
+(* bottom 2 CRs *)
+(* add tests for float<->vec128 casts *)
 (* extend reg behavior for 0/1 arg instrs *)
 (* move zero to cmm builtins *)
 (* implement get and set4 *)
 (* add sse2/sse3/ssse3 ops *)
-(* tests for every intrinsic *)
+(* sse tests *)
 
 let select_operation_sse op args dbg =
   match op with
@@ -87,9 +89,8 @@ let select_operation_sse op args dbg =
     Some (Shuffle (shuffle_mask 0 0 0 i), args)
     (* CR mslater: (SIMD) this also needs a way to generate a Cconst_vec128
        instead of an instruction, or a way to grab an undefined argument of type
-       vec128 mslater: this can be moved to builtin detection in cmm_builtins
-       mslater: remove xor_ps *)
-  | "caml_sse_zero" -> Some (Xor_ps, [])
+       vec128 mslater: this can be moved to builtin detection in cmm_builtins *)
+  | "caml_sse_zero" -> assert false
   | _ -> None
 
 let select_operation_sse2 op args dbg = None
@@ -131,7 +132,7 @@ let select_operation op args dbg =
 
 let register_behavior op =
   match op with
-  | SSE (Cmp_ps _ | Add_ps | Sub_ps | Mul_ps | Div_ps | Max_ps | Min_ps | Xor_ps)
+  | SSE (Cmp_ps _ | Add_ps | Sub_ps | Mul_ps | Div_ps | Max_ps | Min_ps)
   | SSE (Rcp_ps | Sqrt_ps | Rsqrt_ps)
   | SSE (Interleave_low | Interleave_high | Shuffle _) ->
     { arg0 = Reg; arg1 = Reg_or_amem; ret = Fst }

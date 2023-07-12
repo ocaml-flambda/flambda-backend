@@ -28,7 +28,6 @@ type sse_operation =
   | Rcp_ps
   | Sqrt_ps
   | Rsqrt_ps
-  | Xor_ps
   | Move_high_to_low
   | Move_low_to_high
   | Interleave_high
@@ -93,7 +92,6 @@ let print_operation_sse printreg op ppf arg =
   | Rcp_ps -> fprintf ppf "rcp_ps %a %a" printreg arg.(0) printreg arg.(1)
   | Sqrt_ps -> fprintf ppf "sqrt_ps %a %a" printreg arg.(0) printreg arg.(1)
   | Rsqrt_ps -> fprintf ppf "rsqrt_ps %a %a" printreg arg.(0) printreg arg.(1)
-  | Xor_ps -> fprintf ppf "xor_ps %a %a" printreg arg.(0) printreg arg.(1)
   | Shuffle i ->
     fprintf ppf "shuf[%d] %a %a %a" i printreg arg.(0) printreg arg.(1) printreg
       arg.(2)

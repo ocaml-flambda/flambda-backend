@@ -119,8 +119,8 @@ let i1_call_jmp b s = function
   | Sym x -> bprintf b "\t%s\t%s" s x
   | _ -> assert false
 
-let i2i b s x y z = 
-  (match z with 
+let i2i b s x y z =
+  (match z with
   | Imm _ -> ()
   | _ -> Misc.fatal_error "Did not get immediate arg where required.");
   i3 b s x y z
@@ -227,7 +227,6 @@ let print_instr b = function
   | MOVLHPS (arg1, arg2) -> i2 b "movlhps" arg1 arg2
   | UNPCKHPS (arg1, arg2) -> i2 b "unpckhps" arg1 arg2
   | UNPCKLPS (arg1, arg2) -> i2 b "unpcklps" arg1 arg2
-  | XORPS (arg1, arg2) -> i2 b "xorps" arg1 arg2
 
 (* bug:
    https://sourceware.org/binutils/docs-2.22/as/i386_002dBugs.html#i386_002dBugs

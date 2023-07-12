@@ -106,8 +106,9 @@ let is_move_basic : Cfg.basic -> bool =
   | Op op -> (
     match op with
     | Move -> true
-    | Vectorcast _ -> true
-    | Scalarcast (Float_to_v128 | V128_to_float) -> true
+    (* CR mslater for xclerc: these two cases could maybe be true *)
+    | Vectorcast _ -> false
+    | Scalarcast (Float_to_v128 | V128_to_float) -> false
     | Scalarcast (Float_to_v128_as_32 | V128_as_32_to_float) -> false
     | Spill -> false
     | Reload -> false

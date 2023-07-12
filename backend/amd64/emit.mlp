@@ -910,17 +910,17 @@ let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
     I.set E res8;
     I.movzx res8 res
 
-let emit_simd_instr op i = 
-  (match Simd_selection.register_behavior op with 
+let emit_simd_instr op i =
+  (match Simd_selection.register_behavior op with
   | {ret = Fst; _} -> assert (arg i 0 = res i 0)
   | _ -> .);
-  (match Simd_selection.register_behavior op with 
-  | {arg0 = Reg; arg1 = Reg; _} -> 
+  (match Simd_selection.register_behavior op with
+  | {arg0 = Reg; arg1 = Reg; _} ->
     assert (Reg.is_reg i.arg.(0) && Reg.is_reg i.arg.(1))
   | {arg0 = Reg; _} -> assert (Reg.is_reg i.arg.(0))
   | {arg1 = Reg; _} -> assert (Reg.is_reg i.arg.(1))
   | _ -> ());
-  match (op : Simd.operation) with 
+  match (op : Simd.operation) with
   | SSE (Cmp_ps n) -> I.cmpps (arg i 1) (res i 0) (Imm (Int64.of_int n))
   | SSE Add_ps -> I.addps (arg i 1) (res i 0)
   | SSE Sub_ps -> I.subps (arg i 1) (res i 0)
@@ -931,7 +931,6 @@ let emit_simd_instr op i =
   | SSE Rcp_ps -> I.rcpps (arg i 1) (res i 0)
   | SSE Sqrt_ps -> I.sqrtps (arg i 1) (res i 0)
   | SSE Rsqrt_ps -> I.rsqrtps (arg i 1) (res i 0)
-  | SSE Xor_ps -> I.xorps (arg i 1) (res i 0)
   | SSE Move_high_to_low -> I.movhlps (arg i 1) (res i 0)
   | SSE Move_low_to_high -> I.movlhps (arg i 1) (res i 0)
   | SSE Interleave_high -> I.unpckhps (arg i 1) (res i 0)
@@ -1214,7 +1213,7 @@ let emit_instr fallthrough i =
       I.cvtsi2sd  (arg i 0)  (res i 0)
   | Lop(Iintoffloat) ->
       I.cvttsd2si (arg i 0) (res i 0)
-  | Lop(Iintofvalue | Ivalueofint | Ivectorcast _ | 
+  | Lop(Iintofvalue | Ivalueofint | Ivectorcast _ |
         Iscalarcast (Float_to_v128 | V128_to_float)) ->
       move i.arg.(0) i.res.(0)
   | Lop(Iscalarcast Float_to_v128_as_32) ->

@@ -190,7 +190,7 @@ module I : sig
   (* SSE instructions *)
 
   val cmpps: arg -> arg -> arg -> unit
-  val shufps: arg -> arg -> arg -> unit 
+  val shufps: arg -> arg -> arg -> unit
   val addps: arg -> arg -> unit
   val subps: arg -> arg -> unit
   val mulps: arg -> arg -> unit
@@ -204,7 +204,6 @@ module I : sig
   val movlhps: arg -> arg -> unit
   val unpckhps: arg -> arg -> unit
   val unpcklps: arg -> arg -> unit
-  val xorps: arg -> arg -> unit
 
   (* SSE4.2 instructions *)
 
