@@ -2017,7 +2017,7 @@ let close_let_rec acc env ~function_declarations
       named ~body
 
 let wrap_partial_application acc env apply_continuation (apply : IR.apply)
-    approx ~provided ~missing_arity ~first_complex_local_param
+    approx ~provided ~missing_arity ~result_arity ~first_complex_local_param
     ~contains_no_escaping_local_allocs =
   (* In case of partial application, creates a wrapping function from scratch to
      allow inlining and lifting *)
@@ -2053,7 +2053,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         continuation = return_continuation;
         exn_continuation;
         inlined = Lambda.Default_inlined;
-        mode = result_mode
+        mode = result_mode;
+        return_arity = result_arity
       }
       (Some approx) ~replace_region:None
   in
@@ -2096,11 +2097,10 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
                  Flambda_arity.cardinal missing_arity
                  - first_complex_local_param
              })
-        ~params ~return:apply.return_arity ~return_continuation
-        ~exn_continuation ~my_region:apply.region ~body:fbody ~attr
-        ~loc:apply.loc ~free_idents_of_body ~closure_alloc_mode
-        ~first_complex_local_param ~contains_no_escaping_local_allocs
-        Recursive.Non_recursive ]
+        ~params ~return:result_arity ~return_continuation ~exn_continuation
+        ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
+        ~free_idents_of_body ~closure_alloc_mode ~first_complex_local_param
+        ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
   in
   let body acc env =
     let arg = find_simple_from_id env wrapper_id in
@@ -2217,7 +2217,8 @@ type call_args_split =
   | Exact of IR.simple list
   | Partial_app of
       { provided : IR.simple list;
-        missing_arity : Flambda_arity.t
+        missing_arity : Flambda_arity.t;
+        result_arity : Flambda_arity.t
       }
   | Over_app of
       { full : IR.simple list;
@@ -2234,6 +2235,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
       let metadata = Code_or_metadata.code_metadata code in
       Some
         ( Code_metadata.params_arity metadata,
+          Code_metadata.result_arity metadata,
           Code_metadata.is_tupled metadata,
           Code_metadata.first_complex_local_param metadata,
           Code_metadata.contains_no_escaping_local_allocs metadata )
@@ -2250,14 +2252,15 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   match code_info with
   | None -> close_exact_or_unknown_apply acc env apply None ~replace_region:None
   | Some
-      ( arity,
+      ( params_arity,
+        result_arity,
         is_tupled,
         first_complex_local_param,
         contains_no_escaping_local_allocs ) -> (
     let acc, args_with_arities = find_simples_and_arity acc env apply.args in
     let args_arity = List.map snd args_with_arities in
     let split_args =
-      let arity = Flambda_arity.to_list arity in
+      let arity = Flambda_arity.to_list params_arity in
       let split args arity =
         let rec cut n l =
           if n <= 0
@@ -2278,7 +2281,8 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           let _provided_arity, missing_arity = cut args_l arity in
           Partial_app
             { provided = args;
-              missing_arity = Flambda_arity.create missing_arity
+              missing_arity = Flambda_arity.create missing_arity;
+              result_arity
             }
         else
           let full, remaining = cut arity_l args in
@@ -2301,7 +2305,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
       close_exact_or_unknown_apply acc env
         { apply with args; continuation = apply.continuation }
         (Some approx) ~replace_region:None
-    | Partial_app { provided; missing_arity } ->
+    | Partial_app { provided; missing_arity; result_arity } ->
       (match apply.inlined with
       | Always_inlined | Unroll _ ->
         Location.prerr_warning
@@ -2311,7 +2315,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
                inlined_attribute_on_partial_application_msg Inlined))
       | Never_inlined | Hint_inlined | Default_inlined -> ());
       wrap_partial_application acc env apply.continuation apply approx ~provided
-        ~missing_arity ~first_complex_local_param
+        ~missing_arity ~result_arity ~first_complex_local_param
         ~contains_no_escaping_local_allocs
     | Over_app { full; remaining; remaining_arity } ->
       let full_args_call apply_continuation ~region acc =
