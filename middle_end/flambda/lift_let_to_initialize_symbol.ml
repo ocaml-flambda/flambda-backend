@@ -16,6 +16,7 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42-66"]
 open! Int_replace_polymorphic_compare
+module Layouts = Flambda.Layouts
 
 type ('a, 'b) kind =
   | Initialisation of (Symbol.t * Tag.t * Flambda.t list)
@@ -42,7 +43,7 @@ type accumulated = {
   terminator : Flambda.expr;
 }
 
-let rec accumulate ~substitution ~copied_lets ~extracted_lets
+let rec accumulate ~(layouts : Layouts.t) ~substitution ~copied_lets ~extracted_lets
       (expr : Flambda.t) =
   match expr with
   | Let { var; body = Var var'; _ } | Let_rec ([var, _], Var var')
@@ -65,12 +66,16 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
     }
   | Let { var; defining_expr = Expr (Var alias); body; _ }
   | Let_rec ([var, Expr (Var alias)], body) ->
+    let layouts =
+      Layouts.add layouts var (Layouts.find layouts alias)
+    in
     let alias =
       match Variable.Map.find alias substitution with
       | exception Not_found -> alias
       | original_alias -> original_alias
     in
     accumulate
+      ~layouts
       ~substitution:(Variable.Map.add var alias substitution)
       ~copied_lets
       ~extracted_lets
@@ -78,11 +83,16 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
   | Let { var; defining_expr = named; body; _ }
   | Let_rec ([var, named], body)
     when should_copy named ->
+      let layout = Flambda.result_layout_named ~layouts named in
+      let layouts = Layouts.add layouts var layout in
       accumulate body
+        ~layouts
         ~substitution
         ~copied_lets:((var, named)::copied_lets)
         ~extracted_lets
   | Let { var; defining_expr = named; body; _ } ->
+    let layout = Flambda.result_layout_named ~layouts named in
+    let layouts = Layouts.add layouts var layout in
     let extracted =
       let renamed = Variable.rename var in
       match named with
@@ -105,18 +115,23 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
         Expr (var, [Field 0], expr)
     in
     accumulate body
+      ~layouts
       ~substitution
       ~copied_lets
       ~extracted_lets:(extracted::extracted_lets)
   | Let_rec ([var, named], body) ->
     let renamed = Variable.rename var in
     let def_substitution = Variable.Map.add var renamed substitution in
+    let layout = Flambda.result_layout_named ~layouts named in
+    let layouts = Layouts.add layouts var layout in
+    let layouts = Layouts.add layouts renamed layout in
     let expr =
       Flambda_utils.toplevel_substitution def_substitution
         (Let_rec ([renamed, named], Var renamed))
     in
     let extracted = Expr (var, [Field 0], expr) in
     accumulate body
+      ~layouts
       ~substitution
       ~copied_lets
       ~extracted_lets:(extracted::extracted_lets)
@@ -127,6 +142,16 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
           (new_var, def) :: acc,
           Variable.Map.add var new_var substitution)
         defs ([], substitution)
+    in
+    let layouts =
+      List.fold_left (fun layouts (var, _) ->
+          Layouts.add layouts var Lambda.layout_letrec)
+        layouts defs
+    in
+    let layouts =
+      List.fold_left (fun layouts (var, _) ->
+          Layouts.add layouts var Lambda.layout_letrec)
+        layouts renamed_defs
     in
     let extracted =
       let expr =
@@ -146,6 +171,7 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
       Exprs (vars, expr)
     in
     accumulate body
+      ~layouts
       ~substitution
       ~copied_lets
       ~extracted_lets:(extracted::extracted_lets)
@@ -278,6 +304,7 @@ let rebuild (used_variables:Variable.Set.t) (accumulated:accumulated) =
 let introduce_symbols expr =
   let accumulated =
     accumulate expr
+      ~layouts:Layouts.empty
       ~substitution:Variable.Map.empty
       ~copied_lets:[] ~extracted_lets:[]
   in

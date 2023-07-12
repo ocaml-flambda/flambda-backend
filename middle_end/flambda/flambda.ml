@@ -1334,3 +1334,92 @@ let compare_project_var = Projection.compare_project_var
 let compare_project_closure = Projection.compare_project_closure
 let compare_move_within_set_of_closures =
   Projection.compare_move_within_set_of_closures
+
+module Layouts = struct
+
+  type t = {
+    vars : Lambda.layout Variable.Map.t;
+    mut_vars : Lambda.layout Mutable_variable.Map.t;
+  }
+
+  let empty = {
+    vars = Variable.Map.empty;
+    mut_vars = Mutable_variable.Map.empty;
+  }
+
+  let add layouts var layout =
+    { layouts with vars = Variable.Map.add var layout layouts.vars }
+
+  let add_mut layouts var layout =
+    { layouts with mut_vars = Mutable_variable.Map.add var layout layouts.mut_vars }
+
+  let find layouts var =
+    Variable.Map.find var layouts.vars
+
+  let find_mut layouts var =
+    Mutable_variable.Map.find var layouts.mut_vars
+
+end
+
+let rec result_layout_named ~(layouts : Layouts.t) (named : named) =
+  match named with
+  | Expr expr ->
+    result_layout ~layouts expr
+  | Prim (Popaque, [arg], _) ->
+    Layouts.find layouts arg
+  | Prim (Popaque, ([] | _ :: _ :: _), _) ->
+    assert false
+  | Prim (p, _, _) ->
+    Clambda_primitives.result_layout p
+  | Const (Int _)
+  | Const (Char _) ->
+    Lambda.layout_int
+  | Symbol _
+  | Allocated_const _
+  | Read_symbol_field _
+  | Set_of_closures _
+  | Project_closure _
+  | Move_within_set_of_closures _ ->
+    Lambda.layout_any_value
+  | Project_var { kind; _ } ->
+    kind
+  | Read_mutable var ->
+    Layouts.find_mut layouts var
+
+and result_layout ~layouts (expr : expr) =
+  match expr with
+  | Var v ->
+    Layouts.find layouts v
+  | Let { var; defining_expr; body; _ } ->
+    let layout = result_layout_named ~layouts defining_expr in
+    let layouts = Layouts.add layouts var layout in
+    result_layout ~layouts body
+  | Let_rec (defs, body) ->
+    let layouts =
+      List.fold_left (fun layouts (var, _) ->
+          Layouts.add layouts var Lambda.layout_letrec)
+        layouts defs
+    in
+    result_layout ~layouts body
+  | Assign _ ->
+    Lambda.layout_any_value
+  | While _
+  | For _ ->
+    Lambda.layout_unit
+  | Region expr
+  | Exclave expr ->
+    result_layout ~layouts expr
+  | Static_raise _
+  | Proved_unreachable ->
+    Lambda.layout_bottom
+  | Static_catch (_, _, _, _, result_layout)
+  | Apply { result_layout }
+  | Send { result_layout }
+  | Switch (_, { kind = result_layout })
+  | String_switch (_, _, _, result_layout)
+  | Try_with (_, _, _, result_layout)
+  | If_then_else (_, _, _, result_layout) ->
+    result_layout
+  | Let_mutable { var; contents_kind; body; _ } ->
+    let layouts = Layouts.add_mut layouts var contents_kind in
+    result_layout ~layouts body
