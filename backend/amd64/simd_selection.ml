@@ -41,8 +41,8 @@ let extract_constant args name =
 let shuffle_mask x y z w = (x lsl 6) lor (y lsl 4) lor (z lsl 2) lor w
 
 (* TODO: *)
-(* bottom 2 CRs *)
-(* add tests for float<->vec128 casts *)
+(* add intrinsic test for float<->vec128 casts *)
+(* bottom 3 CRs *)
 (* extend reg behavior for 0/1 arg instrs *)
 (* move zero to cmm builtins *)
 (* implement get and set4 *)
@@ -86,6 +86,7 @@ let select_operation_sse op args dbg =
     let i, args = extract_constant args "caml_sse_float32x4_get" in
     if i < 0 || i >= 4
     then Misc.fatal_errorf "Bad index (%d) for caml_sse_float32x4_get" i;
+    (* CR mslater: (SIMD) needs to convert to float64 *)
     Some (Shuffle (shuffle_mask 0 0 0 i), args)
     (* CR mslater: (SIMD) this also needs a way to generate a Cconst_vec128
        instead of an instruction, or a way to grab an undefined argument of type
