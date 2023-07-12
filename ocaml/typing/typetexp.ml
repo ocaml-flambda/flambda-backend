@@ -833,7 +833,8 @@ and transl_type_aux env policy mode styp =
             pack_fields = ptys;
             pack_txt = p;
            }) ty
-  | Ptyp_extension ext ->
+  | Ptyp_extension ({ txt = "src_pos"; loc = _ } , _payload) -> failwith "very happy"
+  | Ptyp_extension ext -> 
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
 and transl_type_aux_jst _env _policy _mode _attrs
