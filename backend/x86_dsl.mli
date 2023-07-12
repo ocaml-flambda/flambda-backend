@@ -51,8 +51,6 @@ val ecx: arg
 val edx: arg
 val ebp: arg
 val esp: arg
-val st0: arg
-val st1: arg
 
 val mem32:
   data_type -> ?scale:int -> ?base:reg64 -> ?sym:string ->
@@ -131,40 +129,6 @@ module I : sig
   val cvttsd2si: arg -> arg -> unit
   val dec: arg -> unit
   val divsd: arg -> arg -> unit
-  val fabs: unit -> unit
-  val fadd: arg -> unit
-  val faddp: arg -> arg -> unit
-  val fchs: unit -> unit
-  val fcomp: arg -> unit
-  val fcompp: unit -> unit
-  val fcos: unit -> unit
-  val fdiv: arg -> unit
-  val fdivp: arg -> arg -> unit
-  val fdivr: arg -> unit
-  val fdivrp: arg -> arg -> unit
-  val fild: arg -> unit
-  val fistp: arg -> unit
-  val fld1: unit -> unit
-  val fld: arg -> unit
-  val fldcw: arg -> unit
-  val fldlg2: unit -> unit
-  val fldln2: unit -> unit
-  val fldz: unit -> unit
-  val fmul: arg -> unit
-  val fmulp: arg -> arg -> unit
-  val fnstcw: arg -> unit
-  val fnstsw: arg -> unit
-  val fpatan: unit -> unit
-  val fptan: unit -> unit
-  val fsin: unit -> unit
-  val fsqrt: unit -> unit
-  val fstp: arg -> unit
-  val fsub: arg -> unit
-  val fsubp: arg -> arg -> unit
-  val fsubr: arg -> unit
-  val fsubrp: arg -> arg -> unit
-  val fxch: arg -> unit
-  val fyl2x: unit -> unit
   val hlt: unit -> unit
   val idiv: arg -> unit
   val imul: arg -> arg option -> unit

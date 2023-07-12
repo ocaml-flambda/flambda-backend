@@ -81,7 +81,7 @@ let arg b = function
   | Reg16 x -> Buffer.add_string b (string_of_reg16 x)
   | Reg32 x -> Buffer.add_string b (string_of_reg32 x)
   | Reg64 x -> Buffer.add_string b (string_of_reg64 x)
-  | Regf x -> Buffer.add_string b (string_of_registerf x)
+  | Regf x -> Buffer.add_string b (string_of_regf x)
 
   (* We don't need to specify RIP on Win64, since EXTERN will provide
      the list of external symbols that need this addressing mode, and
@@ -139,40 +139,6 @@ let print_instr b = function
   | CVTTSD2SI (arg1, arg2) -> i2 b "cvttsd2si" arg1 arg2
   | DEC arg -> i1 b "dec" arg
   | DIVSD (arg1, arg2) -> i2 b "divsd" arg1 arg2
-  | FABS -> i0 b "fabs"
-  | FADD arg -> i1 b "fadd" arg
-  | FADDP (arg1, arg2)  -> i2 b "faddp" arg1 arg2
-  | FCHS -> i0 b "fchs"
-  | FCOMP arg -> i1 b "fcomp" arg
-  | FCOMPP -> i0 b "fcompp"
-  | FCOS -> i0 b "fcos"
-  | FDIV arg -> i1 b "fdiv" arg
-  | FDIVP (arg1, arg2)  -> i2 b "fdivp" arg1 arg2
-  | FDIVR arg -> i1 b "fdivr" arg
-  | FDIVRP (arg1, arg2)  -> i2 b "fdivrp" arg1 arg2
-  | FILD arg -> i1 b "fild" arg
-  | FISTP arg -> i1 b "fistp" arg
-  | FLD arg -> i1 b "fld" arg
-  | FLD1 -> i0 b "fld1"
-  | FLDCW arg -> i1 b "fldcw" arg
-  | FLDLG2 -> i0 b "fldlg2"
-  | FLDLN2 -> i0 b "fldln2"
-  | FLDZ -> i0 b "fldz"
-  | FMUL arg -> i1 b "fmul" arg
-  | FMULP (arg1, arg2)  -> i2 b "fmulp" arg1 arg2
-  | FNSTCW arg -> i1 b "fnstcw" arg
-  | FNSTSW arg -> i1 b "fnstsw" arg
-  | FPATAN -> i0 b "fpatan"
-  | FPTAN -> i0 b "fptan"
-  | FSIN -> i0 b "fsin"
-  | FSQRT -> i0 b "fsqrt"
-  | FSTP arg -> i1 b "fstp" arg
-  | FSUB arg -> i1 b "fsub" arg
-  | FSUBP (arg1, arg2)  -> i2 b "fsubp" arg1 arg2
-  | FSUBR arg -> i1 b "fsubr" arg
-  | FSUBRP (arg1, arg2)  -> i2 b "fsubrp" arg1 arg2
-  | FXCH arg -> i1 b "fxch" arg
-  | FYL2X -> i0 b "fyl2x"
   | HLT -> assert false
   | IDIV arg -> i1 b "idiv" arg
   | IMUL (arg, None) -> i1 b "imul" arg

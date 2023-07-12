@@ -25,7 +25,7 @@ val string_of_reg8h: reg8h -> string
 val string_of_reg16: reg64 -> string
 val string_of_reg32: reg64 -> string
 val string_of_reg64: reg64 -> string
-val string_of_registerf: registerf -> string
+val string_of_regf: regf -> string
 val string_of_substring_literal: int -> int -> string -> string
 val string_of_string_literal: string -> string
 val string_of_condition: condition -> string
@@ -90,7 +90,7 @@ val windows:bool
 val use_plt : bool
 
 module Section_name : sig
-  type t 
+  type t
   val equal : t -> t -> bool
   val hash : t -> int
   val compare : t -> t -> int
