@@ -546,18 +546,7 @@ let rec expression : Typedtree.expression -> term_judg =
       value_bindings rec_flag bindings >> expression body
     | Texp_letmodule (x, _, _, mexp, e) ->
       module_binding (x, mexp) >> expression e
-    | Texp_match (e, _, cases, _) ->
-      (*
-         (Gi; mi |- pi -> ei : m)^i
-         G |- e : sum(mi)^i
-         ----------------------------------------------
-         G + sum(Gi)^i |- match e with (pi -> ei)^i : m
-       *)
-      (fun mode ->
-        let pat_envs, pat_modes =
-          List.split (List.map (fun c -> case c mode) cases) in
-        let env_e = expression e (List.fold_left Mode.join Ignore pat_modes) in
-        Env.join_list (env_e :: pat_envs))
+    | Texp_match (e, _, cases, _) -> check_match e cases
     | Texp_for tf ->
       (*
         G1 |- low: m[Dereference]
@@ -837,6 +826,19 @@ let rec expression : Typedtree.expression -> term_judg =
       expression handler << Dereference
     | Texp_probe_is_enabled _ -> empty
     | Texp_exclave e -> expression e
+
+and check_match e cases =
+  (*
+      (Gi; mi |- pi -> ei : m)^i
+      G |- e : sum(mi)^i
+      ----------------------------------------------
+      G + sum(Gi)^i |- match e with (pi -> ei)^i : m
+   *)
+  (fun mode ->
+    let pat_envs, pat_modes =
+      List.split (List.map (fun c -> case c mode) cases) in
+    let env_e = expression e (List.fold_left Mode.join Ignore pat_modes) in
+    Env.join_list (env_e :: pat_envs))
 
 and comprehension_clauses clauses =
   List.concat_map
@@ -1194,22 +1196,14 @@ and case
     *)
       let judg = match c_guard with
         | None -> expression c_rhs
-        | Some (Predicate p) -> join [ expression p << Dereference; expression c_rhs ]
-        | Some (Pattern (e, _, pat)) -> pattern_guard e pat c_rhs in
+        | Some (Predicate p) ->
+            join [ expression p << Dereference; expression c_rhs ]
+        | Some (Pattern (e, _, pat)) ->
+          let cases = [ { c_lhs = pat; c_guard = None; c_rhs } ] in
+          check_match e cases in
       (fun m ->
         let env = judg m in
         (remove_pat c_lhs env), Mode.compose m (pattern c_lhs env))
-
-and pattern_guard
-    : Typedtree.expression -> computation Typedtree.general_pattern
-      -> Typedtree.expression -> term_judg
-  = fun e pat c_rhs ->
-      fun mode ->
-        let rhs_env = expression c_rhs mode in
-        let pat_env = remove_pat pat rhs_env in
-        let pat_mode = Mode.compose mode (pattern pat rhs_env) in
-        let env_e = expression e pat_mode in
-        Env.join_list [ env_e ; pat_env ]
 
 (* p : m -| G
    with output m and input G
