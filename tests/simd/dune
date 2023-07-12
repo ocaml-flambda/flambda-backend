@@ -1,22 +1,49 @@
+(foreign_library
+ (archive_name stubs)
+ (language c)
+ (names stubs)
+ (flags -msse4.2)
+ (include_dirs "../../ocaml/runtime"))
+
 (executable
- (name simd)
- (modules simd)
- (foreign_stubs (language c) (names stubs) (flags -msse4.2))
+ (name basic)
+ (modules basic)
+ (foreign_archives stubs)
+ (ocamlopt_flags (:standard -fsimd)))
+
+(executable
+ (name probes)
+ (modules probes)
+ (enabled_if (<> %{os_type} MacOS))
+ (foreign_archives stubs)
  (ocamlopt_flags (:standard -fsimd)))
 
 (rule
- (enabled_if
-  (= %{context_name} "main"))
- (target simd.output)
- (deps simd.exe)
+ (enabled_if (= %{context_name} "main"))
+ (target basic.output)
+ (deps basic.exe)
  (action
   (with-outputs-to
-   simd.output
-   (run ./simd.exe))))
+   basic.output
+   (run ./basic.exe))))
+
+(rule
+ (enabled_if (and (= %{context_name} "main") (<> %{os_type} MacOS)))
+ (target probes.output)
+ (deps probes.exe)
+ (action
+  (with-outputs-to
+   probes.output
+   (run ./probes.exe))))
 
 (rule
  (alias runtest)
- (enabled_if
-  (= %{context_name} "main"))
+ (enabled_if (= %{context_name} "main"))
  (action
-  (diff simd.expected simd.output)))
+  (diff empty.expected basic.output)))
+
+(rule
+ (alias runtest)
+ (enabled_if (and (= %{context_name} "main") (<> %{os_type} MacOS)))
+ (action
+  (diff empty.expected probes.output)))
