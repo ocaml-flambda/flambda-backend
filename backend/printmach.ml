@@ -23,14 +23,14 @@ open Interval
 
 module V = Backend_var
 
-let loc ?(wrap_out = fun ppf f -> f ppf) ~reg_class ~unknown ppf l =
-  match l with
+let loc ?(wrap_out = fun ppf f -> f ppf) ~unknown ppf loc typ =
+  match loc with
   | Unknown -> unknown ppf
   | Reg r ->
-      wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name r))
+      wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name typ r))
   | Stack(Local s) ->
       wrap_out ppf (fun ppf ->
-        fprintf ppf "s[%s:%i]" (Proc.register_class_tag reg_class) s)
+        fprintf ppf "s[%s:%i]" (Proc.stack_class_tag (Proc.stack_slot_class typ)) s)
   | Stack(Incoming s) ->
       wrap_out ppf (fun ppf -> fprintf ppf "par[%i]" s)
   | Stack(Outgoing s) ->
@@ -43,11 +43,16 @@ let reg ppf r =
     fprintf ppf "%s" (Reg.name r)
   else
     fprintf ppf "%s"
-      (match r.typ with Val -> "V" | Addr -> "A" | Int -> "I" | Float -> "F");
+      (match r.typ with
+      | Val -> "V"
+      | Addr -> "A"
+      | Int -> "I"
+      | Float -> "F"
+      | Vec128 -> "X");
   fprintf ppf "/%i" r.stamp;
   loc
     ~wrap_out:(fun ppf f -> fprintf ppf "[%t]" f)
-    ~reg_class:(Proc.register_class r) ~unknown:(fun _ -> ()) ppf r.loc
+    ~unknown:(fun _ -> ()) ppf r.loc r.typ
 
 let regs' ?(print_reg = reg) ppf v =
   let reg = print_reg in
@@ -159,6 +164,7 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iconst_int n -> fprintf ppf "%s" (Nativeint.to_string n)
   | Iconst_float f -> fprintf ppf "%F" (Int64.float_of_bits f)
   | Iconst_symbol s -> fprintf ppf "\"%s\"" s.sym_name
+  | Iconst_vec128 {high; low} -> fprintf ppf "%016Lx:%016Lx" high low
   | Icall_ind -> fprintf ppf "call %a" regs arg
   | Icall_imm { func; } -> fprintf ppf "call \"%s\" %a" func.sym_name regs arg
   | Itailcall_ind -> fprintf ppf "tailcall %a" regs arg

@@ -468,9 +468,9 @@ module Acc = struct
           Block_approximation (fields, Alloc_mode.For_types.unknown ())
         else Value_unknown
       | Set_of_closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-      | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_value_array _ | Empty_array | Mutable_string _
-      | Immutable_string _ ->
+      | Boxed_vec128 _ | Boxed_nativeint _ | Immutable_float_block _
+      | Immutable_float_array _ | Immutable_value_array _ | Empty_array
+      | Mutable_string _ | Immutable_string _ ->
         Value_unknown
     in
     let symbol_approximations =

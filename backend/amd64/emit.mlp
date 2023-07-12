@@ -47,9 +47,14 @@ let int_reg_name =
 
 let float_reg_name = Array.init 16 (fun i -> XMM i)
 
-let register_name r =
-  if r < 100 then Reg64 (int_reg_name.(r))
-  else Regf (float_reg_name.(r - 100))
+let register_name typ r =
+  match typ with
+  | Int | Val | Addr -> Reg64 (int_reg_name.(r))
+  | Float -> Regf (float_reg_name.(r - 100))
+  | Vec128 ->
+    if not !simd_regalloc_support then
+    Misc.fatal_error "SIMD register allocation is not enabled.";
+    Regf (float_reg_name.(r - 100))
 
 (* CFI directives *)
 
@@ -80,7 +85,7 @@ let fastcode_flag = ref true
 (* Layout of the stack frame *)
 let stack_offset = ref 0
 
-let num_stack_slots = Array.make Proc.num_register_classes 0
+let num_stack_slots = Array.make Proc.num_stack_slot_classes 0
 
 let prologue_required = ref false
 
@@ -88,8 +93,13 @@ let frame_required = ref false
 
 let frame_size () =                     (* includes return address *)
   if !frame_required then begin
+    if not !simd_regalloc_support then assert (num_stack_slots.(2) = 0);
     let sz =
-      (!stack_offset + 8 * (num_stack_slots.(0) + num_stack_slots.(1)) + 8
+      (!stack_offset
+       + 8
+       + 8 * num_stack_slots.(0)
+       + 8 * num_stack_slots.(1)
+       + 16 * num_stack_slots.(2)
        + (if fp then 8 else 0))
     in Misc.align sz 16
   end else
@@ -99,9 +109,14 @@ let slot_offset loc cl =
   match loc with
   | Incoming n -> frame_size() + n
   | Local n ->
-      if cl = 0
-      then !stack_offset + n * 8
-      else !stack_offset + (num_stack_slots.(0) + n) * 8
+      if not !simd_regalloc_support then assert (num_stack_slots.(2) = 0 && cl < 2);
+      (!stack_offset +
+        (* Preserves original ordering (int -> float) *)
+        match cl with
+        | 2 -> n * 16
+        | 0 -> num_stack_slots.(2) * 16 + n * 8
+        | 1 -> num_stack_slots.(2) * 16 + num_stack_slots.(0) * 8 + n * 8
+        | _ -> Misc.fatal_error "Unknown register class")
   | Outgoing n -> n
   | Domainstate _ -> assert false (* not a stack slot *)
 
@@ -274,15 +289,16 @@ let emit_Llabel fallthrough lbl section_name =
 
 let x86_data_type_for_stack_slot = function
   | Float -> REAL8
-  | _ -> QWORD
+  | Vec128 -> VEC128
+  | Int | Addr | Val -> QWORD
 
 let reg = function
-  | { loc = Reg.Reg r } -> register_name r
+  | { loc = Reg.Reg r; typ = ty } -> register_name ty r
   | { loc = Stack (Domainstate n); typ = ty } ->
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
       mem64 (x86_data_type_for_stack_slot ty) ofs R14
   | { loc = Stack s; typ = ty } as r ->
-      let ofs = slot_offset s (register_class r) in
+      let ofs = slot_offset s (stack_slot_class r.typ) in
       mem64 (x86_data_type_for_stack_slot ty) ofs RSP
   | { loc = Unknown } ->
       assert false
@@ -305,7 +321,7 @@ let reg_low_32_name = Array.map (fun r -> Reg32 r) int_reg_name
 let emit_subreg tbl typ r =
   match r.loc with
   | Reg.Reg r when r < 13 -> tbl.(r)
-  | Stack s -> mem64 typ (slot_offset s (register_class r)) RSP
+  | Stack s -> mem64 typ (slot_offset s (stack_slot_class r.Reg.typ)) RSP
   | _ -> assert false
 
 let arg8 i n = emit_subreg reg_low_8_name BYTE i.arg.(n)
@@ -347,7 +363,7 @@ let record_frame_label live dbg =
       | {typ = Val; loc = Reg r} ->
           live_offset := ((r lsl 1) + 1) :: !live_offset
       | {typ = Val; loc = Stack s} as reg ->
-          live_offset := slot_offset s (register_class reg) :: !live_offset
+          live_offset := slot_offset s (stack_slot_class reg.typ) :: !live_offset
       | {typ = Addr} as r ->
           Misc.fatal_error ("bad GC root " ^ Reg.name r)
       | _ -> ()
@@ -483,7 +499,7 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
         include X86_dsl.D
 
         type data_type =
-          | NONE | DWORD | QWORD
+          | NONE | DWORD | QWORD | VEC128
 
         type nonrec constant = constant
         let const_int64 num = Const num
@@ -497,7 +513,8 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
               (function
                 | NONE -> X86_ast.NONE
                 | DWORD -> X86_ast.DWORD
-                | QWORD -> X86_ast.QWORD)
+                | QWORD -> X86_ast.QWORD
+                | VEC128 -> X86_ast.VEC128)
               data_type
           in
           label ?typ str
@@ -670,6 +687,24 @@ let emit_float_constant f lbl =
   _label (emit_label lbl);
   D.qword (Const f)
 
+(* Vector constants *)
+
+let vec128_constants = ref ([] : (Cmm.vec128_bits * int) list)
+
+let add_vec128_constant bits =
+  try
+    List.assoc bits !vec128_constants
+  with Not_found ->
+    let lbl = new_label() in
+    vec128_constants := (bits, lbl) :: !vec128_constants;
+    lbl
+
+let emit_vec128_constant {high; low} lbl =
+  _label (emit_label lbl);
+  (* SIMD vectors respect little-endian byte order *)
+  D.qword (Const low);
+  D.qword (Const high)
+
 let emit_global_label_for_symbol lbl =
   add_def_symbol lbl;
   let lbl = emit_symbol lbl in
@@ -683,11 +718,27 @@ let emit_global_label s =
 let move (src : Reg.t) (dst : Reg.t) =
   if src.loc <> dst.loc then
     begin match src.typ, src.loc, dst.typ, dst.loc with
-    | Float, Reg.Reg _, Float, Reg.Reg _ -> I.movapd (reg src) (reg dst)
-    | Float, _, Float, _ -> I.movsd (reg src) (reg dst)
-    | Float, _, Int, _
-    | Int, _, Float, _ -> I.movq (reg src) (reg dst)
-    | _ -> I.mov (reg src) (reg dst)
+    | Float, Reg.Reg _, Float, Reg.Reg _
+    | Vec128, _, Vec128, _ ->
+      (* Vec128 stack slots are always aligned. *)
+      I.movapd (reg src) (reg dst)
+    | Float, _, Float, _ ->
+      I.movsd (reg src) (reg dst)
+    | Float, _, Int, _ | Int, _, Float, _ ->
+      (* CR-soon gyorsh: this case is used by the bits_of_float/float_of_bits intrinsics.
+         They should instead generate a separate Ispecific and this case should be
+         removed. *)
+      I.movq (reg src) (reg dst)
+    | (Int | Val | Addr), _, (Int | Val | Addr), _ ->
+      I.mov (reg src) (reg dst)
+    | Vec128, _, _, _ | _, _, Vec128, _ ->
+      Misc.fatal_errorf
+        "Illegal move between a vector and non-vector register (%s to %s)\n"
+        (Reg.name src) (Reg.name dst)
+    | Float, _, (Val | Addr), _ | (Val | Addr), _, Float, _ ->
+      Misc.fatal_errorf
+        "Illegal move between a float and val/addr register (%s to %s)\n"
+        (Reg.name src) (Reg.name dst)
     end
 
 let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
@@ -698,7 +749,7 @@ let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
       (* Not calling move because r15 is not in int_reg_name. *)
       I.mov (reg src) r15;
       I.mov r15 (reg dst)
-    | Float | Addr ->
+    | Float | Addr | Vec128 ->
       Misc.fatal_errorf
         "Unexpected register type for stack to stack move: from %s to %s\n"
         (Reg.name src) (Reg.name dst)
@@ -906,7 +957,15 @@ let emit_instr fallthrough i =
           I.xorpd (res i 0) (res i 0)
       | _ ->
           let lbl = add_float_constant f in
-          I.movsd (mem64_rip NONE (emit_label lbl)) (res i 0)
+          I.movsd (mem64_rip REAL8 (emit_label lbl)) (res i 0)
+      end
+  | Lop(Iconst_vec128 {high; low}) ->
+      begin match (high, low) with
+      | 0x0000_0000_0000_0000L, 0x0000_0000_0000_0000L ->
+          I.xorpd (res i 0) (res i 0)
+      | _ ->
+          let lbl = add_vec128_constant {high; low} in
+          I.movupd (mem64_rip VEC128 (emit_label lbl)) (res i 0)
       end
   | Lop(Iconst_symbol s) ->
       add_used_symbol s.sym_name;
@@ -966,11 +1025,13 @@ let emit_instr fallthrough i =
       | Sixteen_unsigned ->
           I.movzx (addressing addr WORD i 0) dest
       | Sixteen_signed ->
-          I.movsx (addressing addr WORD i 0) dest;
+          I.movsx (addressing addr WORD i 0) dest
       | Thirtytwo_unsigned ->
           I.mov (addressing addr DWORD i 0) (res32 i 0)
       | Thirtytwo_signed ->
           I.movsxd (addressing addr DWORD i 0) dest
+      | Onetwentyeight ->
+          I.movupd (addressing addr VEC128 i 0) dest
       | Single ->
           I.cvtss2sd (addressing addr REAL4 i 0) dest
       | Double ->
@@ -986,6 +1047,8 @@ let emit_instr fallthrough i =
           I.mov (arg16 i 0) (addressing addr WORD i 1)
       | Thirtytwo_signed | Thirtytwo_unsigned ->
           I.mov (arg32 i 0) (addressing addr DWORD i 1)
+      | Onetwentyeight ->
+          I.movupd (arg i 0) (addressing addr VEC128 i 1)
       | Single ->
           I.cvtsd2ss (arg i 0) xmm15;
           I.movss xmm15 (addressing addr REAL4 i 1)
@@ -1112,9 +1175,9 @@ let emit_instr fallthrough i =
       I.movq a0 (res i 0);
       I.neg (res i 0)
   | Lop(Inegf) ->
-      I.xorpd (mem64_rip OWORD (emit_symbol "caml_negf_mask")) (res i 0)
+      I.xorpd (mem64_rip VEC128 (emit_symbol "caml_negf_mask")) (res i 0)
   | Lop(Iabsf) ->
-      I.andpd (mem64_rip OWORD (emit_symbol "caml_absf_mask")) (res i 0)
+      I.andpd (mem64_rip VEC128 (emit_symbol "caml_absf_mask")) (res i 0)
   | Lop(Iaddf | Isubf | Imulf | Idivf as floatop) ->
       instr_for_floatop floatop (arg i 1) (res i 0)
   | Lop(Ifloatofint) ->
@@ -1324,8 +1387,8 @@ let emit_instr fallthrough i =
          we must be careful not to clobber it before use. *)
       let (tmp1, tmp2) =
         if i.arg.(0).loc = Reg 0 (* rax *)
-        then (phys_reg 4 (*rdx*), phys_reg 0 (*rax*))
-        else (phys_reg 0 (*rax*), phys_reg 4 (*rdx*)) in
+        then (phys_reg Int 4 (*rdx*), phys_reg Int 0 (*rax*))
+        else (phys_reg Int 0 (*rax*), phys_reg Int 4 (*rdx*)) in
 
       I.lea (mem64_rip NONE lbl) (reg tmp1);
       I.movsxd (mem64 DWORD 0 (arg64 i 0) ~scale:4 ~base:(reg64 tmp1))
@@ -1415,7 +1478,7 @@ let fundecl fundecl =
   local_realloc_sites := [];
   bound_error_sites := [];
   bound_error_call := 0;
-  for i = 0 to Proc.num_register_classes - 1 do
+  for i = 0 to Proc.num_stack_slot_classes - 1 do
     num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
   done;
   prologue_required := fundecl.fun_prologue_required;
@@ -1474,6 +1537,8 @@ let emit_item = function
   | Cint n -> D.qword (const_nat n)
   | Csingle f -> D.long  (Const (Int64.of_int32 (Int32.bits_of_float f)))
   | Cdouble f -> D.qword (Const (Int64.bits_of_float f))
+  (* SIMD vectors respect little-endian byte order *)
+  | Cvec128 {high; low} -> D.qword (Const low); D.qword (Const high)
   | Csymbol_address s ->
     add_used_symbol s.sym_name;
     D.qword (ConstLabel (emit_cmm_symbol s))
@@ -1554,15 +1619,20 @@ let begin_assembly unix =
 
   ()
 
-let make_stack_loc ~offset i (r : Reg.t) =
+let make_stack_loc ~offset n (r : Reg.t) =
   (* Use "Outgoing" stack locations, instead of "Local",
      because [slot_offset] emits (Outgoing n) directly
      as offset [n] from the stack pointer,
      rather than a calculation relative to the stack frame,
      which is incorrect for naked floats (arising from live variables, not
      probe arguments) in the wrapper's frame. *)
-  let loc = Stack (Outgoing (offset + (8*i))) in
+  let loc = Stack (Outgoing (offset + n)) in
   (* Manufacture stack entry with this register's type *)
+  (match r.typ with
+   | Int | Val | Addr | Float -> ()
+   | Vec128 ->
+    if not !simd_regalloc_support then
+    Misc.fatal_error "SIMD register allocation is not enabled.");
   Reg.at_location r.typ loc
 
 (* CR mshinwell: Not now, but after code review, it would be better to
@@ -1613,6 +1683,24 @@ let make_stack_loc ~offset i (r : Reg.t) =
    This assumption might no longer hold in the presence of unboxed types.
 *)
 
+let size_of_regs regs =
+  Array.fold_right
+    (fun r acc ->
+      match r.Reg.typ with
+      | Int | Addr | Val -> acc + size_int
+      | Float -> acc + size_float
+      | Vec128 -> acc + size_vec128)
+    regs 0
+
+let stack_locations ~offset regs =
+  let _, locs = Array.fold_right (fun r (n, offsets) ->
+    let next = n + match r.Reg.typ with
+      | Int | Val | Addr -> size_int
+      | Float -> size_float
+      | Vec128 -> size_vec128 in
+    next, (make_stack_loc n r ~offset :: offsets)) regs (0, []) in
+  locs |> List.rev |> Array.of_list
+
 let emit_probe_handler_wrapper p =
   let wrap_label = probe_handler_wrapper_name p.probe_label in
   let probe_name, handler_code_sym =
@@ -1626,7 +1714,7 @@ let emit_probe_handler_wrapper p =
      recall that the wrapper does however have its own frame.) *)
   frame_required := true;
   stack_offset := p.stack_offset;
-  for i = 0 to Proc.num_register_classes - 1 do
+  for i = 0 to Proc.num_stack_slot_classes - 1 do
     num_stack_slots.(i) <- p.num_stack_slots.(i);
   done;
   (* Account for the return address that is now pushed on the stack. *)
@@ -1642,18 +1730,16 @@ let emit_probe_handler_wrapper p =
     I.mov rsp rbp;
   end;
   (* Prepare to call the handler: calculate and allocate stack space.
-     The calculations are simplified using the following property. *)
-  assert (size_addr = 8 && size_int = 8 && size_float = 8);
-  (* Compute the size of stack slots for all live hard registers. *)
+     Compute the size of stack slots for all live hard registers. *)
   let live =
     Reg.Set.elements p.probe_insn.live
     |> List.filter Reg.is_reg
     |> Array.of_list
   in
-  let live_offset = 8 * (Array.length live) in
+  let live_offset = size_of_regs live in
   (* Compute the size of stack slots for spilling all arguments of the probe. *)
   let aux_offset = 8 (* for saving r15 *) in
-  let tmp_offset = 8 * (Array.length p.probe_insn.arg) in
+  let tmp_offset = size_of_regs p.probe_insn.arg in
   let loc_args, loc_offset = Proc.loc_arguments (Reg.typv p.probe_insn.arg) in
   (* Ensure the stack is aligned.
      Assuming that the stack at the probe site is 16-byte aligned,
@@ -1669,7 +1755,7 @@ let emit_probe_handler_wrapper p =
   emit_stack_offset n;
   (* Save all live hard registers *)
   let offset = aux_offset + tmp_offset + loc_offset in
-  let saved_live = Array.mapi (make_stack_loc ~offset) live in
+  let saved_live = stack_locations ~offset live in
   Array.iteri (fun i reg -> move reg saved_live.(i)) live;
   (* Spill r15 to free it to be used as a temporary register for stack to
      stack copying. *)
@@ -1678,11 +1764,11 @@ let emit_probe_handler_wrapper p =
   I.mov r15 (reg saved_r15);
   (* Spill all arguments of the probe.  Some of these may already be on the
      stack, in which case a temporary is used for the move. *)
-  let tmp = Array.mapi (make_stack_loc ~offset:loc_offset) p.probe_insn.arg in
-  Array.iteri (fun i reg -> move_allowing_stack_to_stack reg (tmp.(i)))
+  let saved_args = stack_locations ~offset:loc_offset p.probe_insn.arg in
+  Array.iteri (fun i reg -> move_allowing_stack_to_stack reg (saved_args.(i)))
     p.probe_insn.arg;
   (* Load probe arguments to correct locations for the handler *)
-  Array.iteri (fun i reg -> move_allowing_stack_to_stack tmp.(i) reg) loc_args;
+  Array.iteri (fun i reg -> move_allowing_stack_to_stack saved_args.(i) reg) loc_args;
   (* Reload spilled registers used as temporaries *)
   I.mov (reg saved_r15) r15;
   (* Emit call to handler *)
@@ -1696,7 +1782,7 @@ let emit_probe_handler_wrapper p =
       | Stack (Outgoing k) ->
         (match r.typ with
         | Val -> k::acc
-        | Int | Float -> acc
+        | Int | Float | Vec128 -> acc
         | Addr -> Misc.fatal_error ("bad GC root " ^ Reg.name r))
       | _ -> assert false)
     saved_live
@@ -1764,8 +1850,8 @@ let emit_probe_notes0 () =
     let arg_name =
       match arg.loc with
       | Stack s ->
-        Printf.sprintf "%d(%%rsp)" (slot_offset s (register_class arg))
-      | Reg reg -> Proc.register_name reg
+        Printf.sprintf "%d(%%rsp)" (slot_offset s (stack_slot_class arg.Reg.typ))
+      | Reg reg -> Proc.register_name arg.Reg.typ reg
       | Unknown ->
         Misc.fatal_errorf "Cannot create probe: illegal argument: %a"
           Printmach.reg arg
@@ -1865,7 +1951,8 @@ let end_assembly () =
     | _ -> D.section [".rodata.cst8"] (Some "aM") ["@progbits";"8"]
     end;
     D.align ~data:true 8;
-    List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants
+    List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants;
+    List.iter (fun (cst,lbl) -> emit_vec128_constant cst lbl) !vec128_constants;
   end;
 
   (* Emit probe handler wrappers *)

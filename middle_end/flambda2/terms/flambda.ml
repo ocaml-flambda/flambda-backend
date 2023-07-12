@@ -1379,6 +1379,9 @@ module Named = struct
         Simple.const (Reg_width_const.naked_int64 Int64.zero)
       | Naked_number Naked_nativeint ->
         Simple.const (Reg_width_const.naked_nativeint Targetint_32_64.zero)
+      | Naked_number Naked_vec128 ->
+        Simple.const
+          (Reg_width_const.naked_vec128 Numeric_types.Vec128_by_bit_pattern.zero)
       | Region -> Misc.fatal_error "[Region] kind not expected here"
       | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
     in
@@ -1410,7 +1413,7 @@ module Named = struct
              | Deleted_code
              | Static_const
                  ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-                 | Boxed_nativeint _ | Immutable_float_block _
+                 | Boxed_vec128 _ | Boxed_nativeint _ | Immutable_float_block _
                  | Immutable_float_array _ | Mutable_string _
                  | Immutable_string _ | Empty_array | Immutable_value_array _ )
                ->

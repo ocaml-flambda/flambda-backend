@@ -15,6 +15,7 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Const_int n -> Iconst_int n
       | Const_float n -> Iconst_float n
       | Const_symbol n -> Iconst_symbol n
+      | Const_vec128 bits -> Iconst_vec128 bits
       | Stackoffset n -> Istackoffset n
       | Load (c, m, i) -> Iload (c, m, i)
       | Store (c, m, b) -> Istore (c, m, b)

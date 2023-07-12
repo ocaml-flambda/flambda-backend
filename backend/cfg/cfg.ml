@@ -247,6 +247,8 @@ let dump_op ppf = function
   | Const_int n -> Format.fprintf ppf "const_int %nd" n
   | Const_float f -> Format.fprintf ppf "const_float %F" (Int64.float_of_bits f)
   | Const_symbol s -> Format.fprintf ppf "const_symbol %s" s.sym_name
+  | Const_vec128 { high; low } ->
+    Format.fprintf ppf "const vec128 %016Lx:%016Lx" high low
   | Stackoffset n -> Format.fprintf ppf "stackoffset %d" n
   | Load _ -> Format.fprintf ppf "load"
   | Store _ -> Format.fprintf ppf "store"
@@ -449,6 +451,7 @@ let is_pure_operation : operation -> bool = function
   | Const_int _ -> true
   | Const_float _ -> true
   | Const_symbol _ -> true
+  | Const_vec128 _ -> true
   | Stackoffset _ -> false
   | Load _ -> true
   | Store _ -> false
@@ -498,11 +501,16 @@ let is_pure_basic : basic -> bool = function
 
 let is_noop_move instr =
   match instr.desc with
-  | Op (Move | Spill | Reload) ->
-    (match instr.arg.(0).loc with
+  | Op (Move | Spill | Reload) -> (
+    match instr.arg.(0).loc with
     | Unknown -> false
-    | Reg _ | Stack _ -> Reg.same_loc instr.arg.(0) instr.res.(0))
-    && Proc.register_class instr.arg.(0) = Proc.register_class instr.res.(0)
+    | Reg _ ->
+      Reg.same_loc instr.arg.(0) instr.res.(0)
+      && Proc.register_class instr.arg.(0) = Proc.register_class instr.res.(0)
+    | Stack _ ->
+      Reg.same_loc instr.arg.(0) instr.res.(0)
+      && Proc.stack_slot_class instr.arg.(0).typ
+         = Proc.stack_slot_class instr.res.(0).typ)
   | Op (Csel _) -> (
     match instr.res.(0).loc with
     | Unknown -> false
@@ -512,11 +520,12 @@ let is_noop_move instr =
       let ifnot = instr.arg.(len - 1) in
       Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
-      ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
-      | Store _ | Intop _ | Intop_imm _ | Intop_atomic _ | Negf | Absf | Addf
-      | Subf | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Opaque
-      | Valueofint | Intofvalue | Probe_is_enabled _ | Specific _
-      | Name_for_debugger _ | Begin_region | End_region )
+      ( Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
+      | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
+      | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
+      | Floatofint | Intoffloat | Opaque | Valueofint | Intofvalue
+      | Probe_is_enabled _ | Specific _ | Name_for_debugger _ | Begin_region
+      | End_region )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

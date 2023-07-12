@@ -260,12 +260,14 @@ and value_kind =
       non_consts : (int * value_kind list) list;
     }
   | Parrayval of array_kind
+  | Pboxedvectorval of boxed_vector
 
 and layout =
   | Ptop
   | Pvalue of value_kind
   | Punboxed_float
   | Punboxed_int of boxed_integer
+  | Punboxed_vector of boxed_vector
   | Pbottom
 
 and block_shape =
@@ -289,6 +291,9 @@ and array_set_kind =
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
+and boxed_vector = Primitive.boxed_vector =
+  | Pvec128
+
 and bigarray_kind =
     Pbigarray_unknown
   | Pbigarray_float32 | Pbigarray_float64
@@ -310,6 +315,8 @@ and raise_kind =
 
 let equal_boxed_integer = Primitive.equal_boxed_integer
 
+let equal_boxed_vector = Primitive.equal_boxed_vector
+
 let equal_primitive =
   (* Should be implemented like [equal_value_kind] of [equal_boxed_integer],
      i.e. by matching over the various constructors but the type has more
@@ -321,6 +328,8 @@ let rec equal_value_kind x y =
   | Pgenval, Pgenval -> true
   | Pfloatval, Pfloatval -> true
   | Pboxedintval bi1, Pboxedintval bi2 -> equal_boxed_integer bi1 bi2
+  | Pboxedvectorval bi1, Pboxedvectorval bi2 ->
+    equal_boxed_vector bi1 bi2
   | Pintval, Pintval -> true
   | Parrayval elt_kind1, Parrayval elt_kind2 -> elt_kind1 = elt_kind2
   | Pvariant { consts = consts1; non_consts = non_consts1; },
@@ -337,7 +346,7 @@ let rec equal_value_kind x y =
              && List.for_all2 equal_value_kind fields1 fields2)
            non_consts1 non_consts2
   | (Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
-      | Parrayval _), _ -> false
+      | Parrayval _ | Pboxedvectorval _), _ -> false
 
 let equal_layout x y =
   match x, y with
@@ -354,9 +363,10 @@ let compatible_layout x y =
   | Punboxed_float, Punboxed_float -> true
   | Punboxed_int bi1, Punboxed_int bi2 ->
       equal_boxed_integer bi1 bi2
+  | Punboxed_vector bi1, Punboxed_vector bi2 -> equal_boxed_vector bi1 bi2
   | Ptop, Ptop -> true
   | Ptop, _ | _, Ptop -> false
-  | (Pvalue _ | Punboxed_float | Punboxed_int _), _ -> false
+  | (Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _), _ -> false
 
 let must_be_value layout =
   match layout with
@@ -640,6 +650,8 @@ let layout_functor = Pvalue Pgenval
 let layout_boxed_float = Pvalue Pfloatval
 let layout_string = Pvalue Pgenval
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
+
+let layout_boxed_vector vi = Pvalue (Pboxedvectorval vi)
 let layout_lazy = Pvalue Pgenval
 let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
@@ -1442,6 +1454,7 @@ let primitive_result_layout (p : primitive) =
   | Pbox_float _ -> layout_boxed_float
   | Punbox_float -> Punboxed_float
   | Pccall { prim_native_repr_res = _, Untagged_int; _} -> layout_int
+  | Pccall { prim_native_repr_res = _, Unboxed_vector v; _} -> layout_boxed_vector v
   | Pccall { prim_native_repr_res = _, Unboxed_float; _} -> layout_boxed_float
   | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr s; _} ->
       begin match s with

@@ -537,7 +537,7 @@ let create_let_symbols uacc lifted_constant ~body =
                 | Naked_number Naked_float -> Naked_floats { size = Unknown }
                 | Naked_number
                     ( Naked_immediate | Naked_nativeint | Naked_int32
-                    | Naked_int64 )
+                    | Naked_vec128 | Naked_int64 )
                 | Region | Rec_info ->
                   Misc.fatal_errorf
                     "Unexpected kind %a for symbol projection: %a"

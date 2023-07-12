@@ -67,7 +67,7 @@ method reload_operation op arg res =
       begin match arg.(0), res.(0) with
         {loc = Stack s1}, {loc = Stack s2} ->
           if s1 = s2
-          && Proc.register_class arg.(0) = Proc.register_class res.(0) then
+          && Proc.stack_slot_class arg.(0).typ = Proc.stack_slot_class res.(0).typ then
             (* nothing will be emitted later,
                not necessary to apply constraints *)
             (arg, res)

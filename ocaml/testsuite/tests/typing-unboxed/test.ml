@@ -635,7 +635,7 @@ Line 1, characters 14-17:
 1 | external h : (int [@unboxed]) -> float = "h" "h_nat";;
                   ^^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64 and nativeint can be unboxed.
+       Only float, int32, int64, nativeint, and vec128 can be unboxed.
 |}]
 
 (* Bad: unboxing the function type *)
@@ -645,7 +645,7 @@ Line 1, characters 13-25:
 1 | external i : int -> float [@unboxed] = "i" "i_nat";;
                  ^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64 and nativeint can be unboxed.
+       Only float, int32, int64, nativeint, and vec128 can be unboxed.
 |}]
 
 (* Bad: unboxing a "deep" sub-type. *)

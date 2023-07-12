@@ -123,6 +123,24 @@ module Nativeint = struct
     }
 end
 
+module Vec128 = struct
+  let decider =
+    { param_name = "unboxed_vec128";
+      kind = K.Naked_number_kind.Naked_vec128;
+      prove_is_a_boxed_number = T.prove_is_a_boxed_vec128
+    }
+
+  let unboxing_prim simple = P.(Unary (Unbox_number Naked_vec128, simple))
+
+  let unboxer =
+    { var_name = "unboxed_vec128";
+      invalid_const =
+        Const.naked_vec128 Numeric_types.Vec128_by_bit_pattern.zero;
+      unboxing_prim;
+      prove_simple = T.meet_boxed_vec128_containing_simple
+    }
+end
+
 module Field = struct
   let unboxing_prim bak ~block ~index =
     let field_const = Simple.const (Const.tagged_immediate index) in

@@ -23,6 +23,7 @@ type t =
   | Boxed_int32 of Int32.t Or_variable.t
   | Boxed_int64 of Int64.t Or_variable.t
   | Boxed_nativeint of Targetint_32_64.t Or_variable.t
+  | Boxed_vec128 of Numeric_types.Vec128_by_bit_pattern.t Or_variable.t
   | Immutable_float_block of
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
   | Immutable_float_array of
@@ -43,6 +44,8 @@ let boxed_int32 or_var = Boxed_int32 or_var
 let boxed_int64 or_var = Boxed_int64 or_var
 
 let boxed_nativeint or_var = Boxed_nativeint or_var
+
+let boxed_vec128 or_var = Boxed_vec128 or_var
 
 let immutable_float_block fields = Immutable_float_block fields
 
@@ -96,6 +99,11 @@ let [@ocamlformat "disable"] print ppf t =
       Flambda_colours.static_part
       Flambda_colours.pop
       (Or_variable.print Targetint_32_64.print) or_var
+  | Boxed_vec128 or_var ->
+    fprintf ppf "@[<hov 1>(%tBoxed_vec128%t@ %a)@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
+      (Or_variable.print Numeric_types.Vec128_by_bit_pattern.print) or_var
   | Immutable_float_block fields ->
     fprintf ppf "@[<hov 1>(%tImmutable_float_block%t@ @[[| %a |]@])@]"
       Flambda_colours.static_part
@@ -161,6 +169,9 @@ include Container_types.Make (struct
       Or_variable.compare Numeric_types.Int64.compare or_var1 or_var2
     | Boxed_nativeint or_var1, Boxed_nativeint or_var2 ->
       Or_variable.compare Targetint_32_64.compare or_var1 or_var2
+    | Boxed_vec128 or_var1, Boxed_vec128 or_var2 ->
+      Or_variable.compare Numeric_types.Vec128_by_bit_pattern.compare or_var1
+        or_var2
     | Immutable_float_block fields1, Immutable_float_array fields2 ->
       Misc.Stdlib.List.compare
         (Or_variable.compare Numeric_types.Float_by_bit_pattern.compare)
@@ -188,6 +199,8 @@ include Container_types.Make (struct
     | _, Boxed_int64 _ -> 1
     | Boxed_nativeint _, _ -> -1
     | _, Boxed_nativeint _ -> 1
+    | Boxed_vec128 _, _ -> -1
+    | _, Boxed_vec128 _ -> 1
     | Immutable_float_block _, _ -> -1
     | _, Immutable_float_block _ -> 1
     | Immutable_float_array _, _ -> -1
@@ -218,6 +231,7 @@ let free_names t =
   | Boxed_int32 or_var -> Or_variable.free_names or_var
   | Boxed_int64 or_var -> Or_variable.free_names or_var
   | Boxed_nativeint or_var -> Or_variable.free_names or_var
+  | Boxed_vec128 or_var -> Or_variable.free_names or_var
   | Mutable_string { initial_value = _ } | Immutable_string _ | Empty_array ->
     Name_occurrences.empty
   | Immutable_float_block fields | Immutable_float_array fields ->
@@ -256,6 +270,9 @@ let apply_renaming t renaming =
     | Boxed_nativeint or_var ->
       let or_var' = Or_variable.apply_renaming or_var renaming in
       if or_var == or_var' then t else Boxed_nativeint or_var'
+    | Boxed_vec128 or_var ->
+      let or_var' = Or_variable.apply_renaming or_var renaming in
+      if or_var == or_var' then t else Boxed_vec128 or_var'
     | Mutable_string { initial_value = _ } | Immutable_string _ -> t
     | Immutable_float_block fields ->
       let fields' =
@@ -303,12 +320,14 @@ let ids_for_export t =
   | Boxed_float (Var (var, _dbg))
   | Boxed_int32 (Var (var, _dbg))
   | Boxed_int64 (Var (var, _dbg))
-  | Boxed_nativeint (Var (var, _dbg)) ->
+  | Boxed_nativeint (Var (var, _dbg))
+  | Boxed_vec128 (Var (var, _dbg)) ->
     Ids_for_export.add_variable Ids_for_export.empty var
   | Boxed_float (Const _)
   | Boxed_int32 (Const _)
   | Boxed_int64 (Const _)
   | Boxed_nativeint (Const _)
+  | Boxed_vec128 (Const _)
   | Mutable_string { initial_value = _ }
   | Immutable_string _ ->
     Ids_for_export.empty
@@ -332,8 +351,9 @@ let ids_for_export t =
 let is_block t =
   match t with
   | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
-  | Immutable_float_block _ | Immutable_float_array _ | Immutable_string _
-  | Mutable_string _ | Empty_array | Immutable_value_array _ ->
+  | Boxed_vec128 _ | Immutable_float_block _ | Immutable_float_array _
+  | Immutable_string _ | Mutable_string _ | Empty_array
+  | Immutable_value_array _ ->
     true
   | Set_of_closures _ -> false
 
@@ -341,8 +361,9 @@ let is_set_of_closures t =
   match t with
   | Set_of_closures _ -> true
   | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
-  | Immutable_float_block _ | Immutable_float_array _ | Immutable_string _
-  | Mutable_string _ | Empty_array | Immutable_value_array _ ->
+  | Boxed_vec128 _ | Immutable_float_block _ | Immutable_float_array _
+  | Immutable_string _ | Mutable_string _ | Empty_array
+  | Immutable_value_array _ ->
     false
 
 let is_fully_static t = free_names t |> Name_occurrences.no_variables
@@ -351,8 +372,9 @@ let can_share0 t =
   match t with
   | Block (_, Immutable, _)
   | Set_of_closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-  | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-  | Immutable_string _ | Empty_array | Immutable_value_array _ ->
+  | Boxed_vec128 _ | Boxed_nativeint _ | Immutable_float_block _
+  | Immutable_float_array _ | Immutable_string _ | Empty_array
+  | Immutable_value_array _ ->
     true
   | Block (_, (Mutable | Immutable_unique), _) | Mutable_string _ -> false
 
@@ -362,8 +384,9 @@ let must_be_set_of_closures t =
   match t with
   | Set_of_closures set -> set
   | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
-  | Immutable_float_block _ | Immutable_float_array _ | Empty_array
-  | Immutable_value_array _ | Immutable_string _ | Mutable_string _ ->
+  | Boxed_vec128 _ | Immutable_float_block _ | Immutable_float_array _
+  | Empty_array | Immutable_value_array _ | Immutable_string _
+  | Mutable_string _ ->
     Misc.fatal_errorf "Not a set of closures:@ %a" print t
 
 let match_against_bound_static_pattern t (pat : Bound_static.Pattern.t)
@@ -386,14 +409,14 @@ let match_against_bound_static_pattern t (pat : Bound_static.Pattern.t)
       Misc.fatal_errorf "Mismatch on declared function slots:@ %a@ =@ %a"
         Bound_static.Pattern.print pat print t;
     set_of_closures_callback ~closure_symbols set_of_closures
-  | ( ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+  | ( ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
       | Immutable_value_array _ | Empty_array | Immutable_string _
       | Mutable_string _ ),
       Block_like symbol ) ->
     block_like_callback symbol t
   | Set_of_closures _, (Block_like _ | Code _)
-  | ( ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+  | ( ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
       | Immutable_value_array _ | Empty_array | Immutable_string _
       | Mutable_string _ ),

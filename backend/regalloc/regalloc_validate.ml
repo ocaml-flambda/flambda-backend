@@ -25,7 +25,7 @@ module Location : sig
 
   val to_loc_lossy : t -> Reg.location
 
-  val print : Format.formatter -> t -> unit
+  val print : Cmm.machtype_component -> Format.formatter -> t -> unit
 
   val equal : t -> t -> bool
 
@@ -35,15 +35,15 @@ module Location : sig
 end = struct
   module Stack = struct
     (** This type is based on [Reg.stack_location]. The first difference is that
-        for [Stack (Local index)] this types additionally stores [reg_class]
-        because local stacks are separate for different register classes.
+        for [Stack (Local index)] this types additionally stores [stack_class]
+        because local stacks are separate for different stack slot classes.
         Secondly for all stacks it stores index in words and not byte offset.
         That gives the guarantee that if indices are different then the
         locations do not overlap. *)
     type t =
       | Local of
           { index : int;
-            reg_class : int
+            stack_class : int
           }
       | Incoming of { index : int }
       | Outgoing of { index : int }
@@ -84,9 +84,9 @@ end = struct
 
     let word_index_to_byte_offset index = index * word_size
 
-    let of_stack_loc ~reg_class loc =
+    let of_stack_loc ~stack_class loc =
       match loc with
-      | Reg.Local index -> Local { index; reg_class }
+      | Reg.Local index -> Local { index; stack_class }
       | Reg.Incoming offset ->
         Incoming { index = byte_offset_to_word_index offset }
       | Reg.Outgoing offset ->
@@ -101,13 +101,6 @@ end = struct
       | Outgoing { index } -> Reg.Outgoing (word_index_to_byte_offset index)
       | Domainstate { index } ->
         Reg.Domainstate (word_index_to_byte_offset index)
-
-    let unknown_reg_class = -1
-
-    let reg_class_lossy t =
-      match t with
-      | Local { reg_class; _ } -> reg_class
-      | Incoming _ | Outgoing _ | Domainstate _ -> unknown_reg_class
   end
 
   type t =
@@ -120,7 +113,10 @@ end = struct
     | Reg.Reg idx -> Some (Reg idx)
     | Reg.Stack stack ->
       Some
-        (Stack (Stack.of_stack_loc ~reg_class:(Proc.register_class reg) stack))
+        (Stack
+           (Stack.of_stack_loc
+              ~stack_class:(Proc.stack_slot_class reg.Reg.typ)
+              stack))
 
   let of_reg_exn reg = of_reg reg |> Option.get
 
@@ -131,13 +127,8 @@ end = struct
     | Reg idx -> Reg.Reg idx
     | Stack stack -> Reg.Stack (Stack.to_stack_loc_lossy stack)
 
-  let reg_class_lossy t =
-    match t with Reg _ -> -1 | Stack stack -> Stack.reg_class_lossy stack
-
-  let print ppf t =
-    Printmach.loc ~reg_class:(reg_class_lossy t)
-      ~unknown:(fun _ -> assert false)
-      ppf (to_loc_lossy t)
+  let print typ ppf t =
+    Printmach.loc ~unknown:(fun _ -> assert false) ppf (to_loc_lossy t) typ
 
   let compare (t1 : t) (t2 : t) : int =
     (* CR-someday azewierzejew: Implement proper comparison. *)
@@ -210,6 +201,8 @@ module Register : sig
 
   val print : Format.formatter -> t -> unit
 
+  val typ : t -> Cmm.machtype_component
+
   module Set : Set.S with type elt = t
 
   module Map : Map.S with type key = t
@@ -240,10 +233,12 @@ end = struct
       loc = Reg_id.to_loc_lossy t.reg_id
     }
 
+  let typ (t : t) = t.for_print.typ
+
   let print (ppf : Format.formatter) (t : t) : unit =
     match t.reg_id with
     | Preassigned { location } ->
-      Format.fprintf ppf "R[%a]" Location.print location
+      Format.fprintf ppf "R[%a]" (Location.print t.for_print.typ) location
     | Named _ -> Printmach.reg ppf (to_dummy_reg t)
 
   let compare (t1 : t) (t2 : t) : int = Reg_id.compare t1.reg_id t2.reg_id
@@ -454,7 +449,10 @@ end = struct
         | Preassigned { location = prev_loc }, Some new_loc ->
           Regalloc_utils.fatal
             "%s: changed preassigned register's location from %a to %a" context
-            Location.print prev_loc Location.print new_loc)
+            (Location.print (Register.typ reg_desc))
+            prev_loc
+            (Location.print loc_reg.Reg.typ)
+            new_loc)
       reg_arr loc_arr;
     ()
 
@@ -773,7 +771,9 @@ end = struct
     type t = Register.t * Location.t
 
     let print ppf (r, l) =
-      Format.fprintf ppf "%a=%a" Register.print r Location.print l
+      Format.fprintf ppf "%a=%a" Register.print r
+        (Location.print (Register.typ r))
+        l
   end
 
   exception Verification_failed of string
@@ -872,7 +872,7 @@ end = struct
       then (
         Format.fprintf Format.str_formatter
           "Unsatisfiable equations when removing result equations.\n\
-           Existing equation has to agree one 0 or 2 sides (cannot on exactly \
+           Existing equation has to agree on 0 or 2 sides (cannot be exactly \
            1) with the removed equation.\n\
            Existing equation %a.\n\
            Removed equation: %a." Equation.print (eq_reg, eq_loc) Equation.print
@@ -913,9 +913,10 @@ end = struct
           | None -> ()
           | Some regs ->
             assert (not (Register.Set.is_empty regs));
+            let typ = Register.Set.choose regs |> Register.typ in
             Format.fprintf Format.str_formatter
-              "Destroying a location %a in which a live registers %a is stored"
-              Location.print destroyed_loc
+              "Destroying a location %a in which live registers %a are stored"
+              (Location.print typ) destroyed_loc
               (Format.pp_print_seq
                  ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
                  Register.print)
@@ -964,9 +965,9 @@ module type Description_value = sig
 end
 
 let print_reg_as_loc ppf reg =
-  Printmach.loc ~reg_class:(Proc.register_class reg)
+  Printmach.loc
     ~unknown:(fun ppf -> Format.fprintf ppf "<Unknown>")
-    ppf reg.Reg.loc
+    ppf reg.Reg.loc reg.Reg.typ
 
 module Domain : Cfg_dataflow.Domain_S with type t = Equation_set.t = struct
   (** This type corresponds to the set of equations in the dataflow from the
@@ -1125,7 +1126,7 @@ module Transfer (Desc_val : Description_value) :
                     equations
                     |> Equation_set.verify_destroyed_locations
                          ~destroyed:
-                           (Location.of_regs_exn Proc.destroyed_at_raise)
+                           (Location.of_regs_exn (Proc.destroyed_at_raise ()))
                     |> Result.map_error (fun message ->
                            Printf.sprintf
                              "While verifying locations destroyed at raise: %s"
@@ -1306,8 +1307,8 @@ end = struct
         Format.fprintf ppf "Function argument locations: %a\n"
           (Format.pp_print_seq
              ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ", ")
-             Location.print)
-          (Array.to_seq loc_fun_args);
+             (fun ppf (reg, loc) -> Location.print (Register.typ reg) ppf loc))
+          (Array.to_seq (Array.combine reg_fun_args loc_fun_args));
         ()
   end
 

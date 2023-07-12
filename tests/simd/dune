@@ -1,0 +1,22 @@
+(executable
+ (name simd)
+ (modules simd)
+ (foreign_stubs (language c) (names stubs) (flags -msse4.2))
+ (ocamlopt_flags (:standard -fsimd)))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (target simd.output)
+ (deps simd.exe)
+ (action
+  (with-outputs-to
+   simd.output
+   (run ./simd.exe))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (= %{context_name} "main"))
+ (action
+  (diff simd.expected simd.output)))

@@ -21,13 +21,19 @@ val word_addressed: bool
 (* Registers available for register allocation *)
 val num_register_classes: int
 val register_class: Reg.t -> int
-val register_class_tag: int -> string
 val num_available_registers: int array
 val first_available_register: int array
-val register_name: int -> string
-val phys_reg: int -> Reg.t
+val register_name: Cmm.machtype_component -> int -> string
+val phys_reg: Cmm.machtype_component -> int -> Reg.t
 val rotate_registers: bool
-val all_phys_regs : Reg.t array
+val precolored_regs : unit -> Reg.Set.t
+
+(* The number of stack slot classes may differ from the number of register classes.
+   On x86, we use the same class for floating point and SIMD vector registers,
+   but they take up different amounts of space on the stack. *)
+val num_stack_slot_classes: int
+val stack_slot_class: Cmm.machtype_component -> int
+val stack_class_tag: int -> string
 
 (* Calling conventions *)
 val loc_arguments: Cmm.machtype -> Reg.t array * int
@@ -55,7 +61,7 @@ val max_register_pressure: Mach.operation -> int array
 
 (* Registers destroyed by operations *)
 val destroyed_at_oper: Mach.instruction_desc -> Reg.t array
-val destroyed_at_raise: Reg.t array
+val destroyed_at_raise: unit -> Reg.t array
 val destroyed_at_reloadretaddr : Reg.t array
 val destroyed_at_pushtrap : Reg.t array
 val destroyed_at_basic : Cfg_intf.S.basic -> Reg.t array

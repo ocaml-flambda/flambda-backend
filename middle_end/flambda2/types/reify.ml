@@ -30,6 +30,7 @@ type to_lift =
   | Boxed_int32 of Int32.t
   | Boxed_int64 of Int64.t
   | Boxed_nativeint of Targetint_32_64.t
+  | Boxed_vec128 of Numeric_types.Vec128_by_bit_pattern.t
   | Immutable_float_array of { fields : Float.t list }
   | Immutable_value_array of { fields : Simple.t list }
   | Empty_array
@@ -58,7 +59,7 @@ let try_to_reify_fields env ~var_allowed alloc_mode ~field_types =
               match Reg_width_const.descr const with
               | Tagged_immediate _imm -> Some simple
               | Naked_immediate _ | Naked_float _ | Naked_int32 _
-              | Naked_int64 _ | Naked_nativeint _ ->
+              | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _ ->
                 (* This should never happen, as we should have got a kind error
                    instead *)
                 None)
@@ -315,6 +316,13 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       match Targetint_32_64.Set.get_singleton (ns :> Targetint_32_64.Set.t) with
       | None -> try_canonical_simple ()
       | Some n -> Simple (Simple.const (Reg_width_const.naked_nativeint n)))
+    | Naked_vec128 (Ok ns) -> (
+      match
+        Numeric_types.Vec128_by_bit_pattern.Set.get_singleton
+          (ns :> Numeric_types.Vec128_by_bit_pattern.Set.t)
+      with
+      | None -> try_canonical_simple ()
+      | Some n -> Simple (Simple.const (Reg_width_const.naked_vec128 n)))
     (* CR-someday mshinwell: These could lift at toplevel when [ty_naked_float]
        is an alias type. That would require checking the alloc mode. *)
     | Value (Ok (Boxed_float (ty_naked_float, _alloc_mode))) -> (
@@ -353,6 +361,14 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         match Targetint_32_64.Set.get_singleton ns with
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_nativeint n)))
+    | Value (Ok (Boxed_vec128 (ty_naked_vec128, _alloc_mode))) -> (
+      match Provers.meet_naked_vec128s env ty_naked_vec128 with
+      | Need_meet -> try_canonical_simple ()
+      | Invalid -> Invalid
+      | Known_result ns -> (
+        match Numeric_types.Vec128_by_bit_pattern.Set.get_singleton ns with
+        | None -> try_canonical_simple ()
+        | Some n -> Lift (Boxed_vec128 n)))
     | Value
         (Ok
           (Array
@@ -417,7 +433,8 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
             | Ok fields_rev ->
               Lift (Immutable_float_array { fields = List.rev fields_rev }))
           | Naked_number
-              (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
+              ( Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint
+              | Naked_vec128 )
           | Region | Rec_info ->
             Misc.fatal_errorf
               "Unexpected kind %a in immutable array case when reifying type:@ \
@@ -429,6 +446,7 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
     | Naked_int32 Bottom
     | Naked_int64 Bottom
     | Naked_nativeint Bottom
+    | Naked_vec128 Bottom
     | Rec_info Bottom
     | Region Bottom ->
       Invalid
@@ -438,6 +456,7 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
     | Naked_float Unknown
     | Naked_int32 Unknown
     | Naked_int64 Unknown
+    | Naked_vec128 Unknown
     | Naked_nativeint Unknown
     | Rec_info Unknown
     | Region (Unknown | Ok _)

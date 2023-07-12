@@ -79,6 +79,7 @@ let add_closure_offsets
              and not stored in a closure."
         | Punboxed_float -> true
         | Punboxed_int _ -> true
+        | Punboxed_vector _ -> true
         | Pvalue Pintval -> true
         | Pvalue _ -> false)
       free_vars

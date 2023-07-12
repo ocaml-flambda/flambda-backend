@@ -44,6 +44,7 @@ and ident_option = ident_create "option"
 and ident_nativeint = ident_create "nativeint"
 and ident_int32 = ident_create "int32"
 and ident_int64 = ident_create "int64"
+and ident_vec128 = ident_create "vec128"
 and ident_lazy_t = ident_create "lazy_t"
 and ident_string = ident_create "string"
 and ident_extension_constructor = ident_create "extension_constructor"
@@ -66,6 +67,7 @@ and path_option = Pident ident_option
 and path_nativeint = Pident ident_nativeint
 and path_int32 = Pident ident_int32
 and path_int64 = Pident ident_int64
+and path_vec128 = Pident ident_vec128
 and path_lazy_t = Pident ident_lazy_t
 and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
@@ -86,6 +88,7 @@ and type_option t = newgenty (Tconstr(path_option, [t], ref Mnil))
 and type_nativeint = newgenty (Tconstr(path_nativeint, [], ref Mnil))
 and type_int32 = newgenty (Tconstr(path_int32, [], ref Mnil))
 and type_int64 = newgenty (Tconstr(path_int64, [], ref Mnil))
+and type_vec128 = newgenty (Tconstr(path_vec128, [], ref Mnil))
 and type_lazy_t t = newgenty (Tconstr(path_lazy_t, [t], ref Mnil))
 and type_string = newgenty (Tconstr(path_string, [], ref Mnil))
 and type_extension_constructor =
@@ -261,6 +264,7 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
        ~layout:(Layout.immediate ~why:Enumeration)
+  |> add_type ident_vec128
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[type_string; type_int; type_int])]

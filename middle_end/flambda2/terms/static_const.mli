@@ -29,6 +29,7 @@ type t = private
   | Boxed_int32 of Int32.t Or_variable.t
   | Boxed_int64 of Int64.t Or_variable.t
   | Boxed_nativeint of Targetint_32_64.t Or_variable.t
+  | Boxed_vec128 of Numeric_types.Vec128_by_bit_pattern.t Or_variable.t
   | Immutable_float_block of
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
   | Immutable_float_array of
@@ -61,6 +62,8 @@ val boxed_int32 : Int32.t Or_variable.t -> t
 val boxed_int64 : Int64.t Or_variable.t -> t
 
 val boxed_nativeint : Targetint_32_64.t Or_variable.t -> t
+
+val boxed_vec128 : Numeric_types.Vec128_by_bit_pattern.t Or_variable.t -> t
 
 val immutable_float_block :
   Numeric_types.Float_by_bit_pattern.t Or_variable.t list -> t

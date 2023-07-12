@@ -158,6 +158,20 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
         ~emit:C.emit_nativeint_constant ~transl ~structured v res updates
     in
     env, res, updates
+  | Block_like symbol, Boxed_vec128 v ->
+    let default = Numeric_types.Vec128_by_bit_pattern.zero in
+    let transl v =
+      let { Numeric_types.Vec128_by_bit_pattern.high; low } =
+        Numeric_types.Vec128_by_bit_pattern.to_bits v
+      in
+      { Cmm.high; low }
+    in
+    let structured { Cmm.high; low } = Clambda.Uconst_vec128 { high; low } in
+    let res, env, updates =
+      static_boxed_number ~kind:Onetwentyeight ~env ~symbol ~default
+        ~emit:C.emit_vec128_constant ~transl ~structured v res updates
+    in
+    env, res, updates
   | Block_like s, (Immutable_float_block fields | Immutable_float_array fields)
     ->
     let aux =
@@ -197,7 +211,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
       "[Set_of_closures] values cannot be bound by [Block_like] bindings:@ %a"
       SC.print static_const
   | ( (Code _ | Set_of_closures _),
-      ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+      ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
       | Immutable_value_array _ | Empty_array | Mutable_string _
       | Immutable_string _ ) ) ->

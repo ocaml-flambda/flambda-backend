@@ -34,6 +34,7 @@ let machtype_component ppf = function
   | Addr -> fprintf ppf "addr"
   | Int -> fprintf ppf "int"
   | Float -> fprintf ppf "float"
+  | Vec128 -> fprintf ppf "vec128"
 
 let machtype ppf mty =
   match Array.length mty with
@@ -48,6 +49,7 @@ let exttype ppf = function
   | XInt32 -> fprintf ppf "int32"
   | XInt64 -> fprintf ppf "int64"
   | XFloat -> fprintf ppf "float"
+  | XVec128 -> fprintf ppf "vec128"
 
 let extcall_signature ppf (ty_res, ty_args) =
   begin match ty_args with
@@ -97,6 +99,7 @@ let chunk = function
   | Sixteen_signed -> "signed int16"
   | Thirtytwo_unsigned -> "unsigned int32"
   | Thirtytwo_signed -> "signed int32"
+  | Onetwentyeight -> "vec128"
   | Word_int -> "int"
   | Word_val -> "val"
   | Single -> "float32"
@@ -244,6 +247,7 @@ let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n
   | Cconst_natint (n, _dbg) ->
     fprintf ppf "%s" (Nativeint.to_string n)
+  | Cconst_vec128 ({low; high}, _dbg) -> fprintf ppf "%016Lx:%016Lx" high low
   | Cconst_float (n, _dbg) -> fprintf ppf "%F" n
   | Cconst_symbol (s, _dbg) -> fprintf ppf "%a:\"%s\"" is_global s.sym_global s.sym_name
   | Cvar id -> V.print ppf id
@@ -411,6 +415,8 @@ let data_item ppf = function
   | Cint n -> fprintf ppf "int %s" (Nativeint.to_string n)
   | Csingle f -> fprintf ppf "single %F" f
   | Cdouble f -> fprintf ppf "double %F" f
+  | Cvec128 {high; low} ->
+    fprintf ppf "vec128 %s:%s" (Int64.to_string high) (Int64.to_string low)
   | Csymbol_address s -> fprintf ppf "addr %a:\"%s\"" is_global s.sym_global s.sym_name
   | Cstring s -> fprintf ppf "string \"%s\"" s
   | Cskip n -> fprintf ppf "skip %i" n

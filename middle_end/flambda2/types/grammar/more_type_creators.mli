@@ -58,6 +58,11 @@ val this_boxed_int64 : int64 -> Alloc_mode.For_types.t -> Type_grammar.t
 val this_boxed_nativeint :
   Targetint_32_64.t -> Alloc_mode.For_types.t -> Type_grammar.t
 
+val this_boxed_vec128 :
+  Numeric_types.Vec128_by_bit_pattern.t ->
+  Alloc_mode.For_types.t ->
+  Type_grammar.t
+
 val these_boxed_floats :
   Numeric_types.Float_by_bit_pattern.Set.t ->
   Alloc_mode.For_types.t ->

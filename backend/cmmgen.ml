@@ -39,6 +39,7 @@ open Cmm_builtins
 type boxed_number =
   | Boxed_float of alloc_mode * Debuginfo.t
   | Boxed_integer of boxed_integer * alloc_mode * Debuginfo.t
+  | Boxed_vector of boxed_vector * alloc_mode * Debuginfo.t
 
 type env = {
   unboxed_ids : (V.t * boxed_number) V.tbl;
@@ -162,6 +163,7 @@ let get_field env layout ptr n dbg =
     | Pvalue Pintval | Punboxed_int _ -> Word_int
     | Pvalue _ -> Word_val
     | Punboxed_float -> Double
+    | Punboxed_vector Pvec128 -> Onetwentyeight
     | Ptop ->
         Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
     | Pbottom ->
@@ -274,6 +276,8 @@ let emit_structured_constant symb cst cont =
       emit_int64_constant symb n cont
   | Uconst_nativeint n ->
       emit_nativeint_constant symb n cont
+  | Uconst_vec128 {high; low} ->
+      emit_vec128_constant symb {high; low} cont
   | Uconst_block (tag, csts) ->
       let cont = List.fold_right emit_constant csts cont in
       emit_block symb (block_header tag (List.length csts)) cont
@@ -319,6 +323,7 @@ let typ_of_boxed_number = function
   | Boxed_float _ -> Cmm.typ_float
   | Boxed_integer (Pint64, _,_) when size_int = 4 -> [|Int;Int|]
   | Boxed_integer _ -> Cmm.typ_int
+  | Boxed_vector (Pvec128, _, _) -> Cmm.typ_vec128
 
 let equal_unboxed_integer ui1 ui2 =
   match ui1, ui2 with
@@ -338,6 +343,7 @@ let box_number bn arg =
   match bn with
   | Boxed_float (m, dbg) -> box_float dbg m arg
   | Boxed_integer (bi, m, dbg) -> box_int dbg bi m arg
+  | Boxed_vector (vi, m, dbg) -> box_vector dbg vi m arg
 
 (* Returns the unboxed representation of a boxed float or integer.
    For Pint32 on 64-bit archs, the high 32 bits of the result are undefined. *)
@@ -349,6 +355,8 @@ let unbox_number dbg bn arg =
     low_32 dbg (unbox_int dbg Pint32 arg)
   | Boxed_integer (bi, _, _) ->
     unbox_int dbg bi arg
+  | Boxed_vector (vi, _, _) ->
+    unbox_vector dbg vi arg
 
 (* Auxiliary functions for optimizing "let" of boxed numbers (floats and
    boxed integers *)
@@ -380,7 +388,7 @@ let join_unboxed_number_kind ~strict k1 k2 =
   | _, _ -> No_unboxing
 
 let is_strict : kind_for_unboxing -> bool = function
-  | Boxed_integer _ | Boxed_float -> false
+  | Boxed_integer _ | Boxed_float | Boxed_vector _ -> false
   | Any -> true
 
 let rec is_unboxed_number_cmm = function
@@ -414,6 +422,8 @@ let rec is_unboxed_number_cmm = function
           Boxed (Boxed_integer (Pint32, alloc_heap, Debuginfo.none), true)
         | Some (Uconst_int64 _) ->
           Boxed (Boxed_integer (Pint64, alloc_heap, Debuginfo.none), true)
+        | Some (Uconst_vec128 _) ->
+          Boxed (Boxed_vector (Pvec128, alloc_heap, Debuginfo.none), true)
         | _ ->
           No_unboxing
       end
@@ -424,6 +434,7 @@ let rec is_unboxed_number_cmm = function
     | Cconst_int _
     | Cconst_natint _
     | Cconst_float _
+    | Cconst_vec128 _
     | Cvar _
     | Cassign _
     | Ctuple _
@@ -911,6 +922,12 @@ and transl_ccall env prim args dbg =
           | Pint32 -> XInt32
           | Pint64 -> XInt64 in
         (xty, transl_unbox_int dbg env bi arg)
+        | Unboxed_vector bi ->
+          let xty =
+            match bi with
+            | Pvec128 -> XVec128
+          in
+          (xty, transl_unbox_vector dbg env bi arg)
     | Untagged_int ->
         (XInt, untag_int (transl env arg) dbg)
   in
@@ -939,6 +956,7 @@ and transl_ccall env prim args dbg =
     | _, Unboxed_integer Pint64 when size_int = 4 ->
         ([|Int; Int|], box_int dbg Pint64 alloc_heap)
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
+    | _, Unboxed_vector Pvec128 -> (typ_vec128, box_vector dbg Pvec128 alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
@@ -1283,6 +1301,9 @@ and transl_unbox_float dbg env exp =
 and transl_unbox_int dbg env bi exp =
   unbox_int dbg bi (transl env exp)
 
+and transl_unbox_vector dbg env bi exp =
+  unbox_vector dbg bi (transl env exp)
+
 (* transl_unbox_int, but may return garbage in upper bits *)
 and transl_unbox_int_low dbg env bi e =
   let e = transl_unbox_int dbg env bi e in
@@ -1346,7 +1367,7 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
        there may be constant closures inside that need lifting out. *)
     let _cbody : expression = transl_body env in
     cexp
-  | Punboxed_float | Punboxed_int _ -> begin
+  | Punboxed_float | Punboxed_int _ | Punboxed_vector _ -> begin
       let cexp = transl env exp in
       let cbody = transl_body env in
       match str with
