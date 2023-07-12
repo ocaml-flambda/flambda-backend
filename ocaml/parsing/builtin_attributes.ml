@@ -393,11 +393,11 @@ let process_check_attribute ~direct attr =
     let open Warnings.Checks in
     let scope, ids =
       if String.Set.mem "all" ids then
-        All, String.Set.remove "all" ids
+        Scope.All, String.Set.remove "all" ids
       else if String.Set.mem "toplevel" ids then
-        Toplevel, String.Set.remove "toplevel" ids
+        Scope.Toplevel, String.Set.remove "toplevel" ids
       else
-        Direct, ids
+        Scope.Direct, ids
     in
     let state, ids =
       if String.Set.mem "off" ids then
@@ -426,7 +426,7 @@ let process_check_attribute ~direct attr =
       warn_payload attr.attr_loc attr.attr_name.txt s;
       None;
     end else begin
-      match direct, scope = Direct with
+      match direct, scope = Scope.Direct with
       | true, true
       | false, false ->
         mark_used attr.attr_name;

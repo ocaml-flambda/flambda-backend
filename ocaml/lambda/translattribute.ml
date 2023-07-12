@@ -347,8 +347,8 @@ let add_check_attribute expr _floc attributes ~in_structure warnings =
      at most "direct" annotation. *)
   let update check (new_check : Warnings.Checks.t)
         (attr : Parsetree.attribute) =
-    assert (Warnings.Checks.Direct = new_check.scope);
-    if not (Warnings.Checks.Direct = check.annotated.scope) then
+    assert (Warnings.Checks.Scope.Direct = new_check.scope);
+    if not (Warnings.Checks.Scope.Direct = check.annotated.scope) then
       { check with annotated = new_check }
     else (
       (* This case is possible when both the function and the [let]
@@ -375,8 +375,8 @@ let add_check_attribute expr _floc attributes ~in_structure warnings =
       match warnings, in_structure with
       | Some warnings, None ->
         let new_check = Warnings.get_checks warnings in
-        assert (Warnings.Checks.All =  check.annotated.scope);
-        assert (not (Warnings.Checks.Direct = new_check.scope));
+        assert (Warnings.Checks.Scope.All =  check.annotated.scope);
+        assert (not (Warnings.Checks.Scope.Direct = new_check.scope));
         { annotated = new_check;
           active =
             Warnings.is_active_in_state (Warnings.Check_failed ("",[])) warnings;
@@ -384,7 +384,7 @@ let add_check_attribute expr _floc attributes ~in_structure warnings =
             Warnings.is_active_in_state (Warnings.Check_failed_opt ("",[])) warnings;
         }
       | None, Some in_structure ->
-        if (not in_structure) && Warnings.Checks.Toplevel = check.annotated.scope then
+        if (not in_structure) && Warnings.Checks.Scope.Toplevel = check.annotated.scope then
           { check with annotated = Warnings.Checks.default }
         else
           check

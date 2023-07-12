@@ -167,10 +167,12 @@ val is_active_in_state : t -> state -> bool
 
 module Checks : sig
 
-  type scope =
-    | All  (** all functions *)
-    | Toplevel  (** all top-level functions of each module *)
-    | Direct (** current function only *)
+  module Scope : sig
+    type t =
+      | All  (** all functions *)
+      | Toplevel  (** all top-level functions of each module *)
+      | Direct (** current function only *)
+  end
 
   (** [strict=true] property holds on all paths.
 
@@ -199,9 +201,10 @@ module Checks : sig
     val default : t
   end
 
-  type t = { state:State.t; scope:scope; }
+  type t = { state:State.t; scope:Scope.t; }
 
   val default : t
+  val is_default : t -> bool
   val print : Format.formatter -> t -> unit
 end
 val set_checks : Checks.t -> unit

@@ -523,6 +523,20 @@ let letter = function
 
 module Checks = struct
 
+  module Scope = struct
+    type t =
+      | All  (** all functions *)
+      | Toplevel  (** all top-level functions of each module *)
+      | Direct (** current function only *)
+
+
+    let print ppf = function
+      | All -> Format.fprintf ppf "all@ "
+      | Toplevel -> Format.fprintf ppf "toplevel@ "
+      | Direct -> ()
+
+  end
+
   module State = struct
     type t =
       | On of { loc:loc; strict:bool; opt:bool }
@@ -544,46 +558,22 @@ module Checks = struct
           (print_bool "never_returns_normally") n
 
     let print ppf t =
-      Format.fprintf ppf "zero_alloc %a" print t
+      Format.fprintf ppf "zero_alloc %a @" print t
+
     let equal x y = x = y
 
     let default = Off
   end
 
-  type scope =
-    | All  (** all functions *)
-    | Toplevel  (** all top-level functions of each module *)
-    | Direct (** current function only *)
-
-  (** [strict=true] property holds on all paths.
-
-      [strict=false] if the function returns normally,
-      then the property holds (but property violations on
-      exceptional returns or divering loops are ignored).
-      This definition may not be applicable to new properties.
-
-      [opt=false] the property will be checked when either
-      Check_fail or Check_fail_opt warning is enabled.
-
-      [opt=true] the property will be checked only when
-      Check_fail_opt warning are enabled.
-
-      [never_returns_normally=true] assume that the function
-      never returns normally at all, instead of assuming that it
-      is safe on all paths to normal return.
-  *)
-  type t = { state:State.t; scope:scope; }
+  type t = { state:State.t; scope:Scope.t; }
 
   let default = { state = State.default; scope = All; }
 
-  let scope_to_string = function
-    | All -> "all"
-    | Toplevel -> "toplevel"
-    | Direct -> ""
+  let is_default t = t = default
 
   let print ppf { state; scope; } =
-    Format.fprintf ppf "%a@ %s"
-      State.print state (scope_to_string scope)
+    Format.fprintf ppf "%a@ %a@ "
+      State.print state Scope.print scope
 end
 
 type state =
