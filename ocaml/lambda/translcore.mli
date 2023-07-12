@@ -50,6 +50,7 @@ type error =
   | Bad_probe_layout of Ident.t
   | Non_value_layout of Layouts.Layout.Violation.t
   | Void_sort of Types.type_expr
+  | Sort_sanity_check of Layouts.Layout.Violation.t
 
 exception Error of Location.t * error
 

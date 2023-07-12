@@ -33,6 +33,7 @@ type error =
   | Bad_probe_layout of Ident.t
   | Non_value_layout of Layout.Violation.t
   | Void_sort of type_expr
+  | Sort_sanity_check of Layout.Violation.t
 
 exception Error of Location.t * error
 
@@ -351,6 +352,14 @@ let can_apply_primitive p pmode pos args =
   end
 
 let rec transl_exp ~scopes sort e =
+  (* Sanity check for testing only: `sort` should be the sort of `e` *)
+  begin match
+    Ctype.check_type_layout e.exp_env e.exp_type
+      (Layout.of_sort ~why:V1_safety_check sort)
+  with
+  | Ok () -> ()
+  | Error err -> raise (Error (e.exp_loc, Sort_sanity_check err))
+  end;
   transl_exp1 ~scopes ~in_new_scope:false sort e
 
 (* ~in_new_scope tracks whether we just opened a new scope.
@@ -1782,6 +1791,10 @@ let report_error ppf = function
         "Void detected in translation for type %a:@ Please report this error \
          to the Jane Street compilers team."
         Printtyp.type_expr ty
+  | Sort_sanity_check err ->
+      fprintf ppf
+        "The sanity check failed:@ %a"
+        (Layout.Violation.report_with_name ~name:"This expression") err
 
 let () =
   Location.register_error_of_exn
