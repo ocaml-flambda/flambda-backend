@@ -29,6 +29,11 @@ let should_copy (named:Flambda.named) =
 
 type access =
   | Field of int
+  | Project_var of {
+      closure_id : Closure_id.t;
+      var : Var_within_closure.t;
+      kind : Lambda.layout;
+    }
 
 type projection = access list
 
@@ -42,6 +47,70 @@ type accumulated = {
   extracted_lets : extracted list;
   terminator : Flambda.expr;
 }
+
+let boxing_closure var kind =
+  let inner_var = Variable.rename var in
+  let closure_id_var =
+    Variable.create Internal_variable_names.boxing_set_of_closures
+      ~debug_info:Debuginfo.none
+  in
+  let closure_id = Closure_id.wrap closure_id_var in
+  let closure_origin = Closure_origin.create closure_id in
+  let function_decl =
+    Flambda.create_function_declaration ~params:[]
+      ~alloc_mode:Lambda.alloc_heap
+      ~region:false
+      ~stub:false
+      ~return_layout:Lambda.layout_bottom
+      ~specialise:Default_specialise
+      ~check:Default_check
+      ~is_a_functor:false
+      ~poll:Default_poll
+      ~inline:Default_inline
+      ~closure_origin
+      ~body:Proved_unreachable
+  in
+  let function_decls =
+    Flambda.create_function_declarations ~is_classic_mode:true
+      ~funs:(Variable.Map.singleton closure_id_var function_decl)
+  in
+  let free_var : Flambda.specialised_to =
+    { var; projection = None; kind }
+  in
+  let set_of_closures =
+    Flambda.create_set_of_closures ~function_decls
+      ~specialised_args:Variable.Map.empty
+      ~direct_call_surrogates:Variable.Map.empty
+      ~free_vars:(Variable.Map.singleton inner_var free_var)
+  in
+  let project_var : access =
+    Project_var { closure_id; var = Var_within_closure.wrap inner_var; kind }
+  in
+  let closure =
+    let name = Internal_variable_names.boxing_closure in
+    let set_var = Variable.create name in
+    let closure_var = Variable.create name in
+    Flambda.create_let set_var (Set_of_closures set_of_closures)
+      (Flambda.create_let closure_var
+        (Project_closure { set_of_closures = set_var; closure_id })
+        (Var closure_var))
+  in
+  closure, project_var
+
+let pack_expr ~layouts (expr : Flambda.t) =
+  let layout = Flambda.result_layout ~layouts expr in
+  match layout with
+  | Ptop -> assert false
+  | Pbottom
+  | Pvalue _ -> expr, []
+  | Punboxed_float
+  | Punboxed_int _ ->
+    let var = Variable.create Internal_variable_names.boxed_in_closure in
+    let closure_var = Variable.create Internal_variable_names.boxing_closure in
+    let closure, access = boxing_closure var layout in
+    Flambda.create_let var (Expr expr)
+     (Flambda.create_let closure_var (Expr closure) (Var closure_var)),
+     [access]
 
 let rec accumulate ~(layouts : Layouts.t) ~substitution ~copied_lets ~extracted_lets
       (expr : Flambda.t) =
@@ -112,7 +181,8 @@ let rec accumulate ~(layouts : Layouts.t) ~substitution ~copied_lets ~extracted_
           Flambda_utils.toplevel_substitution substitution
             (Flambda.create_let renamed named (Var renamed))
         in
-        Expr (var, [Field 0], expr)
+        let expr, additionnal_path = pack_expr ~layouts expr in
+        Expr (var, additionnal_path @ [Field 0], expr)
     in
     accumulate body
       ~layouts
@@ -122,7 +192,7 @@ let rec accumulate ~(layouts : Layouts.t) ~substitution ~copied_lets ~extracted_
   | Let_rec ([var, named], body) ->
     let renamed = Variable.rename var in
     let def_substitution = Variable.Map.add var renamed substitution in
-    let layout = Flambda.result_layout_named ~layouts named in
+    let layout = Lambda.layout_letrec in
     let layouts = Layouts.add layouts var layout in
     let layouts = Layouts.add layouts renamed layout in
     let expr =
@@ -195,6 +265,17 @@ let rec make_named (symbol, (path:access list)) : Flambda.named =
         (Flambda.create_let field
            (Prim (Pfield (h, Pvalue Pgenval), [block], Debuginfo.none))
            (Var field)))
+  | Project_var { var; kind; closure_id } :: t ->
+    let closure_name = Internal_variable_names.symbol_field_closure in
+    let closure = Variable.create closure_name in
+    let field_name = Internal_variable_names.get_symbol_field in
+    let field = Variable.create field_name in
+    Expr (
+      Flambda.create_let closure (make_named (symbol, t))
+        (Flambda.create_let field
+           (Project_var ({ closure; var; kind; closure_id}))
+           (Var field)))
+
 let rebuild_expr
       ~(extracted_definitions : (Symbol.t * projection) Variable.Map.t)
       ~(copied_definitions : Flambda.named Variable.Map.t)

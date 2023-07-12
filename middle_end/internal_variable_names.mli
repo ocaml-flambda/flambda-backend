@@ -21,6 +21,10 @@ val apply_funct : t
 val block_symbol : t
 val block_symbol_get : t
 val block_symbol_get_field : t
+val boxed_in_closure : t
+val boxing_closure : t
+val boxing_closure_field : t
+val boxing_set_of_closures : t
 val closure : t
 val cond : t
 val cond_sequor : t
