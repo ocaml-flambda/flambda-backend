@@ -20,7 +20,7 @@
 (executable
  (name probes)
  (modules probes)
- (enabled_if (<> %{os_type} MacOS))
+ (enabled_if (<> %{system} macosx))
  (foreign_archives stubs)
  (ocamlopt_flags (:standard -fsimd)))
 
@@ -43,7 +43,7 @@
    (run ./intrins.exe))))
 
 (rule
- (enabled_if (and (= %{context_name} "main") (<> %{os_type} MacOS)))
+ (enabled_if (and (= %{context_name} "main") (<> %{system} macosx)))
  (target probes.output)
  (deps probes.exe)
  (action
@@ -65,6 +65,6 @@
 
 (rule
  (alias runtest)
- (enabled_if (and (= %{context_name} "main") (<> %{os_type} MacOS)))
+ (enabled_if (and (= %{context_name} "main") (<> %{system} macosx)))
  (action
   (diff empty.expected probes.output)))
