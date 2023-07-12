@@ -305,7 +305,7 @@ let optimize (t : t) (cfg_with_infos : Cfg_with_infos.t) : unit =
               let reg_class = Proc.register_class reg in
               match Buckets.find_bucket buckets ~reg_class ~slot_index with
               | None ->
-                fatal "slot %d (reg_class=%d) has in not in any of the buckets"
+                fatal "slot %d (reg_class=%d) is not in any of the buckets"
                   slot_index reg_class
               | Some bucket_index ->
                 if debug
