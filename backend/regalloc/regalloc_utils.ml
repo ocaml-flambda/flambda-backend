@@ -46,8 +46,6 @@ let bool_of_param ?guard param_name =
          then fatal "%s is set but %s is not" param_name guard_name);
      res)
 
-let stack_slots_optim = bool_of_param "STACK_SLOTS_OPTIM"
-
 let validator_debug = bool_of_param "VALIDATOR_DEBUG"
 
 type liveness = Cfg_with_infos.liveness

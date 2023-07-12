@@ -252,12 +252,10 @@ let postlude :
      cfg_with_infos ->
   let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
   (* note: slots need to be updated before prologue removal *)
-  if Lazy.force stack_slots_optim
-  then
-    Profile.record ~accumulate:true "stack_slots_optimize"
-      (fun () ->
-        Regalloc_stack_slots.optimize (State.stack_slots state) cfg_with_infos)
-      ();
+  Profile.record ~accumulate:true "stack_slots_optimize"
+    (fun () ->
+      Regalloc_stack_slots.optimize (State.stack_slots state) cfg_with_infos)
+    ();
   Regalloc_stack_slots.update_cfg_with_layout (State.stack_slots state)
     cfg_with_layout;
   if Utils.debug

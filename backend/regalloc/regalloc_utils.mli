@@ -12,8 +12,6 @@ val find_param_value : string -> string option
 
 val bool_of_param : ?guard:bool * string -> string -> bool Lazy.t
 
-val stack_slots_optim : bool Lazy.t
-
 val validator_debug : bool Lazy.t
 
 type liveness = Cfg_with_infos.liveness
