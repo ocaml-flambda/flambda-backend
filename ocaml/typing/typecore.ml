@@ -337,7 +337,7 @@ type match_info = {
   arg : expression;
   sort : sort;
   cases : computation case list;
-  partial : partial
+  partial : partial;
 }
 
 (** The function produces two values, apply_position and region_mode.
