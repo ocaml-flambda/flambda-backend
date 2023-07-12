@@ -593,11 +593,13 @@ let name_of_primitive = function
   | Parray_to_iarray -> "Parray_to_iarray"
 
 let check_attribute ppf c =
-  Warnings.Checks.print ppf c.annotated;
-  if c.active then
-    Format.fprintf ppf "active";
-  if c.active_opt then
-    Format.fprintf ppf "active_opt"
+  if not (Warnings.Checks.is_default c.annotated) then begin
+    Warnings.Checks.print ppf c.annotated;
+    if c.active then
+      Format.fprintf ppf "active@ ";
+    if c.active_opt then
+      Format.fprintf ppf "active_opt@ "
+  end
 
 let function_attribute ppf t =
   if t.is_a_functor then
