@@ -3359,8 +3359,8 @@ let rec is_nonexpansive exp =
       List.for_all
         (fun {c_lhs; c_guard; c_rhs} ->
            let guard_exp = Option.map (function
-            | Typedtree.Predicate p -> p
-            | Typedtree.Pattern (e, _, _) -> e) c_guard in
+             | Typedtree.Predicate p -> p
+             | Typedtree.Pattern (e, _, _) -> e) c_guard in
            is_nonexpansive_opt guard_exp && is_nonexpansive c_rhs
            && not (contains_exception_pat c_lhs)
         ) cases
@@ -6923,22 +6923,27 @@ and type_cases
             (* allow propagation from preceding branches *)
             correct_levels ty_res
           else ty_res in
-        let exp () =
-          type_expect ?in_function ext_env emode
-            pc_rhs (mk_expected ?explanation ty_res')
-        in
         let guard, exp =
           match pc_guard with
-          | None -> None, exp ()
-          | Some scond -> (
-              match scond with
-              | Guard_predicate pred ->
-                Some
-                  (Predicate
-                    (type_expect ext_env mode_local pred
-                      (mk_expected ~explanation:When_guard Predef.type_bool))),
-                exp ()
-              | Guard_pattern (e, pat) ->
+            | None ->
+                let exp =
+                  type_expect
+                    ?in_function ext_env emode pc_rhs (mk_expected ?explanation ty_res')
+                in
+                None, exp
+            | Some (Guard_predicate pred) ->
+                let exp =
+                  type_expect
+                    ?in_function ext_env emode pc_rhs (mk_expected ?explanation ty_res')
+                in
+                let guard =
+                  Predicate
+                    (type_expect
+                      ext_env mode_local pred
+                      (mk_expected ~explanation:When_guard Predef.type_bool))
+                in
+                Some guard, exp
+            | Some (Guard_pattern (e, pat)) ->
                 let { arg; sort; cases; partial = _ } =
                   type_match
                     e [ { pc_lhs = pat; pc_guard = None; pc_rhs } ] ext_env loc
@@ -6949,8 +6954,7 @@ and type_cases
                 match cases with
                   | [ { c_lhs = pat ; c_guard = _ ; c_rhs = exp } ] ->
                     Some (Typedtree.Pattern (arg, sort, pat)), exp
-                  | _ -> assert false
-          )
+                  | _ -> Misc.fatal_error "One case transformed into 0 or multiple cases."
         in
         {
          c_lhs = pat;

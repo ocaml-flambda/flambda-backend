@@ -39,8 +39,8 @@ let complex_types (x : int list option) : bool =
     | Some _ | None -> None
   in
   match strs_opt with
-  | Some strs when strs match ("foo", s2) -> String.equal s2 "bar"
-  | Some _ | None -> false
+    | Some strs when strs match ("foo", s2) -> String.equal s2 "bar"
+    | Some _ | None -> false
 [%%expect {|
 Uncaught exception: Failure("guard pattern translation unimplemented")
 
