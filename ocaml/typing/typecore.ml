@@ -5724,7 +5724,19 @@ and type_expect_
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
 
-and type_match sarg caselist env loc exhaustivity ty_expected_explained expected_mode =
+(* [type_match] typechecks a parsed match expression and returns the typed
+   match components in wrapped in a value of type [match_info]
+
+   [sarg]: scrutinee of match, as parsed expression
+   [caselist]: list of parsed cases
+   [loc]: location of match expression
+   [exhaustiveness_constraint]: should exhaustiveness be checked, and if so,
+    what is the desired result? of type [exhaustiveness_constraint]
+   [ty_expected_explained]: the expected type of the match, with explanation
+   [expected_mode]: the expected mode of the match
+ *)
+and type_match sarg caselist env loc exhaustiveness_constraint
+                ty_expected_explained expected_mode =
   let arg_pat_mode, arg_expected_mode =
     match cases_tuple_arity caselist with
       | Not_local_tuple | Maybe_local_tuple ->
