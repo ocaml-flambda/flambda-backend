@@ -333,8 +333,12 @@ let position_and_mode_default = {
   region_mode = None;
 }
 
+(* Information about typed matches. Used to pass around Typedtree values without
+   constructing a [Typedtree.expression]. *)
 type match_info = {
+  (* scrutinee *)
   arg : expression;
+  (* sort of scrutinee *)
   sort : sort;
   cases : computation case list;
   partial : partial;
@@ -799,10 +803,12 @@ type module_variable =
     mv_uid: Uid.t
   }
 
-type exhaustivity_constraint =
-  | Any
-  | Exhaustive
-  | Non_exhaustive
+(* Constraint on the exhaustiveness of cases, used to determine which
+   exhaustiveness-related warnings to check for. *)
+type exhaustiveness_constraint =
+  | Assume_partial
+  | Check_and_warn_if_partial
+  | Check_and_warn_if_total
 
 (* Whether or not patterns of the form (module M) are accepted. (If they are,
    the idents will be created at the provided scope.) When module patterns are
@@ -4568,7 +4574,8 @@ and type_expect_
         exp_env = env }
   | Pexp_match(sarg, caselist) ->
     let { arg; sort; cases; partial } =
-      type_match sarg caselist env loc Exhaustive ty_expected_explained expected_mode
+      type_match sarg caselist env loc Check_and_warn_if_partial
+                  ty_expected_explained expected_mode
     in
     re {
       exp_desc = Texp_match(arg, sort, cases, partial);
@@ -4585,7 +4592,7 @@ and type_expect_
       let arg_mode = simple_pat_mode Value_mode.global in
       let cases, _ =
         type_cases Value env arg_mode expected_mode
-          Predef.type_exn ty_expected_explained Any loc caselist in
+          Predef.type_exn ty_expected_explained Assume_partial loc caselist in
       re {
         exp_desc = Texp_try(body, cases);
         exp_loc = loc; exp_extra = [];
@@ -5588,7 +5595,8 @@ and type_expect_
         type_cases Value body_env
           (simple_pat_mode Value_mode.global)
           (mode_return Value_mode.global)
-          ty_params (mk_expected ty_func_result) Exhaustive loc [scase]
+          ty_params (mk_expected ty_func_result)
+          Check_and_warn_if_partial loc [scase]
       in
       let body =
         match cases with
@@ -5934,7 +5942,8 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
   in
   let cases, partial =
     type_cases Value ?in_function env (simple_pat_mode arg_value_mode)
-      cases_expected_mode ty_arg_mono (mk_expected ty_ret) Exhaustive loc caselist in
+      cases_expected_mode ty_arg_mono (mk_expected ty_ret)
+      Check_and_warn_if_partial loc caselist in
   let not_nolabel_function ty =
     let ls, tvar = list_labels env ty in
     List.for_all ((<>) Nolabel) ls && not tvar
@@ -6955,7 +6964,8 @@ and type_cases
                 let { arg; sort; cases; partial = _ } =
                   type_match
                     e [ { pc_lhs = pat; pc_guard = None; pc_rhs } ] ext_env loc
-                    Non_exhaustive (mk_expected ?explanation ty_res') emode
+                    Check_and_warn_if_total (mk_expected ?explanation ty_res')
+                    emode
                 in
                 match cases with
                   | [ { c_lhs = pat ; c_guard = _ ; c_rhs = exp } ] ->
@@ -6998,10 +7008,12 @@ and type_cases
   if val_cases = [] && exn_cases <> [] then
     raise (Error (loc, env, No_value_clauses));
   let partial = match exhaustivity with
-    | Any -> Partial
-    | Exhaustive -> check_partial ~lev env ty_arg_check loc val_cases
-    | Non_exhaustive ->
-        check_partial ~should_be_exhaustive:false ~lev env ty_arg_check loc val_cases
+    | Assume_partial -> Partial
+    | Check_and_warn_if_partial ->
+        check_partial ~lev env ty_arg_check loc val_cases
+    | Check_and_warn_if_total ->
+        check_partial
+          ~should_be_exhaustive:false ~lev env ty_arg_check loc val_cases
   in
   let unused_check delayed =
     List.iter (fun { typed_pat; branch_env; _ } ->
