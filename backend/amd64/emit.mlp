@@ -718,18 +718,24 @@ let emit_global_label s =
 let move (src : Reg.t) (dst : Reg.t) =
   if src.loc <> dst.loc then
     begin match src.typ, src.loc, dst.typ, dst.loc with
-    | Float, Reg.Reg _, Float, Reg.Reg _
-    | Vec128, Reg.Reg _, Vec128, Reg.Reg _ -> I.movapd (reg src) (reg dst)
+    | (Float | Vec128), Reg.Reg _, (Float | Vec128), Reg.Reg _ ->
+      I.movapd (reg src) (reg dst)
     | Vec128, _, Vec128, _ ->
       I.movupd (reg src) (reg dst)
-    | Float, _, Float, _ -> I.movsd (reg src) (reg dst)
-    | Float, _, Int, _
-    | Int, _, Float, _ -> I.movq (reg src) (reg dst)
+    | Float, _, Float, _ ->
+      I.movsd (reg src) (reg dst)
+    | Float, _, Int, _ | Int, _, Float, _ ->
+      I.movq (reg src) (reg dst)
+    | (Int | Val | Addr), _, (Int | Val | Addr), _ ->
+      I.mov (reg src) (reg dst)
     | Vec128, _, _, _ | _, _, Vec128, _ ->
       Misc.fatal_errorf
         "Illegal move between a vector and non-vector register (%s to %s)\n"
         (Reg.name src) (Reg.name dst)
-    | _ -> I.mov (reg src) (reg dst)
+    | Float, _, (Val | Addr), _ | (Val | Addr), _, Float, _ ->
+      Misc.fatal_errorf
+        "Illegal move between a float and val/addr register (%s to %s)\n"
+        (Reg.name src) (Reg.name dst)
     end
 
 let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =

@@ -526,6 +526,6 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     state
     ~f:(fun () ->
       update_register_locations ();
-      Array.iter (all_precolored_regs ()) ~f:(fun reg -> reg.Reg.degree <- 0))
+      Reg.Set.iter (fun reg -> reg.Reg.degree <- 0) (all_precolored_regs ()))
     cfg_with_infos;
   cfg_with_infos
