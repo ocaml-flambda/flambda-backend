@@ -6909,7 +6909,7 @@ and type_cases
                 Some
                   (type_expect ext_env mode_local pred
                     (mk_expected ~explanation:When_guard Predef.type_bool))
-              | _ -> (failwith "pattern guard typechecking unimplemented")
+              | Guard_pattern _ -> (failwith "pattern guard typechecking unimplemented")
           )
         in
         let exp =
