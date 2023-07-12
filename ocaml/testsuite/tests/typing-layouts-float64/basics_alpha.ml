@@ -602,6 +602,9 @@ Error: This type ('a : float64) should be an instance of type ('a0 : value)
 (*********************************************************************)
 (* Test 13: Ad-hoc polymorphic operations don't work on float64 yet. *)
 
+(* CR layouts v5: Remember to handle the case of calling these on structures
+   containing other layouts. *)
+
 let f13_1 (x : t_float64) = x = x;;
 [%%expect{|
 Line 1, characters 28-29:
