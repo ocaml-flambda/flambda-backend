@@ -1045,8 +1045,8 @@ and guard i ppf = function
   | Predicate p -> expression i ppf p
   | Pattern (e, s, pat) ->
       expression i ppf e;
-      line i ppf "%a\n" Layouts.Sort.format s;
-      list i pattern ppf [ pat ]
+      line i ppf "%a " Layouts.Sort.format s;
+      pattern i ppf pat
 
 and value_binding i ppf x =
   line i ppf "<def>\n";
