@@ -120,7 +120,9 @@ let hard_float_reg =
 let all_phys_regs =
   Array.append hard_int_reg hard_float_reg
 
-let precolored_regs () = all_phys_regs
+let precolored_regs =
+  let phys_regs = Reg.set_of_array all_phys_regs in
+  fun () -> phys_regs
 
 let phys_reg ty n =
   match ty with
