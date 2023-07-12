@@ -147,7 +147,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
       unit =
     match reg.Reg.loc with
     | Reg phys_reg -> (
-      try Proc.phys_reg reg.typ phys_reg |> ignore
+      try let _ : Reg.t = Proc.phys_reg reg.typ phys_reg in ()
       with Invalid_argument _ ->
         fatal
           "instruction %d assigned %a to register %i, which has an \
