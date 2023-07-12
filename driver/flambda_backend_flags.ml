@@ -21,6 +21,8 @@ let regalloc = ref ""                   (* -regalloc *)
 let regalloc_params = ref ([] : string list)  (* -regalloc-param *)
 let regalloc_validate = ref false       (* -[no-]regalloc-validate *)
 
+let cfg_peephole_optimize = ref false   (* -[no-]cfg-peephole-optimize *)
+
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 let basic_block_sections = ref false    (* -basic-block-sections *)
 

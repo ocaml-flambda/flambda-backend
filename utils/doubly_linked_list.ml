@@ -19,7 +19,7 @@ type 'a cell =
     t : 'a t
   }
 
-let insert_before cell value =
+let insert_and_return_before cell value =
   match unattached_node value with
   | Empty ->
     (* internal invariant: unattached node returns a non-empty node *)
@@ -29,16 +29,21 @@ let insert_before cell value =
     | Empty ->
       (* internal invariant: cell's nodes are not empty *)
       assert false
-    | Node cell_node -> (
+    | Node cell_node ->
       new_node.next <- cell.node;
       new_node.prev <- cell_node.prev;
       cell_node.prev <- value_node;
       cell.t.length <- succ cell.t.length;
-      match new_node.prev with
+      (match new_node.prev with
       | Empty -> cell.t.first <- value_node
-      | Node node -> node.next <- value_node))
+      | Node node -> node.next <- value_node);
+      { node = value_node; t = cell.t })
 
-let insert_after cell value =
+let insert_before cell value =
+  let _new_cell = insert_and_return_before cell value in
+  ()
+
+let insert_and_return_after cell value =
   match unattached_node value with
   | Empty -> assert false
   | Node new_node as value_node -> (
@@ -46,14 +51,19 @@ let insert_after cell value =
     | Empty ->
       (* internal invariant: cell's nodes are not empty *)
       assert false
-    | Node cell_node -> (
-      new_node.next <- cell_node.next;
-      new_node.prev <- cell.node;
-      cell_node.next <- value_node;
-      cell.t.length <- succ cell.t.length;
-      match new_node.next with
-      | Empty -> cell.t.last <- value_node
-      | Node node -> node.prev <- value_node))
+    | Node cell_node ->
+      (new_node.next <- cell_node.next;
+       new_node.prev <- cell.node;
+       cell_node.next <- value_node;
+       cell.t.length <- succ cell.t.length;
+       match new_node.next with
+       | Empty -> cell.t.last <- value_node
+       | Node node -> node.prev <- value_node);
+      { node = value_node; t = cell.t })
+
+let insert_after cell value =
+  let _new_cell = insert_and_return_after cell value in
+  ()
 
 let value cell =
   match cell.node with
@@ -71,6 +81,15 @@ let prev cell =
     let prev = cell_node.prev in
     match prev with Empty -> None | Node _ -> Some { node = prev; t = cell.t })
 
+let next cell =
+  match cell.node with
+  | Empty ->
+    (* internal invariant: cell's nodes are not empty *)
+    assert false
+  | Node cell_node -> (
+    let next = cell_node.next in
+    match next with Empty -> None | Node _ -> Some { node = next; t = cell.t })
+
 let make_empty () = { length = 0; first = Empty; last = Empty }
 
 let make_single value =
@@ -84,7 +103,11 @@ let clear t =
 
 let hd t = match t.first with Empty -> None | Node { value; _ } -> Some value
 
+let hd_cell t = match t.first with Empty -> None | node -> Some { node; t }
+
 let last t = match t.last with Empty -> None | Node { value; _ } -> Some value
+
+let last_cell t = match t.last with Empty -> None | node -> Some { node; t }
 
 let add_begin t value =
   match unattached_node value with
@@ -148,6 +171,33 @@ let remove t curr =
     | Empty -> t.last <- curr.prev
     | Node node -> node.prev <- curr.prev);
     t.length <- pred t.length
+
+let delete_curr cell = remove cell.t cell.node
+
+let delete_before cell =
+  match cell.node with
+  | Empty ->
+    (* internal invariant: cell's nodes are not empty *)
+    assert false
+  | Node cell_node -> (
+    match cell_node.prev with
+    | Empty ->
+      (* convention: cannot delete_before the first element in the list *)
+      assert false
+    | Node prev_cell_node -> delete_curr { node = cell_node.prev; t = cell.t })
+
+let delete_after cell =
+  match cell.node with
+  | Empty ->
+    (* internal invariant: cell's nodes are not empty *)
+    assert false
+  | Node cell_node ->
+      match cell_node.next with
+      | Empty ->
+        (* convention: cannot delete_after the first element in the list *)
+        assert false
+      | Node next_cell_node ->
+        delete_curr {node=cell_node.next; t=cell.t}
 
 let remove_first : 'a t -> f:('a -> bool) -> unit =
  fun t ~f ->

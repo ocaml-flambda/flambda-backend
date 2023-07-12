@@ -31,6 +31,9 @@ module type Flambda_backend_options = sig
   val regalloc_validate : unit -> unit
   val no_regalloc_validate : unit -> unit
 
+  val cfg_peephole_optimize : unit -> unit
+  val no_cfg_peephole_optimize : unit -> unit
+
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
 
