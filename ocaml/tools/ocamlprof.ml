@@ -158,11 +158,15 @@ and rewrite_cases iflag l =
     (fun pc ->
       begin match pc.pc_guard with
       | None -> ()
-      | Some g -> rewrite_exp iflag g
+      | Some g -> rewrite_guard iflag g
       end;
       rewrite_exp iflag pc.pc_rhs
     )
     l
+  
+and rewrite_guard iflag = function
+| Guard_predicate e -> rewrite_exp iflag e
+| Guard_pattern (e, _) -> rewrite_exp iflag e
 
 and rewrite_labelexp_list iflag l =
   rewrite_exp_list iflag (List.map snd l)
@@ -358,8 +362,8 @@ and rewrite_ifbody iflag ghost sifbody =
 and rewrite_annotate_exp_list l =
   List.iter
     (function
-     | {pc_guard=Some scond; pc_rhs=sbody} ->
-         insert_profile rw_exp scond;
+     | {pc_guard=Some guard; pc_rhs=sbody} ->
+         rewrite_guard true guard;
          insert_profile rw_exp sbody;
      | {pc_rhs={pexp_desc = Pexp_constraint(sbody, _)}} (* let f x : t = e *)
         -> insert_profile rw_exp sbody

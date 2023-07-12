@@ -345,8 +345,14 @@ and add_cases bv cases =
 
 and add_case bv {pc_lhs; pc_guard; pc_rhs} =
   let bv = add_pattern bv pc_lhs in
-  add_opt add_expr bv pc_guard;
+  add_opt add_guard bv pc_guard;
   add_expr bv pc_rhs
+
+and add_guard bv = function
+  | Guard_predicate e -> add_expr bv e
+  | Guard_pattern (e, pat) ->
+      let bv = add_pattern bv pat in
+      add_expr bv e
 
 and add_bindings recf bv pel =
   let bv' = List.fold_left (fun bv x -> add_pattern bv x.pvb_pat) bv pel in

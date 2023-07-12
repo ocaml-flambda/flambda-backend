@@ -44,6 +44,7 @@ type iterator = {
   expr_jane_syntax: iterator -> Jane_syntax.Expression.t -> unit;
   extension: iterator -> extension -> unit;
   extension_constructor: iterator -> extension_constructor -> unit;
+  guard: iterator -> guard -> unit;
   include_declaration: iterator -> include_declaration -> unit;
   include_description: iterator -> include_description -> unit;
   label_declaration: iterator -> label_declaration -> unit;
@@ -790,9 +791,12 @@ let default_iterator =
     case =
       (fun this {pc_lhs; pc_guard; pc_rhs} ->
          this.pat this pc_lhs;
-         iter_opt (this.expr this) pc_guard;
+         iter_opt (this.guard this) pc_guard;
          this.expr this pc_rhs
       );
+    guard = (fun this -> function
+      | Guard_predicate e -> this.expr this e
+      | Guard_pattern (e, pat) -> this.expr this e; this.pat this pat);
 
     location = (fun _this _l -> ());
 

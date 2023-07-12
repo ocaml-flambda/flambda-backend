@@ -49,6 +49,7 @@ type mapper = {
   extension: mapper -> extension -> extension;
   extension_constructor: mapper -> extension_constructor
                          -> extension_constructor;
+  guard: mapper -> guard -> guard;
   include_declaration: mapper -> include_declaration -> include_declaration;
   include_description: mapper -> include_description -> include_description;
   label_declaration: mapper -> label_declaration -> label_declaration;
@@ -904,12 +905,14 @@ let default_mapper =
       (fun this {pc_lhs; pc_guard; pc_rhs} ->
          {
            pc_lhs = this.pat this pc_lhs;
-           pc_guard = map_opt (this.expr this) pc_guard;
+           pc_guard = map_opt (this.guard this) pc_guard;
            pc_rhs = this.expr this pc_rhs;
          }
       );
 
-
+    guard = (fun this -> function
+      | Guard_predicate e -> Guard_predicate (this.expr this e)
+      | Guard_pattern (e, pat) -> Guard_pattern (this.expr this e, this.pat this pat));
 
     location = (fun _this l -> l);
 

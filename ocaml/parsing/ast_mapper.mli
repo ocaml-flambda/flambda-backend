@@ -78,6 +78,7 @@ type mapper = {
   extension: mapper -> extension -> extension;
   extension_constructor: mapper -> extension_constructor
                          -> extension_constructor;
+  guard: mapper -> guard -> guard;
 
   include_declaration: mapper -> include_declaration -> include_declaration;
   (** In Jane Street's OCaml, this may be called for [include functor]s, and
