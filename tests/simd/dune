@@ -1,0 +1,70 @@
+(foreign_library
+ (archive_name stubs)
+ (language c)
+ (names stubs)
+ (flags -msse4.2)
+ (include_dirs "../../ocaml/runtime"))
+
+(executable
+ (name basic)
+ (modules basic)
+ (foreign_archives stubs)
+ (ocamlopt_flags (:standard -fsimd)))
+
+(executable
+ (name intrins)
+ (modules intrins)
+ (foreign_archives stubs)
+ (ocamlopt_flags (:standard -fsimd)))
+
+(executable
+ (name probes)
+ (modules probes)
+ (enabled_if (<> %{os_type} MacOS))
+ (foreign_archives stubs)
+ (ocamlopt_flags (:standard -fsimd)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (target basic.output)
+ (deps basic.exe)
+ (action
+  (with-outputs-to
+   basic.output
+   (run ./basic.exe))))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (target intrins.output)
+ (deps intrins.exe)
+ (action
+  (with-outputs-to
+   intrins.output
+   (run ./intrins.exe))))
+
+(rule
+ (enabled_if (and (= %{context_name} "main") (<> %{os_type} MacOS)))
+ (target probes.output)
+ (deps probes.exe)
+ (action
+  (with-outputs-to
+   probes.output
+   (run ./probes.exe))))
+
+(rule
+ (alias runtest)
+ (enabled_if (= %{context_name} "main"))
+ (action
+  (diff empty.expected basic.output)))
+
+(rule
+ (alias runtest)
+ (enabled_if (= %{context_name} "main"))
+ (action
+  (diff empty.expected intrins.output)))
+
+(rule
+ (alias runtest)
+ (enabled_if (and (= %{context_name} "main") (<> %{os_type} MacOS)))
+ (action
+  (diff empty.expected probes.output)))

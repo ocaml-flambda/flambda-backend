@@ -54,7 +54,7 @@ let () =
 let () =
   let v0 = int64x2_of_int64s 1L 2L in
   let v1 = int64x2_of_int64s 3L 4L in
-  let v = (combine[@inlined]) v0 v1 in
+  let v = (combine[@inlined hint]) v0 v1 in
   check v 4L 6L
 ;;
 
@@ -71,7 +71,7 @@ let () =
 let () =
   let v0 = int64x2_of_int64s 1L 2L in
   let v1 = int64x2_of_int64s 3L 4L in
-  let v = (combine_with_floats[@inlined]) v0 5. v1 6. in
+  let v = (combine_with_floats[@inlined hint]) v0 5. v1 6. in
   check v 9L 12L
 ;;
 
@@ -103,9 +103,9 @@ let () =
 (* Capture vectors and floats in a closure (inlined) *)
 let () =
   let[@inline always] f v0 v1 f0 v2 f1 v3 =
-    (combine[@inlined])
-      ((combine_with_floats[@inlined]) v0 f0 v1 f1)
-      ((combine[@inlined]) v2 v3)
+    (combine[@inlined hint])
+      ((combine_with_floats[@inlined hint]) v0 f0 v1 f1)
+      ((combine[@inlined hint]) v2 v3)
   in
   let v0 = int64x2_of_int64s 1L 2L in
   let v1 = int64x2_of_int64s 3L 4L in
@@ -232,69 +232,6 @@ let () =
   let v8 = int64x2_of_int64s 17L 18L in
   let v9 = int64x2_of_int64s 19L 20L in
   let v10 = int64x2_of_int64s 21L 22L in
-  let v = vectors_and_floats_and_ints v0 23. v1 24L v2 25. v3 26L 27L v4 v5 28. 29. v6 v7 30L 31L 32. v8 v9 v10 33L 34L 35. in
-  check v 377L 253L
-;;
-
-(* Vectors live across a probe handler *)
-let () =
-    let v0 = int64x2_of_int64s 1L 2L in
-    let v1 = int64x2_of_int64s 3L 4L in
-    let v2 = int64x2_of_int64s 5L 6L in
-    let v3 = int64x2_of_int64s 7L 8L in
-    let v4 = int64x2_of_int64s 9L 10L in
-    let v5 = int64x2_of_int64s 11L 12L in
-    let v6 = int64x2_of_int64s 13L 14L in
-    let v7 = int64x2_of_int64s 15L 16L in
-    let v8 = int64x2_of_int64s 17L 18L in
-    let v9 = int64x2_of_int64s 19L 20L in
-    let v10 = int64x2_of_int64s 21L 22L in
-    let v11 = int64x2_of_int64s 23L 24L in
-    let v12 = int64x2_of_int64s 25L 26L in
-    let v13 = int64x2_of_int64s 27L 28L in
-    let v14 = int64x2_of_int64s 29L 30L in
-    let v15 = int64x2_of_int64s 31L 32L in
-    [%probe "hello" ~enabled_at_init:true (
-      let xxx = int64x2_of_int64s 0L 0L in
-      check xxx 0L 0L)];
-    let v = lots_of_vectors v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15 in
-    check v 256L 272L
-;;
-
-let () =
-  let v0 = int64x2_of_int64s 1L 2L in
-  let v1 = int64x2_of_int64s 3L 4L in
-  let v2 = int64x2_of_int64s 5L 6L in
-  let v3 = int64x2_of_int64s 7L 8L in
-  let v4 = int64x2_of_int64s 9L 10L in
-  let v5 = int64x2_of_int64s 11L 12L in
-  let v6 = int64x2_of_int64s 13L 14L in
-  let v7 = int64x2_of_int64s 15L 16L in
-  let v8 = int64x2_of_int64s 17L 18L in
-  let v9 = int64x2_of_int64s 19L 20L in
-  let v10 = int64x2_of_int64s 21L 22L in
-  [%probe "hello" ~enabled_at_init:true (
-      let xxx = int64x2_of_int64s 0L 0L in
-      check xxx 0L 0L)];
-  let v = vectors_and_floats v0 23. v1 24. v2 25. v3 26. 27. v4 v5 28. 29. v6 v7 30. 31. 32. v8 v9 v10 33. 34. 35. in
-  check v 377L 253L
-;;
-
-let () =
-  let v0 = int64x2_of_int64s 1L 2L in
-  let v1 = int64x2_of_int64s 3L 4L in
-  let v2 = int64x2_of_int64s 5L 6L in
-  let v3 = int64x2_of_int64s 7L 8L in
-  let v4 = int64x2_of_int64s 9L 10L in
-  let v5 = int64x2_of_int64s 11L 12L in
-  let v6 = int64x2_of_int64s 13L 14L in
-  let v7 = int64x2_of_int64s 15L 16L in
-  let v8 = int64x2_of_int64s 17L 18L in
-  let v9 = int64x2_of_int64s 19L 20L in
-  let v10 = int64x2_of_int64s 21L 22L in
-  [%probe "hello" ~enabled_at_init:true (
-      let xxx = int64x2_of_int64s 0L 0L in
-      check xxx 0L 0L)];
   let v = vectors_and_floats_and_ints v0 23. v1 24L v2 25. v3 26L 27L v4 v5 28. 29. v6 v7 30L 31L 32. v8 v9 v10 33L 34L 35. in
   check v 377L 253L
 ;;
