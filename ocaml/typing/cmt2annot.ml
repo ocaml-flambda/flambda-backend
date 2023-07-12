@@ -51,7 +51,8 @@ let bind_cases l =
         | Some g ->
           let gexp = match g with
             | Predicate pred -> pred
-            | Pattern (exp, _, _) -> exp in
+            | Pattern (exp, _, pat) ->
+                bind_variables c_rhs.exp_loc pat; exp in
           {c_rhs.exp_loc with loc_start=gexp.exp_loc.loc_start}
       in
       bind_variables loc c_lhs
