@@ -2433,7 +2433,11 @@ let pattern_stable_vars ns p =
    as a clause right hand side or guard.
 *)
 
-let all_rhs_idents exp =
+let all_rhs_idents guard =
+  let exp = match guard with
+    | Predicate p -> p
+    | Pattern (e, _, _) -> e
+  in
   let ids = ref Ident.Set.empty in
   let open Tast_iterator in
   let expr_iter iter exp =

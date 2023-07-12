@@ -1192,13 +1192,24 @@ and case
        ----------------------------------------
        G - p; m[mp] |- (p (when g)? -> e) : m
     *)
-    let judg = join [
-        option expression c_guard << Dereference;
-        expression c_rhs;
-      ] in
-    (fun m ->
-       let env = judg m in
-       (remove_pat c_lhs env), Mode.compose m (pattern c_lhs env))
+      let judg = match c_guard with
+        | None -> expression c_rhs
+        | Some (Predicate p) -> join [ expression p << Dereference; expression c_rhs ]
+        | Some (Pattern (e, _, pat)) -> pattern_guard e pat c_rhs in
+      (fun m ->
+        let env = judg m in
+        (remove_pat c_lhs env), Mode.compose m (pattern c_lhs env))
+
+and pattern_guard
+    : Typedtree.expression -> computation Typedtree.general_pattern
+      -> Typedtree.expression -> term_judg
+  = fun e pat c_rhs ->
+      fun mode ->
+        let rhs_env = expression c_rhs mode in
+        let pat_env = remove_pat pat rhs_env in
+        let pat_mode = Mode.compose mode (pattern pat rhs_env) in
+        let env_e = expression e pat_mode in
+        Env.join_list [ env_e ; pat_env ]
 
 (* p : m -| G
    with output m and input G

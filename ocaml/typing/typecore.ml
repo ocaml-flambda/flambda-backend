@@ -337,7 +337,7 @@ type match_info = {
   arg : expression;
   sort : sort;
   cases : computation case list;
-  partial : Parmatch.partial
+  partial : partial
 }
 
 (** The function produces two values, apply_position and region_mode.
@@ -802,7 +802,6 @@ type module_variable =
 type exhaustivity_constraint =
   | Any
   | Exhaustive
-  | Non_exhaustive
 
 (* Whether or not patterns of the form (module M) are accepted. (If they are,
    the idents will be created at the provided scope.) When module patterns are
@@ -3359,7 +3358,10 @@ let rec is_nonexpansive exp =
       is_nonexpansive e &&
       List.for_all
         (fun {c_lhs; c_guard; c_rhs} ->
-           is_nonexpansive_opt c_guard && is_nonexpansive c_rhs
+           let guard_exp = Option.map (function
+            | Typedtree.Predicate p -> p
+            | Typedtree.Pattern (e, _, _) -> e) c_guard in
+           is_nonexpansive_opt guard_exp && is_nonexpansive c_rhs
            && not (contains_exception_pat c_lhs)
         ) cases
   | Texp_probe {handler} -> is_nonexpansive handler
@@ -4203,13 +4205,6 @@ and type_expect_
     submode ~env ~loc:exp.exp_loc ~reason:Other mode expected_mode;
     exp
   in
-  let fail_unimplemented feature =
-    Printf.sprintf "Typechecking for %s unimplemented!\nAst:\n %a"
-      feature
-      (fun () -> Pprintast.string_of_expression)
-      sexp
-    |> failwith
-  in
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, attributes) ->
       type_expect_jane_syntax
@@ -4570,7 +4565,7 @@ and type_expect_
         exp_env = env }
   | Pexp_match(sarg, caselist) ->
     let { arg; sort; cases; partial } =
-      type_match sarg caselist env loc ty_expected_explained in
+      type_match sarg caselist env loc Exhaustive ty_expected_explained expected_mode in
     re {
       exp_desc = Texp_match(arg, sort, cases, partial);
       exp_loc = loc; exp_extra = [];
@@ -5717,7 +5712,7 @@ and type_expect_
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
 
-and type_match sarg caselist env loc ty_expected_explained =
+and type_match sarg caselist env loc exhaustivity ty_expected_explained expected_mode =
   let arg_pat_mode, arg_expected_mode =
     match cases_tuple_arity caselist with
       | Not_local_tuple | Maybe_local_tuple ->
@@ -5739,7 +5734,7 @@ and type_match sarg caselist env loc ty_expected_explained =
   generalize arg.exp_type;
   let cases, partial =
     type_cases Computation env arg_pat_mode expected_mode
-      arg.exp_type ty_expected_explained Exhaustive loc caselist in
+      arg.exp_type ty_expected_explained exhaustivity loc caselist in
   { arg;
     sort;
     cases;
@@ -6932,16 +6927,29 @@ and type_cases
           type_expect ?in_function ext_env emode
             pc_rhs (mk_expected ?explanation ty_res')
         in
-        let guard =
-          match pc_guard, exp with
+        let guard, exp =
+          match pc_guard with
           | None -> None, exp ()
           | Some scond -> (
               match scond with
               | Guard_predicate pred ->
                 Some
-                  (type_expect ext_env mode_local pred
-                    (mk_expected ~explanation:When_guard Predef.type_bool))
-              | Guard_pattern _ -> (failwith "pattern guard typechecking unimplemented")
+                  (Predicate
+                    (type_expect ext_env mode_local pred
+                      (mk_expected ~explanation:When_guard Predef.type_bool))),
+                exp ()
+              | Guard_pattern (e, pat) ->
+                let { arg; sort; cases; partial = _ } =
+                  type_match
+                    e [ { pc_lhs = pat; pc_guard = None; pc_rhs } ] ext_env loc
+                    (* CR-soon rgodse: add exhaustivity variant Nonexhaustive, and enable
+                       warning for exhaustive matches in guard patterns *)
+                    Any (mk_expected ?explanation ty_res') emode
+                in
+                match cases with
+                  | [ { c_lhs = pat ; c_guard = _ ; c_rhs = exp } ] ->
+                    Some (Typedtree.Pattern (arg, sort, pat)), exp
+                  | _ -> assert false
           )
         in
         {
@@ -6978,7 +6986,7 @@ and type_cases
   if val_cases = [] && exn_cases <> [] then
     raise (Error (loc, env, No_value_clauses));
   let partial = match exhaustivity with
-    | Any | Partial -> Partial
+    | Any -> Partial
     | Exhaustive -> check_partial ~lev env ty_arg_check loc val_cases
   in
   let unused_check delayed =
