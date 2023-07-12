@@ -33,6 +33,7 @@ val type_option: type_expr -> type_expr
 val type_nativeint: type_expr
 val type_int32: type_expr
 val type_int64: type_expr
+val type_vec128: type_expr
 val type_lazy_t: type_expr -> type_expr
 val type_extension_constructor:type_expr
 val type_floatarray:type_expr
@@ -52,6 +53,7 @@ val path_option: Path.t
 val path_nativeint: Path.t
 val path_int32: Path.t
 val path_int64: Path.t
+val path_vec128: Path.t
 val path_lazy_t: Path.t
 val path_extension_constructor: Path.t
 val path_floatarray: Path.t

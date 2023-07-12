@@ -85,6 +85,9 @@ let boxed_integer_name = function
   | Pint32 -> "int32"
   | Pint64 -> "int64"
 
+let boxed_vector_name = function
+  | Pvec128 -> "vec128"
+
 let variant_kind print_contents ppf ~consts ~non_consts =
   fprintf ppf "@[<hov 1>[(consts (%a))@ (non_consts (%a))]@]"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
@@ -105,6 +108,7 @@ let rec value_kind ppf = function
   | Pfloatval -> fprintf ppf "[float]"
   | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
+  | Pboxedvectorval bv -> fprintf ppf "[%s]" (boxed_vector_name bv)
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
@@ -114,6 +118,7 @@ and value_kind' ppf = function
   | Pfloatval -> fprintf ppf "[float]"
   | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
+  | Pboxedvectorval bv -> fprintf ppf "[%s]" (boxed_vector_name bv)
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
@@ -124,6 +129,7 @@ let layout ppf layout =
   | Pbottom -> fprintf ppf "[bottom]"
   | Punboxed_float -> fprintf ppf "[unboxed_float]"
   | Punboxed_int bi -> fprintf ppf "[unboxed_%s]" (boxed_integer_name bi)
+  | Punboxed_vector bi -> fprintf ppf "[unboxed_%s]" (boxed_vector_name bi)
 
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode mode in
@@ -135,10 +141,13 @@ let return_kind ppf (mode, kind) =
   | Pvalue (Parrayval elt_kind) ->
      fprintf ppf ": %s%sarray@ " smode (array_kind elt_kind)
   | Pvalue (Pboxedintval bi) -> fprintf ppf ": %s%s@ " smode (boxed_integer_name bi)
+  | Pvalue (Pboxedvectorval bv) ->
+    fprintf ppf ": %s%s@ " smode (boxed_vector_name bv)
   | Pvalue (Pvariant { consts; non_consts; }) ->
     variant_kind value_kind' ppf ~consts ~non_consts
   | Punboxed_float -> fprintf ppf ": unboxed_float@ "
   | Punboxed_int bi -> fprintf ppf ": unboxed_%s@ " (boxed_integer_name bi)
+  | Punboxed_vector bi -> fprintf ppf ": unboxed_%s@ " (boxed_vector_name bi)
   | Ptop -> fprintf ppf ": top@ "
   | Pbottom -> fprintf ppf ": bottom@ "
 
@@ -148,6 +157,7 @@ let field_kind ppf = function
   | Pfloatval -> pp_print_string ppf "float"
   | Parrayval elt_kind -> fprintf ppf "%s-array" (array_kind elt_kind)
   | Pboxedintval bi -> pp_print_string ppf (boxed_integer_name bi)
+  | Pboxedvectorval bv -> pp_print_string ppf (boxed_vector_name bv)
   | Pvariant { consts; non_consts; } ->
     fprintf ppf "@[<hov 1>[(consts (%a))@ (non_consts (%a))]@]"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)

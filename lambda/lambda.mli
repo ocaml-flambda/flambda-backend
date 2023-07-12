@@ -235,6 +235,7 @@ and value_kind =
           expected to be significant. *)
     }
   | Parrayval of array_kind
+  | Pboxedvectorval of boxed_vector
 
 (* Because we check for and error on void in the translation to lambda, we don't
    need a constructor for it here. *)
@@ -243,6 +244,7 @@ and layout =
   | Pvalue of value_kind
   | Punboxed_float
   | Punboxed_int of boxed_integer
+  | Punboxed_vector of boxed_vector
   | Pbottom
 
 and block_shape =
@@ -250,6 +252,9 @@ and block_shape =
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
+
+and boxed_vector = Primitive.boxed_vector =
+  | Pvec128
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -279,6 +284,8 @@ val equal_layout : layout -> layout -> bool
 val compatible_layout : layout -> layout -> bool
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
+
+val equal_boxed_vector : boxed_vector -> boxed_vector -> bool
 
 val must_be_value : layout -> value_kind
 

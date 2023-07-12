@@ -347,23 +347,23 @@ LBL(caml_call_gc):
     /* Save young_ptr */
         movq    %r15, Caml_state(young_ptr)
     /* Save floating-point registers */
-        subq    $(16*8), %rsp; CFI_ADJUST (16*8);
-        movsd   %xmm0, 0*8(%rsp)
-        movsd   %xmm1, 1*8(%rsp)
-        movsd   %xmm2, 2*8(%rsp)
-        movsd   %xmm3, 3*8(%rsp)
-        movsd   %xmm4, 4*8(%rsp)
-        movsd   %xmm5, 5*8(%rsp)
-        movsd   %xmm6, 6*8(%rsp)
-        movsd   %xmm7, 7*8(%rsp)
-        movsd   %xmm8, 8*8(%rsp)
-        movsd   %xmm9, 9*8(%rsp)
-        movsd   %xmm10, 10*8(%rsp)
-        movsd   %xmm11, 11*8(%rsp)
-        movsd   %xmm12, 12*8(%rsp)
-        movsd   %xmm13, 13*8(%rsp)
-        movsd   %xmm14, 14*8(%rsp)
-        movsd   %xmm15, 15*8(%rsp)
+        subq    $(16*16), %rsp; CFI_ADJUST (16*16);
+        movupd  %xmm0, 0*16(%rsp)
+        movupd  %xmm1, 1*16(%rsp)
+        movupd  %xmm2, 2*16(%rsp)
+        movupd  %xmm3, 3*16(%rsp)
+        movupd  %xmm4, 4*16(%rsp)
+        movupd  %xmm5, 5*16(%rsp)
+        movupd  %xmm6, 6*16(%rsp)
+        movupd  %xmm7, 7*16(%rsp)
+        movupd  %xmm8, 8*16(%rsp)
+        movupd  %xmm9, 9*16(%rsp)
+        movupd  %xmm10, 10*16(%rsp)
+        movupd  %xmm11, 11*16(%rsp)
+        movupd  %xmm12, 12*16(%rsp)
+        movupd  %xmm13, 13*16(%rsp)
+        movupd  %xmm14, 14*16(%rsp)
+        movupd  %xmm15, 15*16(%rsp)
     /* Call the garbage collector */
         PREPARE_FOR_C_CALL
         call    GCALL(caml_garbage_collection)
@@ -371,23 +371,23 @@ LBL(caml_call_gc):
     /* Restore young_ptr */
         movq    Caml_state(young_ptr), %r15
     /* Restore all regs used by the code generator */
-        movsd   0*8(%rsp), %xmm0
-        movsd   1*8(%rsp), %xmm1
-        movsd   2*8(%rsp), %xmm2
-        movsd   3*8(%rsp), %xmm3
-        movsd   4*8(%rsp), %xmm4
-        movsd   5*8(%rsp), %xmm5
-        movsd   6*8(%rsp), %xmm6
-        movsd   7*8(%rsp), %xmm7
-        movsd   8*8(%rsp), %xmm8
-        movsd   9*8(%rsp), %xmm9
-        movsd   10*8(%rsp), %xmm10
-        movsd   11*8(%rsp), %xmm11
-        movsd   12*8(%rsp), %xmm12
-        movsd   13*8(%rsp), %xmm13
-        movsd   14*8(%rsp), %xmm14
-        movsd   15*8(%rsp), %xmm15
-        addq    $(16*8), %rsp; CFI_ADJUST(-16*8)
+        movupd  0*16(%rsp), %xmm0
+        movupd  1*16(%rsp), %xmm1
+        movupd  2*16(%rsp), %xmm2
+        movupd  3*16(%rsp), %xmm3
+        movupd  4*16(%rsp), %xmm4
+        movupd  5*16(%rsp), %xmm5
+        movupd  6*16(%rsp), %xmm6
+        movupd  7*16(%rsp), %xmm7
+        movupd  8*16(%rsp), %xmm8
+        movupd  9*16(%rsp), %xmm9
+        movupd  10*16(%rsp), %xmm10
+        movupd  11*16(%rsp), %xmm11
+        movupd  12*16(%rsp), %xmm12
+        movupd  13*16(%rsp), %xmm13
+        movupd  14*16(%rsp), %xmm14
+        movupd  15*16(%rsp), %xmm15
+        addq    $(16*16), %rsp; CFI_ADJUST(-16*16)
         popq    %rax; CFI_ADJUST(-8)
         popq    %rbx; CFI_ADJUST(-8)
         popq    %rdi; CFI_ADJUST(-8)
@@ -476,23 +476,23 @@ FUNCTION(G(caml_call_local_realloc))
     /* Save young_ptr */
         movq    %r15, Caml_state(young_ptr)
     /* Save floating-point registers */
-        subq    $(16*8), %rsp; CFI_ADJUST (16*8);
-        movsd   %xmm0, 0*8(%rsp)
-        movsd   %xmm1, 1*8(%rsp)
-        movsd   %xmm2, 2*8(%rsp)
-        movsd   %xmm3, 3*8(%rsp)
-        movsd   %xmm4, 4*8(%rsp)
-        movsd   %xmm5, 5*8(%rsp)
-        movsd   %xmm6, 6*8(%rsp)
-        movsd   %xmm7, 7*8(%rsp)
-        movsd   %xmm8, 8*8(%rsp)
-        movsd   %xmm9, 9*8(%rsp)
-        movsd   %xmm10, 10*8(%rsp)
-        movsd   %xmm11, 11*8(%rsp)
-        movsd   %xmm12, 12*8(%rsp)
-        movsd   %xmm13, 13*8(%rsp)
-        movsd   %xmm14, 14*8(%rsp)
-        movsd   %xmm15, 15*8(%rsp)
+        subq    $(16*16), %rsp; CFI_ADJUST (16*16);
+        movupd  %xmm0, 0*16(%rsp)
+        movupd  %xmm1, 1*16(%rsp)
+        movupd  %xmm2, 2*16(%rsp)
+        movupd  %xmm3, 3*16(%rsp)
+        movupd  %xmm4, 4*16(%rsp)
+        movupd  %xmm5, 5*16(%rsp)
+        movupd  %xmm6, 6*16(%rsp)
+        movupd  %xmm7, 7*16(%rsp)
+        movupd  %xmm8, 8*16(%rsp)
+        movupd  %xmm9, 9*16(%rsp)
+        movupd  %xmm10, 10*16(%rsp)
+        movupd  %xmm11, 11*16(%rsp)
+        movupd  %xmm12, 12*16(%rsp)
+        movupd  %xmm13, 13*16(%rsp)
+        movupd  %xmm14, 14*16(%rsp)
+        movupd  %xmm15, 15*16(%rsp)
     /* Call the garbage collector */
         PREPARE_FOR_C_CALL
         call    GCALL(caml_local_realloc)
@@ -500,23 +500,23 @@ FUNCTION(G(caml_call_local_realloc))
     /* Restore young_ptr */
         movq    Caml_state(young_ptr), %r15
     /* Restore all regs used by the code generator */
-        movsd   0*8(%rsp), %xmm0
-        movsd   1*8(%rsp), %xmm1
-        movsd   2*8(%rsp), %xmm2
-        movsd   3*8(%rsp), %xmm3
-        movsd   4*8(%rsp), %xmm4
-        movsd   5*8(%rsp), %xmm5
-        movsd   6*8(%rsp), %xmm6
-        movsd   7*8(%rsp), %xmm7
-        movsd   8*8(%rsp), %xmm8
-        movsd   9*8(%rsp), %xmm9
-        movsd   10*8(%rsp), %xmm10
-        movsd   11*8(%rsp), %xmm11
-        movsd   12*8(%rsp), %xmm12
-        movsd   13*8(%rsp), %xmm13
-        movsd   14*8(%rsp), %xmm14
-        movsd   15*8(%rsp), %xmm15
-        addq    $(16*8), %rsp; CFI_ADJUST(-16*8)
+        movupd  0*16(%rsp), %xmm0
+        movupd  1*16(%rsp), %xmm1
+        movupd  2*16(%rsp), %xmm2
+        movupd  3*16(%rsp), %xmm3
+        movupd  4*16(%rsp), %xmm4
+        movupd  5*16(%rsp), %xmm5
+        movupd  6*16(%rsp), %xmm6
+        movupd  7*16(%rsp), %xmm7
+        movupd  8*16(%rsp), %xmm8
+        movupd  9*16(%rsp), %xmm9
+        movupd  10*16(%rsp), %xmm10
+        movupd  11*16(%rsp), %xmm11
+        movupd  12*16(%rsp), %xmm12
+        movupd  13*16(%rsp), %xmm13
+        movupd  14*16(%rsp), %xmm14
+        movupd  15*16(%rsp), %xmm15
+        addq    $(16*16), %rsp; CFI_ADJUST(-16*16)
         popq    %rax; CFI_ADJUST(-8)
         popq    %rbx; CFI_ADJUST(-8)
         popq    %rdi; CFI_ADJUST(-8)
