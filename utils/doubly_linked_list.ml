@@ -55,6 +55,48 @@ let insert_after cell value =
       | Empty -> cell.t.last <- value_node
       | Node node -> node.prev <- value_node))
 
+let delete_curr cell =
+  match cell.node with
+  | Empty ->
+      (* internal invariant: cell's nodes are not empty *)
+      assert false
+  | Node cell_node ->
+    match cell_node.prev, cell_node.next with
+    | Empty, Empty -> (cell.t.first <- Empty; cell.t.last <- Empty)
+    | Empty, Node next_cell_node -> (cell.t.first <- cell_node.next; next_cell_node.prev <- Empty)
+    | Node prev_cell_node, Empty -> (cell.t.last <- cell_node.prev; prev_cell_node.next <- Empty)
+    | Node prev_cell_node, Node next_cell_node -> (
+      prev_cell_node.next <- cell_node.next;
+      next_cell_node.prev <- cell_node.prev
+    )
+
+let delete_before cell =
+  match cell.node with
+  | Empty ->
+      (* internal invariant: cell's nodes are not empty *)
+      assert false
+  | Node cell_node ->
+      match cell_node.prev with
+      | Empty ->
+        (* convention: cannot delete_before the first element in the list *)
+        assert false
+      | Node prev_cell_node -> 
+        delete_curr {node=cell_node.prev; t=cell.t}
+
+let delete_after cell =
+  match cell.node with
+  | Empty ->
+      (* internal invariant: cell's nodes are not empty *)
+      assert false
+  | Node cell_node ->
+      match cell_node.next with
+      | Empty ->
+        (* convention: cannot delete_after the first element in the list *)
+        assert false
+      | Node next_cell_node ->
+        delete_curr {node=cell_node.next; t=cell.t}
+
+
 let value cell =
   match cell.node with
   | Empty ->
@@ -71,6 +113,15 @@ let prev cell =
     let prev = cell_node.prev in
     match prev with Empty -> None | Node _ -> Some { node = prev; t = cell.t })
 
+let next cell =
+  match cell.node with
+  | Empty ->
+    (* internal invariant: cell's nodes are not empty *)
+    assert false
+  | Node cell_node -> (
+    let next = cell_node.next in
+    match next with Empty -> None | Node _ -> Some {node = next; t = cell.t})
+
 let make_empty () = { length = 0; first = Empty; last = Empty }
 
 let make_single value =
@@ -84,7 +135,11 @@ let clear t =
 
 let hd t = match t.first with Empty -> None | Node { value; _ } -> Some value
 
+let hd_cell t = match t.first with Empty -> None | node -> Some {node; t}
+
 let last t = match t.last with Empty -> None | Node { value; _ } -> Some value
+
+let last_cell t = match t.last with Empty -> None | node -> Some {node; t}
 
 let add_begin t value =
   match unattached_node value with

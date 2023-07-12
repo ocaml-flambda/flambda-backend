@@ -4,9 +4,17 @@ val insert_before : 'a cell -> 'a -> unit
 
 val insert_after : 'a cell -> 'a -> unit
 
+val delete_before : 'a cell -> unit
+
+val delete_after : 'a cell -> unit
+
+val delete_curr: 'a cell -> unit
+
 val value : 'a cell -> 'a
 
 val prev : 'a cell -> 'a cell option
+
+val next : 'a cell -> 'a cell option
 
 type 'a t
 
@@ -20,7 +28,11 @@ val clear : 'a t -> unit
 
 val hd : 'a t -> 'a option
 
+val hd_cell : 'a t -> 'a cell option
+
 val last : 'a t -> 'a option
+
+val last_cell : 'a t -> 'a cell option
 
 val add_begin : 'a t -> 'a -> unit
 

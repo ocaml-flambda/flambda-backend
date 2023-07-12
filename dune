@@ -193,6 +193,7 @@
   linscan
   liveness
   mach
+  optimize
   polling
   printcmm
   printlinear
