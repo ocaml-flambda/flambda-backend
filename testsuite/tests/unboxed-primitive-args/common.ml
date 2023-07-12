@@ -8,7 +8,8 @@ type 'a typ =
   | Int64     : int64     typ
   | Nativeint : nativeint typ
   | Float     : float     typ
-  | Vec128    : vec128    typ
+  | Float64x2 : float64x2 typ
+  | Int64x2   : int64x2   typ
 
 type 'a proto =
   | Ret : 'a typ -> 'a proto
@@ -45,9 +46,9 @@ let expand_test = function
     Test (s, fn, a ** b ** c ** d ** e ** f ** Ret g)
   | T (s, fn, p) -> Test (s, fn, p)
 
-external vec128_of_int64s : int64 -> int64 -> vec128 = "" "vec128_of_int64s" [@@noalloc] [@@unboxed]
-external vec128_low_int64 : vec128 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
-external vec128_high_int64 : vec128 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
+external int64x2_of_int64s : int64 -> int64 -> int64x2 = "" "vec128_of_int64s" [@@noalloc] [@@unboxed]
+external int64x2_low_int64 : int64x2 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
+external int64x2_high_int64 : int64x2 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
 
 let string_of : type a. a typ -> a -> string = function
   | Int       -> Int.to_string
@@ -125,7 +126,8 @@ module Buffer = struct
     | Int64     -> get_int64
     | Nativeint -> get_nativeint
     | Float     -> get_float
-    | Vec128    -> get_vec128
+    | Int64x2   -> get_int64x2
+    | Float64x2 -> get_float64x2
 
   let set : type a. a typ -> t -> arg:int -> a -> unit = function
     | Int       -> set_int
@@ -133,7 +135,8 @@ module Buffer = struct
     | Int64     -> set_int64
     | Nativeint -> set_nativeint
     | Float     -> set_float
-    | Vec128    -> set_vec128
+    | Int64x2   -> set_int64x2
+    | Float64x2 -> set_float64x2
 
   (* This is almost a memcpy except that we use get/set which should
      ensure that the values in [dst] don't overflow. *)
@@ -178,7 +181,7 @@ let typ_size : type a. a typ -> int = function
   | Int64     -> 8
   | Nativeint -> Sys.word_size / 8
   | Float     -> 8
-  | Vec128    -> 16
+  | Int64x2 | Float64x2 -> 16
 
 let rec sizes : type a. a proto -> int list = function
   | Ret typ         -> [typ_size typ]

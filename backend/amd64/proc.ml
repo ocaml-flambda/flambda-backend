@@ -421,11 +421,12 @@ let destroyed_at_oper = function
   | Ireturn traps when has_pushtrap traps -> assert false
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
   | Iop(Ispecific(Ilfence | Isfence | Imfence)) -> [||]
-  | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea _
+  | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Ipause
                  | Iprefetch _
                  | Ifloat_round _
+                 | Isimd _
                  | Ifloat_iround | Ifloat_min | Ifloat_max
                  | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
@@ -442,6 +443,7 @@ let destroyed_at_oper = function
        | Icsel _
        | Ifloatofint | Iintoffloat
        | Ivalueofint | Iintofvalue
+       | Ivectorcast _ | Iscalarcast _
        | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
        | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload (_, _, _)
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque)
@@ -493,15 +495,17 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Csel _
        | Floatofint | Intoffloat
        | Valueofint | Intofvalue
+       | Vectorcast _
+       | Scalarcast _
        | Probe_is_enabled _
        | Opaque
        | Begin_region
        | End_region
        | Specific (Ilea _ | Istore_int _ | Ioffset_loc _
                   | Ifloatarithmem _ | Ibswap _ | Isqrtf
-                  | Ifloatsqrtf _ | Ifloat_iround
+                  | Ifloatsqrtf _ | Ifloat_iround | Isimd _
                   | Ifloat_round _ | Ifloat_min | Ifloat_max
-                  | Isextend32 | Izextend32 | Icrc32q | Ipause
+                  | Isextend32 | Izextend32 | Ipause
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
        | Name_for_debugger _)
   | Poptrap | Prologue ->
@@ -529,7 +533,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
                        | Ifloatarithmem _ | Ifloatsqrtf _
                        | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
-                       | Icrc32q | Irdtsc | Irdpmc | Ipause
+                       | Irdtsc | Irdpmc | Ipause | Isimd _
                        | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
                               | Iprefetch _); _ } ->
@@ -561,7 +565,7 @@ let is_destruction_point (terminator : Cfg_intf.S.terminator) =
   | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
                        | Ifloatarithmem _ | Ifloatsqrtf _
                        | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
-                       | Icrc32q | Irdtsc | Irdpmc | Ipause
+                       | Irdtsc | Irdpmc | Ipause | Isimd _
                        | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
                               | Iprefetch _); _ } ->
@@ -575,8 +579,8 @@ let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
   | Ialloc _ | Ipoll _ | Imove | Ispill | Ireload
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
-  | Icompf _
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _
+  | Icompf _ | Iscalarcast _
   | Icsel _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
@@ -616,14 +620,14 @@ let max_register_pressure =
             _, _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icsel _
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Ivectorcast _ | Iscalarcast _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _, _)
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
-             | Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
+             | Irdtsc | Irdpmc | Istore_int (_, _, _)
              | Ilfence | Isfence | Imfence
-             | Ifloat_round _
+             | Ifloat_round _ | Isimd _
              | Ifloat_iround | Ifloat_min | Ifloat_max
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
              | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
@@ -672,9 +676,11 @@ let operation_supported = function
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat
   | Cvalueofint | Cintofvalue
+  | Cscalarcast _
   | Ccmpf _
   | Craise _
   | Ccheckbound
+  | Cvectorcast (Bits128 _)
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion
     -> true
 

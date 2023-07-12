@@ -1488,6 +1488,23 @@ let assemble_instr b loc = function
   | XCHG (src, dst) -> emit_XCHG b dst src
   | XOR (src, dst) -> emit_XOR b dst src
   | XORPD (src, dst) -> emit_xorpd b dst src
+  | CMPPS _
+  | SHUFPS _
+  | ADDPS _
+  | SUBPS _
+  | MULPS _
+  | DIVPS _
+  | MAXPS _
+  | MINPS _
+  | RCPPS _
+  | SQRTPS _
+  | RSQRTPS _
+  | MOVHLPS _
+  | MOVLHPS _
+  | UNPCKHPS _
+  | UNPCKLPS _ 
+  | XORPS _ -> 
+    Misc.fatal_error "The x86 binary emitter does not support SIMD instructions."
 
 let assemble_line b loc ins =
   try

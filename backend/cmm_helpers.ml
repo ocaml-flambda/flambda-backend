@@ -152,7 +152,7 @@ let alloc_float_header mode dbg =
 let alloc_boxedvector_header vi mode dbg =
   let header, local_header =
     match vi with
-    | Primitive.Pvec128 -> boxedvec128_header, boxedvec128_local_header
+    | Lambda.Pvec128 _ -> boxedvec128_header, boxedvec128_local_header
   in
   match mode with
   | Lambda.Alloc_heap -> Cconst_natint (header, dbg)
@@ -718,7 +718,7 @@ let rec unbox_float dbg =
 let box_vector dbg vi m c =
   Cop (Calloc m, [alloc_boxedvector_header vi m dbg; c], dbg)
 
-let rec unbox_vec128 dbg =
+let rec unbox_vec128 ty dbg =
   map_tail ~kind:Any (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
       when Nativeint.equal hdr boxedvec128_header
@@ -726,7 +726,8 @@ let rec unbox_vec128 dbg =
       c
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
-      | Some (Uconst_vec128 { low; high }) ->
+      | Some (Uconst_vec128 { ty = cty; low; high }) ->
+        assert (Lambda.equal_vec128 ty cty);
         Cconst_vec128 ({ low; high }, dbg) (* or keep _dbg? *)
       | _ -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
     | Cregion e as cmm -> (
@@ -736,17 +737,17 @@ let rec unbox_vec128 dbg =
         map_tail ~kind:Any
           (function
             | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
-            | Ctail e -> Ctail (unbox_vec128 dbg e)
-            | e -> unbox_vec128 dbg e)
+            | Ctail e -> Ctail (unbox_vec128 ty dbg e)
+            | e -> unbox_vec128 ty dbg e)
           e
       with
       | e -> Cregion e
       | exception Exit -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
-    | Ctail e -> Ctail (unbox_vec128 dbg e)
+    | Ctail e -> Ctail (unbox_vec128 ty dbg e)
     | cmm -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
 
 let unbox_vector dbg vi e =
-  match vi with Primitive.Pvec128 -> unbox_vec128 dbg e
+  match vi with Lambda.Pvec128 ty -> unbox_vec128 ty dbg e
 
 (* Complex *)
 
@@ -1128,7 +1129,7 @@ module Extended_machtype = struct
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
     | Punboxed_float -> typ_float
-    | Punboxed_vector Pvec128 -> typ_vec128
+    | Punboxed_vector (Pvec128 _) -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int

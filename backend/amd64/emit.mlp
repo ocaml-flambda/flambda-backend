@@ -910,6 +910,36 @@ let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
     I.set E res8;
     I.movzx res8 res
 
+let emit_simd_instr op i = 
+  (match Simd_selection.register_behavior op with 
+  | {ret = Fst; _} -> assert (arg i 0 = res i 0)
+  | _ -> .);
+  (match Simd_selection.register_behavior op with 
+  | {arg0 = Reg; arg1 = Reg; _} -> 
+    assert (Reg.is_reg i.arg.(0) && Reg.is_reg i.arg.(1))
+  | {arg0 = Reg; _} -> assert (Reg.is_reg i.arg.(0))
+  | {arg1 = Reg; _} -> assert (Reg.is_reg i.arg.(1))
+  | _ -> ());
+  match (op : Simd.operation) with 
+  | SSE (Cmp_ps n) -> I.cmpps (arg i 1) (res i 0) (Imm (Int64.of_int n))
+  | SSE Add_ps -> I.addps (arg i 1) (res i 0)
+  | SSE Sub_ps -> I.subps (arg i 1) (res i 0)
+  | SSE Mul_ps -> I.mulps (arg i 1) (res i 0)
+  | SSE Div_ps -> I.divps (arg i 1) (res i 0)
+  | SSE Max_ps -> I.maxps (arg i 1) (res i 0)
+  | SSE Min_ps -> I.minps (arg i 1) (res i 0)
+  | SSE Rcp_ps -> I.rcpps (arg i 1) (res i 0)
+  | SSE Sqrt_ps -> I.sqrtps (arg i 1) (res i 0)
+  | SSE Rsqrt_ps -> I.rsqrtps (arg i 1) (res i 0)
+  | SSE Xor_ps -> I.xorps (arg i 1) (res i 0)
+  | SSE Move_high_to_low -> I.movhlps (arg i 1) (res i 0)
+  | SSE Move_low_to_high -> I.movlhps (arg i 1) (res i 0)
+  | SSE Interleave_high -> I.unpckhps (arg i 1) (res i 0)
+  | SSE Interleave_low -> I.unpcklps (arg i 1) (res i 0)
+  | SSE (Shuffle n) -> I.shufps (arg i 1) (res i 0) (Imm (Int64.of_int n))
+  | SSE42 Crc32q -> I.crc32 (arg i 1) (res i 0)
+  | _ -> .
+
 (* Emit an instruction *)
 let emit_instr fallthrough i =
   emit_debug_info_linear i;
@@ -1184,8 +1214,13 @@ let emit_instr fallthrough i =
       I.cvtsi2sd  (arg i 0)  (res i 0)
   | Lop(Iintoffloat) ->
       I.cvttsd2si (arg i 0) (res i 0)
-  | Lop(Iintofvalue | Ivalueofint) ->
+  | Lop(Iintofvalue | Ivalueofint | Ivectorcast _ | 
+        Iscalarcast (Float_to_v128 | V128_to_float)) ->
       move i.arg.(0) i.res.(0)
+  | Lop(Iscalarcast Float_to_v128_as_32) ->
+      I.cvtsd2ss (arg i 0) (res i 0);
+  | Lop(Iscalarcast V128_as_32_to_float) ->
+      I.cvtss2sd (arg i 0) (res i 0);
   | Lop(Iopaque) ->
       assert (i.arg.(0).loc = i.res.(0).loc)
   | Lop(Ispecific(Ilea addr)) ->
@@ -1299,9 +1334,8 @@ let emit_instr fallthrough i =
     I.sfence ()
   | Lop (Ispecific Imfence) ->
     I.mfence ()
-  | Lop (Ispecific Icrc32q) ->
-    assert (arg i 0 = res i 0);
-    I.crc32 (arg i 1) (res i 0)
+  | Lop (Ispecific (Isimd op)) ->
+    emit_simd_instr op i
   | Lop (Ispecific Ipause) ->
     I.pause ()
   | Lop (Ispecific (Iprefetch { is_write; locality; addr; })) ->

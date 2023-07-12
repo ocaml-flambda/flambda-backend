@@ -31,6 +31,12 @@ let prefetchwt1_support = ref false
 (* Emit elf notes with trap handling information. *)
 let trap_notes = ref true
 
+(* Basline x86_64 requires SSE and SSE2. The others are optional. *)
+let sse3_support = ref true
+let ssse3_support = ref true
+let sse41_support = ref true
+let sse42_support = ref true
+
 (* Enables usage of vector registers. *)
 let simd_regalloc_support = ref false
 
@@ -45,10 +51,6 @@ let command_line_options =
       " Use POPCNT instruction (not available prior to Nehalem) (default)";
     "-fno-popcnt", Arg.Clear popcnt_support,
       " Do not use POPCNT instruction";
-    "-fcrc32", Arg.Set crc32_support,
-      " Use CRC32 instructions (requires SSE4.2 support) (default)";
-    "-fno-crc32", Arg.Clear crc32_support,
-      " Do not emit CRC32 instructions";
     "-fprefetchw", Arg.Set prefetchw_support,
       " Use PREFETCHW instructions (not available on Haswell and earlier) \
         (default)";
@@ -62,6 +64,18 @@ let command_line_options =
       " Emit .note.ocaml_eh section with trap handling information (default)";
     "-fno-trap-notes", Arg.Clear trap_notes,
       " Do not emit .note.ocaml_eh section with trap handling information";
+    "-fsse3", Arg.Set sse3_support,
+      " Enable SSE3 intrinsics (default)";
+    "-fno-sse3", Arg.Clear sse3_support,
+      " Disable SSE3 intrinsics";
+    "-fsse41", Arg.Set sse3_support,
+      " Enable SSE4.1 intrinsics (default)";
+    "-fno-sse41", Arg.Clear sse3_support,
+      " Disable SSE4.1 intrinsics";
+    "-fsse42", Arg.Set sse3_support,
+      " Enable SSE4.2 intrinsics (default)";
+    "-fno-sse42", Arg.Clear sse3_support,
+      " Disable SSE4.2 intrinsics";
     "-fsimd", Arg.Set simd_regalloc_support,
       " Enable register allocation for SIMD vectors";
     "-fno-simd", Arg.Clear simd_regalloc_support,
@@ -118,8 +132,8 @@ type specific_operation =
   | Ilfence                            (* load fence *)
   | Isfence                            (* store fence *)
   | Imfence                            (* memory fence *)
-  | Icrc32q                            (* compute crc *)
   | Ipause                             (* hint for spin-wait loops *)
+  | Isimd of Simd.operation            (* vectorized operations *)
   | Iprefetch of                       (* memory prefetching hint *)
       { is_write: bool;
         locality: prefetch_temporal_locality_hint;
@@ -248,8 +262,8 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "mfence"
   | Irdpmc ->
       fprintf ppf "rdpmc %a" printreg arg.(0)
-  | Icrc32q ->
-      fprintf ppf "crc32 %a %a" printreg arg.(0) printreg arg.(1)
+  | Isimd simd ->
+      Simd.print_operation printreg simd ppf arg
   | Ipause ->
       fprintf ppf "pause"
   | Iprefetch { is_write; locality; } ->
@@ -268,8 +282,7 @@ let win64 =
 let operation_is_pure = function
   | Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32 -> true
   | Ifloatarithmem _ | Ifloatsqrtf _ -> true
-  | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max -> true
-  | Icrc32q -> true
+  | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max | Isimd _ -> true
   | Irdtsc | Irdpmc | Ipause
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
@@ -281,7 +294,7 @@ let operation_can_raise = function
   | Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
   | Ifloatarithmem _ | Ifloatsqrtf _
   | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
-  | Icrc32q | Irdtsc | Irdpmc | Ipause
+  | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Iprefetch _ -> false
@@ -290,7 +303,7 @@ let operation_allocates = function
   | Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
   | Ifloatarithmem _ | Ifloatsqrtf _
   | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
-  | Icrc32q | Irdtsc | Irdpmc | Ipause
+  | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Iprefetch _ -> false
@@ -383,8 +396,6 @@ let equal_specific_operation left right =
     true
   | Imfence, Imfence ->
     true
-  | Icrc32q, Icrc32q ->
-    true
   | Ifloat_iround, Ifloat_iround -> true
   | Ifloat_round x, Ifloat_round y -> equal_rounding_mode x y
   | Ifloat_min, Ifloat_min -> true
@@ -395,8 +406,10 @@ let equal_specific_operation left right =
     Bool.equal left_is_write right_is_write
     && equal_prefetch_temporal_locality_hint left_locality right_locality
     && equal_addressing_mode left_addr right_addr
+  | Isimd l, Isimd r ->
+    Simd.equal_operation l r
   | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
     | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc
     | Ilfence | Isfence | Imfence | Ifloat_iround | Ifloat_round _ |
-    Ifloat_min | Ifloat_max | Ipause | Icrc32q | Iprefetch _), _ ->
+    Ifloat_min | Ifloat_max | Ipause | Isimd _ | Iprefetch _), _ ->
     false

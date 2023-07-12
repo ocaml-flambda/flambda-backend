@@ -128,13 +128,26 @@ method! reload_operation op arg res =
       if stackp res.(0)
       then (let r = self#makereg res.(0) in (arg, [|r|]))
       else (arg, res)
-  | Ispecific(Ifloat_min | Ifloat_max)
-  | Ispecific Icrc32q ->
-    (* First argument and result must be in the same register.
-       Second argument can be either in a register or on stack. *)
+  | Ispecific(Ifloat_min | Ifloat_max) -> 
       if stackp arg.(0)
       then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
       else (arg, res)
+  | Ispecific(Isimd op) ->
+    (match Simd_selection.register_behavior op with 
+    | {arg0 = Reg; arg1 = Reg; ret = Fst} -> 
+      (* Both arguments must be in registers, and the result
+         must be the first argument. *)
+      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in 
+      let arg1 = if stackp arg.(1) then self#makereg arg.(1) else arg.(1) in 
+      ([|arg0; arg1|], [|arg0|])
+    | {arg0 = Reg; arg1 = (Reg_or_amem | Reg_or_umem); ret = Fst}-> 
+      (* First argument and result must be in the same register.
+         Second argument can be either in a register or on the stack.
+         Note that stack-spilled vectors are properly aligned. *)
+      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in 
+      ([|arg0; arg.(1)|], [|arg0|])
+    | { arg0 = (Reg_or_amem|Reg_or_umem); _} -> 
+      Misc.fatal_error "Bad register behavior for SIMD operation")
   | Ifloatofint | Iintoffloat ->
       (* Result must be in register, but argument can be on stack *)
       (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))
@@ -182,7 +195,7 @@ method! reload_operation op arg res =
   | Icompf _
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _, _)
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
-  | Ivalueofint | Iintofvalue | Iopaque
+  | Ivalueofint | Iintofvalue | Iopaque | Ivectorcast _ | Iscalarcast _
   | Ibeginregion | Iendregion | Ipoll _
     -> (* Other operations: all args and results in registers,
           except moves and probes. *)

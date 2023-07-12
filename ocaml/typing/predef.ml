@@ -44,11 +44,17 @@ and ident_option = ident_create "option"
 and ident_nativeint = ident_create "nativeint"
 and ident_int32 = ident_create "int32"
 and ident_int64 = ident_create "int64"
-and ident_vec128 = ident_create "vec128"
 and ident_lazy_t = ident_create "lazy_t"
 and ident_string = ident_create "string"
 and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
+
+and ident_int8x16 = ident_create "int8x16"
+and ident_int16x8 = ident_create "int16x8"
+and ident_int32x4 = ident_create "int32x4"
+and ident_int64x2 = ident_create "int64x2"
+and ident_float32x4 = ident_create "float32x4"
+and ident_float64x2 = ident_create "float64x2"
 
 let path_int = Pident ident_int
 and path_char = Pident ident_char
@@ -67,11 +73,17 @@ and path_option = Pident ident_option
 and path_nativeint = Pident ident_nativeint
 and path_int32 = Pident ident_int32
 and path_int64 = Pident ident_int64
-and path_vec128 = Pident ident_vec128
 and path_lazy_t = Pident ident_lazy_t
 and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
+
+and path_int8x16 = Pident ident_int8x16
+and path_int16x8 = Pident ident_int16x8
+and path_int32x4 = Pident ident_int32x4
+and path_int64x2 = Pident ident_int64x2
+and path_float32x4 = Pident ident_float32x4
+and path_float64x2 = Pident ident_float64x2
 
 let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
@@ -88,12 +100,18 @@ and type_option t = newgenty (Tconstr(path_option, [t], ref Mnil))
 and type_nativeint = newgenty (Tconstr(path_nativeint, [], ref Mnil))
 and type_int32 = newgenty (Tconstr(path_int32, [], ref Mnil))
 and type_int64 = newgenty (Tconstr(path_int64, [], ref Mnil))
-and type_vec128 = newgenty (Tconstr(path_vec128, [], ref Mnil))
 and type_lazy_t t = newgenty (Tconstr(path_lazy_t, [t], ref Mnil))
 and type_string = newgenty (Tconstr(path_string, [], ref Mnil))
 and type_extension_constructor =
-      newgenty (Tconstr(path_extension_constructor, [], ref Mnil))
+newgenty (Tconstr(path_extension_constructor, [], ref Mnil))
 and type_floatarray = newgenty (Tconstr(path_floatarray, [], ref Mnil))
+
+and type_int8x16 = newgenty (Tconstr(path_int8x16, [], ref Mnil))
+and type_int16x8 = newgenty (Tconstr(path_int16x8, [], ref Mnil))
+and type_int32x4 = newgenty (Tconstr(path_int32x4, [], ref Mnil))
+and type_int64x2 = newgenty (Tconstr(path_int64x2, [], ref Mnil))
+and type_float32x4 = newgenty (Tconstr(path_float32x4, [], ref Mnil))
+and type_float64x2 = newgenty (Tconstr(path_float64x2, [], ref Mnil))
 
 let ident_match_failure = ident_create "Match_failure"
 and ident_out_of_memory = ident_create "Out_of_memory"
@@ -217,7 +235,7 @@ let common_initial_env add_type add_extension empty_env =
   in
   let variant constrs layouts = Type_variant (constrs, Variant_boxed layouts) in
   empty_env
-  (* Predefined types - alphabetical order *)
+  (* Predefined types *)
   |> add_type1 ident_array
        ~variance:Variance.full
        ~separability:Separability.Ind
@@ -239,6 +257,12 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_int ~layout:(Layout.immediate ~why:(Primitive ident_int))
   |> add_type ident_int32
   |> add_type ident_int64
+  |> add_type ident_int8x16
+  |> add_type ident_int16x8
+  |> add_type ident_int32x4
+  |> add_type ident_int64x2
+  |> add_type ident_float32x4
+  |> add_type ident_float64x2
   |> add_type1 ident_lazy_t
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -264,7 +288,6 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
        ~layout:(Layout.immediate ~why:Enumeration)
-  |> add_type ident_vec128
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[type_string; type_int; type_int])]

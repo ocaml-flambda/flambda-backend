@@ -1,8 +1,8 @@
 open Stdlib
 
-external vec128_of_int64s : int64 -> int64 -> vec128 = "" "vec128_of_int64s" [@@noalloc] [@@unboxed]
-external vec128_low_int64 : vec128 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
-external vec128_high_int64 : vec128 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
+external vec128_of_int64s : int64 -> int64 -> int64x2 = "" "vec128_of_int64s" [@@noalloc] [@@unboxed]
+external vec128_low_int64 : int64x2 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
+external vec128_high_int64 : int64x2 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
 
 let eq l r = if l <> r then Printf.printf "%Ld <> %Ld\n" l r
 
@@ -54,7 +54,7 @@ let () =
 let () =
   let v0 = vec128_of_int64s 1L 2L in
   let v1 = vec128_of_int64s 3L 4L in
-  let v = (combine[@inlined hint]) v0 v1 in
+  let v = (combine[@inlined]) v0 v1 in
   check v 4L 6L
 ;;
 
@@ -71,7 +71,7 @@ let () =
 let () =
   let v0 = vec128_of_int64s 1L 2L in
   let v1 = vec128_of_int64s 3L 4L in
-  let v = (combine_with_floats[@inlined hint]) v0 5. v1 6. in
+  let v = (combine_with_floats[@inlined]) v0 5. v1 6. in
   check v 9L 12L
 ;;
 
@@ -103,9 +103,9 @@ let () =
 (* Capture vectors and floats in a closure (inlined) *)
 let () =
   let[@inline always] f v0 v1 f0 v2 f1 v3 =
-    (combine[@inlined hint])
-      ((combine_with_floats[@inlined hint]) v0 f0 v1 f1)
-      ((combine[@inlined hint]) v2 v3)
+    (combine[@inlined])
+      ((combine_with_floats[@inlined]) v0 f0 v1 f1)
+      ((combine[@inlined]) v2 v3)
   in
   let v0 = vec128_of_int64s 1L 2L in
   let v1 = vec128_of_int64s 3L 4L in
@@ -117,8 +117,8 @@ let () =
 ;;
 
 (* Store in record *)
-type record = { a : vec128
-              ; mutable b : vec128
+type record = { a : int64x2
+              ; mutable b : int64x2
               ; c : float }
 
 let () =
@@ -134,7 +134,7 @@ let () =
 ;;
 
 (* Store in variant *)
-type variant = A of vec128 | B of vec128 | C of float
+type variant = A of int64x2 | B of int64x2 | C of float
 
 let () =
   let variant = A (vec128_of_int64s 1L 2L) in
@@ -151,7 +151,7 @@ let () =
 ;;
 
 (* Pass boxed vectors to an external *)
-external boxed_combine : vec128 -> vec128 -> vec128 = "" "boxed_combine" [@@noalloc]
+external boxed_combine : int64x2 -> int64x2 -> int64x2 = "" "boxed_combine" [@@noalloc]
 
 let () =
   let v0 = vec128_of_int64s 1L 2L in
@@ -162,9 +162,9 @@ let () =
 
 (* Pass lots of vectors to an external *)
 external lots_of_vectors :
-  vec128 -> vec128 -> vec128 -> vec128 -> vec128 -> vec128 -> vec128 -> vec128 ->
-  vec128 -> vec128 -> vec128 -> vec128 -> vec128 -> vec128 -> vec128 -> vec128 ->
-  vec128
+  int64x2 -> int64x2 -> int64x2 -> int64x2 -> int64x2 -> int64x2 -> int64x2 -> int64x2 ->
+  int64x2 -> int64x2 -> int64x2 -> int64x2 -> int64x2 -> int64x2 -> int64x2 -> int64x2 ->
+  int64x2
   = "" "lots_of_vectors" [@@noalloc] [@@unboxed]
 
 let () =
@@ -190,10 +190,10 @@ let () =
 
 (* Pass mixed floats/vectors to an external *)
 external vectors_and_floats :
-  vec128 -> float -> vec128 -> float -> vec128 -> float -> vec128 -> float ->
-  float -> vec128 -> vec128 -> float -> float -> vec128 -> vec128 -> float ->
-  float -> float -> vec128 -> vec128 -> vec128 -> float -> float -> float ->
-  vec128
+  int64x2 -> float -> int64x2 -> float -> int64x2 -> float -> int64x2 -> float ->
+  float -> int64x2 -> int64x2 -> float -> float -> int64x2 -> int64x2 -> float ->
+  float -> float -> int64x2 -> int64x2 -> int64x2 -> float -> float -> float ->
+  int64x2
   = "" "vectors_and_floats" [@@noalloc] [@@unboxed]
 
 let () =
@@ -214,10 +214,10 @@ let () =
 
 (* Pass mixed ints/floats/vectors to an external *)
 external vectors_and_floats_and_ints :
-  vec128 -> float -> vec128 -> int64 -> vec128 -> float -> vec128 -> int64 ->
-  int64 -> vec128 -> vec128 -> float -> float -> vec128 -> vec128 -> int64 ->
-  int64 -> float -> vec128 -> vec128 -> vec128 -> int64 -> int64 -> float ->
-  vec128
+  int64x2 -> float -> int64x2 -> int64 -> int64x2 -> float -> int64x2 -> int64 ->
+  int64 -> int64x2 -> int64x2 -> float -> float -> int64x2 -> int64x2 -> int64 ->
+  int64 -> float -> int64x2 -> int64x2 -> int64x2 -> int64 -> int64 -> float ->
+  int64x2
   = "" "vectors_and_floats_and_ints" [@@noalloc] [@@unboxed]
 
 let () =

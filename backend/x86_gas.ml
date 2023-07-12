@@ -119,6 +119,12 @@ let i1_call_jmp b s = function
   | Sym x -> bprintf b "\t%s\t%s" s x
   | _ -> assert false
 
+let i2i b s x y z = 
+  (match z with 
+  | Imm _ -> ()
+  | _ -> Misc.fatal_error "Did not get immediate arg where required.");
+  i3 b s x y z
+
 let print_instr b = function
   | ADD (arg1, arg2) -> i2_s b "add" arg1 arg2
   | ADDSD (arg1, arg2) -> i2 b "addsd" arg1 arg2
@@ -206,6 +212,22 @@ let print_instr b = function
   | XCHG (arg1, arg2) -> i2 b "xchg" arg1 arg2
   | XOR (arg1, arg2) -> i2_s b "xor" arg1 arg2
   | XORPD (arg1, arg2) -> i2 b "xorpd" arg1 arg2
+  | CMPPS (arg1, arg2, arg3) -> i2i b "cmpps" arg1 arg2 arg3
+  | SHUFPS (arg1, arg2, arg3) -> i2i b "shufps" arg1 arg2 arg3
+  | ADDPS (arg1, arg2) -> i2 b "addps" arg1 arg2
+  | SUBPS (arg1, arg2) -> i2 b "subps" arg1 arg2
+  | MULPS (arg1, arg2) -> i2 b "mulps" arg1 arg2
+  | DIVPS (arg1, arg2) -> i2 b "divps" arg1 arg2
+  | MAXPS (arg1, arg2) -> i2 b "maxps" arg1 arg2
+  | MINPS (arg1, arg2) -> i2 b "minps" arg1 arg2
+  | RCPPS (arg1, arg2) -> i2 b "rcpps" arg1 arg2
+  | SQRTPS (arg1, arg2) -> i2 b "sqrtps" arg1 arg2
+  | RSQRTPS (arg1, arg2) -> i2 b "rsqrtps" arg1 arg2
+  | MOVHLPS (arg1, arg2) -> i2 b "movhlps" arg1 arg2
+  | MOVLHPS (arg1, arg2) -> i2 b "movlhps" arg1 arg2
+  | UNPCKHPS (arg1, arg2) -> i2 b "unpckhps" arg1 arg2
+  | UNPCKLPS (arg1, arg2) -> i2 b "unpcklps" arg1 arg2
+  | XORPS (arg1, arg2) -> i2 b "xorps" arg1 arg2
 
 (* bug:
    https://sourceware.org/binutils/docs-2.22/as/i386_002dBugs.html#i386_002dBugs

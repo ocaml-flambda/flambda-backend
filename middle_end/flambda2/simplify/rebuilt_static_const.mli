@@ -60,8 +60,9 @@ val create_boxed_nativeint :
   Are_rebuilding_terms.t -> Targetint_32_64.t Or_variable.t -> t
 
 val create_boxed_vec128 :
+  Vector_types.Vec128.t ->
   Are_rebuilding_terms.t ->
-  Numeric_types.Vec128_by_bit_pattern.t Or_variable.t ->
+  Vector_types.Vec128.Bit_pattern.t Or_variable.t ->
   t
 
 val create_immutable_float_block :

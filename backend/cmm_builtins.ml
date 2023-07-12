@@ -191,6 +191,100 @@ let bigstring_atomic_add size (arg1, arg2, arg3) dbg =
 let bigstring_atomic_sub size (arg1, arg2, arg3) dbg =
   bigstring_atomic_add size (arg1, arg2, neg_int arg3 dbg) dbg
 
+let transl_vec128_cast name args dbg typ_res =
+  match name with
+  | "caml_int64x2_of_int32x4" ->
+    let op = Cvectorcast (Bits128 { to_ = Int64x2; from = Int32x4 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int64x2_of_int16x8" ->
+    let op = Cvectorcast (Bits128 { to_ = Int64x2; from = Int16x8 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int64x2_of_int8x16" ->
+    let op = Cvectorcast (Bits128 { to_ = Int64x2; from = Int8x16 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int64x2_of_float32x4" ->
+    let op = Cvectorcast (Bits128 { to_ = Int64x2; from = Float32x4 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int64x2_of_float64x2" ->
+    let op = Cvectorcast (Bits128 { to_ = Int64x2; from = Float64x2 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int32x4_of_int64x2" ->
+    let op = Cvectorcast (Bits128 { to_ = Int32x4; from = Int64x2 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int32x4_of_int16x8" ->
+    let op = Cvectorcast (Bits128 { to_ = Int32x4; from = Int16x8 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int32x4_of_int8x16" ->
+    let op = Cvectorcast (Bits128 { to_ = Int32x4; from = Int8x16 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int32x4_of_float32x4" ->
+    let op = Cvectorcast (Bits128 { to_ = Int32x4; from = Float32x4 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int32x4_of_float64x2" ->
+    let op = Cvectorcast (Bits128 { to_ = Int32x4; from = Float64x2 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int16x8_of_int64x2" ->
+    let op = Cvectorcast (Bits128 { to_ = Int16x8; from = Int64x2 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int16x8_of_int32x4" ->
+    let op = Cvectorcast (Bits128 { to_ = Int16x8; from = Int32x4 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int16x8_of_int8x16" ->
+    let op = Cvectorcast (Bits128 { to_ = Int16x8; from = Int8x16 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int16x8_of_float32x4" ->
+    let op = Cvectorcast (Bits128 { to_ = Int16x8; from = Float32x4 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int16x8_of_float64x2" ->
+    let op = Cvectorcast (Bits128 { to_ = Int16x8; from = Float64x2 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int8x16_of_int64x2" ->
+    let op = Cvectorcast (Bits128 { to_ = Int8x16; from = Int64x2 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int8x16_of_int16x8" ->
+    let op = Cvectorcast (Bits128 { to_ = Int8x16; from = Int16x8 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int8x16_of_int32x4" ->
+    let op = Cvectorcast (Bits128 { to_ = Int8x16; from = Int32x4 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int8x16_of_float32x4" ->
+    let op = Cvectorcast (Bits128 { to_ = Int8x16; from = Float32x4 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_int8x16_of_float64x2" ->
+    let op = Cvectorcast (Bits128 { to_ = Int8x16; from = Float64x2 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float32x4_of_int64x2" ->
+    let op = Cvectorcast (Bits128 { to_ = Float32x4; from = Int64x2 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float32x4_of_int16x8" ->
+    let op = Cvectorcast (Bits128 { to_ = Float32x4; from = Int16x8 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float32x4_of_int8x16" ->
+    let op = Cvectorcast (Bits128 { to_ = Float32x4; from = Int8x16 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float32x4_of_int32x4" ->
+    let op = Cvectorcast (Bits128 { to_ = Float32x4; from = Int32x4 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float32x4_of_float64x2" ->
+    let op = Cvectorcast (Bits128 { to_ = Float32x4; from = Float64x2 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float64x2_of_int64x2" ->
+    let op = Cvectorcast (Bits128 { to_ = Float64x2; from = Int64x2 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float64x2_of_int16x8" ->
+    let op = Cvectorcast (Bits128 { to_ = Float64x2; from = Int16x8 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float64x2_of_int8x16" ->
+    let op = Cvectorcast (Bits128 { to_ = Float64x2; from = Int8x16 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float64x2_of_float32x4" ->
+    let op = Cvectorcast (Bits128 { to_ = Float64x2; from = Float32x4 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float64x2_of_int32x4" ->
+    let op = Cvectorcast (Bits128 { to_ = Float64x2; from = Int32x4 }) in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | _ -> None
+
 (** [transl_builtin prim args dbg] returns None if the built-in [prim] is not
   supported, otherwise it constructs and returns the corresponding Cmm
   expression.
@@ -521,7 +615,7 @@ let transl_builtin name args dbg typ_res =
     bigstring_cas Sixtyfour (four_args name args) dbg
   | "caml_bigstring_compare_and_swap_int32_unboxed" ->
     bigstring_cas Thirtytwo (four_args name args) dbg
-  | _ -> None
+  | _ -> transl_vec128_cast name args dbg typ_res
 
 let transl_effects (e : Primitive.effects) : Cmm.effects =
   match e with

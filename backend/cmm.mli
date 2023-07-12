@@ -184,7 +184,16 @@ type memory_chunk =
   | Onetwentyeight                     (* word-aligned 128-bit vector
                                           CR mslater: (SIMD) alignment *)
 
-and operation =
+type vector_cast =
+  | Bits128 of { from : Lambda.vec128_type ; to_ : Lambda.vec128_type }
+
+type scalar_cast =
+  | Float_to_v128
+  | Float_to_v128_as_32
+  | V128_to_float
+  | V128_as_32_to_float
+
+type operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of
       { func: string;
@@ -219,6 +228,8 @@ and operation =
   | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat
   | Cvalueofint | Cintofvalue
+  | Cvectorcast of vector_cast
+  | Cscalarcast of scalar_cast
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound (* Takes two arguments : first the bound to check against,

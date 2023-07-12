@@ -131,7 +131,7 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
                 ( Unique_tag_and_size _ | Variant _ | Closure_single_entry _
                 | Number
                     ( ( Naked_float | Naked_int32 | Naked_int64
-                      | Naked_nativeint | Naked_vec128 ),
+                      | Naked_nativeint | Naked_vector _ ),
                       _ ) );
             is_int = _
           } ->
@@ -196,8 +196,11 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
     in
     denv_of_number_decision K.naked_nativeint shape param_var naked_nativeint
       denv
-  | Unbox (Number (Naked_vec128, { param = naked_vec128; args = _ })) ->
+  | Unbox
+      (Number (Naked_vector (Vec128 ty), { param = naked_vec128; args = _ })) ->
     let shape =
-      T.boxed_vec128_alias_to ~naked_vec128 (Alloc_mode.For_types.unknown ())
+      T.boxed_vec128_alias_to ty ~naked_vec128 (Alloc_mode.For_types.unknown ())
     in
-    denv_of_number_decision K.naked_vec128 shape param_var naked_vec128 denv
+    denv_of_number_decision
+      (K.naked_vector (Vec128 ty))
+      shape param_var naked_vec128 denv

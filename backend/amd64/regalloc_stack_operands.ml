@@ -155,9 +155,17 @@ let binary_operation
 let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   begin match instr.desc with
   | Op (Addf | Subf | Mulf | Divf)
-  | Op (Specific (Ifloat_min | Ifloat_max | Icrc32q)) ->
+  | Op (Specific (Ifloat_min | Ifloat_max)) ->
     may_use_stack_operand_for_second_argument map instr
-  | Op (Floatofint | Intoffloat) ->
+  | Op (Specific (Isimd op)) -> 
+    (match Simd_selection.register_behavior op with 
+    | {arg0 = Reg; arg1 = Reg; ret = Fst} -> 
+      May_still_have_spilled_registers
+    | {arg0 = Reg; arg1 = (Reg_or_amem | Reg_or_umem); ret = Fst} -> 
+      may_use_stack_operand_for_second_argument map instr
+    | {arg0 = (Reg_or_amem|Reg_or_umem); _} -> 
+      Misc.fatal_error "Bad register behavior for SIMD operation")
+  | Op (Floatofint | Intoffloat | Vectorcast _ | Scalarcast _) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
   | Op (Const_symbol _) ->
     if !Clflags.pic_code || !Clflags.dlcode || Arch.win64 then

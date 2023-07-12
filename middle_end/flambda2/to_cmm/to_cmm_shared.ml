@@ -36,7 +36,7 @@ let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
     match Targetint_32_64.num_bits with
     | Thirty_two -> XInt32
     | Sixty_four -> XInt64)
-  | Naked_number Naked_vec128 -> XVec128
+  | Naked_number (Naked_vector (Vec128 _)) -> XVec128
   | Region -> Misc.fatal_error "[Region] kind not expected here"
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
 
@@ -46,12 +46,12 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     match Flambda_kind.With_subkind.subkind kind with
     | Tagged_immediate -> Cmm.typ_int
     | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-    | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
+    | Boxed_vector _ | Variant _ | Float_block _ | Float_array | Immediate_array
     | Value_array | Generic_array ->
       Cmm.typ_val)
   | Naked_number Naked_float -> Cmm.typ_float
   | Naked_number Naked_int64 -> typ_int64
-  | Naked_number Naked_vec128 -> Cmm.typ_vec128
+  | Naked_number (Naked_vector (Vec128 _)) -> Cmm.typ_vec128
   | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) ->
     Cmm.typ_int
   | Region | Rec_info -> assert false
@@ -62,12 +62,12 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     match Flambda_kind.With_subkind.subkind kind with
     | Tagged_immediate -> Extended_machtype.typ_tagged_int
     | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-    | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
+    | Boxed_vector _ | Variant _ | Float_block _ | Float_array | Immediate_array
     | Value_array | Generic_array ->
       Extended_machtype.typ_val)
   | Naked_number Naked_float -> Extended_machtype.typ_float
   | Naked_number Naked_int64 -> Extended_machtype.typ_int64
-  | Naked_number Naked_vec128 -> Extended_machtype.typ_vec128
+  | Naked_number (Naked_vector (Vec128 _)) -> Extended_machtype.typ_vec128
   | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) ->
     Extended_machtype.typ_any_int
   | Region | Rec_info -> assert false
@@ -79,14 +79,14 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     match Flambda_kind.With_subkind.subkind kind with
     | Tagged_immediate -> Word_int
     | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-    | Boxed_vec128 | Variant _ | Float_block _ | Float_array | Immediate_array
+    | Boxed_vector _ | Variant _ | Float_block _ | Float_array | Immediate_array
     | Value_array | Generic_array ->
       Word_val)
   | Naked_number (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate)
     ->
     Word_int
   | Naked_number Naked_float -> Double
-  | Naked_number Naked_vec128 -> Onetwentyeight
+  | Naked_number (Naked_vector (Vec128 _)) -> Onetwentyeight
   | Region | Rec_info ->
     Misc.fatal_errorf "Bad kind %a for [memory_chunk_of_kind]"
       Flambda_kind.With_subkind.print kind
@@ -135,9 +135,9 @@ let const ~dbg cst =
   | Naked_float f -> float ~dbg (Numeric_types.Float_by_bit_pattern.to_float f)
   | Naked_int32 i -> int32 ~dbg i
   | Naked_int64 i -> int64 ~dbg i
-  | Naked_vec128 i ->
-    let { Numeric_types.Vec128_by_bit_pattern.high; low } =
-      Numeric_types.Vec128_by_bit_pattern.to_bits i
+  | Naked_vec128 (_ty, i) ->
+    let { Vector_types.Vec128.Bit_pattern.high; low } =
+      Vector_types.Vec128.Bit_pattern.to_bits i
     in
     vec128 ~dbg { high; low }
   | Naked_nativeint t -> targetint ~dbg t
@@ -175,9 +175,9 @@ let const_static cst =
   (* We don't compile flambda-backend in 32-bit mode, so nativeint is 64
      bits. *)
   | Naked_int64 i -> [cint (Int64.to_nativeint i)]
-  | Naked_vec128 v ->
-    let { Numeric_types.Vec128_by_bit_pattern.high; low } =
-      Numeric_types.Vec128_by_bit_pattern.to_bits v
+  | Naked_vec128 (_ty, v) ->
+    let { Vector_types.Vec128.Bit_pattern.high; low } =
+      Vector_types.Vec128.Bit_pattern.to_bits v
     in
     [cvec128 { high; low }]
   | Naked_nativeint t -> [cint (nativeint_of_targetint t)]

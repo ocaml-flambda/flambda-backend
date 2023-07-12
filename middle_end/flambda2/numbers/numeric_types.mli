@@ -134,21 +134,3 @@ module Int64 : sig
 
   val cross_product : Set.t -> Set.t -> Pair.Set.t
 end
-
-module Vec128_by_bit_pattern : sig
-  (** 128-bit value whose comparison and equality relations are lexicographically
-      ordered by bit pattern. *)
-
-  include Container_types.S
-
-  val zero : t
-
-  type bits =
-    { high : int64;
-      low : int64
-    }
-
-  val to_bits : t -> bits
-
-  val of_bits : bits -> t
-end

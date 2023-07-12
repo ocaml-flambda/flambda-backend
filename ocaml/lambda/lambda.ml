@@ -291,8 +291,16 @@ and array_set_kind =
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
+and vec128_type = Primitive.vec128_type =
+  | Int8x16
+  | Int16x8
+  | Int32x4
+  | Int64x2
+  | Float32x4
+  | Float64x2
+
 and boxed_vector = Primitive.boxed_vector =
-  | Pvec128
+  | Pvec128 of vec128_type
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -316,6 +324,8 @@ and raise_kind =
 let equal_boxed_integer = Primitive.equal_boxed_integer
 
 let equal_boxed_vector = Primitive.equal_boxed_vector
+
+let equal_vec128 = Primitive.equal_vec128
 
 let equal_primitive =
   (* Should be implemented like [equal_value_kind] of [equal_boxed_integer],
