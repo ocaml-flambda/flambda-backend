@@ -191,8 +191,13 @@ module Exp:
     val unreachable: ?loc:loc -> ?attrs:attrs -> unit -> expression
     
     val case: pattern -> ?guard:guard -> expression -> case
-    val guard: pattern:pattern option -> expression -> guard
     val binding_op: str -> pattern -> expression -> loc -> binding_op
+  end
+
+(** Guard patterns *)
+module Guard_pattern:
+  sig
+    val mk: loc:Location.t -> expression -> pattern -> guard_pattern
   end
 
 (** Value declarations *)

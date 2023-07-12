@@ -627,6 +627,13 @@ module E = struct
 
 end
 
+module GP = struct
+  let map sub ({ pgp_scrutinee; pgp_pattern; pgp_loc }) =
+    let pgp_scrutinee = sub.expr sub pgp_scrutinee in
+    let pgp_pattern = sub.pat sub pgp_pattern in
+    { pgp_scrutinee; pgp_pattern; pgp_loc }
+end
+
 module P = struct
   (* Patterns *)
 
@@ -912,7 +919,7 @@ let default_mapper =
 
     guard = (fun this -> function
       | Guard_predicate e -> Guard_predicate (this.expr this e)
-      | Guard_pattern (e, pat) -> Guard_pattern (this.expr this e, this.pat this pat));
+      | Guard_pattern gp -> Guard_pattern (GP.map this gp));
 
     location = (fun _this l -> l);
 

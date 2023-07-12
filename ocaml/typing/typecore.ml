@@ -802,6 +802,7 @@ type module_variable =
 type exhaustivity_constraint =
   | Any
   | Exhaustive
+  | Non_exhaustive
 
 (* Whether or not patterns of the form (module M) are accepted. (If they are,
    the idents will be created at the provided scope.) When module patterns are
@@ -2808,10 +2809,12 @@ let partial_pred ~lev ~splitting_mode ?(explode=0)
     set_state state env;
     None
 
-let check_partial ?(lev=get_current_level ()) env expected_ty loc cases =
+let check_partial ?(should_be_exhaustive=true) ?(lev=get_current_level ()) env
+      expected_ty loc cases =
   let explode = match cases with [_] -> 5 | _ -> 0 in
   let splitting_mode = Refine_or {inside_nonsplit_or = false} in
   Parmatch.check_partial
+    ~should_be_exhaustive
     (partial_pred ~lev ~splitting_mode ~explode env expected_ty)
     loc cases
 
@@ -6929,13 +6932,15 @@ and type_cases
             | None ->
                 let exp =
                   type_expect
-                    ?in_function ext_env emode pc_rhs (mk_expected ?explanation ty_res')
+                    ?in_function ext_env emode pc_rhs
+                    (mk_expected ?explanation ty_res')
                 in
                 None, exp
             | Some (Guard_predicate pred) ->
                 let exp =
                   type_expect
-                    ?in_function ext_env emode pc_rhs (mk_expected ?explanation ty_res')
+                    ?in_function ext_env emode pc_rhs
+                    (mk_expected ?explanation ty_res')
                 in
                 let guard =
                   Predicate
@@ -6944,18 +6949,20 @@ and type_cases
                       (mk_expected ~explanation:When_guard Predef.type_bool))
                 in
                 Some guard, exp
-            | Some (Guard_pattern (e, pat)) ->
+            | Some
+                (Guard_pattern 
+                  { pgp_scrutinee = e; pgp_pattern = pat; pgp_loc = loc }) ->
                 let { arg; sort; cases; partial = _ } =
                   type_match
                     e [ { pc_lhs = pat; pc_guard = None; pc_rhs } ] ext_env loc
-                    (* CR-soon rgodse: add exhaustivity variant Nonexhaustive, and enable
-                       warning for exhaustive matches in guard patterns *)
-                    Any (mk_expected ?explanation ty_res') emode
+                    Non_exhaustive (mk_expected ?explanation ty_res') emode
                 in
                 match cases with
                   | [ { c_lhs = pat ; c_guard = _ ; c_rhs = exp } ] ->
                     Some (Typedtree.Pattern (arg, sort, pat)), exp
-                  | _ -> Misc.fatal_error "One case transformed into 0 or multiple cases."
+                  | _ ->
+                      Misc.fatal_error
+                        "One case transformed into 0 or multiple cases."
         in
         {
          c_lhs = pat;
@@ -6993,6 +7000,8 @@ and type_cases
   let partial = match exhaustivity with
     | Any -> Partial
     | Exhaustive -> check_partial ~lev env ty_arg_check loc val_cases
+    | Non_exhaustive ->
+        check_partial ~should_be_exhaustive:false ~lev env ty_arg_check loc val_cases
   in
   let unused_check delayed =
     List.iter (fun { typed_pat; branch_env; _ } ->

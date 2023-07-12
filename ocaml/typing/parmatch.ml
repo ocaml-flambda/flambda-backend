@@ -1966,7 +1966,7 @@ let typecheck ~pred p =
   let (pattern,constrs,labels) = Conv.conv p in
   pred constrs labels pattern
 
-let do_check_partial ~pred loc casel pss = match pss with
+let do_check_partial ~should_be_exhaustive ~pred loc casel pss = match pss with
 | [] ->
         (*
           This can occur
@@ -1988,9 +1988,12 @@ let do_check_partial ~pred loc casel pss = match pss with
       exhaust None pss (List.length ps)
       |> Seq.filter_map (typecheck ~pred) in
     match counter_examples () with
-    | Seq.Nil -> Total
+    | Seq.Nil ->
+        if not should_be_exhaustive && Warnings.is_active (Warnings.Exhaustive_match)
+        then Location.prerr_warning loc (Warnings.Exhaustive_match);
+        Total
     | Seq.Cons (v, _rest) ->
-      if Warnings.is_active (Warnings.Partial_match "") then begin
+      if should_be_exhaustive && Warnings.is_active (Warnings.Partial_match "") then begin
         let errmsg =
           try
             let buf = Buffer.create 16 in
@@ -2209,10 +2212,10 @@ let inactive ~partial pat =
    on exhaustive matches only.
 *)
 
-let check_partial pred loc casel =
+let check_partial ?(should_be_exhaustive = true) pred loc casel =
   let pss = initial_matrix casel in
   let pss = get_mins le_pats pss in
-  let total = do_check_partial ~pred loc casel pss in
+  let total = do_check_partial ~should_be_exhaustive ~pred loc casel pss in
   if
     total = Total && Warnings.is_active (Warnings.Fragile_match "")
   then begin

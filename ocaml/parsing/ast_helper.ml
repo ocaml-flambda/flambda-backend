@@ -226,11 +226,6 @@ module Exp = struct
      pc_guard = guard;
      pc_rhs = rhs;
     }
-  
-  let guard ~pattern expr =
-    match pattern with
-    | None -> Guard_predicate expr
-    | Some pattern -> Guard_pattern (expr, pattern)
 
   let binding_op op pat exp loc =
     {
@@ -239,6 +234,13 @@ module Exp = struct
       pbop_exp = exp;
       pbop_loc = loc;
     }
+end
+
+module Guard_pattern = struct
+  let mk ~loc pgp_scrutinee pgp_pattern =
+    {pgp_scrutinee;
+     pgp_pattern;
+     pgp_loc = loc}
 end
 
 module Mty = struct

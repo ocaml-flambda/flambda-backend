@@ -588,6 +588,14 @@ module P = struct
 
 end
 
+module GP = struct
+  (* Guards *)
+  let iter sub { pgp_scrutinee; pgp_pattern; pgp_loc } =
+    sub.location sub pgp_loc;
+    sub.expr sub pgp_scrutinee;
+    sub.pat sub pgp_pattern
+end
+
 module CE = struct
   (* Value expressions for the class language *)
 
@@ -794,9 +802,10 @@ let default_iterator =
          iter_opt (this.guard this) pc_guard;
          this.expr this pc_rhs
       );
+
     guard = (fun this -> function
       | Guard_predicate e -> this.expr this e
-      | Guard_pattern (e, pat) -> this.expr this e; this.pat this pat);
+      | Guard_pattern gp -> GP.iter this gp);
 
     location = (fun _this _l -> ());
 

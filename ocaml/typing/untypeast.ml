@@ -413,7 +413,12 @@ let exp_extra sub (extra, loc, attrs) sexp =
 
 let guard sub = function 
   | Predicate p -> Guard_predicate (sub.expr sub p)
-  | Pattern (e, _, pat) -> Guard_pattern (sub.expr sub e, sub.pat sub pat)
+  | Pattern (e, _, pat) ->
+      Guard_pattern {
+        pgp_scrutinee = sub.expr sub e;
+        pgp_pattern = sub.pat sub pat;
+        pgp_loc = Location.none
+      }
 
 let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_guard; c_rhs} ->
   {

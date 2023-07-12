@@ -3030,14 +3030,17 @@ match_case:
       { Exp.case $1 $3 }
   | pattern WHEN seq_expr MINUSGREATER seq_expr
       { Exp.case $1 ~guard:(Guard_predicate $3) $5 }
-  /* CR-soon rgodse: We should consider whether to also allow seq_expr, as this also 
-     parses without conflict.
+  /* CR-soon rgodse: We should consider whether to also allow seq_expr, as this
+     also parses without conflict.
 
-     nroberts prefers exp, so that e1; e2 match p parses as e1; (e2 match p), if and
-     when `e match p` is introduced as an expression
+     nroberts prefers expr, so that e1; e2 match p parses as e1; (e2 match p),
+     if and when `e match p` is introduced as an expression
   */
   | pattern WHEN expr MATCH pattern MINUSGREATER seq_expr
-      { Exp.case $1 ~guard:(Guard_pattern ($3, $5)) $7 }
+      { let guard_pattern =
+          Guard_pattern.mk ~loc:(make_loc ($startpos($2), $endpos($5))) $3 $5
+        in
+        Exp.case $1 ~guard:(Guard_pattern guard_pattern) $7 }
   | pattern MINUSGREATER DOT
       { Exp.case $1 (Exp.unreachable ~loc:(make_loc $loc($3)) ()) }
 ;
