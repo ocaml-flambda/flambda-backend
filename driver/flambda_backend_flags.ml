@@ -336,7 +336,8 @@ let set_oclassic () =
   if Clflags.is_flambda2 () then begin
     Flambda2.Inlining.use_inlining_arguments_set
       Flambda2.Inlining.oclassic_arguments;
-    opt_level := Set Oclassic
+    opt_level := Set Oclassic;
+    Clflags.classic_inlining := true
   end else begin
     Clflags.Opt_flag_handler.default.set_oclassic ();
   end
