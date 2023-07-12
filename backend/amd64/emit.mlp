@@ -718,13 +718,16 @@ let emit_global_label s =
 let move (src : Reg.t) (dst : Reg.t) =
   if src.loc <> dst.loc then
     begin match src.typ, src.loc, dst.typ, dst.loc with
-    | (Float | Vec128), Reg.Reg _, (Float | Vec128), Reg.Reg _ ->
-      I.movapd (reg src) (reg dst)
+    | Float, Reg.Reg _, Float, Reg.Reg _
     | Vec128, _, Vec128, _ ->
-      I.movupd (reg src) (reg dst)
+      (* Vec128 stack slots are always aligned. *)
+      I.movapd (reg src) (reg dst)
     | Float, _, Float, _ ->
       I.movsd (reg src) (reg dst)
     | Float, _, Int, _ | Int, _, Float, _ ->
+      (* CR-soon gyorsh: this case is used by the bits_of_float/float_of_bits intrinsics.
+         They should instead generate a separate Ispecific and this case should be
+         removed. *)
       I.movq (reg src) (reg dst)
     | (Int | Val | Addr), _, (Int | Val | Addr), _ ->
       I.mov (reg src) (reg dst)
