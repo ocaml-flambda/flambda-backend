@@ -4565,7 +4565,8 @@ and type_expect_
         exp_env = env }
   | Pexp_match(sarg, caselist) ->
     let { arg; sort; cases; partial } =
-      type_match sarg caselist env loc Exhaustive ty_expected_explained expected_mode in
+      type_match sarg caselist env loc Exhaustive ty_expected_explained expected_mode
+    in
     re {
       exp_desc = Texp_match(arg, sort, cases, partial);
       exp_loc = loc; exp_extra = [];
