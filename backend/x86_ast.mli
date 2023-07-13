@@ -182,8 +182,8 @@ type instruction =
   | XCHG of arg * arg
   | XOR of arg * arg
   | XORPD of arg * arg
-  | CMPPS of arg * arg * arg
-  | SHUFPS of arg * arg * arg
+  | CMPPS of int * arg * arg
+  | SHUFPS of int * arg * arg
   | ADDPS of arg * arg
   | SUBPS of arg * arg
   | MULPS of arg * arg

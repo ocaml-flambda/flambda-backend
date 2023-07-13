@@ -115,23 +115,17 @@ let i1_call_jmp b s = function
   | Sym x -> bprintf b "\t%s\t%s" s x
   | x -> i1 b s x
 
-let i2i b s x y z =
-  (match z with
-  | Imm i when i > 0L && i < 256L -> ()
-  | _ -> Misc.fatal_error "Got bad imm8 arg.");
-  i3 b s x y z
-
-let print_cmpps b x y z =
-  match z with
-  | Imm 0L -> i2 b "cmpeqps" x y
-  | Imm 1L -> i2 b "cmpltps" x y
-  | Imm 2L -> i2 b "cmpleps" x y
-  | Imm 3L -> i2 b "cmpunordps" x y
-  | Imm 4L -> i2 b "cmpneqps" x y
-  | Imm 5L -> i2 b "cmpnltps" x y
-  | Imm 6L -> i2 b "cmpnleps" x y
-  | Imm 7L -> i2 b "cmpordps" x y
-  | _ -> Misc.fatal_error "Got bad arg for cmpps."
+let print_cmpps b cmp x y =
+  match cmp with
+  | 0 -> i2 b "cmpeqps" x y
+  | 1 -> i2 b "cmpltps" x y
+  | 2 -> i2 b "cmpleps" x y
+  | 3 -> i2 b "cmpunordps" x y
+  | 4 -> i2 b "cmpneqps" x y
+  | 5 -> i2 b "cmpnltps" x y
+  | 6 -> i2 b "cmpnleps" x y
+  | 7 -> i2 b "cmpordps" x y
+  | _ -> Misc.fatal_error "Got bad immediate arg for cmpps."
 
 let print_instr b = function
   | ADD (arg1, arg2) -> i2 b "add" arg1 arg2
@@ -221,8 +215,8 @@ let print_instr b = function
   | XCHG (arg1, arg2) -> i2 b "xchg" arg1 arg2
   | XOR (arg1, arg2) -> i2 b "xor" arg1 arg2
   | XORPD (arg1, arg2) -> i2 b "xorpd" arg1 arg2
-  | CMPPS (arg1, arg2, arg3) -> print_cmpps b arg1 arg2 arg3
-  | SHUFPS (arg1, arg2, arg3) -> i2i b "shufps" arg1 arg2 arg3
+  | CMPPS (cmp, arg1, arg2) -> print_cmpps b cmp arg1 arg2
+  | SHUFPS (shuf, arg1, arg2) -> i3 b "shufps" arg1 arg2 (Imm (Int64.of_int shuf))
   | ADDPS (arg1, arg2) -> i2 b "addps" arg1 arg2
   | SUBPS (arg1, arg2) -> i2 b "subps" arg1 arg2
   | MULPS (arg1, arg2) -> i2 b "mulps" arg1 arg2

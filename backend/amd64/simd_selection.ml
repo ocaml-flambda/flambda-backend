@@ -41,10 +41,12 @@ let extract_constant args name =
 let shuffle_mask x y z w = (x lsl 6) lor (y lsl 4) lor (z lsl 2) lor w
 
 (* TODO: *)
-(* extend reg behavior for 0/1 arg instrs *)
+(* test min/max *)
+(* extend reg behavior for 1 arg instrs *)
+(* test shuffle ops *)
 (* add float64x2 ops *)
 (* add casts for int vectors *)
-(* add sse2/sse3/ssse3 ops *)
+(* add int ops *)
 
 let check_cmp_imm i =
   if i < 0 || i >= 8

@@ -845,6 +845,49 @@ let emit_MOV b dst src =
       Format.printf "src = %a@." print_old_arg src;
       assert false
 
+let emit_cmpps b cmp dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      emit_mod_rm_reg b 0 [ 0x0f; 0xC2 ] rm (rd_of_regf reg);
+      buf_int8 b cmp
+  | _ -> assert false
+
+let emit_addps b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      emit_mod_rm_reg b 0 [ 0x0f; 0x58 ] rm (rd_of_regf reg)
+  | _ -> assert false
+
+let emit_subps b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      emit_mod_rm_reg b 0 [ 0x0f; 0x5C ] rm (rd_of_regf reg)
+  | _ -> assert false
+
+let emit_mulps b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      emit_mod_rm_reg b 0 [ 0x0f; 0x59 ] rm (rd_of_regf reg)
+  | _ -> assert false
+
+let emit_divps b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      emit_mod_rm_reg b 0 [ 0x0f; 0x5E ] rm (rd_of_regf reg)
+  | _ -> assert false
+
+let emit_minps b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      emit_mod_rm_reg b 0 [ 0x0f; 0x5D ] rm (rd_of_regf reg)
+  | _ -> assert false
+
+let emit_maxps b dst src =
+  match (dst, src) with
+  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
+      emit_mod_rm_reg b 0 [ 0x0f; 0x5F ] rm (rd_of_regf reg)
+  | _ -> assert false
+
 type simple_encoding = {
   rm8_r8 : int list;
   rm64_r64 : int list;
@@ -1488,17 +1531,17 @@ let assemble_instr b loc = function
   | XCHG (src, dst) -> emit_XCHG b dst src
   | XOR (src, dst) -> emit_XOR b dst src
   | XORPD (src, dst) -> emit_xorpd b dst src
-  | CMPPS _
-  | SHUFPS _
-  | ADDPS _
-  | SUBPS _
-  | MULPS _
-  | DIVPS _
-  | MAXPS _
-  | MINPS _
+  | CMPPS (cmp, src, dst) -> emit_cmpps b cmp dst src
+  | ADDPS (src, dst) -> emit_addps b dst src
+  | SUBPS (src, dst) -> emit_subps b dst src
+  | MULPS (src, dst) -> emit_mulps b dst src
+  | DIVPS (src, dst) -> emit_divps b dst src
+  | MAXPS (src, dst) -> emit_maxps b dst src
+  | MINPS (src, dst) -> emit_minps b dst src
   | RCPPS _
   | SQRTPS _
   | RSQRTPS _
+  | SHUFPS _
   | MOVHLPS _
   | MOVLHPS _
   | UNPCKHPS _

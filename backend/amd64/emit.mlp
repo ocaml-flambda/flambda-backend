@@ -921,7 +921,7 @@ let emit_simd_instr op i =
   | {arg1 = Reg; _} -> assert (Reg.is_reg i.arg.(1))
   | _ -> ());
   match (op : Simd.operation) with
-  | SSE (Cmp_ps n) -> I.cmpps (arg i 1) (res i 0) (Imm (Int64.of_int n))
+  | SSE (Cmp_ps n) -> I.cmpps n (arg i 1) (res i 0)
   | SSE Add_ps -> I.addps (arg i 1) (res i 0)
   | SSE Sub_ps -> I.subps (arg i 1) (res i 0)
   | SSE Mul_ps -> I.mulps (arg i 1) (res i 0)
@@ -935,7 +935,7 @@ let emit_simd_instr op i =
   | SSE Move_low_to_high -> I.movlhps (arg i 1) (res i 0)
   | SSE Interleave_high -> I.unpckhps (arg i 1) (res i 0)
   | SSE Interleave_low -> I.unpcklps (arg i 1) (res i 0)
-  | SSE (Shuffle n) -> I.shufps (arg i 1) (res i 0) (Imm (Int64.of_int n))
+  | SSE (Shuffle n) -> I.shufps n (arg i 1) (res i 0)
   | SSE42 Crc32q -> I.crc32 (arg i 1) (res i 0)
   | _ -> .
 

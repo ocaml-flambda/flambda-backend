@@ -176,8 +176,8 @@ int32_t float32_neg_one(value unit) { return int32_of_float(-1.0f); }
 int32_t float32_nan(value unit) { return int32_of_float(NAN); }
 int32_t float32_neg_infinity(value unit) { return int32_of_float(-INFINITY); }
 int32_t float32_infinity(value unit) { return int32_of_float(INFINITY); }
-int32_t float32_max(value unit) { return int32_of_float(FLT_MAX); }
-int32_t float32_min(value unit) { return int32_of_float(FLT_MIN); }
+int32_t float32_maxv(value unit) { return int32_of_float(FLT_MAX); }
+int32_t float32_minv(value unit) { return int32_of_float(FLT_MIN); }
 value float32_eq(int32_t l, int32_t r) { return Val_bool(float_of_int32(l) == float_of_int32(r)); }
 value float32_lt(int32_t l, int32_t r) { return Val_bool(float_of_int32(l) < float_of_int32(r)); }
 value float32_le(int32_t l, int32_t r) { return Val_bool(float_of_int32(l) <= float_of_int32(r)); }
@@ -186,3 +186,19 @@ value float32_nle(int32_t l, int32_t r) { return Val_bool(!(float_of_int32(l) <=
 value float32_nlt(int32_t l, int32_t r) { return Val_bool(!(float_of_int32(l) < float_of_int32(r))); }
 value float32_ord(int32_t l, int32_t r) { return Val_bool(!(isnan(float_of_int32(l)) || isnan(float_of_int32(r)))); }
 value float32_uord(int32_t l, int32_t r) { return Val_bool(isnan(float_of_int32(l)) || isnan(float_of_int32(r))); }
+int32_t float32_add(int32_t l, int32_t r) { return int32_of_float(float_of_int32(l) + float_of_int32(r)); }
+int32_t float32_sub(int32_t l, int32_t r) { return int32_of_float(float_of_int32(l) - float_of_int32(r)); }
+int32_t float32_mul(int32_t l, int32_t r) { return int32_of_float(float_of_int32(l) * float_of_int32(r)); }
+int32_t float32_div(int32_t l, int32_t r) { return int32_of_float(float_of_int32(l) / float_of_int32(r)); }
+int32_t float32_min(int32_t l, int32_t r) {
+  float fl = float_of_int32(l);
+  float fr = float_of_int32(r);
+  if(isnan(fl) || isnan(fr)) return r;
+  return int32_of_float(fl < fr ? fl : fr);
+}
+int32_t float32_max(int32_t l, int32_t r) {
+  float fl = float_of_int32(l);
+  float fr = float_of_int32(r);
+  if(isnan(fl) || isnan(fr)) return r;
+  return int32_of_float(fl > fr ? fl : fr);
+}

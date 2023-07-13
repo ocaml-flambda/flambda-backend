@@ -189,8 +189,8 @@ module I : sig
 
   (* SSE instructions *)
 
-  val cmpps: arg -> arg -> arg -> unit
-  val shufps: arg -> arg -> arg -> unit
+  val cmpps: int -> arg -> arg -> unit
+  val shufps: int -> arg -> arg -> unit
   val addps: arg -> arg -> unit
   val subps: arg -> arg -> unit
   val mulps: arg -> arg -> unit

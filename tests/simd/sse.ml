@@ -280,8 +280,8 @@ module Float32 = struct
     external nan : unit -> (t [@unboxed]) = "" "float32_nan" [@@noalloc]
     external neg_infinity : unit -> (t [@unboxed]) = "" "float32_neg_infinity" [@@noalloc]
     external infinity : unit -> (t [@unboxed]) = "" "float32_infinity" [@@noalloc]
-    external max : unit -> (t [@unboxed]) = "" "float32_max" [@@noalloc]
-    external min : unit -> (t [@unboxed]) = "" "float32_min" [@@noalloc]
+    external maxv : unit -> (t [@unboxed]) = "" "float32_maxv" [@@noalloc]
+    external minv : unit -> (t [@unboxed]) = "" "float32_minv" [@@noalloc]
 
     let zero = zero ()
     let neg_zero = neg_zero ()
@@ -290,8 +290,8 @@ module Float32 = struct
     let neg_infinity = neg_infinity ()
     let infinity = infinity ()
     let neg_one = neg_one ()
-    let max = max ()
-    let min = min ()
+    let maxv = maxv ()
+    let minv = minv ()
 
     let to_float32x4 t0 t1 t2 t3 =
         let i0 = Int64.of_int32 t0 |> Int64.logand 0xffffffffL in
@@ -311,6 +311,13 @@ module Float32 = struct
     external nlt : (t [@unboxed]) -> (t [@unboxed]) -> bool = "" "float32_nlt" [@@noalloc]
     external ord : (t [@unboxed]) -> (t [@unboxed]) -> bool = "" "float32_ord" [@@noalloc]
     external uord : (t [@unboxed]) -> (t [@unboxed]) -> bool = "" "float32_uord" [@@noalloc]
+
+    external add : (t [@unboxed]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "float32_add" [@@noalloc]
+    external sub : (t [@unboxed]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "float32_sub" [@@noalloc]
+    external mul : (t [@unboxed]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "float32_mul" [@@noalloc]
+    external div : (t [@unboxed]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "float32_div" [@@noalloc]
+    external min : (t [@unboxed]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "float32_min" [@@noalloc]
+    external max : (t [@unboxed]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "float32_max" [@@noalloc]
 end
 
 module Float32x4 = struct
@@ -374,64 +381,56 @@ module Float32x4 = struct
 
     (* Math *)
 
+    let test_on_floats f =
+        f Float32.zero Float32.zero;
+        f Float32.zero Float32.one;
+        f Float32.one Float32.one;
+        f Float32.zero Float32.neg_one;
+        f Float32.neg_one Float32.neg_one;
+        f Float32.one Float32.neg_one;
+        f Float32.zero Float32.neg_zero;
+        f Float32.nan Float32.zero;
+        f Float32.infinity Float32.zero;
+        f Float32.neg_infinity Float32.zero;
+        f Float32.nan Float32.nan;
+        f Float32.infinity Float32.infinity;
+        f Float32.neg_infinity Float32.neg_infinity;
+        f Float32.neg_infinity Float32.infinity;
+        f Float32.infinity Float32.nan;
+        f Float32.neg_infinity Float32.nan;
+        f Float32.maxv Float32.infinity;
+        f Float32.maxv Float32.neg_infinity;
+        f Float32.minv Float32.infinity;
+        f Float32.minv Float32.neg_infinity;
+        f Float32.maxv Float32.maxv;
+        f Float32.minv Float32.minv;
+        f Float32.maxv Float32.minv
+    ;;
+
     external cmp : int -> (t [@unboxed]) -> (t [@unboxed]) -> (int32x4 [@unboxed]) = "" "caml_sse_float32x4_cmp"
         [@@noalloc] [@@builtin]
 
-    let () =
-        let test_cmp f0 f1 =
-            let mask op =
-                let low = if op f0 f1 then 0xffffffffL else 0L in
-                let high = if op f1 f0 then 0xffffffff00000000L else 0L in
-                Int64.logor low high
-            in
-            let v1 = Float32.to_float32x4 f0 f1 f0 f1 in
-            let v2 = Float32.to_float32x4 f1 f0 f1 f0 in
-            let _eq = cmp 0 v1 v2 in
-            let lt = cmp 1 v1 v2 in
-            let le = cmp 2 v1 v2 in
-            let uord = cmp 3 v1 v2 in
-            let neq = cmp 4 v1 v2 in
-            let nlt = cmp 5 v1 v2 in
-            let nle = cmp 6 v1 v2 in
-            let ord = cmp 7 v1 v2 in
-            let __eq = mask Float32.eq in
-            let _lt = mask Float32.lt in
-            let _le = mask Float32.le in
-            let _uord = mask Float32.uord in
-            let _neq = mask Float32.neq in
-            let _nlt = mask Float32.nlt in
-            let _nle = mask Float32.nle in
-            let _ord = mask Float32.ord in
-            eq (int32x4_low_int64 _eq) (int32x4_high_int64 _eq) __eq __eq;
-            eq (int32x4_low_int64 lt) (int32x4_high_int64 lt) _lt _lt;
-            eq (int32x4_low_int64 le) (int32x4_high_int64 le) _le _le;
-            eq (int32x4_low_int64 uord) (int32x4_high_int64 uord) _uord _uord;
-            eq (int32x4_low_int64 neq) (int32x4_high_int64 neq) _neq _neq;
-            eq (int32x4_low_int64 nlt) (int32x4_high_int64 nlt) _nlt _nlt;
-            eq (int32x4_low_int64 nle) (int32x4_high_int64 nle) _nle _nle;
-            eq (int32x4_low_int64 ord) (int32x4_high_int64 ord) _ord _ord
+    let test_cmp scalar vector f0 f1 =
+        let expect =
+            let r0 = if scalar f0 f1 then 0xffffffffl else 0l in
+            let r1 = if scalar f1 f0 then 0xffffffffl else 0l in
+            Float32.to_float32x4 r0 r1 r0 r1 |> Vector_casts.int32x4_of_float32x4
         in
-        test_cmp Float32.zero Float32.zero;
-        test_cmp Float32.zero Float32.one;
-        test_cmp Float32.zero Float32.neg_one;
-        test_cmp Float32.one Float32.neg_one;
-        test_cmp Float32.zero Float32.neg_zero;
-        test_cmp Float32.nan Float32.zero;
-        test_cmp Float32.infinity Float32.zero;
-        test_cmp Float32.neg_infinity Float32.zero;
-        test_cmp Float32.nan Float32.nan;
-        test_cmp Float32.infinity Float32.infinity;
-        test_cmp Float32.neg_infinity Float32.neg_infinity;
-        test_cmp Float32.neg_infinity Float32.infinity;
-        test_cmp Float32.infinity Float32.nan;
-        test_cmp Float32.neg_infinity Float32.nan;
-        test_cmp Float32.max Float32.infinity;
-        test_cmp Float32.max Float32.neg_infinity;
-        test_cmp Float32.min Float32.infinity;
-        test_cmp Float32.min Float32.neg_infinity;
-        test_cmp Float32.max Float32.max;
-        test_cmp Float32.min Float32.min;
-        test_cmp Float32.max Float32.min
+        let v1 = Float32.to_float32x4 f0 f1 f0 f1 in
+        let v2 = Float32.to_float32x4 f1 f0 f1 f0 in
+        let result = vector v1 v2 in
+        eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+           (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+    ;;
+    let () =
+        test_on_floats (test_cmp Float32.eq (fun l r -> cmp 0 l r));
+        test_on_floats (test_cmp Float32.lt (fun l r -> cmp 1 l r));
+        test_on_floats (test_cmp Float32.le (fun l r -> cmp 2 l r));
+        test_on_floats (test_cmp Float32.uord (fun l r -> cmp 3 l r));
+        test_on_floats (test_cmp Float32.neq (fun l r -> cmp 4 l r));
+        test_on_floats (test_cmp Float32.nlt (fun l r -> cmp 5 l r));
+        test_on_floats (test_cmp Float32.nle (fun l r -> cmp 6 l r));
+        test_on_floats (test_cmp Float32.ord (fun l r -> cmp 7 l r))
     ;;
 
     external add : t -> t -> t = "" "caml_sse_float32x4_add"
@@ -443,10 +442,32 @@ module Float32x4 = struct
     external div : t -> t -> t = "" "caml_sse_float32x4_div"
         [@@noalloc] [@@unboxed] [@@builtin]
 
+    (* NOTE(max): these will need wrappers to have expected nan behavior *)
     external max : t -> t -> t = "" "caml_sse_float32x4_max"
         [@@noalloc] [@@unboxed] [@@builtin]
     external min : t -> t -> t = "" "caml_sse_float32x4_min"
         [@@noalloc] [@@unboxed] [@@builtin]
+
+    let test_binop scalar vector f0 f1 =
+        let expect =
+            let r0 = scalar f0 f1 in
+            let r1 = scalar f1 f0 in
+            Float32.to_float32x4 r0 r1 r0 r1
+        in
+        let v1 = Float32.to_float32x4 f0 f1 f0 f1 in
+        let v2 = Float32.to_float32x4 f1 f0 f1 f0 in
+        let result = vector v1 v2 in
+        eq (float32x4_low_int64 result) (float32x4_high_int64 result)
+           (float32x4_low_int64 expect) (float32x4_high_int64 expect)
+    ;;
+    let () =
+        test_on_floats (test_binop Float32.add add);
+        test_on_floats (test_binop Float32.sub sub);
+        test_on_floats (test_binop Float32.mul mul);
+        test_on_floats (test_binop Float32.div div);
+        test_on_floats (test_binop Float32.max max);
+        test_on_floats (test_binop Float32.min min)
+    ;;
 
     external rcp : t -> t = "" "caml_sse_float32x4_rcp"
         [@@noalloc] [@@unboxed] [@@builtin]
