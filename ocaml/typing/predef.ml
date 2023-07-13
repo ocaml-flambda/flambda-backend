@@ -261,30 +261,22 @@ let common_initial_env add_type add_extension empty_env =
            [| [| |]; [| Layout.value ~why:Type_argument |] |])
        ~layout:(Layout.value ~why:Boxed_variant)
   |> add_type ident_position ~kind:(
-        let lbls = {
-          ld_id=Ident.create_predef "pos_fname";
+      let lbl (field, field_type) = 
+        let id = Ident.create_predef field in 
+          {
+          ld_id=id;
           ld_mutable=Immutable;
           ld_global=Unrestricted;
-          ld_type= type_string;
+          ld_type= field_type;
           ld_layout= Layout.value ~why:(Primitive ident_string);
-
-          (* TODO *)
-          ld_loc: Location.t;
-          ld_attributes: Parsetree.attributes;
-          ld_uid: Uid.t;
+          ld_loc= Location.none;
+          ld_attributes=[];
+          ld_uid=Uid.of_predef_id id;
         }
-       in 
-    Type_record (lbllist, recordrep)
-
-
-    (*type position = {
-      pos_fname : string;
-      pos_lnum : int;
-      pos_bol : int;
-      pos_cnum : int;
-    }*)
-
-  )
+      in 
+      let lbllist = List.map lbl [("pos_fname", type_string); ("pos_lnum", type_int); ("pos_bol", type_int) ; ("pos_cnum", type_int) ] in 
+      Type_record (lbllist, (Record_boxed [|Layout.value ~why:Boxed_record|]))
+    )
   |> add_type ident_string
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
