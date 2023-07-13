@@ -5723,16 +5723,16 @@ and type_expect_
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
 
-(* [type_match] typechecks a parsed match expression and returns the typed
-   match components in wrapped in a value of type [match_info]
+(* [type_match] typechecks a match-like construct, such as a Pexp_match or
+    pattern guard. See the comments on [match_info] for the meaning of the
+    returned type.
 
-   [sarg]: scrutinee of match, as parsed expression
-   [caselist]: list of parsed cases
-   [loc]: location of match expression
-   [partiality_constraint]: should partiality of the match be checked, and if
+   [sarg]: scrutinee to match against
+   [caselist]: list of cases to match
+   [loc]: location of the entire match-like construct
+   [partiality_constraint]: should partiality of the cases be checked, and if
     so, what is the desired result? of type [partiality_constraint]
-   [ty_expected_explained]: the expected type of the match, with explanation
-   [expected_mode]: the expected mode of the match
+   [ty_expected_explained], [expected_mode]: as in [type_expect]
  *)
 and type_match sarg caselist env loc partiality_constraint ty_expected_explained
                expected_mode =
