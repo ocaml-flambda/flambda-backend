@@ -3363,6 +3363,10 @@ let rec is_nonexpansive exp =
           | Tpat_exception _ -> true
           | _ -> false } pat
       in
+      let guard_contains_exception_pat = function
+        | Some (Guard_pattern (_, _, pat)) -> contains_exception_pat pat
+        | None | Guard_predicate _ -> false
+      in
       is_nonexpansive e &&
       List.for_all
         (fun {c_lhs; c_guard; c_rhs} ->
@@ -3371,6 +3375,7 @@ let rec is_nonexpansive exp =
              | Typedtree.Pattern (e, _, _) -> e) c_guard in
            is_nonexpansive_opt guard_exp && is_nonexpansive c_rhs
            && not (contains_exception_pat c_lhs)
+           && not (guard_contains_exception_pat c_guard)
         ) cases
   | Texp_probe {handler} -> is_nonexpansive handler
   | Texp_tuple (el, _) ->
