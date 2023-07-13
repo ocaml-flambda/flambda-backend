@@ -187,7 +187,6 @@ let foo x y = (x,y)
 
 let[@zero_alloc] test36 a i : int = a.(i)
 
-
 module Params = struct
   exception E
 
@@ -234,7 +233,7 @@ module Params = struct
   let[@zero_alloc] test11 s =
     Printf.eprintf "%d\n%!" s.b; raise E
 
-  let test12 ?(s= {a = 4; b = 5}) ~d () =
+  let[@zero_alloc off] test12 ?(s = {a = 4; b = 5}) ~d () =
     test11 s
 
   let[@zero_alloc] test13 () =
