@@ -375,7 +375,6 @@ module Annotation : sig
     Cmm.codegen_option list -> Cmm.property -> string -> Debuginfo.t -> t
 
   val expected_value : t -> Value.t
-
 end = struct
   (**
    ***************************************************************************
@@ -398,14 +397,13 @@ end = struct
   let expected_value t =
     match (t : t) with
     | Off -> Value.top Witnesses.empty
-    | On { strict; _ } ->
-      if strict then Value.safe else Value.relaxed
-    | Assume { strict; never_returns_normally; _ } ->
+    | On { strict; _ } -> if strict then Value.safe else Value.relaxed
+    | Assume { strict; never_returns_normally; _ } -> (
       match strict, never_returns_normally with
       | true, false -> Value.safe
       | false, false -> Value.relaxed
       | true, true -> Value.safe_never_returns_normally
-      | false, true -> Value.relaxed_never_returns_normally
+      | false, true -> Value.relaxed_never_returns_normally)
 
   let find codegen_options _spec fun_name dbg =
     let a =
@@ -413,8 +411,7 @@ end = struct
         (fun (c : Cmm.codegen_option) ->
           match c with
           | Check state -> Some state
-          | Reduce_code_size | No_CSE | Use_linscan_regalloc ->
-            None)
+          | Reduce_code_size | No_CSE | Use_linscan_regalloc -> None)
         codegen_options
     in
     match a with
@@ -512,8 +509,7 @@ module Unit_info : sig
   (** [cleanup_deps] remove resolved dependencies starting from [name]. *)
   val cleanup_deps : t -> string -> unit
 
-  val record_annotation :
-    t -> string -> Debuginfo.t -> Annotation.t -> unit
+  val record_annotation : t -> string -> Debuginfo.t -> Annotation.t -> unit
 
   val resolve_all : t -> unit
 
@@ -740,16 +736,15 @@ end = struct
         (Printcmm.property_to_string property)
         (if strict then " strict" else "")
         (fun_dbg
-         |> List.map (fun dbg ->
-           Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
-         |> String.concat ",")
+        |> List.map (fun dbg ->
+               Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
+        |> String.concat ",")
         fun_name
     in
     let w =
-      if opt then
-        Warnings.Check_failed_opt (info, sub)
-      else
-        Warnings.Check_failed (info, sub)
+      if opt
+      then Warnings.Check_failed_opt (info, sub)
+      else Warnings.Check_failed (info, sub)
     in
     Location.prerr_warning loc w
 
@@ -760,7 +755,7 @@ end = struct
       (match func_info.annotation with
       | None -> assert false
       | Some (Off | Assume _) -> ()
-      | Some (On { loc; strict; opt; } as a)  ->
+      | Some (On { loc; strict; opt } as a) ->
         Builtin_attributes.mark_property_checked analysis_name loc;
         let expected_value = Annotation.expected_value a in
         if not (Value.lessequal func_info.value expected_value)
@@ -1133,4 +1128,3 @@ let iter_witnesses f =
   Unit_info.iter unit_info ~f:(fun func_info ->
       f func_info.name
         (Value.get_witnesses func_info.value |> Witnesses.simplify))
-
