@@ -803,9 +803,9 @@ type module_variable =
     mv_uid: Uid.t
   }
 
-(* Constraint on the exhaustiveness of cases, used to determine which
-   exhaustiveness-related warnings to check for. *)
-type exhaustiveness_constraint =
+(* Constraint on the partiality of cases, used to determine which
+   partiality-related warnings to check for. *)
+type partiality_constraint =
   | Assume_partial
   | Check_and_warn_if_partial
   | Check_and_warn_if_total
@@ -5730,13 +5730,13 @@ and type_expect_
    [sarg]: scrutinee of match, as parsed expression
    [caselist]: list of parsed cases
    [loc]: location of match expression
-   [exhaustiveness_constraint]: should exhaustiveness be checked, and if so,
-    what is the desired result? of type [exhaustiveness_constraint]
+   [partiality_constraint]: should partiality of the match be checked, and if
+    so, what is the desired result? of type [partiality_constraint]
    [ty_expected_explained]: the expected type of the match, with explanation
    [expected_mode]: the expected mode of the match
  *)
-and type_match sarg caselist env loc exhaustiveness_constraint
-                ty_expected_explained expected_mode =
+and type_match sarg caselist env loc partiality_constraint ty_expected_explained
+               expected_mode =
   let arg_pat_mode, arg_expected_mode =
     match cases_tuple_arity caselist with
       | Not_local_tuple | Maybe_local_tuple ->
@@ -5758,7 +5758,7 @@ and type_match sarg caselist env loc exhaustiveness_constraint
   generalize arg.exp_type;
   let cases, partial =
     type_cases Computation env arg_pat_mode expected_mode
-      arg.exp_type ty_expected_explained exhaustiveness_constraint loc caselist
+      arg.exp_type ty_expected_explained partiality_constraint loc caselist
   in
   { arg;
     sort;
@@ -6808,7 +6808,7 @@ and type_cases
            ?in_function:_ -> _ -> _ -> _ -> _ -> _ -> _ -> _ -> Parsetree.case list ->
            k case list * partial
   = fun category ?in_function env pmode emode
-        ty_arg ty_res_explained exhaustiveness_constraint loc caselist ->
+        ty_arg ty_res_explained partiality_constraint loc caselist ->
   (* ty_arg is _fully_ generalized *)
   let { ty = ty_res; explanation } = ty_res_explained in
   let patterns = List.map (fun {pc_lhs=p} -> p) caselist in
@@ -7020,7 +7020,7 @@ and type_cases
       | Computation -> split_cases env cases in
   if val_cases = [] && exn_cases <> [] then
     raise (Error (loc, env, No_value_clauses));
-  let partial = match exhaustiveness_constraint with
+  let partial = match partiality_constraint with
     | Assume_partial -> Partial
     | Check_and_warn_if_partial ->
         check_partial ~lev env ty_arg_check loc val_cases
