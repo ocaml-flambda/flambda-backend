@@ -1214,7 +1214,7 @@ and case
            This judgement uses uses the one in [match_expression] as a
            "subroutine."
         *)
-        | Some (Pattern (e, _, pat)) ->
+        | Some (Pattern (e, _, pat, _)) ->
           let cases = [ { c_lhs = pat; c_guard = None; c_rhs } ] in
           match_expression e cases
       in

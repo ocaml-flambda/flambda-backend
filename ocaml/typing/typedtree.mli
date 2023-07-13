@@ -406,11 +406,13 @@ and 'k case =
    [Guard_pattern] *)
 and guard =
   | Predicate of expression
-  | Pattern of expression * Layouts.sort * computation general_pattern
-  (* [Pattern (scrutinee, sort, pattern)] represents a pattern guard. The case
-     will be taken if [scrutinee] evaluates to a value matching [pattern].
-     Variables bound by the pattern match are available on the RHS of the case.
-     Like the [Pexp_match] constructor, [sort] is the sort of the scrutinee. *)
+  | Pattern of expression * Layouts.sort * computation general_pattern * partial
+  (* [Pattern (scrutinee, sort, pattern, partial)] represents a pattern guard.
+     The case will be taken if [scrutinee] evaluates to a value matching
+     [pattern]. Variables bound by the pattern match are available on the RHS of
+     the case. Like the [Texp_match] constructor, [sort] is the sort of the
+     scrutinee, and [partial] denotes whether the case matches the scrutinee
+     partially or totally. *)
 
 and record_label_definition =
   | Kept of Types.type_expr

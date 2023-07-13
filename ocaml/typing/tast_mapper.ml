@@ -775,7 +775,8 @@ let case
 
 let guard sub = function
   | Predicate p -> Predicate (sub.expr sub p)
-  | Pattern (e, s, pat) -> Pattern (sub.expr sub e, s, sub.pat sub pat)
+  | Pattern (e, s, pat, partial) ->
+      Pattern (sub.expr sub e, s, sub.pat sub pat, partial)
 
 let value_binding sub x =
   let vb_pat = sub.pat sub x.vb_pat in

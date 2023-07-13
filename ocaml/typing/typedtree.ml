@@ -225,7 +225,7 @@ and 'k case =
   
 and guard =
   | Predicate of expression
-  | Pattern of expression * Layouts.sort * computation general_pattern
+  | Pattern of expression * Layouts.sort * computation general_pattern * partial
 
 and record_label_definition =
   | Kept of Types.type_expr

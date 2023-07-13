@@ -3369,7 +3369,7 @@ let rec is_nonexpansive exp =
            let is_guard_nonexpansive = match c_guard with
              | None -> true
              | Some (Typedtree.Predicate p) -> is_nonexpansive p
-             | Some (Typedtree.Pattern (e, _, pat)) ->
+             | Some (Typedtree.Pattern (e, _, pat, _)) ->
                  is_nonexpansive e && not (contains_exception_pat pat)
            in
            is_guard_nonexpansive && is_nonexpansive c_rhs
@@ -6978,9 +6978,7 @@ and type_cases
             | Some
                 (Guard_pattern 
                   { pgp_scrutinee = e; pgp_pattern = pat; pgp_loc = loc }) ->
-                (* CR-soon rgodse: This `partial` is needed by the pattern
-                   match compiler, thread it through into typedtree. *)
-                let { arg; sort; cases; partial = _ } =
+                let { arg; sort; cases; partial; } =
                   type_match
                     e [ { pc_lhs = pat; pc_guard = None; pc_rhs } ] ext_env loc
                     Check_and_warn_if_total (mk_expected ?explanation ty_res')
@@ -6988,7 +6986,7 @@ and type_cases
                 in
                 (match cases with
                   | [ { c_lhs = pat; c_guard = None; c_rhs = exp } ] ->
-                    Some (Typedtree.Pattern (arg, sort, pat)), exp
+                    Some (Typedtree.Pattern (arg, sort, pat, partial)), exp
                   | _ ->
                       Misc.fatal_error "type_cases invariant violated")
         in
