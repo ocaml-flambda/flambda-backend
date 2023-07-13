@@ -194,6 +194,7 @@ module Exp:
     val binding_op: str -> pattern -> expression -> loc -> binding_op
   end
 
+(* CR-soon rgodse: Change naming to [Pattern_guard] *)
 (** Guard patterns *)
 module Guard_pattern:
   sig
