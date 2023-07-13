@@ -94,3 +94,43 @@ let () =
   let v = vectors_and_floats_and_ints v0 23. v1 24L v2 25. v3 26L 27L v4 v5 28. 29. v6 v7 30L 31L 32. v8 v9 v10 33L 34L 35. in
   check v 377L 253L
 ;;
+
+let () =
+  let i0 = 0 in
+  let i1 = 1 in
+  let i2 = 2 in
+  let i3 = 3 in
+  let f0 = 0. in
+  let f1 = 1. in
+  let f2 = 2. in
+  let f3 = 3. in
+  let f4 = 4. in
+  let f5 = 5. in
+  let f6 = 6. in
+  let v0 = vec128_of_int64s 1L 2L in
+  let v1 = vec128_of_int64s 3L 4L in
+  let v2 = vec128_of_int64s 5L 6L in
+  let v3 = vec128_of_int64s 7L 8L in
+  let v4 = vec128_of_int64s 9L 10L in
+  let v5 = vec128_of_int64s 11L 12L in
+  let l = 123456789L in
+  [%probe "hello" ~enabled_at_init:true (
+    assert (i0 = 0);
+    assert (i1 = 1);
+    assert (i2 = 2);
+    assert (i3 = 3);
+    assert (f0 = 0.);
+    assert (f1 = 1.);
+    assert (f2 = 2.);
+    assert (f3 = 3.);
+    assert (f4 = 4.);
+    assert (f5 = 5.);
+    assert (f6 = 6.);
+    check v0 1L 2L;
+    check v1 3L 4L;
+    check v2 5L 6L;
+    check v3 7L 8L;
+    check v4 9L 10L;
+    check v5 11L 12L;
+    assert (l = 123456789L))]
+;;
