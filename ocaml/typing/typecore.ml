@@ -6982,7 +6982,7 @@ and type_cases
                     emode
                 in
                 (match cases with
-                  | [ { c_lhs = pat ; c_guard = None ; c_rhs = exp } ] ->
+                  | [ { c_lhs = pat; c_guard = None; c_rhs = exp } ] ->
                     Some (Typedtree.Pattern (arg, sort, pat)), exp
                   | _ ->
                       Misc.fatal_error "type_cases invariant violated")
