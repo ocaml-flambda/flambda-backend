@@ -622,6 +622,7 @@ val default_function_attribute : function_attribute
 val default_stub_attribute : function_attribute
 val default_check_attribute : check_attribute
 val get_check_attribute_state : function_attribute -> check_attribute_state
+val misplaced_assume_warning : function_attribute -> unit
 
 val find_exact_application :
   function_kind -> arity:int -> lambda list -> lambda list option

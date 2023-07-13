@@ -1513,7 +1513,10 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
       (function
           (id, Lfunction(
               {kind; params; return; body; attr; loc; mode; region})) ->
-            let attrib = Lambda.get_check_attribute_state attr in
+          let attrib =
+            Lambda.misplaced_assume_warning attr;
+            Lambda.get_check_attribute_state attr.check
+          in
             let label =
               Symbol_utils.for_fun_ident ~compilation_unit:None loc id
               |> Symbol.linkage_name

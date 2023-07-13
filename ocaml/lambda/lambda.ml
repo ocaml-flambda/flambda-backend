@@ -1575,8 +1575,7 @@ let misplaced_assume_warning fun_attr =
       Location.prerr_warning loc
         (Warnings.Misplaced_assume_attribute "zero_alloc")
 
-let get_check_attribute_state fun_attr : Warnings.Checks.State.t =
-  misplaced_assume_warning fun_attr;
+let get_check_attribute_state check_attr : Warnings.Checks.State.t =
   let { annotated; active; active_opt } = fun_attr.check in
   match annotated.state with
   | (Off | Assume _) as s -> s

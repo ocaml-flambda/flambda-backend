@@ -634,13 +634,17 @@ and close_functions t external_env function_declarations : Flambda.named =
     let closure_origin =
       Closure_origin.create (Closure_id.wrap unboxed_version)
     in
+    let check =
+      Lambda.misplaced_assume_warning Function_decl.attr
+      Lambda.get_check_attribute_state (Function_decl.check decl)
+    in
     let fun_decl =
       Flambda.create_function_declaration
         ~params ~alloc_mode:(Function_decl.mode decl) ~region
         ~body ~stub ~return_layout
         ~inline:(Function_decl.inline decl)
         ~specialise:(Function_decl.specialise decl)
-        ~check:(Function_decl.check decl)
+        ~check
         ~is_a_functor:(Function_decl.is_a_functor decl)
         ~closure_origin
         ~poll:(Function_decl.poll_attribute decl)

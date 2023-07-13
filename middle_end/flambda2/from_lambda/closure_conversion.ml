@@ -1596,6 +1596,8 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       then Default_loopify_and_tailrec
       else Default_loopify_and_not_tailrec
   in
+    (* CR-soon gyorsh: remove this *)
+  misplaced_assume_warning
   let code =
     Code.create code_id ~params_and_body
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
