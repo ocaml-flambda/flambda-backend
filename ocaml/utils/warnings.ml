@@ -456,7 +456,9 @@ let descriptions = [
                    by the @tail_mod_cons transformation." };
   { number = 73;
     names = ["total-match-in-pattern-guard"];
-    description = "Cases in pattern guard are exhaustive, and so the pattern guard can instead be expressed as a case whose body is an exhaustive match."
+    description = "Cases in pattern guard are exhaustive, and so the pattern \
+                   guard can instead be expressed as a case whose body is an \
+                   exhaustive match."
   };
   { number = 190;
     names = ["probe-name-too-long"];
