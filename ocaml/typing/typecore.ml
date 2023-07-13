@@ -3367,10 +3367,10 @@ let rec is_nonexpansive exp =
       List.for_all
         (fun {c_lhs; c_guard; c_rhs} ->
            let is_guard_nonexpansive = match c_guard with
-           | None -> false
-           | Some (Typedtree.Predicate p) -> is_nonexpansive p
-           | Some (Typedtree.Pattern (e, _, pat)) ->
-               is_nonexpansive e && not (contains_exception_pat pat)
+             | None -> false
+             | Some (Typedtree.Predicate p) -> is_nonexpansive p
+             | Some (Typedtree.Pattern (e, _, pat)) ->
+                 is_nonexpansive e && not (contains_exception_pat pat)
            in
            is_guard_nonexpansive && is_nonexpansive c_rhs
            && not (contains_exception_pat c_lhs)
