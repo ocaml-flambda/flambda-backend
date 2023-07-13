@@ -3364,8 +3364,8 @@ let rec is_nonexpansive exp =
           | _ -> false } pat
       in
       let guard_contains_exception_pat = function
-        | Some (Guard_pattern (_, _, pat)) -> contains_exception_pat pat
-        | None | Guard_predicate _ -> false
+        | Some (Typedtree.Pattern (_, _, pat)) -> contains_exception_pat pat
+        | None | Some (Typedtree.Predicate _) -> false
       in
       is_nonexpansive e &&
       List.for_all
