@@ -225,13 +225,13 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
   | Ivalueofint -> fprintf ppf "valueofint %a" reg arg.(0)
   | Iintofvalue -> fprintf ppf "intofvalue %a" reg arg.(0)
-  | Ivectorcast (Bits128 {from; to_}) -> 
-    fprintf ppf "vec128[%s->%s] %a" 
+  | Ivectorcast (Bits128 {from; to_}) ->
+    fprintf ppf "vec128[%s->%s] %a"
       (Primitive.vec128_name from) (Primitive.vec128_name to_) reg arg.(0)
-  | Iscalarcast Float_to_v128 -> fprintf ppf "float_to_v128 %a" reg arg.(0)
-  | Iscalarcast Float_to_v128_as_32 -> fprintf ppf "float_to_v128_as_32 %a" reg arg.(0)
-  | Iscalarcast V128_to_float -> fprintf ppf "v128_to_float %a" reg arg.(0)
-  | Iscalarcast V128_as_32_to_float -> fprintf ppf "v128_as_32_to_float %a" reg arg.(0)
+  | Iscalarcast Float_to_f32x4 -> fprintf ppf "float_to_f32x4 %a" reg arg.(0)
+  | Iscalarcast Float_to_f64x2 -> fprintf ppf "float_to_f64x2 %a" reg arg.(0)
+  | Iscalarcast F64x2_to_float -> fprintf ppf "f64x2_to_float %a" reg arg.(0)
+  | Iscalarcast F32x4_to_float -> fprintf ppf "f32x4_to_float %a" reg arg.(0)
   | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)
   | Iname_for_debugger { ident; which_parameter; } ->
     fprintf ppf "name_for_debugger %a%s=%a"

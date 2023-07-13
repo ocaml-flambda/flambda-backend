@@ -191,8 +191,29 @@ let bigstring_atomic_add size (arg1, arg2, arg3) dbg =
 let bigstring_atomic_sub size (arg1, arg2, arg3) dbg =
   bigstring_atomic_add size (arg1, arg2, neg_int arg3 dbg) dbg
 
-let transl_vec128_cast name args dbg typ_res =
+let one_const_float_arg args name =
+  match args with
+  | [Cconst_float (f, _)] -> f
+  | _ ->
+    Misc.fatal_errorf "Did not get a float constant as the argument to %s" name
+
+let four_const_float_args args name =
+  match args with
+  | [ Cconst_float (f0, _);
+      Cconst_float (f1, _);
+      Cconst_float (f2, _);
+      Cconst_float (f3, _) ] ->
+    f0, f1, f2, f3
+  | _ ->
+    Misc.fatal_errorf "Did not get four float constants as the arguments to %s"
+      name
+
+let int64_of_float32 f =
+  Int32.bits_of_float f |> Int64.of_int32 |> Int64.logand 0xffffffffL
+
+let transl_vec128_builtin name args dbg typ_res =
   match name with
+  (* Vector casts (no-ops) *)
   | "caml_int64x2_of_int32x4" ->
     let op = Cvectorcast (Bits128 { to_ = Int64x2; from = Int32x4 }) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
@@ -283,6 +304,34 @@ let transl_vec128_cast name args dbg typ_res =
   | "caml_float64x2_of_int32x4" ->
     let op = Cvectorcast (Bits128 { to_ = Float64x2; from = Int32x4 }) in
     if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  (* Scalar casts. These leave the top bits of the vector unspecified. *)
+  | "caml_float64x2_low_of_float" ->
+    let op = Cscalarcast Float_to_f64x2 in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float32x4_low_of_float" ->
+    let op = Cscalarcast Float_to_f32x4 in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float64x2_low_to_float" ->
+    let op = Cscalarcast F64x2_to_float in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  | "caml_float32x4_low_to_float" ->
+    let op = Cscalarcast F32x4_to_float in
+    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
+  (* Constants *)
+  | "caml_float32x4_const1" ->
+    let f = one_const_float_arg args name in
+    let i = int64_of_float32 f in
+    let i = Int64.(logor (shift_left i 32) i) in
+    Some (Cconst_vec128 ({ low = i; high = i }, dbg))
+  | "caml_float32x4_const4" ->
+    let f0, f1, f2, f3 = four_const_float_args args name in
+    let i0 = int64_of_float32 f0 in
+    let i1 = int64_of_float32 f1 in
+    let i2 = int64_of_float32 f2 in
+    let i3 = int64_of_float32 f3 in
+    let low = Int64.(logor (shift_left i1 32) i0) in
+    let high = Int64.(logor (shift_left i3 32) i2) in
+    Some (Cconst_vec128 ({ low; high }, dbg))
   | _ -> None
 
 (** [transl_builtin prim args dbg] returns None if the built-in [prim] is not
@@ -615,7 +664,7 @@ let transl_builtin name args dbg typ_res =
     bigstring_cas Sixtyfour (four_args name args) dbg
   | "caml_bigstring_compare_and_swap_int32_unboxed" ->
     bigstring_cas Thirtytwo (four_args name args) dbg
-  | _ -> transl_vec128_cast name args dbg typ_res
+  | _ -> transl_vec128_builtin name args dbg typ_res
 
 let transl_effects (e : Primitive.effects) : Cmm.effects =
   match e with

@@ -41,13 +41,10 @@ let extract_constant args name =
 let shuffle_mask x y z w = (x lsl 6) lor (y lsl 4) lor (z lsl 2) lor w
 
 (* TODO: *)
-(* add intrinsic test for float<->vec128 casts *)
-(* bottom 3 CRs *)
 (* extend reg behavior for 0/1 arg instrs *)
-(* move zero to cmm builtins *)
-(* implement get and set4 *)
+(* add float64x2 ops *)
+(* add casts for int vectors *)
 (* add sse2/sse3/ssse3 ops *)
-(* sse tests *)
 
 let select_operation_sse op args dbg =
   match op with
@@ -70,28 +67,6 @@ let select_operation_sse op args dbg =
   | "caml_sse_shuffle" ->
     let i, args = extract_constant args "caml_sse_shuffle" in
     Some (Shuffle i, args)
-    (* CR mslater: (SIMD) these are not single instructions, so should be
-       implemented in the vector math library, but we want the ability to
-       directly emit a static constant when the arguments are constants. This
-       will require moving builtin recognition before the middle-end. *)
-  | "caml_sse_float32x4_set1" ->
-    Some
-      ( Shuffle (shuffle_mask 0 0 0 0),
-        [Cmm.Cop (Cscalarcast Float_to_v128_as_32, args, dbg)] )
-  (* CR mslater: (SIMD) how do we emit multiple specific instructions mslater:
-     overwride emit_expr in selection; change API of this to be able to add
-     several instructions *)
-  | "caml_sse_float32x4_set4" -> assert false
-  | "caml_sse_float32x4_get" ->
-    let i, args = extract_constant args "caml_sse_float32x4_get" in
-    if i < 0 || i >= 4
-    then Misc.fatal_errorf "Bad index (%d) for caml_sse_float32x4_get" i;
-    (* CR mslater: (SIMD) needs to convert to float64 *)
-    Some (Shuffle (shuffle_mask 0 0 0 i), args)
-    (* CR mslater: (SIMD) this also needs a way to generate a Cconst_vec128
-       instead of an instruction, or a way to grab an undefined argument of type
-       vec128 mslater: this can be moved to builtin detection in cmm_builtins *)
-  | "caml_sse_zero" -> assert false
   | _ -> None
 
 let select_operation_sse2 op args dbg = None

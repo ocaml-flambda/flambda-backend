@@ -4,6 +4,7 @@
 #include <caml/memory.h>
 #include <smmintrin.h>
 #include <emmintrin.h>
+#include <assert.h>
 
 int64_t vec128_low_int64(__m128i v)
 {
@@ -101,3 +102,59 @@ __m128i vectors_and_floats_and_ints(
   int64_t i = i0 + i1 + i2 + i3 + i4 + i5 + i6;
   return vec128_of_int64s((int64_t)f + i, vec128_low_int64(z) + vec128_high_int64(z));
 }
+
+#define BUILTIN(name) void name() { assert(0); }
+
+BUILTIN(caml_int64x2_of_int32x4);
+BUILTIN(caml_int64x2_of_int16x8);
+BUILTIN(caml_int64x2_of_int8x16);
+BUILTIN(caml_int64x2_of_float32x4);
+BUILTIN(caml_int64x2_of_float64x2);
+BUILTIN(caml_int32x4_of_int64x2);
+BUILTIN(caml_int32x4_of_int16x8);
+BUILTIN(caml_int32x4_of_int8x16);
+BUILTIN(caml_int32x4_of_float32x4);
+BUILTIN(caml_int32x4_of_float64x2);
+BUILTIN(caml_int16x8_of_int64x2);
+BUILTIN(caml_int16x8_of_int32x4);
+BUILTIN(caml_int16x8_of_int8x16);
+BUILTIN(caml_int16x8_of_float32x4);
+BUILTIN(caml_int16x8_of_float64x2);
+BUILTIN(caml_int8x16_of_int64x2);
+BUILTIN(caml_int8x16_of_int32x4);
+BUILTIN(caml_int8x16_of_int16x8);
+BUILTIN(caml_int8x16_of_float32x4);
+BUILTIN(caml_int8x16_of_float64x2);
+BUILTIN(caml_float32x4_of_int64x2);
+BUILTIN(caml_float32x4_of_int32x4);
+BUILTIN(caml_float32x4_of_int16x8);
+BUILTIN(caml_float32x4_of_int8x16);
+BUILTIN(caml_float32x4_of_float64x2);
+BUILTIN(caml_float64x2_of_int64x2);
+BUILTIN(caml_float64x2_of_int32x4);
+BUILTIN(caml_float64x2_of_int16x8);
+BUILTIN(caml_float64x2_of_int8x16);
+BUILTIN(caml_float64x2_of_float32x4);
+
+BUILTIN(caml_float64x2_low_of_float);
+BUILTIN(caml_float32x4_low_of_float);
+BUILTIN(caml_float64x2_low_to_float);
+BUILTIN(caml_float32x4_low_to_float);
+BUILTIN(caml_float32x4_const1);
+BUILTIN(caml_float32x4_const4);
+
+BUILTIN(caml_sse_float32x4_cmp);
+BUILTIN(caml_sse_float32x4_add);
+BUILTIN(caml_sse_float32x4_sub);
+BUILTIN(caml_sse_float32x4_mul);
+BUILTIN(caml_sse_float32x4_div);
+BUILTIN(caml_sse_float32x4_max);
+BUILTIN(caml_sse_float32x4_min);
+BUILTIN(caml_sse_float32x4_rcp);
+BUILTIN(caml_sse_float32x4_rsqrt);
+BUILTIN(caml_sse_float32x4_sqrt);
+BUILTIN(caml_sse_move_high_to_low);
+BUILTIN(caml_sse_move_low_to_high);
+BUILTIN(caml_sse_interleave_high);
+BUILTIN(caml_sse_interleave_low);
+BUILTIN(caml_sse_shuffle);

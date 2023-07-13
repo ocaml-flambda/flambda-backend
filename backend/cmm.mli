@@ -188,10 +188,10 @@ type vector_cast =
   | Bits128 of { from : Lambda.vec128_type ; to_ : Lambda.vec128_type }
 
 type scalar_cast =
-  | Float_to_v128
-  | Float_to_v128_as_32
-  | V128_to_float
-  | V128_as_32_to_float
+  | Float_to_f64x2
+  | Float_to_f32x4
+  | F64x2_to_float
+  | F32x4_to_float
 
 type operation =
     Capply of machtype * Lambda.region_close

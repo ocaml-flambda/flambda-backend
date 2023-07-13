@@ -220,8 +220,8 @@ let oper_result_type = function
   | Cvalueofint -> typ_val
   | Cintofvalue -> typ_int
   | Cvectorcast (Bits128 _) -> typ_vec128
-  | Cscalarcast (Float_to_v128 | Float_to_v128_as_32) -> typ_vec128
-  | Cscalarcast (V128_to_float | V128_as_32_to_float) -> typ_float
+  | Cscalarcast (Float_to_f32x4 | Float_to_f64x2) -> typ_vec128
+  | Cscalarcast (F32x4_to_float | F64x2_to_float) -> typ_float
   | Craise _ -> typ_void
   | Ccheckbound -> typ_void
   | Cprobe _ -> typ_void

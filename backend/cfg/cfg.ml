@@ -272,10 +272,10 @@ let dump_op ppf = function
     Format.fprintf ppf "vec128[%s->%s]"
       (Primitive.vec128_name from)
       (Primitive.vec128_name to_)
-  | Scalarcast Float_to_v128 -> Format.fprintf ppf "float_to_v128"
-  | Scalarcast Float_to_v128_as_32 -> Format.fprintf ppf "float_to_v128_as_32"
-  | Scalarcast V128_to_float -> Format.fprintf ppf "v128_to_float"
-  | Scalarcast V128_as_32_to_float -> Format.fprintf ppf "v128_as_32_to_float"
+  | Scalarcast Float_to_f32x4 -> Format.fprintf ppf "float_to_f32x4"
+  | Scalarcast Float_to_f64x2 -> Format.fprintf ppf "float_to_f64x2"
+  | Scalarcast F32x4_to_float -> Format.fprintf ppf "f32x4_to_float"
+  | Scalarcast F64x2_to_float -> Format.fprintf ppf "f64x2_to_float"
   | Specific _ -> Format.fprintf ppf "specific"
   | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
   | Opaque -> Format.fprintf ppf "opaque"
@@ -521,7 +521,7 @@ let is_noop_move instr =
   match instr.desc with
   | Op
       ( Move | Spill | Reload
-      | Scalarcast (Float_to_v128 | V128_to_float)
+      | Scalarcast (Float_to_f64x2 | F64x2_to_float)
       | Vectorcast _ ) ->
     same_location instr.arg.(0) instr.res.(0)
   | Op (Csel _) -> (
@@ -537,7 +537,7 @@ let is_noop_move instr =
       | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
       | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
       | Floatofint | Intoffloat | Opaque | Valueofint | Intofvalue
-      | Scalarcast (Float_to_v128_as_32 | V128_as_32_to_float)
+      | Scalarcast (Float_to_f32x4 | F32x4_to_float)
       | Probe_is_enabled _ | Specific _ | Name_for_debugger _ | Begin_region
       | End_region )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->

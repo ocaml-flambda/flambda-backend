@@ -700,8 +700,8 @@ let add_vec128_constant bits =
     lbl
 
 let emit_vec128_constant {high; low} lbl =
-  _label (emit_label lbl);
   (* SIMD vectors respect little-endian byte order *)
+  _label (emit_label lbl);
   D.qword (Const low);
   D.qword (Const high)
 
@@ -994,7 +994,7 @@ let emit_instr fallthrough i =
           I.xorpd (res i 0) (res i 0)
       | _ ->
           let lbl = add_vec128_constant {high; low} in
-          I.movupd (mem64_rip VEC128 (emit_label lbl)) (res i 0)
+          I.movapd (mem64_rip VEC128 (emit_label lbl)) (res i 0)
       end
   | Lop(Iconst_symbol s) ->
       add_used_symbol s.sym_name;
@@ -1213,12 +1213,13 @@ let emit_instr fallthrough i =
       I.cvtsi2sd  (arg i 0)  (res i 0)
   | Lop(Iintoffloat) ->
       I.cvttsd2si (arg i 0) (res i 0)
-  | Lop(Iintofvalue | Ivalueofint | Ivectorcast _ |
-        Iscalarcast (Float_to_v128 | V128_to_float)) ->
+  | Lop(Iintofvalue | Ivalueofint | Ivectorcast _) ->
       move i.arg.(0) i.res.(0)
-  | Lop(Iscalarcast Float_to_v128_as_32) ->
+  | Lop(Iscalarcast (Float_to_f64x2 | F64x2_to_float)) ->
+      I.movsd (arg i 0) (res i 0);
+  | Lop(Iscalarcast Float_to_f32x4) ->
       I.cvtsd2ss (arg i 0) (res i 0);
-  | Lop(Iscalarcast V128_as_32_to_float) ->
+  | Lop(Iscalarcast F32x4_to_float) ->
       I.cvtss2sd (arg i 0) (res i 0);
   | Lop(Iopaque) ->
       assert (i.arg.(0).loc = i.res.(0).loc)
@@ -1985,6 +1986,15 @@ let end_assembly () =
     end;
     D.align ~data:true 8;
     List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants;
+  end;
+  if !vec128_constants <> [] then begin
+    begin match system with
+    | S_macosx -> D.section ["__TEXT";"__literal16"] None ["16byte_literals"]
+    | S_mingw64 | S_cygwin -> D.section [".rdata"] (Some "dr") []
+    | S_win64 -> D.data ()
+    | _ -> D.section [".rodata.cst16"] (Some "aM") ["@progbits";"16"]
+    end;
+    D.align ~data:true 16;
     List.iter (fun (cst,lbl) -> emit_vec128_constant cst lbl) !vec128_constants;
   end;
 

@@ -64,7 +64,7 @@ method reload_operation op arg res =
      stack-to-stack moves *)
   match op with
     | Imove | Ireload | Ispill | Iintofvalue | Ivalueofint
-    | Ivectorcast _ | Iscalarcast (Float_to_v128 | V128_to_float) ->
+    | Ivectorcast _ | Iscalarcast (Float_to_f64x2 | F64x2_to_float) ->
       begin match arg.(0), res.(0) with
         {loc = Stack s1}, {loc = Stack s2} ->
           if s1 = s2

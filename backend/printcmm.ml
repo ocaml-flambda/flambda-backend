@@ -227,12 +227,12 @@ let operation d = function
   | Cintoffloat -> "intoffloat"
   | Cvalueofint -> "valueofint"
   | Cintofvalue -> "intofvalue"
-  | Cvectorcast (Bits128 {from; to_}) -> 
+  | Cvectorcast (Bits128 {from; to_}) ->
     Printf.sprintf "vec128[%s->%s]" (Primitive.vec128_name from) (Primitive.vec128_name to_)
-  | Cscalarcast Float_to_v128 -> "float_to_v128"
-  | Cscalarcast Float_to_v128_as_32 -> "float_to_v128_as_32"
-  | Cscalarcast V128_to_float -> "v128_to_float"
-  | Cscalarcast V128_as_32_to_float -> "v128_as_32_to_float"
+  | Cscalarcast Float_to_f32x4 -> "float_to_f32x4"
+  | Cscalarcast F32x4_to_float -> "f32x4_to_float"
+  | Cscalarcast Float_to_f64x2 -> "float_to_f64x2"
+  | Cscalarcast F64x2_to_float -> "f64x2_to_float"
   | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
   | Ccheckbound -> "checkbound" ^ location d
