@@ -49,7 +49,8 @@ let bind_cases l =
         match c_guard with
         | None -> c_rhs.exp_loc
         | Some g ->
-          let gexp = match g with
+          let gexp =
+            match g with
             | Predicate pred -> pred
             | Pattern (exp, _, pat) ->
                 bind_variables c_rhs.exp_loc pat;
