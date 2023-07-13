@@ -6975,6 +6975,8 @@ and type_cases
             | Some
                 (Guard_pattern 
                   { pgp_scrutinee = e; pgp_pattern = pat; pgp_loc = loc }) ->
+                (* CR-soon rgodse: This `partial` is needed by the pattern
+                   match compiler, thread it through into typedtree. *)
                 let { arg; sort; cases; partial = _ } =
                   type_match
                     e [ { pc_lhs = pat; pc_guard = None; pc_rhs } ] ext_env loc
