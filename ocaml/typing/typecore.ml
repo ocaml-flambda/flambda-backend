@@ -6808,7 +6808,7 @@ and type_cases
            ?in_function:_ -> _ -> _ -> _ -> _ -> _ -> _ -> _ -> Parsetree.case list ->
            k case list * partial
   = fun category ?in_function env pmode emode
-        ty_arg ty_res_explained exhaustivity loc caselist ->
+        ty_arg ty_res_explained exhaustiveness_constraint loc caselist ->
   (* ty_arg is _fully_ generalized *)
   let { ty = ty_res; explanation } = ty_res_explained in
   let patterns = List.map (fun {pc_lhs=p} -> p) caselist in
@@ -6953,6 +6953,10 @@ and type_cases
           match pc_guard with
             | None | Some (Guard_predicate _) ->
                 let guard = match pc_guard with
+                  (* This case is unreachable, as [pc_guard] cannot match the
+                     outer pattern while also matching [Some (Guard_pattern _)]
+                   *)
+                  | Some (Guard_pattern _) -> assert false
                   | None -> None
                   | Some (Guard_predicate pred) ->
                       let expected_bool =
@@ -6961,7 +6965,6 @@ and type_cases
                       Some
                         (Predicate
                           (type_expect ext_env mode_local pred expected_bool))
-                  | Some (Guard_pattern _) -> assert false
                 in
                 let exp =
                   type_expect
@@ -7017,7 +7020,7 @@ and type_cases
       | Computation -> split_cases env cases in
   if val_cases = [] && exn_cases <> [] then
     raise (Error (loc, env, No_value_clauses));
-  let partial = match exhaustivity with
+  let partial = match exhaustiveness_constraint with
     | Assume_partial -> Partial
     | Check_and_warn_if_partial ->
         check_partial ~lev env ty_arg_check loc val_cases
