@@ -546,7 +546,7 @@ let rec expression : Typedtree.expression -> term_judg =
       value_bindings rec_flag bindings >> expression body
     | Texp_letmodule (x, _, _, mexp, e) ->
       module_binding (x, mexp) >> expression e
-    | Texp_match (e, _, cases, _) -> check_match e cases
+    | Texp_match (e, _, cases, _) -> match_expression e cases
     | Texp_for tf ->
       (*
         G1 |- low: m[Dereference]
@@ -1216,7 +1216,7 @@ and case
         *)
         | Some (Pattern (e, _, pat)) ->
           let cases = [ { c_lhs = pat; c_guard = None; c_rhs } ] in
-          check_match e cases
+          match_expression e cases
       in
       (fun m ->
         let env = judg m in
