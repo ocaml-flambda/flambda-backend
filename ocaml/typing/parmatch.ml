@@ -1990,10 +1990,10 @@ let do_check_partial ~pred ~warn_if loc casel pss = match pss with
     match counter_examples () with
     | Seq.Nil ->
         (match warn_if with
+          | Partial -> ()
           | Total ->
               if Warnings.is_active Total_match_in_pattern_guard
-              then Location.prerr_warning loc Total_match_in_pattern_guard
-          | Partial -> ());
+              then Location.prerr_warning loc Total_match_in_pattern_guard);
         Total
     | Seq.Cons (v, _rest) ->
         (match warn_if with
