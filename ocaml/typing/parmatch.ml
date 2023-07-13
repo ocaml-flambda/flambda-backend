@@ -1991,14 +1991,14 @@ let do_check_partial ~pred ~warn_if loc casel pss = match pss with
     | Seq.Nil ->
         (match warn_if with
           | Total ->
-              if Warnings.is_active (Warnings.Exhaustive_match)
-              then Location.prerr_warning loc (Warnings.Exhaustive_match)
+              if Warnings.is_active Exhaustive_match
+              then Location.prerr_warning loc Exhaustive_match
           | Partial -> ());
         Total
     | Seq.Cons (v, _rest) ->
         (match warn_if with
           | Partial ->
-              if Warnings.is_active (Warnings.Partial_match "") then begin
+              if Warnings.is_active (Partial_match "") then begin
                 let errmsg =
                   try
                     let buf = Buffer.create 16 in
@@ -2018,7 +2018,7 @@ let do_check_partial ~pred ~warn_if loc casel pss = match pss with
                   with _ ->
                     ""
                 in
-                Location.prerr_warning loc (Warnings.Partial_match errmsg)
+                Location.prerr_warning loc (Partial_match errmsg)
               end
           | Total -> ());
         Partial

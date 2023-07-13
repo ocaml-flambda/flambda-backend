@@ -121,16 +121,4 @@ Line 110, characters 14-31:
 Warning 73 [exhaustive-match]: This pattern guard matches all cases. Consider rewriting the guard as a nested match.
 Uncaught exception: Failure("guard pattern translation unimplemented")
 
-|}, Principal{|
-type void = |
-Line 113, characters 13-28:
-113 |     | Left u when u match () -> 0
-                   ^^^^^^^^^^^^^^^
-Warning 73 [exhaustive-match]: This pattern guard matches all cases. Consider rewriting the guard as a nested match.
-Line 114, characters 14-31:
-114 |     | Right v when v match None -> 1
-                    ^^^^^^^^^^^^^^^^^
-Warning 73 [exhaustive-match]: This pattern guard matches all cases. Consider rewriting the guard as a nested match.
-Uncaught exception: Failure("guard pattern translation unimplemented")
-
 |}]
