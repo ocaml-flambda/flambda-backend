@@ -3363,19 +3363,17 @@ let rec is_nonexpansive exp =
           | Tpat_exception _ -> true
           | _ -> false } pat
       in
-      let guard_contains_exception_pat = function
-        | Some (Typedtree.Pattern (_, _, pat)) -> contains_exception_pat pat
-        | None | Some (Typedtree.Predicate _) -> false
+      let is_guard_nonexpansive = function
+        | None -> false
+        | Some (Typedtree.Predicate p) -> is_nonexpansive p
+        | Some (Typedtree.Pattern (e, _, pat)) ->
+            is_nonexpansive e && not (contains_exception_pat pat)
       in
       is_nonexpansive e &&
       List.for_all
         (fun {c_lhs; c_guard; c_rhs} ->
-           let guard_exp = Option.map (function
-             | Typedtree.Predicate p -> p
-             | Typedtree.Pattern (e, _, _) -> e) c_guard in
-           is_nonexpansive_opt guard_exp && is_nonexpansive c_rhs
+           is_guard_nonexpansive c_guard && is_nonexpansive c_rhs
            && not (contains_exception_pat c_lhs)
-           && not (guard_contains_exception_pat c_guard)
         ) cases
   | Texp_probe {handler} -> is_nonexpansive handler
   | Texp_tuple (el, _) ->
