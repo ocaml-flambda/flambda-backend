@@ -5762,7 +5762,7 @@ and type_match sarg caselist env loc partiality_constraint ty_expected_explained
   { arg;
     sort;
     cases;
-    partial
+    partial;
   }
 
 and type_ident env ?(recarg=Rejected) lid =
