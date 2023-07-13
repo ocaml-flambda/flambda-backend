@@ -48,6 +48,7 @@ and ident_lazy_t = ident_create "lazy_t"
 and ident_string = ident_create "string"
 and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
+and ident_position = ident_create "position"
 
 let path_int = Pident ident_int
 and path_char = Pident ident_char
@@ -70,6 +71,7 @@ and path_lazy_t = Pident ident_lazy_t
 and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
+and path_position = Pident ident_position
 
 let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
@@ -91,6 +93,7 @@ and type_string = newgenty (Tconstr(path_string, [], ref Mnil))
 and type_extension_constructor =
       newgenty (Tconstr(path_extension_constructor, [], ref Mnil))
 and type_floatarray = newgenty (Tconstr(path_floatarray, [], ref Mnil))
+and type_position = newgenty (Tconstr(path_position, [], ref Mnil))
 
 let ident_match_failure = ident_create "Match_failure"
 and ident_out_of_memory = ident_create "Out_of_memory"
@@ -257,6 +260,31 @@ let common_initial_env add_type add_extension empty_env =
          variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]]
            [| [| |]; [| Layout.value ~why:Type_argument |] |])
        ~layout:(Layout.value ~why:Boxed_variant)
+  |> add_type ident_position ~kind:(
+        let lbls = {
+          ld_id=Ident.create_predef "pos_fname";
+          ld_mutable=Immutable;
+          ld_global=Unrestricted;
+          ld_type= type_string;
+          ld_layout= Layout.value ~why:(Primitive ident_string);
+
+          (* TODO *)
+          ld_loc: Location.t;
+          ld_attributes: Parsetree.attributes;
+          ld_uid: Uid.t;
+        }
+       in 
+    Type_record (lbllist, recordrep)
+
+
+    (*type position = {
+      pos_fname : string;
+      pos_lnum : int;
+      pos_bol : int;
+      pos_cnum : int;
+    }*)
+
+  )
   |> add_type ident_string
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
