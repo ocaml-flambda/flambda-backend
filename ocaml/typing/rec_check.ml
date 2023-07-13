@@ -1192,7 +1192,7 @@ and case
   = fun { Typedtree.c_lhs; c_guard; c_rhs } ->
       let judg = match c_guard with
         (*
-           G |- p : mp    G |- e : m
+           p : mp -| G    G |- e : m
            ----------------------------
            G - p; m[mp] |- (p -> e) : m
         *)
@@ -1207,7 +1207,7 @@ and case
             join [ expression p << Dereference; expression c_rhs ]
         (*
            G |- (match e1 with p2 -> e2) : m
-           G |- p1 : mp
+           p1 : mp -| G
            ------------------------------------------------
            G - p1; m[mp] |- (p1 when e1 match p2 -> e2) : m
 
