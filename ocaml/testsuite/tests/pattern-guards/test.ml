@@ -1,8 +1,8 @@
 (* TEST
    * expect *)
 
-(* CR-soon rgodse: We expect this output to change soon, but for now it shows that parsing
-   works (as the compiler fails at typechecking). *)
+(* CR-soon rgodse: We expect this output to change soon, but for now it shows
+   that parsing and typechecking work (as the compiler fails at translation). *)
 
 let basic_usage ~f ~default x =
   match x with 
@@ -70,6 +70,38 @@ Error: This expression has type int but an expression was expected of type
          String.t = string
 |}]
 
+let shadow_outer_variables (n : int option) (strs : string list) =
+  match n with
+  | Some n when List.nth_opt strs n match Some s -> s
+  | _ -> "Not found"
+[%%expect{|
+Uncaught exception: Failure("guard pattern translation unimplemented")
+
+|}]
+
+type ('a, 'b) eq = Eq : ('a, 'a) eq
+
+let in_pattern_guard (type a b) (eq : (a, b) eq) (compare : a -> a -> int)
+                     (x : a) (y : b) =
+  match eq with
+    | Eq when compare x y match 0 -> true
+    | _ -> false
+[%%expect{|
+type ('a, 'b) eq = Eq : ('a, 'a) eq
+Uncaught exception: Failure("guard pattern translation unimplemented")
+
+|}]
+
+let from_pattern_guard (type a b) (eqs : (a, b) eq option list)
+                       (compare : a -> a -> int) (x : a) (y : b) =
+  match eqs with
+    | eq_opt :: _ when eq_opt match Some Eq -> compare x y
+    | _ -> 0
+[%%expect{|
+Uncaught exception: Failure("guard pattern translation unimplemented")
+
+|}]
+
 type void = |
 
 let exhaustive_pattern_guards (x : (unit, void option) Either.t) : int =
@@ -79,13 +111,25 @@ let exhaustive_pattern_guards (x : (unit, void option) Either.t) : int =
     | _ -> 2
 [%%expect{|
 type void = |
-Line 77, characters 13-28:
-77 |     | Left u when u match () -> 0
-                  ^^^^^^^^^^^^^^^
+Line 109, characters 13-28:
+109 |     | Left u when u match () -> 0
+                   ^^^^^^^^^^^^^^^
 Warning 73 [exhaustive-match]: This pattern guard matches all cases. Consider rewriting the guard as a nested match.
-Line 78, characters 14-31:
-78 |     | Right v when v match None -> 1
-                   ^^^^^^^^^^^^^^^^^
+Line 110, characters 14-31:
+110 |     | Right v when v match None -> 1
+                    ^^^^^^^^^^^^^^^^^
+Warning 73 [exhaustive-match]: This pattern guard matches all cases. Consider rewriting the guard as a nested match.
+Uncaught exception: Failure("guard pattern translation unimplemented")
+
+|}, Principal{|
+type void = |
+Line 113, characters 13-28:
+113 |     | Left u when u match () -> 0
+                   ^^^^^^^^^^^^^^^
+Warning 73 [exhaustive-match]: This pattern guard matches all cases. Consider rewriting the guard as a nested match.
+Line 114, characters 14-31:
+114 |     | Right v when v match None -> 1
+                    ^^^^^^^^^^^^^^^^^
 Warning 73 [exhaustive-match]: This pattern guard matches all cases. Consider rewriting the guard as a nested match.
 Uncaught exception: Failure("guard pattern translation unimplemented")
 
