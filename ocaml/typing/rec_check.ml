@@ -827,7 +827,9 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_probe_is_enabled _ -> empty
     | Texp_exclave e -> expression e
 
-and check_match e cases =
+(* This function is used to check a match expression, so it produces a judgement
+   as in [expression]. It is also used to check pattern guards in [case]. *)
+and match_expression e cases =
   (*
       (Gi; mi |- pi -> ei : m)^i
       G |- e : sum(mi)^i
@@ -1188,16 +1190,30 @@ and value_bindings : rec_flag -> Typedtree.value_binding list -> bind_judg =
 and case
     : 'k . 'k Typedtree.case -> mode -> Env.t * mode
   = fun { Typedtree.c_lhs; c_guard; c_rhs } ->
-    (*
-       Ge |- e : m    Gg |- g : m[Dereference]
-       G := Ge+Gg     p : mp -| G
-       ----------------------------------------
-       G - p; m[mp] |- (p (when g)? -> e) : m
-    *)
       let judg = match c_guard with
+        (*
+           G |- p : mp    G |- e : m
+           ----------------------------
+           G - p; m[mp] |- (p -> e) : m
+        *)
         | None -> expression c_rhs
+        (*
+           Ge |- e : m    Gg |- g : m[Dereference]
+           G := Ge+Gg     p : mp -| G
+           ---------------------------------------
+           G - p; m[mp] |- (p when g -> e) : m
+        *)
         | Some (Predicate p) ->
             join [ expression p << Dereference; expression c_rhs ]
+        (*
+           G |- (match e1 with p2 -> e2) : m
+           G |- p1 : mp
+           ------------------------------------------------
+           G - p1; m[mp] |- (p1 when e1 match p2 -> e2) : m
+
+           This judgement uses uses the one in [match_expression] as a
+           "subroutine."
+        *)
         | Some (Pattern (e, _, pat)) ->
           let cases = [ { c_lhs = pat; c_guard = None; c_rhs } ] in
           check_match e cases
