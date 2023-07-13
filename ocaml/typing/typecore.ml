@@ -333,8 +333,7 @@ let position_and_mode_default = {
   region_mode = None;
 }
 
-(* Information about typed matches. Used to pass around Typedtree values without
-   constructing a [Typedtree.expression]. *)
+(* The result of type-checking a match-like construct. This is the return value of `type_match`. *)
 type match_info = {
   (* scrutinee *)
   arg : expression;
