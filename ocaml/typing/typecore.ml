@@ -2815,14 +2815,13 @@ let partial_pred ~lev ~splitting_mode ?(explode=0)
     set_state state env;
     None
 
-let check_partial ?(should_be_exhaustive=true) ?(lev=get_current_level ()) env
+let check_partial ~warn_if ?(lev=get_current_level ()) env
       expected_ty loc cases =
   let explode = match cases with [_] -> 5 | _ -> 0 in
   let splitting_mode = Refine_or {inside_nonsplit_or = false} in
   Parmatch.check_partial
-    ~should_be_exhaustive
     (partial_pred ~lev ~splitting_mode ~explode env expected_ty)
-    loc cases
+    ~warn_if loc cases
 
 let check_unused ?(lev=get_current_level ()) env expected_ty cases =
   Parmatch.check_unused
@@ -7023,10 +7022,9 @@ and type_cases
   let partial = match partiality_constraint with
     | Assume_partial -> Partial
     | Check_and_warn_if_partial ->
-        check_partial ~lev env ty_arg_check loc val_cases
+        check_partial ~warn_if:Partial ~lev env ty_arg_check loc val_cases
     | Check_and_warn_if_total ->
-        check_partial
-          ~should_be_exhaustive:false ~lev env ty_arg_check loc val_cases
+        check_partial ~warn_if:Total ~lev env ty_arg_check loc val_cases
   in
   let unused_check delayed =
     List.iter (fun { typed_pat; branch_env; _ } ->
@@ -7330,7 +7328,7 @@ and type_let
     (fun (_,pat,_) (attrs, exp) ->
        Builtin_attributes.warning_scope ~ppwarning:false attrs
          (fun () ->
-            ignore(check_partial env pat.pat_type pat.pat_loc
+            ignore(check_partial ~warn_if:Partial env pat.pat_type pat.pat_loc
                      [case pat exp] : Typedtree.partial)
          )
     )
