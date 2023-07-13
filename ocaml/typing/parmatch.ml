@@ -1991,8 +1991,8 @@ let do_check_partial ~pred ~warn_if loc casel pss = match pss with
     | Seq.Nil ->
         (match warn_if with
           | Total ->
-              if Warnings.is_active Exhaustive_match
-              then Location.prerr_warning loc Exhaustive_match
+              if Warnings.is_active Total_match_in_pattern_guard
+              then Location.prerr_warning loc Total_match_in_pattern_guard
           | Partial -> ());
         Total
     | Seq.Cons (v, _rest) ->

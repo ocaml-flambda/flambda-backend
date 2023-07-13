@@ -107,7 +107,7 @@ type t =
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
-  | Exhaustive_match                        (* 73 *)
+  | Total_match_in_pattern_guard            (* 73 *)
   | Probe_name_too_long of string           (* 190 *)
   | Misplaced_assume_attribute of string    (* 198 *)
   | Unchecked_property_attribute of string  (* 199 *)
@@ -193,7 +193,7 @@ let number = function
   | Missing_mli -> 70
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
-  | Exhaustive_match -> 73
+  | Total_match_in_pattern_guard -> 73
   | Probe_name_too_long _ -> 190
   | Misplaced_assume_attribute _  -> 198
   | Unchecked_property_attribute _ -> 199
@@ -455,8 +455,8 @@ let descriptions = [
     description = "A tail call is turned into a non-tail call \
                    by the @tail_mod_cons transformation." };
   { number = 73;
-    names = ["exhaustive-match"];
-    description = "Exhaustive cases in pattern guard can be refactored into nested match."
+    names = ["total-match-in-pattern-guard"];
+    description = "Cases in pattern guard are total. can be refactored into nested match."
   };
   { number = 190;
     names = ["probe-name-too-long"];
@@ -1068,9 +1068,9 @@ let message = function
        Please either mark the called function with the [@tail_mod_cons]\n\
        attribute, or mark this call with the [@tailcall false] attribute\n\
        to make its non-tailness explicit."
-  | Exhaustive_match ->
-      "This pattern guard matches all cases. Consider rewriting the guard as a nested \
-       match."
+  | Total_match_in_pattern_guard ->
+      "This pattern guard matches exhaustively. Consider rewriting the guard \
+       as a nested match."
   | Probe_name_too_long name ->
       Printf.sprintf
         "This probe name is too long: `%s'. \
