@@ -33,7 +33,7 @@ let arg i args = List.nth args i
 
 let extract_constant args name =
   match args with
-  | Cmm.Cconst_int (i, _) :: args -> i, args
+  | Cmm.Cconst_int (i, _) :: args -> Int.shift_right i 1, args
   | _ ->
     Misc.fatal_errorf "Did not get integer constant as the first argument to %s"
       name
@@ -46,10 +46,15 @@ let shuffle_mask x y z w = (x lsl 6) lor (y lsl 4) lor (z lsl 2) lor w
 (* add casts for int vectors *)
 (* add sse2/sse3/ssse3 ops *)
 
+let check_cmp_imm i =
+  if i < 0 || i >= 8
+  then Misc.fatal_errorf "Invalid immediate for caml_sse_float32x4_cmp: %d" i
+
 let select_operation_sse op args dbg =
   match op with
   | "caml_sse_float32x4_cmp" ->
     let i, args = extract_constant args "caml_sse_float32x4_cmp" in
+    check_cmp_imm i;
     Some (Cmp_ps i, args)
   | "caml_sse_float32x4_add" -> Some (Add_ps, args)
   | "caml_sse_float32x4_sub" -> Some (Sub_ps, args)

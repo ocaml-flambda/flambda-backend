@@ -267,6 +267,52 @@ module Vector_casts = struct
     ;;
 end
 
+module Float32 = struct
+    type t = int32
+
+    let of_float f = Int32.bits_of_float f
+    let to_float i = Int32.float_of_bits i
+
+    external zero : unit -> (t [@unboxed]) = "" "float32_zero" [@@noalloc]
+    external neg_zero : unit -> (t [@unboxed]) = "" "float32_neg_zero" [@@noalloc]
+    external one : unit -> (t [@unboxed]) = "" "float32_one" [@@noalloc]
+    external neg_one : unit -> (t [@unboxed]) = "" "float32_neg_one" [@@noalloc]
+    external nan : unit -> (t [@unboxed]) = "" "float32_nan" [@@noalloc]
+    external neg_infinity : unit -> (t [@unboxed]) = "" "float32_neg_infinity" [@@noalloc]
+    external infinity : unit -> (t [@unboxed]) = "" "float32_infinity" [@@noalloc]
+    external max : unit -> (t [@unboxed]) = "" "float32_max" [@@noalloc]
+    external min : unit -> (t [@unboxed]) = "" "float32_min" [@@noalloc]
+
+    let zero = zero ()
+    let neg_zero = neg_zero ()
+    let one = one ()
+    let nan = nan ()
+    let neg_infinity = neg_infinity ()
+    let infinity = infinity ()
+    let neg_one = neg_one ()
+    let max = max ()
+    let min = min ()
+
+    let to_float32x4 t0 t1 t2 t3 =
+        let i0 = Int64.of_int32 t0 |> Int64.logand 0xffffffffL in
+        let i1 = Int64.of_int32 t1 |> Int64.logand 0xffffffffL in
+        let i2 = Int64.of_int32 t2 |> Int64.logand 0xffffffffL in
+        let i3 = Int64.of_int32 t3 |> Int64.logand 0xffffffffL in
+        let i0 = Int64.logor (Int64.shift_left i1 32) i0 in
+        let i1 = Int64.logor (Int64.shift_left i3 32) i2 in
+        float32x4_of_int64s i0 i1
+    ;;
+
+    external eq : (t [@unboxed]) -> (t [@unboxed]) -> bool = "" "float32_eq" [@@noalloc]
+    external lt : (t [@unboxed]) -> (t [@unboxed]) -> bool = "" "float32_lt" [@@noalloc]
+    external le : (t [@unboxed]) -> (t [@unboxed]) -> bool = "" "float32_le" [@@noalloc]
+    external neq : (t [@unboxed]) -> (t [@unboxed]) -> bool = "" "float32_ne" [@@noalloc]
+    external nle : (t [@unboxed]) -> (t [@unboxed]) -> bool = "" "float32_nle" [@@noalloc]
+    external nlt : (t [@unboxed]) -> (t [@unboxed]) -> bool = "" "float32_nlt" [@@noalloc]
+    external ord : (t [@unboxed]) -> (t [@unboxed]) -> bool = "" "float32_ord" [@@noalloc]
+    external uord : (t [@unboxed]) -> (t [@unboxed]) -> bool = "" "float32_uord" [@@noalloc]
+end
+
 module Float32x4 = struct
 
     type t = float32x4
@@ -330,6 +376,63 @@ module Float32x4 = struct
 
     external cmp : int -> (t [@unboxed]) -> (t [@unboxed]) -> (int32x4 [@unboxed]) = "" "caml_sse_float32x4_cmp"
         [@@noalloc] [@@builtin]
+
+    let () =
+        let test_cmp f0 f1 =
+            let mask op =
+                let low = if op f0 f1 then 0xffffffffL else 0L in
+                let high = if op f1 f0 then 0xffffffff00000000L else 0L in
+                Int64.logor low high
+            in
+            let v1 = Float32.to_float32x4 f0 f1 f0 f1 in
+            let v2 = Float32.to_float32x4 f1 f0 f1 f0 in
+            let _eq = cmp 0 v1 v2 in
+            let lt = cmp 1 v1 v2 in
+            let le = cmp 2 v1 v2 in
+            let uord = cmp 3 v1 v2 in
+            let neq = cmp 4 v1 v2 in
+            let nlt = cmp 5 v1 v2 in
+            let nle = cmp 6 v1 v2 in
+            let ord = cmp 7 v1 v2 in
+            let __eq = mask Float32.eq in
+            let _lt = mask Float32.lt in
+            let _le = mask Float32.le in
+            let _uord = mask Float32.uord in
+            let _neq = mask Float32.neq in
+            let _nlt = mask Float32.nlt in
+            let _nle = mask Float32.nle in
+            let _ord = mask Float32.ord in
+            eq (int32x4_low_int64 _eq) (int32x4_high_int64 _eq) __eq __eq;
+            eq (int32x4_low_int64 lt) (int32x4_high_int64 lt) _lt _lt;
+            eq (int32x4_low_int64 le) (int32x4_high_int64 le) _le _le;
+            eq (int32x4_low_int64 uord) (int32x4_high_int64 uord) _uord _uord;
+            eq (int32x4_low_int64 neq) (int32x4_high_int64 neq) _neq _neq;
+            eq (int32x4_low_int64 nlt) (int32x4_high_int64 nlt) _nlt _nlt;
+            eq (int32x4_low_int64 nle) (int32x4_high_int64 nle) _nle _nle;
+            eq (int32x4_low_int64 ord) (int32x4_high_int64 ord) _ord _ord
+        in
+        test_cmp Float32.zero Float32.zero;
+        test_cmp Float32.zero Float32.one;
+        test_cmp Float32.zero Float32.neg_one;
+        test_cmp Float32.one Float32.neg_one;
+        test_cmp Float32.zero Float32.neg_zero;
+        test_cmp Float32.nan Float32.zero;
+        test_cmp Float32.infinity Float32.zero;
+        test_cmp Float32.neg_infinity Float32.zero;
+        test_cmp Float32.nan Float32.nan;
+        test_cmp Float32.infinity Float32.infinity;
+        test_cmp Float32.neg_infinity Float32.neg_infinity;
+        test_cmp Float32.neg_infinity Float32.infinity;
+        test_cmp Float32.infinity Float32.nan;
+        test_cmp Float32.neg_infinity Float32.nan;
+        test_cmp Float32.max Float32.infinity;
+        test_cmp Float32.max Float32.neg_infinity;
+        test_cmp Float32.min Float32.infinity;
+        test_cmp Float32.min Float32.neg_infinity;
+        test_cmp Float32.max Float32.max;
+        test_cmp Float32.min Float32.min;
+        test_cmp Float32.max Float32.min
+    ;;
 
     external add : t -> t -> t = "" "caml_sse_float32x4_add"
         [@@noalloc] [@@unboxed] [@@builtin]

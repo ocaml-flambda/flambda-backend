@@ -158,3 +158,31 @@ BUILTIN(caml_sse_move_low_to_high);
 BUILTIN(caml_sse_interleave_high);
 BUILTIN(caml_sse_interleave_low);
 BUILTIN(caml_sse_shuffle);
+
+#include <float.h>
+#include <math.h>
+
+int32_t int32_of_float(float f) {
+  return *(int32_t*)&f;
+}
+float float_of_int32(int32_t i) {
+  return *(float*)&i;
+}
+
+int32_t float32_zero(value unit) { return int32_of_float(0.0f); }
+int32_t float32_neg_zero(value unit) { return int32_of_float(-0.0f); }
+int32_t float32_one(value unit) { return int32_of_float(1.0f); }
+int32_t float32_neg_one(value unit) { return int32_of_float(-1.0f); }
+int32_t float32_nan(value unit) { return int32_of_float(NAN); }
+int32_t float32_neg_infinity(value unit) { return int32_of_float(-INFINITY); }
+int32_t float32_infinity(value unit) { return int32_of_float(INFINITY); }
+int32_t float32_max(value unit) { return int32_of_float(FLT_MAX); }
+int32_t float32_min(value unit) { return int32_of_float(FLT_MIN); }
+value float32_eq(int32_t l, int32_t r) { return Val_bool(float_of_int32(l) == float_of_int32(r)); }
+value float32_lt(int32_t l, int32_t r) { return Val_bool(float_of_int32(l) < float_of_int32(r)); }
+value float32_le(int32_t l, int32_t r) { return Val_bool(float_of_int32(l) <= float_of_int32(r)); }
+value float32_ne(int32_t l, int32_t r) { return Val_bool(float_of_int32(l) != float_of_int32(r)); }
+value float32_nle(int32_t l, int32_t r) { return Val_bool(!(float_of_int32(l) <= float_of_int32(r))); }
+value float32_nlt(int32_t l, int32_t r) { return Val_bool(!(float_of_int32(l) < float_of_int32(r))); }
+value float32_ord(int32_t l, int32_t r) { return Val_bool(!(isnan(float_of_int32(l)) || isnan(float_of_int32(r)))); }
+value float32_uord(int32_t l, int32_t r) { return Val_bool(isnan(float_of_int32(l)) || isnan(float_of_int32(r))); }
