@@ -1200,7 +1200,8 @@ and case
             join [ expression p << Dereference; expression c_rhs ]
         | Some (Pattern (e, _, pat)) ->
           let cases = [ { c_lhs = pat; c_guard = None; c_rhs } ] in
-          check_match e cases in
+          check_match e cases
+      in
       (fun m ->
         let env = judg m in
         (remove_pat c_lhs env), Mode.compose m (pattern c_lhs env))
