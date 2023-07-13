@@ -404,10 +404,10 @@ and 'k case =
 
 and guard =
   | Predicate of expression
+  | Pattern of expression * Layouts.sort * computation general_pattern
   (* (scrutinee, sort of scrutinee, pattern)
      causes case to only match if [scrutinee] evaluates to a value matching
      [pattern], exposing any variables bound in [pattern] in the case rhs *)
-  | Pattern of expression * Layouts.sort * computation general_pattern
 
 and record_label_definition =
   | Kept of Types.type_expr
