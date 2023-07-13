@@ -402,6 +402,8 @@ and 'k case =
      c_rhs: expression;
     }
 
+(* CR-soon rgodse: Rename these constructors to [Guard_predicate] and
+   [Guard_pattern] *)
 and guard =
   | Predicate of expression
   | Pattern of expression * Layouts.sort * computation general_pattern
