@@ -114,11 +114,11 @@ type void = |
 Line 109, characters 13-28:
 109 |     | Left u when u match () -> 0
                    ^^^^^^^^^^^^^^^
-Warning 73 [exhaustive-match]: This pattern guard matches all cases. Consider rewriting the guard as a nested match.
+Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
 Line 110, characters 14-31:
 110 |     | Right v when v match None -> 1
                     ^^^^^^^^^^^^^^^^^
-Warning 73 [exhaustive-match]: This pattern guard matches all cases. Consider rewriting the guard as a nested match.
+Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
 Uncaught exception: Failure("guard pattern translation unimplemented")
 
 |}]
