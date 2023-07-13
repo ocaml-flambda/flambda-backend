@@ -11,3 +11,21 @@ let _ = f ~src_pos:{pos_fname="hello" ; pos_lnum=1; pos_bol=2; pos_cnum=3} ();;
 [%%expect{|
 - : unit = ()
 |}]
+
+(* Shadowing *)
+
+type position = int 
+[%%expect{|
+type position = int
+|}]
+
+let f ~(src_pos:[%src_pos]) () = ();;
+[%%expect{|
+val f : src_pos:position/2 -> unit -> unit = <fun>
+|}]
+
+let _ = f ~src_pos:{pos_fname="hello" ; pos_lnum=1; pos_bol=2; pos_cnum=3} ();;
+[%%expect{|
+- : unit = ()
+|}]
+
