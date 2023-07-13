@@ -6951,7 +6951,8 @@ and type_cases
         let guard, exp =
           match pc_guard with
             | None | Some (Guard_predicate _) ->
-                let guard = match pc_guard with
+                let guard =
+                  match pc_guard with
                   (* This case is unreachable, as [pc_guard] cannot match the
                      outer pattern while also matching [Some (Guard_pattern _)]
                    *)
