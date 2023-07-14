@@ -62,7 +62,7 @@ let layout (layout : Lambda.layout) =
   | Punboxed_int Pint32 -> ":unboxed_int32"
   | Punboxed_int Pint64 -> ":unboxed_int64"
   | Punboxed_int Pnativeint -> ":unboxed_nativeint"
-  | Punboxed_vector (Pvec128 ty) -> ":unboxed" ^ (Primitive.vec128_name ty)
+  | Punboxed_vector (Pvec128 ty) -> ":unboxed_" ^ (Primitive.vec128_name ty)
 
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x
