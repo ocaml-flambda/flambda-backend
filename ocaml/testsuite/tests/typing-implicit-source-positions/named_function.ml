@@ -17,6 +17,7 @@ let _ = apply f ;;
 - : unit = ()
 |}]
 
+(* Using lexing_position manually *)
 let g ~(src_pos:lexing_position) = () ;; 
 [%%expect {|
 val g : src_pos:lexing_position -> unit = <fun>
@@ -25,6 +26,17 @@ val g : src_pos:lexing_position -> unit = <fun>
 let _ = apply g ;;
 [%%expect{|
 - : unit = ()
+|}]
+
+(* src_pos (lexing_position) and Lexing.position are synonyms *)
+let s ~(src_pos:[%src_pos]) : Lexing.position = src_pos ;; 
+[%%expect{|
+val s : src_pos:lexing_position -> Lexing.position = <fun>
+|}]
+
+let t (src_pos:Lexing.position) : [%src_pos] = src_pos ;; 
+[%%expect{|
+val t : Lexing.position -> lexing_position = <fun>
 |}]
 
 (* Shadowing *)
