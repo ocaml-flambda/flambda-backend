@@ -437,8 +437,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
            ~position ~mode (transl_exp ~scopes Sort.for_function funct)
            oargs (of_location ~scopes e.exp_loc))
   | Texp_match(arg, arg_sort, pat_expr_list, partial) ->
-      transl_match ~scopes ~arg_sort ~return_sort:sort e arg pat_expr_list
-        partial
+      transl_match ~scopes ~arg_sort ~return_sort:sort ~return_type:e.exp_type
+        ~loc:e.exp_loc ~env:e.exp_env ~extra_cases:[] arg pat_expr_list partial
   | Texp_try(body, pat_expr_list) ->
       let id = Typecore.name_cases "exn" pat_expr_list in
       let return_layout = layout_exp sort e in
@@ -1009,16 +1009,45 @@ and transl_list_with_shape ~scopes expr_list =
   in
   List.split (List.map transl_with_shape expr_list)
 
-and transl_guard ~scopes guard rhs_sort rhs =
+and transl_guard ~scopes guard rhs_sort rhs : Matching.action =
   let layout = layout_exp rhs_sort rhs in
   let expr = event_before ~scopes rhs (transl_exp ~scopes rhs_sort rhs) in
   match guard with
-  | None -> expr
+  | None -> Unguarded expr
   | Some (Predicate cond) ->
-      event_before ~scopes cond
-        (Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
-                     expr, staticfail, layout))
-  | Some (Pattern _) -> failwith "guard pattern translation unimplemented"
+      Guarded (
+        event_before ~scopes cond
+          (Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
+                       expr, staticfail, layout)))
+  | Some (Pattern (arg, arg_sort, pat, partial, loc, env)) ->
+      let guard_case : _ case =
+        { c_lhs = pat
+        ; c_guard = None
+        ; c_rhs = rhs }
+      in
+      match partial with
+        | Partial -> 
+            let any_pat : pattern =
+              { pat_desc = Tpat_any
+              ; pat_loc = Location.none
+              ; pat_extra = []
+              ; pat_type = arg.exp_type
+              ; pat_env = Env.empty
+              ; pat_attributes = []
+              }
+            in
+            let extra_cases = [ (any_pat, Matching.Unguarded staticfail) ] in
+            let nested_match = transl_match ~scopes ~arg_sort
+              ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc ~env
+              ~extra_cases arg [ guard_case ] partial
+            in
+            Guarded nested_match
+        | Total ->
+            let nested_match = transl_match ~scopes ~arg_sort
+              ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc ~env
+              ~extra_cases:[] arg [ guard_case ] partial
+            in
+            Unguarded nested_match
 
 and transl_case ~scopes rhs_sort {c_lhs; c_guard; c_rhs} =
   c_lhs, transl_guard ~scopes c_guard rhs_sort c_rhs
@@ -1164,10 +1193,10 @@ and transl_apply ~scopes
 
 and transl_curried_function
       ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout loc repr ~region
-      ~curry partial warnings (param:Ident.t) cases =
+      ~curry partial warnings (param:Ident.t) cases : _ * lambda =
   let max_arity = Lambda.max_arity () in
   let rec loop ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout loc
-            ~arity ~region ~curry partial warnings (param:Ident.t) cases =
+            ~arity ~region ~curry partial warnings (param:Ident.t) cases : _ * lambda =
     match curry, cases with
       More_args {partial_mode},
       [{c_lhs=pat; c_guard=None;
@@ -1207,7 +1236,7 @@ and transl_curried_function
         in
         ((fnkind, (param, arg_layout) :: params, return_layout, region),
          Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout loc
-           None (Lvar param) [pat, body] partial)
+           None (Lvar param) [pat, Unguarded body] partial)
       else begin
         begin match partial with
         | Total ->
@@ -1537,8 +1566,9 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     end
   end
 
-and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
-  let return_layout = layout_exp arg_sort e in
+and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
+      ~extra_cases arg pat_expr_list partial =
+  let return_layout = layout env loc arg_sort return_type in
   let rewrite_case (val_cases, exn_cases, static_handlers as acc)
         ({ c_lhs; c_guard; c_rhs } as case) =
     if c_rhs.exp_desc = Texp_unreachable then acc else
@@ -1562,7 +1592,7 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
           Lstaticraise (lbl, List.map (fun id -> Lvar id) ids)
         in
         (* Simplif doesn't like it if binders are not uniq, so we make sure to
-           use different names in the value and the exception branches. *)
+            use different names in the value and the exception branches. *)
         let ids_full = Typedtree.pat_bound_idents_full arg_sort pv in
         let ids = List.map (fun (id, _, _, _) -> id) ids_full in
         let ids_kinds =
@@ -1577,45 +1607,45 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
         let rhs =
           Misc.try_finally
             (fun () -> event_before ~scopes c_rhs
-                         (transl_exp ~scopes return_sort c_rhs))
+                          (transl_exp ~scopes return_sort c_rhs))
             ~always:(fun () ->
                 iter_exn_names Translprim.remove_exception_ident pe)
         in
-        (pv, static_raise vids) :: val_cases,
-        (pe, static_raise ids) :: exn_cases,
+        (pv, Matching.Unguarded (static_raise vids)) :: val_cases,
+        (pe, Matching.Unguarded (static_raise ids)) :: exn_cases,
         (lbl, ids_kinds, rhs) :: static_handlers
   in
   let val_cases, exn_cases, static_handlers =
     let x, y, z = List.fold_left rewrite_case ([], [], []) pat_expr_list in
-    List.rev x, List.rev y, List.rev z
+    List.rev_append x extra_cases, List.rev y, List.rev z
   in
   (* In presence of exception patterns, the code we generate for
 
-       match <scrutinees> with
-       | <val-patterns> -> <val-actions>
-       | <exn-patterns> -> <exn-actions>
+        match <scrutinees> with
+        | <val-patterns> -> <val-actions>
+        | <exn-patterns> -> <exn-actions>
 
-     looks like
+      looks like
 
-       staticcatch
-         (try (exit <val-exit> <scrutinees>)
+        staticcatch
+          (try (exit <val-exit> <scrutinees>)
           with <exn-patterns> -> <exn-actions>)
-       with <val-exit> <val-ids> ->
+        with <val-exit> <val-ids> ->
           match <val-ids> with <val-patterns> -> <val-actions>
 
-     In particular, the 'exit' in the value case ensures that the
-     value actions run outside the try..with exception handler.
+      In particular, the 'exit' in the value case ensures that the
+      value actions run outside the try..with exception handler.
   *)
   let static_catch scrutinees val_ids handler =
     let id = Typecore.name_pattern "exn" (List.map fst exn_cases) in
     let static_exception_id = next_raise_count () in
     Lstaticcatch
       (Ltrywith (Lstaticraise (static_exception_id, scrutinees), id,
-                 Matching.for_trywith ~scopes ~return_layout e.exp_loc (Lvar id)
-                   exn_cases,
-                 return_layout),
-       (static_exception_id, val_ids),
-       handler,
+                  Matching.for_trywith ~scopes ~return_layout loc (Lvar id)
+                    exn_cases,
+                  return_layout),
+        (static_exception_id, val_ids),
+        handler,
       return_layout)
   in
   let classic =
@@ -1624,34 +1654,34 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
       assert (static_handlers = []);
       let mode = transl_alloc_mode alloc_mode in
       let argl = List.map (fun a -> (a, Sort.for_tuple_element)) argl in
-      Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
+      Matching.for_multiple_match ~scopes ~return_layout loc
         (transl_list_with_layout ~scopes argl) mode val_cases partial
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, _ :: _ ->
         let argl = List.map (fun a -> (a, Sort.for_tuple_element)) argl in
         let val_ids, lvars =
           List.map
             (fun (arg,s) ->
-               let layout = layout_exp s arg in
-               let id = Typecore.name_pattern "val" [] in
-               (id, layout), (Lvar id, s, layout))
+                let layout = layout_exp s arg in
+                let id = Typecore.name_pattern "val" [] in
+                (id, layout), (Lvar id, s, layout))
             argl
           |> List.split
         in
         let mode = transl_alloc_mode alloc_mode in
         static_catch (transl_list ~scopes argl) val_ids
-          (Matching.for_multiple_match ~scopes ~return_layout e.exp_loc
-             lvars mode val_cases partial)
+          (Matching.for_multiple_match ~scopes ~return_layout loc lvars mode
+             val_cases partial)
     | arg, [] ->
       assert (static_handlers = []);
       let arg_layout = layout_exp arg_sort arg in
       Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout
-        e.exp_loc None (transl_exp ~scopes arg_sort arg) val_cases partial
+        loc None (transl_exp ~scopes arg_sort arg) val_cases partial
     | arg, _ :: _ ->
         let val_id = Typecore.name_pattern "val" (List.map fst val_cases) in
         let arg_layout = layout_exp arg_sort arg in
         static_catch [transl_exp ~scopes arg_sort arg] [val_id, arg_layout]
           (Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout
-             e.exp_loc None (Lvar val_id) val_cases partial)
+              loc None (Lvar val_id) val_cases partial)
   in
   List.fold_left (fun body (static_exception_id, val_ids, handler) ->
     Lstaticcatch (body, (static_exception_id, val_ids), handler, return_layout)

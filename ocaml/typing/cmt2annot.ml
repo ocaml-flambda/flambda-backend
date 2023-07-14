@@ -52,7 +52,7 @@ let bind_cases l =
           let gexp =
             match g with
             | Predicate pred -> pred
-            | Pattern (exp, _, pat, _) ->
+            | Pattern (exp, _, pat, _, _, _) ->
                 bind_variables c_rhs.exp_loc pat;
                 exp
               in

@@ -945,8 +945,25 @@ let rec is_guarded = function
   | _ -> false
 
 let rec patch_guarded patch = function
-  | Lifthenelse (cond, body, Lstaticraise (0,[]), kind) ->
-      Lifthenelse (cond, body, patch, kind)
+  | Lstaticraise (0,[]) -> patch
+  | Lifthenelse (cond, e1, e2, kind) ->
+      Lifthenelse (cond, patch_guarded patch e1, patch_guarded patch e2, kind)
+  | Lstaticcatch (body, (id, params), handler, kind) ->
+      Lstaticcatch (patch_guarded patch body, (id, params),
+                    patch_guarded patch handler, kind)
+  | Llet(str, k, id, lam, body) ->
+      Llet (str, k, id, lam, patch_guarded patch body)
+  | Levent(lam, ev) ->
+      Levent (patch_guarded patch lam, ev)
+  | lambda -> lambda
+
+let patch_guarded patch = function
+  | Lstaticraise (0,[]) -> patch
+  | Lifthenelse (cond, e1, e2, kind) ->
+      Lifthenelse (cond, patch_guarded patch e1, patch_guarded patch e2, kind)
+  | Lstaticcatch (body, (id, params), handler, kind) ->
+      Lstaticcatch (patch_guarded patch body, (id, params),
+                    patch_guarded patch handler, kind)
   | Llet(str, k, id, lam, body) ->
       Llet (str, k, id, lam, patch_guarded patch body)
   | Levent(lam, ev) ->

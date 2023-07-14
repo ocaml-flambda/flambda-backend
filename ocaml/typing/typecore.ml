@@ -3369,7 +3369,7 @@ let rec is_nonexpansive exp =
            let is_guard_nonexpansive = match c_guard with
              | None -> true
              | Some (Typedtree.Predicate p) -> is_nonexpansive p
-             | Some (Typedtree.Pattern (e, _, pat, _)) ->
+             | Some (Typedtree.Pattern (e, _, pat, _, _, _)) ->
                  is_nonexpansive e && not (contains_exception_pat pat)
            in
            is_guard_nonexpansive && is_nonexpansive c_rhs
@@ -6986,7 +6986,11 @@ and type_cases
                 in
                 (match cases with
                   | [ { c_lhs = pat; c_guard = None; c_rhs = exp } ] ->
-                    Some (Typedtree.Pattern (arg, sort, pat, partial)), exp
+                      let pattern_guard =
+                        (Typedtree.Pattern
+                           (arg, sort, pat, partial, loc, ext_env))
+                      in
+                      Some pattern_guard, exp
                   | _ ->
                       Misc.fatal_error "type_cases invariant violated")
         in

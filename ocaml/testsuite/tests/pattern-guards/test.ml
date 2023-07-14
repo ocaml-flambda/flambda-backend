@@ -8,9 +8,22 @@ let basic_usage ~f ~default x =
   match x with 
     | Some x when f x match Some y -> y
     | _ -> default
-[%%expect{|
-Uncaught exception: Failure("guard pattern translation unimplemented")
+;;
 
+let f x = if x > 0 then Some (x - 1) else None;;
+
+basic_usage ~f ~default:~-1 (Some 5);;
+basic_usage ~f ~default:~-1 (Some 0);;
+basic_usage ~f ~default:~-1 (Some ~-5);;
+basic_usage ~f ~default:~-1 None;;
+[%%expect{|
+val basic_usage : f:('a -> 'b option) -> default:'b -> 'a option -> 'b =
+  <fun>
+val f : int -> int option = <fun>
+- : int = 4
+- : int = -1
+- : int = -1
+- : int = -1
 |}]
 ;;
 
@@ -18,6 +31,7 @@ let seq_predicate x ~f ~g ~default =
   match x with
     | Some x when f x; g x -> x
     | _ -> default
+;;
 [%%expect{|
 val seq_predicate :
   'a option -> f:('a -> 'b) -> g:('a -> bool) -> default:'a -> 'a = <fun>
@@ -27,9 +41,24 @@ let seq_pattern x ~f ~g ~default =
   match x with
     | Some x when (f x; g x) match Some y -> y
     | _ -> default
-[%%expect{|
-Uncaught exception: Failure("guard pattern translation unimplemented")
 
+let counter = ref 0;;
+let f () = incr counter;;
+let g () = if !counter > 1 then Some (!counter - 1) else None;;
+
+seq_pattern (Some ()) ~f ~g ~default:0;;
+seq_pattern (Some ()) ~f ~g ~default:0;;
+seq_pattern None ~f ~g ~default:0;;
+[%%expect{|
+val seq_pattern :
+  'a option -> f:('a -> 'b) -> g:('a -> 'c option) -> default:'c -> 'c =
+  <fun>
+val counter : int ref = {contents = 0}
+val f : unit -> unit = <fun>
+val g : unit -> int option = <fun>
+- : int = 0
+- : int = 1
+- : int = 0
 |}]
 
 let complex_types (x : int list option) : bool =
@@ -42,8 +71,7 @@ let complex_types (x : int list option) : bool =
     | Some strs when strs match ("foo", s2) -> String.equal s2 "bar"
     | Some _ | None -> false
 [%%expect {|
-Uncaught exception: Failure("guard pattern translation unimplemented")
-
+val complex_types : int list option -> bool = <fun>
 |}]
 
 let ill_typed_pattern (x : int list option) : bool =
@@ -74,9 +102,16 @@ let shadow_outer_variables (n : int option) (strs : string list) =
   match n with
   | Some n when List.nth_opt strs n match Some s -> s
   | _ -> "Not found"
-[%%expect{|
-Uncaught exception: Failure("guard pattern translation unimplemented")
+;;
 
+shadow_outer_variables (Some 0) [ "foo"; "bar" ];;
+shadow_outer_variables (Some 1) [ "foo"; "bar" ];;
+shadow_outer_variables (Some 2) [ "foo"; "bar" ];;
+[%%expect{|
+val shadow_outer_variables : int option -> string list -> string = <fun>
+- : string = "foo"
+- : string = "bar"
+- : string = "Not found"
 |}]
 
 type ('a, 'b) eq = Eq : ('a, 'a) eq
@@ -88,8 +123,8 @@ let in_pattern_guard (type a b) (eq : (a, b) eq) (compare : a -> a -> int)
     | _ -> false
 [%%expect{|
 type ('a, 'b) eq = Eq : ('a, 'a) eq
-Uncaught exception: Failure("guard pattern translation unimplemented")
-
+val in_pattern_guard : ('a, 'b) eq -> ('a -> 'a -> int) -> 'a -> 'b -> bool =
+  <fun>
 |}]
 
 let from_pattern_guard (type a b) (eqs : (a, b) eq option list)
@@ -98,8 +133,8 @@ let from_pattern_guard (type a b) (eqs : (a, b) eq option list)
     | eq_opt :: _ when eq_opt match Some Eq -> compare x y
     | _ -> 0
 [%%expect{|
-Uncaught exception: Failure("guard pattern translation unimplemented")
-
+val from_pattern_guard :
+  ('a, 'b) eq option list -> ('a -> 'a -> int) -> 'a -> 'b -> int = <fun>
 |}]
 
 type void = |
@@ -111,14 +146,13 @@ let exhaustive_pattern_guards (x : (unit, void option) Either.t) : int =
     | _ -> 2
 [%%expect{|
 type void = |
-Line 109, characters 13-28:
-109 |     | Left u when u match () -> 0
+Line 144, characters 13-28:
+144 |     | Left u when u match () -> 0
                    ^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
-Line 110, characters 14-31:
-110 |     | Right v when v match None -> 1
+Line 145, characters 14-31:
+145 |     | Right v when v match None -> 1
                     ^^^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
-Uncaught exception: Failure("guard pattern translation unimplemented")
-
+val exhaustive_pattern_guards : (unit, void option) Either.t -> int = <fun>
 |}]

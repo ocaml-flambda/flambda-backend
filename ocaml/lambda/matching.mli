@@ -19,16 +19,21 @@ open Typedtree
 open Lambda
 open Debuginfo.Scoped_location
 
+(* Guarded actions must be patched *)
+type action =
+  | Guarded of lambda
+  | Unguarded of lambda
+
 (* Entry points to match compiler *)
 val for_function:
         scopes:scopes ->
         arg_sort:Layouts.sort -> arg_layout:layout -> return_layout:layout ->
-        Location.t -> int ref option -> lambda -> (pattern * lambda) list ->
+        Location.t -> int ref option -> lambda -> (pattern * action) list ->
         partial ->
         lambda
 val for_trywith:
         scopes:scopes -> return_layout:layout -> Location.t ->
-        lambda -> (pattern * lambda) list ->
+        lambda -> (pattern * action) list ->
         lambda
 val for_let:
         scopes:scopes -> arg_sort:Layouts.sort -> return_layout:layout ->
@@ -37,12 +42,12 @@ val for_let:
 val for_multiple_match:
         scopes:scopes -> return_layout:layout -> Location.t ->
         (lambda * Layouts.sort * layout) list -> alloc_mode ->
-        (pattern * lambda) list -> partial ->
+        (pattern * action) list -> partial ->
         lambda
 
 val for_tupled_function:
         scopes:scopes -> return_layout:layout -> Location.t ->
-        Ident.t list -> (pattern list * lambda) list -> partial ->
+        Ident.t list -> (pattern list * action) list -> partial ->
         lambda
 
 exception Cannot_flatten

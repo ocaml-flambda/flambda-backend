@@ -407,6 +407,7 @@ and 'k case =
 and guard =
   | Predicate of expression
   | Pattern of expression * Layouts.sort * computation general_pattern * partial
+                * Location.t * Env.t
   (* [Pattern (scrutinee, sort, pattern, partial)] represents a pattern guard.
      The case will be taken if [scrutinee] evaluates to a value matching
      [pattern]. Variables bound by the pattern match are available on the RHS of

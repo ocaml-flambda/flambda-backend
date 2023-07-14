@@ -99,6 +99,21 @@ open Printpat
 
 module Scoped_location = Debuginfo.Scoped_location
 
+type action =
+  | Guarded of lambda
+  | Unguarded of lambda
+
+let is_guarded = function
+  | Guarded _ -> true
+  | Unguarded _ -> false
+
+let lambda_of_action = function
+  | Guarded action | Unguarded action -> action
+
+let map_action ~f = function
+  | Guarded action -> Guarded (f action)
+  | Unguarded action -> Unguarded (f action)
+
 type error =
     Non_value_layout of Layout.Violation.t
 
@@ -165,12 +180,12 @@ let expand_record_head h =
 
 let bind_alias p id ~arg ~arg_sort ~action =
   let k = Typeopt.layout p.pat_env p.pat_loc arg_sort p.pat_type in
-  bind_with_layout Alias (id, k) arg action
+  map_action ~f:(bind_with_layout Alias (id, k) arg) action
 
 let head_loc ~scopes head =
   Scoped_location.of_location ~scopes head.pat_loc
 
-type 'a clause = 'a * lambda
+type 'a clause = 'a * action
 
 let map_on_row f (row, action) = (f row, action)
 
@@ -249,7 +264,7 @@ end = struct
       | `Alias (p, id, _, _) ->
           aux
             ( (General.view p, patl),
-              bind_alias p id ~arg ~arg_sort ~action )
+                bind_alias p id ~arg ~arg_sort ~action )
       | `Record ([], _) as view -> stop p view
       | `Record (lbls, closed) ->
           let full_view = `Record (all_record_args lbls, closed) in
@@ -280,9 +295,9 @@ module Simple : sig
     arg:lambda ->
     arg_sort:Layouts.sort ->
     Half_simple.pattern ->
-    mk_action:(vars:Ident.t list -> lambda) ->
+    mk_action:(vars:Ident.t list -> action) ->
     patbound_action_vars:Ident.t list ->
-    (pattern * lambda) list
+    (pattern * action) list
 end = struct
   include Patterns.Simple
 
@@ -335,7 +350,7 @@ end = struct
   *)
   let explode_or_pat ~arg ~arg_sort (p : Half_simple.pattern)
         ~mk_action ~patbound_action_vars
-    : (pattern * lambda) list =
+    : (pattern * action) list =
     let rec explode p aliases rem =
       let split_explode p aliases rem = explode (General.view p) aliases rem in
       match p.pat_desc with
@@ -1103,6 +1118,8 @@ let same_actions = function
 let safe_before ((p, ps), act_p) l =
   (* Test for swapping two clauses *)
   let same_actions act1 act2 =
+    let act1 = lambda_of_action act1 in
+    let act2 = lambda_of_action act2 in
     match (make_key act1, make_key act2) with
     | Some key1, Some key2 -> key1 = key2
     | None, _
@@ -1145,7 +1162,8 @@ let what_is_cases = what_is_cases ~skip_any:true
 
 let pm_free_variables { cases } =
   List.fold_right
-    (fun (_, act) r -> Ident.Set.union (free_variables act) r)
+    (fun (_, act) r ->
+       Ident.Set.union (free_variables (lambda_of_action act)) r)
     cases Ident.Set.empty
 
 (* Basic grouping predicates *)
@@ -1596,7 +1614,7 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
             let or_num = next_raise_count () in
             let new_patl = Patterns.omega_list patl in
             let mk_new_action ~vars =
-              Lstaticraise (or_num, List.map (fun v -> Lvar v) vars)
+              Unguarded (Lstaticraise (or_num, List.map (fun v -> Lvar v) vars))
             in
             let new_cases =
               Simple.explode_or_pat ~arg ~arg_sort p
@@ -3329,13 +3347,15 @@ let rec compile_match ~scopes value_kind repr partial ctx
     (m : initial_clause pattern_matching) =
   match m.cases with
   | ([], action) :: rem ->
-      if is_guarded action then
-        let lambda, total =
-          compile_match ~scopes value_kind None partial ctx { m with cases = rem }
-        in
-        (event_branch repr (patch_guarded lambda action), total)
-      else
-        (event_branch repr action, Jumps.empty)
+      (match action with
+        | Guarded action ->
+            let lambda, total =
+              compile_match ~scopes value_kind None partial ctx
+                { m with cases = rem }
+            in
+            event_branch repr (patch_guarded lambda action), total
+        | Unguarded action ->
+            event_branch repr action, Jumps.empty)
   | nonempty_cases ->
       compile_match_nonempty ~scopes value_kind repr partial ctx
         { m with cases = map_on_rows Non_empty_row.of_initial nonempty_cases }
@@ -3660,7 +3680,7 @@ let simple_for_let ~scopes ~arg_sort ~return_layout loc param pat body =
     Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type
   in
   compile_matching ~scopes ~arg_sort ~arg_layout ~return_layout loc
-    ~failer:Raise_match_failure None param [ (pat, body) ] Partial
+    ~failer:Raise_match_failure None param [ (pat, Unguarded body) ] Partial
 
 (* Optimize binding of immediate tuples
 
