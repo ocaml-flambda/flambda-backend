@@ -267,6 +267,7 @@ module Vector_casts = struct
     ;;
 end
 
+(* For testing *)
 module Float32 = struct
     type t = int32
 
@@ -381,7 +382,8 @@ module Float32x4 = struct
 
     (* Math *)
 
-    let test_on_floats f =
+    let check_floats f =
+        Random.set_state (Random.State.make [|1234567890|]);
         f Float32.zero Float32.zero;
         f Float32.zero Float32.one;
         f Float32.one Float32.one;
@@ -404,13 +406,18 @@ module Float32x4 = struct
         f Float32.minv Float32.neg_infinity;
         f Float32.maxv Float32.maxv;
         f Float32.minv Float32.minv;
-        f Float32.maxv Float32.minv
+        f Float32.maxv Float32.minv;
+        for i = 0 to 1_000_000 do
+            let f0 = Random.int32 Int32.max_int in
+            let f1 = Random.int32 Int32.max_int in
+            f (if Random.bool () then f0 else Int32.neg f0) (if Random.bool () then f1 else Int32.neg f1)
+        done
     ;;
 
     external cmp : int -> (t [@unboxed]) -> (t [@unboxed]) -> (int32x4 [@unboxed]) = "" "caml_sse_float32x4_cmp"
         [@@noalloc] [@@builtin]
 
-    let test_cmp scalar vector f0 f1 =
+    let check_cmp scalar vector f0 f1 =
         let expect =
             let r0 = if scalar f0 f1 then 0xffffffffl else 0l in
             let r1 = if scalar f1 f0 then 0xffffffffl else 0l in
@@ -423,14 +430,14 @@ module Float32x4 = struct
            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
     ;;
     let () =
-        test_on_floats (test_cmp Float32.eq (fun l r -> cmp 0 l r));
-        test_on_floats (test_cmp Float32.lt (fun l r -> cmp 1 l r));
-        test_on_floats (test_cmp Float32.le (fun l r -> cmp 2 l r));
-        test_on_floats (test_cmp Float32.uord (fun l r -> cmp 3 l r));
-        test_on_floats (test_cmp Float32.neq (fun l r -> cmp 4 l r));
-        test_on_floats (test_cmp Float32.nlt (fun l r -> cmp 5 l r));
-        test_on_floats (test_cmp Float32.nle (fun l r -> cmp 6 l r));
-        test_on_floats (test_cmp Float32.ord (fun l r -> cmp 7 l r))
+        check_floats (check_cmp Float32.eq (fun l r -> cmp 0 l r));
+        check_floats (check_cmp Float32.lt (fun l r -> cmp 1 l r));
+        check_floats (check_cmp Float32.le (fun l r -> cmp 2 l r));
+        check_floats (check_cmp Float32.uord (fun l r -> cmp 3 l r));
+        check_floats (check_cmp Float32.neq (fun l r -> cmp 4 l r));
+        check_floats (check_cmp Float32.nlt (fun l r -> cmp 5 l r));
+        check_floats (check_cmp Float32.nle (fun l r -> cmp 6 l r));
+        check_floats (check_cmp Float32.ord (fun l r -> cmp 7 l r))
     ;;
 
     external add : t -> t -> t = "" "caml_sse_float32x4_add"
@@ -448,12 +455,10 @@ module Float32x4 = struct
     external min : t -> t -> t = "" "caml_sse_float32x4_min"
         [@@noalloc] [@@unboxed] [@@builtin]
 
-    let test_binop scalar vector f0 f1 =
-        let expect =
-            let r0 = scalar f0 f1 in
-            let r1 = scalar f1 f0 in
-            Float32.to_float32x4 r0 r1 r0 r1
-        in
+    let check_binop scalar vector f0 f1 =
+        let r0 = scalar f0 f1 in
+        let r1 = scalar f1 f0 in
+        let expect = Float32.to_float32x4 r0 r1 r0 r1 in
         let v1 = Float32.to_float32x4 f0 f1 f0 f1 in
         let v2 = Float32.to_float32x4 f1 f0 f1 f0 in
         let result = vector v1 v2 in
@@ -461,12 +466,12 @@ module Float32x4 = struct
            (float32x4_low_int64 expect) (float32x4_high_int64 expect)
     ;;
     let () =
-        test_on_floats (test_binop Float32.add add);
-        test_on_floats (test_binop Float32.sub sub);
-        test_on_floats (test_binop Float32.mul mul);
-        test_on_floats (test_binop Float32.div div);
-        test_on_floats (test_binop Float32.max max);
-        test_on_floats (test_binop Float32.min min)
+        check_floats (check_binop Float32.add add);
+        check_floats (check_binop Float32.sub sub);
+        check_floats (check_binop Float32.mul mul);
+        check_floats (check_binop Float32.div div);
+        check_floats (check_binop Float32.max max);
+        check_floats (check_binop Float32.min min)
     ;;
 
     external rcp : t -> t = "" "caml_sse_float32x4_rcp"
