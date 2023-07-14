@@ -152,7 +152,7 @@ let alloc_float_header mode dbg =
 let alloc_boxedvector_header vi mode dbg =
   let header, local_header =
     match vi with
-    | Primitive.Pvec128 _ -> boxedvec128_header, boxedvec128_local_header
+    | Lambda.Pvec128 _ -> boxedvec128_header, boxedvec128_local_header
   in
   match mode with
   | Lambda.Alloc_heap -> Cconst_natint (header, dbg)
@@ -746,7 +746,7 @@ let rec unbox_vec128 dbg =
     | cmm -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
 
 let unbox_vector dbg vi e =
-  match vi with Primitive.Pvec128 _ -> unbox_vec128 dbg e
+  match vi with Lambda.Pvec128 _ -> unbox_vec128 dbg e
 
 (* Complex *)
 
