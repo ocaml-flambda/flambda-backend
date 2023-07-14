@@ -264,16 +264,16 @@ let common_initial_env add_type add_extension empty_env =
       let lbl (field, field_type, layout) = 
         let id = Ident.create_predef field in 
           {
-          ld_id=id;
-          ld_mutable=Immutable;
-          ld_global=Unrestricted;
-          ld_type=field_type;
-          ld_layout=layout;
-          ld_loc=Location.none;
-          ld_attributes=[];
-          ld_uid=Uid.of_predef_id id;
-        }
-      in 
+            ld_id=id;
+            ld_mutable=Immutable;
+            ld_global=Unrestricted;
+            ld_type=field_type;
+            ld_layout=layout;
+            ld_loc=Location.none;
+            ld_attributes=[];
+            ld_uid=Uid.of_predef_id id;
+          }
+      in
       let immediate = Layout.value ~why:(Primitive ident_int) in 
       let labels = List.map lbl [
         ("pos_fname", type_string, Layout.value ~why:(Primitive ident_string)); 
