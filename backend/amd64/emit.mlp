@@ -1733,7 +1733,7 @@ let stack_locations ~offset regs =
       | Float -> size_float
       | Vec128 -> size_vec128 in
     next, (make_stack_loc n r ~offset :: offsets)) regs (0, []) in
-  locs |> List.rev |> Array.of_list
+  locs |> Array.of_list
 
 let emit_probe_handler_wrapper p =
   let wrap_label = probe_handler_wrapper_name p.probe_label in
