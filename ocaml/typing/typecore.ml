@@ -285,48 +285,40 @@ let case lhs rhs =
 
 type position_in_function = FTail | FNontail
 
-
 type position_in_region =
-  (* not the tail of a region*)
   | RNontail
-  (* tail of a region,
-     together with the mode of that region,
-     and whether it is also the tail of a function
-     (for tail call escape detection) *)
+  (** not the tail of a region*)
+
   | RTail of Value_mode.t * position_in_function
+  (** tail of a region, together with the mode of that region, and whether it is
+     also the tail of a function (for tail call escape detection) *)
 
 type expected_mode =
   { position : position_in_region;
+    (** position in the current region  *)
+
     escaping_context : Env.escaping_context option;
-    (* the upper bound of mode*)
+    (** explains why [mode] is low. Better be empty if [mode] is max *)
+
     mode : Value_mode.t;
-    (* in some scnearios, the above `mode` will be the exact mode of the
-        expression to be typed, indicated by the `exact` field.
+    (** the upper bound *)
 
-    - In any case, there is no risk of miscompilation in taking an upper bound
-    as exact. We might lose some range and trigger some false mode errors.
-
-    - Taking an exact as upper bound could cause issues. In particular
-    for the inner function of an uncurried function.
-
-
-    Therefore, if we just take it as exact regardless of the `exact`
-    field, we should be safe. Moreover, note that for most allocations, they
-    want to use expected_mode.mode as exact anyway, because that would be the
-    only constraint and they want to be as local as possible. The only exception
-    is uncurried functions where the mode constraints are tricky.
-    *)
     exact : bool;
+    (** if [true], means [mode] is exact (not just upper bound) *)
+
     tuple_modes : Value_mode.t list;
-    (* for t in tuple_modes, t <= regional_to_global mode *)
+    (** User experience improvement. For t in tuple_modes, t <=
+    regional_to_global mode. Always safe to set it to empty (and thus
+    disabling this improvement) *)
   }
 
 type position_and_mode = {
-  (* apply_position of the current application  *)
   apply_position : apply_position;
-  (* [Some m] if [position] is [Tail], where m is the mode of the surrounding
-     function's return mode *)
+  (** apply_position of the current application  *)
+
   region_mode : Value_mode.t option;
+  (** [Some m] if [position] is [Tail], where m is the mode of the surrounding
+     function's return mode *)
 }
 
 let position_and_mode_default = {
@@ -365,8 +357,8 @@ let position_and_mode env (expected_mode : expected_mode) sexp
 let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
   match region_mode with
   | Some region_mode -> begin
-    (* This application is at the tail of a function with a region;
-        if ap_mode is local, funct_ret_mode needs to be local as well. *)
+    (* This application is at the tail of a function with a region; if ap_mode
+        is local, funct_ret_mode needs to be local as well. *)
       match
         Value_mode.submode (Value_mode.of_alloc ap_mode) region_mode
       with
@@ -382,29 +374,39 @@ let mode_default mode =
     exact = false;
     tuple_modes = [] }
 
-(* used when entering a function;
-mode is the mode of the function region *)
+(** used when entering a function; mode is the mode of the function region *)
 let mode_return mode =
   { (mode_default (Value_mode.local_to_regional mode)) with
     position = RTail (mode, FTail);
     escaping_context = Some Return;
   }
 
-(* used when entering a region.*)
-let mode_region mode =
-  { (mode_default (Value_mode.local_to_regional mode)) with
-    position = RTail (mode, FNontail);
-    escaping_context = None;
+
+(** We expect nothing for the modes, usually for subexpressions whose type must
+  cross modes. *)
+let mode_max = mode_default Value_mode.max_mode
+
+(** Same as [mode_max] but set [position] *)
+let mode_max_with_position position = { mode_max with position }
+
+(** used when entering a region whose type must cross modes *)
+let mode_max_with_region =
+  { (mode_default Value_mode.regional) with
+    position = RTail (Value_mode.local, FNontail);
   }
 
-let mode_local =
-  mode_default Value_mode.local
+(** Used for several cases; all non-tail *)
+let mode_exact mode = { (mode_default mode) with exact = true }
 
-let mode_local_with_position position =
-  { mode_local with position }
+(** For the `extension.local` prefix - preserves position *)
+let mode_local expected_mode =
+  { (mode_exact Value_mode.local) with
+    position = expected_mode.position
+  }
 
-let mode_global =
-  mode_default Value_mode.global
+(* TODO: set [escaping_context] to indicate the reason for [global] *)
+(** Usually for legacy things *)
+let mode_global = mode_default Value_mode.global
 
 let mode_subcomponent expected_mode =
   mode_default (Value_mode.regional_to_global expected_mode.mode)
@@ -417,23 +419,16 @@ let mode_tailcall_argument mode =
   { (mode_default mode) with
     escaping_context = Some Tailcall_argument }
 
-
 let mode_partial_application expected_mode =
   { (mode_default (Value_mode.regional_to_global expected_mode.mode))
     with
     escaping_context = Some Partial_application }
 
+let mode_trywith expected_mode = { expected_mode with position = RNontail }
 
-let mode_trywith expected_mode =
-  { expected_mode with position = RNontail }
+(** For tuples on the RHS of bindings; [position] must be non-tail *)
+let mode_tuple mode tuple_modes = { (mode_default mode) with tuple_modes }
 
-let mode_tuple mode tuple_modes =
-  { (mode_default mode) with
-    tuple_modes }
-
-let mode_exact mode =
-  { (mode_default mode) with
-    exact = true }
 
 let mode_argument ~funct ~index ~position ~partial_app alloc_mode =
   let vmode = Value_mode.of_alloc alloc_mode in
@@ -457,7 +452,6 @@ let mode_argument ~funct ~index ~position ~partial_app alloc_mode =
 let mode_lazy =
   { mode_global with
     position = RTail (Value_mode.global, FTail) }
-
 
 let submode ~loc ~env ~reason mode expected_mode =
   let res =
@@ -676,7 +670,7 @@ let mode_cross_to_global env ty mode =
 
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if mode_cross env ty then
-  {expected_mode with mode = Value_mode.local; exact = false}
+    mode_max_with_position expected_mode.position
   else expected_mode
 
 (* Typing of patterns *)
@@ -4424,13 +4418,13 @@ and type_expect_
 
       let mode = if mode_cross env ty_expected then
         (* when mode crosses, we check the inner expr with the most relaxed mode *)
-        {expected_mode with mode = Value_mode.local; exact = false}
+        mode_max
         (* moreover, because mode crosses, expected_mode is completely useless *)
       else begin
         (* if mode does not cross, expected.mode must be local *)
         submode ~loc ~env ~reason:Other Value_mode.local expected_mode;
         (* and we require the inner expr to be exact local *)
-        {expected_mode with mode = Value_mode.local; exact = true}
+        mode_local expected_mode
       end
       in
       let exp =
@@ -4920,7 +4914,7 @@ and type_expect_
         sargl
   | Pexp_ifthenelse(scond, sifso, sifnot) ->
       let cond =
-        type_expect env mode_local scond
+        type_expect env mode_max scond
           (mk_expected ~explanation:If_conditional Predef.type_bool)
       in
       begin match sifnot with
@@ -4963,7 +4957,7 @@ and type_expect_
         exp_env = env }
   | Pexp_while(scond, sbody) ->
       let cond_env = Env.add_region_lock env in
-      let mode = mode_region Value_mode.local in
+      let mode = mode_max_with_region in
       let wh_cond =
         type_expect cond_env mode scond
           (mk_expected ~explanation:While_loop_conditional Predef.type_bool)
@@ -4983,11 +4977,11 @@ and type_expect_
         exp_env = env }
   | Pexp_for(param, slow, shigh, dir, sbody) ->
       let for_from =
-        type_expect env (mode_region Value_mode.local) slow
+        type_expect env mode_max_with_region slow
           (mk_expected ~explanation:For_loop_start_index Predef.type_int)
       in
       let for_to =
-        type_expect env (mode_region Value_mode.local) shigh
+        type_expect env mode_max_with_region shigh
           (mk_expected ~explanation:For_loop_stop_index Predef.type_int)
       in
       let for_id, new_env =
@@ -5361,7 +5355,7 @@ and type_expect_
 
   | Pexp_assert (e) ->
       let cond =
-        type_expect env mode_local e
+        type_expect env mode_max e
           (mk_expected ~explanation:Assert_condition Predef.type_bool)
       in
       let exp_type =
@@ -5881,7 +5875,7 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
         if region_locked then mode_return ret_value_mode
         else begin
           match Alloc_mode.submode Alloc_mode.local ret_mode with
-          | Ok () -> mode_local
+          | Ok () -> mode_max
           | Error () -> raise (Error (loc_fun, env, Function_returns_local))
         end
       in
@@ -6732,7 +6726,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
 
 and type_statement ?explanation ?(position=RNontail) env sexp =
   begin_def();
-  let exp = type_exp env (mode_local_with_position position) sexp in
+  let exp = type_exp env (mode_max_with_position position) sexp in
   end_def();
   let ty = expand_head env exp.exp_type in
   (* We're requiring the statement to have a representable layout.  But that
@@ -6910,7 +6904,7 @@ and type_cases
           | None -> None
           | Some scond ->
               Some
-                (type_expect ext_env mode_local scond
+                (type_expect ext_env mode_max scond
                    (mk_expected ~explanation:When_guard Predef.type_bool))
         in
         let exp =
@@ -7591,7 +7585,7 @@ and type_comprehension_clause ~loc ~comprehension_type ~container_type env
            [type_comprehension_expr]*)
         type_expect
           env
-          mode_local
+          mode_max
           cond
           (mk_expected ~explanation:Comprehension_when Predef.type_bool)
       in
@@ -7621,7 +7615,7 @@ and type_comprehension_iterator
            use?" in [type_comprehension_expr]*)
         type_expect
           env
-          mode_local
+          mode_max
           bound
           (mk_expected ~explanation Predef.type_int)
       in
