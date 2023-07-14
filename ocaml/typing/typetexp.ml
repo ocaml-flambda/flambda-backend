@@ -834,8 +834,8 @@ and transl_type_aux env policy mode styp =
             pack_txt = p;
            }) ty
   | Ptyp_extension  ({txt="src_pos"; _}, _payload) -> 
-      let path = Predef.path_position in
-      let lid = Longident.Lident "position" in
+      let path = Predef.path_lexing_position in
+      let lid = Longident.Lident "lexing_position" in
       let constr = newconstr path [] in
       ctyp (Ttyp_constr (path, {txt=lid; loc=Location.none}, [])) constr
   | Ptyp_extension ext ->
