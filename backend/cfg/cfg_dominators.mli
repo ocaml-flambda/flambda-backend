@@ -2,7 +2,7 @@
 
 (* Dominator-related utility functions. *)
 
-type dominator_tree =
+type dominator_tree = private
   { label : Label.t;
     children : dominator_tree list
   }
