@@ -965,7 +965,7 @@ let emit_instr fallthrough i =
           I.xorpd (res i 0) (res i 0)
       | _ ->
           let lbl = add_vec128_constant {high; low} in
-          I.movupd (mem64_rip VEC128 (emit_label lbl)) (res i 0)
+          I.movapd (mem64_rip VEC128 (emit_label lbl)) (res i 0)
       end
   | Lop(Iconst_symbol s) ->
       add_used_symbol s.sym_name;
@@ -1952,6 +1952,15 @@ let end_assembly () =
     end;
     D.align ~data:true 8;
     List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants;
+  end;
+  if !vec128_constants <> [] then begin
+    begin match system with
+    | S_macosx -> D.section ["__TEXT";"__literal16"] None ["16byte_literals"]
+    | S_mingw64 | S_cygwin -> D.section [".rdata"] (Some "dr") []
+    | S_win64 -> D.data ()
+    | _ -> D.section [".rodata.cst16"] (Some "aM") ["@progbits";"16"]
+    end;
+    D.align ~data:true 16;
     List.iter (fun (cst,lbl) -> emit_vec128_constant cst lbl) !vec128_constants;
   end;
 
