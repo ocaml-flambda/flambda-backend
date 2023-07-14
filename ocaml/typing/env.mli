@@ -59,8 +59,13 @@ type address =
 type t
 
 val empty: t
-val initial_safe_string: t
-val initial_unsafe_string: t
+
+(* Lazy: these should be forced only after command-line flags are parsed, as
+   construction consults the enabled language extensions.
+ *)
+val initial_safe_string: t Lazy.t
+val initial_unsafe_string: t Lazy.t
+
 val diff: t -> t -> Ident.t list
 
 type type_descr_kind =

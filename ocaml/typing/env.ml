@@ -2677,12 +2677,30 @@ let save_signature_with_imports ~alerts sg modname filename imports =
   save_signature_with_transform with_imports
     ~alerts sg modname filename
 
-(* Make the initial environment *)
+(* Make the initial environment, without language extensions *)
 let (initial_safe_string, initial_unsafe_string) =
   Predef.build_initial_env
     (add_type ~check:false)
     (add_extension ~check:false ~rebind:false)
     empty
+
+let add_language_extension_types env =
+  lazy
+    ((* CR ccasinghino for mslater: Here, check the simd extension.  If it's on,
+        return [add_simd_extension_types (add_type ~check:false) env].
+        Otherwise, return env. *)
+      env)
+
+(* Some predefined types are part of language extensions, and we don't want to
+   make them available in the initial environment if those extensions are not
+   turned on.  We can't do this at startup because command line flags haven't
+   been parsed yet. So, we make the initial environment lazy.
+
+   It is important that [initial_safe_string] and [initial_unsafe_string] are
+   not forced until after the command line flags have been processed.
+*)
+let initial_safe_string = add_language_extension_types initial_safe_string
+let initial_unsafe_string = add_language_extension_types initial_unsafe_string
 
 (* Tracking usage *)
 
@@ -3174,7 +3192,7 @@ let lookup_all_dot_constructors ~errors ~use ~loc usage l s env =
   | Longident.Lident "*predef*" ->
       (* Hack to support compilation of default arguments *)
       lookup_all_ident_constructors
-        ~errors ~use ~loc usage s initial_safe_string
+        ~errors ~use ~loc usage s (Lazy.force initial_safe_string)
   | _ ->
       let (_, comps) = lookup_structure_components ~errors ~use ~loc l env in
       match NameMap.find s comps.comp_constrs with

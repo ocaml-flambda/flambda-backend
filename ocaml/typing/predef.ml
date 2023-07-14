@@ -291,6 +291,12 @@ let build_initial_env add_type add_exception empty_env =
   let unsafe_string = add_type ident_bytes ~manifest:type_string common in
   (safe_string, unsafe_string)
 
+let add_simd_extension_types add_type env =
+  let add_type = mk_add_type add_type in
+  (* CR ccasinghino for mslater: Change the line below to [add_type ident_vec128
+     env]. *)
+  ignore add_type; env
+
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns
 
