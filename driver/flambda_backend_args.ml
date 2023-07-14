@@ -51,6 +51,12 @@ let mk_regalloc_validate f =
 let mk_no_regalloc_validate f =
   "-no-regalloc-validate", Arg.Unit f, " Do not validate register allocation"
 
+let mk_cfg_peephole_optimize f = 
+  "-cfg-optimize", Arg.Unit f, " Apply peephole optimizations to CFG representation block bodies"
+
+let mk_cfg_peephole_optimize_track f = 
+  "-cfg-optimize-track", Arg.Unit f, " Track hit count for each peephole optimizations"
+
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
   Arg.Int f,
@@ -530,6 +536,9 @@ module type Flambda_backend_options = sig
   val regalloc_validate : unit -> unit
   val no_regalloc_validate : unit -> unit
 
+  val cfg_peephole_optimize : unit -> unit
+  val cfg_peephole_optimize_track : unit -> unit
+
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
 
@@ -625,6 +634,9 @@ struct
     mk_regalloc_param F.regalloc_param;
     mk_regalloc_validate F.regalloc_validate;
     mk_no_regalloc_validate F.no_regalloc_validate;
+
+    mk_cfg_peephole_optimize F.cfg_peephole_optimize;
+    mk_cfg_peephole_optimize_track F.cfg_peephole_optimize_track;
 
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
@@ -751,6 +763,9 @@ module Flambda_backend_options_impl = struct
   let regalloc_param x = Flambda_backend_flags.regalloc_params := x :: !Flambda_backend_flags.regalloc_params
   let regalloc_validate = set' Flambda_backend_flags.regalloc_validate
   let no_regalloc_validate = clear' Flambda_backend_flags.regalloc_validate
+
+  let cfg_peephole_optimize = set' Flambda_backend_flags.cfg_peephole_optimize
+  let cfg_peephole_optimize_track = set' Flambda_backend_flags.cfg_peephole_optimize_track
 
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
@@ -1002,6 +1017,8 @@ module Extra_params = struct
     | "regalloc" -> set_string Flambda_backend_flags.regalloc
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
+    | "cfg-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
+    | "cfg-optimize-track" -> set' Flambda_backend_flags.cfg_peephole_optimize_track
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
