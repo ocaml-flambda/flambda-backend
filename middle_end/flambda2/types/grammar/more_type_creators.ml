@@ -26,7 +26,7 @@ let unknown (kind : K.t) =
   | Naked_number Naked_int32 -> TG.any_naked_int32
   | Naked_number Naked_int64 -> TG.any_naked_int64
   | Naked_number Naked_nativeint -> TG.any_naked_nativeint
-  | Naked_number Naked_vec128 -> TG.any_naked_vec128
+  | Naked_number (Naked_vector vty) -> TG.any_naked_vector vty
   | Rec_info -> TG.any_rec_info
   | Region -> TG.any_region
 
@@ -40,7 +40,7 @@ let bottom (kind : K.t) =
   | Naked_number Naked_int32 -> TG.bottom_naked_int32
   | Naked_number Naked_int64 -> TG.bottom_naked_int64
   | Naked_number Naked_nativeint -> TG.bottom_naked_nativeint
-  | Naked_number Naked_vec128 -> TG.bottom_naked_vec128
+  | Naked_number (Naked_vector vty) -> TG.bottom_naked_vector vty
   | Rec_info -> TG.bottom_rec_info
   | Region -> TG.bottom_region
 
@@ -55,6 +55,8 @@ let these_naked_int32s is = TG.these_naked_int32s is
 let these_naked_int64s is = TG.these_naked_int64s is
 
 let these_naked_nativeints is = TG.these_naked_nativeints is
+
+let these_naked_vec128s ty vs = TG.these_naked_vec128s ty vs
 
 let any_tagged_immediate =
   TG.create_variant ~is_unique:false ~immediates:Unknown
@@ -89,8 +91,8 @@ let this_boxed_int64 i alloc_mode =
 let this_boxed_nativeint i alloc_mode =
   TG.box_nativeint (TG.this_naked_nativeint i) alloc_mode
 
-let this_boxed_vec128 i alloc_mode =
-  TG.box_vec128 (TG.this_naked_vec128 i) alloc_mode
+let this_boxed_vec128 vty i alloc_mode =
+  TG.box_vector (Vec128 vty) (TG.this_naked_vec128 vty i) alloc_mode
 
 let these_boxed_floats fs alloc_mode =
   TG.box_float (these_naked_floats fs) alloc_mode
@@ -116,8 +118,8 @@ let any_boxed_int64 =
 let any_boxed_nativeint =
   TG.box_nativeint TG.any_naked_nativeint (Alloc_mode.For_types.unknown ())
 
-let any_boxed_vec128 =
-  TG.box_vec128 TG.any_naked_vec128 (Alloc_mode.For_types.unknown ())
+let any_boxed_vector vty =
+  TG.box_vector vty (TG.any_naked_vector vty) (Alloc_mode.For_types.unknown ())
 
 let any_block =
   TG.create_variant ~is_unique:false
@@ -263,7 +265,7 @@ let type_for_const const =
   | Naked_int32 n -> TG.this_naked_int32 n
   | Naked_int64 n -> TG.this_naked_int64 n
   | Naked_nativeint n -> TG.this_naked_nativeint n
-  | Naked_vec128 n -> TG.this_naked_vec128 n
+  | Naked_vec128 (ty, n) -> TG.this_naked_vec128 ty n
 
 let kind_for_const const = TG.kind (type_for_const const)
 
@@ -299,14 +301,14 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
     | Naked_number Naked_int32 -> TG.any_naked_int32
     | Naked_number Naked_int64 -> TG.any_naked_int64
     | Naked_number Naked_nativeint -> TG.any_naked_nativeint
-    | Naked_number Naked_vec128 -> TG.any_naked_vec128
+    | Naked_number (Naked_vector ty) -> TG.any_naked_vector ty
     | Rec_info -> TG.any_rec_info
     | Region -> TG.any_region)
   | Boxed_float -> any_boxed_float
   | Boxed_int32 -> any_boxed_int32
   | Boxed_int64 -> any_boxed_int64
   | Boxed_nativeint -> any_boxed_nativeint
-  | Boxed_vec128 -> any_boxed_vec128
+  | Boxed_vector ty -> any_boxed_vector ty
   | Tagged_immediate -> any_tagged_immediate
   | Variant { consts; non_consts } ->
     let const_ctors = these_naked_immediates consts in

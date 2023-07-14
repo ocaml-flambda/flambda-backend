@@ -48,7 +48,19 @@ module Int64 : Number_S
 
 module Nativeint : Number_S
 
-module Vec128 : Number_S
+module Int8x16 : Number_S
+
+module Int16x8 : Number_S
+
+module Int32x4 : Number_S
+
+module Int64x2 : Number_S
+
+module Float32x4 : Number_S
+
+module Float64x2 : Number_S
+
+val vector_unboxer : Vector_types.t -> unboxer
 
 module Field : sig
   val unboxing_prim :

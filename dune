@@ -348,7 +348,8 @@
   (backend bisect_ppx))
  (flags
   (:standard -principal))
- (ocamlopt_flags (:standard -runtime-variant nnp))
+ (ocamlopt_flags
+  (:standard -runtime-variant nnp))
  (libraries
   flambda_backend_driver
   memtrace
@@ -519,7 +520,6 @@
   (external/gc-timings/libgc_timings_stubs.a
    as
    compiler-libs/libgc_timings_stubs_native.a)
-
   ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
@@ -541,8 +541,7 @@
    backend/asm_targets/.asm_targets.objs/byte/asm_targets.{cmi,cmo,cmt})
   (glob_files_rec
    backend/asm_targets/.asm_targets.objs/native/asm_targets.cmx)
-  (glob_files
-   middle_end/flambda2/.flambda2objs/byte/flambda2.{cmi,cmt})
+  (glob_files middle_end/flambda2/.flambda2objs/byte/flambda2.{cmi,cmt})
   (glob_files
    middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm{,__To_cmm}.{cmi,cmt})
   (glob_files
@@ -555,28 +554,25 @@
   backend/debug/dwarf/dwarf_flags/.dwarf_flags.objs/native/dwarf_flags.cmx
   (glob_files
    backend/debug/dwarf/dwarf_low/.dwarf_low.objs/byte/*.{cmi,cmo,cmt})
-  (glob_files
-   backend/debug/dwarf/dwarf_low/.dwarf_low.objs/native/*.cmx)
+  (glob_files backend/debug/dwarf/dwarf_low/.dwarf_low.objs/native/*.cmx)
   (glob_files
    backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/*.{cmi,cmo,cmt})
-  (glob_files
-   backend/debug/dwarf/dwarf_high/.dwarf_high.objs/native/*.cmx)
+  (glob_files backend/debug/dwarf/dwarf_high/.dwarf_high.objs/native/*.cmx)
   (glob_files
    backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/*.{cmi,cmo,cmt})
-  (glob_files
-   backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/native/*.cmx)
-  (glob_files
-   external/owee/.compiler_owee.objs/byte/*.{cmi,cmo,cmt,cmti})
-  (glob_files
-   external/owee/.compiler_owee.objs/native/*.cmx)
+  (glob_files backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/native/*.cmx)
+  (glob_files external/owee/.compiler_owee.objs/byte/*.{cmi,cmo,cmt,cmti})
+  (glob_files external/owee/.compiler_owee.objs/native/*.cmx)
   (glob_files
    external/gc-timings/.gc_timings.objs/byte/gc_timings.{cmi,cmti})
   external/gc-timings/.gc_timings.objs/native/gc_timings.cmx)
  (action
-  (with-stdout-to compiler-libs-installation.sexp
+  (with-stdout-to
+   compiler-libs-installation.sexp
    (run tools/gen_compiler_libs_installation.exe %{deps}))))
 
 (install
  (section lib)
  (package ocaml)
- (files (include compiler-libs-installation.sexp)))
+ (files
+  (include compiler-libs-installation.sexp)))

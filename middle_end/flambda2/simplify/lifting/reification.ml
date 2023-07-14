@@ -54,7 +54,7 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
   | Boxed_int32 i -> RSC.create_boxed_int32 art (Const i)
   | Boxed_int64 i -> RSC.create_boxed_int64 art (Const i)
   | Boxed_nativeint i -> RSC.create_boxed_nativeint art (Const i)
-  | Boxed_vec128 v -> RSC.create_boxed_vec128 art (Const v)
+  | Boxed_vec128 (ty, v) -> RSC.create_boxed_vec128 ty art (Const v)
   | Immutable_float_array { fields } ->
     let fields = List.map (fun f -> Or_variable.Const f) fields in
     RSC.create_immutable_float_array art fields

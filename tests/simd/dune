@@ -1,3 +1,5 @@
+; Stubs
+
 (foreign_library
  (archive_name stubs)
  (language c)
@@ -5,45 +7,82 @@
  (flags -msse4.2)
  (include_dirs "../../ocaml/runtime"))
 
-(executable
- (name basic)
+; Copy to internal
+
+(rule
+ (targets basic_internal.ml)
+ (deps basic.ml sse.ml)
+ (action
+  (progn
+   (copy basic.ml basic_internal.ml))))
+
+; Tests
+
+(executables
+ (names basic)
  (modules basic)
  (foreign_archives stubs)
- (ocamlopt_flags (:standard -fsimd)))
+ (ocamlopt_flags
+  (:standard -fsimd)))
+
+(executables
+ (names basic_internal)
+ (modules basic_internal)
+ (foreign_archives stubs)
+ (ocamlopt_flags
+  (:standard -fsimd -internal-assembler)))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets basic.out basic_internal.out sse.out sse_internal.out)
+ (deps basic.exe sse.exe)
+ (action
+  (progn
+   (with-outputs-to
+    basic.out
+    (run ./basic.exe))
+   (with-outputs-to
+    basic_internal.out
+    (run ./basic_internal.exe)))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (= %{context_name} "main"))
+ (action
+  (progn
+   (diff empty.expected basic.out)
+   (diff empty.expected basic_internal.out))))
+
+; Probes
 
 (executable
  (name probes)
  (modules probes)
- (enabled_if (<> %{system} macosx))
+ (enabled_if
+  (<> %{system} macosx))
  (foreign_archives stubs)
- (ocamlopt_flags (:standard -fsimd)))
+ (ocamlopt_flags
+  (:standard -fsimd)))
 
 (rule
- (enabled_if (= %{context_name} "main"))
- (target basic.output)
- (deps basic.exe)
- (action
-  (with-outputs-to
-   basic.output
-   (run ./basic.exe))))
-
-(rule
- (enabled_if (and (= %{context_name} "main") (<> %{system} macosx)))
- (target probes.output)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (target probes.out)
  (deps probes.exe)
  (action
   (with-outputs-to
-   probes.output
+   probes.out
    (run ./probes.exe))))
 
 (rule
  (alias runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
  (action
-  (diff empty.expected basic.output)))
-
-(rule
- (alias runtest)
- (enabled_if (and (= %{context_name} "main") (<> %{system} macosx)))
- (action
-  (diff empty.expected probes.output)))
+  (diff empty.expected probes.out)))

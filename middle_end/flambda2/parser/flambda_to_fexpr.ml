@@ -354,7 +354,7 @@ let name env n =
 
 let float f = f |> Numeric_types.Float_by_bit_pattern.to_float
 
-let vec128 v = v |> Numeric_types.Vec128_by_bit_pattern.to_bits
+let vec128 v = v |> Vector_types.Vec128.Bit_pattern.to_bits
 
 let targetint i = i |> Targetint_32_64.to_int64
 
@@ -369,8 +369,8 @@ let const c : Fexpr.const =
   | Naked_float f -> Naked_float (f |> float)
   | Naked_int32 i -> Naked_int32 i
   | Naked_int64 i -> Naked_int64 i
-  | Naked_vec128 i ->
-    Naked_vec128 (Numeric_types.Vec128_by_bit_pattern.to_bits i)
+  | Naked_vec128 (ty, bits) ->
+    Naked_vec128 (ty, Vector_types.Vec128.Bit_pattern.to_bits bits)
   | Naked_nativeint i -> Naked_nativeint (i |> targetint)
 
 let depth_or_infinity (d : int Or_infinity.t) : Fexpr.rec_info =
@@ -425,7 +425,7 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   | Boxed_int32 -> Boxed_int32
   | Boxed_int64 -> Boxed_int64
   | Boxed_nativeint -> Boxed_nativeint
-  | Boxed_vec128 -> Boxed_vec128
+  | Boxed_vector ty -> Boxed_vector ty
   | Tagged_immediate -> Tagged_immediate
   | Variant { consts; non_consts } -> variant_subkind consts non_consts
   | Float_array -> Float_array
@@ -694,7 +694,7 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
   | Boxed_int32 i -> Boxed_int32 (or_variable Fun.id env i)
   | Boxed_int64 i -> Boxed_int64 (or_variable Fun.id env i)
   | Boxed_nativeint i -> Boxed_nativeint (or_variable targetint env i)
-  | Boxed_vec128 i -> Boxed_vec128 (or_variable vec128 env i)
+  | Boxed_vec128 (ty, i) -> Boxed_vec128 (ty, or_variable vec128 env i)
   | Immutable_float_block elements ->
     Immutable_float_block (List.map (or_variable float env) elements)
   | Immutable_float_array elements ->
