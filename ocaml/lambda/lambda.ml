@@ -323,7 +323,7 @@ and raise_kind =
 
 let equal_boxed_integer = Primitive.equal_boxed_integer
 
-let equal_boxed_vector = Primitive.equal_boxed_vector
+let equal_boxed_vector_size = Primitive.equal_boxed_vector_size
 
 let equal_vec128 = Primitive.equal_vec128
 
@@ -339,7 +339,7 @@ let rec equal_value_kind x y =
   | Pfloatval, Pfloatval -> true
   | Pboxedintval bi1, Pboxedintval bi2 -> equal_boxed_integer bi1 bi2
   | Pboxedvectorval bi1, Pboxedvectorval bi2 ->
-    equal_boxed_vector bi1 bi2
+    equal_boxed_vector_size bi1 bi2
   | Pintval, Pintval -> true
   | Parrayval elt_kind1, Parrayval elt_kind2 -> elt_kind1 = elt_kind2
   | Pvariant { consts = consts1; non_consts = non_consts1; },
@@ -373,7 +373,7 @@ let compatible_layout x y =
   | Punboxed_float, Punboxed_float -> true
   | Punboxed_int bi1, Punboxed_int bi2 ->
       equal_boxed_integer bi1 bi2
-  | Punboxed_vector bi1, Punboxed_vector bi2 -> equal_boxed_vector bi1 bi2
+  | Punboxed_vector bi1, Punboxed_vector bi2 -> equal_boxed_vector_size bi1 bi2
   | Ptop, Ptop -> true
   | Ptop, _ | _, Ptop -> false
   | (Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _), _ -> false

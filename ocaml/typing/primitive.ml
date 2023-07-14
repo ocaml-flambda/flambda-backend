@@ -313,7 +313,7 @@ let equal_boxed_integer bi1 bi2 =
   | (Pnativeint | Pint32 | Pint64), _ ->
     false
 
-let equal_boxed_vector bi1 bi2 =
+let equal_boxed_vector_size bi1 bi2 =
   (* For the purposes of layouts/native representations,
      all 128-bit vector types are equal. *)
   match bi1, bi2 with
@@ -327,7 +327,7 @@ let equal_native_repr nr1 nr2 =
   | Unboxed_float, Unboxed_float -> true
   | Unboxed_float,
     (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> false
-  | Unboxed_vector vi1, Unboxed_vector vi2 -> equal_boxed_vector vi1 vi2
+  | Unboxed_vector vi1, Unboxed_vector vi2 -> equal_boxed_vector_size vi1 vi2
   | Unboxed_vector _,
     (Same_as_ocaml_repr _ | Unboxed_float | Untagged_int | Unboxed_integer _) -> false
   | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_boxed_integer bi1 bi2

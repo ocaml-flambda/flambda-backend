@@ -293,7 +293,7 @@ val compatible_layout : layout -> layout -> bool
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 
-val equal_boxed_vector : boxed_vector -> boxed_vector -> bool
+val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
 
 val equal_vec128 : vec128_type -> vec128_type -> bool
 
