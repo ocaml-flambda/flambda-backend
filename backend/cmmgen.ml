@@ -163,7 +163,7 @@ let get_field env layout ptr n dbg =
     | Pvalue Pintval | Punboxed_int _ -> Word_int
     | Pvalue _ -> Word_val
     | Punboxed_float -> Double
-    | Punboxed_vector Pvec128 -> Onetwentyeight
+    | Punboxed_vector (Pvec128 _) -> Onetwentyeight
     | Ptop ->
         Misc.fatal_errorf "get_field with Ptop: %a" Debuginfo.print_compact dbg
     | Pbottom ->
@@ -323,7 +323,7 @@ let typ_of_boxed_number = function
   | Boxed_float _ -> Cmm.typ_float
   | Boxed_integer (Pint64, _,_) when size_int = 4 -> [|Int;Int|]
   | Boxed_integer _ -> Cmm.typ_int
-  | Boxed_vector (Pvec128, _, _) -> Cmm.typ_vec128
+  | Boxed_vector (Pvec128 _, _, _) -> Cmm.typ_vec128
 
 let equal_unboxed_integer ui1 ui2 =
   match ui1, ui2 with
@@ -422,8 +422,8 @@ let rec is_unboxed_number_cmm = function
           Boxed (Boxed_integer (Pint32, alloc_heap, Debuginfo.none), true)
         | Some (Uconst_int64 _) ->
           Boxed (Boxed_integer (Pint64, alloc_heap, Debuginfo.none), true)
-        | Some (Uconst_vec128 _) ->
-          Boxed (Boxed_vector (Pvec128, alloc_heap, Debuginfo.none), true)
+        | Some (Uconst_vec128 { ty; _ }) ->
+          Boxed (Boxed_vector (Pvec128 ty, alloc_heap, Debuginfo.none), true)
         | _ ->
           No_unboxing
       end
@@ -925,7 +925,7 @@ and transl_ccall env prim args dbg =
         | Unboxed_vector bi ->
           let xty =
             match bi with
-            | Pvec128 -> XVec128
+            | Pvec128 _ -> XVec128
           in
           (xty, transl_unbox_vector dbg env bi arg)
     | Untagged_int ->
@@ -956,7 +956,7 @@ and transl_ccall env prim args dbg =
     | _, Unboxed_integer Pint64 when size_int = 4 ->
         ([|Int; Int|], box_int dbg Pint64 alloc_heap)
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
-    | _, Unboxed_vector Pvec128 -> (typ_vec128, box_vector dbg Pvec128 alloc_heap)
+    | _, Unboxed_vector (Pvec128 ty) -> (typ_vec128, box_vector dbg (Pvec128 ty) alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in

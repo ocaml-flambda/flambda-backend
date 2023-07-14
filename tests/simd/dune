@@ -11,7 +11,7 @@
 
 (rule
  (targets basic_internal.ml)
- (deps basic.ml sse.ml)
+ (deps basic.ml)
  (action
   (progn
    (copy basic.ml basic_internal.ml))))
@@ -35,8 +35,8 @@
 (rule
  (enabled_if
   (= %{context_name} "main"))
- (targets basic.out basic_internal.out sse.out sse_internal.out)
- (deps basic.exe sse.exe)
+ (targets basic.out basic_internal.out)
+ (deps basic.exe)
  (action
   (progn
    (with-outputs-to

@@ -152,7 +152,7 @@ let alloc_float_header mode dbg =
 let alloc_boxedvector_header vi mode dbg =
   let header, local_header =
     match vi with
-    | Primitive.Pvec128 -> boxedvec128_header, boxedvec128_local_header
+    | Primitive.Pvec128 _ -> boxedvec128_header, boxedvec128_local_header
   in
   match mode with
   | Lambda.Alloc_heap -> Cconst_natint (header, dbg)
@@ -746,7 +746,7 @@ let rec unbox_vec128 dbg =
     | cmm -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
 
 let unbox_vector dbg vi e =
-  match vi with Primitive.Pvec128 -> unbox_vec128 dbg e
+  match vi with Primitive.Pvec128 _ -> unbox_vec128 dbg e
 
 (* Complex *)
 
@@ -1128,7 +1128,7 @@ module Extended_machtype = struct
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
     | Punboxed_float -> typ_float
-    | Punboxed_vector Pvec128 -> typ_vec128
+    | Punboxed_vector (Pvec128 _) -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int
