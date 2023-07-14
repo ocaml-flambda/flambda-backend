@@ -213,13 +213,13 @@ val unbox_float : Debuginfo.t -> expression -> expression
 (** Vector boxing and unboxing *)
 val box_vector :
   Debuginfo.t ->
-  Primitive.boxed_vector ->
+  Lambda.boxed_vector ->
   Lambda.alloc_mode ->
   expression ->
   expression
 
 val unbox_vector :
-  Debuginfo.t -> Primitive.boxed_vector -> expression -> expression
+  Debuginfo.t -> Lambda.boxed_vector -> expression -> expression
 
 (** Complex number creation and access *)
 val box_complex : Debuginfo.t -> expression -> expression -> expression

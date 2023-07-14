@@ -276,7 +276,7 @@ let emit_structured_constant symb cst cont =
       emit_int64_constant symb n cont
   | Uconst_nativeint n ->
       emit_nativeint_constant symb n cont
-  | Uconst_vec128 {high; low} ->
+  | Uconst_vec128 {ty = _; high; low} ->
       emit_vec128_constant symb {high; low} cont
   | Uconst_block (tag, csts) ->
       let cont = List.fold_right emit_constant csts cont in
@@ -422,7 +422,7 @@ let rec is_unboxed_number_cmm = function
           Boxed (Boxed_integer (Pint32, alloc_heap, Debuginfo.none), true)
         | Some (Uconst_int64 _) ->
           Boxed (Boxed_integer (Pint64, alloc_heap, Debuginfo.none), true)
-        | Some (Uconst_vec128 { ty; _ }) ->
+        | Some (Uconst_vec128 {ty; _}) ->
           Boxed (Boxed_vector (Pvec128 ty, alloc_heap, Debuginfo.none), true)
         | _ ->
           No_unboxing
