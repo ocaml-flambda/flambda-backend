@@ -144,6 +144,10 @@ let exhaustive_pattern_guards (x : (unit, void option) Either.t) : int =
     | Left u when u match () -> 0
     | Right v when v match None -> 1
     | _ -> 2
+;;
+
+exhaustive_pattern_guards (Left ());;
+exhaustive_pattern_guards (Right None);;
 [%%expect{|
 type void = |
 Line 144, characters 13-28:
@@ -155,4 +159,92 @@ Line 145, characters 14-31:
                     ^^^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
 val exhaustive_pattern_guards : (unit, void option) Either.t -> int = <fun>
+- : int = 0
+- : int = 1
+|}]
+
+module M = Map.Make (Int);;
+
+let say_hello (id : int option) (name_map : string M.t) =
+  match id with
+    | Some id when M.find_opt id name_map match Some name -> "Hello, " ^ name
+    | None | Some _ -> "Hello, stranger"
+;;
+
+let name_map = M.empty |> M.add 0 "Fred" |> M.add 4 "Barney";;
+say_hello (Some 0) name_map;;
+say_hello (Some 2) name_map;;
+say_hello (Some 4) name_map;;
+say_hello None name_map;;
+[%%expect{|
+module M :
+  sig
+    type key = Int.t
+    type 'a t = 'a Map.Make(Int).t
+    val empty : 'a t
+    val is_empty : 'a t -> bool
+    val mem : key -> 'a t -> bool
+    val add : key -> 'a -> 'a t -> 'a t
+    val update : key -> ('a option -> 'a option) -> 'a t -> 'a t
+    val singleton : key -> 'a -> 'a t
+    val remove : key -> 'a t -> 'a t
+    val merge :
+      (key -> 'a option -> 'b option -> 'c option) -> 'a t -> 'b t -> 'c t
+    val union : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
+    val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
+    val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+    val iter : (key -> 'a -> unit) -> 'a t -> unit
+    val fold : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+    val for_all : (key -> 'a -> bool) -> 'a t -> bool
+    val exists : (key -> 'a -> bool) -> 'a t -> bool
+    val filter : (key -> 'a -> bool) -> 'a t -> 'a t
+    val filter_map : (key -> 'a -> 'b option) -> 'a t -> 'b t
+    val partition : (key -> 'a -> bool) -> 'a t -> 'a t * 'a t
+    val cardinal : 'a t -> int
+    val bindings : 'a t -> (key * 'a) list
+    val min_binding : 'a t -> key * 'a
+    val min_binding_opt : 'a t -> (key * 'a) option
+    val max_binding : 'a t -> key * 'a
+    val max_binding_opt : 'a t -> (key * 'a) option
+    val choose : 'a t -> key * 'a
+    val choose_opt : 'a t -> (key * 'a) option
+    val split : key -> 'a t -> 'a t * 'a option * 'a t
+    val find : key -> 'a t -> 'a
+    val find_opt : key -> 'a t -> 'a option
+    val find_first : (key -> bool) -> 'a t -> key * 'a
+    val find_first_opt : (key -> bool) -> 'a t -> (key * 'a) option
+    val find_last : (key -> bool) -> 'a t -> key * 'a
+    val find_last_opt : (key -> bool) -> 'a t -> (key * 'a) option
+    val map : ('a -> 'b) -> 'a t -> 'b t
+    val mapi : (key -> 'a -> 'b) -> 'a t -> 'b t
+    val to_seq : 'a t -> (key * 'a) Seq.t
+    val to_rev_seq : 'a t -> (key * 'a) Seq.t
+    val to_seq_from : key -> 'a t -> (key * 'a) Seq.t
+    val add_seq : (key * 'a) Seq.t -> 'a t -> 'a t
+    val of_seq : (key * 'a) Seq.t -> 'a t
+  end
+val say_hello : int option -> string M.t -> string = <fun>
+val name_map : string M.t = <abstr>
+- : string = "Hello, Fred"
+- : string = "Hello, stranger"
+- : string = "Hello, Barney"
+- : string = "Hello, stranger"
+|}]
+
+let say_hello_catching_exns id name_map =
+  match id with
+    | Some id when M.find id name_map match "Barney" | exception _ ->
+        "Hello, Barney"
+    | None | Some _ -> "Hello, Fred"
+;;
+say_hello_catching_exns (Some 0) name_map;;
+say_hello_catching_exns (Some 2) name_map;;
+say_hello_catching_exns (Some 4) name_map;;
+say_hello_catching_exns None name_map;;
+[%%expect{|
+val say_hello_catching_exns : M.key option -> string M.t -> string = <fun>
+- : string = "Hello, Fred"
+- : string = "Hello, Barney"
+- : string = "Hello, Barney"
+- : string = "Hello, Fred"
 |}]
