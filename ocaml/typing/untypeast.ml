@@ -40,6 +40,7 @@ type mapper = {
   expr: mapper -> T.expression -> expression;
   extension_constructor: mapper -> T.extension_constructor
                          -> extension_constructor;
+  guard: mapper -> T.guard -> guard;
   include_declaration: mapper -> T.include_declaration -> include_declaration;
   include_description: mapper -> T.include_description -> include_description;
   label_declaration: mapper -> T.label_declaration -> label_declaration;
@@ -410,7 +411,14 @@ let exp_extra sub (extra, loc, attrs) sexp =
   in
   Exp.mk ~loc ~attrs desc
 
-let guard sub e = Guard_predicate (sub.expr sub e)
+let guard sub = function 
+  | Predicate p -> Guard_predicate (sub.expr sub p)
+  | Pattern (e, _, pat) ->
+      Guard_pattern {
+        pgp_scrutinee = sub.expr sub e;
+        pgp_pattern = sub.pat sub pat;
+        pgp_loc = Location.none
+      }
 
 let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_guard; c_rhs} ->
   {
@@ -1037,6 +1045,7 @@ let default_mapper =
     constructor_declaration = constructor_declaration;
     label_declaration = label_declaration;
     case = case;
+    guard = guard;
     location = location;
     row_field = row_field ;
     object_field = object_field ;

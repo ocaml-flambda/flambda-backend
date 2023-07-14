@@ -398,9 +398,19 @@ and comprehension_iterator =
 and 'k case =
     {
      c_lhs: 'k general_pattern;
-     c_guard: expression option;
+     c_guard: guard option;
      c_rhs: expression;
     }
+
+(* CR-soon rgodse: Rename these constructors to [Guard_predicate] and
+   [Guard_pattern] *)
+and guard =
+  | Predicate of expression
+  | Pattern of expression * Layouts.sort * computation general_pattern
+  (* [Pattern (scrutinee, sort, pattern)] represents a pattern guard. The case
+     will be taken if [scrutinee] evaluates to a value matching [pattern].
+     Variables bound by the pattern match are available on the RHS of the case.
+     Like the [Pexp_match] constructor, [sort] is the sort of the scrutinee. *)
 
 and record_label_definition =
   | Kept of Types.type_expr

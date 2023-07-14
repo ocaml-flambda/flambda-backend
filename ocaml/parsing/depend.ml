@@ -350,7 +350,7 @@ and add_case bv {pc_lhs; pc_guard; pc_rhs} =
 
 and add_guard bv = function
   | Guard_predicate e -> add_expr bv e
-  | Guard_pattern (e, pat) ->
+  | Guard_pattern { pgp_scrutinee = e; pgp_pattern = pat; _ } ->
       let bv = add_pattern bv pat in
       add_expr bv e
 

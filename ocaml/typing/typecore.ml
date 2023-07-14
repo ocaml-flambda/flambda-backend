@@ -285,7 +285,6 @@ let case lhs rhs =
 
 type position_in_function = FTail | FNontail
 
-
 type position_in_region =
   (* not the tail of a region*)
   | RNontail
@@ -332,6 +331,17 @@ type position_and_mode = {
 let position_and_mode_default = {
   apply_position = Default;
   region_mode = None;
+}
+
+(* The result of type-checking a match-like construct. This is the return value
+   of `type_match`. *)
+type match_info = {
+  (* scrutinee *)
+  arg : expression;
+  (* sort of scrutinee *)
+  sort : sort;
+  cases : computation case list;
+  partial : partial;
 }
 
 (** The function produces two values, apply_position and region_mode.
@@ -792,6 +802,13 @@ type module_variable =
     mv_loc: Location.t;
     mv_uid: Uid.t
   }
+
+(* Constraint on the partiality of cases, used to determine which
+   partiality-related warnings to check for. *)
+type partiality_constraint =
+  | Assume_partial
+  | Check_and_warn_if_partial
+  | Check_and_warn_if_total
 
 (* Whether or not patterns of the form (module M) are accepted. (If they are,
    the idents will be created at the provided scope.) When module patterns are
@@ -2798,12 +2815,13 @@ let partial_pred ~lev ~splitting_mode ?(explode=0)
     set_state state env;
     None
 
-let check_partial ?(lev=get_current_level ()) env expected_ty loc cases =
+let check_partial ~warn_if ?(lev=get_current_level ()) env
+      expected_ty loc cases =
   let explode = match cases with [_] -> 5 | _ -> 0 in
   let splitting_mode = Refine_or {inside_nonsplit_or = false} in
   Parmatch.check_partial
     (partial_pred ~lev ~splitting_mode ~explode env expected_ty)
-    loc cases
+    ~warn_if loc cases
 
 let check_unused ?(lev=get_current_level ()) env expected_ty cases =
   Parmatch.check_unused
@@ -3348,7 +3366,13 @@ let rec is_nonexpansive exp =
       is_nonexpansive e &&
       List.for_all
         (fun {c_lhs; c_guard; c_rhs} ->
-           is_nonexpansive_opt c_guard && is_nonexpansive c_rhs
+           let is_guard_nonexpansive = match c_guard with
+             | None -> true
+             | Some (Typedtree.Predicate p) -> is_nonexpansive p
+             | Some (Typedtree.Pattern (e, _, pat)) ->
+                 is_nonexpansive e && not (contains_exception_pat pat)
+           in
+           is_guard_nonexpansive && is_nonexpansive c_rhs
            && not (contains_exception_pat c_lhs)
         ) cases
   | Texp_probe {handler} -> is_nonexpansive handler
@@ -4551,34 +4575,17 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_match(sarg, caselist) ->
-      let arg_pat_mode, arg_expected_mode =
-        match cases_tuple_arity caselist with
-        | Not_local_tuple | Maybe_local_tuple ->
-          let mode = Value_mode.newvar () in
-          simple_pat_mode mode, mode_default mode
-        | Local_tuple arity ->
-          let modes = List.init arity (fun _ -> Value_mode.newvar ()) in
-          let mode = Value_mode.regional_to_local (Value_mode.join modes) in
-          tuple_pat_mode mode modes, mode_tuple mode modes
-      in
-      begin_def ();
-      let sort = Sort.new_var () in
-      let arg =
-        type_expect env arg_expected_mode sarg
-          (mk_expected (newvar (Layout.of_sort ~why:Match sort)))
-      in
-      end_def ();
-      if maybe_expansive arg then lower_contravariant env arg.exp_type;
-      generalize arg.exp_type;
-      let cases, partial =
-        type_cases Computation env arg_pat_mode expected_mode
-          arg.exp_type ty_expected_explained true loc caselist in
-      re {
-        exp_desc = Texp_match(arg, sort, cases, partial);
-        exp_loc = loc; exp_extra = [];
-        exp_type = instance ty_expected;
-        exp_attributes = sexp.pexp_attributes;
-        exp_env = env }
+    let { arg; sort; cases; partial } =
+      type_match sarg caselist env loc Check_and_warn_if_partial
+                  ty_expected_explained expected_mode
+    in
+    re {
+      exp_desc = Texp_match(arg, sort, cases, partial);
+      exp_loc = loc; exp_extra = [];
+      exp_type = instance ty_expected;
+      exp_attributes = sexp.pexp_attributes;
+      exp_env = env
+    }
   | Pexp_try(sbody, caselist) ->
       let body =
         type_expect env (mode_trywith expected_mode)
@@ -4587,7 +4594,7 @@ and type_expect_
       let arg_mode = simple_pat_mode Value_mode.global in
       let cases, _ =
         type_cases Value env arg_mode expected_mode
-          Predef.type_exn ty_expected_explained false loc caselist in
+          Predef.type_exn ty_expected_explained Assume_partial loc caselist in
       re {
         exp_desc = Texp_try(body, cases);
         exp_loc = loc; exp_extra = [];
@@ -5590,7 +5597,8 @@ and type_expect_
         type_cases Value body_env
           (simple_pat_mode Value_mode.global)
           (mode_return Value_mode.global)
-          ty_params (mk_expected ty_func_result) true loc [scase]
+          ty_params (mk_expected ty_func_result)
+          Check_and_warn_if_partial loc [scase]
       in
       let body =
         match cases with
@@ -5717,6 +5725,48 @@ and type_expect_
            exp_type = instance ty_expected;
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
+
+(* [type_match] typechecks a match-like construct, such as a Pexp_match or
+    pattern guard. See the comments on [match_info] for the meaning of the
+    returned type.
+
+   [sarg]: scrutinee to match against
+   [caselist]: list of cases to match
+   [loc]: location of the entire match-like construct
+   [partiality_constraint]: should partiality of the cases be checked, and if
+    so, what is the desired result? of type [partiality_constraint]
+   [ty_expected_explained], [expected_mode]: as in [type_expect]
+ *)
+and type_match sarg caselist env loc partiality_constraint ty_expected_explained
+               expected_mode =
+  let arg_pat_mode, arg_expected_mode =
+    match cases_tuple_arity caselist with
+      | Not_local_tuple | Maybe_local_tuple ->
+        let mode = Value_mode.newvar () in
+        simple_pat_mode mode, mode_default mode
+      | Local_tuple arity ->
+        let modes = List.init arity (fun _ -> Value_mode.newvar ()) in
+        let mode = Value_mode.regional_to_local (Value_mode.join modes) in
+        tuple_pat_mode mode modes, mode_tuple mode modes
+  in
+  begin_def ();
+  let sort = Sort.new_var () in
+  let arg =
+    type_expect env arg_expected_mode sarg
+      (mk_expected (newvar (Layout.of_sort ~why:Match sort)))
+  in
+  end_def ();
+  if maybe_expansive arg then lower_contravariant env arg.exp_type;
+  generalize arg.exp_type;
+  let cases, partial =
+    type_cases Computation env arg_pat_mode expected_mode
+      arg.exp_type ty_expected_explained partiality_constraint loc caselist
+  in
+  { arg;
+    sort;
+    cases;
+    partial;
+  }
 
 and type_ident env ?(recarg=Rejected) lid =
   let (path, desc, mode) = Env.lookup_value ~loc:lid.loc lid.txt env in
@@ -5907,7 +5957,8 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
   in
   let cases, partial =
     type_cases Value ?in_function env (simple_pat_mode arg_value_mode)
-      cases_expected_mode ty_arg_mono (mk_expected ty_ret) true loc caselist in
+      cases_expected_mode ty_arg_mono (mk_expected ty_ret)
+      Check_and_warn_if_partial loc caselist in
   let not_nolabel_function ty =
     let ls, tvar = list_labels env ty in
     List.for_all ((<>) Nolabel) ls && not tvar
@@ -6759,7 +6810,7 @@ and type_cases
            ?in_function:_ -> _ -> _ -> _ -> _ -> _ -> _ -> _ -> Parsetree.case list ->
            k case list * partial
   = fun category ?in_function env pmode emode
-        ty_arg ty_res_explained partial_flag loc caselist ->
+        ty_arg ty_res_explained partiality_constraint loc caselist ->
   (* ty_arg is _fully_ generalized *)
   let { ty = ty_res; explanation } = ty_res_explained in
   let patterns = List.map (fun {pc_lhs=p} -> p) caselist in
@@ -6900,21 +6951,46 @@ and type_cases
             (* allow propagation from preceding branches *)
             correct_levels ty_res
           else ty_res in
-        let guard =
+        let guard, exp =
           match pc_guard with
-          | None -> None
-          | Some scond -> (
-              match scond with
-              | Guard_predicate pred ->
-                Some
-                  (type_expect ext_env mode_local pred
-                    (mk_expected ~explanation:When_guard Predef.type_bool))
-              | Guard_pattern _ -> (failwith "pattern guard typechecking unimplemented")
-          )
-        in
-        let exp =
-          type_expect ?in_function ext_env emode
-            pc_rhs (mk_expected ?explanation ty_res')
+            | None | Some (Guard_predicate _) ->
+                let guard =
+                  match pc_guard with
+                  (* This case is unreachable, as [pc_guard] cannot match the
+                     outer pattern while also matching [Some (Guard_pattern _)]
+                   *)
+                  | Some (Guard_pattern _) -> assert false
+                  | None -> None
+                  | Some (Guard_predicate pred) ->
+                      let expected_bool =
+                        mk_expected ~explanation:When_guard Predef.type_bool
+                      in
+                      Some
+                        (Predicate
+                          (type_expect ext_env mode_local pred expected_bool))
+                in
+                let exp =
+                  type_expect
+                    ?in_function ext_env emode pc_rhs
+                    (mk_expected ?explanation ty_res')
+                in
+                guard, exp
+            | Some
+                (Guard_pattern 
+                  { pgp_scrutinee = e; pgp_pattern = pat; pgp_loc = loc }) ->
+                (* CR-soon rgodse: This `partial` is needed by the pattern
+                   match compiler, thread it through into typedtree. *)
+                let { arg; sort; cases; partial = _ } =
+                  type_match
+                    e [ { pc_lhs = pat; pc_guard = None; pc_rhs } ] ext_env loc
+                    Check_and_warn_if_total (mk_expected ?explanation ty_res')
+                    emode
+                in
+                (match cases with
+                  | [ { c_lhs = pat; c_guard = None; c_rhs = exp } ] ->
+                    Some (Typedtree.Pattern (arg, sort, pat)), exp
+                  | _ ->
+                      Misc.fatal_error "type_cases invariant violated")
         in
         {
          c_lhs = pat;
@@ -6949,11 +7025,12 @@ and type_cases
       | Computation -> split_cases env cases in
   if val_cases = [] && exn_cases <> [] then
     raise (Error (loc, env, No_value_clauses));
-  let partial =
-    if partial_flag then
-      check_partial ~lev env ty_arg_check loc val_cases
-    else
-      Partial
+  let partial = match partiality_constraint with
+    | Assume_partial -> Partial
+    | Check_and_warn_if_partial ->
+        check_partial ~warn_if:Partial ~lev env ty_arg_check loc val_cases
+    | Check_and_warn_if_total ->
+        check_partial ~warn_if:Total ~lev env ty_arg_check loc val_cases
   in
   let unused_check delayed =
     List.iter (fun { typed_pat; branch_env; _ } ->
@@ -7257,7 +7334,7 @@ and type_let
     (fun (_,pat,_) (attrs, exp) ->
        Builtin_attributes.warning_scope ~ppwarning:false attrs
          (fun () ->
-            ignore(check_partial env pat.pat_type pat.pat_loc
+            ignore(check_partial ~warn_if:Partial env pat.pat_type pat.pat_loc
                      [case pat exp] : Typedtree.partial)
          )
     )

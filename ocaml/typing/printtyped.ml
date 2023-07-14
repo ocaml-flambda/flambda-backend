@@ -1037,9 +1037,16 @@ and case
   pattern (i+1) ppf c_lhs;
   begin match c_guard with
   | None -> ()
-  | Some g -> line (i+1) ppf "<when>\n"; expression (i + 2) ppf g
+  | Some g -> line (i+1) ppf "<when>\n"; guard (i + 2) ppf g
   end;
   expression (i+1) ppf c_rhs;
+
+and guard i ppf = function
+  | Predicate p -> expression i ppf p
+  | Pattern (e, s, pat) ->
+      expression i ppf e;
+      line i ppf "%a " Layouts.Sort.format s;
+      pattern i ppf pat
 
 and value_binding i ppf x =
   line i ppf "<def>\n";

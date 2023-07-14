@@ -546,18 +546,7 @@ let rec expression : Typedtree.expression -> term_judg =
       value_bindings rec_flag bindings >> expression body
     | Texp_letmodule (x, _, _, mexp, e) ->
       module_binding (x, mexp) >> expression e
-    | Texp_match (e, _, cases, _) ->
-      (*
-         (Gi; mi |- pi -> ei : m)^i
-         G |- e : sum(mi)^i
-         ----------------------------------------------
-         G + sum(Gi)^i |- match e with (pi -> ei)^i : m
-       *)
-      (fun mode ->
-        let pat_envs, pat_modes =
-          List.split (List.map (fun c -> case c mode) cases) in
-        let env_e = expression e (List.fold_left Mode.join Ignore pat_modes) in
-        Env.join_list (env_e :: pat_envs))
+    | Texp_match (e, _, cases, _) -> match_expression e cases
     | Texp_for tf ->
       (*
         G1 |- low: m[Dereference]
@@ -837,6 +826,21 @@ let rec expression : Typedtree.expression -> term_judg =
       expression handler << Dereference
     | Texp_probe_is_enabled _ -> empty
     | Texp_exclave e -> expression e
+
+(* This function is used to check a match expression, so it produces a judgement
+   as in [expression]. It is also used to check pattern guards in [case]. *)
+and match_expression e cases =
+  (*
+      (Gi; mi |- pi -> ei : m)^i
+      G |- e : sum(mi)^i
+      ----------------------------------------------
+      G + sum(Gi)^i |- match e with (pi -> ei)^i : m
+   *)
+  (fun mode ->
+    let pat_envs, pat_modes =
+      List.split (List.map (fun c -> case c mode) cases) in
+    let env_e = expression e (List.fold_left Mode.join Ignore pat_modes) in
+    Env.join_list (env_e :: pat_envs))
 
 and comprehension_clauses clauses =
   List.concat_map
@@ -1186,19 +1190,37 @@ and value_bindings : rec_flag -> Typedtree.value_binding list -> bind_judg =
 and case
     : 'k . 'k Typedtree.case -> mode -> Env.t * mode
   = fun { Typedtree.c_lhs; c_guard; c_rhs } ->
-    (*
-       Ge |- e : m    Gg |- g : m[Dereference]
-       G := Ge+Gg     p : mp -| G
-       ----------------------------------------
-       G - p; m[mp] |- (p (when g)? -> e) : m
-    *)
-    let judg = join [
-        option expression c_guard << Dereference;
-        expression c_rhs;
-      ] in
-    (fun m ->
-       let env = judg m in
-       (remove_pat c_lhs env), Mode.compose m (pattern c_lhs env))
+      let judg = match c_guard with
+        (*
+           p : mp -| G    G |- e : m
+           ----------------------------
+           G - p; m[mp] |- (p -> e) : m
+        *)
+        | None -> expression c_rhs
+        (*
+           Ge |- e : m    Gg |- g : m[Dereference]
+           G := Ge+Gg     p : mp -| G
+           ---------------------------------------
+           G - p; m[mp] |- (p when g -> e) : m
+        *)
+        | Some (Predicate p) ->
+            join [ expression p << Dereference; expression c_rhs ]
+        (*
+           G |- (match e1 with p2 -> e2) : m
+           p1 : mp -| G
+           ------------------------------------------------
+           G - p1; m[mp] |- (p1 when e1 match p2 -> e2) : m
+
+           This judgement uses uses the one in [match_expression] as a
+           "subroutine."
+        *)
+        | Some (Pattern (e, _, pat)) ->
+          let cases = [ { c_lhs = pat; c_guard = None; c_rhs } ] in
+          match_expression e cases
+      in
+      (fun m ->
+        let env = judg m in
+        (remove_pat c_lhs env), Mode.compose m (pattern c_lhs env))
 
 (* p : m -| G
    with output m and input G

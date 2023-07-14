@@ -1966,7 +1966,7 @@ let typecheck ~pred p =
   let (pattern,constrs,labels) = Conv.conv p in
   pred constrs labels pattern
 
-let do_check_partial ~pred loc casel pss = match pss with
+let do_check_partial ~pred ~warn_if loc casel pss = match pss with
 | [] ->
         (*
           This can occur
@@ -1988,30 +1988,40 @@ let do_check_partial ~pred loc casel pss = match pss with
       exhaust None pss (List.length ps)
       |> Seq.filter_map (typecheck ~pred) in
     match counter_examples () with
-    | Seq.Nil -> Total
+    | Seq.Nil ->
+        (match warn_if with
+          | Partial -> ()
+          | Total ->
+              if Warnings.is_active Total_match_in_pattern_guard
+              then Location.prerr_warning loc Total_match_in_pattern_guard);
+        Total
     | Seq.Cons (v, _rest) ->
-      if Warnings.is_active (Warnings.Partial_match "") then begin
-        let errmsg =
-          try
-            let buf = Buffer.create 16 in
-            let fmt = Format.formatter_of_buffer buf in
-            Printpat.top_pretty fmt v;
-            if do_match (initial_only_guarded casel) [v] then
-              Buffer.add_string buf
-                "\n(However, some guarded clause may match this value.)";
-            if contains_extension v then
-              Buffer.add_string buf
-                "\nMatching over values of extensible variant types \
-                   (the *extension* above)\n\
-              must include a wild card pattern in order to be exhaustive."
-            ;
-            Buffer.contents buf
-          with _ ->
-            ""
-        in
-        Location.prerr_warning loc (Warnings.Partial_match errmsg)
-      end;
-      Partial
+        (match warn_if with
+          | Partial ->
+              if Warnings.is_active (Partial_match "") then begin
+                let errmsg =
+                  try
+                    let buf = Buffer.create 16 in
+                    let fmt = Format.formatter_of_buffer buf in
+                    Printpat.top_pretty fmt v;
+                    if do_match (initial_only_guarded casel) [v] then
+                      Buffer.add_string buf
+                        "\n(However, some guarded clause may match this \
+                            value.)";
+                    if contains_extension v then
+                      Buffer.add_string buf
+                        "\nMatching over values of extensible variant types \
+                          (the *extension* above)\n\
+                           must include a wild card pattern in order to be \
+                           exhaustive.";
+                    Buffer.contents buf
+                  with _ ->
+                    ""
+                in
+                Location.prerr_warning loc (Partial_match errmsg)
+              end
+          | Total -> ());
+        Partial
 
 (*****************)
 (* Fragile check *)
@@ -2209,10 +2219,10 @@ let inactive ~partial pat =
    on exhaustive matches only.
 *)
 
-let check_partial pred loc casel =
+let check_partial pred ~warn_if loc casel =
   let pss = initial_matrix casel in
   let pss = get_mins le_pats pss in
-  let total = do_check_partial ~pred loc casel pss in
+  let total = do_check_partial ~pred ~warn_if loc casel pss in
   if
     total = Total && Warnings.is_active (Warnings.Fragile_match "")
   then begin
@@ -2433,7 +2443,11 @@ let pattern_stable_vars ns p =
    as a clause right hand side or guard.
 *)
 
-let all_rhs_idents exp =
+let all_rhs_idents guard =
+  let exp = match guard with
+    | Predicate p -> p
+    | Pattern (e, _, _) -> e
+  in
   let ids = ref Ident.Set.empty in
   let open Tast_iterator in
   let expr_iter iter exp =

@@ -1818,7 +1818,7 @@ and case_list ctxt f l : unit =
 
 and guard ctxt f = function
   | Guard_predicate e -> expression ctxt f e
-  | Guard_pattern (e, pat) ->
+  | Guard_pattern { pgp_scrutinee = e; pgp_pattern = pat } ->
     pp f "@[%a@ match@ %a@]"
       (expression ctxt) e (pattern ctxt) pat
 

@@ -166,7 +166,7 @@ and rewrite_cases iflag l =
   
 and rewrite_guard iflag = function
 | Guard_predicate e -> rewrite_exp iflag e
-| Guard_pattern (e, _) -> rewrite_exp iflag e
+| Guard_pattern gp -> rewrite_exp iflag gp.pgp_scrutinee
 
 and rewrite_labelexp_list iflag l =
   rewrite_exp_list iflag (List.map snd l)

@@ -441,7 +441,14 @@ and case =
 
 and guard =
   | Guard_predicate of expression
-  | Guard_pattern of expression * pattern
+  | Guard_pattern of guard_pattern
+
+and guard_pattern =
+  {
+    pgp_scrutinee : expression;
+    pgp_pattern : pattern;
+    pgp_loc : Location.t;
+  }
 
 and letop =
   {

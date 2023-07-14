@@ -109,6 +109,7 @@ type t =
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
+  | Total_match_in_pattern_guard            (* 73 *)
 (* Flambda_backend specific warnings: numbers should go down from 199 *)
   | Probe_name_too_long of string           (* 190 *)
   | Misplaced_assume_attribute of string    (* 198 *)

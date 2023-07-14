@@ -189,10 +189,16 @@ module Exp:
                -> binding_op list -> expression -> expression
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> expression
     val unreachable: ?loc:loc -> ?attrs:attrs -> unit -> expression
-
+    
     val case: pattern -> ?guard:guard -> expression -> case
-    val guard: pattern:pattern option -> expression -> guard
     val binding_op: str -> pattern -> expression -> loc -> binding_op
+  end
+
+(* CR-soon rgodse: Change naming to [Pattern_guard] *)
+(** Guard patterns *)
+module Guard_pattern:
+  sig
+    val mk: loc:Location.t -> expression -> pattern -> guard_pattern
   end
 
 (** Value declarations *)

@@ -32,6 +32,7 @@ type iterator =
     env: iterator -> Env.t -> unit;
     expr: iterator -> expression -> unit;
     extension_constructor: iterator -> extension_constructor -> unit;
+    guard: iterator -> guard -> unit;
     module_binding: iterator -> module_binding -> unit;
     module_coercion: iterator -> module_coercion -> unit;
     module_declaration: iterator -> module_declaration -> unit;
@@ -503,8 +504,12 @@ let value_bindings sub (_, list) = List.iter (sub.value_binding sub) list
 
 let case sub {c_lhs; c_guard; c_rhs} =
   sub.pat sub c_lhs;
-  Option.iter (sub.expr sub) c_guard;
+  Option.iter (sub.guard sub) c_guard;
   sub.expr sub c_rhs
+
+let guard sub = function
+  | Predicate p -> sub.expr sub p
+  | Pattern (e, _, pat) -> sub.expr sub e; sub.pat sub pat
 
 let value_binding sub {vb_pat; vb_expr; _} =
   sub.pat sub vb_pat;
@@ -527,6 +532,7 @@ let default_iterator =
     class_type_field;
     env;
     expr;
+    guard;
     extension_constructor;
     module_binding;
     module_coercion;

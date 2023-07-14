@@ -48,7 +48,15 @@ let bind_cases l =
         let open Location in
         match c_guard with
         | None -> c_rhs.exp_loc
-        | Some g -> {c_rhs.exp_loc with loc_start=g.exp_loc.loc_start}
+        | Some g ->
+          let gexp =
+            match g with
+            | Predicate pred -> pred
+            | Pattern (exp, _, pat) ->
+                bind_variables c_rhs.exp_loc pat;
+                exp
+              in
+          {c_rhs.exp_loc with loc_start=gexp.exp_loc.loc_start}
       in
       bind_variables loc c_lhs
     )

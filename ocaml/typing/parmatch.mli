@@ -110,7 +110,7 @@ val check_partial:
     ((string, constructor_description) Hashtbl.t ->
      (string, label_description) Hashtbl.t ->
      Parsetree.pattern -> pattern option) ->
-    Location.t -> value case list -> partial
+    warn_if:partial -> Location.t -> value case list -> partial
 val check_unused:
     (bool ->
      (string, constructor_description) Hashtbl.t ->
