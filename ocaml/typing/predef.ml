@@ -261,33 +261,33 @@ let common_initial_env add_type add_extension empty_env =
            [| [| |]; [| Layout.value ~why:Type_argument |] |])
        ~layout:(Layout.value ~why:Boxed_variant)
   |> add_type ident_lexing_position 
-      ~layout:(Layout.value ~why:Boxed_record)
-      ~kind:(
-        let lbl (field, field_type, layout) = 
-          let id = Ident.create_predef field in 
-            {
-              ld_id=id;
-              ld_mutable=Immutable;
-              ld_global=Unrestricted;
-              ld_type=field_type;
-              ld_layout=layout;
-              ld_loc=Location.none;
-              ld_attributes=[];
-              ld_uid=Uid.of_predef_id id;
-            }
-        in
-        let immediate = Layout.value ~why:(Primitive ident_int) in 
-        let labels = List.map lbl [
-          ("pos_fname", type_string, Layout.value ~why:(Primitive ident_string)); 
-          ("pos_lnum", type_int, immediate); 
-          ("pos_bol", type_int, immediate); 
-          ("pos_cnum", type_int, immediate) ] 
-        in 
-        Type_record (
-          labels, 
-          (Record_boxed (List.map (fun label -> label.ld_layout) labels |> Array.of_list))
-        )
-      )
+       ~kind:(
+         let lbl (field, field_type, layout) = 
+           let id = Ident.create_predef field in 
+             {
+               ld_id=id;
+               ld_mutable=Immutable;
+               ld_global=Unrestricted;
+               ld_type=field_type;
+               ld_layout=layout;
+               ld_loc=Location.none;
+               ld_attributes=[];
+               ld_uid=Uid.of_predef_id id;
+             }
+         in
+         let immediate = Layout.value ~why:(Primitive ident_int) in 
+         let labels = List.map lbl [
+           ("pos_fname", type_string, Layout.value ~why:(Primitive ident_string)); 
+           ("pos_lnum", type_int, immediate); 
+           ("pos_bol", type_int, immediate); 
+           ("pos_cnum", type_int, immediate) ] 
+         in 
+         Type_record (
+           labels, 
+           (Record_boxed (List.map (fun label -> label.ld_layout) labels |> Array.of_list))
+         )
+       )
+       ~layout:(Layout.value ~why:Boxed_record)
   |> add_type ident_string
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
