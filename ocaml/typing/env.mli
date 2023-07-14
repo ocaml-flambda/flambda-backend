@@ -60,9 +60,11 @@ type t
 
 val empty: t
 
-(* Lazy: these should be forced only after command-line flags are parsed, as
-   construction consults the enabled language extensions.
- *)
+(* These environments are lazy so that they may depend on the enabled
+   extensions, typically adjusted via command line flags.  If extensions are
+   changed after these environments are forced, they may be inaccurate.  This
+   could happen, for example, if extensions are adjusted via the
+   compiler-libs. *)
 val initial_safe_string: t Lazy.t
 val initial_unsafe_string: t Lazy.t
 
