@@ -1,3 +1,5 @@
+[@@@ocaml.warning "+a-4-30-40-41-42"]
+
 module type Cell = sig
   type t
   val to_string : t -> string

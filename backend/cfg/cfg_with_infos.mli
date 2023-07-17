@@ -2,6 +2,8 @@
 
 type liveness = Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t
 
+val liveness_analysis : Cfg_with_layout.t -> liveness
+
 (** Holds a Cfg_with_layout.t value, and "caches" for:
     - the liveness information;
     - the dominators information;

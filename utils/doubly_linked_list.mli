@@ -4,12 +4,6 @@ val insert_before : 'a cell -> 'a -> unit
 
 val insert_after : 'a cell -> 'a -> unit
 
-val delete_before : 'a cell -> unit
-
-val delete_after : 'a cell -> unit
-
-val delete_curr: 'a cell -> unit
-
 val value : 'a cell -> 'a
 
 val prev : 'a cell -> 'a cell option
@@ -43,6 +37,12 @@ val is_empty : 'a t -> bool
 val length : 'a t -> int
 
 val remove_first : 'a t -> f:('a -> bool) -> unit
+
+val delete_before : 'a cell -> unit
+
+val delete_after : 'a cell -> unit
+
+val delete_curr: 'a cell -> unit
 
 val filter_left : 'a t -> f:('a -> bool) -> unit
 
