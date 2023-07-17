@@ -55,7 +55,7 @@ let insert_after cell value =
       | Empty -> cell.t.last <- value_node
       | Node node -> node.prev <- value_node))
 
-let value cell =
+let  value cell =
   match cell.node with
   | Empty ->
     (* internal invariant: cell's nodes are not empty *)
@@ -186,7 +186,7 @@ let delete_after cell =
   | Node cell_node ->
       match cell_node.next with
       | Empty ->
-        (* convention: cannot delete_after the first element in the list *)
+        (* convention: cannot delete_after the last element in the list *)
         assert false
       | Node next_cell_node ->
         delete_curr {node=cell_node.next; t=cell.t}
