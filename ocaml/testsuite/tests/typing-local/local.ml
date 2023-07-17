@@ -2549,6 +2549,14 @@ Line 3, characters 22-23:
 Error: This value escapes its region
 |}]
 
+let f (local_ a : string iarray) =
+  match a with
+  | [: x; _ :] -> x
+  | _ -> "foo"
+[%%expect{|
+val f : local_ string iarray -> local_ string = <fun>
+|}]
+
 (* projecting out of global iarray gives global elements *)
 let f (a : string iarray) =
   match a with
