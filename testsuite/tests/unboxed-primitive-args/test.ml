@@ -16,7 +16,7 @@ script = "${cc} -msse4.2 -c test_common.c -I ../../../../../../../../runtime"
 ***** script
 script = "${cc} -msse4.2 -c stubs.c -I ../../../../../../../../runtime"
 ****** ocamlopt.opt
-ocamlopt_flags = "-fsimd"
+ocamlopt_flags = "-extension simd"
 all_modules = "test_common.o stubs.o common.mli common.ml main.ml"
 ******* run
 ******** check-program-output
