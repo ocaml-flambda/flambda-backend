@@ -2697,7 +2697,7 @@ let add_language_extension_types env =
    been parsed yet. So, we make the initial environment lazy.
 
    If language extensions are adjusted after [initial_safe_string] and
-   [initial_unsafe_string] are forced, these environment may be inaccurate.
+   [initial_unsafe_string] are forced, these environments may be inaccurate.
 *)
 let initial_safe_string = add_language_extension_types initial_safe_string
 let initial_unsafe_string = add_language_extension_types initial_unsafe_string
