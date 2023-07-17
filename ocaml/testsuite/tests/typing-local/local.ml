@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-extension immutable_arrays"
    * expect *)
 
 let leak n =
@@ -2509,38 +2510,77 @@ Line 3, characters 24-26:
 Error: This value escapes its region
 |}]
 
+(* Test of array.*)
 
-(* test of arrays *)
-(* as elements of arrays are mutable *)
-(* it is only safe for them to be at global mode *)
-(* cf: similarly reference cell can contain only global values *)
+(* Immutable arrays are like tuples or normal record: local array contains local
+elements, both at construction and at projection; global array contains global
+elements. *)
 
-(* on construction of array, we ensure elements are global *)
-
-let f (local_ x : string) =
-  [|x; "foo"|]
+(* constructing global iarray from local elements is rejected *)
+let f (local_ x : string) = ref [: x; "foo" :]
 [%%expect{|
-Line 2, characters 4-5:
-2 |   [|x; "foo"|]
-        ^
+Line 1, characters 35-36:
+1 | let f (local_ x : string) = ref [: x; "foo" :]
+                                       ^
 Error: This value escapes its region
 |}]
 
-let f (x : string) =
-  [|x; "foo"|]
+(* constructing local iarray from local elements is fine *)
+let f (local_ x : string) = local_ [:x; "foo":]
 [%%expect{|
-val f : string -> string array = <fun>
+val f : local_ string -> local_ string iarray = <fun>
 |}]
 
+(* constructing global iarray from global elements is fine *)
+let f (x : string) = ref [:x; "foo":]
+[%%expect{|
+val f : string -> string iarray ref = <fun>
+|}]
 
-(* on pattern matching of array,
-   elements are strengthened to global
-  even if array itself is local *)
+(* projecting out of local array gives local elements *)
+let f (local_ a : string iarray) =
+  match a with
+  | [: x; _ :] -> ref x
+  | _ -> ref "foo"
+[%%expect{|
+Line 3, characters 22-23:
+3 |   | [: x; _ :] -> ref x
+                          ^
+Error: This value escapes its region
+|}]
+
+(* projecting out of global iarray gives global elements *)
+let f (a : string iarray) =
+  match a with
+  | [: x :] -> ref x
+  | _ -> ref "foo"
+[%%expect{|
+val f : string iarray -> string ref = <fun>
+|}]
+
+(* Mutable array, like references, is dangerous. They must contain global
+    elements regardless of the array's mode. *)
+
+(* constructing local array from local elements is rejected *)
+let f (local_ x : string) = local_ [| x |]
+[%%expect{|
+Line 1, characters 38-39:
+1 | let f (local_ x : string) = local_ [| x |]
+                                          ^
+Error: This value escapes its region
+|}]
+
+(* constructing local array from global elements is allowed *)
+let f (x : string) = local_ [| x |]
+[%%expect{|
+val f : string -> local_ string array = <fun>
+|}]
+
+(* projecting out of local array gives global elements *)
 let f (local_ a : string array) =
   match a with
-  | [| x; _ |] -> ref x
+  | [| x |] -> ref x
   | _ -> ref "foo"
-
 [%%expect{|
 val f : local_ string array -> string ref = <fun>
 |}]
