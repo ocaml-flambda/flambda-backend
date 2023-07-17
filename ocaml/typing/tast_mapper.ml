@@ -72,6 +72,7 @@ type mapper =
 let id x = x
 let tuple2 f1 f2 (x, y) = (f1 x, f2 y)
 let tuple3 f1 f2 f3 (x, y, z) = (f1 x, f2 y, f3 z)
+let tuple4 f1 f2 f3 f4 (x, y, z, w) = (f1 x, f2 y, f3 z, f4 w)
 
 let structure sub {str_items; str_type; str_final_env} =
   {
@@ -233,8 +234,9 @@ let pat
     | Tpat_variant (l, po, rd) ->
         Tpat_variant (l, Option.map (sub.pat sub) po, rd)
     | Tpat_record (l, closed) ->
-        Tpat_record (List.map (tuple3 id id (sub.pat sub)) l, closed)
-    | Tpat_array (am, l) -> Tpat_array (am, List.map (sub.pat sub) l)
+        Tpat_record (List.map (tuple4 id id (sub.pat sub) id) l, closed)
+    | Tpat_array (am, l) ->
+        Tpat_array (am, List.map (fun (pat,am) -> (sub.pat sub pat, am)) l)
     | Tpat_alias (p, id, s, m) -> Tpat_alias (sub.pat sub p, id, s, m)
     | Tpat_lazy p -> Tpat_lazy (sub.pat sub p)
     | Tpat_value p ->

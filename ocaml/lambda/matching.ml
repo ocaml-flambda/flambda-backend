@@ -93,6 +93,7 @@ open Layouts
 open Types
 open Typedtree
 open Lambda
+open Translmode
 open Parmatch
 open Printf
 open Printpat
@@ -145,21 +146,37 @@ let string_of_lam lam =
 let all_record_args lbls =
   match lbls with
   | [] -> fatal_error "Matching.all_record_args"
-  | (_, { lbl_all }, _) :: _ ->
+  | (_, { lbl_all }, _, _) :: _ ->
       let t =
         Array.map
           (fun lbl ->
-            (mknoloc (Longident.Lident "?temp?"), lbl, Patterns.omega))
+            (mknoloc (Longident.Lident "?temp?"), lbl, Patterns.omega, None))
           lbl_all
       in
-      List.iter (fun ((_, lbl, _) as x) -> t.(lbl.lbl_num) <- x) lbls;
+      List.iter (fun ((_, lbl, _, _) as x) -> t.(lbl.lbl_num) <- x) lbls;
       Array.to_list t
+
+let expand_record_head' lbls =
+  match lbls with
+  | [] -> fatal_error "Matching.expand_record_head"
+  | ({lbl_all; _}, _):: _ ->
+      Array.map (fun lbl ->
+        let r =
+          List.find_opt (fun (l, _) ->
+            lbl.lbl_num = l.lbl_num) lbls
+        in
+        let lbl_am =
+          match r with
+          | None -> lbl, None
+          | Some r -> r
+        in
+        lbl_am) lbl_all
 
 let expand_record_head h =
   let open Patterns.Head in
   match h.pat_desc with
-  | Record [] -> fatal_error "Matching.expand_record_head"
-  | Record ({ lbl_all } :: _) ->
+  | Record lbls ->
+      let lbl_all = expand_record_head' lbls in
       { h with pat_desc = Record (Array.to_list lbl_all) }
   | _ -> h
 
@@ -302,9 +319,10 @@ end = struct
       | `Variant (cstr, argo, row_desc) ->
           `Variant (cstr, Option.map (alpha_pat env) argo, row_desc)
       | `Record (fields, closed) ->
-          let alpha_field env (lid, l, p) = (lid, l, alpha_pat env p) in
+          let alpha_field env (lid, l, p, am) = (lid, l, alpha_pat env p, am) in
           `Record (List.map (alpha_field env) fields, closed)
-      | `Array (am, ps) -> `Array (am, List.map (alpha_pat env) ps)
+      | `Array (am, ps) ->
+          `Array (am, List.map (fun (p, am) -> (alpha_pat env p, am)) ps)
       | `Lazy p -> `Lazy (alpha_pat env p)
     in
     { p with pat_desc }
@@ -2080,7 +2098,7 @@ let divide_tuple ~scopes head ctx pm =
 
 let record_matching_line num_fields lbl_pat_list =
   let patv = Array.make num_fields Patterns.omega in
-  List.iter (fun (_, lbl, pat) ->
+  List.iter (fun (_, lbl, pat, _) ->
     (* CR layouts v5: This void sanity check can be removed when we add proper
        void support (or whenever we remove `lbl_pos_void`) *)
     layout_must_be_value lbl.lbl_loc lbl.lbl_layout;
@@ -2100,8 +2118,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
   let all_labels =
     let open Patterns.Head in
     match head.pat_desc with
-    | Record (lbl :: _) -> lbl.lbl_all
-    | Record []
+    | Record lbls_ams -> expand_record_head' lbls_ams
     | _ ->
         assert false
   in
@@ -2109,7 +2126,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
     if pos >= Array.length all_labels then
       rem
     else
-      let lbl = all_labels.(pos) in
+      let lbl, am = all_labels.(pos) in
       layout_must_be_value lbl.lbl_loc lbl.lbl_layout;
       let sem =
         match lbl.lbl_mut with
@@ -2132,8 +2149,12 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
         | Record_unboxed
         | Record_inlined (_, Variant_unboxed) -> arg, sort, layout
         | Record_float ->
-           (* TODO: could optimise to Alloc_local sometimes *)
-           Lprim (Pfloatfield (lbl.lbl_pos, sem, alloc_heap), [ arg ], loc),
+           let am =
+            match am with
+            | None -> alloc_heap
+            | Some am -> transl_alloc_mode am
+           in
+           Lprim (Pfloatfield (lbl.lbl_pos, sem, am), [ arg ], loc),
            (* Here we are projecting a boxed float from a float record. *)
            Sort.for_predef_value, layout_boxed_float
         | Record_inlined (_, Variant_extensible) ->
@@ -2169,26 +2190,25 @@ let get_key_array = function
 
 let get_pat_args_array p rem =
   match p with
-  | { pat_desc = Tpat_array (_, patl) } -> patl @ rem
+  | { pat_desc = Tpat_array (_, patl) } -> (List.map fst patl) @ rem
   | _ -> assert false
 
 let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
-  let am, len =
+  let am, ams =
     let open Patterns.Head in
     match head.pat_desc with
-    | Array (am, len) -> am, len
+    | Array (am, ams) -> am, ams
     | _ -> assert false
   in
   let loc = head_loc ~scopes head in
-  let rec make_args pos =
-    if pos >= len then
-      rem
-    else
+  let rec make_args pos ams =
+    match ams with
+    | [] -> rem
+    | alloc_mode :: ams ->
+      let alloc_mode = transl_alloc_mode alloc_mode in
       (* CR ncourant: could do better than layout_field using kind *)
       ( Lprim
-          (* TODO: The resulting float should be allocated to at the mode of the
-             array pattern, once that's available *)
-          (Parrayrefu Lambda.(array_ref_kind alloc_heap kind),
+          (Parrayrefu Lambda.(array_ref_kind alloc_mode kind),
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
         (match am with
@@ -2196,9 +2216,9 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
         | Immutable -> Alias),
         Sort.for_array_get_result,
         layout_field)
-      :: make_args (pos + 1)
+      :: (make_args (pos + 1) ams)
   in
-  make_args 0
+  make_args 0 ams
 
 let divide_array ~scopes kind ctx pm =
   divide
@@ -3429,7 +3449,7 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
             (divide_tuple ~scopes ph)
             Context.combine repr partial ctx pm
       | Record [] -> assert false
-      | Record (lbl :: _) ->
+      | Record ((lbl, _) :: _) ->
           compile_no_test ~scopes value_kind
             (divide_record ~scopes lbl.lbl_all ph)
             Context.combine repr partial ctx pm
@@ -3521,7 +3541,7 @@ let is_record_with_mutable_field p =
   match p.pat_desc with
   | Tpat_record (lps, _) ->
       List.exists
-        (fun (_, lbl, _) ->
+        (fun (_, lbl, _, _) ->
           match lbl.Types.lbl_mut with
           | Mutable -> true
           | Immutable -> false)

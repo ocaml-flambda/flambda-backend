@@ -57,8 +57,9 @@ module Simple = struct
         Longident.t loc * constructor_description * pattern list
     | `Variant of label * pattern option * row_desc ref
     | `Record of
-        (Longident.t loc * label_description * pattern) list * closed_flag
-    | `Array of mutable_flag * pattern list
+        (Longident.t loc * label_description * pattern * alloc_mode option) list
+           * closed_flag
+    | `Array of mutable_flag * (pattern * alloc_mode) list
     | `Lazy of pattern
   ]
 
@@ -142,12 +143,12 @@ module Head : sig
     | Construct of constructor_description
     | Constant of constant
     | Tuple of int
-    | Record of label_description list
+    | Record of (label_description * alloc_mode option) list
     | Variant of
         { tag: label; has_arg: bool;
           cstr_row: row_desc ref;
           type_row : unit -> row_desc; }
-    | Array of mutable_flag * int
+    | Array of mutable_flag * alloc_mode list
     | Lazy
 
   type t = desc pattern_data
@@ -167,14 +168,14 @@ end = struct
     | Construct of constructor_description
     | Constant of constant
     | Tuple of int
-    | Record of label_description list
+    | Record of (label_description * alloc_mode option) list
     | Variant of
         { tag: label; has_arg: bool;
           cstr_row: row_desc ref;
           type_row : unit -> row_desc; }
           (* the row of the type may evolve if [close_variant] is called,
              hence the (unit -> ...) delay *)
-    | Array of mutable_flag * int
+    | Array of mutable_flag * alloc_mode list
     | Lazy
 
   type t = desc pattern_data
@@ -200,10 +201,10 @@ end = struct
           in
           Variant {tag; has_arg; cstr_row; type_row}, pats
       | `Array (am, args) ->
-          Array (am, List.length args), args
+          Array (am, List.map snd args), List.map fst args
       | `Record (largs, _) ->
-          let lbls = List.map (fun (_,lbl,_) -> lbl) largs in
-          let pats = List.map (fun (_,_,pat) -> pat) largs in
+          let lbls = List.map (fun (_,lbl,_, am) -> (lbl, am)) largs in
+          let pats = List.map (fun (_,_,pat, _) -> pat) largs in
           Record lbls, pats
       | `Lazy p ->
           Lazy, [p]
@@ -216,7 +217,8 @@ end = struct
       | Any -> 0
       | Constant _ -> 0
       | Construct c -> c.cstr_arity
-      | Tuple n | Array (_, n) -> n
+      | Tuple n -> n
+      | Array (_, ams) -> List.length ams
       | Record l -> List.length l
       | Variant { has_arg; _ } -> if has_arg then 1 else 0
       | Lazy -> 1
@@ -229,7 +231,7 @@ end = struct
       | Lazy -> Tpat_lazy omega
       | Constant c -> Tpat_constant c
       | Tuple n -> Tpat_tuple (omegas n)
-      | Array (am, n) -> Tpat_array (am, omegas n)
+      | Array (am, ams) -> Tpat_array (am, List.map (fun am -> (omega, am)) ams)
       | Construct c ->
           let lid_loc = mkloc (Longident.Lident c.cstr_name) in
           Tpat_construct (lid_loc, c, omegas c.cstr_arity, None)
@@ -238,9 +240,9 @@ end = struct
           Tpat_variant (tag, arg_opt, cstr_row)
       | Record lbls ->
           let lst =
-            List.map (fun lbl ->
+            List.map (fun (lbl, am) ->
               let lid_loc = mkloc (Longident.Lident lbl.lbl_name) in
-              (lid_loc, lbl, omega)
+              (lid_loc, lbl, omega, am)
             ) lbls
           in
           Tpat_record (lst, Closed)

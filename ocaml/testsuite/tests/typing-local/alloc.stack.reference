@@ -3,6 +3,10 @@
             big: No Allocation
          dupbig: No Allocation
           float: No Allocation
+pat_floatrecord_noescape: No Allocation
+pat_floatrecord_escape: Allocation
+pat_floatarray_noescape: No Allocation
+pat_floatarray_escape: Allocation
       projfloat: No Allocation
        dupfloat: No Allocation
     polyvariant: No Allocation

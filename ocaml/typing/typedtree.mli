@@ -110,16 +110,18 @@ and 'k pattern_desc =
             See {!Types.row_desc} for an explanation of the last parameter.
          *)
   | Tpat_record :
-      (Longident.t loc * Types.label_description * value general_pattern) list *
-        closed_flag ->
-      value pattern_desc
+      (Longident.t loc * Types.label_description * value general_pattern
+        * Types.alloc_mode option) list * closed_flag -> value pattern_desc
         (** { l1=P1; ...; ln=Pn }     (flag = Closed)
             { l1=P1; ...; ln=Pn; _}   (flag = Open)
 
             Invariant: n > 0
+
+            [alloc_mode option] only not none when it is a float record
          *)
   | Tpat_array :
-      mutable_flag * value general_pattern list -> value pattern_desc
+      mutable_flag * (value general_pattern * Types.alloc_mode) list
+        -> value pattern_desc
         (** [| P1; ...; Pn |]    (flag = Mutable)
             [: P1; ...; Pn :]    (flag = Immutable) *)
   | Tpat_lazy : value general_pattern -> value pattern_desc

@@ -45,8 +45,9 @@ module Simple : sig
         Longident.t loc * constructor_description * pattern list
     | `Variant of label * pattern option * row_desc ref
     | `Record of
-        (Longident.t loc * label_description * pattern) list * closed_flag
-    | `Array of mutable_flag * pattern list
+        (Longident.t loc * label_description * pattern * alloc_mode option) list
+          * closed_flag
+    | `Array of mutable_flag * (pattern * alloc_mode) list
     | `Lazy of pattern
   ]
   type pattern = view pattern_data
@@ -82,14 +83,14 @@ module Head : sig
     | Construct of constructor_description
     | Constant of constant
     | Tuple of int
-    | Record of label_description list
+    | Record of (label_description * alloc_mode option) list
     | Variant of
         { tag: label; has_arg: bool;
           cstr_row: row_desc ref;
           type_row : unit -> row_desc; }
           (* the row of the type may evolve if [close_variant] is called,
              hence the (unit -> ...) delay *)
-    | Array of mutable_flag * int
+    | Array of mutable_flag * alloc_mode list
     | Lazy
 
   type t = desc pattern_data

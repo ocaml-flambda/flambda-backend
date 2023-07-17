@@ -1209,6 +1209,28 @@ module Alloc_mode = struct
       | Amodevar v :: ms -> aux (v :: vars) ms
     in aux [] ms
 
+  let meetvars vars =
+    match vars with
+    | [] -> local
+    | v :: rest ->
+      let v =
+        if all_equal v rest then v
+        else begin
+          let v = fresh () in
+          List.iter (fun v' -> submode_exn (Amodevar v) (Amodevar v')) vars;
+          v
+        end
+      in
+      Amodevar v
+
+  let meet ms =
+    let rec aux vars = function
+      | [] -> meetvars vars
+      | Amode Local :: ms -> aux vars ms
+      | Amode Global :: _ -> global
+      | Amodevar v :: ms -> aux (v :: vars) ms
+    in aux [] ms
+
   let constrain_upper = function
     | Amode m -> m
     | Amodevar v ->
@@ -1459,6 +1481,15 @@ module Value_mode = struct
        let v = newvar () in
        submode_exn v m;
        v
+
+  let newvar_above = function
+    | { r_as_l = Amode Local;
+        r_as_g = Amode Local } ->
+      local
+    | m ->
+      let v = newvar () in
+      submode_exn m v;
+      v
 
   let check_const t =
     match Alloc_mode.check_const t.r_as_l with
