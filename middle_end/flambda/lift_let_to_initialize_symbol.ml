@@ -48,7 +48,16 @@ type accumulated = {
   terminator : Flambda.expr;
 }
 
-let boxing_closure var kind =
+(* Values of layout not letrec cannot be stored in any kind of symbol bound
+   values. Currently the only kind of values that can store any layout are
+   the closures.
+
+   To box a value, we create a dummy closure (with no code) and store the value
+   as a free var. Unboxing is done with a projection of the free var.
+
+   The Var_within_closure id is fresh.
+*)
+let boxing_closure var kind : Flambda.t * access =
   let inner_var = Variable.rename var in
   let closure_id_var =
     Variable.create Internal_variable_names.boxing_set_of_closures
