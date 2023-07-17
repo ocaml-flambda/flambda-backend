@@ -210,7 +210,7 @@ end = struct
     let slot =
       transl_extension_path
         loc
-        Env.initial_safe_string
+        (Lazy.force Env.initial_safe_string)
         Predef.path_invalid_argument
     in
     (* CR-someday aspectorzabusky: We might want to raise an event here for
