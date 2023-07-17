@@ -1898,7 +1898,8 @@ let get_mod_field modname field =
   lazy
     (let mod_ident = Ident.create_persistent modname in
      let env =
-       Env.add_persistent_structure mod_ident Env.initial_safe_string
+       Env.add_persistent_structure mod_ident
+         (Lazy.force Env.initial_safe_string)
      in
      match Env.open_pers_signature modname env with
      | Error `Not_found ->
@@ -3580,7 +3581,7 @@ let failure_handler ~scopes loc ~failer () =
     let sloc = Scoped_location.of_location ~scopes loc in
     let slot =
       transl_extension_path sloc
-        Env.initial_safe_string Predef.path_match_failure
+        (Lazy.force Env.initial_safe_string) Predef.path_match_failure
     in
     let fname, line, char =
       Location.get_pos_info loc.Location.loc_start in
