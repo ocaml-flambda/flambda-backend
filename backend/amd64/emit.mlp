@@ -41,6 +41,8 @@ let _label s = D.label ~typ:QWORD s
 
 (* Override proc.ml *)
 
+let simd_regalloc_disabled () = not (Language_extension.is_enabled SIMD)
+
 let int_reg_name =
   [| RAX; RBX; RDI; RSI; RDX; RCX; R8; R9;
      R12; R13; R10; R11; RBP; |]
@@ -52,7 +54,7 @@ let register_name typ r =
   | Int | Val | Addr -> Reg64 (int_reg_name.(r))
   | Float -> Regf (float_reg_name.(r - 100))
   | Vec128 ->
-    if not !simd_regalloc_support then
+    if simd_regalloc_disabled () then
     Misc.fatal_error "SIMD register allocation is not enabled.";
     Regf (float_reg_name.(r - 100))
 
@@ -93,7 +95,7 @@ let frame_required = ref false
 
 let frame_size () =                     (* includes return address *)
   if !frame_required then begin
-    if not !simd_regalloc_support then assert (num_stack_slots.(2) = 0);
+    if simd_regalloc_disabled () then assert (num_stack_slots.(2) = 0);
     let sz =
       (!stack_offset
        + 8
@@ -109,7 +111,7 @@ let slot_offset loc cl =
   match loc with
   | Incoming n -> frame_size() + n
   | Local n ->
-      if not !simd_regalloc_support then assert (num_stack_slots.(2) = 0 && cl < 2);
+      if simd_regalloc_disabled () then assert (num_stack_slots.(2) = 0 && cl < 2);
       (!stack_offset +
         (* Preserves original ordering (int -> float) *)
         match cl with
@@ -1631,7 +1633,7 @@ let make_stack_loc ~offset n (r : Reg.t) =
   (match r.typ with
    | Int | Val | Addr | Float -> ()
    | Vec128 ->
-    if not !simd_regalloc_support then
+    if simd_regalloc_disabled () then
     Misc.fatal_error "SIMD register allocation is not enabled.");
   Reg.at_location r.typ loc
 
