@@ -1401,8 +1401,7 @@ and result_layout ~layouts (expr : expr) =
         layouts defs
     in
     result_layout ~layouts body
-  | Assign _ ->
-    Lambda.layout_any_value
+  | Assign _
   | While _
   | For _ ->
     Lambda.layout_unit
