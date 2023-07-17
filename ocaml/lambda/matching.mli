@@ -19,11 +19,6 @@ open Typedtree
 open Lambda
 open Debuginfo.Scoped_location
 
-(* Guarded actions must be patched *)
-type action =
-  | Guarded of lambda
-  | Unguarded of lambda
-
 (* Entry points to match compiler *)
 val for_function:
         scopes:scopes ->

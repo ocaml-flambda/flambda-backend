@@ -99,20 +99,6 @@ open Printpat
 
 module Scoped_location = Debuginfo.Scoped_location
 
-type action =
-  | Guarded of lambda
-  | Unguarded of lambda
-
-let is_guarded = function
-  | Guarded _ -> true
-  | Unguarded _ -> false
-
-let lambda_of_action = function
-  | Guarded action | Unguarded action -> action
-
-let map_action ~f = function
-  | Guarded action -> Guarded (f action)
-  | Unguarded action -> Unguarded (f action)
 
 type error =
     Non_value_layout of Layout.Violation.t
@@ -3348,14 +3334,14 @@ let rec compile_match ~scopes value_kind repr partial ctx
   match m.cases with
   | ([], action) :: rem ->
       (match action with
-        | Guarded action ->
+        | Unguarded action ->
+            event_branch repr action, Jumps.empty
+        | guarded ->
             let lambda, total =
               compile_match ~scopes value_kind None partial ctx
                 { m with cases = rem }
             in
-            event_branch repr (patch_guarded lambda action), total
-        | Unguarded action ->
-            event_branch repr action, Jumps.empty)
+            event_branch repr (patch_guarded lambda guarded), total)
   | nonempty_cases ->
       compile_match_nonempty ~scopes value_kind repr partial ctx
         { m with cases = map_on_rows Non_empty_row.of_initial nonempty_cases }

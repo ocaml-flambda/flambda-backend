@@ -935,40 +935,71 @@ let next_raise_count () =
   incr raise_count ;
   !raise_count
 
+type action =
+  | Guarded_predicate of lambda
+  | Guarded_pattern of lambda
+  | Unguarded of lambda
+
+let is_guarded = function
+  | Guarded_predicate _ | Guarded_pattern _ -> true
+  | Unguarded _ -> false
+
+let lambda_of_action = function
+  | Guarded_predicate action | Guarded_pattern action | Unguarded action ->
+      action
+
+let map_action ~f = function
+  | Guarded_predicate action -> Guarded_predicate (f action)
+  | Guarded_pattern action -> Guarded_pattern (f action)
+  | Unguarded action -> Unguarded (f action)
+
 (* Anticipated staticraise, for guards *)
 let staticfail = Lstaticraise (0,[])
 
-let rec is_guarded = function
-  | Lifthenelse(_cond, _body, Lstaticraise (0,[]),_) -> true
-  | Llet(_str, _k, _id, _lam, body) -> is_guarded body
-  | Levent(lam, _ev) -> is_guarded lam
-  | _ -> false
+let value_or_fatal err_msg = function
+  | None -> fatal_error err_msg
+  | Some x -> x
 
-let rec patch_guarded patch = function
-  | Lstaticraise (0,[]) -> patch
-  | Lifthenelse (cond, e1, e2, kind) ->
-      Lifthenelse (cond, patch_guarded patch e1, patch_guarded patch e2, kind)
+let rec patch_lets_and_events patch_leaf patch = function
+  | Llet (str, k, id, lam, body) ->
+      Option.map (fun patched -> Llet (str, k, id, lam, patched))
+        (patch_lets_and_events patch_leaf patch body)
+  | Levent (lam, ev) ->
+      Option.map (fun patched -> Levent (patched, ev))
+        (patch_lets_and_events patch_leaf patch lam)
+  | lam -> patch_leaf patch lam
+
+let patch_catch patch = function
+  | Lstaticcatch (body, (id, params), Lstaticraise (0,[]), kind) ->
+      Some (Lstaticcatch (body, (id, params), patch, kind))
+  | _ -> None
+
+let patch_catch = patch_lets_and_events patch_catch
+
+let rec patch_pattern patch = function
+  | Lstaticcatch (body, (id, params), Lstaticraise (0,[]), kind) ->
+      Lstaticcatch (body, (id, params), patch, kind)
   | Lstaticcatch (body, (id, params), handler, kind) ->
-      Lstaticcatch (patch_guarded patch body, (id, params),
-                    patch_guarded patch handler, kind)
-  | Llet(str, k, id, lam, body) ->
-      Llet (str, k, id, lam, patch_guarded patch body)
-  | Levent(lam, ev) ->
-      Levent (patch_guarded patch lam, ev)
-  | lambda -> lambda
+      (match patch_catch patch handler with
+         | None ->
+             let body = patch_pattern patch body in
+             Lstaticcatch (body, (id, params), handler, kind)
+         | Some handler -> Lstaticcatch (body, (id, params), handler, kind))
+  | lam -> value_or_fatal "Lambda.patch_pattern" (patch_catch patch lam)
+
+let patch_predicate patch = function
+  | Lifthenelse (cond, body, Lstaticraise (0,[]), kind) ->
+      Some (Lifthenelse (cond, body, patch, kind))
+  | _ -> None
+
+let patch_predicate patch lam =
+  let patched = patch_lets_and_events patch_predicate patch lam in
+  value_or_fatal "Lambda.patch_predicate" patched
 
 let patch_guarded patch = function
-  | Lstaticraise (0,[]) -> patch
-  | Lifthenelse (cond, e1, e2, kind) ->
-      Lifthenelse (cond, patch_guarded patch e1, patch_guarded patch e2, kind)
-  | Lstaticcatch (body, (id, params), handler, kind) ->
-      Lstaticcatch (patch_guarded patch body, (id, params),
-                    patch_guarded patch handler, kind)
-  | Llet(str, k, id, lam, body) ->
-      Llet (str, k, id, lam, patch_guarded patch body)
-  | Levent(lam, ev) ->
-      Levent (patch_guarded patch lam, ev)
-  | _ -> fatal_error "Lambda.patch_guarded"
+  | Guarded_pattern lam -> patch_pattern patch lam
+  | Guarded_predicate lam -> patch_predicate patch lam
+  | Unguarded _ -> fatal_error "Lambda.patch_guarded"
 
 (* Translate an access path *)
 

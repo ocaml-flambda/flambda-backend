@@ -664,8 +664,18 @@ val next_raise_count : unit -> static_label
 val staticfail : lambda (* Anticipated static failure *)
 
 (* Check anticipated failure, substitute its final value *)
-val is_guarded: lambda -> bool
-val patch_guarded : lambda -> lambda -> lambda
+
+(* Guarded actions must be patched *)
+type action =
+  | Guarded_predicate of lambda
+  | Guarded_pattern of lambda
+  | Unguarded of lambda
+
+val is_guarded : action -> bool
+val lambda_of_action : action -> lambda
+val map_action : f:(lambda -> lambda) -> action -> action
+
+val patch_guarded : lambda -> action -> lambda
 
 val raise_kind: raise_kind -> string
 

@@ -1009,13 +1009,13 @@ and transl_list_with_shape ~scopes expr_list =
   in
   List.split (List.map transl_with_shape expr_list)
 
-and transl_guard ~scopes guard rhs_sort rhs : Matching.action =
+and transl_guard ~scopes guard rhs_sort rhs : action =
   let layout = layout_exp rhs_sort rhs in
   let expr = event_before ~scopes rhs (transl_exp ~scopes rhs_sort rhs) in
   match guard with
   | None -> Unguarded expr
   | Some (Predicate cond) ->
-      Guarded (
+      Guarded_predicate (
         event_before ~scopes cond
           (Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
                        expr, staticfail, layout)))
@@ -1036,12 +1036,12 @@ and transl_guard ~scopes guard rhs_sort rhs : Matching.action =
               ; pat_attributes = []
               }
             in
-            let extra_cases = [ (any_pat, Matching.Unguarded staticfail) ] in
+            let extra_cases = [ (any_pat, Unguarded staticfail) ] in
             let nested_match = transl_match ~scopes ~arg_sort
               ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc ~env
               ~extra_cases arg [ guard_case ] partial
             in
-            Guarded nested_match
+            Guarded_pattern nested_match
         | Total ->
             let nested_match = transl_match ~scopes ~arg_sort
               ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc ~env
@@ -1611,8 +1611,8 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
             ~always:(fun () ->
                 iter_exn_names Translprim.remove_exception_ident pe)
         in
-        (pv, Matching.Unguarded (static_raise vids)) :: val_cases,
-        (pe, Matching.Unguarded (static_raise ids)) :: exn_cases,
+        (pv, Unguarded (static_raise vids)) :: val_cases,
+        (pe, Unguarded (static_raise ids)) :: exn_cases,
         (lbl, ids_kinds, rhs) :: static_handlers
   in
   let val_cases, exn_cases, static_handlers =
