@@ -2549,6 +2549,19 @@ Line 3, characters 22-23:
 Error: This value escapes its region
 |}]
 
+(* a test that was passing type check *)
+let unsafe_globalize (local_ s : string) : string =
+  match local_ [:s:] with
+  | [:s':] -> s'
+  | _ -> assert false
+[%%expect{|
+Line 3, characters 14-16:
+3 |   | [:s':] -> s'
+                  ^^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an explicit "local_" annotation
+|}]
+
 let f (local_ a : string iarray) =
   match a with
   | [: x; _ :] -> x
