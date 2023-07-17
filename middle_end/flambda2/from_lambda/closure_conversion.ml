@@ -2329,7 +2329,8 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
       close_exact_or_unknown_apply acc env
         { apply with args; continuation = apply.continuation }
         (Some approx) ~replace_region:None
-    | Partial_app { provided; missing_arity; missing_param_modes; result_arity } ->
+    | Partial_app { provided; missing_arity; missing_param_modes; result_arity }
+      ->
       (match apply.inlined with
       | Always_inlined | Unroll _ ->
         Location.prerr_warning
@@ -2339,8 +2340,8 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
                inlined_attribute_on_partial_application_msg Inlined))
       | Never_inlined | Hint_inlined | Default_inlined -> ());
       wrap_partial_application acc env apply.continuation apply approx ~provided
-        ~missing_arity ~missing_param_modes ~result_arity ~first_complex_local_param
-        ~contains_no_escaping_local_allocs
+        ~missing_arity ~missing_param_modes ~result_arity
+        ~first_complex_local_param ~contains_no_escaping_local_allocs
     | Over_app { full; remaining; remaining_arity } ->
       let full_args_call apply_continuation ~region acc =
         let mode =
