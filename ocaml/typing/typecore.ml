@@ -2275,14 +2275,19 @@ and type_pat_aux
        shouldn't be too bad.  We can inline this when we upstream this code and
        combine the two array pattern constructors. *)
     let ty_elt = solve_Ppat_array ~refine loc env mutability expected_ty in
-      map_fold_cont (fun p -> type_pat ~alloc_mode:(simple_pat_mode Value_mode.global)
-       tps Value p ty_elt) spl (fun pl ->
-        rvp k {
-        pat_desc = Tpat_array (mutability, pl);
-        pat_loc = loc; pat_extra=[];
-        pat_type = instance expected_ty;
-        pat_attributes;
-        pat_env = !env })
+      map_fold_cont (fun p ->
+        let alloc_mode =
+          match mutability with
+          | Mutable -> simple_pat_mode Value_mode.global
+          | Immutable -> alloc_mode
+        in
+        type_pat ~alloc_mode tps Value p ty_elt) spl (fun pl ->
+          rvp k {
+          pat_desc = Tpat_array (mutability, pl);
+          pat_loc = loc; pat_extra=[];
+          pat_type = instance expected_ty;
+          pat_attributes;
+          pat_env = !env })
   in
   match Jane_syntax.Pattern.of_ast sp with
   | Some (jpat, attrs) -> begin
