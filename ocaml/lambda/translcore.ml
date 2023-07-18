@@ -1040,10 +1040,12 @@ and transl_guard ~scopes guard rhs_sort rhs : Matching.action =
                 ; pat_attributes = []
                 }
               in
-              transl_match ~scopes ~arg_sort:pg_scrutinee_sort
-                ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
-                ~env:pg_env ~extra_cases:[ any_pat, Matching.Unguarded patch ]
-                pg_scrutinee [ guard_case ] pg_partial
+              let extra_cases = [ any_pat, Matching.Unguarded patch ] in
+              event_before ~scopes pg_scrutinee
+                (transl_match ~scopes ~arg_sort:pg_scrutinee_sort
+                   ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
+                   ~env:pg_env ~extra_cases pg_scrutinee [ guard_case ]
+                   pg_partial)
             in
             Matching.mk_guarded ~patch_guarded
         | Total ->
@@ -1051,7 +1053,7 @@ and transl_guard ~scopes guard rhs_sort rhs : Matching.action =
               ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
               ~env:pg_env ~extra_cases:[] pg_scrutinee [ guard_case ] pg_partial
             in
-            Unguarded nested_match
+            Unguarded (event_before ~scopes pg_scrutinee nested_match)
 
 and transl_case ~scopes rhs_sort {c_lhs; c_guard; c_rhs} =
   c_lhs, transl_guard ~scopes c_guard rhs_sort c_rhs
