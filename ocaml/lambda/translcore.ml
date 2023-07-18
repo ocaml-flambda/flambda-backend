@@ -1009,7 +1009,7 @@ and transl_list_with_shape ~scopes expr_list =
   in
   List.split (List.map transl_with_shape expr_list)
 
-and transl_guard ~scopes guard rhs_sort rhs : action =
+and transl_guard ~scopes guard rhs_sort rhs =
   let layout = layout_exp rhs_sort rhs in
   let expr = event_before ~scopes rhs (transl_exp ~scopes rhs_sort rhs) in
   match guard with
@@ -1194,10 +1194,10 @@ and transl_apply ~scopes
 
 and transl_curried_function
       ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout loc repr ~region
-      ~curry partial warnings (param:Ident.t) cases : _ * lambda =
+      ~curry partial warnings (param:Ident.t) cases =
   let max_arity = Lambda.max_arity () in
   let rec loop ~scopes ~arg_sort ~arg_layout ~return_sort ~return_layout loc
-            ~arity ~region ~curry partial warnings (param:Ident.t) cases : _ * lambda =
+            ~arity ~region ~curry partial warnings (param:Ident.t) cases =
     match curry, cases with
       More_args {partial_mode},
       [{c_lhs=pat; c_guard=None;
