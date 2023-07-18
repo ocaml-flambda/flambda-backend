@@ -310,10 +310,12 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ Profile.record ~accumulate:true "cfg_simplify" Regalloc_utils.simplify_cfg
         ++ Profile.record ~accumulate:true "peephole_optimize_cfg" (fun (cfg: Cfg_with_layout.t) -> 
           if !Flambda_backend_flags.cfg_peephole_optimize then 
-            let optimized_cfg = Optimize.peephole_optimize_cfg cfg in
-             Regalloc_utils.update_live_fields optimized_cfg (Cfg_with_infos.liveness_analysis optimized_cfg);
+            let optimized_cfg, made_optimizations = Optimize.peephole_optimize_cfg cfg in
+             if made_optimizations 
+              then Regalloc_utils.update_live_fields 
+                optimized_cfg 
+                (Cfg_with_infos.liveness_analysis optimized_cfg);
              optimized_cfg
-            (* Ensure liveness works properly  *)
           else cfg)
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"

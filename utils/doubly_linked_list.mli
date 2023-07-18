@@ -42,7 +42,7 @@ val delete_before : 'a cell -> unit
 
 val delete_after : 'a cell -> unit
 
-val delete_curr: 'a cell -> unit
+val delete_curr : 'a cell -> unit
 
 val filter_left : 'a t -> f:('a -> bool) -> unit
 
