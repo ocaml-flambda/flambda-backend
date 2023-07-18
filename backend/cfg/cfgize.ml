@@ -22,7 +22,7 @@ module State : sig
 
   val get_contains_calls : t -> bool
 
-  val add_block : t -> label:Label.t -> block:Cfg.basic_block -> unit
+  val add_block : t -> label:Label.t -> block:Cfg.basic_block -> is_cold:bool -> unit
 
   val get_layout : t -> Cfg_with_layout.layout
 
@@ -39,6 +39,8 @@ module State : sig
   val add_exception_handler : t -> Label.t -> unit
 
   val get_exception_handlers : t -> Label.t list
+
+  val get_cold_blocks : t -> Label.t list * Label.t list
 end = struct
   type t =
     { fun_name : string;
@@ -49,7 +51,8 @@ end = struct
       catch_handlers : Label.t Numbers.Int.Tbl.t;
       mutable next_instruction_id : int;
       mutable iends_with_poptrap : Mach.instruction list;
-      mutable exception_handlers : Label.t list
+      mutable exception_handlers : Label.t list;
+      cold_blocks : bool Label.Tbl.t;
     }
 
   let make ~fun_name ~tailrec_label ~contains_calls blocks =
@@ -66,7 +69,8 @@ end = struct
       catch_handlers;
       next_instruction_id;
       iends_with_poptrap;
-      exception_handlers
+      exception_handlers;
+      cold_blocks = Label.Tbl.map blocks (fun _ -> false)
     }
 
   let get_fun_name t = t.fun_name
@@ -75,14 +79,16 @@ end = struct
 
   let get_contains_calls t = t.contains_calls
 
-  let add_block t ~label ~block =
+  let add_block t ~label ~block ~is_cold =
     if Label.Tbl.mem t.blocks label
     then
       Misc.fatal_errorf "Cfgize.State.add_block: duplicate block for label %d"
         label
     else (
       DLL.add_end t.layout label;
-      Label.Tbl.replace t.blocks label block)
+      Label.Tbl.replace t.blocks label block;
+      Label.Tbl.replace t.cold_blocks label is_cold
+    )
 
   let get_layout t = t.layout
 
@@ -127,6 +133,12 @@ end = struct
     t.exception_handlers <- lbl :: t.exception_handlers
 
   let get_exception_handlers t = t.exception_handlers
+
+  let get_cold_blocks t =
+    let s1, s2 =
+      Label.Tbl.to_seq t.cold_blocks |> Seq.partition (fun (_, is_cold) -> is_cold)
+    in
+    List.of_seq (Seq.map fst s1), List.of_seq (Seq.map fst s2)
 end
 
 type basic_or_terminator =
@@ -439,19 +451,21 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
    return. *)
 let fallthrough_label : Label.t = -1
 
-(* [add_blocks instr state ~starts_with_pushtrap ~start ~next] adds the block
+(* [add_blocks instr state ~starts_with_pushtrap ~start ~next ~is_cold] adds the block
    beginning at [instr] with label [start], and all recursively-reachable blocks
    to [state]. [next] is the label of the block to be executed after the one
    beginning at [instr]. [starts_with_pushtrap] indicates whether the block
-   should be prefixed with a pushtrap instruction (to the passed label). *)
+   should be prefixed with a pushtrap instruction (to the passed label). [is_cold]
+   indicates whether to put the blocks in the cold section. *)
 let rec add_blocks :
     Mach.instruction ->
     State.t ->
     starts_with_pushtrap:Label.t option ->
     start:Label.t ->
     next:Label.t ->
+    is_cold:bool ->
     unit =
- fun instr state ~starts_with_pushtrap ~start ~next ->
+ fun instr state ~starts_with_pushtrap ~start ~next ~is_cold ->
   let { instrs; last; terminator } = extract_block_info state instr in
   let terminate_block ~trap_actions terminator =
     let body = instrs in
@@ -501,6 +515,7 @@ let rec add_blocks :
           is_trap_handler = false;
           dead = false
         }
+      ~is_cold
   in
   let prepare_next_block () =
     match last.next.desc with
@@ -510,7 +525,7 @@ let rec add_blocks :
     | Itrywith _ | Iraise _ ->
       let start = Cmm.new_label () in
       let add_next_block () =
-        add_blocks last.next state ~starts_with_pushtrap:None ~start ~next
+        add_blocks last.next state ~starts_with_pushtrap:None ~start ~next ~is_cold
       in
       start, add_next_block
   in
@@ -547,8 +562,8 @@ let rec add_blocks :
         (copy_instruction state last
            ~desc:(terminator_of_test test ~label_false ~label_true));
       let next, add_next_block = prepare_next_block () in
-      add_blocks ifso state ~starts_with_pushtrap:None ~start:label_true ~next;
-      add_blocks ifnot state ~starts_with_pushtrap:None ~start:label_false ~next;
+      add_blocks ifso state ~starts_with_pushtrap:None ~start:label_true ~next ~is_cold;
+      add_blocks ifnot state ~starts_with_pushtrap:None ~start:label_false ~next ~is_cold;
       add_next_block ()
     | Iswitch (indexes, cases) ->
       let case_labels = Array.map (fun _ -> Cmm.new_label ()) cases in
@@ -559,26 +574,26 @@ let rec add_blocks :
       Array.iteri
         (fun idx case ->
           add_blocks case state ~starts_with_pushtrap:None
-            ~start:case_labels.(idx) ~next)
+            ~start:case_labels.(idx) ~next ~is_cold)
         cases;
       add_next_block ()
     | Icatch (_rec, _trap_stack, handlers, body) ->
       let handlers =
         List.map
-          (fun (handler_id, _trap_stack, handler, _is_cold) ->
+          (fun (handler_id, _trap_stack, handler, is_cold) ->
             let handler_label = State.add_catch_handler state ~handler_id in
-            handler_label, handler)
+            handler_label, handler, is_cold)
           handlers
       in
       let body_label = Cmm.new_label () in
       terminate_block ~trap_actions:[]
         (copy_instruction_no_reg state last ~desc:(Cfg.Always body_label));
       let next, add_next_block = prepare_next_block () in
-      add_blocks body state ~starts_with_pushtrap:None ~start:body_label ~next;
+      add_blocks body state ~starts_with_pushtrap:None ~start:body_label ~next ~is_cold;
       List.iter
-        (fun (handler_label, handler) ->
+        (fun (handler_label, handler, is_handler_cold) ->
           add_blocks handler state ~starts_with_pushtrap:None
-            ~start:handler_label ~next)
+            ~start:handler_label ~next ~is_cold:(is_cold || is_handler_cold))
         handlers;
       add_next_block ()
     | Iexit (handler_id, trap_actions) ->
@@ -601,9 +616,9 @@ let rec add_blocks :
       let next, add_next_block = prepare_next_block () in
       State.add_iend_with_poptrap state (get_end body);
       State.add_exception_handler state label_handler;
-      add_blocks body state ~starts_with_pushtrap ~start:label_body ~next;
+      add_blocks body state ~starts_with_pushtrap ~start:label_body ~next ~is_cold;
       add_blocks handler state ~starts_with_pushtrap:None ~start:label_handler
-        ~next;
+        ~next ~is_cold;
       add_next_block ()
     | Iraise raise_kind ->
       terminate_block ~trap_actions:[]
@@ -802,7 +817,7 @@ let fundecl :
         can_raise = false;
         is_trap_handler = false;
         dead = false
-      };
+      } ~is_cold:false;
   State.add_block state ~label:tailrec_label
     ~block:
       { start = tailrec_label;
@@ -816,9 +831,9 @@ let fundecl :
         can_raise = false;
         is_trap_handler = false;
         dead = false
-      };
+      } ~is_cold:false;
   add_blocks fun_body state ~starts_with_pushtrap:None ~start:start_label
-    ~next:fallthrough_label;
+    ~next:fallthrough_label ~is_cold:false;
   update_trap_handler_blocks state cfg;
   (* note: `Stack_offset_and_exn.update_cfg` may add edges to the graph, and
      should hence be executed before
@@ -830,6 +845,9 @@ let fundecl :
     Cfg_with_layout.create cfg ~layout:(State.get_layout state)
       ~preserve_orig_labels ~new_labels:Label.Set.empty
   in
+  let cold, not_cold = State.get_cold_blocks state in
+  Cfg_with_layout.assign_blocks_to_section cfg_with_layout not_cold "";
+  Cfg_with_layout.assign_blocks_to_section cfg_with_layout cold "cold";
   (* note: the simplification of terminators is necessary for the equality. The
      other code path simplifies e.g. a switch with three branches into an
      integer test. This simplification should happen *after* the one about
