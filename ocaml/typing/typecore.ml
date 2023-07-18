@@ -3369,8 +3369,9 @@ let rec is_nonexpansive exp =
            let is_guard_nonexpansive = match c_guard with
              | None -> true
              | Some (Typedtree.Predicate p) -> is_nonexpansive p
-             | Some (Typedtree.Pattern (e, _, pat, _, _, _)) ->
-                 is_nonexpansive e && not (contains_exception_pat pat)
+             | Some (Typedtree.Pattern { pg_scrutinee; pg_pattern; _ }) ->
+                 is_nonexpansive pg_scrutinee
+                 && not (contains_exception_pat pg_pattern)
            in
            is_guard_nonexpansive && is_nonexpansive c_rhs
            && not (contains_exception_pat c_lhs)
@@ -6988,7 +6989,12 @@ and type_cases
                   | [ { c_lhs = pat; c_guard = None; c_rhs = exp } ] ->
                       let pattern_guard =
                         (Typedtree.Pattern
-                           (arg, sort, pat, partial, loc, ext_env))
+                           { pg_scrutinee = arg
+                           ; pg_scrutinee_sort = sort
+                           ; pg_pattern = pat
+                           ; pg_partial = partial
+                           ; pg_loc = loc
+                           ; pg_env = ext_env })
                       in
                       Some pattern_guard, exp
                   | _ ->

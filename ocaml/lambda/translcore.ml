@@ -1019,33 +1019,34 @@ and transl_guard ~scopes guard rhs_sort rhs : action =
         event_before ~scopes cond
           (Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
                        expr, staticfail, layout)))
-  | Some (Pattern (arg, arg_sort, pat, partial, loc, env)) ->
+  | Some (Pattern { pg_scrutinee; pg_scrutinee_sort; pg_pattern; pg_partial;
+                    pg_loc; pg_env }) ->
       let guard_case : _ case =
-        { c_lhs = pat
+        { c_lhs = pg_pattern
         ; c_guard = None
         ; c_rhs = rhs }
       in
-      match partial with
+      match pg_partial with
         | Partial -> 
             let any_pat : pattern =
               { pat_desc = Tpat_any
               ; pat_loc = Location.none
               ; pat_extra = []
-              ; pat_type = arg.exp_type
+              ; pat_type = pg_scrutinee.exp_type
               ; pat_env = Env.empty
               ; pat_attributes = []
               }
             in
             let extra_cases = [ (any_pat, Unguarded staticfail) ] in
-            let nested_match = transl_match ~scopes ~arg_sort
-              ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc ~env
-              ~extra_cases arg [ guard_case ] partial
+            let nested_match = transl_match ~scopes ~arg_sort:pg_scrutinee_sort
+              ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
+              ~env:pg_env ~extra_cases pg_scrutinee [ guard_case ] pg_partial
             in
             Guarded_pattern nested_match
         | Total ->
-            let nested_match = transl_match ~scopes ~arg_sort
-              ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc ~env
-              ~extra_cases:[] arg [ guard_case ] partial
+            let nested_match = transl_match ~scopes ~arg_sort:pg_scrutinee_sort
+              ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
+              ~env:pg_env ~extra_cases:[] pg_scrutinee [ guard_case ] pg_partial
             in
             Unguarded nested_match
 

@@ -413,7 +413,7 @@ let exp_extra sub (extra, loc, attrs) sexp =
 
 let guard sub = function 
   | Predicate p -> Guard_predicate (sub.expr sub p)
-  | Pattern (e, _, pat, _, _, _) ->
+  | Pattern { pg_scrutinee = e; pg_pattern = pat; _ } ->
       Guard_pattern {
         pgp_scrutinee = sub.expr sub e;
         pgp_pattern = sub.pat sub pat;
