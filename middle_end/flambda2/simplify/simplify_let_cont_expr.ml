@@ -641,7 +641,7 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
             UE.add_continuation_alias uenv cont arity ~alias_for
           | Unknown ->
             UE.add_non_inlinable_continuation uenv cont ~params
-              ~handler:(Known handler)
+              ~handler:(if is_cold then Unknown else Known handler)
       in
       let uacc = UA.with_uenv uacc uenv in
       (* The parameters are removed from the free name information as they are
