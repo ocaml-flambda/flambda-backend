@@ -48,6 +48,7 @@ and ident_lazy_t = ident_create "lazy_t"
 and ident_string = ident_create "string"
 and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
+and ident_lexing_position = ident_create "lexing_position"
 
 let path_int = Pident ident_int
 and path_char = Pident ident_char
@@ -70,6 +71,7 @@ and path_lazy_t = Pident ident_lazy_t
 and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
+and path_lexing_position = Pident ident_lexing_position
 
 let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
@@ -91,6 +93,7 @@ and type_string = newgenty (Tconstr(path_string, [], ref Mnil))
 and type_extension_constructor =
       newgenty (Tconstr(path_extension_constructor, [], ref Mnil))
 and type_floatarray = newgenty (Tconstr(path_floatarray, [], ref Mnil))
+and type_lexing_position = newgenty (Tconstr(path_lexing_position, [], ref Mnil))
 
 let ident_match_failure = ident_create "Match_failure"
 and ident_out_of_memory = ident_create "Out_of_memory"
@@ -257,6 +260,34 @@ let common_initial_env add_type add_extension empty_env =
          variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]]
            [| [| |]; [| Layout.value ~why:Type_argument |] |])
        ~layout:(Layout.value ~why:Boxed_variant)
+  |> add_type ident_lexing_position 
+       ~kind:(
+         let lbl (field, field_type, layout) = 
+           let id = Ident.create_predef field in 
+             {
+               ld_id=id;
+               ld_mutable=Immutable;
+               ld_global=Unrestricted;
+               ld_type=field_type;
+               ld_layout=layout;
+               ld_loc=Location.none;
+               ld_attributes=[];
+               ld_uid=Uid.of_predef_id id;
+             }
+         in
+         let immediate = Layout.value ~why:(Primitive ident_int) in 
+         let labels = List.map lbl [
+           ("pos_fname", type_string, Layout.value ~why:(Primitive ident_string)); 
+           ("pos_lnum", type_int, immediate); 
+           ("pos_bol", type_int, immediate); 
+           ("pos_cnum", type_int, immediate) ] 
+         in 
+         Type_record (
+           labels, 
+           (Record_boxed (List.map (fun label -> label.ld_layout) labels |> Array.of_list))
+         )
+       )
+       ~layout:(Layout.value ~why:Boxed_record)
   |> add_type ident_string
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
