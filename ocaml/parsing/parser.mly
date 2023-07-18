@@ -48,7 +48,7 @@ let ghost_loc (startpos, endpos) = {
 
 let mktyp ~loc ?attrs d = Typ.mk ~loc:(make_loc loc) ?attrs d
 let mkpat ~loc d = Pat.mk ~loc:(make_loc loc) d
-let mkexp ~loc d = Exp.mk ~loc:(make_loc loc) d
+let mkexp ~loc ?attrs d = Exp.mk ~loc:(make_loc loc) ?attrs d
 let mkmty ~loc ?attrs d = Mty.mk ~loc:(make_loc loc) ?attrs d
 let mksig ~loc d = Sig.mk ~loc:(make_loc loc) d
 let mkmod ~loc ?attrs d = Mod.mk ~loc:(make_loc loc) ?attrs d
@@ -127,7 +127,8 @@ let neg_string f =
   then String.sub f 1 (String.length f - 1)
   else "-" ^ f
 
-let mkuminus ~oploc name arg =
+let mkuminus ~loc ~oploc name arg =
+  mkexp ~loc ~attrs:arg.pexp_attributes @@
   match name, arg.pexp_desc with
   | "-", Pexp_constant(Pconst_integer (n,m)) ->
       Pexp_constant(Pconst_integer(neg_string n,m))
@@ -136,7 +137,8 @@ let mkuminus ~oploc name arg =
   | _ ->
       Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg])
 
-let mkuplus ~oploc name arg =
+let mkuplus ~loc ~oploc name arg =
+  mkexp ~loc ~attrs:arg.pexp_attributes @@
   let desc = arg.pexp_desc in
   match name, desc with
   | "+", Pexp_constant(Pconst_integer _)
@@ -2581,6 +2583,10 @@ expr:
      { mkexp_stack ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
   | EXCLAVE seq_expr
      { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
+  | subtractive expr %prec prec_unary_minus
+      { mkuminus ~loc:$sloc ~oploc:$loc($1) $1 $2 }
+  | additive expr %prec prec_unary_plus
+      { mkuplus ~loc:$sloc ~oploc:$loc($1) $1 $2 }
 ;
 %inline expr_attrs:
   | LET MODULE ext_attributes mkrhs(module_name) module_binding_body IN seq_expr
@@ -2629,10 +2635,6 @@ expr:
       { Pexp_variant($1, Some $2) }
   | e1 = expr op = op(infix_operator) e2 = expr
       { mkinfix e1 op e2 }
-  | subtractive expr %prec prec_unary_minus
-      { mkuminus ~oploc:$loc($1) $1 $2 }
-  | additive expr %prec prec_unary_plus
-      { mkuplus ~oploc:$loc($1) $1 $2 }
 ;
 
 simple_expr:
