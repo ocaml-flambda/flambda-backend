@@ -127,24 +127,22 @@ let neg_string f =
   then String.sub f 1 (String.length f - 1)
   else "-" ^ f
 
-let mkuminus ~loc ~oploc name arg =
-  mkexp ~loc ~attrs:arg.pexp_attributes @@
+let mkuminus ~oploc name arg =
   match name, arg.pexp_desc with
   | "-", Pexp_constant(Pconst_integer (n,m)) ->
-      Pexp_constant(Pconst_integer(neg_string n,m))
+      Pexp_constant(Pconst_integer(neg_string n,m)), arg.pexp_attributes
   | ("-" | "-."), Pexp_constant(Pconst_float (f, m)) ->
-      Pexp_constant(Pconst_float(neg_string f, m))
+      Pexp_constant(Pconst_float(neg_string f, m)), arg.pexp_attributes
   | _ ->
-      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg])
+      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
 
-let mkuplus ~loc ~oploc name arg =
-  mkexp ~loc ~attrs:arg.pexp_attributes @@
+let mkuplus ~oploc name arg =
   let desc = arg.pexp_desc in
   match name, desc with
   | "+", Pexp_constant(Pconst_integer _)
-  | ("+" | "+."), Pexp_constant(Pconst_float _) -> desc
+  | ("+" | "+."), Pexp_constant(Pconst_float _) -> desc, arg.pexp_attributes
   | _ ->
-      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg])
+      Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
 
 
 let local_ext_loc loc = mkloc "extension.local" loc
@@ -2583,10 +2581,6 @@ expr:
      { mkexp_stack ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
   | EXCLAVE seq_expr
      { mkexp_exclave ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
-  | subtractive expr %prec prec_unary_minus
-      { mkuminus ~loc:$sloc ~oploc:$loc($1) $1 $2 }
-  | additive expr %prec prec_unary_plus
-      { mkuplus ~loc:$sloc ~oploc:$loc($1) $1 $2 }
 ;
 %inline expr_attrs:
   | LET MODULE ext_attributes mkrhs(module_name) module_binding_body IN seq_expr
@@ -2623,6 +2617,12 @@ expr:
       { Pexp_assert $3, $2 }
   | LAZY ext_attributes simple_expr %prec below_HASH
       { Pexp_lazy $3, $2 }
+  | subtractive expr %prec prec_unary_minus
+      { let desc, attrs = mkuminus ~oploc:$loc($1) $1 $2 in
+        desc, (None, attrs) }
+  | additive expr %prec prec_unary_plus
+      { let desc, attrs = mkuplus ~oploc:$loc($1) $1 $2 in
+        desc, (None, attrs) }
 ;
 %inline expr_:
   | simple_expr nonempty_llist(labeled_simple_expr)
