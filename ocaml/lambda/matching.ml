@@ -129,6 +129,29 @@ let may_compat = MayCompat.compat
 
 and may_compats = MayCompat.compats
 
+type action =
+  | Guarded of
+      { patch_guarded: patch:lambda -> lambda
+      ; unpatched: lambda }
+  | Unguarded of lambda
+
+let mk_guarded ~patch_guarded : action =
+  Guarded { patch_guarded; unpatched = patch_guarded ~patch:staticfail}
+
+let is_guarded = function
+  | Guarded _ -> true
+  | Unguarded _ -> false
+
+let lambda_of_action = function
+  | Guarded { unpatched = lam; _ } | Unguarded lam -> lam
+
+let map_action ~f = function
+  | Guarded { patch_guarded; unpatched } ->
+      let patch_guarded ~patch = f (patch_guarded ~patch) in
+      let unpatched = f unpatched in
+      Guarded { patch_guarded; unpatched }
+  | Unguarded action -> Unguarded (f action)
+
 (*
    Many functions on the various data structures of the algorithm :
      - Pattern matrices.
@@ -3335,12 +3358,12 @@ let rec compile_match ~scopes value_kind repr partial ctx
       (match action with
         | Unguarded action ->
             event_branch repr action, Jumps.empty
-        | guarded ->
+        | Guarded { patch_guarded; _ } ->
             let lambda, total =
               compile_match ~scopes value_kind None partial ctx
                 { m with cases = rem }
             in
-            event_branch repr (patch_guarded lambda guarded), total)
+            event_branch repr (patch_guarded ~patch:lambda), total)
   | nonempty_cases ->
       compile_match_nonempty ~scopes value_kind repr partial ctx
         { m with cases = map_on_rows Non_empty_row.of_initial nonempty_cases }

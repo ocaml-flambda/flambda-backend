@@ -19,6 +19,30 @@ open Typedtree
 open Lambda
 open Debuginfo.Scoped_location
 
+(* An action is a right-hand side of a case (as in a match, function, try) *)
+type action =
+| Guarded of
+    { patch_guarded: patch:lambda -> lambda
+    ; unpatched: lambda }
+(* Guarded actions must allow for fallthrough if the guard fails.
+
+   When translating a guarded action, the code to execute on fallthrough must
+   be "patched" in. Because the fallthrough code is translated after the
+   action is created, guarded actions carry a function [patch_guarded], which
+   generates a lambda term for the action from the fallthrough code.
+
+   Some translation functionality requires us to check syntactic properties
+   of actions. Rather than recomputing [patch_guarded] at the time of these
+   checks, we keep track of [unpatched], a lambda term which contains
+   [staticfail] in the position to be patched.
+*)
+| Unguarded of lambda
+
+val mk_guarded: patch_guarded:(patch:lambda -> lambda) -> action
+val is_guarded: action -> bool
+val lambda_of_action: action -> lambda
+val map_action: f:(lambda -> lambda) -> action -> action
+
 (* Entry points to match compiler *)
 val for_function:
         scopes:scopes ->
