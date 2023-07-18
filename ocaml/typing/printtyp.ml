@@ -510,7 +510,7 @@ let print_name ppf = function
 
 let string_of_label = function
     Nolabel -> ""
-  | Labelled s -> s
+  | Labelled s | Position s -> s
   | Optional s -> "?"^s
 
 let visited = ref []
