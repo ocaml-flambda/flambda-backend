@@ -509,7 +509,8 @@ let case sub {c_lhs; c_guard; c_rhs} =
 
 let guard sub = function
   | Predicate p -> sub.expr sub p
-  | Pattern { pg_scrutinee = e; pg_pattern = pat; _ } ->
+  | Pattern { pg_scrutinee = e; pg_scrutinee_sort = _; pg_pattern = pat;
+              pg_partial = _; pg_env = _; pg_loc = _; } ->
       sub.expr sub e;
       sub.pat sub pat
 
