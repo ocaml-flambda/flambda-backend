@@ -55,7 +55,7 @@ let register_name typ r =
   | Float -> Regf (float_reg_name.(r - 100))
   | Vec128 ->
     if simd_regalloc_disabled () then
-    Misc.fatal_error "SIMD register allocation is not enabled.";
+      Misc.fatal_error "SIMD register allocation is not enabled.";
     Regf (float_reg_name.(r - 100))
 
 (* CFI directives *)
@@ -1634,7 +1634,7 @@ let make_stack_loc ~offset n (r : Reg.t) =
    | Int | Val | Addr | Float -> ()
    | Vec128 ->
     if simd_regalloc_disabled () then
-    Misc.fatal_error "SIMD register allocation is not enabled.");
+      Misc.fatal_error "SIMD register allocation is not enabled.");
   Reg.at_location r.typ loc
 
 (* CR mshinwell: Not now, but after code review, it would be better to

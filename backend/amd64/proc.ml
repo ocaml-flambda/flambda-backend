@@ -107,7 +107,7 @@ let register_class r =
   | Float -> 1
   | Vec128 ->
     if simd_regalloc_disabled () then
-    Misc.fatal_error "SIMD register allocation is not enabled.";
+      Misc.fatal_error "SIMD register allocation is not enabled.";
     1
 
 let num_stack_slot_classes = 3
@@ -118,7 +118,7 @@ let stack_slot_class typ =
   | Float -> 1
   | Vec128 ->
     if simd_regalloc_disabled () then
-    Misc.fatal_error "SIMD register allocation is not enabled.";
+      Misc.fatal_error "SIMD register allocation is not enabled.";
     2
 
 let stack_class_tag c =
@@ -127,7 +127,7 @@ let stack_class_tag c =
   | 1 -> "f"
   | 2 ->
     if simd_regalloc_disabled () then
-    Misc.fatal_error "SIMD register allocation is not enabled.";
+      Misc.fatal_error "SIMD register allocation is not enabled.";
     "x"
   | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
 
@@ -144,7 +144,7 @@ let register_name ty r =
     float_reg_name.(r - first_available_register.(1))
   | Vec128 ->
     if simd_regalloc_disabled () then
-    Misc.fatal_error "SIMD register allocation is not enabled.";
+      Misc.fatal_error "SIMD register allocation is not enabled.";
     float_reg_name.(r - first_available_register.(1))
 
 (* Pack registers starting at %rax so as to reduce the number of REX
