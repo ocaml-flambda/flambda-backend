@@ -1593,7 +1593,7 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
           Lstaticraise (lbl, List.map (fun id -> Lvar id) ids)
         in
         (* Simplif doesn't like it if binders are not uniq, so we make sure to
-            use different names in the value and the exception branches. *)
+           use different names in the value and the exception branches. *)
         let ids_full = Typedtree.pat_bound_idents_full arg_sort pv in
         let ids = List.map (fun (id, _, _, _) -> id) ids_full in
         let ids_kinds =
@@ -1608,7 +1608,7 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
         let rhs =
           Misc.try_finally
             (fun () -> event_before ~scopes c_rhs
-                          (transl_exp ~scopes return_sort c_rhs))
+                         (transl_exp ~scopes return_sort c_rhs))
             ~always:(fun () ->
                 iter_exn_names Translprim.remove_exception_ident pe)
         in
@@ -1622,31 +1622,31 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
   in
   (* In presence of exception patterns, the code we generate for
 
-        match <scrutinees> with
-        | <val-patterns> -> <val-actions>
-        | <exn-patterns> -> <exn-actions>
+       match <scrutinees> with
+       | <val-patterns> -> <val-actions>
+       | <exn-patterns> -> <exn-actions>
 
-      looks like
+     looks like
 
-        staticcatch
-          (try (exit <val-exit> <scrutinees>)
+       staticcatch
+         (try (exit <val-exit> <scrutinees>)
           with <exn-patterns> -> <exn-actions>)
-        with <val-exit> <val-ids> ->
+       with <val-exit> <val-ids> ->
           match <val-ids> with <val-patterns> -> <val-actions>
 
-      In particular, the 'exit' in the value case ensures that the
-      value actions run outside the try..with exception handler.
+     In particular, the 'exit' in the value case ensures that the
+     value actions run outside the try..with exception handler.
   *)
   let static_catch scrutinees val_ids handler =
     let id = Typecore.name_pattern "exn" (List.map fst exn_cases) in
     let static_exception_id = next_raise_count () in
     Lstaticcatch
       (Ltrywith (Lstaticraise (static_exception_id, scrutinees), id,
-                  Matching.for_trywith ~scopes ~return_layout loc (Lvar id)
-                    exn_cases,
-                  return_layout),
-        (static_exception_id, val_ids),
-        handler,
+                 Matching.for_trywith ~scopes ~return_layout loc (Lvar id)
+                   exn_cases,
+                 return_layout),
+       (static_exception_id, val_ids),
+       handler,
       return_layout)
   in
   let classic =
@@ -1662,9 +1662,9 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
         let val_ids, lvars =
           List.map
             (fun (arg,s) ->
-                let layout = layout_exp s arg in
-                let id = Typecore.name_pattern "val" [] in
-                (id, layout), (Lvar id, s, layout))
+               let layout = layout_exp s arg in
+               let id = Typecore.name_pattern "val" [] in
+               (id, layout), (Lvar id, s, layout))
             argl
           |> List.split
         in
@@ -1682,7 +1682,7 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
         let arg_layout = layout_exp arg_sort arg in
         static_catch [transl_exp ~scopes arg_sort arg] [val_id, arg_layout]
           (Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout
-              loc None (Lvar val_id) val_cases partial)
+             loc None (Lvar val_id) val_cases partial)
   in
   List.fold_left (fun body (static_exception_id, val_ids, handler) ->
     Lstaticcatch (body, (static_exception_id, val_ids), handler, return_layout)
