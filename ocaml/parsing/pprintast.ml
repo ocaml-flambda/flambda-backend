@@ -317,6 +317,7 @@ and type_with_label ctxt f (label, c) =
   | Nolabel    -> maybe_local_type core_type1 ctxt f c (* otherwise parenthesize *)
   | Labelled s -> pp f "%s:%a" s (maybe_local_type core_type1 ctxt) c
   | Optional s -> pp f "?%s:%a" s (maybe_local_type core_type1 ctxt) c
+  | Position s -> pp f "%s:%s" s "[%src_pos]"
 
 and core_type ctxt f x =
   match Jane_syntax.Core_type.of_ast x with
@@ -602,14 +603,15 @@ and label_exp ctxt f (l,opt,p) =
                  (pattern1 ctxt) p (expression ctxt) o
            | None -> pp f "?%s:%a" rest (maybe_local_pat ctxt is_local) p)
       end
-  | Labelled l -> match p with
+  | Labelled l -> (match p with
     | {ppat_desc  = Ppat_var {txt;_}; ppat_attributes = []}
       when txt = l ->
         if is_local then
           pp f "~(local_ %s)" l
         else
           pp f "~%s" l
-    | _ ->  pp f "~%s:%a" l (maybe_local_pat ctxt is_local) p
+    | _ ->  pp f "~%s:%a" l (maybe_local_pat ctxt is_local) p)
+  | Position l -> pp f "~%s:%s" l "[%src_pos]"
 
 and sugar_expr ctxt f e =
   if e.pexp_attributes <> [] then false
@@ -1833,6 +1835,8 @@ and label_x_expression_param ctxt f (l,e) =
         pp f "~%s" lbl
       else
         pp f "~%s:%a" lbl (simple_expr ctxt) e
+  | Position lbl ->
+      pp f "~%s:%s" lbl "[%src_pos]"
 
 and directive_argument f x =
   match x.pdira_desc with

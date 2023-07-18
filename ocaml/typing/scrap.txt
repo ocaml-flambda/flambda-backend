@@ -1,0 +1,28 @@
+exp_desc =
+      Texp_function
+        { arg_label;                    arg 
+         param;                         idk
+         cases;                         idk 
+         partial;                       idk 
+         region;                        dw 
+         curry;                         dw  
+         warnings;                      dw
+          arg_mode;                 from filter arrow 
+          arg_sort;                 from filter arrow 
+          alloc_mode;                   idk 
+          ret_sort };                   from filter arrow 
+    exp_loc = loc; exp_extra = [];
+    exp_type =
+      instance (newgenty (
+        Tarrow(
+                          (arg_label,                       input arg 
+           arrow desc:    arg_mode,                         filter arrow 
+                          ret_mode),                        filter arrow 
+            input type     ty_arg,                         filter arrow 
+            rest of fun      ty_ret,                          filter arrow 
+           commutable        commu_ok)));                   idk 
+    exp_attributes = attrs;
+    exp_env = env
+
+
+ty_arg: pass in ty_expected_explained in the right way
