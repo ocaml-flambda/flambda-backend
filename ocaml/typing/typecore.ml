@@ -4404,6 +4404,13 @@ and type_expect_
          && not (Language_extension.is_enabled Polymorphic_parameters) then
         raise (Typetexp.Error (loc, env,
           Unsupported_extension Polymorphic_parameters));
+      let l = match spat with
+      | {ppat_desc = Ppat_constraint (_, {ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _}); _} ->
+        (match l with
+            Labelled l | Position l -> Position l
+          | Nolabel | Optional _ -> failwith "todo raise an error")
+      | _ -> l
+      in
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained l ~has_local
                     ~has_poly [Ast_helper.Exp.case spat sbody]
@@ -8363,7 +8370,7 @@ let report_error ~loc env = function
           let lbl =
             match lbl with
             | Nolabel -> "_"
-            | Labelled s | Optional s -> s
+            | Labelled s | Optional s | Position s -> s
           in
           [Location.msg
              "@[Hint: Try splitting the application in two. The arguments that come@ \

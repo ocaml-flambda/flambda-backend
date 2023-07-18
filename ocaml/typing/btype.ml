@@ -578,6 +578,11 @@ let is_optional = function
   | Position _ -> true
   | _ -> false
 
+let is_position = function
+    Position _ -> true
+  | _ -> false
+
+
 let label_name = function
     Nolabel -> ""
   | Labelled s

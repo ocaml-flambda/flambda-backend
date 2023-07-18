@@ -1125,6 +1125,9 @@ let rec tree_of_typexp mode ty =
             | Tconstr(path, [ty], _)
               when Path.same path Predef.path_option ->
                 tree_of_typexp mode ty
+            | Tconstr(path, [], _)
+              when Path.same path Predef.path_lexing_position ->
+                Otyp_constr (Oide_ident (Out_name.create "lexing_position"), [])
             | _ -> Otyp_stuff "<hidden>"
           else
             tree_of_typexp mode ty1
