@@ -23,7 +23,7 @@ val regalloc_params : string list ref
 val regalloc_validate : bool ref
 
 val cfg_peephole_optimize: bool ref
-val cfg_peephole_optimize_track: bool ref
+val cfg_peephole_optimize_track: string option ref
 
 val reorder_blocks_random : int option ref
 val basic_block_sections : bool ref

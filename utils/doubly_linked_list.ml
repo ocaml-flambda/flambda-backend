@@ -19,7 +19,7 @@ type 'a cell =
     t : 'a t
   }
 
-let insert_before cell value =
+let insert_and_return_before cell value =
   match unattached_node value with
   | Empty ->
     (* internal invariant: unattached node returns a non-empty node *)
@@ -29,16 +29,21 @@ let insert_before cell value =
     | Empty ->
       (* internal invariant: cell's nodes are not empty *)
       assert false
-    | Node cell_node -> (
+    | Node cell_node ->
       new_node.next <- cell.node;
       new_node.prev <- cell_node.prev;
       cell_node.prev <- value_node;
       cell.t.length <- succ cell.t.length;
-      match new_node.prev with
+      (match new_node.prev with
       | Empty -> cell.t.first <- value_node
-      | Node node -> node.next <- value_node))
+      | Node node -> node.next <- value_node);
+      { node = value_node; t = cell.t })
 
-let insert_after cell value =
+let insert_before cell value =
+  let _new_cell = insert_and_return_before cell value in
+  ()
+
+let insert_and_return_after cell value =
   match unattached_node value with
   | Empty -> assert false
   | Node new_node as value_node -> (
@@ -46,14 +51,19 @@ let insert_after cell value =
     | Empty ->
       (* internal invariant: cell's nodes are not empty *)
       assert false
-    | Node cell_node -> (
-      new_node.next <- cell_node.next;
-      new_node.prev <- cell.node;
-      cell_node.next <- value_node;
-      cell.t.length <- succ cell.t.length;
-      match new_node.next with
-      | Empty -> cell.t.last <- value_node
-      | Node node -> node.prev <- value_node))
+    | Node cell_node ->
+      (new_node.next <- cell_node.next;
+       new_node.prev <- cell.node;
+       cell_node.next <- value_node;
+       cell.t.length <- succ cell.t.length;
+       match new_node.next with
+       | Empty -> cell.t.last <- value_node
+       | Node node -> node.prev <- value_node);
+      { node = value_node; t = cell.t })
+
+let insert_after cell value =
+  let _new_cell = insert_and_return_after cell value in
+  ()
 
 let value cell =
   match cell.node with

@@ -1,6 +1,10 @@
 type 'a cell
 
+val insert_and_return_before : 'a cell -> 'a -> 'a cell
+
 val insert_before : 'a cell -> 'a -> unit
+
+val insert_and_return_after : 'a cell -> 'a -> 'a cell
 
 val insert_after : 'a cell -> 'a -> unit
 

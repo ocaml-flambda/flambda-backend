@@ -33,7 +33,7 @@ module type Flambda_backend_options = sig
 
   val cfg_peephole_optimize : unit -> unit
   val no_cfg_peephole_optimize : unit -> unit
-  val cfg_peephole_optimize_track : unit -> unit
+  val cfg_peephole_optimize_track : string -> unit
 
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit

@@ -58,7 +58,7 @@ let mk_no_cfg_peephole_optimize f =
   "-no-cfg-peephole-optimize", Arg.Unit f, " Do not apply peephole optimizations to CFG representation block bodies"
 
 let mk_cfg_peephole_optimize_track f = 
-  "-cfg-peephole-optimize-track", Arg.Unit f, " Track hit count for each peephole optimizations"
+  "-cfg-peephole-optimize-track", Arg.String f, " Track hit count for each peephole optimizations"
 
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
@@ -541,7 +541,7 @@ module type Flambda_backend_options = sig
 
   val cfg_peephole_optimize : unit -> unit
   val no_cfg_peephole_optimize : unit -> unit
-  val cfg_peephole_optimize_track : unit -> unit
+  val cfg_peephole_optimize_track : string -> unit
 
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
@@ -771,7 +771,7 @@ module Flambda_backend_options_impl = struct
 
   let cfg_peephole_optimize = set' Flambda_backend_flags.cfg_peephole_optimize
   let no_cfg_peephole_optimize = clear' Flambda_backend_flags.cfg_peephole_optimize
-  let cfg_peephole_optimize_track = set' Flambda_backend_flags.cfg_peephole_optimize_track
+  let cfg_peephole_optimize_track x = Flambda_backend_flags.cfg_peephole_optimize_track := Some x
 
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
@@ -987,6 +987,10 @@ module Extra_params = struct
       option := v;
       true
     in
+    let set_string_option option =
+      option := Some v;
+      true
+    in
     let add_string option =
       option := v :: !option;
       true
@@ -1024,7 +1028,7 @@ module Extra_params = struct
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
-    | "cfg-peephole-optimize-track" -> set' Flambda_backend_flags.cfg_peephole_optimize_track
+    | "cfg-peephole-optimize-track" -> set_string_option Flambda_backend_flags.cfg_peephole_optimize_track
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random

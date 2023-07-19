@@ -23,20 +23,23 @@ module IntCsv = Csv_data.Make (IntCell)
 
 let csv_singleton = ref Option.None
 
-let random_hex_string () =
-  let random_value = Random.int (1 lsl 24) in
-  Printf.sprintf "%06x" random_value
-
 let set_csv () =
   if Option.is_none !csv_singleton
   then (
-    let new_csv = IntCsv.create ["remove_useless_mov"; "fold_intop_imm"] in
-    if !Flambda_backend_flags.cfg_peephole_optimize_track
+    let new_csv =
+      IntCsv.create
+        ["remove_useless_mov"; "fold_intop_imm_bitwise"; "fold_intop_imm_arith"]
+    in
+    if Option.is_some !Flambda_backend_flags.cfg_peephole_optimize_track
     then
       Stdlib.at_exit (fun () ->
-          Random.self_init ();
-          (* Generate a random 6-hexdigit string for the name of the csv file *)
-          IntCsv.print new_csv (random_hex_string () ^ ".csv"));
+          (* the csv filename is a hex string deterministically generated from
+             the command line arguments. *)
+          IntCsv.print new_csv
+            (Option.get !Flambda_backend_flags.cfg_peephole_optimize_track
+            ^ (Array.to_list Sys.argv |> String.concat "" |> Digest.string
+             |> Digest.to_hex)
+            ^ ".csv"));
     csv_singleton := Some new_csv)
 
 let get_csv () = Option.get !csv_singleton
@@ -60,8 +63,7 @@ let are_equal_regs reg1 reg2 =
    now. *)
 let go_back_const = 1
 
-(* CR gtulba-lecu for xclerc: I am thinking of having this functionality in the
-   dll. It feels useful, what do you think? *)
+(* convenient Doubly_linked_list manipulation functions *)
 let rec prev_at_most steps cell =
   (* Convention: must try to go back at least one element *)
   assert (steps > 0);
@@ -103,7 +105,7 @@ let remove_useless_mov (cell : Cfg.basic Cfg.instruction DLL.cell) =
         let snd_src, snd_dst = snd_val.arg.(0), snd_val.res.(0) in
         if are_equal_regs fst_src snd_dst && are_equal_regs fst_dst snd_src
         then (
-          if !Flambda_backend_flags.cfg_peephole_optimize_track
+          if Option.is_some !Flambda_backend_flags.cfg_peephole_optimize_track
           then update_csv "remove_useless_mov";
           DLL.delete_curr snd;
           Some (prev_at_most go_back_const fst))
@@ -111,6 +113,11 @@ let remove_useless_mov (cell : Cfg.basic Cfg.instruction DLL.cell) =
       | _ -> None)
     | _ -> None)
   | _ -> None
+
+let is_bitwise_op (op : Mach.integer_operation) =
+  match op with
+  | Mach.Iand | Ior | Ixor | Ilsl | Ilsr | Iasr -> true
+  | _ -> false
 
 (** Logical condition for simplifying the following case: 
   {| 
@@ -154,16 +161,26 @@ let are_compatible op1 op2 imm1 imm2 =
     else None
   | Iadd, Isub ->
     if imm1 >= imm2
-    then Some (Mach.Iadd, imm1 - imm2)
-    else Some (Mach.Isub, imm2 - imm1)
+    then
+      if Misc.no_overflow_sub imm1 imm2
+      then Some (Mach.Iadd, imm1 - imm2)
+      else None
+    else if Misc.no_overflow_sub imm2 imm1
+    then Some (Mach.Isub, imm2 - imm1)
+    else None
   | Isub, Isub ->
     if Misc.no_overflow_add imm1 imm2
     then Some (Mach.Isub, imm1 + imm2)
     else None
   | Isub, Iadd ->
     if imm1 >= imm2
-    then Some (Mach.Isub, imm1 - imm2)
-    else Some (Mach.Iadd, imm2 - imm1)
+    then
+      if Misc.no_overflow_sub imm1 imm2
+      then Some (Mach.Isub, imm1 - imm2)
+      else None
+    else if Misc.no_overflow_sub imm2 imm1
+    then Some (Mach.Iadd, imm2 - imm1)
+    else None
   | Ilsl, Imul ->
     if Misc.no_overflow_mul (1 lsl imm1) imm2
     then Some (Mach.Imul, (1 lsl imm1) * imm2)
@@ -176,11 +193,19 @@ let are_compatible op1 op2 imm1 imm2 =
     if Misc.no_overflow_mul imm1 imm2
     then Some (Mach.Imul, imm1 * imm2)
     else None
-  | Idiv, Idiv ->
-    if Misc.no_overflow_mul imm1 imm2
-    then Some (Mach.Idiv, imm1 * imm2)
-    else None
-  | Imod, Imod -> if imm1 mod imm2 = 0 then Some (Mach.Imod, imm2) else None
+  (* temporarily commented out | Idiv, Idiv -> if Misc.no_overflow_mul imm1 imm2
+     then Some (Mach.Idiv, imm1 * imm2) else None *)
+  (* The integer modulo imm2 group is a subgroup of the integer modulo imm1 iff
+     imm2 divides imm1
+
+     This is because the operations in the groups are addition modulo n and m
+     respectively. If n divides m, then every result of the operation (addition)
+     in the n group will also be a legal result in the m group, which is
+     essentially the definition of a subgroup. If n does not divide m, there
+     will be some results in the n group that are not acceptable in the m
+     group. *)
+  (* temporarily commented out | Imod, Imod -> if imm1 mod imm2 = 0 then Some
+     (Mach.Imod, imm2) else None *)
   | _ -> None
 
 let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
@@ -188,58 +213,62 @@ let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
   | [fst; snd] ->
     let fst_val = DLL.value fst in
     let snd_val = DLL.value snd in
-    if Array.length fst_val.arg > 0
-       && Array.length snd_val.arg > 0
+    (* The following check does the following: 1. Ensures that both instructions
+       use the same source register; 2. Ensures that both instructions output
+       the result to the source register, this is redundant for amd64 since
+       there are no instructions that invalidate this condition. *)
+    if Array.length fst_val.arg = 1
+       && Array.length snd_val.arg = 1
+       && Array.length fst_val.res = 1
+       && Array.length snd_val.res = 1
        && are_equal_regs fst_val.arg.(0) snd_val.arg.(0)
+       && are_equal_regs fst_val.arg.(0) fst_val.res.(0)
+       && are_equal_regs snd_val.arg.(0) snd_val.res.(0)
     then
       match fst_val.desc, snd_val.desc with
       | Op (Intop_imm (op1, imm1)), Op (Intop_imm (op2, imm2)) -> (
         match are_compatible op1 op2 imm1 imm2 with
         | Some (op, imm) ->
-          if !Flambda_backend_flags.cfg_peephole_optimize_track
-          then update_csv "fold_intop_imm";
-          DLL.insert_before fst
-            { fst_val with desc = Cfg.Op (Intop_imm (op, imm)) };
-          let new_cell = DLL.prev fst in
+          if Option.is_some !Flambda_backend_flags.cfg_peephole_optimize_track
+          then
+            update_csv
+              (if is_bitwise_op op
+              then "fold_intop_imm_bitwise"
+              else "fold_intop_imm_arith");
+          let new_cell =
+            DLL.insert_and_return_before fst
+              { fst_val with desc = Cfg.Op (Intop_imm (op, imm)) }
+          in
           DLL.delete_curr fst;
           DLL.delete_curr snd;
-          Option.map (prev_at_most go_back_const) new_cell
+          Some ((prev_at_most go_back_const) new_cell)
         | _ -> None)
       | _ -> None
     else None
   | _ -> None
 
-let optimizations = [| remove_useless_mov; fold_intop_imm |]
+let optimizations = [remove_useless_mov; fold_intop_imm]
 
 (* Helper function for optimize_body. Here cell is an iterator of the doubly
    linked list data structure that encapsulates the body's instructions. *)
-let rec optimize_body' cell =
-  let go_back_const = 1 in
-  let found_opt = ref 0 in
-  let idx = ref 0 in
-  while !idx < Array.length optimizations && !found_opt = 0 do
-    match optimizations.(!idx) cell with
-    | None -> idx := !idx + 1
-    | Some continuation_cell ->
-      found_opt := 1;
-      optimize_body' continuation_cell;
-      ()
-  done;
-  if !found_opt = 0
-  then
+let rec optimize_body' cell made_optimizations =
+  match List.find_map (fun opt_func -> opt_func cell) optimizations with
+  | None -> (
     match DLL.next cell with
-    | None -> false
-    | Some next_cell -> optimize_body' next_cell
-  else true
+    | None -> made_optimizations
+    | Some next_cell -> optimize_body' next_cell made_optimizations)
+  | Some continuation_cell -> optimize_body' continuation_cell true
 
 let optimize_body (body : Cfg.basic_instruction_list) =
-  match DLL.hd_cell body with Some cell -> optimize_body' cell | None -> false
+  match DLL.hd_cell body with
+  | Some cell -> optimize_body' cell false
+  | None -> false
 
 (* Apply peephole optimization for the body of each block of the CFG*)
 let peephole_optimize_cfg cfg_with_layout =
   set_csv ();
   let fun_name = (Cfg_with_layout.cfg cfg_with_layout).fun_name in
-  if !Flambda_backend_flags.cfg_peephole_optimize_track
+  if Option.is_some !Flambda_backend_flags.cfg_peephole_optimize_track
   then IntCsv.add_empty_row (get_csv ()) fun_name;
   let made_optimizations =
     Label.Tbl.fold
