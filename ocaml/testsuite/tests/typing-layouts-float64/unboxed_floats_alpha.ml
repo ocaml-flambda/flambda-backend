@@ -134,18 +134,72 @@ let[@inline never] f3 n m steps () =
   in
   go 0
 
+(* many args - even args are tuples, odd args are unboxed floats *)
+let[@inline_never] f3_manyargs x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 steps () =
+  let (start_k, end_k) = x0 in
+  let[@inline never] rec go k =
+    if k = end_k
+    then Float_u.of_float 0.
+    else begin
+      let (x2_1, x2_2) = x2 in
+      let (x4_1, x4_2) = x4 in
+      let (x6_1, x6_2) = x6 in
+      let (x8_1, x8_2) = x8 in
+      let sum = x2_1 + x2_2 + x4_1 + x4_2 + x6_1 + x6_2 + x8_1 + x8_2 in
+      let acc = go (k + 1) in
+      steps.(k) <- Float_u.to_float acc;
+      Float_u.(acc + ((x1 + x3 + x5 + x7 + x9) * (of_float (Float.of_int sum))))
+    end
+  in
+  go start_k
+
 let test3 () =
+  (* Test f3 *)
   let steps = Array.init 10 (fun _ -> 0.0) in
   let five_pi = f3 5 (Float_u.of_float 3.14) steps in
   print_floatu "Test 3, 5 * pi: " (five_pi ());
+  Array.iteri (Printf.printf "  Test 3, step %d: %.2f\n") steps;
+
+  (* Test f3_manyargs
+
+          (3.14 + 2.72 + 1.62 + 1.41 + 42.0) = 50.86
+      3 * (3.14 + 2.72 + 1.62 + 1.41 + 42.0) = 152.58
+      6 * (3.14 + 2.72 + 1.62 + 1.41 + 42.0) = 306.16
+      9 * (3.14 + 2.72 + 1.62 + 1.41 + 42.0) = 457.74
+
+    ( but we expect some floating point error )
+  *)
+  let steps = Array.init 10 (fun _ -> 0.0) in
+  let x1 = Float_u.of_float 3.14 in
+  let x3 = Float_u.of_float 2.72 in
+  let x5 = Float_u.of_float 1.62 in
+  let x7 = Float_u.of_float 1.41 in
+  let x9 = Float_u.of_float 42.0 in
+
+  (* these sum to 3 *)
+  let x2 = (7, 42) in
+  let x4 = (-23, 109) in
+  let x6 = (-242, 90) in
+  let x8 = (-2, 22) in
+
+  let f3_manyargs = f3_manyargs (4,8) x1 x2 x3 x4 x5 x6 x7 x8 x9 steps in
+  print_floatu "Test 3, 610.68: " (f3_manyargs ());
   Array.iteri (Printf.printf "  Test 3, step %d: %.2f\n") steps
 
 let _ = test3 ()
 
-(******************************************)
-(* Test 4: Partial, indirect applications *)
+(*********************************************)
+(* Test 4: Partial and indirect applications *)
 
 let[@inline never] test4 () =
+  (* Simple indirect call *)
+  let[@inline never] go f =
+    Float_u.to_float (f (Float_u.of_float 1.) (Float_u.of_float 2.))
+  in
+  let (x1, x2) = (go Float_u.(+), go Float_u.(-)) in
+  print_floatu "Test 4, 1 + 2" (Float_u.of_float x1);
+  print_floatu "Test 4, 1 - 2" (Float_u.of_float x2);
+
   (* partial application to float# *)
   let steps = Array.init 10 (fun _ -> 0.0) in
   let f = Sys.opaque_identity (f3 5 (Float_u.of_float 3.14)) in
@@ -154,6 +208,22 @@ let[@inline never] test4 () =
   Array.iteri (Printf.printf "  Test 4, step %d: %.2f\n") steps;
 
   (* partial application with float# remaining *)
+  let steps = Array.init 10 (fun _ -> 0.0) in
+  let f = Sys.opaque_identity (f3 6) in
+  let five_pi = f (Float_u.of_float 3.14) steps in
+  print_floatu "Test 4, 6 * pi: " (five_pi ());
+  Array.iteri (Printf.printf "  Test 4, step %d: %.2f\n") steps;
+
+  (* Those two tests again, but making f3 also opaque to prevent expansion of
+     the partial application. *)
+  let f3 = Sys.opaque_identity f3 in
+
+  let steps = Array.init 10 (fun _ -> 0.0) in
+  let f = Sys.opaque_identity (f3 5 (Float_u.of_float 3.14)) in
+  let five_pi = f steps in
+  print_floatu "Test 4, 5 * pi: " (five_pi ());
+  Array.iteri (Printf.printf "  Test 4, step %d: %.2f\n") steps;
+
   let steps = Array.init 10 (fun _ -> 0.0) in
   let f = Sys.opaque_identity (f3 6) in
   let five_pi = f (Float_u.of_float 3.14) steps in

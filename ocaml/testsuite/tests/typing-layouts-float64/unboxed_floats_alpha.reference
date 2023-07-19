@@ -25,6 +25,41 @@ Test 3, 5 * pi: : 15.70
   Test 3, step 7: 0.00
   Test 3, step 8: 0.00
   Test 3, step 9: 0.00
+Test 3, 610.68: : 610.68
+  Test 3, step 0: 0.00
+  Test 3, step 1: 0.00
+  Test 3, step 2: 0.00
+  Test 3, step 3: 0.00
+  Test 3, step 4: 458.01
+  Test 3, step 5: 305.34
+  Test 3, step 6: 152.67
+  Test 3, step 7: 0.00
+  Test 3, step 8: 0.00
+  Test 3, step 9: 0.00
+Test 4, 1 + 2: 3.00
+Test 4, 1 - 2: -1.00
+Test 4, 5 * pi: : 15.70
+  Test 4, step 0: 12.56
+  Test 4, step 1: 9.42
+  Test 4, step 2: 6.28
+  Test 4, step 3: 3.14
+  Test 4, step 4: 0.00
+  Test 4, step 5: 0.00
+  Test 4, step 6: 0.00
+  Test 4, step 7: 0.00
+  Test 4, step 8: 0.00
+  Test 4, step 9: 0.00
+Test 4, 6 * pi: : 18.84
+  Test 4, step 0: 15.70
+  Test 4, step 1: 12.56
+  Test 4, step 2: 9.42
+  Test 4, step 3: 6.28
+  Test 4, step 4: 3.14
+  Test 4, step 5: 0.00
+  Test 4, step 6: 0.00
+  Test 4, step 7: 0.00
+  Test 4, step 8: 0.00
+  Test 4, step 9: 0.00
 Test 4, 5 * pi: : 15.70
   Test 4, step 0: 12.56
   Test 4, step 1: 9.42
