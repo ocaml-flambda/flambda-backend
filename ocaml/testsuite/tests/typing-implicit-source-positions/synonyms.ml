@@ -3,7 +3,7 @@
 *)
 
 (* src_pos (lexing_position) and Lexing.position are synonyms *)
-let predef_to_module ~(src_pos:[%src_pos]) : Lexing.position = src_pos ;; 
+let predef_to_module ~(src_pos:[%src_pos]) () : Lexing.position = src_pos ;; 
 [%%expect{|
 val predef_to_module : src_pos:lexing_position -> Lexing.position = <fun>
 |}]
@@ -13,7 +13,7 @@ let module_to_predef (src_pos:Lexing.position) : [%src_pos] = src_pos ;;
 val module_to_predef : Lexing.position -> lexing_position = <fun>
 |}]
 
-let x = predef_to_module ~src_pos:{pos_fname="hello" ; pos_lnum=1; pos_bol=2; pos_cnum=3};;
+let x = predef_to_module ~src_pos:{pos_fname="hello" ; pos_lnum=1; pos_bol=2; pos_cnum=3} ();;
 [%%expect{|
 val x : Lexing.position =
   {Lexing.pos_fname = "hello"; pos_lnum = 1; pos_bol = 2; pos_cnum = 3}
