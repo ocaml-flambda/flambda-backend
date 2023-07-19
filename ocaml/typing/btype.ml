@@ -574,9 +574,13 @@ let backtrack = backtrack ~cleanup_abbrev
                   (**********************************)
 
 let is_optional = function
-    Optional _
-  | Position _ -> true
+    Optional _ -> true
   | _ -> false
+
+let is_optional_or_position = function
+  Optional _
+| Position _ -> true
+| _ -> false
 
 let is_position = function
     Position _ -> true
