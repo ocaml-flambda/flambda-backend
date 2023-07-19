@@ -158,7 +158,6 @@ let make_relocation_section sections ~sym_tbl_idx relocation_table
     ~align:8L ~sh_info:idx
 
 let assemble_one_section ~name instructions =
-  print_endline (X86_proc.Section_name.to_string name);
   let align =
     List.fold_left
       (fun acc i ->

@@ -386,6 +386,22 @@ let buf_opcodes b opcodes =
 
 let arch64 = Config.architecture = "amd64"
 
+let rec emit_uleb128 b i =
+  let next_byte = Int64.logand i 0b01111111L in
+  let n = Int64.shift_right_logical i 7 in
+  if n = 0L then buf_int8L b next_byte
+  else (buf_int8L b (Int64.logor next_byte 0b10000000L);
+    emit_uleb128 b n)
+
+let rec emit_sleb128 b i =
+  let next_byte = Int64.logand i 0b01111111L in
+  let n = Int64.shift_right i 7 in
+  if (n = 0L && (Int64.logand next_byte 0b01000000L) = 0L)
+      || (n = (-1L) && (Int64.logand next_byte 0b01000000L > 0L))
+    then buf_int8L b next_byte
+    else (buf_int8L b (Int64.logor next_byte 0b10000000L);
+      emit_sleb128 b n)
+
 let emit_rex b rexcode =
   if arch64 && rexcode <> 0 then buf_int8 b (rexcode lor rex)
 
@@ -1638,8 +1654,12 @@ let assemble_line b loc ins =
     | Cfi_startproc -> ()
     | Cfi_endproc -> ()
     | Cfi_adjust_cfa_offset _ -> ()
-    | File _ -> ()
-    | Loc _ -> ()
+    | File (file_num, file_name) ->
+        Emitaux.Dwarf_helpers.record_dwarf_for_source_file ~file_name ~file_num
+    | Loc { file_num; line; col; discriminator } ->
+        let instr_address = Buffer.length b.buf in
+        Emitaux.Dwarf_helpers.record_dwarf_for_line_number_matrix_row ~instr_address
+          ~file_num ~line ~col ~discriminator
     | Private_extern _ -> assert false
     | Indirect_symbol _ -> assert false
     | Type (lbl, kind) -> (get_symbol b lbl).sy_type <- Some kind
@@ -1682,6 +1702,8 @@ let assemble_line b loc ins =
         for _ = 1 to n do
           buf_int8 b 0
         done
+    | Sleb128 (Const n) -> emit_sleb128 b n
+    | Uleb128 (Const n) -> emit_uleb128 b n
     | Hidden _ | Weak _ | NewLine -> ()
     | Reloc { name = R_X86_64_PLT32;
               expr = ConstSub (ConstLabel wrap_label, Const 4L);

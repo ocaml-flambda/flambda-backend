@@ -19,12 +19,19 @@ open Dwarf_high
 
 type t =
   { compilation_unit_header_label : Asm_label.t;
-    compilation_unit_proto_die : Proto_die.t
+    compilation_unit_proto_die : Proto_die.t;
+    debug_line_section : Dwarf_low.Debug_line_section.t
   }
 
-let create ~compilation_unit_header_label ~compilation_unit_proto_die =
-  { compilation_unit_header_label; compilation_unit_proto_die }
+let create ~compilation_unit_header_label ~compilation_unit_proto_die
+    ~debug_line_section =
+  { compilation_unit_header_label;
+    compilation_unit_proto_die;
+    debug_line_section
+  }
 
 let compilation_unit_header_label t = t.compilation_unit_header_label
 
 let compilation_unit_proto_die t = t.compilation_unit_proto_die
+
+let debug_line_section t = t.debug_line_section

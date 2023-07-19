@@ -12,6 +12,7 @@ type debug_thing =
   | Debug_dwarf_vars
   | Debug_dwarf_call_sites
   | Debug_dwarf_cmm
+  | Debug_source_lines
 
 let bytecode_g =
   [ Debug_ocamldebug;
