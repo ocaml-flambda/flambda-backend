@@ -4395,6 +4395,41 @@ and type_expect_
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained
                     l ~has_local ~has_poly:false [Exp.case pat body]
+
+
+  (* | Pexp_fun (l, None, {ppat_desc = Ppat_constraint (spat, {ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _}); _}, sbody) ->
+    let has_local = has_local_attr_pat spat in
+    let has_poly = has_poly_constraint spat in
+    if has_poly && is_optional l then
+      raise(Error(spat.ppat_loc, env, Optional_poly_param));
+    if has_poly
+        && not (Language_extension.is_enabled Polymorphic_parameters) then
+      raise (Typetexp.Error (loc, env,
+        Unsupported_extension Polymorphic_parameters));
+    let l = 
+      (match l with
+          Labelled l | Position l -> Position l
+        | Nolabel | Optional _ -> failwith "todo raise an error")
+    in
+    type_function ?in_function loc sexp.pexp_attributes env
+                  expected_mode ty_expected_explained l ~has_local
+                  ~has_poly [Ast_helper.Exp.case spat sbody]
+
+
+| Pexp_fun (l, None, spat, sbody) ->
+  let has_local = has_local_attr_pat spat in
+  let has_poly = has_poly_constraint spat in
+  if has_poly && is_optional l then
+    raise(Error(spat.ppat_loc, env, Optional_poly_param));
+  if has_poly
+      && not (Language_extension.is_enabled Polymorphic_parameters) then
+    raise (Typetexp.Error (loc, env,
+      Unsupported_extension Polymorphic_parameters));
+  type_function ?in_function loc sexp.pexp_attributes env
+                expected_mode ty_expected_explained l ~has_local
+                ~has_poly [Ast_helper.Exp.case spat sbody] *)
+
+
   | Pexp_fun (l, None, spat, sbody) ->
       let has_local = has_local_attr_pat spat in
       let has_poly = has_poly_constraint spat in
@@ -4404,16 +4439,31 @@ and type_expect_
          && not (Language_extension.is_enabled Polymorphic_parameters) then
         raise (Typetexp.Error (loc, env,
           Unsupported_extension Polymorphic_parameters));
-      let l = match spat with
-      | {ppat_desc = Ppat_constraint (_, {ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _}); _} ->
+      let l, spat = match spat with
+      | {ppat_desc = Ppat_constraint (inner_pat, {ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _}); _} ->
         (match l with
-            Labelled l | Position l -> Position l
+        (* TODO construct a new spat = constraint with type lexing_position
+           reconsider if I need lexing_position in ctype filtered_arrow as a result *)
+            Labelled l | Position l -> 
+              
+
+
+
+              let spat = 
+                {spat with ppat_desc = Ppat_constraint (inner_pat, {ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _})} in 
+                (* TODO fix this *)
+              
+              
+              Position l, spat
           | Nolabel | Optional _ -> failwith "todo raise an error")
-      | _ -> l
+      | _ -> l, spat
       in
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained l ~has_local
                     ~has_poly [Ast_helper.Exp.case spat sbody]
+
+
+
   | Pexp_function caselist ->
       type_function ?in_function
         loc sexp.pexp_attributes env expected_mode
@@ -5715,6 +5765,46 @@ and type_expect_
           exp_env = env }
       | _ -> raise (Error (loc, env, Probe_is_enabled_format))
     end
+  (* | Pexp_extension ({ txt = "src_pos"; loc:_ }, _) ->
+      (* CR src_pos: This won't work correctly in Untypeast *)
+      (* let path = Predef.path_lexing_position in *)
+      (* let lid = Longident.Lident "lexing_position" in
+      let constr = newconstr path [] in *)
+      rue { exp_desc = Texp_record {
+              fields = failwith "todo";
+              representation = failwith "todo";
+              extended_expression = failwith "todo";
+              alloc_mode = failwith "todo"
+            };
+            exp_loc = failwith "todo";
+            exp_extra = failwith "todo";
+            exp_type = failwith "todo";
+            exp_env = failwith "todo";
+            exp_attributes = failwith "todo";
+          }
+  
+
+
+      (*
+      expression =
+      { exp_desc: expression_desc;
+        exp_loc: Location.t;
+        exp_extra: (exp_extra * Location.t * attributes) list;
+        exp_type: Types.type_expr;
+        exp_env: Env.t;
+        exp_attributes: attributes;
+      }
+      
+      
+      | Texp_record of {
+        fields : ( Types.label_description * record_label_definition ) array;
+        representation : Types.record_representation;
+        extended_expression : expression option;
+        alloc_mode : Types.alloc_mode option
+      } *)
+
+ *)
+
   | Pexp_extension ext ->
     raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
