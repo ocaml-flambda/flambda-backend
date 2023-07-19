@@ -193,6 +193,7 @@ type error =
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Layout.Violation.t
+  | Invalid_label_for_src_pos of arg_label
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -4409,7 +4410,7 @@ and type_expect_
                       { ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _}); _} ->
           (match l with
           | Labelled l | Position l -> Position l, inner_pat
-          | Nolabel | Optional _ -> failwith "todo vding: raise an error")
+          | Nolabel | Optional _ -> raise (Error (loc, env, Invalid_label_for_src_pos l)))
       | _ -> l, spat
       in
       type_function ?in_function loc sexp.pexp_attributes env
@@ -8427,6 +8428,13 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Invalid_label_for_src_pos arg_label ->
+      Location.errorf ~loc
+        "A position argument must not be %s."
+        (match arg_label with
+        | Nolabel -> "unlabelled"
+        | Optional _ -> "optional"
+        | Labelled _ | Position _ -> assert false )
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env
