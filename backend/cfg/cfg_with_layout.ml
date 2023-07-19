@@ -83,11 +83,17 @@ let assign_blocks_to_section t labels name =
 
 let get_section t label = Hashtbl.find_opt t.sections label
 
-let replace_block_section t label name_opt =
-  match name_opt with
-  | None -> Hashtbl.remove t.sections label
-  | Some name -> Hashtbl.replace t.sections label name
-
+let merge_section_with t label other =
+  match other with
+  | None | Some "" -> ()
+  | Some other ->
+    let current = get_section t label in
+    match current with
+    | None | Some "" ->
+      Hashtbl.replace t.sections label other
+    | Some _ ->
+      (* Currently non-empty section names are only cold sections, do not change section *)
+      ()
 let remove_block t label =
   Cfg.remove_block_exn t.cfg label;
   DLL.remove_first t.layout ~f:(fun l -> Label.equal l label);

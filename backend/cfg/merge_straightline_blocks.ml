@@ -77,7 +77,7 @@ let rec merge_blocks (removed : Label.Set.t)
             b1_block.terminator <- b2_block.terminator;
             b1_block.exn <- b2_block.exn;
             b1_block.can_raise <- b2_block.can_raise;
-            Cfg_with_layout.replace_block_section cfg_with_layout b1_label
+            Cfg_with_layout.merge_section_with cfg_with_layout b1_label
               (Cfg_with_layout.get_section cfg_with_layout b2_label);
             (* modify b2 *)
             b2_block.predecessors <- Label.Set.empty;
