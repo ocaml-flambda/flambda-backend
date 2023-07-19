@@ -133,10 +133,24 @@ type action =
   | Guarded of
       { patch_guarded: patch:lambda -> lambda
       ; unpatched: lambda }
+  (* Guarded actions must allow for fallthrough if the guard fails.
+
+     When translating a guarded action, the code to execute on fallthrough must
+     be "patched" in. Because the fallthrough code is translated after the
+     action is created, guarded actions carry a function [patch_guarded], which
+     generates a lambda term for the action from the fallthrough code.
+
+     Some translation functionality requires us to check syntactic properties
+     of actions. Rather than recomputing [patch_guarded] at the time of these
+     checks, we keep track of [unpatched], a lambda term which contains
+     [staticfail] in the position to be patched.
+  *)
   | Unguarded of lambda
 
 let mk_guarded ~patch_guarded : action =
   Guarded { patch_guarded; unpatched = patch_guarded ~patch:staticfail}
+
+let mk_unguarded action = Unguarded action
 
 let is_guarded = function
   | Guarded _ -> true
