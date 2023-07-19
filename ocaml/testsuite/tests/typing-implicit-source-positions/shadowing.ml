@@ -16,7 +16,6 @@ val f : src_pos:lexing_position/2 -> unit -> unit = <fun>
 |}]
 
 let _ = f ~src_pos:{pos_fname="hello" ; pos_lnum=1; pos_bol=2; pos_cnum=3} () ;;
-
 [%%expect{|
 - : unit = ()
 |}]
