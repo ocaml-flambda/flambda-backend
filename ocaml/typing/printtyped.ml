@@ -1043,7 +1043,7 @@ and case
 
 and guard i ppf = function
   | Predicate p -> expression i ppf p
-  | Pattern (e, s, pat) ->
+  | Pattern { pg_scrutinee = e; pg_scrutinee_sort = s; pg_pattern = pat; _ } ->
       expression i ppf e;
       line i ppf "%a " Layouts.Sort.format s;
       pattern i ppf pat

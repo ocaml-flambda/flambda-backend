@@ -661,12 +661,6 @@ val primitive_may_allocate : primitive -> alloc_mode option
 (* Get a new static failure ident *)
 val next_raise_count : unit -> static_label
 
-val staticfail : lambda (* Anticipated static failure *)
-
-(* Check anticipated failure, substitute its final value *)
-val is_guarded: lambda -> bool
-val patch_guarded : lambda -> lambda -> lambda
-
 val raise_kind: raise_kind -> string
 
 val merge_inline_attributes

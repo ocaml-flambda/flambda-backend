@@ -8,28 +8,71 @@ let basic_usage ~f ~default x =
   match x with 
     | Some x when f x match Some y -> y
     | _ -> default
-[%%expect{|
-Uncaught exception: Failure("guard pattern translation unimplemented")
-
-|}]
 ;;
+
+let f x = if x > 0 then Some (x - 1) else None;;
+[%%expect{|
+val basic_usage : f:('a -> 'b option) -> default:'b -> 'a option -> 'b =
+  <fun>
+val f : int -> int option = <fun>
+|}];;
+
+basic_usage ~f ~default:~-1 (Some 5);;
+[%%expect{|
+- : int = 4
+|}];;
+basic_usage ~f ~default:~-1 (Some 0);;
+[%%expect{|
+- : int = -1
+|}];;
+basic_usage ~f ~default:~-1 (Some ~-5);;
+[%%expect{|
+- : int = -1
+|}];;
+basic_usage ~f ~default:~-1 None;;
+[%%expect{|
+- : int = -1
+|}];;
 
 let seq_predicate x ~f ~g ~default =
   match x with
     | Some x when f x; g x -> x
     | _ -> default
+;;
 [%%expect{|
 val seq_predicate :
   'a option -> f:('a -> 'b) -> g:('a -> bool) -> default:'a -> 'a = <fun>
-|}]
+|}];;
 
 let seq_pattern x ~f ~g ~default =
   match x with
     | Some x when (f x; g x) match Some y -> y
     | _ -> default
-[%%expect{|
-Uncaught exception: Failure("guard pattern translation unimplemented")
+;;
 
+let counter = ref 0;;
+let f () = incr counter;;
+let g () = if !counter > 1 then Some (!counter - 1) else None;;
+[%%expect{|
+val seq_pattern :
+  'a option -> f:('a -> 'b) -> g:('a -> 'c option) -> default:'c -> 'c =
+  <fun>
+val counter : int ref = {contents = 0}
+val f : unit -> unit = <fun>
+val g : unit -> int option = <fun>
+|}];;
+
+seq_pattern (Some ()) ~f ~g ~default:0;;
+[%%expect{|
+- : int = 0
+|}];;
+seq_pattern (Some ()) ~f ~g ~default:0;;
+[%%expect{|
+- : int = 1
+|}];;
+seq_pattern None ~f ~g ~default:0;;
+[%%expect{|
+- : int = 0
 |}]
 
 let complex_types (x : int list option) : bool =
@@ -41,9 +84,9 @@ let complex_types (x : int list option) : bool =
   match strs_opt with
     | Some strs when strs match ("foo", s2) -> String.equal s2 "bar"
     | Some _ | None -> false
+;;
 [%%expect {|
-Uncaught exception: Failure("guard pattern translation unimplemented")
-
+val complex_types : int list option -> bool = <fun>
 |}]
 
 let ill_typed_pattern (x : int list option) : bool =
@@ -74,9 +117,22 @@ let shadow_outer_variables (n : int option) (strs : string list) =
   match n with
   | Some n when List.nth_opt strs n match Some s -> s
   | _ -> "Not found"
+;;
 [%%expect{|
-Uncaught exception: Failure("guard pattern translation unimplemented")
+val shadow_outer_variables : int option -> string list -> string = <fun>
+|}];;
 
+shadow_outer_variables (Some 0) [ "foo"; "bar" ];;
+[%%expect{|
+- : string = "foo"
+|}];;
+shadow_outer_variables (Some 1) [ "foo"; "bar" ];;
+[%%expect{|
+- : string = "bar"
+|}];;
+shadow_outer_variables (Some 2) [ "foo"; "bar" ];;
+[%%expect{|
+- : string = "Not found"
 |}]
 
 type ('a, 'b) eq = Eq : ('a, 'a) eq
@@ -88,8 +144,8 @@ let in_pattern_guard (type a b) (eq : (a, b) eq) (compare : a -> a -> int)
     | _ -> false
 [%%expect{|
 type ('a, 'b) eq = Eq : ('a, 'a) eq
-Uncaught exception: Failure("guard pattern translation unimplemented")
-
+val in_pattern_guard : ('a, 'b) eq -> ('a -> 'a -> int) -> 'a -> 'b -> bool =
+  <fun>
 |}]
 
 let from_pattern_guard (type a b) (eqs : (a, b) eq option list)
@@ -98,8 +154,8 @@ let from_pattern_guard (type a b) (eqs : (a, b) eq option list)
     | eq_opt :: _ when eq_opt match Some Eq -> compare x y
     | _ -> 0
 [%%expect{|
-Uncaught exception: Failure("guard pattern translation unimplemented")
-
+val from_pattern_guard :
+  ('a, 'b) eq option list -> ('a -> 'a -> int) -> 'a -> 'b -> int = <fun>
 |}]
 
 type void = |
@@ -109,16 +165,98 @@ let exhaustive_pattern_guards (x : (unit, void option) Either.t) : int =
     | Left u when u match () -> 0
     | Right v when v match None -> 1
     | _ -> 2
+;;
 [%%expect{|
 type void = |
-Line 109, characters 13-28:
-109 |     | Left u when u match () -> 0
+Line 165, characters 13-28:
+165 |     | Left u when u match () -> 0
                    ^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
-Line 110, characters 14-31:
-110 |     | Right v when v match None -> 1
+Line 166, characters 14-31:
+166 |     | Right v when v match None -> 1
                     ^^^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
-Uncaught exception: Failure("guard pattern translation unimplemented")
+val exhaustive_pattern_guards : (unit, void option) Either.t -> int = <fun>
+|}];;
 
+exhaustive_pattern_guards (Left ());;
+[%%expect{|
+- : int = 0
+|}];;
+exhaustive_pattern_guards (Right None);;
+[%%expect{|
+- : int = 1
+|}]
+
+module M : sig
+  type 'a t
+
+  val empty : 'a t
+  val add : int -> 'a -> 'a t -> 'a t
+  val find : int -> 'a t -> 'a
+  val find_opt : int -> 'a t -> 'a option
+end = Map.Make (Int);;
+
+let say_hello (id : int option) (name_map : string M.t) =
+  match id with
+    | Some id when M.find_opt id name_map match Some name -> "Hello, " ^ name
+    | None | Some _ -> "Hello, stranger"
+;;
+
+let name_map = M.empty |> M.add 0 "Fred" |> M.add 4 "Barney";;
+[%%expect{|
+module M :
+  sig
+    type 'a t
+    val empty : 'a t
+    val add : int -> 'a -> 'a t -> 'a t
+    val find : int -> 'a t -> 'a
+    val find_opt : int -> 'a t -> 'a option
+  end
+val say_hello : int option -> string M.t -> string = <fun>
+val name_map : string M.t = <abstr>
+|}];;
+
+say_hello (Some 0) name_map;;
+[%%expect{|
+- : string = "Hello, Fred"
+|}];;
+say_hello (Some 2) name_map;;
+[%%expect{|
+- : string = "Hello, stranger"
+|}];;
+say_hello (Some 4) name_map;;
+[%%expect{|
+- : string = "Hello, Barney"
+|}];;
+say_hello None name_map;;
+[%%expect{|
+- : string = "Hello, stranger"
+|}]
+
+let say_hello_catching_exns id name_map =
+  match id with
+    | Some id when M.find id name_map match "Barney" | exception _ ->
+        "Hello, Barney"
+    | None | Some _ -> "Hello, Fred"
+;;
+[%%expect{|
+val say_hello_catching_exns : int option -> string M.t -> string = <fun>
+|}];;
+
+say_hello_catching_exns (Some 0) name_map;;
+[%%expect{|
+- : string = "Hello, Fred"
+|}];;
+say_hello_catching_exns (Some 2) name_map;;
+[%%expect{|
+- : string = "Hello, Barney"
+|}];;
+say_hello_catching_exns (Some 4) name_map;;
+[%%expect{|
+- : string = "Hello, Barney"
+|}];;
+say_hello_catching_exns None name_map;;
+[%%expect{|
+- : string = "Hello, Fred"
 |}]

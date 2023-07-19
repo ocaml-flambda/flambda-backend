@@ -225,7 +225,16 @@ and 'k case =
   
 and guard =
   | Predicate of expression
-  | Pattern of expression * Layouts.sort * computation general_pattern
+  | Pattern of pattern_guard
+
+and pattern_guard =
+  { pg_scrutinee      : expression
+  ; pg_scrutinee_sort : Layouts.sort
+  ; pg_pattern        : computation general_pattern
+  ; pg_partial        : partial
+  ; pg_loc            : Location.t
+  ; pg_env            : Env.t
+  }
 
 and record_label_definition =
   | Kept of Types.type_expr
