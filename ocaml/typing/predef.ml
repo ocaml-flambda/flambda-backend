@@ -257,12 +257,6 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_int ~layout:(Layout.immediate ~why:(Primitive ident_int))
   |> add_type ident_int32
   |> add_type ident_int64
-  |> add_type ident_int8x16
-  |> add_type ident_int16x8
-  |> add_type ident_int32x4
-  |> add_type ident_int64x2
-  |> add_type ident_float32x4
-  |> add_type ident_float64x2
   |> add_type1 ident_lazy_t
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -320,9 +314,13 @@ let build_initial_env add_type add_exception empty_env =
 
 let add_simd_extension_types add_type env =
   let add_type = mk_add_type add_type in
-  (* CR ccasinghino for mslater: Change the line below to [add_type ident_vec128
-     env]. *)
-  ignore add_type; env
+  env
+  |> add_type ident_int8x16
+  |> add_type ident_int16x8
+  |> add_type ident_int32x4
+  |> add_type ident_int64x2
+  |> add_type ident_float32x4
+  |> add_type ident_float64x2
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

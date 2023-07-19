@@ -23,14 +23,14 @@
  (modules basic)
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -fsimd)))
+  (:standard -extension simd)))
 
 (executables
  (names basic_internal)
  (modules basic_internal)
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -fsimd -internal-assembler)))
+  (:standard -extension simd -internal-assembler)))
 
 (rule
  (enabled_if
@@ -64,7 +64,7 @@
   (<> %{system} macosx))
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -fsimd)))
+  (:standard -extension simd)))
 
 (rule
  (enabled_if
