@@ -187,11 +187,11 @@ let are_compatible op1 op2 imm1 imm2 =
     then Some (Mach.Iadd, imm2 - imm1)
     else None
   | Ilsl, Imul ->
-    if imm1 >= 0 && imm1 < 63 && Misc.no_overflow_mul (1 lsl imm1) imm2
+    if imm1 >= 0 && imm1 < (Sys.int_size - 1) && Misc.no_overflow_mul (1 lsl imm1) imm2
     then Some (Mach.Imul, (1 lsl imm1) * imm2)
     else None
   | Imul, Ilsl ->
-    if imm2 >= 0 && imm2 < 63 && Misc.no_overflow_mul imm1 (1 lsl imm2)
+    if imm2 >= 0 && imm2 < (Sys.int_size - 1) && Misc.no_overflow_mul imm1 (1 lsl imm2)
     then Some (Mach.Imul, imm1 * (1 lsl imm2))
     else None
   | Imul, Imul ->
