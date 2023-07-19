@@ -145,6 +145,8 @@ type rhs =
      checks, we keep track of [unpatched], a lambda term which contains a dummy
      value [Lstaticraise (0,[])] in the position to be patched.
   *)
+  (* CR-soon rgodse: This workflow constructs the lambda term twice instead of
+     once. We can be more efficient by only computing the components we need. *)
   | Unguarded of lambda
 
 let mk_guarded_rhs ~patch_guarded =
