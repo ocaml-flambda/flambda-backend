@@ -6988,13 +6988,13 @@ and type_cases
                 (match cases with
                   | [ { c_lhs = pat; c_guard = None; c_rhs = exp } ] ->
                       let pattern_guard =
-                        (Typedtree.Pattern
+                        Pattern
                            { pg_scrutinee = arg
                            ; pg_scrutinee_sort = sort
                            ; pg_pattern = pat
                            ; pg_partial = partial
                            ; pg_loc = loc
-                           ; pg_env = ext_env })
+                           ; pg_env = ext_env }
                       in
                       Some pattern_guard, exp
                   | _ ->
