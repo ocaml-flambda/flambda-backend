@@ -19,37 +19,33 @@ open Typedtree
 open Lambda
 open Debuginfo.Scoped_location
 
-(* An action is a right-hand side of a case. *)
-type action
+(* Right-hand side of a case. *)
+type rhs
 
-(* Creates a guarded action.
+(* Creates a guarded rhs.
    
-   If a guard fails, a guarded action must fallthrough to the remaining cases.
-   To facilitate this, guarded actions are constructed using a continuation.
+   If a guard fails, a guarded rhs must fallthrough to the remaining cases.
+   To facilitate this, guarded rhs's are constructed using a continuation.
 
-   [mk_guarded ~patch_guarded] produces a guarded action with a lambda
+   [mk_guarded ~patch_guarded] produces a guarded rhs with a lambda
    representation given by [patch_guarded ~patch], where [patch] contains an
    expression that falls through to the remaining cases.
 *)
-val mk_guarded: patch_guarded:(patch:lambda -> lambda) -> action
+val mk_guarded_rhs: patch_guarded:(patch:lambda -> lambda) -> rhs
 
-(* Creates an unguarded action from its lambda representation. *)
-val mk_unguarded: lambda -> action
-
-val is_guarded: action -> bool
-val lambda_of_action: action -> lambda
-val map_action: f:(lambda -> lambda) -> action -> action
+(* Creates an unguarded rhs from its lambda representation. *)
+val mk_unguarded_rhs: lambda -> rhs
 
 (* Entry points to match compiler *)
 val for_function:
         scopes:scopes ->
         arg_sort:Layouts.sort -> arg_layout:layout -> return_layout:layout ->
-        Location.t -> int ref option -> lambda -> (pattern * action) list ->
+        Location.t -> int ref option -> lambda -> (pattern * rhs) list ->
         partial ->
         lambda
 val for_trywith:
         scopes:scopes -> return_layout:layout -> Location.t ->
-        lambda -> (pattern * action) list ->
+        lambda -> (pattern * rhs) list ->
         lambda
 val for_let:
         scopes:scopes -> arg_sort:Layouts.sort -> return_layout:layout ->
@@ -58,12 +54,12 @@ val for_let:
 val for_multiple_match:
         scopes:scopes -> return_layout:layout -> Location.t ->
         (lambda * Layouts.sort * layout) list -> alloc_mode ->
-        (pattern * action) list -> partial ->
+        (pattern * rhs) list -> partial ->
         lambda
 
 val for_tupled_function:
         scopes:scopes -> return_layout:layout -> Location.t ->
-        Ident.t list -> (pattern list * action) list -> partial ->
+        Ident.t list -> (pattern list * rhs) list -> partial ->
         lambda
 
 exception Cannot_flatten

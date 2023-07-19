@@ -213,7 +213,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
          let body =
            Matching.for_function ~scopes ~arg_sort ~arg_layout
              ~return_layout:layout_obj pat.pat_loc None (Lvar param)
-             [pat, Matching.mk_unguarded rem] partial
+             [pat, Matching.mk_unguarded_rhs rem] partial
          in
          Lambda.lfunction
                    ~kind:(Curried {nlocal=0})
@@ -501,7 +501,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
         let return_layout = layout_class in
         let body =
           Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout pat.pat_loc
-            None (Lvar param) [pat, Matching.mk_unguarded rem] partial
+            None (Lvar param) [pat, Matching.mk_unguarded_rhs rem] partial
         in
         Lambda.lfunction
                   ~kind:(Curried {nlocal=0})

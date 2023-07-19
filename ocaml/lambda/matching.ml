@@ -129,15 +129,15 @@ let may_compat = MayCompat.compat
 
 and may_compats = MayCompat.compats
 
-type action =
+type rhs =
   | Guarded of
       { patch_guarded: patch:lambda -> lambda
       ; unpatched: lambda }
-  (* Guarded actions must allow for fallthrough if the guard fails.
+  (* Guarded rhs's must allow for fallthrough if the guard fails.
 
-     When translating a guarded action, the code to execute on fallthrough must
+     When translating a guarded rhs, the code to execute on fallthrough must
      be "patched" in. Because the fallthrough code is translated after the
-     action is created, guarded actions carry a function [patch_guarded], which
+     rhs is created, guarded actions rhs's a function [patch_guarded], which
      generates a lambda term for the action from the fallthrough code.
 
      Some translation functionality requires us to check syntactic properties
@@ -147,11 +147,11 @@ type action =
   *)
   | Unguarded of lambda
 
-let mk_guarded ~patch_guarded =
+let mk_guarded_rhs ~patch_guarded =
   Guarded
     { patch_guarded; unpatched = patch_guarded ~patch:(Lstaticraise (0,[])) }
 
-let mk_unguarded action = Unguarded action
+let mk_unguarded_rhs action = Unguarded action
 
 let is_guarded = function
   | Guarded _ -> true
@@ -208,7 +208,7 @@ let bind_alias p id ~arg ~arg_sort ~action =
 let head_loc ~scopes head =
   Scoped_location.of_location ~scopes head.pat_loc
 
-type 'a clause = 'a * action
+type 'a clause = 'a * rhs
 
 let map_on_row f (row, action) = (f row, action)
 
@@ -318,9 +318,9 @@ module Simple : sig
     arg:lambda ->
     arg_sort:Layouts.sort ->
     Half_simple.pattern ->
-    mk_action:(vars:Ident.t list -> action) ->
+    mk_action:(vars:Ident.t list -> rhs) ->
     patbound_action_vars:Ident.t list ->
-    (pattern * action) list
+    (pattern * rhs) list
 end = struct
   include Patterns.Simple
 
@@ -373,7 +373,7 @@ end = struct
   *)
   let explode_or_pat ~arg ~arg_sort (p : Half_simple.pattern)
         ~mk_action ~patbound_action_vars
-    : (pattern * action) list =
+    : (pattern * rhs) list =
     let rec explode p aliases rem =
       let split_explode p aliases rem = explode (General.view p) aliases rem in
       match p.pat_desc with

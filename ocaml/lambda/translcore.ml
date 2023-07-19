@@ -1013,14 +1013,14 @@ and transl_guard ~scopes guard rhs_sort rhs =
   let layout = layout_exp rhs_sort rhs in
   let expr = event_before ~scopes rhs (transl_exp ~scopes rhs_sort rhs) in
   match guard with
-  | None -> Matching.mk_unguarded expr
+  | None -> Matching.mk_unguarded_rhs expr
   | Some (Predicate cond) ->
       let patch_guarded ~patch =
         event_before ~scopes cond
           (Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
                        expr, patch, layout))
       in
-      Matching.mk_guarded ~patch_guarded
+      Matching.mk_guarded_rhs ~patch_guarded
   | Some (Pattern { pg_scrutinee; pg_scrutinee_sort; pg_pattern; pg_partial;
                     pg_loc; pg_env }) ->
       let guard_case : _ case =
@@ -1040,20 +1040,20 @@ and transl_guard ~scopes guard rhs_sort rhs =
                 ; pat_attributes = []
                 }
               in
-              let extra_cases = [ any_pat, Matching.mk_unguarded patch ] in
+              let extra_cases = [ any_pat, Matching.mk_unguarded_rhs patch ] in
               event_before ~scopes pg_scrutinee
                 (transl_match ~scopes ~arg_sort:pg_scrutinee_sort
                    ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
                    ~env:pg_env ~extra_cases pg_scrutinee [ guard_case ]
                    pg_partial)
             in
-            Matching.mk_guarded ~patch_guarded
+            Matching.mk_guarded_rhs ~patch_guarded
         | Total ->
             let nested_match = transl_match ~scopes ~arg_sort:pg_scrutinee_sort
               ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
               ~env:pg_env ~extra_cases:[] pg_scrutinee [ guard_case ] pg_partial
             in
-            Matching.mk_unguarded
+            Matching.mk_unguarded_rhs
               (event_before ~scopes pg_scrutinee nested_match)
 
 and transl_case ~scopes rhs_sort {c_lhs; c_guard; c_rhs} =
@@ -1243,7 +1243,7 @@ and transl_curried_function
         in
         ((fnkind, (param, arg_layout) :: params, return_layout, region),
          Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout loc
-           None (Lvar param) [pat, Matching.mk_unguarded body] partial)
+           None (Lvar param) [pat, Matching.mk_unguarded_rhs body] partial)
       else begin
         begin match partial with
         | Total ->
@@ -1618,8 +1618,8 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
             ~always:(fun () ->
                 iter_exn_names Translprim.remove_exception_ident pe)
         in
-        (pv, Matching.mk_unguarded (static_raise vids)) :: val_cases,
-        (pe, Matching.mk_unguarded (static_raise ids)) :: exn_cases,
+        (pv, Matching.mk_unguarded_rhs (static_raise vids)) :: val_cases,
+        (pe, Matching.mk_unguarded_rhs (static_raise ids)) :: exn_cases,
         (lbl, ids_kinds, rhs) :: static_handlers
   in
   let val_cases, exn_cases, static_handlers =
