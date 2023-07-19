@@ -52,7 +52,7 @@ let add_extra_params_and_args cont extra (t : t) =
   in
   { t with extra }
 
-let enter_continuation continuation ~recursive ~is_exn_handler params (t : t) =
+let enter_continuation continuation ~recursive ~is_exn_handler ?(lift_inner_continuations = false) params (t : t) =
   let parent_continuation =
     match t.stack with [] -> None | parent :: _ -> Some parent.continuation
   in
@@ -70,6 +70,7 @@ let enter_continuation continuation ~recursive ~is_exn_handler params (t : t) =
     { continuation;
       recursive;
       is_exn_handler;
+      lift_inner_continuations;
       params;
       parent_continuation;
       bindings = Name.Map.empty;

@@ -1017,14 +1017,14 @@ let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
     is_exn_handler,
     join_result.extra_params_and_args )
 
-let simplify_handler ~simplify_expr ~is_recursive ~is_exn_handler
+let simplify_handler ~simplify_expr ~is_recursive ~is_exn_handler ~lift_inner_continuations
     ~invariant_params ~params cont dacc handler k =
   let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env:CUE.empty in
   let dacc =
     DA.map_flow_acc
       ~f:
         (Flow.Acc.enter_continuation cont ~recursive:is_recursive
-           ~is_exn_handler
+           ~is_exn_handler ~lift_inner_continuations
            (Bound_parameters.append invariant_params params))
       dacc
   in
@@ -1068,6 +1068,7 @@ let simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far
   in
   let dacc = DA.with_denv dacc handler_env in
   simplify_handler ~simplify_expr ~is_recursive:true ~is_exn_handler:false
+    ~lift_inner_continuations:false
     ~params ~invariant_params cont dacc handler
     (fun dacc rebuild_handler cont_uses_env_in_handler ->
       let cont_uses_env_so_far =
@@ -1198,7 +1199,11 @@ let after_downwards_traversal_of_body ~simplify_expr
           (Continuation_uses.get_uses uses)
           ~arg_types_by_use_id:(Continuation_uses.get_arg_types_by_use_id uses)
       in
-      simplify_handler ~simplify_expr ~is_recursive:false ~is_exn_handler
+      let lift_inner_continuations =
+        Unbox_continuation_params.compute_extra_params_and_args unbox_decisions
+            ~arg_types_by_use_id:(Continuation_uses.get_arg_types_by_use_id uses) EPA.empty != EPA.empty
+      in
+      simplify_handler ~simplify_expr ~is_recursive:false ~is_exn_handler ~lift_inner_continuations
         ~params cont dacc handler ~invariant_params:Bound_parameters.empty
         (fun dacc rebuild_handler cont_uses_env_in_handler ->
           let cont_uses_env_so_far =

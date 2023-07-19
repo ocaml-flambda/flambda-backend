@@ -85,12 +85,12 @@ let compute_available_variables ~(source_info : T.Acc.t) t =
           in
           Bound_parameters.var_set extra_params
       in
-      let acc =
+      let new_acc =
         Variable.Set.union
           (Variable.Set.union acc (Bound_parameters.var_set elt.params))
           extra_vars
       in
-      acc, acc)
+      (if elt.lift_inner_continuations then acc else new_acc), Variable.Set.union new_acc elt.defined)
     Variable.Set.empty
 
 let compute_added_extra_args added_extra_args t =
@@ -190,10 +190,36 @@ let extra_args_for_aliases_overapproximation ~required_names
             Variable.Set.empty
             (Bound_parameters.vars elt.T.Continuation_info.params)
         in
+        let s =
+          match elt.T.Continuation_info.parent_continuation with
+          | None -> s
+          | Some parent ->
+            let parent_elt = Continuation.Map.find parent source_info.map in
+            if not parent_elt.lift_inner_continuations then s else
+          List.fold_left
+            (fun acc param ->
+               match Variable.Map.find param doms with
+               | exception Not_found ->
+                 if Name.Set.mem (Name.var param) required_names
+                 then
+                   Misc.fatal_errorf "Dom not found for: %a@." Variable.print
+                     param
+                 else acc
+               | dom ->
+                 if Variable.Set.mem dom unboxed_blocks
+                 then acc
+                 else Variable.Set.add dom acc)
+            Variable.Set.empty
+            (Bound_parameters.vars parent_elt.T.Continuation_info.params @ Variable.Set.elements parent_elt.T.Continuation_info.defined)
+        in
         let s = remove_vars_in_scope_of k s in
         s)
       source_info.map
   in
+  Format.eprintf "AVAIL = %a@."
+    (Continuation.Map.print Variable.Set.print) available_variables;
+  Format.eprintf "ALIASES = %a@."
+    (Continuation.Map.print Variable.Set.print) init;
   let added_extra_args =
     fixpoint t ~init
       ~f:(fun

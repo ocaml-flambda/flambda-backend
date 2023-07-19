@@ -121,6 +121,7 @@ module Continuation_info = struct
     { continuation : Continuation.t;
       recursive : bool;
       is_exn_handler : bool;
+      lift_inner_continuations : bool;
       params : Bound_parameters.t;
       parent_continuation : Continuation.t option;
       used_in_handler : Name_occurrences.t;
@@ -139,6 +140,7 @@ module Continuation_info = struct
       { continuation;
         recursive;
         is_exn_handler;
+        lift_inner_continuations;
         params;
         parent_continuation;
         used_in_handler;
@@ -152,6 +154,7 @@ module Continuation_info = struct
       } =
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(continuation %a)@]@ \
+        %s\
         %s\
         %s\
         @[<hov 1>(params %a)@]@ \
@@ -168,6 +171,7 @@ module Continuation_info = struct
       Continuation.print continuation
       (if recursive then "(recursive) " else "")
       (if is_exn_handler then "(exn_handler) " else "")
+      (if lift_inner_continuations then "(lift_inner_continuations) " else "")
       Bound_parameters.print params
       (Format.pp_print_option ~none:(fun ppf () -> Format.fprintf ppf "root")
          Continuation.print) parent_continuation

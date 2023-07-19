@@ -89,6 +89,7 @@ module Continuation_info : sig
     { continuation : Continuation.t;
       recursive : bool;
       is_exn_handler : bool;
+      lift_inner_continuations : bool;
       params : Bound_parameters.t;
       parent_continuation : Continuation.t option;
       used_in_handler : Name_occurrences.t;

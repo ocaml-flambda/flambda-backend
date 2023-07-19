@@ -51,6 +51,7 @@ val enter_continuation :
   Continuation.t ->
   recursive:bool ->
   is_exn_handler:bool ->
+  ?lift_inner_continuations:bool ->
   Bound_parameters.t ->
   t ->
   t
