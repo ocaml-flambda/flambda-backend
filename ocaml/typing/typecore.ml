@@ -6987,7 +6987,7 @@ and type_cases
                 in
                 (match cases with
                   | [ { c_lhs = pat; c_guard = None; c_rhs = exp } ] ->
-                      let pattern_guard =
+                      let pattern_guard : Typedtree.guard =
                         Pattern
                            { pg_scrutinee = arg
                            ; pg_scrutinee_sort = sort
