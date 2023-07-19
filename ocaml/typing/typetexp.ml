@@ -843,6 +843,12 @@ and transl_type_aux env policy mode styp =
             pack_fields = ptys;
             pack_txt = p;
            }) ty
+  | Ptyp_extension  ({txt="src_pos"; _}, _payload) -> 
+      (* CR src_pos: This won't work correctly in Untypeast *)
+      let path = Predef.path_lexing_position in
+      let lid = Longident.Lident "lexing_position" in
+      let constr = newconstr path [] in
+      ctyp (Ttyp_constr (path, {txt=lid; loc=Location.none}, [])) constr
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
