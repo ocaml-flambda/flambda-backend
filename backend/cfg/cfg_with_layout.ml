@@ -91,9 +91,11 @@ let merge_section_with t label other =
     match current with
     | None | Some "" ->
       Hashtbl.replace t.sections label other
-    | Some _ ->
-      (* Currently non-empty section names are only cold sections, do not change section *)
-      ()
+    | Some current ->
+      if not (String.equal current other) then
+        Misc.fatal_errorf "Could not merge section %S with section %S@."
+          current other
+
 let remove_block t label =
   Cfg.remove_block_exn t.cfg label;
   DLL.remove_first t.layout ~f:(fun l -> Label.equal l label);
