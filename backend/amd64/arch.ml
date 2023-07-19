@@ -31,9 +31,6 @@ let prefetchwt1_support = ref false
 (* Emit elf notes with trap handling information. *)
 let trap_notes = ref true
 
-(* Enables usage of vector registers. *)
-let simd_regalloc_support = ref false
-
 (* Machine-specific command-line options *)
 
 let command_line_options =
@@ -61,11 +58,7 @@ let command_line_options =
     "-ftrap-notes", Arg.Set trap_notes,
       " Emit .note.ocaml_eh section with trap handling information (default)";
     "-fno-trap-notes", Arg.Clear trap_notes,
-      " Do not emit .note.ocaml_eh section with trap handling information";
-    "-fsimd", Arg.Set simd_regalloc_support,
-      " Enable register allocation for SIMD vectors";
-    "-fno-simd", Arg.Clear simd_regalloc_support,
-      " Disable register allocation for SIMD vectors (default)"
+      " Do not emit .note.ocaml_eh section with trap handling information"
   ]
 
 (* Specific operations for the AMD64 processor *)

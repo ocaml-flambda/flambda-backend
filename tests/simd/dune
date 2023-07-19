@@ -9,14 +9,14 @@
  (name basic)
  (modules basic)
  (foreign_archives stubs)
- (ocamlopt_flags (:standard -fsimd)))
+ (ocamlopt_flags (:standard -extension simd)))
 
 (executable
  (name probes)
  (modules probes)
  (enabled_if (<> %{system} macosx))
  (foreign_archives stubs)
- (ocamlopt_flags (:standard -fsimd)))
+ (ocamlopt_flags (:standard -extension simd)))
 
 (rule
  (enabled_if (= %{context_name} "main"))
