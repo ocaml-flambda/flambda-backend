@@ -6584,7 +6584,7 @@ and type_application env app_loc expected_mode pm
         begin
           let ls, tvar = list_labels env funct.exp_type in
           not tvar &&
-          let labels = List.filter (fun l -> not (is_optional l)) ls in
+          let labels = List.filter (fun l -> not (is_optional_or_position l)) ls in
           List.length labels = List.length sargs &&
           List.for_all (fun (l,_) -> l = Nolabel) sargs &&
           List.exists (fun l -> l <> Nolabel) labels &&
