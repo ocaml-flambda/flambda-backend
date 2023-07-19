@@ -142,13 +142,14 @@ type action =
 
      Some translation functionality requires us to check syntactic properties
      of actions. Rather than recomputing [patch_guarded] at the time of these
-     checks, we keep track of [unpatched], a lambda term which contains
-     [staticfail] in the position to be patched.
+     checks, we keep track of [unpatched], a lambda term which contains a dummy
+     value [Lstaticraise (0,[])] in the position to be patched.
   *)
   | Unguarded of lambda
 
-let mk_guarded ~patch_guarded : action =
-  Guarded { patch_guarded; unpatched = patch_guarded ~patch:staticfail}
+let mk_guarded ~patch_guarded =
+  Guarded
+    { patch_guarded; unpatched = patch_guarded ~patch:(Lstaticraise (0,[])) }
 
 let mk_unguarded action = Unguarded action
 

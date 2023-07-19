@@ -935,9 +935,6 @@ let next_raise_count () =
   incr raise_count ;
   !raise_count
 
-(* Anticipated staticraise, for guards *)
-let staticfail = Lstaticraise (0,[])
-
 (* Translate an access path *)
 
 let rec transl_address loc = function
