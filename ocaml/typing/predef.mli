@@ -92,6 +92,11 @@ val build_initial_env:
   (Ident.t -> extension_constructor -> 'a -> 'a) ->
   'a -> 'a * 'a
 
+(* Add simd types to an environment.  This is separate from [build_initial_env]
+   because we'd like to only do it if the simd extension is on. *)
+val add_simd_extension_types :
+  (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
+
 (* To initialize linker tables *)
 
 val builtin_values: (string * Ident.t) list

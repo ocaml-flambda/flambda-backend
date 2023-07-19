@@ -59,8 +59,15 @@ type address =
 type t
 
 val empty: t
-val initial_safe_string: t
-val initial_unsafe_string: t
+
+(* These environments are lazy so that they may depend on the enabled
+   extensions, typically adjusted via command line flags.  If extensions are
+   changed after these environments are forced, they may be inaccurate.  This
+   could happen, for example, if extensions are adjusted via the
+   compiler-libs. *)
+val initial_safe_string: t Lazy.t
+val initial_unsafe_string: t Lazy.t
+
 val diff: t -> t -> Ident.t list
 
 type type_descr_kind =

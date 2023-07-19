@@ -105,7 +105,7 @@ let match_printer_type desc typename =
   let printer_type =
     match
       Env.find_type_by_name
-        (Ldot(Lident "Topdirs", typename)) Env.initial_safe_string
+        (Ldot(Lident "Topdirs", typename)) (Lazy.force Env.initial_safe_string)
     with
     | path, _ -> path
     | exception Not_found ->
@@ -113,7 +113,7 @@ let match_printer_type desc typename =
   in
   Ctype.begin_def();
   let ty_arg = Ctype.newvar Layout.(value ~why:Debug_printer_argument) in
-  Ctype.unify Env.initial_safe_string
+  Ctype.unify (Lazy.force Env.initial_safe_string)
     (Ctype.newconstr printer_type [ty_arg])
     (Ctype.instance desc.val_type);
   Ctype.end_def();
