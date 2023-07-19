@@ -1,3 +1,4 @@
+(* CR-someday: see whether the `-4` can be dropped. *)
 [@@@ocaml.warning "+a-29-40-41-42-4"]
 
 module DLL = Flambda_backend_utils.Doubly_linked_list
