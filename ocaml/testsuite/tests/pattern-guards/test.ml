@@ -101,6 +101,17 @@ Error: This pattern matches values of type 'a option
        but a pattern was expected which matches values of type int
 |}]
 
+let typing_no_value_clauses f x =
+  match x with
+    | Some x when f x match exception e -> Error e
+    | Some x -> Ok (f x)
+    | None -> Error (Failure "x is None")
+;;
+[%%expect{|
+Uncaught exception: Failure("guard pattern translation unimplemented")
+
+|}];;
+
 let ill_typed_pattern_var (x : int list option) : bool =
   match x with
     | Some xs when xs match [ y ] -> String.equal y "foo"
