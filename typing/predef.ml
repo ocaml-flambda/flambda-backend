@@ -264,7 +264,6 @@ let common_initial_env add_type add_extension empty_env =
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])
        ~layout:(Layout.immediate ~why:Enumeration)
-  |> add_type ident_vec128
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[type_string; type_int; type_int])]
@@ -297,9 +296,7 @@ let build_initial_env add_type add_exception empty_env =
 
 let add_simd_extension_types add_type env =
   let add_type = mk_add_type add_type in
-  (* CR ccasinghino for mslater: Change the line below to [add_type ident_vec128
-     env]. *)
-  ignore add_type; env
+  add_type ident_vec128 env
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

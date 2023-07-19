@@ -2686,10 +2686,9 @@ let (initial_safe_string, initial_unsafe_string) =
 
 let add_language_extension_types env =
   lazy
-    ((* CR ccasinghino for mslater: Here, check the simd extension.  If it's on,
-        return [add_simd_extension_types (add_type ~check:false) env].
-        Otherwise, return env. *)
-      env)
+    (if Language_extension.is_enabled SIMD
+     then Predef.add_simd_extension_types (add_type ~check:false) env
+     else env)
 
 (* Some predefined types are part of language extensions, and we don't want to
    make them available in the initial environment if those extensions are not
