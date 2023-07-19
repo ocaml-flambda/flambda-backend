@@ -57,7 +57,7 @@ module Make (C : Cell) = struct
     Stdlib.output_string oc "\n"
 
   let print_row oc (row_name, row_contents) column_names =
-    Stdlib.output_string oc row_name;
+    Stdlib.output_string oc (String.split_on_char ',' row_name |> String.concat "");
     List.iter
       (fun column_name ->
         Stdlib.output_string oc ", ";
