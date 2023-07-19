@@ -1049,9 +1049,10 @@ and transl_guard ~scopes guard rhs_sort rhs =
             in
             Matching.mk_guarded_rhs ~patch_guarded
         | Total ->
-            let nested_match = transl_match ~scopes ~arg_sort:pg_scrutinee_sort
-              ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
-              ~env:pg_env ~extra_cases:[] pg_scrutinee [ guard_case ] pg_partial
+            let nested_match =
+              transl_match ~scopes ~arg_sort:pg_scrutinee_sort
+                ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
+                ~env:pg_env ~extra_cases:[] pg_scrutinee [ guard_case ] pg_partial
             in
             Matching.mk_unguarded_rhs
               (event_before ~scopes pg_scrutinee nested_match)
