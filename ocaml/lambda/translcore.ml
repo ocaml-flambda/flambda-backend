@@ -1029,33 +1029,38 @@ and transl_guard ~scopes guard rhs_sort rhs =
         ; c_rhs = rhs }
       in
       match pg_partial with
-        | Partial -> 
-            let patch_guarded ~patch =
-              let any_pat : pattern =
-                { pat_desc = Tpat_any
-                ; pat_loc = Location.none
-                ; pat_extra = []
-                ; pat_type = pg_scrutinee.exp_type
-                ; pat_env = Env.empty
-                ; pat_attributes = []
-                }
-              in
-              let extra_cases = [ any_pat, Matching.mk_unguarded_rhs patch ] in
-              event_before ~scopes pg_scrutinee
-                (transl_match ~scopes ~arg_sort:pg_scrutinee_sort
-                   ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
-                   ~env:pg_env ~extra_cases pg_scrutinee [ guard_case ]
-                   pg_partial)
+      | Partial -> 
+          (* Partial pattern guards may fail to match, so we must construct a 
+             guarded rhs from a continuation that patches in the code to execute
+             on match failure.
+          *)
+          let patch_guarded ~patch =
+            let any_pat : pattern =
+              { pat_desc = Tpat_any
+              ; pat_loc = Location.none
+              ; pat_extra = []
+              ; pat_type = pg_scrutinee.exp_type
+              ; pat_env = Env.empty
+              ; pat_attributes = []
+              }
             in
-            Matching.mk_guarded_rhs ~patch_guarded
-        | Total ->
-            let nested_match =
-              transl_match ~scopes ~arg_sort:pg_scrutinee_sort
-                ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
-                ~env:pg_env ~extra_cases:[] pg_scrutinee [ guard_case ] pg_partial
-            in
-            Matching.mk_unguarded_rhs
-              (event_before ~scopes pg_scrutinee nested_match)
+            let extra_cases = [ any_pat, Matching.mk_unguarded_rhs patch ] in
+            event_before ~scopes pg_scrutinee
+              (transl_match ~scopes ~arg_sort:pg_scrutinee_sort
+                  ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
+                  ~env:pg_env ~extra_cases pg_scrutinee [ guard_case ]
+                  pg_partial)
+          in
+          Matching.mk_guarded_rhs ~patch_guarded
+      | Total ->
+          (* Total pattern guards are equivalent to nested matches. *)
+          let nested_match =
+            transl_match ~scopes ~arg_sort:pg_scrutinee_sort
+              ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
+              ~env:pg_env ~extra_cases:[] pg_scrutinee [ guard_case ] pg_partial
+          in
+          Matching.mk_unguarded_rhs
+            (event_before ~scopes pg_scrutinee nested_match)
 
 and transl_case ~scopes rhs_sort {c_lhs; c_guard; c_rhs} =
   c_lhs, transl_guard ~scopes c_guard rhs_sort c_rhs
