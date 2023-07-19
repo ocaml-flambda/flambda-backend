@@ -213,12 +213,7 @@ let rank_structured_constant = function
   | Uconst_float_array _ -> 5
   | Uconst_string _ -> 6
   | Uconst_closure _ -> 7
-  | Uconst_vec128 { ty = Int8x16; _ } -> 8
-  | Uconst_vec128 { ty = Int16x8; _ } -> 9
-  | Uconst_vec128 { ty = Int32x4; _ } -> 10
-  | Uconst_vec128 { ty = Int64x2; _ } -> 11
-  | Uconst_vec128 { ty = Float32x4; _ } -> 12
-  | Uconst_vec128 { ty = Float64x2; _ } -> 13
+  | Uconst_vec128 _ -> 8
 
 let compare_structured_constants c1 c2 =
   match c1, c2 with

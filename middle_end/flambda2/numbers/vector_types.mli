@@ -33,7 +33,7 @@ module Vec128 : sig
 
   val to_lambda : t -> Lambda.vec128_type
 
-  val of_lambda : Lambda.vec128_type -> t
+  val from_lambda : Lambda.vec128_type -> t
 
   module Bit_pattern : sig
     (** 128-bit value whose comparison and equality relations are lexicographically
@@ -66,4 +66,4 @@ val equal : t -> t -> bool
 
 val to_lambda : t -> Lambda.boxed_vector
 
-val of_lambda : Lambda.boxed_vector -> t
+val from_lambda : Lambda.boxed_vector -> t

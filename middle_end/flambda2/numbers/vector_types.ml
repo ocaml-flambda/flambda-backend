@@ -103,7 +103,7 @@ module Vec128 = struct
     | Float32x4 -> Float32x4
     | Float64x2 -> Float64x2
 
-  let of_lambda : Lambda.vec128_type -> t = function
+  let from_lambda : Lambda.vec128_type -> t = function
     | Int8x16 -> Int8x16
     | Int16x8 -> Int16x8
     | Int32x4 -> Int32x4
@@ -143,5 +143,5 @@ let equal l r = match l, r with Vec128 l, Vec128 r -> Vec128.equal l r
 let to_lambda : t -> Lambda.boxed_vector = function
   | Vec128 v -> Pvec128 (Vec128.to_lambda v)
 
-let of_lambda : Lambda.boxed_vector -> t = function
-  | Pvec128 v -> Vec128 (Vec128.of_lambda v)
+let from_lambda : Lambda.boxed_vector -> t = function
+  | Pvec128 v -> Vec128 (Vec128.from_lambda v)

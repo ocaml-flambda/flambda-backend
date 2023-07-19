@@ -31,7 +31,7 @@ module Naked_number_kind = struct
     | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
     | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
     | Naked_vector ty ->
-      Format.pp_print_string ppf ("Naked_vector[" ^ Vector_types.name ty ^ "]")
+      Format.fprintf ppf "Naked_vector[%s]" (Vector_types.name ty)
 end
 
 type t =
@@ -266,7 +266,7 @@ module Boxable_number = struct
       | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
       | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
       | Naked_vector ty ->
-        Format.pp_print_string ppf ("Naked_vector[" ^ Vector_types.name ty ^ "]")
+        Format.fprintf ppf "Naked_vector[%s]" (Vector_types.name ty)
 
     let compare = Stdlib.compare
 
@@ -282,8 +282,7 @@ module Boxable_number = struct
     | Naked_int64 -> Format.pp_print_string ppf "naked_int64"
     | Naked_nativeint -> Format.pp_print_string ppf "naked_nativeint"
     | Naked_vector ty ->
-      Format.pp_print_string ppf
-        ("naked_vector[" ^ Vector_types.name_lowercase ty ^ "]")
+      Format.fprintf ppf "naked_vector[%s]" (Vector_types.name_lowercase ty)
 
   let print_lowercase_short ppf t =
     match t with
@@ -535,7 +534,7 @@ module With_subkind = struct
     | Pboxedintval Pint32 -> boxed_int32
     | Pboxedintval Pint64 -> boxed_int64
     | Pboxedintval Pnativeint -> boxed_nativeint
-    | Pboxedvectorval ty -> boxed_vector (Vector_types.of_lambda ty)
+    | Pboxedvectorval ty -> boxed_vector (Vector_types.from_lambda ty)
     | Pintval -> tagged_immediate
     | Pvariant { consts; non_consts } -> (
       match consts, non_consts with
@@ -577,7 +576,7 @@ module With_subkind = struct
     | Punboxed_int Pint32 -> naked_int32
     | Punboxed_int Pint64 -> naked_int64
     | Punboxed_int Pnativeint -> naked_nativeint
-    | Punboxed_vector ty -> naked_vector (Vector_types.of_lambda ty)
+    | Punboxed_vector ty -> naked_vector (Vector_types.from_lambda ty)
 
   include Container_types.Make (struct
     type nonrec t = t

@@ -132,7 +132,7 @@ let naked_number_kind ppf (nnk : Flambda_kind.Naked_number_kind.t) =
   | Naked_int32 -> "int32"
   | Naked_int64 -> "int64"
   | Naked_nativeint -> "nativeint"
-  | Naked_vector ty -> Vector_types.name ty
+  | Naked_vector ty -> Vector_types.name_lowercase ty
 
 let rec subkind ppf (k : subkind) =
   let str s = Format.pp_print_string ppf s in
@@ -143,7 +143,8 @@ let rec subkind ppf (k : subkind) =
   | Boxed_int32 -> str "int32 boxed"
   | Boxed_int64 -> str "int64 boxed"
   | Boxed_nativeint -> str "nativeint boxed"
-  | Boxed_vector ty -> str (Vector_types.name ty ^ " boxed")
+  | Boxed_vector ty ->
+    Format.fprintf ppf "%s boxed" (Vector_types.name_lowercase ty)
   | Variant { consts; non_consts } -> variant_subkind ppf consts non_consts
   | Tagged_immediate -> str "imm tagged"
   | Float_array -> str "float array"
@@ -334,7 +335,7 @@ let static_data ppf : static_data -> unit = function
   | Boxed_int64 (Var v) -> boxed_variable ppf v ~kind:"int64"
   | Boxed_nativeint (Var v) -> boxed_variable ppf v ~kind:"nativeint"
   | Boxed_vec128 (ty, Var v) ->
-    boxed_variable ppf v ~kind:(Vector_types.Vec128.name ty)
+    boxed_variable ppf v ~kind:(Vector_types.Vec128.name_lowercase ty)
   | Immutable_float_block elements ->
     Format.fprintf ppf "Float_block (%a)"
       (pp_comma_list float_or_variable)
@@ -507,7 +508,7 @@ let unop ppf u =
     | Naked_int32 -> print verb_not_imm "int32"
     | Naked_int64 -> print verb_not_imm "int64"
     | Naked_nativeint -> print verb_not_imm "nativeint"
-    | Naked_vector ty -> print verb_not_imm (Vector_types.name ty)
+    | Naked_vector ty -> print verb_not_imm (Vector_types.name_lowercase ty)
   in
   match (u : unop) with
   | Array_length -> str "%array_length"
