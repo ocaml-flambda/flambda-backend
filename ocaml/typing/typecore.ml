@@ -4405,16 +4405,11 @@ and type_expect_
         raise (Typetexp.Error (loc, env,
           Unsupported_extension Polymorphic_parameters));
       let l, spat = match spat with
-      | {ppat_desc = Ppat_constraint (pat,
-                      ({ ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _} as constr_type)); _} ->
+      | {ppat_desc = Ppat_constraint (inner_pat,
+                      { ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _}); _} ->
           (match l with
-          | Labelled l | Position l -> 
-            Position l, {spat with ppat_desc = 
-                (* TODO This feels pretty gross. Longident for lexing_position in ast helper? *)
-                Ppat_constraint (pat, { constr_type with ptyp_desc = 
-                  Ptyp_constr ({txt=Longident.Lident "lexing_position"; loc=Location.none}, [])
-                })}
-          | Nolabel | Optional _ -> failwith "todo raise an error")
+          | Labelled l | Position l -> Position l, inner_pat
+          | Nolabel | Optional _ -> failwith "todo vding: raise an error")
       | _ -> l, spat
       in
       type_function ?in_function loc sexp.pexp_attributes env
