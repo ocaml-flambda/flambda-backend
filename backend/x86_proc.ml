@@ -48,6 +48,13 @@ module Section_name = struct
         | [hd] -> Option.value ~default:0L (Int64.of_string_opt hd)
         | hd :: tl -> align tl
       in align t.args
+
+    let isprefix s1 s2 =
+      String.length s1 <= String.length s2
+      && String.equal (String.sub s2 0 (String.length s1)) s1
+
+    let is_text_like t = isprefix ".text" t.name_str
+    let is_data_like t = isprefix ".data" t.name_str
   end
   include S
   module Map = Map.Make (S)
@@ -357,10 +364,10 @@ let generate_code asm =
   end;
   begin match !internal_assembler with
     | Some f ->
-      let instrs = Section_name.Tbl.fold (fun name instrs acc ->
+      (* let instrs = Section_name.Tbl.fold (fun name instrs acc ->
           (name, List.rev !instrs) :: acc)
           asm_code_by_section []
-      in
-      binary_content := Some (f instrs)
+      in *)
+      binary_content := Some (f asm_code_by_section)
   | None -> binary_content := None
   end

@@ -157,34 +157,46 @@ let make_relocation_section sections ~sym_tbl_idx relocation_table
     ~flags:0x40L (* SHF_INFO_LINK *) ~sh_link:sym_tbl_idx sh_string_table
     ~align:8L ~sh_info:idx
 
+let assemble_one_section ~name instructions =
+  let align =
+    List.fold_left
+      (fun acc i ->
+        match i with X86_ast.Align (data, n) when n > acc -> n | _ -> acc)
+      0 instructions
+  in
+  align,
+  X86_binary_emitter.assemble_section X64
+    { X86_binary_emitter.sec_name = X86_proc.Section_name.to_string name;
+      sec_instrs = Array.of_list instructions
+    }
+
 let get_sections sections =
-  List.fold_left
-    (fun acc (name, instructions) ->
-      let align =
-        List.fold_left
-          (fun acc i ->
-            match i with X86_ast.Align (data, n) when n > acc -> n | _ -> acc)
-          0 instructions
-      in
-      Section_name.Map.add name
-        ( align,
-          X86_binary_emitter.assemble_section X64
-            { X86_binary_emitter.sec_name = X86_proc.Section_name.to_string name;
-              sec_instrs = Array.of_list instructions
-            } )
-        acc)
-    Section_name.Map.empty sections
+  let sections = Section_name.Tbl.to_seq sections |> List.of_seq in
+  let text_data, others =
+    List.partition
+      (fun (name, _) -> Section_name.is_text_like name || Section_name.is_data_like name)
+      sections
+  in
+  let aux sections acc =
+    List.fold_left (fun acc (name, instructions) ->
+      let instructions = List.rev !instructions in
+      Section_name.Map.add name (assemble_one_section ~name instructions) acc)
+      acc sections
+  in
+  let acc = aux text_data Section_name.Map.empty in
+  Emitaux.Dwarf_helpers.emit_dwarf ();
+  aux others acc
 
 let make_compiler_sections section_table compiler_sections symbol_table
     sh_string_table =
   let section_symbols = Section_name.Tbl.create 100 in
   Section_name.Map.iter
     (fun name (align, raw_section) ->
-      if isprefix ".text" (X86_proc.Section_name.to_string name)
+      if Section_name.is_text_like name
       then
         make_text section_table name raw_section ~align:(Int64.of_int align)
           sh_string_table
-      else if isprefix ".data" (X86_proc.Section_name.to_string name)
+      else if Section_name.is_data_like name
       then
         make_data section_table name raw_section ~align:(Int64.of_int align)
           sh_string_table
