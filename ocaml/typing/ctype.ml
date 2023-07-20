@@ -2713,8 +2713,8 @@ let rec mcomp type_pairs env t1 t2 =
         | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _))
         (* CR vding question: Not sure how to reason about when we want to test 
            compatibility, is my change correct? *)
-          when l1 = l2 || not (is_optional_or_position l1 || is_optional_or_position l2) ->
-                    mcomp type_pairs env t1 t2;
+          when l1 = l2 || not (is_optional l1 || is_optional l2) ->
+            mcomp type_pairs env t1 t2;
             mcomp type_pairs env u1 u2;
         | (Ttuple tl1, Ttuple tl2) ->
             mcomp_list type_pairs env tl1 tl2
