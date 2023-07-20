@@ -86,10 +86,9 @@ let get_section t label = Hashtbl.find_opt t.sections label
 let merge_sections t label other =
   match get_section t other with
   | None | Some "" -> (
-      match get_section t label with
-      | None -> ()
-      | Some current -> Hashtbl.replace t.sections other current
-    )
+    match get_section t label with
+    | None -> ()
+    | Some current -> Hashtbl.replace t.sections other current)
   | Some other -> (
     let current = get_section t label in
     match current with
