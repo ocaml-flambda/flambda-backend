@@ -60,7 +60,7 @@
  ; We should change the code so this "-open" can be removed.
  ; Likewise fix occurrences of warning 9.
  (flags
-  (:standard -principal -w -9-69-70))
+  (:standard -principal -w -9-69-70 -warn-error +A))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (instrumentation
