@@ -71,27 +71,26 @@ end = struct
     in
     { scrutinees; cases; handler_data }
   
-  let remove_bound ~bound ~free =
-    List.fold_left (fun s id -> Ident.Set.remove id s) free bound
+  let remove_bound_variables ~bound idents =
+    List.fold_left (fun s id -> Ident.Set.remove id s) idents bound
   
-  let free_case (pat, rhs) =
-    remove_bound
-      ~bound:(pat_bound_idents pat)
-      ~free:(Matching.free_variables_of_rhs rhs)
+  let free_variables_of_case (pat, rhs) =
+    remove_bound_variables ~bound:(pat_bound_idents pat)
+      (Matching.free_variables_of_rhs rhs)
 
-  let free_handler (ids, lam) =
-    remove_bound ~bound:ids ~free:(free_variables lam)
+  let free_variables_of_handler (ids, lam) =
+    remove_bound_variables ~bound:ids (free_variables lam)
 
-  let union_map ~f =
+  let map_union ~f =
     List.fold_left (fun s x -> Ident.Set.union s (f x)) Ident.Set.empty
   
   let union_list = List.fold_left Ident.Set.union Ident.Set.empty
 
   let free_variables (t : t) =
     union_list
-      [ union_map ~f:free_variables t.scrutinees
-      ; union_map ~f:free_case t.cases
-      ; union_map ~f:free_handler t.handler_data
+      [ map_union ~f:free_variables t.scrutinees
+      ; map_union ~f:free_variables_of_case t.cases
+      ; map_union ~f:free_variables_of_handler t.handler_data
       ]
   
   let to_rhs t ~patch_guarded =
