@@ -86,15 +86,15 @@ let get_section t label = Hashtbl.find_opt t.sections label
 let merge_sections t label other =
   match get_section t other with
   | None | Some "" -> ()
-  | Some other ->
+  | Some other -> (
     let current = get_section t label in
     match current with
-    | None | Some "" ->
-      Hashtbl.replace t.sections label other
+    | None | Some "" -> Hashtbl.replace t.sections label other
     | Some current ->
-      if not (String.equal current other) then
-        Misc.fatal_errorf "Could not merge section %S with section %S@."
-          current other
+      if not (String.equal current other)
+      then
+        Misc.fatal_errorf "Could not merge section %S with section %S@." current
+          other)
 
 let remove_block t label =
   Cfg.remove_block_exn t.cfg label;

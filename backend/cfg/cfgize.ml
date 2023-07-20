@@ -22,7 +22,8 @@ module State : sig
 
   val get_contains_calls : t -> bool
 
-  val add_block : t -> label:Label.t -> block:Cfg.basic_block -> is_cold:bool -> unit
+  val add_block :
+    t -> label:Label.t -> block:Cfg.basic_block -> is_cold:bool -> unit
 
   val get_layout : t -> Cfg_with_layout.layout
 
@@ -52,7 +53,7 @@ end = struct
       mutable next_instruction_id : int;
       mutable iends_with_poptrap : Mach.instruction list;
       mutable exception_handlers : Label.t list;
-      cold_blocks : bool Label.Tbl.t;
+      cold_blocks : bool Label.Tbl.t
     }
 
   let make ~fun_name ~tailrec_label ~contains_calls blocks =
@@ -87,8 +88,7 @@ end = struct
     else (
       DLL.add_end t.layout label;
       Label.Tbl.replace t.blocks label block;
-      Label.Tbl.replace t.cold_blocks label is_cold
-    )
+      Label.Tbl.replace t.cold_blocks label is_cold)
 
   let get_layout t = t.layout
 
@@ -136,7 +136,8 @@ end = struct
 
   let get_cold_blocks t =
     let s1, s2 =
-      Label.Tbl.to_seq t.cold_blocks |> Seq.partition (fun (_, is_cold) -> is_cold)
+      Label.Tbl.to_seq t.cold_blocks
+      |> Seq.partition (fun (_, is_cold) -> is_cold)
     in
     List.of_seq (Seq.map fst s1), List.of_seq (Seq.map fst s2)
 end
@@ -451,12 +452,12 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
    return. *)
 let fallthrough_label : Label.t = -1
 
-(* [add_blocks instr state ~starts_with_pushtrap ~start ~next ~is_cold] adds the block
-   beginning at [instr] with label [start], and all recursively-reachable blocks
-   to [state]. [next] is the label of the block to be executed after the one
-   beginning at [instr]. [starts_with_pushtrap] indicates whether the block
-   should be prefixed with a pushtrap instruction (to the passed label). [is_cold]
-   indicates whether to put the blocks in the cold section. *)
+(* [add_blocks instr state ~starts_with_pushtrap ~start ~next ~is_cold] adds the
+   block beginning at [instr] with label [start], and all recursively-reachable
+   blocks to [state]. [next] is the label of the block to be executed after the
+   one beginning at [instr]. [starts_with_pushtrap] indicates whether the block
+   should be prefixed with a pushtrap instruction (to the passed label).
+   [is_cold] indicates whether to put the blocks in the cold section. *)
 let rec add_blocks :
     Mach.instruction ->
     State.t ->
@@ -525,7 +526,8 @@ let rec add_blocks :
     | Itrywith _ | Iraise _ ->
       let start = Cmm.new_label () in
       let add_next_block () =
-        add_blocks last.next state ~starts_with_pushtrap:None ~start ~next ~is_cold
+        add_blocks last.next state ~starts_with_pushtrap:None ~start ~next
+          ~is_cold
       in
       start, add_next_block
   in
@@ -562,8 +564,10 @@ let rec add_blocks :
         (copy_instruction state last
            ~desc:(terminator_of_test test ~label_false ~label_true));
       let next, add_next_block = prepare_next_block () in
-      add_blocks ifso state ~starts_with_pushtrap:None ~start:label_true ~next ~is_cold;
-      add_blocks ifnot state ~starts_with_pushtrap:None ~start:label_false ~next ~is_cold;
+      add_blocks ifso state ~starts_with_pushtrap:None ~start:label_true ~next
+        ~is_cold;
+      add_blocks ifnot state ~starts_with_pushtrap:None ~start:label_false ~next
+        ~is_cold;
       add_next_block ()
     | Iswitch (indexes, cases) ->
       let case_labels = Array.map (fun _ -> Cmm.new_label ()) cases in
@@ -589,11 +593,13 @@ let rec add_blocks :
       terminate_block ~trap_actions:[]
         (copy_instruction_no_reg state last ~desc:(Cfg.Always body_label));
       let next, add_next_block = prepare_next_block () in
-      add_blocks body state ~starts_with_pushtrap:None ~start:body_label ~next ~is_cold;
+      add_blocks body state ~starts_with_pushtrap:None ~start:body_label ~next
+        ~is_cold;
       List.iter
         (fun (handler_label, handler, is_handler_cold) ->
           add_blocks handler state ~starts_with_pushtrap:None
-            ~start:handler_label ~next ~is_cold:(is_cold || is_handler_cold))
+            ~start:handler_label ~next
+            ~is_cold:(is_cold || is_handler_cold))
         handlers;
       add_next_block ()
     | Iexit (handler_id, trap_actions) ->
@@ -616,7 +622,8 @@ let rec add_blocks :
       let next, add_next_block = prepare_next_block () in
       State.add_iend_with_poptrap state (get_end body);
       State.add_exception_handler state label_handler;
-      add_blocks body state ~starts_with_pushtrap ~start:label_body ~next ~is_cold;
+      add_blocks body state ~starts_with_pushtrap ~start:label_body ~next
+        ~is_cold;
       add_blocks handler state ~starts_with_pushtrap:None ~start:label_handler
         ~next ~is_cold;
       add_next_block ()
@@ -817,7 +824,8 @@ let fundecl :
         can_raise = false;
         is_trap_handler = false;
         dead = false
-      } ~is_cold:false;
+      }
+    ~is_cold:false;
   State.add_block state ~label:tailrec_label
     ~block:
       { start = tailrec_label;
@@ -831,7 +839,8 @@ let fundecl :
         can_raise = false;
         is_trap_handler = false;
         dead = false
-      } ~is_cold:false;
+      }
+    ~is_cold:false;
   add_blocks fun_body state ~starts_with_pushtrap:None ~start:start_label
     ~next:fallthrough_label ~is_cold:false;
   update_trap_handler_blocks state cfg;
@@ -859,14 +868,14 @@ let fundecl :
       Eliminate_dead_code.run_dead_block cfg_with_layout;
       if simplify_terminators then Simplify_terminator.run cfg)
     ();
-  Cfg_with_layout.reorder_blocks ~comparator:(fun label1 label2 ->
+  Cfg_with_layout.reorder_blocks
+    ~comparator:(fun label1 label2 ->
       let section1 = Cfg_with_layout.get_section cfg_with_layout label1 in
       let section2 = Cfg_with_layout.get_section cfg_with_layout label2 in
       match section1, section2 with
       | (None | Some ""), (None | Some "") -> 0
       | (None | Some ""), Some _ -> -1
       | Some _, (None | Some "") -> 1
-      | Some section1, Some section2 ->
-        String.compare section1 section2
-    ) cfg_with_layout;
+      | Some section1, Some section2 -> String.compare section1 section2)
+    cfg_with_layout;
   cfg_with_layout
