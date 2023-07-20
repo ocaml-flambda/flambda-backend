@@ -333,6 +333,7 @@ and expression_desc =
                        and [exp0] is [None]
             - [fun ?l:P -> E1]
                       when [lbl] is {{!arg_label.Optional}[Optional l]}
+                       and [exp0] is [None]
             - [fun ?l:(P = E0) -> E1]
                       when [lbl] is {{!arg_label.Optional}[Optional l]}
                        and [exp0] is [Some E0]
