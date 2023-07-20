@@ -1721,31 +1721,31 @@ and transl_match_staged ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
   let static_handlers = List.rev rev_static_handlers in
   (* In presence of exception patterns, the code we generate for
 
-      match <scrutinees> with
-      | <val-patterns> -> <val-actions>
-      | <exn-patterns> -> <exn-actions>
+       match <scrutinees> with
+       | <val-patterns> -> <val-actions>
+       | <exn-patterns> -> <exn-actions>
 
-    looks like
+     looks like
 
-      staticcatch
-        (try (exit <val-exit> <scrutinees>)
+       staticcatch
+         (try (exit <val-exit> <scrutinees>)
           with <exn-patterns> -> <exn-actions>)
-      with <val-exit> <val-ids> ->
+       with <val-exit> <val-ids> ->
           match <val-ids> with <val-patterns> -> <val-actions>
 
-    In particular, the 'exit' in the value case ensures that the
-    value actions run outside the try..with exception handler.
+     In particular, the 'exit' in the value case ensures that the
+     value actions run outside the try..with exception handler.
   *)
   let static_catch scrutinees val_ids handler =
     let id = Typecore.name_pattern "exn" (List.map fst exn_cases) in
     let static_exception_id = next_raise_count () in
     Lstaticcatch
       (Ltrywith (Lstaticraise (static_exception_id, scrutinees), id,
-                Matching.for_trywith ~scopes ~return_layout loc (Lvar id)
-                  exn_cases,
-                return_layout),
-      (static_exception_id, val_ids),
-      handler,
+                 Matching.for_trywith ~scopes ~return_layout loc (Lvar id)
+                   exn_cases,
+                 return_layout),
+       (static_exception_id, val_ids),
+       handler,
       return_layout)
   in
   let scrutinees, classic_staged =
@@ -1766,9 +1766,9 @@ and transl_match_staged ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
         let val_ids, lvars =
           List.map
             (fun (arg,s) ->
-              let layout = layout_exp s arg in
-              let id = Typecore.name_pattern "val" [] in
-              (id, layout), (Lvar id, s, layout))
+               let layout = layout_exp s arg in
+               let id = Typecore.name_pattern "val" [] in
+               (id, layout), (Lvar id, s, layout))
             argl
           |> List.split
         in
