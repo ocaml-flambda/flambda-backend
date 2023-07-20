@@ -210,7 +210,7 @@ let extra_args_for_aliases_overapproximation ~required_names
                  if Variable.Set.mem dom unboxed_blocks
                  then acc
                  else Variable.Set.add dom acc)
-            Variable.Set.empty
+            s
             (Bound_parameters.vars parent_elt.T.Continuation_info.params @ (Variable.Set.elements (Variable.Map.keys parent_elt.T.Continuation_info.defined))))
             in
             loop elt s
