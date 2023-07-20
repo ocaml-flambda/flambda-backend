@@ -401,6 +401,15 @@ let reorder_blocks_random ?random_state t =
   in
   set_layout t (DLL.of_list new_layout)
 
+let reorder_blocks ~comparator t =
+  (* Ensure entry block remains first *)
+  let original_layout = DLL.to_list (layout t) in
+  let new_layout =
+    List.hd original_layout
+    :: List.stable_sort comparator (List.tl original_layout)
+  in
+  set_layout t (DLL.of_list new_layout)
+
 let iter_instructions :
     t ->
     instruction:(Cfg.basic Cfg.instruction -> unit) ->

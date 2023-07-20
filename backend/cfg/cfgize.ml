@@ -859,4 +859,14 @@ let fundecl :
       Eliminate_dead_code.run_dead_block cfg_with_layout;
       if simplify_terminators then Simplify_terminator.run cfg)
     ();
+  Cfg_with_layout.reorder_blocks ~comparator:(fun label1 label2 ->
+      let section1 = Cfg_with_layout.get_section cfg_with_layout label1 in
+      let section2 = Cfg_with_layout.get_section cfg_with_layout label2 in
+      match section1, section2 with
+      | (None | Some ""), (None | Some "") -> 0
+      | (None | Some ""), Some _ -> -1
+      | Some _, (None | Some "") -> 1
+      | Some section1, Some section2 ->
+        String.compare section1 section2
+    ) cfg_with_layout;
   cfg_with_layout
