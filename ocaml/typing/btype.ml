@@ -579,14 +579,12 @@ let is_optional_parsetree : Parsetree.arg_label -> bool = function
 
 let is_optional = function Optional _ -> true | _ -> false
 
+let is_position = function Position _ -> true | _ -> false
+
 let is_omittable = function
   Optional _
 | Position _ -> true
 | _ -> false
-
-let is_position = function
-    Position _ -> true
-  | _ -> false
 
 let label_name = function
     Nolabel -> ""
