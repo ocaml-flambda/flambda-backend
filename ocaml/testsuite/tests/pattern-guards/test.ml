@@ -308,3 +308,38 @@ say_hello_catching_exns None name_map;;
 [%%expect{|
 - : string = "Hello, Fred"
 |}]
+
+let patch_to_match_failure f default x =
+  match x with
+  | None -> default
+  | Some x when f x match Some y -> y
+;;
+
+let exact_half n = if n mod 2 = 0 then Some (n / 2) else None;;
+[%%expect{|
+Lines 2-4, characters 2-37:
+2 | ..match x with
+3 |   | None -> default
+4 |   | Some x when f x match Some y -> y
+Warning 8 [partial-match]: this pattern-matching is not exhaustive.
+Here is an example of a case that is not matched:
+Some _
+(However, some guarded clause may match this value.)
+val patch_to_match_failure : ('a -> 'b option) -> 'b -> 'a option -> 'b =
+  <fun>
+val exact_half : int -> int option = <fun>
+|}];;
+
+patch_to_match_failure exact_half ~-1 None;;
+[%%expect{|
+- : int = -1
+|}];;
+patch_to_match_failure exact_half ~-1 (Some 42);;
+[%%expect{|
+- : int = 21
+|}];;
+patch_to_match_failure exact_half ~-1 (Some 41);;
+[%%expect{|
+Exception: Match_failure ("", 2, 2).
+|}];;
+
