@@ -319,8 +319,8 @@ and expression_desc =
             - [fun ~l:P -> E1]
                       when [lbl] is {{!Asttypes.arg_label.Labelled}[Labelled l]}
                        and [exp0] is [None]
-            - [fun ?l:P -> E1]
-                      when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}
+            - [fun ~l:(P : [%src_pos]) -> E1]
+                      when [lbl] is {{!Asttypes.arg_label.Position}[Position l]}
                        and [exp0] is [None]
             - [fun ?l:(P = E0) -> E1]
                       when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}
