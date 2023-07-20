@@ -287,6 +287,8 @@ and raise_kind =
 
 val vec128_name: vec128_type -> string
 
+val vec128_leq: vec128_type -> vec128_type -> bool
+
 val boxed_vector_from_primitive: Primitive.boxed_vector -> boxed_vector
 
 val equal_value_kind : value_kind -> value_kind -> bool

@@ -333,6 +333,20 @@ let vec128_name = function
   | Float64x2 -> "float64x2"
   | Any128 -> "any128"
 
+let vec128_leq l r =
+  match l, r with
+  | _, Unknown128 -> true
+  | Unknown128, _ -> false
+  | Any128, _ -> true
+  | _, Any128 -> false
+  | Int8x16, Int8x16 -> true
+  | Int16x8, Int16x8 -> true
+  | Int32x4, Int32x4 -> true
+  | Int64x2, Int64x2 -> true
+  | Float32x4, Float32x4 -> true
+  | Float64x2, Float64x2 -> true
+  | _ -> false
+
 let boxed_vector_from_primitive : Primitive.boxed_vector -> boxed_vector = function
   | Pvec128 Int8x16 -> Pvec128 Int8x16
   | Pvec128 Int16x8 -> Pvec128 Int16x8
