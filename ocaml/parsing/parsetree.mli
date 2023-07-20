@@ -328,9 +328,11 @@ and expression_desc =
                        and [exp0] is [None]
             - [fun ?l:P -> E1]
                       when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}
+                       and [exp0] is [None]
+
             - [fun ?l:(P = E0) -> E1]
                       when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}
-                      and [exp0] is [Some E0]
+                       and [exp0] is [Some E0]
 
            Notes:
            - If [E0] is provided, only
