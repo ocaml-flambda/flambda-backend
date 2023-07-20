@@ -36,6 +36,68 @@ type error =
 
 exception Error of Location.t * error
 
+(* Produces rhs's guarded by pattern guards *)
+module Pattern_guarded_rhs_factory : sig
+  type t
+
+  (* Generates a factory from the relevant data *)
+  val of_data
+  :  scrutinees:lambda list
+  -> cases:(pattern * Matching.rhs) list
+  -> handlers:(static_label * (Ident.t * Lambda.layout) list * lambda) list
+  -> t
+  
+  (* Produces a pattern-guarded rhs
+     
+     [patch_guarded ~patch] should be a valid translation of the rhs given that
+     patch is an expression that correctly falls through to the next case.
+  *)
+  val to_rhs:
+        t -> patch_guarded:(patch:lambda -> lambda) -> Matching.rhs
+end = struct
+  type t =
+    { scrutinees: lambda list
+    ; cases: (pattern * Matching.rhs) list
+    ; handler_data: (Ident.t list * lambda) list
+    }
+
+  let of_data ~scrutinees ~cases ~handlers =
+    let to_idents = List.map (fun (ident, _layout) -> ident) in
+    let handler_data =
+      List.map
+        (fun (_label, idents_and_layouts, handler) ->
+           to_idents idents_and_layouts, handler)
+        handlers
+    in
+    { scrutinees; cases; handler_data }
+  
+  let remove_bound ~bound ~free =
+    List.fold_left (fun s id -> Ident.Set.remove id s) free bound
+  
+  let free_case (pat, rhs) =
+    remove_bound
+      ~bound:(pat_bound_idents pat)
+      ~free:(Matching.free_variables_of_rhs rhs)
+
+  let free_handler (ids, lam) =
+    remove_bound ~bound:ids ~free:(free_variables lam)
+
+  let union_map ~f =
+    List.fold_left (fun s x -> Ident.Set.union s (f x)) Ident.Set.empty
+  
+  let union_list = List.fold_left Ident.Set.union Ident.Set.empty
+
+  let free_variables (t : t) =
+    union_list
+      [ union_map ~f:free_variables t.scrutinees
+      ; union_map ~f:free_case t.cases
+      ; union_map ~f:free_handler t.handler_data
+      ]
+  
+  let to_rhs t ~patch_guarded =
+    Matching.mk_guarded_rhs ~patch_guarded ~free_variables:(free_variables t)
+end
+
 let use_dup_for_constant_mutable_arrays_bigger_than = 4
 
 let layout_must_be_value loc layout =
@@ -438,7 +500,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
            oargs (of_location ~scopes e.exp_loc))
   | Texp_match(arg, arg_sort, pat_expr_list, partial) ->
       transl_match ~scopes ~arg_sort ~return_sort:sort ~return_type:e.exp_type
-        ~loc:e.exp_loc ~env:e.exp_env ~extra_cases:[] arg pat_expr_list partial
+        ~loc:e.exp_loc ~env:e.exp_env arg pat_expr_list partial
   | Texp_try(body, pat_expr_list) ->
       let id = Typecore.name_cases "exn" pat_expr_list in
       let return_layout = layout_exp sort e in
@@ -1015,12 +1077,15 @@ and transl_guard ~scopes guard rhs_sort rhs =
   match guard with
   | None -> Matching.mk_unguarded_rhs expr
   | Some (Predicate cond) ->
+      let translated_cond = transl_exp ~scopes Sort.for_predef_value cond in
       let patch_guarded ~patch =
         event_before ~scopes cond
-          (Lifthenelse(transl_exp ~scopes Sort.for_predef_value cond,
-                       expr, patch, layout))
+          (Lifthenelse (translated_cond, expr, patch, layout))
       in
-      Matching.mk_guarded_rhs ~patch_guarded
+      let free_variables =
+        Ident.Set.union (free_variables translated_cond) (free_variables expr)
+      in
+      Matching.mk_guarded_rhs ~patch_guarded ~free_variables
   | Some (Pattern { pg_scrutinee; pg_scrutinee_sort; pg_pattern; pg_partial;
                     pg_loc; pg_env }) ->
       let guard_case : _ case =
@@ -1034,6 +1099,11 @@ and transl_guard ~scopes guard rhs_sort rhs =
              guarded rhs from a continuation that patches in the code to execute
              on match failure.
           *)
+          let factory, staged =
+            transl_match_staged ~scopes ~arg_sort:pg_scrutinee_sort
+              ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
+              ~env:pg_env pg_scrutinee [ guard_case ] pg_partial
+          in
           let patch_guarded ~patch =
             let any_pat : pattern =
               { pat_desc = Tpat_any
@@ -1045,19 +1115,15 @@ and transl_guard ~scopes guard rhs_sort rhs =
               }
             in
             let extra_cases = [ any_pat, Matching.mk_unguarded_rhs patch ] in
-            event_before ~scopes pg_scrutinee
-              (transl_match ~scopes ~arg_sort:pg_scrutinee_sort
-                  ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
-                  ~env:pg_env ~extra_cases pg_scrutinee [ guard_case ]
-                  pg_partial)
+            event_before ~scopes pg_scrutinee (staged ~extra_cases)
           in
-          Matching.mk_guarded_rhs ~patch_guarded
+          Pattern_guarded_rhs_factory.to_rhs factory ~patch_guarded
       | Total ->
           (* Total pattern guards are equivalent to nested matches. *)
           let nested_match =
             transl_match ~scopes ~arg_sort:pg_scrutinee_sort
               ~return_sort:rhs_sort ~return_type:rhs.exp_type ~loc:pg_loc
-              ~env:pg_env ~extra_cases:[] pg_scrutinee [ guard_case ] pg_partial
+              ~env:pg_env pg_scrutinee [ guard_case ] pg_partial
           in
           Matching.mk_unguarded_rhs
             (event_before ~scopes pg_scrutinee nested_match)
@@ -1579,8 +1645,24 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     end
   end
 
-and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
-      ~extra_cases arg pat_expr_list partial =
+(* Translate a match-like expression
+   
+   This function is applied for two different expressions: proper match
+   expressions, and pattern guarded rhs's.
+
+   Guarded rhs's are translated lazily, but they also require the eager
+   computation of their free variables.
+   
+   For this reason, this function produces a "factory" that can construct
+   guarded rhs's, together with a continuation that translates the lambda given
+   [extra_cases] that reroute the expression to a patch corresponding to
+   fallthrough.
+   
+   When translating match expressions, the factory can be ignored and the
+   continuation should be evaluated with [extra_cases=[]].
+*)
+and transl_match_staged ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
+      arg pat_expr_list partial =
   let return_layout = layout env loc arg_sort return_type in
   let rewrite_case (val_cases, exn_cases, static_handlers as acc)
         ({ c_lhs; c_guard; c_rhs } as case) =
@@ -1628,77 +1710,117 @@ and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
         (pe, Matching.mk_unguarded_rhs (static_raise ids)) :: exn_cases,
         (lbl, ids_kinds, rhs) :: static_handlers
   in
-  let val_cases, exn_cases, static_handlers =
-    let x, y, z = List.fold_left rewrite_case ([], [], []) pat_expr_list in
-    List.rev_append x extra_cases, List.rev y, List.rev z
+  let rev_val_cases, rev_exn_cases, rev_static_handlers =
+    List.fold_left rewrite_case ([], [], []) pat_expr_list
   in
+  let exn_cases = List.rev rev_exn_cases in
+  let static_handlers = List.rev rev_static_handlers in
   (* In presence of exception patterns, the code we generate for
 
-       match <scrutinees> with
-       | <val-patterns> -> <val-actions>
-       | <exn-patterns> -> <exn-actions>
+      match <scrutinees> with
+      | <val-patterns> -> <val-actions>
+      | <exn-patterns> -> <exn-actions>
 
-     looks like
+    looks like
 
-       staticcatch
-         (try (exit <val-exit> <scrutinees>)
+      staticcatch
+        (try (exit <val-exit> <scrutinees>)
           with <exn-patterns> -> <exn-actions>)
-       with <val-exit> <val-ids> ->
+      with <val-exit> <val-ids> ->
           match <val-ids> with <val-patterns> -> <val-actions>
 
-     In particular, the 'exit' in the value case ensures that the
-     value actions run outside the try..with exception handler.
+    In particular, the 'exit' in the value case ensures that the
+    value actions run outside the try..with exception handler.
   *)
   let static_catch scrutinees val_ids handler =
     let id = Typecore.name_pattern "exn" (List.map fst exn_cases) in
     let static_exception_id = next_raise_count () in
     Lstaticcatch
       (Ltrywith (Lstaticraise (static_exception_id, scrutinees), id,
-                 Matching.for_trywith ~scopes ~return_layout loc (Lvar id)
-                   exn_cases,
-                 return_layout),
-       (static_exception_id, val_ids),
-       handler,
+                Matching.for_trywith ~scopes ~return_layout loc (Lvar id)
+                  exn_cases,
+                return_layout),
+      (static_exception_id, val_ids),
+      handler,
       return_layout)
   in
-  let classic =
+  let scrutinees, classic_staged =
     match arg, exn_cases with
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, [] ->
       assert (static_handlers = []);
       let mode = transl_alloc_mode alloc_mode in
       let argl = List.map (fun a -> (a, Sort.for_tuple_element)) argl in
-      Matching.for_multiple_match ~scopes ~return_layout loc
-        (transl_list_with_layout ~scopes argl) mode val_cases partial
+      let argl = transl_list_with_layout ~scopes argl in
+      let scrutinees = List.map (fun (lam, _, _) -> lam) argl in
+      let staged ~val_cases = 
+        Matching.for_multiple_match ~scopes ~return_layout loc argl mode
+          val_cases partial
+      in
+      scrutinees, staged
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, _ :: _ ->
         let argl = List.map (fun a -> (a, Sort.for_tuple_element)) argl in
         let val_ids, lvars =
           List.map
             (fun (arg,s) ->
-               let layout = layout_exp s arg in
-               let id = Typecore.name_pattern "val" [] in
-               (id, layout), (Lvar id, s, layout))
+              let layout = layout_exp s arg in
+              let id = Typecore.name_pattern "val" [] in
+              (id, layout), (Lvar id, s, layout))
             argl
           |> List.split
         in
         let mode = transl_alloc_mode alloc_mode in
-        static_catch (transl_list ~scopes argl) val_ids
-          (Matching.for_multiple_match ~scopes ~return_layout loc lvars mode
-             val_cases partial)
+        let argl = transl_list ~scopes argl in
+        let staged ~val_cases = 
+          static_catch argl val_ids
+            (Matching.for_multiple_match ~scopes ~return_layout loc lvars mode
+              val_cases partial)
+        in
+        argl, staged
     | arg, [] ->
       assert (static_handlers = []);
       let arg_layout = layout_exp arg_sort arg in
-      Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout
-        loc None (transl_exp ~scopes arg_sort arg) val_cases partial
+      let scrutinee = transl_exp ~scopes arg_sort arg in
+      let staged ~val_cases = 
+        Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout loc
+          None scrutinee val_cases partial
+      in
+      [ scrutinee ], staged
     | arg, _ :: _ ->
-        let val_id = Typecore.name_pattern "val" (List.map fst val_cases) in
         let arg_layout = layout_exp arg_sort arg in
-        static_catch [transl_exp ~scopes arg_sort arg] [val_id, arg_layout]
-          (Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout
-             loc None (Lvar val_id) val_cases partial)
+        let scrutinee = transl_exp ~scopes arg_sort arg in
+        let staged ~val_cases =
+          let val_id = Typecore.name_pattern "val" (List.map fst val_cases) in
+          static_catch [ scrutinee ] [ val_id, arg_layout ]
+            (Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout
+               loc None (Lvar val_id) val_cases partial)
+        in
+        [ scrutinee ], staged
   in
-  List.fold_left (fun body (static_exception_id, val_ids, handler) ->
-    Lstaticcatch (body, (static_exception_id, val_ids), handler, return_layout)
-  ) classic static_handlers
+  let factory =
+    Pattern_guarded_rhs_factory.of_data
+      ~scrutinees
+      ~cases:(rev_val_cases @ exn_cases)
+      ~handlers:static_handlers
+  in
+  let staged ~extra_cases =
+    let val_cases = List.rev_append rev_val_cases extra_cases in
+    let classic = classic_staged ~val_cases in
+    List.fold_left
+      (fun body (static_exception_id, val_ids, handler) ->
+         Lstaticcatch
+          (body, (static_exception_id, val_ids), handler, return_layout))
+      classic
+      static_handlers
+  in
+  factory, staged
+
+and transl_match ~scopes ~arg_sort ~return_sort ~return_type ~loc ~env
+      arg pat_expr_list partial =
+  let (_ : Pattern_guarded_rhs_factory.t), staged =
+    transl_match_staged ~scopes ~arg_sort ~return_sort ~return_type ~loc
+      ~env arg pat_expr_list partial
+  in
+  staged ~extra_cases:[]
 
 and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
       partial warnings =

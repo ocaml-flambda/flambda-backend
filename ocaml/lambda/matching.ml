@@ -132,7 +132,7 @@ and may_compats = MayCompat.compats
 type rhs =
   | Guarded of
       { patch_guarded: patch:lambda -> lambda
-      ; unpatched: lambda }
+      ; free_variables: Ident.Set.t }
   (* Guarded rhs's must allow for fallthrough if the guard fails.
 
      When translating a guarded rhs, the code to execute on fallthrough must
@@ -145,29 +145,30 @@ type rhs =
      checks, we keep track of [unpatched], a lambda term which contains a dummy
      value [Lstaticraise (0,[])] in the position to be patched.
   *)
-  (* CR-soon rgodse: This workflow constructs the lambda term twice instead of
-     once. We can be more efficient by only computing the components we need. *)
   | Unguarded of lambda
 
-let mk_guarded_rhs ~patch_guarded =
+let mk_guarded_rhs ~patch_guarded ~free_variables =
   Guarded
-    { patch_guarded; unpatched = patch_guarded ~patch:(Lstaticraise (0,[])) }
+    { patch_guarded; free_variables }
 
 let mk_unguarded_rhs action = Unguarded action
+
+let free_variables_of_rhs = function
+  | Unguarded lam -> free_variables lam
+  | Guarded { free_variables; _ } -> free_variables
 
 let is_guarded = function
   | Guarded _ -> true
   | Unguarded _ -> false
 
-let lambda_of_action = function
-  | Guarded { unpatched = lam; _ } | Unguarded lam -> lam
-
-let map_action ~f = function
-  | Guarded { patch_guarded; unpatched } ->
-      let patch_guarded ~patch = f (patch_guarded ~patch) in
-      let unpatched = f unpatched in
-      Guarded { patch_guarded; unpatched }
-  | Unguarded action -> Unguarded (f action)
+let bind_rhs_with_layout str (var, layout) exp body =
+  match exp with
+  | Unguarded exp -> Unguarded (bind_with_layout str (var, layout) exp body)
+  | Guarded { patch_guarded; free_variables } ->
+      let patch_guarded ~patch =
+        Llet (str, layout, var, patch_guarded ~patch, body) in
+      let free_variables = Ident.Set.remove var free_variables in
+      Guarded { patch_guarded; free_variables }
 
 (*
    Many functions on the various data structures of the algorithm :
@@ -205,7 +206,7 @@ let expand_record_head h =
 
 let bind_alias p id ~arg ~arg_sort ~action =
   let k = Typeopt.layout p.pat_env p.pat_loc arg_sort p.pat_type in
-  map_action ~f:(bind_with_layout Alias (id, k) arg) action
+  bind_rhs_with_layout Alias (id, k) action arg
 
 let head_loc ~scopes head =
   Scoped_location.of_location ~scopes head.pat_loc
@@ -1143,13 +1144,14 @@ let same_actions = function
 let safe_before ((p, ps), act_p) l =
   (* Test for swapping two clauses *)
   let same_actions act1 act2 =
-    let act1 = lambda_of_action act1 in
-    let act2 = lambda_of_action act2 in
-    match (make_key act1, make_key act2) with
-    | Some key1, Some key2 -> key1 = key2
-    | None, _
-    | _, None ->
-        false
+    match act1, act2 with
+    | Unguarded act1, Unguarded act2 ->
+        (match make_key act1, make_key act2 with
+         | Some key1, Some key2 -> key1 = key2
+         | None, _ | _, None -> false)
+    (* CR-soon rgodse: Investigate the callsites of this function to determine 
+       if Guarded rhs's should ever be deemed the same. *)
+    | Guarded _, _ | _, Guarded _ -> false
   in
   List.for_all
     (fun ((q, qs), act_q) ->
@@ -1188,7 +1190,7 @@ let what_is_cases = what_is_cases ~skip_any:true
 let pm_free_variables { cases } =
   List.fold_right
     (fun (_, act) r ->
-       Ident.Set.union (free_variables (lambda_of_action act)) r)
+       Ident.Set.union (free_variables_of_rhs act) r)
     cases Ident.Set.empty
 
 (* Basic grouping predicates *)
