@@ -20,7 +20,7 @@ val predef_to_module : src_pos:Lexing.position -> unit -> Lexing.position =
   <fun>
 |}]
 
-let module_to_predef (src_pos:Lexing.position) : [%src_pos] = src_pos ;; 
+let module_to_predef (src_pos:Lexing.position) : lexing_position = src_pos ;; 
 [%%expect{|
 val module_to_predef : Lexing.position -> lexing_position = <fun>
 |}]
