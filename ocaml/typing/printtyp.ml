@@ -1117,16 +1117,12 @@ let rec tree_of_typexp mode ty =
         Otyp_var (non_gen, Names.name_of_type name_gen tty)
     | Tarrow ((l, marg, mret), ty1, ty2, _) ->
         let lab =
-<<<<<<< HEAD
           if !print_labels || is_optional l then
             match l with
             | Nolabel -> Nolabel
             | Labelled l -> Labelled l
             | Optional l -> Optional l
           else Nolabel
-=======
-          if !print_labels || is_optional l || is_position l then string_of_label l else ""
->>>>>>> 318c9da5 (Hacky outcometree printing without creating nontrivial node)
         in
         let t1 =
           if is_optional l then
@@ -1134,6 +1130,9 @@ let rec tree_of_typexp mode ty =
             | Tconstr(path, [ty], _)
               when Path.same path Predef.path_option ->
                 tree_of_typexp mode ty
+            | Tconstr(path, [], _)
+              when Path.same path Predef.path_lexing_position ->
+                Otyp_constr (Oide_ident (Out_name.create "lexing_position"), [])
             | _ -> Otyp_stuff "<hidden>"
           else
             tree_of_typexp mode ty1

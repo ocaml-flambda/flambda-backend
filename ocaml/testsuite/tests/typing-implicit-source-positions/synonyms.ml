@@ -1,6 +1,17 @@
 (* TEST
    * expect
 *)
+let x = Lexing.dummy_pos;;
+[%%expect {|
+val x : Lexing.position =
+  {Lexing.pos_fname = ""; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
+|}]
+
+let y : lexing_position = x;;
+[%%expect {|
+val y : lexing_position =
+  {pos_fname = ""; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
+|}]
 
 (* lexing_position and Lexing.position are synonyms *)
 let x = Lexing.dummy_pos;;
