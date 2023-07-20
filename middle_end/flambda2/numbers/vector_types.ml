@@ -186,8 +186,6 @@ end
 
 type t = Vec128 of Vec128.t
 
-let is_vec128 = function Vec128 _ -> true
-
 let name = function Vec128 l -> Vec128.name l
 
 let name_lowercase = function Vec128 l -> Vec128.name_lowercase l

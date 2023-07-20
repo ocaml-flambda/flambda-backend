@@ -62,8 +62,6 @@ end
 
 type t = Vec128 of Vec128.t
 
-val is_vec128 : t -> bool
-
 val name : t -> string
 
 val name_lowercase : t -> string
