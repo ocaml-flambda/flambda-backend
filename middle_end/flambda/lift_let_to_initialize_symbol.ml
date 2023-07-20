@@ -113,8 +113,9 @@ let pack_expr ~layouts (expr : Flambda.t) =
   | Pbottom
   | Pvalue _ -> expr, []
   | Punboxed_float
-  | Punboxed_int _ ->
-    (* Unboxed float and int could be boxed in simpler constructions.
+  | Punboxed_int _
+  | Punboxed_vector _ ->
+    (* Unboxed float/int/vector could be boxed in simpler constructions.
        This can be changed when all the unboxed types and have been
        introduced *)
     let var = Variable.create Internal_variable_names.boxed_in_closure in
