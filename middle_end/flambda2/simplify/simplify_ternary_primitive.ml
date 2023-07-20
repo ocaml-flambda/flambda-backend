@@ -58,7 +58,7 @@ let simplify_array_set (array_set_kind : P.Array_set_kind.t) dacc ~original_term
     in
     let unit_ty = Flambda2_types.this_tagged_immediate Targetint_31_63.zero in
     let dacc = DA.add_variable dacc result_var unit_ty in
-    SPR.create named ~try_reify:false dacc
+    SPR.create Flambda_kind.value named ~try_reify:false dacc
 
 let simplify_block_set _block_access_kind _init_or_assign dacc ~original_term
     _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~arg3:_ ~arg3_ty:_ ~result_var =

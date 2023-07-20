@@ -82,7 +82,7 @@ let simplify_make_block ~original_prim ~field_kind tag ~shape
               DE.add_cse denv prim
                 ~bound_to:(Simple.var (Bound_var.var result_var))))
     in
-    SPR.create original_term ~try_reify:true dacc
+    SPR.create K.value original_term ~try_reify:true dacc
 
 let simplify_make_block_of_floats ~original_prim ~mutable_or_immutable
     alloc_mode dacc ~original_term dbg ~args_with_tys ~result_var =
@@ -144,7 +144,7 @@ let simplify_make_array (array_kind : P.Array_kind.t)
           DE.add_variable_and_extend_typing_environment denv result_var ty
             env_extension)
     in
-    SPR.create named ~try_reify:true dacc
+    SPR.create K.value named ~try_reify:true dacc
 
 let simplify_variadic_primitive dacc original_prim (prim : P.variadic_primitive)
     ~args_with_tys dbg ~result_var =

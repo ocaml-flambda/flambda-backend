@@ -743,6 +743,7 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
         }
     in
     Simplified_named.create_with_known_free_names ~find_code_characteristics
+      Flambda_kind.value
       (Named.create_set_of_closures set_of_closures)
       ~free_names:(Named.free_names named)
   in

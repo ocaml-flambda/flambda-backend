@@ -57,7 +57,7 @@ let try_cse dacc ~original_prim ~min_name_mode ~result_var : cse_result =
             Cost_metrics.zero
         in
         let simplified_named =
-          Simplified_named.create named
+          Simplified_named.create (P.result_kind' original_prim) named
           |> Simplified_named.update_cost_metrics cost_metrics
         in
         Simplify_primitive_result.create_simplified simplified_named

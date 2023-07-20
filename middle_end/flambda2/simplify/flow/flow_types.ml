@@ -128,7 +128,7 @@ module Continuation_info = struct
       bindings : Name_occurrences.t Name.Map.t;
       direct_aliases : Simple.t Variable.Map.t;
       mutable_let_prims_rev : Mutable_let_prim.List.t;
-      defined : Variable.Set.t;
+      defined : Flambda_kind.t Variable.Map.t;
       code_ids : Name_occurrences.t Code_id.Map.t;
       value_slots : Name_occurrences.t Name.Map.t Value_slot.Map.t;
       apply_cont_args :
@@ -179,7 +179,7 @@ module Continuation_info = struct
       (Name.Map.print Name_occurrences.print) bindings
       (Variable.Map.print Simple.print) direct_aliases
       Mutable_let_prim.List.print_rev mutable_let_prims_rev
-      Variable.Set.print
+      (Variable.Map.print Flambda_kind.print)
       defined
       (Code_id.Map.print Name_occurrences.print)
       code_ids

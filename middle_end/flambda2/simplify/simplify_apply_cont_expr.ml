@@ -48,7 +48,7 @@ let inline_linearly_used_continuation uacc ~create_apply_cont ~params:params'
           in
           let named = Named.create_simple arg in
           { Expr_builder.let_bound;
-            simplified_defining_expr = Simplified_named.create named;
+            simplified_defining_expr = Simplified_named.create (Flambda_kind.With_subkind.kind (BP.kind param)) named;
             original_defining_expr = Some named
           })
     in

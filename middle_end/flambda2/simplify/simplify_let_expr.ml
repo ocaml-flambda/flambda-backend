@@ -1,3 +1,4 @@
+
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -100,7 +101,7 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
               let binding =
                 { binding with
                   simplified_defining_expr =
-                    Simplified_named.create (Named.create_prim prim dbg)
+                    Simplified_named.create k (Named.create_prim prim dbg)
                 }
               in
               [binding]
@@ -111,7 +112,7 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
               let binding =
                 { binding with
                   simplified_defining_expr =
-                    Simplified_named.create (Named.create_simple bound_to)
+                    Simplified_named.create K.value (* XXX FIXME *) (Named.create_simple bound_to)
                 }
               in
               [binding]

@@ -76,7 +76,7 @@ let enter_continuation continuation ~recursive ~is_exn_handler ?(lift_inner_cont
       bindings = Name.Map.empty;
       direct_aliases = Variable.Map.empty;
       mutable_let_prims_rev = [];
-      defined = Variable.Set.empty;
+      defined = Variable.Map.empty;
       code_ids = Code_id.Map.empty;
       value_slots = Value_slot.Map.empty;
       used_in_handler;
@@ -103,12 +103,12 @@ let update_top_of_stack ~(t : t) ~f =
   | [] -> Misc.fatal_errorf "Empty stack of variable uses"
   | elt :: stack -> { t with stack = f elt :: stack }
 
-let record_defined_var var t =
+let record_defined_var var kind t =
   update_top_of_stack ~t ~f:(fun elt ->
-      let defined = Variable.Set.add var elt.defined in
+      let defined = Variable.Map.add var kind elt.defined in
       { elt with defined })
 
-let record_var_binding var name_occurrences ~generate_phantom_lets t =
+let record_var_binding var kind name_occurrences ~generate_phantom_lets t =
   update_top_of_stack ~t ~f:(fun elt ->
       let bindings =
         Name.Map.update (Name.var var)
@@ -127,10 +127,10 @@ let record_var_binding var name_occurrences ~generate_phantom_lets t =
             Name_mode.phantom
         else elt.used_in_handler
       in
-      let defined = Variable.Set.add var elt.defined in
+      let defined = Variable.Map.add var kind elt.defined in
       { elt with bindings; used_in_handler; defined })
 
-let record_var_alias var definition t =
+let record_var_alias var kind definition t =
   update_top_of_stack ~t ~f:(fun elt ->
       let direct_aliases =
         Variable.Map.update var
@@ -142,7 +142,7 @@ let record_var_alias var definition t =
                 var)
           elt.direct_aliases
       in
-      let defined = Variable.Set.add var elt.defined in
+      let defined = Variable.Map.add var kind elt.defined in
       { elt with direct_aliases; defined })
 
 let record_ref_named named_rewrite_id ~bound_to ~original_prim ~prim (t : t) =
@@ -339,17 +339,17 @@ let get_block_and_constant_field ~block ~field =
 let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
     ~simplified_defining_expr t =
   match (simplified_defining_expr : Simplified_named.t) with
-  | { free_names; named; cost_metrics = _ } -> (
+  | { free_names; named; cost_metrics = _; kind } -> (
     let record_var_bindings t free_names =
       Bound_pattern.fold_all_bound_vars let_bound ~init:t ~f:(fun t v ->
-          record_var_binding (Bound_var.var v) free_names ~generate_phantom_lets
+          record_var_binding (Bound_var.var v) kind free_names ~generate_phantom_lets
             t)
     in
     match[@ocaml.warning "-4"] named with
     | Simple simple ->
       let bound_var = Bound_pattern.must_be_singleton let_bound in
       let var = Bound_var.var bound_var in
-      record_var_alias var simple t
+      record_var_alias var kind simple t
     | Set_of_closures _ | Rec_info _ -> record_var_bindings t free_names
     | Prim (original_prim, _) -> (
       let bound_var = Bound_pattern.must_be_singleton let_bound in
@@ -401,7 +401,7 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
         then (* the primitive can be removed *)
           record_var_bindings t free_names
         else
-          let t = record_defined_var var t in
+          let t = record_defined_var var kind t in
           add_used_in_current_handler free_names t))
 
 (* Normalisation *)
@@ -479,7 +479,8 @@ let extend_args_with_extra_args (t : T.Acc.t) =
                             | EPA.Extra_arg.New_let_binding (v, _)
                             | EPA.Extra_arg.New_let_binding_with_named_args
                                 (v, _) ->
-                              Variable.Set.add v defined)
+                              let kind = Flambda_kind.value in (* FIXME!!! *)
+                              Variable.Map.add v kind defined)
                           defined extra_args
                       in
                       defined)

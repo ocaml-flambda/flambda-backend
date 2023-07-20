@@ -96,7 +96,7 @@ module Continuation_info : sig
       bindings : Name_occurrences.t Name.Map.t;
       direct_aliases : Simple.t Variable.Map.t;
       mutable_let_prims_rev : Mutable_let_prim.List.t;
-      defined : Variable.Set.t;
+      defined : Flambda_kind.t Variable.Map.t;
       code_ids : Name_occurrences.t Code_id.Map.t;
       value_slots : Name_occurrences.t Name.Map.t Value_slot.Map.t;
       apply_cont_args :
