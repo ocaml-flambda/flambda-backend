@@ -162,13 +162,16 @@ let is_guarded = function
   | Unguarded _ -> false
 
 let bind_rhs_with_layout str (var, layout) exp body =
-  match exp with
-  | Unguarded exp -> Unguarded (bind_with_layout str (var, layout) exp body)
+  match body with
+  | Unguarded body -> Unguarded (bind_with_layout str (var, layout) exp body)
   | Guarded { patch_guarded; free_variables } ->
-      let patch_guarded ~patch =
-        Llet (str, layout, var, patch_guarded ~patch, body) in
-      let free_variables = Ident.Set.remove var free_variables in
-      Guarded { patch_guarded; free_variables }
+      match exp with
+      | Lvar var' when Ident.same var var' -> body
+      | _ ->
+          let patch_guarded ~patch =
+            Llet (str, layout, var, exp, patch_guarded ~patch) in
+          let free_variables = Ident.Set.remove var free_variables in
+          Guarded { patch_guarded; free_variables }
 
 (*
    Many functions on the various data structures of the algorithm :
@@ -206,7 +209,7 @@ let expand_record_head h =
 
 let bind_alias p id ~arg ~arg_sort ~action =
   let k = Typeopt.layout p.pat_env p.pat_loc arg_sort p.pat_type in
-  bind_rhs_with_layout Alias (id, k) action arg
+  bind_rhs_with_layout Alias (id, k) arg action
 
 let head_loc ~scopes head =
   Scoped_location.of_location ~scopes head.pat_loc
