@@ -1650,13 +1650,17 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
    This function is applied for two different expressions: proper match
    expressions, and pattern guarded rhs's.
 
-   Guarded rhs's are translated lazily, but they also require the eager
-   computation of their free variables.
+   Guarded rhs's are translated lazily, but their free variables must be
+   computed eagerly (as the pattern match compiler is interested in knowing the
+   free variables of an rhs during compilation).
    
    For this reason, this function produces a "factory" that can construct
-   guarded rhs's, together with a continuation that translates the lambda given
-   [extra_cases] that reroute the expression to a patch corresponding to
-   fallthrough.
+   guarded rhs's, together with a continuation that takes [extra_cases], a list
+   of value cases to add to those in the match.
+   
+   When translating guarded rhs's, the continuation should be evaluated with 
+   [extra_cases=[_ -> patch]], where patch is a lambda expression that falls
+   through to the remaining cases.
    
    When translating match expressions, the factory can be ignored and the
    continuation should be evaluated with [extra_cases=[]].
