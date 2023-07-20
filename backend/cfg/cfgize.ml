@@ -23,7 +23,7 @@ module State : sig
   val get_contains_calls : t -> bool
 
   val add_block :
-    t -> label:Label.t -> block:Cfg.basic_block -> is_cold:bool -> unit
+    t -> label:Label.t -> block:Cfg.basic_block -> unit
 
   val get_layout : t -> Cfg_with_layout.layout
 
@@ -40,8 +40,6 @@ module State : sig
   val add_exception_handler : t -> Label.t -> unit
 
   val get_exception_handlers : t -> Label.t list
-
-  val get_cold_blocks : t -> Label.t list * Label.t list
 end = struct
   type t =
     { fun_name : string;
@@ -52,8 +50,7 @@ end = struct
       catch_handlers : Label.t Numbers.Int.Tbl.t;
       mutable next_instruction_id : int;
       mutable iends_with_poptrap : Mach.instruction list;
-      mutable exception_handlers : Label.t list;
-      cold_blocks : bool Label.Tbl.t
+      mutable exception_handlers : Label.t list
     }
 
   let make ~fun_name ~tailrec_label ~contains_calls blocks =
@@ -70,8 +67,7 @@ end = struct
       catch_handlers;
       next_instruction_id;
       iends_with_poptrap;
-      exception_handlers;
-      cold_blocks = Label.Tbl.map blocks (fun _ -> false)
+      exception_handlers
     }
 
   let get_fun_name t = t.fun_name
@@ -80,15 +76,14 @@ end = struct
 
   let get_contains_calls t = t.contains_calls
 
-  let add_block t ~label ~block ~is_cold =
+  let add_block t ~label ~block =
     if Label.Tbl.mem t.blocks label
     then
       Misc.fatal_errorf "Cfgize.State.add_block: duplicate block for label %d"
         label
     else (
       DLL.add_end t.layout label;
-      Label.Tbl.replace t.blocks label block;
-      Label.Tbl.replace t.cold_blocks label is_cold)
+      Label.Tbl.replace t.blocks label block)
 
   let get_layout t = t.layout
 
@@ -133,13 +128,6 @@ end = struct
     t.exception_handlers <- lbl :: t.exception_handlers
 
   let get_exception_handlers t = t.exception_handlers
-
-  let get_cold_blocks t =
-    let s1, s2 =
-      Label.Tbl.to_seq t.cold_blocks
-      |> Seq.partition (fun (_, is_cold) -> is_cold)
-    in
-    List.of_seq (Seq.map fst s1), List.of_seq (Seq.map fst s2)
 end
 
 type basic_or_terminator =
@@ -514,9 +502,9 @@ let rec add_blocks :
           can_raise;
           (* See [update_trap_handler_blocks] *)
           is_trap_handler = false;
-          dead = false
+          dead = false;
+          cold = is_cold
         }
-      ~is_cold
   in
   let prepare_next_block () =
     match last.next.desc with
@@ -823,9 +811,9 @@ let fundecl :
         exn = None;
         can_raise = false;
         is_trap_handler = false;
-        dead = false
-      }
-    ~is_cold:false;
+        dead = false;
+        cold = false
+      };
   State.add_block state ~label:tailrec_label
     ~block:
       { start = tailrec_label;
@@ -838,9 +826,9 @@ let fundecl :
         exn = None;
         can_raise = false;
         is_trap_handler = false;
-        dead = false
-      }
-    ~is_cold:false;
+        dead = false;
+        cold = false
+      };
   add_blocks fun_body state ~starts_with_pushtrap:None ~start:start_label
     ~next:fallthrough_label ~is_cold:false;
   update_trap_handler_blocks state cfg;
@@ -854,9 +842,6 @@ let fundecl :
     Cfg_with_layout.create cfg ~layout:(State.get_layout state)
       ~preserve_orig_labels ~new_labels:Label.Set.empty
   in
-  let cold, not_cold = State.get_cold_blocks state in
-  Cfg_with_layout.assign_blocks_to_section cfg_with_layout not_cold "";
-  Cfg_with_layout.assign_blocks_to_section cfg_with_layout cold "cold";
   (* note: the simplification of terminators is necessary for the equality. The
      other code path simplifies e.g. a switch with three branches into an
      integer test. This simplification should happen *after* the one about
@@ -870,12 +855,8 @@ let fundecl :
     ();
   Cfg_with_layout.reorder_blocks
     ~comparator:(fun label1 label2 ->
-      let section1 = Cfg_with_layout.get_section cfg_with_layout label1 in
-      let section2 = Cfg_with_layout.get_section cfg_with_layout label2 in
-      match section1, section2 with
-      | (None | Some ""), (None | Some "") -> 0
-      | (None | Some ""), Some _ -> -1
-      | Some _, (None | Some "") -> 1
-      | Some section1, Some section2 -> String.compare section1 section2)
+        let block1 = Cfg.get_block_exn cfg label1 in
+        let block2 = Cfg.get_block_exn cfg label2 in
+        (if block1.cold then 1 else 0) - (if block2.cold then 1 else 0))
     cfg_with_layout;
   cfg_with_layout
