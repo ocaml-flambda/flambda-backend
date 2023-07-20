@@ -579,14 +579,24 @@ let is_optional_parsetree : Parsetree.arg_label -> bool = function
 
 let is_optional = function Optional _ -> true | _ -> false
 
+let is_optional_or_position = function
+  Optional _
+| Position _ -> true
+| _ -> false
+
+let is_position = function
+    Position _ -> true
+  | _ -> false
+
 let label_name = function
     Nolabel -> ""
   | Labelled s
-  | Optional s -> s
+  | Optional s
+  | Position s -> s
 
 let prefixed_label_name = function
     Nolabel -> ""
-  | Labelled s -> "~" ^ s
+  | Labelled s | Position s -> "~" ^ s
   | Optional s -> "?" ^ s
 
 let rec extract_label_aux hd l = function
