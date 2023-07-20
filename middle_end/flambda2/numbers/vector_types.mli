@@ -31,8 +31,6 @@ module Vec128 : sig
 
   val name_lowercase : t -> string
 
-  val equal : t -> t -> bool
-
   val meet : t -> t -> t
 
   val join : t -> t -> t

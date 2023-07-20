@@ -129,7 +129,8 @@ end
 
 module Vector_unboxer (Vector_type : Vector_type) = struct
   let decider =
-    { param_name = "unboxed_" ^ Vector_types.name Vector_type.t;
+    { param_name =
+        Format.sprintf "unboxed_%s" (Vector_types.name_lowercase Vector_type.t);
       kind = K.Naked_number_kind.Naked_vector Vector_type.t;
       prove_is_a_boxed_number = prove_is_a_boxed_vector Vector_type.t
     }
@@ -142,7 +143,8 @@ module Vector_unboxer (Vector_type : Vector_type) = struct
     | Vec128 ty -> Const.naked_vec128 ty Vector_types.Vec128.Bit_pattern.zero
 
   let unboxer =
-    { var_name = "unboxed_" ^ Vector_types.name Vector_type.t;
+    { var_name =
+        Format.sprintf "unboxed_%s" (Vector_types.name_lowercase Vector_type.t);
       invalid_const = zero;
       unboxing_prim;
       prove_simple = T.meet_boxed_vector_containing_simple Vector_type.t

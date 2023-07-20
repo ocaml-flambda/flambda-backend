@@ -129,22 +129,6 @@ module Vec128 = struct
     | Float64x2, Float64x2 -> Float64x2
     | Float64x2, _ -> Any128
 
-  let equal l r =
-    match l, r with
-    | Unknown128, Unknown128
-    | Int8x16, Int8x16
-    | Int16x8, Int16x8
-    | Int32x4, Int32x4
-    | Int64x2, Int64x2
-    | Float32x4, Float32x4
-    | Float64x2, Float64x2
-    | Any128, Any128 ->
-      true
-    | ( ( Unknown128 | Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4
-        | Float64x2 | Any128 ),
-        _ ) ->
-      false
-
   let to_lambda : t -> Lambda.vec128_type = function
     | Unknown128 -> Unknown128
     | Int8x16 -> Int8x16

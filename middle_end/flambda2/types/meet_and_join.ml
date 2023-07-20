@@ -309,12 +309,12 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
       meet_head_of_kind_naked_nativeint env head1 head2
     in
     ET.create_naked_nativeint head, env_extension
-  | Naked_vec128 (vty1, head1), Naked_vec128 (vty2, head2)
-    when Vector_types.Vec128.equal vty1 vty2 ->
+  | Naked_vec128 (vty1, head1), Naked_vec128 (vty2, head2) ->
     let<+ head, env_extension =
       meet_head_of_kind_naked_vec128 env head1 head2
     in
-    ET.create_naked_vec128 vty1 head, env_extension
+    ( ET.create_naked_vec128 (Vector_types.Vec128.meet vty1 vty2) head,
+      env_extension )
   | Rec_info head1, Rec_info head2 ->
     let<+ head, env_extension = meet_head_of_kind_rec_info env head1 head2 in
     ET.create_rec_info head, env_extension
@@ -1148,10 +1148,9 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
       | Naked_nativeint head1, Naked_nativeint head2 ->
         let>+ head = join_head_of_kind_naked_nativeint env head1 head2 in
         ET.create_naked_nativeint head
-      | Naked_vec128 (vty1, head1), Naked_vec128 (vty2, head2)
-        when Vector_types.Vec128.equal vty1 vty2 ->
+      | Naked_vec128 (vty1, head1), Naked_vec128 (vty2, head2) ->
         let>+ head = join_head_of_kind_naked_vec128 env head1 head2 in
-        ET.create_naked_vec128 vty1 head
+        ET.create_naked_vec128 (Vector_types.Vec128.join vty1 vty2) head
       | Rec_info head1, Rec_info head2 ->
         let>+ head = join_head_of_kind_rec_info env head1 head2 in
         ET.create_rec_info head
