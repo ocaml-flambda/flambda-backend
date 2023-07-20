@@ -40,7 +40,6 @@ type mapper = {
   expr: mapper -> T.expression -> expression;
   extension_constructor: mapper -> T.extension_constructor
                          -> extension_constructor;
-  guard: mapper -> T.guard -> guard;
   include_declaration: mapper -> T.include_declaration -> include_declaration;
   include_description: mapper -> T.include_description -> include_description;
   label_declaration: mapper -> T.label_declaration -> label_declaration;
@@ -411,20 +410,26 @@ let exp_extra sub (extra, loc, attrs) sexp =
   in
   Exp.mk ~loc ~attrs desc
 
-let guard sub = function 
-  | Predicate p -> Guard_predicate (sub.expr sub p)
-  | Pattern { pg_scrutinee = e; pg_pattern = pat; _ } ->
-      Guard_pattern {
-        pgp_scrutinee = sub.expr sub e;
-        pgp_pattern = sub.pat sub pat;
-        pgp_loc = Location.none
-      }
 
 let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_guard; c_rhs} ->
   {
    pc_lhs = sub.pat sub c_lhs;
-   pc_guard = Option.map (guard sub) c_guard;
-   pc_rhs = sub.expr sub c_rhs;
+   pc_rhs =
+     match c_guard with 
+     | None -> Psimple_rhs (sub.expr sub c_rhs)
+     | Some (Predicate cond) ->
+         Pboolean_guarded_rhs
+           { pbg_guard = sub.expr sub cond; pbg_rhs = sub.expr sub c_rhs }
+     | Some (Pattern { pg_scrutinee; pg_pattern; pg_loc; _ }) ->
+         Ppattern_guarded_rhs
+           { ppg_scrutinee = sub.expr sub pg_scrutinee
+           ; ppg_cases =
+               [ { pc_lhs = sub.pat sub pg_pattern
+                 ; pc_rhs = Psimple_rhs (sub.expr sub c_rhs)
+                 }
+               ]
+           ; ppg_loc = pg_loc
+           }
   }
 
 let value_binding sub vb =
@@ -1045,7 +1050,6 @@ let default_mapper =
     constructor_declaration = constructor_declaration;
     label_declaration = label_declaration;
     case = case;
-    guard = guard;
     location = location;
     row_field = row_field ;
     object_field = object_field ;
