@@ -325,6 +325,10 @@ and expression_desc =
                       when [lbl] is {{!arg_label.Labelled}[Labelled l]}
                        and [exp0] is [None]
             - [fun ~l:(P : [%src_pos]) -> E1]
+                TODO vding question: Technically, [%src_pos] gets parsed into 
+                a Labelled argument before we convert it ourselves, so I think 
+                a Pexp_fun with a Position label never actually exists. Not 
+                sure how to word this in documentation? 
                       when [lbl] is {{!Asttypes.arg_label.Position}[Position l]}
                        and [exp0] is [None]
             - [fun ?l:P -> E1]
