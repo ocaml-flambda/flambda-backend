@@ -544,7 +544,7 @@ let insert_block :
           can_raise = false;
           is_trap_handler = false;
           dead = predecessor_block.dead;
-          cold = predecessor_block.cold;
+          cold = predecessor_block.cold
         }
       in
       Cfg_with_layout.add_block cfg_with_layout block

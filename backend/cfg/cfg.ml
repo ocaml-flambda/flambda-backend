@@ -42,7 +42,7 @@ type basic_block =
     mutable can_raise : bool;
     mutable is_trap_handler : bool;
     mutable dead : bool;
-    mutable cold : bool;
+    mutable cold : bool
   }
 
 type t =

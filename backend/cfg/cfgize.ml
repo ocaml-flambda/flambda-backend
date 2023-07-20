@@ -22,8 +22,7 @@ module State : sig
 
   val get_contains_calls : t -> bool
 
-  val add_block :
-    t -> label:Label.t -> block:Cfg.basic_block -> unit
+  val add_block : t -> label:Label.t -> block:Cfg.basic_block -> unit
 
   val get_layout : t -> Cfg_with_layout.layout
 
@@ -855,8 +854,8 @@ let fundecl :
     ();
   Cfg_with_layout.reorder_blocks
     ~comparator:(fun label1 label2 ->
-        let block1 = Cfg.get_block_exn cfg label1 in
-        let block2 = Cfg.get_block_exn cfg label2 in
-        (if block1.cold then 1 else 0) - (if block2.cold then 1 else 0))
+      let block1 = Cfg.get_block_exn cfg label1 in
+      let block2 = Cfg.get_block_exn cfg label2 in
+      (if block1.cold then 1 else 0) - if block2.cold then 1 else 0)
     cfg_with_layout;
   cfg_with_layout
