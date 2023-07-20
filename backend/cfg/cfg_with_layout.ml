@@ -83,8 +83,8 @@ let assign_blocks_to_section t labels name =
 
 let get_section t label = Hashtbl.find_opt t.sections label
 
-let merge_section_with t label other =
-  match other with
+let merge_sections t label other =
+  match get_section t other with
   | None | Some "" -> ()
   | Some other ->
     let current = get_section t label in

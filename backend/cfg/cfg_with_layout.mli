@@ -53,7 +53,7 @@ val assign_blocks_to_section : t -> Label.t list -> string -> unit
 
 val get_section : t -> Label.t -> string option
 
-val merge_section_with : t -> Label.t -> string option -> unit
+val merge_sections : t -> Label.t -> Label.t -> unit
 
 (** Remove from cfg, layout, and other data-structures that track labels. *)
 val remove_block : t -> Label.t -> unit
