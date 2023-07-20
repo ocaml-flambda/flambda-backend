@@ -173,13 +173,23 @@ module Float64x2 = Vector_unboxer (struct
   let t = Vector_types.(Vec128 Float64x2)
 end)
 
+module Unknown128 = Vector_unboxer (struct
+  let t = Vector_types.(Vec128 Unknown128)
+end)
+
+module Any128 = Vector_unboxer (struct
+  let t = Vector_types.(Vec128 Any128)
+end)
+
 let vector_unboxer : Vector_types.t -> unboxer = function
+  | Vec128 Unknown128 -> Unknown128.unboxer
   | Vec128 Int8x16 -> Int8x16.unboxer
   | Vec128 Int16x8 -> Int16x8.unboxer
   | Vec128 Int32x4 -> Int32x4.unboxer
   | Vec128 Int64x2 -> Int64x2.unboxer
   | Vec128 Float32x4 -> Float32x4.unboxer
   | Vec128 Float64x2 -> Float64x2.unboxer
+  | Vec128 Any128 -> Any128.unboxer
 
 module Field = struct
   let unboxing_prim bak ~block ~index =

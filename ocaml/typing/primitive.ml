@@ -294,16 +294,6 @@ let vec128_name = function
   | Float32x4 -> "float32x4"
   | Float64x2 -> "float64x2"
 
-let equal_vec128 v1 v2 =
-  match v1, v2 with
-  | Int8x16, Int8x16 -> true
-  | Int16x8, Int16x8 -> true
-  | Int32x4, Int32x4 -> true
-  | Int64x2, Int64x2 -> true
-  | Float32x4, Float32x4 -> true
-  | Float64x2, Float64x2 -> true
-  | _ -> false
-
 let equal_boxed_integer bi1 bi2 =
   match bi1, bi2 with
   | Pnativeint, Pnativeint

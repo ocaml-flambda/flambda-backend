@@ -177,12 +177,14 @@ and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
 and vec128_type = Lambda.vec128_type =
+  | Unknown128
   | Int8x16
   | Int16x8
   | Int32x4
   | Int64x2
   | Float32x4
   | Float64x2
+  | Any128
 
 and boxed_vector = Lambda.boxed_vector =
   | Pvec128 of vec128_type

@@ -291,15 +291,17 @@ and array_set_kind =
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
-and vec128_type = Primitive.vec128_type =
+and vec128_type =
+  | Unknown128
   | Int8x16
   | Int16x8
   | Int32x4
   | Int64x2
   | Float32x4
   | Float64x2
+  | Any128
 
-and boxed_vector = Primitive.boxed_vector =
+and boxed_vector =
   | Pvec128 of vec128_type
 
 and bigarray_kind =
@@ -321,17 +323,29 @@ and raise_kind =
   | Raise_reraise
   | Raise_notrace
 
+let vec128_name = function
+  | Unknown128 -> "unknown128"
+  | Int8x16 -> "int8x16"
+  | Int16x8 -> "int16x8"
+  | Int32x4 -> "int32x4"
+  | Int64x2 -> "int64x2"
+  | Float32x4 -> "float32x4"
+  | Float64x2 -> "float64x2"
+  | Any128 -> "any128"
+
+let boxed_vector_from_primitive : Primitive.boxed_vector -> boxed_vector = function
+  | Pvec128 Int8x16 -> Pvec128 Int8x16
+  | Pvec128 Int16x8 -> Pvec128 Int16x8
+  | Pvec128 Int32x4 -> Pvec128 Int32x4
+  | Pvec128 Int64x2 -> Pvec128 Int64x2
+  | Pvec128 Float32x4 -> Pvec128 Float32x4
+  | Pvec128 Float64x2 -> Pvec128 Float64x2
+
 let equal_boxed_integer = Primitive.equal_boxed_integer
 
-let equal_boxed_vector_size = Primitive.equal_boxed_vector_size
-
-let equal_vec128 = Primitive.equal_vec128
-
-let equal_primitive =
-  (* Should be implemented like [equal_value_kind] of [equal_boxed_integer],
-     i.e. by matching over the various constructors but the type has more
-     than 100 constructors... *)
-  (=)
+let equal_boxed_vector_size v1 v2 =
+  match v1, v2 with
+  | Pvec128 _, Pvec128 _ -> true
 
 let rec equal_value_kind x y =
   match x, y with
@@ -661,7 +675,14 @@ let layout_boxed_float = Pvalue Pfloatval
 let layout_string = Pvalue Pgenval
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
 
-let layout_boxed_vector vi = Pvalue (Pboxedvectorval vi)
+let layout_boxed_vector : Primitive.boxed_vector -> layout = function
+  | Pvec128 Int8x16 -> Pvalue (Pboxedvectorval (Pvec128 Int8x16))
+  | Pvec128 Int16x8 -> Pvalue (Pboxedvectorval (Pvec128 Int16x8))
+  | Pvec128 Int32x4 -> Pvalue (Pboxedvectorval (Pvec128 Int32x4))
+  | Pvec128 Int64x2 -> Pvalue (Pboxedvectorval (Pvec128 Int64x2))
+  | Pvec128 Float32x4 -> Pvalue (Pboxedvectorval (Pvec128 Float32x4))
+  | Pvec128 Float64x2 -> Pvalue (Pboxedvectorval (Pvec128 Float64x2))
+
 let layout_lazy = Pvalue Pgenval
 let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval

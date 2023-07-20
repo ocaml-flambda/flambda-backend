@@ -18,18 +18,24 @@
 
 module Vec128 : sig
   type t =
+    | Unknown128
     | Int8x16
     | Int16x8
     | Int32x4
     | Int64x2
     | Float32x4
     | Float64x2
+    | Any128
 
   val name : t -> string
 
   val name_lowercase : t -> string
 
   val equal : t -> t -> bool
+
+  val meet : t -> t -> t
+
+  val join : t -> t -> t
 
   val to_lambda : t -> Lambda.vec128_type
 
@@ -62,8 +68,14 @@ val name : t -> string
 
 val name_lowercase : t -> string
 
-val equal : t -> t -> bool
+val equal_size : t -> t -> bool
 
 val to_lambda : t -> Lambda.boxed_vector
 
 val from_lambda : Lambda.boxed_vector -> t
+
+val from_primitive : Primitive.boxed_vector -> t
+
+val meet : t -> t -> t
+
+val join : t -> t -> t

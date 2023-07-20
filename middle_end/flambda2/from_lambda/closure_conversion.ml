@@ -451,7 +451,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | _, Unboxed_vector ty ->
       Some
         (P.Box_number
-           ( Naked_vector (Vector_types.from_lambda ty),
+           ( Naked_vector (Vector_types.from_primitive ty),
              Alloc_mode.For_allocations.heap ))
     | _, Untagged_int -> Some P.Tag_immediate
   in
@@ -478,7 +478,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | Unboxed_integer Pint32 -> K.naked_int32
     | Unboxed_integer Pint64 -> K.naked_int64
     | Untagged_int -> K.naked_immediate
-    | Unboxed_vector ty -> K.naked_vector (Vector_types.from_lambda ty)
+    | Unboxed_vector ty -> K.naked_vector (Vector_types.from_primitive ty)
   in
   let param_arity =
     List.map kind_of_primitive_native_repr prim_native_repr_args
@@ -566,7 +566,8 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           | _, Unboxed_integer Pint64 -> Some (P.Unbox_number Naked_int64)
           | _, Untagged_int -> Some P.Untag_immediate
           | _, Unboxed_vector ty ->
-            Some (P.Unbox_number (Naked_vector (Vector_types.from_lambda ty)))
+            Some
+              (P.Unbox_number (Naked_vector (Vector_types.from_primitive ty)))
         in
         match unbox_arg with
         | None -> fun args acc -> call (arg :: args) acc

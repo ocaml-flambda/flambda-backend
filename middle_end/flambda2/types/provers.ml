@@ -458,7 +458,7 @@ let prove_is_a_boxed_nativeint env t : _ proof_of_property =
 let prove_is_a_boxed_vector ty env t : _ proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
-  | Value (Ok (Boxed_vector (vty, _, _))) when Vector_types.equal ty vty ->
+  | Value (Ok (Boxed_vector (vty, _, _))) when Vector_types.equal_size ty vty ->
     Proved ()
   | Value _ -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
@@ -752,7 +752,8 @@ let meet_boxed_vector_containing_simple vty1 =
   meet_boxed_number_containing_simple
     ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value) ->
       match ty_value with
-      | Boxed_vector (vty2, ty, _) when Vector_types.equal vty1 vty2 -> Some ty
+      | Boxed_vector (vty2, head, _) when Vector_types.equal_size vty1 vty2 ->
+        Some (TG.meet_vector_head (Vector_types.meet vty1 vty2) head)
       | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
       | Boxed_vector _ | Boxed_nativeint _ | Boxed_int64 _ | Closures _
       | String _ | Array _ ->

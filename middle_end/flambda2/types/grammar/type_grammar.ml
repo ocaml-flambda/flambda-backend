@@ -406,6 +406,15 @@ and free_names_env_extension ~follow_value_slots { equations } =
       Name_occurrences.add_name acc name Name_mode.in_types)
     equations Name_occurrences.empty
 
+let meet_vector_head (vty1 : Vector_types.t) head =
+  match vty1, head with
+  | Vec128 vty1, Naked_vec128 (vty2, head) ->
+    Naked_vec128 (Vector_types.Vec128.meet vty1 vty2, head)
+  | ( Vec128 _,
+      ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _
+      | Naked_nativeint _ | Naked_int64 _ | Rec_info _ | Region _ ) ) ->
+    head
+
 let free_names_except_through_value_slots t =
   free_names0 ~follow_value_slots:false t
 

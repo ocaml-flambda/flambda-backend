@@ -153,6 +153,8 @@ val free_names_except_through_value_slots : t -> Name_occurrences.t
 
 include Contains_ids.S with type t := t
 
+val meet_vector_head : Vector_types.t -> t -> t
+
 val remove_unused_value_slots_and_shortcut_aliases :
   t ->
   used_value_slots:Value_slot.Set.t ->

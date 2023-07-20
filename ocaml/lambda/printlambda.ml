@@ -86,12 +86,14 @@ let boxed_integer_name = function
   | Pint64 -> "int64"
 
 let boxed_vector_name = function
+  | Pvec128 Unknown128 -> "unknown128"
   | Pvec128 Int8x16 -> "int8x16"
   | Pvec128 Int16x8 -> "int16x8"
   | Pvec128 Int32x4 -> "int32x4"
   | Pvec128 Int64x2 -> "int64x2"
   | Pvec128 Float32x4 -> "float32x4"
   | Pvec128 Float64x2 -> "float64x2"
+  | Pvec128 Any128 -> "any128"
 
 let variant_kind print_contents ppf ~consts ~non_consts =
   fprintf ppf "@[<hov 1>[(consts (%a))@ (non_consts (%a))]@]"

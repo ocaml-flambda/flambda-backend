@@ -371,10 +371,13 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
     TG.Head_of_kind_value.create_boxed_nativeint n alloc_mode, env_extension
   | Boxed_vector (vty1, n1, alloc_mode1), Boxed_vector (vty2, n2, alloc_mode2)
-    when Vector_types.equal vty1 vty2 ->
+    when Vector_types.equal_size vty1 vty2 ->
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_vector vty1 n alloc_mode, env_extension
+    ( TG.Head_of_kind_value.create_boxed_vector
+        (Vector_types.meet vty1 vty2)
+        n alloc_mode,
+      env_extension )
   | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
       Closures
         { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->
@@ -1199,10 +1202,12 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
     TG.Head_of_kind_value.create_boxed_nativeint n alloc_mode
   | Boxed_vector (vty1, n1, alloc_mode1), Boxed_vector (vty2, n2, alloc_mode2)
-    when Vector_types.equal vty1 vty2 ->
+    when Vector_types.equal_size vty1 vty2 ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_vector vty1 n alloc_mode
+    TG.Head_of_kind_value.create_boxed_vector
+      (Vector_types.join vty1 vty2)
+      n alloc_mode
   | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
       Closures
         { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->

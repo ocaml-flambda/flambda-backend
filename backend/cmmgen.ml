@@ -956,7 +956,7 @@ and transl_ccall env prim args dbg =
     | _, Unboxed_integer Pint64 when size_int = 4 ->
         ([|Int; Int|], box_int dbg Pint64 alloc_heap)
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
-    | _, Unboxed_vector (Pvec128 ty) -> (typ_vec128, box_vector dbg (Pvec128 ty) alloc_heap)
+    | _, Unboxed_vector ty -> (typ_vec128, box_vector dbg (Lambda.boxed_vector_from_primitive ty) alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
@@ -1302,7 +1302,7 @@ and transl_unbox_int dbg env bi exp =
   unbox_int dbg bi (transl env exp)
 
 and transl_unbox_vector dbg env bi exp =
-  unbox_vector dbg bi (transl env exp)
+  unbox_vector dbg (Lambda.boxed_vector_from_primitive bi) (transl env exp)
 
 (* transl_unbox_int, but may return garbage in upper bits *)
 and transl_unbox_int_low dbg env bi e =
