@@ -2713,7 +2713,7 @@ let rec mcomp type_pairs env t1 t2 =
         | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _))
         (* CR vding question: Not sure how to reason about when we want to test 
            compatibility, is my change correct? *)
-          when l1 = l2 || not (is_optional_or_position l1 || is_optional_or_position l2) ->
+          when l1 = l2 || not (is_optional l1 || is_optional l2) ->
                     mcomp type_pairs env t1 t2;
             mcomp type_pairs env u1 u2;
         | (Ttuple tl1, Ttuple tl2) ->
@@ -3806,7 +3806,7 @@ let filter_arrow env t l ~force_tpoly =
     let ty_arg =
       if not force_tpoly then begin
         (* CR vding question: I think we want to leave this as is, rather than
-           change to is_optional_or_position? *)
+           change to is_optional? *)
         assert (not (is_optional l));
         newvar2 level l_arg
       end else begin
