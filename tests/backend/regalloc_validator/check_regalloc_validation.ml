@@ -76,7 +76,8 @@ module Block = struct
       exn;
       can_raise;
       is_trap_handler = false;
-      dead = false
+      dead = false;
+      cold = false
     }
 end
 
@@ -181,6 +182,7 @@ let entry_label =
            predecessors = Label.Set.empty;
            stack_offset = 0;
            dead = false;
+           cold = false;
            terminator =
              { desc = Return;
                arg = [| Proc.phys_reg 0 |];
