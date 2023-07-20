@@ -54,7 +54,8 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   | Naked_number Naked_vec128 -> Cmm.typ_vec128
   | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) ->
     Cmm.typ_int
-  | Region | Rec_info -> assert false
+  | Region -> Cmm.typ_int
+  | Rec_info -> assert false
 
 let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   match Flambda_kind.With_subkind.kind kind with
