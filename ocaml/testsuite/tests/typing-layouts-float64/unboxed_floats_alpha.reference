@@ -1,0 +1,16 @@
+Test 1, pi: 3.14
+Test 1, twice_pi: 6.28
+Test 1, thrice_pi: 9.42
+Test 1, twice_pi_again: 6.28
+Test 1, pi_again: 3.14
+Test 1, twice_pi_to_the_pi: 320.33
+Test 1, twice_pi_greater_than_pi: true
+Test 1, pi_with_effort: 3.14
+Test 2, add pi twice: 6.28
+Test 2, add pi four times: 12.56
+Test 2, increment pi twice: 5.14
+Test 2, increment pi four times: 7.14
+Test 2, e times four: 10.88
+Test 2, pi times sixteen: 50.24
+Test 2, pi times sixteen again: 50.24
+Test 2, pi minus four: -0.86

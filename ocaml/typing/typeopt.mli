@@ -37,10 +37,13 @@ val bigarray_type_kind_and_layout :
 val layout :
   Env.t -> Location.t -> Layouts.sort -> Types.type_expr -> Lambda.layout
 
-(* This translates a type system sort to a lambda layout.  The function [layout]
-   gives a more precise result---this should only be used when the precise
-   Lambda.layout isn't needed for optimization. *)
+(* These translate a type system sort to a lambda layout.  The function [layout]
+   gives a more precise result---this should only be used when the kind is
+   needed for compilation but the precise Lambda.layout isn't needed for
+   optimization.  [layout_of_sort] gracefully errors on void, while
+   [layout_of_const_sort] loudly fails on void. *)
 val layout_of_sort : Location.t -> Layouts.sort -> Lambda.layout
+val layout_of_const_sort : Layouts.Sort.const -> Lambda.layout
 
 (* Given a function type and the sort of its return type, compute the layout of
    its return type. *)

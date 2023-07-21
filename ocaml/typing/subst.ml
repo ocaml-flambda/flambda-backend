@@ -101,6 +101,7 @@ let with_additional_action (config : additional_action_config) s =
         let value = Layout.of_const Value ~why:reason in
         let immediate = Layout.of_const Immediate ~why:reason in
         let immediate64 = Layout.of_const Immediate64 ~why:reason in
+        let float64 = Layout.of_const Float64 ~why:reason in
         let prepare_layout loc lay =
           match Layout.get lay with
           | Const Any -> any
@@ -108,10 +109,12 @@ let with_additional_action (config : additional_action_config) s =
           | Const Value -> value
           | Const Immediate -> immediate
           | Const Immediate64 -> immediate64
+          | Const Float64 -> float64
           | Var var -> begin
               match Sort.var_constraint var with
               | Some Void -> void
               | Some Value -> value
+              | Some Float64 -> float64
               | None -> raise(Error (loc, Unconstrained_layout_variable))
             end
         in

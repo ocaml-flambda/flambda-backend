@@ -72,6 +72,7 @@ type error =
       }
   | Layout_empty_record
   | Non_value_in_sig of Layout.Violation.t * string
+  | Float64_in_block of type_expr
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
   | Boxed_and_unboxed
@@ -280,6 +281,8 @@ let update_type temp_env env id loc =
         raise (Error(loc, Type_clash (env, err)))
 
 (* Determine if a type's values are represented by floats at run-time. *)
+(* CR layouts v2.5: Should we check for unboxed float here? Is a record with all
+   unboxed floats the same as a float record? *)
 let is_float env ty =
   match get_desc (Ctype.get_unboxed_type_approximation env ty) with
     Tconstr(p, _, _) -> Path.same p Predef.path_float
@@ -1010,11 +1013,20 @@ let check_abbrev env sdecl (id, decl) =
    same issue as with arrows. *)
 let check_representable ~why env loc lloc typ =
   match Ctype.type_sort ~why env typ with
-  (* CR layouts: This is not the right place to default to value.  Some callers
-     of this do need defaulting, because they, for example, immediately check
-     if the sort is immediate or void.  But we should do that in those places,
-     or as part of our higher-level defaulting story. *)
-  | Ok s -> Sort.default_to_value s
+  (* All calls to this are part of [update_decl_layout], which happens after all
+     the defaulting.  The call to [type_sort] might create a new sort variable,
+     though, so we default that now. *)
+  (* CR layouts v3: This is a convenient place to rule out [float#] in
+     structures for now, as it is called on all the types in declared blocks in
+     kinds, and only them.  But when we have a real mixed block restriction, it
+     can't be done here because we're just looking at one type.  *)
+  (* CR layouts v2: This rules out float# in [@@unboxed] types.  No real need to
+     rule that out - I just haven't had time to write tests for it yet. *)
+  | Ok s -> begin
+      match Sort.get_default_value s with
+      | Void | Value -> ()
+      | Float64 -> raise (Error (loc, Float64_in_block typ))
+    end
   | Error err -> raise (Error (loc,Layout_sort {lloc; typ; err}))
 
 (* The [update_x_layouts] functions infer more precise layouts in the type kind,
@@ -2537,6 +2549,11 @@ let report_error ppf = function
   | Non_value_in_sig (err, val_name) ->
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
       val_name (Layout.Violation.report_with_name ~name:val_name) err
+  | Float64_in_block typ ->
+    fprintf ppf
+      "@[Type %a has layout float64.@ Types of this layout are not yet \
+       allowed in blocks (like records or variants).@]"
+      Printtyp.type_expr typ
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->

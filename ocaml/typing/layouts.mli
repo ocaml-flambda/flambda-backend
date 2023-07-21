@@ -24,6 +24,8 @@ module Sort : sig
       (** No run time representation at all *)
     | Value
       (** Standard ocaml value representation *)
+    | Float64
+      (** Unboxed 64-bit floats *)
 
   (** A sort variable that can be unified during type-checking. *)
   type var
@@ -41,6 +43,7 @@ module Sort : sig
 
   val void : t
   val value : t
+  val float64 : t
 
   (** These names are generated lazily and only when this function is called,
       and are not guaranteed to be efficient to create *)
@@ -212,6 +215,9 @@ module Layout : sig
          unified to correct levels *)
     | Type_expression_call
 
+  type float64_creation_reason =
+    | Primitive of Ident.t
+
   type creation_reason =
     | Annotated of annotation_context * Location.t
     | Value_creation of value_creation_reason
@@ -219,6 +225,7 @@ module Layout : sig
     | Immediate64_creation of immediate64_creation_reason
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
+    | Float64_creation of float64_creation_reason
     | Concrete_creation of concrete_layout_reason
     | Imported
 
@@ -279,6 +286,7 @@ module Layout : sig
     | Void
     | Immediate64
     | Immediate
+    | Float64
   val string_of_const : const -> string
   val equal_const : const -> const -> bool
 
@@ -299,6 +307,10 @@ module Layout : sig
 
   (** We know for sure that values of types of this layout are always immediate *)
   val immediate : why:immediate_creation_reason -> t
+
+  (** This is the layout of unboxed 64-bit floats.  They have sort Float64. *)
+  val float64 : why:float64_creation_reason -> t
+
 
   (******************************)
   (* construction *)

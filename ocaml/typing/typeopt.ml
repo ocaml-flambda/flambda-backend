@@ -26,9 +26,9 @@ open Lambda
    the void sanity check.  When we're ready to take that out, remove the errors
    stuff. *)
 type error =
-    Non_value_layout of type_expr * Layout.Violation.t
-  | Non_value_sort of type_expr
-  | Non_value_sort_unknown_ty
+    Non_value_layout of type_expr * Layout.Violation.t option
+  | Non_value_sort of Sort.t * type_expr
+  | Non_value_sort_unknown_ty of Sort.t
 
 exception Error of Location.t * error
 
@@ -43,16 +43,16 @@ let scrape_ty env ty =
   in
   match get_desc ty with
   | Tconstr _ ->
-      let ty = Ctype.expand_head_opt env (Ctype.correct_levels ty) in
-      begin match get_desc ty with
+      let ty' = Ctype.expand_head_opt env (Ctype.correct_levels ty) in
+      begin match get_desc ty' with
       | Tconstr (p, _, _) ->
           begin match find_unboxed_type (Env.find_type p env) with
-          | Some _ -> Ctype.get_unboxed_type_approximation env ty
-          | None -> ty
+          | Some _ -> Ctype.get_unboxed_type_approximation env ty'
+          | None -> ty'
           | exception Not_found -> ty
           end
       | _ ->
-          ty
+          ty'
       end
   | _ -> ty
 
@@ -102,6 +102,8 @@ type classification =
 
 (* Classify a ty into a [classification]. Looks through synonyms, using [scrape_ty].
    Returning [Any] is safe, though may skip some optimizations. *)
+(* CR layouts v2.5: when we allow [float# array] or [float# lazy], this should
+   be updated to check for unboxed float. *)
 let classify env ty : classification =
   let ty = scrape_ty env ty in
   if is_always_gc_ignorable env ty then Int
@@ -196,39 +198,79 @@ let value_kind_of_value_layout layout =
   | Immediate -> Pintval
   | Immediate64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
-  | Any | Void -> assert false
+  | Any | Void | Float64 -> assert false
 
-(* Invariant: [value_kind] functions may only be called on types with layout
-   value. *)
-(* CR layouts v2: However, the current version allows for it to be called on
-   types whose layouts we can not determine due to missing cmis.  This is
-   unsound once we have non-value layouts.
+(* [value_kind] tries to maintain the invariant that it is only called on
+   values.  With the current set of layout restrictions, there are two reasons
+   this invariant may be violated:
 
-   For the particularly annoying case where we're missing the cmis for
-   subcomponent of a composite type, we'll need to fall back and return Pgenval
-   for the whole type.  See this commit, which implements that:
+   1) A bug in the type checker or the translation to lambda.
+   2) A missing cmi file, so that we can't accurately compute the layout of
+      some type.
 
-   https://github.com/ccasin/ocaml-jst/tree/unboxed-types-v1-layouts-fallback
+   In case 1, we have a bug and want to issue a scary error.
+
+   In case 2, we could issue an error and make the user add the dependency
+   explicitly.  But because [value_kind] looks at the subcomponents of your type,
+   this can lead to some surprising and unnecessary errors.  Suppose we're
+   computing the value kind for some type:
+
+     type t = int * M.t
+
+   If we're missing the cmi for [M], we can't verify the invariant that
+   [value_kind] is only called on values.  However, we still know the pair
+   itself is a value, so a sound thing to do is fall back and return [Pgenval]
+   for [t].
+
+   On the other hand, if we're asked to compute the value kind for [M.t]
+   directly and are missing the cmi for [M], we really do need to issue an error.
+   This is a bug in the typechecker, which should have checked that the type
+   in question has layout value.
+
+   The implementation of this fallback behavior is combined with the layouts
+   safety check at the top of [value_kind].  The safety check tests whether the
+   type has layout value.  If it see [void], [float64] or an [any] that doesn't
+   arise from a missing cmi, it issues the loud error.  If it sees [any] that
+   does arise from a missing cmi, it raises [Missing_cmi_fallback].
+
+   In places where we're computing value_kinds for a bunch of subcomponents of a
+   type, we catch [Missing_cmi_fallback] and just return [Pgenval] for the outer
+   type.  In the top-level [value_kind], we catch it and issue the loud error.
+
+   The old world view was that we would drop the safety check from [value_kind]
+   after a while, once we felt confident in the type checking (it isn't free,
+   after all).  But that's wrong - we will always need the check here to make
+   sure we're sound in the event of a missing cmi.  Even when we change the
+   build system to begin passing the cmis for all transitive dependencies to the
+   compiler, we shouldn't be unsound in the event the compiler is invoked
+   manually or the transitive deps logic has a bug.
+
+   (But, if we ever do find a way to get rid of the safety check: Note that the
+   it is currently doing some defaulting of sort variables, as in cases like:
+
+     let () =
+       match assert false  with
+       | _ -> assert false
+
+   There is a sort variable for the scrutinee of the match in typedtree that is
+   still a sort variable after checking this.  It's fine to default this to
+   anything - void would be ideal, but for now it gets value.  If the safety check
+   goes away, think about whether we should add defaulting elsewhere.)
+*)
+exception Missing_cmi_fallback
+
+let fallback_if_missing_cmi fallback f =
+  try f () with Missing_cmi_fallback -> fallback
+
+(* CR layouts v2.5: It will be possible for subcomponents of types like pairs
+   and polymorphic variants to be non-values for non-error other reaons (as we
+   allow float in structures).  The recursive calls to [value_kind] in those
+   cases will need to guard against calling it on a non-value layout - perhaps
+   they should call [layout] instead.
 *)
 (* CR layouts v5 (and maybe other versions): As we relax the requirement that
    various things have to be values, many recursive calls in [value_kind]
    need to be updated to check layouts. *)
-(* CR layouts v2: At the moment, sort variables may be defaulted to value by
-   value_kind.  For example, here:
-
-   let () =
-     match assert false  with
-     | _ -> assert false
-
-   There is a sort variable for the scrutinee of the match in typedtree that is
-   still a sort variable after checking this.  And this is fine - we default
-   sorts that appear in interfaces, but other sorts may still appear in the
-   typedtree.  These represent places where the compiler can pick a sort, and
-   should pick whatever is most efficient (eventually void).
-
-   When we eliminate the safety check here, we should think again about where
-   and how sort variables are defaulted.
-*)
 let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
   : int * value_kind =
   let[@inline] cannot_proceed () =
@@ -266,10 +308,9 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       with
       | Ok _ -> ()
       | Error violation ->
-        if not (Layout.Violation.is_missing_cmi violation)
-        then raise (Error (loc, Non_value_layout (ty, violation)))
-        (* CR layouts v1.5: stop allowing missing cmis *)
-
+        if (Layout.Violation.is_missing_cmi violation)
+        then raise Missing_cmi_fallback
+        else raise (Error (loc, Non_value_layout (ty, Some violation)))
   end;
   match get_desc scty with
   | Tconstr(p, _, _) when Path.same p Predef.path_int ->
@@ -300,21 +341,25 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         match decl.type_kind with
         | Type_variant (cstrs, rep) ->
-          value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited cstrs rep
+          fallback_if_missing_cmi (num_nodes_visited, Pgenval) (fun () ->
+            value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited cstrs
+              rep)
         | Type_record (labels, rep) ->
           let depth = depth + 1 in
-          value_kind_record env ~loc ~visited ~depth ~num_nodes_visited labels rep
+          fallback_if_missing_cmi (num_nodes_visited, Pgenval) (fun () ->
+            value_kind_record env ~loc ~visited ~depth ~num_nodes_visited labels
+              rep)
         | Type_abstract ->
           num_nodes_visited,
           value_kind_of_value_layout decl.type_layout
         | Type_open -> num_nodes_visited, Pgenval
-    with Not_found -> num_nodes_visited, Pgenval
+    with Not_found -> raise Missing_cmi_fallback
     (* CR layouts v1.5: stop allowing missing cmis. *)
     end
   | Ttuple fields ->
     if cannot_proceed () then
       num_nodes_visited, Pgenval
-    else begin
+    else fallback_if_missing_cmi (num_nodes_visited, Pgenval) (fun () ->
       let visited = Numbers.Int.Set.add (get_id ty) visited in
       let depth = depth + 1 in
       let num_nodes_visited, fields =
@@ -328,8 +373,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
           num_nodes_visited fields
       in
       num_nodes_visited,
-      Pvariant { consts = []; non_consts = [0, fields] }
-    end
+      Pvariant { consts = []; non_consts = [0, fields] })
   | Tvariant row ->
     num_nodes_visited,
     if Ctype.tvariant_not_immediate row then Pgenval else Pintval
@@ -482,18 +526,21 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
     end
 
 let value_kind env loc ty =
-  let (_num_nodes_visited, value_kind) =
-    value_kind env ~loc ~visited:Numbers.Int.Set.empty ~depth:0
-      ~num_nodes_visited:0 ty
-  in
-  value_kind
+  try
+    let (_num_nodes_visited, value_kind) =
+      value_kind env ~loc ~visited:Numbers.Int.Set.empty ~depth:0
+        ~num_nodes_visited:0 ty
+    in
+    value_kind
+  with
+  | Missing_cmi_fallback -> raise (Error (loc, Non_value_layout (ty, None)))
 
-(* CR layouts v2: We are planning to put a sanity check here that you don't get
-   passed float# as the sort unless layouts_alpha is on.  This violates our
-   previous rule that extensions only control syntax, but seems like a nice
-   implementation of a sanity check, since the availability of the Float_u
-   module will result in ways to get at unboxed floats that aren't just writing
-   #float in your program.
+(* CR layouts v2: We are planning to adjust the sanity check here to allow
+   #float only if layouts_alpha is on.  This violates our previous rule that
+   extensions only control syntax, but seems like a nice implementation of a
+   sanity check, since the availability of the Float_u module will result in
+   ways to get at unboxed floats that aren't just writing #float in your
+   program.
 
    We also do the void sanity check here.  We do it in value_kind as well,
    because the sort argument here is sometimes not computed from the type or
@@ -501,12 +548,22 @@ let value_kind env loc ty =
 *)
 let layout env loc sort ty =
   match Layouts.Sort.get_default_value sort with
-  | Void -> raise (Error (loc, Non_value_sort ty))
+  | Void -> raise (Error (loc, Non_value_sort (Sort.void,ty)))
+  | Float64 when Language_extension.(is_at_least Layouts Alpha) ->
+    Lambda.Punboxed_float
+  | Float64 -> raise (Error (loc, Non_value_sort (Sort.float64,ty)))
   | Value -> Lambda.Pvalue (value_kind env loc ty)
 
 let layout_of_sort loc sort =
   match Layouts.Sort.get_default_value sort with
-  | Void -> raise (Error (loc, Non_value_sort_unknown_ty))
+  | Void -> raise (Error (loc, Non_value_sort_unknown_ty Sort.void))
+  | Float64 -> Lambda.Punboxed_float
+  | Value -> Lambda.Pvalue Pgenval
+
+let layout_of_const_sort (s : Layouts.Sort.const) =
+  match s with
+  | Void -> assert false
+  | Float64 -> Lambda.Punboxed_float
   | Value -> Lambda.Pvalue Pgenval
 
 let function_return_layout env loc sort ty =
@@ -583,18 +640,25 @@ let report_error ppf = function
   | Non_value_layout (ty, err) ->
       fprintf ppf
         "Non-value detected in [value_kind].@ Please report this error to \
-         the Jane Street compilers team.@ %a"
-        (Layout.Violation.report_with_offender
-           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
-  | Non_value_sort ty ->
+         the Jane Street compilers team.";
+      begin match err with
+      | None ->
+        fprintf ppf "@ Could not find cmi for: %a" Printtyp.type_expr ty
+      | Some err ->
+        fprintf ppf "@ %a"
+          (Layout.Violation.report_with_offender
+             ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
+      end
+  | Non_value_sort (sort, ty) ->
       fprintf ppf
-        "Non-value detected in [Typeopt.layout] as sort for type@ %a.@ \
+        "Non-value layout %a detected in [Typeopt.layout] as sort for type@ %a.@ \
          Please report this error to the Jane Street compilers team."
-        Printtyp.type_expr ty
-  | Non_value_sort_unknown_ty ->
+        Sort.format sort Printtyp.type_expr ty
+  | Non_value_sort_unknown_ty sort ->
       fprintf ppf
-        "Non-value detected in [layout_of_sort]@ Please report this \
+        "Non-value layout %a detected in [layout_of_sort]@ Please report this \
          error to the Jane Street compilers team."
+        Sort.format sort
 
 let () =
   Location.register_error_of_exn
