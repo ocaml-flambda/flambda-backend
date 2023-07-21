@@ -1164,13 +1164,13 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
           (Pat.construct ~loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "Some"))))
              (Some ([], Pat.var ~loc (mknoloc "*sth*"))))
-          (Exp.ident ~loc (mknoloc (Longident.Lident "*sth*")));
+          (Psimple_rhs (Exp.ident ~loc (mknoloc (Longident.Lident "*sth*"))));
 
         Exp.case
           (Pat.construct ~loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "None"))))
              None)
-          default;
+          (Psimple_rhs default);
        ]
       in
       let smatch =

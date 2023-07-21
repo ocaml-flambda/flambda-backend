@@ -3045,7 +3045,8 @@ match_case:
           (Case_rhs.pattern_guarded ~loc:(make_loc ($startpos($2), $endpos))
              $3 $6) }
   | pattern MINUSGREATER DOT
-      { Exp.case $1 (Exp.unreachable ~loc:(make_loc $loc($3)) ()) }
+      { Exp.case $1
+          (Case_rhs.simple (Exp.unreachable ~loc:(make_loc $loc($3)) ())) }
 ;
 fun_def:
     MINUSGREATER seq_expr
