@@ -55,8 +55,8 @@ let update_csv str =
 
 (* CR gtulba-lecu for gtulba-lecu: make sure that this comparison is correct and
    sufficent. *)
-let are_equal_regs reg1 reg2 =
-  Reg.same_loc reg1 reg2 && Regalloc_utils.same_reg_class reg1 reg2
+let are_equal_regs (reg1 : Reg.t ) (reg2 : Reg.t) =
+  Reg.same_loc reg1 reg2 && reg1.typ = reg2.typ
 
 (* CR gtulba-lecu for gtulba-lecu: It would be nice to compute this based on the
    rules, but since the layout of this code will probably change it's fine for
@@ -271,10 +271,11 @@ let optimize_body (body : Cfg.basic_instruction_list) =
 
 (* Apply peephole optimization for the body of each block of the CFG*)
 let peephole_optimize_cfg cfg_with_layout =
-  set_csv ();
   let fun_name = (Cfg_with_layout.cfg cfg_with_layout).fun_name in
   if Option.is_some !Flambda_backend_flags.cfg_peephole_optimize_track
-  then IntCsv.add_empty_row (get_csv ()) fun_name;
+  then (
+    set_csv();
+    IntCsv.add_empty_row (get_csv ()) fun_name;);
   let made_optimizations =
     Label.Tbl.fold
       (fun (_ : Label.t) (block : Cfg.basic_block) (made_optimizations : bool) ->
