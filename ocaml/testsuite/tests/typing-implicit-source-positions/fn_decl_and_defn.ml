@@ -16,15 +16,13 @@ type t = src_pos:lexing_position -> unit -> unit
 (* let f : t = fun ~(src_pos:[%src_pos]) () -> ()
 
 [%%expect{|
-val f : src_pos:lexing_position -> unit -> unit = <fun>
+val f : src_pos:[%src_pos] -> unit -> unit = <fun>
 |}] *)
-
-(*  The best we can do for now:  *)
 
 let f = fun ~(src_pos:[%src_pos]) () -> ()
 
 [%%expect{|
-val f : src_pos:lexing_position -> unit -> unit = <fun>
+val f : src_pos:[%src_pos] -> unit -> unit = <fun>
 |}]
 
 (*  end  *)
@@ -32,9 +30,8 @@ val f : src_pos:lexing_position -> unit -> unit = <fun>
 let g ~(src_pos:[%src_pos]) () = ()
 
 [%%expect{|
-val g : src_pos:lexing_position -> unit -> unit = <fun>
+val g : src_pos:[%src_pos] -> unit -> unit = <fun>
 |}]
-
 
 let apply f = f ~src_pos:{pos_fname="hello" ; pos_lnum=1; pos_bol=2; pos_cnum=3} () ;;
 [%%expect {|
@@ -54,14 +51,3 @@ let _ = apply g ;;
 |}] *)
 
 (*  end  *)
-
-(* Using lexing_position manually *)
-let g ~(src_pos:lexing_position) () = () ;; 
-[%%expect {|
-val g : src_pos:lexing_position -> unit -> unit = <fun>
-|}]
-
-let _ = apply g ;;
-[%%expect{|
-- : unit = ()
-|}]
