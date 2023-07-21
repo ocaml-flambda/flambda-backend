@@ -389,6 +389,9 @@ let reorder_blocks_random ?random_state t =
   set_layout t (DLL.of_list new_layout)
 
 let reorder_blocks ~comparator t =
+  (* CR ncourant: this is only ever called with a boolean comparator, we could
+     do better. Or maybe we should write stable_sort on DLL to avoid the
+     conversions? *)
   (* Ensure entry block remains first *)
   let original_layout = DLL.to_list (layout t) in
   let new_layout =
