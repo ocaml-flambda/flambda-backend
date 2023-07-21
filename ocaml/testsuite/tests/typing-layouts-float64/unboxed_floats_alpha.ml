@@ -253,3 +253,55 @@ let test5 () =
   ()
 
 let _ = test5 ()
+
+(**********************************************************)
+(* Test 6: methods on floats, and which capture floats. *)
+
+(* capture float#s, float# args and returns *)
+let f6_1 f1 f2 f3 = object
+  method f6_m1 f4 f5 f6 =
+    let open Float_u in
+    ((f1 - f4) + (f5 - f2)) / (f3 - f6)
+end
+
+(* capture float#s and a pair, recursion *)
+let f6_2 n m1 = object(self)
+  method f6_m2 n3 m2 f =
+    if n3 = ((Sys.opaque_identity fst) n) + ((Sys.opaque_identity snd) n) then
+      Float_u.(m1 + m2)
+    else f (self#f6_m2 (n3+1) m2 f)
+end
+
+(* overapplication to float# and non-float# args *)
+let f6_3 n k m1 = object
+  method f6_m3 n3 m2 f =
+    let n = ((Sys.opaque_identity fst) n) + ((Sys.opaque_identity snd) n) in
+    f (n + k + n3) Float_u.(m1 + m2)
+end
+
+let test6 () =
+  let add3 n (m, k) = n + m + k in
+  let open Float_u in
+
+  (* ((10 - 3.14) + (20 - 2.72)) / (100 - 58) = ~0.57 *)
+  let o =
+    (Sys.opaque_identity f6_1) (of_float 10.) (of_float 2.72) (of_float 100.)
+  in
+  print_floatu "Test 6, 0.57" (o#f6_m1 (of_float 3.14) (of_float 20.) (of_float 58.));
+
+  (* 4.25 * 8 = 34 *)
+  let o = (Sys.opaque_identity f6_2) (4,7) (of_float 1.5) in
+  let result = o#f6_m2 8 (of_float 2.75) (fun x -> x * of_float 2.) in
+  print_floatu "Test 6, 34.00" result;
+
+  (* (1 + 2 + 3 + (-2) + (-12) + 4) * (3.14 + 2.72 + (-1) + 10) = -59.44 *)
+  let o = (Sys.opaque_identity f6_3) (1,2) 3 (of_float 3.14) in
+  let result =
+    o#f6_m3 (-2) (of_float 2.72)
+      (fun[@inline never] i m1 m2 n m3 ->
+         (of_float (Float.of_int (add3 i n))) * (m1 + m2 + m3))
+      (of_float (-1.)) (-12,4) (of_float 10.)
+  in
+  print_floatu "Test 6, -59.44" result
+
+let _ = test6 ()

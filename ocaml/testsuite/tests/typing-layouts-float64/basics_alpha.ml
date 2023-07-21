@@ -517,9 +517,10 @@ Error: Type 'a has layout float64.
        Types of this layout are not yet allowed in blocks (like records or variants).
 |}]
 
-(******************************************)
-(* Test 12: No float64 in objects/classes *)
+(***************************************)
+(* Test 12: float64 in objects/classes *)
 
+(* First, disallowed uses: in object types, class parameters, etc. *)
 type t12_1 = < x : t_float64 >;;
 [%%expect{|
 Line 1, characters 15-28:
@@ -597,6 +598,26 @@ Line 2, characters 10-12:
               ^^
 Error: This type ('a : float64) should be an instance of type ('a0 : value)
        'a has layout value, which does not overlap with float64.
+|}];;
+
+(* Second, allowed uses: as method parameters / returns *)
+type t12_8 = < f : t_float64 -> t_float64 >
+let f12_9 (o : t12_8) x = o#f x
+let f12_10 o (y : t_float64) : t_float64 = o#baz y y y;;
+class ['a] c12_11 = object
+  method x : t_float64 -> 'a = assert false
+end;;
+class ['a] c12_12 = object
+  method x : 'a -> t_float64 = assert false
+end;;
+[%%expect{|
+type t12_8 = < f : t_float64 -> t_float64 >
+val f12_9 : t12_8 -> t_float64 -> t_float64 = <fun>
+val f12_10 :
+  < baz : t_float64 -> t_float64 -> t_float64 -> t_float64; .. > ->
+  t_float64 -> t_float64 = <fun>
+class ['a] c12_11 : object method x : t_float64 -> 'a end
+class ['a] c12_12 : object method x : 'a -> t_float64 end
 |}];;
 
 (*********************************************************************)
