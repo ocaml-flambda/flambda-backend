@@ -317,7 +317,12 @@ let rebuild_let_cont (data : rebuild_let_cont_data) ~after_rebuild body uacc =
              data.cost_metrics_of_subsequent_exprs)
           uacc
       in
-      (* let uacc = UA.with_uenv uacc data.uenv_of_subsequent_exprs in *)
+      (* Restore uenv only if the inner continuations should not be lifted, to ensure they stay available if we need to add them later. *)
+      let uacc =
+        match UA.let_conts_to_lift uacc with
+        | Do_not_lift_let_conts -> UA.with_uenv uacc data.uenv_of_subsequent_exprs
+        | Lift_let_conts _ -> uacc
+      in
       after_rebuild body uacc
     | Non_recursive { cont; handler } :: groups ->
       let num_free_occurrences_of_cont_in_body =
