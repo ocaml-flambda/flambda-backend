@@ -726,9 +726,7 @@ let rec unbox_vec128 vty dbg =
       c
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name with
-      | Some (Uconst_vec128 { ty; low; high }) ->
-        (* CR mslater for ekdohibs: is this now always true? *)
-        assert (Lambda.vec128_leq ty vty);
+      | Some (Uconst_vec128 { ty = _; low; high }) ->
         Cconst_vec128 ({ low; high }, dbg) (* or keep _dbg? *)
       | _ -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
     | Cregion e as cmm -> (

@@ -333,20 +333,6 @@ let vec128_name = function
   | Float64x2 -> "float64x2"
   | Any128 -> "any128"
 
-let vec128_leq l r =
-  match l, r with
-  | _, Unknown128 -> true
-  | Unknown128, _ -> false
-  | Any128, _ -> true
-  | _, Any128 -> false
-  | Int8x16, Int8x16 -> true
-  | Int16x8, Int16x8 -> true
-  | Int32x4, Int32x4 -> true
-  | Int64x2, Int64x2 -> true
-  | Float32x4, Float32x4 -> true
-  | Float64x2, Float64x2 -> true
-  | _ -> false
-
 let boxed_vector_from_primitive : Primitive.boxed_vector -> boxed_vector = function
   | Pvec128 Int8x16 -> Pvec128 Int8x16
   | Pvec128 Int16x8 -> Pvec128 Int16x8
@@ -360,6 +346,23 @@ let equal_boxed_integer = Primitive.equal_boxed_integer
 let equal_boxed_vector_size v1 v2 =
   match v1, v2 with
   | Pvec128 _, Pvec128 _ -> true
+
+let join_vec128_types v1 v2 =
+  match v1, v2 with
+  | Unknown128, _ | _, Unknown128 -> Unknown128
+  | Any128, vty | vty, Any128 -> vty
+  | Int8x16, Int8x16 -> Int8x16
+  | Int16x8, Int16x8 -> Int16x8
+  | Int32x4, Int32x4 -> Int32x4
+  | Int64x2, Int64x2 -> Int64x2
+  | Float32x4, Float32x4 -> Float32x4
+  | Float64x2, Float64x2 -> Float64x2
+  | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ ->
+    Unknown128
+
+let join_boxed_vector_layout v1 v2 =
+  match v1, v2 with
+  | Pvec128 v1, Pvec128 v2 -> Punboxed_vector (Pvec128 (join_vec128_types v1 v2))
 
 let rec equal_value_kind x y =
   match x, y with

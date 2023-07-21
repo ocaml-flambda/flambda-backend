@@ -92,42 +92,30 @@ module Vec128 = struct
   let join l r =
     (* Least upper bound *)
     match l, r with
-    | Unknown128, _ -> Unknown128
-    | _, Unknown128 -> Unknown128
-    | Any128, _ -> r
-    | _, Any128 -> l
+    | Unknown128, _ | _, Unknown128 -> Unknown128
+    | Any128, vty | vty, Any128 -> vty
     | Int8x16, Int8x16 -> Int8x16
-    | Int8x16, _ -> Unknown128
     | Int16x8, Int16x8 -> Int16x8
-    | Int16x8, _ -> Unknown128
     | Int32x4, Int32x4 -> Int32x4
-    | Int32x4, _ -> Unknown128
     | Int64x2, Int64x2 -> Int64x2
-    | Int64x2, _ -> Unknown128
     | Float32x4, Float32x4 -> Float32x4
-    | Float32x4, _ -> Unknown128
     | Float64x2, Float64x2 -> Float64x2
-    | Float64x2, _ -> Unknown128
+    | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ ->
+      Unknown128
 
   let meet l r =
     (* Greatest lower bound *)
     match l, r with
-    | Unknown128, _ -> r
-    | _, Unknown128 -> l
-    | Any128, _ -> Any128
-    | _, Any128 -> Any128
+    | Unknown128, vty | vty, Unknown128 -> vty
+    | Any128, _ | _, Any128 -> Any128
     | Int8x16, Int8x16 -> Int8x16
-    | Int8x16, _ -> Any128
     | Int16x8, Int16x8 -> Int16x8
-    | Int16x8, _ -> Any128
     | Int32x4, Int32x4 -> Int32x4
-    | Int32x4, _ -> Any128
     | Int64x2, Int64x2 -> Int64x2
-    | Int64x2, _ -> Any128
     | Float32x4, Float32x4 -> Float32x4
-    | Float32x4, _ -> Any128
     | Float64x2, Float64x2 -> Float64x2
-    | Float64x2, _ -> Any128
+    | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ ->
+      Any128
 
   let to_lambda : t -> Lambda.vec128_type = function
     | Unknown128 -> Unknown128
