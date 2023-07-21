@@ -111,3 +111,29 @@ val mutable_unboxing_result : t -> Flow_types.Mutable_unboxing_result.t
 val set_resimplify : t -> t
 
 val resimplify : t -> bool
+
+(* Predeclarations of types in [Simplify_let_cont_expr]; necessary to break a circular dependency. *)
+type rebuilt_handler =
+  { handler : Rebuilt_expr.Continuation_handler.t;
+    handler_expr : Rebuilt_expr.t;
+    name_occurrences_of_handler : Name_occurrences.t;
+    cost_metrics_of_handler : Cost_metrics.t
+  }
+
+type rebuilt_handlers_group =
+  | Recursive of
+      { continuation_handlers : rebuilt_handler Continuation.Map.t;
+        invariant_params : Bound_parameters.t
+      }
+  | Non_recursive of
+      { cont : Continuation.t;
+        handler : rebuilt_handler
+      }
+
+type let_conts_to_lift =
+  | Do_not_lift_let_conts
+  | Lift_let_conts of rebuilt_handlers_group list
+
+val let_conts_to_lift : t -> let_conts_to_lift
+
+val with_let_conts_to_lift : let_conts_to_lift -> t -> t

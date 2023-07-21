@@ -21,6 +21,29 @@ module LCS = Lifted_constant_state
 module TE = Flambda2_types.Typing_env
 module UE = Upwards_env
 
+(* Predeclarations of types in [Simplify_let_cont_expr]; necessary to break a circular dependency. *)
+type rebuilt_handler =
+  { handler : Rebuilt_expr.Continuation_handler.t;
+    handler_expr : Rebuilt_expr.t;
+    name_occurrences_of_handler : Name_occurrences.t;
+    cost_metrics_of_handler : Cost_metrics.t
+  }
+
+type rebuilt_handlers_group =
+  | Recursive of
+      { continuation_handlers : rebuilt_handler Continuation.Map.t;
+        invariant_params : Bound_parameters.t
+      }
+  | Non_recursive of
+      { cont : Continuation.t;
+        handler : rebuilt_handler
+      }
+
+type let_conts_to_lift =
+  | Do_not_lift_let_conts
+  | Lift_let_conts of rebuilt_handlers_group list
+
+
 type t =
   { uenv : UE.t;
     creation_dacc : DA.t;
@@ -36,8 +59,13 @@ type t =
     demoted_exn_handlers : Continuation.Set.t;
     slot_offsets : Slot_offsets.t Or_unknown.t;
     flow_result : Flow_types.Flow_result.t;
-    resimplify : bool
+    resimplify : bool;
+    let_conts_to_lift : let_conts_to_lift
   }
+
+let print_let_conts_to_lift ppf = function
+  | Do_not_lift_let_conts -> Format.fprintf ppf "(do_not_lift_let_conts)"
+  | Lift_let_conts _group -> Format.fprintf ppf "(lift_let_conts [TODO])"
 
 let [@ocamlformat "disable"] print ppf
       { uenv; creation_dacc = _; code_age_relation; lifted_constants;
@@ -45,6 +73,7 @@ let [@ocamlformat "disable"] print ppf
         shareable_constants; cost_metrics; are_rebuilding_terms;
         generate_phantom_lets;
         demoted_exn_handlers; slot_offsets; flow_result; resimplify;
+        let_conts_to_lift
       } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(uenv@ %a)@]@ \
@@ -59,6 +88,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
       @[<hov 1>(slot_offsets@ %a@)@]@ \
       @[<hov 1>(flow_result@ %a)@]\
+      @[<hov 1>(let_conts_to_lift %a)@]@ \
       %a\
       )@]"
     UE.print uenv
@@ -73,6 +103,7 @@ let [@ocamlformat "disable"] print ppf
     Continuation.Set.print demoted_exn_handlers
     (Or_unknown.print Slot_offsets.print) slot_offsets
     Flow_types.Flow_result.print flow_result
+    print_let_conts_to_lift let_conts_to_lift
     (if resimplify then
        (fun ppf () -> Format.fprintf ppf "@ @[<hov 1>(should_resimplify)@]")
      else
@@ -107,7 +138,8 @@ let create ~flow_result ~compute_slot_offsets uenv dacc =
     demoted_exn_handlers = DA.demoted_exn_handlers dacc;
     slot_offsets;
     flow_result;
-    resimplify = false
+    resimplify = false;
+    let_conts_to_lift = Do_not_lift_let_conts
   }
 
 let creation_dacc t = t.creation_dacc
@@ -210,3 +242,7 @@ let mutable_unboxing_result t = t.flow_result.mutable_unboxing_result
 let set_resimplify t = { t with resimplify = true }
 
 let resimplify t = t.resimplify
+
+let let_conts_to_lift t = t.let_conts_to_lift
+
+let with_let_conts_to_lift let_conts_to_lift t = { t with let_conts_to_lift }

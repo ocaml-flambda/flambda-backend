@@ -93,10 +93,12 @@ let compute_available_variables ~(source_info : T.Acc.t) t =
       (if elt.lift_inner_continuations then acc else new_acc), Variable.Set.union new_acc (Variable.Map.keys elt.defined))
     Variable.Set.empty
 
-let compute_added_extra_args added_extra_args t =
+let compute_added_extra_args ~(source_info : T.Acc.t) added_extra_args t =
   map_fold_on_children t
     (fun k available ->
-      ( Variable.Set.union (Continuation.Map.find k added_extra_args) available,
+       let elt = Continuation.Map.find k source_info.map in
+       let children_available = if elt.lift_inner_continuations then available else Variable.Set.union (Continuation.Map.find k added_extra_args) available in
+      ( children_available,
         available ))
     Variable.Set.empty
 
@@ -300,7 +302,17 @@ let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t)
               then default exception_param
               else default alias))
       (Variable.Set.empty, Variable.Map.empty)
-      (Bound_parameters.vars elt.params)
+      (          let rec loop elt s =
+          match elt.T.Continuation_info.parent_continuation with
+          | None -> s
+          | Some parent ->
+            let parent_elt = Continuation.Map.find parent source_info.map in
+            if not parent_elt.lift_inner_continuations then s else
+          loop parent_elt (
+            Bound_parameters.vars parent_elt.T.Continuation_info.params @ (Variable.Set.elements (Variable.Map.keys parent_elt.T.Continuation_info.defined)) @ s)
+                 in
+            loop elt (Bound_parameters.vars elt.T.Continuation_info.params)
+)
   in
   let recursive_continuation_wrapper :
       T.Continuation_param_aliases.recursive_continuation_wrapper =
@@ -320,8 +332,9 @@ let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t)
 let minimize_extra_args_for_aliases ~source_info ~unboxed_blocks doms
     added_extra_args t =
   let available_added_extra_args =
-    compute_added_extra_args added_extra_args t
+    compute_added_extra_args ~source_info added_extra_args t
   in
+  (* Format.eprintf "AVADD = %a@." (Continuation.Map.print Variable.Set.print) available_added_extra_args; *)
   Continuation.Map.mapi
     (minimize_extra_args_for_one_continuation ~source_info ~unboxed_blocks
        ~available_added_extra_args doms)
@@ -358,6 +371,7 @@ let compute_continuation_extra_args_for_aliases ~speculative ~required_names
     minimize_extra_args_for_aliases ~source_info ~unboxed_blocks doms
       added_extra_args t
   in
+  (* Format.eprintf "%a@." (Continuation.Map.print T.Continuation_param_aliases.print) extra_args_for_aliases; *)
   extra_args_for_aliases
 
 module Dot = struct
