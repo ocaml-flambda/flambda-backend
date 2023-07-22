@@ -295,24 +295,22 @@ Rather than using our elisp above, you can instead manually invoke the
 ocamldebug emacs mode as follows:
 
 1. Run `M-x camldebug RET`
-2. Choose the `ocamlc` symlink in the root of the repo.
-3. Choose the arguments to pass to `ocamlc`, likely a full path to a test `.ml`
-   file.
+2. Choose the `ocamlc` or `ocamlopt` symlink in the root of the repo.
+3. Choose the arguments to pass to the compiler, likely a full path to a test
+   `.ml` file.
 4. Choose the built `ocamldebug`, in your install directory.
 5. Set any breakpoints you want. The easiest way is to navigate to the line
    where you want the breakpoint and use `C-x C-a C-b` in emacs.
 6. Add relevant directories to `ocamldebug`'s search path.  (If you skip this,
    printing any value may produce `Cannot find module Misc.` or similar
-   errors).  If debugging `ocamlc` compiler, run:
+   errors).  If debugging `ocamlc`, run:
    ```
    (ocd) directory _build/main/ocaml/.ocamlcommon.objs/byte
    ```
-   If debugging the native code compiler, you'll need various additional
-   directories depending on your middle end.  You can find the right directories
-   by searching for cmo files corresponding to the module named in the error
-   message.
+   If debugging `ocamlopt`, you'll need various additional directories depending
+   on your middle end.  You can find the right directories by searching for cmo
+   files corresponding to the module named in the error message.
 7. `run` to your breakpoint.
-
 
 The elisp `ocamldebug-ocaml{c,opt}` functions automate steps 1, 2, 4, 6, and 7,
 above.
