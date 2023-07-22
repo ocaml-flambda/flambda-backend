@@ -163,10 +163,13 @@ coverage: boot-runtest
 
 .PHONY: debug
 .NOTPARALLEL: debug
-debug: install ocaml/tools/debug_printers ocamlc
+debug: install ocaml/tools/debug_printers ocamlc ocamlopt
 
 ocamlc:
 	ln -s $(prefix)/bin/ocamlc.byte ocamlc
+
+ocamlopt:
+	ln  -s $(prefix)/bin/ocamlopt.byte ocamlopt
 
 ocaml/tools/debug_printers: ocaml/tools/debug_printers.ml ocaml/tools/debug_printers.cmo
 	echo 'load_printer "ocaml/tools/debug_printers.cmo"' > $@
