@@ -65,6 +65,8 @@ type arg_label =
   | Labelled of string (** [label:T -> ...] *)
   | Optional of string (** [?label:T -> ...] *)
   | Position of string (** [label:[%src_pos] -> ...]*)
+  (* CR src_pos: We'll have to revert this change eventually to remain compatible with
+     ppx. Instead, add types for labels in the Parsetree and Typedtree *)
 
 type 'a loc = 'a Location.loc = {
   txt : 'a;
