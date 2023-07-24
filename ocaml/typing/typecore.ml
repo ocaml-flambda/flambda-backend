@@ -3521,61 +3521,54 @@ let combine (local1, loc1) (local2, loc2) =
   | true, false ->
       raise(Error(loc2, Env.empty, Local_return_annotation_mismatch loc1))
 
-let rec loop e =
-  match Jane_syntax.Expression.of_ast e with
-  | Some (jexp, _attrs) -> begin
-      match jexp with
-      | Jexp_comprehension   _ -> false, e.pexp_loc
-      | Jexp_immutable_array _ -> false, e.pexp_loc
-      | Jexp_unboxed_constant _ -> false, e.pexp_loc
-    end
-  | None      -> loop_desc e.pexp_loc e.pexp_desc
-
-and loop_desc pexp_loc = function
-  | Pexp_apply
-      ({ pexp_desc = Pexp_extension(
-         {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
-       [Nolabel, _]) ->
-      true, pexp_loc
-  | Pexp_ident _ | Pexp_constant _ | Pexp_apply _ | Pexp_tuple _
-  | Pexp_construct _ | Pexp_variant _ | Pexp_record _ | Pexp_field _
-  | Pexp_setfield _ | Pexp_array _ | Pexp_while _ | Pexp_for _ | Pexp_send _
-  | Pexp_new _ | Pexp_setinstvar _ | Pexp_override _ | Pexp_assert _
-  | Pexp_lazy _ | Pexp_object _ | Pexp_pack _ | Pexp_function _ | Pexp_fun _
-  | Pexp_letop _ | Pexp_extension _ | Pexp_unreachable ->
-      false, pexp_loc
-  | Pexp_let(_, _, e) | Pexp_sequence(_, e) | Pexp_constraint(e, _)
-  | Pexp_coerce(e, _, _) | Pexp_letmodule(_, _, e) | Pexp_letexception(_, e)
-  | Pexp_poly(e, _) | Pexp_newtype(_, e) | Pexp_open(_, e)
-  | Pexp_ifthenelse(_, e, None)->
-      loop e
-  | Pexp_ifthenelse(_, e1, Some e2)-> combine (loop e1) (loop e2)
-  | Pexp_match(_, cases) -> begin
-      match cases with
-      | [] -> false, pexp_loc
-      | first :: rest ->
-          List.fold_left
-            (fun acc pc -> combine acc (loop_case_rhs pc.pc_rhs))
-            (loop_case_rhs first.pc_rhs) rest
-    end
-  | Pexp_try(e, cases) ->
-      List.fold_left
-        (fun acc pc -> combine acc (loop_case_rhs pc.pc_rhs))
-        (loop e) cases
-
-and loop_case_rhs = function
-  | Psimple_rhs e -> loop e
-  | Pboolean_guarded_rhs { pbg_rhs; _ } -> loop pbg_rhs
-  | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
-      loop_desc ppg_loc (Pexp_match (ppg_scrutinee, ppg_cases))
-
-let is_local_returning_expr e =
-  let local, _ = loop e in
-  local
-
-let is_local_returning_case_rhs rhs =
-  let local, _ = loop_case_rhs rhs in
-  local
+let is_local_returning_expr, is_local_returning_case_rhs =
+  let rec loop e =
+    match Jane_syntax.Expression.of_ast e with
+    | Some (jexp, _attrs) -> begin
+        match jexp with
+        | Jexp_comprehension   _ -> false, e.pexp_loc
+        | Jexp_immutable_array _ -> false, e.pexp_loc
+        | Jexp_unboxed_constant _ -> false, e.pexp_loc
+      end
+    | None      -> loop_desc e.pexp_loc e.pexp_desc
+  and loop_desc pexp_loc = function
+    | Pexp_apply
+        ({ pexp_desc = Pexp_extension(
+          {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
+        [Nolabel, _]) ->
+        true, pexp_loc
+    | Pexp_ident _ | Pexp_constant _ | Pexp_apply _ | Pexp_tuple _
+    | Pexp_construct _ | Pexp_variant _ | Pexp_record _ | Pexp_field _
+    | Pexp_setfield _ | Pexp_array _ | Pexp_while _ | Pexp_for _ | Pexp_send _
+    | Pexp_new _ | Pexp_setinstvar _ | Pexp_override _ | Pexp_assert _
+    | Pexp_lazy _ | Pexp_object _ | Pexp_pack _ | Pexp_function _ | Pexp_fun _
+    | Pexp_letop _ | Pexp_extension _ | Pexp_unreachable ->
+        false, pexp_loc
+    | Pexp_let(_, _, e) | Pexp_sequence(_, e) | Pexp_constraint(e, _)
+    | Pexp_coerce(e, _, _) | Pexp_letmodule(_, _, e) | Pexp_letexception(_, e)
+    | Pexp_poly(e, _) | Pexp_newtype(_, e) | Pexp_open(_, e)
+    | Pexp_ifthenelse(_, e, None)->
+        loop e
+    | Pexp_ifthenelse(_, e1, Some e2)-> combine (loop e1) (loop e2)
+    | Pexp_match(_, cases) -> begin
+        match cases with
+        | [] -> false, pexp_loc
+        | first :: rest ->
+            List.fold_left
+              (fun acc pc -> combine acc (loop_case_rhs pc.pc_rhs))
+              (loop_case_rhs first.pc_rhs) rest
+      end
+    | Pexp_try(e, cases) ->
+        List.fold_left
+          (fun acc pc -> combine acc (loop_case_rhs pc.pc_rhs))
+          (loop e) cases
+  and loop_case_rhs = function
+    | Psimple_rhs e -> loop e
+    | Pboolean_guarded_rhs { pbg_rhs; _ } -> loop pbg_rhs
+    | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
+        loop_desc ppg_loc (Pexp_match (ppg_scrutinee, ppg_cases))
+  in
+  (fun e -> fst (loop e)), (fun rhs -> fst (loop_case_rhs rhs))
 
 let rec is_an_uncurried_function e =
   if Builtin_attributes.has_curry e.pexp_attributes then false
@@ -3731,20 +3724,20 @@ let rec type_function_approx env loc label spato wrapped_sexp in_function
   end;
   let in_function = Some (loc_fun, ty_fun) in
   match wrapped_sexp with
-  | `Expr sexp -> type_approx_aux sexp env in_function ty_ret
+  | `Expr sexp -> type_approx_aux env sexp in_function ty_ret
   | `Desc (sexp_desc, sexp_loc) ->
-      type_approx_aux_desc sexp_desc sexp_loc env in_function ty_expected
+      type_approx_aux_desc env sexp_desc sexp_loc in_function ty_expected
 
-and type_approx_aux sexp env in_function ty_expected =
+and type_approx_aux env sexp in_function ty_expected =
   match Jane_syntax.Expression.of_ast sexp with
   | Some (jexp, _attrs) -> type_approx_aux_jane_syntax jexp
   | None ->
-      type_approx_aux_desc sexp.pexp_desc sexp.pexp_loc env in_function
+      type_approx_aux_desc env sexp.pexp_desc sexp.pexp_loc in_function
         ty_expected
 
-and type_approx_aux_desc sexp_desc sexp_loc env in_function ty_expected =
+and type_approx_aux_desc env sexp_desc sexp_loc in_function ty_expected =
   match sexp_desc with
-  | Pexp_let (_, _, e) -> type_approx_aux e env None ty_expected
+  | Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
       type_function_approx env sexp_loc l (Some p) (`Expr e)
         in_function ty_expected
@@ -3753,7 +3746,7 @@ and type_approx_aux_desc sexp_desc sexp_loc env in_function ty_expected =
         in_function ty_expected
   | Pexp_match (_, {pc_rhs}::_) ->
       type_approx_aux_case_rhs pc_rhs env None ty_expected
-  | Pexp_try (e, _) -> type_approx_aux e env None ty_expected
+  | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
   | Pexp_tuple l ->
       let tys = List.map
                   (fun _ -> newvar (Layout.value ~why:Tuple_element)) l
@@ -3763,16 +3756,16 @@ and type_approx_aux_desc sexp_desc sexp_loc env in_function ty_expected =
         raise(Error(sexp_loc, env, Expr_type_clash (err, None, None)))
       end;
       List.iter2
-        (fun e ty -> type_approx_aux e env None ty)
+        (fun e ty -> type_approx_aux env e None ty)
         l tys
-  | Pexp_ifthenelse (_,e,_) -> type_approx_aux e env None ty_expected
-  | Pexp_sequence (_,e) -> type_approx_aux e env None ty_expected
+  | Pexp_ifthenelse (_,e,_) -> type_approx_aux env e None ty_expected
+  | Pexp_sequence (_,e) -> type_approx_aux env e None ty_expected
   | Pexp_constraint (e, sty) ->
       let ty_expected' = approx_type env sty in
       begin try unify env ty_expected' ty_expected with Unify err ->
         raise(Error(sexp_loc, env, Expr_type_clash (err, None, None)))
       end;
-      type_approx_aux e env None ty_expected'
+      type_approx_aux env e None ty_expected'
   | Pexp_coerce (_, _, sty) ->
       let ty = approx_type env sty in
       begin try unify env ty ty_expected with Unify trace ->
@@ -3782,11 +3775,11 @@ and type_approx_aux_desc sexp_desc sexp_loc env in_function ty_expected =
       ({ pexp_desc = Pexp_extension(
          {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
        [Nolabel, e]) ->
-    type_approx_aux e env None ty_expected
+    type_approx_aux env e None ty_expected
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.escape"}, PStr []) },
        [Nolabel, e]) ->
-    type_approx_aux e env None ty_expected
+    type_approx_aux env e None ty_expected
   | _ -> ()
 
 and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
@@ -3796,11 +3789,15 @@ and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
 
 and type_approx_aux_case_rhs rhs =
   match wrap_rhs rhs with
-    | `Expr e -> type_approx_aux e
-    | `Desc (exp_desc, exp_loc) -> type_approx_aux_desc exp_desc exp_loc
+    | `Expr e ->
+        fun env in_function ty_expected ->
+          type_approx_aux env e in_function ty_expected
+    | `Desc (exp_desc, exp_loc) ->
+        fun env in_function ty_expected ->
+          type_approx_aux_desc env exp_desc exp_loc in_function ty_expected
 
 let type_approx env sexp ty =
-  type_approx_aux sexp env None ty
+  type_approx_aux env sexp None ty
 
 (* Check that all univars are safe in a type. Both exp.exp_type and
    ty_expected should already be generalized. *)
@@ -7017,7 +7014,7 @@ and type_cases
                 guard, exp
             | Ppattern_guarded_rhs
                   { ppg_scrutinee; ppg_cases; ppg_loc = loc } ->
-                let { arg; sort; cases; partial; } =
+                let { arg = _; sort = _; cases = _; partial = _; } =
                   type_match
                     (* Pattern guards containing no value cases will have an
                        "Any" [_] case inserted during translation to handle the
