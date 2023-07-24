@@ -482,9 +482,9 @@ let expression sub exp =
        Since typing Position arguments discards the constraint, we case
        on them to reconstruct the constraints. *)
     (* One case, no guard: It's a fun. *)
-    (* First, the special case for a Position argument *)
     | Texp_function { arg_label = Position _ as label;
                       cases = [{c_lhs=p; c_guard=None; c_rhs=e}]; _ } ->
+        (* First, the special case for a Position argument *)
         let pat =
           Pat.mk (Ppat_constraint (sub.pat sub p,
             Typ.mk (Ptyp_extension ({loc; txt="src_pos"}, PStr []))))
@@ -499,9 +499,10 @@ let expression sub exp =
     (* Mix of both, we generate `fun ~label:$name$ -> match $name$ with ...` *)
     | Texp_function { arg_label = Position s as label; cases;
           _ } ->
+        (* The special case for a Position argument *)
         let name = fresh_name s exp.exp_env in
         let pat =
-        Pat.mk (Ppat_constraint ((Pat.var ~loc {loc;txt = name }),
+          Pat.mk (Ppat_constraint ((Pat.var ~loc {loc;txt = name }),
             Typ.mk (Ptyp_extension ({loc; txt="src_pos"}, PStr []))))
         in
         Pexp_fun (label, None, pat,
