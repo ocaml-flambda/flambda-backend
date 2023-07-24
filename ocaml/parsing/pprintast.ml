@@ -297,6 +297,7 @@ let tyvar ppf s =
 
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
+let src_pos_extension_node = "[%src_pos]"
 
 let maybe_local_type pty ctxt f c =
   let cattrs, is_local = check_local_attr c.ptyp_attributes in
@@ -610,7 +611,7 @@ and label_exp ctxt f (l,opt,p) =
         else
           pp f "~%s" l
     | _ ->  pp f "~%s:%a" l (maybe_local_pat ctxt is_local) p)
-  | Position l -> pp f "~%s:%s" l "[%src_pos]"
+  | Position l -> pp f "~%s:%s" l src_pos_extension_node
 
 and sugar_expr ctxt f e =
   if e.pexp_attributes <> [] then false
@@ -1834,6 +1835,11 @@ and label_x_expression_param ctxt f (l,e) =
         pp f "~%s" lbl
       else
         pp f "~%s:%a" lbl (simple_expr ctxt) e
+<<<<<<< HEAD
+=======
+  | Position lbl ->
+      pp f "~%s:%s" lbl src_pos_extension_node
+>>>>>>> ce0541f3 (Store hard-coded string in variable)
 
 and directive_argument f x =
   match x.pdira_desc with
