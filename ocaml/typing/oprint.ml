@@ -305,8 +305,11 @@ and print_out_type_1 mode ppf =
   function
   | Otyp_arrow (lab, am, ty1, rm, ty2) ->
       pp_open_box ppf 0;
-      if lab <> "" then (pp_print_string ppf lab; pp_print_char ppf ':');
-      print_out_arg am ppf ty1;
+      let is_pos = String.ends_with ~suffix:":[%src_pos]" lab in
+      if is_pos
+      then pp_print_string ppf lab (* TODO vding: This will be changed *)
+      else if lab <> "" then (pp_print_string ppf lab; pp_print_char ppf ':');
+      if not (is_pos) then print_out_arg am ppf ty1;
       pp_print_string ppf " ->";
       pp_print_space ppf ();
       let mode = join_modes mode am in

@@ -510,7 +510,8 @@ let print_name ppf = function
 
 let string_of_label = function
     Nolabel -> ""
-  | Labelled s | Position s -> s
+  | Labelled s -> s
+  | Position s -> s^":[%src_pos]" (* TODO vding: This will be changed *)
   | Optional s -> "?"^s
 
 let visited = ref []
@@ -1117,7 +1118,7 @@ let rec tree_of_typexp mode ty =
         Otyp_var (non_gen, Names.name_of_type name_gen tty)
     | Tarrow ((l, marg, mret), ty1, ty2, _) ->
         let lab =
-          if !print_labels || is_optional l then string_of_label l else ""
+          if !print_labels || is_optional l || is_position l then string_of_label l else ""
         in
         let t1 =
           if is_optional l then
@@ -1130,7 +1131,8 @@ let rec tree_of_typexp mode ty =
             match get_desc (tpoly_get_mono ty1) with
             | Tconstr(path, [], _)
               when Path.same path Predef.path_lexing_position ->
-                Otyp_constr (Oide_ident (Out_name.create "[%src_pos]"), [])
+                (* Nonsense here, since we'll print Positions based on the label *)
+                Otyp_constr (Oide_ident (Out_name.create ""), [])
             | _ -> Otyp_stuff "<hidden>"
           else
             tree_of_typexp mode ty1
