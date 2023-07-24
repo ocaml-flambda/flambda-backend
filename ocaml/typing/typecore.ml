@@ -408,6 +408,9 @@ let mode_local expected_mode =
 (** Usually for legacy things *)
 let mode_global = mode_default Value_mode.global
 
+(** Takes the mode of the container that needs allocation, returns the expected
+    mode for the subcomponent. Should be subsumed by [register_allocation],
+    exists because of some circular logic on record construction *)
 let mode_subcomponent expected_mode =
   mode_default (Value_mode.regional_to_global expected_mode.mode)
 
@@ -498,8 +501,16 @@ let register_allocation_value_mode mode =
   register_allocation_mode alloc_mode;
   alloc_mode
 
+let register_allocation_value_mode' mode =
+  let alloc_mode = register_allocation_value_mode mode in
+  alloc_mode, Value_mode.of_alloc alloc_mode
+
 let register_allocation (expected_mode : expected_mode) =
   register_allocation_value_mode expected_mode.mode
+
+let register_allocation' (expected_mode : expected_mode) =
+  let alloc_mode, value_mode = register_allocation_value_mode' expected_mode.mode in
+  alloc_mode, mode_default value_mode
 
 let optimise_allocations () =
   List.iter
@@ -591,13 +602,6 @@ let option_none env ty loc =
   let lid = Longident.Lident "None" in
   let cnone = Env.find_ident_constructor Predef.ident_none env in
   mkexp (Texp_construct(mknoloc lid, cnone, [], None)) ty loc env
-
-let option_some env texp mode =
-  let alloc_mode  = register_allocation_value_mode mode in
-  let lid = Longident.Lident "Some" in
-  let csome = Env.find_ident_constructor Predef.ident_some env in
-  mkexp (Texp_construct(mknoloc lid , csome, [texp], Some alloc_mode))
-    (type_option texp.exp_type) texp.exp_loc texp.exp_env
 
 let extract_option_type env ty =
   match get_desc (expand_head env ty) with
@@ -4596,7 +4600,7 @@ and type_expect_
   | Pexp_tuple sexpl ->
       let arity = List.length sexpl in
       assert (arity >= 2);
-      let alloc_mode = register_allocation expected_mode in
+      let alloc_mode, expected_mode' = register_allocation' expected_mode in
       (* CR layouts v5: non-values in tuples *)
       let subtypes =
         List.map (fun _ -> newgenvar (Layout.value ~why:Tuple_element))
@@ -4607,20 +4611,17 @@ and type_expect_
         unify_exp_types loc env to_unify (generic_instance ty_expected));
       let argument_modes =
         if List.compare_length_with expected_mode.tuple_modes arity = 0 then
-          expected_mode.tuple_modes
+          List.map mode_default expected_mode.tuple_modes
         else begin
-          let arg_mode = Value_mode.regional_to_global expected_mode.mode in
-          List.init arity (fun _ -> arg_mode)
+          List.init arity (fun _ -> expected_mode')
         end
       in
       let types_and_modes = List.combine subtypes argument_modes in
       let expl =
         List.map2
           (fun body (ty, argument_mode) ->
-            let argument_mode = mode_default argument_mode in
             let argument_mode = expect_mode_cross env ty argument_mode in
-             type_expect env argument_mode
-               body (mk_expected ty))
+            type_expect env argument_mode body (mk_expected ty))
           sexpl types_and_modes
       in
       re {
@@ -4636,7 +4637,6 @@ and type_expect_
   | Pexp_variant(l, sarg) ->
       (* Keep sharing *)
       let ty_expected0 = instance ty_expected in
-      let argument_mode = mode_subcomponent expected_mode in
       begin try match
         sarg, get_desc (expand_head env ty_expected),
         get_desc (expand_head env ty_expected0)
@@ -4647,8 +4647,10 @@ and type_expect_
             row_field_repr (get_row_field l row0)
           with
             Rpresent (Some ty), Rpresent (Some ty0) ->
-              let arg = type_argument env argument_mode sarg ty ty0 in
-              let alloc_mode = register_allocation expected_mode in
+              let alloc_mode, expected_mode' =
+                register_allocation' expected_mode
+              in
+              let arg = type_argument env expected_mode' sarg ty ty0 in
               re { exp_desc = Texp_variant(l, Some (arg, alloc_mode));
                    exp_loc = loc; exp_extra = [];
                    exp_type = ty_expected0;
@@ -4664,10 +4666,10 @@ and type_expect_
             let ty_expected =
               newvar (Layout.value ~why:Polymorphic_variant_field)
             in
+            let alloc_mode, expected_mode' = register_allocation' expected_mode in
             let arg =
-              type_expect env argument_mode sarg (mk_expected ty_expected)
+              type_expect env expected_mode' sarg (mk_expected ty_expected)
             in
-            let alloc_mode = register_allocation expected_mode in
             Some (arg, alloc_mode)
         in
         let arg_type = Option.map (fun (arg, _) -> arg.exp_type) arg in
@@ -4750,7 +4752,9 @@ and type_expect_
       let alloc_mode =
         if List.exists
             (function
-              | _, { lbl_repres = Record_unboxed; _ }, _ -> false
+              | _, { lbl_repres = (Record_unboxed |
+                    Record_inlined (_, Variant_unboxed)); _ }, _
+                    -> false
               | _ -> true)
             lbl_exp_list then
           Some (register_allocation expected_mode)
@@ -4848,7 +4852,8 @@ and type_expect_
       in
       let alloc_mode = match label.lbl_repres with
       (* projecting out of packed-float-record needs allocation *)
-        | Record_float -> Some (register_allocation expected_mode)
+        | Record_float ->
+          Some (register_allocation expected_mode)
         | _ -> None
       in
       let mode =
@@ -6275,6 +6280,14 @@ and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
   in
   (lid, label, arg)
 
+and option_some env mode pexp ty ty0 =
+  let alloc_mode, mode' = register_allocation_value_mode' mode in
+  let texp = type_argument env (mode_default mode') pexp ty ty0 in
+  let lid = Longident.Lident "Some" in
+  let csome = Env.find_ident_constructor Predef.ident_some env in
+  mkexp (Texp_construct(mknoloc lid , csome, [texp], Some alloc_mode))
+    (type_option texp.exp_type) texp.exp_loc texp.exp_env
+
 and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       ty_expected' ty_expected =
   (* ty_expected' may be generic *)
@@ -6377,10 +6390,9 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       unify_exp env {texp with exp_type = ty_fun} ty_expected;
       if args = [] then texp else begin
       (* In this case, we're allocating a new closure, so [sarg] needs
-         to be valid at [mode_subcomponent mode], not just [mode] *)
-      let alloc_mode = register_allocation mode in
-      submode ~loc:sarg.pexp_loc ~env ~reason:Other
-        exp_mode (mode_subcomponent mode);
+         to be valid at [regional_to_global mode], not just [mode] *)
+      let alloc_mode, mode' = register_allocation' mode in
+      submode ~loc:sarg.pexp_loc ~env ~reason:Other exp_mode mode';
       (* eta-expand to avoid side effects *)
       let var_pair ~mode name ty =
         let id = Ident.create_local name in
@@ -6484,11 +6496,9 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
         if vars = [] then begin
           let ty_arg0' = tpoly_get_mono ty_arg0 in
           if wrapped_in_some then begin
-            option_some env
-              (type_argument env (mode_subcomponent expected_mode) sarg
-                 (extract_option_type env ty_arg')
-                 (extract_option_type env ty_arg0'))
-              expected_mode.mode
+            option_some env expected_mode.mode sarg
+              (extract_option_type env ty_arg')
+              (extract_option_type env ty_arg0')
           end else begin
             type_argument env expected_mode sarg ty_arg' ty_arg0'
           end
@@ -6695,8 +6705,8 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
     | Variant_unboxed -> expected_mode, None
     | Variant_boxed _ when constr.cstr_constant -> expected_mode, None
     | Variant_boxed _ | Variant_extensible ->
-       mode_subcomponent expected_mode,
-       Some (register_allocation expected_mode)
+       let alloc_mode, expected_mode' = register_allocation' expected_mode in
+       expected_mode', Some alloc_mode
   in
   let args =
     List.map2
@@ -7380,11 +7390,11 @@ and type_generic_array
       ~attributes
       sargl
   =
+  let alloc_mode, expected_mode' = register_allocation' expected_mode in
   let type_, base_argument_mode = match mutability with
     | Mutable -> Predef.type_array, mode_default Value_mode.global
-    | Immutable -> Predef.type_iarray, mode_subcomponent expected_mode
+    | Immutable -> Predef.type_iarray, expected_mode'
   in
-  let alloc_mode = register_allocation expected_mode in
   (* CR layouts v4: non-values in arrays *)
   let ty = newgenvar (Layout.value ~why:Array_element) in
   let to_unify = type_ ty in
