@@ -956,7 +956,7 @@ and case i ppf {pc_lhs; pc_rhs} =
 and case_rhs i ppf = function
   | Psimple_rhs e -> expression i ppf e
   | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
-      line i ppf "when\n";
+      line i ppf "<when>\n";
       expression (i + 1) ppf pbg_guard
   | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; _ } ->
       line i ppf "<when>\n";
