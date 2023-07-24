@@ -129,10 +129,18 @@ let may_compat = MayCompat.compat
 
 and may_compats = MayCompat.compats
 
+type guarded_free_variables = 
+  | Precomputed of Ident.Set.t
+  | Uncomputed
+
+let map_guarded_free_variables ~f = function
+  | Precomputed free_variables -> Precomputed (f free_variables)
+  | Uncomputed -> Uncomputed
+
 type rhs =
   | Guarded of
       { patch_guarded: patch:lambda -> lambda
-      ; free_variables: Ident.Set.t }
+      ; free_variables: guarded_free_variables }
   (* Guarded rhs's must allow for fallthrough if the guard fails.
 
      When translating a guarded rhs, the code to execute on fallthrough must
@@ -140,10 +148,10 @@ type rhs =
      rhs is created, guarded actions rhs's a function [patch_guarded], which
      generates a lambda term for the action from the fallthrough code.
 
-     Some translation functionality requires us to check syntactic properties
-     of actions. Rather than recomputing [patch_guarded] at the time of these
-     checks, we keep track of [unpatched], a lambda term which contains a dummy
-     value [Lstaticraise (0,[])] in the position to be patched.
+     One translation optimization requires us to check the free variables of an
+     rhs. When it is simple to do so, we precompute these free variables for use
+     in the optimization. Otherwise, we leave them uncomputed and do not apply
+     the optimization.
   *)
   | Unguarded of lambda
 
@@ -154,8 +162,10 @@ let mk_guarded_rhs ~patch_guarded ~free_variables =
 let mk_unguarded_rhs action = Unguarded action
 
 let free_variables_of_rhs = function
-  | Unguarded lam -> free_variables lam
-  | Guarded { free_variables; _ } -> free_variables
+  | Unguarded lam -> Some (free_variables lam)
+  | Guarded { free_variables = Precomputed free_variables } ->
+      Some free_variables
+  | Guarded { free_variables = Uncomputed } -> None
 
 let is_guarded = function
   | Guarded _ -> true
@@ -170,7 +180,9 @@ let bind_rhs_with_layout str (var, layout) exp body =
       | _ ->
           let patch_guarded ~patch =
             Llet (str, layout, var, exp, patch_guarded ~patch) in
-          let free_variables = Ident.Set.remove var free_variables in
+          let free_variables =
+            map_guarded_free_variables ~f:(Ident.Set.remove var) free_variables
+          in
           Guarded { patch_guarded; free_variables }
 
 (*
@@ -1193,8 +1205,9 @@ let what_is_cases = what_is_cases ~skip_any:true
 let pm_free_variables { cases } =
   List.fold_right
     (fun (_, act) r ->
-       Ident.Set.union (free_variables_of_rhs act) r)
-    cases Ident.Set.empty
+       Option.bind r
+         (fun r -> Option.map (Ident.Set.union r) (free_variables_of_rhs act)))
+    cases (Some Ident.Set.empty)
 
 (* Basic grouping predicates *)
 
@@ -1633,11 +1646,17 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
               }
             in
             let pm_fv = pm_free_variables orpm in
+            let filter_pm_fv =
+              match pm_fv with
+              | None -> fun ids -> ids
+              | Some pm_fv ->
+                  List.filter (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
+            in
             let patbound_action_vars =
               (* variables bound in the or-pattern
                  that are used in the orpm actions *)
               Typedtree.pat_bound_idents_full arg_sort orp
-              |> List.filter (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
+              |> filter_pm_fv
               |> List.map (fun (id, _, ty, id_sort) ->
                      (id, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
             in

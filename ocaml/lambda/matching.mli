@@ -22,6 +22,13 @@ open Debuginfo.Scoped_location
 (* Right-hand side of a case. *)
 type rhs
 
+(* The free variables in a guarded rhs can be precomputed to be used in an
+   optimization, or uncomputed, in which case the optimization is not applied.
+*)
+type guarded_free_variables =
+  | Precomputed of Ident.Set.t
+  | Uncomputed
+
 (* Creates a guarded rhs.
    
    If a guard fails, a guarded rhs must fallthrough to the remaining cases.
@@ -34,13 +41,11 @@ type rhs
 *)
 val mk_guarded_rhs:
         patch_guarded:(patch:lambda -> lambda) ->
-        free_variables:Ident.Set.t ->
+        free_variables:guarded_free_variables ->
         rhs
 
 (* Creates an unguarded rhs from its lambda representation. *)
 val mk_unguarded_rhs: lambda -> rhs
-
-val free_variables_of_rhs : rhs -> Ident.Set.t
 
 (* Entry points to match compiler *)
 val for_function:
