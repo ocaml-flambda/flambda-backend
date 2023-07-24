@@ -276,7 +276,7 @@ let emit_structured_constant symb cst cont =
       emit_int64_constant symb n cont
   | Uconst_nativeint n ->
       emit_nativeint_constant symb n cont
-  | Uconst_vec128 {ty = _; high; low} ->
+  | Uconst_vec128 {high; low} ->
       emit_vec128_constant symb {high; low} cont
   | Uconst_block (tag, csts) ->
       let cont = List.fold_right emit_constant csts cont in
@@ -343,7 +343,7 @@ let box_number bn arg =
   match bn with
   | Boxed_float (m, dbg) -> box_float dbg m arg
   | Boxed_integer (bi, m, dbg) -> box_int dbg bi m arg
-  | Boxed_vector (vi, m, dbg) -> box_vector dbg vi m arg
+  | Boxed_vector (Pvec128 _, m, dbg) -> box_vec128 dbg m arg
 
 (* Returns the unboxed representation of a boxed float or integer.
    For Pint32 on 64-bit archs, the high 32 bits of the result are undefined. *)
@@ -355,8 +355,8 @@ let unbox_number dbg bn arg =
     low_32 dbg (unbox_int dbg Pint32 arg)
   | Boxed_integer (bi, _, _) ->
     unbox_int dbg bi arg
-  | Boxed_vector (vi, _, _) ->
-    unbox_vector dbg vi arg
+  | Boxed_vector (Pvec128 _, _, _) ->
+    unbox_vec128 dbg arg
 
 (* Auxiliary functions for optimizing "let" of boxed numbers (floats and
    boxed integers *)
@@ -422,8 +422,8 @@ let rec is_unboxed_number_cmm = function
           Boxed (Boxed_integer (Pint32, alloc_heap, Debuginfo.none), true)
         | Some (Uconst_int64 _) ->
           Boxed (Boxed_integer (Pint64, alloc_heap, Debuginfo.none), true)
-        | Some (Uconst_vec128 {ty; _}) ->
-          Boxed (Boxed_vector (Pvec128 ty, alloc_heap, Debuginfo.none), true)
+        | Some (Uconst_vec128 _) ->
+          Boxed (Boxed_vector (Pvec128 Unknown128, alloc_heap, Debuginfo.none), true)
         | _ ->
           No_unboxing
       end
@@ -922,12 +922,8 @@ and transl_ccall env prim args dbg =
           | Pint32 -> XInt32
           | Pint64 -> XInt64 in
         (xty, transl_unbox_int dbg env bi arg)
-        | Unboxed_vector bi ->
-          let xty =
-            match bi with
-            | Pvec128 _ -> XVec128
-          in
-          (xty, transl_unbox_vector dbg env bi arg)
+    | Unboxed_vector (Pvec128 _) ->
+        (XVec128, transl_unbox_vec128 dbg env arg)
     | Untagged_int ->
         (XInt, untag_int (transl env arg) dbg)
   in
@@ -956,7 +952,7 @@ and transl_ccall env prim args dbg =
     | _, Unboxed_integer Pint64 when size_int = 4 ->
         ([|Int; Int|], box_int dbg Pint64 alloc_heap)
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
-    | _, Unboxed_vector ty -> (typ_vec128, box_vector dbg (Lambda.boxed_vector_from_primitive ty) alloc_heap)
+    | _, Unboxed_vector (Pvec128 _) -> (typ_vec128, box_vec128 dbg alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
@@ -1301,8 +1297,8 @@ and transl_unbox_float dbg env exp =
 and transl_unbox_int dbg env bi exp =
   unbox_int dbg bi (transl env exp)
 
-and transl_unbox_vector dbg env bi exp =
-  unbox_vector dbg (Lambda.boxed_vector_from_primitive bi) (transl env exp)
+and transl_unbox_vec128 dbg env exp =
+  unbox_vec128 dbg (transl env exp)
 
 (* transl_unbox_int, but may return garbage in upper bits *)
 and transl_unbox_int_low dbg env bi e =

@@ -37,8 +37,7 @@ module Expanded_type : sig
 
   val create_naked_nativeint : Type_grammar.head_of_kind_naked_nativeint -> t
 
-  val create_naked_vec128 :
-    Vector_types.Vec128.t -> Type_grammar.head_of_kind_naked_vec128 -> t
+  val create_naked_vec128 : Type_grammar.head_of_kind_naked_vec128 -> t
 
   val create_rec_info : Type_grammar.head_of_kind_rec_info -> t
 
@@ -65,8 +64,7 @@ module Expanded_type : sig
     | Naked_int32 of Type_grammar.head_of_kind_naked_int32
     | Naked_int64 of Type_grammar.head_of_kind_naked_int64
     | Naked_nativeint of Type_grammar.head_of_kind_naked_nativeint
-    | Naked_vec128 of
-        Vector_types.Vec128.t * Type_grammar.head_of_kind_naked_vec128
+    | Naked_vec128 of Type_grammar.head_of_kind_naked_vec128
     | Rec_info of Type_grammar.head_of_kind_rec_info
     | Region of Type_grammar.head_of_kind_region
 
@@ -85,8 +83,7 @@ module Expanded_type : sig
     | Naked_nativeint of
         Type_grammar.head_of_kind_naked_nativeint Or_unknown_or_bottom.t
     | Naked_vec128 of
-        Vector_types.Vec128.t
-        * Type_grammar.head_of_kind_naked_vec128 Or_unknown_or_bottom.t
+        Type_grammar.head_of_kind_naked_vec128 Or_unknown_or_bottom.t
     | Rec_info of Type_grammar.head_of_kind_rec_info Or_unknown_or_bottom.t
     | Region of Type_grammar.head_of_kind_region Or_unknown_or_bottom.t
 
@@ -99,7 +96,7 @@ end = struct
     | Naked_int32 of TG.head_of_kind_naked_int32
     | Naked_int64 of TG.head_of_kind_naked_int64
     | Naked_nativeint of TG.head_of_kind_naked_nativeint
-    | Naked_vec128 of Vector_types.Vec128.t * TG.head_of_kind_naked_vec128
+    | Naked_vec128 of TG.head_of_kind_naked_vec128
     | Rec_info of TG.head_of_kind_rec_info
     | Region of TG.head_of_kind_region
 
@@ -127,8 +124,8 @@ end = struct
   let create_naked_nativeint head =
     { kind = K.naked_nativeint; descr = Ok (Naked_nativeint head) }
 
-  let create_naked_vec128 ty head =
-    { kind = K.naked_vector (Vec128 ty); descr = Ok (Naked_vec128 (ty, head)) }
+  let create_naked_vec128 head =
+    { kind = K.naked_vec128; descr = Ok (Naked_vec128 head) }
 
   let create_rec_info head = { kind = K.rec_info; descr = Ok (Rec_info head) }
 
@@ -177,15 +174,15 @@ end = struct
         match TG.apply_coercion_head_of_kind_naked_float head coercion with
         | Bottom -> create_bottom K.naked_float
         | Ok head -> create_naked_float head))
-    | Naked_vec128 (ty, Unknown) -> create_unknown (K.naked_vector (Vec128 ty))
-    | Naked_vec128 (ty, Bottom) -> create_bottom (K.naked_vector (Vec128 ty))
-    | Naked_vec128 (ty, Ok (No_alias head)) -> (
+    | Naked_vec128 Unknown -> create_unknown K.naked_vec128
+    | Naked_vec128 Bottom -> create_bottom K.naked_vec128
+    | Naked_vec128 (Ok (No_alias head)) -> (
       match coercion with
-      | None -> create_naked_vec128 ty head
+      | None -> create_naked_vec128 head
       | Some coercion -> (
-        match TG.apply_coercion_head_of_kind_naked_vec128 ty head coercion with
-        | Bottom -> create_bottom (K.naked_vector (Vec128 ty))
-        | Ok head -> create_naked_vec128 ty head))
+        match TG.apply_coercion_head_of_kind_naked_vec128 head coercion with
+        | Bottom -> create_bottom K.naked_vec128
+        | Ok head -> create_naked_vec128 head))
     | Naked_int32 Unknown -> create_unknown K.naked_int32
     | Naked_int32 Bottom -> create_bottom K.naked_int32
     | Naked_int32 (Ok (No_alias head)) -> (
@@ -234,7 +231,7 @@ end = struct
     | Value (Ok (Equals _))
     | Naked_immediate (Ok (Equals _))
     | Naked_float (Ok (Equals _))
-    | Naked_vec128 (_, Ok (Equals _))
+    | Naked_vec128 (Ok (Equals _))
     | Naked_int32 (Ok (Equals _))
     | Naked_int64 (Ok (Equals _))
     | Naked_nativeint (Ok (Equals _))
@@ -254,7 +251,7 @@ end = struct
       | Naked_int32 head -> TG.create_from_head_naked_int32 head
       | Naked_int64 head -> TG.create_from_head_naked_int64 head
       | Naked_nativeint head -> TG.create_from_head_naked_nativeint head
-      | Naked_vec128 (ty, head) -> TG.create_from_head_naked_vec128 ty head
+      | Naked_vec128 head -> TG.create_from_head_naked_vec128 head
       | Rec_info head -> TG.create_from_head_rec_info head
       | Region head -> TG.create_from_head_region head)
 
@@ -271,8 +268,7 @@ end = struct
     | Naked_nativeint of
         Type_grammar.head_of_kind_naked_nativeint Or_unknown_or_bottom.t
     | Naked_vec128 of
-        Vector_types.Vec128.t
-        * Type_grammar.head_of_kind_naked_vec128 Or_unknown_or_bottom.t
+        Type_grammar.head_of_kind_naked_vec128 Or_unknown_or_bottom.t
     | Rec_info of Type_grammar.head_of_kind_rec_info Or_unknown_or_bottom.t
     | Region of Type_grammar.head_of_kind_region Or_unknown_or_bottom.t
 
@@ -286,7 +282,7 @@ end = struct
       | Naked_number Naked_int32 -> Naked_int32 Unknown
       | Naked_number Naked_int64 -> Naked_int64 Unknown
       | Naked_number Naked_nativeint -> Naked_nativeint Unknown
-      | Naked_number (Naked_vector (Vec128 ty)) -> Naked_vec128 (ty, Unknown)
+      | Naked_number Naked_vec128 -> Naked_vec128 Unknown
       | Rec_info -> Rec_info Unknown
       | Region -> Region Unknown)
     | Bottom -> (
@@ -297,7 +293,7 @@ end = struct
       | Naked_number Naked_int32 -> Naked_int32 Bottom
       | Naked_number Naked_int64 -> Naked_int64 Bottom
       | Naked_number Naked_nativeint -> Naked_nativeint Bottom
-      | Naked_number (Naked_vector (Vec128 ty)) -> Naked_vec128 (ty, Bottom)
+      | Naked_number Naked_vec128 -> Naked_vec128 Bottom
       | Rec_info -> Rec_info Bottom
       | Region -> Region Bottom)
     | Ok (Value head) -> Value (Ok head)
@@ -306,7 +302,7 @@ end = struct
     | Ok (Naked_int32 head) -> Naked_int32 (Ok head)
     | Ok (Naked_int64 head) -> Naked_int64 (Ok head)
     | Ok (Naked_nativeint head) -> Naked_nativeint (Ok head)
-    | Ok (Naked_vec128 (ty, head)) -> Naked_vec128 (ty, Ok head)
+    | Ok (Naked_vec128 head) -> Naked_vec128 (Ok head)
     | Ok (Rec_info head) -> Rec_info (Ok head)
     | Ok (Region head) -> Region (Ok head)
 end
@@ -342,8 +338,8 @@ let expand_head_of_alias_type env kind
         ET.create_naked_int64 (TG.Head_of_kind_naked_int64.create i)
       | Naked_nativeint i ->
         ET.create_naked_nativeint (TG.Head_of_kind_naked_nativeint.create i)
-      | Naked_vec128 (ty, i) ->
-        ET.create_naked_vec128 ty (TG.Head_of_kind_naked_vec128.create i))
+      | Naked_vec128 i ->
+        ET.create_naked_vec128 (TG.Head_of_kind_naked_vec128.create i))
     ~name
 
 let expand_head0 env ty ~known_canonical_simple_at_in_types_mode =

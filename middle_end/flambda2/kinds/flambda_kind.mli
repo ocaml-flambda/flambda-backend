@@ -23,7 +23,7 @@ module Naked_number_kind : sig
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
-    | Naked_vector of Vector_types.t
+    | Naked_vec128
 
   val print : Format.formatter -> t -> unit
 end
@@ -57,7 +57,7 @@ val naked_int64 : t
 
 val naked_nativeint : t
 
-val naked_vector : Vector_types.t -> t
+val naked_vec128 : t
 
 val region : t
 
@@ -115,7 +115,7 @@ module Boxable_number : sig
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
-    | Naked_vector of Vector_types.t
+    | Naked_vec128
 
   val unboxed_kind : t -> kind
 
@@ -138,7 +138,7 @@ module With_subkind : sig
       | Boxed_int32
       | Boxed_int64
       | Boxed_nativeint
-      | Boxed_vector of Vector_types.t
+      | Boxed_vec128
       | Tagged_immediate
       | Variant of
           { consts : Targetint_31_63.Set.t;
@@ -177,7 +177,7 @@ module With_subkind : sig
 
   val naked_nativeint : t
 
-  val naked_vector : Vector_types.t -> t
+  val naked_vec128 : t
 
   val region : t
 
@@ -189,7 +189,7 @@ module With_subkind : sig
 
   val boxed_nativeint : t
 
-  val boxed_vector : Vector_types.t -> t
+  val boxed_vec128 : t
 
   val tagged_immediate : t
 

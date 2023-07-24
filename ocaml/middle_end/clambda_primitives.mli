@@ -184,7 +184,6 @@ and vec128_type = Lambda.vec128_type =
   | Int64x2
   | Float32x4
   | Float64x2
-  | Any128
 
 and boxed_vector = Lambda.boxed_vector =
   | Pvec128 of vec128_type

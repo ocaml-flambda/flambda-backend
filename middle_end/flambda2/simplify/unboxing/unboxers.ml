@@ -123,75 +123,22 @@ module Nativeint = struct
     }
 end
 
-module type Vector_type = sig
-  val t : Vector_types.t
-end
-
-module Vector_unboxer (Vector_type : Vector_type) = struct
+module Vec128 = struct
   let decider =
-    { param_name =
-        Format.sprintf "unboxed_%s" (Vector_types.name_lowercase Vector_type.t);
-      kind = K.Naked_number_kind.Naked_vector Vector_type.t;
-      prove_is_a_boxed_number = prove_is_a_boxed_vector Vector_type.t
+    { param_name = Format.sprintf "unboxed_vec128";
+      kind = K.Naked_number_kind.Naked_vec128;
+      prove_is_a_boxed_number = prove_is_a_boxed_vec128
     }
 
-  let unboxing_prim simple =
-    P.(Unary (Unbox_number (Naked_vector Vector_type.t), simple))
-
-  let zero =
-    match Vector_type.t with
-    | Vec128 ty -> Const.naked_vec128 ty Vector_types.Vec128.Bit_pattern.zero
+  let unboxing_prim simple = P.(Unary (Unbox_number Naked_vec128, simple))
 
   let unboxer =
-    { var_name =
-        Format.sprintf "unboxed_%s" (Vector_types.name_lowercase Vector_type.t);
-      invalid_const = zero;
+    { var_name = Format.sprintf "unboxed_vec128";
+      invalid_const = Const.naked_vec128 Vector_types.Vec128.Bit_pattern.zero;
       unboxing_prim;
-      prove_simple = T.meet_boxed_vector_containing_simple Vector_type.t
+      prove_simple = T.meet_boxed_vec128_containing_simple
     }
 end
-
-module Int8x16 = Vector_unboxer (struct
-  let t = Vector_types.(Vec128 Int8x16)
-end)
-
-module Int16x8 = Vector_unboxer (struct
-  let t = Vector_types.(Vec128 Int16x8)
-end)
-
-module Int32x4 = Vector_unboxer (struct
-  let t = Vector_types.(Vec128 Int32x4)
-end)
-
-module Int64x2 = Vector_unboxer (struct
-  let t = Vector_types.(Vec128 Int64x2)
-end)
-
-module Float32x4 = Vector_unboxer (struct
-  let t = Vector_types.(Vec128 Float32x4)
-end)
-
-module Float64x2 = Vector_unboxer (struct
-  let t = Vector_types.(Vec128 Float64x2)
-end)
-
-module Unknown128 = Vector_unboxer (struct
-  let t = Vector_types.(Vec128 Unknown128)
-end)
-
-module Any128 = Vector_unboxer (struct
-  let t = Vector_types.(Vec128 Any128)
-end)
-
-let vector_unboxer : Vector_types.t -> unboxer = function
-  | Vec128 Unknown128 -> Unknown128.unboxer
-  | Vec128 Int8x16 -> Int8x16.unboxer
-  | Vec128 Int16x8 -> Int16x8.unboxer
-  | Vec128 Int32x4 -> Int32x4.unboxer
-  | Vec128 Int64x2 -> Int64x2.unboxer
-  | Vec128 Float32x4 -> Float32x4.unboxer
-  | Vec128 Float64x2 -> Float64x2.unboxer
-  | Vec128 Any128 -> Any128.unboxer
 
 module Field = struct
   let unboxing_prim bak ~block ~index =

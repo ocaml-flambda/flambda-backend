@@ -67,7 +67,6 @@ module Vec128 = struct
     | Int64x2
     | Float32x4
     | Float64x2
-    | Any128
 
   let name = function
     | Unknown128 -> "Unknown128"
@@ -77,7 +76,6 @@ module Vec128 = struct
     | Int64x2 -> "Int64x2"
     | Float32x4 -> "Float32x4"
     | Float64x2 -> "Float64x2"
-    | Any128 -> "Any128"
 
   let name_lowercase = function
     | Unknown128 -> "unknown128"
@@ -87,35 +85,6 @@ module Vec128 = struct
     | Int64x2 -> "int64x2"
     | Float32x4 -> "float32x4"
     | Float64x2 -> "float64x2"
-    | Any128 -> "any128"
-
-  let join l r =
-    (* Least upper bound *)
-    match l, r with
-    | Unknown128, _ | _, Unknown128 -> Unknown128
-    | Any128, vty | vty, Any128 -> vty
-    | Int8x16, Int8x16 -> Int8x16
-    | Int16x8, Int16x8 -> Int16x8
-    | Int32x4, Int32x4 -> Int32x4
-    | Int64x2, Int64x2 -> Int64x2
-    | Float32x4, Float32x4 -> Float32x4
-    | Float64x2, Float64x2 -> Float64x2
-    | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ ->
-      Unknown128
-
-  let meet l r =
-    (* Greatest lower bound *)
-    match l, r with
-    | Unknown128, vty | vty, Unknown128 -> vty
-    | Any128, _ | _, Any128 -> Any128
-    | Int8x16, Int8x16 -> Int8x16
-    | Int16x8, Int16x8 -> Int16x8
-    | Int32x4, Int32x4 -> Int32x4
-    | Int64x2, Int64x2 -> Int64x2
-    | Float32x4, Float32x4 -> Float32x4
-    | Float64x2, Float64x2 -> Float64x2
-    | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ ->
-      Any128
 
   let to_lambda : t -> Lambda.vec128_type = function
     | Unknown128 -> Unknown128
@@ -125,7 +94,6 @@ module Vec128 = struct
     | Int64x2 -> Int64x2
     | Float32x4 -> Float32x4
     | Float64x2 -> Float64x2
-    | Any128 -> Any128
 
   let from_lambda : Lambda.vec128_type -> t = function
     | Unknown128 -> Unknown128
@@ -135,7 +103,6 @@ module Vec128 = struct
     | Int64x2 -> Int64x2
     | Float32x4 -> Float32x4
     | Float64x2 -> Float64x2
-    | Any128 -> Any128
 
   module Bit_pattern = struct
     include Vector_by_bit_pattern (struct
@@ -155,24 +122,3 @@ module Vec128 = struct
     let of_bits { high; low } = of_int64_array [| high; low |]
   end
 end
-
-type t = Vec128 of Vec128.t
-
-let name = function Vec128 l -> Vec128.name l
-
-let name_lowercase = function Vec128 l -> Vec128.name_lowercase l
-
-let equal_size l r = match l, r with Vec128 _, Vec128 _ -> true
-
-let to_lambda : t -> Lambda.boxed_vector = function
-  | Vec128 v -> Pvec128 (Vec128.to_lambda v)
-
-let from_lambda : Lambda.boxed_vector -> t = function
-  | Pvec128 v -> Vec128 (Vec128.from_lambda v)
-
-let from_primitive (prim : Primitive.boxed_vector) =
-  prim |> Lambda.boxed_vector_from_primitive |> from_lambda
-
-let meet l r = match l, r with Vec128 l, Vec128 r -> Vec128 (Vec128.meet l r)
-
-let join l r = match l, r with Vec128 l, Vec128 r -> Vec128 (Vec128.join l r)

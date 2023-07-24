@@ -80,7 +80,7 @@ let rec filter_non_beneficial_decisions decision : U.decision =
   | Unbox
       (Number
         ( ( Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint
-          | Naked_vector _ ),
+          | Naked_vec128 ),
           epa )) as decision ->
     if is_unboxing_beneficial_for_epa epa
     then decision

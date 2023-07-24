@@ -23,8 +23,7 @@ type t =
   | Boxed_int32 of Int32.t Or_variable.t
   | Boxed_int64 of Int64.t Or_variable.t
   | Boxed_nativeint of Targetint_32_64.t Or_variable.t
-  | Boxed_vec128 of
-      Vector_types.Vec128.t * Vector_types.Vec128.Bit_pattern.t Or_variable.t
+  | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t Or_variable.t
   | Immutable_float_block of
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
   | Immutable_float_array of
@@ -46,7 +45,7 @@ let boxed_int64 or_var = Boxed_int64 or_var
 
 let boxed_nativeint or_var = Boxed_nativeint or_var
 
-let boxed_vec128 ty or_var = Boxed_vec128 (ty, or_var)
+let boxed_vec128 or_var = Boxed_vec128 or_var
 
 let immutable_float_block fields = Immutable_float_block fields
 
@@ -100,10 +99,9 @@ let [@ocamlformat "disable"] print ppf t =
       Flambda_colours.static_part
       Flambda_colours.pop
       (Or_variable.print Targetint_32_64.print) or_var
-  | Boxed_vec128 (ty, or_var) ->
-    fprintf ppf "@[<hov 1>(%tBoxed_vec128[%s]%t@ %a)@]"
+  | Boxed_vec128 (or_var) ->
+    fprintf ppf "@[<hov 1>(%tBoxed_vec128%t@ %a)@]"
       Flambda_colours.static_part
-      (Vector_types.Vec128.name ty)
       Flambda_colours.pop
       (Or_variable.print Vector_types.Vec128.Bit_pattern.print) or_var
   | Immutable_float_block fields ->
@@ -171,7 +169,7 @@ include Container_types.Make (struct
       Or_variable.compare Numeric_types.Int64.compare or_var1 or_var2
     | Boxed_nativeint or_var1, Boxed_nativeint or_var2 ->
       Or_variable.compare Targetint_32_64.compare or_var1 or_var2
-    | Boxed_vec128 (_, or_var1), Boxed_vec128 (_, or_var2) ->
+    | Boxed_vec128 or_var1, Boxed_vec128 or_var2 ->
       Or_variable.compare Vector_types.Vec128.Bit_pattern.compare or_var1
         or_var2
     | Immutable_float_block fields1, Immutable_float_array fields2 ->
@@ -233,7 +231,7 @@ let free_names t =
   | Boxed_int32 or_var -> Or_variable.free_names or_var
   | Boxed_int64 or_var -> Or_variable.free_names or_var
   | Boxed_nativeint or_var -> Or_variable.free_names or_var
-  | Boxed_vec128 (_, or_var) -> Or_variable.free_names or_var
+  | Boxed_vec128 or_var -> Or_variable.free_names or_var
   | Mutable_string { initial_value = _ } | Immutable_string _ | Empty_array ->
     Name_occurrences.empty
   | Immutable_float_block fields | Immutable_float_array fields ->
@@ -272,9 +270,9 @@ let apply_renaming t renaming =
     | Boxed_nativeint or_var ->
       let or_var' = Or_variable.apply_renaming or_var renaming in
       if or_var == or_var' then t else Boxed_nativeint or_var'
-    | Boxed_vec128 (ty, or_var) ->
+    | Boxed_vec128 or_var ->
       let or_var' = Or_variable.apply_renaming or_var renaming in
-      if or_var == or_var' then t else Boxed_vec128 (ty, or_var')
+      if or_var == or_var' then t else Boxed_vec128 or_var'
     | Mutable_string { initial_value = _ } | Immutable_string _ -> t
     | Immutable_float_block fields ->
       let fields' =
@@ -323,13 +321,13 @@ let ids_for_export t =
   | Boxed_int32 (Var (var, _dbg))
   | Boxed_int64 (Var (var, _dbg))
   | Boxed_nativeint (Var (var, _dbg))
-  | Boxed_vec128 (_, Var (var, _dbg)) ->
+  | Boxed_vec128 (Var (var, _dbg)) ->
     Ids_for_export.add_variable Ids_for_export.empty var
   | Boxed_float (Const _)
   | Boxed_int32 (Const _)
   | Boxed_int64 (Const _)
   | Boxed_nativeint (Const _)
-  | Boxed_vec128 (_, Const _)
+  | Boxed_vec128 (Const _)
   | Mutable_string { initial_value = _ }
   | Immutable_string _ ->
     Ids_for_export.empty

@@ -63,7 +63,6 @@ val meet_naked_nativeints :
   Typing_env.t -> Type_grammar.t -> Targetint_32_64.Set.t meet_shortcut
 
 val meet_naked_vec128s :
-  Vector_types.Vec128.t ->
   Typing_env.t ->
   Type_grammar.t ->
   Vector_types.Vec128.Bit_pattern.Set.t meet_shortcut
@@ -102,8 +101,8 @@ val prove_is_a_boxed_int64 :
 val prove_is_a_boxed_nativeint :
   Typing_env.t -> Type_grammar.t -> unit proof_of_property
 
-val prove_is_a_boxed_vector :
-  Vector_types.t -> Typing_env.t -> Type_grammar.t -> unit proof_of_property
+val prove_is_a_boxed_vec128 :
+  Typing_env.t -> Type_grammar.t -> unit proof_of_property
 
 val prove_is_or_is_not_a_boxed_float :
   Typing_env.t -> Type_grammar.t -> bool proof_of_property
@@ -199,8 +198,7 @@ val meet_boxed_nativeint_containing_simple :
   Type_grammar.t ->
   Simple.t meet_shortcut
 
-val meet_boxed_vector_containing_simple :
-  Vector_types.t ->
+val meet_boxed_vec128_containing_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   Type_grammar.t ->

@@ -37,9 +37,7 @@ val these_naked_int64s : Numeric_types.Int64.Set.t -> Type_grammar.t
 val these_naked_nativeints : Targetint_32_64.Set.t -> Type_grammar.t
 
 val these_naked_vec128s :
-  Vector_types.Vec128.t ->
-  Vector_types.Vec128.Bit_pattern.Set.t ->
-  Type_grammar.t
+  Vector_types.Vec128.Bit_pattern.Set.t -> Type_grammar.t
 
 val any_tagged_immediate : Type_grammar.t
 
@@ -64,10 +62,7 @@ val this_boxed_nativeint :
   Targetint_32_64.t -> Alloc_mode.For_types.t -> Type_grammar.t
 
 val this_boxed_vec128 :
-  Vector_types.Vec128.t ->
-  Vector_types.Vec128.Bit_pattern.t ->
-  Alloc_mode.For_types.t ->
-  Type_grammar.t
+  Vector_types.Vec128.Bit_pattern.t -> Alloc_mode.For_types.t -> Type_grammar.t
 
 val these_boxed_floats :
   Numeric_types.Float_by_bit_pattern.Set.t ->

@@ -299,7 +299,6 @@ and vec128_type =
   | Int64x2
   | Float32x4
   | Float64x2
-  | Any128
 
 and boxed_vector =
   | Pvec128 of vec128_type
@@ -331,7 +330,6 @@ let vec128_name = function
   | Int64x2 -> "int64x2"
   | Float32x4 -> "float32x4"
   | Float64x2 -> "float64x2"
-  | Any128 -> "any128"
 
 let boxed_vector_from_primitive : Primitive.boxed_vector -> boxed_vector = function
   | Pvec128 Int8x16 -> Pvec128 Int8x16
@@ -350,7 +348,6 @@ let equal_boxed_vector_size v1 v2 =
 let join_vec128_types v1 v2 =
   match v1, v2 with
   | Unknown128, _ | _, Unknown128 -> Unknown128
-  | Any128, vty | vty, Any128 -> vty
   | Int8x16, Int8x16 -> Int8x16
   | Int16x8, Int16x8 -> Int16x8
   | Int32x4, Int32x4 -> Int32x4

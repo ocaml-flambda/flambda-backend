@@ -32,7 +32,7 @@ type ustructured_constant =
   | Uconst_int32 of int32
   | Uconst_int64 of int64
   | Uconst_nativeint of nativeint
-  | Uconst_vec128 of { ty : Lambda.vec128_type; high : int64; low : int64 }
+  | Uconst_vec128 of { high : int64; low : int64 }
   | Uconst_block of int * uconstant list
   | Uconst_float_array of float list
   | Uconst_string of string
@@ -229,9 +229,8 @@ let compare_structured_constants c1 c2 =
   | Uconst_string s1, Uconst_string s2 -> String.compare s1 s2
   | Uconst_closure (_,lbl1,_), Uconst_closure (_,lbl2,_) ->
       String.compare lbl1 lbl2
-  | Uconst_vec128 {ty = _; high = l0; low = l1},
-    Uconst_vec128 {ty = _; high = r0; low = r1} ->
-    (* The overlay types don't matter *)
+  | Uconst_vec128 { high = l0; low = l1},
+    Uconst_vec128 { high = r0; low = r1} ->
     let cmp = Int64.compare l0 r0 in
     if cmp = 0 then Int64.compare l1 r1 else cmp
   | _, _ ->

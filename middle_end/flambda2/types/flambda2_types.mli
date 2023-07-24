@@ -366,10 +366,7 @@ val this_boxed_int64 : Numeric_types.Int64.t -> Alloc_mode.For_types.t -> t
 val this_boxed_nativeint : Targetint_32_64.t -> Alloc_mode.For_types.t -> t
 
 val this_boxed_vec128 :
-  Vector_types.Vec128.t ->
-  Vector_types.Vec128.Bit_pattern.t ->
-  Alloc_mode.For_types.t ->
-  t
+  Vector_types.Vec128.Bit_pattern.t -> Alloc_mode.For_types.t -> t
 
 val these_tagged_immediates : Targetint_31_63.Set.t -> t
 
@@ -419,10 +416,7 @@ val boxed_nativeint_alias_to :
   naked_nativeint:Variable.t -> Alloc_mode.For_types.t -> t
 
 val boxed_vec128_alias_to :
-  Vector_types.Vec128.t ->
-  naked_vec128:Variable.t ->
-  Alloc_mode.For_types.t ->
-  t
+  naked_vec128:Variable.t -> Alloc_mode.For_types.t -> t
 
 val box_float : t -> Alloc_mode.For_types.t -> t
 
@@ -432,7 +426,7 @@ val box_int64 : t -> Alloc_mode.For_types.t -> t
 
 val box_nativeint : t -> Alloc_mode.For_types.t -> t
 
-val box_vector : Vector_types.t -> t -> Alloc_mode.For_types.t -> t
+val box_vec128 : t -> Alloc_mode.For_types.t -> t
 
 val tagged_immediate_alias_to : naked_immediate:Variable.t -> t
 
@@ -613,8 +607,7 @@ val prove_is_a_boxed_int64 : Typing_env.t -> t -> unit proof_of_property
 
 val prove_is_a_boxed_nativeint : Typing_env.t -> t -> unit proof_of_property
 
-val prove_is_a_boxed_vector :
-  Vector_types.t -> Typing_env.t -> t -> unit proof_of_property
+val prove_is_a_boxed_vec128 : Typing_env.t -> t -> unit proof_of_property
 
 val prove_is_or_is_not_a_boxed_float :
   Typing_env.t -> t -> bool proof_of_property
@@ -692,12 +685,8 @@ val meet_boxed_int64_containing_simple :
 val meet_boxed_nativeint_containing_simple :
   Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
-val meet_boxed_vector_containing_simple :
-  Vector_types.t ->
-  Typing_env.t ->
-  min_name_mode:Name_mode.t ->
-  t ->
-  Simple.t meet_shortcut
+val meet_boxed_vec128_containing_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
 val meet_block_field_simple :
   Typing_env.t ->
@@ -738,7 +727,7 @@ type to_lift = private
   | Boxed_int32 of Numeric_types.Int32.t
   | Boxed_int64 of Numeric_types.Int64.t
   | Boxed_nativeint of Targetint_32_64.t
-  | Boxed_vec128 of Vector_types.Vec128.t * Vector_types.Vec128.Bit_pattern.t
+  | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t
   | Immutable_float_array of
       { fields : Numeric_types.Float_by_bit_pattern.t list }
   | Immutable_value_array of { fields : Simple.t list }

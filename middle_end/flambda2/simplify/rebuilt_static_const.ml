@@ -126,10 +126,10 @@ let create_boxed_nativeint are_rebuilding or_var =
   then Block_not_rebuilt { free_names = Or_variable.free_names or_var }
   else create_normal_non_code (SC.boxed_nativeint or_var)
 
-let create_boxed_vec128 ty are_rebuilding or_var =
+let create_boxed_vec128 are_rebuilding or_var =
   if ART.do_not_rebuild_terms are_rebuilding
   then Block_not_rebuilt { free_names = Or_variable.free_names or_var }
-  else create_normal_non_code (SC.boxed_vec128 ty or_var)
+  else create_normal_non_code (SC.boxed_vec128 or_var)
 
 let create_immutable_float_block are_rebuilding fields =
   if ART.do_not_rebuild_terms are_rebuilding

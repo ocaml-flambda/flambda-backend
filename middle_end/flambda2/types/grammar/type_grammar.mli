@@ -36,8 +36,7 @@ type t = private
   | Naked_int32 of head_of_kind_naked_int32 Type_descr.t
   | Naked_int64 of head_of_kind_naked_int64 Type_descr.t
   | Naked_nativeint of head_of_kind_naked_nativeint Type_descr.t
-  | Naked_vec128 of
-      Vector_types.Vec128.t * head_of_kind_naked_vec128 Type_descr.t
+  | Naked_vec128 of head_of_kind_naked_vec128 Type_descr.t
   | Rec_info of head_of_kind_rec_info Type_descr.t
   | Region of head_of_kind_region Type_descr.t
 
@@ -53,7 +52,7 @@ and head_of_kind_value = private
   | Boxed_int32 of t * Alloc_mode.For_types.t
   | Boxed_int64 of t * Alloc_mode.For_types.t
   | Boxed_nativeint of t * Alloc_mode.For_types.t
-  | Boxed_vector of Vector_types.t * t * Alloc_mode.For_types.t
+  | Boxed_vec128 of t * Alloc_mode.For_types.t
   | Closures of
       { by_function_slot : row_like_for_closures;
         alloc_mode : Alloc_mode.For_types.t
@@ -153,8 +152,6 @@ val free_names_except_through_value_slots : t -> Name_occurrences.t
 
 include Contains_ids.S with type t := t
 
-val meet_vector_head : Vector_types.t -> t -> t
-
 val remove_unused_value_slots_and_shortcut_aliases :
   t ->
   used_value_slots:Value_slot.Set.t ->
@@ -190,7 +187,7 @@ val bottom_naked_int64 : t
 
 val bottom_naked_nativeint : t
 
-val bottom_naked_vector : Vector_types.t -> t
+val bottom_naked_vec128 : t
 
 val bottom_rec_info : t
 
@@ -208,7 +205,7 @@ val any_naked_int64 : t
 
 val any_naked_nativeint : t
 
-val any_naked_vector : Vector_types.t -> t
+val any_naked_vec128 : t
 
 val any_region : t
 
@@ -228,8 +225,7 @@ val this_naked_int64 : Numeric_types.Int64.t -> t
 
 val this_naked_nativeint : Targetint_32_64.t -> t
 
-val this_naked_vec128 :
-  Vector_types.Vec128.t -> Vector_types.Vec128.Bit_pattern.t -> t
+val this_naked_vec128 : Vector_types.Vec128.Bit_pattern.t -> t
 
 val these_naked_immediates : Targetint_31_63.Set.t -> t
 
@@ -241,8 +237,7 @@ val these_naked_int64s : Numeric_types.Int64.Set.t -> t
 
 val these_naked_nativeints : Targetint_32_64.Set.t -> t
 
-val these_naked_vec128s :
-  Vector_types.Vec128.t -> Vector_types.Vec128.Bit_pattern.Set.t -> t
+val these_naked_vec128s : Vector_types.Vec128.Bit_pattern.Set.t -> t
 
 val boxed_float_alias_to : naked_float:Variable.t -> Alloc_mode.For_types.t -> t
 
@@ -254,10 +249,7 @@ val boxed_nativeint_alias_to :
   naked_nativeint:Variable.t -> Alloc_mode.For_types.t -> t
 
 val boxed_vec128_alias_to :
-  Vector_types.Vec128.t ->
-  naked_vec128:Variable.t ->
-  Alloc_mode.For_types.t ->
-  t
+  naked_vec128:Variable.t -> Alloc_mode.For_types.t -> t
 
 val box_float : t -> Alloc_mode.For_types.t -> t
 
@@ -267,7 +259,7 @@ val box_int64 : t -> Alloc_mode.For_types.t -> t
 
 val box_nativeint : t -> Alloc_mode.For_types.t -> t
 
-val box_vector : Vector_types.t -> t -> Alloc_mode.For_types.t -> t
+val box_vec128 : t -> Alloc_mode.For_types.t -> t
 
 val tagged_immediate_alias_to : naked_immediate:Variable.t -> t
 
@@ -524,8 +516,7 @@ module Descr : sig
     | Naked_nativeint of
         head_of_kind_naked_nativeint Type_descr.Descr.t Or_unknown_or_bottom.t
     | Naked_vec128 of
-        Vector_types.Vec128.t
-        * head_of_kind_naked_vec128 Type_descr.Descr.t Or_unknown_or_bottom.t
+        head_of_kind_naked_vec128 Type_descr.Descr.t Or_unknown_or_bottom.t
     | Rec_info of
         head_of_kind_rec_info Type_descr.Descr.t Or_unknown_or_bottom.t
     | Region of head_of_kind_region Type_descr.Descr.t Or_unknown_or_bottom.t
@@ -545,8 +536,7 @@ val create_from_head_naked_int64 : head_of_kind_naked_int64 -> t
 
 val create_from_head_naked_nativeint : head_of_kind_naked_nativeint -> t
 
-val create_from_head_naked_vec128 :
-  Vector_types.Vec128.t -> head_of_kind_naked_vec128 -> t
+val create_from_head_naked_vec128 : head_of_kind_naked_vec128 -> t
 
 val create_from_head_rec_info : head_of_kind_rec_info -> t
 
@@ -575,7 +565,6 @@ val apply_coercion_head_of_kind_naked_nativeint :
   head_of_kind_naked_nativeint Or_bottom.t
 
 val apply_coercion_head_of_kind_naked_vec128 :
-  Vector_types.Vec128.t ->
   head_of_kind_naked_vec128 ->
   Coercion.t ->
   head_of_kind_naked_vec128 Or_bottom.t
@@ -607,8 +596,7 @@ module Head_of_kind_value : sig
 
   val create_boxed_nativeint : flambda_type -> Alloc_mode.For_types.t -> t
 
-  val create_boxed_vector :
-    Vector_types.t -> flambda_type -> Alloc_mode.For_types.t -> t
+  val create_boxed_vec128 : flambda_type -> Alloc_mode.For_types.t -> t
 
   val create_tagged_immediate : Targetint_31_63.t -> t
 

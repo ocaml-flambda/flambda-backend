@@ -309,12 +309,11 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
       meet_head_of_kind_naked_nativeint env head1 head2
     in
     ET.create_naked_nativeint head, env_extension
-  | Naked_vec128 (vty1, head1), Naked_vec128 (vty2, head2) ->
+  | Naked_vec128 head1, Naked_vec128 head2 ->
     let<+ head, env_extension =
       meet_head_of_kind_naked_vec128 env head1 head2
     in
-    ( ET.create_naked_vec128 (Vector_types.Vec128.meet vty1 vty2) head,
-      env_extension )
+    ET.create_naked_vec128 head, env_extension
   | Rec_info head1, Rec_info head2 ->
     let<+ head, env_extension = meet_head_of_kind_rec_info env head1 head2 in
     ET.create_rec_info head, env_extension
@@ -370,14 +369,10 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
     TG.Head_of_kind_value.create_boxed_nativeint n alloc_mode, env_extension
-  | Boxed_vector (vty1, n1, alloc_mode1), Boxed_vector (vty2, n2, alloc_mode2)
-    when Vector_types.equal_size vty1 vty2 ->
+  | Boxed_vec128 (n1, alloc_mode1), Boxed_vec128 (n2, alloc_mode2) ->
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    ( TG.Head_of_kind_value.create_boxed_vector
-        (Vector_types.meet vty1 vty2)
-        n alloc_mode,
-      env_extension )
+    TG.Head_of_kind_value.create_boxed_vec128 n alloc_mode, env_extension
   | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
       Closures
         { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->
@@ -419,7 +414,7 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
         contents alloc_mode,
       env_extension )
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
-      | Boxed_vector _ | Boxed_int64 _ | Boxed_nativeint _ | Closures _
+      | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _ | Closures _
       | String _ | Array _ ),
       _ ) ->
     (* This assumes that all the different constructors are incompatible. This
@@ -1148,9 +1143,9 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
       | Naked_nativeint head1, Naked_nativeint head2 ->
         let>+ head = join_head_of_kind_naked_nativeint env head1 head2 in
         ET.create_naked_nativeint head
-      | Naked_vec128 (vty1, head1), Naked_vec128 (vty2, head2) ->
+      | Naked_vec128 head1, Naked_vec128 head2 ->
         let>+ head = join_head_of_kind_naked_vec128 env head1 head2 in
-        ET.create_naked_vec128 (Vector_types.Vec128.join vty1 vty2) head
+        ET.create_naked_vec128 head
       | Rec_info head1, Rec_info head2 ->
         let>+ head = join_head_of_kind_rec_info env head1 head2 in
         ET.create_rec_info head
@@ -1200,13 +1195,10 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
     TG.Head_of_kind_value.create_boxed_nativeint n alloc_mode
-  | Boxed_vector (vty1, n1, alloc_mode1), Boxed_vector (vty2, n2, alloc_mode2)
-    when Vector_types.equal_size vty1 vty2 ->
+  | Boxed_vec128 (n1, alloc_mode1), Boxed_vec128 (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_vector
-      (Vector_types.join vty1 vty2)
-      n alloc_mode
+    TG.Head_of_kind_value.create_boxed_vec128 n alloc_mode
   | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
       Closures
         { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->
@@ -1240,7 +1232,7 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
       contents alloc_mode
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
-      | Boxed_vector _ | Boxed_int64 _ | Boxed_nativeint _ | Closures _
+      | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _ | Closures _
       | String _ | Array _ ),
       _ ) ->
     Unknown
