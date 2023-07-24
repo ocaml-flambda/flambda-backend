@@ -5,27 +5,14 @@
 type t = src_pos:[%src_pos] -> unit -> unit
 
 [%%expect {|
-type t = src_pos:lexing_position -> unit -> unit
+type t = src_pos:[%src_pos] -> unit -> unit
 |}]
 
-(*  TODO: Desired behavior below  *)
-
-(* This fails because the type expression thinks t has a Labeled argument,
-   while the definition type includes that it's a Position label *)
-
-(* let f : t = fun ~(src_pos:[%src_pos]) () -> ()
+let f : t = fun ~(src_pos:[%src_pos]) () -> ()
 
 [%%expect{|
-val f : src_pos:[%src_pos] -> unit -> unit = <fun>
-|}] *)
-
-let f = fun ~(src_pos:[%src_pos]) () -> ()
-
-[%%expect{|
-val f : src_pos:[%src_pos] -> unit -> unit = <fun>
+val f : t = <fun>
 |}]
-
-(*  end  *)
 
 let g ~(src_pos:[%src_pos]) () = ()
 
@@ -33,14 +20,12 @@ let g ~(src_pos:[%src_pos]) () = ()
 val g : src_pos:[%src_pos] -> unit -> unit = <fun>
 |}]
 
-let apply f = f ~src_pos:{pos_fname="hello" ; pos_lnum=1; pos_bol=2; pos_cnum=3} () ;;
+let apply (f : t) = f ~src_pos:Lexing.dummy_pos () ;;
 [%%expect {|
-val apply : (src_pos:lexing_position -> unit -> 'a) -> 'a = <fun>
+val apply : t -> unit = <fun>
 |}]
 
-(* TODO: These fail for the same reason as above *)
-
-(* let _ = apply f ;;
+let _ = apply f ;;
 [%%expect{|
 - : unit = ()
 |}]
@@ -48,6 +33,4 @@ val apply : (src_pos:lexing_position -> unit -> 'a) -> 'a = <fun>
 let _ = apply g ;;
 [%%expect{|
 - : unit = ()
-|}] *)
-
-(*  end  *)
+|}]
