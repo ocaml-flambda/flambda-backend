@@ -473,8 +473,18 @@ let expression sub exp =
           List.map (sub.value_binding sub) list,
           sub.expr sub exp)
 
-    (* Pexp_function can't have a label, so we split in 3 cases. *)
+    (* Pexp_function can't have a label, so we split in cases.
+       Since typing Position arguments discards the constraint, we case
+       on them to reconstruct the constraints. *)
     (* One case, no guard: It's a fun. *)
+    (* First, the special case for a Position argument *)
+    | Texp_function { arg_label = Position _ as label;
+                      cases = [{c_lhs=p; c_guard=None; c_rhs=e}]; _ } ->
+        let pat =
+          Pat.mk (Ppat_constraint (sub.pat sub p,
+            Typ.mk (Ptyp_extension ({loc; txt="src_pos"}, PStr []))))
+        in
+        Pexp_fun (label, None, pat, sub.expr sub e)
     | Texp_function { arg_label; cases = [{c_lhs=p; c_guard=None; c_rhs=e}];
           _ } ->
         Pexp_fun (arg_label, None, sub.pat sub p, sub.expr sub e)
@@ -482,7 +492,17 @@ let expression sub exp =
     | Texp_function { arg_label = Nolabel; cases; _; } ->
         Pexp_function (List.map (sub.case sub) cases)
     (* Mix of both, we generate `fun ~label:$name$ -> match $name$ with ...` *)
-    | Texp_function { arg_label = Labelled s | Optional s | Position s as label; cases;
+    | Texp_function { arg_label = Position s as label; cases;
+          _ } ->
+        let name = fresh_name s exp.exp_env in
+        let pat =
+        Pat.mk (Ppat_constraint ((Pat.var ~loc {loc;txt = name }),
+            Typ.mk (Ptyp_extension ({loc; txt="src_pos"}, PStr []))))
+        in
+        Pexp_fun (label, None, pat,
+          Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
+                          (List.map (sub.case sub) cases))
+    | Texp_function { arg_label = Labelled s | Optional s as label; cases;
           _ } ->
         let name = fresh_name s exp.exp_env in
         Pexp_fun (label, None, Pat.var ~loc {loc;txt = name },
