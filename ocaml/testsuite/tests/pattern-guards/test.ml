@@ -314,6 +314,7 @@ module M :
     val find : int -> 'a t -> 'a
     val find_opt : int -> 'a t -> 'a option
   end
+<<<<<<< HEAD
 |}];;
 
 (* Correctness test for pattern guard matching and failure. *)
@@ -384,6 +385,20 @@ let single_bar_syntax x =
 ;;
 [%%expect{|
 val single_bar_syntax : int option option -> int = <fun>
+|}];;
+
+single_bar_syntax (Some (Some 5));;
+[%%expect{|
+- : int = 5
+|}];;
+single_bar_syntax (Some None);;
+[%%expect{|
+- : int = 0
+|}];;
+single_bar_syntax None;;
+[%%expect{|
+- : int = 0
+>>>>>>> cf95a482 (translates single-case pattern guards successfully)
 |}];;
 
 single_bar_syntax (Some (Some 5));;

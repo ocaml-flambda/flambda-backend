@@ -7011,7 +7011,7 @@ and type_cases
                 guard, exp
             | Ppattern_guarded_rhs
                   { ppg_scrutinee; ppg_cases; ppg_loc = loc } ->
-                let { arg = _; sort = _; cases = _; partial = _; } =
+                let { arg; sort; cases; partial; } =
                   type_match
                     (* Pattern guards containing no value cases will have an
                        "Any" [_] case inserted during translation to handle the
@@ -7022,8 +7022,21 @@ and type_cases
                     loc Check_and_warn_if_total
                     (mk_expected ?explanation ty_res') emode
                 in
-                fatal_error "typechecking for multicase pattern guards \
-                             unimplemented"
+                match cases with
+                | [ { c_lhs = pat; c_guard = None; c_rhs = exp } ] ->
+                  let pattern_guard : Typedtree.guard =
+                    Pattern
+                       { pg_scrutinee = arg
+                       ; pg_scrutinee_sort = sort
+                       ; pg_pattern = pat
+                       ; pg_partial = partial
+                       ; pg_loc = loc
+                       ; pg_env = ext_env }
+                  in
+                  Some pattern_guard, exp 
+                | _ ->
+                    fatal_error
+                      "typechecking for multicase pattern guards unimplemented"
         in
         {
          c_lhs = pat;
