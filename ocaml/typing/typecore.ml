@@ -3535,8 +3535,8 @@ let is_local_returning_expr, is_local_returning_case_rhs =
   and loop_desc pexp_loc = function
     | Pexp_apply
         ({ pexp_desc = Pexp_extension(
-          {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
-        [Nolabel, _]) ->
+           {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
+         [Nolabel, _]) ->
         true, pexp_loc
     | Pexp_ident _ | Pexp_constant _ | Pexp_apply _ | Pexp_tuple _
     | Pexp_construct _ | Pexp_variant _ | Pexp_record _ | Pexp_field _
@@ -3690,8 +3690,7 @@ let wrap_rhs = function
   | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
       `Desc (Pexp_match (ppg_scrutinee, ppg_cases), ppg_loc)
 
-let rec type_function_approx env loc label spato wrapped_sexp in_function
-          ty_expected =
+let rec type_function_approx env loc label spato rhs in_function ty_expected =
   let has_local, has_poly =
     match spato with
     | None -> false, false
@@ -3724,10 +3723,7 @@ let rec type_function_approx env loc label spato wrapped_sexp in_function
     | Some spat -> type_pattern_approx env spat ty_arg
   end;
   let in_function = Some (loc_fun, ty_fun) in
-  match wrapped_sexp with
-  | `Expr sexp -> type_approx_aux env sexp in_function ty_ret
-  | `Desc (sexp_desc, sexp_loc) ->
-      type_approx_aux_desc env sexp_desc sexp_loc in_function ty_expected
+  type_approx_aux_case_rhs env ~rhs in_function ty_ret
 
 and type_approx_aux env sexp in_function ty_expected =
   match Jane_syntax.Expression.of_ast sexp with
@@ -3746,7 +3742,7 @@ and type_approx_aux_desc env sexp_desc sexp_loc in_function ty_expected =
       type_function_approx env sexp_loc Nolabel None (wrap_rhs pc_rhs)
         in_function ty_expected
   | Pexp_match (_, {pc_rhs}::_) ->
-      type_approx_aux_case_rhs pc_rhs env None ty_expected
+      type_approx_aux_case_rhs env ~rhs:(wrap_rhs pc_rhs) None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
   | Pexp_tuple l ->
       let tys = List.map
@@ -3788,14 +3784,14 @@ and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_immutable_array _
   | Jexp_unboxed_constant _ -> ()
 
-and type_approx_aux_case_rhs rhs =
-  match wrap_rhs rhs with
-    | `Expr e ->
-        fun env in_function ty_expected ->
-          type_approx_aux env e in_function ty_expected
-    | `Desc (exp_desc, exp_loc) ->
-        fun env in_function ty_expected ->
-          type_approx_aux_desc env exp_desc exp_loc in_function ty_expected
+and type_approx_aux_case_rhs ~rhs =
+  match rhs with
+  | `Expr e ->
+      fun env in_function ty_expected ->
+        type_approx_aux env e in_function ty_expected
+  | `Desc (exp_desc, exp_loc) ->
+      fun env in_function ty_expected ->
+        type_approx_aux_desc env exp_desc exp_loc in_function ty_expected
 
 let type_approx env sexp ty =
   type_approx_aux env sexp None ty
