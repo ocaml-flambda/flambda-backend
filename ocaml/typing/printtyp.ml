@@ -509,9 +509,16 @@ let print_name ppf = function
   | Some name -> fprintf ppf "\"%s\"" name
 
 let string_of_label = function
+<<<<<<< HEAD
     Asttypes.Nolabel -> ""
   | Asttypes.Labelled s -> s
   | Asttypes.Optional s -> "?"^s
+=======
+    Nolabel -> ""
+  | Labelled s -> s
+  | Position s -> s^":[%src_pos]" (* TODO vding: This will be changed *)
+  | Optional s -> "?"^s
+>>>>>>> 318c9da5 (Hacky outcometree printing without creating nontrivial node)
 
 let visited = ref []
 let rec raw_type ppf ty =
