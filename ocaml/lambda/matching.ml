@@ -1190,12 +1190,6 @@ let what_is_first_case = what_is_cases ~skip_any:false
 
 let what_is_cases = what_is_cases ~skip_any:true
 
-let pm_free_variables { cases } =
-  List.fold_right
-    (fun (_, act) r ->
-       Ident.Set.union (free_variables_of_rhs act) r)
-    cases Ident.Set.empty
-
 (* Basic grouping predicates *)
 
 let can_group discr pat =
@@ -1632,12 +1626,10 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
                 default = Default_environment.pop_compat orp def
               }
             in
-            let pm_fv = pm_free_variables orpm in
             let patbound_action_vars =
               (* variables bound in the or-pattern
                  that are used in the orpm actions *)
               Typedtree.pat_bound_idents_full arg_sort orp
-              |> List.filter (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
               |> List.map (fun (id, _, ty, id_sort) ->
                      (id, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
             in
