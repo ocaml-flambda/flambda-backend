@@ -38,7 +38,7 @@ let rec value_kind0 ppf kind =
   | Pboxedintval Pint32 -> Format.pp_print_string ppf ":int32"
   | Pboxedintval Pint64 -> Format.pp_print_string ppf ":int64"
   | Pboxedvectorval (Pvec128 ty) ->
-    Format.fprintf ppf ":%s" (Lambda.vec128_name ty)
+    Format.fprintf ppf ":%s" (vec128_name ty)
   | Pvariant { consts; non_consts } ->
     Format.fprintf ppf "@[<hov 1>[(consts (%a))@ (non_consts (%a))]@]"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)

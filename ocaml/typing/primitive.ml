@@ -286,14 +286,6 @@ let native_name p =
 let byte_name p =
   p.prim_name
 
-let vec128_name = function
-  | Int8x16 -> "int8x16"
-  | Int16x8 -> "int16x8"
-  | Int32x4 -> "int32x4"
-  | Int64x2 -> "int64x2"
-  | Float32x4 -> "float32x4"
-  | Float64x2 -> "float64x2"
-
 let equal_boxed_integer bi1 bi2 =
   match bi1, bi2 with
   | Pnativeint, Pnativeint

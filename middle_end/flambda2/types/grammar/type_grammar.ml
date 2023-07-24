@@ -465,7 +465,7 @@ let rec apply_renaming t renaming =
     | Naked_vec128 ty ->
       let ty' =
         TD.apply_renaming
-          ~apply_renaming_head:apply_renaming_head_of_kind_naked_vector
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_vec128
           ~free_names_head:free_names_head_of_kind_naked_vec128 ty renaming
       in
       if ty == ty' then t else Naked_vec128 ty'
@@ -575,7 +575,7 @@ and apply_renaming_head_of_kind_naked_int64 head _ = head
 
 and apply_renaming_head_of_kind_naked_nativeint head _ = head
 
-and apply_renaming_head_of_kind_naked_vector head _ = head
+and apply_renaming_head_of_kind_naked_vec128 head _ = head
 
 and apply_renaming_head_of_kind_rec_info head renaming =
   Rec_info_expr.apply_renaming head renaming

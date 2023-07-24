@@ -331,14 +331,6 @@ let vec128_name = function
   | Float32x4 -> "float32x4"
   | Float64x2 -> "float64x2"
 
-let boxed_vector_from_primitive : Primitive.boxed_vector -> boxed_vector = function
-  | Pvec128 Int8x16 -> Pvec128 Int8x16
-  | Pvec128 Int16x8 -> Pvec128 Int16x8
-  | Pvec128 Int32x4 -> Pvec128 Int32x4
-  | Pvec128 Int64x2 -> Pvec128 Int64x2
-  | Pvec128 Float32x4 -> Pvec128 Float32x4
-  | Pvec128 Float64x2 -> Pvec128 Float64x2
-
 let equal_boxed_integer = Primitive.equal_boxed_integer
 
 let equal_boxed_vector_size v1 v2 =

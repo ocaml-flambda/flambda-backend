@@ -288,8 +288,6 @@ val vec128_name: vec128_type -> string
 
 val join_boxed_vector_layout: boxed_vector -> boxed_vector -> layout
 
-val boxed_vector_from_primitive: Primitive.boxed_vector -> boxed_vector
-
 val equal_value_kind : value_kind -> value_kind -> bool
 
 val equal_layout : layout -> layout -> bool
