@@ -2,7 +2,7 @@
    * expect *)
 
 (* CR-soon rgodse: We expect this output to change soon, but for now it shows
-   that parsing and typechecking work (as the compiler fails at translation). *)
+   that parsing works for multicase patterns. *)
 
 (* Test basic usage of pattern guards. *)
 let basic_usage ~f ~default x =
@@ -282,6 +282,19 @@ guard_matching_empty_variant None;;
 guard_matching_empty_variant (Some "foo");;
 [%%expect{|
 - : string = "foo"
+|}]
+
+(* Test rejection of pattern guards on mixed exception/value or-patterns *)
+let reject_guarded_val_exn_orp k =
+  match k () with
+  | Some s | exception Failure s when s match "foo" -> s
+  | _ -> "Not foo"
+;;
+[%%expect{|
+Line 3, characters 4-32:
+3 |   | Some s | exception Failure s when s match "foo" -> s
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Mixing value and exception patterns under when-guards is not supported.
 |}];;
 
 module M : sig
@@ -364,84 +377,284 @@ say_hello_catching_exns None name_map;;
 - : string = "Hello, Fred"
 |}]
 
-(* Ensure that Match_failure is raised when all cases, including pattern-guarded
-   ones, fail to match. *)
-let patch_to_match_failure f default x =
+let single_bar_syntax x =
   match x with
-  | None -> default
-  | Some x when f x match Some y -> y
+  | Some x when x match | Some y -> y
+  | _ -> 0
 ;;
 [%%expect{|
-Lines 2-4, characters 2-37:
-2 | ..match x with
-3 |   | None -> default
-4 |   | Some x when f x match Some y -> y
-Warning 8 [partial-match]: this pattern-matching is not exhaustive.
-Here is an example of a case that is not matched:
-Some _
-(However, some guarded clause may match this value.)
-val patch_to_match_failure : ('a -> 'b option) -> 'b -> 'a option -> 'b =
-  <fun>
+val single_bar_syntax : int option option -> int = <fun>
 |}];;
 
-let exact_half n = if n mod 2 = 0 then Some (n / 2) else None;;
+single_bar_syntax (Some (Some 5));;
 [%%expect{|
-val exact_half : int -> int option = <fun>
+- : int = 5
+|}];;
+single_bar_syntax (Some None);;
+[%%expect{|
+- : int = 0
+|}];;
+single_bar_syntax None;;
+[%%expect{|
+- : int = 0
 |}];;
 
-patch_to_match_failure exact_half ~-1 None;;
+let nested_singleway f g h ~default = function
+  | Some x when f x match Some y when g y match Some z when h z match Some a ->
+      a
+  | _ -> default
+;;
+
+let collatz = function
+  | 1 -> None
+  | n -> if n mod 2 = 0 then Some (n / 2) else Some (3 * n + 1)
+;;
+
+[%%expect{|
+val nested_singleway :
+  ('a -> 'b option) ->
+  ('b -> 'c option) -> ('c -> 'd option) -> default:'d -> 'a option -> 'd =
+  <fun>
+val collatz : int -> int option = <fun>
+|}];;
+
+nested_singleway collatz collatz collatz ~default:~-1 None;;
 [%%expect{|
 - : int = -1
 |}];;
-patch_to_match_failure exact_half ~-1 (Some 42);;
+nested_singleway collatz collatz collatz ~default:~-1 (Some 1);;
 [%%expect{|
-- : int = 21
+- : int = -1
 |}];;
-patch_to_match_failure exact_half ~-1 (Some 41);;
+nested_singleway collatz collatz collatz ~default:~-1 (Some 2);;
 [%%expect{|
-Exception: Match_failure ("", 2, 2).
+- : int = -1
+|}];;
+nested_singleway collatz collatz collatz ~default:~-1 (Some 3);;
+[%%expect{|
+- : int = 16
+|}];;
+nested_singleway collatz collatz collatz ~default:~-1 (Some 4);;
+[%%expect{|
+- : int = -1
+|}];;
+nested_singleway collatz collatz collatz ~default:~-1 (Some 8);;
+[%%expect{|
+- : int = 1
 |}];;
 
-(* Ensure that warning 8 is issued appropriately in the presence of pattern
-   guards. *)
-let warn_partial = function
-  | [] -> 0
-  | xs when List.hd xs match Some y -> y
+let find_multiway ~eq ~flag ~finish ~default = function
+  | x :: xs when List.find_opt (fun y -> eq flag y || eq x y) xs match (
+      | Some y when eq flag y -> finish flag
+      | Some y -> finish y
+    )
+  | _ -> default
 ;;
 [%%expect{|
-Lines 1-3, characters 19-40:
-1 | ...................function
-2 |   | [] -> 0
-3 |   | xs when List.hd xs match Some y -> y
-Warning 8 [partial-match]: this pattern-matching is not exhaustive.
-Here is an example of a case that is not matched:
-_::_
-(However, some guarded clause may match this value.)
-val warn_partial : int option list -> int = <fun>
+val find_multiway :
+  eq:('a -> 'a -> bool) ->
+  flag:'a -> finish:('a -> 'b) -> default:'b -> 'a list -> 'b = <fun>
 |}];;
 
-(* Ensure that warning 57 is appropriately issued for pattern guards. *)
-let warn_ambiguous = function
-  | ([ x ], _) | (_, [ x ]) when (let one = 1 in Int.abs x + one) match 2 -> 1
-  | _ -> 0
+let eq n m = (n - m) mod 100 = 0;;
+let flag = 0;;
+let finish n = Int.to_string n;;
+let default = "No match found";;
+[%%expect{|
+val eq : int -> int -> bool = <fun>
+val flag : int = 0
+val finish : int -> string = <fun>
+val default : string = "No match found"
+|}];;
+
+find_multiway ~eq ~flag ~finish ~default [ 10; 20; 110; 100 ];;
+[%%expect{|
+- : string = "110"
+|}];;
+find_multiway ~eq ~flag ~finish ~default [ 10; 20; 100; 110 ];;
+[%%expect{|
+- : string = "0"
+|}];;
+find_multiway ~eq ~flag ~finish ~default [ 10; 20; 30; 40 ];;
+[%%expect{|
+- : string = "No match found"
+|}];;
+find_multiway ~eq ~flag ~finish ~default [ 0; 100 ];;
+[%%expect{|
+- : string = "0"
+|}];;
+
+let nested_multiway f g h = function
+  | Some x when f x match (
+      | "foo" when h x -> "foo1"
+      | "bar" when g x match (
+          | [] -> "bar empty"
+          | [ y ] -> "bar singleton " ^ y
+        )
+    )
+  | _ -> "not found"
 ;;
 [%%expect{|
-Line 2, characters 4-27:
-2 |   | ([ x ], _) | (_, [ x ]) when (let one = 1 in Int.abs x + one) match 2 -> 1
-        ^^^^^^^^^^^^^^^^^^^^^^^
-Warning 57 [ambiguous-var-in-pattern-guard]: Ambiguous or-pattern variables under guard;
-variable x appears in different places in different or-pattern alternatives.
-Only the first match will be used to evaluate the guard expression.
-(See manual section 11.5)
-val warn_ambiguous : int list * int list -> int = <fun>
+val nested_multiway :
+  ('a -> string) ->
+  ('a -> string list) -> ('a -> bool) -> 'a option -> string = <fun>
 |}];;
 
-(* Ensure that warning 57 is not extraneously issued for pattern guards. *)
-let dont_warn_ambiguous = function
-  | ([ x ], _) | (_, [ x ]) when (let one = 1 in one + one) match 2 -> x
-  | _ -> 0
+let f = function
+  | 0 | 1 -> "foo"
+  | 10 | 100 | 1000 -> "bar"
+  | _ -> "neither"
+;;
+
+let g = function
+  | 10 -> []
+  | 100 -> [ "one" ]
+  | _ -> [ "more"; "than"; "one" ]
+;;
+
+let h x = x = 1;;
+[%%expect{|
+val f : int -> string = <fun>
+val g : int -> string list = <fun>
+val h : int -> bool = <fun>
+|}];;
+
+nested_multiway f g h None;;
+[%%expect{|
+- : string = "not found"
+|}];;
+nested_multiway f g h (Some 0);;
+[%%expect{|
+- : string = "not found"
+|}];;
+nested_multiway f g h (Some 1);;
+[%%expect{|
+- : string = "foo1"
+|}];;
+nested_multiway f g h (Some 10);;
+[%%expect{|
+- : string = "bar empty"
+|}];;
+nested_multiway f g h (Some 100);;
+[%%expect{|
+- : string = "bar singleton one"
+|}];;
+nested_multiway f g h (Some 1000);;
+[%%expect{|
+- : string = "not found"
+|}];;
+
+(* Checks that optional arguments with defaults are correclty bound in the
+   presence of pattern guards. *)
+let check_push_defaults g ?(s="hello") = function
+  | x when g s match Some t -> t ^ ", " ^ x
+  | x -> x
 ;;
 [%%expect{|
-val dont_warn_ambiguous : int list * int list -> int = <fun>
+val check_push_defaults :
+  (string -> string option) -> ?s:string -> string -> string = <fun>
 |}];;
 
+let g = function
+  | "hello" -> Some "jello"
+  | "ha" -> Some "ja"
+  | _ -> None
+;;
+[%%expect{|
+val g : string -> string option = <fun>
+|}];;
+
+(* Ensure that Match_failure is raised when all cases, including pattern-guarded
+   ones, fail to match. *)
+   let patch_to_match_failure f default x =
+    match x with
+    | None -> default
+    | Some x when f x match Some y -> y
+  ;;
+  [%%expect{|
+  Lines 2-4, characters 2-37:
+  2 | ..match x with
+  3 |   | None -> default
+  4 |   | Some x when f x match Some y -> y
+  Warning 8 [partial-match]: this pattern-matching is not exhaustive.
+  Here is an example of a case that is not matched:
+  Some _
+  (However, some guarded clause may match this value.)
+  val patch_to_match_failure : ('a -> 'b option) -> 'b -> 'a option -> 'b =
+    <fun>
+  |}];;
+
+  let exact_half n = if n mod 2 = 0 then Some (n / 2) else None;;
+  [%%expect{|
+  val exact_half : int -> int option = <fun>
+  |}];;
+
+  patch_to_match_failure exact_half ~-1 None;;
+  [%%expect{|
+  - : int = -1
+  |}];;
+  patch_to_match_failure exact_half ~-1 (Some 42);;
+  [%%expect{|
+  - : int = 21
+  |}];;
+  patch_to_match_failure exact_half ~-1 (Some 41);;
+  [%%expect{|
+  Exception: Match_failure ("", 2, 2).
+  |}];;
+
+  (* Ensure that warning 8 is issued appropriately in the presence of pattern
+     guards. *)
+  let warn_partial = function
+    | [] -> 0
+    | xs when List.hd xs match Some y -> y
+  ;;
+  [%%expect{|
+  Lines 1-3, characters 19-40:
+  1 | ...................function
+  2 |   | [] -> 0
+  3 |   | xs when List.hd xs match Some y -> y
+  Warning 8 [partial-match]: this pattern-matching is not exhaustive.
+  Here is an example of a case that is not matched:
+  _::_
+  (However, some guarded clause may match this value.)
+  val warn_partial : int option list -> int = <fun>
+  |}];;
+
+  (* Ensure that warning 57 is appropriately issued for pattern guards. *)
+  let warn_ambiguous = function
+    | ([ x ], _) | (_, [ x ]) when (let one = 1 in Int.abs x + one) match 2 -> 1
+    | _ -> 0
+  ;;
+  [%%expect{|
+  Line 2, characters 4-27:
+  2 |   | ([ x ], _) | (_, [ x ]) when (let one = 1 in Int.abs x + one) match 2 -> 1
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  Warning 57 [ambiguous-var-in-pattern-guard]: Ambiguous or-pattern variables under guard;
+  variable x appears in different places in different or-pattern alternatives.
+  Only the first match will be used to evaluate the guard expression.
+  (See manual section 11.5)
+  val warn_ambiguous : int list * int list -> int = <fun>
+  |}];;
+
+  (* Ensure that warning 57 is not extraneously issued for pattern guards. *)
+  let dont_warn_ambiguous = function
+    | ([ x ], _) | (_, [ x ]) when (let one = 1 in one + one) match 2 -> x
+    | _ -> 0
+  ;;
+  [%%expect{|
+  val dont_warn_ambiguous : int list * int list -> int = <fun>
+  |}];;
+
+
+check_push_defaults g "name";;
+[%%expect{|
+- : string = "jello, name"
+|}];;
+check_push_defaults g ~s:"ha" "name";;
+[%%expect{|
+- : string = "ja, name"
+|}];;
+check_push_defaults g ~s:"hmm" "name";;
+[%%expect{|
+- : string = "name"
+|}];;

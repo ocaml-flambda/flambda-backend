@@ -7028,7 +7028,8 @@ and type_cases
                     loc Check_and_warn_if_total
                     (mk_expected ?explanation ty_res') emode
                 in
-                (Misc.fatal_error "")
+                fatal_error "typechecking for multicase pattern guards \
+                             unimplemented"
         in
         {
          c_lhs = pat;
