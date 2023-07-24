@@ -2048,6 +2048,9 @@ let check_type_layout env ty layout =
 let constrain_type_layout env ty layout =
   constrain_type_layout ~fixed:false env ty layout 100
 
+let () =
+  Env.constrain_type_layout := constrain_type_layout
+
 let check_decl_layout env decl layout =
   match Layout.sub decl.type_layout layout with
   | Ok () as ok -> ok

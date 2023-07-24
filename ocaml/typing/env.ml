@@ -21,6 +21,7 @@ open Asttypes
 open Longident
 open Path
 open Types
+open Layouts
 
 open Local_store
 
@@ -324,6 +325,7 @@ type value_lock =
   | Lock of { mode : Alloc_mode.t; escaping_context : escaping_context option }
   | Region_lock
   | Exclave_lock
+  | Unboxed_lock (* to prevent capture of terms with non-value types *)
 
 module IdTbl =
   struct
@@ -693,6 +695,7 @@ type lookup_error =
   | Cannot_scrape_alias of Longident.t * Path.t
   | Local_value_used_in_closure of Longident.t * escaping_context option
   | Local_value_used_in_exclave of Longident.t
+  | Non_value_used_in_object of Longident.t * type_expr * Layout.Violation.t
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
@@ -707,6 +710,8 @@ let lookup_error loc env err =
   error (Lookup_error(loc, env, err))
 
 let same_constr = ref (fun _ _ _ -> assert false)
+
+let constrain_type_layout = ref (fun _ _ _ -> assert false)
 
 let check_well_formed_module = ref (fun _ -> assert false)
 
@@ -2357,6 +2362,9 @@ let add_region_lock env =
 let add_exclave_lock env =
   { env with values = IdTbl.add_lock Exclave_lock env.values }
 
+let add_unboxed_lock env =
+  { env with values = IdTbl.add_lock Unboxed_lock env.values }
+
 (* Insertion of all components of a signature *)
 
 let proj_shape map mod_shape item =
@@ -2917,7 +2925,8 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
         end
     end
 
-let lock_mode ~errors ~loc env id vmode locks =
+let lock_mode ~errors ~loc env id vda locks =
+  let vmode = vda.vda_mode in
   List.fold_left
     (fun vmode lock ->
       match lock with
@@ -2931,18 +2940,29 @@ let lock_mode ~errors ~loc env id vmode locks =
                 (Local_value_used_in_closure (id, escaping_context))
         end
       | Exclave_lock ->
-        match Value_mode.submode vmode Value_mode.regional with
-        | Ok () -> Value_mode.regional_to_local vmode
-        | Error _ ->
+        begin
+          match Value_mode.submode vmode Value_mode.regional with
+          | Ok () -> Value_mode.regional_to_local vmode
+          | Error _ ->
+            may_lookup_error errors loc env
+              (Local_value_used_in_exclave id);
+        end
+      | Unboxed_lock ->
+        let vd = Subst.Lazy.force_value_description vda.vda_description in
+        match !constrain_type_layout env vd.val_type
+                (Layout.(value ~why:Captured_in_object))
+        with
+        | Ok () -> vmode
+        | Result.Error err ->
           may_lookup_error errors loc env
-            (Local_value_used_in_exclave id);
+            (Non_value_used_in_object (id, vd.val_type, err))
     )
     vmode locks
 
 let lookup_ident_value ~errors ~use ~loc name env =
   match IdTbl.find_name_and_modes wrap_value ~mark:use name env.values with
   | (path, locks, Val_bound vda) ->
-      let mode = lock_mode ~errors ~loc env (Lident name) vda.vda_mode locks in
+      let mode = lock_mode ~errors ~loc env (Lident name) vda locks in
       use_value ~use ~loc path vda;
       path, vda.vda_description, mode
   | (_, _, Val_unbound reason) ->
@@ -3663,6 +3683,9 @@ let print_longident =
 let print_path =
   ref ((fun _ _ -> assert false) : formatter -> Path.t -> unit)
 
+let print_type_expr =
+  ref ((fun _ _ -> assert false) : formatter -> Types.type_expr -> unit)
+
 let spellcheck ppf extract env lid =
   let choices ~path name = Misc.spellcheck (extract path env) name in
   match lid with
@@ -3821,6 +3844,12 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf "@[The value %a is local, so it cannot be used \
                   inside an exclave_@]"
         !print_longident lid
+  | Non_value_used_in_object (lid, typ, err) ->
+      fprintf ppf "@[%a must have a type of layout value because it is \
+                   captured by an object.@ %a@]"
+        !print_longident lid
+        (Layout.Violation.report_with_offender
+           ~offender:(fun ppf -> !print_type_expr ppf typ)) err
 
 let report_error ppf = function
   | Missing_module(_, path1, path2) ->

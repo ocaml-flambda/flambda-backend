@@ -186,6 +186,7 @@ module Layout : sig
     | Structure_element
     | Debug_printer_argument
     | V1_safety_check
+    | Captured_in_object
     | Unknown of string  (* CR layouts: get rid of these *)
 
   type immediate_creation_reason =

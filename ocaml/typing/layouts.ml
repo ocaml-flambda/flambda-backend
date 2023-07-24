@@ -284,6 +284,7 @@ module Layout = struct
     | Structure_element
     | Debug_printer_argument
     | V1_safety_check
+    | Captured_in_object
     | Unknown of string
 
   type immediate_creation_reason =
@@ -728,6 +729,7 @@ module Layout = struct
          fprintf ppf "used as the argument to a debugger printer function"
       | V1_safety_check ->
           fprintf ppf "to be value for the V1 safety check"
+      | Captured_in_object -> fprintf ppf "captured in an object"
       | Unknown s -> fprintf ppf "unknown @[(please alert the Jane Street@;\
                        compilers team with this message: %s)@]" s
 
@@ -1138,6 +1140,7 @@ module Layout = struct
       | Structure_element -> fprintf ppf "Structure_element"
       | Debug_printer_argument -> fprintf ppf "Debug_printer_argument"
       | V1_safety_check -> fprintf ppf "V1_safety_check"
+      | Captured_in_object -> fprintf ppf "Captured_in_object"
       | Unknown s -> fprintf ppf "Unknown %s" s
 
     let void_creation_reason ppf : void_creation_reason -> _ = function

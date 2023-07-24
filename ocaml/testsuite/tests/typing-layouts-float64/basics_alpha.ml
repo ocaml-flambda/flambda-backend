@@ -620,6 +620,36 @@ class ['a] c12_11 : object method x : t_float64 -> 'a end
 class ['a] c12_12 : object method x : 'a -> t_float64 end
 |}];;
 
+(* Third, another disallowed use: capture in an object. *)
+let f12_13 m1 m2 = object
+  val f = fun () ->
+    let _ = f1_1 m1 in
+    let _ = f1_1 m2 in
+    ()
+end;;
+[%%expect{|
+Line 3, characters 17-19:
+3 |     let _ = f1_1 m1 in
+                     ^^
+Error: This expression has type ('a : value)
+       but an expression was expected of type t_float64
+       t_float64 has layout float64, which is not a sublayout of value.
+|}];;
+
+let f12_14 (m1 : t_float64) (m2 : t_float64) = object
+  val f = fun () ->
+    let _ = f1_1 m1 in
+    let _ = f1_1 m2 in
+    ()
+end;;
+[%%expect{|
+Line 3, characters 17-19:
+3 |     let _ = f1_1 m1 in
+                     ^^
+Error: m1 must have a type of layout value because it is captured by an object.
+       t_float64 has layout float64, which is not a sublayout of value.
+|}];;
+
 (*********************************************************************)
 (* Test 13: Ad-hoc polymorphic operations don't work on float64 yet. *)
 
