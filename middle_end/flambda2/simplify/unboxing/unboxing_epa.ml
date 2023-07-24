@@ -126,8 +126,7 @@ let extra_args_for_const_ctor_of_variant
     (const_ctors_decision : U.const_ctors_decision) ~typing_env_at_use
     rewrite_id variant_arg : U.const_ctors_decision =
   match const_ctors_decision with
-  | Zero ->
-    const_ctors_decision
+  | Zero -> const_ctors_decision
   | At_least_one { ctor = Do_not_unbox reason; is_int } ->
     let is_int =
       Extra_param_and_args.update_param_args is_int rewrite_id
