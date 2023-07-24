@@ -91,6 +91,7 @@ val print
 
 val native_name: description -> string
 val byte_name: description -> string
+val vec128_name: vec128_type -> string
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
