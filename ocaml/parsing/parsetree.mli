@@ -319,13 +319,10 @@ and expression_desc =
             - [fun ~l:P -> E1]
                       when [lbl] is {{!Asttypes.arg_label.Labelled}[Labelled l]}
                        and [exp0] is [None]
-            - [fun ~l:(P : [%src_pos]) -> E1]
-                TODO vding question: Technically, [%src_pos] gets parsed into 
-                a Labelled argument before we convert it ourselves, so I think 
-                a Pexp_fun with a Position label never actually exists. Not 
-                sure how to word this in documentation? 
-                      when [lbl] is {{!Asttypes.arg_label.Position}[Position l]}
-                       and [exp0] is [None]
+            - [fun ~l:(P0 : [%src_pos]) -> E1]
+                      when [lbl] is {{!Asttypes.arg_label.Labelled}[Labelled l]},
+                       [exp0] is [None], and P is the constraint pattern
+                       (P0 : [%src_pos])
             - [fun ?l:P -> E1]
                       when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}
                        and [exp0] is [None]
@@ -340,6 +337,9 @@ and expression_desc =
              {{!expression_desc.Pexp_fun}[Pexp_fun]}.
            - [let f P = E] is represented using
              {{!expression_desc.Pexp_fun}[Pexp_fun]}.
+           -  While Position arguments are parsed as
+              {{!Asttypes.arg_label.Labelled}[Labelled l]}, they are converted to
+              {{!Asttypes.arg_label.Position}[Position l]} arguments for type-checking.
          *)
   | Pexp_apply of expression * (arg_label * expression) list
       (** [Pexp_apply(E0, [(l1, E1) ; ... ; (ln, En)])]
