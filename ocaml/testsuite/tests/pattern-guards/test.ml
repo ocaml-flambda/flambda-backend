@@ -562,6 +562,19 @@ let g = function
 ;;
 [%%expect{|
 val g : string -> string option = <fun>
+|}]
+
+check_push_defaults g "name";;
+[%%expect{|
+- : string = "jello, name"
+|}];;
+check_push_defaults g ~s:"ha" "name";;
+[%%expect{|
+- : string = "ja, name"
+|}];;
+check_push_defaults g ~s:"hmm" "name";;
+[%%expect{|
+- : string = "name"
 |}];;
 
 (* Ensure that Match_failure is raised when all cases, including pattern-guarded
