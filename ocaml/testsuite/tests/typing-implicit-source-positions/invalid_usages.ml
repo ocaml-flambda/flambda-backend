@@ -26,3 +26,24 @@ Line 1, characters 35-42:
                                        ^^^^^^^
 Error: Uninterpreted extension 'src_pos'.
 |}]
+
+let apply f = f ~src_pos:Lexing.dummy_pos () ;;
+[%%expect {|
+val apply : (src_pos:Lexing.position -> unit -> 'a) -> 'a = <fun>
+|}]
+
+let g = fun ~(src_pos:[%src_pos]) () -> ()
+
+[%%expect{|
+val g : src_pos:[%src_pos] -> unit -> unit = <fun>
+|}]
+
+let _ = apply g ;;
+[%%expect{|
+Line 1, characters 14-15:
+1 | let _ = apply g ;;
+                  ^
+Error: This expression has type src_pos:[%src_pos] -> unit -> unit
+       but an expression was expected of type
+         src_pos:Lexing.position -> unit -> 'a
+|}]
