@@ -1,6 +1,8 @@
 (* TEST
    * expect
 *)
+
+(* lexing_position and Lexing.position are synonyms *)
 let x = Lexing.dummy_pos;;
 [%%expect {|
 val x : Lexing.position =
@@ -13,11 +15,9 @@ val y : lexing_position =
   {pos_fname = ""; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
 |}]
 
-(* src_pos (lexing_position) and Lexing.position are synonyms *)
 let predef_to_module ~(src_pos:[%src_pos]) () : Lexing.position = src_pos ;;
 [%%expect{|
-val predef_to_module : src_pos:Lexing.position -> unit -> Lexing.position =
-  <fun>
+val predef_to_module : src_pos:[%src_pos] -> unit -> Lexing.position = <fun>
 |}]
 
 let module_to_predef (src_pos:Lexing.position) : lexing_position = src_pos ;; 
@@ -25,16 +25,16 @@ let module_to_predef (src_pos:Lexing.position) : lexing_position = src_pos ;;
 val module_to_predef : Lexing.position -> lexing_position = <fun>
 |}]
 
-let x = predef_to_module ~src_pos:{pos_fname="hello" ; pos_lnum=1; pos_bol=2; pos_cnum=3} ();;
+let x = predef_to_module ~src_pos:Lexing.dummy_pos ();;
 [%%expect{|
 val x : Lexing.position =
-  {Lexing.pos_fname = "hello"; pos_lnum = 1; pos_bol = 2; pos_cnum = 3}
+  {Lexing.pos_fname = ""; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
 |}]
 
-let y = module_to_predef {pos_fname="hello" ; pos_lnum=1; pos_bol=2; pos_cnum=3};;
+let y = module_to_predef Lexing.dummy_pos;;
 [%%expect{|
 val y : lexing_position =
-  {pos_fname = "hello"; pos_lnum = 1; pos_bol = 2; pos_cnum = 3}
+  {pos_fname = ""; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
 |}]
 
 (* Fields accessible from within Lexing module *)
