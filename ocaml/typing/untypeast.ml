@@ -428,7 +428,7 @@ let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_guard; c_rhs} ->
                  ; pc_rhs = Psimple_rhs (sub.expr sub c_rhs)
                  }
                ]
-           ; ppg_loc = pg_loc
+           ; ppg_loc = sub.location sub pg_loc
            }
   }
 
