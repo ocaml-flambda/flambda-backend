@@ -604,15 +604,15 @@ and label_exp ctxt f (l,opt,p) =
                  (pattern1 ctxt) p (expression ctxt) o
            | None -> pp f "?%s:%a" rest (maybe_local_pat ctxt is_local) p)
       end
-  | Labelled l -> (match p with
+  | Position l -> pp f "~%s:%s" l src_pos_extension_node
+  | Labelled l -> match p with
     | {ppat_desc  = Ppat_var {txt;_}; ppat_attributes = []}
       when txt = l ->
         if is_local then
           pp f "~(local_ %s)" l
         else
           pp f "~%s" l
-    | _ ->  pp f "~%s:%a" l (maybe_local_pat ctxt is_local) p)
-  | Position l -> pp f "~%s:%s" l src_pos_extension_node
+    | _ ->  pp f "~%s:%a" l (maybe_local_pat ctxt is_local) p
 
 and sugar_expr ctxt f e =
   if e.pexp_attributes <> [] then false
