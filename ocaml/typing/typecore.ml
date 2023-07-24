@@ -3511,17 +3511,18 @@ let check_recursive_class_bindings env ids exprs =
          raise(Error(expr.cl_loc, env, Illegal_class_expr)))
     exprs
 
-(* Is the return value annotated with "local_" *)
-let combine (local1, loc1) (local2, loc2) =
-  match local1, local2 with
-  | true, true -> true, loc1
-  | false, false -> false, loc1
-  | false, true ->
-      raise(Error(loc1, Env.empty, Local_return_annotation_mismatch loc2))
-  | true, false ->
-      raise(Error(loc2, Env.empty, Local_return_annotation_mismatch loc1))
 
+(* Is the return value annotated with "local_" *)
 let is_local_returning_expr, is_local_returning_case_rhs =
+  let combine (local1, loc1) (local2, loc2) =
+    match local1, local2 with
+    | true, true -> true, loc1
+    | false, false -> false, loc1
+    | false, true ->
+        raise(Error(loc1, Env.empty, Local_return_annotation_mismatch loc2))
+    | true, false ->
+        raise(Error(loc2, Env.empty, Local_return_annotation_mismatch loc1))
+  in
   let rec loop e =
     match Jane_syntax.Expression.of_ast e with
     | Some (jexp, _attrs) -> begin
