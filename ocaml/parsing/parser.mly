@@ -3039,7 +3039,7 @@ match_case:
 | pattern WHEN expr MATCH ioption(BAR) match_case
       { Exp.case $1
           (Case_rhs.pattern_guarded ~loc:(make_loc ($startpos($2), $endpos))
-             $3 [ $5 ]) }
+             $3 [ $6 ]) }
   | pattern WHEN expr MATCH LPAREN match_cases RPAREN
       { Exp.case $1
           (Case_rhs.pattern_guarded ~loc:(make_loc ($startpos($2), $endpos))
