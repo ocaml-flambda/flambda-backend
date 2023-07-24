@@ -55,7 +55,7 @@ let update_csv str =
 
 (* CR gtulba-lecu for gtulba-lecu: make sure that this comparison is correct and
    sufficent. *)
-let are_equal_regs (reg1 : Reg.t ) (reg2 : Reg.t) =
+let are_equal_regs (reg1 : Reg.t) (reg2 : Reg.t) =
   Reg.same_loc reg1 reg2 && reg1.typ = reg2.typ
 
 (* CR gtulba-lecu for gtulba-lecu: It would be nice to compute this based on the
@@ -119,6 +119,14 @@ let is_bitwise_op (op : Mach.integer_operation) =
   | Mach.Iand | Ior | Ixor | Ilsl | Ilsr | Iasr -> true
   | _ -> false
 
+let bitwise_overflow_assert (imm1 : int) (imm2 : int) (op : int -> int -> int) =
+  let imm = op imm1 imm2 in
+  assert (imm <= 2147483647 && imm >= -2147483648)
+
+let no_32_bit_overflow imm1 imm2 op =
+  let imm = op imm1 imm2 in
+  -2147483648 <= imm && imm <= 2147483647
+
 (** Logical condition for simplifying the following case: 
   {| 
     <op 1> const1, r 
@@ -140,9 +148,17 @@ let is_bitwise_op (op : Mach.integer_operation) =
    case. *)
 let are_compatible op1 op2 imm1 imm2 =
   match (op1 : Mach.integer_operation), (op2 : Mach.integer_operation) with
-  | Mach.Iand, Mach.Iand -> Some (Mach.Iand, imm1 land imm2)
-  | Ior, Ior -> Some (Mach.Ior, imm1 lor imm2)
-  | Ixor, Ixor -> Some (Mach.Ixor, imm1 lxor imm2)
+  (* Folding two bitwise operations such as (AND, OR, XOR) should never produce
+     an overflow. *)
+  | Mach.Iand, Mach.Iand ->
+    bitwise_overflow_assert imm1 imm2 ( land );
+    Some (Mach.Iand, imm1 land imm2)
+  | Ior, Ior ->
+    bitwise_overflow_assert imm1 imm2 ( lor );
+    Some (Mach.Ior, imm1 lor imm2)
+  | Ixor, Ixor ->
+    bitwise_overflow_assert imm1 imm2 ( lxor );
+    Some (Mach.Ixor, imm1 lxor imm2)
   (* For the following three cases we have the issue that in some situations,
      one or both immediate values could be out of bounds, but the result might
      be within bounds (e.g. imm1 = -4 and imm2 = 65, their sum being 61), in
@@ -160,42 +176,49 @@ let are_compatible op1 op2 imm1 imm2 =
     if Misc.no_overflow_add imm1 imm2 && imm1 + imm2 <= Sys.int_size
     then Some (Mach.Iasr, imm1 + imm2)
     else None
+  (* for the amd64 instruction set the `ADD` `SUB` `MUL` opperations take at
+     most an imm32 as the second argument, so we need to check for overflows on
+     32-bit signed ints. *)
   | Iadd, Iadd ->
-    if Misc.no_overflow_add imm1 imm2
+    if Misc.no_overflow_add imm1 imm2 && no_32_bit_overflow imm1 imm2 ( + )
     then Some (Mach.Iadd, imm1 + imm2)
     else None
   | Iadd, Isub ->
     if imm1 >= imm2
     then
-      if Misc.no_overflow_sub imm1 imm2
+      if Misc.no_overflow_sub imm1 imm2 && no_32_bit_overflow imm1 imm2 ( - )
       then Some (Mach.Iadd, imm1 - imm2)
       else None
-    else if Misc.no_overflow_sub imm2 imm1
+    else if Misc.no_overflow_sub imm1 imm2 && no_32_bit_overflow imm2 imm1 ( - )
     then Some (Mach.Isub, imm2 - imm1)
     else None
   | Isub, Isub ->
-    if Misc.no_overflow_add imm1 imm2
+    if Misc.no_overflow_add imm1 imm2 && no_32_bit_overflow imm1 imm2 ( + )
     then Some (Mach.Isub, imm1 + imm2)
     else None
   | Isub, Iadd ->
     if imm1 >= imm2
     then
-      if Misc.no_overflow_sub imm1 imm2
+      if Misc.no_overflow_sub imm1 imm2 && no_32_bit_overflow imm1 imm2 ( - )
       then Some (Mach.Isub, imm1 - imm2)
       else None
-    else if Misc.no_overflow_sub imm2 imm1
+    else if Misc.no_overflow_sub imm1 imm2 && no_32_bit_overflow imm2 imm1 ( - )
     then Some (Mach.Iadd, imm2 - imm1)
     else None
   | Ilsl, Imul ->
-    if imm1 >= 0 && imm1 < (Sys.int_size - 1) && Misc.no_overflow_mul (1 lsl imm1) imm2
+    if imm1 >= 0 && imm1 < 31
+       && Misc.no_overflow_mul (1 lsl imm1) imm2
+       && no_32_bit_overflow (1 lsl imm1) imm2 ( * )
     then Some (Mach.Imul, (1 lsl imm1) * imm2)
     else None
   | Imul, Ilsl ->
-    if imm2 >= 0 && imm2 < (Sys.int_size - 1) && Misc.no_overflow_mul imm1 (1 lsl imm2)
+    if imm2 >= 0 && imm2 < 31
+       && Misc.no_overflow_mul imm1 (1 lsl imm2)
+       && no_32_bit_overflow imm1 (1 lsl imm2) ( * )
     then Some (Mach.Imul, imm1 * (1 lsl imm2))
     else None
   | Imul, Imul ->
-    if Misc.no_overflow_mul imm1 imm2
+    if Misc.no_overflow_mul imm1 imm2 && no_32_bit_overflow imm1 imm2 ( * )
     then Some (Mach.Imul, imm1 * imm2)
     else None
   (* temporarily commented out | Idiv, Idiv -> if Misc.no_overflow_mul imm1 imm2
@@ -274,8 +297,8 @@ let peephole_optimize_cfg cfg_with_layout =
   let fun_name = (Cfg_with_layout.cfg cfg_with_layout).fun_name in
   if Option.is_some !Flambda_backend_flags.cfg_peephole_optimize_track
   then (
-    set_csv();
-    IntCsv.add_empty_row (get_csv ()) fun_name;);
+    set_csv ();
+    IntCsv.add_empty_row (get_csv ()) fun_name);
   let made_optimizations =
     Label.Tbl.fold
       (fun (_ : Label.t) (block : Cfg.basic_block) (made_optimizations : bool) ->
