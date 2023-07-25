@@ -1029,8 +1029,7 @@ and transl_guard ~scopes guard rhs_sort rhs =
         (free_variables translated_cond)
         (free_variables translated_rhs)
     in
-    Matching.mk_guarded_rhs ~patch_guarded
-      ~free_variables:(Precomputed free_variables)
+    Matching.mk_boolean_guarded_rhs ~patch_guarded ~free_variables
   | Some (Pattern { pg_scrutinee; pg_scrutinee_sort; pg_pattern; pg_partial;
                     pg_loc; pg_env }) ->
       let guard_case : _ case =
@@ -1061,7 +1060,7 @@ and transl_guard ~scopes guard rhs_sort rhs =
                  ~env:pg_env ~extra_cases pg_scrutinee [ guard_case ]
                  pg_partial)
           in
-          Matching.mk_guarded_rhs ~patch_guarded ~free_variables:Uncomputed
+          Matching.mk_pattern_guarded_rhs ~patch_guarded
       | Total ->
           (* Total pattern guards are equivalent to nested matches. *)
           let nested_match =

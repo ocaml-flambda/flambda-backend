@@ -129,7 +129,10 @@ let may_compat = MayCompat.compat
 
 and may_compats = MayCompat.compats
 
-type guarded_free_variables = 
+(* The free variables in a guarded rhs can be precomputed to be used in an
+   optimization, or uncomputed, in which case the optimization is not applied.
+*)
+type guarded_free_variables =
   | Precomputed of Ident.Set.t
   | Uncomputed
 
@@ -155,9 +158,11 @@ type rhs =
   *)
   | Unguarded of lambda
 
-let mk_guarded_rhs ~patch_guarded ~free_variables =
-  Guarded
-    { patch_guarded; free_variables }
+let mk_boolean_guarded_rhs ~patch_guarded ~free_variables =
+  Guarded { patch_guarded; free_variables = Precomputed free_variables }
+
+let mk_pattern_guarded_rhs ~patch_guarded =
+  Guarded { patch_guarded; free_variables = Uncomputed }
 
 let mk_unguarded_rhs action = Unguarded action
 
