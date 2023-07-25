@@ -1025,7 +1025,8 @@ and transl_guard ~scopes guard rhs_sort rhs =
         (Lifthenelse (translated_cond, translated_rhs, patch, layout))
     in
     let free_variables =
-      Ident.Set.union (free_variables translated_cond)
+      Ident.Set.union
+        (free_variables translated_cond)
         (free_variables translated_rhs)
     in
     Matching.mk_guarded_rhs ~patch_guarded
