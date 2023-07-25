@@ -5756,7 +5756,48 @@ and type_expect_
       | _ -> raise (Error (loc, env, Probe_is_enabled_format))
     end
   | Pexp_extension ({ txt = "src_pos"; loc }, _) ->
-      rue { exp_desc = Texp_record {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(*
+     | Pexp_record of (Longident.t loc * expression) list * expression option
+      (** [Pexp_record([(l1,P1) ; ... ; (ln,Pn)], exp0)] represents
+            - [{ l1=P1; ...; ln=Pn }]         when [exp0] is [None]
+            - [{ E0 with l1=P1; ...; ln=Pn }] when [exp0] is [Some E0]
+
+           Invariant: [n > 0]
+         *)
+ *)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      (* rue { exp_desc = Texp_record {
               fields = (Array.map
                 (fun (lbl_desc : label_description) ->
                   let value, typ =
@@ -5789,7 +5830,7 @@ and type_expect_
             exp_type = Predef.type_lexing_position;
             exp_env = env;
             exp_attributes = [];
-          }
+          } *)
   | Pexp_extension ext ->
     raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
