@@ -3657,6 +3657,7 @@ let type_pattern_approx env spat ty_expected =
   | _ -> ()
 
 let rec type_function_approx env loc label spato sexp in_function ty_expected =
+  let label = Typetexp.transl_label label in
   let has_local, has_poly =
     match spato with
     | None -> false, false
@@ -3697,10 +3698,10 @@ and type_approx_aux env sexp in_function ty_expected =
   | None      -> match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
-      type_function_approx env sexp.pexp_loc (Typetexp.transl_label l) (Some p) e
+      type_function_approx env sexp.pexp_loc l (Some p) e
         in_function ty_expected
   | Pexp_function ({pc_rhs=e}::_) ->
-      type_function_approx env sexp.pexp_loc Nolabel None e
+      type_function_approx env sexp.pexp_loc Parsetree.Nolabel None e
         in_function ty_expected
   | Pexp_match (_, {pc_rhs=e}::_) -> type_approx_aux env e None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
@@ -5915,7 +5916,7 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
     let ls, tvar = list_labels env ty in
     List.for_all ((<>) Nolabel) ls && not tvar
   in
-  if is_optional (arg_label) && not_nolabel_function ty_ret then
+  if is_optional arg_label && not_nolabel_function ty_ret then
     Location.prerr_warning (List.hd cases).c_lhs.pat_loc
       Warnings.Unerasable_optional_argument;
   let param = name_cases "param" cases in
