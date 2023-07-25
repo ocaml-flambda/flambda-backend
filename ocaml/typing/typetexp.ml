@@ -475,6 +475,8 @@ and transl_type_aux env policy mode styp =
           let l, arg_cty =
             match l, arg.ptyp_desc with
             | (Labelled l | Position l), Ptyp_extension ({txt="src_pos"; _}, _payload) ->
+              (* CR src_pos: Consider bundling argument types into arg_labels, so there
+                 is no need to create this redundant type *)
               let constr = newconstr Predef.path_lexing_position [] in
               Position l, ctyp Ttyp_src_pos constr
             |_ -> l, transl_type env policy arg_mode arg
