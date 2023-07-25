@@ -2210,7 +2210,7 @@ let send_function (arity, result, mode) =
   let fun_name = send_function_name arity result mode in
   let fun_args =
     [obj, typ_val; tag, typ_int; cache, typ_addr]
-    @ List.map (fun id -> (id, typ_val)) (List.tl args) in
+    @ List.combine (List.tl args) arity in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
    {fun_name;
