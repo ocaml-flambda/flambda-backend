@@ -575,10 +575,6 @@ let backtrack = backtrack ~cleanup_abbrev
 
 let is_optional = function Optional _ -> true | _ -> false
 
-let is_omittable = function
-  Optional _
-| _ -> false
-
 let label_name = function
     Nolabel -> ""
   | Labelled s
