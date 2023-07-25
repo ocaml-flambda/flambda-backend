@@ -17,10 +17,15 @@
 
 open! Stdlib
 
-(* CR layouts v5: This file is based on [float.mli], which itself is generated
+(* CR layouts v4: This file is based on [float.mli], which itself is generated
    from [float.template.mli].  That file is generated to deal with labels in the
    Array submodule, which we don't have here, so I haven't done something
    similar.  If we have an Array submodule here in the future, reconsider. *)
+
+(* CR layouts: This module is not included in the [Stdlib] module, much like
+   IArray.  This is intended to be a speed bump so that people won't
+   accidentally rely on it in public release code.  Eventually, we plan to move
+   it out of the stdlib library and into a new otherlib. *)
 
 (** Unboxed floating-point arithmetic.  This file primarily duplicates
     functionality from the [Float] module, but for [float#].
