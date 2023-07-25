@@ -161,12 +161,6 @@ let mk_guarded_rhs ~patch_guarded ~free_variables =
 
 let mk_unguarded_rhs action = Unguarded action
 
-let free_variables_of_rhs = function
-  | Unguarded lam -> Some (free_variables lam)
-  | Guarded { free_variables = Precomputed free_variables } ->
-      Some free_variables
-  | Guarded { free_variables = Uncomputed } -> None
-
 let is_guarded = function
   | Guarded _ -> true
   | Unguarded _ -> false
@@ -174,7 +168,7 @@ let is_guarded = function
 let bind_rhs_with_layout str (var, layout) exp body =
   match body with
   | Unguarded body -> Unguarded (bind_with_layout str (var, layout) exp body)
-  | Guarded { patch_guarded; free_variables } ->
+  | Guarded { patch_guarded; free_variables = free } ->
       match exp with
       | Lvar var' when Ident.same var var' -> body
       | _ ->
@@ -185,7 +179,7 @@ let bind_rhs_with_layout str (var, layout) exp body =
               ~f:(fun free ->
                     Ident.Set.union (free_variables exp)
                       (Ident.Set.remove var free))
-              free_variables
+              free
           in
           Guarded { patch_guarded; free_variables }
 
@@ -1654,20 +1648,27 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
                 default = Default_environment.pop_compat orp def
               }
             in
-            let pm_fv = pm_free_variables orpm in
-            let filter_pm_fv =
-              match pm_fv with
-              | None -> fun ids -> ids
+            let patbound_idents =
+              Typedtree.pat_bound_idents_full arg_sort orp
+            in
+            (* optimization: discard pattern vars not bound in orpm actions *)
+            let patbound_action_vars_full =
+              match pm_free_variables orpm with
+              (* give up on the optimization: there is some action not tracking
+                 free variables *)
+              | None -> patbound_idents
+              (* only retain variables bound in the or-pattern that are used in
+                 the orpm actions *)
               | Some pm_fv ->
-                  List.filter (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
+                  List.filter
+                    (fun (id, _, _, _) -> Ident.Set.mem id pm_fv)
+                    patbound_idents
             in
             let patbound_action_vars =
-              (* variables bound in the or-pattern
-                 that are used in the orpm actions *)
-              Typedtree.pat_bound_idents_full arg_sort orp
-              |> filter_pm_fv
-              |> List.map (fun (id, _, ty, id_sort) ->
-                     (id, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
+              List.map
+                (fun (id, _, ty, id_sort) ->
+                   (id, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
+                patbound_action_vars_full
             in
             let or_num = next_raise_count () in
             let new_patl = Patterns.omega_list patl in
