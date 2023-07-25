@@ -510,7 +510,7 @@ let print_name ppf = function
 
 let string_of_label = function
     Nolabel -> ""
-  | Labelled s | Position s -> s
+  | Labelled s -> s
   | Optional s -> "?"^s
 
 let visited = ref []
@@ -1125,12 +1125,6 @@ let rec tree_of_typexp mode ty =
             | Tconstr(path, [ty], _)
               when Path.same path Predef.path_option ->
                 tree_of_typexp mode ty
-            | _ -> Otyp_stuff "<hidden>"
-          else if is_position l then
-            match get_desc (tpoly_get_mono ty1) with
-            | Tconstr(path, [], _)
-              when Path.same path Predef.path_lexing_position ->
-                Otyp_constr (Oide_ident (Out_name.create "[%src_pos]"), [])
             | _ -> Otyp_stuff "<hidden>"
           else
             tree_of_typexp mode ty1

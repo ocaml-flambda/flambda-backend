@@ -168,6 +168,11 @@ and core_type_desc =
   | Ptyp_package of package_type  (** [(module S)]. *)
   | Ptyp_extension of extension  (** [[%id]]. *)
 
+and arg_label =
+  | Nolabel
+  | Labelled of string (** [label:T -> ...] *)
+  | Optional of string (** [?label:T -> ...] *)
+
 and package_type = Longident.t loc * (Longident.t loc * core_type) list
 (** As {!package_type} typed values:
          - [(S, [])] represents [(module S)],
@@ -318,13 +323,6 @@ and expression_desc =
                        and [exp0] is [None]
             - [fun ~l:P -> E1]
                       when [lbl] is {{!Asttypes.arg_label.Labelled}[Labelled l]}
-                       and [exp0] is [None]
-            - [fun ~l:(P : [%src_pos]) -> E1]
-                TODO vding question: Technically, [%src_pos] gets parsed into 
-                a Labelled argument before we convert it ourselves, so I think 
-                a Pexp_fun with a Position label never actually exists. Not 
-                sure how to word this in documentation? 
-                      when [lbl] is {{!Asttypes.arg_label.Position}[Position l]}
                        and [exp0] is [None]
             - [fun ?l:P -> E1]
                       when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}

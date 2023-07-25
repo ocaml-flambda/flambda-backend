@@ -258,7 +258,7 @@ let match_generic_printer_type desc path args printer_type =
     List.fold_right
       (fun ty_arg ty ->
          let arrow_desc =
-           Asttypes.Nolabel,Alloc_mode.global,Alloc_mode.global
+           Types.Nolabel,Alloc_mode.global,Alloc_mode.global
          in
          Ctype.newty
            (Tarrow (arrow_desc, Ctype.newmono ty_arg, ty, commu_var ())))

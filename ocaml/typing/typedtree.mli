@@ -209,7 +209,7 @@ and expression_desc =
         (** let P1 = E1 and ... and Pn = EN in E       (flag = Nonrecursive)
             let rec P1 = E1 and ... and Pn = EN in E   (flag = Recursive)
          *)
-  | Texp_function of { arg_label : arg_label; param : Ident.t;
+  | Texp_function of { arg_label : Types.arg_label; param : Ident.t;
       cases : value case list; partial : partial;
       region : bool; curry : fun_curry_state;
       warnings : Warnings.state;
@@ -230,7 +230,7 @@ and expression_desc =
             partial_mode is the mode of the resulting closure if this function
             is partially applied to a single argument.
          *)
-  | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Types.alloc_mode
+  | Texp_apply of expression * (Types.arg_label * apply_arg) list * apply_position * Types.alloc_mode
         (** E0 ~l1:E1 ... ~ln:En
 
             The expression can be Omitted if the expression is abstracted over
@@ -451,9 +451,9 @@ and class_expr_desc =
     Tcl_ident of Path.t * Longident.t loc * core_type list
   | Tcl_structure of class_structure
   | Tcl_fun of
-      arg_label * pattern * (Ident.t * expression) list
+      Types.arg_label * pattern * (Ident.t * expression) list
       * class_expr * partial
-  | Tcl_apply of class_expr * (arg_label * apply_arg) list
+  | Tcl_apply of class_expr * (Types.arg_label * apply_arg) list
   | Tcl_let of rec_flag * value_binding list *
                   (Ident.t * expression) list * class_expr
   | Tcl_constraint of
@@ -717,7 +717,7 @@ and core_type =
 and core_type_desc =
     Ttyp_any
   | Ttyp_var of string
-  | Ttyp_arrow of arg_label * core_type * core_type
+  | Ttyp_arrow of Types.arg_label * core_type * core_type
   | Ttyp_tuple of core_type list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
@@ -855,7 +855,7 @@ and class_type =
 and class_type_desc =
     Tcty_constr of Path.t * Longident.t loc * core_type list
   | Tcty_signature of class_signature
-  | Tcty_arrow of arg_label * core_type * class_type
+  | Tcty_arrow of Types.arg_label * core_type * class_type
   | Tcty_open of open_description * class_type
 
 and class_signature = {

@@ -575,22 +575,18 @@ let backtrack = backtrack ~cleanup_abbrev
 
 let is_optional = function Optional _ -> true | _ -> false
 
-let is_position = function Position _ -> true | _ -> false
-
 let is_omittable = function
   Optional _
-| Position _ -> true
 | _ -> false
 
 let label_name = function
     Nolabel -> ""
   | Labelled s
-  | Optional s
-  | Position s -> s
+  | Optional s -> s
 
 let prefixed_label_name = function
     Nolabel -> ""
-  | Labelled s | Position s -> "~" ^ s
+  | Labelled s -> "~" ^ s
   | Optional s -> "?" ^ s
 
 let rec extract_label_aux hd l = function

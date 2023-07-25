@@ -43,6 +43,11 @@ and type_desc =
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
 
+and arg_label =
+  | Nolabel
+  | Labelled of string (** [label:T -> ...] *)
+  | Optional of string (** [?label:T -> ...] *)
+
 and arrow_desc =
   arg_label * alloc_mode * alloc_mode
 

@@ -59,12 +59,6 @@ type const_layout =
 
 type label = string
 
-type arg_label =
-    Nolabel
-  | Labelled of string (** [label:T -> ...] *)
-  | Optional of string (** [?label:T -> ...] *)
-  | Position of string (** [label:[%src_pos] -> ...]*)
-
 type 'a loc = 'a Location.loc = {
   txt : 'a;
   loc : Location.t;

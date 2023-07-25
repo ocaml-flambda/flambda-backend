@@ -426,6 +426,11 @@ let check_arg_type styp =
     | _ -> ()
   end
 
+let transl_label = function
+  | Parsetree.Labelled l -> Types.Labelled l
+  | Parsetree.Optional l -> Optional l
+  | Parsetree.Nolabel -> Nolabel
+
 let rec transl_type env policy mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
     (fun () -> transl_type_aux env policy mode styp)
@@ -464,18 +469,9 @@ and transl_type_aux env policy mode styp =
       let rec loop acc_mode args =
         match args with
         | (l, arg_mode, arg) :: rest ->
+          let l = transl_label l in
           check_arg_type arg;
-          let arg_cty = (
-            match arg.ptyp_desc with
-            | Ptyp_extension ({txt="src_pos"; _}, _payload) ->
-              (* CR src_pos: This won't work correctly in Untypeast *)
-              let path = Predef.path_lexing_position in
-              let lid = Longident.Lident "lexing_position" in
-              let constr = newconstr path [] in
-              ctyp (Ttyp_constr (path, {txt=lid; loc=Location.none}, [])) constr
-            |_ -> transl_type env policy arg_mode arg )
-          in
-          (* let arg_cty = transl_type env policy arg_mode arg in *)
+          let arg_cty = transl_type env policy arg_mode arg in
           let acc_mode = Alloc_mode.join_const acc_mode arg_mode in
           let ret_mode =
             match rest with
@@ -843,6 +839,12 @@ and transl_type_aux env policy mode styp =
             pack_fields = ptys;
             pack_txt = p;
            }) ty
+  | Ptyp_extension  ({txt="src_pos"; _}, _payload) -> 
+      (* CR src_pos: This won't work correctly in Untypeast *)
+      let path = Predef.path_lexing_position in
+      let lid = Longident.Lident "lexing_position" in
+      let constr = newconstr path [] in
+      ctyp (Ttyp_constr (path, {txt=lid; loc=Location.none}, [])) constr
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 

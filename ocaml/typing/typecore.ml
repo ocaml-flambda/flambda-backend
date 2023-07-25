@@ -180,7 +180,7 @@ type error =
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
   | Expr_not_a_record_type of type_expr
   | Local_value_escapes of Value_mode.error * submode_reason * Env.escaping_context option
-  | Local_application_complete of Asttypes.arg_label * [`Prefix|`Single_arg|`Entire_apply]
+  | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of type_expr
   | Uncurried_function_escapes
   | Local_return_annotation_mismatch of Location.t
@@ -3589,6 +3589,7 @@ let rec approx_type env sty =
   match sty.ptyp_desc with
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
       (* CR layouts v5: value requirement here to be relaxed *)
+      let p = Typetexp.transl_label p in
       if is_optional p then newvar (Layout.value ~why:Type_argument)
       else begin
         let arg_mode = Typetexp.get_alloc_mode arg_sty in
@@ -3605,6 +3606,7 @@ let rec approx_type env sty =
       end
   | Ptyp_arrow (p, arg_sty, sty) ->
       let arg_mode = Typetexp.get_alloc_mode arg_sty in
+      let p = Typetexp.transl_label p in
       let arg =
         if is_optional p
         then type_option (newvar (Layout.value ~why:Type_argument))
@@ -3696,7 +3698,7 @@ and type_approx_aux env sexp in_function ty_expected =
   | None      -> match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
-      type_function_approx env sexp.pexp_loc l (Some p) e
+      type_function_approx env sexp.pexp_loc (Typetexp.transl_label l) (Some p) e
         in_function ty_expected
   | Pexp_function ({pc_rhs=e}::_) ->
       type_function_approx env sexp.pexp_loc Nolabel None e
@@ -4352,7 +4354,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_fun (l, Some default, spat, sbody) ->
-      assert(is_optional l); (* default allowed only with optional argument *)
+      assert(is_optional (Typetexp.transl_label l)); (* default allowed only with optional argument *)
       let open Ast_helper in
       let default_loc = default.pexp_loc in
       (* Defaults are always global. They can be moved out of the function's
@@ -4399,27 +4401,19 @@ and type_expect_
   | Pexp_fun (l, None, spat, sbody) ->
       let has_local = has_local_attr_pat spat in
       let has_poly = has_poly_constraint spat in
-      if has_poly && is_optional l then
+      if has_poly && is_optional (Typetexp.transl_label l) then
         raise(Error(spat.ppat_loc, env, Optional_poly_param));
       if has_poly
          && not (Language_extension.is_enabled Polymorphic_parameters) then
         raise (Typetexp.Error (loc, env,
           Unsupported_extension Polymorphic_parameters));
-      let l, spat = match spat with
-      | {ppat_desc = Ppat_constraint (inner_pat,
-                      { ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _}); _} ->
-          (match l with
-          | Labelled l | Position l -> Position l, inner_pat
-          | Nolabel | Optional _ -> raise (Error (loc, env, Invalid_label_for_src_pos l)))
-      | _ -> l, spat
-      in
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained l ~has_local
                     ~has_poly [Ast_helper.Exp.case spat sbody]
   | Pexp_function caselist ->
       type_function ?in_function
         loc sexp.pexp_attributes env expected_mode
-        ty_expected_explained Nolabel ~has_local:false ~has_poly:false caselist
+        ty_expected_explained Parsetree.Nolabel ~has_local:false ~has_poly:false caselist
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = ("ocaml.local" | "local" | "extension.local" as txt)}, PStr []) },
        [Nolabel, sbody]) ->
@@ -5778,6 +5772,7 @@ and type_binding_op_ident env s =
 
 and type_function ?in_function loc attrs env (expected_mode : expected_mode)
       ty_expected_explained arg_label ~has_local ~has_poly caselist =
+  let arg_label = Typetexp.transl_label arg_label in
   let { ty = ty_expected; explanation } = ty_expected_explained in
   let alloc_mode = Value_mode.regional_to_global_alloc expected_mode.mode in
   let alloc_mode =
@@ -5921,7 +5916,7 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
     let ls, tvar = list_labels env ty in
     List.for_all ((<>) Nolabel) ls && not tvar
   in
-  if is_optional arg_label && not_nolabel_function ty_ret then
+  if is_optional (arg_label) && not_nolabel_function ty_ret then
     Location.prerr_warning (List.hd cases).c_lhs.pat_loc
       Warnings.Unerasable_optional_argument;
   let param = name_cases "param" cases in
@@ -6556,7 +6551,7 @@ and type_application env app_loc expected_mode pm
   in
   match sargs with
   | (* Special case for ignore: avoid discarding warning *)
-    [Nolabel, sarg] when is_ignore funct ->
+    [Parsetree.Nolabel, sarg] when is_ignore funct ->
       if !Clflags.principal then begin_def () ;
       let {ty_arg; arg_mode; arg_sort; ty_ret; ret_mode} =
         filter_arrow_mono env (instance funct.exp_type) Nolabel
@@ -6587,7 +6582,7 @@ and type_application env app_loc expected_mode pm
           not tvar &&
           let labels = List.filter (fun l -> not (is_optional l)) ls in
           List.length labels = List.length sargs &&
-          List.for_all (fun (l,_) -> l = Nolabel) sargs &&
+          List.for_all (fun (l,_) -> l = Parsetree.Nolabel) sargs &&
           List.exists (fun l -> l <> Nolabel) labels &&
           (Location.prerr_warning
              funct.exp_loc
@@ -6598,6 +6593,9 @@ and type_application env app_loc expected_mode pm
         end
       in
       if !Clflags.principal then begin_def () ;
+      let sargs = List.map 
+        (fun (label, e) -> Typetexp.transl_label label, e) sargs 
+      in
       let ty_ret, mode_ret, untyped_args =
         collect_apply_args env funct ignore_labels ty (instance ty)
           (Value_mode.regional_to_local_alloc funct_mode) sargs ret_tvar
@@ -8372,7 +8370,7 @@ let report_error ~loc env = function
           let lbl =
             match lbl with
             | Nolabel -> "_"
-            | Labelled s | Optional s | Position s -> s
+            | Labelled s | Optional s -> s
           in
           [Location.msg
              "@[Hint: Try splitting the application in two. The arguments that come@ \
@@ -8434,7 +8432,7 @@ let report_error ~loc env = function
         (match arg_label with
         | Nolabel -> "unlabelled"
         | Optional _ -> "optional"
-        | Labelled _ | Position _ -> assert false )
+        | Labelled _ -> assert false )
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env
