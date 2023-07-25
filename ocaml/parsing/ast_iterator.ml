@@ -799,9 +799,10 @@ let default_iterator =
          | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
              this.expr this pbg_guard;
              this.expr this pbg_rhs
-         | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases } ->
+         | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
              this.expr this ppg_scrutinee;
-             this.cases this ppg_cases
+             this.cases this ppg_cases;
+             this.location this ppg_loc
       );
 
     location = (fun _this _l -> ());
