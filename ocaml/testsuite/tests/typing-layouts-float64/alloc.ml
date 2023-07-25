@@ -6,30 +6,15 @@
 (* A test comparing allocations with unboxed floats to allocations with boxed
    floats. *)
 
-(* CR layouts v2: Delete this `Float_u` module and use the one we add to the
-   standard library instead. *)
-module type Float_u = sig
-  external to_float : float# -> (float[@local_opt]) = "%box_float"
-  external of_float : (float[@local_opt]) -> float# = "%unbox_float"
+module Float_u = struct
+  include Stdlib__Float_u
 
-  val ( + ) : float# -> float# -> float#
-  val ( - ) : float# -> float# -> float#
-  val ( * ) : float# -> float# -> float#
-  val ( / ) : float# -> float# -> float#
-  val ( ** ) : float# -> float# -> float#
-  val ( > ) : float# -> float# -> bool
-end
-
-module Float_u : Float_u = struct
-  external to_float : float# -> (float[@local_opt]) = "%box_float"
-  external of_float : (float[@local_opt]) -> float# = "%unbox_float"
-
-  let ( + ) x y = of_float ((to_float x) +. (to_float y))
-  let ( - ) x y = of_float ((to_float x) -. (to_float y))
-  let ( * ) x y = of_float ((to_float x) *. (to_float y))
-  let ( / ) x y = of_float ((to_float x) /. (to_float y))
-  let ( ** ) x y = of_float ((to_float x) ** (to_float y))
-  let ( > ) x y = (to_float x) > (to_float y)
+  let ( + ) = add
+  let ( - ) = sub
+  let ( * ) = mul
+  let ( / ) = div
+  let ( ** ) = pow
+  let ( > ) x y = (compare x y) > 0
 end
 
 let alloc = ref 0.0
