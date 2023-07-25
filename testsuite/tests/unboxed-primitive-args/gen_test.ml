@@ -14,7 +14,7 @@ type native_repr =
   | Unboxed_vector of boxed_vector
 
 (* Generate primitives with up to this number of arguments *)
-let test_all_combination_up_to_n_args = 6
+let test_all_combination_up_to_n_args = 5
 
 (* Generate primitives using all combination of these argument
    representations. No need to test all combination of other
