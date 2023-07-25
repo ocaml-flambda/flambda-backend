@@ -436,17 +436,19 @@ and case =
      pc_lhs: pattern;
      pc_rhs: case_rhs;
    }
-(** Values of type {!case} represents [(P -> E)], [(P when E0 -> E)],
-    [(P when E0 match P0 -> E)], or [(P when E match (cases))] *)
+(** Values of type {!case} represent [(P R)] for [P] a pattern and [R] a rhs. *)
 
 and case_rhs =
   | Psimple_rhs of expression
+  (** [-> e] *)
   | Pboolean_guarded_rhs of { pbg_guard : expression; pbg_rhs : expression }
+  (** [when g -> e] *)
   | Ppattern_guarded_rhs of
       { ppg_scrutinee : expression
       ; ppg_cases : case list
       ; ppg_loc : Location.t
       }
+  (** [when e match (cases) ] *)
 
 and letop =
   {
