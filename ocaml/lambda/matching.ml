@@ -182,8 +182,8 @@ let bind_rhs_with_layout str (var, layout) exp body =
           let free_variables =
             map_guarded_free_variables
               ~f:(fun free ->
-                    Ident.Set.union (free_variables exp)
-                      (Ident.Set.remove var free))
+                    Ident.Set.remove var
+                      (Ident.Set.union (free_variables exp) free))
               free
           in
           Guarded { patch_guarded; free_variables }
