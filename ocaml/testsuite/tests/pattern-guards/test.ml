@@ -343,3 +343,34 @@ patch_to_match_failure exact_half ~-1 (Some 41);;
 Exception: Match_failure ("", 2, 2).
 |}];;
 
+let warn_partial = function
+  | [] -> 0
+  | xs when List.hd xs match Some y -> y
+;;
+[%%expect{|
+Lines 1-3, characters 19-40:
+1 | ...................function
+2 |   | [] -> 0
+3 |   | xs when List.hd xs match Some y -> y
+Warning 8 [partial-match]: this pattern-matching is not exhaustive.
+Here is an example of a case that is not matched:
+_::_
+(However, some guarded clause may match this value.)
+val warn_partial : int option list -> int = <fun>
+|}];;
+
+let warn_ambiguous = function
+  | ([ x ], _) | (_, [ x ]) when (let one = 1 in Int.abs x + one) match 2 -> 1
+  | _ -> 0
+;;
+[%%expect{|
+Line 2, characters 4-27:
+2 |   | ([ x ], _) | (_, [ x ]) when (let one = 1 in Int.abs x + one) match 2 -> 1
+        ^^^^^^^^^^^^^^^^^^^^^^^
+Warning 57 [ambiguous-var-in-pattern-guard]: Ambiguous or-pattern variables under guard;
+variable x appears in different places in different or-pattern alternatives.
+Only the first match will be used to evaluate the guard expression.
+(See manual section 11.5)
+val warn_ambiguous : int list * int list -> int = <fun>
+|}]
+
