@@ -487,7 +487,8 @@ let expression sub exp =
         (* First, the special case for a Position argument *)
         let pat =
           Pat.mk (Ppat_constraint (sub.pat sub p,
-            Typ.mk (Ptyp_extension ({loc; txt="src_pos"}, PStr []))))
+            Typ.mk (Ptyp_extension ({loc=Location.none; txt="src_pos"},
+                    PStr []))))
         in
         Pexp_fun (label, None, pat, sub.expr sub e)
     | Texp_function { arg_label; cases = [{c_lhs=p; c_guard=None; c_rhs=e}];
@@ -503,7 +504,8 @@ let expression sub exp =
         let name = fresh_name s exp.exp_env in
         let pat =
           Pat.mk (Ppat_constraint ((Pat.var ~loc {loc;txt = name }),
-            Typ.mk (Ptyp_extension ({loc; txt="src_pos"}, PStr []))))
+            Typ.mk (Ptyp_extension ({loc=Location.none; txt="src_pos"},
+                    PStr []))))
         in
         Pexp_fun (label, None, pat,
           Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
