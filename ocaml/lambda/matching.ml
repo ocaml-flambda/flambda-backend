@@ -181,7 +181,11 @@ let bind_rhs_with_layout str (var, layout) exp body =
           let patch_guarded ~patch =
             Llet (str, layout, var, exp, patch_guarded ~patch) in
           let free_variables =
-            map_guarded_free_variables ~f:(Ident.Set.remove var) free_variables
+            map_guarded_free_variables
+              ~f:(fun free ->
+                    Ident.Set.union (free_variables exp)
+                      (Ident.Set.remove var free))
+              free_variables
           in
           Guarded { patch_guarded; free_variables }
 
@@ -1206,7 +1210,12 @@ let pm_free_variables { cases } =
   List.fold_right
     (fun (_, act) r ->
        Option.bind r
-         (fun r -> Option.map (Ident.Set.union r) (free_variables_of_rhs act)))
+         (fun r ->
+            match act with
+            | Unguarded lam -> Some (Ident.Set.union r (free_variables lam))
+            | Guarded { free_variables = Precomputed free_variables } ->
+                Some (Ident.Set.union r free_variables)
+            | Guarded { free_variables = Uncomputed } -> None))
     cases (Some Ident.Set.empty)
 
 (* Basic grouping predicates *)
