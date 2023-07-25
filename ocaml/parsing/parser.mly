@@ -3036,7 +3036,7 @@ match_case:
      nroberts prefers expr, so that e1; e2 match p parses as e1; (e2 match p),
      if and when `e match p` is introduced as an expression
   */
-| pattern WHEN expr MATCH ioption(BAR) match_case
+  | pattern WHEN expr MATCH ioption(BAR) match_case
       { Exp.case $1
           (Case_rhs.pattern_guarded ~loc:(make_loc ($startpos($2), $endpos))
              $3 [ $6 ]) }
