@@ -147,6 +147,36 @@ and ident_cons = ident_create "::"
 and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 
+let immediate_layout = Layout.value ~why:(Primitive ident_int)
+
+let lexing_position_representation =
+  Record_boxed [| Layout.value ~why:(Primitive ident_string); immediate_layout; immediate_layout; immediate_layout |]
+
+let lexing_position_labels =
+  let lbl_desc (field, res, arg, layout, pos, num) =
+    let id = Ident.create_predef field in
+    { lbl_name = Ident.name id;
+      lbl_res = res;                            (*TODO is this right "type of the result"*)
+      lbl_arg = arg;                        (* "type of the argument" ? *)
+      lbl_mut = Immutable;
+      lbl_global = Unrestricted;
+      lbl_layout = layout;
+      lbl_pos = pos;                       (* ?? Position in block in words (start at 1?? ) *)
+      lbl_num = num;                       (* ???  Position in the type *)
+      lbl_all = [||];             (* TODO: ???? -  All the labels in this type *)
+      lbl_repres = lexing_position_representation;
+      lbl_private = Public;
+      lbl_loc = Location.none;
+      lbl_attributes = [];
+      lbl_uid = Uid.of_predef_id id; }
+  in
+  Array.map lbl_desc [|
+    ("pos_fname", type_string, failwith "todo", Layout.value ~why:(Primitive ident_string), failwith "todo" , failwith "todo");
+    ("pos_lnum", type_int, failwith "todo", immediate_layout, failwith "todo" , failwith "todo");
+    ("pos_bol", type_int, failwith "todo", immediate_layout, failwith "todo" , failwith "todo");
+    ("pos_cnum", type_int, failwith "todo", immediate_layout, failwith "todo" , failwith "todo");
+  |]
+
 let mk_add_type add_type
       ?manifest type_ident
       ?(kind=Type_abstract)
@@ -284,7 +314,7 @@ let common_initial_env add_type add_extension empty_env =
          in 
          Type_record (
            labels, 
-           (Record_boxed (List.map (fun label -> label.ld_layout) labels |> Array.of_list))
+           lexing_position_representation
          )
        )
        ~layout:(Layout.value ~why:Boxed_record)

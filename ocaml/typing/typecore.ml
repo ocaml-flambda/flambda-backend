@@ -4396,6 +4396,41 @@ and type_expect_
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained
                     l ~has_local ~has_poly:false [Exp.case pat body]
+
+
+  (* | Pexp_fun (l, None, {ppat_desc = Ppat_constraint (spat, {ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _}); _}, sbody) ->
+    let has_local = has_local_attr_pat spat in
+    let has_poly = has_poly_constraint spat in
+    if has_poly && is_optional l then
+      raise(Error(spat.ppat_loc, env, Optional_poly_param));
+    if has_poly
+        && not (Language_extension.is_enabled Polymorphic_parameters) then
+      raise (Typetexp.Error (loc, env,
+        Unsupported_extension Polymorphic_parameters));
+    let l = 
+      (match l with
+          Labelled l | Position l -> Position l
+        | Nolabel | Optional _ -> failwith "todo raise an error")
+    in
+    type_function ?in_function loc sexp.pexp_attributes env
+                  expected_mode ty_expected_explained l ~has_local
+                  ~has_poly [Ast_helper.Exp.case spat sbody]
+
+
+| Pexp_fun (l, None, spat, sbody) ->
+  let has_local = has_local_attr_pat spat in
+  let has_poly = has_poly_constraint spat in
+  if has_poly && is_optional l then
+    raise(Error(spat.ppat_loc, env, Optional_poly_param));
+  if has_poly
+      && not (Language_extension.is_enabled Polymorphic_parameters) then
+    raise (Typetexp.Error (loc, env,
+      Unsupported_extension Polymorphic_parameters));
+  type_function ?in_function loc sexp.pexp_attributes env
+                expected_mode ty_expected_explained l ~has_local
+                ~has_poly [Ast_helper.Exp.case spat sbody] *)
+
+
   | Pexp_fun (l, None, spat, sbody) ->
       let has_local = has_local_attr_pat spat in
       let has_poly = has_poly_constraint spat in
@@ -4416,6 +4451,9 @@ and type_expect_
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained l ~has_local
                     ~has_poly [Ast_helper.Exp.case spat sbody]
+
+
+
   | Pexp_function caselist ->
       type_function ?in_function
         loc sexp.pexp_attributes env expected_mode
@@ -5717,6 +5755,41 @@ and type_expect_
           exp_env = env }
       | _ -> raise (Error (loc, env, Probe_is_enabled_format))
     end
+  | Pexp_extension ({ txt = "src_pos"; loc }, _) ->
+      rue { exp_desc = Texp_record {
+              fields = (Array.map
+                (fun (lbl_desc : label_description) ->
+                  let value, typ =
+                    let pos = loc.loc_start in
+                    (match lbl_desc.lbl_name with
+                    | "pos_fname" -> Texp_constant (Const_string (pos.pos_fname, loc, None)), Predef.type_string
+                    (* TODO vding question: is the above correct for string representation? (no delimiter) *)
+                    | "pos_lnum"  -> Texp_constant (Const_int pos.pos_lnum), Predef.type_int
+                    | "pos_bol"   -> Texp_constant (Const_int pos.pos_bol), Predef.type_int
+                    | "pos_cnum"  -> Texp_constant (Const_int pos.pos_cnum), Predef.type_int
+                    | _ -> assert false)
+                  in
+                  let exp =
+                    { exp_desc = value;
+                      exp_loc = loc;
+                      exp_extra = [];
+                      exp_type = typ;
+                      exp_env = env;
+                      exp_attributes = []
+                    }
+                  in
+                  lbl_desc, Overridden ({txt = (Longident.Lident lbl_desc.lbl_name); loc}, exp))
+                  Predef.lexing_position_labels);
+              representation = Predef.lexing_position_representation;
+              extended_expression = None;
+              alloc_mode = None (* TODO vding question: Is this fine? *)
+            };
+            exp_loc = loc;
+            exp_extra = [];
+            exp_type = Predef.type_lexing_position;
+            exp_env = env;
+            exp_attributes = [];
+          }
   | Pexp_extension ext ->
     raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
