@@ -147,63 +147,72 @@ and ident_cons = ident_create "::"
 and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 
+let mk_decl 
+      ?manifest type_ident
+      ?(kind=Type_abstract)
+      ?(layout=Layout.value ~why:(Primitive type_ident))
+      () =
+  { type_params = [];
+    type_arity = 0;
+    type_kind = kind;
+    type_layout = layout;
+    type_loc = Location.none;
+    type_private = Asttypes.Public;
+    type_manifest = manifest;
+    type_variance = [];
+    type_separability = [];
+    type_is_newtype = false;
+    type_expansion_scope = lowest_level;
+    type_attributes = [];
+    type_unboxed_default = false;
+    type_uid = Uid.of_predef_id type_ident }
+
+let mk_add_type add_type
+      ?manifest type_ident
+      ?kind
+      ?layout
+      env =
+  let decl = mk_decl type_ident ?manifest ?kind ?layout () in
+  add_type type_ident decl env
+
 let immediate_layout = Layout.value ~why:(Primitive ident_int)
 
 let lexing_position_representation =
   Record_boxed [| Layout.value ~why:(Primitive ident_string); immediate_layout; immediate_layout; immediate_layout |]
 
-let lexing_position_labels =
-  let lbl_desc (field, res, arg, layout, pos, num) =
-    let id = Ident.create_predef field in
-    { lbl_name = Ident.name id;
-      lbl_res = res;                            (*TODO is this right "type of the result"*)
-      lbl_arg = arg;                        (* "type of the argument" ? *)
-      lbl_mut = Immutable;
-      lbl_global = Unrestricted;
-      lbl_layout = layout;
-      lbl_pos = pos;                       (* ?? Position in block in words (start at 1?? ) *)
-      lbl_num = num;                       (* ???  Position in the type *)
-      lbl_all = [||];             (* TODO: ???? -  All the labels in this type *)
-      lbl_repres = lexing_position_representation;
-      lbl_private = Public;
-      lbl_loc = Location.none;
-      lbl_attributes = [];
-      lbl_uid = Uid.of_predef_id id; }
-  in
-  Array.map lbl_desc [|
-    ("pos_fname", type_string, failwith "todo", Layout.value ~why:(Primitive ident_string), failwith "todo" , failwith "todo");
-    ("pos_lnum", type_int, failwith "todo", immediate_layout, failwith "todo" , failwith "todo");
-    ("pos_bol", type_int, failwith "todo", immediate_layout, failwith "todo" , failwith "todo");
-    ("pos_cnum", type_int, failwith "todo", immediate_layout, failwith "todo" , failwith "todo");
-  |]
+let lexing_position_decl = 
+  mk_decl ident_lexing_position 
+    ~kind:(
+      let lbl (field, field_type, layout) = 
+        let id = Ident.create_predef field in 
+        { ld_id=id;
+          ld_mutable=Immutable;
+          ld_global=Unrestricted;
+          ld_type=field_type;
+          ld_layout=layout;
+          ld_loc=Location.none;
+          ld_attributes=[];
+          ld_uid=Uid.of_predef_id id; }
+      in
+      let immediate = Layout.value ~why:(Primitive ident_int) in 
+      let labels = List.map lbl [
+        ("pos_fname", type_string, Layout.value ~why:(Primitive ident_string)); 
+        ("pos_lnum", type_int, immediate); 
+        ("pos_bol", type_int, immediate); 
+        ("pos_cnum", type_int, immediate) ] 
+      in 
+      Type_record (labels, lexing_position_representation))
+    ~layout:(Layout.value ~why:Boxed_record)
+    ()
 
-let mk_add_type add_type
-      ?manifest type_ident
-      ?(kind=Type_abstract)
-      ?(layout=Layout.value ~why:(Primitive type_ident))
-      env =
-  let decl =
-    {type_params = [];
-     type_arity = 0;
-     type_kind = kind;
-     type_layout = layout;
-     type_loc = Location.none;
-     type_private = Asttypes.Public;
-     type_manifest = manifest;
-     type_variance = [];
-     type_separability = [];
-     type_is_newtype = false;
-     type_expansion_scope = lowest_level;
-     type_attributes = [];
-     type_unboxed_default = false;
-     type_uid = Uid.of_predef_id type_ident;
-    }
-  in
-  add_type type_ident decl env
+let lexing_position_labels = 
+  Datarepr.labels_of_type path_lexing_position lexing_position_decl
+  |> Array.of_list |> Array.map (fun (_, label) -> label)
 
 (* CR layouts: Changes will be needed here as we add support for the built-ins
    to work with non-values, and as we relax the mixed block restriction. *)
 let common_initial_env add_type add_extension empty_env =
+  let add_type_decl type_ident decl env = add_type type_ident decl env in
   let add_type = mk_add_type add_type
   and add_type1 type_ident
         ?(kind=fun _ -> Type_abstract)
@@ -290,34 +299,7 @@ let common_initial_env add_type add_extension empty_env =
          variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]]
            [| [| |]; [| Layout.value ~why:Type_argument |] |])
        ~layout:(Layout.value ~why:Boxed_variant)
-  |> add_type ident_lexing_position 
-       ~kind:(
-         let lbl (field, field_type, layout) = 
-           let id = Ident.create_predef field in 
-             {
-               ld_id=id;
-               ld_mutable=Immutable;
-               ld_global=Unrestricted;
-               ld_type=field_type;
-               ld_layout=layout;
-               ld_loc=Location.none;
-               ld_attributes=[];
-               ld_uid=Uid.of_predef_id id;
-             }
-         in
-         let immediate = Layout.value ~why:(Primitive ident_int) in 
-         let labels = List.map lbl [
-           ("pos_fname", type_string, Layout.value ~why:(Primitive ident_string)); 
-           ("pos_lnum", type_int, immediate); 
-           ("pos_bol", type_int, immediate); 
-           ("pos_cnum", type_int, immediate) ] 
-         in 
-         Type_record (
-           labels, 
-           lexing_position_representation
-         )
-       )
-       ~layout:(Layout.value ~why:Boxed_record)
+  |> add_type_decl ident_lexing_position lexing_position_decl
   |> add_type ident_string
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []] [| [| |] |])

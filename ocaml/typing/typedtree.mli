@@ -352,7 +352,7 @@ and expression_desc =
   | Texp_probe of { name:string; handler:expression; enabled_at_init:bool }
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
-  | Texp_srcpos (* TODO vding: do this *)
+  | Texp_src_pos
 
 and ident_kind = Id_value | Id_prim of Types.alloc_mode option
 
