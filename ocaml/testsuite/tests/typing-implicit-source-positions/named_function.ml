@@ -27,3 +27,4 @@ let _ = apply g ;;
 [%%expect{|
 - : unit = ()
 |}]
+
