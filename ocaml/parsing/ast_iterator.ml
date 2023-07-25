@@ -29,8 +29,8 @@ type iterator = {
   attributes: iterator -> attribute list -> unit;
   binding_op: iterator -> binding_op -> unit;
   case: iterator -> case -> unit;
-  case_rhs: iterator -> case_rhs -> unit;
   cases: iterator -> case list -> unit;
+  case_rhs: iterator -> case_rhs -> unit;
   class_declaration: iterator -> class_declaration -> unit;
   class_description: iterator -> class_description -> unit;
   class_expr: iterator -> class_expr -> unit;
