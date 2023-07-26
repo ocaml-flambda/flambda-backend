@@ -38,6 +38,9 @@ val of_string : string -> Exist.t option
 val pair_of_string : string -> Exist_pair.t option
 val maturity_to_string : maturity -> string
 
+type 'a poly_fn = { computation : 'maturity. 'maturity t -> 'a }
+val memoize : 'a poly_fn -> 'a poly_fn
+
 (** Check if a language extension is "erasable", i.e. whether it can be
     harmlessly translated to attributes and compiled with the upstream
     compiler. *)

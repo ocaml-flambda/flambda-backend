@@ -91,6 +91,29 @@ let is_erasable : type a. a t -> bool = function
   | SIMD ->
       false
 
+type 'a poly_fn = { computation : 'maturity. 'maturity t -> 'a }
+
+let memoize { computation } =
+  let result_local = computation Local
+  and result_layouts = computation Layouts
+  and result_comprehensions = computation Comprehensions
+  and result_include_functor = computation Include_functor
+  and result_polymorphic_parameters = computation Polymorphic_parameters
+  and result_immutable_arrays = computation Immutable_arrays
+  and result_module_strengthening = computation Module_strengthening
+  and result_simd = computation SIMD
+  in
+  { computation = fun (type a) : (a t -> _) -> function
+        | Local -> result_local
+        | Layouts -> result_layouts
+        | Comprehensions -> result_comprehensions
+        | Include_functor -> result_include_functor
+        | Polymorphic_parameters -> result_polymorphic_parameters
+        | Immutable_arrays -> result_immutable_arrays
+        | Module_strengthening -> result_module_strengthening
+        | SIMD -> result_simd
+  }
+
 (* See the mli. *)
 module type Language_extension_for_jane_syntax = sig
   type nonrec 'a t = 'a t

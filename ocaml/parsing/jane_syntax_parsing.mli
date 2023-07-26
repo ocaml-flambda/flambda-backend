@@ -148,14 +148,10 @@ module type AST = sig
   type ast
 
   (** Embed a term from one of our novel syntactic features in the AST using the
-      given name (in the [Feature.t]) and body (the [ast]).  Any locations in
-      the generated AST will be set to [!Ast_helper.default_loc], which should
-      be [ghost]. *)
-  val make_jane_syntax
-    :  Feature.t
-    -> string list
-    -> ast
-    -> ast
+      given name (in the [Embedded_name.t]) and body (the [ast]). Any locations
+      in the generated AST will be set to [!Ast_helper.default_loc], which
+      should be [ghost]. *)
+  val make_jane_syntax : Embedded_name.t -> ast -> ast
 
   (** As [make_jane_syntax], but specifically for the AST node corresponding to
       the entire piece of novel syntax (e.g., for a list comprehension, the

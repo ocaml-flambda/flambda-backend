@@ -1,0 +1,32 @@
+---
+Test: single Jane Syntax construct
+Program text:
+[ x for x in [ 1; 2; 3 ]]
+Attributes, deduped by physical equality (one per line):
+jane.non_erasable.comprehensions
+jane.non_erasable.comprehensions.list
+jane.non_erasable.comprehensions.for
+jane.non_erasable.comprehensions.for.in
+jane.non_erasable.comprehensions.body
+---
+Test: multiple Jane Syntax constructs
+Program text:
+let x1 = [ x for x in [ 1; 2; 3 ]] in
+let x2 = [ y for y = 1 to 100 ] in
+let x3 = [ y for y = 1 to 100 ] in
+let x4 = [ y for y = 100 downto 1 ] in
+let x5 = [: y for y = 100 downto 1 :] in
+let x6 = [| y for y = 100 downto 1 |] in
+let x7 = [ y for y = 1 to 100 when y = 50 ] in
+()
+Attributes, deduped by physical equality (one per line):
+jane.non_erasable.comprehensions
+jane.non_erasable.comprehensions.list
+jane.non_erasable.comprehensions.for
+jane.non_erasable.comprehensions.for.in
+jane.non_erasable.comprehensions.body
+jane.non_erasable.comprehensions.for.range.upto
+jane.non_erasable.comprehensions.for.range.downto
+jane.non_erasable.comprehensions.array.immutable
+jane.non_erasable.comprehensions.array.mutable
+jane.non_erasable.comprehensions.when

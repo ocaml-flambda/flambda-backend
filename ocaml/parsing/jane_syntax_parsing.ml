@@ -108,6 +108,8 @@ module Feature : sig
   val of_component : string -> (t, error) result
 
   val is_erasable : t -> bool
+
+  val memoize : (t -> 'a) -> (t -> 'a)
 end = struct
   type t = Language_extension : _ Language_extension.t -> t
          | Builtin
@@ -146,6 +148,17 @@ end = struct
        syntax and are always erasable.
     *)
     | Builtin -> true
+
+  let memoize (type a) (f : t -> a) : t -> a =
+    let memoized_builtin = f Builtin in
+    let memoize_language_extension =
+      Language_extension_kernel.memoize
+         { computation = fun x -> f (Language_extension x) }
+    in
+    fun t ->
+      match t with
+      | Builtin -> memoized_builtin
+      | Language_extension x -> memoize_language_extension.computation x
 end
 
 (** Was this embedded as an [[%extension_node]] or an [[@attribute]]?  Not
@@ -238,13 +251,22 @@ module Embedded_name : sig
       identifies the erasability.) See the .mli file for more details. *)
   type components = ( :: ) of string * string list
 
-  type t =
+  type t = private
     { erasability : Erasability.t
     ; components : components
+    ; as_string : string
     }
 
   (** See the mli. *)
   val of_feature : Feature.t -> string list -> t
+
+  (** A memoized version of [of_feature] where the second argument is the empty
+      list. This is the embedded name that introduces a Jane Syntax construct.
+  *)
+  val top_level_name_of_feature : Feature.t -> t
+
+  (** Drops any trailing components that were passed to [of_feature]. *)
+  val top_level_name : t -> t
 
   val components : t -> components
 
@@ -296,6 +318,34 @@ end = struct
   type t =
     { erasability : Erasability.t
     ; components : components
+    ; as_string : string
+    }
+
+  (*
+     Create the string that is used as the text of the Jane Syntax attribute
+     or extension node.
+
+     This function allocates a new string each time it is called, and so
+     it should be called sparingly.
+  *)
+  let create_embedded_name_string
+      ~erasability ~feature_component ~trailing_components
+    =
+    String.concat
+      separator_str
+      (root
+       :: Erasability.to_string erasability
+       :: feature_component
+       :: trailing_components)
+
+  let of_components erasability feature_component trailing_components =
+    let as_string =
+      create_embedded_name_string
+        ~erasability ~feature_component ~trailing_components
+    in
+    { erasability
+    ; components = feature_component :: trailing_components
+    ; as_string
     }
 
   let of_feature feature trailing_components =
@@ -303,14 +353,19 @@ end = struct
     let erasability : Erasability.t =
       if Feature.is_erasable feature then Erasable else Non_erasable
     in
-    { erasability; components = feature_component :: trailing_components }
+    of_components erasability feature_component trailing_components
+
+  let top_level_name
+      { erasability; components = feature_component :: _trailing_components }
+    =
+    of_components erasability feature_component []
+
+  let top_level_name_of_feature =
+    Feature.memoize (fun feature -> of_feature feature [])
 
   let components t = t.components
 
-  let to_string { erasability; components = feat :: subparts } =
-    String.concat
-      separator_str
-      (root :: Erasability.to_string erasability :: feat :: subparts)
+  let to_string t = t.as_string
 
   let of_string str : (t, Misnamed_embedding_error.t) result option =
     match String.split_on_char separator str with
@@ -321,7 +376,12 @@ end = struct
         | erasability :: feat :: subparts -> begin
             match Erasability.of_string erasability with
             | Ok erasability ->
-                Some (Ok { erasability; components = feat :: subparts })
+                Some
+                  (Ok
+                     { erasability
+                     ; components = feat :: subparts
+                     ; as_string = str
+                     })
             | Error () -> Some (Error (Unknown_erasability erasability))
          end
       end
@@ -344,7 +404,7 @@ module Error = struct
   type error =
     | Malformed_embedding of
         Embedding_syntax.t * Embedded_name.t * malformed_embedding
-    | Unknown_extension of Embedding_syntax.t * Erasability.t * string
+    | Unknown_extension of Embedding_syntax.t * Embedded_name.t * string
     | Disabled_extension :
         { ext : _ Language_extension.t
         ; maturity : Language_extension.maturity option
@@ -384,8 +444,7 @@ let report_error ~loc = function
           (Embedding_syntax.name_plural what)
           Embedded_name.pp_quoted_name name
     end
-  | Unknown_extension (what, erasability, name) ->
-      let embedded_name = { Embedded_name.erasability; components = [name] } in
+  | Unknown_extension (what, embedded_name, name) ->
       Location.errorf
         ~loc
         "@[Unknown extension \"%s\" referenced via@ %a %s@]"
@@ -424,7 +483,8 @@ let report_error ~loc = function
         (Embedding_syntax.name_indefinite what)
         Embedding_syntax.pp (what, name)
         (Misnamed_embedding_error.to_string err)
-  | Bad_introduction(what, ({ components = ext :: _; _ } as name)) ->
+  | Bad_introduction(what, ({ components = ext :: _ } as name)) ->
+      let expected_top_level_name = Embedded_name.top_level_name name in
       Location.errorf
         ~loc
         "@[The extension \"%s\" was referenced improperly; it started with@ \
@@ -432,7 +492,7 @@ let report_error ~loc = function
         ext
         Embedded_name.pp_a_term (what, name)
         (Embedding_syntax.name what)
-        Embedded_name.pp_a_term (what, { name with components = [ext] })
+        Embedded_name.pp_a_term (what, expected_top_level_name)
 
 let () =
   Location.register_error_of_exn
@@ -770,7 +830,7 @@ end)
 module type AST = sig
   type ast
 
-  val make_jane_syntax : Feature.t -> string list -> ast -> ast
+  val make_jane_syntax : Embedded_name.t -> ast -> ast
   val make_entire_jane_syntax :
     loc:Location.t -> Feature.t -> (unit -> ast) -> ast
   val make_of_ast :
@@ -780,14 +840,12 @@ end
 module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
   include AST
 
-  let make_jane_syntax feature trailing_components ast =
-    AST.make_jane_syntax
-      (Embedded_name.of_feature feature trailing_components)
-      ast
+  let make_jane_syntax = AST.make_jane_syntax
 
   let make_entire_jane_syntax ~loc feature ast =
     AST.with_location
-      (make_jane_syntax feature []
+      (make_jane_syntax
+         (Embedded_name.top_level_name_of_feature feature)
          (Ast_helper.with_default_loc { loc with loc_ghost = true } ast))
       loc
 
@@ -797,7 +855,8 @@ module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
       let loc = AST.location ast in
       let raise_error err = raise (Error (loc, err)) in
       match AST.match_jane_syntax ast with
-      | Some ({ erasability; components = [name] }, ast) -> begin
+      | Some ({ components = [name] } as embedded_name, ast) ->
+        begin
           match Feature.of_component name with
           | Ok feat -> begin
               match of_ast_internal feat ast with
@@ -809,7 +868,7 @@ module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
             | Disabled_extension ext ->
                 Disabled_extension { ext; maturity = None }
             | Unknown_extension name ->
-                Unknown_extension (AST.embedding_syntax, erasability, name)
+                Unknown_extension (AST.embedding_syntax, embedded_name, name)
           end
         end
       | Some ({ components = _ :: _ :: _; _ } as name, _) ->

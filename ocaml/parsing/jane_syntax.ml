@@ -92,7 +92,24 @@ module Comprehensions = struct
      v}
   *)
 
-  let comprehension_expr names x = Expression.make_jane_syntax feature names x
+  (* Call [Embedded_name.of_feature] once per list we use to increase sharing --
+     that way, the strings that Jane Syntax embeds in the parsetree (in
+     attribute and extension node names) are shared.
+  *)
+  module Names = struct
+    type t = Embedded_name.t
+    let create : string list -> t = Embedded_name.of_feature feature
+
+    let for_range_upto : t = create [ "for"; "range"; "upto" ]
+    let for_range_downto : t = create [ "for"; "range"; "downto" ]
+    let for_in :  t = create [ "for"; "in" ]
+    let for_ : t = create [ "for" ]
+    let when_ : t = create [ "when" ]
+    let body : t = create [ "body" ]
+    let list : t = create [ "list" ]
+    let array_mutable : t = create [ "array"; "mutable" ]
+    let array_immutable : t = create [ "array"; "immutable" ]
+  end
 
   (** First, we define how to go from the nice AST to the OCaml AST; this is
       the [expr_of_...] family of expressions, culminating in
@@ -100,28 +117,28 @@ module Comprehensions = struct
 
   let expr_of_iterator = function
     | Range { start; stop; direction } ->
-        comprehension_expr
-          [ "for"
-          ; "range"
-          ; match direction with
-            | Upto   -> "upto"
-            | Downto -> "downto" ]
+        Expression.make_jane_syntax
+          (match direction with
+           | Upto -> Names.for_range_upto
+           | Downto -> Names.for_range_downto)
           (Ast_helper.Exp.tuple [start; stop])
     | In seq ->
-        comprehension_expr ["for"; "in"] seq
+        Expression.make_jane_syntax Names.for_in seq
 
   let expr_of_clause_binding { pattern; iterator; attributes } =
     Ast_helper.Vb.mk ~attrs:attributes pattern (expr_of_iterator iterator)
 
   let expr_of_clause clause rest = match clause with
     | For iterators ->
-        comprehension_expr
-          ["for"]
+        Expression.make_jane_syntax
+          Names.for_
           (Ast_helper.Exp.let_
              Nonrecursive (List.map expr_of_clause_binding iterators)
              rest)
     | When cond ->
-        comprehension_expr ["when"] (Ast_helper.Exp.sequence cond rest)
+        Expression.make_jane_syntax
+          Names.when_
+          (Ast_helper.Exp.sequence cond rest)
 
   let expr_of_comprehension ~type_ { body; clauses } =
     (* We elect to wrap the body in a new AST node (here, [Pexp_lazy])
@@ -131,27 +148,26 @@ module Comprehensions = struct
        part of its contract is threading through the user-written attributes
        on the outermost node.
     *)
-    comprehension_expr
+    Expression.make_jane_syntax
       type_
       (Ast_helper.Exp.lazy_
         (List.fold_right
           expr_of_clause
           clauses
-          (comprehension_expr ["body"] body)))
+          (Expression.make_jane_syntax Names.body body)))
 
   let expr_of ~loc ~attrs cexpr =
     (* See Note [Wrapping with make_entire_jane_syntax] *)
     let expr = Expression.make_entire_jane_syntax ~loc feature (fun () ->
       match cexpr with
       | Cexp_list_comprehension comp ->
-          expr_of_comprehension ~type_:["list"] comp
+          expr_of_comprehension ~type_:Names.list comp
       | Cexp_array_comprehension (amut, comp) ->
           expr_of_comprehension
-            ~type_:[ "array"
-                   ; match amut with
-                     | Mutable   -> "mutable"
-                     | Immutable -> "immutable"
-                   ]
+            ~type_:(
+              match amut with
+                | Mutable   -> Names.array_mutable
+                | Immutable -> Names.array_immutable)
             comp)
     in
     { expr with pexp_attributes = expr.pexp_attributes @ attrs }
