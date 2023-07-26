@@ -505,8 +505,7 @@ module BR = Branch_relaxation.Make (struct
       | 16 | 24 | 32 -> 1
       | _ -> 1 + num_instructions_for_intconst (Nativeint.of_int num_bytes)
       end
-    | Lop (Ibeginregion | Iendregion) ->
-       Misc.fatal_error "Local allocations not supported on this architecture"
+    | Lop (Ibeginregion | Iendregion) -> 1
     | Lop (Iintop (Icomp _)) -> 2
     | Lop (Icompf _) -> 2
     | Lop (Iintop_imm (Icomp _, _)) -> 2
@@ -587,7 +586,7 @@ end)
 
 (* Output the assembly code for allocation. *)
 
-let assembly_code_for_allocation env i ~n ~far ~dbginfo =
+let assembly_code_for_allocation env i ~local ~n ~far ~dbginfo =
   let lbl_frame =
     record_frame_label env i.live (Dbg_alloc dbginfo)
   in
@@ -874,11 +873,17 @@ let emit_instr env i =
             `	str	{emit_reg src}, {emit_addressing addr base}\n`
         end
     | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap  }) ->
-        assembly_code_for_allocation env i ~n ~far:false ~dbginfo
+        assembly_code_for_allocation env i ~n ~local:false ~far:false ~dbginfo
     | Lop(Ispecific (Ifar_alloc { bytes = n; dbginfo })) ->
-        assembly_code_for_allocation env i ~n ~far:true ~dbginfo
-    | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
-       Misc.fatal_error "Local allocations not supported on this architecture"
+        assembly_code_for_allocation env i ~n ~local:false ~far:true ~dbginfo
+    | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_local }) ->
+        assembly_code_for_allocation env i ~n ~local:false ~far:false ~dbginfo
+    | Lop(Ibeginregion) ->
+        let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
+        `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
+    | Lop(Iendregion) ->
+        let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
+        `	str	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
     | Lop(Ipoll { return_label }) ->
         assembly_code_for_poll env i ~far:false ~return_label
     | Lop(Ispecific (Ifar_poll { return_label })) ->
