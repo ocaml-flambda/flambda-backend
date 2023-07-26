@@ -19,6 +19,8 @@
 
 (copy_files# backend/internal_assembler/*.ml{,i})
 
+(copy_files# backend/peephole/*.ml{,i})
+
 (copy_files# backend/regalloc/*.ml{,i})
 
 (copy_files# driver/optcompile.ml{,i})
@@ -193,7 +195,10 @@
   linscan
   liveness
   mach
-  optimize
+  peephole_generated
+  peephole_optimize
+  peephole_rules
+  peephole_utils
   csv_data
   polling
   printcmm

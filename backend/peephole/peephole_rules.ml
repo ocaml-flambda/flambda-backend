@@ -1,118 +1,7 @@
 (* CR-someday: see whether the `-4` can be dropped. *)
 [@@@ocaml.warning "+a-29-40-41-42-4"]
 
-module DLL = Flambda_backend_utils.Doubly_linked_list
-
-module type IntCell = sig
-  include Csv_data.Cell
-
-  val update : t -> t
-end
-
-module IntCell : IntCell = struct
-  type t = int
-
-  let to_string = Int.to_string
-
-  let empty () = 0
-
-  let update t = t + 1
-end
-
-module IntCsv = Csv_data.Make (IntCell)
-
-let csv_singleton = ref Option.None
-
-let set_csv () =
-  if Option.is_none !csv_singleton
-  then (
-    let new_csv =
-      IntCsv.create
-        ["remove_useless_mov"; "fold_intop_imm_bitwise"; "fold_intop_imm_arith"]
-    in
-    if Option.is_some !Flambda_backend_flags.cfg_peephole_optimize_track
-    then
-      Stdlib.at_exit (fun () ->
-          (* the csv filename is a hex string deterministically generated from
-             the command line arguments. *)
-          IntCsv.print new_csv
-            (Option.get !Flambda_backend_flags.cfg_peephole_optimize_track
-            ^ (Array.to_list Sys.argv |> String.concat "" |> Digest.string
-             |> Digest.to_hex)
-            ^ ".csv"));
-    csv_singleton := Some new_csv)
-
-let get_csv () = Option.get !csv_singleton
-
-let update_csv str =
-  let csv = get_csv () in
-  match IntCsv.rows csv with
-  | [] ->
-    (* there should always be at least a row in the csv when updating *)
-    assert false
-  | rows_hd :: rows_tl ->
-    IntCsv.set_rows csv (IntCsv.update_row rows_hd str IntCell.update :: rows_tl)
-
-(* CR gtulba-lecu for gtulba-lecu: make sure that this comparison is correct and
-   sufficent. *)
-let are_equal_regs (reg1 : Reg.t) (reg2 : Reg.t) =
-  Reg.same_loc reg1 reg2 && reg1.typ = reg2.typ
-
-(* CR gtulba-lecu for gtulba-lecu: It would be nice to compute this based on the
-   rules, but since the layout of this code will probably change it's fine for
-   now. *)
-let go_back_const = 1
-
-(* convenient Doubly_linked_list manipulation functions *)
-let rec prev_at_most steps cell =
-  (* Convention: must try to go back at least one element *)
-  assert (steps > 0);
-  match DLL.prev cell with
-  | Some prev_cell ->
-    if steps = 1 then prev_cell else prev_at_most (steps - 1) prev_cell
-  | None -> cell
-
-let rec get_cells' (cell : Cfg.basic Cfg.instruction DLL.cell option) size lst =
-  match cell with
-  | Some cell -> (
-    match size with
-    | 0 -> List.rev lst
-    | size -> get_cells' (DLL.next cell) (size - 1) (cell :: lst))
-  | None -> List.rev lst
-
-let get_cells cell size =
-  assert (size > 0);
-  get_cells' (DLL.next cell) (size - 1) [cell]
-
-(** Logical condition for simplifying the following case: 
-  {| 
-    mov x, y 
-    mov y, x 
-  |}
-
-   In this case, the second instruction should be removed *)
-
-let remove_useless_mov (cell : Cfg.basic Cfg.instruction DLL.cell) =
-  match get_cells cell 2 with
-  | [fst; snd] -> (
-    let fst_val = DLL.value fst in
-    let snd_val = DLL.value snd in
-    match fst_val.desc with
-    | Op (Move | Spill | Reload) -> (
-      let fst_src, fst_dst = fst_val.arg.(0), fst_val.res.(0) in
-      match snd_val.desc with
-      | Op (Move | Spill | Reload) ->
-        let snd_src, snd_dst = snd_val.arg.(0), snd_val.res.(0) in
-        if are_equal_regs fst_src snd_dst && are_equal_regs fst_dst snd_src
-        then (
-          if Option.is_some !Flambda_backend_flags.cfg_peephole_optimize_track
-          then update_csv "remove_useless_mov";
-          DLL.delete_curr snd;
-          Some (prev_at_most go_back_const fst))
-        else None
-      | _ -> None)
-    | _ -> None)
-  | _ -> None
+open! Peephole_utils
 
 let is_bitwise_op (op : Mach.integer_operation) =
   match op with
@@ -127,15 +16,15 @@ let no_32_bit_overflow imm1 imm2 op =
   let imm = op imm1 imm2 in
   -2147483648 <= imm && imm <= 2147483647
 
-(** Logical condition for simplifying the following case: 
-  {| 
-    <op 1> const1, r 
-    <op 2> const2, r 
+(** Logical condition for simplifying the following case:
+  {|
+    <op 1> const1, r
+    <op 2> const2, r
   |}
 
-  to: 
+  to:
   {|
-    <op 1> (const1 <op 2> const2), r 
+    <op 1> (const1 <op 2> const2), r
   |}
 
    Where <op 1> and <op 2> can be any two binary operators that are associative
@@ -275,34 +164,4 @@ let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
     else None
   | _ -> None
 
-let optimizations = [remove_useless_mov; fold_intop_imm]
-
-(* Helper function for optimize_body. Here cell is an iterator of the doubly
-   linked list data structure that encapsulates the body's instructions. *)
-let rec optimize_body' cell made_optimizations =
-  match List.find_map (fun opt_func -> opt_func cell) optimizations with
-  | None -> (
-    match DLL.next cell with
-    | None -> made_optimizations
-    | Some next_cell -> optimize_body' next_cell made_optimizations)
-  | Some continuation_cell -> optimize_body' continuation_cell true
-
-let optimize_body (body : Cfg.basic_instruction_list) =
-  match DLL.hd_cell body with
-  | Some cell -> optimize_body' cell false
-  | None -> false
-
-(* Apply peephole optimization for the body of each block of the CFG*)
-let peephole_optimize_cfg cfg_with_layout =
-  let fun_name = (Cfg_with_layout.cfg cfg_with_layout).fun_name in
-  if Option.is_some !Flambda_backend_flags.cfg_peephole_optimize_track
-  then (
-    set_csv ();
-    IntCsv.add_empty_row (get_csv ()) fun_name);
-  let made_optimizations =
-    Label.Tbl.fold
-      (fun (_ : Label.t) (block : Cfg.basic_block) (made_optimizations : bool) ->
-        made_optimizations || optimize_body block.body)
-      (Cfg_with_layout.cfg cfg_with_layout).blocks false
-  in
-  cfg_with_layout, made_optimizations
+let optimizations = [Peephole_generated.remove_useless_mov; fold_intop_imm]

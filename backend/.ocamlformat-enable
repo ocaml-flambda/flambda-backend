@@ -8,13 +8,13 @@ checkmach.ml
 checkmach.mli
 csv_data.ml
 csv_data.ml
-optimize.ml
-optmimize.ml
 cfg/**/*.ml
 cfg/**/*.mli
 asm_targets/**/*.ml
 asm_targets/**/*.mli
 debug/**/*.ml
 debug/**/*.mli
+peephole/**/*.ml
+peephole/**/*.mli
 regalloc/**/*.ml
 regalloc/**/*.mli
