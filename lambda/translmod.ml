@@ -43,7 +43,7 @@ type error =
 
 exception Error of Location.t * error
 
-(* CR layouts v2: This is used as part of the "void safety check" in the case of
+(* CR layouts v7: This is used as part of the "void safety check" in the case of
    [Tstr_eval], where we want to allow any sort (see comment on that case of
    typemod).  Remove when we remove the safety check.
 

@@ -757,7 +757,7 @@ let mk_directive ~loc name arg =
 let check_layout loc id =
   begin
     match id with
-    | ("any" | "value" | "void" | "immediate64" | "immediate") -> ()
+    | ("any" | "value" | "void" | "immediate64" | "immediate" | "float64") -> ()
     | _ -> expecting loc "layout"
   end;
   let loc = make_loc loc in
@@ -765,7 +765,7 @@ let check_layout loc id =
 
 (* Unboxed literals *)
 
-(* CR layouts v2: The [unboxed_*] functions will both be improved and lose
+(* CR layouts v2.5: The [unboxed_*] functions will both be improved and lose
    their explicit assert once we have real unboxed literals in Jane syntax; they
    may also get re-inlined at that point *)
 let unboxed_literals_extension = Language_extension.Layouts

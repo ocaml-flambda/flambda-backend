@@ -885,7 +885,7 @@ Error: Unbound value test8
 
 (***********************************)
 (* Test 9: voids in let rec groups *)
-(* CR layouts v2: hard to do much interesting here, considering the restrictions
+(* CR layouts v2.5: hard to do much interesting here, considering the restrictions
    on non-function let-recs.  Revisit when we have more interesting functions?
 *)
 let () = r := []

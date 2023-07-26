@@ -648,6 +648,7 @@ let layout_module = Pvalue Pgenval
 let layout_module_field = Pvalue Pgenval
 let layout_functor = Pvalue Pgenval
 let layout_boxed_float = Pvalue Pfloatval
+let layout_unboxed_float = Punboxed_float
 let layout_string = Pvalue Pgenval
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
 
@@ -1459,6 +1460,7 @@ let primitive_result_layout (p : primitive) =
   | Pccall { prim_native_repr_res = _, Same_as_ocaml_repr s; _} ->
       begin match s with
       | Value -> layout_any_value
+      | Float64 -> layout_unboxed_float
       | Void -> assert false
       end
   | Pccall { prim_native_repr_res = _, Unboxed_integer bi; _} ->
