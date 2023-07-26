@@ -206,21 +206,23 @@ something like:
 
 ## Using the OCaml debugger to debug the compiler
 
-First, run `make debug`. This completes three steps:
+First, run `make debug`. This completes four steps:
 
 1. `make install`
 2. Sets up the `ocaml/tools/debug_printers` script so that you can `source
    ocaml/tools/debug_printers` during a debugging session to see
-   otherwise-abstract variable values.  This script is automatically loaded by
-   the debugger due to the `.ocamldebug` file at the root of the compiler repo.
+   otherwise-abstract variable values.
 3. Symlinks `./ocamlc` and `./ocamlopt` to point to the bytecode versions of
    those compilers. This is convenient for emacs integration, because emacs
    looks for sources starting in the directory containing the executable.
+4. Creates a `.ocamldebug` file to automatically load the right search path
+   and the `debug_printers` set up above.
 
 Then it's time to run the debugger itself.  The recommended workflow is to add
 the elisp below to your emacs init file, and then use the command
 `ocamldebug-ocamlc` to debug `ocamlc` or the command `ocamldebug-ocamlopt` to
-debug `ocamlopt`.
+debug `ocamlopt`. Running your built `ocamldebug` file on `ocamlc` or `ocamlopt`
+should also work, if you wish to work outside emacs.
 
 ```
 ;; directly inspired by the ocamldebug implementation in ocamldebug.el
@@ -243,21 +245,13 @@ debug `ocamlopt`.
       (setq ocamldebug-debuggee-args
             (read-from-minibuffer (format "Args for ocamlc: ")
                                   ocamldebug-debuggee-args))
-      (let* ((cmo-top-dir (file-name-concat ocaml-dir "_build/main"))
-             (find-cmo-cmd (concat "find "
-                                   cmo-top-dir
-                                   " -name '*.cmo' -type f -printf '%h\n' | sort -u"))
-             (cmo-dirs (shell-command-to-string find-cmo-cmd)))
-        (setq cmo-dir-list (split-string cmo-dirs "\n" t)))
       (let* ((user-args (split-string-shell-command ocamldebug-debuggee-args))
-             (includes (mapcan (lambda (dir) (list "-I" dir)) cmo-dir-list))
              (args (append (list
                              comint-name
                              ocamldebug-command-name
                              nil
                              "-emacs"
                              "-cd" default-directory)
-                           includes
                            (list pgm-path)
                            user-args)))
         (apply #'make-comint args)
