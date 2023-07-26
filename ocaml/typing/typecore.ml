@@ -6987,56 +6987,55 @@ and type_cases
           else ty_res in
         let guard, exp =
           match pc_rhs with
-            | Psimple_rhs rhs | Pboolean_guarded_rhs { pbg_rhs = rhs; _ } ->
-                let guard =
-                  match pc_rhs with
-                  (* This case is unreachable, as [pc_rhs] cannot match the
-                     outer pattern while also matching [Ppattern_guarded_rhs _]
-                   *)
-                  | Ppattern_guarded_rhs _ -> assert false
-                  | Psimple_rhs _ -> None
-                  | Pboolean_guarded_rhs { pbg_guard; _ } ->
-                      let expected_bool =
-                        mk_expected ~explanation:When_guard Predef.type_bool
-                      in
-                      let typed_guard =
-                        type_expect ext_env mode_local pbg_guard expected_bool
-                      in
-                      Some (Predicate typed_guard)
+          | Psimple_rhs rhs | Pboolean_guarded_rhs { pbg_rhs = rhs; _ } ->
+              let guard =
+                match pc_rhs with
+                (* This case is unreachable, as [pc_rhs] cannot match the
+                   outer pattern while also matching [Ppattern_guarded_rhs _]
+                 *)
+                | Ppattern_guarded_rhs _ -> assert false
+                | Psimple_rhs _ -> None
+                | Pboolean_guarded_rhs { pbg_guard; _ } ->
+                    let expected_bool =
+                      mk_expected ~explanation:When_guard Predef.type_bool
+                    in
+                    let typed_guard =
+                      type_expect ext_env mode_local pbg_guard expected_bool
+                    in
+                    Some (Predicate typed_guard)
+              in
+              let exp =
+                type_expect ?in_function ext_env emode rhs
+                  (mk_expected ?explanation ty_res')
+              in
+              guard, exp
+          | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc = loc } ->
+              let { arg; sort; cases; partial; } =
+                type_match
+                  (* Pattern guards containing no value cases will have an
+                     "Any" [_] case inserted during translation to handle the
+                     case where no cases match, so we can successfully
+                     typecheck such guards. Accordingly, [require_value_case]
+                     is set to [false] below. *)
+                  ~require_value_case:false ppg_scrutinee ppg_cases ext_env loc
+                  Check_and_warn_if_total (mk_expected ?explanation ty_res')
+                  emode
+              in
+              match cases with
+              | [ { c_lhs = pat; c_guard = None; c_rhs = exp } ] ->
+                let pattern_guard : Typedtree.guard =
+                  Pattern
+                    { pg_scrutinee = arg
+                    ; pg_scrutinee_sort = sort
+                    ; pg_pattern = pat
+                    ; pg_partial = partial
+                    ; pg_loc = loc
+                    ; pg_env = ext_env }
                 in
-                let exp =
-                  type_expect ?in_function ext_env emode rhs
-                    (mk_expected ?explanation ty_res')
-                in
-                guard, exp
-            | Ppattern_guarded_rhs
-                  { ppg_scrutinee; ppg_cases; ppg_loc = loc } ->
-                let { arg; sort; cases; partial; } =
-                  type_match
-                    (* Pattern guards containing no value cases will have an
-                       "Any" [_] case inserted during translation to handle the
-                       case where no cases match, so we can successfully
-                       typecheck such guards. Accordingly, [require_value_case]
-                       is set to [false] below. *)
-                    ~require_value_case:false ppg_scrutinee ppg_cases ext_env
-                    loc Check_and_warn_if_total
-                    (mk_expected ?explanation ty_res') emode
-                in
-                match cases with
-                | [ { c_lhs = pat; c_guard = None; c_rhs = exp } ] ->
-                  let pattern_guard : Typedtree.guard =
-                    Pattern
-                       { pg_scrutinee = arg
-                       ; pg_scrutinee_sort = sort
-                       ; pg_pattern = pat
-                       ; pg_partial = partial
-                       ; pg_loc = loc
-                       ; pg_env = ext_env }
-                  in
-                  Some pattern_guard, exp 
-                | _ ->
-                    fatal_error
-                      "typechecking for multicase pattern guards unimplemented"
+                Some pattern_guard, exp
+              | _ ->
+                  fatal_error
+                    "typechecking for multicase pattern guards unimplemented"
         in
         {
          c_lhs = pat;
