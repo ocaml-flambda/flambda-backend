@@ -486,9 +486,8 @@ let expression sub exp =
                       cases = [{c_lhs=p; c_guard=None; c_rhs=e}]; _ } ->
         (* First, the special case for a Position argument *)
         let pat =
-          Pat.mk (Ppat_constraint (sub.pat sub p,
-            Typ.mk (Ptyp_extension ({loc=Location.none; txt="src_pos"},
-                    PStr []))))
+          Pat.constraint_ (sub.pat sub p)
+            (Typ.extension (Location.mknoloc "src_pos", PStr []))
         in
         Pexp_fun (label, None, pat, sub.expr sub e)
     | Texp_function { arg_label; cases = [{c_lhs=p; c_guard=None; c_rhs=e}];
@@ -503,9 +502,8 @@ let expression sub exp =
         (* The special case for a Position argument *)
         let name = fresh_name s exp.exp_env in
         let pat =
-          Pat.mk (Ppat_constraint ((Pat.var ~loc {loc;txt = name }),
-            Typ.mk (Ptyp_extension ({loc=Location.none; txt="src_pos"},
-                    PStr []))))
+          Pat.constraint_ (Pat.var ~loc {loc;txt = name })
+            (Typ.extension (Location.mknoloc "src_pos", PStr []))
         in
         Pexp_fun (label, None, pat,
           Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
@@ -945,7 +943,7 @@ let core_type sub ct =
         Ptyp_poly (list, sub.typ sub ct)
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
     | Ttyp_src_pos -> 
-        Ptyp_extension ({loc=Location.none; txt="src_pos"}, PStr [])
+        Ptyp_extension (Location.mknoloc "src_pos", PStr [])
   in
   Typ.mk ~loc ~attrs desc
 
