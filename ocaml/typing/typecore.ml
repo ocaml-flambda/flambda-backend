@@ -526,7 +526,8 @@ let type_constant = function
 
 let type_constant_unboxed env loc
     : Jane_syntax.Unboxed_constants.expression -> _ = function
-  | Float _ -> instance Predef.type_float_unboxed
+  | Float _ -> raise (Error (loc, env, Unboxed_float_literals_not_supported))
+    (* CR layouts v2.5: This should be [instance Predef.type_unboxed_float] *)
   | Integer _ -> raise (Error (loc, env, Unboxed_int_literals_not_supported))
 
 let constant_integer i ~suffix : (Asttypes.constant, error) result =
@@ -573,7 +574,7 @@ let unboxed_constant :
   | Float (x, Some c) -> Error (Unknown_literal ("#" ^ x, c))
   | Integer (_, _) -> Error Unboxed_int_literals_not_supported
 
-(* CR layouts v2: this is missing the part where we actually typecheck
+(* CR layouts v2.5: this is missing the part where we actually typecheck
    unboxed literals.
 *)
 let unboxed_constant_or_raise env loc cst =
@@ -1078,8 +1079,10 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
       if lbl.lbl_private = Private then p.pat_type, mode else
       (* The layout here is filled in via unification with [ty_res] in
          [unify_pat]. *)
-      (* CR layouts v2: This should be a sort variable and could be now (but
-         think about when it gets defaulted.) *)
+      (* XXX layouts v2: This should be a sort variable and could be now (but
+         think about when it gets defaulted.)
+
+         RAE: why? It looks fine as-is. *)
       let ty = newvar (Layout.any ~why:Dummy_layout) in
       let ppl = List.map (fun (_, l, p) -> l.lbl_num, p) lpl in
       let do_label lbl =
@@ -3628,9 +3631,9 @@ let rec approx_type env sty =
         let tyl = List.map (approx_type env) ctl in
         newconstr path tyl
       end
-  (* CR layouts v2: This any is fine because we don't allow you to make types
+  (* CR layouts v5: This any is fine because we don't allow you to make types
      that could be matched on and have anys in them.  But once we do, this
-     should probably be sort variable.  See Test21 in typing-layouts/basics.ml
+     should probably be sort variable.  See Test 22 in typing-layouts/basics.ml
      (which mentions approx_type) for why it can't be value.  *)
   | _ -> newvar (Layout.any ~why:Dummy_layout)
 
@@ -7531,6 +7534,9 @@ and type_comprehension_expr
         Layout.Array_element
   in
   if !Clflags.principal then begin_def ();
+  (* CR layouts v4: When this changes from [value], you will also have to
+     update the use of [transl_exp] in transl_array_comprehension.ml. See
+     a companion CR layouts v4 at the point of interest in that file. *)
   let element_ty = newvar (Layout.value ~why:reason) in
   unify_exp_types
     loc
@@ -7768,6 +7774,7 @@ let type_clash_of_trace trace =
 (* Hint on type error on integer literals
    To avoid confusion, it is disabled on float literals
    and when the expected type is `int` *)
+(* CR layouts v2.5: Should we add a case here for float#?  Test it, if so. *)
 let report_literal_type_constraint expected_type const =
   let const_str = match const with
     | Const_int n -> Some (Int.to_string n)

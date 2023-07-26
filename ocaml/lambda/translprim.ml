@@ -416,6 +416,8 @@ let lookup_primitive loc poly pos p =
     | "%obj_magic" -> Primitive(Pobj_magic Lambda.layout_any_value, 1)
     | "%array_to_iarray" -> Primitive (Parray_to_iarray, 1)
     | "%array_of_iarray" -> Primitive (Parray_of_iarray, 1)
+    | "%unbox_float" -> Primitive(Punbox_float, 1)
+    | "%box_float" -> Primitive(Pbox_float mode, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -513,7 +515,7 @@ let glb_array_set_type t1 t2 =
   | Pfloatarray_set, Pfloatarray -> Pfloatarray_set
 
 (* Specialize a primitive from available type information. *)
-(* CR layouts v2: This function had a loc argument added just to support the void
+(* CR layouts v7: This function had a loc argument added just to support the void
    check error message.  Take it out when we remove that. *)
 let specialize_primitive env loc ty ~has_constant_constructor prim =
   let param_tys =

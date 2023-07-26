@@ -12,8 +12,8 @@ script = "rm -f a.cmi"
 ***** expect
 *)
 
-(* CR layouts v2: The commented out code in this file uses void, but could
-   use any non-value layout.  Restore it after v2. *)
+(* CR layouts v2.5: The commented out code in this file uses void, but could
+   use any non-value layout. *)
 
 #directory "ocamlc.byte";;
 #load "b.cmo";;

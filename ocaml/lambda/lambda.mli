@@ -535,6 +535,7 @@ val layout_functor : layout
 val layout_module_field : layout
 val layout_string : layout
 val layout_boxed_float : layout
+val layout_unboxed_float : layout
 val layout_boxedint : boxed_integer -> layout
 (* A layout that is Pgenval because it is the field of a block *)
 val layout_field : layout
