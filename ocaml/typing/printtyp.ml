@@ -1118,6 +1118,7 @@ let rec tree_of_typexp mode ty =
     | Tarrow ((l, marg, mret), ty1, ty2, _) ->
         let lab =
 <<<<<<< HEAD
+<<<<<<< HEAD
           if !print_labels || is_optional l then
             match l with
             | Nolabel -> Nolabel
@@ -1127,6 +1128,9 @@ let rec tree_of_typexp mode ty =
 =======
           if !print_labels || is_optional l || is_position l then string_of_label l else ""
 >>>>>>> 318c9da5 (Hacky outcometree printing without creating nontrivial node)
+=======
+          if !print_labels || is_optional l || is_position l then string_of_label l else ""
+>>>>>>> a68e240ab6a40c0206c106fd41cfa3841e95cb1a
         in
         let t1 =
           if is_optional l then
