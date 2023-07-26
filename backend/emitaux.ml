@@ -434,8 +434,6 @@ let reduce_heap_size ~reset =
   end
 
 module Dwarf_helpers = struct
-  open Dwarf_ocaml
-
   let dwarf = ref None
   let sourcefile_for_dwarf = ref None
 
@@ -481,7 +479,7 @@ module Dwarf_helpers = struct
     | true, _, _
     | false, _, _ -> ()
 
-  let emit_dwarf () = Option.iter Dwarf_ocaml.Dwarf.emit !dwarf
+  let emit_dwarf () = Option.iter Dwarf.emit !dwarf
 
   let record_dwarf_for_fundecl ~fun_name fun_dbg =
     match !dwarf with
