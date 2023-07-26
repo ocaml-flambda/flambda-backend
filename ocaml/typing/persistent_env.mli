@@ -38,7 +38,7 @@ type error =
   | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
   | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
   | Imported_module_has_unset_parameter of
-      { imported : Compilation_unit.Name.t;
+      { imported : Global.Name.t;
         parameter : Global.Name.t;
   }
   | Imported_module_has_no_such_parameter of

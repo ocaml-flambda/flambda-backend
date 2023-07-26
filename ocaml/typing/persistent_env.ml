@@ -51,7 +51,7 @@ type error =
   | Illegal_import_of_parameter of CU.Name.t * filepath
   | Not_compiled_as_parameter of CU.Name.t * filepath
   | Imported_module_has_unset_parameter of
-      { imported : CU.Name.t;
+      { imported : Global.Name.t;
         parameter : Global.Name.t;
       }
   | Imported_module_has_no_such_parameter of
@@ -318,6 +318,29 @@ let current_unit_is name =
 let current_unit_is_instance_of name =
   current_unit_is0 name ~allow_args:true
 
+(* Enforce the subset rule: we can only refer to a module if that module's
+   parameters are also our parameters. *)
+let check_for_unset_parameters penv global =
+  (* A hidden argument specifies that the importing module should forward a
+     parameter to the imported module. Therefore it's the hidden arguments that
+     we need to check. *)
+  List.iter
+    (fun (arg_name, arg_value) ->
+       (* The _value_ is what we care about - the name lives in the imported
+          module's namespace, not ours *)
+       ignore arg_name;
+       let value_name = Global.to_name arg_value in
+       if not (is_exported_parameter penv value_name) then
+         error (Imported_module_has_unset_parameter {
+             imported = Global.to_name global;
+             parameter = value_name;
+           }))
+    global.Global.hidden_args;
+  (* The visible arguments in [global] must also satisfy the subset rule.
+     However, these will already have been checked since [compute_global] loads
+     all argument names and values. *)
+  ()
+
 let need_local_ident penv (global : Global.t) =
   (* There are three equivalent ways to phrase the question we're asking here:
 
@@ -542,9 +565,8 @@ and acknowledge_pers_struct
   | true, true
   | false, false -> ()
   end;
-  let global =
-    compute_global penv val_of_pers_sig global_name ~params ~check:true
-  in
+  let global = compute_global penv val_of_pers_sig global_name ~params ~check in
+  check_for_unset_parameters penv global;
   let binding = make_binding penv global kind in
   let {imports; persistent_structures; _} = penv in
   let import =
@@ -894,11 +916,11 @@ let report_error ppf =
         "@[<hov>The module %a@ has parameter %a.@ \
          %a is not declared as a parameter for the current unit (-parameter %a)@ \
          and therefore %a@ is not accessible.@]"
-        CU.Name.print modname
+        Global.Name.print modname
         Global.Name.print param
         Global.Name.print param
         Global.Name.print param
-        CU.Name.print modname
+        Global.Name.print modname
   | Imported_module_has_no_such_parameter
         { valid_parameters; imported = modname; parameter = param; value; } ->
       fprintf ppf
