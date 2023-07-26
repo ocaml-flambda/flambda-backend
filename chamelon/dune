@@ -1,0 +1,9 @@
+(executable
+ (name chamelon)
+ (modes native)
+ (libraries ocamlcommon unix str)
+ )
+(env
+  (dev
+    (flags (:standard -warn-error -A))))
+(include_subdirs unqualified)
