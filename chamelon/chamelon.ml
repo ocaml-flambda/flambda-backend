@@ -11,7 +11,7 @@ let input_files = ref []
 let arg_minimizers = ref ""
 let command = ref ""
 let typing_command = ref ""
-let output = ref ""
+let output_file = ref ""
 let test = ref false
 
 let anon_fun filename =
@@ -122,7 +122,7 @@ let main () =
   if List.length file_names = 1 then begin
     (* MONOFILE MINIMIZATION*)
     let input = List.hd file_names in
-    let output_file = String.sub input 0 (String.length input -3) ^"_min.ml" in  
+    let output_file = if !output_file = "" then String.sub input 0 (String.length input -3) ^"_min.ml" else !output_file in  
     let c = !command ^" "^output_file in 
     let input_str = ref (List.hd file_strs) in 
     update_single output_file !input_str ; 
@@ -137,8 +137,9 @@ let main () =
     end
   else
     (* MULTIFILE MINIMIZATION *)
-    (Stdlib.ignore(Sys.command "cp -R . minimized_res/");
-    Sys.chdir "minimized_res" ;
+    let output_dir = if !output_file = "" then "minimized_res" else !output_file in
+    (Stdlib.ignore(Sys.command "cp -R . " ^ output_dir ^ "/");
+    Sys.chdir output_dir ;
     (* MINIMIZING FILES *)
     let rfile_names = ref file_names in 
     let rfile_strs = ref file_strs in 
