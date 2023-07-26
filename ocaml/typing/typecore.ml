@@ -4354,7 +4354,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_fun (l, Some default, spat, sbody) ->
-      assert(is_optional (Typetexp.transl_label l)); (* default allowed only with optional argument *)
+      assert(is_optional_parsetree l); (* default allowed only with optional argument *)
       let open Ast_helper in
       let default_loc = default.pexp_loc in
       (* Defaults are always global. They can be moved out of the function's
@@ -4401,7 +4401,7 @@ and type_expect_
   | Pexp_fun (l, None, spat, sbody) ->
       let has_local = has_local_attr_pat spat in
       let has_poly = has_poly_constraint spat in
-      if has_poly && is_optional (Typetexp.transl_label l) then
+      if has_poly && is_optional_parsetree l then
         raise(Error(spat.ppat_loc, env, Optional_poly_param));
       if has_poly
          && not (Language_extension.is_enabled Polymorphic_parameters) then
