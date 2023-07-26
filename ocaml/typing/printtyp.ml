@@ -516,7 +516,9 @@ let string_of_label = function
 =======
     Nolabel -> ""
   | Labelled s -> s
-  | Position s -> s^":[%src_pos]" (* TODO vding: This will be changed *)
+  | Position s -> s^":[%src_pos]"
+  (* TODO vding: this is incorrect behavior for some uses. Change so
+     Position and Labelled behave the same once *)
   | Optional s -> "?"^s
 >>>>>>> 318c9da5 (Hacky outcometree printing without creating nontrivial node)
 
