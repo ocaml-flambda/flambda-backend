@@ -1,4 +1,4 @@
-File "unboxed_floats.ml", line 21, characters 22-28:
-21 |   external to_float : float# -> (float[@local_opt]) = "%box_float"
-                           ^^^^^^
-Error: This construct requires the alpha version of the extension "layouts", which is disabled and cannot be used
+File "unboxed_floats.ml", line 74, characters 11-18:
+74 | type ('a : float64) t_float64 = 'a
+                ^^^^^^^
+Error: Layout float64 is used here, but the appropriate layouts extension is not enabled

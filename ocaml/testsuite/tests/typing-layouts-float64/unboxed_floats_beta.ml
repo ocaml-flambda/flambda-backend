@@ -17,34 +17,16 @@
 (*****************************************)
 (* Prelude: Functions on unboxed floats. *)
 
-module type Float_u = sig
-  external to_float : float# -> (float[@local_opt]) = "%box_float"
-  external of_float : (float[@local_opt]) -> float# = "%unbox_float"
+module Float_u = struct
+  include Stdlib__Float_u
 
-  val ( + ) : float# -> float# -> float#
-  val ( - ) : float# -> float# -> float#
-  val ( * ) : float# -> float# -> float#
-  val ( / ) : float# -> float# -> float#
-  val ( ** ) : float# -> float# -> float#
-  val ( > ) : float# -> float# -> bool
+  let ( + ) = add
+  let ( - ) = sub
+  let ( * ) = mul
+  let ( / ) = div
+  let ( ** ) = pow
+  let ( > ) x y = (compare x y) > 0
 end
-
-module Float_u : Float_u = struct
-  external to_float : float# -> (float[@local_opt]) = "%box_float"
-  external of_float : (float[@local_opt]) -> float# = "%unbox_float"
-
-  (* We may in the future add primitives for these, but for now this has proven
-     to be good enough - the boxing/unboxing is eliminated on all
-     middle-ends. *)
-  let[@inline always] ( + ) x y = of_float ((to_float x) +. (to_float y))
-  let[@inline always] ( - ) x y = of_float ((to_float x) -. (to_float y))
-  let[@inline always] ( * ) x y = of_float ((to_float x) *. (to_float y))
-  let[@inline always] ( / ) x y = of_float ((to_float x) /. (to_float y))
-  let[@inline always] ( ** ) x y = of_float ((to_float x) ** (to_float y))
-  let[@inline always] ( > ) x y = (to_float x) > (to_float y)
-end
-
-(* CR layouts v2: move this into a stand-alone [Float_u] module *)
 
 (*********************************)
 (* Test 1: some basic arithmetic *)
