@@ -75,6 +75,7 @@ type out_global =
   | Ogf_global
   | Ogf_unrestricted
 
+(** This definition avoids a cyclic dependency between Outcometree and Types. *)
 type arg_label =
   | Nolabel
   | Labelled of string (** [label:T -> ...] *)
