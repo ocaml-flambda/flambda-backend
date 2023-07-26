@@ -1979,8 +1979,11 @@ let do_check_partial ~pred ~warn_if loc casel pss = match pss with
     begin match casel with
     | [] -> ()
     | _  ->
-      if Warnings.is_active Warnings.All_clauses_guarded then
-        Location.prerr_warning loc Warnings.All_clauses_guarded
+      (match warn_if with
+       | Partial ->
+           if Warnings.is_active Warnings.All_clauses_guarded then
+             Location.prerr_warning loc Warnings.All_clauses_guarded;
+       | Total -> ())
     end ;
     Partial
 | ps::_  ->
