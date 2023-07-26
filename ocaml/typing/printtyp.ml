@@ -509,9 +509,9 @@ let print_name ppf = function
   | Some name -> fprintf ppf "\"%s\"" name
 
 let string_of_label = function
-    Nolabel -> ""
-  | Labelled s -> s
-  | Optional s -> "?"^s
+    Asttypes.Nolabel -> ""
+  | Asttypes.Labelled s -> s
+  | Asttypes.Optional s -> "?"^s
 
 let visited = ref []
 let rec raw_type ppf ty =
@@ -1117,7 +1117,12 @@ let rec tree_of_typexp mode ty =
         Otyp_var (non_gen, Names.name_of_type name_gen tty)
     | Tarrow ((l, marg, mret), ty1, ty2, _) ->
         let lab =
-          if !print_labels || is_optional l then string_of_label l else ""
+          if !print_labels || is_optional l then
+            match l with
+            | Nolabel -> Nolabel
+            | Labelled l -> Labelled l
+            | Optional l -> Optional l
+          else Nolabel
         in
         let t1 =
           if is_optional l then

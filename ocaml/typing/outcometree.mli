@@ -75,11 +75,16 @@ type out_global =
   | Ogf_global
   | Ogf_unrestricted
 
+type arg_label =
+  | Nolabel
+  | Labelled of string (** [label:T -> ...] *)
+  | Optional of string (*** [?label:T -> ...] *)
+
 type out_type =
   | Otyp_abstract
   | Otyp_open
   | Otyp_alias of out_type * string
-  | Otyp_arrow of string * out_alloc_mode * out_type * out_alloc_mode * out_type
+  | Otyp_arrow of arg_label * out_alloc_mode * out_type * out_alloc_mode * out_type
   | Otyp_class of bool * out_ident * out_type list
   | Otyp_constr of out_ident * out_type list
   | Otyp_manifest of out_type * out_type
