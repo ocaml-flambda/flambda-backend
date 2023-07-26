@@ -305,7 +305,10 @@ and print_out_type_1 mode ppf =
   function
   | Otyp_arrow (lab, am, ty1, rm, ty2) ->
       pp_open_box ppf 0;
-      if lab <> "" then (pp_print_string ppf lab; pp_print_char ppf ':');
+      (match lab with
+      | Nolabel -> ()
+      | Labelled l -> pp_print_string ppf l; pp_print_char ppf ':'
+      | Optional l -> pp_print_string ppf ("?"^l); pp_print_char ppf ':');
       print_out_arg am ppf ty1;
       pp_print_string ppf " ->";
       pp_print_space ppf ();
