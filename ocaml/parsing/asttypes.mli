@@ -61,9 +61,9 @@ type label = string
 
 (** This is used only in the Parsetree. *)
 type arg_label =
-  Nolabel
-| Labelled of string (** [label:T -> ...] *)
-| Optional of string (** [?label:T -> ...] *)
+    Nolabel
+  | Labelled of string (** [label:T -> ...] *)
+  | Optional of string (** [?label:T -> ...] *)
 
 type 'a loc = 'a Location.loc = {
   txt : 'a;
