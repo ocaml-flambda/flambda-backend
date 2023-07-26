@@ -39,6 +39,7 @@ type dwarf_section =
   | Debug_rnglists
   | Debug_str
   | Debug_line
+  | Debug_frame
 
 type t =
   | DWARF of dwarf_section

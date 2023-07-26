@@ -18,7 +18,7 @@ open Dwarf_low
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 let emit ~asm_directives ~compilation_unit_proto_die
-    ~compilation_unit_header_label ~debug_line =
+    ~compilation_unit_header_label ~debug_line ~debug_frame =
   let module A = (val asm_directives : Asm_directives.S) in
   if Dwarf_flags.debug_thing Dwarf_flags.Debug_source_lines
   then
@@ -28,6 +28,15 @@ let emit ~asm_directives ~compilation_unit_proto_die
         Profile.record "debug_line_section"
           (Debug_line_section.emit ~asm_directives)
           debug_line)
+      ();
+  if Dwarf_flags.debug_thing Dwarf_flags.Debug_dwarf_cfi
+  then
+    Profile.record "dwarf_world_emit"
+      (fun () ->
+        A.switch_to_section (DWARF Debug_frame);
+        Profile.record "debug_frame_section"
+          (Debug_frame_section.emit ~asm_directives)
+          debug_frame)
       ();
   if not !Dwarf_flags.restrict_to_upstream_dwarf
   then

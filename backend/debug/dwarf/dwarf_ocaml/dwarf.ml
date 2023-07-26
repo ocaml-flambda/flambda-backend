@@ -40,9 +40,10 @@ let create ~sourcefile ~unit_name ~asm_directives ~get_file_id ~code_begin
   in
   let compilation_unit_header_label = Asm_label.create (DWARF Debug_info) in
   let debug_line_section = Debug_line_section.create ~code_begin in
+  let debug_frame_section = Debug_frame_section.create ~code_begin in
   let state =
     DS.create ~compilation_unit_header_label ~compilation_unit_proto_die
-      ~debug_line_section
+      ~debug_line_section ~debug_frame_section
   in
   { state; asm_directives; emitted = false; get_file_id }
 
@@ -75,5 +76,6 @@ let emit t =
     ~compilation_unit_proto_die:(DS.compilation_unit_proto_die t.state)
     ~compilation_unit_header_label:(DS.compilation_unit_header_label t.state)
     ~debug_line:(DS.debug_line_section t.state)
+    ~debug_frame:(DS.debug_frame_section t.state)
 
 let emit t = Profile.record "emit_dwarf" emit t

@@ -26,10 +26,13 @@ val create :
   compilation_unit_header_label:Asm_label.t ->
   compilation_unit_proto_die:Proto_die.t ->
   debug_line_section:Debug_line_section.t ->
+  debug_frame_section:Debug_frame_section.t ->
   t
 
 val compilation_unit_header_label : t -> Asm_label.t
 
 val compilation_unit_proto_die : t -> Proto_die.t
 
-val debug_line_section : t -> Dwarf_low.Debug_line_section.t
+val debug_line_section : t -> Debug_line_section.t
+
+val debug_frame_section : t -> Debug_frame_section.t
