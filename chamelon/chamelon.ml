@@ -21,7 +21,7 @@ let spec_list =
    ("-m", Arg.Set_string arg_minimizers, "Set minimizers");
    ("-e", Arg.Set_string Utils.error_str, "Set error to preserve");
    ("-t", Arg.Set_string typing_command, "Set command to use to generate cmt file");
-   ("-o", Arg.Set_string output, "Set output file/folder");
+   ("-o", Arg.Set_string output_file, "Set output file/folder");
    ("--test", Arg.Set test, "Run only first iteration of minimizer")]
 
 let () = Arg.parse spec_list anon_fun usage_msg
@@ -138,7 +138,7 @@ let main () =
   else
     (* MULTIFILE MINIMIZATION *)
     let output_dir = if !output_file = "" then "minimized_res" else !output_file in
-    (Stdlib.ignore(Sys.command "cp -R . " ^ output_dir ^ "/");
+    (Stdlib.ignore(Sys.command ("cp -R . " ^ output_dir ^ "/"));
     Sys.chdir output_dir ;
     (* MINIMIZING FILES *)
     let rfile_names = ref file_names in 
