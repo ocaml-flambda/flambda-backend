@@ -107,6 +107,8 @@ let typing_no_value_clauses f x =
     | Some x -> Ok (f x)
     | None -> Error (Failure "x is None")
 ;;
+
+let f x = 100 / x;;
 [%%expect{|
 Uncaught exception: Failure("guard pattern translation unimplemented")
 
