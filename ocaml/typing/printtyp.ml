@@ -513,7 +513,7 @@ let string_of_label = function
   | Labelled s -> s
   | Position s -> s^":[%src_pos]"
   (* TODO vding: this is incorrect behavior for some uses. Change so
-     Position and Labelled behave the same once *)
+     Position and Labelled behave the same once the Otyp PR is in *)
   | Optional s -> "?"^s
 
 let visited = ref []
