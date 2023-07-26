@@ -324,10 +324,6 @@ and expression_desc =
             - [fun ~l:P -> E1]
                       when [lbl] is {{!arg_label.Labelled}[Labelled l]}
                        and [exp0] is [None]
-            - [fun ~l:(P0 : [%src_pos]) -> E1]
-                      when [lbl] is {{!Asttypes.arg_label.Labelled}[Labelled l]},
-                       [exp0] is [None], and P is the constraint pattern
-                       (P0 : [%src_pos])
             - [fun ?l:P -> E1]
                       when [lbl] is {{!arg_label.Optional}[Optional l]}
                        and [exp0] is [None]

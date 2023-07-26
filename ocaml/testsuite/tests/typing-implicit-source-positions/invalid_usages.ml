@@ -9,6 +9,8 @@ Line 1, characters 11-18:
                ^^^^^^^
 Error: Uninterpreted extension 'src_pos'.
 |}]
+(* CR src_pos: Improve this error message to notify that [%src_pos] may only
+   be used in arguments *)
 
 type t = unit -> unit -> [%src_pos]
 [%%expect {|
