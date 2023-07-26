@@ -426,6 +426,12 @@ let check_arg_type styp =
     | _ -> ()
   end
 
+(* TODO vding: Modify this to consider src_pos. *)
+let transl_label : Parsetree.arg_label -> Types.arg_label = function
+  | Labelled l -> Labelled l
+  | Optional l -> Optional l
+  | Nolabel -> Nolabel
+
 let rec transl_type env policy mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
     (fun () -> transl_type_aux env policy mode styp)
@@ -464,6 +470,7 @@ and transl_type_aux env policy mode styp =
       let rec loop acc_mode args =
         match args with
         | (l, arg_mode, arg) :: rest ->
+          let l = transl_label l in
           check_arg_type arg;
           let arg_cty = transl_type env policy arg_mode arg in
           let acc_mode = Alloc_mode.join_const acc_mode arg_mode in

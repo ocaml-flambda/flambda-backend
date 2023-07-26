@@ -59,6 +59,7 @@ type const_layout =
 
 type label = string
 
+(** This is used only in the Parsetree. *)
 type arg_label =
     Nolabel
   | Labelled of string (** [label:T -> ...] *)

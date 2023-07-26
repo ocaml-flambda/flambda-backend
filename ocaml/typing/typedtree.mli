@@ -184,6 +184,11 @@ and fun_curry_state =
             functions, which might result in this arg no longer being
             final *)
 
+and arg_label = Types.arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+
 (** Layouts in the typed tree: Compilation of the typed tree to lambda sometimes
     requires layout information.  Our approach is to propagate layout
     information inward during compilation.  This requires us to annotate places

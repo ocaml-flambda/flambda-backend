@@ -103,6 +103,11 @@ and fun_curry_state =
   | More_args of { partial_mode : Types.alloc_mode }
   | Final_arg of { partial_mode : Types.alloc_mode }
 
+and arg_label = Types.arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+
 and expression_desc =
     Texp_ident of
       Path.t * Longident.t loc * Types.value_description * ident_kind
