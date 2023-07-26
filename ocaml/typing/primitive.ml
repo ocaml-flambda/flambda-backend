@@ -53,19 +53,24 @@ type description =
 
 type error =
   | Old_style_float_with_native_repr_attribute
+  | Old_style_float_with_non_value
   | Old_style_noalloc_with_noalloc_attribute
   | No_native_primitive_with_repr_attribute
+  | No_native_primitive_with_non_value
   | Inconsistent_attributes_for_effects
   | Inconsistent_noalloc_attributes_for_effects
 
 exception Error of Location.t * error
 
-let is_ocaml_repr = function
-  | _, Same_as_ocaml_repr _ -> true
+type value_check = Bad_attribute | Bad_layout | Ok_value
+
+let check_ocaml_value = function
+  | _, Same_as_ocaml_repr Value -> Ok_value
+  | _, Same_as_ocaml_repr _ -> Bad_layout
   | _, Unboxed_float
   | _, Unboxed_vector _
   | _, Unboxed_integer _
-  | _, Untagged_int -> false
+  | _, Untagged_int -> Bad_attribute
 
 let is_unboxed = function
   | _, Same_as_ocaml_repr _
@@ -157,11 +162,17 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
     if no_coeffects_attribute then No_coeffects
     else Has_coeffects
   in
-  if old_style_float &&
-     not (List.for_all is_ocaml_repr native_repr_args &&
-          is_ocaml_repr native_repr_res) then
-    raise (Error (valdecl.pval_loc,
-                  Old_style_float_with_native_repr_attribute));
+  if old_style_float then
+    List.iter
+      (fun repr -> match check_ocaml_value repr with
+         | Ok_value -> ()
+         | Bad_attribute ->
+           raise (Error (valdecl.pval_loc,
+                         Old_style_float_with_native_repr_attribute))
+         | Bad_layout ->
+           raise (Error (valdecl.pval_loc,
+                         Old_style_float_with_non_value)))
+      (native_repr_res :: native_repr_args);
   if old_style_noalloc && noalloc_attribute then
     raise (Error (valdecl.pval_loc,
                   Old_style_noalloc_with_noalloc_attribute));
@@ -175,11 +186,19 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
   else if old_style_noalloc then
     Location.deprecated valdecl.pval_loc
       "[@@noalloc] should be used instead of \"noalloc\"";
-  if native_name = "" &&
-     not (List.for_all is_ocaml_repr native_repr_args &&
-          is_ocaml_repr native_repr_res) then
-    raise (Error (valdecl.pval_loc,
-                  No_native_primitive_with_repr_attribute));
+  if native_name = "" then
+    List.iter
+      (fun repr -> match check_ocaml_value repr with
+         | Ok_value -> ()
+         | Bad_attribute ->
+           raise (Error (valdecl.pval_loc,
+                         No_native_primitive_with_repr_attribute))
+         | Bad_layout ->
+           (* Built-in primitives don't need a native version. *)
+           if not (String.length name > 0 && name.[0] = '%') then
+             raise (Error (valdecl.pval_loc,
+                           No_native_primitive_with_non_value)))
+      (native_repr_res :: native_repr_args);
   let noalloc = old_style_noalloc || noalloc_attribute in
   if noalloc && only_generative_effects_attribute then
     raise (Error (valdecl.pval_loc,
@@ -356,13 +375,20 @@ let report_error ppf err =
   | Old_style_float_with_native_repr_attribute ->
     Format.fprintf ppf "Cannot use \"float\" in conjunction with \
                         [%@unboxed]/[%@untagged]."
+  | Old_style_float_with_non_value ->
+    Format.fprintf ppf "Cannot use \"float\" in conjunction with \
+                        types of non-value layouts."
   | Old_style_noalloc_with_noalloc_attribute ->
     Format.fprintf ppf "Cannot use \"noalloc\" in conjunction with \
                         [%@%@noalloc]."
   | No_native_primitive_with_repr_attribute ->
     Format.fprintf ppf
-      "[@The native code version of the primitive is mandatory@ \
+      "@[The native code version of the primitive is mandatory@ \
        when attributes [%@untagged] or [%@unboxed] are present.@]"
+  | No_native_primitive_with_non_value ->
+    Format.fprintf ppf
+      "@[The native code version of the primitive is mandatory@ \
+       for types with non-value layouts.@]"
   | Inconsistent_attributes_for_effects ->
     Format.fprintf ppf "At most one of [%@no_effects] and \
                         [%@only_generative_effects] can be specified."

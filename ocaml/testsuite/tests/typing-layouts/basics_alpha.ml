@@ -103,9 +103,8 @@ Error: This pattern matches values of type t_any
 (* Presently, the typechecker will allow any representable layout as a function
    arg or return type.  The translation to lambda rejects functions with
    void args / returns. *)
-(* CR layouts v2: The translation to lambda should reject void but not #float *)
 (* CR layouts v2: Once we have another sort that can make it through lambda
-   (#float), add tests showing the way sort variables will be instantiated.
+   (float#), add tests showing the way sort variables will be instantiated.
 
    1) [let f x = x] roughly has type [('a : '_sort) -> ('a : '_sort)].
       Test that you can apply it to a value or to a #float, but once you've
@@ -114,7 +113,7 @@ Error: This pattern matches values of type t_any
    2) If [f] has a type in the mli (and isn't used in the ml) we get the sort
       from there.
 
-   I think that all already works, but for the lack of #float *)
+   I think that all already works, but for the lack of float# *)
 
 module type S = sig
   val f1 : t_value -> t_value
@@ -185,8 +184,8 @@ end;;
 Line 2, characters 8-44:
 2 |   let g z = X.f { vr_void = z; vr_int = 42 }
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}];;
 
 (**************************************)
@@ -289,7 +288,7 @@ Line 3, characters 0-15:
 Error:
        s5 has layout value, which is not a sublayout of immediate.
 |}]
-(* CR layouts v2: improve error, which will require layout histories *)
+(* CR layouts v2.9: improve error, which will require layout histories *)
 
 type 'a [@any] t4 = 'a
 and s4 = string t4;;
@@ -317,7 +316,7 @@ type 'a [@any] any5 = Any5 of 'a
 let id5 : 'a void5 -> 'a void5 = function
   | Void5 x -> Void5 x
 
-(* CR layouts v2: At the moment, the code in the comment below does not work.
+(* CR layouts v2.8: At the moment, the code in the comment below does not work.
    Because we demand that constructor arguments have layout (Sort 'l), the type
    [any5] actually only works on values.
 
@@ -1097,8 +1096,8 @@ let f19 () =
 Line 3, characters 6-8:
 3 |   let _y = (x :> t_void) in
           ^^
-Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}];;
 
 (********************************************)
@@ -1114,8 +1113,8 @@ let f20 () =
 Line 3, characters 6-8:
 3 |   let _y =
           ^^
-Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}];;
 
 (**********************************)
@@ -1134,8 +1133,8 @@ module type M21 = sig end
 Line 7, characters 4-5:
 7 |     x
         ^
-Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}];;
 
 (***************************************************************)
@@ -1189,7 +1188,7 @@ Error: This pattern matches values of type (M.t_void, M.t_void) eq
          (M.t_void, M.t_imm) eq
        M.t_void has layout void, which does not overlap with immediate.
 |}]
-(* CR layouts v2: error message is OK, but it could probably be better.
+(* CR layouts v2.9: error message is OK, but it could probably be better.
    But a similar case without layouts is already pretty bad, so try
    that before spending too much time here. *)
 
@@ -1205,7 +1204,7 @@ type 'a t2_void [@@void]
 Line 3, characters 6-30:
 3 | let f (x : 'a. 'a t2_void) = x
           ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [Typeopt.layout] as sort for type
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
        'a. 'a t2_void.
        Please report this error to the Jane Street compilers team.
 |}]
@@ -1235,8 +1234,8 @@ let g f (x : t_void) : t_void = f x
 Line 1, characters 8-35:
 1 | let g f (x : t_void) : t_void = f x
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}]
 
 (******************************************)
@@ -1248,8 +1247,8 @@ let rec f : _ -> _ = fun (x : t_void) -> x
 Line 1, characters 21-42:
 1 | let rec f : _ -> _ = fun (x : t_void) -> x
                          ^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}]
 
 (**********************************************)
@@ -1270,8 +1269,8 @@ and q () =
 Line 1, characters 17-36:
 1 | let rec ( let* ) (x : t_void) f = ()
                      ^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}]
 
 let rec ( let* ) x (f : t_void -> _) = ()
@@ -1284,8 +1283,8 @@ and q () =
 Lines 4-5, characters 2-4:
 4 | ..let* x = assert false in
 5 |   ()
-Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}]
 
 let rec ( let* ) x (f : _ -> t_void) = ()
@@ -1298,8 +1297,8 @@ and q () =
 Line 5, characters 2-14:
 5 |   assert false
       ^^^^^^^^^^^^
-Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}]
 
 let rec ( let* ) x f : t_void = assert false
@@ -1312,8 +1311,8 @@ and q () =
 Line 1, characters 19-44:
 1 | let rec ( let* ) x f : t_void = assert false
                        ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}]
 
 let rec ( let* ) x f = ()
@@ -1328,8 +1327,8 @@ and q () =
 Line 2, characters 16-34:
 2 | and ( and* ) x1 (x2 : t_void) = ()
                     ^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}]
 
 let rec ( let* ) x f = ()
@@ -1344,8 +1343,8 @@ and q () =
 Line 2, characters 13-34:
 2 | and ( and* ) (x1 : t_void) x2 = ()
                  ^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}]
 
 let rec ( let* ) x f = ()
@@ -1360,8 +1359,8 @@ and q () =
 Line 1, characters 17-25:
 1 | let rec ( let* ) x f = ()
                      ^^^^^^^^
-Error: Non-value detected in [Typeopt.layout] as sort for type t_void.
-       Please report this error to the Jane Street compilers team.
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}]
 
 (* CR layouts v5: when we allow non-values in tuples, this next one should

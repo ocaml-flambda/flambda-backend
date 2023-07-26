@@ -110,8 +110,10 @@ val sort_of_native_repr : native_repr -> Layouts.Sort.const
 
 type error =
   | Old_style_float_with_native_repr_attribute
+  | Old_style_float_with_non_value
   | Old_style_noalloc_with_noalloc_attribute
   | No_native_primitive_with_repr_attribute
+  | No_native_primitive_with_non_value
   | Inconsistent_attributes_for_effects
   | Inconsistent_noalloc_attributes_for_effects
 

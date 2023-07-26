@@ -31,7 +31,7 @@ Error: Layout void is used here, but the appropriate layouts extension is not en
 (*********************************************************)
 (* Test 1: Simple with type constraints respect layouts. *)
 
-(* CR layouts v2: parts of this test moved to [modules_alpha.ml] because they
+(* CR layouts v2.5: parts of this test moved to [modules_alpha.ml] because they
    need a non-value layout.  Bring back here when we have one. *)
 module type S1 = sig
   type 'a [@void] t
@@ -164,7 +164,7 @@ module rec Foo3 : sig val create : Bar3.t -> unit end
 and Bar3 : sig type t end
 |}];;
 
-(* CR layouts v2: parts of this test moved to [modules_alpha.ml] because they
+(* CR layouts v2.5: parts of this test moved to [modules_alpha.ml] because they
    need a non-value layout.  Bring back here when we have one. *)
 module rec Foo3 : sig
   val create : Bar3.t -> unit
@@ -218,13 +218,13 @@ module rec Foo3 : sig type t = Bar3.t [@@immediate] end
 and Bar3 : sig type t [@@immediate] end
 |}];;
 
-(* CR layouts v2: more bits moved to [modules_alpha.ml] from down here. *)
+(* CR layouts v2.5: more bits moved to [modules_alpha.ml] from down here. *)
 
 (*************************************************************************)
 (* Test 4: Nondep typedecl layout approximation in the Nondep_cannot_erase
    case. *)
 
-(* CR layouts v2: The interesting parts of this test need a non-value layout and
+(* CR layouts v2.5: The interesting parts of this test need a non-value layout and
    have been moved to modules_alpha.ml.  Bring back those parts once we have a
    non-value layout.  I've just commented them out below. *)
 module F4(X : sig type t end) = struct
@@ -328,7 +328,7 @@ Error: Type string has layout value, which is not a sublayout of immediate.
 (*****************************************)
 (* Test 6: With constraints on packages. *)
 
-(* CR layouts v2: The first part of this test needs a non-value layout and has
+(* CR layouts v2.5: The first part of this test needs a non-value layout and has
    been moved to modules_alpha.ml.  Bring it back once we have a non-value
    layout. *)
 module type S6_1 = sig

@@ -126,14 +126,7 @@ let extra_args_for_const_ctor_of_variant
     (const_ctors_decision : U.const_ctors_decision) ~typing_env_at_use
     rewrite_id variant_arg : U.const_ctors_decision =
   match const_ctors_decision with
-  | Zero -> (
-    match variant_arg with
-    | Not_a_constant_constructor -> const_ctors_decision
-    | Maybe_constant_constructor _ ->
-      Misc.fatal_errorf
-        "The unboxed variant parameter was determined to have no constant \
-         cases when deciding to unbox it (using the parameter type), but at \
-         the use site, it is a constant constructor.")
+  | Zero -> const_ctors_decision
   | At_least_one { ctor = Do_not_unbox reason; is_int } ->
     let is_int =
       Extra_param_and_args.update_param_args is_int rewrite_id
