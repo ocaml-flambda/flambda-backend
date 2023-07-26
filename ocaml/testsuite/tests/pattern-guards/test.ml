@@ -110,8 +110,22 @@ let typing_no_value_clauses f x =
 
 let f x = 100 / x;;
 [%%expect{|
-Uncaught exception: Failure("guard pattern translation unimplemented")
+val typing_no_value_clauses : ('a -> 'b) -> 'a option -> ('b, exn) result =
+  <fun>
+val f : int -> int = <fun>
+|}];;
 
+typing_no_value_clauses f None;;
+[%%expect{|
+- : (int, exn) result = Error (Failure "x is None")
+|}];;
+typing_no_value_clauses f (Some 0);;
+[%%expect{|
+- : (int, exn) result = Error Division_by_zero
+|}];;
+typing_no_value_clauses f (Some 5);;
+[%%expect{|
+- : (int, exn) result = Ok 20
 |}];;
 
 let ill_typed_pattern_var (x : int list option) : bool =
@@ -181,12 +195,12 @@ let exhaustive_pattern_guards (x : (unit, void option) Either.t) : int =
 ;;
 [%%expect{|
 type void = |
-Line 165, characters 13-28:
-165 |     | Left u when u match () -> 0
+Line 192, characters 13-28:
+192 |     | Left u when u match () -> 0
                    ^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
-Line 166, characters 14-31:
-166 |     | Right v when v match None -> 1
+Line 193, characters 14-31:
+193 |     | Right v when v match None -> 1
                     ^^^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
 val exhaustive_pattern_guards : (unit, void option) Either.t -> int = <fun>
