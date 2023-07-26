@@ -15,7 +15,11 @@ module Deduped_list : sig
 end = struct
   type 'a t = 'a list
   let empty = []
+
+  (* Note: [memq] uses physical equality as opposed to string content
+     equality. *)
   let add t x = if List.memq x t then t else x :: t
+
   let to_list t = List.rev t
 end
 
@@ -60,7 +64,7 @@ let run_test program_text ~summary =
   then
     failwith
       "There are multiple strings with the same contents, suggesting that Jane \
-       Syntax isn't memoizing attribute payloads."
+       Syntax isn't memoizing attribute names."
 ;;
 
 let () =
