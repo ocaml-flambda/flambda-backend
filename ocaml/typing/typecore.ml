@@ -3717,7 +3717,7 @@ let rec type_function_approx env loc label spato rhs in_function ty_expected =
     | Some spat -> type_pattern_approx env spat ty_arg
   end;
   let in_function = Some (loc_fun, ty_fun) in
-  type_approx_aux_case_rhs env ~rhs in_function ty_ret
+  type_approx_aux_case_rhs env rhs in_function ty_ret
 
 and type_approx_aux env sexp in_function ty_expected =
   match Jane_syntax.Expression.of_ast sexp with
@@ -3736,7 +3736,7 @@ and type_approx_aux_desc env sexp_desc sexp_loc in_function ty_expected =
       type_function_approx env sexp_loc Nolabel None pc_rhs
         in_function ty_expected
   | Pexp_match (_, {pc_rhs}::_) ->
-      type_approx_aux_case_rhs env ~rhs:pc_rhs None ty_expected
+      type_approx_aux_case_rhs env pc_rhs None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
   | Pexp_tuple l ->
       let tys = List.map
@@ -3778,15 +3778,13 @@ and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_immutable_array _
   | Jexp_unboxed_constant _ -> ()
 
-and type_approx_aux_case_rhs ~rhs =
+and type_approx_aux_case_rhs env rhs in_function ty_expected =
   match rhs with
   | Psimple_rhs e | Pboolean_guarded_rhs { pbg_rhs = e; _ } ->
-      fun env in_function ty_expected ->
-        type_approx_aux env e in_function ty_expected
+      type_approx_aux env e in_function ty_expected
   | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
       let match_desc = Pexp_match (ppg_scrutinee, ppg_cases) in
-      fun env in_function ty_expected ->
-        type_approx_aux_desc env match_desc ppg_loc in_function ty_expected
+      type_approx_aux_desc env match_desc ppg_loc in_function ty_expected
 
 let type_approx env sexp ty =
   type_approx_aux env sexp None ty
