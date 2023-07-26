@@ -150,11 +150,9 @@ let option i f ppf x =
 let longident i ppf li = line i ppf "%a\n" fmt_longident li;;
 let string i ppf s = line i ppf "\"%s\"\n" s;;
 let arg_label i ppf = function
-  | Types.Nolabel -> line i ppf "Nolabel\n"
-  | Types.Optional s -> line i ppf "Optional \"%s\"\n" s
-  | Types.Labelled s -> line i ppf "Labelled \"%s\"\n" s
-  (* TODO vding question: I could also `open Types` at the top of the
-     file. Not sure which is better. *)
+  | Nolabel -> line i ppf "Nolabel\n"
+  | Optional s -> line i ppf "Optional \"%s\"\n" s
+  | Labelled s -> line i ppf "Labelled \"%s\"\n" s
 ;;
 
 let typevars ppf vs =

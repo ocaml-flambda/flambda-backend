@@ -426,10 +426,10 @@ let check_arg_type styp =
     | _ -> ()
   end
 
-let transl_label = function
-  | Parsetree.Labelled l -> Types.Labelled l
-  | Parsetree.Optional l -> Optional l
-  | Parsetree.Nolabel -> Nolabel
+let transl_label : Parsetree.arg_label -> Types.arg_label = function
+  | Labelled l -> Labelled l
+  | Optional l -> Optional l
+  | Nolabel -> Nolabel
 
 let rec transl_type env policy mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes

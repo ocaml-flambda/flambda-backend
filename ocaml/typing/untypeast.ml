@@ -452,10 +452,10 @@ let comprehension sub comp_type comp =
   in
   Jane_syntax.Comprehensions.expr_of ~attrs:[] (comp_type (comprehension comp))
 
-let label = function
-  | Types.Labelled l -> Parsetree.Labelled l
-  | Types.Optional l -> Optional l
-  | Types.Nolabel -> Nolabel
+let label : Types.arg_label -> Parsetree.arg_label = function
+  | Labelled l -> Labelled l
+  | Optional l -> Optional l
+  | Nolabel -> Nolabel
 
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
