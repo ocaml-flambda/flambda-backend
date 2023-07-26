@@ -553,8 +553,12 @@ let () =
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: In function arguments: changed preassigned register's \
-       location from %rax to %rbx"
+      (Printf.sprintf
+        ">> Fatal error: In function arguments: changed preassigned register's \
+         location from %s to %s"
+         (Proc.register_name Cmm.Int 0)
+         (Proc.register_name Cmm.Int 1))
+
 
 let () =
   check "Location can't be unknown after allocation"
@@ -577,8 +581,11 @@ let () =
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: In instruction's no 17 results: changed preassigned \
-       register's location from %rdi to %rbx"
+      (Printf.sprintf
+        ">> Fatal error: In instruction's no 17 results: changed preassigned \
+         register's location from %s to %s"
+         (Proc.register_name Cmm.Int 2)
+         (Proc.register_name Cmm.Int 1))
 
 let () =
   check "Duplicate instruction found when validating description"
@@ -1027,15 +1034,32 @@ let test_loop ~loop_loc_first n =
     (Printf.sprintf "Check loop with %d locations" n)
     (fun () -> make_loop ~loop_loc_first n)
     ~exp_std:
-      "Validation failed: Bad equations at entry point, reason: Unsatisfiable \
-       equations when removing result equations.\n\
-       Existing equation has to agree on 0 or 2 sides (cannot be exactly 1) \
-       with the removed equation.\n\
-       Existing equation R[%rdi]=%rbx.\n\
-       Removed equation: R[%rbx]=%rbx.\n\
-       Equations: R[%rax]=%rax R[%rdi]=%rbx R[%rdi]=%rdi\n\
-       Function argument descriptions: R[%rax], R[%rbx], R[%rdi]\n\
-       Function argument locations: %rax, %rbx, %rdi"
+      (Printf.sprintf
+        "Validation failed: Bad equations at entry point, reason: Unsatisfiable \
+         equations when removing result equations.\n\
+         Existing equation has to agree on 0 or 2 sides (cannot be exactly 1) \
+         with the removed equation.\n\
+         Existing equation R[%s]=%s.\n\
+         Removed equation: R[%s]=%s.\n\
+         Equations: R[%s]=%s R[%s]=%s R[%s]=%s\n\
+         Function argument descriptions: R[%s], R[%s], R[%s]\n\
+         Function argument locations: %s, %s, %s"
+         (Proc.register_name Cmm.Int 2)
+         (Proc.register_name Cmm.Int 1)
+         (Proc.register_name Cmm.Int 1)
+         (Proc.register_name Cmm.Int 1)
+         (Proc.register_name Cmm.Int 0)
+         (Proc.register_name Cmm.Int 0)
+         (Proc.register_name Cmm.Int 2)
+         (Proc.register_name Cmm.Int 1)
+         (Proc.register_name Cmm.Int 2)
+         (Proc.register_name Cmm.Int 2)
+         (Proc.register_name Cmm.Int 0)
+         (Proc.register_name Cmm.Int 1)
+         (Proc.register_name Cmm.Int 2)
+         (Proc.register_name Cmm.Int 0)
+         (Proc.register_name Cmm.Int 1)
+         (Proc.register_name Cmm.Int 2))
     ~exp_err:"";
   let end_time = Sys.time () in
   Format.printf "  Time of loop test: %fs\n" (end_time -. start_time);
