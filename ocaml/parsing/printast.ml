@@ -923,9 +923,8 @@ and case_rhs i ppf = function
       expression (i + 1) ppf pbg_guard;
       expression i ppf pbg_rhs
   | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases } ->
-      line i ppf "when\n";
+      line i ppf "<when-pattern>\n";
       expression (i + 1) ppf ppg_scrutinee;
-      line (i + 1) ppf "match\n";
       list (i + 1) case ppf ppg_cases
 
 and value_binding i ppf x =
