@@ -43,7 +43,6 @@ type error =
   | Inconsistent_import of CU.Name.t * filepath * filepath
   | Need_recursive_types of CU.Name.t
   | Depend_on_unsafe_string_unit of CU.Name.t
-  | Inconsistent_package_declaration of CU.t * filepath
   | Inconsistent_package_declaration_between_imports of
       filepath * CU.t * CU.t
   | Direct_reference_from_wrong_package of
@@ -676,7 +675,6 @@ let check_pers_struct penv f ~loc name =
         | Depend_on_unsafe_string_unit name ->
             Format.asprintf "%a uses -unsafe-string"
               CU.Name.print name
-        | Inconsistent_package_declaration _ -> assert false
         | Inconsistent_package_declaration_between_imports _ -> assert false
         | Direct_reference_from_wrong_package (unit, _filename, prefix) ->
             Format.asprintf "%a is inaccessible from %a"
@@ -879,11 +877,6 @@ let report_error ppf =
         CU.Name.print import
         "This compiler has been configured in strict \
                            safe-string mode (-force-safe-string)"
-  | Inconsistent_package_declaration(intf_package, intf_filename) ->
-      fprintf ppf
-        "@[<hov>The interface %a@ is compiled for package %s.@ %s@]"
-        CU.print intf_package intf_filename
-        "The compilation flag -for-pack with the same package is required"
   | Inconsistent_package_declaration_between_imports (filename, unit1, unit2) ->
       fprintf ppf
         "@[<hov>The file %s@ is imported both as %a@ and as %a.@]"
