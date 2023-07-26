@@ -426,6 +426,7 @@ let check_arg_type styp =
     | _ -> ()
   end
 
+(* TODO vding: Modify this to consider src_pos. *)
 let transl_label : Parsetree.arg_label -> Types.arg_label = function
   | Labelled l -> Labelled l
   | Optional l -> Optional l
