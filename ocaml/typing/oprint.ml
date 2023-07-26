@@ -305,9 +305,10 @@ and print_out_type_1 mode ppf =
   function
   | Otyp_arrow (lab, am, ty1, rm, ty2) ->
       pp_open_box ppf 0;
+      (* TODO vding: This will be changed once Otyp_arrow contains label *)
       let is_pos = String.ends_with ~suffix:":[%src_pos]" lab in
       if is_pos
-      then pp_print_string ppf lab (* TODO vding: This will be changed *)
+      then pp_print_string ppf lab
       else if lab <> "" then (pp_print_string ppf lab; pp_print_char ppf ':');
       if not (is_pos) then print_out_arg am ppf ty1;
       pp_print_string ppf " ->";
