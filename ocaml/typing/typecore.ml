@@ -3684,12 +3684,6 @@ let type_pattern_approx env spat ty_expected =
       end;
   | _ -> ()
 
-let wrap_rhs = function
-  | Psimple_rhs e -> `Expr e
-  | Pboolean_guarded_rhs { pbg_rhs; _ } -> `Expr pbg_rhs
-  | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
-      `Desc (Pexp_match (ppg_scrutinee, ppg_cases), ppg_loc)
-
 let rec type_function_approx env loc label spato rhs in_function ty_expected =
   let has_local, has_poly =
     match spato with
@@ -3736,13 +3730,13 @@ and type_approx_aux_desc env sexp_desc sexp_loc in_function ty_expected =
   match sexp_desc with
   | Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
-      type_function_approx env sexp_loc l (Some p) (`Expr e)
+      type_function_approx env sexp_loc l (Some p) (Psimple_rhs e)
         in_function ty_expected
   | Pexp_function ({pc_rhs}::_) ->
-      type_function_approx env sexp_loc Nolabel None (wrap_rhs pc_rhs)
+      type_function_approx env sexp_loc Nolabel None pc_rhs
         in_function ty_expected
   | Pexp_match (_, {pc_rhs}::_) ->
-      type_approx_aux_case_rhs env ~rhs:(wrap_rhs pc_rhs) None ty_expected
+      type_approx_aux_case_rhs env ~rhs:pc_rhs None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
   | Pexp_tuple l ->
       let tys = List.map
@@ -3786,12 +3780,13 @@ and type_approx_aux_jane_syntax : Jane_syntax.Expression.t -> _ = function
 
 and type_approx_aux_case_rhs ~rhs =
   match rhs with
-  | `Expr e ->
+  | Psimple_rhs e | Pboolean_guarded_rhs { pbg_rhs = e; _ } ->
       fun env in_function ty_expected ->
         type_approx_aux env e in_function ty_expected
-  | `Desc (exp_desc, exp_loc) ->
+  | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
+      let match_desc = Pexp_match (ppg_scrutinee, ppg_cases) in
       fun env in_function ty_expected ->
-        type_approx_aux_desc env exp_desc exp_loc in_function ty_expected
+        type_approx_aux_desc env match_desc ppg_loc in_function ty_expected
 
 let type_approx env sexp ty =
   type_approx_aux env sexp None ty
