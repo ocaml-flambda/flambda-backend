@@ -199,7 +199,28 @@ exhaustive_pattern_guards (Left ());;
 exhaustive_pattern_guards (Right None);;
 [%%expect{|
 - : int = 1
-|}]
+|}];;
+
+let prove_false () : void = failwith "qed";;
+
+let guard_matching_empty_variant = function
+  | None when prove_false () match exception (Failure str) -> "failed: " ^ str
+  | None -> "proved false!"
+  | Some x -> x
+;;
+[%%expect{|
+val prove_false : unit -> void = <fun>
+val guard_matching_empty_variant : string option -> string = <fun>
+|}];;
+
+guard_matching_empty_variant None;;
+[%%expect{|
+- : string = "failed: qed"
+|}];;
+guard_matching_empty_variant (Some "foo");;
+[%%expect{|
+- : string = "foo"
+|}];;
 
 module M : sig
   type 'a t
