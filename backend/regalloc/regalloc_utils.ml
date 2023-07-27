@@ -233,7 +233,7 @@ module Move = struct
     { desc = Op (op_of_move move);
       arg = [| from |];
       res = [| to_ |];
-      dbg = instr.dbg;
+      dbg = Debuginfo.none;
       fdo = instr.fdo;
       live = instr.live;
       (* note: recomputed anyway *)
