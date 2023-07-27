@@ -2,43 +2,36 @@ open Typedtree
 open Types
 
 let mkTvar name = Tvar name
-let mkTarrow (label, t1, t2, comm) =
-  Tarrow (label, t1, t2, comm)
+let mkTarrow (label, t1, t2, comm) = Tarrow (label, t1, t2, comm)
+let mkTexp_ident (path, longident, vd) = Texp_ident (path, longident, vd)
 
-let mkTexp_ident (path, longident, vd) =
-  Texp_ident (path, longident, vd)
 type nonrec apply_arg = expression option
-let mkTexp_apply (exp, args) =
-  Texp_apply (exp, args)
-let mkTexp_tuple exps =
-  Texp_tuple exps
-let mkTexp_construct (name, desc, args) =
-  Texp_construct (name, desc, args)
+
+let mkTexp_apply (exp, args) = Texp_apply (exp, args)
+let mkTexp_tuple exps = Texp_tuple exps
+let mkTexp_construct (name, desc, args) = Texp_construct (name, desc, args)
 
 type texp_function = {
-  arg_label : Asttypes.arg_label ;
-  param : Ident.t ;
-  cases : value case list ;
+  arg_label : Asttypes.arg_label;
+  param : Ident.t;
+  cases : value case list;
 }
-let mkTexp_function ({ arg_label ; param ; cases } : texp_function) =
-  Texp_function {
-    arg_label ; param ; cases ;
-    partial = Total ;
-  }
+
+let mkTexp_function ({ arg_label; param; cases } : texp_function) =
+  Texp_function { arg_label; param; cases; partial = Total }
 
 let mkTexp_sequence (e1, e2) = Texp_sequence (e1, e2)
-
-let mkTexp_match (e, cases, partial) =
-  Texp_match (e, cases, partial)
+let mkTexp_match (e, cases, partial) = Texp_match (e, cases, partial)
 
 type matched_expression_desc =
   | Texp_ident of Path.t * Longident.t Location.loc * value_description
   | Texp_apply of expression * (Asttypes.arg_label * apply_arg) list
-  | Texp_construct of Longident.t Location.loc * constructor_description * expression list
+  | Texp_construct of
+      Longident.t Location.loc * constructor_description * expression list
   | Texp_tuple of expression list
   | Texp_function of texp_function
   | Texp_sequence of expression * expression
-   | Texp_match of expression * computation case list * partial
+  | Texp_match of expression * computation case list * partial
   | O of expression_desc
 
 let view_texp (e : expression_desc) =
@@ -47,24 +40,21 @@ let view_texp (e : expression_desc) =
   | Texp_apply (exp, args) -> Texp_apply (exp, args)
   | Texp_construct (name, desc, args) -> Texp_construct (name, desc, args)
   | Texp_tuple args -> Texp_tuple args
-  | Texp_function { arg_label ; param ; cases ; _ } ->
-    Texp_function { arg_label ; param ; cases }
+  | Texp_function { arg_label; param; cases; _ } ->
+      Texp_function { arg_label; param; cases }
   | Texp_sequence (e1, e2) -> Texp_sequence (e1, e2)
   | Texp_match (e, cases, partial) -> Texp_match (e, cases, partial)
   | _ -> O e
 
-
-let mkTpat_var (ident, name) =
-  Tpat_var (ident, name)
-
-let mkTpat_alias (p, ident, name) =
-  Tpat_alias (p, ident, name)
-
+let mkTpat_var (ident, name) = Tpat_var (ident, name)
+let mkTpat_alias (p, ident, name) = Tpat_alias (p, ident, name)
 let mkTpat_array l = Tpat_array l
 
 type 'a matched_pattern_desc =
   | Tpat_var : Ident.t * string Location.loc -> value matched_pattern_desc
-  | Tpat_alias : value general_pattern * Ident.t * string Location.loc -> value matched_pattern_desc
+  | Tpat_alias :
+      value general_pattern * Ident.t * string Location.loc
+      -> value matched_pattern_desc
   | Tpat_array : value general_pattern list -> value matched_pattern_desc
   | O : 'a pattern_desc -> 'a matched_pattern_desc
 
@@ -82,42 +72,35 @@ type matched_structure_item_desc =
   | O of structure_item_desc
 
 let view_tstr (si : structure_item_desc) =
-  match si with
-  | Tstr_eval (e, attrs) -> Tstr_eval (e, attrs)
-  | _ -> O si
+  match si with Tstr_eval (e, attrs) -> Tstr_eval (e, attrs) | _ -> O si
 
 let mkArg e = Some e
 
 let map_arg_or_omitted f arg =
-  match arg with
-  | Some e -> Some (f e)
-  | None -> None
+  match arg with Some e -> Some (f e) | None -> None
 
 let fold_arg_or_omitted f init arg =
-  match arg with
-  | Some e -> f init e
-  | None -> init
+  match arg with Some e -> f init e | None -> init
 
-let option_of_arg_or_omitted arg =
-  arg
+let option_of_arg_or_omitted arg = arg
 
 let mk_constructor_description cstr_name =
   {
-    cstr_name ;
-    cstr_res = newty2 ~level:0 (mkTvar (Some "a")) ;
-    cstr_existentials = [] ;
-    cstr_args = [] ;
-    cstr_arity = 0 ;
-    cstr_tag = Cstr_constant 0 ;
-    cstr_consts = 0 ;
-    cstr_nonconsts = 0 ;
-    cstr_generalized = false ;
-    cstr_private = Public ;
-    cstr_loc = Location.none ;
-    cstr_attributes = [] ;
-    cstr_inlined = None ;
-    cstr_uid = Uid.internal_not_actually_unique ;
+    cstr_name;
+    cstr_res = newty2 ~level:0 (mkTvar (Some "a"));
+    cstr_existentials = [];
+    cstr_args = [];
+    cstr_arity = 0;
+    cstr_tag = Cstr_constant 0;
+    cstr_consts = 0;
+    cstr_nonconsts = 0;
+    cstr_generalized = false;
+    cstr_private = Public;
+    cstr_loc = Location.none;
+    cstr_attributes = [];
+    cstr_inlined = None;
+    cstr_uid = Uid.internal_not_actually_unique;
   }
 
 let mk_value_binding ~vb_pat ~vb_expr ~vb_attributes =
-  { vb_pat ; vb_expr ; vb_attributes ; vb_loc = Location.none }
+  { vb_pat; vb_expr; vb_attributes; vb_loc = Location.none }
