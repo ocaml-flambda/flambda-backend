@@ -1,0 +1,15 @@
+(executable
+ (name chamelon)
+ (public_name chamelon-upstream)
+ (modes native)
+ (libraries compiler-libs.common unix str
+    (select compat.ml from ( -> compat.upstream.ml))
+ )
+ (package ocaml)
+)
+
+(env
+  (dev
+    (flags (:standard -warn-error -A))))
+
+(include_subdirs unqualified)

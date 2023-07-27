@@ -24,7 +24,7 @@ let minimize should_remove map cur_name =
                           (List.exists
                              (fun vb ->
                                match view_tpat vb.vb_pat.pat_desc with
-                               | Tpat_var (id, _) ->
+                               | Tpat_var (id, _, _) ->
                                    let is_used = ref false in
                                    let mapper_used =
                                      Removedeadcode.search_in_str is_used id
@@ -54,7 +54,7 @@ let minimize should_remove map cur_name =
                           (List.exists
                              (fun vb ->
                                match view_tpat vb.vb_pat.pat_desc with
-                               | Tpat_var (id, _) ->
+                               | Tpat_var (id, _, _) ->
                                    let is_used = ref false in
                                    let mapper_used =
                                      Removedeadcode.search_in_str is_used id

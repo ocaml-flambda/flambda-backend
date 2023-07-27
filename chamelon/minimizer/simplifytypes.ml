@@ -26,7 +26,7 @@ let remove_cons_mapper (cons_to_rem, cons_typ) =
           Tast_mapper.default.expr mapper e
         else
           match view_texp e.exp_desc with
-          | Texp_construct (_, cd, _) ->
+          | Texp_construct (_, cd, _, _) ->
               if cons_to_rem = cd.cstr_name then
                 { e with exp_desc = apply_dummy2.exp_desc }
               else Tast_mapper.default.expr mapper e
@@ -42,11 +42,11 @@ let remove_cons_mapper (cons_to_rem, cons_typ) =
                   else
                     Texp_record { record with fields = Array.of_seq nlab_list });
               }
-          | O (Texp_function f) ->
+          | Texp_function (f, id) ->
               {
                 e with
                 exp_desc =
-                  Texp_function
+                  mkTexp_function ~id
                     {
                       f with
                       cases =
@@ -85,11 +85,11 @@ let remove_cons_mapper (cons_to_rem, cons_typ) =
                          if l = [] then [ empty_value_case ] else l);
                     };
               }
-          | Texp_match (e, comp_case_l, p) ->
+          | Texp_match (e, comp_case_l, p, id) ->
               {
                 e with
                 exp_desc =
-                  mkTexp_match
+                  mkTexp_match ~id
                     ( mapper.expr mapper e,
                       (let l =
                          List.fold_left

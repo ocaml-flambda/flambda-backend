@@ -106,14 +106,14 @@ let remove_file_name_mapper n1 =
     expr =
       (fun mapper e ->
         match view_texp e.exp_desc with
-        | Texp_ident (p, li, vd) -> (
+        | Texp_ident (p, li, vd, id) -> (
             match p with
             | Pdot (p1, _) ->
                 if Ident.name (Path.head p1) = n1 then
                   {
                     e with
                     exp_desc =
-                      mkTexp_ident
+                      mkTexp_ident ~id
                         (remove_head_path p, { li with txt = li.txt }, vd);
                   }
                 else e

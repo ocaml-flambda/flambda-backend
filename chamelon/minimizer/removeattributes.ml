@@ -109,11 +109,11 @@ let minimize should_remove map cur_name =
         (fun mapper str_it ->
           Tast_mapper.default.structure_item mapper
             (match view_tstr str_it.str_desc with
-            | Tstr_eval (e, attrs) ->
+            | Tstr_eval (e, attrs, id) ->
                 {
                   str_it with
                   str_desc =
-                    mkTstr_eval (e, handle_attributes should_remove attrs);
+                    mkTstr_eval ~id (e, handle_attributes should_remove attrs);
                 }
             | _ -> str_it));
       module_binding =

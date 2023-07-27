@@ -13,7 +13,8 @@ let eunit = mkTexp_tuple []
 
 let is_unit e =
   match view_texp e.exp_desc with
-  | Texp_construct ({ txt = Lident "()"; _ }, _, _) | Texp_tuple [] -> true
+  | Texp_construct ({ txt = Lident "()"; _ }, _, _, _) | Texp_tuple ([], _) ->
+      true
   | _ -> false
 
 let is_unit_typ (typ : type_expr) =

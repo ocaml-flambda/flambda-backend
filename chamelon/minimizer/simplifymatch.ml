@@ -13,7 +13,7 @@ let replace_mapper id to_replace =
     expr =
       (fun mapper e ->
         match view_texp e.exp_desc with
-        | Texp_ident (path, _, _) ->
+        | Texp_ident (path, _, _, _) ->
             if Ident.same (Path.head path) id then
               { e with exp_desc = to_replace }
             else Tast_mapper.default.expr mapper e
@@ -30,7 +30,7 @@ let minimize should_remove map cur_name =
         (fun mapper e ->
           Tast_mapper.default.expr mapper
             (match view_texp e.exp_desc with
-            | Texp_match (e_match, cc_l, _) ->
+            | Texp_match (e_match, cc_l, _, _) ->
                 Format.print_flush ();
                 if List.length cc_l = 1 then
                   let cc = List.hd cc_l in
@@ -39,7 +39,7 @@ let minimize should_remove map cur_name =
                       match
                         view_tpat (tva :> value general_pattern).pat_desc
                       with
-                      | Tpat_var (id, _) ->
+                      | Tpat_var (id, _, _) ->
                           if should_remove () then
                             let rep_map = replace_mapper id e_match.exp_desc in
                             rep_map.expr rep_map cc.c_rhs

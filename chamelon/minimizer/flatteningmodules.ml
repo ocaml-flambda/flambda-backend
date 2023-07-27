@@ -15,14 +15,14 @@ let remove_module id =
     expr =
       (fun mapper e ->
         match view_texp e.exp_desc with
-        | Texp_ident (path, t_loc, vd) -> (
+        | Texp_ident (path, t_loc, vd, e_id) -> (
             match (path, t_loc.txt) with
             | Pdot (Pident id1, id2), Ldot (_, lid2) ->
                 if Ident.same id id1 then
                   {
                     e with
                     exp_desc =
-                      mkTexp_ident
+                      mkTexp_ident ~id:e_id
                         ( Pident
                             (Ident.create_local
                                (String.lowercase_ascii (Ident.name id1)
@@ -75,17 +75,18 @@ let rec replace_in_pat : type k. _ -> k general_pattern -> k general_pattern =
     pat with
     pat_desc =
       (match view_tpat pat.pat_desc with
-      | Tpat_var (id, str) ->
-          mkTpat_var
+      | Tpat_var (id, str, p_id) ->
+          mkTpat_var ~id:p_id
             ( create_local (mod_name ^ "_" ^ Ident.name id),
               { str with txt = mod_name ^ "_" ^ str.txt } )
-      | Tpat_alias (p, id, str) ->
-          mkTpat_alias
+      | Tpat_alias (p, id, str, p_id) ->
+          mkTpat_alias ~id:p_id
             ( replace_in_pat mod_name p,
               create_local (mod_name ^ "_" ^ Ident.name id),
               { str with txt = mod_name ^ "_" ^ str.txt } )
       | O (Tpat_tuple vl) -> Tpat_tuple (List.map (replace_in_pat mod_name) vl)
-      | Tpat_array vl -> mkTpat_array (List.map (replace_in_pat mod_name) vl)
+      | Tpat_array (vl, id) ->
+          mkTpat_array ~id (List.map (replace_in_pat mod_name) vl)
       | O (Tpat_construct (a1, a2, vl, a3)) ->
           Tpat_construct (a1, a2, List.map (replace_in_pat mod_name) vl, a3)
       | O (Tpat_record (r, a1)) ->

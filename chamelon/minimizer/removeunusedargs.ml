@@ -77,15 +77,15 @@ let replace_mapper id to_replace label =
     expr =
       (fun mapper e ->
         match view_texp e.exp_desc with
-        | Texp_ident (path, _, _) ->
+        | Texp_ident (path, _, _, _) ->
             if Ident.same (Path.head path) id then
               { e with exp_desc = to_replace }
             else Tast_mapper.default.expr mapper e
-        | Texp_apply (e, ae_l) ->
+        | Texp_apply (e, ae_l, id) ->
             {
               e with
               exp_desc =
-                mkTexp_apply
+                mkTexp_apply ~id
                   ( mapper.expr mapper e,
                     List.rev
                       (List.fold_left
@@ -124,7 +124,7 @@ let find_unused_arg_mapper e =
               if List.length vc_l = 1 && not !is_modified then
                 let vc = List.hd vc_l in
                 match view_tpat vc.c_lhs.pat_desc with
-                | Tpat_var (id, _) ->
+                | Tpat_var (id, _, _) ->
                     let is_used = ref false in
                     let mapper_used = Removedeadcode.search_in_str is_used id in
                     ignore (mapper_used.expr mapper_used vc.c_rhs);
@@ -177,7 +177,7 @@ let locate_unused_var should_remove to_suppress =
                           in
                           if is_rep then
                             match view_tpat vb.vb_pat.pat_desc with
-                            | Tpat_var (id, _) when should_remove () ->
+                            | Tpat_var (id, _, _) when should_remove () ->
                                 to_suppress :=
                                   (id, depth, arg_list, arg_label)
                                   :: !to_suppress;
@@ -205,7 +205,7 @@ let locate_unused_var should_remove to_suppress =
                           in
                           if is_rep then
                             match view_tpat vb.vb_pat.pat_desc with
-                            | Tpat_var (id, _) when should_remove () ->
+                            | Tpat_var (id, _, _) when should_remove () ->
                                 to_suppress :=
                                   (id, depth, arg_list, arg_label)
                                   :: !to_suppress;

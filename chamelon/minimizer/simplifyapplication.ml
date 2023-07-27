@@ -12,35 +12,33 @@ let simplify_app_mapper should_remove =
       (fun mapper e ->
         Tast_mapper.default.expr mapper
           (match view_texp e.exp_desc with
-          | Texp_apply (app, ea_l) -> (
+          | Texp_apply (app, ea_l, id) -> (
               match app.exp_desc with
-              | Texp_function f ->
-                  if should_remove () then
-                    let _, arg = List.hd ea_l in
-                    match option_of_arg_or_omitted arg with
-                    | Some arg ->
-                        {
-                          e with
-                          exp_desc =
-                            (let e_match =
-                               mkTexp_match
-                                 ( arg,
-                                   List.map
-                                     (fun v ->
-                                       {
-                                         v with
-                                         c_lhs = as_computation_pattern v.c_lhs;
-                                       })
-                                     f.cases,
-                                   f.partial )
-                             in
-                             if List.length ea_l = 1 then e_match
-                             else
-                               mkTexp_apply
-                                 ({ app with exp_desc = e_match }, List.tl ea_l));
-                        }
-                    | _ -> e
-                  else e
+              | Texp_function f -> (
+                  let _, arg = List.hd ea_l in
+                  match option_of_arg_or_omitted arg with
+                  | Some (arg, _) when should_remove () ->
+                      {
+                        e with
+                        exp_desc =
+                          (let e_match =
+                             mkTexp_match
+                               ( arg,
+                                 List.map
+                                   (fun v ->
+                                     {
+                                       v with
+                                       c_lhs = as_computation_pattern v.c_lhs;
+                                     })
+                                   f.cases,
+                                 f.partial )
+                           in
+                           if List.length ea_l = 1 then e_match
+                           else
+                             mkTexp_apply ~id
+                               ({ app with exp_desc = e_match }, List.tl ea_l));
+                      }
+                  | _ -> e)
               | _ -> e)
           | _ -> e));
   }

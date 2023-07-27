@@ -21,7 +21,7 @@ let search_in_str is_used id =
     expr =
       (fun mapper e ->
         (match view_texp e.exp_desc with
-        | Texp_ident (path, _, _) ->
+        | Texp_ident (path, _, _, _) ->
             if Ident.same (Path.head path) id then is_used := true
         | _ -> ());
         if not !is_used then Tast_mapper.default.expr mapper e else e);
@@ -65,7 +65,7 @@ let is_used_exc str exc_name =
       expr =
         (fun mapper e ->
           (match view_texp e.exp_desc with
-          | Texp_construct (name, _, _) ->
+          | Texp_construct (name, _, _, _) ->
               if Longident.last name.txt = exc_name then is_used := true
           | _ -> ());
           if not !is_used then Tast_mapper.default.expr mapper e else e);
@@ -77,9 +77,9 @@ let is_used_exc str exc_name =
 (* extract the list of var in the pattern, so we can remove them*)
 let rec var_from_pat pat_desc acc =
   match view_tpat pat_desc with
-  | Tpat_var (id, _) -> id :: acc
-  | Tpat_alias (pat, id, _) -> var_from_pat pat.pat_desc (id :: acc)
-  | O (Tpat_tuple vl) | Tpat_array vl | O (Tpat_construct (_, _, vl, _)) ->
+  | Tpat_var (id, _, _) -> id :: acc
+  | Tpat_alias (pat, id, _, _) -> var_from_pat pat.pat_desc (id :: acc)
+  | O (Tpat_tuple vl) | Tpat_array (vl, _) | O (Tpat_construct (_, _, vl, _)) ->
       List.fold_left (fun l pat -> var_from_pat pat.pat_desc l) acc vl
   | O (Tpat_record (r, _)) ->
       List.fold_left (fun l (_, _, pat) -> var_from_pat pat.pat_desc l) acc r
@@ -91,18 +91,19 @@ let rec var_from_pat pat_desc acc =
 
 let rec rem_in_pat str pat should_remove =
   match view_tpat pat.pat_desc with
-  | Tpat_var (id, _) ->
+  | Tpat_var (id, _, _) ->
       let is_used = is_used_var str id in
       if (not is_used) && should_remove () then { pat with pat_desc = Tpat_any }
       else pat
-  | Tpat_alias (pat1, id, a) ->
+  | Tpat_alias (pat1, id, a, p_id) ->
       let is_used = is_used_var str id in
       if (not is_used) && should_remove () then
         rem_in_pat str pat1 should_remove
       else
         {
           pat with
-          pat_desc = mkTpat_alias (rem_in_pat str pat1 should_remove, id, a);
+          pat_desc =
+            mkTpat_alias ~id:p_id (rem_in_pat str pat1 should_remove, id, a);
         }
   | O (Tpat_tuple vl) ->
       {
@@ -110,11 +111,11 @@ let rec rem_in_pat str pat should_remove =
         pat_desc =
           Tpat_tuple (List.map (fun pat -> rem_in_pat str pat should_remove) vl);
       }
-  | Tpat_array vl ->
+  | Tpat_array (vl, id) ->
       {
         pat with
         pat_desc =
-          mkTpat_array
+          mkTpat_array ~id
             (List.map (fun pat -> rem_in_pat str pat should_remove) vl);
       }
   | O (Tpat_construct (a1, a2, vl, a3)) ->

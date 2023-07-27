@@ -1,1 +1,0 @@
-include Compat_jst

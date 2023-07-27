@@ -22,7 +22,7 @@ let find_function id1 str =
                 List.filter
                   (fun vb ->
                     match view_tpat vb.vb_pat.pat_desc with
-                    | Tpat_var (id2, _) -> Ident.same id1 id2
+                    | Tpat_var (id2, _, _) -> Ident.same id1 id2
                     | _ -> false)
                   vb_l
               in
@@ -39,7 +39,7 @@ let find_function id1 str =
                 List.filter
                   (fun vb ->
                     match view_tpat vb.vb_pat.pat_desc with
-                    | Tpat_var (id2, _) -> Ident.same id1 id2
+                    | Tpat_var (id2, _, _) -> Ident.same id1 id2
                     | _ -> false)
                   vb_l
               in
@@ -61,7 +61,7 @@ let minimize should_remove map cur_name =
         (fun mapper e ->
           Tast_mapper.default.expr mapper
             (match view_texp e.exp_desc with
-            | Texp_ident (Pident id, _, vd) ->
+            | Texp_ident (Pident id, _, vd, _) ->
                 if is_function vd.val_type then
                   let body, non_rec = find_function id str in
                   if non_rec && should_remove () then { e with exp_desc = body }

@@ -12,16 +12,16 @@ exception Not_implemented
 
 let is_simplified e =
   match view_texp e.exp_desc with
-  | Texp_tuple []
+  | Texp_tuple ([], _)
   | O (Texp_constant (Const_int 0))
   | O (Texp_constant (Const_char '0'))
   | O (Texp_constant (Const_string ("", _, None))) ->
       true
-  | Texp_ident (_, name, _) -> Longident.last name.txt = "__dummy2__"
-  | Texp_construct (name, _, _) -> Longident.last name.txt = ""
-  | Texp_apply (d, _) -> (
+  | Texp_ident (_, name, _, _) -> Longident.last name.txt = "__dummy2__"
+  | Texp_construct (name, _, _, _) -> Longident.last name.txt = ""
+  | Texp_apply (d, _, _) -> (
       match view_texp d.exp_desc with
-      | Texp_ident (_, name, _) -> Longident.last name.txt = "__dummy2__"
+      | Texp_ident (_, name, _, _) -> Longident.last name.txt = "__dummy2__"
       | _ -> false)
   | _ -> false
 

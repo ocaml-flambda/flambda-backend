@@ -34,7 +34,7 @@ let replace_id_exp_desc id to_replace =
     expr =
       (fun mapper e ->
         match view_texp e.exp_desc with
-        | Texp_ident (path, _, _) ->
+        | Texp_ident (path, _, _, _) ->
             if Ident.same (Path.head path) id then
               { e with exp_desc = to_replace }
             else Tast_mapper.default.expr mapper e
@@ -61,12 +61,12 @@ let replace_path path n_path =
     expr =
       (fun mapper e ->
         match view_texp e.exp_desc with
-        | Texp_ident (p1, id_l, vd) ->
+        | Texp_ident (p1, id_l, vd, id) ->
             if path_eq path p1 then
               {
                 e with
                 exp_desc =
-                  mkTexp_ident
+                  mkTexp_ident ~id
                     (n_path, { id_l with txt = Lident (Path.name n_path) }, vd);
               }
             else Tast_mapper.default.expr mapper e
@@ -106,12 +106,12 @@ let replace_id id n_id =
     expr =
       (fun mapper e ->
         match view_texp e.exp_desc with
-        | Texp_ident (path, id_l, vd) ->
+        | Texp_ident (path, id_l, vd, e_id) ->
             if Ident.same (Path.head path) id then
               {
                 e with
                 exp_desc =
-                  mkTexp_ident
+                  mkTexp_ident ~id:e_id
                     ( Pident n_id,
                       { id_l with txt = Lident (Ident.name n_id) },
                       vd );

@@ -10,22 +10,22 @@ exception Not_implemented
 
 let is_dummy e =
   match view_texp e.exp_desc with
-  | Texp_apply (d, _) -> (
+  | Texp_apply (d, _, _) -> (
       match view_texp d.exp_desc with
-      | Texp_ident (_, name, _) -> Longident.last name.txt = "__dummy2__"
+      | Texp_ident (_, name, _, _) -> Longident.last name.txt = "__dummy2__"
       | _ -> false)
   | _ -> false
 
 let is_ignore e =
   match view_texp e.exp_desc with
-  | Texp_ident (_, name, _) -> Longident.last name.txt = "__ignore__"
+  | Texp_ident (_, name, _, _) -> Longident.last name.txt = "__ignore__"
   | _ -> false
 
 let is_sequence e = match e.exp_desc with Texp_sequence _ -> true | _ -> false
 
 let break_sequence e =
   match view_texp e.exp_desc with
-  | Texp_sequence (e1, e2) -> (e1, e2)
+  | Texp_sequence (e1, e2, _) -> (e1, e2)
   | _ -> failwith "Argument is not a sequence"
 
 let remove_dummy_mapper should_remove =
@@ -35,7 +35,7 @@ let remove_dummy_mapper should_remove =
       (fun mapper e ->
         Tast_mapper.default.expr mapper
           (match view_texp e.exp_desc with
-          | Texp_sequence (e1, e2) ->
+          | Texp_sequence (e1, e2, _) ->
               if is_dummy e2 && should_remove () then e1 else e
           | _ -> e));
   }
@@ -48,7 +48,7 @@ let minimize should_remove map cur_name =
         (fun mapper e ->
           Tast_mapper.default.expr mapper
             (match view_texp e.exp_desc with
-            | Texp_sequence (e1, e2) ->
+            | Texp_sequence (e1, e2, _) ->
                 if (Removeunit.is_unit e1 || is_dummy e1) && should_remove ()
                 then e2
                   (* else if is_sequence e1 then
@@ -69,23 +69,23 @@ let minimize should_remove map cur_name =
                   if Removeunit.is_unit e2 then e3
                   else { e with exp_desc = Texp_ifthenelse (e1, e2, None) }
                 else e
-            | Texp_apply (f, ael) ->
+            | Texp_apply (f, ael, id) ->
                 if is_dummy f then
                   {
                     e with
                     exp_desc =
-                      mkTexp_apply
+                      mkTexp_apply ~id
                         ( f,
                           List.rev
                             (List.fold_left
                                (fun l (a, e) ->
                                  fold_arg_or_omitted
-                                   (fun l e1 ->
+                                   (fun l (e1, id) ->
                                      if
                                        Reduceexpr.is_simplified e1
                                        && should_remove ()
                                      then l
-                                     else (a, mkArg e1) :: l)
+                                     else (a, mkArg ~id e1) :: l)
                                    l e)
                                [] ael) );
                   }
@@ -93,18 +93,18 @@ let minimize should_remove map cur_name =
                   {
                     e with
                     exp_desc =
-                      mkTexp_apply
+                      mkTexp_apply ~id
                         ( f,
                           List.rev
                             (List.fold_left
                                (fun l (a, e) ->
                                  fold_arg_or_omitted
-                                   (fun l e1 ->
+                                   (fun l (e1, id) ->
                                      if is_sequence e1 then
                                        let rdm =
                                          remove_dummy_mapper should_remove
                                        in
-                                       (a, mkArg (rdm.expr rdm e1)) :: l
+                                       (a, mkArg ~id (rdm.expr rdm e1)) :: l
                                      else l)
                                    l e)
                                [] ael) );

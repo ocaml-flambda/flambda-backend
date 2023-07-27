@@ -19,20 +19,20 @@ let remove_cons_mapper (i, cons_to_rem, _) =
       (fun mapper e ->
         Tast_mapper.default.expr mapper
           (match view_texp e.exp_desc with
-          | Texp_construct (li, cd, exp_l) ->
+          | Texp_construct (li, cd, exp_l, id) ->
               if cons_to_rem = cd.cstr_name then
                 {
                   e with
                   exp_desc =
-                    mkTexp_construct
+                    mkTexp_construct ~id
                       (li, cd, List.filteri (fun j _ -> i = j) exp_l);
                 }
               else e
-          | Texp_function f ->
+          | Texp_function (f, id) ->
               {
                 e with
                 exp_desc =
-                  mkTexp_function
+                  mkTexp_function ~id
                     {
                       f with
                       cases =
@@ -65,11 +65,11 @@ let remove_cons_mapper (i, cons_to_rem, _) =
                          if l = [] then [ empty_value_case ] else l);
                     };
               }
-          | Texp_match (e, comp_case_l, p) ->
+          | Texp_match (e, comp_case_l, p, id) ->
               {
                 e with
                 exp_desc =
-                  mkTexp_match
+                  mkTexp_match ~id
                     ( e,
                       List.rev
                         (List.fold_left

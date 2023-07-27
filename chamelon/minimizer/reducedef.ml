@@ -8,9 +8,9 @@ open Compat
 
 let is_dummy e =
   match view_texp e.exp_desc with
-  | Texp_apply (d, _) -> (
+  | Texp_apply (d, _, _) -> (
       match view_texp d.exp_desc with
-      | Texp_ident (_, name, _) -> Longident.last name.txt = "__dummy2__"
+      | Texp_ident (_, name, _, _) -> Longident.last name.txt = "__dummy2__"
       | _ -> false)
   | _ -> false
 
