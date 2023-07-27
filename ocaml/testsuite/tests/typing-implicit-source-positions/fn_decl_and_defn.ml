@@ -34,3 +34,8 @@ let _ = apply g ;;
 [%%expect{|
 - : unit = ()
 |}]
+
+let _ = g ~src_pos:Lexing.dummy_pos () ;;
+[%%expect{|
+- : unit = ()
+|}]
