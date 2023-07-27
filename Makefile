@@ -24,10 +24,14 @@ ci: ci-no-coverage
 endif
 
 .PHONY: ci-no-coverage
-ci-no-coverage: runtest runtest-upstream
+ci-no-coverage: runtest runtest-upstream minimizer
 
 .PHONY: ci-coverage
 ci-coverage: boot-runtest coverage
+
+.PHONY: minimizer
+minimizer: _build/_bootinstall
+	cd chamelon && $(dune) build
 
 .PHONY: hacking-runtest
 hacking-runtest: _build/_bootinstall
