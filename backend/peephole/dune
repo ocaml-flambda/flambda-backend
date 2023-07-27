@@ -1,0 +1,8 @@
+(rule
+ (targets peephole_formatted.ml_gen)
+ (deps (:generator ./generator/generator.exe) (:orig_file peephole_formatted.ml))
+ (action 
+  (progn
+   (with-stdout-to %{targets} (run %{generator}))
+   (run ocamlformat -i %{targets})
+   (diff %{targets} %{orig_file}))))

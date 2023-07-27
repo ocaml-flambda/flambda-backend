@@ -1,5 +1,4 @@
-(* CR-soon gtulba-lecu for gtulba-lecu: drop the -4 flag *)
-[@@@ocaml.warning "+a-29-40-41-42-4"]
+[@@@ocaml.warning "+a-29-40-41-42"]
 
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
@@ -56,26 +55,23 @@ let rec prev_at_most steps cell =
 let rec get_cells' (cell : Cfg.basic Cfg.instruction DLL.cell option) size lst =
   match cell with
   | Some cell -> (
-      match size with
-      | 0 -> List.rev lst
-      | size -> get_cells' (DLL.next cell) (size - 1) (cell :: lst))
-  | None -> List.rev lst
+    match size with
+    | 0 -> Some (List.rev lst)
+    | size -> get_cells' (DLL.next cell) (size - 1) (cell :: lst))
+  | None -> None
 
 let get_cells cell size =
   assert (size > 0);
   get_cells' (DLL.next cell) (size - 1) [cell]
 
-let is_bitwise_op (op : Mach.integer_operation) = 
-  match op with
-  | Mach.Iand | Ior | Ixor | Ilsl | Ilsr | Iasr -> true
-  | _ -> false
-
 let bitwise_overflow_assert (imm1 : int) (imm2 : int) (op : int -> int -> int) =
   let imm = op imm1 imm2 in
-  assert (imm <= 2147483647 && imm >= -2147483648)
+  if imm <= 2147483647 && imm >= -2147483648 then true else assert false
 
 let no_32_bit_overflow imm1 imm2 op =
   let imm = op imm1 imm2 in
   -2147483648 <= imm && imm <= 2147483647
 
-type rule = Cfg.basic Cfg.instruction DLL.cell -> Cfg.basic Cfg.instruction DLL.cell option
+type rule =
+  Cfg.basic Cfg.instruction DLL.cell ->
+  Cfg.basic Cfg.instruction DLL.cell option
