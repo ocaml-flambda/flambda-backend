@@ -433,7 +433,6 @@ let transl_label (label : Parsetree.arg_label)
   | Labelled l, Some { ptyp_desc = Ptyp_extension ({txt="src_pos"; _}, _); _}
       -> Position l
   | _, Some ({ ptyp_desc = Ptyp_extension ({txt="src_pos"; _}, _); _} as arg)
-      (* TODO vding: This will be a cyclic dependency. Need to make new error in this file *)
       -> raise (Error (arg.ptyp_loc, Env.empty, Invalid_label_for_src_pos label))
   | Labelled l, _ -> Labelled l
   | Optional l, _ -> Optional l
