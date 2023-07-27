@@ -3,8 +3,10 @@
 open Tast_mapper
 open Utils
 open Typedtree
-open Inlinenever
 open Compat
+
+let is_inline = is_attr ["inline never"; "inline always"; "inline"]
+let is_local = is_attr ["local never"; "local always"; "local"]
 
 let handle_attributes should_remove attributes =
   List.filter (fun attr ->

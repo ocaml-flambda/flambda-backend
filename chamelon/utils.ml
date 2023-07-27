@@ -16,6 +16,10 @@ let error_str = ref "Misc.Fatal_error"
 exception Not_implemented
 module Smap = Stdlib.Map.Make(String)
 
+
+let is_attr names (attr : attribute) =
+  List.mem attr.attr_name.txt names
+
 (* ______ id replacement mapper ______ *)
 
 let rec replace_id_in_path path to_rep =

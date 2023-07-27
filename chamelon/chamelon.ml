@@ -32,7 +32,7 @@ let all_minimizers =
     [Deletelines.minimizer;
      Flatteningmodules.minimizer;
      Inlinefunction.minimizer;
-     (* Inlinenever.minimizer; *)
+     Inlinenever.minimizer;
      Reducedef.minimizer;
      Reduceexpr.minimizer;
      (* Reduceexpr_typesafe.minimizer; *)
@@ -54,7 +54,7 @@ let default_iteration = [
   "delete-lines";
   "reduce-expr";
   "remove-dead-code";
-  (*  "inline-never"; *)
+  "inline-never";
   "remove-unit";
   "reduce-def";
   "remove-dead-code";
