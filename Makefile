@@ -24,7 +24,7 @@ ci: ci-no-coverage
 endif
 
 .PHONY: ci-no-coverage
-ci-no-coverage: runtest runtest-upstream minimizer
+ci-no-coverage: runtest runtest-upstream minimizer-upstream minimizer
 
 .PHONY: ci-coverage
 ci-coverage: boot-runtest coverage
