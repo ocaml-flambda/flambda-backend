@@ -27,14 +27,40 @@ end)
 let unused_attrs = Attribute_table.create 128
 let mark_used t = Attribute_table.remove unused_attrs t
 
+let compare_location : Location.t -> Location.t -> int =
+  fun { loc_start = { pos_fname = loc_start_pos_fname_1
+                    ; pos_lnum = _ (* only need character number *)
+                    ; pos_bol = _ (* only need character number *)
+                    ; pos_cnum = loc_start_pos_cnum_1 }
+      ; loc_end = { pos_fname = _ (* locations should live in one file *)
+                  ; pos_lnum = _ (* only need character number *)
+                  ; pos_bol = _ (* only need character number *)
+                  ; pos_cnum = loc_end_pos_cnum_1 }
+      ; loc_ghost = loc_ghost_1 }
+      { loc_start = { pos_fname = loc_start_pos_fname_2
+                    ; pos_lnum = _ (* only need character number *)
+                    ; pos_bol = _ (* only need character number *)
+                    ; pos_cnum = loc_start_pos_cnum_2 }
+      ; loc_end = { pos_fname = _ (* locations should live in one file *)
+                  ; pos_lnum = _ (* only need character number *)
+                  ; pos_bol = _ (* only need character number *)
+                  ; pos_cnum = loc_end_pos_cnum_2 }
+      ; loc_ghost = loc_ghost_2 }
+  ->
+  match String.compare loc_start_pos_fname_1 loc_start_pos_fname_2 with
+  | 0 -> begin match Int.compare loc_start_pos_cnum_1 loc_start_pos_cnum_2 with
+    | 0 -> begin match Int.compare loc_end_pos_cnum_1 loc_end_pos_cnum_2 with
+      | 0 -> Bool.compare loc_ghost_1 loc_ghost_2
+      | i -> i
+    end
+    | i -> i
+  end
+  | i -> i
+
 (* [attr_order] is used to issue unused attribute warnings in the order the
    attributes occur in the file rather than the random order of the hash table
 *)
-let attr_order a1 a2 =
-  match String.compare a1.loc.loc_start.pos_fname a2.loc.loc_start.pos_fname
-  with
-  | 0 -> Int.compare a1.loc.loc_start.pos_lnum a2.loc.loc_start.pos_lnum
-  | n -> n
+let attr_order a1 a2 = compare_location a1.loc a2.loc
 
 let unchecked_properties = Attribute_table.create 1
 let mark_property_checked txt loc =
