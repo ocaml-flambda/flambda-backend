@@ -305,11 +305,16 @@ and print_out_type_1 mode ppf =
   function
   | Otyp_arrow (lab, am, ty1, rm, ty2) ->
       pp_open_box ppf 0;
+      let print_type () = print_out_arg am ppf ty1 in
       (match lab with
-      | Nolabel -> () (* TODO fix this *)
-      | Labelled l -> pp_print_string ppf l; pp_print_char ppf ':'
-      | Optional l -> pp_print_string ppf ("?"^l); pp_print_char ppf ':');
-      print_out_arg am ppf ty1;
+      | Nolabel -> print_type ()
+      | Labelled l ->
+          pp_print_string ppf l; pp_print_char ppf ':'; print_type ()
+      | Position l ->
+          pp_print_string ppf l;
+          pp_print_string ppf ":[%src_pos]"
+      | Optional l ->
+          pp_print_string ppf ("?" ^ l); pp_print_char ppf ':'; print_type ());
       pp_print_string ppf " ->";
       pp_print_space ppf ();
       let mode = join_modes mode am in

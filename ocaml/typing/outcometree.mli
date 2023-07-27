@@ -78,8 +78,9 @@ type out_global =
 (** This definition avoids a cyclic dependency between Outcometree and Types. *)
 type arg_label =
   | Nolabel
-  | Labelled of string (** [label:T -> ...] *)
-  | Optional of string (*** [?label:T -> ...] *)
+  | Labelled of string
+  | Optional of string
+  | Position of string
 
 type out_type =
   | Otyp_abstract

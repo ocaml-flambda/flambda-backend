@@ -45,8 +45,9 @@ and type_desc =
 
 and arg_label =
   | Nolabel
-  | Labelled of string (** [label:T -> ...] *)
-  | Optional of string (** [?label:T -> ...] *)
+  | Labelled of string
+  | Optional of string
+  | Position of string
 
 and arrow_desc =
   arg_label * alloc_mode * alloc_mode

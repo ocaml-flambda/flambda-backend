@@ -508,10 +508,10 @@ let print_name ppf = function
     None -> fprintf ppf "None"
   | Some name -> fprintf ppf "\"%s\"" name
 
-let string_of_label = function
-    Asttypes.Nolabel -> ""
-  | Asttypes.Labelled s -> s
-  | Asttypes.Optional s -> "?"^s
+let string_of_label : Types.arg_label -> string = function
+    Nolabel -> ""
+  | Labelled s | Position s -> s
+  | Optional s -> "?"^s
 
 let visited = ref []
 let rec raw_type ppf ty =
@@ -1098,7 +1098,13 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
-let rec tree_of_typexp mode ty =
+let transl_label : Types.arg_label -> Outcometree.arg_label = function
+  | Nolabel -> Nolabel
+  | Labelled l -> Labelled l
+  | Optional l -> Optional l
+  | Position l -> Position l
+
+  let rec tree_of_typexp mode ty =
   let px = proxy ty in
   if List.memq px !printed_aliases && not (List.memq px !delayed) then
    let mark = is_non_gen mode ty in
@@ -1117,20 +1123,8 @@ let rec tree_of_typexp mode ty =
         Otyp_var (non_gen, Names.name_of_type name_gen tty)
     | Tarrow ((l, marg, mret), ty1, ty2, _) ->
         let lab =
-<<<<<<< HEAD
-<<<<<<< HEAD
-          if !print_labels || is_optional l then
-            match l with
-            | Nolabel -> Nolabel
-            | Labelled l -> Labelled l
-            | Optional l -> Optional l
+          if !print_labels || is_optional l then transl_label l
           else Nolabel
-=======
-          if !print_labels || is_optional l || is_position l then string_of_label l else ""
->>>>>>> 318c9da5 (Hacky outcometree printing without creating nontrivial node)
-=======
-          if !print_labels || is_optional l || is_position l then string_of_label l else ""
->>>>>>> a68e240ab6a40c0206c106fd41cfa3841e95cb1a
         in
         let t1 =
           if is_optional l then
