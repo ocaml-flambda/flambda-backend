@@ -35,7 +35,6 @@ val apply : (src_pos:Lexing.position -> unit -> 'a) -> 'a = <fun>
 |}]
 
 let g = fun ~(src_pos:[%src_pos]) () -> ()
-
 [%%expect{|
 val g : src_pos:[%src_pos] -> unit -> unit = <fun>
 |}]
@@ -48,4 +47,31 @@ Line 1, characters 14-15:
 Error: This expression has type src_pos:[%src_pos] -> unit -> unit
        but an expression was expected of type
          src_pos:Lexing.position -> unit -> 'a
+|}]
+
+let h ?(src_pos:[%src_pos]) () = ()
+[%%expect{|
+Line 1, characters 16-26:
+1 | let h ?(src_pos:[%src_pos]) () = ()
+                    ^^^^^^^^^^
+Error: A position argument must not be optional.
+|}]
+
+let j (src_pos:[%src_pos]) () = ()
+[%%expect{|
+Line 1, characters 15-25:
+1 | let j (src_pos:[%src_pos]) () = ()
+                   ^^^^^^^^^^
+Error: A position argument must not be unlabelled.
+|}]
+
+let k : src_pos:[%src_pos] -> unit -> unit =
+   fun ~src_pos () -> ()
+[%%expect{|
+Line 2, characters 3-24:
+2 |    fun ~src_pos () -> ()
+       ^^^^^^^^^^^^^^^^^^^^^
+Error: This function should have type src_pos:[%src_pos] -> unit -> unit
+       but its first argument is labeled ~src_pos
+       instead of ~src_pos:[%src_pos]
 |}]
