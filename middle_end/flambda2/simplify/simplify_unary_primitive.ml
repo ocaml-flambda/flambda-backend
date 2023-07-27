@@ -594,7 +594,8 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
 
 let simplify_get_header ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
     ~result_var =
-  SPR.create_unknown dacc ~result_var (P.result_kind' original_prim)
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
     ~original_term
 
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
