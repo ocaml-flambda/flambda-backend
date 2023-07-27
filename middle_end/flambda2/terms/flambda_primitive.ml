@@ -997,9 +997,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   | String_length _ -> No_effects, No_coeffects, Strict
   | Int_as_pointer alloc_mode ->
     let coeffects : Coeffects.t =
-      match alloc_mode with
-      | Local _ -> Has_coeffects
-      | Heap -> No_coeffects
+      match alloc_mode with Local _ -> Has_coeffects | Heap -> No_coeffects
     in
     No_effects, coeffects, Strict
   | Opaque_identity _ -> Arbitrary_effects, Has_coeffects, Strict
@@ -1092,8 +1090,8 @@ let free_names_unary_primitive p =
          value_slot Name_mode.normal)
       project_from Name_mode.normal
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
+  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
   | Obj_dup ->
@@ -1107,8 +1105,8 @@ let apply_renaming_unary_primitive p renaming =
     in
     if alloc_mode == alloc_mode' then p else Box_number (kind, alloc_mode')
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
+  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
   | Project_function_slot _ | Project_value_slot _ | Obj_dup ->
@@ -1119,8 +1117,8 @@ let ids_for_export_unary_primitive p =
   | Box_number (_kind, alloc_mode) ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_int64_as_float | Float_arith _ | Array_length
+  | Int_as_pointer _ | Opaque_identity _ | Int_arith _ | Num_conv _
+  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
   | Project_function_slot _ | Project_value_slot _ | Obj_dup ->
