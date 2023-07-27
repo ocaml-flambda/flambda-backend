@@ -3657,7 +3657,6 @@ let type_pattern_approx env spat ty_expected =
   | _ -> ()
 
 let rec type_function_approx env loc label spato sexp in_function ty_expected =
-  let label = Typetexp.transl_label label None in
   let has_local, has_poly =
     match spato with
     | None -> false, false
@@ -3698,10 +3697,18 @@ and type_approx_aux env sexp in_function ty_expected =
   | None      -> match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
   | Pexp_fun (l, _, p, e) ->
+      let l, p = match p with
+      | {ppat_desc = Ppat_constraint (inner_pat,
+                      ({ ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _} as ty)); _} ->
+          (* If the argument is a src_pos, translate the label using this
+             information. Otherwise, we don't care about the argument type *)
+          Typetexp.transl_label l (Some ty), inner_pat
+      | _ -> (Typetexp.transl_label l None), p
+      in
       type_function_approx env sexp.pexp_loc l (Some p) e
         in_function ty_expected
   | Pexp_function ({pc_rhs=e}::_) ->
-      type_function_approx env sexp.pexp_loc Parsetree.Nolabel None e
+      type_function_approx env sexp.pexp_loc Nolabel None e
         in_function ty_expected
   | Pexp_match (_, {pc_rhs=e}::_) -> type_approx_aux env e None ty_expected
   | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
@@ -4411,7 +4418,7 @@ and type_expect_
       let l, spat = match spat with
       | {ppat_desc = Ppat_constraint (inner_pat,
                       ({ ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _} as ty)); _} ->
-          (* If the argument is a src_pos, translate the label using this 
+          (* If the argument is a src_pos, translate the label using this
              information. Otherwise, we don't care about the argument type *)
           Typetexp.transl_label l (Some ty), inner_pat
       | _ -> (Typetexp.transl_label l None), spat
