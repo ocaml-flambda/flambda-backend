@@ -709,7 +709,7 @@ let rec transl env e =
          | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu
          | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
          | Pbytesrefs | Pbytessets | Pisint | Pisout
-         | Pbswap16 | Pint_as_pointer | Popaque | Pfield _
+         | Pbswap16 | Pint_as_pointer _ | Popaque | Pfield _
          | Psetfield (_, _, _) | Psetfield_computed (_, _)
          | Pfloatfield _ | Psetfloatfield (_, _) | Pduprecord (_, _)
          | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _ | Poffsetint _
@@ -976,7 +976,7 @@ and transl_prim_1 env p arg dbg =
   | Pfloatfield (n,mode) ->
       let ptr = transl env arg in
       box_float dbg mode (floatfield n ptr dbg)
-  | Pint_as_pointer ->
+  | Pint_as_pointer _ ->
       int_as_pointer (transl env arg) dbg
   (* Exceptions *)
   | Praise rkind ->
@@ -1222,7 +1222,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
   | Pnot | Pnegint | Pintoffloat | Pfloatofint _ | Pnegfloat _
   | Pabsfloat _ | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
-  | Pisint | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _
+  | Pisint | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _) | Pfield _ | Psetfield_computed (_, _)
   | Pfloatfield _
   | Pduprecord (_, _) | Pccall _ | Praise _ | Poffsetint _ | Poffsetref _
@@ -1279,7 +1279,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
   | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs | Pisint | Pisout
-  | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _
+  | Pbswap16 | Pint_as_pointer _ | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _)
   | Pfield _ | Psetfield (_, _, _) | Pfloatfield _ | Psetfloatfield (_, _)
   | Pduprecord (_, _) | Pccall _ | Praise _ | Pdivint _ | Pmodint _ | Pintcomp _

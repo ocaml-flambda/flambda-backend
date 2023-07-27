@@ -631,7 +631,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Reinterpret_int64_as_float -> simplify_reinterpret_int64_as_float
     | Is_boxed_float -> simplify_is_boxed_float
     | Is_flat_float_array -> simplify_is_flat_float_array
-    | Int_as_pointer -> simplify_int_as_pointer
+    | Int_as_pointer _ -> simplify_int_as_pointer
     | Bigarray_length { dimension } -> simplify_bigarray_length ~dimension
     | Duplicate_array { kind; source_mutability; destination_mutability } ->
       simplify_duplicate_array ~kind ~source_mutability ~destination_mutability

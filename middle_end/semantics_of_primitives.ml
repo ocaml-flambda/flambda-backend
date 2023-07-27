@@ -150,7 +150,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
       Arbitrary_effects, No_coeffects
   | Pbswap16 -> No_effects, No_coeffects
   | Pbbswap (_,m) -> No_effects, coeffects_of m
-  | Pint_as_pointer -> No_effects, No_coeffects
+  | Pint_as_pointer m -> No_effects, coeffects_of m
   | Popaque -> Arbitrary_effects, Has_coeffects
   | Psequand
   | Psequor ->
@@ -276,7 +276,7 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
       false
   | Pbswap16 -> false
   | Pbbswap (_,m) -> is_local_alloc m
-  | Pint_as_pointer -> false
+  | Pint_as_pointer m -> is_local_alloc m
   | Popaque -> false
   | Psequand
   | Psequor ->

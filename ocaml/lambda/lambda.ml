@@ -231,7 +231,7 @@ type primitive =
   | Pbswap16
   | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
-  | Pint_as_pointer
+  | Pint_as_pointer of alloc_mode
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -1470,7 +1470,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pctconst _ -> None
   | Pbswap16 -> None
   | Pbbswap (_, m) -> Some m
-  | Pint_as_pointer -> None
+  | Pint_as_pointer m -> Some m
   | Popaque _ -> None
   | Pprobe_is_enabled _ -> None
   | Pobj_dup -> Some alloc_heap
@@ -1572,7 +1572,7 @@ let primitive_result_layout (p : primitive) =
       (* Compile-time constants only ever return ints for now,
          enumerate them all to be sure to modify this if it becomes wrong. *)
       layout_int
-  | Pint_as_pointer ->
+  | Pint_as_pointer _ ->
       (* CR ncourant: use an unboxed int64 here when it exists *)
       layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
