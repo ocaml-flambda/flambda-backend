@@ -7,7 +7,7 @@ open Untypeast
 open Compat
 
 type ('a, 'b) minimizer = {
-  minimizer_name : int ;
+  minimizer_name : string ;
   minimizer_func : (unit -> bool) -> 'a -> 'b -> 'a
 }
 
