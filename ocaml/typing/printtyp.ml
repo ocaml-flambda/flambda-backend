@@ -1098,7 +1098,7 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
-let transl_label : Types.arg_label -> Outcometree.arg_label = function
+let transl_outcome_label : Types.arg_label -> Outcometree.arg_label = function
   | Nolabel -> Nolabel
   | Labelled l -> Labelled l
   | Optional l -> Optional l
@@ -1123,11 +1123,7 @@ let transl_label : Types.arg_label -> Outcometree.arg_label = function
         Otyp_var (non_gen, Names.name_of_type name_gen tty)
     | Tarrow ((l, marg, mret), ty1, ty2, _) ->
         let lab =
-          if !print_labels || is_optional l then
-            match l with
-            | Nolabel -> Nolabel
-            | Labelled l -> Labelled l
-            | Optional l -> Optional l
+          if !print_labels || is_optional l then transl_outcome_label l
           else Nolabel
         in
         let t1 =
@@ -1767,7 +1763,7 @@ let rec tree_of_class_type mode params =
       Octy_signature (self_ty, List.rev csil)
   | Cty_arrow (l, ty, cty) ->
       let lab =
-        if !print_labels || is_optional l then transl_label l
+        if !print_labels || is_optional l then transl_outcome_label l
         else Nolabel
       in
       let tr =
