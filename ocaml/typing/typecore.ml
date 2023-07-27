@@ -193,7 +193,6 @@ type error =
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Layout.Violation.t
-  | Invalid_label_for_src_pos of Parsetree.arg_label
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3589,7 +3588,7 @@ let rec approx_type env sty =
   match sty.ptyp_desc with
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
       (* CR layouts v5: value requirement here to be relaxed *)
-      let p = Typetexp.transl_label p in
+      let p = Typetexp.transl_label p (Some arg_sty) in
       if is_optional p then newvar (Layout.value ~why:Type_argument)
       else begin
         let arg_mode = Typetexp.get_alloc_mode arg_sty in
@@ -3606,7 +3605,7 @@ let rec approx_type env sty =
       end
   | Ptyp_arrow (p, arg_sty, sty) ->
       let arg_mode = Typetexp.get_alloc_mode arg_sty in
-      let p = Typetexp.transl_label p in
+      let p = Typetexp.transl_label p (Some arg_sty) in
       let arg =
         if is_optional p
         then type_option (newvar (Layout.value ~why:Type_argument))
@@ -3658,7 +3657,7 @@ let type_pattern_approx env spat ty_expected =
   | _ -> ()
 
 let rec type_function_approx env loc label spato sexp in_function ty_expected =
-  let label = Typetexp.transl_label label in
+  let label = Typetexp.transl_label label None in
   let has_local, has_poly =
     match spato with
     | None -> false, false
@@ -4355,7 +4354,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_fun (l, Some default, spat, sbody) ->
-      let l = Typetexp.transl_label l in
+      let l = Typetexp.transl_label l None in
       assert(is_optional l); (* default allowed only with optional argument *)
       let open Ast_helper in
       let default_loc = default.pexp_loc in
@@ -4411,11 +4410,13 @@ and type_expect_
           Unsupported_extension Polymorphic_parameters));
       let l, spat = match spat with
       | {ppat_desc = Ppat_constraint (inner_pat,
-                      { ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _}); _} ->
-          (match l with
+                      ({ ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _} as ty)); _} ->
+          (* If the label is invalid, an error is raised by transl_label *)
+          Typetexp.transl_label l (Some ty), inner_pat
+          (* (match l with
           | Labelled l -> Position l, inner_pat
-          | Nolabel | Optional _ -> raise (Error (loc, env, Invalid_label_for_src_pos l)))
-      | _ -> (Typetexp.transl_label l), spat
+          | Nolabel | Optional _ -> raise (Error (loc, env, Invalid_label_for_src_pos l))) *)
+      | _ -> (Typetexp.transl_label l None), spat
       in
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained l ~has_local
@@ -6603,7 +6604,7 @@ and type_application env app_loc expected_mode pm
       in
       if !Clflags.principal then begin_def () ;
       let sargs = List.map 
-        (fun (label, e) -> Typetexp.transl_label label, e) sargs 
+        (fun (label, e) -> Typetexp.transl_label label None, e) sargs 
       in
       let ty_ret, mode_ret, untyped_args =
         collect_apply_args env funct ignore_labels ty (instance ty)
@@ -8435,13 +8436,6 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
-  | Invalid_label_for_src_pos arg_label ->
-      Location.errorf ~loc
-        "A position argument must not be %s."
-        (match arg_label with
-        | Nolabel -> "unlabelled"
-        | Optional _ -> "optional"
-        | Labelled _ -> assert false )
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

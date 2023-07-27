@@ -60,6 +60,7 @@ type error =
       {vloc : value_loc; typ : type_expr; err : Layout.Violation.t}
   | Non_sort of
       {vloc : sort_loc; typ : type_expr; err : Layout.Violation.t}
+  | Invalid_label_for_src_pos of Parsetree.arg_label
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -426,11 +427,17 @@ let check_arg_type styp =
     | _ -> ()
   end
 
-(* TODO vding: Modify this to consider src_pos. *)
-let transl_label : Parsetree.arg_label -> Types.arg_label = function
-  | Labelled l -> Labelled l
-  | Optional l -> Optional l
-  | Nolabel -> Nolabel
+let transl_label (label : Parsetree.arg_label)
+    (arg_opt : Parsetree.core_type option) =
+  match label, arg_opt with
+  | Labelled l, Some { ptyp_desc = Ptyp_extension ({txt="src_pos"; _}, _); _}
+      -> Position l
+  | _, Some ({ ptyp_desc = Ptyp_extension ({txt="src_pos"; _}, _); _} as arg)
+      (* TODO vding: This will be a cyclic dependency. Need to make new error in this file *)
+      -> raise (Error (arg.ptyp_loc, Env.empty, Invalid_label_for_src_pos label))
+  | Labelled l, _ -> Labelled l
+  | Optional l, _ -> Optional l
+  | Nolabel, _ -> Nolabel
 
 let rec transl_type env policy mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
@@ -470,16 +477,16 @@ and transl_type_aux env policy mode styp =
       let rec loop acc_mode args =
         match args with
         | (l, arg_mode, arg) :: rest ->
-          let l = transl_label l in
+          let l = transl_label l (Some arg) in
           check_arg_type arg;
-          let l, arg_cty =
-            match l, arg.ptyp_desc with
-            | (Labelled l | Position l), Ptyp_extension ({txt="src_pos"; _}, _payload) ->
+          let arg_cty =
+            match arg.ptyp_desc with
+            | Ptyp_extension ({txt="src_pos"; _}, _payload) ->
+              let constr = newconstr Predef.path_lexing_position [] in
               (* CR src_pos: Consider bundling argument types into arg_labels, so there
                  is no need to create this redundant type *)
-              let constr = newconstr Predef.path_lexing_position [] in
-              Position l, ctyp Ttyp_src_pos constr
-            |_ -> l, transl_type env policy arg_mode arg
+              ctyp Ttyp_src_pos constr
+            |_ -> transl_type env policy arg_mode arg
           in
           let acc_mode = Alloc_mode.join_const acc_mode arg_mode in
           let ret_mode =
@@ -1154,6 +1161,12 @@ let report_error env ppf = function
     fprintf ppf "@[%s types must have a representable layout.@ \ %a@]"
       s (Layout.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
+  | Invalid_label_for_src_pos arg_label ->
+      fprintf ppf "A position argument must not be %s."
+        (match arg_label with
+        | Nolabel -> "unlabelled"
+        | Optional _ -> "optional"
+        | Labelled _ -> assert false )
 
 let () =
   Location.register_error_of_exn

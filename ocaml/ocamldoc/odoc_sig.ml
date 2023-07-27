@@ -1780,10 +1780,9 @@ module Analyser =
           in
           ([], Class_structure (inher_l, ele))
 
-      | (Parsetree.Pcty_arrow (parse_label, _, pclass_type), Types.Cty_arrow (label, type_expr, class_type)) ->
-          (* label = string. In signature, there is no parameter names inside tuples *)
-          (* if label = "", no label . Here we have the information to determine if a label is explicit or not. *)
-          if (Typetexp.transl_label parse_label) = label then
+      | (Parsetree.Pcty_arrow (parse_label, arg, pclass_type), Types.Cty_arrow (label, type_expr, class_type)) ->
+          (* In signature, there is no parameter names inside tuples *)
+          if (Typetexp.transl_label parse_label (Some arg)) = label then
             (
              let new_param = Simple_name
                  {
@@ -1797,7 +1796,7 @@ module Analyser =
             )
           else
             (
-             raise (Failure "Parsetree.Pcty_arrow (parse_label, _, pclass_type), different labels")
+             raise (Failure "Parsetree.Pcty_arrow (parse_label, arg, pclass_type), different labels")
             )
 
       | _ ->
