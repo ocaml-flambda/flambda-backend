@@ -5718,79 +5718,45 @@ and type_expect_
       | _ -> raise (Error (loc, env, Probe_is_enabled_format))
     end
   | Pexp_extension ({ txt = "src_pos"; loc }, _) ->
-
-
-    let label_definitions =
-      Array.map (fun lbl -> Overridden (lid, lbl_exp)) lbl.lbl_all
-    in
-    (* lbl_all: label_description array; *)
-
-    let label_descriptions, representation =
-      let (_, { lbl_all; lbl_repres }, _) = List.hd lbl_exp_list in
-      lbl_all, lbl_repres
-    in
     let fields =
-      Array.map2 (fun descr def -> descr, def)
-        label_descriptions label_definitions
+      Array.map (fun lbl -> 
+        let pos = loc.loc_start in
+        let value, typ =
+          let mk_int value = Texp_constant (Const_int value), Predef.type_int in
+          match lbl.lbl_name with
+          | "pos_fname" -> 
+              (* TODO vding question: Is this correct for string representation?
+                 (no delimiter) *)
+              Texp_constant (Const_string (pos.pos_fname, loc, None)),
+              Predef.type_string
+          | "pos_lnum"  -> mk_int pos.pos_lnum
+          | "pos_bol"   -> mk_int pos.pos_bol
+          | "pos_cnum"  -> mk_int pos.pos_cnum
+          | _ -> assert false
+        in
+        let exp =
+          { exp_desc = value;
+            exp_loc = loc;
+            exp_extra = [];
+            exp_type = typ;
+            exp_env = env;
+            exp_attributes = [] }
+        in
+        lbl, Overridden ({txt = (Longident.Lident lbl.lbl_name); loc}, exp))
+      Predef.lexing_position_labels
     in
-    re {
+    re { (* TODO vding: Should I call rue? *)
       exp_desc = Texp_record {
-          fields; representation;
-          extended_expression = opt_exp;
-          alloc_mode
+          fields;
+          representation = Predef.lexing_position_representation;
+          extended_expression = None;
+          alloc_mode = None
+          (* TODO vding: Should it be Some (register_allocation expected_mode)? *)
         };
       exp_loc = loc; exp_extra = [];
       exp_type = Predef.type_lexing_position;
       exp_attributes = [];
       exp_env = env }
-
-
-
-
-
-
-
-
-(*
-     | Pexp_record of (Longident.t loc * expression) list * expression option
-      (** [Pexp_record([(l1,P1) ; ... ; (ln,Pn)], exp0)] represents
-            - [{ l1=P1; ...; ln=Pn }]         when [exp0] is [None]
-            - [{ E0 with l1=P1; ...; ln=Pn }] when [exp0] is [Some E0]
-
-           Invariant: [n > 0]
-         *)
- *)
-
-  (* rue { exp_desc = Texp_record {
-          fields = (Array.map
-            (fun (lbl_desc : label_description) ->
-              let value, typ =
-                let pos = loc.loc_start in
-                (match lbl_desc.lbl_name with
-                | "pos_fname" -> Texp_constant (Const_string (pos.pos_fname, loc, None)), Predef.type_string
-                (* TODO vding question: is the above correct for string representation? (no delimiter) *)
-                | "pos_lnum"  -> Texp_constant (Const_int pos.pos_lnum), Predef.type_int
-                | "pos_bol"   -> Texp_constant (Const_int pos.pos_bol), Predef.type_int
-                | "pos_cnum"  -> Texp_constant (Const_int pos.pos_cnum), Predef.type_int
-                | _ -> assert false)
-              in
-              let exp =
-                { exp_desc = value;
-                  exp_loc = loc;
-                  exp_extra = [];
-                  exp_type = typ;
-                  exp_env = env;
-                  exp_attributes = []
-                }
-              in
-              lbl_desc, Overridden ({txt = (Longident.Lident lbl_desc.lbl_name); loc}, exp))
-              Predef.lexing_position_labels);
-          representation = Predef.lexing_position_representation;
-          extended_expression = None;
-          alloc_mode = None (* TODO vding question: Is this fine? *)
-        };
-...
-      } *)
   | Pexp_extension ext ->
     raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
