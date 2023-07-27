@@ -8010,7 +8010,10 @@ let report_error ~loc env = function
   | Apply_wrong_label (l, ty, extra_info) ->
       let print_label ppf = function
         | Nolabel -> fprintf ppf "without label"
-        | l -> fprintf ppf "with label %s" (prefixed_label_name l)
+        | Position _ as l -> fprintf ppf "with label %s:[%%src_pos]"
+                             (prefixed_label_name l)
+        |(Labelled _ | Optional _) as l -> fprintf ppf "with label %s" 
+                                           (prefixed_label_name l)
       in
       let extra_info =
         if not extra_info then
@@ -8154,7 +8157,10 @@ let report_error ~loc env = function
   | Abstract_wrong_label {got; expected; expected_type; explanation} ->
       let label ~long = function
         | Nolabel -> "unlabeled"
-        | l       -> (if long then "labeled " else "") ^ prefixed_label_name l
+        | Position _ as l -> (if long then "labeled " else "") ^ 
+                              prefixed_label_name l ^ ":[%src_pos]"
+        | (Labelled _ | Optional _) as l -> (if long then "labeled " else "") ^
+                                            prefixed_label_name l
       in
       let second_long = match got, expected with
         | Nolabel, _ | _, Nolabel -> true
