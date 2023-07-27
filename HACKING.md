@@ -245,13 +245,24 @@ should also work, if you wish to work outside emacs.
       (setq ocamldebug-debuggee-args
             (read-from-minibuffer (format "Args for ocamlc: ")
                                   ocamldebug-debuggee-args))
+      ;; In addition to the directories in .ocamldebug, use 'find' to
+      ;; see also list directories with -I; this finds any new cmo directories
+      ;; since the last 'make debug'
+      (let* ((cmo-top-dir (file-name-concat ocaml-dir "_build/main"))
+             (find-cmo-cmd (concat "find "
+                                   cmo-top-dir
+                                   " -name '*.cmo' -type f -printf '%h\n' | sort -u"))
+             (cmo-dirs (shell-command-to-string find-cmo-cmd)))
+        (setq cmo-dir-list (split-string cmo-dirs "\n" t)))
       (let* ((user-args (split-string-shell-command ocamldebug-debuggee-args))
+             (includes (mapcan (lambda (dir) (list "-I" dir)) cmo-dir-list))
              (args (append (list
                              comint-name
                              ocamldebug-command-name
                              nil
                              "-emacs"
                              "-cd" default-directory)
+                           includes
                            (list pgm-path)
                            user-args)))
         (apply #'make-comint args)
