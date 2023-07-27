@@ -87,7 +87,9 @@ module Instruction = struct
       stack_offset = -1;
       id = -1;
       irc_work_list = Unknown_list;
-      ls_order = -1
+      ls_order = -1;
+      available_before = None;
+      available_across = None
     }
 
   let compare (left : t) (right : t) : int = Int.compare left.id right.id
@@ -240,7 +242,9 @@ module Move = struct
       stack_offset = instr.stack_offset;
       id;
       irc_work_list = Unknown_list;
-      ls_order = -1
+      ls_order = -1;
+      available_before = instr.available_before;
+      available_across = instr.available_across
     }
 
   let to_string = function Plain -> "move" | Load -> "load" | Store -> "store"
@@ -482,14 +486,19 @@ let insert_block :
     Misc.fatal_errorf
       "Cannot insert a block after block %a: it has no successors" Label.print
       predecessor_block.start;
-  let dbg, fdo, live, stack_offset =
+  let dbg, fdo, live, stack_offset, available_before, available_across =
     match DLL.last body with
     | None ->
       ( Debuginfo.none,
         Fdo_info.none,
         Reg.Set.empty,
-        predecessor_block.stack_offset )
-    | Some { dbg; fdo; live; stack_offset; _ } -> dbg, fdo, live, stack_offset
+        predecessor_block.stack_offset,
+        None,
+        None )
+    | Some
+        { dbg; fdo; live; stack_offset; available_before; available_across; _ }
+      ->
+      dbg, fdo, live, stack_offset, available_before, available_across
   in
   let copy (i : Cfg.basic Cfg.instruction) : Cfg.basic Cfg.instruction =
     { i with id = next_instruction_id () }
@@ -524,7 +533,9 @@ let insert_block :
               stack_offset;
               id = next_instruction_id ();
               irc_work_list = Unknown_list;
-              ls_order = -1
+              ls_order = -1;
+              available_before;
+              available_across
             };
           (* The [predecessor_block] is the only predecessor. *)
           predecessors = Label.Set.singleton predecessor_block.start;

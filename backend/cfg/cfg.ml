@@ -390,7 +390,9 @@ let print_basic' ?print_reg ppf (instruction : basic instruction) =
       res = instruction.res;
       dbg = [];
       fdo = None;
-      live = Reg.Set.empty
+      live = Reg.Set.empty;
+      available_before = None;
+      available_across = None
     }
   in
   Printlinear.instr' ?print_reg ppf instruction

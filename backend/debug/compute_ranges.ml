@@ -344,7 +344,9 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
             res = [||];
             dbg = insn.dbg;
             fdo = insn.fdo;
-            live = insn.live
+            live = insn.live;
+            available_before = insn.available_before;
+            available_across = insn.available_across
           }
         in
         used_label := Some (label, label_insn);
