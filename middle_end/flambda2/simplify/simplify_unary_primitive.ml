@@ -485,7 +485,8 @@ let simplify_end_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:false dacc
 
-let simplify_int_as_pointer dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
+let simplify_int_as_pointer ~mode:_ dacc ~original_term ~arg:_ ~arg_ty:_
+    ~result_var =
   SPR.create_unknown dacc ~result_var K.value ~original_term
 
 let simplify_bigarray_length ~dimension:_ dacc ~original_term ~arg:_ ~arg_ty:_
@@ -631,7 +632,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Reinterpret_int64_as_float -> simplify_reinterpret_int64_as_float
     | Is_boxed_float -> simplify_is_boxed_float
     | Is_flat_float_array -> simplify_is_flat_float_array
-    | Int_as_pointer _ -> simplify_int_as_pointer
+    | Int_as_pointer mode -> simplify_int_as_pointer ~mode
     | Bigarray_length { dimension } -> simplify_bigarray_length ~dimension
     | Duplicate_array { kind; source_mutability; destination_mutability } ->
       simplify_duplicate_array ~kind ~source_mutability ~destination_mutability

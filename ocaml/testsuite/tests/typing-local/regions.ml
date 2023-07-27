@@ -16,18 +16,27 @@ let check_empty name =
   end;
   last_offset := offs
 
+let check_not_empty name =
+  let offs = local_stack_offset ()in
+  if offs <> !last_offset then begin
+    Printf.printf "%25s: OK\n%!" name
+  end else begin
+    Printf.printf "%25s: not leaking while expected so\n%!" name
+  end;
+  last_offset := offs
+
 let () = check_empty "startup"
 
-let foo x = local_
+let allocate_in_current_region x = local_
   ignore_local (Some x);
   ()
 
-let foo_bad : 'a -> unit = Obj.magic foo
+let leak_in_current_region : 'a -> unit = Obj.magic allocate_in_current_region
 
 external follow : int -> ('a [@local_opt]) = "%int_as_pointer"
 
 let[@inline never] int_as_pointer_local x =
-  foo_bad x;
+  leak_in_current_region x;
   (* The region should be preserved by the following call; hence no stack space
      leaking *)
   let _ = opaque_identity (follow 0) in
@@ -37,13 +46,13 @@ let[@inline never] int_as_pointer_global x =
   (* The current function region will be eliminated, because the following two
      function calls don't allocate on the region (superficially). The first call
      secretly does, hence stack space leaking. *)
-  foo_bad x;
+  leak_in_current_region x;
   let _ = Sys.opaque_identity (follow 0) in
   ()
 
 let () =
   int_as_pointer_global 42;
-  check_empty "int_as_pointer (global)"
+  check_not_empty "int_as_pointer (global)"
 
 let () =
   int_as_pointer_local 42;

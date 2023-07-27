@@ -659,6 +659,10 @@ let result_kind_of_nullary_primitive p : result_kind =
   | Begin_region -> Singleton K.region
   | Enter_inlined_apply _ -> Unit
 
+let coeffects_of_mode : Alloc_mode.For_allocations.t -> Coeffects.t = function
+  | Local _ -> Coeffects.Has_coeffects
+  | Heap -> Coeffects.No_coeffects
+
 let effects_and_coeffects_of_begin_region : Effects_and_coeffects.t =
   (* Ensure these don't get moved, but allow them to be deleted. *)
   Only_generative_effects Mutable, Has_coeffects, Strict
@@ -737,7 +741,7 @@ let unary_primitive_eligible_for_cse p ~arg =
   | Array_length -> true
   | Bigarray_length _ -> false
   | String_length _ -> true
-  | Int_as_pointer _ -> true
+  | Int_as_pointer m -> ( match m with Heap -> true | Local _ -> false)
   | Opaque_identity _ -> false
   | Int_arith _ -> true
   | Float_arith _ ->
@@ -996,10 +1000,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
     No_effects, No_coeffects, Strict
   | String_length _ -> No_effects, No_coeffects, Strict
   | Int_as_pointer alloc_mode ->
-    let coeffects : Coeffects.t =
-      match alloc_mode with Local _ -> Has_coeffects | Heap -> No_coeffects
-    in
-    No_effects, coeffects, Strict
+    No_effects, coeffects_of_mode alloc_mode, Strict
   | Opaque_identity _ -> Arbitrary_effects, Has_coeffects, Strict
   | Int_arith (_, (Neg | Swap_byte_endianness))
   | Num_conv _ | Boolean_not | Reinterpret_int64_as_float ->
@@ -1040,10 +1041,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
         match alloc_mode with Heap -> Delay | Local _ -> Strict
       else Strict
     in
-    let coeffects : Coeffects.t =
-      match alloc_mode with Heap -> No_coeffects | Local _ -> Has_coeffects
-    in
-    Only_generative_effects Immutable, coeffects, placement
+    Only_generative_effects Immutable, coeffects_of_mode alloc_mode, placement
   | Project_function_slot _ | Project_value_slot _ ->
     No_effects, No_coeffects, Delay
   | Is_boxed_float | Is_flat_float_array ->
