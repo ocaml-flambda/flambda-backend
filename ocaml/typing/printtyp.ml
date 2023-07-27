@@ -508,19 +508,10 @@ let print_name ppf = function
     None -> fprintf ppf "None"
   | Some name -> fprintf ppf "\"%s\"" name
 
-let string_of_label = function
-<<<<<<< HEAD
-    Asttypes.Nolabel -> ""
-  | Asttypes.Labelled s -> s
-  | Asttypes.Optional s -> "?"^s
-=======
+let string_of_label : Types.arg_label -> string = function
     Nolabel -> ""
-  | Labelled s -> s
-  | Position s -> s^":[%src_pos]"
-  (* TODO vding: this is incorrect behavior for some uses. Change so
-     Position and Labelled behave the same once the Otyp PR is in *)
+  | Labelled s | Position s -> s
   | Optional s -> "?"^s
->>>>>>> 318c9da5 (Hacky outcometree printing without creating nontrivial node)
 
 let visited = ref []
 let rec raw_type ppf ty =
@@ -1107,7 +1098,13 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
-let rec tree_of_typexp mode ty =
+let transl_label : Types.arg_label -> Outcometree.arg_label = function
+  | Nolabel -> Nolabel
+  | Labelled l -> Labelled l
+  | Optional l -> Optional l
+  | Position l -> Position l
+
+  let rec tree_of_typexp mode ty =
   let px = proxy ty in
   if List.memq px !printed_aliases && not (List.memq px !delayed) then
    let mark = is_non_gen mode ty in

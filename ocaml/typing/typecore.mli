@@ -270,7 +270,7 @@ type error =
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Layout.Violation.t
-  | Invalid_label_for_src_pos of arg_label
+  | Invalid_label_for_src_pos of Parsetree.arg_label
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

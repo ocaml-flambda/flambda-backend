@@ -170,8 +170,8 @@ and core_type_desc =
 
 and arg_label = Asttypes.arg_label =
     Nolabel
-  | Labelled of string (** [label:T -> ...] *)
-  | Optional of string (** [?label:T -> ...] *)
+  | Labelled of string
+  | Optional of string
 
 and package_type = Longident.t loc * (Longident.t loc * core_type) list
 (** As {!package_type} typed values:

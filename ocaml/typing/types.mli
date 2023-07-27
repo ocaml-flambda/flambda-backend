@@ -143,6 +143,7 @@ and arg_label =
   | Nolabel
   | Labelled of string (** [label:T -> ...] *)
   | Optional of string (** [?label:T -> ...] *)
+  | Position of string (** [label:[%src_pos] -> ...] *)
 
 and arrow_desc =
   arg_label * alloc_mode * alloc_mode

@@ -188,6 +188,7 @@ and arg_label = Types.arg_label =
   | Nolabel
   | Labelled of string
   | Optional of string
+  | Position of string
 
 (** Layouts in the typed tree: Compilation of the typed tree to lambda sometimes
     requires layout information.  Our approach is to propagate layout

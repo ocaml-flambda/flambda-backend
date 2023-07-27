@@ -297,7 +297,6 @@ let tyvar ppf s =
 
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
-let src_pos_extension_node = "[%src_pos]"
 
 let maybe_local_type pty ctxt f c =
   let cattrs, is_local = check_local_attr c.ptyp_attributes in

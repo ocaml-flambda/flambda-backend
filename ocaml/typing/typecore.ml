@@ -193,7 +193,7 @@ type error =
   | Unboxed_int_literals_not_supported
   | Unboxed_float_literals_not_supported
   | Function_type_not_rep of type_expr * Layout.Violation.t
-  | Invalid_label_for_src_pos of arg_label
+  | Invalid_label_for_src_pos of Parsetree.arg_label
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -4355,7 +4355,8 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_fun (l, Some default, spat, sbody) ->
-      assert(is_optional_parsetree l); (* default allowed only with optional argument *)
+      let l = Typetexp.transl_label l in
+      assert(is_optional l); (* default allowed only with optional argument *)
       let open Ast_helper in
       let default_loc = default.pexp_loc in
       (* Defaults are always global. They can be moved out of the function's
@@ -4412,9 +4413,9 @@ and type_expect_
       | {ppat_desc = Ppat_constraint (inner_pat,
                       { ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _}); _} ->
           (match l with
-          | Labelled l | Position l -> Position l, inner_pat
+          | Labelled l -> Position l, inner_pat
           | Nolabel | Optional _ -> raise (Error (loc, env, Invalid_label_for_src_pos l)))
-      | _ -> l, spat
+      | _ -> (Typetexp.transl_label l), spat
       in
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained l ~has_local
@@ -4422,7 +4423,7 @@ and type_expect_
   | Pexp_function caselist ->
       type_function ?in_function
         loc sexp.pexp_attributes env expected_mode
-        ty_expected_explained Parsetree.Nolabel ~has_local:false ~has_poly:false caselist
+        ty_expected_explained Nolabel ~has_local:false ~has_poly:false caselist
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = ("ocaml.local" | "local" | "extension.local" as txt)}, PStr []) },
        [Nolabel, sbody]) ->
@@ -5781,7 +5782,6 @@ and type_binding_op_ident env s =
 
 and type_function ?in_function loc attrs env (expected_mode : expected_mode)
       ty_expected_explained arg_label ~has_local ~has_poly caselist =
-  let arg_label = Typetexp.transl_label arg_label in
   let { ty = ty_expected; explanation } = ty_expected_explained in
   let alloc_mode = Value_mode.regional_to_global_alloc expected_mode.mode in
   let alloc_mode =
@@ -8441,7 +8441,7 @@ let report_error ~loc env = function
         (match arg_label with
         | Nolabel -> "unlabelled"
         | Optional _ -> "optional"
-        | Labelled _ | Position _ -> assert false )
+        | Labelled _ -> assert false )
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env
