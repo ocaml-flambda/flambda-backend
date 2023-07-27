@@ -139,6 +139,14 @@ let rec rename i sub =
           (instr_cons i.desc i.arg [|newr|] new_next,
            sub_next)
       end
+  | Iop (Iname_for_debugger {
+        ident; which_parameter; provenance; is_assignment; regs }) ->
+      let (new_next, sub_next) = rename i.next sub in
+      let regs = subst_regs regs sub in
+      (instr_cons_debug (Iop (Iname_for_debugger {
+          ident; which_parameter; provenance; is_assignment; regs }))
+         [| |] [||] i.dbg new_next,
+       sub_next)
   | Iop _ ->
       let (new_next, sub_next) = rename i.next sub in
       (instr_cons_debug i.desc (subst_regs i.arg sub) (subst_regs i.res sub)

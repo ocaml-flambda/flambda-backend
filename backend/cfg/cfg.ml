@@ -479,7 +479,7 @@ let is_pure_operation : operation -> bool = function
   | Specific s ->
     assert (not (Arch.operation_can_raise s));
     Arch.operation_is_pure s
-  | Name_for_debugger _ -> true
+  | Name_for_debugger _ -> false
 
 let is_pure_basic : basic -> bool = function
   | Op op -> is_pure_operation op

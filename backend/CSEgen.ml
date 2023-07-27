@@ -250,7 +250,7 @@ method class_of_operation op =
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue -> Op_pure
   | Ispecific _ -> Op_other
-  | Iname_for_debugger _ -> Op_pure
+  | Iname_for_debugger _ -> Op_other
   | Iprobe_is_enabled _ -> Op_other
   | Ibeginregion | Iendregion -> Op_other
 

@@ -629,10 +629,11 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     | Iopaque -> basic Opaque
     | Ibeginregion -> basic Begin_region
     | Iendregion -> basic End_region
-    | Iname_for_debugger { ident; which_parameter; provenance; is_assignment }
-      ->
+    | Iname_for_debugger
+        { ident; which_parameter; provenance; is_assignment; regs } ->
       basic
-        (Name_for_debugger { ident; which_parameter; provenance; is_assignment })
+        (Name_for_debugger
+           { ident; which_parameter; provenance; is_assignment; regs })
     | Ispecific op ->
       if Arch.operation_can_raise op
       then
