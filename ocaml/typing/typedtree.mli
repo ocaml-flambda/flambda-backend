@@ -353,6 +353,9 @@ and expression_desc =
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
   | Texp_src_pos
+    (* A source position value which has been automatically inferred, either
+       as a result of [%src_pos] occuring in an expression, or omission of a
+       Position argument in function application *)
 
 and ident_kind = Id_value | Id_prim of Types.alloc_mode option
 

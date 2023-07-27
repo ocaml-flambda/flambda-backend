@@ -445,6 +445,7 @@ let expr sub x =
     | Texp_probe_is_enabled _ as e -> e
     | Texp_exclave exp ->
         Texp_exclave (sub.expr sub exp)
+    | Texp_src_pos -> Texp_src_pos
   in
   {x with exp_extra; exp_desc; exp_env}
 

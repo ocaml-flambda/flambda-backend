@@ -195,7 +195,8 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_unreachable
     | Texp_extension_constructor _
     | Texp_probe _
-    | Texp_probe_is_enabled _ ->
+    | Texp_probe_is_enabled _
+    | Texp_src_pos -> (* TODO vding question: Wasn't sure about this one *)
         Static
 
     | Texp_match _
