@@ -4,7 +4,7 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 module IntCsv : Csv_data.T
 
-val set_csv : unit -> unit
+val csv_singleton : IntCsv.t option ref
 
 val get_csv : unit -> IntCsv.t
 
@@ -18,5 +18,11 @@ val prev_at_most : int -> 'a DLL.cell -> 'a DLL.cell
 
 val get_cells : Cfg.basic Cfg.instruction DLL.cell ->
   int -> Cfg.basic Cfg.instruction DLL.cell list
+
+val is_bitwise_op : Mach.integer_operation -> bool
+
+val bitwise_overflow_assert : int -> int -> (int -> int -> int) -> unit
+
+val no_32_bit_overflow : int -> int -> (int -> int -> int) -> bool
 
 type rule = Cfg.basic Cfg.instruction DLL.cell -> Cfg.basic Cfg.instruction DLL.cell option

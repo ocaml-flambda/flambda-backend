@@ -1,3 +1,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-val remove_useless_mov : Peephole_utils.rule
+open! Peephole_utils
+
+val generated_rules : rule list
+
+val generated_rule_names : string list

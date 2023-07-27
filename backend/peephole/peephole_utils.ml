@@ -1,4 +1,5 @@
-[@@@ocaml.warning "+a-29-40-41-42"]
+(* CR-soon gtulba-lecu for gtulba-lecu: drop the -4 flag *)
+[@@@ocaml.warning "+a-29-40-41-42-4"]
 
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
@@ -21,25 +22,6 @@ end
 module IntCsv = Csv_data.Make (IntCell)
 
 let csv_singleton = ref Option.None
-
-let set_csv () =
-  if Option.is_none !csv_singleton
-  then (
-    let new_csv =
-      IntCsv.create
-        ["remove_useless_mov"; "fold_intop_imm_bitwise"; "fold_intop_imm_arith"]
-    in
-    if Option.is_some !Flambda_backend_flags.cfg_peephole_optimize_track
-    then
-      Stdlib.at_exit (fun () ->
-          (* the csv filename is a hex string deterministically generated from
-             the command line arguments. *)
-          IntCsv.print new_csv
-            (Option.get !Flambda_backend_flags.cfg_peephole_optimize_track
-            ^ (Array.to_list Sys.argv |> String.concat "" |> Digest.string
-             |> Digest.to_hex)
-            ^ ".csv"));
-    csv_singleton := Some new_csv)
 
 let get_csv () = Option.get !csv_singleton
 
@@ -82,5 +64,18 @@ let rec get_cells' (cell : Cfg.basic Cfg.instruction DLL.cell option) size lst =
 let get_cells cell size =
   assert (size > 0);
   get_cells' (DLL.next cell) (size - 1) [cell]
+
+let is_bitwise_op (op : Mach.integer_operation) = 
+  match op with
+  | Mach.Iand | Ior | Ixor | Ilsl | Ilsr | Iasr -> true
+  | _ -> false
+
+let bitwise_overflow_assert (imm1 : int) (imm2 : int) (op : int -> int -> int) =
+  let imm = op imm1 imm2 in
+  assert (imm <= 2147483647 && imm >= -2147483648)
+
+let no_32_bit_overflow imm1 imm2 op =
+  let imm = op imm1 imm2 in
+  -2147483648 <= imm && imm <= 2147483647
 
 type rule = Cfg.basic Cfg.instruction DLL.cell -> Cfg.basic Cfg.instruction DLL.cell option
