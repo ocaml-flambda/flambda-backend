@@ -4411,11 +4411,9 @@ and type_expect_
       let l, spat = match spat with
       | {ppat_desc = Ppat_constraint (inner_pat,
                       ({ ptyp_desc = Ptyp_extension ({txt = "src_pos"; _}, _); _} as ty)); _} ->
-          (* If the label is invalid, an error is raised by transl_label *)
+          (* If the argument is a src_pos, translate the label using this 
+             information. Otherwise, we don't care about the argument type *)
           Typetexp.transl_label l (Some ty), inner_pat
-          (* (match l with
-          | Labelled l -> Position l, inner_pat
-          | Nolabel | Optional _ -> raise (Error (loc, env, Invalid_label_for_src_pos l))) *)
       | _ -> (Typetexp.transl_label l None), spat
       in
       type_function ?in_function loc sexp.pexp_attributes env
@@ -6603,8 +6601,8 @@ and type_application env app_loc expected_mode pm
         end
       in
       if !Clflags.principal then begin_def () ;
-      let sargs = List.map 
-        (fun (label, e) -> Typetexp.transl_label label None, e) sargs 
+      let sargs = List.map
+        (fun (label, e) -> Typetexp.transl_label label None, e) sargs
       in
       let ty_ret, mode_ret, untyped_args =
         collect_apply_args env funct ignore_labels ty (instance ty)
