@@ -430,7 +430,7 @@ and class_type_aux env virt self_scope scty =
       cltyp (Tcty_signature clsig) typ
 
   | Pcty_arrow (l, sty, scty) ->
-      let l = transl_label l in
+      let l = transl_label l (Some sty) in
       let cty = transl_simple_type env ~closed:false Global sty in
       let ty = cty.ctyp_type in
       let ty =
@@ -1188,7 +1188,7 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       class_expr cl_num val_env met_env virt self_scope sfun
   | Pcl_fun (l, None, spat, scl') ->
-      let l = transl_label l in
+      let l = transl_label l None in (* TODO vding: Is this the right thing to pass as type? *)
       if has_poly_constraint spat then
         raise(Error(spat.ppat_loc, val_env, Polymorphic_class_parameter));
       if !Clflags.principal then Ctype.begin_def ();
@@ -1359,7 +1359,12 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       let (args, cty) =
         let (_, ty_fun0) = Ctype.instance_class [] cl.cl_type in
-        let sargs = List.map (fun (label, e) -> transl_label label, e) sargs in
+        let sargs = List.map (fun (label, e) -> transl_label label None, e) sargs in
+        (* TODO vding: I'm not convinced the above application is correct.
+           Although maybe it's fine: If we have an application, we can blindly translate
+           it to the corresponding Typed label, ignoring Positions, since we won't
+           be aware of Positions until we try to type check an application against its 
+           defn. Is my understanding correct? *)
         type_args [] [] cl.cl_type ty_fun0 sargs
       in
       rc {cl_desc = Tcl_apply (cl, args);
@@ -1489,7 +1494,7 @@ let var_option =
 let rec approx_declaration cl =
   match cl.pcl_desc with
     Pcl_fun (l, _, _, cl) ->
-      let l = transl_label l in
+      let l = transl_label l None in
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
         else Ctype.newvar (Layout.value ~why:Class_argument)
@@ -1508,8 +1513,8 @@ let rec approx_declaration cl =
 
 let rec approx_description ct =
   match ct.pcty_desc with
-    Pcty_arrow (l, _, ct) ->
-      let l = transl_label l in
+    Pcty_arrow (l, t, ct) ->
+      let l = transl_label l (Some t) in
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
         else Ctype.newvar (Layout.value ~why:Class_argument)
