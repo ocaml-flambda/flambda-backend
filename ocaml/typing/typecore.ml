@@ -8155,12 +8155,14 @@ let report_error ~loc env = function
         Printtyp.type_expr ty
         (report_type_expected_explanation_opt explanation)
   | Abstract_wrong_label {got; expected; expected_type; explanation} ->
-      let label ~long = function
+      let label ~long l =
+        let label =
+          (if long then "labeled " else "") ^ prefixed_label_name l
+        in
+        match l with
         | Nolabel -> "unlabeled"
-        | Position _ as l -> (if long then "labeled " else "") ^ 
-                              prefixed_label_name l ^ ":[%src_pos]"
-        | (Labelled _ | Optional _) as l -> (if long then "labeled " else "") ^
-                                            prefixed_label_name l
+        | Position _ -> label ^ ":[%src_pos]"
+        | Labelled _ | Optional _ -> label
       in
       let second_long = match got, expected with
         | Nolabel, _ | _, Nolabel -> true
