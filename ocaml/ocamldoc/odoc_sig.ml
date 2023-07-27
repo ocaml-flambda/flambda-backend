@@ -1780,9 +1780,11 @@ module Analyser =
           in
           ([], Class_structure (inher_l, ele))
 
-      | (Parsetree.Pcty_arrow (parse_label, arg, pclass_type), Types.Cty_arrow (label, type_expr, class_type)) ->
+      | (Parsetree.Pcty_arrow (parse_label, _, pclass_type), Types.Cty_arrow (label, type_expr, class_type)) ->
           (* In signature, there is no parameter names inside tuples *)
-          if (Typetexp.transl_label parse_label (Some arg)) = label then
+          (* CR src_pos: Implement Position arguments for classes, and pass a
+             reasonable type to translate the label below *)
+          if (Typetexp.transl_label parse_label None) = label then
             (
              let new_param = Simple_name
                  {
@@ -1796,7 +1798,7 @@ module Analyser =
             )
           else
             (
-             raise (Failure "Parsetree.Pcty_arrow (parse_label, arg, pclass_type), different labels")
+             raise (Failure "Parsetree.Pcty_arrow (parse_label, _, pclass_type), different labels")
             )
 
       | _ ->
