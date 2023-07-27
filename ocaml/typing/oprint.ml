@@ -520,8 +520,17 @@ let rec print_out_class_type ppf =
       in
       fprintf ppf "@[%a%a@]" pr_tyl tyl print_ident id
   | Octy_arrow (lab, ty, cty) ->
-      fprintf ppf "@[%s%a ->@ %a@]" (if lab <> "" then lab ^ ":" else "")
-        (print_out_type_2 Oam_global) ty print_out_class_type cty
+      let print_type = print_out_type_2 Oam_global in
+      let label, print_type = match lab with
+        | Nolabel -> "", print_type
+        | Labelled l -> l ^ ":", print_type
+        | Position l -> l ^ ":", fun ppf _ -> pp_print_string ppf "[%src_pos]"
+        | Optional l -> "?" ^ l ^ ":", print_type
+      in
+      fprintf ppf "@[%s%a ->@ %a@]"
+        label
+        print_type ty
+        print_out_class_type cty
   | Octy_signature (self_ty, csil) ->
       let pr_param ppf =
         function

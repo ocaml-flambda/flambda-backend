@@ -122,7 +122,7 @@ and out_alloc_mode =
 
 type out_class_type =
   | Octy_constr of out_ident * out_type list
-  | Octy_arrow of string * out_type * out_class_type
+  | Octy_arrow of arg_label * out_type * out_class_type
   | Octy_signature of out_type option * out_class_sig_item list
 and out_class_sig_item =
   | Ocsg_constraint of out_type * out_type

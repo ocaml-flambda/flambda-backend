@@ -1767,7 +1767,8 @@ let rec tree_of_class_type mode params =
       Octy_signature (self_ty, List.rev csil)
   | Cty_arrow (l, ty, cty) ->
       let lab =
-        if !print_labels || is_optional l then string_of_label l else ""
+        if !print_labels || is_optional l then transl_label l
+        else Nolabel
       in
       let tr =
        if is_optional l then
