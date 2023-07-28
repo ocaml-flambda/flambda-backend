@@ -21,7 +21,9 @@ open Layouts
 
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
-type boxed_vector = Pvec128 
+type vec128_type = Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2
+
+type boxed_vector = Pvec128 of vec128_type
 
 type native_repr =
   | Same_as_ocaml_repr of Layouts.Sort.const
@@ -303,6 +305,14 @@ let native_name p =
 let byte_name p =
   p.prim_name
 
+let vec128_name = function
+  | Int8x16 -> "int8x16"
+  | Int16x8 -> "int16x8"
+  | Int32x4 -> "int32x4"
+  | Int64x2 -> "int64x2"
+  | Float32x4 -> "float32x4"
+  | Float64x2 -> "float64x2"
+
 let equal_boxed_integer bi1 bi2 =
   match bi1, bi2 with
   | Pnativeint, Pnativeint
@@ -312,9 +322,11 @@ let equal_boxed_integer bi1 bi2 =
   | (Pnativeint | Pint32 | Pint64), _ ->
     false
 
-let equal_boxed_vector bi1 bi2 = 
-  match bi1, bi2 with 
-  | Pvec128, Pvec128 -> true 
+let equal_boxed_vector_size bi1 bi2 =
+  (* For the purposes of layouts/native representations,
+     all 128-bit vector types are equal. *)
+  match bi1, bi2 with
+  | Pvec128 _, Pvec128 _ -> true
 
 let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
@@ -324,7 +336,7 @@ let equal_native_repr nr1 nr2 =
   | Unboxed_float, Unboxed_float -> true
   | Unboxed_float,
     (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_int | Unboxed_vector _) -> false
-  | Unboxed_vector vi1, Unboxed_vector vi2 -> equal_boxed_vector vi1 vi2
+  | Unboxed_vector vi1, Unboxed_vector vi2 -> equal_boxed_vector_size vi1 vi2
   | Unboxed_vector _,
     (Same_as_ocaml_repr _ | Unboxed_float | Untagged_int | Unboxed_integer _) -> false
   | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_boxed_integer bi1 bi2

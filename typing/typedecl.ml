@@ -1880,8 +1880,18 @@ let native_repr_of_type env kind ty =
     Some (Unboxed_integer Pint64)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_nativeint ->
     Some (Unboxed_integer Pnativeint)
-  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_vec128 -> 
-    Some (Unboxed_vector Pvec128)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8x16 ->
+    Some (Unboxed_vector (Pvec128 Int8x16))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16x8 ->
+    Some (Unboxed_vector (Pvec128 Int16x8))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32x4 ->
+    Some (Unboxed_vector (Pvec128 Int32x4))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64x2 ->
+    Some (Unboxed_vector (Pvec128 Int64x2))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32x4 ->
+    Some (Unboxed_vector (Pvec128 Float32x4))
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float64x2 ->
+    Some (Unboxed_vector (Pvec128 Float64x2))
   | _ ->
     None
 
@@ -2522,7 +2532,7 @@ let report_error ppf = function
       fprintf ppf "Too many [@@unboxed]/[@@untagged] attributes"
   | Cannot_unbox_or_untag_type Unboxed ->
       fprintf ppf "@[Don't know how to unbox this type.@ \
-                   Only float, int32, int64, nativeint, and vec128 can be unboxed.@]"
+                   Only float, int32, int64, nativeint, and vector primitives can be unboxed.@]"
   | Cannot_unbox_or_untag_type Untagged ->
       fprintf ppf "@[Don't know how to untag this type.@ \
                    Only int can be untagged.@]"

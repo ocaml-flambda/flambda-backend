@@ -158,7 +158,7 @@ and value_kind = Lambda.value_kind =
       non_consts : (int * value_kind list) list;
     }
   | Parrayval of array_kind
-  | Pboxedvectorval of boxed_vector 
+  | Pboxedvectorval of boxed_vector
 
 and layout = Lambda.layout =
   | Ptop
@@ -169,11 +169,21 @@ and layout = Lambda.layout =
   | Pbottom
 
 and block_shape = Lambda.block_shape
-and boxed_integer = Primitive.boxed_integer =
+
+and boxed_integer = Lambda.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
-and boxed_vector = Primitive.boxed_vector = 
-  | Pvec128
+and vec128_type = Lambda.vec128_type =
+  | Unknown128
+  | Int8x16
+  | Int16x8
+  | Int32x4
+  | Int64x2
+  | Float32x4
+  | Float64x2
+
+and boxed_vector = Lambda.boxed_vector =
+  | Pvec128 of vec128_type
 
 and bigarray_kind = Lambda.bigarray_kind =
     Pbigarray_unknown
