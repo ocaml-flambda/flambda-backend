@@ -461,6 +461,8 @@ let label : Types.arg_label -> Parsetree.arg_label = function
   | Optional l -> Optional l
   | Nolabel -> Nolabel
 
+let src_pos_extension = Location.mknoloc "src_pos", PStr []
+
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
   let attrs = sub.attributes sub exp.exp_attributes in
@@ -491,7 +493,7 @@ let expression sub exp =
         (* First, the special case for a Position argument *)
         let pat =
           Pat.constraint_ (sub.pat sub p)
-            (Typ.extension (Location.mknoloc "src_pos", PStr []))
+            (Typ.extension src_pos_extension)
         in
         Pexp_fun (Labelled s, None, pat, sub.expr sub e)
     | Texp_function { arg_label; cases = [{c_lhs=p; c_guard=None; c_rhs=e}];
@@ -507,7 +509,7 @@ let expression sub exp =
         let name = fresh_name s exp.exp_env in
         let pat =
           Pat.constraint_ (Pat.var ~loc {loc;txt = name })
-            (Typ.extension (Location.mknoloc "src_pos", PStr []))
+            (Typ.extension src_pos_extension)
         in
         Pexp_fun (Labelled s, None, pat,
           Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
@@ -947,7 +949,7 @@ let core_type sub ct =
         Ptyp_poly (list, sub.typ sub ct)
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
     | Ttyp_src_pos -> 
-        Ptyp_extension (Location.mknoloc "src_pos", PStr [])
+        Ptyp_extension src_pos_extension
   in
   Typ.mk ~loc ~attrs desc
 
