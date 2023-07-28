@@ -993,24 +993,26 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           let mk_int value = Texp_constant (Const_int value), Predef.type_int in
           match lbl.lbl_name with
             | "pos_fname" ->
-            (* TODO vding question: Is this correct for string representation?
-            (no delimiter) *)
-            Texp_constant (Const_string (pos.pos_fname, e.exp_loc, None)),
-            Predef.type_string
+              (* TODO vding question: Is this correct for string representation?
+                (no delimiter) *)
+              Texp_constant (Const_string (pos.pos_fname, e.exp_loc, None)),
+              Predef.type_string
             | "pos_lnum" -> mk_int pos.pos_lnum
             | "pos_bol" -> mk_int pos.pos_bol
             | "pos_cnum" -> mk_int pos.pos_cnum
             | _ -> assert false
         in
-        let exp =
+        let field =
           { exp_desc = value;
-          exp_loc = e.exp_loc;
-          exp_extra = [];
-          exp_type = typ;
-          exp_env = e.exp_env;
-          exp_attributes = [] }
+            exp_loc = e.exp_loc;
+            exp_extra = [];
+            exp_type = typ;
+            exp_env = e.exp_env;
+            exp_attributes = [] }
         in
-        lbl, Overridden ({txt = (Longident.Lident lbl.lbl_name); loc = e.exp_loc}, exp)
+        lbl,
+        Overridden 
+          ({txt = (Longident.Lident lbl.lbl_name); loc = e.exp_loc}, field)
       )
       Predef.lexing_position_labels
     in

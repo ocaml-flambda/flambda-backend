@@ -72,7 +72,6 @@ val ident_none : Ident.t
 val ident_some : Ident.t
 
 val lexing_position_representation : record_representation
-val lexing_position_decl : type_declaration
 val lexing_position_labels : label_description array
 
 (* To build the initial environment. Since there is a nasty mutual

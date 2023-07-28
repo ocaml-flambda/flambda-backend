@@ -3330,7 +3330,7 @@ let rec is_nonexpansive exp =
   | Texp_unreachable
   | Texp_function _
   | Texp_probe_is_enabled _
-  | Texp_src_pos (* TODO vding: I think this is right? *)
+  | Texp_src_pos (* TODO vding: please check *)
   | Texp_array (_, [], _) -> true
   | Texp_let(_rec_flag, pat_exp_list, body) ->
       List.for_all (fun vb -> is_nonexpansive vb.vb_expr) pat_exp_list &&
@@ -3890,7 +3890,7 @@ let check_partial_application ~statement exp =
             | Texp_setinstvar _ | Texp_override _ | Texp_assert _
             | Texp_lazy _ | Texp_object _ | Texp_pack _ | Texp_unreachable
             | Texp_extension_constructor _ | Texp_ifthenelse (_, _, None)
-            | Texp_probe _ | Texp_probe_is_enabled _ | Texp_src_pos (* TODO vding ? *)
+            | Texp_probe _ | Texp_probe_is_enabled _ | Texp_src_pos (* TODO vding: not sure *)
             | Texp_function _ ->
                 check_statement ()
             | Texp_match (_, _, cases, _) ->
@@ -5719,7 +5719,7 @@ and type_expect_
       | _ -> raise (Error (loc, env, Probe_is_enabled_format))
     end
   | Pexp_extension ({ txt = "src_pos"; _ }, _) ->
-    rue { (* TODO vding: ruem? re is bad bc it keeps it as poly *)
+    rue { (* TODO vding: ruem? re does not work bc it keeps it as poly *)
       exp_desc = Texp_src_pos;
       exp_loc = loc; exp_extra = [];
       exp_type = instance Predef.type_lexing_position;
