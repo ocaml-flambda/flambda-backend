@@ -838,6 +838,7 @@ let rec expression : Typedtree.expression -> term_judg =
       expression handler << Dereference
     | Texp_probe_is_enabled _ -> empty
     | Texp_exclave e -> expression e
+    | Texp_src_pos -> failwith "todo vding"
 
 and comprehension_clauses clauses =
   List.concat_map

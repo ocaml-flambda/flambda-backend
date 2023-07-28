@@ -3330,6 +3330,7 @@ let rec is_nonexpansive exp =
   | Texp_unreachable
   | Texp_function _
   | Texp_probe_is_enabled _
+  | Texp_src_pos (* TODO vding: I think this is right? *)
   | Texp_array (_, [], _) -> true
   | Texp_let(_rec_flag, pat_exp_list, body) ->
       List.for_all (fun vb -> is_nonexpansive vb.vb_expr) pat_exp_list &&
@@ -3889,7 +3890,7 @@ let check_partial_application ~statement exp =
             | Texp_setinstvar _ | Texp_override _ | Texp_assert _
             | Texp_lazy _ | Texp_object _ | Texp_pack _ | Texp_unreachable
             | Texp_extension_constructor _ | Texp_ifthenelse (_, _, None)
-            | Texp_probe _ | Texp_probe_is_enabled _
+            | Texp_probe _ | Texp_probe_is_enabled _ | Texp_src_pos (* TODO vding ? *)
             | Texp_function _ ->
                 check_statement ()
             | Texp_match (_, _, cases, _) ->
@@ -5717,45 +5718,12 @@ and type_expect_
           exp_env = env }
       | _ -> raise (Error (loc, env, Probe_is_enabled_format))
     end
-  | Pexp_extension ({ txt = "src_pos"; loc }, _) ->
-    let fields =
-      Array.map (fun lbl -> 
-        let pos = loc.loc_start in
-        let value, typ =
-          let mk_int value = Texp_constant (Const_int value), Predef.type_int in
-          match lbl.lbl_name with
-          | "pos_fname" -> 
-              (* TODO vding question: Is this correct for string representation?
-                 (no delimiter) *)
-              Texp_constant (Const_string (pos.pos_fname, loc, None)),
-              Predef.type_string
-          | "pos_lnum"  -> mk_int pos.pos_lnum
-          | "pos_bol"   -> mk_int pos.pos_bol
-          | "pos_cnum"  -> mk_int pos.pos_cnum
-          | _ -> assert false
-        in
-        let exp =
-          { exp_desc = value;
-            exp_loc = loc;
-            exp_extra = [];
-            exp_type = typ;
-            exp_env = env;
-            exp_attributes = [] }
-        in
-        lbl, Overridden ({txt = (Longident.Lident lbl.lbl_name); loc}, exp))
-      Predef.lexing_position_labels
-    in
-    re { (* TODO vding: Should I call rue? *)
-      exp_desc = Texp_record {
-          fields;
-          representation = Predef.lexing_position_representation;
-          extended_expression = None;
-          alloc_mode = None
-          (* TODO vding: Should it be Some (register_allocation expected_mode)? *)
-        };
+  | Pexp_extension ({ txt = "src_pos"; _ }, _) ->
+    rue { (* TODO vding: ruem? re is bad bc it keeps it as poly *)
+      exp_desc = Texp_src_pos;
       exp_loc = loc; exp_extra = [];
-      exp_type = Predef.type_lexing_position;
-      exp_attributes = [];
+      exp_type = instance Predef.type_lexing_position;
+      exp_attributes = sexp.pexp_attributes;
       exp_env = env }
   | Pexp_extension ext ->
     raise (Error_forward (Builtin_attributes.error_of_extension ext))

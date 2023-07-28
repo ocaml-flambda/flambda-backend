@@ -985,6 +985,38 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
     let l = transl_exp ~scopes sort e in
     if Config.stack_allocation then Lexclave l
     else l
+  | Texp_src_pos ->
+    let fields = Array.map 
+      (fun lbl ->
+        let pos = e.exp_loc.loc_start in
+        let value, typ =
+          let mk_int value = Texp_constant (Const_int value), Predef.type_int in
+          match lbl.lbl_name with
+            | "pos_fname" ->
+            (* TODO vding question: Is this correct for string representation?
+            (no delimiter) *)
+            Texp_constant (Const_string (pos.pos_fname, e.exp_loc, None)),
+            Predef.type_string
+            | "pos_lnum" -> mk_int pos.pos_lnum
+            | "pos_bol" -> mk_int pos.pos_bol
+            | "pos_cnum" -> mk_int pos.pos_cnum
+            | _ -> assert false
+        in
+        let exp =
+          { exp_desc = value;
+          exp_loc = e.exp_loc;
+          exp_extra = [];
+          exp_type = typ;
+          exp_env = e.exp_env;
+          exp_attributes = [] }
+        in
+        lbl, Overridden ({txt = (Longident.Lident lbl.lbl_name); loc = e.exp_loc}, exp)
+      )
+      Predef.lexing_position_labels
+    in
+    transl_record ~scopes e.exp_loc e.exp_env
+      None (* TODO vding should this alloc_mode be something different? *)
+      fields Predef.lexing_position_representation None
 
 and pure_module m =
   match m.mod_desc with
