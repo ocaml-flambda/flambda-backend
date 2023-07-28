@@ -158,7 +158,7 @@ let test3 () =
   let x7 = Float_u.of_float 1.41 in
   let x9 = Float_u.of_float 42.0 in
 
-  (* these sum to 3 *)
+  (* all these 8 numbers together sum to 3 *)
   let x2 = (7, 42) in
   let x4 = (-23, 109) in
   let x6 = (-242, 90) in
@@ -192,8 +192,8 @@ let[@inline never] test4 () =
   (* partial application with float# remaining *)
   let steps = Array.init 10 (fun _ -> 0.0) in
   let f = Sys.opaque_identity (f3 6) in
-  let five_pi = f (Float_u.of_float 3.14) steps in
-  print_floatu "Test 4, 6 * pi: " (five_pi ());
+  let six_pi = f (Float_u.of_float 3.14) steps in
+  print_floatu "Test 4, 6 * pi: " (six_pi ());
   Array.iteri (Printf.printf "  Test 4, step %d: %.2f\n") steps;
 
   (* Those two tests again, but making f3 also opaque to prevent expansion of
@@ -208,8 +208,8 @@ let[@inline never] test4 () =
 
   let steps = Array.init 10 (fun _ -> 0.0) in
   let f = Sys.opaque_identity (f3 6) in
-  let five_pi = f (Float_u.of_float 3.14) steps in
-  print_floatu "Test 4, 6 * pi: " (five_pi ());
+  let six_pi = f (Float_u.of_float 3.14) steps in
+  print_floatu "Test 4, 6 * pi: " (six_pi ());
   Array.iteri (Printf.printf "  Test 4, step %d: %.2f\n") steps
 
 let _ = test4 ()
