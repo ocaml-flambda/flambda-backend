@@ -1664,7 +1664,7 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
               Typedtree.pat_bound_idents_full arg_sort orp
             in
             (* Optimization: discard pattern vars not bound in orpm actions *)
-            let patbound_action_vars_full =
+            let patbound_idents =
               match pm_free_variables orpm with
               (* Give up on the optimization: there is some action not tracking
                  free variables, so the free variable set is not known. *)
@@ -1680,7 +1680,7 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
               List.map
                 (fun (id, _, ty, id_sort) ->
                    (id, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
-                patbound_action_vars_full
+                patbound_idents
             in
             let or_num = next_raise_count () in
             let new_patl = Patterns.omega_list patl in
