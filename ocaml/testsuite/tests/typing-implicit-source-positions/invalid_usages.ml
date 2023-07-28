@@ -67,6 +67,7 @@ Error: A position argument must not be unlabelled.
 
 let k : src_pos:[%src_pos] -> unit -> unit =
    fun ~src_pos () -> ()
+(* CR src_pos: Improve this error message *)
 [%%expect{|
 Line 2, characters 3-24:
 2 |    fun ~src_pos () -> ()
