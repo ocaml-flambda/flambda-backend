@@ -294,7 +294,6 @@ type position_in_region =
 
 type expected_mode =
   { position : position_in_region;
-
     escaping_context : Env.escaping_context option;
     (** explains why [mode] is low. Better be empty if [mode] is max *)
 
@@ -316,7 +315,6 @@ type expected_mode =
 
 type position_and_mode = {
   apply_position : apply_position;
-
   region_mode : Value_mode.t option;
   (** [Some m] if [position] is [Tail], where m is the mode of the surrounding
      function's return mode *)
