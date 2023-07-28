@@ -101,6 +101,33 @@ Error: This pattern matches values of type 'a option
        but a pattern was expected which matches values of type int
 |}]
 
+let typing_no_value_clauses f x =
+  match x with
+    | Some x when f x match exception e -> Error e
+    | Some x -> Ok (f x)
+    | None -> Error (Failure "x is None")
+;;
+
+let f x = 100 / x;;
+[%%expect{|
+val typing_no_value_clauses : ('a -> 'b) -> 'a option -> ('b, exn) result =
+  <fun>
+val f : int -> int = <fun>
+|}];;
+
+typing_no_value_clauses f None;;
+[%%expect{|
+- : (int, exn) result = Error (Failure "x is None")
+|}];;
+typing_no_value_clauses f (Some 0);;
+[%%expect{|
+- : (int, exn) result = Error Division_by_zero
+|}];;
+typing_no_value_clauses f (Some 5);;
+[%%expect{|
+- : (int, exn) result = Ok 20
+|}];;
+
 let ill_typed_pattern_var (x : int list option) : bool =
   match x with
     | Some xs when xs match [ y ] -> String.equal y "foo"
@@ -168,12 +195,12 @@ let exhaustive_pattern_guards (x : (unit, void option) Either.t) : int =
 ;;
 [%%expect{|
 type void = |
-Line 165, characters 13-28:
-165 |     | Left u when u match () -> 0
+Line 192, characters 13-28:
+192 |     | Left u when u match () -> 0
                    ^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
-Line 166, characters 14-31:
-166 |     | Right v when v match None -> 1
+Line 193, characters 14-31:
+193 |     | Right v when v match None -> 1
                     ^^^^^^^^^^^^^^^^^
 Warning 73 [total-match-in-pattern-guard]: This pattern guard matches exhaustively. Consider rewriting the guard as a nested match.
 val exhaustive_pattern_guards : (unit, void option) Either.t -> int = <fun>
@@ -186,7 +213,28 @@ exhaustive_pattern_guards (Left ());;
 exhaustive_pattern_guards (Right None);;
 [%%expect{|
 - : int = 1
-|}]
+|}];;
+
+let prove_false () : void = failwith "qed";;
+
+let guard_matching_empty_variant = function
+  | None when prove_false () match exception (Failure str) -> "failed: " ^ str
+  | None -> "proved false!"
+  | Some x -> x
+;;
+[%%expect{|
+val prove_false : unit -> void = <fun>
+val guard_matching_empty_variant : string option -> string = <fun>
+|}];;
+
+guard_matching_empty_variant None;;
+[%%expect{|
+- : string = "failed: qed"
+|}];;
+guard_matching_empty_variant (Some "foo");;
+[%%expect{|
+- : string = "foo"
+|}];;
 
 module M : sig
   type 'a t
