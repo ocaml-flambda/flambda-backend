@@ -134,6 +134,18 @@ method! reload_operation op arg res =
       else (arg, res)
   | Ispecific(Isimd op) ->
     (match Simd_selection.register_behavior op with
+    | R_to_fst ->
+      (* Argument must be in a register; result must be the argument. *)
+      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
+      ([|arg0|], [|arg0|])
+    | R_to_RM ->
+      (* Argument must be in a register. *)
+      let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
+      ([|arg0|], res)
+    | RM_to_R ->
+      (* Result must be in a register. *)
+      let res0 = if stackp res.(0) then self#makereg res.(0) else res.(0) in
+      (arg, [|res0|])
     | R_to_R ->
       (* Argument and result must be in registers. *)
       let arg0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in

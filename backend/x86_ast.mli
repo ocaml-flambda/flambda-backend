@@ -122,7 +122,6 @@ type instruction =
   | CMPSD of float_condition * arg * arg
   | COMISD of arg * arg
   | CQO
-  | CRC32 of arg * arg
   | CVTSD2SI of arg * arg
   | CVTSD2SS of arg * arg
   | CVTSI2SD of arg * arg
@@ -198,6 +197,145 @@ type instruction =
   | UNPCKHPS of arg * arg
   | UNPCKLPS of arg * arg
   | MOVMSKPS of arg * arg
+  | PADDB of arg * arg
+  | PADDW of arg * arg
+  | PADDD of arg * arg
+  | PADDQ of arg * arg
+  | ADDPD of arg * arg
+  | PADDSB of arg * arg
+  | PADDSW of arg * arg
+  | PADDUSB of arg * arg
+  | PADDUSW of arg * arg
+  | PSUBB of arg * arg
+  | PSUBW of arg * arg
+  | PSUBD of arg * arg
+  | PSUBQ of arg * arg
+  | SUBPD of arg * arg
+  | PSUBSB of arg * arg
+  | PSUBSW of arg * arg
+  | PSUBUSB of arg * arg
+  | PSUBUSW of arg * arg
+  | PMAXUB of arg * arg
+  | PMAXSW of arg * arg
+  | MAXPD of arg * arg
+  | PMINUB of arg * arg
+  | PMINSW of arg * arg
+  | MINPD of arg * arg
+  | MULPD of arg * arg
+  | DIVPD of arg * arg
+  | PAND of arg * arg
+  | PANDNOT of arg * arg
+  | POR of arg * arg
+  | PXOR of arg * arg
+  | PMOVMSKB of arg * arg
+  | MOVMSKPD of arg * arg
+  | PSLLDQ of int * arg
+  | PSRLDQ of int * arg
+  | PCMPEQB of arg * arg
+  | PCMPEQW of arg * arg
+  | PCMPEQD of arg * arg
+  | PCMPGTB of arg * arg
+  | PCMPGTW of arg * arg
+  | PCMPGTD of arg * arg
+  | CMPPD of float_condition * arg * arg
+  | CVTDQ2PD of arg * arg
+  | CVTDQ2PS of arg * arg
+  | CVTPD2DQ of arg * arg
+  | CVTPD2PS of arg * arg
+  | CVTPS2DQ of arg * arg
+  | CVTPS2PD of arg * arg
+  | PSLLW of arg * arg
+  | PSLLD of arg * arg
+  | PSLLQ of arg * arg
+  | PSRLW of arg * arg
+  | PSRLD of arg * arg
+  | PSRLQ of arg * arg
+  | PSRAW of arg * arg
+  | PSRAD of arg * arg
+  | PSLLWI of int * arg
+  | PSLLDI of int * arg
+  | PSLLQI of int * arg
+  | PSRLWI of int * arg
+  | PSRLDI of int * arg
+  | PSRLQI of int * arg
+  | PSRAWI of int * arg
+  | PSRADI of int * arg
+  | SHUFPD of int * arg * arg
+  | PSHUFHW of int * arg * arg
+  | PSHUFLW of int * arg * arg
+  | PUNPCKHBW of arg * arg
+  | PUNPCKHWD of arg * arg
+  | PUNPCKHQDQ of arg * arg
+  | PUNPCKLBW of arg * arg
+  | PUNPCKLWD of arg * arg
+  | PUNPCKLQDQ of arg * arg
+  | ADDSUBPS of arg * arg
+  | ADDSUBPD of arg * arg
+  | HADDPS of arg * arg
+  | HADDPD of arg * arg
+  | HSUBPS of arg * arg
+  | HSUBPD of arg * arg
+  | MOVDDUP of arg * arg
+  | MOVSHDUP of arg * arg
+  | MOVSLDUP of arg * arg
+  | PABSB of arg * arg
+  | PABSW of arg * arg
+  | PABSD of arg * arg
+  | PHADDW of arg * arg
+  | PHADDD of arg * arg
+  | PHADDSW of arg * arg
+  | PHSUBW of arg * arg
+  | PHSUBD of arg * arg
+  | PHSUBSW of arg * arg
+  | PSIGNB of arg * arg
+  | PSIGNW of arg * arg
+  | PSIGND of arg * arg
+  | PSHUFB of arg * arg
+  | PBLENDW of int * arg * arg
+  | BLENDPS of int * arg * arg
+  | BLENDPD of int * arg * arg
+  | PBLENDVB of arg * arg
+  | BLENDVPS of arg * arg
+  | BLENDVPD of arg * arg
+  | PCMPEQQ of arg * arg
+  | PMOVSXBW of arg * arg
+  | PMOVSXBD of arg * arg
+  | PMOVSXBQ of arg * arg
+  | PMOVSXWD of arg * arg
+  | PMOVSXWQ of arg * arg
+  | PMOVSXDQ of arg * arg
+  | PMOVZXBW of arg * arg
+  | PMOVZXBD of arg * arg
+  | PMOVZXBQ of arg * arg
+  | PMOVZXWD of arg * arg
+  | PMOVZXWQ of arg * arg
+  | PMOVZXDQ of arg * arg
+  | DPPS of int * arg * arg
+  | DPPD of int * arg * arg
+  | PEXTRB of int * arg * arg
+  | PEXTRW of int * arg * arg
+  | PEXTRD of int * arg * arg
+  | PEXTRQ of int * arg * arg
+  | PINSRB of int * arg * arg
+  | PINSRW of int * arg * arg
+  | PINSRD of int * arg * arg
+  | PINSRQ of int * arg * arg
+  | PMAXSB of arg * arg
+  | PMAXSD of arg * arg
+  | PMAXUW of arg * arg
+  | PMAXUD of arg * arg
+  | PMINSB of arg * arg
+  | PMINSD of arg * arg
+  | PMINUW of arg * arg
+  | PMINUD of arg * arg
+  | ROUNDPD of rounding * arg * arg
+  | ROUNDPS of rounding * arg * arg
+  | PCMPGTQ of arg * arg
+  | PCMPESTRI of int * arg * arg
+  | PCMPESTRM of int * arg * arg
+  | PCMPISTRI of int * arg * arg
+  | PCMPISTRM of int * arg * arg
+  | CRC32 of arg * arg
 
 (* ELF specific *)
 type reloc_type =

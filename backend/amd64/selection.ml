@@ -156,7 +156,10 @@ let pseudoregs_for_operation op arg res =
     ([|res.(0); arg.(1)|], res)
   | Ispecific (Isimd op) ->
     (match Simd_selection.register_behavior op with
-    | R_to_R -> (arg, res)
+    | R_to_R | RM_to_R | R_to_RM -> (arg, res)
+    | R_to_fst ->
+      (* arg.(0) and res.(0) must be the same *)
+      ([|res.(0)|], res)
     | R_R_to_fst | R_RM_to_fst ->
       (* arg.(0) and res.(0) must be the same *)
       ([|res.(0); arg.(1)|], res))

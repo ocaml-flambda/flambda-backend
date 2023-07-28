@@ -206,7 +206,157 @@ module I : sig
   val unpcklps: arg -> arg -> unit
   val movmskps: arg -> arg -> unit
 
+  (* SSE2 intstructions *)
+
+  val paddb: arg -> arg -> unit
+  val paddw: arg -> arg -> unit
+  val paddd: arg -> arg -> unit
+  val paddq: arg -> arg -> unit
+  val addpd: arg -> arg -> unit
+  val paddsb: arg -> arg -> unit
+  val paddsw: arg -> arg -> unit
+  val paddusb: arg -> arg -> unit
+  val paddusw: arg -> arg -> unit
+  val psubb: arg -> arg -> unit
+  val psubw: arg -> arg -> unit
+  val psubd: arg -> arg -> unit
+  val psubq: arg -> arg -> unit
+  val subpd: arg -> arg -> unit
+  val psubsb: arg -> arg -> unit
+  val psubsw: arg -> arg -> unit
+  val psubusb: arg -> arg -> unit
+  val psubusw: arg -> arg -> unit
+  val pmaxub: arg -> arg -> unit
+  val pmaxsw: arg -> arg -> unit
+  val maxpd: arg -> arg -> unit
+  val pminub: arg -> arg -> unit
+  val pminsw: arg -> arg -> unit
+  val minpd: arg -> arg -> unit
+  val mulpd: arg -> arg -> unit
+  val divpd: arg -> arg -> unit
+  val pand: arg -> arg -> unit
+  val pandnot: arg -> arg -> unit
+  val por: arg -> arg -> unit
+  val pxor: arg -> arg -> unit
+  val pmovmskb: arg -> arg -> unit
+  val movmskpd: arg -> arg -> unit
+  val pslldq: int -> arg -> unit
+  val psrldq: int -> arg -> unit
+  val pcmpeqb: arg -> arg -> unit
+  val pcmpeqw: arg -> arg -> unit
+  val pcmpeqd: arg -> arg -> unit
+  val pcmpgtb: arg -> arg -> unit
+  val pcmpgtw: arg -> arg -> unit
+  val pcmpgtd: arg -> arg -> unit
+  val cmppd: float_condition -> arg -> arg -> unit
+  val cvtdq2pd: arg -> arg -> unit
+  val cvtdq2ps: arg -> arg -> unit
+  val cvtpd2dq: arg -> arg -> unit
+  val cvtpd2ps: arg -> arg -> unit
+  val cvtps2dq: arg -> arg -> unit
+  val cvtps2pd: arg -> arg -> unit
+  val psllw: arg -> arg -> unit
+  val pslld: arg -> arg -> unit
+  val psllq: arg -> arg -> unit
+  val psrlw: arg -> arg -> unit
+  val psrld: arg -> arg -> unit
+  val psrlq: arg -> arg -> unit
+  val psraw: arg -> arg -> unit
+  val psrad: arg -> arg -> unit
+  val psllwi: int -> arg -> unit
+  val pslldi: int -> arg -> unit
+  val psllqi: int -> arg -> unit
+  val psrlwi: int -> arg -> unit
+  val psrldi: int -> arg -> unit
+  val psrlqi: int -> arg -> unit
+  val psrawi: int -> arg -> unit
+  val psradi: int -> arg -> unit
+  val shufpd: int -> arg -> arg -> unit
+  val pshufhw: int -> arg -> arg -> unit
+  val pshuflw: int -> arg -> arg -> unit
+  val punpckhbw: arg -> arg -> unit
+  val punpckhwd: arg -> arg -> unit
+  val punpckhqdq: arg -> arg -> unit
+  val punpcklbw: arg -> arg -> unit
+  val punpcklwd: arg -> arg -> unit
+  val punpcklqdq: arg -> arg -> unit
+
+  (* SSE3 instructions *)
+
+  val addsubps: arg -> arg -> unit
+  val addsubpd: arg -> arg -> unit
+  val haddps: arg -> arg -> unit
+  val haddpd: arg -> arg -> unit
+  val hsubps: arg -> arg -> unit
+  val hsubpd: arg -> arg -> unit
+  val movddup: arg -> arg -> unit
+  val movshdup: arg -> arg -> unit
+  val movsldup: arg -> arg -> unit
+
+  (* SSSE3 instructions *)
+
+  val pabsb: arg -> arg -> unit
+  val pabsw: arg -> arg -> unit
+  val pabsd: arg -> arg -> unit
+  val phaddw: arg -> arg -> unit
+  val phaddd: arg -> arg -> unit
+  val phaddsw: arg -> arg -> unit
+  val phsubw: arg -> arg -> unit
+  val phsubd: arg -> arg -> unit
+  val phsubsw: arg -> arg -> unit
+  val psignb: arg -> arg -> unit
+  val psignw: arg -> arg -> unit
+  val psignd: arg -> arg -> unit
+  val pshufb: arg -> arg -> unit
+
+  (* SSE4.1 instructions *)
+
+  val pblendw: int -> arg -> arg -> unit
+  val blendps: int -> arg -> arg -> unit
+  val blendpd: int -> arg -> arg -> unit
+  val pblendvb: arg -> arg -> unit
+  val blendvps: arg -> arg -> unit
+  val blendvpd: arg -> arg -> unit
+  val pcmpeqq: arg -> arg -> unit
+  val pmovsxbw: arg -> arg -> unit
+  val pmovsxbd: arg -> arg -> unit
+  val pmovsxbq: arg -> arg -> unit
+  val pmovsxwd: arg -> arg -> unit
+  val pmovsxwq: arg -> arg -> unit
+  val pmovsxdq: arg -> arg -> unit
+  val pmovzxbw: arg -> arg -> unit
+  val pmovzxbd: arg -> arg -> unit
+  val pmovzxbq: arg -> arg -> unit
+  val pmovzxwd: arg -> arg -> unit
+  val pmovzxwq: arg -> arg -> unit
+  val pmovzxdq: arg -> arg -> unit
+  val dpps: int -> arg -> arg -> unit
+  val dppd: int -> arg -> arg -> unit
+  val pextrb: int -> arg -> arg -> unit
+  val pextrw: int -> arg -> arg -> unit
+  val pextrd: int -> arg -> arg -> unit
+  val pextrq: int -> arg -> arg -> unit
+  val pinsrb: int -> arg -> arg -> unit
+  val pinsrw: int -> arg -> arg -> unit
+  val pinsrd: int -> arg -> arg -> unit
+  val pinsrq: int -> arg -> arg -> unit
+  val pmaxsb: arg -> arg -> unit
+  val pmaxsd: arg -> arg -> unit
+  val pmaxuw: arg -> arg -> unit
+  val pmaxud: arg -> arg -> unit
+  val pminsb: arg -> arg -> unit
+  val pminsd: arg -> arg -> unit
+  val pminuw: arg -> arg -> unit
+  val pminud: arg -> arg -> unit
+  val roundpd: rounding -> arg -> arg -> unit
+  val roundps: rounding -> arg -> arg -> unit
+
   (* SSE4.2 instructions *)
 
-  val crc32 : arg -> arg -> unit
+  val pcmpgtq: arg -> arg -> unit
+  val pcmpestri: int -> arg -> arg -> unit
+  val pcmpestrm: int -> arg -> arg -> unit
+  val pcmpistri: int -> arg -> arg -> unit
+  val pcmpistrm: int -> arg -> arg -> unit
+  val crc32: arg -> arg -> unit
 end
