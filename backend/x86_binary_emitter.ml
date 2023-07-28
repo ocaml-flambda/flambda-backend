@@ -1037,7 +1037,6 @@ let emit_pextrb b n dst src =
   match (dst, src) with
   | ((Reg64 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
       buf_int8 b 0x66;
-      (* TODO(mslater): backward? *)
       emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x14 ] rm (rd_of_regf reg);
       buf_int8 b n
   | _ -> assert false
@@ -1046,7 +1045,6 @@ let emit_pextrw b n dst src =
   match (dst, src) with
   | ((Reg64 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
       buf_int8 b 0x66;
-      (* TODO(mslater): backward? *)
       emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x15 ] rm (rd_of_regf reg);
       buf_int8 b n
   | _ -> assert false
@@ -1055,7 +1053,6 @@ let emit_pextrd b n dst src =
   match (dst, src) with
   | ((Reg32 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
       buf_int8 b 0x66;
-      (* TODO(mslater): backward? *)
       emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x16 ] rm (rd_of_regf reg);
       buf_int8 b n
   | _ -> assert false
@@ -1064,7 +1061,6 @@ let emit_pextrq b n dst src =
   match (dst, src) with
   | ((Reg64 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
       buf_int8 b 0x66;
-      (* TODO(mslater): backward? *)
       emit_mod_rm_reg b rexw [ 0x0f; 0x3A; 0x16 ] rm (rd_of_regf reg);
       buf_int8 b n
   | _ -> assert false

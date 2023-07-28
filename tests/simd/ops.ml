@@ -480,6 +480,89 @@ module Int32s = struct
     ;;
 end
 
+module Int16 = struct
+
+    type t = int
+
+    external abs : t -> t = "" "int16_abs"
+        [@@noalloc] [@@untagged]
+    external add : t -> t -> t = "" "int16_add"
+        [@@noalloc] [@@untagged]
+    external sub : t -> t -> t = "" "int16_sub"
+        [@@noalloc] [@@untagged]
+    external adds : t -> t -> t = "" "int16_adds"
+        [@@noalloc] [@@untagged]
+    external subs : t -> t -> t = "" "int16_subs"
+        [@@noalloc] [@@untagged]
+    external muls : t -> t -> t = "" "int16_muls"
+        [@@noalloc] [@@untagged]
+    external addsu : t -> t -> t = "" "int16_addsu"
+        [@@noalloc] [@@untagged]
+    external subsu : t -> t -> t = "" "int16_subsu"
+        [@@noalloc] [@@untagged]
+    external min : t -> t -> t = "" "int16_min"
+        [@@noalloc] [@@untagged]
+    external max : t -> t -> t = "" "int16_max"
+        [@@noalloc] [@@untagged]
+    external minu : t -> t -> t = "" "int16_minu"
+        [@@noalloc] [@@untagged]
+    external maxu : t -> t -> t = "" "int16_maxu"
+        [@@noalloc] [@@untagged]
+    external cmpeq : t -> t -> t = "" "int16_cmpeq"
+        [@@noalloc] [@@untagged]
+    external cmpgt : t -> t -> t = "" "int16_cmpgt"
+        [@@noalloc] [@@untagged]
+
+    external cvtsx_i32 : (t [@untagged]) -> (int32 [@unboxed]) = "" "int16_sxi32" [@@noalloc]
+    external cvtzx_i32 : (t [@untagged]) -> (int32 [@unboxed]) = "" "int16_zxi32" [@@noalloc]
+    external cvtsx_i64 : (t [@untagged]) -> (int64 [@unboxed]) = "" "int16_sxi64" [@@noalloc]
+    external cvtzx_i64 : (t [@untagged]) -> (int64 [@unboxed]) = "" "int16_zxi64" [@@noalloc]
+
+    let of_ints a b c d e f g h =
+        let a = Int64.of_int a |> Int64.logand 0xffffL in
+        let b = Int64.of_int b |> Int64.logand 0xffffL in
+        let c = Int64.of_int c |> Int64.logand 0xffffL in
+        let d = Int64.of_int d |> Int64.logand 0xffffL in
+        let e = Int64.of_int e |> Int64.logand 0xffffL in
+        let f = Int64.of_int f |> Int64.logand 0xffffL in
+        let g = Int64.of_int g |> Int64.logand 0xffffL in
+        let h = Int64.of_int h |> Int64.logand 0xffffL in
+        let low = Int64.(logor (shift_left b 16) a) in
+        let high = Int64.(logor (shift_left d 16) c) in
+        let _low = Int64.(logor (shift_left high 32) low) in
+        let low = Int64.(logor (shift_left f 16) e) in
+        let high = Int64.(logor (shift_left h 16) g) in
+        let _high = Int64.(logor (shift_left high 32) low) in
+        int16x8_of_int64s _low _high
+    ;;
+
+    let max_int = 0x7fff
+    let min_int = 0x8000
+
+    let check_ints f =
+        Random.set_state (Random.State.make [|1234567890|]);
+        f 0 0;
+        f 0 1;
+        f 1 1;
+        f 0 (-1);
+        f (-1) (-1);
+        f 1 (-1);
+        f max_int 0;
+        f min_int 0;
+        f max_int 1;
+        f min_int 1;
+        f max_int max_int;
+        f min_int min_int;
+        f max_int min_int;
+        for i = 0 to 100_000 do
+            let i0 = Random.int 0x10000 in
+            let i1 = Random.int 0x10000 in
+            f (if Random.bool () then i0 else (-i0))
+              (if Random.bool () then i1 else (-i1))
+        done
+    ;;
+end
+
 module Float32x4 = struct
 
     type t = float32x4
@@ -1286,37 +1369,229 @@ module Int16x8 = struct
         eqi i1 i2 1 2
     ;;
 
+    external add : t -> t -> t = "" "caml_sse2_int16x8_add"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external add_saturating : t -> t -> t = "" "caml_sse2_int16x8_add_saturating"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external add_saturating_unsigned : t -> t -> t = "" "caml_sse2_int16x8_add_saturating_unsigned"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external sub : t -> t -> t = "" "caml_sse2_int16x8_sub"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external sub_saturating : t -> t -> t = "" "caml_sse2_int16x8_sub_saturating"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external sub_saturating_unsigned : t -> t -> t = "" "caml_sse2_int16x8_sub_saturating_unsigned"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external max : t -> t -> t = "" "caml_sse2_int16x8_max"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external min : t -> t -> t = "" "caml_sse2_int16x8_min"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external maxu : t -> t -> t = "" "caml_sse41_int16x8_max_unsigned"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external minu : t -> t -> t = "" "caml_sse41_int16x8_min_unsigned"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external cmpeq : t -> t -> t = "" "caml_sse2_int16x8_cmpeq"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external cmpgt : t -> t -> t = "" "caml_sse2_int16x8_cmpgt"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external cvtsx_i32 : t -> int32x4 = "" "caml_sse41_cvtsx_int16x8_int32x4"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external cvtsx_i64 : t -> int64x2 = "" "caml_sse41_cvtsx_int16x8_int64x2"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external cvtzx_i32 : t -> int32x4 = "" "caml_sse41_cvtzx_int16x8_int32x4"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external cvtzx_i64 : t -> int64x2 = "" "caml_sse41_cvtzx_int16x8_int64x2"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external abs : t -> t = "" "caml_ssse3_int16x8_abs"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external hadd : t -> t -> t = "" "caml_ssse3_int16x8_hadd"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external hadd_saturating : t -> t -> t = "" "caml_ssse3_int16x8_hadd_saturating"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external hsub : t -> t -> t = "" "caml_ssse3_int16x8_hsub"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external hsub_saturating : t -> t -> t = "" "caml_ssse3_int16x8_hsub_saturating"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external mulsign : t -> t -> t = "" "caml_ssse3_int16x8_mulsign"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+
+    let check_binop scalar vector i0 i1 =
+        failmsg := (fun () -> Printf.printf "%04x | %04x\n%!" i0 i1);
+        let r0 = scalar i0 i1 in
+        let r1 = scalar i1 i0 in
+        let expect = Int16.of_ints r0 r1 r0 r1 r0 r1 r0 r1 in
+        let v1 = Int16.of_ints i0 i1 i0 i1 i0 i1 i0 i1 in
+        let v2 = Int16.of_ints i1 i0 i1 i0 i1 i0 i1 i0 in
+        let result = vector v1 v2 in
+        eq (int16x8_low_int64 result) (int16x8_high_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+    ;;
+    let () =
+        Int16.check_ints (check_binop Int16.add add);
+        Int16.check_ints (check_binop Int16.sub sub);
+        Int16.check_ints (check_binop Int16.adds add_saturating);
+        Int16.check_ints (check_binop Int16.subs sub_saturating);
+        Int16.check_ints (check_binop Int16.addsu add_saturating_unsigned);
+        Int16.check_ints (check_binop Int16.subsu sub_saturating_unsigned);
+        Int16.check_ints (check_binop Int16.max max);
+        Int16.check_ints (check_binop Int16.min min);
+        Int16.check_ints (check_binop Int16.maxu maxu);
+        Int16.check_ints (check_binop Int16.minu minu);
+        Int16.check_ints (check_binop Int16.cmpeq cmpeq);
+        Int16.check_ints (check_binop Int16.cmpgt cmpgt);
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%04x|%04x cvt_sx_i64\n%!" l r);
+            let v = Int16.of_ints l r 0 0 0 0 0 0 in
+            let result = cvtsx_i64 v in
+            let expectl = Int16.cvtsx_i64 l in
+            let expectr = Int16.cvtsx_i64 r in
+            eq (int64x2_low_int64 result) (int64x2_high_int64 result)
+            expectl expectr
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%04x|%04x cvt_zx_i64\n%!" l r);
+            let v = Int16.of_ints l r 0 0 0 0 0 0 in
+            let result = cvtzx_i64 v in
+            let expectl = Int16.cvtzx_i64 l in
+            let expectr = Int16.cvtzx_i64 r in
+            eq (int64x2_low_int64 result) (int64x2_high_int64 result)
+            expectl expectr
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%04x|%04x cvt_sx_i32\n%!" l r);
+            let v = Int16.of_ints l r l r 0 0 0 0 in
+            let result = cvtsx_i32 v in
+            let expectl = Int16.cvtsx_i32 l in
+            let expectr = Int16.cvtsx_i32 r in
+            let expect = Int32s.of_int32s expectl expectr expectl expectr in
+            eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%04x|%04x cvt_zx_i32\n%!" l r);
+            let v = Int16.of_ints l r l r 0 0 0 0 in
+            let result = cvtzx_i32 v in
+            let expectl = Int16.cvtzx_i32 l in
+            let expectr = Int16.cvtzx_i32 r in
+            let expect = Int32s.of_int32s expectl expectr expectl expectr in
+            eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%04x|%04x abs\n%!" l r);
+            let v = Int16.of_ints l r l r l r l r in
+            let result = abs v in
+            let expectl = Int16.abs l in
+            let expectr = Int16.abs r in
+            let expect = Int16.of_ints expectl expectr expectl expectr expectl expectr expectl expectr in
+            eq (int16x8_low_int64 result) (int16x8_high_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%04x|%04x hadd\n%!" l r);
+            let v0 = Int16.of_ints l l r r l l r r in
+            let v1 = Int16.of_ints r r l l r r l l in
+            let result = hadd v0 v1 in
+            let expect = Int16.of_ints (Int16.add l l) (Int16.add r r) (Int16.add l l) (Int16.add r r) (Int16.add r r) (Int16.add l l) (Int16.add r r) (Int16.add l l) in
+            eq (int16x8_low_int64 result) (int16x8_high_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%04x|%04x hsub\n%!" l r);
+            let v0 = Int16.of_ints l l r r l l r r in
+            let v1 = Int16.of_ints r r l l r r l l in
+            let result = hsub v0 v1 in
+            let expect = Int16.of_ints (Int16.sub l l) (Int16.sub r r) (Int16.sub l l) (Int16.sub r r) (Int16.sub r r) (Int16.sub l l) (Int16.sub r r) (Int16.sub l l) in
+            eq (int16x8_low_int64 result) (int16x8_high_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%04x|%04x hadds\n%!" l r);
+            let v0 = Int16.of_ints l l r r l l r r in
+            let v1 = Int16.of_ints r r l l r r l l in
+            let result = hadd_saturating v0 v1 in
+            let expect = Int16.of_ints (Int16.adds l l) (Int16.adds r r) (Int16.adds l l) (Int16.adds r r) (Int16.adds r r) (Int16.adds l l) (Int16.adds r r) (Int16.adds l l) in
+            eq (int16x8_low_int64 result) (int16x8_high_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%04x|%04x hsubs\n%!" l r);
+            let v0 = Int16.of_ints l l r r l l r r in
+            let v1 = Int16.of_ints r r l l r r l l in
+            let result = hsub_saturating v0 v1 in
+            let expect = Int16.of_ints (Int16.subs l l) (Int16.subs r r) (Int16.subs l l) (Int16.subs r r) (Int16.subs r r) (Int16.subs l l) (Int16.subs r r) (Int16.subs l l) in
+            eq (int16x8_low_int64 result) (int16x8_high_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+        );
+        Int16.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%04x|%04x muls\n%!" l r);
+            let v0 = Int16.of_ints l l r r l l r r in
+            let v1 = Int16.of_ints l r l r l r l r in
+            let result = mulsign v0 v1 in
+            let muls x y = Int16.muls x y in
+            let expect = Int16.of_ints (muls l l) (muls l r) (muls r l) (muls r r) (muls l l) (muls l r) (muls r l) (muls r r) in
+            eq (int16x8_low_int64 result) (int16x8_high_int64 result)
+            (int16x8_low_int64 expect) (int16x8_high_int64 expect)
+        );
+    ;;
+
+    external extract : (int [@untagged]) -> (t [@unboxed]) -> (int [@untagged]) = "" "caml_sse41_int16x8_extract"
+        [@@noalloc] [@@builtin]
+    external insert : (int [@untagged]) ->  (t [@unboxed]) -> (int [@untagged]) -> (t [@unboxed]) = "" "caml_sse41_int16x8_insert"
+        [@@noalloc] [@@builtin]
+
+    let () =
+        let v0 = low_of 0 in
+        let v1 = insert 0 v0 1 in
+        let v2 = insert 1 v1 2 in
+        let v3 = insert 2 v2 3 in
+        let v4 = insert 3 v3 4 in
+        let v5 = insert 4 v4 5 in
+        let v6 = insert 5 v5 6 in
+        let v7 = insert 6 v6 7 in
+        let v8 = insert 7 v7 8 in
+        let i0 = extract 0 v8 in
+        let i1 = extract 1 v8 in
+        let i2 = extract 2 v8 in
+        let i3 = extract 3 v8 in
+        let i4 = extract 4 v8 in
+        let i5 = extract 5 v8 in
+        let i6 = extract 6 v8 in
+        let i7 = extract 7 v8 in
+        eqi i0 i1 1 2;
+        eqi i2 i3 3 4;
+        eqi i4 i5 5 6;
+        eqi i6 i7 7 8
+    ;;
+
     (* TODO
-    caml_sse2_int16x8_add
-    caml_sse2_int16x8_add_saturating
-    caml_sse2_int16x8_add_saturating_unsigned
-    caml_sse2_int16x8_sub
-    caml_sse2_int16x8_sub_saturating
-    caml_sse2_int16x8_sub_saturating_unsigned
-    caml_sse2_int16x8_max
-    caml_sse2_int16x8_min
-    caml_sse2_int16x8_cmpeq
-    caml_sse2_int16x8_cmpgt
     caml_sse2_int16x8_sll
     caml_sse2_int16x8_srl
     caml_sse2_int16x8_sra
     caml_sse2_int16x8_slli
     caml_sse2_int16x8_srli
-    caml_sse2_int16x8_srai
-    caml_ssse3_int16x8_abs
-    caml_ssse3_int16x8_hadd
-    caml_ssse3_int16x8_hadd_saturating
-    caml_ssse3_int16x8_hsub
-    caml_ssse3_int16x8_hsub_saturating
-    caml_ssse3_int16x8_mulsign
-    caml_sse41_cvtsx_int16x8_int32x4
-    caml_sse41_cvtsx_int16x8_int64x2
-    caml_sse41_cvtzx_int16x8_int32x4
-    caml_sse41_cvtzx_int16x8_int64x2
-    caml_sse41_int16x8_extract
-    caml_sse41_int16x8_insert
-    caml_sse41_int16x8_max_unsigned
-    caml_sse41_int16x8_min_unsigned *)
+    caml_sse2_int16x8_srai *)
 end
 
 module Int8x16 = struct

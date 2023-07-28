@@ -311,6 +311,89 @@ int32_t uint32_min(int32_t l, int32_t r) {
   return ul < ur ? l : r;
 }
 
+int64_t int16_max(int64_t l, int64_t r) {
+  int16_t ul = (int16_t)l;
+  int16_t ur = (int16_t)r;
+  return ul > ur ? l : r;
+}
+int64_t int16_min(int64_t l, int64_t r) {
+  int16_t ul = (int16_t)l;
+  int16_t ur = (int16_t)r;
+  return ul < ur ? l : r;
+}
+int64_t int16_maxu(int64_t l, int64_t r) {
+  uint16_t ul = (uint16_t)l;
+  uint16_t ur = (uint16_t)r;
+  return ul > ur ? l : r;
+}
+int64_t int16_minu(int64_t l, int64_t r) {
+  uint16_t ul = (uint16_t)l;
+  uint16_t ur = (uint16_t)r;
+  return ul < ur ? l : r;
+}
+int64_t int16_add(int64_t l, int64_t r) {
+  return (int16_t)l + (int16_t)r;
+}
+int64_t int16_sub(int64_t l, int64_t r) {
+  return (int16_t)l - (int16_t)r;
+}
+int64_t int16_abs(int64_t i) {
+  int16_t x = i;
+  return x < 0 ? -x : x;
+}
+int64_t int16_adds(int64_t l, int64_t r) {
+  int16_t x = l, y = r;
+  int32_t sum = (int32_t)x + (int32_t)y;
+  if(sum > INT16_MAX) return INT16_MAX;
+  if(sum < INT16_MIN) return INT16_MIN;
+  return sum;
+}
+int64_t int16_subs(int64_t l, int64_t r) {
+  int16_t x = l, y = r;
+  int32_t diff = x - y;
+  if(diff > INT16_MAX) return INT16_MAX;
+  if(diff < INT16_MIN) return INT16_MIN;
+  return diff;
+}
+int64_t int16_addsu(int64_t l, int64_t r) {
+  uint16_t x = l, y = r;
+  int32_t sum = (int32_t)x + (int32_t)y;
+  if(sum > UINT16_MAX) return UINT16_MAX;
+  if(sum < 0) return 0;
+  return sum;
+}
+int64_t int16_subsu(int64_t l, int64_t r) {
+  uint16_t x = l, y = r;
+  int32_t sum = (int32_t)x - (int32_t)y;
+  if(sum > UINT16_MAX) return UINT16_MAX;
+  if(sum < 0) return 0;
+  return sum;
+}
+int64_t int16_muls(int64_t l, int64_t r) {
+  int16_t x = l, y = r;
+  return y == 0 ? 0 : y > 0 ? x : -x;
+}
+int64_t int16_cmpeq(int64_t l, int64_t r) {
+  if(l == r) return 0xffff;
+  return 0;
+}
+int64_t int16_cmpgt(int64_t l, int64_t r) {
+  if((int16_t)l > (int16_t)r) return 0xffff;
+  return 0;
+}
+int32_t int16_sxi32(int64_t x) {
+  return (int32_t)(int16_t)x;
+}
+int32_t int16_zxi32(int64_t x) {
+  return (uint32_t)(uint16_t)x;
+}
+int64_t int16_sxi64(int64_t x) {
+  return (int64_t)(int16_t)x;
+}
+int64_t int16_zxi64(int64_t x) {
+  return (uint64_t)(uint16_t)x;
+}
+
 int32_t int32_of_float(float f) {
   return *(int32_t*)&f;
 }
