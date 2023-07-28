@@ -53,6 +53,8 @@ val typ_void: machtype
 val typ_val: machtype
 val typ_addr: machtype
 val typ_int: machtype
+val typ_int32: machtype
+val typ_int64: machtype
 val typ_float: machtype
 
 (** Least upper bound of two [machtype_component]s. *)

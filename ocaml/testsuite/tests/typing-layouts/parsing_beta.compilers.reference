@@ -13,9 +13,9 @@ type t = float#
 Line 2, characters 9-13:
 2 | type t = int#;;
              ^^^^
-Error: Syntax error: Unboxed type other than float# not expected.
+Error: This construct requires the alpha version of the extension "layouts", which is disabled and cannot be used
 Line 2, characters 9-17:
 2 | type t = Float.t#;;
              ^^^^^^^^
-Error: Syntax error: Unboxed type other than float# not expected.
+Error: This construct requires the alpha version of the extension "layouts", which is disabled and cannot be used
 

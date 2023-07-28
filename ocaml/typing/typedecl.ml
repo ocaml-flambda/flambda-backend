@@ -81,7 +81,7 @@ type error =
       }
   | Jkind_empty_record
   | Non_value_in_sig of Jkind.Violation.t * string
-  | Float64_in_block of type_expr * jkind_sort_loc
+  | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
   | Mixed_block
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
@@ -1039,7 +1039,10 @@ let check_representable ~why ~allow_float env loc kloc typ =
       | Float64 when allow_float -> ()
       (* CR layouts v2.5: If we want to hold back [float#] records from the
          maturity progression of [float64], we can add a check here. *)
-      | Float64 -> raise (Error (loc, Float64_in_block (typ, kloc)))
+      | (Float64 | Word | Bits32 | Bits64 as const) ->
+        (* CR layouts v2.1: Consider changing the allow_float parameter to
+           allow unboxed ints. *)
+        raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
   | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
 
@@ -1123,6 +1126,9 @@ let update_decl_jkind env dpath decl =
              | Value | Immediate64 | Immediate -> (Has_values, floats)
              | Float64 -> (values, Has_float64s)
              | Void -> (values, floats)
+             (* CR layouts v2.1: make unboxed ints work with records *)
+             | Word | Bits32 | Bits64 ->
+              Misc.fatal_error "Typedecl.update_record_kind: no support for unboxed ints"
              | Any -> assert false)
           (No_values, No_float64s) jkinds
       in
@@ -2914,7 +2920,7 @@ let report_error ppf = function
   | Non_value_in_sig (err, val_name) ->
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
       val_name (Jkind.Violation.report_with_name ~name:val_name) err
-  | Float64_in_block (typ, lloc) ->
+  | Invalid_jkind_in_block (typ, sort_const, lloc) ->
     let struct_desc =
       match lloc with
       | Cstr_tuple -> "Variants"
@@ -2924,8 +2930,8 @@ let report_error ppf = function
       | External -> assert false
     in
     fprintf ppf
-      "@[Type %a has layout float64.@ %s may not yet contain types of this layout.@]"
-      Printtyp.type_expr typ struct_desc
+      "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"
+      Printtyp.type_expr typ Jkind.Sort.format_const sort_const struct_desc
   | Mixed_block  ->
     fprintf ppf
       "@[Records may not contain both unboxed floats and normal values.@]"

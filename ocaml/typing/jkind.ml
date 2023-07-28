@@ -21,6 +21,9 @@ module Legacy = struct
     | Immediate64
     | Immediate
     | Float64
+    | Word
+    | Bits32
+    | Bits64
 
   let const_of_attribute : Builtin_attributes.jkind_attribute -> _ = function
     | Immediate -> Immediate
@@ -48,16 +51,26 @@ module Legacy = struct
     | Immediate64 -> "immediate64"
     | Immediate -> "immediate"
     | Float64 -> "float64"
+    | Word -> "word"
+    | Bits32 -> "bits32"
+    | Bits64 -> "bits64"
 
   let equal_const c1 c2 =
     match c1, c2 with
-    | Any, Any -> true
-    | Value, Value -> true
-    | Void, Void -> true
-    | Immediate64, Immediate64 -> true
-    | Immediate, Immediate -> true
-    | Float64, Float64 -> true
-    | (Any | Value | Void | Immediate64 | Immediate | Float64), _ -> false
+    | Any, Any
+    | Immediate64, Immediate64
+    | Immediate, Immediate
+    | Void, Void
+    | Value, Value
+    | Float64, Float64
+    | Word, Word
+    | Bits32, Bits32
+    | Bits64, Bits64 ->
+      true
+    | ( ( Any | Immediate64 | Immediate | Void | Value | Float64 | Word | Bits32
+        | Bits64 ),
+        _ ) ->
+      false
 end
 
 module Sub_result = struct
@@ -81,6 +94,9 @@ module Sort = struct
     | Void
     | Value
     | Float64
+    | Word
+    | Bits32
+    | Bits64
 
   type t =
     | Var of var
@@ -121,9 +137,21 @@ module Sort = struct
 
   let float64 = Const Float64
 
+  let word = Const Word
+
+  let bits32 = Const Bits32
+
+  let bits64 = Const Bits64
+
   let some_value = Some value
 
-  let of_const = function Void -> void | Value -> value | Float64 -> float64
+  let of_const = function
+    | Void -> void
+    | Value -> value
+    | Float64 -> float64
+    | Word -> word
+    | Bits32 -> bits32
+    | Bits64 -> bits64
 
   let of_var v = Var v
 
@@ -147,10 +175,19 @@ module Sort = struct
 
   let memoized_float64 : t option = Some (Const Float64)
 
+  let memoized_word : t option = Some (Const Word)
+
+  let memoized_bits32 : t option = Some (Const Bits32)
+
+  let memoized_bits64 : t option = Some (Const Bits64)
+
   let[@inline] get_memoized = function
     | Value -> memoized_value
     | Void -> memoized_void
     | Float64 -> memoized_float64
+    | Word -> memoized_word
+    | Bits32 -> memoized_bits32
+    | Bits64 -> memoized_bits64
 
   let rec get_default_value : t -> const = function
     | Const c -> c
@@ -183,8 +220,14 @@ module Sort = struct
 
   let equal_const_const c1 c2 =
     match c1, c2 with
-    | Void, Void | Value, Value | Float64, Float64 -> Equal_no_mutation
-    | (Void | Value | Float64), _ -> Unequal
+    | Void, Void
+    | Value, Value
+    | Float64, Float64
+    | Word, Word
+    | Bits32, Bits32
+    | Bits64, Bits64 ->
+      Equal_no_mutation
+    | (Void | Value | Float64 | Word | Bits32 | Bits64), _ -> Unequal
 
   let rec equate_var_const v1 c2 =
     match !v1 with
@@ -227,9 +270,19 @@ module Sort = struct
 
   let equal_const c1 c2 =
     match c1, c2 with
-    | Void, Void | Value, Value | Float64, Float64 -> true
-    | Void, (Value | Float64) | Value, (Void | Float64) | Float64, (Value | Void)
-      ->
+    | Void, Void
+    | Value, Value
+    | Float64, Float64
+    | Word, Word
+    | Bits32, Bits32
+    | Bits64, Bits64 ->
+      true
+    | Void, (Value | Float64 | Word | Bits32 | Bits64)
+    | Value, (Void | Float64 | Word | Bits32 | Bits64)
+    | Float64, (Value | Void | Word | Bits32 | Bits64)
+    | Word, (Value | Void | Float64 | Bits32 | Bits64)
+    | Bits32, (Value | Void | Float64 | Word | Bits64)
+    | Bits64, (Value | Void | Float64 | Word | Bits32) ->
       false
 
   let rec is_void_defaulting = function
@@ -241,8 +294,7 @@ module Sort = struct
         set v some_value;
         false
       | Some s -> is_void_defaulting s)
-    | Const Value -> false
-    | Const Float64 -> false
+    | Const (Value | Float64 | Word | Bits32 | Bits64) -> false
 
   (*** pretty printing ***)
 
@@ -250,11 +302,16 @@ module Sort = struct
     | Value -> "value"
     | Void -> "void"
     | Float64 -> "float64"
+    | Word -> "word"
+    | Bits32 -> "bits32"
+    | Bits64 -> "bits64"
 
   let to_string s =
     match get s with Var v -> var_name v | Const c -> string_of_const c
 
   let format ppf t = Format.fprintf ppf "%s" (to_string t)
+
+  let format_const ppf const = Format.fprintf ppf "%s" (string_of_const const)
 
   (*** debug printing **)
 
@@ -268,7 +325,10 @@ module Sort = struct
           (match c with
           | Void -> "Void"
           | Value -> "Value"
-          | Float64 -> "Float64")
+          | Float64 -> "Float64"
+          | Word -> "Word"
+          | Bits32 -> "Bits32"
+          | Bits64 -> "Bits64")
 
     and opt_t ppf = function
       | Some s -> fprintf ppf "Some %a" t s
@@ -383,6 +443,12 @@ module Layout = struct
 
   let float64 = Sort Sort.float64
 
+  let word = Sort Sort.word
+
+  let bits32 = Sort Sort.bits32
+
+  let bits64 = Sort Sort.bits64
+
   module Debug_printers = struct
     open Format
 
@@ -461,6 +527,9 @@ module Const = struct
     | Sort Value, External -> Immediate
     | Sort Void, _ -> Void
     | Sort Float64, _ -> Float64
+    | Sort Word, _ -> Word
+    | Sort Bits32, _ -> Bits32
+    | Sort Bits64, _ -> Bits64
 
   (* CR layouts v2.8: do a better job here *)
   let to_string t = Legacy.string_of_const (to_legacy_jkind t)
@@ -532,6 +601,12 @@ module Jkind_desc = struct
   let immediate = { layout = Layout.value; externality = External }
 
   let float64 = { layout = Layout.float64; externality = External }
+
+  let word = { layout = Layout.word; externality = External }
+
+  let bits32 = { layout = Layout.bits32; externality = External }
+
+  let bits64 = { layout = Layout.bits64; externality = External }
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
   let get { layout; externality } : Desc.t =
@@ -632,6 +707,12 @@ type any_creation_reason =
 
 type float64_creation_reason = Primitive of Ident.t
 
+type word_creation_reason = Primitive of Ident.t
+
+type bits32_creation_reason = Primitive of Ident.t
+
+type bits64_creation_reason = Primitive of Ident.t
+
 type annotation_context =
   | Type_declaration of Path.t
   | Type_parameter of Path.t * string option
@@ -650,6 +731,9 @@ type creation_reason =
   | Void_creation of void_creation_reason
   | Any_creation of any_creation_reason
   | Float64_creation of float64_creation_reason
+  | Word_creation of word_creation_reason
+  | Bits32_creation of bits32_creation_reason
+  | Bits64_creation of bits64_creation_reason
   | Concrete_creation of concrete_jkind_reason
   | Imported
 
@@ -714,6 +798,12 @@ let immediate ~why =
 
 let float64 ~why = fresh_jkind Jkind_desc.float64 ~why:(Float64_creation why)
 
+let word ~why = fresh_jkind Jkind_desc.word ~why:(Word_creation why)
+
+let bits32 ~why = fresh_jkind Jkind_desc.bits32 ~why:(Bits32_creation why)
+
+let bits64 ~why = fresh_jkind Jkind_desc.bits64 ~why:(Bits64_creation why)
+
 (******************************)
 (*** user errors ***)
 type error =
@@ -742,7 +832,7 @@ let get_required_layouts_level (context : annotation_context)
     (jkind : Legacy.const) : Language_extension.maturity =
   match context, jkind with
   | _, (Value | Immediate | Immediate64 | Any | Float64) -> Stable
-  | _, Void -> Alpha
+  | _, (Void | Word | Bits32 | Bits64) -> Alpha
 
 (******************************)
 (* construction *)
@@ -761,6 +851,9 @@ let of_const ~why : Legacy.const -> t = function
   | Value -> fresh_jkind Jkind_desc.value ~why
   | Void -> fresh_jkind Jkind_desc.void ~why
   | Float64 -> fresh_jkind Jkind_desc.float64 ~why
+  | Word -> fresh_jkind Jkind_desc.word ~why
+  | Bits32 -> fresh_jkind Jkind_desc.bits32 ~why
+  | Bits64 -> fresh_jkind Jkind_desc.bits64 ~why
 
 let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
   match Legacy.const_of_user_written_annotation_unchecked annot with
@@ -1069,6 +1162,18 @@ end = struct
     | Primitive id ->
       fprintf ppf "it equals the primitive value type %s" (Ident.name id)
 
+  let format_word_creation_reason ppf : word_creation_reason -> _ = function
+    | Primitive id ->
+      fprintf ppf "it is the primitive word type %s" (Ident.name id)
+
+  let format_bits32_creation_reason ppf : bits32_creation_reason -> _ = function
+    | Primitive id ->
+      fprintf ppf "it is the primitive bits32 type %s" (Ident.name id)
+
+  let format_bits64_creation_reason ppf : bits64_creation_reason -> _ = function
+    | Primitive id ->
+      fprintf ppf "it is the primitive bits64 type %s" (Ident.name id)
+
   let format_creation_reason ppf : creation_reason -> unit = function
     | Annotated (ctx, _) ->
       fprintf ppf "of the annotation on %a" format_annotation_context ctx
@@ -1080,6 +1185,9 @@ end = struct
     | Void_creation void -> format_void_creation_reason ppf void
     | Value_creation value -> format_value_creation_reason ppf value
     | Float64_creation float -> format_float64_creation_reason ppf float
+    | Word_creation word -> format_word_creation_reason ppf word
+    | Bits32_creation bits32 -> format_bits32_creation_reason ppf bits32
+    | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
     | Concrete_creation concrete -> format_concrete_jkind_reason ppf concrete
     | Imported -> fprintf ppf "imported from another compilation unit"
 
@@ -1418,6 +1526,15 @@ module Debug_printers = struct
   let float64_creation_reason ppf : float64_creation_reason -> _ = function
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
 
+  let word_creation_reason ppf : word_creation_reason -> _ = function
+    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
+
+  let bits32_creation_reason ppf : bits32_creation_reason -> _ = function
+    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
+
+  let bits64_creation_reason ppf : bits64_creation_reason -> _ = function
+    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
+
   let creation_reason ppf : creation_reason -> unit = function
     | Annotated (ctx, loc) ->
       fprintf ppf "Annotated (%a,%a)" annotation_context ctx Location.print_loc
@@ -1434,6 +1551,12 @@ module Debug_printers = struct
       fprintf ppf "Void_creation %a" void_creation_reason void
     | Float64_creation float ->
       fprintf ppf "Float64_creation %a" float64_creation_reason float
+    | Word_creation word ->
+      fprintf ppf "Word_creation %a" word_creation_reason word
+    | Bits32_creation bits32 ->
+      fprintf ppf "Bits32_creation %a" bits32_creation_reason bits32
+    | Bits64_creation bits64 ->
+      fprintf ppf "Bits64_creation %a" bits64_creation_reason bits64
     | Concrete_creation concrete ->
       fprintf ppf "Concrete_creation %a" concrete_jkind_reason concrete
     | Imported -> fprintf ppf "Imported"
@@ -1509,6 +1632,9 @@ type const = Legacy.const =
   | Immediate64
   | Immediate
   | Float64
+  | Word
+  | Bits32
+  | Bits64
 
 type annotation = const * Jane_asttypes.jkind_annotation
 

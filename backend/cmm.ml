@@ -26,6 +26,11 @@ let typ_void = ([||] : machtype_component array)
 let typ_val = [|Val|]
 let typ_addr = [|Addr|]
 let typ_int = [|Int|]
+let typ_int32 = [|Int|]
+(* XXX ASZ: What layouts version does this go with? *)
+(* CR layouts XXX ASZ: Change [typ_int32] to fit in a 32-bit register, rather
+   than taking up a full 64-bit one. *)
+let typ_int64 = if Arch.size_int = 4 then [|Int;Int|] else [|Int|]
 let typ_float = [|Float|]
 let typ_vec128 = [|Vec128|]
 
@@ -94,8 +99,8 @@ type exttype =
 
 let machtype_of_exttype = function
   | XInt -> typ_int
-  | XInt32 -> typ_int
-  | XInt64 -> typ_int
+  | XInt32 -> typ_int32
+  | XInt64 -> typ_int64
   | XFloat -> typ_float
   | XVec128 -> typ_vec128
 

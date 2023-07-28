@@ -142,8 +142,12 @@
   int.mli
   int32.ml
   int32.mli
+  int32_u.ml
+  int32_u.mli
   int64.ml
   int64.mli
+  int64_u.ml
+  int64_u.mli
   lazy.ml
   lazy.mli
   lexing.ml
@@ -162,6 +166,8 @@
   mutex.mli
   nativeint.ml
   nativeint.mli
+  nativeint_u.ml
+  nativeint_u.mli
   obj.ml
   obj.mli
   oo.ml
@@ -301,9 +307,15 @@
   .stdlib.objs/byte/stdlib__Int32.cmi
   .stdlib.objs/byte/stdlib__Int32.cmt
   .stdlib.objs/byte/stdlib__Int32.cmti
+  .stdlib.objs/byte/stdlib__Int32_u.cmi
+  .stdlib.objs/byte/stdlib__Int32_u.cmt
+  .stdlib.objs/byte/stdlib__Int32_u.cmti
   .stdlib.objs/byte/stdlib__Int64.cmi
   .stdlib.objs/byte/stdlib__Int64.cmt
   .stdlib.objs/byte/stdlib__Int64.cmti
+  .stdlib.objs/byte/stdlib__Int64_u.cmi
+  .stdlib.objs/byte/stdlib__Int64_u.cmt
+  .stdlib.objs/byte/stdlib__Int64_u.cmti
   .stdlib.objs/byte/stdlib__Lazy.cmi
   .stdlib.objs/byte/stdlib__Lazy.cmt
   .stdlib.objs/byte/stdlib__Lazy.cmti
@@ -331,6 +343,9 @@
   .stdlib.objs/byte/stdlib__Nativeint.cmi
   .stdlib.objs/byte/stdlib__Nativeint.cmt
   .stdlib.objs/byte/stdlib__Nativeint.cmti
+  .stdlib.objs/byte/stdlib__Nativeint_u.cmi
+  .stdlib.objs/byte/stdlib__Nativeint_u.cmt
+  .stdlib.objs/byte/stdlib__Nativeint_u.cmti
   .stdlib.objs/byte/stdlib__Obj.cmi
   .stdlib.objs/byte/stdlib__Obj.cmt
   .stdlib.objs/byte/stdlib__Obj.cmti

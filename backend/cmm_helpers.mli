@@ -255,6 +255,8 @@ module Extended_machtype : sig
 
   val typ_any_int : t
 
+  val typ_int32 : t
+
   val typ_int64 : t
 
   val typ_float : t

@@ -1,0 +1,5 @@
+File "unboxed_bits64s_beta.ml", line 19, characters 6-18:
+19 |   let _not_allowed = Stdlib__Int64_u.of_int64 42L in
+           ^^^^^^^^^^^^
+Error: Non-value layout bits64 detected in [Typeopt.layout] as sort for type
+       int64#. Please report this error to the Jane Street compilers team.

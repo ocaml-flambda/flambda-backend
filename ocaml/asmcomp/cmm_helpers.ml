@@ -912,6 +912,11 @@ module Extended_machtype = struct
 
   let typ_int64 = [| Extended_machtype_component.Any_int |]
 
+  (* XXX ASZ: What layouts version does this go with? *)
+  (* CR layouts XXX ASZ: Change this to fit in a 32-bit register, rather than
+     taking up a full 64-bit one. *)
+  let typ_int32 = [| Extended_machtype_component.Any_int |]
+
   let typ_float = [| Extended_machtype_component.Float |]
 
   let typ_void = [||]

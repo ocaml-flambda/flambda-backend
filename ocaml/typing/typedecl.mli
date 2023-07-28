@@ -122,7 +122,7 @@ type error =
       }
   | Jkind_empty_record
   | Non_value_in_sig of Jkind.Violation.t * string
-  | Float64_in_block of type_expr * jkind_sort_loc
+  | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
   | Mixed_block
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
