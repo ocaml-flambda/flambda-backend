@@ -437,3 +437,12 @@ Only the first match will be used to evaluate the guard expression.
 val warn_ambiguous : int list * int list -> int = <fun>
 |}];;
 
+(* Ensure that warning 57 is not extraneously issued for pattern guards. *)
+let dont_warn_ambiguous = function
+  | ([ x ], _) | (_, [ x ]) when (let one = 1 in one + one) match 2 -> x
+  | _ -> 0
+;;
+[%%expect{|
+val dont_warn_ambiguous : int list * int list -> int = <fun>
+|}];;
+
