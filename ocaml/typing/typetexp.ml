@@ -476,14 +476,12 @@ and transl_type_aux env policy mode styp =
       let rec loop acc_mode args =
         match args with
         | (l, arg_mode, arg) :: rest ->
-          let l = transl_label l (Some arg) in
           check_arg_type arg;
-          let arg_cty =
-            match arg.ptyp_desc with
-            | Ptyp_extension ({txt="src_pos"; _}, _payload) ->
-              let constr = newconstr Predef.path_lexing_position [] in
-              ctyp Ttyp_src_pos constr
-            |_ -> transl_type env policy arg_mode arg
+          let l = transl_label l (Some arg) in
+          let arg_cty = 
+            if Btype.is_position l then
+              ctyp Ttyp_src_pos (newconstr Predef.path_lexing_position [])
+            else transl_type env policy arg_mode arg
           in
           let acc_mode = Alloc_mode.join_const acc_mode arg_mode in
           let ret_mode =
