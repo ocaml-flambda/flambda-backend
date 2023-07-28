@@ -30,7 +30,6 @@ type iterator = {
   binding_op: iterator -> binding_op -> unit;
   case: iterator -> case -> unit;
   cases: iterator -> case list -> unit;
-  case_rhs: iterator -> case_rhs -> unit;
   class_declaration: iterator -> class_declaration -> unit;
   class_description: iterator -> class_description -> unit;
   class_expr: iterator -> class_expr -> unit;
@@ -439,7 +438,7 @@ module E = struct
   let iter_iarr_exp sub : IA.expression -> _ = function
     | Iaexp_immutable_array elts ->
       List.iter (sub.expr sub) elts
-
+  
   let iter_jst sub : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
     | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
@@ -789,20 +788,10 @@ let default_iterator =
 
     cases = (fun this l -> List.iter (this.case this) l);
     case =
-      (fun this {pc_lhs; pc_rhs} ->
+      (fun this {pc_lhs; pc_guard; pc_rhs} ->
          this.pat this pc_lhs;
-         this.case_rhs this pc_rhs;
-      );
-    case_rhs =
-      (fun this -> function
-         | Psimple_rhs e -> this.expr this e
-         | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
-             this.expr this pbg_guard;
-             this.expr this pbg_rhs
-         | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases; ppg_loc } ->
-             this.expr this ppg_scrutinee;
-             this.cases this ppg_cases;
-             this.location this ppg_loc
+         iter_opt (this.expr this) pc_guard;
+         this.expr this pc_rhs
       );
 
     location = (fun _this _l -> ());

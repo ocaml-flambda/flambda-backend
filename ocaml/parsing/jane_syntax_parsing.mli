@@ -196,6 +196,9 @@ end
 module Expression :
   AST with type ast = Parsetree.expression
 
+module Case :
+  AST with type ast = Parsetree.case
+
 module Pattern :
   AST with type ast = Parsetree.pattern
 

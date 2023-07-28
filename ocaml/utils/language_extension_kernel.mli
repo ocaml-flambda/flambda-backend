@@ -18,6 +18,7 @@ type _ t =
   | Immutable_arrays : unit t
   | Module_strengthening : unit t
   | Layouts : maturity t
+  | Pattern_guards : unit t
 
 module Exist : sig
   type 'a extn = 'a t

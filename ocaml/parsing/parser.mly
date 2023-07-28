@@ -353,6 +353,10 @@ let ppat_iarray loc elts =
     ~loc:(make_loc loc) ~attrs:[]
     (Iapat_immutable_array elts)
 
+let pcase_pattern_guarded ~loc pgc_lhs pgc_scrutinee pgc_cases =
+  Jane_syntax.Pattern_guarded.case_of
+    ~loc ~attrs:[] (Pg_case { pgc_lhs; pgc_scrutinee; pgc_cases })
+
 let expecting loc nonterm =
     raise Syntaxerr.(Error(Expecting(make_loc loc, nonterm)))
 
@@ -3027,9 +3031,9 @@ local_strict_binding:
 ;
 match_case:
     pattern MINUSGREATER seq_expr
-      { Exp.case $1 (Case_rhs.simple $3) }
+      { Exp.case $1 ~guard:None $3 }
   | pattern WHEN seq_expr MINUSGREATER seq_expr
-      { Exp.case $1 (Case_rhs.boolean_guarded ~guard:$3 $5) }
+      { Exp.case $1 ~guard:(Some $3) $5 }
   /* CR-soon rgodse: We should consider whether to also allow seq_expr, as this
      also parses without conflict.
 
@@ -3037,16 +3041,13 @@ match_case:
      if and when `e match p` is introduced as an expression
   */
   | pattern WHEN expr MATCH ioption(BAR) match_case
-      { Exp.case $1
-          (Case_rhs.pattern_guarded ~loc:(make_loc ($startpos($2), $endpos))
-             $3 [ $6 ]) }
+      { pcase_pattern_guarded
+          ~loc:(make_loc ($startpos($2), $endpos)) $1 $3 [ $6 ] }
   | pattern WHEN expr MATCH LPAREN match_cases RPAREN
-      { Exp.case $1
-          (Case_rhs.pattern_guarded ~loc:(make_loc ($startpos($2), $endpos))
-             $3 $6) }
+      { pcase_pattern_guarded
+          ~loc:(make_loc ($startpos($2), $endpos)) $1 $3 $6 }
   | pattern MINUSGREATER DOT
-      { Exp.case $1
-          (Case_rhs.simple (Exp.unreachable ~loc:(make_loc $loc($3)) ())) }
+      { Exp.case $1 ~guard:None (Exp.unreachable ~loc:(make_loc $loc($3)) ()) }
 ;
 fun_def:
     MINUSGREATER seq_expr

@@ -343,18 +343,23 @@ and add_immutable_array_expr bv : Jane_syntax.Immutable_arrays.expression -> _ =
 and add_cases bv cases =
   List.iter (add_case bv) cases
 
-and add_case bv {pc_lhs; pc_rhs} =
+and add_case bv ({pc_lhs; pc_guard; pc_rhs} as case) =
+  match Jane_syntax.Case.of_ast case with
+  | Some (jcase, _attrs) -> add_case_jane_syntax bv jcase
+  | None ->
   let bv = add_pattern bv pc_lhs in
-  add_case_rhs bv pc_rhs
+  Option.iter (add_expr bv) pc_guard;
+  add_expr bv pc_rhs
 
-and add_case_rhs bv = function
-  | Psimple_rhs e -> add_expr bv e
-  | Pboolean_guarded_rhs { pbg_guard; pbg_rhs } ->
-      add_expr bv pbg_guard;
-      add_expr bv pbg_rhs
-  | Ppattern_guarded_rhs { ppg_scrutinee; ppg_cases } ->
-      add_expr bv ppg_scrutinee;
-      add_cases bv ppg_cases
+and add_case_jane_syntax bv : Jane_syntax.Case.t -> _ = function
+  | Jcase_pattern_guarded x -> add_pattern_guarded_case bv x
+
+and add_pattern_guarded_case bv :
+  Jane_syntax.Pattern_guarded.case -> _ = function
+  | Pg_case { pgc_lhs; pgc_scrutinee; pgc_cases } ->
+      let bv = add_pattern bv pgc_lhs in
+      add_expr bv pgc_scrutinee;
+      add_cases bv pgc_cases
 
 and add_bindings recf bv pel =
   let bv' = List.fold_left (fun bv x -> add_pattern bv x.pvb_pat) bv pel in
