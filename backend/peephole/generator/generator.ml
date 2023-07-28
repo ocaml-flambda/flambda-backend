@@ -373,10 +373,12 @@ type t =
   }
 
 let get_instr_arg idx instr_name =
-  String.concat "" [instr_name; "_val.arg.("; Int.to_string idx; ")"]
+  String.concat ""
+    ["Array.unsafe_get "; instr_name; "_val.arg "; Int.to_string idx]
 
 let get_instr_res idx instr_name =
-  String.concat "" [instr_name; "_val.res.("; Int.to_string idx; ")"]
+  String.concat ""
+    ["Array.unsafe_get "; instr_name; "_val.res "; Int.to_string idx]
 
 let get_cell_list slide_back name instr_names =
   [ String.concat " "

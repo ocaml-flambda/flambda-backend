@@ -18,10 +18,10 @@ let useless_movs (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length mov2_val.res = 1)
       then None
       else
-        let reg3 = mov2_val.arg.(0) in
-        let reg4 = mov2_val.res.(0) in
-        let reg1 = mov1_val.arg.(0) in
-        let reg2 = mov1_val.res.(0) in
+        let reg3 = Array.unsafe_get mov2_val.arg 0 in
+        let reg4 = Array.unsafe_get mov2_val.res 0 in
+        let reg1 = Array.unsafe_get mov1_val.arg 0 in
+        let reg2 = Array.unsafe_get mov1_val.res 0 in
         if not (are_equal_regs reg1 reg4 && are_equal_regs reg2 reg3)
         then None
         else (
@@ -48,10 +48,10 @@ let fold_intop_imm_arith (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length op2_val.res = 1)
       then None
       else
-        let reg3 = op2_val.arg.(0) in
-        let reg4 = op2_val.res.(0) in
-        let reg1 = op1_val.arg.(0) in
-        let reg2 = op1_val.res.(0) in
+        let reg3 = Array.unsafe_get op2_val.arg 0 in
+        let reg4 = Array.unsafe_get op2_val.res 0 in
+        let reg1 = Array.unsafe_get op1_val.arg 0 in
+        let reg2 = Array.unsafe_get op1_val.res 0 in
         if not
              (are_equal_regs reg1 reg2 && are_equal_regs reg3 reg4
             && are_equal_regs reg1 reg3
@@ -78,10 +78,10 @@ let fold_intop_imm_arith (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length op2_val.res = 1)
       then None
       else
-        let reg3 = op2_val.arg.(0) in
-        let reg4 = op2_val.res.(0) in
-        let reg1 = op1_val.arg.(0) in
-        let reg2 = op1_val.res.(0) in
+        let reg3 = Array.unsafe_get op2_val.arg 0 in
+        let reg4 = Array.unsafe_get op2_val.res 0 in
+        let reg1 = Array.unsafe_get op1_val.arg 0 in
+        let reg2 = Array.unsafe_get op1_val.res 0 in
         if not
              (are_equal_regs reg1 reg2 && are_equal_regs reg3 reg4
             && are_equal_regs reg1 reg3
@@ -108,10 +108,10 @@ let fold_intop_imm_arith (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length op2_val.res = 1)
       then None
       else
-        let reg3 = op2_val.arg.(0) in
-        let reg4 = op2_val.res.(0) in
-        let reg1 = op1_val.arg.(0) in
-        let reg2 = op1_val.res.(0) in
+        let reg3 = Array.unsafe_get op2_val.arg 0 in
+        let reg4 = Array.unsafe_get op2_val.res 0 in
+        let reg1 = Array.unsafe_get op1_val.arg 0 in
+        let reg2 = Array.unsafe_get op1_val.res 0 in
         if not
              (are_equal_regs reg1 reg2 && are_equal_regs reg3 reg4
             && are_equal_regs reg1 reg3
@@ -138,10 +138,10 @@ let fold_intop_imm_arith (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length op2_val.res = 1)
       then None
       else
-        let reg3 = op2_val.arg.(0) in
-        let reg4 = op2_val.res.(0) in
-        let reg1 = op1_val.arg.(0) in
-        let reg2 = op1_val.res.(0) in
+        let reg3 = Array.unsafe_get op2_val.arg 0 in
+        let reg4 = Array.unsafe_get op2_val.res 0 in
+        let reg1 = Array.unsafe_get op1_val.arg 0 in
+        let reg2 = Array.unsafe_get op1_val.res 0 in
         if not
              (are_equal_regs reg1 reg2 && are_equal_regs reg3 reg4
             && are_equal_regs reg1 reg3
@@ -168,10 +168,10 @@ let fold_intop_imm_arith (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length op2_val.res = 1)
       then None
       else
-        let reg3 = op2_val.arg.(0) in
-        let reg4 = op2_val.res.(0) in
-        let reg1 = op1_val.arg.(0) in
-        let reg2 = op1_val.res.(0) in
+        let reg3 = Array.unsafe_get op2_val.arg 0 in
+        let reg4 = Array.unsafe_get op2_val.res 0 in
+        let reg1 = Array.unsafe_get op1_val.arg 0 in
+        let reg2 = Array.unsafe_get op1_val.res 0 in
         if not
              (are_equal_regs reg1 reg2 && are_equal_regs reg3 reg4
             && are_equal_regs reg1 reg3
@@ -198,10 +198,10 @@ let fold_intop_imm_arith (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length op2_val.res = 1)
       then None
       else
-        let reg3 = op2_val.arg.(0) in
-        let reg4 = op2_val.res.(0) in
-        let reg1 = op1_val.arg.(0) in
-        let reg2 = op1_val.res.(0) in
+        let reg3 = Array.unsafe_get op2_val.arg 0 in
+        let reg4 = Array.unsafe_get op2_val.res 0 in
+        let reg1 = Array.unsafe_get op1_val.arg 0 in
+        let reg2 = Array.unsafe_get op1_val.res 0 in
         if not
              (are_equal_regs reg1 reg2 && are_equal_regs reg3 reg4
             && are_equal_regs reg1 reg3 && imm1 >= 0 && imm1 < 31
@@ -228,10 +228,10 @@ let fold_intop_imm_arith (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length op2_val.res = 1)
       then None
       else
-        let reg3 = op2_val.arg.(0) in
-        let reg4 = op2_val.res.(0) in
-        let reg1 = op1_val.arg.(0) in
-        let reg2 = op1_val.res.(0) in
+        let reg3 = Array.unsafe_get op2_val.arg 0 in
+        let reg4 = Array.unsafe_get op2_val.res 0 in
+        let reg1 = Array.unsafe_get op1_val.arg 0 in
+        let reg2 = Array.unsafe_get op1_val.res 0 in
         if not
              (are_equal_regs reg1 reg2 && are_equal_regs reg3 reg4
             && are_equal_regs reg1 reg3 && imm2 >= 0 && imm2 < 31
@@ -269,10 +269,10 @@ let fold_intop_imm_bitwise (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length op2_val.res = 1)
       then None
       else
-        let reg3 = op2_val.arg.(0) in
-        let reg4 = op2_val.res.(0) in
-        let reg1 = op1_val.arg.(0) in
-        let reg2 = op1_val.res.(0) in
+        let reg3 = Array.unsafe_get op2_val.arg 0 in
+        let reg4 = Array.unsafe_get op2_val.res 0 in
+        let reg1 = Array.unsafe_get op1_val.arg 0 in
+        let reg2 = Array.unsafe_get op1_val.res 0 in
         if not
              (are_equal_regs reg1 reg2 && are_equal_regs reg3 reg4
             && are_equal_regs reg1 reg3
@@ -299,10 +299,10 @@ let fold_intop_imm_bitwise (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length op2_val.res = 1)
       then None
       else
-        let reg3 = op2_val.arg.(0) in
-        let reg4 = op2_val.res.(0) in
-        let reg1 = op1_val.arg.(0) in
-        let reg2 = op1_val.res.(0) in
+        let reg3 = Array.unsafe_get op2_val.arg 0 in
+        let reg4 = Array.unsafe_get op2_val.res 0 in
+        let reg1 = Array.unsafe_get op1_val.arg 0 in
+        let reg2 = Array.unsafe_get op1_val.res 0 in
         if not
              (are_equal_regs reg1 reg2 && are_equal_regs reg3 reg4
             && are_equal_regs reg1 reg3
@@ -329,10 +329,10 @@ let fold_intop_imm_bitwise (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length op2_val.res = 1)
       then None
       else
-        let reg3 = op2_val.arg.(0) in
-        let reg4 = op2_val.res.(0) in
-        let reg1 = op1_val.arg.(0) in
-        let reg2 = op1_val.res.(0) in
+        let reg3 = Array.unsafe_get op2_val.arg 0 in
+        let reg4 = Array.unsafe_get op2_val.res 0 in
+        let reg1 = Array.unsafe_get op1_val.arg 0 in
+        let reg2 = Array.unsafe_get op1_val.res 0 in
         if not
              (are_equal_regs reg1 reg2 && are_equal_regs reg3 reg4
             && are_equal_regs reg1 reg3
@@ -359,10 +359,10 @@ let fold_intop_imm_bitwise (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length op2_val.res = 1)
       then None
       else
-        let reg3 = op2_val.arg.(0) in
-        let reg4 = op2_val.res.(0) in
-        let reg1 = op1_val.arg.(0) in
-        let reg2 = op1_val.res.(0) in
+        let reg3 = Array.unsafe_get op2_val.arg 0 in
+        let reg4 = Array.unsafe_get op2_val.res 0 in
+        let reg1 = Array.unsafe_get op1_val.arg 0 in
+        let reg2 = Array.unsafe_get op1_val.res 0 in
         if not
              (are_equal_regs reg1 reg2 && are_equal_regs reg3 reg4
             && are_equal_regs reg1 reg3
@@ -388,10 +388,10 @@ let fold_intop_imm_bitwise (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length op2_val.res = 1)
       then None
       else
-        let reg3 = op2_val.arg.(0) in
-        let reg4 = op2_val.res.(0) in
-        let reg1 = op1_val.arg.(0) in
-        let reg2 = op1_val.res.(0) in
+        let reg3 = Array.unsafe_get op2_val.arg 0 in
+        let reg4 = Array.unsafe_get op2_val.res 0 in
+        let reg1 = Array.unsafe_get op1_val.arg 0 in
+        let reg2 = Array.unsafe_get op1_val.res 0 in
         if not
              (are_equal_regs reg1 reg2 && are_equal_regs reg3 reg4
             && are_equal_regs reg1 reg3
@@ -417,10 +417,10 @@ let fold_intop_imm_bitwise (cell : Cfg.basic Cfg.instruction DLL.cell) =
            && Array.length op2_val.res = 1)
       then None
       else
-        let reg3 = op2_val.arg.(0) in
-        let reg4 = op2_val.res.(0) in
-        let reg1 = op1_val.arg.(0) in
-        let reg2 = op1_val.res.(0) in
+        let reg3 = Array.unsafe_get op2_val.arg 0 in
+        let reg4 = Array.unsafe_get op2_val.res 0 in
+        let reg1 = Array.unsafe_get op1_val.arg 0 in
+        let reg2 = Array.unsafe_get op1_val.res 0 in
         if not
              (are_equal_regs reg1 reg2 && are_equal_regs reg3 reg4
             && are_equal_regs reg1 reg3
