@@ -658,6 +658,21 @@ module Expression0 = Make_with_attribute (struct
   let with_attributes expr pexp_attributes = { expr with pexp_attributes }
 end)
 
+module Case0 = Make_with_attribute (struct
+  type ast = case
+
+  let plural = "cases"
+  let location case = case.pc_rhs.pexp_loc
+  let with_location case l =
+    let pc_rhs = { case.pc_rhs with pexp_loc = l } in
+    { case with pc_rhs  }
+
+  let attributes case = case.pc_rhs.pexp_attributes
+  let with_attributes case pexp_attributes =
+    let pc_rhs = { case.pc_rhs with pexp_attributes = pexp_attributes } in
+    { case with pc_rhs }
+end)
+
 (** Patterns; embedded using an attribute on the pattern. *)
 module Pattern0 = Make_with_attribute (struct
   type ast = pattern
@@ -820,6 +835,7 @@ module Make_ast (AST : AST_internal) : AST with type ast = AST.ast = struct
 end
 
 module Expression = Make_ast(Expression0)
+module Case = Make_ast(Case0)
 module Pattern = Make_ast(Pattern0)
 module Module_type = Make_ast(Module_type0)
 module Signature_item = Make_ast(Signature_item0)

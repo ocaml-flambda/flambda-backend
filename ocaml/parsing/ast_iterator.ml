@@ -30,7 +30,6 @@ type iterator = {
   binding_op: iterator -> binding_op -> unit;
   case: iterator -> case -> unit;
   cases: iterator -> case list -> unit;
-  case_rhs: iterator -> case_rhs -> unit;
   class_declaration: iterator -> class_declaration -> unit;
   class_description: iterator -> class_description -> unit;
   class_expr: iterator -> class_expr -> unit;
@@ -789,20 +788,10 @@ let default_iterator =
 
     cases = (fun this l -> List.iter (this.case this) l);
     case =
-      (fun this {pc_lhs; pc_rhs} ->
+      (fun this {pc_lhs; pc_guard; pc_rhs} ->
          this.pat this pc_lhs;
-         this.case_rhs this pc_rhs;
-      );
-    case_rhs =
-      (fun this -> function
-         | Psimple_rhs e -> this.expr this e
-         | Pboolean_guarded_rhs { guard; rhs } ->
-             this.expr this guard;
-             this.expr this rhs
-         | Ppattern_guarded_rhs { scrutinee; cases; loc } ->
-             this.expr this scrutinee;
-             this.cases this cases;
-             this.location this loc
+         iter_opt (this.expr this) pc_guard;
+         this.expr this pc_rhs
       );
 
     location = (fun _this _l -> ());

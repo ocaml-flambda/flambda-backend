@@ -338,6 +338,39 @@ module Include_functor = struct
     | _ -> failwith "Malformed [include functor] in structure"
 end
 
+module Pattern_guarded = struct
+  let feature : Feature.t = Language_extension Pattern_guards
+
+  type case =
+    | Pg_case of
+        { pgc_lhs: Parsetree.pattern
+        ; pgc_scrutinee: Parsetree.expression
+        ; pgc_cases: Parsetree.case list 
+        }
+  
+    let fail_malformed ~loc =
+      Location.raise_errorf ~loc "Malformed pattern guarded case rhs"
+  
+  let of_case { pc_lhs; pc_rhs } =
+    match pc_rhs.pexp_desc with
+    | Pexp_match (scrutinee, cases) ->
+        let case =
+          Pg_case
+            { pgc_lhs = pc_lhs; pgc_scrutinee = scrutinee; pgc_cases = cases }
+        in
+        case, pc_rhs.pexp_attributes
+    | _ -> fail_malformed ~loc:pc_rhs.pexp_loc
+  
+  let case_of ~loc ~attrs = function
+    | Pg_case { pgc_lhs; pgc_scrutinee; pgc_cases } ->
+        Case.make_entire_jane_syntax ~loc feature
+          (fun () ->
+             let pc_rhs =
+               Ast_helper.Exp.match_ ~loc ~attrs pgc_scrutinee pgc_cases
+             in
+             { pc_lhs = pgc_lhs; pc_guard = None; pc_rhs })
+end
+
 (** Module strengthening *)
 module Strengthen = struct
   type nonrec module_type =
@@ -465,6 +498,22 @@ module Expression = struct
     | Jexp_comprehension    x -> Comprehensions.expr_of    ~loc ~attrs x
     | Jexp_immutable_array  x -> Immutable_arrays.expr_of  ~loc ~attrs x
     | Jexp_unboxed_constant x -> Unboxed_constants.expr_of ~loc ~attrs x
+end
+
+module Case = struct
+  type t =
+    | Jcase_pattern_guarded of Pattern_guarded.case
+  
+  let of_ast_internal (feat : Feature.t) case = match feat with
+    | Language_extension Pattern_guards ->
+      let case, attrs = Pattern_guarded.of_case case in
+      Some (Jcase_pattern_guarded case, attrs)
+    | _ -> None
+  
+  let of_ast = Case.make_of_ast ~of_ast_internal
+
+  let case_of ~loc ~attrs = function
+    | Jcase_pattern_guarded x -> Pattern_guarded.case_of ~loc ~attrs x
 end
 
 module Pattern = struct

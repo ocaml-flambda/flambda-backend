@@ -220,9 +220,10 @@ module Exp = struct
   let extension ?loc ?attrs a = mk ?loc ?attrs (Pexp_extension a)
   let unreachable ?loc ?attrs () = mk ?loc ?attrs Pexp_unreachable
 
-  let case lhs rhs =
+  let case lhs ~guard rhs =
     {
      pc_lhs = lhs;
+     pc_guard = guard;
      pc_rhs = rhs;
     }
 
@@ -233,13 +234,6 @@ module Exp = struct
       pbop_exp = exp;
       pbop_loc = loc;
     }
-end
-
-module Case_rhs = struct
-  let simple e = Psimple_rhs e
-  let boolean_guarded ~guard rhs = Pboolean_guarded_rhs { guard; rhs }
-  let pattern_guarded ~loc scrutinee cases =
-    Ppattern_guarded_rhs { scrutinee; cases; loc }
 end
 
 module Mty = struct

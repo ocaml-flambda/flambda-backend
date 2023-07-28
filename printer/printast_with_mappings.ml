@@ -948,21 +948,15 @@ and longident_x_pattern i ppf (li, p) =
   line i ppf "%a\n" fmt_longident_loc li;
   pattern (i+1) ppf p;
 
-and case i ppf {pc_lhs; pc_rhs} =
+and case i ppf {pc_lhs; pc_guard; pc_rhs} =
   line i ppf "<case>\n";
   pattern (i+1) ppf pc_lhs;
-  case_rhs (i + 1) ppf pc_rhs;
+  option (i+1) guard ppf pc_guard;
+  expression (i + 1) ppf pc_rhs;
 
-and case_rhs i ppf = function
-  | Psimple_rhs e -> expression i ppf e
-  | Pboolean_guarded_rhs { guard; rhs } ->
-      line i ppf "<when>\n";
-      expression (i + 1) ppf guard
-  | Ppattern_guarded_rhs { scrutinee; cases; _ } ->
-      line i ppf "<when>\n";
-      expression (i + 1) ppf scrutinee;
-      line (i + 1) ppf "<match>\n";
-      list (i + 1) case ppf cases
+and guard i ppf g =
+  line i ppf "<when>\n";
+  expression (i + 1) ppf g
 
 and value_binding i ppf x =
   line i ppf "<def>\n";

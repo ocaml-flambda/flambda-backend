@@ -32,7 +32,6 @@ type mapper = {
   binding_op: mapper -> binding_op -> binding_op;
   case: mapper -> case -> case;
   cases: mapper -> case list -> case list;
-  case_rhs: mapper -> case_rhs -> case_rhs;
   class_declaration: mapper -> class_declaration -> class_declaration;
   class_description: mapper -> class_description -> class_description;
   class_expr: mapper -> class_expr -> class_expr;
@@ -902,26 +901,12 @@ let default_mapper =
 
     cases = (fun this l -> List.map (this.case this) l);
     case =
-      (fun this {pc_lhs; pc_rhs} ->
+      (fun this {pc_lhs; pc_guard; pc_rhs} ->
          {
            pc_lhs = this.pat this pc_lhs;
-           pc_rhs = this.case_rhs this pc_rhs;
+           pc_guard = Option.map (this.expr this) pc_guard;
+           pc_rhs = this.expr this pc_rhs;
          }
-      );
-    case_rhs =
-      (fun this -> function
-         | Psimple_rhs e -> Psimple_rhs (this.expr this e)
-         | Pboolean_guarded_rhs { guard; rhs } ->
-             Pboolean_guarded_rhs
-               { guard = this.expr this guard
-               ; rhs = this.expr this rhs
-               }
-         | Ppattern_guarded_rhs { scrutinee; cases; loc } ->
-             Ppattern_guarded_rhs
-               { scrutinee = this.expr this scrutinee
-               ; cases = this.cases this cases
-               ; loc = this.location this loc
-               }
       );
 
     location = (fun _this l -> l);
