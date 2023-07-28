@@ -182,8 +182,8 @@ let bind_rhs_with_layout str (var, layout) exp body =
           let free_variables =
             map_guarded_free_variables
               ~f:(fun free ->
-                    Ident.Set.remove var
-                      (Ident.Set.union (free_variables exp) free))
+                    Ident.Set.union
+                      (free_variables exp) (Ident.Set.remove var free))
               free
           in
           Guarded { patch_guarded; free_variables }
@@ -1167,7 +1167,7 @@ let safe_before ((p, ps), act_p) l =
         (match make_key act1, make_key act2 with
          | Some key1, Some key2 -> key1 = key2
          | None, _ | _, None -> false)
-    (* CR-soon rgodse: Investigate the callsites of this function to determine 
+    (* CR-soon rgodse: Investigate the callsites of this function to determine
        if Guarded rhs's should ever be deemed the same. *)
     | Guarded _, _ | _, Guarded _ -> false
   in
