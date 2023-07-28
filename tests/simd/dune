@@ -49,8 +49,6 @@
 (rule
  (targets basic_internal.ml)
  (deps basic.ml)
- (enabled_if
-  (<> %{system} macosx))
  (action
   (progn
    (copy basic.ml basic_internal.ml))))
