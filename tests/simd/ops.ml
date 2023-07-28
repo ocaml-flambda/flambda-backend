@@ -440,6 +440,46 @@ module Int64s = struct
     ;;
 end
 
+module Int32s = struct
+
+    type t = int32
+
+    external max_unsigned : t -> t -> t = "" "uint32_max" [@@noalloc] [@@unboxed]
+    external min_unsigned : t -> t -> t = "" "uint32_min" [@@noalloc] [@@unboxed]
+
+    let of_int32s a b c d =
+        let a = Int64.of_int32 a |> Int64.logand 0xffffffffL in
+        let b = Int64.of_int32 b |> Int64.logand 0xffffffffL in
+        let c = Int64.of_int32 c |> Int64.logand 0xffffffffL in
+        let d = Int64.of_int32 d |> Int64.logand 0xffffffffL in
+        int32x4_of_int64s (Int64.(logor (shift_left b 32) a)) (Int64.(logor (shift_left d 32) c))
+    ;;
+
+    let check_ints f =
+        let open Int32 in
+        Random.set_state (Random.State.make [|1234567890|]);
+        f zero zero;
+        f zero one;
+        f one one;
+        f zero minus_one;
+        f minus_one minus_one;
+        f one minus_one;
+        f max_int zero;
+        f min_int zero;
+        f max_int one;
+        f min_int one;
+        f max_int max_int;
+        f min_int min_int;
+        f max_int min_int;
+        for i = 0 to 100_000 do
+            let i0 = Random.int32 Int32.max_int in
+            let i1 = Random.int32 Int32.max_int in
+            f (if Random.bool () then i0 else Int32.neg i0)
+              (if Random.bool () then i1 else Int32.neg i1)
+        done
+    ;;
+end
+
 module Float32x4 = struct
 
     type t = float32x4
@@ -901,21 +941,23 @@ module Int64x2 = struct
         Int64s.check_ints (check_binop (fun l r -> if Int64.compare l r = 1 then 0xffffffffffffffffL else 0L) cmpgt);
         Int64s.check_ints (fun l r ->
             failmsg := (fun () -> Printf.printf "%016Lx << %016Lx\n%!" l r);
-            let v = int64x2_of_int64s l l in
-            let shift = Int64.logand r 0x1fL in
+            let v = int64x2_of_int64s l r in
+            let shift = Int64.logand r 0x3fL in
             let result = sll v (int64x2_of_int64s shift 0L) in
-            let expect = Int64.shift_left l (Int64.to_int shift) in
+            let expectl = Int64.shift_left l (Int64.to_int shift) in
+            let expectr = Int64.shift_left r (Int64.to_int shift) in
             eq (int64x2_low_int64 result) (int64x2_high_int64 result)
-               expect expect
+               expectl expectr
         );
         Int64s.check_ints (fun l r ->
             failmsg := (fun () -> Printf.printf "%016Lx >> %016Lx\n%!" l r);
-            let v = int64x2_of_int64s l l in
-            let shift = Int64.logand r 0x1fL in
+            let v = int64x2_of_int64s l r in
+            let shift = Int64.logand r 0x3fL in
             let result = srl v (int64x2_of_int64s shift 0L) in
-            let expect = Int64.shift_right_logical l (Int64.to_int shift) in
+            let expectl = Int64.shift_right_logical l (Int64.to_int shift) in
+            let expectr = Int64.shift_right_logical r (Int64.to_int shift) in
             eq (int64x2_low_int64 result) (int64x2_high_int64 result)
-               expect expect
+               expectl expectr
         );
         Int64s.check_ints (fun l r ->
             failmsg := (fun () -> Printf.printf "%016Lx|%016Lx << 7\n%!" l r);
@@ -977,31 +1019,249 @@ module Int32x4 = struct
         eql i1 i2 1l 2l
     ;;
 
-    (* TODO
-    caml_sse2_int32x4_add
-    caml_sse2_int32x4_sub
-    caml_sse2_int32x4_cmpeq
-    caml_sse2_int32x4_cmpgt
-    caml_sse2_cvt_int32x4_float64x2
-    caml_sse2_cvt_int32x4_float32x4
-    caml_sse2_int32x4_sll
-    caml_sse2_int32x4_srl
-    caml_sse2_int32x4_sra
-    caml_sse2_int32x4_slli
-    caml_sse2_int32x4_srli
-    caml_sse2_int32x4_srai
-    caml_ssse3_int32x4_abs
-    caml_ssse3_int32x4_hadd
-    caml_ssse3_int32x4_hsub
-    caml_ssse3_int32x4_mulsign
-    caml_sse41_cvtsx_int32x4_int64x2
-    caml_sse41_cvtzx_int32x4_int64x2
-    caml_sse41_int32x4_extract
-    caml_sse41_int32x4_insert
-    caml_sse41_int32x4_max
-    caml_sse41_int32x4_max_unsigned
-    caml_sse41_int32x4_min
-    caml_sse41_int32x4_min_unsigned *)
+    (* Math *)
+
+    external add : t -> t -> t = "" "caml_sse2_int32x4_add"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external sub : t -> t -> t = "" "caml_sse2_int32x4_sub"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external cmpeq : t -> t -> t = "" "caml_sse2_int32x4_cmpeq"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external cmpgt : t -> t -> t = "" "caml_sse2_int32x4_cmpgt"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external sll : t -> t -> t = "" "caml_sse2_int32x4_sll"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external srl : t -> t -> t = "" "caml_sse2_int32x4_srl"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external sra : t -> t -> t = "" "caml_sse2_int32x4_sra"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external slli : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "caml_sse2_int32x4_slli"
+        [@@noalloc] [@@builtin]
+    external srli : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "caml_sse2_int32x4_srli"
+        [@@noalloc] [@@builtin]
+    external srai : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "caml_sse2_int32x4_srai"
+        [@@noalloc] [@@builtin]
+
+    external cvt_f64 : t -> float64x2 = "" "caml_sse2_cvt_int32x4_float64x2"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external cvt_f32 : t -> float32x4 = "" "caml_sse2_cvt_int32x4_float32x4"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external abs : t -> t = "" "caml_ssse3_int32x4_abs"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external hadd : t -> t -> t = "" "caml_ssse3_int32x4_hadd"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external hsub : t -> t -> t = "" "caml_ssse3_int32x4_hsub"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external mulsign : t -> t -> t = "" "caml_ssse3_int32x4_mulsign"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external max : t -> t -> t = "" "caml_sse41_int32x4_max"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external max_unsigned : t -> t -> t = "" "caml_sse41_int32x4_max_unsigned"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external min : t -> t -> t = "" "caml_sse41_int32x4_min"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external min_unsigned : t -> t -> t = "" "caml_sse41_int32x4_min_unsigned"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external cvtsx_i64 : t -> int64x2 = "" "caml_sse41_cvtsx_int32x4_int64x2"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external cvtzx_i64 : t -> int64x2 = "" "caml_sse41_cvtzx_int32x4_int64x2"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    let check_binop scalar vector i0 i1 =
+        failmsg := (fun () -> Printf.printf "%08lx | %08lx\n%!" i0 i1);
+        let r0 = scalar i0 i1 in
+        let r1 = scalar i1 i0 in
+        let expect = Int32s.of_int32s r0 r1 r0 r1 in
+        let v1 = Int32s.of_int32s i0 i1 i0 i1 in
+        let v2 = Int32s.of_int32s i1 i0 i1 i0 in
+        let result = vector v1 v2 in
+        eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+           (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+    ;;
+    let () =
+        Int32s.check_ints (check_binop Int32.add add);
+        Int32s.check_ints (check_binop Int32.sub sub);
+        Int32s.check_ints (check_binop (fun l r -> if Int32.equal l r then 0xffffffffl else 0l) cmpeq);
+        Int32s.check_ints (check_binop (fun l r -> if Int32.compare l r = 1 then 0xffffffffl else 0l) cmpgt);
+        Int32s.check_ints (check_binop Int32.max max);
+        Int32s.check_ints (check_binop Int32.min min);
+        Int32s.check_ints (check_binop Int32s.max_unsigned max_unsigned);
+        Int32s.check_ints (check_binop Int32s.min_unsigned min_unsigned);
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx << %08lx\n%!" l r);
+            let v = Int32s.of_int32s l r l r in
+            let shift = Int32.logand r 0x1fl in
+            let result = sll v (Int32s.of_int32s shift 0l 0l 0l) in
+            let expectl = Int32.shift_left l (Int32.to_int shift) in
+            let expectr = Int32.shift_left r (Int32.to_int shift) in
+            let expect = Int32s.of_int32s expectl expectr expectl expectr in
+            eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+        );
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx >> %08lx\n%!" l r);
+            let v = Int32s.of_int32s l r l r in
+            let shift = Int32.logand r 0x1fl in
+            let result = srl v (Int32s.of_int32s shift 0l 0l 0l) in
+            let expectl = Int32.shift_right_logical l (Int32.to_int shift) in
+            let expectr = Int32.shift_right_logical r (Int32.to_int shift) in
+            let expect = Int32s.of_int32s expectl expectr expectl expectr in
+            eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+        );
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx >>a %08lx\n%!" l r);
+            let v = Int32s.of_int32s l r l r in
+            let shift = Int32.logand r 0x1fl in
+            let result = sra v (Int32s.of_int32s shift 0l 0l 0l) in
+            let expectl = Int32.shift_right l (Int32.to_int shift) in
+            let expectr = Int32.shift_right r (Int32.to_int shift) in
+            let expect = Int32s.of_int32s expectl expectr expectl expectr in
+            eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+        );
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx|%08lx << 7\n%!" l r);
+            let v = Int32s.of_int32s l r l r in
+            let result = slli 7 v in
+            let expectl = Int32.shift_left l 7 in
+            let expectr = Int32.shift_left r 7 in
+            let expect = Int32s.of_int32s expectl expectr expectl expectr in
+            eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+               (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+        );
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx|%08lx >> 7\n%!" l r);
+            let v = Int32s.of_int32s l r l r in
+            let result = srli 7 v in
+            let expectl = Int32.shift_right_logical l 7 in
+            let expectr = Int32.shift_right_logical r 7 in
+            let expect = Int32s.of_int32s expectl expectr expectl expectr in
+            eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+               (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+        );
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx|%08lx >>a 7\n%!" l r);
+            let v = Int32s.of_int32s l r l r in
+            let result = srai 7 v in
+            let expectl = Int32.shift_right l 7 in
+            let expectr = Int32.shift_right r 7 in
+            let expect = Int32s.of_int32s expectl expectr expectl expectr in
+            eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+               (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+        );
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx|%08lx cvt_f32\n%!" l r);
+            let v = Int32s.of_int32s l r l r in
+            let result = cvt_f32 v in
+            let expectl = Int32.to_float l |> Int32.bits_of_float in
+            let expectr = Int32.to_float r |> Int32.bits_of_float in
+            let expect = Float32.to_float32x4 expectl expectr expectl expectr in
+            eq (float32x4_low_int64 result) (float32x4_high_int64 result)
+            (float32x4_low_int64 expect) (float32x4_high_int64 expect)
+        );
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx|%08lx cvt_f64\n%!" l r);
+            let v = Int32s.of_int32s l r 0l 0l in
+            let result = cvt_f64 v in
+            let expectl = Int32.to_float l |> Int64.bits_of_float in
+            let expectr = Int32.to_float r |> Int64.bits_of_float in
+            eq (float64x2_low_int64 result) (float64x2_high_int64 result)
+            expectl expectr
+        );
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx|%08lx abs\n%!" l r);
+            let v = Int32s.of_int32s l r l r in
+            let result = abs v in
+            let expectl = Int32.abs l in
+            let expectr = Int32.abs r in
+            let expect = Int32s.of_int32s expectl expectr expectl expectr in
+            eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+        );
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx|%08lx hadd\n%!" l r);
+            let v0 = Int32s.of_int32s l l r r in
+            let v1 = Int32s.of_int32s r r l l in
+            let result = hadd v0 v1 in
+            let expect = Int32s.of_int32s (Int32.add l l) (Int32.add r r) (Int32.add r r) (Int32.add l l) in
+            eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+        );
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx|%08lx hsub\n%!" l r);
+            let v0 = Int32s.of_int32s l r r l in
+            let v1 = Int32s.of_int32s r l l r in
+            let result = hsub v0 v1 in
+            let expect = Int32s.of_int32s (Int32.sub l r) (Int32.sub r l) (Int32.sub r l) (Int32.sub l r) in
+            eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+        );
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx|%08lx muls\n%!" l r);
+            let v0 = Int32s.of_int32s l l r r in
+            let v1 = Int32s.of_int32s l r l r in
+            let result = mulsign v0 v1 in
+            let muls x y = Int32.mul (Int32.compare y 0l |> Int32.of_int) x in
+            let expect = Int32s.of_int32s (muls l l) (muls l r) (muls r l) (muls r r) in
+            eq (int32x4_low_int64 result) (int32x4_high_int64 result)
+            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
+        );
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx|%08lx cvt_sx_i64\n%!" l r);
+            let v = Int32s.of_int32s l r 0l 0l in
+            let result = cvtsx_i64 v in
+            let expectl = Int64.of_int32 l in
+            let expectr = Int64.of_int32 r in
+            eq (int64x2_low_int64 result) (int64x2_high_int64 result)
+            expectl expectr
+        );
+        Int32s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%08lx|%08lx cvt_zx_i64\n%!" l r);
+            let v = Int32s.of_int32s l r 0l 0l in
+            let result = cvtzx_i64 v in
+            let expectl = Int64.of_int32 l |> Int64.logand 0xffffffffL in
+            let expectr = Int64.of_int32 r |> Int64.logand 0xffffffffL in
+            eq (int64x2_low_int64 result) (int64x2_high_int64 result)
+            expectl expectr
+        );
+    ;;
+
+    external extract : (int [@untagged]) -> (t [@unboxed]) -> (int32 [@unboxed]) = "" "caml_sse41_int32x4_extract"
+        [@@noalloc] [@@builtin]
+    external insert : (int [@untagged]) ->  (t [@unboxed]) -> (int32 [@unboxed]) -> (t [@unboxed]) = "" "caml_sse41_int32x4_insert"
+        [@@noalloc] [@@builtin]
+
+    let () =
+        let v0 = low_of 0l in
+        let v1 = insert 0 v0 1l in
+        let v2 = insert 1 v1 2l in
+        let v3 = insert 2 v2 3l in
+        let v4 = insert 3 v3 4l in
+        let i0 = extract 0 v0 in
+        let i1 = extract 0 v1 in
+        let i2 = extract 0 v2 in
+        let i3 = extract 1 v2 in
+        let i4 = extract 0 v3 in
+        let i5 = extract 1 v3 in
+        let i6 = extract 2 v3 in
+        let i7 = extract 0 v4 in
+        let i8 = extract 1 v4 in
+        let i9 = extract 2 v4 in
+        let i10 = extract 3 v4 in
+        eql i0 i1 0l 1l;
+        eql i2 i3 1l 2l;
+        eql i4 i5 1l 2l;
+        eql i6 i7 3l 1l;
+        eql i8 i9 2l 3l;
+        eql i10 0l 4l 0l;
+    ;;
 end
 
 module Int16x8 = struct

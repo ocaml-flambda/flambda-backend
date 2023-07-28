@@ -300,6 +300,17 @@ BUILTIN(caml_sse42_vec128_cmpistrm);
 #include <float.h>
 #include <math.h>
 
+int32_t uint32_max(int32_t l, int32_t r) {
+  uint32_t ul = (uint32_t)l;
+  uint32_t ur = (uint32_t)r;
+  return ul > ur ? l : r;
+}
+int32_t uint32_min(int32_t l, int32_t r) {
+  uint32_t ul = (uint32_t)l;
+  uint32_t ur = (uint32_t)r;
+  return ul < ur ? l : r;
+}
+
 int32_t int32_of_float(float f) {
   return *(int32_t*)&f;
 }

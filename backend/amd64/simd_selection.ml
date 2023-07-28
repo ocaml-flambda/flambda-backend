@@ -220,9 +220,9 @@ let select_operation_ssse3 op args dbg =
   then None
   else
     match op with
-    | "caml_ssse3_int8x16_abs" -> Some (Abs_i8, args)
-    | "caml_ssse3_int16x8_abs" -> Some (Abs_i16, args)
-    | "caml_ssse3_int32x4_abs" -> Some (Abs_i32, args)
+    | "caml_ssse3_int8x16_abs" -> Some (Abs_i8, [arg 0 args; arg 0 args])
+    | "caml_ssse3_int16x8_abs" -> Some (Abs_i16, [arg 0 args; arg 0 args])
+    | "caml_ssse3_int32x4_abs" -> Some (Abs_i32, [arg 0 args; arg 0 args])
     | "caml_ssse3_int16x8_hadd" -> Some (Hadd_i16, args)
     | "caml_ssse3_int32x4_hadd" -> Some (Hadd_i32, args)
     | "caml_ssse3_int16x8_hadd_saturating" -> Some (Hadds_i16, args)

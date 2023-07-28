@@ -1012,16 +1012,26 @@ let emit_dppd = suffix emit_osize_rf_rfm_3A 0x41
 let emit_roundps = suffix emit_osize_rf_rfm_3A 0x08
 let emit_roundpd = suffix emit_osize_rf_rfm_3A 0x09
 
-let emit_psllwi _ _ _ = assert false (* TODO(mslater): fix? suffix emit_osize_rf 0x71 *)
-let emit_pslldi _ _ _ = assert false (* TODO(mslater): fix? suffix emit_osize_rf 0x72 *)
-let emit_psllqi _ _ _ = assert false (* TODO(mslater): fix? suffix emit_osize_rf 0x73 *)
-let emit_psrlwi _ _ _ = assert false (* TODO(mslater): fix? suffix emit_osize_rf 0x71 *)
-let emit_psrldi _ _ _ = assert false (* TODO(mslater): fix? suffix emit_osize_rf 0x72 *)
-let emit_psrlqi _ _ _ = assert false (* TODO(mslater): fix? suffix emit_osize_rf 0x73 *)
-let emit_psrawi _ _ _ = assert false (* TODO(mslater): fix? suffix emit_osize_rf 0x71 *)
-let emit_psradi _ _ _ = assert false (* TODO(mslater): fix? suffix emit_osize_rf 0x72 *)
-let emit_pslldq _ _ _ = assert false (* TODO(mslater): fix? suffix emit_osize_rf 0x73 *)
-let emit_psrldq _ _ _ = assert false (* TODO(mslater): fix? suffix emit_osize_rf 0x73 *)
+let emit_osize_rf op rmod b dst =
+  match dst with
+  | Regf reg ->
+      buf_int8 b 0x66;
+      let rm = rd_of_regf reg in
+      emit_rex b (rex lor rexb_rm rm);
+      buf_opcodes b [ 0x0F; op ];
+      buf_int8 b (mod_rm_reg 0b11 rm rmod)
+  | _ -> assert false
+
+let emit_psllwi b n dst = emit_osize_rf 0x71 0x06 b dst; buf_int8 b n
+let emit_pslldi b n dst = emit_osize_rf 0x72 0x06 b dst; buf_int8 b n
+let emit_psllqi b n dst = emit_osize_rf 0x73 0x06 b dst; buf_int8 b n
+let emit_psrlwi b n dst = emit_osize_rf 0x71 0x02 b dst; buf_int8 b n
+let emit_psrldi b n dst = emit_osize_rf 0x72 0x02 b dst; buf_int8 b n
+let emit_psrlqi b n dst = emit_osize_rf 0x73 0x02 b dst; buf_int8 b n
+let emit_psrawi b n dst = emit_osize_rf 0x71 0x04 b dst; buf_int8 b n
+let emit_psradi b n dst = emit_osize_rf 0x72 0x04 b dst; buf_int8 b n
+let emit_pslldq b n dst = emit_osize_rf 0x73 0x07 b dst; buf_int8 b n
+let emit_psrldq b n dst = emit_osize_rf 0x73 0x03 b dst; buf_int8 b n
 
 let emit_pextrb b n dst src =
   match (dst, src) with
