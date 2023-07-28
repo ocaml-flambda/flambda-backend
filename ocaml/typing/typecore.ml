@@ -389,10 +389,11 @@ let mode_max = mode_default Value_mode.max_mode
 (** Same as [mode_max] but set [position] *)
 let mode_max_with_position position = { mode_max with position }
 
-(** used when entering a region whose type must cross modes *)
+(** For typing subexpressions while entering a region, where the
+    subexpression has a fixed type that crosses all mode axes *)
 let mode_max_with_region =
-  { (mode_default Value_mode.local) with
-    position = RTail (Value_mode.local, FNontail);
+  { mode_max with
+    position = RTail (Value_mode.max_mode, FNontail);
   }
 
 (** Used for several cases; all non-tail *)
