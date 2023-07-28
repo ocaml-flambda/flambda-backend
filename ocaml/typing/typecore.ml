@@ -6811,7 +6811,7 @@ and type_statement ?explanation ?(position=RNontail) env sexp =
 (* Typing of match cases *)
 and type_cases
     : type k . k pattern_category ->
-           ?in_function:_ -> require_value_case:_ -> _ -> _ -> _ -> _ -> _ -> 
+           ?in_function:_ -> require_value_case:_ -> _ -> _ -> _ -> _ -> _ ->
            _ -> _ -> Parsetree.case list -> k case list * partial
   = fun category ?in_function ~require_value_case env pmode emode
         ty_arg ty_res_explained partiality_constraint loc caselist ->
@@ -6980,14 +6980,15 @@ and type_cases
                 in
                 guard, exp
             | Some
-                (Guard_pattern 
+                (Guard_pattern
                   { pgp_scrutinee = e; pgp_pattern = pat; pgp_loc = loc }) ->
                 let { arg; sort; cases; partial; } =
-                  (* Pattern guards containing no value cases will have an
-                     "Any" [_] case inserted during translation to handle the
-                     case where no cases match. For this reason, we can
-                     successfully typecheck such pattern guards. *)
                   type_match
+                    (* Pattern guards containing no value cases will have an
+                       "Any" [_] case inserted during translation to handle the
+                       case where no cases match, so we can successfully
+                       typecheck such guards. Accordingly, [require_value_case]
+                       is set to [false] below. *)
                     ~require_value_case:false e
                     [ { pc_lhs = pat; pc_guard = None; pc_rhs } ] ext_env loc
                     Check_and_warn_if_total (mk_expected ?explanation ty_res')
@@ -7039,6 +7040,8 @@ and type_cases
     match category with
       | Value -> (cases : value case list), []
       | Computation -> split_cases env cases in
+  (* Some match-like constructs (namely, pattern guards) need not contain a
+     value case, in which case [require_value_case] is set to [false]. *)
   if require_value_case && val_cases = [] && exn_cases <> [] then
     raise (Error (loc, env, No_value_clauses));
   let partial = match partiality_constraint with
