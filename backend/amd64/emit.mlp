@@ -1063,22 +1063,22 @@ let emit_simd_instr op i =
   | SSE41 (Dp_f64 n) -> I.dppd n (arg i 1) (res i 0)
   | SSE41 (Extract_i8 n) ->
     (* CR mslater: (SIMD) change once we have unboxed int8 *)
-    I.pextrb n (res i 0) (arg i 0);
+    I.pextrb n (arg i 0) (res i 0);
     I.movzx (res8 i 0) (res i 0)
   | SSE41 (Extract_i16 n) ->
     (* CR mslater: (SIMD) change once we have unboxed int16 *)
-    I.pextrw n (res i 0) (arg i 0);
+    I.pextrw n (arg i 0) (res i 0);
     I.movzx (res16 i 0) (res i 0)
-  | SSE41 (Extract_i32 n) -> I.pextrd n (res32 i 0) (arg i 0)
-  | SSE41 (Extract_i64 n) -> I.pextrq n (res i 0) (arg i 0)
+  | SSE41 (Extract_i32 n) -> I.pextrd n (arg i 0) (res32 i 0)
+  | SSE41 (Extract_i64 n) -> I.pextrq n (arg i 0) (res i 0)
   | SSE41 (Insert_i8 n) ->
     (* CR mslater: (SIMD) change once we have unboxed int8 *)
-    I.pinsrb n (res i 0) (arg32 i 1)
+    I.pinsrb n (arg32 i 1) (res i 0)
   | SSE41 (Insert_i16 n) ->
     (* CR mslater: (SIMD) change once we have unboxed int16 *)
-    I.pinsrw n (res i 0) (arg32 i 1)
-  | SSE41 (Insert_i32 n) -> I.pinsrd n (res i 0) (arg32 i 1)
-  | SSE41 (Insert_i64 n) -> I.pinsrq n (res i 0) (arg i 1)
+    I.pinsrw n (arg32 i 1) (res i 0)
+  | SSE41 (Insert_i32 n) -> I.pinsrd n (arg32 i 1) (res i 0)
+  | SSE41 (Insert_i64 n) -> I.pinsrq n (arg i 1) (res i 0)
   | SSE41 Max_i8 -> I.pmaxsb (arg i 1) (res i 0)
   | SSE41 Max_i32 -> I.pmaxsd (arg i 1) (res i 0)
   | SSE41 Max_u16 -> I.pmaxuw (arg i 1) (res i 0)

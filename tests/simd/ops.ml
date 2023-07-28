@@ -868,6 +868,21 @@ module Int64x2 = struct
     external sub : t -> t -> t = "" "caml_sse2_int64x2_sub"
         [@@noalloc] [@@unboxed] [@@builtin]
 
+    external cmpeq : t -> t -> t = "" "caml_sse41_int64x2_cmpeq"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external cmpgt : t -> t -> t = "" "caml_sse42_int64x2_cmpgt"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external sll : t -> t -> t = "" "caml_sse2_int64x2_sll"
+        [@@noalloc] [@@unboxed] [@@builtin]
+    external srl : t -> t -> t = "" "caml_sse2_int64x2_srl"
+        [@@noalloc] [@@unboxed] [@@builtin]
+
+    external slli : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "caml_sse2_int64x2_slli"
+        [@@noalloc] [@@builtin]
+    external srli : (int [@untagged]) -> (t [@unboxed]) -> (t [@unboxed]) = "" "caml_sse2_int64x2_srli"
+        [@@noalloc] [@@builtin]
+
     let check_binop scalar vector i0 i1 =
         failmsg := (fun () -> Printf.printf "%016Lx | %016Lx\n%!" i0 i1);
         let r0 = scalar i0 i1 in
@@ -881,18 +896,63 @@ module Int64x2 = struct
     ;;
     let () =
         Int64s.check_ints (check_binop Int64.add add);
-        Int64s.check_ints (check_binop Int64.sub sub)
+        Int64s.check_ints (check_binop Int64.sub sub);
+        Int64s.check_ints (check_binop (fun l r -> if Int64.equal l r then 0xffffffffffffffffL else 0L) cmpeq);
+        Int64s.check_ints (check_binop (fun l r -> if Int64.compare l r = 1 then 0xffffffffffffffffL else 0L) cmpgt);
+        Int64s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%016Lx << %016Lx\n%!" l r);
+            let v = int64x2_of_int64s l l in
+            let shift = Int64.logand r 0x1fL in
+            let result = sll v (int64x2_of_int64s shift 0L) in
+            let expect = Int64.shift_left l (Int64.to_int shift) in
+            eq (int64x2_low_int64 result) (int64x2_high_int64 result)
+               expect expect
+        );
+        Int64s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%016Lx >> %016Lx\n%!" l r);
+            let v = int64x2_of_int64s l l in
+            let shift = Int64.logand r 0x1fL in
+            let result = srl v (int64x2_of_int64s shift 0L) in
+            let expect = Int64.shift_right_logical l (Int64.to_int shift) in
+            eq (int64x2_low_int64 result) (int64x2_high_int64 result)
+               expect expect
+        );
+        Int64s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%016Lx|%016Lx << 7\n%!" l r);
+            let v = int64x2_of_int64s l r in
+            let result = slli 7 v in
+            let expectl = Int64.shift_left l 7 in
+            let expectr = Int64.shift_left r 7 in
+            eq (int64x2_low_int64 result) (int64x2_high_int64 result)
+               expectl expectr
+        );
+        Int64s.check_ints (fun l r ->
+            failmsg := (fun () -> Printf.printf "%016Lx|%016Lx >> 7\n%!" l r);
+            let v = int64x2_of_int64s l r in
+            let result = srli 7 v in
+            let expectl = Int64.shift_right_logical l 7 in
+            let expectr = Int64.shift_right_logical r 7 in
+            eq (int64x2_low_int64 result) (int64x2_high_int64 result)
+               expectl expectr
+        )
     ;;
 
-    (* TODO
-    caml_sse2_int64x2_sll
-    caml_sse2_int64x2_srl
-    caml_sse2_int64x2_slli
-    caml_sse2_int64x2_srli
-    caml_sse41_int64x2_cmpeq
-    caml_sse41_int64x2_extract
-    caml_sse41_int64x2_insert
-    caml_sse42_int64x2_cmpgt *)
+    external extract : (int [@untagged]) -> (t [@unboxed]) -> (int64 [@unboxed]) = "" "caml_sse41_int64x2_extract"
+        [@@noalloc] [@@builtin]
+    external insert : (int [@untagged]) ->  (t [@unboxed]) -> (int64 [@unboxed]) -> (t [@unboxed]) = "" "caml_sse41_int64x2_insert"
+        [@@noalloc] [@@builtin]
+
+    let () =
+        let v0 = low_of 0L in
+        let v1 = insert 0 v0 1L in
+        let v2 = insert 1 v1 2L in
+        let i0 = extract 0 v0 in
+        let i1 = extract 0 v1 in
+        let i2 = extract 0 v2 in
+        let i3 = extract 1 v2 in
+        eq i0 i1 0L 1L;
+        eq i2 i3 1L 2L
+    ;;
 end
 
 module Int32x4 = struct

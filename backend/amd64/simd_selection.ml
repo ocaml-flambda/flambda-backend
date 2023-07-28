@@ -378,13 +378,14 @@ let register_behavior_sse2 = function
   | Or_bits | Xor_bits | Cmpeq_i8 | Cmpeq_i16 | Cmpeq_i32 | Cmpgt_i8 | Cmpgt_i16
   | Cmpgt_i32 | Cmp_f64 _ | I32_to_f64 | I32_to_f32 | F64_to_i32 | F64_to_f32
   | F32_to_i32 | F32_to_f64 | SLL_i16 | SLL_i32 | SLL_i64 | SRL_i16 | SRL_i32
-  | SRL_i64 | SRA_i16 | SRA_i32 | SLLi_i16 _ | SLLi_i32 _ | SLLi_i64 _
-  | SRLi_i16 _ | SRLi_i32 _ | SRLi_i64 _ | SRAi_i16 _ | SRAi_i32 _
-  | Shuffle_64 _ | Shuffle_high_16 _ | Shuffle_low_16 _ | Interleave_high_8
-  | Interleave_high_16 | Interleave_high_64 | Interleave_low_8
-  | Interleave_low_16 | Interleave_low_64 ->
+  | SRL_i64 | SRA_i16 | SRA_i32 | Shuffle_64 _ | Shuffle_high_16 _
+  | Shuffle_low_16 _ | Interleave_high_8 | Interleave_high_16
+  | Interleave_high_64 | Interleave_low_8 | Interleave_low_16
+  | Interleave_low_64 ->
     R_RM_to_fst
-  | Shift_left_bytes _ | Shift_right_bytes _ -> R_to_fst
+  | SLLi_i16 _ | SLLi_i32 _ | SLLi_i64 _ | SRLi_i16 _ | SRLi_i32 _ | SRLi_i64 _
+  | SRAi_i16 _ | SRAi_i32 _ | Shift_left_bytes _ | Shift_right_bytes _ ->
+    R_to_fst
   | Movemask_8 | Movemask_64 -> R_to_R
 
 let register_behavior_sse3 = function

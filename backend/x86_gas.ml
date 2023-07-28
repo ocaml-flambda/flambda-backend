@@ -277,14 +277,14 @@ let print_instr b = function
   | PSRLQ (arg1, arg2) -> i2 b "psrlq" arg1 arg2
   | PSRAW (arg1, arg2) -> i2 b "psraw" arg1 arg2
   | PSRAD (arg1, arg2) -> i2 b "psrad" arg1 arg2
-  | PSLLWI (bits, arg1) -> i2 b "psllwi" (Imm (Int64.of_int bits)) arg1
-  | PSLLDI (bits, arg1) -> i2 b "pslldi" (Imm (Int64.of_int bits)) arg1
-  | PSLLQI (bits, arg1) -> i2 b "psllqi" (Imm (Int64.of_int bits)) arg1
-  | PSRLWI (bits, arg1) -> i2 b "psrlwi" (Imm (Int64.of_int bits)) arg1
-  | PSRLDI (bits, arg1) -> i2 b "psrldi" (Imm (Int64.of_int bits)) arg1
-  | PSRLQI (bits, arg1) -> i2 b "psrlqi" (Imm (Int64.of_int bits)) arg1
-  | PSRAWI (bits, arg1) -> i2 b "psrawi" (Imm (Int64.of_int bits)) arg1
-  | PSRADI (bits, arg1) -> i2 b "psradi" (Imm (Int64.of_int bits)) arg1
+  | PSLLWI (bits, arg1) -> i2 b "psllw" (Imm (Int64.of_int bits)) arg1
+  | PSLLDI (bits, arg1) -> i2 b "pslld" (Imm (Int64.of_int bits)) arg1
+  | PSLLQI (bits, arg1) -> i2 b "psllq" (Imm (Int64.of_int bits)) arg1
+  | PSRLWI (bits, arg1) -> i2 b "psrlw" (Imm (Int64.of_int bits)) arg1
+  | PSRLDI (bits, arg1) -> i2 b "psrld" (Imm (Int64.of_int bits)) arg1
+  | PSRLQI (bits, arg1) -> i2 b "psrlq" (Imm (Int64.of_int bits)) arg1
+  | PSRAWI (bits, arg1) -> i2 b "psraw" (Imm (Int64.of_int bits)) arg1
+  | PSRADI (bits, arg1) -> i2 b "psrad" (Imm (Int64.of_int bits)) arg1
   | SHUFPD (shuf, arg1, arg2) -> i3 b "shufpd" (Imm (Int64.of_int shuf)) arg1 arg2
   | PSHUFHW (shuf, arg1, arg2) -> i3 b "pshufhw" (Imm (Int64.of_int shuf)) arg1 arg2
   | PSHUFLW (shuf, arg1, arg2) -> i3 b "pshuflw" (Imm (Int64.of_int shuf)) arg1 arg2
