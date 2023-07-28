@@ -204,7 +204,7 @@ let print_instr b = function
   | XOR (arg1, arg2) -> i2 b "xor" arg1 arg2
   | XORPD (arg1, arg2) -> i2 b "xorpd" arg1 arg2
   | CMPPS (cmp, arg1, arg2) -> i2 b ("cmp" ^ string_of_float_condition cmp ^ "ps") arg1 arg2
-  | SHUFPS (shuf, arg1, arg2) -> i3 b "shufps" arg1 arg2 (Imm (Int64.of_int shuf))
+  | SHUFPS (shuf, arg1, arg2) -> i3 b "shufps" (Imm (Int64.of_int shuf)) arg1 arg2
   | ADDPS (arg1, arg2) -> i2 b "addps" arg1 arg2
   | SUBPS (arg1, arg2) -> i2 b "subps" arg1 arg2
   | MULPS (arg1, arg2) -> i2 b "mulps" arg1 arg2
