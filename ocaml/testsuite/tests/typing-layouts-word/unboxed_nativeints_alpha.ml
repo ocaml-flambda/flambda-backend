@@ -22,12 +22,23 @@ module Nativeint_u = struct
   let ( % ) = rem
   let ( %% ) = unsigned_rem
   let ( > ) x y = (compare x y) > 0
-
-  (* XXX ASZ: More to test! *)
 end
+
+let to_binary_string x =
+  String.init Nativeint.size (fun i ->
+    if Nativeint.(equal (logand x (shift_left 1n (Nativeint.size - i - 1))) 0n)
+    then '0'
+    else '1')
+
+let print_int prefix x =
+  Printf.printf "%s: %d\n" prefix x
 
 let print_nativeintu prefix x =
   Printf.printf "%s: %nd\n" prefix (Nativeint_u.to_nativeint x)
+
+let print_nativeintu_bin prefix x =
+  let bx = Nativeint_u.to_nativeint x in
+  Printf.printf "%s: %nd = 0b%s\n" prefix bx (to_binary_string bx)
 
 (*********************************)
 (* Test 1: some basic arithmetic *)
@@ -37,6 +48,8 @@ let test1 () =
   (* CR layouts: When word defs are allowed at the module level, get rid of
      [test1] and move these definitions there. *)
   let open Nativeint_u in
+
+  (* Positive numbers *)
 
   let three = of_nativeint 3n in
   print_nativeintu "Test 1, three" three;
@@ -53,8 +66,8 @@ let test1 () =
   let three_again = twice_three_again / (of_nativeint 2n) in
   print_nativeintu "Test 1, three_again" three_again;
 
-  let three_again' = twice_three_again // (of_nativeint 2n) in
-  print_nativeintu "Test 1, three_again'" three_again';
+  let three_again_unsigned = twice_three_again // (of_nativeint 2n) in
+  print_nativeintu "Test 1, three_again_unsigned" three_again_unsigned;
 
   let twice_three_greater_than_three = twice_three > three in
   Printf.printf "Test 1, twice_three_greater_than_three: %b\n"
@@ -63,6 +76,35 @@ let test1 () =
   let three_with_effort =
     ((of_nativeint 3n) + twice_three) * (of_nativeint 2n) / (of_nativeint 6n) in
   print_nativeintu "Test 1, three_with_effort" three_with_effort;
+
+  let seven_rem_three = (of_nativeint 7n) % three in
+  print_nativeintu "Test 1, seven_rem_three" seven_rem_three;
+
+  let seven_rem_three_unsigned = (of_nativeint 7n) %% three in
+  print_nativeintu "Test 1, seven_rem_three_unsigned" seven_rem_three_unsigned;
+
+  let forty_two_logand_three = logand (of_nativeint 42n) three in
+  print_nativeintu_bin "Test1, forty_two_logand_three (0b00101010 & 0b00000011)" forty_two_logand_three;
+
+  let forty_two_logor_three = logor (of_nativeint 42n) three in
+  print_nativeintu_bin "Test1, forty_two_logor_three (0b00101010 & 0b00000011)" forty_two_logor_three;
+
+  let forty_two_logxor_three = logxor (of_nativeint 42n) three in
+  print_nativeintu_bin "Test1, forty_two_logxor_three (0b00101010 & 0b00000011)" forty_two_logxor_three;
+
+  let lognot_three = lognot three in
+  print_nativeintu_bin "Test1, lognot_three (~0b00000011)" lognot_three;
+
+  let three_shl_eight = shift_left three 8 in
+  print_nativeintu_bin "Test1, three_shl_eight (0b00000011 << 8)" three_shl_eight;
+
+  let three_shr_one = shift_right three 1 in
+  print_nativeintu_bin "Test1, three_shr_one (0b00000011 >> 1)" three_shr_one;
+
+  let three_shrl_one = shift_right_logical three 1 in
+  print_nativeintu_bin "Test1, three_shr_one (0b00000011 >>> 1)" three_shrl_one;
+
+  (* Negative numbers *)
 
   let minus_five = of_nativeint (-5n) in
   print_nativeintu "Test 1, minus_five" minus_five;
@@ -79,8 +121,8 @@ let test1 () =
   let minus_five_again = twice_minus_five_again / (of_nativeint 2n) in
   print_nativeintu "Test 1, minus_five_again" minus_five_again;
 
-  let minus_five_again' = twice_minus_five_again // (of_nativeint 2n) in
-  print_nativeintu "Test 1, minus_five_again'" minus_five_again';
+  let minus_five_again_unsigned = twice_minus_five_again // (of_nativeint 2n) in
+  print_nativeintu "Test 1, minus_five_again_unsigned" minus_five_again_unsigned;
 
   let minus_five_greater_than_twice_minus_five = minus_five > twice_minus_five in
   Printf.printf "Test 1, minus_five_greater_than_twice_minus_five: %b\n"
@@ -88,7 +130,42 @@ let test1 () =
 
   let minus_five_with_effort =
     ((of_nativeint (-5n)) + twice_minus_five) * (of_nativeint 2n) / (of_nativeint 6n) in
-  print_nativeintu "Test 1, minus_five_with_effort" minus_five_with_effort
+  print_nativeintu "Test 1, minus_five_with_effort" minus_five_with_effort;
+
+  let seven_rem_minus_five = (of_nativeint 7n) % minus_five in
+  print_nativeintu "Test 1, seven_rem_minus_five" seven_rem_minus_five;
+
+  let seven_rem_minus_five_unsigned = (of_nativeint 7n) %% minus_five in
+  print_nativeintu "Test 1, seven_rem_minus_five_unsigned" seven_rem_minus_five_unsigned;
+
+  let forty_two_logand_minus_five = logand (of_nativeint 42n) minus_five in
+  print_nativeintu_bin "Test1, forty_two_logand_minus_five (0b00101010 & 0b1...1011)" forty_two_logand_minus_five;
+
+  let forty_two_logor_minus_five = logor (of_nativeint 42n) minus_five in
+  print_nativeintu_bin "Test1, forty_two_logor_minus_five (0b00101010 & 0b1...1011)" forty_two_logor_minus_five;
+
+  let forty_two_logxor_minus_five = logxor (of_nativeint 42n) minus_five in
+  print_nativeintu_bin "Test1, forty_two_logxor_minus_five (0b00101010 & 0b1...1011)" forty_two_logxor_minus_five;
+
+  let lognot_minus_five = lognot minus_five in
+  print_nativeintu_bin "Test1, lognot_minus_five (~0b1...1011)" lognot_minus_five;
+
+  let minus_five_shl_eight = shift_left minus_five 8 in
+  print_nativeintu_bin "Test1, minus_five_shl_eight (0b1...1011 << 8)" minus_five_shl_eight;
+
+  let minus_five_shr_one = shift_right minus_five 1 in
+  print_nativeintu_bin "Test1, minus_five_shr_one (0b1...1011 >> 1)" minus_five_shr_one;
+
+  let minus_five_shrl_one = shift_right_logical minus_five 1 in
+  print_nativeintu_bin "Test1, minus_five_shr_one (0b1...1011 >>> 1)" minus_five_shrl_one;
+
+  (* Constants *)
+
+  print_int "Test 1, size" size
+
+  (* CR layouts: Restore these when the appropriate constants exist *)
+  (* print_nativeintu "Test 1, max_int" max_int;
+   * print_nativeintu "Test 1, min_int" min_int; *)
 
 let _ = test1 ()
 
