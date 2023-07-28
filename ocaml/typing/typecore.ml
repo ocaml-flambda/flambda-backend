@@ -4361,8 +4361,10 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_fun (l, Some default, spat, sbody) ->
+      (* Default allowed only with optional argument. Since optional labels
+         always ignore type, no need to pass type to translate the label *)
       let l = Typetexp.transl_label l None in
-      assert(is_optional l); (* default allowed only with optional argument *)
+      assert(is_optional l);
       let open Ast_helper in
       let default_loc = default.pexp_loc in
       (* Defaults are always global. They can be moved out of the function's
