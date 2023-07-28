@@ -115,6 +115,7 @@ type mapper = {
   value_description: mapper -> value_description -> value_description;
   with_constraint: mapper -> with_constraint -> with_constraint;
 
+  case_jane_syntax: mapper -> Jane_syntax.Case.t -> Jane_syntax.Case.t;
   expr_jane_syntax:
     mapper -> Jane_syntax.Expression.t -> Jane_syntax.Expression.t;
   extension_constructor_jane_syntax:

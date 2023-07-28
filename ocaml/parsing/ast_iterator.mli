@@ -32,6 +32,7 @@ type iterator = {
   attributes: iterator -> attribute list -> unit;
   binding_op: iterator -> binding_op -> unit;
   case: iterator -> case -> unit;
+  case_jane_syntax: iterator -> Jane_syntax.Case.t -> unit;
   cases: iterator -> case list -> unit;
   class_declaration: iterator -> class_declaration -> unit;
   class_description: iterator -> class_description -> unit;

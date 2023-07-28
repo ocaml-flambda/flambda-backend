@@ -77,6 +77,7 @@ type mapper = {
   value_description: mapper -> value_description -> value_description;
   with_constraint: mapper -> with_constraint -> with_constraint;
 
+  case_jane_syntax: mapper -> Jane_syntax.Case.t -> Jane_syntax.Case.t;
   expr_jane_syntax:
     mapper -> Jane_syntax.Expression.t -> Jane_syntax.Expression.t;
   extension_constructor_jane_syntax:
@@ -626,6 +627,36 @@ module E = struct
 
 end
 
+module CS = struct
+  (* Cases *)
+
+  module PG = Jane_syntax.Pattern_guarded
+
+  let map_pattern_guarded_case sub : PG.case -> PG.case = function
+    | Pg_case { pgc_lhs; pgc_scrutinee; pgc_cases } ->
+        let pgc_lhs = sub.pat sub pgc_lhs in
+        let pgc_scrutinee = sub.expr sub pgc_scrutinee in
+        let pgc_cases = sub.cases sub pgc_cases in
+        Pg_case { pgc_lhs; pgc_scrutinee; pgc_cases }
+
+  let map_jst sub : Jane_syntax.Case.t -> Jane_syntax.Case.t = function
+    | Jcase_pattern_guarded x ->
+        Jcase_pattern_guarded (map_pattern_guarded_case sub x)
+
+  let map sub ({ pc_lhs; pc_guard; pc_rhs } as case) =
+    match Jane_syntax.Case.of_ast case with
+    | Some (jcase, attrs) ->
+        let jcase = map_jst sub jcase in
+        let attrs = sub.attributes sub attrs in
+        let loc = sub.location sub pc_rhs.pexp_loc in
+        Jane_syntax.Case.case_of ~loc ~attrs jcase
+    | None ->
+    let pc_lhs = sub.pat sub pc_lhs in
+    let pc_guard = Option.map (sub.expr sub) pc_guard in
+    let pc_rhs = sub.expr sub pc_rhs in
+    { pc_lhs; pc_guard; pc_rhs }
+end
+
 module P = struct
   (* Patterns *)
 
@@ -900,14 +931,7 @@ let default_mapper =
       );
 
     cases = (fun this l -> List.map (this.case this) l);
-    case =
-      (fun this {pc_lhs; pc_guard; pc_rhs} ->
-         {
-           pc_lhs = this.pat this pc_lhs;
-           pc_guard = Option.map (this.expr this) pc_guard;
-           pc_rhs = this.expr this pc_rhs;
-         }
-      );
+    case = CS.map;
 
     location = (fun _this l -> l);
 
@@ -928,6 +952,7 @@ let default_mapper =
          | PPat (x, g) -> PPat (this.pat this x, map_opt (this.expr this) g)
       );
 
+    case_jane_syntax = CS.map_jst;
     expr_jane_syntax = E.map_jst;
     extension_constructor_jane_syntax = T.map_extension_constructor_jst;
     module_type_jane_syntax = MT.map_jane_syntax;
