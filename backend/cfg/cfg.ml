@@ -268,6 +268,11 @@ let dump_op ppf = function
   | Intoffloat -> Format.fprintf ppf "intoffloat"
   | Valueofint -> Format.fprintf ppf "valueofint"
   | Intofvalue -> Format.fprintf ppf "intofvalue"
+  | Vectorcast Bits128 -> Format.fprintf ppf "vec128->vec128"
+  | Scalarcast (V128_to_scalar ty) ->
+    Format.fprintf ppf "%s->scalar" (Primitive.vec128_name ty)
+  | Scalarcast (V128_of_scalar ty) ->
+    Format.fprintf ppf "scalar->%s" (Primitive.vec128_name ty)
   | Specific _ -> Format.fprintf ppf "specific"
   | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
   | Opaque -> Format.fprintf ppf "opaque"
@@ -468,6 +473,8 @@ let is_pure_operation : operation -> bool = function
   | Csel _ -> true
   | Floatofint -> true
   | Intoffloat -> true
+  | Vectorcast _ -> true
+  | Scalarcast _ -> true
   (* Conservative to ensure valueofint/intofvalue are not eliminated before
      emit. *)
   | Valueofint -> false
@@ -499,18 +506,21 @@ let is_pure_basic : basic -> bool = function
        local stack slots nor calls). *)
     false
 
+let same_location (r1 : Reg.t) (r2 : Reg.t) =
+  Reg.same_loc r1 r2
+  &&
+  match r1.loc with
+  | Unknown -> false
+  | Reg _ -> Proc.register_class r1 = Proc.register_class r2
+  | Stack _ -> Proc.stack_slot_class r1.typ = Proc.stack_slot_class r2.typ
+
 let is_noop_move instr =
   match instr.desc with
-  | Op (Move | Spill | Reload) -> (
-    match instr.arg.(0).loc with
-    | Unknown -> false
-    | Reg _ ->
-      Reg.same_loc instr.arg.(0) instr.res.(0)
-      && Proc.register_class instr.arg.(0) = Proc.register_class instr.res.(0)
-    | Stack _ ->
-      Reg.same_loc instr.arg.(0) instr.res.(0)
-      && Proc.stack_slot_class instr.arg.(0).typ
-         = Proc.stack_slot_class instr.res.(0).typ)
+  | Op
+      ( Move | Spill | Reload
+      | Scalarcast (V128_of_scalar Float64x2 | V128_to_scalar Float64x2)
+      | Vectorcast _ ) ->
+    same_location instr.arg.(0) instr.res.(0)
   | Op (Csel _) -> (
     match instr.res.(0).loc with
     | Unknown -> false
@@ -524,6 +534,10 @@ let is_noop_move instr =
       | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
       | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
       | Floatofint | Intoffloat | Opaque | Valueofint | Intofvalue
+      | Scalarcast
+          (V128_of_scalar (Float32x4 | Int8x16 | Int16x8 | Int32x4 | Int64x2))
+      | Scalarcast
+          (V128_to_scalar (Float32x4 | Int8x16 | Int16x8 | Int32x4 | Int64x2))
       | Probe_is_enabled _ | Specific _ | Name_for_debugger _ | Begin_region
       | End_region )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->

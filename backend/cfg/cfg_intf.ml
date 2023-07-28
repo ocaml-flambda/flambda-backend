@@ -85,6 +85,8 @@ module S = struct
     | Intoffloat
     | Valueofint
     | Intofvalue
+    | Vectorcast of Cmm.vector_cast
+    | Scalarcast of Cmm.scalar_cast
     | Probe_is_enabled of { name : string }
     | Opaque
     | Begin_region
