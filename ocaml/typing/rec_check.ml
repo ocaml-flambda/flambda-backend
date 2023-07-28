@@ -839,7 +839,9 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_probe_is_enabled _ -> empty
     | Texp_exclave e -> expression e
     | Texp_src_pos -> path Predef.path_lexing_position
-      (* TODO vding: This is probably wrong? *)
+      (* TODO vding: This is probably wrong?
+         If I walk through the Texp_record code, I get empty since this is
+         effectively a constant? *)
 
 and comprehension_clauses clauses =
   List.concat_map
