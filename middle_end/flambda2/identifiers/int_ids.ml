@@ -48,7 +48,7 @@ module Const_data = struct
     | Naked_int32 of Int32.t
     | Naked_int64 of Int64.t
     | Naked_nativeint of Targetint_32_64.t
-    | Naked_vec128 of Numeric_types.Vec128_by_bit_pattern.t
+    | Naked_vec128 of Vector_types.Vec128.Bit_pattern.t
 
   let flags = const_flags
 
@@ -87,10 +87,10 @@ module Const_data = struct
           Flambda_colours.naked_number
           Targetint_32_64.print n
           Flambda_colours.pop
-      | Naked_vec128 v ->
-        Format.fprintf ppf "%t#%a%t"
+      | Naked_vec128 (v) ->
+        Format.fprintf ppf "%t#vec128[%a]%t"
           Flambda_colours.naked_number
-          Numeric_types.Vec128_by_bit_pattern.print v
+          Vector_types.Vec128.Bit_pattern.print v
           Flambda_colours.pop
 
     let compare t1 t2 =
@@ -104,7 +104,7 @@ module Const_data = struct
       | Naked_int64 n1, Naked_int64 n2 -> Int64.compare n1 n2
       | Naked_nativeint n1, Naked_nativeint n2 -> Targetint_32_64.compare n1 n2
       | Naked_vec128 v1, Naked_vec128 v2 ->
-        Numeric_types.Vec128_by_bit_pattern.compare v1 v2
+        Vector_types.Vec128.Bit_pattern.compare v1 v2
       | Naked_immediate _, _ -> -1
       | _, Naked_immediate _ -> 1
       | Tagged_immediate _, _ -> -1
@@ -132,7 +132,7 @@ module Const_data = struct
         | Naked_int64 n1, Naked_int64 n2 -> Int64.equal n1 n2
         | Naked_nativeint n1, Naked_nativeint n2 -> Targetint_32_64.equal n1 n2
         | Naked_vec128 v1, Naked_vec128 v2 ->
-          Numeric_types.Vec128_by_bit_pattern.equal v1 v2
+          Vector_types.Vec128.Bit_pattern.equal v1 v2
         | ( ( Naked_immediate _ | Tagged_immediate _ | Naked_float _
             | Naked_vec128 _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
               ),
@@ -147,7 +147,7 @@ module Const_data = struct
       | Naked_int32 n -> Hashtbl.hash n
       | Naked_int64 n -> Hashtbl.hash n
       | Naked_nativeint n -> Targetint_32_64.hash n
-      | Naked_vec128 v -> Numeric_types.Vec128_by_bit_pattern.hash v
+      | Naked_vec128 v -> Vector_types.Vec128.Bit_pattern.hash v
   end)
 end
 

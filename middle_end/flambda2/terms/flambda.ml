@@ -1381,7 +1381,7 @@ module Named = struct
         Simple.const (Reg_width_const.naked_nativeint Targetint_32_64.zero)
       | Naked_number Naked_vec128 ->
         Simple.const
-          (Reg_width_const.naked_vec128 Numeric_types.Vec128_by_bit_pattern.zero)
+          (Reg_width_const.naked_vec128 Vector_types.Vec128.Bit_pattern.zero)
       | Region -> Misc.fatal_error "[Region] kind not expected here"
       | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
     in

@@ -366,7 +366,7 @@ val this_boxed_int64 : Numeric_types.Int64.t -> Alloc_mode.For_types.t -> t
 val this_boxed_nativeint : Targetint_32_64.t -> Alloc_mode.For_types.t -> t
 
 val this_boxed_vec128 :
-  Numeric_types.Vec128_by_bit_pattern.t -> Alloc_mode.For_types.t -> t
+  Vector_types.Vec128.Bit_pattern.t -> Alloc_mode.For_types.t -> t
 
 val these_tagged_immediates : Targetint_31_63.Set.t -> t
 
@@ -727,7 +727,7 @@ type to_lift = private
   | Boxed_int32 of Numeric_types.Int32.t
   | Boxed_int64 of Numeric_types.Int64.t
   | Boxed_nativeint of Targetint_32_64.t
-  | Boxed_vec128 of Numeric_types.Vec128_by_bit_pattern.t
+  | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t
   | Immutable_float_array of
       { fields : Numeric_types.Float_by_bit_pattern.t list }
   | Immutable_value_array of { fields : Simple.t list }

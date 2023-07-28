@@ -56,6 +56,8 @@ let these_naked_int64s is = TG.these_naked_int64s is
 
 let these_naked_nativeints is = TG.these_naked_nativeints is
 
+let these_naked_vec128s vs = TG.these_naked_vec128s vs
+
 let any_tagged_immediate =
   TG.create_variant ~is_unique:false ~immediates:Unknown
     ~blocks:(Known TG.Row_like_for_blocks.bottom)

@@ -30,7 +30,7 @@ type to_lift =
   | Boxed_int32 of Int32.t
   | Boxed_int64 of Int64.t
   | Boxed_nativeint of Targetint_32_64.t
-  | Boxed_vec128 of Numeric_types.Vec128_by_bit_pattern.t
+  | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t
   | Immutable_float_array of { fields : Float.t list }
   | Immutable_value_array of { fields : Simple.t list }
   | Empty_array
@@ -318,8 +318,8 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       | Some n -> Simple (Simple.const (Reg_width_const.naked_nativeint n)))
     | Naked_vec128 (Ok ns) -> (
       match
-        Numeric_types.Vec128_by_bit_pattern.Set.get_singleton
-          (ns :> Numeric_types.Vec128_by_bit_pattern.Set.t)
+        Vector_types.Vec128.Bit_pattern.Set.get_singleton
+          (ns :> Vector_types.Vec128.Bit_pattern.Set.t)
       with
       | None -> try_canonical_simple ()
       | Some n -> Simple (Simple.const (Reg_width_const.naked_vec128 n)))
@@ -366,7 +366,7 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
       | Known_result ns -> (
-        match Numeric_types.Vec128_by_bit_pattern.Set.get_singleton ns with
+        match Vector_types.Vec128.Bit_pattern.Set.get_singleton ns with
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_vec128 n)))
     | Value

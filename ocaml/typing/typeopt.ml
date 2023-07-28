@@ -330,8 +330,18 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
     num_nodes_visited, (Pboxedintval Pint64)
   | Tconstr(p, _, _) when Path.same p Predef.path_nativeint ->
     num_nodes_visited, (Pboxedintval Pnativeint)
-  | Tconstr(p, _, _) when Path.same p Predef.path_vec128 ->
-    num_nodes_visited, (Pboxedvectorval Pvec128)
+  | Tconstr(p, _, _) when Path.same p Predef.path_int8x16 ->
+    num_nodes_visited, (Pboxedvectorval (Pvec128 Int8x16))
+  | Tconstr(p, _, _) when Path.same p Predef.path_int16x8 ->
+    num_nodes_visited, (Pboxedvectorval (Pvec128 Int16x8))
+  | Tconstr(p, _, _) when Path.same p Predef.path_int32x4 ->
+    num_nodes_visited, (Pboxedvectorval (Pvec128 Int32x4))
+  | Tconstr(p, _, _) when Path.same p Predef.path_int64x2 ->
+    num_nodes_visited, (Pboxedvectorval (Pvec128 Int64x2))
+  | Tconstr(p, _, _) when Path.same p Predef.path_float32x4 ->
+    num_nodes_visited, (Pboxedvectorval (Pvec128 Float32x4))
+  | Tconstr(p, _, _) when Path.same p Predef.path_float64x2 ->
+    num_nodes_visited, (Pboxedvectorval (Pvec128 Float64x2))
   | Tconstr(p, _, _)
     when (Path.same p Predef.path_array
           || Path.same p Predef.path_floatarray) ->
@@ -629,8 +639,8 @@ let layout_union l1 l2 =
   | Punboxed_float, Punboxed_float -> Punboxed_float
   | Punboxed_int bi1, Punboxed_int bi2 ->
       if equal_boxed_integer bi1 bi2 then l1 else Ptop
-  | Punboxed_vector bi1, Punboxed_vector bi2 ->
-      if equal_boxed_vector bi1 bi2 then l1 else Ptop
+  | Punboxed_vector vi1, Punboxed_vector vi2 ->
+      Lambda.join_boxed_vector_layout vi1 vi2
   | (Ptop | Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _), _ ->
       Ptop
 

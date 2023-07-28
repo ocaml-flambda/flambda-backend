@@ -149,14 +149,10 @@ let alloc_float_header mode dbg =
   | Lambda.Alloc_heap -> Cconst_natint (float_header, dbg)
   | Lambda.Alloc_local -> Cconst_natint (float_local_header, dbg)
 
-let alloc_boxedvector_header vi mode dbg =
-  let header, local_header =
-    match vi with
-    | Primitive.Pvec128 -> boxedvec128_header, boxedvec128_local_header
-  in
+let alloc_boxedvec128_header mode dbg =
   match mode with
-  | Lambda.Alloc_heap -> Cconst_natint (header, dbg)
-  | Lambda.Alloc_local -> Cconst_natint (local_header, dbg)
+  | Lambda.Alloc_heap -> Cconst_natint (boxedvec128_header, dbg)
+  | Lambda.Alloc_local -> Cconst_natint (boxedvec128_local_header, dbg)
 
 let alloc_floatarray_header len dbg = Cconst_natint (floatarray_header len, dbg)
 
@@ -715,8 +711,7 @@ let rec unbox_float dbg =
 
 (* Vectors *)
 
-let box_vector dbg vi m c =
-  Cop (Calloc m, [alloc_boxedvector_header vi m dbg; c], dbg)
+let box_vec128 dbg m c = Cop (Calloc m, [alloc_boxedvec128_header m dbg; c], dbg)
 
 let rec unbox_vec128 dbg =
   map_tail ~kind:Any (function
@@ -744,9 +739,6 @@ let rec unbox_vec128 dbg =
       | exception Exit -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
     | Ctail e -> Ctail (unbox_vec128 dbg e)
     | cmm -> Cop (Cload (Onetwentyeight, Immutable), [cmm], dbg))
-
-let unbox_vector dbg vi e =
-  match vi with Primitive.Pvec128 -> unbox_vec128 dbg e
 
 (* Complex *)
 
@@ -1128,7 +1120,7 @@ module Extended_machtype = struct
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
     | Punboxed_float -> typ_float
-    | Punboxed_vector Pvec128 -> typ_vec128
+    | Punboxed_vector (Pvec128 _) -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int

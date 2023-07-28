@@ -456,7 +456,7 @@ Line 1, characters 18-24:
 1 | external f10_6 : (float#[@unboxed]) -> bool -> string  = "foo" "bar";;
                       ^^^^^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vec128 can be unboxed.
+       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
 |}];;
 
 external f10_7 : string -> (float#[@unboxed])  = "foo" "bar";;
@@ -465,7 +465,7 @@ Line 1, characters 28-34:
 1 | external f10_7 : string -> (float#[@unboxed])  = "foo" "bar";;
                                 ^^^^^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vec128 can be unboxed.
+       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
 |}];;
 
 external f10_8 : float -> float#  = "foo" "bar" [@@unboxed];;
@@ -474,7 +474,7 @@ Line 1, characters 26-32:
 1 | external f10_8 : float -> float#  = "foo" "bar" [@@unboxed];;
                               ^^^^^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, and vec128 can be unboxed.
+       Only float, int32, int64, nativeint, and vector primitives can be unboxed.
 |}];;
 
 (*******************************************************)

@@ -82,8 +82,7 @@ and head_of_kind_naked_int64 = private Numeric_types.Int64.Set.t
 
 and head_of_kind_naked_nativeint = private Targetint_32_64.Set.t
 
-and head_of_kind_naked_vec128 = private
-  Numeric_types.Vec128_by_bit_pattern.Set.t
+and head_of_kind_naked_vec128 = private Vector_types.Vec128.Bit_pattern.Set.t
 
 and head_of_kind_rec_info = Rec_info_expr.t
 
@@ -226,7 +225,7 @@ val this_naked_int64 : Numeric_types.Int64.t -> t
 
 val this_naked_nativeint : Targetint_32_64.t -> t
 
-val this_naked_vec128 : Numeric_types.Vec128_by_bit_pattern.t -> t
+val this_naked_vec128 : Vector_types.Vec128.Bit_pattern.t -> t
 
 val these_naked_immediates : Targetint_31_63.Set.t -> t
 
@@ -237,6 +236,8 @@ val these_naked_int32s : Numeric_types.Int32.Set.t -> t
 val these_naked_int64s : Numeric_types.Int64.Set.t -> t
 
 val these_naked_nativeints : Targetint_32_64.Set.t -> t
+
+val these_naked_vec128s : Vector_types.Vec128.Bit_pattern.Set.t -> t
 
 val boxed_float_alias_to : naked_float:Variable.t -> Alloc_mode.For_types.t -> t
 
@@ -666,7 +667,7 @@ module Head_of_kind_naked_nativeint :
 module Head_of_kind_naked_vec128 :
   Head_of_kind_naked_number_intf
     with type t = head_of_kind_naked_vec128
-    with type n = Numeric_types.Vec128_by_bit_pattern.t
-    with type n_set = Numeric_types.Vec128_by_bit_pattern.Set.t
+    with type n = Vector_types.Vec128.Bit_pattern.t
+    with type n_set = Vector_types.Vec128.Bit_pattern.Set.t
 
 val recover_some_aliases : t -> t

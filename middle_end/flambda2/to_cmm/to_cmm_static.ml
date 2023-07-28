@@ -159,10 +159,10 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     in
     env, res, updates
   | Block_like symbol, Boxed_vec128 v ->
-    let default = Numeric_types.Vec128_by_bit_pattern.zero in
+    let default = Vector_types.Vec128.Bit_pattern.zero in
     let transl v =
-      let { Numeric_types.Vec128_by_bit_pattern.high; low } =
-        Numeric_types.Vec128_by_bit_pattern.to_bits v
+      let { Vector_types.Vec128.Bit_pattern.high; low } =
+        Vector_types.Vec128.Bit_pattern.to_bits v
       in
       { Cmm.high; low }
     in

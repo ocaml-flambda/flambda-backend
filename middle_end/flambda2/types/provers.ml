@@ -233,7 +233,7 @@ type _ meet_naked_number_kind =
   | Int32 : Int32.Set.t meet_naked_number_kind
   | Int64 : Int64.Set.t meet_naked_number_kind
   | Nativeint : Targetint_32_64.Set.t meet_naked_number_kind
-  | Vec128 : Numeric_types.Vec128_by_bit_pattern.Set.t meet_naked_number_kind
+  | Vec128 : Vector_types.Vec128.Bit_pattern.Set.t meet_naked_number_kind
 
 let[@inline] meet_naked_number (type a) (kind : a meet_naked_number_kind) env t
     : a meet_shortcut =
@@ -296,8 +296,8 @@ let[@inline] meet_naked_number (type a) (kind : a meet_naked_number_kind) env t
     | Vec128 ->
       head_to_proof vs
         (fun (fs : TG.head_of_kind_naked_vec128) ->
-          (fs :> Numeric_types.Vec128_by_bit_pattern.Set.t))
-        ~is_empty:Numeric_types.Vec128_by_bit_pattern.Set.is_empty
+          (fs :> Vector_types.Vec128.Bit_pattern.Set.t))
+        ~is_empty:Vector_types.Vec128.Bit_pattern.Set.is_empty
     | _ -> wrong_kind ())
 
 let meet_naked_floats = meet_naked_number Float
@@ -915,7 +915,7 @@ let prove_physical_equality env t1 t2 =
       let module IS = Targetint_32_64.Set in
       IS.is_empty (IS.inter (s1 :> IS.t) (s2 :> IS.t))
     | Naked_vec128 (Ok s1), Naked_vec128 (Ok s2) ->
-      let module IS = Numeric_types.Vec128_by_bit_pattern.Set in
+      let module IS = Vector_types.Vec128.Bit_pattern.Set in
       IS.is_empty (IS.inter (s1 :> IS.t) (s2 :> IS.t))
     | ( ( Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
         | Naked_vec128 _ | Value _ | Naked_immediate _ | Region _ | Rec_info _

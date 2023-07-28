@@ -136,8 +136,8 @@ let const ~dbg cst =
   | Naked_int32 i -> int32 ~dbg i
   | Naked_int64 i -> int64 ~dbg i
   | Naked_vec128 i ->
-    let { Numeric_types.Vec128_by_bit_pattern.high; low } =
-      Numeric_types.Vec128_by_bit_pattern.to_bits i
+    let { Vector_types.Vec128.Bit_pattern.high; low } =
+      Vector_types.Vec128.Bit_pattern.to_bits i
     in
     vec128 ~dbg { high; low }
   | Naked_nativeint t -> targetint ~dbg t
@@ -176,8 +176,8 @@ let const_static cst =
      bits. *)
   | Naked_int64 i -> [cint (Int64.to_nativeint i)]
   | Naked_vec128 v ->
-    let { Numeric_types.Vec128_by_bit_pattern.high; low } =
-      Numeric_types.Vec128_by_bit_pattern.to_bits v
+    let { Vector_types.Vec128.Bit_pattern.high; low } =
+      Vector_types.Vec128.Bit_pattern.to_bits v
     in
     [cvec128 { high; low }]
   | Naked_nativeint t -> [cint (nativeint_of_targetint t)]

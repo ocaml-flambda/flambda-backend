@@ -238,8 +238,8 @@ let targetint (i : Fexpr.targetint) : Targetint_32_64.t =
 let targetint_31_63 (i : Fexpr.targetint) : Targetint_31_63.t =
   Targetint_31_63.of_int64 i
 
-let vec128 bits : Numeric_types.Vec128_by_bit_pattern.t =
-  Numeric_types.Vec128_by_bit_pattern.of_bits bits
+let vec128 bits : Vector_types.Vec128.Bit_pattern.t =
+  Vector_types.Vec128.Bit_pattern.of_bits bits
 
 let tag_scannable (tag : Fexpr.tag_scannable) : Tag.Scannable.t =
   Tag.Scannable.create_exn tag

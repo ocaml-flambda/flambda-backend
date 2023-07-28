@@ -229,7 +229,8 @@ let compare_structured_constants c1 c2 =
   | Uconst_string s1, Uconst_string s2 -> String.compare s1 s2
   | Uconst_closure (_,lbl1,_), Uconst_closure (_,lbl2,_) ->
       String.compare lbl1 lbl2
-  | Uconst_vec128 {high = l0; low = l1}, Uconst_vec128 {high = r0; low = r1} ->
+  | Uconst_vec128 { high = l0; low = l1},
+    Uconst_vec128 { high = r0; low = r1} ->
     let cmp = Int64.compare l0 r0 in
     if cmp = 0 then Int64.compare l1 r1 else cmp
   | _, _ ->

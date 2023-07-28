@@ -253,8 +253,17 @@ and block_shape =
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
-and boxed_vector = Primitive.boxed_vector =
-  | Pvec128
+and vec128_type =
+  | Unknown128
+  | Int8x16
+  | Int16x8
+  | Int32x4
+  | Int64x2
+  | Float32x4
+  | Float64x2
+
+and boxed_vector =
+  | Pvec128 of vec128_type
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -275,7 +284,9 @@ and raise_kind =
   | Raise_reraise
   | Raise_notrace
 
-val equal_primitive : primitive -> primitive -> bool
+val vec128_name: vec128_type -> string
+
+val join_boxed_vector_layout: boxed_vector -> boxed_vector -> layout
 
 val equal_value_kind : value_kind -> value_kind -> bool
 
@@ -285,7 +296,7 @@ val compatible_layout : layout -> layout -> bool
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 
-val equal_boxed_vector : boxed_vector -> boxed_vector -> bool
+val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
 
 val must_be_value : layout -> value_kind
 
@@ -537,6 +548,7 @@ val layout_string : layout
 val layout_boxed_float : layout
 val layout_unboxed_float : layout
 val layout_boxedint : boxed_integer -> layout
+val layout_boxed_vector : Primitive.boxed_vector -> layout
 (* A layout that is Pgenval because it is the field of a block *)
 val layout_field : layout
 val layout_lazy : layout

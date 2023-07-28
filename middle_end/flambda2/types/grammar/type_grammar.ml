@@ -16,7 +16,7 @@
 
 module K = Flambda_kind
 module Float = Numeric_types.Float_by_bit_pattern
-module Vec128 = Numeric_types.Vec128_by_bit_pattern
+module Vec128 = Vector_types.Vec128.Bit_pattern
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
 module RWC = Reg_width_const
@@ -2861,6 +2861,14 @@ let these_naked_nativeints is =
     then bottom_naked_nativeint
     else Naked_nativeint (TD.create is)
 
+let these_naked_vec128s vs =
+  match Vector_types.Vec128.Bit_pattern.Set.get_singleton vs with
+  | Some v -> this_naked_vec128 v
+  | _ ->
+    if Vector_types.Vec128.Bit_pattern.Set.is_empty vs
+    then bottom_naked_vec128
+    else Naked_vec128 (TD.create vs)
+
 let box_float (t : t) alloc_mode : t =
   match t with
   | Naked_float _ -> Value (TD.create (Boxed_float (t, alloc_mode)))
@@ -3118,7 +3126,7 @@ module Head_of_kind_naked_int64 = Make_head_of_kind_naked_number (Int64)
 module Head_of_kind_naked_nativeint =
   Make_head_of_kind_naked_number (Targetint_32_64)
 module Head_of_kind_naked_vec128 =
-  Make_head_of_kind_naked_number (Numeric_types.Vec128_by_bit_pattern)
+  Make_head_of_kind_naked_number (Vector_types.Vec128.Bit_pattern)
 
 let rec recover_some_aliases t =
   match t with

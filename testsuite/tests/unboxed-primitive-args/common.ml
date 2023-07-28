@@ -8,7 +8,8 @@ type 'a typ =
   | Int64     : int64     typ
   | Nativeint : nativeint typ
   | Float     : float     typ
-  | Vec128    : vec128    typ
+  | Float64x2 : float64x2 typ
+  | Int64x2   : int64x2   typ
 
 type 'a proto =
   | Ret : 'a typ -> 'a proto
@@ -45,9 +46,13 @@ let expand_test = function
     Test (s, fn, a ** b ** c ** d ** e ** f ** Ret g)
   | T (s, fn, p) -> Test (s, fn, p)
 
-external vec128_of_int64s : int64 -> int64 -> vec128 = "" "vec128_of_int64s" [@@noalloc] [@@unboxed]
-external vec128_low_int64 : vec128 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
-external vec128_high_int64 : vec128 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
+external int64x2_of_int64s : int64 -> int64 -> int64x2 = "" "vec128_of_int64s" [@@noalloc] [@@unboxed]
+external int64x2_low_int64 : int64x2 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
+external int64x2_high_int64 : int64x2 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
+
+external float64x2_of_int64s : int64 -> int64 -> float64x2 = "" "vec128_of_int64s" [@@noalloc] [@@unboxed]
+external float64x2_low_int64 : float64x2 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
+external float64x2_high_int64 : float64x2 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
 
 let string_of : type a. a typ -> a -> string = function
   | Int       -> Int.to_string
@@ -56,8 +61,10 @@ let string_of : type a. a typ -> a -> string = function
   | Nativeint -> Printf.sprintf "%ndn"
   | Float     ->
       fun f -> Printf.sprintf "float_of_bits 0x%LxL" (Int64.bits_of_float f)
-  | Vec128    ->
-      fun v -> Printf.sprintf "vec128 %016Lx:%016Lx" (vec128_high_int64 v) (vec128_low_int64 v)
+  | Int64x2   ->
+      fun v -> Printf.sprintf "int64x2 %016Lx:%016Lx" (int64x2_high_int64 v) (int64x2_low_int64 v)
+  | Float64x2   ->
+    fun v -> Printf.sprintf "float64x2 %016Lx:%016Lx" (float64x2_high_int64 v) (float64x2_low_int64 v)
 
 let rec arity : type a. a proto -> int = function
   | Ret _ -> 0
@@ -83,13 +90,21 @@ module Buffer = struct
   external set_int32 : t -> int -> int32 -> unit = "%caml_bigstring_set32"
   external set_int64 : t -> int -> int64 -> unit = "%caml_bigstring_set64"
 
-  let get_vec128 buf ~arg =
+  let get_int64x2 buf ~arg =
     let low, high = get_int64 buf (arg * arg_size), get_int64 buf (arg * arg_size + 8) in
-    vec128_of_int64s low high
+    int64x2_of_int64s low high
 
-  let set_vec128 buf ~arg x =
-    set_int64 buf (arg * arg_size) (vec128_low_int64 x);
-    set_int64 buf ((arg * arg_size) + 8) (vec128_high_int64 x)
+  let set_int64x2 buf ~arg x =
+    set_int64 buf (arg * arg_size) (int64x2_low_int64 x);
+    set_int64 buf ((arg * arg_size) + 8) (int64x2_high_int64 x)
+
+  let get_float64x2 buf ~arg =
+    let low, high = get_int64 buf (arg * arg_size), get_int64 buf (arg * arg_size + 8) in
+    float64x2_of_int64s low high
+
+  let set_float64x2 buf ~arg x =
+    set_int64 buf (arg * arg_size) (float64x2_low_int64 x);
+    set_int64 buf ((arg * arg_size) + 8) (float64x2_high_int64 x)
 
   let get_int32 t ~arg = get_int32 t (arg * arg_size)
   let get_int64 t ~arg = get_int64 t (arg * arg_size)
@@ -125,7 +140,8 @@ module Buffer = struct
     | Int64     -> get_int64
     | Nativeint -> get_nativeint
     | Float     -> get_float
-    | Vec128    -> get_vec128
+    | Int64x2   -> get_int64x2
+    | Float64x2 -> get_float64x2
 
   let set : type a. a typ -> t -> arg:int -> a -> unit = function
     | Int       -> set_int
@@ -133,7 +149,8 @@ module Buffer = struct
     | Int64     -> set_int64
     | Nativeint -> set_nativeint
     | Float     -> set_float
-    | Vec128    -> set_vec128
+    | Int64x2   -> set_int64x2
+    | Float64x2 -> set_float64x2
 
   (* This is almost a memcpy except that we use get/set which should
      ensure that the values in [dst] don't overflow. *)
@@ -178,7 +195,7 @@ let typ_size : type a. a typ -> int = function
   | Int64     -> 8
   | Nativeint -> Sys.word_size / 8
   | Float     -> 8
-  | Vec128    -> 16
+  | Int64x2 | Float64x2 -> 16
 
 let rec sizes : type a. a proto -> int list = function
   | Ret typ         -> [typ_size typ]

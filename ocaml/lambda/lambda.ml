@@ -291,8 +291,17 @@ and array_set_kind =
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
-and boxed_vector = Primitive.boxed_vector =
-  | Pvec128
+and vec128_type =
+  | Unknown128
+  | Int8x16
+  | Int16x8
+  | Int32x4
+  | Int64x2
+  | Float32x4
+  | Float64x2
+
+and boxed_vector =
+  | Pvec128 of vec128_type
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -313,15 +322,36 @@ and raise_kind =
   | Raise_reraise
   | Raise_notrace
 
+let vec128_name = function
+  | Unknown128 -> "unknown128"
+  | Int8x16 -> "int8x16"
+  | Int16x8 -> "int16x8"
+  | Int32x4 -> "int32x4"
+  | Int64x2 -> "int64x2"
+  | Float32x4 -> "float32x4"
+  | Float64x2 -> "float64x2"
+
 let equal_boxed_integer = Primitive.equal_boxed_integer
 
-let equal_boxed_vector = Primitive.equal_boxed_vector
+let equal_boxed_vector_size v1 v2 =
+  match v1, v2 with
+  | Pvec128 _, Pvec128 _ -> true
 
-let equal_primitive =
-  (* Should be implemented like [equal_value_kind] of [equal_boxed_integer],
-     i.e. by matching over the various constructors but the type has more
-     than 100 constructors... *)
-  (=)
+let join_vec128_types v1 v2 =
+  match v1, v2 with
+  | Unknown128, _ | _, Unknown128 -> Unknown128
+  | Int8x16, Int8x16 -> Int8x16
+  | Int16x8, Int16x8 -> Int16x8
+  | Int32x4, Int32x4 -> Int32x4
+  | Int64x2, Int64x2 -> Int64x2
+  | Float32x4, Float32x4 -> Float32x4
+  | Float64x2, Float64x2 -> Float64x2
+  | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ ->
+    Unknown128
+
+let join_boxed_vector_layout v1 v2 =
+  match v1, v2 with
+  | Pvec128 v1, Pvec128 v2 -> Punboxed_vector (Pvec128 (join_vec128_types v1 v2))
 
 let rec equal_value_kind x y =
   match x, y with
@@ -329,7 +359,7 @@ let rec equal_value_kind x y =
   | Pfloatval, Pfloatval -> true
   | Pboxedintval bi1, Pboxedintval bi2 -> equal_boxed_integer bi1 bi2
   | Pboxedvectorval bi1, Pboxedvectorval bi2 ->
-    equal_boxed_vector bi1 bi2
+    equal_boxed_vector_size bi1 bi2
   | Pintval, Pintval -> true
   | Parrayval elt_kind1, Parrayval elt_kind2 -> elt_kind1 = elt_kind2
   | Pvariant { consts = consts1; non_consts = non_consts1; },
@@ -363,7 +393,7 @@ let compatible_layout x y =
   | Punboxed_float, Punboxed_float -> true
   | Punboxed_int bi1, Punboxed_int bi2 ->
       equal_boxed_integer bi1 bi2
-  | Punboxed_vector bi1, Punboxed_vector bi2 -> equal_boxed_vector bi1 bi2
+  | Punboxed_vector bi1, Punboxed_vector bi2 -> equal_boxed_vector_size bi1 bi2
   | Ptop, Ptop -> true
   | Ptop, _ | _, Ptop -> false
   | (Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _), _ -> false
@@ -652,7 +682,14 @@ let layout_unboxed_float = Punboxed_float
 let layout_string = Pvalue Pgenval
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
 
-let layout_boxed_vector vi = Pvalue (Pboxedvectorval vi)
+let layout_boxed_vector : Primitive.boxed_vector -> layout = function
+  | Pvec128 Int8x16 -> Pvalue (Pboxedvectorval (Pvec128 Int8x16))
+  | Pvec128 Int16x8 -> Pvalue (Pboxedvectorval (Pvec128 Int16x8))
+  | Pvec128 Int32x4 -> Pvalue (Pboxedvectorval (Pvec128 Int32x4))
+  | Pvec128 Int64x2 -> Pvalue (Pboxedvectorval (Pvec128 Int64x2))
+  | Pvec128 Float32x4 -> Pvalue (Pboxedvectorval (Pvec128 Float32x4))
+  | Pvec128 Float64x2 -> Pvalue (Pboxedvectorval (Pvec128 Float64x2))
+
 let layout_lazy = Pvalue Pgenval
 let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval

@@ -65,7 +65,7 @@ val meet_naked_nativeints :
 val meet_naked_vec128s :
   Typing_env.t ->
   Type_grammar.t ->
-  Numeric_types.Vec128_by_bit_pattern.Set.t meet_shortcut
+  Vector_types.Vec128.Bit_pattern.Set.t meet_shortcut
 
 type variant_like_proof = private
   { const_ctors : Targetint_31_63.Set.t Or_unknown.t;
