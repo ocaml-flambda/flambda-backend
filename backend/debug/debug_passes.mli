@@ -4,7 +4,7 @@
 (*                                                                        *)
 (*                  Mark Shinwell, Jane Street Europe                     *)
 (*                                                                        *)
-(*   Copyright 2013--2019 Jane Street Group LLC                           *)
+(*   Copyright 2013--2023 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -12,15 +12,22 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type fundecl =
-  { fun_name : string;
-    fun_dbg : Debuginfo.t;
-    fun_end_label : Asm_targets.Asm_label.t
+(** The sequence of passes required after [Linearize] code generation in
+    order to generate debugging information.  These passes may rewrite the
+    [Linearize] code.
+
+    There is one other pass required for debugging information generation,
+    [Available_regs].  This is run directly from [Asmgen] as the pass operates
+    on the [Mach] language.  The output of the pass is transported to this
+    module via annotations on the [Mach] and [Linearize] instructions.
+*)
+
+type result = private
+  { fundecl : Dwarf_concrete_instances.fundecl;
+    available_ranges_vars : Available_ranges_vars.t
   }
 
-val for_fundecl :
-  get_file_id:(string -> int) ->
-  Dwarf_state.t ->
-  fundecl ->
-  Available_ranges_vars.t ->
-  unit
+val passes_for_fundecl :
+  Linear.fundecl ->
+  fun_end_label:Asm_targets.Asm_label.t ->
+  result * Linear.fundecl

@@ -84,9 +84,6 @@ val binary_backend_available: bool ref
         to generate the textual assembly file (unless the user
         request it with -S). *)
 
-val create_asm_file: bool ref
-    (** Are we actually generating the textual assembly file? *)
-
 
 (** Clear global state and compact the heap, so that an external program
     (such as the assembler or linker) may have more memory available to it.
@@ -120,7 +117,8 @@ module Dwarf_helpers : sig
 
   val emit_dwarf : unit -> unit
 
-  val record_dwarf_for_fundecl : fun_name:string -> Debuginfo.t -> Cmm.label option
+  val record_dwarf_for_fundecl :
+    Linear.fundecl -> (Cmm.label * Linear.fundecl) option
 end
 
 exception Error of error

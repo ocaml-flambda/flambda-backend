@@ -331,8 +331,11 @@ let asm_code = ref []
 let asm_code_current_section = ref (ref [])
 let asm_code_by_section = Section_name.Tbl.create 100
 
+(* Cannot use Emitaux directly here or there would be a circular dep *)
+let create_asm_file = ref true
+
 let directive dir =
-  (if !Emitaux.create_asm_file then
+  (if !create_asm_file then
      asm_code := dir :: !asm_code);
   match dir with
   | Section (name, flags, args) -> (

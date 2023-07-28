@@ -478,12 +478,6 @@ let emit_jump_tables () =
   List.iter emit_jump_table !jump_tables;
   jump_tables := []
 
-(* Record function info for dwarf and emit label if needed. *)
-let emit_dwarf_for_fundecl fun_name fun_dbg =
-  match Emitaux.Dwarf_helpers.record_dwarf_for_fundecl ~fun_name fun_dbg with
-  | None -> ()
-  | Some label -> def_label label
-
 let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
     module Asm_targets.Asm_directives.Make(struct
 
@@ -1472,6 +1466,11 @@ let emit_function_type_and_size fun_name =
 (* Emission of a function declaration *)
 
 let fundecl fundecl =
+  let end_of_fun_label, fundecl =
+    match Emitaux.Dwarf_helpers.record_dwarf_for_fundecl fundecl with
+    | None -> None, fundecl
+    | Some (label, fundecl) -> Some label, fundecl
+  in
   function_name := fundecl.fun_name;
   fastcode_flag := fundecl.fun_fast;
   tailrec_entry_point := fundecl.fun_tailrec_entry_point_label;
@@ -1516,7 +1515,7 @@ let fundecl fundecl =
       cfi_adjust_cfa_offset (-n);
     end;
   end;
-  emit_dwarf_for_fundecl fundecl.fun_name fundecl.fun_dbg;
+  Option.iter def_label end_of_fun_label;
   cfi_endproc ();
   emit_function_type_and_size fundecl.fun_name
 
@@ -2043,7 +2042,7 @@ let end_assembly () =
   end;
 
   let asm =
-    if !Emitaux.create_asm_file then
+    if !X86_proc.create_asm_file then
       Some
         (
          (if X86_proc.masm then X86_masm.generate_asm

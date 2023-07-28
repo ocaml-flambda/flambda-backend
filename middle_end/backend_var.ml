@@ -4,7 +4,7 @@
 (*                                                                        *)
 (*                  Mark Shinwell, Jane Street Europe                     *)
 (*                                                                        *)
-(*   Copyright 2018 Jane Street Group LLC                                 *)
+(*   Copyright 2018--2023 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -17,6 +17,11 @@
 include Ident
 
 type backend_var = t
+
+let name_for_debugger t = name t
+
+let unique_name_for_debugger t =
+  Printf.sprintf "%s/%d" (name t) (stamp t)
 
 module Provenance = struct
   type t = {

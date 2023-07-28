@@ -25,12 +25,35 @@ type fundecl =
 
 module DAH = Dwarf_attribute_helpers
 
-let for_fundecl ~get_file_id state fundecl =
+let remove_double_underscores s =
+  let len = String.length s in
+  let buf = Buffer.create len in
+  let skip = ref false in
+  let rec loop i =
+    if i < len
+    then (
+      let c = String.get s i in
+      if c = '.' then skip := true;
+      if (not !skip) && c = '_' && i + 1 < len && String.get s (i + 1) = '_'
+      then (
+        Buffer.add_char buf '.';
+        skip := true;
+        loop (i + 2))
+      else (
+        Buffer.add_char buf c;
+        loop (i + 1)))
+  in
+  loop 0;
+  Buffer.contents buf
+
+let for_fundecl ~get_file_id state fundecl available_ranges_vars =
   let parent = Dwarf_state.compilation_unit_proto_die state in
   let fun_name = fundecl.fun_name in
   let linkage_name =
     match fundecl.fun_dbg with
-    | [item] -> Debuginfo.Scoped_location.string_of_scopes item.dinfo_scopes
+    | [item] ->
+      Debuginfo.Scoped_location.string_of_scopes item.dinfo_scopes
+      |> remove_double_underscores
     (* Not sure what to do in the cases below *)
     | [] | _ :: _ -> fun_name
   in
@@ -65,9 +88,14 @@ let for_fundecl ~get_file_id state fundecl =
           ~debug_line_label:(Asm_label.for_dwarf_section Asm_section.Debug_line)
       ]
   in
-  let _concrete_instance_proto_die =
+  let concrete_instance_proto_die =
     Proto_die.create ~parent:(Some parent) ~tag:Subprogram ~attribute_values ()
   in
+  Profile.record "dwarf_variables_and_parameters"
+    (fun () ->
+      Dwarf_variables_and_parameters.dwarf state
+        ~function_proto_die:concrete_instance_proto_die available_ranges_vars)
+    ~accumulate:true ();
   (* CR mshinwell: When cross-referencing of DIEs across files is necessary we
      need to be careful about symbol table size. let name = Printf.sprintf
      "__concrete_instance_%s" fun_name in Proto_die.set_name

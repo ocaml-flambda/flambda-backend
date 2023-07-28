@@ -17,6 +17,7 @@
 open Asm_targets
 open Dwarf_high
 open Dwarf_low
+module DAH = Dwarf_attribute_helpers
 module DS = Dwarf_state
 
 type t =
@@ -39,16 +40,36 @@ let create ~sourcefile ~unit_name ~asm_directives ~get_file_id ~code_begin
       ~code_begin ~code_end
   in
   let compilation_unit_header_label = Asm_label.create (DWARF Debug_info) in
+  let value_type_proto_die =
+    Proto_die.create ~parent:(Some compilation_unit_proto_die) ~tag:Base_type
+      ~attribute_values:
+        [ DAH.create_name "ocaml_value";
+          DAH.create_encoding ~encoding:Encoding_attribute.signed;
+          DAH.create_byte_size_exn ~byte_size:Arch.size_addr ]
+      ()
+  in
+  let start_of_code_symbol =
+    Cmm_helpers.make_symbol "code_begin" |> Asm_symbol.create
+    (* Dwarf_name_laundry.mangle_symbol Text (Symbol.of_global_linkage
+       (Compilation_unit.get_current_exn ()) (Linkage_name.create
+       "code_begin")) *)
+  in
+  let debug_loc_table = Debug_loc_table.create () in
+  let debug_ranges_table = Debug_ranges_table.create () in
+  let address_table = Address_table.create () in
+  let location_list_table = Location_list_table.create () in
   let state =
     DS.create ~compilation_unit_header_label ~compilation_unit_proto_die
+      ~value_type_proto_die ~start_of_code_symbol debug_loc_table
+      debug_ranges_table address_table location_list_table
   in
   { state; asm_directives; emitted = false; get_file_id }
 
-let dwarf_for_fundecl t fundecl =
+let dwarf_for_fundecl t (result : Debug_passes.result) =
   Dwarf_concrete_instances.for_fundecl ~get_file_id:t.get_file_id t.state
-    fundecl
+    result.fundecl result.available_ranges_vars
 
-let emit t =
+let emit t ~basic_block_sections ~binary_backend_available =
   if t.emitted
   then
     Misc.fatal_error
@@ -58,5 +79,13 @@ let emit t =
   Dwarf_world.emit ~asm_directives:t.asm_directives
     ~compilation_unit_proto_die:(DS.compilation_unit_proto_die t.state)
     ~compilation_unit_header_label:(DS.compilation_unit_header_label t.state)
+    ~debug_loc_table:(DS.debug_loc_table t.state)
+    ~debug_ranges_table:(DS.debug_ranges_table t.state)
+    ~address_table:(DS.address_table t.state)
+    ~location_list_table:(DS.location_list_table t.state)
+    ~basic_block_sections ~binary_backend_available
 
-let emit t = Profile.record "emit_dwarf" emit t
+let emit t ~basic_block_sections ~binary_backend_available =
+  Profile.record "emit_dwarf"
+    (emit ~basic_block_sections ~binary_backend_available)
+    t

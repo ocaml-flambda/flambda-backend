@@ -415,7 +415,6 @@ let reset () =
   frame_descriptors := []
 
 let binary_backend_available = ref false
-let create_asm_file = ref true
 
 let reduce_heap_size ~reset =
   let _minor, _promoted, major_words = Gc.counters () in
@@ -479,9 +478,13 @@ module Dwarf_helpers = struct
     | true, _, _
     | false, _, _ -> ()
 
-  let emit_dwarf () = Option.iter Dwarf.emit !dwarf
+  let emit_dwarf () =
+    Option.iter (Dwarf.emit
+        ~basic_block_sections:!Flambda_backend_flags.basic_block_sections
+        ~binary_backend_available:!binary_backend_available)
+      !dwarf
 
-  let record_dwarf_for_fundecl ~fun_name fun_dbg =
+  let record_dwarf_for_fundecl fundecl =
     match !dwarf with
     | None -> None
     | Some dwarf ->
@@ -489,14 +492,12 @@ module Dwarf_helpers = struct
       let fun_end_label =
         Asm_targets.Asm_label.create_int Text label
       in
-      let fundecl : Dwarf_concrete_instances.fundecl =
-        { fun_name;
-          fun_dbg;
-          fun_end_label;
-        }
+      let result, fundecl =
+        Debug_passes.passes_for_fundecl fundecl ~fun_end_label
       in
-      Dwarf.dwarf_for_fundecl dwarf fundecl;
-      Some label
+      Dwarf.dwarf_for_fundecl dwarf result;
+      Some (label, fundecl)
+
 end
 
 let report_error ppf = function
@@ -508,4 +509,3 @@ let report_error ppf = function
   | Inconsistent_probe_init (name, dbg) ->
     Format.fprintf ppf "Inconsistent use of ~enabled_at_init in [%%probe %s ..] at %a"
       name Debuginfo.print_compact dbg
-
