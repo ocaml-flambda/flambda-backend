@@ -338,9 +338,9 @@ and expression_desc =
              {{!expression_desc.Pexp_fun}[Pexp_fun]}.
            - [let f P = E] is represented using
              {{!expression_desc.Pexp_fun}[Pexp_fun]}.
-           - While Position arguments are parsed as
+           - While Position arguments ([lbl:[%src_pos] -> ...]) are parsed as
              {{!Asttypes.arg_label.Labelled}[Labelled l]}, they are converted to
-             {{!Asttypes.arg_label.Position}[Position l]} arguments for type-checking.
+             {{!Types.arg_label.Position}[Position l]} arguments for type-checking.
          *)
   | Pexp_apply of expression * (arg_label * expression) list
       (** [Pexp_apply(E0, [(l1, E1) ; ... ; (ln, En)])]
