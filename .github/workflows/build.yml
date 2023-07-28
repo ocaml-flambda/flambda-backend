@@ -130,7 +130,7 @@ jobs:
         make -j $J world.opt
         make install
         # Remove unneeded parts to shrink cache file
-        rm -rf $GITHUB_WORKSPACE/ocaml-414/_install/{lib/ocaml/expunge,bin/*.byte}
+        rm -rf $GITHUB_WORKSPACE/ocaml-414/_install/{lib/ocaml/compiler-libs,lib/ocaml/expunge,bin/*.byte}
 
     - name: Checkout dune github repo
       uses: actions/checkout@master
